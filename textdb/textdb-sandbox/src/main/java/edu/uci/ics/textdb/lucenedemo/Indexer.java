@@ -82,7 +82,7 @@ public class Indexer {
             indexHotel(hotel);              
         }
         //
-        // Don't forget to close the index writer when done
+        // Closing the Index
         //
         closeIndexWriter();
    }    

@@ -23,42 +23,46 @@ import org.apache.lucene.search.IndexSearcher;
  * @author Rajesh
  */
 public class DemoMain {
-    
-    /** Creates a new instance of Main */
-    public DemoMain() {
-    }
-    
-    /**
-     * @param args the command line arguments
-     */
-    public static void main(String[] args) {
 
-      try {
-	// build a lucene index
-        System.out.println("buildIndex");
-        Indexer  indexer = new Indexer();
-        indexer.rebuildIndexes();
-        System.out.println("Indexing done");
+	/** Creates a new instance of Main */
+	public DemoMain() {
+	}
 
-        // perform search on "Notre Dame museum"
-        // and retrieve the top 100 result
-        System.out.println("performSearch");
-        Searcher se = new Searcher();
-        TopDocs topDocs = se.performSearch("Hotel", 50);
+	/**
+	 * @param args
+	 *            the command line arguments
+	 */
+	public static void main(String[] args) {
 
-        System.out.println("Results found: " + topDocs.totalHits);
-        ScoreDoc[] hits = topDocs.scoreDocs;
-        for (int i = 0; i < hits.length; i++) {
-            Document doc = se.getDocument(hits[i].doc);
-            System.out.println(doc.get("name")
-                               + " " + doc.get("city")
-                               + " (" + hits[i].score + ")");
+		try {
+			// build a lucene index
+//			System.out.println("buildIndex");
+//			Indexer indexer = new Indexer();
+//			indexer.rebuildIndexes();
+//			System.out.println("Indexing done");
 
-        }
-        System.out.println("performSearch done");
-      } catch (Exception e) {
-        System.out.println("Exception caught.\n");
-      }
-    }
-    
+			// perform search on user queries
+			// and retrieve the top 10 result
+
+			System.out.println(" performSearch ");
+
+			Searcher se = new Searcher();
+			TopDocs topDocs = se.performSearch("id:1*", 100);
+
+			System.out.println("Results found: " + topDocs.totalHits);
+			ScoreDoc[] hits = topDocs.scoreDocs;
+			for (int i = 0; i < hits.length; i++) {
+				Document doc = se.getDocument(hits[i].doc);
+				System.out.println("Name: " + doc.get("name") + " "+ ", City: " + doc.get("city") + " (" + hits[i].score + ")");
+
+			}
+
+			System.out.println("performSearch done");
+		}
+
+		catch (Exception e) {
+			System.out.println("Exception caught.\n");
+		}
+	}
+
 }
