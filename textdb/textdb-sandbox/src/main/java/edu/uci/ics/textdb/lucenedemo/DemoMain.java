@@ -20,7 +20,7 @@ import org.apache.lucene.search.IndexSearcher;
 
 /**
  *
- * @author John
+ * @author Rajesh
  */
 public class DemoMain {
     
@@ -35,10 +35,10 @@ public class DemoMain {
 
       try {
 	// build a lucene index
-        System.out.println("rebuildIndexes");
+        System.out.println("buildIndex");
         Indexer  indexer = new Indexer();
         indexer.rebuildIndexes();
-        System.out.println("rebuildIndexes done");
+        System.out.println("Indexing done");
 
         // perform search on "Notre Dame museum"
         // and retrieve the top 100 result
