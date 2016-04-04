@@ -22,6 +22,14 @@ public class SampleRegexPredicate implements IPredicate {
     @Override
     public boolean satisfy(ITuple tuple) {
         //TODO use Java Regex match to verify if the field satisfies this regex
-        return true;
+    	if(tuple == null){
+    		return false;
+    	}
+    	IField field = tuple.getField(fieldName);
+    	if(((String) field.getValue()).matches(regex)){
+    		return true;
+    	}
+    	
+        return false;
     }
 }

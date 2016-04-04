@@ -1,6 +1,5 @@
 package edu.uci.ics.textdb.common;
 
-
 import edu.uci.ics.textdb.api.common.IField;
 
 /**
@@ -8,29 +7,37 @@ import edu.uci.ics.textdb.api.common.IField;
  */
 public class StringField implements IField {
 
-    private final String value;
+	private final String value;
 
-    public StringField(String value){
-        this.value = value;
-    }
+	public StringField(String value) {
+		this.value = value;
+	}
 
-    String getValue(){
-        return value;
-    }
+	public String getValue() {
+		return value;
+	}
 
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+	@Override
+	public boolean equals(Object o) {
+		if (this == o)
+			return true;
+		if (o == null || getClass() != o.getClass())
+			return false;
 
-        StringField that = (StringField) o;
+		StringField that = (StringField) o;
 
-        return !(value != null ? !value.equals(that.value) : that.value != null);
+		return !(value != null ? !value.equals(that.value) : that.value != null);
 
-    }
+	}
 
-    @Override
-    public int hashCode() {
-        return value != null ? value.hashCode() : 0;
-    }
+	@Override
+	public int hashCode() {
+		return value != null ? value.hashCode() : 0;
+	}
+
+	@Override
+	public String toString() {
+		return "StringField [value=" + value + "]";
+	}
+
 }

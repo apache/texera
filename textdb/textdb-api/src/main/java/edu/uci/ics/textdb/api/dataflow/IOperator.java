@@ -9,7 +9,7 @@ public interface IOperator {
 
     void open();
 
-    ITuple getNextTuple();
+    ITuple getNextTuple() throws Exception;
 
     void close();
 }
