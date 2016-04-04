@@ -1,7 +1,16 @@
 package edu.uci.ics.textdb.lucenedemo;
 
-import edu.uci.ics.textdb.lucenedemo.*;
+/*
+ * 	Referance from http://oak.cs.ucla.edu/cs144/projects/lucene/
+ * 
+ */
 
+import edu.uci.ics.textdb.lucenedemo.Hotel;
+
+/*
+ * 	Data used by Lucene for indexing and searching
+ * 
+ */
 public class Data {
 
 	 private static final Hotel[] HOTELS = {    

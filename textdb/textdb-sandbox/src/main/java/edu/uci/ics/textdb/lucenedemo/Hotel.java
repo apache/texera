@@ -22,22 +22,20 @@ public class Hotel {
         this.city = city;     
     }
     
-    /**
-     * Holds value of property name.
-     */
+    
     private String name;
 
     /**
-     * Getter for property title.
-     * @return Value of property title.
+     * 
+     * returns property title.
      */
     public String getName() {
         return this.name;
     }
 
     /**
-     * Setter for property title.
-     * @param title New value of property title.
+     * Sets property title.
+     * 
      */
     public void setName(String name) {
         this.name = name;
@@ -49,16 +47,16 @@ public class Hotel {
     private String id;
 
     /**
-     * Getter for property id.
-     * @return Value of property id.
+     * 
+     * returns Value of property id.
      */
     public String getId() {
         return this.id;
     }
 
     /**
-     * Setter for property id.
-     * @param id New value of property id.
+     * Sets property id.
+     * 
      */
     public void setId(String id) {
         this.id = id;
@@ -70,16 +68,16 @@ public class Hotel {
     private String description;
 
     /**
-     * Getter for property details.
-     * @return Value of property details.
+     * returns property details.
+     * 
      */
     public String getDescription() {
         return this.description;
     }
 
     /**
-     * Setter for property details.
-     * @param details New value of property details.
+     * Sets property details.
+     * 
      */
     public void setDescription(String description) {
         this.description = description;
@@ -91,16 +89,16 @@ public class Hotel {
     private String city;
 
     /**
-     * Getter for property city.
-     * @return Value of property city.
+     *
+     * returns Value of city.
      */
     public String getCity() {
         return this.city;
     }
 
     /**
-     * Setter for property city.
-     * @param city New value of property city.
+     * Sets city.
+     * 
      */
     public void setCity(String city) {
         this.city = city;
