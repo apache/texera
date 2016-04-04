@@ -2,7 +2,7 @@ package edu.uci.ics.textdb.lucenedemo;
 
 import java.util.Iterator;
 
-
+import java.util.Scanner;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.analysis.TokenStream;
@@ -43,21 +43,27 @@ public class DemoMain {
 
 			// perform search on user queries
 			// and retrieve the top 10 result
-
+			
+			Scanner reader = new Scanner(System.in);  // Reading from System.in
+			System.out.println("Enter a search string: ");
+			String s = reader.next(); // Scans the next token of the input as an int.
+			reader.close();
 			System.out.println(" performSearch ");
 
 			Searcher se = new Searcher();
-			TopDocs topDocs = se.performSearch("id:1*", 100);
+			TopDocs topDocs = se.performSearch(s, 100);
 
 			System.out.println("Results found: " + topDocs.totalHits);
 			ScoreDoc[] hits = topDocs.scoreDocs;
 			for (int i = 0; i < hits.length; i++) {
 				Document doc = se.getDocument(hits[i].doc);
-				System.out.println("Name: " + doc.get("name") + " "+ ", City: " + doc.get("city") + " (" + hits[i].score + ")");
+				System.out.println("Id: "+ doc.get("id") +", Name: " + doc.get("name") + " "+ ", City: " + doc.get("city"));
 
 			}
-
+			
 			System.out.println("performSearch done");
+			
+		
 		}
 
 		catch (Exception e) {
