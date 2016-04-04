@@ -5,3 +5,6 @@
 /.settings
 target/
 out/
+
+# Ignoring Mac OSX specific files
+.DS_Store

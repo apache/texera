@@ -1,11 +1,10 @@
 package edu.uci.ics.textdb.dataflow.regexmatch;
 
-import edu.uci.ics.textdb.api.common.IDocument;
+import edu.uci.ics.textdb.api.common.IPredicate;
+import edu.uci.ics.textdb.dataflow.common.SampleRegexPredicate;
+import edu.uci.ics.textdb.dataflow.source.SampleSourceOperator;
+import junit.framework.Assert;
 import org.junit.Test;
-
-import java.util.ArrayList;
-
-import static org.junit.Assert.*;
 
 /**
  * Created by chenli on 3/25/16.
@@ -13,8 +12,13 @@ import static org.junit.Assert.*;
 public class RegexMatcherTest {
 
     @Test
-    public void testConstructionWillSucceed() throws Exception {
-        RegexMatcher matcher = new RegexMatcher("regex*", null);
+    public void testSamplePipeline() throws Exception {
+        IPredicate predicate = new SampleRegexPredicate("f*", SampleSourceOperator.FIRST_NAME);
+
+        RegexMatcher matcher = new RegexMatcher(predicate, new SampleSourceOperator());
+        for (int i = 0; i < SampleSourceOperator.SAMPLE_TUPLES.size(); i++) {
+            Assert.assertEquals(matcher.getNextTuple(), SampleSourceOperator.SAMPLE_TUPLES.get(i));
+        }
     }
 
 }
