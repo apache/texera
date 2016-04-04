@@ -8,11 +8,8 @@ public class SudeepHelloWorld
 {
     public static void main( String[] args )
     {
-        // Bad comments
+        // Print 'Hello World' to the console
         System.out.println( "Hello World!" );
-        // TOBE deleted
-        while (true){
-            System.out.println( "Woohoo!" );
-        }
+        
     }
 }
