@@ -7,6 +7,7 @@ import edu.uci.ics.textdb.api.common.IPredicate;
 import edu.uci.ics.textdb.api.common.ITuple;
 import edu.uci.ics.textdb.dataflow.common.SampleRegexPredicate;
 import edu.uci.ics.textdb.dataflow.source.Constants;
+import edu.uci.ics.textdb.dataflow.source.SampleDataStore;
 import edu.uci.ics.textdb.dataflow.source.SampleDataStoreTest;
 import edu.uci.ics.textdb.dataflow.source.SampleSourceOperator;
 import junit.framework.Assert;
@@ -15,6 +16,8 @@ import junit.framework.Assert;
  * Created by chenli on 3/25/16.
  */
 public class RegexMatcherTest {
+    
+    
 
 	/**
 	 * Ignoring this test so that travis CI build doesn't fail.
@@ -24,9 +27,10 @@ public class RegexMatcherTest {
 	 * @throws Exception
 	 */
     @Test
-    @Ignore
     public void testSamplePipeline() throws Exception {
         IPredicate predicate = new SampleRegexPredicate("f.", Constants.FIRST_NAME);
+        SampleDataStore dataStore = new SampleDataStore();
+        dataStore.storeData();
 
         RegexMatcher matcher = new RegexMatcher(predicate, new SampleSourceOperator());
         for (int i = 0; i < Constants.SAMPLE_TUPLES.size(); i++) {
