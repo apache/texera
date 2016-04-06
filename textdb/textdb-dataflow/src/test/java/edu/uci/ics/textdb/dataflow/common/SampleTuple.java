@@ -11,7 +11,6 @@ import java.util.List;
  */
 public class SampleTuple implements ITuple {
     private final List<String> schema;
-
     private final List<IField> fields;
 
     public SampleTuple(List<String> schema, IField... fields) {
@@ -32,7 +31,7 @@ public class SampleTuple implements ITuple {
         }
         return getField(index);
     }
-
+    
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -44,5 +43,12 @@ public class SampleTuple implements ITuple {
         return fields.equals(that.fields);
 
     }
+
+	@Override
+	public String toString() {
+		return "SampleTuple [schema=" + schema + ", fields=" + fields + "]";
+	}
+    
+    
 }
 

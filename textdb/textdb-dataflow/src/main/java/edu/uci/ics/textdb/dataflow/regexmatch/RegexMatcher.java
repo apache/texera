@@ -4,6 +4,7 @@ import edu.uci.ics.textdb.api.common.IPredicate;
 import edu.uci.ics.textdb.api.common.ITuple;
 import edu.uci.ics.textdb.api.dataflow.IOperator;
 import edu.uci.ics.textdb.api.dataflow.ISourceOperator;
+
 import org.apache.lucene.search.Query;
 
 /**
@@ -17,7 +18,7 @@ public class RegexMatcher implements IOperator {
     public RegexMatcher(IPredicate predicate, ISourceOperator sourceOperator) {
         this.predicate = predicate;
         this.sourceOperator = sourceOperator;
-        //TODO build the luceneQuery by given regex.
+        //TODO build the luceneQuery by given regex.	
     }
 
     @Override
@@ -25,9 +26,12 @@ public class RegexMatcher implements IOperator {
 
     }
 
-    public ITuple getNextTuple() {
+    public ITuple getNextTuple() throws Exception {
 
         ITuple sourceTuple = sourceOperator.getNextTuple();
+        if(sourceTuple == null){
+        	return null;
+        }
         if (predicate.satisfy(sourceTuple)) {
             return sourceTuple;
         } else {
