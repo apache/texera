@@ -24,7 +24,7 @@ public class Data {
     public static Movie getMovie(String id) {
         for (Movie movie : MOVIES) {
             if (id.equals(movie.getId())) {
-                return Movie;
+                return movie;
             }
         }
         return null;

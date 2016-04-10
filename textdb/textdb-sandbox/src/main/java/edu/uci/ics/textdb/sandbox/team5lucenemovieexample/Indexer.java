@@ -1,6 +1,5 @@
 package edu.uci.ics.textdb.sandbox.team5lucenemovieexample;
 
-import static edu.uci.ics.textdb.sandbox.team5lucenemovieexample.LuceneIndexConstants.CITY_FIELD;
 import static edu.uci.ics.textdb.sandbox.team5lucenemovieexample.LuceneIndexConstants.CONTENT_FIELD;
 import static edu.uci.ics.textdb.sandbox.team5lucenemovieexample.LuceneIndexConstants.ID_FIELD;
 import static edu.uci.ics.textdb.sandbox.team5lucenemovieexample.LuceneIndexConstants.INDEX_DIR;
@@ -65,7 +64,7 @@ public class Indexer {
         indexWriter.deleteAll();
         // Index all Accommodation entries
         Movie[] movies = Data.getMovies();
-        for (Movie Movie : movies) {
+        for (Movie movie : movies) {
             indexMovie(movie);
         }
 
