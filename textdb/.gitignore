@@ -8,3 +8,6 @@ out/
 
 # Ignoring Mac OSX specific files
 .DS_Store
+
+# Ignoring IntelliJ related files
+.idea

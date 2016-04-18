@@ -23,8 +23,13 @@ public class RegexMatcher implements IOperator {
     }
 
     @Override
-    public void open() {
-
+    public void open() throws DataFlowException {
+        try {
+            sourceOperator.open();
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new DataFlowException(e.getMessage(), e);
+        }
     }
 
     @Override
@@ -48,7 +53,12 @@ public class RegexMatcher implements IOperator {
     }
 
     @Override
-    public void close() {
-
+    public void close() throws DataFlowException {
+        try {
+            sourceOperator.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new DataFlowException(e.getMessage(), e);
+        }
     }
 }

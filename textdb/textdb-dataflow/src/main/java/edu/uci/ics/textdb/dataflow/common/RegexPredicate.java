@@ -6,7 +6,7 @@ package edu.uci.ics.textdb.dataflow.common;
 import edu.uci.ics.textdb.api.common.IField;
 import edu.uci.ics.textdb.api.common.IPredicate;
 import edu.uci.ics.textdb.api.common.ITuple;
-import edu.uci.ics.textdb.common.StringField;
+import edu.uci.ics.textdb.common.field.StringField;
 
 /**
  * @author sandeepreddy602

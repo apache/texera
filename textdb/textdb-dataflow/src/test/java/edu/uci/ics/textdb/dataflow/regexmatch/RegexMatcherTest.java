@@ -1,7 +1,5 @@
 package edu.uci.ics.textdb.dataflow.regexmatch;
 
-import java.io.IOException;
-import java.util.Arrays;
 import java.util.List;
 
 import org.junit.After;
@@ -12,11 +10,17 @@ import org.junit.Test;
 import edu.uci.ics.textdb.api.common.IPredicate;
 import edu.uci.ics.textdb.api.common.ITuple;
 import edu.uci.ics.textdb.api.dataflow.ISourceOperator;
+import edu.uci.ics.textdb.api.storage.IDataReader;
+import edu.uci.ics.textdb.api.storage.IDataStore;
+import edu.uci.ics.textdb.api.storage.IDataWriter;
+import edu.uci.ics.textdb.common.constants.LuceneConstants;
+import edu.uci.ics.textdb.common.constants.TestConstants;
 import edu.uci.ics.textdb.dataflow.common.RegexPredicate;
-import edu.uci.ics.textdb.dataflow.constants.LuceneConstants;
-import edu.uci.ics.textdb.dataflow.source.SampleDataStore;
 import edu.uci.ics.textdb.dataflow.source.ScanBasedSourceOperator;
-import edu.uci.ics.textdb.dataflow.source.TestConstants;
+import edu.uci.ics.textdb.dataflow.utils.TestUtils;
+import edu.uci.ics.textdb.storage.LuceneDataStore;
+import edu.uci.ics.textdb.storage.reader.LuceneDataReader;
+import edu.uci.ics.textdb.storage.writer.LuceneDataWriter;
 
 /**
  * Created by chenli on 3/25/16.
@@ -24,44 +28,44 @@ import edu.uci.ics.textdb.dataflow.source.TestConstants;
 public class RegexMatcherTest {
     
     private RegexMatcher regexMatcher;
-    private SampleDataStore dataStore;
+    private IDataWriter dataWriter;
+    private IDataReader dataReader;
+    private IDataStore dataStore;
     
     @Before
     public void setUp() throws Exception{
-        dataStore = new SampleDataStore();
-        dataStore.clearData();
-        dataStore.storeData();
+        dataStore = new LuceneDataStore(LuceneConstants.INDEX_DIR, TestConstants.SAMPLE_SCHEMA_PEOPLE);
+        dataWriter = new LuceneDataWriter(dataStore);
+        dataWriter.clearData();
+        dataWriter.writeData(TestConstants.getSamplePeopleTuples());
+        dataReader = new LuceneDataReader(dataStore,LuceneConstants.SCAN_QUERY, 
+            TestConstants.SAMPLE_SCHEMA_PEOPLE.get(0).getFieldName());
     }
     
     @After
-    public void cleanUp() throws IOException{
-        dataStore.clearData();
+    public void cleanUp() throws Exception{
+        dataWriter.clearData();
     }
     
     @Test
     public void testGetNextTuple() throws Exception{
-        String regex = "f.";
+        String regex = "b.*"; //matches bruce and brad
         String fieldName = TestConstants.FIRST_NAME;
         IPredicate predicate = new RegexPredicate(regex, fieldName);
-        String dataDirectory = LuceneConstants.INDEX_DIR;
-        List<String> schema = Arrays.asList(TestConstants.FIRST_NAME, TestConstants.LAST_NAME);
-        ISourceOperator sourceOperator = new ScanBasedSourceOperator(dataDirectory, schema);
-        sourceOperator.open();
+        ISourceOperator sourceOperator = new ScanBasedSourceOperator(dataReader);
+        List<ITuple> tuples = TestConstants.getSamplePeopleTuples();
+        
         regexMatcher = new RegexMatcher(predicate, sourceOperator);
-        
+        regexMatcher.open();
         ITuple nextTuple = null;
-        int counter = 0;
+        int numTuples = 0;
         while((nextTuple = regexMatcher.getNextTuple()) != null){
-            assertEquality(TestConstants.SAMPLE_TUPLES.get(counter++), nextTuple);
+            boolean contains = TestUtils.contains(tuples, nextTuple);
+            Assert.assertTrue(contains);
+            numTuples ++;
         }
-    }
-    
-    private void assertEquality(ITuple expectedTuple, ITuple actualTuple) {
-        int schemaSize = TestConstants.SAMPLE_SCHEMA.size();
-        for (int i = 0; i < schemaSize; i++) {
-            Assert.assertEquals(expectedTuple.getField(i), actualTuple.getField(i));
-        }
-        
+        Assert.assertEquals(2, numTuples);
+        regexMatcher.close();
     }
 
 }

@@ -3,7 +3,7 @@
  */
 package edu.uci.ics.textdb.dataflow.source;
 
-import java.io.IOException;
+import java.text.ParseException;
 import java.util.List;
 
 import org.junit.After;
@@ -12,8 +12,16 @@ import org.junit.Before;
 import org.junit.Test;
 
 import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.storage.IDataReader;
+import edu.uci.ics.textdb.api.storage.IDataStore;
+import edu.uci.ics.textdb.api.storage.IDataWriter;
+import edu.uci.ics.textdb.common.constants.LuceneConstants;
+import edu.uci.ics.textdb.common.constants.TestConstants;
 import edu.uci.ics.textdb.common.exception.DataFlowException;
-import edu.uci.ics.textdb.dataflow.constants.LuceneConstants;
+import edu.uci.ics.textdb.dataflow.utils.TestUtils;
+import edu.uci.ics.textdb.storage.LuceneDataStore;
+import edu.uci.ics.textdb.storage.reader.LuceneDataReader;
+import edu.uci.ics.textdb.storage.writer.LuceneDataWriter;
 
 /**
  * @author sandeepreddy602
@@ -21,52 +29,41 @@ import edu.uci.ics.textdb.dataflow.constants.LuceneConstants;
  */
 public class ScanBasedSourceOperatorTest {
     
-    private SampleDataStore dataStore;
+    private IDataWriter dataWriter;
     private ScanBasedSourceOperator scanBasedSourceOperator;
+    private IDataReader dataReader;
+    private IDataStore dataStore;
     
     @Before
     public void setUp() throws Exception{
-        dataStore = new SampleDataStore();
-        dataStore.clearData();
-        dataStore.storeData();
-        scanBasedSourceOperator = new ScanBasedSourceOperator(
-                LuceneConstants.INDEX_DIR, TestConstants.SAMPLE_SCHEMA);
+        dataStore = new LuceneDataStore(LuceneConstants.INDEX_DIR, TestConstants.SAMPLE_SCHEMA_PEOPLE);
+        dataWriter = new LuceneDataWriter(dataStore);
+        dataWriter.clearData();
+        dataWriter.writeData(TestConstants.getSamplePeopleTuples());
+        dataReader = new LuceneDataReader(dataStore,LuceneConstants.SCAN_QUERY, 
+                TestConstants.SAMPLE_SCHEMA_PEOPLE.get(0).getFieldName());
+        scanBasedSourceOperator = new ScanBasedSourceOperator(dataReader);
     }
     
     @After
-    public void cleanUp() throws IOException{
-        dataStore.clearData();
+    public void cleanUp() throws Exception{
+        dataWriter.clearData();
     }
     
     @Test
-    public void testFlow() throws DataFlowException{
+    public void testFlow() throws DataFlowException, ParseException{
+        List<ITuple> tuples = TestConstants.getSamplePeopleTuples();
         scanBasedSourceOperator.open();
         ITuple nextTuple = null;
         int numTuples = 0;
         while((nextTuple  = scanBasedSourceOperator.getNextTuple()) != null){
             //Checking if the tuple retrieved is present in the samplesTuples
-            boolean contains = contains(TestConstants.SAMPLE_TUPLES, nextTuple);
+            boolean contains = TestUtils.contains(tuples, nextTuple);
             Assert.assertTrue(contains);
             numTuples ++;
         }
-        Assert.assertEquals(TestConstants.SAMPLE_TUPLES.size(), numTuples);
+        Assert.assertEquals(tuples.size(), numTuples);
         scanBasedSourceOperator.close();
     }
     
-    private boolean contains(List<ITuple> sampleTuples, ITuple actualTuple) {
-        boolean contains = false;
-        int schemaSize = TestConstants.SAMPLE_SCHEMA.size();
-        for (ITuple sampleTuple : sampleTuples) {
-            contains = true;
-            for (int i = 0; i < schemaSize; i++) {
-                if(!sampleTuple.getField(i).equals(actualTuple.getField(i))){
-                    contains = false;
-                }
-            }
-            if(contains){
-                return contains;
-            }
-        }
-        return contains;
-    }
 }

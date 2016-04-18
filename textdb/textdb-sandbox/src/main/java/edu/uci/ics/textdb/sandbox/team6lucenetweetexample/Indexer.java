@@ -1,7 +1,6 @@
 package edu.uci.ics.textdb.sandbox.team6lucenetweetexample;
 
 import static edu.uci.ics.textdb.sandbox.team6lucenetweetexample.LuceneIndexConstants.*;
-import java.io.File;
 
 import java.io.IOException;
 import java.nio.file.Paths;
@@ -63,9 +62,6 @@ public class Indexer {
     public void rebuildIndexes() throws IOException {
         getIndexWriter();
         indexWriter.deleteAll();
-        //load data from file
-        //The file training.sample.csv contains some tweets and is located in the same directory as this code
-        Data.loadTweets(new File("training.sample.csv"));
         // Index all Accommodation entries
         for (Tweet tweet : Data.getTweets()) {
             indexTweet(tweet);
