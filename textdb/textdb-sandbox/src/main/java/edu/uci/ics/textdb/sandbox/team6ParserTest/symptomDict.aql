@@ -1,0 +1,15 @@
+module SymptomDict; 
+
+
+create dictionary symptom_dict
+	from file '../../../resources/dictionaries/WebMD_symptoms.txt'
+	with language as 'en'
+	and case insensitive;
+
+create view Symptoms as
+	extract dictionary 'symptom_dict'
+		with flags 'IgnoreCase'
+	on D.text as SymptomName
+	from Document D;
+	
+output view Symptoms;

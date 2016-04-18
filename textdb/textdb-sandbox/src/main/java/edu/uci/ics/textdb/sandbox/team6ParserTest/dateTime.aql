@@ -1,0 +1,37 @@
+module DateTime; 
+
+-- regular expression to match month:
+-- (?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:orber)?|Nov(?:ember)?|Dec(?:ember)?)
+
+-- date format 1
+-- month_name year
+-- Jan 2016  November 1995
+create view DateFormat1 as
+extract regex /(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:orber)?|Nov(?:ember)?|Dec(?:ember)?) (?:19[7-9]\d|2\d{3})/
+on D.text as date
+from Document D;
+
+-- date format 2
+-- month_name date, year
+-- Jan 28, 2016
+create view DateFormat2 as
+extract regex /(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:orber)?|Nov(?:ember)?|Dec(?:ember)?)\s(\d|[0-2]\d|3[0-1]),\s(19\d{2}|2\d{3})/
+on D.text as date
+from Document D;
+
+-- date fomrat 3
+-- month/day/year
+-- 1/28/2016
+create view DateFormat3 as
+extract regex /(\d|0\d|1[0-2])\/(\d|[0-2]\d|3[0-1])\/(19\d{2}|2\d{3}|d{2})/
+on D.text as date
+from Document D;
+
+create view DateUnion as
+(select D.* from DateFormat1 D)
+union all
+(select D.* from DateFormat2 D)
+union all
+(select D.* from DateFormat3 D);
+
+output view DateUnion;
