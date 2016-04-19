@@ -2,6 +2,8 @@ package edu.uci.ics.textdb.dataflow.keywordmatch;
 
 import java.util.List;
 
+import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -47,11 +49,10 @@ public class KeywordMatcherTest {
         dataWriter.clearData();
     }
     
-    @Test
-    public void testGetNextTuple() throws Exception{
-        String keyword = "chris"; //matches chris and christian
+    public int runKeywordMatcher(String query) throws Exception{
         String fieldName = TestConstants.FIRST_NAME;
-        IPredicate predicate = new KeywordPredicate(keyword, fieldName);
+        Analyzer analyzer = new StandardAnalyzer();
+        IPredicate predicate = new KeywordPredicate(query, fieldName, analyzer);
         ISourceOperator sourceOperator = new ScanBasedSourceOperator(dataReader);
         List<ITuple> tuples = TestConstants.getSamplePeopleTuples();
         
@@ -64,8 +65,29 @@ public class KeywordMatcherTest {
             Assert.assertTrue(contains);
             numTuples ++;
         }
-        Assert.assertEquals(2, numTuples);
         keywordMatcher.close();
+        return numTuples;
+    }
+    
+    @Test
+    public void testWithSingleKeyword() throws Exception{
+    	String query = "chris";
+    	int numTuples = runKeywordMatcher(query);
+    	Assert.assertEquals(1, numTuples);
+    }
+    
+    @Test
+    public void testWithMultipleKeyword() throws Exception{
+    	String query = "evans chris";
+    	int numTuples = runKeywordMatcher(query);
+    	Assert.assertEquals(1, numTuples);
+    }
+    
+    @Test
+    public void testWithMissingKeyword() throws Exception{
+    	String query = "chris evans random";
+    	int numTuples = runKeywordMatcher(query);
+    	Assert.assertEquals(0, numTuples);
     }
 
 }

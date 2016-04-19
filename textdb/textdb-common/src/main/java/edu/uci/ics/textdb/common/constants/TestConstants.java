@@ -54,7 +54,7 @@ public class TestConstants {
                 new DoubleField(6.06), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1973"))};
         IField[] fields5 = {new StringField("christian"), new StringField("bale"), new IntegerField(42), 
                 new DoubleField(5.99), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974"))};
-        IField[] fields6 = {new StringField("chris"), new StringField("lee"), new IntegerField(42), 
+        IField[] fields6 = {new StringField("chris evans"), new StringField("lee"), new IntegerField(42), 
                 new DoubleField(5.99), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974"))};
         
         
