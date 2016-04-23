@@ -12,5 +12,5 @@ public interface ITuple {
 
     List<IField> getFields();
 
-    List<Attribute> getSchema();
+    Schema getSchema();
 }

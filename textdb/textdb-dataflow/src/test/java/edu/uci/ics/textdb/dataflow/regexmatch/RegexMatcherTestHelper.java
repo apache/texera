@@ -5,6 +5,7 @@ import java.util.List;
 
 import edu.uci.ics.textdb.api.common.IPredicate;
 import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.api.dataflow.ISourceOperator;
 import edu.uci.ics.textdb.api.storage.IDataReader;
 import edu.uci.ics.textdb.api.storage.IDataStore;
@@ -17,7 +18,6 @@ import edu.uci.ics.textdb.dataflow.utils.TestUtils;
 import edu.uci.ics.textdb.storage.LuceneDataStore;
 import edu.uci.ics.textdb.storage.reader.LuceneDataReader;
 import edu.uci.ics.textdb.storage.writer.LuceneDataWriter;
-import edu.uci.ics.textdb.api.common.Attribute;
 
 
 /**
@@ -34,7 +34,7 @@ public class RegexMatcherTestHelper {
 	
 	private List<ITuple> results;
 	
-	public RegexMatcherTestHelper(List<Attribute> schema, List<ITuple> data) throws Exception {
+	public RegexMatcherTestHelper(Schema schema, List<ITuple> data) throws Exception {
 		dataStore = new LuceneDataStore(LuceneConstants.INDEX_DIR, schema);
 		dataWriter = new LuceneDataWriter(dataStore);
 		dataWriter.clearData();

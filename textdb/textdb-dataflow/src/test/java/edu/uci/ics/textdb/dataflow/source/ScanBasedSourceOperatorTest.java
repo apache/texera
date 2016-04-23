@@ -36,12 +36,12 @@ public class ScanBasedSourceOperatorTest {
     
     @Before
     public void setUp() throws Exception{
-        dataStore = new LuceneDataStore(LuceneConstants.INDEX_DIR, TestConstants.SAMPLE_SCHEMA_PEOPLE);
+        dataStore = new LuceneDataStore(LuceneConstants.INDEX_DIR, TestConstants.SCHEMA_PEOPLE);
         dataWriter = new LuceneDataWriter(dataStore);
         dataWriter.clearData();
         dataWriter.writeData(TestConstants.getSamplePeopleTuples());
-        dataReader = new LuceneDataReader(dataStore,LuceneConstants.SCAN_QUERY, 
-                TestConstants.SAMPLE_SCHEMA_PEOPLE.get(0).getFieldName());
+        dataReader = new LuceneDataReader(dataStore, LuceneConstants.SCAN_QUERY, 
+                TestConstants.ATTRIBUTES_PEOPLE.get(0).getFieldName());
         scanBasedSourceOperator = new ScanBasedSourceOperator(dataReader);
     }
     
@@ -58,7 +58,7 @@ public class ScanBasedSourceOperatorTest {
         int numTuples = 0;
         while((nextTuple  = scanBasedSourceOperator.getNextTuple()) != null){
             //Checking if the tuple retrieved is present in the samplesTuples
-            boolean contains = TestUtils.contains(tuples, nextTuple, TestConstants.SAMPLE_SCHEMA_PEOPLE);
+            boolean contains = TestUtils.contains(tuples, nextTuple, TestConstants.ATTRIBUTES_PEOPLE);
             Assert.assertTrue(contains);
             numTuples ++;
         }

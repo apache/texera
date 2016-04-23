@@ -14,6 +14,7 @@ import org.junit.Test;
 import edu.uci.ics.textdb.api.common.Attribute;
 import edu.uci.ics.textdb.api.common.IField;
 import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.common.constants.SchemaConstants;
 import edu.uci.ics.textdb.common.constants.TestConstants;
 
@@ -29,16 +30,16 @@ public class SpanTupleTest {
     @Test
     public void testGetters() throws ParseException{
         //create data tuple first
-        List<Attribute> schema = new ArrayList<Attribute>(TestConstants.SAMPLE_SCHEMA_PEOPLE);
+        List<Attribute> attributes = new ArrayList<Attribute>(TestConstants.ATTRIBUTES_PEOPLE);
         List<IField> fields = new ArrayList<IField>(
                 Arrays.asList(new IField[]{new StringField("bruce"), new StringField("lee"), new IntegerField(46), 
                 new DoubleField(5.50), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-14-1970"))}));
         
         //populate span related fields
-        schema.add(SchemaConstants.SPAN_FIELD_NAME_ATTRIBUTE);
-        schema.add(SchemaConstants.SPAN_KEY_ATTRIBUTE);
-        schema.add(SchemaConstants.SPAN_BEGIN_ATTRIBUTE);
-        schema.add(SchemaConstants.SPAN_END_ATTRIBUTE);
+        attributes.add(SchemaConstants.SPAN_FIELD_NAME_ATTRIBUTE);
+        attributes.add(SchemaConstants.SPAN_KEY_ATTRIBUTE);
+        attributes.add(SchemaConstants.SPAN_BEGIN_ATTRIBUTE);
+        attributes.add(SchemaConstants.SPAN_END_ATTRIBUTE);
         
         String spanFieldName = "city";
         String spanKey = "San Fransisco";
@@ -51,7 +52,7 @@ public class SpanTupleTest {
         fields.add(new IntegerField(spanEnd));
         
         
-        spanTuple = new DataTuple(schema, fields.toArray(new IField[fields.size()]));
+        spanTuple = new DataTuple(new Schema(attributes), fields.toArray(new IField[fields.size()]));
         
         IField beginField = spanTuple.getField(SchemaConstants.SPAN_BEGIN);
         Assert.assertEquals(spanBegin, beginField.getValue());

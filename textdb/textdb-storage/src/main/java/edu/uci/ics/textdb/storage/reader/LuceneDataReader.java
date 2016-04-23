@@ -90,7 +90,7 @@ public class LuceneDataReader implements IDataReader{
             Document document = indexSearcher.doc(scoreDocs[cursor++].doc);
             
             List<IField> fields = new ArrayList<IField>();
-            for (Attribute  attr : dataStore.getSchema()) {
+            for (Attribute  attr : dataStore.getSchema().getAttributes()) {
                 FieldType fieldType = attr.getFieldType();
                 String fieldValue = document.get(attr.getFieldName());
                 fields.add(Utils.getField(fieldType, fieldValue));

@@ -8,6 +8,7 @@ import edu.uci.ics.textdb.api.common.Attribute;
 import edu.uci.ics.textdb.api.common.IDictionary;
 import edu.uci.ics.textdb.api.common.IField;
 import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.api.dataflow.IOperator;
 import edu.uci.ics.textdb.common.constants.SchemaConstants;
 import edu.uci.ics.textdb.common.exception.DataFlowException;
@@ -31,7 +32,7 @@ public class DictionaryMatcher implements IOperator {
     private String fieldName;
     private ITuple dataTuple;
     private List<IField> fields;
-    private List<Attribute> schema;
+    private Schema schema;
 
     public DictionaryMatcher(IDictionary dictionary, IOperator operator) {
         this.operator = operator;
@@ -85,7 +86,7 @@ public class DictionaryMatcher implements IOperator {
                     // new positionIndex.
                     positionIndex = spanIndexValue + dictionaryValue.length();
 
-                    Attribute attribute = dataTuple.getSchema().get(fieldIndex);
+                    Attribute attribute = schema.getAttributes().get(fieldIndex);
                     fieldName = attribute.getFieldName();
 
                     return getSpanTuple();
@@ -135,11 +136,11 @@ public class DictionaryMatcher implements IOperator {
      * @about Modifies schema, fields and creates a new span tuple
      */
     private ITuple getSpanTuple() {
-        List<Attribute> schemaDuplicate = new ArrayList<>(schema);
-        schemaDuplicate.add(SchemaConstants.SPAN_FIELD_NAME_ATTRIBUTE);
-        schemaDuplicate.add(SchemaConstants.SPAN_KEY_ATTRIBUTE);
-        schemaDuplicate.add(SchemaConstants.SPAN_BEGIN_ATTRIBUTE);
-        schemaDuplicate.add(SchemaConstants.SPAN_END_ATTRIBUTE);
+        List<Attribute> attributesCopy = new ArrayList<>(schema.getAttributes());
+        attributesCopy.add(SchemaConstants.SPAN_FIELD_NAME_ATTRIBUTE);
+        attributesCopy.add(SchemaConstants.SPAN_KEY_ATTRIBUTE);
+        attributesCopy.add(SchemaConstants.SPAN_BEGIN_ATTRIBUTE);
+        attributesCopy.add(SchemaConstants.SPAN_END_ATTRIBUTE);
 
         List<IField> fieldListDuplicate = new ArrayList<>(fields);
         fieldListDuplicate.add(new StringField(fieldName));
@@ -148,7 +149,7 @@ public class DictionaryMatcher implements IOperator {
         fieldListDuplicate.add(new IntegerField(positionIndex - 1));
 
         IField[] fieldsDuplicate = fieldListDuplicate.toArray(new IField[fieldListDuplicate.size()]);
-        return new DataTuple(schemaDuplicate, fieldsDuplicate);
+        return new DataTuple(new Schema(attributesCopy), fieldsDuplicate);
     }
 
     /**

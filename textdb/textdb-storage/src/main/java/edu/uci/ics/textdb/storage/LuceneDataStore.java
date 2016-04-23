@@ -1,16 +1,14 @@
 package edu.uci.ics.textdb.storage;
 
-import java.util.List;
-
-import edu.uci.ics.textdb.api.common.Attribute;
+import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.api.storage.IDataStore;
 
 public class LuceneDataStore implements IDataStore {
     private String dataDirectory;
     private int numDocuments;
-    private List<Attribute> schema;
+    private Schema schema;
 
-    public LuceneDataStore(String dataDirectory, List<Attribute> schema) {
+    public LuceneDataStore(String dataDirectory, Schema schema) {
         this.dataDirectory = dataDirectory;
         this.schema = schema;
     }
@@ -31,7 +29,7 @@ public class LuceneDataStore implements IDataStore {
     }
 
     @Override
-    public List<Attribute> getSchema() {
+    public Schema getSchema() {
         return schema;
     }
 
