@@ -4,16 +4,15 @@ import edu.uci.ics.textdb.api.common.IField;
 
 /**
  * Created by chenli on 3/31/16. 
- * A field that is indexed but not tokenized: the
- * entire String value is indexed as a single token. For example this might be
- * used for a 'country' field or an 'id' field, or any field that you intend to
- * use for sorting or access through the field cache.
+ * A field that is indexed and tokenized, without
+ * term vectors. For example this would be used on a 'body' field, that contains
+ * the bulk of a document's text.
  */
-public class StringField implements IField {
+public class TextField implements IField {
 
 	private final String value;
 
-	public StringField(String value) {
+	public TextField(String value) {
 		this.value = value;
 	}
 
@@ -28,7 +27,7 @@ public class StringField implements IField {
 		if (o == null || getClass() != o.getClass())
 			return false;
 
-		StringField that = (StringField) o;
+		TextField that = (TextField) o;
 
 		return value != null ? value.equals(that.value) : that.value == null;
 
@@ -41,7 +40,7 @@ public class StringField implements IField {
 
 	@Override
 	public String toString() {
-		return "StringField [value=" + value + "]";
+		return "TextField [value=" + value + "]";
 	}
 
 }

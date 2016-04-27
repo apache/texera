@@ -15,6 +15,7 @@ import edu.uci.ics.textdb.common.field.DateField;
 import edu.uci.ics.textdb.common.field.DoubleField;
 import edu.uci.ics.textdb.common.field.IntegerField;
 import edu.uci.ics.textdb.common.field.StringField;
+import edu.uci.ics.textdb.common.field.TextField;
 
 public class Utils {
     public static IField getField(FieldType fieldType, String fieldValue) throws ParseException{
@@ -32,6 +33,10 @@ public class Utils {
             case DATE:
                 field = new DateField(DateTools.stringToDate(fieldValue));
                 break;
+            case TEXT:
+                field = new TextField(fieldValue);
+                break;
+            
             default:
                 break;
         }
@@ -42,12 +47,12 @@ public class Utils {
             String fieldName, Object fieldValue) {
         IndexableField luceneField = null;
         switch(fieldType){
-            case STRING:
+	        case STRING:
                 luceneField = new org.apache.lucene.document.StringField(
                         fieldName, (String) fieldValue, Store.YES);
                 break;
             case INTEGER:
-                luceneField = new IntField(
+                luceneField = new org.apache.lucene.document.IntField(
                         fieldName, (Integer) fieldValue, Store.YES);
                 break;
             case DOUBLE:
@@ -59,6 +64,11 @@ public class Utils {
                 String dateString = DateTools.dateToString((Date) fieldValue, Resolution.MILLISECOND);
                 luceneField = new org.apache.lucene.document.StringField(fieldName, dateString, Store.YES);
                 break;
+            case TEXT:
+	            luceneField = new org.apache.lucene.document.TextField(
+	                    fieldName, (String) fieldValue, Store.YES);
+	            break;
+            
         }
         return luceneField;
     }

@@ -1,4 +1,4 @@
-package edu.uci.ics.textdb.sandbox.team3lucenecityexample;
+package edu.uci.ics.textdb.sandbox.team3.team3lucenecityexample;
 
 public class Data {
 

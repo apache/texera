@@ -8,13 +8,13 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.lucene.analysis.Analyzer;
-import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
-import org.apache.lucene.queryparser.classic.ParseException;
-import org.apache.lucene.queryparser.classic.QueryParser;
+import org.apache.lucene.index.MultiFields;
+import org.apache.lucene.index.Term;
+import org.apache.lucene.index.Terms;
+import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
@@ -44,14 +44,11 @@ public class LuceneDataReader implements IDataReader{
     private IndexSearcher indexSearcher;
     private ScoreDoc[] scoreDocs;
     private IndexReader indexReader;
-    private String query;
-    private String defaultField;
+    private Query query;
     
-    public LuceneDataReader(IDataStore dataStore, 
-            String query, String defaultField) {
+    public LuceneDataReader(IDataStore dataStore, Query query) {
         this.dataStore = dataStore;
         this.query = query;
-        this.defaultField = defaultField;
     }
     
     @Override
@@ -61,21 +58,15 @@ public class LuceneDataReader implements IDataReader{
         try {
             Directory directory = FSDirectory.open(Paths.get(dataStore.getDataDirectory()));
             indexReader = DirectoryReader.open(directory);
+                		
             indexSearcher = new IndexSearcher(indexReader);
-            Analyzer analyzer = new StandardAnalyzer();
-            QueryParser queryParser = new QueryParser(defaultField, analyzer);
-            Query queryObj = queryParser.parse(query);
-            
-            TopDocs topDocs = indexSearcher.search(queryObj, Integer.MAX_VALUE);
+            TopDocs topDocs = indexSearcher.search(query, Integer.MAX_VALUE);
             scoreDocs = topDocs.scoreDocs;
             cursor = OPENED;
         } catch (IOException e) {
             e.printStackTrace();
             throw new DataFlowException(e.getMessage(), e);
-        } catch (ParseException e) {
-            e.printStackTrace();
-            throw new DataFlowException(e.getMessage(), e);
-        }                
+        }              
     }
 
     @Override
@@ -90,7 +81,7 @@ public class LuceneDataReader implements IDataReader{
             Document document = indexSearcher.doc(scoreDocs[cursor++].doc);
             
             List<IField> fields = new ArrayList<IField>();
-            for (Attribute  attr : dataStore.getSchema()) {
+            for (Attribute  attr : dataStore.getSchema().getAttributes()) {
                 FieldType fieldType = attr.getFieldType();
                 String fieldValue = document.get(attr.getFieldName());
                 fields.add(Utils.getField(fieldType, fieldValue));

@@ -1,12 +1,18 @@
 package edu.uci.ics.textdb.dataflow.utils;
 
+
+
 import java.util.ArrayList;
 import java.util.List;
-
+import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.queryparser.classic.ParseException;
+import org.apache.lucene.queryparser.classic.QueryParser;
+import org.apache.lucene.search.Query;
 import edu.uci.ics.textdb.api.common.Attribute;
 import edu.uci.ics.textdb.api.common.IField;
 import edu.uci.ics.textdb.api.common.ITuple;
 import edu.uci.ics.textdb.common.constants.SchemaConstants;
+
 
 /**
  * @author sandeepreddy602
@@ -27,6 +33,40 @@ public class TestUtils {
             }
             if (contains) {
                 return contains;
+            }
+        }
+        return contains;
+    }
+    
+    public static boolean containsAllResults(List<ITuple> expectedResults, List<ITuple> exactResults) {
+        if(expectedResults.size() != exactResults.size())
+        	return false;
+        if(!(expectedResults.containsAll(exactResults)) || !(exactResults.containsAll(expectedResults)))
+        	return false;
+        
+        return true;
+    }
+    
+    public static boolean checkResults(List<ITuple> results, String queryString, Analyzer queryAnalyzer, String searchField) throws ParseException {
+        
+    	
+    	boolean contains = false;
+        QueryParser parser = null;
+        parser = new QueryParser(searchField, queryAnalyzer);
+        Query query = parser.parse(queryString);
+        String searchString = query.toString(searchField);
+        System.out.println(query.toString(searchField));
+        String[] listOfQueryWords = searchString.split(" ");
+        
+        for (ITuple sampleTuple : results) {
+            contains = false;
+            String value = (String) sampleTuple.getField(searchField).getValue();
+            for (String queryWord : listOfQueryWords) {
+            	if(value.toLowerCase().contains(queryWord)) {
+            		
+            		contains = true;
+            		return contains;
+            	}
             }
         }
         return contains;

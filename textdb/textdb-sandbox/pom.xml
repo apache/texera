@@ -40,5 +40,20 @@
             <artifactId>json</artifactId>
             <version>20160212</version>
         </dependency>
+        <dependency>
+            <groupId>edu.uci.ics.textdb</groupId>
+            <artifactId>textdb-api</artifactId>
+            <version>${textdb.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>edu.uci.ics.textdb</groupId>
+            <artifactId>textdb-common</artifactId>
+            <version>${textdb.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>edu.uci.ics.textdb</groupId>
+            <artifactId>textdb-storage</artifactId>
+            <version>${textdb.version}</version>
+        </dependency>
     </dependencies>
 </project>

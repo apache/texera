@@ -6,6 +6,10 @@ package edu.uci.ics.textdb.dataflow.source;
 import java.text.ParseException;
 import java.util.List;
 
+import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.analysis.standard.StandardAnalyzer;
+import org.apache.lucene.queryparser.classic.QueryParser;
+import org.apache.lucene.search.Query;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -33,15 +37,21 @@ public class ScanBasedSourceOperatorTest {
     private ScanBasedSourceOperator scanBasedSourceOperator;
     private IDataReader dataReader;
     private IDataStore dataStore;
+    private Analyzer analyzer;
+    private Query query;
     
     @Before
     public void setUp() throws Exception{
-        dataStore = new LuceneDataStore(LuceneConstants.INDEX_DIR, TestConstants.SAMPLE_SCHEMA_PEOPLE);
-        dataWriter = new LuceneDataWriter(dataStore);
+        dataStore = new LuceneDataStore(LuceneConstants.INDEX_DIR, TestConstants.SCHEMA_PEOPLE);
+        analyzer = new  StandardAnalyzer();
+        dataWriter = new LuceneDataWriter(dataStore, analyzer );
+        QueryParser queryParser = new QueryParser(
+                TestConstants.ATTRIBUTES_PEOPLE.get(0).getFieldName(), analyzer);
+        query = queryParser.parse(LuceneConstants.SCAN_QUERY);
+        dataReader = new LuceneDataReader(dataStore, query);
+        
         dataWriter.clearData();
         dataWriter.writeData(TestConstants.getSamplePeopleTuples());
-        dataReader = new LuceneDataReader(dataStore,LuceneConstants.SCAN_QUERY, 
-                TestConstants.SAMPLE_SCHEMA_PEOPLE.get(0).getFieldName());
         scanBasedSourceOperator = new ScanBasedSourceOperator(dataReader);
     }
     
@@ -58,7 +68,7 @@ public class ScanBasedSourceOperatorTest {
         int numTuples = 0;
         while((nextTuple  = scanBasedSourceOperator.getNextTuple()) != null){
             //Checking if the tuple retrieved is present in the samplesTuples
-            boolean contains = TestUtils.contains(tuples, nextTuple, TestConstants.SAMPLE_SCHEMA_PEOPLE);
+            boolean contains = TestUtils.contains(tuples, nextTuple, TestConstants.ATTRIBUTES_PEOPLE);
             Assert.assertTrue(contains);
             numTuples ++;
         }

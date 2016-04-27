@@ -1,7 +1,7 @@
-package edu.uci.ics.textdb.sandbox.team3lucenecityexample;
+package edu.uci.ics.textdb.sandbox.team3.team3lucenecityexample;
 
-import static edu.uci.ics.textdb.sandbox.team3lucenecityexample.LuceneIndexConstants.CONTENT_FIELD;
-import static edu.uci.ics.textdb.sandbox.team3lucenecityexample.LuceneIndexConstants.INDEX_DIR;
+import static edu.uci.ics.textdb.sandbox.team3.team3lucenecityexample.LuceneIndexConstants.CONTENT_FIELD;
+import static edu.uci.ics.textdb.sandbox.team3.team3lucenecityexample.LuceneIndexConstants.INDEX_DIR;
 
 import java.io.IOException;
 import java.nio.file.Paths;
