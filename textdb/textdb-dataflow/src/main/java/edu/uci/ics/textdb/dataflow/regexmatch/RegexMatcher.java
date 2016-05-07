@@ -17,13 +17,14 @@ import edu.uci.ics.textdb.common.field.ListField;
 import edu.uci.ics.textdb.common.field.Span;
 import edu.uci.ics.textdb.common.utils.Utils;
 import edu.uci.ics.textdb.dataflow.common.RegexPredicate;
+import edu.uci.ics.textdb.dataflow.regexmatch.re2j.RegexToTrigram;
 
 /**
  * Created by chenli on 3/25/16.
  * @author laishuying
  */
 public class RegexMatcher implements IOperator {
-    private final IPredicate predicate;
+    private final RegexPredicate regexPredicate;
     private ISourceOperator sourceOperator;
     private Query luceneQuery;
 
@@ -34,9 +35,13 @@ public class RegexMatcher implements IOperator {
     private List<Span> spans;
 
     public RegexMatcher(IPredicate predicate, ISourceOperator sourceOperator) {
-        this.predicate = predicate;
+    	this.regexPredicate = (RegexPredicate)predicate;
         this.sourceOperator = sourceOperator;
-        //TODO build the luceneQuery by given regex.
+        
+        // build the luceneQuery by given regex
+        String queryStr = RegexToTrigram.translate(regexPredicate.getRegex()).getQuery();
+
+        // pending for refactoring IndexBasedSourceOperator 
     }
 
     @Override
@@ -57,7 +62,7 @@ public class RegexMatcher implements IOperator {
                 return null;
             }
             
-            RegexPredicate regexPredicate = (RegexPredicate)predicate; 
+            
             
             spans = regexPredicate.computeMatches(sourceTuple);
             
