@@ -53,11 +53,9 @@ public class KeywordMatcherTest {
     private KeywordMatcher keywordMatcher;
     private IDataWriter dataWriter;
     private DataStore dataStore;
-    private IndexBasedSourceOperator indexSearchSourceOperator;
     private Analyzer analyzer;
-    private Query queryObj;
     private Schema schema;
-    private IPredicate dataReaderPredicate;
+    private IPredicate keywordPredicate;
 
     @Before
     public void setUp() throws Exception {
@@ -74,74 +72,27 @@ public class KeywordMatcherTest {
         dataWriter.clearData();
     }
 
-
-
-    /**
-     * Creates a Query object as a boolean Query on all attributes
-     * Example: For creating a query like
-     * (TestConstants.DESCRIPTION + ":lin" + " AND " + TestConstants.LAST_NAME + ":lin")
-     * we provide a list of AttributeFields (Description, Last_name) to search on and a query string (lin)
-     *
-     * TODO #88:BooleanQuery() is deprecated. In future a better solution could be worked out in Query builder layer
-     *
-     * @param query
-     * @param attributeList
-     * @return Query
-     * @throws ParseException
-     */
-    private Query createQueryObject(String query, ArrayList<Attribute> attributeList) throws ParseException {
-        Analyzer analyzer = new StandardAnalyzer();
-        ArrayList<String> tokens;
-        String[] fields = new String[attributeList.size()];
-        for(int i=0; i< attributeList.size(); i++){
-            fields[i] = attributeList.get(i).getFieldName();
-        }
-
-        tokens = Utils.tokenizeQuery(analyzer, query);
-        BooleanQuery booleanQuery = new BooleanQuery();
-        MultiFieldQueryParser parser = new MultiFieldQueryParser(fields, analyzer);
-        for(String searchToken: tokens){
-            Query termQuery = parser.parse(searchToken);
-            booleanQuery.add(termQuery, BooleanClause.Occur.MUST);
-        }
-        return booleanQuery;
-    }
-
-
     /**
      * For a given string query & list of attributes it gets a list of results
      * buildMultiQueryOnAttributeList flag decides if the query is formed as a boolean Query on all attribute
      * or all records are scanned
      * @param query
      * @param attributeList
-     * @param buildMultiQueryOnAttributeList
      * @return List<ITuple>
      * @throws DataFlowException
      * @throws ParseException
      */
 
-    public List<ITuple> getPeopleQueryResults(String query, ArrayList<Attribute> attributeList, boolean buildMultiQueryOnAttributeList) throws DataFlowException, ParseException {
+    public List<ITuple> getPeopleQueryResults(String query, ArrayList<Attribute> attributeList) throws DataFlowException, ParseException {
 
-        Analyzer analyzer = new StandardAnalyzer();
-        IPredicate predicate = new KeywordPredicate(query, attributeList, analyzer);
-        QueryParser queryParser;
-        if(!buildMultiQueryOnAttributeList) {
-            queryParser = new QueryParser(TestConstants.ATTRIBUTES_PEOPLE[0].getFieldName(), analyzer);
-            queryObj = queryParser.parse(DataConstants.SCAN_QUERY);
-        }
-        else {
-            queryObj = createQueryObject(query, attributeList);
-        }
-        dataReaderPredicate = new DataReaderPredicate(dataStore, queryObj);
-        indexSearchSourceOperator = new IndexBasedSourceOperator(dataReaderPredicate);
-        keywordMatcher = new KeywordMatcher(predicate, indexSearchSourceOperator);
+        IPredicate predicate = new KeywordPredicate(query, attributeList, analyzer,dataStore);
+        keywordMatcher = new KeywordMatcher(predicate);
         keywordMatcher.open();
         List<ITuple> results = new ArrayList<>();
         ITuple nextTuple = null;
         while ((nextTuple = keywordMatcher.getNextTuple()) != null) {
             results.add(nextTuple);
         }
-        indexSearchSourceOperator.close();
         return results;
     }
 
@@ -161,7 +112,7 @@ public class KeywordMatcherTest {
         attributeList.add(TestConstants.DESCRIPTION_ATTR);
 
         //Perform Query
-        List<ITuple> results = getPeopleQueryResults(query, attributeList, false);
+        List<ITuple> results = getPeopleQueryResults(query, attributeList);
 
         //Perform Check
         Assert.assertEquals(0,results.size());
@@ -178,12 +129,12 @@ public class KeywordMatcherTest {
         String query = "Bruce";
         ArrayList<Attribute> attributeList = new ArrayList<>();
         attributeList.add(TestConstants.FIRST_NAME_ATTR);
-        attributeList.add(TestConstants.LAST_NAME_ATTR);
-        attributeList.add(TestConstants.DESCRIPTION_ATTR);
+//        attributeList.add(TestConstants.LAST_NAME_ATTR);
+//        attributeList.add(TestConstants.DESCRIPTION_ATTR);
 
         //Prepare expected result list
         List<Span> list = new ArrayList<>();
-        Span span = new Span("firstName", 0, 5, "Bruce", "bruce");
+        Span span = new Span("firstName", 0, 5, "Bruce", "Bruce");
         list.add(span);
         Attribute[] schemaAttributes = new Attribute[TestConstants.ATTRIBUTES_PEOPLE.length + 1];
         for(int count = 0; count < schemaAttributes.length - 1; count++) {
@@ -191,7 +142,7 @@ public class KeywordMatcherTest {
         }
         schemaAttributes[schemaAttributes.length - 1] = SchemaConstants.SPAN_LIST_ATTRIBUTE;
 
-        IField[] fields1 = { new StringField("bruce"), new StringField("john Lee"), new IntegerField(46),
+        IField[] fields1 = { new StringField("Bruce"), new StringField("john Lee"), new IntegerField(46),
                 new DoubleField(5.50), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-14-1970")),
                 new TextField("Tall Angry"), new ListField<>(list) };
         ITuple tuple1 = new DataTuple(new Schema(schemaAttributes), fields1);
@@ -199,7 +150,7 @@ public class KeywordMatcherTest {
         expectedResultList.add(tuple1);
 
         //Perform Query
-        List<ITuple> resultList = getPeopleQueryResults(query, attributeList, true);
+        List<ITuple> resultList = getPeopleQueryResults(query, attributeList);
 
         //Perform Check
         boolean contains = TestUtils.containsAllResults(expectedResultList, resultList);
@@ -249,7 +200,7 @@ public class KeywordMatcherTest {
         expectedResultList.add(tuple2);
 
         //Perform Query
-        List<ITuple> resultList = getPeopleQueryResults(query, attributeList, true);
+        List<ITuple> resultList = getPeopleQueryResults(query, attributeList);
 
         //Perform Check
         boolean contains = TestUtils.containsAllResults(expectedResultList, resultList);
@@ -292,7 +243,7 @@ public class KeywordMatcherTest {
         expectedResultList.add(tuple1);
 
         //Perform Query
-        List<ITuple> resultList = getPeopleQueryResults(query, attributeList, false);
+        List<ITuple> resultList = getPeopleQueryResults(query, attributeList);
 
         //Perform Check
         boolean contains = TestUtils.containsAllResults(expectedResultList, resultList);
@@ -343,7 +294,7 @@ public class KeywordMatcherTest {
         expectedResultList.add(tuple1);
 
         //Perform Query
-        List<ITuple> resultList = getPeopleQueryResults(query, attributeList, false);
+        List<ITuple> resultList = getPeopleQueryResults(query, attributeList);
 
         //Perform Check
         boolean contains = TestUtils.containsAllResults(expectedResultList, resultList);
@@ -375,7 +326,7 @@ public class KeywordMatcherTest {
         attributeList.add(TestConstants.DESCRIPTION_ATTR);
 
         //Perform Query
-        List<ITuple> resultList = getPeopleQueryResults(query, attributeList, false);
+        List<ITuple> resultList = getPeopleQueryResults(query, attributeList);
 
         //Perform Check
         Assert.assertEquals(0,resultList.size());

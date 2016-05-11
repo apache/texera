@@ -19,6 +19,9 @@ import edu.uci.ics.textdb.common.field.StringField;
 import edu.uci.ics.textdb.common.field.TextField;
 import edu.uci.ics.textdb.common.utils.Utils;
 import edu.uci.ics.textdb.dataflow.common.KeywordPredicate;
+import edu.uci.ics.textdb.dataflow.source.IndexBasedSourceOperator;
+import edu.uci.ics.textdb.storage.DataReaderPredicate;
+import edu.uci.ics.textdb.storage.reader.DataReader;
 
 /**
  *  @author prakul
@@ -37,9 +40,10 @@ public class KeywordMatcher implements IOperator {
     private boolean spanSchemaDefined = false;
     private Schema spanSchema;
 
-    public KeywordMatcher(IPredicate predicate, ISourceOperator sourceOperator) {
+    public KeywordMatcher(IPredicate predicate) {
         this.predicate = (KeywordPredicate)predicate;
-        this.sourceOperator = sourceOperator;
+        DataReaderPredicate dataReaderPredicate = this.predicate.convertToDataReaderPredicate();
+        this.sourceOperator = new IndexBasedSourceOperator(dataReaderPredicate);
     }
 
     @Override
