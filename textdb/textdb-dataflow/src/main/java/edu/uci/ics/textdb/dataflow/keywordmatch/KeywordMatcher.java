@@ -14,9 +14,7 @@ import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.api.dataflow.IOperator;
 import edu.uci.ics.textdb.api.dataflow.ISourceOperator;
 import edu.uci.ics.textdb.common.exception.DataFlowException;
-import edu.uci.ics.textdb.common.field.Span;
-import edu.uci.ics.textdb.common.field.StringField;
-import edu.uci.ics.textdb.common.field.TextField;
+import edu.uci.ics.textdb.common.field.*;
 import edu.uci.ics.textdb.common.utils.Utils;
 import edu.uci.ics.textdb.dataflow.common.KeywordPredicate;
 import edu.uci.ics.textdb.dataflow.source.IndexBasedSourceOperator;
@@ -25,6 +23,7 @@ import edu.uci.ics.textdb.storage.reader.DataReader;
 
 /**
  *  @author prakul
+ *  @author akshay
  *
  */
 public class KeywordMatcher implements IOperator {
@@ -37,13 +36,14 @@ public class KeywordMatcher implements IOperator {
     private List<Attribute> attributeList;
     private List<String> queryTokens;
     private Set<String> setOfQueryTokens;
-    private boolean spanSchemaDefined = false;
     private Schema spanSchema;
 
     public KeywordMatcher(IPredicate predicate) {
         this.predicate = (KeywordPredicate)predicate;
         DataReaderPredicate dataReaderPredicate = this.predicate.getDataReaderPredicate();
         this.sourceOperator = new IndexBasedSourceOperator(dataReaderPredicate);
+        Schema schema = this.predicate.getSchema();
+        this.spanSchema = Utils.createSpanSchema(schema);
     }
 
     @Override
@@ -76,7 +76,7 @@ public class KeywordMatcher implements IOperator {
      *        span results. Performs a scan based search or an index based search depending
      *        on the sourceOperator provided while initializing KeywordPredicate.
      *        It scans documents returned by sourceOperator for provided keywords.
-     *        All tokens of Query should appear in a Single Field of each document in document
+     *        All tokens of Query should appear in a Single GenericField of each document in document
      *        otherwise it doesn't return anything. It uses AND logic. For each field, if all the query tokens
      *        appear in the field, then we add its spans to the results.
      *        If one of the query tokens doesn't appear in the field, we ignore this field.
@@ -113,20 +113,16 @@ public class KeywordMatcher implements IOperator {
             if(sourceTuple == null){
                 return null;
             }
+
             fieldList = sourceTuple.getFields();
             spanList.clear();
-            if(!spanSchemaDefined){
-                Schema schema = sourceTuple.getSchema();
-                spanSchema = Utils.createSpanSchema(schema);
-                spanSchemaDefined = true;
-            }
             for(int attributeIndex = 0; attributeIndex < attributeList.size(); attributeIndex++){
                 IField field = sourceTuple.getField(attributeList.get(attributeIndex).getFieldName());
                 String fieldValue = (String) (field).getValue();
                 String fieldName;
                 int positionIndex = 0; // Next position in the field to be checked.
                 int spanStartPosition; // Starting position of the matched query
-                if(field instanceof StringField){
+                if(!(field instanceof TextField || field instanceof GenericField)){
                     //Keyword should match fieldValue entirely
                     if(fieldValue.equalsIgnoreCase(query)){
                         spanStartPosition = 0;
@@ -135,7 +131,7 @@ public class KeywordMatcher implements IOperator {
                         addSpanToSpanList(fieldName, spanStartPosition, positionIndex, query, fieldValue);
                     }
                 }
-                else if(field instanceof TextField) {
+                else{
                     //Each element of Array of keywords is matched in tokenized TextField Value
                     for(int iter = 0; iter < queryTokens.size(); iter++) {
                         positionIndex = 0;

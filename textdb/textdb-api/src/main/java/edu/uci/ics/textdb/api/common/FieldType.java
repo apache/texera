@@ -10,5 +10,8 @@ public enum FieldType {
 	// A field that is indexed and tokenized,without term vectors
 	TEXT,
 	//A field that is the list of values
-	LIST;
+	LIST,
+	//A field that is generic, and allow specific operations like Term Vectors
+	GENERIC_FIELD;
+
 }

@@ -4,6 +4,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
 
+import edu.uci.ics.textdb.common.field.*;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.queryparser.classic.MultiFieldQueryParser;
@@ -27,14 +28,6 @@ import edu.uci.ics.textdb.common.constants.DataConstants;
 import edu.uci.ics.textdb.common.constants.SchemaConstants;
 import edu.uci.ics.textdb.common.constants.TestConstants;
 import edu.uci.ics.textdb.common.exception.DataFlowException;
-import edu.uci.ics.textdb.common.field.DataTuple;
-import edu.uci.ics.textdb.common.field.DateField;
-import edu.uci.ics.textdb.common.field.DoubleField;
-import edu.uci.ics.textdb.common.field.IntegerField;
-import edu.uci.ics.textdb.common.field.ListField;
-import edu.uci.ics.textdb.common.field.Span;
-import edu.uci.ics.textdb.common.field.StringField;
-import edu.uci.ics.textdb.common.field.TextField;
 import edu.uci.ics.textdb.common.utils.Utils;
 import edu.uci.ics.textdb.dataflow.common.KeywordPredicate;
 import edu.uci.ics.textdb.dataflow.source.IndexBasedSourceOperator;
@@ -45,6 +38,7 @@ import edu.uci.ics.textdb.storage.writer.DataWriter;
 
 /**
  * @author Prakul
+ * @author Akshay
  *
  */
 
@@ -54,7 +48,6 @@ public class KeywordMatcherTest {
     private IDataWriter dataWriter;
     private DataStore dataStore;
     private Analyzer analyzer;
-    private Schema schema;
     private IPredicate keywordPredicate;
 
     @Before
@@ -64,7 +57,6 @@ public class KeywordMatcherTest {
         dataWriter = new DataWriter(dataStore, analyzer);
         dataWriter.clearData();
         dataWriter.writeData(TestConstants.getSamplePeopleTuples());
-        schema = dataStore.getSchema();
     }
 
     @After
@@ -123,7 +115,7 @@ public class KeywordMatcherTest {
 
     /**
      * Verifies GetNextTuple of Keyword Matcher and single
-     * word queries in String Field
+     * word queries in String GenericField
      * @throws Exception
      */
     @Test
@@ -147,7 +139,7 @@ public class KeywordMatcherTest {
 
         IField[] fields1 = { new StringField("bruce"), new StringField("john Lee"), new IntegerField(46),
                 new DoubleField(5.50), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-14-1970")),
-                new TextField("Tall Angry"), new ListField<>(list) };
+                new GenericField("Tall Angry"), new ListField<>(list) };
         ITuple tuple1 = new DataTuple(new Schema(schemaAttributes), fields1);
         List<ITuple> expectedResultList = new ArrayList<>();
         expectedResultList.add(tuple1);
@@ -164,7 +156,7 @@ public class KeywordMatcherTest {
 
     /**
      * Verifies GetNextTuple of Keyword Matcher and single
-     * word queries in Text Field
+     * word queries in Text GenericField
      * @throws Exception
      */
 
@@ -173,8 +165,8 @@ public class KeywordMatcherTest {
         //Prepare Query
         String query = "TaLL";
         ArrayList<Attribute> attributeList = new ArrayList<>();
-        attributeList.add(TestConstants.FIRST_NAME_ATTR);
-        attributeList.add(TestConstants.LAST_NAME_ATTR);
+//        attributeList.add(TestConstants.FIRST_NAME_ATTR);
+//        attributeList.add(TestConstants.LAST_NAME_ATTR);
         attributeList.add(TestConstants.DESCRIPTION_ATTR);
 
         //Prepare expected result list
@@ -191,12 +183,14 @@ public class KeywordMatcherTest {
 
         IField[] fields1 = { new StringField("bruce"), new StringField("john Lee"), new IntegerField(46),
                 new DoubleField(5.50), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-14-1970")),
-                new TextField("Tall Angry"), new ListField<>(list) };
+                new GenericField("Tall Angry"),
+                new ListField<>(list)};
+
 
         IField[] fields2 = { new StringField("christian john wayne"), new StringField("rock bale"),
                 new IntegerField(42), new DoubleField(5.99),
-                new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974")), new TextField("Tall Fair"),
-                new ListField<>(list) };
+                new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974")), new GenericField("Tall Fair"),
+                new ListField<>(list)};
         ITuple tuple1 = new DataTuple(new Schema(schemaAttributes), fields1);
         ITuple tuple2 = new DataTuple(new Schema(schemaAttributes), fields2);
 
@@ -241,7 +235,7 @@ public class KeywordMatcherTest {
 
         IField[] fields1 = { new StringField("george lin lin"), new StringField("lin clooney"), new IntegerField(43),
                 new DoubleField(6.06), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1973")),
-                new TextField("Lin Clooney is Short and lin clooney is Angry"), new ListField<>(list) };
+                new GenericField("Lin Clooney is Short and lin clooney is Angry"), new ListField<>(list) };
 
         ITuple tuple1 = new DataTuple(new Schema(schemaAttributes), fields1);
         List<ITuple> expectedResultList = new ArrayList<>();
@@ -292,7 +286,7 @@ public class KeywordMatcherTest {
 
         IField[] fields1 = { new StringField("george lin lin"), new StringField("lin clooney"), new IntegerField(43),
                 new DoubleField(6.06), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1973")),
-                new TextField("Lin Clooney is Short and lin clooney is Angry"), new ListField<>(list) };
+                new GenericField("Lin Clooney is Short and lin clooney is Angry"), new ListField<>(list) };
 
         ITuple tuple1 = new DataTuple(new Schema(schemaAttributes), fields1);
         List<ITuple> expectedResultList = new ArrayList<>();
@@ -308,13 +302,13 @@ public class KeywordMatcherTest {
     }
 
     /**
-     * Verifies: All tokens of Query should appear in a Single Field of each document in Data source
+     * Verifies: All tokens of Query should appear in a Single GenericField of each document in Data source
      * otherwise it doesnt return anything
      *
      * Ex: For Document:
      *  new StringField("george lin lin"), new StringField("lin clooney"), new IntegerField(43),
      new DoubleField(6.06), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1973")),
-     new TextField("Lin Clooney is Short and lin clooney is Angry")
+     new GenericField("Lin Clooney is Short and lin clooney is Angry")
 
      For Query : george clooney
 

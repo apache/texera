@@ -13,6 +13,7 @@ import edu.uci.ics.textdb.api.common.ITuple;
 import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.api.dataflow.IOperator;
 import edu.uci.ics.textdb.common.exception.DataFlowException;
+import edu.uci.ics.textdb.common.field.GenericField;
 import edu.uci.ics.textdb.common.field.Span;
 import edu.uci.ics.textdb.common.field.StringField;
 import edu.uci.ics.textdb.common.field.TextField;
@@ -113,7 +114,7 @@ public class DictionaryMatcher implements IOperator {
             // so while matching a dictionary value, the dictionary value should
             // be the same as a StringField, while the dictionary value can be a
             // substring of a TextField value in order to be a match.
-            if (dataField instanceof TextField) {
+            if (dataField instanceof TextField || dataField instanceof GenericField) {
                 matcher = pattern.matcher(fieldValue.toLowerCase());
                 // Get position of dict value in the field.
                 while (matcher.find(positionIndex) != false) {
