@@ -113,7 +113,7 @@ public class DictionaryMatcherTest {
             numTuples++;
         }
         boolean contains = TestUtils.containsAllResults(expectedStrings, returnedStrings);
-        Assert.assertTrue(contains);
+        Assert.assertTrue(contains); 
         Assert.assertEquals(3, numTuples);
 
     }
