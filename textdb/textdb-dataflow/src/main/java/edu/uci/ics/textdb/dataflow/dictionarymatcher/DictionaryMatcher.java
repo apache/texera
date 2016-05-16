@@ -79,7 +79,7 @@ public class DictionaryMatcher implements IOperator {
         try {
             positionIndex = 0;
             attributeIndex = 0;
-            operator.open();
+            // operator.open();
             dictionaryValue = predicate.getNextDictionaryValue();
 
             if (predicate.getSourceOperatorType() == DataConstants.SourceOperatorType.SCANOPERATOR) {
@@ -95,6 +95,7 @@ public class DictionaryMatcher implements IOperator {
                 keywordPredicate = new KeywordPredicate(dictionaryValue, predicate.getAttributeList(),
                         predicate.getAnalyzer(), predicate.getDataStore());
                 keywordMatcher = new KeywordMatcher(keywordPredicate);
+                keywordMatcher.open();
                 dataTuple = keywordMatcher.getNextTuple();
             }
 
@@ -211,6 +212,7 @@ public class DictionaryMatcher implements IOperator {
                 keywordPredicate = new KeywordPredicate(dictionaryValue, predicate.getAttributeList(),
                         predicate.getAnalyzer(), predicate.getDataStore());
                 keywordMatcher = new KeywordMatcher(keywordPredicate);
+                keywordMatcher.open();
                 dataTuple = keywordMatcher.getNextTuple();
             }
 
