@@ -82,7 +82,7 @@ public class DictionaryMatcherTest {
     public List<ITuple> getQueryResults(IDictionary dictionary, SourceOperatorType srcOpType,
             List<Attribute> attributes) throws Exception {
     	
-    	IPredicate dictionaryPredicate = new DictionaryPredicate(dictionary, analyzer, attributes, SourceOperatorType.KEYWORDOPERATOR , dataStore);
+    	IPredicate dictionaryPredicate = new DictionaryPredicate(dictionary, analyzer, attributes, srcOpType , dataStore);
         dictionaryMatcher = new DictionaryMatcher(dictionaryPredicate);
         dictionaryMatcher.open();
         ITuple nextTuple = null;
