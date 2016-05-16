@@ -3,14 +3,17 @@ package edu.uci.ics.textdb.dataflow.common;
 import edu.uci.ics.textdb.api.common.Attribute;
 import edu.uci.ics.textdb.api.common.FieldType;
 import edu.uci.ics.textdb.api.common.IPredicate;
+import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.api.storage.IDataStore;
 import edu.uci.ics.textdb.common.exception.DataFlowException;
 import edu.uci.ics.textdb.common.utils.Utils;
 import edu.uci.ics.textdb.storage.DataReaderPredicate;
 import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.queryparser.classic.MultiFieldQueryParser;
 import org.apache.lucene.queryparser.classic.ParseException;
+import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.BooleanClause;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.Query;
@@ -112,6 +115,7 @@ public class KeywordPredicate implements IPredicate{
             queryOnTextFields.add(termQuery, BooleanClause.Occur.MUST);
         }
 
+
         /*
         Merge the query for non-String fields with the StringField Query
          */
@@ -139,5 +143,7 @@ public class KeywordPredicate implements IPredicate{
         return dataReaderPredicate;
     }
 
-
+    public Schema getSchema() {
+        return dataStore.getSchema();
+    }
 }

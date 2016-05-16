@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import edu.uci.ics.textdb.common.field.*;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.queryparser.classic.QueryParser;
@@ -27,14 +28,6 @@ import edu.uci.ics.textdb.api.storage.IDataWriter;
 import edu.uci.ics.textdb.common.constants.DataConstants;
 import edu.uci.ics.textdb.common.constants.SchemaConstants;
 import edu.uci.ics.textdb.common.constants.TestConstants;
-import edu.uci.ics.textdb.common.field.DataTuple;
-import edu.uci.ics.textdb.common.field.DateField;
-import edu.uci.ics.textdb.common.field.DoubleField;
-import edu.uci.ics.textdb.common.field.IntegerField;
-import edu.uci.ics.textdb.common.field.ListField;
-import edu.uci.ics.textdb.common.field.Span;
-import edu.uci.ics.textdb.common.field.StringField;
-import edu.uci.ics.textdb.common.field.TextField;
 import edu.uci.ics.textdb.dataflow.source.ScanBasedSourceOperator;
 import edu.uci.ics.textdb.dataflow.utils.TestUtils;
 import edu.uci.ics.textdb.storage.DataReaderPredicate;
@@ -116,7 +109,7 @@ public class DictionaryMatcherTest {
 
     /**
      * Scenario S-2(a):verifies GetNextTuple of DictionaryMatcher and single
-     * word queries in String Field
+     * word queries in String GenericField
      */
 
     @Test
@@ -137,7 +130,7 @@ public class DictionaryMatcherTest {
 
         IField[] fields1 = { new StringField("bruce"), new StringField("john Lee"), new IntegerField(46),
                 new DoubleField(5.50), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-14-1970")),
-                new TextField("Tall Angry"), new ListField<Span>(list) };
+                new GenericField("Tall Angry"), new ListField<Span>(list) };
         ITuple tuple1 = new DataTuple(new Schema(schemaAttributes), fields1);
         List<ITuple> expectedResults = new ArrayList<ITuple>();
         expectedResults.add(tuple1);
@@ -151,7 +144,7 @@ public class DictionaryMatcherTest {
 
     /**
      * Scenario S- 2(b):verifies GetNextTuple of DictionaryMatcher and single
-     * word queries in Text Field
+     * word queries in Text GenericField
      */
 
     @Test
@@ -172,10 +165,10 @@ public class DictionaryMatcherTest {
 
         IField[] fields1 = { new StringField("bruce"), new StringField("john Lee"), new IntegerField(46),
                 new DoubleField(5.50), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-14-1970")),
-                new TextField("Tall Angry"), new ListField<Span>(list) };
+                new GenericField("Tall Angry"), new ListField<Span>(list) };
         IField[] fields2 = { new StringField("christian john wayne"), new StringField("rock bale"),
                 new IntegerField(42), new DoubleField(5.99),
-                new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974")), new TextField("Tall Fair"),
+                new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974")), new GenericField("Tall Fair"),
                 new ListField<Span>(list) };
         ITuple tuple1 = new DataTuple(new Schema(schemaAttributes), fields1);
         ITuple tuple2 = new DataTuple(new Schema(schemaAttributes), fields2);
@@ -213,7 +206,7 @@ public class DictionaryMatcherTest {
 
         IField[] fields1 = { new StringField("george lin lin"), new StringField("lin clooney"), new IntegerField(43),
                 new DoubleField(6.06), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1973")),
-                new TextField("Lin Clooney is Short and lin clooney is Angry"), new ListField<Span>(list) };
+                new GenericField("Lin Clooney is Short and lin clooney is Angry"), new ListField<Span>(list) };
         ITuple tuple1 = new DataTuple(new Schema(schemaAttributes), fields1);
         List<ITuple> expectedResults = new ArrayList<ITuple>();
         expectedResults.add(tuple1);
@@ -253,7 +246,7 @@ public class DictionaryMatcherTest {
 
         IField[] fields1 = { new StringField("george lin lin"), new StringField("lin clooney"), new IntegerField(43),
                 new DoubleField(6.06), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1973")),
-                new TextField("Lin Clooney is Short and lin clooney is Angry"), new ListField<Span>(list) };
+                new GenericField("Lin Clooney is Short and lin clooney is Angry"), new ListField<Span>(list) };
         ITuple tuple1 = new DataTuple(new Schema(schemaAttributes), fields1);
         List<ITuple> expectedResults = new ArrayList<ITuple>();
         expectedResults.add(tuple1);

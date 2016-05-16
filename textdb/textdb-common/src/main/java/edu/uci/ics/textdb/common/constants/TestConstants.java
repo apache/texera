@@ -13,12 +13,7 @@ import edu.uci.ics.textdb.api.common.FieldType;
 import edu.uci.ics.textdb.api.common.IField;
 import edu.uci.ics.textdb.api.common.ITuple;
 import edu.uci.ics.textdb.api.common.Schema;
-import edu.uci.ics.textdb.common.field.DataTuple;
-import edu.uci.ics.textdb.common.field.DateField;
-import edu.uci.ics.textdb.common.field.DoubleField;
-import edu.uci.ics.textdb.common.field.IntegerField;
-import edu.uci.ics.textdb.common.field.StringField;
-import edu.uci.ics.textdb.common.field.TextField;
+import edu.uci.ics.textdb.common.field.*;
 
 /**
  * @author sandeepreddy602 Including this class in src/main/java since it is
@@ -39,7 +34,7 @@ public class TestConstants {
     public static final Attribute AGE_ATTR = new Attribute(AGE, FieldType.INTEGER);
     public static final Attribute HEIGHT_ATTR = new Attribute(HEIGHT, FieldType.DOUBLE);
     public static final Attribute DATE_OF_BIRTH_ATTR = new Attribute(DATE_OF_BIRTH, FieldType.DATE);
-    public static final Attribute DESCRIPTION_ATTR = new Attribute(DESCRIPTION, FieldType.TEXT);
+    public static final Attribute DESCRIPTION_ATTR = new Attribute(DESCRIPTION, FieldType.GENERIC_FIELD);
 
     // Sample Schema
     public static final Attribute[] ATTRIBUTES_PEOPLE = { FIRST_NAME_ATTR, LAST_NAME_ATTR, AGE_ATTR, HEIGHT_ATTR,
@@ -50,19 +45,19 @@ public class TestConstants {
 
         IField[] fields1 = { new StringField("bruce"), new StringField("john Lee"), new IntegerField(46),
                 new DoubleField(5.50), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-14-1970")),
-                new TextField("Tall Angry") };
+                new GenericField("Tall Angry") };
         IField[] fields2 = { new StringField("tom hanks"), new StringField("cruise"), new IntegerField(45),
                 new DoubleField(5.95), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1971")),
-                new TextField("Short Brown") };
+                new GenericField("Short Brown") };
         IField[] fields3 = { new StringField("brad lie angelina"), new StringField("pitt"), new IntegerField(44),
                 new DoubleField(6.10), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-12-1972")),
-                new TextField("White Angry") };
+                new GenericField("White Angry") };
         IField[] fields4 = { new StringField("george lin lin"), new StringField("lin clooney"), new IntegerField(43),
                 new DoubleField(6.06), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1973")),
-                new TextField("Lin Clooney is Short and lin clooney is Angry") };
+                new GenericField("Lin Clooney is Short and lin clooney is Angry") };
         IField[] fields5 = { new StringField("christian john wayne"), new StringField("rock bale"),
                 new IntegerField(42), new DoubleField(5.99),
-                new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974")), new TextField("Tall Fair") };
+                new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974")), new GenericField("Tall Fair") };
 
         ITuple tuple1 = new DataTuple(SCHEMA_PEOPLE, fields1);
         ITuple tuple2 = new DataTuple(SCHEMA_PEOPLE, fields2);

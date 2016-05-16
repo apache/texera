@@ -7,12 +7,14 @@ import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 
+import edu.uci.ics.textdb.common.field.*;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.document.DateTools;
 import org.apache.lucene.document.DateTools.Resolution;
 import org.apache.lucene.document.Field.Store;
+import org.apache.lucene.index.IndexOptions;
 import org.apache.lucene.index.IndexableField;
 
 import edu.uci.ics.textdb.api.common.Attribute;
@@ -21,14 +23,6 @@ import edu.uci.ics.textdb.api.common.IField;
 import edu.uci.ics.textdb.api.common.ITuple;
 import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.common.constants.SchemaConstants;
-import edu.uci.ics.textdb.common.field.DataTuple;
-import edu.uci.ics.textdb.common.field.DateField;
-import edu.uci.ics.textdb.common.field.DoubleField;
-import edu.uci.ics.textdb.common.field.IntegerField;
-import edu.uci.ics.textdb.common.field.ListField;
-import edu.uci.ics.textdb.common.field.Span;
-import edu.uci.ics.textdb.common.field.StringField;
-import edu.uci.ics.textdb.common.field.TextField;
 
 public class Utils {
     public static IField getField(FieldType fieldType, String fieldValue) throws ParseException{
@@ -49,7 +43,10 @@ public class Utils {
             case TEXT:
                 field = new TextField(fieldValue);
                 break;
-            
+            case GENERIC_FIELD:
+                field = new GenericField(fieldValue);
+                break;
+
             default:
                 break;
         }
@@ -81,10 +78,22 @@ public class Utils {
 	            luceneField = new org.apache.lucene.document.TextField(
 	                    fieldName, (String) fieldValue, Store.YES);
 	            break;
-            
+            case GENERIC_FIELD:
+                org.apache.lucene.document.FieldType luceneFieldType = new org.apache.lucene.document.FieldType();
+                luceneFieldType.setIndexOptions( IndexOptions.DOCS_AND_FREQS_AND_POSITIONS_AND_OFFSETS );
+                luceneFieldType.setStored(true);
+                luceneFieldType.setStoreTermVectors( true );
+                luceneFieldType.setStoreTermVectorOffsets( true );
+                luceneFieldType.setStoreTermVectorPayloads( true );
+                luceneFieldType.setStoreTermVectorPositions( true );
+                luceneFieldType.setTokenized( true );
+
+                luceneField = new org.apache.lucene.document.Field(
+                        fieldName,(String) fieldValue,luceneFieldType);
         }
         return luceneField;
     }
+
     /**
      * @about Creating a new span tuple from span schema, field list 
      */
