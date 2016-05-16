@@ -119,12 +119,48 @@ public class DictionaryMatcherTest {
     }
 
     /**
-     * Scenario S-2(a):verifies GetNextTuple of DictionaryMatcher and single
-     * word queries in String Field
+     * Scenario S-2:verifies GetNextTuple of DictionaryMatcher and single
+     * word queries in String Field using SCANOPERATOR
      */
 
     @Test
-    public void testSingleWordQueryInStringField() throws Exception {
+    public void testSingleWordQueryInStringFieldUsingScan() throws Exception {
+
+        ArrayList<String> names = new ArrayList<String>(Arrays.asList("bruce"));
+        Dictionary dictionary = new Dictionary(names);
+        
+        // create data tuple first
+        List<Span> list = new ArrayList<Span>();
+        Span span = new Span("firstName", 0, 5, "bruce", "bruce");
+        list.add(span);
+        Attribute[] schemaAttributes = new Attribute[TestConstants.ATTRIBUTES_PEOPLE.length + 1];
+        for (int count = 0; count < schemaAttributes.length - 1; count++) {
+            schemaAttributes[count] = TestConstants.ATTRIBUTES_PEOPLE[count];
+        }
+        schemaAttributes[schemaAttributes.length - 1] = SchemaConstants.SPAN_LIST_ATTRIBUTE;
+
+        IField[] fields1 = { new StringField("bruce"), new StringField("john Lee"), new IntegerField(46),
+                new DoubleField(5.50), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-14-1970")),
+                new TextField("Tall Angry"), new ListField<Span>(list) };
+        ITuple tuple1 = new DataTuple(new Schema(schemaAttributes), fields1);
+        List<ITuple> expectedResults = new ArrayList<ITuple>();
+        expectedResults.add(tuple1);
+        List<Attribute> attributes = Arrays.asList(TestConstants.FIRST_NAME_ATTR, TestConstants.LAST_NAME_ATTR,
+                TestConstants.DESCRIPTION_ATTR);
+
+        List<ITuple> returnedResults = getQueryResults(dictionary, SourceOperatorType.SCANOPERATOR, attributes);
+        boolean contains = TestUtils.containsAllResults(expectedResults, returnedResults);
+        Assert.assertTrue(contains);
+    }
+    
+    
+    /**
+     * Scenario S-3:verifies GetNextTuple of DictionaryMatcher and single
+     * word queries in String Field using KEYWORDOPERATOR
+     */
+
+    @Test
+    public void testSingleWordQueryInStringFieldUsingKeyword() throws Exception {
 
         ArrayList<String> names = new ArrayList<String>(Arrays.asList("bruce"));
         Dictionary dictionary = new Dictionary(names);
@@ -153,47 +189,89 @@ public class DictionaryMatcherTest {
         Assert.assertTrue(contains);
     }
 
-//    /**
-//     * Scenario S- 2(b):verifies GetNextTuple of DictionaryMatcher and single
-//     * word queries in Text Field
-//     */
-//
-//    @Test
-//    public void testSingleWordQueryInTextField() throws Exception {
-//
-//        ArrayList<String> names = new ArrayList<String>(Arrays.asList("tall"));
-//        IDictionary dictionary = new Dictionary(names);
-//        ISourceOperator sourceOperator = new ScanBasedSourceOperator(dataReader);
-//        // create data tuple first
-//        List<Span> list = new ArrayList<Span>();
-//        Span span = new Span("description", 0, 4, "tall", "Tall");
-//        list.add(span);
-//        Attribute[] schemaAttributes = new Attribute[TestConstants.ATTRIBUTES_PEOPLE.length + 1];
-//        for (int count = 0; count < schemaAttributes.length - 1; count++) {
-//            schemaAttributes[count] = TestConstants.ATTRIBUTES_PEOPLE[count];
-//        }
-//        schemaAttributes[schemaAttributes.length - 1] = SchemaConstants.SPAN_LIST_ATTRIBUTE;
-//
-//        IField[] fields1 = { new StringField("bruce"), new StringField("john Lee"), new IntegerField(46),
-//                new DoubleField(5.50), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-14-1970")),
-//                new TextField("Tall Angry"), new ListField<Span>(list) };
-//        IField[] fields2 = { new StringField("christian john wayne"), new StringField("rock bale"),
-//                new IntegerField(42), new DoubleField(5.99),
-//                new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974")), new TextField("Tall Fair"),
-//                new ListField<Span>(list) };
-//        ITuple tuple1 = new DataTuple(new Schema(schemaAttributes), fields1);
-//        ITuple tuple2 = new DataTuple(new Schema(schemaAttributes), fields2);
-//        List<ITuple> expectedResults = new ArrayList<ITuple>();
-//        expectedResults.add(tuple1);
-//        expectedResults.add(tuple2);
-//        List<Attribute> attributes = Arrays.asList(TestConstants.FIRST_NAME_ATTR, TestConstants.LAST_NAME_ATTR,
-//                TestConstants.DESCRIPTION_ATTR);
-//
-//        List<ITuple> returnedResults = getQueryResults(dictionary, sourceOperator, attributes);
-//        boolean contains = TestUtils.containsAllResults(expectedResults, returnedResults);
-//        Assert.assertTrue(contains);
-//    }
-//
+    /**
+     * Scenario S- 4:verifies GetNextTuple of DictionaryMatcher and single
+     * word queries in Text Field using SCANOPERATOR
+     */
+
+    @Test
+    public void testSingleWordQueryInTextFieldUsingScan() throws Exception {
+
+        ArrayList<String> names = new ArrayList<String>(Arrays.asList("tall"));
+        IDictionary dictionary = new Dictionary(names);
+        
+        // create data tuple first
+        List<Span> list = new ArrayList<Span>();
+        Span span = new Span("description", 0, 4, "tall", "Tall");
+        list.add(span);
+        Attribute[] schemaAttributes = new Attribute[TestConstants.ATTRIBUTES_PEOPLE.length + 1];
+        for (int count = 0; count < schemaAttributes.length - 1; count++) {
+            schemaAttributes[count] = TestConstants.ATTRIBUTES_PEOPLE[count];
+        }
+        schemaAttributes[schemaAttributes.length - 1] = SchemaConstants.SPAN_LIST_ATTRIBUTE;
+
+        IField[] fields1 = { new StringField("bruce"), new StringField("john Lee"), new IntegerField(46),
+                new DoubleField(5.50), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-14-1970")),
+                new TextField("Tall Angry"), new ListField<Span>(list) };
+        IField[] fields2 = { new StringField("christian john wayne"), new StringField("rock bale"),
+                new IntegerField(42), new DoubleField(5.99),
+                new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974")), new TextField("Tall Fair"),
+                new ListField<Span>(list) };
+        ITuple tuple1 = new DataTuple(new Schema(schemaAttributes), fields1);
+        ITuple tuple2 = new DataTuple(new Schema(schemaAttributes), fields2);
+        List<ITuple> expectedResults = new ArrayList<ITuple>();
+        expectedResults.add(tuple1);
+        expectedResults.add(tuple2);
+        List<Attribute> attributes = Arrays.asList(TestConstants.FIRST_NAME_ATTR, TestConstants.LAST_NAME_ATTR,
+                TestConstants.DESCRIPTION_ATTR);
+
+        List<ITuple> returnedResults = getQueryResults(dictionary, SourceOperatorType.SCANOPERATOR, attributes);
+        boolean contains = TestUtils.containsAllResults(expectedResults, returnedResults);
+        Assert.assertTrue(contains);
+    }
+    
+    /**
+     * Scenario S- 5:verifies GetNextTuple of DictionaryMatcher and single
+     * word queries in Text Field using KEYWORD OPERATOR
+     */
+
+    @Test
+    public void testSingleWordQueryInTextFieldUsingKeyword() throws Exception {
+
+        ArrayList<String> names = new ArrayList<String>(Arrays.asList("tall"));
+        IDictionary dictionary = new Dictionary(names);
+        
+        // create data tuple first
+        List<Span> list = new ArrayList<Span>();
+        Span span = new Span("description", 0, 4, "tall", "Tall");
+        list.add(span);
+        Attribute[] schemaAttributes = new Attribute[TestConstants.ATTRIBUTES_PEOPLE.length + 1];
+        for (int count = 0; count < schemaAttributes.length - 1; count++) {
+            schemaAttributes[count] = TestConstants.ATTRIBUTES_PEOPLE[count];
+        }
+        schemaAttributes[schemaAttributes.length - 1] = SchemaConstants.SPAN_LIST_ATTRIBUTE;
+
+        IField[] fields1 = { new StringField("bruce"), new StringField("john Lee"), new IntegerField(46),
+                new DoubleField(5.50), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-14-1970")),
+                new TextField("Tall Angry"), new ListField<Span>(list) };
+        IField[] fields2 = { new StringField("christian john wayne"), new StringField("rock bale"),
+                new IntegerField(42), new DoubleField(5.99),
+                new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974")), new TextField("Tall Fair"),
+                new ListField<Span>(list) };
+        ITuple tuple1 = new DataTuple(new Schema(schemaAttributes), fields1);
+        ITuple tuple2 = new DataTuple(new Schema(schemaAttributes), fields2);
+        List<ITuple> expectedResults = new ArrayList<ITuple>();
+        expectedResults.add(tuple1);
+        expectedResults.add(tuple2);
+        List<Attribute> attributes = Arrays.asList(TestConstants.FIRST_NAME_ATTR, TestConstants.LAST_NAME_ATTR,
+                TestConstants.DESCRIPTION_ATTR);
+
+        List<ITuple> returnedResults = getQueryResults(dictionary, SourceOperatorType.KEYWORDOPERATOR, attributes);
+        boolean contains = TestUtils.containsAllResults(expectedResults, returnedResults);
+        Assert.assertTrue(contains);
+    }
+
+
 //    /**
 //     * Scenario S3:verifies ITuple returned by DictionaryMatcher and multiple
 //     * word queries
