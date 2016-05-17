@@ -11,4 +11,8 @@ public class DataConstants {
     public static final String INDEX_DIR = "../index";
     public static final String SCAN_QUERY = "*:*";
     public static final int MAX_RESULTS = 100;
+
+    public static enum SourceOperatorType {
+        SCANOPERATOR, KEYWORDOPERATOR, PHRASEOPERATOR
+    };
 }

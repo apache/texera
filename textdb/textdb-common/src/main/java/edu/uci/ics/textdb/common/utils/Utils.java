@@ -31,81 +31,86 @@ import edu.uci.ics.textdb.common.field.StringField;
 import edu.uci.ics.textdb.common.field.TextField;
 
 public class Utils {
-    public static IField getField(FieldType fieldType, String fieldValue) throws ParseException{
+    public static IField getField(FieldType fieldType, String fieldValue) throws ParseException {
         IField field = null;
         switch (fieldType) {
-            case STRING:
-                field = new StringField(fieldValue);
-                break;
-            case INTEGER:
-                field = new IntegerField(Integer.parseInt(fieldValue));
-                break;
-            case DOUBLE:
-                field = new DoubleField(Double.parseDouble(fieldValue));
-                break;
-            case DATE:
-                field = new DateField(DateTools.stringToDate(fieldValue));
-                break;
-            case TEXT:
-                field = new TextField(fieldValue);
-                break;
-            
-            default:
-                break;
+        case STRING:
+            field = new StringField(fieldValue);
+            break;
+        case INTEGER:
+            field = new IntegerField(Integer.parseInt(fieldValue));
+            break;
+        case DOUBLE:
+            field = new DoubleField(Double.parseDouble(fieldValue));
+            break;
+        case DATE:
+            field = new DateField(DateTools.stringToDate(fieldValue));
+            break;
+        case TEXT:
+            field = new TextField(fieldValue);
+            break;
+
+        default:
+            break;
         }
         return field;
     }
 
-    public static IndexableField getLuceneField(FieldType fieldType,
-            String fieldName, Object fieldValue) {
+    public static IndexableField getLuceneField(FieldType fieldType, String fieldName, Object fieldValue) {
         IndexableField luceneField = null;
-        switch(fieldType){
-	        case STRING:
-                luceneField = new org.apache.lucene.document.StringField(
-                        fieldName, (String) fieldValue, Store.YES);
-                break;
-            case INTEGER:
-                luceneField = new org.apache.lucene.document.IntField(
-                        fieldName, (Integer) fieldValue, Store.YES);
-                break;
-            case DOUBLE:
-                double value = (Double) fieldValue;
-                luceneField = new org.apache.lucene.document.DoubleField(
-                        fieldName, value, Store.YES);
-                break;
-            case DATE:
-                String dateString = DateTools.dateToString((Date) fieldValue, Resolution.MILLISECOND);
-                luceneField = new org.apache.lucene.document.StringField(fieldName, dateString, Store.YES);
-                break;
-            case TEXT:
-	            luceneField = new org.apache.lucene.document.TextField(
-	                    fieldName, (String) fieldValue, Store.YES);
-	            break;
-            
+        switch (fieldType) {
+        case STRING:
+            luceneField = new org.apache.lucene.document.StringField(fieldName, (String) fieldValue, Store.YES);
+            break;
+        case INTEGER:
+            luceneField = new org.apache.lucene.document.IntField(fieldName, (Integer) fieldValue, Store.YES);
+            break;
+        case DOUBLE:
+            double value = (Double) fieldValue;
+            luceneField = new org.apache.lucene.document.DoubleField(fieldName, value, Store.YES);
+            break;
+        case DATE:
+            String dateString = DateTools.dateToString((Date) fieldValue, Resolution.MILLISECOND);
+            luceneField = new org.apache.lucene.document.StringField(fieldName, dateString, Store.YES);
+            break;
+        case TEXT:
+            luceneField = new org.apache.lucene.document.TextField(fieldName, (String) fieldValue, Store.YES);
+            break;
+
         }
         return luceneField;
     }
+
     /**
-     * @about Creating a new span tuple from span schema, field list 
+     * @about Creating a new span tuple from span schema, field list
      */
-    public static ITuple getSpanTuple( List<IField> fieldList, List<Span> spanList, Schema spanSchema) {
+    public static ITuple getSpanTuple(List<IField> fieldList, List<Span> spanList, Schema spanSchema,
+            boolean removeLastField) {
         IField spanListField = new ListField<Span>(new ArrayList<>(spanList));
         List<IField> fieldListDuplicate = new ArrayList<>(fieldList);
+        if (removeLastField) {
+            fieldListDuplicate.remove(fieldListDuplicate.size() - 1);
+        }
         fieldListDuplicate.add(spanListField);
 
         IField[] fieldsDuplicate = fieldListDuplicate.toArray(new IField[fieldListDuplicate.size()]);
         return new DataTuple(spanSchema, fieldsDuplicate);
     }
-    
+
     /**
      * 
-     * @param schema 
+     * @param schema
      * @about Creating a new schema object, and adding SPAN_LIST_ATTRIBUTE to
      *        the schema. SPAN_LIST_ATTRIBUTE is of type List
      */
     public static Schema createSpanSchema(Schema schema) {
+
         List<Attribute> dataTupleAttributes = schema.getAttributes();
-        //spanAttributes contains all attributes of dataTupleAttributes and an additional SPAN_LIST_ATTRIBUTE
+        if (dataTupleAttributes.get(dataTupleAttributes.size() - 1).equals(SchemaConstants.SPAN_LIST_ATTRIBUTE)) {
+            return schema;
+        }
+        // spanAttributes contains all attributes of dataTupleAttributes and an
+        // additional SPAN_LIST_ATTRIBUTE
         Attribute[] spanAttributes = new Attribute[dataTupleAttributes.size() + 1];
         for (int count = 0; count < dataTupleAttributes.size(); count++) {
             spanAttributes[count] = dataTupleAttributes.get(count);
@@ -117,6 +122,7 @@ public class Utils {
 
     /**
      * Tokenizes the query string using the given analyser
+     * 
      * @param analyzer
      * @param query
      * @return ArrayList<String> list of results
@@ -124,10 +130,10 @@ public class Utils {
     public static ArrayList<String> tokenizeQuery(Analyzer analyzer, String query) {
         HashSet<String> resultSet = new HashSet<>();
         ArrayList<String> result = new ArrayList<String>();
-        TokenStream tokenStream  = analyzer.tokenStream(null, new StringReader(query));
+        TokenStream tokenStream = analyzer.tokenStream(null, new StringReader(query));
         CharTermAttribute charTermAttribute = tokenStream.addAttribute(CharTermAttribute.class);
 
-        try{
+        try {
             tokenStream.reset();
             while (tokenStream.incrementToken()) {
                 String term = charTermAttribute.toString();
