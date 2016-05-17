@@ -82,7 +82,7 @@ public class DictionaryMatcherTest {
     }
 
     /**
-     * Scenario S1:verifies GetNextTuple of Dictionary
+     * Scenario S-1:verifies GetNextTuple of Dictionary
      * 
      * checking if Dictionary returns all the strings given by the user
      */
@@ -177,7 +177,7 @@ public class DictionaryMatcherTest {
     }
 
     /**
-     * Scenario S- 4:verifies GetNextTuple of DictionaryMatcher and single
+     * Scenario S-4:verifies GetNextTuple of DictionaryMatcher and single
      * word queries in Text Field using SCANOPERATOR
      */
 
@@ -218,7 +218,7 @@ public class DictionaryMatcherTest {
     }
     
     /**
-     * Scenario S- 5:verifies GetNextTuple of DictionaryMatcher and single
+     * Scenario S-5:verifies GetNextTuple of DictionaryMatcher and single
      * word queries in Text Field using KEYWORD OPERATOR
      */
 
@@ -260,7 +260,7 @@ public class DictionaryMatcherTest {
 
 
     /**
-     * Scenario S6:verifies ITuple returned by DictionaryMatcher and multiple
+     * Scenario S-6:verifies ITuple returned by DictionaryMatcher and multiple
      * word queries using SCAN OPERATOR
      */
 
@@ -295,7 +295,7 @@ public class DictionaryMatcherTest {
     }
     
     /**
-     * Scenario S7:verifies ITuple returned by DictionaryMatcher and multiple
+     * Scenario S-7:verifies ITuple returned by DictionaryMatcher and multiple
      * word queries using KEYWORD OPERATOR
      */
 
@@ -331,7 +331,7 @@ public class DictionaryMatcherTest {
 
 
     /**
-     * Scenario S8:verifies: data source has multiple attributes, and an entity
+     * Scenario S-8:verifies: data source has multiple attributes, and an entity
      * can appear in all the fields and multiple times using SCAN OPERATOR.
      */
 
@@ -369,7 +369,7 @@ public class DictionaryMatcherTest {
     }
     
     /**
-     * Scenario S9:verifies: data source has multiple attributes, and an entity
+     * Scenario S-9:verifies: data source has multiple attributes, and an entity
      * can appear in all the fields and multiple times using KEYWORD OPERATOR.
      */
 
