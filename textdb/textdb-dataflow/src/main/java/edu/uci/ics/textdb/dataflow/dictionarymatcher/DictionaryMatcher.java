@@ -46,8 +46,6 @@ public class DictionaryMatcher implements IOperator {
     private List<Span> spanList;
     private boolean isPresent;
     private String documentValue;
-    private KeywordPredicate keywordPredicate;
-    private KeywordMatcher keywordMatcher;
 
     private final DictionaryPredicate predicate;
 
@@ -83,26 +81,27 @@ public class DictionaryMatcher implements IOperator {
             dictionaryValue = predicate.getNextDictionaryValue();
 
             if (predicate.getSourceOperatorType() == DataConstants.SourceOperatorType.SCANOPERATOR) {
-                operator = predicate.getSourceOperator();
+                operator = predicate.getScanSourceOperator();
                 operator.open();
                 // Java regex is used to detect word boundaries for TextField
                 // match.
                 // '\b' is used to match the beginning and end of the word.
                 dataTuple = operator.getNextTuple();
+                fields = dataTuple.getFields();
             }
 
             if (predicate.getSourceOperatorType() == DataConstants.SourceOperatorType.KEYWORDOPERATOR) {
-                keywordPredicate = new KeywordPredicate(dictionaryValue, predicate.getAttributeList(),
+                KeywordPredicate keywordPredicate = new KeywordPredicate(dictionaryValue, predicate.getAttributeList(),
                         predicate.getAnalyzer(), predicate.getDataStore());
-                keywordMatcher = new KeywordMatcher(keywordPredicate);
-                keywordMatcher.open();
-                dataTuple = keywordMatcher.getNextTuple();
+                operator = new KeywordMatcher(keywordPredicate);
+                operator.open();
+                dataTuple = operator.getNextTuple();
+                fields = dataTuple.getFields();
             }
 
             regex = "\\b" + dictionaryValue.toLowerCase() + "\\b";
             pattern = Pattern.compile(regex);
 
-            fields = dataTuple.getFields();
             if (spanSchema == null) {
                 spanSchema = Utils.createSpanSchema(dataTuple.getSchema());
             }
@@ -178,18 +177,28 @@ public class DictionaryMatcher implements IOperator {
         } else if (attributeIndex == predicate.getAttributeList().size() && isPresent) {
             isPresent = false;
             positionIndex = 0;
-            return Utils.getSpanTuple(fields, spanList, spanSchema);
+            boolean isKeywordOperator = (predicate
+                    .getSourceOperatorType() == DataConstants.SourceOperatorType.KEYWORDOPERATOR) ? true : false;
+            return Utils.getSpanTuple(fields, spanList, spanSchema, isKeywordOperator);
 
-        } else if ((predicate.getSourceOperatorType() == DataConstants.SourceOperatorType.SCANOPERATOR
-                && ((dataTuple = operator.getNextTuple()) != null))
-                || (predicate.getSourceOperatorType() == DataConstants.SourceOperatorType.KEYWORDOPERATOR
-                        && (dataTuple = keywordMatcher.getNextTuple()) != null)) {
-            // Get the next document
+        }
+        // else if ((predicate.getSourceOperatorType() ==
+        // DataConstants.SourceOperatorType.SCANOPERATOR
+        // && ((dataTuple = operator.getNextTuple()) != null))
+        // || (predicate.getSourceOperatorType() ==
+        // DataConstants.SourceOperatorType.KEYWORDOPERATOR
+        // && (dataTuple = operator.getNextTuple()) != null)) {
+        // Get the next document
+
+        else if ((dataTuple = operator.getNextTuple()) != null) {
             attributeIndex = 0;
             positionIndex = 0;
             spanList.clear();
 
             fields = dataTuple.getFields();
+            if (predicate.getSourceOperatorType() == DataConstants.SourceOperatorType.KEYWORDOPERATOR) {
+                fields.remove(fields.remove(fields.size() - 1));
+            }
             return getNextTuple();
 
         } else if ((dictionaryValue = predicate.getNextDictionaryValue()) != null) {
@@ -207,16 +216,17 @@ public class DictionaryMatcher implements IOperator {
                 operator.close();
                 operator.open();
                 dataTuple = operator.getNextTuple();
+                fields = dataTuple.getFields();
 
             } else if (predicate.getSourceOperatorType() == DataConstants.SourceOperatorType.KEYWORDOPERATOR) {
-                keywordPredicate = new KeywordPredicate(dictionaryValue, predicate.getAttributeList(),
+                KeywordPredicate keywordPredicate = new KeywordPredicate(dictionaryValue, predicate.getAttributeList(),
                         predicate.getAnalyzer(), predicate.getDataStore());
-                keywordMatcher = new KeywordMatcher(keywordPredicate);
-                keywordMatcher.open();
-                dataTuple = keywordMatcher.getNextTuple();
+                operator = new KeywordMatcher(keywordPredicate);
+                operator.open();
+                dataTuple = operator.getNextTuple();
+                fields = dataTuple.getFields();
             }
 
-            fields = dataTuple.getFields();
             return getNextTuple();
         }
 

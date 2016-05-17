@@ -58,7 +58,7 @@ public class DictionaryPredicate implements IPredicate {
         return analyzer;
     }
 
-    public IOperator getSourceOperator() throws ParseException, DataFlowException {
+    public IOperator getScanSourceOperator() throws ParseException, DataFlowException {
         QueryParser luceneQueryParser = new QueryParser(attributeList.get(0).getFieldName(), analyzer);
         Query luceneQuery = luceneQueryParser.parse(DataConstants.SCAN_QUERY);
         IPredicate dataReaderPredicate = new DataReaderPredicate(dataStore, luceneQuery);
