@@ -51,7 +51,6 @@ public class DictionaryMatcher implements IOperator {
      */
     public DictionaryMatcher(IPredicate predicate) {
         this.predicate = (DictionaryPredicate) predicate;
-        // this.operator = operator;
     }
 
     /**
@@ -69,18 +68,16 @@ public class DictionaryMatcher implements IOperator {
             if (predicate.getSourceOperatorType() == DataConstants.SourceOperatorType.SCANOPERATOR) {
                 operator = predicate.getScanSourceOperator();
                 operator.open();
-                dataTuple = operator.getNextTuple();
-                fields = dataTuple.getFields();
 
             } else if (predicate.getSourceOperatorType() == DataConstants.SourceOperatorType.KEYWORDOPERATOR) {
                 KeywordPredicate keywordPredicate = new KeywordPredicate(dictionaryValue, predicate.getAttributeList(),
                         predicate.getAnalyzer(), predicate.getDataStore());
                 operator = new KeywordMatcher(keywordPredicate);
                 operator.open();
-                dataTuple = operator.getNextTuple();
-                fields = dataTuple.getFields();
-
             }
+
+            dataTuple = operator.getNextTuple();
+            fields = dataTuple.getFields();
 
             // Java regex is used to detect word boundaries for TextField
             // match.
@@ -188,18 +185,16 @@ public class DictionaryMatcher implements IOperator {
             if (predicate.getSourceOperatorType() == DataConstants.SourceOperatorType.SCANOPERATOR) {
                 operator.close();
                 operator.open();
-                dataTuple = operator.getNextTuple();
-                fields = dataTuple.getFields();
 
             } else if (predicate.getSourceOperatorType() == DataConstants.SourceOperatorType.KEYWORDOPERATOR) {
                 KeywordPredicate keywordPredicate = new KeywordPredicate(dictionaryValue, predicate.getAttributeList(),
                         predicate.getAnalyzer(), predicate.getDataStore());
                 operator = new KeywordMatcher(keywordPredicate);
                 operator.open();
-                dataTuple = operator.getNextTuple();
-                fields = dataTuple.getFields();
             }
 
+            dataTuple = operator.getNextTuple();
+            fields = dataTuple.getFields();
             return getNextTuple();
         }
 
