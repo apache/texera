@@ -21,9 +21,9 @@ public class FuzzyTokenMatcher implements IOperator{
     private ISourceOperator sourceOperator;
 
     public FuzzyTokenMatcher(IPredicate predicate) {
-        this.predicate = (FuzzyTokenPredicate)predicate;
-        DataReaderPredicate dataReaderPredicate = this.predicate.getDataReaderPredicate();
-        this.sourceOperator = new IndexBasedSourceOperator(dataReaderPredicate);
+    	this.predicate = (FuzzyTokenPredicate)predicate;
+    	DataReaderPredicate dataReaderPredicate = this.predicate.getDataReaderPredicate();
+    	this.sourceOperator = new IndexBasedSourceOperator(dataReaderPredicate);
     }
     
     @Override
