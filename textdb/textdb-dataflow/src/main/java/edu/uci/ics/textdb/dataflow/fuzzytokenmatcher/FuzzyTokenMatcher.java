@@ -4,7 +4,8 @@ import java.util.List;
 import edu.uci.ics.textdb.api.common.IField;
 /**
  *  @author Parag Saraogi, Varun Bharill
- *
+ *  This class takes a predicate as input, constructs the source operator, executes the query
+ *  and returns the results iteratively
  */
 import edu.uci.ics.textdb.api.common.IPredicate;
 import edu.uci.ics.textdb.api.common.ITuple;
@@ -30,13 +31,13 @@ public class FuzzyTokenMatcher implements IOperator{
     	return;
     }
 
-	@Override
-	public ITuple getNextTuple() throws DataFlowException {
-		return null;
+    @Override
+    public ITuple getNextTuple() throws DataFlowException {
+	return null;
     }
 
-	@Override
-	public void close() throws DataFlowException {
-		return;
-	}
+    @Override
+    public void close() throws DataFlowException {
+	return;
+    }
 }
