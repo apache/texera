@@ -29,14 +29,14 @@ public class FuzzyTokenPredicate implements IPredicate {
     private double thresholdRatio;
     private int threshold;
     private int docCountInSource;
-    private boolean isSpanEnabled;
+    private boolean isSpanInformationAdded;
     
-    public FuzzyTokenPredicate(String query, List<Attribute> attributeList, Analyzer analyzer,IDataStore dataStore, double thresholdRatio, boolean isSpanEnabled) throws DataFlowException{
+    public FuzzyTokenPredicate(String query, List<Attribute> attributeList, Analyzer analyzer,IDataStore dataStore, double thresholdRatio, boolean isSpanInformationAdded) throws DataFlowException{
         try {
         	this.thresholdRatio = thresholdRatio;
         	this.dataStore = dataStore;
         	this.luceneAnalyzer = analyzer;
-        	this.isSpanEnabled= isSpanEnabled;
+        	this.isSpanInformationAdded= isSpanInformationAdded;
             this.docCountInSource = dataStore.getNumDocuments();
             this.query = query;
             this.tokens = Utils.tokenizeQuery(analyzer, query);
