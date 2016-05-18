@@ -31,13 +31,13 @@ public class FuzzyTokenMatcher implements IOperator{
     	return;
     }
 
-	@Override
-	public ITuple getNextTuple() throws DataFlowException {
-		return null;
+    @Override
+    public ITuple getNextTuple() throws DataFlowException {
+	return null;
     }
 
-	@Override
-	public void close() throws DataFlowException {
-		return;
-	}
+    @Override
+    public void close() throws DataFlowException {
+	return;
+    }
 }
