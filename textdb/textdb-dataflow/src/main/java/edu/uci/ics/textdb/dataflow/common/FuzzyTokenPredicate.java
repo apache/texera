@@ -7,46 +7,42 @@ import edu.uci.ics.textdb.common.exception.DataFlowException;
 import edu.uci.ics.textdb.common.utils.Utils;
 import edu.uci.ics.textdb.storage.DataReaderPredicate;
 import org.apache.lucene.analysis.Analyzer;
-import org.apache.lucene.queryparser.classic.MultiFieldQueryParser;
 import org.apache.lucene.queryparser.classic.ParseException;
-import org.apache.lucene.queryparser.xml.builders.BooleanQueryBuilder;
-import org.apache.lucene.search.BooleanClause;
-import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.Query;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 /*
  * @author varun bharill, parag saraogi
  * 
+ * This class builds the query to perform boolean searches in a lucene index. 
  */
 public class FuzzyTokenPredicate implements IPredicate {
 	
     private IDataStore dataStore;
     private String query;
     private Query luceneQuery;
-    private String[] tokens;
+    private ArrayList<String> tokens;
     private List<Attribute> attributeList;
     private String[] fields;
-    private Analyzer analyzer;
+    private Analyzer luceneAnalyzer;
     private double thresholdRatio;
     private int threshold;
     private int docCountInSource;
-    private boolean getSpan;
+    private boolean isSpanEnabled;
     
-    public FuzzyTokenPredicate(String query, List<Attribute> attributeList, Analyzer analyzer,IDataStore dataStore, double thresholdRatio, boolean getSpan) throws DataFlowException{
+    public FuzzyTokenPredicate(String query, List<Attribute> attributeList, Analyzer analyzer,IDataStore dataStore, double thresholdRatio, boolean isSpanEnabled) throws DataFlowException{
         try {
         	this.thresholdRatio = thresholdRatio;
         	this.dataStore = dataStore;
-        	this.analyzer = analyzer;
-        	this.getSpan= getSpan;
+        	this.luceneAnalyzer = analyzer;
+        	this.isSpanEnabled= isSpanEnabled;
             this.docCountInSource = dataStore.getNumDocuments();
             this.query = query;
-            this.tokens = this.getSplit(this.query);
-            setThreshold();
+            this.tokens = Utils.tokenizeQuery(analyzer, query);
+            this.computeThreshold();
             this.attributeList = attributeList;
-            setSearchFields();
+            this.fields = this.extractSearchFields();
             this.luceneQuery = this.createLuceneQueryObject();
         } catch (Exception e) {
             e.printStackTrace();
@@ -54,15 +50,15 @@ public class FuzzyTokenPredicate implements IPredicate {
         }
     }
     
-    private String[] getSplit(String inp) {
+    private String[] extractSearchFields() {
     	return null;
-    }
-    
-    private void setSearchFields() {
-    	return;
 	}
 
-	public void setThreshold() {
+    /*
+     * The input threshold given by the end-user (thresholdRatio data member) is a ratio
+     * but boolean search query requires integer as a threshold.
+     */
+	public void computeThreshold() {
     	return;
     }
 	
