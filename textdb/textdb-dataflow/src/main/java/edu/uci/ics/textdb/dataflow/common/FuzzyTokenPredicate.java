@@ -76,16 +76,16 @@ public class FuzzyTokenPredicate implements IPredicate {
     		BooleanQuery.setMaxClauseCount(this.threshold + 1);
     	BooleanQuery.Builder builder = new BooleanQuery.Builder();
     	builder.setMinimumNumberShouldMatch(this.threshold);
-    	MultiFieldQueryParser qp = new MultiFieldQueryParser((String[])this.tokens.toArray(), this.luceneAnalyzer);
+    	MultiFieldQueryParser qp = new MultiFieldQueryParser(fields, this.luceneAnalyzer);
     	for(String s : this.tokens) {
     		builder.add(qp.parse(s), Occur.SHOULD);
     	}
-    	Query q = builder.build();
-    	return q;
+    	return builder.build();
     }
 
     public DataReaderPredicate getDataReaderPredicate() {
-    	DataReaderPredicate dataReaderPredicate = new DataReaderPredicate(this.dataStore, this.luceneQuery);
+    	DataReaderPredicate dataReaderPredicate = new DataReaderPredicate(this.dataStore, this.luceneQuery,
+                this.query, this.luceneAnalyzer, this.attributeList);
         return dataReaderPredicate;
 
     }
