@@ -28,7 +28,7 @@ public class RegexMatcherTest {
 		List<ITuple> data = TestConstants.getSamplePeopleTuples();
 		RegexMatcherTestHelper testHelper = new RegexMatcherTestHelper(TestConstants.SCHEMA_PEOPLE, data);
 		
-		testHelper.runTest("g[^\\s]*", TestConstants.FIRST_NAME);
+		testHelper.runTest("g[^\\s]*", TestConstants.FIRST_NAME_ATTR);
 		List<ITuple> exactResults = testHelper.getResults();
 		
 		List<ITuple> expectedResults = new ArrayList<ITuple>();
@@ -61,7 +61,7 @@ public class RegexMatcherTest {
 		RegexMatcherTestHelper testHelper = new RegexMatcherTestHelper(RegexTestConstantsCorp.SCHEMA_CORP, data);
 		
 		String query = "^(https?:\\/\\/)?([\\da-z\\.-]+)\\.([a-z\\.]{2,6})([\\/\\w \\.-]*)*\\/?$";
-		testHelper.runTest(query, RegexTestConstantsCorp.URL);
+		testHelper.runTest(query, RegexTestConstantsCorp.URL_ATTR);
 		List<ITuple> exactResults = testHelper.getResults();
 		
 		List<ITuple> expectedResults = new ArrayList<ITuple>();
@@ -94,7 +94,7 @@ public class RegexMatcherTest {
 		RegexMatcherTestHelper testHelper = new RegexMatcherTestHelper(RegexTestConstantsCorp.SCHEMA_CORP, data);
 
 		String query = "^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$";
-		testHelper.runTest(query, RegexTestConstantsCorp.IP_ADDRESS);
+		testHelper.runTest(query, RegexTestConstantsCorp.IP_ADDRESS_ATTR);
 		List<ITuple> exactResults = testHelper.getResults();
 
 		List<ITuple> expectedResults = new ArrayList<ITuple>();
@@ -135,7 +135,7 @@ public class RegexMatcherTest {
 		RegexMatcherTestHelper testHelper = new RegexMatcherTestHelper(RegexTestConstantStaff.SCHEMA_STAFF, data);
 		
 		String query = "^([a-z0-9_\\.-]+)@([\\da-z\\.-]+)\\.([a-z\\.]{2,6})$";
-		testHelper.runTest(query, RegexTestConstantStaff.EMAIL);
+		testHelper.runTest(query, RegexTestConstantStaff.EMAIL_ATTR);
 		List<ITuple> exactResults = testHelper.getResults();
 		
 		List<ITuple> expectedResults = new ArrayList<ITuple>();

@@ -52,7 +52,7 @@ public class DictionaryMatcherTest {
     private DataStore dataStore;
     private IDataWriter dataWriter;
     private IDataReader dataReader;
-    private Analyzer analyzer;
+    private Analyzer luceneAnalyzer;
     private Query luceneQuery;
     private IPredicate dataReaderPredicate;
 
@@ -60,11 +60,12 @@ public class DictionaryMatcherTest {
     public void setUp() throws Exception {
 
         dataStore = new DataStore(DataConstants.INDEX_DIR, TestConstants.SCHEMA_PEOPLE);
-        analyzer = new StandardAnalyzer();
-        dataWriter = new DataWriter(dataStore, analyzer);
-        QueryParser luceneQueryParser = new QueryParser(TestConstants.ATTRIBUTES_PEOPLE[0].getFieldName(), analyzer);
+        luceneAnalyzer = new StandardAnalyzer();
+        dataWriter = new DataWriter(dataStore, luceneAnalyzer);
+        QueryParser luceneQueryParser = new QueryParser(TestConstants.ATTRIBUTES_PEOPLE[0].getFieldName(), luceneAnalyzer);
         luceneQuery = luceneQueryParser.parse(DataConstants.SCAN_QUERY);
-        dataReaderPredicate = new DataReaderPredicate(dataStore, luceneQuery);
+        dataReaderPredicate = new DataReaderPredicate(dataStore, luceneQuery, DataConstants.SCAN_QUERY,
+                luceneAnalyzer, Arrays.asList(TestConstants.ATTRIBUTES_PEOPLE[0]));
         dataReader = new DataReader(dataReaderPredicate);
         dataWriter.clearData();
         dataWriter.writeData(TestConstants.getSamplePeopleTuples());

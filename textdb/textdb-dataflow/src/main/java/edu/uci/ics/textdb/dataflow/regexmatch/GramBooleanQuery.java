@@ -9,7 +9,7 @@ import java.util.StringJoiner;
 import edu.uci.ics.textdb.common.constants.DataConstants;
 
 
-class GramBooleanQuery {
+public class GramBooleanQuery {
 	enum QueryOp {
 		NONE, // doesn't match any string
 		ANY,  // matches any string
@@ -152,7 +152,7 @@ class GramBooleanQuery {
 	 * It generates a string representing the query that can be directly parsed by Lucene.
 	 * @return boolean expression
 	 */
-	String getLuceneQueryString() {
+	public String getLuceneQueryString() {
 		if (operator == QueryOp.ANY) {
 			return DataConstants.SCAN_QUERY;
 		} else if (operator == QueryOp.NONE) {

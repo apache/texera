@@ -5,6 +5,7 @@ package edu.uci.ics.textdb.dataflow.source;
 
 import java.text.ParseException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import org.apache.lucene.analysis.Analyzer;
@@ -40,19 +41,20 @@ public class ScanBasedSourceOperatorTest {
     private ScanBasedSourceOperator scanBasedSourceOperator;
     private IDataReader dataReader;
     private IDataStore dataStore;
-    private Analyzer analyzer;
+    private Analyzer lucneAnalyzer;
     private Query query;
     private IPredicate dataReaderPredicate;
     
     @Before
     public void setUp() throws Exception{
         dataStore = new DataStore(DataConstants.INDEX_DIR, TestConstants.SCHEMA_PEOPLE);
-        analyzer = new  StandardAnalyzer();
-        dataWriter = new DataWriter(dataStore, analyzer );
+        lucneAnalyzer = new  StandardAnalyzer();
+        dataWriter = new DataWriter(dataStore, lucneAnalyzer);
         QueryParser queryParser = new QueryParser(
-                TestConstants.ATTRIBUTES_PEOPLE[0].getFieldName(), analyzer);
+                TestConstants.ATTRIBUTES_PEOPLE[0].getFieldName(), lucneAnalyzer);
         query = queryParser.parse(DataConstants.SCAN_QUERY);
-        dataReaderPredicate = new DataReaderPredicate(dataStore, query);
+        dataReaderPredicate = new DataReaderPredicate(dataStore, query,
+                DataConstants.SCAN_QUERY, lucneAnalyzer, Arrays.asList(TestConstants.ATTRIBUTES_PEOPLE[0]));
         dataReader = new DataReader(dataReaderPredicate);
         
         dataWriter.clearData();

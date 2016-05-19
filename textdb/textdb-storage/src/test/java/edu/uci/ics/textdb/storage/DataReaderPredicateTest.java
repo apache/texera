@@ -13,6 +13,8 @@ import edu.uci.ics.textdb.api.storage.IDataStore;
 import edu.uci.ics.textdb.common.constants.DataConstants;
 import edu.uci.ics.textdb.common.constants.TestConstants;
 
+import java.util.Arrays;
+
 public class DataReaderPredicateTest {
     private DataReaderPredicate dataReaderPredicate;
     private IDataStore dataStore;
@@ -24,7 +26,7 @@ public class DataReaderPredicateTest {
         QueryParser luceneQueryParser = new QueryParser(
                 TestConstants.ATTRIBUTES_PEOPLE[0].getFieldName(), new  StandardAnalyzer());
         luceneQuery = luceneQueryParser.parse(DataConstants.SCAN_QUERY);
-        dataReaderPredicate = new DataReaderPredicate(dataStore, luceneQuery);
+        dataReaderPredicate = new DataReaderPredicate(dataStore, luceneQuery,DataConstants.SCAN_QUERY,new StandardAnalyzer(), Arrays.asList(TestConstants.ATTRIBUTES_PEOPLE));
     }
     
     @Test
