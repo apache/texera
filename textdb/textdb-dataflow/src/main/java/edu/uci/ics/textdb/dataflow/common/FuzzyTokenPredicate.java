@@ -7,7 +7,10 @@ import edu.uci.ics.textdb.common.exception.DataFlowException;
 import edu.uci.ics.textdb.common.utils.Utils;
 import edu.uci.ics.textdb.storage.DataReaderPredicate;
 import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.queryparser.classic.MultiFieldQueryParser;
 import org.apache.lucene.queryparser.classic.ParseException;
+import org.apache.lucene.search.BooleanClause.Occur;
+import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.Query;
 import java.util.ArrayList;
 import java.util.List;
@@ -40,7 +43,7 @@ public class FuzzyTokenPredicate implements IPredicate {
             this.tokens = Utils.tokenizeQuery(analyzer, query);
             this.computeThreshold();
             this.attributeList = attributeList;
-            this.fields = this.extractSearchFields();
+            this.extractSearchFields();
             this.luceneQuery = this.createLuceneQueryObject();
         } catch (Exception e) {
             e.printStackTrace();
@@ -48,8 +51,13 @@ public class FuzzyTokenPredicate implements IPredicate {
         }
     }
     
-    private String[] extractSearchFields() {
-    	return null;
+    private void extractSearchFields() {
+    	this.fields = new String[this.attributeList.size()];
+    	int i = 0;
+    	for( Attribute a : this.attributeList) {
+    		this.fields[i] = a.getFieldName();
+    		i++;
+    	}
 	}
 
     /*
@@ -57,15 +65,29 @@ public class FuzzyTokenPredicate implements IPredicate {
      * but boolean search query requires integer as a threshold.
      */
 	public void computeThreshold() {
-    	return;
+		this.threshold = (int) (this.thresholdRatio * this.tokens.size());
+    	if(this.threshold == 0){
+    		this.threshold = 1;
+    	}
     }
 	
     private Query createLuceneQueryObject() throws ParseException {
-    	return null;
+    	if(this.threshold > 1024)
+    		BooleanQuery.setMaxClauseCount(this.threshold + 1);
+    	BooleanQuery.Builder builder = new BooleanQuery.Builder();
+    	builder.setMinimumNumberShouldMatch(this.threshold);
+    	MultiFieldQueryParser qp = new MultiFieldQueryParser((String[])this.tokens.toArray(), this.luceneAnalyzer);
+    	for(String s : this.tokens) {
+    		builder.add(qp.parse(s), Occur.SHOULD);
+    	}
+    	Query q = builder.build();
+    	return q;
     }
 
     public DataReaderPredicate getDataReaderPredicate() {
-    	return null;
+    	DataReaderPredicate dataReaderPredicate = new DataReaderPredicate(this.dataStore, this.luceneQuery);
+        return dataReaderPredicate;
+
     }
 
 
