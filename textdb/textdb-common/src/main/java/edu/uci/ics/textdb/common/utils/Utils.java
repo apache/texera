@@ -14,6 +14,7 @@ import org.apache.lucene.document.DateTools;
 import org.apache.lucene.document.DateTools.Resolution;
 import org.apache.lucene.document.Field.Store;
 import org.apache.lucene.index.IndexableField;
+import org.apache.lucene.index.IndexOptions;
 
 import edu.uci.ics.textdb.api.common.Attribute;
 import edu.uci.ics.textdb.api.common.FieldType;
@@ -49,7 +50,7 @@ public class Utils {
             case TEXT:
                 field = new TextField(fieldValue);
                 break;
-            
+
             default:
                 break;
         }
@@ -57,10 +58,10 @@ public class Utils {
     }
 
     public static IndexableField getLuceneField(FieldType fieldType,
-            String fieldName, Object fieldValue) {
+             String fieldName, Object fieldValue) {
         IndexableField luceneField = null;
         switch(fieldType){
-	        case STRING:
+            case STRING:
                 luceneField = new org.apache.lucene.document.StringField(
                         fieldName, (String) fieldValue, Store.YES);
                 break;
@@ -78,10 +79,22 @@ public class Utils {
                 luceneField = new org.apache.lucene.document.StringField(fieldName, dateString, Store.YES);
                 break;
             case TEXT:
-	            luceneField = new org.apache.lucene.document.TextField(
-	                    fieldName, (String) fieldValue, Store.YES);
-	            break;
-            
+                //By default we enable positional indexing in Lucene so that we can return
+                // information about character offsets and token offsets
+                org.apache.lucene.document.FieldType luceneFieldType = new org.apache.lucene.document.FieldType();
+                luceneFieldType.setIndexOptions( IndexOptions.DOCS_AND_FREQS_AND_POSITIONS_AND_OFFSETS );
+                luceneFieldType.setStored(true);
+                luceneFieldType.setStoreTermVectors( true );
+                luceneFieldType.setStoreTermVectorOffsets( true );
+                luceneFieldType.setStoreTermVectorPayloads( true );
+                luceneFieldType.setStoreTermVectorPositions( true );
+                luceneFieldType.setTokenized( true );
+
+                luceneField = new org.apache.lucene.document.Field(
+                        fieldName,(String) fieldValue,luceneFieldType);
+
+                break;
+
         }
         return luceneField;
     }
@@ -96,10 +109,10 @@ public class Utils {
         IField[] fieldsDuplicate = fieldListDuplicate.toArray(new IField[fieldListDuplicate.size()]);
         return new DataTuple(spanSchema, fieldsDuplicate);
     }
-    
+
     /**
-     * 
-     * @param schema 
+     *
+     * @param schema
      * @about Creating a new schema object, and adding SPAN_LIST_ATTRIBUTE to
      *        the schema. SPAN_LIST_ATTRIBUTE is of type List
      */
@@ -117,21 +130,25 @@ public class Utils {
 
     /**
      * Tokenizes the query string using the given analyser
-     * @param analyzer
+     * @param luceneAnalyzer
      * @param query
      * @return ArrayList<String> list of results
      */
-    public static ArrayList<String> tokenizeQuery(Analyzer analyzer, String query) {
+    public static ArrayList<String> tokenizeQuery(Analyzer luceneAnalyzer, String query) {
         HashSet<String> resultSet = new HashSet<>();
         ArrayList<String> result = new ArrayList<String>();
-        TokenStream tokenStream  = analyzer.tokenStream(null, new StringReader(query));
+        TokenStream tokenStream  = luceneAnalyzer.tokenStream(null, new StringReader(query));
         CharTermAttribute charTermAttribute = tokenStream.addAttribute(CharTermAttribute.class);
 
         try{
             tokenStream.reset();
             while (tokenStream.incrementToken()) {
-                String term = charTermAttribute.toString();
-                resultSet.add(term);
+                String token = charTermAttribute.toString();
+                int tokenIndex = query.toLowerCase().indexOf(token);
+                // Since tokens are converted to lower case,
+                // get the exact token from the query string.
+                String actualQueryToken = query.substring(tokenIndex, tokenIndex+token.length());
+                resultSet.add(actualQueryToken);
             }
             tokenStream.close();
         } catch (Exception e) {

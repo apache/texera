@@ -22,28 +22,18 @@ public class RegexToGramQueryTranslator {
 	 * Then the boolean expression can be queried using 
 	 * an n-gram inverted index to speed up regex matching. <br>
 	 * 
+	 * 
 	 * @param regex, the regex string to be translated.
 	 * @return GamBooleanQeruy, a boolean query of n-grams.
 	 */
-	public static GramBooleanQuery translate(String regex) {
-		// try to parse using RE2J
-		try {
-		    PublicRegexp re = PublicParser.parse(regex, PublicRE2.PERL);
-		    re = PublicSimplify.simplify(re);
-		    RegexInfo regexInfo = analyze(re);
-		    return regexInfo.match;
-		    // if RE2J parsing fails
-		} catch (com.google.re2j.PatternSyntaxException re2j_e) {
-			// try to parse using Java Regex
-			// if succeeds, return matchAll (scan based)
-			try {
-				java.util.regex.Pattern.compile(regex);
-				return RegexInfo.matchAny().match;
-			// if Java Regex fails too, return matchNone (not a regex)
-			} catch (java.util.regex.PatternSyntaxException java_e) {
-				return RegexInfo.matchNone().match;
-			}
-		}
+	public static GramBooleanQuery translate(String regex) 
+		throws com.google.re2j.PatternSyntaxException{
+		
+	    PublicRegexp re = PublicParser.parse(regex, PublicRE2.PERL);
+	    re = PublicSimplify.simplify(re);
+	    RegexInfo regexInfo = analyze(re);
+	    return regexInfo.match;
+
 	}
 	
 	

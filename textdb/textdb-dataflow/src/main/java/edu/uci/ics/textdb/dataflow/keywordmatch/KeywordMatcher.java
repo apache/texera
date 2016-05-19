@@ -1,48 +1,37 @@
 package edu.uci.ics.textdb.dataflow.keywordmatch;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import edu.uci.ics.textdb.api.common.Attribute;
 import edu.uci.ics.textdb.api.common.IField;
 import edu.uci.ics.textdb.api.common.IPredicate;
 import edu.uci.ics.textdb.api.common.ITuple;
-import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.api.dataflow.IOperator;
 import edu.uci.ics.textdb.api.dataflow.ISourceOperator;
+import edu.uci.ics.textdb.common.constants.SchemaConstants;
 import edu.uci.ics.textdb.common.exception.DataFlowException;
 import edu.uci.ics.textdb.common.field.Span;
-import edu.uci.ics.textdb.common.field.StringField;
 import edu.uci.ics.textdb.common.field.TextField;
-import edu.uci.ics.textdb.common.utils.Utils;
 import edu.uci.ics.textdb.dataflow.common.KeywordPredicate;
 import edu.uci.ics.textdb.dataflow.source.IndexBasedSourceOperator;
 import edu.uci.ics.textdb.storage.DataReaderPredicate;
-import edu.uci.ics.textdb.storage.reader.DataReader;
 
 /**
  *  @author prakul
+ *  @author Akshay
  *
  */
 public class KeywordMatcher implements IOperator {
     private final KeywordPredicate predicate;
     private ISourceOperator sourceOperator;
-    private List<Pattern> tokenPatternList;
-    private List<Span> spanList;
-    private List<Span> tempSpanList;
     private String query;
     private List<Attribute> attributeList;
     private List<String> queryTokens;
-    private Set<String> setOfQueryTokens;
-    private boolean spanSchemaDefined = false;
-    private Schema spanSchema;
 
     public KeywordMatcher(IPredicate predicate) {
         this.predicate = (KeywordPredicate)predicate;
         DataReaderPredicate dataReaderPredicate = this.predicate.getDataReaderPredicate();
+        dataReaderPredicate.setIsSpanInformationAdded(true);
         this.sourceOperator = new IndexBasedSourceOperator(dataReaderPredicate);
     }
 
@@ -53,17 +42,6 @@ public class KeywordMatcher implements IOperator {
             query = predicate.getQuery();
             attributeList = predicate.getAttributeList();
             queryTokens = predicate.getTokens();
-            setOfQueryTokens = new HashSet<>(queryTokens);
-            tokenPatternList = new ArrayList<Pattern>();
-            Pattern pattern;
-            String regex;
-            for(String token : queryTokens){
-                regex = "\\b" + token.toLowerCase() + "\\b";
-                pattern = Pattern.compile(regex);
-                tokenPatternList.add(pattern);
-            }
-            spanList = new ArrayList<>();
-            tempSpanList = new ArrayList<>();
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -106,70 +84,54 @@ public class KeywordMatcher implements IOperator {
     @Override
     public ITuple getNextTuple() throws DataFlowException {
 
-        List<IField> fieldList;
-        Set<String> setOfFoundTokens = new HashSet<>();
         try {
             ITuple sourceTuple = sourceOperator.getNextTuple();
             if(sourceTuple == null){
                 return null;
             }
-            fieldList = sourceTuple.getFields();
-            spanList.clear();
-            if(!spanSchemaDefined){
-                Schema schema = sourceTuple.getSchema();
-                spanSchema = Utils.createSpanSchema(schema);
-                spanSchemaDefined = true;
-            }
-            for(int attributeIndex = 0; attributeIndex < attributeList.size(); attributeIndex++){
-                IField field = sourceTuple.getField(attributeList.get(attributeIndex).getFieldName());
-                String fieldValue = (String) (field).getValue();
-                String fieldName;
-                int positionIndex = 0; // Next position in the field to be checked.
-                int spanStartPosition; // Starting position of the matched query
-                if(field instanceof StringField){
+
+            int schemaIndex = sourceTuple.getSchema().getIndex(SchemaConstants.SPAN_LIST_ATTRIBUTE.getFieldName());
+            List<Span> spanList =
+                    (List<Span>)sourceTuple.getField(schemaIndex).getValue();
+
+            for(int attributeIndex = 0; attributeIndex < attributeList.size(); attributeIndex++) {
+                String fieldName = attributeList.get(attributeIndex).getFieldName();
+                IField field = sourceTuple.getField(fieldName);
+                if (!(field instanceof TextField)) {
+
+                    String fieldValue = (String) (field).getValue();
+
                     //Keyword should match fieldValue entirely
-                    if(fieldValue.equalsIgnoreCase(query)){
-                        spanStartPosition = 0;
-                        positionIndex = query.length();
-                        fieldName = attributeList.get(attributeIndex).getFieldName();
-                        addSpanToSpanList(fieldName, spanStartPosition, positionIndex, query, fieldValue);
+                    if (fieldValue.equals(query)) {
+                        Span span = new Span(fieldName, 0, query.length(), query, fieldValue);
+                        spanList.add(span);
                     }
-                }
-                else if(field instanceof TextField) {
-                    //Each element of Array of keywords is matched in tokenized TextField Value
-                    for(int iter = 0; iter < queryTokens.size(); iter++) {
-                        positionIndex = 0;
-                        String queryToken = queryTokens.get(iter);
-                        //Ex: For keyword lin it obtains pattern like /blin/b which matches keywords at boundary
-                        Pattern tokenPattern = tokenPatternList.get(iter);
-                        Matcher matcher = tokenPattern.matcher(fieldValue.toLowerCase());
-                        while (matcher.find(positionIndex) != false) {
-                            spanStartPosition = matcher.start();
-                            positionIndex = spanStartPosition + queryToken.length();
-                            String documentValue = fieldValue.substring(spanStartPosition, positionIndex);
-                            fieldName = attributeList.get(attributeIndex).getFieldName();
-                            String actualQueryToken = query.substring(query.toLowerCase().indexOf(queryToken), query.toLowerCase().indexOf(queryToken)+queryToken.length());
-                            addSpanToTempSpanList(fieldName, spanStartPosition, positionIndex, actualQueryToken, documentValue);
-                            setOfFoundTokens.add(queryToken);
+                } else {
+                    // Check if all the tokens are present in that field,
+                    // if any of the tokens is missing, remove all the span information for that field.
+
+                    //By default, initialized to false.
+                    boolean[] tokensPresent = new boolean[queryTokens.size()];
+
+                    List<Span> spanForThisField = new ArrayList<>();
+
+                    for (Span span : spanList) {
+                        if (span.getFieldName().equals(fieldName)) {
+                            spanForThisField.add(span);
+                            if (queryTokens.contains(span.getKey()))
+                                tokensPresent[queryTokens.indexOf(span.getKey())] = true;
                         }
                     }
+
+                    boolean allTokenPresent = areAllTrue(tokensPresent);
+
+                    if (!allTokenPresent) {
+                        spanList.removeAll(spanForThisField);
+                    }
                 }
-                if (setOfFoundTokens.equals(setOfQueryTokens)){
-                    spanList.addAll(tempSpanList);
-                }
-                tempSpanList.clear();
             }
 
-            //If all the 'attributes to be searched' have been processed return the result tuple with span info
-            //if (foundFlag || setOfFoundTokens.equals(setOfQueryTokens)){
-            if(spanList.size()>0){
-                return Utils.getSpanTuple(fieldList, spanList, spanSchema);
-            }
-            //Search next document if the required predicate did not match previous document
-            else{
-                spanList.clear();
-                return getNextTuple();
-            }
+            return sourceTuple;
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -177,17 +139,6 @@ public class KeywordMatcher implements IOperator {
         }
 
     }
-
-    private void addSpanToSpanList(String fieldName, int start, int end, String key, String value) {
-        Span span = new Span(fieldName, start, end, key, value);
-        spanList.add(span);
-    }
-
-    private void addSpanToTempSpanList(String fieldName, int start, int end, String key, String value) {
-        Span span = new Span(fieldName, start, end, key, value);
-        tempSpanList.add(span);
-    }
-
 
     @Override
     public void close() throws DataFlowException {
@@ -197,5 +148,11 @@ public class KeywordMatcher implements IOperator {
             e.printStackTrace();
             throw new DataFlowException(e.getMessage(), e);
         }
+    }
+
+    public static boolean areAllTrue(boolean[] array)
+    {
+        for(boolean b : array) if(!b) return false;
+        return true;
     }
 }

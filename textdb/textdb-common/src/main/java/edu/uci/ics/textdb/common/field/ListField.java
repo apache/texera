@@ -38,7 +38,7 @@ public class ListField<T> implements IField {
         if (list == null) {
             if (other.list != null)
                 return false;
-        } else if (!list.equals(other.list))
+        } else if ( !(list.containsAll(other.list) & other.list.containsAll(list)))
             return false;
         return true;
     }

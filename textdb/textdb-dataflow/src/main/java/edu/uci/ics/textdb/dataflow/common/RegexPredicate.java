@@ -1,88 +1,60 @@
-/**
- * 
- */
 package edu.uci.ics.textdb.dataflow.common;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
-import edu.uci.ics.textdb.api.common.IField;
+import org.apache.lucene.analysis.Analyzer;
+
+import edu.uci.ics.textdb.api.common.Attribute;
+import edu.uci.ics.textdb.api.common.FieldType;
 import edu.uci.ics.textdb.api.common.IPredicate;
-import edu.uci.ics.textdb.api.common.ITuple;
-import edu.uci.ics.textdb.common.field.Span;
-import edu.uci.ics.textdb.common.field.StringField;
-import edu.uci.ics.textdb.common.field.TextField;
+import edu.uci.ics.textdb.api.storage.IDataStore;
 
 /**
+ * This class is responsible for calculating regex match. <br>
+ * It uses RegexToGramQueryTranslator to translate a regex to a query in lucene. <br>
+ * 
+ * @author Zuozhi Wang
+ * @author Shuying Lai
  * @author sandeepreddy602
  *
  */
-public class RegexPredicate implements IPredicate{
+public class RegexPredicate implements IPredicate {
 
-    private final String fieldName;
-    
-    private final String regex;
-    private final Pattern pattern;
-    private Matcher matcher;
+	private String regex;
+	private List<String> fieldNameList;
+	private List<Attribute> attributeList;
+	private Analyzer luceneAnalyzer;
+	private IDataStore dataStore;
 
-	public RegexPredicate(String regex, String fieldName){
-        this.regex = regex;
-        this.fieldName = fieldName;
-        pattern = Pattern.compile(regex);
-    }
-	
-    public String getFieldName() {
-		return fieldName;
+	public RegexPredicate(String regex, List<Attribute> attributeList, Analyzer analyzer, IDataStore dataStore) {
+		this.regex = regex;
+		this.luceneAnalyzer = analyzer;
+		this.dataStore = dataStore;
+		this.attributeList = attributeList;
+		this.fieldNameList = attributeList.stream()
+				.filter(attr -> (attr.getFieldType() == FieldType.TEXT || attr.getFieldType() == FieldType.STRING))
+				.map(attr -> attr.getFieldName()).collect(Collectors.toList());
 	}
-    
-    public String getRegex() {
-    	return regex;
-    }
 
-    public boolean satisfy(ITuple tuple) {
-        if(tuple == null){
-            return false;
-        }
-        IField field = tuple.getField(fieldName);
-        if(field instanceof StringField){
-            String fieldValue = ((StringField) field).getValue();
-            if(fieldValue != null && fieldValue.matches(regex)){
-                return true;
-            }
-        }
-        return false;
-    }
-    
-    /**
-     * This function returns a list of spans in the given tuple that match the regex 
-     * For example, given tuple ("george watson", "graduate student", 23, "(949)888-8888")
-     * and regex "g[^\s]*", this function will return 
-     * [Span(name, 0, 6, "g[^\s]*", "george watson"), Span(position, 0, 8, "g[^\s]*", "graduate student")]
-     * 
-     * @param tuple document in which search is performed
-     * @return a list of spans describing the occurrence of a matching sequence in the document
-     */
-    public List<Span> computeMatches(ITuple tuple) {
-    	List<Span> spanList = new ArrayList<>();
-    	if (tuple == null) {
-    		return spanList; //empty array
-    	}
-    	IField field = tuple.getField(fieldName);
-    	if (field instanceof StringField || field instanceof TextField) {
-    		String fieldValue = ((StringField) field).getValue();
-    		if (fieldValue == null) {
-    			return spanList;
-    		} else {
-    			matcher = pattern.matcher(fieldValue);
-    			while (matcher.find()) {
-    				spanList.add(new Span(fieldName, matcher.start(), matcher.end(), regex, fieldValue));
-    			}
-    		}
-    	}
-    	
-    	return spanList;
-    }
+	public String getRegex() {
+		return regex;
+	}
+
+	public Analyzer getLuceneAnalyzer() {
+		return this.luceneAnalyzer;
+	}
+
+	public IDataStore getDataStore() {
+		return this.dataStore;
+	}
+
+	public List<String> getFieldNameList() {
+		return this.fieldNameList;
+	}
+
+	public List<Attribute> getAttributeList() {
+		return attributeList;
+	}
 
 }

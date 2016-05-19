@@ -35,11 +35,8 @@ import edu.uci.ics.textdb.common.field.ListField;
 import edu.uci.ics.textdb.common.field.Span;
 import edu.uci.ics.textdb.common.field.StringField;
 import edu.uci.ics.textdb.common.field.TextField;
-import edu.uci.ics.textdb.common.utils.Utils;
 import edu.uci.ics.textdb.dataflow.common.KeywordPredicate;
-import edu.uci.ics.textdb.dataflow.source.IndexBasedSourceOperator;
 import edu.uci.ics.textdb.dataflow.utils.TestUtils;
-import edu.uci.ics.textdb.storage.DataReaderPredicate;
 import edu.uci.ics.textdb.storage.DataStore;
 import edu.uci.ics.textdb.storage.writer.DataWriter;
 
@@ -54,8 +51,6 @@ public class KeywordMatcherTest {
     private IDataWriter dataWriter;
     private DataStore dataStore;
     private Analyzer analyzer;
-    private Schema schema;
-    private IPredicate keywordPredicate;
 
     @Before
     public void setUp() throws Exception {
@@ -64,7 +59,6 @@ public class KeywordMatcherTest {
         dataWriter = new DataWriter(dataStore, analyzer);
         dataWriter.clearData();
         dataWriter.writeData(TestConstants.getSamplePeopleTuples());
-        schema = dataStore.getSchema();
     }
 
     @After
@@ -179,7 +173,7 @@ public class KeywordMatcherTest {
 
         //Prepare expected result list
         List<Span> list = new ArrayList<>();
-        Span span = new Span("description", 0, 4, "TaLL", "Tall");
+        Span span = new Span("description", 0, 4, "TaLL", "Tall",0);
         list.add(span);
         Attribute[] schemaAttributes = new Attribute[TestConstants.ATTRIBUTES_PEOPLE.length + 1];
 
@@ -274,10 +268,10 @@ public class KeywordMatcherTest {
         //Prepare expected result list
         List<Span> list = new ArrayList<>();
         Span span1 = new Span("lastName", 0, 11, "lin clooney", "lin clooney");
-        Span span2 = new Span("description", 0, 3, "lin", "Lin");
-        Span span3 = new Span("description", 25, 28, "lin", "lin");
-        Span span4 = new Span("description", 4, 11, "clooney", "Clooney");
-        Span span5 = new Span("description", 29, 36, "clooney", "clooney");
+        Span span2 = new Span("description", 0, 3, "lin", "Lin", 0);
+        Span span3 = new Span("description", 25, 28, "lin", "lin", 5);
+        Span span4 = new Span("description", 4, 11, "clooney", "Clooney", 1);
+        Span span5 = new Span("description", 29, 36, "clooney", "clooney", 6);
         list.add(span1);
         list.add(span2);
         list.add(span3);

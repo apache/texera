@@ -1,6 +1,7 @@
 package edu.uci.ics.textdb.storage;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import junit.framework.Assert;
@@ -28,18 +29,18 @@ public class DataWriterReaderTest {
     private IDataReader dataReader;
     private IDataStore dataStore;
     private IPredicate dataReaderPredicate;
-    private Analyzer analyzer;
+    private Analyzer luceneAnalyzer;
     private Query query;
     
     @Before
     public void setUp() throws ParseException{
         dataStore = new DataStore(DataConstants.INDEX_DIR, TestConstants.SCHEMA_PEOPLE);
-        analyzer = new  StandardAnalyzer();
-        dataWriter = new DataWriter(dataStore, analyzer );
+        luceneAnalyzer = new  StandardAnalyzer();
+        dataWriter = new DataWriter(dataStore, luceneAnalyzer);
         QueryParser queryParser = new QueryParser(
-                TestConstants.ATTRIBUTES_PEOPLE[0].getFieldName(), analyzer);
+                TestConstants.ATTRIBUTES_PEOPLE[0].getFieldName(), luceneAnalyzer);
         query = queryParser.parse(DataConstants.SCAN_QUERY);
-        dataReaderPredicate = new DataReaderPredicate(dataStore, query);
+        dataReaderPredicate = new DataReaderPredicate(dataStore, query, DataConstants.SCAN_QUERY, luceneAnalyzer, Arrays.asList(TestConstants.ATTRIBUTES_PEOPLE));
         dataReader = new DataReader(dataReaderPredicate);
     }
     

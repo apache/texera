@@ -34,7 +34,7 @@ public class KeywordPredicate implements IPredicate{
     private final String query;
     private final Query luceneQuery;
     private ArrayList<String> tokens;
-    private Analyzer analyzer;
+    private Analyzer luceneAnalyzer;
     private IDataStore dataStore;
 
     /*
@@ -42,10 +42,10 @@ public class KeywordPredicate implements IPredicate{
     For Ex. New york if searched in TextField, we would consider both tokens
     New and York; if searched in String field we search for Exact string.
      */
-    public KeywordPredicate(String query, List<Attribute> attributeList, Analyzer analyzer,IDataStore dataStore ) throws DataFlowException{
+    public KeywordPredicate(String query, List<Attribute> attributeList, Analyzer luceneAnalyzer, IDataStore dataStore ) throws DataFlowException{
         try {
             this.query = query;
-            this.tokens = Utils.tokenizeQuery(analyzer, query);
+            this.tokens = Utils.tokenizeQuery(luceneAnalyzer, query);
             this.attributeList = attributeList;
             this.dataStore = dataStore;
             String[] temp = new String[attributeList.size()];
@@ -54,7 +54,7 @@ public class KeywordPredicate implements IPredicate{
                 temp[i] = attributeList.get(i).getFieldName();
             }
             this.fields = temp;
-            this.analyzer = analyzer;
+            this.luceneAnalyzer = luceneAnalyzer;
             this.luceneQuery = createLuceneQueryObject();
         } catch (Exception e) {
             e.printStackTrace();
@@ -105,7 +105,7 @@ public class KeywordPredicate implements IPredicate{
          */
         String[] remainingTextFields = (String[]) textFieldList.toArray(new String[0]);
         BooleanQuery queryOnTextFields = new BooleanQuery();
-        MultiFieldQueryParser parser = new MultiFieldQueryParser(remainingTextFields, analyzer);
+        MultiFieldQueryParser parser = new MultiFieldQueryParser(remainingTextFields, luceneAnalyzer);
 
         for(String searchToken : this.tokens){
             Query termQuery = parser.parse(searchToken);
@@ -126,16 +126,18 @@ public class KeywordPredicate implements IPredicate{
     public List<Attribute> getAttributeList() {
         return attributeList;
     }
+
     public Query getQueryObject(){return this.luceneQuery;}
 
     public ArrayList<String> getTokens(){return this.tokens;}
 
-    public Analyzer getAnalyzer(){
-        return analyzer;
+    public Analyzer getLuceneAnalyzer(){
+        return luceneAnalyzer;
     }
 
     public DataReaderPredicate getDataReaderPredicate() {
-        DataReaderPredicate dataReaderPredicate = new DataReaderPredicate(this.dataStore, this.luceneQuery);
+        DataReaderPredicate dataReaderPredicate = new DataReaderPredicate(this.dataStore, this.luceneQuery,
+                this.query, this.luceneAnalyzer, this.attributeList);
         return dataReaderPredicate;
     }
 
