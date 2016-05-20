@@ -50,7 +50,18 @@ public class FuzzyTokenPredicate implements IPredicate {
             throw new DataFlowException(e.getMessage(), e);
         }
     }
-    
+    public boolean getisSpanInformationAdded(){
+    	return this.isSpanInformationAdded;
+    }
+    public List<Attribute> getAttributeList() {
+    	return this.attributeList;
+    }
+    public int getThreshold() {
+    	return this.threshold;
+    }
+    public ArrayList<String> getQueryTokens(){
+    	return this.tokens;
+    }
     private void extractSearchFields() {
     	this.fields = new String[this.attributeList.size()];
     	int i = 0;
@@ -86,9 +97,8 @@ public class FuzzyTokenPredicate implements IPredicate {
     public DataReaderPredicate getDataReaderPredicate() {
     	DataReaderPredicate dataReaderPredicate = new DataReaderPredicate(this.dataStore, this.luceneQuery,
                 this.query, this.luceneAnalyzer, this.attributeList);
-        return dataReaderPredicate;
-
+    	dataReaderPredicate.setIsSpanInformationAdded(this.isSpanInformationAdded);
+    	return dataReaderPredicate;
     }
-
 
 }
