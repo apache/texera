@@ -50,7 +50,7 @@ public class FuzzyTokenPredicate implements IPredicate {
             throw new DataFlowException(e.getMessage(), e);
         }
     }
-    public boolean getisSpanInformationAdded(){
+    public boolean getIsSpanInformationAdded(){
     	return this.isSpanInformationAdded;
     }
     public List<Attribute> getAttributeList() {

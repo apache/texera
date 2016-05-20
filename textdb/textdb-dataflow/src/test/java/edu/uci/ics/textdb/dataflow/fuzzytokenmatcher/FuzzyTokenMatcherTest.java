@@ -118,7 +118,6 @@ public class FuzzyTokenMatcherTest {
         List<ITuple> results = getQueryResults(query, threshold, attributeList, isSpanInformationAdded);
         boolean contains = TestUtils.containsAllResults(expectedResultList, results);
         Assert.assertTrue(contains);
-        Assert.assertEquals(3,results.size());
     }
     
     @Test
@@ -152,7 +151,6 @@ public class FuzzyTokenMatcherTest {
         List<ITuple> results = getQueryResults(query, threshold, attributeList, isSpanInformationAdded);
         boolean contains = TestUtils.containsAllResults(expectedResultList, results);
         Assert.assertTrue(contains);
-        Assert.assertEquals(3,results.size());
     }
     
     @Test
@@ -163,6 +161,8 @@ public class FuzzyTokenMatcherTest {
         ArrayList<Attribute> attributeList = new ArrayList<>();
         attributeList.add(TestConstants.FIRST_NAME_ATTR);
         List<ITuple> results = getQueryResults(query, threshold, attributeList, isSpanInformationAdded);
+        List<ITuple> expectedResultList = new ArrayList<>();
+        boolean contains = TestUtils.containsAllResults(expectedResultList, results);
         Assert.assertEquals(0,results.size());
     }
     
@@ -197,7 +197,6 @@ public class FuzzyTokenMatcherTest {
         List<ITuple> results = getQueryResults(query, threshold, attributeList, isSpanInformationAdded);
         boolean contains = TestUtils.containsAllResults(expectedResultList, results);
         Assert.assertTrue(contains);
-        Assert.assertEquals(3,results.size());
     }
     
     @Test
@@ -246,6 +245,5 @@ public class FuzzyTokenMatcherTest {
         List<ITuple> results = getQueryResults(query, threshold, attributeList, isSpanInformationAdded);
         boolean contains = TestUtils.containsAllResults(expectedResultList, results);
         Assert.assertTrue(contains);
-        Assert.assertEquals(3,results.size());
     }
 }

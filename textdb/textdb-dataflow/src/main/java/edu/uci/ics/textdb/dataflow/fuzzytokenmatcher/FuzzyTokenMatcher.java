@@ -51,7 +51,7 @@ public class FuzzyTokenMatcher implements IOperator{
     public ITuple getNextTuple() throws DataFlowException {
 		try {
 		    ITuple sourceTuple = sourceOperator.getNextTuple();
-		    if (sourceTuple == null || !this.predicate.getisSpanInformationAdded())
+		    if (sourceTuple == null || !this.predicate.getIsSpanInformationAdded())
 		        return sourceTuple;
             
 		    int schemaIndex = sourceTuple.getSchema().getIndex(SchemaConstants.SPAN_LIST_ATTRIBUTE.getFieldName());
