@@ -1,7 +1,7 @@
 package edu.uci.ics.textdb.dataflow.fuzzytokenmatcher;
+
 import java.util.ArrayList;
 import java.util.List;
-
 import edu.uci.ics.textdb.api.common.Attribute;
 import edu.uci.ics.textdb.api.common.IField;
 /**
