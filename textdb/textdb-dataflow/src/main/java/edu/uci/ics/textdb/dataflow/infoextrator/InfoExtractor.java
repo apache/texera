@@ -1,4 +1,4 @@
-package edu.uci.ics.textdb.dataflow.neextrator;
+package edu.uci.ics.textdb.dataflow.infoextrator;
 
 import edu.stanford.nlp.ling.CoreAnnotations;
 import edu.stanford.nlp.ling.CoreLabel;
@@ -16,9 +16,7 @@ import edu.uci.ics.textdb.common.exception.DataFlowException;
 import edu.uci.ics.textdb.common.field.Span;
 import edu.uci.ics.textdb.common.utils.Utils;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Properties;
+import java.util.*;
 
 
 /**
@@ -35,15 +33,19 @@ import java.util.Properties;
  *         ["sentence1,0,6,Google, NE_ORGANIZATION", "sentence2,22,25,Mountain View, NE_LOCATION"]
  */
 
-public class NamedEntityExtractor implements IOperator {
+public class InfoExtractor implements IOperator {
 
 
     private IOperator sourceOperator;
     private List<Attribute> searchInAttributes;
     private ITuple sourceTuple;
     private Schema returnSchema;
+    private String info;
+    private Set<String> NEConstantSet;
+    private Set<String> POSConstantSet;
+    private String flag;
 
-
+    public static final String NE_ALL = "NE";
     public static final String NE_NUMBER = "Number";
     public static final String NE_LOCATION = "Location";
     public static final String NE_PERSON = "Person";
@@ -53,10 +55,44 @@ public class NamedEntityExtractor implements IOperator {
     public static final String NE_DATE = "Date";
     public static final String NE_TIME = "Time";
 
+    public static final String POS_NOUN = "Noun";
+    public static final String POS_VERB = "Verb";
+    public static final String POS_ADJ = "Adjective";
+    public static final String POS_ADV = "Adverb";
 
-    public NamedEntityExtractor(IOperator operator, List<Attribute> searchInAttributes) {
+
+    public InfoExtractor(IOperator operator, List<Attribute> searchInAttributes, String infoConstant) throws DataFlowException {
         this.sourceOperator = operator;
         this.searchInAttributes = searchInAttributes;
+        this.info = infoConstant;
+        initializeConstantSet();
+        if (NEConstantSet.contains(info)) {
+            flag = "NE";
+        } else if (POSConstantSet.contains(info)) {
+            flag = "POS";
+        } else {
+            throw new DataFlowException("Error: No such constant");
+        }
+    }
+
+    //TODO: make it looks better
+    private void initializeConstantSet() {
+        this.NEConstantSet = new HashSet<String>();
+        this.NEConstantSet.add(NE_ALL);
+        this.NEConstantSet.add(NE_DATE);
+        this.NEConstantSet.add(NE_LOCATION);
+        this.NEConstantSet.add(NE_MONEY);
+        this.NEConstantSet.add(NE_NUMBER);
+        this.NEConstantSet.add(NE_ORGANIZATION);
+        this.NEConstantSet.add(NE_PERCENT);
+        this.NEConstantSet.add(NE_PERSON);
+        this.NEConstantSet.add(NE_TIME);
+
+        this.POSConstantSet = new HashSet<String>();
+        this.POSConstantSet.add(POS_ADJ);
+        this.POSConstantSet.add(POS_ADV);
+        this.POSConstantSet.add(POS_NOUN);
+        this.POSConstantSet.add(POS_VERB);
     }
 
 
@@ -96,7 +132,7 @@ public class NamedEntityExtractor implements IOperator {
             for (Attribute attribute : searchInAttributes) {
                 String fieldName = attribute.getFieldName();
                 IField field = sourceTuple.getField(fieldName);
-                spanList.addAll(extractNESpans(field, fieldName));
+                spanList.addAll(extractInfoSpans(field, fieldName));
             }
 
             ITuple returnTuple = Utils.getSpanTuple(sourceTuple.getFields(), spanList, returnSchema);
@@ -127,31 +163,47 @@ public class NamedEntityExtractor implements IOperator {
      * The Stanford NLP constants are mapped into the NE constants.
      * The NLP package has annotations for the start and end position of a token
      * and it perfectly matches the span design so we just use them.
-     *
      */
-    private List<Span> extractNESpans(IField iField, String fieldName) {
+    private List<Span> extractInfoSpans(IField iField, String fieldName) {
         List<Span> spanList = new ArrayList<>();
         String text = (String) iField.getValue();
         Properties props = new Properties();
-        props.setProperty("annotators", "tokenize, ssplit, pos, lemma, ner");
+
+        //TODO: make it looks better
+        if (flag.equals("POS")) {
+            props.setProperty("annotators", "tokenize, ssplit, pos");
+        } else {
+            props.setProperty("annotators", "tokenize, ssplit, pos, lemma, ner");
+        }
+
         StanfordCoreNLP pipeline = new StanfordCoreNLP(props);
         Annotation documentAnnotation = new Annotation(text);
         pipeline.annotate(documentAnnotation);
         List<CoreMap> sentences = documentAnnotation.get(CoreAnnotations.SentencesAnnotation.class);
         for (CoreMap sentence : sentences) {
             for (CoreLabel token : sentence.get(CoreAnnotations.TokensAnnotation.class)) {
-                String NLPConstant = token.get(CoreAnnotations.NamedEntityTagAnnotation.class);
-                if (!NLPConstant.equals("O")) {
 
-                    String NEConstant = getNEConstant(NLPConstant);
+                String NLPConstant;
+                if (flag.equals("POS")) {
+                    NLPConstant = token.get(CoreAnnotations.PartOfSpeechAnnotation.class);
+                } else {
+                    NLPConstant = token.get(CoreAnnotations.NamedEntityTagAnnotation.class);
+                }
+
+
+                String InfoConstant = getInfoConstant(NLPConstant);
+                if (InfoConstant == null) {
+                    continue;
+                }
+                if (InfoConstant.equals(info)) {
                     int start = token.get(CoreAnnotations.CharacterOffsetBeginAnnotation.class);
                     int end = token.get(CoreAnnotations.CharacterOffsetEndAnnotation.class);
                     String word = token.get(CoreAnnotations.TextAnnotation.class);
 
-                    Span span = new Span(fieldName, start, end, NEConstant, word);
+                    Span span = new Span(fieldName, start, end, InfoConstant, word);
 
 
-                    if (spanList.size() >= 1) {
+                    if (spanList.size() >= 1 && flag.equals("NE")) {
                         Span previousSpan = spanList.get(spanList.size() - 1);
                         if (previousSpan.getFieldName().equals(span.getFieldName())
                                 && (span.getStart() - previousSpan.getEnd() <= 1)
@@ -162,8 +214,8 @@ public class NamedEntityExtractor implements IOperator {
                         }
                     }
                     spanList.add(span);
-
                 }
+
             }
 
         }
@@ -196,12 +248,12 @@ public class NamedEntityExtractor implements IOperator {
 
         String newWord = previousWord + " " + currentWord;
 
-        String NEConstant = previousSpan.getKey();
+        String InfoConstant = previousSpan.getKey();
         String fieldName = previousSpan.getFieldName();
         int start = previousSpan.getStart();
         int end = currentSpan.getEnd();
 
-        Span mergedspan = new Span(fieldName, start, end, NEConstant, newWord);
+        Span mergedspan = new Span(fieldName, start, end, InfoConstant, newWord);
 
         return mergedspan;
 
@@ -214,38 +266,86 @@ public class NamedEntityExtractor implements IOperator {
      * @param NLPConstant
      * @return
      */
-    private String getNEConstant(String NLPConstant) {
-        String NEConstant;
+    private String getInfoConstant(String NLPConstant) {
+        String InfoConstant;
         switch (NLPConstant) {
             case "NUMBER":
-                NEConstant = this.NE_NUMBER;
+                InfoConstant = this.NE_NUMBER;
                 break;
             case "LOCATION":
-                NEConstant = this.NE_LOCATION;
+                InfoConstant = this.NE_LOCATION;
                 break;
             case "PERSON":
-                NEConstant = this.NE_PERSON;
+                InfoConstant = this.NE_PERSON;
                 break;
             case "ORGANIZATION":
-                NEConstant = this.NE_ORGANIZATION;
+                InfoConstant = this.NE_ORGANIZATION;
                 break;
             case "MONEY":
-                NEConstant = this.NE_MONEY;
+                InfoConstant = this.NE_MONEY;
                 break;
             case "PERCENT":
-                NEConstant = this.NE_PERCENT;
+                InfoConstant = this.NE_PERCENT;
                 break;
             case "DATE":
-                NEConstant = this.NE_DATE;
+                InfoConstant = this.NE_DATE;
                 break;
             case "TIME":
-                NEConstant = this.NE_TIME;
+                InfoConstant = this.NE_TIME;
+                break;
+            case "JJ":
+                InfoConstant = this.POS_ADJ;
+                break;
+            case "JJR":
+                InfoConstant = this.POS_ADJ;
+                break;
+            case "JJS":
+                InfoConstant = this.POS_ADJ;
+                break;
+            case "RB":
+                InfoConstant = this.POS_ADV;
+                break;
+            case "RBR":
+                InfoConstant = this.POS_ADV;
+                break;
+            case "RBS":
+                InfoConstant = this.POS_ADV;
+                break;
+            case "NN":
+                InfoConstant = this.POS_NOUN;
+                break;
+            case "NNS":
+                InfoConstant = this.POS_NOUN;
+                break;
+            case "NNP":
+                InfoConstant = this.POS_NOUN;
+                break;
+            case "NNPS":
+                InfoConstant = this.POS_NOUN;
+                break;
+            case "VB":
+                InfoConstant = this.POS_VERB;
+                break;
+            case "VBD":
+                InfoConstant = this.POS_VERB;
+                break;
+            case "VBG":
+                InfoConstant = this.POS_VERB;
+                break;
+            case "VBN":
+                InfoConstant = this.POS_VERB;
+                break;
+            case "VBP":
+                InfoConstant = this.POS_VERB;
+                break;
+            case "VBZ":
+                InfoConstant = this.POS_VERB;
                 break;
             default:
-                NEConstant = null;
+                InfoConstant = null;
                 break;
         }
-        return NEConstant;
+        return InfoConstant;
 
     }
 
@@ -256,6 +356,8 @@ public class NamedEntityExtractor implements IOperator {
     @Override
     public void close() throws DataFlowException {
         try {
+            info = null;
+            flag = null;
             searchInAttributes = null;
             sourceTuple = null;
             returnSchema = null;
