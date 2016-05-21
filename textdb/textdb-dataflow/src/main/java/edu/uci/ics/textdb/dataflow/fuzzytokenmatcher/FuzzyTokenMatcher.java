@@ -58,11 +58,15 @@ public class FuzzyTokenMatcher implements IOperator{
 		    List<Span> resultSpans =
                     (List<Span>)sourceTuple.getField(schemaIndex).getValue();
             
+		    /*The source operator returns spans even for those fields which did not satisfy the threshold criterion.
+		     *  So if two attributes A,B have 10 and 5 matching tokens, and we set threshold to 10,
+		     *  the number of spans returned is 15. So we need to filter those 5 spans for attribute B.
+		    */
 		    for(int attributeIndex = 0; attributeIndex < attributeList.size(); attributeIndex++) {
 		        String fieldName = attributeList.get(attributeIndex).getFieldName();
 		        IField field = sourceTuple.getField(fieldName);
                 
-		        if (field instanceof TextField) {
+		        if (field instanceof TextField) {         //Lucene defines Fuzzy Token Matching only for text fields.
 		            int tokensMatched = 0;
 		            List<Span> attributeSpans = new ArrayList<>();
 		            for (Span span : resultSpans) {
