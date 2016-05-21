@@ -19,6 +19,8 @@ import java.util.List;
  * @author varun bharill, parag saraogi
  * 
  * This class builds the query to perform boolean searches in a lucene index. 
+ * The threshold for boolean searches is taken input as a ratio with is converted to integer. 
+ * In the worst case if this integer becomes 0, we will set it to 1. 
  */
 public class FuzzyTokenPredicate implements IPredicate {
 	
@@ -73,7 +75,8 @@ public class FuzzyTokenPredicate implements IPredicate {
 
     /*
      * The input threshold given by the end-user (thresholdRatio data member) is a ratio
-     * but boolean search query requires integer as a threshold.
+     * but boolean search query requires integer as a threshold. In case if the the threshold 
+     * becomes 0, we will set it by default to 1.
      */
 	public void computeThreshold() {
 		this.threshold = (int) (this.thresholdRatio * this.tokens.size());
@@ -82,7 +85,12 @@ public class FuzzyTokenPredicate implements IPredicate {
     	}
     }
 	
+	
     private Query createLuceneQueryObject() throws ParseException {
+    	/*
+    	 * By default the boolean query takes 1024 # of clauses as the max limit.
+    	 * Since our input query has no limitaion on the number of tokens, we have to put a check.
+    	 */
     	if(this.threshold > 1024)
     		BooleanQuery.setMaxClauseCount(this.threshold + 1);
     	BooleanQuery.Builder builder = new BooleanQuery.Builder();
