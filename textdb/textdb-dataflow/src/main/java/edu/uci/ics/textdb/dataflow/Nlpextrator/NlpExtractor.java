@@ -40,16 +40,23 @@ public class NlpExtractor implements IOperator {
     private List<Attribute> searchInAttributes;
     private ITuple sourceTuple;
     private Schema returnSchema;
-    private String info;
-    private Set<String> NEConstantSet;
-    private Set<String> POSConstantSet;
-    private String flag;
+    private NlpConstants NlpConstant = null;
+    private String flag = null;
 
 
+    public enum NlpConstants {
+        NE, Number, Location, Person, Organization, Money, Percent, Date, Time, Noun, Verb, Adjective, Adverb;
 
-    public enum NE { NE, Number, Location, Person,Organization,Money,Percent,Date,Time };
+        private static boolean isPOSConstant(NlpConstants constant) {
+            if (constant.equals(NlpConstants.Adjective) || constant.equals(NlpConstants.Adverb) || constant.equals(NlpConstants.Noun) || constant.equals(NlpConstants.Verb)) {
+                return true;
+            } else {
+                return false;
+            }
+        }
+    }
 
-    public enum POS { Noun, Verb, Adjective, Adverb};
+    ;
 
 
 
@@ -69,39 +76,15 @@ public class NlpExtractor implements IOperator {
     public static final String POS_ADV = "Adverb";
 
 
-    public NlpExtractor(IOperator operator, List<Attribute> searchInAttributes, String infoConstant) throws DataFlowException {
+    public NlpExtractor(IOperator operator, List<Attribute> searchInAttributes, NlpConstants nlpConstant) throws DataFlowException {
         this.sourceOperator = operator;
         this.searchInAttributes = searchInAttributes;
-        this.info = infoConstant;
-        initializeConstantSet();
-
-        if (NEConstantSet.contains(info)) {
-            flag = "NE";
-        } else if (POSConstantSet.contains(info)) {
+        this.NlpConstant = nlpConstant;
+        if (NlpConstants.isPOSConstant(nlpConstant)) {
             flag = "POS";
         } else {
-            throw new DataFlowException("Error: No such constant");
+            flag = "NE";
         }
-    }
-
-    //TODO: make it looks better
-    private void initializeConstantSet() {
-        this.NEConstantSet = new HashSet<String>();
-        this.NEConstantSet.add(NE_ALL);
-        this.NEConstantSet.add(NE_DATE);
-        this.NEConstantSet.add(NE_LOCATION);
-        this.NEConstantSet.add(NE_MONEY);
-        this.NEConstantSet.add(NE_NUMBER);
-        this.NEConstantSet.add(NE_ORGANIZATION);
-        this.NEConstantSet.add(NE_PERCENT);
-        this.NEConstantSet.add(NE_PERSON);
-        this.NEConstantSet.add(NE_TIME);
-
-        this.POSConstantSet = new HashSet<String>();
-        this.POSConstantSet.add(POS_ADJ);
-        this.POSConstantSet.add(POS_ADV);
-        this.POSConstantSet.add(POS_NOUN);
-        this.POSConstantSet.add(POS_VERB);
     }
 
 
@@ -178,7 +161,6 @@ public class NlpExtractor implements IOperator {
         String text = (String) iField.getValue();
         Properties props = new Properties();
 
-        //TODO: make it looks better
         if (flag.equals("POS")) {
             props.setProperty("annotators", "tokenize, ssplit, pos");
         } else {
@@ -192,27 +174,27 @@ public class NlpExtractor implements IOperator {
         for (CoreMap sentence : sentences) {
             for (CoreLabel token : sentence.get(CoreAnnotations.TokensAnnotation.class)) {
 
-                String NLPConstant;
+                String StanfordNlpConstant;
                 if (flag.equals("POS")) {
-                    NLPConstant = token.get(CoreAnnotations.PartOfSpeechAnnotation.class);
+                    StanfordNlpConstant = token.get(CoreAnnotations.PartOfSpeechAnnotation.class);
                 } else {
-                    NLPConstant = token.get(CoreAnnotations.NamedEntityTagAnnotation.class);
+                    StanfordNlpConstant = token.get(CoreAnnotations.NamedEntityTagAnnotation.class);
                 }
 
 
-                String InfoConstant = getInfoConstant(NLPConstant);
-                if (InfoConstant == null) {
+                NlpConstants thisNlpConstant = getInfoConstant(StanfordNlpConstant);
+                if (thisNlpConstant == null) {
                     continue;
                 }
-                if (InfoConstant.equals(info) || info.equals(NE_ALL)) {
+                if (NlpConstant.equals(NlpConstants.NE) || NlpConstant.equals(thisNlpConstant)) {
                     int start = token.get(CoreAnnotations.CharacterOffsetBeginAnnotation.class);
                     int end = token.get(CoreAnnotations.CharacterOffsetEndAnnotation.class);
                     String word = token.get(CoreAnnotations.TextAnnotation.class);
 
-                    Span span = new Span(fieldName, start, end, InfoConstant, word);
+                    Span span = new Span(fieldName, start, end, thisNlpConstant.toString(), word);
 
 
-                    if (spanList.size() >= 1 && flag.equals("NE")) {
+                    if (spanList.size() >= 1 && (flag.equals("NE"))) {
                         Span previousSpan = spanList.get(spanList.size() - 1);
                         if (previousSpan.getFieldName().equals(span.getFieldName())
                                 && (span.getStart() - previousSpan.getEnd() <= 1)
@@ -275,87 +257,59 @@ public class NlpExtractor implements IOperator {
      * @param NLPConstant
      * @return
      */
-    private String getInfoConstant(String NLPConstant) {
-        String InfoConstant;
+    private NlpConstants getInfoConstant(String NLPConstant) {
         switch (NLPConstant) {
             case "NUMBER":
-                InfoConstant = this.NE_NUMBER;
-                break;
+                return NlpConstants.Number;
             case "LOCATION":
-                InfoConstant = this.NE_LOCATION;
-                break;
+                return NlpConstants.Location;
             case "PERSON":
-                InfoConstant = this.NE_PERSON;
-                break;
+                return NlpConstants.Person;
             case "ORGANIZATION":
-                InfoConstant = this.NE_ORGANIZATION;
-                break;
+                return NlpConstants.Organization;
             case "MONEY":
-                InfoConstant = this.NE_MONEY;
-                break;
+                return NlpConstants.Money;
             case "PERCENT":
-                InfoConstant = this.NE_PERCENT;
-                break;
+                return NlpConstants.Percent;
             case "DATE":
-                InfoConstant = this.NE_DATE;
-                break;
+                return NlpConstants.Date;
             case "TIME":
-                InfoConstant = this.NE_TIME;
-                break;
+                return NlpConstants.Time;
             case "JJ":
-                InfoConstant = this.POS_ADJ;
-                break;
+                return NlpConstants.Adjective;
             case "JJR":
-                InfoConstant = this.POS_ADJ;
-                break;
+                return NlpConstants.Adjective;
             case "JJS":
-                InfoConstant = this.POS_ADJ;
-                break;
+                return NlpConstants.Adjective;
             case "RB":
-                InfoConstant = this.POS_ADV;
-                break;
+                return NlpConstants.Adverb;
             case "RBR":
-                InfoConstant = this.POS_ADV;
-                break;
+                return NlpConstants.Adverb;
             case "RBS":
-                InfoConstant = this.POS_ADV;
-                break;
+                return NlpConstants.Adverb;
             case "NN":
-                InfoConstant = this.POS_NOUN;
-                break;
+                return NlpConstants.Noun;
             case "NNS":
-                InfoConstant = this.POS_NOUN;
-                break;
+                return NlpConstants.Noun;
             case "NNP":
-                InfoConstant = this.POS_NOUN;
-                break;
+                return NlpConstants.Noun;
             case "NNPS":
-                InfoConstant = this.POS_NOUN;
-                break;
+                return NlpConstants.Noun;
             case "VB":
-                InfoConstant = this.POS_VERB;
-                break;
+                return NlpConstants.Verb;
             case "VBD":
-                InfoConstant = this.POS_VERB;
-                break;
+                return NlpConstants.Verb;
             case "VBG":
-                InfoConstant = this.POS_VERB;
-                break;
+                return NlpConstants.Verb;
             case "VBN":
-                InfoConstant = this.POS_VERB;
-                break;
+                return NlpConstants.Verb;
             case "VBP":
-                InfoConstant = this.POS_VERB;
-                break;
+                return NlpConstants.Verb;
             case "VBZ":
-                InfoConstant = this.POS_VERB;
-                break;
+                return NlpConstants.Verb;
             default:
-                InfoConstant = null;
-                break;
+                return null;
         }
-        return InfoConstant;
-
     }
 
 
@@ -365,8 +319,7 @@ public class NlpExtractor implements IOperator {
     @Override
     public void close() throws DataFlowException {
         try {
-            info = null;
-            flag = null;
+            NlpConstant = null;
             searchInAttributes = null;
             sourceTuple = null;
             returnSchema = null;
