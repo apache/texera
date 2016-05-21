@@ -1,9 +1,9 @@
-package edu.uci.ics.textdb.dataflow.infoextractor;
+package edu.uci.ics.textdb.dataflow.nlpextractor;
 
 import edu.uci.ics.textdb.api.common.*;
 import edu.uci.ics.textdb.common.field.*;
 import edu.uci.ics.textdb.common.utils.Utils;
-import edu.uci.ics.textdb.dataflow.infoextrator.InfoExtractor;
+import edu.uci.ics.textdb.dataflow.nlpextrator.NlpExtractor;
 
 import java.text.ParseException;
 import java.util.ArrayList;
@@ -13,7 +13,7 @@ import java.util.List;
 /**
  * Created by Sam on 16/4/27.
  */
-public class InfoExtractorTestConstants {
+public class NlpExtractorTestConstants {
 
 
     public static final String SENTENCE_ONE = "sentence_one";
@@ -68,7 +68,7 @@ public class InfoExtractorTestConstants {
     public static List<ITuple> getTest1ResultTuples() {
         List<ITuple> resultList = new ArrayList<>();
         List<Span> spanList = new ArrayList<Span>();
-        Span span1 = new Span("sentence_one", 0, 9, InfoExtractor.NE_ORGANIZATION, "Microsoft");
+        Span span1 = new Span("sentence_one", 0, 9, NlpExtractor.NE_ORGANIZATION, "Microsoft");
         spanList.add(span1);
 
         IField[] fields1 = {new TextField("Microsoft is an organization.")};
@@ -85,9 +85,9 @@ public class InfoExtractorTestConstants {
     public static List<ITuple> getTest2ResultTuples() {
         List<ITuple> resultList = new ArrayList<>();
         List<Span> spanList = new ArrayList<Span>();
-        Span span1 = new Span("sentence_one", 0, 9, InfoExtractor.NE_ORGANIZATION, "Microsoft");
-        Span span2 = new Span("sentence_one", 11, 17, InfoExtractor.NE_ORGANIZATION, "Google");
-        Span span3 = new Span("sentence_one", 22, 30, InfoExtractor.NE_ORGANIZATION, "Facebook");
+        Span span1 = new Span("sentence_one", 0, 9, NlpExtractor.NE_ORGANIZATION, "Microsoft");
+        Span span2 = new Span("sentence_one", 11, 17, NlpExtractor.NE_ORGANIZATION, "Google");
+        Span span3 = new Span("sentence_one", 22, 30, NlpExtractor.NE_ORGANIZATION, "Facebook");
         spanList.add(span1);
         spanList.add(span2);
         spanList.add(span3);
@@ -107,11 +107,11 @@ public class InfoExtractorTestConstants {
         List<ITuple> resultList = new ArrayList<>();
 
         List<Span> spanList = new ArrayList<Span>();
-        Span span1 = new Span("sentence_one", 0, 9, InfoExtractor.NE_ORGANIZATION, "Microsoft");
-        Span span2 = new Span("sentence_one", 11, 17, InfoExtractor.NE_ORGANIZATION, "Google");
-        Span span3 = new Span("sentence_one", 22, 30, InfoExtractor.NE_ORGANIZATION, "Facebook");
-        Span span4 = new Span("sentence_one", 53, 65, InfoExtractor.NE_PERSON, "Donald Trump");
-        Span span5 = new Span("sentence_one", 70, 82, InfoExtractor.NE_PERSON, "Barack Obama");
+        Span span1 = new Span("sentence_one", 0, 9, NlpExtractor.NE_ORGANIZATION, "Microsoft");
+        Span span2 = new Span("sentence_one", 11, 17, NlpExtractor.NE_ORGANIZATION, "Google");
+        Span span3 = new Span("sentence_one", 22, 30, NlpExtractor.NE_ORGANIZATION, "Facebook");
+        Span span4 = new Span("sentence_one", 53, 65, NlpExtractor.NE_PERSON, "Donald Trump");
+        Span span5 = new Span("sentence_one", 70, 82, NlpExtractor.NE_PERSON, "Barack Obama");
 
         spanList.add(span1);
         spanList.add(span2);
@@ -135,11 +135,11 @@ public class InfoExtractorTestConstants {
         List<ITuple> resultList = new ArrayList<>();
 
         List<Span> spanList = new ArrayList<Span>();
-        Span span1 = new Span("sentence_one", 0, 9, InfoExtractor.NE_ORGANIZATION, "Microsoft");
-        Span span2 = new Span("sentence_one", 11, 17, InfoExtractor.NE_ORGANIZATION, "Google");
-        Span span3 = new Span("sentence_one", 22, 30, InfoExtractor.NE_ORGANIZATION, "Facebook");
-        Span span4 = new Span("sentence_two", 0, 12, InfoExtractor.NE_PERSON, "Donald Trump");
-        Span span5 = new Span("sentence_two", 17, 29, InfoExtractor.NE_PERSON, "Barack Obama");
+        Span span1 = new Span("sentence_one", 0, 9, NlpExtractor.NE_ORGANIZATION, "Microsoft");
+        Span span2 = new Span("sentence_one", 11, 17, NlpExtractor.NE_ORGANIZATION, "Google");
+        Span span3 = new Span("sentence_one", 22, 30, NlpExtractor.NE_ORGANIZATION, "Facebook");
+        Span span4 = new Span("sentence_two", 0, 12, NlpExtractor.NE_PERSON, "Donald Trump");
+        Span span5 = new Span("sentence_two", 17, 29, NlpExtractor.NE_PERSON, "Barack Obama");
 
         spanList.add(span1);
         spanList.add(span2);
@@ -164,8 +164,8 @@ public class InfoExtractorTestConstants {
 
         List<Span> spanList = new ArrayList<Span>();
 
-        Span span1 = new Span("sentence_two", 0, 12, InfoExtractor.NE_PERSON, "Donald Trump");
-        Span span2 = new Span("sentence_two", 17, 29, InfoExtractor.NE_PERSON, "Barack Obama");
+        Span span1 = new Span("sentence_two", 0, 12, NlpExtractor.NE_PERSON, "Donald Trump");
+        Span span2 = new Span("sentence_two", 17, 29, NlpExtractor.NE_PERSON, "Barack Obama");
 
 
         spanList.add(span1);

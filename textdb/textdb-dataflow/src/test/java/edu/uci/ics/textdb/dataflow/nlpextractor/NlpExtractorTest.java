@@ -1,11 +1,11 @@
-package edu.uci.ics.textdb.dataflow.infoextractor;
+package edu.uci.ics.textdb.dataflow.nlpextractor;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 import edu.uci.ics.textdb.api.common.Attribute;
-import edu.uci.ics.textdb.dataflow.infoextrator.InfoExtractor;
+import edu.uci.ics.textdb.dataflow.Nlpextrator.NlpExtractor;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.queryparser.classic.QueryParser;
@@ -32,8 +32,8 @@ import edu.uci.ics.textdb.storage.writer.DataWriter;
 /**
  * @author Feng [sam0227]
  */
-public class InfoExtractorTest {
-    private InfoExtractor infoExtractor;
+public class NlpExtractorTest {
+    private NlpExtractor nlpExtractor;
 
     private IDataWriter dataWriter;
     private IDataReader dataReader;
@@ -53,7 +53,7 @@ public class InfoExtractorTest {
 
     /**
      *
-     * @about Using InfoExtractor to get all returned results from sourceOperator,
+     * @about Using NlpExtractor to get all returned results from sourceOperator,
      * return as a list of tuples
      *
      * @param sourceOperator
@@ -64,14 +64,14 @@ public class InfoExtractorTest {
     public List<ITuple> getQueryResults(ISourceOperator sourceOperator, List<Attribute> attributes) throws Exception {
 
         //TODO: Change input format
-        infoExtractor = new InfoExtractor(sourceOperator,attributes,InfoExtractor.NE_ALL);
-        infoExtractor.open();
+        nlpExtractor = new NlpExtractor(sourceOperator,attributes, NlpExtractor.NE_ALL);
+        nlpExtractor.open();
         ITuple nextTuple = null;
         List<ITuple> results = new ArrayList<ITuple>();
-        while ((nextTuple = infoExtractor.getNextTuple()) != null) {
+        while ((nextTuple = nlpExtractor.getNextTuple()) != null) {
             results.add(nextTuple);
         }
-        infoExtractor.close();
+        nlpExtractor.close();
         return results;
     }
 

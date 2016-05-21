@@ -1,4 +1,4 @@
-package edu.uci.ics.textdb.dataflow.infoextrator;
+package edu.uci.ics.textdb.dataflow.Nlpextrator;
 
 import edu.stanford.nlp.ling.CoreAnnotations;
 import edu.stanford.nlp.ling.CoreLabel;
@@ -33,7 +33,7 @@ import java.util.*;
  *         ["sentence1,0,6,Google, NE_ORGANIZATION", "sentence2,22,25,Mountain View, NE_LOCATION"]
  */
 
-public class InfoExtractor implements IOperator {
+public class NlpExtractor implements IOperator {
 
 
     private IOperator sourceOperator;
@@ -44,6 +44,14 @@ public class InfoExtractor implements IOperator {
     private Set<String> NEConstantSet;
     private Set<String> POSConstantSet;
     private String flag;
+
+
+
+    public enum NE { NE, Number, Location, Person,Organization,Money,Percent,Date,Time };
+
+    public enum POS { Noun, Verb, Adjective, Adverb};
+
+
 
     public static final String NE_ALL = "NE";
     public static final String NE_NUMBER = "Number";
@@ -61,11 +69,12 @@ public class InfoExtractor implements IOperator {
     public static final String POS_ADV = "Adverb";
 
 
-    public InfoExtractor(IOperator operator, List<Attribute> searchInAttributes, String infoConstant) throws DataFlowException {
+    public NlpExtractor(IOperator operator, List<Attribute> searchInAttributes, String infoConstant) throws DataFlowException {
         this.sourceOperator = operator;
         this.searchInAttributes = searchInAttributes;
         this.info = infoConstant;
         initializeConstantSet();
+
         if (NEConstantSet.contains(info)) {
             flag = "NE";
         } else if (POSConstantSet.contains(info)) {
