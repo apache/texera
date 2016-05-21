@@ -64,7 +64,7 @@ public class NlpExtractorTest {
     public List<ITuple> getQueryResults(ISourceOperator sourceOperator, List<Attribute> attributes) throws Exception {
 
         //TODO: Change input format
-        nlpExtractor = new NlpExtractor(sourceOperator,attributes, NlpExtractor.NE_ALL);
+        nlpExtractor = new NlpExtractor(sourceOperator,attributes, NlpExtractor.NlpConstants.NE);
         nlpExtractor.open();
         ITuple nextTuple = null;
         List<ITuple> results = new ArrayList<ITuple>();

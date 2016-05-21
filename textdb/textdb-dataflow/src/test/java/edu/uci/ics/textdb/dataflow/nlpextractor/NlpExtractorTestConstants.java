@@ -68,7 +68,7 @@ public class NlpExtractorTestConstants {
     public static List<ITuple> getTest1ResultTuples() {
         List<ITuple> resultList = new ArrayList<>();
         List<Span> spanList = new ArrayList<Span>();
-        Span span1 = new Span("sentence_one", 0, 9, NlpExtractor.NE_ORGANIZATION, "Microsoft");
+        Span span1 = new Span("sentence_one", 0, 9, NlpExtractor.NlpConstants.Organization.toString(), "Microsoft");
         spanList.add(span1);
 
         IField[] fields1 = {new TextField("Microsoft is an organization.")};
@@ -85,9 +85,9 @@ public class NlpExtractorTestConstants {
     public static List<ITuple> getTest2ResultTuples() {
         List<ITuple> resultList = new ArrayList<>();
         List<Span> spanList = new ArrayList<Span>();
-        Span span1 = new Span("sentence_one", 0, 9, NlpExtractor.NE_ORGANIZATION, "Microsoft");
-        Span span2 = new Span("sentence_one", 11, 17, NlpExtractor.NE_ORGANIZATION, "Google");
-        Span span3 = new Span("sentence_one", 22, 30, NlpExtractor.NE_ORGANIZATION, "Facebook");
+        Span span1 = new Span("sentence_one", 0, 9, NlpExtractor.NlpConstants.Organization.toString(), "Microsoft");
+        Span span2 = new Span("sentence_one", 11, 17, NlpExtractor.NlpConstants.Organization.toString(), "Google");
+        Span span3 = new Span("sentence_one", 22, 30, NlpExtractor.NlpConstants.Organization.toString(), "Facebook");
         spanList.add(span1);
         spanList.add(span2);
         spanList.add(span3);
@@ -107,11 +107,11 @@ public class NlpExtractorTestConstants {
         List<ITuple> resultList = new ArrayList<>();
 
         List<Span> spanList = new ArrayList<Span>();
-        Span span1 = new Span("sentence_one", 0, 9, NlpExtractor.NE_ORGANIZATION, "Microsoft");
-        Span span2 = new Span("sentence_one", 11, 17, NlpExtractor.NE_ORGANIZATION, "Google");
-        Span span3 = new Span("sentence_one", 22, 30, NlpExtractor.NE_ORGANIZATION, "Facebook");
-        Span span4 = new Span("sentence_one", 53, 65, NlpExtractor.NE_PERSON, "Donald Trump");
-        Span span5 = new Span("sentence_one", 70, 82, NlpExtractor.NE_PERSON, "Barack Obama");
+        Span span1 = new Span("sentence_one", 0, 9, NlpExtractor.NlpConstants.Organization.toString(), "Microsoft");
+        Span span2 = new Span("sentence_one", 11, 17, NlpExtractor.NlpConstants.Organization.toString(), "Google");
+        Span span3 = new Span("sentence_one", 22, 30, NlpExtractor.NlpConstants.Organization.toString(), "Facebook");
+        Span span4 = new Span("sentence_one", 53, 65, NlpExtractor.NlpConstants.Person.toString(), "Donald Trump");
+        Span span5 = new Span("sentence_one", 70, 82, NlpExtractor.NlpConstants.Person.toString(), "Barack Obama");
 
         spanList.add(span1);
         spanList.add(span2);
@@ -135,11 +135,11 @@ public class NlpExtractorTestConstants {
         List<ITuple> resultList = new ArrayList<>();
 
         List<Span> spanList = new ArrayList<Span>();
-        Span span1 = new Span("sentence_one", 0, 9, NlpExtractor.NE_ORGANIZATION, "Microsoft");
-        Span span2 = new Span("sentence_one", 11, 17, NlpExtractor.NE_ORGANIZATION, "Google");
-        Span span3 = new Span("sentence_one", 22, 30, NlpExtractor.NE_ORGANIZATION, "Facebook");
-        Span span4 = new Span("sentence_two", 0, 12, NlpExtractor.NE_PERSON, "Donald Trump");
-        Span span5 = new Span("sentence_two", 17, 29, NlpExtractor.NE_PERSON, "Barack Obama");
+        Span span1 = new Span("sentence_one", 0, 9, NlpExtractor.NlpConstants.Organization.toString(), "Microsoft");
+        Span span2 = new Span("sentence_one", 11, 17, NlpExtractor.NlpConstants.Organization.toString(), "Google");
+        Span span3 = new Span("sentence_one", 22, 30, NlpExtractor.NlpConstants.Organization.toString(), "Facebook");
+        Span span4 = new Span("sentence_two", 0, 12, NlpExtractor.NlpConstants.Person.toString(), "Donald Trump");
+        Span span5 = new Span("sentence_two", 17, 29, NlpExtractor.NlpConstants.Person.toString(), "Barack Obama");
 
         spanList.add(span1);
         spanList.add(span2);
@@ -164,8 +164,8 @@ public class NlpExtractorTestConstants {
 
         List<Span> spanList = new ArrayList<Span>();
 
-        Span span1 = new Span("sentence_two", 0, 12, NlpExtractor.NE_PERSON, "Donald Trump");
-        Span span2 = new Span("sentence_two", 17, 29, NlpExtractor.NE_PERSON, "Barack Obama");
+        Span span1 = new Span("sentence_two", 0, 12, NlpExtractor.NlpConstants.Person.toString(), "Donald Trump");
+        Span span2 = new Span("sentence_two", 17, 29, NlpExtractor.NlpConstants.Person.toString(), "Barack Obama");
 
 
         spanList.add(span1);

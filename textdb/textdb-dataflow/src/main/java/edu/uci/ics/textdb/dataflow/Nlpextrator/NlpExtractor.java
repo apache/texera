@@ -54,26 +54,7 @@ public class NlpExtractor implements IOperator {
                 return false;
             }
         }
-    }
-
-    ;
-
-
-
-    public static final String NE_ALL = "NE";
-    public static final String NE_NUMBER = "Number";
-    public static final String NE_LOCATION = "Location";
-    public static final String NE_PERSON = "Person";
-    public static final String NE_ORGANIZATION = "Organization";
-    public static final String NE_MONEY = "Money";
-    public static final String NE_PERCENT = "Percent";
-    public static final String NE_DATE = "Date";
-    public static final String NE_TIME = "Time";
-
-    public static final String POS_NOUN = "Noun";
-    public static final String POS_VERB = "Verb";
-    public static final String POS_ADJ = "Adjective";
-    public static final String POS_ADV = "Adverb";
+    };
 
 
     public NlpExtractor(IOperator operator, List<Attribute> searchInAttributes, NlpConstants nlpConstant) throws DataFlowException {
@@ -193,7 +174,6 @@ public class NlpExtractor implements IOperator {
 
                     Span span = new Span(fieldName, start, end, thisNlpConstant.toString(), word);
 
-
                     if (spanList.size() >= 1 && (flag.equals("NE"))) {
                         Span previousSpan = spanList.get(spanList.size() - 1);
                         if (previousSpan.getFieldName().equals(span.getFieldName())
@@ -234,20 +214,8 @@ public class NlpExtractor implements IOperator {
      * 3. The two spans have the same key (Organization, Person,... etc)
      */
     private Span mergeTwoSpans(Span previousSpan, Span currentSpan) {
-        String previousWord = previousSpan.getValue();
-        String currentWord = currentSpan.getValue();
-
-        String newWord = previousWord + " " + currentWord;
-
-        String InfoConstant = previousSpan.getKey();
-        String fieldName = previousSpan.getFieldName();
-        int start = previousSpan.getStart();
-        int end = currentSpan.getEnd();
-
-        Span mergedspan = new Span(fieldName, start, end, InfoConstant, newWord);
-
-        return mergedspan;
-
+        String newWord = previousSpan.getValue() + " " + currentSpan.getValue();
+        return new Span(previousSpan.getFieldName(), previousSpan.getStart(), currentSpan.getEnd(), previousSpan.getKey(), newWord);
     }
 
     /**
