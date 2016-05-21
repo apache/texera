@@ -5,7 +5,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import edu.uci.ics.textdb.api.common.Attribute;
-import edu.uci.ics.textdb.dataflow.Nlpextrator.NlpExtractor;
+import edu.uci.ics.textdb.dataflow.nlpextrator.NlpExtractor;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.queryparser.classic.QueryParser;
@@ -83,16 +83,16 @@ public class NlpExtractorTest {
      */
     @Test
     public void getNextTupleTest1() throws Exception {
-        List<ITuple> data = InfoExtractorTestConstants.getTest1Tuple();
+        List<ITuple> data = NlpExtractorTestConstants.getTest1Tuple();
         ISourceOperator sourceOperator = getSourceOperator(data.get(0).getSchema(), data);
 
-        Attribute attribute1 = InfoExtractorTestConstants.SENTENCE_ONE_ATTR;
+        Attribute attribute1 = NlpExtractorTestConstants.SENTENCE_ONE_ATTR;
         List<Attribute> attributes = new ArrayList<>();
         attributes.add(attribute1);
 
         List<ITuple> returnedResults = getQueryResults(sourceOperator,attributes);
 
-        List<ITuple> expectedResults = InfoExtractorTestConstants.getTest1ResultTuples();
+        List<ITuple> expectedResults = NlpExtractorTestConstants.getTest1ResultTuples();
 
         boolean contains = TestUtils.containsAllResults(expectedResults, returnedResults);
         Assert.assertTrue(contains);
@@ -104,15 +104,15 @@ public class NlpExtractorTest {
      */
     @Test
     public void getNextTupleTest2() throws Exception {
-        List<ITuple> data = InfoExtractorTestConstants.getTest2Tuple();
+        List<ITuple> data = NlpExtractorTestConstants.getTest2Tuple();
         ISourceOperator sourceOperator = getSourceOperator(data.get(0).getSchema(), data);
 
-        Attribute attribute1 = InfoExtractorTestConstants.SENTENCE_ONE_ATTR;
+        Attribute attribute1 = NlpExtractorTestConstants.SENTENCE_ONE_ATTR;
         List<Attribute> attributes = new ArrayList<>();
         attributes.add(attribute1);
 
         List<ITuple> returnedResults = getQueryResults(sourceOperator,attributes);
-        List<ITuple> expectedResults = InfoExtractorTestConstants.getTest2ResultTuples();
+        List<ITuple> expectedResults = NlpExtractorTestConstants.getTest2ResultTuples();
 
         boolean contains = TestUtils.containsAllResults(expectedResults, returnedResults);
         Assert.assertTrue(contains);
@@ -125,15 +125,15 @@ public class NlpExtractorTest {
      */
     @Test
     public void getNextTupleTest3() throws Exception {
-        List<ITuple> data = InfoExtractorTestConstants.getTest3Tuple();
+        List<ITuple> data = NlpExtractorTestConstants.getTest3Tuple();
         ISourceOperator sourceOperator = getSourceOperator(data.get(0).getSchema(), data);
 
-        Attribute attribute1 = InfoExtractorTestConstants.SENTENCE_ONE_ATTR;
+        Attribute attribute1 = NlpExtractorTestConstants.SENTENCE_ONE_ATTR;
         List<Attribute> attributes = new ArrayList<>();
         attributes.add(attribute1);
 
         List<ITuple> returnedResults = getQueryResults(sourceOperator,attributes);
-        List<ITuple> expectedResults = InfoExtractorTestConstants.getTest3ResultTuples();
+        List<ITuple> expectedResults = NlpExtractorTestConstants.getTest3ResultTuples();
 
         boolean contains = TestUtils.containsAllResults(expectedResults, returnedResults);
 
@@ -150,18 +150,18 @@ public class NlpExtractorTest {
      */
     @Test
     public void getNextTupleTest4() throws Exception {
-        List<ITuple> data = InfoExtractorTestConstants.getTest4Tuple();
+        List<ITuple> data = NlpExtractorTestConstants.getTest4Tuple();
         ISourceOperator sourceOperator = getSourceOperator(data.get(0).getSchema(), data);
 
-        Attribute attribute1 = InfoExtractorTestConstants.SENTENCE_ONE_ATTR;
-        Attribute attribute2 = InfoExtractorTestConstants.SENTENCE_TWO_ATTR;
+        Attribute attribute1 = NlpExtractorTestConstants.SENTENCE_ONE_ATTR;
+        Attribute attribute2 = NlpExtractorTestConstants.SENTENCE_TWO_ATTR;
 
         List<Attribute> attributes = new ArrayList<>();
         attributes.add(attribute1);
         attributes.add(attribute2);
 
         List<ITuple> returnedResults = getQueryResults(sourceOperator,attributes);
-        List<ITuple> expectedResults = InfoExtractorTestConstants.getTest4ResultTuples();
+        List<ITuple> expectedResults = NlpExtractorTestConstants.getTest4ResultTuples();
 
         boolean contains = TestUtils.containsAllResults(expectedResults, returnedResults);
 
@@ -180,16 +180,16 @@ public class NlpExtractorTest {
      */
     @Test
     public void getNextTupleTest5() throws Exception {
-        List<ITuple> data = InfoExtractorTestConstants.getTest4Tuple();
+        List<ITuple> data = NlpExtractorTestConstants.getTest4Tuple();
         ISourceOperator sourceOperator = getSourceOperator(data.get(0).getSchema(), data);
 
-        Attribute attribute = InfoExtractorTestConstants.SENTENCE_TWO_ATTR;
+        Attribute attribute = NlpExtractorTestConstants.SENTENCE_TWO_ATTR;
         List<Attribute> attributes = new ArrayList<>();
         attributes.add(attribute);
 
         List<ITuple> returnedResults = getQueryResults(sourceOperator,attributes);
 
-        List<ITuple> expectedResults = InfoExtractorTestConstants.getTest5ResultTuples();
+        List<ITuple> expectedResults = NlpExtractorTestConstants.getTest5ResultTuples();
 
         boolean contains = TestUtils.containsAllResults(expectedResults, returnedResults);
 
@@ -212,10 +212,10 @@ public class NlpExtractorTest {
         dataWriter = new DataWriter(dataStore, analyzer);
         dataWriter.writeData(data);
 
-        QueryParser queryParser = new QueryParser(InfoExtractorTestConstants.ATTRIBUTES_ONE_SENTENCE.get(0).getFieldName(), analyzer);
+        QueryParser queryParser = new QueryParser(NlpExtractorTestConstants.ATTRIBUTES_ONE_SENTENCE.get(0).getFieldName(), analyzer);
         query = queryParser.parse(DataConstants.SCAN_QUERY);
         dataReaderPredicate = new DataReaderPredicate(dataStore, query, DataConstants.SCAN_QUERY,
-                analyzer, Arrays.asList(InfoExtractorTestConstants.ATTRIBUTES_ONE_SENTENCE.get(0)));
+                analyzer, Arrays.asList(NlpExtractorTestConstants.ATTRIBUTES_ONE_SENTENCE.get(0)));
         dataReader = new DataReader(dataReaderPredicate);
 
         ISourceOperator sourceOperator = new ScanBasedSourceOperator(dataReader);

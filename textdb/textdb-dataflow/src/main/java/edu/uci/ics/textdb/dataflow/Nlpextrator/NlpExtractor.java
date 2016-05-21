@@ -1,4 +1,4 @@
-package edu.uci.ics.textdb.dataflow.Nlpextrator;
+package edu.uci.ics.textdb.dataflow.nlpextrator;
 
 import edu.stanford.nlp.ling.CoreAnnotations;
 import edu.stanford.nlp.ling.CoreLabel;
@@ -204,7 +204,7 @@ public class NlpExtractor implements IOperator {
                 if (InfoConstant == null) {
                     continue;
                 }
-                if (InfoConstant.equals(info)) {
+                if (InfoConstant.equals(info) || info.equals(NE_ALL)) {
                     int start = token.get(CoreAnnotations.CharacterOffsetBeginAnnotation.class);
                     int end = token.get(CoreAnnotations.CharacterOffsetEndAnnotation.class);
                     String word = token.get(CoreAnnotations.TextAnnotation.class);
