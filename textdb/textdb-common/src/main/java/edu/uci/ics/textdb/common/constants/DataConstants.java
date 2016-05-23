@@ -15,4 +15,8 @@ public class DataConstants {
     public static enum SourceOperatorType {
         SCANOPERATOR, KEYWORDOPERATOR, PHRASEOPERATOR
     };
+
+    public static  enum KeywordOperatorType{
+        BASIC, PHRASE
+    }
 }

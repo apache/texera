@@ -84,7 +84,7 @@ public class FuzzyTokenMatcherTest {
         ArrayList<Attribute> attributeList = new ArrayList<>();
         attributeList.add(TestConstants.DESCRIPTION_ATTR);
         List<ITuple> results = getQueryResults(query, threshold, attributeList, isSpanInformationAdded);
-        //Assert.assertEquals(0,results.size());
+        Assert.assertEquals(0,results.size());
     }
     
     @Test
@@ -117,8 +117,7 @@ public class FuzzyTokenMatcherTest {
         
         List<ITuple> results = getQueryResults(query, threshold, attributeList, isSpanInformationAdded);
         boolean contains = TestUtils.containsAllResults(expectedResultList, results);
-        //Assert.assertTrue(contains);
-        //Assert.assertEquals(3,results.size());
+        Assert.assertTrue(contains);
     }
     
     @Test
@@ -151,8 +150,7 @@ public class FuzzyTokenMatcherTest {
         
         List<ITuple> results = getQueryResults(query, threshold, attributeList, isSpanInformationAdded);
         boolean contains = TestUtils.containsAllResults(expectedResultList, results);
-        //Assert.assertTrue(contains);
-        //Assert.assertEquals(3,results.size());
+        Assert.assertTrue(contains);
     }
     
     @Test
@@ -163,7 +161,9 @@ public class FuzzyTokenMatcherTest {
         ArrayList<Attribute> attributeList = new ArrayList<>();
         attributeList.add(TestConstants.FIRST_NAME_ATTR);
         List<ITuple> results = getQueryResults(query, threshold, attributeList, isSpanInformationAdded);
-        //Assert.assertEquals(0,results.size());
+        List<ITuple> expectedResultList = new ArrayList<>();
+        boolean contains = TestUtils.containsAllResults(expectedResultList, results);
+        Assert.assertEquals(0,results.size());
     }
     
     @Test
@@ -196,8 +196,7 @@ public class FuzzyTokenMatcherTest {
         
         List<ITuple> results = getQueryResults(query, threshold, attributeList, isSpanInformationAdded);
         boolean contains = TestUtils.containsAllResults(expectedResultList, results);
-        //Assert.assertTrue(contains);
-        //Assert.assertEquals(3,results.size());
+        Assert.assertTrue(contains);
     }
     
     @Test
@@ -215,21 +214,21 @@ public class FuzzyTokenMatcherTest {
         schemaAttributes[schemaAttributes.length - 1] = SchemaConstants.SPAN_LIST_ATTRIBUTE;
         
         List<Span> list = new ArrayList<>();
-        Span span = new Span(TestConstants.DESCRIPTION, 5, 10, "Angry", "Angry");
+        Span span = new Span(TestConstants.DESCRIPTION, 5, 10, "Angry", "Angry", 1);
         list.add(span);
         IField[] fields1 = { new StringField("bruce"), new StringField("john Lee"), new IntegerField(46),
                 new DoubleField(5.50), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-14-1970")),
                 new TextField("Tall Angry"), new ListField<>(list) };
         
-        list.clear();
-        span = new Span(TestConstants.DESCRIPTION, 6, 11, "Angry", "Angry");
+        list = new ArrayList<>();
+        span = new Span(TestConstants.DESCRIPTION, 6, 11, "Angry", "Angry", 1);
         list.add(span);
         IField[] fields2 = { new StringField("brad lie angelina"), new StringField("pitt"), new IntegerField(44),
                 new DoubleField(6.10), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-12-1972")),
                 new TextField("White Angry"), new ListField<>(list) };
         
-        list.clear();
-        span = new Span(TestConstants.DESCRIPTION, 39, 44, "Angry", "Angry");
+        list = new ArrayList<>();
+        span = new Span(TestConstants.DESCRIPTION, 40, 45, "Angry", "Angry", 8);
         list.add(span);
         IField[] fields3 = { new StringField("george lin lin"), new StringField("lin clooney"), new IntegerField(43),
                 new DoubleField(6.06), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1973")),
@@ -245,7 +244,6 @@ public class FuzzyTokenMatcherTest {
         
         List<ITuple> results = getQueryResults(query, threshold, attributeList, isSpanInformationAdded);
         boolean contains = TestUtils.containsAllResults(expectedResultList, results);
-        //Assert.assertTrue(contains);
-        //Assert.assertEquals(3,results.size());
+        Assert.assertTrue(contains);
     }
 }
