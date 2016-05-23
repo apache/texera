@@ -1,10 +1,11 @@
-package edu.uci.ics.textdb.dataflow.neextractor;
+package edu.uci.ics.textdb.dataflow.nlpextractor;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 import edu.uci.ics.textdb.api.common.Attribute;
+import edu.uci.ics.textdb.dataflow.nlpextrator.NlpExtractor;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.queryparser.classic.QueryParser;
@@ -21,7 +22,6 @@ import edu.uci.ics.textdb.api.storage.IDataReader;
 import edu.uci.ics.textdb.api.storage.IDataStore;
 import edu.uci.ics.textdb.api.storage.IDataWriter;
 import edu.uci.ics.textdb.common.constants.DataConstants;
-import edu.uci.ics.textdb.dataflow.neextrator.NamedEntityExtractor;
 import edu.uci.ics.textdb.dataflow.source.ScanBasedSourceOperator;
 import edu.uci.ics.textdb.dataflow.utils.TestUtils;
 import edu.uci.ics.textdb.storage.DataReaderPredicate;
@@ -32,8 +32,8 @@ import edu.uci.ics.textdb.storage.writer.DataWriter;
 /**
  * @author Feng [sam0227]
  */
-public class NamedEntityExtractorTest {
-    private NamedEntityExtractor namedEntityExtractor;
+public class NlpExtractorTest {
+    private NlpExtractor nlpExtractor;
 
     private IDataWriter dataWriter;
     private IDataReader dataReader;
@@ -52,46 +52,47 @@ public class NamedEntityExtractorTest {
 
 
     /**
-     *
-     * @about Using NamedEntityExtractor to get all returned results from sourceOperator,
-     * return as a list of tuples
-     *
      * @param sourceOperator
      * @param attributes
+     * @param nlpConstant
      * @return
      * @throws Exception
+     * @about Using NlpExtractor to get all returned results from sourceOperator,
+     * return as a list of tuples
      */
-    public List<ITuple> getQueryResults(ISourceOperator sourceOperator, List<Attribute> attributes) throws Exception {
+    public List<ITuple> getQueryResults(ISourceOperator sourceOperator, List<Attribute> attributes, NlpExtractor.NlpConstants nlpConstant) throws Exception {
 
-        namedEntityExtractor = new NamedEntityExtractor(sourceOperator,attributes);
-        namedEntityExtractor.open();
+        //TODO: Change input format
+        nlpExtractor = new NlpExtractor(sourceOperator, attributes, nlpConstant);
+        nlpExtractor.open();
         ITuple nextTuple = null;
         List<ITuple> results = new ArrayList<ITuple>();
-        while ((nextTuple = namedEntityExtractor.getNextTuple()) != null) {
+        while ((nextTuple = nlpExtractor.getNextTuple()) != null) {
             results.add(nextTuple);
         }
-        namedEntityExtractor.close();
+        nlpExtractor.close();
         return results;
     }
 
     /**
      * Scenario 1: Test getNextTuple with only one span in the return list
      * Text : Microsoft is a organization.
+     * Search for all NE constants
      *
      * @throws Exception
      */
     @Test
     public void getNextTupleTest1() throws Exception {
-        List<ITuple> data = NEExtractorTestConstants.getTest1Tuple();
+        List<ITuple> data = NlpExtractorTestConstants.getTest1Tuple();
         ISourceOperator sourceOperator = getSourceOperator(data.get(0).getSchema(), data);
 
-        Attribute attribute1 = NEExtractorTestConstants.SENTENCE_ONE_ATTR;
+        Attribute attribute1 = NlpExtractorTestConstants.SENTENCE_ONE_ATTR;
         List<Attribute> attributes = new ArrayList<>();
         attributes.add(attribute1);
 
-        List<ITuple> returnedResults = getQueryResults(sourceOperator,attributes);
+        List<ITuple> returnedResults = getQueryResults(sourceOperator, attributes, NlpExtractor.NlpConstants.NE);
 
-        List<ITuple> expectedResults = NEExtractorTestConstants.getTest1ResultTuples();
+        List<ITuple> expectedResults = NlpExtractorTestConstants.getTest1ResultTuples();
 
         boolean contains = TestUtils.containsAllResults(expectedResults, returnedResults);
         Assert.assertTrue(contains);
@@ -100,18 +101,19 @@ public class NamedEntityExtractorTest {
     /**
      * Scenario 2: Test getNextTuple with more than one span in the return list
      * Text: Microsoft, Google and Facebook are organizations
+     * Search for all NE constants
      */
     @Test
     public void getNextTupleTest2() throws Exception {
-        List<ITuple> data = NEExtractorTestConstants.getTest2Tuple();
+        List<ITuple> data = NlpExtractorTestConstants.getTest2Tuple();
         ISourceOperator sourceOperator = getSourceOperator(data.get(0).getSchema(), data);
 
-        Attribute attribute1 = NEExtractorTestConstants.SENTENCE_ONE_ATTR;
+        Attribute attribute1 = NlpExtractorTestConstants.SENTENCE_ONE_ATTR;
         List<Attribute> attributes = new ArrayList<>();
         attributes.add(attribute1);
 
-        List<ITuple> returnedResults = getQueryResults(sourceOperator,attributes);
-        List<ITuple> expectedResults = NEExtractorTestConstants.getTest2ResultTuples();
+        List<ITuple> returnedResults = getQueryResults(sourceOperator, attributes, NlpExtractor.NlpConstants.NE);
+        List<ITuple> expectedResults = NlpExtractorTestConstants.getTest2ResultTuples();
 
         boolean contains = TestUtils.containsAllResults(expectedResults, returnedResults);
         Assert.assertTrue(contains);
@@ -121,18 +123,19 @@ public class NamedEntityExtractorTest {
     /**
      * Scenario 3: Test getNextTuple with more than one span in the return list and with different recognized classes.
      * Text: Microsoft, Google and Facebook are organizations and Donald Trump and Barack Obama are persons.
+     * Search for all NE constants
      */
     @Test
     public void getNextTupleTest3() throws Exception {
-        List<ITuple> data = NEExtractorTestConstants.getTest3Tuple();
+        List<ITuple> data = NlpExtractorTestConstants.getTest3Tuple();
         ISourceOperator sourceOperator = getSourceOperator(data.get(0).getSchema(), data);
 
-        Attribute attribute1 = NEExtractorTestConstants.SENTENCE_ONE_ATTR;
+        Attribute attribute1 = NlpExtractorTestConstants.SENTENCE_ONE_ATTR;
         List<Attribute> attributes = new ArrayList<>();
         attributes.add(attribute1);
 
-        List<ITuple> returnedResults = getQueryResults(sourceOperator,attributes);
-        List<ITuple> expectedResults = NEExtractorTestConstants.getTest3ResultTuples();
+        List<ITuple> returnedResults = getQueryResults(sourceOperator, attributes, NlpExtractor.NlpConstants.NE);
+        List<ITuple> expectedResults = NlpExtractorTestConstants.getTest3ResultTuples();
 
         boolean contains = TestUtils.containsAllResults(expectedResults, returnedResults);
 
@@ -146,21 +149,22 @@ public class NamedEntityExtractorTest {
      * <p>
      * Sentence1: Microsoft, Google and Facebook are organizations.
      * Sentence2: Donald Trump and Barack Obama are persons.
+     * Search for all NE constants
      */
     @Test
     public void getNextTupleTest4() throws Exception {
-        List<ITuple> data = NEExtractorTestConstants.getTest4Tuple();
+        List<ITuple> data = NlpExtractorTestConstants.getTest4Tuple();
         ISourceOperator sourceOperator = getSourceOperator(data.get(0).getSchema(), data);
 
-        Attribute attribute1 = NEExtractorTestConstants.SENTENCE_ONE_ATTR;
-        Attribute attribute2 = NEExtractorTestConstants.SENTENCE_TWO_ATTR;
+        Attribute attribute1 = NlpExtractorTestConstants.SENTENCE_ONE_ATTR;
+        Attribute attribute2 = NlpExtractorTestConstants.SENTENCE_TWO_ATTR;
 
         List<Attribute> attributes = new ArrayList<>();
         attributes.add(attribute1);
         attributes.add(attribute2);
 
-        List<ITuple> returnedResults = getQueryResults(sourceOperator,attributes);
-        List<ITuple> expectedResults = NEExtractorTestConstants.getTest4ResultTuples();
+        List<ITuple> returnedResults = getQueryResults(sourceOperator, attributes, NlpExtractor.NlpConstants.NE);
+        List<ITuple> expectedResults = NlpExtractorTestConstants.getTest4ResultTuples();
 
         boolean contains = TestUtils.containsAllResults(expectedResults, returnedResults);
 
@@ -172,26 +176,81 @@ public class NamedEntityExtractorTest {
     /**
      * Scenario 5:Test getNextTuple using two fields:
      * <p>
-     *  Sentence1: Microsoft, Google and Facebook are organizations.
-     *  Sentence2: Donald Trump and Barack Obama are persons.
+     * Sentence1: Microsoft, Google and Facebook are organizations.
+     * Sentence2: Donald Trump and Barack Obama are persons.
      * <p>
-     * Only search the second field.
+     * Only search the second field for all NE constants
      */
     @Test
     public void getNextTupleTest5() throws Exception {
-        List<ITuple> data = NEExtractorTestConstants.getTest4Tuple();
+        List<ITuple> data = NlpExtractorTestConstants.getTest4Tuple();
         ISourceOperator sourceOperator = getSourceOperator(data.get(0).getSchema(), data);
 
-        Attribute attribute = NEExtractorTestConstants.SENTENCE_TWO_ATTR;
+        Attribute attribute = NlpExtractorTestConstants.SENTENCE_TWO_ATTR;
         List<Attribute> attributes = new ArrayList<>();
         attributes.add(attribute);
 
-        List<ITuple> returnedResults = getQueryResults(sourceOperator,attributes);
+        List<ITuple> returnedResults = getQueryResults(sourceOperator, attributes, NlpExtractor.NlpConstants.NE);
 
-        List<ITuple> expectedResults = NEExtractorTestConstants.getTest5ResultTuples();
+        List<ITuple> expectedResults = NlpExtractorTestConstants.getTest5ResultTuples();
 
         boolean contains = TestUtils.containsAllResults(expectedResults, returnedResults);
 
+
+        Assert.assertTrue(contains);
+    }
+
+
+    /**
+     * Scenario 6:Test getNextTuple using two fields:
+     * <p>
+     * Sentence1: Microsoft, Google and Facebook are organizations.
+     * Sentence2: Donald Trump and Barack Obama are persons.
+     * <p>
+     * Only search for Organization for all fields.
+     */
+    @Test
+    public void getNextTupleTest6() throws Exception {
+        List<ITuple> data = NlpExtractorTestConstants.getTest4Tuple();
+        ISourceOperator sourceOperator = getSourceOperator(data.get(0).getSchema(), data);
+
+        Attribute attribute1 = NlpExtractorTestConstants.SENTENCE_ONE_ATTR;
+        Attribute attribute2 = NlpExtractorTestConstants.SENTENCE_TWO_ATTR;
+
+        List<Attribute> attributes = new ArrayList<>();
+        attributes.add(attribute1);
+        attributes.add(attribute2);
+
+        List<ITuple> returnedResults = getQueryResults(sourceOperator, attributes, NlpExtractor.NlpConstants.Organization);
+
+        List<ITuple> expectedResults = NlpExtractorTestConstants.getTest6ResultTuples();
+
+        boolean contains = TestUtils.containsAllResults(expectedResults, returnedResults);
+
+        Assert.assertTrue(contains);
+    }
+
+
+    /**
+     * Scenario 7:Test getNextTuple using sentence:
+     * Sentence1: Feeling the warm sun rays beaming steadily down, the girl decided there was no need to wear a coat.
+     * Search for Adjective.
+     */
+    @Test
+    public void getNextTupleTest7() throws Exception {
+        List<ITuple> data = NlpExtractorTestConstants.getTest7Tuple();
+        ISourceOperator sourceOperator = getSourceOperator(data.get(0).getSchema(), data);
+
+        Attribute attribute1 = NlpExtractorTestConstants.SENTENCE_ONE_ATTR;
+
+        List<Attribute> attributes = new ArrayList<>();
+        attributes.add(attribute1);
+
+        List<ITuple> returnedResults = getQueryResults(sourceOperator, attributes, NlpExtractor.NlpConstants.Adjective);
+
+        List<ITuple> expectedResults = NlpExtractorTestConstants.getTest7ResultTuples();
+
+        boolean contains = TestUtils.containsAllResults(expectedResults, returnedResults);
 
         Assert.assertTrue(contains);
     }
@@ -211,10 +270,10 @@ public class NamedEntityExtractorTest {
         dataWriter = new DataWriter(dataStore, analyzer);
         dataWriter.writeData(data);
 
-        QueryParser queryParser = new QueryParser(NEExtractorTestConstants.ATTRIBUTES_ONE_SENTENCE.get(0).getFieldName(), analyzer);
+        QueryParser queryParser = new QueryParser(NlpExtractorTestConstants.ATTRIBUTES_ONE_SENTENCE.get(0).getFieldName(), analyzer);
         query = queryParser.parse(DataConstants.SCAN_QUERY);
         dataReaderPredicate = new DataReaderPredicate(dataStore, query, DataConstants.SCAN_QUERY,
-                analyzer, Arrays.asList(NEExtractorTestConstants.ATTRIBUTES_ONE_SENTENCE.get(0)));
+                analyzer, Arrays.asList(NlpExtractorTestConstants.ATTRIBUTES_ONE_SENTENCE.get(0)));
         dataReader = new DataReader(dataReaderPredicate);
 
         ISourceOperator sourceOperator = new ScanBasedSourceOperator(dataReader);
