@@ -65,6 +65,13 @@ public class NlpExtractorTestConstants {
     }
 
 
+    public static List<ITuple> getTest7Tuple() throws ParseException {
+        IField[] fields1 = {new TextField("Feeling the warm sun rays beaming steadily down, the girl decided there was no need to wear a coat.")};
+        ITuple tuple1 = new DataTuple(SCHEMA_ONE_SENTENCE, fields1);
+        return Arrays.asList(tuple1);
+    }
+
+
     public static List<ITuple> getTest1ResultTuples() {
         List<ITuple> resultList = new ArrayList<>();
         List<Span> spanList = new ArrayList<Span>();
@@ -172,6 +179,50 @@ public class NlpExtractorTestConstants {
         spanList.add(span2);
         IField[] fields1 = {new TextField("Microsoft, Google and Facebook are organizations."), new TextField("Donald Trump and Barack Obama are persons")};
         ITuple tuple1 = new DataTuple(SCHEMA_TWO_SENTENCE, fields1);
+
+        Schema returnSchema = Utils.createSpanSchema(tuple1.getSchema());
+
+        ITuple returnTuple = Utils.getSpanTuple(tuple1.getFields(), spanList, returnSchema);
+        resultList.add(returnTuple);
+
+        return resultList;
+    }
+
+    public static List<ITuple> getTest6ResultTuples() {
+        List<ITuple> resultList = new ArrayList<>();
+
+        List<Span> spanList = new ArrayList<Span>();
+
+        Span span1 = new Span("sentence_one", 0, 9, NlpExtractor.NlpConstants.Organization.toString(), "Microsoft");
+        Span span2 = new Span("sentence_one", 11, 17, NlpExtractor.NlpConstants.Organization.toString(), "Google");
+        Span span3 = new Span("sentence_one", 22, 30, NlpExtractor.NlpConstants.Organization.toString(), "Facebook");
+
+        spanList.add(span1);
+        spanList.add(span2);
+        spanList.add(span3);
+
+
+        IField[] fields1 = {new TextField("Microsoft, Google and Facebook are organizations."), new TextField("Donald Trump and Barack Obama are persons")};
+        ITuple tuple1 = new DataTuple(SCHEMA_TWO_SENTENCE, fields1);
+
+        Schema returnSchema = Utils.createSpanSchema(tuple1.getSchema());
+
+        ITuple returnTuple = Utils.getSpanTuple(tuple1.getFields(), spanList, returnSchema);
+        resultList.add(returnTuple);
+
+        return resultList;
+    }
+
+
+    public static List<ITuple> getTest7ResultTuples() {
+        List<ITuple> resultList = new ArrayList<>();
+        List<Span> spanList = new ArrayList<Span>();
+
+        Span span1 = new Span("sentence_one", 12, 16, NlpExtractor.NlpConstants.Adjective.toString(), "warm");
+        spanList.add(span1);
+
+        IField[] fields1 = {new TextField("Feeling the warm sun rays beaming steadily down, the girl decided there was no need to wear a coat.")};
+        ITuple tuple1 = new DataTuple(SCHEMA_ONE_SENTENCE, fields1);
 
         Schema returnSchema = Utils.createSpanSchema(tuple1.getSchema());
 

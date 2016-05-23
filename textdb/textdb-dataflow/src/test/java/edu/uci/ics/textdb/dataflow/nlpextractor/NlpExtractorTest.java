@@ -52,20 +52,18 @@ public class NlpExtractorTest {
 
 
     /**
-     *
-     * @about Using NlpExtractor to get all returned results from sourceOperator,
-     * return as a list of tuples
-     *
      * @param sourceOperator
      * @param attributes
      * @param nlpConstant
      * @return
      * @throws Exception
+     * @about Using NlpExtractor to get all returned results from sourceOperator,
+     * return as a list of tuples
      */
     public List<ITuple> getQueryResults(ISourceOperator sourceOperator, List<Attribute> attributes, NlpExtractor.NlpConstants nlpConstant) throws Exception {
 
         //TODO: Change input format
-        nlpExtractor = new NlpExtractor(sourceOperator,attributes, NlpExtractor.NlpConstants.NE);
+        nlpExtractor = new NlpExtractor(sourceOperator, attributes, nlpConstant);
         nlpExtractor.open();
         ITuple nextTuple = null;
         List<ITuple> results = new ArrayList<ITuple>();
@@ -79,6 +77,7 @@ public class NlpExtractorTest {
     /**
      * Scenario 1: Test getNextTuple with only one span in the return list
      * Text : Microsoft is a organization.
+     * Search for all NE constants
      *
      * @throws Exception
      */
@@ -91,7 +90,7 @@ public class NlpExtractorTest {
         List<Attribute> attributes = new ArrayList<>();
         attributes.add(attribute1);
 
-        List<ITuple> returnedResults = getQueryResults(sourceOperator,attributes, NlpExtractor.NlpConstants.NE);
+        List<ITuple> returnedResults = getQueryResults(sourceOperator, attributes, NlpExtractor.NlpConstants.NE);
 
         List<ITuple> expectedResults = NlpExtractorTestConstants.getTest1ResultTuples();
 
@@ -102,6 +101,7 @@ public class NlpExtractorTest {
     /**
      * Scenario 2: Test getNextTuple with more than one span in the return list
      * Text: Microsoft, Google and Facebook are organizations
+     * Search for all NE constants
      */
     @Test
     public void getNextTupleTest2() throws Exception {
@@ -112,7 +112,7 @@ public class NlpExtractorTest {
         List<Attribute> attributes = new ArrayList<>();
         attributes.add(attribute1);
 
-        List<ITuple> returnedResults = getQueryResults(sourceOperator,attributes,NlpExtractor.NlpConstants.NE );
+        List<ITuple> returnedResults = getQueryResults(sourceOperator, attributes, NlpExtractor.NlpConstants.NE);
         List<ITuple> expectedResults = NlpExtractorTestConstants.getTest2ResultTuples();
 
         boolean contains = TestUtils.containsAllResults(expectedResults, returnedResults);
@@ -123,6 +123,7 @@ public class NlpExtractorTest {
     /**
      * Scenario 3: Test getNextTuple with more than one span in the return list and with different recognized classes.
      * Text: Microsoft, Google and Facebook are organizations and Donald Trump and Barack Obama are persons.
+     * Search for all NE constants
      */
     @Test
     public void getNextTupleTest3() throws Exception {
@@ -133,7 +134,7 @@ public class NlpExtractorTest {
         List<Attribute> attributes = new ArrayList<>();
         attributes.add(attribute1);
 
-        List<ITuple> returnedResults = getQueryResults(sourceOperator,attributes,NlpExtractor.NlpConstants.NE );
+        List<ITuple> returnedResults = getQueryResults(sourceOperator, attributes, NlpExtractor.NlpConstants.NE);
         List<ITuple> expectedResults = NlpExtractorTestConstants.getTest3ResultTuples();
 
         boolean contains = TestUtils.containsAllResults(expectedResults, returnedResults);
@@ -148,6 +149,7 @@ public class NlpExtractorTest {
      * <p>
      * Sentence1: Microsoft, Google and Facebook are organizations.
      * Sentence2: Donald Trump and Barack Obama are persons.
+     * Search for all NE constants
      */
     @Test
     public void getNextTupleTest4() throws Exception {
@@ -161,7 +163,7 @@ public class NlpExtractorTest {
         attributes.add(attribute1);
         attributes.add(attribute2);
 
-        List<ITuple> returnedResults = getQueryResults(sourceOperator,attributes,NlpExtractor.NlpConstants.NE );
+        List<ITuple> returnedResults = getQueryResults(sourceOperator, attributes, NlpExtractor.NlpConstants.NE);
         List<ITuple> expectedResults = NlpExtractorTestConstants.getTest4ResultTuples();
 
         boolean contains = TestUtils.containsAllResults(expectedResults, returnedResults);
@@ -174,10 +176,10 @@ public class NlpExtractorTest {
     /**
      * Scenario 5:Test getNextTuple using two fields:
      * <p>
-     *  Sentence1: Microsoft, Google and Facebook are organizations.
-     *  Sentence2: Donald Trump and Barack Obama are persons.
+     * Sentence1: Microsoft, Google and Facebook are organizations.
+     * Sentence2: Donald Trump and Barack Obama are persons.
      * <p>
-     * Only search the second field.
+     * Only search the second field for all NE constants
      */
     @Test
     public void getNextTupleTest5() throws Exception {
@@ -188,12 +190,67 @@ public class NlpExtractorTest {
         List<Attribute> attributes = new ArrayList<>();
         attributes.add(attribute);
 
-        List<ITuple> returnedResults = getQueryResults(sourceOperator,attributes,NlpExtractor.NlpConstants.NE );
+        List<ITuple> returnedResults = getQueryResults(sourceOperator, attributes, NlpExtractor.NlpConstants.NE);
 
         List<ITuple> expectedResults = NlpExtractorTestConstants.getTest5ResultTuples();
 
         boolean contains = TestUtils.containsAllResults(expectedResults, returnedResults);
 
+
+        Assert.assertTrue(contains);
+    }
+
+
+    /**
+     * Scenario 6:Test getNextTuple using two fields:
+     * <p>
+     * Sentence1: Microsoft, Google and Facebook are organizations.
+     * Sentence2: Donald Trump and Barack Obama are persons.
+     * <p>
+     * Only search for Organization for all fields.
+     */
+    @Test
+    public void getNextTupleTest6() throws Exception {
+        List<ITuple> data = NlpExtractorTestConstants.getTest4Tuple();
+        ISourceOperator sourceOperator = getSourceOperator(data.get(0).getSchema(), data);
+
+        Attribute attribute1 = NlpExtractorTestConstants.SENTENCE_ONE_ATTR;
+        Attribute attribute2 = NlpExtractorTestConstants.SENTENCE_TWO_ATTR;
+
+        List<Attribute> attributes = new ArrayList<>();
+        attributes.add(attribute1);
+        attributes.add(attribute2);
+
+        List<ITuple> returnedResults = getQueryResults(sourceOperator, attributes, NlpExtractor.NlpConstants.Organization);
+
+        List<ITuple> expectedResults = NlpExtractorTestConstants.getTest6ResultTuples();
+
+        boolean contains = TestUtils.containsAllResults(expectedResults, returnedResults);
+
+        Assert.assertTrue(contains);
+    }
+
+
+    /**
+     * Scenario 7:Test getNextTuple using sentence:
+     * Sentence1: Feeling the warm sun rays beaming steadily down, the girl decided there was no need to wear a coat.
+     * Search for Adjective.
+     */
+    @Test
+    public void getNextTupleTest7() throws Exception {
+        List<ITuple> data = NlpExtractorTestConstants.getTest7Tuple();
+        ISourceOperator sourceOperator = getSourceOperator(data.get(0).getSchema(), data);
+
+        Attribute attribute1 = NlpExtractorTestConstants.SENTENCE_ONE_ATTR;
+
+        List<Attribute> attributes = new ArrayList<>();
+        attributes.add(attribute1);
+
+        List<ITuple> returnedResults = getQueryResults(sourceOperator, attributes, NlpExtractor.NlpConstants.Adjective);
+
+        List<ITuple> expectedResults = NlpExtractorTestConstants.getTest7ResultTuples();
+
+        boolean contains = TestUtils.containsAllResults(expectedResults, returnedResults);
 
         Assert.assertTrue(contains);
     }
