@@ -21,14 +21,14 @@ import java.util.*;
 
 /**
  * @author Feng
- * @about Wrap the Stanford NLP as an operator to extractor information in the documents.
+ * @about Wrap the Stanford NLP as an operator to extractor desire information (Named Entities, Part of Speech).
  * This operator could recognize 7 Named Entity classes: Location, Person, Organization, Money, Percent, Date and Time.
  * It'll also detect 4 types of Part of Speech: Noun, Verb, Adjective and Adverb.
- * Return the extracted data as a list of spans and appends to the original tuple as a new field.
- * For example: Given tuple with two fields: sentence1, sentence2,  specify to extract all Named Entity.
+ * Return the extracted token as a list of spans and appends to the original tuple as a new field.
+ * For example: Given tuple with two fields: sentence1, sentence2,  specify to extract all Named Entities.
  * Source Tuple: ["Google is an organization.", "Its headquarter is in Mountain View."]
- * Append a list of spans as a field for the return tuple.:
- * ["sentence1,0,6,Google, NE_ORGANIZATION", "sentence2,22,25,Mountain View, NE_LOCATION"]
+ * Appends a list of spans as a field for the return tuple.:
+ * ["sentence1,0,6,Google, Organization", "sentence2,22,25,Mountain View, Location"]
  */
 
 public class NlpExtractor implements IOperator {
@@ -98,8 +98,10 @@ public class NlpExtractor implements IOperator {
      * @about Return the extracted data as a list of spans
      * and appends to the original tuple as a new field.
      * @overview Get a tuple from the source operator
-     * Use the Stanford NLP package to process it.
-     * For all recognized tokens, create their spans and return all as a list.
+     * Use the Stanford NLP package to process specified fields.
+     * For all recognized tokens that match the input constant,
+     * create their spans and make them as a list. Appends the list
+     * as a field in the original tuple.
      */
     @Override
     public ITuple getNextTuple() throws Exception {
