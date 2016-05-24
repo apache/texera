@@ -1,15 +1,13 @@
 package edu.uci.ics.textdb.dataflow.dictionarymatcher;
 
+import edu.uci.ics.textdb.api.common.IDictionary;
+
 import java.io.BufferedReader;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.net.URL;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.LinkedHashSet;
-import java.util.Set;
-
-import edu.uci.ics.textdb.api.common.IDictionary;
+import java.util.*;
 
 /**
  * @author Sudeep [inkudo]
@@ -18,30 +16,42 @@ import edu.uci.ics.textdb.api.common.IDictionary;
 public class Dictionary implements IDictionary {
 
     private Iterator<String> iterator;
-    private Set<String> dictionaryWords;
+    private HashMap<String, Double> wordFrequencyMap;
 
     public Dictionary(Collection<String> dictionaryWords) {
-        //Using LinkedHashSet so that getNextValue() returns the words in order.
-        this.dictionaryWords = new LinkedHashSet<String>(dictionaryWords);
+        //Using LinkedHashMap so that getNextValue() returns the words in order.
+        this.wordFrequencyMap = new LinkedHashMap<String, Double>();
+        for(String word: dictionaryWords) {
+            wordFrequencyMap.put(word, 0.0);
+        }
     }
 
     public Dictionary(String wordBaseSourceFilePath) throws IOException {
-        BufferedReader wordReader = null;
+
+        BufferedReader dictionaryReader = null;
+        String line;
+        this.wordFrequencyMap = new LinkedHashMap<String, Double>();
         try {
-            dictionaryWords = new LinkedHashSet<String>();
-            String line;
-
-            URL wordBaseURL = getClass().getResource(wordBaseSourceFilePath);
-            wordReader = new BufferedReader(new FileReader(wordBaseURL.getPath()));
-
-            while( (line = wordReader.readLine()) != null ){
-                dictionaryWords.add(line);
+            URL dictionaryURL = getClass().getResource(wordBaseSourceFilePath);
+            dictionaryReader = new BufferedReader(new FileReader(dictionaryURL.getPath()));
+            while ((line = dictionaryReader.readLine()) != null) {
+                String[] lineContents = line.split(",");
+                String word = lineContents[0];
+                double frequency = Double.parseDouble(lineContents[1]);
+                wordFrequencyMap.put(word, frequency);
             }
+
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
         } catch (IOException e) {
-            throw e;
-        } finally{
-            if(wordReader != null){
-                wordReader.close();
+            e.printStackTrace();
+        } finally {
+            if (dictionaryReader != null) {
+                try {
+                    dictionaryReader.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
             }
         }
     }
@@ -52,7 +62,7 @@ public class Dictionary implements IDictionary {
     @Override
     public String getNextValue() {
         if(iterator == null){
-            iterator = dictionaryWords.iterator();
+            iterator = wordFrequencyMap.keySet().iterator();
         }
         if (iterator.hasNext()) {
             return iterator.next();
@@ -61,7 +71,14 @@ public class Dictionary implements IDictionary {
     }
 
     public boolean contains(String word) {
-        return dictionaryWords.contains(word);
+        return wordFrequencyMap.containsKey(word);
     }
 
+    public double getFrequency(String word) {
+        if(wordFrequencyMap.containsKey(word)) {
+            return wordFrequencyMap.get(word);
+        } else {
+            return -1;
+        }
+    }
 }
