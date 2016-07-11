@@ -17,22 +17,59 @@ import com.google.re2j.PublicSimplify;
 public class RegexToGramQueryTranslator {	
 	/**
 	 * This method translates a regular expression to 
-	 * a boolean expression of n-grams. <br>
+	 * a boolean expression of n-grams. 
+	 * (default is TranslatorUtils.DEFAULT_GRAM_LENGTH, which is 3) <br>
 	 * Then the boolean expression can be queried using 
-	 * an n-gram inverted index to speed up regex matching. <br>
+	 * a n-gram inverted index to speed up regex matching. <br>
 	 * 
 	 * 
 	 * @param regex, the regex string to be translated.
 	 * @return GamBooleanQeruy, a boolean query of n-grams.
-	 */
+	 */	
 	public static GramBooleanQuery translate(String regex) 
 		throws com.google.re2j.PatternSyntaxException{
 		
+		return translate(regex, TranslatorUtils.DEFAULT_GRAM_LENGTH);
+	}
+	
+	/**
+	 * This method translates a regular expression to 
+	 * a boolean expression of a custom gram length. <br>
+	 * 
+	 * @param regex, the regex string to be translated.
+	 * @return GamBooleanQeruy, a boolean query of n-grams.
+	 */	
+	public static GramBooleanQuery translate(String regex, int gramLength)
+			throws com.google.re2j.PatternSyntaxException{
+		
+		GramBooleanQuery result = translateUnsimplified(regex, gramLength);
+		GramBooleanQuery dnf = GramBooleanQuery.toDNF(result);
+		GramBooleanQuery simplifiedDNF = GramBooleanQuery.simplifyDNF(dnf);
+		
+	    TranslatorUtils.escapeSpecialCharacters(simplifiedDNF);
+		
+		return simplifiedDNF;
+	}
+
+	
+	/*
+	 * This returns the query tree before simplification. 
+	 * It's used internally for debugging purposes.
+	 * 
+	 */
+	static GramBooleanQuery translateUnsimplified(String regex, int gramLength)
+			throws com.google.re2j.PatternSyntaxException{
+		
+		TranslatorUtils.GRAM_LENGTH = gramLength;
+
 	    PublicRegexp re = PublicParser.parse(regex, PublicRE2.PERL);
 	    re = PublicSimplify.simplify(re);  
+	    
 	    RegexInfo regexInfo = analyze(re);
 	    regexInfo.simplify(true);
-	    TranslatorUtils.escapeSpecialCharacters(regexInfo.match);
+	    
+		TranslatorUtils.GRAM_LENGTH = TranslatorUtils.DEFAULT_GRAM_LENGTH;
+	    
 	    return regexInfo.match;
 	}
 	
@@ -181,11 +218,11 @@ public class RegexToGramQueryTranslator {
 		} else if (!xInfo.exact.isEmpty()) {
 			xyInfo.prefix = TranslatorUtils.union(xInfo.exact, yInfo.prefix, false);
 			xyInfo.suffix = TranslatorUtils.union(xInfo.exact, yInfo.suffix, true);
-			xInfo.match.add(xInfo.exact);
+			xInfo.match = GramBooleanQuery.combine(xInfo.match, xInfo.exact);
 		} else if (!yInfo.exact.isEmpty()) {
 			xyInfo.prefix = TranslatorUtils.union(xInfo.prefix, yInfo.exact, false);
 			xyInfo.suffix = TranslatorUtils.union(xInfo.suffix, yInfo.exact, true);
-			yInfo.match.add(yInfo.exact);
+			yInfo.match = GramBooleanQuery.combine(yInfo.match, yInfo.exact);
 		} else {
 			xyInfo.prefix = TranslatorUtils.union(xInfo.prefix, yInfo.prefix, false);
 			xyInfo.suffix = TranslatorUtils.union(xInfo.suffix, yInfo.suffix, true);
@@ -193,7 +230,7 @@ public class RegexToGramQueryTranslator {
 		
 		xyInfo.emptyable = xInfo.emptyable || yInfo.emptyable;
 		
-		xyInfo.match = xInfo.match.computeDisjunction(yInfo.match);
+		xyInfo.match = GramBooleanQuery.computeDisjunction(xInfo.match, yInfo.match);
 		
 		xyInfo.simplify(false);
 		return xyInfo;
@@ -208,7 +245,7 @@ public class RegexToGramQueryTranslator {
 	private static RegexInfo concat(RegexInfo xInfo, RegexInfo yInfo) {
 		RegexInfo xyInfo = new RegexInfo();
 		
-		xyInfo.match = xInfo.match.computeConjunction(yInfo.match);
+		xyInfo.match = GramBooleanQuery.computeConjunction(xInfo.match, yInfo.match);
 		
 		if (!xInfo.exact.isEmpty() && !yInfo.exact.isEmpty()) {
 			xyInfo.exact = TranslatorUtils.cartesianProduct(xInfo.exact, yInfo.exact, false);
@@ -234,10 +271,11 @@ public class RegexToGramQueryTranslator {
 		
 		if (xInfo.exact.isEmpty() && yInfo.exact.isEmpty() &&
 				xInfo.suffix.size() <= TranslatorUtils.MAX_SET_SIZE && 
-				yInfo.prefix.size() <= TranslatorUtils.MAX_SET_SIZE &&
-				TranslatorUtils.minLenOfString(xInfo.suffix) + TranslatorUtils.minLenOfString(yInfo.prefix) >= xyInfo.match.gramLength) {
+				yInfo.prefix.size() <= TranslatorUtils.MAX_SET_SIZE && 
+				TranslatorUtils.minLenOfString(xInfo.suffix) + TranslatorUtils.minLenOfString(yInfo.prefix) >= TranslatorUtils.GRAM_LENGTH) {
 
-			xyInfo.match.add(TranslatorUtils.cartesianProduct(xInfo.suffix, yInfo.prefix, false));
+			xyInfo.match = GramBooleanQuery.combine(xyInfo.match, 
+					TranslatorUtils.cartesianProduct(xInfo.suffix, yInfo.prefix, false));
 		}
 		
 		xyInfo.simplify(false);

@@ -1,13 +1,13 @@
 package edu.uci.ics.textdb.storage;
 
-import edu.uci.ics.textdb.api.common.Attribute;
+import java.util.List;
+
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.search.Query;
 
+import edu.uci.ics.textdb.api.common.Attribute;
 import edu.uci.ics.textdb.api.common.IPredicate;
 import edu.uci.ics.textdb.api.storage.IDataStore;
-
-import java.util.List;
 
 /**
  * Created by sandeepreddy602 on 05-06-2016.

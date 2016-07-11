@@ -25,6 +25,7 @@ import edu.uci.ics.textdb.dataflow.utils.TestUtils;
  */
 public class RegexMatcherTest {
 	
+	// Helper function to print results for debugging purposes
 	private void printResults(List<ITuple> results) {
 		for (ITuple result : results) {
 			List<Span> a = ((ListField<Span>) result.getField("spanList")).getValue();

@@ -6,6 +6,8 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 
+import edu.uci.ics.textdb.dataflow.regexmatch.GramBooleanQuery.QueryOp;
+
 /**
  * @author Zuozhi Wang
  * @author Shuying Lai
@@ -25,6 +27,11 @@ public class TranslatorUtils {
 	 * {abc, abC, aBc, aBC, Abc, AbC, ABc, ABC}.
 	 */
 	static final int MAX_SET_SIZE = 20;
+	
+	
+	static final int DEFAULT_GRAM_LENGTH = 3;
+	static int GRAM_LENGTH = DEFAULT_GRAM_LENGTH;
+	
 	
 	/**
 	 * This function interface provides a method to fold
@@ -154,8 +161,9 @@ public class TranslatorUtils {
 	 * </a>
 	 */
 	static List<String> specialLuceneCharacters = Arrays.asList(new String[]{
+			"\\", // "\\" itself needs to be escaped first before escaping other characters
 			"+", "-", "&&", "||", "!", "(", ")", "{", "}", "[", "]", 
-			"^", "\"", "~", "*", "?", ":", "\\", " ", "AND", "OR", "NOT"
+			"^", "\"", "~", "*", "?", ":",  " ", "AND", "OR", "NOT"
 	});
 	
 	/**
@@ -165,17 +173,16 @@ public class TranslatorUtils {
 	 * @param query
 	 */
 	static void escapeSpecialCharacters(GramBooleanQuery query) {
-		HashSet<String> escapedOperandSet = new HashSet<String>();
-		for (String operand : query.operandSet) {
+		if (query.operator == QueryOp.LEAF) {
 			for (String specialChar : specialLuceneCharacters) {
-				escapedOperandSet.add(operand.replace(specialChar, "\\"+specialChar));
+				query.leaf = query.leaf.replace(specialChar, "\\"+specialChar);
+			}
+		} else {
+			for (GramBooleanQuery subQuery : query.subQuerySet) {
+				escapeSpecialCharacters(subQuery);
 			}
 		}
-		query.operandSet = escapedOperandSet;
-		
-		for (GramBooleanQuery subQuery : query.subQuerySet) {
-			escapeSpecialCharacters(subQuery);
-		}
+
 	}
 
 }

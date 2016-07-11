@@ -23,22 +23,22 @@
         <dependency>
             <groupId>org.apache.lucene</groupId>
             <artifactId>lucene-core</artifactId>
-            <version>5.5.0</version>
+            <version>${lucene.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.lucene</groupId>
             <artifactId>lucene-analyzers-common</artifactId>
-            <version>5.5.0</version>
+            <version>${lucene.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.lucene</groupId>
             <artifactId>lucene-queryparser</artifactId>
-            <version>5.5.0</version>
+            <version>${lucene.version}</version>
         </dependency>
         <dependency>
             <groupId>org.json</groupId>
             <artifactId>json</artifactId>
-            <version>20160212</version>
+            <version>${org.json.version}</version>
         </dependency>
         <dependency>
             <groupId>edu.uci.ics.textdb</groupId>
@@ -48,6 +48,11 @@
         <dependency>
             <groupId>edu.uci.ics.textdb</groupId>
             <artifactId>textdb-common</artifactId>
+            <version>${textdb.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>edu.uci.ics.textdb</groupId>
+            <artifactId>textdb-dataflow</artifactId>
             <version>${textdb.version}</version>
         </dependency>
         <dependency>

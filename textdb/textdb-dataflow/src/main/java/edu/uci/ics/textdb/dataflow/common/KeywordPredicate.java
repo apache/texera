@@ -1,13 +1,8 @@
 package edu.uci.ics.textdb.dataflow.common;
 
-import edu.uci.ics.textdb.api.common.Attribute;
-import edu.uci.ics.textdb.api.common.FieldType;
-import edu.uci.ics.textdb.api.common.IPredicate;
-import edu.uci.ics.textdb.api.storage.IDataStore;
-import edu.uci.ics.textdb.common.constants.DataConstants.KeywordOperatorType;
-import edu.uci.ics.textdb.common.exception.DataFlowException;
-import edu.uci.ics.textdb.common.utils.Utils;
-import edu.uci.ics.textdb.storage.DataReaderPredicate;
+import java.util.ArrayList;
+import java.util.List;
+
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.queryparser.classic.MultiFieldQueryParser;
@@ -17,8 +12,14 @@ import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.TermQuery;
 
-import java.util.ArrayList;
-import java.util.List;
+import edu.uci.ics.textdb.api.common.Attribute;
+import edu.uci.ics.textdb.api.common.FieldType;
+import edu.uci.ics.textdb.api.common.IPredicate;
+import edu.uci.ics.textdb.api.storage.IDataStore;
+import edu.uci.ics.textdb.common.constants.DataConstants.KeywordOperatorType;
+import edu.uci.ics.textdb.common.exception.DataFlowException;
+import edu.uci.ics.textdb.common.utils.Utils;
+import edu.uci.ics.textdb.storage.DataReaderPredicate;
 
 /**
  *  @author prakul
@@ -31,7 +32,6 @@ import java.util.List;
 public class KeywordPredicate implements IPredicate{
 
     private final List<Attribute> attributeList;
-    private final String[] fields;
     private final String query;
     private final Query luceneQuery;
     private ArrayList<String> tokens;
@@ -51,12 +51,6 @@ public class KeywordPredicate implements IPredicate{
             this.attributeList = attributeList;
             this.operatorType = operatorType;
             this.dataStore = dataStore;
-            String[] temp = new String[attributeList.size()];
-
-            for(int i=0; i < attributeList.size(); i++){
-                temp[i] = attributeList.get(i).getFieldName();
-            }
-            this.fields = temp;
             this.luceneAnalyzer = luceneAnalyzer;
             this.luceneQuery = createLuceneQueryObject();
         } catch (Exception e) {

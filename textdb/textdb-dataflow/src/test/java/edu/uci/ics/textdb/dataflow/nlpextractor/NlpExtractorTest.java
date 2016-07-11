@@ -4,8 +4,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import edu.uci.ics.textdb.api.common.Attribute;
-import edu.uci.ics.textdb.dataflow.nlpextrator.NlpExtractor;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.queryparser.classic.QueryParser;
@@ -14,6 +12,7 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Test;
 
+import edu.uci.ics.textdb.api.common.Attribute;
 import edu.uci.ics.textdb.api.common.IPredicate;
 import edu.uci.ics.textdb.api.common.ITuple;
 import edu.uci.ics.textdb.api.common.Schema;
@@ -22,6 +21,7 @@ import edu.uci.ics.textdb.api.storage.IDataReader;
 import edu.uci.ics.textdb.api.storage.IDataStore;
 import edu.uci.ics.textdb.api.storage.IDataWriter;
 import edu.uci.ics.textdb.common.constants.DataConstants;
+import edu.uci.ics.textdb.dataflow.nlpextrator.NlpExtractor;
 import edu.uci.ics.textdb.dataflow.source.ScanBasedSourceOperator;
 import edu.uci.ics.textdb.dataflow.utils.TestUtils;
 import edu.uci.ics.textdb.storage.DataReaderPredicate;

@@ -3,6 +3,7 @@ package edu.uci.ics.textdb.common.utils;
 import java.io.StringReader;
 import java.text.ParseException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
@@ -13,8 +14,8 @@ import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
 import org.apache.lucene.document.DateTools;
 import org.apache.lucene.document.DateTools.Resolution;
 import org.apache.lucene.document.Field.Store;
-import org.apache.lucene.index.IndexableField;
 import org.apache.lucene.index.IndexOptions;
+import org.apache.lucene.index.IndexableField;
 
 import edu.uci.ics.textdb.api.common.Attribute;
 import edu.uci.ics.textdb.api.common.FieldType;
@@ -50,9 +51,11 @@ public class Utils {
             case TEXT:
                 field = new TextField(fieldValue);
                 break;
-
-            default:
-                break;
+            case LIST:
+            	// LIST FIELD SHOULD BE CREATED ON ITS OWN
+            	// WARNING! This case should never be reached.
+            	field = new ListField<String>(Arrays.asList(fieldValue));
+            	break;
         }
         return field;
     }
@@ -94,7 +97,10 @@ public class Utils {
                         fieldName,(String) fieldValue,luceneFieldType);
 
                 break;
-
+            case LIST:
+            	// Lucene doesn't have list field
+            	// WARNING! This case should never be reached.
+            	break;
         }
         return luceneField;
     }

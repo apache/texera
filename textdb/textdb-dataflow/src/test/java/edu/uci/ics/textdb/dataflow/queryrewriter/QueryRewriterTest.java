@@ -1,13 +1,14 @@
 package edu.uci.ics.textdb.dataflow.queryrewriter;
 
-import edu.uci.ics.textdb.api.common.ITuple;
-import edu.uci.ics.textdb.dataflow.utils.TestUtils;
-import org.junit.Assert;
-import org.junit.Test;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+
+import org.junit.Assert;
+import org.junit.Test;
+
+import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.dataflow.utils.TestUtils;
 
 /**
  * Created by kishorenarendran on 25/04/16.

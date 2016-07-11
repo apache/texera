@@ -1,6 +1,7 @@
 package edu.uci.ics.textdb.sandbox.team6lucenetweetexample;
 
-import static edu.uci.ics.textdb.sandbox.team6lucenetweetexample.LuceneIndexConstants.*;
+import static edu.uci.ics.textdb.sandbox.team6lucenetweetexample.LuceneIndexConstants.CONTENT_FIELD;
+import static edu.uci.ics.textdb.sandbox.team6lucenetweetexample.LuceneIndexConstants.INDEX_DIR;
 
 import java.io.IOException;
 import java.nio.file.Paths;

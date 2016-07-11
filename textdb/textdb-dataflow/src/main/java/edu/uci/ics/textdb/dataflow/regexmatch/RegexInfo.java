@@ -21,15 +21,21 @@ class RegexInfo {
 	 * This initializes RegexInfo: <br>
 	 * emptyable to false <br>
 	 * exact, prefix, suffix to empty ArrayList <br>
-	 * match with operator AND <br>
+	 * match with operator ANY <br>
 	 */
 	RegexInfo() {
+		this(GramBooleanQuery.QueryOp.ANY);
+	}
+	
+	RegexInfo(GramBooleanQuery.QueryOp operator) {
 		emptyable = false;
 		exact = new ArrayList<String>();
 		prefix = new ArrayList<String>();
 		suffix = new ArrayList<String>();
-		match = new GramBooleanQuery(GramBooleanQuery.QueryOp.AND);
+		match = new GramBooleanQuery(operator);
 	}
+
+
 	
 	/**
 	 * @return RegexInfo describing a regex that matches NO string
@@ -37,8 +43,7 @@ class RegexInfo {
 	 * It is used to handle error cases.
 	 */
 	static RegexInfo matchNone() {
-		RegexInfo regexInfo = new RegexInfo();
-		regexInfo.match.operator = GramBooleanQuery.QueryOp.NONE;
+		RegexInfo regexInfo = new RegexInfo(GramBooleanQuery.QueryOp.NONE);
 		return regexInfo;
 	}
 	
@@ -47,11 +52,10 @@ class RegexInfo {
 	 * @return RegexInfo describing a regex that matches ANY string
 	 */
 	static RegexInfo matchAny() {
-		RegexInfo regexInfo = new RegexInfo();
+		RegexInfo regexInfo = new RegexInfo(GramBooleanQuery.QueryOp.ANY);
 		regexInfo.emptyable = true;
 		regexInfo.prefix.add("");
 		regexInfo.suffix.add("");
-		regexInfo.match.operator = GramBooleanQuery.QueryOp.ANY;
 		return regexInfo;
 	}
 	
@@ -60,11 +64,9 @@ class RegexInfo {
 	 * @return RegexInfo describing a regex that matches an EMPTY string
 	 */
 	static RegexInfo emptyString() {
-
-		RegexInfo regexInfo = new RegexInfo();
+		RegexInfo regexInfo = new RegexInfo(GramBooleanQuery.QueryOp.ANY);
 		regexInfo.emptyable = true;
 		regexInfo.exact.add("");
-		regexInfo.match.operator = GramBooleanQuery.QueryOp.ANY;
 		return regexInfo;
 	}
 	
@@ -74,7 +76,7 @@ class RegexInfo {
 	 * because we don't know the exact character.
 	 */
 	static RegexInfo anyChar() {
-		RegexInfo regexInfo = new RegexInfo();
+		RegexInfo regexInfo = new RegexInfo(GramBooleanQuery.QueryOp.ANY);
 		regexInfo.emptyable = false;
 		return regexInfo;
 	}
@@ -104,14 +106,14 @@ class RegexInfo {
 	 */
 	RegexInfo simplify(boolean force) {
 		TranslatorUtils.removeDuplicateAffix(exact, false);
-		int gramLength = this.match.gramLength;
+		int gramLength = TranslatorUtils.GRAM_LENGTH;
 		
 		if ( exact.size() > TranslatorUtils.MAX_EXACT_SIZE ||
 			( TranslatorUtils.minLenOfString(exact) >= gramLength && force) ||
 			TranslatorUtils.minLenOfString(exact) >= gramLength + 1){
 			// Add exact to match (query tree)
 			// Transfer information from exact to prefix and suffix
-			match.add(exact);
+			match = GramBooleanQuery.combine(match, exact);
 			for (String str: exact) {
 				if (str.length() < gramLength) {
 					prefix.add(str);
@@ -141,10 +143,10 @@ class RegexInfo {
 	 */
 	void simplifyAffix(List<String> strList, boolean isSuffix) {
 		TranslatorUtils.removeDuplicateAffix(strList, isSuffix);
-		int gramLength = this.match.gramLength;
+		int gramLength = TranslatorUtils.GRAM_LENGTH;
 		
 		// Add the current prefix/suffix set to "match" query.
-		match.add(strList);
+		match = GramBooleanQuery.combine(match, strList);
 		
 		// This loop reduces the length of prefix/suffix. It cuts all
 		// strings longer than {@code gramLength}, and continues to cut strings

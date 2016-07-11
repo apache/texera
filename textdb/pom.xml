@@ -12,6 +12,7 @@
         <jvm.extraargs />
         <junit.version>4.8.1</junit.version>
         <lucene.version>5.5.0</lucene.version>
+        <org.json.version>20160212</org.json.version>
         <textdb.version>1.0-SNAPSHOT</textdb.version>
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
@@ -21,12 +22,10 @@
             <dependency>
                 <groupId>junit</groupId>
                 <artifactId>junit</artifactId>
-                <version>${junit.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.lucene</groupId>
                 <artifactId>lucene-core</artifactId>
-                <version>${lucene.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

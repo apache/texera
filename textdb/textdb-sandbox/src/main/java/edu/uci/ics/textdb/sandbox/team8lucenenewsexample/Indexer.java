@@ -1,7 +1,15 @@
 package edu.uci.ics.textdb.sandbox.team8lucenenewsexample;
 
 
-import static edu.uci.ics.textdb.sandbox.team8lucenenewsexample.LuceneIndexConstants.*;
+import static edu.uci.ics.textdb.sandbox.team8lucenenewsexample.LuceneIndexConstants.CATEGORY_FIELD;
+import static edu.uci.ics.textdb.sandbox.team8lucenenewsexample.LuceneIndexConstants.CONTENT_FIELD;
+import static edu.uci.ics.textdb.sandbox.team8lucenenewsexample.LuceneIndexConstants.ID_FIELD;
+import static edu.uci.ics.textdb.sandbox.team8lucenenewsexample.LuceneIndexConstants.INDEX_DIR;
+import static edu.uci.ics.textdb.sandbox.team8lucenenewsexample.LuceneIndexConstants.TEXT_FIELD;
+import static edu.uci.ics.textdb.sandbox.team8lucenenewsexample.LuceneIndexConstants.TITLE_FIELD;
+
+import java.io.IOException;
+import java.nio.file.Paths;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
@@ -12,9 +20,6 @@ import org.apache.lucene.document.TextField;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.store.FSDirectory;
-
-import java.io.IOException;
-import java.nio.file.Paths;
 
 /**
  * Created by Sam on 16/4/10.
@@ -63,10 +68,6 @@ public class Indexer {
     public void rebuildIndexes() throws IOException {
         getIndexWriter();
         indexWriter.deleteAll();
-
-
-        //load data from DATA
-        News[] newses=Data.getNewes();
 
         // Index all Accommodation entries
         for (News news : Data.getNewes()) {

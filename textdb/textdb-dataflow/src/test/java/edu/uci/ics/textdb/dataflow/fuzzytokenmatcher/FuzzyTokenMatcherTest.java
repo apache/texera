@@ -163,6 +163,7 @@ public class FuzzyTokenMatcherTest {
         List<ITuple> results = getQueryResults(query, threshold, attributeList, isSpanInformationAdded);
         List<ITuple> expectedResultList = new ArrayList<>();
         boolean contains = TestUtils.containsAllResults(expectedResultList, results);
+        Assert.assertTrue(contains);
         Assert.assertEquals(0,results.size());
     }
     

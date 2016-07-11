@@ -7,7 +7,6 @@ import org.apache.lucene.analysis.Analyzer;
 import edu.uci.ics.textdb.api.common.ITuple;
 import edu.uci.ics.textdb.api.storage.IDataStore;
 import edu.uci.ics.textdb.common.exception.StorageException;
-import edu.uci.ics.textdb.storage.DataStore;
 import edu.uci.ics.textdb.storage.writer.DataWriter;
 
 /*

@@ -1,28 +1,14 @@
 package edu.uci.ics.textdb.sandbox.team1lucenehotelexample;
 
-import static edu.uci.ics.textdb.sandbox.team1lucenehotelexample.LuceneIndexConstants.CITY_FIELD;
-import static edu.uci.ics.textdb.sandbox.team1lucenehotelexample.LuceneIndexConstants.ID_FIELD;
-import static edu.uci.ics.textdb.sandbox.team1lucenehotelexample.LuceneIndexConstants.NAME_FIELD;
-
 import java.io.IOException;
 import java.util.List;
 
-import org.apache.lucene.document.Document;
-import org.apache.lucene.index.Term;
-import org.apache.lucene.index.IndexReaderContext;
 import org.apache.lucene.index.LeafReaderContext;
-import org.apache.lucene.index.PostingsEnum;
-import org.apache.lucene.index.TermsEnum;
-
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.search.IndexSearcher;
-import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TopDocs;
-import org.apache.lucene.search.spans.SpanNearQuery;
-import org.apache.lucene.search.spans.SpanQuery;
 import org.apache.lucene.search.spans.SpanTermQuery;
 import org.apache.lucene.search.spans.SpanWeight;
-import org.apache.lucene.search.spans.SpanWeight.Postings;
 import org.apache.lucene.search.spans.Spans;
 import org.junit.Before;
 import org.junit.Test;
@@ -31,7 +17,6 @@ public class LuceneDemoTest {
 
 	private Indexer indexer;
 	private Searcher searcher;
-	private IndexSearcher iSearcher;
 	@Before
 	public void setUp() throws IOException {
 		indexer = new Indexer();
@@ -63,7 +48,6 @@ public class LuceneDemoTest {
 
 		
 		TopDocs topDocs = searcher.performSearch(queryString, maxResults);
-		Term t = new Term("content",queryString);
 		SpanTermQuery spanTerm = searcher.makeSpanTermQuery(queryString);
 		
 		SpanWeight W = spanTerm.createWeight(Se, false);
@@ -93,7 +77,7 @@ public class LuceneDemoTest {
 		
 		
 		System.out.println("Results found: " + topDocs.totalHits);
-		ScoreDoc[] hits = topDocs.scoreDocs;
+//		ScoreDoc[] hits = topDocs.scoreDocs;
 //		for (int i = 0; i < hits.length; i++) {
 //			Document doc = searcher.getDocument(hits[i].doc);
 //			System.out.println("Id: " + doc.get(ID_FIELD) + ", Name: " + doc.get(NAME_FIELD) + " " + ", Content: "

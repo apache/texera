@@ -6,6 +6,9 @@ import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Scanner;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import edu.uci.ics.textdb.api.common.Attribute;
 import edu.uci.ics.textdb.api.common.FieldType;
 import edu.uci.ics.textdb.api.common.IField;
@@ -13,8 +16,6 @@ import edu.uci.ics.textdb.api.common.ITuple;
 import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.common.field.DataTuple;
 import edu.uci.ics.textdb.common.utils.Utils;
-
-import org.json.*;
 
 /*
  * This class defines Medline data schema.

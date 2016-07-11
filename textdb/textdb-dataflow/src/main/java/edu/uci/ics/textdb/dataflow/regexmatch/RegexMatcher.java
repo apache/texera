@@ -203,12 +203,11 @@ public class RegexMatcher implements IOperator {
 	}
 	
 	/**
-	 * Use RE2J Regex Engine. <br>
-	 * RegexMatcher is set to use Java Regex Engine by default. 
-	 * Because Java Regex is usually faster than RE2J <br>
+	 * Use Java's built-in Regex Engine. <br>
+	 * RegexMatcher is set to use Java Regex Engine by default. <br>
 	 * @throws java.util.regex.PatternSyntaxException
 	 */
-	public void setRegexEngineToRE2J() throws java.util.regex.PatternSyntaxException {
+	public void setRegexEngineToJava() throws java.util.regex.PatternSyntaxException {
 		if (this.regexEngine == RegexEngine.JavaRegex) {
 			return;
 		} else {
@@ -216,13 +215,14 @@ public class RegexMatcher implements IOperator {
 			this.regexEngine = RegexEngine.JavaRegex;
 		}
 	}
-	
+
 	/**
-	 * Use Java's built-in Regex Engine. <br>
-	 * RegexMatcher is set to use Java Regex Engine by default. <br>
+	 * Use RE2J Regex Engine. <br>
+	 * RegexMatcher is set to use Java Regex Engine by default. 
+	 * Because Java Regex is usually faster than RE2J <br>
 	 * @throws java.util.regex.PatternSyntaxException
 	 */
-	public void setRegexEngineToJava() throws java.util.regex.PatternSyntaxException {
+	public void setRegexEngineToRE2J() throws java.util.regex.PatternSyntaxException {
 		if (this.regexEngine == RegexEngine.RE2J) {
 			return;
 		} else {

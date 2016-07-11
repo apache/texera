@@ -8,13 +8,11 @@ import org.apache.lucene.analysis.custom.CustomAnalyzer;
 import org.apache.lucene.analysis.ngram.NGramTokenizerFactory;
 
 import edu.uci.ics.textdb.api.common.Attribute;
-import edu.uci.ics.textdb.api.common.ITuple;
 import edu.uci.ics.textdb.common.exception.DataFlowException;
 import edu.uci.ics.textdb.common.exception.StorageException;
 import edu.uci.ics.textdb.dataflow.common.RegexPredicate;
 import edu.uci.ics.textdb.dataflow.regexmatch.RegexMatcher;
 import edu.uci.ics.textdb.perftest.medline.MedlineReader;
-import edu.uci.ics.textdb.perftest.medline.MedlineIndexWriter;
 import edu.uci.ics.textdb.storage.DataStore;
 
 /*
@@ -48,6 +46,7 @@ public class RegexMatcherPerformanceTest {
 		
 		
 		String regex = "\\bmedic(ine|al|ation|are|aid)?\\b";
+
 		Attribute[] attributeList = new Attribute[]{ MedlineReader.ABSTRACT_ATTR };
 
 		RegexPredicate regexPredicate = new RegexPredicate(
@@ -73,8 +72,7 @@ public class RegexMatcherPerformanceTest {
 		long startMatchTime = System.currentTimeMillis();
 
 		int counter = 0;
-		ITuple nextTuple = null;
-		while ((nextTuple = regexMatcher.getNextTuple()) != null) {
+		while ((regexMatcher.getNextTuple()) != null) {
 			counter++;
 		}
 		

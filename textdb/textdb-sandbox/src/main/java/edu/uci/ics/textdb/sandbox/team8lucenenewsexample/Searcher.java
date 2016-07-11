@@ -1,5 +1,11 @@
 package edu.uci.ics.textdb.sandbox.team8lucenenewsexample;
 
+import static edu.uci.ics.textdb.sandbox.team8lucenenewsexample.LuceneIndexConstants.CONTENT_FIELD;
+import static edu.uci.ics.textdb.sandbox.team8lucenenewsexample.LuceneIndexConstants.INDEX_DIR;
+
+import java.io.IOException;
+import java.nio.file.Paths;
+
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.DirectoryReader;
@@ -9,10 +15,6 @@ import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.FSDirectory;
-
-import java.io.IOException;
-import java.nio.file.Paths;
-import static edu.uci.ics.textdb.sandbox.team8lucenenewsexample.LuceneIndexConstants.*;
 
 
 /**
