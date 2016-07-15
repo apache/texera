@@ -10,10 +10,8 @@ import edu.uci.ics.textdb.api.common.IPredicate;
  */
 public class JoinPredicate implements IPredicate {
 	
-	private Attribute outerIdAttribute;
-	private Attribute outerJoinAttribute;
-	private Attribute innerIdAttribute;
-	private Attribute innerJoinAttribute;
+	private Attribute idAttribute;
+	private Attribute joinAttribute;
 	private Integer threshold;
 	
 	/**
@@ -21,9 +19,9 @@ public class JoinPredicate implements IPredicate {
 	 * Operator.</p>
 	 * 
 	 * <p>
-	 * JoinPredicate joinPre = new JoinPredicate(Attribute idAttr, Attribute 
-	 * descriptionAttr, Attribute idAttr, Attribute descriptionAttr, 10)
-	 * <br>will create a predicate that compares the spans of type 
+	 * JoinPredicate joinPre = new JoinPredicate(Attribute idAttr, 
+	 * Attribute descriptionAttr, 10)
+	 * <br>will create a predicate that joins the spans of type 
 	 * descriptionAttr of outer and inner operators (that agree on the idAttr 
 	 * id attributes) and outputs tuples which satisfy the criteria of being
 	 * within 10 characters of each other. </p>
@@ -49,8 +47,7 @@ public class JoinPredicate implements IPredicate {
 	 * 
 	 * where <spanStartIndex, spanEndIndex> represents a span.
 	 * 
-	 * JoinPredicate joinPre = new JoinPredicate(idAttr, reviewAttr, idAttr, 
-	 * reviewAttr, 10);
+	 * JoinPredicate joinPre = new JoinPredicate(idAttr, reviewAttr, 10);
 	 * <p>
 	 * 
 	 * <p>
@@ -63,76 +60,38 @@ public class JoinPredicate implements IPredicate {
 	 *  (span 2 spanStartIndex)| and |(span 1 spanEndIndex) - 
 	 *  (span 2 spanEndIndex)|) is within 10 characters from each other, join 
 	 *  will take place and return a tuple with a span list consisting of the 
-	 *  combined span (computed as <(span1 spanStartIndex), (span2 spanEndIndex)>)
-	 *  given by <6, 18>.
+	 *  combined span (computed as <min(span1 spanStartIndex, span2 spanStartIndex),
+	 *   max(span1 spanEndIndex, span2 spanEndIndex)>) given by <6, 18>.
 	 * </p>
 	 * <p>
 	 * Example 2:
 	 * Consider the previous example but with words "book" and "us" to be 
-	 * joined. Since, the tuple IDs are same, compareID() will return true, but
-	 *  the words are more than 10 characters apart and hence join won't 
-	 *  produce a result and simply returns the tuple bookTuple1. </p>
+	 * joined. Since, the tuple IDs are same, but the words are more than 10 
+	 * characters apart and hence join won't produce a result and simply returns
+	 *  the tuple bookTuple1. </p>
 	 * 
-	 * @param outerIdAttribute is the ID attribute of the outer operator
-	 * @param outerJoinAttribute is the attribute of the outer operator to be 
-	 * used for join
-	 * @param innerIdAttribute is the ID attribute of the inner operator
-	 * @param innerJoinAttribute is the Attribute of the inner operator to be 
-	 * used for join
+	 * @param idAttribute is the ID attribute used to compare if documents are same
+	 * @param joinAttribute is the Attribute to perform join on
 	 * @param threshold is the maximum distance (in characters) between any two
 	 *  spans
 	 */
-	public JoinPredicate(Attribute outerIdAttribute, Attribute outerJoinAttribute,
-			Attribute innerIdAttribute, Attribute innerJoinAttribute, 
+	public JoinPredicate(Attribute idAttribute, Attribute joinAttribute, 
 			Integer threshold) {
-		this.outerIdAttribute = outerIdAttribute;
-		this.outerJoinAttribute = outerJoinAttribute;
-		this.innerIdAttribute = innerIdAttribute;
-		this.innerJoinAttribute = innerJoinAttribute;
+		this.idAttribute = idAttribute;
+		this.joinAttribute = joinAttribute;
 		this.threshold = threshold;
 	}
 	
-	public Attribute getOuterIdAttribute() {
-		return this.outerIdAttribute;
+	public Attribute getidAttribute() {
+		return this.idAttribute;
 	}
 	
-	public Attribute getInnerIdAttribute() {
-		return this.innerIdAttribute;
-	}
 	
-	public Attribute getOuterJoinAttribute() {
-		return outerJoinAttribute;
-	}
-	
-	public Attribute getInnerJoinAttribute() {
-		return this.innerJoinAttribute;
+	public Attribute getjoinAttribute() {
+		return this.joinAttribute;
 	}
 	
 	public Integer getThreshold() {
 		return this.threshold;
-	}
-	
-	/**
-	 * Compares the IDs of the tuples. Returns true if IDs match else returns 
-	 * false.
-	 * @return compResult
-	 */
-	public boolean compareId() {
-		// TODO Implement the method to compare the IDs of the two tuples to be
-		// joined.
-		boolean compResult = false;
-		return compResult;
-	}
-	
-	/**
-	 * Compares the attributes of the tuples. Returns true if attributes match 
-	 * else returns false.
-	 * @return compResult
-	 */
-	public boolean compareAttributes() {
-		// TODO Implement the method to compare the Attributes of the two 
-		// tuples to be joined.
-		boolean compResult = false;
-		return compResult;
 	}
 }
