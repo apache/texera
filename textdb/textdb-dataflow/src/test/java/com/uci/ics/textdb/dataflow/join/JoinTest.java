@@ -138,8 +138,10 @@ public class JoinTest {
         IPredicate predicateInner = new KeywordPredicate(query, attributeList, DataConstants.KeywordOperatorType.BASIC, analyzer, dataStoreForInner);
         keywordMatcherInner = new KeywordMatcher(predicateInner);
         
-        List<ITuple> resultList = getJoinResults(keywordMatcherOuter, keywordMatcherInner, attributeList.get(0), attributeList.get(4), 10);
-        Assert.assertEquals(resultList.size(), 0);
+        Attribute idAttr = attributeList.get(0);
+        Attribute reviewAttr = attributeList.get(4);
+        List<ITuple> resultList = getJoinResults(keywordMatcherOuter, keywordMatcherInner, idAttr, reviewAttr, 10);
+        Assert.assertEquals(0, resultList.size());
 	}
 	
 	// This case tests for the scenario when the IDs of the documents match, 
@@ -163,7 +165,9 @@ public class JoinTest {
         IPredicate predicateInner = new KeywordPredicate(query, attributeList, DataConstants.KeywordOperatorType.BASIC, analyzer, dataStoreForInner);
         keywordMatcherInner = new KeywordMatcher(predicateInner);
         
-        List<ITuple> resultList = getJoinResults(keywordMatcherOuter, keywordMatcherInner, attributeList.get(0), attributeList.get(4), 20);
+        Attribute idAttr = attributeList.get(0);
+        Attribute reviewAttr = attributeList.get(4);
+        List<ITuple> resultList = getJoinResults(keywordMatcherOuter, keywordMatcherInner, idAttr, reviewAttr, 20);
         
         Attribute[] schemaAttributes = new Attribute[attributeList.size() + 1];
         for(int index = 0; index < schemaAttributes.length-1; index++) {
@@ -173,7 +177,7 @@ public class JoinTest {
         
         List<Span> spanList = new ArrayList<>();
         String reviewField = attributeList.get(4).getFieldName();
-        Span span1 = new Span(reviewField, 11, 33, "special writer", "special writer");
+        Span span1 = new Span(reviewField, 11, 33, "foo", "bar");
         spanList.add(span1);
         
         IField[] book1 = { new IntegerField(52), new StringField("Mary Roach"), 
@@ -209,15 +213,10 @@ public class JoinTest {
         IPredicate predicateInner = new KeywordPredicate(query, attributeList, DataConstants.KeywordOperatorType.BASIC, analyzer, dataStoreForInner);
         keywordMatcherInner = new KeywordMatcher(predicateInner);
         
-        List<ITuple> resultList = getJoinResults(keywordMatcherOuter, keywordMatcherInner, attributeList.get(0), attributeList.get(4), 20);
-        Assert.assertEquals(resultList.size(), 0);
-	}
-	
-	// This case tests for the scenario when the IDs match but the fields to 
-	// be joined don't match.
-	@Test
-	public void testIdsMatchFieldsDontMatch() {
-		// TODO
+        Attribute idAttr = attributeList.get(0);
+        Attribute reviewAttr = attributeList.get(4);
+        List<ITuple> resultList = getJoinResults(keywordMatcherOuter, keywordMatcherInner, idAttr, reviewAttr, 20);
+        Assert.assertEquals(0, resultList.size());
 	}
 	
 	// This case tests for the scenario when one of the operators result list
@@ -236,8 +235,10 @@ public class JoinTest {
         IPredicate predicateInner = new KeywordPredicate(query, attributeList, DataConstants.KeywordOperatorType.BASIC, analyzer, dataStoreForInner);
         keywordMatcherInner = new KeywordMatcher(predicateInner);
         
-        List<ITuple> resultList = getJoinResults(keywordMatcherOuter, keywordMatcherInner, attributeList.get(0), attributeList.get(4), 20);
-        Assert.assertEquals(resultList.size(), 0);
+        Attribute idAttr = attributeList.get(0);
+        Attribute reviewAttr = attributeList.get(4);
+        List<ITuple> resultList = getJoinResults(keywordMatcherOuter, keywordMatcherInner, idAttr, reviewAttr, 20);
+        Assert.assertEquals(0, resultList.size());
 	}
 	
 	// This case tests for the scenario when the IDs match, fields to be joined 
@@ -259,8 +260,10 @@ public class JoinTest {
         IPredicate fuzzyPredicateInner = new FuzzyTokenPredicate(query, attributeList, analyzer, dataStoreForInner, thresholdRatio, isSpanInformationAdded);
         FuzzyTokenMatcher fuzzyMatcherInner = new FuzzyTokenMatcher(fuzzyPredicateInner);
         
-        List<ITuple> resultList = getJoinResults(keywordMatcherOuter, fuzzyMatcherInner, attributeList.get(0), attributeList.get(4), 20);
-        Assert.assertEquals(resultList.size(), 0);
+        Attribute idAttr = attributeList.get(0);
+        Attribute reviewAttr = attributeList.get(4);
+        List<ITuple> resultList = getJoinResults(keywordMatcherOuter, fuzzyMatcherInner, idAttr, reviewAttr, 20);
+        Assert.assertEquals(0, resultList.size());
 	}
 	
 	// This case tests for the scenario when the IDs match, fields to be joined 
@@ -280,7 +283,9 @@ public class JoinTest {
         IPredicate predicateInner = new KeywordPredicate(query, attributeList, DataConstants.KeywordOperatorType.PHRASE, analyzer, dataStoreForInner);
         keywordMatcherInner = new KeywordMatcher(predicateInner);
         
-        List<ITuple> resultList = getJoinResults(keywordMatcherOuter, keywordMatcherInner, attributeList.get(0), attributeList.get(4), 20);
+        Attribute idAttr = attributeList.get(0);
+        Attribute reviewAttr = attributeList.get(4);
+        List<ITuple> resultList = getJoinResults(keywordMatcherOuter, keywordMatcherInner, idAttr, reviewAttr, 20);
         
         Attribute[] schemaAttributes = new Attribute[attributeList.size() + 1];
         for(int index = 0; index < schemaAttributes.length-1; index++) {
@@ -290,7 +295,7 @@ public class JoinTest {
         
         List<Span> spanList = new ArrayList<>();
         String reviewField = attributeList.get(4).getFieldName();
-        Span span1 = new Span(reviewField, 3, 33, "takes a special kind of writer", "takes a special kind of writer");
+        Span span1 = new Span(reviewField, 3, 33, "foo", "bar");
         spanList.add(span1);
         
         IField[] book1 = { new IntegerField(52), new StringField("Mary Roach"), 
@@ -327,7 +332,9 @@ public class JoinTest {
         IPredicate predicateInner = new KeywordPredicate(query, attributeList, DataConstants.KeywordOperatorType.PHRASE, analyzer, dataStoreForInner);
         keywordMatcherInner = new KeywordMatcher(predicateInner);
         
-        List<ITuple> resultList = getJoinResults(keywordMatcherOuter, keywordMatcherInner, attributeList.get(0), attributeList.get(4), 10);
+        Attribute idAttr = attributeList.get(0);
+        Attribute reviewAttr = attributeList.get(4);
+        List<ITuple> resultList = getJoinResults(keywordMatcherOuter, keywordMatcherInner, idAttr, reviewAttr, 10);
         Assert.assertEquals(0, resultList.size());
 	}
 	
@@ -353,7 +360,9 @@ public class JoinTest {
         IPredicate predicateInner = new KeywordPredicate(query, attributeList, DataConstants.KeywordOperatorType.PHRASE, analyzer, dataStoreForInner);
         keywordMatcherInner = new KeywordMatcher(predicateInner);
         
-        List<ITuple> resultList = getJoinResults(keywordMatcherOuter, keywordMatcherInner, attributeList.get(0), attributeList.get(4), 10);
+        Attribute idAttr = attributeList.get(0);
+        Attribute reviewAttr = attributeList.get(4);
+        List<ITuple> resultList = getJoinResults(keywordMatcherOuter, keywordMatcherInner, idAttr, reviewAttr, 10);
         
         Attribute[] schemaAttributes = new Attribute[attributeList.size() + 1];
         for(int index = 0; index < schemaAttributes.length-1; index++) {
@@ -363,7 +372,7 @@ public class JoinTest {
         
         List<Span> spanList = new ArrayList<>();
         String reviewField = attributeList.get(4).getFieldName();
-        Span span1 = new Span(reviewField, 9, 23, "a special kind", "a special kind");
+        Span span1 = new Span(reviewField, 9, 23, "foo", "bar");
         spanList.add(span1);
         
         IField[] book1 = { new IntegerField(52), new StringField("Mary Roach"), 
@@ -400,7 +409,9 @@ public class JoinTest {
         IPredicate predicateInner = new KeywordPredicate(query, attributeList, DataConstants.KeywordOperatorType.PHRASE, analyzer, dataStoreForInner);
         keywordMatcherInner = new KeywordMatcher(predicateInner);
         
-        List<ITuple> resultList = getJoinResults(keywordMatcherOuter, keywordMatcherInner, attributeList.get(0), attributeList.get(4), 10);
+        Attribute idAttr = attributeList.get(0);
+        Attribute reviewAttr = attributeList.get(4);
+        List<ITuple> resultList = getJoinResults(keywordMatcherOuter, keywordMatcherInner, idAttr, reviewAttr, 10);
         Assert.assertEquals(0, resultList.size());
 	}
 	
@@ -420,7 +431,9 @@ public class JoinTest {
         IPredicate predicateInner = new KeywordPredicate(query, attributeList, DataConstants.KeywordOperatorType.BASIC, analyzer, dataStoreForInner);
         keywordMatcherInner = new KeywordMatcher(predicateInner);
         
-        List<ITuple> resultList = getJoinResults(keywordMatcherOuter, keywordMatcherInner, attributeList.get(0), attributeList.get(4), 20);
+        Attribute idAttr = attributeList.get(0);
+        Attribute reviewAttr = attributeList.get(4);
+        List<ITuple> resultList = getJoinResults(keywordMatcherOuter, keywordMatcherInner, idAttr, reviewAttr, 20);
         
         Attribute[] schemaAttributes = new Attribute[attributeList.size() + 1];
         for(int index = 0; index < schemaAttributes.length-1; index++) {
@@ -430,7 +443,7 @@ public class JoinTest {
         
         List<Span> spanList = new ArrayList<>();
         String reviewField = attributeList.get(4).getFieldName();
-        Span span1 = new Span(reviewField, 11, 18, "special", "special");
+        Span span1 = new Span(reviewField, 11, 18, "foo", "bar");
         spanList.add(span1);
         
         IField[] book1 = { new IntegerField(52), new StringField("Mary Roach"), 
