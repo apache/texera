@@ -132,10 +132,10 @@ public class JoinTest {
 		dataWriterForInner.writeData(bookTuple2);
 		
 		String query = "special";
-		IPredicate predicateOuter = new KeywordPredicate(query, attributeList, DataConstants.KeywordOperatorType.BASIC, analyzer, dataStoreForOuter);
+		IPredicate predicateOuter = new KeywordPredicate(query, attributeList, DataConstants.KeywordMatchingType.SUBSTRING_SCANBASED, analyzer, dataStoreForOuter);
         keywordMatcherOuter = new KeywordMatcher(predicateOuter);
         query = "cancer";
-        IPredicate predicateInner = new KeywordPredicate(query, attributeList, DataConstants.KeywordOperatorType.BASIC, analyzer, dataStoreForInner);
+        IPredicate predicateInner = new KeywordPredicate(query, attributeList, DataConstants.KeywordMatchingType.SUBSTRING_SCANBASED, analyzer, dataStoreForInner);
         keywordMatcherInner = new KeywordMatcher(predicateInner);
         
         Attribute idAttr = attributeList.get(0);
@@ -159,10 +159,10 @@ public class JoinTest {
 		dataWriterForInner.writeData(bookTuple1);
 		
 		String query = "special";
-		IPredicate predicateOuter = new KeywordPredicate(query, attributeList, DataConstants.KeywordOperatorType.BASIC, analyzer, dataStoreForOuter);
+		IPredicate predicateOuter = new KeywordPredicate(query, attributeList, DataConstants.KeywordMatchingType.SUBSTRING_SCANBASED, analyzer, dataStoreForOuter);
         keywordMatcherOuter = new KeywordMatcher(predicateOuter);
         query = "writer";
-        IPredicate predicateInner = new KeywordPredicate(query, attributeList, DataConstants.KeywordOperatorType.BASIC, analyzer, dataStoreForInner);
+        IPredicate predicateInner = new KeywordPredicate(query, attributeList, DataConstants.KeywordMatchingType.SUBSTRING_SCANBASED, analyzer, dataStoreForInner);
         keywordMatcherInner = new KeywordMatcher(predicateInner);
         
         Attribute idAttr = attributeList.get(0);
@@ -207,10 +207,10 @@ public class JoinTest {
 		dataWriterForInner.writeData(bookTuple1);
 		
 		String query = "special";
-		IPredicate predicateOuter = new KeywordPredicate(query, attributeList, DataConstants.KeywordOperatorType.BASIC, analyzer, dataStoreForOuter);
+		IPredicate predicateOuter = new KeywordPredicate(query, attributeList, DataConstants.KeywordMatchingType.SUBSTRING_SCANBASED, analyzer, dataStoreForOuter);
         keywordMatcherOuter = new KeywordMatcher(predicateOuter);
         query = "topics";
-        IPredicate predicateInner = new KeywordPredicate(query, attributeList, DataConstants.KeywordOperatorType.BASIC, analyzer, dataStoreForInner);
+        IPredicate predicateInner = new KeywordPredicate(query, attributeList, DataConstants.KeywordMatchingType.SUBSTRING_SCANBASED, analyzer, dataStoreForInner);
         keywordMatcherInner = new KeywordMatcher(predicateInner);
         
         Attribute idAttr = attributeList.get(0);
@@ -229,10 +229,10 @@ public class JoinTest {
 		dataWriterForInner.writeData(bookTuple1);
 		
 		String query = "special";
-		IPredicate predicateOuter = new KeywordPredicate(query, attributeList, DataConstants.KeywordOperatorType.BASIC, analyzer, dataStoreForOuter);
+		IPredicate predicateOuter = new KeywordPredicate(query, attributeList, DataConstants.KeywordMatchingType.SUBSTRING_SCANBASED, analyzer, dataStoreForOuter);
         keywordMatcherOuter = new KeywordMatcher(predicateOuter);
         query = "book";
-        IPredicate predicateInner = new KeywordPredicate(query, attributeList, DataConstants.KeywordOperatorType.BASIC, analyzer, dataStoreForInner);
+        IPredicate predicateInner = new KeywordPredicate(query, attributeList, DataConstants.KeywordMatchingType.SUBSTRING_SCANBASED, analyzer, dataStoreForInner);
         keywordMatcherInner = new KeywordMatcher(predicateInner);
         
         Attribute idAttr = attributeList.get(0);
@@ -251,7 +251,7 @@ public class JoinTest {
 		dataWriterForInner.writeData(bookTuple1);
 		
 		String query = "special";
-		IPredicate predicateOuter = new KeywordPredicate(query, attributeList, DataConstants.KeywordOperatorType.BASIC, analyzer, dataStoreForOuter);
+		IPredicate predicateOuter = new KeywordPredicate(query, attributeList, DataConstants.KeywordMatchingType.SUBSTRING_SCANBASED, analyzer, dataStoreForOuter);
         keywordMatcherOuter = new KeywordMatcher(predicateOuter);
         
         query = "this writer writes well";
@@ -277,10 +277,10 @@ public class JoinTest {
 		dataWriterForInner.writeData(bookTuple1);
 		
 		String query = "special";
-		IPredicate predicateOuter = new KeywordPredicate(query, attributeList, DataConstants.KeywordOperatorType.BASIC, analyzer, dataStoreForOuter);
+		IPredicate predicateOuter = new KeywordPredicate(query, attributeList, DataConstants.KeywordMatchingType.SUBSTRING_SCANBASED, analyzer, dataStoreForOuter);
         keywordMatcherOuter = new KeywordMatcher(predicateOuter);
         query = "takes a special kind of writer";
-        IPredicate predicateInner = new KeywordPredicate(query, attributeList, DataConstants.KeywordOperatorType.PHRASE, analyzer, dataStoreForInner);
+        IPredicate predicateInner = new KeywordPredicate(query, attributeList, DataConstants.KeywordMatchingType.PHRASE_INDEXBASED, analyzer, dataStoreForInner);
         keywordMatcherInner = new KeywordMatcher(predicateInner);
         
         Attribute idAttr = attributeList.get(0);
@@ -326,10 +326,10 @@ public class JoinTest {
 		dataWriterForInner.writeData(bookTuple1);
 		
 		String query = "special";
-		IPredicate predicateOuter = new KeywordPredicate(query, attributeList, DataConstants.KeywordOperatorType.BASIC, analyzer, dataStoreForOuter);
+		IPredicate predicateOuter = new KeywordPredicate(query, attributeList, DataConstants.KeywordMatchingType.SUBSTRING_SCANBASED, analyzer, dataStoreForOuter);
         keywordMatcherOuter = new KeywordMatcher(predicateOuter);
         query = "takes a special kind of writer";
-        IPredicate predicateInner = new KeywordPredicate(query, attributeList, DataConstants.KeywordOperatorType.PHRASE, analyzer, dataStoreForInner);
+        IPredicate predicateInner = new KeywordPredicate(query, attributeList, DataConstants.KeywordMatchingType.PHRASE_INDEXBASED, analyzer, dataStoreForInner);
         keywordMatcherInner = new KeywordMatcher(predicateInner);
         
         Attribute idAttr = attributeList.get(0);
@@ -353,11 +353,11 @@ public class JoinTest {
 		dataWriterForOuter.writeData(bookTuple1);
 		dataWriterForInner.writeData(bookTuple1);
 		
-		String query = "a special";
-		IPredicate predicateOuter = new KeywordPredicate(query, attributeList, DataConstants.KeywordOperatorType.PHRASE, analyzer, dataStoreForOuter);
+		String query = "gastrointestinal tract";
+		IPredicate predicateOuter = new KeywordPredicate(query, attributeList, DataConstants.KeywordMatchingType.PHRASE_INDEXBASED, analyzer, dataStoreForOuter);
         keywordMatcherOuter = new KeywordMatcher(predicateOuter);
-        query = "special kind";
-        IPredicate predicateInner = new KeywordPredicate(query, attributeList, DataConstants.KeywordOperatorType.PHRASE, analyzer, dataStoreForInner);
+        query = "tract interesting";
+        IPredicate predicateInner = new KeywordPredicate(query, attributeList, DataConstants.KeywordMatchingType.PHRASE_INDEXBASED, analyzer, dataStoreForInner);
         keywordMatcherInner = new KeywordMatcher(predicateInner);
         
         Attribute idAttr = attributeList.get(0);
@@ -372,7 +372,7 @@ public class JoinTest {
         
         List<Span> spanList = new ArrayList<>();
         String reviewField = attributeList.get(4).getFieldName();
-        Span span1 = new Span(reviewField, 9, 23, "foo", "bar");
+        Span span1 = new Span(reviewField, 75, 109, "foo", "bar");
         spanList.add(span1);
         
         IField[] book1 = { new IntegerField(52), new StringField("Mary Roach"), 
@@ -403,10 +403,10 @@ public class JoinTest {
 		dataWriterForInner.writeData(bookTuple1);
 		
 		String query = "takes a special";
-		IPredicate predicateOuter = new KeywordPredicate(query, attributeList, DataConstants.KeywordOperatorType.PHRASE, analyzer, dataStoreForOuter);
+		IPredicate predicateOuter = new KeywordPredicate(query, attributeList, DataConstants.KeywordMatchingType.PHRASE_INDEXBASED, analyzer, dataStoreForOuter);
         keywordMatcherOuter = new KeywordMatcher(predicateOuter);
         query = "special kind of writer";
-        IPredicate predicateInner = new KeywordPredicate(query, attributeList, DataConstants.KeywordOperatorType.PHRASE, analyzer, dataStoreForInner);
+        IPredicate predicateInner = new KeywordPredicate(query, attributeList, DataConstants.KeywordMatchingType.PHRASE_INDEXBASED, analyzer, dataStoreForInner);
         keywordMatcherInner = new KeywordMatcher(predicateInner);
         
         Attribute idAttr = attributeList.get(0);
@@ -425,10 +425,10 @@ public class JoinTest {
 		dataWriterForInner.writeData(bookTuple1);
 		
 		String query = "special";
-		IPredicate predicateOuter = new KeywordPredicate(query, attributeList, DataConstants.KeywordOperatorType.BASIC, analyzer, dataStoreForOuter);
+		IPredicate predicateOuter = new KeywordPredicate(query, attributeList, DataConstants.KeywordMatchingType.SUBSTRING_SCANBASED, analyzer, dataStoreForOuter);
         keywordMatcherOuter = new KeywordMatcher(predicateOuter);
         query = "special";
-        IPredicate predicateInner = new KeywordPredicate(query, attributeList, DataConstants.KeywordOperatorType.BASIC, analyzer, dataStoreForInner);
+        IPredicate predicateInner = new KeywordPredicate(query, attributeList, DataConstants.KeywordMatchingType.SUBSTRING_SCANBASED, analyzer, dataStoreForInner);
         keywordMatcherInner = new KeywordMatcher(predicateInner);
         
         Attribute idAttr = attributeList.get(0);
