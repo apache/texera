@@ -1,17 +1,16 @@
 package edu.uci.ics.textdb.sandbox.team8lucenenewsexample;
 
-import static edu.uci.ics.textdb.sandbox.team8lucenenewsexample.LuceneIndexConstants.*;
+import static edu.uci.ics.textdb.sandbox.team8lucenenewsexample.LuceneIndexConstants.ID_FIELD;
+import static edu.uci.ics.textdb.sandbox.team8lucenenewsexample.LuceneIndexConstants.TEXT_FIELD;
+import static edu.uci.ics.textdb.sandbox.team8lucenenewsexample.LuceneIndexConstants.TITLE_FIELD;
 
-
+import java.io.IOException;
+import java.util.Scanner;
 
 import org.apache.lucene.document.Document;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TopDocs;
-
-
-import java.io.IOException;
-import java.util.Scanner;
 
 /**
  * Created by Sam on 16/4/10.
@@ -50,6 +49,8 @@ public class Main {
         }
 
         System.out.println("performSearch done");
+        
+        reader.close();
 
 
     }

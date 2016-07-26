@@ -161,8 +161,9 @@ public class TranslatorUtils {
 	 * </a>
 	 */
 	static List<String> specialLuceneCharacters = Arrays.asList(new String[]{
+			"\\", // "\\" itself needs to be escaped first before escaping other characters
 			"+", "-", "&&", "||", "!", "(", ")", "{", "}", "[", "]", 
-			"^", "\"", "~", "*", "?", ":", "\\", " ", "AND", "OR", "NOT"
+			"^", "\"", "~", "*", "?", ":",  " ", "AND", "OR", "NOT"
 	});
 	
 	/**
@@ -176,9 +177,21 @@ public class TranslatorUtils {
 			for (String specialChar : specialLuceneCharacters) {
 				query.leaf = query.leaf.replace(specialChar, "\\"+specialChar);
 			}
-		}		
-		for (GramBooleanQuery subQuery : query.subQuerySet) {
-			escapeSpecialCharacters(subQuery);
+		} else {
+			for (GramBooleanQuery subQuery : query.subQuerySet) {
+				escapeSpecialCharacters(subQuery);
+			}
+		}
+
+	}
+	
+	static void toLowerCase(GramBooleanQuery query){
+		if (query.operator == QueryOp.LEAF) {
+			query.leaf = query.leaf.toLowerCase();
+		} else {
+			for (GramBooleanQuery subQuery : query.subQuerySet) {
+				toLowerCase(subQuery);
+			}
 		}
 	}
 

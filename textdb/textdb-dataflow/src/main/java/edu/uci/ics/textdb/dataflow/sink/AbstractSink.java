@@ -43,7 +43,7 @@ public abstract class AbstractSink implements ISink {
      *
      * @param nextTuple A tuple that needs to be processed during each iteration
      */
-    protected abstract void processOneTuple(ITuple nextTuple);
+    protected abstract void processOneTuple(ITuple nextTuple) throws Exception;
 
     @Override
     public void close() throws Exception {

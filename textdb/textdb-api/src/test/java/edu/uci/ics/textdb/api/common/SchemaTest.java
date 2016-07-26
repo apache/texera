@@ -1,9 +1,11 @@
 package edu.uci.ics.textdb.api.common;		
  
 import java.util.List;
-import junit.framework.Assert;		
-import org.junit.Before;		
-import org.junit.Test;		
+
+import junit.framework.Assert;
+
+import org.junit.Before;
+import org.junit.Test;
  		
 public class SchemaTest {		
 	private Schema schema;		

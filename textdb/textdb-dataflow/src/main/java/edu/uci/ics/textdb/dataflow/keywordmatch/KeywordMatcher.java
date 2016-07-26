@@ -4,17 +4,19 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+
 import edu.uci.ics.textdb.api.common.Attribute;
 import edu.uci.ics.textdb.api.common.IField;
 import edu.uci.ics.textdb.api.common.IPredicate;
 import edu.uci.ics.textdb.api.common.ITuple;
 import edu.uci.ics.textdb.api.dataflow.IOperator;
 import edu.uci.ics.textdb.api.dataflow.ISourceOperator;
-import edu.uci.ics.textdb.common.constants.DataConstants.KeywordOperatorType;
+import edu.uci.ics.textdb.common.constants.DataConstants.KeywordMatchingType;
 import edu.uci.ics.textdb.common.constants.SchemaConstants;
 import edu.uci.ics.textdb.common.exception.DataFlowException;
 import edu.uci.ics.textdb.common.field.Span;
 import edu.uci.ics.textdb.common.field.TextField;
+import edu.uci.ics.textdb.common.utils.Utils;
 import edu.uci.ics.textdb.dataflow.common.KeywordPredicate;
 import edu.uci.ics.textdb.dataflow.source.IndexBasedSourceOperator;
 import edu.uci.ics.textdb.storage.DataReaderPredicate;
@@ -122,7 +124,7 @@ public class KeywordMatcher implements IOperator {
             for(int attributeIndex = 0; attributeIndex < attributeList.size(); attributeIndex++) {
                 String fieldName = attributeList.get(attributeIndex).getFieldName();
                 IField field = sourceTuple.getField(fieldName);
-                String fieldValue = (String) (field).getValue();
+                String fieldValue = (field).getValue().toString();
 
                 if (!(field instanceof TextField)) {
 
@@ -149,14 +151,14 @@ public class KeywordMatcher implements IOperator {
                     }
 
                     boolean allTokenPresent = areAllTrue(tokensPresent);
-                    if(predicate.getOperatorType() == KeywordOperatorType.BASIC) {
+                    if(predicate.getOperatorType() == KeywordMatchingType.CONJUNCTION_INDEXBASED) {
 
                         if (!allTokenPresent) {
                             spanList.removeAll(spanForThisField);
                         }
                     }
 
-                    else if(predicate.getOperatorType() == KeywordOperatorType.PHRASE){
+                    else if(predicate.getOperatorType() == KeywordMatchingType.PHRASE_INDEXBASED){
                         /*Ex:
 
                        Document: "Lin Clooney is Short and lin clooney is Angry"
@@ -183,7 +185,9 @@ public class KeywordMatcher implements IOperator {
                         List<String> relevantWordsInQuery = new ArrayList<>();
                         //relevantWordsInQueryOffset maintains the offset position of tokens in query
                         List<Integer> relevantWordsInQueryOffset = new ArrayList<>();
-                        String[] queryArray = query.split(" ");
+                        
+                        List<String> queryTokensWithStopwords = Utils.tokenizeQueryWithStopwords(query);
+                        
                         /*
                         queryTokens are split using analyzer. queryArray needs to be to split with spaces for the
                         logic which is following. analyser will remove the stop words , so we wont relative position
@@ -191,11 +195,12 @@ public class KeywordMatcher implements IOperator {
 
                          */
                         if (allTokenPresent) {
-                            for(int iter = 0; iter < queryArray.length; iter++){
-                                if(queryTokens.contains(queryArray[iter])){
-                                    relevantWordsInQuery.add(queryArray[iter]);
-                                    relevantWordsInQueryOffset.add(iter);
+                            for(int iter = 0; iter < queryTokensWithStopwords.size(); iter++){
+                                if (queryTokens.contains(queryTokensWithStopwords.get(iter))) {
+                                    relevantWordsInQuery.add(queryTokensWithStopwords.get(iter));
+                                    relevantWordsInQueryOffset.add(iter);  
                                 }
+                            
                             }
 
                             int iter = 0; // maintains position of term being checked in spanForThisField list
@@ -206,6 +211,7 @@ public class KeywordMatcher implements IOperator {
                                 *
                                  */
                                 boolean isMismatchInSpan=false;// flag to check if a mismatch in spans occurs
+                                
                                 if(iter <= spanForThisField.size()-relevantWordsInQuery.size()){
                                      // To check all the terms in query are verified
                                     for(int i=0; i < relevantWordsInQuery.size()-1; i++) {
@@ -218,15 +224,21 @@ public class KeywordMatcher implements IOperator {
                                             break;
                                         }
                                     }
-                                    if(isMismatchInSpan==true)continue;
+                                    
+                                    if(isMismatchInSpan)
+                                        continue;
+
+                                    int combinedSpanStartIndex = spanForThisField.get(iter).getStart();
+                                    int combinedSpanEndIndex = spanForThisField.get(iter+relevantWordsInQuery.size()-1).getEnd();
+
+                                    Span combinedSpan = new Span(fieldName, combinedSpanStartIndex, combinedSpanEndIndex, query, fieldValue.substring(combinedSpanStartIndex, combinedSpanEndIndex));
+                                    spanList.add(combinedSpan);
+                                    iter = iter + relevantWordsInQuery.size();
+                                    
+                                } else {
+                                    break;
                                 }
 
-                                int combinedSpanStartIndex = spanForThisField.get(iter).getStart();
-                                int combinedSpanEndIndex = spanForThisField.get(iter+relevantWordsInQuery.size()-1).getEnd();
-
-                                Span combinedSpan = new Span(fieldName, combinedSpanStartIndex, combinedSpanEndIndex, query, fieldValue.substring(combinedSpanStartIndex, combinedSpanEndIndex));
-                                spanList.add(combinedSpan);
-                                iter = iter + relevantWordsInQuery.size();
                             }
                         }
                     }

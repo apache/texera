@@ -74,7 +74,7 @@ public class KeywordMatcherTest {
 
     public List<ITuple> getPeopleQueryResults(String query, ArrayList<Attribute> attributeList) throws DataFlowException, ParseException {
 
-        IPredicate predicate = new KeywordPredicate(query, attributeList, DataConstants.KeywordOperatorType.BASIC, analyzer, dataStore);
+        IPredicate predicate = new KeywordPredicate(query, attributeList, DataConstants.KeywordMatchingType.CONJUNCTION_INDEXBASED, analyzer, dataStore);
         keywordMatcher = new KeywordMatcher(predicate);
         keywordMatcher.open();
 

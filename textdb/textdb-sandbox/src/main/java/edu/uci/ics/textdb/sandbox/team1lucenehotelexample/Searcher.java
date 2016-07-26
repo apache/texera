@@ -17,7 +17,6 @@ import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.search.spans.SpanTermQuery;
-import org.apache.lucene.search.spans.SpanWeight;
 import org.apache.lucene.store.FSDirectory;
 
 /** Simple command-line based search demo. */
@@ -40,12 +39,6 @@ public class Searcher {
     }
     
     public SpanTermQuery makeSpanTermQuery(String text) {
-    	try {
-			Query query = parser.parse(text);
-		} catch (ParseException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
     	Term t = new Term("content",text);
         return new SpanTermQuery(t);
     }

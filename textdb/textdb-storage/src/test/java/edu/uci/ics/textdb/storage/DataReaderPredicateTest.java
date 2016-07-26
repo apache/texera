@@ -1,5 +1,7 @@
 package edu.uci.ics.textdb.storage;
 
+import java.util.Arrays;
+
 import junit.framework.Assert;
 
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
@@ -12,8 +14,6 @@ import org.junit.Test;
 import edu.uci.ics.textdb.api.storage.IDataStore;
 import edu.uci.ics.textdb.common.constants.DataConstants;
 import edu.uci.ics.textdb.common.constants.TestConstants;
-
-import java.util.Arrays;
 
 public class DataReaderPredicateTest {
     private DataReaderPredicate dataReaderPredicate;

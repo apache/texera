@@ -1,7 +1,7 @@
 package edu.uci.ics.textdb.sandbox.team3.team3lucenecityexample;
 
-import static edu.uci.ics.textdb.sandbox.team3.team3lucenecityexample.LuceneIndexConstants.COUNTRY_FIELD;
 import static edu.uci.ics.textdb.sandbox.team3.team3lucenecityexample.LuceneIndexConstants.CONTENT_FIELD;
+import static edu.uci.ics.textdb.sandbox.team3.team3lucenecityexample.LuceneIndexConstants.COUNTRY_FIELD;
 import static edu.uci.ics.textdb.sandbox.team3.team3lucenecityexample.LuceneIndexConstants.ID_FIELD;
 import static edu.uci.ics.textdb.sandbox.team3.team3lucenecityexample.LuceneIndexConstants.INDEX_DIR;
 import static edu.uci.ics.textdb.sandbox.team3.team3lucenecityexample.LuceneIndexConstants.NAME_FIELD;

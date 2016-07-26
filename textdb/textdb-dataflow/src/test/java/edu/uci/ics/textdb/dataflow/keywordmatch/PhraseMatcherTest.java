@@ -13,6 +13,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import edu.uci.ics.textdb.api.common.Attribute;
+import edu.uci.ics.textdb.api.common.FieldType;
 import edu.uci.ics.textdb.api.common.IField;
 import edu.uci.ics.textdb.api.common.IPredicate;
 import edu.uci.ics.textdb.api.common.ITuple;
@@ -74,7 +75,7 @@ public class PhraseMatcherTest {
 
     public List<ITuple> getPeopleQueryResults(String query, ArrayList<Attribute> attributeList) throws DataFlowException, ParseException {
 
-        IPredicate predicate = new KeywordPredicate(query, attributeList, DataConstants.KeywordOperatorType.PHRASE, luceneAnalyzer, dataStore);
+        IPredicate predicate = new KeywordPredicate(query, attributeList, DataConstants.KeywordMatchingType.PHRASE_INDEXBASED, luceneAnalyzer, dataStore);
         KeywordMatcher = new KeywordMatcher(predicate);
         KeywordMatcher.open();
 
@@ -278,5 +279,180 @@ public class PhraseMatcherTest {
         Assert.assertTrue(contains);
     }
 
+    /**
+     * Verifies: Query with Stop Words match corresponding phrases with Medline data
+     * @throws Exception with Medline data
+     */
+    @Test
+    public void testWordInMultipleFieldsQueryWithStopWords3() throws Exception {
+    	DataStore MedDataStore = new DataStore("../index/test", keywordTestConstants.SCHEMA_MEDLINE);
+        Analyzer MedAnalyzer = new StandardAnalyzer();
+        DataWriter MedDataWriter = new DataWriter(MedDataStore, MedAnalyzer);
+        MedDataWriter.clearData();
+    	MedDataWriter.writeData(keywordTestConstants.getSampleMedlineRecord());
+        //Prepare Query
+        String query = "skin rash";
+        ArrayList<Attribute> attributeList = new ArrayList<>();
+        attributeList.add(keywordTestConstants.ABSTRACT_ATTR);
+
+        //Prepare expected result list
+        List<Span> list = new ArrayList<>();
+        Span span1 = new Span(keywordTestConstants.ABSTRACT, 192, 201, "skin rash", "skin rash");
+
+        list.add(span1);
+
+        Attribute[] schemaAttributes = new Attribute[keywordTestConstants.ATTRIBUTES_MEDLINE.length + 1];
+        for(int count = 0; count < schemaAttributes.length - 1; count++) {
+            schemaAttributes[count] = keywordTestConstants.ATTRIBUTES_MEDLINE[count];
+        }
+        schemaAttributes[schemaAttributes.length - 1] = SchemaConstants.SPAN_LIST_ATTRIBUTE;
+
+        IField [] fields1 = {new IntegerField(14347980), new TextField(""), new TextField("CHRONIC MENINGOCOCCEMIA; EPIDEMIOLOGY, DIAGNOSIS AND TREATMENT."),
+    			new TextField("D S BLOOM"), new StringField("103 Aug, 1965"), new TextField("California medicine"), new TextField("DRUG THERAPY, MENINGOCOCCAL INFECTIONS, PENICILLIN G, SULFONAMIDES"),
+    			new TextField("Drug Therapy, Meningococcal Infections, Penicillin G, Sulfonamides"), 
+    			new TextField("This report describes four cases of chronic meningococcemia with the characteristic manifestations of recurrent episodes of "
+    					+ "fever, chills, night sweats, headache and anorexia, associated with skin rash and arthralgias. The diagnosis was established in all instances by blood culture. Administration "
+    					+ "of sulfonamides in three cases and penicillin in the fourth resulted in prompt recovery. The recent finding of a strain of sulfonamide-resistant meningococci, however, indicates "
+    					+ "that antibiotic-sensitivity tests should be carried out in all cases of meningococcal disease. While waiting for the results of such tests to be reported, the clinician should "
+    					+ "initiate treatment with large doses of a sulfonamide and penicillin in combination."), new DoubleField(0.664347980), new ListField<>(list)};
+
+        ITuple tuple1 = new DataTuple(new Schema(schemaAttributes), fields1);
+        List<ITuple> expectedResultList = new ArrayList<>();
+        expectedResultList.add(tuple1);
+
+        //Perform Query
+        IPredicate predicate = new KeywordPredicate(query, attributeList, DataConstants.KeywordMatchingType.PHRASE_INDEXBASED, MedAnalyzer, MedDataStore);
+        KeywordMatcher = new KeywordMatcher(predicate);
+        KeywordMatcher.open();
+
+        List<ITuple> results = new ArrayList<>();
+        ITuple nextTuple = null;
+
+        while ((nextTuple = KeywordMatcher.getNextTuple()) != null) {
+            results.add(nextTuple);
+        }
+        //Perform Check
+        boolean contains = TestUtils.containsAllResults(expectedResultList, results);
+        Assert.assertTrue(contains);
+    }
+    
+    /**
+     * Verifies: Query with Stop Words match corresponding phrases in the document
+     * Used to cause exception if there is a special symbol with the words, ex: big(
+     * @throws Exception with Medline data
+     */
+    @Test
+    public void testWordInMultipleFieldsQueryWithStopWords4() throws Exception {
+    	DataStore MedDataStore = new DataStore("../index/test", keywordTestConstants.SCHEMA_MEDLINE);
+        Analyzer MedAnalyzer = new StandardAnalyzer();
+        DataWriter MedDataWriter = new DataWriter(MedDataStore, MedAnalyzer);
+        MedDataWriter.clearData();
+    	MedDataWriter.writeData(keywordTestConstants.getSampleMedlineRecord());
+        //Prepare Query
+        String query = "x-ray";
+        ArrayList<Attribute> attributeList = new ArrayList<>();
+        attributeList.add(keywordTestConstants.ABSTRACT_ATTR);
+
+        //Prepare expected result list
+        List<Span> list = new ArrayList<>();
+        Span span1 = new Span(keywordTestConstants.ABSTRACT, 226, 231, "x-ray", "x-ray");
+
+        list.add(span1);
+
+        Attribute[] schemaAttributes = new Attribute[keywordTestConstants.ATTRIBUTES_MEDLINE.length + 1];
+        for(int count = 0; count < schemaAttributes.length - 1; count++) {
+            schemaAttributes[count] = keywordTestConstants.ATTRIBUTES_MEDLINE[count];
+        }
+        schemaAttributes[schemaAttributes.length - 1] = SchemaConstants.SPAN_LIST_ATTRIBUTE;
+
+	    IField [] fields = {new IntegerField(17832788), new TextField(""), new TextField("Cosmic X-ray Sources."),
+		new TextField("S Bowyer, E T Byram, T A Chubb, H Friedman"), new StringField("147-3656 Jan 22, 1965"), new TextField("Science (New York, N.Y.)"), new TextField(""),
+		new TextField(""), new TextField("Eight new sources of cosmic x-rays were detected by two Aerobee surveys in 1964. One source, from Sagittarius, is close to the galactic center, and the other, "
+				+ "from Ophiuchus, may coincide with Kepler's 1604 supernova. All the x-ray sources are fairly close to the galactic plane."), new DoubleField(0.667832788), new ListField<>(list)};
+
+        ITuple tuple1 = new DataTuple(new Schema(schemaAttributes), fields);
+        List<ITuple> expectedResultList = new ArrayList<>();
+        expectedResultList.add(tuple1);
+
+        //Perform Query
+        IPredicate predicate = new KeywordPredicate(query, attributeList, DataConstants.KeywordMatchingType.PHRASE_INDEXBASED, MedAnalyzer, MedDataStore);
+        KeywordMatcher = new KeywordMatcher(predicate);
+        KeywordMatcher.open();
+
+        List<ITuple> results = new ArrayList<>();
+        ITuple nextTuple = null;
+
+        while ((nextTuple = KeywordMatcher.getNextTuple()) != null) {
+            results.add(nextTuple);
+        }
+        //Perform Check
+        boolean contains = TestUtils.containsAllResults(expectedResultList, results);
+        Assert.assertTrue(contains);
+    }
+
+    /**
+     * Verifies: Query with Stop Words match corresponding phrases in the document
+     * Used to cause exception sometimes if there is a space between words
+     * @throws Exception with Medline data
+     */
+    @Test
+    public void testWordInMultipleFieldsQueryWithStopWords5() throws Exception {
+    	DataStore MedDataStore = new DataStore("../index/test", keywordTestConstants.SCHEMA_MEDLINE);
+        Analyzer MedAnalyzer = new StandardAnalyzer();
+        DataWriter MedDataWriter = new DataWriter(MedDataStore, MedAnalyzer);
+        MedDataWriter.clearData();
+    	MedDataWriter.writeData(keywordTestConstants.getSampleMedlineRecord());
+        //Prepare Query
+        String query = "gain weight";
+        ArrayList<Attribute> attributeList = new ArrayList<>();
+        attributeList.add(keywordTestConstants.ABSTRACT_ATTR);
+
+        //Prepare expected result list
+        List<Span> list = new ArrayList<>();
+        Span span1 = new Span(keywordTestConstants.ABSTRACT, 26, 37, "gain weight", "gain weight");
+
+        list.add(span1);
+
+        Attribute[] schemaAttributes = new Attribute[keywordTestConstants.ATTRIBUTES_MEDLINE.length + 1];
+        for(int count = 0; count < schemaAttributes.length - 1; count++) {
+            schemaAttributes[count] = keywordTestConstants.ATTRIBUTES_MEDLINE[count];
+        }
+        schemaAttributes[schemaAttributes.length - 1] = SchemaConstants.SPAN_LIST_ATTRIBUTE;
+
+	    IField [] fields = {new IntegerField(4566015), new TextField(""), new TextField("Significance of milk pH in newborn infants."), 
+	    		new TextField("V C Harrison, G Peat"), new StringField("4-5839 Dec 2, 1972"), new TextField("British medical journal"), 
+	    		new TextField(""), new TextField("Infant Nutritional Physiological Phenomena, Infant, Newborn, Milk"), 
+	    		new TextField("Bottle-fed infants do not gain weight as rapidly as breast-fed babies during the first week of life. This "
+	    				+ "weight lag can be corrected by the addition of a small amount of alkali (sodium bicarbonate or trometamol) to "
+	    				+ "the feeds. The alkali corrects the acidity of cow's milk which now assumes some of the properties of human breast "
+	    				+ "milk. It has a bacteriostatic effect on specific Escherichia coli in vitro, and in infants it produces a stool with"
+	    				+ " a preponderance of lactobacilli over E. coli organisms. When alkali is removed from the milk there is a decrease in"
+	    				+ " the weight of an infant and the stools contain excessive numbers of E. coli bacteria.A pH-corrected milk appears to"
+	    				+ " be more physiological than unaltered cow's milk and may provide some protection against gastroenteritis in early "
+	    				+ "life. Its bacteriostatic effect on specific E. coli may be of practical significance in feed preparations where "
+	    				+ "terminal sterilization and refrigeration are not available. The study was conducted during the week after birth, and "
+	    				+ "no conclusions are derived for older infants. The long-term effects of trometamol are unknown. No recommendation can "
+	    				+ "be given for the addition of sodium bicarbonate to milks containing a higher content of sodium."), new DoubleField(0.667832788), new ListField<>(list)};
+	    
+
+        ITuple tuple1 = new DataTuple(new Schema(schemaAttributes), fields);
+        List<ITuple> expectedResultList = new ArrayList<>();
+        expectedResultList.add(tuple1);
+
+        //Perform Query
+        IPredicate predicate = new KeywordPredicate(query, attributeList, DataConstants.KeywordMatchingType.PHRASE_INDEXBASED, MedAnalyzer, MedDataStore);
+        KeywordMatcher = new KeywordMatcher(predicate);
+        KeywordMatcher.open();
+
+        List<ITuple> results = new ArrayList<>();
+        ITuple nextTuple = null;
+
+        while ((nextTuple = KeywordMatcher.getNextTuple()) != null) {
+            results.add(nextTuple);
+        }
+        //Perform Check
+        boolean contains = TestUtils.containsAllResults(expectedResultList, results);
+        Assert.assertTrue(contains);
+    }
 
 }

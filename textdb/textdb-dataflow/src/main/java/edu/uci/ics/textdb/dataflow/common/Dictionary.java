@@ -1,13 +1,16 @@
 package edu.uci.ics.textdb.dataflow.common;
 
-import edu.uci.ics.textdb.api.common.IDictionary;
-
 import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.net.URL;
-import java.util.*;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+
+import edu.uci.ics.textdb.api.common.IDictionary;
 
 /**
  * @author Sudeep [inkudo]
@@ -63,7 +66,7 @@ public class Dictionary implements IDictionary {
     }
 
     /**
-     * Gets next value from the dictionary
+     * Gets next dictionary entry from the dictionary
      */
     @Override
     public String getNextValue() {
@@ -86,5 +89,13 @@ public class Dictionary implements IDictionary {
         } else {
             return -1;
         }
+    }
+    
+    /**
+     * Reset the cursor to the start of the dictionary.
+     */
+    @Override
+    public void resetCursor() {
+        iterator = wordFrequencyMap.keySet().iterator();
     }
 }

@@ -1,5 +1,8 @@
 package edu.uci.ics.textdb.sandbox.team2luceneexample;
 
+import java.io.IOException;
+import java.nio.file.Paths;
+
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.DirectoryReader;
@@ -10,9 +13,6 @@ import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.FSDirectory;
-
-import java.io.IOException;
-import java.nio.file.Paths;
 
 /**
  * Created by kishorenarendran on 08/04/16.

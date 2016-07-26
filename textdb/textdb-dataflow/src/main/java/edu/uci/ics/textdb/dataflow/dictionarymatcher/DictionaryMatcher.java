@@ -6,274 +6,217 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import edu.uci.ics.textdb.api.common.IField;
+import edu.uci.ics.textdb.api.common.Attribute;
+import edu.uci.ics.textdb.api.common.FieldType;
 import edu.uci.ics.textdb.api.common.IPredicate;
 import edu.uci.ics.textdb.api.common.ITuple;
 import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.api.dataflow.IOperator;
 import edu.uci.ics.textdb.common.constants.DataConstants;
-import edu.uci.ics.textdb.common.constants.DataConstants.KeywordOperatorType;
+import edu.uci.ics.textdb.common.constants.DataConstants.KeywordMatchingType;
 import edu.uci.ics.textdb.common.exception.DataFlowException;
 import edu.uci.ics.textdb.common.field.Span;
-import edu.uci.ics.textdb.common.field.StringField;
-import edu.uci.ics.textdb.common.field.TextField;
 import edu.uci.ics.textdb.common.utils.Utils;
 import edu.uci.ics.textdb.dataflow.common.DictionaryPredicate;
 import edu.uci.ics.textdb.dataflow.common.KeywordPredicate;
 import edu.uci.ics.textdb.dataflow.keywordmatch.KeywordMatcher;
 
 /**
- * @author Sudeep [inkudo]
+ * @author Sudeep (inkudo)
+ * @author Zuozhi Wang (zuozhi)
  * 
  */
 public class DictionaryMatcher implements IOperator {
 
     private IOperator sourceOperator;
-    private String dictionaryValue;
-    private int positionIndex; // next position in the field to be checked.
-    private int attributeIndex; // Index of the next field to be checked.
-    private String spanFieldName;
-    private ITuple dataTuple;
-    private List<IField> fields;
     private Schema spanSchema;
+    
+    private ITuple currentTuple;
+    private String currentDictionaryEntry;
 
-    private String regex;
-    private Pattern pattern;
-    private Matcher matcher;
-    private List<Span> spanList;
-    private boolean isPresent;
-    private String documentValue;
     private final DictionaryPredicate predicate;
 
     /**
-     * 
+     * Constructs a DictionaryMatcher with a dictionary predicate
      * @param predicate
      * 
      */
     public DictionaryMatcher(IPredicate predicate) {
         this.predicate = (DictionaryPredicate) predicate;
+        this.spanSchema = Utils.createSpanSchema(this.predicate.getDataStore().getSchema());
+
     }
 
     /**
-     * @about Opens dictionary matcher. Initializes positionIndex and fieldIndex
-     *        Gets first sourceoperator tuple and dictionary value.
+     * @about Opens dictionary matcher. Must call open() before calling getNextTuple().
      */
     @Override
-    public void open() throws Exception {
+    public void open() throws DataFlowException {
         try {
-            positionIndex = 0;
-            attributeIndex = 0;
-            dictionaryValue = predicate.getNextDictionaryValue();
-
-            if (predicate.getSourceOperatorType() == DataConstants.SourceOperatorType.PHRASEOPERATOR) {
-                KeywordPredicate keywordPredicate = new KeywordPredicate(dictionaryValue, predicate.getAttributeList(),
-                        KeywordOperatorType.PHRASE, predicate.getAnalyzer(), predicate.getDataStore());
+        	currentDictionaryEntry = predicate.getNextDictionaryEntry();
+            if (currentDictionaryEntry == null) {
+            	throw new DataFlowException("Dictionary is empty");
+            }
+            
+            if (predicate.getSourceOperatorType() == DataConstants.KeywordMatchingType.PHRASE_INDEXBASED) {
+                KeywordPredicate keywordPredicate = new KeywordPredicate(currentDictionaryEntry, predicate.getAttributeList(),
+                        KeywordMatchingType.PHRASE_INDEXBASED, predicate.getAnalyzer(), predicate.getDataStore());
+                sourceOperator = new KeywordMatcher(keywordPredicate);
+                sourceOperator.open();
+            } else if (predicate.getSourceOperatorType() == DataConstants.KeywordMatchingType.CONJUNCTION_INDEXBASED) {
+                KeywordPredicate keywordPredicate = new KeywordPredicate(currentDictionaryEntry, predicate.getAttributeList(),
+                        KeywordMatchingType.CONJUNCTION_INDEXBASED, predicate.getAnalyzer(), predicate.getDataStore());
                 sourceOperator = new KeywordMatcher(keywordPredicate);
                 sourceOperator.open();
             } else {
-
-                if (predicate.getSourceOperatorType() == DataConstants.SourceOperatorType.SCANOPERATOR) {
-                    sourceOperator = predicate.getScanSourceOperator();
-                    sourceOperator.open();
-                } else if (predicate.getSourceOperatorType() == DataConstants.SourceOperatorType.KEYWORDOPERATOR) {
-                    KeywordPredicate keywordPredicate = new KeywordPredicate(dictionaryValue,
-                            predicate.getAttributeList(), KeywordOperatorType.BASIC, predicate.getAnalyzer(),
-                            predicate.getDataStore());
-                    sourceOperator = new KeywordMatcher(keywordPredicate);
-                    sourceOperator.open();
-                }
-
-                dataTuple = sourceOperator.getNextTuple();
-                fields = dataTuple.getFields();
-                // Java regex is used to detect word boundaries for TextField
-                // match.
-                // '\b' is used to match the beginning and end of the word.
-                regex = "\\b" + dictionaryValue.toLowerCase() + "\\b";
-                pattern = Pattern.compile(regex);
-
-                spanSchema = getSpanSchema(dataTuple.getSchema());
-
-                spanList = new ArrayList<>();
-                isPresent = false;
+                sourceOperator = predicate.getScanSourceOperator();
+                sourceOperator.open();
             }
+            
         } catch (Exception e) {
-            e.printStackTrace();
             throw new DataFlowException(e.getMessage(), e);
         }
     }
 
     /**
-     * @about Gets next matched tuple. Returns a new span tuple including the
-     *        span results. Performs a scan, keyword or a phrase based search
-     *        depending on the sourceoperator type, gets the dictionary value
-     *        and scans the documents for matches Presently 2 types of
-     *        KeywordOperatorType are supported:
+     * @about Gets the next matched tuple. <br>
+     * 		  Returns the tuple with results in spanList. <br>
      * 
-     *        SourceOperatorType.SCANOPERATOR:
+     * 		  Performs SCAN, KEYWORD_BASIC, or KEYWORD_PHRASE depends on the 
+     * 		  dictionary predicate. <br> 
      * 
-     *        Loop through the dictionary entries. For each dictionary entry,
-     *        loop through the tuples in the operator. For each tuple, loop
-     *        through the fields in the attributelist. For each field, loop
-     *        through all the matches. Returns only one tuple per document. If
-     *        there are multiple matches, all spans are included in a list. Java
-     *        Regex is used to match word boundaries.
-     * 
-     *        Ex: If dictionary word is "Lin", and text is
-     *        "Lin is Angelina's friend", matches should include Lin but not
-     *        Angelina.
-     * 
-     *        SourceOperatorType.KEYWORDOPERATOR:
-     * 
-     *        Loop through the dictionary entries. For each dictionary entry,
-     *        keywordmatcher's getNextTuple is called using
-     *        KeyWordOperator.BASIC. Updates span information at the end of the
-     *        tuple.
-     * 
-     *        SourceOperatorType.PHRASEOPERATOR:
-     * 
-     *        Loop through the dictionary entries. For each dictionary entry,
-     *        keywordmatcher's getNextTuple is called using
-     *        KeyWordOperator.PHRASE. The span returned is the span information
-     *        provided by the keywordmatcher's phrase operator.
-     * 
+     *        DictionaryOperatorType.SCAN: <br>
+     *        Scan the tuples using ScanSourceOperator. <br>
+     *        For each tuple, loop through the dictionary 
+     *        and find results. <br> 
+     *        We assume the dictionary is smaller than the data at the 
+     *        source operator, we treat the data source as the outer
+     *        relation to reduce the number of disk IOs. <br>
+     *        
+     *        DictionaryOperatorType.KEYWORD_BASIC, KEYWORD_PHRASE: <br>
+     *        Use KeywordMatcher to find results. <br>
+     *        
+     *        KEYWORD_BASIC corresponds to KeywordOperatorType.BASIC, which
+     *        performs keyword search on the document. The input query is tokenized.
+     *        The order of the tokens doesn't matter. <br>
+     *        
+     *        KEYWORD_PHRASE corresponds to KeywordOperatorType.PHRASE, which
+     *        performs phrase search on the document. The input query is tokenized.
+     *        The order of the tokens does matter. Stopwords are treated as placeholders 
+     *        to indicate an arbitary token. <br>
+     *        
      */
     @Override
     public ITuple getNextTuple() throws Exception {
-        if (predicate.getSourceOperatorType() == DataConstants.SourceOperatorType.PHRASEOPERATOR) {
-            if ((dataTuple = sourceOperator.getNextTuple()) != null) {
-                return dataTuple;
-            } else if ((dictionaryValue = predicate.getNextDictionaryValue()) != null) {
-                KeywordPredicate keywordPredicate = new KeywordPredicate(dictionaryValue, predicate.getAttributeList(),
-                        KeywordOperatorType.PHRASE, predicate.getAnalyzer(), predicate.getDataStore());
-                sourceOperator = new KeywordMatcher(keywordPredicate);
-                sourceOperator.open();
-                return getNextTuple();
-            }
-
-            return null;
+    	if (predicate.getSourceOperatorType() == DataConstants.KeywordMatchingType.PHRASE_INDEXBASED
+    	||  predicate.getSourceOperatorType() == DataConstants.KeywordMatchingType.CONJUNCTION_INDEXBASED) {
+    		// For each dictionary entry, 
+    		// get all result from KeywordMatcher.
+    		
+    		while (true) {
+    			// If there's result from current keywordMatcher, return it.
+    			if ((currentTuple = sourceOperator.getNextTuple()) != null) {
+    				return currentTuple;
+    			}
+    			// If all results from current keywordMatcher are consumed, 
+    			// advance to next dictionary entry, and
+    			// return null if reach the end of dictionary.
+    			if ((currentDictionaryEntry = predicate.getNextDictionaryEntry()) == null) {
+    				return null;
+    			}
+    			
+    			// Construct a new KeywordMatcher with the new dictionary entry.
+    			KeywordMatchingType keywordMatchingType;
+    			if (predicate.getSourceOperatorType() == DataConstants.KeywordMatchingType.PHRASE_INDEXBASED) {
+    				keywordMatchingType = KeywordMatchingType.PHRASE_INDEXBASED;
+    			} else {
+    				keywordMatchingType = KeywordMatchingType.CONJUNCTION_INDEXBASED;
+    			}
+    			
+    			KeywordPredicate keywordPredicate = new KeywordPredicate(currentDictionaryEntry, predicate.getAttributeList(),
+    					keywordMatchingType, predicate.getAnalyzer(), predicate.getDataStore());
+    			
+    			sourceOperator.close();
+    			sourceOperator = new KeywordMatcher(keywordPredicate);
+    			sourceOperator.open();
+    		}
         }
+    	else {
+    		if (currentTuple == null) {
+    			if ((currentTuple = sourceOperator.getNextTuple()) == null) {
+    				return null;
+    			}
+    		}
+    		
+    		ITuple result = currentTuple;
+    		while (currentTuple != null) {
+    			result = matchTuple(currentDictionaryEntry, currentTuple);
+    			if (result != null) {
+    				advanceCursor();
 
-        if (attributeIndex < predicate.getAttributeList().size()) {
-            IField dataField = dataTuple.getField(predicate.getAttributeList().get(attributeIndex).getFieldName());
-            String fieldValue = (String) dataField.getValue();
+    				return result;
+    			}
+    			advanceCursor();
+    		}
 
-            // Lucene tokenizes TextField before indexing, but not StringField,
-            // so while matching a dictionary value, the dictionary value should
-            // be the same as a StringField, while the dictionary value can be a
-            // substring of a TextField value in order to be a match.
-            if (dataField instanceof TextField) {
-                matcher = pattern.matcher(fieldValue.toLowerCase());
-                // Get position of dictionary value in the field.
-                while (matcher.find(positionIndex) != false) {
-                    isPresent = true;
-                    int spanStartPosition = matcher.start();
+    		return null;
+    	}
+    }
+    
+    /*
+     * Advance the cursor of dictionary. if reach the end of the dictionary,
+     * advance the cursor of tuples and reset dictionary
+     */
+    private void advanceCursor() throws Exception {
+    	if ((currentDictionaryEntry = predicate.getNextDictionaryEntry()) != null) {
+    		return;
+    	}
+    	predicate.resetDictCursor();
+    	currentDictionaryEntry = predicate.getNextDictionaryEntry();
+    	currentTuple = sourceOperator.getNextTuple();
+    }
+    
+    /*
+     * Match the key against the dataTuple.
+     * if there's no match, returns the original dataTuple object,
+     * if there's a match, return a new dataTuple with span list added
+     */
+    private ITuple matchTuple(String key, ITuple dataTuple) {
+    	
+    	List<Attribute> attributeList = predicate.getAttributeList();
+    	List<Span> spanList = new ArrayList<>();
+    	
+    	for (Attribute attr : attributeList) {
+    		String fieldName = attr.getFieldName();
+    		String fieldValue = dataTuple.getField(fieldName).getValue().toString();
+    		
+    		// if attribute type is not TEXT, then key needs to match the fieldValue exactly
+    		if (attr.getFieldType() != FieldType.TEXT) {
+    			if (fieldValue.equals(key)) {
+    				spanList.add(new Span(fieldName, 0, fieldValue.length(), key, fieldValue));
+    			}
+    		}
+    		// if attribute type is TEXT, then key can match a substring of fieldValue
+    		else {
+    			String regex = "\\b" + key.toLowerCase() + "\\b";
+    			Pattern pattern = Pattern.compile(regex);
+    			Matcher matcher = pattern.matcher(fieldValue.toLowerCase());
+    			while (matcher.find()) {
+    				int start = matcher.start();
+    				int end = matcher.end();
 
-                    // Increment positionIndex so that next search occurs from
-                    // new positionIndex.
-                    positionIndex = spanStartPosition + dictionaryValue.length();
-                    documentValue = fieldValue.substring(spanStartPosition, positionIndex);
-                    spanFieldName = predicate.getAttributeList().get(attributeIndex).getFieldName();
-
-                    addSpanToSpanList(spanFieldName, spanStartPosition, positionIndex, dictionaryValue, documentValue);
-                }
-
-            } else if (dataField instanceof StringField) {
-                // Dictionary value should exactly match fieldValue for a
-                // StringField
-
-                if (fieldValue.equals(dictionaryValue)) {
-                    isPresent = true;
-                    int spanStartPosition = 0;
-                    positionIndex = spanStartPosition + dictionaryValue.length();
-                    documentValue = fieldValue.substring(spanStartPosition, positionIndex);
-                    spanFieldName = predicate.getAttributeList().get(attributeIndex).getFieldName(); // attribute.getFieldName();
-
-                    addSpanToSpanList(spanFieldName, spanStartPosition, positionIndex, dictionaryValue, documentValue);
-                }
-            }
-
-            attributeIndex++;
-            positionIndex = 0;
-            return getNextTuple();
-
-        } else if (attributeIndex == predicate.getAttributeList().size() && isPresent) {
-            isPresent = false;
-            positionIndex = 0;
-            if (predicate.getSourceOperatorType() == DataConstants.SourceOperatorType.KEYWORDOPERATOR) {
-                // If SourceOperator is of type Keyword, KeywordMatcher also
-                // includes a span which should be discarded by dictionary
-                // matcher.
-                // The dictionary matcher creates another span and returns the
-                // tuple.
-                // Ex: If text is "New York is beautiful" and given dictionary
-                // value is "New York", keyword matcher returns two spans for
-                // New and
-                // York separately, which we discard and create a span for "New
-                // York"
-                List<IField> fieldlist = removeSpanFromTuple(fields);
-                return Utils.getSpanTuple(fieldlist, spanList, spanSchema);
-            } else {
-                return Utils.getSpanTuple(fields, spanList, spanSchema);
-            }
-
-        } else if ((dataTuple = sourceOperator.getNextTuple()) != null) {
-            attributeIndex = 0;
-            positionIndex = 0;
-            spanList.clear();
-
-            fields = dataTuple.getFields();
-            return getNextTuple();
-
-        } else if ((dictionaryValue = predicate.getNextDictionaryValue()) != null) {
-            // Get the next dictionary value
-            // At this point all the documents in the dataStore are scanned
-            // and we need to scan them again for a different dictionary value
-            attributeIndex = 0;
-            positionIndex = 0;
-            spanList.clear();
-
-            regex = "\\b" + dictionaryValue.toLowerCase() + "\\b";
-            pattern = Pattern.compile(regex);
-
-            if (predicate.getSourceOperatorType() == DataConstants.SourceOperatorType.SCANOPERATOR) {
-                sourceOperator.close();
-                sourceOperator.open();
-            } else if (predicate.getSourceOperatorType() == DataConstants.SourceOperatorType.KEYWORDOPERATOR) {
-                KeywordPredicate keywordPredicate = new KeywordPredicate(dictionaryValue, predicate.getAttributeList(),
-                        KeywordOperatorType.BASIC, predicate.getAnalyzer(), predicate.getDataStore());
-                sourceOperator = new KeywordMatcher(keywordPredicate);
-                sourceOperator.open();
-            }
-
-            dataTuple = sourceOperator.getNextTuple();
-            fields = dataTuple.getFields();
-            return getNextTuple();
-        }
-
-        return null;
+    				spanList.add(new Span(fieldName, start, end, key, fieldValue.substring(start, end)));
+    			}
+    		}
+    	}
+    	
+    	if (spanList.size() == 0) {
+    		return null;
+    	} else {
+    		return Utils.getSpanTuple(dataTuple.getFields(), spanList, this.spanSchema);
+    	}
     }
 
-    private void addSpanToSpanList(String fieldName, int start, int end, String key, String value) {
-        Span span = new Span(fieldName, start, end, key, value);
-        spanList.add(span);
-    }
-
-    private List<IField> removeSpanFromTuple(List<IField> fieldList) {
-        List<IField> fieldListDuplicate = new ArrayList<>(fieldList);
-        fieldListDuplicate.remove(fieldListDuplicate.size() - 1);
-        return fieldListDuplicate;
-    }
-
-    private Schema getSpanSchema(Schema schema) {
-        // If SourceOperator is of type Keyword, spanschema is already provided
-        // by keywordmatcher, so there is no need to create a new span schema
-        if (predicate.getSourceOperatorType() == DataConstants.SourceOperatorType.SCANOPERATOR) {
-            return Utils.createSpanSchema(dataTuple.getSchema());
-        } else {
-            return dataTuple.getSchema();
-        }
-
-    }
 
     /**
      * @about Closes the operator

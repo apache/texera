@@ -6,7 +6,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import edu.uci.ics.textdb.dataflow.common.Dictionary;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.junit.After;
@@ -22,7 +21,7 @@ import edu.uci.ics.textdb.api.common.ITuple;
 import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.api.storage.IDataWriter;
 import edu.uci.ics.textdb.common.constants.DataConstants;
-import edu.uci.ics.textdb.common.constants.DataConstants.SourceOperatorType;
+import edu.uci.ics.textdb.common.constants.DataConstants.KeywordMatchingType;
 import edu.uci.ics.textdb.common.constants.SchemaConstants;
 import edu.uci.ics.textdb.common.constants.TestConstants;
 import edu.uci.ics.textdb.common.field.DataTuple;
@@ -33,9 +32,11 @@ import edu.uci.ics.textdb.common.field.ListField;
 import edu.uci.ics.textdb.common.field.Span;
 import edu.uci.ics.textdb.common.field.StringField;
 import edu.uci.ics.textdb.common.field.TextField;
+import edu.uci.ics.textdb.common.utils.Utils;
+import edu.uci.ics.textdb.dataflow.common.Dictionary;
+import edu.uci.ics.textdb.dataflow.common.DictionaryPredicate;
 import edu.uci.ics.textdb.dataflow.utils.TestUtils;
 import edu.uci.ics.textdb.storage.DataStore;
-import edu.uci.ics.textdb.dataflow.common.DictionaryPredicate;
 import edu.uci.ics.textdb.storage.writer.DataWriter;
 
 /**
@@ -66,7 +67,7 @@ public class DictionaryMatcherTest {
         dataWriter.clearData();
     }
 
-    public List<ITuple> getQueryResults(IDictionary dictionary, SourceOperatorType srcOpType,
+    public List<ITuple> getQueryResults(IDictionary dictionary, KeywordMatchingType srcOpType,
             List<Attribute> attributes) throws Exception {
 
     	IPredicate dictionaryPredicate = new DictionaryPredicate(dictionary, luceneAnalyzer, attributes, srcOpType , dataStore);
@@ -131,7 +132,7 @@ public class DictionaryMatcherTest {
         List<Attribute> attributes = Arrays.asList(TestConstants.FIRST_NAME_ATTR, TestConstants.LAST_NAME_ATTR,
                 TestConstants.DESCRIPTION_ATTR);
 
-        List<ITuple> returnedResults = getQueryResults(dictionary, SourceOperatorType.SCANOPERATOR, attributes);
+        List<ITuple> returnedResults = getQueryResults(dictionary, KeywordMatchingType.SUBSTRING_SCANBASED, attributes);
         boolean contains = TestUtils.containsAllResults(expectedResults, returnedResults);
         Assert.assertTrue(contains);
     }
@@ -174,7 +175,7 @@ public class DictionaryMatcherTest {
         List<Attribute> attributes = Arrays.asList(TestConstants.FIRST_NAME_ATTR, TestConstants.LAST_NAME_ATTR,
                 TestConstants.DESCRIPTION_ATTR);
 
-        List<ITuple> returnedResults = getQueryResults(dictionary, SourceOperatorType.KEYWORDOPERATOR, attributes);
+        List<ITuple> returnedResults = getQueryResults(dictionary, KeywordMatchingType.CONJUNCTION_INDEXBASED, attributes);
         boolean contains = TestUtils.containsAllResults(expectedResults, returnedResults);
         Assert.assertTrue(contains);
     }
@@ -217,7 +218,7 @@ public class DictionaryMatcherTest {
         List<Attribute> attributes = Arrays.asList(TestConstants.FIRST_NAME_ATTR, TestConstants.LAST_NAME_ATTR,
                 TestConstants.DESCRIPTION_ATTR);
 
-        List<ITuple> returnedResults = getQueryResults(dictionary, SourceOperatorType.PHRASEOPERATOR, attributes);
+        List<ITuple> returnedResults = getQueryResults(dictionary, KeywordMatchingType.PHRASE_INDEXBASED, attributes);
         boolean contains = TestUtils.containsAllResults(expectedResults, returnedResults);
         Assert.assertTrue(contains);
     }
@@ -259,7 +260,7 @@ public class DictionaryMatcherTest {
         List<Attribute> attributes = Arrays.asList(TestConstants.FIRST_NAME_ATTR, TestConstants.LAST_NAME_ATTR,
                 TestConstants.DESCRIPTION_ATTR);
 
-        List<ITuple> returnedResults = getQueryResults(dictionary, SourceOperatorType.SCANOPERATOR, attributes);
+        List<ITuple> returnedResults = getQueryResults(dictionary, KeywordMatchingType.SUBSTRING_SCANBASED, attributes);
         boolean contains = TestUtils.containsAllResults(expectedResults, returnedResults);
         Assert.assertTrue(contains);
     }
@@ -277,7 +278,7 @@ public class DictionaryMatcherTest {
         
         // create data tuple first
         List<Span> list = new ArrayList<Span>();
-        Span span = new Span("description", 0, 4, "tall", "Tall");
+        Span span = new Span("description", 0, 4, "tall", "Tall", 0);
         list.add(span);
         Attribute[] schemaAttributes = new Attribute[TestConstants.ATTRIBUTES_PEOPLE.length + 1];
         for (int count = 0; count < schemaAttributes.length - 1; count++) {
@@ -300,7 +301,7 @@ public class DictionaryMatcherTest {
         List<Attribute> attributes = Arrays.asList(TestConstants.FIRST_NAME_ATTR, TestConstants.LAST_NAME_ATTR,
                 TestConstants.DESCRIPTION_ATTR);
 
-        List<ITuple> returnedResults = getQueryResults(dictionary, SourceOperatorType.KEYWORDOPERATOR, attributes);
+        List<ITuple> returnedResults = getQueryResults(dictionary, KeywordMatchingType.CONJUNCTION_INDEXBASED, attributes);  
         boolean contains = TestUtils.containsAllResults(expectedResults, returnedResults);
         Assert.assertTrue(contains);
     }
@@ -341,7 +342,7 @@ public class DictionaryMatcherTest {
         List<Attribute> attributes = Arrays.asList(TestConstants.FIRST_NAME_ATTR, TestConstants.LAST_NAME_ATTR,
                 TestConstants.DESCRIPTION_ATTR);
 
-        List<ITuple> returnedResults = getQueryResults(dictionary, SourceOperatorType.PHRASEOPERATOR, attributes);
+        List<ITuple> returnedResults = getQueryResults(dictionary, KeywordMatchingType.PHRASE_INDEXBASED, attributes);
         boolean contains = TestUtils.containsAllResults(expectedResults, returnedResults);
         Assert.assertTrue(contains);
     }
@@ -377,7 +378,7 @@ public class DictionaryMatcherTest {
         List<Attribute> attributes = Arrays.asList(TestConstants.FIRST_NAME_ATTR, TestConstants.LAST_NAME_ATTR,
                 TestConstants.DESCRIPTION_ATTR);
 
-        List<ITuple> returnedResults = getQueryResults(dictionary, SourceOperatorType.SCANOPERATOR, attributes);
+        List<ITuple> returnedResults = getQueryResults(dictionary, KeywordMatchingType.SUBSTRING_SCANBASED, attributes);
         boolean contains = TestUtils.containsAllResults(expectedResults, returnedResults);
         Assert.assertTrue(contains);
     }
@@ -412,7 +413,7 @@ public class DictionaryMatcherTest {
         List<Attribute> attributes = Arrays.asList(TestConstants.FIRST_NAME_ATTR, TestConstants.LAST_NAME_ATTR,
                 TestConstants.DESCRIPTION_ATTR);
 
-        List<ITuple> returnedResults = getQueryResults(dictionary, SourceOperatorType.KEYWORDOPERATOR, attributes);
+        List<ITuple> returnedResults = getQueryResults(dictionary, KeywordMatchingType.CONJUNCTION_INDEXBASED, attributes);
         boolean contains = TestUtils.containsAllResults(expectedResults, returnedResults);
         Assert.assertTrue(contains);
     }
@@ -447,7 +448,7 @@ public class DictionaryMatcherTest {
         List<Attribute> attributes = Arrays.asList(TestConstants.FIRST_NAME_ATTR, TestConstants.LAST_NAME_ATTR,
                 TestConstants.DESCRIPTION_ATTR);
 
-        List<ITuple> returnedResults = getQueryResults(dictionary, SourceOperatorType.PHRASEOPERATOR, attributes);
+        List<ITuple> returnedResults = getQueryResults(dictionary, KeywordMatchingType.PHRASE_INDEXBASED, attributes);
         boolean contains = TestUtils.containsAllResults(expectedResults, returnedResults);
         Assert.assertTrue(contains);
     }
@@ -486,7 +487,7 @@ public class DictionaryMatcherTest {
         List<Attribute> attributes = Arrays.asList(TestConstants.FIRST_NAME_ATTR, TestConstants.LAST_NAME_ATTR,
                 TestConstants.DESCRIPTION_ATTR);
 
-        List<ITuple> returnedResults = getQueryResults(dictionary, SourceOperatorType.SCANOPERATOR, attributes);
+        List<ITuple> returnedResults = getQueryResults(dictionary, KeywordMatchingType.SUBSTRING_SCANBASED, attributes);
         boolean contains = TestUtils.containsAllResults(expectedResults, returnedResults);
         Assert.assertTrue(contains);
     }
@@ -503,12 +504,20 @@ public class DictionaryMatcherTest {
         IDictionary dictionary = new Dictionary(names);
         // create data tuple first
         List<Span> list = new ArrayList<Span>();
+        
         Span span1 = new Span("lastName", 0, 11, "lin clooney", "lin clooney");
-        Span span2 = new Span("description", 0, 11, "lin clooney", "Lin Clooney");
-        Span span3 = new Span("description", 25, 36, "lin clooney", "lin clooney");
+        
+        Span span2 = new Span("description", 0, 3, "lin", "Lin", 0);
+        Span span3 = new Span("description", 4, 11, "clooney", "Clooney", 1);
+        Span span4 = new Span("description", 25, 28, "lin", "lin", 5);
+        Span span5 = new Span("description", 29, 36, "clooney", "clooney", 6);
+        
         list.add(span1);
         list.add(span2);
         list.add(span3);
+        list.add(span4);
+        list.add(span5);
+        
         Attribute[] schemaAttributes = new Attribute[TestConstants.ATTRIBUTES_PEOPLE.length + 1];
         for (int count = 0; count < schemaAttributes.length - 1; count++) {
             schemaAttributes[count] = TestConstants.ATTRIBUTES_PEOPLE[count];
@@ -524,7 +533,7 @@ public class DictionaryMatcherTest {
         List<Attribute> attributes = Arrays.asList(TestConstants.FIRST_NAME_ATTR, TestConstants.LAST_NAME_ATTR,
                 TestConstants.DESCRIPTION_ATTR);
 
-        List<ITuple> returnedResults = getQueryResults(dictionary, SourceOperatorType.KEYWORDOPERATOR, attributes);
+        List<ITuple> returnedResults = getQueryResults(dictionary, KeywordMatchingType.CONJUNCTION_INDEXBASED, attributes);
         boolean contains = TestUtils.containsAllResults(expectedResults, returnedResults);
         Assert.assertTrue(contains);
     }
@@ -561,7 +570,7 @@ public class DictionaryMatcherTest {
         List<Attribute> attributes = Arrays.asList(TestConstants.FIRST_NAME_ATTR, TestConstants.LAST_NAME_ATTR,
                 TestConstants.DESCRIPTION_ATTR);
 
-        List<ITuple> returnedResults = getQueryResults(dictionary, SourceOperatorType.PHRASEOPERATOR, attributes);
+        List<ITuple> returnedResults = getQueryResults(dictionary, KeywordMatchingType.PHRASE_INDEXBASED, attributes);
         boolean contains = TestUtils.containsAllResults(expectedResults, returnedResults);
         Assert.assertTrue(contains);
     }
@@ -596,7 +605,7 @@ public class DictionaryMatcherTest {
         List<Attribute> attributes = Arrays.asList(TestConstants.FIRST_NAME_ATTR, TestConstants.LAST_NAME_ATTR,
                 TestConstants.DESCRIPTION_ATTR);
 
-        List<ITuple> returnedResults = getQueryResults(dictionary, SourceOperatorType.PHRASEOPERATOR, attributes);
+        List<ITuple> returnedResults = getQueryResults(dictionary, KeywordMatchingType.PHRASE_INDEXBASED, attributes);
         boolean contains = TestUtils.containsAllResults(expectedResults, returnedResults);
         Assert.assertTrue(contains);
     }

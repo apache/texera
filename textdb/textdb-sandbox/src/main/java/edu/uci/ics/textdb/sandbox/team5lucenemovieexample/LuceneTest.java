@@ -1,6 +1,5 @@
 package edu.uci.ics.textdb.sandbox.team5lucenemovieexample;
 
-import java.io.IOException;
 
 public class LuceneTest {
 

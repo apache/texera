@@ -1,14 +1,20 @@
 package edu.uci.ics.textdb.dataflow.nlpextractor;
 
-import edu.uci.ics.textdb.api.common.*;
-import edu.uci.ics.textdb.common.field.*;
-import edu.uci.ics.textdb.common.utils.Utils;
-import edu.uci.ics.textdb.dataflow.nlpextrator.NlpExtractor;
-
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+
+import edu.uci.ics.textdb.api.common.Attribute;
+import edu.uci.ics.textdb.api.common.FieldType;
+import edu.uci.ics.textdb.api.common.IField;
+import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Schema;
+import edu.uci.ics.textdb.common.field.DataTuple;
+import edu.uci.ics.textdb.common.field.Span;
+import edu.uci.ics.textdb.common.field.TextField;
+import edu.uci.ics.textdb.common.utils.Utils;
+import edu.uci.ics.textdb.dataflow.nlpextrator.NlpExtractor;
 
 /**
  * Created by Sam on 16/4/27.
