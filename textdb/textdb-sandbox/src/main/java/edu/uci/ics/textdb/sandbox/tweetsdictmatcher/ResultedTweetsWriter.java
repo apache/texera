@@ -7,7 +7,7 @@ import org.apache.lucene.analysis.standard.StandardAnalyzer;
 
 import edu.uci.ics.textdb.api.common.*;
 import edu.uci.ics.textdb.api.storage.IDataStore;
-import edu.uci.ics.textdb.common.constants.DataConstants.SourceOperatorType;
+import edu.uci.ics.textdb.common.constants.DataConstants.KeywordMatchingType;
 import edu.uci.ics.textdb.common.exception.StorageException;
 import edu.uci.ics.textdb.common.field.DataTuple;
 import edu.uci.ics.textdb.storage.DataStore;
@@ -15,7 +15,7 @@ import edu.uci.ics.textdb.storage.writer.DataWriter;
 
 public class ResultedTweetsWriter {
 
-	public static void writeResultedTweetsToIndex(String getResultFrom, String writeTo,SourceOperatorType srcOpType, boolean override, String... query) 
+	public static void writeResultedTweetsToIndex(String getResultFrom, String writeTo,KeywordMatchingType srcOpType, boolean override, String... query) 
 			throws StorageException, Exception  {
 	
 	ITuple tuple = null;

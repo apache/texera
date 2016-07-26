@@ -13,7 +13,7 @@ import edu.uci.ics.textdb.api.common.IPredicate;
 import edu.uci.ics.textdb.api.common.ITuple;
 import edu.uci.ics.textdb.api.storage.IDataStore;
 import edu.uci.ics.textdb.common.exception.DataFlowException;
-import edu.uci.ics.textdb.common.constants.DataConstants.SourceOperatorType;
+import edu.uci.ics.textdb.common.constants.DataConstants.KeywordMatchingType;
 import edu.uci.ics.textdb.dataflow.common.Dictionary;
 import edu.uci.ics.textdb.dataflow.common.DictionaryPredicate;
 import edu.uci.ics.textdb.dataflow.dictionarymatcher.*;
@@ -27,7 +27,7 @@ public class TweetsDictMatcher {
     
     
     
-    public static void open(String indexPath, SourceOperatorType srcOpType, String... query) throws Exception{
+    public static void open(String indexPath, KeywordMatchingType srcOpType, String... query) throws Exception{
     	ArrayList<String> queries = new ArrayList<String>(Arrays.asList(query));
     	IDictionary dictionary = new Dictionary(queries);
     	IDataStore dataStore = new DataStore(indexPath, TweetsConstants.SCHEMA_TWEETS);
