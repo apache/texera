@@ -65,7 +65,7 @@ public class test {
 			e.printStackTrace();
 		}
 		
-		System.out.println("-----Finished-------");
+//		System.out.println("-----Finished-------");
 	}
 	
 	public static void readerTest(){
