@@ -27,7 +27,7 @@ public class RegexPredicate implements IPredicate {
 	private Analyzer luceneAnalyzer;
 	private IDataStore dataStore;
 
-	public RegexPredicate(String regex, List<Attribute> attributeList, Analyzer analyzer, IDataStore dataStore) {
+	public RegexPredicate(String regex, IDataStore dataStore, List<Attribute> attributeList, Analyzer analyzer) {
 		this.regex = regex;
 		this.luceneAnalyzer = analyzer;
 		this.dataStore = dataStore;

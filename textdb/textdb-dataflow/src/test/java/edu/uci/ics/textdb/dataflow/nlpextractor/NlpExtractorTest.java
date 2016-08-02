@@ -271,8 +271,8 @@ public class NlpExtractorTest {
 
         QueryParser queryParser = new QueryParser(NlpExtractorTestConstants.ATTRIBUTES_ONE_SENTENCE.get(0).getFieldName(), analyzer);
         query = queryParser.parse(DataConstants.SCAN_QUERY);
-        dataReaderPredicate = new DataReaderPredicate(dataStore, query, DataConstants.SCAN_QUERY,
-                analyzer, Arrays.asList(NlpExtractorTestConstants.ATTRIBUTES_ONE_SENTENCE.get(0)));
+        dataReaderPredicate = new DataReaderPredicate(query, DataConstants.SCAN_QUERY, dataStore,
+                Arrays.asList(NlpExtractorTestConstants.ATTRIBUTES_ONE_SENTENCE.get(0)), analyzer);
         dataReader = new DataReader(dataReaderPredicate);
 
         ISourceOperator sourceOperator = new ScanBasedSourceOperator(dataReader);

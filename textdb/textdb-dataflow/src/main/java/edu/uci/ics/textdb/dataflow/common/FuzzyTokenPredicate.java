@@ -37,7 +37,7 @@ public class FuzzyTokenPredicate implements IPredicate {
     private int threshold;
     private boolean isSpanInformationAdded;
     
-    public FuzzyTokenPredicate(String query, List<Attribute> attributeList, Analyzer analyzer,IDataStore dataStore, double thresholdRatio, boolean isSpanInformationAdded) throws DataFlowException{
+    public FuzzyTokenPredicate(String query, IDataStore dataStore, List<Attribute> attributeList, Analyzer analyzer, double thresholdRatio, boolean isSpanInformationAdded) throws DataFlowException{
         try {
         	this.thresholdRatio = thresholdRatio;
         	this.dataStore = dataStore;
@@ -105,8 +105,8 @@ public class FuzzyTokenPredicate implements IPredicate {
     }
 
     public DataReaderPredicate getDataReaderPredicate() {
-    	DataReaderPredicate dataReaderPredicate = new DataReaderPredicate(this.dataStore, this.luceneQuery,
-                this.query, this.luceneAnalyzer, this.attributeList);
+    	DataReaderPredicate dataReaderPredicate = new DataReaderPredicate(this.luceneQuery,this.query,
+    			this.dataStore, this.attributeList, this.luceneAnalyzer);
     	dataReaderPredicate.setIsSpanInformationAdded(this.isSpanInformationAdded);
     	return dataReaderPredicate;
     }

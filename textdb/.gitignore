@@ -19,6 +19,5 @@ out/
 # Ignoring index folder and data folder
 index
 
-
 # Ignoring Mac OSX specific files
 .DS_Store

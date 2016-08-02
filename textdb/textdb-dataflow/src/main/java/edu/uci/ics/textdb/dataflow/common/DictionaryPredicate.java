@@ -34,8 +34,8 @@ public class DictionaryPredicate implements IPredicate {
     New and York; if searched in String field we search for Exact string.
      */
 
-    public DictionaryPredicate(IDictionary dictionary, Analyzer luceneAnalyzer, List<Attribute> attributeList,
-            KeywordMatchingType srcOpType, IDataStore dataStore) {
+    public DictionaryPredicate(IDictionary dictionary, IDataStore dataStore, List<Attribute> attributeList,
+    		Analyzer luceneAnalyzer, KeywordMatchingType srcOpType) {
 
         this.dictionary = dictionary;
         this.luceneAnalyzer = luceneAnalyzer;
@@ -79,7 +79,7 @@ public class DictionaryPredicate implements IPredicate {
     public IOperator getScanSourceOperator() throws ParseException, DataFlowException {
         QueryParser luceneQueryParser = new QueryParser(attributeList.get(0).getFieldName(), luceneAnalyzer);
         Query luceneQuery = luceneQueryParser.parse(DataConstants.SCAN_QUERY);
-        IPredicate dataReaderPredicate = new DataReaderPredicate(dataStore, luceneQuery,DataConstants.SCAN_QUERY,luceneAnalyzer,attributeList);
+        IPredicate dataReaderPredicate = new DataReaderPredicate(luceneQuery,DataConstants.SCAN_QUERY, dataStore, attributeList, luceneAnalyzer);
         IDataReader dataReader = new DataReader(dataReaderPredicate);
 
         IOperator operator = new ScanBasedSourceOperator(dataReader);

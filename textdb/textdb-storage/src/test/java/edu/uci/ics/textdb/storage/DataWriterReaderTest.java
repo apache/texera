@@ -40,7 +40,7 @@ public class DataWriterReaderTest {
         QueryParser queryParser = new QueryParser(
                 TestConstants.ATTRIBUTES_PEOPLE[0].getFieldName(), luceneAnalyzer);
         query = queryParser.parse(DataConstants.SCAN_QUERY);
-        dataReaderPredicate = new DataReaderPredicate(dataStore, query, DataConstants.SCAN_QUERY, luceneAnalyzer, Arrays.asList(TestConstants.ATTRIBUTES_PEOPLE));
+        dataReaderPredicate = new DataReaderPredicate(query, DataConstants.SCAN_QUERY, dataStore, Arrays.asList(TestConstants.ATTRIBUTES_PEOPLE), luceneAnalyzer);
         dataReader = new DataReader(dataReaderPredicate);
     }
     

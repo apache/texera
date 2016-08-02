@@ -25,7 +25,8 @@ public class DataConstants {
      * Currently we have 3 types of keyword matching: <br>
      * 
      * SUBSTRING_SCANBASED: <br>
-     * Performs simple substring matching of the query.
+     * Performs simple substring matching of the query. 
+     * SubString matching is case insensitive.
      * Source tuples are provided by ScanSourceOperator. <br>
      * 
      * CONJUNCTION_INDEXBASED: <br>

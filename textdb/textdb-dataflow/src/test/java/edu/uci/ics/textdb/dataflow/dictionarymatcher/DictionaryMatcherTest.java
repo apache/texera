@@ -70,7 +70,7 @@ public class DictionaryMatcherTest {
     public List<ITuple> getQueryResults(IDictionary dictionary, KeywordMatchingType srcOpType,
             List<Attribute> attributes) throws Exception {
 
-    	IPredicate dictionaryPredicate = new DictionaryPredicate(dictionary, luceneAnalyzer, attributes, srcOpType , dataStore);
+    	IPredicate dictionaryPredicate = new DictionaryPredicate(dictionary, dataStore, attributes, luceneAnalyzer, srcOpType);
     	dictionaryMatcher = new DictionaryMatcher(dictionaryPredicate);
     	dictionaryMatcher.open();
         ITuple nextTuple = null;

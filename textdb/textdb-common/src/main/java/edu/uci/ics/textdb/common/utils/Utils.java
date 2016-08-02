@@ -143,27 +143,25 @@ public class Utils {
      * @return ArrayList<String> list of results
      */
     public static ArrayList<String> tokenizeQuery(Analyzer luceneAnalyzer, String query) {
-        HashSet<String> resultSet = new HashSet<>();
         ArrayList<String> result = new ArrayList<String>();
         TokenStream tokenStream  = luceneAnalyzer.tokenStream(null, new StringReader(query));
-        CharTermAttribute charTermAttribute = tokenStream.addAttribute(CharTermAttribute.class);
+        CharTermAttribute term = tokenStream.addAttribute(CharTermAttribute.class);
 
         try{
             tokenStream.reset();
             while (tokenStream.incrementToken()) {
-                String token = charTermAttribute.toString();
+                String token = term.toString();
                 int tokenIndex = query.toLowerCase().indexOf(token);
                 // Since tokens are converted to lower case,
                 // get the exact token from the query string.
                 String actualQueryToken = query.substring(tokenIndex, tokenIndex+token.length());
-                resultSet.add(actualQueryToken);
+                result.add(actualQueryToken);
             }
             tokenStream.close();
         } catch (Exception e) {
             e.printStackTrace();
         }
-        result.addAll(resultSet);
-
+        
         return result;
     }
     
@@ -192,6 +190,15 @@ public class Utils {
         luceneAnalyzer.close();
 
         return result;
+    }
+    
+    public static String getTupleListString(List<ITuple> tupleList) {
+    	StringBuilder sb = new StringBuilder();
+    	for (ITuple tuple : tupleList) {
+    		sb.append(getTupleString(tuple));
+    		sb.append("\n");
+    	}
+    	return sb.toString();
     }
     
     /**

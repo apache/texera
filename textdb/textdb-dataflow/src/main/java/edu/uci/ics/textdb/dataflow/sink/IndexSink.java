@@ -25,8 +25,8 @@ public class IndexSink extends AbstractSink {
 	
 	public void open() throws Exception {
 		super.open();
-		this.dataWriter.open();
 		this.dataWriter.clearData();
+		this.dataWriter.open();
 	}
 
     protected void processOneTuple(ITuple nextTuple) throws StorageException {

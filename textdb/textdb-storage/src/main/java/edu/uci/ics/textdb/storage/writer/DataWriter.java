@@ -36,6 +36,11 @@ public class DataWriter implements IDataWriter{
     @Override
     public void clearData() throws StorageException{
         IndexWriter luceneIndexWriter = null;
+        // Use existing indexWriter if there's already one.
+        // Avoid creating more than one indexWriter on one directory.
+        if (this.luceneIndexWriter != null && this.luceneIndexWriter.isOpen()) {
+        	luceneIndexWriter = this.luceneIndexWriter;
+        }
         try {
             Directory directory = FSDirectory.open(Paths
                     .get(dataStore.getDataDirectory()));
@@ -48,7 +53,9 @@ public class DataWriter implements IDataWriter{
         } finally {
             if (luceneIndexWriter != null) {
                 try {
-                    luceneIndexWriter.close();
+                	if (this.luceneIndexWriter == null) {
+                        luceneIndexWriter.close();
+                	}
                 } catch (IOException e) {
                     e.printStackTrace();
                     throw new StorageException(e.getMessage(), e);

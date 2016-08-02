@@ -20,7 +20,7 @@ public class DataReaderPredicate implements IPredicate {
     private List<Attribute> attributeList;
     private boolean isSpanInformationAdded = false;
 
-    public DataReaderPredicate(IDataStore dataStore, Query luceneQuery, String queryString, Analyzer analyzer, List<Attribute> attributeList){
+    public DataReaderPredicate(Query luceneQuery, String queryString, IDataStore dataStore, List<Attribute> attributeList, Analyzer analyzer){
         this.dataStore = dataStore;
         this.luceneQuery = luceneQuery;
         this.luceneAnalyzer = analyzer;

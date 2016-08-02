@@ -99,8 +99,9 @@ public class RegexMatcher implements IOperator {
     		throw new DataFlowException(e.getMessage());
     	}
     	    	
-		DataReaderPredicate dataReaderPredicate = new DataReaderPredicate(regexPredicate.getDataStore(), 
-				this.luceneQuery, this.luceneQueryStr, luceneAnalyzer, regexPredicate.getAttributeList());
+		DataReaderPredicate dataReaderPredicate = new DataReaderPredicate(this.luceneQuery,
+				this.luceneQueryStr, regexPredicate.getDataStore(),
+				regexPredicate.getAttributeList(), luceneAnalyzer);
 		this.sourceOperator = new IndexBasedSourceOperator(dataReaderPredicate);
 		
     }

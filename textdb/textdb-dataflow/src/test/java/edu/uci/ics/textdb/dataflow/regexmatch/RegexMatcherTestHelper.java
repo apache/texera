@@ -59,8 +59,8 @@ public class RegexMatcherTestHelper {
 	public void runTest(String regex, Attribute attribute, boolean useTranslator) throws Exception {
 		results.clear();
 		RegexPredicate regexPredicate = new RegexPredicate(
-				regex, Arrays.asList(new Attribute[]{attribute}), 
-				luceneAnalyzer, dataStore);
+				regex, dataStore, Arrays.asList(new Attribute[]{attribute}), 
+				luceneAnalyzer);
 
 		regexMatcher = new RegexMatcher(regexPredicate, useTranslator);
 		regexMatcher.open();
