@@ -32,7 +32,7 @@ public class test {
 		ResultedTweetsWriter.writeResultedTweetsToIndex(DataConstants.INDEX_DIR, "../resultIndex",
 				DataConstants.KeywordMatchingType.CONJUNCTION_INDEXBASED, true, "zika" );
 	} catch (Exception e) {
-		// TODO Auto-generated catch block
+	 
 		e.printStackTrace();
 	}
 	}
@@ -48,7 +48,7 @@ public class test {
 		    }
 		    TweetsDictMatcher.close();
 		} catch (Exception e) {
-			// TODO Auto-generated catch block
+		 
 			e.printStackTrace();
 		}
 		System.out.println(count);
@@ -61,7 +61,7 @@ public class test {
 		try {
 			TweetsIndexWriter.writeTweetsToIndex("C:\\Users\\Hailey\\Desktop\\sampleTweets.json", dataStore, analyzer, true);
 		} catch (FileNotFoundException | StorageException e) {
-			// TODO Auto-generated catch block
+		 
 			e.printStackTrace();
 		}
 		
@@ -72,7 +72,7 @@ public class test {
 		try {
 			TweetsReader.open("C:\\Users\\Hailey\\Desktop\\sampleTweets.json");
 		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
+	 
 			e.printStackTrace();
 		}	
 		ITuple tuple = null;
