@@ -31,7 +31,7 @@ public class TweetsDictMatcher {
     	ArrayList<String> queries = new ArrayList<String>(Arrays.asList(query));
     	IDictionary dictionary = new Dictionary(queries);
     	IDataStore dataStore = new DataStore(indexPath, TweetsConstants.SCHEMA_TWEETS);
-    	IPredicate dictionaryPredicate = new DictionaryPredicate(dictionary, luceneAnalyzer, attributes, srcOpType, dataStore);
+    	IPredicate dictionaryPredicate = new DictionaryPredicate(dictionary, dataStore, attributes, luceneAnalyzer, srcOpType);
     	dictionaryMatcher = new DictionaryMatcher(dictionaryPredicate);
     	dictionaryMatcher.open();
     }
