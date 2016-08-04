@@ -136,6 +136,7 @@ public class KeywordMatcher implements IOperator {
     	List<Span> spanList = (List<Span>) currentTuple.getField(SchemaConstants.SPAN_LIST).getValue(); 
     	List<Span> filteredSpans = filterRelevantSpans(termVec);
     	
+    	
     	for (Attribute attribute : this.predicate.getAttributeList()) {
     		String fieldName = attribute.getFieldName();
     		FieldType fieldType = attribute.getFieldType();
