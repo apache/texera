@@ -13,6 +13,7 @@ import edu.uci.ics.textdb.api.common.IField;
  */
 import edu.uci.ics.textdb.api.common.IPredicate;
 import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.api.dataflow.IOperator;
 import edu.uci.ics.textdb.api.dataflow.ISourceOperator;
 import edu.uci.ics.textdb.common.constants.SchemaConstants;
@@ -26,6 +27,7 @@ import edu.uci.ics.textdb.storage.DataReaderPredicate;
 public class FuzzyTokenMatcher implements IOperator{
     private final FuzzyTokenPredicate predicate;
     private ISourceOperator sourceOperator;
+    private Schema outputSchema;
     private List<Attribute> attributeList;
     private int threshold;
     private ArrayList<String> queryTokens;
@@ -34,6 +36,7 @@ public class FuzzyTokenMatcher implements IOperator{
     	this.predicate = (FuzzyTokenPredicate)predicate;
     	DataReaderPredicate dataReaderPredicate = this.predicate.getDataReaderPredicate();
     	this.sourceOperator = new IndexBasedSourceOperator(dataReaderPredicate);
+    	this.outputSchema = this.sourceOperator.getOutputSchema();
     }
     
     @Override
@@ -112,4 +115,8 @@ public class FuzzyTokenMatcher implements IOperator{
 			throw new DataFlowException(e.getMessage(), e);
 		}
     }
+    
+	public Schema getOutputSchema() {
+		return outputSchema;
+	}
 }

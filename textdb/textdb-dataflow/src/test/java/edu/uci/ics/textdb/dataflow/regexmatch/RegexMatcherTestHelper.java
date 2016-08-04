@@ -49,7 +49,7 @@ public class RegexMatcherTestHelper {
 	}
 	
 	public Schema getSpanSchema() {
-		return regexMatcher.getSpanSchema();
+		return regexMatcher.getOutputSchema();
 	}
 	
 	public void runTest(String regex, Attribute attribute) throws Exception {

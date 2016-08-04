@@ -13,8 +13,9 @@ import edu.uci.ics.textdb.api.common.Attribute;
 import edu.uci.ics.textdb.api.common.FieldType;
 import edu.uci.ics.textdb.api.common.IPredicate;
 import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.api.dataflow.IOperator;
-import edu.uci.ics.textdb.api.dataflow.ISourceOperator;
+import edu.uci.ics.textdb.api.storage.IDataStore;
 import edu.uci.ics.textdb.common.constants.DataConstants;
 import edu.uci.ics.textdb.common.constants.SchemaConstants;
 import edu.uci.ics.textdb.common.exception.DataFlowException;
@@ -31,22 +32,35 @@ import edu.uci.ics.textdb.storage.DataReaderPredicate;
  */
 public class KeywordMatcher implements IOperator {
     private final KeywordPredicate predicate;
-    private ISourceOperator sourceOperator;
-    private String query;
+	private String query;
+	
+    private IOperator inputOperator;
+    private Schema inputSchema;
+    private Schema outputSchema;
+    
+    private boolean termVecAdded;
 
-    public KeywordMatcher(IPredicate predicate) {
-        this.predicate = (KeywordPredicate)predicate;
-        DataReaderPredicate dataReaderPredicate = this.predicate.getDataReaderPredicate();
+
+	public KeywordMatcher(IPredicate predicate, IDataStore dataStore) {
+		this(predicate);
+    
+		DataReaderPredicate dataReaderPredicate = new DataReaderPredicate(this.predicate.getQueryObject(), this.predicate.getQuery(),
+				dataStore, this.predicate.getAttributeList(), this.predicate.getLuceneAnalyzer());
         dataReaderPredicate.setIsSpanInformationAdded(true);
-        this.sourceOperator = new IndexBasedSourceOperator(dataReaderPredicate);
+        this.inputOperator = new IndexBasedSourceOperator(dataReaderPredicate);
     }
+	
+	public KeywordMatcher(IPredicate predicate) {
+        this.predicate = (KeywordPredicate) predicate;
+        this.query = this.predicate.getQuery();
+	}
 
     
     @Override
     public void open() throws DataFlowException {
         try {
-            sourceOperator.open();
-            query = predicate.getQuery();
+            inputOperator.open();
+            			
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -70,7 +84,7 @@ public class KeywordMatcher implements IOperator {
         try {
         	ITuple result = null;
         	do {
-                ITuple sourceTuple = sourceOperator.getNextTuple();
+                ITuple sourceTuple = inputOperator.getNextTuple();
                 if(sourceTuple == null) {
                     return null;
                 }
@@ -296,11 +310,32 @@ public class KeywordMatcher implements IOperator {
     @Override
     public void close() throws DataFlowException {
         try {
-            sourceOperator.close();
+            inputOperator.close();
         } catch (Exception e) {
             e.printStackTrace();
             throw new DataFlowException(e.getMessage(), e);
         }
     }
+    
+    
+    public IOperator getInputOperator() {
+		return inputOperator;
+	}
+
+	public void setInputOperator(IOperator inputOperator) {
+		this.inputOperator = inputOperator;
+	}
+    
+    public boolean isTermVecAdded() {
+		return termVecAdded;
+	}
+
+	public void setTermVecAdded(boolean termVecAdded) {
+		this.termVecAdded = termVecAdded;
+	}
+	
+	public Schema getOutputSchema() {
+		return outputSchema;
+	}
 
 }

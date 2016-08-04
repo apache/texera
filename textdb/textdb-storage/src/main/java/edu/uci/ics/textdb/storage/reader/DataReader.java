@@ -43,7 +43,7 @@ public class DataReader implements IDataReader {
 	private DataReaderPredicate predicate;
 	private Schema inputSchema;
 	private Schema outputSchema;
-	
+
 	private IndexReader indexReader;
 	private IndexSearcher indexSearcher;
 	private ScoreDoc[] scoreDocs;
@@ -208,5 +208,8 @@ public class DataReader implements IDataReader {
 	public void setTermVecAdded(boolean termVecAdded) {
 		this.termVecAdded = termVecAdded;
 	}
-
+	
+	public Schema getOutputSchema() {
+		return outputSchema;
+	}
 }

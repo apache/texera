@@ -43,7 +43,6 @@ public class KeywordPredicate implements IPredicate {
 	private HashSet<String> queryTokenSet;
 	private ArrayList<String> queryTokensWithStopwords;
 	private Analyzer luceneAnalyzer;
-	private IDataStore dataStore;
 	private KeywordMatchingType operatorType;
 
 	/*
@@ -61,7 +60,6 @@ public class KeywordPredicate implements IPredicate {
 			
 			this.attributeList = attributeList;
 			this.operatorType = operatorType;
-			this.dataStore = dataStore;
 			
 			this.luceneAnalyzer = luceneAnalyzer;
 			this.luceneQuery = createLuceneQueryObject();
@@ -214,12 +212,6 @@ public class KeywordPredicate implements IPredicate {
 
 	public Analyzer getLuceneAnalyzer() {
 		return luceneAnalyzer;
-	}
-
-	public DataReaderPredicate getDataReaderPredicate() {
-		DataReaderPredicate dataReaderPredicate = new DataReaderPredicate(this.luceneQuery, this.query,
-				this.dataStore, this.attributeList, this.luceneAnalyzer);
-		return dataReaderPredicate;
 	}
 
 }

@@ -43,7 +43,7 @@ public class NlpExtractor implements IOperator {
     private IOperator sourceOperator;
     private List<Attribute> searchInAttributes;
     private ITuple sourceTuple;
-    private Schema returnSchema;
+    private Schema outputSchema;
     private NlpTokenType inputNlpTokenType = null;
     private String nlpTypeIndicator = null;
 
@@ -102,7 +102,7 @@ public class NlpExtractor implements IOperator {
     public void open() throws Exception {
         try {
             sourceOperator.open();
-            returnSchema = null;
+            outputSchema = null;
         } catch (Exception e) {
             e.printStackTrace();
             throw new DataFlowException(e.getMessage(), e);
@@ -125,8 +125,8 @@ public class NlpExtractor implements IOperator {
         if (sourceTuple == null) {
             return null;
         } else {
-            if (returnSchema == null) {
-                returnSchema = Utils.createSpanSchema(sourceTuple.getSchema());
+            if (outputSchema == null) {
+                outputSchema = Utils.createSpanSchema(sourceTuple.getSchema());
             }
             List<Span> spanList = new ArrayList<>();
             for (Attribute attribute : searchInAttributes) {
@@ -135,7 +135,7 @@ public class NlpExtractor implements IOperator {
                 spanList.addAll(extractNlpSpans(field, fieldName));
             }
             ITuple returnTuple = Utils.getSpanTuple(sourceTuple.getFields(),
-                    spanList, returnSchema);
+                    spanList, outputSchema);
             return returnTuple;
         }
     }
@@ -353,11 +353,15 @@ public class NlpExtractor implements IOperator {
             inputNlpTokenType = null;
             searchInAttributes = null;
             sourceTuple = null;
-            returnSchema = null;
+            outputSchema = null;
             sourceOperator.close();
         } catch (Exception e) {
             e.printStackTrace();
             throw new DataFlowException(e.getMessage(), e);
         }
     }
+    
+	public Schema getOutputSchema() {
+		return outputSchema;
+	}    
 }

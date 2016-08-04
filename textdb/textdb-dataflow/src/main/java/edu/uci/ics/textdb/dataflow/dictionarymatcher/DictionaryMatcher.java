@@ -30,6 +30,7 @@ public class DictionaryMatcher implements IOperator {
 
     private IOperator sourceOperator;
     private Schema spanSchema;
+    private Schema outputSchema;
     
     private ITuple currentTuple;
     private String currentDictionaryEntry;
@@ -236,4 +237,8 @@ public class DictionaryMatcher implements IOperator {
             throw new DataFlowException(e.getMessage(), e);
         }
     }
+    
+	public Schema getOutputSchema() {
+		return outputSchema;
+	}
 }
