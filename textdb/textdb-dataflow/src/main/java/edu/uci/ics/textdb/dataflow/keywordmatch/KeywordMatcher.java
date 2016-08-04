@@ -40,7 +40,7 @@ public class KeywordMatcher implements IOperator {
     private Schema inputSchema;
     private Schema outputSchema;
     
-    private boolean spanAdded;
+    private boolean spanAdded = true;
 
 
 	public KeywordMatcher(IPredicate predicate, IDataStore dataStore) {
@@ -102,6 +102,16 @@ public class KeywordMatcher implements IOperator {
                     return null;
                 }
                 
+                //--------
+                if (!containsSpanList(sourceTuple)) {
+                	System.out.println("added");
+                	List<Span> emptySpanList = new ArrayList<Span>();
+                	sourceTuple = Utils.getSpanTuple(sourceTuple.getFields(),
+                			emptySpanList, outputSchema);
+                	System.out.println(outputSchema.getAttributes());
+                	System.out.println(containsSpanList(sourceTuple));
+                }
+                //--------
                 if (this.predicate.getOperatorType() == DataConstants.KeywordMatchingType.CONJUNCTION_INDEXBASED) {
                 	result = processConjunction(sourceTuple);
                 }
@@ -121,6 +131,16 @@ public class KeywordMatcher implements IOperator {
             throw new DataFlowException(e.getMessage(), e);
         }
 
+    }
+    
+    
+    private boolean containsSpanList(ITuple inputITuple){
+    	for (Attribute attr : inputITuple.getSchema().getAttributes()) {
+    		if (attr.getFieldName() == SchemaConstants.SPAN_LIST) {
+    			return true;
+    		}
+    	}
+    	return false;
     }
     
     
