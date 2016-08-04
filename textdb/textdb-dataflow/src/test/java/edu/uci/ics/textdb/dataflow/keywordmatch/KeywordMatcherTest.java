@@ -81,7 +81,7 @@ public class KeywordMatcherTest {
 
         List<ITuple> results = new ArrayList<>();
         ITuple nextTuple = null;
-
+        System.out.println(keywordMatcher.getNextTuple()==null);
         while ((nextTuple = keywordMatcher.getNextTuple()) != null) {
             results.add(nextTuple);
         }
@@ -148,6 +148,7 @@ public class KeywordMatcherTest {
         //Perform Check
         System.out.println(Utils.getTupleListString(expectedResultList));
         System.out.println("-------");
+        System.out.println(resultList);
         System.out.println(Utils.getTupleListString(resultList));
         boolean contains = TestUtils.containsAllResults(expectedResultList, resultList);
         Assert.assertTrue(contains);
