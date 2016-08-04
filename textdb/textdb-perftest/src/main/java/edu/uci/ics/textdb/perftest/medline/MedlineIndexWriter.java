@@ -84,12 +84,7 @@ public class MedlineIndexWriter {
 		IndexSink medlineIndexSink = new IndexSink(dataStore.getDataDirectory(), dataStore.getSchema(), luceneAnalyzer);		
 		ISourceOperator fileSourceOperator  = new FileSourceOperator(filePath, (s -> recordToTuple(s)));
 		medlineIndexSink.setInputOperator(fileSourceOperator);
-		
-		
-		
-//		ISourceOperator fileSourceOperator  = new FileSourceOperator(filePath, (s -> recordToTuple(s)));
-//		ISink medlineIndexSink = new IndexSink(fileSourceOperator, dataStore.getDataDirectory(), dataStore.getSchema(), luceneAnalyzer);
-		
+	
 		Plan writeIndexPlan = new Plan(medlineIndexSink);
 
 		return writeIndexPlan;

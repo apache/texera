@@ -32,7 +32,7 @@ public abstract class AbstractSink implements ISink {
 		this.inputOperator = inputOperator;
 	}
 	
-	public IOperator getSourceOperator() {
+	public IOperator getInputOperator() {
 		return this.inputOperator;
 	}
 

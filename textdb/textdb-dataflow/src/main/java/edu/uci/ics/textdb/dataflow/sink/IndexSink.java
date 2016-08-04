@@ -17,8 +17,8 @@ public class IndexSink extends AbstractSink {
 	
 	private DataWriter dataWriter;
 	
-	public IndexSink(IOperator sourceOperator, String indexDirectory, Schema schema, Analyzer luceneAnalyzer) {
-		super(sourceOperator);
+	public IndexSink(IOperator inputOperator, String indexDirectory, Schema schema, Analyzer luceneAnalyzer) {
+		super(inputOperator);
 		DataStore dataStore = new DataStore(indexDirectory, schema);
 		this.dataWriter = new DataWriter(dataStore, luceneAnalyzer);
 	}
