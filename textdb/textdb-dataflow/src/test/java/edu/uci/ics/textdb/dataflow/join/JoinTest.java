@@ -136,20 +136,25 @@ public class JoinTest {
 		switch (type) {
 		case "index":
 			if (whichOperator == "outer") {
-				predicate = new KeywordPredicate(query, dataStoreForOuter, modifiedAttributeList,
+				predicate = new KeywordPredicate(query, modifiedAttributeList,
 						analyzer, DataConstants.KeywordMatchingType.CONJUNCTION_INDEXBASED);
+				return new KeywordMatcher(predicate, dataStoreForOuter);
+
 			} else if (whichOperator == "inner") {
-				predicate = new KeywordPredicate(query, dataStoreForInner, modifiedAttributeList,
+				predicate = new KeywordPredicate(query, modifiedAttributeList,
 						analyzer, DataConstants.KeywordMatchingType.CONJUNCTION_INDEXBASED);
+				return new KeywordMatcher(predicate, dataStoreForInner);
 			}
 			break;
 		case "phrase":
 			if (whichOperator == "outer") {
-				predicate = new KeywordPredicate(query, dataStoreForOuter, modifiedAttributeList,
+				predicate = new KeywordPredicate(query, modifiedAttributeList,
 						analyzer, DataConstants.KeywordMatchingType.PHRASE_INDEXBASED);
+				return new KeywordMatcher(predicate, dataStoreForOuter);
 			} else if (whichOperator == "inner") {
-				predicate = new KeywordPredicate(query, dataStoreForInner, modifiedAttributeList,
+				predicate = new KeywordPredicate(query, modifiedAttributeList,
 						analyzer, DataConstants.KeywordMatchingType.PHRASE_INDEXBASED);
+				return new KeywordMatcher(predicate, dataStoreForInner);
 			}
 			break;
 

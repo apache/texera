@@ -129,7 +129,7 @@ public class Utils {
     }
     
     public static Schema appendAttributeToSchema(Schema schema, Attribute attribute) {
-    	List<Attribute> attributes = schema.getAttributes();
+    	List<Attribute> attributes = new ArrayList<>(schema.getAttributes());
     	attributes.add(attribute);
     	Schema newSchema = new Schema(attributes.toArray(new Attribute[attributes.size()]));
     	return newSchema;  	

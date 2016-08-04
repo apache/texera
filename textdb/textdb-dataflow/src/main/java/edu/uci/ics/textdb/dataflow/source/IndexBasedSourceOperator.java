@@ -17,12 +17,11 @@ public class IndexBasedSourceOperator implements ISourceOperator {
 
 	private IDataReader dataReader;
 	private DataReaderPredicate predicate;
-	private Schema schema;
+	private Schema outputSchema;
 	private int cursor = CLOSED;
 	
 	public IndexBasedSourceOperator(IPredicate predicate){
 	    this.predicate = (DataReaderPredicate)predicate;
-	    this.schema = this.predicate.getDataStore().getSchema();
 	}
 
 	@Override
@@ -30,6 +29,7 @@ public class IndexBasedSourceOperator implements ISourceOperator {
 		try {
 		    dataReader = new DataReader(predicate);
 			dataReader.open();
+		    this.outputSchema = dataReader.getOutputSchema();
 			cursor = OPENED;
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -72,6 +72,6 @@ public class IndexBasedSourceOperator implements ISourceOperator {
 	}
 
 	public Schema getOutputSchema() {
-		return this.schema;
+		return this.outputSchema;
 	}
 }

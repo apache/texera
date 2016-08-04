@@ -11,6 +11,7 @@ import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.PostingsEnum;
 import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermsEnum;
+import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TopDocs;
@@ -52,7 +53,7 @@ public class DataReader implements IDataReader {
 
 	private int limit;
 	private int offset;
-	private boolean termVecAdded;
+	private boolean termVecAdded = true;
 	
 	public DataReader(DataReaderPredicate dataReaderPredicate) {
 		this.predicate = dataReaderPredicate;
@@ -132,9 +133,11 @@ public class DataReader implements IDataReader {
 		if (this.termVecAdded) {
 			ArrayList<Span> termVecList = new ArrayList<>();
 			for (Attribute attr : this.inputSchema.getAttributes()) {
-				String fieldName = attr.getFieldName();
-				Terms termVector = indexReader.getTermVector(docID, fieldName);
-				termVecList.addAll(termVecToSpanList(termVector, fieldName));
+				if (attr.getFieldType() == FieldType.TEXT) {
+					String fieldName = attr.getFieldName();
+					Terms termVector = indexReader.getTermVector(docID, fieldName);
+					termVecList.addAll(termVecToSpanList(termVector, docID, fieldName));
+				}
 			}
 			
 			ArrayList<IField> fields = new ArrayList<>(resultTuple.getFields());
@@ -158,7 +161,7 @@ public class DataReader implements IDataReader {
 	}
 	
 	
-	private ArrayList<Span> termVecToSpanList(Terms termVector, String fieldName) throws IOException {
+	private ArrayList<Span> termVecToSpanList(Terms termVector, int docID, String fieldName) throws IOException {
 		if (termVector == null) {
 			return null;
 		}
@@ -168,16 +171,19 @@ public class DataReader implements IDataReader {
 		PostingsEnum termPostings = null;
 		
 		while ((termsEnum.next()) != null) {
-			termPostings = termsEnum.postings(termPostings, PostingsEnum.POSITIONS);
-			for (int i = 0; i < termPostings.freq(); i++) {
-				Span span = new Span(
-						fieldName,	// field
-						termPostings.startOffset(), 	// start
-						termPostings.endOffset(), 		// end
-						termPostings.getPayload().utf8ToString(), // key
-						termPostings.getPayload().utf8ToString(), // value
-						termPostings.nextPosition());	// token offset
-				termVecList.add(span);
+			termPostings = termsEnum.postings(termPostings, PostingsEnum.ALL);
+			while (termPostings.nextDoc() == docID) {
+				for (int i = 0; i < termPostings.freq(); i++) {
+		        	int position = termPostings.nextPosition();
+					Span span = new Span(
+							fieldName,	// field
+							termPostings.startOffset(), 	// start
+							termPostings.endOffset(), 		// end
+							termsEnum.term().utf8ToString(),
+							termsEnum.term().utf8ToString(), // value
+							position);	// token offset
+					termVecList.add(span);
+				}
 			}
 		}
 		

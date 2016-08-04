@@ -19,7 +19,9 @@ import edu.uci.ics.textdb.api.storage.IDataStore;
 import edu.uci.ics.textdb.common.constants.DataConstants;
 import edu.uci.ics.textdb.common.constants.SchemaConstants;
 import edu.uci.ics.textdb.common.exception.DataFlowException;
+import edu.uci.ics.textdb.common.exception.ErrorMessages;
 import edu.uci.ics.textdb.common.field.Span;
+import edu.uci.ics.textdb.common.utils.Utils;
 import edu.uci.ics.textdb.dataflow.common.KeywordPredicate;
 import edu.uci.ics.textdb.dataflow.source.IndexBasedSourceOperator;
 import edu.uci.ics.textdb.storage.DataReaderPredicate;
@@ -38,7 +40,7 @@ public class KeywordMatcher implements IOperator {
     private Schema inputSchema;
     private Schema outputSchema;
     
-    private boolean termVecAdded;
+    private boolean spanAdded;
 
 
 	public KeywordMatcher(IPredicate predicate, IDataStore dataStore) {
@@ -55,13 +57,22 @@ public class KeywordMatcher implements IOperator {
         this.query = this.predicate.getQuery();
 	}
 
-    
+
     @Override
     public void open() throws DataFlowException {
+    	if (this.inputOperator == null) {
+    		throw new DataFlowException(ErrorMessages.NO_INPUT_OPERATOR);
+    	}
         try {
             inputOperator.open();
-            			
-
+            this.inputSchema = inputOperator.getOutputSchema();
+            
+            if (this.spanAdded && (this.inputSchema.getIndex(SchemaConstants.SPAN_LIST) == null)) {
+				this.outputSchema = Utils.createSpanSchema(this.inputSchema);
+            } else {
+                this.outputSchema = this.inputSchema;
+            }
+            
         } catch (Exception e) {
             e.printStackTrace();
             throw new DataFlowException(e.getMessage(), e);
@@ -80,7 +91,9 @@ public class KeywordMatcher implements IOperator {
      */
     @Override
     public ITuple getNextTuple() throws DataFlowException {
-
+    	if (this.inputOperator == null) {
+    		throw new DataFlowException(ErrorMessages.NO_INPUT_OPERATOR);
+    	}
         try {
         	ITuple result = null;
         	do {
@@ -112,9 +125,17 @@ public class KeywordMatcher implements IOperator {
     
     
     private ITuple processConjunction(ITuple currentTuple) throws DataFlowException {
+    	if (this.inputSchema == null) {
+    		throw new RuntimeException("input schema is null");
+    	}
+    	if (! this.inputSchema.hasField(SchemaConstants.TERM_VECTOR)) {
+    		throw new RuntimeException("TODO: create term vector if it doesn't exist");
+    	}
+    	
+    	List<Span> termVec = (List<Span>) currentTuple.getField(SchemaConstants.TERM_VECTOR).getValue(); 
     	List<Span> spanList = (List<Span>) currentTuple.getField(SchemaConstants.SPAN_LIST).getValue(); 
-    	spanList = filterRelevantSpans(spanList);
-
+    	List<Span> filteredSpans = filterRelevantSpans(termVec);
+    	
     	for (Attribute attribute : this.predicate.getAttributeList()) {
     		String fieldName = attribute.getFieldName();
     		FieldType fieldType = attribute.getFieldType();
@@ -129,33 +150,39 @@ public class KeywordMatcher implements IOperator {
     		if (fieldType == FieldType.STRING) {
                 if (fieldValue.equals(query)) {
                     Span span = new Span(fieldName, 0, query.length(), query, fieldValue);
-                    spanList.add(span);
+                    filteredSpans.add(span);
                 }
     		}
     		
     		// for TEXT type, every token in the query should be present in span list for this field
     		if (fieldType == FieldType.TEXT) {
-        		List<Span> fieldSpanList = spanList.stream()
+        		List<Span> fieldSpanList = filteredSpans.stream()
         				.filter(span -> span.getFieldName().equals(fieldName))
         				.collect(Collectors.toList());
         		
         		if (! isAllQueryTokensPresent(fieldSpanList, predicate.getQueryTokenSet())) {
-        			spanList.removeAll(fieldSpanList);
+        			filteredSpans.removeAll(fieldSpanList);
         		}
     		}
     		
     	}
     	
-    	if (spanList.isEmpty()) {
+    	if (filteredSpans.isEmpty()) {
     		return null;
     	}
+    	spanList.addAll(filteredSpans);
     	return currentTuple;
     }
     
     
     private ITuple processPhrase(ITuple currentTuple) throws DataFlowException {
+    	if (! this.inputSchema.hasField(SchemaConstants.TERM_VECTOR)) {
+    		throw new RuntimeException("TODO: create term vector if it doesn't exist");
+    	}
+    	
+    	List<Span> termVec = (List<Span>) currentTuple.getField(SchemaConstants.TERM_VECTOR).getValue(); 
     	List<Span> spanList = (List<Span>) currentTuple.getField(SchemaConstants.SPAN_LIST).getValue(); 
-    	spanList = filterRelevantSpans(spanList);
+    	List<Span> filteredSpans = filterRelevantSpans(termVec);
     	
     	for (Attribute attribute : this.predicate.getAttributeList()) {
     		String fieldName = attribute.getFieldName();
@@ -170,17 +197,17 @@ public class KeywordMatcher implements IOperator {
 			// for STRING type, the query should match the fieldValue completely
     		if (fieldType == FieldType.STRING) {
                 if (fieldValue.equals(query)) {
-                    spanList.add(new Span(fieldName, 0, query.length(), query, fieldValue));
+                    filteredSpans.add(new Span(fieldName, 0, query.length(), query, fieldValue));
                 }
     		}
     		
     		// for TEXT type, spans need to be reconstructed according to the phrase query
     		if (fieldType == FieldType.TEXT) {
-        		List<Span> fieldSpanList = spanList.stream()
+        		List<Span> fieldSpanList = filteredSpans.stream()
         				.filter(span -> span.getFieldName().equals(fieldName))
         				.collect(Collectors.toList());
         		
-        		spanList.removeAll(fieldSpanList);
+        		filteredSpans.removeAll(fieldSpanList);
         		if (! isAllQueryTokensPresent(fieldSpanList, predicate.getQueryTokenSet())) {
         			// move on to next field if not all query tokens are present in the spans
         			continue;
@@ -229,24 +256,22 @@ public class KeywordMatcher implements IOperator {
                     int combinedSpanEndIndex = fieldSpanList.get(iter+queryTokenList.size()-1).getEnd();
 
                     Span combinedSpan = new Span(fieldName, combinedSpanStartIndex, combinedSpanEndIndex, query, fieldValue.substring(combinedSpanStartIndex, combinedSpanEndIndex));
-                    spanList.add(combinedSpan);
-                    iter = iter + queryTokenList.size();                       
+                    filteredSpans.add(combinedSpan);
+                    iter = iter + queryTokenList.size();
                 }
     		}
     	}
     	
-    	if (spanList.isEmpty()) {
+    	if (filteredSpans.isEmpty()) {
     		return null;
     	}
+    	spanList.addAll(filteredSpans);
     	return currentTuple;
     }
     
     
     private ITuple processSubstring(ITuple currentTuple) throws DataFlowException {
     	List<Span> spanList = (List<Span>) currentTuple.getField(SchemaConstants.SPAN_LIST).getValue(); 
-    	
-		// remove all spans retuned by DataReader
-    	spanList.clear();
     	
     	for (Attribute attribute : this.predicate.getAttributeList()) {
     		String fieldName = attribute.getFieldName();
@@ -310,7 +335,9 @@ public class KeywordMatcher implements IOperator {
     @Override
     public void close() throws DataFlowException {
         try {
-            inputOperator.close();
+        	if (inputOperator != null) {
+                inputOperator.close();
+        	}
         } catch (Exception e) {
             e.printStackTrace();
             throw new DataFlowException(e.getMessage(), e);
@@ -327,11 +354,11 @@ public class KeywordMatcher implements IOperator {
 	}
     
     public boolean isTermVecAdded() {
-		return termVecAdded;
+		return spanAdded;
 	}
 
 	public void setTermVecAdded(boolean termVecAdded) {
-		this.termVecAdded = termVecAdded;
+		this.spanAdded = termVecAdded;
 	}
 	
 	public Schema getOutputSchema() {
