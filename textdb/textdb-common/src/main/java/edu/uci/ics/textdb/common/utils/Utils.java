@@ -125,15 +125,14 @@ public class Utils {
      *        the schema. SPAN_LIST_ATTRIBUTE is of type List
      */
     public static Schema createSpanSchema(Schema schema) {
-        List<Attribute> dataTupleAttributes = schema.getAttributes();
-        //spanAttributes contains all attributes of dataTupleAttributes and an additional SPAN_LIST_ATTRIBUTE
-        Attribute[] spanAttributes = new Attribute[dataTupleAttributes.size() + 1];
-        for (int count = 0; count < dataTupleAttributes.size(); count++) {
-            spanAttributes[count] = dataTupleAttributes.get(count);
-        }
-        spanAttributes[spanAttributes.length - 1] = SchemaConstants.SPAN_LIST_ATTRIBUTE;
-        Schema spanSchema = new Schema(spanAttributes);
-        return spanSchema;
+        return appendAttributeToSchema(schema, SchemaConstants.SPAN_LIST_ATTRIBUTE);
+    }
+    
+    public static Schema appendAttributeToSchema(Schema schema, Attribute attribute) {
+    	List<Attribute> attributes = schema.getAttributes();
+    	attributes.add(attribute);
+    	Schema newSchema = new Schema(attributes.toArray(new Attribute[attributes.size()]));
+    	return newSchema;  	
     }
 
     /**
