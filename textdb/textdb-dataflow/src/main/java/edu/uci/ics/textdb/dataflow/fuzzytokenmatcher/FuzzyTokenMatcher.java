@@ -59,7 +59,7 @@ public class FuzzyTokenMatcher implements IOperator{
 		    int schemaIndex = sourceTuple.getSchema().getIndex(SchemaConstants.SPAN_LIST_ATTRIBUTE.getFieldName());
 		    List<Span> resultSpans =
                     (List<Span>)sourceTuple.getField(schemaIndex).getValue();
-		    filterRelevantSpans(resultSpans);
+		    resultSpans = filterRelevantSpans(resultSpans);
             
 		    /*The source operator returns spans even for those fields which did not satisfy the threshold criterion.
 		     *  So if two attributes A,B have 10 and 5 matching tokens, and we set threshold to 10,
@@ -91,14 +91,16 @@ public class FuzzyTokenMatcher implements IOperator{
 		}
     }
     
-    private void filterRelevantSpans(List<Span> spanList) {
+    private List<Span> filterRelevantSpans(List<Span> spanList) {
+    	List<Span> filteredList = new ArrayList<>();
     	Iterator<Span> iterator = spanList.iterator();
     	while (iterator.hasNext()) {
     		Span span  = iterator.next();
-    		if (! predicate.getQueryTokens().contains(span.getKey())) {
-    			iterator.remove();
+    		if (predicate.getQueryTokens().contains(span.getKey())) {
+    			filteredList.add(span);
     		}
     	}
+    	return filteredList;
     }
 
     @Override

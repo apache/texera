@@ -99,7 +99,7 @@ public class KeywordMatcher implements IOperator {
     
     private ITuple processConjunction(ITuple currentTuple) throws DataFlowException {
     	List<Span> spanList = (List<Span>) currentTuple.getField(SchemaConstants.SPAN_LIST).getValue(); 
-    	filterRelevantSpans(spanList);
+    	spanList = filterRelevantSpans(spanList);
 
     	for (Attribute attribute : this.predicate.getAttributeList()) {
     		String fieldName = attribute.getFieldName();
@@ -141,7 +141,7 @@ public class KeywordMatcher implements IOperator {
     
     private ITuple processPhrase(ITuple currentTuple) throws DataFlowException {
     	List<Span> spanList = (List<Span>) currentTuple.getField(SchemaConstants.SPAN_LIST).getValue(); 
-    	filterRelevantSpans(spanList);
+    	spanList = filterRelevantSpans(spanList);
     	
     	for (Attribute attribute : this.predicate.getAttributeList()) {
     		String fieldName = attribute.getFieldName();
@@ -271,14 +271,16 @@ public class KeywordMatcher implements IOperator {
     	return currentTuple;
     }
     
-    private void filterRelevantSpans(List<Span> spanList) {
+    private List<Span> filterRelevantSpans(List<Span> spanList) {
+    	List<Span> filteredList = new ArrayList<>();
     	Iterator<Span> iterator = spanList.iterator();
     	while (iterator.hasNext()) {
     		Span span  = iterator.next();
-    		if (! predicate.getQueryTokenSet().contains(span.getKey())) {
-    			iterator.remove();
+    		if (predicate.getQueryTokenSet().contains(span.getKey())) {
+    			filteredList.add(span);
     		}
     	}
+    	return filteredList;
     }
     
     
