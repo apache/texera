@@ -2,6 +2,7 @@ package edu.uci.ics.textdb.dataflow.keywordmatch;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -98,7 +99,8 @@ public class KeywordMatcher implements IOperator {
     
     private ITuple processConjunction(ITuple currentTuple) throws DataFlowException {
     	List<Span> spanList = (List<Span>) currentTuple.getField(SchemaConstants.SPAN_LIST).getValue(); 
-    	
+    	filterRelevantSpans(spanList);
+
     	for (Attribute attribute : this.predicate.getAttributeList()) {
     		String fieldName = attribute.getFieldName();
     		FieldType fieldType = attribute.getFieldType();
@@ -139,6 +141,7 @@ public class KeywordMatcher implements IOperator {
     
     private ITuple processPhrase(ITuple currentTuple) throws DataFlowException {
     	List<Span> spanList = (List<Span>) currentTuple.getField(SchemaConstants.SPAN_LIST).getValue(); 
+    	filterRelevantSpans(spanList);
     	
     	for (Attribute attribute : this.predicate.getAttributeList()) {
     		String fieldName = attribute.getFieldName();
@@ -214,8 +217,8 @@ public class KeywordMatcher implements IOperator {
                     Span combinedSpan = new Span(fieldName, combinedSpanStartIndex, combinedSpanEndIndex, query, fieldValue.substring(combinedSpanStartIndex, combinedSpanEndIndex));
                     spanList.add(combinedSpan);
                     iter = iter + queryTokenList.size();                       
-                }		
-    		}	
+                }
+    		}
     	}
     	
     	if (spanList.isEmpty()) {
@@ -266,6 +269,16 @@ public class KeywordMatcher implements IOperator {
     		return null;
     	}
     	return currentTuple;
+    }
+    
+    private void filterRelevantSpans(List<Span> spanList) {
+    	Iterator<Span> iterator = spanList.iterator();
+    	while (iterator.hasNext()) {
+    		Span span  = iterator.next();
+    		if (! predicate.getQueryTokenSet().contains(span.getKey())) {
+    			iterator.remove();
+    		}
+    	}
     }
     
     
