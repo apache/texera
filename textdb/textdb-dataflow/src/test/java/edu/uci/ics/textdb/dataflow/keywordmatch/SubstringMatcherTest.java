@@ -75,8 +75,8 @@ public class SubstringMatcherTest {
     
     public List<ITuple> getPeopleQueryResults(String query, ArrayList<Attribute> attributeList) throws DataFlowException, ParseException {
 
-        IPredicate predicate = new KeywordPredicate(query, dataStore, attributeList, luceneAnalyzer, DataConstants.KeywordMatchingType.SUBSTRING_SCANBASED);
-        KeywordMatcher = new KeywordMatcher(predicate);
+        IPredicate predicate = new KeywordPredicate(query, attributeList, luceneAnalyzer, DataConstants.KeywordMatchingType.SUBSTRING_SCANBASED);
+        KeywordMatcher = new KeywordMatcher(predicate, dataStore);
         KeywordMatcher.open();
 
         List<ITuple> results = new ArrayList<>();

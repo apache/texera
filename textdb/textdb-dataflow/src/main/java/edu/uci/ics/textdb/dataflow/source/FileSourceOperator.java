@@ -4,6 +4,7 @@ import java.io.File;
 import java.util.Scanner;
 
 import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.api.dataflow.ISourceOperator;
 
 /**
@@ -22,10 +23,12 @@ public class FileSourceOperator implements ISourceOperator {
 	private File file;
 	private Scanner scanner;
 	private ToTuple toTupleFunc;
+	private Schema schema;
 
-	public FileSourceOperator(String filePath, ToTuple toTupleFunc) {
+	public FileSourceOperator(String filePath, ToTuple toTupleFunc, Schema schema) {
 		this.file = new File(filePath);
 		this.toTupleFunc = toTupleFunc;
+		this.schema = schema;
 	}
 
 	@Override
@@ -53,4 +56,7 @@ public class FileSourceOperator implements ISourceOperator {
 		}
 	}
 	
+	public Schema getOutputSchema() {
+		return this.schema;
+	}
 }

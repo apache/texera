@@ -43,7 +43,6 @@ public class KeywordPredicate implements IPredicate {
 	private HashSet<String> queryTokenSet;
 	private ArrayList<String> queryTokensWithStopwords;
 	private Analyzer luceneAnalyzer;
-	private IDataStore dataStore;
 	private KeywordMatchingType operatorType;
 
 	/*
@@ -51,7 +50,7 @@ public class KeywordPredicate implements IPredicate {
 	 * searched in TextField, we would consider both tokens New and York; if
 	 * searched in String field we search for Exact string.
 	 */
-	public KeywordPredicate(String query, IDataStore dataStore, List<Attribute> attributeList, Analyzer luceneAnalyzer, 
+	public KeywordPredicate(String query, List<Attribute> attributeList, Analyzer luceneAnalyzer, 
 			KeywordMatchingType operatorType) throws DataFlowException {
 		try {
 			this.query = query;
@@ -61,7 +60,6 @@ public class KeywordPredicate implements IPredicate {
 			
 			this.attributeList = attributeList;
 			this.operatorType = operatorType;
-			this.dataStore = dataStore;
 			
 			this.luceneAnalyzer = luceneAnalyzer;
 			this.luceneQuery = createLuceneQueryObject();
@@ -214,12 +212,6 @@ public class KeywordPredicate implements IPredicate {
 
 	public Analyzer getLuceneAnalyzer() {
 		return luceneAnalyzer;
-	}
-
-	public DataReaderPredicate getDataReaderPredicate() {
-		DataReaderPredicate dataReaderPredicate = new DataReaderPredicate(this.luceneQuery, this.query,
-				this.dataStore, this.attributeList, this.luceneAnalyzer);
-		return dataReaderPredicate;
 	}
 
 }

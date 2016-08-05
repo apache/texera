@@ -43,7 +43,7 @@ public class ScanBasedSourceOperatorTest {
     private IDataStore dataStore;
     private Analyzer lucneAnalyzer;
     private Query query;
-    private IPredicate dataReaderPredicate;
+    private DataReaderPredicate dataReaderPredicate;
     
     @Before
     public void setUp() throws Exception{

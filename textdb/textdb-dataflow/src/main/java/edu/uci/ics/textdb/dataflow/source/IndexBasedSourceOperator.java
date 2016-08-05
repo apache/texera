@@ -2,6 +2,7 @@ package edu.uci.ics.textdb.dataflow.source;
 
 import edu.uci.ics.textdb.api.common.IPredicate;
 import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.api.dataflow.ISourceOperator;
 import edu.uci.ics.textdb.api.storage.IDataReader;
 import edu.uci.ics.textdb.common.exception.DataFlowException;
@@ -16,6 +17,7 @@ public class IndexBasedSourceOperator implements ISourceOperator {
 
 	private IDataReader dataReader;
 	private DataReaderPredicate predicate;
+	private Schema outputSchema;
 	private int cursor = CLOSED;
 	
 	public IndexBasedSourceOperator(IPredicate predicate){
@@ -27,6 +29,7 @@ public class IndexBasedSourceOperator implements ISourceOperator {
 		try {
 		    dataReader = new DataReader(predicate);
 			dataReader.open();
+		    this.outputSchema = dataReader.getOutputSchema();
 			cursor = OPENED;
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -68,5 +71,7 @@ public class IndexBasedSourceOperator implements ISourceOperator {
 	    cursor = CLOSED;
 	}
 
-
+	public Schema getOutputSchema() {
+		return this.outputSchema;
+	}
 }

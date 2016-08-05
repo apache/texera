@@ -30,6 +30,7 @@ import edu.uci.ics.textdb.common.field.ListField;
 import edu.uci.ics.textdb.common.field.Span;
 import edu.uci.ics.textdb.common.field.StringField;
 import edu.uci.ics.textdb.common.field.TextField;
+import edu.uci.ics.textdb.common.utils.Utils;
 import edu.uci.ics.textdb.dataflow.common.KeywordPredicate;
 import edu.uci.ics.textdb.dataflow.utils.TestUtils;
 import edu.uci.ics.textdb.storage.DataStore;
@@ -74,13 +75,12 @@ public class KeywordMatcherTest {
 
     public List<ITuple> getPeopleQueryResults(String query, ArrayList<Attribute> attributeList) throws DataFlowException, ParseException {
 
-        IPredicate predicate = new KeywordPredicate(query, dataStore, attributeList, analyzer, DataConstants.KeywordMatchingType.CONJUNCTION_INDEXBASED);
-        keywordMatcher = new KeywordMatcher(predicate);
+        IPredicate predicate = new KeywordPredicate(query, attributeList, analyzer, DataConstants.KeywordMatchingType.CONJUNCTION_INDEXBASED);
+        keywordMatcher = new KeywordMatcher(predicate, dataStore);
         keywordMatcher.open();
 
         List<ITuple> results = new ArrayList<>();
         ITuple nextTuple = null;
-
         while ((nextTuple = keywordMatcher.getNextTuple()) != null) {
             results.add(nextTuple);
         }
@@ -166,7 +166,7 @@ public class KeywordMatcherTest {
 
         //Prepare expected result list
         List<Span> list = new ArrayList<>();
-        Span span = new Span("description", 0, 4, "TaLL", "Tall",0);
+        Span span = new Span("description", 0, 4, "tall", "Tall",0);
         list.add(span);
         Attribute[] schemaAttributes = new Attribute[TestConstants.ATTRIBUTES_PEOPLE.length + 1];
 

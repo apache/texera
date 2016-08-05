@@ -154,8 +154,8 @@ public class KeywordMatcherPerformanceTest {
 		Attribute[] attributeList = new Attribute[] { MedlineIndexWriter.ABSTRACT_ATTR };
 
 		for (String query : queryList) {
-			IPredicate predicate = new KeywordPredicate(query, dataStore, Arrays.asList(attributeList), luceneAnalyzer, opType);
-			KeywordMatcher keywordMatcher = new KeywordMatcher(predicate);
+			IPredicate predicate = new KeywordPredicate(query, Arrays.asList(attributeList), luceneAnalyzer, opType);
+			KeywordMatcher keywordMatcher = new KeywordMatcher(predicate, dataStore);
 
 			long startMatchTime = System.currentTimeMillis();
 			keywordMatcher.open();

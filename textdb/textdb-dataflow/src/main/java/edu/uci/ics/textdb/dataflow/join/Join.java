@@ -39,6 +39,7 @@ public class Join implements IOperator {
 	private IOperator outerOperator;
 	private IOperator innerOperator;
 	private JoinPredicate joinPredicate;
+	private Schema outputSchema;
 	// To indicate if next result from outer operator has to be obtained.
 	private boolean shouldIGetOuterOperatorNextTuple;
 	private ITuple outerTuple = null;
@@ -66,6 +67,7 @@ public class Join implements IOperator {
 		this.outerOperator = outerOperator;
 		this.innerOperator = innerOperator;
 		this.joinPredicate = (JoinPredicate) joinPredicate;
+		this.outputSchema = innerOperator.getOutputSchema();
 	}
 
 	@Override
@@ -258,7 +260,6 @@ public class Join implements IOperator {
 
 		// TODO Discuss and implement as to what Schema has to be.
 		// It shouldn't just be inner tuple or outer tuple schema.
-		Schema schema = innerTuple.getSchema();
 		List<IField> fieldList = innerTuple.getFields();
 		IField[] nextTupleField = new IField[fieldList.size()];
 
@@ -267,8 +268,13 @@ public class Join implements IOperator {
 		}
 
 		nextTupleField[nextTupleField.length - 1] = new ListField<>(newJoinSpanList);
-		nextTuple = new DataTuple(schema, nextTupleField);
+		nextTuple = new DataTuple(outputSchema, nextTupleField);
 
 		return nextTuple;
 	}
+	
+	public Schema getOutputSchema() {
+		return outputSchema;
+	}
+	
 }

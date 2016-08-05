@@ -7,6 +7,7 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
@@ -109,13 +110,36 @@ public class Utils {
     /**
      * @about Creating a new span tuple from span schema, field list 
      */
-    public static ITuple getSpanTuple( List<IField> fieldList, List<Span> spanList, Schema spanSchema) {
+    public static ITuple getSpanTuple(List<IField> fieldList, List<Span> spanList, Schema spanSchema) {
         IField spanListField = new ListField<Span>(new ArrayList<>(spanList));
         List<IField> fieldListDuplicate = new ArrayList<>(fieldList);
         fieldListDuplicate.add(spanListField);
 
         IField[] fieldsDuplicate = fieldListDuplicate.toArray(new IField[fieldListDuplicate.size()]);
         return new DataTuple(spanSchema, fieldsDuplicate);
+    }
+    
+    public static List<ITuple> removePayload(List<ITuple> tupleList) {
+    	List<ITuple> tupleListWithoutPayload = 
+    			tupleList.stream().map(tuple -> removePayload(tuple))
+    			.collect(Collectors.toList());
+    	return tupleListWithoutPayload;
+    }
+    
+    public static ITuple removePayload(ITuple tuple) {
+    	Integer payloadIndex = tuple.getSchema().getIndex(SchemaConstants.PAYLOAD);
+    	if (payloadIndex == null) {
+    		return tuple;
+    	} else {
+    		Attribute[] attrWithoutPayload = tuple.getSchema().getAttributes().stream()
+					.filter(x -> (! x.getFieldName().equals(SchemaConstants.PAYLOAD)))
+					.toArray(Attribute[]::new);
+    		Schema schemaWithoutPayload = new Schema(attrWithoutPayload);
+    		List<IField> fieldsWithoutPayload = new ArrayList<IField>(tuple.getFields());
+    		fieldsWithoutPayload.remove(payloadIndex.intValue());
+    		ITuple tupleWithoutPayload = new DataTuple(schemaWithoutPayload, fieldsWithoutPayload.stream().toArray(IField[]::new));
+    		return tupleWithoutPayload;
+    	}
     }
 
     /**
@@ -125,15 +149,14 @@ public class Utils {
      *        the schema. SPAN_LIST_ATTRIBUTE is of type List
      */
     public static Schema createSpanSchema(Schema schema) {
-        List<Attribute> dataTupleAttributes = schema.getAttributes();
-        //spanAttributes contains all attributes of dataTupleAttributes and an additional SPAN_LIST_ATTRIBUTE
-        Attribute[] spanAttributes = new Attribute[dataTupleAttributes.size() + 1];
-        for (int count = 0; count < dataTupleAttributes.size(); count++) {
-            spanAttributes[count] = dataTupleAttributes.get(count);
-        }
-        spanAttributes[spanAttributes.length - 1] = SchemaConstants.SPAN_LIST_ATTRIBUTE;
-        Schema spanSchema = new Schema(spanAttributes);
-        return spanSchema;
+        return appendAttributeToSchema(schema, SchemaConstants.SPAN_LIST_ATTRIBUTE);
+    }
+    
+    public static Schema appendAttributeToSchema(Schema schema, Attribute attribute) {
+    	List<Attribute> attributes = new ArrayList<>(schema.getAttributes());
+    	attributes.add(attribute);
+    	Schema newSchema = new Schema(attributes.toArray(new Attribute[attributes.size()]));
+    	return newSchema;  	
     }
 
     /**
@@ -150,12 +173,7 @@ public class Utils {
         try{
             tokenStream.reset();
             while (tokenStream.incrementToken()) {
-                String token = term.toString();
-                int tokenIndex = query.toLowerCase().indexOf(token);
-                // Since tokens are converted to lower case,
-                // get the exact token from the query string.
-                String actualQueryToken = query.substring(tokenIndex, tokenIndex+token.length());
-                result.add(actualQueryToken);
+                result.add(term.toString());
             }
             tokenStream.close();
         } catch (Exception e) {
@@ -175,12 +193,7 @@ public class Utils {
         try{
             tokenStream.reset();
             while (tokenStream.incrementToken()) {
-                String token = term.toString();
-                int tokenIndex = query.toLowerCase().indexOf(token);
-                // Since tokens are converted to lower case,
-                // get the exact token from the query string.
-                String actualQueryToken = query.substring(tokenIndex, tokenIndex+token.length());
-                result.add(actualQueryToken);
+                result.add(term.toString());
             }
             tokenStream.close();
         } catch (Exception e) {

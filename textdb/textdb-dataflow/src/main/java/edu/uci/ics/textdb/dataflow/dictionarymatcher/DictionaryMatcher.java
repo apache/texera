@@ -30,6 +30,7 @@ public class DictionaryMatcher implements IOperator {
 
     private IOperator sourceOperator;
     private Schema spanSchema;
+    private Schema outputSchema;
     
     private ITuple currentTuple;
     private String currentDictionaryEntry;
@@ -60,17 +61,17 @@ public class DictionaryMatcher implements IOperator {
             
 			if (predicate.getSourceOperatorType() == DataConstants.KeywordMatchingType.PHRASE_INDEXBASED) {
 				KeywordPredicate keywordPredicate = new KeywordPredicate(
-						currentDictionaryEntry, predicate.getDataStore(),
+						currentDictionaryEntry,
 						predicate.getAttributeList(), predicate.getAnalyzer(),
 						KeywordMatchingType.PHRASE_INDEXBASED);
-				sourceOperator = new KeywordMatcher(keywordPredicate);
+				sourceOperator = new KeywordMatcher(keywordPredicate, predicate.getDataStore());
 				sourceOperator.open();
 			} else if (predicate.getSourceOperatorType() == DataConstants.KeywordMatchingType.CONJUNCTION_INDEXBASED) {
 				KeywordPredicate keywordPredicate = new KeywordPredicate(
-						currentDictionaryEntry, predicate.getDataStore(),
+						currentDictionaryEntry,
 						predicate.getAttributeList(), predicate.getAnalyzer(),
 						KeywordMatchingType.CONJUNCTION_INDEXBASED);
-				sourceOperator = new KeywordMatcher(keywordPredicate);
+				sourceOperator = new KeywordMatcher(keywordPredicate, predicate.getDataStore());
 				sourceOperator.open();
 			} else {
                 sourceOperator = predicate.getScanSourceOperator();
@@ -138,12 +139,12 @@ public class DictionaryMatcher implements IOperator {
     			}
     			
 				KeywordPredicate keywordPredicate = new KeywordPredicate(
-						currentDictionaryEntry, predicate.getDataStore(),
+						currentDictionaryEntry,
 						predicate.getAttributeList(), predicate.getAnalyzer(),
 						keywordMatchingType);
     			
     			sourceOperator.close();
-    			sourceOperator = new KeywordMatcher(keywordPredicate);
+    			sourceOperator = new KeywordMatcher(keywordPredicate, predicate.getDataStore());
     			sourceOperator.open();
     		}
         }
@@ -236,4 +237,8 @@ public class DictionaryMatcher implements IOperator {
             throw new DataFlowException(e.getMessage(), e);
         }
     }
+    
+	public Schema getOutputSchema() {
+		return outputSchema;
+	}
 }

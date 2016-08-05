@@ -1,6 +1,7 @@
 package edu.uci.ics.textdb.dataflow.source;
 
 import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.api.dataflow.ISourceOperator;
 import edu.uci.ics.textdb.api.storage.IDataReader;
 import edu.uci.ics.textdb.common.exception.DataFlowException;
@@ -11,9 +12,11 @@ import edu.uci.ics.textdb.common.exception.DataFlowException;
 public class ScanBasedSourceOperator implements ISourceOperator {
     
     private IDataReader dataReader;
+    private Schema schema;
     
     public ScanBasedSourceOperator(IDataReader dataReader) throws DataFlowException {
         this.dataReader = dataReader;
+        this.schema = dataReader.getOutputSchema();
     }
 
     @Override
@@ -45,4 +48,8 @@ public class ScanBasedSourceOperator implements ISourceOperator {
             throw new DataFlowException(e.getMessage(), e);
         }
     }
+    
+	public Schema getOutputSchema() {
+		return this.schema;
+	}    
 }

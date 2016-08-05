@@ -35,8 +35,8 @@ public class RegexMatcher implements IOperator {
     private String regex;
     private List<String> fieldNameList;
     
-    private Schema sourceTupleSchema;
-    private Schema spanSchema;
+    private Schema inputSchema;
+    private Schema outputSchema;
     
     private String luceneQueryStr;
     private Query luceneQuery;
@@ -66,8 +66,8 @@ public class RegexMatcher implements IOperator {
     	this.fieldNameList = regexPredicate.getFieldNameList();
     	this.luceneAnalyzer = regexPredicate.getLuceneAnalyzer();
     	
-		this.sourceTupleSchema = regexPredicate.getDataStore().getSchema();
-		this.spanSchema = Utils.createSpanSchema(this.sourceTupleSchema);
+		this.inputSchema = regexPredicate.getDataStore().getSchema();
+		this.outputSchema = Utils.createSpanSchema(this.inputSchema);
 		
 		// try Java Regex first
 		try {
@@ -142,7 +142,7 @@ public class RegexMatcher implements IOperator {
     	IField spanListField = new ListField<Span>(spans);
     	fieldListDuplicate.add(spanListField);
     	IField[]  fieldsDuplicate = fieldListDuplicate.toArray(new IField[fieldListDuplicate.size()]);
-    	return new DataTuple(spanSchema, fieldsDuplicate);
+    	return new DataTuple(outputSchema, fieldsDuplicate);
     }
 	
     
@@ -262,8 +262,8 @@ public class RegexMatcher implements IOperator {
     }
     
 
-    public Schema getSpanSchema() {
-    	return spanSchema;
+    public Schema getOutputSchema() {
+    	return outputSchema;
     }
     
     public String getLueneQueryString() {
