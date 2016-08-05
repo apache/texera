@@ -127,12 +127,12 @@ public class Utils {
     }
     
     public static ITuple removePayload(ITuple tuple) {
-    	Integer payloadIndex = tuple.getSchema().getIndex(SchemaConstants.TERM_VECTOR);
+    	Integer payloadIndex = tuple.getSchema().getIndex(SchemaConstants.PAYLOAD);
     	if (payloadIndex == null) {
     		return tuple;
     	} else {
     		Attribute[] attrWithoutPayload = tuple.getSchema().getAttributes().stream()
-					.filter(x -> (! x.getFieldName().equals(SchemaConstants.TERM_VECTOR)))
+					.filter(x -> (! x.getFieldName().equals(SchemaConstants.PAYLOAD)))
 					.toArray(Attribute[]::new);
     		Schema schemaWithoutPayload = new Schema(attrWithoutPayload);
     		List<IField> fieldsWithoutPayload = new ArrayList<IField>(tuple.getFields());

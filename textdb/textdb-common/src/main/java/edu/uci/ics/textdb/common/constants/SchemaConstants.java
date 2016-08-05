@@ -14,6 +14,6 @@ public class SchemaConstants {
     public static final String SPAN_LIST = "spanList";
     public static final Attribute SPAN_LIST_ATTRIBUTE = new Attribute(SPAN_LIST, FieldType.LIST);
     
-    public static final String TERM_VECTOR = "termVector";
-    public static final Attribute TERM_VECTOR_ATTRIBUTE = new Attribute(TERM_VECTOR, FieldType.LIST);
+    public static final String PAYLOAD = "payload";
+    public static final Attribute PAYLOAD_ATTRIBUTE = new Attribute(PAYLOAD, FieldType.LIST);
 }

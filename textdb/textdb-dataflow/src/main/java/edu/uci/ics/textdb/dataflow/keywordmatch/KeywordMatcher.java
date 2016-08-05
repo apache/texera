@@ -154,11 +154,11 @@ public class KeywordMatcher implements IOperator {
     	if (inputSchema == null) {
     		throw new RuntimeException("input schema is null");
     	}
-    	if (! inputSchema.hasField(SchemaConstants.TERM_VECTOR)) {
+    	if (! inputSchema.hasField(SchemaConstants.PAYLOAD)) {
     		throw new RuntimeException("TODO: create term vector if it doesn't exist");
     	}
     	
-    	List<Span> termVec = (List<Span>) currentTuple.getField(SchemaConstants.TERM_VECTOR).getValue(); 
+    	List<Span> termVec = (List<Span>) currentTuple.getField(SchemaConstants.PAYLOAD).getValue(); 
     	List<Span> relevantSpans = filterRelevantSpans(termVec);
     	List<Span> matchResults = new ArrayList<>();
     	
@@ -207,14 +207,11 @@ public class KeywordMatcher implements IOperator {
     
     
     private ITuple processPhrase(ITuple currentTuple) throws DataFlowException {
-    	if (! inputSchema.hasField(SchemaConstants.TERM_VECTOR)) {
+    	if (! inputSchema.hasField(SchemaConstants.PAYLOAD)) {
     		throw new RuntimeException("TODO: create term vector if it doesn't exist");
     	}
     	
-    	List<Span> termVec = (List<Span>) currentTuple.getField(SchemaConstants.TERM_VECTOR).getValue(); 
-    	if (termVec == null) {
-    		throw new RuntimeException("PANIC: term vector is null");
-    	}
+    	List<Span> termVec = (List<Span>) currentTuple.getField(SchemaConstants.PAYLOAD).getValue(); 
     	List<Span> relevantSpans = filterRelevantSpans(termVec);
     	List<Span> matchResults = new ArrayList<>();
     	

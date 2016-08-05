@@ -74,11 +74,11 @@ public class DataReader implements IDataReader {
 			
 			inputSchema = predicate.getDataStore().getSchema();
 			if (termVecAdded) {
-				outputSchema = Utils.appendAttributeToSchema(inputSchema, SchemaConstants.TERM_VECTOR_ATTRIBUTE);
+				outputSchema = Utils.appendAttributeToSchema(inputSchema, SchemaConstants.PAYLOAD_ATTRIBUTE);
 			} else {
 				outputSchema = predicate.getDataStore().getSchema();
 			}
-				
+			
 		} catch (IOException e) {
 			e.printStackTrace();
 			throw new DataFlowException(e.getMessage(), e);
