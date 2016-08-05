@@ -42,7 +42,11 @@ public class KeywordMatcher implements IOperator {
     
     private boolean spanAdded = true;
 
-
+    /**
+     * Constructs a KeywordMatcher that use dataStore as its input source
+     * @param predicate,
+     * @param dataStore
+     */
 	public KeywordMatcher(IPredicate predicate, IDataStore dataStore) {
 		this(predicate);
     
@@ -52,25 +56,41 @@ public class KeywordMatcher implements IOperator {
         this.inputOperator = new IndexBasedSourceOperator(dataReaderPredicate);
     }
 	
+	/**
+	 * Constructs a KeywordMatcher that uses inputOperator as its input source.
+	 * @param predicate
+	 * @param inputOperator
+	 */
+	public KeywordMatcher(IPredicate predicate, IOperator inputOperator) {
+		this(predicate);
+        this.inputOperator = inputOperator;
+	}	
+
+	/**
+	 * Constructs a KeywordMatcher with no input source. 
+	 * To specify its input operator, call setInputOperator().
+	 * @param predicate
+	 */
 	public KeywordMatcher(IPredicate predicate) {
         this.predicate = (KeywordPredicate) predicate;
         this.query = this.predicate.getQuery();
-	}
+    }
+	
 
 
     @Override
     public void open() throws DataFlowException {
-    	if (this.inputOperator == null) {
+    	if (inputOperator == null) {
     		throw new DataFlowException(ErrorMessages.NO_INPUT_OPERATOR);
     	}
         try {
             inputOperator.open();
-            this.inputSchema = inputOperator.getOutputSchema();
+            inputSchema = inputOperator.getOutputSchema();
             
-            if (this.spanAdded && (this.inputSchema.getIndex(SchemaConstants.SPAN_LIST) == null)) {
-				this.outputSchema = Utils.createSpanSchema(this.inputSchema);
+            if (spanAdded && (inputSchema.getIndex(SchemaConstants.SPAN_LIST) == null)) {
+				outputSchema = Utils.createSpanSchema(inputSchema);
             } else {
-                this.outputSchema = this.inputSchema;
+                outputSchema = inputSchema;
             }
             
         } catch (Exception e) {
@@ -91,7 +111,7 @@ public class KeywordMatcher implements IOperator {
      */
     @Override
     public ITuple getNextTuple() throws DataFlowException {
-    	if (this.inputOperator == null) {
+    	if (inputOperator == null) {
     		throw new DataFlowException(ErrorMessages.NO_INPUT_OPERATOR);
     	}
         try {
@@ -102,18 +122,18 @@ public class KeywordMatcher implements IOperator {
                     return null;
                 }
                 
-                if (this.spanAdded && (this.inputSchema.getIndex(SchemaConstants.SPAN_LIST) == null)) {
-                	sourceTuple = Utils.getSpanTuple(sourceTuple.getFields(), new ArrayList<Span>(), this.outputSchema);
-    				this.outputSchema = Utils.createSpanSchema(this.inputSchema);
+                if (spanAdded && (inputSchema.getIndex(SchemaConstants.SPAN_LIST) == null)) {
+                	sourceTuple = Utils.getSpanTuple(sourceTuple.getFields(), new ArrayList<Span>(), outputSchema);
+    				outputSchema = Utils.createSpanSchema(inputSchema);
                 }
                 
-                if (this.predicate.getOperatorType() == DataConstants.KeywordMatchingType.CONJUNCTION_INDEXBASED) {
+                if (predicate.getOperatorType() == DataConstants.KeywordMatchingType.CONJUNCTION_INDEXBASED) {
                 	result = processConjunction(sourceTuple);
                 }
-                if (this.predicate.getOperatorType() == DataConstants.KeywordMatchingType.PHRASE_INDEXBASED) {
+                if (predicate.getOperatorType() == DataConstants.KeywordMatchingType.PHRASE_INDEXBASED) {
                 	result = processPhrase(sourceTuple);
                 }
-                if (this.predicate.getOperatorType() == DataConstants.KeywordMatchingType.SUBSTRING_SCANBASED) {
+                if (predicate.getOperatorType() == DataConstants.KeywordMatchingType.SUBSTRING_SCANBASED) {
                 	result = processSubstring(sourceTuple);
                 }
                 
@@ -131,10 +151,10 @@ public class KeywordMatcher implements IOperator {
     
     
     private ITuple processConjunction(ITuple currentTuple) throws DataFlowException {
-    	if (this.inputSchema == null) {
+    	if (inputSchema == null) {
     		throw new RuntimeException("input schema is null");
     	}
-    	if (! this.inputSchema.hasField(SchemaConstants.TERM_VECTOR)) {
+    	if (! inputSchema.hasField(SchemaConstants.TERM_VECTOR)) {
     		throw new RuntimeException("TODO: create term vector if it doesn't exist");
     	}
     	
@@ -142,7 +162,7 @@ public class KeywordMatcher implements IOperator {
     	List<Span> relevantSpans = filterRelevantSpans(termVec);
     	List<Span> matchResults = new ArrayList<>();
     	
-    	for (Attribute attribute : this.predicate.getAttributeList()) {
+    	for (Attribute attribute : predicate.getAttributeList()) {
     		String fieldName = attribute.getFieldName();
     		FieldType fieldType = attribute.getFieldType();
 			String fieldValue = currentTuple.getField(fieldName).getValue().toString();
@@ -177,7 +197,7 @@ public class KeywordMatcher implements IOperator {
     		return null;
     	}
     	
-    	if (this.spanAdded) {
+    	if (spanAdded) {
         	List<Span> spanList = (List<Span>) currentTuple.getField(SchemaConstants.SPAN_LIST).getValue(); 
         	spanList.addAll(matchResults);
     	}
@@ -187,15 +207,18 @@ public class KeywordMatcher implements IOperator {
     
     
     private ITuple processPhrase(ITuple currentTuple) throws DataFlowException {
-    	if (! this.inputSchema.hasField(SchemaConstants.TERM_VECTOR)) {
+    	if (! inputSchema.hasField(SchemaConstants.TERM_VECTOR)) {
     		throw new RuntimeException("TODO: create term vector if it doesn't exist");
     	}
     	
     	List<Span> termVec = (List<Span>) currentTuple.getField(SchemaConstants.TERM_VECTOR).getValue(); 
+    	if (termVec == null) {
+    		throw new RuntimeException("PANIC: term vector is null");
+    	}
     	List<Span> relevantSpans = filterRelevantSpans(termVec);
     	List<Span> matchResults = new ArrayList<>();
     	
-    	for (Attribute attribute : this.predicate.getAttributeList()) {
+    	for (Attribute attribute : predicate.getAttributeList()) {
     		String fieldName = attribute.getFieldName();
     		FieldType fieldType = attribute.getFieldType();
     		String fieldValue = currentTuple.getField(fieldName).getValue().toString();
@@ -276,7 +299,7 @@ public class KeywordMatcher implements IOperator {
     		return null;
     	}
 
-    	if (this.spanAdded) {
+    	if (spanAdded) {
         	List<Span> spanList = (List<Span>) currentTuple.getField(SchemaConstants.SPAN_LIST).getValue(); 
         	spanList.addAll(matchResults);
     	}
@@ -288,7 +311,7 @@ public class KeywordMatcher implements IOperator {
     private ITuple processSubstring(ITuple currentTuple) throws DataFlowException {
     	List<Span> matchResults = new ArrayList<>();
     	
-    	for (Attribute attribute : this.predicate.getAttributeList()) {
+    	for (Attribute attribute : predicate.getAttributeList()) {
     		String fieldName = attribute.getFieldName();
     		FieldType fieldType = attribute.getFieldType();
     		String fieldValue = currentTuple.getField(fieldName).getValue().toString();
@@ -323,7 +346,7 @@ public class KeywordMatcher implements IOperator {
     		return null;
     	}
     	
-    	if (this.spanAdded) {
+    	if (spanAdded) {
         	List<Span> spanList = (List<Span>) currentTuple.getField(SchemaConstants.SPAN_LIST).getValue(); 
         	spanList.addAll(matchResults);
     	}

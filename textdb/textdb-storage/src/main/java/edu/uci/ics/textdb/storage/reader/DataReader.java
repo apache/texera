@@ -57,7 +57,7 @@ public class DataReader implements IDataReader {
 	private boolean termVecAdded = true;
 	
 	public DataReader(DataReaderPredicate dataReaderPredicate) {
-		this.predicate = dataReaderPredicate;
+		predicate = dataReaderPredicate;
 	}
 	
 	
@@ -66,17 +66,17 @@ public class DataReader implements IDataReader {
 		try {
 			String indexDirectoryStr = predicate.getDataStore().getDataDirectory();
 			Directory indexDirectory = FSDirectory.open(Paths.get(indexDirectoryStr));
-			this.indexReader = DirectoryReader.open(indexDirectory);
-			this.indexSearcher = new IndexSearcher(indexReader);
+			indexReader = DirectoryReader.open(indexDirectory);
+			indexSearcher = new IndexSearcher(indexReader);
 			
 			TopDocs topDocs = indexSearcher.search(predicate.getLuceneQuery(), Integer.MAX_VALUE);
-			this.scoreDocs = topDocs.scoreDocs;
+			scoreDocs = topDocs.scoreDocs;
 			
-			this.inputSchema = predicate.getDataStore().getSchema();
-			if (this.termVecAdded) {
-				this.outputSchema = Utils.appendAttributeToSchema(this.inputSchema, SchemaConstants.TERM_VECTOR_ATTRIBUTE);
+			inputSchema = predicate.getDataStore().getSchema();
+			if (termVecAdded) {
+				outputSchema = Utils.appendAttributeToSchema(inputSchema, SchemaConstants.TERM_VECTOR_ATTRIBUTE);
 			} else {
-				this.outputSchema = predicate.getDataStore().getSchema();
+				outputSchema = predicate.getDataStore().getSchema();
 			}
 				
 		} catch (IOException e) {
@@ -90,18 +90,17 @@ public class DataReader implements IDataReader {
 
 	@Override
 	public ITuple getNextTuple() throws DataFlowException {
-		if (this.cursor == CLOSED) {
+		if (cursor == CLOSED) {
 			throw new DataFlowException(ErrorMessages.OPERATOR_NOT_OPENED);
 		}
 		
 		ITuple resultTuple;
         try {
-    		if (this.cursor >= this.scoreDocs.length) {
+    		if (cursor >= scoreDocs.length) {
     			return null;
     		}
     		int docID = scoreDocs[cursor].doc;
     		resultTuple = constructTuple(docID);
-
 			
 		} catch (IOException | ParseException e) {
 			e.printStackTrace();
@@ -128,10 +127,10 @@ public class DataReader implements IDataReader {
 	
 	
 	private ITuple constructTuple(int docID) throws IOException, ParseException {
-		Document document = this.indexSearcher.doc(docID);
+		Document document = indexSearcher.doc(docID);
 		ArrayList<IField> docFields = documentToFields(document);
 		
-		if (this.termVecAdded) {
+		if (termVecAdded) {
 			ArrayList<Span> payloadSpanList = buildPayloadFromTermVector(docFields, docID);
 			ListField<Span> payloadField = new ListField<Span>(payloadSpanList);
 			docFields.add(payloadField);
@@ -144,7 +143,7 @@ public class DataReader implements IDataReader {
 	
 	private ArrayList<IField> documentToFields(Document document) throws ParseException {
 		ArrayList<IField> fields = new ArrayList<>();
-        for (Attribute attr : this.inputSchema.getAttributes()) {
+        for (Attribute attr : inputSchema.getAttributes()) {
             FieldType fieldType = attr.getFieldType();
             String fieldValue = document.get(attr.getFieldName());
             fields.add(Utils.getField(fieldType, fieldValue));
@@ -156,24 +155,24 @@ public class DataReader implements IDataReader {
 	private ArrayList<Span> buildPayloadFromTermVector(List<IField> fields, int docID) throws IOException {
 		ArrayList<Span> payloadSpanList = new ArrayList<>();
 
-		for (Attribute attr : this.inputSchema.getAttributes()) {
+		for (Attribute attr : inputSchema.getAttributes()) {
 			String fieldName = attr.getFieldName();
 			FieldType fieldType = attr.getFieldType();
-			
+					
 			if (fieldType != FieldType.TEXT) {
 				continue;
 			}
 			
 			String fieldValue = fields.get(inputSchema.getIndex(fieldName)).getValue().toString();
 			
-			Terms termVector = this.indexReader.getTermVector(docID, fieldName);			
+			Terms termVector = indexReader.getTermVector(docID, fieldName);			
 			if (termVector == null) {
-				return null;
+				continue;
 			}
-			
+
 			TermsEnum termsEnum = termVector.iterator();
 			PostingsEnum termPostings = null;
-			
+	
 			while ((termsEnum.next()) != null) {
 				termPostings = termsEnum.postings(termPostings, PostingsEnum.ALL);
 				if (termPostings.nextDoc() == DocIdSetIterator.NO_MORE_DOCS) {
@@ -192,7 +191,7 @@ public class DataReader implements IDataReader {
 				}
 			}
 		}
-		
+
 		return payloadSpanList;
 	}
 	
