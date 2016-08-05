@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.file.Paths;
 import java.text.ParseException;
 import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.DirectoryReader;
@@ -66,8 +67,8 @@ public class DataReader implements IDataReader {
 			String indexDirectoryStr = predicate.getDataStore().getDataDirectory();
 			Directory indexDirectory = FSDirectory.open(Paths.get(indexDirectoryStr));
 			this.indexReader = DirectoryReader.open(indexDirectory);
-			
 			this.indexSearcher = new IndexSearcher(indexReader);
+			
 			TopDocs topDocs = indexSearcher.search(predicate.getLuceneQuery(), Integer.MAX_VALUE);
 			this.scoreDocs = topDocs.scoreDocs;
 			
@@ -128,66 +129,71 @@ public class DataReader implements IDataReader {
 	
 	private ITuple constructTuple(int docID) throws IOException, ParseException {
 		Document document = this.indexSearcher.doc(docID);
-		ITuple resultTuple = documentToTuple(document);
+		ArrayList<IField> docFields = documentToFields(document);
 		
 		if (this.termVecAdded) {
-			ArrayList<Span> termVecList = new ArrayList<>();
-			for (Attribute attr : this.inputSchema.getAttributes()) {
-				if (attr.getFieldType() == FieldType.TEXT) {
-					String fieldName = attr.getFieldName();
-					Terms termVector = indexReader.getTermVector(docID, fieldName);
-					termVecList.addAll(termVecToSpanList(termVector, docID, fieldName));
-				}
-			}
-			
-			ArrayList<IField> fields = new ArrayList<>(resultTuple.getFields());
-			fields.add(new ListField<Span>(termVecList));
-			
-			resultTuple = new DataTuple(outputSchema, fields.stream().toArray(IField[]::new));
+			ArrayList<Span> payloadSpanList = buildPayloadFromTermVector(docFields, docID);
+			ListField<Span> payloadField = new ListField<Span>(payloadSpanList);
+			docFields.add(payloadField);
 		}
+		
+		DataTuple resultTuple = new DataTuple(outputSchema, docFields.stream().toArray(IField[]::new));
 		return resultTuple;
 	}
 	
 	
-	private ITuple documentToTuple(Document document) throws ParseException {
+	private ArrayList<IField> documentToFields(Document document) throws ParseException {
 		ArrayList<IField> fields = new ArrayList<>();
         for (Attribute attr : this.inputSchema.getAttributes()) {
             FieldType fieldType = attr.getFieldType();
             String fieldValue = document.get(attr.getFieldName());
             fields.add(Utils.getField(fieldType, fieldValue));
         }
-        DataTuple resultTuple = new DataTuple(this.inputSchema, fields.stream().toArray(IField[]::new));  
-        return resultTuple;
+        return fields;
 	}
 	
 	
-	private ArrayList<Span> termVecToSpanList(Terms termVector, int docID, String fieldName) throws IOException {
-		if (termVector == null) {
-			return null;
-		}
-		
-		ArrayList<Span> termVecList = new ArrayList<>();
-		TermsEnum termsEnum = termVector.iterator();
-		PostingsEnum termPostings = null;
-		
-		while ((termsEnum.next()) != null) {
-			termPostings = termsEnum.postings(termPostings, PostingsEnum.ALL);
-			while (termPostings.nextDoc() == docID) {
+	private ArrayList<Span> buildPayloadFromTermVector(List<IField> fields, int docID) throws IOException {
+		ArrayList<Span> payloadSpanList = new ArrayList<>();
+
+		for (Attribute attr : this.inputSchema.getAttributes()) {
+			String fieldName = attr.getFieldName();
+			FieldType fieldType = attr.getFieldType();
+			
+			if (fieldType != FieldType.TEXT) {
+				continue;
+			}
+			
+			String fieldValue = fields.get(inputSchema.getIndex(fieldName)).getValue().toString();
+			
+			Terms termVector = this.indexReader.getTermVector(docID, fieldName);			
+			if (termVector == null) {
+				return null;
+			}
+			
+			TermsEnum termsEnum = termVector.iterator();
+			PostingsEnum termPostings = null;
+			
+			while ((termsEnum.next()) != null) {
+				termPostings = termsEnum.postings(termPostings, PostingsEnum.ALL);
+				if (termPostings.nextDoc() == DocIdSetIterator.NO_MORE_DOCS) {
+					continue;
+				}
 				for (int i = 0; i < termPostings.freq(); i++) {
-		        	int position = termPostings.nextPosition();
-					Span span = new Span(
-							fieldName,	// field
-							termPostings.startOffset(), 	// start
-							termPostings.endOffset(), 		// end
-							termsEnum.term().utf8ToString(),
-							termsEnum.term().utf8ToString(), // value
-							position);	// token offset
-					termVecList.add(span);
+		        	int position = termPostings.nextPosition(); // nextPosition needs to be called first
+		        	
+		        	int start = termPostings.startOffset();
+		        	int end = termPostings.endOffset();
+		        	String termStr = termsEnum.term().utf8ToString();
+		        	String actualStr = fieldValue.substring(start, end);
+
+					Span span = new Span(fieldName, start, end, termStr, actualStr, position);
+					payloadSpanList.add(span);
 				}
 			}
 		}
 		
-		return termVecList;
+		return payloadSpanList;
 	}
 	
 	

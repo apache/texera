@@ -102,16 +102,11 @@ public class KeywordMatcher implements IOperator {
                     return null;
                 }
                 
-                //--------
-                if (!containsSpanList(sourceTuple)) {
-                	System.out.println("added");
-                	List<Span> emptySpanList = new ArrayList<Span>();
-                	sourceTuple = Utils.getSpanTuple(sourceTuple.getFields(),
-                			emptySpanList, outputSchema);
-                	System.out.println(outputSchema.getAttributes());
-                	System.out.println(containsSpanList(sourceTuple));
+                if (this.spanAdded && (this.inputSchema.getIndex(SchemaConstants.SPAN_LIST) == null)) {
+                	sourceTuple = Utils.getSpanTuple(sourceTuple.getFields(), new ArrayList<Span>(), this.outputSchema);
+    				this.outputSchema = Utils.createSpanSchema(this.inputSchema);
                 }
-                //--------
+                
                 if (this.predicate.getOperatorType() == DataConstants.KeywordMatchingType.CONJUNCTION_INDEXBASED) {
                 	result = processConjunction(sourceTuple);
                 }
@@ -132,16 +127,7 @@ public class KeywordMatcher implements IOperator {
         }
 
     }
-    
-    
-    private boolean containsSpanList(ITuple inputITuple){
-    	for (Attribute attr : inputITuple.getSchema().getAttributes()) {
-    		if (attr.getFieldName() == SchemaConstants.SPAN_LIST) {
-    			return true;
-    		}
-    	}
-    	return false;
-    }
+
     
     
     private ITuple processConjunction(ITuple currentTuple) throws DataFlowException {
@@ -153,9 +139,8 @@ public class KeywordMatcher implements IOperator {
     	}
     	
     	List<Span> termVec = (List<Span>) currentTuple.getField(SchemaConstants.TERM_VECTOR).getValue(); 
-    	List<Span> spanList = (List<Span>) currentTuple.getField(SchemaConstants.SPAN_LIST).getValue(); 
-    	List<Span> filteredSpans = filterRelevantSpans(termVec);
-    	
+    	List<Span> relevantSpans = filterRelevantSpans(termVec);
+    	List<Span> matchResults = new ArrayList<>();
     	
     	for (Attribute attribute : this.predicate.getAttributeList()) {
     		String fieldName = attribute.getFieldName();
@@ -171,27 +156,32 @@ public class KeywordMatcher implements IOperator {
     		if (fieldType == FieldType.STRING) {
                 if (fieldValue.equals(query)) {
                     Span span = new Span(fieldName, 0, query.length(), query, fieldValue);
-                    filteredSpans.add(span);
+                    matchResults.add(span);
                 }
     		}
     		
     		// for TEXT type, every token in the query should be present in span list for this field
     		if (fieldType == FieldType.TEXT) {
-        		List<Span> fieldSpanList = filteredSpans.stream()
+        		List<Span> fieldSpanList = relevantSpans.stream()
         				.filter(span -> span.getFieldName().equals(fieldName))
         				.collect(Collectors.toList());
         		
-        		if (! isAllQueryTokensPresent(fieldSpanList, predicate.getQueryTokenSet())) {
-        			filteredSpans.removeAll(fieldSpanList);
+        		if (isAllQueryTokensPresent(fieldSpanList, predicate.getQueryTokenSet())) {
+        			matchResults.addAll(fieldSpanList);
         		}
     		}
     		
     	}
-    	
-    	if (filteredSpans.isEmpty()) {
+
+    	if (matchResults.isEmpty()) {
     		return null;
     	}
-    	spanList.addAll(filteredSpans);
+    	
+    	if (this.spanAdded) {
+        	List<Span> spanList = (List<Span>) currentTuple.getField(SchemaConstants.SPAN_LIST).getValue(); 
+        	spanList.addAll(matchResults);
+    	}
+    	
     	return currentTuple;
     }
     
@@ -202,8 +192,8 @@ public class KeywordMatcher implements IOperator {
     	}
     	
     	List<Span> termVec = (List<Span>) currentTuple.getField(SchemaConstants.TERM_VECTOR).getValue(); 
-    	List<Span> spanList = (List<Span>) currentTuple.getField(SchemaConstants.SPAN_LIST).getValue(); 
-    	List<Span> filteredSpans = filterRelevantSpans(termVec);
+    	List<Span> relevantSpans = filterRelevantSpans(termVec);
+    	List<Span> matchResults = new ArrayList<>();
     	
     	for (Attribute attribute : this.predicate.getAttributeList()) {
     		String fieldName = attribute.getFieldName();
@@ -218,17 +208,16 @@ public class KeywordMatcher implements IOperator {
 			// for STRING type, the query should match the fieldValue completely
     		if (fieldType == FieldType.STRING) {
                 if (fieldValue.equals(query)) {
-                    filteredSpans.add(new Span(fieldName, 0, query.length(), query, fieldValue));
+                	matchResults.add(new Span(fieldName, 0, query.length(), query, fieldValue));
                 }
     		}
     		
     		// for TEXT type, spans need to be reconstructed according to the phrase query
     		if (fieldType == FieldType.TEXT) {
-        		List<Span> fieldSpanList = filteredSpans.stream()
+        		List<Span> fieldSpanList = relevantSpans.stream()
         				.filter(span -> span.getFieldName().equals(fieldName))
         				.collect(Collectors.toList());
         		
-        		filteredSpans.removeAll(fieldSpanList);
         		if (! isAllQueryTokensPresent(fieldSpanList, predicate.getQueryTokenSet())) {
         			// move on to next field if not all query tokens are present in the spans
         			continue;
@@ -241,14 +230,14 @@ public class KeywordMatcher implements IOperator {
             	List<Integer> queryTokenOffset = new ArrayList<>();
             	List<String> queryTokensWithStopwords = predicate.getQueryTokensWithStopwords();
             	
-                for(int i = 0; i < queryTokensWithStopwords.size(); i++){
+                for(int i = 0; i < queryTokensWithStopwords.size(); i++) {
                     if (queryTokenList.contains(queryTokensWithStopwords.get(i))) {
                         queryTokenOffset.add(i);
                     }
                 }
 
                 int iter = 0; // maintains position of term being checked in spanForThisField list
-                while(iter < fieldSpanList.size()){
+                while(iter < fieldSpanList.size()) {
                     if (iter > fieldSpanList.size()-queryTokenList.size()) {
                     	break;
                     }
@@ -277,22 +266,27 @@ public class KeywordMatcher implements IOperator {
                     int combinedSpanEndIndex = fieldSpanList.get(iter+queryTokenList.size()-1).getEnd();
 
                     Span combinedSpan = new Span(fieldName, combinedSpanStartIndex, combinedSpanEndIndex, query, fieldValue.substring(combinedSpanStartIndex, combinedSpanEndIndex));
-                    filteredSpans.add(combinedSpan);
+                    matchResults.add(combinedSpan);
                     iter = iter + queryTokenList.size();
                 }
     		}
     	}
     	
-    	if (filteredSpans.isEmpty()) {
+    	if (matchResults.isEmpty()) {
     		return null;
     	}
-    	spanList.addAll(filteredSpans);
+
+    	if (this.spanAdded) {
+        	List<Span> spanList = (List<Span>) currentTuple.getField(SchemaConstants.SPAN_LIST).getValue(); 
+        	spanList.addAll(matchResults);
+    	}
+
     	return currentTuple;
     }
     
     
     private ITuple processSubstring(ITuple currentTuple) throws DataFlowException {
-    	List<Span> spanList = (List<Span>) currentTuple.getField(SchemaConstants.SPAN_LIST).getValue(); 
+    	List<Span> matchResults = new ArrayList<>();
     	
     	for (Attribute attribute : this.predicate.getAttributeList()) {
     		String fieldName = attribute.getFieldName();
@@ -308,7 +302,7 @@ public class KeywordMatcher implements IOperator {
 			// for STRING type, the query should match the fieldValue completely
     		if (fieldType == FieldType.STRING) {
                 if (fieldValue.equals(query)) {
-                    spanList.add(new Span(fieldName, 0, query.length(), query, fieldValue));
+                	matchResults.add(new Span(fieldName, 0, query.length(), query, fieldValue));
                 }
     		}
     		
@@ -320,16 +314,23 @@ public class KeywordMatcher implements IOperator {
     				int start = matcher.start();
     				int end = matcher.end();
 
-    				spanList.add(new Span(fieldName, start, end, query, fieldValue.substring(start, end)));
+    				matchResults.add(new Span(fieldName, start, end, query, fieldValue.substring(start, end)));
     			}
     		}
     		
     	}
-    	if (spanList.isEmpty()) {
+    	if (matchResults.isEmpty()) {
     		return null;
     	}
+    	
+    	if (this.spanAdded) {
+        	List<Span> spanList = (List<Span>) currentTuple.getField(SchemaConstants.SPAN_LIST).getValue(); 
+        	spanList.addAll(matchResults);
+    	}
+    	
     	return currentTuple;
     }
+    
     
     private List<Span> filterRelevantSpans(List<Span> spanList) {
     	List<Span> filteredList = new ArrayList<>();

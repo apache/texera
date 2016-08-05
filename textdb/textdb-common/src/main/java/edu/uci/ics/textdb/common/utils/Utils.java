@@ -7,6 +7,7 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
@@ -109,13 +110,36 @@ public class Utils {
     /**
      * @about Creating a new span tuple from span schema, field list 
      */
-    public static ITuple getSpanTuple( List<IField> fieldList, List<Span> spanList, Schema spanSchema) {
+    public static ITuple getSpanTuple(List<IField> fieldList, List<Span> spanList, Schema spanSchema) {
         IField spanListField = new ListField<Span>(new ArrayList<>(spanList));
         List<IField> fieldListDuplicate = new ArrayList<>(fieldList);
         fieldListDuplicate.add(spanListField);
 
         IField[] fieldsDuplicate = fieldListDuplicate.toArray(new IField[fieldListDuplicate.size()]);
         return new DataTuple(spanSchema, fieldsDuplicate);
+    }
+    
+    public static List<ITuple> removePayload(List<ITuple> tupleList) {
+    	List<ITuple> tupleListWithoutPayload = 
+    			tupleList.stream().map(tuple -> removePayload(tuple))
+    			.collect(Collectors.toList());
+    	return tupleListWithoutPayload;
+    }
+    
+    public static ITuple removePayload(ITuple tuple) {
+    	Integer payloadIndex = tuple.getSchema().getIndex(SchemaConstants.TERM_VECTOR);
+    	if (payloadIndex == null) {
+    		return tuple;
+    	} else {
+    		Attribute[] attrWithoutPayload = tuple.getSchema().getAttributes().stream()
+					.filter(x -> (! x.getFieldName().equals(SchemaConstants.TERM_VECTOR)))
+					.toArray(Attribute[]::new);
+    		Schema schemaWithoutPayload = new Schema(attrWithoutPayload);
+    		List<IField> fieldsWithoutPayload = new ArrayList<IField>(tuple.getFields());
+    		fieldsWithoutPayload.remove(payloadIndex.intValue());
+    		ITuple tupleWithoutPayload = new DataTuple(schemaWithoutPayload, fieldsWithoutPayload.stream().toArray(IField[]::new));
+    		return tupleWithoutPayload;
+    	}
     }
 
     /**
@@ -149,12 +173,7 @@ public class Utils {
         try{
             tokenStream.reset();
             while (tokenStream.incrementToken()) {
-                String token = term.toString();
-                int tokenIndex = query.toLowerCase().indexOf(token);
-                // Since tokens are converted to lower case,
-                // get the exact token from the query string.
-                String actualQueryToken = query.substring(tokenIndex, tokenIndex+token.length());
-                result.add(actualQueryToken);
+                result.add(term.toString());
             }
             tokenStream.close();
         } catch (Exception e) {
@@ -174,12 +193,7 @@ public class Utils {
         try{
             tokenStream.reset();
             while (tokenStream.incrementToken()) {
-                String token = term.toString();
-                int tokenIndex = query.toLowerCase().indexOf(token);
-                // Since tokens are converted to lower case,
-                // get the exact token from the query string.
-                String actualQueryToken = query.substring(tokenIndex, tokenIndex+token.length());
-                result.add(actualQueryToken);
+                result.add(term.toString());
             }
             tokenStream.close();
         } catch (Exception e) {
