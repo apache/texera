@@ -207,9 +207,11 @@ public class RegexMatcher implements IOperator {
         if (this.inputOperator == null) {
             throw new DataFlowException(ErrorMessages.INPUT_OPERATOR_NOT_SPECIFIED);
         }
+              
         
         try {
             inputOperator.open();
+            this.spanSchema = Utils.createSpanSchema(this.inputOperator.getOutputSchema());
         } catch (Exception e) {
             e.printStackTrace();
             throw new DataFlowException(e.getMessage(), e);
