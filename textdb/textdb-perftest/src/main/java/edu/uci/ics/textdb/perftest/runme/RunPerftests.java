@@ -57,6 +57,7 @@ public class RunPerftests {
 			FuzzyTokenMatcherPerformanceTest.runTest("sample_queries.txt", 1, thresholds);
 			RegexMatcherPerformanceTest.runTest(regexQueries, 2);
 			NlpExtractorPerformanceTest.runTest(1);
+			
 
 		} catch (StorageException | DataFlowException | IOException e) {
 			e.printStackTrace();
