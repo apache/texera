@@ -40,11 +40,11 @@ public class FuzzyTokenMatcher implements IOperator{
     private int cursor;
     private int offset;
 
-    public FuzzyTokenMatcher(IPredicate predicate) {
+    public FuzzyTokenMatcher(FuzzyTokenPredicate predicate) {
         this.cursor = -1;
         this.limit = Integer.MAX_VALUE;
         this.offset = 0;
-        this.predicate = (FuzzyTokenPredicate)predicate;
+        this.predicate = predicate;
         DataReaderPredicate dataReaderPredicate = this.predicate.getDataReaderPredicate();
         this.inputOperator = new IndexBasedSourceOperator(dataReaderPredicate);
     }

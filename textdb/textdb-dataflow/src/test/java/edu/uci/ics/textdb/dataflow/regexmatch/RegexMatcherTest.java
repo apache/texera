@@ -374,6 +374,7 @@ public class RegexMatcherTest {
 		fields.add(spanField);
 		expectedResults.add(new DataTuple(spanSchema, fields.toArray(new IField[fields.size()])));
 		
+		exactResultsWithLimit = Utils.removePayload(exactResultsWithLimit);
 		Assert.assertTrue(expectedResults.containsAll(exactResultsWithLimit));
 		Assert.assertEquals(expectedResults.size(), 3);
 		Assert.assertEquals(exactResultsWithLimit.size(), 2);
@@ -416,6 +417,7 @@ public class RegexMatcherTest {
 		fields.add(spanField);
 		expectedResults.add(new DataTuple(spanSchema, fields.toArray(new IField[fields.size()])));
 		
+		exactResultsWithLimitOffset = Utils.removePayload(exactResultsWithLimitOffset);
 		Assert.assertTrue(expectedResults.containsAll(exactResultsWithLimitOffset));
 		Assert.assertEquals(expectedResults.size(), 3);
 		Assert.assertEquals(exactResultsWithLimitOffset.size(), 2);

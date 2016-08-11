@@ -1,10 +1,8 @@
-/**
- * 
- */
 package edu.uci.ics.textdb.storage.reader;
 
 import java.io.IOException;
 import java.nio.file.Paths;
+import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -20,7 +18,6 @@ import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
-import org.apache.lucene.util.BytesRef;
 
 import edu.uci.ics.textdb.api.common.Attribute;
 import edu.uci.ics.textdb.api.common.FieldType;
@@ -33,186 +30,203 @@ import edu.uci.ics.textdb.common.constants.SchemaConstants;
 import edu.uci.ics.textdb.common.exception.DataFlowException;
 import edu.uci.ics.textdb.common.exception.ErrorMessages;
 import edu.uci.ics.textdb.common.field.DataTuple;
+import edu.uci.ics.textdb.common.field.ListField;
 import edu.uci.ics.textdb.common.field.Span;
 import edu.uci.ics.textdb.common.utils.Utils;
 import edu.uci.ics.textdb.storage.DataReaderPredicate;
 
 /**
- * @author sandeepreddy602
+ * 
+ * @author Zuozhi Wang
  *
  */
-public class DataReader implements IDataReader{
 
-    private int cursor = CLOSED;
-    private IndexSearcher luceneIndexSearcher;
-    private ScoreDoc[] scoreDocs;
-    private IndexReader luceneIndexReader;
-    private DataReaderPredicate dataReaderPredicate;
-    private ArrayList<String> queryTokens;
-    private List<Attribute> attributeList;
-    private List<BytesRef> queryTokensInBytesRef;
-    // The schema of the data tuple
-    private Schema schema;
-    //The schema of the data tuple along with the span information.
-    private Schema outputSchema;
+public class DataReader implements IDataReader {
+	
+	private DataReaderPredicate predicate;
+	private Schema inputSchema;
+	private Schema outputSchema;
 
-    public DataReader(IPredicate dataReaderPredicate) {
-        this.dataReaderPredicate = (DataReaderPredicate)dataReaderPredicate;
-    }
-    
-    @Override
-    public void open() throws DataFlowException {
+	private IndexReader luceneIndexReader;
+	private IndexSearcher luceneIndexSearcher;
+	private ScoreDoc[] scoreDocs;
+	
+	private int cursor = CLOSED;
 
+	private int limit;
+	private int offset;
+	private boolean payloadAdded = true;
+	
+	public DataReader(DataReaderPredicate dataReaderPredicate) {
+		predicate = dataReaderPredicate;
+	}
+	
+	
+	@Override
+	public void open() throws DataFlowException {
+	    if (cursor != CLOSED) {
+	        return;
+	    }
+		try {
+			String indexDirectoryStr = predicate.getDataStore().getDataDirectory();
+			Directory indexDirectory = FSDirectory.open(Paths.get(indexDirectoryStr));
+			luceneIndexReader = DirectoryReader.open(indexDirectory);
+			luceneIndexSearcher = new IndexSearcher(luceneIndexReader);
+			
+			TopDocs topDocs = luceneIndexSearcher.search(predicate.getLuceneQuery(), Integer.MAX_VALUE);
+			scoreDocs = topDocs.scoreDocs;
+			
+			inputSchema = predicate.getDataStore().getSchema();
+			if (payloadAdded) {
+				outputSchema = Utils.addAttributeToSchema(inputSchema, SchemaConstants.PAYLOAD_ATTRIBUTE);
+			} else {
+				outputSchema = inputSchema;
+			}
+			
+		} catch (IOException e) {
+			e.printStackTrace();
+			throw new DataFlowException(e.getMessage(), e);
+		}
+		
+		cursor = OPENED;
+	}
+	
 
+	@Override
+	public ITuple getNextTuple() throws DataFlowException {
+		if (cursor == CLOSED) {
+			throw new DataFlowException(ErrorMessages.OPERATOR_NOT_OPENED);
+		}
+		
+		ITuple resultTuple;
         try {
-            String dataDirectory = dataReaderPredicate.getDataStore().getDataDirectory();
-            Directory directory = FSDirectory.open(Paths.get(dataDirectory));
-            luceneIndexReader = DirectoryReader.open(directory);
-                		
-            luceneIndexSearcher = new IndexSearcher(luceneIndexReader);
-            TopDocs topDocs = luceneIndexSearcher.search(dataReaderPredicate.getLuceneQuery(), Integer.MAX_VALUE);
-            scoreDocs = topDocs.scoreDocs;
-            cursor = OPENED;
-            
-            this.schema = dataReaderPredicate.getDataStore().getSchema();
-
-            if (this.dataReaderPredicate.getIsSpanInformationAdded()) {
-                this.queryTokens = Utils.tokenizeQuery(dataReaderPredicate.getLuceneAnalyzer(),dataReaderPredicate.getQueryString());
-
-                // sort the query tokens, as the term vector are also sorted.
-                // This makes the seek faster.
-                this.queryTokens.sort(String.CASE_INSENSITIVE_ORDER);
-
-                // The terms in the term vector are stored as ByteRef,
-                // hence convert token from String format to ByteRef and then search.
-
-                this.queryTokensInBytesRef = new ArrayList<>();
-                for(String token: queryTokens) {
-                    BytesRef byteRef = new BytesRef(token.toLowerCase().getBytes());
-                    this.queryTokensInBytesRef.add(byteRef);
-                }
-
-                this.attributeList = dataReaderPredicate.getAttributeList();
-                this.outputSchema = Utils.addAttributeToSchema(schema, SchemaConstants.PAYLOAD_ATTRIBUTE);
-            }
-
-        } catch (IOException e) {
-            e.printStackTrace();
-            throw new DataFlowException(e.getMessage(), e);
-        }
-    }
-
-    @Override
-    public ITuple getNextTuple() throws DataFlowException {
-        if(cursor == CLOSED){
-            throw new DataFlowException(ErrorMessages.OPERATOR_NOT_OPENED);
-        }
-        try {
-            if(cursor >= scoreDocs.length){
-                return null;
-            }
-            Document document = luceneIndexSearcher.doc(scoreDocs[cursor].doc);
-            List<Span> payload = new ArrayList<>();
-            List<IField> fields = new ArrayList<IField>();
-
-            for (Attribute  attr : schema.getAttributes()) {
-                FieldType fieldType = attr.getFieldType();
-                String fieldValue = document.get(attr.getFieldName());
-                fields.add(Utils.getField(fieldType, fieldValue));
-            }
-
-            // If the span Information is not requested,
-            // just return the dataTuple without span information.
-
-            if(!dataReaderPredicate.getIsSpanInformationAdded()){
-                cursor++;
-                DataTuple dataTuple = new DataTuple(schema, fields.toArray(new IField[fields.size()]));
-                return  dataTuple;
-            }
-
-            // Create span information.
-
-            for(Attribute attr: attributeList){
-
-                String fieldName  = attr.getFieldName();
-                // Get the term vector for the current field.
-                Terms vector = luceneIndexReader.getTermVector(scoreDocs[cursor].doc,fieldName);
-
-                if (vector != null) {
-                    TermsEnum vectorEnum = vector.iterator();
-                    int queryTokenIndex = 0;
-                    // Search for all the query tokens in the term vector one by one.
-                    for(BytesRef term: queryTokensInBytesRef){
-
-                        //If Term is found, calculate the position info and add to the Spans
-                        if(vectorEnum.seekExact(term)){
-                            PostingsEnum postings = vectorEnum.postings(null, PostingsEnum.POSITIONS);
-
-                            while (postings.nextDoc() != DocIdSetIterator.NO_MORE_DOCS) {
-                                int freq = postings.freq();
-                                // Create a new span for every occurrence.
-                                while (freq-- > 0) {
-                                    int tokenOffset = postings.nextPosition();
-                                    int start = postings.startOffset();
-                                    int end = start+term.length;
-                                    String key = queryTokens.get(queryTokenIndex);
-                                    String value = document.get(fieldName).substring(start,end);
-                                    Span span = new Span(fieldName, start, end, key, value, tokenOffset);
-                                    payload.add(span);
-                                }
-
-                            }
-
-                        }
-
-                        queryTokenIndex++;
-                    }
-
-
-                }
-
-
-
-            }
-
-            cursor++;
-
-
-
-            ITuple dataTuple  = Utils.getSpanTuple(fields, payload, outputSchema);
-            return dataTuple;
-
-        } catch (IOException e) {
-            e.printStackTrace();
-            throw new DataFlowException(e.getMessage(), e);
-        } catch (java.text.ParseException e) {
-            e.printStackTrace();
-            throw new DataFlowException(e.getMessage(), e);
-        }
+    		if (cursor >= scoreDocs.length) {
+    			return null;
+    		}
+    		int docID = scoreDocs[cursor].doc;
+    		resultTuple = constructTuple(docID);
+			
+		} catch (IOException | ParseException e) {
+			e.printStackTrace();
+			throw new DataFlowException(e.getMessage(), e);
+		}
         
-    }
+        cursor++;	
+		return resultTuple;
+	}
 
-    @Override
-    public void close() throws Exception {
-        cursor = CLOSED;
-        if(luceneIndexReader != null){
-            try {
-                luceneIndexReader.close();
-                luceneIndexReader = null;
-            } catch (IOException e) {
-                e.printStackTrace();
-                throw new DataFlowException(e.getMessage(), e);
-            }
+	
+	@Override
+	public void close() throws DataFlowException {
+		cursor = CLOSED;
+		if (luceneIndexReader != null) {
+			try {
+				luceneIndexReader.close();
+				luceneIndexReader = null;
+			} catch (IOException e) {
+				throw new DataFlowException(e.getMessage(), e);
+			}
+		}
+	}
+	
+	
+	private ITuple constructTuple(int docID) throws IOException, ParseException {
+		Document luceneDocument = luceneIndexSearcher.doc(docID);
+		ArrayList<IField> docFields = documentToFields(luceneDocument);
+		
+		if (payloadAdded) {
+			ArrayList<Span> payloadSpanList = buildPayloadFromTermVector(docFields, docID);
+			ListField<Span> payloadField = new ListField<Span>(payloadSpanList);
+			docFields.add(payloadField);
+		}
+		
+		DataTuple resultTuple = new DataTuple(outputSchema, docFields.stream().toArray(IField[]::new));
+		return resultTuple;
+	}
+	
+	
+	private ArrayList<IField> documentToFields(Document luceneDocument) throws ParseException {
+		ArrayList<IField> fields = new ArrayList<>();
+        for (Attribute attr : inputSchema.getAttributes()) {
+            FieldType fieldType = attr.getFieldType();
+            String fieldValue = luceneDocument.get(attr.getFieldName());
+            fields.add(Utils.getField(fieldType, fieldValue));
         }
-    }
+        return fields;
+	}
+	
+	
+	private ArrayList<Span> buildPayloadFromTermVector(List<IField> fields, int docID) throws IOException {
+		ArrayList<Span> payloadSpanList = new ArrayList<>();
 
-    @Override
-    public Schema getOutputSchema() {
-        if (dataReaderPredicate.getIsSpanInformationAdded()) {
-            return outputSchema;
-        } else {
-            return schema;
-        }
-    }
-    
+		for (Attribute attr : inputSchema.getAttributes()) {
+			String fieldName = attr.getFieldName();
+			FieldType fieldType = attr.getFieldType();
+			
+			// We only store positional information for TEXT fields into payload.
+			if (fieldType != FieldType.TEXT) {
+				continue;
+			}
+			
+			String fieldValue = fields.get(inputSchema.getIndex(fieldName)).getValue().toString();
+			
+			Terms termVector = luceneIndexReader.getTermVector(docID, fieldName);			
+			if (termVector == null) {
+				continue;
+			}
+
+			TermsEnum termsEnum = termVector.iterator();
+			PostingsEnum termPostings = null;
+			// go through document terms
+			while ((termsEnum.next()) != null) {
+				termPostings = termsEnum.postings(termPostings, PostingsEnum.ALL);
+				if (termPostings.nextDoc() == DocIdSetIterator.NO_MORE_DOCS) {
+					continue;
+				}
+				// for each term, go through its postings
+				for (int i = 0; i < termPostings.freq(); i++) {
+		        	int tokenPosition = termPostings.nextPosition(); // nextPosition needs to be called first
+		        	
+		        	int charStart = termPostings.startOffset();
+		        	int charEnd = termPostings.endOffset();
+		        	String analyzedTermStr = termsEnum.term().utf8ToString();
+		        	String originalTermStr = fieldValue.substring(charStart, charEnd);
+
+					Span span = new Span(fieldName, charStart, charEnd, analyzedTermStr, originalTermStr, tokenPosition);
+					payloadSpanList.add(span);
+				}
+			}
+		}
+
+		return payloadSpanList;
+	}
+	
+	
+	public int getLimit() {
+		return limit;
+	}
+
+	public void setLimit(int limit) {
+		this.limit = limit;
+	}
+
+	public int getOffset() {
+		return offset;
+	}
+
+	public void setOffset(int offset) {
+		this.offset = offset;
+	}
+
+	public boolean isTermVecAdded() {
+		return payloadAdded;
+	}
+
+	public void setTermVecAdded(boolean termVecAdded) {
+		this.payloadAdded = termVecAdded;
+	}
+	
+	public Schema getOutputSchema() {
+		return outputSchema;
+	}
 }

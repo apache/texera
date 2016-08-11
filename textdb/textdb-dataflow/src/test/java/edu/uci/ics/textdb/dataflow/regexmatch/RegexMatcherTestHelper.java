@@ -14,6 +14,7 @@ import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.api.storage.IDataStore;
 import edu.uci.ics.textdb.api.storage.IDataWriter;
 import edu.uci.ics.textdb.common.constants.DataConstants;
+import edu.uci.ics.textdb.common.utils.Utils;
 import edu.uci.ics.textdb.dataflow.common.RegexPredicate;
 import edu.uci.ics.textdb.dataflow.source.IndexBasedSourceOperator;
 import edu.uci.ics.textdb.storage.DataStore;
@@ -33,8 +34,11 @@ public class RegexMatcherTestHelper {
 	
 	List<ITuple> results;
     Analyzer luceneAnalyzer;
+    
+    Schema inputSchema;
 	
 	public RegexMatcherTestHelper(Schema schema, List<ITuple> data) throws Exception {
+	    inputSchema = schema;
 		dataStore = new DataStore(DataConstants.INDEX_DIR, schema);
 		luceneAnalyzer = CustomAnalyzer.builder()
 				.withTokenizer(NGramTokenizerFactory.class, new String[]{"minGramSize", "3", "maxGramSize", "3"})
@@ -50,7 +54,7 @@ public class RegexMatcherTestHelper {
 	}
 	
 	public Schema getSpanSchema() {
-		return regexMatcher.getSpanSchema();
+		return Utils.createSpanSchema(inputSchema);
 	}
 	
 	public void runTest(String regex, Attribute attribute) throws Exception {

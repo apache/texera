@@ -14,6 +14,7 @@ import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.api.dataflow.IOperator;
 import edu.uci.ics.textdb.common.constants.DataConstants;
 import edu.uci.ics.textdb.common.constants.DataConstants.KeywordMatchingType;
+import edu.uci.ics.textdb.common.constants.SchemaConstants;
 import edu.uci.ics.textdb.common.exception.DataFlowException;
 import edu.uci.ics.textdb.common.exception.ErrorMessages;
 import edu.uci.ics.textdb.common.field.Span;
@@ -49,7 +50,7 @@ public class DictionaryMatcher implements IOperator {
      * @param predicate
      * 
      */
-    public DictionaryMatcher(IPredicate predicate) {
+    public DictionaryMatcher(DictionaryPredicate predicate) {
         this.resultCursor = -1;
         this.limit = Integer.MAX_VALUE;
         this.offset = 0;
@@ -188,6 +189,9 @@ public class DictionaryMatcher implements IOperator {
     		}
     		ITuple resultTuple = null;
 	    	while (sourceTuple != null) {
+	    	    if (! predicate.getDataStore().getSchema().containsField(SchemaConstants.SPAN_LIST)) {
+	    	        sourceTuple = Utils.getSpanTuple(sourceTuple.getFields(), new ArrayList<Span>(), Utils.createSpanSchema(sourceTuple.getSchema()));
+	    	    }
 	    		resultTuple = computeMatchingResult(currentDictionaryEntry, sourceTuple);
 	    		if (resultTuple != null) {
 	    			resultCursor++;
@@ -196,7 +200,6 @@ public class DictionaryMatcher implements IOperator {
 	    			break;
 	    		}
 	    	}
-
     		return resultTuple;
     	}
     }
@@ -239,7 +242,7 @@ public class DictionaryMatcher implements IOperator {
     private ITuple computeMatchingResult(String key, ITuple sourceTuple) throws Exception {
     	
     	List<Attribute> attributeList = predicate.getAttributeList();
-    	List<Span> spanList = new ArrayList<>();
+    	List<Span> matchingResults = new ArrayList<>();
     	
     	for (Attribute attr : attributeList) {
     		String fieldName = attr.getFieldName();
@@ -248,7 +251,7 @@ public class DictionaryMatcher implements IOperator {
     		// if attribute type is not TEXT, then key needs to match the fieldValue exactly
     		if (attr.getFieldType() != FieldType.TEXT) {
     			if (fieldValue.equals(key)) {
-    				spanList.add(new Span(fieldName, 0, fieldValue.length(), key, fieldValue));
+    			    matchingResults.add(new Span(fieldName, 0, fieldValue.length(), key, fieldValue));
     			}
     		}
     		// if attribute type is TEXT, then key can match a substring of fieldValue
@@ -260,17 +263,22 @@ public class DictionaryMatcher implements IOperator {
     				int start = matcher.start();
     				int end = matcher.end();
 
-    				spanList.add(new Span(fieldName, start, end, key, fieldValue.substring(start, end)));
+    				matchingResults.add(new Span(fieldName, start, end, key, fieldValue.substring(start, end)));
     			}
     		}
     	}
     	
     	advanceDictionaryCursor();
-    	if (spanList.size() == 0) {
+    	
+    	
+    	if (matchingResults.size() == 0) {
     		return null;
-    	} else {
-    		return Utils.getSpanTuple(sourceTuple.getFields(), spanList, this.spanSchema);
-    	}
+    	} 
+    	
+        List<Span> spanList = (List<Span>) sourceTuple.getField(SchemaConstants.SPAN_LIST).getValue();
+        spanList.addAll(matchingResults);
+        
+        return sourceTuple;
     }
 
 

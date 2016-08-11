@@ -171,7 +171,7 @@ public class KeywordMatcherTest {
 
         //Prepare expected result list
         List<Span> list = new ArrayList<>();
-        Span span = new Span("description", 0, 4, "TaLL", "Tall",0);
+        Span span = new Span("description", 0, 4, "tall", "Tall",0);
         list.add(span);
         Attribute[] schemaAttributes = new Attribute[TestConstants.ATTRIBUTES_PEOPLE.length + 1];
 

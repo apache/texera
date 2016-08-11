@@ -62,10 +62,10 @@ public class Join implements IOperator {
 	 * @param joinPredicate
 	 *            is the predicate over which the join is made
 	 */
-	public Join(IOperator outerOperator, IOperator innerOperator, IPredicate joinPredicate) {
+	public Join(IOperator outerOperator, IOperator innerOperator, JoinPredicate joinPredicate) {
 		this.outerOperator = outerOperator;
 		this.innerOperator = innerOperator;
-		this.joinPredicate = (JoinPredicate) joinPredicate;
+		this.joinPredicate = joinPredicate;
 	}
 
 	@Override

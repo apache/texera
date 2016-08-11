@@ -39,7 +39,7 @@ public class IndexBasedSourceOperatorTest {
 	private IndexBasedSourceOperator indexBasedSourceOperator;
 	private IDataStore dataStore;
 	private Analyzer luceneAnalyzer;
-    private IPredicate dataReaderPredicate;
+    private DataReaderPredicate dataReaderPredicate;
 
 
 	@Before

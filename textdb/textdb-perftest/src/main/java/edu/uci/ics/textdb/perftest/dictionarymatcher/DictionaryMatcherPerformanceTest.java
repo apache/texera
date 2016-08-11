@@ -136,7 +136,7 @@ public class DictionaryMatcherPerformanceTest {
 		List<Attribute> attributes = Arrays.asList(MedlineIndexWriter.ABSTRACT_ATTR);
 
 		IDictionary dictionary = new Dictionary(queryList);
-		IPredicate dictionaryPredicate = new DictionaryPredicate(dictionary, dataStore, attributes, luceneAnalyzer, opType);
+		DictionaryPredicate dictionaryPredicate = new DictionaryPredicate(dictionary, dataStore, attributes, luceneAnalyzer, opType);
 		DictionaryMatcher dictionaryMatcher = new DictionaryMatcher(dictionaryPredicate);
 
 		long startMatchTime = System.currentTimeMillis();

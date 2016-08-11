@@ -19,8 +19,8 @@ public class IndexBasedSourceOperator implements ISourceOperator {
 	private DataReaderPredicate predicate;
 	private int cursor = CLOSED;
 	
-	public IndexBasedSourceOperator(IPredicate predicate){
-	    this.predicate = (DataReaderPredicate)predicate;
+	public IndexBasedSourceOperator(DataReaderPredicate predicate){
+	    this.predicate = predicate;
 	}
 
 	@Override

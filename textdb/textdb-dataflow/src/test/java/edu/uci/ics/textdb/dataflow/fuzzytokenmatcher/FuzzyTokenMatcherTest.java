@@ -63,7 +63,7 @@ public class FuzzyTokenMatcherTest {
     
     public List<ITuple> getQueryResults(String query,double threshold, ArrayList<Attribute> attributeList, boolean isSpanInformationAdded) throws DataFlowException, ParseException {
 
-        IPredicate predicate = new FuzzyTokenPredicate(query, dataStore, attributeList, analyzer, threshold, isSpanInformationAdded);
+        FuzzyTokenPredicate predicate = new FuzzyTokenPredicate(query, dataStore, attributeList, analyzer, threshold, isSpanInformationAdded);
         fuzzyTokenMatcher = new FuzzyTokenMatcher(predicate);
         fuzzyTokenMatcher.open();
 
@@ -215,21 +215,21 @@ public class FuzzyTokenMatcherTest {
         schemaAttributes[schemaAttributes.length - 1] = SchemaConstants.SPAN_LIST_ATTRIBUTE;
         
         List<Span> list = new ArrayList<>();
-        Span span = new Span(TestConstants.DESCRIPTION, 5, 10, "Angry", "Angry", 1);
+        Span span = new Span(TestConstants.DESCRIPTION, 5, 10, "angry", "Angry", 1);
         list.add(span);
         IField[] fields1 = { new StringField("bruce"), new StringField("john Lee"), new IntegerField(46),
                 new DoubleField(5.50), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-14-1970")),
                 new TextField("Tall Angry"), new ListField<>(list) };
         
         list = new ArrayList<>();
-        span = new Span(TestConstants.DESCRIPTION, 6, 11, "Angry", "Angry", 1);
+        span = new Span(TestConstants.DESCRIPTION, 6, 11, "angry", "Angry", 1);
         list.add(span);
         IField[] fields2 = { new StringField("brad lie angelina"), new StringField("pitt"), new IntegerField(44),
                 new DoubleField(6.10), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-12-1972")),
                 new TextField("White Angry"), new ListField<>(list) };
         
         list = new ArrayList<>();
-        span = new Span(TestConstants.DESCRIPTION, 40, 45, "Angry", "Angry", 8);
+        span = new Span(TestConstants.DESCRIPTION, 40, 45, "angry", "Angry", 8);
         list.add(span);
         IField[] fields3 = { new StringField("george lin lin"), new StringField("lin clooney"), new IntegerField(43),
                 new DoubleField(6.06), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1973")),

@@ -159,12 +159,7 @@ public class Utils {
         try{
             tokenStream.reset();
             while (tokenStream.incrementToken()) {
-                String token = term.toString();
-                int tokenIndex = query.toLowerCase().indexOf(token);
-                // Since tokens are converted to lower case,
-                // get the exact token from the query string.
-                String actualQueryToken = query.substring(tokenIndex, tokenIndex+token.length());
-                result.add(actualQueryToken);
+                result.add(term.toString());
             }
             tokenStream.close();
         } catch (Exception e) {

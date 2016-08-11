@@ -119,7 +119,7 @@ public class JoinTest {
 	public List<ITuple> getJoinResults(IOperator outer, IOperator inner,
 			Attribute idAttribute, Attribute joinAttribute, Integer threshold)
 					throws Exception {
-		IPredicate joinPredicate = new JoinPredicate(idAttribute, joinAttribute,
+		JoinPredicate joinPredicate = new JoinPredicate(idAttribute, joinAttribute,
 				threshold);
 		join = new Join(outer, inner, joinPredicate);
 		join.open();
@@ -533,7 +533,7 @@ public class JoinTest {
 		query = "this writer writes well";
 		double thresholdRatio = 0.25;
 		boolean isSpanInformationAdded = false;
-		IPredicate fuzzyPredicateInner = new FuzzyTokenPredicate(query, dataStoreForInner, attributeList, analyzer,
+		FuzzyTokenPredicate fuzzyPredicateInner = new FuzzyTokenPredicate(query, dataStoreForInner, attributeList, analyzer,
 				thresholdRatio, isSpanInformationAdded);
 		FuzzyTokenMatcher fuzzyMatcherInner = new FuzzyTokenMatcher(fuzzyPredicateInner);
 

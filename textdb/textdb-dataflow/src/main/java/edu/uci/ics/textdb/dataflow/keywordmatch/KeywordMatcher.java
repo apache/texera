@@ -45,11 +45,11 @@ public class KeywordMatcher implements IOperator {
     private int limit;
     private int offset;
 
-    public KeywordMatcher(IPredicate predicate) {
+    public KeywordMatcher(KeywordPredicate predicate) {
         this.cursor = -1;
         this.limit = Integer.MAX_VALUE;
         this.offset = 0;
-        this.predicate = (KeywordPredicate)predicate;
+        this.predicate = predicate;
         this.query = this.predicate.getQuery();
     }
 
