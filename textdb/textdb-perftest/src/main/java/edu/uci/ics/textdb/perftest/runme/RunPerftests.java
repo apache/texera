@@ -56,11 +56,11 @@ public class RunPerftests {
 			DictionaryMatcherPerformanceTest.runTest("sample_queries.txt", 1);
 			FuzzyTokenMatcherPerformanceTest.runTest("sample_queries.txt", 1, thresholds);
 			RegexMatcherPerformanceTest.runTest(regexQueries, 2);
-			NlpExtractorPerformanceTest.runTest(1);
+	
 			
 			
 			
-			//testing testing
+			
 		} catch (StorageException | DataFlowException | IOException e) {
 			e.printStackTrace();
 		} catch (Exception e) {
