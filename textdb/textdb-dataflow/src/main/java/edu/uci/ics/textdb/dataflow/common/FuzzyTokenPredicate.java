@@ -66,6 +66,11 @@ public class FuzzyTokenPredicate implements IPredicate {
     public ArrayList<String> getQueryTokens(){
     	return this.tokens;
     }
+    
+    public Analyzer getLuceneAnalyzer() {
+        return luceneAnalyzer;
+    }
+    
     private void extractSearchFields() {
     	this.fields = new String[this.attributeList.size()];
     	int i = 0;

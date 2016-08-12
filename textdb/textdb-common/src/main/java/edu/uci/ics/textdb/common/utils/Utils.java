@@ -1,5 +1,6 @@
 package edu.uci.ics.textdb.common.utils;
 
+import java.io.IOException;
 import java.io.StringReader;
 import java.text.ParseException;
 import java.util.ArrayList;
@@ -12,6 +13,7 @@ import java.util.stream.Collectors;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.tokenattributes.CharTermAttribute;
+import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
 import org.apache.lucene.analysis.util.CharArraySet;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.DateTools;
@@ -290,6 +292,47 @@ public class Utils {
             ITuple tupleWithoutPayload = new DataTuple(schemaWithoutPayload, fieldsWithoutPayload.stream().toArray(IField[]::new));
             return tupleWithoutPayload;
         }
+    }
+    
+    
+    public static List<Span> generatePayloadFromTuple(ITuple tuple, Analyzer luceneAnalyzer) {
+        List<Span> tuplePayload = 
+            tuple.getSchema().getAttributes()
+            .stream()
+            .filter(attr -> (attr.getFieldType() == FieldType.TEXT)) // generate payload only for TEXT field
+            .map(attr -> attr.getFieldName())
+            .map(fieldName -> generatePayload(fieldName, tuple.getField(fieldName).getValue().toString(), luceneAnalyzer))
+            .flatMap(payload -> payload.stream())  // flatten a list of lists to a list
+            .collect(Collectors.toList());
+        
+        return tuplePayload;
+    }
+    
+    public static List<Span> generatePayload(String fieldName, String fieldValue, Analyzer luceneAnalyzer) {
+        List<Span> payload = new ArrayList<>();
+        
+        try {
+            TokenStream tokenStream = luceneAnalyzer.tokenStream(null, new StringReader(fieldValue));
+            OffsetAttribute offsetAttribute = tokenStream.addAttribute(OffsetAttribute.class);
+            CharTermAttribute charTermAttribute = tokenStream.addAttribute(CharTermAttribute.class);       
+
+            int tokenCounter = 0;
+            tokenStream.reset();        
+            while (tokenStream.incrementToken()) {
+                int tokenPosition = tokenCounter;
+                int charStart = offsetAttribute.startOffset();
+                int charEnd = offsetAttribute.endOffset();
+                String analyzedTermStr = charTermAttribute.toString();
+                String originalTermStr = fieldValue.substring(charStart, charEnd);
+                
+                payload.add(new Span(fieldName, charStart, charEnd, analyzedTermStr, originalTermStr, tokenPosition));            
+                tokenCounter++;
+            }
+        } catch (IOException e) {
+            payload.clear(); // return empty payload
+        }
+         
+        return payload;
     }
     
 }

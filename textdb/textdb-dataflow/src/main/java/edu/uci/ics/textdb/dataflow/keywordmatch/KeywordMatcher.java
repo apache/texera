@@ -11,6 +11,7 @@ import java.util.stream.Collectors;
 
 import edu.uci.ics.textdb.api.common.Attribute;
 import edu.uci.ics.textdb.api.common.FieldType;
+import edu.uci.ics.textdb.api.common.IField;
 import edu.uci.ics.textdb.api.common.IPredicate;
 import edu.uci.ics.textdb.api.common.ITuple;
 import edu.uci.ics.textdb.api.common.Schema;
@@ -61,12 +62,14 @@ public class KeywordMatcher implements IOperator {
     	}
         try {
             inputOperator.open();
-            inputSchema = inputOperator.getOutputSchema();
             
+            inputSchema = inputOperator.getOutputSchema();            
+            outputSchema = inputSchema;
+            if (! inputSchema.containsField(SchemaConstants.PAYLOAD)) {
+                outputSchema = Utils.addAttributeToSchema(outputSchema, SchemaConstants.PAYLOAD_ATTRIBUTE);
+            }
             if (! inputSchema.containsField(SchemaConstants.SPAN_LIST)) {
-                outputSchema = Utils.createSpanSchema(inputSchema);
-            } else {
-                outputSchema = inputSchema;
+                outputSchema = Utils.addAttributeToSchema(outputSchema, SchemaConstants.SPAN_LIST_ATTRIBUTE);
             }
 
         } catch (Exception e) {
@@ -93,7 +96,14 @@ public class KeywordMatcher implements IOperator {
         	}
         	ITuple sourceTuple;
         	ITuple resultTuple = null;
-        	while ((sourceTuple = inputOperator.getNextTuple()) != null) {
+        	while ((sourceTuple = inputOperator.getNextTuple()) != null) {        	    
+        	    // There's an implicit assumption that, in open() method, PAYLOAD is checked before SPAN_LIST.
+        	    // Therefore, PAYLOAD needs to be checked and added first
+        	    if (! inputSchema.containsField(SchemaConstants.PAYLOAD)) {
+                    sourceTuple = Utils.getSpanTuple(sourceTuple.getFields(), 
+                            Utils.generatePayloadFromTuple(sourceTuple, predicate.getLuceneAnalyzer()), 
+                            outputSchema);
+        	    }
                 if (! inputSchema.containsField(SchemaConstants.SPAN_LIST)) {
                     sourceTuple = Utils.getSpanTuple(sourceTuple.getFields(), new ArrayList<Span>(), outputSchema);
                 }
@@ -107,7 +117,8 @@ public class KeywordMatcher implements IOperator {
 	            if (this.predicate.getOperatorType() == DataConstants.KeywordMatchingType.SUBSTRING_SCANBASED) {
 	            	resultTuple = computeSubstringMatchingResult(sourceTuple);
 	            }              
-            	if (resultTuple != null) {
+            	
+	            if (resultTuple != null) {
             		cursor++;
             	}
             	if (cursor >= offset) {

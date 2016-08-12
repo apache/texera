@@ -37,7 +37,7 @@ public class SchemaTest {
          int expectedIndex1 = 0;		
          int expectedIndex2 = 1;		
          int retrievedIndex1 = schema.getIndex(fieldName1);		
-         int retrievedIndex2 = schema.getIndex(fieldName2);		
+         int retrievedIndex2 = schema.getIndex(fieldName2.toUpperCase());		
          Assert.assertEquals(expectedIndex1, retrievedIndex1);		
          Assert.assertEquals(expectedIndex2, retrievedIndex2);		
          		

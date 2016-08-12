@@ -22,7 +22,7 @@ public class Schema {
         fieldNameVsIndex = new HashMap<String, Integer>();
         for (int count = 0; count < attributes.size(); count++) {
             String fieldName = attributes.get(count).getFieldName();
-            fieldNameVsIndex.put(fieldName, count);
+            fieldNameVsIndex.put(fieldName.toLowerCase(), count);
         }
     }
 
@@ -31,11 +31,11 @@ public class Schema {
     }
     
     public Integer getIndex(String fieldName){
-        return fieldNameVsIndex.get(fieldName);
+        return fieldNameVsIndex.get(fieldName.toLowerCase());
     }
     
     public boolean containsField(String fieldName) {
-        return fieldNameVsIndex.keySet().contains(fieldName);
+        return fieldNameVsIndex.keySet().contains(fieldName.toLowerCase());
     }
     
     

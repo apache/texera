@@ -61,10 +61,12 @@ public class FuzzyTokenMatcher implements IOperator{
             queryTokens = predicate.getQueryTokens();
 
             inputSchema = inputOperator.getOutputSchema();
-            if (predicate.getIsSpanInformationAdded() && ! inputSchema.containsField(SchemaConstants.SPAN_LIST)) {
-                outputSchema = Utils.createSpanSchema(inputSchema);
-            } else {
-                outputSchema = inputSchema;
+            outputSchema = inputSchema;
+            if (! inputSchema.containsField(SchemaConstants.PAYLOAD)) {
+                outputSchema = Utils.addAttributeToSchema(outputSchema, SchemaConstants.PAYLOAD_ATTRIBUTE);
+            }
+            if (! inputSchema.containsField(SchemaConstants.SPAN_LIST)) {
+                outputSchema = Utils.addAttributeToSchema(outputSchema, SchemaConstants.SPAN_LIST_ATTRIBUTE);
             }
     	} catch (Exception e) {
             e.printStackTrace();
@@ -84,9 +86,18 @@ public class FuzzyTokenMatcher implements IOperator{
                 if (! this.predicate.getIsSpanInformationAdded()) {
                     return sourceTuple;
                 }
+                
+                // There's an implicit assumption that, in open() method, PAYLOAD is checked before SPAN_LIST.
+                // Therefore, PAYLOAD needs to be checked and added first
+                if (! inputSchema.containsField(SchemaConstants.PAYLOAD)) {
+                    sourceTuple = Utils.getSpanTuple(sourceTuple.getFields(), 
+                            Utils.generatePayloadFromTuple(sourceTuple, predicate.getLuceneAnalyzer()), 
+                            outputSchema);
+                }
                 if (! inputSchema.containsField(SchemaConstants.SPAN_LIST)) {
                     sourceTuple = Utils.getSpanTuple(sourceTuple.getFields(), new ArrayList<Span>(), outputSchema);
                 }
+
                 resultTuple = computeMatchingResult(sourceTuple);
                 if (resultTuple != null) {
                     cursor++;
