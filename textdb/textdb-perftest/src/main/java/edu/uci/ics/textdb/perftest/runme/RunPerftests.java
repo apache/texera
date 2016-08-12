@@ -55,8 +55,7 @@ public class RunPerftests {
 			KeywordMatcherPerformanceTest.runTest("sample_queries.txt", 1);
 			DictionaryMatcherPerformanceTest.runTest("sample_queries.txt", 1);
 			FuzzyTokenMatcherPerformanceTest.runTest("sample_queries.txt", 1, thresholds);
-			RegexMatcherPerformanceTest.runTest(regexQueries, 2);
-	
+			 
 			
 			
 			
