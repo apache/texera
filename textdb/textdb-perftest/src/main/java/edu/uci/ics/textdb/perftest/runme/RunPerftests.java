@@ -59,6 +59,8 @@ public class RunPerftests {
 			NlpExtractorPerformanceTest.runTest(1);
 			
 			
+			
+			
 		} catch (StorageException | DataFlowException | IOException e) {
 			e.printStackTrace();
 		} catch (Exception e) {
