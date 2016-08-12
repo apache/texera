@@ -58,6 +58,7 @@ public class RunPerftests {
 			RegexMatcherPerformanceTest.runTest(regexQueries, 2);
 			NlpExtractorPerformanceTest.runTest(1);
 			
+			
 		} catch (StorageException | DataFlowException | IOException e) {
 			e.printStackTrace();
 		} catch (Exception e) {
