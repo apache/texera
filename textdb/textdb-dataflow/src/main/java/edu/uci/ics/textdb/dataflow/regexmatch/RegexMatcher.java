@@ -270,6 +270,7 @@ public class RegexMatcher implements IOperator {
 
 	public void setInputOperator(ISourceOperator inputOperator) {
 		this.inputOperator = inputOperator;
+		// to be changed
 	}
 
     @Override
