@@ -21,7 +21,7 @@ import edu.uci.ics.textdb.common.field.ListField;
 import edu.uci.ics.textdb.common.field.Span;
 import edu.uci.ics.textdb.dataflow.common.Dictionary;
 import edu.uci.ics.textdb.dataflow.common.DictionaryPredicate;
-import edu.uci.ics.textdb.dataflow.dictionarymatcher.DictionaryMatcher;
+import edu.uci.ics.textdb.dataflow.dictionarymatcher.DictionaryMatcherSourceOperator;
 import edu.uci.ics.textdb.perftest.medline.MedlineIndexWriter;
 import edu.uci.ics.textdb.perftest.utils.PerfTestUtils;
 import edu.uci.ics.textdb.storage.DataStore;
@@ -136,8 +136,8 @@ public class DictionaryMatcherPerformanceTest {
 		List<Attribute> attributes = Arrays.asList(MedlineIndexWriter.ABSTRACT_ATTR);
 
 		IDictionary dictionary = new Dictionary(queryList);
-		DictionaryPredicate dictionaryPredicate = new DictionaryPredicate(dictionary, dataStore, attributes, luceneAnalyzer, opType);
-		DictionaryMatcher dictionaryMatcher = new DictionaryMatcher(dictionaryPredicate);
+		DictionaryPredicate dictionaryPredicate = new DictionaryPredicate(dictionary, attributes, luceneAnalyzer, opType);
+		DictionaryMatcherSourceOperator dictionaryMatcher = new DictionaryMatcherSourceOperator(dictionaryPredicate, dataStore);
 
 		long startMatchTime = System.currentTimeMillis();
 		dictionaryMatcher.open();
