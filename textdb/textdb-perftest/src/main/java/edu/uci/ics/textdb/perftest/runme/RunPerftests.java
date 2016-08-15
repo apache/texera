@@ -55,7 +55,12 @@ public class RunPerftests {
 			
 			 
 			RegexMatcherPerformanceTest.runTest(regexQueries, 2);
-			NlpExtractorPerformanceTest.runTest(1);
+			
+			
+			
+			
+			
+			
 			
 			
 			
