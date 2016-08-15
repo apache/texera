@@ -268,7 +268,7 @@ public class RegexMatcher implements IOperator {
 		return inputOperator;
 	}
 
-	public void setInputOperator(IOperator inputOperator) {
+	public void setInputOperator(ISourceOperator inputOperator) {
 		this.inputOperator = inputOperator;
 	}
 
