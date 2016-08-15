@@ -10,7 +10,6 @@ import org.apache.lucene.search.Query;
 import edu.uci.ics.textdb.api.common.Attribute;
 import edu.uci.ics.textdb.api.common.IDictionary;
 import edu.uci.ics.textdb.api.common.IPredicate;
-import edu.uci.ics.textdb.api.dataflow.IOperator;
 import edu.uci.ics.textdb.api.storage.IDataReader;
 import edu.uci.ics.textdb.api.storage.IDataStore;
 import edu.uci.ics.textdb.common.constants.DataConstants;
@@ -25,8 +24,7 @@ public class DictionaryPredicate implements IPredicate {
     private IDictionary dictionary;
     private Analyzer luceneAnalyzer;
     private List<Attribute> attributeList;
-    private IDataStore dataStore;
-    private KeywordMatchingType srcOpType;
+    private KeywordMatchingType keywordMatchingType;
     
     /*
     dictionary refers to list of phrases to search for.
@@ -34,18 +32,17 @@ public class DictionaryPredicate implements IPredicate {
     New and York; if searched in String field we search for Exact string.
      */
 
-    public DictionaryPredicate(IDictionary dictionary, IDataStore dataStore, List<Attribute> attributeList,
-    		Analyzer luceneAnalyzer, KeywordMatchingType srcOpType) {
+    public DictionaryPredicate(IDictionary dictionary, List<Attribute> attributeList,
+    		Analyzer luceneAnalyzer, KeywordMatchingType keywordMatchingType) {
 
         this.dictionary = dictionary;
         this.luceneAnalyzer = luceneAnalyzer;
         this.attributeList = attributeList;
-        this.srcOpType = srcOpType;
-        this.dataStore = dataStore;
+        this.keywordMatchingType = keywordMatchingType;
     }
 
-    public KeywordMatchingType getSourceOperatorType() {
-        return srcOpType;
+    public KeywordMatchingType getKeywordMatchingType() {
+        return keywordMatchingType;
     }
     
     /**
@@ -63,10 +60,6 @@ public class DictionaryPredicate implements IPredicate {
         return attributeList;
     }
 
-    public IDataStore getDataStore() {
-        return dataStore;
-    }
-
     public Analyzer getAnalyzer() {
         return luceneAnalyzer;
     }
@@ -76,13 +69,13 @@ public class DictionaryPredicate implements IPredicate {
     and generate SCAN based source operator
      */
 
-    public IOperator getScanSourceOperator() throws ParseException, DataFlowException {
+    public ScanBasedSourceOperator getScanSourceOperator(IDataStore dataStore) throws ParseException, DataFlowException {
         QueryParser luceneQueryParser = new QueryParser(attributeList.get(0).getFieldName(), luceneAnalyzer);
         Query luceneQuery = luceneQueryParser.parse(DataConstants.SCAN_QUERY);
         DataReaderPredicate dataReaderPredicate = new DataReaderPredicate(luceneQuery,DataConstants.SCAN_QUERY, dataStore, attributeList, luceneAnalyzer);
         IDataReader dataReader = new DataReader(dataReaderPredicate);
 
-        IOperator operator = new ScanBasedSourceOperator(dataReader);
+        ScanBasedSourceOperator operator = new ScanBasedSourceOperator(dataReader);
         return operator;
     }
 }

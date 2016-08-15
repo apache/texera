@@ -122,7 +122,7 @@ public class RegexMatcher implements IOperator {
 	            if (resultTuple != null) {
 		            cursor++;
 	            }
-	            if (cursor >= offset){
+	            if (resultTuple!= null && cursor >= offset){
 	            	break;
 	            }
 			}
