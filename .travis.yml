@@ -16,4 +16,5 @@ script:
     - mvn test
 
 after_success:
+    - cd textdb
     - bash <(curl -s https://codecov.io/bash)
