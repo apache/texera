@@ -289,6 +289,11 @@ public class KeywordMatcher extends AbstractSingleInputOperator {
         }
         return relevantSpans;
     }
+    
+    
+    public KeywordPredicate getPredicate() {
+        return this.predicate;
+    }
 
     public KeywordPredicate getPredicate() {
         return this.predicate;

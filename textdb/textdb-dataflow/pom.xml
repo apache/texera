@@ -41,7 +41,12 @@
             <artifactId>textdb-storage</artifactId>
             <version>${textdb.version}</version>
         </dependency>
-
+        
+        <dependency>
+            <groupId>org.json</groupId>
+            <artifactId>json</artifactId>
+            <version>${org.json.version}</version>
+        </dependency>
 
         <dependency>
             <groupId>edu.stanford.nlp</groupId>
