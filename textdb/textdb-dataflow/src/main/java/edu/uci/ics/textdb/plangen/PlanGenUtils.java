@@ -1,10 +1,22 @@
 package edu.uci.ics.textdb.plangen;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.stream.Stream;
 
 import edu.uci.ics.textdb.api.common.FieldType;
+import edu.uci.ics.textdb.api.dataflow.IOperator;
 import edu.uci.ics.textdb.common.constants.OperatorConstants;
 import edu.uci.ics.textdb.common.exception.PlanGenException;
+import edu.uci.ics.textdb.plangen.operatorbuilder.DictionaryMatcherBuilder;
+import edu.uci.ics.textdb.plangen.operatorbuilder.DictionarySourceBuilder;
+import edu.uci.ics.textdb.plangen.operatorbuilder.FileSinkBuilder;
+import edu.uci.ics.textdb.plangen.operatorbuilder.FuzzyTokenMatcherBuilder;
+import edu.uci.ics.textdb.plangen.operatorbuilder.JoinBuilder;
+import edu.uci.ics.textdb.plangen.operatorbuilder.KeywordMatcherBuilder;
+import edu.uci.ics.textdb.plangen.operatorbuilder.KeywordSourceBuilder;
+import edu.uci.ics.textdb.plangen.operatorbuilder.NlpExtractorBuilder;
+import edu.uci.ics.textdb.plangen.operatorbuilder.RegexMatcherBuilder;
 
 /**
  * This class provides a set of helper functions that are commonly used in plan generation.
@@ -12,6 +24,32 @@ import edu.uci.ics.textdb.common.exception.PlanGenException;
  *
  */
 public class PlanGenUtils {
+    
+    @FunctionalInterface
+    public interface OperatorBuilder {
+        public IOperator buildOperator(Map<String, String> operatorProperties) throws Exception;
+    }
+    
+    public static Map<String, OperatorBuilder> operatorBuilderMap = new HashMap<>();
+    static {
+        operatorBuilderMap.put("KeywordMatcher".toLowerCase(), KeywordMatcherBuilder::buildKeywordMatcher);
+        operatorBuilderMap.put("DictionaryMatcher".toLowerCase(), DictionaryMatcherBuilder::buildOperator);
+        operatorBuilderMap.put("RegexMatcher".toLowerCase(), RegexMatcherBuilder::buildRegexMatcher);
+        operatorBuilderMap.put("NlpExtractor".toLowerCase(), NlpExtractorBuilder::buildOperator);
+        operatorBuilderMap.put("FuzzyTokenMatcher".toLowerCase(), FuzzyTokenMatcherBuilder::buildOperator);
+        operatorBuilderMap.put("KeywordSource".toLowerCase(), KeywordSourceBuilder::buildSourceOperator);
+        operatorBuilderMap.put("DictionarySource".toLowerCase(), DictionarySourceBuilder::buildSourceOperator);
+        operatorBuilderMap.put("FileSink".toLowerCase(), FileSinkBuilder::buildSink);
+        operatorBuilderMap.put("Join".toLowerCase(), JoinBuilder::buildOperator);
+    }
+    
+    public static IOperator buildOperator(String operatorType, Map<String, String> operatorProperties) throws Exception {
+        OperatorBuilder operatorBuilder = operatorBuilderMap.get(operatorType.toLowerCase());
+        planGenAssert(operatorBuilder != null, 
+                String.format("operatorType %s is invalid. It must be one of %s.", operatorType, operatorBuilderMap.keySet()));
+               
+        return operatorBuilder.buildOperator(operatorProperties);
+    }
     
     
     public static void planGenAssert(boolean assertBoolean, String errorMessage) throws PlanGenException {

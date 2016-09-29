@@ -15,6 +15,8 @@ public class OperatorConstants {
     public static final List<String> operatorList = Arrays.asList(
             "IndexBasedSource", 
             "ScanBasedSource",
+            "KeywordSource",
+            "DictionarySource",
 
             "KeywordMatcher", 
             "RegexMatcher", 

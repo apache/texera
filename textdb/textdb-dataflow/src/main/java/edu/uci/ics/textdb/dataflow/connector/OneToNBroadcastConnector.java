@@ -138,7 +138,7 @@ public class OneToNBroadcastConnector implements IConnector {
     }
     
     
-    private class ConnectorOutputOperator implements IOperator {
+    public class ConnectorOutputOperator implements IOperator {
         
         private OneToNBroadcastConnector ownerConnector;
         private int outputIndex;
@@ -166,6 +166,14 @@ public class OneToNBroadcastConnector implements IConnector {
         @Override
         public Schema getOutputSchema() {
             return ownerConnector.getInputOperator().getOutputSchema();
+        }
+        
+        public OneToNBroadcastConnector getOwnerConnector() {
+            return this.ownerConnector;
+        }
+        
+        public int getOutputIndex() {
+            return this.outputIndex;
         }
         
     }
