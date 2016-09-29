@@ -1,6 +1,7 @@
 package edu.uci.ics.textdb.plangen;
 
 import java.util.HashMap;
+import java.util.HashSet;
 
 import org.json.JSONObject;
 import org.junit.Test;
@@ -135,10 +136,16 @@ public class OperatorGraphTest {
         Assert.assertTrue(connectorOut1 instanceof ConnectorOutputOperator);
 
         IOperator connectorOut2 = ((NlpExtractor) joinInput2).getInputOperator();
-        Assert.assertTrue(connectorOut2 instanceof ConnectorOutputOperator);
+        Assert.assertTrue(connectorOut2 instanceof ConnectorOutputOperator);       
+        
+        HashSet<Integer> connectorIndices = new HashSet<>();
+        connectorIndices.add(((ConnectorOutputOperator) connectorOut1).getOutputIndex());
+        connectorIndices.add(((ConnectorOutputOperator) connectorOut2).getOutputIndex());
+        Assert.assertEquals(connectorIndices.size(), 2);
 
         OneToNBroadcastConnector connector1 = ((ConnectorOutputOperator) connectorOut1).getOwnerConnector();
         OneToNBroadcastConnector connector2 = ((ConnectorOutputOperator) connectorOut2).getOwnerConnector();
+
         Assert.assertSame(connector1, connector2);
 
         IOperator keywordSource = connector1.getInputOperator();

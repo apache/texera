@@ -172,6 +172,10 @@ public class OneToNBroadcastConnector implements IConnector {
             return this.ownerConnector;
         }
         
+        public int getOutputIndex() {
+            return this.outputIndex;
+        }
+        
     }
    
 }
