@@ -74,6 +74,11 @@ public class DataConstants {
 
         PHRASE_INDEXBASED
     };
+    
+    
+    public static final String STANDARD_LUCENE_ANALYZER = "standardLuceneAnalyzer";
+    public static final String N_GRAM_LUCENE_ANALYZER = "ngramLuceneAnalyzer";
+    public static final String TRIGRAM_LUCENE_ANALYZER = "trigramLuceneAnalyzer";
 
     /**
      * @return a trigram analyzer that is used by RegexMatcher
