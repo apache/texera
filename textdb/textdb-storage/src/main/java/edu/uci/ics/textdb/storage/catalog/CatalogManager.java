@@ -39,7 +39,7 @@ public class CatalogManager {
         return documentCatalogFile.exists() && schemaCatalogFile.exists();
     }
     
-    public static void initializeCatalogSchema() throws StorageException {
+    public static void initializeCatalog() throws StorageException {
         DataStore catalogDocumentStore = new DataStore(DOCUMENT_CATALOG_DIRECTORY, CatalogSchema.CATALOG_DOCUMENT_SCHEMA);
         DataWriter catalogDocumentWriter = new DataWriter(catalogDocumentStore, DataConstants.getStandardAnalyzer());
         catalogDocumentWriter.writeData(getInitialDocumentCatalogTuples());
