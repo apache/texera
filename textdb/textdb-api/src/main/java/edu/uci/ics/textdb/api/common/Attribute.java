@@ -21,4 +21,24 @@ public class Attribute {
     public String toString() {
         return "Attribute [fieldName=" + fieldName + ", fieldType=" + fieldType + "]";
     }
+    
+    @Override
+    public int hashCode() {
+        return fieldName.hashCode() + fieldType.toString().hashCode();
+    }
+    
+    @Override
+    public boolean equals(Object toCompare) {
+        if (this == toCompare) {
+            return true;
+        }
+        if (toCompare == null) {
+            return false;
+        }
+        if (! (toCompare instanceof Attribute)) {
+            return false;
+        }
+        Attribute that = (Attribute) toCompare;
+        return this.fieldName.equals(that.fieldName) && this.fieldType.equals(that.fieldType);
+    }
 }

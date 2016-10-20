@@ -1,8 +1,8 @@
 package edu.uci.ics.textdb.storage.catalog;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -10,6 +10,7 @@ import java.util.stream.Stream;
 import org.apache.lucene.search.MatchAllDocsQuery;
 
 import edu.uci.ics.textdb.api.common.Attribute;
+import edu.uci.ics.textdb.api.common.FieldType;
 import edu.uci.ics.textdb.api.common.IField;
 import edu.uci.ics.textdb.api.common.ITuple;
 import edu.uci.ics.textdb.api.common.Schema;
@@ -23,142 +24,283 @@ import edu.uci.ics.textdb.storage.reader.DataReader;
 import edu.uci.ics.textdb.storage.writer.DataWriter;
 
 public class CatalogManager {
+    
+    /**
+     * @return true if the catalog manager exists
+     */
+    public static boolean isCatalogManagerExist() {
+        File collectionCatalogFile = new File(CatalogConstants.COLLECTION_CATALOG_DIRECTORY);
+        File schemaCatalogFile = new File(CatalogConstants.SCHEMA_CATALOG_DIRECTORY);
+        return collectionCatalogFile.exists() && schemaCatalogFile.exists();
+    }
 
-    public static void putDocumentSchema(String documentName, String indexDirectory, Schema documentSchema,
-            String luceneAnalyzer) throws DataFlowException, StorageException {
-        List<ITuple> documentCatalogData = new ArrayList<>();
+    /**
+     * Create the catalog.
+     * 
+     * @throws StorageException
+     */
+    public static void createCatalog() throws StorageException {
+        System.out.println("creating catalog");
+        List<ITuple> collectionCatalogData = CatalogConstants.getInitialCollectionCatalogTuples();
+        List<ITuple> schemaCatalogData = CatalogConstants.getInitialSchemaCatalogTuples();
+        
+        writeCollectionCatalog(collectionCatalogData);
+        writeSchemaCatalog(schemaCatalogData);
+    }
+    
+    /**
+     * Clear the content of the catalog.
+     * 
+     * @throws StorageException
+     */
+    public static void clearCatalog() throws StorageException {
+        System.out.println("clearing catalog");
+        writeCollectionCatalog(new ArrayList<ITuple>());
+        writeSchemaCatalog(new ArrayList<ITuple>());
+    }
+   
+    
+    /**
+     * Put a collecction's name, directory, lucene analyzer, and schema into the catalog.
+     * 
+     * @param collectionName, name of the collection
+     * @param indexDirectory, directory of collection's index
+     * @param collectionSchema, collection's schema
+     * @param luceneAnalyzer, lucene analyzer that collection is using
+     * @throws StorageException, if the collection name already exists
+     */
+    public static void putCollectionSchema(String collectionName, String indexDirectory, Schema collectionSchema,
+            String luceneAnalyzer) throws StorageException {
+        List<ITuple> collectionCatalogData = new ArrayList<>();
         List<ITuple> schemaCatalogData = new ArrayList<>();
 
         if (!isCatalogManagerExist()) {
-            documentCatalogData.addAll(CatalogConstants.getInitialDocumentCatalogTuples());
+            collectionCatalogData.addAll(CatalogConstants.getInitialCollectionCatalogTuples());
             schemaCatalogData.addAll(CatalogConstants.getInitialSchemaCatalogTuples());
         } else {
-            documentCatalogData.addAll(readDocumentCatalog());
+            collectionCatalogData.addAll(readCollectionCatalog());
             schemaCatalogData.addAll(readSchemaCatalog());
         }
 
-        if (findDocumentTuple(documentCatalogData, documentName) != null) {
-            throw new StorageException(String.format("Document %s already exists", documentName));
+        if (findCollectionData(collectionCatalogData, collectionName) != null) {
+            throw new StorageException(String.format("Collection %s already exists", collectionName));
         }
 
-        ITuple documentTuple = new DataTuple(CatalogConstants.CATALOG_DOCUMENT_SCHEMA, new StringField(documentName),
-                new StringField(indexDirectory), new StringField(luceneAnalyzer));
-        documentCatalogData.add(documentTuple);
+        String indexDirectoryAbsolutePath;
+        try {
+            indexDirectoryAbsolutePath = new File(indexDirectory).getCanonicalPath();
+        } catch (IOException e) {
+            throw new StorageException(e.getMessage(), e);
+        }
+        ITuple collectionTuple = new DataTuple(CatalogConstants.COLLECTION_CATALOG_SCHEMA, new StringField(collectionName),
+                new StringField(indexDirectoryAbsolutePath), new StringField(luceneAnalyzer));
+        collectionCatalogData.add(collectionTuple);
 
-        for (int i = 0; i < documentSchema.getAttributes().size(); i++) {
-            Attribute attr = documentSchema.getAttributes().get(i);
-            ITuple schemaTuple = new DataTuple(CatalogConstants.CATALOG_SCHEMA_SCHEMA, new StringField(documentName),
+        for (int i = 0; i < collectionSchema.getAttributes().size(); i++) {
+            Attribute attr = collectionSchema.getAttributes().get(i);
+            ITuple schemaTuple = new DataTuple(CatalogConstants.SCHEMA_CATALOG_SCHEMA, new StringField(collectionName),
                     new StringField(attr.getFieldName()), new StringField(attr.getFieldType().toString()),
                     new IntegerField(i));
             schemaCatalogData.add(schemaTuple);
         }
 
-        writeDocumentCatalog(documentCatalogData);
+        writeCollectionCatalog(collectionCatalogData);
         writeSchemaCatalog(schemaCatalogData);
     }
+    
+    public static void deleteCollectionCatalog(String collectionName) throws StorageException {
+        if (! isCatalogManagerExist()) {
+            throw new StorageException("Catalog Files not found");
+        }
+        
+        List<ITuple> collectionCatalogData = readCollectionCatalog();
+        List<ITuple> schemaCatalogData = readSchemaCatalog();
 
-    public static String getDocumentDirectory(String documentName) throws StorageException, DataFlowException {
+        List<ITuple> newCollectionCatalogData = collectionCatalogData.stream()
+                .filter(tuple -> ! isCollectionNameInTuple(tuple, collectionName)).collect(Collectors.toList());
+        List<ITuple> newSchemaCatalogData = schemaCatalogData.stream()
+                .filter(tuple -> ! isCollectionNameInTuple(tuple, collectionName))
+                .collect(Collectors.toList());
+
+        writeCollectionCatalog(newCollectionCatalogData);
+        writeSchemaCatalog(newSchemaCatalogData);
+    }
+    
+    private static boolean isCollectionNameInTuple(ITuple tuple, String collectionName) {
+        return collectionName.toLowerCase().equals(
+                tuple.getField(CatalogConstants.COLLECTION_NAME).getValue().toString().toLowerCase());
+    }
+
+    /**
+     * Get the index directory of a collection by its name.
+     * 
+     * @param collectionName, the name of the collection
+     * @return the index directory of the collection
+     * @throws StorageException, if the collection doesn't exist, or the catalog doesn't exist.
+     */
+    public static String getCollectionDirectory(String collectionName) throws StorageException {
         if (!isCatalogManagerExist()) {
             throw new StorageException("Catalog Files not found");
         }
-        List<ITuple> documentCatalogData = readDocumentCatalog();
+        List<ITuple> collectionCatalogData;
+        collectionCatalogData = readCollectionCatalog();
 
-        ITuple documentTuple;
-        if ((documentTuple = findDocumentTuple(documentCatalogData, documentName)) == null) {
-            throw new StorageException(String.format("Document %s does not exist", documentName));
+        ITuple collectionTuple;
+        if ((collectionTuple = findCollectionData(collectionCatalogData, collectionName)) == null) {
+            throw new StorageException(String.format("Collection %s does not exist", collectionName));
         }
 
-        IField directoryField = documentTuple.getField(CatalogConstants.DOCUMENT_DIRECTORY);
+        IField directoryField = collectionTuple.getField(CatalogConstants.COLLECTION_DIRECTORY);
         return directoryField.getValue().toString();
     }
 
-    public static String getDocumentLuceneAnalyzer(String documentName) throws StorageException, DataFlowException {
+    /**
+     * Get the lucene analyzer that the collection is using by its name.
+     * 
+     * @param collectionName
+     * @return a string representing its lucene analyzer
+     * @throws StorageException, if the collection doesn't exist, or the catalog doesn't exist.
+     */
+    public static String getCollectionLuceneAnalyzer(String collectionName) throws StorageException {
         if (!isCatalogManagerExist()) {
             throw new StorageException("Catalog Files not found");
         }
-        List<ITuple> documentCatalogData = readDocumentCatalog();
+        List<ITuple> collectionCatalogData = readCollectionCatalog();
 
-        ITuple documentTuple;
-        if ((documentTuple = findDocumentTuple(documentCatalogData, documentName)) == null) {
-            throw new StorageException(String.format("Document %s does not exist", documentName));
+        ITuple collectionTuple;
+        if ((collectionTuple = findCollectionData(collectionCatalogData, collectionName)) == null) {
+            throw new StorageException(String.format("Collection %s does not exist", collectionName));
         }
 
-        IField directoryField = documentTuple.getField(CatalogConstants.DOCUMENT_LUCENE_ANALYZER);
+        IField directoryField = collectionTuple.getField(CatalogConstants.COLLECTION_LUCENE_ANALYZER);
         return directoryField.getValue().toString();
     }
 
-    public static Schema getDocumentSchema(String documentName) throws StorageException, DataFlowException {
+    /**
+     * Get the schema of the collection by its name.
+     * 
+     * @param collectionName
+     * @return collection's schema
+     * @throws StorageException, if the collection doesn't exist, or the catalog doesn't exist.
+     */
+    public static Schema getCollectionSchema(String collectionName) throws StorageException, DataFlowException {
         if (!isCatalogManagerExist()) {
             throw new StorageException("Catalog Files not found");
         }
 
         List<ITuple> schemaCatalogData = readSchemaCatalog();
-        Stream<ITuple> documentSchemaData = schemaCatalogData.stream()
-                .filter(tuple -> documentName.toLowerCase()
-                        .equals(tuple.getField(CatalogConstants.DOCUMENT_NAME).getValue().toString().toLowerCase()))
-                .sorted((tuple1, tuple2) -> (((int) tuple1.getField(CatalogConstants.ATTR_POSITION)
-                        .getValue()) < ((int) tuple2.getField(CatalogConstants.ATTR_POSITION).getValue()) ? 0 : 1));
-
-        return null;
-    }
-
-    public static boolean isCatalogManagerExist() {
-        File documentCatalogFile = new File(CatalogConstants.DOCUMENT_CATALOG_DIRECTORY);
-        File schemaCatalogFile = new File(CatalogConstants.SCHEMA_CATALOG_DIRECTORY);
-        return documentCatalogFile.exists() && schemaCatalogFile.exists();
-    }
-
-    private static ITuple findDocumentTuple(List<ITuple> documentCatalogData, String documentName) {
-        ITuple documentTuple = documentCatalogData.stream()
-                .filter(tuple -> documentName.toLowerCase()
-                        .equals(tuple.getField(CatalogConstants.DOCUMENT_NAME).getValue().toString().toLowerCase()))
-                .findAny().orElse(null);
-        return documentTuple;
-    }
-
-    private static List<ITuple> readDocumentCatalog() throws DataFlowException {
-        DataStore documentCatalogStore = new DataStore(CatalogConstants.DOCUMENT_CATALOG_DIRECTORY,
-                CatalogConstants.CATALOG_DOCUMENT_SCHEMA);
-        DataReaderPredicate scanPredicate = new DataReaderPredicate(new MatchAllDocsQuery(), DataConstants.SCAN_QUERY,
-                documentCatalogStore, documentCatalogStore.getSchema().getAttributes(),
-                DataConstants.getStandardAnalyzer());
-        DataReader documentCatalogReader = new DataReader(scanPredicate);
-
-        List<ITuple> documentCatalogData = new ArrayList<>();
-        ITuple tuple;
-        while ((tuple = documentCatalogReader.getNextTuple()) != null) {
-            documentCatalogData.add(tuple);
+        List<Attribute> collectionSchemaData = schemaCatalogData.stream()
+                .filter(tuple -> collectionName.toLowerCase()
+                        .equals(tuple.getField(CatalogConstants.COLLECTION_NAME).getValue().toString().toLowerCase()))
+                .sorted((tuple1, tuple2) -> Integer.compare((int) tuple1.getField(CatalogConstants.ATTR_POSITION).getValue(), 
+                        (int) tuple2.getField(CatalogConstants.ATTR_POSITION).getValue()))
+                .map(tuple -> new Attribute(tuple.getField(CatalogConstants.ATTR_NAME).getValue().toString(),
+                        convertAttributeType(tuple.getField(CatalogConstants.ATTR_TYPE).getValue().toString())))
+                .collect(Collectors.toList());
+        
+        if (collectionSchemaData.isEmpty()) {
+            throw new StorageException(String.format("Collection %s doesn't exist", collectionName));
         }
-        return documentCatalogData;
+        return new Schema(collectionSchemaData.stream().toArray(Attribute[]::new));
+    }
+    
+    /**
+     * This function converts a attributeTypeString to FieldType (case insensitive). 
+     * It returns null if string is not a valid type.
+     * 
+     * @param attributeTypeStr
+     * @return FieldType, null if attributeTypeStr is not a valid type.
+     */
+    private static FieldType convertAttributeType(String attributeTypeStr) {
+        return Stream.of(FieldType.values())
+                .filter(typeStr -> typeStr.toString().toLowerCase().equals(attributeTypeStr.toLowerCase()))
+                .findAny().orElse(null);
+    }    
+
+
+    private static ITuple findCollectionData(List<ITuple> collectionCatalogData, String collectionName) {
+        ITuple collectionTuple = collectionCatalogData.stream()
+                .filter(tuple -> collectionName.toLowerCase()
+                        .equals(tuple.getField(CatalogConstants.COLLECTION_NAME).getValue().toString().toLowerCase()))
+                .findAny().orElse(null);
+        return collectionTuple;
     }
 
-    private static List<ITuple> readSchemaCatalog() throws DataFlowException {
+    /*
+     * Read the collection catalog from catalog files.
+     */
+    private static List<ITuple> readCollectionCatalog() throws StorageException {
+        DataStore collectionCatalogStore = new DataStore(CatalogConstants.COLLECTION_CATALOG_DIRECTORY,
+                CatalogConstants.COLLECTION_CATALOG_SCHEMA);
+        DataReaderPredicate scanPredicate = new DataReaderPredicate(new MatchAllDocsQuery(), DataConstants.SCAN_QUERY,
+                collectionCatalogStore, collectionCatalogStore.getSchema().getAttributes(),
+                DataConstants.getStandardAnalyzer());
+        DataReader collectionCatalogReader = new DataReader(scanPredicate);
+        collectionCatalogReader.setIsPayloadAdded(false);
+        
+        List<ITuple> collectionCatalogData = new ArrayList<>();
+        try {
+            collectionCatalogReader.open();
+            ITuple tuple;
+            while ((tuple = collectionCatalogReader.getNextTuple()) != null) {
+                collectionCatalogData.add(tuple);
+            }
+            collectionCatalogReader.close();
+        } catch (DataFlowException e) {
+            throw new StorageException(e.getMessage(), e);
+        }
+
+        return collectionCatalogData;
+    }
+
+    /*
+     * Read the schema catalog from catalog files.
+     */
+    private static List<ITuple> readSchemaCatalog() throws StorageException {
         DataStore schemaCatalogStore = new DataStore(CatalogConstants.SCHEMA_CATALOG_DIRECTORY,
-                CatalogConstants.CATALOG_SCHEMA_SCHEMA);
+                CatalogConstants.SCHEMA_CATALOG_SCHEMA);
         DataReaderPredicate scanPredicate = new DataReaderPredicate(new MatchAllDocsQuery(), DataConstants.SCAN_QUERY,
                 schemaCatalogStore, schemaCatalogStore.getSchema().getAttributes(),
                 DataConstants.getStandardAnalyzer());
         DataReader schemaCatalogReader = new DataReader(scanPredicate);
+        schemaCatalogReader.setIsPayloadAdded(false);
 
-        List<ITuple> documentCatalogData = new ArrayList<>();
-        ITuple tuple;
-        while ((tuple = schemaCatalogReader.getNextTuple()) != null) {
-            documentCatalogData.add(tuple);
+        List<ITuple> schemaCatalogData = new ArrayList<>();
+        try {
+            schemaCatalogReader.open();
+            ITuple tuple;
+            while ((tuple = schemaCatalogReader.getNextTuple()) != null) {
+                schemaCatalogData.add(tuple);
+            }
+            schemaCatalogReader.close();
+        } catch (DataFlowException e) {
+            throw new StorageException(e.getMessage(), e);
         }
-        return documentCatalogData;
+
+        return schemaCatalogData;
     }
 
-    private static void writeDocumentCatalog(List<ITuple> documentCatalogTuples) throws StorageException {
-        DataStore documentCatalogStore = new DataStore(CatalogConstants.DOCUMENT_CATALOG_DIRECTORY,
-                CatalogConstants.CATALOG_DOCUMENT_SCHEMA);
-        DataWriter documentCatalogWriter = new DataWriter(documentCatalogStore, DataConstants.getStandardAnalyzer());
-        documentCatalogWriter.clearData();
-        documentCatalogWriter.writeData(documentCatalogTuples);
+    /*
+     * Write the collection catalog to catalog files.
+     * 
+     * !!!This write operation will overwrite the old catalog.
+     */
+    private static void writeCollectionCatalog(List<ITuple> collectionCatalogTuples) throws StorageException {
+        DataStore collectionCatalogStore = new DataStore(CatalogConstants.COLLECTION_CATALOG_DIRECTORY,
+                CatalogConstants.COLLECTION_CATALOG_SCHEMA);
+        DataWriter collectionCatalogWriter = new DataWriter(collectionCatalogStore, DataConstants.getStandardAnalyzer());
+        collectionCatalogWriter.clearData();
+        collectionCatalogWriter.writeData(collectionCatalogTuples);
     }
 
+    /*
+     * Write the schema catalog to catalog files.
+     * 
+     * !!!This write operation will overwrite the old catalog.
+     */
     private static void writeSchemaCatalog(List<ITuple> schemaCatalogTuples) throws StorageException {
         DataStore schemaCatalogStore = new DataStore(CatalogConstants.SCHEMA_CATALOG_DIRECTORY,
-                CatalogConstants.CATALOG_SCHEMA_SCHEMA);
+                CatalogConstants.SCHEMA_CATALOG_SCHEMA);
         DataWriter schemaCatalogWriter = new DataWriter(schemaCatalogStore, DataConstants.getStandardAnalyzer());
         schemaCatalogWriter.clearData();
         schemaCatalogWriter.writeData(schemaCatalogTuples);
