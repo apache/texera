@@ -13,7 +13,7 @@ import edu.uci.ics.textdb.dataflow.connector.OneToNBroadcastConnector;
 import edu.uci.ics.textdb.dataflow.join.Join;
 
 /**
- * A graph of operators representing the query plan.
+ * A graph of operators representing a query plan.
  * 
  * @author Zuozhi Wang
  */
@@ -38,7 +38,7 @@ public class OperatorGraph {
     }
     
     /**
-     * Adds an operator to the operator graph.
+     * Adds an operator to the operator graph by adding it to the set of operators.
      * 
      * @param operatorID, a unique ID of the operator
      * @param operatorType, the type of the operator
@@ -135,7 +135,7 @@ public class OperatorGraph {
     }
   
     /*
-     * Detects if there are any operators not connected to the operator graph.
+     * Detects if the graph can be partitioned disjoint subgraphs.
      * 
      * This function builds an undirected version of the operator graph, and then 
      *   uses a Depth First Search (DFS) algorithm to traverse the graph from any vertex.
@@ -182,8 +182,8 @@ public class OperatorGraph {
      * Detects if there are any cycles in the operator graph.
      * 
      * This function uses a Depth First Search (DFS) algorithm to traverse the graph.
-     * It detects cycle by maintaining two lists of visited and visiting vertices,
-     * during the traversal, if it reaches an vertex that is in the visiting list, then there's a cycle.
+     * It detects a cycle by maintaining a list of visited vertices, and a list of DFS's path.
+     * during the traversal, if it reaches an vertex that is in the DFS path, then there's a cycle.
      * 
      * PlanGenException is thrown if a cycle is detected in the graph.
      * 
@@ -193,14 +193,14 @@ public class OperatorGraph {
         HashSet<String> dfsPath = new HashSet<>();
         
         for (String vertex : adjacencyList.keySet()) {
-            if (dfsPath.contains(vertex)) {
+            if (unvisitedVertices.contains(vertex)) {
                 checkCyclicityDfsVisit(vertex, unvisitedVertices, dfsPath);
             }
         }
     }
     
     /*
-     * This is a helper function for detecting cycles by traversing the graph the graph using DFS algorithm. 
+     * This is a helper function for detecting cycles by traversing the graph using a DFS algorithm. 
      */
     private void checkCyclicityDfsVisit(String vertex, HashSet<String> unvisitedVertices, 
             HashSet<String> dfsPath) throws PlanGenException {
@@ -209,7 +209,7 @@ public class OperatorGraph {
         
         for (String adjacentVertex : adjacencyList.get(vertex)) {
             if (dfsPath.contains(adjacentVertex)) {
-                throw new PlanGenException("The following operators form a cycle in operator graph: "+dfsPath);
+                throw new PlanGenException("The following operators form a cycle in operator graph: " + dfsPath);
             }
             if (unvisitedVertices.contains(adjacentVertex)) {
                 checkCyclicityDfsVisit(adjacentVertex, unvisitedVertices, dfsPath);
@@ -244,12 +244,12 @@ public class OperatorGraph {
     }
     
     /*
-     * Checks if the output arity of the operators match.
+     * Checks if the output arity of the operators matches.
      * 
-     * All operators (except sink) should have at least 1 outputs.
+     * All operators (except sink) should have at least 1 output.
      * 
-     * The linking operator phrase will automatically added a One to N Connector to
-     * an operator with multiple outputs, so the outputs arities are not checked.
+     * The linking operator phase will automatically add a One to N Connector to
+     * an operator with multiple outputs, so the output arities are not checked.
      * 
      */
     private void checkOperatorOutputArity() throws PlanGenException {
@@ -350,7 +350,7 @@ public class OperatorGraph {
     /*
      * Finds the sink operator in the operator graph.
      * 
-     * This functions assumes that the graph is valid and there is only one sink in the graph.
+     * This function assumes that the graph is valid and there is only one sink in the graph.
      */
     private ISink findSinkOperator() throws PlanGenException {
         IOperator sinkOperator = adjacencyList.keySet().stream()
