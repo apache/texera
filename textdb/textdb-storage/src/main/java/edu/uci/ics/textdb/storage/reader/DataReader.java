@@ -228,4 +228,14 @@ public class DataReader implements IDataReader {
     public Schema getOutputSchema() {
         return outputSchema;
     }
+    
+    public static boolean isIndexExist(String directory) {
+        try {
+            return DirectoryReader.indexExists(
+                    FSDirectory.open(Paths.get(directory)));
+        } catch (Exception e) {
+            return false;
+        }
+
+    }
 }

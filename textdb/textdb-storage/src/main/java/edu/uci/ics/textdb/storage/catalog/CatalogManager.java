@@ -46,9 +46,8 @@ public class CatalogManager {
      * @return true if the catalog manager exists
      */
     public static boolean isCatalogManagerExist() {
-        File collectionCatalogFile = new File(CatalogConstants.COLLECTION_CATALOG_DIRECTORY);
-        File schemaCatalogFile = new File(CatalogConstants.SCHEMA_CATALOG_DIRECTORY);
-        return collectionCatalogFile.exists() && schemaCatalogFile.exists();
+        return DataReader.isIndexExist(CatalogConstants.COLLECTION_CATALOG_DIRECTORY)
+                && DataReader.isIndexExist(CatalogConstants.SCHEMA_CATALOG_DIRECTORY);
     }
 
     /**

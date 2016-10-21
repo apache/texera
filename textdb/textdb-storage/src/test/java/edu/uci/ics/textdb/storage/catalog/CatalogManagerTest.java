@@ -23,7 +23,6 @@ public class CatalogManagerTest {
     @Before
     public void setUp() throws Exception {
         if (! CatalogManager.isCatalogManagerExist()) {
-            System.out.println("create catalog");
             CatalogManager.createCatalog();
         }
     }
