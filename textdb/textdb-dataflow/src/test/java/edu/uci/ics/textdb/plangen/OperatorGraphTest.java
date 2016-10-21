@@ -343,26 +343,32 @@ public class OperatorGraphTest {
 
     /*
      * Test a operator graph with a cycle
-     *                                   -> FileSink
-     * KeywordSource --> RegexMatcher1 -<                                    
-     *                                   -> RegexMathcer2 -> NlpExtractor --> (back to the same) RegexMatcher1
-
+     * 
+     * KeywordSource --> RegexMatcher1 -->   
+     *                                     >- Join --> FileSink                              
+     *                                 -->
+     * RegexMathcer2 -> NlpExtractor -< 
+     *                                 --> (back to the same) RegexMatcher2
      */
     @Test(expected = PlanGenException.class)
     public void testInvalidOperatorGraph5() throws Exception {
         OperatorGraph operatorGraph = new OperatorGraph();
 
         operatorGraph.addOperator("source", "KeywordSource", keywordSourceProperties);
-        operatorGraph.addOperator("regex", "RegexMatcher", regexMatcherProperties);
+        operatorGraph.addOperator("regex1", "RegexMatcher", regexMatcherProperties);
         operatorGraph.addOperator("sink1", "FileSink", fileSinkProperties);
 
         operatorGraph.addOperator("regex2", "RegexMatcher", regexMatcherProperties);
         operatorGraph.addOperator("nlp", "NlpExtractor", nlpExtractorProperties);
+        operatorGraph.addOperator("join", "Join", joinProperties);
 
-        operatorGraph.addLink("source", "regex");
-        operatorGraph.addLink("regex", "regex2");
+
+        operatorGraph.addLink("source", "regex1");
+        operatorGraph.addLink("regex1", "join");
         operatorGraph.addLink("regex2", "nlp");
-        operatorGraph.addLink("nlp", "regex");
+        operatorGraph.addLink("nlp", "regex2");
+        operatorGraph.addLink("nlp", "join");
+        operatorGraph.addLink("join", "sink1");
 
         operatorGraph.buildQueryPlan();
     }
