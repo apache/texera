@@ -55,7 +55,7 @@ public class DataReader implements IDataReader {
 
     private int limit;
     private int offset;
-    private boolean isPayloadAdded = true;
+    private boolean payloadAdded = true;
 
     public DataReader(DataReaderPredicate dataReaderPredicate) {
         predicate = dataReaderPredicate;
@@ -76,7 +76,7 @@ public class DataReader implements IDataReader {
             scoreDocs = topDocs.scoreDocs;
 
             inputSchema = predicate.getDataStore().getSchema();
-            if (isPayloadAdded) {
+            if (payloadAdded) {
                 outputSchema = Utils.addAttributeToSchema(inputSchema, SchemaConstants.PAYLOAD_ATTRIBUTE);
             } else {
                 outputSchema = inputSchema;
@@ -130,7 +130,7 @@ public class DataReader implements IDataReader {
         Document luceneDocument = luceneIndexSearcher.doc(docID);
         ArrayList<IField> docFields = documentToFields(luceneDocument);
 
-        if (isPayloadAdded) {
+        if (payloadAdded) {
             ArrayList<Span> payloadSpanList = buildPayloadFromTermVector(docFields, docID);
             ListField<Span> payloadField = new ListField<Span>(payloadSpanList);
             docFields.add(payloadField);
@@ -217,23 +217,15 @@ public class DataReader implements IDataReader {
         this.offset = offset;
     }
 
-    public boolean isTermVecAdded() {
-        return isPayloadAdded;
+    public boolean isPayloadAdded() {
+        return payloadAdded;
     }
 
-    public void setTermVecAdded(boolean termVecAdded) {
-        this.isPayloadAdded = termVecAdded;
+    public void setIsPayloadAdded(boolean payloadAdded) {
+        this.payloadAdded = payloadAdded;
     }
 
     public Schema getOutputSchema() {
         return outputSchema;
-    }
-    
-    public void setIsPayloadAdded(boolean isPayloadAdded) {
-        this.isPayloadAdded = isPayloadAdded;
-    }
-    
-    public boolean getIsPayloadAdded() {
-        return this.isPayloadAdded;
     }
 }
