@@ -23,6 +23,23 @@ import edu.uci.ics.textdb.storage.DataStore;
 import edu.uci.ics.textdb.storage.reader.DataReader;
 import edu.uci.ics.textdb.storage.writer.DataWriter;
 
+/**
+ * CatalogManager manages the catalog of TextDB.
+ * 
+ * CatalogManager stores the collection's meta data in two tables,
+ * "collectionCatalog" and "schemaCatalog". 
+ * 
+ * "collectionCatalog" stores the collection's directory and lucene analyzer 
+ *     associated with a collection's name.
+ * "schemaCatalog" stores the collection's attribute names, types and positions
+ *     associated with a collection's name.
+ * Each collection's name needs to be unique (case-insensitive).
+ * 
+ * See CatalogConstants for the initial tuples stored in the catalog.
+ * 
+ * @author Zuozhi Wang
+ *
+ */
 public class CatalogManager {
     
     /**
@@ -40,23 +57,17 @@ public class CatalogManager {
      * @throws StorageException
      */
     public static void createCatalog() throws StorageException {
-        System.out.println("creating catalog");
-        List<ITuple> collectionCatalogData = CatalogConstants.getInitialCollectionCatalogTuples();
-        List<ITuple> schemaCatalogData = CatalogConstants.getInitialSchemaCatalogTuples();
-        
-        writeCollectionCatalog(collectionCatalogData);
-        writeSchemaCatalog(schemaCatalogData);
+        restoreCatalog();
     }
     
     /**
-     * Clear the content of the catalog.
+     * Restore the content of the catalog to its default initial values.
      * 
      * @throws StorageException
      */
-    public static void clearCatalog() throws StorageException {
-        System.out.println("clearing catalog");
-        writeCollectionCatalog(new ArrayList<ITuple>());
-        writeSchemaCatalog(new ArrayList<ITuple>());
+    public static void restoreCatalog() throws StorageException {
+        writeCollectionCatalog(CatalogConstants.getInitialCollectionCatalogTuples());
+        writeSchemaCatalog(CatalogConstants.getInitialSchemaCatalogTuples());
     }
    
     
@@ -108,6 +119,12 @@ public class CatalogManager {
         writeSchemaCatalog(schemaCatalogData);
     }
     
+    /**
+     * Delete a collection's information from the catalog.
+     * 
+     * @param collectionName
+     * @throws StorageException
+     */
     public static void deleteCollectionCatalog(String collectionName) throws StorageException {
         if (! isCatalogManagerExist()) {
             throw new StorageException("Catalog Files not found");
