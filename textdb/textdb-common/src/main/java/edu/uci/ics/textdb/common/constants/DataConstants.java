@@ -80,6 +80,20 @@ public class DataConstants {
     public static final String N_GRAM_LUCENE_ANALYZER = "ngramLuceneAnalyzer";
     public static final String TRIGRAM_LUCENE_ANALYZER = "trigramLuceneAnalyzer";
 
+    public static enum NumberMatchingType {
+        EQUAL_TO,
+
+        GREATER_THAN,
+
+        GREATER_THAN_OR_EQUAL_TO,
+
+        LESS_THAN,
+
+        LESS_THAN_OR_EQUAL_TO,
+
+        NOT_EQUAL_TO
+    }
+
     /**
      * @return a trigram analyzer that is used by RegexMatcher
      * @throws IOException
