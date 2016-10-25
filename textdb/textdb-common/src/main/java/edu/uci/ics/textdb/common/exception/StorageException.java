@@ -7,4 +7,8 @@ public class StorageException extends Exception {
     public StorageException(String errorMessage, Throwable throwable) {
         super(errorMessage, throwable);
     }
+    
+    public StorageException(String errorMessage) {
+        super(errorMessage);
+    }
 }
