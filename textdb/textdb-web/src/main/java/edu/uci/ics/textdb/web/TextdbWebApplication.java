@@ -1,6 +1,7 @@
 package edu.uci.ics.textdb.web;
 
 import edu.uci.ics.textdb.web.healthcheck.SampleHealthCheck;
+import edu.uci.ics.textdb.web.resource.QueryPlanResource;
 import edu.uci.ics.textdb.web.resource.SampleResource;
 import io.dropwizard.Application;
 import io.dropwizard.setup.Bootstrap;
@@ -24,6 +25,10 @@ public class TextdbWebApplication extends Application<TextdbWebConfiguration> {
         final SampleResource sampleResource = new SampleResource();
         // Registers the SampleResource with Jersey
         environment.jersey().register(sampleResource);
+        // Creates an instance of the QueryPlanResource class to register with Jersey
+        final QueryPlanResource queryPlanResource = new QueryPlanResource();
+        // Registers the QueryPlanResource with Jersey
+        environment.jersey().register(queryPlanResource);
         // Creates an instance of the HealthCheck and registers it with the environment
         final SampleHealthCheck sampleHealthCheck = new SampleHealthCheck();
         // Registering the SampleHealthCheck with the environment
