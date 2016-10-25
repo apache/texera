@@ -61,6 +61,7 @@ public class IndexSink extends AbstractSink {
             } else {
                 this.luceneAnalyzerStr = DataConstants.TRIGRAM_LUCENE_ANALYZER;
             }
+            CatalogManager.deleteCollectionCatalog(collectionName);
             CatalogManager.putCollectionSchema(
                     collectionName, indexDirectory, 
                     outputSchema, luceneAnalyzerStr);
