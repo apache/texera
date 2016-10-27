@@ -18,6 +18,7 @@ import edu.uci.ics.textdb.common.constants.SchemaConstants;
 import edu.uci.ics.textdb.common.exception.DataFlowException;
 import edu.uci.ics.textdb.common.field.Span;
 import edu.uci.ics.textdb.common.utils.Utils;
+import edu.uci.ics.textdb.dataflow.common.AbstractSingleInputOperator;
 import edu.uci.ics.textdb.dataflow.common.DictionaryPredicate;
 import edu.uci.ics.textdb.dataflow.common.KeywordPredicate;
 import edu.uci.ics.textdb.dataflow.keywordmatch.KeywordMatcher;
@@ -28,7 +29,7 @@ import edu.uci.ics.textdb.dataflow.source.IndexBasedSourceOperator;
  * @author Zuozhi Wang (zuozhi)
  * 
  */
-public class DictionaryMatcherSourceOperator implements ISourceOperator {
+public class DictionaryMatcherSourceOperator extends AbstractSingleInputOperator {
 
     private ISourceOperator indexSource;
     private KeywordMatcher keywordMatcher;
@@ -106,6 +107,11 @@ public class DictionaryMatcherSourceOperator implements ISourceOperator {
         } catch (Exception e) {
             throw new DataFlowException(e.getMessage(), e);
         }
+    }
+
+    @Override
+    protected void setUp() throws DataFlowException {
+
     }
 
     /**
@@ -187,10 +193,7 @@ public class DictionaryMatcherSourceOperator implements ISourceOperator {
             ITuple sourceTuple;
             ITuple resultTuple = null;
             while ((sourceTuple = indexSource.getNextTuple()) != null) {
-                if (!inputSchema.containsField(SchemaConstants.SPAN_LIST)) {
-                    sourceTuple = Utils.getSpanTuple(sourceTuple.getFields(), new ArrayList<Span>(), outputSchema);
-                }
-                resultTuple = computeMatchingResult(currentDictionaryEntry, sourceTuple);
+                resultTuple = processOneInputTuple(sourceTuple);
                 if (resultTuple != null) {
                     resultCursor++;
                 }
@@ -200,6 +203,22 @@ public class DictionaryMatcherSourceOperator implements ISourceOperator {
             }
             return resultTuple;
         }
+    }
+
+    @Override
+    protected ITuple computeNextMatchingTuple() throws Exception {
+        return getNextTuple();
+    }
+
+    @Override
+    public ITuple processOneInputTuple(ITuple tuple) throws DataFlowException {
+        ITuple resultTuple = null;
+        if (!inputSchema.containsField(SchemaConstants.SPAN_LIST)) {
+            tuple = Utils.getSpanTuple(tuple.getFields(), new ArrayList<Span>(), outputSchema);
+        }
+        resultTuple = computeMatchingResult(currentDictionaryEntry, tuple);
+
+        return resultTuple;
     }
 
     public void setLimit(int limit) {
@@ -222,7 +241,7 @@ public class DictionaryMatcherSourceOperator implements ISourceOperator {
      * Advance the cursor of dictionary. if reach the end of the dictionary,
      * advance the cursor of tuples and reset dictionary
      */
-    private void advanceDictionaryCursor() throws Exception {
+    private void advanceDictionaryCursor()  {
         if ((currentDictionaryEntry = predicate.getNextDictionaryEntry()) != null) {
             return;
         }
@@ -235,7 +254,7 @@ public class DictionaryMatcherSourceOperator implements ISourceOperator {
      * original dataTuple object, if there's a match, return a new dataTuple
      * with span list added
      */
-    private ITuple computeMatchingResult(String key, ITuple sourceTuple) throws Exception {
+    private ITuple computeMatchingResult(String key, ITuple sourceTuple) throws DataFlowException {
 
         List<Attribute> attributeList = predicate.getAttributeList();
         List<Span> matchingResults = new ArrayList<>();
@@ -294,6 +313,11 @@ public class DictionaryMatcherSourceOperator implements ISourceOperator {
             e.printStackTrace();
             throw new DataFlowException(e.getMessage(), e);
         }
+    }
+
+    @Override
+    protected void cleanUp() throws DataFlowException {
+
     }
 
     @Override

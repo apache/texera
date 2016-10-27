@@ -62,7 +62,7 @@ public class ComparableMatcherTest {
     }
 
     public List<ITuple> getDoubleQueryResults(double threshold, Attribute attribute, NumberMatchingType matchingType)
-            throws DataFlowException {
+            throws Exception {
         // Perform the query
         ComparablePredicate<Double> comparablePredicate = new ComparablePredicate<>(threshold, attribute, matchingType);
         ComparableMatcher<Double> comparableMatcher = new ComparableMatcher<>(comparablePredicate);
@@ -71,7 +71,7 @@ public class ComparableMatcherTest {
     }
 
     public List<ITuple> getIntegerQueryResults(int threshold, Attribute attribute, NumberMatchingType matchingType)
-            throws DataFlowException {
+            throws Exception {
         // Perform the query
         ComparablePredicate<Integer> comparablePredicate = new ComparablePredicate<>(threshold, attribute, matchingType);
         ComparableMatcher<Integer> comparableMatcher = new ComparableMatcher<>(comparablePredicate);
@@ -80,7 +80,7 @@ public class ComparableMatcherTest {
     }
 
     public List<ITuple> getDateQueryResults(Date threshold, Attribute attribute, NumberMatchingType matchingType)
-            throws DataFlowException {
+            throws Exception {
         // Perform the query
         ComparablePredicate<Date> comparablePredicate = new ComparablePredicate<>(threshold, attribute, matchingType);
         ComparableMatcher<Date> comparableMatcher = new ComparableMatcher<>(comparablePredicate);
@@ -88,7 +88,7 @@ public class ComparableMatcherTest {
         return getQueryResults(comparableMatcher);
     }
 
-    public void setDefaultMatcherConfig(ComparableMatcher comparableMatcher) throws DataFlowException {
+    public void setDefaultMatcherConfig(ComparableMatcher comparableMatcher) throws Exception {
         // Perform the query
         ScanBasedSourceOperator sourceOperator = getScanSourceOperator(dataStore);
         comparableMatcher.setInputOperator(sourceOperator);
@@ -97,7 +97,7 @@ public class ComparableMatcherTest {
         comparableMatcher.setOffset(0);
     }
 
-    public List<ITuple> getQueryResults(ComparableMatcher comparableMatcher) throws DataFlowException {
+    public List<ITuple> getQueryResults(ComparableMatcher comparableMatcher) throws Exception {
         List<ITuple> returnedResults = new ArrayList<>();
         ITuple nextTuple = null;
 

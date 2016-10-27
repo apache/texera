@@ -73,7 +73,7 @@ public class SubstringMatcherTest {
      */
 
     public List<ITuple> getPeopleQueryResults(String query, ArrayList<Attribute> attributeList)
-            throws DataFlowException, ParseException {
+            throws Exception {
 
         KeywordPredicate keywordPredicate = new KeywordPredicate(query, attributeList, luceneAnalyzer,
                 DataConstants.KeywordMatchingType.SUBSTRING_SCANBASED);

@@ -52,6 +52,11 @@ public class KeywordMatcherSourceOperator extends AbstractSingleInputOperator im
     }
 
     @Override
+    public ITuple processOneInputTuple(ITuple tuple) throws DataFlowException {
+        return this.keywordMatcher.processOneInputTuple(tuple);
+    }
+
+    @Override
     protected void cleanUp() throws DataFlowException {        
     }
     

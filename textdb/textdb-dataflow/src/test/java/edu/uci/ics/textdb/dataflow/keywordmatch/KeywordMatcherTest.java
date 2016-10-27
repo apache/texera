@@ -73,19 +73,19 @@ public class KeywordMatcherTest {
      */
 
     public List<ITuple> getPeopleQueryResults(String query, ArrayList<Attribute> attributeList)
-            throws DataFlowException, ParseException {
+            throws Exception {
 
         return getPeopleQueryResults(query, attributeList, Integer.MAX_VALUE, 0);
     }
 
     public List<ITuple> getPeopleQueryResults(String query, ArrayList<Attribute> attributeList, int limit)
-            throws DataFlowException, ParseException {
+            throws Exception {
 
         return getPeopleQueryResults(query, attributeList, limit, 0);
     }
 
     public List<ITuple> getPeopleQueryResults(String query, ArrayList<Attribute> attributeList, int limit, int offset)
-            throws DataFlowException, ParseException {
+            throws Exception {
 
         KeywordPredicate keywordPredicate = new KeywordPredicate(query, attributeList, analyzer,
                 DataConstants.KeywordMatchingType.CONJUNCTION_INDEXBASED);
@@ -346,7 +346,7 @@ public class KeywordMatcherTest {
     }
 
     @Test
-    public void testMatchingWithLimit() throws DataFlowException, ParseException, java.text.ParseException {
+    public void testMatchingWithLimit() throws Exception {
         String query = "angry";
         ArrayList<Attribute> attributeList = new ArrayList<>();
         attributeList.add(TestConstants.FIRST_NAME_ATTR);
@@ -408,7 +408,7 @@ public class KeywordMatcherTest {
     }
 
     @Test
-    public void testMatchingWithLimitOffset() throws DataFlowException, ParseException, java.text.ParseException {
+    public void testMatchingWithLimitOffset() throws Exception {
         String query = "angry";
         ArrayList<Attribute> attributeList = new ArrayList<>();
         attributeList.add(TestConstants.FIRST_NAME_ATTR);
