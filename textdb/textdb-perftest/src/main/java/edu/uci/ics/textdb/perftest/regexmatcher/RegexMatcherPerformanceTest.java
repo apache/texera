@@ -57,7 +57,7 @@ public class RegexMatcherPerformanceTest {
      * 
      */
     public static void runTest(List<String> regexQueries)
-            throws StorageException, DataFlowException, IOException {
+            throws Exception {
 
         FileWriter fileWriter = null;
          
@@ -92,7 +92,7 @@ public class RegexMatcherPerformanceTest {
     /*
      *         This function does match for a list of regex queries
      */
-    public static void matchRegex(List<String> regexes, DataStore dataStore) throws DataFlowException, IOException {
+    public static void matchRegex(List<String> regexes, DataStore dataStore) throws Exception {
 
         Attribute[] attributeList = new Attribute[] { MedlineIndexWriter.ABSTRACT_ATTR };
         
