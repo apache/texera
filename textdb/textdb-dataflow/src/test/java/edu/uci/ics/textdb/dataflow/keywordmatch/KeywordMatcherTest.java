@@ -52,7 +52,9 @@ public class KeywordMatcherTest {
         analyzer = new StandardAnalyzer();
         dataWriter = new DataWriter(dataStore, analyzer);
         dataWriter.clearData();
-        dataWriter.writeData(TestConstants.getSamplePeopleTuples());
+        for (ITuple tuple : TestConstants.getSamplePeopleTuples()) {
+            dataWriter.insertTuple(tuple);
+        }
     }
 
     @After

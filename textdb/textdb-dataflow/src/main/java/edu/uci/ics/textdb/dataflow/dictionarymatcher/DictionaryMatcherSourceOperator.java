@@ -22,6 +22,7 @@ import edu.uci.ics.textdb.dataflow.common.DictionaryPredicate;
 import edu.uci.ics.textdb.dataflow.common.KeywordPredicate;
 import edu.uci.ics.textdb.dataflow.keywordmatch.KeywordMatcher;
 import edu.uci.ics.textdb.dataflow.source.IndexBasedSourceOperator;
+import edu.uci.ics.textdb.dataflow.source.ScanBasedSourceOperator;
 
 /**
  * @author Sudeep (inkudo)
@@ -74,7 +75,7 @@ public class DictionaryMatcherSourceOperator implements ISourceOperator {
 
             if (predicate.getKeywordMatchingType() == DataConstants.KeywordMatchingType.SUBSTRING_SCANBASED) {
                 // For Substring matching, create a scan source operator.
-                indexSource = predicate.getScanSourceOperator(dataStore);
+                indexSource = new ScanBasedSourceOperator(dataStore, predicate.getAnalyzer());
                 indexSource.open();
 
                 // Substring matching's output schema needs to contains span

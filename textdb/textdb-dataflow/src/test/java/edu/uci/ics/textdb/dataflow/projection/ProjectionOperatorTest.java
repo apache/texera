@@ -43,7 +43,9 @@ public class ProjectionOperatorTest {
         luceneAnalyzer = new StandardAnalyzer();
         dataWriter = new DataWriter(dataStore, luceneAnalyzer);
         dataWriter.clearData();
-        dataWriter.writeData(TestConstants.getSamplePeopleTuples());
+        for (ITuple tuple : TestConstants.getSamplePeopleTuples()) {
+            dataWriter.insertTuple(tuple);
+        }
     }
     
     @After
@@ -66,14 +68,6 @@ public class ProjectionOperatorTest {
         return results;
     }
     
-    private ScanBasedSourceOperator getScanSourceOperator(IDataStore dataStore) throws DataFlowException {
-        DataReaderPredicate dataReaderPredicate = new DataReaderPredicate(
-                new MatchAllDocsQuery(), DataConstants.SCAN_QUERY, dataStore,
-                dataStore.getSchema().getAttributes(), luceneAnalyzer);
-        DataReader dataReader = new DataReader(dataReaderPredicate);
-        ScanBasedSourceOperator scanSource = new ScanBasedSourceOperator(dataReader);
-        return scanSource;
-    }
 
     @Test
     public void testProjection1() throws Exception {
@@ -96,7 +90,7 @@ public class ProjectionOperatorTest {
         ITuple tuple6 = new DataTuple(projectionSchema, fields6);
         
         List<ITuple> expectedResults = Arrays.asList(tuple1, tuple2, tuple3, tuple4, tuple5, tuple6);
-        List<ITuple> returnedResults = getProjectionResults(getScanSourceOperator(dataStore), projectionFields);
+        List<ITuple> returnedResults = getProjectionResults(new ScanBasedSourceOperator(dataStore, luceneAnalyzer), projectionFields);
         
         Assert.assertTrue(TestUtils.containsAllResults(expectedResults, returnedResults));
     }
@@ -122,7 +116,7 @@ public class ProjectionOperatorTest {
         ITuple tuple6 = new DataTuple(projectionSchema, fields6);
         
         List<ITuple> expectedResults = Arrays.asList(tuple1, tuple2, tuple3, tuple4, tuple5, tuple6);
-        List<ITuple> returnedResults = getProjectionResults(getScanSourceOperator(dataStore), projectionFields);
+        List<ITuple> returnedResults = getProjectionResults(new ScanBasedSourceOperator(dataStore, luceneAnalyzer), projectionFields);
         
         Assert.assertTrue(TestUtils.containsAllResults(expectedResults, returnedResults));
     }

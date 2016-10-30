@@ -34,74 +34,27 @@ public class DataWriter implements IDataWriter {
     }
 
     @Override
-    public void clearData() throws StorageException {
-        IndexWriter luceneIndexWriter = null;
-        // Use existing indexWriter if there's already one.
-        // Avoid creating more than one indexWriter on one directory.
-        if (this.luceneIndexWriter != null && this.luceneIndexWriter.isOpen()) {
-            luceneIndexWriter = this.luceneIndexWriter;
+    public void clearData() throws StorageException { 
+        if (this.luceneIndexWriter == null || ! this.luceneIndexWriter.isOpen()) {
+            open();
         }
         try {
-            Directory directory = FSDirectory.open(Paths.get(dataStore.getDataDirectory()));
-            IndexWriterConfig conf = new IndexWriterConfig(analyzer);
-            luceneIndexWriter = new IndexWriter(directory, conf);
-            luceneIndexWriter.deleteAll();
-        } catch (Exception e) {
-            e.printStackTrace();
-            throw new StorageException(e.getMessage(), e);
-        } finally {
-            if (luceneIndexWriter != null) {
-                try {
-                    if (this.luceneIndexWriter == null) {
-                        luceneIndexWriter.close();
-                    }
-                } catch (IOException e) {
-                    e.printStackTrace();
-                    throw new StorageException(e.getMessage(), e);
-                }
-            }
-        }
-
-    }
-
-    @Override
-    public void writeData(List<ITuple> tuples) throws StorageException {
-        IndexWriter luceneIndexWriter = null;
-        try {
-            Directory directory = FSDirectory.open(Paths.get(dataStore.getDataDirectory()));
-            IndexWriterConfig conf = new IndexWriterConfig(analyzer);
-            luceneIndexWriter = new IndexWriter(directory, conf);
-
-            for (ITuple sampleTuple : tuples) {
-
-                Document document = getDocument(dataStore.getSchema(), sampleTuple);
-                luceneIndexWriter.addDocument(document);
-            }
-            dataStore.incrementNumDocuments(tuples.size());
-
+            this.luceneIndexWriter.deleteAll();
         } catch (IOException e) {
-            e.printStackTrace();
             throw new StorageException(e.getMessage(), e);
         } finally {
-            if (luceneIndexWriter != null) {
-                try {
-                    luceneIndexWriter.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                    throw new StorageException(e.getMessage(), e);
-                }
-            }
+            close();
         }
+
     }
 
     public void open() throws StorageException {
-        if (this.luceneIndexWriter == null) {
+        if (this.luceneIndexWriter == null || ! this.luceneIndexWriter.isOpen()) {
             try {
                 Directory directory = FSDirectory.open(Paths.get(dataStore.getDataDirectory()));
                 IndexWriterConfig conf = new IndexWriterConfig(analyzer);
                 this.luceneIndexWriter = new IndexWriter(directory, conf);
             } catch (IOException e) {
-                e.printStackTrace();
                 throw new StorageException(e.getMessage(), e);
             }
         }
@@ -112,25 +65,28 @@ public class DataWriter implements IDataWriter {
             try {
                 this.luceneIndexWriter.close();
             } catch (IOException e) {
-                e.printStackTrace();
                 throw new StorageException(e.getMessage(), e);
             }
         }
     }
 
-    public void writeTuple(ITuple tuple) throws StorageException {
-        if (this.luceneIndexWriter == null) {
+    @Override
+    public void insertTuple(ITuple tuple) throws StorageException {
+        if (this.luceneIndexWriter == null || ! this.luceneIndexWriter.isOpen()) {
             open();
         }
         try {
             Document document = getDocument(dataStore.getSchema(), tuple);
             this.luceneIndexWriter.addDocument(document);
+            this.dataStore.incrementNumDocuments(1);
         } catch (IOException e) {
-            e.printStackTrace();
             throw new StorageException(e.getMessage(), e);
+        } finally {
+            close();
         }
     }
 
+    
     private Document getDocument(Schema schema, ITuple tuple) {
         List<IField> fields = tuple.getFields();
         List<Attribute> attributes = schema.getAttributes();

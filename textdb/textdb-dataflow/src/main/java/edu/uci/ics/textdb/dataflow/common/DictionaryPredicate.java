@@ -64,20 +64,4 @@ public class DictionaryPredicate implements IPredicate {
         return luceneAnalyzer;
     }
 
-    /*
-     * For the given fields , parse the query using query parser and generate
-     * SCAN based source operator
-     */
-
-    public ScanBasedSourceOperator getScanSourceOperator(IDataStore dataStore)
-            throws ParseException, DataFlowException {
-        QueryParser luceneQueryParser = new QueryParser(attributeList.get(0).getFieldName(), luceneAnalyzer);
-        Query luceneQuery = luceneQueryParser.parse(DataConstants.SCAN_QUERY);
-        DataReaderPredicate dataReaderPredicate = new DataReaderPredicate(luceneQuery, DataConstants.SCAN_QUERY,
-                dataStore, attributeList, luceneAnalyzer);
-        IDataReader dataReader = new DataReader(dataReaderPredicate);
-
-        ScanBasedSourceOperator operator = new ScanBasedSourceOperator(dataReader);
-        return operator;
-    }
 }

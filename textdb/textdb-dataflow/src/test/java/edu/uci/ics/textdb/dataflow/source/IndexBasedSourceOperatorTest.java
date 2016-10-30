@@ -47,8 +47,9 @@ public class IndexBasedSourceOperatorTest {
         luceneAnalyzer = new StandardAnalyzer();
         dataWriter = new DataWriter(dataStore, luceneAnalyzer);
         dataWriter.clearData();
-        dataWriter.writeData(TestConstants.getSamplePeopleTuples());
-
+        for (ITuple tuple : TestConstants.getSamplePeopleTuples()) {
+            dataWriter.insertTuple(tuple);
+        }
     }
 
     @After

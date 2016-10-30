@@ -51,7 +51,9 @@ public class PhraseMatcherTest {
         luceneAnalyzer = new StandardAnalyzer();
         dataWriter = new DataWriter(dataStore, luceneAnalyzer);
         dataWriter.clearData();
-        dataWriter.writeData(TestConstants.getSamplePeopleTuples());
+        for (ITuple tuple : TestConstants.getSamplePeopleTuples()) {
+            dataWriter.insertTuple(tuple);
+        }
     }
 
     @After
@@ -311,7 +313,9 @@ public class PhraseMatcherTest {
         Analyzer MedAnalyzer = new StandardAnalyzer();
         DataWriter MedDataWriter = new DataWriter(medDataStore, MedAnalyzer);
         MedDataWriter.clearData();
-        MedDataWriter.writeData(keywordTestConstants.getSampleMedlineRecord());
+        for (ITuple tuple : keywordTestConstants.getSampleMedlineRecord()) {
+            MedDataWriter.insertTuple(tuple);
+        }
         // Prepare Query
         String query = "skin rash";
         ArrayList<Attribute> attributeList = new ArrayList<>();
@@ -379,7 +383,9 @@ public class PhraseMatcherTest {
         Analyzer MedAnalyzer = new StandardAnalyzer();
         DataWriter MedDataWriter = new DataWriter(medDataStore, MedAnalyzer);
         MedDataWriter.clearData();
-        MedDataWriter.writeData(keywordTestConstants.getSampleMedlineRecord());
+        for (ITuple tuple : keywordTestConstants.getSampleMedlineRecord()) {
+            MedDataWriter.insertTuple(tuple);
+        }
         // Prepare Query
         String query = "x-ray";
         ArrayList<Attribute> attributeList = new ArrayList<>();
@@ -442,7 +448,9 @@ public class PhraseMatcherTest {
         Analyzer MedAnalyzer = new StandardAnalyzer();
         DataWriter MedDataWriter = new DataWriter(medDataStore, MedAnalyzer);
         MedDataWriter.clearData();
-        MedDataWriter.writeData(keywordTestConstants.getSampleMedlineRecord());
+        for (ITuple tuple : keywordTestConstants.getSampleMedlineRecord()) {
+            MedDataWriter.insertTuple(tuple);
+        }
         // Prepare Query
         String query = "gain weight";
         ArrayList<Attribute> attributeList = new ArrayList<>();

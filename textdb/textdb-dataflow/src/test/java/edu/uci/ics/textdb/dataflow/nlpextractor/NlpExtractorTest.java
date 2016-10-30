@@ -37,13 +37,9 @@ public class NlpExtractorTest {
     private NlpExtractor nlpExtractor;
 
     private IDataWriter dataWriter;
-    private IDataReader dataReader;
     private IDataStore dataStore;
 
-    private Query query;
     private Analyzer analyzer;
-
-    private DataReaderPredicate dataReaderPredicate;
 
     @After
     public void cleanUp() throws Exception {
@@ -374,16 +370,12 @@ public class NlpExtractorTest {
         dataStore = new DataStore(DataConstants.INDEX_DIR, schema);
         analyzer = new StandardAnalyzer();
         dataWriter = new DataWriter(dataStore, analyzer);
-        dataWriter.writeData(data);
+        dataWriter.clearData();
+        for (ITuple tuple : data) {
+            dataWriter.insertTuple(tuple);
+        }
 
-        QueryParser queryParser = new QueryParser(
-                NlpExtractorTestConstants.ATTRIBUTES_ONE_SENTENCE.get(0).getFieldName(), analyzer);
-        query = queryParser.parse(DataConstants.SCAN_QUERY);
-        dataReaderPredicate = new DataReaderPredicate(query, DataConstants.SCAN_QUERY, dataStore,
-                Arrays.asList(NlpExtractorTestConstants.ATTRIBUTES_ONE_SENTENCE.get(0)), analyzer);
-        dataReader = new DataReader(dataReaderPredicate);
-
-        ISourceOperator sourceOperator = new ScanBasedSourceOperator(dataReader);
+        ISourceOperator sourceOperator = new ScanBasedSourceOperator(dataStore, analyzer);
         return sourceOperator;
 
     }

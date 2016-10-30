@@ -104,13 +104,7 @@ public class NlpExtractorPerformanceTest {
 
         List<Attribute> attributeList = Arrays.asList(MedlineIndexWriter.ABSTRACT_ATTR);
 
-        QueryParser queryParser = new QueryParser(MedlineIndexWriter.ABSTRACT_ATTR.getFieldName(), analyzer);
-        Query query = queryParser.parse(DataConstants.SCAN_QUERY);
-
-        DataReaderPredicate dataReaderPredicate = new DataReaderPredicate(query, DataConstants.SCAN_QUERY, dataStore,
-                attributeList, analyzer);
-        IDataReader dataReader = new DataReader(dataReaderPredicate);
-        ISourceOperator sourceOperator = new ScanBasedSourceOperator(dataReader);
+        ISourceOperator sourceOperator = new ScanBasedSourceOperator(dataStore, analyzer);
 
         NlpPredicate nlpPredicate = new NlpPredicate(tokenType, attributeList);
         NlpExtractor nlpExtractor = new NlpExtractor(nlpPredicate);

@@ -39,26 +39,21 @@ public class ScanBasedSourceOperatorTest {
 
     private IDataWriter dataWriter;
     private ScanBasedSourceOperator scanBasedSourceOperator;
-    private IDataReader dataReader;
     private IDataStore dataStore;
-    private Analyzer lucneAnalyzer;
-    private Query query;
-    private DataReaderPredicate dataReaderPredicate;
+    private Analyzer luceneAnalyzer;
 
     @Before
     public void setUp() throws Exception {
         dataStore = new DataStore(DataConstants.INDEX_DIR, TestConstants.SCHEMA_PEOPLE);
-        lucneAnalyzer = new StandardAnalyzer();
-        dataWriter = new DataWriter(dataStore, lucneAnalyzer);
-        QueryParser queryParser = new QueryParser(TestConstants.ATTRIBUTES_PEOPLE[0].getFieldName(), lucneAnalyzer);
-        query = queryParser.parse(DataConstants.SCAN_QUERY);
-        dataReaderPredicate = new DataReaderPredicate(query, DataConstants.SCAN_QUERY, dataStore,
-                Arrays.asList(TestConstants.ATTRIBUTES_PEOPLE[0]), lucneAnalyzer);
-        dataReader = new DataReader(dataReaderPredicate);
-
+        luceneAnalyzer = new StandardAnalyzer();
+        
+        dataWriter = new DataWriter(dataStore, luceneAnalyzer);
         dataWriter.clearData();
-        dataWriter.writeData(TestConstants.getSamplePeopleTuples());
-        scanBasedSourceOperator = new ScanBasedSourceOperator(dataReader);
+        for (ITuple tuple : TestConstants.getSamplePeopleTuples()) {
+            dataWriter.insertTuple(tuple);
+        }
+        
+        scanBasedSourceOperator = new ScanBasedSourceOperator(dataStore, luceneAnalyzer);
     }
 
     @After

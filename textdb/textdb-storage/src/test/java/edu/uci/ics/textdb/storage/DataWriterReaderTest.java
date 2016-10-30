@@ -14,7 +14,6 @@ import org.apache.lucene.search.Query;
 import org.junit.Before;
 import org.junit.Test;
 
-import edu.uci.ics.textdb.api.common.IPredicate;
 import edu.uci.ics.textdb.api.common.ITuple;
 import edu.uci.ics.textdb.api.storage.IDataReader;
 import edu.uci.ics.textdb.api.storage.IDataStore;
@@ -49,8 +48,12 @@ public class DataWriterReaderTest {
     public void testReadWriteData() throws Exception {
         dataWriter.clearData();
         List<ITuple> actualTuples = TestConstants.getSamplePeopleTuples();
-        dataWriter.writeData(actualTuples);
-        Assert.assertEquals(actualTuples.size(), dataStore.getNumDocuments());
+        for (ITuple tuple : actualTuples) {
+            dataWriter.insertTuple(tuple);
+        }
+        
+        Assert.assertEquals(dataStore.getNumDocuments(), actualTuples.size());
+        
         dataReader.open();
         ITuple nextTuple = null;
         int numTuples = 0;

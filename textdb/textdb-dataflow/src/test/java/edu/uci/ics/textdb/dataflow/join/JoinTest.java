@@ -132,12 +132,16 @@ public class JoinTest {
         if (outerTuple == null) {
             ;
         } else {
-            dataWriterForOuter.writeData(outerTuple);
+            for (ITuple tuple : outerTuple) {
+                dataWriterForOuter.insertTuple(tuple);
+            }
         }
         if (innerTuple == null) {
             return;
         }
-        dataWriterForInner.writeData(innerTuple);
+        for (ITuple tuple : innerTuple) {
+            dataWriterForInner.insertTuple(tuple);
+        }
     }
 
     // A helper method to setup the test cases.
@@ -719,7 +723,9 @@ public class JoinTest {
         DataStore dataStore = new DataStore(DataConstants.INDEX_DIR + "/join_test_dir_2", schema);
         IDataWriter dataWriter = new DataWriter(dataStore, analyzer);
         dataWriter.clearData();
-        dataWriter.writeData(bookTuple);
+        for (ITuple tuple : bookTuple) {
+            dataWriter.insertTuple(tuple);
+        }
 
         String query = "special";
         keywordMatcherOuter = (KeywordMatcher) setupOperators(query, "index", "outer");
@@ -785,8 +791,12 @@ public class JoinTest {
         dataWriterForOuter.clearData();
         dataWriterForInner.clearData();
 
-        dataWriterForOuter.writeData(bookTuple1);
-        dataWriterForInner.writeData(bookTuple2);
+        for (ITuple tuple : bookTuple1) {
+            dataWriterForOuter.insertTuple(tuple);
+        }
+        for (ITuple tuple : bookTuple2) {
+            dataWriterForInner.insertTuple(tuple);
+        }
 
         KeywordPredicate keywordPredicate = null;
         IDataStore dataStore = null;
@@ -885,8 +895,12 @@ public class JoinTest {
         dataWriterForOuter.clearData();
         dataWriterForInner.clearData();
 
-        dataWriterForOuter.writeData(bookTuple1);
-        dataWriterForInner.writeData(bookTuple2);
+        for (ITuple tuple : bookTuple1) {
+            dataWriterForOuter.insertTuple(tuple);
+        }
+        for (ITuple tuple : bookTuple2) {
+            dataWriterForInner.insertTuple(tuple);
+        }
 
         KeywordPredicate keywordPredicate = null;
         IDataStore dataStore = null;
@@ -979,8 +993,12 @@ public class JoinTest {
         dataWriterForOuter.clearData();
         dataWriterForInner.clearData();
 
-        dataWriterForOuter.writeData(bookTuple1);
-        dataWriterForInner.writeData(bookTuple2);
+        for (ITuple tuple : bookTuple1) {
+            dataWriterForOuter.insertTuple(tuple);
+        }
+        for (ITuple tuple : bookTuple2) {
+            dataWriterForInner.insertTuple(tuple);
+        }
 
         KeywordPredicate keywordPredicate = null;
         IDataStore dataStore = null;
@@ -1052,8 +1070,12 @@ public class JoinTest {
         dataWriterForOuter.clearData();
         dataWriterForInner.clearData();
 
-        dataWriterForOuter.writeData(bookTuple1);
-        dataWriterForInner.writeData(bookTuple2);
+        for (ITuple tuple : bookTuple1) {
+            dataWriterForOuter.insertTuple(tuple);
+        }
+        for (ITuple tuple : bookTuple2) {
+            dataWriterForInner.insertTuple(tuple);
+        }
 
         KeywordPredicate keywordPredicate = null;
         IDataStore dataStore = null;
@@ -1153,8 +1175,12 @@ public class JoinTest {
         dataWriterForOuter.clearData();
         dataWriterForInner.clearData();
 
-        dataWriterForOuter.writeData(bookTuple1);
-        dataWriterForInner.writeData(bookTuple2);
+        for (ITuple tuple : bookTuple1) {
+            dataWriterForOuter.insertTuple(tuple);
+        }
+        for (ITuple tuple : bookTuple2) {
+            dataWriterForInner.insertTuple(tuple);
+        }
 
         KeywordPredicate keywordPredicate = null;
         IDataStore dataStore = null;

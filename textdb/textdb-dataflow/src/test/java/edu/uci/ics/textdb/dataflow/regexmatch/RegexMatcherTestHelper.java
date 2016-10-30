@@ -43,7 +43,9 @@ public class RegexMatcherTestHelper {
                 .build();
         dataWriter = new DataWriter(dataStore, luceneAnalyzer);
         dataWriter.clearData();
-        dataWriter.writeData(data);
+        for (ITuple tuple : data) {
+            dataWriter.insertTuple(tuple);
+        }
         results = new ArrayList<ITuple>();
     }
 

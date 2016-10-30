@@ -60,8 +60,9 @@ public class DictionaryMatcherTest {
         luceneAnalyzer = new StandardAnalyzer();
         dataWriter = new DataWriter(dataStore, luceneAnalyzer);
         dataWriter.clearData();
-        dataWriter.writeData(TestConstants.getSamplePeopleTuples());
-
+        for (ITuple tuple : TestConstants.getSamplePeopleTuples()) {
+            dataWriter.insertTuple(tuple);
+        }
     }
 
     @After
@@ -117,7 +118,7 @@ public class DictionaryMatcherTest {
                 srcOpType);
 
         DictionaryMatcher dictionaryMatcher = new DictionaryMatcher(dictionaryPredicate);
-        ScanBasedSourceOperator indexSource = dictionaryPredicate.getScanSourceOperator(dataStore);
+        ScanBasedSourceOperator indexSource = new ScanBasedSourceOperator(dataStore, luceneAnalyzer);
         dictionaryMatcher.setInputOperator(indexSource);
 
         dictionaryMatcher.open();
