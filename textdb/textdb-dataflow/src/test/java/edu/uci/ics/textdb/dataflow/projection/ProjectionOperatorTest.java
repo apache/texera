@@ -53,7 +53,7 @@ public class ProjectionOperatorTest {
         dataWriter.clearData();
     }
     
-    public List<ITuple> getProjectionResults(IOperator inputOperator, List<String> projectionFields) throws DataFlowException {
+    public List<ITuple> getProjectionResults(IOperator inputOperator, List<String> projectionFields) throws Exception {
         ProjectionPredicate projectionPredicate = new ProjectionPredicate(projectionFields);
         ProjectionOperator projection = new ProjectionOperator(projectionPredicate);
         projection.setInputOperator(inputOperator);

@@ -74,17 +74,17 @@ public class PhraseMatcherTest {
      */
 
     public List<ITuple> getPeopleQueryResults(String query, ArrayList<Attribute> attributeList)
-            throws DataFlowException, ParseException {
+            throws Exception {
         return getPeopleQueryResults(query, attributeList, Integer.MAX_VALUE, 0);
     }
 
     public List<ITuple> getPeopleQueryResults(String query, ArrayList<Attribute> attributeList, int limit)
-            throws DataFlowException, ParseException {
+            throws Exception {
         return getPeopleQueryResults(query, attributeList, limit, 0);
     }
 
     public List<ITuple> getPeopleQueryResults(String query, ArrayList<Attribute> attributeList, int limit, int offset)
-            throws DataFlowException, ParseException {
+            throws Exception {
 
         KeywordPredicate keywordPredicate = new KeywordPredicate(query, attributeList, luceneAnalyzer,
                 DataConstants.KeywordMatchingType.PHRASE_INDEXBASED);

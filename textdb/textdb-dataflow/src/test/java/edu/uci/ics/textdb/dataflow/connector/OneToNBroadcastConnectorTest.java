@@ -66,7 +66,7 @@ public class OneToNBroadcastConnectorTest {
      * This test connects Connector with Projection
      */
     @Test
-    public void testTwoOutputsWithProjection() throws DataFlowException {
+    public void testTwoOutputsWithProjection() throws Exception {
         IOperator sourceOperator = getScanSourceOperator(dataStore);
         
         List<String> projectionFields = Arrays.asList(

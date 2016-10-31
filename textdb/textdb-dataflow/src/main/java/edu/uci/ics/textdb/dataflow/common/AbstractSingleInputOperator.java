@@ -33,7 +33,7 @@ public abstract class AbstractSingleInputOperator implements IOperator {
     protected int offset = 0;
     
     @Override
-    public void open() throws DataFlowException {
+    public void open() throws Exception {
         if (cursor != CLOSED) {
             return;
         }
@@ -58,7 +58,7 @@ public abstract class AbstractSingleInputOperator implements IOperator {
     protected abstract void setUp() throws DataFlowException;
 
     @Override
-    public ITuple getNextTuple() throws DataFlowException {
+    public ITuple getNextTuple() throws Exception {
         if (cursor == CLOSED) {
             throw new DataFlowException(ErrorMessages.OPERATOR_NOT_OPENED);
         }
@@ -90,6 +90,8 @@ public abstract class AbstractSingleInputOperator implements IOperator {
      * @throws Exception
      */
     protected abstract ITuple computeNextMatchingTuple() throws Exception;
+
+    public abstract ITuple processOneInputTuple(ITuple tuple) throws DataFlowException;
 
     @Override
     public void close() throws DataFlowException {

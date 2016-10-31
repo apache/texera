@@ -136,7 +136,7 @@ public class KeywordMatcherPerformanceTest {
      * This function does match for a list of queries
      */
     public static void match(ArrayList<String> queryList, KeywordMatchingType opType, Analyzer luceneAnalyzer,
-            DataStore dataStore) throws DataFlowException, IOException {
+            DataStore dataStore) throws Exception {
 
         Attribute[] attributeList = new Attribute[] { MedlineIndexWriter.ABSTRACT_ATTR };
 

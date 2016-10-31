@@ -68,7 +68,7 @@ public class FuzzyTokenMatcherPerformanceTest {
      * 
      */
     public static void runTest(String queryFileName, List<Double> thresholds)
-            throws StorageException, DataFlowException, IOException {
+            throws Exception {
 
         // Reads queries from query file into a list
         ArrayList<String> queries = PerfTestUtils.readQueries(PerfTestUtils.getQueryPath(queryFileName));
@@ -118,7 +118,7 @@ public class FuzzyTokenMatcherPerformanceTest {
      * This function does match for a list of queries
      */
     public static void match(ArrayList<String> queryList, double threshold, Analyzer luceneAnalyzer,
-            DataStore dataStore, boolean bool) throws DataFlowException, IOException {
+            DataStore dataStore, boolean bool) throws Exception {
 
         Attribute[] attributeList = new Attribute[] { MedlineIndexWriter.ABSTRACT_ATTR };
 

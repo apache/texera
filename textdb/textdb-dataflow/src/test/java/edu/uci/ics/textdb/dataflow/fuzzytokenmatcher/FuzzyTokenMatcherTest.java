@@ -66,17 +66,17 @@ public class FuzzyTokenMatcherTest {
     }
 
     public List<ITuple> getQueryResults(String query, double threshold, ArrayList<Attribute> attributeList)
-            throws DataFlowException, ParseException {
+            throws Exception {
         return getQueryResults(query, threshold, attributeList, Integer.MAX_VALUE, 0);
     }
 
     public List<ITuple> getQueryResults(String query, double threshold, ArrayList<Attribute> attributeList,
-            int limit) throws DataFlowException, ParseException {
+            int limit) throws Exception {
         return getQueryResults(query, threshold, attributeList, limit, 0);
     }
 
     public List<ITuple> getQueryResults(String query, double threshold, ArrayList<Attribute> attributeList,
-            int limit, int offset) throws DataFlowException, ParseException {
+            int limit, int offset) throws Exception {
 
         FuzzyTokenPredicate predicate = new FuzzyTokenPredicate(query, attributeList, analyzer, threshold);
         fuzzyTokenMatcher = new FuzzyTokenMatcher(predicate);

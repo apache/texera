@@ -51,32 +51,39 @@ public class KeywordMatcher extends AbstractSingleInputOperator {
         ITuple resultTuple = null;
         
         while ((inputTuple = inputOperator.getNextTuple()) != null) {
-            
-            // There's an implicit assumption that, in open() method, PAYLOAD is
-            // checked before SPAN_LIST.
-            // Therefore, PAYLOAD needs to be checked and added first
-            if (!inputSchema.containsField(SchemaConstants.PAYLOAD)) {
-                inputTuple = Utils.getSpanTuple(inputTuple.getFields(),
-                        Utils.generatePayloadFromTuple(inputTuple, predicate.getLuceneAnalyzer()), outputSchema);
-            }
-            if (!inputSchema.containsField(SchemaConstants.SPAN_LIST)) {
-                inputTuple = Utils.getSpanTuple(inputTuple.getFields(), new ArrayList<Span>(), outputSchema);
-            }
+            resultTuple = processOneInputTuple(inputTuple);
 
-            if (this.predicate.getOperatorType() == DataConstants.KeywordMatchingType.CONJUNCTION_INDEXBASED) {
-                resultTuple = computeConjunctionMatchingResult(inputTuple);
-            }
-            if (this.predicate.getOperatorType() == DataConstants.KeywordMatchingType.PHRASE_INDEXBASED) {
-                resultTuple = computePhraseMatchingResult(inputTuple);
-            }
-            if (this.predicate.getOperatorType() == DataConstants.KeywordMatchingType.SUBSTRING_SCANBASED) {
-                resultTuple = computeSubstringMatchingResult(inputTuple);
-            }
-            
             if (resultTuple != null) {
                 break;
             }
         }
+        return resultTuple;
+    }
+
+    @Override
+    public ITuple processOneInputTuple(ITuple tuple) throws DataFlowException {
+        ITuple resultTuple = null;
+        // There's an implicit assumption that, in open() method, PAYLOAD is
+        // checked before SPAN_LIST.
+        // Therefore, PAYLOAD needs to be checked and added first
+        if (!inputSchema.containsField(SchemaConstants.PAYLOAD)) {
+            tuple = Utils.getSpanTuple(tuple.getFields(),
+                    Utils.generatePayloadFromTuple(tuple, predicate.getLuceneAnalyzer()), outputSchema);
+        }
+        if (!inputSchema.containsField(SchemaConstants.SPAN_LIST)) {
+            tuple = Utils.getSpanTuple(tuple.getFields(), new ArrayList<Span>(), outputSchema);
+        }
+
+        if (this.predicate.getOperatorType() == DataConstants.KeywordMatchingType.CONJUNCTION_INDEXBASED) {
+            resultTuple = computeConjunctionMatchingResult(tuple);
+        }
+        if (this.predicate.getOperatorType() == DataConstants.KeywordMatchingType.PHRASE_INDEXBASED) {
+            resultTuple = computePhraseMatchingResult(tuple);
+        }
+        if (this.predicate.getOperatorType() == DataConstants.KeywordMatchingType.SUBSTRING_SCANBASED) {
+            resultTuple = computeSubstringMatchingResult(tuple);
+        }
+
         return resultTuple;
     }
 

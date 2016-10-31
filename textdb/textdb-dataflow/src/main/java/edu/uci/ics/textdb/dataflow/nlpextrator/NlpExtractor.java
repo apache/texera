@@ -79,7 +79,8 @@ public class NlpExtractor extends AbstractSingleInputOperator {
         return resultTuple;
     }
 
-    private ITuple processOneInputTuple(ITuple inputTuple) throws DataFlowException {
+    @Override
+    public ITuple processOneInputTuple(ITuple inputTuple) throws DataFlowException {
         List<Span> matchingResults = new ArrayList<>();
         for (Attribute attribute : predicate.getAttributeList()) {
             String fieldName = attribute.getFieldName();
