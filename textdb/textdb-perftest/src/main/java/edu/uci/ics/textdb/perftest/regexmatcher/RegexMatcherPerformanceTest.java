@@ -10,7 +10,7 @@ import edu.uci.ics.textdb.api.exception.TextDBException;
 import org.apache.lucene.analysis.Analyzer;
 import edu.uci.ics.textdb.api.common.Attribute;
 import edu.uci.ics.textdb.api.common.ITuple;
-import edu.uci.ics.textdb.common.constants.DataConstants;
+import edu.uci.ics.textdb.common.constants.LuceneAnalyzerConstants;
 import edu.uci.ics.textdb.common.constants.SchemaConstants;
 import edu.uci.ics.textdb.common.exception.DataFlowException;
 import edu.uci.ics.textdb.common.exception.StorageException;
@@ -100,7 +100,7 @@ public class RegexMatcherPerformanceTest {
         for(String regex: regexes){
 	        // analyzer should generate grams all in lower case to build a lower
 	        // case index.
-	        Analyzer luceneAnalyzer = DataConstants.getTrigramAnalyzer();
+	        Analyzer luceneAnalyzer = LuceneAnalyzerConstants.getNGramAnalyzer(3);
 	        RegexPredicate regexPredicate = new RegexPredicate(regex, Arrays.asList(attributeList), luceneAnalyzer);
 	        IndexBasedSourceOperator indexInputOperator = new IndexBasedSourceOperator(
 	                regexPredicate.generateDataReaderPredicate(dataStore));

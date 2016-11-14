@@ -6,8 +6,6 @@ import java.util.List;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
-import org.apache.lucene.queryparser.classic.QueryParser;
-import org.apache.lucene.search.Query;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Test;
@@ -16,7 +14,6 @@ import edu.uci.ics.textdb.api.common.Attribute;
 import edu.uci.ics.textdb.api.common.ITuple;
 import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.api.dataflow.ISourceOperator;
-import edu.uci.ics.textdb.api.storage.IDataReader;
 import edu.uci.ics.textdb.api.storage.IDataStore;
 import edu.uci.ics.textdb.api.storage.IDataWriter;
 import edu.uci.ics.textdb.common.constants.DataConstants;
@@ -25,9 +22,7 @@ import edu.uci.ics.textdb.dataflow.nlpextrator.NlpExtractor;
 import edu.uci.ics.textdb.dataflow.nlpextrator.NlpPredicate;
 import edu.uci.ics.textdb.dataflow.source.ScanBasedSourceOperator;
 import edu.uci.ics.textdb.dataflow.utils.TestUtils;
-import edu.uci.ics.textdb.storage.DataReaderPredicate;
 import edu.uci.ics.textdb.storage.DataStore;
-import edu.uci.ics.textdb.storage.reader.DataReader;
 import edu.uci.ics.textdb.storage.writer.DataWriter;
 
 /**
@@ -375,7 +370,7 @@ public class NlpExtractorTest {
             dataWriter.insertTuple(tuple);
         }
 
-        ISourceOperator sourceOperator = new ScanBasedSourceOperator(dataStore, analyzer);
+        ISourceOperator sourceOperator = new ScanBasedSourceOperator(dataStore);
         return sourceOperator;
 
     }

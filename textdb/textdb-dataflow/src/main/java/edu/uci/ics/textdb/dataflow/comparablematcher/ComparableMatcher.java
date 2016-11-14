@@ -32,28 +32,36 @@ public class ComparableMatcher<T extends Comparable> extends AbstractSingleInput
         ITuple resultTuple = null;
 
         while ((inputTuple = inputOperator.getNextTuple()) != null) {
-            Attribute attribute = predicate.getAttribute();
-            DataConstants.NumberMatchingType operatorType = predicate.getMatchingType();
-
-            FieldType fieldType = attribute.getFieldType();
-            String fieldName = attribute.getFieldName();
-
-            T value;
-            T threshold;
-            try {
-                value = (T) inputTuple.getField(fieldName).getValue();
-                threshold = (T) predicate.getThreshold();
-            } catch (ClassCastException e) {
-                continue;
-            }
-
-            if (compareValues(value, threshold, operatorType)) {
-                resultTuple = inputTuple;
-            }
+            resultTuple = processOneInputTuple(inputTuple);
 
             if (resultTuple != null) {
                 break;
             }
+        }
+        return resultTuple;
+    }
+
+    @Override
+    public ITuple processOneInputTuple(ITuple inputTuple) throws TextDBException {
+        ITuple resultTuple = null;
+
+        Attribute attribute = predicate.getAttribute();
+        DataConstants.NumberMatchingType operatorType = predicate.getMatchingType();
+
+        FieldType fieldType = attribute.getFieldType();
+        String fieldName = attribute.getFieldName();
+
+        T value;
+        T threshold;
+        try {
+            value = (T) inputTuple.getField(fieldName).getValue();
+            threshold = (T) predicate.getThreshold();
+        } catch (ClassCastException e) {
+            return null;
+        }
+
+        if (compareValues(value, threshold, operatorType)) {
+            resultTuple = inputTuple;
         }
         return resultTuple;
     }

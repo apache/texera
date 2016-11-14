@@ -3,14 +3,6 @@
  */
 package edu.uci.ics.textdb.common.constants;
 
-import java.io.IOException;
-
-import org.apache.lucene.analysis.Analyzer;
-import org.apache.lucene.analysis.core.LowerCaseFilterFactory;
-import org.apache.lucene.analysis.custom.CustomAnalyzer;
-import org.apache.lucene.analysis.ngram.NGramTokenizerFactory;
-import org.apache.lucene.analysis.standard.StandardAnalyzer;
-
 /**
  * @author sandeepreddy602
  * @author Zuozhi Wang (zuozhi)
@@ -87,20 +79,6 @@ public class DataConstants {
         LESS_THAN_OR_EQUAL_TO,
 
         NOT_EQUAL_TO
-    }
-
-    /**
-     * @return a trigram analyzer that is used by RegexMatcher
-     * @throws IOException
-     */
-    public static Analyzer getTrigramAnalyzer() throws IOException {
-        return CustomAnalyzer.builder()
-                .withTokenizer(NGramTokenizerFactory.class, new String[] { "minGramSize", "3", "maxGramSize", "3" })
-                .addTokenFilter(LowerCaseFilterFactory.class).build();
-    }
-
-    public static Analyzer getStandardAnalyzer() {
-        return new StandardAnalyzer();
     }
 
 }

@@ -87,7 +87,7 @@ public class ProjectionOperatorTest {
         ITuple tuple6 = new DataTuple(projectionSchema, fields6);
         
         List<ITuple> expectedResults = Arrays.asList(tuple1, tuple2, tuple3, tuple4, tuple5, tuple6);
-        List<ITuple> returnedResults = getProjectionResults(new ScanBasedSourceOperator(dataStore, luceneAnalyzer), projectionFields);
+        List<ITuple> returnedResults = getProjectionResults(new ScanBasedSourceOperator(dataStore), projectionFields);
         
         Assert.assertTrue(TestUtils.containsAllResults(expectedResults, returnedResults));
     }
@@ -113,7 +113,7 @@ public class ProjectionOperatorTest {
         ITuple tuple6 = new DataTuple(projectionSchema, fields6);
         
         List<ITuple> expectedResults = Arrays.asList(tuple1, tuple2, tuple3, tuple4, tuple5, tuple6);
-        List<ITuple> returnedResults = getProjectionResults(new ScanBasedSourceOperator(dataStore, luceneAnalyzer), projectionFields);
+        List<ITuple> returnedResults = getProjectionResults(new ScanBasedSourceOperator(dataStore), projectionFields);
         
         Assert.assertTrue(TestUtils.containsAllResults(expectedResults, returnedResults));
     }

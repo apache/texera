@@ -21,8 +21,8 @@ import edu.uci.ics.textdb.common.field.Span;
  */
 public class JoinDistancePredicate implements IJoinPredicate {
 
-    private Attribute idAttribute;
-    private Attribute joinAttribute;
+    private String idAttributeName;
+    private String joinAttributeName;
     private Integer threshold;
 
     /**
@@ -90,18 +90,18 @@ public class JoinDistancePredicate implements IJoinPredicate {
      * @param threshold
      *            is the maximum distance (in characters) between any two spans
      */
-    public JoinDistancePredicate(Attribute idAttribute, Attribute joinAttribute, Integer threshold) {
-        this.idAttribute = idAttribute;
-        this.joinAttribute = joinAttribute;
+    public JoinDistancePredicate(String idAttributeName, String joinAttributeName, Integer threshold) {
+        this.idAttributeName = idAttributeName;
+        this.joinAttributeName = joinAttributeName;
         this.threshold = threshold;
     }
 
-    public Attribute getIDAttribute() {
-        return this.idAttribute;
+    public String getIDAttributeName() {
+        return this.idAttributeName;
     }
 
-    public Attribute getJoinAttribute() {
-        return this.joinAttribute;
+    public String getJoinAttributeName() {
+        return this.joinAttributeName;
     }
 
     public Integer getThreshold() {
@@ -123,12 +123,12 @@ public class JoinDistancePredicate implements IJoinPredicate {
 	     * For other fields, we use the value from innerTuple.
 	     * check if the ID fields are the same
 	     */
-	    if (! compareField(innerTuple, outerTuple, this.getIDAttribute().getFieldName())) {
+	    if (! compareField(innerTuple, outerTuple, this.getIDAttributeName())) {
 	        return null;
 	    }
 	
 	    // check if the fields to be joined are the same
-	    if (! compareField(innerTuple, outerTuple, this.getJoinAttribute().getFieldName())) {
+	    if (! compareField(innerTuple, outerTuple, this.getJoinAttributeName())) {
 	        return null;
 	    }
 
@@ -168,13 +168,13 @@ public class JoinDistancePredicate implements IJoinPredicate {
 	        Span outerSpan = outerSpanIter.next();
 	        // Check if the field matches the filed over which we want to join.
 	        // If not return null.
-	        if (!outerSpan.getFieldName().equals(this.getJoinAttribute().getFieldName())) {
+	        if (!outerSpan.getFieldName().equals(this.getJoinAttributeName())) {
 	            continue;
 	        }
 	        Iterator<Span> innerSpanIter = innerSpanList.iterator();
 	        while (innerSpanIter.hasNext()) {
 	            Span innerSpan = innerSpanIter.next();
-	            if (!innerSpan.getFieldName().equals(this.getJoinAttribute().getFieldName())) {
+	            if (!innerSpan.getFieldName().equals(this.getJoinAttributeName())) {
 	                continue;
 	            }
 	            Integer threshold = this.getThreshold();
@@ -182,7 +182,7 @@ public class JoinDistancePredicate implements IJoinPredicate {
 	                    && Math.abs(outerSpan.getEnd() - innerSpan.getEnd()) <= threshold) {
 	                Integer newSpanStartIndex = Math.min(outerSpan.getStart(), innerSpan.getStart());
 	                Integer newSpanEndIndex = Math.max(outerSpan.getEnd(), innerSpan.getEnd());
-	                String fieldName = this.getJoinAttribute().getFieldName();
+	                String fieldName = this.getJoinAttributeName();
 	                String fieldValue = (String) innerTuple.getField(fieldName).getValue();
 	                String newFieldValue = fieldValue.substring(newSpanStartIndex, newSpanEndIndex);
 	                String spanKey = outerSpan.getKey() + "_" + innerSpan.getKey();

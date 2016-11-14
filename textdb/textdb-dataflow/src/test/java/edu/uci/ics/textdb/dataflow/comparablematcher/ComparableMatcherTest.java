@@ -37,7 +37,7 @@ public class ComparableMatcherTest {
     private Analyzer analyzer;
 
     private ScanBasedSourceOperator getScanSourceOperator(IDataStore dataStore) throws DataFlowException {
-        ScanBasedSourceOperator scanSource = new ScanBasedSourceOperator(dataStore, analyzer);
+        ScanBasedSourceOperator scanSource = new ScanBasedSourceOperator(dataStore);
         return scanSource;
     }
 

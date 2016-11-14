@@ -22,13 +22,12 @@ import org.apache.lucene.store.FSDirectory;
 import edu.uci.ics.textdb.api.common.Attribute;
 import edu.uci.ics.textdb.api.common.FieldType;
 import edu.uci.ics.textdb.api.common.IField;
-import edu.uci.ics.textdb.api.common.IPredicate;
 import edu.uci.ics.textdb.api.common.ITuple;
 import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.api.storage.IDataReader;
 import edu.uci.ics.textdb.common.constants.SchemaConstants;
-import edu.uci.ics.textdb.common.exception.DataFlowException;
 import edu.uci.ics.textdb.common.exception.ErrorMessages;
+import edu.uci.ics.textdb.common.exception.StorageException;
 import edu.uci.ics.textdb.common.field.DataTuple;
 import edu.uci.ics.textdb.common.field.ListField;
 import edu.uci.ics.textdb.common.field.Span;
@@ -55,14 +54,15 @@ public class DataReader implements IDataReader {
 
     private int limit;
     private int offset;
-    private boolean payloadAdded = true;
+    private boolean payloadAdded;
 
     public DataReader(DataReaderPredicate dataReaderPredicate) {
         predicate = dataReaderPredicate;
+        payloadAdded = dataReaderPredicate.isPayloadAdded();
     }
 
     @Override
-    public void open() throws DataFlowException {
+    public void open() throws StorageException {
         if (cursor != CLOSED) {
             return;
         }
@@ -83,17 +83,16 @@ public class DataReader implements IDataReader {
             }
 
         } catch (IOException e) {
-            e.printStackTrace();
-            throw new DataFlowException(e.getMessage(), e);
+            throw new StorageException(e.getMessage(), e);
         }
 
         cursor = OPENED;
     }
 
     @Override
-    public ITuple getNextTuple() throws DataFlowException {
+    public ITuple getNextTuple() throws StorageException {
         if (cursor == CLOSED) {
-            throw new DataFlowException(ErrorMessages.OPERATOR_NOT_OPENED);
+            throw new StorageException(ErrorMessages.OPERATOR_NOT_OPENED);
         }
 
         ITuple resultTuple;
@@ -105,8 +104,7 @@ public class DataReader implements IDataReader {
             resultTuple = constructTuple(docID);
 
         } catch (IOException | ParseException e) {
-            e.printStackTrace();
-            throw new DataFlowException(e.getMessage(), e);
+            throw new StorageException(e.getMessage(), e);
         }
 
         cursor++;
@@ -114,14 +112,14 @@ public class DataReader implements IDataReader {
     }
 
     @Override
-    public void close() throws DataFlowException {
+    public void close() throws StorageException {
         cursor = CLOSED;
         if (luceneIndexReader != null) {
             try {
                 luceneIndexReader.close();
                 luceneIndexReader = null;
             } catch (IOException e) {
-                throw new DataFlowException(e.getMessage(), e);
+                throw new StorageException(e.getMessage(), e);
             }
         }
     }
@@ -180,12 +178,7 @@ public class DataReader implements IDataReader {
                 }
                 // for each term, go through its postings
                 for (int i = 0; i < termPostings.freq(); i++) {
-                    int tokenPosition = termPostings.nextPosition(); // nextPosition
-                                                                     // needs to
-                                                                     // be
-                                                                     // called
-                                                                     // first
-
+                    int tokenPosition = termPostings.nextPosition(); // nextPosition needs to be called first
                     int charStart = termPostings.startOffset();
                     int charEnd = termPostings.endOffset();
                     String analyzedTermStr = termsEnum.term().utf8ToString();
@@ -217,15 +210,17 @@ public class DataReader implements IDataReader {
         this.offset = offset;
     }
 
-    public boolean isTermVecAdded() {
-        return payloadAdded;
-    }
-
-    public void setTermVecAdded(boolean termVecAdded) {
-        this.payloadAdded = termVecAdded;
-    }
-
     public Schema getOutputSchema() {
         return outputSchema;
     }
+    
+    public static boolean checkIndexExistence(String directory) {
+        try {
+            return DirectoryReader.indexExists(
+                    FSDirectory.open(Paths.get(directory)));
+        } catch (IOException e) {
+            return false;
+        }
+    }
+    
 }

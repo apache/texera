@@ -90,7 +90,8 @@ public class KeywordMatcherTest {
     public List<ITuple> getPeopleQueryResults(String query, ArrayList<Attribute> attributeList, int limit, int offset)
             throws TextDBException, ParseException {
 
-        KeywordPredicate keywordPredicate = new KeywordPredicate(query, attributeList, analyzer,
+        KeywordPredicate keywordPredicate = new KeywordPredicate(query,
+                Utils.getAttributeNames(attributeList), analyzer,
                 DataConstants.KeywordMatchingType.CONJUNCTION_INDEXBASED);
 
         KeywordMatcherSourceOperator keywordSource = new KeywordMatcherSourceOperator(keywordPredicate, dataStore);

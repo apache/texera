@@ -104,7 +104,7 @@ public class NlpExtractorPerformanceTest {
 
         List<Attribute> attributeList = Arrays.asList(MedlineIndexWriter.ABSTRACT_ATTR);
 
-        ISourceOperator sourceOperator = new ScanBasedSourceOperator(dataStore, analyzer);
+        ISourceOperator sourceOperator = new ScanBasedSourceOperator(dataStore);
 
         NlpPredicate nlpPredicate = new NlpPredicate(tokenType, attributeList);
         NlpExtractor nlpExtractor = new NlpExtractor(nlpPredicate);

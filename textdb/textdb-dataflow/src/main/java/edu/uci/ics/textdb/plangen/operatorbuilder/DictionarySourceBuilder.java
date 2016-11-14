@@ -4,8 +4,8 @@ import java.util.List;
 import java.util.Map;
 
 import edu.uci.ics.textdb.api.common.Attribute;
-import edu.uci.ics.textdb.common.constants.DataConstants;
 import edu.uci.ics.textdb.common.constants.DataConstants.KeywordMatchingType;
+import edu.uci.ics.textdb.common.constants.LuceneAnalyzerConstants;
 import edu.uci.ics.textdb.common.exception.PlanGenException;
 import edu.uci.ics.textdb.dataflow.common.Dictionary;
 import edu.uci.ics.textdb.dataflow.common.DictionaryPredicate;
@@ -53,7 +53,7 @@ public class DictionarySourceBuilder {
                 + "must be one of " + KeywordMatcherBuilder.keywordMatchingTypeMap.keySet());
         
         DictionaryPredicate predicate = new DictionaryPredicate(
-                dictionary, attributeList, DataConstants.getStandardAnalyzer(), matchingType);
+                dictionary, attributeList, LuceneAnalyzerConstants.getStandardAnalyzer(), matchingType);
         
         DataStore dataStore = OperatorBuilderUtils.constructDataStore(operatorProperties);
         

@@ -74,9 +74,7 @@ public class LogicalPlanTest {
             put(JoinBuilder.JOIN_PREDICATE, "CharacterDistance");
             put(JoinBuilder.JOIN_DISTANCE, "100");
             put(JoinBuilder.JOIN_ID_ATTRIBUTE_NAME, "id");
-            put(JoinBuilder.JOIN_ID_ATTRIBUTE_TYPE, "integer");
             put(OperatorBuilderUtils.ATTRIBUTE_NAMES, "content");
-            put(OperatorBuilderUtils.ATTRIBUTE_TYPES, "text");
         }
     };
 

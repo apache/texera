@@ -30,6 +30,7 @@ import edu.uci.ics.textdb.common.field.ListField;
 import edu.uci.ics.textdb.common.field.Span;
 import edu.uci.ics.textdb.common.field.StringField;
 import edu.uci.ics.textdb.common.field.TextField;
+import edu.uci.ics.textdb.common.utils.Utils;
 import edu.uci.ics.textdb.dataflow.common.KeywordPredicate;
 import edu.uci.ics.textdb.dataflow.utils.TestUtils;
 import edu.uci.ics.textdb.storage.DataStore;
@@ -77,7 +78,8 @@ public class SubstringMatcherTest {
     public List<ITuple> getPeopleQueryResults(String query, ArrayList<Attribute> attributeList)
             throws TextDBException, ParseException {
 
-        KeywordPredicate keywordPredicate = new KeywordPredicate(query, attributeList, luceneAnalyzer,
+        KeywordPredicate keywordPredicate = new KeywordPredicate(query, 
+                Utils.getAttributeNames(attributeList), luceneAnalyzer,
                 DataConstants.KeywordMatchingType.SUBSTRING_SCANBASED);
         
         KeywordMatcherSourceOperator keywordSource = new KeywordMatcherSourceOperator(keywordPredicate, dataStore);
@@ -85,7 +87,7 @@ public class SubstringMatcherTest {
 
         List<ITuple> results = new ArrayList<>();
         ITuple nextTuple = null;
-
+ 
         while ((nextTuple = keywordSource.getNextTuple()) != null) {
             results.add(nextTuple);
         }

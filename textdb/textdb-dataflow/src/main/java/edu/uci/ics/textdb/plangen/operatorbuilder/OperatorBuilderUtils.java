@@ -119,6 +119,8 @@ public class OperatorBuilderUtils {
      *   "attributeTypes" : "attribute1Type, attribute2Type, attribute3Type"
      * }
      * 
+     * TODO: this function should be deleted after all attributeLists are changed to attributeNames
+     * 
      * @param operatorProperties
      * @return a list of attributes
      * @throws PlanGenException
@@ -139,6 +141,31 @@ public class OperatorBuilderUtils {
                 .collect(Collectors.toList());
 
         return attributeList;
+    }
+    
+    /**
+     * This function finds properties related to constructing the attribute names in
+     * operatorProperties, and converts them to a list of attribute names.
+     * 
+     * It currently needs the following properties from operatorProperties: 
+     *   attributeNames: a list of attributes' names (separated by comma)
+     *   
+     * Here's a sample JSON representation of these properties:
+     * 
+     * {
+     *   "attributeNames" : "attribute1Name, attribute2Name, attribute3Name"
+     * }
+     * 
+     * @param operatorProperties
+     * @return a list of attribute names
+     * @throws PlanGenException
+     */
+    public static List<String> constructAttributeNames(Map<String, String> operatorProperties) throws PlanGenException {
+        String attributeNamesStr = getRequiredProperty(ATTRIBUTE_NAMES, operatorProperties);
+
+        List<String> attributeNames = splitStringByComma(attributeNamesStr);
+
+        return attributeNames;
     }
 
     private static Attribute constructAttribute(String attributeNameStr, String attributeTypeStr) {

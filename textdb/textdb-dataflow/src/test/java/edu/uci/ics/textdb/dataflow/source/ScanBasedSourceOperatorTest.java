@@ -46,7 +46,7 @@ public class ScanBasedSourceOperatorTest {
             dataWriter.insertTuple(tuple);
         }
         
-        scanBasedSourceOperator = new ScanBasedSourceOperator(dataStore, luceneAnalyzer);
+        scanBasedSourceOperator = new ScanBasedSourceOperator(dataStore);
     }
 
     @After
