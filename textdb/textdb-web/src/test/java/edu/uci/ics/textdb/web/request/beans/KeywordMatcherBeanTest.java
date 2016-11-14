@@ -21,7 +21,7 @@ public class KeywordMatcherBeanTest {
     @Test
     public void testDeserialization() throws IOException {
         final KeywordMatcherBean keywordMatcherBean = new KeywordMatcherBean("operator1", "KeywordMatcher",
-                "attributes", "10", "100", "keyword1", DataConstants.KeywordMatchingType.PHRASE_INDEXBASED);
+                "attributes", "10", "100", "keyword1", "phrase");
         String jsonString = "{\n" +
                 "    \"operator_id\": \"operator1\",\n" +
                 "    \"operator_type\": \"KeywordMatcher\",\n" +
@@ -29,7 +29,7 @@ public class KeywordMatcherBeanTest {
                 "    \"limit\": \"10\",\n" +
                 "    \"offset\": \"100\",\n" +
                 "    \"keyword\": \"keyword1\",\n" +
-                "    \"matching_type\": \"PHRASE_INDEXBASED\"\n" +
+                "    \"matching_type\": \"phrase\"\n" +
                 "}";
         KeywordMatcherBean deserializedObject = MAPPER.readValue(jsonString, KeywordMatcherBean.class);
         assertEquals(keywordMatcherBean.equals(deserializedObject), true);
@@ -38,7 +38,7 @@ public class KeywordMatcherBeanTest {
     @Test
     public void testInvalidDeserialization() throws IOException {
         final KeywordMatcherBean keywordMatcherBean = new KeywordMatcherBean("operator1", "KeywordMatcher",
-                "attributes", "10", "100", "keyword1", DataConstants.KeywordMatchingType.PHRASE_INDEXBASED);
+                "attributes", "10", "100", "keyword1", "phrase");
         String jsonString = "{\n" +
                 "    \"operator_id\": \"operator2\",\n" +
                 "    \"operator_type\": \"KeywordMatcher\",\n" +
@@ -46,7 +46,7 @@ public class KeywordMatcherBeanTest {
                 "    \"limit\": \"10\",\n" +
                 "    \"offset\": \"100\",\n" +
                 "    \"keyword\": \"keyword2\",\n" +
-                "    \"matching_type\": \"PHRASE_INDEXBASED\"\n" +
+                "    \"matching_type\": \"phrase\"\n" +
                 "}";
         KeywordMatcherBean deserializedObject = MAPPER.readValue(jsonString, KeywordMatcherBean.class);
         assertEquals(keywordMatcherBean.equals(deserializedObject), false);
