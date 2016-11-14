@@ -1,7 +1,6 @@
 
 package edu.uci.ics.textdb.dataflow.dictionarymatcher;
 
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -17,16 +16,13 @@ import org.junit.Test;
 import edu.uci.ics.textdb.api.common.Attribute;
 import edu.uci.ics.textdb.api.common.IDictionary;
 import edu.uci.ics.textdb.api.common.IField;
-import edu.uci.ics.textdb.api.common.IPredicate;
 import edu.uci.ics.textdb.api.common.ITuple;
 import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.api.storage.IDataWriter;
 import edu.uci.ics.textdb.common.constants.DataConstants;
 import edu.uci.ics.textdb.common.constants.DataConstants.KeywordMatchingType;
-import edu.uci.ics.textdb.common.exception.DataFlowException;
 import edu.uci.ics.textdb.common.constants.SchemaConstants;
 import edu.uci.ics.textdb.common.constants.TestConstants;
-import edu.uci.ics.textdb.common.exception.DataFlowException;
 import edu.uci.ics.textdb.common.field.DataTuple;
 import edu.uci.ics.textdb.common.field.DateField;
 import edu.uci.ics.textdb.common.field.DoubleField;
@@ -118,7 +114,7 @@ public class DictionaryMatcherTest {
                 srcOpType);
 
         DictionaryMatcher dictionaryMatcher = new DictionaryMatcher(dictionaryPredicate);
-        ScanBasedSourceOperator indexSource = new ScanBasedSourceOperator(dataStore, luceneAnalyzer);
+        ScanBasedSourceOperator indexSource = new ScanBasedSourceOperator(dataStore);
         dictionaryMatcher.setInputOperator(indexSource);
 
         dictionaryMatcher.open();

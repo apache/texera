@@ -75,8 +75,9 @@ public class FuzzyTokenMatcher extends AbstractSingleInputOperator {
         }
         return resultTuple;
     }
-    
-    private ITuple processOneInputTuple(ITuple inputTuple) throws TextDBException {
+
+    @Override
+    public ITuple processOneInputTuple(ITuple inputTuple) throws TextDBException {
         List<Span> payload = (List<Span>) inputTuple.getField(SchemaConstants.PAYLOAD).getValue();
         List<Span> relevantSpans = filterRelevantSpans(payload);
         List<Span> matchResults = new ArrayList<>();

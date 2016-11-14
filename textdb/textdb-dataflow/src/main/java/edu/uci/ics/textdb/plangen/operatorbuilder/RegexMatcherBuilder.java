@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.Map;
 
 import edu.uci.ics.textdb.api.common.Attribute;
-import edu.uci.ics.textdb.common.constants.DataConstants;
+import edu.uci.ics.textdb.common.constants.LuceneAnalyzerConstants;
 import edu.uci.ics.textdb.common.exception.DataFlowException;
 import edu.uci.ics.textdb.common.exception.PlanGenException;
 import edu.uci.ics.textdb.dataflow.common.RegexPredicate;
@@ -43,8 +43,8 @@ public class RegexMatcherBuilder {
         RegexPredicate regexPredicate;
         try {
             regexPredicate = new RegexPredicate(regex, attributeList,
-                    DataConstants.getTrigramAnalyzer());
-        } catch (DataFlowException | IOException e) {
+                    LuceneAnalyzerConstants.getNGramAnalyzer(3));
+        } catch (DataFlowException e) {
             throw new PlanGenException(e.getMessage(), e);
         }
         RegexMatcher regexMatcher = new RegexMatcher(regexPredicate);

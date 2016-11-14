@@ -1,6 +1,5 @@
 package edu.uci.ics.textdb.dataflow.common;
 
-import edu.uci.ics.textdb.api.common.Attribute;
 import edu.uci.ics.textdb.api.common.ITuple;
 import edu.uci.ics.textdb.api.common.Schema;
 
@@ -12,9 +11,9 @@ import edu.uci.ics.textdb.api.common.Schema;
  */
 public interface IJoinPredicate {
 
-	Attribute getIDAttribute();
+	String getIDAttributeName();
 
-	Attribute getJoinAttribute();
+	String getJoinAttributeName();
 
 	ITuple joinTuples(ITuple outerTuple, ITuple innerTuple, Schema outputSchema)
 			throws Exception;

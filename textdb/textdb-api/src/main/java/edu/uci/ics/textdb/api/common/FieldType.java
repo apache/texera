@@ -6,6 +6,7 @@ public enum FieldType {
     STRING, INTEGER, DOUBLE, DATE,
     // A field that is indexed and tokenized,without term vectors
     TEXT,
+    _ID_TYPE,
     // A field that is the list of values
     LIST;
 }

@@ -7,10 +7,11 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import edu.uci.ics.textdb.api.common.Attribute;
-import edu.uci.ics.textdb.common.constants.DataConstants;
 import edu.uci.ics.textdb.common.constants.DataConstants.KeywordMatchingType;
+import edu.uci.ics.textdb.common.constants.LuceneAnalyzerConstants;
 import edu.uci.ics.textdb.common.exception.DataFlowException;
 import edu.uci.ics.textdb.common.exception.PlanGenException;
+import edu.uci.ics.textdb.common.utils.Utils;
 import edu.uci.ics.textdb.dataflow.common.KeywordPredicate;
 import edu.uci.ics.textdb.dataflow.keywordmatch.KeywordMatcher;
 import edu.uci.ics.textdb.plangen.PlanGenUtils;
@@ -42,8 +43,8 @@ public class KeywordMatcherBuilder {
         // check if keyword is empty
         PlanGenUtils.planGenAssert(!keyword.trim().isEmpty(), "keyword is empty");
 
-        // generate attribute list
-        List<Attribute> attributeList = OperatorBuilderUtils.constructAttributeList(operatorProperties);
+        // generate attribute names
+        List<String> attributeNames = OperatorBuilderUtils.constructAttributeNames(operatorProperties);
 
         // generate matching type
         KeywordMatchingType matchingType = KeywordMatcherBuilder.getKeywordMatchingType(matchingTypeStr);
@@ -53,12 +54,9 @@ public class KeywordMatcherBuilder {
 
         // build KeywordMatcher
         KeywordPredicate keywordPredicate;
-        try {
-            keywordPredicate = new KeywordPredicate(keyword, attributeList,
-                    DataConstants.getStandardAnalyzer(), matchingType);
-        } catch (DataFlowException e) {
-            throw new PlanGenException(e.getMessage(), e);
-        }
+        keywordPredicate = new KeywordPredicate(keyword, attributeNames,
+                LuceneAnalyzerConstants.getStandardAnalyzer(), matchingType);     
+        
         KeywordMatcher keywordMatcher = new KeywordMatcher(keywordPredicate);
 
         // set limit and offset

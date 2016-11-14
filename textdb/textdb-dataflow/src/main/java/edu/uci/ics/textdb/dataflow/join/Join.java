@@ -57,7 +57,6 @@ public class Join implements IOperator {
     // Cursor to maintain the position of tuple to be obtained from
     // innerTupleList.
     private Integer innerOperatorCursor = 0;
-    private List<Attribute> outputAttrList;
     private Schema outputSchema;
 
     private int cursor = CLOSED;
@@ -86,42 +85,33 @@ public class Join implements IOperator {
 
     @Override
     public void open() throws TextDBException {
-        if (!(joinPredicate.getJoinAttribute().getFieldType().equals(FieldType.STRING)
-                || joinPredicate.getJoinAttribute().getFieldType().equals(FieldType.TEXT))) {
-            throw new TextDBException("Fields other than \"STRING\" and \"TEXT\" are not supported by Join yet.");
-        }
-
         if (cursor != CLOSED) {
         	return;
         }
-
-        try {
-            innerOperator.open();
-        } catch (Exception e) {
-            e.printStackTrace();
-            throw new DataFlowException(e.getMessage(), e);
-        }
-
-        shouldIGetOuterOperatorNextTuple = true;
-
-        // Load the inner tuple list into memory on open.
+        
+        // generate output schema from schema of inner and outer operator
+        innerOperator.open();
+        Schema innerOperatorSchema = innerOperator.getOutputSchema();
+        innerOperator.close();
+        
+        outerOperator.open();
+        Schema outerOperatorSchema = outerOperator.getOutputSchema();
+        outerOperator.close();
+        
+        this.outputSchema = generateIntersectionSchema(innerOperatorSchema, outerOperatorSchema);
+        
+        // load all tuples from inner operator into memory
+        innerOperator.open();
         while ((innerTuple = innerOperator.getNextTuple()) != null) {
             innerTupleList.add(innerTuple);
         }
+        innerOperator.close();
 
-        // Close the inner operator as all the required tuples are already
-        // loaded into memory.
-        try {
-            innerOperator.close();
-            outerOperator.open();
-        } catch (Exception e) {
-            e.printStackTrace();
-            throw new DataFlowException(e.getMessage(), e);
-        }
+        // open outer operator
+        outerOperator.open();
 
+        shouldIGetOuterOperatorNextTuple = true;
         cursor = OPENED;
-        generateIntersectionSchema();
-        outputAttrList = outputSchema.getAttributes();
     }
 
     /**
@@ -224,26 +214,36 @@ public class Join implements IOperator {
      * 
      * @return outputSchema
      */
-    private void generateIntersectionSchema() throws DataFlowException {
-        List<Attribute> innerAttributes = innerOperator.getOutputSchema().getAttributes();
-        List<Attribute> outerAttributes = outerOperator.getOutputSchema().getAttributes();
+    private Schema generateIntersectionSchema(Schema innerOperatorSchema, Schema outerOperatorSchema) throws DataFlowException {
+        List<Attribute> innerAttributes = innerOperatorSchema.getAttributes();
+        List<Attribute> outerAttributes = outerOperatorSchema.getAttributes();
         
         List<Attribute> intersectionAttributes = 
                 innerAttributes.stream()
                 .filter(attr -> outerAttributes.contains(attr))
                 .collect(Collectors.toList());
         
-        if (intersectionAttributes.isEmpty()) {
-            throw new DataFlowException("inner operator and outer operator don't share any common attributes");
-        } else if (! intersectionAttributes.contains(joinPredicate.getJoinAttribute())) {
-            throw new DataFlowException("inner operator or outer operator doesn't contain join attribute");
-        } else if (! intersectionAttributes.contains(joinPredicate.getIDAttribute())) {
-            throw new DataFlowException("inner operator or outer operator doesn't contain ID attribute");
-        } else if (! intersectionAttributes.contains(SchemaConstants.SPAN_LIST_ATTRIBUTE)) {
-            throw new DataFlowException("inner operator or outer operator doesn't contain spanList attribute");
-        } 
+        Schema intersectionSchema = new Schema(intersectionAttributes.stream().toArray(Attribute[]::new));
         
-        outputSchema = new Schema(intersectionAttributes.stream().toArray(Attribute[]::new));
+        // check if output schema contain necessary attributes
+        if (intersectionSchema.getAttributes().isEmpty()) {
+            throw new DataFlowException("inner operator and outer operator don't share any common attributes");
+        } else if (intersectionSchema.getAttribute(joinPredicate.getJoinAttributeName()) == null) {
+            throw new DataFlowException("inner operator or outer operator doesn't contain join attribute");
+        } else if (intersectionSchema.getAttribute(joinPredicate.getIDAttributeName()) == null) {
+            throw new DataFlowException("inner operator or outer operator doesn't contain ID attribute");
+        } else if (intersectionSchema.getAttribute(SchemaConstants.SPAN_LIST) == null) {
+            throw new DataFlowException("inner operator or outer operator doesn't contain spanList attribute");
+        }
+        
+        // check if join attribute is TEXT or STRING
+        FieldType joinAttrType = intersectionSchema.getAttribute(joinPredicate.getJoinAttributeName()).getFieldType();
+        if (joinAttrType != FieldType.TEXT && joinAttrType != FieldType.STRING) {
+            throw new DataFlowException(
+                    String.format("Join attribute %s must be either TEXT or STRING.", joinPredicate.getJoinAttributeName()));
+        }
+        
+        return intersectionSchema;        
     }
     
     public void setInnerInputOperator(IOperator innerInputOperator) {

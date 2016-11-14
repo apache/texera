@@ -92,6 +92,8 @@ public abstract class AbstractSingleInputOperator implements IOperator {
      */
     protected abstract ITuple computeNextMatchingTuple() throws TextDBException;
 
+    public abstract ITuple processOneInputTuple(ITuple inputTuple) throws TextDBException;
+
     @Override
     public void close() throws TextDBException {
         if (cursor == CLOSED) {

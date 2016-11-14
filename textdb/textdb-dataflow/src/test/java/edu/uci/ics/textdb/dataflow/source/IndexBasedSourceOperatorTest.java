@@ -4,7 +4,6 @@
 package edu.uci.ics.textdb.dataflow.source;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import edu.uci.ics.textdb.api.exception.TextDBException;
@@ -61,8 +60,7 @@ public class IndexBasedSourceOperatorTest {
         String defaultField = TestConstants.ATTRIBUTES_PEOPLE[0].getFieldName();
         QueryParser queryParser = new QueryParser(defaultField, luceneAnalyzer);
         Query queryObject = queryParser.parse(query);
-        dataReaderPredicate = new DataReaderPredicate(queryObject, query, dataStore,
-                Arrays.asList(TestConstants.ATTRIBUTES_PEOPLE[0]), luceneAnalyzer);
+        dataReaderPredicate = new DataReaderPredicate(queryObject, dataStore);
 
         indexBasedSourceOperator = new IndexBasedSourceOperator(dataReaderPredicate);
     }

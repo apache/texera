@@ -56,8 +56,7 @@ public class OneToNBroadcastConnectorTest {
     
     private IOperator getScanSourceOperator(IDataStore dataStore) throws DataFlowException {
         DataReaderPredicate dataReaderPredicate = new DataReaderPredicate(
-                new MatchAllDocsQuery(), DataConstants.SCAN_QUERY, dataStore,
-                dataStore.getSchema().getAttributes(), luceneAnalyzer);
+                new MatchAllDocsQuery(), dataStore);
         IndexBasedSourceOperator sourceOperator = new IndexBasedSourceOperator(dataReaderPredicate);
         return sourceOperator;
     }

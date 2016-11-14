@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import edu.uci.ics.textdb.api.exception.TextDBException;
 import org.apache.lucene.analysis.Analyzer;
@@ -22,8 +23,10 @@ import edu.uci.ics.textdb.common.constants.DataConstants.KeywordMatchingType;
 import edu.uci.ics.textdb.common.exception.DataFlowException;
 import edu.uci.ics.textdb.common.field.ListField;
 import edu.uci.ics.textdb.common.field.Span;
+import edu.uci.ics.textdb.common.utils.Utils;
 import edu.uci.ics.textdb.dataflow.common.KeywordPredicate;
 import edu.uci.ics.textdb.dataflow.keywordmatch.KeywordMatcher;
+import edu.uci.ics.textdb.dataflow.keywordmatch.KeywordMatcherSourceOperator;
 import edu.uci.ics.textdb.dataflow.source.IndexBasedSourceOperator;
 import edu.uci.ics.textdb.perftest.medline.MedlineIndexWriter;
 import edu.uci.ics.textdb.perftest.utils.PerfTestUtils;
@@ -142,22 +145,21 @@ public class KeywordMatcherPerformanceTest {
         Attribute[] attributeList = new Attribute[] { MedlineIndexWriter.ABSTRACT_ATTR };
 
         for (String query : queryList) {
-            KeywordPredicate keywordPredicate = new KeywordPredicate(query, Arrays.asList(attributeList),
+            KeywordPredicate keywordPredicate = new KeywordPredicate(query,
+                    Utils.getAttributeNames(attributeList),
                     luceneAnalyzer, opType);
-            IndexBasedSourceOperator indexInputOperator = new IndexBasedSourceOperator(
-                    keywordPredicate.generateDataReaderPredicate(dataStore));
-            KeywordMatcher keywordMatcher = new KeywordMatcher(keywordPredicate);
-            keywordMatcher.setInputOperator(indexInputOperator);
+
+            KeywordMatcherSourceOperator keywordSource = new KeywordMatcherSourceOperator(keywordPredicate, dataStore);
 
             long startMatchTime = System.currentTimeMillis();
-            keywordMatcher.open();
+            keywordSource.open();
             int counter = 0;
             ITuple nextTuple = null;
-            while ((nextTuple = keywordMatcher.getNextTuple()) != null) {
+            while ((nextTuple = keywordSource.getNextTuple()) != null) {
                 List<Span> spanList = ((ListField<Span>) nextTuple.getField(SchemaConstants.SPAN_LIST)).getValue();
                 counter += spanList.size();
             }
-            keywordMatcher.close();
+            keywordSource.close();
             long endMatchTime = System.currentTimeMillis();
             double matchTime = (endMatchTime - startMatchTime) / 1000.0;
 

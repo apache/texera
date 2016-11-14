@@ -115,7 +115,8 @@ public class RegexMatcher extends AbstractSingleInputOperator {
      *         in the document
      * @throws DataFlowException
      */
-    private ITuple processOneInputTuple(ITuple inputTuple) throws DataFlowException {
+    @Override
+    public ITuple processOneInputTuple(ITuple inputTuple) throws DataFlowException {
         if (inputTuple == null) {
             return null;
         }

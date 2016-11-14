@@ -79,7 +79,8 @@ public class NlpExtractor extends AbstractSingleInputOperator {
         return resultTuple;
     }
 
-    private ITuple processOneInputTuple(ITuple inputTuple) throws TextDBException {
+    @Override
+    public ITuple processOneInputTuple(ITuple inputTuple) throws TextDBException {
         List<Span> matchingResults = new ArrayList<>();
         for (Attribute attribute : predicate.getAttributeList()) {
             String fieldName = attribute.getFieldName();
