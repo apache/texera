@@ -2,11 +2,9 @@ package edu.uci.ics.textdb.web.request;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import edu.uci.ics.textdb.common.exception.PlanGenException;
+import edu.uci.ics.textdb.dataflow.nlpextrator.NlpExtractor;
 import edu.uci.ics.textdb.plangen.LogicalPlan;
-import edu.uci.ics.textdb.web.request.beans.DictionaryMatcherBean;
-import edu.uci.ics.textdb.web.request.beans.DictionarySourceBean;
-import edu.uci.ics.textdb.web.request.beans.OperatorLinkBean;
-import edu.uci.ics.textdb.web.request.beans.OperatorBean;
+import edu.uci.ics.textdb.web.request.beans.*;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -32,6 +30,17 @@ public class QueryPlanRequest {
     public static final HashMap<String, Class> OPERATOR_BEAN_MAP = new HashMap<String, Class>() {{
         put("DictionaryMatcher", DictionaryMatcherBean.class);
         put("DictionarySource", DictionarySourceBean.class);
+        put("FileSink", FileSinkBean.class);
+        put("FuzzyTokenMatcher", FuzzyTokenMatcherBean.class);
+        put("FuzzyTokenSource", FuzzyTokenSourceBean.class);
+        put("IndexSink", IndexSinkBean.class);
+        put("Join", JoinBean.class);
+        put("KeywordMatcher", KeywordMatcherBean.class);
+        put("KeywordSource", KeywordSourceBean.class);
+        put("NlpExtractor", NlpExtractorBean.class);
+        put("Projection", ProjectionBean.class);
+        put("RegexMatcher", RegexMatcherBean.class);
+        put("RegexSource", RegexSourceBean.class);
     }};
 
     public QueryPlanRequest() {

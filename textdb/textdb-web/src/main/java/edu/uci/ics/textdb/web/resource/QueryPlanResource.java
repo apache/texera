@@ -40,7 +40,10 @@ public class QueryPlanResource {
             SampleResponse sampleResponse = new SampleResponse(0, "Successful");
             return Response.status(200)
                     .entity(objectMapper.writeValueAsString(sampleResponse))
-                    .type(MediaType.APPLICATION_JSON)
+                    .header("Access-Control-Allow-Origin", "*")
+                    .header("Access-Control-Allow-Methods", "OPTIONS,GET,PUT,POST,DELETE,HEAD")
+                    .header("Access-Control-Allow-Headers", "X-Requested-With,Content-Type,Accept,Origin")
+                    .header("Access-Control-Max-Age", "1728000")
                     .build();
         }
         else {
@@ -48,7 +51,10 @@ public class QueryPlanResource {
             SampleResponse sampleResponse = new SampleResponse(1, "Unsuccessful");
             return Response.status(400)
                     .entity(objectMapper.writeValueAsString(sampleResponse))
-                    .type(MediaType.APPLICATION_JSON)
+                    .header("Access-Control-Allow-Origin", "*")
+                    .header("Access-Control-Allow-Methods", "OPTIONS,GET,PUT,POST,DELETE,HEAD")
+                    .header("Access-Control-Allow-Headers", "X-Requested-With,Content-Type,Accept,Origin")
+                    .header("Access-Control-Max-Age", "1728000")
                     .build();
         }
     }

@@ -19,7 +19,18 @@ import java.util.HashMap;
 @JsonTypeInfo(use=JsonTypeInfo.Id.NAME, include= JsonTypeInfo.As.PROPERTY, property="operator_type", visible = true)
 @JsonSubTypes({
         @JsonSubTypes.Type(value=DictionaryMatcherBean.class, name="DictionaryMatcher"),
-        @JsonSubTypes.Type(value=DictionarySourceBean.class, name="DictionarySource")
+        @JsonSubTypes.Type(value=DictionarySourceBean.class, name="DictionarySource"),
+        @JsonSubTypes.Type(value=FileSinkBean.class, name="FileSink"),
+        @JsonSubTypes.Type(value=FuzzyTokenMatcherBean.class, name="FuzzyTokenMatcher"),
+        @JsonSubTypes.Type(value=FuzzyTokenSourceBean.class, name="FuzzyTokenSource"),
+        @JsonSubTypes.Type(value=IndexSinkBean.class, name="IndexSink"),
+        @JsonSubTypes.Type(value=JoinBean.class, name="Join"),
+        @JsonSubTypes.Type(value=KeywordMatcherBean.class, name="KeywordMatcher"),
+        @JsonSubTypes.Type(value=KeywordSourceBean.class, name="KeywordSource"),
+        @JsonSubTypes.Type(value=NlpExtractorBean.class, name="NlpExtractor"),
+        @JsonSubTypes.Type(value=ProjectionBean.class, name="Projection"),
+        @JsonSubTypes.Type(value=RegexMatcherBean.class, name="RegexMatcher"),
+        @JsonSubTypes.Type(value=RegexSourceBean.class, name="RegexSource")
 })
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public abstract class OperatorBean {
