@@ -62,6 +62,16 @@ body {
 	background: #202024 url("../img/black-thread.png") repeat left top;
 }
 
+#main-delete {
+/*  background-image: url('../img/patterns-lines-red.jpg'); */
+/* 	padding-left: 100px; */
+/* 	border: 1px solid #636366; */
+	background-color: Darkred;
+	float: right;
+	color: white;
+    font-weight: bold;
+}
+
 .nav div {
     border: 1px solid #636366;
 	cursor: pointer;
@@ -88,4 +98,34 @@ body {
 	width: 100%;
 	border: 1px solid #BBB;
 /* 	margin-bottom: 10px; */
+}
+
+.panel{
+	color: #fff;
+	font-size: 16px;
+	padding-bottom: 3px;
+	padding-left: 20px;
+	padding-top: 3px;
+	border-bottom: 1px solid #636366;
+	border-left: 3px solid transparent;
+	display: none;
+}
+
+.panel.active{
+	display: block;
+	background-color: black;
+	border-left: 3px solid cyan;
+}
+
+li.active{
+	border-bottom: none;
+	background-color: black;
+	border-left: 3px solid cyan;
+	color: cyan;
+}
+
+button{
+	border-bottom: 5px;
+	margin-bottom: 5px;
+	padding-bottom: 5px;
 }

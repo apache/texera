@@ -24,7 +24,19 @@
 
       <!-- Menu -->
       <ul>
-		<li class="-matcher">Create  Matcher</li>
+		<li rel="regex-panel" class="regex-matcher">Create Regex Matcher</li>
+			<div id="regex-panel" class="panel">
+                <em>Enter Regex: </em><br/>
+				<input type="text" class='value' placeholder="zika\s*(virus|fever)"><br/>
+				<em>Enter Attributes (Separated by commas): </em><br/>
+				<input type="text" class='attributes' placeholder="first name, last name"><br/>
+				<em>Enter Limit (Optional): </em><br/>
+				<input type="text" class='limit' placeholder="10" value="10"><br/>
+				<em>Enter Offset (Optional): </em><br/>
+				<input type="text" class='offset' placeholder="5" value="5"><br/>
+				<br/>
+                <button rel="regex-panel" id='RegexMatcher' class="create-operator">Create operator</button><br/>
+            </div>
 		<li class="-matcher">Create  Matcher</li>
 		<li class="-matcher">Create  Matcher</li>
 		<li class="-matcher">Create  Matcher</li>
@@ -48,10 +60,11 @@
 
       <div class="nav">
 		<div class="icon-menu">Menu</div>
+		<div class="delete-operator" id="main-delete">Delete Selected Operator</div>
       </div>
 	  
 	  <div class="dashboard" id="the-flowchart">
-
+	<script src="js/onstart.js" type="text/javascript"></script>
 	  </div>
     
   </body>
