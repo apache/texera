@@ -22,6 +22,71 @@ $(document).ready(function() {
 	var defaultLimit = 10;
 	var defaultOffset = 5;
 
+	
+/*
+	Process Operators to Server (GUIJSON --> TEXTDBJSON --> Server)
+*/
+
+
+	$('.process-query').on('click', function() {
+		
+		var GUIJSON = $('#the-flowchart').flowchart('getData');
+		
+		var TEXTDBJSON = {};
+		var operators = [];
+		var links = [];
+		
+		for(var operatorIndex in GUIJSON.operators){
+			if (GUIJSON.operators.hasOwnProperty(operatorIndex)){
+				var attributes = {};
+				
+				for(var attribute in GUIJSON['operators'][operatorIndex]['properties']['attributes']){
+					if (GUIJSON['operators'][operatorIndex]['properties']['attributes'].hasOwnProperty(attribute)){
+						attributes[attribute] = GUIJSON['operators'][operatorIndex]['properties']['attributes'][attribute];
+					}
+				}
+				operators.push(attributes);
+			}
+		}	
+		
+		for(var link in GUIJSON.links){
+			var destination = {};
+			if (GUIJSON['links'][link].hasOwnProperty("fromOperator")){
+				destination["from"] = GUIJSON['links'][link]['fromOperator'];
+				destination["to"] = GUIJSON['links'][link]['toOperator'];
+				links.push(destination);
+			}
+		}
+		TEXTDBJSON.operators = operators;
+		TEXTDBJSON.links = links;
+		
+		// console.log(operators);
+		// console.log(links)
+		// console.log(data);
+		// console.log(JSON.stringify(data));
+		// console.log(JSON.stringify(TEXTDBJSON));
+		
+		$.ajax({
+            url: "http://localhost:8080/queryplan/execute",
+            type: "POST",
+            data: JSON.stringify(TEXTDBJSON),
+            dataType: "text",
+            contentType: "application/json",
+            success: function(returnedData){
+                console.log("SUCCESS\n");
+                console.log(JSON.stringify(returnedData));
+            },
+            error: function(xhr, status, err){
+                console.log("ERROR");
+				console.log(xhr.status);
+				console.log(JSON.stringify(xhr));
+				console.log(JSON.stringify(status));
+				console.log(JSON.stringify(err));
+            }
+        });
+	});	
+	
+	
 /*
 	Attribute Pop-Up Box Helper Function
 */	
