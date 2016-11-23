@@ -18,6 +18,7 @@ $(document).ready(function() {
 	var editOperators = [];
 	
 	var defaultRegex = "zika\s*(virus|fever)";
+	var defaultKeyword = "Zika";
 	var defaultAttributes = "first name, last name";
 	var defaultLimit = 10;
 	var defaultOffset = 5;
@@ -165,6 +166,13 @@ $(document).ready(function() {
 			userInput = defaultRegex;
 		}
 	    extraOperators['regex'] = userInput;
+	  }
+	  else if (panel == 'keyword-panel'){
+		if (userInput == null || userInput == ''){
+			userInput = defaultKeyword;
+		}
+		extraOperators['keyword'] = userInput;
+		extraOperators['matching_type'] = $('#' + panel + ' .matching-type').val();
 	  }
 	  return extraOperators;
 	}
