@@ -4,15 +4,23 @@ var main = function(){
         $('.menu').animate({
             'left': '0px'
         }, 200);
+        
+		// $('#delete-operator').animate({
+			// 'padding-right': '310px'
+		// }, 200);
 		
 		$('.icon-menu').css({
 			'visibility': 'hidden',
 			'pointer': 'default'
 		});
 		
-		$('#main-delete').animate({
-			'margin-right': '295px'
-		}, 200);
+		$('.process-query').animate({
+            'margin-right': '295px'
+        }, 200);
+		
+		// $('.popup').animate({
+			// 'padding-right': '285px'
+		// }, 200);
 		
         $('body').animate({
             'left': '285px'
@@ -20,13 +28,21 @@ var main = function(){
     });
 	
     $('.icon-close').click(function(){
-        $('.menu').animate({
+       $('.menu').animate({
             'left': '-285px'
         }, 200);
-		
-		$('#main-delete').animate({'margin-right': '10px'}, 200, function(){
+        
+		$('.process-query').animate({'margin-right': '10px'}, 200, function(){
 			$('.icon-menu').css({'visibility': 'visible', 'pointer': 'pointer'});
 		});
+		
+		// $('.process-query').animate({
+            // 'left': '0px'
+        // }, 200);
+		
+		// $('.popup').animate({
+			// 'padding-right': '0px'
+		// }, 200);
 		
         $('body').animate({
             'left': '0px'

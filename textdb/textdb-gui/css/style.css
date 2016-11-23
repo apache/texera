@@ -62,6 +62,15 @@ body {
 	background: #202024 url("../img/black-thread.png") repeat left top;
 }
 
+.process-query {
+/*   border: 1px solid #636366; */
+/*	 background-image: url('../img/pastel-lines-dark-grey.png'); */
+/*   line-height: 45px; */
+	font-weight: bold;
+	float: right;
+	color: white;
+}
+
 #main-delete {
 /*  background-image: url('../img/patterns-lines-red.jpg'); */
 /* 	padding-left: 100px; */
