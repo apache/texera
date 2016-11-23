@@ -37,7 +37,25 @@
 				<br/>
                 <button rel="regex-panel" id='RegexMatcher' class="create-operator">Create operator</button><br/>
             </div>
-		<li class="-matcher">Create  Matcher</li>
+		<li rel="keyword-panel" class="keyword-matcher">Create Keyword Matcher</li>
+			<div id="keyword-panel" class="panel">
+                <em>Enter Keyword: </em><br/>
+				<input type="text" class='value' placeholder="Zika"><br/>
+                <em>Select Matching Type: </em><br/>
+                <select class="matching-type">
+					<option value="conjunction" selected>Conjunction</option>
+					<option value="phrase">Phrase</option>
+					<option value="substring">Substring</option>
+				</select><br/>
+				<em>Enter Attributes (Separated by commas): </em><br/>
+				<input type="text" class='attributes' placeholder="first name, last name"><br/>
+				<em>Enter Limit (Optional): </em><br/>
+				<input type="text" class='limit' placeholder="10" value="10"><br/>
+				<em>Enter Offset (Optional): </em><br/>
+				<input type="text" class='offset' placeholder="5" value="5"><br/>
+				<br/>
+                <button rel="keyword-panel" id='KeywordMatcher' class="create-operator">Create operator</button><br/><br/>
+            </div>
 		<li class="-matcher">Create  Matcher</li>
 		<li class="-matcher">Create  Matcher</li>
 		<li class="-matcher">Create  Matcher</li>
