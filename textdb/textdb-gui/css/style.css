@@ -1,0 +1,166 @@
+/* Initial body */
+body {
+  left: 0;
+  margin: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Initial menu */
+.menu {
+  background: #202024 url("../img/black-thread.png") repeat left top;
+  left: -285px;  /* start off behind the scenes */
+  top: 0px;
+  height: 100%;
+  position: fixed;
+  width: 285px;
+}
+
+/* Basic styling */
+
+.jumbotron {
+  height: 100%;
+}
+
+.menu ul {
+  border-top: 1px solid #636366;
+  list-style: none;
+  height: 95%;
+  width: 100%;
+  margin: 0px;
+  padding: 0px;
+  overflow: auto;
+}
+
+.menu li {
+  border-bottom: 1px solid #636366;
+  font-family: 'Open Sans', sans-serif;
+  line-height: 45px;
+  padding-bottom: 3px;
+  padding-left: 20px;
+  padding-top: 3px;
+  color: #fff;
+  font-size: 15px;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.blank-matcher{
+	border: 0px;
+	height: 50px;
+	cursor: default;
+}
+
+.icon-close {
+  cursor: pointer;
+  padding: 10px;
+  padding-bottom: 14px;
+}
+
+.nav {
+	background: #202024 url("../img/black-thread.png") repeat left top;
+}
+
+.process-query {
+/*   border: 1px solid #636366; */
+/*	 background-image: url('../img/pastel-lines-dark-grey.png'); */
+/*   line-height: 45px; */
+	font-weight: bold;
+	float: right;
+	color: white;
+}
+
+#main-delete {
+/*  background-image: url('../img/patterns-lines-red.jpg'); */
+/* 	padding-left: 100px; */
+/* 	border: 1px solid #636366; */
+	background-color: Darkred;
+	float: right;
+	color: white;
+    font-weight: bold;
+}
+
+.nav div {
+    border: 1px solid #636366;
+	cursor: pointer;
+	border-radius: 10px;
+	text-decoration: none;
+	text-transform: uppercase;
+	font-family: 'Open Sans', sans-serif;
+	font-size: 16px;
+	padding: 15px;
+	display: inline-block;
+	margin: 10px;
+}
+
+.icon-menu {
+	padding-right: 100px;
+	color: #fff;
+}
+
+.dashboard {
+	background-image: url('../img/white-background.jpg'); 
+	margin: 0;
+	padding: 0;
+	height: 100%;
+	width: 100%;
+	border: 1px solid #BBB;
+/* 	margin-bottom: 10px; */
+}
+
+.panel{
+	color: #fff;
+	font-size: 16px;
+	padding-bottom: 3px;
+	padding-left: 20px;
+	padding-top: 3px;
+	border-bottom: 1px solid #636366;
+	display: none;
+}
+
+.panel.active{
+	display: block;
+}
+
+li.active{
+	border-bottom: none
+}
+
+button{
+	border-bottom: 5px;
+	margin-bottom: 5px;
+	padding-bottom: 5px;
+}
+
+.popup{
+	height: 310px;
+	width: 450px;
+	padding: 0px;
+	margin: 0px;
+	bottom: 0;
+	right: 0;
+	position: fixed;
+	background-image: url('../img/white-background.jpg');
+	background-size: 100% 100%;
+	border: 1px solid black;
+}
+
+.band{
+	height: 20px;
+	border-bottom: 1px solid black;
+	padding: 11px;
+	background: #202024 url('../img/black-thread.png') repeat left top;
+	color: #fff;
+	font-family: 'Open Sans', sans-serif;
+	font-size: 16px;
+	cursor: pointer;
+}
+
+#attributes{
+	padding: 11px;
+	font-family: 'Open Sans', sans-serif;
+	font-size: 16px;
+	white-space: pre-wrap;
+	line-height: 1.5;
+/*  	display: inline-block;*/
+}
