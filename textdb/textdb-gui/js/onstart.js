@@ -19,6 +19,16 @@ $(document).ready(function() {
 	
 	var defaultRegex = "zika\s*(virus|fever)";
 	var defaultKeyword = "Zika";
+	var defaultDict = "SampleDict1.txt";
+	var defaultFuzzy = "FuzzyWuzzy";
+	var thresholdRatio = 0.8;
+	var nlpArray = ["noun", "verb", "adjective", "adverb", "ne_all", "number", "location", "person", "organization", "money", "percent", "date", "time"];
+	var defaultNlp = "ne_all";
+	var defaultDataSource = "collection name";
+	var defaultFileSink = "output.txt";
+	var defaultAttributeID = "John";
+	var defaultPredicateType = "CharacterDistance";
+	var defaultDistance = 10;
 	var defaultAttributes = "first name, last name";
 	var defaultLimit = 10;
 	var defaultOffset = 5;
@@ -173,6 +183,68 @@ $(document).ready(function() {
 		}
 		extraOperators['keyword'] = userInput;
 		extraOperators['matching_type'] = $('#' + panel + ' .matching-type').val();
+	  }
+	  else if (panel == 'dictionary-panel'){
+		if (userInput == null || userInput == ''){
+			userInput = defaultDict;
+		}
+		extraOperators['dictionary'] = userInput;
+		extraOperators['matching_type'] = $('#' + panel + ' .matching-type').val();
+	  }
+	  else if (panel == 'fuzzy-panel'){
+		if (userInput == null || userInput == ''){
+			userInput = defaultFuzzy;
+		}
+		extraOperators['query'] = userInput;
+		extraOperators['threshold_ratio'] = thresholdRatio;
+	  }
+	  else if (panel == 'nlp-panel'){
+		if (userInput == null || userInput == ''){
+			userInput = defaultNlp;
+		}
+		else if(nlpArray.indexOf(userInput.toLowerCase()) == -1){
+			alert('Please choose an NLP from the following: ["noun", "verb", "adjective", "adverb", "ne_all", "number", "location", "person", "organization", "money", "percent", "date", "time"]');
+			return;
+		}
+		extraOperators['nlp_type'] = userInput;
+	  }
+	  else if (panel == 'keyword-source-panel'){
+		if (userInput == null || userInput == ''){
+			userInput = defaultKeyword;
+		}
+		extraOperators['keyword'] = userInput;
+		
+		var dataSource = $('#' + panel + ' .data-source').val();
+		if (dataSource == null || dataSource == ''){
+			dataSource = defaultDataSource;
+		}
+		extraOperators['data_source'] = dataSource;
+		
+		extraOperators['matching_type'] = $('#' + panel + ' .matching-type').val();
+	  }
+	  else if (panel == 'file-sink-panel'){
+		if (userInput == null || userInput == ''){
+			userInput = defaultFileSink;
+		}
+		extraOperators['file_path'] = userInput;
+	  }
+	  else if (panel == 'join-panel'){
+		if (userInput == null || userInput == ''){
+			userInput = defaultAttributeID;
+		}
+		extraOperators['id_attribute'] = userInput;
+		
+		var predicateType = $('#' + panel + ' .predicate-type').val();
+		if (predicateType == null || predicateType == ''){
+			predicateType = defaultPredicateType;
+		}
+		extraOperators['predicate_type'] = predicateType;
+		
+		var distance = $('#' + panel + ' .distance').val();
+		if (distance == null || distance == ''){
+			distance = defaultDistance;
+		}
+		extraOperators['distance'] = distance;
 	  }
 	  return extraOperators;
 	}
