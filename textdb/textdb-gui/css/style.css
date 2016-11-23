@@ -129,3 +129,36 @@ button{
 	margin-bottom: 5px;
 	padding-bottom: 5px;
 }
+
+.popup{
+	height: 310px;
+	width: 450px;
+	padding: 0px;
+	margin: 0px;
+	bottom: 0;
+	right: 0;
+	position: fixed;
+	background-image: url('../img/white-background.jpg');
+	background-size: 100% 100%;
+	border: 1px solid black;
+}
+
+.band{
+	height: 20px;
+	border-bottom: 1px solid black;
+	padding: 11px;
+	background: #202024 url('../img/black-thread.png') repeat left top;
+	color: #fff;
+	font-family: 'Open Sans', sans-serif;
+	font-size: 16px;
+	cursor: pointer;
+}
+
+#attributes{
+	padding: 11px;
+	font-family: 'Open Sans', sans-serif;
+	font-size: 16px;
+	white-space: pre-wrap;
+	line-height: 1.5;
+/*  	display: inline-block;*/
+}

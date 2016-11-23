@@ -14,11 +14,77 @@ $(document).ready(function() {
     });
 	
 	var operatorI = 0;
+	var selectedOperator = '';
+	var editOperators = [];
 	
 	var defaultRegex = "zika\s*(virus|fever)";
 	var defaultAttributes = "first name, last name";
 	var defaultLimit = 10;
 	var defaultOffset = 5;
+
+/*
+	Attribute Pop-Up Box Helper Function
+*/	
+
+
+	function getPopupText(output){
+		var result = "";
+		for(var attr in output){
+			if(attr == 'operator_id'){
+				continue;
+			}
+			if(output.hasOwnProperty(attr)){
+				var splitString = attr.split("_");
+				for(var splitPart in splitString){
+					result += ' ' + splitString[splitPart].charAt(0).toUpperCase() + splitString[splitPart].slice(1);
+				}
+				result += ": ";
+				result += '<b>' + output[attr] + '</b>' + '<br />';
+			}
+		}
+		result += '<br />';
+		return result;
+	}
+
+/*
+	Attribute Pop-Up Box
+*/
+
+	
+	$('#the-flowchart').on('click', '.flowchart-operators-layer.unselectable div .flowchart-operator-title', function() {
+		selectedOperator = $('#the-flowchart').flowchart('getSelectedOperatorId');
+		var output = data['operators'][selectedOperator]['properties']['attributes'];
+		var title = data['operators'][selectedOperator]['properties']['title'];
+		// console.log(data['operators'][selectedOperator]['attributes']);
+		// console.log(JSON.stringify(data['operators'][selectedOperator]['attributes']));
+		// console.log(output);
+		// console.log(JSON.stringify(output));
+		
+		$('.popup').animate({
+            'bottom': '0'
+        }, 200);
+		
+		$('#attributes').css({
+			'visibility': 'visible'
+		});
+		
+		$('#attributes').text(getPopupText(output));
+		$('#attributes').html($('#attributes').text());
+		
+		var editButton = $('<button class="edit-operator">Edit</button>');
+        $('#attributes').append(editButton);
+		
+		var deleteButton = $('<button class="delete-operator">Delete</button>');
+        $('#attributes').append(deleteButton);
+		
+		$('#attributes button').css({
+			'margin': '5px',
+			'border': '1px solid black'
+		});
+		
+		$('.band').html('Attributes for <em>' + title + '</em>');
+	});
+
 
 	
 /*
@@ -111,13 +177,200 @@ $(document).ready(function() {
 	  data = $('#the-flowchart').flowchart('getData'); 
     });
 
+	
+/*
+	Edit Operator Button Helper Function
+*/
+	
+	
+	function getHtml(attr, attrValue){
+		var resultString = '';
+		var classString = attr.replace(/_/g, '-');
+		if(attr == 'matching_type'){
+			resultString += '<select class="matching-type"><option value="conjunction"';
+			if(attrValue == 'conjunction'){
+				resultString += ' selected';
+			}
+			resultString += '>Conjunction</option><option value="phrase"';
+			if(attrValue == 'phrase'){
+				resultString += ' selected';
+			}
+			resultString += '>Phrase</option><option value="substring"';
+			if(attrValue == 'substring'){
+				resultString += ' selected';
+			}
+			resultString += '>Substring</option></select>';
+		}
+		else if(attr == 'dictionary'){
+			resultString += '<input type="file" class="dictionary" placeholder="Enter File">';
+		}
+		else{
+			resultString += '<input type="text" class="' + classString + '" value="' + attrValue + '">';
+		}
+		editOperators.push(classString);
+		return resultString;		
+	}
+	
+	
+/*
+	Edit Operator Button
+*/
+
+	
+	$('#attributes').on('click', '.edit-operator', function() {
+		editOperators = [];
+		var output = data['operators'][selectedOperator]['properties']['attributes'];
 		
+		$('#attributes').text(function(){
+			var result = "";
+			for(var attr in output){
+				if(attr == 'operator_id'){
+					continue;
+				}
+				else if(output.hasOwnProperty(attr)){
+					var splitString = attr.split("_");
+					for(var splitPart in splitString){
+						result += ' ' + splitString[splitPart].charAt(0).toUpperCase() + splitString[splitPart].slice(1);
+					}
+					result += ": ";
+					if(attr == 'operator_type'){
+						result += output[attr] + "\n";					
+					}
+					else{
+						inputHtml = getHtml(attr,output[attr]);
+						result += "\t" + "\n";
+						result = result.replace(/\t/g, inputHtml);
+					}
+				}
+			}
+			result += "\n";
+			result.replace(/\n/g, '<br />');
+			return result;
+		});
+		
+		$('#attributes').html($('#attributes').text());
+		
+		var confirmChangesButton = $('<button class="confirm-button">Confirm Changes</button>');
+        $('#attributes').append(confirmChangesButton);
+		
+		var cancelButton = $('<button class="cancel-button">Cancel</button>');
+        $('#attributes').append(cancelButton);
+		
+		$('#attributes button').css({
+			'margin': '5px',
+			'border': '1px solid black'
+		});
+	});
+
+	/*
+	Confirm Changes Button
+*/	
+	
+	
+	$('#attributes').on('click', '.confirm-button', function() {
+	  data = $('#the-flowchart').flowchart('getData');
+	  var output = data['operators'][selectedOperator]['properties']['attributes'];
+	  var panel = $(this).parent().attr('class');
+	  
+	  var operatorTop = data['operators'][selectedOperator]['top'];
+	  var operatorLeft = data['operators'][selectedOperator]['left'];
+	  var operatorId = output['operator_id'];
+	  var operatorName = output['operator_type'];
+	  
+	  var operatorData = {
+        top: (operatorTop),
+        left: (operatorLeft),
+        properties: {
+          title: (operatorName),
+          inputs: {
+            input_1: {
+              label: 'Input 1',
+            }
+          },
+          outputs: {
+            output_1: {
+              label: 'Output 1',
+            }
+          },
+		  attributes: {
+			operator_id: (operatorId),
+			operator_type: (operatorName),
+		  }
+        }
+      };
+	  
+	  for(var otherOperator in editOperators){
+		var attr = editOperators[otherOperator].replace(/-/, '_');
+		var result = $('.' + panel + ' .' + editOperators[otherOperator]).val();
+		if(((result == '') || (result == null)) && (attr == 'dictionary')){
+			result = defaultDict;
+		}
+		operatorData.properties.attributes[attr] = result;
+	  }
+      
+	  $('#the-flowchart').flowchart('deleteSelected');
+      $('#the-flowchart').flowchart('createOperator', operatorId, operatorData);
+	  $('#the-flowchart').flowchart('selectOperator', operatorId);
+	  selectedOperator = $('#the-flowchart').flowchart('getSelectedOperatorId');
+	  
+	  data = $('#the-flowchart').flowchart('getData');
+	  output = data['operators'][selectedOperator]['properties']['attributes'];
+	  
+	  var title = data['operators'][selectedOperator]['properties']['title'];
+	  $('.band').html('Attributes for <em>' + title + '</em>');
+	  
+	  $('#attributes').text(getPopupText(output));
+	  $('#attributes').html($('#attributes').text());
+	  
+	  var editButton = $('<button class="edit-operator">Edit</button>');
+	  $('#attributes').append(editButton);
+		
+	  var deleteButton = $('<button class="delete-operator">Delete</button>');
+	  $('#attributes').append(deleteButton);
+		
+	  $('#attributes button').css({
+			'margin': '5px',
+			'border': '1px solid black'
+	  });
+	});
+	
+	
+/*
+	Cancel Edit Button
+*/	
+	
+	
+	$('#attributes').on('click', '.cancel-button', function() {
+		var output = data['operators'][selectedOperator]['properties']['attributes'];
+		$('#attributes').text(getPopupText(output));
+		$('#attributes').html($('#attributes').text());
+		
+		var editButton = $('<button class="edit-operator">Edit</button>');
+        $('#attributes').append(editButton);
+		
+		var deleteButton = $('<button class="delete-operator">Delete</button>');
+        $('#attributes').append(deleteButton);
+		
+		$('#attributes button').css({
+			'margin': '5px',
+			'border': '1px solid black'
+		});
+	});
+	
+	
 /*
 	Delete Operator Button
 */
 
 	
-	$('.nav').on('click', '.delete-operator', function() {		
+	$('#attributes, .nav').on('click', '.delete-operator', function() {
+		data = $('#the-flowchart').flowchart('getData');
+		$('#attributes').css({
+			'visibility': 'hidden'
+		});
+		
+		$('.band').text('Attributes');
+		
 		$('#the-flowchart').flowchart('deleteSelected');
 		data = $('#the-flowchart').flowchart('getData');
     });

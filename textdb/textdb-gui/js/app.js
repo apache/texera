@@ -33,6 +33,12 @@ var main = function(){
         }, 200);
     });
 	
+	$('.band').on('click', function() {
+		$('.popup').animate({
+            'bottom': '-570px'
+        }, 200);
+	});
+	
 	$('.menu ul li').on('click', function() {
 		
 		var panelToShow = $(this).attr('rel');
