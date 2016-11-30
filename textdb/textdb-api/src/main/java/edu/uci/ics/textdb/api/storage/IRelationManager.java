@@ -13,9 +13,7 @@ import edu.uci.ics.textdb.api.exception.TextDBException;
  * @author Zuozhi Wang
  */
 public interface IRelationManager {
-    
-    public IRelationManager getRelationManager();
-    
+        
     public boolean checkTableExistence(String tableName);
     
     // create a new table, tableName must be unique
@@ -39,10 +37,10 @@ public interface IRelationManager {
     // get the dataReader to scan a table
     public IDataReader scanTable(String tableName) throws TextDBException;
     
-    public String getTableDirectory(String tableName);
+    public String getTableDirectory(String tableName) throws TextDBException;
     
-    public Schema getTableSchema(String tableName);
+    public Schema getTableSchema(String tableName) throws TextDBException;
     
-    public String getTableAnalyzer(String tableName);
+    public String getTableAnalyzer(String tableName) throws TextDBException;
     
 }
