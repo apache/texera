@@ -7,13 +7,14 @@ import edu.uci.ics.textdb.api.common.Schema;
 import java.util.regex.Pattern;
 
 /**
- * @author sweetest
+ * Variables used in PlanStore.java.
  *
+ * @author Adrian Seungjin Lee
  */
 public class PlanStoreConstants {
     public static final String TABLE_NAME = "plan";
 
-    public static final Pattern INVALID_PLAN_NAME = Pattern.compile("[^a-zA-Z0-9\\-_]");
+    public static final Pattern VALID_PLAN_NAME = Pattern.compile("^[a-zA-Z0-9\\-_]{1,}$");
 
     public static final String INDEX_DIR = "../plan";
     public static final String FILES_DIR = "../plan_files";

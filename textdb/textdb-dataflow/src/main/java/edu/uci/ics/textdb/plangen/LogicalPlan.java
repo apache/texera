@@ -374,5 +374,27 @@ public class LogicalPlan implements Serializable {
         
         return (ISink) sinkOperator;
     }
- 
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        LogicalPlan that = (LogicalPlan) o;
+
+        if (operatorTypeMap != null ? !operatorTypeMap.equals(that.operatorTypeMap) : that.operatorTypeMap != null)
+            return false;
+        if (operatorPropertyMap != null ? !operatorPropertyMap.equals(that.operatorPropertyMap) : that.operatorPropertyMap != null)
+            return false;
+        return adjacencyList != null ? adjacencyList.equals(that.adjacencyList) : that.adjacencyList == null;
+
+    }
+
+    @Override
+    public int hashCode() {
+        int result = operatorTypeMap != null ? operatorTypeMap.hashCode() : 0;
+        result = 31 * result + (operatorPropertyMap != null ? operatorPropertyMap.hashCode() : 0);
+        result = 31 * result + (adjacencyList != null ? adjacencyList.hashCode() : 0);
+        return result;
+    }
 }

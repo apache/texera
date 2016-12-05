@@ -51,7 +51,7 @@ public class LogicalPlanTest {
             put(OperatorBuilderUtils.ATTRIBUTE_TYPES, "string, text");
         }
     };
-    
+
     public static HashMap<String, String> fuzzyTokenMatcherProperties = new HashMap<String, String>() {
         {
             put(FuzzyTokenMatcherBuilder.FUZZY_STRING, "university college school");
@@ -85,13 +85,12 @@ public class LogicalPlanTest {
     };
 
     /*
-     * Test a valid operator graph.
-     * 
+     * It generates a valid logical plan as follows.
+     *
      * KeywordSource --> RegexMatcher --> FileSink
-     * 
+     *
      */
-    @Test
-    public void testLogicalPlan1() throws Exception {
+    public static LogicalPlan getLogicalPlan1() throws PlanGenException {
         LogicalPlan logicalPlan = new LogicalPlan();
 
         logicalPlan.addOperator("source", "KeywordSource", keywordSourceProperties);
@@ -99,6 +98,75 @@ public class LogicalPlanTest {
         logicalPlan.addOperator("sink", "FileSink", fileSinkProperties);
         logicalPlan.addLink("source", "regex");
         logicalPlan.addLink("regex", "sink");
+        return logicalPlan;
+    }
+
+    /*
+     * It generates a valid logical plan as follows.
+     *
+     *                  -> RegexMatcher -->
+     * KeywordSource --<                     >-- Join --> FileSink
+     *                  -> NlpExtractor -->
+     *
+     */
+    public static LogicalPlan getLogicalPlan2() throws PlanGenException {
+        LogicalPlan logicalPlan = new LogicalPlan();
+
+        logicalPlan.addOperator("source", "KeywordSource", keywordSourceProperties);
+        logicalPlan.addOperator("regex", "RegexMatcher", regexMatcherProperties);
+        logicalPlan.addOperator("nlp", "NlpExtractor", nlpExtractorProperties);
+        logicalPlan.addOperator("join", "Join", joinProperties);
+        logicalPlan.addOperator("sink", "FileSink", fileSinkProperties);
+
+        logicalPlan.addLink("source", "regex");
+        logicalPlan.addLink("source", "nlp");
+        logicalPlan.addLink("regex", "join");
+        logicalPlan.addLink("nlp", "join");
+        logicalPlan.addLink("join", "sink");
+        return logicalPlan;
+    }
+
+    /*
+     * It generates a valid logical plan as follows.
+     *
+     *                  --> RegexMatcher -->
+     *                  |                    >-- Join1
+     * KeywordSource --< -> NlpExtractor -->          >-- Join2 --> FileSink
+     *                  |                           /
+     *                  --> FuzzyTokenMatcher ----->
+     *
+     */
+    public static LogicalPlan getLogicalPlan3() throws PlanGenException {
+        LogicalPlan logicalPlan = new LogicalPlan();
+
+        logicalPlan.addOperator("source", "KeywordSource", keywordSourceProperties);
+        logicalPlan.addOperator("regex", "RegexMatcher", regexMatcherProperties);
+        logicalPlan.addOperator("nlp", "NlpExtractor", nlpExtractorProperties);
+        logicalPlan.addOperator("fuzzytoken", "FuzzyTokenMatcher", fuzzyTokenMatcherProperties);
+        logicalPlan.addOperator("join", "Join", joinProperties);
+        logicalPlan.addOperator("join2", "Join", joinProperties);
+        logicalPlan.addOperator("sink", "FileSink", fileSinkProperties);
+
+        logicalPlan.addLink("source", "regex");
+        logicalPlan.addLink("source", "nlp");
+        logicalPlan.addLink("source", "fuzzytoken");
+        logicalPlan.addLink("regex", "join");
+        logicalPlan.addLink("nlp", "join");
+        logicalPlan.addLink("join", "join2");
+        logicalPlan.addLink("fuzzytoken", "join2");
+        logicalPlan.addLink("join2", "sink");
+        return logicalPlan;
+    }
+
+    /*
+     * Test a valid operator graph.
+     * 
+     * KeywordSource --> RegexMatcher --> FileSink
+     * 
+     */
+    @Test
+    public void testLogicalPlan1() throws Exception {
+        LogicalPlan logicalPlan = getLogicalPlan1();
 
         Plan queryPlan = logicalPlan.buildQueryPlan();
 
@@ -122,23 +190,11 @@ public class LogicalPlanTest {
      */
     @Test
     public void testLogicalPlan2() throws Exception {
-        LogicalPlan logicalPlan = new LogicalPlan();
+        LogicalPlan logicalPlan = getLogicalPlan2();
 
         JSONObject schemaJsonJSONObject = new JSONObject();
         schemaJsonJSONObject.put(OperatorBuilderUtils.ATTRIBUTE_NAMES, "id, city, location, content");
         schemaJsonJSONObject.put(OperatorBuilderUtils.ATTRIBUTE_TYPES, "integer, string, string, text");
-
-        logicalPlan.addOperator("source", "KeywordSource", keywordSourceProperties);
-        logicalPlan.addOperator("regex", "RegexMatcher", regexMatcherProperties);
-        logicalPlan.addOperator("nlp", "NlpExtractor", nlpExtractorProperties);
-        logicalPlan.addOperator("join", "Join", joinProperties);
-        logicalPlan.addOperator("sink", "FileSink", fileSinkProperties);
-
-        logicalPlan.addLink("source", "regex");
-        logicalPlan.addLink("source", "nlp");
-        logicalPlan.addLink("regex", "join");
-        logicalPlan.addLink("nlp", "join");
-        logicalPlan.addLink("join", "sink");
 
         Plan queryPlan = logicalPlan.buildQueryPlan();
 
@@ -158,8 +214,8 @@ public class LogicalPlanTest {
         Assert.assertTrue(connectorOut1 instanceof ConnectorOutputOperator);
 
         IOperator connectorOut2 = ((NlpExtractor) joinInput2).getInputOperator();
-        Assert.assertTrue(connectorOut2 instanceof ConnectorOutputOperator);       
-        
+        Assert.assertTrue(connectorOut2 instanceof ConnectorOutputOperator);
+
         HashSet<Integer> connectorIndices = new HashSet<>();
         connectorIndices.add(((ConnectorOutputOperator) connectorOut1).getOutputIndex());
         connectorIndices.add(((ConnectorOutputOperator) connectorOut2).getOutputIndex());
@@ -173,7 +229,7 @@ public class LogicalPlanTest {
         IOperator keywordSource = connector1.getInputOperator();
         Assert.assertTrue(keywordSource instanceof KeywordMatcherSourceOperator);
     }
-    
+
     /*
      * Test a valid operator graph.
      * 
@@ -186,28 +242,11 @@ public class LogicalPlanTest {
      */
     @Test
     public void testLogicalPlan3() throws Exception {
-        LogicalPlan logicalPlan = new LogicalPlan();
+        LogicalPlan logicalPlan = getLogicalPlan3();
 
         JSONObject schemaJsonJSONObject = new JSONObject();
         schemaJsonJSONObject.put(OperatorBuilderUtils.ATTRIBUTE_NAMES, "id, city, location, content");
         schemaJsonJSONObject.put(OperatorBuilderUtils.ATTRIBUTE_TYPES, "integer, string, string, text");
-
-        logicalPlan.addOperator("source", "KeywordSource", keywordSourceProperties);
-        logicalPlan.addOperator("regex", "RegexMatcher", regexMatcherProperties);
-        logicalPlan.addOperator("nlp", "NlpExtractor", nlpExtractorProperties);
-        logicalPlan.addOperator("fuzzytoken", "FuzzyTokenMatcher", fuzzyTokenMatcherProperties);
-        logicalPlan.addOperator("join", "Join", joinProperties);
-        logicalPlan.addOperator("join2", "Join", joinProperties);
-        logicalPlan.addOperator("sink", "FileSink", fileSinkProperties);
-
-        logicalPlan.addLink("source", "regex");
-        logicalPlan.addLink("source", "nlp");
-        logicalPlan.addLink("source", "fuzzytoken");
-        logicalPlan.addLink("regex", "join");
-        logicalPlan.addLink("nlp", "join");
-        logicalPlan.addLink("join", "join2");
-        logicalPlan.addLink("fuzzytoken", "join2");
-        logicalPlan.addLink("join2", "sink");
 
         Plan queryPlan = logicalPlan.buildQueryPlan();
 
@@ -216,10 +255,10 @@ public class LogicalPlanTest {
 
         IOperator join2 = ((FileSink) fileSink).getInputOperator();
         Assert.assertTrue(join2 instanceof Join);
-        
+
         IOperator join2Input1 = ((Join) join2).getInnerOperator();
         Assert.assertTrue(join2Input1 instanceof Join);
-        
+
         IOperator join2Input2 = ((Join) join2).getOuterOperator();
         Assert.assertTrue(join2Input2 instanceof FuzzyTokenMatcher);
 
@@ -233,11 +272,11 @@ public class LogicalPlanTest {
         Assert.assertTrue(connectorOut1 instanceof ConnectorOutputOperator);
 
         IOperator connectorOut2 = ((NlpExtractor) join1Input2).getInputOperator();
-        Assert.assertTrue(connectorOut2 instanceof ConnectorOutputOperator);       
-        
+        Assert.assertTrue(connectorOut2 instanceof ConnectorOutputOperator);
+
         IOperator connectorOut3 = ((FuzzyTokenMatcher) join2Input2).getInputOperator();
         Assert.assertTrue(connectorOut3 instanceof ConnectorOutputOperator);
-        
+
         HashSet<Integer> connectorIndices = new HashSet<>();
         connectorIndices.add(((ConnectorOutputOperator) connectorOut1).getOutputIndex());
         connectorIndices.add(((ConnectorOutputOperator) connectorOut2).getOutputIndex());
@@ -256,7 +295,6 @@ public class LogicalPlanTest {
     }
 
 
-    
     /*
      * Test a operator graph without a source operator
      * 
@@ -370,7 +408,7 @@ public class LogicalPlanTest {
 
         logicalPlan.buildQueryPlan();
     }
-    
+
     /*
      * Test a operator graph with an invalid input arity
      * 
@@ -399,7 +437,7 @@ public class LogicalPlanTest {
 
         logicalPlan.buildQueryPlan();
     }
-    
+
     /*
      * Test a operator graph with an invalid output arity
      *                 -> RegexMatcher1 --> FileSink
@@ -427,7 +465,7 @@ public class LogicalPlanTest {
 
         logicalPlan.buildQueryPlan();
     }
-    
+
     /*
      * Test a operator graph with a cycle
      * 

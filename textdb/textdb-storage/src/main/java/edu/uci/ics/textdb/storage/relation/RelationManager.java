@@ -88,7 +88,7 @@ public class RelationManager {
         if (checkTableExistence(tableName)) {
             throw new StorageException(String.format("Table %s already exists.", tableName));
         }
-        
+
         // check if the lucene analyzer string is valid
         Analyzer luceneAnalyzer = null;
         try {
@@ -104,6 +104,7 @@ public class RelationManager {
         
         // write table info to catalog
         writeTableInfoToCatalog(tableName, indexDirectory, schema, luceneAnalyzerString);
+
     }
     
     /*
@@ -146,13 +147,14 @@ public class RelationManager {
         // try to clear all data in the table
         try {
             new DataWriter(getTableDataStore(tableName), getTableAnalyzer(tableName)).clearData();
+            Utils.deleteDirectory(getTableDirectory(tableName));
         } catch (StorageException e) {
             // don't need to do anything if clearing data fails
         }
-        
+
         // generate a query for the table name
         Query catalogTableNameQuery = new TermQuery(new Term(CatalogConstants.TABLE_NAME, tableName));
-        
+
         // delete the table from table catalog
         DataWriter tableCatalogWriter = new DataWriter(CatalogConstants.TABLE_CATALOG_DATASTORE, 
                 LuceneAnalyzerConstants.getStandardAnalyzer());
