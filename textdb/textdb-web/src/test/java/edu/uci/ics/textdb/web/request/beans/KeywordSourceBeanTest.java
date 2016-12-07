@@ -22,7 +22,7 @@ public class KeywordSourceBeanTest {
     @Test
     public void testDeserialization() throws IOException {
         final KeywordSourceBean keywordSourceBean = new KeywordSourceBean("operator1", "KeywordSource", "attributes",
-                "10", "100", "keyword1", DataConstants.KeywordMatchingType.PHRASE_INDEXBASED, "datasource");
+                "10", "100", "keyword1", "phrase", "datasource");
         String jsonString = "{\n" +
                 "    \"operator_id\": \"operator1\",\n" +
                 "    \"operator_type\": \"KeywordSource\",\n" +
@@ -30,7 +30,7 @@ public class KeywordSourceBeanTest {
                 "    \"limit\": \"10\",\n" +
                 "    \"offset\": \"100\",\n" +
                 "    \"keyword\": \"keyword1\",\n" +
-                "    \"matching_type\": \"PHRASE_INDEXBASED\",\n" +
+                "    \"matching_type\": \"phrase\",\n" +
                 "    \"data_source\": \"datasource\"\n" +
                 "}";
         KeywordSourceBean deserializedObject = MAPPER.readValue(jsonString, KeywordSourceBean.class);
@@ -40,7 +40,7 @@ public class KeywordSourceBeanTest {
     @Test
     public void testInvalidDeserialization() throws IOException {
         final KeywordSourceBean keywordSourceBean = new KeywordSourceBean("operator1", "KeywordSource", "attributes",
-                "10", "100", "keyword1", DataConstants.KeywordMatchingType.PHRASE_INDEXBASED, "datasource");
+                "10", "100", "keyword1", "phrase", "datasource");
         String jsonString = "{\n" +
                 "    \"operator_id\": \"operator2\",\n" +
                 "    \"operator_type\": \"KeywordSource\",\n" +
@@ -48,7 +48,7 @@ public class KeywordSourceBeanTest {
                 "    \"limit\": \"10\",\n" +
                 "    \"offset\": \"100\",\n" +
                 "    \"keyword\": \"keyword2\",\n" +
-                "    \"matching_type\": \"PHRASE_INDEXBASED\",\n" +
+                "    \"matching_type\": \"phrase\",\n" +
                 "    \"data_source\": \"datasource1\"\n" +
                 "}";
         KeywordSourceBean deserializedObject = MAPPER.readValue(jsonString, KeywordSourceBean.class);

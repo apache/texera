@@ -1,6 +1,8 @@
 package edu.uci.ics.textdb.web.resource;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import edu.uci.ics.textdb.api.plan.Plan;
+import edu.uci.ics.textdb.engine.Engine;
 import edu.uci.ics.textdb.web.request.QueryPlanRequest;
 import edu.uci.ics.textdb.web.response.SampleResponse;
 
@@ -36,6 +38,23 @@ public class QueryPlanResource {
 
         ObjectMapper objectMapper = new ObjectMapper();
         if(aggregatePropertiesFlag && createLogicalPlanFlag) {
+
+            try {
+                Plan plan = queryPlanRequest.getLogicalPlan().buildQueryPlan();
+                Engine.getEngine().evaluate(plan);
+            }
+            catch(Exception e) {
+                System.out.println(e.getMessage());
+                SampleResponse sampleResponse = new SampleResponse(1, "Unsuccessful");
+                return Response.status(400)
+                        .entity(objectMapper.writeValueAsString(sampleResponse))
+                        .header("Access-Control-Allow-Origin", "*")
+                        .header("Access-Control-Allow-Methods", "OPTIONS,GET,PUT,POST,DELETE,HEAD")
+                        .header("Access-Control-Allow-Headers", "X-Requested-With,Content-Type,Accept,Origin")
+                        .header("Access-Control-Max-Age", "1728000")
+                        .build();
+            }
+
             // Temporary sample response when the operator properties aggregation works correctly
             SampleResponse sampleResponse = new SampleResponse(0, "Successful");
             return Response.status(200)

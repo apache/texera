@@ -2,6 +2,8 @@ package edu.uci.ics.textdb.web.request;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import edu.uci.ics.textdb.common.exception.PlanGenException;
+import edu.uci.ics.textdb.dataflow.nlpextrator.NlpExtractor;
+import edu.uci.ics.textdb.engine.Engine;
 import edu.uci.ics.textdb.plangen.LogicalPlan;
 import edu.uci.ics.textdb.web.request.beans.*;
 
@@ -74,7 +76,7 @@ public class QueryPlanRequest {
         return operatorProperties;
     }
 
-    private LogicalPlan getLogicalPlan() {
+    public LogicalPlan getLogicalPlan() {
         return logicalPlan;
     }
 
@@ -146,7 +148,6 @@ public class QueryPlanRequest {
 
             }
         }
-
         // Returning success on complete successful creation of a logical plan
         return true;
     }
