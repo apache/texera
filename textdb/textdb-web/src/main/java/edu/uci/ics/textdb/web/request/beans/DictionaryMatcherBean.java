@@ -64,19 +64,20 @@ public class DictionaryMatcherBean extends OperatorBean {
     public boolean equals(Object other) {
         if (other == null) return false;
         if (other == this) return true;
-        if (!(other instanceof OperatorBean)) return false;
+        if (!(other instanceof DictionaryMatcherBean)) return false;
         DictionaryMatcherBean dictionaryMatcherBean = (DictionaryMatcherBean) other;
 
         return new EqualsBuilder()
+                .appendSuper(super.equals(dictionaryMatcherBean))
                 .append(dictionary, dictionaryMatcherBean.getDictionary())
                 .append(matchingType, dictionaryMatcherBean.getMatchingType())
-                .isEquals() &&
-                super.equals(dictionaryMatcherBean);
+                .isEquals();
     }
 
     @Override
     public int hashCode() {
         return new HashCodeBuilder(17, 31)
+                .append(super.hashCode())
                 .append(dictionary)
                 .append(matchingType)
                 .toHashCode();

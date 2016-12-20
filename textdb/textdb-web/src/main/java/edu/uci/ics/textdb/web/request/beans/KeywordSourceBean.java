@@ -80,19 +80,20 @@ public class KeywordSourceBean extends OperatorBean {
     public boolean equals(Object other) {
         if (other == null) return false;
         if (other == this) return true;
-        if (!(other instanceof OperatorBean)) return false;
+        if (!(other instanceof KeywordSourceBean)) return false;
         KeywordSourceBean keywordSourceBean = (KeywordSourceBean) other;
         return new EqualsBuilder()
+                .appendSuper(super.equals(keywordSourceBean))
                 .append(keyword, keywordSourceBean.getKeyword())
                 .append(matchingType, keywordSourceBean.getMatchingType())
                 .append(dataSource, keywordSourceBean.getDataSource())
-                .isEquals() &&
-                super.equals(keywordSourceBean);
+                .isEquals();
     }
 
     @Override
     public int hashCode() {
         return new HashCodeBuilder(17, 31)
+                .append(super.hashCode())
                 .append(keyword)
                 .append(matchingType)
                 .append(dataSource)

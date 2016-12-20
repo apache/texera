@@ -80,19 +80,21 @@ public class DictionarySourceBean extends OperatorBean {
     public boolean equals(Object other) {
         if (other == null) return false;
         if (other == this) return true;
-        if (!(other instanceof OperatorBean)) return false;
+        if (!(other instanceof DictionarySourceBean)) return false;
         DictionarySourceBean dictionarySourceBean = (DictionarySourceBean) other;
 
         return new EqualsBuilder()
+                .appendSuper(super.equals(dictionarySourceBean))
                 .append(dictionary, dictionarySourceBean.getDictionary())
                 .append(matchingType, dictionarySourceBean.getMatchingType())
                 .append(dataSource, dictionarySourceBean.getDataSource())
-                .isEquals() && super.equals(dictionarySourceBean);
+                .isEquals();
     }
 
     @Override
     public int hashCode() {
         return new HashCodeBuilder(17, 31)
+                .append(super.hashCode())
                 .append(dictionary)
                 .append(matchingType)
                 .append(dataSource)

@@ -66,18 +66,19 @@ public class JoinBean extends OperatorBean {
     public boolean equals(Object other) {
         if (other == null) return false;
         if (other == this) return true;
-        if (!(other instanceof OperatorBean)) return false;
+        if (!(other instanceof JoinBean)) return false;
         JoinBean joinBean = (JoinBean) other;
         return new EqualsBuilder()
+                .appendSuper(super.equals(joinBean))
                 .append(idAttribute, joinBean.getIdAttribute())
                 .append(distance, joinBean.getDistance())
-                .isEquals() &&
-                super.equals(joinBean);
+                .isEquals();
     }
 
     @Override
     public int hashCode() {
         return new HashCodeBuilder(17, 31)
+                .append(super.hashCode())
                 .append(idAttribute)
                 .append(distance)
                 .toHashCode();

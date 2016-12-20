@@ -61,18 +61,19 @@ public class IndexSinkBean extends OperatorBean {
     public boolean equals(Object other) {
         if (other == null) return false;
         if (other == this) return true;
-        if (!(other instanceof OperatorBean)) return false;
+        if (!(other instanceof IndexSinkBean)) return false;
         IndexSinkBean indexSinkBean = (IndexSinkBean) other;
         return new EqualsBuilder()
+                .appendSuper(super.equals(indexSinkBean))
                 .append(indexPath, indexSinkBean.getIndexPath())
                 .append(indexName, indexSinkBean.getIndexName())
-                .isEquals() &&
-                super.equals(indexSinkBean);
+                .isEquals();
     }
 
     @Override
     public int hashCode() {
         return new HashCodeBuilder(17, 31)
+                .append(super.hashCode())
                 .append(indexPath)
                 .append(indexName)
                 .toHashCode();
