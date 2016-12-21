@@ -19,6 +19,11 @@
             <artifactId>textdb-dataflow</artifactId>
             <version>${textdb.version}</version>
         </dependency>
+        <dependency>
+            <groupId>edu.uci.ics.textdb</groupId>
+            <artifactId>textdb-web</artifactId>
+            <version>${textdb.version}</version>
+        </dependency>
 		<dependency>
 			<groupId>org.apache.commons</groupId>
 			<artifactId>commons-lang3</artifactId>
