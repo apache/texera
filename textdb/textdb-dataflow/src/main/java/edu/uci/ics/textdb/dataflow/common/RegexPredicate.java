@@ -1,7 +1,6 @@
 package edu.uci.ics.textdb.dataflow.common;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.queryparser.classic.MultiFieldQueryParser;
@@ -9,8 +8,6 @@ import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.Query;
 
-import edu.uci.ics.textdb.api.common.Attribute;
-import edu.uci.ics.textdb.api.common.FieldType;
 import edu.uci.ics.textdb.api.common.IPredicate;
 import edu.uci.ics.textdb.api.storage.IDataStore;
 import edu.uci.ics.textdb.common.constants.DataConstants;
@@ -30,15 +27,15 @@ import edu.uci.ics.textdb.storage.DataReaderPredicate;
 public class RegexPredicate implements IPredicate {
 
     private String regex;
-    private List<Attribute> attributeList;
+    private List<String> attributeNames;
 
     private Analyzer luceneAnalyzer;
 
 
-    public RegexPredicate(String regex, List<Attribute> attributeList, Analyzer analyzer) throws DataFlowException {
+    public RegexPredicate(String regex, List<String> attributeNames, Analyzer analyzer) throws DataFlowException {
         this.regex = regex;
         this.luceneAnalyzer = analyzer;
-        this.attributeList = attributeList;
+        this.attributeNames = attributeNames;
     }
 
 
@@ -46,9 +43,6 @@ public class RegexPredicate implements IPredicate {
     public DataReaderPredicate generateDataReaderPredicate(IDataStore dataStore) throws DataFlowException {
         Query luceneQuery;
         String queryString;
-        List<String> fieldNameList = attributeList.stream()
-                .filter(attr -> (attr.getFieldType() == FieldType.TEXT || attr.getFieldType() == FieldType.STRING))
-                .map(attr -> attr.getFieldName()).collect(Collectors.toList());
         
         // Try to apply translator. If it fails, use scan query.
         try {
@@ -58,7 +52,7 @@ public class RegexPredicate implements IPredicate {
         }
 
         try {
-            luceneQuery = generateLuceneQuery(fieldNameList, queryString);
+            luceneQuery = generateLuceneQuery(attributeNames, queryString);
         } catch (ParseException e) {
             e.printStackTrace();
             throw new DataFlowException(e.getMessage(), e);
@@ -83,8 +77,8 @@ public class RegexPredicate implements IPredicate {
         return this.luceneAnalyzer;
     }
 
-    public List<Attribute> getAttributeList() {
-        return attributeList;
+    public List<String> getAttributeNames() {
+        return attributeNames;
     }
 
 }

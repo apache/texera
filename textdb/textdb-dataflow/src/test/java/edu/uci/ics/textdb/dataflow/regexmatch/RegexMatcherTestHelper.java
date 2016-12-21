@@ -8,7 +8,6 @@ import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.custom.CustomAnalyzer;
 import org.apache.lucene.analysis.ngram.NGramTokenizerFactory;
 
-import edu.uci.ics.textdb.api.common.Attribute;
 import edu.uci.ics.textdb.api.common.ITuple;
 import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.api.storage.IDataStore;
@@ -27,7 +26,7 @@ import edu.uci.ics.textdb.storage.writer.DataWriter;
 public class RegexMatcherTestHelper {
 
     RegexMatcher regexMatcher;
-    IDataWriter dataWriter;
+    DataWriter dataWriter;
     IDataStore dataStore;
 
     List<ITuple> results;
@@ -43,9 +42,11 @@ public class RegexMatcherTestHelper {
                 .build();
         dataWriter = new DataWriter(dataStore, luceneAnalyzer);
         dataWriter.clearData();
+        dataWriter.open();
         for (ITuple tuple : data) {
             dataWriter.insertTuple(tuple);
         }
+        dataWriter.close();
         results = new ArrayList<ITuple>();
     }
 
@@ -57,22 +58,22 @@ public class RegexMatcherTestHelper {
         return Utils.createSpanSchema(inputSchema);
     }
 
-    public void runTest(String regex, Attribute attribute) throws Exception {
-        runTest(regex, attribute, true);
+    public void runTest(String regex, String attributeName) throws Exception {
+        runTest(regex, attributeName, true);
     }
 
-    public void runTest(String regex, Attribute attribute, boolean useTranslator) throws Exception {
-        runTest(regex, attribute, useTranslator, Integer.MAX_VALUE, 0);
+    public void runTest(String regex, String attributeName, boolean useTranslator) throws Exception {
+        runTest(regex, attributeName, useTranslator, Integer.MAX_VALUE, 0);
     }
 
-    public void runTest(String regex, Attribute attribute, boolean useTranslator, int limit) throws Exception {
-        runTest(regex, attribute, useTranslator, limit, 0);
+    public void runTest(String regex, String attributeName, boolean useTranslator, int limit) throws Exception {
+        runTest(regex, attributeName, useTranslator, limit, 0);
     }
 
-    public void runTest(String regex, Attribute attribute, boolean useTranslator, int limit, int offset)
+    public void runTest(String regex, String attributeName, boolean useTranslator, int limit, int offset)
             throws Exception {
         results.clear();
-        RegexPredicate regexPredicate = new RegexPredicate(regex, Arrays.asList(new Attribute[] { attribute }),
+        RegexPredicate regexPredicate = new RegexPredicate(regex, Arrays.asList(attributeName),
                 luceneAnalyzer);
 
         IndexBasedSourceOperator indexInputOperator = new IndexBasedSourceOperator(

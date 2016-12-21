@@ -25,7 +25,7 @@ public class FuzzyTokenMatcherBuilderTest {
      * test FuzzyTokenMatcherBuilder with the following properties:
      *   query: "test with fuzzy token matcher builder"
      *   thresholdRatio: 0.5
-     *   attribute list: {content, TEXT}
+     *   attribute names: {content}
      *   limit: 100
      *   offset: 11
      * 
@@ -38,7 +38,6 @@ public class FuzzyTokenMatcherBuilderTest {
         operatorProperties.put(FuzzyTokenMatcherBuilder.FUZZY_STRING, query);
         operatorProperties.put(FuzzyTokenMatcherBuilder.THRESHOLD_RATIO, "0.5");
         operatorProperties.put(OperatorBuilderUtils.ATTRIBUTE_NAMES, "content");
-        operatorProperties.put(OperatorBuilderUtils.ATTRIBUTE_TYPES, "TEXT");
         operatorProperties.put(OperatorBuilderUtils.LIMIT, "100");
         operatorProperties.put(OperatorBuilderUtils.OFFSET, "11");
      
@@ -46,9 +45,8 @@ public class FuzzyTokenMatcherBuilderTest {
         
         Assert.assertEquals(query, fuzzyTokenMatcher.getPredicate().getQuery());
         Assert.assertEquals(0.5, fuzzyTokenMatcher.getPredicate().getThresholdRatio());
-        List<Attribute> attrList = Arrays.asList(
-                new Attribute("content", FieldType.TEXT));
-        Assert.assertEquals(attrList.toString(), fuzzyTokenMatcher.getPredicate().getAttributeList().toString());
+        List<String> attrNames = Arrays.asList("content");
+        Assert.assertEquals(attrNames, fuzzyTokenMatcher.getPredicate().getAttributeNames());
         Assert.assertEquals(100, fuzzyTokenMatcher.getLimit());
         Assert.assertEquals(11, fuzzyTokenMatcher.getOffset());   
     }
@@ -65,7 +63,6 @@ public class FuzzyTokenMatcherBuilderTest {
         operatorProperties.put(FuzzyTokenMatcherBuilder.FUZZY_STRING, query);
         operatorProperties.put(FuzzyTokenMatcherBuilder.THRESHOLD_RATIO, "1");
         operatorProperties.put(OperatorBuilderUtils.ATTRIBUTE_NAMES, "content");
-        operatorProperties.put(OperatorBuilderUtils.ATTRIBUTE_TYPES, "TEXT");
         operatorProperties.put(OperatorBuilderUtils.LIMIT, "100");
         operatorProperties.put(OperatorBuilderUtils.OFFSET, "11");
      
@@ -73,9 +70,8 @@ public class FuzzyTokenMatcherBuilderTest {
         
         Assert.assertEquals(query, fuzzyTokenMatcher.getPredicate().getQuery());
         Assert.assertEquals(1.0, fuzzyTokenMatcher.getPredicate().getThresholdRatio());
-        List<Attribute> attrList = Arrays.asList(
-                new Attribute("content", FieldType.TEXT));
-        Assert.assertEquals(attrList.toString(), fuzzyTokenMatcher.getPredicate().getAttributeList().toString());
+        List<String> attrNames = Arrays.asList("content");
+        Assert.assertEquals(attrNames, fuzzyTokenMatcher.getPredicate().getAttributeNames());
         Assert.assertEquals(100, fuzzyTokenMatcher.getLimit());
         Assert.assertEquals(11, fuzzyTokenMatcher.getOffset());   
     }
@@ -92,7 +88,6 @@ public class FuzzyTokenMatcherBuilderTest {
         operatorProperties.put(FuzzyTokenMatcherBuilder.FUZZY_STRING, query);
         operatorProperties.put(FuzzyTokenMatcherBuilder.THRESHOLD_RATIO, "0");
         operatorProperties.put(OperatorBuilderUtils.ATTRIBUTE_NAMES, "content");
-        operatorProperties.put(OperatorBuilderUtils.ATTRIBUTE_TYPES, "TEXT");
         operatorProperties.put(OperatorBuilderUtils.LIMIT, "100");
         operatorProperties.put(OperatorBuilderUtils.OFFSET, "11");
      
@@ -100,9 +95,8 @@ public class FuzzyTokenMatcherBuilderTest {
         
         Assert.assertEquals(query, fuzzyTokenMatcher.getPredicate().getQuery());
         Assert.assertEquals(0.0, fuzzyTokenMatcher.getPredicate().getThresholdRatio());
-        List<Attribute> attrList = Arrays.asList(
-                new Attribute("content", FieldType.TEXT));
-        Assert.assertEquals(attrList.toString(), fuzzyTokenMatcher.getPredicate().getAttributeList().toString());
+        List<String> attrNames = Arrays.asList("content");
+        Assert.assertEquals(attrNames, fuzzyTokenMatcher.getPredicate().getAttributeNames());
         Assert.assertEquals(100, fuzzyTokenMatcher.getLimit());
         Assert.assertEquals(11, fuzzyTokenMatcher.getOffset());   
     }
@@ -117,7 +111,6 @@ public class FuzzyTokenMatcherBuilderTest {
         HashMap<String, String> operatorProperties = new HashMap<>();
         operatorProperties.put(FuzzyTokenMatcherBuilder.THRESHOLD_RATIO, "0.5");
         operatorProperties.put(OperatorBuilderUtils.ATTRIBUTE_NAMES, "content");
-        operatorProperties.put(OperatorBuilderUtils.ATTRIBUTE_TYPES, "TEXT");
         operatorProperties.put(OperatorBuilderUtils.LIMIT, "100");
         operatorProperties.put(OperatorBuilderUtils.OFFSET, "11");
        
@@ -136,7 +129,6 @@ public class FuzzyTokenMatcherBuilderTest {
         operatorProperties.put(FuzzyTokenMatcherBuilder.FUZZY_STRING, query);
         operatorProperties.put(FuzzyTokenMatcherBuilder.THRESHOLD_RATIO, "0.5");
         operatorProperties.put(OperatorBuilderUtils.ATTRIBUTE_NAMES, "content");
-        operatorProperties.put(OperatorBuilderUtils.ATTRIBUTE_TYPES, "TEXT");
         operatorProperties.put(OperatorBuilderUtils.LIMIT, "100");
         operatorProperties.put(OperatorBuilderUtils.OFFSET, "11");
        
@@ -154,7 +146,6 @@ public class FuzzyTokenMatcherBuilderTest {
         HashMap<String, String> operatorProperties = new HashMap<>();
         operatorProperties.put(FuzzyTokenMatcherBuilder.FUZZY_STRING, query);
         operatorProperties.put(OperatorBuilderUtils.ATTRIBUTE_NAMES, "content");
-        operatorProperties.put(OperatorBuilderUtils.ATTRIBUTE_TYPES, "TEXT");
         operatorProperties.put(OperatorBuilderUtils.LIMIT, "100");
         operatorProperties.put(OperatorBuilderUtils.OFFSET, "11");
        
@@ -173,7 +164,6 @@ public class FuzzyTokenMatcherBuilderTest {
         operatorProperties.put(FuzzyTokenMatcherBuilder.FUZZY_STRING, query);
         operatorProperties.put(FuzzyTokenMatcherBuilder.THRESHOLD_RATIO, "100");
         operatorProperties.put(OperatorBuilderUtils.ATTRIBUTE_NAMES, "content");
-        operatorProperties.put(OperatorBuilderUtils.ATTRIBUTE_TYPES, "TEXT");
         operatorProperties.put(OperatorBuilderUtils.LIMIT, "100");
         operatorProperties.put(OperatorBuilderUtils.OFFSET, "11");
        
@@ -192,7 +182,6 @@ public class FuzzyTokenMatcherBuilderTest {
         operatorProperties.put(FuzzyTokenMatcherBuilder.FUZZY_STRING, query);
         operatorProperties.put(FuzzyTokenMatcherBuilder.THRESHOLD_RATIO, "-1.2");
         operatorProperties.put(OperatorBuilderUtils.ATTRIBUTE_NAMES, "content");
-        operatorProperties.put(OperatorBuilderUtils.ATTRIBUTE_TYPES, "TEXT");
         operatorProperties.put(OperatorBuilderUtils.LIMIT, "100");
         operatorProperties.put(OperatorBuilderUtils.OFFSET, "11");
        

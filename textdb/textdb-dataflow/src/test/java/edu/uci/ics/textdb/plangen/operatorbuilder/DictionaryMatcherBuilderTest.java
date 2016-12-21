@@ -7,8 +7,6 @@ import java.util.List;
 
 import org.junit.Test;
 
-import edu.uci.ics.textdb.api.common.Attribute;
-import edu.uci.ics.textdb.api.common.FieldType;
 import edu.uci.ics.textdb.common.constants.DataConstants.KeywordMatchingType;
 import edu.uci.ics.textdb.common.exception.DataFlowException;
 import edu.uci.ics.textdb.common.exception.PlanGenException;
@@ -20,7 +18,7 @@ public class DictionaryMatcherBuilderTest {
     /*
      * test DictionaryMatcherBuilder with the following properties:
      *   keyword: Irvine
-     *   attribute list: {city, STRING}, {location, STRING}, {content, TEXT}
+     *   attribute names: {city}, {location}, {content}
      *   matching type: PHRASE_INDEXBASED
      *   limit: 10
      *   offset: 2
@@ -39,7 +37,6 @@ public class DictionaryMatcherBuilderTest {
         operatorProperties.put(DictionaryMatcherBuilder.DICTIONARY, dictionaryStr);
         operatorProperties.put(DictionaryMatcherBuilder.MATCHING_TYPE, "PHRASE_INDEXBASED");
         operatorProperties.put(OperatorBuilderUtils.ATTRIBUTE_NAMES, "city, location, content");
-        operatorProperties.put(OperatorBuilderUtils.ATTRIBUTE_TYPES, "STRING, STRING, TEXT");
         operatorProperties.put(OperatorBuilderUtils.LIMIT, "10");
         operatorProperties.put(OperatorBuilderUtils.OFFSET, "2");
         
@@ -51,11 +48,9 @@ public class DictionaryMatcherBuilderTest {
             actualDict.add(dictEntry);
         }
         Assert.assertEquals(dictionaryList.toString(), actualDict.toString());
-        List<Attribute> irvineAttrList = Arrays.asList(
-                new Attribute("city", FieldType.STRING),
-                new Attribute("location", FieldType.STRING),
-                new Attribute("content", FieldType.TEXT));
-        Assert.assertEquals(irvineAttrList.toString(), dictionaryMatcher.getPredicate().getAttributeList().toString());
+        List<String> irvineAttrNames = Arrays.asList("city", "location", "content");
+        
+        Assert.assertEquals(irvineAttrNames, dictionaryMatcher.getPredicate().getAttributeNames());
         Assert.assertEquals(KeywordMatchingType.PHRASE_INDEXBASED, dictionaryMatcher.getPredicate().getKeywordMatchingType());
         Assert.assertEquals(10, dictionaryMatcher.getLimit());
         Assert.assertEquals(2, dictionaryMatcher.getOffset()); 
@@ -71,7 +66,6 @@ public class DictionaryMatcherBuilderTest {
         HashMap<String, String> operatorProperties = new HashMap<>();
         operatorProperties.put(DictionaryMatcherBuilder.MATCHING_TYPE, "PHRASE_INDEXBASED");
         operatorProperties.put(OperatorBuilderUtils.ATTRIBUTE_NAMES, "city, location, content");
-        operatorProperties.put(OperatorBuilderUtils.ATTRIBUTE_TYPES, "STRING, STRING, TEXT");
         operatorProperties.put(OperatorBuilderUtils.LIMIT, "10");
         operatorProperties.put(OperatorBuilderUtils.OFFSET, "2");
         

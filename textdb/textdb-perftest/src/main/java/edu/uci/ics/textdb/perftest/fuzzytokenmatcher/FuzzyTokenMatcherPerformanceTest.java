@@ -13,11 +13,8 @@ import edu.uci.ics.textdb.api.exception.TextDBException;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 
-import edu.uci.ics.textdb.api.common.Attribute;
 import edu.uci.ics.textdb.api.common.ITuple;
 import edu.uci.ics.textdb.common.constants.SchemaConstants;
-import edu.uci.ics.textdb.common.exception.DataFlowException;
-import edu.uci.ics.textdb.common.exception.StorageException;
 import edu.uci.ics.textdb.common.field.ListField;
 import edu.uci.ics.textdb.common.field.Span;
 import edu.uci.ics.textdb.dataflow.common.FuzzyTokenPredicate;
@@ -121,10 +118,10 @@ public class FuzzyTokenMatcherPerformanceTest {
     public static void match(ArrayList<String> queryList, double threshold, Analyzer luceneAnalyzer,
             DataStore dataStore, boolean bool) throws TextDBException, IOException {
 
-        Attribute[] attributeList = new Attribute[] { MedlineIndexWriter.ABSTRACT_ATTR };
+        List<String> attributeNames = Arrays.asList(MedlineIndexWriter.ABSTRACT);
 
         for (String query : queryList) {
-            FuzzyTokenPredicate predicate = new FuzzyTokenPredicate(query, Arrays.asList(attributeList), luceneAnalyzer,
+            FuzzyTokenPredicate predicate = new FuzzyTokenPredicate(query, attributeNames, luceneAnalyzer,
                     threshold);
             FuzzyTokenMatcher fuzzyTokenMatcher = new FuzzyTokenMatcher(predicate);
 

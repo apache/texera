@@ -3,7 +3,6 @@ package edu.uci.ics.textdb.dataflow.regexmatch;
 import java.util.ArrayList;
 import java.util.List;
 
-import edu.uci.ics.textdb.api.common.Attribute;
 import edu.uci.ics.textdb.api.common.FieldType;
 import edu.uci.ics.textdb.api.common.ITuple;
 import edu.uci.ics.textdb.api.common.Schema;
@@ -25,7 +24,7 @@ public class RegexMatcher extends AbstractSingleInputOperator {
     
     private RegexPredicate regexPredicate;
     private String regex;
-    private List<Attribute> attributeList;
+    private List<String> attributeNames;
 
     private boolean isCaseInsensitive = false;
 
@@ -44,7 +43,7 @@ public class RegexMatcher extends AbstractSingleInputOperator {
     public RegexMatcher(RegexPredicate predicate) {
         this.regexPredicate = predicate;
         this.regex = regexPredicate.getRegex();
-        this.attributeList = regexPredicate.getAttributeList();
+        this.attributeNames = regexPredicate.getAttributeNames();
     }
     
     @Override
@@ -123,9 +122,8 @@ public class RegexMatcher extends AbstractSingleInputOperator {
 
         List<Span> matchingResults = new ArrayList<>();
 
-        for (Attribute attribute : attributeList) {
-            String fieldName = attribute.getFieldName();
-            FieldType fieldType = attribute.getFieldType();
+        for (String fieldName : attributeNames) {
+            FieldType fieldType = inputSchema.getAttribute(fieldName).getFieldType();
             String fieldValue = inputTuple.getField(fieldName).getValue().toString();
 
             // types other than TEXT and STRING: throw Exception for now

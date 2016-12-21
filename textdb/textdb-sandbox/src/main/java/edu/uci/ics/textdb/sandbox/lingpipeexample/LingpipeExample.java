@@ -6,7 +6,6 @@ import com.aliasi.chunk.Chunking;
 import com.aliasi.util.AbstractExternalizable;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.util.Scanner;
 
 import com.aliasi.chunk.Chunk;
@@ -16,7 +15,7 @@ public class LingpipeExample {
 
     public static void main(String[] args) throws Exception {
   
-        String model = "./src/main/resources/ne-en-bio-genetag.HmmChunker";
+        String model = "./src/main/java/edu/uci/ics/textdb/sandbox/lingpipeexample/ne-en-bio-genetag.HmmChunker";
         String dataFile = "./src/main/resources/abstract_100.txt";
         File modelFile = new File(model);
         System.out.println("Reading chunker from file=" + modelFile);

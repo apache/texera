@@ -17,24 +17,24 @@ import java.util.HashMap;
 @JsonTypeName("NlpExtractor")
 public class NlpExtractorBean extends OperatorBean {
     @JsonProperty("nlp_type")
-    private NlpTokenType nlpTokenType;
+    private String nlpTokenType;
 
     public NlpExtractorBean() {
     }
 
     public NlpExtractorBean(String operatorID, String operatorType, String attributes, String limit, String offset,
-                            NlpTokenType nlpTokenType) {
+                            String nlpTokenType) {
         super(operatorID, operatorType, attributes, limit, offset);
         this.nlpTokenType = nlpTokenType;
     }
 
     @JsonProperty("nlp_type")
-    public NlpTokenType getNlpTokenType() {
+    public String getNlpTokenType() {
         return nlpTokenType;
     }
 
     @JsonProperty("nlp_type")
-    public void setNlpTokenType(NlpTokenType nlpTokenType) {
+    public void setNlpTokenType(String nlpTokenType) {
         this.nlpTokenType = nlpTokenType;
     }
 
@@ -43,7 +43,7 @@ public class NlpExtractorBean extends OperatorBean {
         HashMap<String, String> operatorProperties = super.getOperatorProperties();
         if(this.getNlpTokenType() == null || operatorProperties == null)
             return null;
-        operatorProperties.put(NlpExtractorBuilder.NLP_TYPE, this.getNlpTokenType().name());
+        operatorProperties.put(NlpExtractorBuilder.NLP_TYPE, this.getNlpTokenType());
         return operatorProperties;
     }
 

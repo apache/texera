@@ -31,7 +31,7 @@ import edu.uci.ics.textdb.storage.writer.DataWriter;
 public class ProjectionOperatorTest {
     
     private IDataStore dataStore;
-    private IDataWriter dataWriter;
+    private DataWriter dataWriter;
     private Analyzer luceneAnalyzer;
 
     @Before
@@ -40,9 +40,11 @@ public class ProjectionOperatorTest {
         luceneAnalyzer = new StandardAnalyzer();
         dataWriter = new DataWriter(dataStore, luceneAnalyzer);
         dataWriter.clearData();
+        dataWriter.open();
         for (ITuple tuple : TestConstants.getSamplePeopleTuples()) {
             dataWriter.insertTuple(tuple);
         }
+        dataWriter.close();
     }
     
     @After
@@ -89,7 +91,7 @@ public class ProjectionOperatorTest {
         List<ITuple> expectedResults = Arrays.asList(tuple1, tuple2, tuple3, tuple4, tuple5, tuple6);
         List<ITuple> returnedResults = getProjectionResults(new ScanBasedSourceOperator(dataStore), projectionFields);
         
-        Assert.assertTrue(TestUtils.containsAllResults(expectedResults, returnedResults));
+        Assert.assertTrue(TestUtils.equals(expectedResults, returnedResults));
     }
     
     @Test
@@ -115,7 +117,7 @@ public class ProjectionOperatorTest {
         List<ITuple> expectedResults = Arrays.asList(tuple1, tuple2, tuple3, tuple4, tuple5, tuple6);
         List<ITuple> returnedResults = getProjectionResults(new ScanBasedSourceOperator(dataStore), projectionFields);
         
-        Assert.assertTrue(TestUtils.containsAllResults(expectedResults, returnedResults));
+        Assert.assertTrue(TestUtils.equals(expectedResults, returnedResults));
     }
 
 }

@@ -31,6 +31,10 @@ var closeMenu = function(){
 	}, 200);
 };
 
+var closeResultFrame = function(closeButton){
+	$(closeButton).parent().parent().parent().remove();
+};
+
 var closeBand = function(){
 	$('.popup').animate({
 		'bottom': '-570px'
@@ -56,8 +60,12 @@ var main = function(){
 	
 	$('.icon-close').click(closeMenu);
 	
-	$('.band').on('click', closeBand);
-		
+	$('body').on('click', '.result-frame .result-box .result-box-band .result-frame-close', function() {
+		closeResultFrame(this);
+	});
+	
+	$('.attributes-band').on('click', closeBand);
+	
 	$('.menu ul li').on('click', function(){
 		selectPanel(this);
 	});

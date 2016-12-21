@@ -8,8 +8,10 @@ import edu.uci.ics.textdb.api.dataflow.ISourceOperator;
 import edu.uci.ics.textdb.api.storage.IDataReader;
 import edu.uci.ics.textdb.api.storage.IDataStore;
 import edu.uci.ics.textdb.common.exception.DataFlowException;
+import edu.uci.ics.textdb.common.exception.StorageException;
 import edu.uci.ics.textdb.storage.DataReaderPredicate;
 import edu.uci.ics.textdb.storage.reader.DataReader;
+import edu.uci.ics.textdb.storage.relation.RelationManager;
 
 /**
  * Created by chenli on 3/28/16.
@@ -20,8 +22,13 @@ public class ScanBasedSourceOperator implements ISourceOperator {
     
     private IDataReader dataReader;
 
-    public ScanBasedSourceOperator(IDataStore dataStore) throws DataFlowException {
+    public ScanBasedSourceOperator(IDataStore dataStore) {
         this.dataStore = dataStore;
+    }
+    
+    public ScanBasedSourceOperator(String tableName) throws StorageException {
+        RelationManager relationManager = RelationManager.getRelationManager();
+        this.dataStore = relationManager.getTableDataStore(tableName);
     }
 
     @Override
