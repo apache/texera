@@ -36,15 +36,13 @@ public class DictionarySourceBuilderTest {
                 "Anaheim",
                 "Costa Mesa",
                 "Santa Ana");
-        List<Attribute> dictAttrs = schemaAttrs.stream()
-                .filter(attr -> ! attr.getFieldName().equals("id")).collect(Collectors.toList());
+        List<String> dictAttrNames = Arrays.asList("city", "location", "content");
 
         
         HashMap<String, String> operatorProperties = new HashMap<>();
         operatorProperties.put(DictionaryMatcherBuilder.DICTIONARY, dictionaryStr);
         operatorProperties.put(DictionaryMatcherBuilder.MATCHING_TYPE, "PHRASE_INDEXBASED");
         operatorProperties.put(OperatorBuilderUtils.ATTRIBUTE_NAMES, "city, location, content");
-        operatorProperties.put(OperatorBuilderUtils.ATTRIBUTE_TYPES, "STRING, STRING, TEXT");
         operatorProperties.put(OperatorBuilderUtils.DATA_DIRECTORY, directoryStr);
         operatorProperties.put(OperatorBuilderUtils.SCHEMA, schemaJsonObject.toString());
         
@@ -66,7 +64,7 @@ public class DictionarySourceBuilderTest {
                 schemaAttrs.stream().collect(Collectors.toList()).toString(), 
                 sourceOperator.getDataStore().getSchema().getAttributes().stream().collect(Collectors.toList()).toString());
         // compare dictMatcher attribute list
-        Assert.assertEquals(dictAttrs.toString(), sourceOperator.getPredicate().getAttributeList().toString());
+        Assert.assertEquals(dictAttrNames, sourceOperator.getPredicate().getAttributeNames());
 
     }
     

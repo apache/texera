@@ -35,7 +35,7 @@ import junit.framework.Assert;
 public class OneToNBroadcastConnectorTest {
     
     private IDataStore dataStore;
-    private IDataWriter dataWriter;
+    private DataWriter dataWriter;
     private Analyzer luceneAnalyzer;
 
     @Before
@@ -44,9 +44,11 @@ public class OneToNBroadcastConnectorTest {
         luceneAnalyzer = new StandardAnalyzer();
         dataWriter = new DataWriter(dataStore, luceneAnalyzer);
         dataWriter.clearData();
+        dataWriter.open();
         for (ITuple tuple : TestConstants.getSamplePeopleTuples()) {
             dataWriter.insertTuple(tuple);
         }
+        dataWriter.close();
     }
     
     @After
@@ -117,9 +119,9 @@ public class OneToNBroadcastConnectorTest {
         }
         projection2.close();
         
-        Assert.assertTrue(TestUtils.containsAllResults(expectedResults, projection1Results));
-        Assert.assertTrue(TestUtils.containsAllResults(expectedResults, projection2Results));
-        Assert.assertTrue(TestUtils.containsAllResults(projection1Results, projection2Results));
+        Assert.assertTrue(TestUtils.equals(expectedResults, projection1Results));
+        Assert.assertTrue(TestUtils.equals(expectedResults, projection2Results));
+        Assert.assertTrue(TestUtils.equals(projection1Results, projection2Results));
    
     }
     
@@ -167,9 +169,9 @@ public class OneToNBroadcastConnectorTest {
         List<ITuple> expectedResults = TestConstants.getSamplePeopleTuples();
         
 
-        Assert.assertTrue(TestUtils.containsAllResults(expectedResults, output1Results));
-        Assert.assertTrue(TestUtils.containsAllResults(expectedResults, output2Results));
-        Assert.assertTrue(TestUtils.containsAllResults(expectedResults, output3Results));
+        Assert.assertTrue(TestUtils.equals(expectedResults, output1Results));
+        Assert.assertTrue(TestUtils.equals(expectedResults, output2Results));
+        Assert.assertTrue(TestUtils.equals(expectedResults, output3Results));
    
     }
 

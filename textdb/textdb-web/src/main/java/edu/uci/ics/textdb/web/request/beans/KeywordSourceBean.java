@@ -20,7 +20,7 @@ public class KeywordSourceBean extends OperatorBean {
     @JsonProperty("keyword")
     private String keyword;
     @JsonProperty("matching_type")
-    private DataConstants.KeywordMatchingType matchingType;
+    private String matchingType;
     @JsonProperty("data_source")
     private String dataSource;
 
@@ -28,7 +28,7 @@ public class KeywordSourceBean extends OperatorBean {
     }
 
     public KeywordSourceBean(String operatorID, String operatorType, String attributes, String limit, String offset,
-                             String keyword, DataConstants.KeywordMatchingType matchingType, String dataSource) {
+                             String keyword, String matchingType, String dataSource) {
         super(operatorID, operatorType, attributes, limit, offset);
         this.keyword = keyword;
         this.matchingType = matchingType;
@@ -46,12 +46,12 @@ public class KeywordSourceBean extends OperatorBean {
     }
 
     @JsonProperty("matching_type")
-    public DataConstants.KeywordMatchingType getMatchingType() {
+    public String getMatchingType() {
         return matchingType;
     }
 
     @JsonProperty("matching_type")
-    public void setMatchingType(DataConstants.KeywordMatchingType matchingType) {
+    public void setMatchingType(String matchingType) {
         this.matchingType = matchingType;
     }
 
@@ -71,7 +71,7 @@ public class KeywordSourceBean extends OperatorBean {
                 operatorProperties == null)
             return null;
         operatorProperties.put(KeywordMatcherBuilder.KEYWORD, this.getKeyword());
-        operatorProperties.put(KeywordMatcherBuilder.MATCHING_TYPE, this.getMatchingType().name());
+        operatorProperties.put(KeywordMatcherBuilder.MATCHING_TYPE, this.getMatchingType());
         operatorProperties.put(OperatorBuilderUtils.DATA_DIRECTORY, this.getDataSource());
         return operatorProperties;
     }
@@ -80,19 +80,20 @@ public class KeywordSourceBean extends OperatorBean {
     public boolean equals(Object other) {
         if (other == null) return false;
         if (other == this) return true;
-        if (!(other instanceof OperatorBean)) return false;
+        if (!(other instanceof KeywordSourceBean)) return false;
         KeywordSourceBean keywordSourceBean = (KeywordSourceBean) other;
         return new EqualsBuilder()
+                .appendSuper(super.equals(keywordSourceBean))
                 .append(keyword, keywordSourceBean.getKeyword())
                 .append(matchingType, keywordSourceBean.getMatchingType())
                 .append(dataSource, keywordSourceBean.getDataSource())
-                .isEquals() &&
-                super.equals(keywordSourceBean);
+                .isEquals();
     }
 
     @Override
     public int hashCode() {
         return new HashCodeBuilder(17, 31)
+                .append(super.hashCode())
                 .append(keyword)
                 .append(matchingType)
                 .append(dataSource)

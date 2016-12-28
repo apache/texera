@@ -32,7 +32,7 @@ import java.util.List;
  */
 public class ComparableMatcherTest {
 
-    private IDataWriter dataWriter;
+    private DataWriter dataWriter;
     private DataStore dataStore;
     private Analyzer analyzer;
 
@@ -46,10 +46,13 @@ public class ComparableMatcherTest {
         dataStore = new DataStore(DataConstants.INDEX_DIR, TestConstants.SCHEMA_PEOPLE);
         analyzer = new StandardAnalyzer();
         dataWriter = new DataWriter(dataStore, analyzer);
+        
         dataWriter.clearData();
+        dataWriter.open();
         for (ITuple tuple : TestConstants.getSamplePeopleTuples()) {
             dataWriter.insertTuple(tuple);
         }
+        dataWriter.close();
     }
 
     @After
@@ -130,7 +133,7 @@ public class ComparableMatcherTest {
         expectedResults.add(new DataTuple(TestConstants.SCHEMA_PEOPLE, fields2));
 
         Assert.assertEquals(2, returnedResults.size());
-        Assert.assertTrue(TestUtils.containsAllResults(expectedResults, returnedResults));
+        Assert.assertTrue(TestUtils.equals(expectedResults, returnedResults));
     }
 
     /**
@@ -156,7 +159,7 @@ public class ComparableMatcherTest {
 
         // check the results
         Assert.assertEquals(1, returnedResults.size());
-        Assert.assertTrue(TestUtils.containsAllResults(expectedResults, returnedResults));
+        Assert.assertTrue(TestUtils.equals(expectedResults, returnedResults));
     }
 
     /**
@@ -186,7 +189,7 @@ public class ComparableMatcherTest {
 
         // check the results
         Assert.assertEquals(2, returnedResults.size());
-        Assert.assertTrue(TestUtils.containsAllResults(expectedResults, returnedResults));
+        Assert.assertTrue(TestUtils.equals(expectedResults, returnedResults));
     }
 
     /**
@@ -228,7 +231,7 @@ public class ComparableMatcherTest {
 
         // check the results
         Assert.assertEquals(5, returnedResults.size());
-        Assert.assertTrue(TestUtils.containsAllResults(expectedResults, returnedResults));
+        Assert.assertTrue(TestUtils.equals(expectedResults, returnedResults));
     }
 
     /**
@@ -254,7 +257,7 @@ public class ComparableMatcherTest {
 
         // check the results
         Assert.assertEquals(1, returnedResults.size());
-        Assert.assertTrue(TestUtils.containsAllResults(expectedResults, returnedResults));
+        Assert.assertTrue(TestUtils.equals(expectedResults, returnedResults));
     }
 
     /**
@@ -297,7 +300,7 @@ public class ComparableMatcherTest {
 
         // check the results
         Assert.assertEquals(5, returnedResults.size());
-        Assert.assertTrue(TestUtils.containsAllResults(expectedResults, returnedResults));
+        Assert.assertTrue(TestUtils.equals(expectedResults, returnedResults));
     }
 
     /**
@@ -327,7 +330,7 @@ public class ComparableMatcherTest {
 
         // check the results
         Assert.assertEquals(2, returnedResults.size());
-        Assert.assertTrue(TestUtils.containsAllResults(expectedResults, returnedResults));
+        Assert.assertTrue(TestUtils.equals(expectedResults, returnedResults));
     }
 
     /**
@@ -353,7 +356,7 @@ public class ComparableMatcherTest {
 
         // check the results
         Assert.assertEquals(1, returnedResults.size());
-        Assert.assertTrue(TestUtils.containsAllResults(expectedResults, returnedResults));
+        Assert.assertTrue(TestUtils.equals(expectedResults, returnedResults));
     }
 
     /**
@@ -383,7 +386,7 @@ public class ComparableMatcherTest {
 
         // check the results
         Assert.assertEquals(2, returnedResults.size());
-        Assert.assertTrue(TestUtils.containsAllResults(expectedResults, returnedResults));
+        Assert.assertTrue(TestUtils.equals(expectedResults, returnedResults));
     }
 
     /**
@@ -417,7 +420,7 @@ public class ComparableMatcherTest {
 
         // check the results
         Assert.assertEquals(3, returnedResults.size());
-        Assert.assertTrue(TestUtils.containsAllResults(expectedResults, returnedResults));
+        Assert.assertTrue(TestUtils.equals(expectedResults, returnedResults));
     }
 
     /**
@@ -447,7 +450,7 @@ public class ComparableMatcherTest {
 
         // check the results
         Assert.assertEquals(2, returnedResults.size());
-        Assert.assertTrue(TestUtils.containsAllResults(expectedResults, returnedResults));
+        Assert.assertTrue(TestUtils.equals(expectedResults, returnedResults));
     }
 
     /**
@@ -490,7 +493,7 @@ public class ComparableMatcherTest {
 
         // check the results
         Assert.assertEquals(5, returnedResults.size());
-        Assert.assertTrue(TestUtils.containsAllResults(expectedResults, returnedResults));
+        Assert.assertTrue(TestUtils.equals(expectedResults, returnedResults));
     }
 
     /**
@@ -518,7 +521,7 @@ public class ComparableMatcherTest {
 
         // check the results
         Assert.assertEquals(1, returnedResults.size());
-        Assert.assertTrue(TestUtils.containsAllResults(expectedResults, returnedResults));
+        Assert.assertTrue(TestUtils.equals(expectedResults, returnedResults));
     }
 
     /**
@@ -550,7 +553,7 @@ public class ComparableMatcherTest {
 
         // check the results
         Assert.assertEquals(2, returnedResults.size());
-        Assert.assertTrue(TestUtils.containsAllResults(expectedResults, returnedResults));
+        Assert.assertTrue(TestUtils.equals(expectedResults, returnedResults));
     }
 
     /**
@@ -585,7 +588,7 @@ public class ComparableMatcherTest {
 
         // check the results
         Assert.assertEquals(3, returnedResults.size());
-        Assert.assertTrue(TestUtils.containsAllResults(expectedResults, returnedResults));
+        Assert.assertTrue(TestUtils.equals(expectedResults, returnedResults));
     }
 
     /**
@@ -621,7 +624,7 @@ public class ComparableMatcherTest {
 
         // check the results
         Assert.assertEquals(3, returnedResults.size());
-        Assert.assertTrue(TestUtils.containsAllResults(expectedResults, returnedResults));
+        Assert.assertTrue(TestUtils.equals(expectedResults, returnedResults));
     }
 
     /**
@@ -661,7 +664,7 @@ public class ComparableMatcherTest {
 
         // check the results
         Assert.assertEquals(4, returnedResults.size());
-        Assert.assertTrue(TestUtils.containsAllResults(expectedResults, returnedResults));
+        Assert.assertTrue(TestUtils.equals(expectedResults, returnedResults));
     }
 
     /**
@@ -705,6 +708,6 @@ public class ComparableMatcherTest {
 
         // check the results
         Assert.assertEquals(5, returnedResults.size());
-        Assert.assertTrue(TestUtils.containsAllResults(expectedResults, returnedResults));
+        Assert.assertTrue(TestUtils.equals(expectedResults, returnedResults));
     }
 }

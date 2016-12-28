@@ -22,7 +22,7 @@ public class KeywordSourceBeanTest {
     @Test
     public void testDeserialization() throws IOException {
         final KeywordSourceBean keywordSourceBean = new KeywordSourceBean("operator1", "KeywordSource", "attributes",
-                "10", "100", "keyword1", DataConstants.KeywordMatchingType.PHRASE_INDEXBASED, "datasource");
+                "10", "100", "keyword1", "PHRASE_INDEXBASED", "datasource");
         String jsonString = "{\n" +
                 "    \"operator_id\": \"operator1\",\n" +
                 "    \"operator_type\": \"KeywordSource\",\n" +
@@ -40,7 +40,7 @@ public class KeywordSourceBeanTest {
     @Test
     public void testInvalidDeserialization() throws IOException {
         final KeywordSourceBean keywordSourceBean = new KeywordSourceBean("operator1", "KeywordSource", "attributes",
-                "10", "100", "keyword1", DataConstants.KeywordMatchingType.PHRASE_INDEXBASED, "datasource");
+                "10", "100", "keyword1", "PHRASE_INDEXBASED", "datasource");
         String jsonString = "{\n" +
                 "    \"operator_id\": \"operator2\",\n" +
                 "    \"operator_type\": \"KeywordSource\",\n" +

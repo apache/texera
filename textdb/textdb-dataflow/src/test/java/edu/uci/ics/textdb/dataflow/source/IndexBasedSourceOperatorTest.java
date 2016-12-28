@@ -34,7 +34,7 @@ import edu.uci.ics.textdb.storage.writer.DataWriter;
  */
 public class IndexBasedSourceOperatorTest {
 
-    private IDataWriter dataWriter;
+    private DataWriter dataWriter;
     private IndexBasedSourceOperator indexBasedSourceOperator;
     private IDataStore dataStore;
     private Analyzer luceneAnalyzer;
@@ -45,10 +45,13 @@ public class IndexBasedSourceOperatorTest {
         dataStore = new DataStore(DataConstants.INDEX_DIR, TestConstants.SCHEMA_PEOPLE);
         luceneAnalyzer = new StandardAnalyzer();
         dataWriter = new DataWriter(dataStore, luceneAnalyzer);
+        
         dataWriter.clearData();
+        dataWriter.open();
         for (ITuple tuple : TestConstants.getSamplePeopleTuples()) {
             dataWriter.insertTuple(tuple);
         }
+        dataWriter.close();
     }
 
     @After

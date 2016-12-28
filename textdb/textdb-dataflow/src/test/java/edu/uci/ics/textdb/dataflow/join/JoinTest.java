@@ -18,7 +18,6 @@ import edu.uci.ics.textdb.api.common.ITuple;
 import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.api.dataflow.IOperator;
 import edu.uci.ics.textdb.api.storage.IDataStore;
-import edu.uci.ics.textdb.api.storage.IDataWriter;
 import edu.uci.ics.textdb.common.constants.DataConstants;
 import edu.uci.ics.textdb.common.constants.SchemaConstants;
 import edu.uci.ics.textdb.common.exception.DataFlowException;
@@ -51,9 +50,9 @@ import junit.framework.Assert;
 public class JoinTest {
     private KeywordMatcherSourceOperator keywordSourceOuter;
     private KeywordMatcherSourceOperator keywordSourceInner;
-    private IDataWriter dataWriterForOuter;
+    private DataWriter dataWriterForOuter;
     private DataStore dataStoreForOuter;
-    private IDataWriter dataWriterForInner;
+    private DataWriter dataWriterForInner;
     private DataStore dataStoreForInner;
     private Analyzer analyzer;
     private Join join;
@@ -104,6 +103,7 @@ public class JoinTest {
         dataWriterForOuter = new DataWriter(dataStoreForOuter, analyzer);
         dataStoreForInner = new DataStore(DataConstants.INDEX_DIR + "/join_test_dir_2", bookSchema);
         dataWriterForInner = new DataWriter(dataStoreForInner, analyzer);
+        
         dataWriterForOuter.clearData();
         dataWriterForInner.clearData();
     }
@@ -134,16 +134,20 @@ public class JoinTest {
         if (outerTuple == null) {
             ;
         } else {
+            dataWriterForOuter.open();
             for (ITuple tuple : outerTuple) {
                 dataWriterForOuter.insertTuple(tuple);
             }
+            dataWriterForOuter.close();
         }
         if (innerTuple == null) {
             return;
         }
+        dataWriterForInner.open();
         for (ITuple tuple : innerTuple) {
             dataWriterForInner.insertTuple(tuple);
         }
+        dataWriterForInner.close();
     }
 
     // A helper method to setup the test cases.
@@ -393,7 +397,7 @@ public class JoinTest {
         List<ITuple> expectedResult = new ArrayList<>(1);
         expectedResult.add(expectedTuple);
 
-        boolean contains = TestUtils.containsAllResults(expectedResult, resultList);
+        boolean contains = TestUtils.equals(expectedResult, resultList);
 
         Assert.assertEquals(1, resultList.size());
         Assert.assertTrue(contains);
@@ -457,8 +461,10 @@ public class JoinTest {
 
         query = "this writer writes well";
         double thresholdRatio = 0.25;
-        List<Attribute> textAttributes = attributeList.stream().filter(attr -> attr.getFieldType() != FieldType.TEXT).collect(Collectors.toList());
-        FuzzyTokenPredicate fuzzyPredicateInner = new FuzzyTokenPredicate(query, textAttributes,
+        List<String> textAttributeNames = attributeList.stream()
+                .filter(attr -> attr.getFieldType() != FieldType.TEXT)
+                .map(attr -> attr.getFieldName()).collect(Collectors.toList());
+        FuzzyTokenPredicate fuzzyPredicateInner = new FuzzyTokenPredicate(query, textAttributeNames,
                 analyzer, thresholdRatio);
         FuzzyTokenMatcher fuzzyMatcherInner = new FuzzyTokenMatcher(fuzzyPredicateInner);
         fuzzyMatcherInner.setInputOperator(new IndexBasedSourceOperator(fuzzyPredicateInner.getDataReaderPredicate(dataStoreForInner)));
@@ -523,7 +529,7 @@ public class JoinTest {
         List<ITuple> expectedResult = new ArrayList<>(1);
         expectedResult.add(expectedTuple);
 
-        boolean contains = TestUtils.containsAllResults(expectedResult, resultList);
+        boolean contains = TestUtils.equals(expectedResult, resultList);
 
         Assert.assertEquals(1, resultList.size());
         Assert.assertTrue(contains);
@@ -610,7 +616,7 @@ public class JoinTest {
         List<ITuple> expectedResult = new ArrayList<>(1);
         expectedResult.add(expectedTuple);
 
-        boolean contains = TestUtils.containsAllResults(expectedResult, resultList);
+        boolean contains = TestUtils.equals(expectedResult, resultList);
 
         Assert.assertEquals(1, resultList.size());
         Assert.assertTrue(contains);
@@ -690,7 +696,7 @@ public class JoinTest {
         List<ITuple> expectedResult = new ArrayList<>(1);
         expectedResult.add(expectedTuple);
 
-        boolean contains = TestUtils.containsAllResults(expectedResult, resultList);
+        boolean contains = TestUtils.equals(expectedResult, resultList);
 
         Assert.assertEquals(1, resultList.size());
         Assert.assertTrue(contains);
@@ -724,11 +730,14 @@ public class JoinTest {
         // not use the one setup globally. This is because we have to
         // supply the new schema.
         DataStore dataStore = new DataStore(DataConstants.INDEX_DIR + "/join_test_dir_2", schema);
-        IDataWriter dataWriter = new DataWriter(dataStore, analyzer);
+        DataWriter dataWriter = new DataWriter(dataStore, analyzer);
+        
         dataWriter.clearData();
+        dataWriter.open();
         for (ITuple tuple : bookTuple) {
             dataWriter.insertTuple(tuple);
         }
+        dataWriter.close();
 
         String query = "special";
         keywordSourceOuter = (KeywordMatcherSourceOperator) setupOperators(query, "index", "outer");
@@ -788,15 +797,20 @@ public class JoinTest {
         dataWriterForOuter = new DataWriter(dataStoreForOuter, analyzer);
         dataStoreForInner = new DataStore(DataConstants.INDEX_DIR + "/join_test_dir_2", bookSchema2);
         dataWriterForInner = new DataWriter(dataStoreForInner, analyzer);
+        
         dataWriterForOuter.clearData();
-        dataWriterForInner.clearData();
-
+        dataWriterForOuter.open();
         for (ITuple tuple : bookTuple1) {
             dataWriterForOuter.insertTuple(tuple);
         }
+        dataWriterForOuter.close();
+        
+        dataWriterForInner.clearData();
+        dataWriterForInner.open();        
         for (ITuple tuple : bookTuple2) {
             dataWriterForInner.insertTuple(tuple);
         }
+        dataWriterForInner.close();
 
         KeywordPredicate keywordPredicate = null;
         IDataStore dataStore = null;
@@ -835,7 +849,7 @@ public class JoinTest {
         List<ITuple> expectedResult = new ArrayList<>(1);
         expectedResult.add(expectedTuple);
 
-        boolean contains = TestUtils.containsAllResults(expectedResult, resultList);
+        boolean contains = TestUtils.equals(expectedResult, resultList);
 
         Assert.assertEquals(1, resultList.size());
         Assert.assertTrue(contains);
@@ -890,15 +904,20 @@ public class JoinTest {
         dataWriterForOuter = new DataWriter(dataStoreForOuter, analyzer);
         dataStoreForInner = new DataStore(DataConstants.INDEX_DIR + "/join_test_dir_2", bookSchema);
         dataWriterForInner = new DataWriter(dataStoreForInner, analyzer);
+        
         dataWriterForOuter.clearData();
-        dataWriterForInner.clearData();
-
+        dataWriterForOuter.open();
         for (ITuple tuple : bookTuple1) {
             dataWriterForOuter.insertTuple(tuple);
         }
+        dataWriterForOuter.close();
+ 
+        dataWriterForInner.clearData();
+        dataWriterForInner.open();
         for (ITuple tuple : bookTuple2) {
             dataWriterForInner.insertTuple(tuple);
         }
+        dataWriterForInner.close();
 
         KeywordPredicate keywordPredicate = null;
         IDataStore dataStore = null;
@@ -940,7 +959,7 @@ public class JoinTest {
         List<ITuple> expectedResult = new ArrayList<>(1);
         expectedResult.add(expectedTuple);
 
-        boolean contains = TestUtils.containsAllResults(expectedResult, resultList);
+        boolean contains = TestUtils.equals(expectedResult, resultList);
 
         Assert.assertEquals(1, resultList.size());
         Assert.assertTrue(contains);
@@ -988,15 +1007,20 @@ public class JoinTest {
         dataWriterForOuter = new DataWriter(dataStoreForOuter, analyzer);
         dataStoreForInner = new DataStore(DataConstants.INDEX_DIR + "/join_test_dir_2", bookSchema);
         dataWriterForInner = new DataWriter(dataStoreForInner, analyzer);
+        
         dataWriterForOuter.clearData();
-        dataWriterForInner.clearData();
-
+        dataWriterForOuter.open();
         for (ITuple tuple : bookTuple1) {
             dataWriterForOuter.insertTuple(tuple);
         }
+        dataWriterForOuter.close();
+        
+        dataWriterForInner.clearData();
+        dataWriterForInner.open();
         for (ITuple tuple : bookTuple2) {
             dataWriterForInner.insertTuple(tuple);
         }
+        dataWriterForInner.close();
 
         KeywordPredicate keywordPredicate = null;
         IDataStore dataStore = null;
@@ -1066,15 +1090,20 @@ public class JoinTest {
         dataWriterForOuter = new DataWriter(dataStoreForOuter, analyzer);
         dataStoreForInner = new DataStore(DataConstants.INDEX_DIR + "/join_test_dir_2", bookSchema2);
         dataWriterForInner = new DataWriter(dataStoreForInner, analyzer);
+        
         dataWriterForOuter.clearData();
-        dataWriterForInner.clearData();
-
+        dataWriterForOuter.open();
         for (ITuple tuple : bookTuple1) {
             dataWriterForOuter.insertTuple(tuple);
         }
+        dataWriterForOuter.close();
+        
+        dataWriterForInner.clearData();
+        dataWriterForInner.open();
         for (ITuple tuple : bookTuple2) {
             dataWriterForInner.insertTuple(tuple);
         }
+        dataWriterForInner.close();
 
         KeywordPredicate keywordPredicate = null;
         IDataStore dataStore = null;
@@ -1116,7 +1145,7 @@ public class JoinTest {
         List<ITuple> expectedResult = new ArrayList<>(1);
         expectedResult.add(expectedTuple);
 
-        boolean contains = TestUtils.containsAllResults(expectedResult, resultList);
+        boolean contains = TestUtils.equals(expectedResult, resultList);
 
         Assert.assertEquals(1, resultList.size());
         Assert.assertTrue(contains);
@@ -1171,15 +1200,20 @@ public class JoinTest {
         dataWriterForOuter = new DataWriter(dataStoreForOuter, analyzer);
         dataStoreForInner = new DataStore(DataConstants.INDEX_DIR + "/join_test_dir_2", bookSchema2);
         dataWriterForInner = new DataWriter(dataStoreForInner, analyzer);
+        
         dataWriterForOuter.clearData();
-        dataWriterForInner.clearData();
-
+        dataWriterForOuter.open();
         for (ITuple tuple : bookTuple1) {
             dataWriterForOuter.insertTuple(tuple);
         }
+        dataWriterForOuter.close();
+        
+        dataWriterForInner.clearData();
+        dataWriterForInner.open();
         for (ITuple tuple : bookTuple2) {
             dataWriterForInner.insertTuple(tuple);
         }
+        dataWriterForInner.close();
 
         KeywordPredicate keywordPredicate = null;
         IDataStore dataStore = null;
@@ -1290,7 +1324,7 @@ public class JoinTest {
         List<ITuple> expectedResult = new ArrayList<>(1);
         expectedResult.add(expectedTuple);
 
-        boolean contains = TestUtils.containsAllResults(expectedResult, resultList);
+        boolean contains = TestUtils.equals(expectedResult, resultList);
 
         Assert.assertEquals(1, resultList.size());
         Assert.assertTrue(contains);
@@ -1426,7 +1460,7 @@ public class JoinTest {
         expectedResult.add(expectedTuple3);
         expectedResult.add(expectedTuple4);
 
-        boolean contains = TestUtils.containsAllResults(expectedResult, resultList);
+        boolean contains = TestUtils.equals(expectedResult, resultList);
 
         Assert.assertEquals(4, resultList.size());
         Assert.assertTrue(contains);
@@ -1558,7 +1592,7 @@ public class JoinTest {
         expectedResult.add(expectedTuple4);
         expectedResult.add(expectedTuple5);
 
-        boolean contains = TestUtils.containsAllResults(expectedResult, resultList);
+        boolean contains = TestUtils.equals(expectedResult, resultList);
 
         Assert.assertEquals(5, resultList.size());
         Assert.assertTrue(contains);
@@ -1634,7 +1668,7 @@ public class JoinTest {
         expectedResult.add(expectedTuple2);
         expectedResult.add(expectedTuple3);
 
-        boolean contains = TestUtils.containsAllResults(expectedResult, resultList);
+        boolean contains = TestUtils.equals(expectedResult, resultList);
 
         Assert.assertEquals(3, resultList.size());
         Assert.assertTrue(contains);
@@ -1729,7 +1763,7 @@ public class JoinTest {
         expectedResult.add(expectedTuple4);
         expectedResult.add(expectedTuple5);
 
-        boolean contains = TestUtils.containsAllResults(expectedResult, resultList);
+        boolean contains = TestUtils.equals(expectedResult, resultList);
 
         Assert.assertEquals(5, resultList.size());
         Assert.assertTrue(contains);
@@ -1828,7 +1862,7 @@ public class JoinTest {
         List<ITuple> expectedResult = new ArrayList<>(1);
         expectedResult.add(expectedTuple1);
 
-        boolean contains = TestUtils.containsAllResults(expectedResult, resultList);
+        boolean contains = TestUtils.equals(expectedResult, resultList);
 
         Assert.assertEquals(1, resultList.size());
         Assert.assertTrue(contains);
@@ -1904,7 +1938,7 @@ public class JoinTest {
         expectedResult.add(expectedTuple2);
         expectedResult.add(expectedTuple3);
 
-        boolean contains = TestUtils.containsAllResults(expectedResult, resultList);
+        boolean contains = TestUtils.equals(expectedResult, resultList);
 
         Assert.assertEquals(3, resultList.size());
         Assert.assertTrue(contains);

@@ -25,7 +25,7 @@ body {
 	overflow: auto;
 }
 
-	/* Each Operator Selector */
+/* Each Operator Selector */
 .menu li {
 	border-bottom: 1px solid #636366;
 	border-left: 3px solid transparent;
@@ -46,13 +46,14 @@ body {
 	cursor: default;
 }
 
-	/* The X that closes the menu */
+/* The X that closes the menu */
 .icon-close {
 	cursor: pointer;
 	padding: 10px;
 	padding-bottom: 14px;
 }
-	/* The Dropdown Panel after selecting an operator from menu */
+
+/* The Dropdown Panel after selecting an operator from menu */
 .panel{
 	color: #fff;
 	font-size: 16px;
@@ -105,7 +106,8 @@ button{
 	color: white;
 	font-weight: bold;
 }
-	/* menu, delete, and process operators (grouped) */
+
+/* menu, delete, and process operators (grouped) */
 .nav div {
 	border: 1px solid #636366;
 	cursor: pointer;
@@ -148,8 +150,8 @@ button{
 	border: 1px solid black;
 }
 
-	/* Closes the Attributes Box when clicked */
-.band{
+/* Closes the Attributes Box when clicked */
+.attributes-band{
 	height: 20px;
 	border-bottom: 1px solid black;
 	padding: 11px;
@@ -167,8 +169,68 @@ button{
 	white-space: pre-wrap;
 	line-height: 1.5;
 }
-	/* The edit/confirm/cancel buttons */
+
+/* The edit/confirm/cancel buttons */
 #attributes button{
 	margin: 5px;
 	border: 1px solid black;
+}
+
+/* Result Frame and Result Box after processing query */
+.result-frame{
+	top: 0;
+	left: 0;
+	height: 100%;
+	width: 100%;
+	background-color: black;
+	position: fixed;
+}
+
+.result-box{
+	top: 2%;
+	left: 1%;
+	bottom: 2%;
+	right: 30px;
+	height: 96%;
+	font-family: 'Open Sans', sans-serif;
+	font-size: 16px;
+	line-height: 1.5;
+	background-color: white;
+	position: fixed;
+}
+
+/* .result-box div{
+	display: block;
+} */
+
+.result-box-band{
+	padding: 11px;
+	height: 50px;
+	font-size: 22px;	
+	border-bottom: 1px solid black;
+	background: #202024 url('../img/black-thread.png') repeat left top;
+	color: #fff;
+	cursor: pointer;
+}
+
+.result-frame-close {
+	padding: 0px;
+	cursor: pointer;
+	float: right;
+/* 	padding: 10px;
+	padding-bottom: 14px; */
+}
+
+.return-result{
+	padding: 11px;
+	top: 73px;
+	left: 0px;
+	bottom: 11px;
+	width: 100%;
+	font-family: 'Open Sans', sans-serif;
+	font-size: 16px;
+	line-height: 1.5;
+	position: absolute;
+	white-space: preline;
+	overflow: auto;
 }

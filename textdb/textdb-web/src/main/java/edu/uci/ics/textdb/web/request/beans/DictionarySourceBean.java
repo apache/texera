@@ -20,7 +20,7 @@ public class DictionarySourceBean extends OperatorBean {
     @JsonProperty("dictionary")
     private String dictionary;
     @JsonProperty("matching_type")
-    private DataConstants.KeywordMatchingType matchingType;
+    private String matchingType;
     @JsonProperty("data_source")
     private String dataSource;
 
@@ -28,7 +28,7 @@ public class DictionarySourceBean extends OperatorBean {
     }
 
     public DictionarySourceBean(String operatorID, String operatorType, String attributes, String limit, String offset,
-                                String dictionary, DataConstants.KeywordMatchingType matchingType, String dataSource) {
+                                String dictionary, String matchingType, String dataSource) {
         super(operatorID, operatorType, attributes, limit, offset);
         this.dictionary = dictionary;
         this.matchingType = matchingType;
@@ -46,12 +46,12 @@ public class DictionarySourceBean extends OperatorBean {
     }
 
     @JsonProperty("matching_type")
-    public DataConstants.KeywordMatchingType getMatchingType() {
+    public String getMatchingType() {
         return matchingType;
     }
 
     @JsonProperty("matching_type")
-    public void setMatchingType(DataConstants.KeywordMatchingType matchingType) {
+    public void setMatchingType(String matchingType) {
         this.matchingType = matchingType;
     }
 
@@ -71,7 +71,7 @@ public class DictionarySourceBean extends OperatorBean {
                 operatorProperties == null)
             return null;
         operatorProperties.put(DictionarySourceBuilder.DICTIONARY, this.getDictionary());
-        operatorProperties.put(DictionarySourceBuilder.MATCHING_TYPE, this.getMatchingType().name());
+        operatorProperties.put(DictionarySourceBuilder.MATCHING_TYPE, this.getMatchingType());
         operatorProperties.put(OperatorBuilderUtils.DATA_DIRECTORY, this.getDataSource());
         return operatorProperties;
     }
@@ -80,19 +80,21 @@ public class DictionarySourceBean extends OperatorBean {
     public boolean equals(Object other) {
         if (other == null) return false;
         if (other == this) return true;
-        if (!(other instanceof OperatorBean)) return false;
+        if (!(other instanceof DictionarySourceBean)) return false;
         DictionarySourceBean dictionarySourceBean = (DictionarySourceBean) other;
 
         return new EqualsBuilder()
+                .appendSuper(super.equals(dictionarySourceBean))
                 .append(dictionary, dictionarySourceBean.getDictionary())
                 .append(matchingType, dictionarySourceBean.getMatchingType())
                 .append(dataSource, dictionarySourceBean.getDataSource())
-                .isEquals() && super.equals(dictionarySourceBean);
+                .isEquals();
     }
 
     @Override
     public int hashCode() {
         return new HashCodeBuilder(17, 31)
+                .append(super.hashCode())
                 .append(dictionary)
                 .append(matchingType)
                 .append(dataSource)

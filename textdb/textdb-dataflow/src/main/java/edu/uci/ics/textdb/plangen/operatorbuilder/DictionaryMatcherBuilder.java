@@ -42,8 +42,8 @@ public class DictionaryMatcherBuilder {
         List<String> dictionaryList = OperatorBuilderUtils.splitStringByComma(dictionaryStr);
         Dictionary dictionary = new Dictionary(dictionaryList);
 
-        // generate attribute list
-        List<Attribute> attributeList = OperatorBuilderUtils.constructAttributeList(operatorProperties);
+        // generate attribute names
+        List<String> attributeNames = OperatorBuilderUtils.constructAttributeNames(operatorProperties);
 
         // generate matching type        
         KeywordMatchingType matchingType = KeywordMatcherBuilder.getKeywordMatchingType(matchingTypeStr);
@@ -52,7 +52,7 @@ public class DictionaryMatcherBuilder {
                 + "must be one of " + KeywordMatcherBuilder.keywordMatchingTypeMap.keySet());
 
         // build DictionaryMatcher
-        DictionaryPredicate predicate = new DictionaryPredicate(dictionary, attributeList,
+        DictionaryPredicate predicate = new DictionaryPredicate(dictionary, attributeNames,
                 LuceneAnalyzerConstants.getStandardAnalyzer(), matchingType);
         DictionaryMatcher operator = new DictionaryMatcher(predicate);
 

@@ -23,7 +23,7 @@ public class OperatorBeanTest {
     @Test
     public void testDeserialization() throws IOException {
         dictionaryMatcherBean = new DictionaryMatcherBean("operator1", "DictionaryMatcher",
-                "attributes", "10", "100", "dictionary", DataConstants.KeywordMatchingType.PHRASE_INDEXBASED);
+                "attributes", "10", "100", "dictionary", "PHRASE_INDEXBASED");
         operatorBean = dictionaryMatcherBean;
         String jsonString = "{\n" +
                 "        \"operator_id\": \"operator1\",\n" +
@@ -42,7 +42,7 @@ public class OperatorBeanTest {
     @Test
     public void testInvalidDeserialization() throws IOException {
         dictionaryMatcherBean = new DictionaryMatcherBean("operator1", "DictionaryMatcher",
-                "attributes", "10", "100", "dictionary", DataConstants.KeywordMatchingType.PHRASE_INDEXBASED);
+                "attributes", "10", "100", "dictionary", "PHRASE_INDEXBASED");
         operatorBean = dictionaryMatcherBean;
         String jsonString = "{\n" +
                 "        \"operator_id\": \"operator1\",\n" +

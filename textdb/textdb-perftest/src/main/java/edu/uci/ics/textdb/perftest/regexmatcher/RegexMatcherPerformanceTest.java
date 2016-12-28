@@ -8,12 +8,9 @@ import java.util.List;
 
 import edu.uci.ics.textdb.api.exception.TextDBException;
 import org.apache.lucene.analysis.Analyzer;
-import edu.uci.ics.textdb.api.common.Attribute;
 import edu.uci.ics.textdb.api.common.ITuple;
 import edu.uci.ics.textdb.common.constants.LuceneAnalyzerConstants;
 import edu.uci.ics.textdb.common.constants.SchemaConstants;
-import edu.uci.ics.textdb.common.exception.DataFlowException;
-import edu.uci.ics.textdb.common.exception.StorageException;
 import edu.uci.ics.textdb.common.field.ListField;
 import edu.uci.ics.textdb.common.field.Span;
 import edu.uci.ics.textdb.dataflow.common.RegexPredicate;
@@ -95,13 +92,13 @@ public class RegexMatcherPerformanceTest {
      */
     public static void matchRegex(List<String> regexes, DataStore dataStore) throws TextDBException, IOException {
 
-        Attribute[] attributeList = new Attribute[] { MedlineIndexWriter.ABSTRACT_ATTR };
+        List<String> attributeNames = Arrays.asList(MedlineIndexWriter.ABSTRACT);
         
         for(String regex: regexes){
 	        // analyzer should generate grams all in lower case to build a lower
 	        // case index.
 	        Analyzer luceneAnalyzer = LuceneAnalyzerConstants.getNGramAnalyzer(3);
-	        RegexPredicate regexPredicate = new RegexPredicate(regex, Arrays.asList(attributeList), luceneAnalyzer);
+	        RegexPredicate regexPredicate = new RegexPredicate(regex, attributeNames, luceneAnalyzer);
 	        IndexBasedSourceOperator indexInputOperator = new IndexBasedSourceOperator(
 	                regexPredicate.generateDataReaderPredicate(dataStore));
 	

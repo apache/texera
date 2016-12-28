@@ -63,18 +63,19 @@ public class FuzzyTokenMatcherBean extends OperatorBean {
     public boolean equals(Object other) {
         if (other == null) return false;
         if (other == this) return true;
-        if (!(other instanceof OperatorBean)) return false;
+        if (!(other instanceof FuzzyTokenMatcherBean)) return false;
         FuzzyTokenMatcherBean fuzzyTokenMatcherBean = (FuzzyTokenMatcherBean) other;
         return new EqualsBuilder()
+                .appendSuper(super.equals(fuzzyTokenMatcherBean))
                 .append(query, fuzzyTokenMatcherBean.getQuery())
                 .append(thresholdRatio, fuzzyTokenMatcherBean.getThresholdRatio())
-                .isEquals() &&
-                super.equals(fuzzyTokenMatcherBean);
+                .isEquals();
     }
 
     @Override
     public int hashCode() {
         return new HashCodeBuilder(17, 31)
+                .append(super.hashCode())
                 .append(query)
                 .append(thresholdRatio)
                 .toHashCode();

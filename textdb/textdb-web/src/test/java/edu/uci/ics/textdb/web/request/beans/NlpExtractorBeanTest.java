@@ -20,7 +20,7 @@ public class NlpExtractorBeanTest {
     @Test
     public void testDeserialization() throws IOException {
         final NlpExtractorBean nlpExtractorBean = new NlpExtractorBean("operator1", "NlpExtractor", "attributes",
-                "10", "100", NlpPredicate.NlpTokenType.Noun);
+                "10", "100", "Noun");
         String jsonString = "{\n" +
                 "    \"operator_id\": \"operator1\",\n" +
                 "    \"operator_type\": \"NlpExtractor\",\n" +
@@ -36,7 +36,7 @@ public class NlpExtractorBeanTest {
     @Test
     public void testInvalidDeserialization() throws IOException {
         final NlpExtractorBean nlpExtractorBean = new NlpExtractorBean("operator1", "NlpExtractor", "attributes",
-                "10", "100", NlpPredicate.NlpTokenType.Noun);
+                "10", "100", "Noun");
         String jsonString = "{\n" +
                 "    \"operator_id\": \"operator2\",\n" +
                 "    \"operator_type\": \"NlpExtractor\",\n" +

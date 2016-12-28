@@ -44,20 +44,7 @@ public class keywordTestConstants {
 
     public static final Schema SCHEMA_MEDLINE = new Schema(ATTRIBUTES_MEDLINE);
 
-    public static List<ITuple> getSampleMedlineRecord() throws ParseException {
-        // IField [] fields1 = {
-        // new TextField("This report describes four cases of chronic
-        // meningococcemia with the characteristic manifestations of recurrent
-        // episodes of fever, chills, night sweats, headache and anorexia,
-        // associated with skin rash and arthralgias. The diagnosis was
-        // established in all instances by blood culture. Administration of
-        // sulfonamides in three cases and penicillin in the fourth resulted in
-        // prompt recovery. The recent finding of a strain of
-        // sulfonamide-resistant meningococci, however, indicates that
-        // antibiotic-sensitivity tests should be carried out in all cases of
-        // meningococcal disease. While waiting for the results of such tests to
-        // be reported, the clinician should initiate treatment with large doses
-        // of a sulfonamide and penicillin in combination.")};
+    public static List<ITuple> getSampleMedlineRecord() {
 
         IField[] fields1 = { new IntegerField(14347980), new TextField(""),
                 new TextField("CHRONIC MENINGOCOCCEMIA; EPIDEMIOLOGY, DIAGNOSIS AND TREATMENT."),

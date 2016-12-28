@@ -5,7 +5,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import edu.uci.ics.textdb.api.common.Attribute;
 import edu.uci.ics.textdb.api.common.FieldType;
 import edu.uci.ics.textdb.api.common.ITuple;
 import edu.uci.ics.textdb.api.common.Schema;
@@ -88,9 +87,8 @@ public class FuzzyTokenMatcher extends AbstractSingleInputOperator {
          * 5 matching tokens, and we set threshold to 10, the number of spans
          * returned is 15. So we need to filter those 5 spans for attribute B.
          */
-        for (Attribute attribute : this.predicate.getAttributeList()) {
-            String fieldName = attribute.getFieldName();
-            FieldType fieldType = attribute.getFieldType();            
+        for (String fieldName : this.predicate.getAttributeNames()) {
+            FieldType fieldType = this.inputSchema.getAttribute(fieldName).getFieldType();   
             
             // types other than TEXT and STRING: throw Exception for now
             if (fieldType != FieldType.TEXT) {
