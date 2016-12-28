@@ -29,11 +29,6 @@ public class KeywordExtractPredicate extends ExtractPredicate {
      */ 
     private String matchingType;
     
-    /**
-     * The default { @code KeywordMatchingType } to be returned as matching type if the current matching type
-     * of the statement is set to { @code null }.
-     */
-    public static final KeywordMatchingType DEFAULT_MATCH_TYPE = KeywordMatchingType.CONJUNCTION_INDEXBASED;
     
     /**
      * Create a { @code KeywordExtractPredicate } with all the parameters set to { @code null }.
@@ -54,6 +49,7 @@ public class KeywordExtractPredicate extends ExtractPredicate {
         this.keywords = keywords;
         this.matchingType = matchingType;
     }
+    
     
     /**
      * Get the list of names of fields to be matched during extraction.

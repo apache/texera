@@ -6,7 +6,7 @@ import edu.uci.ics.textdb.textql.statements.predicates.ExtractPredicate;
 import edu.uci.ics.textdb.textql.statements.predicates.SelectPredicate;
 
 /**
- * Object Representation of a parsed "SELECT ..." statement.
+ * Object Representation of a parsed "SELECT ... FROM ..." statement.
  * 
  * @author Flavio Bayer
  *
@@ -14,7 +14,7 @@ import edu.uci.ics.textdb.textql.statements.predicates.SelectPredicate;
 public class SelectExtractStatement extends Statement {
     
     /**
-     * Predicate used for projection of the fields to be returned.
+     * Predicate used for projection of the fields to be returned such as in "SELECT *".
      */
     private SelectPredicate selectPredicate;
     
@@ -24,7 +24,7 @@ public class SelectExtractStatement extends Statement {
     private ExtractPredicate extractPredicate;
 
     /**
-     * The identifier of a view or a table name, as in "SELECT... FROM viewName" used as 
+     * The identifier of a view or a table name, as in "SELECT ... FROM viewName" used as 
      * source of tuples.
      */
     private String fromClause;
@@ -49,9 +49,8 @@ public class SelectExtractStatement extends Statement {
 
     /**
      * Create a { @code CreateViewStatement } with the given parameters.
-     * @param id The id of this statement.
-     * @param projectAll The id of the statement.
-     * @param projectedFields The fields to be projected.
+     * @param id The ID of this statement.
+     * @param selectPredicate The predicate for result projection.
      * @param extractPredicate The predicate for data extraction.
      * @param fromClause The ID of the source view.
      * @param limitClause The value of the limit clause.
