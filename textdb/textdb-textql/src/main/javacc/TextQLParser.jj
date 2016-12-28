@@ -32,190 +32,21 @@ options {
 
 PARSER_BEGIN(TextQLParser)
 
-package edu.uci.ics.textdb.textql.languageparser;
+package edu.uci.ics.textdb.textql.parser;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Consumer;
-import org.apache.commons.lang3.builder.EqualsBuilder;
+
+import edu.uci.ics.textdb.textql.statements.Statement;
+import edu.uci.ics.textdb.textql.statements.CreateViewStatement;
+import edu.uci.ics.textdb.textql.statements.SelectExtractStatement;
+import edu.uci.ics.textdb.textql.statements.predicates.SelectPredicate;
+import edu.uci.ics.textdb.textql.statements.predicates.ExtractPredicate;
+import edu.uci.ics.textdb.textql.statements.predicates.KeywordExtractPredicate;
 
 public class TextQLParser{
-  
-    /**
-     * Statement class and subclasses (SelectStatement, CreateViewStatement)
-     * Each Statement class has an id attribute. Statement subclasses have
-     * specific fields related to their functions. These classes have no methods.
-     * They are used only as containers to move data.
-     * Statement --+ SelectStatement
-     *             + CreateViewStatement
-     */
-    static public abstract class Statement {
-        /**
-         * The {@link String} Identifier of each Statement object
-         */
-        public String id;
-        
-        public Statement() {
-            this(null);
-        }
-        public Statement(String id) {
-            this.id = id;
-        }
-        @Override
-        public boolean equals(Object other) {
-            if (other == null) { return false; }
-            if (other.getClass() != this.getClass()) { return false; }
-            Statement statement = (Statement) other;
-            return new EqualsBuilder()
-                        .append(id, statement.id)
-                        .isEquals();
-        }
-    }
-    static public class SelectStatement extends Statement {
-        /**
-         * Set to true when '*' is used as the fields to be projected, as in "SELECT * FROM ..."
-         */
-        public Boolean projectAll;
-        
-        /**
-         * The { @link List } of fields to be projected if it is specified as
-         * in "SELECT a, b, c FROM ..."
-         */
-        public List<String> projectedFields;
-        
-        /**
-         * Predicate used for data extraction such as keyword match in "KEYWORDMATCH(a,"word")"
-         */
-        public ExtractPredicate extractPredicate;
-
-        /**
-         * The identifier of a view or a table name, as in "SELECT... FROM viewName"
-         * used as source of tuples
-         */
-        public String fromClause;
-
-        /**
-         * The maximum number of tuples to be returned, as in "SELECT...FROM... LIMIT 5"
-         */
-        public Integer limitClause;
-
-        /**
-         * The number of tuples to be skipped before returning, as in "SELECT...FROM... OFFSET 5"
-         */
-        public Integer offsetClause;
-
-        public SelectStatement() {
-            this(null, null, null, null, null, null, null);
-        }
-        public SelectStatement(String id, Boolean projectAll,
-                              List<String> projectedFields, ExtractPredicate extractPredicate,
-                              String fromClause, Integer limitClause, Integer offsetClause) {
-            super(id);
-            this.projectAll = projectAll;
-            this.projectedFields = projectedFields;
-            this.extractPredicate = extractPredicate;
-            this.fromClause = fromClause;
-            this.limitClause = limitClause;
-            this.offsetClause = offsetClause;
-        }
-        @Override
-        public boolean equals(Object other) {
-            if (other == null) { return false; }
-            if (other.getClass() != this.getClass()) { return false; }
-            SelectStatement selectStatement = (SelectStatement) other;
-            return new EqualsBuilder()
-                        .appendSuper(super.equals(selectStatement))
-                        .append(projectAll, selectStatement.projectAll)
-                        .append(projectedFields, selectStatement.projectedFields)
-                        .append(extractPredicate, selectStatement.extractPredicate)
-                        .append(fromClause, selectStatement.fromClause)
-                        .append(limitClause, selectStatement.limitClause)
-                        .append(offsetClause, selectStatement.offsetClause)
-                        .isEquals();
-        }
-    }
-    static public class CreateViewStatement extends Statement {
-        /**
-         * The { @link Statement } for which the create view statement creates an alias,
-         * e.g., in "CREATE VIEW v AS SELECT *FROM t; the view with id 'v' will have the
-         * select statement "SELECT * FROM t" as subStatement (in a SelectStatement object)
-         */
-        public Statement subStatement;
-        
-        public CreateViewStatement() {
-            this(null, null);
-        }
-        public CreateViewStatement(String id, Statement subStatement) {
-            super(id);
-            this.subStatement = subStatement;
-        }
-        @Override
-        public boolean equals(Object other) {
-            if (other == null) { return false; }
-            if (other.getClass() != this.getClass()) { return false; }
-            CreateViewStatement createViweClass = (CreateViewStatement) other;
-            return new EqualsBuilder()
-                        .appendSuper(super.equals(createViweClass))
-                        .append(subStatement, createViweClass.subStatement)
-                        .isEquals();
-        }
-    }
-
-    /**
-     * ExtractPredicate class and its subclasses such as KeywordExtractPredicate.
-     * Subclasses have specific fields related to its extraction functionalities.
-     * These classes have no methods. They are used only as containers.
-     * ExtractPredicate --+ KeywordExtractPredicate
-     */
-    static public abstract class ExtractPredicate {
-        @Override
-        public boolean equals(Object other) {
-	        if (other == null) { return false; }
-	        if (other.getClass() != getClass()) { return false; }
-	        //since ExtractPredicate has no attributes, there's nothing to compare but the class itself
-	        return true;
-        }
-    }
-    static public class KeywordExtractPredicate extends ExtractPredicate {
-        /**
-         * The { @link List } of fields on which the keyword search should be performed
-         */
-        public List<String> matchingFields;
-        
-        /**
-         * The keyword(s) used for a keyword search
-         */
-        public String keywords;
-        
-        /**
-         * The type of matching to be performed during the keyword search
-         */ 
-        public String matchingType;
-    
-        public KeywordExtractPredicate() {
-          this(null, null, null);
-        }
-        public KeywordExtractPredicate(List<String> matchingFields, String keywords, String matchingType) {
-            this.matchingFields = matchingFields;
-            this.keywords = keywords;
-            this.matchingType = matchingType;
-        }
-        @Override
-        public boolean equals(Object other) {
-            if (other == null) { return false; }
-            if (other.getClass() != getClass()) { return false; }
-            KeywordExtractPredicate keywordExtractPredicate = (KeywordExtractPredicate) other;
-            return new EqualsBuilder()
-                    .appendSuper(super.equals(keywordExtractPredicate))
-                    .append(matchingFields, keywordExtractPredicate.matchingFields)
-                    .append(keywords, keywordExtractPredicate.keywords)
-                    .append(matchingType, keywordExtractPredicate.matchingType)
-                    .isEquals();
-        }
-    }
 
     /**
      * Generate a unique deterministic sequence of IDs for new statements.
@@ -538,8 +369,8 @@ List<Statement> mainStatementList(Consumer<Statement> statementConsumer) :
 /**
  * Consume one statement declaration from the input and generate a Statement
  * object with the parsed data. The type of statement can be either
- * SelectStatement or CreateViewStatement
- * Grammar: ( <SelectStatement> | <CreateViewStatement> ) ";"
+ * SelectExtractStatement or CreateViewStatement
+ * Grammar: ( <SelectExtractStatement> | <CreateViewStatement> ) ";"
  * @return The Statement representation of the next statement declaration
  */
 Statement statement() : 
@@ -549,7 +380,7 @@ Statement statement() :
 {
     // parse one of the types of statement
     (
-            newStatement = selectStatement() 
+            newStatement = selectExtractStatement() 
         |
             newStatement = createViewStatement()
     )
@@ -564,9 +395,9 @@ Statement statement() :
  * Consume a "CREATE VIEW" statement declaration from the input and generate a
  * CreateViewStatement object with the parsed data.
  * Examples of valid input:
- *         CREATE VIEW viewname0 AS <SelectStatement>
+ *         CREATE VIEW viewname0 AS <SelectExtractStatement>
  * Grammar: "CREATE" "VIEW" <Identifier>
- *          "AS" ( <SelectStatement> )
+ *          "AS" ( <SelectExtractStatement> )
  * @return The CreateViewStatement representation of the statement declaration
  */
 CreateViewStatement createViewStatement() : 
@@ -579,12 +410,12 @@ CreateViewStatement createViewStatement() :
     // parse CREATE VIEW viewName AS
     <CREATE>
     <VIEW>
-    viewName = identifierLiteralToString() { createViewStatement.id = viewName; }
+    viewName = identifierLiteralToString() { createViewStatement.setId(viewName); }
     <AS>
-    // parse the inner statement (subStatement) which is a SelectStatement
+    // parse the inner statement (subStatement) which is a SelectExtractStatement
     (
-        subStatement = selectStatement()
-    ){ createViewStatement.subStatement = subStatement; }
+        subStatement = selectExtractStatement()
+    ){ createViewStatement.setSubStatement(subStatement); }
     // return generated CreateViewStatement
     {
         return createViewStatement;
@@ -593,7 +424,7 @@ CreateViewStatement createViewStatement() :
 
 /**
  * Parse a select statement declaration from the input and generate a
- * SelectStatement object with the parsed data.
+ * SelectExtractStatement object with the parsed data.
  * Examples of valid input:
  *         SELECT * FROM t
  *         SELECT a, b, c FROM t LIMIT 1 OFFSET 8
@@ -608,19 +439,20 @@ CreateViewStatement createViewStatement() :
  *          "FROM" <Identifier>
  *          ("LIMIT" <Number> )?
  *          ("OFFSET" <Number> )?
- * @return The SelectStatement representation of the statement declaration
+ * @return The SelectExtractStatement representation of the statement declaration
  */  
-SelectStatement selectStatement() : 
+SelectExtractStatement selectExtractStatement() : 
 {
-    SelectStatement selectStatement = new SelectStatement();
-    selectStatement.id = getNewStatementId();
+    SelectExtractStatement selectExtractStatement = new SelectExtractStatement();
     List<String> identifiers;
     String fromClause;
     Integer limitClause;
     Integer offsetClause;
+    SelectPredicate selectPredicate;
     ExtractPredicate extractPredicate;
 }
 {
+    { selectExtractStatement.setId(getNewStatementId()); }
     // parse the SELECT clause or/and the EXTRACT clause
     (
             // parse the SELECT clause only, or parse the SELECT clause and the EXTRACT clause
@@ -628,38 +460,39 @@ SelectStatement selectStatement() :
                 // parse the SELECT clause
                 <SELECT> 
                 ( 
-                        <STAR> { selectStatement.projectAll = true; } // SELECT *
+                        <STAR> { selectPredicate = new SelectPredicate(true); } // SELECT *
                     | 
                         identifiers = identifierListToListString() // SELECT a,b,...
-                            { selectStatement.projectedFields = identifiers; } 
+                            { selectPredicate = new SelectPredicate(identifiers); } 
                 )
+                   { selectExtractStatement.setSelectPredicate(selectPredicate); } 
                 // parse the EXTRACT clause (optional)
                 (
                     <EXTRACT> extractPredicate = extractPredicate() // EXTRACT extractPredicate
-                        { selectStatement.extractPredicate = extractPredicate; } 
+                        { selectExtractStatement.setExtractPredicate(extractPredicate); } 
                 )?
             )
         |
             // parse the EXTRACT clause only
             <EXTRACT> extractPredicate = extractPredicate() // EXTRACT only
-                { selectStatement.extractPredicate = extractPredicate; } 
+                { selectExtractStatement.setExtractPredicate(extractPredicate); }
     )
     // parse FROM field
     <FROM> fromClause = identifierLiteralToString()
-        { selectStatement.fromClause = fromClause; }
+        { selectExtractStatement.setFromClause(fromClause); }
     // parse LIMIT field(optional)
     (
       <LIMIT> limitClause = numberLiteralToInteger()
-        { selectStatement.limitClause = limitClause; }
+        { selectExtractStatement.setLimitClause(limitClause); }
     )?
     // parse OFFSET field(optional)
     (
       <OFFSET> offsetClause = numberLiteralToInteger()
-        { selectStatement.offsetClause = offsetClause; }
+        { selectExtractStatement.setOffsetClause(offsetClause); }
     )?
-    // return generated SelectStatement
+    // return generated SelectExtractStatement
     {
-        return selectStatement;
+        return selectExtractStatement;
     }
 }
 
@@ -721,12 +554,12 @@ KeywordExtractPredicate extractKeywordMatchPredicate() :
             | 
                 // parse the list of fields between brackets
                 <LBRACKET> matchingFields = identifierListToListString() <RBRACKET>
-        ) { keywordExtractPredicate.matchingFields = matchingFields; }
+        ) { keywordExtractPredicate.setMatchingFields(matchingFields); }
         // parse the keywords as a string
-        <COMMA> keywords = stringLiteralToString() { keywordExtractPredicate.keywords = keywords; }
+        <COMMA> keywords = stringLiteralToString() { keywordExtractPredicate.setKeywords(keywords); }
         // parse the matching type as an identifier (optional)
         (
-            <COMMA> matchingType = identifierLiteralToString() { keywordExtractPredicate.matchingType = matchingType; }
+            <COMMA> matchingType = identifierLiteralToString() { keywordExtractPredicate.setMatchingType(matchingType); }
         )?
     <RPAREN>
     // return generated KeywordExtractPredicate
