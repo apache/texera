@@ -106,7 +106,6 @@ public class KeywordExtractPredicate extends ExtractPredicate {
         if (other.getClass() != getClass()) { return false; }
         KeywordExtractPredicate keywordExtractPredicate = (KeywordExtractPredicate) other;
         return new EqualsBuilder()
-                .appendSuper(super.equals(keywordExtractPredicate))
                 .append(matchingFields, keywordExtractPredicate.matchingFields)
                 .append(keywords, keywordExtractPredicate.keywords)
                 .append(matchingType, keywordExtractPredicate.matchingType)

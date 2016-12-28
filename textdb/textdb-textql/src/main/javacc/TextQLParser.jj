@@ -43,6 +43,8 @@ import edu.uci.ics.textdb.textql.statements.Statement;
 import edu.uci.ics.textdb.textql.statements.CreateViewStatement;
 import edu.uci.ics.textdb.textql.statements.SelectExtractStatement;
 import edu.uci.ics.textdb.textql.statements.predicates.SelectPredicate;
+import edu.uci.ics.textdb.textql.statements.predicates.SelectAllPredicate;
+import edu.uci.ics.textdb.textql.statements.predicates.SelectFieldsPredicate;
 import edu.uci.ics.textdb.textql.statements.predicates.ExtractPredicate;
 import edu.uci.ics.textdb.textql.statements.predicates.KeywordExtractPredicate;
 
@@ -460,10 +462,10 @@ SelectExtractStatement selectExtractStatement() :
                 // parse the SELECT clause
                 <SELECT> 
                 ( 
-                        <STAR> { selectPredicate = new SelectPredicate(true); } // SELECT *
+                        <STAR> { selectPredicate = new SelectAllPredicate(); } // SELECT *
                     | 
                         identifiers = identifierListToListString() // SELECT a,b,...
-                            { selectPredicate = new SelectPredicate(identifiers); } 
+                            { selectPredicate = new SelectFieldsPredicate(identifiers); } 
                 )
                    { selectExtractStatement.setSelectPredicate(selectPredicate); } 
                 // parse the EXTRACT clause (optional)
