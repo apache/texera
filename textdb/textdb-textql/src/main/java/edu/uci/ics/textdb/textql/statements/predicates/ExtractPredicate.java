@@ -2,7 +2,8 @@ package edu.uci.ics.textdb.textql.statements.predicates;
 
 
 /**
- * ExtractPredicate class and its subclasses such as KeywordExtractPredicate.
+ * Object representation of an extraction predicate such as "KEYWORDEXTRACT(...)" predicate 
+ * inside a { @code SelectExtractStatement }..
  * Subclasses have specific fields related to its extraction functionalities.
  * ExtractPredicate --+ KeywordExtractPredicate
  * 
@@ -11,10 +12,4 @@ package edu.uci.ics.textdb.textql.statements.predicates;
  */
 public abstract class ExtractPredicate {
 		
-	@Override
-	public boolean equals(Object other) {
-        if (other == null) { return false; }
-        if (other.getClass() != getClass()) { return false; }
-        return true;
-	}
 }

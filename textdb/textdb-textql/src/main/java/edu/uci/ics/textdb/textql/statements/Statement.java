@@ -4,7 +4,7 @@ import org.apache.commons.lang3.builder.EqualsBuilder;
 
 
 /**
- * Statement class and subclasses(SelectStatement, CreateViewStatement)
+ * Statement class and subclasses(SelectExtractStatement, CreateViewStatement)
  * Each Statement class has an ID. Subclasses of Statements have specific
  * fields related to its function.
  * Statement --+ SelectStatement
@@ -27,7 +27,6 @@ public abstract class Statement {
 
     }
     
-    
     /**
      * Create a { @code Statement } with the given ID.
      * @param id The ID of this statement.
@@ -35,6 +34,7 @@ public abstract class Statement {
     public Statement(String id) {
       this.id = id;
     }
+    
     
     /**
      * Get the ID of the statement.
