@@ -37,7 +37,6 @@ import edu.uci.ics.textdb.dataflow.sink.IndexSink;
 import edu.uci.ics.textdb.dataflow.source.TupleStreamSourceOperator;
 import edu.uci.ics.textdb.engine.Engine;
 import edu.uci.ics.textdb.perftest.promed.PromedSchema;
-import edu.uci.ics.textdb.perftest.utils.PerfTestUtils;
 import edu.uci.ics.textdb.storage.DataStore;
 import edu.uci.ics.textdb.storage.writer.DataWriter;
 
@@ -97,9 +96,6 @@ public class SampleExtraction {
         standardIndexSink.setInputOperator(fileSource);
         Plan standardIndexPlan = new Plan(standardIndexSink);
 
-        Engine engine = Engine.getEngine();
-        engine.evaluate(standardIndexPlan);
-
         Engine.getEngine().evaluate(standardIndexPlan);
     }
 
@@ -136,7 +132,7 @@ public class SampleExtraction {
         ProjectionOperator projectionOperatorIdAndContent2 = new ProjectionOperator(projectionPredicateIdAndContent);
 
         String regexPerson = "\\b(A|a|(an)|(An)) .{1,40} ((woman)|(man))\\b";
-        RegexPredicate regexPredicatePerson = new RegexPredicate(regexPerson, Arrays.asList(PromedSchema.CONTENT_ATTR),
+        RegexPredicate regexPredicatePerson = new RegexPredicate(regexPerson, Arrays.asList(PromedSchema.CONTENT),
                 LuceneAnalyzerConstants.getNGramAnalyzer(3));
         RegexMatcher regexMatcherPerson = new RegexMatcher(regexPredicatePerson);
         

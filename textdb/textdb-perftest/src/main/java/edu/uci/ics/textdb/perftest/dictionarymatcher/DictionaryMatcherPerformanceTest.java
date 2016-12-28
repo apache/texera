@@ -121,10 +121,10 @@ public class DictionaryMatcherPerformanceTest {
      */
     public static void match(ArrayList<String> queryList, KeywordMatchingType opType, Analyzer luceneAnalyzer,
             DataStore dataStore) throws Exception {
-        List<Attribute> attributes = Arrays.asList(MedlineIndexWriter.ABSTRACT_ATTR);
+        List<String> attributeNames = Arrays.asList(MedlineIndexWriter.ABSTRACT);
 
         IDictionary dictionary = new Dictionary(queryList);
-        DictionaryPredicate dictionaryPredicate = new DictionaryPredicate(dictionary, attributes, luceneAnalyzer,
+        DictionaryPredicate dictionaryPredicate = new DictionaryPredicate(dictionary, attributeNames, luceneAnalyzer,
                 opType);
         DictionaryMatcherSourceOperator dictionaryMatcher = new DictionaryMatcherSourceOperator(dictionaryPredicate,
                 dataStore);

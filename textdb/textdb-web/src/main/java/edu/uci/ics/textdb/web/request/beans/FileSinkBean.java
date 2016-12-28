@@ -49,17 +49,18 @@ public class FileSinkBean extends OperatorBean {
     public boolean equals(Object other) {
         if (other == null) return false;
         if (other == this) return true;
-        if (!(other instanceof OperatorBean)) return false;
+        if (!(other instanceof FileSinkBean)) return false;
         FileSinkBean fileSinkBean = (FileSinkBean) other;
         return new EqualsBuilder()
+                .appendSuper(super.equals(fileSinkBean))
                 .append(filePath, fileSinkBean.getFilePath())
-                .isEquals() &&
-                super.equals(fileSinkBean);
+                .isEquals();
     }
 
     @Override
     public int hashCode() {
         return new HashCodeBuilder(17, 31)
+                .append(super.hashCode())
                 .append(filePath)
                 .toHashCode();
     }

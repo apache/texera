@@ -50,17 +50,18 @@ public class RegexMatcherBean extends OperatorBean {
     public boolean equals(Object other) {
         if (other == null) return false;
         if (other == this) return true;
-        if (!(other instanceof OperatorBean)) return false;
+        if (!(other instanceof RegexMatcherBean)) return false;
         RegexMatcherBean regexMatcherBean = (RegexMatcherBean) other;
         return new EqualsBuilder()
+                .appendSuper(super.equals(regexMatcherBean))
                 .append(regex, regexMatcherBean.getRegex())
-                .isEquals() &&
-                super.equals(regexMatcherBean);
+                .isEquals();
     }
 
     @Override
     public int hashCode() {
         return new HashCodeBuilder(17, 31)
+                .append(super.hashCode())
                 .append(regex)
                 .toHashCode();
     }

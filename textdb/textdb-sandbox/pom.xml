@@ -46,6 +46,11 @@
             <version>${org.json.version}</version>
         </dependency>
         <dependency>
+            <groupId>org.apache.opennlp</groupId>
+            <artifactId>opennlp-tools</artifactId>
+            <version>1.6.0</version>
+        </dependency>
+        <dependency>
             <groupId>edu.uci.ics.textdb</groupId>
             <artifactId>textdb-api</artifactId>
             <version>${textdb.version}</version>

@@ -92,7 +92,7 @@ public class DictionaryMatcherSourceOperator implements ISourceOperator {
                 // For other keyword matching types (conjunction and phrase),
                 // create keyword matcher based on index.
                 KeywordPredicate keywordPredicate = new KeywordPredicate(currentDictionaryEntry,
-                        Utils.getAttributeNames(predicate.getAttributeList()),
+                        predicate.getAttributeNames(),
                         predicate.getAnalyzer(),
                         predicate.getKeywordMatchingType());
 
@@ -174,7 +174,7 @@ public class DictionaryMatcherSourceOperator implements ISourceOperator {
                 keywordSource.close();
 
                 KeywordPredicate keywordPredicate = new KeywordPredicate(currentDictionaryEntry,
-                        Utils.getAttributeNames(predicate.getAttributeList()),
+                        predicate.getAttributeNames(),
                         predicate.getAnalyzer(), keywordMatchingType);
 
                 keywordSource = new KeywordMatcherSourceOperator(keywordPredicate, dataStore);
@@ -236,16 +236,16 @@ public class DictionaryMatcherSourceOperator implements ISourceOperator {
      */
     private ITuple computeMatchingResult(String key, ITuple sourceTuple) throws TextDBException {
 
-        List<Attribute> attributeList = predicate.getAttributeList();
+        List<String> attributeNames = predicate.getAttributeNames();
         List<Span> matchingResults = new ArrayList<>();
 
-        for (Attribute attr : attributeList) {
-            String fieldName = attr.getFieldName();
+        for (String fieldName : attributeNames) {
             String fieldValue = sourceTuple.getField(fieldName).getValue().toString();
+            FieldType fieldType = inputSchema.getAttribute(fieldName).getFieldType();
 
             // if attribute type is not TEXT, then key needs to match the
             // fieldValue exactly
-            if (attr.getFieldType() != FieldType.TEXT) {
+            if (fieldType != FieldType.TEXT) {
                 if (fieldValue.equals(key)) {
                     matchingResults.add(new Span(fieldName, 0, fieldValue.length(), key, fieldValue));
                 }

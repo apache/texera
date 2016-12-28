@@ -19,13 +19,13 @@ public class DictionaryMatcherBean extends OperatorBean {
     @JsonProperty("dictionary")
     private String dictionary;
     @JsonProperty("matching_type")
-    private DataConstants.KeywordMatchingType matchingType;
+    private String matchingType;
 
     public DictionaryMatcherBean() {
     }
 
     public DictionaryMatcherBean(String operatorID, String operatorType, String attributes, String limit, String offset,
-                                 String dictionary, DataConstants.KeywordMatchingType matchingType) {
+                                 String dictionary, String matchingType) {
         super(operatorID, operatorType, attributes, limit, offset);
         this.dictionary = dictionary;
         this.matchingType = matchingType;
@@ -42,12 +42,12 @@ public class DictionaryMatcherBean extends OperatorBean {
     }
 
     @JsonProperty("matching_type")
-    public DataConstants.KeywordMatchingType getMatchingType() {
+    public String getMatchingType() {
         return matchingType;
     }
 
     @JsonProperty("matching_type")
-    public void setMatchingType(DataConstants.KeywordMatchingType matchingType) {
+    public void setMatchingType(String matchingType) {
         this.matchingType = matchingType;
     }
 
@@ -56,7 +56,7 @@ public class DictionaryMatcherBean extends OperatorBean {
         if(this.getDictionary() == null || this.getMatchingType() == null || operatorProperties == null)
             return null;
         operatorProperties.put(DictionaryMatcherBuilder.DICTIONARY, this.getDictionary());
-        operatorProperties.put(DictionaryMatcherBuilder.MATCHING_TYPE, this.getMatchingType().name());
+        operatorProperties.put(DictionaryMatcherBuilder.MATCHING_TYPE, this.getMatchingType());
         return operatorProperties;
     }
 
@@ -64,19 +64,20 @@ public class DictionaryMatcherBean extends OperatorBean {
     public boolean equals(Object other) {
         if (other == null) return false;
         if (other == this) return true;
-        if (!(other instanceof OperatorBean)) return false;
+        if (!(other instanceof DictionaryMatcherBean)) return false;
         DictionaryMatcherBean dictionaryMatcherBean = (DictionaryMatcherBean) other;
 
         return new EqualsBuilder()
+                .appendSuper(super.equals(dictionaryMatcherBean))
                 .append(dictionary, dictionaryMatcherBean.getDictionary())
                 .append(matchingType, dictionaryMatcherBean.getMatchingType())
-                .isEquals() &&
-                super.equals(dictionaryMatcherBean);
+                .isEquals();
     }
 
     @Override
     public int hashCode() {
         return new HashCodeBuilder(17, 31)
+                .append(super.hashCode())
                 .append(dictionary)
                 .append(matchingType)
                 .toHashCode();

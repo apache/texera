@@ -10,7 +10,6 @@ import org.apache.lucene.search.BooleanClause.Occur;
 import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.Query;
 
-import edu.uci.ics.textdb.api.common.Attribute;
 import edu.uci.ics.textdb.api.common.IPredicate;
 import edu.uci.ics.textdb.api.storage.IDataStore;
 import edu.uci.ics.textdb.common.exception.DataFlowException;
@@ -29,13 +28,12 @@ public class FuzzyTokenPredicate implements IPredicate {
     private String query;
     private Query luceneQuery;
     private ArrayList<String> tokens;
-    private List<Attribute> attributeList;
-    private String[] fields;
+    private List<String> attributeNames;
     private Analyzer luceneAnalyzer;
     private double thresholdRatio;
     private int threshold;
 
-    public FuzzyTokenPredicate(String query, List<Attribute> attributeList, Analyzer analyzer,
+    public FuzzyTokenPredicate(String query, List<String> attributeNames, Analyzer analyzer,
             double thresholdRatio) throws DataFlowException {
         try {
             this.thresholdRatio = thresholdRatio;
@@ -43,8 +41,7 @@ public class FuzzyTokenPredicate implements IPredicate {
             this.query = query;
             this.tokens = Utils.tokenizeQuery(analyzer, query);
             this.computeThreshold();
-            this.attributeList = attributeList;
-            this.extractSearchFields();
+            this.attributeNames = attributeNames;
             this.luceneQuery = this.createLuceneQueryObject();
         } catch (Exception e) {
             e.printStackTrace();
@@ -52,8 +49,8 @@ public class FuzzyTokenPredicate implements IPredicate {
         }
     }
 
-    public List<Attribute> getAttributeList() {
-        return this.attributeList;
+    public List<String> getAttributeNames() {
+        return this.attributeNames;
     }
 
     public int getThreshold() {
@@ -66,15 +63,6 @@ public class FuzzyTokenPredicate implements IPredicate {
 
     public Analyzer getLuceneAnalyzer() {
         return luceneAnalyzer;
-    }
-
-    private void extractSearchFields() {
-        this.fields = new String[this.attributeList.size()];
-        int i = 0;
-        for (Attribute a : this.attributeList) {
-            this.fields[i] = a.getFieldName();
-            i++;
-        }
     }
 
     /*
@@ -99,7 +87,7 @@ public class FuzzyTokenPredicate implements IPredicate {
             BooleanQuery.setMaxClauseCount(this.threshold + 1);
         BooleanQuery.Builder builder = new BooleanQuery.Builder();
         builder.setMinimumNumberShouldMatch(this.threshold);
-        MultiFieldQueryParser qp = new MultiFieldQueryParser(fields, this.luceneAnalyzer);
+        MultiFieldQueryParser qp = new MultiFieldQueryParser(attributeNames.stream().toArray(String[]::new), this.luceneAnalyzer);
         for (String s : this.tokens) {
             builder.add(qp.parse(s), Occur.SHOULD);
         }

@@ -7,7 +7,6 @@ import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.Query;
 
-import edu.uci.ics.textdb.api.common.Attribute;
 import edu.uci.ics.textdb.api.common.IDictionary;
 import edu.uci.ics.textdb.api.common.IPredicate;
 import edu.uci.ics.textdb.api.storage.IDataReader;
@@ -23,7 +22,7 @@ public class DictionaryPredicate implements IPredicate {
 
     private IDictionary dictionary;
     private Analyzer luceneAnalyzer;
-    private List<Attribute> attributeList;
+    private List<String> attributeNames;
     private KeywordMatchingType keywordMatchingType;
 
     /*
@@ -32,12 +31,12 @@ public class DictionaryPredicate implements IPredicate {
      * searched in String field we search for Exact string.
      */
 
-    public DictionaryPredicate(IDictionary dictionary, List<Attribute> attributeList, Analyzer luceneAnalyzer,
+    public DictionaryPredicate(IDictionary dictionary, List<String> attributeNames, Analyzer luceneAnalyzer,
             KeywordMatchingType keywordMatchingType) {
 
         this.dictionary = dictionary;
         this.luceneAnalyzer = luceneAnalyzer;
-        this.attributeList = attributeList;
+        this.attributeNames = attributeNames;
         this.keywordMatchingType = keywordMatchingType;
     }
 
@@ -56,8 +55,8 @@ public class DictionaryPredicate implements IPredicate {
         return dictionary.getNextValue();
     }
 
-    public List<Attribute> getAttributeList() {
-        return attributeList;
+    public List<String> getAttributeNames() {
+        return attributeNames;
     }
 
     public Analyzer getAnalyzer() {

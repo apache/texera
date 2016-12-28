@@ -19,13 +19,13 @@ public class KeywordMatcherBean extends OperatorBean {
     @JsonProperty("keyword")
     private String keyword;
     @JsonProperty("matching_type")
-    private KeywordMatchingType matchingType;
+    private String matchingType;
 
     public KeywordMatcherBean() {
     }
 
     public KeywordMatcherBean(String operatorID, String operatorType, String attributes, String limit,
-                              String offset, String keyword, KeywordMatchingType matchingType) {
+                              String offset, String keyword, String matchingType) {
         super(operatorID, operatorType, attributes, limit, offset);
         this.keyword = keyword;
         this.matchingType = matchingType;
@@ -42,12 +42,12 @@ public class KeywordMatcherBean extends OperatorBean {
     }
 
     @JsonProperty("matching_type")
-    public KeywordMatchingType getMatchingType() {
+    public String getMatchingType() {
         return matchingType;
     }
 
     @JsonProperty("matching_type")
-    public void setMatchingType(KeywordMatchingType matchingType) {
+    public void setMatchingType(String matchingType) {
         this.matchingType = matchingType;
     }
 
@@ -56,7 +56,7 @@ public class KeywordMatcherBean extends OperatorBean {
         if(this.getKeyword() == null || this.getMatchingType() == null || operatorProperties == null)
             return null;
         operatorProperties.put(KeywordMatcherBuilder.KEYWORD, this.getKeyword());
-        operatorProperties.put(KeywordMatcherBuilder.MATCHING_TYPE, this.getMatchingType().name());
+        operatorProperties.put(KeywordMatcherBuilder.MATCHING_TYPE, this.getMatchingType());
         return operatorProperties;
     }
 
@@ -64,18 +64,19 @@ public class KeywordMatcherBean extends OperatorBean {
     public boolean equals(Object other) {
         if (other == null) return false;
         if (other == this) return true;
-        if (!(other instanceof OperatorBean)) return false;
+        if (!(other instanceof KeywordMatcherBean)) return false;
         KeywordMatcherBean keywordMatcherBean = (KeywordMatcherBean) other;
         return new EqualsBuilder()
+                .appendSuper(super.equals(keywordMatcherBean))
                 .append(keyword, keywordMatcherBean.getKeyword())
                 .append(matchingType, keywordMatcherBean.getMatchingType())
-                .isEquals() &&
-                super.equals(keywordMatcherBean);
+                .isEquals();
     }
 
     @Override
     public int hashCode() {
         return new HashCodeBuilder(17, 31)
+                .append(super.hashCode())
                 .append(keyword)
                 .append(matchingType)
                 .toHashCode();

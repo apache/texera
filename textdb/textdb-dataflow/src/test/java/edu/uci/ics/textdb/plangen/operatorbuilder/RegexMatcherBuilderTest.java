@@ -24,7 +24,7 @@ public class RegexMatcherBuilderTest {
     /*
      * test RegexMatcherBuilder with the following properties:
      *   regex: \b(woman)|(man)|(patient)\b
-     *   attribute list: {content, TEXT}
+     *   attribute list: {content}
      *   limit: default (Integer.MAX_VALUE)
      *   offset: default (0)
      * 
@@ -36,14 +36,12 @@ public class RegexMatcherBuilderTest {
         HashMap<String, String> regexProperties = new HashMap<>();
         regexProperties.put(RegexMatcherBuilder.REGEX, regex);
         regexProperties.put(OperatorBuilderUtils.ATTRIBUTE_NAMES, "content");
-        regexProperties.put(OperatorBuilderUtils.ATTRIBUTE_TYPES, "TEXT");
         
         RegexMatcher regexMatcher = RegexMatcherBuilder.buildRegexMatcher(regexProperties);
         
         Assert.assertEquals(regex, regexMatcher.getPredicate().getRegex());
-        List<Attribute> regexAttrList = Arrays.asList(
-                new Attribute("content", FieldType.TEXT));
-        Assert.assertEquals(regexAttrList.toString(), regexMatcher.getPredicate().getAttributeList().toString());
+        List<String> regexAttrNames = Arrays.asList("content");
+        Assert.assertEquals(regexAttrNames, regexMatcher.getPredicate().getAttributeNames());
         Assert.assertEquals(Integer.MAX_VALUE, regexMatcher.getLimit());
         Assert.assertEquals(0, regexMatcher.getOffset());    
     }
@@ -51,7 +49,7 @@ public class RegexMatcherBuilderTest {
     /*
      * test RegexMatcherBuilder with the following properties:
      *   regex: (19|20)\d\d[- /.](0[1-9]|1[012])[- /.](0[1-9]|[12][0-9]|3[01])
-     *   attribute list: {date, DATE}, {amount, INTEGER}, {description, TEXT}
+     *   attribute list: {date}, {amount}, {description}
      *   limit: 100
      *   offset: 11
      * 
@@ -63,18 +61,14 @@ public class RegexMatcherBuilderTest {
         HashMap<String, String> regexProperties = new HashMap<>();
         regexProperties.put(RegexMatcherBuilder.REGEX, regex);
         regexProperties.put(OperatorBuilderUtils.ATTRIBUTE_NAMES, "date, amount, description");
-        regexProperties.put(OperatorBuilderUtils.ATTRIBUTE_TYPES, "DATE, INTEGER, TEXT");
         regexProperties.put(OperatorBuilderUtils.LIMIT, "100");
         regexProperties.put(OperatorBuilderUtils.OFFSET, "11");
         
         RegexMatcher regexMatcher = RegexMatcherBuilder.buildRegexMatcher(regexProperties);
         
         Assert.assertEquals(regex, regexMatcher.getPredicate().getRegex());
-        List<Attribute> regexAttrList = Arrays.asList(
-                new Attribute("date", FieldType.DATE), 
-                new Attribute("amount", FieldType.INTEGER), 
-                new Attribute("description", FieldType.TEXT));
-        Assert.assertEquals(regexAttrList.toString(), regexMatcher.getPredicate().getAttributeList().toString());
+        List<String> regexAttrNames = Arrays.asList("date", "amount", "description");
+        Assert.assertEquals(regexAttrNames, regexMatcher.getPredicate().getAttributeNames());
         Assert.assertEquals(100, regexMatcher.getLimit());
         Assert.assertEquals(11, regexMatcher.getOffset());    
     }
@@ -86,7 +80,6 @@ public class RegexMatcherBuilderTest {
     public void testInvalidRegexMatcherBuilder1() throws PlanGenException, DataFlowException, IOException {
         HashMap<String, String> regexProperties = new HashMap<>();
         regexProperties.put(OperatorBuilderUtils.ATTRIBUTE_NAMES, "date, amount, description");
-        regexProperties.put(OperatorBuilderUtils.ATTRIBUTE_TYPES, "DATE, INTEGER, TEXT");
         regexProperties.put(OperatorBuilderUtils.LIMIT, "100");
         regexProperties.put(OperatorBuilderUtils.OFFSET, "11");
         
@@ -101,7 +94,6 @@ public class RegexMatcherBuilderTest {
         HashMap<String, String> regexProperties = new HashMap<>();
         regexProperties.put(RegexMatcherBuilder.REGEX, "");
         regexProperties.put(OperatorBuilderUtils.ATTRIBUTE_NAMES, "date, amount, description");
-        regexProperties.put(OperatorBuilderUtils.ATTRIBUTE_TYPES, "DATE, INTEGER, TEXT");
         regexProperties.put(OperatorBuilderUtils.LIMIT, "100");
         regexProperties.put(OperatorBuilderUtils.OFFSET, "11");
         

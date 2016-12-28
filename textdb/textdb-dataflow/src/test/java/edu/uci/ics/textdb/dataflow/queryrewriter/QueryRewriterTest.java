@@ -105,12 +105,8 @@ public class QueryRewriterTest {
                 (List<String>) resultItuple.getField(QueryRewriter.QUERYLIST).getValue());
         queryRewriter.close();
 
-        boolean mostLikelyRewriteTest = TestUtils.containsAllResults(rewrittenStrings,
-                new ArrayList<String>(expectedRewrittenStrings));
-        boolean allRewriteTest = TestUtils.containsAllResults(allRewrittenStrings,
-                new ArrayList<String>(expectedAllRewrittenStrings));
-
-        return (mostLikelyRewriteTest && allRewriteTest);
+        return (rewrittenStrings.equals(expectedRewrittenStrings) 
+                && allRewrittenStrings.equals(expectedAllRewrittenStrings));
     }
 
     /**

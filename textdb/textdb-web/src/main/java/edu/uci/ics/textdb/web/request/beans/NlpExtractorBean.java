@@ -17,24 +17,24 @@ import java.util.HashMap;
 @JsonTypeName("NlpExtractor")
 public class NlpExtractorBean extends OperatorBean {
     @JsonProperty("nlp_type")
-    private NlpTokenType nlpTokenType;
+    private String nlpTokenType;
 
     public NlpExtractorBean() {
     }
 
     public NlpExtractorBean(String operatorID, String operatorType, String attributes, String limit, String offset,
-                            NlpTokenType nlpTokenType) {
+                            String nlpTokenType) {
         super(operatorID, operatorType, attributes, limit, offset);
         this.nlpTokenType = nlpTokenType;
     }
 
     @JsonProperty("nlp_type")
-    public NlpTokenType getNlpTokenType() {
+    public String getNlpTokenType() {
         return nlpTokenType;
     }
 
     @JsonProperty("nlp_type")
-    public void setNlpTokenType(NlpTokenType nlpTokenType) {
+    public void setNlpTokenType(String nlpTokenType) {
         this.nlpTokenType = nlpTokenType;
     }
 
@@ -43,7 +43,7 @@ public class NlpExtractorBean extends OperatorBean {
         HashMap<String, String> operatorProperties = super.getOperatorProperties();
         if(this.getNlpTokenType() == null || operatorProperties == null)
             return null;
-        operatorProperties.put(NlpExtractorBuilder.NLP_TYPE, this.getNlpTokenType().name());
+        operatorProperties.put(NlpExtractorBuilder.NLP_TYPE, this.getNlpTokenType());
         return operatorProperties;
     }
 
@@ -51,17 +51,18 @@ public class NlpExtractorBean extends OperatorBean {
     public boolean equals(Object other) {
         if (other == null) return false;
         if (other == this) return true;
-        if (!(other instanceof OperatorBean)) return false;
+        if (!(other instanceof NlpExtractorBean)) return false;
         NlpExtractorBean nlpExtractorBean = (NlpExtractorBean) other;
         return new EqualsBuilder()
+                .appendSuper(super.equals(nlpExtractorBean))
                 .append(nlpTokenType, nlpExtractorBean.getNlpTokenType())
-                .isEquals() &&
-                super.equals(nlpExtractorBean);
+                .isEquals();
     }
 
     @Override
     public int hashCode() {
         return new HashCodeBuilder(17, 31)
+                .append(super.hashCode())
                 .append(nlpTokenType)
                 .toHashCode();
     }

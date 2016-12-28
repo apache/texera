@@ -81,9 +81,10 @@ public class DataWriter implements IDataWriter {
             this.luceneIndexWriter.addDocument(document);
             this.dataStore.incrementNumDocuments(1);
         } catch (IOException e) {
+            close();
             throw new StorageException(e.getMessage(), e);
         } finally {
-            close();
+
         }
     }
     
@@ -94,9 +95,10 @@ public class DataWriter implements IDataWriter {
         try {
             this.luceneIndexWriter.deleteDocuments(luceneQuery);
         } catch (IOException e) {
+            close();
             throw new StorageException(e.getMessage(), e);
         } finally {
-            close();
+
         }
     }
 

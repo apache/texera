@@ -10,6 +10,7 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import edu.uci.ics.textdb.api.exception.TextDBException;
 import edu.uci.ics.textdb.common.exception.StorageException;
@@ -323,26 +324,40 @@ public class Utils {
         return sb.toString();
     }
 
-    public static List<ITuple> removePayload(List<ITuple> tupleList) {
-        List<ITuple> tupleListWithoutPayload = tupleList.stream().map(tuple -> removePayload(tuple))
+    /**
+     * Remove one or more fields from each tuple in tupleList.
+     * 
+     * @param tupleList
+     * @param removeFields
+     * @return
+     */
+    public static List<ITuple> removeFields(List<ITuple> tupleList, String... removeFields) {
+        List<ITuple> newTuples = tupleList.stream().map(tuple -> removeFields(tuple, removeFields))
                 .collect(Collectors.toList());
-        return tupleListWithoutPayload;
+        return newTuples;
     }
-
-    public static ITuple removePayload(ITuple tuple) {
-        Integer payloadIndex = tuple.getSchema().getIndex(SchemaConstants.PAYLOAD);
-        if (payloadIndex == null) {
-            return tuple;
-        } else {
-            Attribute[] attrWithoutPayload = tuple.getSchema().getAttributes().stream()
-                    .filter(x -> (!x.getFieldName().equals(SchemaConstants.PAYLOAD))).toArray(Attribute[]::new);
-            Schema schemaWithoutPayload = new Schema(attrWithoutPayload);
-            List<IField> fieldsWithoutPayload = new ArrayList<IField>(tuple.getFields());
-            fieldsWithoutPayload.remove(payloadIndex.intValue());
-            ITuple tupleWithoutPayload = new DataTuple(schemaWithoutPayload,
-                    fieldsWithoutPayload.stream().toArray(IField[]::new));
-            return tupleWithoutPayload;
-        }
+    
+    /**
+     * Remove one or more fields from a tuple.
+     * 
+     * @param tuple
+     * @param removeFields
+     * @return
+     */
+    public static ITuple removeFields(ITuple tuple, String... removeFields) {
+        List<String> removeFieldList = Arrays.asList(removeFields);
+        List<Integer> removedFeidsIndex = removeFieldList.stream()
+                .map(fieldName -> tuple.getSchema().getIndex(fieldName)).collect(Collectors.toList());
+        
+        Attribute[] newAttrs = tuple.getSchema().getAttributes().stream()
+                .filter(attr -> (! removeFieldList.contains(attr.getFieldName()))).toArray(Attribute[]::new);
+        Schema newSchema = new Schema(newAttrs);
+        
+        IField[] newFields = IntStream.range(0, tuple.getSchema().getAttributes().size())
+            .filter(index -> (! removedFeidsIndex.contains(index)))
+            .mapToObj(index -> tuple.getField(index)).toArray(IField[]::new);
+        
+        return new DataTuple(newSchema, newFields);
     }
 
     public static List<Span> generatePayloadFromTuple(ITuple tuple, Analyzer luceneAnalyzer) {

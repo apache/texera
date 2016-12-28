@@ -43,8 +43,8 @@ public class DictionarySourceBuilder {
         List<String> dictionaryList = OperatorBuilderUtils.splitStringByComma(dictionaryStr);
         Dictionary dictionary = new Dictionary(dictionaryList);
 
-        // generate attribute list
-        List<Attribute> attributeList = OperatorBuilderUtils.constructAttributeList(operatorProperties);
+        // generate attribute names
+        List<String> attributeNames = OperatorBuilderUtils.constructAttributeNames(operatorProperties);
 
         // generate matching type        
         KeywordMatchingType matchingType = KeywordMatcherBuilder.getKeywordMatchingType(matchingTypeStr);
@@ -53,7 +53,7 @@ public class DictionarySourceBuilder {
                 + "must be one of " + KeywordMatcherBuilder.keywordMatchingTypeMap.keySet());
         
         DictionaryPredicate predicate = new DictionaryPredicate(
-                dictionary, attributeList, LuceneAnalyzerConstants.getStandardAnalyzer(), matchingType);
+                dictionary, attributeNames, LuceneAnalyzerConstants.getStandardAnalyzer(), matchingType);
         
         DataStore dataStore = OperatorBuilderUtils.constructDataStore(operatorProperties);
         

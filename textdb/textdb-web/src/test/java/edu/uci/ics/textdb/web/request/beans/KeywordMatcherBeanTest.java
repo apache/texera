@@ -21,7 +21,7 @@ public class KeywordMatcherBeanTest {
     @Test
     public void testDeserialization() throws IOException {
         final KeywordMatcherBean keywordMatcherBean = new KeywordMatcherBean("operator1", "KeywordMatcher",
-                "attributes", "10", "100", "keyword1", DataConstants.KeywordMatchingType.PHRASE_INDEXBASED);
+                "attributes", "10", "100", "keyword1", "PHRASE_INDEXBASED");
         String jsonString = "{\n" +
                 "    \"operator_id\": \"operator1\",\n" +
                 "    \"operator_type\": \"KeywordMatcher\",\n" +
@@ -38,7 +38,7 @@ public class KeywordMatcherBeanTest {
     @Test
     public void testInvalidDeserialization() throws IOException {
         final KeywordMatcherBean keywordMatcherBean = new KeywordMatcherBean("operator1", "KeywordMatcher",
-                "attributes", "10", "100", "keyword1", DataConstants.KeywordMatchingType.PHRASE_INDEXBASED);
+                "attributes", "10", "100", "keyword1", "PHRASE_INDEXBASED");
         String jsonString = "{\n" +
                 "    \"operator_id\": \"operator2\",\n" +
                 "    \"operator_type\": \"KeywordMatcher\",\n" +
