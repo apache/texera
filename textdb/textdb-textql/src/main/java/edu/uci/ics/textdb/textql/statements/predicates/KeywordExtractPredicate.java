@@ -1,10 +1,13 @@
 package edu.uci.ics.textdb.textql.statements.predicates;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.commons.lang3.builder.EqualsBuilder;
 
 import edu.uci.ics.textdb.common.constants.DataConstants.KeywordMatchingType;
+import edu.uci.ics.textdb.web.request.beans.KeywordMatcherBean;
 
 /**
  * Object representation of a "KEYWORDEXTRACT(...)" predicate inside a { @code SelectExtractStatement }.
@@ -28,6 +31,12 @@ public class KeywordExtractPredicate extends ExtractPredicate {
      * The type of matching to be performed during the keyword search.
      */ 
     private String matchingType;
+    
+    /**
+     * The default { @code KeywordMatchingType } to be returned as matching type if the current matching type
+     * of the statement is set to { @code null }.
+     */
+    public static final KeywordMatchingType DEFAULT_MATCH_TYPE = KeywordMatchingType.CONJUNCTION_INDEXBASED;
     
     
     /**
@@ -97,6 +106,30 @@ public class KeywordExtractPredicate extends ExtractPredicate {
      */
     public void setMatchingType(String matchingType) {
         this.matchingType = matchingType;
+    }
+    
+
+    /**
+     * Get the matching type of the extraction as a { @link KeywordMatchingType }.
+     * @return The matching type of the extraction as a { @link KeywordMatchingType }.
+     */
+    public KeywordMatchingType getParsedMatchingType() {
+        Map<String, KeywordMatchingType> keywordMatchingTypeAlias = new HashMap<String, KeywordMatchingType>();
+        keywordMatchingTypeAlias.put("conjunction", KeywordMatchingType.CONJUNCTION_INDEXBASED);
+        keywordMatchingTypeAlias.put("phrase", KeywordMatchingType.PHRASE_INDEXBASED);
+        keywordMatchingTypeAlias.put("substring", KeywordMatchingType.SUBSTRING_SCANBASED);
+        return keywordMatchingTypeAlias.get(this.matchingType.toLowerCase());
+    }
+    
+
+    /**
+     * Return this operator converted to a { @code KeywordMatcherBean }.
+     * @param extractionOperatorId The ID of the OperatorBean to be created.
+     */
+    @Override
+    public KeywordMatcherBean getOperatorBean(String extractionOperatorId) {
+        return new KeywordMatcherBean(extractionOperatorId, "KeywordMatcher", String.join(",", this.matchingFields),
+                    null, null, this.keywords, this.matchingType);
     }
     
 
