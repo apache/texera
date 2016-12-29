@@ -1,9 +1,6 @@
 package edu.uci.ics.textdb.textql.statements.predicates;
 
-import java.util.Collections;
-import java.util.List;
-
-import org.apache.commons.lang3.builder.EqualsBuilder;
+import edu.uci.ics.textdb.web.request.beans.OperatorBean;
 
 /**
  * Object representation of a "SELECT (...)" predicate inside a { @code SelectExtractStatement }.
@@ -15,5 +12,11 @@ import org.apache.commons.lang3.builder.EqualsBuilder;
  *
  */
 public abstract class SelectPredicate {
-            
+    
+    /**
+     * Return this operator converted to an { @code OperatorBean }.
+     * @param selectOperatorId The ID of the OperatorBean to be created.
+     */
+    public abstract OperatorBean getOperatorBean(String selectOperatorId);
+        
 }
