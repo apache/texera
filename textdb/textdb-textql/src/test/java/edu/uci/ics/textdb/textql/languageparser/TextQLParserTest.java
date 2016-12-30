@@ -20,11 +20,11 @@ import java.util.function.Consumer;
 import org.junit.Before;
 import org.junit.Test;
 
-import edu.uci.ics.textdb.textql.languageparser.TextQLParser.Statement;
-import edu.uci.ics.textdb.textql.languageparser.TextQLParser.SelectStatement;
-import edu.uci.ics.textdb.textql.languageparser.TextQLParser.CreateViewStatement;
-import edu.uci.ics.textdb.textql.languageparser.TextQLParser.ExtractPredicate;
-import edu.uci.ics.textdb.textql.languageparser.TextQLParser.KeywordExtractPredicate;
+import edu.uci.ics.textdb.textql.languageparser.Statement;
+import edu.uci.ics.textdb.textql.languageparser.SelectStatement;
+import edu.uci.ics.textdb.textql.languageparser.CreateViewStatement;
+import edu.uci.ics.textdb.textql.languageparser.ExtractPredicate;
+import edu.uci.ics.textdb.textql.languageparser.KeywordExtractPredicate;
 
 /**
  * Test cases for the TextQLParser class.
@@ -670,27 +670,29 @@ public class TextQLParserTest {
             }
         }
     }
+    
 
     /**
-     * Create an InputStream that contains an given String.
-     * @param s the string to be available in the resulting InputStream
-     * @return an InputStream containing the string s
+     * Create an InputStream that contain a given { @code String }.
+     * @param string The content to be available in the built InputStream.
+     * @return An InputStream containing the input string.
      */ 
-    private InputStream string2InputStream(String s){
+	private InputStream string2InputStream(String string){
         try {
-            //create a piped input stream to write to and a piped output stream to return as result
-            PipedOutputStream pos = new PipedOutputStream();
-            PipedInputStream pis = new PipedInputStream(pos);
-            //print the string to the stream
-            PrintStream ppos = new PrintStream(pos);
-            ppos.print(s);
-            ppos.close();
-            //return the generated InputStream
-            return pis;
+            // create a PipedOutputStream to write the input string
+            PipedOutputStream pipedOutputStream = new PipedOutputStream();
+            // create a PipedInputStream that contain the content written to the PipedOutputStream 
+            PipedInputStream pipedInputStream = new PipedInputStream(pipedOutputStream);
+            // print the string into pipedOutputStream
+            PrintStream printStream = new PrintStream(pipedOutputStream);
+            printStream.print(string);
+            printStream.close();
+            // return the build InputStream
+            return pipedInputStream;
         } catch (IOException e) {
-            //return null if an IOException is thrown
+            //return null if for some reason an IOException is thrown
             return null;
         }
-    }
+	}
     
 }
