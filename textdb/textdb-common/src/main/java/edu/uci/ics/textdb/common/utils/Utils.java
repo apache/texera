@@ -53,6 +53,7 @@ public class Utils {
         switch (fieldType) {
         case _ID_TYPE:
             field = new IDField(fieldValue);
+            break;
         case STRING:
             field = new StringField(fieldValue);
             break;

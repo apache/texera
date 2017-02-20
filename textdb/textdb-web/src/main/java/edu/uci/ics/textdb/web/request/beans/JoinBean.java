@@ -2,6 +2,7 @@ package edu.uci.ics.textdb.web.request.beans;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import edu.uci.ics.textdb.dataflow.join.Join;
 import edu.uci.ics.textdb.plangen.operatorbuilder.JoinBuilder;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
@@ -15,49 +16,78 @@ import java.util.HashMap;
  */
 @JsonTypeName("Join")
 public class JoinBean extends OperatorBean {
-    @JsonProperty("id_attribute")
-    private String idAttribute;
-    @JsonProperty("distance")
-    private String distance;
+    @JsonProperty("inner_attribute")
+    private String innerAttribute;
+    @JsonProperty("outer_attribute")
+    private String outerAttribute;
+    @JsonProperty("predicate_type")
+    private String predicateType;
+    @JsonProperty("threshold")
+    private String threshold;
 
     // A bean variable for the predicate type of the join has been omitted for now and will be included in the future
 
     public JoinBean() {
     }
 
-    public JoinBean(String operatorID, String operatorType, String attributes, String limit, String offset,
-                    String idAttribute, String distance) {
-        super(operatorID, operatorType, attributes, limit, offset);
-        this.idAttribute = idAttribute;
-        this.distance = distance;
+    public JoinBean(String operatorID, String operatorType, String limit, String offset,
+                    String innerAttribute, String outerAttribute, String predicateType, String threshold) {
+        super(operatorID, operatorType, null, limit, offset);
+        this.innerAttribute = innerAttribute;
+        this.outerAttribute = outerAttribute;
+        this.predicateType = predicateType;
+        this.threshold = threshold;
     }
 
-    @JsonProperty("id_attribute")
-    public String getIdAttribute() {
-        return idAttribute;
+    @JsonProperty("inner_attribute")
+    public String getInnerAttribute() {
+        return innerAttribute;
     }
 
-    @JsonProperty("id_attribute")
-    public void setIdAttribute(String idAttribute) {
-        this.idAttribute = idAttribute;
+    @JsonProperty("inner_attribute")
+    public void setInnerAttribute(String innerAttribute) {
+        this.innerAttribute = innerAttribute;
     }
 
-    @JsonProperty("distance")
-    public String getDistance() {
-        return distance;
+    @JsonProperty("outer_attribute")
+    public String getOuterAttribute() {
+        return outerAttribute;
     }
 
-    @JsonProperty("distance")
-    public void setDistance(String distance) {
-        this.distance = distance;
+    @JsonProperty("outer_attribute")
+    public void setOuterAttribute(String outerAttribute) {
+        this.outerAttribute = outerAttribute;
+    }
+
+    @JsonProperty("predicate_type")
+    public String getPredicateType() {
+        return predicateType;
+    }
+
+    @JsonProperty("predicate_type")
+    public void setPredicateType(String predicateType) {
+        this.predicateType = predicateType;
+    }
+
+    @JsonProperty("threshold")
+    public String getThreshold() {
+        return threshold;
+    }
+
+    @JsonProperty("threshold")
+    public void setThreshold(String threshold) {
+        this.threshold = threshold;
     }
 
     public HashMap<String, String> getOperatorProperties() {
         HashMap<String, String> operatorProperties = super.getOperatorProperties();
-        if(this.getIdAttribute() == null || this.getDistance() == null || operatorProperties == null)
+        if(this.getInnerAttribute() == null || this.getOuterAttribute() == null || this.getThreshold() == null ||
+                operatorProperties == null)
             return null;
-        operatorProperties.put(JoinBuilder.JOIN_ID_ATTRIBUTE_NAME, this.getIdAttribute());
-        operatorProperties.put(JoinBuilder.JOIN_DISTANCE, this.getDistance());
+        operatorProperties.put(JoinBuilder.JOIN_INNER_ATTR_NAME, this.getInnerAttribute());
+        operatorProperties.put(JoinBuilder.JOIN_OUTER_ATTR_NAME, this.getOuterAttribute());
+        operatorProperties.put(JoinBuilder.JOIN_PREDICATE, this.getPredicateType());
+        operatorProperties.put(JoinBuilder.JOIN_THRESHOLD, this.getThreshold());
         // TODO - Check on the other properties required for the Join Operator
         return operatorProperties;
     }
@@ -70,8 +100,10 @@ public class JoinBean extends OperatorBean {
         JoinBean joinBean = (JoinBean) other;
         return new EqualsBuilder()
                 .appendSuper(super.equals(joinBean))
-                .append(idAttribute, joinBean.getIdAttribute())
-                .append(distance, joinBean.getDistance())
+                .append(innerAttribute, joinBean.getInnerAttribute())
+                .append(outerAttribute, joinBean.getOuterAttribute())
+                .append(predicateType, joinBean.getPredicateType())
+                .append(threshold, joinBean.getThreshold())
                 .isEquals();
     }
 
@@ -79,8 +111,10 @@ public class JoinBean extends OperatorBean {
     public int hashCode() {
         return new HashCodeBuilder(17, 31)
                 .append(super.hashCode())
-                .append(idAttribute)
-                .append(distance)
+                .append(innerAttribute)
+                .append(outerAttribute)
+                .append(predicateType)
+                .append(threshold)
                 .toHashCode();
     }
 }

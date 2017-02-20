@@ -8,11 +8,13 @@ import edu.uci.ics.textdb.api.exception.TextDBException;
 import edu.uci.ics.textdb.common.constants.DataConstants.KeywordMatchingType;
 import edu.uci.ics.textdb.common.constants.LuceneAnalyzerConstants;
 import edu.uci.ics.textdb.common.constants.TestConstants;
+import edu.uci.ics.textdb.common.constants.TestConstantsChinese;
 import edu.uci.ics.textdb.common.exception.DataFlowException;
 import edu.uci.ics.textdb.dataflow.common.KeywordPredicate;
 import edu.uci.ics.textdb.dataflow.source.ScanBasedSourceOperator;
 import edu.uci.ics.textdb.dataflow.utils.TestUtils;
-import edu.uci.ics.textdb.storage.relation.RelationManager;
+import edu.uci.ics.textdb.storage.DataWriter;
+import edu.uci.ics.textdb.storage.RelationManager;
 
 /**
  * A helper class for functions that are used in multiple keyword matcher tests.
@@ -21,29 +23,49 @@ import edu.uci.ics.textdb.storage.relation.RelationManager;
  *   delete test tables
  *   get the results from a keyword matcher
  * @author Zuozhi Wang
+ * @author Qinhua Huang
  *
  */
 public class KeywordTestHelper {
     
     public static final String PEOPLE_TABLE = "keyword_test_people";
     public static final String MEDLINE_TABLE = "keyword_test_medline";
+    public static final String CHINESE_TABLE = "keyword_test_chinese";
     
     public static void writeTestTables() throws TextDBException {
         RelationManager relationManager = RelationManager.getRelationManager();
         
         // create the people table and write tuples
         relationManager.createTable(PEOPLE_TABLE, "../index/test_tables/" + PEOPLE_TABLE, 
-                TestConstants.SCHEMA_PEOPLE, LuceneAnalyzerConstants.standardAnalyzerString());        
+                TestConstants.SCHEMA_PEOPLE, LuceneAnalyzerConstants.standardAnalyzerString());
+
+        DataWriter peopleDataWriter = relationManager.getTableDataWriter(PEOPLE_TABLE);
+        peopleDataWriter.open();
         for (ITuple tuple : TestConstants.getSamplePeopleTuples()) {
-            relationManager.insertTuple(PEOPLE_TABLE, tuple);
+            peopleDataWriter.insertTuple(tuple);
         }
+        peopleDataWriter.close();
         
         // create the medline table and write tuples
         relationManager.createTable(MEDLINE_TABLE, "../index/test_tables/" + MEDLINE_TABLE,
-                keywordTestConstants.SCHEMA_MEDLINE, LuceneAnalyzerConstants.standardAnalyzerString());       
+                keywordTestConstants.SCHEMA_MEDLINE, LuceneAnalyzerConstants.standardAnalyzerString());
+   
+        DataWriter medDataWriter = relationManager.getTableDataWriter(MEDLINE_TABLE);
+        medDataWriter.open();
         for (ITuple tuple : keywordTestConstants.getSampleMedlineRecord()) {
-            relationManager.insertTuple(MEDLINE_TABLE, tuple);
-        }       
+            medDataWriter.insertTuple(tuple);
+        }
+        medDataWriter.close();
+        
+        // create the people table and write tuples in Chinese
+        relationManager.createTable(CHINESE_TABLE, "../index/test_tables/" + CHINESE_TABLE, 
+                TestConstantsChinese.SCHEMA_PEOPLE, LuceneAnalyzerConstants.chineseAnalyzerString());
+        DataWriter chineseDataWriter = relationManager.getTableDataWriter(CHINESE_TABLE);
+        chineseDataWriter.open();
+        for (ITuple tuple : TestConstantsChinese.getSamplePeopleTuples()) {
+            chineseDataWriter.insertTuple(tuple);
+        }
+        chineseDataWriter.close();
     }
     
     public static void deleteTestTables() throws TextDBException {
@@ -51,6 +73,7 @@ public class KeywordTestHelper {
 
         relationManager.deleteTable(PEOPLE_TABLE);
         relationManager.deleteTable(MEDLINE_TABLE);
+        relationManager.deleteTable(CHINESE_TABLE);
     }
     
     public static List<ITuple> getQueryResults(String tableName, String keywordQuery, List<String> attributeNames,

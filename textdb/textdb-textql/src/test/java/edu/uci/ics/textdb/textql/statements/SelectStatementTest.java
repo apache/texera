@@ -8,123 +8,123 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import edu.uci.ics.textdb.common.constants.DataConstants.KeywordMatchingType;
-import edu.uci.ics.textdb.textql.statements.SelectExtractStatement;
+import edu.uci.ics.textdb.textql.statements.SelectStatement;
 import edu.uci.ics.textdb.textql.statements.predicates.ExtractPredicate;
 import edu.uci.ics.textdb.textql.statements.predicates.KeywordExtractPredicate;
-import edu.uci.ics.textdb.textql.statements.predicates.SelectAllFieldsPredicate;
-import edu.uci.ics.textdb.textql.statements.predicates.SelectPredicate;
-import edu.uci.ics.textdb.textql.statements.predicates.SelectSomeFieldsPredicate;
+import edu.uci.ics.textdb.textql.statements.predicates.ProjectAllFieldsPredicate;
+import edu.uci.ics.textdb.textql.statements.predicates.ProjectPredicate;
+import edu.uci.ics.textdb.textql.statements.predicates.ProjectSomeFieldsPredicate;
 import edu.uci.ics.textdb.web.request.beans.KeywordMatcherBean;
 import edu.uci.ics.textdb.web.request.beans.OperatorBean;
 import edu.uci.ics.textdb.web.request.beans.ProjectionBean;
 
 /**
- * This class contains test cases for the SelectExtractStatement.
+ * This class contains test cases for the SelectStatement.
  * The constructor, getter, setter and bean builder methods are tested.
  * 
  * @author Flavio Bayer
  *
  */
-public class SelectExtractStatementTest {
+public class SelectStatementTest {
 
     /**
      * Test the class constructor and the getter methods.
-     * Call the constructor of CreateViewStatement and test if the
+     * Call the constructor of SelectStatement and test if the
      * returned value by the getter is the same.
      */
     @Test
     public void testConstructorAndGetters() {
-        SelectPredicate selectPredicate;
+        ProjectPredicate projectPredicate;
         ExtractPredicate extractPredicate;
-        SelectExtractStatement selectExtractStatement;
+        SelectStatement selectExtractStatement;
 
         // Tests for the id attribute
-        selectExtractStatement = new SelectExtractStatement(null, null, null, null, null, null);
+        selectExtractStatement = new SelectStatement(null, null, null, null, null, null);
         Assert.assertEquals(selectExtractStatement.getId(), null);
 
-        selectExtractStatement = new SelectExtractStatement("idx", null, null, null, null, null);
+        selectExtractStatement = new SelectStatement("idx", null, null, null, null, null);
         Assert.assertEquals(selectExtractStatement.getId(), "idx");
         
-        selectExtractStatement = new SelectExtractStatement("_sid08", null, null, null, null, null);
+        selectExtractStatement = new SelectStatement("_sid08", null, null, null, null, null);
         Assert.assertEquals(selectExtractStatement.getId(), "_sid08");
 
-        // Tests for the selectPredicate attribute
-        selectExtractStatement = new SelectExtractStatement("", null, null, null, null, null);
-        Assert.assertEquals(selectExtractStatement.getSelectPredicate(), null);
+        // Tests for the projectPredicate attribute
+        selectExtractStatement = new SelectStatement("", null, null, null, null, null);
+        Assert.assertEquals(selectExtractStatement.getProjectPredicate(), null);
 
-        selectPredicate = new SelectAllFieldsPredicate();
-        selectExtractStatement = new SelectExtractStatement(null, selectPredicate, null, null, null, null);
-        Assert.assertEquals(selectExtractStatement.getSelectPredicate(), selectPredicate);
+        projectPredicate = new ProjectAllFieldsPredicate();
+        selectExtractStatement = new SelectStatement(null, projectPredicate, null, null, null, null);
+        Assert.assertEquals(selectExtractStatement.getProjectPredicate(), projectPredicate);
 
-        selectPredicate = new SelectSomeFieldsPredicate(Arrays.asList("a", "b", "c"));
-        selectExtractStatement = new SelectExtractStatement(null, selectPredicate, null, null, null, null);
-        Assert.assertEquals(selectExtractStatement.getSelectPredicate(), selectPredicate);
+        projectPredicate = new ProjectSomeFieldsPredicate(Arrays.asList("a", "b", "c"));
+        selectExtractStatement = new SelectStatement(null, projectPredicate, null, null, null, null);
+        Assert.assertEquals(selectExtractStatement.getProjectPredicate(), projectPredicate);
 
-        selectPredicate = new SelectSomeFieldsPredicate(Arrays.asList("f0", "f1"));
-        selectExtractStatement = new SelectExtractStatement(null, selectPredicate, null, null, null, null);
-        Assert.assertEquals(selectExtractStatement.getSelectPredicate(), selectPredicate);
+        projectPredicate = new ProjectSomeFieldsPredicate(Arrays.asList("f0", "f1"));
+        selectExtractStatement = new SelectStatement(null, projectPredicate, null, null, null, null);
+        Assert.assertEquals(selectExtractStatement.getProjectPredicate(), projectPredicate);
         
         // Tests for the extractPredicate attribute
-        selectExtractStatement = new SelectExtractStatement(null, null, null, null, null, null);
-        Assert.assertEquals(selectExtractStatement.getSelectPredicate(), null);
+        selectExtractStatement = new SelectStatement(null, null, null, null, null, null);
+        Assert.assertEquals(selectExtractStatement.getProjectPredicate(), null);
         
         extractPredicate = new KeywordExtractPredicate(Arrays.asList("x", "y"), "keyword",
                 KeywordMatchingType.SUBSTRING_SCANBASED.toString());
-        selectExtractStatement = new SelectExtractStatement(null, null, extractPredicate, null, null, null);
+        selectExtractStatement = new SelectStatement(null, null, extractPredicate, null, null, null);
         Assert.assertEquals(selectExtractStatement.getExtractPredicate(), extractPredicate);
 
         extractPredicate = new KeywordExtractPredicate(Arrays.asList("z6", "t4"), "xyz",
                 KeywordMatchingType.PHRASE_INDEXBASED.toString());
-        selectExtractStatement = new SelectExtractStatement(null, null, extractPredicate, null, null, null);
+        selectExtractStatement = new SelectStatement(null, null, extractPredicate, null, null, null);
         Assert.assertEquals(selectExtractStatement.getExtractPredicate(), extractPredicate);
 
         // Tests for the fromClause attribute
-        selectExtractStatement = new SelectExtractStatement(null, null, null, null, null, null);
+        selectExtractStatement = new SelectStatement(null, null, null, null, null, null);
         selectExtractStatement.setFromClause(null);
 
-        selectExtractStatement = new SelectExtractStatement(null, null, null, "tab", null, null);
+        selectExtractStatement = new SelectStatement(null, null, null, "tab", null, null);
         selectExtractStatement.setFromClause("tab");
 
-        selectExtractStatement = new SelectExtractStatement(null, null, null, "t1", null, null);
+        selectExtractStatement = new SelectStatement(null, null, null, "t1", null, null);
         selectExtractStatement.setFromClause("t1");
 
         // Tests for the limitClause attribute
-        selectExtractStatement = new SelectExtractStatement(null, null, null, null, null, null);
+        selectExtractStatement = new SelectStatement(null, null, null, null, null, null);
         Assert.assertEquals(selectExtractStatement.getLimitClause(), null);
 
-        selectExtractStatement = new SelectExtractStatement(null, null, null, null, 0, null);
+        selectExtractStatement = new SelectStatement(null, null, null, null, 0, null);
         Assert.assertEquals(selectExtractStatement.getLimitClause(), Integer.valueOf(0));
 
-        selectExtractStatement = new SelectExtractStatement(null, null, null, null, 8, null);
+        selectExtractStatement = new SelectStatement(null, null, null, null, 8, null);
         Assert.assertEquals(selectExtractStatement.getLimitClause(), Integer.valueOf(8));
         
-        selectExtractStatement = new SelectExtractStatement(null, null, null, null, -151, null);
+        selectExtractStatement = new SelectStatement(null, null, null, null, -151, null);
         Assert.assertEquals(selectExtractStatement.getLimitClause(), Integer.valueOf(-151));
 
         // Tests for the offsetClause attribute
-        selectExtractStatement = new SelectExtractStatement(null, null, null, null, null, null);
+        selectExtractStatement = new SelectStatement(null, null, null, null, null, null);
         Assert.assertEquals(selectExtractStatement.getOffsetClause(), null);
         
-        selectExtractStatement = new SelectExtractStatement(null, null, null, null, null, 0);
+        selectExtractStatement = new SelectStatement(null, null, null, null, null, 0);
         Assert.assertEquals(selectExtractStatement.getOffsetClause(), Integer.valueOf(0));
 
-        selectExtractStatement = new SelectExtractStatement(null, null, null, null, null, 562);
+        selectExtractStatement = new SelectStatement(null, null, null, null, null, 562);
         Assert.assertEquals(selectExtractStatement.getOffsetClause(), Integer.valueOf(562));
         
-        selectExtractStatement = new SelectExtractStatement(null, null, null, null, null, -98);
+        selectExtractStatement = new SelectStatement(null, null, null, null, null, -98);
         Assert.assertEquals(selectExtractStatement.getOffsetClause(), Integer.valueOf(-98));
     }
 
     /**
      * Test the setter methods and the getter methods.
-     * Call the setter of CreateViewStatement and test if the returned
+     * Call the setter of SelectStatement and test if the returned
      * value by the getter is the same.
      */
     @Test
     public void testSettersAndGetters() {
-        SelectPredicate selectPredicate;
+        ProjectPredicate projectPredicate;
         ExtractPredicate extractPredicate;
-        SelectExtractStatement selectExtractStatement = new SelectExtractStatement();
+        SelectStatement selectExtractStatement = new SelectStatement();
 
         // Tests for the id attribute
         selectExtractStatement.setId(null);
@@ -136,21 +136,21 @@ public class SelectExtractStatementTest {
         selectExtractStatement.setId("_sid9");
         Assert.assertEquals(selectExtractStatement.getId(), "_sid9");
 
-        // Tests for the selectPredicate attribute
-        selectExtractStatement.setSelectPredicate(null);
-        Assert.assertEquals(selectExtractStatement.getSelectPredicate(), null);
+        // Tests for the projectPredicate attribute
+        selectExtractStatement.setProjectPredicate(null);
+        Assert.assertEquals(selectExtractStatement.getProjectPredicate(), null);
 
-        selectPredicate = new SelectAllFieldsPredicate();
-        selectExtractStatement.setSelectPredicate(selectPredicate);
-        Assert.assertEquals(selectExtractStatement.getSelectPredicate(), selectPredicate);
+        projectPredicate = new ProjectAllFieldsPredicate();
+        selectExtractStatement.setProjectPredicate(projectPredicate);
+        Assert.assertEquals(selectExtractStatement.getProjectPredicate(), projectPredicate);
 
-        selectPredicate = new SelectSomeFieldsPredicate(Arrays.asList("a", "b", "c"));
-        selectExtractStatement.setSelectPredicate(selectPredicate);
-        Assert.assertEquals(selectExtractStatement.getSelectPredicate(), selectPredicate);
+        projectPredicate = new ProjectSomeFieldsPredicate(Arrays.asList("a", "b", "c"));
+        selectExtractStatement.setProjectPredicate(projectPredicate);
+        Assert.assertEquals(selectExtractStatement.getProjectPredicate(), projectPredicate);
 
-        selectPredicate = new SelectSomeFieldsPredicate(Arrays.asList("f0", "f1"));
-        selectExtractStatement.setSelectPredicate(selectPredicate);
-        Assert.assertEquals(selectExtractStatement.getSelectPredicate(), selectPredicate);
+        projectPredicate = new ProjectSomeFieldsPredicate(Arrays.asList("f0", "f1"));
+        selectExtractStatement.setProjectPredicate(projectPredicate);
+        Assert.assertEquals(selectExtractStatement.getProjectPredicate(), projectPredicate);
 
         // Tests for the extractPredicate attribute
         selectExtractStatement.setExtractPredicate(null);
@@ -204,58 +204,58 @@ public class SelectExtractStatementTest {
     }
 
     /**
-     * Test the correctness of the generated beans by a SelectExtractStatement
-     * without a SelectPredicate nor ExtractPredicate.
+     * Test the correctness of the generated beans by a SelectStatement without a
+     * ProjectPredicate nor ExtractPredicate.
      * Get a graph by calling getInternalOperatorBeans() and getInternalLinkBeans()
      * methods and check if the generated path form the node getInputNodeID() to 
      * the node getOutputNodeID() is correct. Also check whether getInputViews()
      * is returning the correct dependencies.  
      */
     @Test
-    public void testSelectExtractStatementBeansBuilder00() {
-        SelectExtractStatement selectExtractStatement = new SelectExtractStatement("id", null, null, "tableX", null,
+    public void testSelectStatementBeansBuilder00() {
+        SelectStatement selectStatement = new SelectStatement("id", null, null, "tableX", null,
                 null);
 
         List<OperatorBean> expectedGeneratedBeans = Collections.emptyList();
         List<String> dependencies = Arrays.asList("tableX");
 
-        Assert.assertEquals(selectExtractStatement.getInputViews(), dependencies);
-        StatementTestUtils.assertGeneratedBeans(selectExtractStatement, expectedGeneratedBeans);
+        Assert.assertEquals(selectStatement.getInputViews(), dependencies);
+        StatementTestUtils.assertGeneratedBeans(selectStatement, expectedGeneratedBeans);
     }
 
     /**
-     * Test the correctness of the generated beans by a SelectExtractStatement
-     * with a SelectAllFieldsPredicate.
+     * Test the correctness of the generated beans by a SelectStatement with a
+     * ProjectAllFieldsPredicate.
      * Get a graph by calling getInternalOperatorBeans() and getInternalLinkBeans()
      * methods and check if the generated path form the node getInputNodeID() to 
      * the node getOutputNodeID() is correct. Also check whether getInputViews()
      * is returning the correct dependencies.  
      */
     @Test
-    public void testSelectExtractStatementBeansBuilder01() {
-        SelectPredicate selectPredicate = new SelectAllFieldsPredicate();
-        SelectExtractStatement selectExtractStatement = new SelectExtractStatement("id", selectPredicate, null, "Table",
+    public void testSelectStatementBeansBuilder01() {
+        ProjectPredicate projectPredicate = new ProjectAllFieldsPredicate();
+        SelectStatement selectStatement = new SelectStatement("id", projectPredicate, null, "Table",
                 null, null);
 
         List<OperatorBean> expectedGeneratedBeans = Collections.emptyList();
         List<String> dependencies = Arrays.asList("Table");
 
-        Assert.assertEquals(selectExtractStatement.getInputViews(), dependencies);
-        StatementTestUtils.assertGeneratedBeans(selectExtractStatement, expectedGeneratedBeans);
+        Assert.assertEquals(selectStatement.getInputViews(), dependencies);
+        StatementTestUtils.assertGeneratedBeans(selectStatement, expectedGeneratedBeans);
     }
 
     /**
-     * Test the correctness of the generated beans by a SelectExtractStatement
-     * with a SelectSomeFieldsPredicate.
+     * Test the correctness of the generated beans by a SelectStatement with a
+     * ProjectSomeFieldsPredicate.
      * Get a graph by calling getInternalOperatorBeans() and getInternalLinkBeans()
      * methods and check if the generated path form the node getInputNodeID() to 
      * the node getOutputNodeID() is correct. Also check whether getInputViews()
      * is returning the correct dependencies.  
      */
     @Test
-    public void testSelectExtractStatementBeansBuilder02() {
-        SelectPredicate selectPredicate = new SelectSomeFieldsPredicate(Arrays.asList("a", "b"));
-        SelectExtractStatement selectExtractStatement = new SelectExtractStatement("idX", selectPredicate, null, "from",
+    public void testSelectStatementBeansBuilder02() {
+        ProjectPredicate projectPredicate = new ProjectSomeFieldsPredicate(Arrays.asList("a", "b"));
+        SelectStatement selectStatement = new SelectStatement("idX", projectPredicate, null, "from",
                 null, null);
 
         List<OperatorBean> expectedGeneratedBeans = Arrays.asList(
@@ -263,23 +263,23 @@ public class SelectExtractStatementTest {
             );
         List<String> dependencies = Arrays.asList("from");
 
-        Assert.assertEquals(selectExtractStatement.getInputViews(), dependencies);
-        StatementTestUtils.assertGeneratedBeans(selectExtractStatement, expectedGeneratedBeans);
+        Assert.assertEquals(selectStatement.getInputViews(), dependencies);
+        StatementTestUtils.assertGeneratedBeans(selectStatement, expectedGeneratedBeans);
     }
 
     /**
-     * Test the correctness of the generated beans by a SelectExtractStatement
-     * with a KeywordExtractPredicate.
+     * Test the correctness of the generated beans by a SelectStatement with a
+     * KeywordExtractPredicate.
      * Get a graph by calling getInternalOperatorBeans() and getInternalLinkBeans()
      * methods and check if the generated path form the node getInputNodeID() to 
      * the node getOutputNodeID() is correct. Also check whether getInputViews()
      * is returning the correct dependencies.  
      */
     @Test
-    public void testSelectExtractStatementBeansBuilder03() {
+    public void testSelectStatementBeansBuilder03() {
         ExtractPredicate extractPredicate = new KeywordExtractPredicate(Arrays.asList("c", "d"), "word",
                 KeywordMatchingType.SUBSTRING_SCANBASED.toString());
-        SelectExtractStatement selectExtractStatement = new SelectExtractStatement("id", null, extractPredicate, 
+        SelectStatement selectStatement = new SelectStatement("id", null, extractPredicate, 
                 "TableP9", null, null);
 
         List<OperatorBean> expectedGeneratedBeans = Arrays.asList(
@@ -288,24 +288,24 @@ public class SelectExtractStatementTest {
             );
         List<String> dependencies = Arrays.asList("TableP9");
 
-        Assert.assertEquals(selectExtractStatement.getInputViews(), dependencies);
-        StatementTestUtils.assertGeneratedBeans(selectExtractStatement, expectedGeneratedBeans);
+        Assert.assertEquals(selectStatement.getInputViews(), dependencies);
+        StatementTestUtils.assertGeneratedBeans(selectStatement, expectedGeneratedBeans);
     }
 
     /**
-     * Test the correctness of the generated beans by a SelectExtractStatement
-     * with a SelectAllFieldsPredicate and a KeywordExtractPredicate.
+     * Test the correctness of the generated beans by a SelectStatement with a
+     * ProjectAllFieldsPredicate and a KeywordExtractPredicate.
      * Get a graph by calling getInternalOperatorBeans() and getInternalLinkBeans()
      * methods and check if the generated path form the node getInputNodeID() to 
      * the node getOutputNodeID() is correct. Also check whether getInputViews()
      * is returning the correct dependencies.  
      */
     @Test
-    public void testSelectExtractStatementBeansBuilder04() {
-        SelectPredicate selectPredicate = new SelectAllFieldsPredicate();
+    public void testSelectStatementBeansBuilder04() {
+        ProjectPredicate projectPredicate = new ProjectAllFieldsPredicate();
         ExtractPredicate extractPredicate = new KeywordExtractPredicate(Arrays.asList("f1"), "keyword", 
                 KeywordMatchingType.CONJUNCTION_INDEXBASED.toString());
-        SelectExtractStatement selectExtractStatement = new SelectExtractStatement("id", selectPredicate,
+        SelectStatement selectStatement = new SelectStatement("id", projectPredicate,
                 extractPredicate, "source", null, null);
 
         List<OperatorBean> expectedGeneratedBeans = Arrays.asList(
@@ -314,24 +314,24 @@ public class SelectExtractStatementTest {
                 );
         List<String> dependencies = Arrays.asList("source");
 
-        Assert.assertEquals(selectExtractStatement.getInputViews(), dependencies);
-        StatementTestUtils.assertGeneratedBeans(selectExtractStatement, expectedGeneratedBeans);
+        Assert.assertEquals(selectStatement.getInputViews(), dependencies);
+        StatementTestUtils.assertGeneratedBeans(selectStatement, expectedGeneratedBeans);
     }
 
     /**
-     * Test the correctness of the generated beans by a SelectExtractStatement
-     * with a SelectAllFieldsPredicate and a KeywordExtractPredicate.
+     * Test the correctness of the generated beans by a SelectStatement with a
+     * ProjectAllFieldsPredicate and a KeywordExtractPredicate.
      * Get a graph by calling getInternalOperatorBeans() and getInternalLinkBeans()
      * methods and check if the generated path form the node getInputNodeID() to 
      * the node getOutputNodeID() is correct. Also check whether getInputViews()
      * is returning the correct dependencies.  
      */
     @Test
-    public void testSelectExtractStatementBeansBuilder05() {
-        SelectPredicate selectPredicate = new SelectSomeFieldsPredicate(Arrays.asList("a", "b"));
+    public void testSelectStatementBeansBuilder05() {
+        ProjectPredicate projectPredicate = new ProjectSomeFieldsPredicate(Arrays.asList("a", "b"));
         ExtractPredicate extractPredicate = new KeywordExtractPredicate(Arrays.asList("a", "b"), "x", 
                 KeywordMatchingType.SUBSTRING_SCANBASED.toString());
-        SelectExtractStatement selectExtractStatement = new SelectExtractStatement("_sid4", selectPredicate,
+        SelectStatement selectStatement = new SelectStatement("_sid4", projectPredicate,
                 extractPredicate, "from", null, null);
 
         List<OperatorBean> expectedGeneratedBeans = Arrays.asList(
@@ -341,7 +341,7 @@ public class SelectExtractStatementTest {
             );
         List<String> dependencies = Arrays.asList("from");
 
-        Assert.assertEquals(selectExtractStatement.getInputViews(), dependencies);
-        StatementTestUtils.assertGeneratedBeans(selectExtractStatement, expectedGeneratedBeans);
+        Assert.assertEquals(selectStatement.getInputViews(), dependencies);
+        StatementTestUtils.assertGeneratedBeans(selectStatement, expectedGeneratedBeans);
     }
 }

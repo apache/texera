@@ -33,7 +33,7 @@ import edu.uci.ics.textdb.plangen.operatorbuilder.KeywordMatcherBuilder;
 import edu.uci.ics.textdb.plangen.operatorbuilder.NlpExtractorBuilder;
 import edu.uci.ics.textdb.plangen.operatorbuilder.OperatorBuilderUtils;
 import edu.uci.ics.textdb.plangen.operatorbuilder.RegexMatcherBuilder;
-import edu.uci.ics.textdb.storage.relation.RelationManager;
+import edu.uci.ics.textdb.storage.RelationManager;
 import junit.framework.Assert;
 
 public class LogicalPlanTest {
@@ -98,9 +98,9 @@ public class LogicalPlanTest {
     public static HashMap<String, String> joinProperties = new HashMap<String, String>() {
         {
             put(JoinBuilder.JOIN_PREDICATE, "CharacterDistance");
-            put(JoinBuilder.JOIN_DISTANCE, "100");
-            put(JoinBuilder.JOIN_ID_ATTRIBUTE_NAME, "id");
-            put(OperatorBuilderUtils.ATTRIBUTE_NAMES, "content");
+            put(JoinBuilder.JOIN_THRESHOLD, "100");
+            put(JoinBuilder.JOIN_INNER_ATTR_NAME, "content");
+            put(JoinBuilder.JOIN_OUTER_ATTR_NAME, "content");
         }
     };
 

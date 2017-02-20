@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import org.apache.lucene.search.MatchAllDocsQuery;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -20,7 +19,8 @@ import edu.uci.ics.textdb.dataflow.nlpextrator.NlpExtractor;
 import edu.uci.ics.textdb.dataflow.nlpextrator.NlpPredicate;
 import edu.uci.ics.textdb.dataflow.source.ScanBasedSourceOperator;
 import edu.uci.ics.textdb.dataflow.utils.TestUtils;
-import edu.uci.ics.textdb.storage.relation.RelationManager;
+import edu.uci.ics.textdb.storage.DataWriter;
+import edu.uci.ics.textdb.storage.RelationManager;
 
 /**
  * @author Feng [sam0227]
@@ -50,8 +50,17 @@ public class NlpExtractorTest {
     // table is cleared after each test case
     @After
     public void deleteData() throws TextDBException {
-        RelationManager.getRelationManager().deleteTuples(ONE_SENTENCE_TABLE, new MatchAllDocsQuery());
-        RelationManager.getRelationManager().deleteTuples(TWO_SENTENCE_TABLE, new MatchAllDocsQuery());
+        RelationManager relationManager = RelationManager.getRelationManager();
+        
+        DataWriter oneSentenceDataWriter = relationManager.getTableDataWriter(ONE_SENTENCE_TABLE);
+        oneSentenceDataWriter.open();
+        oneSentenceDataWriter.clearData();
+        oneSentenceDataWriter.close();
+        
+        DataWriter twoSentenceDataWriter = relationManager.getTableDataWriter(TWO_SENTENCE_TABLE);
+        twoSentenceDataWriter.open();
+        twoSentenceDataWriter.clearData();
+        twoSentenceDataWriter.close();
     }
     
     /**
@@ -101,9 +110,13 @@ public class NlpExtractorTest {
     @Test
     public void getNextTupleTest1() throws Exception {
         List<ITuple> data = NlpExtractorTestConstants.getTest1Tuple();
+        
+        DataWriter oneSentenceDataWriter = RelationManager.getRelationManager().getTableDataWriter(ONE_SENTENCE_TABLE);
+        oneSentenceDataWriter.open();
         for (ITuple tuple : data) {
-            RelationManager.getRelationManager().insertTuple(ONE_SENTENCE_TABLE, tuple);
+            oneSentenceDataWriter.insertTuple(tuple);
         }
+        oneSentenceDataWriter.close();
 
         String attribute1 = NlpExtractorTestConstants.SENTENCE_ONE;
         List<String> attributeNames = new ArrayList<>();
@@ -124,9 +137,13 @@ public class NlpExtractorTest {
     @Test
     public void getNextTupleTest2() throws Exception {
         List<ITuple> data = NlpExtractorTestConstants.getTest2Tuple();
+
+        DataWriter oneSentenceDataWriter = RelationManager.getRelationManager().getTableDataWriter(ONE_SENTENCE_TABLE);
+        oneSentenceDataWriter.open();
         for (ITuple tuple : data) {
-            RelationManager.getRelationManager().insertTuple(ONE_SENTENCE_TABLE, tuple);
+            oneSentenceDataWriter.insertTuple(tuple);
         }
+        oneSentenceDataWriter.close();
         
         String attribute1 = NlpExtractorTestConstants.SENTENCE_ONE;
         List<String> attributeNames = new ArrayList<>();
@@ -149,9 +166,13 @@ public class NlpExtractorTest {
     @Test
     public void getNextTupleTest3() throws Exception {
         List<ITuple> data = NlpExtractorTestConstants.getTest3Tuple();
+
+        DataWriter oneSentenceDataWriter = RelationManager.getRelationManager().getTableDataWriter(ONE_SENTENCE_TABLE);
+        oneSentenceDataWriter.open();
         for (ITuple tuple : data) {
-            RelationManager.getRelationManager().insertTuple(ONE_SENTENCE_TABLE, tuple);
+            oneSentenceDataWriter.insertTuple(tuple);
         }
+        oneSentenceDataWriter.close();
         
         String attribute1 = NlpExtractorTestConstants.SENTENCE_ONE;
         List<String> attributeNames = new ArrayList<>();
@@ -177,9 +198,13 @@ public class NlpExtractorTest {
     @Test
     public void getNextTupleTest4() throws Exception {
         List<ITuple> data = NlpExtractorTestConstants.getTest4Tuple();
+
+        DataWriter twoSentenceDataWriter = RelationManager.getRelationManager().getTableDataWriter(TWO_SENTENCE_TABLE);
+        twoSentenceDataWriter.open();
         for (ITuple tuple : data) {
-            RelationManager.getRelationManager().insertTuple(TWO_SENTENCE_TABLE, tuple);
+            twoSentenceDataWriter.insertTuple(tuple);
         }
+        twoSentenceDataWriter.close();
         
         String attribute1 = NlpExtractorTestConstants.SENTENCE_ONE;
         String attribute2 = NlpExtractorTestConstants.SENTENCE_TWO;
@@ -207,9 +232,13 @@ public class NlpExtractorTest {
     @Test
     public void getNextTupleTest5() throws Exception {
         List<ITuple> data = NlpExtractorTestConstants.getTest4Tuple();
+
+        DataWriter twoSentenceDataWriter = RelationManager.getRelationManager().getTableDataWriter(TWO_SENTENCE_TABLE);
+        twoSentenceDataWriter.open();
         for (ITuple tuple : data) {
-            RelationManager.getRelationManager().insertTuple(TWO_SENTENCE_TABLE, tuple);
+            twoSentenceDataWriter.insertTuple(tuple);
         }
+        twoSentenceDataWriter.close();
         
         String attribute = NlpExtractorTestConstants.SENTENCE_TWO;
         List<String> attributeNames = new ArrayList<>();
@@ -235,9 +264,13 @@ public class NlpExtractorTest {
     @Test
     public void getNextTupleTest6() throws Exception {
         List<ITuple> data = NlpExtractorTestConstants.getTest4Tuple();
+
+        DataWriter twoSentenceDataWriter = RelationManager.getRelationManager().getTableDataWriter(TWO_SENTENCE_TABLE);
+        twoSentenceDataWriter.open();
         for (ITuple tuple : data) {
-            RelationManager.getRelationManager().insertTuple(TWO_SENTENCE_TABLE, tuple);
+            twoSentenceDataWriter.insertTuple(tuple);
         }
+        twoSentenceDataWriter.close();
 
         String attribute1 = NlpExtractorTestConstants.SENTENCE_ONE;
         String attribute2 = NlpExtractorTestConstants.SENTENCE_TWO;
@@ -264,10 +297,14 @@ public class NlpExtractorTest {
     @Test
     public void getNextTupleTest7() throws Exception {
         List<ITuple> data = NlpExtractorTestConstants.getTest7Tuple();
-        for (ITuple tuple : data) {
-            RelationManager.getRelationManager().insertTuple(ONE_SENTENCE_TABLE, tuple);
-        }
 
+        DataWriter oneSentenceDataWriter = RelationManager.getRelationManager().getTableDataWriter(ONE_SENTENCE_TABLE);
+        oneSentenceDataWriter.open();
+        for (ITuple tuple : data) {
+            oneSentenceDataWriter.insertTuple(tuple);
+        }
+        oneSentenceDataWriter.close();
+        
         String attribute1 = NlpExtractorTestConstants.SENTENCE_ONE;
 
         List<String> attributeNames = new ArrayList<>();
@@ -285,9 +322,13 @@ public class NlpExtractorTest {
     @Test
     public void getNextTupleTest8() throws Exception {
         List<ITuple> data = NlpExtractorTestConstants.getTest8Tuple();
+
+        DataWriter oneSentenceDataWriter = RelationManager.getRelationManager().getTableDataWriter(ONE_SENTENCE_TABLE);
+        oneSentenceDataWriter.open();
         for (ITuple tuple : data) {
-            RelationManager.getRelationManager().insertTuple(ONE_SENTENCE_TABLE, tuple);
+            oneSentenceDataWriter.insertTuple(tuple);
         }
+        oneSentenceDataWriter.close();
 
         String attribute1 = NlpExtractorTestConstants.SENTENCE_ONE;
 
@@ -304,9 +345,13 @@ public class NlpExtractorTest {
     @Test
     public void getNextTupleTest9() throws Exception {
         List<ITuple> data = NlpExtractorTestConstants.getTest9Tuple();
+
+        DataWriter twoSentenceDataWriter = RelationManager.getRelationManager().getTableDataWriter(TWO_SENTENCE_TABLE);
+        twoSentenceDataWriter.open();
         for (ITuple tuple : data) {
-            RelationManager.getRelationManager().insertTuple(TWO_SENTENCE_TABLE, tuple);
+            twoSentenceDataWriter.insertTuple(tuple);
         }
+        twoSentenceDataWriter.close();
 
         String attribute1 = NlpExtractorTestConstants.SENTENCE_ONE;
         String attribute2 = NlpExtractorTestConstants.SENTENCE_TWO;
@@ -326,9 +371,13 @@ public class NlpExtractorTest {
     @Test
     public void getNextTupleTest10() throws Exception {
         List<ITuple> data = NlpExtractorTestConstants.getOneSentenceTestTuple();
+
+        DataWriter oneSentenceDataWriter = RelationManager.getRelationManager().getTableDataWriter(ONE_SENTENCE_TABLE);
+        oneSentenceDataWriter.open();
         for (ITuple tuple : data) {
-            RelationManager.getRelationManager().insertTuple(ONE_SENTENCE_TABLE, tuple);
+            oneSentenceDataWriter.insertTuple(tuple);
         }
+        oneSentenceDataWriter.close();
         
         String attribute1 = NlpExtractorTestConstants.SENTENCE_ONE;
         List<String> attributeNames = Arrays.asList(attribute1);
@@ -342,9 +391,13 @@ public class NlpExtractorTest {
     @Test
     public void getNextTupleTest11() throws Exception {
         List<ITuple> data = NlpExtractorTestConstants.getTwoSentenceTestTuple();
+        
+        DataWriter twoSentenceDataWriter = RelationManager.getRelationManager().getTableDataWriter(TWO_SENTENCE_TABLE);
+        twoSentenceDataWriter.open();
         for (ITuple tuple : data) {
-            RelationManager.getRelationManager().insertTuple(TWO_SENTENCE_TABLE, tuple);
+            twoSentenceDataWriter.insertTuple(tuple);
         }
+        twoSentenceDataWriter.close();
         
         String attribute1 = NlpExtractorTestConstants.SENTENCE_ONE;
         String attribute2 = NlpExtractorTestConstants.SENTENCE_TWO;
@@ -360,9 +413,13 @@ public class NlpExtractorTest {
     
     public void getNextTupleTestWithLimit() throws Exception {
         List<ITuple> data = NlpExtractorTestConstants.getOneSentenceTestTuple();
+
+        DataWriter oneSentenceDataWriter = RelationManager.getRelationManager().getTableDataWriter(ONE_SENTENCE_TABLE);
+        oneSentenceDataWriter.open();
         for (ITuple tuple : data) {
-            RelationManager.getRelationManager().insertTuple(ONE_SENTENCE_TABLE, tuple);
+            oneSentenceDataWriter.insertTuple(tuple);
         }
+        oneSentenceDataWriter.close();
         
         String attribute1 = NlpExtractorTestConstants.SENTENCE_ONE;
         List<String> attributeNames = Arrays.asList(attribute1);
@@ -379,9 +436,13 @@ public class NlpExtractorTest {
     
     public void getNextTupleTestWithLimitOffset() throws Exception {
         List<ITuple> data = NlpExtractorTestConstants.getOneSentenceTestTuple();
+
+        DataWriter oneSentenceDataWriter = RelationManager.getRelationManager().getTableDataWriter(ONE_SENTENCE_TABLE);
+        oneSentenceDataWriter.open();
         for (ITuple tuple : data) {
-            RelationManager.getRelationManager().insertTuple(ONE_SENTENCE_TABLE, tuple);
+            oneSentenceDataWriter.insertTuple(tuple);
         }
+        oneSentenceDataWriter.close();
         
         String attribute1 = NlpExtractorTestConstants.SENTENCE_ONE;
         List<String> attributeNames = Arrays.asList(attribute1);

@@ -2,6 +2,7 @@ package edu.uci.ics.textdb.dataflow.common;
 
 import edu.uci.ics.textdb.api.common.ITuple;
 import edu.uci.ics.textdb.api.common.Schema;
+import edu.uci.ics.textdb.common.exception.DataFlowException;
 
 /**
  * IJoinOperator is the interface for the classes implementing predicates for 
@@ -11,10 +12,12 @@ import edu.uci.ics.textdb.api.common.Schema;
  */
 public interface IJoinPredicate {
 
-	String getIDAttributeName();
-
-	String getJoinAttributeName();
-
 	ITuple joinTuples(ITuple outerTuple, ITuple innerTuple, Schema outputSchema)
 			throws Exception;
+	
+	Schema generateOutputSchema(Schema outerOperatorSchema, Schema innerOperatorSchema) throws DataFlowException;
+	
+	String getInnerAttributeName();
+	
+	String getOuterAttributeName();
 }

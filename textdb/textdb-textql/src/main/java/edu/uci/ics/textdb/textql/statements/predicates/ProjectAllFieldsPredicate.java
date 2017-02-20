@@ -9,14 +9,14 @@ import edu.uci.ics.textdb.web.request.beans.OperatorBean;
  * @author Flavio Bayer
  *
  */
-public class SelectAllFieldsPredicate implements SelectPredicate {
+public class ProjectAllFieldsPredicate implements ProjectPredicate {
 
     /**
      * Return this operator converted to an { @code OperatorBean }.
-     * @param selectOperatorId The ID of the OperatorBean to be created.
+     * @param projectOperatorId The ID of the OperatorBean to be created.
      */
-    public OperatorBean generateOperatorBean(String selectOperatorId) {
-        return new PassThroughBean(selectOperatorId, "PassThrough");
+    public OperatorBean generateOperatorBean(String projectOperatorId) {
+        return new PassThroughBean(projectOperatorId, "PassThrough");
     }
     
     
@@ -24,7 +24,7 @@ public class SelectAllFieldsPredicate implements SelectPredicate {
     public boolean equals(Object other) {
         if (other == null) { return false; }
         if (other.getClass() != getClass()) { return false; }
-        SelectAllFieldsPredicate selectAllPredicate = (SelectAllFieldsPredicate) other;
+        ProjectAllFieldsPredicate projectAllFieldsPredicate = (ProjectAllFieldsPredicate) other;
         return true;
     }
 }

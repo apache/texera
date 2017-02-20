@@ -3,7 +3,6 @@ package edu.uci.ics.textdb.perftest.medline;
 import java.text.ParseException;
 import java.util.ArrayList;
 
-import org.apache.lucene.analysis.Analyzer;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -12,14 +11,14 @@ import edu.uci.ics.textdb.api.common.FieldType;
 import edu.uci.ics.textdb.api.common.IField;
 import edu.uci.ics.textdb.api.common.ITuple;
 import edu.uci.ics.textdb.api.common.Schema;
-import edu.uci.ics.textdb.api.dataflow.ISink;
 import edu.uci.ics.textdb.api.dataflow.ISourceOperator;
+import edu.uci.ics.textdb.api.exception.TextDBException;
 import edu.uci.ics.textdb.api.plan.Plan;
-import edu.uci.ics.textdb.api.storage.IDataStore;
 import edu.uci.ics.textdb.common.field.DataTuple;
 import edu.uci.ics.textdb.common.utils.Utils;
 import edu.uci.ics.textdb.dataflow.sink.IndexSink;
 import edu.uci.ics.textdb.dataflow.source.FileSourceOperator;
+import edu.uci.ics.textdb.storage.RelationManager;
 
 /*
  * This class defines Medline data schema.
@@ -73,21 +72,21 @@ public class MedlineIndexWriter {
 
     /**
      * This function generates a plan that reads a file using
-     * FileSourceOperator, then writes index using IndexSink.
+     * FileSourceOperator, then writes index to the table using IndexSink.
+     * 
+     * the table must be pre-created (it must already exist)
      * 
      * @param filePath,
      *            path of the file to be read
-     * @param dataStore,
-     *            dataStore of the index to be written into
-     * @param luceneAnalyzer
+     * @param tableName,
+     *            table name of the table to be written into (must already exist)
      * @return the plan to write a Medline index
-     * @throws Exception
+     * @throws TextDBException
      */
-    public static Plan getMedlineIndexPlan(String filePath, IDataStore dataStore, Analyzer luceneAnalyzer)
-            throws Exception {
-        IndexSink medlineIndexSink = new IndexSink(dataStore.getDataDirectory(), dataStore.getSchema(), luceneAnalyzer, false);
+    public static Plan getMedlineIndexPlan(String filePath, String tableName) throws TextDBException {
+        IndexSink medlineIndexSink = new IndexSink(tableName, false);
         ISourceOperator fileSourceOperator = new FileSourceOperator(filePath, (s -> recordToTuple(s)),
-                dataStore.getSchema());
+                RelationManager.getRelationManager().getTableSchema(tableName));
         medlineIndexSink.setInputOperator(fileSourceOperator);
 
         Plan writeIndexPlan = new Plan(medlineIndexSink);

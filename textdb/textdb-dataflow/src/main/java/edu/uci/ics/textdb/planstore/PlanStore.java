@@ -13,8 +13,11 @@ import edu.uci.ics.textdb.common.field.IDField;
 import edu.uci.ics.textdb.common.field.StringField;
 import edu.uci.ics.textdb.common.utils.Utils;
 import edu.uci.ics.textdb.plangen.LogicalPlan;
-import edu.uci.ics.textdb.storage.relation.RelationManager;
+import edu.uci.ics.textdb.storage.DataWriter;
+import edu.uci.ics.textdb.storage.RelationManager;
+
 import org.apache.lucene.index.Term;
+import org.apache.lucene.search.MatchAllDocsQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.TermQuery;
 
@@ -96,7 +99,11 @@ public class PlanStore {
                 new StringField(description),
                 new StringField(filePath));
 
-        IDField id = relationManager.insertTuple(PlanStoreConstants.TABLE_NAME, tuple);
+        DataWriter dataWriter = relationManager.getTableDataWriter(PlanStoreConstants.TABLE_NAME);
+        dataWriter.open();
+        IDField id = dataWriter.insertTuple(tuple);
+        dataWriter.close();
+        
         writePlanObject(plan, filePath);
 
         return id;
@@ -112,7 +119,7 @@ public class PlanStore {
     public ITuple getPlan(String planName) throws TextDBException {
         Query q = new TermQuery(new Term(PlanStoreConstants.NAME, planName));
 
-        IDataReader reader = relationManager.getTuples(PlanStoreConstants.TABLE_NAME, q);
+        IDataReader reader = relationManager.getTableDataReader(PlanStoreConstants.TABLE_NAME, q);
         reader.open();
 
         ITuple inputTuple = null;
@@ -136,7 +143,7 @@ public class PlanStore {
      * @throws TextDBException
      */
     public IDataReader getPlanIterator() throws TextDBException {
-        return relationManager.scanTable(PlanStoreConstants.TABLE_NAME);
+        return relationManager.getTableDataReader(PlanStoreConstants.TABLE_NAME, new MatchAllDocsQuery());
     }
 
     /**
@@ -152,9 +159,13 @@ public class PlanStore {
             return;
         }
 
-        IField idField = plan.getField(SchemaConstants._ID);
-        relationManager.deleteTuple(PlanStoreConstants.TABLE_NAME, idField);
-
+        IDField idField = (IDField) plan.getField(SchemaConstants._ID);
+        
+        DataWriter dataWriter = relationManager.getTableDataWriter(PlanStoreConstants.TABLE_NAME);        
+        dataWriter.open();
+        dataWriter.deleteTupleByID(idField);
+        dataWriter.close();
+        
         IField filePathField = plan.getField(PlanStoreConstants.FILE_PATH);
         deletePlanObject(filePathField.getValue().toString());
     }
@@ -211,13 +222,16 @@ public class PlanStore {
         }
 
         if (description != null) {
-            IField idField = existingPlan.getField(SchemaConstants._ID);
+            IDField idField = (IDField) existingPlan.getField(SchemaConstants._ID);
             IField descriptionField = new StringField(description);
             ITuple newTuple = new DataTuple(PlanStoreConstants.SCHEMA_PLAN,
                     new StringField(planName),
                     descriptionField,
                     existingPlan.getField(PlanStoreConstants.FILE_PATH));
-            relationManager.updateTuple(PlanStoreConstants.TABLE_NAME, newTuple, (IDField) idField);
+            DataWriter dataWriter = relationManager.getTableDataWriter(PlanStoreConstants.TABLE_NAME);
+            dataWriter.open();
+            dataWriter.updateTuple(newTuple, idField);
+            dataWriter.close();
         }
 
         if (plan != null) {

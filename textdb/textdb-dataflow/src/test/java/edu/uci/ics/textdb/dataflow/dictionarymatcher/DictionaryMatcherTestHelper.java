@@ -10,32 +10,49 @@ import edu.uci.ics.textdb.api.common.ITuple;
 import edu.uci.ics.textdb.api.exception.TextDBException;
 import edu.uci.ics.textdb.common.constants.LuceneAnalyzerConstants;
 import edu.uci.ics.textdb.common.constants.TestConstants;
+import edu.uci.ics.textdb.common.constants.TestConstantsChinese;
 import edu.uci.ics.textdb.common.constants.DataConstants.KeywordMatchingType;
 import edu.uci.ics.textdb.common.exception.DataFlowException;
 import edu.uci.ics.textdb.dataflow.common.DictionaryPredicate;
 import edu.uci.ics.textdb.dataflow.source.ScanBasedSourceOperator;
 import edu.uci.ics.textdb.dataflow.utils.TestUtils;
-import edu.uci.ics.textdb.storage.relation.RelationManager;
+import edu.uci.ics.textdb.storage.DataWriter;
+import edu.uci.ics.textdb.storage.RelationManager;
 
 public class DictionaryMatcherTestHelper {
     
     public static final String PEOPLE_TABLE = "dictionary_test_people";
+    public static final String CHINESE_TABLE = "dictionary_test_chinese";
     
     public static void writeTestTables() throws TextDBException {
         RelationManager relationManager = RelationManager.getRelationManager();
         
         // create the people table and write tuples
         relationManager.createTable(PEOPLE_TABLE, "../index/test_tables/" + PEOPLE_TABLE, 
-                TestConstants.SCHEMA_PEOPLE, LuceneAnalyzerConstants.standardAnalyzerString());        
+                TestConstants.SCHEMA_PEOPLE, LuceneAnalyzerConstants.standardAnalyzerString());
+        
+        DataWriter peopleDataWriter = relationManager.getTableDataWriter(PEOPLE_TABLE);
+        peopleDataWriter.open();
         for (ITuple tuple : TestConstants.getSamplePeopleTuples()) {
-            relationManager.insertTuple(PEOPLE_TABLE, tuple);
+            peopleDataWriter.insertTuple(tuple);
         }
+        peopleDataWriter.close();
           
+        // create the people table and write tuples in Chinese
+        relationManager.createTable(CHINESE_TABLE, "../index/test_tables/" + CHINESE_TABLE, 
+                TestConstantsChinese.SCHEMA_PEOPLE, LuceneAnalyzerConstants.chineseAnalyzerString());
+        DataWriter chineseDataWriter = relationManager.getTableDataWriter(CHINESE_TABLE);
+        chineseDataWriter.open();
+        for (ITuple tuple : TestConstantsChinese.getSamplePeopleTuples()) {
+            chineseDataWriter.insertTuple(tuple);
+        }
+        chineseDataWriter.close();
     }
     
     public static void deleteTestTables() throws TextDBException {
         RelationManager relationManager = RelationManager.getRelationManager();
         relationManager.deleteTable(PEOPLE_TABLE);
+        relationManager.deleteTable(CHINESE_TABLE);
     }
     
     public static List<ITuple> getQueryResults(String tableName, IDictionary dictionary, List<String> attributeNames,

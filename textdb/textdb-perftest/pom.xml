@@ -89,8 +89,14 @@
             <artifactId>mockito-all</artifactId>
             <version>1.9.5</version>
         </dependency>
-
-
     </dependencies>
+
+    <build>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+            </resource>
+        </resources>
+    </build>
 
 </project>

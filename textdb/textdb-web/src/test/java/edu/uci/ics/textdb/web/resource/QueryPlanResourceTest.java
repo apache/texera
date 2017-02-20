@@ -3,7 +3,7 @@ package edu.uci.ics.textdb.web.resource;
 import edu.uci.ics.textdb.api.common.Attribute;
 import edu.uci.ics.textdb.api.common.FieldType;
 import edu.uci.ics.textdb.api.common.Schema;
-import edu.uci.ics.textdb.storage.relation.RelationManager;
+import edu.uci.ics.textdb.storage.RelationManager;
 import edu.uci.ics.textdb.web.TextdbWebApplication;
 import edu.uci.ics.textdb.web.TextdbWebConfiguration;
 import io.dropwizard.client.JerseyClientBuilder;

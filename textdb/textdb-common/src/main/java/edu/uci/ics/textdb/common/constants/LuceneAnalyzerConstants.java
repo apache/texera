@@ -3,6 +3,7 @@ package edu.uci.ics.textdb.common.constants;
 import java.io.IOException;
 
 import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.analysis.cn.smart.SmartChineseAnalyzer;
 import org.apache.lucene.analysis.core.LowerCaseFilterFactory;
 import org.apache.lucene.analysis.custom.CustomAnalyzer;
 import org.apache.lucene.analysis.ngram.NGramTokenizerFactory;
@@ -23,10 +24,13 @@ public class LuceneAnalyzerConstants {
     public static String standardAnalyzerString() {
         return "standard";
     }
-
     
     public static String nGramAnalyzerString(int gramNum) {
         return gramNum + "-gram";
+    }
+    
+    public static String chineseAnalyzerString() {
+        return "smartchinese";
     }
     
     /**
@@ -52,6 +56,8 @@ public class LuceneAnalyzerConstants {
             } catch (NumberFormatException e) {
                 throw new DataFlowException(luceneAnalyzerString + " is not a valid lucene analyzer");
             }
+        } else if (luceneAnalyzerString.equals("smartchinese")) {
+            return new SmartChineseAnalyzer();
         }
         throw new DataFlowException(luceneAnalyzerString + " is not a valid lucene analyzer");
     }
