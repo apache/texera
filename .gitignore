@@ -25,3 +25,8 @@ plan_files/
 # Ignoring Mac OSX specific files
 .DS_Store
 
+# Ignoring Angular2 locally built files
+node_modules/
+bower_components/
+textdb-angular-gui/app/*.js
+textdb-angular-gui/app/*.map
