@@ -3,20 +3,10 @@ package edu.uci.ics.textdb.dataflow.common;
 import java.util.List;
 
 import org.apache.lucene.analysis.Analyzer;
-import org.apache.lucene.queryparser.classic.ParseException;
-import org.apache.lucene.queryparser.classic.QueryParser;
-import org.apache.lucene.search.Query;
 
 import edu.uci.ics.textdb.api.common.IDictionary;
 import edu.uci.ics.textdb.api.common.IPredicate;
-import edu.uci.ics.textdb.api.storage.IDataReader;
-import edu.uci.ics.textdb.api.storage.IDataStore;
-import edu.uci.ics.textdb.common.constants.DataConstants;
 import edu.uci.ics.textdb.common.constants.DataConstants.KeywordMatchingType;
-import edu.uci.ics.textdb.common.exception.DataFlowException;
-import edu.uci.ics.textdb.dataflow.source.ScanBasedSourceOperator;
-import edu.uci.ics.textdb.storage.DataReaderPredicate;
-import edu.uci.ics.textdb.storage.reader.DataReader;
 
 public class DictionaryPredicate implements IPredicate {
 

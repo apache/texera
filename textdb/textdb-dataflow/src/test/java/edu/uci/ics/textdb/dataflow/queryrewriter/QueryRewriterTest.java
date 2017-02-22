@@ -8,7 +8,6 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import edu.uci.ics.textdb.api.common.ITuple;
-import edu.uci.ics.textdb.dataflow.utils.TestUtils;
 
 /**
  * Created by kishorenarendran on 25/04/16. Testing QueryRewriter This test

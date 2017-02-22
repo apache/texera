@@ -1,6 +1,5 @@
 package edu.uci.ics.textdb.dataflow.regexmatch;
 
-import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.List;
 

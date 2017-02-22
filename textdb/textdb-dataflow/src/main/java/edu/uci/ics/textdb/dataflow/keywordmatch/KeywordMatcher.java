@@ -24,13 +24,11 @@ import edu.uci.ics.textdb.dataflow.common.KeywordPredicate;
 public class KeywordMatcher extends AbstractSingleInputOperator {
 
     private KeywordPredicate predicate;
-    private String query;
 
     private Schema inputSchema;
 
     public KeywordMatcher(KeywordPredicate predicate) {
         this.predicate = predicate;
-        this.query = predicate.getQuery();
     }
 
     @Override
@@ -108,8 +106,8 @@ public class KeywordMatcher extends AbstractSingleInputOperator {
 
             // for STRING type, the query should match the fieldValue completely
             if (fieldType == FieldType.STRING) {
-                if (fieldValue.equals(query)) {
-                    Span span = new Span(fieldName, 0, query.length(), query, fieldValue);
+                if (fieldValue.equals(predicate.getQuery())) {
+                    Span span = new Span(fieldName, 0, predicate.getQuery().length(), predicate.getQuery(), fieldValue);
                     matchingResults.add(span);
                 }
             }
@@ -153,8 +151,8 @@ public class KeywordMatcher extends AbstractSingleInputOperator {
 
             // for STRING type, the query should match the fieldValue completely
             if (fieldType == FieldType.STRING) {
-                if (fieldValue.equals(query)) {
-                    matchingResults.add(new Span(fieldName, 0, query.length(), query, fieldValue));
+                if (fieldValue.equals(predicate.getQuery())) {
+                    matchingResults.add(new Span(fieldName, 0, predicate.getQuery().length(), predicate.getQuery(), fieldValue));
                 }
             }
 
@@ -217,7 +215,7 @@ public class KeywordMatcher extends AbstractSingleInputOperator {
                     int combinedSpanStartIndex = fieldSpanList.get(iter).getStart();
                     int combinedSpanEndIndex = fieldSpanList.get(iter + queryTokenList.size() - 1).getEnd();
 
-                    Span combinedSpan = new Span(fieldName, combinedSpanStartIndex, combinedSpanEndIndex, query,
+                    Span combinedSpan = new Span(fieldName, combinedSpanStartIndex, combinedSpanEndIndex, predicate.getQuery(),
                             fieldValue.substring(combinedSpanStartIndex, combinedSpanEndIndex));
                     matchingResults.add(combinedSpan);
                     iter = iter + queryTokenList.size();
@@ -249,20 +247,20 @@ public class KeywordMatcher extends AbstractSingleInputOperator {
 
             // for STRING type, the query should match the fieldValue completely
             if (fieldType == FieldType.STRING) {
-                if (fieldValue.equals(query)) {
-                    matchingResults.add(new Span(fieldName, 0, query.length(), query, fieldValue));
+                if (fieldValue.equals(predicate.getQuery())) {
+                    matchingResults.add(new Span(fieldName, 0, predicate.getQuery().length(), predicate.getQuery(), fieldValue));
                 }
             }
 
             if (fieldType == FieldType.TEXT) {
-                String regex = query.toLowerCase();
+                String regex = predicate.getQuery().toLowerCase();
                 Pattern pattern = Pattern.compile(regex, Pattern.CASE_INSENSITIVE);
                 Matcher matcher = pattern.matcher(fieldValue.toLowerCase());
                 while (matcher.find()) {
                     int start = matcher.start();
                     int end = matcher.end();
 
-                    matchingResults.add(new Span(fieldName, start, end, query, fieldValue.substring(start, end)));
+                    matchingResults.add(new Span(fieldName, start, end, predicate.getQuery(), fieldValue.substring(start, end)));
                 }
             }
 

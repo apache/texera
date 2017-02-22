@@ -12,7 +12,8 @@ import edu.uci.ics.textdb.common.exception.DataFlowException;
 import edu.uci.ics.textdb.dataflow.common.RegexPredicate;
 import edu.uci.ics.textdb.dataflow.source.ScanBasedSourceOperator;
 import edu.uci.ics.textdb.dataflow.utils.TestUtils;
-import edu.uci.ics.textdb.storage.relation.RelationManager;
+import edu.uci.ics.textdb.storage.DataWriter;
+import edu.uci.ics.textdb.storage.RelationManager;
 
 /**
  * @author zuozhi
@@ -32,31 +33,47 @@ public class RegexMatcherTestHelper {
         
         // create the people table and write tuples
         relationManager.createTable(PEOPLE_TABLE, "../index/test_tables/" + PEOPLE_TABLE, 
-                TestConstants.SCHEMA_PEOPLE, LuceneAnalyzerConstants.nGramAnalyzerString(3));        
+                TestConstants.SCHEMA_PEOPLE, LuceneAnalyzerConstants.nGramAnalyzerString(3));
+
+        DataWriter peopleDataWriter = relationManager.getTableDataWriter(PEOPLE_TABLE);
+        peopleDataWriter.open();
         for (ITuple tuple : TestConstants.getSamplePeopleTuples()) {
-            relationManager.insertTuple(PEOPLE_TABLE, tuple);
+            peopleDataWriter.insertTuple(tuple);
         }
+        peopleDataWriter.close();
         
         // create the corporation table and write tuples
         relationManager.createTable(CORP_TABLE, "../index/test_tables/" + CORP_TABLE,
-                RegexTestConstantsCorp.SCHEMA_CORP, LuceneAnalyzerConstants.nGramAnalyzerString(3));       
+                RegexTestConstantsCorp.SCHEMA_CORP, LuceneAnalyzerConstants.nGramAnalyzerString(3));
+
+        DataWriter corpDataWriter = relationManager.getTableDataWriter(CORP_TABLE);
+        corpDataWriter.open();
         for (ITuple tuple : RegexTestConstantsCorp.getSampleCorpTuples()) {
-            relationManager.insertTuple(CORP_TABLE, tuple);
+            corpDataWriter.insertTuple(tuple);
         }
+        corpDataWriter.close();
         
         // create the staff table
         relationManager.createTable(STAFF_TABLE, "../index/tests/" + STAFF_TABLE,
-                RegexTestConstantStaff.SCHEMA_STAFF, LuceneAnalyzerConstants.nGramAnalyzerString(3));       
+                RegexTestConstantStaff.SCHEMA_STAFF, LuceneAnalyzerConstants.nGramAnalyzerString(3));
+
+        DataWriter staffDataWriter = relationManager.getTableDataWriter(STAFF_TABLE);
+        staffDataWriter.open();
         for (ITuple tuple : RegexTestConstantStaff.getSampleStaffTuples()) {
-            relationManager.insertTuple(STAFF_TABLE, tuple);
+            staffDataWriter.insertTuple(tuple);
         }
+        staffDataWriter.close();
         
         // create the text table
         relationManager.createTable(TEXT_TABLE, "../index/tests/" + TEXT_TABLE,
-                RegexTestConstantsText.SCHEMA_TEXT, LuceneAnalyzerConstants.nGramAnalyzerString(3));       
+                RegexTestConstantsText.SCHEMA_TEXT, LuceneAnalyzerConstants.nGramAnalyzerString(3));
+
+        DataWriter textDataWriter = relationManager.getTableDataWriter(TEXT_TABLE);
+        textDataWriter.open();
         for (ITuple tuple : RegexTestConstantsText.getSampleTextTuples()) {
-            relationManager.insertTuple(TEXT_TABLE, tuple);
+            textDataWriter.insertTuple(tuple);
         }
+        textDataWriter.close();
     }
     
     public static void deleteTestTables() throws TextDBException {

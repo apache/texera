@@ -1,4 +1,4 @@
-package edu.uci.ics.textdb.storage.reader;
+package edu.uci.ics.textdb.storage;
 
 import java.io.IOException;
 import java.nio.file.Paths;
@@ -14,6 +14,7 @@ import org.apache.lucene.index.Terms;
 import org.apache.lucene.index.TermsEnum;
 import org.apache.lucene.search.DocIdSetIterator;
 import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.Directory;
@@ -32,17 +33,33 @@ import edu.uci.ics.textdb.common.field.DataTuple;
 import edu.uci.ics.textdb.common.field.ListField;
 import edu.uci.ics.textdb.common.field.Span;
 import edu.uci.ics.textdb.common.utils.Utils;
-import edu.uci.ics.textdb.storage.DataReaderPredicate;
 
 /**
+ * DataReader is the layer where TextDB handles upper-level operators' read operations
+ *   and performs corresponding operations to Lucene.
+ *   
+ * DataReader can get tuples from the Lucene index folder by a lucene query,
+ *   and return the tuples in an iterative way through "getNextTuple()"
+ * 
+ * DataReader currently has the option to append a "payload" field to a tuple, the "payload" field is a list of spans. 
+ * Each span contains the start, end, and token offset position of a token in the original document.
+ * The "payload" contains spans for EVERY token in tuple.
+ * 
+ * The purpose of the "payload" field is to make subsequent keyword match, fuzzy token match, and dictionary match faster,
+ * because they don't need to tokenize the tuple every time.
+ *   
+ * 
+ * DataReader for a specific table is only accessible from RelationManager.
+ * 
  * 
  * @author Zuozhi Wang
  *
  */
-
 public class DataReader implements IDataReader {
 
-    private DataReaderPredicate predicate;
+    private DataStore dataStore;
+    private Query query;
+    
     private Schema inputSchema;
     private Schema outputSchema;
 
@@ -52,13 +69,21 @@ public class DataReader implements IDataReader {
 
     private int cursor = CLOSED;
 
-    private int limit;
-    private int offset;
     private boolean payloadAdded;
 
-    public DataReader(DataReaderPredicate dataReaderPredicate) {
-        predicate = dataReaderPredicate;
-        payloadAdded = dataReaderPredicate.isPayloadAdded();
+    /*
+     * The package-only level constructor is only accessible inside the storage package.
+     * Only the RelationManager is allowed to constructor a DataWriter object, 
+     *  while upper-level operators can't.
+     */
+    DataReader(DataStore dataStore, Query query) {
+        this(dataStore, query, false);
+    }
+    
+    DataReader(DataStore dataStore, Query query, boolean payloadAdded) {
+        this.dataStore = dataStore;
+        this.query = query;
+        this.payloadAdded = payloadAdded;
     }
 
     @Override
@@ -67,15 +92,15 @@ public class DataReader implements IDataReader {
             return;
         }
         try {
-            String indexDirectoryStr = predicate.getDataStore().getDataDirectory();
+            String indexDirectoryStr = this.dataStore.getDataDirectory();
             Directory indexDirectory = FSDirectory.open(Paths.get(indexDirectoryStr));
             luceneIndexReader = DirectoryReader.open(indexDirectory);
             luceneIndexSearcher = new IndexSearcher(luceneIndexReader);
 
-            TopDocs topDocs = luceneIndexSearcher.search(predicate.getLuceneQuery(), Integer.MAX_VALUE);
+            TopDocs topDocs = luceneIndexSearcher.search(query, Integer.MAX_VALUE);
             scoreDocs = topDocs.scoreDocs;
 
-            inputSchema = predicate.getDataStore().getSchema();
+            inputSchema = this.dataStore.getSchema();
             if (payloadAdded) {
                 outputSchema = Utils.addAttributeToSchema(inputSchema, SchemaConstants.PAYLOAD_ATTRIBUTE);
             } else {
@@ -193,21 +218,13 @@ public class DataReader implements IDataReader {
 
         return payloadSpanList;
     }
-
-    public int getLimit() {
-        return limit;
+    
+    public boolean isPayloadAdded() {
+        return this.payloadAdded;
     }
-
-    public void setLimit(int limit) {
-        this.limit = limit;
-    }
-
-    public int getOffset() {
-        return offset;
-    }
-
-    public void setOffset(int offset) {
-        this.offset = offset;
+    
+    public void setPayloadAdded(boolean payloadAdded) {
+        this.payloadAdded = payloadAdded;
     }
 
     public Schema getOutputSchema() {

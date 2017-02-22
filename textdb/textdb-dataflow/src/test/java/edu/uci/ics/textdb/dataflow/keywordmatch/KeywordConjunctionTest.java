@@ -18,6 +18,7 @@ import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.common.constants.DataConstants.KeywordMatchingType;
 import edu.uci.ics.textdb.common.constants.SchemaConstants;
 import edu.uci.ics.textdb.common.constants.TestConstants;
+import edu.uci.ics.textdb.common.constants.TestConstantsChinese;
 import edu.uci.ics.textdb.common.field.DataTuple;
 import edu.uci.ics.textdb.common.field.DateField;
 import edu.uci.ics.textdb.common.field.DoubleField;
@@ -31,12 +32,15 @@ import edu.uci.ics.textdb.dataflow.utils.TestUtils;
 
 /**
  * @author Prakul
+ * 
+ * @author Qinhua Huang
  *
  */
 public class KeywordConjunctionTest {
 
     public static final String PEOPLE_TABLE = KeywordTestHelper.PEOPLE_TABLE;
     public static final String MEDLINE_TABLE = KeywordTestHelper.MEDLINE_TABLE;
+    public static final String CHINESE_TABLE = KeywordTestHelper.CHINESE_TABLE;
     
     public static final KeywordMatchingType conjunction = KeywordMatchingType.CONJUNCTION_INDEXBASED;
     
@@ -411,4 +415,105 @@ public class KeywordConjunctionTest {
         Assert.assertEquals(resultList.size(), 2);
         Assert.assertTrue(TestUtils.containsAll(expectedList, resultList));
     }
+    
+    
+    /**
+     * Verifies GetNextTuple of Keyword Matcher and single word queries in Text
+     * Field using Chinese.
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testSingleWordQueryInTextFieldChinese() throws Exception {
+        // Prepare the query
+        String query = "北京大学";
+        ArrayList<String> attributeNames = new ArrayList<>();
+        attributeNames.add(TestConstantsChinese.FIRST_NAME);
+        attributeNames.add(TestConstantsChinese.LAST_NAME);
+        attributeNames.add(TestConstantsChinese.DESCRIPTION);
+        
+     // Prepare the expected result list
+        List<Span> list = new ArrayList<>();
+        Span span = new Span("description", 0, 4, "北京大学", "北京大学", 0);
+        list.add(span);
+        Attribute[] schemaAttributes = new Attribute[TestConstantsChinese.ATTRIBUTES_PEOPLE.length + 1];
+
+        for (int count = 0; count < schemaAttributes.length - 1; count++) {
+            schemaAttributes[count] = TestConstantsChinese.ATTRIBUTES_PEOPLE[count];
+        }
+
+        schemaAttributes[schemaAttributes.length - 1] = SchemaConstants.SPAN_LIST_ATTRIBUTE;
+
+        IField[] fields1 = { new StringField("无忌"), new StringField("长孙"), new IntegerField(46),
+                new DoubleField(5.50), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-14-1970")),
+                new TextField("北京大学电气工程学院"), new ListField<>(list) };
+
+        IField[] fields2 = { new StringField("孔明"), new StringField("洛克贝尔"),
+                new IntegerField(42), new DoubleField(5.99),
+                new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974")), new TextField("北京大学计算机学院"),
+                new ListField<>(list) };
+        ITuple tuple1 = new DataTuple(new Schema(schemaAttributes), fields1);
+        ITuple tuple2 = new DataTuple(new Schema(schemaAttributes), fields2);
+
+        List<ITuple> expectedResultList = new ArrayList<>();
+        expectedResultList.add(tuple1);
+        expectedResultList.add(tuple2);
+
+        // Perform the query
+        List<ITuple> resultList = KeywordTestHelper.getQueryResults(CHINESE_TABLE, query, attributeNames, 
+                conjunction, Integer.MAX_VALUE, 0);
+        
+        // check the results
+        boolean contains = TestUtils.equals(expectedResultList, resultList);
+        Assert.assertTrue(contains);
+    }
+    
+    
+    /**
+     * Verifies: data source has multiple attributes, and an entity can appear
+     * in all the fields and multiple times.
+     * Test for Chinese data.
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testWordInMultipleFieldsQueryChinese() throws Exception {
+        // Prepare the query
+        String query = "建筑";
+        ArrayList<String> attributeNames = new ArrayList<>();
+        attributeNames.add(TestConstantsChinese.FIRST_NAME);
+        attributeNames.add(TestConstantsChinese.LAST_NAME);
+        attributeNames.add(TestConstantsChinese.DESCRIPTION);
+
+        // Prepare the expected result list
+        List<Span> list = new ArrayList<>();
+        Span span1 = new Span("lastName", 0, 2, "建筑", "建筑");
+        Span span2 = new Span("description", 3, 5, "建筑", "建筑", 2);
+        list.add(span1);
+        list.add(span2);
+
+        Attribute[] schemaAttributes = new Attribute[TestConstants.ATTRIBUTES_PEOPLE.length + 1];
+        for (int count = 0; count < schemaAttributes.length - 1; count++) {
+            schemaAttributes[count] = TestConstants.ATTRIBUTES_PEOPLE[count];
+        }
+        schemaAttributes[schemaAttributes.length - 1] = SchemaConstants.SPAN_LIST_ATTRIBUTE;
+
+        IField[] fields1 = { new StringField("宋江"), new StringField("建筑"),
+                new IntegerField(42), new DoubleField(5.99),
+                new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974")), 
+                new TextField("伟大的建筑是历史的坐标，具有传承的价值。"), new ListField<>(list)};
+        
+        ITuple tuple1 = new DataTuple(new Schema(schemaAttributes), fields1);
+        List<ITuple> expectedResultList = new ArrayList<>();
+        expectedResultList.add(tuple1);
+
+        // Perform the query
+        List<ITuple> resultList = KeywordTestHelper.getQueryResults(CHINESE_TABLE, query, attributeNames, 
+                conjunction, Integer.MAX_VALUE, 0);
+
+        // check the results
+        boolean contains = TestUtils.equals(expectedResultList, resultList);
+        Assert.assertTrue(contains);
+    }
+
 }

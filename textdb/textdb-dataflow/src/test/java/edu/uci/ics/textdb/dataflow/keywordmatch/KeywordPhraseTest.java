@@ -4,8 +4,6 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.lucene.analysis.Analyzer;
-import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -27,8 +25,6 @@ import edu.uci.ics.textdb.common.field.Span;
 import edu.uci.ics.textdb.common.field.StringField;
 import edu.uci.ics.textdb.common.field.TextField;
 import edu.uci.ics.textdb.dataflow.utils.TestUtils;
-import edu.uci.ics.textdb.storage.DataStore;
-import edu.uci.ics.textdb.storage.writer.DataWriter;
 
 /**
  * @author Prakul
@@ -256,15 +252,6 @@ public class KeywordPhraseTest {
      */
     @Test
     public void testWordInMultipleFieldsQueryWithStopWords3() throws Exception {
-        DataStore medDataStore = new DataStore("../index/test", keywordTestConstants.SCHEMA_MEDLINE);
-        Analyzer MedAnalyzer = new StandardAnalyzer();
-        DataWriter MedDataWriter = new DataWriter(medDataStore, MedAnalyzer);
-        MedDataWriter.clearData();
-        MedDataWriter.open();
-        for (ITuple tuple : keywordTestConstants.getSampleMedlineRecord()) {
-            MedDataWriter.insertTuple(tuple);
-        }
-        MedDataWriter.close();
         // Prepare Query
         String query = "skin rash";
         ArrayList<String> attributeNames = new ArrayList<>();
@@ -317,15 +304,6 @@ public class KeywordPhraseTest {
      */
     @Test
     public void testWordInMultipleFieldsQueryWithStopWords4() throws Exception {
-        DataStore medDataStore = new DataStore("../index/test", keywordTestConstants.SCHEMA_MEDLINE);
-        Analyzer MedAnalyzer = new StandardAnalyzer();
-        DataWriter MedDataWriter = new DataWriter(medDataStore, MedAnalyzer);
-        MedDataWriter.clearData();
-        MedDataWriter.open();
-        for (ITuple tuple : keywordTestConstants.getSampleMedlineRecord()) {
-            MedDataWriter.insertTuple(tuple);
-        }
-        MedDataWriter.close();
         // Prepare Query
         String query = "x-ray";
         ArrayList<String> attributeNames = new ArrayList<>();
@@ -373,15 +351,6 @@ public class KeywordPhraseTest {
      */
     @Test
     public void testWordInMultipleFieldsQueryWithStopWords5() throws Exception {
-        DataStore medDataStore = new DataStore("../index/test", keywordTestConstants.SCHEMA_MEDLINE);
-        Analyzer MedAnalyzer = new StandardAnalyzer();
-        DataWriter MedDataWriter = new DataWriter(medDataStore, MedAnalyzer);
-        MedDataWriter.clearData();
-        MedDataWriter.open();
-        for (ITuple tuple : keywordTestConstants.getSampleMedlineRecord()) {
-            MedDataWriter.insertTuple(tuple);
-        }
-        MedDataWriter.close();
         // Prepare Query
         String query = "gain weight";
         ArrayList<String> attributeNames = new ArrayList<>();

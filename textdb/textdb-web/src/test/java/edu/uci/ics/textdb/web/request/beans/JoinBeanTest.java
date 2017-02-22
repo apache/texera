@@ -18,15 +18,15 @@ public class JoinBeanTest {
 
     @Test
     public void testDeserialization() throws IOException {
-        final JoinBean joinBean = new JoinBean("operator1", "Join", "attributes", "10", "100", "attribute", "10");
+        final JoinBean joinBean = new JoinBean("Join_01", "Join", null, null, "inner_attr_name", "outer_attr_name",
+                "CharacterDistance", "10");
         String jsonString = "{\n" +
-                "    \"operator_id\": \"operator1\",\n" +
-                "    \"operator_type\": \"Join\",\n" +
-                "    \"attributes\":  \"attributes\",\n" +
-                "    \"limit\": \"10\",\n" +
-                "    \"offset\": \"100\",\n" +
-                "    \"id_attribute\": \"attribute\",\n" +
-                "    \"distance\": \"10\"\n" +
+                "   \"operator_id\":\"Join_01\",\n" +
+                "   \"operator_type\":\"Join\",\n" +
+                "   \"inner_attribute\":\"inner_attr_name\",\n" +
+                "   \"outer_attribute\":\"outer_attr_name\",\n" +
+                "   \"predicate_type\":\"CharacterDistance\",\n" +
+                "   \"threshold\":\"10\"\n" +
                 "}";
         JoinBean deserializedObject = MAPPER.readValue(jsonString, JoinBean.class);
         assertEquals(joinBean.equals(deserializedObject), true);
@@ -34,15 +34,15 @@ public class JoinBeanTest {
 
     @Test
     public void testInvalidDeserialization() throws IOException {
-        final JoinBean joinBean = new JoinBean("operator1", "Join", "attributes", "10", "100", "attribute", "10");
+        final JoinBean joinBean = new JoinBean("Join_01", "Join", null, null, "inner_attr_names", "outer_attr_names",
+                "CharacterDistance", "10");
         String jsonString = "{\n" +
-                "    \"operator_id\": \"operator2\",\n" +
-                "    \"operator_type\": \"Join\",\n" +
-                "    \"attributes\":  \"attributes\",\n" +
-                "    \"limit\": \"10\",\n" +
-                "    \"offset\": \"100\",\n" +
-                "    \"id_attribute\": \"attribute2\",\n" +
-                "    \"distance\": \"20\"\n" +
+                "   \"operator_id\":\"Join_01\",\n" +
+                "   \"operator_type\":\"Join\",\n" +
+                "   \"inner_attribute\":\"inner_attr_name\",\n" +
+                "   \"outer_attribute\":\"outer_attr_name\",\n" +
+                "   \"predicate_type\":\"CharacterDistance\",\n" +
+                "   \"threshold\":\"10\"\n" +
                 "}";
         JoinBean deserializedObject = MAPPER.readValue(jsonString, JoinBean.class);
         assertEquals(joinBean.equals(deserializedObject), false);

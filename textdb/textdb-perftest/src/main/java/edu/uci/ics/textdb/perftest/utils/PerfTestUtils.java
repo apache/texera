@@ -4,6 +4,8 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.net.URISyntaxException;
+import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -17,7 +19,7 @@ import edu.uci.ics.textdb.common.constants.LuceneAnalyzerConstants;
 import edu.uci.ics.textdb.engine.Engine;
 import edu.uci.ics.textdb.perftest.medline.MedlineIndexWriter;
 import edu.uci.ics.textdb.storage.DataStore;
-import edu.uci.ics.textdb.storage.relation.RelationManager;
+import edu.uci.ics.textdb.storage.RelationManager;
 
 /**
  * @author Hailey Pan
@@ -31,11 +33,24 @@ public class PerfTestUtils {
      * These default paths work only when the program is run from the directory,
      * textdb-perftest
      */
-    public static String fileFolder = "./sample-data-files/";
-    public static String standardIndexFolder = "./index/standard/";
-    public static String trigramIndexFolder = "./index/trigram/";
-    public static String resultFolder = "./perftest-files/results/";
-    public static String queryFolder = "./perftest-files/queries/";
+    public static String fileFolder;
+    public static String standardIndexFolder;
+    public static String trigramIndexFolder;
+    public static String resultFolder;
+    public static String queryFolder;
+
+
+    static {
+        try {
+            fileFolder = Paths.get(PerfTestUtils.class.getResource("/sample-data-files").toURI()).toString() + "/";
+            standardIndexFolder = Paths.get(PerfTestUtils.class.getResource("/index/standard").toURI()).toString() + "/";
+            trigramIndexFolder = Paths.get(PerfTestUtils.class.getResource("/index/trigram").toURI()).toString() + "/";
+            resultFolder = "./src/main/resources/perftest-files/results/";
+            queryFolder = Paths.get(PerfTestUtils.class.getResource("/perftest-files/queries").toURI()).toString() + "/";
+        } catch (URISyntaxException e) {
+            e.printStackTrace();
+        }
+    }
 
     /**
      * 
@@ -202,19 +217,24 @@ public class PerfTestUtils {
         RelationManager relationManager = RelationManager.getRelationManager();
         
         String tableName = fileName.replace(".txt", "");
-        
-        relationManager.deleteTable(tableName);
-        
+                
         if (indexType.equalsIgnoreCase("trigram")) {
+            tableName = tableName + "_trigram";
+            relationManager.deleteTable(tableName);
             relationManager.createTable(tableName, getTrigramIndexPath(tableName), 
                     MedlineIndexWriter.SCHEMA_MEDLINE, LuceneAnalyzerConstants.nGramAnalyzerString(3));
+            Engine.getEngine().evaluate(MedlineIndexWriter.getMedlineIndexPlan(fileFolder + fileName, tableName));
+            
         } else if (indexType.equalsIgnoreCase("standard")) {
+            relationManager.deleteTable(tableName);
             relationManager.createTable(tableName, getIndexPath(tableName), 
                     MedlineIndexWriter.SCHEMA_MEDLINE, LuceneAnalyzerConstants.standardAnalyzerString());
+            Engine.getEngine().evaluate(MedlineIndexWriter.getMedlineIndexPlan(fileFolder + fileName, tableName));
         } else {
             System.out.println("Index is not successfully written.");
             System.out.println("IndexType has to be either \"standard\" or \"trigram\"  ");
         }
+        
     }
 
     /**

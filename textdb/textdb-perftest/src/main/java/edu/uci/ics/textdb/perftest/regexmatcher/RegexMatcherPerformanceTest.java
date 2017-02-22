@@ -14,13 +14,9 @@ import edu.uci.ics.textdb.common.constants.SchemaConstants;
 import edu.uci.ics.textdb.common.field.ListField;
 import edu.uci.ics.textdb.common.field.Span;
 import edu.uci.ics.textdb.dataflow.common.RegexPredicate;
-import edu.uci.ics.textdb.dataflow.regexmatch.RegexMatcher;
 import edu.uci.ics.textdb.dataflow.regexmatch.RegexMatcherSourceOperator;
-import edu.uci.ics.textdb.dataflow.source.IndexBasedSourceOperator;
 import edu.uci.ics.textdb.perftest.medline.MedlineIndexWriter;
 import edu.uci.ics.textdb.perftest.utils.PerfTestUtils;
-import edu.uci.ics.textdb.storage.DataReaderPredicate;
-import edu.uci.ics.textdb.storage.DataStore;
 
 /*
  * 
@@ -71,7 +67,7 @@ public class RegexMatcherPerformanceTest {
             if (file.getName().startsWith(".")) {
                 continue;
             }
-            String tableName = file.getName().replace(".txt", "");
+            String tableName = file.getName().replace(".txt", "") + "_trigram";
 
             PerfTestUtils.createFile(PerfTestUtils.getResultPath(csvFile), HEADER);
             fileWriter = new FileWriter(PerfTestUtils.getResultPath(csvFile),true);

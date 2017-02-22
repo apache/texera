@@ -1,11 +1,10 @@
-package edu.uci.ics.textdb.storage.relation;
+package edu.uci.ics.textdb.storage;
 
 import java.io.File;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.index.Term;
-import org.apache.lucene.search.MatchAllDocsQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.TermQuery;
 import org.junit.Assert;
@@ -23,7 +22,7 @@ import edu.uci.ics.textdb.common.field.DataTuple;
 import edu.uci.ics.textdb.common.field.IDField;
 import edu.uci.ics.textdb.common.field.StringField;
 import edu.uci.ics.textdb.common.utils.Utils;
-import edu.uci.ics.textdb.storage.reader.DataReader;
+import edu.uci.ics.textdb.storage.RelationManager;
 
 public class RelationManagerTest {
     
@@ -192,21 +191,26 @@ public class RelationManagerTest {
         relationManager.createTable(
                 tableName, tableDirectory, tableSchema, LuceneAnalyzerConstants.standardAnalyzerString());
         
-        ITuple insertedTuple = new DataTuple(tableSchema, new StringField("test"));
-        IDField idField = relationManager.insertTuple(tableName, insertedTuple);
+        DataWriter dataWriter = relationManager.getTableDataWriter(tableName);
         
-        ITuple returnedTuple = relationManager.getTuple(tableName, idField);
+        dataWriter.open();
+        ITuple insertedTuple = new DataTuple(tableSchema, new StringField("test"));        
+        IDField idField = dataWriter.insertTuple(insertedTuple);
+        dataWriter.close();
+                
+        ITuple returnedTuple = relationManager.getTupleByID(tableName, idField);
         
         Assert.assertEquals(insertedTuple.getField("content").getValue().toString(), 
                 returnedTuple.getField("content").getValue().toString());
         
-        relationManager.deleteTuple(tableName, idField);
+        dataWriter.open();
+        dataWriter.deleteTupleByID(idField);
+        dataWriter.close();
         
-        ITuple deletedTuple = relationManager.getTuple(tableName, idField);
-        // should not reach next line because of exception
+        ITuple deletedTuple = relationManager.getTupleByID(tableName, idField);
         Assert.assertNull(deletedTuple);
         
-        relationManager.deleteTable(tableName);       
+        relationManager.deleteTable(tableName);
     }
     
     /*
@@ -225,28 +229,35 @@ public class RelationManagerTest {
         relationManager.createTable(
                 tableName, tableDirectory, tableSchema, LuceneAnalyzerConstants.standardAnalyzerString());
         
+        DataWriter dataWriter = relationManager.getTableDataWriter(tableName);
+        
+        dataWriter.open();
         ITuple insertedTuple = new DataTuple(tableSchema, new StringField("test"));
-        IDField idField = relationManager.insertTuple(tableName, insertedTuple);   
-        ITuple returnedTuple = relationManager.getTuple(tableName, idField);
+        IDField idField = dataWriter.insertTuple(insertedTuple);
+        dataWriter.close();
+        
+        ITuple returnedTuple = relationManager.getTupleByID(tableName, idField);
         
         Assert.assertEquals(insertedTuple.getField("content").getValue().toString(), 
                 returnedTuple.getField("content").getValue().toString());
         
-        
+        dataWriter.open();
         ITuple updatedTuple = new DataTuple(tableSchema, new StringField("testUpdate"));
-        relationManager.updateTuple(tableName, updatedTuple, idField);
-        ITuple returnedUpdatedTuple = relationManager.getTuple(tableName, idField);
+        dataWriter.updateTuple(updatedTuple, idField);
+        dataWriter.close();
+        ITuple returnedUpdatedTuple = relationManager.getTupleByID(tableName, idField);
         
         Assert.assertEquals(updatedTuple.getField("content").getValue().toString(), 
                 returnedUpdatedTuple.getField("content").getValue().toString());
         
-        relationManager.deleteTuple(tableName, idField);
+        dataWriter.open();
+        dataWriter.deleteTupleByID(idField);
+        dataWriter.close();
         
-        ITuple deletedTuple = relationManager.getTuple(tableName, idField);
-        // should not reach next line because of exception
+        ITuple deletedTuple = relationManager.getTupleByID(tableName, idField);
         Assert.assertNull(deletedTuple);
         
-        relationManager.deleteTable(tableName);       
+        relationManager.deleteTable(tableName);   
     }
     
     
@@ -266,18 +277,24 @@ public class RelationManagerTest {
         relationManager.createTable(
                 tableName, tableDirectory, tableSchema, LuceneAnalyzerConstants.standardAnalyzerString());
         
-        ITuple insertedTuple = new DataTuple(tableSchema, new StringField("test"), new StringField("1"));
-        relationManager.insertTuple(tableName, insertedTuple);
+        DataWriter dataWriter = relationManager.getTableDataWriter(tableName);
         
+        dataWriter.open();
+        
+        ITuple insertedTuple = new DataTuple(tableSchema, new StringField("test"), new StringField("1"));
+        dataWriter.insertTuple(insertedTuple);
+                
         ITuple insertedTuple2 = new DataTuple(tableSchema, new StringField("test"), new StringField("2"));
-        IDField idField2 = relationManager.insertTuple(tableName, insertedTuple2);
+        IDField idField2 = dataWriter.insertTuple(insertedTuple2);
         
         ITuple insertedTuple3 = new DataTuple(tableSchema, new StringField("test"), new StringField("3"));
-        relationManager.insertTuple(tableName, insertedTuple3);
+        dataWriter.insertTuple(insertedTuple3);
+        
+        dataWriter.close();
         
         // test should match all 3 tuples
         Query allTupleQuery = new TermQuery(new Term("content", "test"));
-        DataReader allTupleReader = relationManager.getTuples(tableName, allTupleQuery);
+        DataReader allTupleReader = relationManager.getTableDataReader(tableName, allTupleQuery);
         
         int tupleCounter = 0;
         allTupleReader.open();
@@ -290,9 +307,12 @@ public class RelationManagerTest {
         
         // tuple 2 should be deleted
         Query tuple2Query = new TermQuery(new Term("number", "2"));
-        relationManager.deleteTuples(tableName, tuple2Query);
         
-        ITuple deletedTuple = relationManager.getTuple(tableName, idField2);
+        dataWriter.open();
+        dataWriter.deleteTuple(tuple2Query);
+        dataWriter.close();
+        
+        ITuple deletedTuple = relationManager.getTupleByID(tableName, idField2);
         Assert.assertNull(deletedTuple);
         
         relationManager.deleteTable(tableName);       
@@ -315,19 +335,19 @@ public class RelationManagerTest {
     }
     
     /*
-     * Test deleting tuples from "table catalog" table should fail.
+     * Test trying to get the DataWriter for "table catalog" table should fail.
      */
     @Test(expected = StorageException.class)
     public void test13() throws Exception {
-        relationManager.deleteTuples(CatalogConstants.TABLE_CATALOG, new MatchAllDocsQuery());       
+        relationManager.getTableDataWriter(CatalogConstants.TABLE_CATALOG);       
     }
     
     /*
-     * Test deleting tuples from "schema catalog" table should fail.
+     * Test trying to get the DataWriter for "schema catalog" table should fail.
      */
     @Test(expected = StorageException.class)
     public void test14() throws Exception {
-        relationManager.deleteTuples(CatalogConstants.SCHEMA_CATALOG, new MatchAllDocsQuery());       
+        relationManager.getTableDataWriter(CatalogConstants.SCHEMA_CATALOG);           
     }
     
     

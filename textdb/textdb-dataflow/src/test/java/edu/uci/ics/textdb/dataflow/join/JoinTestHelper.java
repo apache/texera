@@ -4,8 +4,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import org.apache.lucene.search.MatchAllDocsQuery;
-
 import edu.uci.ics.textdb.api.common.Attribute;
 import edu.uci.ics.textdb.api.common.IField;
 import edu.uci.ics.textdb.api.common.ITuple;
@@ -14,77 +12,65 @@ import edu.uci.ics.textdb.api.dataflow.IOperator;
 import edu.uci.ics.textdb.api.exception.TextDBException;
 import edu.uci.ics.textdb.common.constants.LuceneAnalyzerConstants;
 import edu.uci.ics.textdb.common.constants.DataConstants.KeywordMatchingType;
+import edu.uci.ics.textdb.common.exception.DataFlowException;
 import edu.uci.ics.textdb.common.exception.StorageException;
 import edu.uci.ics.textdb.common.field.DataTuple;
 import edu.uci.ics.textdb.common.utils.Utils;
-import edu.uci.ics.textdb.dataflow.common.JoinDistancePredicate;
+import edu.uci.ics.textdb.dataflow.common.IJoinPredicate;
 import edu.uci.ics.textdb.dataflow.common.KeywordPredicate;
+import edu.uci.ics.textdb.dataflow.common.RegexPredicate;
 import edu.uci.ics.textdb.dataflow.keywordmatch.KeywordMatcherSourceOperator;
-import edu.uci.ics.textdb.storage.DataStore;
-import edu.uci.ics.textdb.storage.relation.RelationManager;
+import edu.uci.ics.textdb.dataflow.regexmatch.RegexMatcher;
+import edu.uci.ics.textdb.dataflow.source.ScanBasedSourceOperator;
+import edu.uci.ics.textdb.storage.DataWriter;
+import edu.uci.ics.textdb.storage.RelationManager;
 
-public class JoinDistanceHelper {
+
+public class JoinTestHelper {
     
-    public static final String BOOK_TABLE_OUTER = "join_test_book_outer";
-    public static final String BOOK_TABLE_INNER = "join_test_book_inner";
+    public static final String BOOK_TABLE = "join_test_book";
+    
+    public static final String NEWS_TABLE_OUTER = "join_test_news_outer";
+    public static final String NEWS_TABLE_INNER = "join_test_news_inner";
     
     public static void createTestTables() throws TextDBException {
         RelationManager relationManager = RelationManager.getRelationManager();
         
-        // create the two book tables
-        relationManager.createTable(BOOK_TABLE_OUTER, "../index/test_tables/" + BOOK_TABLE_OUTER, 
+        // create the book table
+        relationManager.createTable(BOOK_TABLE, "../index/test_tables/" + BOOK_TABLE, 
                 JoinTestConstants.BOOK_SCHEMA, LuceneAnalyzerConstants.standardAnalyzerString());     
-        relationManager.createTable(BOOK_TABLE_INNER, "../index/test_tables/" + BOOK_TABLE_INNER, 
-                JoinTestConstants.BOOK_SCHEMA, LuceneAnalyzerConstants.standardAnalyzerString());         
+        // data for the book table are written in each test cases
+    
+        // create the news table
+        relationManager.createTable(NEWS_TABLE_OUTER, "../index/test_tables/" + NEWS_TABLE_OUTER,
+                JoinTestConstants.NEWS_SCHEMA, LuceneAnalyzerConstants.standardAnalyzerString());
+
+        relationManager.createTable(NEWS_TABLE_INNER, "../index/test_tables/" + NEWS_TABLE_INNER,
+                JoinTestConstants.NEWS_SCHEMA, LuceneAnalyzerConstants.standardAnalyzerString());
+    
     }
-    
-    /**
-     * Inserts one or multiple tuples to the outer test table.
-     * @param tuples
-     * @throws StorageException
-     */
-    public static void insertToOuter(ITuple... tuples) throws StorageException {
+
+    public static void insertToTable(String tableName, ITuple... tuples) throws StorageException {
         RelationManager relationManager = RelationManager.getRelationManager();
-        for (int i = 0; i < tuples.length; i++) {
-            relationManager.insertTuple(BOOK_TABLE_OUTER, tuples[i]);
+        
+        DataWriter tableDataWriter = relationManager.getTableDataWriter(tableName);
+        tableDataWriter.open();
+        for (ITuple tuple : Arrays.asList(tuples)) {
+            tableDataWriter.insertTuple(tuple);
         }
+        tableDataWriter.close();
     }
-    
-    /**
-     * Inserts a list of tuples to the outer test table.
-     * @param tuples
-     * @throws StorageException
-     */
-    public static void insertToOuter(List<ITuple> tuples) throws StorageException {
+
+    public static void insertToTable(String tableName, List<ITuple> tuples) throws StorageException {
         RelationManager relationManager = RelationManager.getRelationManager();
-        for (ITuple tuple: tuples) {
-            relationManager.insertTuple(BOOK_TABLE_OUTER, tuple);
+        
+        DataWriter outerDataWriter = relationManager.getTableDataWriter(tableName);
+        outerDataWriter.open();
+        for (ITuple tuple : tuples) {
+            outerDataWriter.insertTuple(tuple);
         }
-    } 
-    
-    /**
-     * Inserts one or multiple tuples to the inner test table.
-     * @param tuples
-     * @throws StorageException
-     */
-    public static void insertToInner(ITuple... tuples) throws StorageException {
-        RelationManager relationManager = RelationManager.getRelationManager();
-        for (int i = 0; i < tuples.length; i++) {
-            relationManager.insertTuple(BOOK_TABLE_INNER, tuples[i]);
-        }
+        outerDataWriter.close();
     }
-    
-    /**
-     * Inserts a list of tuples to the inner test table.
-     * @param tuples
-     * @throws StorageException
-     */
-    public static void insertToInner(List<ITuple> tuples) throws StorageException {
-        RelationManager relationManager = RelationManager.getRelationManager();
-        for (ITuple tuple: tuples) {
-            relationManager.insertTuple(BOOK_TABLE_INNER, tuple);
-        }
-    } 
     
     /**
      * Clears the data of the inner and outer test tables.
@@ -92,18 +78,32 @@ public class JoinDistanceHelper {
      */
     public static void clearTestTables() throws TextDBException {
         RelationManager relationManager = RelationManager.getRelationManager();
-        relationManager.deleteTuples(BOOK_TABLE_OUTER, new MatchAllDocsQuery());
-        relationManager.deleteTuples(BOOK_TABLE_INNER, new MatchAllDocsQuery());      
+
+        DataWriter bookDataWriter = relationManager.getTableDataWriter(BOOK_TABLE);
+        bookDataWriter.open();
+        bookDataWriter.clearData();
+        bookDataWriter.close();
+        
+        DataWriter innerNewsDataWriter = relationManager.getTableDataWriter(NEWS_TABLE_INNER);
+        innerNewsDataWriter.open();
+        innerNewsDataWriter.clearData();
+        innerNewsDataWriter.close();
+        
+        DataWriter outerNewsDataWriter = relationManager.getTableDataWriter(NEWS_TABLE_OUTER);
+        outerNewsDataWriter.open();
+        outerNewsDataWriter.clearData();
+        outerNewsDataWriter.close();  
     }
     
     /**
-     * Deletes the two test tables: inner and outer.
+     * Deletes all test tables
      * @throws TextDBException
      */
     public static void deleteTestTables() throws TextDBException {
         RelationManager relationManager = RelationManager.getRelationManager();
-        relationManager.deleteTable(BOOK_TABLE_OUTER);
-        relationManager.deleteTable(BOOK_TABLE_INNER);
+        relationManager.deleteTable(BOOK_TABLE);
+        relationManager.deleteTable(NEWS_TABLE_OUTER);
+        relationManager.deleteTable(NEWS_TABLE_INNER);
     }
     
     /**
@@ -123,6 +123,20 @@ public class JoinDistanceHelper {
         KeywordMatcherSourceOperator keywordSource = new KeywordMatcherSourceOperator(keywordPredicate, tableName);
         return keywordSource;
     }
+
+    public static RegexMatcher getRegexMatcher(String tableName, String query, String attrName) {
+        try {
+            ScanBasedSourceOperator scanBasedSourceOperator = new ScanBasedSourceOperator(tableName);
+            RegexMatcher regexMatcher = new RegexMatcher(new RegexPredicate(query, Arrays.asList(attrName),
+                    LuceneAnalyzerConstants.getLuceneAnalyzer(LuceneAnalyzerConstants.nGramAnalyzerString(3))));
+            regexMatcher.setInputOperator(scanBasedSourceOperator);
+            return regexMatcher;
+        } catch (DataFlowException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
     
     /**
      * Wraps the logic of creating a Join Operator, getting all the results,
@@ -130,19 +144,15 @@ public class JoinDistanceHelper {
      * 
      * @param outerOp
      * @param innerOp
-     * @param idAttrName
-     * @param joinAttrName
-     * @param threshold
+     * @param joinPredicate
      * @param limit
      * @param offset
      * @return
      * @throws TextDBException
      */
     public static List<ITuple> getJoinDistanceResults(IOperator outerOp, IOperator innerOp,
-            String idAttrName, String joinAttrName, int threshold, int limit, int offset) throws TextDBException {
-        JoinDistancePredicate distancePredicate = new JoinDistancePredicate(
-                idAttrName, joinAttrName, threshold);
-        Join join = new Join(distancePredicate);
+            IJoinPredicate joinPredicate, int limit, int offset) throws TextDBException {
+        Join join = new Join(joinPredicate);
         join.setInnerInputOperator(innerOp);
         join.setOuterInputOperator(outerOp);
         join.setLimit(limit);

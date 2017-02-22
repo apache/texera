@@ -1,4 +1,4 @@
-package edu.uci.ics.textdb.storage.relation;
+package edu.uci.ics.textdb.storage;
 
 import java.io.File;
 import java.io.IOException;
@@ -14,7 +14,6 @@ import edu.uci.ics.textdb.common.field.DataTuple;
 import edu.uci.ics.textdb.common.field.IntegerField;
 import edu.uci.ics.textdb.common.field.StringField;
 import edu.uci.ics.textdb.common.utils.Utils;
-import edu.uci.ics.textdb.storage.DataStore;
 
 /**
  * CatalogConstants stores the schema and the initial tuples of the catalog manager

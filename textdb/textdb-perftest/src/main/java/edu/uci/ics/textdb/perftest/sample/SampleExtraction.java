@@ -1,11 +1,10 @@
 package edu.uci.ics.textdb.perftest.sample;
 
-import java.io.File;
+import java.io.*;
+import java.net.URISyntaxException;
+import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.Scanner;
+import java.util.*;
 
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.jsoup.Jsoup;
@@ -34,18 +33,35 @@ import edu.uci.ics.textdb.dataflow.regexmatch.RegexMatcher;
 import edu.uci.ics.textdb.dataflow.sink.FileSink;
 import edu.uci.ics.textdb.engine.Engine;
 import edu.uci.ics.textdb.perftest.promed.PromedSchema;
-import edu.uci.ics.textdb.storage.relation.RelationManager;
+import edu.uci.ics.textdb.storage.DataWriter;
+import edu.uci.ics.textdb.storage.RelationManager;
 
 public class SampleExtraction {
     
     public static final String PROMED_SAMPLE_TABLE = "promed";
         
-    public static final String promedFilesDirectory = "../textdb-perftest/sample-data-files/promed/";
-    public static final String promedIndexDirectory = "../textdb-perftest/index/standard/promed/";
-    
-    
+    public static String promedFilesDirectory;
+    public static String promedIndexDirectory;
+    public static String sampleDataFilesDirectory;
+
+    static {
+        try {
+            // Finding the absolute path to the sample data files directory and index directory
+            promedFilesDirectory = Paths.get(SampleExtraction.class.getResource("/sample-data-files/promed")
+                    .toURI())
+                    .toString();
+            promedIndexDirectory = Paths.get(SampleExtraction.class.getResource("/index/standard")
+                    .toURI())
+                    .toString() + "/promed";
+            sampleDataFilesDirectory = Paths.get(SampleExtraction.class.getResource("/sample-data-files")
+                    .toURI())
+                    .toString();
+        }
+        catch(URISyntaxException e) {
+            e.printStackTrace();
+        }
+    }
     public static void main(String[] args) throws Exception {
-        
         // write the index of data files
         // index only needs to be written once, after the first run, this function can be commented out
         writeSampleIndex();
@@ -89,10 +105,12 @@ public class SampleExtraction {
         relationManager.createTable(PROMED_SAMPLE_TABLE, promedIndexDirectory, 
                 PromedSchema.PROMED_SCHEMA, LuceneAnalyzerConstants.standardAnalyzerString());
         
+        DataWriter dataWriter = relationManager.getTableDataWriter(PROMED_SAMPLE_TABLE);
+        dataWriter.open();
         for (ITuple tuple : fileTuples) {
-            relationManager.insertTuple(PROMED_SAMPLE_TABLE, tuple);
+            dataWriter.insertTuple(tuple);
         }
-        
+        dataWriter.close();
     }
 
     /*
@@ -135,7 +153,7 @@ public class SampleExtraction {
         NlpPredicate nlpPredicateLocation = new NlpPredicate(NlpPredicate.NlpTokenType.Location, Arrays.asList(PromedSchema.CONTENT));
         NlpExtractor nlpExtractorLocation = new NlpExtractor(nlpPredicateLocation);
 
-        IJoinPredicate joinPredicatePersonLocation = new JoinDistancePredicate(PromedSchema.ID, PromedSchema.CONTENT, 100);
+        IJoinPredicate joinPredicatePersonLocation = new JoinDistancePredicate(PromedSchema.CONTENT, 100);
         Join joinPersonLocation = new Join(joinPredicatePersonLocation);
         
         ProjectionPredicate projectionPredicateIdAndSpan = new ProjectionPredicate(
@@ -144,7 +162,7 @@ public class SampleExtraction {
          
         SimpleDateFormat sdf = new SimpleDateFormat("MM-dd-yyyy-HH-mm-ss");
         FileSink fileSink = new FileSink( 
-                new File("./sample-data-files/person-location-result-" 
+                new File(sampleDataFilesDirectory + "/person-location-result-"
                 		+ sdf.format(new Date(System.currentTimeMillis())).toString() + ".txt"));
 
         fileSink.setToStringFunction((tuple -> Utils.getTupleString(tuple)));

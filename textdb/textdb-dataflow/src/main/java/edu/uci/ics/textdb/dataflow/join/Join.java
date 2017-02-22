@@ -2,14 +2,10 @@ package edu.uci.ics.textdb.dataflow.join;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
-import edu.uci.ics.textdb.api.common.Attribute;
-import edu.uci.ics.textdb.api.common.FieldType;
 import edu.uci.ics.textdb.api.common.ITuple;
 import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.api.dataflow.IOperator;
-import edu.uci.ics.textdb.common.constants.SchemaConstants;
 import edu.uci.ics.textdb.common.exception.DataFlowException;
 import edu.uci.ics.textdb.common.exception.ErrorMessages;
 import edu.uci.ics.textdb.api.exception.TextDBException;
@@ -97,7 +93,7 @@ public class Join implements IOperator {
         Schema outerOperatorSchema = outerOperator.getOutputSchema();
         outerOperator.close();
         
-        this.outputSchema = generateIntersectionSchema(innerOperatorSchema, outerOperatorSchema);
+        this.outputSchema = joinPredicate.generateOutputSchema(outerOperatorSchema, innerOperatorSchema);
         
         // load all tuples from inner operator into memory
         innerOperator.open();
@@ -125,11 +121,11 @@ public class Join implements IOperator {
     	if (cursor == CLOSED) {
             throw new DataFlowException(ErrorMessages.OPERATOR_NOT_OPENED);
         }
-    	
+
         if (resultCursor >= limit + offset - 1 || limit == 0){
             return null;
         }
-        
+
         try {
             ITuple resultTuple = null;
             while (true) {
@@ -176,7 +172,7 @@ public class Join implements IOperator {
                     shouldIGetOuterOperatorNextTuple = true;
                 }
             }
-            
+
             nextTuple = joinPredicate.joinTuples(outerTuple, innerTuple, outputSchema);
         }
         
@@ -202,48 +198,7 @@ public class Join implements IOperator {
         cursor = CLOSED;
     }
 
-    /**
-     * Create outputSchema, which is the intersection of innerOperator's schema and outerOperator's schema.
-     * The attributes have to be exactly the same (name and type) to be intersected.
-     * 
-     * InnerOperator's attributes and outerOperator's attributes must:
-     * both contain the attributes to be joined.
-     * both contain "ID" attribute. (ID attribute that user specifies in joinPredicate)
-     * both contain "spanList" attribute.
-     * 
-     * @return outputSchema
-     */
-    private Schema generateIntersectionSchema(Schema innerOperatorSchema, Schema outerOperatorSchema) throws DataFlowException {
-        List<Attribute> innerAttributes = innerOperatorSchema.getAttributes();
-        List<Attribute> outerAttributes = outerOperatorSchema.getAttributes();
-        
-        List<Attribute> intersectionAttributes = 
-                innerAttributes.stream()
-                .filter(attr -> outerAttributes.contains(attr))
-                .collect(Collectors.toList());
-        
-        Schema intersectionSchema = new Schema(intersectionAttributes.stream().toArray(Attribute[]::new));
-        
-        // check if output schema contain necessary attributes
-        if (intersectionSchema.getAttributes().isEmpty()) {
-            throw new DataFlowException("inner operator and outer operator don't share any common attributes");
-        } else if (intersectionSchema.getAttribute(joinPredicate.getJoinAttributeName()) == null) {
-            throw new DataFlowException("inner operator or outer operator doesn't contain join attribute");
-        } else if (intersectionSchema.getAttribute(joinPredicate.getIDAttributeName()) == null) {
-            throw new DataFlowException("inner operator or outer operator doesn't contain ID attribute");
-        } else if (intersectionSchema.getAttribute(SchemaConstants.SPAN_LIST) == null) {
-            throw new DataFlowException("inner operator or outer operator doesn't contain spanList attribute");
-        }
-        
-        // check if join attribute is TEXT or STRING
-        FieldType joinAttrType = intersectionSchema.getAttribute(joinPredicate.getJoinAttributeName()).getFieldType();
-        if (joinAttrType != FieldType.TEXT && joinAttrType != FieldType.STRING) {
-            throw new DataFlowException(
-                    String.format("Join attribute %s must be either TEXT or STRING.", joinPredicate.getJoinAttributeName()));
-        }
-        
-        return intersectionSchema;        
-    }
+
     
     public void setInnerInputOperator(IOperator innerInputOperator) {
         this.innerOperator = innerInputOperator;

@@ -1,12 +1,12 @@
 package edu.uci.ics.textdb.dataflow.sink;
 
 import edu.uci.ics.textdb.api.exception.TextDBException;
-import org.apache.lucene.analysis.Analyzer;
+import edu.uci.ics.textdb.common.exception.DataFlowException;
+import edu.uci.ics.textdb.common.exception.StorageException;
 
 import edu.uci.ics.textdb.api.common.ITuple;
-import edu.uci.ics.textdb.api.common.Schema;
-import edu.uci.ics.textdb.storage.DataStore;
-import edu.uci.ics.textdb.storage.writer.DataWriter;
+import edu.uci.ics.textdb.storage.DataWriter;
+import edu.uci.ics.textdb.storage.RelationManager;
 
 /**
  * IndexSink is a sink that writes tuples into an index.
@@ -18,18 +18,23 @@ public class IndexSink extends AbstractSink {
     private DataWriter dataWriter;
     private boolean isAppend = false;
 
-    public IndexSink(String indexDirectory, Schema schema, Analyzer luceneAnalyzer, boolean isAppend) {
-        DataStore dataStore = new DataStore(indexDirectory, schema);
-        this.dataWriter = new DataWriter(dataStore, luceneAnalyzer);
-        this.isAppend = isAppend;
+    public IndexSink(String tableName, boolean isAppend) throws DataFlowException {
+        try {
+            RelationManager relationManager = RelationManager.getRelationManager();
+            this.dataWriter = relationManager.getTableDataWriter(tableName);
+            this.isAppend = isAppend;
+        } catch (StorageException e) {
+            throw new DataFlowException(e);
+        }
+
     }
 
     public void open() throws TextDBException {
         super.open();
+        this.dataWriter.open();
         if (! this.isAppend) {
             this.dataWriter.clearData();
         }
-        this.dataWriter.open();
     }
 
     protected void processOneTuple(ITuple nextTuple) throws TextDBException {

@@ -15,16 +15,14 @@ import edu.uci.ics.textdb.api.common.ITuple;
 import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.api.dataflow.IOperator;
 import edu.uci.ics.textdb.api.dataflow.ISourceOperator;
-import edu.uci.ics.textdb.api.storage.IDataStore;
 import edu.uci.ics.textdb.common.constants.DataConstants.KeywordMatchingType;
 import edu.uci.ics.textdb.common.exception.DataFlowException;
 import edu.uci.ics.textdb.common.exception.StorageException;
 import edu.uci.ics.textdb.api.exception.TextDBException;
 import edu.uci.ics.textdb.dataflow.common.AbstractSingleInputOperator;
 import edu.uci.ics.textdb.dataflow.common.KeywordPredicate;
-import edu.uci.ics.textdb.storage.DataReaderPredicate;
-import edu.uci.ics.textdb.storage.reader.DataReader;
-import edu.uci.ics.textdb.storage.relation.RelationManager;
+import edu.uci.ics.textdb.storage.DataReader;
+import edu.uci.ics.textdb.storage.RelationManager;
 
 /**
  * KeywordMatcherSourceOperator is a source operator with a keyword query.
@@ -52,15 +50,14 @@ public class KeywordMatcherSourceOperator extends AbstractSingleInputOperator im
         
         this.keywordQuery = predicate.getQuery();
         
-        IDataStore dataStore = RelationManager.getRelationManager().getTableDataStore(tableName);
-        this.inputSchema = dataStore.getSchema();
+        // input schema must be specified before creating query
+        this.inputSchema = RelationManager.getRelationManager().getTableDataStore(tableName).getSchema();
         
         // generate dataReader
         Query luceneQuery = createLuceneQueryObject();
-        DataReaderPredicate dataReaderPredicate = new DataReaderPredicate(
-                luceneQuery, dataStore);
-        dataReaderPredicate.setIsPayloadAdded(true);
-        dataReader = new DataReader(dataReaderPredicate);
+
+        this.dataReader = RelationManager.getRelationManager().getTableDataReader(tableName, luceneQuery);
+        this.dataReader.setPayloadAdded(true);
         
         // generate KeywordMatcher
         keywordMatcher = new KeywordMatcher(predicate);

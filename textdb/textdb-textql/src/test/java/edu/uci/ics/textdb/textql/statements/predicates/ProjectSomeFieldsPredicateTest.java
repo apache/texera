@@ -19,7 +19,7 @@ import edu.uci.ics.textdb.web.request.beans.ProjectionBean;
  * @author Flavio Bayer
  *
  */
-public class SelectSomeFieldsPredicateTest {
+public class ProjectSomeFieldsPredicateTest {
     
     /**
      * Test the class constructor, getter and the setter methods.
@@ -50,19 +50,19 @@ public class SelectSomeFieldsPredicateTest {
      * @param projectedFields The list of projected fields to be tested.
      */
     private void assertConstructorGettersSetters(List<String> projectedFields){
-        SelectSomeFieldsPredicate selectSomeFieldsPredicate;
+        ProjectSomeFieldsPredicate projectSomeFieldsPredicate;
         
         // Check constructor
-        selectSomeFieldsPredicate = new SelectSomeFieldsPredicate(projectedFields);
-        Assert.assertEquals(selectSomeFieldsPredicate.getProjectedFields(), projectedFields);
+        projectSomeFieldsPredicate = new ProjectSomeFieldsPredicate(projectedFields);
+        Assert.assertEquals(projectSomeFieldsPredicate.getProjectedFields(), projectedFields);
         
         // Check set projectedFields to null
-        selectSomeFieldsPredicate.setProjectedFields(null);
-        Assert.assertEquals(selectSomeFieldsPredicate.getProjectedFields(), null);
+        projectSomeFieldsPredicate.setProjectedFields(null);
+        Assert.assertEquals(projectSomeFieldsPredicate.getProjectedFields(), null);
         
         // Check set projectedFields to the given list of fields
-        selectSomeFieldsPredicate.setProjectedFields(projectedFields);
-        Assert.assertEquals(selectSomeFieldsPredicate.getProjectedFields(), projectedFields);
+        projectSomeFieldsPredicate.setProjectedFields(projectedFields);
+        Assert.assertEquals(projectSomeFieldsPredicate.getProjectedFields(), projectedFields);
     }
 
     /**
@@ -75,9 +75,9 @@ public class SelectSomeFieldsPredicateTest {
     public void testGenerateOperatorBean00() {
         String operatorId = "xxx";
         List<String> projectedFields = Collections.emptyList();
-        SelectSomeFieldsPredicate selectSomeFieldsPredicate = new SelectSomeFieldsPredicate(projectedFields);
+        ProjectSomeFieldsPredicate projectSomeFieldsPredicate = new ProjectSomeFieldsPredicate(projectedFields);
         
-        OperatorBean computedProjectionBean = selectSomeFieldsPredicate.generateOperatorBean(operatorId);
+        OperatorBean computedProjectionBean = projectSomeFieldsPredicate.generateOperatorBean(operatorId);
         OperatorBean expectedProjectionBean = new ProjectionBean(operatorId, "Projection", "", null, null);
         
         Assert.assertEquals(expectedProjectionBean, computedProjectionBean);
@@ -93,9 +93,9 @@ public class SelectSomeFieldsPredicateTest {
     public void testGenerateOperatorBean01() {
         String operatorId = "zwx";
         List<String> projectedFields = Arrays.asList("field0", "field1");
-        SelectSomeFieldsPredicate selectSomeFieldsPredicate = new SelectSomeFieldsPredicate(projectedFields);
+        ProjectSomeFieldsPredicate projectSomeFieldsPredicate = new ProjectSomeFieldsPredicate(projectedFields);
         
-        OperatorBean computedProjectionBean = selectSomeFieldsPredicate.generateOperatorBean(operatorId);
+        OperatorBean computedProjectionBean = projectSomeFieldsPredicate.generateOperatorBean(operatorId);
         OperatorBean expectedProjectionBean = new ProjectionBean(operatorId, "Projection", "field0,field1", null, null);
 
         Assert.assertEquals(expectedProjectionBean, computedProjectionBean);        
@@ -111,9 +111,9 @@ public class SelectSomeFieldsPredicateTest {
     public void testGenerateOperatorBean02() {
         String operatorId = "op00";
         List<String> projectedFields = Arrays.asList("c", "a", "b");
-        SelectSomeFieldsPredicate selectSomeFieldsPredicate = new SelectSomeFieldsPredicate(projectedFields);
+        ProjectSomeFieldsPredicate projectSomeFieldsPredicate = new ProjectSomeFieldsPredicate(projectedFields);
         
-        OperatorBean computedProjectionBean = selectSomeFieldsPredicate.generateOperatorBean(operatorId);
+        OperatorBean computedProjectionBean = projectSomeFieldsPredicate.generateOperatorBean(operatorId);
         OperatorBean expectedProjectionBean = new ProjectionBean(operatorId, "Projection", "c,a,b", null, null);
         
         Assert.assertEquals(expectedProjectionBean, computedProjectionBean);   

@@ -17,7 +17,8 @@ import edu.uci.ics.textdb.api.common.ITuple;
 import edu.uci.ics.textdb.common.constants.LuceneAnalyzerConstants;
 import edu.uci.ics.textdb.common.constants.TestConstants;
 import edu.uci.ics.textdb.dataflow.utils.TestUtils;
-import edu.uci.ics.textdb.storage.relation.RelationManager;
+import edu.uci.ics.textdb.storage.DataWriter;
+import edu.uci.ics.textdb.storage.RelationManager;
 
 /**
  * @author sandeepreddy602
@@ -33,10 +34,14 @@ public class ScanBasedSourceOperatorTest {
         
         // create the people table and write tuples
         relationManager.createTable(PEOPLE_TABLE, "../index/test_tables/" + PEOPLE_TABLE, 
-                TestConstants.SCHEMA_PEOPLE, LuceneAnalyzerConstants.standardAnalyzerString());        
+                TestConstants.SCHEMA_PEOPLE, LuceneAnalyzerConstants.standardAnalyzerString());
+        
+        DataWriter peopleDataWriter = relationManager.getTableDataWriter(PEOPLE_TABLE);
+        peopleDataWriter.open();
         for (ITuple tuple : TestConstants.getSamplePeopleTuples()) {
-            relationManager.insertTuple(PEOPLE_TABLE, tuple);
-        }        
+            peopleDataWriter.insertTuple(tuple);
+        }
+        peopleDataWriter.close();
     }
 
     @AfterClass

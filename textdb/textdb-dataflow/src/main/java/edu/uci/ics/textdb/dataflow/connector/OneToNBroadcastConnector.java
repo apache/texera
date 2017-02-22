@@ -44,10 +44,10 @@ public class OneToNBroadcastConnector implements IConnector {
         this.inputTupleList = new ArrayList<>();
         inputOperatorOpened = false;
         this.outputOperatorNumber = outputOperatorNumber;
-        intializeOutputOperators();
+        initializeOutputOperators();
     }
     
-    private void intializeOutputOperators() {
+    private void initializeOutputOperators() {
         this.outputOperatorList = new ArrayList<>();
         this.outputCursorList = new ArrayList<>();
         this.outputStatusList = new ArrayList<>();
@@ -119,6 +119,7 @@ public class OneToNBroadcastConnector implements IConnector {
         boolean isAllClosed = isAllOutputOperatorClosed();
         if (isAllClosed) {
             inputOperator.close();
+            inputOperatorOpened = false;
         }
     }
     

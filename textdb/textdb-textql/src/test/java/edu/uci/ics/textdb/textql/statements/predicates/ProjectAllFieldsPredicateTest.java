@@ -14,7 +14,7 @@ import edu.uci.ics.textdb.web.request.beans.OperatorBean;
  * @author Flavio Bayer
  *
  */
-public class SelectAllFieldsPredicateTest {
+public class ProjectAllFieldsPredicateTest {
 
     /**
      * Test the generateOperatorBean method.
@@ -23,16 +23,16 @@ public class SelectAllFieldsPredicateTest {
      */
     @Test
     public void testGenerateOperatorBean() {
-        SelectAllFieldsPredicate selectAllFieldsPredicate = new SelectAllFieldsPredicate();
+        ProjectAllFieldsPredicate projectAllFieldsPredicate = new ProjectAllFieldsPredicate();
         OperatorBean projectionBean;
         String operatorId;
         
         operatorId = "xxx";
-        projectionBean = selectAllFieldsPredicate.generateOperatorBean(operatorId);
+        projectionBean = projectAllFieldsPredicate.generateOperatorBean(operatorId);
         Assert.assertEquals(projectionBean, new PassThroughBean(operatorId, "PassThrough"));
 
         operatorId = "y0a9";
-        projectionBean = selectAllFieldsPredicate.generateOperatorBean(operatorId);
+        projectionBean = projectAllFieldsPredicate.generateOperatorBean(operatorId);
         Assert.assertEquals(projectionBean, new PassThroughBean(operatorId, "PassThrough"));
     }
     

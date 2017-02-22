@@ -28,6 +28,13 @@ options {
      * The TextQL language is case-insensitive.
      */
     IGNORE_CASE = true;
+    /**
+     * Compile to an LL(2) grammar.
+     * Use 2 tokens while deciding the next semantic rule to follow.
+     * This is required due to conflicts when parsing the SELECT clause in the
+     * selectExtractStatement rule.
+     */
+    LOOKAHEAD = 2;
 }
 
 PARSER_BEGIN(TextQLParser)
@@ -44,11 +51,11 @@ import java.util.function.Consumer;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 
 import edu.uci.ics.textdb.textql.statements.Statement;
-import edu.uci.ics.textdb.textql.statements.SelectExtractStatement;
+import edu.uci.ics.textdb.textql.statements.SelectStatement;
 import edu.uci.ics.textdb.textql.statements.CreateViewStatement;
-import edu.uci.ics.textdb.textql.statements.predicates.SelectPredicate;
-import edu.uci.ics.textdb.textql.statements.predicates.SelectAllFieldsPredicate;
-import edu.uci.ics.textdb.textql.statements.predicates.SelectSomeFieldsPredicate;
+import edu.uci.ics.textdb.textql.statements.predicates.ProjectPredicate;
+import edu.uci.ics.textdb.textql.statements.predicates.ProjectAllFieldsPredicate;
+import edu.uci.ics.textdb.textql.statements.predicates.ProjectSomeFieldsPredicate;
 import edu.uci.ics.textdb.textql.statements.predicates.ExtractPredicate;
 import edu.uci.ics.textdb.textql.statements.predicates.KeywordExtractPredicate;
 
@@ -83,7 +90,6 @@ TOKEN : { < CREATE : "CREATE" > }
 TOKEN : { < DIRECTORY : "DIRECTORY" > }
 TOKEN : { < VIEW : "VIEW" > }
 TOKEN : { < SELECT : "SELECT" > }
-TOKEN : { < EXTRACT : "EXTRACT" > }
 TOKEN : { < FROM : "FROM" > }
 TOKEN : { < AS : "AS" > }
 TOKEN : { < LIMIT : "LIMIT" > }
@@ -376,8 +382,8 @@ List<Statement> mainStatementList(Consumer<Statement> statementConsumer) :
 /**
  * Consume one statement declaration from the input and generate a Statement
  * object with the parsed data. The type of statement can be either
- * SelectExtractStatement or CreateViewStatement
- * Grammar: ( <SelectExtractStatement> | <CreateViewStatement> ) ";"
+ * SelectStatement or CreateViewStatement
+ * Grammar: ( <SelectStatement> | <CreateViewStatement> ) ";"
  * @return The Statement representation of the next statement declaration
  */
 Statement statement() : 
@@ -387,7 +393,7 @@ Statement statement() :
 {
     // parse one of the types of statement
     (
-            newStatement = selectExtractStatement() 
+            newStatement = selectStatement() 
         |
             newStatement = createViewStatement()
     )
@@ -402,9 +408,9 @@ Statement statement() :
  * Consume a "CREATE VIEW" statement declaration from the input and generate a
  * CreateViewStatement object with the parsed data.
  * Examples of valid input:
- *         CREATE VIEW viewname0 AS <SelectExtractStatement>
+ *         CREATE VIEW viewname0 AS <SelectStatement>
  * Grammar: "CREATE" "VIEW" <Identifier>
- *          "AS" ( <SelectExtractStatement> )
+ *          "AS" ( <SelectStatement> )
  * @return The CreateViewStatement representation of the statement declaration
  */
 CreateViewStatement createViewStatement() : 
@@ -419,9 +425,9 @@ CreateViewStatement createViewStatement() :
     <VIEW>
     viewName = identifierLiteralToString() { createViewStatement.setId(viewName); }
     <AS>
-    // parse the inner statement (subStatement) which is a SelectExtractStatement
+    // parse the inner statement (subStatement) which is a SelectStatement
     (
-        subStatement = selectExtractStatement()
+        subStatement = selectStatement()
     ){ createViewStatement.setSubStatement(subStatement); }
     // return generated CreateViewStatement
     {
@@ -431,75 +437,66 @@ CreateViewStatement createViewStatement() :
 
 /**
  * Parse a select statement declaration from the input and generate a
- * SelectExtractStatement object with the parsed data.
+ * SelectStatement object with the parsed data.
  * Examples of valid input:
  *         SELECT * FROM t
  *         SELECT a, b, c FROM t LIMIT 1 OFFSET 8
- *         EXTRACT KEYWORDMATCH(g0, "key1") FROM k
- *         SELECT a EXTRACT KEYWORDMATCH(field, "key1") FROM k
- *         SELECT * EXTRACT KEYWORDMATCH([h6,h7,k8,k9], "key1", conjunction) FROM k LIMIT 1 OFFSET 8
+ *         SELECT KEYWORDMATCH(g0, "key1") FROM k
+ *         SELECT a, KEYWORDMATCH(field, "key1") FROM k
+ *         SELECT *, KEYWORDMATCH([h6,h7,k8,k9], "key1", conjunction) FROM k LIMIT 1 OFFSET 8
  * Grammar: (
- *              "SELECT" ( "*" | <identifierListToListString> ) ( "EXTRACT" <ExtractPredicate> )?
+ *              "SELECT" <ProjectPredicate> ( "," <ExtractPredicate> )?
  *            |
- *              "EXTRACT" <ExtractPredicate>
+ *              <ExtractPredicate>
  *          )
  *          "FROM" <Identifier>
  *          ("LIMIT" <Number> )?
  *          ("OFFSET" <Number> )?
- * @return The SelectExtractStatement representation of the statement declaration
+ * @return The SelectStatement representation of the statement declaration
  */  
-SelectExtractStatement selectExtractStatement() : 
+SelectStatement selectStatement() : 
 {
-    SelectExtractStatement selectExtractStatement = new SelectExtractStatement();
-    List<String> identifiers;
+    SelectStatement selectStatement = new SelectStatement();
+    ProjectPredicate projectPredicate;
+    ExtractPredicate extractPredicate;
     String fromClause;
     Integer limitClause;
     Integer offsetClause;
-    ExtractPredicate extractPredicate;
-    SelectPredicate selectPredicate;
 }
 {
-    { selectExtractStatement.setId(getNewStatementId()); }
-    // parse the SELECT clause or/and the EXTRACT clause
+    { selectStatement.setId(getNewStatementId()); }
+    // parse the SELECT clause
+    <SELECT>
     (
-            // parse the SELECT clause only, or parse the SELECT clause and the EXTRACT clause
+            // parse the project predicate
+            projectPredicate = projectPredicate()
+                { selectStatement.setProjectPredicate(projectPredicate); }
+            // parse the extract predicate after a project predicate (optional)
             (
-                // parse the SELECT clause
-                <SELECT> 
-                ( 
-                        <STAR> { selectPredicate = new SelectAllFieldsPredicate(); } // SELECT *
-                    | 
-                        identifiers = identifierListToListString() // SELECT a,b,...
-                            { selectPredicate = new SelectSomeFieldsPredicate(identifiers); } 
-                )
-                    { selectExtractStatement.setSelectPredicate(selectPredicate); }
-                // parse the EXTRACT clause (optional)
-                (
-                    <EXTRACT> extractPredicate = extractPredicate() // EXTRACT extractPredicate
-                        { selectExtractStatement.setExtractPredicate(extractPredicate); } 
-                )?
-            )
+                <COMMA> extractPredicate = extractPredicate()
+                    { selectStatement.setExtractPredicate(extractPredicate); }
+            )?
         |
-            // parse the EXTRACT clause only
-            <EXTRACT> extractPredicate = extractPredicate() // EXTRACT only
-                { selectExtractStatement.setExtractPredicate(extractPredicate); } 
+            // parse the extract predicate only
+            extractPredicate = extractPredicate()
+                { selectStatement.setExtractPredicate(extractPredicate); }
     )
     // parse FROM field
     <FROM> fromClause = identifierLiteralToString()
-        { selectExtractStatement.setFromClause(fromClause); }
+        { selectStatement.setFromClause(fromClause); }
     // parse LIMIT field(optional)
     (
       <LIMIT> limitClause = numberLiteralToInteger()
-        { selectExtractStatement.setLimitClause(limitClause); }
+        { selectStatement.setLimitClause(limitClause); }
     )?
     // parse OFFSET field(optional)
     (
       <OFFSET> offsetClause = numberLiteralToInteger()
-        { selectExtractStatement.setOffsetClause(offsetClause); }
+        { selectStatement.setOffsetClause(offsetClause); }
     )?
-    // return generated SelectExtractStatement
+    // return generated SelectStatement
     {
-        return selectExtractStatement;
+        return selectStatement;
     }
 }
 
@@ -507,6 +504,33 @@ SelectExtractStatement selectExtractStatement() :
 /*
  * Parse declaration of Predicates
  */
+/**
+ * Parse one project predicate from the input and generate a ProjectPredicate
+ * object with the parsed data.
+ * The type of extract predicate can be either ProjectAllFieldsPredicate or
+ * ProjectSomeFieldsPredicate.
+ * Grammar: ProjectPredicate := ( "*" | <identifierListToListString> )
+ * @return The ProjectPredicate representation of the next extract predicate
+ */
+ProjectPredicate projectPredicate() : 
+{
+    ProjectPredicate projectPredicate;
+    List<String> identifiers;
+}
+{
+    // parse the project predicate
+    (
+            <STAR> { projectPredicate = new ProjectAllFieldsPredicate(); } // *
+        | 
+            identifiers = identifierListToListString() // a,b,...
+                { projectPredicate = new ProjectSomeFieldsPredicate(identifiers); }
+    )
+    // return generated ProjectPredicate
+    {
+        return projectPredicate;
+    }
+}
+
 /**
  * Parse one extract predicate from the input and generate an ExtractPredicate
  * object with the parsed data.

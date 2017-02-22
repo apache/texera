@@ -104,4 +104,58 @@ public class JoinTestConstants {
 
     
     
+    public static final String NEWS_NUMBER = "news_number";
+    public static final String NEWS_TITLE = "news_title";
+    public static final String NEWS_BODY = "news_body";
+    
+    public static final Attribute NEWS_NUM_ATTR = new Attribute(NEWS_NUMBER, FieldType.INTEGER);
+    public static final Attribute NEWS_TITLE_ATTR = new Attribute(NEWS_TITLE, FieldType.TEXT);
+    public static final Attribute NEWS_BODY_ATTR = new Attribute(NEWS_BODY, FieldType.TEXT);
+    
+    public static final Schema NEWS_SCHEMA = new Schema(NEWS_NUM_ATTR, NEWS_TITLE_ATTR, NEWS_BODY_ATTR);
+    
+    public static List<ITuple> getNewsTuples() {
+        return Arrays.asList(
+                new DataTuple(NEWS_SCHEMA, 
+                        new IntegerField(1),
+                        new TextField("UCI marchers protest as Trump begins his presidency"),
+                        new TextField("a few hours after Donald Trump was sworn in Friday as the nation’s 45th president, "
+                                + "a line of more than 100 UC Irvine faculty members and students took to the campus "
+                                + "in pouring rain to demonstrate their opposition to his policies on immigration and "
+                                + "other issues and urge other opponents to keep organizing during Trump’s presidency.")
+                        ),
+
+                new DataTuple(NEWS_SCHEMA, 
+                        new IntegerField(2),
+                        new TextField("Alternative Facts and the Costs of Trump-Branded Reality"),
+                        new TextField("When Donald J. Trump swore the presidential oath on Friday, he assumed "
+                                + "responsibility not only for the levers of government but also for one of "
+                                + "the United States’ most valuable assets, battered though it may be: its credibility. "
+                                + "The country’s sentimental reverence for truth and its jealously guarded press freedoms, "
+                                + "while never perfect, have been as important to its global standing as the strength of "
+                                + "its military and the reliability of its currency. It’s the bedrock of that "
+                                + "American exceptionalism we’ve heard so much about for so long.")
+                        ),
+                new DataTuple(NEWS_SCHEMA, 
+                        new IntegerField(3),
+                        new TextField("Samsung Explains Note 7 Battery Explosions, And Turns Crisis Into Opportunity"),
+                        new TextField("Samsung launched the Galaxy Note 7 to record preorders and sales in August, "
+                                + "but the rosy start soon turned sour. Samsung had to initiate a recall in September of "
+                                + "the first version of the Note 7 due to faulty batteries that overheated and exploded. "
+                                + "By October it had to recall over 2 million devices and discontinue the product. "
+                                + "It’s estimated that the recall will cost Samsung $5.3 billion.")
+                        ),
+                new DataTuple(NEWS_SCHEMA,
+                        new IntegerField(4),
+                        new TextField("This is how Samsung plans to prevent future phones from catching fire"),
+                        new TextField("Samsung said that it has implemented a new eight-step testing process for "
+                                + "its lithium ion batteries, and that it’s forming a battery advisory board as well, "
+                                + "comprised of academics from Cambridge, Berkeley, and Stanford. "
+                                + "Note, this is for all lithium ion batteries in Samsung products, "
+                                + "not just Note phablets or the anticipated Galaxy S8 phone.")
+                        )
+                );
+    }
+    
+    
 }
