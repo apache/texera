@@ -1,0 +1,10 @@
+system-config.js*
+app/**/*.js
+app/**/*.map
+e2e/*.map
+node_modules
+jspm_packages
+bower_components
+aot/*
+dist/*
+yarn.lock
