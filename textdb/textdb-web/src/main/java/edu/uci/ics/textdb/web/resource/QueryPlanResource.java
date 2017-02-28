@@ -1,7 +1,6 @@
 package edu.uci.ics.textdb.web.resource;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import edu.uci.ics.textdb.api.common.ITuple;
 import edu.uci.ics.textdb.api.plan.Plan;
 import edu.uci.ics.textdb.common.utils.Utils;
@@ -10,14 +9,13 @@ import edu.uci.ics.textdb.engine.Engine;
 import edu.uci.ics.textdb.web.request.QueryPlanRequest;
 import edu.uci.ics.textdb.web.response.SampleResponse;
 
-import java.util.List;
-
 import javax.ws.rs.Consumes;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import java.util.List;
 
 /**
  * This class will be the resource class for accepting a query plan edu.uci.ics.textdb.web.request and executing the

@@ -8,25 +8,25 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * Created by kishore on 10/4/16.
  */
 public class SampleResponse {
-    private int id;
-    private String text;
+    private int code;
+    private String message;
 
     public SampleResponse() {
         // Default constructor is required for Jackson JSON serialization
     }
 
-    public SampleResponse(int id, String text) {
-        this.id = id;
-        this.text = text;
+    public SampleResponse(int code, String message) {
+        this.code = code;
+        this.message = message;
     }
 
     @JsonProperty
-    public int getId() {
-        return id;
+    public int getCode() {
+        return code;
     }
 
     @JsonProperty
-    public String getText() {
-        return text;
+    public String getMessage() {
+        return message;
     }
 }
