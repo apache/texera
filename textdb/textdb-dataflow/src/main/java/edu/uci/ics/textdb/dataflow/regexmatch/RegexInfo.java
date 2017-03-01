@@ -131,6 +131,11 @@ class RegexInfo {
             simplifyAffix(suffix, true);
         }
 
+        /**
+         * Simplification of the query tree ('match') happens at the end of every step of the algorithm.
+         */
+        GramBooleanQuery dnf = GramBooleanQuery.toDNF(match);
+        match = GramBooleanQuery.simplifyDNF(dnf);
         return this;
     }
 
