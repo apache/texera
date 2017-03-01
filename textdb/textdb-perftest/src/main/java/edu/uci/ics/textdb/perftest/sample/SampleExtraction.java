@@ -1,15 +1,5 @@
 package edu.uci.ics.textdb.perftest.sample;
 
-import java.io.*;
-import java.net.URISyntaxException;
-import java.nio.file.Paths;
-import java.text.SimpleDateFormat;
-import java.util.*;
-
-import org.apache.lucene.analysis.standard.StandardAnalyzer;
-import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
-
 import edu.uci.ics.textdb.api.common.ITuple;
 import edu.uci.ics.textdb.api.plan.Plan;
 import edu.uci.ics.textdb.common.constants.DataConstants.KeywordMatchingType;
@@ -35,6 +25,19 @@ import edu.uci.ics.textdb.engine.Engine;
 import edu.uci.ics.textdb.perftest.promed.PromedSchema;
 import edu.uci.ics.textdb.storage.DataWriter;
 import edu.uci.ics.textdb.storage.RelationManager;
+import org.apache.lucene.analysis.standard.StandardAnalyzer;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+
+import java.io.File;
+import java.net.URISyntaxException;
+import java.nio.file.FileSystemNotFoundException;
+import java.nio.file.Paths;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.Scanner;
 
 public class SampleExtraction {
     
@@ -47,17 +50,27 @@ public class SampleExtraction {
     static {
         try {
             // Finding the absolute path to the sample data files directory and index directory
-            promedFilesDirectory = Paths.get(SampleExtraction.class.getResource("/sample-data-files/promed")
-                    .toURI())
-                    .toString();
-            promedIndexDirectory = Paths.get(SampleExtraction.class.getResource("/index/standard")
-                    .toURI())
-                    .toString() + "/promed";
-            sampleDataFilesDirectory = Paths.get(SampleExtraction.class.getResource("/sample-data-files")
-                    .toURI())
-                    .toString();
+
+            // Checking if the resource is in a jar
+            String referencePath = SampleExtraction.class.getResource("").toURI().toString();
+            if(referencePath.substring(0, 3).equals("jar")) {
+                promedFilesDirectory = "../textdb-perftest/src/main/resources/sample-data-files/promed/";
+                promedIndexDirectory = "../textdb-perftest/src/main/resources/index/standard/promed/";
+                sampleDataFilesDirectory = "../textdb-perftest/src/main/resources/sample-data-files/";
+            }
+            else {
+                promedFilesDirectory = Paths.get(SampleExtraction.class.getResource("/sample-data-files/promed")
+                        .toURI())
+                        .toString();
+                promedIndexDirectory = Paths.get(SampleExtraction.class.getResource("/index/standard")
+                        .toURI())
+                        .toString() + "/promed";
+                sampleDataFilesDirectory = Paths.get(SampleExtraction.class.getResource("/sample-data-files")
+                        .toURI())
+                        .toString();
+            }
         }
-        catch(URISyntaxException e) {
+        catch(URISyntaxException | FileSystemNotFoundException e) {
             e.printStackTrace();
         }
     }
@@ -65,11 +78,11 @@ public class SampleExtraction {
         // write the index of data files
         // index only needs to be written once, after the first run, this function can be commented out
         writeSampleIndex();
-        
+
         // perform the extraction task
         extractPersonLocation();
     }
-    
+
     public static ITuple parsePromedHTML(String fileName, String content) {
         try {
             Document parsedDocument = Jsoup.parse(content);
@@ -166,21 +179,21 @@ public class SampleExtraction {
                 		+ sdf.format(new Date(System.currentTimeMillis())).toString() + ".txt"));
 
         fileSink.setToStringFunction((tuple -> Utils.getTupleString(tuple)));
-        
-        
+
+
         projectionOperatorIdAndContent1.setInputOperator(keywordSource);
-        
+
         regexMatcherPerson.setInputOperator(projectionOperatorIdAndContent1);
-        
+
         projectionOperatorIdAndContent2.setInputOperator(regexMatcherPerson);
         nlpExtractorLocation.setInputOperator(projectionOperatorIdAndContent2);
-        
+
         joinPersonLocation.setInnerInputOperator(regexMatcherPerson);
         joinPersonLocation.setOuterInputOperator(nlpExtractorLocation);
                       
         projectionOperatorIdAndSpan.setInputOperator(joinPersonLocation);
         fileSink.setInputOperator(projectionOperatorIdAndSpan);
-        
+
         Plan extractPersonPlan = new Plan(fileSink);
         Engine.getEngine().evaluate(extractPersonPlan);
     }
