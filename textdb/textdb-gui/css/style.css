@@ -17,7 +17,7 @@ body {
 	top: 0px;
 	height: 100%;
 	position: fixed;
-	width: 285px;
+	width: 248px;
 }
 
 .menu ul {
@@ -80,8 +80,13 @@ select {
 	color : black;
 }
 
-button {
+button{
+	border: 2px;
+	margin-bottom: 5px;
+	padding-bottom: 5px;
+	border-radius: 3px;
 	color : black;
+	background-color: #008000;
 }
 
 /* The Dropdown Panel after selecting an operator from menu */
@@ -109,20 +114,18 @@ li.active{
 	color: cyan;
 }
 
-button{
-	border-bottom: 5px;
-	margin-bottom: 5px;
-	padding-bottom: 5px;
+.menu button {
+	color : white;
+}
+
+#attributes button{
+	background-color: #ff471a;
+	color : white;
 }
 
 
-.matching-type, .nlp-type, .data-source, .predicate-type, .distance, .value, .attributes{
+.matching-type, .nlp-type, .data-source, .predicate-type, .threshold, .value, .attributes, .inner-attribute, .outer-attribute{
 	margin-bottom: 10px;
-}
-
-.limit , .offset{
-	margin-bottom: 10px;
-	display : none;
 }
 
 
@@ -215,19 +218,20 @@ i {
 
 /* Holds the flowchart */
 .dashboard {
-	border-top: 5px solid black;
-	background-image: url('../img/green.jpg');
-	opacity: 0.8;
+	border-top: 5px solid #303030;
+	background-image: url('../img/color.jpg');
+	/*background-image: url('../img/white-background.jpg');*/
+	/*opacity: 0.8;*/
 	margin: 0;
 	padding: 0;
 	height: 100%;
 	/*width: 100%;*/
-	left : 285px;
+	left : 248px;
 }
 
 /* Holds the attributes box */
 .popup{
-	height: 310px;
+	height: 320px;
 	width: 450px;
 	padding: 0px;
 	margin: 0px;
@@ -236,7 +240,8 @@ i {
 	position: fixed;
 	background-image: url('../img/white-background.jpg') ;
 	background-size: 100% 100%;
-	border: 1px solid black;
+	border: 2px solid #303030;
+	border-left: 3px solid #303030;
 	overflow: auto;
 }
 
@@ -265,6 +270,7 @@ i {
 #attributes button{
 	margin: 5px;
 	border: 1px solid black;
+
 }
 
 

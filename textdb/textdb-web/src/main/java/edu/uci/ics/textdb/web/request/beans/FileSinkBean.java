@@ -1,5 +1,6 @@
 package edu.uci.ics.textdb.web.request.beans;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import edu.uci.ics.textdb.plangen.operatorbuilder.FileSinkBuilder;
@@ -37,6 +38,7 @@ public class FileSinkBean extends OperatorBean {
         this.filePath = filePath;
     }
 
+    @JsonIgnore
     public HashMap<String, String> getOperatorProperties() {
         HashMap<String, String> operatorProperties = super.getOperatorProperties();
         if(operatorProperties == null || this.getFilePath() == null)

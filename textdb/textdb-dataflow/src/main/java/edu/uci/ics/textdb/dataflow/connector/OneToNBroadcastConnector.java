@@ -35,6 +35,8 @@ public class OneToNBroadcastConnector implements IConnector {
     private IOperator inputOperator;
     // an in-memory list to cache tuples from input tuple, see getNextTuple() for more details
     private ArrayList<ITuple> inputTupleList;
+    // indicates if the input operator's tuples are all consumed
+    boolean inputAllConsumed = false;
     
     /**
      * Constructs a OneToNBroadcastConnector with n output operators.
@@ -90,17 +92,24 @@ public class OneToNBroadcastConnector implements IConnector {
      * A new tuple will be fetched from input operator whenever a cursor exceeds the list size.
      */
     private ITuple getNextTuple(int outputOperatorIndex) throws TextDBException {
-        int nextPosition = outputCursorList.get(outputOperatorIndex) + 1;
-        outputCursorList.set(outputOperatorIndex, nextPosition);
+        int currentPosition = outputCursorList.get(outputOperatorIndex);
         
-        if (nextPosition < inputTupleList.size()) {
+        if (currentPosition + 1 < inputTupleList.size()) {
+            int nextPosition = currentPosition + 1;
+            outputCursorList.set(outputOperatorIndex, nextPosition);
             return inputTupleList.get(nextPosition);
         } else {
+            if (inputAllConsumed) {
+                return null;
+            }
             ITuple nextInputTuple = inputOperator.getNextTuple();
             if (nextInputTuple == null) {
+                inputAllConsumed = true;
                 return null;
             } else {
                 inputTupleList.add(nextInputTuple);
+                int nextPosition = currentPosition + 1;
+                outputCursorList.set(outputOperatorIndex, nextPosition);
                 return nextInputTuple;
             }
         }

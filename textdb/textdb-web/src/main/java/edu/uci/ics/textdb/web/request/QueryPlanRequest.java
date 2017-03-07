@@ -1,5 +1,6 @@
 package edu.uci.ics.textdb.web.request;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import edu.uci.ics.textdb.common.exception.PlanGenException;
 import edu.uci.ics.textdb.plangen.LogicalPlan;
@@ -22,7 +23,9 @@ public class QueryPlanRequest {
     private ArrayList<OperatorBean> operatorBeans;
     @JsonProperty("links")
     private ArrayList<OperatorLinkBean> operatorLinkBeans;
+    @JsonIgnore
     private HashMap<String, HashMap<String, String>> operatorProperties;
+    @JsonIgnore
     private LogicalPlan logicalPlan;
 
     public static final String GET_PROPERTIES_FUNCTION_NAME = "getOperatorProperties";
@@ -71,10 +74,12 @@ public class QueryPlanRequest {
         this.operatorLinkBeans = operatorLinkBeans;
     }
 
+    @JsonIgnore
     public HashMap<String, HashMap<String, String>> getOperatorProperties() {
         return operatorProperties;
     }
 
+    @JsonIgnore
     public LogicalPlan getLogicalPlan() {
         return logicalPlan;
     }

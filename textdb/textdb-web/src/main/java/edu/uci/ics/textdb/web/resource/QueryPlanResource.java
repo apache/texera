@@ -8,7 +8,7 @@ import edu.uci.ics.textdb.common.utils.Utils;
 import edu.uci.ics.textdb.dataflow.sink.TupleStreamSink;
 import edu.uci.ics.textdb.engine.Engine;
 import edu.uci.ics.textdb.web.request.QueryPlanRequest;
-import edu.uci.ics.textdb.web.response.SampleResponse;
+import edu.uci.ics.textdb.web.response.TextdbWebResponse;
 
 import java.util.List;
 
@@ -58,25 +58,25 @@ public class QueryPlanResource {
                 List<ITuple> results = sink.collectAllTuples();
                 sink.close();
                 
-                SampleResponse sampleResponse = new SampleResponse(0, Utils.getTupleListJSON(results).toString());
+                TextdbWebResponse textdbWebResponse = new TextdbWebResponse(0, Utils.getTupleListJSON(results).toString());
                 return Response.status(200)
-                        .entity(objectMapper.writeValueAsString(sampleResponse))
+                        .entity(objectMapper.writeValueAsString(textdbWebResponse))
                         .build();
                 
             } else {
                 // if the sink is not TupleStreamSink, execute the plan directly
                 Engine.getEngine().evaluate(plan);    
-                SampleResponse sampleResponse = new SampleResponse(0, "Plan Successfully Executed");
+                TextdbWebResponse textdbWebResponse = new TextdbWebResponse(0, "Plan Successfully Executed");
                 return Response.status(200)
-                        .entity(objectMapper.writeValueAsString(sampleResponse))
+                        .entity(objectMapper.writeValueAsString(textdbWebResponse))
                         .build();
             }
         }
         else {
             // Temporary sample response when the operator properties aggregation does not function
-            SampleResponse sampleResponse = new SampleResponse(1, "Unsuccessful");
+            TextdbWebResponse textdbWebResponse = new TextdbWebResponse(1, "Unsuccessful");
             return Response.status(400)
-                    .entity(objectMapper.writeValueAsString(sampleResponse))
+                    .entity(objectMapper.writeValueAsString(textdbWebResponse))
                     .header("Access-Control-Allow-Origin", "*")
                     .header("Access-Control-Allow-Methods", "OPTIONS,GET,PUT,POST,DELETE,HEAD")
                     .header("Access-Control-Allow-Headers", "X-Requested-With,Content-Type,Accept,Origin")

@@ -1,8 +1,9 @@
 package edu.uci.ics.textdb.web.request.beans;
 
-import java.util.HashMap;
-
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+
+import java.util.HashMap;
 
 @JsonTypeName("TupleStreamSink")
 public class TupleStreamSinkBean extends OperatorBean {
@@ -16,6 +17,7 @@ public class TupleStreamSinkBean extends OperatorBean {
     }
     
     @Override
+    @JsonIgnore
     public HashMap<String, String> getOperatorProperties() {
         HashMap<String, String> operatorProperties = super.getOperatorProperties();
         if(operatorProperties == null)

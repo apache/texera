@@ -1,8 +1,8 @@
 package edu.uci.ics.textdb.web.request.beans;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import edu.uci.ics.textdb.common.constants.DataConstants;
 import edu.uci.ics.textdb.plangen.operatorbuilder.DictionarySourceBuilder;
 import edu.uci.ics.textdb.plangen.operatorbuilder.OperatorBuilderUtils;
 import org.apache.commons.lang3.builder.EqualsBuilder;
@@ -65,6 +65,7 @@ public class DictionarySourceBean extends OperatorBean {
         this.dataSource = dataSource;
     }
 
+    @JsonIgnore
     public HashMap<String, String> getOperatorProperties() {
         HashMap<String, String> operatorProperties = super.getOperatorProperties();
         if(this.getDictionary() == null || this.getMatchingType() == null || this.getDataSource() == null ||

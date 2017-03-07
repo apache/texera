@@ -98,6 +98,7 @@ var main = function(){
 	$('.attribute-hide').hover(beginhover,endhover);
 	$('.Wiki').hover(beginhover,endhover);
 
+	$('.create-operator').hover(beginpanelhover,endpanelhover);
 
 
 	// $('.icon-close').click(closeMenu);

@@ -1,5 +1,6 @@
 package edu.uci.ics.textdb.web.request.beans;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import edu.uci.ics.textdb.plangen.operatorbuilder.RegexMatcherBuilder;
@@ -38,6 +39,7 @@ public class RegexMatcherBean extends OperatorBean {
     }
 
     @Override
+    @JsonIgnore
     public HashMap<String, String> getOperatorProperties() {
         HashMap<String, String> operatorProperties = super.getOperatorProperties();
         if(this.getRegex() == null || operatorProperties == null)

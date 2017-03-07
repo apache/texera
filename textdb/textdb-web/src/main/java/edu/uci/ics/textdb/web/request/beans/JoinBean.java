@@ -1,8 +1,8 @@
 package edu.uci.ics.textdb.web.request.beans;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import edu.uci.ics.textdb.dataflow.join.Join;
 import edu.uci.ics.textdb.plangen.operatorbuilder.JoinBuilder;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
@@ -79,6 +79,7 @@ public class JoinBean extends OperatorBean {
         this.threshold = threshold;
     }
 
+    @JsonIgnore
     public HashMap<String, String> getOperatorProperties() {
         HashMap<String, String> operatorProperties = super.getOperatorProperties();
         if(this.getInnerAttribute() == null || this.getOuterAttribute() == null || this.getThreshold() == null ||

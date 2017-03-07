@@ -1,10 +1,9 @@
 package edu.uci.ics.textdb.web.request.beans;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
 import java.util.HashMap;
-
-import org.apache.commons.lang3.builder.EqualsBuilder;
 
 /**
  * This class defines the properties/data members specific to the Projection operator
@@ -23,6 +22,7 @@ public class ProjectionBean extends OperatorBean {
     }
     
     @Override
+    @JsonIgnore
     public HashMap<String, String> getOperatorProperties() {
         HashMap<String, String> operatorProperties = super.getOperatorProperties();
         if(operatorProperties == null)
