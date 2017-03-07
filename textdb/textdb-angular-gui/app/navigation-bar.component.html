@@ -2,13 +2,13 @@
 	<a class="navbar-brand" href="#">TextDB</a>
 </div>
 
-<div class="collapse navbar-collapse"> 
+<div class="collapse navbar-collapse">
 	<div class="nav navbar-nav navbar-left btn-toolbar">
 		<button type="button" class="btn btn-default navbar-btn active">Editor</button>
 		<button type="button" class="btn btn-default navbar-btn">History</button>
 	</div>
-	
-	<div class="nav navbar-nav navbar-right btn-toolbar">		
+
+	<div class="nav navbar-nav navbar-right btn-toolbar">
 		<div class="btn-group navbar-btn" dropdown>
 			<button id="single-button" type="button" class="btn btn-primary" dropdownToggle>+</button>
 			<ul dropdownMenu role="menu" aria-labelledby="single-button">
@@ -20,7 +20,7 @@
 			</ul>
 		</div>
 
-		<button type="button" class="btn btn-default navbar-btn">-</button>
+		<button type="button" class="btn btn-default navbar-btn delete-button" (click) = "DeleteOp()">-</button>
 		<button type="button" class="btn btn-default navbar-btn">Check</button>
 
 	</div>
