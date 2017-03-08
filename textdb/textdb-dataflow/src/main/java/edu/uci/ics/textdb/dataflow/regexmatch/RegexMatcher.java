@@ -123,7 +123,7 @@ public class RegexMatcher extends AbstractSingleInputOperator {
         List<Span> matchingResults = new ArrayList<>();
 
         for (String fieldName : attributeNames) {
-            FieldType fieldType = inputSchema.getAttribute(fieldName).getFieldType();
+            FieldType fieldType = inputSchema.getAttribute(fieldName).getAttributeType();
             String fieldValue = inputTuple.getField(fieldName).getValue().toString();
 
             // types other than TEXT and STRING: throw Exception for now

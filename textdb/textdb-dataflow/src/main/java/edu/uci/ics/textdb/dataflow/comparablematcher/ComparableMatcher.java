@@ -48,7 +48,7 @@ public class ComparableMatcher<T extends Comparable> extends AbstractSingleInput
         Attribute attribute = predicate.getAttribute();
         DataConstants.NumberMatchingType operatorType = predicate.getMatchingType();
 
-        FieldType fieldType = attribute.getFieldType();
+        FieldType fieldType = attribute.getAttributeType();
         String fieldName = attribute.getAttributeName();
 
         T value;

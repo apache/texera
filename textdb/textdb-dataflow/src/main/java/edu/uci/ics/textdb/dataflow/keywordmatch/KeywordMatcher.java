@@ -96,7 +96,7 @@ public class KeywordMatcher extends AbstractSingleInputOperator {
         List<Span> matchingResults = new ArrayList<>();
 
         for (String fieldName : this.predicate.getAttributeNames()) {
-            FieldType fieldType = this.inputSchema.getAttribute(fieldName).getFieldType();
+            FieldType fieldType = this.inputSchema.getAttribute(fieldName).getAttributeType();
             String fieldValue = sourceTuple.getField(fieldName).getValue().toString();
 
             // types other than TEXT and STRING: throw Exception for now
@@ -141,7 +141,7 @@ public class KeywordMatcher extends AbstractSingleInputOperator {
         List<Span> matchingResults = new ArrayList<>();
 
         for (String fieldName : this.predicate.getAttributeNames()) {
-            FieldType fieldType = this.inputSchema.getAttribute(fieldName).getFieldType();
+            FieldType fieldType = this.inputSchema.getAttribute(fieldName).getAttributeType();
             String fieldValue = sourceTuple.getField(fieldName).getValue().toString();
 
             // types other than TEXT and STRING: throw Exception for now
@@ -237,7 +237,7 @@ public class KeywordMatcher extends AbstractSingleInputOperator {
         List<Span> matchingResults = new ArrayList<>();
 
         for (String fieldName : this.predicate.getAttributeNames()) {
-            FieldType fieldType = this.inputSchema.getAttribute(fieldName).getFieldType();
+            FieldType fieldType = this.inputSchema.getAttribute(fieldName).getAttributeType();
             String fieldValue = sourceTuple.getField(fieldName).getValue().toString();
 
             // types other than TEXT and STRING: throw Exception for now

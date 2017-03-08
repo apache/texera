@@ -63,7 +63,7 @@ public class MedlineIndexWriter {
         JSONObject json = new JSONObject(record);
         ArrayList<IField> fieldList = new ArrayList<IField>();
         for (Attribute attr : ATTRIBUTES_MEDLINE) {
-            fieldList.add(Utils.getField(attr.getFieldType(), json.get(attr.getAttributeName()).toString()));
+            fieldList.add(Utils.getField(attr.getAttributeType(), json.get(attr.getAttributeName()).toString()));
         }
         IField[] fieldArray = new IField[fieldList.size()];
         ITuple tuple = new DataTuple(SCHEMA_MEDLINE, fieldList.toArray(fieldArray));

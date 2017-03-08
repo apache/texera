@@ -136,7 +136,7 @@ public class JoinDistancePredicate implements IJoinPredicate {
         }
         
         // check if join attribute is TEXT or STRING
-        FieldType joinAttrType = intersectionSchema.getAttribute(this.joinAttributeName).getFieldType();
+        FieldType joinAttrType = intersectionSchema.getAttribute(this.joinAttributeName).getAttributeType();
         if (joinAttrType != FieldType.TEXT && joinAttrType != FieldType.STRING) {
             throw new DataFlowException(
                     String.format("Join attribute %s must be either TEXT or STRING.", this.joinAttributeName));

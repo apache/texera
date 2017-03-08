@@ -238,7 +238,7 @@ public class DictionaryMatcherSourceOperator implements ISourceOperator {
 
         for (String fieldName : attributeNames) {
             String fieldValue = sourceTuple.getField(fieldName).getValue().toString();
-            FieldType fieldType = inputSchema.getAttribute(fieldName).getFieldType();
+            FieldType fieldType = inputSchema.getAttribute(fieldName).getAttributeType();
 
             // if attribute type is not TEXT, then key needs to match the
             // fieldValue exactly

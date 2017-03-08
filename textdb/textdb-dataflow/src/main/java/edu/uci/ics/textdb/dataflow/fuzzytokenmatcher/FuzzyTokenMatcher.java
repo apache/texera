@@ -88,7 +88,7 @@ public class FuzzyTokenMatcher extends AbstractSingleInputOperator {
          * returned is 15. So we need to filter those 5 spans for attribute B.
          */
         for (String fieldName : this.predicate.getAttributeNames()) {
-            FieldType fieldType = this.inputSchema.getAttribute(fieldName).getFieldType();   
+            FieldType fieldType = this.inputSchema.getAttribute(fieldName).getAttributeType();
             
             // types other than TEXT and STRING: throw Exception for now
             if (fieldType != FieldType.TEXT && fieldType != FieldType.STRING) {

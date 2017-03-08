@@ -366,7 +366,7 @@ public class Utils {
             } else {
                 sb.append(attribute.getAttributeName());
                 sb.append("(");
-                sb.append(attribute.getFieldType().toString());
+                sb.append(attribute.getAttributeType().toString());
                 sb.append(")");
                 sb.append(": ");
                 sb.append(tuple.getField(attribute.getAttributeName()).getValue().toString());
@@ -452,7 +452,7 @@ public class Utils {
 
     public static List<Span> generatePayloadFromTuple(ITuple tuple, Analyzer luceneAnalyzer) {
         List<Span> tuplePayload = tuple.getSchema().getAttributes().stream()
-                .filter(attr -> (attr.getFieldType() == FieldType.TEXT)) // generate payload only for TEXT field
+                .filter(attr -> (attr.getAttributeType() == FieldType.TEXT)) // generate payload only for TEXT field
                 .map(attr -> attr.getAttributeName())
                 .map(fieldName -> generatePayload(fieldName, tuple.getField(fieldName).getValue().toString(),
                         luceneAnalyzer))
