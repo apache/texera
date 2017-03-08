@@ -197,7 +197,7 @@ public class JoinDistanceTest {
         double thresholdRatio = 0.25;
         List<String> textAttributeNames = JoinTestConstants.BOOK_SCHEMA.getAttributes().stream()
                 .filter(attr -> attr.getFieldType() != FieldType.TEXT)
-                .map(Attribute::getFieldName).collect(Collectors.toList());
+                .map(Attribute::getAttributeName).collect(Collectors.toList());
         FuzzyTokenPredicate fuzzyPredicateInner = new FuzzyTokenPredicate(fuzzyTokenQuery, textAttributeNames,
                 LuceneAnalyzerConstants.getStandardAnalyzer(), thresholdRatio);
         FuzzyTokenMatcherSourceOperator fuzzyMatcherInner = new FuzzyTokenMatcherSourceOperator(fuzzyPredicateInner, BOOK_TABLE);

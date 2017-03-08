@@ -96,7 +96,7 @@ public class SimilarityJoinPredicate implements IJoinPredicate {
         outputAttributeList.add(SchemaConstants._ID_ATTRIBUTE);
         
         for (Attribute attr : innerOperatorSchema.getAttributes()) {
-            String attrName = attr.getFieldName();
+            String attrName = attr.getAttributeName();
             FieldType attrType = attr.getFieldType();
             // ignore _id, spanList, and payload
             if (attrName.equals(SchemaConstants._ID) || attrName.equals(SchemaConstants.SPAN_LIST) 
@@ -106,7 +106,7 @@ public class SimilarityJoinPredicate implements IJoinPredicate {
             outputAttributeList.add(new Attribute(INNER_PREFIX + attrName, attrType));
         }
         for (Attribute attr : outerOperatorSchema.getAttributes()) {
-            String attrName = attr.getFieldName();
+            String attrName = attr.getAttributeName();
             FieldType attrType = attr.getFieldType();
             // ignore _id, spanList, and payload
             if (attrName.equals(SchemaConstants._ID) || attrName.equals(SchemaConstants.SPAN_LIST) 

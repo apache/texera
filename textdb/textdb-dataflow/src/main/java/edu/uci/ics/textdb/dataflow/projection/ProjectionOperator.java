@@ -28,7 +28,7 @@ public class ProjectionOperator extends AbstractSingleInputOperator {
         List<Attribute> outputAttributes = 
                 inputSchema.getAttributes()
                 .stream()
-                .filter(attr -> predicate.getProjectionFields().contains(attr.getFieldName().toLowerCase()))
+                .filter(attr -> predicate.getProjectionFields().contains(attr.getAttributeName().toLowerCase()))
                 .collect(Collectors.toList());
         
         if (outputAttributes.size() != predicate.getProjectionFields().size()) {
@@ -52,7 +52,7 @@ public class ProjectionOperator extends AbstractSingleInputOperator {
         IField[] outputFields =
                 outputSchema.getAttributes()
                         .stream()
-                        .map(attr -> inputTuple.getField(attr.getFieldName()))
+                        .map(attr -> inputTuple.getField(attr.getAttributeName()))
                         .toArray(IField[]::new);
 
         return new DataTuple(outputSchema, outputFields);
