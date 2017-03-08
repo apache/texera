@@ -20,9 +20,11 @@ export class SideBarComponent {
     constructor(private currentDataService: CurrentDataService) {
         currentDataService.newAddition$.subscribe(
             data => {
+                this.submitted = false;
                 this.data = data.operatorData;
                 this.operatorId = data.operatorNum;
                 this.operator = data.operatorData.properties.title;
+                this.attributes = [];
                 for(var attribute in data.operatorData.properties.attributes){
                     this.attributes.push(attribute);
                 }
