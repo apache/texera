@@ -3,11 +3,9 @@ package edu.uci.ics.textdb.dataflow.regexmatch;
 import java.util.Arrays;
 import java.util.List;
 
-import edu.uci.ics.textdb.api.common.Attribute;
-import edu.uci.ics.textdb.api.common.FieldType;
-import edu.uci.ics.textdb.api.common.IField;
-import edu.uci.ics.textdb.api.common.Tuple;
-import edu.uci.ics.textdb.api.common.Schema;
+import edu.uci.ics.textdb.api.common.*;
+import edu.uci.ics.textdb.api.common.AttributeType;
+import edu.uci.ics.textdb.common.field.DataTuple;
 import edu.uci.ics.textdb.common.field.StringField;
 
 /**
@@ -22,9 +20,9 @@ public class RegexTestConstantsCorp {
     public static final String URL = "url";
     public static final String IP_ADDRESS = "ip";
 
-    public static final Attribute CORP_NAME_ATTR = new Attribute(CORP_NAME, FieldType.STRING);
-    public static final Attribute URL_ATTR = new Attribute(URL, FieldType.STRING);
-    public static final Attribute IP_ADDRESS_ATTR = new Attribute(IP_ADDRESS, FieldType.STRING);
+    public static final Attribute CORP_NAME_ATTR = new Attribute(CORP_NAME, AttributeType.STRING);
+    public static final Attribute URL_ATTR = new Attribute(URL, AttributeType.STRING);
+    public static final Attribute IP_ADDRESS_ATTR = new Attribute(IP_ADDRESS, AttributeType.STRING);
 
     public static final Attribute[] ATTRIBUTES_CORP = { CORP_NAME_ATTR, URL_ATTR, IP_ADDRESS_ATTR };
     public static final Schema SCHEMA_CORP = new Schema(ATTRIBUTES_CORP);

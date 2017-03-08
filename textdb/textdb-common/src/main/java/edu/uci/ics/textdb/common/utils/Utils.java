@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import edu.uci.ics.textdb.api.common.*;
 import edu.uci.ics.textdb.common.exception.StorageException;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
@@ -27,12 +28,6 @@ import org.apache.lucene.index.IndexOptions;
 import org.apache.lucene.index.IndexableField;
 import org.json.JSONArray;
 import org.json.JSONObject;
-
-import edu.uci.ics.textdb.api.common.Attribute;
-import edu.uci.ics.textdb.api.common.FieldType;
-import edu.uci.ics.textdb.api.common.IField;
-import edu.uci.ics.textdb.api.common.Tuple;
-import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.common.constants.SchemaConstants;
 import edu.uci.ics.textdb.common.field.DateField;
 import edu.uci.ics.textdb.common.field.DoubleField;
@@ -44,9 +39,9 @@ import edu.uci.ics.textdb.common.field.StringField;
 import edu.uci.ics.textdb.common.field.TextField;
 
 public class Utils {
-    public static IField getField(FieldType fieldType, String fieldValue) throws ParseException {
+    public static IField getField(AttributeType attributeType, String fieldValue) throws ParseException {
         IField field = null;
-        switch (fieldType) {
+        switch (attributeType) {
         case _ID_TYPE:
             field = new IDField(fieldValue);
             break;
@@ -74,9 +69,9 @@ public class Utils {
         return field;
     }
 
-    public static IndexableField getLuceneField(FieldType fieldType, String fieldName, Object fieldValue) {
+    public static IndexableField getLuceneField(AttributeType attributeType, String fieldName, Object fieldValue) {
         IndexableField luceneField = null;
-        switch (fieldType) {
+        switch (attributeType) {
         // _ID_TYPE is currently same as STRING
         case _ID_TYPE:
         case STRING:
@@ -118,26 +113,26 @@ public class Utils {
     }
     
     /**
-     * Returns the FieldType of a field object.
+     * Returns the AttributeType of a field object.
      * 
      * @param field
      * @return
      */
-    public static FieldType getFieldType(IField field) {
+    public static AttributeType getFieldType(IField field) {
         if (field instanceof DateField) {
-            return FieldType.DATE;
+            return AttributeType.DATE;
         } else if (field instanceof DoubleField) {
-            return FieldType.DOUBLE;
+            return AttributeType.DOUBLE;
         } else if (field instanceof IDField) {
-            return FieldType._ID_TYPE;
+            return AttributeType._ID_TYPE;
         } else if (field instanceof IntegerField) {
-            return FieldType.INTEGER;
+            return AttributeType.INTEGER;
         } else if (field instanceof ListField) {
-            return FieldType.LIST;
+            return AttributeType.LIST;
         } else if (field instanceof StringField) {
-            return FieldType.STRING;
+            return AttributeType.STRING;
         } else if (field instanceof TextField) {
-            return FieldType.TEXT;
+            return AttributeType.TEXT;
         } else {
             throw new RuntimeException("no existing type mapping of this field object");
         }
@@ -163,7 +158,7 @@ public class Utils {
      */
     public static List<String> getAttributeNames(List<Attribute> attributeList) {
         return attributeList.stream()
-                .map(attr -> attr.getFieldName())
+                .map(attr -> attr.getAttributeName())
                 .collect(Collectors.toList());
     }
     
@@ -175,7 +170,7 @@ public class Utils {
      */
     public static List<String> getAttributeNames(Attribute... attributeList) {
         return Arrays.asList(attributeList).stream()
-                .map(attr -> attr.getFieldName())
+                .map(attr -> attr.getAttributeName())
                 .collect(Collectors.toList());
     }
     
@@ -215,7 +210,7 @@ public class Utils {
      * @return new schema
      */
     public static Schema addAttributeToSchema(Schema schema, Attribute attribute) {
-        if (schema.containsField(attribute.getFieldName())) {
+        if (schema.containsField(attribute.getAttributeName())) {
             return schema;
         }
         List<Attribute> attributes = new ArrayList<>(schema.getAttributes());
@@ -233,7 +228,7 @@ public class Utils {
      */
     public static Schema removeAttributeFromSchema(Schema schema, String... attributeName) {
         return new Schema(schema.getAttributes().stream()
-                .filter(attr -> (! Arrays.asList(attributeName).contains(attr.getFieldName())))
+                .filter(attr -> (! Arrays.asList(attributeName).contains(attr.getAttributeName())))
                 .toArray(Attribute[]::new));
     }
 
@@ -359,18 +354,17 @@ public class Utils {
 
         Schema schema = tuple.getSchema();
         for (Attribute attribute : schema.getAttributes()) {
-            if (attribute.getFieldName().equals(SchemaConstants.SPAN_LIST)) {
-                ListField<Span> spanListField = tuple.getField(SchemaConstants.SPAN_LIST);
-                List<Span> spanList = spanListField.getValue();
+            if (attribute.getAttributeName().equals(SchemaConstants.SPAN_LIST)) {
+                List<Span> spanList = ((ListField<Span>) tuple.getField(SchemaConstants.SPAN_LIST)).getValue();
                 sb.append(getSpanListString(spanList));
                 sb.append("\n");
             } else {
-                sb.append(attribute.getFieldName());
+                sb.append(attribute.getAttributeName());
                 sb.append("(");
-                sb.append(attribute.getFieldType().toString());
+                sb.append(attribute.getAttributeType().toString());
                 sb.append(")");
                 sb.append(": ");
-                sb.append(tuple.getField(attribute.getFieldName()).getValue().toString());
+                sb.append(tuple.getField(attribute.getAttributeName()).getValue().toString());
                 sb.append("\n");
             }
         }
@@ -441,7 +435,7 @@ public class Utils {
                 .map(fieldName -> tuple.getSchema().getIndex(fieldName)).collect(Collectors.toList());
         
         Attribute[] newAttrs = tuple.getSchema().getAttributes().stream()
-                .filter(attr -> (! removeFieldList.contains(attr.getFieldName()))).toArray(Attribute[]::new);
+                .filter(attr -> (! removeFieldList.contains(attr.getAttributeName()))).toArray(Attribute[]::new);
         Schema newSchema = new Schema(newAttrs);
         
         IField[] newFields = IntStream.range(0, tuple.getSchema().getAttributes().size())
@@ -453,8 +447,8 @@ public class Utils {
 
     public static List<Span> generatePayloadFromTuple(Tuple tuple, Analyzer luceneAnalyzer) {
         List<Span> tuplePayload = tuple.getSchema().getAttributes().stream()
-                .filter(attr -> (attr.getFieldType() == FieldType.TEXT)) // generate payload only for TEXT field
-                .map(attr -> attr.getFieldName())
+                .filter(attr -> (attr.getAttributeType() == AttributeType.TEXT)) // generate payload only for TEXT field
+                .map(attr -> attr.getAttributeName())
                 .map(fieldName -> generatePayload(fieldName, tuple.getField(fieldName).getValue().toString(),
                         luceneAnalyzer))
                 .flatMap(payload -> payload.stream()) // flatten a list of lists to a list

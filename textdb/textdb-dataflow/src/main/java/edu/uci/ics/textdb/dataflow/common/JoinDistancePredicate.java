@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import edu.uci.ics.textdb.api.common.Attribute;
-import edu.uci.ics.textdb.api.common.FieldType;
+import edu.uci.ics.textdb.api.common.AttributeType;
 import edu.uci.ics.textdb.api.common.IField;
 import edu.uci.ics.textdb.api.common.Tuple;
 import edu.uci.ics.textdb.api.common.Schema;
@@ -135,8 +135,8 @@ public class JoinDistancePredicate implements IJoinPredicate {
         }
         
         // check if join attribute is TEXT or STRING
-        FieldType joinAttrType = intersectionSchema.getAttribute(this.joinAttributeName).getFieldType();
-        if (joinAttrType != FieldType.TEXT && joinAttrType != FieldType.STRING) {
+        AttributeType joinAttrType = intersectionSchema.getAttribute(this.joinAttributeName).getAttributeType();
+        if (joinAttrType != AttributeType.TEXT && joinAttrType != AttributeType.STRING) {
             throw new DataFlowException(
                     String.format("Join attribute %s must be either TEXT or STRING.", this.joinAttributeName));
         }
@@ -231,8 +231,8 @@ public class JoinDistancePredicate implements IJoinPredicate {
 	    List<IField> outputFields = 
 	            outputAttrList.stream()
 	            .filter(attr -> ! attr.equals(SchemaConstants.SPAN_LIST_ATTRIBUTE))
-	            .map(attr -> attr.getFieldName())
-	            .map(fieldName -> innerTuple.getField(fieldName, IField.class))
+	            .map(attr -> attr.getAttributeName())
+	            .map(fieldName -> innerTuple.getField(fieldName))
 	            .collect(Collectors.toList());
 	    
 	    outputFields.add(new ListField<>(newJoinSpanList));

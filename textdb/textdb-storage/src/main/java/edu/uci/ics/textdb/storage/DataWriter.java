@@ -16,7 +16,7 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 
 import edu.uci.ics.textdb.api.common.Attribute;
-import edu.uci.ics.textdb.api.common.FieldType;
+import edu.uci.ics.textdb.api.common.AttributeType;
 import edu.uci.ics.textdb.api.common.IField;
 import edu.uci.ics.textdb.api.common.Tuple;
 import edu.uci.ics.textdb.api.common.Schema;
@@ -220,8 +220,8 @@ public class DataWriter {
         for (int count = 0; count < fields.size(); count++) {
             IField field = fields.get(count);
             Attribute attr = attributes.get(count);
-            FieldType fieldType = attr.getFieldType();
-            doc.add(Utils.getLuceneField(fieldType, attr.getFieldName(), field.getValue()));
+            AttributeType attributeType = attr.getAttributeType();
+            doc.add(Utils.getLuceneField(attributeType, attr.getAttributeName(), field.getValue()));
         }
         return doc;
     }

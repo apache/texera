@@ -21,7 +21,7 @@ import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 
 import edu.uci.ics.textdb.api.common.Attribute;
-import edu.uci.ics.textdb.api.common.FieldType;
+import edu.uci.ics.textdb.api.common.AttributeType;
 import edu.uci.ics.textdb.api.common.IField;
 import edu.uci.ics.textdb.api.common.Tuple;
 import edu.uci.ics.textdb.api.dataflow.IOperator;
@@ -165,9 +165,9 @@ public class DataReader implements IOperator {
     private ArrayList<IField> documentToFields(Document luceneDocument) throws ParseException {
         ArrayList<IField> fields = new ArrayList<>();
         for (Attribute attr : inputSchema.getAttributes()) {
-            FieldType fieldType = attr.getFieldType();
-            String fieldValue = luceneDocument.get(attr.getFieldName());
-            fields.add(Utils.getField(fieldType, fieldValue));
+            AttributeType attributeType = attr.getAttributeType();
+            String fieldValue = luceneDocument.get(attr.getAttributeName());
+            fields.add(Utils.getField(attributeType, fieldValue));
         }
         return fields;
     }
@@ -176,12 +176,12 @@ public class DataReader implements IOperator {
         ArrayList<Span> payloadSpanList = new ArrayList<>();
 
         for (Attribute attr : inputSchema.getAttributes()) {
-            String fieldName = attr.getFieldName();
-            FieldType fieldType = attr.getFieldType();
+            String fieldName = attr.getAttributeName();
+            AttributeType attributeType = attr.getAttributeType();
 
             // We only store positional information for TEXT fields into
             // payload.
-            if (fieldType != FieldType.TEXT) {
+            if (attributeType != AttributeType.TEXT) {
                 continue;
             }
 

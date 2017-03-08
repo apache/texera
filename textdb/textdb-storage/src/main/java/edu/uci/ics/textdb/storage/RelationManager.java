@@ -5,16 +5,13 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import edu.uci.ics.textdb.api.common.*;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.TermQuery;
 
-import edu.uci.ics.textdb.api.common.Attribute;
-import edu.uci.ics.textdb.api.common.FieldType;
-import edu.uci.ics.textdb.api.common.IField;
-import edu.uci.ics.textdb.api.common.Tuple;
-import edu.uci.ics.textdb.api.common.Schema;
+import edu.uci.ics.textdb.api.common.AttributeType;
 import edu.uci.ics.textdb.common.constants.LuceneAnalyzerConstants;
 import edu.uci.ics.textdb.common.constants.SchemaConstants;
 import edu.uci.ics.textdb.common.exception.DataFlowException;
@@ -377,12 +374,12 @@ public class RelationManager {
     
     
     /*
-     * Converts a attributeTypeString to FieldType (case insensitive). 
+     * Converts a attributeTypeString to AttributeType (case insensitive).
      * It returns null if string is not a valid type.
      * 
      */
-    private static FieldType convertAttributeType(String attributeTypeStr) {
-        return Stream.of(FieldType.values())
+    private static AttributeType convertAttributeType(String attributeTypeStr) {
+        return Stream.of(AttributeType.values())
                 .filter(typeStr -> typeStr.toString().toLowerCase().equals(attributeTypeStr.toLowerCase()))
                 .findAny().orElse(null);
     }

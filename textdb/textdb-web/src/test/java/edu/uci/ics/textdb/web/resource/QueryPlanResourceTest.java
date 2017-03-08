@@ -1,7 +1,7 @@
 package edu.uci.ics.textdb.web.resource;
 
 import edu.uci.ics.textdb.api.common.Attribute;
-import edu.uci.ics.textdb.api.common.FieldType;
+import edu.uci.ics.textdb.api.common.AttributeType;
 import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.storage.RelationManager;
 import edu.uci.ics.textdb.web.TextdbWebApplication;
@@ -82,7 +82,7 @@ public class QueryPlanResourceTest {
     @BeforeClass
     public static void setUp() throws Exception {
         RelationManager.getRelationManager().createTable(TEST_TABLE, "../index/" + TEST_TABLE,
-                new Schema(new Attribute("attributes", FieldType.TEXT)), "standard");
+                new Schema(new Attribute("attributes", AttributeType.TEXT)), "standard");
     }
     
     @AfterClass

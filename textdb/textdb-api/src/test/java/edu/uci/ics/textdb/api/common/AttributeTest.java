@@ -9,7 +9,7 @@ public class AttributeTest {
 
     private Attribute attribute;
     private String fieldName = "sampleFieldName";
-    private FieldType type = FieldType.STRING;
+    private AttributeType type = AttributeType.STRING;
 
     @Before
     public void setUp() {
@@ -18,7 +18,7 @@ public class AttributeTest {
 
     @Test
     public void testGetterMethods() {
-        Assert.assertEquals(fieldName, attribute.getFieldName());
-        Assert.assertEquals(type, attribute.getFieldType());
+        Assert.assertEquals(fieldName, attribute.getAttributeName());
+        Assert.assertEquals(type, attribute.getAttributeType());
     }
 }

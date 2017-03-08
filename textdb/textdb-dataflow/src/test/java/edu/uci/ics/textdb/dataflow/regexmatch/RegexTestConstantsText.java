@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import edu.uci.ics.textdb.api.common.Attribute;
-import edu.uci.ics.textdb.api.common.FieldType;
+import edu.uci.ics.textdb.api.common.AttributeType;
 import edu.uci.ics.textdb.api.common.IField;
 import edu.uci.ics.textdb.api.common.Tuple;
 import edu.uci.ics.textdb.api.common.Schema;
@@ -19,7 +19,7 @@ public class RegexTestConstantsText {
     // Sample test data of some random text
     public static final String CONTENT = "content";
 
-    public static final Attribute CONTENT_ATTR = new Attribute(CONTENT, FieldType.TEXT);
+    public static final Attribute CONTENT_ATTR = new Attribute(CONTENT, AttributeType.TEXT);
 
     public static final Attribute[] ATTRIBUTES_TEXT = { CONTENT_ATTR };
     public static final Schema SCHEMA_TEXT = new Schema(ATTRIBUTES_TEXT);
