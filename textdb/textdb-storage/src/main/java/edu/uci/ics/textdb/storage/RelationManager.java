@@ -153,7 +153,7 @@ public class RelationManager {
      * @return
      * @throws StorageException
      */
-    public ITuple getTupleByID(String tableName, IDField idField) throws StorageException {
+    public Tuple getTupleByID(String tableName, IDField idField) throws StorageException {
         // construct the ID query
         Query tupleIDQuery = new TermQuery(new Term(SchemaConstants._ID, idField.getValue().toString()));
         
@@ -162,7 +162,7 @@ public class RelationManager {
         dataReader.setPayloadAdded(false);
 
         dataReader.open(); 
-        ITuple tuple = dataReader.getNextTuple();
+        Tuple tuple = dataReader.getNextTuple();
         dataReader.close();
 
         return tuple;
@@ -224,7 +224,7 @@ public class RelationManager {
         tableCatalogDataReader.setPayloadAdded(false);
         
         tableCatalogDataReader.open();
-        ITuple nextTuple = tableCatalogDataReader.getNextTuple();
+        Tuple nextTuple = tableCatalogDataReader.getNextTuple();
         tableCatalogDataReader.close();
         
         // if the tuple is not found, then the table name is not found
@@ -252,8 +252,8 @@ public class RelationManager {
         
         // read the tuples into a list
         schemaCatalogDataReader.open();    
-        List<ITuple> tableAttributeTuples = new ArrayList<>();
-        ITuple nextTuple;
+        List<Tuple> tableAttributeTuples = new ArrayList<>();
+        Tuple nextTuple;
         while ((nextTuple = schemaCatalogDataReader.getNextTuple()) != null) {
             tableAttributeTuples.add(nextTuple);
         }
@@ -291,7 +291,7 @@ public class RelationManager {
         tableCatalogDataReader.setPayloadAdded(false);
         
         tableCatalogDataReader.open();
-        ITuple nextTuple = tableCatalogDataReader.getNextTuple();
+        Tuple nextTuple = tableCatalogDataReader.getNextTuple();
         tableCatalogDataReader.close();
         
         // if the tuple is not found, then the table name is not found
@@ -335,7 +335,7 @@ public class RelationManager {
         dataWriter = new DataWriter(schemaCatalogStore, LuceneAnalyzerConstants.getStandardAnalyzer());
         // each attribute in the table schema will be one row in schema catalog
         dataWriter.open();
-        for (ITuple tuple : CatalogConstants.getSchemaCatalogTuples(tableName, tableSchema)) {
+        for (Tuple tuple : CatalogConstants.getSchemaCatalogTuples(tableName, tableSchema)) {
             dataWriter.insertTuple(tuple);
         }
         dataWriter.close();

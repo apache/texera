@@ -11,7 +11,6 @@ import edu.uci.ics.textdb.api.common.AttributeType;
 import edu.uci.ics.textdb.api.dataflow.ISourceOperator;
 import edu.uci.ics.textdb.api.exception.TextDBException;
 import edu.uci.ics.textdb.api.plan.Plan;
-import edu.uci.ics.textdb.common.field.DataTuple;
 import edu.uci.ics.textdb.common.utils.Utils;
 import edu.uci.ics.textdb.dataflow.sink.IndexSink;
 import edu.uci.ics.textdb.dataflow.source.FileSourceOperator;
@@ -56,14 +55,14 @@ public class MedlineIndexWriter {
 
     public static final Schema SCHEMA_MEDLINE = new Schema(ATTRIBUTES_MEDLINE);
 
-    private static ITuple recordToTuple(String record) throws JSONException, ParseException {
+    private static Tuple recordToTuple(String record) throws JSONException, ParseException {
         JSONObject json = new JSONObject(record);
         ArrayList<IField> fieldList = new ArrayList<IField>();
         for (Attribute attr : ATTRIBUTES_MEDLINE) {
             fieldList.add(Utils.getField(attr.getAttributeType(), json.get(attr.getAttributeName()).toString()));
         }
         IField[] fieldArray = new IField[fieldList.size()];
-        ITuple tuple = new DataTuple(SCHEMA_MEDLINE, fieldList.toArray(fieldArray));
+        Tuple tuple = new Tuple(SCHEMA_MEDLINE, fieldList.toArray(fieldArray));
         return tuple;
     }
 

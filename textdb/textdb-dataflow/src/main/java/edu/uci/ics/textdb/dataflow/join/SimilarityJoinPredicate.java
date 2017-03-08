@@ -4,10 +4,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import edu.uci.ics.textdb.api.common.*;
-import edu.uci.ics.textdb.api.common.AttributeType;
 import edu.uci.ics.textdb.common.constants.SchemaConstants;
 import edu.uci.ics.textdb.common.exception.DataFlowException;
-import edu.uci.ics.textdb.common.field.DataTuple;
 import edu.uci.ics.textdb.common.field.IDField;
 import edu.uci.ics.textdb.common.field.ListField;
 import edu.uci.ics.textdb.common.field.Span;
@@ -126,16 +124,19 @@ public class SimilarityJoinPredicate implements IJoinPredicate {
     }
 
     @Override
-    public ITuple joinTuples(ITuple outerTuple, ITuple innerTuple, Schema outputSchema) throws DataFlowException {        
+    public Tuple joinTuples(Tuple outerTuple, Tuple innerTuple, Schema outputSchema) throws DataFlowException {        
         if (similarityThreshold == 0) {
             return null;
         }
         
         // get the span list only with the joinAttributeName
-        List<Span> innerRelevantSpanList = ((ListField<Span>) innerTuple.getField(SchemaConstants.SPAN_LIST))
-                .getValue().stream().filter(span -> span.getFieldName().equals(innerJoinAttrName)).collect(Collectors.toList());
-        List<Span> outerRelevantSpanList = ((ListField<Span>) outerTuple.getField(SchemaConstants.SPAN_LIST))
-                .getValue().stream().filter(span -> span.getFieldName().equals(outerJoinAttrName)).collect(Collectors.toList());
+        ListField<Span> innerSpanListField = innerTuple.getField(SchemaConstants.SPAN_LIST);
+        List<Span> innerRelevantSpanList = innerSpanListField.getValue().stream()
+                .filter(span -> span.getFieldName().equals(innerJoinAttrName)).collect(Collectors.toList());
+        
+        ListField<Span> outerSpanListField = outerTuple.getField(SchemaConstants.SPAN_LIST);
+        List<Span> outerRelevantSpanList = outerSpanListField.getValue().stream()
+                .filter(span -> span.getFieldName().equals(outerJoinAttrName)).collect(Collectors.toList());
         
         // get a set of span's values (since multiple spans may have the same value)
         Set<String> innerSpanValueSet = innerRelevantSpanList.stream()
@@ -176,7 +177,7 @@ public class SimilarityJoinPredicate implements IJoinPredicate {
     }
     
     
-    private ITuple mergeTuples(ITuple outerTuple, ITuple innerTuple, Schema outputSchema, List<Span> mergeSpanList) {
+    private Tuple mergeTuples(Tuple outerTuple, Tuple innerTuple, Schema outputSchema, List<Span> mergeSpanList) {
         List<IField> resultFields = new ArrayList<>();
         for (String attrName : outputSchema.getAttributeNames()) {
             // generate a new _ID field for this tuple
@@ -188,8 +189,10 @@ public class SimilarityJoinPredicate implements IJoinPredicate {
                 resultFields.add(new ListField<Span>(mergeSpanList));
             // put the payload of two tuples together
             } else if (attrName.equals(SchemaConstants.PAYLOAD)) {
-                List<Span> innerPayload = ((ListField<Span>) innerTuple.getField(SchemaConstants.PAYLOAD)).getValue();
-                List<Span> outerPayload = ((ListField<Span>) outerTuple.getField(SchemaConstants.PAYLOAD)).getValue();
+                ListField<Span> innerPayloadField = innerTuple.getField(SchemaConstants.PAYLOAD);
+                List<Span> innerPayload = innerPayloadField.getValue();      
+                ListField<Span> outerPayloadField = outerTuple.getField(SchemaConstants.PAYLOAD);
+                List<Span> outerPayload = outerPayloadField.getValue();
                 
                 List<Span> resultPayload = new ArrayList<>();
                 resultPayload.addAll(innerPayload.stream().map(span -> addFieldPrefix(span, INNER_PREFIX)).collect(Collectors.toList()));
@@ -203,7 +206,7 @@ public class SimilarityJoinPredicate implements IJoinPredicate {
                 }
             }
         }
-        return new DataTuple(outputSchema, resultFields.stream().toArray(IField[]::new));
+        return new Tuple(outputSchema, resultFields.stream().toArray(IField[]::new));
     }
     
     private Span addFieldPrefix(Span span, String prefix) {

@@ -5,7 +5,7 @@ import java.util.List;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.queryparser.classic.ParseException;
 
-import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Tuple;
 import edu.uci.ics.textdb.common.constants.SchemaConstants;
 import edu.uci.ics.textdb.common.utils.Utils;
 
@@ -26,7 +26,7 @@ public class TestUtils {
      * @param containsTuple
      * @return
      */
-    public static boolean contains(List<ITuple> tupleList, ITuple containsTuple) {
+    public static boolean contains(List<Tuple> tupleList, Tuple containsTuple) {
         tupleList = Utils.removeFields(tupleList, SchemaConstants._ID, SchemaConstants.PAYLOAD);
         containsTuple = Utils.removeFields(containsTuple, SchemaConstants._ID, SchemaConstants.PAYLOAD);
         
@@ -43,7 +43,7 @@ public class TestUtils {
      * @param containsTupleList
      * @return
      */
-    public static boolean containsAll(List<ITuple> tupleList, List<ITuple> containsTupleList) {
+    public static boolean containsAll(List<Tuple> tupleList, List<Tuple> containsTupleList) {
         tupleList = Utils.removeFields(tupleList, SchemaConstants._ID, SchemaConstants.PAYLOAD);
         containsTupleList = Utils.removeFields(containsTupleList, SchemaConstants._ID, SchemaConstants.PAYLOAD);
         
@@ -60,7 +60,7 @@ public class TestUtils {
      * @param exactResults
      * @return
      */
-    public static boolean equals(List<ITuple> expectedResults, List<ITuple> exactResults) {
+    public static boolean equals(List<Tuple> expectedResults, List<Tuple> exactResults) {
         expectedResults = Utils.removeFields(expectedResults, SchemaConstants._ID, SchemaConstants.PAYLOAD);
         exactResults = Utils.removeFields(exactResults, SchemaConstants._ID, SchemaConstants.PAYLOAD);
 
@@ -70,12 +70,12 @@ public class TestUtils {
         return expectedResults.containsAll(exactResults) && exactResults.containsAll(expectedResults);
     }
 
-    public static boolean checkResults(List<ITuple> results, String queryString, Analyzer queryAnalyzer,
+    public static boolean checkResults(List<Tuple> results, String queryString, Analyzer queryAnalyzer,
             String searchField) throws ParseException {
 
         List<String> listOfQueryWords = Utils.tokenizeQuery(queryAnalyzer, queryString);
 
-        for (ITuple sampleTuple : results) {
+        for (Tuple sampleTuple : results) {
             String value = (String) sampleTuple.getField(searchField).getValue();
             for (String queryWord : listOfQueryWords) {
                 if (value.toLowerCase().contains(queryWord.toLowerCase())) {

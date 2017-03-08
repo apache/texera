@@ -1,6 +1,6 @@
 package edu.uci.ics.textdb.dataflow.common;
 
-import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Tuple;
 import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.common.exception.DataFlowException;
 
@@ -12,7 +12,7 @@ import edu.uci.ics.textdb.common.exception.DataFlowException;
  */
 public interface IJoinPredicate {
 
-	ITuple joinTuples(ITuple outerTuple, ITuple innerTuple, Schema outputSchema)
+	Tuple joinTuples(Tuple outerTuple, Tuple innerTuple, Schema outputSchema)
 			throws Exception;
 	
 	Schema generateOutputSchema(Schema outerOperatorSchema, Schema innerOperatorSchema) throws DataFlowException;

@@ -1,21 +1,20 @@
-package edu.uci.ics.textdb.common.field;
+package edu.uci.ics.textdb.api.common;
 
 import java.util.Arrays;
 import java.util.List;
 
-import edu.uci.ics.textdb.api.common.IField;
-import edu.uci.ics.textdb.api.common.ITuple;
-import edu.uci.ics.textdb.api.common.Schema;
-
 /**
+ * @author chenli
  * @author sandeepreddy602
- *
+ * @author zuozhi
+ * 
+ * Created on 3/25/16.
  */
-public class DataTuple implements ITuple {
+public class Tuple {
     private final Schema schema;
     private final List<IField> fields;
 
-    public DataTuple(Schema schema, IField... fields) {
+    public Tuple(Schema schema, IField... fields) {
         this.schema = schema;
         // Converting to java.util.Arrays.ArrayList
         // so that the collection remains static and cannot be extended/shrunk
@@ -24,18 +23,23 @@ public class DataTuple implements ITuple {
         this.fields = Arrays.asList(fields);
     }
 
-    @Override
-    public IField getField(int index) {
-        return fields.get(index);
+    @SuppressWarnings("unchecked")
+    public <T extends IField> T getField(int index) {
+        return (T) fields.get(index);
     }
-
-    @Override
-    public IField getField(String fieldName) {
-        int index = schema.getIndex(fieldName);
+    
+    public <T extends IField> T getField(int index, Class<T> fieldClass) {
         return getField(index);
     }
 
-    @Override
+    public <T extends IField> T getField(String fieldName) {
+        return getField(schema.getIndex(fieldName));
+    }
+    
+    public <T extends IField> T getField(String fieldName, Class<T> fieldClass) {
+        return getField(schema.getIndex(fieldName));
+    }
+
     public int hashCode() {
         final int prime = 31;
         int result = 1;
@@ -44,7 +48,6 @@ public class DataTuple implements ITuple {
         return result;
     }
 
-    @Override
     public boolean equals(Object obj) {
         if (this == obj)
             return true;
@@ -52,7 +55,7 @@ public class DataTuple implements ITuple {
             return false;
         if (getClass() != obj.getClass())
             return false;
-        DataTuple other = (DataTuple) obj;
+        Tuple other = (Tuple) obj;
         if (fields == null) {
             if (other.fields != null)
                 return false;
@@ -66,19 +69,15 @@ public class DataTuple implements ITuple {
         return true;
     }
 
-    @Override
     public String toString() {
         return "DataTuple [schema=" + schema + ", fields=" + fields + "]";
     }
 
-    @Override
     public List<IField> getFields() {
         return fields;
     }
 
-    @Override
     public Schema getSchema() {
         return schema;
     }
-
 }

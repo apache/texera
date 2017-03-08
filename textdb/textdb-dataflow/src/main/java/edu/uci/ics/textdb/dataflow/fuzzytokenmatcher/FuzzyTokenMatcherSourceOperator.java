@@ -6,7 +6,7 @@ import org.apache.lucene.search.BooleanQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.BooleanClause.Occur;
 
-import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Tuple;
 import edu.uci.ics.textdb.api.dataflow.ISourceOperator;
 import edu.uci.ics.textdb.api.exception.TextDBException;
 import edu.uci.ics.textdb.common.exception.DataFlowException;
@@ -45,12 +45,12 @@ public class FuzzyTokenMatcherSourceOperator extends AbstractSingleInputOperator
     }
 
     @Override
-    protected ITuple computeNextMatchingTuple() throws TextDBException {
+    protected Tuple computeNextMatchingTuple() throws TextDBException {
         return this.fuzzyTokenMatcher.getNextTuple();
     }
 
     @Override
-    public ITuple processOneInputTuple(ITuple inputTuple) throws TextDBException {
+    public Tuple processOneInputTuple(Tuple inputTuple) throws TextDBException {
         return this.fuzzyTokenMatcher.processOneInputTuple(inputTuple);
     }
 

@@ -4,11 +4,11 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Tuple;
 import edu.uci.ics.textdb.api.exception.TextDBException;
-import edu.uci.ics.textdb.api.storage.IDataReader;
 import edu.uci.ics.textdb.planstore.PlanStore;
 import edu.uci.ics.textdb.planstore.PlanStoreConstants;
+import edu.uci.ics.textdb.storage.DataReader;
 import edu.uci.ics.textdb.web.TextdbWebException;
 import edu.uci.ics.textdb.web.request.QueryPlanRequest;
 import edu.uci.ics.textdb.web.request.beans.QueryPlanBean;
@@ -50,11 +50,11 @@ public class PlanStoreResource {
 
         try {
             // Getting an iterator for the plan store
-            IDataReader reader = planStore.getPlanIterator();
+            DataReader reader = planStore.getPlanIterator();
             reader.open();
 
             // Iterating through the stored plans, and mapping them to a QueryPlanRequest object
-            ITuple tuple;
+            Tuple tuple;
             while ((tuple = reader.getNextTuple()) != null) {
                 String name = tuple.getField(PlanStoreConstants.NAME).getValue().toString();
                 String description = tuple.getField(PlanStoreConstants.DESCRIPTION).getValue().toString();
@@ -77,7 +77,7 @@ public class PlanStoreResource {
     @Path("/{plan_name}")
     public QueryPlanBean getQueryPlan(@PathParam("plan_name") String planName) {
         try {
-            ITuple tuple = planStore.getPlan(planName);
+            Tuple tuple = planStore.getPlan(planName);
             if(tuple == null) {
                 throw new TextdbWebException("Plan with the given name does not exist");
             }

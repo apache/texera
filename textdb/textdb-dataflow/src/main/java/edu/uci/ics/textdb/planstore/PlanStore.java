@@ -3,16 +3,15 @@ package edu.uci.ics.textdb.planstore;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import edu.uci.ics.textdb.api.common.IField;
-import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Tuple;
 import edu.uci.ics.textdb.api.exception.TextDBException;
-import edu.uci.ics.textdb.api.storage.IDataReader;
 import edu.uci.ics.textdb.common.constants.LuceneAnalyzerConstants;
 import edu.uci.ics.textdb.common.constants.SchemaConstants;
 import edu.uci.ics.textdb.common.exception.DataFlowException;
 import edu.uci.ics.textdb.common.exception.StorageException;
-import edu.uci.ics.textdb.common.field.DataTuple;
 import edu.uci.ics.textdb.common.field.IDField;
 import edu.uci.ics.textdb.common.field.StringField;
+import edu.uci.ics.textdb.storage.DataReader;
 import edu.uci.ics.textdb.storage.DataWriter;
 import edu.uci.ics.textdb.storage.RelationManager;
 import org.apache.lucene.index.Term;
@@ -89,7 +88,7 @@ public class PlanStore {
         JsonParser jsonParser = new JsonParser();
         JsonObject jsonObject = jsonParser.parse(logicalPlanJson).getAsJsonObject();
 
-        ITuple tuple = new DataTuple(PlanStoreConstants.SCHEMA_PLAN,
+        Tuple tuple = new Tuple(PlanStoreConstants.SCHEMA_PLAN,
                 new StringField(planName),
                 new StringField(description),
                 new StringField(jsonObject.toString()));
@@ -109,13 +108,13 @@ public class PlanStore {
      * @Return ITuple, the tuple consisting of fields of the plan.
      * @throws TextDBException
      */
-    public ITuple getPlan(String planName) throws TextDBException {
+    public Tuple getPlan(String planName) throws TextDBException {
         Query q = new TermQuery(new Term(PlanStoreConstants.NAME, planName));
 
-        IDataReader reader = relationManager.getTableDataReader(PlanStoreConstants.TABLE_NAME, q);
+        DataReader reader = relationManager.getTableDataReader(PlanStoreConstants.TABLE_NAME, q);
         reader.open();
 
-        ITuple inputTuple = null;
+        Tuple inputTuple = null;
 
         while ((inputTuple = reader.getNextTuple()) != null) {
             IField nameField = inputTuple.getField(PlanStoreConstants.NAME);
@@ -135,7 +134,7 @@ public class PlanStore {
      * @Return IDataReader
      * @throws TextDBException
      */
-    public IDataReader getPlanIterator() throws TextDBException {
+    public DataReader getPlanIterator() throws TextDBException {
         return relationManager.getTableDataReader(PlanStoreConstants.TABLE_NAME, new MatchAllDocsQuery());
     }
 
@@ -146,7 +145,7 @@ public class PlanStore {
      * @throws TextDBException
      */
     public void deletePlan(String planName) throws TextDBException {
-        ITuple plan = getPlan(planName);
+        Tuple plan = getPlan(planName);
 
         if (plan == null) {
             return;
@@ -203,7 +202,7 @@ public class PlanStore {
      * @throws TextDBException
      */
     private void updatePlanInternal(String planName, String description, String logicalPlanJson) throws TextDBException{
-        ITuple existingPlan = getPlan(planName);
+        Tuple existingPlan = getPlan(planName);
 
         if (existingPlan == null) {
             return;
@@ -230,7 +229,7 @@ public class PlanStore {
                 new StringField(logicalPlanJson) : existingPlan.getField(PlanStoreConstants.LOGICAL_PLAN_JSON);
 
         // Creating a tuple out of all the fields
-        ITuple newTuple = new DataTuple(PlanStoreConstants.SCHEMA_PLAN,
+        Tuple newTuple = new Tuple(PlanStoreConstants.SCHEMA_PLAN,
                 new StringField(planName),
                 descriptionField,
                 logicalPlanJsonField);

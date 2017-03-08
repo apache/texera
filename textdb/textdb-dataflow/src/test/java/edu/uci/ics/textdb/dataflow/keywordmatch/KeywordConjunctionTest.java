@@ -13,13 +13,12 @@ import org.junit.Test;
 
 import edu.uci.ics.textdb.api.common.Attribute;
 import edu.uci.ics.textdb.api.common.IField;
-import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Tuple;
 import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.common.constants.DataConstants.KeywordMatchingType;
 import edu.uci.ics.textdb.common.constants.SchemaConstants;
 import edu.uci.ics.textdb.common.constants.TestConstants;
 import edu.uci.ics.textdb.common.constants.TestConstantsChinese;
-import edu.uci.ics.textdb.common.field.DataTuple;
 import edu.uci.ics.textdb.common.field.DateField;
 import edu.uci.ics.textdb.common.field.DoubleField;
 import edu.uci.ics.textdb.common.field.IntegerField;
@@ -71,7 +70,7 @@ public class KeywordConjunctionTest {
         attributeNames.add(TestConstants.DESCRIPTION);
 
         // Perform the query
-        List<ITuple> results = KeywordTestHelper.getQueryResults(PEOPLE_TABLE, query, attributeNames, conjunction);
+        List<Tuple> results = KeywordTestHelper.getQueryResults(PEOPLE_TABLE, query, attributeNames, conjunction);
 
         // check the results
         Assert.assertEquals(0, results.size());
@@ -105,12 +104,12 @@ public class KeywordConjunctionTest {
         IField[] fields1 = { new StringField("bruce"), new StringField("john Lee"), new IntegerField(46),
                 new DoubleField(5.50), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-14-1970")),
                 new TextField("Tall Angry"), new ListField<>(list) };
-        ITuple tuple1 = new DataTuple(new Schema(schemaAttributes), fields1);
-        List<ITuple> expectedResultList = new ArrayList<>();
+        Tuple tuple1 = new Tuple(new Schema(schemaAttributes), fields1);
+        List<Tuple> expectedResultList = new ArrayList<>();
         expectedResultList.add(tuple1);
 
         // Perform the query
-        List<ITuple> resultList = KeywordTestHelper.getQueryResults(PEOPLE_TABLE, query, attributeNames, conjunction);
+        List<Tuple> resultList = KeywordTestHelper.getQueryResults(PEOPLE_TABLE, query, attributeNames, conjunction);
 
         // check the results
         boolean contains = TestUtils.equals(expectedResultList, resultList);
@@ -152,15 +151,15 @@ public class KeywordConjunctionTest {
                 new IntegerField(42), new DoubleField(5.99),
                 new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974")), new TextField("Tall Fair"),
                 new ListField<>(list) };
-        ITuple tuple1 = new DataTuple(new Schema(schemaAttributes), fields1);
-        ITuple tuple2 = new DataTuple(new Schema(schemaAttributes), fields2);
+        Tuple tuple1 = new Tuple(new Schema(schemaAttributes), fields1);
+        Tuple tuple2 = new Tuple(new Schema(schemaAttributes), fields2);
 
-        List<ITuple> expectedResultList = new ArrayList<>();
+        List<Tuple> expectedResultList = new ArrayList<>();
         expectedResultList.add(tuple1);
         expectedResultList.add(tuple2);
 
         // Perform the query
-        List<ITuple> resultList = KeywordTestHelper.getQueryResults(PEOPLE_TABLE, query, attributeNames, conjunction);
+        List<Tuple> resultList = KeywordTestHelper.getQueryResults(PEOPLE_TABLE, query, attributeNames, conjunction);
 
         // check the results
         boolean contains = TestUtils.equals(expectedResultList, resultList);
@@ -197,12 +196,12 @@ public class KeywordConjunctionTest {
                 new DoubleField(6.06), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1973")),
                 new TextField("Lin Clooney is Short and lin clooney is Angry"), new ListField<>(list) };
 
-        ITuple tuple1 = new DataTuple(new Schema(schemaAttributes), fields1);
-        List<ITuple> expectedResultList = new ArrayList<>();
+        Tuple tuple1 = new Tuple(new Schema(schemaAttributes), fields1);
+        List<Tuple> expectedResultList = new ArrayList<>();
         expectedResultList.add(tuple1);
 
         // Perform the query
-        List<ITuple> resultList = KeywordTestHelper.getQueryResults(PEOPLE_TABLE, query, attributeNames, conjunction);
+        List<Tuple> resultList = KeywordTestHelper.getQueryResults(PEOPLE_TABLE, query, attributeNames, conjunction);
 
         // check the results
         boolean contains = TestUtils.equals(expectedResultList, resultList);
@@ -247,12 +246,12 @@ public class KeywordConjunctionTest {
                 new DoubleField(6.06), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1973")),
                 new TextField("Lin Clooney is Short and lin clooney is Angry"), new ListField<>(list) };
 
-        ITuple tuple1 = new DataTuple(new Schema(schemaAttributes), fields1);
-        List<ITuple> expectedResultList = new ArrayList<>();
+        Tuple tuple1 = new Tuple(new Schema(schemaAttributes), fields1);
+        List<Tuple> expectedResultList = new ArrayList<>();
         expectedResultList.add(tuple1);
 
         // Perform the query
-        List<ITuple> resultList = KeywordTestHelper.getQueryResults(PEOPLE_TABLE, query, attributeNames, conjunction);
+        List<Tuple> resultList = KeywordTestHelper.getQueryResults(PEOPLE_TABLE, query, attributeNames, conjunction);
 
         // check the results
         boolean contains = TestUtils.equals(expectedResultList, resultList);
@@ -285,7 +284,7 @@ public class KeywordConjunctionTest {
         attributeNames.add(TestConstants.DESCRIPTION);
 
         // Perform the query
-        List<ITuple> resultList = KeywordTestHelper.getQueryResults(PEOPLE_TABLE, query, attributeNames, conjunction);
+        List<Tuple> resultList = KeywordTestHelper.getQueryResults(PEOPLE_TABLE, query, attributeNames, conjunction);
 
         // Check the results
         Assert.assertEquals(0, resultList.size());
@@ -306,8 +305,8 @@ public class KeywordConjunctionTest {
         }
         schemaAttributes[schemaAttributes.length - 1] = SchemaConstants.SPAN_LIST_ATTRIBUTE;
 
-        List<ITuple> resultList = KeywordTestHelper.getQueryResults(PEOPLE_TABLE, query, attributeNames, conjunction, 3, 0);
-        List<ITuple> expectedList = new ArrayList<>();
+        List<Tuple> resultList = KeywordTestHelper.getQueryResults(PEOPLE_TABLE, query, attributeNames, conjunction, 3, 0);
+        List<Tuple> expectedList = new ArrayList<>();
 
         Span span1 = new Span("description", 5, 10, "angry", "Angry", 1);
         Span span2 = new Span("description", 6, 11, "angry", "Angry", 1);
@@ -337,10 +336,10 @@ public class KeywordConjunctionTest {
                 new DoubleField(5.99), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974")),
                 new TextField("Short angry"), new ListField<>(list4) };
 
-        ITuple tuple1 = new DataTuple(new Schema(schemaAttributes), fields1);
-        ITuple tuple2 = new DataTuple(new Schema(schemaAttributes), fields2);
-        ITuple tuple3 = new DataTuple(new Schema(schemaAttributes), fields3);
-        ITuple tuple4 = new DataTuple(new Schema(schemaAttributes), fields4);
+        Tuple tuple1 = new Tuple(new Schema(schemaAttributes), fields1);
+        Tuple tuple2 = new Tuple(new Schema(schemaAttributes), fields2);
+        Tuple tuple3 = new Tuple(new Schema(schemaAttributes), fields3);
+        Tuple tuple4 = new Tuple(new Schema(schemaAttributes), fields4);
 
         expectedList.add(tuple1);
         expectedList.add(tuple2);
@@ -368,8 +367,8 @@ public class KeywordConjunctionTest {
         }
         schemaAttributes[schemaAttributes.length - 1] = SchemaConstants.SPAN_LIST_ATTRIBUTE;
 
-        List<ITuple> resultList = KeywordTestHelper.getQueryResults(PEOPLE_TABLE, query, attributeNames, conjunction, 3, 2);
-        List<ITuple> expectedList = new ArrayList<>();
+        List<Tuple> resultList = KeywordTestHelper.getQueryResults(PEOPLE_TABLE, query, attributeNames, conjunction, 3, 2);
+        List<Tuple> expectedList = new ArrayList<>();
 
         Span span1 = new Span("description", 5, 10, "angry", "Angry", 1);
         Span span2 = new Span("description", 6, 11, "angry", "Angry", 1);
@@ -399,10 +398,10 @@ public class KeywordConjunctionTest {
                 new DoubleField(5.99), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974")),
                 new TextField("Short angry"), new ListField<>(list4) };
 
-        ITuple tuple1 = new DataTuple(new Schema(schemaAttributes), fields1);
-        ITuple tuple2 = new DataTuple(new Schema(schemaAttributes), fields2);
-        ITuple tuple3 = new DataTuple(new Schema(schemaAttributes), fields3);
-        ITuple tuple4 = new DataTuple(new Schema(schemaAttributes), fields4);
+        Tuple tuple1 = new Tuple(new Schema(schemaAttributes), fields1);
+        Tuple tuple2 = new Tuple(new Schema(schemaAttributes), fields2);
+        Tuple tuple3 = new Tuple(new Schema(schemaAttributes), fields3);
+        Tuple tuple4 = new Tuple(new Schema(schemaAttributes), fields4);
 
         expectedList.add(tuple1);
         expectedList.add(tuple2);
@@ -452,15 +451,15 @@ public class KeywordConjunctionTest {
                 new IntegerField(42), new DoubleField(5.99),
                 new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974")), new TextField("北京大学计算机学院"),
                 new ListField<>(list) };
-        ITuple tuple1 = new DataTuple(new Schema(schemaAttributes), fields1);
-        ITuple tuple2 = new DataTuple(new Schema(schemaAttributes), fields2);
+        Tuple tuple1 = new Tuple(new Schema(schemaAttributes), fields1);
+        Tuple tuple2 = new Tuple(new Schema(schemaAttributes), fields2);
 
-        List<ITuple> expectedResultList = new ArrayList<>();
+        List<Tuple> expectedResultList = new ArrayList<>();
         expectedResultList.add(tuple1);
         expectedResultList.add(tuple2);
 
         // Perform the query
-        List<ITuple> resultList = KeywordTestHelper.getQueryResults(CHINESE_TABLE, query, attributeNames, 
+        List<Tuple> resultList = KeywordTestHelper.getQueryResults(CHINESE_TABLE, query, attributeNames, 
                 conjunction, Integer.MAX_VALUE, 0);
         
         // check the results
@@ -503,12 +502,12 @@ public class KeywordConjunctionTest {
                 new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974")), 
                 new TextField("伟大的建筑是历史的坐标，具有传承的价值。"), new ListField<>(list)};
         
-        ITuple tuple1 = new DataTuple(new Schema(schemaAttributes), fields1);
-        List<ITuple> expectedResultList = new ArrayList<>();
+        Tuple tuple1 = new Tuple(new Schema(schemaAttributes), fields1);
+        List<Tuple> expectedResultList = new ArrayList<>();
         expectedResultList.add(tuple1);
 
         // Perform the query
-        List<ITuple> resultList = KeywordTestHelper.getQueryResults(CHINESE_TABLE, query, attributeNames, 
+        List<Tuple> resultList = KeywordTestHelper.getQueryResults(CHINESE_TABLE, query, attributeNames, 
                 conjunction, Integer.MAX_VALUE, 0);
 
         // check the results

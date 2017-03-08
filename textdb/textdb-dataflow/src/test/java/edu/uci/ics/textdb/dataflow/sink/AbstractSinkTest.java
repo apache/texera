@@ -4,7 +4,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
 
-import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Tuple;
 import edu.uci.ics.textdb.api.dataflow.IOperator;
 
 public class AbstractSinkTest {
@@ -17,7 +17,7 @@ public class AbstractSinkTest {
         childOperator = Mockito.mock(IOperator.class);
         sink = new AbstractSink() {
             @Override
-            protected void processOneTuple(ITuple nextTuple) {
+            protected void processOneTuple(Tuple nextTuple) {
 
             }
         };
@@ -40,7 +40,7 @@ public class AbstractSinkTest {
 
     @Test
     public void testProcessTuples() throws Exception {
-        ITuple sampleTuple = Mockito.mock(ITuple.class);
+        Tuple sampleTuple = Mockito.mock(Tuple.class);
         // Set the behavior for childOperator,
         // first it returns some non-null tuple and second time it returns null
         Mockito.when(childOperator.getNextTuple()).thenReturn(sampleTuple).thenReturn(null);

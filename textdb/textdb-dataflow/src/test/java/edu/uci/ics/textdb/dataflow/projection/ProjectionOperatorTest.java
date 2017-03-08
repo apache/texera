@@ -11,12 +11,11 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import edu.uci.ics.textdb.api.common.IField;
-import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Tuple;
 import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.api.dataflow.IOperator;
 import edu.uci.ics.textdb.common.constants.LuceneAnalyzerConstants;
 import edu.uci.ics.textdb.common.constants.TestConstants;
-import edu.uci.ics.textdb.common.field.DataTuple;
 import edu.uci.ics.textdb.common.field.StringField;
 import edu.uci.ics.textdb.common.field.TextField;
 import edu.uci.ics.textdb.dataflow.source.ScanBasedSourceOperator;
@@ -38,7 +37,7 @@ public class ProjectionOperatorTest {
 
         DataWriter peopleDataWriter = relationManager.getTableDataWriter(PEOPLE_TABLE);
         peopleDataWriter.open();
-        for (ITuple tuple : TestConstants.getSamplePeopleTuples()) {
+        for (Tuple tuple : TestConstants.getSamplePeopleTuples()) {
             peopleDataWriter.insertTuple(tuple);
         }
         peopleDataWriter.close();
@@ -50,14 +49,14 @@ public class ProjectionOperatorTest {
         relationManager.deleteTable(PEOPLE_TABLE);
     }   
     
-    public List<ITuple> getProjectionResults(IOperator inputOperator, List<String> projectionFields) throws TextDBException {
+    public List<Tuple> getProjectionResults(IOperator inputOperator, List<String> projectionFields) throws TextDBException {
         ProjectionPredicate projectionPredicate = new ProjectionPredicate(projectionFields);
         ProjectionOperator projection = new ProjectionOperator(projectionPredicate);
         projection.setInputOperator(inputOperator);
         projection.open();
         
-        List<ITuple> results = new ArrayList<>();;
-        ITuple nextTuple = null;
+        List<Tuple> results = new ArrayList<>();;
+        Tuple nextTuple = null;
         while ((nextTuple = projection.getNextTuple()) != null) {
             results.add(nextTuple);
         }
@@ -79,15 +78,15 @@ public class ProjectionOperatorTest {
         IField[] fields5 = { new TextField("Tall Fair") };
         IField[] fields6 = { new TextField("Short angry") };
 
-        ITuple tuple1 = new DataTuple(projectionSchema, fields1);
-        ITuple tuple2 = new DataTuple(projectionSchema, fields2);
-        ITuple tuple3 = new DataTuple(projectionSchema, fields3);
-        ITuple tuple4 = new DataTuple(projectionSchema, fields4);
-        ITuple tuple5 = new DataTuple(projectionSchema, fields5);
-        ITuple tuple6 = new DataTuple(projectionSchema, fields6);
+        Tuple tuple1 = new Tuple(projectionSchema, fields1);
+        Tuple tuple2 = new Tuple(projectionSchema, fields2);
+        Tuple tuple3 = new Tuple(projectionSchema, fields3);
+        Tuple tuple4 = new Tuple(projectionSchema, fields4);
+        Tuple tuple5 = new Tuple(projectionSchema, fields5);
+        Tuple tuple6 = new Tuple(projectionSchema, fields6);
         
-        List<ITuple> expectedResults = Arrays.asList(tuple1, tuple2, tuple3, tuple4, tuple5, tuple6);
-        List<ITuple> returnedResults = getProjectionResults(new ScanBasedSourceOperator(PEOPLE_TABLE), projectionFields);
+        List<Tuple> expectedResults = Arrays.asList(tuple1, tuple2, tuple3, tuple4, tuple5, tuple6);
+        List<Tuple> returnedResults = getProjectionResults(new ScanBasedSourceOperator(PEOPLE_TABLE), projectionFields);
         
         Assert.assertTrue(TestUtils.equals(expectedResults, returnedResults));
     }
@@ -105,15 +104,15 @@ public class ProjectionOperatorTest {
         IField[] fields5 = { new StringField("christian john wayne"), new TextField("Tall Fair") };
         IField[] fields6 = { new StringField("Mary brown"), new TextField("Short angry") };
 
-        ITuple tuple1 = new DataTuple(projectionSchema, fields1);
-        ITuple tuple2 = new DataTuple(projectionSchema, fields2);
-        ITuple tuple3 = new DataTuple(projectionSchema, fields3);
-        ITuple tuple4 = new DataTuple(projectionSchema, fields4);
-        ITuple tuple5 = new DataTuple(projectionSchema, fields5);
-        ITuple tuple6 = new DataTuple(projectionSchema, fields6);
+        Tuple tuple1 = new Tuple(projectionSchema, fields1);
+        Tuple tuple2 = new Tuple(projectionSchema, fields2);
+        Tuple tuple3 = new Tuple(projectionSchema, fields3);
+        Tuple tuple4 = new Tuple(projectionSchema, fields4);
+        Tuple tuple5 = new Tuple(projectionSchema, fields5);
+        Tuple tuple6 = new Tuple(projectionSchema, fields6);
         
-        List<ITuple> expectedResults = Arrays.asList(tuple1, tuple2, tuple3, tuple4, tuple5, tuple6);
-        List<ITuple> returnedResults = getProjectionResults(new ScanBasedSourceOperator(PEOPLE_TABLE), projectionFields);
+        List<Tuple> expectedResults = Arrays.asList(tuple1, tuple2, tuple3, tuple4, tuple5, tuple6);
+        List<Tuple> returnedResults = getProjectionResults(new ScanBasedSourceOperator(PEOPLE_TABLE), projectionFields);
         
         Assert.assertTrue(TestUtils.equals(expectedResults, returnedResults));
     }

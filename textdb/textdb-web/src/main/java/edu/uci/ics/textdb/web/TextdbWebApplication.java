@@ -2,7 +2,7 @@ package edu.uci.ics.textdb.web;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.MapperFeature;
-import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Tuple;
 import edu.uci.ics.textdb.api.exception.TextDBException;
 import edu.uci.ics.textdb.api.plan.Plan;
 import edu.uci.ics.textdb.dataflow.sink.TupleStreamSink;
@@ -95,7 +95,7 @@ public class TextdbWebApplication extends Application<TextdbWebConfiguration> {
         Plan plan = logicalPlan.buildQueryPlan();
         TupleStreamSink sink = (TupleStreamSink) plan.getRoot();
         sink.open();
-        List<ITuple> results = sink.collectAllTuples();
+        List<Tuple> results = sink.collectAllTuples();
         sink.close();
     }
 

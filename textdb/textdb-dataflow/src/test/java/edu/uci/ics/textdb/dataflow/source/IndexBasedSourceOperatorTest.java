@@ -15,7 +15,7 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Tuple;
 import edu.uci.ics.textdb.common.constants.LuceneAnalyzerConstants;
 import edu.uci.ics.textdb.common.constants.TestConstants;
 import edu.uci.ics.textdb.common.exception.DataFlowException;
@@ -42,7 +42,7 @@ public class IndexBasedSourceOperatorTest {
 
         DataWriter peopleDataWriter = relationManager.getTableDataWriter(PEOPLE_TABLE);
         peopleDataWriter.open();
-        for (ITuple tuple : TestConstants.getSamplePeopleTuples()) {
+        for (Tuple tuple : TestConstants.getSamplePeopleTuples()) {
             peopleDataWriter.insertTuple(tuple);
         }
         peopleDataWriter.close();
@@ -54,17 +54,17 @@ public class IndexBasedSourceOperatorTest {
         relationManager.deleteTable(PEOPLE_TABLE);
     }
 
-    public List<ITuple> getQueryResults(String fieldName, String query) throws TextDBException, ParseException {
+    public List<Tuple> getQueryResults(String fieldName, String query) throws TextDBException, ParseException {
         return getQueryResults(new TermQuery(new Term(fieldName, query)));
     }
     
-    public List<ITuple> getQueryResults(Query query) throws TextDBException, ParseException {
+    public List<Tuple> getQueryResults(Query query) throws TextDBException, ParseException {
         IndexBasedSourceOperator indexBasedSourceOperator = 
                 new IndexBasedSourceOperator(PEOPLE_TABLE, query);
         indexBasedSourceOperator.open();
 
-        List<ITuple> results = new ArrayList<ITuple>();
-        ITuple nextTuple = null;
+        List<Tuple> results = new ArrayList<Tuple>();
+        Tuple nextTuple = null;
         while ((nextTuple = indexBasedSourceOperator.getNextTuple()) != null) {
             results.add(nextTuple);
         }
@@ -80,7 +80,7 @@ public class IndexBasedSourceOperatorTest {
      */
     @Test
     public void testTextSearchWithMultipleTokens() throws TextDBException, ParseException {
-        List<ITuple> results = getQueryResults(TestConstants.DESCRIPTION, "tall");
+        List<Tuple> results = getQueryResults(TestConstants.DESCRIPTION, "tall");
         int numTuples = results.size();
         Assert.assertEquals(2, numTuples);
 
@@ -98,7 +98,7 @@ public class IndexBasedSourceOperatorTest {
      */
     @Test
     public void testTextSearchWithSingleToken() throws TextDBException, ParseException {
-        List<ITuple> results = getQueryResults(TestConstants.DESCRIPTION, "angry");
+        List<Tuple> results = getQueryResults(TestConstants.DESCRIPTION, "angry");
         int numTuples = results.size();
         boolean check = TestUtils.checkResults(results, "angry", 
                 LuceneAnalyzerConstants.getLuceneAnalyzer(LuceneAnalyzerConstants.standardAnalyzerString()), 
@@ -125,12 +125,12 @@ public class IndexBasedSourceOperatorTest {
         booleanQueryBuilder.add(query2, BooleanClause.Occur.MUST);
 
 
-        List<ITuple> results = getQueryResults(booleanQueryBuilder.build());
+        List<Tuple> results = getQueryResults(booleanQueryBuilder.build());
         
         int numTuples = results.size();
         Assert.assertEquals(1, numTuples);
 
-        for (ITuple tuple : results) {
+        for (Tuple tuple : results) {
             String descriptionValue = (String) tuple.getField(TestConstants.DESCRIPTION).getValue();
             String lastNameValue = (String) tuple.getField(TestConstants.LAST_NAME).getValue();
             Assert.assertTrue(descriptionValue.toLowerCase().contains("tall")

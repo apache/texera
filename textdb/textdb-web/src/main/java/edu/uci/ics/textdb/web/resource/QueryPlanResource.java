@@ -2,7 +2,7 @@ package edu.uci.ics.textdb.web.resource;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Tuple;
 import edu.uci.ics.textdb.api.plan.Plan;
 import edu.uci.ics.textdb.common.utils.Utils;
 import edu.uci.ics.textdb.dataflow.sink.TupleStreamSink;
@@ -55,7 +55,7 @@ public class QueryPlanResource {
                 // returning all the results at once is a **temporary** solution
                 // TODO: in the future, request some number of results at a time
                 sink.open();
-                List<ITuple> results = sink.collectAllTuples();
+                List<Tuple> results = sink.collectAllTuples();
                 sink.close();
                 
                 TextdbWebResponse textdbWebResponse = new TextdbWebResponse(0, Utils.getTupleListJSON(results).toString());

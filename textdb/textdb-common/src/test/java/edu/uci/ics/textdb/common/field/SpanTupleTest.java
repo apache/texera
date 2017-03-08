@@ -13,14 +13,14 @@ import org.junit.Test;
 
 import edu.uci.ics.textdb.api.common.Attribute;
 import edu.uci.ics.textdb.api.common.IField;
-import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Tuple;
 import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.common.constants.SchemaConstants;
 import edu.uci.ics.textdb.common.constants.TestConstants;
 
 public class SpanTupleTest {
 
-    private ITuple spanTuple;
+    private Tuple spanTuple;
 
     @Before
     public void setUp() {
@@ -43,7 +43,7 @@ public class SpanTupleTest {
 
         IField spanField = createSpanListField();
         fields.add(spanField);
-        spanTuple = new DataTuple(new Schema(attributes), fields.toArray(new IField[fields.size()]));
+        spanTuple = new Tuple(new Schema(attributes), fields.toArray(new IField[fields.size()]));
 
         IField spanFieldRetrieved = spanTuple.getField(SchemaConstants.SPAN_LIST);
 

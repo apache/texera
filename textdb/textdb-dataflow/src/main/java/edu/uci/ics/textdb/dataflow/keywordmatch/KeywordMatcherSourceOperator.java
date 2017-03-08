@@ -77,12 +77,12 @@ public class KeywordMatcherSourceOperator extends AbstractSingleInputOperator im
     }
 
     @Override
-    protected ITuple computeNextMatchingTuple() throws TextDBException {
+    protected Tuple computeNextMatchingTuple() throws TextDBException {
         return this.keywordMatcher.getNextTuple();
     }
 
     @Override
-    public ITuple processOneInputTuple(ITuple inputTuple) throws TextDBException {
+    public Tuple processOneInputTuple(Tuple inputTuple) throws TextDBException {
         return this.keywordMatcher.processOneInputTuple(inputTuple);
     }
 

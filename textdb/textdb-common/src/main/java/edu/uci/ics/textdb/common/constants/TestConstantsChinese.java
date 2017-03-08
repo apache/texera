@@ -39,7 +39,7 @@ public class TestConstantsChinese {
             DATE_OF_BIRTH_ATTR, DESCRIPTION_ATTR };
     public static final Schema SCHEMA_PEOPLE = new Schema(ATTRIBUTES_PEOPLE);
 
-    public static List<ITuple> getSamplePeopleTuples() {
+    public static List<Tuple> getSamplePeopleTuples() {
         
         try {
             IField[] fields1 = { new StringField("无忌"), new StringField("长孙"), new IntegerField(46),
@@ -53,9 +53,9 @@ public class TestConstantsChinese {
                     new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974")), 
                     new TextField("伟大的建筑是历史的坐标，具有传承的价值。") };
            
-            ITuple tuple1 = new DataTuple(SCHEMA_PEOPLE, fields1);
-            ITuple tuple2 = new DataTuple(SCHEMA_PEOPLE, fields2);
-            ITuple tuple3 = new DataTuple(SCHEMA_PEOPLE, fields3);
+            Tuple tuple1 = new Tuple(SCHEMA_PEOPLE, fields1);
+            Tuple tuple2 = new Tuple(SCHEMA_PEOPLE, fields2);
+            Tuple tuple3 = new Tuple(SCHEMA_PEOPLE, fields3);
             
             return Arrays.asList(tuple1, tuple2, tuple3);
         } catch (ParseException e) {

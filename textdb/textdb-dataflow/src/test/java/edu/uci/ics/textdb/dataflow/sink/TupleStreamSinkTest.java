@@ -53,7 +53,7 @@ public class TupleStreamSinkTest {
 
     @Test
     public void testGetNextTuple() throws Exception {
-        ITuple sampleTuple = Mockito.mock(ITuple.class);
+        Tuple sampleTuple = Mockito.mock(Tuple.class);
         Mockito.when(sampleTuple.toString()).thenReturn("Sample Tuple");
         Mockito.when(sampleTuple.getSchema()).thenReturn(inputSchema);
         // Set the behavior for inputOperator,

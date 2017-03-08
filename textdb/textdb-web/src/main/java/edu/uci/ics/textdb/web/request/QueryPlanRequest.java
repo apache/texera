@@ -29,7 +29,8 @@ public class QueryPlanRequest {
     private LogicalPlan logicalPlan;
 
     public static final String GET_PROPERTIES_FUNCTION_NAME = "getOperatorProperties";
-    public static final HashMap<String, Class> OPERATOR_BEAN_MAP = new HashMap<String, Class>() {{
+    public static final HashMap<String, Class<? extends OperatorBean>> OPERATOR_BEAN_MAP = 
+            new HashMap<String, Class<? extends OperatorBean>>() {{
         put("DictionaryMatcher", DictionaryMatcherBean.class);
         put("DictionarySource", DictionarySourceBean.class);
         put("FileSink", FileSinkBean.class);
@@ -93,7 +94,7 @@ public class QueryPlanRequest {
         this.operatorProperties = new HashMap<>();
         for(Iterator<OperatorBean> iter = operatorBeans.iterator(); iter.hasNext(); ) {
             OperatorBean operatorBean = iter.next();
-            Class operatorBeanClassName =  OPERATOR_BEAN_MAP.get(operatorBean.getOperatorType());
+            Class<? extends OperatorBean> operatorBeanClassName =  OPERATOR_BEAN_MAP.get(operatorBean.getOperatorType());
             try {
                 Method method = operatorBeanClassName.getMethod(GET_PROPERTIES_FUNCTION_NAME);
                 HashMap<String, String> currentOperatorProperty = (HashMap<String, String>) method.invoke(operatorBean);

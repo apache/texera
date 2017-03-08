@@ -8,11 +8,10 @@ import java.util.stream.Collectors;
 import edu.uci.ics.textdb.api.common.Attribute;
 import edu.uci.ics.textdb.api.common.AttributeType;
 import edu.uci.ics.textdb.api.common.IField;
-import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Tuple;
 import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.common.constants.SchemaConstants;
 import edu.uci.ics.textdb.common.exception.DataFlowException;
-import edu.uci.ics.textdb.common.field.DataTuple;
 import edu.uci.ics.textdb.common.field.ListField;
 import edu.uci.ics.textdb.common.field.Span;
 
@@ -151,7 +150,7 @@ public class JoinDistancePredicate implements IJoinPredicate {
      * 
      * @return New Tuple containing the result of join operation.
      */
-	public ITuple joinTuples(ITuple outerTuple, ITuple innerTuple, Schema outputSchema) throws Exception {
+	public Tuple joinTuples(Tuple outerTuple, Tuple innerTuple, Schema outputSchema) throws Exception {
 	    List<Span> newJoinSpanList = new ArrayList<>();
 
 	    /*
@@ -174,24 +173,18 @@ public class JoinDistancePredicate implements IJoinPredicate {
 	     * Check using try/catch if both the tuples have span information.
 	     * If not return null; so we can process next tuple.
 	     */
-	    IField spanFieldOfInnerTuple = null;
-	    IField spanFieldOfOuterTuple = null;
-	    try {
-	        spanFieldOfInnerTuple = innerTuple.getField(SchemaConstants.SPAN_LIST);
-	        spanFieldOfOuterTuple = outerTuple.getField(SchemaConstants.SPAN_LIST);
-	    } catch (Exception e) {
-	        return null;
-	    }
+	    ListField<Span> spanFieldOfInnerTuple = innerTuple.getField(SchemaConstants.SPAN_LIST);
+	    ListField<Span> spanFieldOfOuterTuple = outerTuple.getField(SchemaConstants.SPAN_LIST);
 	
 	    List<Span> innerSpanList = null;
 	    List<Span> outerSpanList = null;
 	    // Check if both the fields obtained from the indexes are indeed of type
 	    // ListField
 	    if (spanFieldOfInnerTuple.getClass().equals(ListField.class)) {
-	        innerSpanList = (List<Span>) spanFieldOfInnerTuple.getValue();
+	        innerSpanList = spanFieldOfInnerTuple.getValue();
 	    }
 	    if (spanFieldOfOuterTuple.getClass().equals(ListField.class)) {
-	        outerSpanList = (List<Span>) spanFieldOfOuterTuple.getValue();
+	        outerSpanList = spanFieldOfOuterTuple.getValue();
 	    }
 	
 	    Iterator<Span> outerSpanIter = outerSpanList.iterator();
@@ -244,7 +237,7 @@ public class JoinDistancePredicate implements IJoinPredicate {
 	    
 	    outputFields.add(new ListField<>(newJoinSpanList));
 	    
-	    return new DataTuple(outputSchema, outputFields.stream().toArray(IField[]::new));
+	    return new Tuple(outputSchema, outputFields.stream().toArray(IField[]::new));
 	}
 
 	/**
@@ -255,7 +248,7 @@ public class JoinDistancePredicate implements IJoinPredicate {
 	 * @param fieldName
 	 * @return True if both the tuples have the field and the values are equal.
 	 */
-	private boolean compareField(ITuple innerTuple, ITuple outerTuple, String fieldName) {  
+	private boolean compareField(Tuple innerTuple, Tuple outerTuple, String fieldName) {  
 	    IField innerField = innerTuple.getField(fieldName);
 	    IField outerField = outerTuple.getField(fieldName);
 	    

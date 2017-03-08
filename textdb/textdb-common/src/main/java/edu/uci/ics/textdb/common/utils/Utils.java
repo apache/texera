@@ -28,10 +28,7 @@ import org.apache.lucene.index.IndexOptions;
 import org.apache.lucene.index.IndexableField;
 import org.json.JSONArray;
 import org.json.JSONObject;
-
-import edu.uci.ics.textdb.api.common.AttributeType;
 import edu.uci.ics.textdb.common.constants.SchemaConstants;
-import edu.uci.ics.textdb.common.field.DataTuple;
 import edu.uci.ics.textdb.common.field.DateField;
 import edu.uci.ics.textdb.common.field.DoubleField;
 import edu.uci.ics.textdb.common.field.IDField;
@@ -144,13 +141,13 @@ public class Utils {
     /**
      * @about Creating a new span tuple from span schema, field list
      */
-    public static ITuple getSpanTuple(List<IField> fieldList, List<Span> spanList, Schema spanSchema) {
+    public static Tuple getSpanTuple(List<IField> fieldList, List<Span> spanList, Schema spanSchema) {
         IField spanListField = new ListField<Span>(new ArrayList<>(spanList));
         List<IField> fieldListDuplicate = new ArrayList<>(fieldList);
         fieldListDuplicate.add(spanListField);
 
         IField[] fieldsDuplicate = fieldListDuplicate.toArray(new IField[fieldListDuplicate.size()]);
-        return new DataTuple(spanSchema, fieldsDuplicate);
+        return new Tuple(spanSchema, fieldsDuplicate);
     }
     
     /**
@@ -288,22 +285,23 @@ public class Utils {
     }
     
     
-    public static JSONArray getTupleListJSON(List<ITuple> tupleList) {
+    public static JSONArray getTupleListJSON(List<Tuple> tupleList) {
         JSONArray jsonArray = new JSONArray();
         
-        for (ITuple tuple : tupleList) {
+        for (Tuple tuple : tupleList) {
             jsonArray.put(getTupleJSON(tuple));
         }
         
         return jsonArray;
     }
     
-    public static JSONObject getTupleJSON(ITuple tuple) {
+    public static JSONObject getTupleJSON(Tuple tuple) {
         JSONObject jsonObject = new JSONObject();
         
         for (String attrName : tuple.getSchema().getAttributeNames()) {
             if (attrName.equalsIgnoreCase(SchemaConstants.SPAN_LIST)) {
-                List<Span> spanList = ((ListField<Span>) tuple.getField(SchemaConstants.SPAN_LIST)).getValue();
+                ListField<Span> spanListField = tuple.getField(SchemaConstants.SPAN_LIST);
+                List<Span> spanList = spanListField.getValue();
                 jsonObject.put(attrName, getSpanListJSON(spanList));
             } else {
                 jsonObject.put(attrName, tuple.getField(attrName).getValue().toString());
@@ -336,9 +334,9 @@ public class Utils {
         return jsonObject;
     }
 
-    public static String getTupleListString(List<ITuple> tupleList) {
+    public static String getTupleListString(List<Tuple> tupleList) {
         StringBuilder sb = new StringBuilder();
-        for (ITuple tuple : tupleList) {
+        for (Tuple tuple : tupleList) {
             sb.append(getTupleString(tuple));
             sb.append("\n");
         }
@@ -351,7 +349,7 @@ public class Utils {
      * @param tuple
      * @return string representation of the tuple
      */
-    public static String getTupleString(ITuple tuple) {
+    public static String getTupleString(Tuple tuple) {
         StringBuilder sb = new StringBuilder();
 
         Schema schema = tuple.getSchema();
@@ -418,8 +416,8 @@ public class Utils {
      * @param removeFields
      * @return
      */
-    public static List<ITuple> removeFields(List<ITuple> tupleList, String... removeFields) {
-        List<ITuple> newTuples = tupleList.stream().map(tuple -> removeFields(tuple, removeFields))
+    public static List<Tuple> removeFields(List<Tuple> tupleList, String... removeFields) {
+        List<Tuple> newTuples = tupleList.stream().map(tuple -> removeFields(tuple, removeFields))
                 .collect(Collectors.toList());
         return newTuples;
     }
@@ -431,7 +429,7 @@ public class Utils {
      * @param removeFields
      * @return
      */
-    public static ITuple removeFields(ITuple tuple, String... removeFields) {
+    public static Tuple removeFields(Tuple tuple, String... removeFields) {
         List<String> removeFieldList = Arrays.asList(removeFields);
         List<Integer> removedFeidsIndex = removeFieldList.stream()
                 .map(fieldName -> tuple.getSchema().getIndex(fieldName)).collect(Collectors.toList());
@@ -444,10 +442,10 @@ public class Utils {
             .filter(index -> (! removedFeidsIndex.contains(index)))
             .mapToObj(index -> tuple.getField(index)).toArray(IField[]::new);
         
-        return new DataTuple(newSchema, newFields);
+        return new Tuple(newSchema, newFields);
     }
 
-    public static List<Span> generatePayloadFromTuple(ITuple tuple, Analyzer luceneAnalyzer) {
+    public static List<Span> generatePayloadFromTuple(Tuple tuple, Analyzer luceneAnalyzer) {
         List<Span> tuplePayload = tuple.getSchema().getAttributes().stream()
                 .filter(attr -> (attr.getAttributeType() == AttributeType.TEXT)) // generate payload only for TEXT field
                 .map(attr -> attr.getAttributeName())

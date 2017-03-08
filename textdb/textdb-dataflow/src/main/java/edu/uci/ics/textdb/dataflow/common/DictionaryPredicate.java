@@ -4,13 +4,12 @@ import java.util.List;
 
 import org.apache.lucene.analysis.Analyzer;
 
-import edu.uci.ics.textdb.api.common.IDictionary;
 import edu.uci.ics.textdb.api.common.IPredicate;
 import edu.uci.ics.textdb.common.constants.DataConstants.KeywordMatchingType;
 
 public class DictionaryPredicate implements IPredicate {
 
-    private IDictionary dictionary;
+    private Dictionary dictionary;
     private Analyzer luceneAnalyzer;
     private List<String> attributeNames;
     private KeywordMatchingType keywordMatchingType;
@@ -21,7 +20,7 @@ public class DictionaryPredicate implements IPredicate {
      * searched in String field we search for Exact string.
      */
 
-    public DictionaryPredicate(IDictionary dictionary, List<String> attributeNames, Analyzer luceneAnalyzer,
+    public DictionaryPredicate(Dictionary dictionary, List<String> attributeNames, Analyzer luceneAnalyzer,
             KeywordMatchingType keywordMatchingType) {
 
         this.dictionary = dictionary;

@@ -4,7 +4,7 @@ import edu.uci.ics.textdb.api.exception.TextDBException;
 import edu.uci.ics.textdb.common.exception.DataFlowException;
 import edu.uci.ics.textdb.common.exception.StorageException;
 
-import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Tuple;
 import edu.uci.ics.textdb.storage.DataWriter;
 import edu.uci.ics.textdb.storage.RelationManager;
 
@@ -37,7 +37,7 @@ public class IndexSink extends AbstractSink {
         }
     }
 
-    protected void processOneTuple(ITuple nextTuple) throws TextDBException {
+    protected void processOneTuple(Tuple nextTuple) throws TextDBException {
         dataWriter.insertTuple(nextTuple);
     }
 

@@ -3,7 +3,7 @@ package edu.uci.ics.textdb.dataflow.fuzzytokenmatcher;
 import java.util.ArrayList;
 import java.util.List;
 
-import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Tuple;
 import edu.uci.ics.textdb.api.exception.TextDBException;
 import edu.uci.ics.textdb.common.constants.LuceneAnalyzerConstants;
 import edu.uci.ics.textdb.common.constants.TestConstants;
@@ -40,7 +40,7 @@ public class FuzzyTokenMatcherTestHelper {
 
         DataWriter peopleDataWriter = relationManager.getTableDataWriter(PEOPLE_TABLE);
         peopleDataWriter.open();
-        for (ITuple tuple : TestConstants.getSamplePeopleTuples()) {
+        for (Tuple tuple : TestConstants.getSamplePeopleTuples()) {
             peopleDataWriter.insertTuple(tuple);
         }
         peopleDataWriter.close();
@@ -57,20 +57,20 @@ public class FuzzyTokenMatcherTestHelper {
     /*
      * Gets the query results from FuzzyTokenMatcher (without limit and offset).
      */
-    public static List<ITuple> getQueryResults(String tableName, String query, double threshold, List<String> attributeNames) throws TextDBException {
+    public static List<Tuple> getQueryResults(String tableName, String query, double threshold, List<String> attributeNames) throws TextDBException {
         return getQueryResults(tableName, query, threshold, attributeNames, Integer.MAX_VALUE, 0);
     }
     
     /*
      * Gets the query results from FuzzyTokenMatcher (with limit and offset options)
      */
-    public static List<ITuple> getQueryResults(String tableName, String query, double threshold, List<String> attributeNames,
+    public static List<Tuple> getQueryResults(String tableName, String query, double threshold, List<String> attributeNames,
             int limit, int offset) throws TextDBException {
         
         // results from a scan on the table followed by a fuzzy token matcher
-        List<ITuple> scanSourceResults = getScanSourceResults(tableName, query, threshold, attributeNames, limit, offset);
+        List<Tuple> scanSourceResults = getScanSourceResults(tableName, query, threshold, attributeNames, limit, offset);
         // results from index-based look-ups on the table
-        List<ITuple> fuzzyTokenSourceResults = getFuzzyTokenSourceResults(tableName, query, threshold, attributeNames, limit, offset);
+        List<Tuple> fuzzyTokenSourceResults = getFuzzyTokenSourceResults(tableName, query, threshold, attributeNames, limit, offset);
         
         // if limit and offset are not relevant, the results from scan source and fuzzy token source must be the same
         if (limit == Integer.MAX_VALUE && offset == 0) {
@@ -83,7 +83,7 @@ public class FuzzyTokenMatcherTestHelper {
         // if limit and offset are relevant, then the results can be different (since the order doesn't matter)
         // in this case, we get all the results and test if the whole result set contains both results
         else {
-            List<ITuple> allResults = getFuzzyTokenSourceResults(tableName, query, threshold, attributeNames,
+            List<Tuple> allResults = getFuzzyTokenSourceResults(tableName, query, threshold, attributeNames,
                     Integer.MAX_VALUE, 0);
             
             if (scanSourceResults.size() == fuzzyTokenSourceResults.size() &&
@@ -99,7 +99,7 @@ public class FuzzyTokenMatcherTestHelper {
     /*
      * Gets the query results by scanning the table and passing the data into a FuzzyTokenMatcher.
      */
-    public static List<ITuple> getScanSourceResults(String tableName, String query, double threshold, List<String> attributeNames,
+    public static List<Tuple> getScanSourceResults(String tableName, String query, double threshold, List<String> attributeNames,
             int limit, int offset) throws TextDBException {
                 
         ScanBasedSourceOperator scanSource = new ScanBasedSourceOperator(tableName); 
@@ -112,8 +112,8 @@ public class FuzzyTokenMatcherTestHelper {
         
         fuzzyTokenMatcher.setInputOperator(scanSource);
         
-        ITuple tuple;
-        List<ITuple> results = new ArrayList<>();
+        Tuple tuple;
+        List<Tuple> results = new ArrayList<>();
         
         fuzzyTokenMatcher.open();
         while ((tuple = fuzzyTokenMatcher.getNextTuple()) != null) {
@@ -127,7 +127,7 @@ public class FuzzyTokenMatcherTestHelper {
     /*
      * Gets the query results by using a FuzzyTokenMatcherSourceOperator (which performs index-based lookups on the table)
      */
-    public static List<ITuple> getFuzzyTokenSourceResults(String tableName, String query, double threshold, List<String> attributeNames,
+    public static List<Tuple> getFuzzyTokenSourceResults(String tableName, String query, double threshold, List<String> attributeNames,
             int limit, int offset) throws TextDBException {
         
         FuzzyTokenPredicate fuzzyTokenPredicate = new FuzzyTokenPredicate(
@@ -139,8 +139,8 @@ public class FuzzyTokenMatcherTestHelper {
         fuzzyTokenSource.setLimit(limit);
         fuzzyTokenSource.setOffset(offset);
         
-        ITuple tuple;
-        List<ITuple> results = new ArrayList<>();
+        Tuple tuple;
+        List<Tuple> results = new ArrayList<>();
         
         fuzzyTokenSource.open();
         while ((tuple = fuzzyTokenSource.getNextTuple()) != null) {

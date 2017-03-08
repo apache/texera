@@ -1,6 +1,6 @@
 package edu.uci.ics.textdb.dataflow.sink;
 
-import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Tuple;
 import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.api.dataflow.IOperator;
 import edu.uci.ics.textdb.api.dataflow.ISink;
@@ -36,7 +36,7 @@ public abstract class AbstractSink implements ISink {
 
     @Override
     public void processTuples() throws TextDBException {
-        ITuple nextTuple;
+        Tuple nextTuple;
 
         while ((nextTuple = inputOperator.getNextTuple()) != null) {
             processOneTuple(nextTuple);
@@ -48,7 +48,7 @@ public abstract class AbstractSink implements ISink {
      * @param nextTuple
      *            A tuple that needs to be processed during each iteration
      */
-    protected abstract void processOneTuple(ITuple nextTuple) throws TextDBException;
+    protected abstract void processOneTuple(Tuple nextTuple) throws TextDBException;
 
     @Override
     public void close() throws TextDBException {

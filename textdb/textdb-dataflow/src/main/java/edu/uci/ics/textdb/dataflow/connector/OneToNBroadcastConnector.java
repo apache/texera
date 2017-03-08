@@ -2,7 +2,7 @@ package edu.uci.ics.textdb.dataflow.connector;
 
 import java.util.ArrayList;
 
-import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Tuple;
 import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.api.dataflow.IConnector;
 import edu.uci.ics.textdb.api.dataflow.IOperator;
@@ -34,7 +34,7 @@ public class OneToNBroadcastConnector implements IConnector {
     
     private IOperator inputOperator;
     // an in-memory list to cache tuples from input tuple, see getNextTuple() for more details
-    private ArrayList<ITuple> inputTupleList;
+    private ArrayList<Tuple> inputTupleList;
     // indicates if the input operator's tuples are all consumed
     boolean inputAllConsumed = false;
     
@@ -91,7 +91,7 @@ public class OneToNBroadcastConnector implements IConnector {
      * Tuples from input operators are cached in an in-memory list.
      * A new tuple will be fetched from input operator whenever a cursor exceeds the list size.
      */
-    private ITuple getNextTuple(int outputOperatorIndex) throws TextDBException {
+    private Tuple getNextTuple(int outputOperatorIndex) throws TextDBException {
         int currentPosition = outputCursorList.get(outputOperatorIndex);
         
         if (currentPosition + 1 < inputTupleList.size()) {
@@ -102,7 +102,7 @@ public class OneToNBroadcastConnector implements IConnector {
             if (inputAllConsumed) {
                 return null;
             }
-            ITuple nextInputTuple = inputOperator.getNextTuple();
+            Tuple nextInputTuple = inputOperator.getNextTuple();
             if (nextInputTuple == null) {
                 inputAllConsumed = true;
                 return null;
@@ -165,7 +165,7 @@ public class OneToNBroadcastConnector implements IConnector {
         }
 
         @Override
-        public ITuple getNextTuple() throws TextDBException {
+        public Tuple getNextTuple() throws TextDBException {
             return ownerConnector.getNextTuple(outputIndex);
         }
 

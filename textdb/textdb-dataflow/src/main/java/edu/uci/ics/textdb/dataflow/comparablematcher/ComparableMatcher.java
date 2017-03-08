@@ -11,7 +11,7 @@ import edu.uci.ics.textdb.dataflow.common.AbstractSingleInputOperator;
  *
  * @author Adrian Seungjin Lee
  */
-public class ComparableMatcher<T extends Comparable> extends AbstractSingleInputOperator {
+public class ComparableMatcher<T extends Comparable<T>> extends AbstractSingleInputOperator {
     private ComparablePredicate<T> predicate;
 
     private Schema inputSchema;
@@ -27,9 +27,9 @@ public class ComparableMatcher<T extends Comparable> extends AbstractSingleInput
     }
 
     @Override
-    protected ITuple computeNextMatchingTuple() throws TextDBException {
-        ITuple inputTuple = null;
-        ITuple resultTuple = null;
+    protected Tuple computeNextMatchingTuple() throws TextDBException {
+        Tuple inputTuple = null;
+        Tuple resultTuple = null;
 
         while ((inputTuple = inputOperator.getNextTuple()) != null) {
             resultTuple = processOneInputTuple(inputTuple);
@@ -42,12 +42,12 @@ public class ComparableMatcher<T extends Comparable> extends AbstractSingleInput
     }
 
     @Override
-    public ITuple processOneInputTuple(ITuple inputTuple) throws TextDBException {
-        ITuple resultTuple = null;
+    public Tuple processOneInputTuple(Tuple inputTuple) throws TextDBException {
+        Tuple resultTuple = null;
 
         Attribute attribute = predicate.getAttribute();
         DataConstants.NumberMatchingType operatorType = predicate.getMatchingType();
-
+      
         AttributeType attributeType = attribute.getAttributeType();
         String fieldName = attribute.getAttributeName();
 
