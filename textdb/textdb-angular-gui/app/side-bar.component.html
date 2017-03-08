@@ -1,0 +1,19 @@
+<div id="sidebar-wrapper">
+    <div [hidden]="submitted">
+        <h3 class="sidebar-brand">Edit {{operator}}</h3>
+        <form (ngSubmit)="onSubmit()" #editOperatorForm="ngForm">
+            <div class="form-group" *ngFor="let attribute of attributes">
+                <label for="{{attribute}}">{{humanize(attribute)}}</label>
+                <input [(ngModel)]="data.properties.attributes[attribute]" name="{{attribute}}" type="text" class="form-control" id="{{attribute}}" value="{{data.properties.attributes[attribute]}}" #{{attribute}}="ngModel" required>
+            </div>
+            <button type="submit" class="btn btn-success" [disabled]="!editOperatorForm.form.valid">OK</button>
+        </form>
+    </div>
+    <div [hidden]="!submitted">
+        <h2>New Attributes:</h2>
+        <div *ngFor="let attribute of attributes">
+            <div>{{humanize(attribute)}}: {{data.properties.attributes[attribute]}}</div>
+        </div>
+        <button class="btn btn-primary" (click)="submitted=false">Edit</button>
+    </div>
+</div>
