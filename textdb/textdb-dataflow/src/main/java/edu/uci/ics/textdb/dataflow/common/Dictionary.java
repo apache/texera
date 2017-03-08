@@ -10,13 +10,11 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 
-import edu.uci.ics.textdb.api.common.IDictionary;
-
 /**
  * @author Sudeep [inkudo]
  *
  */
-public class Dictionary implements IDictionary {
+public class Dictionary {
 
     private Iterator<String> iterator;
     private HashMap<String, Double> wordFrequencyMap;
@@ -68,7 +66,6 @@ public class Dictionary implements IDictionary {
     /**
      * Gets next dictionary entry from the dictionary
      */
-    @Override
     public String getNextValue() {
         if (iterator == null) {
             iterator = wordFrequencyMap.keySet().iterator();
@@ -94,7 +91,6 @@ public class Dictionary implements IDictionary {
     /**
      * Reset the cursor to the start of the dictionary.
      */
-    @Override
     public void resetCursor() {
         iterator = wordFrequencyMap.keySet().iterator();
     }

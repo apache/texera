@@ -15,7 +15,7 @@ import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import edu.uci.ics.textdb.api.exception.TextDBException;
 
 import edu.uci.ics.textdb.api.common.Attribute;
-import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Tuple;
 import edu.uci.ics.textdb.common.constants.DataConstants;
 import edu.uci.ics.textdb.common.constants.SchemaConstants;
 import edu.uci.ics.textdb.common.constants.DataConstants.KeywordMatchingType;
@@ -149,9 +149,10 @@ public class KeywordMatcherPerformanceTest {
             long startMatchTime = System.currentTimeMillis();
             keywordSource.open();
             int counter = 0;
-            ITuple nextTuple = null;
+            Tuple nextTuple = null;
             while ((nextTuple = keywordSource.getNextTuple()) != null) {
-                List<Span> spanList = ((ListField<Span>) nextTuple.getField(SchemaConstants.SPAN_LIST)).getValue();
+                ListField<Span> spanListField = nextTuple.getField(SchemaConstants.SPAN_LIST);
+                List<Span> spanList = spanListField.getValue();
                 counter += spanList.size();
             }
             keywordSource.close();

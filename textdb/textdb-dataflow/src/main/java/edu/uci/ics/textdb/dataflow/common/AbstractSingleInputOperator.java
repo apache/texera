@@ -1,6 +1,6 @@
 package edu.uci.ics.textdb.dataflow.common;
 
-import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Tuple;
 import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.api.dataflow.IOperator;
 import edu.uci.ics.textdb.common.exception.DataFlowException;
@@ -59,7 +59,7 @@ public abstract class AbstractSingleInputOperator implements IOperator {
     protected abstract void setUp() throws TextDBException;
 
     @Override
-    public ITuple getNextTuple() throws TextDBException {
+    public Tuple getNextTuple() throws TextDBException {
         if (cursor == CLOSED) {
             throw new DataFlowException(ErrorMessages.OPERATOR_NOT_OPENED);
         }
@@ -67,7 +67,7 @@ public abstract class AbstractSingleInputOperator implements IOperator {
             return null;
         }
         try {
-            ITuple resultTuple = null;
+            Tuple resultTuple = null;
             while (true) {
                 resultTuple = computeNextMatchingTuple();
                 if (resultTuple == null) {
@@ -90,9 +90,9 @@ public abstract class AbstractSingleInputOperator implements IOperator {
      * @return next matching tuple, null if there's no more matching tuple.
      * @throws TextDBException
      */
-    protected abstract ITuple computeNextMatchingTuple() throws TextDBException;
+    protected abstract Tuple computeNextMatchingTuple() throws TextDBException;
 
-    public abstract ITuple processOneInputTuple(ITuple inputTuple) throws TextDBException;
+    public abstract Tuple processOneInputTuple(Tuple inputTuple) throws TextDBException;
 
     @Override
     public void close() throws TextDBException {

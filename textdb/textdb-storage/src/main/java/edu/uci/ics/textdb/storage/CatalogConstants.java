@@ -7,10 +7,9 @@ import java.util.List;
 
 import edu.uci.ics.textdb.api.common.Attribute;
 import edu.uci.ics.textdb.api.common.FieldType;
-import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Tuple;
 import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.common.exception.StorageException;
-import edu.uci.ics.textdb.common.field.DataTuple;
 import edu.uci.ics.textdb.common.field.IntegerField;
 import edu.uci.ics.textdb.common.field.StringField;
 import edu.uci.ics.textdb.common.utils.Utils;
@@ -98,11 +97,11 @@ public class CatalogConstants {
      * @return
      * @throws StorageException
      */
-    public static ITuple getTableCatalogTuple(String tableName, String tableDirectory, String luceneAnalyzerStr) 
+    public static Tuple getTableCatalogTuple(String tableName, String tableDirectory, String luceneAnalyzerStr) 
             throws StorageException {
         try {
             String tableDirectoryAbsolute = new File(tableDirectory).getCanonicalPath();
-            return new DataTuple(TABLE_CATALOG_SCHEMA, 
+            return new Tuple(TABLE_CATALOG_SCHEMA, 
                     new StringField(tableName), 
                     new StringField(tableDirectoryAbsolute),
                     new StringField(luceneAnalyzerStr));
@@ -121,11 +120,11 @@ public class CatalogConstants {
      * @return
      * @throws StorageException
      */
-    public static List<ITuple> getSchemaCatalogTuples(String tableName, Schema tableSchema) {
-        List<ITuple> schemaCatalogTuples = new ArrayList<>();
+    public static List<Tuple> getSchemaCatalogTuples(String tableName, Schema tableSchema) {
+        List<Tuple> schemaCatalogTuples = new ArrayList<>();
         for (int i = 0; i < tableSchema.getAttributes().size(); i++) {
             Attribute attr = tableSchema.getAttributes().get(i);
-            ITuple schemaTuple = new DataTuple(SCHEMA_CATALOG_SCHEMA, 
+            Tuple schemaTuple = new Tuple(SCHEMA_CATALOG_SCHEMA, 
                     new StringField(tableName),
                     new StringField(attr.getFieldName()),
                     new StringField(attr.getFieldType().toString().toLowerCase()),

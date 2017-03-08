@@ -8,7 +8,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
 
-import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Tuple;
 import edu.uci.ics.textdb.api.dataflow.IOperator;
 
 public class FileSinkTest {
@@ -48,7 +48,7 @@ public class FileSinkTest {
 
     @Test
     public void testProcessTuples() throws Exception {
-        ITuple sampleTuple = Mockito.mock(ITuple.class);
+        Tuple sampleTuple = Mockito.mock(Tuple.class);
         Mockito.when(sampleTuple.toString()).thenReturn("Sample Tuple");
         // Set the behavior for childOperator,
         // first it returns some non-null tuple and second time it returns null

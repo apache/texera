@@ -4,7 +4,7 @@ import edu.uci.ics.textdb.api.exception.TextDBException;
 
 import org.apache.lucene.search.MatchAllDocsQuery;
 
-import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Tuple;
 import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.api.dataflow.ISourceOperator;
 import edu.uci.ics.textdb.common.exception.DataFlowException;
@@ -46,7 +46,7 @@ public class ScanBasedSourceOperator implements ISourceOperator {
     }
 
     @Override
-    public ITuple getNextTuple() throws TextDBException {
+    public Tuple getNextTuple() throws TextDBException {
         if (! isOpen) {
             throw new DataFlowException(ErrorMessages.OPERATOR_NOT_OPENED);
         }

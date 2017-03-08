@@ -11,9 +11,8 @@ import java.util.List;
 import edu.uci.ics.textdb.api.common.Attribute;
 import edu.uci.ics.textdb.api.common.FieldType;
 import edu.uci.ics.textdb.api.common.IField;
-import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Tuple;
 import edu.uci.ics.textdb.api.common.Schema;
-import edu.uci.ics.textdb.common.field.DataTuple;
 import edu.uci.ics.textdb.common.field.DateField;
 import edu.uci.ics.textdb.common.field.DoubleField;
 import edu.uci.ics.textdb.common.field.IntegerField;
@@ -46,7 +45,7 @@ public class TestConstants {
             DATE_OF_BIRTH_ATTR, DESCRIPTION_ATTR };
     public static final Schema SCHEMA_PEOPLE = new Schema(ATTRIBUTES_PEOPLE);
 
-    public static List<ITuple> getSamplePeopleTuples() {
+    public static List<Tuple> getSamplePeopleTuples() {
         
         try {
             IField[] fields1 = { new StringField("bruce"), new StringField("john Lee"), new IntegerField(46),
@@ -68,12 +67,12 @@ public class TestConstants {
                     new IntegerField(42), new DoubleField(5.99),
                     new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974")), new TextField("Short angry") };
 
-            ITuple tuple1 = new DataTuple(SCHEMA_PEOPLE, fields1);
-            ITuple tuple2 = new DataTuple(SCHEMA_PEOPLE, fields2);
-            ITuple tuple3 = new DataTuple(SCHEMA_PEOPLE, fields3);
-            ITuple tuple4 = new DataTuple(SCHEMA_PEOPLE, fields4);
-            ITuple tuple5 = new DataTuple(SCHEMA_PEOPLE, fields5);
-            ITuple tuple6 = new DataTuple(SCHEMA_PEOPLE, fields6);
+            Tuple tuple1 = new Tuple(SCHEMA_PEOPLE, fields1);
+            Tuple tuple2 = new Tuple(SCHEMA_PEOPLE, fields2);
+            Tuple tuple3 = new Tuple(SCHEMA_PEOPLE, fields3);
+            Tuple tuple4 = new Tuple(SCHEMA_PEOPLE, fields4);
+            Tuple tuple5 = new Tuple(SCHEMA_PEOPLE, fields5);
+            Tuple tuple6 = new Tuple(SCHEMA_PEOPLE, fields6);
 
             return Arrays.asList(tuple1, tuple2, tuple3, tuple4, tuple5, tuple6);   
         } catch (ParseException e) {

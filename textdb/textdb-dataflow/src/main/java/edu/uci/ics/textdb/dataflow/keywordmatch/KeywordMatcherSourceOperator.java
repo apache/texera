@@ -11,7 +11,7 @@ import org.apache.lucene.search.Query;
 import org.apache.lucene.search.TermQuery;
 
 import edu.uci.ics.textdb.api.common.FieldType;
-import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Tuple;
 import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.api.dataflow.IOperator;
 import edu.uci.ics.textdb.api.dataflow.ISourceOperator;
@@ -77,12 +77,12 @@ public class KeywordMatcherSourceOperator extends AbstractSingleInputOperator im
     }
 
     @Override
-    protected ITuple computeNextMatchingTuple() throws TextDBException {
+    protected Tuple computeNextMatchingTuple() throws TextDBException {
         return this.keywordMatcher.getNextTuple();
     }
 
     @Override
-    public ITuple processOneInputTuple(ITuple inputTuple) throws TextDBException {
+    public Tuple processOneInputTuple(Tuple inputTuple) throws TextDBException {
         return this.keywordMatcher.processOneInputTuple(inputTuple);
     }
 

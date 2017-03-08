@@ -4,7 +4,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.Scanner;
 
-import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Tuple;
 import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.api.dataflow.ISourceOperator;
 import edu.uci.ics.textdb.api.exception.TextDBException;
@@ -20,7 +20,7 @@ public class FileSourceOperator implements ISourceOperator {
 
     @FunctionalInterface
     public static interface ToTuple {
-        ITuple convertToTuple(String str) throws Exception;
+        Tuple convertToTuple(String str) throws Exception;
     }
 
     private File file;
@@ -44,7 +44,7 @@ public class FileSourceOperator implements ISourceOperator {
     }
 
     @Override
-    public ITuple getNextTuple() throws TextDBException {
+    public Tuple getNextTuple() throws TextDBException {
         if (scanner.hasNextLine()) {
             try {
                 return this.toTupleFunc.convertToTuple(scanner.nextLine());

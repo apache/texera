@@ -5,15 +5,27 @@
 	@Author: Jimmy Wang
 */
 
+var debug = null;
+
 // main operation (holds all the methods for the buttons and holds the buttons itself)
 var setup = function(){
 	var data = {};
+
+	//
+	// Panzoom initialization...
+	// $('#the-flowchart').panzoom({
+	// 	minScale : 0,
+	// 	$zoomRange : $("input[type = 'range']"),
+	// 	disablePan : true,
+	// 	disableZoom: true
+	// });
 
 	// Apply the plugin on a standard, empty div...
 	$('#the-flowchart').flowchart({
 		data: data,
 		multipleLinksOnOutput: true
 	});
+
 
 	var operatorI = 0;
 	var selectedOperator = '';
@@ -28,23 +40,28 @@ var setup = function(){
 	var DEFAULT_DATA_SOURCE = "collection name";
 	var DEFAULT_FILE_SINK = "output.txt";
 	var DEFAULT_ATTRIBUTE_ID = "_id";
-	var DEFAULT_PREDICATE_TYPE = "CharacterDistance";
-	var DEFAULT_DISTANCE = 100; //threshold
+	var DEFAULT_PREDICATE_TYPE = "Characterthreshold";
+	var DEFAULT_THRESHOLD = 100; //threshold
 	var DEFAULT_ATTRIBUTES = "first name, last name";
 	var DEFAULT_LIMIT = null;
 	var DEFAULT_OFFSET = null;
+
+	var DEFAULT_IN_ATTRIBUTE = "name1";
+	var DEFAULT_OUT_ATTRIBUTE = "name2"
 
 	/*
 		Helper Functions
 	*/
 	//Helper Function for Process Queries that displays the results after hitting "Process Query"
 	function createResultFrame(message){
+		var resultJSON = JSON.parse(message['text']);
+
 		var resultFrame = $('<div class="result-frame"><div class="result-box"><div class="result-box-band">Return Result<div class="result-frame-close"><img src="img/close-icon.png"></div></div><div class="return-result"></div></div></div>');
 		$('body').append(resultFrame);
-
+		
 		var node = new PrettyJSON.view.Node({
 			el:$('.return-result'),
-			data:message
+			data:resultJSON
 		});
 	}
 
@@ -103,10 +120,10 @@ var setup = function(){
 			extraOperators['file_path'] = userInput;
 		}
 		else if (panel == 'join-panel'){
-			if (userInput == null || userInput == ''){
-				userInput = DEFAULT_ATTRIBUTE_ID;
-			}
-			extraOperators['id_attribute'] = userInput;
+			// if (userInput == null || userInput == ''){
+			// 	userInput = DEFAULT_ATTRIBUTE_ID;
+			// }
+			// extraOperators['id_attribute'] = userInput;
 
 			var predicateType = $('#' + panel + ' .predicate-type').val();
 			if (predicateType == null || predicateType == ''){
@@ -114,11 +131,14 @@ var setup = function(){
 			}
 			extraOperators['predicate_type'] = predicateType;
 
-			var distance = $('#' + panel + ' .distance').val();
-			if (distance == null || distance == ''){
-				distance = DEFAULT_DISTANCE;
+			var threshold = $('#' + panel + ' .threshold').val();
+			if (threshold == null || threshold == ''){
+				threshold = DEFAULT_THRESHOLD;
 			}
-			extraOperators['distance'] = distance;
+			extraOperators['threshold'] = threshold;
+
+
+
 		}
 		return extraOperators;
 	};
@@ -141,6 +161,18 @@ var setup = function(){
 				result = DEFAULT_ATTRIBUTES;
 			}
 		}
+		// HENRY change begin
+		else if (keyword == ' .outer-attribute'){
+			if (result == null || result == ''){
+				result = DEFAULT_OUT_ATTRIBUTE;
+			}
+		}
+		else if (keyword == ' .inner-attribute'){
+			if (result == null || result == ''){
+				result = DEFAULT_IN_ATTRIBUTE;
+			}
+		}
+		// Henry change end;
 		return result;
 	};
 
@@ -174,7 +206,7 @@ var setup = function(){
 			resultString += '</select>';
 		}
 		else if(attr == 'dictionary'){
-			resultString += '<input type="file" class="dictionary" placeholder="Enter File">';
+			resultString += '<input type="text" class="dictionary" placeholder="Enter Dictionary">';
 		}
 		else{
 			resultString += '<input type="text" class="' + classString + '" value="' + attrValue + '">';
@@ -311,6 +343,9 @@ var setup = function(){
 		TEXTDBJSON.operators = operators;
 		TEXTDBJSON.links = links;
 
+		debug = TEXTDBJSON;
+		console.log(JSON.stringify(debug));
+
 		$.ajax({
 			url: "http://localhost:8080/queryplan/execute",
 			type: "POST",
@@ -319,8 +354,7 @@ var setup = function(){
 			contentType: "application/json",
 			success: function(returnedData){
 				console.log("SUCCESS\n");
-				console.log(JSON.stringify(returnedData));
-				createResultFrame(returnedData);
+				createResultFrame(JSON.parse(returnedData));
 			},
 			error: function(xhr, status, err){
 				console.log(JSON.stringify(xhr));
@@ -368,6 +402,12 @@ var setup = function(){
 		var userLimit = getAttr(panel, ' .limit');
 		var userOffset = getAttr(panel, ' .offset');
 		var userAttributes = getAttr(panel, ' .attributes');
+
+		//
+		var userInAttributes = getAttr(panel, ' .inner-attribute');
+		var userOutAttributes = getAttr(panel, ' .outer-attribute');
+		//
+
 		var operatorName = $('#' + panel + ' button').attr('id');
 		var operatorId = operatorName + '_' + operatorI;
 		var operatorData = {
@@ -395,13 +435,18 @@ var setup = function(){
 		for(var extraOperator in extraOperators){
 		  operatorData.properties.attributes[extraOperator] = extraOperators[extraOperator];
 		}
-		operatorData.properties.attributes['attributes'] = userAttributes;
+		if(operatorName == "Join"){
+			operatorData.properties.inputs['input_2'] = {label: 'Input 2'};
+			operatorData.properties.attributes['inner_attribute'] = userInAttributes;
+			operatorData.properties.attributes['outer_attribute'] = userOutAttributes;
+		} else {
+			operatorData.properties.attributes['attributes'] = userAttributes;
+		}
+		// operatorData.properties.attributes['attributes'] = userAttributes;
 		operatorData.properties.attributes['limit'] = userLimit;
 		operatorData.properties.attributes['offset'] = userOffset;
 
-		if(operatorName == "Join"){
-			operatorData.properties.inputs['input_2'] = {label: 'Input 2'};
-		}
+
 
 		operatorI++;
 
@@ -458,20 +503,29 @@ var setup = function(){
 				}
 			}
 		};
-
 		for(var otherOperator in editOperators){
 			var attr = editOperators[otherOperator].replace(/-/, '_');
 			var result = $('.' + panel + ' .' + editOperators[otherOperator]).val();
 			if(((result == '') || (result == null)) && (attr == 'dictionary')){
 				result = DEFAULT_DICT;
 			}
+			if (result == 'null'){
+				result = null;
+			}
 			operatorData.properties.attributes[attr] = result;
 		}
+		console.log(JSON.stringify(operatorData));
 
+		if(operatorName == "Join"){
+			operatorData.properties.inputs['input_2'] = {label: 'Input 2'};
+		}
 		$('#the-flowchart').flowchart('setOperatorData', operatorId, operatorData);
 
 		$('#the-flowchart').flowchart('selectOperator', operatorId);
 		selectedOperator = $('#the-flowchart').flowchart('getSelectedOperatorId');
+
+
+
 
 		data = $('#the-flowchart').flowchart('getData');
 		output = data['operators'][selectedOperator]['properties']['attributes'];
@@ -500,6 +554,9 @@ var setup = function(){
 
 		$('#the-flowchart').flowchart('deleteSelected');
 		data = $('#the-flowchart').flowchart('getData');
+
+		$('#switch').html('<i class="fa fa-minus-circle" aria-hidden="true"></i>Show Attributes');
+		closeBand();
 	};
 
 	/*

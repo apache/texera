@@ -1,11 +1,10 @@
 package edu.uci.ics.textdb.perftest.sample;
 
-import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Tuple;
 import edu.uci.ics.textdb.api.plan.Plan;
 import edu.uci.ics.textdb.common.constants.DataConstants.KeywordMatchingType;
 import edu.uci.ics.textdb.common.constants.LuceneAnalyzerConstants;
 import edu.uci.ics.textdb.common.constants.SchemaConstants;
-import edu.uci.ics.textdb.common.field.DataTuple;
 import edu.uci.ics.textdb.common.field.StringField;
 import edu.uci.ics.textdb.common.field.TextField;
 import edu.uci.ics.textdb.common.utils.Utils;
@@ -83,11 +82,11 @@ public class SampleExtraction {
         extractPersonLocation();
     }
 
-    public static ITuple parsePromedHTML(String fileName, String content) {
+    public static Tuple parsePromedHTML(String fileName, String content) {
         try {
             Document parsedDocument = Jsoup.parse(content);
             String mainText = parsedDocument.getElementById("preview").text();
-            ITuple tuple = new DataTuple(PromedSchema.PROMED_SCHEMA, new StringField(fileName), new TextField(mainText));
+            Tuple tuple = new Tuple(PromedSchema.PROMED_SCHEMA, new StringField(fileName), new TextField(mainText));
             return tuple;
         } catch (Exception e) {
             return null;
@@ -97,7 +96,7 @@ public class SampleExtraction {
     public static void writeSampleIndex() throws Exception {
         // parse the original file
         File sourceFileFolder = new File(promedFilesDirectory);
-        ArrayList<ITuple> fileTuples = new ArrayList<>();
+        ArrayList<Tuple> fileTuples = new ArrayList<>();
         for (File htmlFile : sourceFileFolder.listFiles()) {
             StringBuilder sb = new StringBuilder();
             Scanner scanner = new Scanner(htmlFile);
@@ -105,7 +104,7 @@ public class SampleExtraction {
                 sb.append(scanner.nextLine());
             }
             scanner.close();
-            ITuple tuple = parsePromedHTML(htmlFile.getName(), sb.toString());
+            Tuple tuple = parsePromedHTML(htmlFile.getName(), sb.toString());
             if (tuple != null) {
                 fileTuples.add(tuple);
             }
@@ -120,7 +119,7 @@ public class SampleExtraction {
         
         DataWriter dataWriter = relationManager.getTableDataWriter(PROMED_SAMPLE_TABLE);
         dataWriter.open();
-        for (ITuple tuple : fileTuples) {
+        for (Tuple tuple : fileTuples) {
             dataWriter.insertTuple(tuple);
         }
         dataWriter.close();

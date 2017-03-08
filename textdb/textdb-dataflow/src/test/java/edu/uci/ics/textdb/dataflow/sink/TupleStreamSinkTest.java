@@ -9,7 +9,7 @@ import org.mockito.Mockito;
 
 import edu.uci.ics.textdb.api.common.Attribute;
 import edu.uci.ics.textdb.api.common.FieldType;
-import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Tuple;
 import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.api.dataflow.IOperator;
 import edu.uci.ics.textdb.common.constants.SchemaConstants;
@@ -53,7 +53,7 @@ public class TupleStreamSinkTest {
 
     @Test
     public void testGetNextTuple() throws Exception {
-        ITuple sampleTuple = Mockito.mock(ITuple.class);
+        Tuple sampleTuple = Mockito.mock(Tuple.class);
         Mockito.when(sampleTuple.toString()).thenReturn("Sample Tuple");
         Mockito.when(sampleTuple.getSchema()).thenReturn(inputSchema);
         // Set the behavior for inputOperator,

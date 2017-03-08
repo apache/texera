@@ -1,9 +1,8 @@
 package edu.uci.ics.textdb.storage;
 
 import edu.uci.ics.textdb.api.common.Schema;
-import edu.uci.ics.textdb.api.storage.IDataStore;
 
-public class DataStore implements IDataStore {
+public class DataStore {
     private String dataDirectory;
     private int numDocuments;
     private Schema schema;
@@ -13,22 +12,18 @@ public class DataStore implements IDataStore {
         this.schema = schema;
     }
 
-    @Override
     public void incrementNumDocuments(int incrementBy) {
         numDocuments += incrementBy;
     }
 
-    @Override
     public int getNumDocuments() {
         return numDocuments;
     }
 
-    @Override
     public String getDataDirectory() {
         return dataDirectory;
     }
 
-    @Override
     public Schema getSchema() {
         return schema;
     }

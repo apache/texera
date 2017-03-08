@@ -9,7 +9,7 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Tuple;
 import edu.uci.ics.textdb.api.exception.TextDBException;
 import edu.uci.ics.textdb.common.constants.LuceneAnalyzerConstants;
 import edu.uci.ics.textdb.common.constants.SchemaConstants;
@@ -30,7 +30,7 @@ public class DataWriterReaderTest {
         
         DataWriter peopleDataWriter = relationManager.getTableDataWriter(PEOPLE_TABLE);
         peopleDataWriter.open();
-        for (ITuple tuple : TestConstants.getSamplePeopleTuples()) {
+        for (Tuple tuple : TestConstants.getSamplePeopleTuples()) {
             peopleDataWriter.insertTuple(tuple);
         }
         peopleDataWriter.close();
@@ -47,8 +47,8 @@ public class DataWriterReaderTest {
         DataReader dataReader = RelationManager.getRelationManager().getTableDataReader(
                 PEOPLE_TABLE, new MatchAllDocsQuery());
         
-        ITuple nextTuple = null;
-        List<ITuple> returnedTuples = new ArrayList<ITuple>();
+        Tuple nextTuple = null;
+        List<Tuple> returnedTuples = new ArrayList<Tuple>();
         
         dataReader.open();
         while ((nextTuple = dataReader.getNextTuple()) != null) {
@@ -60,7 +60,7 @@ public class DataWriterReaderTest {
         Assert.assertTrue(equals);
     }
 
-    public static boolean containsAllResults(List<ITuple> expectedResults, List<ITuple> exactResults) {
+    public static boolean containsAllResults(List<Tuple> expectedResults, List<Tuple> exactResults) {
         expectedResults = Utils.removeFields(expectedResults, SchemaConstants._ID, SchemaConstants.PAYLOAD);
         exactResults = Utils.removeFields(exactResults, SchemaConstants._ID, SchemaConstants.PAYLOAD);
 

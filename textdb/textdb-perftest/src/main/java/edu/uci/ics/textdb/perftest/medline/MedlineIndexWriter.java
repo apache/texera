@@ -9,12 +9,11 @@ import org.json.JSONObject;
 import edu.uci.ics.textdb.api.common.Attribute;
 import edu.uci.ics.textdb.api.common.FieldType;
 import edu.uci.ics.textdb.api.common.IField;
-import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Tuple;
 import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.api.dataflow.ISourceOperator;
 import edu.uci.ics.textdb.api.exception.TextDBException;
 import edu.uci.ics.textdb.api.plan.Plan;
-import edu.uci.ics.textdb.common.field.DataTuple;
 import edu.uci.ics.textdb.common.utils.Utils;
 import edu.uci.ics.textdb.dataflow.sink.IndexSink;
 import edu.uci.ics.textdb.dataflow.source.FileSourceOperator;
@@ -59,14 +58,14 @@ public class MedlineIndexWriter {
 
     public static final Schema SCHEMA_MEDLINE = new Schema(ATTRIBUTES_MEDLINE);
 
-    private static ITuple recordToTuple(String record) throws JSONException, ParseException {
+    private static Tuple recordToTuple(String record) throws JSONException, ParseException {
         JSONObject json = new JSONObject(record);
         ArrayList<IField> fieldList = new ArrayList<IField>();
         for (Attribute attr : ATTRIBUTES_MEDLINE) {
             fieldList.add(Utils.getField(attr.getFieldType(), json.get(attr.getFieldName()).toString()));
         }
         IField[] fieldArray = new IField[fieldList.size()];
-        ITuple tuple = new DataTuple(SCHEMA_MEDLINE, fieldList.toArray(fieldArray));
+        Tuple tuple = new Tuple(SCHEMA_MEDLINE, fieldList.toArray(fieldArray));
         return tuple;
     }
 
