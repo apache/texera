@@ -8,7 +8,7 @@ import org.junit.Test;
 import org.mockito.Mockito;
 
 import edu.uci.ics.textdb.api.common.Attribute;
-import edu.uci.ics.textdb.api.common.FieldType;
+import edu.uci.ics.textdb.api.common.AttributeType;
 import edu.uci.ics.textdb.api.common.ITuple;
 import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.api.dataflow.IOperator;
@@ -20,7 +20,7 @@ public class TupleStreamSinkTest {
     private TupleStreamSink tupleStreamSink;
     private IOperator inputOperator;
     private Schema inputSchema = new Schema(
-            SchemaConstants._ID_ATTRIBUTE, new Attribute("content", FieldType.TEXT), SchemaConstants.PAYLOAD_ATTRIBUTE);
+            SchemaConstants._ID_ATTRIBUTE, new Attribute("content", AttributeType.TEXT), SchemaConstants.PAYLOAD_ATTRIBUTE);
 
     @Before
     public void setUp() throws FileNotFoundException {
@@ -41,7 +41,7 @@ public class TupleStreamSinkTest {
         // verify that inputOperator called open() method
         Mockito.verify(inputOperator).open();
         // assert that the tuple stream sink removes the _ID and PAYLOAD attribute
-        Assert.assertEquals(new Schema(new Attribute("content", FieldType.TEXT)), tupleStreamSink.getOutputSchema());
+        Assert.assertEquals(new Schema(new Attribute("content", AttributeType.TEXT)), tupleStreamSink.getOutputSchema());
     }
 
     @Test

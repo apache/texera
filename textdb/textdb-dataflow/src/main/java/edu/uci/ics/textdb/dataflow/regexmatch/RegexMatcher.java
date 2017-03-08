@@ -3,7 +3,7 @@ package edu.uci.ics.textdb.dataflow.regexmatch;
 import java.util.ArrayList;
 import java.util.List;
 
-import edu.uci.ics.textdb.api.common.FieldType;
+import edu.uci.ics.textdb.api.common.AttributeType;
 import edu.uci.ics.textdb.api.common.ITuple;
 import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.common.constants.SchemaConstants;
@@ -123,11 +123,11 @@ public class RegexMatcher extends AbstractSingleInputOperator {
         List<Span> matchingResults = new ArrayList<>();
 
         for (String fieldName : attributeNames) {
-            FieldType fieldType = inputSchema.getAttribute(fieldName).getAttributeType();
+            AttributeType attributeType = inputSchema.getAttribute(fieldName).getAttributeType();
             String fieldValue = inputTuple.getField(fieldName).getValue().toString();
 
             // types other than TEXT and STRING: throw Exception for now
-            if (fieldType != FieldType.STRING && fieldType != FieldType.TEXT) {
+            if (attributeType != AttributeType.STRING && attributeType != AttributeType.TEXT) {
                 throw new DataFlowException("KeywordMatcher: Fields other than STRING and TEXT are not supported yet");
             }
 

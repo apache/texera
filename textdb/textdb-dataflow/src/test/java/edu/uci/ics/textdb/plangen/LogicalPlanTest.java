@@ -3,13 +3,13 @@ package edu.uci.ics.textdb.plangen;
 import java.util.HashMap;
 import java.util.HashSet;
 
+import edu.uci.ics.textdb.api.common.AttributeType;
 import org.json.JSONObject;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import edu.uci.ics.textdb.api.common.Attribute;
-import edu.uci.ics.textdb.api.common.FieldType;
 import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.api.dataflow.IOperator;
 import edu.uci.ics.textdb.api.dataflow.ISink;
@@ -41,8 +41,8 @@ public class LogicalPlanTest {
     public static final String TEST_TABLE = "logical_plan_test_table";
     
     public static final Schema TEST_SCHEMA = new Schema(
-            new Attribute("city", FieldType.STRING), new Attribute("location", FieldType.STRING),
-            new Attribute("content", FieldType.TEXT));
+            new Attribute("city", AttributeType.STRING), new Attribute("location", AttributeType.STRING),
+            new Attribute("content", AttributeType.TEXT));
     
     @BeforeClass
     public static void setUp() throws StorageException {

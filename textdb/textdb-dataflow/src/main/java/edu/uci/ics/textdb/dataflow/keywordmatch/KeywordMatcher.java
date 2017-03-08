@@ -9,7 +9,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import edu.uci.ics.textdb.api.common.FieldType;
+import edu.uci.ics.textdb.api.common.AttributeType;
 import edu.uci.ics.textdb.api.common.ITuple;
 import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.common.constants.DataConstants;
@@ -96,16 +96,16 @@ public class KeywordMatcher extends AbstractSingleInputOperator {
         List<Span> matchingResults = new ArrayList<>();
 
         for (String fieldName : this.predicate.getAttributeNames()) {
-            FieldType fieldType = this.inputSchema.getAttribute(fieldName).getAttributeType();
+            AttributeType attributeType = this.inputSchema.getAttribute(fieldName).getAttributeType();
             String fieldValue = sourceTuple.getField(fieldName).getValue().toString();
 
             // types other than TEXT and STRING: throw Exception for now
-            if (fieldType != FieldType.STRING && fieldType != FieldType.TEXT) {
+            if (attributeType != AttributeType.STRING && attributeType != AttributeType.TEXT) {
                 throw new DataFlowException("KeywordMatcher: Fields other than STRING and TEXT are not supported yet");
             }
 
             // for STRING type, the query should match the fieldValue completely
-            if (fieldType == FieldType.STRING) {
+            if (attributeType == AttributeType.STRING) {
                 if (fieldValue.equals(predicate.getQuery())) {
                     Span span = new Span(fieldName, 0, predicate.getQuery().length(), predicate.getQuery(), fieldValue);
                     matchingResults.add(span);
@@ -114,7 +114,7 @@ public class KeywordMatcher extends AbstractSingleInputOperator {
 
             // for TEXT type, every token in the query should be present in span
             // list for this field
-            if (fieldType == FieldType.TEXT) {
+            if (attributeType == AttributeType.TEXT) {
                 List<Span> fieldSpanList = relevantSpans.stream().filter(span -> span.getFieldName().equals(fieldName))
                         .collect(Collectors.toList());
 
@@ -141,16 +141,16 @@ public class KeywordMatcher extends AbstractSingleInputOperator {
         List<Span> matchingResults = new ArrayList<>();
 
         for (String fieldName : this.predicate.getAttributeNames()) {
-            FieldType fieldType = this.inputSchema.getAttribute(fieldName).getAttributeType();
+            AttributeType attributeType = this.inputSchema.getAttribute(fieldName).getAttributeType();
             String fieldValue = sourceTuple.getField(fieldName).getValue().toString();
 
             // types other than TEXT and STRING: throw Exception for now
-            if (fieldType != FieldType.STRING && fieldType != FieldType.TEXT) {
+            if (attributeType != AttributeType.STRING && attributeType != AttributeType.TEXT) {
                 throw new DataFlowException("KeywordMatcher: Fields other than STRING and TEXT are not supported yet");
             }
 
             // for STRING type, the query should match the fieldValue completely
-            if (fieldType == FieldType.STRING) {
+            if (attributeType == AttributeType.STRING) {
                 if (fieldValue.equals(predicate.getQuery())) {
                     matchingResults.add(new Span(fieldName, 0, predicate.getQuery().length(), predicate.getQuery(), fieldValue));
                 }
@@ -158,7 +158,7 @@ public class KeywordMatcher extends AbstractSingleInputOperator {
 
             // for TEXT type, spans need to be reconstructed according to the
             // phrase query
-            if (fieldType == FieldType.TEXT) {
+            if (attributeType == AttributeType.TEXT) {
                 List<Span> fieldSpanList = relevantSpans.stream().filter(span -> span.getFieldName().equals(fieldName))
                         .collect(Collectors.toList());
 
@@ -237,22 +237,22 @@ public class KeywordMatcher extends AbstractSingleInputOperator {
         List<Span> matchingResults = new ArrayList<>();
 
         for (String fieldName : this.predicate.getAttributeNames()) {
-            FieldType fieldType = this.inputSchema.getAttribute(fieldName).getAttributeType();
+            AttributeType attributeType = this.inputSchema.getAttribute(fieldName).getAttributeType();
             String fieldValue = sourceTuple.getField(fieldName).getValue().toString();
 
             // types other than TEXT and STRING: throw Exception for now
-            if (fieldType != FieldType.STRING && fieldType != FieldType.TEXT) {
+            if (attributeType != AttributeType.STRING && attributeType != AttributeType.TEXT) {
                 throw new DataFlowException("KeywordMatcher: Fields other than STRING and TEXT are not supported yet");
             }
 
             // for STRING type, the query should match the fieldValue completely
-            if (fieldType == FieldType.STRING) {
+            if (attributeType == AttributeType.STRING) {
                 if (fieldValue.equals(predicate.getQuery())) {
                     matchingResults.add(new Span(fieldName, 0, predicate.getQuery().length(), predicate.getQuery(), fieldValue));
                 }
             }
 
-            if (fieldType == FieldType.TEXT) {
+            if (attributeType == AttributeType.TEXT) {
                 String regex = predicate.getQuery().toLowerCase();
                 Pattern pattern = Pattern.compile(regex, Pattern.CASE_INSENSITIVE);
                 Matcher matcher = pattern.matcher(fieldValue.toLowerCase());

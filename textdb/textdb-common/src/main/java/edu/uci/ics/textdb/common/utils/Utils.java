@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import edu.uci.ics.textdb.api.common.*;
 import edu.uci.ics.textdb.common.exception.StorageException;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
@@ -28,11 +29,7 @@ import org.apache.lucene.index.IndexableField;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import edu.uci.ics.textdb.api.common.Attribute;
-import edu.uci.ics.textdb.api.common.FieldType;
-import edu.uci.ics.textdb.api.common.IField;
-import edu.uci.ics.textdb.api.common.ITuple;
-import edu.uci.ics.textdb.api.common.Schema;
+import edu.uci.ics.textdb.api.common.AttributeType;
 import edu.uci.ics.textdb.common.constants.SchemaConstants;
 import edu.uci.ics.textdb.common.field.DataTuple;
 import edu.uci.ics.textdb.common.field.DateField;
@@ -45,9 +42,9 @@ import edu.uci.ics.textdb.common.field.StringField;
 import edu.uci.ics.textdb.common.field.TextField;
 
 public class Utils {
-    public static IField getField(FieldType fieldType, String fieldValue) throws ParseException {
+    public static IField getField(AttributeType attributeType, String fieldValue) throws ParseException {
         IField field = null;
-        switch (fieldType) {
+        switch (attributeType) {
         case _ID_TYPE:
             field = new IDField(fieldValue);
             break;
@@ -75,9 +72,9 @@ public class Utils {
         return field;
     }
 
-    public static IndexableField getLuceneField(FieldType fieldType, String fieldName, Object fieldValue) {
+    public static IndexableField getLuceneField(AttributeType attributeType, String fieldName, Object fieldValue) {
         IndexableField luceneField = null;
-        switch (fieldType) {
+        switch (attributeType) {
         // _ID_TYPE is currently same as STRING
         case _ID_TYPE:
         case STRING:
@@ -119,26 +116,26 @@ public class Utils {
     }
     
     /**
-     * Returns the FieldType of a field object.
+     * Returns the AttributeType of a field object.
      * 
      * @param field
      * @return
      */
-    public static FieldType getFieldType(IField field) {
+    public static AttributeType getFieldType(IField field) {
         if (field instanceof DateField) {
-            return FieldType.DATE;
+            return AttributeType.DATE;
         } else if (field instanceof DoubleField) {
-            return FieldType.DOUBLE;
+            return AttributeType.DOUBLE;
         } else if (field instanceof IDField) {
-            return FieldType._ID_TYPE;
+            return AttributeType._ID_TYPE;
         } else if (field instanceof IntegerField) {
-            return FieldType.INTEGER;
+            return AttributeType.INTEGER;
         } else if (field instanceof ListField) {
-            return FieldType.LIST;
+            return AttributeType.LIST;
         } else if (field instanceof StringField) {
-            return FieldType.STRING;
+            return AttributeType.STRING;
         } else if (field instanceof TextField) {
-            return FieldType.TEXT;
+            return AttributeType.TEXT;
         } else {
             throw new RuntimeException("no existing type mapping of this field object");
         }
@@ -452,7 +449,7 @@ public class Utils {
 
     public static List<Span> generatePayloadFromTuple(ITuple tuple, Analyzer luceneAnalyzer) {
         List<Span> tuplePayload = tuple.getSchema().getAttributes().stream()
-                .filter(attr -> (attr.getAttributeType() == FieldType.TEXT)) // generate payload only for TEXT field
+                .filter(attr -> (attr.getAttributeType() == AttributeType.TEXT)) // generate payload only for TEXT field
                 .map(attr -> attr.getAttributeName())
                 .map(fieldName -> generatePayload(fieldName, tuple.getField(fieldName).getValue().toString(),
                         luceneAnalyzer))

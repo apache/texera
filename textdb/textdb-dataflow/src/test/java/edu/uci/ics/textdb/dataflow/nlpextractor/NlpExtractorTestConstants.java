@@ -5,11 +5,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import edu.uci.ics.textdb.api.common.Attribute;
-import edu.uci.ics.textdb.api.common.FieldType;
-import edu.uci.ics.textdb.api.common.IField;
-import edu.uci.ics.textdb.api.common.ITuple;
-import edu.uci.ics.textdb.api.common.Schema;
+import edu.uci.ics.textdb.api.common.*;
+import edu.uci.ics.textdb.api.common.AttributeType;
 import edu.uci.ics.textdb.common.field.DataTuple;
 import edu.uci.ics.textdb.common.field.Span;
 import edu.uci.ics.textdb.common.field.TextField;
@@ -24,9 +21,9 @@ public class NlpExtractorTestConstants {
     public static final String SENTENCE_ONE = "sentence_one";
     public static final String SENTENCE_TWO = "sentence_two";
 
-    public static final Attribute SENTENCE_ONE_ATTR = new Attribute(SENTENCE_ONE, FieldType.TEXT);
+    public static final Attribute SENTENCE_ONE_ATTR = new Attribute(SENTENCE_ONE, AttributeType.TEXT);
 
-    public static final Attribute SENTENCE_TWO_ATTR = new Attribute(SENTENCE_TWO, FieldType.TEXT);
+    public static final Attribute SENTENCE_TWO_ATTR = new Attribute(SENTENCE_TWO, AttributeType.TEXT);
 
     public static final List<Attribute> ATTRIBUTES_ONE_SENTENCE = Arrays.asList(SENTENCE_ONE_ATTR);
 

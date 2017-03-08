@@ -3,7 +3,7 @@ package edu.uci.ics.textdb.dataflow.queryrewriter;
 import java.util.List;
 
 import edu.uci.ics.textdb.api.common.Attribute;
-import edu.uci.ics.textdb.api.common.FieldType;
+import edu.uci.ics.textdb.api.common.AttributeType;
 import edu.uci.ics.textdb.api.common.IField;
 import edu.uci.ics.textdb.api.common.ITuple;
 import edu.uci.ics.textdb.api.common.Schema;
@@ -31,7 +31,7 @@ public class QueryRewriter implements IOperator {
     private boolean allSegmentations = false;
 
     public static final String QUERYLIST = "querylist";
-    public static final Attribute QUERYLIST_ATTR = new Attribute(QUERYLIST, FieldType.LIST);
+    public static final Attribute QUERYLIST_ATTR = new Attribute(QUERYLIST, AttributeType.LIST);
     public static final Schema SCHEMA_QUERY_LIST = new Schema(QUERYLIST_ATTR);
 
     private ITuple sourceTuple;
