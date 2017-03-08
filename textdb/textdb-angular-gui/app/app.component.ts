@@ -3,8 +3,8 @@ import { Component, ViewChild } from '@angular/core';
 import { TheFlowchartComponent } from './the-flowchart.component';
 import { OperatorBarComponent } from './operator-bar.component';
 
-import { DataService } from './data-service';
-import { Data } from './data';
+import { MockDataService } from './mock-data-service';
+import { CurrentDataService } from './current-data-service';
 
 declare var jQuery: any;
 
@@ -14,40 +14,31 @@ declare var jQuery: any;
     template: `
 		<nav the-navbar id="css-navbar" class="navbar navbar-toggleable-md navbar-light bg-faded"></nav>
 		<nav operator-bar id="css-operator-bar" class="navbar navbar-toggleable-md navbar-light bg-faded" #theOperatorBar></nav>
-		<flowchart-container class="container fill" #theFlowchart></flowchart-container>
+		<div id="wrapper">
+		    <side-bar-container class="container fill"></side-bar-container>
+		    <flowchart-container class="container fill" #theFlowchart></flowchart-container>
+		</div>
 	`,
-    providers: [DataService],
+    providers: [MockDataService, CurrentDataService],
     styleUrls: ['style.css']
 })
 export class AppComponent {
 	name = 'Angular';
-	data : Data;
-	promiseCompleted = false;
 
-    constructor(private dataService: DataService) { }
-
-    getData(): void {
-        this.dataService.getData().then(
-            data => {
-                this.data = data[0];
-                this.promiseCompleted = true;
-            },
-            error => {
-                console.log(error);
-            }
-        );
-    }
+    constructor(private currentDataService: CurrentDataService, private mockDataService: MockDataService) { }
 
     @ViewChild('theFlowchart') theFlowchart: TheFlowchartComponent;
     @ViewChild('theOperatorBar') theOperatorBar: OperatorBarComponent;
 
     ngAfterViewInit() {
         var current = this;
-        current.dataService.getData().then(
+        current.mockDataService.getData().then(
             data => {
-                current.data = data[0].jsonData;
+                current.currentDataService.setData(data);
+                var loadingData = data[0].jsonData;
                 jQuery(document).ready(function() {
-                    current.theFlowchart.initialize(current.data);
+                    current.theFlowchart.initialize(loadingData);
+                    current.theOperatorBar.initialize();
                 });
             },
             error => {

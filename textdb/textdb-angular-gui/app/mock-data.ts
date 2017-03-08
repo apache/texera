@@ -42,6 +42,36 @@ let defaultData = {
     }
 };
 
-export const DATA: Data[] = [
+let keywordMatcher = {
+    top: 20,
+    left: 20,
+    properties: {
+        title: 'KeywordMatcher',
+        inputs: {
+            input_1: {
+                label: 'Input (:i)',
+            }
+        },
+        outputs: {
+            output_1: {
+                label: 'Output (:i)',
+            }
+        },
+        attributes: {
+            operator_type: "KeywordMatcher",
+            keyword : "zika",
+            matching_type : "conjunction",
+            attributes : "content",
+            limit : "10",
+            offset : "5"
+        }
+    }
+};
+
+export const DEFAULT_DATA: Data[] = [
     {id: 1, jsonData: defaultData}
+];
+
+export const DEFAULT_MATCHERS: Data[] = [
+    {id: 0, jsonData: keywordMatcher}
 ];

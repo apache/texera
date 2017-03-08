@@ -65,5 +65,6 @@
         <module>textdb-sandbox</module>
         <module>textdb-textql</module>
         <module>textdb-web</module>
+        <module>textdb-exp</module>
     </modules>
 </project>

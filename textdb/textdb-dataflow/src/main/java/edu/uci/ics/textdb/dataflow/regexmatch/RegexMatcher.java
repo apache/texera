@@ -4,11 +4,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 import edu.uci.ics.textdb.api.common.FieldType;
-import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Tuple;
 import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.common.constants.SchemaConstants;
 import edu.uci.ics.textdb.common.exception.DataFlowException;
 import edu.uci.ics.textdb.api.exception.TextDBException;
+import edu.uci.ics.textdb.common.field.ListField;
 import edu.uci.ics.textdb.common.field.Span;
 import edu.uci.ics.textdb.common.utils.Utils;
 import edu.uci.ics.textdb.dataflow.common.AbstractSingleInputOperator;
@@ -84,9 +85,9 @@ public class RegexMatcher extends AbstractSingleInputOperator {
     }
     
     @Override
-    protected ITuple computeNextMatchingTuple() throws TextDBException {
-        ITuple inputTuple = null;
-        ITuple resultTuple = null;
+    protected Tuple computeNextMatchingTuple() throws TextDBException {
+        Tuple inputTuple = null;
+        Tuple resultTuple = null;
         
         while ((inputTuple = inputOperator.getNextTuple()) != null) {
             if (!inputSchema.containsField(SchemaConstants.SPAN_LIST)) {
@@ -115,7 +116,7 @@ public class RegexMatcher extends AbstractSingleInputOperator {
      * @throws DataFlowException
      */
     @Override
-    public ITuple processOneInputTuple(ITuple inputTuple) throws DataFlowException {
+    public Tuple processOneInputTuple(Tuple inputTuple) throws DataFlowException {
         if (inputTuple == null) {
             return null;
         }
@@ -145,7 +146,8 @@ public class RegexMatcher extends AbstractSingleInputOperator {
             return null;
         }
 
-        List<Span> spanList = (List<Span>) inputTuple.getField(SchemaConstants.SPAN_LIST).getValue();
+        ListField<Span> spanListField = inputTuple.getField(SchemaConstants.SPAN_LIST);
+        List<Span> spanList = spanListField.getValue();
         spanList.addAll(matchingResults);
 
         return inputTuple;

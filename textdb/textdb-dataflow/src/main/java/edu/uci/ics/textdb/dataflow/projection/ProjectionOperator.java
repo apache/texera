@@ -5,11 +5,10 @@ import java.util.stream.Collectors;
 
 import edu.uci.ics.textdb.api.common.Attribute;
 import edu.uci.ics.textdb.api.common.IField;
-import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Tuple;
 import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.common.exception.DataFlowException;
 import edu.uci.ics.textdb.api.exception.TextDBException;
-import edu.uci.ics.textdb.common.field.DataTuple;
 import edu.uci.ics.textdb.dataflow.common.AbstractSingleInputOperator;
 
 public class ProjectionOperator extends AbstractSingleInputOperator {
@@ -38,8 +37,8 @@ public class ProjectionOperator extends AbstractSingleInputOperator {
     }
 
     @Override
-    protected ITuple computeNextMatchingTuple() throws TextDBException {
-        ITuple inputTuple = inputOperator.getNextTuple();
+    protected Tuple computeNextMatchingTuple() throws TextDBException {
+        Tuple inputTuple = inputOperator.getNextTuple();
         if (inputTuple == null) {
             return null;
         }
@@ -48,14 +47,14 @@ public class ProjectionOperator extends AbstractSingleInputOperator {
     }
 
     @Override
-    public ITuple processOneInputTuple(ITuple inputTuple) throws TextDBException {
+    public Tuple processOneInputTuple(Tuple inputTuple) throws TextDBException {
         IField[] outputFields =
                 outputSchema.getAttributes()
                         .stream()
                         .map(attr -> inputTuple.getField(attr.getFieldName()))
                         .toArray(IField[]::new);
 
-        return new DataTuple(outputSchema, outputFields);
+        return new Tuple(outputSchema, outputFields);
     }
 
     @Override

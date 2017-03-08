@@ -11,12 +11,11 @@ import org.junit.Test;
 
 import edu.uci.ics.textdb.api.common.Attribute;
 import edu.uci.ics.textdb.api.common.IField;
-import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Tuple;
 import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.common.constants.SchemaConstants;
 import edu.uci.ics.textdb.common.constants.TestConstants;
 import edu.uci.ics.textdb.common.constants.DataConstants.KeywordMatchingType;
-import edu.uci.ics.textdb.common.field.DataTuple;
 import edu.uci.ics.textdb.common.field.DateField;
 import edu.uci.ics.textdb.common.field.DoubleField;
 import edu.uci.ics.textdb.common.field.IntegerField;
@@ -63,7 +62,7 @@ public class KeywordPhraseTest {
         attributeNames.add(TestConstants.DESCRIPTION);
 
         // Perform Query
-        List<ITuple> results = KeywordTestHelper.getQueryResults(PEOPLE_TABLE, query, attributeNames, phrase);
+        List<Tuple> results = KeywordTestHelper.getQueryResults(PEOPLE_TABLE, query, attributeNames, phrase);
 
         // Perform Check
         Assert.assertEquals(0, results.size());
@@ -99,12 +98,12 @@ public class KeywordPhraseTest {
                 new DoubleField(6.06), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1973")),
                 new TextField("Lin Clooney is Short and lin clooney is Angry"), new ListField<>(list) };
 
-        ITuple tuple1 = new DataTuple(new Schema(schemaAttributes), fields1);
-        List<ITuple> expectedResultList = new ArrayList<>();
+        Tuple tuple1 = new Tuple(new Schema(schemaAttributes), fields1);
+        List<Tuple> expectedResultList = new ArrayList<>();
         expectedResultList.add(tuple1);
 
         // Perform Query
-        List<ITuple> resultList = KeywordTestHelper.getQueryResults(PEOPLE_TABLE, query, attributeNames, phrase);
+        List<Tuple> resultList = KeywordTestHelper.getQueryResults(PEOPLE_TABLE, query, attributeNames, phrase);
 
         // Perform Check
         boolean contains = TestUtils.equals(expectedResultList, resultList);
@@ -145,12 +144,12 @@ public class KeywordPhraseTest {
                 new DoubleField(6.06), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1973")),
                 new TextField("Lin Clooney is Short and lin clooney is Angry"), new ListField<>(list) };
 
-        ITuple tuple1 = new DataTuple(new Schema(schemaAttributes), fields1);
-        List<ITuple> expectedResultList = new ArrayList<>();
+        Tuple tuple1 = new Tuple(new Schema(schemaAttributes), fields1);
+        List<Tuple> expectedResultList = new ArrayList<>();
         expectedResultList.add(tuple1);
 
         // Perform Query
-        List<ITuple> resultList = KeywordTestHelper.getQueryResults(PEOPLE_TABLE, query, attributeNames, phrase);
+        List<Tuple> resultList = KeywordTestHelper.getQueryResults(PEOPLE_TABLE, query, attributeNames, phrase);
 
         // Perform Check
         boolean contains = TestUtils.equals(expectedResultList, resultList);
@@ -188,12 +187,12 @@ public class KeywordPhraseTest {
                 new DoubleField(6.06), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1973")),
                 new TextField("Lin Clooney is Short and lin clooney is Angry"), new ListField<>(list) };
 
-        ITuple tuple1 = new DataTuple(new Schema(schemaAttributes), fields1);
-        List<ITuple> expectedResultList = new ArrayList<>();
+        Tuple tuple1 = new Tuple(new Schema(schemaAttributes), fields1);
+        List<Tuple> expectedResultList = new ArrayList<>();
         expectedResultList.add(tuple1);
 
         // Perform Query
-        List<ITuple> resultList = KeywordTestHelper.getQueryResults(PEOPLE_TABLE, query, attributeNames, phrase);
+        List<Tuple> resultList = KeywordTestHelper.getQueryResults(PEOPLE_TABLE, query, attributeNames, phrase);
 
         // Perform Check
         boolean contains = TestUtils.equals(expectedResultList, resultList);
@@ -231,12 +230,12 @@ public class KeywordPhraseTest {
                 new DoubleField(6.06), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1973")),
                 new TextField("Lin Clooney is Short and lin clooney is Angry"), new ListField<>(list) };
 
-        ITuple tuple1 = new DataTuple(new Schema(schemaAttributes), fields1);
-        List<ITuple> expectedResultList = new ArrayList<>();
+        Tuple tuple1 = new Tuple(new Schema(schemaAttributes), fields1);
+        List<Tuple> expectedResultList = new ArrayList<>();
         expectedResultList.add(tuple1);
 
         // Perform Query
-        List<ITuple> resultList = KeywordTestHelper.getQueryResults(PEOPLE_TABLE, query, attributeNames, phrase);
+        List<Tuple> resultList = KeywordTestHelper.getQueryResults(PEOPLE_TABLE, query, attributeNames, phrase);
 
         // Perform Check
         boolean contains = TestUtils.equals(expectedResultList, resultList);
@@ -282,11 +281,11 @@ public class KeywordPhraseTest {
                                 + "initiate treatment with large doses of a sulfonamide and penicillin in combination."),
                 new DoubleField(0.664347980), new ListField<>(list) };
 
-        ITuple tuple1 = new DataTuple(new Schema(schemaAttributes), fields1);
-        List<ITuple> expectedResultList = new ArrayList<>();
+        Tuple tuple1 = new Tuple(new Schema(schemaAttributes), fields1);
+        List<Tuple> expectedResultList = new ArrayList<>();
         expectedResultList.add(tuple1);
         
-        List<ITuple> results = KeywordTestHelper.getQueryResults(
+        List<Tuple> results = KeywordTestHelper.getQueryResults(
                 MEDLINE_TABLE, query, attributeNames, phrase);
 
         // Perform Check
@@ -329,11 +328,11 @@ public class KeywordPhraseTest {
                                 + "from Ophiuchus, may coincide with Kepler's 1604 supernova. All the x-ray sources are fairly close to the galactic plane."),
                 new DoubleField(0.667832788), new ListField<>(list) };
 
-        ITuple tuple1 = new DataTuple(new Schema(schemaAttributes), fields);
-        List<ITuple> expectedResultList = new ArrayList<>();
+        Tuple tuple1 = new Tuple(new Schema(schemaAttributes), fields);
+        List<Tuple> expectedResultList = new ArrayList<>();
         expectedResultList.add(tuple1);
 
-        List<ITuple> results = KeywordTestHelper.getQueryResults(
+        List<Tuple> results = KeywordTestHelper.getQueryResults(
                 MEDLINE_TABLE, query, attributeNames, phrase);
         
         // Perform Check
@@ -386,11 +385,11 @@ public class KeywordPhraseTest {
                                 + "be given for the addition of sodium bicarbonate to milks containing a higher content of sodium."),
                 new DoubleField(0.667832788), new ListField<>(list) };
 
-        ITuple tuple1 = new DataTuple(new Schema(schemaAttributes), fields);
-        List<ITuple> expectedResultList = new ArrayList<>();
+        Tuple tuple1 = new Tuple(new Schema(schemaAttributes), fields);
+        List<Tuple> expectedResultList = new ArrayList<>();
         expectedResultList.add(tuple1);
 
-        List<ITuple> results = KeywordTestHelper.getQueryResults(
+        List<Tuple> results = KeywordTestHelper.getQueryResults(
                 MEDLINE_TABLE, query, attributeNames, phrase);
         
         // Perform Check

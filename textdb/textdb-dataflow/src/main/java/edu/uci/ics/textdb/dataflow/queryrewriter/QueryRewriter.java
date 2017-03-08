@@ -5,11 +5,10 @@ import java.util.List;
 import edu.uci.ics.textdb.api.common.Attribute;
 import edu.uci.ics.textdb.api.common.FieldType;
 import edu.uci.ics.textdb.api.common.IField;
-import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Tuple;
 import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.api.dataflow.IOperator;
 import edu.uci.ics.textdb.api.exception.TextDBException;
-import edu.uci.ics.textdb.common.field.DataTuple;
 import edu.uci.ics.textdb.common.field.ListField;
 
 /**
@@ -34,7 +33,7 @@ public class QueryRewriter implements IOperator {
     public static final Attribute QUERYLIST_ATTR = new Attribute(QUERYLIST, FieldType.LIST);
     public static final Schema SCHEMA_QUERY_LIST = new Schema(QUERYLIST_ATTR);
 
-    private ITuple sourceTuple;
+    private Tuple sourceTuple;
 
     /**
      * Parameterized constructor that requires a Search Query String that is to
@@ -84,7 +83,7 @@ public class QueryRewriter implements IOperator {
      * @throws Exception
      */
     @Override
-    public ITuple getNextTuple() throws TextDBException {
+    public Tuple getNextTuple() throws TextDBException {
 
         boolean endOfResult = (sourceTuple != null); // Ensures you can call
                                                      // QueryRewriter.getNextTuple
@@ -99,7 +98,7 @@ public class QueryRewriter implements IOperator {
             else
                 queryStrings = QuerySegmenter.getLikelyTokens(searchQuery);
             IField[] iFieldResult = { new ListField<String>(queryStrings) };
-            sourceTuple = new DataTuple(SCHEMA_QUERY_LIST, iFieldResult);
+            sourceTuple = new Tuple(SCHEMA_QUERY_LIST, iFieldResult);
             return sourceTuple;
         }
     }

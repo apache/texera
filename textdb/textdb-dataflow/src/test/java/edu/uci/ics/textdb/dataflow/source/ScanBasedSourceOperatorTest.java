@@ -13,7 +13,7 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Tuple;
 import edu.uci.ics.textdb.common.constants.LuceneAnalyzerConstants;
 import edu.uci.ics.textdb.common.constants.TestConstants;
 import edu.uci.ics.textdb.dataflow.utils.TestUtils;
@@ -38,7 +38,7 @@ public class ScanBasedSourceOperatorTest {
         
         DataWriter peopleDataWriter = relationManager.getTableDataWriter(PEOPLE_TABLE);
         peopleDataWriter.open();
-        for (ITuple tuple : TestConstants.getSamplePeopleTuples()) {
+        for (Tuple tuple : TestConstants.getSamplePeopleTuples()) {
             peopleDataWriter.insertTuple(tuple);
         }
         peopleDataWriter.close();
@@ -52,13 +52,13 @@ public class ScanBasedSourceOperatorTest {
 
     @Test
     public void testFlow() throws TextDBException, ParseException {
-        List<ITuple> actualTuples = TestConstants.getSamplePeopleTuples();
+        List<Tuple> actualTuples = TestConstants.getSamplePeopleTuples();
         
         ScanBasedSourceOperator scanBasedSourceOperator = new ScanBasedSourceOperator(PEOPLE_TABLE);
         scanBasedSourceOperator.open();
-        ITuple nextTuple = null;
+        Tuple nextTuple = null;
         int numTuples = 0;
-        List<ITuple> returnedTuples = new ArrayList<ITuple>();
+        List<Tuple> returnedTuples = new ArrayList<Tuple>();
         while ((nextTuple = scanBasedSourceOperator.getNextTuple()) != null) {
             returnedTuples.add(nextTuple);
             numTuples++;

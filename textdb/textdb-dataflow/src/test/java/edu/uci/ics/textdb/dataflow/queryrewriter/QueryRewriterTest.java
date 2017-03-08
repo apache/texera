@@ -7,7 +7,8 @@ import java.util.List;
 import org.junit.Assert;
 import org.junit.Test;
 
-import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Tuple;
+import edu.uci.ics.textdb.common.field.ListField;
 
 /**
  * Created by kishorenarendran on 25/04/16. Testing QueryRewriter This test
@@ -92,16 +93,16 @@ public class QueryRewriterTest {
 
         QueryRewriter queryRewriter = new QueryRewriter(query);
         queryRewriter.open();
-        ITuple resultItuple = queryRewriter.getNextTuple();
-        ArrayList<String> rewrittenStrings = new ArrayList<String>(
-                (List<String>) resultItuple.getField(QueryRewriter.QUERYLIST).getValue());
+        Tuple resultItuple = queryRewriter.getNextTuple();
+        ListField<String> rewrittenStringsField = resultItuple.getField(QueryRewriter.QUERYLIST);
+        ArrayList<String> rewrittenStrings = new ArrayList<String>(rewrittenStringsField.getValue());
         queryRewriter.close();
 
         QueryRewriter allQueryRewriter = new QueryRewriter(query, true);
         allQueryRewriter.open();
         resultItuple = allQueryRewriter.getNextTuple();
-        ArrayList<String> allRewrittenStrings = new ArrayList<String>(
-                (List<String>) resultItuple.getField(QueryRewriter.QUERYLIST).getValue());
+        ListField<String> allRewrittenStringsField = resultItuple.getField(QueryRewriter.QUERYLIST);
+        ArrayList<String> allRewrittenStrings = new ArrayList<String>(allRewrittenStringsField.getValue());
         queryRewriter.close();
 
         return (rewrittenStrings.equals(expectedRewrittenStrings) 
@@ -119,7 +120,7 @@ public class QueryRewriterTest {
         String query = "";
         QueryRewriter queryRewriter = new QueryRewriter(query);
 
-        ITuple resultItuple = queryRewriter.getNextTuple();
+        Tuple resultItuple = queryRewriter.getNextTuple();
         Assert.assertNull(resultItuple);
 
         QueryRewriter allQueryRewriter = new QueryRewriter(query, true);
@@ -141,7 +142,7 @@ public class QueryRewriterTest {
         QueryRewriter queryRewriter = new QueryRewriter(query);
         queryRewriter.open();
         queryRewriter.getNextTuple();
-        ITuple resultITuple = queryRewriter.getNextTuple();
+        Tuple resultITuple = queryRewriter.getNextTuple();
 
         Assert.assertNull(resultITuple);
 
@@ -167,7 +168,7 @@ public class QueryRewriterTest {
         queryRewriter.open();
         queryRewriter.close();
 
-        ITuple resultITuple = queryRewriter.getNextTuple();
+        Tuple resultITuple = queryRewriter.getNextTuple();
         Assert.assertNull(resultITuple);
 
         QueryRewriter allQueryRewriter = new QueryRewriter(query, true);

@@ -12,11 +12,10 @@ import org.junit.Test;
 
 import edu.uci.ics.textdb.api.common.Attribute;
 import edu.uci.ics.textdb.api.common.IField;
-import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Tuple;
 import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.common.constants.SchemaConstants;
 import edu.uci.ics.textdb.common.constants.TestConstants;
-import edu.uci.ics.textdb.common.field.DataTuple;
 import edu.uci.ics.textdb.common.field.DateField;
 import edu.uci.ics.textdb.common.field.DoubleField;
 import edu.uci.ics.textdb.common.field.IntegerField;
@@ -51,7 +50,7 @@ public class FuzzyTokenMatcherTest {
         double threshold = 0.5; // The ratio of tokens that need to be matched
         ArrayList<String> attributeNames = new ArrayList<>();
         attributeNames.add(TestConstants.DESCRIPTION);
-        List<ITuple> results = FuzzyTokenMatcherTestHelper.getQueryResults(PEOPLE_TABLE, query, threshold, attributeNames);
+        List<Tuple> results = FuzzyTokenMatcherTestHelper.getQueryResults(PEOPLE_TABLE, query, threshold, attributeNames);
         
         Assert.assertEquals(0, results.size());
     }
@@ -89,18 +88,18 @@ public class FuzzyTokenMatcherTest {
                 new DoubleField(5.99), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974")),
                 new TextField("Short angry"), new ListField<Span>(spanList4) };
 
-        ITuple tuple1 = new DataTuple(spanSchema, fields1);
-        ITuple tuple2 = new DataTuple(spanSchema, fields2);
-        ITuple tuple3 = new DataTuple(spanSchema, fields3);
-        ITuple tuple4 = new DataTuple(spanSchema, fields4);
+        Tuple tuple1 = new Tuple(spanSchema, fields1);
+        Tuple tuple2 = new Tuple(spanSchema, fields2);
+        Tuple tuple3 = new Tuple(spanSchema, fields3);
+        Tuple tuple4 = new Tuple(spanSchema, fields4);
         
-        List<ITuple> expectedResultList = new ArrayList<>();
+        List<Tuple> expectedResultList = new ArrayList<>();
         expectedResultList.add(tuple1);
         expectedResultList.add(tuple2);
         expectedResultList.add(tuple3);
         expectedResultList.add(tuple4);
 
-        List<ITuple> results = FuzzyTokenMatcherTestHelper.getQueryResults(PEOPLE_TABLE, query, threshold, attributeNames);
+        List<Tuple> results = FuzzyTokenMatcherTestHelper.getQueryResults(PEOPLE_TABLE, query, threshold, attributeNames);
         boolean contains = TestUtils.equals(expectedResultList, results);
         Assert.assertTrue(contains);
     }
@@ -138,18 +137,18 @@ public class FuzzyTokenMatcherTest {
                 new DoubleField(5.99), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974")),
                 new TextField("Short angry"), new ListField<Span>(spanList4) };
 
-        ITuple tuple1 = new DataTuple(spanSchema, fields1);
-        ITuple tuple2 = new DataTuple(spanSchema, fields2);
-        ITuple tuple3 = new DataTuple(spanSchema, fields3);
-        ITuple tuple4 = new DataTuple(spanSchema, fields4);
+        Tuple tuple1 = new Tuple(spanSchema, fields1);
+        Tuple tuple2 = new Tuple(spanSchema, fields2);
+        Tuple tuple3 = new Tuple(spanSchema, fields3);
+        Tuple tuple4 = new Tuple(spanSchema, fields4);
 
-        List<ITuple> expectedResultList = new ArrayList<>();
+        List<Tuple> expectedResultList = new ArrayList<>();
         expectedResultList.add(tuple1);
         expectedResultList.add(tuple2);
         expectedResultList.add(tuple3);
         expectedResultList.add(tuple4);
 
-        List<ITuple> results = FuzzyTokenMatcherTestHelper.getQueryResults(PEOPLE_TABLE, query, threshold, attributeNames);
+        List<Tuple> results = FuzzyTokenMatcherTestHelper.getQueryResults(PEOPLE_TABLE, query, threshold, attributeNames);
         boolean contains = TestUtils.equals(expectedResultList, results);
         Assert.assertTrue(contains);
     }
@@ -160,7 +159,7 @@ public class FuzzyTokenMatcherTest {
         double threshold = 1; // The ratio of tokens that need to be matched
         ArrayList<String> attributeNames = new ArrayList<>();
         attributeNames.add(TestConstants.FIRST_NAME);
-        List<ITuple> results = FuzzyTokenMatcherTestHelper.getQueryResults(PEOPLE_TABLE, query, threshold, attributeNames);
+        List<Tuple> results = FuzzyTokenMatcherTestHelper.getQueryResults(PEOPLE_TABLE, query, threshold, attributeNames);
 
         Assert.assertEquals(0, results.size());
     }
@@ -198,18 +197,18 @@ public class FuzzyTokenMatcherTest {
                 new DoubleField(5.99), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974")),
                 new TextField("Short angry"), new ListField<Span>(spanList4) };
 
-        ITuple tuple1 = new DataTuple(spanSchema, fields1);
-        ITuple tuple2 = new DataTuple(spanSchema, fields2);
-        ITuple tuple3 = new DataTuple(spanSchema, fields3);
-        ITuple tuple4 = new DataTuple(spanSchema, fields4);
+        Tuple tuple1 = new Tuple(spanSchema, fields1);
+        Tuple tuple2 = new Tuple(spanSchema, fields2);
+        Tuple tuple3 = new Tuple(spanSchema, fields3);
+        Tuple tuple4 = new Tuple(spanSchema, fields4);
 
-        List<ITuple> expectedResultList = new ArrayList<>();
+        List<Tuple> expectedResultList = new ArrayList<>();
         expectedResultList.add(tuple1);
         expectedResultList.add(tuple2);
         expectedResultList.add(tuple3);
         expectedResultList.add(tuple4);
 
-        List<ITuple> results = FuzzyTokenMatcherTestHelper.getQueryResults(PEOPLE_TABLE, query, threshold, attributeNames);
+        List<Tuple> results = FuzzyTokenMatcherTestHelper.getQueryResults(PEOPLE_TABLE, query, threshold, attributeNames);
         boolean contains = TestUtils.equals(expectedResultList, results);
         Assert.assertTrue(contains);
     }
@@ -247,18 +246,18 @@ public class FuzzyTokenMatcherTest {
                 new DoubleField(5.99), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974")),
                 new TextField("Short angry"), new ListField<Span>(spanList4) };
 
-        ITuple tuple1 = new DataTuple(spanSchema, fields1);
-        ITuple tuple2 = new DataTuple(spanSchema, fields2);
-        ITuple tuple3 = new DataTuple(spanSchema, fields3);
-        ITuple tuple4 = new DataTuple(spanSchema, fields4);
+        Tuple tuple1 = new Tuple(spanSchema, fields1);
+        Tuple tuple2 = new Tuple(spanSchema, fields2);
+        Tuple tuple3 = new Tuple(spanSchema, fields3);
+        Tuple tuple4 = new Tuple(spanSchema, fields4);
 
-        List<ITuple> expectedResultList = new ArrayList<>();
+        List<Tuple> expectedResultList = new ArrayList<>();
         expectedResultList.add(tuple1);
         expectedResultList.add(tuple2);
         expectedResultList.add(tuple3);
         expectedResultList.add(tuple4);
 
-        List<ITuple> results = FuzzyTokenMatcherTestHelper.getQueryResults(PEOPLE_TABLE, query, threshold, attributeNames);
+        List<Tuple> results = FuzzyTokenMatcherTestHelper.getQueryResults(PEOPLE_TABLE, query, threshold, attributeNames);
         boolean contains = TestUtils.equals(expectedResultList, results);
         Assert.assertTrue(contains);
     }
@@ -304,17 +303,17 @@ public class FuzzyTokenMatcherTest {
                 new DoubleField(5.99), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974")),
                 new TextField("Short angry"), new ListField<>(list) };
 
-        ITuple tuple1 = new DataTuple(new Schema(schemaAttributes), fields1);
-        ITuple tuple2 = new DataTuple(new Schema(schemaAttributes), fields2);
-        ITuple tuple3 = new DataTuple(new Schema(schemaAttributes), fields3);
-        ITuple tuple4 = new DataTuple(new Schema(schemaAttributes), fields4);
-        List<ITuple> expectedResultList = new ArrayList<>();
+        Tuple tuple1 = new Tuple(new Schema(schemaAttributes), fields1);
+        Tuple tuple2 = new Tuple(new Schema(schemaAttributes), fields2);
+        Tuple tuple3 = new Tuple(new Schema(schemaAttributes), fields3);
+        Tuple tuple4 = new Tuple(new Schema(schemaAttributes), fields4);
+        List<Tuple> expectedResultList = new ArrayList<>();
         expectedResultList.add(tuple1);
         expectedResultList.add(tuple2);
         expectedResultList.add(tuple3);
         expectedResultList.add(tuple4);
 
-        List<ITuple> results = Utils.removeFields(
+        List<Tuple> results = Utils.removeFields(
                 FuzzyTokenMatcherTestHelper.getQueryResults(PEOPLE_TABLE, query, threshold, attributeNames, 2, 0), SchemaConstants.PAYLOAD);
         Assert.assertEquals(expectedResultList.size(), 4);
         Assert.assertEquals(results.size(), 2);
@@ -362,17 +361,17 @@ public class FuzzyTokenMatcherTest {
                 new DoubleField(5.99), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974")),
                 new TextField("Short angry"), new ListField<>(list) };
 
-        ITuple tuple1 = new DataTuple(new Schema(schemaAttributes), fields1);
-        ITuple tuple2 = new DataTuple(new Schema(schemaAttributes), fields2);
-        ITuple tuple3 = new DataTuple(new Schema(schemaAttributes), fields3);
-        ITuple tuple4 = new DataTuple(new Schema(schemaAttributes), fields4);
-        List<ITuple> expectedResultList = new ArrayList<>();
+        Tuple tuple1 = new Tuple(new Schema(schemaAttributes), fields1);
+        Tuple tuple2 = new Tuple(new Schema(schemaAttributes), fields2);
+        Tuple tuple3 = new Tuple(new Schema(schemaAttributes), fields3);
+        Tuple tuple4 = new Tuple(new Schema(schemaAttributes), fields4);
+        List<Tuple> expectedResultList = new ArrayList<>();
         expectedResultList.add(tuple1);
         expectedResultList.add(tuple2);
         expectedResultList.add(tuple3);
         expectedResultList.add(tuple4);
 
-        List<ITuple> results = Utils.removeFields(
+        List<Tuple> results = Utils.removeFields(
                 FuzzyTokenMatcherTestHelper.getQueryResults(PEOPLE_TABLE, query, threshold, attributeNames, 2, 1), SchemaConstants.PAYLOAD);
 
         Assert.assertEquals(expectedResultList.size(), 4);

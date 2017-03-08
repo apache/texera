@@ -8,7 +8,7 @@ import java.util.List;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 
-import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Tuple;
 import edu.uci.ics.textdb.api.dataflow.ISourceOperator;
 import edu.uci.ics.textdb.common.constants.SchemaConstants;
 import edu.uci.ics.textdb.common.field.ListField;
@@ -103,10 +103,11 @@ public class NlpExtractorPerformanceTest {
 
         long startMatchTime = System.currentTimeMillis();
         nlpExtractor.open();
-        ITuple nextTuple = null;
+        Tuple nextTuple = null;
         int counter = 0;
         while ((nextTuple = nlpExtractor.getNextTuple()) != null) {
-            List<Span> spanList = ((ListField<Span>) nextTuple.getField(SchemaConstants.SPAN_LIST)).getValue();
+            ListField<Span> spanListField = nextTuple.getField(SchemaConstants.SPAN_LIST);
+            List<Span> spanList = spanListField.getValue();
             counter += spanList.size();
 
         }

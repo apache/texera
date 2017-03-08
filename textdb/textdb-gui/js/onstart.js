@@ -5,6 +5,8 @@
 	@Author: Jimmy Wang
 */
 
+var debug = null;
+
 // main operation (holds all the methods for the buttons and holds the buttons itself)
 var setup = function(){
 	var data = {};
@@ -52,12 +54,14 @@ var setup = function(){
 	*/
 	//Helper Function for Process Queries that displays the results after hitting "Process Query"
 	function createResultFrame(message){
+		var resultJSON = JSON.parse(message['text']);
+
 		var resultFrame = $('<div class="result-frame"><div class="result-box"><div class="result-box-band">Return Result<div class="result-frame-close"><img src="img/close-icon.png"></div></div><div class="return-result"></div></div></div>');
 		$('body').append(resultFrame);
-
+		
 		var node = new PrettyJSON.view.Node({
 			el:$('.return-result'),
-			data:message
+			data:resultJSON
 		});
 	}
 
@@ -339,6 +343,9 @@ var setup = function(){
 		TEXTDBJSON.operators = operators;
 		TEXTDBJSON.links = links;
 
+		debug = TEXTDBJSON;
+		console.log(JSON.stringify(debug));
+
 		$.ajax({
 			url: "http://localhost:8080/queryplan/execute",
 			type: "POST",
@@ -347,8 +354,7 @@ var setup = function(){
 			contentType: "application/json",
 			success: function(returnedData){
 				console.log("SUCCESS\n");
-				console.log(JSON.stringify(returnedData));
-				createResultFrame(returnedData);
+				createResultFrame(JSON.parse(returnedData));
 			},
 			error: function(xhr, status, err){
 				console.log(JSON.stringify(xhr));

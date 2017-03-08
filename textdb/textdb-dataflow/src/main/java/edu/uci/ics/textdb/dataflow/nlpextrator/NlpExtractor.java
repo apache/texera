@@ -10,10 +10,11 @@ import edu.stanford.nlp.pipeline.Annotation;
 import edu.stanford.nlp.pipeline.StanfordCoreNLP;
 import edu.stanford.nlp.util.CoreMap;
 import edu.uci.ics.textdb.api.common.IField;
-import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Tuple;
 import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.common.constants.SchemaConstants;
 import edu.uci.ics.textdb.api.exception.TextDBException;
+import edu.uci.ics.textdb.common.field.ListField;
 import edu.uci.ics.textdb.common.field.Span;
 import edu.uci.ics.textdb.common.utils.Utils;
 import edu.uci.ics.textdb.dataflow.common.AbstractSingleInputOperator;
@@ -64,9 +65,9 @@ public class NlpExtractor extends AbstractSingleInputOperator {
     }
     
     @Override
-    protected ITuple computeNextMatchingTuple() throws TextDBException {
-        ITuple inputTuple = null;
-        ITuple resultTuple = null;
+    protected Tuple computeNextMatchingTuple() throws TextDBException {
+        Tuple inputTuple = null;
+        Tuple resultTuple = null;
         
         while ((inputTuple = inputOperator.getNextTuple()) != null) {
             if (!inputSchema.containsField(SchemaConstants.SPAN_LIST)) {
@@ -82,7 +83,7 @@ public class NlpExtractor extends AbstractSingleInputOperator {
     }
 
     @Override
-    public ITuple processOneInputTuple(ITuple inputTuple) throws TextDBException {
+    public Tuple processOneInputTuple(Tuple inputTuple) throws TextDBException {
         List<Span> matchingResults = new ArrayList<>();
         for (String attributeName : predicate.getAttributeNames()) {
             IField field = inputTuple.getField(attributeName);
@@ -93,7 +94,8 @@ public class NlpExtractor extends AbstractSingleInputOperator {
             return null;
         }
 
-        List<Span> spanList = (List<Span>) inputTuple.getField(SchemaConstants.SPAN_LIST).getValue();
+        ListField<Span> spanListField = inputTuple.getField(SchemaConstants.SPAN_LIST);
+        List<Span> spanList = spanListField.getValue();
         spanList.addAll(matchingResults);
         return inputTuple;
     }

@@ -12,13 +12,12 @@ import org.junit.Test;
 import edu.uci.ics.textdb.api.common.Attribute;
 import edu.uci.ics.textdb.api.common.FieldType;
 import edu.uci.ics.textdb.api.common.IField;
-import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Tuple;
 import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.api.exception.TextDBException;
 import edu.uci.ics.textdb.common.constants.LuceneAnalyzerConstants;
 import edu.uci.ics.textdb.common.constants.DataConstants.KeywordMatchingType;
 import edu.uci.ics.textdb.common.exception.DataFlowException;
-import edu.uci.ics.textdb.common.field.DataTuple;
 import edu.uci.ics.textdb.common.field.IntegerField;
 import edu.uci.ics.textdb.common.field.ListField;
 import edu.uci.ics.textdb.common.field.Span;
@@ -115,7 +114,7 @@ public class JoinDistanceTest {
         KeywordMatcherSourceOperator keywordSourceInner = 
                 JoinTestHelper.getKeywordSource(BOOK_TABLE, "writer", conjunction);
         
-        List<ITuple> resultList = JoinTestHelper.getJoinDistanceResults(keywordSourceOuter, keywordSourceInner, 
+        List<Tuple> resultList = JoinTestHelper.getJoinDistanceResults(keywordSourceOuter, keywordSourceInner, 
                 new JoinDistancePredicate(JoinTestConstants.REVIEW, 20), Integer.MAX_VALUE, 0);
         
         Schema resultSchema = Utils.createSpanSchema(JoinTestConstants.BOOK_SCHEMA);
@@ -131,8 +130,8 @@ public class JoinDistanceTest {
                         + "hilariously so), and pop science writer Mary Roach is " + "always up to the task."),
                 new ListField<>(spanList) };
         
-        ITuple expectedTuple = new DataTuple(resultSchema, book1);
-        List<ITuple> expectedResult = new ArrayList<>();
+        Tuple expectedTuple = new Tuple(resultSchema, book1);
+        List<Tuple> expectedResult = new ArrayList<>();
         expectedResult.add(expectedTuple);
 
         Assert.assertEquals(1, resultList.size());
@@ -158,7 +157,7 @@ public class JoinDistanceTest {
         KeywordMatcherSourceOperator keywordSourceInner = 
                 JoinTestHelper.getKeywordSource(BOOK_TABLE, "topics", conjunction);
         
-        List<ITuple> resultList = JoinTestHelper.getJoinDistanceResults(keywordSourceOuter, keywordSourceInner, 
+        List<Tuple> resultList = JoinTestHelper.getJoinDistanceResults(keywordSourceOuter, keywordSourceInner, 
                 new JoinDistancePredicate(JoinTestConstants.REVIEW, 20), Integer.MAX_VALUE, 0);
 
         Assert.assertEquals(0, resultList.size());
@@ -177,7 +176,7 @@ public class JoinDistanceTest {
         KeywordMatcherSourceOperator keywordSourceInner = 
                 JoinTestHelper.getKeywordSource(BOOK_TABLE, "book", conjunction);
  
-        List<ITuple> resultList = JoinTestHelper.getJoinDistanceResults(keywordSourceOuter, keywordSourceInner, 
+        List<Tuple> resultList = JoinTestHelper.getJoinDistanceResults(keywordSourceOuter, keywordSourceInner, 
                 new JoinDistancePredicate(JoinTestConstants.REVIEW, 20), Integer.MAX_VALUE, 0);
         
         Assert.assertEquals(0, resultList.size());
@@ -229,7 +228,7 @@ public class JoinDistanceTest {
         KeywordMatcherSourceOperator keywordSourceInner = 
                 JoinTestHelper.getKeywordSource(BOOK_TABLE, "takes a special kind of writer", phrase);
  
-        List<ITuple> resultList = JoinTestHelper.getJoinDistanceResults(keywordSourceOuter, keywordSourceInner, 
+        List<Tuple> resultList = JoinTestHelper.getJoinDistanceResults(keywordSourceOuter, keywordSourceInner, 
                 new JoinDistancePredicate(JoinTestConstants.REVIEW, 20), Integer.MAX_VALUE, 0);
         
         
@@ -247,8 +246,8 @@ public class JoinDistanceTest {
                         + "hilariously so), and pop science writer Mary Roach is " + "always up to the task."),
                 new ListField<>(spanList) };
         
-        ITuple expectedTuple = new DataTuple(resultSchema, book1);
-        List<ITuple> expectedResult = new ArrayList<>();
+        Tuple expectedTuple = new Tuple(resultSchema, book1);
+        List<Tuple> expectedResult = new ArrayList<>();
         expectedResult.add(expectedTuple);
 
         Assert.assertEquals(1, resultList.size());
@@ -275,7 +274,7 @@ public class JoinDistanceTest {
         KeywordMatcherSourceOperator keywordSourceInner = 
                 JoinTestHelper.getKeywordSource(BOOK_TABLE, "takes a special kind of writer", phrase);
  
-        List<ITuple> resultList = JoinTestHelper.getJoinDistanceResults(keywordSourceOuter, keywordSourceInner, 
+        List<Tuple> resultList = JoinTestHelper.getJoinDistanceResults(keywordSourceOuter, keywordSourceInner, 
                 new JoinDistancePredicate(JoinTestConstants.REVIEW, 10), Integer.MAX_VALUE, 0);
         
         Assert.assertEquals(0, resultList.size());
@@ -308,7 +307,7 @@ public class JoinDistanceTest {
         KeywordMatcherSourceOperator keywordSourceInner = 
                 JoinTestHelper.getKeywordSource(BOOK_TABLE, "tract interesting", phrase);
  
-        List<ITuple> resultList = JoinTestHelper.getJoinDistanceResults(keywordSourceOuter, keywordSourceInner, 
+        List<Tuple> resultList = JoinTestHelper.getJoinDistanceResults(keywordSourceOuter, keywordSourceInner, 
                 new JoinDistancePredicate(JoinTestConstants.REVIEW, 20), Integer.MAX_VALUE, 0);
         
         Schema resultSchema = Utils.createSpanSchema(JoinTestConstants.BOOK_SCHEMA);
@@ -324,8 +323,8 @@ public class JoinDistanceTest {
                         + "gastrointestinal tract interesting (sometimes "
                         + "hilariously so), and pop science writer Mary Roach is " + "always up to the task."),
                 new ListField<>(spanList) };
-        ITuple expectedTuple = new DataTuple(resultSchema, book1);
-        List<ITuple> expectedResult = new ArrayList<>();
+        Tuple expectedTuple = new Tuple(resultSchema, book1);
+        List<Tuple> expectedResult = new ArrayList<>();
         expectedResult.add(expectedTuple);
 
         Assert.assertEquals(1, resultList.size());
@@ -352,7 +351,7 @@ public class JoinDistanceTest {
         KeywordMatcherSourceOperator keywordSourceInner = 
                 JoinTestHelper.getKeywordSource(BOOK_TABLE, "special kind of writer", phrase);
  
-        List<ITuple> resultList = JoinTestHelper.getJoinDistanceResults(keywordSourceOuter, keywordSourceInner, 
+        List<Tuple> resultList = JoinTestHelper.getJoinDistanceResults(keywordSourceOuter, keywordSourceInner, 
                 new JoinDistancePredicate(JoinTestConstants.REVIEW, 10), Integer.MAX_VALUE, 0);
 
         Assert.assertEquals(0, resultList.size());
@@ -378,7 +377,7 @@ public class JoinDistanceTest {
         KeywordMatcherSourceOperator keywordSourceInner = 
                 JoinTestHelper.getKeywordSource(BOOK_TABLE, "special", conjunction);
  
-        List<ITuple> resultList = JoinTestHelper.getJoinDistanceResults(keywordSourceOuter, keywordSourceInner, 
+        List<Tuple> resultList = JoinTestHelper.getJoinDistanceResults(keywordSourceOuter, keywordSourceInner, 
                 new JoinDistancePredicate(JoinTestConstants.REVIEW, 20), Integer.MAX_VALUE, 0);
         
         Schema resultSchema = Utils.createSpanSchema(JoinTestConstants.BOOK_SCHEMA);
@@ -393,8 +392,8 @@ public class JoinDistanceTest {
                         + "gastrointestinal tract interesting (sometimes "
                         + "hilariously so), and pop science writer Mary Roach is " + "always up to the task."),
                 new ListField<>(spanList) };
-        ITuple expectedTuple = new DataTuple(resultSchema, book1);
-        List<ITuple> expectedResult = new ArrayList<>();
+        Tuple expectedTuple = new Tuple(resultSchema, book1);
+        List<Tuple> expectedResult = new ArrayList<>();
         expectedResult.add(expectedTuple);
 
         Assert.assertEquals(1, resultList.size());
@@ -413,7 +412,7 @@ public class JoinDistanceTest {
      */
     @Test
     public void testBothOperatorsMultipleTuplesSpanWithinThreshold() throws Exception {
-        List<ITuple> tuples = new ArrayList<>();
+        List<Tuple> tuples = new ArrayList<>();
         tuples.add(JoinTestConstants.bookGroup1.get(3));
         tuples.add(JoinTestConstants.bookGroup2.get(2));
         tuples.add(JoinTestConstants.bookGroup2.get(4));
@@ -425,7 +424,7 @@ public class JoinDistanceTest {
         KeywordMatcherSourceOperator keywordSourceInner = 
                 JoinTestHelper.getKeywordSource(BOOK_TABLE, "book", conjunction);
         
-        List<ITuple> resultList = JoinTestHelper.getJoinDistanceResults(keywordSourceOuter, keywordSourceInner, 
+        List<Tuple> resultList = JoinTestHelper.getJoinDistanceResults(keywordSourceOuter, keywordSourceInner, 
                 new JoinDistancePredicate(JoinTestConstants.REVIEW, 12), Integer.MAX_VALUE, 0);
 
         Schema resultSchema = Utils.createSpanSchema(JoinTestConstants.BOOK_SCHEMA);
@@ -462,10 +461,10 @@ public class JoinDistanceTest {
                         + "your typical book review."),
                 new ListField<>(spanList) };
 
-        ITuple expectedTuple1 = new DataTuple(resultSchema, book1);
-        ITuple expectedTuple2 = new DataTuple(resultSchema, book2);
-        ITuple expectedTuple3 = new DataTuple(resultSchema, book3);
-        List<ITuple> expectedResult = new ArrayList<>();
+        Tuple expectedTuple1 = new Tuple(resultSchema, book1);
+        Tuple expectedTuple2 = new Tuple(resultSchema, book2);
+        Tuple expectedTuple3 = new Tuple(resultSchema, book3);
+        List<Tuple> expectedResult = new ArrayList<>();
         expectedResult.add(expectedTuple1);
         expectedResult.add(expectedTuple2);
         expectedResult.add(expectedTuple3);
@@ -483,7 +482,7 @@ public class JoinDistanceTest {
      */
     @Test
     public void testBothOperatorsMultipleTuplesSpanExceedThreshold() throws Exception {
-        List<ITuple> tuples = new ArrayList<>();
+        List<Tuple> tuples = new ArrayList<>();
         tuples.add(JoinTestConstants.bookGroup1.get(3));
         tuples.add(JoinTestConstants.bookGroup2.get(2));
         tuples.add(JoinTestConstants.bookGroup2.get(4));
@@ -495,7 +494,7 @@ public class JoinDistanceTest {
         KeywordMatcherSourceOperator keywordSourceInner = 
                 JoinTestHelper.getKeywordSource(BOOK_TABLE, "book", conjunction);
         
-        List<ITuple> resultList = JoinTestHelper.getJoinDistanceResults(keywordSourceOuter, keywordSourceInner, 
+        List<Tuple> resultList = JoinTestHelper.getJoinDistanceResults(keywordSourceOuter, keywordSourceInner, 
                 new JoinDistancePredicate(JoinTestConstants.REVIEW, 4), Integer.MAX_VALUE, 0);
         Assert.assertEquals(0, resultList.size());
     }
@@ -508,7 +507,7 @@ public class JoinDistanceTest {
      */
     @Test
     public void testQueryHasResultsOverMultipleFields() throws Exception {
-        List<ITuple> tuples = JoinTestConstants.bookGroup1.subList(1, 5);
+        List<Tuple> tuples = JoinTestConstants.bookGroup1.subList(1, 5);
         
         JoinTestHelper.insertToTable(BOOK_TABLE, tuples);
            
@@ -517,7 +516,7 @@ public class JoinDistanceTest {
         KeywordMatcherSourceOperator keywordSourceInner = 
                 JoinTestHelper.getKeywordSource(BOOK_TABLE, "actually", conjunction);
         
-        List<ITuple> resultList = JoinTestHelper.getJoinDistanceResults(keywordSourceOuter, keywordSourceInner, 
+        List<Tuple> resultList = JoinTestHelper.getJoinDistanceResults(keywordSourceOuter, keywordSourceInner, 
                 new JoinDistancePredicate(JoinTestConstants.REVIEW, 90), Integer.MAX_VALUE, 0);
 
         Schema resultSchema = Utils.createSpanSchema(JoinTestConstants.BOOK_SCHEMA);
@@ -562,11 +561,11 @@ public class JoinDistanceTest {
                         + "your typical book review."),
                 new ListField<>(spanList) };
 
-        ITuple expectedTuple1 = new DataTuple(resultSchema, book1);
-        ITuple expectedTuple2 = new DataTuple(resultSchema, book2);
-        ITuple expectedTuple3 = new DataTuple(resultSchema, book3);
-        ITuple expectedTuple4 = new DataTuple(resultSchema, book4);
-        List<ITuple> expectedResult = new ArrayList<>();
+        Tuple expectedTuple1 = new Tuple(resultSchema, book1);
+        Tuple expectedTuple2 = new Tuple(resultSchema, book2);
+        Tuple expectedTuple3 = new Tuple(resultSchema, book3);
+        Tuple expectedTuple4 = new Tuple(resultSchema, book4);
+        List<Tuple> expectedResult = new ArrayList<>();
         expectedResult.add(expectedTuple1);
         expectedResult.add(expectedTuple2);
         expectedResult.add(expectedTuple3);
@@ -586,7 +585,7 @@ public class JoinDistanceTest {
      */
     @Test
     public void testForLimitWhenLimitIsLesserThanActualNumberOfResults() throws Exception{
-        List<ITuple> tuples = JoinTestConstants.bookGroup1.subList(1, 5);
+        List<Tuple> tuples = JoinTestConstants.bookGroup1.subList(1, 5);
         
         JoinTestHelper.insertToTable(BOOK_TABLE, tuples);
            
@@ -595,7 +594,7 @@ public class JoinDistanceTest {
         KeywordMatcherSourceOperator keywordSourceInner = 
                 JoinTestHelper.getKeywordSource(BOOK_TABLE, "actually", conjunction);
         
-        List<ITuple> resultList = JoinTestHelper.getJoinDistanceResults(keywordSourceOuter, keywordSourceInner, 
+        List<Tuple> resultList = JoinTestHelper.getJoinDistanceResults(keywordSourceOuter, keywordSourceInner, 
                 new JoinDistancePredicate(JoinTestConstants.REVIEW, 90), 3, 0);
 
         Schema resultSchema = Utils.createSpanSchema(JoinTestConstants.BOOK_SCHEMA);
@@ -640,11 +639,11 @@ public class JoinDistanceTest {
                         + "your typical book review."),
                 new ListField<>(spanList) };
 
-        ITuple expectedTuple1 = new DataTuple(resultSchema, book1);
-        ITuple expectedTuple2 = new DataTuple(resultSchema, book2);
-        ITuple expectedTuple3 = new DataTuple(resultSchema, book3);
-        ITuple expectedTuple4 = new DataTuple(resultSchema, book4);
-        List<ITuple> expectedResult = new ArrayList<>(3);
+        Tuple expectedTuple1 = new Tuple(resultSchema, book1);
+        Tuple expectedTuple2 = new Tuple(resultSchema, book2);
+        Tuple expectedTuple3 = new Tuple(resultSchema, book3);
+        Tuple expectedTuple4 = new Tuple(resultSchema, book4);
+        List<Tuple> expectedResult = new ArrayList<>(3);
         expectedResult.add(expectedTuple1);
         expectedResult.add(expectedTuple2);
         expectedResult.add(expectedTuple3);
@@ -663,7 +662,7 @@ public class JoinDistanceTest {
      */
     @Test
     public void testForLimitWhenLimitIsGreaterThanActualNumberOfResults() throws Exception{
-        List<ITuple> tuples = JoinTestConstants.bookGroup1.subList(1, 5);
+        List<Tuple> tuples = JoinTestConstants.bookGroup1.subList(1, 5);
         
         JoinTestHelper.insertToTable(BOOK_TABLE, tuples);
            
@@ -672,7 +671,7 @@ public class JoinDistanceTest {
         KeywordMatcherSourceOperator keywordSourceInner = 
                 JoinTestHelper.getKeywordSource(BOOK_TABLE, "actually", conjunction);
         
-        List<ITuple> resultList = JoinTestHelper.getJoinDistanceResults(keywordSourceOuter, keywordSourceInner, 
+        List<Tuple> resultList = JoinTestHelper.getJoinDistanceResults(keywordSourceOuter, keywordSourceInner, 
                 new JoinDistancePredicate(JoinTestConstants.REVIEW, 90), 10, 0);
 
         Schema resultSchema = Utils.createSpanSchema(JoinTestConstants.BOOK_SCHEMA);
@@ -717,11 +716,11 @@ public class JoinDistanceTest {
                         + "your typical book review."),
                 new ListField<>(spanList) };
 
-        ITuple expectedTuple1 = new DataTuple(resultSchema, book1);
-        ITuple expectedTuple2 = new DataTuple(resultSchema, book2);
-        ITuple expectedTuple3 = new DataTuple(resultSchema, book3);
-        ITuple expectedTuple4 = new DataTuple(resultSchema, book4);
-        List<ITuple> expectedResult = new ArrayList<>(5);
+        Tuple expectedTuple1 = new Tuple(resultSchema, book1);
+        Tuple expectedTuple2 = new Tuple(resultSchema, book2);
+        Tuple expectedTuple3 = new Tuple(resultSchema, book3);
+        Tuple expectedTuple4 = new Tuple(resultSchema, book4);
+        List<Tuple> expectedResult = new ArrayList<>(5);
         expectedResult.add(expectedTuple1);
         expectedResult.add(expectedTuple2);
         expectedResult.add(expectedTuple3);
@@ -738,7 +737,7 @@ public class JoinDistanceTest {
      */
     @Test
     public void testForLimitWhenLimitIsZero() throws Exception{
-        List<ITuple> tuples = JoinTestConstants.bookGroup1.subList(1, 5);
+        List<Tuple> tuples = JoinTestConstants.bookGroup1.subList(1, 5);
         
         JoinTestHelper.insertToTable(BOOK_TABLE, tuples);
            
@@ -747,7 +746,7 @@ public class JoinDistanceTest {
         KeywordMatcherSourceOperator keywordSourceInner = 
                 JoinTestHelper.getKeywordSource(BOOK_TABLE, "actually", conjunction);
         
-        List<ITuple> resultList = JoinTestHelper.getJoinDistanceResults(keywordSourceOuter, keywordSourceInner, 
+        List<Tuple> resultList = JoinTestHelper.getJoinDistanceResults(keywordSourceOuter, keywordSourceInner, 
                 new JoinDistancePredicate(JoinTestConstants.REVIEW, 90), 0, 0);
 
         Assert.assertEquals(0, resultList.size());
@@ -761,7 +760,7 @@ public class JoinDistanceTest {
      */
     @Test
     public void testForLimitWhenLimitIsZeroAndHasOffset() throws Exception{
-        List<ITuple> tuples = JoinTestConstants.bookGroup1.subList(1, 5);
+        List<Tuple> tuples = JoinTestConstants.bookGroup1.subList(1, 5);
         
         JoinTestHelper.insertToTable(BOOK_TABLE, tuples);
            
@@ -770,7 +769,7 @@ public class JoinDistanceTest {
         KeywordMatcherSourceOperator keywordSourceInner = 
                 JoinTestHelper.getKeywordSource(BOOK_TABLE, "actually", conjunction);
         
-        List<ITuple> resultList = JoinTestHelper.getJoinDistanceResults(keywordSourceOuter, keywordSourceInner, 
+        List<Tuple> resultList = JoinTestHelper.getJoinDistanceResults(keywordSourceOuter, keywordSourceInner, 
                 new JoinDistancePredicate(JoinTestConstants.REVIEW, 90), 0, 2);
 
         Assert.assertEquals(0, resultList.size());
@@ -786,7 +785,7 @@ public class JoinDistanceTest {
      */
     @Test
     public void testForLimitWhenLimitIsLesserThanActualNumberOfResultsAndHasOffset() throws Exception {
-        List<ITuple> tuples = JoinTestConstants.bookGroup1.subList(1, 5);
+        List<Tuple> tuples = JoinTestConstants.bookGroup1.subList(1, 5);
         
         JoinTestHelper.insertToTable(BOOK_TABLE, tuples);
            
@@ -795,7 +794,7 @@ public class JoinDistanceTest {
         KeywordMatcherSourceOperator keywordSourceInner = 
                 JoinTestHelper.getKeywordSource(BOOK_TABLE, "actually", conjunction);
         
-        List<ITuple> resultList = JoinTestHelper.getJoinDistanceResults(keywordSourceOuter, keywordSourceInner, 
+        List<Tuple> resultList = JoinTestHelper.getJoinDistanceResults(keywordSourceOuter, keywordSourceInner, 
                 new JoinDistancePredicate(JoinTestConstants.REVIEW, 90), 1, 2);
 
         Schema resultSchema = Utils.createSpanSchema(JoinTestConstants.BOOK_SCHEMA);
@@ -816,8 +815,8 @@ public class JoinDistanceTest {
                         + "your typical book review."),
                 new ListField<>(spanList) };
 
-        ITuple expectedTuple1 = new DataTuple(resultSchema, book1);
-        List<ITuple> expectedResult = new ArrayList<>(1);
+        Tuple expectedTuple1 = new Tuple(resultSchema, book1);
+        List<Tuple> expectedResult = new ArrayList<>(1);
         expectedResult.add(expectedTuple1);
 
         Assert.assertEquals(1, resultList.size());
@@ -833,7 +832,7 @@ public class JoinDistanceTest {
      */
     @Test
     public void testOffsetGreaterThanNumberOfResults() throws Exception{
-        List<ITuple> tuples = JoinTestConstants.bookGroup1.subList(1, 5);
+        List<Tuple> tuples = JoinTestConstants.bookGroup1.subList(1, 5);
         
         JoinTestHelper.insertToTable(BOOK_TABLE, tuples);
            
@@ -842,7 +841,7 @@ public class JoinDistanceTest {
         KeywordMatcherSourceOperator keywordSourceInner = 
                 JoinTestHelper.getKeywordSource(BOOK_TABLE, "actually", conjunction);
         
-        List<ITuple> resultList = JoinTestHelper.getJoinDistanceResults(keywordSourceOuter, keywordSourceInner, 
+        List<Tuple> resultList = JoinTestHelper.getJoinDistanceResults(keywordSourceOuter, keywordSourceInner, 
                 new JoinDistancePredicate(JoinTestConstants.REVIEW, 90), 1, 10);
 
         Assert.assertEquals(0, resultList.size());
@@ -858,7 +857,7 @@ public class JoinDistanceTest {
      */
     @Test(expected = DataFlowException.class)
     public void testWhenOpenOrCloseIsCalledTwiceAndTryToGetNextTupleWhenClosed() throws Exception {
-        List<ITuple> tuples = JoinTestConstants.bookGroup1.subList(1, 5);
+        List<Tuple> tuples = JoinTestConstants.bookGroup1.subList(1, 5);
         
         JoinTestHelper.insertToTable(BOOK_TABLE, tuples);
            
@@ -873,8 +872,8 @@ public class JoinDistanceTest {
         join.setOuterInputOperator(keywordSourceOuter);
         join.setInnerInputOperator(keywordSourceInner);
         
-        ITuple tuple;
-        List<ITuple> resultList = new ArrayList<>();
+        Tuple tuple;
+        List<Tuple> resultList = new ArrayList<>();
         
         join.open();
         join.open();

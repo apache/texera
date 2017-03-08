@@ -5,9 +5,8 @@ import java.util.List;
 
 import edu.uci.ics.textdb.api.common.Attribute;
 import edu.uci.ics.textdb.api.common.FieldType;
-import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Tuple;
 import edu.uci.ics.textdb.api.common.Schema;
-import edu.uci.ics.textdb.common.field.DataTuple;
 import edu.uci.ics.textdb.common.field.IntegerField;
 import edu.uci.ics.textdb.common.field.StringField;
 import edu.uci.ics.textdb.common.field.TextField;
@@ -28,35 +27,35 @@ public class JoinTestConstants {
     
     public static final Schema BOOK_SCHEMA = new Schema(ID_ATTR, AUTHOR_ATTR, TITLE_ATTR, PAGES_ATTR, REVIEW_ATTR);
        
-    public static final List<ITuple> bookGroup1 = Arrays.asList(     
-            new DataTuple(BOOK_SCHEMA,
+    public static final List<Tuple> bookGroup1 = Arrays.asList(     
+            new Tuple(BOOK_SCHEMA,
                     new IntegerField(52), new StringField("Mary Roach"),
                     new StringField("Grunt: The Curious Science of Humans at War"), new IntegerField(288),
                     new TextField("It takes a special kind " + "of writer to make topics ranging from death to our "
                             + "gastrointestinal tract interesting (sometimes "
                             + "hilariously so), and pop science writer Mary Roach is " + "always up to the task.")),
-            new DataTuple(BOOK_SCHEMA,               
+            new Tuple(BOOK_SCHEMA,               
                     new IntegerField(51), new StringField("author unknown"),
                     new StringField("typical"), new IntegerField(300),
                     new TextField("Review of a Book. This is a typical "
                             + "review. This is a test. A book review " + "test. A test to test queries without "
                             + "actually using actual review. From " + "here onwards, we can pretend this to "
                             + "be actually a review even if it is not " + "your typical book review.")),
-            new DataTuple(BOOK_SCHEMA,
+            new Tuple(BOOK_SCHEMA,
                     new IntegerField(53), new StringField("Noah Hawley"),
                     new StringField("Before the Fall"), new IntegerField(400),
                     new TextField("Review of a Book. This is a typical "
                             + "review. This is a test. A book review " + "test. A test to test queries without "
                             + "actually using actual review. From " + "here onwards, we can pretend this to "
                             + "be actually a review even if it is not " + "your typical book review.")),
-            new DataTuple(BOOK_SCHEMA,
+            new Tuple(BOOK_SCHEMA,
                     new IntegerField(54), new StringField("Andria Williams"),
                     new StringField("The Longest Night: A Novel"), new IntegerField(400),
                     new TextField("Review of a Book. This is a typical "
                             + "review. This is a test. A book review " + "test. A test to test queries without "
                             + "actually using actual review. From " + "here onwards, we can pretend this to "
                             + "be actually a review even if it is not " + "your typical book review.")),
-            new DataTuple(BOOK_SCHEMA,
+            new Tuple(BOOK_SCHEMA,
                     new IntegerField(55), new StringField("Matti Friedman"),
                     new StringField("Pumpkinflowers: A Soldier's " + "Story"), new IntegerField(256),
                     new TextField("Review of a Book. This is a typical "
@@ -64,29 +63,29 @@ public class JoinTestConstants {
                             + "actually using actual review. From " + "here onwards, we can pretend this to "
                             + "be actually a review even if it is not " + "your typical book review.")));
     
-    public static final List<ITuple> bookGroup2 = Arrays.asList(
-            new DataTuple(BOOK_SCHEMA,
+    public static final List<Tuple> bookGroup2 = Arrays.asList(
+            new Tuple(BOOK_SCHEMA,
                     new IntegerField(61), new StringField("book author"),
                     new StringField("actually typical"), new IntegerField(700),
                     new TextField("Review of a Book. This is a typical "
                             + "review. This is a test. A book review " + "test. A test to test queries without "
                             + "actually using actual review. From " + "here onwards, we can pretend this to "
                             + "be actually a review even if it is not " + "your typical book review.")),
-            new DataTuple(BOOK_SCHEMA,
+            new Tuple(BOOK_SCHEMA,
                     new IntegerField(62), new StringField("Siddhartha Mukherjee"),
                     new StringField("The Gene: An Intimate History"), new IntegerField(608),
                     new TextField("Review of a Book. This is a typical "
                             + "review. This is a test. A book review " + "test. A test to test queries without "
                             + "actually using actual review. From " + "here onwards, we can pretend this to "
                             + "be actually a review even if it is not " + "your typical book review.")),
-            new DataTuple(BOOK_SCHEMA,
+            new Tuple(BOOK_SCHEMA,
                     new IntegerField(63), new StringField("Paul Kalanithi"),
                     new StringField("When Breath Becomes Air"), new IntegerField(256),
                     new TextField("Review of a Book. This is a typical "
                             + "review. This is a test. A book review " + "test. A test to test queries without "
                             + "actually using actual review. From " + "here onwards, we can pretend this to "
                             + "be actually a review even if it is not " + "your typical book review.")),
-            new DataTuple(BOOK_SCHEMA,
+            new Tuple(BOOK_SCHEMA,
                     new IntegerField(64), new StringField("Matthew Desmond"),
                     new StringField("Evicted: Poverty and Profit in the " + "American City"),
                     new IntegerField(432),
@@ -94,7 +93,7 @@ public class JoinTestConstants {
                             + "review. This is a test. A book review " + "test. A test to test queries without "
                             + "actually using actual review. From " + "here onwards, we can pretend this to "
                             + "be actually a review even if it is not " + "your typical book review.")),
-            new DataTuple(BOOK_SCHEMA,
+            new Tuple(BOOK_SCHEMA,
                     new IntegerField(65), new StringField("Sharon Guskin"),
                     new StringField("The Forgetting Time: A Novel"), new IntegerField(368),
                     new TextField("Review of a Book. This is a typical "
@@ -114,9 +113,9 @@ public class JoinTestConstants {
     
     public static final Schema NEWS_SCHEMA = new Schema(NEWS_NUM_ATTR, NEWS_TITLE_ATTR, NEWS_BODY_ATTR);
     
-    public static List<ITuple> getNewsTuples() {
+    public static List<Tuple> getNewsTuples() {
         return Arrays.asList(
-                new DataTuple(NEWS_SCHEMA, 
+                new Tuple(NEWS_SCHEMA, 
                         new IntegerField(1),
                         new TextField("UCI marchers protest as Trump begins his presidency"),
                         new TextField("a few hours after Donald Trump was sworn in Friday as the nation’s 45th president, "
@@ -125,7 +124,7 @@ public class JoinTestConstants {
                                 + "other issues and urge other opponents to keep organizing during Trump’s presidency.")
                         ),
 
-                new DataTuple(NEWS_SCHEMA, 
+                new Tuple(NEWS_SCHEMA, 
                         new IntegerField(2),
                         new TextField("Alternative Facts and the Costs of Trump-Branded Reality"),
                         new TextField("When Donald J. Trump swore the presidential oath on Friday, he assumed "
@@ -136,7 +135,7 @@ public class JoinTestConstants {
                                 + "its military and the reliability of its currency. It’s the bedrock of that "
                                 + "American exceptionalism we’ve heard so much about for so long.")
                         ),
-                new DataTuple(NEWS_SCHEMA, 
+                new Tuple(NEWS_SCHEMA, 
                         new IntegerField(3),
                         new TextField("Samsung Explains Note 7 Battery Explosions, And Turns Crisis Into Opportunity"),
                         new TextField("Samsung launched the Galaxy Note 7 to record preorders and sales in August, "
@@ -145,7 +144,7 @@ public class JoinTestConstants {
                                 + "By October it had to recall over 2 million devices and discontinue the product. "
                                 + "It’s estimated that the recall will cost Samsung $5.3 billion.")
                         ),
-                new DataTuple(NEWS_SCHEMA,
+                new Tuple(NEWS_SCHEMA,
                         new IntegerField(4),
                         new TextField("This is how Samsung plans to prevent future phones from catching fire"),
                         new TextField("Samsung said that it has implemented a new eight-step testing process for "

@@ -6,9 +6,8 @@ import java.util.List;
 import edu.uci.ics.textdb.api.common.Attribute;
 import edu.uci.ics.textdb.api.common.FieldType;
 import edu.uci.ics.textdb.api.common.IField;
-import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Tuple;
 import edu.uci.ics.textdb.api.common.Schema;
-import edu.uci.ics.textdb.common.field.DataTuple;
 import edu.uci.ics.textdb.common.field.StringField;
 
 /**
@@ -32,7 +31,7 @@ public class RegexTestConstantStaff {
     public static final Attribute[] ATTRIBUTES_STAFF = { FIRST_NAME_ATTR, LAST_NAME_ATTR, EMAIL_ATTR, PHONE_ATTR };
     public static final Schema SCHEMA_STAFF = new Schema(ATTRIBUTES_STAFF);
 
-    public static List<ITuple> getSampleStaffTuples() {
+    public static List<Tuple> getSampleStaffTuples() {
         IField[] fields1 = { new StringField("Melody"), new StringField("Bocanegra"),
                 new StringField("m.bocanegra@164.com"), new StringField("(945) 734-5156") };
         IField[] fields2 = { new StringField("Kanon"), new StringField("Hwang"), new StringField("hwangk@ske.akb.edu"),
@@ -42,10 +41,10 @@ public class RegexTestConstantStaff {
         IField[] fields4 = { new StringField("Lucy"), new StringField("Kimoto"),
                 new StringField("lki?moto@microsoft.com"), new StringField("(499) 824-3625") };
 
-        ITuple tuple1 = new DataTuple(SCHEMA_STAFF, fields1);
-        ITuple tuple2 = new DataTuple(SCHEMA_STAFF, fields2);
-        ITuple tuple3 = new DataTuple(SCHEMA_STAFF, fields3);
-        ITuple tuple4 = new DataTuple(SCHEMA_STAFF, fields4);
+        Tuple tuple1 = new Tuple(SCHEMA_STAFF, fields1);
+        Tuple tuple2 = new Tuple(SCHEMA_STAFF, fields2);
+        Tuple tuple3 = new Tuple(SCHEMA_STAFF, fields3);
+        Tuple tuple4 = new Tuple(SCHEMA_STAFF, fields4);
 
         return Arrays.asList(tuple1, tuple2, tuple3, tuple4);
     }

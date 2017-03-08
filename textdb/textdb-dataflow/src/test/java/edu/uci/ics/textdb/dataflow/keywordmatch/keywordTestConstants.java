@@ -6,9 +6,8 @@ import java.util.List;
 import edu.uci.ics.textdb.api.common.Attribute;
 import edu.uci.ics.textdb.api.common.FieldType;
 import edu.uci.ics.textdb.api.common.IField;
-import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Tuple;
 import edu.uci.ics.textdb.api.common.Schema;
-import edu.uci.ics.textdb.common.field.DataTuple;
 import edu.uci.ics.textdb.common.field.DoubleField;
 import edu.uci.ics.textdb.common.field.IntegerField;
 import edu.uci.ics.textdb.common.field.StringField;
@@ -43,7 +42,7 @@ public class keywordTestConstants {
 
     public static final Schema SCHEMA_MEDLINE = new Schema(ATTRIBUTES_MEDLINE);
 
-    public static List<ITuple> getSampleMedlineRecord() {
+    public static List<Tuple> getSampleMedlineRecord() {
 
         IField[] fields1 = { new IntegerField(14347980), new TextField(""),
                 new TextField("CHRONIC MENINGOCOCCEMIA; EPIDEMIOLOGY, DIAGNOSIS AND TREATMENT."),
@@ -84,9 +83,9 @@ public class keywordTestConstants {
                                 + "be given for the addition of sodium bicarbonate to milks containing a higher content of sodium."),
                 new DoubleField(0.667832788) };
 
-        ITuple tuple1 = new DataTuple(SCHEMA_MEDLINE, fields1);
-        ITuple tuple2 = new DataTuple(SCHEMA_MEDLINE, fields2);
-        ITuple tuple3 = new DataTuple(SCHEMA_MEDLINE, fields3);
+        Tuple tuple1 = new Tuple(SCHEMA_MEDLINE, fields1);
+        Tuple tuple2 = new Tuple(SCHEMA_MEDLINE, fields2);
+        Tuple tuple3 = new Tuple(SCHEMA_MEDLINE, fields3);
 
         return Arrays.asList(tuple1, tuple2, tuple3);
     }

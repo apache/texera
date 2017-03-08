@@ -1,5 +1,6 @@
 package edu.uci.ics.textdb.web.request.beans;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import edu.uci.ics.textdb.plangen.operatorbuilder.FuzzyTokenMatcherBuilder;
@@ -64,6 +65,7 @@ public class FuzzyTokenSourceBean extends OperatorBean {
         this.dataSource = dataSource;
     }
 
+    @JsonIgnore
     public HashMap<String, String> getOperatorProperties() {
         HashMap<String, String> operatorProperties = super.getOperatorProperties();
         if(this.getQuery() == null || this.getThresholdRatio() == null || this.getDataSource() == null ||

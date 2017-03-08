@@ -18,14 +18,11 @@ import org.apache.lucene.store.FSDirectory;
 import edu.uci.ics.textdb.api.common.Attribute;
 import edu.uci.ics.textdb.api.common.FieldType;
 import edu.uci.ics.textdb.api.common.IField;
-import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Tuple;
 import edu.uci.ics.textdb.api.common.Schema;
-import edu.uci.ics.textdb.api.storage.IDataStore;
-import edu.uci.ics.textdb.api.storage.IDataWriter;
 import edu.uci.ics.textdb.common.constants.SchemaConstants;
 import edu.uci.ics.textdb.common.exception.ErrorMessages;
 import edu.uci.ics.textdb.common.exception.StorageException;
-import edu.uci.ics.textdb.common.field.DataTuple;
 import edu.uci.ics.textdb.common.field.IDField;
 import edu.uci.ics.textdb.common.utils.Utils;
 
@@ -53,7 +50,7 @@ import edu.uci.ics.textdb.common.utils.Utils;
  * @author Zuozhi Wang
  *
  */
-public class DataWriter implements IDataWriter {
+public class DataWriter {
 
     private String indexDirectory;
     private Schema schema;
@@ -69,7 +66,7 @@ public class DataWriter implements IDataWriter {
      * Only the RelationManager is allowed to constructor a DataWriter object, 
      *  while upper-level operators can't.
      */
-    DataWriter(IDataStore dataStore, Analyzer analyzer) {
+    DataWriter(DataStore dataStore, Analyzer analyzer) {
         this.indexDirectory = dataStore.getDataDirectory();
         // change the schema to a schema with _ID field
         this.schema = dataStore.getSchema();
@@ -108,7 +105,6 @@ public class DataWriter implements IDataWriter {
         }
     }
 
-    @Override
     public void clearData() throws StorageException {
         if (! isOpen) {
             throw new StorageException(ErrorMessages.OPERATOR_NOT_OPENED);
@@ -121,8 +117,7 @@ public class DataWriter implements IDataWriter {
         }
     }
 
-    @Override
-    public IDField insertTuple(ITuple tuple) throws StorageException {
+    public IDField insertTuple(Tuple tuple) throws StorageException {
         if (! isOpen) {
             throw new StorageException(ErrorMessages.OPERATOR_NOT_OPENED);
         }
@@ -134,7 +129,7 @@ public class DataWriter implements IDataWriter {
             
             // generate a random ID for this tuple
             IDField idField = new IDField(UUID.randomUUID().toString());
-            ITuple tupleWithID = getTupleWithID(tuple, idField);
+            Tuple tupleWithID = getTupleWithID(tuple, idField);
             
             // make sure the tuple's schema agrees with the table's schema
             if (! tupleWithID.getSchema().equals(this.schema)) {
@@ -192,7 +187,7 @@ public class DataWriter implements IDataWriter {
      * @param idField
      * @throws StorageException
      */
-    public void updateTuple(ITuple newTuple, IDField idField) throws StorageException {
+    public void updateTuple(Tuple newTuple, IDField idField) throws StorageException {
         if (! isOpen) {
             throw new StorageException(ErrorMessages.OPERATOR_NOT_OPENED);
         }
@@ -218,7 +213,7 @@ public class DataWriter implements IDataWriter {
     /*
      * Converts a TextDB tuple to a Lucene document
      */
-    private static Document getLuceneDocument(ITuple tuple) {
+    private static Document getLuceneDocument(Tuple tuple) {
         List<IField> fields = tuple.getFields();
         List<Attribute> attributes = tuple.getSchema().getAttributes();
         Document doc = new Document();
@@ -234,8 +229,8 @@ public class DataWriter implements IDataWriter {
     /*
      * Adds the _id to the front of the tuple, if the _id field doesn't exist in the tuple.
      */
-    private static ITuple getTupleWithID(ITuple tuple, IDField _id) {
-        ITuple tupleWithID = tuple;
+    private static Tuple getTupleWithID(Tuple tuple, IDField _id) {
+        Tuple tupleWithID = tuple;
         
         Schema tupleSchema = tuple.getSchema();
         if (! tupleSchema.containsField(SchemaConstants._ID)) {
@@ -243,7 +238,7 @@ public class DataWriter implements IDataWriter {
             List<IField> newTupleFields = new ArrayList<>();
             newTupleFields.add(_id);
             newTupleFields.addAll(tuple.getFields());
-            tupleWithID = new DataTuple(tupleSchema, newTupleFields.stream().toArray(IField[]::new));
+            tupleWithID = new Tuple(tupleSchema, newTupleFields.stream().toArray(IField[]::new));
         }
         
         return tupleWithID;

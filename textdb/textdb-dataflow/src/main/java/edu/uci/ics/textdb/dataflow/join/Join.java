@@ -3,7 +3,7 @@ package edu.uci.ics.textdb.dataflow.join;
 import java.util.ArrayList;
 import java.util.List;
 
-import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Tuple;
 import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.api.dataflow.IOperator;
 import edu.uci.ics.textdb.common.exception.DataFlowException;
@@ -47,9 +47,9 @@ public class Join implements IOperator {
     private IJoinPredicate joinPredicate;
     // To indicate if next result from outer operator has to be obtained.
     private boolean shouldIGetOuterOperatorNextTuple;
-    private ITuple outerTuple = null;
-    private ITuple innerTuple = null;
-    private List<ITuple> innerTupleList = new ArrayList<>();
+    private Tuple outerTuple = null;
+    private Tuple innerTuple = null;
+    private List<Tuple> innerTupleList = new ArrayList<>();
     // Cursor to maintain the position of tuple to be obtained from
     // innerTupleList.
     private Integer innerOperatorCursor = 0;
@@ -117,7 +117,7 @@ public class Join implements IOperator {
      * @return nextTuple
      */
     @Override
-    public ITuple getNextTuple() throws TextDBException {
+    public Tuple getNextTuple() throws TextDBException {
     	if (cursor == CLOSED) {
             throw new DataFlowException(ErrorMessages.OPERATOR_NOT_OPENED);
         }
@@ -127,7 +127,7 @@ public class Join implements IOperator {
         }
 
         try {
-            ITuple resultTuple = null;
+            Tuple resultTuple = null;
             while (true) {
                 resultTuple = computeNextMatchingTuple();
                 if (resultTuple == null) {
@@ -150,12 +150,12 @@ public class Join implements IOperator {
      * 
      * It returns null if there's no more tuples.
      */
-    protected  ITuple computeNextMatchingTuple() throws Exception {
+    protected  Tuple computeNextMatchingTuple() throws Exception {
         if (innerTupleList.isEmpty()) {
             return null;
         }
         
-        ITuple nextTuple = null;
+        Tuple nextTuple = null;
         while (nextTuple == null) {
             if (shouldIGetOuterOperatorNextTuple == true) {
                 if ((outerTuple = outerOperator.getNextTuple()) == null) {

@@ -1,9 +1,6 @@
 package edu.uci.ics.textdb.web.request.beans;
 
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.*;
 import edu.uci.ics.textdb.plangen.operatorbuilder.OperatorBuilderUtils;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
@@ -108,6 +105,7 @@ public abstract class OperatorBean {
         this.offset = offset;
     }
 
+    @JsonIgnore
     public HashMap<String, String> getOperatorProperties() {
         HashMap<String, String> basicOperatorProperties = new HashMap<String, String>();
         if(this.getLimit() != null)

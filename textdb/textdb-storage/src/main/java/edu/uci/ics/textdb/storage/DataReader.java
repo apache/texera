@@ -23,13 +23,12 @@ import org.apache.lucene.store.FSDirectory;
 import edu.uci.ics.textdb.api.common.Attribute;
 import edu.uci.ics.textdb.api.common.FieldType;
 import edu.uci.ics.textdb.api.common.IField;
-import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Tuple;
+import edu.uci.ics.textdb.api.dataflow.IOperator;
 import edu.uci.ics.textdb.api.common.Schema;
-import edu.uci.ics.textdb.api.storage.IDataReader;
 import edu.uci.ics.textdb.common.constants.SchemaConstants;
 import edu.uci.ics.textdb.common.exception.ErrorMessages;
 import edu.uci.ics.textdb.common.exception.StorageException;
-import edu.uci.ics.textdb.common.field.DataTuple;
 import edu.uci.ics.textdb.common.field.ListField;
 import edu.uci.ics.textdb.common.field.Span;
 import edu.uci.ics.textdb.common.utils.Utils;
@@ -55,7 +54,7 @@ import edu.uci.ics.textdb.common.utils.Utils;
  * @author Zuozhi Wang
  *
  */
-public class DataReader implements IDataReader {
+public class DataReader implements IOperator {
 
     private DataStore dataStore;
     private Query query;
@@ -115,12 +114,12 @@ public class DataReader implements IDataReader {
     }
 
     @Override
-    public ITuple getNextTuple() throws StorageException {
+    public Tuple getNextTuple() throws StorageException {
         if (cursor == CLOSED) {
             throw new StorageException(ErrorMessages.OPERATOR_NOT_OPENED);
         }
 
-        ITuple resultTuple;
+        Tuple resultTuple;
         try {
             if (cursor >= scoreDocs.length) {
                 return null;
@@ -149,7 +148,7 @@ public class DataReader implements IDataReader {
         }
     }
 
-    private ITuple constructTuple(int docID) throws IOException, ParseException {
+    private Tuple constructTuple(int docID) throws IOException, ParseException {
         Document luceneDocument = luceneIndexSearcher.doc(docID);
         ArrayList<IField> docFields = documentToFields(luceneDocument);
 
@@ -159,7 +158,7 @@ public class DataReader implements IDataReader {
             docFields.add(payloadField);
         }
 
-        DataTuple resultTuple = new DataTuple(outputSchema, docFields.stream().toArray(IField[]::new));
+        Tuple resultTuple = new Tuple(outputSchema, docFields.stream().toArray(IField[]::new));
         return resultTuple;
     }
 

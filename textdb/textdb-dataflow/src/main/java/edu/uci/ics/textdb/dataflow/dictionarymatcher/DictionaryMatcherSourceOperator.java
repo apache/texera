@@ -7,7 +7,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import edu.uci.ics.textdb.api.common.FieldType;
-import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Tuple;
 import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.api.dataflow.ISourceOperator;
 import edu.uci.ics.textdb.common.constants.DataConstants;
@@ -15,6 +15,7 @@ import edu.uci.ics.textdb.common.constants.DataConstants.KeywordMatchingType;
 import edu.uci.ics.textdb.common.constants.SchemaConstants;
 import edu.uci.ics.textdb.common.exception.DataFlowException;
 import edu.uci.ics.textdb.api.exception.TextDBException;
+import edu.uci.ics.textdb.common.field.ListField;
 import edu.uci.ics.textdb.common.field.Span;
 import edu.uci.ics.textdb.common.utils.Utils;
 import edu.uci.ics.textdb.dataflow.common.DictionaryPredicate;
@@ -36,7 +37,7 @@ public class DictionaryMatcherSourceOperator implements ISourceOperator {
     private Schema inputSchema;
     private Schema outputSchema;
 
-    private ITuple sourceTuple;
+    private Tuple sourceTuple;
     private String currentDictionaryEntry;
 
     private final DictionaryPredicate predicate;
@@ -135,7 +136,7 @@ public class DictionaryMatcherSourceOperator implements ISourceOperator {
      * 
      */
     @Override
-    public ITuple getNextTuple() throws TextDBException {
+    public Tuple getNextTuple() throws TextDBException {
         if (resultCursor >= limit + offset - 1) {
             return null;
         }
@@ -180,8 +181,8 @@ public class DictionaryMatcherSourceOperator implements ISourceOperator {
         }
         // Substring matching (based on scan)
         else {
-            ITuple sourceTuple;
-            ITuple resultTuple = null;
+            Tuple sourceTuple;
+            Tuple resultTuple = null;
             while ((sourceTuple = indexSource.getNextTuple()) != null) {
                 if (!inputSchema.containsField(SchemaConstants.SPAN_LIST)) {
                     sourceTuple = Utils.getSpanTuple(sourceTuple.getFields(), new ArrayList<Span>(), outputSchema);
@@ -231,7 +232,7 @@ public class DictionaryMatcherSourceOperator implements ISourceOperator {
      * original dataTuple object, if there's a match, return a new dataTuple
      * with span list added
      */
-    private ITuple computeMatchingResult(String key, ITuple sourceTuple) throws TextDBException {
+    private Tuple computeMatchingResult(String key, Tuple sourceTuple) throws TextDBException {
 
         List<String> attributeNames = predicate.getAttributeNames();
         List<Span> matchingResults = new ArrayList<>();
@@ -268,7 +269,8 @@ public class DictionaryMatcherSourceOperator implements ISourceOperator {
             return null;
         }
 
-        List<Span> spanList = (List<Span>) sourceTuple.getField(SchemaConstants.SPAN_LIST).getValue();
+        ListField<Span> spanListField = sourceTuple.getField(SchemaConstants.SPAN_LIST);
+        List<Span> spanList = spanListField.getValue();
         spanList.addAll(matchingResults);
 
         return sourceTuple;

@@ -10,8 +10,7 @@ import java.util.List;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 
-import edu.uci.ics.textdb.api.common.IDictionary;
-import edu.uci.ics.textdb.api.common.ITuple;
+import edu.uci.ics.textdb.api.common.Tuple;
 import edu.uci.ics.textdb.common.constants.DataConstants;
 import edu.uci.ics.textdb.common.constants.SchemaConstants;
 import edu.uci.ics.textdb.common.constants.DataConstants.KeywordMatchingType;
@@ -22,7 +21,6 @@ import edu.uci.ics.textdb.dataflow.common.DictionaryPredicate;
 import edu.uci.ics.textdb.dataflow.dictionarymatcher.DictionaryMatcherSourceOperator;
 import edu.uci.ics.textdb.perftest.medline.MedlineIndexWriter;
 import edu.uci.ics.textdb.perftest.utils.PerfTestUtils;
-import edu.uci.ics.textdb.storage.RelationManager;
 
 /**
  * @author Hailey Pan
@@ -121,7 +119,7 @@ public class DictionaryMatcherPerformanceTest {
             String tableName) throws Exception {
         List<String> attributeNames = Arrays.asList(MedlineIndexWriter.ABSTRACT);
 
-        IDictionary dictionary = new Dictionary(queryList);
+        Dictionary dictionary = new Dictionary(queryList);
         DictionaryPredicate dictionaryPredicate = new DictionaryPredicate(dictionary, attributeNames, luceneAnalyzer,
                 opType);
         DictionaryMatcherSourceOperator dictionaryMatcher = new DictionaryMatcherSourceOperator(dictionaryPredicate,
@@ -129,10 +127,11 @@ public class DictionaryMatcherPerformanceTest {
 
         long startMatchTime = System.currentTimeMillis();
         dictionaryMatcher.open();
-        ITuple nextTuple = null;
+        Tuple nextTuple = null;
         int counter = 0;
         while ((nextTuple = dictionaryMatcher.getNextTuple()) != null) {
-            List<Span> spanList = ((ListField<Span>) nextTuple.getField(SchemaConstants.SPAN_LIST)).getValue();
+            ListField<Span> spanListField = nextTuple.getField(SchemaConstants.SPAN_LIST);
+            List<Span> spanList = spanListField.getValue();
             counter += spanList.size();
         }
         dictionaryMatcher.close();

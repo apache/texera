@@ -1,5 +1,6 @@
 package edu.uci.ics.textdb.web.request.beans;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import org.apache.commons.lang3.builder.EqualsBuilder;
@@ -49,6 +50,7 @@ public class IndexSinkBean extends OperatorBean {
         this.indexName = indexName;
     }
 
+    @JsonIgnore
     public HashMap<String, String> getOperatorProperties() {
         HashMap<String, String> operatorProperties = super.getOperatorProperties();
         if(operatorProperties == null)
