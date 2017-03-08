@@ -1,11 +1,11 @@
 package edu.uci.ics.textdb.api.common;
 
 public class Attribute {
-    private final String fieldName;
+    private final String attributeName;
     private final FieldType fieldType;
 
-    public Attribute(String fieldName, FieldType type) {
-        this.fieldName = fieldName;
+    public Attribute(String attributeName, FieldType type) {
+        this.attributeName = attributeName;
         this.fieldType = type;
     }
 
@@ -13,13 +13,13 @@ public class Attribute {
         return fieldType;
     }
 
-    public String getFieldName() {
-        return fieldName;
+    public String getAttributeName() {
+        return attributeName;
     }
 
     @Override
     public String toString() {
-        return "Attribute [fieldName=" + fieldName + ", fieldType=" + fieldType + "]";
+        return "Attribute [attributeName=" + attributeName + ", fieldType=" + fieldType + "]";
     }
     
     @Override
@@ -36,18 +36,18 @@ public class Attribute {
         
         Attribute that = (Attribute) toCompare;
         
-        if (this.fieldName == null) {
-            return that.fieldName == null;
+        if (this.attributeName == null) {
+            return that.attributeName == null;
         }
         if (this.fieldType == null) {
             return that.fieldType == null;
         }
         
-        return this.fieldName.equals(that.fieldName) && this.fieldType.equals(that.fieldType);
+        return this.attributeName.equals(that.attributeName) && this.fieldType.equals(that.fieldType);
     }
     
     @Override
     public int hashCode() {
-        return this.fieldName.hashCode() + this.fieldType.toString().hashCode();
+        return this.attributeName.hashCode() + this.fieldType.toString().hashCode();
     }
 }

@@ -238,7 +238,7 @@ public class JoinDistancePredicate implements IJoinPredicate {
 	    List<IField> outputFields = 
 	            outputAttrList.stream()
 	            .filter(attr -> ! attr.equals(SchemaConstants.SPAN_LIST_ATTRIBUTE))
-	            .map(attr -> attr.getFieldName())
+	            .map(attr -> attr.getAttributeName())
 	            .map(fieldName -> innerTuple.getField(fieldName))
 	            .collect(Collectors.toList());
 	    

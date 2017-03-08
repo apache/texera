@@ -18,7 +18,7 @@ public class AttributeTest {
 
     @Test
     public void testGetterMethods() {
-        Assert.assertEquals(fieldName, attribute.getFieldName());
+        Assert.assertEquals(fieldName, attribute.getAttributeName());
         Assert.assertEquals(type, attribute.getFieldType());
     }
 }

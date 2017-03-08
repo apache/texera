@@ -167,7 +167,7 @@ public class DataReader implements IDataReader {
         ArrayList<IField> fields = new ArrayList<>();
         for (Attribute attr : inputSchema.getAttributes()) {
             FieldType fieldType = attr.getFieldType();
-            String fieldValue = luceneDocument.get(attr.getFieldName());
+            String fieldValue = luceneDocument.get(attr.getAttributeName());
             fields.add(Utils.getField(fieldType, fieldValue));
         }
         return fields;
@@ -177,7 +177,7 @@ public class DataReader implements IDataReader {
         ArrayList<Span> payloadSpanList = new ArrayList<>();
 
         for (Attribute attr : inputSchema.getAttributes()) {
-            String fieldName = attr.getFieldName();
+            String fieldName = attr.getAttributeName();
             FieldType fieldType = attr.getFieldType();
 
             // We only store positional information for TEXT fields into

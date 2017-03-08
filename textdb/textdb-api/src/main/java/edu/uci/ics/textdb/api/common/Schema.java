@@ -22,7 +22,7 @@ public class Schema {
     private void populateFieldNameVsIndexMap() {
         fieldNameVsIndex = new HashMap<String, Integer>();
         for (int count = 0; count < attributes.size(); count++) {
-            String fieldName = attributes.get(count).getFieldName();
+            String fieldName = attributes.get(count).getAttributeName();
             fieldNameVsIndex.put(fieldName.toLowerCase(), count);
         }
     }
@@ -32,7 +32,7 @@ public class Schema {
     }
     
     public List<String> getAttributeNames() {
-        return attributes.stream().map(attr -> attr.getFieldName()).collect(Collectors.toList());
+        return attributes.stream().map(attr -> attr.getAttributeName()).collect(Collectors.toList());
     }
 
     public Integer getIndex(String fieldName) {
