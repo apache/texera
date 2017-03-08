@@ -1,6 +1,6 @@
 package edu.uci.ics.textdb.api.common;
 
-public enum FieldType {
+public enum AttributeType {
     // A field that is indexed but not tokenized: the entire String
     // value is indexed as a single token
     STRING, INTEGER, DOUBLE, DATE,

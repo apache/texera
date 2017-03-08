@@ -6,6 +6,7 @@ import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.List;
 
+import edu.uci.ics.textdb.api.common.*;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
@@ -20,11 +21,7 @@ import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 
-import edu.uci.ics.textdb.api.common.Attribute;
-import edu.uci.ics.textdb.api.common.FieldType;
-import edu.uci.ics.textdb.api.common.IField;
-import edu.uci.ics.textdb.api.common.ITuple;
-import edu.uci.ics.textdb.api.common.Schema;
+import edu.uci.ics.textdb.api.common.AttributeType;
 import edu.uci.ics.textdb.api.storage.IDataReader;
 import edu.uci.ics.textdb.common.constants.SchemaConstants;
 import edu.uci.ics.textdb.common.exception.ErrorMessages;
@@ -166,9 +163,9 @@ public class DataReader implements IDataReader {
     private ArrayList<IField> documentToFields(Document luceneDocument) throws ParseException {
         ArrayList<IField> fields = new ArrayList<>();
         for (Attribute attr : inputSchema.getAttributes()) {
-            FieldType fieldType = attr.getAttributeType();
+            AttributeType attributeType = attr.getAttributeType();
             String fieldValue = luceneDocument.get(attr.getAttributeName());
-            fields.add(Utils.getField(fieldType, fieldValue));
+            fields.add(Utils.getField(attributeType, fieldValue));
         }
         return fields;
     }
@@ -178,11 +175,11 @@ public class DataReader implements IDataReader {
 
         for (Attribute attr : inputSchema.getAttributes()) {
             String fieldName = attr.getAttributeName();
-            FieldType fieldType = attr.getAttributeType();
+            AttributeType attributeType = attr.getAttributeType();
 
             // We only store positional information for TEXT fields into
             // payload.
-            if (fieldType != FieldType.TEXT) {
+            if (attributeType != AttributeType.TEXT) {
                 continue;
             }
 

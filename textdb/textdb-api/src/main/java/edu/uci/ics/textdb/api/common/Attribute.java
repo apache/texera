@@ -2,14 +2,14 @@ package edu.uci.ics.textdb.api.common;
 
 public class Attribute {
     private final String attributeName;
-    private final FieldType attributeType;
+    private final AttributeType attributeType;
 
-    public Attribute(String attributeName, FieldType type) {
+    public Attribute(String attributeName, AttributeType type) {
         this.attributeName = attributeName;
         this.attributeType = type;
     }
 
-    public FieldType getAttributeType() {
+    public AttributeType getAttributeType() {
         return attributeType;
     }
 

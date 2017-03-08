@@ -4,16 +4,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import edu.uci.ics.textdb.api.common.*;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import edu.uci.ics.textdb.api.common.Attribute;
-import edu.uci.ics.textdb.api.common.FieldType;
-import edu.uci.ics.textdb.api.common.IField;
-import edu.uci.ics.textdb.api.common.ITuple;
-import edu.uci.ics.textdb.api.common.Schema;
+import edu.uci.ics.textdb.api.common.AttributeType;
 import edu.uci.ics.textdb.api.exception.TextDBException;
 import edu.uci.ics.textdb.common.constants.LuceneAnalyzerConstants;
 import edu.uci.ics.textdb.common.constants.DataConstants.KeywordMatchingType;
@@ -196,7 +193,7 @@ public class JoinDistanceTest {
         String fuzzyTokenQuery = "this writer writes well";
         double thresholdRatio = 0.25;
         List<String> textAttributeNames = JoinTestConstants.BOOK_SCHEMA.getAttributes().stream()
-                .filter(attr -> attr.getAttributeType() != FieldType.TEXT)
+                .filter(attr -> attr.getAttributeType() != AttributeType.TEXT)
                 .map(Attribute::getAttributeName).collect(Collectors.toList());
         FuzzyTokenPredicate fuzzyPredicateInner = new FuzzyTokenPredicate(fuzzyTokenQuery, textAttributeNames,
                 LuceneAnalyzerConstants.getStandardAnalyzer(), thresholdRatio);

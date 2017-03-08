@@ -9,7 +9,7 @@ public class AttributeTest {
 
     private Attribute attribute;
     private String fieldName = "sampleFieldName";
-    private FieldType type = FieldType.STRING;
+    private AttributeType type = AttributeType.STRING;
 
     @Before
     public void setUp() {

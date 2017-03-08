@@ -10,7 +10,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import edu.uci.ics.textdb.api.common.Attribute;
-import edu.uci.ics.textdb.api.common.FieldType;
+import edu.uci.ics.textdb.api.common.AttributeType;
 import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.common.constants.LuceneAnalyzerConstants;
 import edu.uci.ics.textdb.common.exception.PlanGenException;
@@ -24,8 +24,8 @@ public class DictionarySourceBuilderTest {
     public static final String TEST_TABLE = "dictionary_source_buidler_test_table";
     
     public static final Schema TEST_SCHEMA = new Schema(
-            new Attribute("city", FieldType.STRING), new Attribute("location", FieldType.STRING),
-            new Attribute("content", FieldType.TEXT));
+            new Attribute("city", AttributeType.STRING), new Attribute("location", AttributeType.STRING),
+            new Attribute("content", AttributeType.TEXT));
     
     @BeforeClass
     public static void setUp() throws StorageException {

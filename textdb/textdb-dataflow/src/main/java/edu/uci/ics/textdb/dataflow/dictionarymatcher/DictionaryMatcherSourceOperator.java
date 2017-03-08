@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import edu.uci.ics.textdb.api.common.FieldType;
+import edu.uci.ics.textdb.api.common.AttributeType;
 import edu.uci.ics.textdb.api.common.ITuple;
 import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.api.dataflow.ISourceOperator;
@@ -238,11 +238,11 @@ public class DictionaryMatcherSourceOperator implements ISourceOperator {
 
         for (String fieldName : attributeNames) {
             String fieldValue = sourceTuple.getField(fieldName).getValue().toString();
-            FieldType fieldType = inputSchema.getAttribute(fieldName).getAttributeType();
+            AttributeType attributeType = inputSchema.getAttribute(fieldName).getAttributeType();
 
             // if attribute type is not TEXT, then key needs to match the
             // fieldValue exactly
-            if (fieldType != FieldType.TEXT) {
+            if (attributeType != AttributeType.TEXT) {
                 if (fieldValue.equals(key)) {
                     matchingResults.add(new Span(fieldName, 0, fieldValue.length(), key, fieldValue));
                 }

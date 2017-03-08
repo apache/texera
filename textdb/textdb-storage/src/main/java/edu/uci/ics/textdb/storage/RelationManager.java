@@ -11,7 +11,7 @@ import org.apache.lucene.search.Query;
 import org.apache.lucene.search.TermQuery;
 
 import edu.uci.ics.textdb.api.common.Attribute;
-import edu.uci.ics.textdb.api.common.FieldType;
+import edu.uci.ics.textdb.api.common.AttributeType;
 import edu.uci.ics.textdb.api.common.IField;
 import edu.uci.ics.textdb.api.common.ITuple;
 import edu.uci.ics.textdb.api.common.Schema;
@@ -377,12 +377,12 @@ public class RelationManager {
     
     
     /*
-     * Converts a attributeTypeString to FieldType (case insensitive). 
+     * Converts a attributeTypeString to AttributeType (case insensitive).
      * It returns null if string is not a valid type.
      * 
      */
-    private static FieldType convertAttributeType(String attributeTypeStr) {
-        return Stream.of(FieldType.values())
+    private static AttributeType convertAttributeType(String attributeTypeStr) {
+        return Stream.of(AttributeType.values())
                 .filter(typeStr -> typeStr.toString().toLowerCase().equals(attributeTypeStr.toLowerCase()))
                 .findAny().orElse(null);
     }
