@@ -4,6 +4,8 @@ import java.util.List;
 
 import org.apache.commons.lang3.builder.EqualsBuilder;
 
+import edu.uci.ics.textdb.api.common.Schema;
+import edu.uci.ics.textdb.api.exception.TextDBException;
 import edu.uci.ics.textdb.web.request.beans.OperatorBean;
 import edu.uci.ics.textdb.web.request.beans.OperatorLinkBean;
 
@@ -89,6 +91,14 @@ public abstract class Statement {
      * @return A list with the IDs of required Statements.
      */
     public abstract List<String> getInputViews();
+    
+    /**
+     * Generate the resulting output schema of this statement based on the given input schemas.
+     * @param inputSchemas The input schemas of this statement.
+     * @return The generated output schema based on the input schemas.
+     * @throws TextDBException If the output schema cannot be generated.
+     */
+    public abstract Schema generateOutputSchema(Schema... inputSchemas) throws TextDBException;
     
     
     @Override

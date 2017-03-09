@@ -6,6 +6,8 @@ import java.util.List;
 
 import org.apache.commons.lang3.builder.EqualsBuilder;
 
+import edu.uci.ics.textdb.api.common.Schema;
+import edu.uci.ics.textdb.api.exception.TextDBException;
 import edu.uci.ics.textdb.textql.planbuilder.beans.PassThroughBean;
 import edu.uci.ics.textdb.textql.statements.predicates.ExtractPredicate;
 import edu.uci.ics.textdb.textql.statements.predicates.ProjectPredicate;
@@ -232,6 +234,49 @@ public class SelectStatement extends Statement {
     @Override
     public List<String> getInputViews(){
         return Arrays.asList(this.fromClause);
+    }
+
+    /**
+     * Generate the resulting output schema of this predicate based on the given input schemas.
+     * The generated Schema is the input Schema after being processed by the extract predicate
+     * and the select predicate.
+     * The SelectEctractStatement has input arity equals to 1, thus the length of the array
+     * of input schemas must be 1.
+     * 
+     * Example: for an array containing only the following schema as input:
+     *  [ { "name", FieldType.STRING }, { "age", FieldType.INTEGER }, 
+     *      { "height", FieldType.HEIGHT }, { "dateOfBirth", FieldType.DATE } ]
+     * And a keyword match operation being performed in some fields plus the following list
+     * of fields to projected:
+     *  [ "dateOfBirth", "name", SchemaConstants.SPAN_LIST ]
+     * The generated schema is a schema containing only the fields in the projection list,
+     * including the SPAN_LIST_ATTRIBUTE created by the keyword match operation:
+     *  [ { "name", FieldType.STRING }, { "dateOfBirth", FieldType.DATE },
+     *      SchemaConstants.SPAN_LIST_ATTRIBUTE  ]
+     *      
+     * @param inputSchemas The input schemas of this statement.
+     * @return The generated output schema, the same as the input schemas.
+     * @throws TextDBException If the size of inputSchemas is different than the input arity, 
+     *     if a required attribute for projection is not present, if a required attribute for
+     *     extraction is not present or if an attribute has type incompatible with the
+     *     extraction type.
+     */
+    @Override
+    public Schema generateOutputSchema(Schema... inputSchemas) throws TextDBException {
+        // Assert the input arity is one 
+        if (inputSchemas.length != 1) {
+            throw new TextDBException("The size of the list of input schemas must be 1");
+        }
+        Schema inputSchema = inputSchemas[0];
+        // Use the input schema as output schema and modify it based on extract and select predicates (if present)
+        Schema outputSchema = inputSchema;
+        if (extractPredicate != null) {
+            outputSchema = extractPredicate.generateOutputSchema(outputSchema);
+        }
+        if (projectPredicate != null) {
+            outputSchema = projectPredicate.generateOutputSchema(outputSchema);
+        }
+        return outputSchema;
     }
     
     

@@ -6,6 +6,9 @@ import java.util.List;
 
 import org.apache.commons.lang3.builder.EqualsBuilder;
 
+import edu.uci.ics.textdb.api.common.Attribute;
+import edu.uci.ics.textdb.api.common.Schema;
+import edu.uci.ics.textdb.api.exception.TextDBException;
 import edu.uci.ics.textdb.textql.planbuilder.beans.PassThroughBean;
 import edu.uci.ics.textdb.web.request.beans.OperatorBean;
 import edu.uci.ics.textdb.web.request.beans.OperatorLinkBean;
@@ -92,7 +95,7 @@ public class CreateViewStatement extends Statement {
     }
      
     /**
-     * RReturn a list of IDs of operators required by this statement (the dependencies of this Statement)
+     * Return a list of IDs of operators required by this statement (the dependencies of this Statement)
      * when converted to beans.
      * The { @code CreateViewStatement } has only its subStatement as required view.
      * @return A list with the IDs of required Statements
@@ -100,6 +103,35 @@ public class CreateViewStatement extends Statement {
     @Override
     public List<String> getInputViews(){
         return Arrays.asList(subStatement.getId());
+    }
+
+    /**
+     * Build the resulting output schema of this predicate based on the given input schemas.
+     * This statement does not apply any modification to the input schema, thus the output
+     * schema is equal to the input schema.
+     * The CreateViewStatement has input arity equals to 1, thus the length of the array
+     * of input schemas must be 1.
+     * 
+     * Example: for an array containing only the following schema as input:
+     *  [ { "name", FieldType.STRING }, { "age", FieldType.INTEGER }, 
+     *      { "height", FieldType.HEIGHT }, { "dateOfBirth", FieldType.DATE } ]
+     * The generated schema is a schema just like the input schema:
+     *  [ { "name", FieldType.STRING }, { "age", FieldType.INTEGER }, 
+     *      { "height", FieldType.HEIGHT }, { "dateOfBirth", FieldType.DATE } ]
+     * 
+     * @param inputSchemas The input schemas of this statement.
+     * @return The generated output schema, a copy of the the input schema.
+     * @throws TextDBException If the size of inputSchemas is different than the input arity.
+     */
+    @Override
+    public Schema generateOutputSchema(Schema... inputSchemas) throws TextDBException {
+        // Assert the input arity is one 
+        if (inputSchemas.length != 1) {
+            throw new TextDBException("The size of the list of input schemas must be 1");
+        }
+        Schema inputSchema = inputSchemas[0];
+        // Return a copy of the input schema
+        return new Schema(inputSchema.getAttributes().stream().toArray(Attribute[]::new));
     }
     
     
