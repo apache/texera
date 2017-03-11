@@ -4,8 +4,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import edu.uci.ics.textdb.api.common.Tuple;
+
 import edu.uci.ics.textdb.api.exception.TextDBException;
+import edu.uci.ics.textdb.api.tuple.Tuple;
 import edu.uci.ics.textdb.planstore.PlanStore;
 import edu.uci.ics.textdb.planstore.PlanStoreConstants;
 import edu.uci.ics.textdb.storage.DataReader;

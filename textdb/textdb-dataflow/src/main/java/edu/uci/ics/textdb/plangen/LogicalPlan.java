@@ -8,8 +8,8 @@ import java.util.Map;
 
 import edu.uci.ics.textdb.api.dataflow.IOperator;
 import edu.uci.ics.textdb.api.dataflow.ISink;
-import edu.uci.ics.textdb.api.plan.Plan;
-import edu.uci.ics.textdb.common.exception.PlanGenException;
+import edu.uci.ics.textdb.api.engine.Plan;
+import edu.uci.ics.textdb.api.exception.PlanGenException;
 import edu.uci.ics.textdb.dataflow.connector.OneToNBroadcastConnector;
 import edu.uci.ics.textdb.dataflow.join.Join;
 

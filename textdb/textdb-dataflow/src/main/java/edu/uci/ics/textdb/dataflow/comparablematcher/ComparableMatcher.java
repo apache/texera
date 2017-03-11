@@ -1,9 +1,11 @@
 package edu.uci.ics.textdb.dataflow.comparablematcher;
 
-import edu.uci.ics.textdb.api.common.*;
-import edu.uci.ics.textdb.common.constants.DataConstants;
-import edu.uci.ics.textdb.common.exception.DataFlowException;
+import edu.uci.ics.textdb.api.constants.DataConstants;
+import edu.uci.ics.textdb.api.exception.DataFlowException;
 import edu.uci.ics.textdb.api.exception.TextDBException;
+import edu.uci.ics.textdb.api.schema.Attribute;
+import edu.uci.ics.textdb.api.schema.Schema;
+import edu.uci.ics.textdb.api.tuple.*;
 import edu.uci.ics.textdb.dataflow.common.AbstractSingleInputOperator;
 
 /**
@@ -48,12 +50,12 @@ public class ComparableMatcher<T extends Comparable<T>> extends AbstractSingleIn
         Attribute attribute = predicate.getAttribute();
         DataConstants.NumberMatchingType operatorType = predicate.getMatchingType();
 
-        String fieldName = attribute.getFieldName();
+        String attributeName = attribute.getAttributeName();
 
         T value;
         T threshold;
         try {
-            value = (T) inputTuple.getField(fieldName).getValue();
+            value = (T) inputTuple.getField(attributeName).getValue();
             threshold = (T) predicate.getThreshold();
         } catch (ClassCastException e) {
             return null;

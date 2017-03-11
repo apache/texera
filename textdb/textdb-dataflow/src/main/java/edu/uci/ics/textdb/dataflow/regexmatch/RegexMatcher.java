@@ -3,17 +3,18 @@ package edu.uci.ics.textdb.dataflow.regexmatch;
 import java.util.ArrayList;
 import java.util.List;
 
-import edu.uci.ics.textdb.api.common.FieldType;
-import edu.uci.ics.textdb.api.common.Tuple;
-import edu.uci.ics.textdb.api.common.Schema;
-import edu.uci.ics.textdb.common.constants.SchemaConstants;
-import edu.uci.ics.textdb.common.exception.DataFlowException;
+import edu.uci.ics.textdb.api.constants.SchemaConstants;
+import edu.uci.ics.textdb.api.exception.DataFlowException;
 import edu.uci.ics.textdb.api.exception.TextDBException;
-import edu.uci.ics.textdb.common.field.ListField;
-import edu.uci.ics.textdb.common.field.Span;
-import edu.uci.ics.textdb.common.utils.Utils;
+import edu.uci.ics.textdb.api.field.ListField;
+import edu.uci.ics.textdb.api.schema.AttributeType;
+import edu.uci.ics.textdb.api.schema.Schema;
+import edu.uci.ics.textdb.api.span.Span;
+import edu.uci.ics.textdb.api.tuple.Tuple;
+import edu.uci.ics.textdb.api.utils.Utils;
 import edu.uci.ics.textdb.dataflow.common.AbstractSingleInputOperator;
 import edu.uci.ics.textdb.dataflow.common.RegexPredicate;
+import edu.uci.ics.textdb.dataflow.utils.DataflowUtils;
 
 /**
  * Created by chenli on 3/25/16.
@@ -91,7 +92,7 @@ public class RegexMatcher extends AbstractSingleInputOperator {
         
         while ((inputTuple = inputOperator.getNextTuple()) != null) {
             if (!inputSchema.containsField(SchemaConstants.SPAN_LIST)) {
-                inputTuple = Utils.getSpanTuple(inputTuple.getFields(), new ArrayList<Span>(), outputSchema);
+                inputTuple = DataflowUtils.getSpanTuple(inputTuple.getFields(), new ArrayList<Span>(), outputSchema);
             }            
             resultTuple = processOneInputTuple(inputTuple);
             if (resultTuple != null) {
@@ -123,21 +124,21 @@ public class RegexMatcher extends AbstractSingleInputOperator {
 
         List<Span> matchingResults = new ArrayList<>();
 
-        for (String fieldName : attributeNames) {
-            FieldType fieldType = inputSchema.getAttribute(fieldName).getFieldType();
-            String fieldValue = inputTuple.getField(fieldName).getValue().toString();
+        for (String attributeName : attributeNames) {
+            AttributeType attributeType = inputSchema.getAttribute(attributeName).getAttributeType();
+            String fieldValue = inputTuple.getField(attributeName).getValue().toString();
 
             // types other than TEXT and STRING: throw Exception for now
-            if (fieldType != FieldType.STRING && fieldType != FieldType.TEXT) {
+            if (attributeType != AttributeType.STRING && attributeType != AttributeType.TEXT) {
                 throw new DataFlowException("KeywordMatcher: Fields other than STRING and TEXT are not supported yet");
             }
 
             switch (regexEngine) {
             case JavaRegex:
-                matchingResults.addAll(javaRegexMatch(fieldValue, fieldName));
+                matchingResults.addAll(javaRegexMatch(fieldValue, attributeName));
                 break;
             case RE2J:
-                matchingResults.addAll(re2jRegexMatch(fieldValue, fieldName));
+                matchingResults.addAll(re2jRegexMatch(fieldValue, attributeName));
                 break;
             }
         }
@@ -153,26 +154,26 @@ public class RegexMatcher extends AbstractSingleInputOperator {
         return inputTuple;
     }
 
-    private List<Span> javaRegexMatch(String fieldValue, String fieldName) {
+    private List<Span> javaRegexMatch(String fieldValue, String attributeName) {
         List<Span> matchingResults = new ArrayList<>();
         java.util.regex.Matcher javaMatcher = this.javaPattern.matcher(fieldValue);
         while (javaMatcher.find()) {
             int start = javaMatcher.start();
             int end = javaMatcher.end();
             matchingResults.add(
-                    new Span(fieldName, start, end, this.regexPredicate.getRegex(), fieldValue.substring(start, end)));
+                    new Span(attributeName, start, end, this.regexPredicate.getRegex(), fieldValue.substring(start, end)));
         }
         return matchingResults;
     }
 
-    private List<Span> re2jRegexMatch(String fieldValue, String fieldName) {
+    private List<Span> re2jRegexMatch(String fieldValue, String attributeName) {
         List<Span> matchingResults = new ArrayList<>();
         com.google.re2j.Matcher re2jMatcher = this.re2jPattern.matcher(fieldValue);
         while (re2jMatcher.find()) {
             int start = re2jMatcher.start();
             int end = re2jMatcher.end();
             matchingResults.add(
-                    new Span(fieldName, start, end, this.regexPredicate.getRegex(), fieldValue.substring(start, end)));
+                    new Span(attributeName, start, end, this.regexPredicate.getRegex(), fieldValue.substring(start, end)));
         }
         return matchingResults;
     }

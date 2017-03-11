@@ -26,11 +26,6 @@
             <version>${textdb.version}</version>
         </dependency>
         <dependency>
-            <groupId>edu.uci.ics.textdb</groupId>
-            <artifactId>textdb-common</artifactId>
-            <version>${textdb.version}</version>
-        </dependency>
-        <dependency>
             <groupId>org.apache.lucene</groupId>
             <artifactId>lucene-core</artifactId>
             <version>${lucene.version}</version>
@@ -38,6 +33,11 @@
         <dependency>
             <groupId>org.apache.lucene</groupId>
             <artifactId>lucene-analyzers-common</artifactId>
+            <version>${lucene.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.lucene</groupId>
+            <artifactId>lucene-analyzers-smartcn</artifactId>
             <version>${lucene.version}</version>
         </dependency>
         <dependency>

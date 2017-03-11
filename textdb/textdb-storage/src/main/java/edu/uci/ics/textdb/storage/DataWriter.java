@@ -15,16 +15,17 @@ import org.apache.lucene.search.Query;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 
-import edu.uci.ics.textdb.api.common.Attribute;
-import edu.uci.ics.textdb.api.common.FieldType;
-import edu.uci.ics.textdb.api.common.IField;
-import edu.uci.ics.textdb.api.common.Tuple;
-import edu.uci.ics.textdb.api.common.Schema;
-import edu.uci.ics.textdb.common.constants.SchemaConstants;
-import edu.uci.ics.textdb.common.exception.ErrorMessages;
-import edu.uci.ics.textdb.common.exception.StorageException;
-import edu.uci.ics.textdb.common.field.IDField;
-import edu.uci.ics.textdb.common.utils.Utils;
+import edu.uci.ics.textdb.api.constants.ErrorMessages;
+import edu.uci.ics.textdb.api.constants.SchemaConstants;
+import edu.uci.ics.textdb.api.exception.StorageException;
+import edu.uci.ics.textdb.api.field.IDField;
+import edu.uci.ics.textdb.api.field.IField;
+import edu.uci.ics.textdb.api.schema.Attribute;
+import edu.uci.ics.textdb.api.schema.AttributeType;
+import edu.uci.ics.textdb.api.schema.Schema;
+import edu.uci.ics.textdb.api.tuple.Tuple;
+import edu.uci.ics.textdb.api.utils.Utils;
+import edu.uci.ics.textdb.storage.utils.StorageUtils;
 
 /**
  * DataWriter is the layer where TextDB handles upper-level operators' write/delete/update operations
@@ -220,8 +221,8 @@ public class DataWriter {
         for (int count = 0; count < fields.size(); count++) {
             IField field = fields.get(count);
             Attribute attr = attributes.get(count);
-            FieldType fieldType = attr.getFieldType();
-            doc.add(Utils.getLuceneField(fieldType, attr.getFieldName(), field.getValue()));
+            AttributeType attributeType = attr.getAttributeType();
+            doc.add(StorageUtils.getLuceneField(attributeType, attr.getAttributeName(), field.getValue()));
         }
         return doc;
     }

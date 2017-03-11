@@ -2,14 +2,14 @@ package edu.uci.ics.textdb.dataflow.queryrewriter;
 
 import java.util.List;
 
-import edu.uci.ics.textdb.api.common.Attribute;
-import edu.uci.ics.textdb.api.common.FieldType;
-import edu.uci.ics.textdb.api.common.IField;
-import edu.uci.ics.textdb.api.common.Tuple;
-import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.api.dataflow.IOperator;
 import edu.uci.ics.textdb.api.exception.TextDBException;
-import edu.uci.ics.textdb.common.field.ListField;
+import edu.uci.ics.textdb.api.field.IField;
+import edu.uci.ics.textdb.api.field.ListField;
+import edu.uci.ics.textdb.api.schema.Attribute;
+import edu.uci.ics.textdb.api.schema.AttributeType;
+import edu.uci.ics.textdb.api.schema.Schema;
+import edu.uci.ics.textdb.api.tuple.Tuple;
 
 /**
  * Created by kishorenarendran on 25/04/16. QueryRewriter is an operator that
@@ -30,7 +30,7 @@ public class QueryRewriter implements IOperator {
     private boolean allSegmentations = false;
 
     public static final String QUERYLIST = "querylist";
-    public static final Attribute QUERYLIST_ATTR = new Attribute(QUERYLIST, FieldType.LIST);
+    public static final Attribute QUERYLIST_ATTR = new Attribute(QUERYLIST, AttributeType.LIST);
     public static final Schema SCHEMA_QUERY_LIST = new Schema(QUERYLIST_ATTR);
 
     private Tuple sourceTuple;

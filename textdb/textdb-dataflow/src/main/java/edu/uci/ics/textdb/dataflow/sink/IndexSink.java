@@ -1,10 +1,9 @@
 package edu.uci.ics.textdb.dataflow.sink;
 
+import edu.uci.ics.textdb.api.exception.DataFlowException;
+import edu.uci.ics.textdb.api.exception.StorageException;
 import edu.uci.ics.textdb.api.exception.TextDBException;
-import edu.uci.ics.textdb.common.exception.DataFlowException;
-import edu.uci.ics.textdb.common.exception.StorageException;
-
-import edu.uci.ics.textdb.api.common.Tuple;
+import edu.uci.ics.textdb.api.tuple.Tuple;
 import edu.uci.ics.textdb.storage.DataWriter;
 import edu.uci.ics.textdb.storage.RelationManager;
 

@@ -15,11 +15,11 @@ import java.util.Scanner;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 
-import edu.uci.ics.textdb.common.constants.LuceneAnalyzerConstants;
-import edu.uci.ics.textdb.engine.Engine;
+import edu.uci.ics.textdb.api.engine.Engine;
 import edu.uci.ics.textdb.perftest.medline.MedlineIndexWriter;
 import edu.uci.ics.textdb.storage.DataStore;
 import edu.uci.ics.textdb.storage.RelationManager;
+import edu.uci.ics.textdb.storage.constants.LuceneAnalyzerConstants;
 
 /**
  * @author Hailey Pan

@@ -4,8 +4,8 @@ import java.util.List;
 
 import org.apache.lucene.analysis.Analyzer;
 
-import edu.uci.ics.textdb.api.common.IPredicate;
-import edu.uci.ics.textdb.common.constants.DataConstants.KeywordMatchingType;
+import edu.uci.ics.textdb.api.constants.DataConstants.KeywordMatchingType;
+import edu.uci.ics.textdb.api.dataflow.IPredicate;
 
 public class DictionaryPredicate implements IPredicate {
 

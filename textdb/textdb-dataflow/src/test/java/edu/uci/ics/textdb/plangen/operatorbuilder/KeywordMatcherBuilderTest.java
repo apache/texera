@@ -6,12 +6,9 @@ import java.util.List;
 
 import org.junit.Test;
 
-import edu.uci.ics.textdb.api.common.Attribute;
-import edu.uci.ics.textdb.api.common.FieldType;
-import edu.uci.ics.textdb.common.constants.DataConstants.KeywordMatchingType;
-import edu.uci.ics.textdb.common.exception.DataFlowException;
-import edu.uci.ics.textdb.common.exception.PlanGenException;
-import edu.uci.ics.textdb.common.utils.Utils;
+import edu.uci.ics.textdb.api.constants.DataConstants.KeywordMatchingType;
+import edu.uci.ics.textdb.api.exception.DataFlowException;
+import edu.uci.ics.textdb.api.exception.PlanGenException;
 import edu.uci.ics.textdb.dataflow.keywordmatch.KeywordMatcher;
 import junit.framework.Assert;
 

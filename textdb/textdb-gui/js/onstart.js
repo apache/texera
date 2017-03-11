@@ -54,7 +54,7 @@ var setup = function(){
 	*/
 	//Helper Function for Process Queries that displays the results after hitting "Process Query"
 	function createResultFrame(message){
-		var resultJSON = JSON.parse(message['text']);
+		var resultJSON = JSON.parse(message['message']);
 
 		var resultFrame = $('<div class="result-frame"><div class="result-box"><div class="result-box-band">Return Result<div class="result-frame-close"><img src="img/close-icon.png"></div></div><div class="return-result"></div></div></div>');
 		$('body').append(resultFrame);

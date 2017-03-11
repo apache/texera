@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.StringJoiner;
 
-import edu.uci.ics.textdb.common.constants.DataConstants;
+import edu.uci.ics.textdb.api.constants.DataConstants;
 
 public class GramBooleanQuery {
 

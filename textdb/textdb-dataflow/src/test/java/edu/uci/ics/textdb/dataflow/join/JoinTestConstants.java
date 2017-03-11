@@ -3,13 +3,13 @@ package edu.uci.ics.textdb.dataflow.join;
 import java.util.Arrays;
 import java.util.List;
 
-import edu.uci.ics.textdb.api.common.Attribute;
-import edu.uci.ics.textdb.api.common.FieldType;
-import edu.uci.ics.textdb.api.common.Tuple;
-import edu.uci.ics.textdb.api.common.Schema;
-import edu.uci.ics.textdb.common.field.IntegerField;
-import edu.uci.ics.textdb.common.field.StringField;
-import edu.uci.ics.textdb.common.field.TextField;
+import edu.uci.ics.textdb.api.field.IntegerField;
+import edu.uci.ics.textdb.api.field.StringField;
+import edu.uci.ics.textdb.api.field.TextField;
+import edu.uci.ics.textdb.api.schema.Attribute;
+import edu.uci.ics.textdb.api.schema.AttributeType;
+import edu.uci.ics.textdb.api.schema.Schema;
+import edu.uci.ics.textdb.api.tuple.Tuple;
 
 public class JoinTestConstants {
     
@@ -19,11 +19,11 @@ public class JoinTestConstants {
     public static final String PAGES = "numberOfPages";
     public static final String REVIEW = "reviewOfBook";
     
-    public static final Attribute ID_ATTR = new Attribute(ID, FieldType.INTEGER);
-    public static final Attribute AUTHOR_ATTR = new Attribute(AUTHOR, FieldType.STRING);
-    public static final Attribute TITLE_ATTR = new Attribute(TITLE, FieldType.STRING);
-    public static final Attribute PAGES_ATTR = new Attribute(PAGES, FieldType.INTEGER);
-    public static final Attribute REVIEW_ATTR = new Attribute(REVIEW, FieldType.TEXT);
+    public static final Attribute ID_ATTR = new Attribute(ID, AttributeType.INTEGER);
+    public static final Attribute AUTHOR_ATTR = new Attribute(AUTHOR, AttributeType.STRING);
+    public static final Attribute TITLE_ATTR = new Attribute(TITLE, AttributeType.STRING);
+    public static final Attribute PAGES_ATTR = new Attribute(PAGES, AttributeType.INTEGER);
+    public static final Attribute REVIEW_ATTR = new Attribute(REVIEW, AttributeType.TEXT);
     
     public static final Schema BOOK_SCHEMA = new Schema(ID_ATTR, AUTHOR_ATTR, TITLE_ATTR, PAGES_ATTR, REVIEW_ATTR);
        
@@ -107,9 +107,9 @@ public class JoinTestConstants {
     public static final String NEWS_TITLE = "news_title";
     public static final String NEWS_BODY = "news_body";
     
-    public static final Attribute NEWS_NUM_ATTR = new Attribute(NEWS_NUMBER, FieldType.INTEGER);
-    public static final Attribute NEWS_TITLE_ATTR = new Attribute(NEWS_TITLE, FieldType.TEXT);
-    public static final Attribute NEWS_BODY_ATTR = new Attribute(NEWS_BODY, FieldType.TEXT);
+    public static final Attribute NEWS_NUM_ATTR = new Attribute(NEWS_NUMBER, AttributeType.INTEGER);
+    public static final Attribute NEWS_TITLE_ATTR = new Attribute(NEWS_TITLE, AttributeType.TEXT);
+    public static final Attribute NEWS_BODY_ATTR = new Attribute(NEWS_BODY, AttributeType.TEXT);
     
     public static final Schema NEWS_SCHEMA = new Schema(NEWS_NUM_ATTR, NEWS_TITLE_ATTR, NEWS_BODY_ATTR);
     

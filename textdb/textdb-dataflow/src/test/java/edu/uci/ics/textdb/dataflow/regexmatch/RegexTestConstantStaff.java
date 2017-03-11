@@ -3,12 +3,12 @@ package edu.uci.ics.textdb.dataflow.regexmatch;
 import java.util.Arrays;
 import java.util.List;
 
-import edu.uci.ics.textdb.api.common.Attribute;
-import edu.uci.ics.textdb.api.common.FieldType;
-import edu.uci.ics.textdb.api.common.IField;
-import edu.uci.ics.textdb.api.common.Tuple;
-import edu.uci.ics.textdb.api.common.Schema;
-import edu.uci.ics.textdb.common.field.StringField;
+import edu.uci.ics.textdb.api.field.IField;
+import edu.uci.ics.textdb.api.field.StringField;
+import edu.uci.ics.textdb.api.schema.Attribute;
+import edu.uci.ics.textdb.api.schema.AttributeType;
+import edu.uci.ics.textdb.api.schema.Schema;
+import edu.uci.ics.textdb.api.tuple.*;
 
 /**
  * @author laisycs
@@ -23,10 +23,10 @@ public class RegexTestConstantStaff {
     public static final String EMAIL = "email";
     public static final String PHONE = "phone";
 
-    public static final Attribute FIRST_NAME_ATTR = new Attribute(FIRST_NAME, FieldType.STRING);
-    public static final Attribute LAST_NAME_ATTR = new Attribute(LAST_NAME, FieldType.STRING);
-    public static final Attribute EMAIL_ATTR = new Attribute(EMAIL, FieldType.STRING);
-    public static final Attribute PHONE_ATTR = new Attribute(PHONE, FieldType.STRING);
+    public static final Attribute FIRST_NAME_ATTR = new Attribute(FIRST_NAME, AttributeType.STRING);
+    public static final Attribute LAST_NAME_ATTR = new Attribute(LAST_NAME, AttributeType.STRING);
+    public static final Attribute EMAIL_ATTR = new Attribute(EMAIL, AttributeType.STRING);
+    public static final Attribute PHONE_ATTR = new Attribute(PHONE, AttributeType.STRING);
 
     public static final Attribute[] ATTRIBUTES_STAFF = { FIRST_NAME_ATTR, LAST_NAME_ATTR, EMAIL_ATTR, PHONE_ATTR };
     public static final Schema SCHEMA_STAFF = new Schema(ATTRIBUTES_STAFF);

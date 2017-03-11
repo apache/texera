@@ -1,6 +1,6 @@
 package edu.uci.ics.textdb.storage;
 
-import edu.uci.ics.textdb.api.common.Schema;
+import edu.uci.ics.textdb.api.schema.Schema;
 
 public class DataStore {
     private String dataDirectory;

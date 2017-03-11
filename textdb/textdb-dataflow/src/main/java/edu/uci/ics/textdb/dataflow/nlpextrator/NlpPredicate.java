@@ -2,8 +2,8 @@ package edu.uci.ics.textdb.dataflow.nlpextrator;
 
 import java.util.List;
 
-import edu.uci.ics.textdb.api.common.Attribute;
-import edu.uci.ics.textdb.api.common.IPredicate;
+import edu.uci.ics.textdb.api.dataflow.IPredicate;
+import edu.uci.ics.textdb.api.schema.Attribute;
 
 public class NlpPredicate implements IPredicate {
     

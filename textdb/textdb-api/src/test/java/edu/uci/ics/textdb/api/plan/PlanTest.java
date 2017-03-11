@@ -1,13 +1,14 @@
 package edu.uci.ics.textdb.api.plan;
 
 import edu.uci.ics.textdb.api.exception.TextDBException;
+import edu.uci.ics.textdb.api.schema.Schema;
 import junit.framework.Assert;
 
 import org.junit.Before;
 import org.junit.Test;
 
-import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.api.dataflow.ISink;
+import edu.uci.ics.textdb.api.engine.Plan;
 
 public class PlanTest {
     private Plan plan;

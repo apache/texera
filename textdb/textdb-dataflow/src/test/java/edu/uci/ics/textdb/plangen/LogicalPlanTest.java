@@ -8,15 +8,14 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import edu.uci.ics.textdb.api.common.Attribute;
-import edu.uci.ics.textdb.api.common.FieldType;
-import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.api.dataflow.IOperator;
 import edu.uci.ics.textdb.api.dataflow.ISink;
-import edu.uci.ics.textdb.api.plan.Plan;
-import edu.uci.ics.textdb.common.constants.LuceneAnalyzerConstants;
-import edu.uci.ics.textdb.common.exception.PlanGenException;
-import edu.uci.ics.textdb.common.exception.StorageException;
+import edu.uci.ics.textdb.api.engine.Plan;
+import edu.uci.ics.textdb.api.exception.PlanGenException;
+import edu.uci.ics.textdb.api.exception.StorageException;
+import edu.uci.ics.textdb.api.schema.Attribute;
+import edu.uci.ics.textdb.api.schema.AttributeType;
+import edu.uci.ics.textdb.api.schema.Schema;
 import edu.uci.ics.textdb.dataflow.connector.OneToNBroadcastConnector;
 import edu.uci.ics.textdb.dataflow.connector.OneToNBroadcastConnector.ConnectorOutputOperator;
 import edu.uci.ics.textdb.dataflow.fuzzytokenmatcher.FuzzyTokenMatcher;
@@ -34,6 +33,7 @@ import edu.uci.ics.textdb.plangen.operatorbuilder.NlpExtractorBuilder;
 import edu.uci.ics.textdb.plangen.operatorbuilder.OperatorBuilderUtils;
 import edu.uci.ics.textdb.plangen.operatorbuilder.RegexMatcherBuilder;
 import edu.uci.ics.textdb.storage.RelationManager;
+import edu.uci.ics.textdb.storage.constants.LuceneAnalyzerConstants;
 import junit.framework.Assert;
 
 public class LogicalPlanTest {
@@ -41,8 +41,8 @@ public class LogicalPlanTest {
     public static final String TEST_TABLE = "logical_plan_test_table";
     
     public static final Schema TEST_SCHEMA = new Schema(
-            new Attribute("city", FieldType.STRING), new Attribute("location", FieldType.STRING),
-            new Attribute("content", FieldType.TEXT));
+            new Attribute("city", AttributeType.STRING), new Attribute("location", AttributeType.STRING),
+            new Attribute("content", AttributeType.TEXT));
     
     @BeforeClass
     public static void setUp() throws StorageException {

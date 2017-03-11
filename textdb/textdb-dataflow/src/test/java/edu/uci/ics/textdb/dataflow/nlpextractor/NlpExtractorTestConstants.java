@@ -5,15 +5,16 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import edu.uci.ics.textdb.api.common.Attribute;
-import edu.uci.ics.textdb.api.common.FieldType;
-import edu.uci.ics.textdb.api.common.IField;
-import edu.uci.ics.textdb.api.common.Tuple;
-import edu.uci.ics.textdb.api.common.Schema;
-import edu.uci.ics.textdb.common.field.Span;
-import edu.uci.ics.textdb.common.field.TextField;
-import edu.uci.ics.textdb.common.utils.Utils;
+import edu.uci.ics.textdb.api.field.IField;
+import edu.uci.ics.textdb.api.field.TextField;
+import edu.uci.ics.textdb.api.schema.Attribute;
+import edu.uci.ics.textdb.api.schema.AttributeType;
+import edu.uci.ics.textdb.api.schema.Schema;
+import edu.uci.ics.textdb.api.span.Span;
+import edu.uci.ics.textdb.api.tuple.*;
+import edu.uci.ics.textdb.api.utils.Utils;
 import edu.uci.ics.textdb.dataflow.nlpextrator.NlpPredicate;
+import edu.uci.ics.textdb.dataflow.utils.DataflowUtils;
 
 /**
  * Created by Sam on 16/4/27.
@@ -23,9 +24,9 @@ public class NlpExtractorTestConstants {
     public static final String SENTENCE_ONE = "sentence_one";
     public static final String SENTENCE_TWO = "sentence_two";
 
-    public static final Attribute SENTENCE_ONE_ATTR = new Attribute(SENTENCE_ONE, FieldType.TEXT);
+    public static final Attribute SENTENCE_ONE_ATTR = new Attribute(SENTENCE_ONE, AttributeType.TEXT);
 
-    public static final Attribute SENTENCE_TWO_ATTR = new Attribute(SENTENCE_TWO, FieldType.TEXT);
+    public static final Attribute SENTENCE_TWO_ATTR = new Attribute(SENTENCE_TWO, AttributeType.TEXT);
 
     public static final List<Attribute> ATTRIBUTES_ONE_SENTENCE = Arrays.asList(SENTENCE_ONE_ATTR);
 
@@ -128,7 +129,7 @@ public class NlpExtractorTestConstants {
 
         Schema returnSchema = Utils.createSpanSchema(tuple1.getSchema());
 
-        Tuple returnTuple = Utils.getSpanTuple(tuple1.getFields(), spanList, returnSchema);
+        Tuple returnTuple = DataflowUtils.getSpanTuple(tuple1.getFields(), spanList, returnSchema);
         resultList.add(returnTuple);
 
         return resultList;
@@ -149,7 +150,7 @@ public class NlpExtractorTestConstants {
 
         Schema returnSchema = Utils.createSpanSchema(tuple1.getSchema());
 
-        Tuple returnTuple = Utils.getSpanTuple(tuple1.getFields(), spanList, returnSchema);
+        Tuple returnTuple = DataflowUtils.getSpanTuple(tuple1.getFields(), spanList, returnSchema);
         resultList.add(returnTuple);
         return resultList;
     }
@@ -176,7 +177,7 @@ public class NlpExtractorTestConstants {
 
         Schema returnSchema = Utils.createSpanSchema(tuple1.getSchema());
 
-        Tuple returnTuple = Utils.getSpanTuple(tuple1.getFields(), spanList, returnSchema);
+        Tuple returnTuple = DataflowUtils.getSpanTuple(tuple1.getFields(), spanList, returnSchema);
         resultList.add(returnTuple);
 
         return resultList;
@@ -204,7 +205,7 @@ public class NlpExtractorTestConstants {
 
         Schema returnSchema = Utils.createSpanSchema(tuple1.getSchema());
 
-        Tuple returnTuple = Utils.getSpanTuple(tuple1.getFields(), spanList, returnSchema);
+        Tuple returnTuple = DataflowUtils.getSpanTuple(tuple1.getFields(), spanList, returnSchema);
         resultList.add(returnTuple);
 
         return resultList;
@@ -226,7 +227,7 @@ public class NlpExtractorTestConstants {
 
         Schema returnSchema = Utils.createSpanSchema(tuple1.getSchema());
 
-        Tuple returnTuple = Utils.getSpanTuple(tuple1.getFields(), spanList, returnSchema);
+        Tuple returnTuple = DataflowUtils.getSpanTuple(tuple1.getFields(), spanList, returnSchema);
         resultList.add(returnTuple);
 
         return resultList;
@@ -251,7 +252,7 @@ public class NlpExtractorTestConstants {
 
         Schema returnSchema = Utils.createSpanSchema(tuple1.getSchema());
 
-        Tuple returnTuple = Utils.getSpanTuple(tuple1.getFields(), spanList, returnSchema);
+        Tuple returnTuple = DataflowUtils.getSpanTuple(tuple1.getFields(), spanList, returnSchema);
         resultList.add(returnTuple);
 
         return resultList;
@@ -270,7 +271,7 @@ public class NlpExtractorTestConstants {
 
         Schema returnSchema = Utils.createSpanSchema(tuple1.getSchema());
 
-        Tuple returnTuple = Utils.getSpanTuple(tuple1.getFields(), spanList, returnSchema);
+        Tuple returnTuple = DataflowUtils.getSpanTuple(tuple1.getFields(), spanList, returnSchema);
         resultList.add(returnTuple);
 
         return resultList;
@@ -288,7 +289,7 @@ public class NlpExtractorTestConstants {
 
         Schema returnSchema = Utils.createSpanSchema(tuple1.getSchema());
 
-        Tuple returnTuple = Utils.getSpanTuple(tuple1.getFields(), spanList, returnSchema);
+        Tuple returnTuple = DataflowUtils.getSpanTuple(tuple1.getFields(), spanList, returnSchema);
         resultList.add(returnTuple);
 
         return resultList;
@@ -308,7 +309,7 @@ public class NlpExtractorTestConstants {
     	
     	Schema returnSchema = Utils.createSpanSchema(tuple1.getSchema());
     	
-    	Tuple returnTuple = Utils.getSpanTuple(tuple1.getFields(), spanList, returnSchema);
+    	Tuple returnTuple = DataflowUtils.getSpanTuple(tuple1.getFields(), spanList, returnSchema);
     	resultList.add(returnTuple);
     	
     	return resultList;
@@ -346,23 +347,23 @@ public class NlpExtractorTestConstants {
         Schema returnSchema6 = Utils.createSpanSchema(tuple6.getSchema());
         
         spanList.add(span1);
-        resultList.add(Utils.getSpanTuple(tuple1.getFields(), spanList, returnSchema1));
+        resultList.add(DataflowUtils.getSpanTuple(tuple1.getFields(), spanList, returnSchema1));
         
         spanList.add(span2);
         spanList.add(span3);
-        resultList.add(Utils.getSpanTuple(tuple2.getFields(), spanList, returnSchema2));
+        resultList.add(DataflowUtils.getSpanTuple(tuple2.getFields(), spanList, returnSchema2));
         
         spanList.add(span4);
         spanList.add(span5);
-        resultList.add(Utils.getSpanTuple(tuple3.getFields(), spanList, returnSchema3));
+        resultList.add(DataflowUtils.getSpanTuple(tuple3.getFields(), spanList, returnSchema3));
         
         spanList.clear();
         spanList.add(span6);
-        resultList.add(Utils.getSpanTuple(tuple5.getFields(), spanList, returnSchema5));
+        resultList.add(DataflowUtils.getSpanTuple(tuple5.getFields(), spanList, returnSchema5));
         
         spanList.clear();
         spanList.add(span7);
-        resultList.add(Utils.getSpanTuple(tuple6.getFields(), spanList, returnSchema6));
+        resultList.add(DataflowUtils.getSpanTuple(tuple6.getFields(), spanList, returnSchema6));
         
         return resultList;
     }
@@ -401,17 +402,17 @@ public class NlpExtractorTestConstants {
         spanList.add(span3);
         spanList.add(span4);
         spanList.add(span5);
-        resultList.add(Utils.getSpanTuple(tuple1.getFields(), spanList, returnSchema1));
+        resultList.add(DataflowUtils.getSpanTuple(tuple1.getFields(), spanList, returnSchema1));
         
         spanList.clear();
         spanList.add(span6);
         spanList.add(span7);
-        resultList.add(Utils.getSpanTuple(tuple2.getFields(), spanList, returnSchema2));
+        resultList.add(DataflowUtils.getSpanTuple(tuple2.getFields(), spanList, returnSchema2));
         
         spanList.clear();
         spanList.add(span8);
         spanList.add(span9);
-        resultList.add(Utils.getSpanTuple(tuple3.getFields(), spanList, returnSchema3));
+        resultList.add(DataflowUtils.getSpanTuple(tuple3.getFields(), spanList, returnSchema3));
         
         return resultList;
     }

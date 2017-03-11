@@ -3,7 +3,7 @@ package edu.uci.ics.textdb.plangen;
 import java.util.HashMap;
 import java.util.Map;
 
-import edu.uci.ics.textdb.common.exception.PlanGenException;
+import edu.uci.ics.textdb.api.exception.PlanGenException;
 
 /**
  * OperatorArityConstants class includes the input and output arity constraints of each operator.

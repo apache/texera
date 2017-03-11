@@ -10,17 +10,18 @@ import org.apache.lucene.index.Term;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.TermQuery;
 
-import edu.uci.ics.textdb.api.common.Attribute;
-import edu.uci.ics.textdb.api.common.FieldType;
-import edu.uci.ics.textdb.api.common.IField;
-import edu.uci.ics.textdb.api.common.Tuple;
-import edu.uci.ics.textdb.api.common.Schema;
-import edu.uci.ics.textdb.common.constants.LuceneAnalyzerConstants;
-import edu.uci.ics.textdb.common.constants.SchemaConstants;
-import edu.uci.ics.textdb.common.exception.DataFlowException;
-import edu.uci.ics.textdb.common.exception.StorageException;
-import edu.uci.ics.textdb.common.field.IDField;
-import edu.uci.ics.textdb.common.utils.Utils;
+import edu.uci.ics.textdb.api.constants.SchemaConstants;
+import edu.uci.ics.textdb.api.exception.DataFlowException;
+import edu.uci.ics.textdb.api.exception.StorageException;
+import edu.uci.ics.textdb.api.field.IDField;
+import edu.uci.ics.textdb.api.field.IField;
+import edu.uci.ics.textdb.api.schema.Attribute;
+import edu.uci.ics.textdb.api.schema.AttributeType;
+import edu.uci.ics.textdb.api.schema.Schema;
+import edu.uci.ics.textdb.api.tuple.Tuple;
+import edu.uci.ics.textdb.api.utils.Utils;
+import edu.uci.ics.textdb.storage.constants.LuceneAnalyzerConstants;
+import edu.uci.ics.textdb.storage.utils.StorageUtils;
 
 public class RelationManager {
     
@@ -126,7 +127,7 @@ public class RelationManager {
         dataWriter.open();
         dataWriter.clearData();
         dataWriter.close();
-        Utils.deleteDirectory(getTableDirectory(tableName));
+        StorageUtils.deleteDirectory(getTableDirectory(tableName));
 
 
         // generate a query for the table name
@@ -377,12 +378,12 @@ public class RelationManager {
     
     
     /*
-     * Converts a attributeTypeString to FieldType (case insensitive). 
+     * Converts a attributeTypeString to AttributeType (case insensitive).
      * It returns null if string is not a valid type.
      * 
      */
-    private static FieldType convertAttributeType(String attributeTypeStr) {
-        return Stream.of(FieldType.values())
+    private static AttributeType convertAttributeType(String attributeTypeStr) {
+        return Stream.of(AttributeType.values())
                 .filter(typeStr -> typeStr.toString().toLowerCase().equals(attributeTypeStr.toLowerCase()))
                 .findAny().orElse(null);
     }

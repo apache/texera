@@ -3,15 +3,15 @@ package edu.uci.ics.textdb.plangen.operatorbuilder;
 import java.util.List;
 import java.util.Map;
 
-import edu.uci.ics.textdb.api.common.Attribute;
-import edu.uci.ics.textdb.common.constants.DataConstants.KeywordMatchingType;
-import edu.uci.ics.textdb.common.constants.LuceneAnalyzerConstants;
-import edu.uci.ics.textdb.common.exception.DataFlowException;
-import edu.uci.ics.textdb.common.exception.PlanGenException;
+import edu.uci.ics.textdb.api.constants.DataConstants.KeywordMatchingType;
+import edu.uci.ics.textdb.api.exception.DataFlowException;
+import edu.uci.ics.textdb.api.exception.PlanGenException;
+import edu.uci.ics.textdb.api.schema.Attribute;
 import edu.uci.ics.textdb.dataflow.common.Dictionary;
 import edu.uci.ics.textdb.dataflow.common.DictionaryPredicate;
 import edu.uci.ics.textdb.dataflow.dictionarymatcher.DictionaryMatcher;
 import edu.uci.ics.textdb.plangen.PlanGenUtils;
+import edu.uci.ics.textdb.storage.constants.LuceneAnalyzerConstants;
 
 /**
  * DictionaryMatcherBuilder provides a static function that builds a DictionaryMatcher.

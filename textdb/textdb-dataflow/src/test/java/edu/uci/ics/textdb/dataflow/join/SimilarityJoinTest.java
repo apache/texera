@@ -1,19 +1,24 @@
 package edu.uci.ics.textdb.dataflow.join;
 
-import edu.uci.ics.textdb.api.common.Tuple;
-import edu.uci.ics.textdb.api.common.Schema;
-import edu.uci.ics.textdb.common.constants.SchemaConstants;
-import edu.uci.ics.textdb.common.field.*;
-import edu.uci.ics.textdb.common.utils.Utils;
-import edu.uci.ics.textdb.dataflow.regexmatch.RegexMatcher;
-import edu.uci.ics.textdb.dataflow.utils.TestUtils;
 import junit.framework.Assert;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 
+import edu.uci.ics.textdb.api.constants.SchemaConstants;
+import edu.uci.ics.textdb.api.constants.DataConstants.KeywordMatchingType;
 import edu.uci.ics.textdb.api.exception.TextDBException;
-import edu.uci.ics.textdb.common.constants.DataConstants.KeywordMatchingType;
+import edu.uci.ics.textdb.api.field.IDField;
+import edu.uci.ics.textdb.api.field.IntegerField;
+import edu.uci.ics.textdb.api.field.ListField;
+import edu.uci.ics.textdb.api.field.TextField;
+import edu.uci.ics.textdb.api.schema.Schema;
+import edu.uci.ics.textdb.api.span.Span;
+import edu.uci.ics.textdb.api.tuple.Tuple;
+import edu.uci.ics.textdb.api.utils.TestUtils;
+import edu.uci.ics.textdb.api.utils.Utils;
+import edu.uci.ics.textdb.dataflow.regexmatch.RegexMatcher;
+
 import org.junit.Test;
 
 import java.util.Arrays;

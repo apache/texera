@@ -4,8 +4,8 @@ import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
 
-import edu.uci.ics.textdb.api.common.Tuple;
 import edu.uci.ics.textdb.api.dataflow.IOperator;
+import edu.uci.ics.textdb.api.tuple.Tuple;
 
 public class AbstractSinkTest {
 

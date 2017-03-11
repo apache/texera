@@ -1,7 +1,8 @@
 package edu.uci.ics.textdb.web.request.beans;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import edu.uci.ics.textdb.common.constants.DataConstants;
+
+import edu.uci.ics.textdb.api.constants.DataConstants;
 import io.dropwizard.jackson.Jackson;
 import org.junit.Test;
 

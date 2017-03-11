@@ -2,8 +2,9 @@ package edu.uci.ics.textdb.planstore;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
-import edu.uci.ics.textdb.api.common.Tuple;
+
 import edu.uci.ics.textdb.api.exception.TextDBException;
+import edu.uci.ics.textdb.api.tuple.Tuple;
 import edu.uci.ics.textdb.storage.DataReader;
 import junit.framework.Assert;
 import org.junit.After;

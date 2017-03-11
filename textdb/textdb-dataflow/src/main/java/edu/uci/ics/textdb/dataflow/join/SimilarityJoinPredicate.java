@@ -3,16 +3,16 @@ package edu.uci.ics.textdb.dataflow.join;
 import java.util.*;
 import java.util.stream.Collectors;
 
-import edu.uci.ics.textdb.api.common.Attribute;
-import edu.uci.ics.textdb.api.common.FieldType;
-import edu.uci.ics.textdb.api.common.IField;
-import edu.uci.ics.textdb.api.common.Tuple;
-import edu.uci.ics.textdb.api.common.Schema;
-import edu.uci.ics.textdb.common.constants.SchemaConstants;
-import edu.uci.ics.textdb.common.exception.DataFlowException;
-import edu.uci.ics.textdb.common.field.IDField;
-import edu.uci.ics.textdb.common.field.ListField;
-import edu.uci.ics.textdb.common.field.Span;
+import edu.uci.ics.textdb.api.constants.SchemaConstants;
+import edu.uci.ics.textdb.api.exception.DataFlowException;
+import edu.uci.ics.textdb.api.field.IDField;
+import edu.uci.ics.textdb.api.field.IField;
+import edu.uci.ics.textdb.api.field.ListField;
+import edu.uci.ics.textdb.api.schema.Attribute;
+import edu.uci.ics.textdb.api.schema.AttributeType;
+import edu.uci.ics.textdb.api.schema.Schema;
+import edu.uci.ics.textdb.api.span.Span;
+import edu.uci.ics.textdb.api.tuple.*;
 import edu.uci.ics.textdb.dataflow.common.IJoinPredicate;
 import info.debatty.java.stringsimilarity.NormalizedLevenshtein;
 
@@ -95,8 +95,8 @@ public class SimilarityJoinPredicate implements IJoinPredicate {
         outputAttributeList.add(SchemaConstants._ID_ATTRIBUTE);
         
         for (Attribute attr : innerOperatorSchema.getAttributes()) {
-            String attrName = attr.getFieldName();
-            FieldType attrType = attr.getFieldType();
+            String attrName = attr.getAttributeName();
+            AttributeType attrType = attr.getAttributeType();
             // ignore _id, spanList, and payload
             if (attrName.equals(SchemaConstants._ID) || attrName.equals(SchemaConstants.SPAN_LIST) 
                     || attrName.equals(SchemaConstants.PAYLOAD)) {
@@ -105,8 +105,8 @@ public class SimilarityJoinPredicate implements IJoinPredicate {
             outputAttributeList.add(new Attribute(INNER_PREFIX + attrName, attrType));
         }
         for (Attribute attr : outerOperatorSchema.getAttributes()) {
-            String attrName = attr.getFieldName();
-            FieldType attrType = attr.getFieldType();
+            String attrName = attr.getAttributeName();
+            AttributeType attrType = attr.getAttributeType();
             // ignore _id, spanList, and payload
             if (attrName.equals(SchemaConstants._ID) || attrName.equals(SchemaConstants.SPAN_LIST) 
                     || attrName.equals(SchemaConstants.PAYLOAD)) {
@@ -136,11 +136,11 @@ public class SimilarityJoinPredicate implements IJoinPredicate {
         // get the span list only with the joinAttributeName
         ListField<Span> innerSpanListField = innerTuple.getField(SchemaConstants.SPAN_LIST);
         List<Span> innerRelevantSpanList = innerSpanListField.getValue().stream()
-                .filter(span -> span.getFieldName().equals(innerJoinAttrName)).collect(Collectors.toList());
+                .filter(span -> span.getAttributeName().equals(innerJoinAttrName)).collect(Collectors.toList());
         
         ListField<Span> outerSpanListField = outerTuple.getField(SchemaConstants.SPAN_LIST);
         List<Span> outerRelevantSpanList = outerSpanListField.getValue().stream()
-                .filter(span -> span.getFieldName().equals(outerJoinAttrName)).collect(Collectors.toList());
+                .filter(span -> span.getAttributeName().equals(outerJoinAttrName)).collect(Collectors.toList());
         
         // get a set of span's values (since multiple spans may have the same value)
         Set<String> innerSpanValueSet = innerRelevantSpanList.stream()
@@ -214,7 +214,7 @@ public class SimilarityJoinPredicate implements IJoinPredicate {
     }
     
     private Span addFieldPrefix(Span span, String prefix) {
-        return new Span(prefix+span.getFieldName(), 
+        return new Span(prefix+span.getAttributeName(),
                 span.getStart(), span.getEnd(), span.getKey(), span.getValue(), span.getTokenOffset());
     }
 

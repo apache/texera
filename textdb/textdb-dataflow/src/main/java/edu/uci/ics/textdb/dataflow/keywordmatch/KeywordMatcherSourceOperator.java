@@ -10,15 +10,15 @@ import org.apache.lucene.search.PhraseQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.TermQuery;
 
-import edu.uci.ics.textdb.api.common.FieldType;
-import edu.uci.ics.textdb.api.common.Tuple;
-import edu.uci.ics.textdb.api.common.Schema;
+import edu.uci.ics.textdb.api.constants.DataConstants.KeywordMatchingType;
 import edu.uci.ics.textdb.api.dataflow.IOperator;
 import edu.uci.ics.textdb.api.dataflow.ISourceOperator;
-import edu.uci.ics.textdb.common.constants.DataConstants.KeywordMatchingType;
-import edu.uci.ics.textdb.common.exception.DataFlowException;
-import edu.uci.ics.textdb.common.exception.StorageException;
+import edu.uci.ics.textdb.api.exception.DataFlowException;
+import edu.uci.ics.textdb.api.exception.StorageException;
 import edu.uci.ics.textdb.api.exception.TextDBException;
+import edu.uci.ics.textdb.api.schema.AttributeType;
+import edu.uci.ics.textdb.api.schema.Schema;
+import edu.uci.ics.textdb.api.tuple.Tuple;
 import edu.uci.ics.textdb.dataflow.common.AbstractSingleInputOperator;
 import edu.uci.ics.textdb.dataflow.common.KeywordPredicate;
 import edu.uci.ics.textdb.storage.DataReader;
@@ -134,23 +134,23 @@ public class KeywordMatcherSourceOperator extends AbstractSingleInputOperator im
     private Query buildConjunctionQuery() throws DataFlowException {
         BooleanQuery.Builder booleanQueryBuilder = new BooleanQuery.Builder();
 
-        for (String fieldName : this.predicate.getAttributeNames()) {
-            FieldType fieldType = this.inputSchema.getAttribute(fieldName).getFieldType();
+        for (String attributeName : this.predicate.getAttributeNames()) {
+            AttributeType attributeType = this.inputSchema.getAttribute(attributeName).getAttributeType();
 
             // types other than TEXT and STRING: throw Exception for now
-            if (fieldType != FieldType.STRING && fieldType != FieldType.TEXT) {
+            if (attributeType != AttributeType.STRING && attributeType != AttributeType.TEXT) {
                 throw new DataFlowException(
                         "KeywordPredicate: Fields other than STRING and TEXT are not supported yet");
             }
 
-            if (fieldType == FieldType.STRING) {
-                Query termQuery = new TermQuery(new Term(fieldName, this.keywordQuery));
+            if (attributeType == AttributeType.STRING) {
+                Query termQuery = new TermQuery(new Term(attributeName, this.keywordQuery));
                 booleanQueryBuilder.add(termQuery, BooleanClause.Occur.SHOULD);
             }
-            if (fieldType == FieldType.TEXT) {
+            if (attributeType == AttributeType.TEXT) {
                 BooleanQuery.Builder fieldQueryBuilder = new BooleanQuery.Builder();
                 for (String token : this.predicate.getQueryTokenSet()) {
-                    Query termQuery = new TermQuery(new Term(fieldName, token.toLowerCase()));
+                    Query termQuery = new TermQuery(new Term(attributeName, token.toLowerCase()));
                     fieldQueryBuilder.add(termQuery, BooleanClause.Occur.MUST);
                 }
                 booleanQueryBuilder.add(fieldQueryBuilder.build(), BooleanClause.Occur.SHOULD);
@@ -164,29 +164,29 @@ public class KeywordMatcherSourceOperator extends AbstractSingleInputOperator im
     private Query buildPhraseQuery() throws DataFlowException {
         BooleanQuery.Builder booleanQueryBuilder = new BooleanQuery.Builder();
 
-        for (String fieldName : this.predicate.getAttributeNames()) {
-            FieldType fieldType = this.inputSchema.getAttribute(fieldName).getFieldType();
+        for (String attributeName : this.predicate.getAttributeNames()) {
+            AttributeType attributeType = this.inputSchema.getAttribute(attributeName).getAttributeType();
 
             // types other than TEXT and STRING: throw Exception for now
-            if (fieldType != FieldType.STRING && fieldType != FieldType.TEXT) {
+            if (attributeType != AttributeType.STRING && attributeType != AttributeType.TEXT) {
                 throw new DataFlowException(
                         "KeywordPredicate: Fields other than STRING and TEXT are not supported yet");
             }
 
-            if (fieldType == FieldType.STRING) {
-                Query termQuery = new TermQuery(new Term(fieldName, this.keywordQuery));
+            if (attributeType == AttributeType.STRING) {
+                Query termQuery = new TermQuery(new Term(attributeName, this.keywordQuery));
                 booleanQueryBuilder.add(termQuery, BooleanClause.Occur.SHOULD);
             }
-            if (fieldType == FieldType.TEXT) {
+            if (attributeType == AttributeType.TEXT) {
                 if (this.predicate.getQueryTokenList().size() == 1) {
-                    Query termQuery = new TermQuery(new Term(fieldName, this.keywordQuery.toLowerCase()));
+                    Query termQuery = new TermQuery(new Term(attributeName, this.keywordQuery.toLowerCase()));
                     booleanQueryBuilder.add(termQuery, BooleanClause.Occur.SHOULD);
                 } else {
                     PhraseQuery.Builder phraseQueryBuilder = new PhraseQuery.Builder();
                     for (int i = 0; i < this.predicate.getQueryTokensWithStopwords().size(); i++) {
                         if (!StandardAnalyzer.STOP_WORDS_SET
                                 .contains(this.predicate.getQueryTokensWithStopwords().get(i))) {
-                            phraseQueryBuilder.add(new Term(fieldName,
+                            phraseQueryBuilder.add(new Term(attributeName,
                                     this.predicate.getQueryTokensWithStopwords().get(i).toLowerCase()), i);
                         }
                     }
@@ -201,11 +201,11 @@ public class KeywordMatcherSourceOperator extends AbstractSingleInputOperator im
     }
 
     private Query buildScanQuery() throws DataFlowException {
-        for (String fieldName : this.predicate.getAttributeNames()) {
-            FieldType fieldType = this.inputSchema.getAttribute(fieldName).getFieldType();
+        for (String attributeName : this.predicate.getAttributeNames()) {
+            AttributeType attributeType = this.inputSchema.getAttribute(attributeName).getAttributeType();
 
             // types other than TEXT and STRING: throw Exception for now
-            if (fieldType != FieldType.STRING && fieldType != FieldType.TEXT) {
+            if (attributeType != AttributeType.STRING && attributeType != AttributeType.TEXT) {
                 throw new DataFlowException(
                         "KeywordPredicate: Fields other than STRING and TEXT are not supported yet");
             }
