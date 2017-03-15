@@ -7,6 +7,7 @@
                 <input [(ngModel)]="data.properties.attributes[attribute]" name="{{attribute}}" type="text" class="form-control" id="{{attribute}}" value="{{data.properties.attributes[attribute]}}" #{{attribute}}="ngModel" required>
             </div>
             <button type="submit" class="btn btn-success" [disabled]="!editOperatorForm.form.valid">OK</button>
+
         </form>
     </div>
     <div [hidden]="!submitted">

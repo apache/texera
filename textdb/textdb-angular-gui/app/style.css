@@ -27,7 +27,7 @@ body {
 	margin-left: 30px;
 }
 
-.fill { 
+.fill {
 	padding: 0px;
 	margin: 0px;
 	border: 0px;
@@ -67,9 +67,22 @@ body {
     border-left: 5px solid #a94442; /* red */
 }
 
-#the-flowchart {
+/*#the-flowchart {
 	left: 250px;
     width: calc(100% - 250px);
 	height: 100%;
+	background: #d3d3d3;
+}*/
+
+#the-flowchart {
+	width: calc(100%);
+	height: calc(100%);
+	background: #d3d3d3;
+}
+
+#flow-chart-container{
+	width: calc(100% - 250px);;
+	left: 250px;
+	height: calc(100%);
 	background: #d3d3d3;
 }

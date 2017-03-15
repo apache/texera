@@ -45,5 +45,5 @@ export class SideBarComponent {
         this.currentDataService.setData(this.data);
     }
 
-}
 
+}
