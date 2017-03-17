@@ -2,7 +2,8 @@ package edu.uci.ics.textdb.web.request;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import edu.uci.ics.textdb.common.exception.PlanGenException;
+
+import edu.uci.ics.textdb.api.exception.PlanGenException;
 import edu.uci.ics.textdb.plangen.LogicalPlan;
 import edu.uci.ics.textdb.web.request.beans.*;
 

@@ -1,9 +1,9 @@
 package edu.uci.ics.textdb.dataflow.comparablematcher;
 
-import edu.uci.ics.textdb.api.common.Attribute;
-import edu.uci.ics.textdb.api.common.IPredicate;
-import edu.uci.ics.textdb.common.constants.DataConstants.NumberMatchingType;
-import edu.uci.ics.textdb.common.exception.DataFlowException;
+import edu.uci.ics.textdb.api.constants.DataConstants.NumberMatchingType;
+import edu.uci.ics.textdb.api.dataflow.IPredicate;
+import edu.uci.ics.textdb.api.exception.DataFlowException;
+import edu.uci.ics.textdb.api.schema.Attribute;
 
 /**
  *

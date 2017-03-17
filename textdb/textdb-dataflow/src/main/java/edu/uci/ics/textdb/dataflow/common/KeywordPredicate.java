@@ -7,9 +7,9 @@ import java.util.List;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.search.Query;
 
-import edu.uci.ics.textdb.api.common.IPredicate;
-import edu.uci.ics.textdb.common.constants.DataConstants.KeywordMatchingType;
-import edu.uci.ics.textdb.common.utils.Utils;
+import edu.uci.ics.textdb.api.constants.DataConstants.KeywordMatchingType;
+import edu.uci.ics.textdb.api.dataflow.IPredicate;
+import edu.uci.ics.textdb.dataflow.utils.DataflowUtils;
 
 /**
  * @author Zuozhi Wang
@@ -36,9 +36,9 @@ public class KeywordPredicate implements IPredicate {
     public KeywordPredicate(String query, List<String> attributeNames, Analyzer luceneAnalyzer,
             KeywordMatchingType operatorType) {
         this.query = query;
-        this.queryTokenList = Utils.tokenizeQuery(luceneAnalyzer, query);
+        this.queryTokenList = DataflowUtils.tokenizeQuery(luceneAnalyzer, query);
         this.queryTokenSet = new HashSet<>(this.queryTokenList);
-        this.queryTokensWithStopwords = Utils.tokenizeQueryWithStopwords(query);
+        this.queryTokensWithStopwords = DataflowUtils.tokenizeQueryWithStopwords(query);
 
         this.attributeNames = attributeNames;
         this.operatorType = operatorType;

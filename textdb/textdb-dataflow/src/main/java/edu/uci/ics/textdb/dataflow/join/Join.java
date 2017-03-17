@@ -3,12 +3,12 @@ package edu.uci.ics.textdb.dataflow.join;
 import java.util.ArrayList;
 import java.util.List;
 
-import edu.uci.ics.textdb.api.common.Tuple;
-import edu.uci.ics.textdb.api.common.Schema;
+import edu.uci.ics.textdb.api.constants.ErrorMessages;
 import edu.uci.ics.textdb.api.dataflow.IOperator;
-import edu.uci.ics.textdb.common.exception.DataFlowException;
-import edu.uci.ics.textdb.common.exception.ErrorMessages;
+import edu.uci.ics.textdb.api.exception.DataFlowException;
 import edu.uci.ics.textdb.api.exception.TextDBException;
+import edu.uci.ics.textdb.api.schema.Schema;
+import edu.uci.ics.textdb.api.tuple.Tuple;
 import edu.uci.ics.textdb.dataflow.common.IJoinPredicate;
 
 
@@ -38,21 +38,19 @@ import edu.uci.ics.textdb.dataflow.common.IJoinPredicate;
  * then one of the values will be chosen to become the output value.
  * 
  * @author Sripad Kowshik Subramanyam (sripadks)
+ * @author Zuozhi Wang
  *
  */
 public class Join implements IOperator {
 
-    private IOperator outerOperator;
     private IOperator innerOperator;
+    private IOperator outerOperator;
     private IJoinPredicate joinPredicate;
-    // To indicate if next result from outer operator has to be obtained.
-    private boolean shouldIGetOuterOperatorNextTuple;
-    private Tuple outerTuple = null;
-    private Tuple innerTuple = null;
-    private List<Tuple> innerTupleList = new ArrayList<>();
-    // Cursor to maintain the position of tuple to be obtained from
-    // innerTupleList.
-    private Integer innerOperatorCursor = 0;
+    
+    private List<Tuple> innerTupleList = null;
+    // Cursor to maintain the position of tuple to be obtained from innerTupleList.
+    private Integer innerTupleListCursor = 0;
+    private Tuple currentOuterTuple;
     private Schema outputSchema;
 
     private int cursor = CLOSED;
@@ -87,25 +85,12 @@ public class Join implements IOperator {
         // generate output schema from schema of inner and outer operator
         innerOperator.open();
         Schema innerOperatorSchema = innerOperator.getOutputSchema();
-        innerOperator.close();
         
         outerOperator.open();
         Schema outerOperatorSchema = outerOperator.getOutputSchema();
-        outerOperator.close();
         
-        this.outputSchema = joinPredicate.generateOutputSchema(outerOperatorSchema, innerOperatorSchema);
-        
-        // load all tuples from inner operator into memory
-        innerOperator.open();
-        while ((innerTuple = innerOperator.getNextTuple()) != null) {
-            innerTupleList.add(innerTuple);
-        }
-        innerOperator.close();
+        this.outputSchema = joinPredicate.generateOutputSchema(innerOperatorSchema, outerOperatorSchema);
 
-        // open outer operator
-        outerOperator.open();
-
-        shouldIGetOuterOperatorNextTuple = true;
         cursor = OPENED;
     }
 
@@ -121,6 +106,25 @@ public class Join implements IOperator {
     	if (cursor == CLOSED) {
             throw new DataFlowException(ErrorMessages.OPERATOR_NOT_OPENED);
         }
+    	
+        // load all tuples from inner operator into memory in the first time
+    	if (innerTupleList == null) {
+    	    innerTupleList = new ArrayList<>();
+    	    Tuple tuple;
+            while ((tuple = innerOperator.getNextTuple()) != null) {
+                innerTupleList.add(tuple);
+            }
+    	}
+    	
+    	// load the first outer tuple
+    	currentOuterTuple = outerOperator.getNextTuple();
+    	
+    	// return null if either
+    	//   inner tuple list is empty, or
+    	//   all outer tuples have been consumed
+    	if (innerTupleList.isEmpty() || currentOuterTuple == null) {
+    	    return null;
+    	}
 
         if (resultCursor >= limit + offset - 1 || limit == 0){
             return null;
@@ -150,30 +154,28 @@ public class Join implements IOperator {
      * 
      * It returns null if there's no more tuples.
      */
-    protected  Tuple computeNextMatchingTuple() throws Exception {
+    private Tuple computeNextMatchingTuple() throws Exception {
         if (innerTupleList.isEmpty()) {
             return null;
         }
         
         Tuple nextTuple = null;
         while (nextTuple == null) {
-            if (shouldIGetOuterOperatorNextTuple == true) {
-                if ((outerTuple = outerOperator.getNextTuple()) == null) {
+            // if reach the end of inner tuple list
+            if (innerTupleListCursor >= innerTupleList.size()) {
+                // get next outer tuple
+                currentOuterTuple = outerOperator.getNextTuple();
+                if (currentOuterTuple == null) {
                     return null;
                 }
-                shouldIGetOuterOperatorNextTuple = false;
+                // reset cursor if outerTuple is not null
+                innerTupleListCursor = 0;
             }
-
-            if (innerOperatorCursor <= innerTupleList.size() - 1) {
-                innerTuple = innerTupleList.get(innerOperatorCursor);
-                innerOperatorCursor++;
-                if (innerOperatorCursor == innerTupleList.size()) {
-                    innerOperatorCursor = 0;
-                    shouldIGetOuterOperatorNextTuple = true;
-                }
-            }
-
-            nextTuple = joinPredicate.joinTuples(outerTuple, innerTuple, outputSchema);
+            // compute next tuple
+            nextTuple = joinPredicate.joinTuples(
+                    innerTupleList.get(innerTupleListCursor), currentOuterTuple, outputSchema);
+            // increment cursor
+            innerTupleListCursor++;
         }
         
     	return nextTuple;
@@ -186,15 +188,15 @@ public class Join implements IOperator {
         }
 
         try {
+            innerOperator.close();
             outerOperator.close();
-            // innerOperator.close(); already called in open()
-
         } catch (Exception e) {
-            e.printStackTrace();
             throw new DataFlowException(e.getMessage(), e);
         }
-        // Clear the inner tuple list from memory on close.
-        innerTupleList.clear();
+        
+        // Set the inner tuple list back to null on close.
+        innerTupleList = null;
+        innerTupleListCursor = 0;
         cursor = CLOSED;
     }
 

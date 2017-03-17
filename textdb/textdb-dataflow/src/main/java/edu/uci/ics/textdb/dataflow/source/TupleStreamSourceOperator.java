@@ -3,10 +3,10 @@ package edu.uci.ics.textdb.dataflow.source;
 import java.util.Collection;
 import java.util.Iterator;
 
-import edu.uci.ics.textdb.api.common.Tuple;
-import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.api.dataflow.ISourceOperator;
 import edu.uci.ics.textdb.api.exception.TextDBException;
+import edu.uci.ics.textdb.api.schema.Schema;
+import edu.uci.ics.textdb.api.tuple.Tuple;
 
 /*
  * This operator takes an in-memory list of tuples and serves them as a source operator.

@@ -2,11 +2,12 @@ package edu.uci.ics.textdb.web.resource;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import edu.uci.ics.textdb.api.common.Tuple;
-import edu.uci.ics.textdb.api.plan.Plan;
-import edu.uci.ics.textdb.common.utils.Utils;
+import edu.uci.ics.textdb.api.engine.Engine;
+import edu.uci.ics.textdb.api.engine.Plan;
+import edu.uci.ics.textdb.api.tuple.Tuple;
+import edu.uci.ics.textdb.api.utils.Utils;
 import edu.uci.ics.textdb.dataflow.sink.TupleStreamSink;
-import edu.uci.ics.textdb.engine.Engine;
+import edu.uci.ics.textdb.dataflow.utils.DataflowUtils;
 import edu.uci.ics.textdb.web.request.QueryPlanRequest;
 import edu.uci.ics.textdb.web.response.TextdbWebResponse;
 
@@ -58,7 +59,7 @@ public class QueryPlanResource {
                 List<Tuple> results = sink.collectAllTuples();
                 sink.close();
                 
-                TextdbWebResponse textdbWebResponse = new TextdbWebResponse(0, Utils.getTupleListJSON(results).toString());
+                TextdbWebResponse textdbWebResponse = new TextdbWebResponse(0, DataflowUtils.getTupleListJSON(results).toString());
                 return Response.status(200)
                         .entity(objectMapper.writeValueAsString(textdbWebResponse))
                         .build();

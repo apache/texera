@@ -4,8 +4,8 @@ import java.util.List;
 
 import org.apache.lucene.analysis.Analyzer;
 
-import edu.uci.ics.textdb.api.common.IPredicate;
-import edu.uci.ics.textdb.common.exception.DataFlowException;
+import edu.uci.ics.textdb.api.dataflow.IPredicate;
+import edu.uci.ics.textdb.api.exception.DataFlowException;
 
 
 /**

@@ -5,19 +5,20 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import edu.uci.ics.textdb.api.common.Attribute;
-import edu.uci.ics.textdb.api.common.FieldType;
-import edu.uci.ics.textdb.api.common.IField;
-import edu.uci.ics.textdb.api.common.Tuple;
-import edu.uci.ics.textdb.api.common.Schema;
-import edu.uci.ics.textdb.common.constants.SchemaConstants;
-import edu.uci.ics.textdb.common.exception.DataFlowException;
-import edu.uci.ics.textdb.common.field.ListField;
-import edu.uci.ics.textdb.common.field.Span;
+import edu.uci.ics.textdb.api.constants.SchemaConstants;
+import edu.uci.ics.textdb.api.exception.DataFlowException;
+import edu.uci.ics.textdb.api.field.IField;
+import edu.uci.ics.textdb.api.field.ListField;
+import edu.uci.ics.textdb.api.schema.Attribute;
+import edu.uci.ics.textdb.api.schema.AttributeType;
+import edu.uci.ics.textdb.api.schema.Schema;
+import edu.uci.ics.textdb.api.span.Span;
+import edu.uci.ics.textdb.api.tuple.*;
 
 /**
  * 
  * @author sripadks
+ * @author Zuozhi Wang
  *
  */
 public class JoinDistancePredicate implements IJoinPredicate {
@@ -35,7 +36,7 @@ public class JoinDistancePredicate implements IJoinPredicate {
      * JoinPredicate joinPre = new JoinPredicate(Attribute idAttr, Attribute
      * descriptionAttr, 10) <br>
      * will create a predicate that joins the spans of type descriptionAttr of
-     * outer and inner operators (that agree on the _id attributes) and
+     * inner and outer operators (that agree on the _id attributes) and
      * outputs tuples which satisfy the criteria of being within 10 characters
      * of each other.
      * </p>
@@ -97,8 +98,8 @@ public class JoinDistancePredicate implements IJoinPredicate {
         return this.threshold;
     }
     
-    public Schema generateOutputSchema(Schema outerOperatorSchema, Schema innerOperatorSchema) throws DataFlowException {
-        return generateIntersectionSchema(outerOperatorSchema, innerOperatorSchema);
+    public Schema generateOutputSchema(Schema innerOperatorSchema, Schema outerOperatorSchema) throws DataFlowException {
+        return generateIntersectionSchema(innerOperatorSchema, outerOperatorSchema);
     }
     
     /**
@@ -112,7 +113,7 @@ public class JoinDistancePredicate implements IJoinPredicate {
      * 
      * @return outputSchema
      */
-    private Schema generateIntersectionSchema(Schema outerOperatorSchema, Schema innerOperatorSchema) throws DataFlowException {
+    private Schema generateIntersectionSchema(Schema innerOperatorSchema, Schema outerOperatorSchema) throws DataFlowException {
         List<Attribute> innerAttributes = innerOperatorSchema.getAttributes();
         List<Attribute> outerAttributes = outerOperatorSchema.getAttributes();
         
@@ -135,8 +136,8 @@ public class JoinDistancePredicate implements IJoinPredicate {
         }
         
         // check if join attribute is TEXT or STRING
-        FieldType joinAttrType = intersectionSchema.getAttribute(this.joinAttributeName).getFieldType();
-        if (joinAttrType != FieldType.TEXT && joinAttrType != FieldType.STRING) {
+        AttributeType joinAttrType = intersectionSchema.getAttribute(this.joinAttributeName).getAttributeType();
+        if (joinAttrType != AttributeType.TEXT && joinAttrType != AttributeType.STRING) {
             throw new DataFlowException(
                     String.format("Join attribute %s must be either TEXT or STRING.", this.joinAttributeName));
         }
@@ -150,7 +151,8 @@ public class JoinDistancePredicate implements IJoinPredicate {
      * 
      * @return New Tuple containing the result of join operation.
      */
-	public Tuple joinTuples(Tuple outerTuple, Tuple innerTuple, Schema outputSchema) throws Exception {
+    @Override
+	public Tuple joinTuples(Tuple innerTuple, Tuple outerTuple, Schema outputSchema) throws Exception {
 	    List<Span> newJoinSpanList = new ArrayList<>();
 
 	    /*
@@ -198,25 +200,25 @@ public class JoinDistancePredicate implements IJoinPredicate {
 	        Span outerSpan = outerSpanIter.next();
 	        // Check if the field matches the filed over which we want to join.
 	        // If not return null.
-	        if (!outerSpan.getFieldName().equals(this.joinAttributeName)) {
+	        if (!outerSpan.getAttributeName().equals(this.joinAttributeName)) {
 	            continue;
 	        }
 	        Iterator<Span> innerSpanIter = innerSpanList.iterator();
 	        while (innerSpanIter.hasNext()) {
 	            Span innerSpan = innerSpanIter.next();
-	            if (!innerSpan.getFieldName().equals(this.joinAttributeName)) {
+	            if (!innerSpan.getAttributeName().equals(this.joinAttributeName)) {
 	                continue;
 	            }
 	            Integer threshold = this.getThreshold();
 	            if (Math.abs(outerSpan.getStart() - innerSpan.getStart()) <= threshold
 	                    && Math.abs(outerSpan.getEnd() - innerSpan.getEnd()) <= threshold) {
-	                Integer newSpanStartIndex = Math.min(outerSpan.getStart(), innerSpan.getStart());
-	                Integer newSpanEndIndex = Math.max(outerSpan.getEnd(), innerSpan.getEnd());
-	                String fieldName = this.joinAttributeName;
-	                String fieldValue = (String) innerTuple.getField(fieldName).getValue();
+	                Integer newSpanStartIndex = Math.min(innerSpan.getStart(), outerSpan.getStart());
+	                Integer newSpanEndIndex = Math.max(innerSpan.getEnd(), outerSpan.getEnd());
+	                String attributeName = this.joinAttributeName;
+	                String fieldValue = (String) innerTuple.getField(attributeName).getValue();
 	                String newFieldValue = fieldValue.substring(newSpanStartIndex, newSpanEndIndex);
 	                String spanKey = outerSpan.getKey() + "_" + innerSpan.getKey();
-	                Span newSpan = new Span(fieldName, newSpanStartIndex, newSpanEndIndex, spanKey, newFieldValue);
+	                Span newSpan = new Span(attributeName, newSpanStartIndex, newSpanEndIndex, spanKey, newFieldValue);
 	                newJoinSpanList.add(newSpan);
 	            }
 	        }
@@ -231,8 +233,8 @@ public class JoinDistancePredicate implements IJoinPredicate {
 	    List<IField> outputFields = 
 	            outputAttrList.stream()
 	            .filter(attr -> ! attr.equals(SchemaConstants.SPAN_LIST_ATTRIBUTE))
-	            .map(attr -> attr.getFieldName())
-	            .map(fieldName -> innerTuple.getField(fieldName, IField.class))
+	            .map(attr -> attr.getAttributeName())
+	            .map(attributeName -> innerTuple.getField(attributeName, IField.class))
 	            .collect(Collectors.toList());
 	    
 	    outputFields.add(new ListField<>(newJoinSpanList));
@@ -241,16 +243,16 @@ public class JoinDistancePredicate implements IJoinPredicate {
 	}
 
 	/**
-	 * Used to compare the value's of a field from the outer and inner tuples'.
+	 * Used to compare the value's of a field from the inner and outer tuples'.
 	 * 
 	 * @param innerTuple
 	 * @param outerTuple
-	 * @param fieldName
+	 * @param attributeName
 	 * @return True if both the tuples have the field and the values are equal.
 	 */
-	private boolean compareField(Tuple innerTuple, Tuple outerTuple, String fieldName) {  
-	    IField innerField = innerTuple.getField(fieldName);
-	    IField outerField = outerTuple.getField(fieldName);
+	private boolean compareField(Tuple innerTuple, Tuple outerTuple, String attributeName) {
+	    IField innerField = innerTuple.getField(attributeName);
+	    IField outerField = outerTuple.getField(attributeName);
 	    
 	    if (innerField == null ||  outerField == null) {
 	        return false;

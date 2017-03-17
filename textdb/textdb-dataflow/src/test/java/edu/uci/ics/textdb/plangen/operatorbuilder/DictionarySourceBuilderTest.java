@@ -9,14 +9,14 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import edu.uci.ics.textdb.api.common.Attribute;
-import edu.uci.ics.textdb.api.common.FieldType;
-import edu.uci.ics.textdb.api.common.Schema;
-import edu.uci.ics.textdb.common.constants.LuceneAnalyzerConstants;
-import edu.uci.ics.textdb.common.exception.PlanGenException;
-import edu.uci.ics.textdb.common.exception.StorageException;
+import edu.uci.ics.textdb.api.exception.PlanGenException;
+import edu.uci.ics.textdb.api.exception.StorageException;
+import edu.uci.ics.textdb.api.schema.Attribute;
+import edu.uci.ics.textdb.api.schema.AttributeType;
+import edu.uci.ics.textdb.api.schema.Schema;
 import edu.uci.ics.textdb.dataflow.dictionarymatcher.DictionaryMatcherSourceOperator;
 import edu.uci.ics.textdb.storage.RelationManager;
+import edu.uci.ics.textdb.storage.constants.LuceneAnalyzerConstants;
 import junit.framework.Assert;
 
 public class DictionarySourceBuilderTest {
@@ -24,8 +24,8 @@ public class DictionarySourceBuilderTest {
     public static final String TEST_TABLE = "dictionary_source_buidler_test_table";
     
     public static final Schema TEST_SCHEMA = new Schema(
-            new Attribute("city", FieldType.STRING), new Attribute("location", FieldType.STRING),
-            new Attribute("content", FieldType.TEXT));
+            new Attribute("city", AttributeType.STRING), new Attribute("location", AttributeType.STRING),
+            new Attribute("content", AttributeType.TEXT));
     
     @BeforeClass
     public static void setUp() throws StorageException {

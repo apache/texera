@@ -26,11 +26,6 @@
         </dependency>
         <dependency>
             <groupId>edu.uci.ics.textdb</groupId>
-            <artifactId>textdb-common</artifactId>
-            <version>${textdb.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>edu.uci.ics.textdb</groupId>
             <artifactId>textdb-storage</artifactId>
             <version>${textdb.version}</version>
         </dependency>

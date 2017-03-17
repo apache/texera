@@ -7,8 +7,8 @@ import java.util.List;
 import org.junit.Assert;
 import org.junit.Test;
 
-import edu.uci.ics.textdb.api.common.Tuple;
-import edu.uci.ics.textdb.common.field.ListField;
+import edu.uci.ics.textdb.api.field.ListField;
+import edu.uci.ics.textdb.api.tuple.Tuple;
 
 /**
  * Created by kishorenarendran on 25/04/16. Testing QueryRewriter This test

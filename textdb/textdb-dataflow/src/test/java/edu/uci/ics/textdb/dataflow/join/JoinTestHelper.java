@@ -4,25 +4,25 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import edu.uci.ics.textdb.api.common.Attribute;
-import edu.uci.ics.textdb.api.common.IField;
-import edu.uci.ics.textdb.api.common.Tuple;
-import edu.uci.ics.textdb.api.common.Schema;
+import edu.uci.ics.textdb.api.constants.DataConstants.KeywordMatchingType;
 import edu.uci.ics.textdb.api.dataflow.IOperator;
+import edu.uci.ics.textdb.api.exception.DataFlowException;
+import edu.uci.ics.textdb.api.exception.StorageException;
 import edu.uci.ics.textdb.api.exception.TextDBException;
-import edu.uci.ics.textdb.common.constants.LuceneAnalyzerConstants;
-import edu.uci.ics.textdb.common.constants.DataConstants.KeywordMatchingType;
-import edu.uci.ics.textdb.common.exception.DataFlowException;
-import edu.uci.ics.textdb.common.exception.StorageException;
-import edu.uci.ics.textdb.common.utils.Utils;
+import edu.uci.ics.textdb.api.field.IField;
+import edu.uci.ics.textdb.api.schema.Attribute;
+import edu.uci.ics.textdb.api.schema.Schema;
+import edu.uci.ics.textdb.api.tuple.Tuple;
 import edu.uci.ics.textdb.dataflow.common.IJoinPredicate;
 import edu.uci.ics.textdb.dataflow.common.KeywordPredicate;
 import edu.uci.ics.textdb.dataflow.common.RegexPredicate;
 import edu.uci.ics.textdb.dataflow.keywordmatch.KeywordMatcherSourceOperator;
 import edu.uci.ics.textdb.dataflow.regexmatch.RegexMatcher;
 import edu.uci.ics.textdb.dataflow.source.ScanBasedSourceOperator;
+import edu.uci.ics.textdb.dataflow.utils.DataflowUtils;
 import edu.uci.ics.textdb.storage.DataWriter;
 import edu.uci.ics.textdb.storage.RelationManager;
+import edu.uci.ics.textdb.storage.constants.LuceneAnalyzerConstants;
 
 
 public class JoinTestHelper {
@@ -149,7 +149,7 @@ public class JoinTestHelper {
      * @return
      * @throws TextDBException
      */
-    public static List<Tuple> getJoinDistanceResults(IOperator outerOp, IOperator innerOp,
+    public static List<Tuple> getJoinDistanceResults(IOperator innerOp, IOperator outerOp,
             IJoinPredicate joinPredicate, int limit, int offset) throws TextDBException {
         Join join = new Join(joinPredicate);
         join.setInnerInputOperator(innerOp);
@@ -182,8 +182,8 @@ public class JoinTestHelper {
         List<IField> newFields = new ArrayList<>();
         for (int i = 0; i < originalAttributes.size(); i++) {
             if (i == fieldIndex) {
-                newAttributes.add(new Attribute(originalAttributes.get(i).getFieldName(), 
-                        Utils.getFieldType(newField)));
+                newAttributes.add(new Attribute(originalAttributes.get(i).getAttributeName(),
+                        DataflowUtils.getAttributeType(newField)));
                 newFields.add(newField);
             } else {
                 newAttributes.add(originalAttributes.get(i));

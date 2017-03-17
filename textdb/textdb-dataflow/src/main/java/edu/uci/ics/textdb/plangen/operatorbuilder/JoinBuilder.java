@@ -3,7 +3,7 @@ package edu.uci.ics.textdb.plangen.operatorbuilder;
 import java.util.HashMap;
 import java.util.Map;
 
-import edu.uci.ics.textdb.common.exception.PlanGenException;
+import edu.uci.ics.textdb.api.exception.PlanGenException;
 import edu.uci.ics.textdb.dataflow.common.IJoinPredicate;
 import edu.uci.ics.textdb.dataflow.common.JoinDistancePredicate;
 import edu.uci.ics.textdb.dataflow.join.Join;

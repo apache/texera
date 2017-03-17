@@ -4,8 +4,9 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
-import edu.uci.ics.textdb.common.exception.DataFlowException;
-import edu.uci.ics.textdb.common.exception.StorageException;
+
+import edu.uci.ics.textdb.api.exception.DataFlowException;
+import edu.uci.ics.textdb.api.exception.StorageException;
 import edu.uci.ics.textdb.perftest.dictionarymatcher.DictionaryMatcherPerformanceTest;
 import edu.uci.ics.textdb.perftest.fuzzytokenmatcher.FuzzyTokenMatcherPerformanceTest;
 import edu.uci.ics.textdb.perftest.keywordmatcher.KeywordMatcherPerformanceTest;

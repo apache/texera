@@ -20,18 +20,19 @@ import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 
-import edu.uci.ics.textdb.api.common.Attribute;
-import edu.uci.ics.textdb.api.common.FieldType;
-import edu.uci.ics.textdb.api.common.IField;
-import edu.uci.ics.textdb.api.common.Tuple;
+import edu.uci.ics.textdb.api.constants.ErrorMessages;
+import edu.uci.ics.textdb.api.constants.SchemaConstants;
 import edu.uci.ics.textdb.api.dataflow.IOperator;
-import edu.uci.ics.textdb.api.common.Schema;
-import edu.uci.ics.textdb.common.constants.SchemaConstants;
-import edu.uci.ics.textdb.common.exception.ErrorMessages;
-import edu.uci.ics.textdb.common.exception.StorageException;
-import edu.uci.ics.textdb.common.field.ListField;
-import edu.uci.ics.textdb.common.field.Span;
-import edu.uci.ics.textdb.common.utils.Utils;
+import edu.uci.ics.textdb.api.exception.StorageException;
+import edu.uci.ics.textdb.api.field.IField;
+import edu.uci.ics.textdb.api.field.ListField;
+import edu.uci.ics.textdb.api.schema.Attribute;
+import edu.uci.ics.textdb.api.schema.AttributeType;
+import edu.uci.ics.textdb.api.schema.Schema;
+import edu.uci.ics.textdb.api.span.Span;
+import edu.uci.ics.textdb.api.tuple.*;
+import edu.uci.ics.textdb.api.utils.Utils;
+import edu.uci.ics.textdb.storage.utils.StorageUtils;
 
 /**
  * DataReader is the layer where TextDB handles upper-level operators' read operations
@@ -165,9 +166,9 @@ public class DataReader implements IOperator {
     private ArrayList<IField> documentToFields(Document luceneDocument) throws ParseException {
         ArrayList<IField> fields = new ArrayList<>();
         for (Attribute attr : inputSchema.getAttributes()) {
-            FieldType fieldType = attr.getFieldType();
-            String fieldValue = luceneDocument.get(attr.getFieldName());
-            fields.add(Utils.getField(fieldType, fieldValue));
+            AttributeType attributeType = attr.getAttributeType();
+            String fieldValue = luceneDocument.get(attr.getAttributeName());
+            fields.add(StorageUtils.getField(attributeType, fieldValue));
         }
         return fields;
     }
@@ -176,18 +177,18 @@ public class DataReader implements IOperator {
         ArrayList<Span> payloadSpanList = new ArrayList<>();
 
         for (Attribute attr : inputSchema.getAttributes()) {
-            String fieldName = attr.getFieldName();
-            FieldType fieldType = attr.getFieldType();
+            String attributeName = attr.getAttributeName();
+            AttributeType attributeType = attr.getAttributeType();
 
             // We only store positional information for TEXT fields into
             // payload.
-            if (fieldType != FieldType.TEXT) {
+            if (attributeType != AttributeType.TEXT) {
                 continue;
             }
 
-            String fieldValue = fields.get(inputSchema.getIndex(fieldName)).getValue().toString();
+            String fieldValue = fields.get(inputSchema.getIndex(attributeName)).getValue().toString();
 
-            Terms termVector = luceneIndexReader.getTermVector(docID, fieldName);
+            Terms termVector = luceneIndexReader.getTermVector(docID, attributeName);
             if (termVector == null) {
                 continue;
             }
@@ -208,7 +209,7 @@ public class DataReader implements IOperator {
                     String analyzedTermStr = termsEnum.term().utf8ToString();
                     String originalTermStr = fieldValue.substring(charStart, charEnd);
 
-                    Span span = new Span(fieldName, charStart, charEnd, analyzedTermStr, originalTermStr,
+                    Span span = new Span(attributeName, charStart, charEnd, analyzedTermStr, originalTermStr,
                             tokenPosition);
                     payloadSpanList.add(span);
                 }

@@ -2,11 +2,11 @@ package edu.uci.ics.textdb.dataflow.connector;
 
 import java.util.ArrayList;
 
-import edu.uci.ics.textdb.api.common.Tuple;
-import edu.uci.ics.textdb.api.common.Schema;
 import edu.uci.ics.textdb.api.dataflow.IConnector;
 import edu.uci.ics.textdb.api.dataflow.IOperator;
 import edu.uci.ics.textdb.api.exception.TextDBException;
+import edu.uci.ics.textdb.api.schema.Schema;
+import edu.uci.ics.textdb.api.tuple.Tuple;
 
 /**
  * OneToNBroadcastConnector connects one input operator with multiple output operators.

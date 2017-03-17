@@ -7,7 +7,8 @@ import org.junit.Test;
 import org.mockito.Mockito;
 
 import edu.uci.ics.textdb.api.dataflow.ISink;
-import edu.uci.ics.textdb.api.plan.Plan;
+import edu.uci.ics.textdb.api.engine.Engine;
+import edu.uci.ics.textdb.api.engine.Plan;
 
 public class EngineTest {
 

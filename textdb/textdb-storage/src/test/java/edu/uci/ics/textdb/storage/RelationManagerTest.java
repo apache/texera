@@ -11,17 +11,16 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import edu.uci.ics.textdb.api.common.Attribute;
-import edu.uci.ics.textdb.api.common.FieldType;
-import edu.uci.ics.textdb.api.common.Tuple;
-import edu.uci.ics.textdb.api.common.Schema;
+import edu.uci.ics.textdb.api.exception.StorageException;
 import edu.uci.ics.textdb.api.exception.TextDBException;
-import edu.uci.ics.textdb.common.constants.LuceneAnalyzerConstants;
-import edu.uci.ics.textdb.common.exception.StorageException;
-import edu.uci.ics.textdb.common.field.IDField;
-import edu.uci.ics.textdb.common.field.StringField;
-import edu.uci.ics.textdb.common.utils.Utils;
-import edu.uci.ics.textdb.storage.RelationManager;
+import edu.uci.ics.textdb.api.field.IDField;
+import edu.uci.ics.textdb.api.field.StringField;
+import edu.uci.ics.textdb.api.schema.Attribute;
+import edu.uci.ics.textdb.api.schema.AttributeType;
+import edu.uci.ics.textdb.api.schema.Schema;
+import edu.uci.ics.textdb.api.tuple.Tuple;
+import edu.uci.ics.textdb.api.utils.Utils;
+import edu.uci.ics.textdb.storage.constants.LuceneAnalyzerConstants;
 
 public class RelationManagerTest {
     
@@ -77,9 +76,9 @@ public class RelationManagerTest {
         String tableName = "relation_manager_test_table_1";
         String tableDirectory = "./index/test_table_1/";
         Schema tableSchema = new Schema(
-                new Attribute("city", FieldType.STRING),
-                new Attribute("description", FieldType.TEXT), new Attribute("tax rate", FieldType.DOUBLE),
-                new Attribute("population", FieldType.INTEGER), new Attribute("record time", FieldType.DATE));
+                new Attribute("city", AttributeType.STRING),
+                new Attribute("description", AttributeType.TEXT), new Attribute("tax rate", AttributeType.DOUBLE),
+                new Attribute("population", AttributeType.INTEGER), new Attribute("record time", AttributeType.DATE));
         String tableLuceneAnalyzerString = LuceneAnalyzerConstants.standardAnalyzerString();
         Analyzer tableLuceneAnalyzer = LuceneAnalyzerConstants.getLuceneAnalyzer(tableLuceneAnalyzerString);
         
@@ -134,9 +133,9 @@ public class RelationManagerTest {
         String tableName = "relation_manager_test_table";
         String tableDirectory = "./index/test_table";
         Schema tableSchema = new Schema(
-                new Attribute("city", FieldType.STRING),
-                new Attribute("description", FieldType.TEXT), new Attribute("tax rate", FieldType.DOUBLE),
-                new Attribute("population", FieldType.INTEGER), new Attribute("record time", FieldType.DATE));
+                new Attribute("city", AttributeType.STRING),
+                new Attribute("description", AttributeType.TEXT), new Attribute("tax rate", AttributeType.DOUBLE),
+                new Attribute("population", AttributeType.INTEGER), new Attribute("record time", AttributeType.DATE));
         
         int NUM_OF_LOOPS = 10;
         RelationManager relationManager = RelationManager.getRelationManager();
@@ -182,7 +181,7 @@ public class RelationManagerTest {
         String tableName = "relation_manager_test_table";
         String tableDirectory = "./index/test_table";
         Schema tableSchema = new Schema(
-                new Attribute("content", FieldType.STRING));
+                new Attribute("content", AttributeType.STRING));
         
         RelationManager relationManager = RelationManager.getRelationManager();
         
@@ -220,7 +219,7 @@ public class RelationManagerTest {
         String tableName = "relation_manager_test_table";
         String tableDirectory = "./index/test_table";
         Schema tableSchema = new Schema(
-                new Attribute("content", FieldType.STRING));
+                new Attribute("content", AttributeType.STRING));
         
         RelationManager relationManager = RelationManager.getRelationManager();
         
@@ -268,7 +267,7 @@ public class RelationManagerTest {
         String tableName = "relation_manager_test_table";
         String tableDirectory = "./index/test_table";
         Schema tableSchema = new Schema(
-                new Attribute("content", FieldType.STRING), new Attribute("number", FieldType.STRING));
+                new Attribute("content", AttributeType.STRING), new Attribute("number", AttributeType.STRING));
         
         RelationManager relationManager = RelationManager.getRelationManager();
         

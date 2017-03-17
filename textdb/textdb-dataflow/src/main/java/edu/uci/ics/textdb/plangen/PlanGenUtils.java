@@ -4,9 +4,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Stream;
 
-import edu.uci.ics.textdb.api.common.FieldType;
 import edu.uci.ics.textdb.api.dataflow.IOperator;
-import edu.uci.ics.textdb.common.exception.PlanGenException;
+import edu.uci.ics.textdb.api.exception.PlanGenException;
+import edu.uci.ics.textdb.api.schema.AttributeType;
 import edu.uci.ics.textdb.plangen.operatorbuilder.DictionaryMatcherBuilder;
 import edu.uci.ics.textdb.plangen.operatorbuilder.DictionarySourceBuilder;
 import edu.uci.ics.textdb.plangen.operatorbuilder.FileSinkBuilder;
@@ -78,18 +78,18 @@ public class PlanGenUtils {
      * @return true if the string is an attribute type
      */
     public static boolean isValidAttributeType(String attributeType) {
-        return Stream.of(FieldType.values()).anyMatch(type -> type.toString().toLowerCase().equals(attributeType.toLowerCase()));
+        return Stream.of(AttributeType.values()).anyMatch(type -> type.toString().toLowerCase().equals(attributeType.toLowerCase()));
     }
     
     /**
-     * This function converts a attributeTypeString to FieldType (case insensitive). 
+     * This function converts a attributeTypeString to AttributeType (case insensitive).
      * It returns null if string is not a valid type.
      * 
      * @param attributeTypeStr
-     * @return FieldType, null if attributeTypeStr is not a valid type.
+     * @return AttributeType, null if attributeTypeStr is not a valid type.
      */
-    public static FieldType convertAttributeType(String attributeTypeStr) {
-        return Stream.of(FieldType.values())
+    public static AttributeType convertAttributeType(String attributeTypeStr) {
+        return Stream.of(AttributeType.values())
                 .filter(typeStr -> typeStr.toString().toLowerCase().equals(attributeTypeStr.toLowerCase()))
                 .findAny().orElse(null);
     }

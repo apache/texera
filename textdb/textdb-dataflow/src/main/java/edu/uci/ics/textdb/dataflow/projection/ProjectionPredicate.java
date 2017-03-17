@@ -3,7 +3,7 @@ package edu.uci.ics.textdb.dataflow.projection;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import edu.uci.ics.textdb.api.common.IPredicate;
+import edu.uci.ics.textdb.api.dataflow.IPredicate;
 
 public class ProjectionPredicate implements IPredicate {
     

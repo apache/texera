@@ -6,7 +6,7 @@ import java.util.HashMap;
 import org.junit.Assert;
 import org.junit.Test;
 
-import edu.uci.ics.textdb.common.exception.PlanGenException;
+import edu.uci.ics.textdb.api.exception.PlanGenException;
 import edu.uci.ics.textdb.dataflow.sink.FileSink;
 import edu.uci.ics.textdb.plangen.operatorbuilder.FileSinkBuilder;
 

@@ -3,7 +3,7 @@ package edu.uci.ics.textdb.plangen.operatorbuilder;
 import java.io.File;
 import java.util.Map;
 
-import edu.uci.ics.textdb.common.exception.PlanGenException;
+import edu.uci.ics.textdb.api.exception.PlanGenException;
 import edu.uci.ics.textdb.dataflow.sink.FileSink;
 import edu.uci.ics.textdb.plangen.PlanGenUtils;
 

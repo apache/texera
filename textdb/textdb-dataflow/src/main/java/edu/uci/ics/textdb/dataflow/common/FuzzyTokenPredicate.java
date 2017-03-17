@@ -5,9 +5,9 @@ import java.util.List;
 
 import org.apache.lucene.analysis.Analyzer;
 
-import edu.uci.ics.textdb.api.common.IPredicate;
-import edu.uci.ics.textdb.common.exception.DataFlowException;
-import edu.uci.ics.textdb.common.utils.Utils;
+import edu.uci.ics.textdb.api.dataflow.IPredicate;
+import edu.uci.ics.textdb.api.exception.DataFlowException;
+import edu.uci.ics.textdb.dataflow.utils.DataflowUtils;
 
 /*
  * @author varun bharill, parag saraogi
@@ -30,7 +30,7 @@ public class FuzzyTokenPredicate implements IPredicate {
         this.thresholdRatio = thresholdRatio;
         this.luceneAnalyzer = analyzer;
         this.query = query;
-        this.tokens = Utils.tokenizeQuery(analyzer, query);
+        this.tokens = DataflowUtils.tokenizeQuery(analyzer, query);
         this.computeThreshold();
         this.attributeNames = attributeNames;
     }

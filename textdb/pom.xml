@@ -58,7 +58,6 @@
 
     <modules>
         <module>textdb-api</module>
-        <module>textdb-common</module>
         <module>textdb-storage</module>
         <module>textdb-dataflow</module>
         <module>textdb-perftest</module>
