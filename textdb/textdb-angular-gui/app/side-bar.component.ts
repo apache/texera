@@ -17,10 +17,18 @@ export class SideBarComponent {
     submitted = false;
     operatorId: number;
 
+
+    tempSubmitted = false;
+    tempData: any;
+    tempArrayOfData: any;
+
+
+
     constructor(private currentDataService: CurrentDataService) {
         currentDataService.newAddition$.subscribe(
             data => {
                 this.submitted = false;
+                this.tempSubmitted = false;
                 this.data = data.operatorData;
                 this.operatorId = data.operatorNum;
                 this.operator = data.operatorData.properties.title;
@@ -28,6 +36,15 @@ export class SideBarComponent {
                 for(var attribute in data.operatorData.properties.attributes){
                     this.attributes.push(attribute);
                 }
+            });
+
+        currentDataService.checkPressed$.subscribe(
+            data => {
+                this.tempArrayOfData = [];
+                this.submitted = false;
+                this.tempSubmitted = true;
+                this.tempData = JSON.parse(data.returnedData);
+                this.tempArrayOfData = Object.keys(this.tempData);
             });
     }
 
@@ -42,7 +59,7 @@ export class SideBarComponent {
     onSubmit() {
         this.submitted = true;
         jQuery('#the-flowchart').flowchart('setOperatorData', this.operatorId, this.data);
-        this.currentDataService.setData(this.data);
+        this.currentDataService.setData(jQuery('#the-flowchart').flowchart('getData'));
     }
 
 }

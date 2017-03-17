@@ -1,5 +1,15 @@
 <div id="sidebar-wrapper">
-    <div [hidden]="submitted">
+
+    <div [hidden]="!tempSubmitted" class="temp-result">
+        <h3 class="sidebar-brand">Returned Data</h3>
+        <!--<div *ngFor="let key of tempArrayOfData">-->
+            <!--<span class="badge">{{key}}</span> {{tempData[key]}}-->
+        <!--</div>-->
+        <div>{{tempData | json}}</div>
+    </div>
+
+
+    <div [hidden]="submitted || tempSubmitted">
         <h3 class="sidebar-brand">Edit {{operator}}</h3>
         <form (ngSubmit)="onSubmit()" #editOperatorForm="ngForm">
             <div class="form-group" *ngFor="let attribute of attributes">

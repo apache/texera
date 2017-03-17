@@ -1,6 +1,7 @@
 import { NgModule }      from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 import { FormsModule }   from '@angular/forms';
+import { HttpModule }    from '@angular/http';
 
 import { AppComponent }  from './app.component';
 import { NavigationBarComponent }   from './navigation-bar.component';
@@ -13,7 +14,8 @@ import { DropdownModule } from 'ng2-bootstrap';
 @NgModule({
   imports:      [ DropdownModule.forRoot(),
       BrowserModule,
-      FormsModule
+      FormsModule,
+      HttpModule
 	],
   declarations: [ AppComponent,
 		NavigationBarComponent,
