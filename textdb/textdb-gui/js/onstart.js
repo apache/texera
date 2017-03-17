@@ -239,7 +239,7 @@ var setup = function(){
 			}
 		}
 		result += "\n";
-		result.replace(/\n/g, '<br />');
+		result.replace(/\n/g, '<br/>');
 		return result;
 	};
 
@@ -371,7 +371,7 @@ var setup = function(){
 		var title = data['operators'][selectedOperator]['properties']['title'];
 
 		$('.popup').animate({
-            'bottom': '0'
+            'bottom': '10'
         }, 200);
 
 		$('#attributes').css({

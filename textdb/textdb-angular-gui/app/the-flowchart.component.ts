@@ -5,7 +5,9 @@ declare var jQuery: any;
 	moduleId: module.id,
 	selector: 'flowchart-container',
 	template: `
-		<div id="the-flowchart"></div>
+		<div id="flow-chart-container">
+			<div id="the-flowchart"></div>
+		</div>
 	`,
 	styleUrls: ['style.css']
 })
@@ -17,4 +19,5 @@ export class TheFlowchartComponent {
             multipleLinksOnOutput: true
 		});
 	}
+
 }

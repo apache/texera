@@ -62,5 +62,5 @@ export class SideBarComponent {
         this.currentDataService.setData(jQuery('#the-flowchart').flowchart('getData'));
     }
 
-}
 
+}

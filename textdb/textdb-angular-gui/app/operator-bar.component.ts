@@ -19,6 +19,44 @@ export class OperatorBarComponent {
         var container = jQuery('#the-flowchart').parent();
         var draggableOperators = jQuery('.draggable_operator');
 
+
+        // // panzoom begin
+
+        // jQuery('#the-flowchart').panzoom({
+        //   contain: true,
+        //   animate: false,
+        //   disablePan: true,
+        //   $zoomIn: jQuery('.zoom-in'),
+        //   $zoomOut: jQuery('.zoom-out'),
+        //   $reset: jQuery('.reset'),
+        // });
+        // jQuery('#the-flowchart').panzoom('pan',-cx + container.width() /2, -cy + container.height()/2);
+
+        var cx = jQuery('#the-flowchart').width() / 2;
+        var cy = jQuery('#the-flowchart').height() / 2;
+        // Panzoom initialization...
+        jQuery('#the-flowchart').panzoom({
+          disablePan: true, // disable the pan
+          // contain : true, // if pan, only can pan within flowchart div
+
+        });
+        var possibleZooms = [0.7, 0.8, 0.9, 1];
+        var currentZoom = 2;
+        container.on('mousewheel.focal', function( e ) {
+            e.preventDefault();
+            var delta = (e.delta || e.originalEvent.wheelDelta) || e.originalEvent.detail;
+            var zoomOut = delta;
+            // var zoomOut = delta ? delta < 0 : e.originalEvent.deltaY > 0;
+            currentZoom = Math.max(0, Math.min(possibleZooms.length - 1, (currentZoom + (zoomOut/40 - 1))));
+            jQuery('#the-flowchart').flowchart('setPositionRatio', possibleZooms[currentZoom]);
+            jQuery('#the-flowchart').panzoom('zoom', possibleZooms[currentZoom], {
+                animate: false,
+                focal: e
+            });
+        });
+        // // panzoom end
+
+
         var current = this;
         current.mockDataService.getMatchers().then(
             matchers => {

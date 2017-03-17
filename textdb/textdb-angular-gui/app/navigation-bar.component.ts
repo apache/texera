@@ -1,4 +1,5 @@
 import { Component } from '@angular/core';
+declare var jQuery: any;
 
 import { CurrentDataService } from './current-data-service';
 
@@ -17,4 +18,9 @@ export class NavigationBarComponent {
         this.currentDataService.setData(jQuery('#the-flowchart').flowchart('getData'));
         this.currentDataService.processData();
     }
+
+	DeleteOp(data : any){
+        jQuery('#the-flowchart').flowchart('deleteSelected');
+        this.currentDataService.setData(jQuery('#the-flowchart').flowchart('getData'));
+	}
 }
