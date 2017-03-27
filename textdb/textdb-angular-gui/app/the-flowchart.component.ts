@@ -1,6 +1,7 @@
 import { Component } from '@angular/core';
-declare var jQuery: any;
+import { CurrentDataService } from './current-data-service';
 
+declare var jQuery: any;
 @Component({
 	moduleId: module.id,
 	selector: 'flowchart-container',
@@ -9,14 +10,29 @@ declare var jQuery: any;
 			<div id="the-flowchart"></div>
 		</div>
 	`,
-	styleUrls: ['style.css']
+	styleUrls: ['style.css'],
+	providers: [CurrentDataService]
 })
 export class TheFlowchartComponent {
 
+	constructor(private currentDataService : CurrentDataService) {
+		currentDataService.newAddition$.subscribe(
+			data => {
+				console.log("In flowchart component" + data);
+				console.log("In flowchart " + data.operatorNum);
+			}
+		);
+	}
+
 	initialize(data: any) {
+		var current = this;
 		jQuery('#the-flowchart').flowchart({
 			data: data,
-            multipleLinksOnOutput: true
+    	multipleLinksOnOutput: true,
+			onOperatorSelect : function (operatorId){
+				// current.currentDataService.selectData(operatorId);
+				return true;
+			}
 		});
 	}
 

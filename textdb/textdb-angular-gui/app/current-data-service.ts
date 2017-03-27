@@ -9,6 +9,9 @@ import 'rxjs/add/operator/toPromise';
 
 import { Data } from './data';
 
+declare var jQuery: any;
+
+
 @Injectable()
 export class CurrentDataService {
     currentData : Data;
@@ -25,6 +28,7 @@ export class CurrentDataService {
 
     constructor(private http: Http) { }
 
+
     getData(): any {
         return this.currentData;
     }
@@ -36,6 +40,11 @@ export class CurrentDataService {
     addData(operatorData : any, operatorNum: number, allData : any): void {
         this.newAddition.next({operatorNum: operatorNum, operatorData: operatorData});
         this.setData(allData);
+    }
+
+
+    selectData(operatorNum : number): void {
+      this.newAddition.next({operatorNum: operatorNum, operatorData: jQuery("#the-flowchart").flowchart("getData")});
     }
 
     processData(): void {

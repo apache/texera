@@ -27,6 +27,7 @@ export class SideBarComponent {
     constructor(private currentDataService: CurrentDataService) {
         currentDataService.newAddition$.subscribe(
             data => {
+                console.log("IN EDIT WINDOW NOW = " + data.operatorNum);
                 this.submitted = false;
                 this.tempSubmitted = false;
                 this.data = data.operatorData;
@@ -62,5 +63,8 @@ export class SideBarComponent {
         this.currentDataService.setData(jQuery('#the-flowchart').flowchart('getData'));
     }
 
+    onDelete(){
+          jQuery('#the-flowchart').flowchart('deleteSelected');
+    }
 
 }
