@@ -21,6 +21,7 @@ export class NavigationBarComponent {
 
 	DeleteOp(data : any){
         jQuery('#the-flowchart').flowchart('deleteSelected');
+        this.currentDataService.clearData();
         this.currentDataService.setData(jQuery('#the-flowchart').flowchart('getData'));
 	}
 }

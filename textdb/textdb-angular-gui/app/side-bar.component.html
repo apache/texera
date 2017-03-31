@@ -37,5 +37,7 @@
             <div>{{humanize(attribute)}}: {{data.properties.attributes[attribute]}}</div>
         </div>
         <button class="btn btn-primary" (click)="submitted=false">Edit</button>
+        <button type="button" class="btn btn-default" (click) = "onDelete()">Delete</button>
+
     </div>
 </div>

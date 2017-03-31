@@ -13,6 +13,16 @@ import { Data } from './data';
 declare var jQuery: any;
 
 
+let clean_data = {
+    top: 20,
+    left: 20,
+    properties: {
+        title: 'Operator',
+        inputs: {},
+        outputs: {}
+    }
+}
+
 @Injectable()
 export class CurrentDataService {
     currentData : Data;
@@ -53,6 +63,9 @@ export class CurrentDataService {
       this.setData(jQuery("#the-flowchart").flowchart("getData"));
     }
 
+    clearData() : void {
+      this.newAddition.next({operatorNum : 0, operatorData: clean_data});
+    }
     processData(): void {
         this.TEXTDBJSON = {operators: {}, links: {}};
         var operators = [];
