@@ -211,11 +211,11 @@ let keywordSource = {
     },
     attributes : {
       operator_type : "KeywordSource",
-      keyword : "Zika",
+      keyword : "zika",
       matching_type : "conjunction",
-      attributes : "firstname, lastname",
-      limit : "100",
-      offset : "5",
+      data_source: "promed",
+      attributes : "content",
+      limit: "1",
     }
   }
 }
@@ -279,7 +279,7 @@ let Result = {
   top : 20,
   left : 20,
   properties : {
-    title : 'ResultSink',
+    title : 'TupleStreamSink',
     inputs : {
       input_1 : {
         label : "Input (:i)",
@@ -291,16 +291,16 @@ let Result = {
       }
     },
     attributes : {
-      operator_type : "ResultSink",
+      operator_type : "TupleStreamSink",
       attributes : "firstname, lastname",
-      limit : "100",
-      offset : "5",
+      limit : "100000",
+      offset : "0",
     }
   }
 }
 
 export const DEFAULT_DATA: Data[] = [
-    {id: 1, jsonData: defaultData}
+    {id: 1, jsonData: {}}
 ];
 
 export const DEFAULT_MATCHERS: Data[] = [

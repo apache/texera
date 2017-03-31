@@ -75,6 +75,7 @@ export class CurrentDataService {
             var currentOperator = this.currentData.jsonData['operators'];
             if (currentOperator.hasOwnProperty(operatorIndex)) {
                 var attributes = {};
+                attributes["operator_id"] = operatorIndex;
                 for (var attribute in currentOperator[operatorIndex]['properties']['attributes']) {
                     if (currentOperator[operatorIndex]['properties']['attributes'].hasOwnProperty(attribute)) {
                         attributes[attribute] = currentOperator[operatorIndex]['properties']['attributes'][attribute];
@@ -87,8 +88,8 @@ export class CurrentDataService {
             var destination = {};
             var currentLink = this.currentData.jsonData['links'];
             if (currentLink[link].hasOwnProperty("fromOperator")){
-                destination["from"] = currentLink[link]['fromOperator'];
-                destination["to"] = currentLink[link]['toOperator'];
+                destination["from"] = currentLink[link]['fromOperator'].toString();
+                destination["to"] = currentLink[link]['toOperator'].toString();
                 links.push(destination);
             }
         }
@@ -101,9 +102,9 @@ export class CurrentDataService {
     private sendRequest(): void {
         this.returnedData = {};
         let headers = new Headers({ 'Content-Type': 'application/json' });
-
+        console.log("TextDB JSON is:");
+        console.log(JSON.stringify(this.TEXTDBJSON));
         this.http.post(this.textdbUrl, JSON.stringify(this.TEXTDBJSON), {headers: headers})
-            .map(this.extractData)
             .subscribe(
                 data => {
                     this.returnedData = data;
@@ -154,10 +155,6 @@ export class CurrentDataService {
                     this.checkPressed.next({returnedData: JSON.stringify(sampleData)});
                 }
             );
-    }
-
-    private extractData(res: Response) {
-        return res.json().data || { };
     }
 
     private handleError(error: any): Promise<any> {

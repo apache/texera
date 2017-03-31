@@ -53,8 +53,8 @@ export class SideBarComponent {
                 this.tempArrayOfData = [];
                 this.submitted = false;
                 this.tempSubmitted = true;
-                this.tempData = JSON.parse(data.returnedData);
-                this.tempArrayOfData = Object.keys(this.tempData);
+                this.tempData = data.returnedData;
+                // this.tempArrayOfData = Object.keys(this.tempData);
             });
     }
 

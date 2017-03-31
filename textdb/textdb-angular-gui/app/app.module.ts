@@ -9,10 +9,10 @@ import { TheFlowchartComponent }   from './the-flowchart.component';
 import { OperatorBarComponent }   from './operator-bar.component';
 import { SideBarComponent }   from './side-bar.component';
 
-import { DropdownModule } from 'ng2-bootstrap';
+import { BsDropdownModule } from 'ng2-bootstrap';
 
 @NgModule({
-  imports:      [ DropdownModule.forRoot(),
+  imports:      [ BsDropdownModule.forRoot(),
       BrowserModule,
       FormsModule,
       HttpModule
