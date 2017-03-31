@@ -11,29 +11,23 @@ declare var jQuery: any;
 		</div>
 	`,
 	styleUrls: ['style.css'],
-	providers: [CurrentDataService]
 })
 export class TheFlowchartComponent {
-
-	constructor(private currentDataService : CurrentDataService) {
-		currentDataService.newAddition$.subscribe(
-			data => {
-				console.log("In flowchart component" + data);
-				console.log("In flowchart " + data.operatorNum);
-			}
-		);
-	}
-
+	constructor(private currentDataService : CurrentDataService) { }
 	initialize(data: any) {
 		var current = this;
 		jQuery('#the-flowchart').flowchart({
 			data: data,
     	multipleLinksOnOutput: true,
 			onOperatorSelect : function (operatorId){
-				// current.currentDataService.selectData(operatorId);
+				console.log("operator is selected");
+				current.currentDataService.selectData(operatorId);
+				return true;
+			},
+			onOperatorUnselect : function (operatorId){
+				console.log("operator is unselected");
 				return true;
 			}
 		});
 	}
-
 }

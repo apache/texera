@@ -1,10 +1,12 @@
 import { Component, ViewChild } from '@angular/core';
 
+import { MockDataService } from './mock-data-service';
+import { CurrentDataService } from './current-data-service';
+
 import { TheFlowchartComponent } from './the-flowchart.component';
 import { OperatorBarComponent } from './operator-bar.component';
 
-import { MockDataService } from './mock-data-service';
-import { CurrentDataService } from './current-data-service';
+
 
 declare var jQuery: any;
 

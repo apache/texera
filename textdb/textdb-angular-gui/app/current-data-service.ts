@@ -7,6 +7,7 @@ import 'rxjs/add/operator/catch';
 import 'rxjs/add/operator/map';
 import 'rxjs/add/operator/toPromise';
 
+
 import { Data } from './data';
 
 declare var jQuery: any;
@@ -24,9 +25,11 @@ export class CurrentDataService {
     private checkPressed = new Subject<any>();
     checkPressed$ = this.checkPressed.asObservable();
 
+
     private textdbUrl = 'http://localhost:8080/queryplan/execute';
 
     constructor(private http: Http) { }
+
 
 
     getData(): any {
@@ -42,9 +45,12 @@ export class CurrentDataService {
         this.setData(allData);
     }
 
-
     selectData(operatorNum : number): void {
-      this.newAddition.next({operatorNum: operatorNum, operatorData: jQuery("#the-flowchart").flowchart("getData")});
+      var data_now = jQuery("#the-flowchart").flowchart("getOperatorData",operatorNum);
+      this.newAddition.next({operatorNum: operatorNum, operatorData: data_now});
+      console.log("Current Num = " + operatorNum);
+
+      this.setData(jQuery("#the-flowchart").flowchart("getData"));
     }
 
     processData(): void {

@@ -22,12 +22,20 @@ export class SideBarComponent {
     tempData: any;
     tempArrayOfData: any;
 
+    selectorList : string[] = ["matching_type","nlp_type","predicate_type"];
+    matcherList : string[] = ["conjunction","phrase","substring"];
+    nlpList : string[] = ["noun","verb","adjective","adverb","ne_all","number","location","person","organization","money","percent","date","time"];
+    predicateList : string[] = ["CharacterThreshold", "SimilarityJoin"];
 
+    checkInSelector(name: string){
+      return jQuery.inArray(name,this.selectorList);
+    }
 
     constructor(private currentDataService: CurrentDataService) {
         currentDataService.newAddition$.subscribe(
             data => {
                 console.log("IN EDIT WINDOW NOW = " + data.operatorNum);
+                console.log("Current data num = " + data.operatorNum);
                 this.submitted = false;
                 this.tempSubmitted = false;
                 this.data = data.operatorData;
@@ -37,6 +45,7 @@ export class SideBarComponent {
                 for(var attribute in data.operatorData.properties.attributes){
                     this.attributes.push(attribute);
                 }
+                console.log(this.attributes);
             });
 
         currentDataService.checkPressed$.subscribe(
@@ -64,7 +73,10 @@ export class SideBarComponent {
     }
 
     onDelete(){
+          this.submitted = false;
+          this.tempSubmitted = false;
+          this.operator = "Operator";
+          this.attributes = [];
           jQuery('#the-flowchart').flowchart('deleteSelected');
     }
-
 }

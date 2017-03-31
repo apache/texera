@@ -9,15 +9,24 @@
     </div>
 
 
-    <div [hidden]="submitted || tempSubmitted">
+    <div [hidden]="submitted || tempSubmitted || attributes.length === 0">
         <h3 class="sidebar-brand">Edit {{operator}}</h3>
         <form (ngSubmit)="onSubmit()" #editOperatorForm="ngForm">
             <div class="form-group" *ngFor="let attribute of attributes">
                 <label for="{{attribute}}">{{humanize(attribute)}}</label>
-                <input [(ngModel)]="data.properties.attributes[attribute]" name="{{attribute}}" type="text" class="form-control" id="{{attribute}}" value="{{data.properties.attributes[attribute]}}" #{{attribute}}="ngModel" required>
+                <select *ngIf="attribute === 'matching_type'" class="form-control" id="{{attribute}}" required  [(ngModel)]="data.properties.attributes[attribute]" name="{{attribute}}" #{{attribute}}="ngModel">
+                  <option *ngFor="let matcher of matcherList" [value] = "matcher">{{matcher}}</option>
+                </select>
+                <select *ngIf="attribute === 'nlp_type'" class="form-control" id="{{attribute}}" required  [(ngModel)]="data.properties.attributes[attribute]" name="{{attribute}}" #{{attribute}}="ngModel">
+                  <option *ngFor="let nlp of nlpList" [value] = "nlp">{{nlp}}</option>
+                </select>
+                <select *ngIf="attribute === 'predicate_type'" class="form-control" id="{{attribute}}" required  [(ngModel)]="data.properties.attributes[attribute]" name="{{attribute}}" #{{attribute}}="ngModel">
+                  <option *ngFor="let predicate of predicateList" [value] = "predicate">{{predicate}}</option>
+                </select>
+                <input *ngIf="checkInSelector(attribute) === -1" [(ngModel)]="data.properties.attributes[attribute]" name="{{attribute}}" type="text" class="form-control" id="{{attribute}}" value="{{data.properties.attributes[attribute]}}" #{{attribute}}="ngModel" required>
             </div>
-            <button type="submit" class="btn btn-success" [disabled]="!editOperatorForm.form.valid">OK</button>
-            <button class="btn btn-default" (click) = "onDelete()">Delete</button>
+            <button type="submit" class="btn btn-success" [disabled]="!editOperatorForm.form.valid">Save</button>
+            <button type="button" class="btn btn-default" (click) = "onDelete()">Delete</button>
 
 
         </form>

@@ -240,7 +240,7 @@ let Join = {
     },
     attributes : {
       operator_type : "Join",
-      predicate_type : "Characterthreshold",
+      predicate_type : "CharacterThreshold",
       threshold : "100",
       inner_attribute : "name1",
       outer_attribute : "name2",
