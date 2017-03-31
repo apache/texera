@@ -25,7 +25,7 @@ export class SideBarComponent {
     selectorList : string[] = ["matching_type","nlp_type","predicate_type"];
     matcherList : string[] = ["conjunction","phrase","substring"];
     nlpList : string[] = ["noun","verb","adjective","adverb","ne_all","number","location","person","organization","money","percent","date","time"];
-    predicateList : string[] = ["CharacterThreshold", "SimilarityJoin"];
+    predicateList : string[] = ["CharacterDistance", "SimilarityJoin"];
 
     checkInSelector(name: string){
       return jQuery.inArray(name,this.selectorList);
