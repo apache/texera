@@ -279,15 +279,15 @@ public class RelationManager {
         
         return new Schema(tableSchemaData.stream().toArray(Attribute[]::new));
     }
-
+    
     /**
-     * Gets the Lucene analyzer of a table.
+     * Gets the Lucene analyzer string of a table.
      *   
      * @param tableName
      * @return
      * @throws StorageException
      */
-    public Analyzer getTableAnalyzer(String tableName) throws StorageException {
+    public String getTableAnalyzerString(String tableName) throws StorageException {
         // get the tuples with tableName from the table catalog
         Query tableNameQuery = new TermQuery(new Term(CatalogConstants.TABLE_NAME, tableName));
 
@@ -306,6 +306,19 @@ public class RelationManager {
         // get the lucene analyzer string
         IField analyzerField = nextTuple.getField(CatalogConstants.TABLE_LUCENE_ANALYZER);
         String analyzerString = analyzerField.getValue().toString();
+        
+        return analyzerString;
+    }
+
+    /**
+     * Gets the Lucene analyzer of a table.
+     *   
+     * @param tableName
+     * @return
+     * @throws StorageException
+     */
+    public Analyzer getTableAnalyzer(String tableName) throws StorageException {
+        String analyzerString = getTableAnalyzerString(tableName);
         
         // convert a lucene analyzer string to an analyzer object
         Analyzer luceneAnalyzer = null;
