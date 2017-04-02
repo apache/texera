@@ -58,8 +58,6 @@ export class CurrentDataService {
     selectData(operatorNum : number): void {
       var data_now = jQuery("#the-flowchart").flowchart("getOperatorData",operatorNum);
       this.newAddition.next({operatorNum: operatorNum, operatorData: data_now});
-      console.log("Current Num = " + operatorNum);
-
       this.setData(jQuery("#the-flowchart").flowchart("getData"));
     }
 

@@ -22,11 +22,15 @@ export class SideBarComponent {
     tempData: any;
     tempArrayOfData: any;
 
-    selectorList : string[] = ["matching_type","nlp_type","predicate_type"];
+    hiddenList : string[] = ["operator_type","limit","offset"];
+    selectorList : string[] = ["matching_type","nlp_type","predicate_type","operator_type","limit","offset"];
     matcherList : string[] = ["conjunction","phrase","substring"];
     nlpList : string[] = ["noun","verb","adjective","adverb","ne_all","number","location","person","organization","money","percent","date","time"];
     predicateList : string[] = ["CharacterDistance", "SimilarityJoin"];
 
+    checkInHidden(name : string){
+      return jQuery.inArray(name,this.hiddenList);
+    }
     checkInSelector(name: string){
       return jQuery.inArray(name,this.selectorList);
     }
@@ -34,8 +38,6 @@ export class SideBarComponent {
     constructor(private currentDataService: CurrentDataService) {
         currentDataService.newAddition$.subscribe(
             data => {
-                console.log("IN EDIT WINDOW NOW = " + data.operatorNum);
-                console.log("Current data num = " + data.operatorNum);
                 this.submitted = false;
                 this.tempSubmitted = false;
                 this.data = data.operatorData;
@@ -45,7 +47,6 @@ export class SideBarComponent {
                 for(var attribute in data.operatorData.properties.attributes){
                     this.attributes.push(attribute);
                 }
-                console.log(this.attributes);
             });
 
         currentDataService.checkPressed$.subscribe(
@@ -54,8 +55,13 @@ export class SideBarComponent {
                 this.submitted = false;
                 this.tempSubmitted = true;
                 this.tempData = data.returnedData;
+                console.log(this.tempData);
                 // this.tempArrayOfData = Object.keys(this.tempData);
             });
+    }
+
+    createResultFrame (JSON_Data : string) {
+      return JSON_Data;
     }
 
     humanize(name: string): string{
@@ -78,5 +84,6 @@ export class SideBarComponent {
           this.operator = "Operator";
           this.attributes = [];
           jQuery('#the-flowchart').flowchart('deleteSelected');
+          this.currentDataService.setData(jQuery('#the-flowchart').flowchart('getData'));
     }
 }

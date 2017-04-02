@@ -149,7 +149,7 @@ let nlpMatcher = {
   top : 20,
   left : 20,
   properties : {
-    title : 'NLPMatcher',
+    title : 'NlpExtractor',
     inputs : {
       input_1 : {
         label : 'Input(:i)',
@@ -215,10 +215,95 @@ let keywordSource = {
       matching_type : "conjunction",
       data_source: "promed",
       attributes : "content",
-      limit: "1",
+      limit: "10",
+      offset : "5",
     }
   }
 }
+
+
+let DictionarySource = {
+  top : 20,
+  left : 20,
+  properties : {
+    title : 'DictionarySource',
+    inputs : {
+      input_1 : {
+        label : "Input (:i)",
+      }
+    },
+    outputs : {
+      output_1 : {
+        label : "Output (:i)",
+      }
+    },
+    attributes : {
+      operator_type : "DictionarySource",
+      dictionary : "SampleDict1.txt",
+      matching_type : "conjunction",
+      data_source: "promed",
+      attributes : "content",
+      limit: "1",
+      offset : "5",
+
+    }
+  }
+}
+
+let RegexSource = {
+  top : 20,
+  left : 20,
+  properties : {
+    title : 'RegexSource',
+    inputs : {
+      input_1 : {
+        label : "Input (:i)",
+      }
+    },
+    outputs : {
+      output_1 : {
+        label : "Output (:i)",
+      }
+    },
+    attributes : {
+      operator_type : "RegexSource",
+      data_source: "promed",
+      regex : "zika\s*(virus|fever)",
+      attributes : "content",
+      limit: "1",
+      offset : "5",
+    }
+  }
+}
+
+let FuzzyTokenSource = {
+  top : 20,
+  left : 20,
+  properties : {
+    title : 'FuzzyTokenSource',
+    inputs : {
+      input_1 : {
+        label : "Input (:i)",
+      }
+    },
+    outputs : {
+      output_1 : {
+        label : "Output (:i)",
+      }
+    },
+    attributes : {
+      operator_type : "FuzzyTokenSource",
+      data_source: "promed",
+      query : "FuzzyWuzzy",
+	    threshold_ratio : "0.8",
+      attributes : "content",
+      limit: "1",
+      offset : "5",
+    }
+  }
+}
+
+
 
 let Join = {
   top : 20,
@@ -302,6 +387,7 @@ let Result = {
 export const DEFAULT_DATA: Data[] = [
     {id: 1, jsonData: {}}
 ];
+// DictionarySource, RegexSource, FuzzyTokenSource
 
 export const DEFAULT_MATCHERS: Data[] = [
     {id: 0, jsonData: regexMatcher},
@@ -311,7 +397,10 @@ export const DEFAULT_MATCHERS: Data[] = [
     {id: 4, jsonData: nlpMatcher},
     {id: 5, jsonData: Projection},
     {id: 6, jsonData: keywordSource},
-    {id: 7, jsonData: Join},
-    {id: 8, jsonData: fileOutput},
-    {id: 9, jsonData: Result}
+    {id: 7, jsonData: DictionarySource},
+    {id: 8, jsonData: RegexSource},
+    {id: 9, jsonData: FuzzyTokenSource},
+    {id: 10, jsonData: Join},
+    {id: 11, jsonData: fileOutput},
+    {id: 12, jsonData: Result}
 ];

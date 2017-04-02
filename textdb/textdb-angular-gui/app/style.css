@@ -14,7 +14,9 @@ body {
 	margin: 0px;
 	padding: 0px;
 	padding-right: 5px;
+	overflow-x: auto;
 }
+
 
 #css-operator-bar{
 	border: 1px solid black;
@@ -42,11 +44,11 @@ body {
 #sidebar-wrapper {
     margin-left: 0px;
     left: 0px;
-    width: 250px;
+    width: 240px;
     background: #000;
     position: fixed;
     color: white;
-    height: 100%;
+    height: calc(100% - 100px);
     overflow-y: auto;
     z-index: 1000;
 }
@@ -54,10 +56,14 @@ body {
 .sidebar-nav {
     position: absolute;
     top: 0;
-    width: 250px;
+    width: 240px;
     margin: 0;
     padding: 0;
     list-style: none;
+}
+
+.form-control {
+	width : 220px;
 }
 
 .ng-valid[required], .ng-valid.required  {
@@ -66,6 +72,7 @@ body {
 .ng-invalid:not(form)  {
     border-left: 5px solid #a94442; /* red */
 }
+
 
 /*#the-flowchart {
 	left: 250px;
@@ -81,8 +88,8 @@ body {
 }
 
 #flow-chart-container{
-	width: calc(100% - 250px);;
-	left: 250px;
+	width: calc(100% - 240px);;
+	left: 240px;
 	height: calc(100%);
 	background: #d3d3d3;
 }
