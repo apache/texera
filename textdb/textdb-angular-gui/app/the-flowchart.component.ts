@@ -13,9 +13,29 @@ declare var jQuery: any;
 	styleUrls: ['style.css'],
 })
 export class TheFlowchartComponent {
+
 	constructor(private currentDataService : CurrentDataService) { }
 	initialize(data: any) {
+
+
 		var current = this;
+		
+		jQuery('html').keyup(function(e){ //key binding function
+			if(e.keyCode === 8){ //backspace
+				var current_id = jQuery('#the-flowchart').flowchart('getSelectedOperatorId');
+				if (current_id !== null){
+					jQuery('#the-flowchart').flowchart('deleteSelected');
+					current.currentDataService.clearData();
+				}
+			} else if (e.keyCode === 46){ //delete
+				var current_id = jQuery('#the-flowchart').flowchart('getSelectedOperatorId');
+				if (current_id !== null){
+					jQuery('#the-flowchart').flowchart('deleteSelected');
+					current.currentDataService.clearData();
+				}
+			}
+		})
+
 		jQuery('#the-flowchart').flowchart({
 			data: data,
     	multipleLinksOnOutput: true,
