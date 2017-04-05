@@ -377,6 +377,9 @@ let Result = {
     },
     attributes : {
       operator_type : "TupleStreamSink",
+      attributes : "content",
+      limit : "1000000",
+      offset : "0"
     }
   }
 }
