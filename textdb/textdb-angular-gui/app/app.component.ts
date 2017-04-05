@@ -41,6 +41,8 @@ export class AppComponent {
                 jQuery(document).ready(function() {
                     current.theFlowchart.initialize(loadingData);
                     current.theOperatorBar.initialize();
+                  
+
                 });
             },
             error => {
