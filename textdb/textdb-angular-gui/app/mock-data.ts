@@ -62,8 +62,8 @@ let keywordMatcher = {
             keyword : "zika",
             matching_type : "conjunction",
             attributes : "content",
-            limit : "10",
-            offset : "5"
+            limit : "1000000",
+            offset : "0"
         }
     }
 };
@@ -85,10 +85,10 @@ let regexMatcher = {
     },
     attributes : {
       operator_type : "RegexMatcher",
-      regex : "\b(A|a|(an)|(An))[^,.]{0,40} ((woman)|(man))\b",
-      limit : "100",
+      regex : "\\b(A|a|(an)|(An))[^,.]{0,40} ((woman)|(man))\\b",
+      limit : "1000000",
       attributes : "content",
-      offset : "5"
+      offset : "0"
     }
   }
 };
@@ -113,8 +113,8 @@ let dictionaryMatcher = {
       dictionary : "SampleDict1.txt",
       matching_type : "conjunction",
       attributes : "firstname, lastname",
-      limit : "100",
-      offset : "10"
+      limit : "1000000",
+      offset : "0"
     }
   }
 }
@@ -139,8 +139,8 @@ let FuzzyMatcher = {
       query : "FuzzyWuzzy",
       threshold_ratio : "0.8",
       attributes : "firstname, lastname",
-      limit : "10",
-      offset : "5",
+      limit : "1000000",
+      offset : "0",
     }
   }
 }
@@ -164,8 +164,8 @@ let nlpMatcher = {
       operator_type : "NlpExtractor",
       nlp_type : "location",
       attributes : "content",
-      limit : "100",
-      offset : "5"
+      limit : "1000000",
+      offset : "0"
     }
   }
 }
@@ -188,8 +188,8 @@ let Projection = {
     attributes : {
       operator_type : "Projection",
       attributes : "_id, content",
-      limit : "100",
-      offset : "5",
+      limit : "1000000",
+      offset : "0",
     }
   }
 }
@@ -215,8 +215,8 @@ let keywordSource = {
       matching_type : "conjunction",
       data_source: "promed",
       attributes : "content",
-      limit: "200",
-      offset : "5",
+      limit : "1000000",
+      offset : "0",
     }
   }
 }
@@ -243,8 +243,8 @@ let DictionarySource = {
       matching_type : "conjunction",
       data_source: "promed",
       attributes : "content",
-      limit: "1",
-      offset : "5",
+      limit : "1000000",
+      offset : "0",
 
     }
   }
@@ -268,10 +268,10 @@ let RegexSource = {
     attributes : {
       operator_type : "RegexSource",
       data_source: "promed",
-      regex : "zika\s*(virus|fever)",
+      regex : "\\b(A|a|(an)|(An))[^,.]{0,40} ((woman)|(man))\\b",
       attributes : "content",
-      limit: "1",
-      offset : "5",
+      limit : "1000000",
+      offset : "0",
     }
   }
 }
@@ -297,8 +297,8 @@ let FuzzyTokenSource = {
       query : "FuzzyWuzzy",
 	    threshold_ratio : "0.8",
       attributes : "content",
-      limit: "1",
-      offset : "5",
+      limit : "1000000",
+      offset : "0",
     }
   }
 }
@@ -329,8 +329,8 @@ let Join = {
       threshold : "100",
       inner_attribute : "content",
       outer_attribute : "content",
-      limit : "100",
-      offset : "5"
+      limit : "1000000",
+      offset : "0"
     }
   }
 }
@@ -354,8 +354,8 @@ let fileOutput = {
       operator_type : "FileSink",
       file_path : "output.txt",
       attributes : "firstname, lastname",
-      limit : "100",
-      offset : "5",
+      limit : "1000000",
+      offset : "0",
     }
   }
 }
@@ -377,9 +377,6 @@ let Result = {
     },
     attributes : {
       operator_type : "TupleStreamSink",
-      attributes : "firstname, lastname",
-      limit : "100000",
-      offset : "0",
     }
   }
 }
