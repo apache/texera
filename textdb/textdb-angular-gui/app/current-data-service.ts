@@ -99,60 +99,69 @@ export class CurrentDataService {
 
     private sendRequest(): void {
         this.returnedData = {};
-        let headers = new Headers({ 'Content-Type': 'application/json' });
-        console.log("TextDB JSON is:");
-        console.log(JSON.stringify(this.TEXTDBJSON));
-        this.http.post(this.textdbUrl, JSON.stringify(this.TEXTDBJSON), {headers: headers})
-            .subscribe(
-                data => {
-                    this.returnedData = data;
-                    this.checkPressed.next({returnedData: data});
+        let sampleData = {
+            operators: {
+                operator1: {
+                    top: 20,
+                    left: 20,
+                    properties: {
+                        title: 'Operator 1',
+                        inputs: {},
+                        outputs: {
+                            output_1: {
+                                label: 'Output 1',
+                            }
+                        }
+                    }
                 },
-                err => {
-                    let sampleData = {
-                        operators: {
-                            operator1: {
-                                top: 20,
-                                left: 20,
-                                properties: {
-                                    title: 'Operator 1',
-                                    inputs: {},
-                                    outputs: {
-                                        output_1: {
-                                            label: 'Output 1',
-                                        }
-                                    }
-                                }
+                operator2: {
+                    top: 80,
+                    left: 300,
+                    properties: {
+                        title: 'Operator 2',
+                        inputs: {
+                            input_1: {
+                                label: 'Input 1',
                             },
-                            operator2: {
-                                top: 80,
-                                left: 300,
-                                properties: {
-                                    title: 'Operator 2',
-                                    inputs: {
-                                        input_1: {
-                                            label: 'Input 1',
-                                        },
-                                        input_2: {
-                                            label: 'Input 2',
-                                        },
-                                    },
-                                    outputs: {}
-                                }
+                            input_2: {
+                                label: 'Input 2',
                             },
                         },
-                        links: {
-                            link_1: {
-                                fromOperator: 'operator1',
-                                fromConnector: 'output_1',
-                                toOperator: 'operator2',
-                                toConnector: 'input_2',
-                            },
-                        }
-                    };
-                    this.checkPressed.next({returnedData: JSON.stringify(sampleData)});
-                }
-            );
+                        outputs: {}
+                    }
+                },
+            },
+            links: {
+                link_1: {
+                    fromOperator: 'operator1',
+                    fromConnector: 'output_1',
+                    toOperator: 'operator2',
+                    toConnector: 'input_2',
+                },
+            }
+        };
+
+        if (this.TEXTDBJSON.links.length === 0){
+          console.log("No links available");
+          this.checkPressed.next({returnedData: JSON.stringify(sampleData)});
+        } else {
+          let headers = new Headers({ 'Content-Type': 'application/json' });
+          console.log("TextDB JSON is:");
+          console.log(JSON.stringify(this.TEXTDBJSON));
+          this.http.post(this.textdbUrl, JSON.stringify(this.TEXTDBJSON), {headers: headers})
+              .subscribe(
+                  data => {
+                    console.log("OKAY in getting server data");
+
+                      this.returnedData = data;
+                      this.checkPressed.next({returnedData: data});
+                  },
+                  err => {
+                      console.log("Error in getting server data");
+                      this.checkPressed.next({returnedData: JSON.stringify(sampleData)});
+                  }
+              );
+        }
     }
 
     private handleError(error: any): Promise<any> {

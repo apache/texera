@@ -85,9 +85,9 @@ let regexMatcher = {
     },
     attributes : {
       operator_type : "RegexMatcher",
-      regex : "zika\s*(virus|fever)",
+      regex : "\b(A|a|(an)|(An))[^,.]{0,40} ((woman)|(man))\b",
       limit : "100",
-      attributes : "first name, last name",
+      attributes : "content",
       offset : "5"
     }
   }
@@ -139,7 +139,7 @@ let FuzzyMatcher = {
       query : "FuzzyWuzzy",
       threshold_ratio : "0.8",
       attributes : "firstname, lastname",
-      limit : "100",
+      limit : "10",
       offset : "5",
     }
   }
@@ -162,8 +162,8 @@ let nlpMatcher = {
     },
     attributes : {
       operator_type : "NlpExtractor",
-      nlp_type : "noun",
-      attributes : "first name, last name",
+      nlp_type : "location",
+      attributes : "content",
       limit : "100",
       offset : "5"
     }
@@ -187,7 +187,7 @@ let Projection = {
     },
     attributes : {
       operator_type : "Projection",
-      attributes : "firstname, lastname",
+      attributes : "_id, content",
       limit : "100",
       offset : "5",
     }
@@ -215,7 +215,7 @@ let keywordSource = {
       matching_type : "conjunction",
       data_source: "promed",
       attributes : "content",
-      limit: "10",
+      limit: "200",
       offset : "5",
     }
   }
@@ -327,8 +327,8 @@ let Join = {
       operator_type : "Join",
       predicate_type : "CharacterDistance",
       threshold : "100",
-      inner_attribute : "name1",
-      outer_attribute : "name2",
+      inner_attribute : "content",
+      outer_attribute : "content",
       limit : "100",
       offset : "5"
     }

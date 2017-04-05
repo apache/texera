@@ -1,6 +1,8 @@
-import { Component } from '@angular/core';
+import { Component , ViewChild} from '@angular/core';
 
 import { CurrentDataService } from './current-data-service';
+import { ModalComponent } from 'ng2-bs3-modal/ng2-bs3-modal';
+
 
 declare var jQuery: any;
 
@@ -20,6 +22,8 @@ export class SideBarComponent {
 
     tempSubmitted = false;
     tempData: any;
+    tempDataFormatted : any;
+    tempDataBeautify: any;
     tempArrayOfData: any;
 
     hiddenList : string[] = ["operator_type","limit","offset"];
@@ -27,6 +31,15 @@ export class SideBarComponent {
     matcherList : string[] = ["conjunction","phrase","substring"];
     nlpList : string[] = ["noun","verb","adjective","adverb","ne_all","number","location","person","organization","money","percent","date","time"];
     predicateList : string[] = ["CharacterDistance", "SimilarityJoin"];
+
+    @ViewChild('MyModal')
+    modal: ModalComponent;
+    ModalOpen() {
+        this.modal.open();
+    }
+    ModalClose() {
+        this.modal.close();
+    }
 
     checkInHidden(name : string){
       return jQuery.inArray(name,this.hiddenList);
@@ -39,7 +52,7 @@ export class SideBarComponent {
         currentDataService.newAddition$.subscribe(
             data => {
                 this.submitted = false;
-                this.tempSubmitted = false;
+                // this.tempSubmitted = false;
                 this.data = data.operatorData;
                 this.operatorId = data.operatorNum;
                 this.operator = data.operatorData.properties.title;
@@ -53,15 +66,49 @@ export class SideBarComponent {
             data => {
                 this.tempArrayOfData = [];
                 this.submitted = false;
-                this.tempSubmitted = true;
+                // this.tempSubmitted = true;
                 this.tempData = data.returnedData;
-                console.log(this.tempData);
+                this.formatData();
+                console.log(JSON.stringify(this.tempData));
+                // console.log("checkPressed log = " + this.tempData.jsonData);
                 // this.tempArrayOfData = Object.keys(this.tempData);
             });
     }
 
-    createResultFrame (JSON_Data : string) {
-      return JSON_Data;
+    formatData() : void {
+      // console.log(typeof (this.tempData["_body"]["message"]));
+      this.tempDataFormatted = JSON.stringify(this.tempData);
+      if (this.tempDataFormatted.charAt(0) === "\""){
+        this.tempDataFormatted = this.tempDataFormatted.slice(1,-1);
+      }
+
+
+      console.log(this.tempDataFormatted);
+
+
+      this.tempDataFormatted = this.tempDataFormatted.replace(/\\\"/g,"\"");
+
+      this.tempDataFormatted = this.tempDataFormatted.replace(/\\\\\"/g,"\"");
+      this.tempDataFormatted = this.tempDataFormatted.replace(/\\\"/g,"\"");
+      this.tempDataFormatted = this.tempDataFormatted.replace(/\\\\\\\\/g,"\\\"");
+
+      console.log(this.tempDataFormatted);
+
+
+      this.tempDataFormatted = this.tempDataFormatted.replace(/\"{\"/g,"{\"");
+      this.tempDataFormatted = this.tempDataFormatted.replace(/\"\[{\"/g,"\[{\"");
+      this.tempDataFormatted = this.tempDataFormatted.replace(/\"}\"/g,"}");
+
+      this.tempDataFormatted = this.tempDataFormatted.replace(/\"\[\]/g,"\[\]");
+      console.log(this.tempDataFormatted);
+
+
+
+      this.tempData = JSON.parse(this.tempDataFormatted);
+      this.tempDataBeautify = JSON.stringify(this.tempData, null, 4); // beautifying the JSON
+      console.log(this.tempDataBeautify);
+      this.ModalOpen();
+
     }
 
     humanize(name: string): string{
