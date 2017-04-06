@@ -130,7 +130,7 @@ export class SideBarComponent {
           this.tempSubmitted = false;
           this.operator = "Operator";
           this.attributes = [];
-          jQuery('#the-flowchart').flowchart('deleteSelected');
+          jQuery("#the-flowchart").flowchart("deleteOperator", this.operatorId);
           this.currentDataService.setData(jQuery('#the-flowchart').flowchart('getData'));
     }
 }

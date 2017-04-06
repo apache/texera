@@ -13,17 +13,25 @@ declare var jQuery: any;
 	styleUrls: ['style.css'],
 })
 export class TheFlowchartComponent {
-
-	constructor(private currentDataService : CurrentDataService) { }
+	TheOperatorNumNow : number;
+	constructor(private currentDataService : CurrentDataService) {
+		currentDataService.newAddition$.subscribe(
+			data => {
+				console.log("IN NEW ADDITION : " + data.operatorNum);
+				this.TheOperatorNumNow =  data.operatorNum;
+			}
+		);
+	}
 	initialize(data: any) {
 
 
 		var current = this;
 
+
 		// unselect operator when user click other div
 		jQuery('html').mouseup(function(e){
-			var container = jQuery("#flow-chart-container");
-			if (!container.is(e.target)){
+			var container = jQuery(".form-control");
+			if (container.is(e.target)){
 				jQuery("#the-flowchart").flowchart("unselectOperator");
 			}
 		});

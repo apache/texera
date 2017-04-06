@@ -10,17 +10,24 @@ declare var jQuery: any;
     styleUrls: ['style.css']
 })
 export class NavigationBarComponent {
+  operatorId: number;
 
-  constructor(private currentDataService: CurrentDataService) { }
+  constructor(private currentDataService: CurrentDataService) {
+    currentDataService.newAddition$.subscribe(
+      data => {
+        this.operatorId = data.operatorNum;
+      }
+    );
+  }
 
 
   onClick(event) {
         this.currentDataService.setData(jQuery('#the-flowchart').flowchart('getData'));
         this.currentDataService.processData();
   }
-  
+
 	DeleteOp(data : any){
-        jQuery('#the-flowchart').flowchart('deleteSelected');
+        jQuery("#the-flowchart").flowchart("deleteOperator", this.operatorId);
         this.currentDataService.clearData();
         this.currentDataService.setData(jQuery('#the-flowchart').flowchart('getData'));
 	}
