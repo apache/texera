@@ -1,0 +1,95 @@
+html {
+	height: 100%;
+}
+
+body {
+	height: 100%;
+	-webkit-box-sizing: border-box; /* Safari/Chrome, other WebKit */
+	-moz-box-sizing: border-box;    /* Firefox, other Gecko */
+	box-sizing: border-box;         /* Opera/IE 8+ */
+}
+
+.navbar{
+	line-height: 50px;
+	margin: 0px;
+	padding: 0px;
+	padding-right: 5px;
+	overflow-x: auto;
+}
+
+
+#css-operator-bar{
+	border: 1px solid black;
+	border-radius: 0px;
+	color: white;
+	background: black;
+}
+
+.previous-operators{
+	margin-left: 30px;
+}
+
+.fill {
+	padding: 0px;
+	margin: 0px;
+	border: 0px;
+}
+
+#wrapper {
+    padding-left: 0px;
+    width: 100%;
+    height: calc(100% - 104px);
+}
+
+#sidebar-wrapper {
+    margin-left: 0px;
+    left: 0px;
+    width: 240px;
+    background: #000;
+    position: fixed;
+    color: white;
+    height: calc(100% - 100px);
+    overflow-y: auto;
+    z-index: 1000;
+}
+
+.sidebar-nav {
+    position: absolute;
+    top: 0;
+    width: 240px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.form-control {
+	width : 220px;
+}
+
+.ng-valid[required], .ng-valid.required  {
+    border-left: 5px solid #42A948; /* green */
+}
+.ng-invalid:not(form)  {
+    border-left: 5px solid #a94442; /* red */
+}
+
+
+/*#the-flowchart {
+	left: 250px;
+    width: calc(100% - 250px);
+	height: 100%;
+	background: #d3d3d3;
+}*/
+
+#the-flowchart {
+	width: calc(100%);
+	height: calc(100%);
+	background: #d3d3d3;
+}
+
+#flow-chart-container{
+	width: calc(100% - 240px);;
+	left: 240px;
+	height: calc(100%);
+	background: #d3d3d3;
+}
