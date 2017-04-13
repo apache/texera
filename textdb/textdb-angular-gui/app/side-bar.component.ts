@@ -5,6 +5,9 @@ import { ModalComponent } from 'ng2-bs3-modal/ng2-bs3-modal';
 
 
 declare var jQuery: any;
+declare var Backbone : any;
+
+declare var PrettyJSON : any;
 
 @Component({
     moduleId: module.id,
@@ -107,6 +110,14 @@ export class SideBarComponent {
       this.tempData = JSON.parse(this.tempDataFormatted);
       this.tempDataBeautify = JSON.stringify(this.tempData, null, 4); // beautifying the JSON
       console.log(this.tempDataBeautify);
+
+
+      var node = new PrettyJSON.view.Node({
+        el: jQuery("#elem"),
+        data: this.tempData
+      });
+
+
       this.ModalOpen();
 
     }
