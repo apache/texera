@@ -414,35 +414,27 @@ public class RelationManager {
                 .findAny().orElse(null);
     }
 
-
     public static HashMap<String, Object> printTables() throws Exception {
         Directory indexDirectory = FSDirectory.open(Paths.get(CatalogConstants.SCHEMA_CATALOG_DIRECTORY));
 
         IndexReader r = DirectoryReader.open(indexDirectory);
 
-        List<String> result = new ArrayList<>();
+        HashMap<String, Object> result = new HashMap<>();
         System.out.println(r.numDocs());
         for (int i = 0; i < r.numDocs(); i++) {
             Document doc = r.document(i);
-            if (doc.get("tableName").equals("tableCatalog") || doc.get("tableName").equals("schemaCatalog"))
-                continue;
-            else {
-                result.add(doc.get("tableName"));
+            String tableName = doc.get(CatalogConstants.TABLE_NAME);
+
+            if (!tableName.equals(CatalogConstants.TABLE_CATALOG) && !tableName.equals(CatalogConstants.SCHEMA_CATALOG)) {
+                try {
+                    result.put(tableName, RelationManager.getRelationManager().getTableSchema(tableName).getAttributes());
+                } catch (StorageException e) {
+                    result.put(tableName, new ArrayList<>());
+                }
             }
         }
 
-
-
-        HashMap<String, Object> result2 = new HashMap<>();
-        for (String tableName : result) {
-            try {
-                result2.put(tableName, RelationManager.getRelationManager().getTableSchema(tableName).getAttributes());
-            } catch (StorageException e) {
-                result2.put(tableName, new ArrayList<>());
-            }
-        }
-
-        result2.put("code", 0);
-        return result2;
+        result.put("code", 0);
+        return result;
     }
 }

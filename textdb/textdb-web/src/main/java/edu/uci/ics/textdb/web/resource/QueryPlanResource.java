@@ -94,7 +94,6 @@ public class QueryPlanResource {
     //TODO::fix input parameter as per front-end code
     public Response initQueryPlan(QueryPlanRequest queryPlanRequest) throws Exception {
         ObjectMapper objectMapper = new ObjectMapper();
-
         RelationManager relationManager = RelationManager.getRelationManager();
 
         StringWriter stringWriter = new StringWriter();
