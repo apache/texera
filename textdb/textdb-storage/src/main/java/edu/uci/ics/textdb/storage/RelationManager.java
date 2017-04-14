@@ -1,12 +1,21 @@
 package edu.uci.ics.textdb.storage;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.lucene.analysis.Analyzer;
+import org.apache.lucene.document.Document;
+import org.apache.lucene.index.DirectoryReader;
+import org.apache.lucene.index.IndexReader;
 import org.apache.lucene.index.Term;
+import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.TermQuery;
 
@@ -22,6 +31,8 @@ import edu.uci.ics.textdb.api.tuple.Tuple;
 import edu.uci.ics.textdb.api.utils.Utils;
 import edu.uci.ics.textdb.storage.constants.LuceneAnalyzerConstants;
 import edu.uci.ics.textdb.storage.utils.StorageUtils;
+import org.apache.lucene.store.Directory;
+import org.apache.lucene.store.FSDirectory;
 
 public class RelationManager {
     
@@ -340,6 +351,8 @@ public class RelationManager {
         // write table catalog
         DataStore tableCatalogStore = new DataStore(CatalogConstants.TABLE_CATALOG_DIRECTORY,
                 CatalogConstants.TABLE_CATALOG_SCHEMA);
+        //tableCatalogStore.getDataDirectory()
+
         DataWriter dataWriter = new DataWriter(tableCatalogStore, LuceneAnalyzerConstants.getStandardAnalyzer());
         dataWriter.open();
         dataWriter.insertTuple(CatalogConstants.getTableCatalogTuple(tableName, indexDirectory, luceneAnalyzerString));
@@ -400,5 +413,36 @@ public class RelationManager {
                 .filter(typeStr -> typeStr.toString().toLowerCase().equals(attributeTypeStr.toLowerCase()))
                 .findAny().orElse(null);
     }
-    
+
+
+    public static HashMap<String, Object> printTables() throws Exception {
+        Directory indexDirectory = FSDirectory.open(Paths.get(CatalogConstants.SCHEMA_CATALOG_DIRECTORY));
+
+        IndexReader r = DirectoryReader.open(indexDirectory);
+
+        List<String> result = new ArrayList<>();
+        System.out.println(r.numDocs());
+        for (int i = 0; i < r.numDocs(); i++) {
+            Document doc = r.document(i);
+            if (doc.get("tableName").equals("tableCatalog") || doc.get("tableName").equals("schemaCatalog"))
+                continue;
+            else {
+                result.add(doc.get("tableName"));
+            }
+        }
+
+
+
+        HashMap<String, Object> result2 = new HashMap<>();
+        for (String tableName : result) {
+            try {
+                result2.put(tableName, RelationManager.getRelationManager().getTableSchema(tableName).getAttributes());
+            } catch (StorageException e) {
+                result2.put(tableName, new ArrayList<>());
+            }
+        }
+
+        result2.put("code", 0);
+        return result2;
+    }
 }

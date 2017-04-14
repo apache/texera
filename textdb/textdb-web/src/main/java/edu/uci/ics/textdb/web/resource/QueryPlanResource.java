@@ -8,10 +8,13 @@ import edu.uci.ics.textdb.api.tuple.Tuple;
 import edu.uci.ics.textdb.api.utils.Utils;
 import edu.uci.ics.textdb.dataflow.sink.TupleStreamSink;
 import edu.uci.ics.textdb.dataflow.utils.DataflowUtils;
+import edu.uci.ics.textdb.storage.RelationManager;
 import edu.uci.ics.textdb.web.request.QueryPlanRequest;
 import edu.uci.ics.textdb.web.response.TextdbWebResponse;
 
+import java.io.StringWriter;
 import java.util.List;
+import java.util.Optional;
 
 import javax.ws.rs.Consumes;
 import javax.ws.rs.POST;
@@ -47,26 +50,26 @@ public class QueryPlanResource {
         if(aggregatePropertiesFlag && createLogicalPlanFlag) {
             // generate the physical plan
             Plan plan = queryPlanRequest.getLogicalPlan().buildQueryPlan();
-            
+
             // if the sink is TupleStreamSink, send the response back to front-end
             if (plan.getRoot() instanceof TupleStreamSink) {
                 TupleStreamSink sink = (TupleStreamSink) plan.getRoot();
-                
+
                 // get all the results and send them to front-end
                 // returning all the results at once is a **temporary** solution
                 // TODO: in the future, request some number of results at a time
                 sink.open();
                 List<Tuple> results = sink.collectAllTuples();
                 sink.close();
-                
+
                 TextdbWebResponse textdbWebResponse = new TextdbWebResponse(0, DataflowUtils.getTupleListJSON(results).toString());
                 return Response.status(200)
                         .entity(objectMapper.writeValueAsString(textdbWebResponse))
                         .build();
-                
+
             } else {
                 // if the sink is not TupleStreamSink, execute the plan directly
-                Engine.getEngine().evaluate(plan);    
+                Engine.getEngine().evaluate(plan);
                 TextdbWebResponse textdbWebResponse = new TextdbWebResponse(0, "Plan Successfully Executed");
                 return Response.status(200)
                         .entity(objectMapper.writeValueAsString(textdbWebResponse))
@@ -84,5 +87,23 @@ public class QueryPlanResource {
                     .header("Access-Control-Max-Age", "1728000")
                     .build();
         }
+    }
+
+    @POST
+    @Path("/init")
+    //TODO::fix input parameter as per front-end code
+    public Response initQueryPlan(QueryPlanRequest queryPlanRequest) throws Exception {
+        ObjectMapper objectMapper = new ObjectMapper();
+
+        RelationManager relationManager = RelationManager.getRelationManager();
+
+        StringWriter stringWriter = new StringWriter();
+        objectMapper.writeValue(stringWriter, relationManager.printTables());
+        System.out.println(stringWriter.toString());
+
+        //TextdbWebResponse textdbWebResponse = new TextdbWebResponse(0, stringWriter.toString());
+        return Response.status(200)
+                .entity(stringWriter.toString())
+                .build();
     }
 }
