@@ -13,17 +13,23 @@ body {
 .menu {
 	/*background: #202024 url("../img/black-thread.png") repeat left top;*/
 	background-color: black;
+	/*background-color: white;*/
 	left: 0px;
 	top: 0px;
 	height: 100%;
 	position: fixed;
+<<<<<<< HEAD
+	width: 236px;
+=======
 	width: 248px;
+>>>>>>> a38294e14b58cfef39cf69102890d3ed7ce78c3d
 }
 
 .menu ul {
+	opacity: 0.8;
 	border-top: 5px solid #303030;
 	list-style: none;
-	height: 92%;
+	height: 93%;
 	width: 100%;
 	margin: 0px;
 	padding: 0px;
@@ -33,6 +39,7 @@ body {
 
 /* Each Operator Selector */
 .menu li {
+
 	border-bottom: 1.5px solid #636366;
 	border-left: 3px solid transparent;
 	font-family: 'Open Sans', sans-serif;
@@ -57,10 +64,10 @@ body {
 	color: #fff;
 	font-weight: bold;
 	line-height: 45px;
-	padding-bottom: 3px;
+	/*padding-bottom: 3px;*/
 	padding-left: 20px;
-	padding-top: 8px;
-	font-size: 21px;
+	padding-top: 4.2px;
+	font-size: 20px;
 	/*cursor: pointer;*/
 	background-color: #282828;
 	border-bottom: 1px solid white;
@@ -191,8 +198,8 @@ li.active{
 	text-decoration: none;
 	text-transform: uppercase;
 	font-family: 'Open Sans', sans-serif;
-	font-size: 18px;
-	padding: 15px;
+	font-size: 16px;
+	padding: 13.2px;
 	display: inline-block;
 	/*margin-top: 10px;
 	margin-bottom: 10px;*/
@@ -226,7 +233,11 @@ i {
 	padding: 0;
 	height: 100%;
 	/*width: 100%;*/
+<<<<<<< HEAD
+	left : 236px;
+=======
 	left : 248px;
+>>>>>>> a38294e14b58cfef39cf69102890d3ed7ce78c3d
 }
 
 /* Holds the attributes box */
@@ -270,7 +281,11 @@ i {
 #attributes button{
 	margin: 5px;
 	border: 1px solid black;
+<<<<<<< HEAD
+	border-radius: 5px;
+=======
 
+>>>>>>> a38294e14b58cfef39cf69102890d3ed7ce78c3d
 }
 
 

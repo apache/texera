@@ -9,6 +9,7 @@ import java.util.stream.Stream;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.index.Term;
+import org.apache.lucene.search.MatchAllDocsQuery;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.TermQuery;
 
@@ -343,6 +344,8 @@ public class RelationManager {
         // write table catalog
         DataStore tableCatalogStore = new DataStore(CatalogConstants.TABLE_CATALOG_DIRECTORY,
                 CatalogConstants.TABLE_CATALOG_SCHEMA);
+        //tableCatalogStore.getDataDirectory()
+
         DataWriter dataWriter = new DataWriter(tableCatalogStore, LuceneAnalyzerConstants.getStandardAnalyzer());
         dataWriter.open();
         dataWriter.insertTuple(CatalogConstants.getTableCatalogTuple(tableName, indexDirectory, luceneAnalyzerString));
@@ -456,5 +459,23 @@ public class RelationManager {
                 .filter(typeStr -> typeStr.toString().equalsIgnoreCase(attributeTypeStr))
                 .findAny().orElse(null);
     }
-    
+
+    public List<TableMetadata> getMetaData() throws Exception {
+        DataReader dataReader = RelationManager.getRelationManager().getTableDataReader(CatalogConstants.TABLE_CATALOG, new MatchAllDocsQuery());
+
+        List<TableMetadata> result = new ArrayList<>();
+        Tuple t = null;
+        dataReader.open();
+        while ((t = dataReader.getNextTuple()) != null) {
+            String tableName = (String)t.getField(CatalogConstants.TABLE_NAME).getValue();
+
+            if (!tableName.equals(CatalogConstants.SCHEMA_CATALOG.toLowerCase())
+                    && !tableName.equals(CatalogConstants.TABLE_CATALOG.toLowerCase())) {
+                result.add(new TableMetadata(tableName, getTableSchema(tableName)));
+            }
+        }
+        dataReader.close();
+
+        return result;
+    }
 }

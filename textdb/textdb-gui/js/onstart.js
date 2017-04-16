@@ -58,7 +58,7 @@ var setup = function(){
 
 		var resultFrame = $('<div class="result-frame"><div class="result-box"><div class="result-box-band">Return Result<div class="result-frame-close"><img src="img/close-icon.png"></div></div><div class="return-result"></div></div></div>');
 		$('body').append(resultFrame);
-		
+
 		var node = new PrettyJSON.view.Node({
 			el:$('.return-result'),
 			data:resultJSON
@@ -239,7 +239,7 @@ var setup = function(){
 			}
 		}
 		result += "\n";
-		result.replace(/\n/g, '<br />');
+		result.replace(/\n/g, '<br/>');
 		return result;
 	};
 
@@ -371,7 +371,7 @@ var setup = function(){
 		var title = data['operators'][selectedOperator]['properties']['title'];
 
 		$('.popup').animate({
-            'bottom': '0'
+            'bottom': '10'
         }, 200);
 
 		$('#attributes').css({
