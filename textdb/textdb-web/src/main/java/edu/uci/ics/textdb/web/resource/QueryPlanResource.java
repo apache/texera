@@ -88,21 +88,4 @@ public class QueryPlanResource {
                     .build();
         }
     }
-
-    @POST
-    @Path("/init")
-    //TODO::fix input parameter as per front-end code
-    public Response initQueryPlan(QueryPlanRequest queryPlanRequest) throws Exception {
-        ObjectMapper objectMapper = new ObjectMapper();
-        RelationManager relationManager = RelationManager.getRelationManager();
-
-        StringWriter stringWriter = new StringWriter();
-        objectMapper.writeValue(stringWriter, relationManager.printTables());
-        System.out.println(stringWriter.toString());
-
-        //TextdbWebResponse textdbWebResponse = new TextdbWebResponse(0, stringWriter.toString());
-        return Response.status(200)
-                .entity(stringWriter.toString())
-                .build();
-    }
 }
