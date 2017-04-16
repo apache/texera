@@ -13,6 +13,7 @@ import edu.uci.ics.textdb.web.healthcheck.SampleHealthCheck;
 import edu.uci.ics.textdb.web.request.beans.KeywordSourceBean;
 import edu.uci.ics.textdb.web.request.beans.NlpExtractorBean;
 import edu.uci.ics.textdb.web.request.beans.TupleStreamSinkBean;
+import edu.uci.ics.textdb.web.resource.InitSystemResource;
 import edu.uci.ics.textdb.web.resource.PlanStoreResource;
 import edu.uci.ics.textdb.web.resource.QueryPlanResource;
 import io.dropwizard.Application;
@@ -58,6 +59,11 @@ public class TextdbWebApplication extends Application<TextdbWebConfiguration> {
         final PlanStoreResource planStoreResource = new PlanStoreResource();
         // Registers the PlanStoreResource with Jersey
         environment.jersey().register(planStoreResource);
+
+        // Creates an instance of the InitSystemResource class to register with Jersey
+        final InitSystemResource initSystemResource = new InitSystemResource();
+        // Registers the InitSystemResource with Jersey
+        environment.jersey().register(initSystemResource);
 
         // Creates an instance of the HealthCheck and registers it with the environment
         final SampleHealthCheck sampleHealthCheck = new SampleHealthCheck();
