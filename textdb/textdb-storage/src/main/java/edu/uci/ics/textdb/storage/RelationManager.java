@@ -344,6 +344,8 @@ public class RelationManager {
         // write table catalog
         DataStore tableCatalogStore = new DataStore(CatalogConstants.TABLE_CATALOG_DIRECTORY,
                 CatalogConstants.TABLE_CATALOG_SCHEMA);
+        //tableCatalogStore.getDataDirectory()
+
         DataWriter dataWriter = new DataWriter(tableCatalogStore, LuceneAnalyzerConstants.getStandardAnalyzer());
         dataWriter.open();
         dataWriter.insertTuple(CatalogConstants.getTableCatalogTuple(tableName, indexDirectory, luceneAnalyzerString));
