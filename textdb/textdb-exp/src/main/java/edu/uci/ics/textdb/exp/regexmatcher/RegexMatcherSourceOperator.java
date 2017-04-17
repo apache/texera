@@ -7,7 +7,6 @@ import org.apache.lucene.search.Query;
 
 import edu.uci.ics.textdb.api.constants.DataConstants;
 import edu.uci.ics.textdb.api.dataflow.ISourceOperator;
-import edu.uci.ics.textdb.api.exception.DataFlowException;
 import edu.uci.ics.textdb.api.exception.StorageException;
 import edu.uci.ics.textdb.api.exception.TextDBException;
 import edu.uci.ics.textdb.api.tuple.Tuple;
@@ -22,21 +21,26 @@ public class RegexMatcherSourceOperator extends AbstractSingleInputOperator impl
     private final DataReader dataReader;
     private final RegexMatcher regexMatcher;
     
-    public RegexMatcherSourceOperator(RegexSourcePredicate predicate) throws StorageException, DataFlowException {
-        this.predicate = predicate;
-        
-        if (this.predicate.isUseIndex()) {
-            this.dataReader = RelationManager.getRelationManager().getTableDataReader(this.predicate.getTableName(), 
-                    createLuceneQuery(this.predicate));
-        } else {
-            this.dataReader = RelationManager.getRelationManager().getTableDataReader(this.predicate.getTableName(), 
-                    new MatchAllDocsQuery());
+    public RegexMatcherSourceOperator(RegexSourcePredicate predicate) {
+        try {
+            this.predicate = predicate;
+            
+            if (this.predicate.isUseIndex()) {
+                this.dataReader = RelationManager.getRelationManager().getTableDataReader(this.predicate.getTableName(), 
+                        createLuceneQuery(this.predicate));
+            } else {
+                this.dataReader = RelationManager.getRelationManager().getTableDataReader(this.predicate.getTableName(), 
+                        new MatchAllDocsQuery());
+            }
+            
+            regexMatcher = new RegexMatcher(this.predicate);
+            regexMatcher.setInputOperator(dataReader);
+            
+            this.inputOperator = this.regexMatcher;
+        } catch (TextDBException e) {
+            throw new RuntimeException(e);
         }
-        
-        regexMatcher = new RegexMatcher(this.predicate);
-        regexMatcher.setInputOperator(dataReader);
-        
-        this.inputOperator = this.regexMatcher;
+
     }
 
     @Override

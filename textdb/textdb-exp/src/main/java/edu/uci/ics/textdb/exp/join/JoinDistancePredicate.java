@@ -9,6 +9,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import edu.uci.ics.textdb.api.constants.SchemaConstants;
+import edu.uci.ics.textdb.api.dataflow.IOperator;
 import edu.uci.ics.textdb.api.exception.DataFlowException;
 import edu.uci.ics.textdb.api.field.IField;
 import edu.uci.ics.textdb.api.field.ListField;
@@ -296,5 +297,10 @@ public class JoinDistancePredicate extends PredicateBase implements IJoinPredica
 	
 	    return innerField.getValue().equals(outerField.getValue());
 	}
+	
+    @Override
+    public IOperator newOperator() {
+        return new Join(this);
+    }
 
 }

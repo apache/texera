@@ -2,11 +2,13 @@ package edu.uci.ics.textdb.exp.common;
 
 import java.util.UUID;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
+import edu.uci.ics.textdb.api.dataflow.IOperator;
 import edu.uci.ics.textdb.api.dataflow.IPredicate;
 import edu.uci.ics.textdb.exp.dictionarymatcher.DictionaryPredicate;
 import edu.uci.ics.textdb.exp.dictionarymatcher.DictionarySourcePredicate;
@@ -41,7 +43,7 @@ import edu.uci.ics.textdb.exp.source.scan.ScanSourcePredicate;
 @JsonTypeInfo(
         use = JsonTypeInfo.Id.NAME, // logical user-defined type names are used (rather than Java class names)
         include = JsonTypeInfo.As.PROPERTY, // make the type info as a property in the JSON representation
-        property = "operatorType" // the name of the JSON property indicating the type
+        property = PropertyNameConstants.OPERATOR_TYPE // the name of the JSON property indicating the type
 )
 @JsonSubTypes({ 
         @Type(value = DictionaryPredicate.class, name = "DictionaryMatcher"), 
@@ -71,14 +73,17 @@ public abstract class PredicateBase implements IPredicate {
     // default id is random uuid (internal code doesn't care about id)
     private String id = UUID.randomUUID().toString();
     
-    @JsonProperty("operatorID")
+    @JsonProperty(PropertyNameConstants.OPERATOR_ID)
     public void setID(String id) {
         this.id = id;
     }
     
-    @JsonProperty("operatorID")
+    @JsonProperty(PropertyNameConstants.OPERATOR_ID)
     public String getID() {
         return id;
     }
+    
+    @JsonIgnore
+    public abstract IOperator newOperator();
     
 }

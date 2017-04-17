@@ -3,6 +3,7 @@ package edu.uci.ics.textdb.exp.source.scan;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import edu.uci.ics.textdb.api.dataflow.IOperator;
 import edu.uci.ics.textdb.exp.common.PredicateBase;
 import edu.uci.ics.textdb.exp.common.PropertyNameConstants;
 
@@ -26,6 +27,11 @@ public class ScanSourcePredicate extends PredicateBase {
     @JsonProperty(PropertyNameConstants.TABLE_NAME)
     public String getTableName() {
         return this.tableName;
+    }
+    
+    @Override
+    public IOperator newOperator() {
+        return new ScanBasedSourceOperator(this);
     }
     
 }

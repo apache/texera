@@ -1,15 +1,22 @@
-package edu.uci.ics.textdb.plangen;
+package edu.uci.ics.textdb.exp.plangen;
 
-import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Map;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import edu.uci.ics.textdb.api.dataflow.IOperator;
 import edu.uci.ics.textdb.api.dataflow.ISink;
 import edu.uci.ics.textdb.api.engine.Plan;
 import edu.uci.ics.textdb.api.exception.PlanGenException;
+import edu.uci.ics.textdb.exp.common.PredicateBase;
+import edu.uci.ics.textdb.exp.common.PropertyNameConstants;
 import edu.uci.ics.textdb.exp.connector.OneToNBroadcastConnector;
 import edu.uci.ics.textdb.exp.join.Join;
 
@@ -18,69 +25,98 @@ import edu.uci.ics.textdb.exp.join.Join;
  * 
  * @author Zuozhi Wang
  */
-public class LogicalPlan implements Serializable {
+public class LogicalPlan {
     
-    private static final long serialVersionUID = -4473743060478893198L;
-    
-    // a map of an operator ID to the operator's type
-    HashMap<String, String> operatorTypeMap;
-    // a map of an operator ID to the operator's properties
-    HashMap<String, Map<String, String>> operatorPropertyMap;
+    // use LinkedHashMap to retain insertion order
+    // a map from operatorID to its predicate
+    LinkedHashMap<String, PredicateBase> operatorPredicateMap;
     // a map of an operator ID to operator's outputs (a set of operator IDs)
-    HashMap<String, HashSet<String>> adjacencyList;
-
+    LinkedHashMap<String, LinkedHashSet<String>> adjacencyList;
     
+    /**
+     * Create an empty logical plan.
+     * 
+     * This class is not a JSON entry point. It is for internal use only.
+     */
     public LogicalPlan() {
-        operatorTypeMap = new HashMap<>();
-        operatorPropertyMap = new HashMap<>();
-        adjacencyList = new HashMap<>();
+        operatorPredicateMap = new LinkedHashMap<>();
+        adjacencyList = new LinkedHashMap<>();
     }
     
     /**
-     * Adds an operator to the operator graph by adding it to the set of operators.
+     * Create a LogicalPlan from an existing plan (represented by a list of operators and a list of links)
      * 
-     * @param operatorID, a unique ID of the operator
-     * @param operatorType, the type of the operator
-     * @param operatorProperties, a key-value pair map of the properties of the operator
-     * @throws PlanGenException 
+     * @param predicateList, a list of operator predicates
+     * @param operatorLinkList, a list of operator links
      */
-    public void addOperator(String operatorID, String operatorType, Map<String, String> operatorProperties) throws PlanGenException {
-        PlanGenUtils.planGenAssert(operatorID != null, "operatorID is null");
-        PlanGenUtils.planGenAssert(operatorType != null, "operatorType is null");
-        PlanGenUtils.planGenAssert(operatorProperties != null, "operatorProperties is null");
-        
-        PlanGenUtils.planGenAssert(! operatorID.trim().isEmpty(), "operatorID is empty");
-        PlanGenUtils.planGenAssert(! operatorType.trim().isEmpty(), "operatorType is empty");
-        
-        PlanGenUtils.planGenAssert(! hasOperator(operatorID), "duplicate operatorID: "+operatorID);
-        PlanGenUtils.planGenAssert(PlanGenUtils.isValidOperator(operatorType), 
-                String.format("%s is an invalid operator type, it must be one of %s.", 
-                        operatorType, PlanGenUtils.operatorBuilderMap.keySet().toString()));
-  
-        operatorTypeMap.put(operatorID, operatorType);
-        operatorPropertyMap.put(operatorID, operatorProperties);
-        adjacencyList.put(operatorID, new HashSet<>());
-        
+    @JsonCreator
+    public LogicalPlan(
+            @JsonProperty(value = PropertyNameConstants.OPERATOR_LIST, required = true)
+            List<PredicateBase> predicateList,
+            @JsonProperty(value = PropertyNameConstants.OPERATOR_LINK_LIST, required = true)
+            List<OperatorLink> operatorLinkList
+            ) {
+        // initialize private variables
+        this();
+        // add predicates and links
+        for (PredicateBase predicate : predicateList) {
+            addOperator(predicate);
+        }
+        for (OperatorLink link : operatorLinkList) {
+            addLink(link);
+        }
     }
     
     /**
-     * Adds a link from "src" operator to "dest" operator in the graph.
-     * 
-     * @param src, the operator ID of src operator
-     * @param dest, the operator ID of dest operator
-     * @throws PlanGenException, if the operator is null, is empty, or doesn't exist.
+     * Gets the list of operator predicates.
+     * Order is NOT guaranteed to be the same as insertion order.
+     * @return a list of operator predicates
      */
-    public void addLink(String src, String dest) throws PlanGenException {
-        PlanGenUtils.planGenAssert(src != null, "src operator is null");
-        PlanGenUtils.planGenAssert(dest != null, "dest operator is null");
-        
-        PlanGenUtils.planGenAssert(! src.trim().isEmpty(), "src operator is empty");
-        PlanGenUtils.planGenAssert(! dest.trim().isEmpty(), "dest operator is empty");
-        
-        PlanGenUtils.planGenAssert(hasOperator(src), String.format("operator %s doesn't exist", src));
-        PlanGenUtils.planGenAssert(hasOperator(dest), String.format("operator %s doesn't exist", dest));
-        
-        adjacencyList.get(src).add(dest);
+    @JsonProperty(value = PropertyNameConstants.OPERATOR_LIST)
+    public List<PredicateBase> getPredicateList() {
+        return new ArrayList<>(operatorPredicateMap.values());
+    }
+    
+    /**
+     * Gets the list of operator links.
+     * Order is NOT guaranteed to be the same as insertion order.
+     * @return a list of operator links
+     */
+    @JsonProperty(value = PropertyNameConstants.OPERATOR_LINK_LIST)
+    public List<OperatorLink> getOperatorLinkList() {
+        ArrayList<OperatorLink> linkList = new ArrayList<>();
+        for (String origin : adjacencyList.keySet()) {
+            for (String destination : adjacencyList.get(origin)) {
+                linkList.add(new OperatorLink(origin, destination));
+            }
+        }
+        return linkList;
+    }
+    
+    /**
+     * Adds a new operator to the logical plan.
+     * @param operatorPredicate, the predicate of the operator
+     */
+    public void addOperator(PredicateBase operatorPredicate) {
+        String operatorID = operatorPredicate.getID();
+        PlanGenUtils.planGenAssert(! hasOperator(operatorID), 
+                String.format("duplicate operator id: %s is found", operatorID));
+        operatorPredicateMap.put(operatorID, operatorPredicate);
+        adjacencyList.put(operatorID, new LinkedHashSet<>());
+    }
+
+    /**
+     * Adds a new link to the logical plan
+     * @param operatorLink, a link of two operators
+     */
+    public void addLink(OperatorLink operatorLink) {
+        String origin = operatorLink.getOrigin();
+        String destination = operatorLink.getDestination();
+        PlanGenUtils.planGenAssert(hasOperator(origin), 
+                String.format("origin operator id: %s is not found", origin));
+        PlanGenUtils.planGenAssert(hasOperator(destination), 
+                String.format("destination operator id: %s is not found", destination));
+        adjacencyList.get(origin).add(destination);
     }
     
     /**
@@ -114,9 +150,8 @@ public class LogicalPlan implements Serializable {
      */
     private HashMap<String, IOperator> buildOperators() throws PlanGenException {
         HashMap<String, IOperator> operatorObjectMap = new HashMap<>();
-        for (String operatorID : operatorTypeMap.keySet()) {
-            IOperator operator = PlanGenUtils.buildOperator(
-                    operatorTypeMap.get(operatorID), operatorPropertyMap.get(operatorID));
+        for (String operatorID : operatorPredicateMap.keySet()) {
+            IOperator operator = operatorPredicateMap.get(operatorID).newOperator();
             operatorObjectMap.put(operatorID, operator);
         }
         return operatorObjectMap;
@@ -247,7 +282,8 @@ public class LogicalPlan implements Serializable {
         
         for (String vertex : inputArityMap.keySet()) {
             int actualInputArity = inputArityMap.get(vertex);
-            int expectedInputArity = OperatorArityConstants.getFixedInputArity(operatorTypeMap.get(vertex));
+            int expectedInputArity = OperatorArityConstants.getFixedInputArity(
+                    operatorPredicateMap.get(vertex).getClass());
             PlanGenUtils.planGenAssert(
                     actualInputArity == expectedInputArity,
                     String.format("Operator %s should have %d inputs, got %d.", vertex, expectedInputArity, actualInputArity));
@@ -265,12 +301,12 @@ public class LogicalPlan implements Serializable {
      */
     private void checkOperatorOutputArity() throws PlanGenException {
         for (String vertex : adjacencyList.keySet()) {
-            String vertexType = operatorTypeMap.get(vertex);
+            Class<? extends PredicateBase> predicateClass = operatorPredicateMap.get(vertex).getClass();
             
             int actualOutputArity = adjacencyList.get(vertex).size();
-            int expectedOutputArity = OperatorArityConstants.getFixedOutputArity(vertexType);
+            int expectedOutputArity = OperatorArityConstants.getFixedOutputArity(predicateClass);
             
-            if (vertexType.toLowerCase().contains("sink")) {
+            if (predicateClass.toString().toLowerCase().contains("sink")) {
                 PlanGenUtils.planGenAssert(
                         actualOutputArity == expectedOutputArity,
                         String.format("Sink %s should have %d output links, got %d.", vertex, expectedOutputArity, actualOutputArity));
@@ -287,8 +323,8 @@ public class LogicalPlan implements Serializable {
      */
     private void checkSourceOperator() throws PlanGenException {
         boolean sourceExist = adjacencyList.keySet().stream()
-                .map(operator -> operatorTypeMap.get(operator))
-                .anyMatch(type -> type.toLowerCase().contains("source"));
+                .map(operator -> operatorPredicateMap.get(operator).getClass().toString())
+                .anyMatch(predicateClass -> predicateClass.toLowerCase().contains("source"));
         
         PlanGenUtils.planGenAssert(sourceExist, "There must be at least one source operator.");
     }
@@ -298,8 +334,8 @@ public class LogicalPlan implements Serializable {
      */
     private void checkSinkOperator() throws PlanGenException {
         long sinkOperatorNumber = adjacencyList.keySet().stream()
-                .map(operator -> operatorTypeMap.get(operator))
-                .filter(operatorType -> operatorType.toLowerCase().contains("sink"))
+                .map(operator -> operatorPredicateMap.get(operator).getClass().toString())
+                .filter(predicateClass -> predicateClass.toLowerCase().contains("sink"))
                 .count();
         
         PlanGenUtils.planGenAssert(sinkOperatorNumber == 1, 
@@ -367,7 +403,8 @@ public class LogicalPlan implements Serializable {
      */
     private ISink findSinkOperator(HashMap<String, IOperator> operatorObjectMap) throws PlanGenException {
         IOperator sinkOperator = adjacencyList.keySet().stream()
-                .filter(operator -> operatorTypeMap.get(operator).toLowerCase().contains("sink"))
+                .filter(operator -> operatorPredicateMap.get(operator)
+                        .getClass().toString().toLowerCase().contains("sink"))
                 .map(operator -> operatorObjectMap.get(operator))
                 .findFirst().orElse(null);
         
@@ -384,9 +421,7 @@ public class LogicalPlan implements Serializable {
 
         LogicalPlan that = (LogicalPlan) o;
 
-        if (operatorTypeMap != null ? !operatorTypeMap.equals(that.operatorTypeMap) : that.operatorTypeMap != null)
-            return false;
-        if (operatorPropertyMap != null ? !operatorPropertyMap.equals(that.operatorPropertyMap) : that.operatorPropertyMap != null)
+        if (operatorPredicateMap != null ? !operatorPredicateMap.equals(that.operatorPredicateMap) : that.operatorPredicateMap != null)
             return false;
         return adjacencyList != null ? adjacencyList.equals(that.adjacencyList) : that.adjacencyList == null;
 
@@ -394,8 +429,7 @@ public class LogicalPlan implements Serializable {
 
     @Override
     public int hashCode() {
-        int result = operatorTypeMap != null ? operatorTypeMap.hashCode() : 0;
-        result = 31 * result + (operatorPropertyMap != null ? operatorPropertyMap.hashCode() : 0);
+        int result = operatorPredicateMap != null ? operatorPredicateMap.hashCode() : 0;
         result = 31 * result + (adjacencyList != null ? adjacencyList.hashCode() : 0);
         return result;
     }

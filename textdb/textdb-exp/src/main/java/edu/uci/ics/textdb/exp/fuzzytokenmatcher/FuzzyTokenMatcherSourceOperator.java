@@ -8,7 +8,6 @@ import org.apache.lucene.search.BooleanClause.Occur;
 
 import edu.uci.ics.textdb.api.dataflow.ISourceOperator;
 import edu.uci.ics.textdb.api.exception.DataFlowException;
-import edu.uci.ics.textdb.api.exception.StorageException;
 import edu.uci.ics.textdb.api.exception.TextDBException;
 import edu.uci.ics.textdb.api.tuple.Tuple;
 import edu.uci.ics.textdb.exp.common.AbstractSingleInputOperator;
@@ -23,21 +22,25 @@ public class FuzzyTokenMatcherSourceOperator extends AbstractSingleInputOperator
     private DataReader dataReader;
     private FuzzyTokenMatcher fuzzyTokenMatcher;
     
-    public FuzzyTokenMatcherSourceOperator(FuzzyTokenSourcePredicate predicate) 
-            throws DataFlowException, StorageException {
-        this.predicate = predicate;
+    public FuzzyTokenMatcherSourceOperator(FuzzyTokenSourcePredicate predicate) {
+        try {
+            this.predicate = predicate;
 
-        // generate dataReader
-        Query luceneQuery = createLuceneQueryObject(this.predicate);   
-        this.dataReader = RelationManager.getRelationManager().getTableDataReader(
-                this.predicate.getTableName(), luceneQuery);
-        this.dataReader.setPayloadAdded(true);
-        
-        // generate FuzzyTokenMatcher
-        fuzzyTokenMatcher = new FuzzyTokenMatcher(predicate);
-        fuzzyTokenMatcher.setInputOperator(dataReader);
-        
-        this.inputOperator = this.fuzzyTokenMatcher;
+            // generate dataReader
+            Query luceneQuery = createLuceneQueryObject(this.predicate);   
+            this.dataReader = RelationManager.getRelationManager().getTableDataReader(
+                    this.predicate.getTableName(), luceneQuery);
+            this.dataReader.setPayloadAdded(true);
+            
+            // generate FuzzyTokenMatcher
+            fuzzyTokenMatcher = new FuzzyTokenMatcher(predicate);
+            fuzzyTokenMatcher.setInputOperator(dataReader);
+            
+            this.inputOperator = this.fuzzyTokenMatcher;
+        } catch (TextDBException e) {
+            throw new RuntimeException(e);
+        }
+
     }
 
     @Override

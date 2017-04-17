@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonValue;
 
+import edu.uci.ics.textdb.api.dataflow.IOperator;
 import edu.uci.ics.textdb.exp.common.PredicateBase;
 import edu.uci.ics.textdb.exp.common.PropertyNameConstants;
 
@@ -70,6 +71,11 @@ public class RegexSplitPredicate extends PredicateBase {
     @JsonProperty(PropertyNameConstants.SPLIT_TYPE)
     public SplitType getSplitType() {
         return splitType;
+    }
+    
+    @Override
+    public IOperator newOperator() {
+        return new RegexSplitOperator(this);
     }
     
 }

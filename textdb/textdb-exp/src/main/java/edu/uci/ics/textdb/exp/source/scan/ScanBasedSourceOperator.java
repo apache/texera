@@ -22,14 +22,14 @@ public class ScanBasedSourceOperator implements ISourceOperator {
     
     private boolean isOpen = false;
 
-    public ScanBasedSourceOperator(ScanSourcePredicate predicate) throws DataFlowException {
+    public ScanBasedSourceOperator(ScanSourcePredicate predicate) {
         try {
             this.dataReader = RelationManager.getRelationManager().getTableDataReader(
                     predicate.getTableName(), new MatchAllDocsQuery());
             // TODO add an option to set if payload is added in the future.
             this.dataReader.setPayloadAdded(true);
         } catch (StorageException e) {
-            throw new DataFlowException(e);
+            throw new RuntimeException(e);
         }
     }
 

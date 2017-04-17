@@ -8,6 +8,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import edu.uci.ics.textdb.api.constants.SchemaConstants;
+import edu.uci.ics.textdb.api.dataflow.IOperator;
 import edu.uci.ics.textdb.api.exception.DataFlowException;
 import edu.uci.ics.textdb.api.field.IDField;
 import edu.uci.ics.textdb.api.field.IField;
@@ -250,6 +251,11 @@ public class SimilarityJoinPredicate extends PredicateBase implements IJoinPredi
     @JsonIgnore
     public void setSimilarityFunction(SimilarityFunc similarityFunc) {
         this.similarityFunc = similarityFunc;
+    }
+    
+    @Override
+    public IOperator newOperator() {
+        return new Join(this);
     }
 
 }

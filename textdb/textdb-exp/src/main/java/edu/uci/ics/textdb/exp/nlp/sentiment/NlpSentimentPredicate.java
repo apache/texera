@@ -2,6 +2,7 @@ package edu.uci.ics.textdb.exp.nlp.sentiment;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import edu.uci.ics.textdb.api.dataflow.IOperator;
 import edu.uci.ics.textdb.exp.common.PredicateBase;
 import edu.uci.ics.textdb.exp.common.PropertyNameConstants;
 
@@ -28,6 +29,11 @@ public class NlpSentimentPredicate extends PredicateBase {
     @JsonProperty(PropertyNameConstants.RESULT_ATTRIBUTE_NAME)
     public String getResultAttributeName() {
         return this.resultAttributeName;
+    }
+    
+    @Override
+    public IOperator newOperator() {
+        return new NlpSentimentOperator(this);
     }
 
 }

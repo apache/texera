@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.MapperFeature;
 
 import edu.uci.ics.textdb.api.engine.Plan;
 import edu.uci.ics.textdb.api.exception.TextDBException;
-import edu.uci.ics.textdb.api.tuple.Tuple;
 import edu.uci.ics.textdb.dataflow.sink.TupleStreamSink;
 import edu.uci.ics.textdb.perftest.sample.SampleExtraction;
 import edu.uci.ics.textdb.plangen.LogicalPlan;
@@ -13,6 +12,7 @@ import edu.uci.ics.textdb.web.healthcheck.SampleHealthCheck;
 import edu.uci.ics.textdb.web.request.beans.KeywordSourceBean;
 import edu.uci.ics.textdb.web.request.beans.NlpExtractorBean;
 import edu.uci.ics.textdb.web.request.beans.TupleStreamSinkBean;
+import edu.uci.ics.textdb.web.resource.NewQueryPlanResource;
 import edu.uci.ics.textdb.web.resource.PlanStoreResource;
 import edu.uci.ics.textdb.web.resource.QueryPlanResource;
 import io.dropwizard.Application;
@@ -23,7 +23,6 @@ import org.eclipse.jetty.servlets.CrossOriginFilter;
 import javax.servlet.DispatcherType;
 import javax.servlet.FilterRegistration;
 import java.util.EnumSet;
-import java.util.List;
 
 /**
  * This is the main application class from where the TextDB application
@@ -53,6 +52,9 @@ public class TextdbWebApplication extends Application<TextdbWebConfiguration> {
         final QueryPlanResource queryPlanResource = new QueryPlanResource();
         // Registers the QueryPlanResource with Jersey
         environment.jersey().register(queryPlanResource);
+        
+        final NewQueryPlanResource newQueryPlanResource = new NewQueryPlanResource();
+        environment.jersey().register(newQueryPlanResource);
 
         // Creates an instance of the PlanStoreResource class to register with Jersey
         final PlanStoreResource planStoreResource = new PlanStoreResource();
@@ -96,7 +98,7 @@ public class TextdbWebApplication extends Application<TextdbWebConfiguration> {
         Plan plan = logicalPlan.buildQueryPlan();
         TupleStreamSink sink = (TupleStreamSink) plan.getRoot();
         sink.open();
-        List<Tuple> results = sink.collectAllTuples();
+        sink.collectAllTuples();
         sink.close();
     }
 

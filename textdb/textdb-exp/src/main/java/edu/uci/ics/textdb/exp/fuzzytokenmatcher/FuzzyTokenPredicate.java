@@ -7,6 +7,7 @@ import java.util.List;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import edu.uci.ics.textdb.api.dataflow.IOperator;
 import edu.uci.ics.textdb.exp.common.PredicateBase;
 import edu.uci.ics.textdb.exp.common.PropertyNameConstants;
 import edu.uci.ics.textdb.exp.utils.DataflowUtils;
@@ -89,6 +90,11 @@ public class FuzzyTokenPredicate extends PredicateBase {
             threshold = 1;
         }
         return threshold; 
+    }
+    
+    @Override
+    public IOperator newOperator() {
+        return new FuzzyTokenMatcher(this);
     }
 
 }

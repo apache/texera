@@ -6,6 +6,7 @@ import java.util.List;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import edu.uci.ics.textdb.api.dataflow.IOperator;
 import edu.uci.ics.textdb.exp.common.PredicateBase;
 import edu.uci.ics.textdb.storage.constants.LuceneAnalyzerConstants;
 import edu.uci.ics.textdb.exp.common.PropertyNameConstants;
@@ -201,6 +202,11 @@ public class KeywordPredicate extends PredicateBase {
     
     public Integer getOffset() {
         return offset;
+    }
+    
+    @Override
+    public IOperator newOperator() {
+        return new KeywordMatcher(this);
     }
 
 }

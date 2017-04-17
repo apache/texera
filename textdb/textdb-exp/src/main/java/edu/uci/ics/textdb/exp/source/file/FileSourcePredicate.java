@@ -7,6 +7,7 @@ import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import edu.uci.ics.textdb.api.dataflow.IOperator;
 import edu.uci.ics.textdb.exp.common.PredicateBase;
 import edu.uci.ics.textdb.exp.common.PropertyNameConstants;
 
@@ -108,6 +109,11 @@ public class FileSourcePredicate extends PredicateBase {
     @JsonProperty(PropertyNameConstants.FILE_ALLOWED_EXTENSIONS)
     public List<String> getAllowedExtensions() {
         return Collections.unmodifiableList(this.allowedExtensions);
+    }
+    
+    @Override
+    public IOperator newOperator() {
+        return new FileSourceOperator(this);
     }
 
 }

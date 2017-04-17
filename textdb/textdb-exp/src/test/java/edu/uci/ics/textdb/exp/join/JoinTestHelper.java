@@ -5,7 +5,6 @@ import java.util.Arrays;
 import java.util.List;
 
 import edu.uci.ics.textdb.api.dataflow.IOperator;
-import edu.uci.ics.textdb.api.exception.DataFlowException;
 import edu.uci.ics.textdb.api.exception.StorageException;
 import edu.uci.ics.textdb.api.exception.TextDBException;
 import edu.uci.ics.textdb.api.field.IField;
@@ -126,16 +125,11 @@ public class JoinTestHelper {
     }
 
     public static RegexMatcher getRegexMatcher(String tableName, String query, String attrName) {
-        try {
-            ScanBasedSourceOperator scanBasedSourceOperator = new ScanBasedSourceOperator(
-                    new ScanSourcePredicate(tableName));
-            RegexMatcher regexMatcher = new RegexMatcher(new RegexPredicate(query, Arrays.asList(attrName)));
-            regexMatcher.setInputOperator(scanBasedSourceOperator);
-            return regexMatcher;
-        } catch (DataFlowException e) {
-            e.printStackTrace();
-            return null;
-        }
+        ScanBasedSourceOperator scanBasedSourceOperator = new ScanBasedSourceOperator(
+                new ScanSourcePredicate(tableName));
+        RegexMatcher regexMatcher = new RegexMatcher(new RegexPredicate(query, Arrays.asList(attrName)));
+        regexMatcher.setInputOperator(scanBasedSourceOperator);
+        return regexMatcher;
     }
 
     

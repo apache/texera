@@ -5,6 +5,7 @@ import java.util.List;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import edu.uci.ics.textdb.api.dataflow.IOperator;
 import edu.uci.ics.textdb.exp.common.PropertyNameConstants;
 
 public class RegexSourcePredicate extends RegexPredicate {
@@ -60,6 +61,11 @@ public class RegexSourcePredicate extends RegexPredicate {
     @JsonProperty(PropertyNameConstants.REGEX_USE_INDEX)
     public Boolean isUseIndex() {
         return this.useIndex;
+    }
+    
+    @Override
+    public IOperator newOperator() {
+        return new RegexMatcherSourceOperator(this);
     }
 
 }
