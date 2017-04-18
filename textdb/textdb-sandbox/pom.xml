@@ -51,6 +51,11 @@
             <version>1.6.0</version>
         </dependency>
         <dependency>
+            <groupId>com.google.re2j</groupId>
+            <artifactId>re2j</artifactId>
+            <version>1.1</version>
+        </dependency>
+        <dependency>
             <groupId>edu.uci.ics.textdb</groupId>
             <artifactId>textdb-api</artifactId>
             <version>${textdb.version}</version>
