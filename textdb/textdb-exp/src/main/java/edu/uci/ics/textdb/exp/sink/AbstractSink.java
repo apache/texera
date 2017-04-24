@@ -1,7 +1,9 @@
 package edu.uci.ics.textdb.exp.sink;
 
+import edu.uci.ics.textdb.api.constants.ErrorMessages;
 import edu.uci.ics.textdb.api.dataflow.IOperator;
 import edu.uci.ics.textdb.api.dataflow.ISink;
+import edu.uci.ics.textdb.api.exception.DataFlowException;
 import edu.uci.ics.textdb.api.exception.TextDBException;
 import edu.uci.ics.textdb.api.schema.Schema;
 import edu.uci.ics.textdb.api.tuple.Tuple;
@@ -17,13 +19,18 @@ import edu.uci.ics.textdb.api.tuple.Tuple;
 public abstract class AbstractSink implements ISink {
 
     private IOperator inputOperator;
+    private int cursor = CLOSED;
 
     /**
      * @about Opens the child operator.
      */
     @Override
     public void open() throws TextDBException {
+        if (cursor != CLOSED) {
+            return;
+        }
         inputOperator.open();
+        cursor = OPENED;
     }
 
     public void setInputOperator(IOperator inputOperator) {
@@ -36,10 +43,14 @@ public abstract class AbstractSink implements ISink {
 
     @Override
     public void processTuples() throws TextDBException {
+        if (cursor == CLOSED) {
+            throw new DataFlowException(ErrorMessages.OPERATOR_NOT_OPENED);
+        }
         Tuple nextTuple;
 
         while ((nextTuple = inputOperator.getNextTuple()) != null) {
             processOneTuple(nextTuple);
+            cursor++;
         }
     }
 
@@ -52,7 +63,11 @@ public abstract class AbstractSink implements ISink {
 
     @Override
     public void close() throws TextDBException {
+        if (cursor == CLOSED) {
+            return;
+        }
         inputOperator.close();
+        cursor = CLOSED;
     }
     
     public Schema getOutputSchema() {

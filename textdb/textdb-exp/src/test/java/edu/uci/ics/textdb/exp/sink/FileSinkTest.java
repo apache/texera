@@ -33,14 +33,11 @@ public class FileSinkTest {
     }
 
     @Test
-    public void testOpen() throws Exception {
+    public void testOpenClose() throws Exception {
         fileSink.open();
         // verify that childOperator called open() method
         Mockito.verify(childOperator).open();
-    }
-
-    @Test
-    public void testClose() throws Exception {
+        
         fileSink.close();
         // verify that childOperator called close() method
         Mockito.verify(childOperator).close();

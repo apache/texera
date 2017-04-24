@@ -4,6 +4,7 @@ import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonUnwrapped;
 
 import edu.uci.ics.textdb.api.dataflow.IOperator;
 import edu.uci.ics.textdb.exp.common.PropertyNameConstants;
@@ -24,7 +25,7 @@ public class DictionarySourcePredicate extends DictionaryPredicate {
      */
     @JsonCreator
     public DictionarySourcePredicate(
-            @JsonProperty(value = PropertyNameConstants.DICTIONARY, required = true)
+            @JsonUnwrapped
             Dictionary dictionary, 
             @JsonProperty(value = PropertyNameConstants.ATTRIBUTE_NAMES, required = true)
             List<String> attributeNames, 

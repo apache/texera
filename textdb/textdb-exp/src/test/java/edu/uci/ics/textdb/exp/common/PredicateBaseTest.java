@@ -28,6 +28,7 @@ import edu.uci.ics.textdb.exp.regexsplit.RegexSplitPredicate;
 import edu.uci.ics.textdb.exp.regexsplit.RegexSplitPredicate.SplitType;
 import edu.uci.ics.textdb.exp.sampler.SamplerPredicate;
 import edu.uci.ics.textdb.exp.sampler.SamplerPredicate.SampleType;
+import edu.uci.ics.textdb.exp.sink.tuple.TupleSinkPredicate;
 import edu.uci.ics.textdb.exp.source.file.FileSourcePredicate;
 import edu.uci.ics.textdb.exp.source.scan.ScanSourcePredicate;
 import junit.framework.Assert;
@@ -187,8 +188,14 @@ public class PredicateBaseTest {
     
     @Test
     public void testScanSource() throws Exception {
-        ScanSourcePredicate ScanSourcePredicate = new ScanSourcePredicate("tableName");
-        testPredicate(ScanSourcePredicate);
+        ScanSourcePredicate scanSourcePredicate = new ScanSourcePredicate("tableName");
+        testPredicate(scanSourcePredicate);
+    }
+    
+    @Test
+    public void testTupleSink() throws Exception {
+        TupleSinkPredicate tupleSinkPredicate = new TupleSinkPredicate();
+        testPredicate(tupleSinkPredicate);
     }
 
 }

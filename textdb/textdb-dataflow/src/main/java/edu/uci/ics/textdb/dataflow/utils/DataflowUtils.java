@@ -142,8 +142,10 @@ public class DataflowUtils {
                 ListField<Span> spanListField = tuple.getField(SchemaConstants.SPAN_LIST);
                 List<Span> spanList = spanListField.getValue();
                 jsonObject.put(attrName, getSpanListJSON(spanList));
+            } else if (attrName.equalsIgnoreCase(SchemaConstants.PAYLOAD) || attrName.equalsIgnoreCase(SchemaConstants._ID)) {
+                // do nothing
             } else {
-                jsonObject.put(attrName, tuple.getField(attrName).getValue().toString());
+                jsonObject.put(attrName, tuple.getField(attrName).getValue());
             }
         }
         

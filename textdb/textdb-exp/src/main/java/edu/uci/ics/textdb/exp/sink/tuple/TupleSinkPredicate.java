@@ -1,12 +1,13 @@
 package edu.uci.ics.textdb.exp.sink.tuple;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
+import edu.uci.ics.textdb.api.dataflow.IOperator;
+import edu.uci.ics.textdb.exp.common.PredicateBase;
 
-import edu.uci.ics.textdb.api.dataflow.IPredicate;
+public class TupleSinkPredicate extends PredicateBase {
 
-public class TupleSinkPredicate implements IPredicate {
-    
-    @JsonCreator
-    public TupleSinkPredicate() {}
+    @Override
+    public IOperator newOperator() {
+        return new TupleSink();
+    }
 
 }

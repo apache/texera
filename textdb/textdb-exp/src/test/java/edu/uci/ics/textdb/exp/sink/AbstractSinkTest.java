@@ -25,14 +25,11 @@ public class AbstractSinkTest {
     }
 
     @Test
-    public void testOpen() throws Exception {
+    public void testOpenClose() throws Exception {
         sink.open();
         // verify that childOperator called open() method
         Mockito.verify(childOperator).open();
-    }
-
-    @Test
-    public void testClose() throws Exception {
+        
         sink.close();
         // verify that childOperator called close() method
         Mockito.verify(childOperator).close();
@@ -44,7 +41,9 @@ public class AbstractSinkTest {
         // Set the behavior for childOperator,
         // first it returns some non-null tuple and second time it returns null
         Mockito.when(childOperator.getNextTuple()).thenReturn(sampleTuple).thenReturn(null);
+        sink.open();
         sink.processTuples();
+        sink.close();
         // Verify that childOperator.getNextTuple() is called twice
         Mockito.verify(childOperator, Mockito.times(2)).getNextTuple();
     }

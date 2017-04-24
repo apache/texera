@@ -5,6 +5,7 @@ import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonUnwrapped;
 
 import edu.uci.ics.textdb.api.dataflow.IOperator;
 import edu.uci.ics.textdb.exp.common.PredicateBase;
@@ -28,7 +29,7 @@ public class DictionaryPredicate extends PredicateBase {
      */
     @JsonCreator
     public DictionaryPredicate(
-            @JsonProperty(value = PropertyNameConstants.DICTIONARY, required = true)
+            @JsonUnwrapped
             Dictionary dictionary, 
             @JsonProperty(value = PropertyNameConstants.ATTRIBUTE_NAMES, required = true)
             List<String> attributeNames, 
@@ -43,7 +44,8 @@ public class DictionaryPredicate extends PredicateBase {
         this.keywordMatchingType = keywordMatchingType;
     }
     
-    @JsonProperty(value = PropertyNameConstants.DICTIONARY)
+    @JsonUnwrapped
+    @JsonProperty(value = PropertyNameConstants.DICTIONARY, required = true)
     public Dictionary getDictionary() {
         return dictionary;
     }

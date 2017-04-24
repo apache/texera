@@ -122,7 +122,7 @@ public class KeywordTestHelper {
         
         KeywordPredicate keywordPredicate = new KeywordPredicate(
                 keywordQuery, attributeNames, relationManager.getTableAnalyzerString(tableName), matchingType, 
-                limit, offset);
+                limit, offset, null);
         KeywordMatcher keywordMatcher = new KeywordMatcher(keywordPredicate);
         
         keywordMatcher.setInputOperator(scanSource);
@@ -144,7 +144,7 @@ public class KeywordTestHelper {
         RelationManager relationManager = RelationManager.getRelationManager();
         KeywordSourcePredicate keywordSourcePredicate = new KeywordSourcePredicate(
                 keywordQuery, attributeNames, relationManager.getTableAnalyzerString(tableName), matchingType, 
-                tableName, limit, offset);
+                tableName, limit, offset, null);
         KeywordMatcherSourceOperator keywordSource = new KeywordMatcherSourceOperator(
                 keywordSourcePredicate);
         

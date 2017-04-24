@@ -26,9 +26,7 @@ public class KeywordSourcePredicate extends KeywordPredicate {
             String luceneAnalyzerString, 
             KeywordMatchingType matchingType,
             String tableName) {
-        
-        super(query, attributeNames, luceneAnalyzerString, matchingType, null, null);
-        this.tableName = tableName;
+        this(query, attributeNames, luceneAnalyzerString, matchingType, tableName, null, null, null);
     }
     
     //TODO find a way to not write duplicate annotations (for fields declared in superclass)
@@ -47,9 +45,11 @@ public class KeywordSourcePredicate extends KeywordPredicate {
             @JsonProperty(value = PropertyNameConstants.LIMIT, required = false)
             Integer limit,
             @JsonProperty(value = PropertyNameConstants.OFFSET, required = false)
-            Integer offset) {
+            Integer offset,
+            @JsonProperty(value = PropertyNameConstants.ADD_SPANS, required = false)
+            Boolean addSpans) {
         
-        super(query, attributeNames, luceneAnalyzerString, matchingType, limit, offset);
+        super(query, attributeNames, luceneAnalyzerString, matchingType, limit, offset, addSpans);
         this.tableName = tableName;
     }
     

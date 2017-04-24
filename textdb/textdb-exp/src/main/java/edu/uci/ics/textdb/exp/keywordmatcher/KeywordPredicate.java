@@ -80,6 +80,7 @@ public class KeywordPredicate extends PredicateBase {
     private final Integer limit;
     private final Boolean offsetNotNull; 
     private final Integer offset;
+    private final Boolean addSpans;
     
     /**
      * Construct a KeywordPredicate with limit and offset set to default values.
@@ -94,7 +95,7 @@ public class KeywordPredicate extends PredicateBase {
             List<String> attributeNames,
             String luceneAnalyzerString, 
             KeywordMatchingType matchingType) {
-        this(query, attributeNames, luceneAnalyzerString, matchingType, null, null);
+        this(query, attributeNames, luceneAnalyzerString, matchingType, null, null, null);
     }
     
     /**
@@ -121,7 +122,9 @@ public class KeywordPredicate extends PredicateBase {
             @JsonProperty(value = PropertyNameConstants.LIMIT, required = false)
             Integer limit,
             @JsonProperty(value = PropertyNameConstants.OFFSET, required = false)
-            Integer offset) {
+            Integer offset,
+            @JsonProperty(value = PropertyNameConstants.ADD_SPANS, required = false)
+            Boolean addSpans) {
         
         this.query = query;
         this.attributeNames = Collections.unmodifiableList(attributeNames);
@@ -154,6 +157,12 @@ public class KeywordPredicate extends PredicateBase {
         } else {
             this.offset = offset;
             this.offsetNotNull = true;
+        }
+        
+        if (addSpans == null) {
+            this.addSpans = true;
+        } else {
+            this.addSpans = addSpans;
         }
         
     }
@@ -194,6 +203,11 @@ public class KeywordPredicate extends PredicateBase {
         } else {
             return null;
         }
+    }
+    
+    @JsonProperty(PropertyNameConstants.ADD_SPANS)
+    public Boolean isAddSpans() {
+        return this.addSpans;
     }
     
     public Integer getLimit() {

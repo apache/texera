@@ -37,7 +37,7 @@ public class TupleSinkTest {
     }
 
     @Test
-    public void testOpen() throws Exception {
+    public void testOpenClose() throws Exception {
         tupleSink.open();
         // verify that inputOperator called open() method
         Mockito.verify(inputOperator).open();
@@ -45,10 +45,7 @@ public class TupleSinkTest {
         Assert.assertEquals(
                 new Schema(SchemaConstants._ID_ATTRIBUTE, new Attribute("content", AttributeType.TEXT)), 
                 tupleSink.getOutputSchema());
-    }
-
-    @Test
-    public void testClose() throws Exception {
+        
         tupleSink.close();
         // verify that inputOperator called close() method
         Mockito.verify(inputOperator).close();

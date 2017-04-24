@@ -33,6 +33,16 @@
             <version>${dropwizard.version}</version>
         </dependency>
         <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>2.8.7</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+            <version>2.8.7</version>
+        </dependency>
+        <dependency>
             <groupId>edu.uci.ics.textdb</groupId>
             <artifactId>textdb-api</artifactId>
             <version>${textdb.version}</version>
@@ -40,6 +50,11 @@
         <dependency>
             <groupId>edu.uci.ics.textdb</groupId>
             <artifactId>textdb-dataflow</artifactId>
+            <version>${textdb.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>edu.uci.ics.textdb</groupId>
+            <artifactId>textdb-exp</artifactId>
             <version>${textdb.version}</version>
         </dependency>
         <dependency>
