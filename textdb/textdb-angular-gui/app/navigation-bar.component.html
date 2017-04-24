@@ -1,0 +1,16 @@
+<div class="navbar-header">
+	<a class="navbar-brand" href="#">TextDB</a>
+</div>
+
+<div class="collapse navbar-collapse">
+	<div class="nav navbar-nav navbar-left btn-toolbar">
+		<button type="button" class="btn btn-default navbar-btn active">Editor</button>
+		<button type="button" class="btn btn-default navbar-btn">History</button>
+	</div>
+
+	<div class="nav navbar-nav navbar-right btn-toolbar">
+
+		<button type="button" class="btn btn-default navbar-btn delete-button" (click) = "DeleteOp()">-</button>
+        <button type="button" (click)="onClick($event)" class="btn btn-default navbar-btn">Check</button>
+	</div>
+</div>
