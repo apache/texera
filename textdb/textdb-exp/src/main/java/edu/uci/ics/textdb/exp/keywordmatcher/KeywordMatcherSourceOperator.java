@@ -35,7 +35,7 @@ import edu.uci.ics.textdb.storage.RelationManager;
  */
 public class KeywordMatcherSourceOperator extends AbstractSingleInputOperator implements ISourceOperator {
 
-    private final KeywordPredicate predicate;
+    private final KeywordSourcePredicate predicate;
 
     private final DataReader dataReader;
     private final KeywordMatcher keywordMatcher;
@@ -47,35 +47,36 @@ public class KeywordMatcherSourceOperator extends AbstractSingleInputOperator im
     private ArrayList<String> queryTokensWithStopwords;
     
 
-    public KeywordMatcherSourceOperator(KeywordSourcePredicate predicate) 
-            throws DataFlowException, StorageException {
-        this.predicate = predicate;
-        
-        this.limit = predicate.getLimit();
-        this.offset = predicate.getOffset();
-        this.queryTokenList = DataflowUtils.tokenizeQuery(predicate.getLuceneAnalyzerString(), predicate.getQuery());
-        this.queryTokenSet = new HashSet<>(this.queryTokenList);
-        
-        // TODO: standard analyzer is assumed here, rewrite it to deal with other analyzers
-        this.queryTokensWithStopwords = DataflowUtils.tokenizeQueryWithStopwords(predicate.getQuery());
-                
-        // input schema must be specified before creating query
-        this.inputSchema = RelationManager.getRelationManager().getTableDataStore(predicate.getTableName()).getSchema();
-        
-        // generate dataReader
-        Query luceneQuery = createLuceneQueryObject();
+    public KeywordMatcherSourceOperator(KeywordSourcePredicate predicate) {
+        try {
+            this.predicate = predicate;
+            
+            this.limit = predicate.getLimit();
+            this.offset = predicate.getOffset();
+            this.queryTokenList = DataflowUtils.tokenizeQuery(predicate.getLuceneAnalyzerString(), predicate.getQuery());
+            this.queryTokenSet = new HashSet<>(this.queryTokenList);
+            
+            // TODO: standard analyzer is assumed here, rewrite it to deal with other analyzers
+            this.queryTokensWithStopwords = DataflowUtils.tokenizeQueryWithStopwords(predicate.getQuery());
+                    
+            // input schema must be specified before creating query
+            this.inputSchema = RelationManager.getRelationManager().getTableDataStore(predicate.getTableName()).getSchema();
+            
+            // generate dataReader
+            Query luceneQuery = createLuceneQueryObject();
 
-        this.dataReader = RelationManager.getRelationManager().getTableDataReader(predicate.getTableName(), luceneQuery);
-        this.dataReader.setPayloadAdded(true);
-        
-        // generate KeywordMatcher
-        KeywordPredicate keywordPredicate = new KeywordPredicate(
-                predicate.getQuery(), predicate.getAttributeNames(), predicate.getLuceneAnalyzerString(), predicate.getMatchingType(),
-                null, null);
-        keywordMatcher = new KeywordMatcher(keywordPredicate);
-        keywordMatcher.setInputOperator(dataReader);
-        
-        this.inputOperator = this.keywordMatcher;
+            this.dataReader = RelationManager.getRelationManager().getTableDataReader(predicate.getTableName(), luceneQuery);
+            this.dataReader.setPayloadAdded(true);
+            
+            // generate KeywordMatcher
+            keywordMatcher = new KeywordMatcher(predicate);
+            keywordMatcher.setInputOperator(dataReader);
+            
+            this.inputOperator = this.keywordMatcher;
+        } catch (TextDBException e) {
+            throw new RuntimeException(e);
+        }
+
     }
 
     @Override
