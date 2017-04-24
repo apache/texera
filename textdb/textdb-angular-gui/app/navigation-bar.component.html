@@ -1,0 +1,26 @@
+<div class="navbar-header">
+	<a class="navbar-brand" href="#">TextDB</a>
+</div>
+
+<div class="collapse navbar-collapse">
+	<div class="nav navbar-nav navbar-left btn-toolbar">
+		<button type="button" class="btn btn-default navbar-btn active">Editor</button>
+		<button type="button" class="btn btn-default navbar-btn">History</button>
+	</div>
+
+	<div class="nav navbar-nav navbar-right btn-toolbar">
+		<!-- <div class="btn-group navbar-btn" dropdown>
+			<button dropdownToggle id="single-button" type="button" class="btn btn-primary dropdown-toggle">+</button>
+			<ul *dropdownMenu role="menu" aria-labelledby="single-button">
+				<li role="menuitem"><a class="dropdown-item" href="#">Keyword</a></li>
+				<li role="menuitem"><a class="dropdown-item" href="#">Regex</a></li>
+				<li role="menuitem"><a class="dropdown-item" href="#">NLP</a></li>
+				<li class="divider dropdown-divider"></li>
+				<li role="menuitem"><a class="dropdown-item" href="#">Join</a></li>
+			</ul>
+		</div> -->
+
+		<button type="button" class="btn btn-default navbar-btn delete-button" (click) = "DeleteOp()">-</button>
+    <button type="button" (click)="onClick($event)" class="btn btn-default navbar-btn">Check</button>
+	</div>
+</div>
