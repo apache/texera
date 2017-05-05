@@ -408,7 +408,7 @@ public class RelationManagerTest {
         System.out.println("\n");
         // Check if the result contains and only contains 2 tables with correct table names
         List<TableMetadata> result = relationManager.getMetaData();
-        System.out.println(result.get(1).getSchema().getAttributes().toString());
+//        System.out.println(result.get(1).getSchema().getAttributes().toString());
 
         HashSet<String> tableNamesActual = new HashSet<>();
         for(int i = 0; i < result.size(); ++i) {
