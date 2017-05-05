@@ -22,6 +22,10 @@ import edu.uci.ics.textdb.api.tuple.Tuple;
 import edu.uci.ics.textdb.api.utils.Utils;
 import edu.uci.ics.textdb.storage.constants.LuceneAnalyzerConstants;
 
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
 public class RelationManagerTest {
     
     RelationManager relationManager;
@@ -395,6 +399,43 @@ public class RelationManagerTest {
         
         Assert.assertTrue(! relationManager.checkTableExistence(tableName1));
     }
-    
-    
+
+    /*
+     * Test on getMetaData() to see if it successfully get metadata from "promed" and "plan"
+     */
+    @Test
+    public void test17() throws Exception {
+        System.out.println("\n");
+        // Check if the result contains and only contains 2 tables with correct table names
+        List<TableMetadata> result = relationManager.getMetaData();
+        System.out.println(result.get(1).getSchema().getAttributes().toString());
+
+        HashSet<String> tableNamesActual = new HashSet<>();
+        for(int i = 0; i < result.size(); ++i) {
+            TableMetadata currentMetadata = result.get(i);
+            tableNamesActual.add(currentMetadata.getTableName());
+
+            List<Attribute> attributes = currentMetadata.getSchema().getAttributes();
+            for(int j = 0; j < attributes.size(); ++j) {
+                String attributeName = attributes.get(j).getAttributeName();
+                if(attributeName.equals("_id")) {
+                    Assert.assertEquals(AttributeType._ID_TYPE, attributes.get(j).getAttributeType());
+                } else if(attributeName.equals("id") || attributeName.equals("name") ||
+                        attributeName.equals("desc") || attributeName.equals("planJson")) {
+                    Assert.assertEquals(AttributeType.STRING, attributes.get(j).getAttributeType());
+                } else if(attributeName.equals("content")) {
+                    Assert.assertEquals(AttributeType.TEXT, attributes.get(j).getAttributeType());
+                }
+            }
+        }
+
+        HashSet<String> tableNamesExpect = new HashSet<>();
+        tableNamesExpect.add("promed");
+        tableNamesExpect.add("plan");
+
+        Assert.assertEquals(2, tableNamesActual.size());
+        Assert.assertEquals(tableNamesExpect, tableNamesActual);
+
+    }
+
 }
