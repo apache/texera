@@ -21,6 +21,7 @@ import edu.uci.ics.textdb.dataflow.regexmatch.RegexMatcher;
 import edu.uci.ics.textdb.dataflow.sink.FileSink;
 import edu.uci.ics.textdb.dataflow.utils.DataflowUtils;
 import edu.uci.ics.textdb.perftest.promed.PromedSchema;
+import edu.uci.ics.textdb.perftest.utils.PerfTestUtils;
 import edu.uci.ics.textdb.storage.DataWriter;
 import edu.uci.ics.textdb.storage.RelationManager;
 import edu.uci.ics.textdb.storage.constants.LuceneAnalyzerConstants;
@@ -30,9 +31,6 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 
 import java.io.File;
-import java.net.URISyntaxException;
-import java.nio.file.FileSystemNotFoundException;
-import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -43,37 +41,11 @@ public class SampleExtraction {
     
     public static final String PROMED_SAMPLE_TABLE = "promed";
         
-    public static String promedFilesDirectory;
-    public static String promedIndexDirectory;
-    public static String sampleDataFilesDirectory;
-
-    static {
-        try {
-            // Finding the absolute path to the sample data files directory and index directory
-
-            // Checking if the resource is in a jar
-            String referencePath = SampleExtraction.class.getResource("").toURI().toString();
-            if(referencePath.substring(0, 3).equals("jar")) {
-                promedFilesDirectory = "../textdb-perftest/src/main/resources/sample-data-files/promed/";
-                promedIndexDirectory = "../textdb-perftest/src/main/resources/index/standard/promed/";
-                sampleDataFilesDirectory = "../textdb-perftest/src/main/resources/sample-data-files/";
-            }
-            else {
-                promedFilesDirectory = Paths.get(SampleExtraction.class.getResource("/sample-data-files/promed")
-                        .toURI())
-                        .toString();
-                promedIndexDirectory = Paths.get(SampleExtraction.class.getResource("/index/standard")
-                        .toURI())
-                        .toString() + "/promed";
-                sampleDataFilesDirectory = Paths.get(SampleExtraction.class.getResource("/sample-data-files")
-                        .toURI())
-                        .toString();
-            }
-        }
-        catch(URISyntaxException | FileSystemNotFoundException e) {
-            e.printStackTrace();
-        }
-    }
+    public static String promedFilesDirectory = PerfTestUtils.getResourcePath("/sample-data-files/promed");
+    public static String promedIndexDirectory = PerfTestUtils.getResourcePath("/index/standard/promed");
+    public static String sampleDataFilesDirectory = PerfTestUtils.getResourcePath("sample-data-files");        
+    
+    
     public static void main(String[] args) throws Exception {
         // write the index of data files
         // index only needs to be written once, after the first run, this function can be commented out

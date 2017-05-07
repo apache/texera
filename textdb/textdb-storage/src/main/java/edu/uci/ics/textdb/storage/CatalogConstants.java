@@ -1,5 +1,6 @@
 package edu.uci.ics.textdb.storage;
 
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -48,8 +49,8 @@ public class CatalogConstants {
     public static final String TABLE_CATALOG = "tableCatalog";
     public static final String SCHEMA_CATALOG = "schemaCatalog";
 
-    public static final String TABLE_CATALOG_DIRECTORY = "../catalog/table";
-    public static final String SCHEMA_CATALOG_DIRECTORY = "../catalog/schema";
+    public static final String TABLE_CATALOG_DIRECTORY = Paths.get(Utils.getTextdbHomePath(), "catalog", "table").toString();
+    public static final String SCHEMA_CATALOG_DIRECTORY = Paths.get(Utils.getTextdbHomePath(), "catalog", "schema").toString();
 
     // Schema for the "table catalog" table
     public static final String TABLE_NAME = "tableName";

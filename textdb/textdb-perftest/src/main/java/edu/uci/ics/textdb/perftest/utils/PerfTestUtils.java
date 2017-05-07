@@ -4,8 +4,6 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.net.URISyntaxException;
-import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -15,9 +13,10 @@ import java.util.Scanner;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 
+import edu.uci.ics.textdb.api.constants.DataConstants.TextdbProject;
 import edu.uci.ics.textdb.api.engine.Engine;
+import edu.uci.ics.textdb.api.utils.Utils;
 import edu.uci.ics.textdb.perftest.medline.MedlineIndexWriter;
-import edu.uci.ics.textdb.storage.DataStore;
 import edu.uci.ics.textdb.storage.RelationManager;
 import edu.uci.ics.textdb.storage.constants.LuceneAnalyzerConstants;
 
@@ -33,23 +32,14 @@ public class PerfTestUtils {
      * These default paths work only when the program is run from the directory,
      * textdb-perftest
      */
-    public static String fileFolder;
-    public static String standardIndexFolder;
-    public static String trigramIndexFolder;
-    public static String resultFolder;
-    public static String queryFolder;
-
-
-    static {
-        try {
-            fileFolder = Paths.get(PerfTestUtils.class.getResource("/sample-data-files").toURI()).toString() + "/";
-            standardIndexFolder = Paths.get(PerfTestUtils.class.getResource("/index/standard").toURI()).toString() + "/";
-            trigramIndexFolder = Paths.get(PerfTestUtils.class.getResource("/index/trigram").toURI()).toString() + "/";
-            resultFolder = "./src/main/resources/perftest-files/results/";
-            queryFolder = Paths.get(PerfTestUtils.class.getResource("/perftest-files/queries").toURI()).toString() + "/";
-        } catch (URISyntaxException e) {
-            e.printStackTrace();
-        }
+    public static String fileFolder = getResourcePath("/sample-data-files");
+    public static String standardIndexFolder = getResourcePath("/index/standard");
+    public static String trigramIndexFolder = getResourcePath("/index/trigram");
+    public static String resultFolder = getResourcePath("/perftest-files/results");
+    public static String queryFolder = getResourcePath("/perftest-files/queries");
+    
+    public static String getResourcePath(String resourcePath) {
+        return Utils.getResourcePath(resourcePath, TextdbProject.TEXTDB_PERFTEST);
     }
 
     /**

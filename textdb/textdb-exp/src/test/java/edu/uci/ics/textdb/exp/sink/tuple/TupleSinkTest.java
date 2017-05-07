@@ -18,7 +18,6 @@ import junit.framework.Assert;
 
 public class TupleSinkTest {
     
-    private TupleSink tupleSink;
     private IOperator inputOperator;
     private Schema inputSchema = new Schema(
             SchemaConstants._ID_ATTRIBUTE, new Attribute("content", AttributeType.TEXT), SchemaConstants.PAYLOAD_ATTRIBUTE);
@@ -27,9 +26,6 @@ public class TupleSinkTest {
     public void setUp() throws FileNotFoundException {
         inputOperator = Mockito.mock(IOperator.class);
         Mockito.when(inputOperator.getOutputSchema()).thenReturn(inputSchema);
-        
-        tupleSink = new TupleSink();
-        tupleSink.setInputOperator(inputOperator);
     }
 
     @After
@@ -38,6 +34,9 @@ public class TupleSinkTest {
 
     @Test
     public void testOpenClose() throws Exception {
+        TupleSink tupleSink = new TupleSink();
+        tupleSink.setInputOperator(inputOperator);
+        
         tupleSink.open();
         // verify that inputOperator called open() method
         Mockito.verify(inputOperator).open();
@@ -53,6 +52,9 @@ public class TupleSinkTest {
 
     @Test
     public void testGetNextTuple() throws Exception {
+        TupleSink tupleSink = new TupleSink();
+        tupleSink.setInputOperator(inputOperator);
+        
         Tuple sampleTuple = Mockito.mock(Tuple.class);
         Mockito.when(sampleTuple.toString()).thenReturn("Sample Tuple");
         Mockito.when(sampleTuple.getSchema()).thenReturn(inputSchema);
@@ -67,6 +69,37 @@ public class TupleSinkTest {
         Mockito.verify(inputOperator, Mockito.times(1)).getNextTuple();
 
         tupleSink.close();
+    }
+    
+    /*
+     * Test tuple sink predicate with limit 1 and offset 1.
+     */
+    @Test
+    public void testLimitOffset() throws Exception {
+        TupleSink tupleSink = new TupleSink(new TupleSinkPredicate(1, 1));
+        tupleSink.setInputOperator(inputOperator);
+        
+        Tuple sampleTuple1 = Mockito.mock(Tuple.class);
+        Mockito.when(sampleTuple1.getSchema()).thenReturn(inputSchema);
+        
+        Tuple sampleTuple2 = Mockito.mock(Tuple.class);
+        Mockito.when(sampleTuple2.getSchema()).thenReturn(inputSchema);
+
+        Tuple sampleTuple3 = Mockito.mock(Tuple.class);
+        Mockito.when(sampleTuple3.getSchema()).thenReturn(inputSchema);
+
+        // Set the behavior for inputOperator,
+        // it returns 3 tuples, then return null
+        Mockito.when(inputOperator.getNextTuple()).thenReturn(sampleTuple1)
+            .thenReturn(sampleTuple2).thenReturn(sampleTuple3).thenReturn(null);
+        
+        tupleSink.open();
+        Tuple resultTuple1 = tupleSink.getNextTuple();
+        Tuple resultTuple2 = tupleSink.getNextTuple();
+        tupleSink.close();
+        
+        Assert.assertTrue(resultTuple1 != null);
+        Assert.assertTrue(resultTuple2 == null);
     }
     
 }

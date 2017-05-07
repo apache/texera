@@ -1,10 +1,12 @@
 package edu.uci.ics.textdb.exp.planstore;
 
+import java.nio.file.Paths;
 import java.util.regex.Pattern;
 
 import edu.uci.ics.textdb.api.schema.Attribute;
 import edu.uci.ics.textdb.api.schema.AttributeType;
 import edu.uci.ics.textdb.api.schema.Schema;
+import edu.uci.ics.textdb.api.utils.Utils;
 
 /**
  * Variables used in PlanStore.java.
@@ -17,7 +19,7 @@ public class PlanStoreConstants {
 
     public static final Pattern VALID_PLAN_NAME = Pattern.compile("^[a-zA-Z0-9\\-_]{1,}$");
 
-    public static final String INDEX_DIR = "../plan";
+    public static final String INDEX_DIR = Paths.get(Utils.getTextdbHomePath(), "plan").toString();
 
     public static final String NAME = "name";
     public static final String DESCRIPTION = "desc";

@@ -20,6 +20,8 @@ import edu.uci.ics.textdb.api.utils.Utils;
  */
 public class TupleSink implements ISink {
     
+    private TupleSinkPredicate predicate;
+    
     private IOperator inputOperator;
     
     private Schema inputSchema;
@@ -36,9 +38,11 @@ public class TupleSink implements ISink {
      *
      */
     public TupleSink() {
+        this(new TupleSinkPredicate());
     }
     
     public TupleSink(TupleSinkPredicate predicate) {
+        this.predicate = predicate;
     }
     
     public void setInputOperator(IOperator inputOperator) {
@@ -81,12 +85,21 @@ public class TupleSink implements ISink {
         if (cursor == CLOSED) {
             return null;
         }
-        Tuple tuple = inputOperator.getNextTuple();
-        if (tuple == null) {
+        if (cursor >= predicate.getLimit() + predicate.getOffset()) {
             return null;
         }
-        cursor++;
-        return Utils.removeFields(tuple, SchemaConstants.PAYLOAD);
+        Tuple resultTuple = null;
+        while (true) {
+            resultTuple = inputOperator.getNextTuple();
+            if (resultTuple == null) {
+                return null;
+            }
+            cursor++;
+            if (cursor > predicate.getOffset()) {
+                break;
+            }
+        }
+        return Utils.removeFields(resultTuple, SchemaConstants.PAYLOAD);
     }
 
     @Override
@@ -106,11 +119,13 @@ public class TupleSink implements ISink {
      * @throws TextDBException
      */
     public List<Tuple> collectAllTuples() throws TextDBException {
+        this.open();
         ArrayList<Tuple> results = new ArrayList<>();
         Tuple tuple;
-        while ((tuple = inputOperator.getNextTuple()) != null) {
-            results.add(Utils.removeFields(tuple, SchemaConstants._ID, SchemaConstants.PAYLOAD));
+        while ((tuple = this.getNextTuple()) != null) {
+            results.add(tuple);
         }
+        this.close();
         return results;
     }
 
