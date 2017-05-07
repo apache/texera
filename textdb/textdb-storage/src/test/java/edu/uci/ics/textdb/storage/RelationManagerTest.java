@@ -25,6 +25,7 @@ import edu.uci.ics.textdb.storage.constants.LuceneAnalyzerConstants;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 public class RelationManagerTest {
     
@@ -401,41 +402,36 @@ public class RelationManagerTest {
     }
 
     /*
-     * Test on getMetaData() to see if it successfully get metadata from "promed" and "plan"
+     * Test on getMetaData() to see if it successfully get metadata from "relation_manager_test_table"
      */
     @Test
     public void test17() throws Exception {
-        System.out.println("\n");
-        // Check if the result contains and only contains 2 tables with correct table names
-        List<TableMetadata> result = relationManager.getMetaData();
-//        System.out.println(result.get(1).getSchema().getAttributes().toString());
+        String tableName = "relation_manager_test_table";
+        String tableDirectory = "./index/test_table";
+        Schema tableSchema = new Schema(
+                new Attribute("content", AttributeType.STRING), new Attribute("number", AttributeType.STRING));
 
-        HashSet<String> tableNamesActual = new HashSet<>();
-        for(int i = 0; i < result.size(); ++i) {
-            TableMetadata currentMetadata = result.get(i);
-            tableNamesActual.add(currentMetadata.getTableName());
+        RelationManager relationManager = RelationManager.getRelationManager();
 
-            List<Attribute> attributes = currentMetadata.getSchema().getAttributes();
-            for(int j = 0; j < attributes.size(); ++j) {
-                String attributeName = attributes.get(j).getAttributeName();
-                if(attributeName.equals("_id")) {
-                    Assert.assertEquals(AttributeType._ID_TYPE, attributes.get(j).getAttributeType());
-                } else if(attributeName.equals("id") || attributeName.equals("name") ||
-                        attributeName.equals("desc") || attributeName.equals("planJson")) {
-                    Assert.assertEquals(AttributeType.STRING, attributes.get(j).getAttributeType());
-                } else if(attributeName.equals("content")) {
-                    Assert.assertEquals(AttributeType.TEXT, attributes.get(j).getAttributeType());
-                }
-            }
-        }
+        relationManager.deleteTable(tableName);
+        relationManager.createTable(
+                tableName, tableDirectory, tableSchema, LuceneAnalyzerConstants.standardAnalyzerString());
 
-        HashSet<String> tableNamesExpect = new HashSet<>();
-        tableNamesExpect.add("promed");
-        tableNamesExpect.add("plan");
+        List<TableMetadata> metaData = relationManager.getMetaData();
 
-        Assert.assertEquals(2, tableNamesActual.size());
-        Assert.assertEquals(tableNamesExpect, tableNamesActual);
+        // result should contain metadata about test table "relation_manager_test_table"
+        List<TableMetadata> result = metaData.stream().filter(x -> x.getTableName().equals(tableName)).collect(Collectors.toList());
 
+        Assert.assertEquals(result.size(), 1);
+
+        TableMetadata testTable = result.get(0);
+        List<String> testTableSchema = testTable.getSchema().getAttributeNames();
+
+        Assert.assertEquals(tableName, testTable.getTableName());
+        Assert.assertEquals("_id", testTableSchema.get(0));
+        Assert.assertEquals("content", testTableSchema.get(1));
+        Assert.assertEquals("number", testTableSchema.get(2));
+
+        relationManager.deleteTable(tableName);
     }
-
 }

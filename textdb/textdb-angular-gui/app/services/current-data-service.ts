@@ -4,13 +4,10 @@ import { Response, Http } from '@angular/http';
 import { Headers } from '@angular/http';
 
 import { Data } from './data';
-import {TableMetadata} from "./table-metadata";
-import any = jasmine.any;
 
 declare var jQuery: any;
 
 const textdbUrl = 'http://localhost:8080/newqueryplan/execute';
-const metadataUrl = 'http://localhost:8080/metadata';
 
 const defaultData = {
     top: 20,
@@ -32,9 +29,6 @@ export class CurrentDataService {
     private checkPressed = new Subject<any>();
     checkPressed$ = this.checkPressed.asObservable();
 
-    private metadataRetrieved = new Subject<any>();
-    metadataRetrieved$ = this.metadataRetrieved.asObservable();
-
     constructor(private http: Http) { }
 
     setAllOperatorData(operatorData : any): void {
@@ -42,21 +36,21 @@ export class CurrentDataService {
     }
 
     selectData(operatorNum : number): void {
-      var data_now = jQuery("#the-flowchart").flowchart("getOperatorData",operatorNum);
-      this.newAddition.next({operatorNum: operatorNum, operatorData: data_now});
-      this.setAllOperatorData(jQuery("#the-flowchart").flowchart("getData"));
+        var data_now = jQuery("#the-flowchart").flowchart("getOperatorData",operatorNum);
+        this.newAddition.next({operatorNum: operatorNum, operatorData: data_now});
+        this.setAllOperatorData(jQuery("#the-flowchart").flowchart("getData"));
     }
 
     clearData() : void {
-      this.newAddition.next({operatorNum : 0, operatorData: defaultData});
+        this.newAddition.next({operatorNum : 0, operatorData: defaultData});
     }
-    
+
     processData(): void {
-      
+
         let textdbJson = {operators: {}, links: {}};
         var operators = [];
         var links = [];
-        
+
         var listAttributes : string[] = ["attributes", "dictionaryEntries"]
 
         for (var operatorIndex in this.allOperatorData.jsonData.operators) {
@@ -69,11 +63,11 @@ export class CurrentDataService {
                         attributes[attribute] = currentOperator[operatorIndex]['properties']['attributes'][attribute];
                         // if attribute is an array property, and it's not an array
                         if (jQuery.inArray(attribute, listAttributes) != -1 && ! Array.isArray(attributes[attribute])) {
-                          attributes[attribute] = attributes[attribute].split(",").map((item) => item.trim());
+                            attributes[attribute] = attributes[attribute].split(",").map((item) => item.trim());
                         }
                         // if the value is a string and can be converted to a boolean value
                         if (attributes[attribute] instanceof String && Boolean(attributes[attribute])) {
-                          attributes[attribute] = (attributes[attribute].toLowerCase() === 'true')
+                            attributes[attribute] = (attributes[attribute].toLowerCase() === 'true')
                         }
                     }
                 }
@@ -100,31 +94,14 @@ export class CurrentDataService {
         console.log("TextDB JSON is:");
         console.log(JSON.stringify(textdbJson));
         this.http.post(textdbUrl, JSON.stringify(textdbJson), {headers: headers})
-            .subscribe(
-                data => {
-                    this.checkPressed.next(data.json());
-                },
-                err => {
-                    this.checkPressed.next(err.json());
-                }
-            );
+          .subscribe(
+            data => {
+                this.checkPressed.next(data.json());
+            },
+            err => {
+                this.checkPressed.next(err.json());
+            }
+          );
     }
 
-    getMetadata(): void {
-        let headers = new Headers({ 'Content-Type': 'application/json' });
-        this.http.get(metadataUrl, {headers: headers})
-            .subscribe(
-                data => {
-                    let result = (JSON.parse(data.json().message));
-                    let metadata: Array<TableMetadata> = [];
-                    result.forEach((x, y) =>
-                        metadata.push(new TableMetadata(x.tableName, x.attributes))
-                    );
-                    this.metadataRetrieved.next(metadata);
-                },
-                err => {
-                    console.log("Error at getMetadata() in current-data-service.ts \n Error: "+err);
-                }
-            );
-    }
 }

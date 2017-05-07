@@ -26,7 +26,6 @@ export class AppComponent {
 	name = 'Angular';
 
     constructor(private currentDataService: CurrentDataService, private mockDataService: MockDataService) {
-        currentDataService.getMetadata();
     }
 
     @ViewChild('theFlowchart') theFlowchart: TheFlowchartComponent;

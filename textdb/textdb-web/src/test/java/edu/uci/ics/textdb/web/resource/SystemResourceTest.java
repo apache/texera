@@ -1,26 +1,42 @@
 package edu.uci.ics.textdb.web.resource;
 
-import edu.uci.ics.textdb.web.response.TextdbWebResponse;
-import org.junit.After;
-import org.junit.Before;
+import edu.uci.ics.textdb.web.TextdbWebApplication;
+import edu.uci.ics.textdb.web.TextdbWebConfiguration;
+import io.dropwizard.client.JerseyClientBuilder;
+import io.dropwizard.testing.ResourceHelpers;
+import io.dropwizard.testing.junit.DropwizardAppRule;
+import org.glassfish.jersey.client.ClientProperties;
+import org.junit.ClassRule;
 import org.junit.Test;
 
-import static org.junit.Assert.*;
+import javax.ws.rs.client.Client;
+import javax.ws.rs.core.Response;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Created by SmartGUI team on 5/5/17.
  */
 public class SystemResourceTest {
-    @Before
-    public void setUp() throws Exception {
-    }
+	@ClassRule
+	public static final DropwizardAppRule<TextdbWebConfiguration> RULE =
+					new DropwizardAppRule<>(TextdbWebApplication.class, ResourceHelpers.resourceFilePath("test-config.yml"));
 
-    @After
-    public void tearDown() throws Exception {
-    }
+	@Test
+	public void checkSampleEndpoint() throws Exception {
+		Client client = new JerseyClientBuilder(RULE.getEnvironment()).build("test client");
+		client.property(ClientProperties.CONNECT_TIMEOUT, 5000);
+		client.property(ClientProperties.READ_TIMEOUT, 5000);
 
-    @Test
-    public void getMetadata() throws Exception {
-    }
+		Response response = client.target(
+						String.format("http://localhost:%d/metadata", RULE.getLocalPort()))
+						.request()
+						.get();
+
+		System.out.println("resposne is: " + response);
+
+		assertThat(response.getStatus()).isEqualTo(200);
+
+	}
 
 }
