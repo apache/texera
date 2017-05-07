@@ -3,7 +3,6 @@ package edu.uci.ics.textdb.exp.keywordmatcher;
 import java.util.ArrayList;
 import java.util.List;
 
-import edu.uci.ics.textdb.api.constants.SchemaConstants;
 import edu.uci.ics.textdb.api.constants.TestConstants;
 import edu.uci.ics.textdb.api.constants.TestConstantsChinese;
 import edu.uci.ics.textdb.api.exception.DataFlowException;
@@ -12,7 +11,6 @@ import edu.uci.ics.textdb.api.tuple.Tuple;
 import edu.uci.ics.textdb.api.utils.TestUtils;
 import edu.uci.ics.textdb.exp.source.scan.ScanBasedSourceOperator;
 import edu.uci.ics.textdb.exp.source.scan.ScanSourcePredicate;
-import edu.uci.ics.textdb.exp.utils.DataflowUtils;
 import edu.uci.ics.textdb.storage.DataWriter;
 import edu.uci.ics.textdb.storage.RelationManager;
 import edu.uci.ics.textdb.storage.constants.LuceneAnalyzerConstants;
@@ -32,6 +30,8 @@ public class KeywordTestHelper {
     public static final String PEOPLE_TABLE = "keyword_test_people";
     public static final String MEDLINE_TABLE = "keyword_test_medline";
     public static final String CHINESE_TABLE = "keyword_test_chinese";
+    
+    public static final String RESULTS = "dictionary test results";
     
     public static void writeTestTables() throws TextDBException {
         RelationManager relationManager = RelationManager.getRelationManager();
@@ -124,7 +124,7 @@ public class KeywordTestHelper {
         
         KeywordPredicate keywordPredicate = new KeywordPredicate(
                 keywordQuery, attributeNames, relationManager.getTableAnalyzerString(tableName), matchingType, 
-                SchemaConstants.SPAN_LIST, limit, offset);
+                RESULTS, limit, offset);
         KeywordMatcher keywordMatcher = new KeywordMatcher(keywordPredicate);
         
         keywordMatcher.setInputOperator(scanSource);
@@ -146,7 +146,7 @@ public class KeywordTestHelper {
         RelationManager relationManager = RelationManager.getRelationManager();
         KeywordSourcePredicate keywordSourcePredicate = new KeywordSourcePredicate(
                 keywordQuery, attributeNames, relationManager.getTableAnalyzerString(tableName), matchingType, 
-                tableName, SchemaConstants.SPAN_LIST, limit, offset);
+                tableName, RESULTS, limit, offset);
         KeywordMatcherSourceOperator keywordSource = new KeywordMatcherSourceOperator(
                 keywordSourcePredicate);
         

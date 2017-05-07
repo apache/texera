@@ -46,6 +46,7 @@ let regexMatcher = {
         "regex": "regex",
         "attributes": [],
         "regexIgnoreCase": false
+        "spanListName": " "
     }
   }
 };
@@ -312,7 +313,8 @@ let regexSource = {
         "attributes": [],
         "regexIgnoreCase": false,
         "tableName": "tableName",
-        "regexUseIndex": true
+        "regexUseIndex": true,
+        "spanListName": " "
     } 
   }
 }

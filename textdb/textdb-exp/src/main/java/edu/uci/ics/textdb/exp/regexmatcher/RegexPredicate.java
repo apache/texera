@@ -22,14 +22,14 @@ public class RegexPredicate extends PredicateBase {
 
     private final String regex;
     private final List<String> attributeNames;
+    private final String spanListName;
     private final Boolean ignoreCase;
-    
     
     /*
      * This constructor is only for internal use.
      */
-    public RegexPredicate(String regex, List<String> attributeNames) {
-        this(regex, attributeNames, null);
+    public RegexPredicate(String regex, List<String> attributeNames, String spanListName) {
+        this(regex, attributeNames, null, spanListName);
     }
 
     /**
@@ -38,6 +38,7 @@ public class RegexPredicate extends PredicateBase {
      * @param regex, the regex to be used
      * @param attributeNames, a list of attribute names to match regex on
      * @param ignoreCase, optional, ignores regex case, default false
+     * @param spanListName, the name of the attribute where the results will be put in
      */
     @JsonCreator
     public RegexPredicate(
@@ -46,13 +47,20 @@ public class RegexPredicate extends PredicateBase {
             @JsonProperty(value = PropertyNameConstants.ATTRIBUTE_NAMES, required = true)
             List<String> attributeNames,
             @JsonProperty(value = PropertyNameConstants.REGEX_IGNORE_CASE, required = false)
-            Boolean ignoreCase) {
+            Boolean ignoreCase,
+            @JsonProperty(value = PropertyNameConstants.SPAN_LIST_NAME, required = true)
+            String spanListName) {
         this.regex = regex;
         this.attributeNames = attributeNames;
         if (ignoreCase == null) {
             this.ignoreCase = false;
         } else {
             this.ignoreCase = ignoreCase;
+        }
+        if (spanListName == null || spanListName.trim().isEmpty()) {
+            this.spanListName = this.getID();
+        } else {
+            this.spanListName = spanListName.trim();
         }
     }
 
@@ -64,6 +72,11 @@ public class RegexPredicate extends PredicateBase {
     @JsonProperty(PropertyNameConstants.ATTRIBUTE_NAMES)
     public List<String> getAttributeNames() {
         return new ArrayList<>(this.attributeNames);
+    }
+    
+    @JsonProperty(PropertyNameConstants.SPAN_LIST_NAME)
+    public String getSpanListName() {
+        return this.spanListName;
     }
     
     @JsonProperty(PropertyNameConstants.REGEX_IGNORE_CASE)

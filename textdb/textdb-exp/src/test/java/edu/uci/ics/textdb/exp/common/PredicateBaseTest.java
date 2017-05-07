@@ -155,13 +155,15 @@ public class PredicateBaseTest {
     public void testRegexMatcher() throws Exception {
         RegexPredicate regexPredicate = new RegexPredicate(
                 "regex",
-                attributeNames);
+                attributeNames,
+                "spanListName");
         testPredicate(regexPredicate);
         
         RegexSourcePredicate regexSourcePredicate = new RegexSourcePredicate(
                 "regex",
                 attributeNames,
-                "tableName");
+                "tableName",
+                "spanListName");
         testPredicate(regexSourcePredicate);
     }
     

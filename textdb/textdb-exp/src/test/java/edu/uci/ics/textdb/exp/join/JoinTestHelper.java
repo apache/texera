@@ -131,7 +131,7 @@ public class JoinTestHelper {
         try {
             ScanBasedSourceOperator scanBasedSourceOperator = new ScanBasedSourceOperator(
                     new ScanSourcePredicate(tableName));
-            RegexMatcher regexMatcher = new RegexMatcher(new RegexPredicate(query, Arrays.asList(attrName)));
+            RegexMatcher regexMatcher = new RegexMatcher(new RegexPredicate(query, Arrays.asList(attrName), SchemaConstants.SPAN_LIST));
             regexMatcher.setInputOperator(scanBasedSourceOperator);
             return regexMatcher;
         } catch (DataFlowException e) {

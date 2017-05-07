@@ -19,8 +19,9 @@ public class RegexSourcePredicate extends RegexPredicate {
     public RegexSourcePredicate(
             String regex, 
             List<String> attributeNames, 
-            String tableName) {
-        this(regex, attributeNames, null, tableName, null);
+            String tableName,
+            String spanListName) {
+        this(regex, attributeNames, null, tableName, null, spanListName);
     }
 
     /**
@@ -31,6 +32,7 @@ public class RegexSourcePredicate extends RegexPredicate {
      * @param ignoreCase, optional, ignores regex case, default false
      * @param tableName, the name of the source table
      * @param useIndex, optional, use the gram-based regex index query, default true
+     * @param spanListName, the name of the attribute where the results will be put in
      */
     @JsonCreator
     public RegexSourcePredicate(
@@ -43,8 +45,10 @@ public class RegexSourcePredicate extends RegexPredicate {
             @JsonProperty(value = PropertyNameConstants.TABLE_NAME, required = true)
             String tableName,
             @JsonProperty(value = PropertyNameConstants.REGEX_USE_INDEX, required = false)
-            Boolean useIndex) {
-        super(regex, attributeNames, ignoreCase);
+            Boolean useIndex,
+            @JsonProperty(value = PropertyNameConstants.SPAN_LIST_NAME, required = true)
+            String spanListName) {
+        super(regex, attributeNames, ignoreCase, spanListName);
         this.tableName = tableName;
         if (useIndex == null) {
             this.useIndex = true;

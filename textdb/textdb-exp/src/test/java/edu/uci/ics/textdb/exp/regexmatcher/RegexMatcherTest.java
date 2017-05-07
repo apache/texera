@@ -9,11 +9,12 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import edu.uci.ics.textdb.api.constants.SchemaConstants;
 import edu.uci.ics.textdb.api.constants.TestConstants;
 import edu.uci.ics.textdb.api.exception.TextDBException;
 import edu.uci.ics.textdb.api.field.IField;
 import edu.uci.ics.textdb.api.field.ListField;
+import edu.uci.ics.textdb.api.schema.Attribute;
+import edu.uci.ics.textdb.api.schema.AttributeType;
 import edu.uci.ics.textdb.api.schema.Schema;
 import edu.uci.ics.textdb.api.span.Span;
 import edu.uci.ics.textdb.api.tuple.Tuple;
@@ -33,6 +34,8 @@ public class RegexMatcherTest {
     public static final String CORP_TABLE = RegexMatcherTestHelper.CORP_TABLE;
     public static final String STAFF_TABLE = RegexMatcherTestHelper.STAFF_TABLE;
     public static final String TEXT_TABLE = RegexMatcherTestHelper.TEXT_TABLE;
+    
+    public static final String RESULTS = RegexMatcherTestHelper.RESULTS;
     
     @BeforeClass
     public static void setUp() throws TextDBException {
@@ -54,7 +57,7 @@ public class RegexMatcherTest {
 
         // expected to match "brad lie angelina"
         List<Tuple> data = TestConstants.getSamplePeopleTuples();
-        Schema spanSchema = Utils.addAttributeToSchema(TestConstants.SCHEMA_PEOPLE, SchemaConstants.SPAN_LIST_ATTRIBUTE);
+        Schema spanSchema = Utils.addAttributeToSchema(TestConstants.SCHEMA_PEOPLE, new Attribute(RESULTS, AttributeType.LIST));
         List<Span> spans = new ArrayList<Span>();
         spans.add(new Span(TestConstants.FIRST_NAME, 11, 17, query, "gelina"));
         IField spanField = new ListField<Span>(new ArrayList<Span>(spans));
@@ -83,7 +86,7 @@ public class RegexMatcherTest {
 
         // expected to match "http://weibo.com"
         List<Tuple> data = RegexTestConstantsCorp.getSampleCorpTuples();
-        Schema spanSchema = Utils.addAttributeToSchema(RegexTestConstantsCorp.SCHEMA_CORP, SchemaConstants.SPAN_LIST_ATTRIBUTE);
+        Schema spanSchema = Utils.addAttributeToSchema(RegexTestConstantsCorp.SCHEMA_CORP, new Attribute(RESULTS, AttributeType.LIST));
         List<Span> spans = new ArrayList<Span>();
         spans.add(new Span(RegexTestConstantsCorp.URL, 0, 16, query, "http://weibo.com"));
         IField spanField = new ListField<Span>(new ArrayList<Span>(spans));
@@ -112,7 +115,7 @@ public class RegexMatcherTest {
 
         // expected to match "66.220.144.0"
         List<Tuple> data = RegexTestConstantsCorp.getSampleCorpTuples();
-        Schema spanSchema = Utils.addAttributeToSchema(RegexTestConstantsCorp.SCHEMA_CORP, SchemaConstants.SPAN_LIST_ATTRIBUTE);
+        Schema spanSchema = Utils.addAttributeToSchema(RegexTestConstantsCorp.SCHEMA_CORP, new Attribute(RESULTS, AttributeType.LIST));
         List<Span> spans = new ArrayList<Span>();
         spans.add(new Span(RegexTestConstantsCorp.IP_ADDRESS, 0, 12, query, "66.220.144.0"));
         IField spanField = new ListField<Span>(new ArrayList<Span>(spans));
@@ -150,7 +153,7 @@ public class RegexMatcherTest {
 
         // expected to match "k.bocanegra@uci.edu"
         List<Tuple> data = RegexTestConstantStaff.getSampleStaffTuples();
-        Schema spanSchema = Utils.addAttributeToSchema(RegexTestConstantStaff.SCHEMA_STAFF, SchemaConstants.SPAN_LIST_ATTRIBUTE);
+        Schema spanSchema = Utils.addAttributeToSchema(RegexTestConstantStaff.SCHEMA_STAFF, new Attribute(RESULTS, AttributeType.LIST));
         List<Span> spans = new ArrayList<Span>();
         spans.add(new Span(RegexTestConstantStaff.EMAIL, 0, 19, query, "m.bocanegra@164.com"));
         IField spanField = new ListField<Span>(new ArrayList<Span>(spans));
@@ -179,7 +182,7 @@ public class RegexMatcherTest {
 
         // expected to match "test" & testing"
         List<Tuple> data = RegexTestConstantsText.getSampleTextTuples();
-        Schema spanSchema = Utils.addAttributeToSchema(RegexTestConstantsText.SCHEMA_TEXT, SchemaConstants.SPAN_LIST_ATTRIBUTE);
+        Schema spanSchema = Utils.addAttributeToSchema(RegexTestConstantsText.SCHEMA_TEXT, new Attribute(RESULTS, AttributeType.LIST));
         List<Span> spans = new ArrayList<Span>();
         spans.add(new Span(RegexTestConstantsText.CONTENT, 5, 9, query, "test"));
         spans.add(new Span(RegexTestConstantsText.CONTENT, 21, 28, query, "testing"));
@@ -217,7 +220,7 @@ public class RegexMatcherTest {
 
         // expected to match "followup"
         List<Tuple> data = RegexTestConstantsText.getSampleTextTuples();
-        Schema spanSchema = Utils.addAttributeToSchema(RegexTestConstantsText.SCHEMA_TEXT, SchemaConstants.SPAN_LIST_ATTRIBUTE);
+        Schema spanSchema = Utils.addAttributeToSchema(RegexTestConstantsText.SCHEMA_TEXT, new Attribute(RESULTS, AttributeType.LIST));
         List<Span> spans = new ArrayList<Span>();
         spans.add(new Span(RegexTestConstantsText.CONTENT, 28, 36, query, "followup"));
         spans.add(new Span(RegexTestConstantsText.CONTENT, 54, 62, query, "followup"));
@@ -257,7 +260,7 @@ public class RegexMatcherTest {
 
         // expected to match "Tomato" & "tomato"
         List<Tuple> data = RegexTestConstantsText.getSampleTextTuples();
-        Schema spanSchema = Utils.addAttributeToSchema(RegexTestConstantsText.SCHEMA_TEXT, SchemaConstants.SPAN_LIST_ATTRIBUTE);
+        Schema spanSchema = Utils.addAttributeToSchema(RegexTestConstantsText.SCHEMA_TEXT, new Attribute(RESULTS, AttributeType.LIST));
         List<Span> spans = new ArrayList<Span>();
         spans.add(new Span(RegexTestConstantsText.CONTENT, 0, 6, query, "Tomato"));
         spans.add(new Span(RegexTestConstantsText.CONTENT, 94, 100, query, "tomato"));
@@ -295,7 +298,7 @@ public class RegexMatcherTest {
 
         // expected to match [a] & [!]
         List<Tuple> data = RegexTestConstantsText.getSampleTextTuples();
-        Schema spanSchema = Utils.addAttributeToSchema(RegexTestConstantsText.SCHEMA_TEXT, SchemaConstants.SPAN_LIST_ATTRIBUTE);
+        Schema spanSchema = Utils.addAttributeToSchema(RegexTestConstantsText.SCHEMA_TEXT, new Attribute(RESULTS, AttributeType.LIST));
         List<Span> spans = new ArrayList<Span>();
         spans.add(new Span(RegexTestConstantsText.CONTENT, 110, 113, query, "[a]"));
         spans.add(new Span(RegexTestConstantsText.CONTENT, 120, 123, query, "[!]"));
@@ -316,7 +319,7 @@ public class RegexMatcherTest {
         List<Tuple> expectedResults = new ArrayList<Tuple>();
 
         List<Tuple> data = RegexTestConstantsText.getSampleTextTuples();
-        Schema spanSchema = Utils.addAttributeToSchema(RegexTestConstantsText.SCHEMA_TEXT, SchemaConstants.SPAN_LIST_ATTRIBUTE);
+        Schema spanSchema = Utils.addAttributeToSchema(RegexTestConstantsText.SCHEMA_TEXT, new Attribute(RESULTS, AttributeType.LIST));
         List<Span> spans = new ArrayList<Span>();
         spans.add(new Span(RegexTestConstantsText.CONTENT, 4, 11, query, "patient"));
         IField spanField = new ListField<Span>(new ArrayList<Span>(spans));
@@ -341,7 +344,6 @@ public class RegexMatcherTest {
         fields.add(spanField);
         expectedResults.add(new Tuple(spanSchema, fields.toArray(new IField[fields.size()])));
 
-        exactResultsWithLimit = Utils.removeFields(exactResultsWithLimit, SchemaConstants.PAYLOAD);
         Assert.assertTrue(TestUtils.containsAll(expectedResults, exactResultsWithLimit));
         Assert.assertEquals(expectedResults.size(), 3);
         Assert.assertEquals(exactResultsWithLimit.size(), 2);
@@ -356,7 +358,7 @@ public class RegexMatcherTest {
         List<Tuple> expectedResults = new ArrayList<Tuple>();
 
         List<Tuple> data = RegexTestConstantsText.getSampleTextTuples();
-        Schema spanSchema = Utils.addAttributeToSchema(RegexTestConstantsText.SCHEMA_TEXT, SchemaConstants.SPAN_LIST_ATTRIBUTE);
+        Schema spanSchema = Utils.addAttributeToSchema(RegexTestConstantsText.SCHEMA_TEXT, new Attribute(RESULTS, AttributeType.LIST));
         List<Span> spans = new ArrayList<Span>();
         spans.add(new Span(RegexTestConstantsText.CONTENT, 4, 11, query, "patient"));
         IField spanField = new ListField<Span>(new ArrayList<Span>(spans));
@@ -381,7 +383,6 @@ public class RegexMatcherTest {
         fields.add(spanField);
         expectedResults.add(new Tuple(spanSchema, fields.toArray(new IField[fields.size()])));
 
-        exactResultsWithLimitOffset = Utils.removeFields(exactResultsWithLimitOffset, SchemaConstants.PAYLOAD);
         Assert.assertTrue(TestUtils.containsAll(expectedResults, exactResultsWithLimitOffset));
         Assert.assertEquals(expectedResults.size(), 3);
         Assert.assertEquals(exactResultsWithLimitOffset.size(), 2);

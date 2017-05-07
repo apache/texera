@@ -4,7 +4,6 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
 
-import edu.uci.ics.textdb.api.constants.SchemaConstants;
 import edu.uci.ics.textdb.api.constants.TestConstants;
 import edu.uci.ics.textdb.api.constants.TestConstantsChinese;
 import edu.uci.ics.textdb.api.exception.TextDBException;
@@ -16,11 +15,11 @@ import edu.uci.ics.textdb.api.field.ListField;
 import edu.uci.ics.textdb.api.field.StringField;
 import edu.uci.ics.textdb.api.field.TextField;
 import edu.uci.ics.textdb.api.schema.Attribute;
+import edu.uci.ics.textdb.api.schema.AttributeType;
 import edu.uci.ics.textdb.api.schema.Schema;
 import edu.uci.ics.textdb.api.span.Span;
 import edu.uci.ics.textdb.api.tuple.Tuple;
 import edu.uci.ics.textdb.api.utils.TestUtils;
-import edu.uci.ics.textdb.api.utils.Utils;
 
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.junit.AfterClass;
@@ -30,7 +29,7 @@ import org.junit.Test;
 
 /**
  * @author Prakul
- * 
+ * @author Zuozhi Wang
  * @author Qinhua Huang
  *
  */
@@ -41,6 +40,7 @@ public class KeywordConjunctionTest {
     public static final String CHINESE_TABLE = KeywordTestHelper.CHINESE_TABLE;
     
     public static final KeywordMatchingType conjunction = KeywordMatchingType.CONJUNCTION_INDEXBASED;
+    public static final String RESULTS = KeywordTestHelper.RESULTS;
     
     @BeforeClass
     public static void setUp() throws Exception {
@@ -98,7 +98,7 @@ public class KeywordConjunctionTest {
         for (int count = 0; count < schemaAttributes.length - 1; count++) {
             schemaAttributes[count] = TestConstants.ATTRIBUTES_PEOPLE[count];
         }
-        schemaAttributes[schemaAttributes.length - 1] = SchemaConstants.SPAN_LIST_ATTRIBUTE;
+        schemaAttributes[schemaAttributes.length - 1] = new Attribute(RESULTS, AttributeType.LIST);
 
         IField[] fields1 = { new StringField("bruce"), new StringField("john Lee"), new IntegerField(46),
                 new DoubleField(5.50), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-14-1970")),
@@ -140,7 +140,7 @@ public class KeywordConjunctionTest {
             schemaAttributes[count] = TestConstants.ATTRIBUTES_PEOPLE[count];
         }
 
-        schemaAttributes[schemaAttributes.length - 1] = SchemaConstants.SPAN_LIST_ATTRIBUTE;
+        schemaAttributes[schemaAttributes.length - 1] = new Attribute(RESULTS, AttributeType.LIST);
 
         IField[] fields1 = { new StringField("bruce"), new StringField("john Lee"), new IntegerField(46),
                 new DoubleField(5.50), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-14-1970")),
@@ -189,7 +189,7 @@ public class KeywordConjunctionTest {
         for (int count = 0; count < schemaAttributes.length - 1; count++) {
             schemaAttributes[count] = TestConstants.ATTRIBUTES_PEOPLE[count];
         }
-        schemaAttributes[schemaAttributes.length - 1] = SchemaConstants.SPAN_LIST_ATTRIBUTE;
+        schemaAttributes[schemaAttributes.length - 1] = new Attribute(RESULTS, AttributeType.LIST);
 
         IField[] fields1 = { new StringField("george lin lin"), new StringField("lin clooney"), new IntegerField(43),
                 new DoubleField(6.06), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1973")),
@@ -239,7 +239,7 @@ public class KeywordConjunctionTest {
         for (int count = 0; count < schemaAttributes.length - 1; count++) {
             schemaAttributes[count] = TestConstants.ATTRIBUTES_PEOPLE[count];
         }
-        schemaAttributes[schemaAttributes.length - 1] = SchemaConstants.SPAN_LIST_ATTRIBUTE;
+        schemaAttributes[schemaAttributes.length - 1] = new Attribute(RESULTS, AttributeType.LIST);
 
         IField[] fields1 = { new StringField("george lin lin"), new StringField("lin clooney"), new IntegerField(43),
                 new DoubleField(6.06), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1973")),
@@ -302,7 +302,7 @@ public class KeywordConjunctionTest {
         for (int count = 0; count < schemaAttributes.length - 1; count++) {
             schemaAttributes[count] = TestConstants.ATTRIBUTES_PEOPLE[count];
         }
-        schemaAttributes[schemaAttributes.length - 1] = SchemaConstants.SPAN_LIST_ATTRIBUTE;
+        schemaAttributes[schemaAttributes.length - 1] = new Attribute(RESULTS, AttributeType.LIST);
 
         List<Tuple> resultList = KeywordTestHelper.getQueryResults(PEOPLE_TABLE, query, attributeNames, conjunction, 3, 0);
         List<Tuple> expectedList = new ArrayList<>();
@@ -345,8 +345,6 @@ public class KeywordConjunctionTest {
         expectedList.add(tuple3);
         expectedList.add(tuple4);
 
-        resultList = Utils.removeFields(resultList, SchemaConstants.PAYLOAD);
-
         Assert.assertEquals(expectedList.size(), 4);
         Assert.assertEquals(resultList.size(), 3);
         Assert.assertTrue(TestUtils.containsAll(expectedList, resultList));
@@ -364,7 +362,7 @@ public class KeywordConjunctionTest {
         for (int count = 0; count < schemaAttributes.length - 1; count++) {
             schemaAttributes[count] = TestConstants.ATTRIBUTES_PEOPLE[count];
         }
-        schemaAttributes[schemaAttributes.length - 1] = SchemaConstants.SPAN_LIST_ATTRIBUTE;
+        schemaAttributes[schemaAttributes.length - 1] = new Attribute(RESULTS, AttributeType.LIST);
 
         List<Tuple> resultList = KeywordTestHelper.getQueryResults(PEOPLE_TABLE, query, attributeNames, conjunction, 3, 2);
         List<Tuple> expectedList = new ArrayList<>();
@@ -407,8 +405,6 @@ public class KeywordConjunctionTest {
         expectedList.add(tuple3);
         expectedList.add(tuple4);
 
-        resultList = Utils.removeFields(resultList, SchemaConstants.PAYLOAD);
-
         Assert.assertEquals(expectedList.size(), 4);
         Assert.assertEquals(resultList.size(), 2);
         Assert.assertTrue(TestUtils.containsAll(expectedList, resultList));
@@ -440,7 +436,7 @@ public class KeywordConjunctionTest {
             schemaAttributes[count] = TestConstantsChinese.ATTRIBUTES_PEOPLE[count];
         }
 
-        schemaAttributes[schemaAttributes.length - 1] = SchemaConstants.SPAN_LIST_ATTRIBUTE;
+        schemaAttributes[schemaAttributes.length - 1] = new Attribute(RESULTS, AttributeType.LIST);
 
         IField[] fields1 = { new StringField("无忌"), new StringField("长孙"), new IntegerField(46),
                 new DoubleField(5.50), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-14-1970")),
@@ -494,7 +490,7 @@ public class KeywordConjunctionTest {
         for (int count = 0; count < schemaAttributes.length - 1; count++) {
             schemaAttributes[count] = TestConstants.ATTRIBUTES_PEOPLE[count];
         }
-        schemaAttributes[schemaAttributes.length - 1] = SchemaConstants.SPAN_LIST_ATTRIBUTE;
+        schemaAttributes[schemaAttributes.length - 1] = new Attribute(RESULTS, AttributeType.LIST);
 
         IField[] fields1 = { new StringField("宋江"), new StringField("建筑"),
                 new IntegerField(42), new DoubleField(5.99),

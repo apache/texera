@@ -3,10 +3,11 @@ package edu.uci.ics.textdb.exp.regexmatcher;
 import java.util.ArrayList;
 import java.util.List;
 
-import edu.uci.ics.textdb.api.constants.SchemaConstants;
+import edu.uci.ics.textdb.api.constants.ErrorMessages;
 import edu.uci.ics.textdb.api.exception.DataFlowException;
 import edu.uci.ics.textdb.api.exception.TextDBException;
 import edu.uci.ics.textdb.api.field.ListField;
+import edu.uci.ics.textdb.api.schema.Attribute;
 import edu.uci.ics.textdb.api.schema.AttributeType;
 import edu.uci.ics.textdb.api.schema.Schema;
 import edu.uci.ics.textdb.api.span.Span;
@@ -45,9 +46,11 @@ public class RegexMatcher extends AbstractSingleInputOperator {
         inputSchema = inputOperator.getOutputSchema();
         outputSchema = inputSchema;
         
-        if (!this.inputSchema.containsField(SchemaConstants.SPAN_LIST)) {
-            outputSchema = Utils.createSpanSchema(inputSchema);
+        if (this.inputSchema.containsField(predicate.getSpanListName())) {
+            throw new DataFlowException(ErrorMessages.DUPLICATE_ATTRIBUTE(predicate.getSpanListName(), inputSchema));
         }
+        outputSchema = Utils.addAttributeToSchema(inputSchema, 
+                new Attribute(predicate.getSpanListName(), AttributeType.LIST));
         
         // try Java Regex first
         try {
@@ -85,9 +88,7 @@ public class RegexMatcher extends AbstractSingleInputOperator {
         Tuple resultTuple = null;
         
         while ((inputTuple = inputOperator.getNextTuple()) != null) {
-            if (!inputSchema.containsField(SchemaConstants.SPAN_LIST)) {
-                inputTuple = DataflowUtils.getSpanTuple(inputTuple.getFields(), new ArrayList<Span>(), outputSchema);
-            }            
+            inputTuple = DataflowUtils.getSpanTuple(inputTuple.getFields(), new ArrayList<Span>(), outputSchema);         
             resultTuple = processOneInputTuple(inputTuple);
             if (resultTuple != null) {
                 break;
@@ -141,7 +142,7 @@ public class RegexMatcher extends AbstractSingleInputOperator {
             return null;
         }
 
-        ListField<Span> spanListField = inputTuple.getField(SchemaConstants.SPAN_LIST);
+        ListField<Span> spanListField = inputTuple.getField(predicate.getSpanListName());
         List<Span> spanList = spanListField.getValue();
         spanList.addAll(matchingResults);
 

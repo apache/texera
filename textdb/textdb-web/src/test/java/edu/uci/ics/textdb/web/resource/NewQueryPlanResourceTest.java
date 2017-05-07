@@ -69,7 +69,8 @@ public class NewQueryPlanResourceTest {
     
     public static RegexPredicate regexPredicate = new RegexPredicate(
             "ca(lifornia)?",
-            Arrays.asList("location", "content"));
+            Arrays.asList("location", "content"),
+            "regexSourceResults");
     public static String REGEX_ID = "regex";
     
     public static JoinDistancePredicate joinDistancePredicate = new JoinDistancePredicate(

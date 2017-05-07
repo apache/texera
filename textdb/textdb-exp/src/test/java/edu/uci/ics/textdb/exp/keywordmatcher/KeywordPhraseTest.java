@@ -9,7 +9,6 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import edu.uci.ics.textdb.api.constants.SchemaConstants;
 import edu.uci.ics.textdb.api.constants.TestConstants;
 import edu.uci.ics.textdb.api.field.DateField;
 import edu.uci.ics.textdb.api.field.DoubleField;
@@ -19,6 +18,7 @@ import edu.uci.ics.textdb.api.field.ListField;
 import edu.uci.ics.textdb.api.field.StringField;
 import edu.uci.ics.textdb.api.field.TextField;
 import edu.uci.ics.textdb.api.schema.Attribute;
+import edu.uci.ics.textdb.api.schema.AttributeType;
 import edu.uci.ics.textdb.api.schema.Schema;
 import edu.uci.ics.textdb.api.span.Span;
 import edu.uci.ics.textdb.api.tuple.Tuple;
@@ -26,6 +26,7 @@ import edu.uci.ics.textdb.api.utils.TestUtils;
 
 /**
  * @author Prakul
+ * @author Zuozhi Wang
  *
  */
 public class KeywordPhraseTest {
@@ -34,6 +35,7 @@ public class KeywordPhraseTest {
     public static final String MEDLINE_TABLE = KeywordTestHelper.MEDLINE_TABLE;
     
     public static final KeywordMatchingType phrase = KeywordMatchingType.PHRASE_INDEXBASED;
+    public static final String RESULTS = KeywordTestHelper.RESULTS;
     
     @BeforeClass
     public static void setUp() throws Exception {
@@ -91,7 +93,7 @@ public class KeywordPhraseTest {
         for (int count = 0; count < schemaAttributes.length - 1; count++) {
             schemaAttributes[count] = TestConstants.ATTRIBUTES_PEOPLE[count];
         }
-        schemaAttributes[schemaAttributes.length - 1] = SchemaConstants.SPAN_LIST_ATTRIBUTE;
+        schemaAttributes[schemaAttributes.length - 1] = new Attribute(RESULTS, AttributeType.LIST);
 
         IField[] fields1 = { new StringField("george lin lin"), new StringField("lin clooney"), new IntegerField(43),
                 new DoubleField(6.06), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1973")),
@@ -137,7 +139,7 @@ public class KeywordPhraseTest {
         for (int count = 0; count < schemaAttributes.length - 1; count++) {
             schemaAttributes[count] = TestConstants.ATTRIBUTES_PEOPLE[count];
         }
-        schemaAttributes[schemaAttributes.length - 1] = SchemaConstants.SPAN_LIST_ATTRIBUTE;
+        schemaAttributes[schemaAttributes.length - 1] = new Attribute(RESULTS, AttributeType.LIST);
 
         IField[] fields1 = { new StringField("george lin lin"), new StringField("lin clooney"), new IntegerField(43),
                 new DoubleField(6.06), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1973")),
@@ -180,7 +182,7 @@ public class KeywordPhraseTest {
         for (int count = 0; count < schemaAttributes.length - 1; count++) {
             schemaAttributes[count] = TestConstants.ATTRIBUTES_PEOPLE[count];
         }
-        schemaAttributes[schemaAttributes.length - 1] = SchemaConstants.SPAN_LIST_ATTRIBUTE;
+        schemaAttributes[schemaAttributes.length - 1] = new Attribute(RESULTS, AttributeType.LIST);
 
         IField[] fields1 = { new StringField("george lin lin"), new StringField("lin clooney"), new IntegerField(43),
                 new DoubleField(6.06), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1973")),
@@ -223,7 +225,7 @@ public class KeywordPhraseTest {
         for (int count = 0; count < schemaAttributes.length - 1; count++) {
             schemaAttributes[count] = TestConstants.ATTRIBUTES_PEOPLE[count];
         }
-        schemaAttributes[schemaAttributes.length - 1] = SchemaConstants.SPAN_LIST_ATTRIBUTE;
+        schemaAttributes[schemaAttributes.length - 1] = new Attribute(RESULTS, AttributeType.LIST);
 
         IField[] fields1 = { new StringField("george lin lin"), new StringField("lin clooney"), new IntegerField(43),
                 new DoubleField(6.06), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1973")),
@@ -265,7 +267,7 @@ public class KeywordPhraseTest {
         for (int count = 0; count < schemaAttributes.length - 1; count++) {
             schemaAttributes[count] = keywordTestConstants.ATTRIBUTES_MEDLINE[count];
         }
-        schemaAttributes[schemaAttributes.length - 1] = SchemaConstants.SPAN_LIST_ATTRIBUTE;
+        schemaAttributes[schemaAttributes.length - 1] = new Attribute(RESULTS, AttributeType.LIST);
 
         IField[] fields1 = { new IntegerField(14347980), new TextField(""),
                 new TextField("CHRONIC MENINGOCOCCEMIA; EPIDEMIOLOGY, DIAGNOSIS AND TREATMENT."),
@@ -317,7 +319,7 @@ public class KeywordPhraseTest {
         for (int count = 0; count < schemaAttributes.length - 1; count++) {
             schemaAttributes[count] = keywordTestConstants.ATTRIBUTES_MEDLINE[count];
         }
-        schemaAttributes[schemaAttributes.length - 1] = SchemaConstants.SPAN_LIST_ATTRIBUTE;
+        schemaAttributes[schemaAttributes.length - 1] = new Attribute(RESULTS, AttributeType.LIST);
 
         IField[] fields = { new IntegerField(17832788), new TextField(""), new TextField("Cosmic X-ray Sources."),
                 new TextField("S Bowyer, E T Byram, T A Chubb, H Friedman"), new StringField("147-3656 Jan 22, 1965"),
@@ -364,7 +366,7 @@ public class KeywordPhraseTest {
         for (int count = 0; count < schemaAttributes.length - 1; count++) {
             schemaAttributes[count] = keywordTestConstants.ATTRIBUTES_MEDLINE[count];
         }
-        schemaAttributes[schemaAttributes.length - 1] = SchemaConstants.SPAN_LIST_ATTRIBUTE;
+        schemaAttributes[schemaAttributes.length - 1] = new Attribute(RESULTS, AttributeType.LIST);
 
         IField[] fields = { new IntegerField(4566015), new TextField(""),
                 new TextField("Significance of milk pH in newborn infants."), new TextField("V C Harrison, G Peat"),

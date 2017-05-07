@@ -66,7 +66,8 @@ public class LogicalPlanTest {
     
     public static RegexPredicate regexPredicate = new RegexPredicate(
             "ca(lifornia)?",
-            Arrays.asList("location", "content"));
+            Arrays.asList("location", "content"),
+            "regexResults");
     public static String REGEX_ID = "regex";
     
     public static FuzzyTokenPredicate fuzzyTokenPredicate = new FuzzyTokenPredicate(

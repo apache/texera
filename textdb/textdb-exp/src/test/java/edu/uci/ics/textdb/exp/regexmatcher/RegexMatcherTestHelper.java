@@ -22,6 +22,8 @@ import edu.uci.ics.textdb.storage.constants.LuceneAnalyzerConstants;
  */
 public class RegexMatcherTestHelper {
     
+    public static final String RESULTS = "regex test results";
+    
     public static final String PEOPLE_TABLE = "regex_test_people";
     public static final String CORP_TABLE = "regex_test_corp";
     public static final String STAFF_TABLE = "regex_test_staff";
@@ -132,7 +134,7 @@ public class RegexMatcherTestHelper {
             int limit, int offset) throws TextDBException {
         ScanBasedSourceOperator scanSource = new ScanBasedSourceOperator(new ScanSourcePredicate(tableName));
         
-        RegexPredicate regexPredicate = new RegexPredicate(regex, attributeNames);
+        RegexPredicate regexPredicate = new RegexPredicate(regex, attributeNames, RESULTS);
         RegexMatcher regexMatcher = new RegexMatcher(regexPredicate);
         
         regexMatcher.setLimit(limit);
@@ -154,7 +156,7 @@ public class RegexMatcherTestHelper {
     
     public static List<Tuple> getRegexSourceResults(String tableName, String regex, List<String> attributeNames,
             int limit, int offset) throws TextDBException {
-        RegexSourcePredicate regexSourcePredicate = new RegexSourcePredicate(regex, attributeNames, tableName);
+        RegexSourcePredicate regexSourcePredicate = new RegexSourcePredicate(regex, attributeNames, tableName, RESULTS);
         RegexMatcherSourceOperator regexSource = new RegexMatcherSourceOperator(regexSourcePredicate);
         
         regexSource.setLimit(limit);
