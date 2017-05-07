@@ -18,7 +18,7 @@ let keywordMatcher = {
         attributes: {
             "operatorType": "KeywordMatcher",
             "query": "keyword",
-            "attributes": ["attr1", "attr2"],
+            "attributes": [],
             "luceneAnalyzer": "standard",
             "matchingType": "conjunction",
             "spanListName": ""
@@ -44,7 +44,7 @@ let regexMatcher = {
     attributes : {
         "operatorType": "RegexMatcher",
         "regex": "regex",
-        "attributes": ["attr1", "attr2"],
+        "attributes": [],
         "regexIgnoreCase": false
     }
   }
@@ -68,7 +68,7 @@ let dictionaryMatcher = {
     attributes :  {
         "operatorType": "DictionaryMatcher",
         "dictionaryEntries": ["entry1", "entry2"],
-        "attributes": ["attr1", "attr2"],
+        "attributes": [],
         "luceneAnalyzer": "standard",
         "matchingType": "conjunction"
     }
@@ -93,7 +93,7 @@ let fuzzyMatcher = {
     attributes : {
         "operatorType": "FuzzyTokenMatcher",
         "query": "token1 token2 token3",
-        "attributes": ["attr1", "attr2"],
+        "attributes": [],
         "luceneAnalyzer": "standard",
         "thresholdRatio": 0.8
     }
@@ -255,10 +255,10 @@ let keywordSource = {
     attributes : {
         "operatorType": "KeywordSource",
         "query": "keyword",
-        "attributes": ["attr1", "attr2"],
+        "attributes": [],
         "luceneAnalyzer": "standard",
         "matchingType": "conjunction",
-        "tableName": "tableName",
+        "tableName": "",
         "spanListName": ""
     }
   }
@@ -283,10 +283,10 @@ let dictionarySource = {
     attributes : {
         "operatorType": "DictionarySource",
         "dictionaryEntries": ["entry1", "entry2"],
-        "attributes": ["attr1", "attr2"],
+        "attributes": [],
         "luceneAnalyzer": "standard",
         "matchingType": "conjunction",
-        "tableName": "tableName"
+        "tableName": ""
     }
   }
 }
@@ -309,7 +309,7 @@ let regexSource = {
     attributes : {
         "operatorType": "RegexSource",
         "regex": "regex",
-        "attributes": ["attr1", "attr2"],
+        "attributes": [],
         "regexIgnoreCase": false,
         "tableName": "tableName",
         "regexUseIndex": true
@@ -335,7 +335,7 @@ let fuzzyTokenSource = {
     attributes : {
         "operatorType": "FuzzyTokenSource",
         "query": "token1 token2 token3",
-        "attributes": ["attr1", "attr2"],
+        "attributes": [],
         "luceneAnalyzer": "standard",
         "thresholdRatio": 0.8,
         "tableName": "tableName"
