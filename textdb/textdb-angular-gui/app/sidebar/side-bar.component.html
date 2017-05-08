@@ -5,11 +5,8 @@
         <h3 *ngIf="attributes.length !== 0" class="sidebar-brand">{{operator}}</h3>
         <form [hidden]="attributes.length === 0" (ngSubmit)="onSubmit()" #editOperatorForm="ngForm">
             <div class="form-group" *ngFor="let attribute of attributes">
-                <label *ngIf="checkInHidden(attribute) === -1" for="{{attribute}}">{{humanize(attribute)}}</label>
+                <label *ngIf="checkInHidden(attribute) === -1" for="{{attribute}}" class="attribute-type">{{humanize(attribute)}}</label>
 
-                <select *ngIf="attribute === 'matchingType'" class="form-control" id="{{attribute}}" required  [(ngModel)]="data.properties.attributes[attribute]" name="{{attribute}}" #{{attribute}}="ngModel">
-                    <option *ngFor="let matcher of matcherList" [value] = "matcher">{{matcher}}</option>
-                </select>
                 <select *ngIf="attribute === 'nlpEntityType'" class="form-control" id="{{attribute}}" required  [(ngModel)]="data.properties.attributes[attribute]" name="{{attribute}}" #{{attribute}}="ngModel">
                     <option *ngFor="let nlp of nlpEntityList" [value] = "nlp">{{nlp}}</option>
                 </select>

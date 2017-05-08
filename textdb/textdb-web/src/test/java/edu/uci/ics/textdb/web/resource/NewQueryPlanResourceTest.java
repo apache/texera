@@ -41,6 +41,8 @@ public class NewQueryPlanResourceTest {
     public static final DropwizardAppRule<TextdbWebConfiguration> RULE =
             new DropwizardAppRule<>(TextdbWebApplication.class, ResourceHelpers.resourceFilePath("test-config.yml"));
     
+    public static String queryPlanEndpoint = "http://localhost:%d/api/newqueryplan/execute";
+    
     public static final String TEST_TABLE = "query_plan_test_table";
     
     public static final Schema TEST_SCHEMA = new Schema(
@@ -115,7 +117,7 @@ public class NewQueryPlanResourceTest {
         client.property(ClientProperties.CONNECT_TIMEOUT, 5000);
         client.property(ClientProperties.READ_TIMEOUT,    5000);
         Response response = client.target(
-                String.format("http://localhost:%d/newqueryplan/execute", RULE.getLocalPort()))
+                String.format(queryPlanEndpoint, RULE.getLocalPort()))
                 .request()
                 .post(Entity.entity(
                         new ObjectMapper().writeValueAsString(getLogicalPlan1()), 

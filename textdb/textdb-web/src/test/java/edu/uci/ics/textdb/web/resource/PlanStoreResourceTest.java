@@ -31,6 +31,8 @@ public class PlanStoreResourceTest {
     public static final DropwizardAppRule<TextdbWebConfiguration> RULE =
             new DropwizardAppRule<>(TextdbWebApplication.class, ResourceHelpers.resourceFilePath("test-config.yml"));
     public static Client client;
+    
+    public static String planStoreEndpoint = "http://localhost:%d/api/planstore";
 
     public static final String queryPlan1 = "  {\n" +
             "  \"name\": \"plan1\",\n" +
@@ -141,11 +143,11 @@ public class PlanStoreResourceTest {
     @Before
     public void deleteQueryPlans() {
         client.target(
-                String.format("http://localhost:%d/planstore/plan1", RULE.getLocalPort()))
+                String.format(planStoreEndpoint + "/plan1", RULE.getLocalPort()))
                 .request()
                 .delete();
         client.target(
-                String.format("http://localhost:%d/planstore/plan2", RULE.getLocalPort()))
+                String.format(planStoreEndpoint + "/plan2", RULE.getLocalPort()))
                 .request()
                 .delete();
     }
@@ -153,14 +155,14 @@ public class PlanStoreResourceTest {
     @Test
     public void checkAddOnePlan() throws IOException{
         Response response = client.target(
-                String.format("http://localhost:%d/planstore", RULE.getLocalPort()))
+                String.format(planStoreEndpoint, RULE.getLocalPort()))
                 .request()
                 .post(Entity.entity(queryPlan1, MediaType.APPLICATION_JSON));
 
         assertThat(response.getStatus()).isEqualTo(200);
 
         response = client.target(
-                String.format("http://localhost:%d/planstore/plan1", RULE.getLocalPort()))
+                String.format(planStoreEndpoint + "/plan1", RULE.getLocalPort()))
                 .request()
                 .get();
         String returnedJson = response.readEntity(String.class);
@@ -172,21 +174,21 @@ public class PlanStoreResourceTest {
     public void checkUpdatePlan() throws IOException {
 
         Response response = client.target(
-                String.format("http://localhost:%d/planstore", RULE.getLocalPort()))
+                String.format(planStoreEndpoint, RULE.getLocalPort()))
                 .request()
                 .post(Entity.entity(queryPlan1, MediaType.APPLICATION_JSON));
 
         assertThat(response.getStatus()).isEqualTo(200);
 
         response = client.target(
-                String.format("http://localhost:%d/planstore/plan1", RULE.getLocalPort()))
+                String.format(planStoreEndpoint + "/plan1", RULE.getLocalPort()))
                 .request()
                 .put(Entity.entity(updatedQueryPlan1, MediaType.APPLICATION_JSON));
 
         assertThat(response.getStatus()).isEqualTo(200);
 
         response = client.target(
-                String.format("http://localhost:%d/planstore/plan1", RULE.getLocalPort()))
+                String.format(planStoreEndpoint + "/plan1", RULE.getLocalPort()))
                 .request()
                 .get();
         String returnedJson = response.readEntity(String.class);
@@ -197,14 +199,14 @@ public class PlanStoreResourceTest {
     @Test
     public void checkDeletePlan() {
         Response response = client.target(
-                String.format("http://localhost:%d/planstore", RULE.getLocalPort()))
+                String.format(planStoreEndpoint, RULE.getLocalPort()))
                 .request()
                 .post(Entity.entity(queryPlan2, MediaType.APPLICATION_JSON));
 
         assertThat(response.getStatus()).isEqualTo(200);
 
         response = client.target(
-                String.format("http://localhost:%d/planstore/plan2", RULE.getLocalPort()))
+                String.format(planStoreEndpoint + "/plan2", RULE.getLocalPort()))
                 .request()
                 .delete();
 
@@ -214,21 +216,21 @@ public class PlanStoreResourceTest {
     @Test
     public void checkAddMultiplePlans() throws IOException{
         Response response = client.target(
-                String.format("http://localhost:%d/planstore", RULE.getLocalPort()))
+                String.format(planStoreEndpoint, RULE.getLocalPort()))
                 .request()
                 .post(Entity.entity(queryPlan2, MediaType.APPLICATION_JSON));
 
         assertThat(response.getStatus()).isEqualTo(200);
 
         response = client.target(
-                String.format("http://localhost:%d/planstore", RULE.getLocalPort()))
+                String.format(planStoreEndpoint, RULE.getLocalPort()))
                 .request()
                 .post(Entity.entity(queryPlan1, MediaType.APPLICATION_JSON));
 
         assertThat(response.getStatus()).isEqualTo(200);
 
         response = client.target(
-                String.format("http://localhost:%d/planstore", RULE.getLocalPort()))
+                String.format(planStoreEndpoint, RULE.getLocalPort()))
                 .request()
                 .get();
 

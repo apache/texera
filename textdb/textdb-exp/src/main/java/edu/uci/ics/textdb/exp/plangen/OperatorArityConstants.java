@@ -20,6 +20,7 @@ import edu.uci.ics.textdb.exp.regexmatcher.RegexPredicate;
 import edu.uci.ics.textdb.exp.regexmatcher.RegexSourcePredicate;
 import edu.uci.ics.textdb.exp.regexsplit.RegexSplitPredicate;
 import edu.uci.ics.textdb.exp.sampler.SamplerPredicate;
+import edu.uci.ics.textdb.exp.sink.excel.ExcelSinkPredicate;
 import edu.uci.ics.textdb.exp.sink.tuple.TupleSinkPredicate;
 import edu.uci.ics.textdb.exp.source.file.FileSourcePredicate;
 import edu.uci.ics.textdb.exp.source.scan.ScanSourcePredicate;
@@ -56,7 +57,8 @@ public class OperatorArityConstants {
         fixedInputArityMap.put(FileSourcePredicate.class, 0);
         
         fixedInputArityMap.put(TupleSinkPredicate.class, 1);
-        
+        fixedInputArityMap.put(ExcelSinkPredicate.class, 1);
+
     }
     
     public static Map<Class<? extends PredicateBase>, Integer> fixedOutputArityMap = new HashMap<>();
@@ -83,7 +85,8 @@ public class OperatorArityConstants {
         fixedOutputArityMap.put(FileSourcePredicate.class, 1);
         
         fixedOutputArityMap.put(TupleSinkPredicate.class, 0);
-        
+        fixedOutputArityMap.put(ExcelSinkPredicate.class, 0);
+
     }
     
     /**

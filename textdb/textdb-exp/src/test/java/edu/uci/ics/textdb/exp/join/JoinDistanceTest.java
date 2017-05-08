@@ -9,6 +9,7 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import edu.uci.ics.textdb.api.constants.SchemaConstants;
 import edu.uci.ics.textdb.api.exception.DataFlowException;
 import edu.uci.ics.textdb.api.exception.TextDBException;
 import edu.uci.ics.textdb.api.field.IField;
@@ -199,7 +200,7 @@ public class JoinDistanceTest {
                 .filter(attr -> attr.getAttributeType() != AttributeType.TEXT)
                 .map(Attribute::getAttributeName).collect(Collectors.toList());
         FuzzyTokenSourcePredicate fuzzySourcePredicateInner = new FuzzyTokenSourcePredicate(fuzzyTokenQuery, textAttributeNames,
-                LuceneAnalyzerConstants.standardAnalyzerString(), thresholdRatio, BOOK_TABLE);
+                LuceneAnalyzerConstants.standardAnalyzerString(), thresholdRatio, BOOK_TABLE, SchemaConstants.SPAN_LIST);
         FuzzyTokenMatcherSourceOperator fuzzyMatcherInner = new FuzzyTokenMatcherSourceOperator(fuzzySourcePredicateInner);
         
         ProjectionPredicate removeSpanListPredicate = new ProjectionPredicate(

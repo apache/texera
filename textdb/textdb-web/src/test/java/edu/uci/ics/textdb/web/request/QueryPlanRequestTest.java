@@ -162,7 +162,7 @@ public class QueryPlanRequestTest {
                 "}";
         boolean exceptionThrownFlag = false;
         try {
-            QueryPlanRequest queryPlanRequest = MAPPER.readValue(jsonString, QueryPlanRequest.class);
+            MAPPER.readValue(jsonString, QueryPlanRequest.class);
         }
         catch(JsonMappingException e) {
             exceptionThrownFlag = true;

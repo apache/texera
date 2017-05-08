@@ -30,6 +30,8 @@ public class QueryPlanResourceTest {
     public static final DropwizardAppRule<TextdbWebConfiguration> RULE =
             new DropwizardAppRule<>(TextdbWebApplication.class, ResourceHelpers.resourceFilePath("test-config.yml"));
 
+    public static String queryPlanEndpoint = "http://localhost:%d/api/queryplan/execute";
+    
     public static final String queryPlanRequestString = "{\n" +
             "    \"operators\": [{\n" +
             "        \"operator_id\": \"operator1\",\n" +
@@ -99,14 +101,14 @@ public class QueryPlanResourceTest {
         client.property(ClientProperties.CONNECT_TIMEOUT, 5000);
         client.property(ClientProperties.READ_TIMEOUT,    5000);
         Response response = client.target(
-                String.format("http://localhost:%d/queryplan/execute", RULE.getLocalPort()))
+                String.format(queryPlanEndpoint, RULE.getLocalPort()))
                 .request()
                 .post(Entity.entity(queryPlanRequestString, MediaType.APPLICATION_JSON));
 
         assertThat(response.getStatus()).isEqualTo(200);
 
         response = client.target(
-                String.format("http://localhost:%d/queryplan/execute", RULE.getLocalPort()))
+                String.format(queryPlanEndpoint, RULE.getLocalPort()))
                 .request()
                 .post(Entity.entity(faultyQueryPlanRequestString, MediaType.APPLICATION_JSON));
 

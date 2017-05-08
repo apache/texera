@@ -2,11 +2,13 @@ package edu.uci.ics.textdb.web;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.MapperFeature;
+import com.github.dirkraft.dropwizard.fileassets.FileAssetsBundle;
 
 import edu.uci.ics.textdb.api.engine.Plan;
 import edu.uci.ics.textdb.api.exception.TextDBException;
 import edu.uci.ics.textdb.dataflow.sink.TupleStreamSink;
 import edu.uci.ics.textdb.perftest.sample.SampleExtraction;
+import edu.uci.ics.textdb.perftest.twitter.TwitterSample;
 import edu.uci.ics.textdb.plangen.LogicalPlan;
 import edu.uci.ics.textdb.web.healthcheck.SampleHealthCheck;
 import edu.uci.ics.textdb.web.request.beans.KeywordSourceBean;
@@ -44,11 +46,14 @@ public class TextdbWebApplication extends Application<TextdbWebConfiguration> {
 
     @Override
     public void initialize(Bootstrap<TextdbWebConfiguration> bootstrap) {
-        // Will have some initialization information here
+        // serve static frontend GUI files
+        bootstrap.addBundle(new FileAssetsBundle("./textdb-angular-gui/", "/", "index.html"));
     }
 
     @Override
     public void run(TextdbWebConfiguration textdbWebConfiguration, Environment environment) throws Exception {
+        // serve backend at /api
+        environment.jersey().setUrlPattern("/api/*");
         // Creates an instance of the QueryPlanResource class to register with Jersey
         final QueryPlanResource queryPlanResource = new QueryPlanResource();
         // Registers the QueryPlanResource with Jersey
@@ -115,6 +120,9 @@ public class TextdbWebApplication extends Application<TextdbWebConfiguration> {
         System.out.println("Started Loading Stanford NLP");
         loadStanfordNLP();
         System.out.println("Finished Loading Stanford NLP");
+        System.out.println("Writing twitter index");
+        TwitterSample.writeTwitterIndex();
+        System.out.println("Finished writing twitter index");
         new TextdbWebApplication().run(args);
     }
 }

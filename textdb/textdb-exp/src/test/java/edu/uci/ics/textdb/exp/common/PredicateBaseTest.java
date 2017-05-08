@@ -28,6 +28,7 @@ import edu.uci.ics.textdb.exp.regexsplit.RegexSplitPredicate;
 import edu.uci.ics.textdb.exp.regexsplit.RegexSplitPredicate.SplitType;
 import edu.uci.ics.textdb.exp.sampler.SamplerPredicate;
 import edu.uci.ics.textdb.exp.sampler.SamplerPredicate.SampleType;
+import edu.uci.ics.textdb.exp.sink.excel.ExcelSinkPredicate;
 import edu.uci.ics.textdb.exp.sink.tuple.TupleSinkPredicate;
 import edu.uci.ics.textdb.exp.source.file.FileSourcePredicate;
 import edu.uci.ics.textdb.exp.source.scan.ScanSourcePredicate;
@@ -85,7 +86,8 @@ public class PredicateBaseTest {
                 "token1 token2 token3",
                 attributeNames,
                 "standard",
-                0.8);
+                0.8,
+                "spanListName");
         testPredicate(fuzzyTokenPredicate);
         
         FuzzyTokenSourcePredicate fuzzyTokenSourcePredicate = new FuzzyTokenSourcePredicate(
@@ -93,7 +95,8 @@ public class PredicateBaseTest {
                 attributeNames,
                 "standard",
                 0.8,
-                "tableName");
+                "tableName",
+                "spanListName");
         testPredicate(fuzzyTokenSourcePredicate);
     }
     
@@ -133,7 +136,8 @@ public class PredicateBaseTest {
     public void testNlpEntity() throws Exception {
         NlpEntityPredicate nlpEntityPredicate = new NlpEntityPredicate(
                 NlpEntityType.LOCATION,
-                attributeNames);
+                attributeNames,
+                "nlpEntityResults");
         testPredicate(nlpEntityPredicate);
     }
     
@@ -202,6 +206,12 @@ public class PredicateBaseTest {
     public void testTupleSink() throws Exception {
         TupleSinkPredicate tupleSinkPredicate = new TupleSinkPredicate();
         testPredicate(tupleSinkPredicate);
+    }
+    
+    @Test
+    public void testExcelSink() throws Exception {
+    	ExcelSinkPredicate excelSinkPredicate = new ExcelSinkPredicate(10, 10);
+    	testPredicate(excelSinkPredicate);
     }
 
 }

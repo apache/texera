@@ -34,6 +34,8 @@ public class NlpEntityTestConstants {
     public static final Schema SCHEMA_ONE_SENTENCE = new Schema(SENTENCE_ONE_ATTR);
     public static final Schema SCHEMA_TWO_SENTENCE = new Schema(SENTENCE_ONE_ATTR, SENTENCE_TWO_ATTR);
     
+    public static final String RESULTS = "nlp entity";
+    
     public static List<Tuple> getOneSentenceTestTuple() {
         IField[] fields1 = { new TextField("Microsoft is an organization.") };
         IField[] fields2 = { new TextField("Microsoft, Google and Facebook are organizations.") };
@@ -126,7 +128,7 @@ public class NlpEntityTestConstants {
         IField[] fields1 = { new TextField("Microsoft is an organization.") };
         Tuple tuple1 = new Tuple(SCHEMA_ONE_SENTENCE, fields1);
 
-        Schema returnSchema = Utils.createSpanSchema(tuple1.getSchema());
+        Schema returnSchema = Utils.addAttributeToSchema(tuple1.getSchema(), new Attribute(RESULTS, AttributeType.LIST));
 
         Tuple returnTuple = DataflowUtils.getSpanTuple(tuple1.getFields(), spanList, returnSchema);
         resultList.add(returnTuple);
@@ -147,7 +149,7 @@ public class NlpEntityTestConstants {
         IField[] fields1 = { new TextField("Microsoft, Google and Facebook are organizations.") };
         Tuple tuple1 = new Tuple(SCHEMA_ONE_SENTENCE, fields1);
 
-        Schema returnSchema = Utils.createSpanSchema(tuple1.getSchema());
+        Schema returnSchema = Utils.addAttributeToSchema(tuple1.getSchema(), new Attribute(RESULTS, AttributeType.LIST));
 
         Tuple returnTuple = DataflowUtils.getSpanTuple(tuple1.getFields(), spanList, returnSchema);
         resultList.add(returnTuple);
@@ -174,7 +176,7 @@ public class NlpEntityTestConstants {
                 "Microsoft, Google and Facebook are organizations and Donald Trump and Barack Obama are persons.") };
         Tuple tuple1 = new Tuple(SCHEMA_ONE_SENTENCE, fields1);
 
-        Schema returnSchema = Utils.createSpanSchema(tuple1.getSchema());
+        Schema returnSchema = Utils.addAttributeToSchema(tuple1.getSchema(), new Attribute(RESULTS, AttributeType.LIST));
 
         Tuple returnTuple = DataflowUtils.getSpanTuple(tuple1.getFields(), spanList, returnSchema);
         resultList.add(returnTuple);
@@ -202,7 +204,7 @@ public class NlpEntityTestConstants {
                 new TextField("Donald Trump and Barack Obama are persons") };
         Tuple tuple1 = new Tuple(SCHEMA_TWO_SENTENCE, fields1);
 
-        Schema returnSchema = Utils.createSpanSchema(tuple1.getSchema());
+        Schema returnSchema = Utils.addAttributeToSchema(tuple1.getSchema(), new Attribute(RESULTS, AttributeType.LIST));
 
         Tuple returnTuple = DataflowUtils.getSpanTuple(tuple1.getFields(), spanList, returnSchema);
         resultList.add(returnTuple);
@@ -224,7 +226,7 @@ public class NlpEntityTestConstants {
                 new TextField("Donald Trump and Barack Obama are persons") };
         Tuple tuple1 = new Tuple(SCHEMA_TWO_SENTENCE, fields1);
 
-        Schema returnSchema = Utils.createSpanSchema(tuple1.getSchema());
+        Schema returnSchema = Utils.addAttributeToSchema(tuple1.getSchema(), new Attribute(RESULTS, AttributeType.LIST));
 
         Tuple returnTuple = DataflowUtils.getSpanTuple(tuple1.getFields(), spanList, returnSchema);
         resultList.add(returnTuple);
@@ -249,7 +251,7 @@ public class NlpEntityTestConstants {
                 new TextField("Donald Trump and Barack Obama are persons") };
         Tuple tuple1 = new Tuple(SCHEMA_TWO_SENTENCE, fields1);
 
-        Schema returnSchema = Utils.createSpanSchema(tuple1.getSchema());
+        Schema returnSchema = Utils.addAttributeToSchema(tuple1.getSchema(), new Attribute(RESULTS, AttributeType.LIST));
 
         Tuple returnTuple = DataflowUtils.getSpanTuple(tuple1.getFields(), spanList, returnSchema);
         resultList.add(returnTuple);
@@ -268,7 +270,7 @@ public class NlpEntityTestConstants {
                 "Feeling the warm sun rays beaming steadily down, the girl decided there was no need to wear a coat.") };
         Tuple tuple1 = new Tuple(SCHEMA_ONE_SENTENCE, fields1);
 
-        Schema returnSchema = Utils.createSpanSchema(tuple1.getSchema());
+        Schema returnSchema = Utils.addAttributeToSchema(tuple1.getSchema(), new Attribute(RESULTS, AttributeType.LIST));
 
         Tuple returnTuple = DataflowUtils.getSpanTuple(tuple1.getFields(), spanList, returnSchema);
         resultList.add(returnTuple);
@@ -286,7 +288,7 @@ public class NlpEntityTestConstants {
         IField[] fields1 = {new TextField("This backpack costs me 300 dollars.")};
     	Tuple tuple1 = new Tuple(SCHEMA_ONE_SENTENCE, fields1);
 
-        Schema returnSchema = Utils.createSpanSchema(tuple1.getSchema());
+        Schema returnSchema = Utils.addAttributeToSchema(tuple1.getSchema(), new Attribute(RESULTS, AttributeType.LIST));
 
         Tuple returnTuple = DataflowUtils.getSpanTuple(tuple1.getFields(), spanList, returnSchema);
         resultList.add(returnTuple);
@@ -306,7 +308,7 @@ public class NlpEntityTestConstants {
     	IField[] fields1 = {new TextField("I made an appointment at 8 am."), new TextField("Aug 16, 2016 is a really important date.")};
     	Tuple tuple1 = new Tuple(SCHEMA_TWO_SENTENCE, fields1);
     	
-    	Schema returnSchema = Utils.createSpanSchema(tuple1.getSchema());
+    	Schema returnSchema = Utils.addAttributeToSchema(tuple1.getSchema(), new Attribute(RESULTS, AttributeType.LIST));
     	
     	Tuple returnTuple = DataflowUtils.getSpanTuple(tuple1.getFields(), spanList, returnSchema);
     	resultList.add(returnTuple);
@@ -339,30 +341,26 @@ public class NlpEntityTestConstants {
         Tuple tuple5 = new Tuple(SCHEMA_ONE_SENTENCE, fields5);
         Tuple tuple6 = new Tuple(SCHEMA_ONE_SENTENCE, fields6);
         
-        Schema returnSchema1 = Utils.createSpanSchema(tuple1.getSchema());
-        Schema returnSchema2 = Utils.createSpanSchema(tuple2.getSchema());
-        Schema returnSchema3 = Utils.createSpanSchema(tuple3.getSchema());
-        Schema returnSchema5 = Utils.createSpanSchema(tuple5.getSchema());
-        Schema returnSchema6 = Utils.createSpanSchema(tuple6.getSchema());
+        Schema returnSchema = Utils.addAttributeToSchema(tuple1.getSchema(), new Attribute(RESULTS, AttributeType.LIST));
         
         spanList.add(span1);
-        resultList.add(DataflowUtils.getSpanTuple(tuple1.getFields(), spanList, returnSchema1));
+        resultList.add(DataflowUtils.getSpanTuple(tuple1.getFields(), spanList, returnSchema));
         
         spanList.add(span2);
         spanList.add(span3);
-        resultList.add(DataflowUtils.getSpanTuple(tuple2.getFields(), spanList, returnSchema2));
+        resultList.add(DataflowUtils.getSpanTuple(tuple2.getFields(), spanList, returnSchema));
         
         spanList.add(span4);
         spanList.add(span5);
-        resultList.add(DataflowUtils.getSpanTuple(tuple3.getFields(), spanList, returnSchema3));
+        resultList.add(DataflowUtils.getSpanTuple(tuple3.getFields(), spanList, returnSchema));
         
         spanList.clear();
         spanList.add(span6);
-        resultList.add(DataflowUtils.getSpanTuple(tuple5.getFields(), spanList, returnSchema5));
+        resultList.add(DataflowUtils.getSpanTuple(tuple5.getFields(), spanList, returnSchema));
         
         spanList.clear();
         spanList.add(span7);
-        resultList.add(DataflowUtils.getSpanTuple(tuple6.getFields(), spanList, returnSchema6));
+        resultList.add(DataflowUtils.getSpanTuple(tuple6.getFields(), spanList, returnSchema));
         
         return resultList;
     }
@@ -392,26 +390,24 @@ public class NlpEntityTestConstants {
         Tuple tuple2 = new Tuple(SCHEMA_TWO_SENTENCE, fields2);
         Tuple tuple3 = new Tuple(SCHEMA_TWO_SENTENCE, fields3);
         
-        Schema returnSchema1 = Utils.createSpanSchema(tuple1.getSchema());
-        Schema returnSchema2 = Utils.createSpanSchema(tuple2.getSchema());
-        Schema returnSchema3 = Utils.createSpanSchema(tuple3.getSchema());
+        Schema returnSchema = Utils.addAttributeToSchema(tuple1.getSchema(), new Attribute(RESULTS, AttributeType.LIST));
         
         spanList.add(span1);
         spanList.add(span2);
         spanList.add(span3);
         spanList.add(span4);
         spanList.add(span5);
-        resultList.add(DataflowUtils.getSpanTuple(tuple1.getFields(), spanList, returnSchema1));
+        resultList.add(DataflowUtils.getSpanTuple(tuple1.getFields(), spanList, returnSchema));
         
         spanList.clear();
         spanList.add(span6);
         spanList.add(span7);
-        resultList.add(DataflowUtils.getSpanTuple(tuple2.getFields(), spanList, returnSchema2));
+        resultList.add(DataflowUtils.getSpanTuple(tuple2.getFields(), spanList, returnSchema));
         
         spanList.clear();
         spanList.add(span8);
         spanList.add(span9);
-        resultList.add(DataflowUtils.getSpanTuple(tuple3.getFields(), spanList, returnSchema3));
+        resultList.add(DataflowUtils.getSpanTuple(tuple3.getFields(), spanList, returnSchema));
         
         return resultList;
     }

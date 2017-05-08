@@ -5,10 +5,12 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import edu.uci.ics.textdb.api.constants.ErrorMessages;
 import edu.uci.ics.textdb.api.constants.SchemaConstants;
 import edu.uci.ics.textdb.api.exception.DataFlowException;
 import edu.uci.ics.textdb.api.exception.TextDBException;
 import edu.uci.ics.textdb.api.field.ListField;
+import edu.uci.ics.textdb.api.schema.Attribute;
 import edu.uci.ics.textdb.api.schema.AttributeType;
 import edu.uci.ics.textdb.api.schema.Schema;
 import edu.uci.ics.textdb.api.span.Span;
@@ -38,12 +40,15 @@ public class FuzzyTokenMatcher extends AbstractSingleInputOperator {
     protected void setUp() throws TextDBException {
         inputSchema = inputOperator.getOutputSchema();
         outputSchema = inputSchema;
-        if (!inputSchema.containsField(SchemaConstants.PAYLOAD)) {
+        if (!outputSchema.containsField(SchemaConstants.PAYLOAD)) {
             outputSchema = Utils.addAttributeToSchema(outputSchema, SchemaConstants.PAYLOAD_ATTRIBUTE);
         }
-        if (!inputSchema.containsField(SchemaConstants.SPAN_LIST)) {
-            outputSchema = Utils.addAttributeToSchema(outputSchema, SchemaConstants.SPAN_LIST_ATTRIBUTE);
+        if (outputSchema.containsField(predicate.getSpanListName())) {
+            throw new DataFlowException(ErrorMessages.DUPLICATE_ATTRIBUTE(
+                    predicate.getSpanListName(), outputSchema));
         }
+        outputSchema = Utils.addAttributeToSchema(outputSchema, 
+                new Attribute(predicate.getSpanListName(), AttributeType.LIST));
     }
 
     @Override
@@ -59,9 +64,7 @@ public class FuzzyTokenMatcher extends AbstractSingleInputOperator {
                 inputTuple = DataflowUtils.getSpanTuple(inputTuple.getFields(),
                         DataflowUtils.generatePayloadFromTuple(inputTuple, predicate.getLuceneAnalyzerStr()), outputSchema);
             }
-            if (!inputSchema.containsField(SchemaConstants.SPAN_LIST)) {
-                inputTuple = DataflowUtils.getSpanTuple(inputTuple.getFields(), new ArrayList<Span>(), outputSchema);
-            }
+            inputTuple = DataflowUtils.getSpanTuple(inputTuple.getFields(), new ArrayList<Span>(), outputSchema);
             
             resultTuple = processOneInputTuple(inputTuple);
             
@@ -108,7 +111,7 @@ public class FuzzyTokenMatcher extends AbstractSingleInputOperator {
             return null;
         }
 
-        ListField<Span> spanListField = inputTuple.getField(SchemaConstants.SPAN_LIST);
+        ListField<Span> spanListField = inputTuple.getField(predicate.getSpanListName());
         List<Span> spanList = spanListField.getValue();
         spanList.addAll(matchResults);
 

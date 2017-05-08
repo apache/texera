@@ -7,7 +7,7 @@ import { Data } from './data';
 
 declare var jQuery: any;
 
-const textdbUrl = 'http://localhost:8080/newqueryplan/execute';
+const textdbUrl = 'http://localhost:8080/api/newqueryplan/execute';
 
 const defaultData = {
     top: 20,

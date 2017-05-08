@@ -17,12 +17,26 @@ body {
 	overflow-x: auto;
 }
 
+.navbar-brand{
+	font-size: 22px;
+	font-weight: bold;
+	color: #67AAF9;
+}
+
+.navigation-btn{
+	width: 100px;
+	font-weight: bold;
+	font-size: 22px;
+	padding : 0px;
+	background-color: #67AAF9;
+	color: #F5F5F5;
+}
 
 #css-operator-bar{
-	border: 1px solid black;
+	/*border: 1px solid black;*/
 	border-radius: 0px;
 	color: white;
-	background: black;
+	background:  #001011;
 }
 
 .previous-operators{
@@ -43,14 +57,19 @@ body {
 
 #sidebar-wrapper {
     margin-left: 0px;
+		padding-left: 10px;
     left: 0px;
     width: 240px;
-    background: #000;
+    background: #D2D7DF; /* #9999A1, D2D7DF*/
     position: absolute;
-    color: white;
+    color:  #353535;
     height: calc(100% - 100px);
     overflow-y: auto;
     z-index: 1000;
+}
+
+.attribute-type {
+	font-size: 19px;
 }
 
 .sidebar-nav {
@@ -74,22 +93,14 @@ body {
 }
 
 
-/*#the-flowchart {
-	left: 250px;
-    width: calc(100% - 250px);
-	height: 100%;
-	background: #d3d3d3;
-}*/
-
 #the-flowchart {
 	width: calc(100%);
 	height: calc(100%);
-	background: #d3d3d3;
+	background: #FCFCFC;
 }
 
 #flow-chart-container{
 	width: calc(100% - 240px);;
 	left: 240px;
 	height: calc(100%);
-	background: #d3d3d3;
 }

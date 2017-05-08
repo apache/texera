@@ -24,7 +24,7 @@ export class SideBarComponent {
   operatorId: number;
   operatorTitle: string;
 
-  hiddenList: string[] = ["operatorType"];
+  hiddenList: string[] = ["operatorType", "luceneAnalyzer", "matchingType", "spanListName"];
 
   selectorList: string[] = ["matchingType", "nlpEntityType", "splitType", "sampleType", "compareNumber", "aggregationType"].concat(this.hiddenList);
 

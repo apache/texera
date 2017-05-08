@@ -21,8 +21,10 @@ public class FuzzyTokenSourcePredicate extends FuzzyTokenPredicate {
             @JsonProperty(value = PropertyNameConstants.FUZZY_TOKEN_THRESHOLD_RATIO, required = true)
             Double thresholdRatio,
             @JsonProperty(value = PropertyNameConstants.TABLE_NAME, required = true)
-            String tableName) {
-        super(query, attributeNames, luceneAnalyzerStr, thresholdRatio);
+            String tableName,
+            @JsonProperty(value = PropertyNameConstants.SPAN_LIST_NAME, required = true)
+            String spanListName) {
+        super(query, attributeNames, luceneAnalyzerStr, thresholdRatio, spanListName);
         this.tableName = tableName;
     }
     

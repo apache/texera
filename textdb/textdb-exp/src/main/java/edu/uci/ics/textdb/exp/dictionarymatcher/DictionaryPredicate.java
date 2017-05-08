@@ -51,7 +51,7 @@ public class DictionaryPredicate extends PredicateBase {
         if (spanListName == null || spanListName.trim().isEmpty()) {
             this.spanListName = this.getID();
         } else {
-            this.spanListName = spanListName;
+            this.spanListName = spanListName.trim();
         }
     }
     

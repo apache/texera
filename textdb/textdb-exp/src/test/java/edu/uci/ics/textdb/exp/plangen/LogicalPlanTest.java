@@ -74,12 +74,14 @@ public class LogicalPlanTest {
             "university college school",
             Arrays.asList("content"),
             LuceneAnalyzerConstants.standardAnalyzerString(),
-            0.5);
+            0.5,
+            "fuzzyTokenResults");
     public static String FUZZY_TOKEN_ID = "fuzzy token";
     
     public static NlpEntityPredicate nlpEntityPredicate = new NlpEntityPredicate(
             NlpEntityType.LOCATION,
-            Arrays.asList("content"));
+            Arrays.asList("content"),
+            "nlpEntityResults");
     public static String NLP_ENTITY_ID = "nlp eneity";
     
     public static JoinDistancePredicate joinDistancePredicate = new JoinDistancePredicate(

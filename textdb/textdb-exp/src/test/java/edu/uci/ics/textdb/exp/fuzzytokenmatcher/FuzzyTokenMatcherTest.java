@@ -10,7 +10,6 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import edu.uci.ics.textdb.api.constants.SchemaConstants;
 import edu.uci.ics.textdb.api.constants.TestConstants;
 import edu.uci.ics.textdb.api.field.DateField;
 import edu.uci.ics.textdb.api.field.DoubleField;
@@ -20,6 +19,7 @@ import edu.uci.ics.textdb.api.field.ListField;
 import edu.uci.ics.textdb.api.field.StringField;
 import edu.uci.ics.textdb.api.field.TextField;
 import edu.uci.ics.textdb.api.schema.Attribute;
+import edu.uci.ics.textdb.api.schema.AttributeType;
 import edu.uci.ics.textdb.api.schema.Schema;
 import edu.uci.ics.textdb.api.span.Span;
 import edu.uci.ics.textdb.api.tuple.Tuple;
@@ -33,6 +33,8 @@ import edu.uci.ics.textdb.api.utils.Utils;
 public class FuzzyTokenMatcherTest {
     
     public static final String PEOPLE_TABLE = FuzzyTokenMatcherTestHelper.PEOPLE_TABLE;
+    public static final String RESULTS = FuzzyTokenMatcherTestHelper.RESULTS;
+    public static final Attribute RESULTS_ATTR = new Attribute(RESULTS, AttributeType.LIST);
 
     @BeforeClass
     public static void setUp() throws Exception {
@@ -62,7 +64,7 @@ public class FuzzyTokenMatcherTest {
         ArrayList<String> attributeNames = new ArrayList<>();
         attributeNames.add(TestConstants.DESCRIPTION);
 
-        Schema spanSchema = Utils.createSpanSchema(TestConstants.SCHEMA_PEOPLE);
+        Schema schema = Utils.addAttributeToSchema(TestConstants.SCHEMA_PEOPLE, RESULTS_ATTR);
 
         List<Span> spanList1 = Arrays.asList(
                 new Span(TestConstants.DESCRIPTION, 5, 10, "angry", "Angry", 1));
@@ -88,10 +90,10 @@ public class FuzzyTokenMatcherTest {
                 new DoubleField(5.99), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974")),
                 new TextField("Short angry"), new ListField<Span>(spanList4) };
 
-        Tuple tuple1 = new Tuple(spanSchema, fields1);
-        Tuple tuple2 = new Tuple(spanSchema, fields2);
-        Tuple tuple3 = new Tuple(spanSchema, fields3);
-        Tuple tuple4 = new Tuple(spanSchema, fields4);
+        Tuple tuple1 = new Tuple(schema, fields1);
+        Tuple tuple2 = new Tuple(schema, fields2);
+        Tuple tuple3 = new Tuple(schema, fields3);
+        Tuple tuple4 = new Tuple(schema, fields4);
         
         List<Tuple> expectedResultList = new ArrayList<>();
         expectedResultList.add(tuple1);
@@ -111,7 +113,7 @@ public class FuzzyTokenMatcherTest {
         ArrayList<String> attributeNames = new ArrayList<>();
         attributeNames.add(TestConstants.DESCRIPTION);
 
-        Schema spanSchema = Utils.createSpanSchema(TestConstants.SCHEMA_PEOPLE);
+        Schema schema = Utils.addAttributeToSchema(TestConstants.SCHEMA_PEOPLE, RESULTS_ATTR);
 
         List<Span> spanList1 = Arrays.asList(
                 new Span(TestConstants.DESCRIPTION, 5, 10, "angry", "Angry", 1));
@@ -137,10 +139,10 @@ public class FuzzyTokenMatcherTest {
                 new DoubleField(5.99), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974")),
                 new TextField("Short angry"), new ListField<Span>(spanList4) };
 
-        Tuple tuple1 = new Tuple(spanSchema, fields1);
-        Tuple tuple2 = new Tuple(spanSchema, fields2);
-        Tuple tuple3 = new Tuple(spanSchema, fields3);
-        Tuple tuple4 = new Tuple(spanSchema, fields4);
+        Tuple tuple1 = new Tuple(schema, fields1);
+        Tuple tuple2 = new Tuple(schema, fields2);
+        Tuple tuple3 = new Tuple(schema, fields3);
+        Tuple tuple4 = new Tuple(schema, fields4);
 
         List<Tuple> expectedResultList = new ArrayList<>();
         expectedResultList.add(tuple1);
@@ -171,7 +173,7 @@ public class FuzzyTokenMatcherTest {
         ArrayList<String> attributeNames = new ArrayList<>();
         attributeNames.add(TestConstants.DESCRIPTION);
 
-        Schema spanSchema = Utils.createSpanSchema(TestConstants.SCHEMA_PEOPLE);
+        Schema schema = Utils.addAttributeToSchema(TestConstants.SCHEMA_PEOPLE, RESULTS_ATTR);
 
         List<Span> spanList1 = Arrays.asList(
                 new Span(TestConstants.DESCRIPTION, 5, 10, "angry", "Angry", 1));
@@ -197,10 +199,10 @@ public class FuzzyTokenMatcherTest {
                 new DoubleField(5.99), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974")),
                 new TextField("Short angry"), new ListField<Span>(spanList4) };
 
-        Tuple tuple1 = new Tuple(spanSchema, fields1);
-        Tuple tuple2 = new Tuple(spanSchema, fields2);
-        Tuple tuple3 = new Tuple(spanSchema, fields3);
-        Tuple tuple4 = new Tuple(spanSchema, fields4);
+        Tuple tuple1 = new Tuple(schema, fields1);
+        Tuple tuple2 = new Tuple(schema, fields2);
+        Tuple tuple3 = new Tuple(schema, fields3);
+        Tuple tuple4 = new Tuple(schema, fields4);
 
         List<Tuple> expectedResultList = new ArrayList<>();
         expectedResultList.add(tuple1);
@@ -220,7 +222,7 @@ public class FuzzyTokenMatcherTest {
         ArrayList<String> attributeNames = new ArrayList<>();
         attributeNames.add(TestConstants.DESCRIPTION);
 
-        Schema spanSchema = Utils.createSpanSchema(TestConstants.SCHEMA_PEOPLE);
+        Schema schema = Utils.addAttributeToSchema(TestConstants.SCHEMA_PEOPLE, RESULTS_ATTR);
 
         List<Span> spanList1 = Arrays.asList(
                 new Span(TestConstants.DESCRIPTION, 5, 10, "angry", "Angry", 1));
@@ -246,10 +248,10 @@ public class FuzzyTokenMatcherTest {
                 new DoubleField(5.99), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974")),
                 new TextField("Short angry"), new ListField<Span>(spanList4) };
 
-        Tuple tuple1 = new Tuple(spanSchema, fields1);
-        Tuple tuple2 = new Tuple(spanSchema, fields2);
-        Tuple tuple3 = new Tuple(spanSchema, fields3);
-        Tuple tuple4 = new Tuple(spanSchema, fields4);
+        Tuple tuple1 = new Tuple(schema, fields1);
+        Tuple tuple2 = new Tuple(schema, fields2);
+        Tuple tuple3 = new Tuple(schema, fields3);
+        Tuple tuple4 = new Tuple(schema, fields4);
 
         List<Tuple> expectedResultList = new ArrayList<>();
         expectedResultList.add(tuple1);
@@ -269,11 +271,7 @@ public class FuzzyTokenMatcherTest {
         ArrayList<String> attributeNames = new ArrayList<>();
         attributeNames.add(TestConstants.DESCRIPTION);
 
-        Attribute[] schemaAttributes = new Attribute[TestConstants.ATTRIBUTES_PEOPLE.length + 1];
-        for (int count = 0; count < schemaAttributes.length - 1; count++) {
-            schemaAttributes[count] = TestConstants.ATTRIBUTES_PEOPLE[count];
-        }
-        schemaAttributes[schemaAttributes.length - 1] = SchemaConstants.SPAN_LIST_ATTRIBUTE;
+        Schema schema = Utils.addAttributeToSchema(TestConstants.SCHEMA_PEOPLE, RESULTS_ATTR);
 
         List<Span> list = new ArrayList<>();
         Span span = new Span(TestConstants.DESCRIPTION, 5, 10, "angry", "Angry", 1);
@@ -303,18 +301,18 @@ public class FuzzyTokenMatcherTest {
                 new DoubleField(5.99), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974")),
                 new TextField("Short angry"), new ListField<>(list) };
 
-        Tuple tuple1 = new Tuple(new Schema(schemaAttributes), fields1);
-        Tuple tuple2 = new Tuple(new Schema(schemaAttributes), fields2);
-        Tuple tuple3 = new Tuple(new Schema(schemaAttributes), fields3);
-        Tuple tuple4 = new Tuple(new Schema(schemaAttributes), fields4);
+        Tuple tuple1 = new Tuple(schema, fields1);
+        Tuple tuple2 = new Tuple(schema, fields2);
+        Tuple tuple3 = new Tuple(schema, fields3);
+        Tuple tuple4 = new Tuple(schema, fields4);
         List<Tuple> expectedResultList = new ArrayList<>();
         expectedResultList.add(tuple1);
         expectedResultList.add(tuple2);
         expectedResultList.add(tuple3);
         expectedResultList.add(tuple4);
+        
+        List<Tuple> results = FuzzyTokenMatcherTestHelper.getQueryResults(PEOPLE_TABLE, query, threshold, attributeNames, 2, 0);
 
-        List<Tuple> results = Utils.removeFields(
-                FuzzyTokenMatcherTestHelper.getQueryResults(PEOPLE_TABLE, query, threshold, attributeNames, 2, 0), SchemaConstants.PAYLOAD);
         Assert.assertEquals(expectedResultList.size(), 4);
         Assert.assertEquals(results.size(), 2);
         Assert.assertTrue(TestUtils.containsAll(expectedResultList, results));
@@ -327,11 +325,7 @@ public class FuzzyTokenMatcherTest {
         ArrayList<String> attributeNames = new ArrayList<>();
         attributeNames.add(TestConstants.DESCRIPTION);
 
-        Attribute[] schemaAttributes = new Attribute[TestConstants.ATTRIBUTES_PEOPLE.length + 1];
-        for (int count = 0; count < schemaAttributes.length - 1; count++) {
-            schemaAttributes[count] = TestConstants.ATTRIBUTES_PEOPLE[count];
-        }
-        schemaAttributes[schemaAttributes.length - 1] = SchemaConstants.SPAN_LIST_ATTRIBUTE;
+        Schema schema = Utils.addAttributeToSchema(TestConstants.SCHEMA_PEOPLE, RESULTS_ATTR);
 
         List<Span> list = new ArrayList<>();
         Span span = new Span(TestConstants.DESCRIPTION, 5, 10, "angry", "Angry", 1);
@@ -361,18 +355,17 @@ public class FuzzyTokenMatcherTest {
                 new DoubleField(5.99), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974")),
                 new TextField("Short angry"), new ListField<>(list) };
 
-        Tuple tuple1 = new Tuple(new Schema(schemaAttributes), fields1);
-        Tuple tuple2 = new Tuple(new Schema(schemaAttributes), fields2);
-        Tuple tuple3 = new Tuple(new Schema(schemaAttributes), fields3);
-        Tuple tuple4 = new Tuple(new Schema(schemaAttributes), fields4);
+        Tuple tuple1 = new Tuple(schema, fields1);
+        Tuple tuple2 = new Tuple(schema, fields2);
+        Tuple tuple3 = new Tuple(schema, fields3);
+        Tuple tuple4 = new Tuple(schema, fields4);
         List<Tuple> expectedResultList = new ArrayList<>();
         expectedResultList.add(tuple1);
         expectedResultList.add(tuple2);
         expectedResultList.add(tuple3);
         expectedResultList.add(tuple4);
 
-        List<Tuple> results = Utils.removeFields(
-                FuzzyTokenMatcherTestHelper.getQueryResults(PEOPLE_TABLE, query, threshold, attributeNames, 2, 1), SchemaConstants.PAYLOAD);
+        List<Tuple> results = FuzzyTokenMatcherTestHelper.getQueryResults(PEOPLE_TABLE, query, threshold, attributeNames, 2, 1);
 
         Assert.assertEquals(expectedResultList.size(), 4);
         Assert.assertEquals(results.size(), 2);

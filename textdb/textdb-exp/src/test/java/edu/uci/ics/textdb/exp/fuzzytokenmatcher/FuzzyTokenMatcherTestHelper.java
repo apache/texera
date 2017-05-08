@@ -28,6 +28,7 @@ import edu.uci.ics.textdb.storage.constants.LuceneAnalyzerConstants;
 public class FuzzyTokenMatcherTestHelper {
     
     public static final String PEOPLE_TABLE = "fuzzytoken_test_people";
+    public static final String RESULTS = "fuzzy token matcher results";
     
     /*
      * Creates the test table(s) and writes data into it(them).
@@ -105,7 +106,7 @@ public class FuzzyTokenMatcherTestHelper {
                 
         ScanBasedSourceOperator scanSource = new ScanBasedSourceOperator(new ScanSourcePredicate(tableName)); 
         FuzzyTokenPredicate fuzzyTokenPredicate = new FuzzyTokenPredicate(
-                query, attributeNames, RelationManager.getRelationManager().getTableAnalyzerString(tableName), threshold);
+                query, attributeNames, RelationManager.getRelationManager().getTableAnalyzerString(tableName), threshold, RESULTS);
         FuzzyTokenMatcher fuzzyTokenMatcher = new FuzzyTokenMatcher(fuzzyTokenPredicate);
         
         fuzzyTokenMatcher.setLimit(limit);
@@ -133,7 +134,7 @@ public class FuzzyTokenMatcherTestHelper {
         
         FuzzyTokenSourcePredicate fuzzyTokenSourcePredicate = new FuzzyTokenSourcePredicate(
                 query, attributeNames, RelationManager.getRelationManager().getTableAnalyzerString(tableName), 
-                threshold, tableName);
+                threshold, tableName, RESULTS);
         
         FuzzyTokenMatcherSourceOperator fuzzyTokenSource = new FuzzyTokenMatcherSourceOperator(
                 fuzzyTokenSourcePredicate);

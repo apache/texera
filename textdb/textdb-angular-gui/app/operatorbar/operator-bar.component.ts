@@ -46,10 +46,10 @@ export class OperatorBarComponent {
       // enlarge the div ratio so there's more space for the operators
       if (ZoomRatio < 0.8) {
         jQuery('#the-flowchart').css({
-          "left": "-140px",
-          "top": "-90px",
-          "width": "120%",
-          "height": "120%",
+          "left": "-354px",
+          "top": "-172px",
+          "width": "143%",
+          "height": "143%",
         });
       } else {
         jQuery('#the-flowchart').css({
@@ -63,7 +63,7 @@ export class OperatorBarComponent {
     });
     // panzoom end
   }
-  
+
 
   initializeOperators(container: any) {
     var findOperatorData = function(opeartorId: number, opeatorList: [any]): any {
@@ -75,7 +75,7 @@ export class OperatorBarComponent {
       return null;
     }
 
-    
+
     let operatorList;
     this.mockDataService.getOperatorList().then(
       data => {
@@ -97,16 +97,16 @@ export class OperatorBarComponent {
       helper: function(e) {
         var dragged = jQuery(this);
         var operatorId = parseInt(dragged.data('matcher-type'));
-        var operatorData = findOperatorData(operatorId, operatorList);        
+        var operatorData = findOperatorData(operatorId, operatorList);
 
         return jQuery('#the-flowchart').flowchart('getOperatorElement', operatorData);
       },
-      
+
       stop: function(e, ui) {
         var dragged = jQuery(this);
-        
+
         var operatorId = parseInt(dragged.data('matcher-type'));
-        var operatorData = findOperatorData(operatorId, operatorList);     
+        var operatorData = findOperatorData(operatorId, operatorList);
 
         var newData = {
           top: 0,
@@ -116,9 +116,17 @@ export class OperatorBarComponent {
 
         var elOffset = ui.offset;
         var containerOffset = container.offset();
-        if (elOffset.left > containerOffset.left &&
+
+        var positionRatio = jQuery('#the-flowchart').flowchart('getPositionRatio');
+
+        console.log("CONTAINoffset left " + containerOffset.left);
+        console.log("CONTAINoffset top " + containerOffset.top);
+        console.log("elOffset left = " + elOffset.left * positionRatio);
+        console.log("elOffset top = " + elOffset.top * positionRatio);
+
+        if (elOffset.left  > containerOffset.left &&
           elOffset.top > containerOffset.top &&
-          elOffset.left < containerOffset.left + container.width() &&
+          elOffset.left  < containerOffset.left + container.width() &&
           elOffset.top < containerOffset.top + container.height()) {
 
           var flowchartOffset = jQuery('#the-flowchart').offset();
@@ -126,7 +134,6 @@ export class OperatorBarComponent {
           var relativeLeft = elOffset.left - flowchartOffset.left;
           var relativeTop = elOffset.top - flowchartOffset.top;
 
-          var positionRatio = jQuery('#the-flowchart').flowchart('getPositionRatio');
           relativeLeft /= positionRatio;
           relativeTop /= positionRatio;
 

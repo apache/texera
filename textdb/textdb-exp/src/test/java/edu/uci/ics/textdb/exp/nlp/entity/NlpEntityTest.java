@@ -10,11 +10,9 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import edu.uci.ics.textdb.api.constants.SchemaConstants;
 import edu.uci.ics.textdb.api.exception.TextDBException;
 import edu.uci.ics.textdb.api.tuple.Tuple;
 import edu.uci.ics.textdb.api.utils.TestUtils;
-import edu.uci.ics.textdb.api.utils.Utils;
 import edu.uci.ics.textdb.exp.source.scan.ScanBasedSourceOperator;
 import edu.uci.ics.textdb.exp.source.scan.ScanSourcePredicate;
 import edu.uci.ics.textdb.storage.DataWriter;
@@ -28,6 +26,8 @@ public class NlpEntityTest {
     
     public static final String ONE_SENTENCE_TABLE = "nlp_test_two_sentence";
     public static final String TWO_SENTENCE_TABLE = "nlp_test_one_sentence";
+    
+    public static final String RESULTS = NlpEntityTestConstants.RESULTS;
     
     @BeforeClass
     public static void setUp() throws TextDBException {
@@ -81,7 +81,7 @@ public class NlpEntityTest {
         
         ScanBasedSourceOperator scanSource = new ScanBasedSourceOperator(new ScanSourcePredicate(tableName));
 
-        NlpEntityPredicate nlpEntityPredicate = new NlpEntityPredicate(nlpEntityType, attributeNames);
+        NlpEntityPredicate nlpEntityPredicate = new NlpEntityPredicate(nlpEntityType, attributeNames, RESULTS);
         NlpEntityOperator nlpEntityOperator = new NlpEntityOperator(nlpEntityPredicate);
         nlpEntityOperator.setInputOperator(scanSource);
 
@@ -359,8 +359,7 @@ public class NlpEntityTest {
         attributeNames.add(attribute1);
         attributeNames.add(attribute2);
 
-        List<Tuple> returnedResults = Utils.removeFields(
-                getQueryResults(TWO_SENTENCE_TABLE, attributeNames, NlpEntityType.NE_ALL), SchemaConstants.PAYLOAD);
+        List<Tuple> returnedResults = getQueryResults(TWO_SENTENCE_TABLE, attributeNames, NlpEntityType.NE_ALL);
         List<Tuple> expectedResults = NlpEntityTestConstants.getTest9ResultTuples();
 
         boolean contains = TestUtils.equals(expectedResults, returnedResults);
@@ -402,8 +401,7 @@ public class NlpEntityTest {
         String attribute2 = NlpEntityTestConstants.SENTENCE_TWO;
         List<String> attributeNames = Arrays.asList(attribute1, attribute2);
         
-        List<Tuple> returnedResults = Utils.removeFields(
-                getQueryResults(TWO_SENTENCE_TABLE, attributeNames, NlpEntityType.NE_ALL), SchemaConstants.PAYLOAD);
+        List<Tuple> returnedResults = getQueryResults(TWO_SENTENCE_TABLE, attributeNames, NlpEntityType.NE_ALL);
         
         List<Tuple> expectedResults = NlpEntityTestConstants.getTest11ResultTuple();  
         boolean contains = TestUtils.equals(expectedResults, returnedResults);
