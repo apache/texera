@@ -8,6 +8,7 @@ import junit.framework.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
+import edu.uci.ics.textdb.api.exception.TextDBException;
 import edu.uci.ics.textdb.api.schema.Attribute;
 import edu.uci.ics.textdb.api.schema.AttributeType;
 import edu.uci.ics.textdb.api.schema.Schema;
@@ -69,29 +70,27 @@ public class SchemaTest {
         Assert.assertEquals(expectedAttrNames, actualAttrNames);
     }
     
-    @Test
+    @Test(expected = TextDBException.class)
     public void testGetInvalidAttribute() {
-        Attribute retrievedAttribute1 = schema.getAttribute("invalid_attribute");
-        
-        Assert.assertNull(retrievedAttribute1);
+        schema.getAttribute("invalid_attribute");
     }
 
-    @Test(expected = UnsupportedOperationException.class)
-    public void testAddingNewAttribute() { // Should fail due to immutability
+    @Test
+    public void testAddingNewAttribute() {
+        // modifying the attributes returned by schema shouldn't affect the original schema
+        // because schema is immutable
         List<Attribute> attributes = schema.getAttributes();
         attributes.add(new Attribute("sampleField_3", AttributeType.STRING));
+        Assert.assertFalse(attributes.equals(schema.getAttributes()));
     }
 
-    @Test(expected = UnsupportedOperationException.class)
-    public void testRemovingAttribute() { // Should fail due to immutability
+    @Test
+    public void testRemovingAttribute() {
+        // modifying the attributes returned by schema shouldn't affect the original schema
+        // because schema is immutable
         List<Attribute> attributes = schema.getAttributes();
         attributes.remove(0);
+        Assert.assertFalse(attributes.equals(schema.getAttributes()));        
     }
 
-    @Test(expected = UnsupportedOperationException.class)
-    public void testAddingInBetween() { // Should fail due to immutability
-        List<Attribute> attributes = schema.getAttributes();
-        attributes.add(0, new Attribute("sampleField_3", AttributeType.STRING));
-
-    }
 }

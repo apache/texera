@@ -1,10 +1,18 @@
 package edu.uci.ics.textdb.api.field;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+import edu.uci.ics.textdb.api.constants.JsonConstants;
+
 public class IntegerField implements IField {
 
     private Integer value;
 
-    public IntegerField(Integer value) {
+    @JsonCreator
+    public IntegerField(
+            @JsonProperty(value = JsonConstants.FIELD_VALUE, required = true)
+            Integer value) {
         this.value = value;
     }
 

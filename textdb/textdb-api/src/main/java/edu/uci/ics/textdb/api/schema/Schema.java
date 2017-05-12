@@ -1,54 +1,90 @@
 package edu.uci.ics.textdb.api.schema;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+import edu.uci.ics.textdb.api.constants.JsonConstants;
+import edu.uci.ics.textdb.api.exception.TextDBException;
+
 public class Schema {
-    private List<Attribute> attributes;
-    private Map<String, Integer> attributeNameVsIndex;
+    
+    private final List<Attribute> attributes;
+    private final Map<String, Integer> nameLowercaseIndexMap;
 
     public Schema(Attribute... attributes) {
-        // Converting to java.util.Arrays.ArrayList
-        // so that the collection remains static and cannot be extended/shrunk
-        // This makes List<Attribute> partially immutable.
-        // Partial because we can still replace an element at particular index.
-        this.attributes = Arrays.asList(attributes);
-        populateAttributeNameVsIndexMap();
+        this(Arrays.asList(attributes));
     }
-
-    private void populateAttributeNameVsIndexMap() {
-        attributeNameVsIndex = new HashMap<String, Integer>();
-        for (int count = 0; count < attributes.size(); count++) {
-            String attributeName = attributes.get(count).getAttributeName();
-            attributeNameVsIndex.put(attributeName.toLowerCase(), count);
+    
+    @JsonCreator
+    public Schema(
+            @JsonProperty(value = JsonConstants.ATTRIBUTES, required = true)
+            List<Attribute> attributes) {
+        if (attributes.isEmpty()) {
+            throw new TextDBException("Cannot create schema: attributes is empty");
+        }
+        this.attributes = new ArrayList<>(attributes);
+        this.nameLowercaseIndexMap = new HashMap<>();
+        
+        for (int i = 0; i < attributes.size(); i++) {
+            String attributeNameLowercase = attributes.get(i).getAttributeName().toLowerCase();
+            if (nameLowercaseIndexMap.containsKey(attributeNameLowercase)) {
+                throw new TextDBException("Cannot create schema: duplicate attribute name " + attributeNameLowercase + 
+                        ". (attribute name is case insensitive)");
+            }
+            nameLowercaseIndexMap.put(attributeNameLowercase, i);
         }
     }
 
+    @JsonProperty(value = JsonConstants.ATTRIBUTES)
     public List<Attribute> getAttributes() {
-        return attributes;
+        return new ArrayList<>(attributes);
     }
     
+    @JsonIgnore
+    public int size() {
+        return attributes.size();
+    }
+    
+    @JsonIgnore
     public List<String> getAttributeNames() {
         return attributes.stream().map(attr -> attr.getAttributeName()).collect(Collectors.toList());
     }
 
     public Integer getIndex(String attributeName) {
-        return attributeNameVsIndex.get(attributeName.toLowerCase());
+        String attributeNameLowercase = attributeName.trim().toLowerCase();
+        if (! nameLowercaseIndexMap.containsKey(attributeNameLowercase)) {
+            throw new TextDBException(String.format(
+                    "Cannot find the attribute: %s does not exist in the schema %s", 
+                    attributeName, this.getAttributeNames()));
+        }
+        return nameLowercaseIndexMap.get(attributeNameLowercase);
     }
     
     public Attribute getAttribute(String attributeName) {
-        Integer attrIndex = getIndex(attributeName);
-        if (attrIndex == null) {
-            return null;
+        return attributes.get(getIndex(attributeName));
+    }
+    
+    public Attribute getAttribute(int index) {
+        if (index < attributes.size()) {
+            return attributes.get(index);
         }
-        return attributes.get(attrIndex);
+        throw new TextDBException(String.format(
+                "Cannot get attribute at index %d: schema only has %d attributes", 
+                index, attributes.size()));
     }
 
+    @JsonIgnore
     public boolean containsField(String attributeName) {
-        return attributeNameVsIndex.keySet().contains(attributeName.toLowerCase());
+        String attributeNameLowercase = attributeName.trim().toLowerCase();
+        return nameLowercaseIndexMap.containsKey(attributeNameLowercase);
     }
 
     @Override
@@ -56,29 +92,21 @@ public class Schema {
         final int prime = 31;
         int result = 1;
         result = prime * result + ((attributes == null) ? 0 : attributes.hashCode());
-        result = prime * result + ((attributeNameVsIndex == null) ? 0 : attributeNameVsIndex.hashCode());
+        result = prime * result + ((nameLowercaseIndexMap == null) ? 0 : nameLowercaseIndexMap.hashCode());
         return result;
     }
 
     @Override
-    public boolean equals(Object obj) {
-        if (this == obj)
+    public boolean equals(Object toCompare) {
+        if (this == toCompare)
             return true;
-        if (obj == null)
+        if (toCompare == null)
             return false;
-        if (getClass() != obj.getClass())
+        if (getClass() != toCompare.getClass())
             return false;
-        Schema other = (Schema) obj;
-        if (attributes == null) {
-            if (other.attributes != null)
-                return false;
-        } else if (!attributes.equals(other.attributes))
-            return false;
-        if (attributeNameVsIndex == null) {
-            if (other.attributeNameVsIndex != null)
-                return false;
-        } else if (!attributeNameVsIndex.equals(other.attributeNameVsIndex))
-            return false;
-        return true;
+        
+        Schema that = (Schema) toCompare;  
+        return this.attributes.equals(that.attributes) 
+                && this.nameLowercaseIndexMap.equals(that.nameLowercaseIndexMap);
     }
 }

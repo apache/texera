@@ -1,5 +1,10 @@
 package edu.uci.ics.textdb.api.field;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+import edu.uci.ics.textdb.api.constants.JsonConstants;
+
 /**
  * Created by chenli on 3/31/16. A field that is indexed but not tokenized: the
  * entire String value is indexed as a single token. For example this might be
@@ -10,7 +15,10 @@ public class StringField implements IField {
 
     private final String value;
 
-    public StringField(String value) {
+    @JsonCreator
+    public StringField(
+            @JsonProperty(value = JsonConstants.FIELD_VALUE, required = true)
+            String value) {
         this.value = value;
     }
 

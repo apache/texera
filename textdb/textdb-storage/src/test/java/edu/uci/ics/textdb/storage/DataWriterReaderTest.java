@@ -13,6 +13,7 @@ import edu.uci.ics.textdb.api.constants.SchemaConstants;
 import edu.uci.ics.textdb.api.constants.TestConstants;
 import edu.uci.ics.textdb.api.exception.TextDBException;
 import edu.uci.ics.textdb.api.tuple.Tuple;
+import edu.uci.ics.textdb.api.utils.TestUtils;
 import edu.uci.ics.textdb.api.utils.Utils;
 import edu.uci.ics.textdb.storage.constants.LuceneAnalyzerConstants;
 
@@ -56,19 +57,8 @@ public class DataWriterReaderTest {
         }
         dataReader.close();
         
-        boolean equals = containsAllResults(TestConstants.getSamplePeopleTuples(), returnedTuples);
+        boolean equals = TestUtils.equals(TestConstants.getSamplePeopleTuples(), returnedTuples);
         Assert.assertTrue(equals);
     }
 
-    public static boolean containsAllResults(List<Tuple> expectedResults, List<Tuple> exactResults) {
-        expectedResults = Utils.removeFields(expectedResults, SchemaConstants._ID, SchemaConstants.PAYLOAD);
-        exactResults = Utils.removeFields(exactResults, SchemaConstants._ID, SchemaConstants.PAYLOAD);
-
-        if (expectedResults.size() != exactResults.size())
-            return false;
-        if (!(expectedResults.containsAll(exactResults)) || !(exactResults.containsAll(expectedResults)))
-            return false;
-
-        return true;
-    }
 }

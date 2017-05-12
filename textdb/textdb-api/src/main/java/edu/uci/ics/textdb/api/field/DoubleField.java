@@ -1,10 +1,18 @@
 package edu.uci.ics.textdb.api.field;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+import edu.uci.ics.textdb.api.constants.JsonConstants;
+
 public class DoubleField implements IField {
 
     private Double value;
 
-    public DoubleField(Double value) {
+    @JsonCreator
+    public DoubleField(
+            @JsonProperty(value = JsonConstants.FIELD_VALUE, required = true)
+            Double value) {
         this.value = value;
     }
 

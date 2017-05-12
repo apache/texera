@@ -1,19 +1,30 @@
 
 package edu.uci.ics.textdb.api.field;
 
+import java.util.ArrayList;
 import java.util.List;
+
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+import edu.uci.ics.textdb.api.constants.JsonConstants;
 
 public class ListField<T> implements IField {
 
     private List<T> list;
 
-    public ListField(List<T> list) {
+    @JsonCreator
+    public ListField(
+            @JsonProperty(value = JsonConstants.FIELD_VALUE, required = true)
+            List<T> list) {
+        // TODO: make a copy of the list to avoid modifying the list
+        // but need to investigate the cost of doing so
         this.list = list;
     }
 
     @Override
     public List<T> getValue() {
-        return list;
+        return new ArrayList<>(list);
     }
 
     @Override
@@ -45,11 +56,6 @@ public class ListField<T> implements IField {
 
     @Override
     public String toString() {
-        String getStringResult = new String();
-        for (T val : list) {
-            getStringResult = getStringResult.concat(val.toString().concat(" "));
-        }
-        getStringResult = getStringResult.trim();
-        return "ListField [value=" + getStringResult + "]";
+        return "ListField [value=" + list.toString() + "]";
     }
 }

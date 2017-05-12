@@ -183,7 +183,8 @@ public class Utils {
     * @return
     */
    public static Tuple removeFields(Tuple tuple, String... removeFields) {
-       List<String> removeFieldList = Arrays.asList(removeFields);
+       List<String> removeFieldList = Arrays.asList(removeFields).stream()
+               .filter(field -> tuple.getSchema().containsField(field)).collect(Collectors.toList());
        List<Integer> removedFeidsIndex = removeFieldList.stream()
                .map(attributeName -> tuple.getSchema().getIndex(attributeName)).collect(Collectors.toList());
        

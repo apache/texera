@@ -2,11 +2,19 @@ package edu.uci.ics.textdb.api.field;
 
 import java.util.UUID;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+import edu.uci.ics.textdb.api.constants.JsonConstants;
+
 public class IDField implements IField {
     
     private final String _id;
     
-    public IDField(String idValue) {
+    @JsonCreator
+    public IDField(
+            @JsonProperty(value = JsonConstants.FIELD_VALUE, required = true)
+            String idValue) {
         this._id = idValue;
     }
 
