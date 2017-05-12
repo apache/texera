@@ -1,5 +1,10 @@
 package edu.uci.ics.textdb.api.field;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+import edu.uci.ics.textdb.api.constants.JsonConstants;
+
 /**
  * Created by chenli on 3/31/16. A field that is indexed and tokenized, without
  * term vectors. For example this would be used on a 'body' field, that contains
@@ -9,7 +14,10 @@ public class TextField implements IField {
 
     private final String value;
 
-    public TextField(String value) {
+    @JsonCreator
+    public TextField(
+            @JsonProperty(value = JsonConstants.FIELD_VALUE, required = true)
+            String value) {
         this.value = value;
     }
 

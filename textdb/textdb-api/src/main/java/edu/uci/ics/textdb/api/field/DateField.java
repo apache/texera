@@ -2,11 +2,20 @@ package edu.uci.ics.textdb.api.field;
 
 import java.util.Date;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+import edu.uci.ics.textdb.api.constants.JsonConstants;
+
 public class DateField implements IField {
 
     private Date value;
 
-    public DateField(Date value) {
+    //TODO: current json serialization converts DateField to an int, which is not user friendly
+    @JsonCreator
+    public DateField(
+            @JsonProperty(value = JsonConstants.FIELD_VALUE, required = true)
+            Date value) {
         this.value = value;
     }
 

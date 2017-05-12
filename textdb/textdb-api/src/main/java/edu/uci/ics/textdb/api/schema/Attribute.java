@@ -1,20 +1,50 @@
 package edu.uci.ics.textdb.api.schema;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+import edu.uci.ics.textdb.api.constants.JsonConstants;
+import edu.uci.ics.textdb.api.exception.TextDBException;
+
+/**
+ * An Attribute describes the name and type of a "column".
+ * 
+ * The name of the attribute will always be trimmed and is case insensitive.
+ * 
+ * @author Zuozhi Wang
+ *
+ */
 public class Attribute {
     private final String attributeName;
     private final AttributeType attributeType;
 
-    public Attribute(String attributeName, AttributeType type) {
-        this.attributeName = attributeName;
-        this.attributeType = type;
+    @JsonCreator
+    public Attribute(
+            @JsonProperty(value = JsonConstants.ATTRIBUTE_NAME, required = true)
+            String attributeName, 
+            @JsonProperty(value = JsonConstants.ATTRIBUTE_TYPE, required = true)
+            AttributeType attributeType) {     
+        if (attributeName == null) {
+            throw new TextDBException("Cannot create Attribute: attributeName is null");
+        }
+        if (attributeType == null) {
+            throw new TextDBException("Cannot create Attribute: attributeType is null");
+        }
+        if (attributeName.trim().isEmpty()) {
+            throw new TextDBException("Cannot create Attribute: attributeName is empty");
+        }
+        this.attributeName = attributeName.trim();
+        this.attributeType = attributeType;
     }
-
-    public AttributeType getAttributeType() {
-        return attributeType;
-    }
-
+    
+    @JsonProperty(value = JsonConstants.ATTRIBUTE_NAME)
     public String getAttributeName() {
         return attributeName;
+    }
+
+    @JsonProperty(value = JsonConstants.ATTRIBUTE_TYPE)
+    public AttributeType getAttributeType() {
+        return attributeType;
     }
 
     @Override
@@ -35,14 +65,6 @@ public class Attribute {
         }
         
         Attribute that = (Attribute) toCompare;
-        
-        if (this.attributeName == null) {
-            return that.attributeName == null;
-        }
-        if (this.attributeType == null) {
-            return that.attributeType == null;
-        }
-        
         return this.attributeName.equals(that.attributeName) && this.attributeType.equals(that.attributeType);
     }
     
