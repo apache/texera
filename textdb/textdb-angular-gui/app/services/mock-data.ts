@@ -18,7 +18,7 @@ let keywordMatcher = {
         attributes: {
             "operatorType": "KeywordMatcher",
             "query": "keyword",
-            "attributes": ["text"],
+            "attributes": [],
             "luceneAnalyzer": "standard",
             "matchingType": "phrase",
             "spanListName": " "
@@ -44,8 +44,8 @@ let regexMatcher = {
     attributes : {
         "operatorType": "RegexMatcher",
         "regex": "regex",
-        "attributes": ["attr1", "attr2"],
-        "regexIgnoreCase": false,
+        "attributes": [],
+        "regexIgnoreCase": false
         "spanListName": " "
     }
   }
@@ -69,7 +69,7 @@ let dictionaryMatcher = {
     attributes :  {
         "operatorType": "DictionaryMatcher",
         "dictionaryEntries": ["entry1", "entry2"],
-        "attributes": ["attr1", "attr2"],
+        "attributes": [],
         "luceneAnalyzer": "standard",
         "matchingType": "phrase",
         "spanListName": " "
@@ -95,7 +95,7 @@ let fuzzyMatcher = {
     attributes : {
         "operatorType": "FuzzyTokenMatcher",
         "query": "token1 token2 token3",
-        "attributes": ["attr1", "attr2"],
+        "attributes": [],
         "luceneAnalyzer": "standard",
         "thresholdRatio": 0.8,
         "spanListName": " ",
@@ -259,11 +259,10 @@ let keywordSource = {
     attributes : {
         "operatorType": "KeywordSource",
         "query": "keyword",
-        "attributes": ["attr1", "attr2"],
-        "luceneAnalyzer": "standard",
-        "matchingType": "phrase",
-        "tableName": "tableName",
-        "spanListName": " "
+        "attributes": [],
+        "matchingType": "conjunction",
+        "tableName": "",
+        "spanListName": ""
     }
   }
 }
@@ -287,10 +286,10 @@ let dictionarySource = {
     attributes : {
         "operatorType": "DictionarySource",
         "dictionaryEntries": ["entry1", "entry2"],
-        "attributes": ["attr1", "attr2"],
+        "attributes": [],
         "luceneAnalyzer": "standard",
-        "matchingType": "phrase",
-        "tableName": "tableName",
+        "matchingType": "conjunction",
+        "tableName": ""
         "spanListName": " "
     }
   }
@@ -314,7 +313,7 @@ let regexSource = {
     attributes : {
         "operatorType": "RegexSource",
         "regex": "regex",
-        "attributes": ["attr1", "attr2"],
+        "attributes": [],
         "regexIgnoreCase": false,
         "tableName": "tableName",
         "regexUseIndex": true,
@@ -341,7 +340,7 @@ let fuzzyTokenSource = {
     attributes : {
         "operatorType": "FuzzyTokenSource",
         "query": "token1 token2 token3",
-        "attributes": ["attr1", "attr2"],
+        "attributes": [],
         "luceneAnalyzer": "standard",
         "thresholdRatio": 0.8,
         "tableName": "tableName",
