@@ -35,23 +35,23 @@
     "zone.js": "^0.7.7"
   },
   "devDependencies": {
-    "concurrently": "^3.3.0",
-    "lite-server": "^2.2.2",
-    "typescript": "~2.2.1",
+    "@types/jasmine": "^2.5.43",
+    "@types/node": "^7.0.5",
     "canonical-path": "0.0.2",
+    "concurrently": "^3.3.0",
     "http-server": "^0.9.0",
-    "tslint": "^4.5.1",
-    "lodash": "^4.17.4",
     "jasmine-core": "~2.5.2",
     "karma": "^1.5.0",
     "karma-chrome-launcher": "^2.0.0",
     "karma-cli": "^1.0.1",
     "karma-jasmine": "^1.1.0",
     "karma-jasmine-html-reporter": "^0.2.2",
+    "lite-server": "^2.2.2",
+    "lodash": "^4.17.4",
     "protractor": "~5.1.1",
     "rimraf": "^2.6.1",
-    "@types/node": "^7.0.5",
-    "@types/jasmine": "^2.5.43"
+    "tslint": "^4.5.1",
+    "typescript": "~2.2.1"
   },
   "repository": {}
 }

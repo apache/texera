@@ -1,6 +1,8 @@
 package edu.uci.ics.textdb.storage;
 
 import java.io.File;
+import java.util.List;
+import java.util.stream.Collectors;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
@@ -395,6 +397,38 @@ public class RelationManagerTest {
         
         Assert.assertTrue(! relationManager.checkTableExistence(tableName1));
     }
-    
-    
+
+    /*
+	* Test on getMetaData() to see if it successfully get metadata from "relation_manager_test_table"
+	*/
+    @Test
+    public void test17() throws Exception {
+        String tableName = "relation_manager_test_table";
+        String tableDirectory = "./index/test_table";
+        Schema tableSchema = new Schema(
+                new Attribute("content", AttributeType.STRING), new Attribute("number", AttributeType.STRING));
+
+        RelationManager relationManager = RelationManager.getRelationManager();
+
+        relationManager.deleteTable(tableName);
+        relationManager.createTable(
+                tableName, tableDirectory, tableSchema, LuceneAnalyzerConstants.standardAnalyzerString());
+
+        List<TableMetadata> metaData = relationManager.getMetaData();
+
+        // result should contain metadata about test table "relation_manager_test_table"
+        List<TableMetadata> result = metaData.stream().filter(x -> x.getTableName().equals(tableName)).collect(Collectors.toList());
+
+        Assert.assertEquals(result.size(), 1);
+
+        TableMetadata testTable = result.get(0);
+        List<String> testTableSchema = testTable.getSchema().getAttributeNames();
+
+        Assert.assertEquals(tableName, testTable.getTableName());
+        Assert.assertEquals("_id", testTableSchema.get(0));
+        Assert.assertEquals("content", testTableSchema.get(1));
+        Assert.assertEquals("number", testTableSchema.get(2));
+
+        relationManager.deleteTable(tableName);
+    }
 }

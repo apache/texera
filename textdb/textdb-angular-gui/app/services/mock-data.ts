@@ -17,8 +17,8 @@ let keywordMatcher = {
         },
         attributes: {
             "operatorType": "KeywordMatcher",
-            "attributes": ["text"],
             "query": "keyword",
+            "attributes": [],
             "luceneAnalyzer": "standard",
             "matchingType": "phrase",
             "spanListName": " "
@@ -43,8 +43,8 @@ let regexMatcher = {
     },
     attributes : {
         "operatorType": "RegexMatcher",
-        "attributes": ["attr1", "attr2"],
         "regex": "regex",
+        "attributes": [],
         "regexIgnoreCase": false,
         "spanListName": " "
     }
@@ -68,8 +68,8 @@ let dictionaryMatcher = {
     },
     attributes :  {
         "operatorType": "DictionaryMatcher",
-        "attributes": ["attr1", "attr2"],
         "dictionaryEntries": ["entry1", "entry2"],
+        "attributes": [],
         "luceneAnalyzer": "standard",
         "matchingType": "phrase",
         "spanListName": " "
@@ -94,8 +94,8 @@ let fuzzyMatcher = {
     },
     attributes : {
         "operatorType": "FuzzyTokenMatcher",
-        "attributes": ["attr1", "attr2"],
         "query": "token1 token2 token3",
+        "attributes": [],
         "luceneAnalyzer": "standard",
         "thresholdRatio": 0.8,
         "spanListName": " ",
@@ -120,8 +120,8 @@ let nlpEntity = {
     },
     attributes : {
         "operatorType": "NlpEntity",
-        "attributes": ["attr1", "attr2"],
         "nlpEntityType": "location",
+        "attributes": [],
         "spanListName": " "
     }
   }
@@ -144,7 +144,7 @@ let nlpSentiment = {
     },
     attributes : {
         "operatorType": "NlpSentiment",
-        "attribute": "inputAttr",
+        "attributes": [],
         "resultAttribute": "resultAttr"
     }
   }
@@ -214,7 +214,7 @@ let projection = {
     },
     attributes : {
         "operatorType": "Projection",
-        "attributes": ["attr1", "attr2"]
+        "attributes": []
     }
   }
 }
@@ -236,7 +236,7 @@ let scanSource = {
     },
     attributes : {
         "operatorType": "ScanSource",
-        "tableName": "tableName"
+        "tableName": ""
     }
   }
 }
@@ -258,11 +258,11 @@ let keywordSource = {
     },
     attributes : {
         "operatorType": "KeywordSource",
-        "tableName": "tableName",
-        "attributes": ["attr1", "attr2"],
         "query": "keyword",
+        "attributes": [],
         "luceneAnalyzer": "standard",
         "matchingType": "phrase",
+        "tableName": "",
         "spanListName": " "
     }
   }
@@ -286,11 +286,11 @@ let dictionarySource = {
     },
     attributes : {
         "operatorType": "DictionarySource",
-        "tableName": "tableName",
-        "attributes": ["attr1", "attr2"],
         "dictionaryEntries": ["entry1", "entry2"],
+        "attributes": [],
         "luceneAnalyzer": "standard",
         "matchingType": "phrase",
+        "tableName": "",
         "spanListName": " "
     }
   }
@@ -313,9 +313,9 @@ let regexSource = {
     },
     attributes : {
         "operatorType": "RegexSource",
-        "tableName": "tableName",
-        "attributes": ["attr1", "attr2"],
         "regex": "regex",
+        "attributes": [],
+        "tableName": "",
         "regexIgnoreCase": false,
         "regexUseIndex": true,
         "spanListName": " "
@@ -340,9 +340,9 @@ let fuzzyTokenSource = {
     },
     attributes : {
         "operatorType": "FuzzyTokenSource",
-        "tableName": "tableName",
-        "attributes": ["attr1", "attr2"],
         "query": "token1 token2 token3",
+        "attributes": [],
+        "tableName": "",
         "luceneAnalyzer": "standard",
         "thresholdRatio": 0.8,
         "spanListName": " ",
@@ -367,8 +367,8 @@ let wordCountSource = {
     },
     attributes : {
         "operatorType": "WordCountIndexSource",
-        "tableName": "tableName",
-        "attribute": "attr1",
+        "tableName": "",
+        "attributes": [],
     }
   }
 }
@@ -390,8 +390,8 @@ let wordCount = {
     },
     attributes : {
         "operatorType": "WordCount",
-        "attribute": "attr1",
-	"luceneAnalyzer": "standard",
+        "attributes": [],
+	      "luceneAnalyzer": "standard",
     }
   }
 }

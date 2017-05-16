@@ -1,7 +1,8 @@
-import { Component, ViewChild} from '@angular/core';
+import {Component, ViewChild, OnInit} from '@angular/core';
 
 import { CurrentDataService } from '../services/current-data-service';
 import { ModalComponent } from 'ng2-bs3-modal/ng2-bs3-modal';
+import {TableMetadata} from "../services/table-metadata";
 
 declare var jQuery: any;
 declare var Backbone: any;
@@ -26,7 +27,7 @@ export class SideBarComponent {
 
   hiddenList: string[] = ["operatorType", "luceneAnalyzer", "matchingType", "spanListName"];
 
-  selectorList: string[] = ["matchingType", "nlpEntityType", "splitType", "sampleType", "compareNumber", "aggregationType"].concat(this.hiddenList);
+  selectorList: string[] = ["matchingType", "nlpEntityType", "splitType", "sampleType", "compareNumber", "aggregationType", "attributes", "tableName", "attribute"].concat(this.hiddenList);
 
   matcherList: string[] = ["conjunction", "phrase", "substring"];
   nlpEntityList: string[] = ["noun", "verb", "adjective", "adverb", "ne_all", "number", "location", "person", "organization", "money", "percent", "date", "time"];
@@ -35,6 +36,12 @@ export class SideBarComponent {
 
   compareList: string[] = ["=", ">", ">=", "<", "<=", "!="];
   aggregationList: string[] = ["min", "max", "count", "sum", "average"];
+
+  attributeItems:Array<string> = [];
+  tableNameItems:Array<string> = [];
+  selectedAttributesList:Array<string> = [];
+  selectedAttribute:string = "";
+  metadataList:Array<TableMetadata> = [];
 
   @ViewChild('MyModal')
   modal: ModalComponent;
@@ -64,6 +71,7 @@ export class SideBarComponent {
         for (var attribute in data.operatorData.properties.attributes) {
           this.attributes.push(attribute);
         }
+        this.selectedAttributesList = data.operatorData.properties.attributes.attributes;
       });
 
     currentDataService.checkPressed$.subscribe(
@@ -86,6 +94,16 @@ export class SideBarComponent {
         this.ModalOpen();
 
       });
+
+    currentDataService.metadataRetrieved$.subscribe(
+      data => {
+        this.metadataList = data;
+        let metadata: (Array<TableMetadata>) = data;
+        metadata.forEach(x => {
+          this.tableNameItems.push((x.tableName));
+        });
+      }
+    )
   }
 
   humanize(name: string): string {
@@ -99,6 +117,7 @@ export class SideBarComponent {
   }
 
   onSubmit() {
+    this.data.properties.attributes.attributes = this.selectedAttributesList;
     this.inSavedWindow = true;
     jQuery('#the-flowchart').flowchart('setOperatorData', this.operatorId, this.data);
     this.currentDataService.setAllOperatorData(jQuery('#the-flowchart').flowchart('getData'));
@@ -110,5 +129,43 @@ export class SideBarComponent {
     this.attributes = [];
     jQuery("#the-flowchart").flowchart("deleteOperator", this.operatorId);
     this.currentDataService.setAllOperatorData(jQuery('#the-flowchart').flowchart('getData'));
+  }
+
+  attributeSelected (event:string) {
+    this.selectedAttributesList.push(event);
+  }
+
+  manuallyAdded (event:string) {
+    if (event.length === 0) {
+      // removed all attributes
+      this.selectedAttributesList = [];
+    } else {
+      this.selectedAttributesList = event.split(",");
+    }
+  }
+
+  selectTable (event:string) {
+    this.attributeItems = [];
+
+    this.metadataList.forEach(x => {
+      if (x.tableName === event) {
+        x.attributes.forEach(
+          y => {
+            if (!y.attributeName.startsWith("_")) {
+              this.attributeItems.push(y.attributeName);
+            }
+          });
+      }
+    });
+  }
+
+  /* TODO:: for now, only source operators support attribute autocomplete.
+  * Later, to enable autocomplete for the rest operators,
+  * remove this function as well as *ngIf in side-bar.component.html
+  */
+  isSourceOperator(): boolean {
+    if (this.operatorTitle.toLowerCase().search(".*source*") === 0) {
+      return true;
+    } else return false;
   }
 }

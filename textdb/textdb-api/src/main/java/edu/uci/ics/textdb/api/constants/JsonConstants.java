@@ -8,6 +8,7 @@ public class JsonConstants {
     public static final String ATTRIBUTE_TYPE = "attributeType";
     public static final String ATTRIBUTES = "attributes";
     public static final String SCHEMA = "schema";
+    public static final String TABLE_NAME = "tableName";
     
     public static final String FIELDS = "fields";
     public static final String FIELD_VALUE = "value";
