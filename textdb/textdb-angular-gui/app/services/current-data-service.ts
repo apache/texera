@@ -4,13 +4,16 @@ import { Response, Http } from '@angular/http';
 import { Headers } from '@angular/http';
 
 import { Data } from './data';
-import {TableMetadata} from "./table-metadata";
+import { TableMetadata } from "./table-metadata";
 import any = jasmine.any;
 
 declare var jQuery: any;
 
 const textdbUrl = 'http://localhost:8080/api/newqueryplan/execute';
 const metadataUrl = 'http://localhost:8080/api/resources/metadata';
+const uploadDictionaryUrl = "http://localhost:8080/api/upload/dictionary";
+const getDictionariesUrl = "http://localhost:8080/api/resources/dictionaries";
+const getDictionaryContentUrl = "http://localhost:8080/api/resources/dictionary/?name=";
 
 const defaultData = {
     top: 20,
@@ -35,6 +38,12 @@ export class CurrentDataService {
 
     private metadataRetrieved = new Subject<any>();
     metadataRetrieved$ = this.metadataRetrieved.asObservable();
+
+    private dictionaryNames= new Subject<any>();
+    dictionaryNames$ = this.dictionaryNames.asObservable();
+
+    private dictionaryContent = new Subject<any>();
+    dictionaryContent$ = this.dictionaryContent.asObservable();
 
     constructor(private http: Http) { }
 
@@ -125,6 +134,52 @@ export class CurrentDataService {
                 },
                 err => {
                     console.log("Error at getMetadata() in current-data-service.ts \n Error: "+err);
+                }
+            );
+    }
+
+    uploadDictionary(file: File) {
+        let formData:FormData = new FormData();
+        formData.append('file', file, file.name);
+        this.http.post(uploadDictionaryUrl, formData, null)
+          .subscribe(
+            data => {
+              alert(file.name + ' is uploaded');
+              // after adding a new dictionary, refresh the list
+              this.getDictionaries();
+            },
+            err => {
+                alert('Error occurred while uploading ' + file.name);
+                console.log('Error occurred while uploading ' + file.name + '\nError message: ' + err);
+            }
+          );
+    }
+
+    getDictionaries(): void {
+        let headers = new Headers({ 'Content-Type': 'application/json' });
+        this.http.get(getDictionariesUrl, {headers: headers})
+            .subscribe(
+                data => {
+                    let result = JSON.parse(data.json().message);
+                    this.dictionaryNames.next(result);
+                },
+                err => {
+                    console.log("Error at getDictionaries() in current-data-service.ts \n Error: "+err);
+                }
+            );
+    }
+
+    getDictionaryContent(name: string): void {
+        let headers = new Headers({ 'Content-Type': 'application/json' });
+        this.http.get(getDictionaryContentUrl+name, {headers: headers})
+            .subscribe(
+                data => {
+                    let result = (data.json().message).split(",");
+
+                    this.dictionaryContent.next(result);
+                },
+                err => {
+                    console.log("Error at getDictionaries() in current-data-service.ts \n Error: "+err);
                 }
             );
     }

@@ -9,6 +9,11 @@
 
 	<div class="nav navbar-nav navbar-right btn-toolbar">
 		<button type="button" class="btn btn-default navbar-btn delete-button" (click) = "deleteOperator()">-</button>
+		<!-- [for] push the focus to the corresponding element with id that is identical to its for -->
+		<label for="file-upload" class="btn btn-default navbar-btn dictionary-upload">
+				Dictionary Upload
+		</label>
+		<input id="file-upload" type="file" placeholder="File Name" name="filename" (change)="fileChange($event)" accept=".txt">
     <button type="button" (click)="onClick($event)" class="btn btn-default navbar-btn navigation-btn"> Run </button>
 	</div>
 </div>

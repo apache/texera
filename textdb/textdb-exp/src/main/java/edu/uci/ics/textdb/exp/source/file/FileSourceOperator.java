@@ -5,11 +5,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
 
 import edu.uci.ics.textdb.api.constants.SchemaConstants;
 import edu.uci.ics.textdb.api.dataflow.ISourceOperator;
+import edu.uci.ics.textdb.api.exception.DataFlowException;
 import edu.uci.ics.textdb.api.exception.TextDBException;
 import edu.uci.ics.textdb.api.field.IDField;
 import edu.uci.ics.textdb.api.field.TextField;
@@ -36,6 +38,7 @@ import edu.uci.ics.textdb.api.tuple.Tuple;
  *   matches the allowed extensions, then an exception will be thrown.
  * 
  * @author Zuozhi Wang
+ * @author Jun Ma
  */
 public class FileSourceOperator implements ISourceOperator {
     
@@ -57,6 +60,7 @@ public class FileSourceOperator implements ISourceOperator {
     
     // a list of files, each of which is a valid text file
     private List<Path> pathList;
+    private Iterator<Path> pathIterator;
     
     // cursor indicating the current position
     private Integer cursor = CLOSED;
@@ -107,6 +111,7 @@ public class FileSourceOperator implements ISourceOperator {
                     "File extension must be one of %s .", 
                     filePath, this.predicate.getAllowedExtensions()));
         } 
+        pathIterator = pathList.iterator();
     }
 
     @Override
@@ -127,20 +132,23 @@ public class FileSourceOperator implements ISourceOperator {
         //   2) the cursor reaches the end
         while (cursor < pathList.size()) {            
             try {
-                String content = new String(
-                        Files.readAllBytes(pathList.get(cursor)));
-                // create a tuple according to the string
-                // and assign a random ID to it
-                Tuple tuple = new Tuple(
-                        outputSchema, 
-                        IDField.newRandomID(),
-                        new TextField(content));
+                Path path = pathIterator.next();
+                String extension = com.google.common.io.Files.getFileExtension(path.toString());
+                String content;
+                if (extension.equalsIgnoreCase("pdf")) {
+                    content = FileExtractorUtils.extractPDFFile(path);
+                } else if (extension.equalsIgnoreCase("ppt") || extension.equalsIgnoreCase("pptx")) {
+                    content = FileExtractorUtils.extractPPTFile(path);
+                } else {
+                    content = FileExtractorUtils.extractPlainTextFile(path);
+                }
+                Tuple tuple = new Tuple(outputSchema, IDField.newRandomID(), new TextField(content));
                 cursor++;
                 return tuple;
-            } catch (IOException e) {
-                // if reading the current path fails, increment the cursor and continue
-                cursor++;
-                continue;
+            } catch (DataFlowException e) {
+                // ignore error and move on
+                // TODO: use log4j
+                System.out.println("FileSourceOperator: file read error, file is ignored. " + e.getMessage());
             }
         }    
         return null;

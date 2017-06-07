@@ -15,7 +15,7 @@ public class NlpSentimentTestConstants {
     public static Schema SENTIMENT_SCHEMA = new Schema(TEXT_ATTRIBUTE);
     
     public static Tuple POSITIVE_TUPLE = new Tuple(SENTIMENT_SCHEMA, 
-            new TextField("Programming is so fun."));
+            new TextField("Programming is so super awesome."));
     
     public static Tuple NEUTRAL_TUPLE = new Tuple(SENTIMENT_SCHEMA,
             new TextField("TextDB uses Java."));

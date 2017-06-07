@@ -7,6 +7,7 @@ import com.github.dirkraft.dropwizard.fileassets.FileAssetsBundle;
 import edu.uci.ics.textdb.perftest.sample.SampleExtraction;
 import edu.uci.ics.textdb.perftest.twitter.TwitterSample;
 import edu.uci.ics.textdb.web.healthcheck.SampleHealthCheck;
+import edu.uci.ics.textdb.web.resource.FileUploadResource;
 import edu.uci.ics.textdb.web.resource.NewQueryPlanResource;
 import edu.uci.ics.textdb.web.resource.PlanStoreResource;
 import edu.uci.ics.textdb.web.resource.SystemResource;
@@ -14,6 +15,7 @@ import io.dropwizard.Application;
 import io.dropwizard.setup.Bootstrap;
 import io.dropwizard.setup.Environment;
 import org.eclipse.jetty.servlets.CrossOriginFilter;
+import org.glassfish.jersey.media.multipart.MultiPartFeature;
 
 import javax.servlet.DispatcherType;
 import javax.servlet.FilterRegistration;
@@ -54,6 +56,14 @@ public class TextdbWebApplication extends Application<TextdbWebConfiguration> {
         final SystemResource systemResource = new SystemResource();
         // Registers the systemResource with Jersey
         environment.jersey().register(systemResource);
+
+        // Creates an instance of the FileUploadResource class to register with Jersey
+        final FileUploadResource fileUploadResource = new FileUploadResource();
+        // Registers the fileUploadResource with Jersey
+        environment.jersey().register(fileUploadResource);
+
+        // Registers MultiPartFeature to support file upload
+        environment.jersey().register(MultiPartFeature.class);
 
         // Configuring the object mapper used by Dropwizard
         environment.getObjectMapper().configure(MapperFeature.USE_GETTERS_AS_SETTERS, false);

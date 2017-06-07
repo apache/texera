@@ -309,4 +309,28 @@ public class FileSourceOperatorTest {
         new FileSourceOperator(predicate);
     }
     
+    /*
+     * Test FileSourceOperator with a directory, 
+     * recursive set to true, depth set to 10, using default extensions.
+     * 
+     * expected result: 4 tuples should be returned.
+     */
+    @Test
+    public void test11() throws Exception {
+        String attrName = "content";
+
+        FileSourcePredicate predicate = new FileSourcePredicate(tempFolderPath.toString(), attrName, true, 10, null);
+        FileSourceOperator fileSource = new FileSourceOperator(predicate);
+
+        Tuple tuple;
+        ArrayList<Tuple> exactResults = new ArrayList<>();
+        fileSource.open();
+        while ((tuple = fileSource.getNextTuple()) != null) {
+            exactResults.add(tuple);
+        }
+        fileSource.close();
+
+        Assert.assertEquals(exactResults.size(), 4);
+    }
+    
 }

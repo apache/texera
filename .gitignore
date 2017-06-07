@@ -5,6 +5,7 @@
 /.settings
 target/
 out/
+user-resources/
 
 
 # Ignoring IntelliJ related files

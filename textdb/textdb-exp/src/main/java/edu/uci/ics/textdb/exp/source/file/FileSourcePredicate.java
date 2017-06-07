@@ -34,7 +34,7 @@ public class FileSourcePredicate extends PredicateBase {
     public FileSourcePredicate(
             @JsonProperty(value = PropertyNameConstants.FILE_PATH, required = true)
             String filePath, 
-            @JsonProperty(value = PropertyNameConstants.ATTRIBUTE_NAME, required = true)
+            @JsonProperty(value = PropertyNameConstants.RESULT_ATTRIBUTE_NAME, required = true)
             String attributeName,
             @JsonProperty(value = PropertyNameConstants.FILE_RECURSIVE, required = false)
             Boolean recursive,
@@ -91,7 +91,7 @@ public class FileSourcePredicate extends PredicateBase {
         return this.filePath;
     }
     
-    @JsonProperty(PropertyNameConstants.ATTRIBUTE_NAME)
+    @JsonProperty(PropertyNameConstants.RESULT_ATTRIBUTE_NAME)
     public String getAttributeName() {
         return this.attributeName;
     }

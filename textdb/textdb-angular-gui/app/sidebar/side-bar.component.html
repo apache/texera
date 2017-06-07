@@ -34,6 +34,14 @@
                     <input class="form-control" id="{{attribute}}" placeholder="Enter attributes" [ngModel]="selectedAttributesList.toString()" (ngModelChange)="manuallyAdded($event)" name="{{attribute}}" #{{attribute}}="ngModel">
                 </div>
 
+                <div *ngIf="attribute === 'dictionaryEntries'">
+                    <select class="form-control" name="{{attribute}}+Selector" [(ngModel)]="selectedDictionary" (ngModelChange)="dictionarySelected()">
+                        <option selected hidden value="">Select Dictionary</option>
+                        <option *ngFor="let dictionary of dictionaryNames" [value] = "dictionary">{{dictionary}}</option>
+                    </select>
+                    <input class="form-control" id="{{attribute}}" placeholder="Enter dictionary entries" [ngModel]="dictionaryContent.toString()" (ngModelChange)="dictionaryManuallyAdded($event)" name="{{attribute}}" #{{attribute}}="ngModel">
+                </div>
+
                 <div *ngIf="attribute === 'attribute'">
                     <select class="form-control" name="{{attribute}}+Selector" [(ngModel)]="selectedAttributeSingle" (ngModelChange)="attributeAdded('single')">
                         <option selected hidden value="">Select attributes</option>
@@ -46,7 +54,9 @@
                     <option selected hidden value="">Select table</option>
                     <option *ngFor="let tableName of tableNameItems" [value] = "tableName">{{tableName}}</option>
                 </select>
-
+                
+                
+                <input *ngIf="attribute === 'password'" [(ngModel)]="data.properties.attributes[attribute]" (ngModelChange)="onFormChange(attribute)" name="{{attribute}}" type="password" class="form-control" id="{{attribute}}" defaultValue="{{data.properties.attributes[attribute]}}" #{{attribute}}="ngModel" required>
                 <input *ngIf="checkInSelector(attribute) === -1" [(ngModel)]="data.properties.attributes[attribute]" (ngModelChange)="onFormChange(attribute)" name="{{attribute}}" type="text" class="form-control" id="{{attribute}}" defaultValue="{{data.properties.attributes[attribute]}}" #{{attribute}}="ngModel" required>
             </div>
             <button type="button" class="btn btn-default" (click) = "onDelete()">Delete</button>

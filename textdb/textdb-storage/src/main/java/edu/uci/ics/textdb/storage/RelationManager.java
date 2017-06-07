@@ -468,7 +468,7 @@ public class RelationManager {
                 .findAny().orElse(null);
     }
 
-    public List<TableMetadata> getMetaData() throws Exception {
+    public List<TableMetadata> getMetaData() throws StorageException {
         DataReader dataReader = RelationManager.getRelationManager().getTableDataReader(CatalogConstants.TABLE_CATALOG, new MatchAllDocsQuery());
 
         List<TableMetadata> result = new ArrayList<>();

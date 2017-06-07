@@ -59,6 +59,13 @@
             <artifactId>textdb-perftest</artifactId>
             <version>${textdb.version}</version>
         </dependency>
+
+        <!-- the version should be the same as jersey-server that is contained in dropwizard -->
+        <dependency>
+            <groupId>org.glassfish.jersey.media</groupId>
+            <artifactId>jersey-media-multipart</artifactId>
+            <version>2.23.2</version>
+        </dependency>
     </dependencies>
 
     <build>

@@ -6,6 +6,7 @@ import java.io.Reader;
 import java.io.StringReader;
 
 import edu.stanford.nlp.process.DocumentPreprocessor;
+import edu.stanford.nlp.process.PTBTokenizer;
 import edu.stanford.nlp.ling.HasWord;
 import edu.stanford.nlp.ling.Sentence;
 
@@ -158,6 +159,7 @@ public class NlpSplitOperator implements IOperator {
         String inputText = inputTuple.<IField>getField(predicate.getInputAttributeName()).getValue().toString();
         Reader reader = new StringReader(inputText);
         DocumentPreprocessor documentPreprocessor = new DocumentPreprocessor(reader);
+        documentPreprocessor.setTokenizerFactory(PTBTokenizer.PTBTokenizerFactory.newCoreLabelTokenizerFactory("ptb3Escaping=false"));
         List<Span> sentenceList = new ArrayList<Span>();
         
         int start = 0; int end = 0; 

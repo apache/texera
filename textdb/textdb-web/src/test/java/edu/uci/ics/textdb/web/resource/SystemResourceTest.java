@@ -6,9 +6,11 @@ import io.dropwizard.client.JerseyClientBuilder;
 import io.dropwizard.testing.ResourceHelpers;
 import io.dropwizard.testing.junit.DropwizardAppRule;
 import org.glassfish.jersey.client.ClientProperties;
+import org.glassfish.jersey.media.multipart.MultiPartFeature;
+import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Test;
-
 import javax.ws.rs.client.Client;
 import javax.ws.rs.core.Response;
 
@@ -21,20 +23,52 @@ public class SystemResourceTest {
 	@ClassRule
 	public static final DropwizardAppRule<TextdbWebConfiguration> RULE =
 					new DropwizardAppRule<>(TextdbWebApplication.class, ResourceHelpers.resourceFilePath("test-config.yml"));
+    public static Client client;
 
+    @BeforeClass
+    public static void setUpClient() {
+        client = new JerseyClientBuilder(RULE.getEnvironment()).build("test client");
+        client.property(ClientProperties.CONNECT_TIMEOUT, 5000);
+        client.property(ClientProperties.READ_TIMEOUT,    5000);
+    }
+    
 	@Test
-	public void checkSampleEndpoint() throws Exception {
-		Client client = new JerseyClientBuilder(RULE.getEnvironment()).build("test client");
-		client.property(ClientProperties.CONNECT_TIMEOUT, 5000);
-		client.property(ClientProperties.READ_TIMEOUT, 5000);
-
+	public void checkMetadata() throws Exception {
 		Response response = client.target(
 						String.format("http://localhost:%d/api/resources/metadata", RULE.getLocalPort()))
 						.request()
 						.get();
 
 		assertThat(response.getStatus()).isEqualTo(200);
-
 	}
 
+
+	@Test
+	public void getDictionaries() throws Exception {
+		client.register(MultiPartFeature.class);
+
+		Response response = client.target(
+						String.format("http://localhost:%d/api/resources/dictionaries", RULE.getLocalPort()))
+						.request()
+						.get();
+
+		assertThat(response.getStatus()).isEqualTo(200);
+	}
+
+	//TODO: Figure out how to upload a dictionary in test case
+	@Test
+	@Ignore
+	public void getDictionaryPath() throws Exception {
+		Client client = new JerseyClientBuilder(RULE.getEnvironment()).build("test client");
+		client.property(ClientProperties.CONNECT_TIMEOUT, 5000);
+		client.property(ClientProperties.READ_TIMEOUT, 5000);
+		client.register(MultiPartFeature.class);
+
+		Response response = client.target(
+						String.format("http://localhost:%d/api/resources/dictionary/?name=dictname", RULE.getLocalPort()))
+						.request()
+						.get();
+
+		assertThat(response.getStatus()).isEqualTo(200);
+	}
 }

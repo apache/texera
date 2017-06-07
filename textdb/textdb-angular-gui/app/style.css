@@ -167,3 +167,19 @@ body {
 .dropdown-content div:hover {
 	background-color: #a6a6a6;
 }
+
+
+#file-upload {
+    display: none;
+}
+
+.dictionary-upload {
+    border: 1px solid #ccc;
+    /*display: inline-block;*/
+    padding: 0px 16px;
+    cursor: pointer;
+		background-color: #39ac39;
+		color: white;
+		font-weight: bold;
+		font-size: 22px;
+}

@@ -1,4 +1,4 @@
-package edu.uci.ics.textdb.exp.regexmatcher;
+package edu.uci.ics.textdb.exp.regexmatcher.label;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -20,6 +20,7 @@ import edu.uci.ics.textdb.api.span.Span;
 import edu.uci.ics.textdb.api.tuple.Tuple;
 import edu.uci.ics.textdb.api.utils.TestUtils;
 import edu.uci.ics.textdb.api.utils.Utils;
+import edu.uci.ics.textdb.exp.regexmatcher.RegexMatcherTestHelper;
 
 /**
  * Unit tests for LabeledRegexMatcher.
@@ -168,11 +169,10 @@ public class LabeledRegexMatcherTest {
     }
 
     @Test
-    public void testQueryWithoutQualifiersLabeledRegex() throws Exception{
+    public void testQueryWithoutQualifiersLabeledRegex1() throws Exception{
         String query = "<lab1> <lab2>";
         List<Tuple> exactResults = RegexMatcherTestHelper.getQueryResults(
                 PEOPLE_TABLE, query, "short", Arrays.asList(TestConstants.DESCRIPTION), "lab1", false, Integer.MAX_VALUE, 0, "angry", "lab2");
-
         List<Tuple> expectedResults = new ArrayList<>();
 
         // expected to match "Short angry"
@@ -189,4 +189,49 @@ public class LabeledRegexMatcherTest {
         attributeNames.add(RESULTS);
         Assert.assertTrue(TestUtils.attributeEquals(expectedResults, exactResults, attributeNames));
     }
+    @Test
+    public void testQueryWithoutQualifiersLabeledRegex2() throws Exception{
+        String query = "<lab2> is <lab1>";
+        List<Tuple> exactResults = RegexMatcherTestHelper.getQueryResults(
+                PEOPLE_TABLE, query, "short", Arrays.asList(TestConstants.DESCRIPTION), "lab1", false, Integer.MAX_VALUE, 0, "Clooney", "lab2");
+        System.out.print(exactResults.size());
+        List<Tuple> expectedResults = new ArrayList<>();
+
+        // expected to match "Short angry"
+        List<Tuple> data = TestConstants.getSamplePeopleTuples();
+        Schema spanSchema = Utils.addAttributeToSchema(TestConstants.SCHEMA_PEOPLE, new Attribute(RESULTS, AttributeType.LIST));
+        List<Span> spans = new ArrayList<>();
+        spans.add(new Span(TestConstants.DESCRIPTION, 4, 20, query, "Clooney is Short"));
+        IField spanField = new ListField<>(new ArrayList<>(spans));
+        List<IField> fields = new ArrayList<>(data.get(3).getFields());
+        fields.add(spanField);
+        expectedResults.add(new Tuple(spanSchema, fields.toArray(new IField[fields.size()])));
+
+        List<String> attributeNames = new ArrayList<>();
+        attributeNames.add(RESULTS);
+        Assert.assertTrue(TestUtils.attributeEquals(expectedResults, exactResults, attributeNames));
+    }
+    @Test
+    public void testQueryWithoutQualifiersLabeledRegex3() throws Exception{
+        String query = "Lin <lab2> is <lab1> and lin <lab2> is Angry";
+        List<Tuple> exactResults = RegexMatcherTestHelper.getQueryResults(
+                PEOPLE_TABLE, query, "short", Arrays.asList(TestConstants.DESCRIPTION), "lab1", false, Integer.MAX_VALUE, 0, "Clooney", "lab2");
+        System.out.print(exactResults.size());
+        List<Tuple> expectedResults = new ArrayList<>();
+
+        // expected to match "Short angry"
+        List<Tuple> data = TestConstants.getSamplePeopleTuples();
+        Schema spanSchema = Utils.addAttributeToSchema(TestConstants.SCHEMA_PEOPLE, new Attribute(RESULTS, AttributeType.LIST));
+        List<Span> spans = new ArrayList<>();
+        spans.add(new Span(TestConstants.DESCRIPTION, 0, 45, query, "Lin Clooney is Short and lin clooney is Angry"));
+        IField spanField = new ListField<>(new ArrayList<>(spans));
+        List<IField> fields = new ArrayList<>(data.get(3).getFields());
+        fields.add(spanField);
+        expectedResults.add(new Tuple(spanSchema, fields.toArray(new IField[fields.size()])));
+
+        List<String> attributeNames = new ArrayList<>();
+        attributeNames.add(RESULTS);
+        Assert.assertTrue(TestUtils.attributeEquals(expectedResults, exactResults, attributeNames));
+    }
+
 }

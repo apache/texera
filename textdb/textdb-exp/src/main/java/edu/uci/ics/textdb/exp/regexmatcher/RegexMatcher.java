@@ -16,6 +16,7 @@ import edu.uci.ics.textdb.api.tuple.Tuple;
 import edu.uci.ics.textdb.api.utils.Utils;
 import edu.uci.ics.textdb.exp.common.AbstractSingleInputOperator;
 import edu.uci.ics.textdb.exp.regexmatcher.label.LabeledRegexProcessor;
+import edu.uci.ics.textdb.exp.regexmatcher.label.LabledRegexNoQualifierProcessor;
 import edu.uci.ics.textdb.exp.utils.DataflowUtils;
 
 /**
@@ -66,6 +67,7 @@ public class RegexMatcher extends AbstractSingleInputOperator {
     
     private Pattern regexPattern;
     LabeledRegexProcessor labeledRegexProcessor;
+    LabledRegexNoQualifierProcessor labledRegexNoQualifierProcessor;
 
     public RegexMatcher(RegexPredicate predicate) {
         this.predicate = predicate;
@@ -88,8 +90,10 @@ public class RegexMatcher extends AbstractSingleInputOperator {
             regexPattern = predicate.isIgnoreCase() ? 
                     Pattern.compile(predicate.getRegex(), Pattern.CASE_INSENSITIVE)
                     : Pattern.compile(predicate.getRegex());
-        } else {
+        } else if (this.regexType == RegexType.LABELED_WITH_QUALIFIERS) {
             labeledRegexProcessor = new LabeledRegexProcessor(predicate);
+        } else {
+            labledRegexNoQualifierProcessor = new LabledRegexNoQualifierProcessor(predicate);
         }
     }
     
@@ -144,13 +148,14 @@ public class RegexMatcher extends AbstractSingleInputOperator {
         if (inputTuple == null) {
             return null;
         }
-        
 
         List<Span> matchingResults;
-        if (this.regexType != RegexType.NO_LABELS) {
+        if (this.regexType == RegexType.NO_LABELS) {
+            matchingResults = computeMatchingResultsWithPattern(inputTuple, predicate, regexPattern);
+        } else if (this.regexType == RegexType.LABELED_WITH_QUALIFIERS) {
             matchingResults = labeledRegexProcessor.computeMatchingResults(inputTuple);
         } else {
-            matchingResults = computeMatchingResultsWithPattern(inputTuple, predicate, regexPattern);
+            matchingResults = labledRegexNoQualifierProcessor.computeMatchingResults(inputTuple);
         }
         
         if (matchingResults.isEmpty()) {

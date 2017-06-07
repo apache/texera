@@ -2,7 +2,8 @@ import {Component, ViewChild, OnInit} from '@angular/core';
 
 import { CurrentDataService } from '../services/current-data-service';
 import { ModalComponent } from 'ng2-bs3-modal/ng2-bs3-modal';
-import {TableMetadata} from "../services/table-metadata";
+import { TableMetadata } from "../services/table-metadata";
+import {log} from "util";
 
 declare var jQuery: any;
 declare var Backbone: any;
@@ -25,10 +26,13 @@ export class SideBarComponent {
 
   hiddenList: string[] = ["operatorType", "luceneAnalyzer", "matchingType"];
 
-  selectorList: string[] = ["matchingType", "nlpEntityType", "splitType", "splitOption", "sampleType", "comparisonType", "aggregationType", "attributes", "tableName", "attribute"].concat(this.hiddenList);
+  selectorList: string[] = ["dictionaryEntries", "password", "matchingType", 
+    "nlpEntityType", "splitType", "splitOption", "sampleType", "comparisonType", 
+    "aggregationType", "attributes", "tableName", "attribute"].concat(this.hiddenList);
 
   matcherList: string[] = ["conjunction", "phrase", "substring"];
-  nlpEntityList: string[] = ["noun", "verb", "adjective", "adverb", "ne_all", "number", "location", "person", "organization", "money", "percent", "date", "time"];
+  nlpEntityList: string[] = ["noun", "verb", "adjective", "adverb", "ne_all", 
+    "number", "location", "person", "organization", "money", "percent", "date", "time"];
   regexSplitList: string[] = ["left", "right", "standalone"];
   nlpSplitList: string[] = ["oneToOne", "oneToMany"];
   samplerList: string[] = ["random", "firstk"];
@@ -43,6 +47,9 @@ export class SideBarComponent {
   selectedAttributeSingle:string = "";
   metadataList:Array<TableMetadata> = [];
 
+  dictionaryNames: Array<string> = [];
+  dictionaryContent: Array<string> = [];
+  selectedDictionary:string = "";
 
   @ViewChild('MyModal')
   modal: ModalComponent;
@@ -75,6 +82,7 @@ export class SideBarComponent {
         // initialize selected attributes
         this.selectedAttributeMulti = "";
         this.selectedAttributeSingle = "";
+        this.selectedDictionary = "";
 
         if (data.operatorData.properties.attributes.attributes) {
           this.selectedAttributesList = data.operatorData.properties.attributes.attributes;
@@ -84,6 +92,10 @@ export class SideBarComponent {
         if (data.operatorData.properties.attributes.tableName) {
           this.getAttributesForTable(data.operatorData.properties.attributes.tableName);
         }
+        if (data.operatorData.properties.attributes.dictionaryEntries) {
+          this.dictionaryContent = data.operatorData.properties.attributes.dictionaryEntries;
+        }
+
       });
 
     currentDataService.checkPressed$.subscribe(
@@ -114,7 +126,27 @@ export class SideBarComponent {
           this.tableNameItems.push((x.tableName));
         });
       }
-    )
+    );
+
+    currentDataService.dictionaryNames$.subscribe(
+      data => {
+        console.log("dict data is: ");
+        console.log(data);
+        this.dictionaryNames = data;
+      }
+    );
+
+    currentDataService.dictionaryContent$.subscribe(
+      data => {
+        this.dictionaryContent = [];
+        for(let entry of data){
+          this.dictionaryContent.push(entry.trim());
+        }
+        this.data.properties.attributes.dictionaryEntries = this.dictionaryContent;
+        this.onFormChange("dictionary");
+      }
+    );
+
   }
 
   humanize(name: string): string {
@@ -134,6 +166,7 @@ export class SideBarComponent {
   onDelete() {
     this.operatorTitle = "Operator";
     this.attributes = [];
+    this.dictionaryContent = [];
     jQuery("#the-flowchart").flowchart("deleteOperator", this.operatorId);
     this.currentDataService.setAllOperatorData(jQuery('#the-flowchart').flowchart('getData'));
   }
@@ -162,6 +195,10 @@ export class SideBarComponent {
   }
 
   getAttributesForTable (event:string) {
+    if (!event) {
+      return;
+    }
+
     this.attributeItems = [];
 
     this.metadataList.forEach(x => {
@@ -178,4 +215,17 @@ export class SideBarComponent {
     this.onFormChange("tableName");
   }
 
+  dictionarySelected() {
+    this.currentDataService.getDictionaryContent(this.selectedDictionary);
+  }
+
+  dictionaryManuallyAdded(event: string) {
+    if (event.length === 0) {
+      this.dictionaryContent = [];
+    } else {
+      this.dictionaryContent = event.split(",");
+    }
+    this.data.properties.attributes.dictionaryEntries = this.dictionaryContent;
+    this.onFormChange("dictionary");
+  }
 }
