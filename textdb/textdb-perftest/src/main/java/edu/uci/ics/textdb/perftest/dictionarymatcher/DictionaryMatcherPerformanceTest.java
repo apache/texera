@@ -120,7 +120,7 @@ public class DictionaryMatcherPerformanceTest {
 
         Dictionary dictionary = new Dictionary(queryList);
         DictionarySourcePredicate dictionarySourcePredicate = new DictionarySourcePredicate(dictionary, attributeNames, luceneAnalyzerStr,
-                opType, tableName, null);
+                opType, tableName, SchemaConstants.SPAN_LIST);
         DictionaryMatcherSourceOperator dictionaryMatcher = new DictionaryMatcherSourceOperator(dictionarySourcePredicate);
 
         long startMatchTime = System.currentTimeMillis();

@@ -93,7 +93,7 @@ public class RegexMatcherPerformanceTest {
         for(String regex: regexes){
 	        // analyzer should generate grams all in lower case to build a lower
 	        // case index.
-	        RegexSourcePredicate predicate = new RegexSourcePredicate(regex, attributeNames, tableName, null);
+	        RegexSourcePredicate predicate = new RegexSourcePredicate(regex, attributeNames, tableName, SchemaConstants.SPAN_LIST);
 	        RegexMatcherSourceOperator regexSource = new RegexMatcherSourceOperator(predicate);
 	
 	        long startMatchTime = System.currentTimeMillis();

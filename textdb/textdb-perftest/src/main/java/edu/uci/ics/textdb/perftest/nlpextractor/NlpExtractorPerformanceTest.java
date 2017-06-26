@@ -99,7 +99,7 @@ public class NlpExtractorPerformanceTest {
 
         ISourceOperator sourceOperator = new ScanBasedSourceOperator(new ScanSourcePredicate(tableName));
 
-        NlpEntityPredicate nlpEntityPredicate = new NlpEntityPredicate(tokenType, attributeNames, null);
+        NlpEntityPredicate nlpEntityPredicate = new NlpEntityPredicate(tokenType, attributeNames, SchemaConstants.SPAN_LIST);
         NlpEntityOperator nlpEntityOperator = new NlpEntityOperator(nlpEntityPredicate);
         nlpEntityOperator.setInputOperator(sourceOperator);
 

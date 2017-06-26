@@ -140,7 +140,7 @@ public class KeywordMatcherPerformanceTest {
                     luceneAnalyzerStr, 
                     opType, 
                     tableName,
-                    null);
+                    SchemaConstants.SPAN_LIST);
 
             KeywordMatcherSourceOperator keywordSource = new KeywordMatcherSourceOperator(predicate);
 

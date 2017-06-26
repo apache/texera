@@ -118,7 +118,7 @@ public class FuzzyTokenMatcherPerformanceTest {
 
         for (String query : queryList) {
             FuzzyTokenSourcePredicate predicate = new FuzzyTokenSourcePredicate(query, attributeNames, luceneAnalyzerStr,
-                    threshold, tableName, null);
+                    threshold, tableName, SchemaConstants.SPAN_LIST);
             FuzzyTokenMatcherSourceOperator fuzzyTokenSource = new FuzzyTokenMatcherSourceOperator(predicate);
 
             long startMatchTime = System.currentTimeMillis();
