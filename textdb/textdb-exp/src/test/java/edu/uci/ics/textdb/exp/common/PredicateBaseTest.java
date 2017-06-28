@@ -252,8 +252,10 @@ public class PredicateBaseTest {
     }
 
     @Test
-    public void testNLTK() throws Exception {
-        testPredicate(new NltkPredicate()) ;
+    public void testNltk() throws Exception {
+        NltkPredicate nltkPredicate = new NltkPredicate(
+                "inputAttr",
+                "resultAttr");
+        testPredicate(nltkPredicate);
     }
-
 }
