@@ -87,7 +87,8 @@ public class MedlineExtraction {
        System.out.println(number);
        extractPersonLocation();
         // perform the extraction task
-    }
+        }
+
 
 
     public static Tuple parsePromedHTML(String fileName, String content) {
@@ -140,20 +141,20 @@ public class MedlineExtraction {
         String per = "person";
         RelationManager relationManager = RelationManager.getRelationManager();
         String luceneAnalyzerStr = relationManager.getTableAnalyzerString(MEDLINE_SAMPLE_TABLE);
-        String dic_org_path = PerfTestUtils.getResourcePath("/dictionary/dic_organization.txt");
+        String dic_org_path = PerfTestUtils.getResourcePath("/dictionary/disease_dict.txt");
         List<String> list_org = tokenizeFile(dic_org_path);
        // List<String> list_org = new ArrayList<>();
-        String dic_per_path = PerfTestUtils.getResourcePath("/dictionary/dic_person.txt");
+        String dic_per_path = PerfTestUtils.getResourcePath("/dictionary/drugs_dict.txt");
         List<String> list_per = tokenizeFile(dic_per_path);
         edu.uci.ics.textdb.exp.dictionarymatcher.Dictionary dic_per = new edu.uci.ics.textdb.exp.dictionarymatcher.Dictionary(list_per);
         edu.uci.ics.textdb.exp.dictionarymatcher.Dictionary dic_org = new edu.uci.ics.textdb.exp.dictionarymatcher.Dictionary(list_org);
         System.out.println("size of organization" + dic_org.getDictionaryEntries().size());
         System.out.println(" size of person" + dic_per.getDictionaryEntries().size());
         DictionaryPredicate dictionaryPredicate = new DictionaryPredicate(dic_org, attributeNames, luceneAnalyzerStr, KeywordMatchingType.SUBSTRING_SCANBASED, org);
-        DictionaryMatcher_oto dictionaryMatcher = new DictionaryMatcher_oto(dictionaryPredicate);
+        DictionaryMatcher dictionaryMatcher = new DictionaryMatcher(dictionaryPredicate);
         dictionaryMatcher.setInputOperator(scanBasedSourceOperator);
         DictionaryPredicate dictionaryPredicate1 = new DictionaryPredicate(dic_per, attributeNames, luceneAnalyzerStr, KeywordMatchingType.SUBSTRING_SCANBASED, per);
-        DictionaryMatcher_oto dictionaryMatcher1 = new DictionaryMatcher_oto(dictionaryPredicate1);
+        DictionaryMatcher dictionaryMatcher1 = new DictionaryMatcher(dictionaryPredicate1);
         dictionaryMatcher1.setInputOperator(dictionaryMatcher);
         String name = "locationspanresult";
      //   NlpEntityPredicate nlpEntityPredicate = new NlpEntityPredicate(NlpEntityType.ADJECTIVE, Arrays.asList(MedlineIndexWriter.ABSTRACT), name);
@@ -204,18 +205,18 @@ public class MedlineExtraction {
             BufferedReader reader = new BufferedReader(in);
             String tmp = null;
             tmp = reader.readLine();
-            int count = 10;
+            int count = 1000;
             while (tmp !=null) {
                 String tokenstring = tmp.trim();
-                //String change = tokenstring.replaceAll(",", " ").toLowerCase();
-                String[] a =tokenstring.trim().split(",");
-                List<String> temp = new ArrayList<String>();
-                for(String s : a){
-                    temp.add(s.trim());
-                    count--;
-                    if(count == 0) break;
+                if (tokenstring.contains("[^a-zA-Z0-9 ]")){
+                    continue;
                 }
-                tokenlist.addAll(temp);
+                //String change = tokenstring.replaceAll(",", " ").toLowerCase();
+                String[] a =tokenstring.trim().split("\n");
+                List<String> temp = Arrays.asList(a);
+                temp.stream().forEach(s -> tokenlist.add(s.trim()));
+                if (tokenlist.size() >= count) break;
+                //tokenlist.addAll(temp);
                 tmp = reader.readLine();
             }
             reader.close();

@@ -1074,5 +1074,88 @@ public class DictionaryMatcherTest {
         Assert.assertEquals(resultList.size(), 1);
         Assert.assertTrue(TestUtils.containsAll(expectedList, resultList));
     }
-    
+
+    /***
+     * Testcases for DictionaryMatcher scan-based, use getScanSourceResults method only.
+     * @throws Exception
+     */
+    @Test
+    public void testMultipleWordQueryInTextFieldUsingScan_1() throws Exception {
+
+        ArrayList<String> names = new ArrayList<String>(Arrays.asList("tall","fair"));
+        Dictionary dictionary = new Dictionary(names);
+
+        // create a data tuple first
+        List<Span> list = new ArrayList<Span>();
+        List<Span> list1 = new ArrayList<Span>();
+        Span span = new Span("description", 0, 4, "tall", "Tall");
+        Span span1 = new Span("description", 5, 9, "fair","Fair");
+        list.add(span);
+        list1.add(span);
+        list1.add(span1);
+        Attribute[] schemaAttributes = new Attribute[TestConstants.ATTRIBUTES_PEOPLE.length + 1];
+        for (int count = 0; count < schemaAttributes.length - 1; count++) {
+            schemaAttributes[count] = TestConstants.ATTRIBUTES_PEOPLE[count];
+        }
+        schemaAttributes[schemaAttributes.length - 1] = RESULTS_ATTRIBUTE;
+
+        IField[] fields1 = { new StringField("bruce"), new StringField("john Lee"), new IntegerField(46),
+                new DoubleField(5.50), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-14-1970")),
+                new TextField("Tall Angry"), new ListField<Span>(list) };
+        IField[] fields2 = { new StringField("christian john wayne"), new StringField("rock bale"),
+                new IntegerField(42), new DoubleField(5.99),
+                new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974")), new TextField("Tall Fair"),
+                new ListField<Span>(list1) };
+        Tuple tuple1 = new Tuple(new Schema(schemaAttributes), fields1);
+        Tuple tuple2 = new Tuple(new Schema(schemaAttributes), fields2);
+        List<Tuple> expectedResults = new ArrayList<Tuple>();
+        expectedResults.add(tuple1);
+        expectedResults.add(tuple2);
+        List<String> attributeNames = Arrays.asList(TestConstants.FIRST_NAME, TestConstants.LAST_NAME,
+                TestConstants.DESCRIPTION);
+
+        List<Tuple> returnedResults = DictionaryMatcherTestHelper.getScanSourceResults(PEOPLE_TABLE, dictionary, attributeNames, KeywordMatchingType.SUBSTRING_SCANBASED, Integer.MAX_VALUE, 0);
+        boolean contains = TestUtils.equals(expectedResults, returnedResults);
+        Assert.assertTrue(contains);
+    }
+    @Test
+    public void testMultipleWordQueryInTextFieldUsingScan_2() throws Exception {
+
+        ArrayList<String> names = new ArrayList<String>(Arrays.asList("mary brown","lake forest"));
+        Dictionary dictionary = new Dictionary(names);
+
+        // create a data tuple first
+        List<Span> list = new ArrayList<Span>();
+      //  List<Span> list1 = new ArrayList<Span>();
+        Span span = new Span("firstName", 0, 10, "mary brown", "Mary brown");
+        Span span1 = new Span("lastName", 0, 11, "lake forest","Lake Forest");
+        list.add(span);
+       // list1.add(span);
+        list.add(span1);
+        Attribute[] schemaAttributes = new Attribute[TestConstants.ATTRIBUTES_PEOPLE.length + 1];
+        for (int count = 0; count < schemaAttributes.length - 1; count++) {
+            schemaAttributes[count] = TestConstants.ATTRIBUTES_PEOPLE[count];
+        }
+        schemaAttributes[schemaAttributes.length - 1] = RESULTS_ATTRIBUTE;
+        IField[] fields1 = { new StringField("Mary brown"), new StringField("Lake Forest"),
+                new IntegerField(42), new DoubleField(5.99),
+                new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974")), new TextField("Short angry"), new ListField<Span>(list) };
+
+
+        Tuple tuple1 = new Tuple(new Schema(schemaAttributes), fields1);
+      //  Tuple tuple2 = new Tuple(new Schema(schemaAttributes), fields2);
+        List<Tuple> expectedResults = new ArrayList<Tuple>();
+        expectedResults.add(tuple1);
+        //expectedResults.add(tuple2);
+        List<String> attributeNames = Arrays.asList(TestConstants.FIRST_NAME, TestConstants.LAST_NAME,
+                TestConstants.DESCRIPTION);
+
+        List<Tuple> returnedResults = DictionaryMatcherTestHelper.getScanSourceResults(PEOPLE_TABLE, dictionary, attributeNames, KeywordMatchingType.SUBSTRING_SCANBASED, Integer.MAX_VALUE, 0);
+
+
+        boolean contains = TestUtils.equals(expectedResults, returnedResults);
+        Assert.assertTrue(contains);
+    }
+
+
 }
