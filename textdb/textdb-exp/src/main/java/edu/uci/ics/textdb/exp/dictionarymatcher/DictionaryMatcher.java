@@ -1,13 +1,18 @@
 package edu.uci.ics.textdb.exp.dictionarymatcher;
 
 import java.util.ArrayList;
+import java.util.List;
 
 import edu.uci.ics.textdb.api.constants.ErrorMessages;
 import edu.uci.ics.textdb.api.dataflow.IOperator;
 import edu.uci.ics.textdb.api.exception.DataFlowException;
 import edu.uci.ics.textdb.api.exception.TextDBException;
+import edu.uci.ics.textdb.api.schema.Attribute;
+import edu.uci.ics.textdb.api.schema.AttributeType;
 import edu.uci.ics.textdb.api.schema.Schema;
+import edu.uci.ics.textdb.api.span.Span;
 import edu.uci.ics.textdb.api.tuple.Tuple;
+import edu.uci.ics.textdb.api.utils.Utils;
 import edu.uci.ics.textdb.exp.keywordmatcher.KeywordPredicate;
 import edu.uci.ics.textdb.exp.keywordmatcher.KeywordMatcher;
 
@@ -27,7 +32,7 @@ public class DictionaryMatcher implements IOperator {
     private int resultCursor;
     private int limit;
     private int offset;
-
+    private Schema inputSchema;
     private int cursor = CLOSED;
 
     public DictionaryMatcher(DictionaryPredicate predicate) {
@@ -53,6 +58,9 @@ public class DictionaryMatcher implements IOperator {
             if (currentDictionaryEntry == null) {
                 throw new DataFlowException("Dictionary is empty");
             }
+            inputSchema = inputOperator.getOutputSchema();
+            outputSchema = Utils.addAttributeToSchema(inputSchema,
+                    new Attribute(predicate.getSpanListName(), AttributeType.LIST));
 
             keywordPredicate = new KeywordPredicate(currentDictionaryEntry,
                     predicate.getAttributeNames(),
@@ -67,7 +75,7 @@ public class DictionaryMatcher implements IOperator {
 
             cacheOperator.openAll();
             keywordMatcher.open();
-            outputSchema = keywordMatcher.getOutputSchema();
+            //outputSchema = keywordMatcher.getOutputSchema();
 
         } catch (Exception e) {
             throw new DataFlowException(e.getMessage(), e);
@@ -75,7 +83,7 @@ public class DictionaryMatcher implements IOperator {
         cursor = OPENED;
     }
 
-    @Override
+
     public Tuple getNextTuple() throws TextDBException {
         if (cursor == CLOSED) {
             throw new DataFlowException(ErrorMessages.OPERATOR_NOT_OPENED);
@@ -103,7 +111,7 @@ public class DictionaryMatcher implements IOperator {
 
             // Update the KeywordMatcher with the new dictionary entry.
             keywordMatcher.close();
-            
+
             keywordPredicate = new KeywordPredicate(currentDictionaryEntry,
                     predicate.getAttributeNames(),
                     predicate.getAnalyzerString(), predicate.getKeywordMatchingType(),
@@ -114,7 +122,6 @@ public class DictionaryMatcher implements IOperator {
             keywordMatcher.open();
         }
     }
-
     @Override
     public void close() throws DataFlowException {
         if (cursor == CLOSED) {

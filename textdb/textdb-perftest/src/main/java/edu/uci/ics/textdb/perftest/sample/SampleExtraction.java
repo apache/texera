@@ -3,6 +3,15 @@ package edu.uci.ics.textdb.perftest.sample;
 import edu.uci.ics.textdb.api.field.StringField;
 import edu.uci.ics.textdb.api.field.TextField;
 import edu.uci.ics.textdb.api.tuple.Tuple;
+import edu.uci.ics.textdb.exp.nlp.entity.NlpEntityOperator;
+import edu.uci.ics.textdb.exp.nlp.entity.NlpEntityPredicate;
+import edu.uci.ics.textdb.exp.nlp.entity.NlpEntityType;
+import edu.uci.ics.textdb.exp.sink.FileSink;
+import edu.uci.ics.textdb.exp.sink.tuple.TupleSink;
+import edu.uci.ics.textdb.exp.source.scan.ScanBasedSourceOperator;
+import edu.uci.ics.textdb.exp.source.scan.ScanSourcePredicate;
+import edu.uci.ics.textdb.exp.utils.DataflowUtils;
+import edu.uci.ics.textdb.perftest.medline.MedlineIndexWriter;
 import edu.uci.ics.textdb.perftest.promed.PromedSchema;
 import edu.uci.ics.textdb.perftest.utils.PerfTestUtils;
 import edu.uci.ics.textdb.storage.DataWriter;
@@ -13,8 +22,9 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 
 import java.io.File;
-import java.util.ArrayList;
-import java.util.Scanner;
+import java.io.FileWriter;
+import java.text.SimpleDateFormat;
+import java.util.*;
 
 public class SampleExtraction {
     
@@ -97,6 +107,33 @@ public class SampleExtraction {
     public static void extractPersonLocation() throws Exception {
         // this sample extraction won't work because the CharacterDistanceJoin hasn't been updated yet
         // TODO: after Join is fixed, add this sample extraction back.
+        ScanSourcePredicate scanSourcePredicate = new ScanSourcePredicate(PROMED_SAMPLE_TABLE);
+        ScanBasedSourceOperator scanBasedSourceOperator = new ScanBasedSourceOperator(scanSourcePredicate);
+        String s = "locationspanresult";
+        NlpEntityPredicate nlpEntityPredicate = new NlpEntityPredicate(NlpEntityType.ORGANIZATION, Arrays.asList(PromedSchema.CONTENT), s);
+        NlpEntityOperator nlpEntityOperator = new NlpEntityOperator(nlpEntityPredicate);
+        SimpleDateFormat sdf = new SimpleDateFormat("MM-dd-yyyy-HH-mm-ss");
+        FileSink fileSink = new FileSink(
+                new File(sampleDataFilesDirectory + "/person-location-result-"
+                        + sdf.format(new Date(System.currentTimeMillis())).toString() + ".txt"));
+
+        fileSink.setToStringFunction((tuple -> DataflowUtils.getTupleString(tuple)));
+        nlpEntityOperator.setInputOperator(scanBasedSourceOperator);
+        // fileSink.setInputOperator(nlpEntityOperator);
+        // Plan extractPersonPlan = new Plan(fileSink);
+        // Engine.getEngine().evaluate(extractPersonPlan);
+        TupleSink tupleSink = new TupleSink();
+        tupleSink.setInputOperator(nlpEntityOperator);
+        tupleSink.open();
+        List<String> results = tupleSink.collectAttributes(s);
+        FileWriter writer = new FileWriter("output.txt");
+        for(String str: results) {
+            writer.write(str);
+            writer.write(", ");
+        }
+        writer.close();
+        System.out.print("done");
+        //System.out.println("result "+ DataflowUtils.getTupleListString(results));
     }
 
 }

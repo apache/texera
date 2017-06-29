@@ -76,7 +76,7 @@ public class NlpEntityOperator extends AbstractSingleInputOperator {
         Tuple resultTuple = null;
         
         while ((inputTuple = inputOperator.getNextTuple()) != null) {
-            inputTuple = DataflowUtils.getSpanTuple(inputTuple.getFields(), new ArrayList<Span>(), outputSchema);         
+            inputTuple = DataflowUtils.getSpanTuple(inputTuple.getFields(), new ArrayList<Span>(), outputSchema);
             resultTuple = processOneInputTuple(inputTuple);
             if (resultTuple != null) {
                 break;

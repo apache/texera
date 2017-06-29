@@ -49,6 +49,9 @@ public class Dictionary {
         }
         return null;
     }
+    public boolean isEmpty(){
+        return (dictionaryEntries.isEmpty() || dictionaryEntries == null);
+    }
     
     /**
      * Reset the cursor to the start of the dictionary.

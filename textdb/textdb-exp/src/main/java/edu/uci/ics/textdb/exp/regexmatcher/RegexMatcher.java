@@ -28,7 +28,7 @@ import edu.uci.ics.textdb.exp.utils.DataflowUtils;
 public class RegexMatcher extends AbstractSingleInputOperator {
     
     public enum RegexType {
-        NO_LABELS, LABELED_WITHOUT_QUALIFIER, LABELED_WITH_QUALIFIERS
+        NO_LABELS, LABELED_QUALIFIERS_AFFIX, LABELED_WITH_QUALIFIERS, Labeled_WITHOUT_QUALIFIERS
     }
     
     /*
@@ -58,7 +58,8 @@ public class RegexMatcher extends AbstractSingleInputOperator {
      *   and shouldn't be treated as qualifiers.
      */
     public static final String CHECK_REGEX_QUALIFIER = "[^a-zA-Z0-9<> ]";
-    
+    public static final String CHECK_LABEl_QUALIFIER = "<[ a-zA-Z0-9]*[^<>a-zA-Z0-9]+";
+    public static final String CHECK_AFFIX_QUALIFIER = ">[^a-zA-Z0-9<>]*<";
     
     private final RegexPredicate predicate;
     private RegexType regexType;
@@ -93,7 +94,7 @@ public class RegexMatcher extends AbstractSingleInputOperator {
         } else if (this.regexType == RegexType.LABELED_WITH_QUALIFIERS) {
             labeledRegexProcessor = new LabeledRegexProcessor(predicate);
         } else {
-            labledRegexNoQualifierProcessor = new LabledRegexNoQualifierProcessor(predicate);
+            labledRegexNoQualifierProcessor = new LabledRegexNoQualifierProcessor(predicate, regexType);
         }
     }
     
@@ -108,9 +109,16 @@ public class RegexMatcher extends AbstractSingleInputOperator {
         }
         Matcher qualifierMatcher = Pattern.compile(CHECK_REGEX_QUALIFIER).matcher(predicate.getRegex());
         if (qualifierMatcher.find()) {
-            regexType = RegexType.LABELED_WITH_QUALIFIERS;
+            Matcher qualifierLabel = Pattern.compile(CHECK_LABEl_QUALIFIER).matcher(predicate.getRegex());
+            Matcher qualifierAffix = Pattern.compile(CHECK_AFFIX_QUALIFIER).matcher(predicate.getRegex());
+            if(qualifierAffix.find() || qualifierLabel.find()){
+                regexType = RegexType.LABELED_WITH_QUALIFIERS;
+            }else{
+                regexType = RegexType.LABELED_QUALIFIERS_AFFIX;
+            }
+
         } else {
-            regexType = RegexType.LABELED_WITHOUT_QUALIFIER;
+            regexType = RegexType.Labeled_WITHOUT_QUALIFIERS;
         }
     }
     
@@ -120,7 +128,7 @@ public class RegexMatcher extends AbstractSingleInputOperator {
         Tuple resultTuple = null;
         
         while ((inputTuple = inputOperator.getNextTuple()) != null) {
-            inputTuple = DataflowUtils.getSpanTuple(inputTuple.getFields(), new ArrayList<Span>(), outputSchema);         
+            inputTuple = DataflowUtils.getSpanTuple(inputTuple.getFields(), new ArrayList<Span>(), outputSchema);
             resultTuple = processOneInputTuple(inputTuple);
             if (resultTuple != null) {
                 break;
