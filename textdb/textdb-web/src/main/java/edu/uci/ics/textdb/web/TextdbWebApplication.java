@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.github.dirkraft.dropwizard.fileassets.FileAssetsBundle;
 
+import edu.uci.ics.textdb.perftest.runme.WriteIndex;
+import edu.uci.ics.textdb.perftest.sample.MedlineExtraction;
 import edu.uci.ics.textdb.perftest.sample.SampleExtraction;
 import edu.uci.ics.textdb.perftest.twitter.TwitterSample;
 import edu.uci.ics.textdb.web.healthcheck.SampleHealthCheck;
@@ -88,6 +90,10 @@ public class TextdbWebApplication extends Application<TextdbWebConfiguration> {
         System.out.println("Writing twitter index");
         TwitterSample.writeTwitterIndex();
         System.out.println("Finished writing twitter index");
+        System.out.println("Writing medline Index");
+        MedlineExtraction.writeSampleIndex();
+        System.out.println("Finished writing medline index");
+
         new TextdbWebApplication().run(args);
     }
 }

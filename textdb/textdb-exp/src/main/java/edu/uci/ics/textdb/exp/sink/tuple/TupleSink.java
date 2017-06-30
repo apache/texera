@@ -8,7 +8,10 @@ import edu.uci.ics.textdb.api.constants.SchemaConstants;
 import edu.uci.ics.textdb.api.dataflow.IOperator;
 import edu.uci.ics.textdb.api.dataflow.ISink;
 import edu.uci.ics.textdb.api.exception.TextDBException;
+import edu.uci.ics.textdb.api.field.IField;
+import edu.uci.ics.textdb.api.field.ListField;
 import edu.uci.ics.textdb.api.schema.Schema;
+import edu.uci.ics.textdb.api.span.Span;
 import edu.uci.ics.textdb.api.tuple.Tuple;
 import edu.uci.ics.textdb.api.utils.Utils;
 
@@ -127,6 +130,22 @@ public class TupleSink implements ISink {
         }
         this.close();
         return results;
+    }
+
+    public List<String> collectAttributes(String attribute) throws TextDBException {
+        this.open();
+        ArrayList<String> res = new ArrayList<>();
+        Tuple tuple;
+        while((tuple = this.getNextTuple()) != null){
+            ListField<Span> spanListField = tuple.getField(attribute);
+            List<Span> list = spanListField.getValue();
+            for(Span ss : list) {
+                String s = ss.getValue().toString();
+                res.add(s);
+            }
+        }
+        this.close();
+        return res;
     }
 
 }

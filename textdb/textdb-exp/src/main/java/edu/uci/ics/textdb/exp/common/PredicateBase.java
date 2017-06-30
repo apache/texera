@@ -39,6 +39,7 @@ import edu.uci.ics.textdb.exp.source.file.FileSourcePredicate;
 import edu.uci.ics.textdb.exp.source.scan.ScanSourcePredicate;
 import edu.uci.ics.textdb.exp.wordcount.WordCountIndexSourcePredicate;
 import edu.uci.ics.textdb.exp.wordcount.WordCountOperatorPredicate;
+import edu.uci.ics.textdb.exp.nltk.NltkPredicate;
 
 
 /**
@@ -84,6 +85,7 @@ import edu.uci.ics.textdb.exp.wordcount.WordCountOperatorPredicate;
         @Type(value = TupleSinkPredicate.class, name = "ViewResults"),
         @Type(value = ExcelSinkPredicate.class, name = "ExcelSink"),
         @Type(value = MysqlSinkPredicate.class, name = "MysqlSink"),
+        @Type(value = NltkPredicate.class, name = "Nltk"),
         
         @Type(value = WordCountIndexSourcePredicate.class, name = "WordCountIndexSource"),
         @Type(value = WordCountOperatorPredicate.class, name = "WordCount"),

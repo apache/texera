@@ -117,7 +117,7 @@ public class KeywordMatcher extends AbstractSingleInputOperator {
     protected void cleanUp() {
     }
 
-    private List<Span> computeConjunctionMatchingResult(Tuple inputTuple) throws DataFlowException {
+    public List<Span> computeConjunctionMatchingResult(Tuple inputTuple) throws DataFlowException {
         ListField<Span> payloadField = inputTuple.getField(SchemaConstants.PAYLOAD);
         List<Span> payload = payloadField.getValue();
         List<Span> relevantSpans = filterRelevantSpans(payload);
@@ -155,7 +155,7 @@ public class KeywordMatcher extends AbstractSingleInputOperator {
         return matchingResults;
     }
 
-    private List<Span> computePhraseMatchingResult(Tuple inputTuple) throws DataFlowException {
+    public List<Span> computePhraseMatchingResult(Tuple inputTuple) throws DataFlowException {
         ListField<Span> payloadField = inputTuple.getField(SchemaConstants.PAYLOAD);
         List<Span> payload = payloadField.getValue();
         List<Span> relevantSpans = filterRelevantSpans(payload);
@@ -245,7 +245,7 @@ public class KeywordMatcher extends AbstractSingleInputOperator {
         return matchingResults;
     }
 
-    private List<Span> computeSubstringMatchingResult(Tuple inputTuple) throws DataFlowException {
+    public List<Span> computeSubstringMatchingResult(Tuple inputTuple) throws DataFlowException {
         List<Span> matchingResults = new ArrayList<>();
 
         for (String attributeName : this.predicate.getAttributeNames()) {

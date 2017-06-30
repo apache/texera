@@ -7,6 +7,7 @@ import edu.uci.ics.textdb.api.constants.TestConstants;
 import edu.uci.ics.textdb.api.constants.TestConstantsChinese;
 import edu.uci.ics.textdb.api.exception.DataFlowException;
 import edu.uci.ics.textdb.api.exception.TextDBException;
+import edu.uci.ics.textdb.api.span.Span;
 import edu.uci.ics.textdb.api.tuple.Tuple;
 import edu.uci.ics.textdb.api.utils.TestUtils;
 import edu.uci.ics.textdb.exp.dictionarymatcher.Dictionary;
@@ -137,6 +138,16 @@ public class DictionaryMatcherTestHelper {
             results.add(tuple);
         }  
         dictionaryMatcher.close();
+//        for(Tuple t: results){
+//            // System.out.println(t.getField("abstract").toString());
+//            for(Span span2: (List<Span>) t.getField(RESULTS).getValue()){
+//                System.out.println(span2.getAttributeName() + " " + span2.getStart() + " " + span2.getEnd() + " " + span2.getValue());
+//            }
+//            System.out.println("This is for another dictionary matcher");
+//            //  for(Span span: (List<Span>) t.getField(per).getValue()){
+//            //     System.out.println(span.getAttributeName() + " " + span.getStart() + " " + span.getEnd() + " " + span.getValue());
+//            //   }
+//        }
         
         return results;
     }
