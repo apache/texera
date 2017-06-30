@@ -134,6 +134,8 @@ public class MedlineExtraction {
         dataWriter.close();
     }
     public static void extractPersonLocation() throws Exception {
+    //    ScanSourcePredicate scanSourcePredicate = new ScanSourcePredicate(PEOPLE_TABLE);
+     //   ScanBasedSourceOperator scanBasedSourceOperator = new ScanBasedSourceOperator(scanSourcePredicate);
         ScanSourcePredicate scanSourcePredicate = new ScanSourcePredicate(MEDLINE_SAMPLE_TABLE);
         ScanBasedSourceOperator scanBasedSourceOperator = new ScanBasedSourceOperator(scanSourcePredicate);
         List<String> attributeNames = Arrays.asList(MedlineIndexWriter.ABSTRACT);
