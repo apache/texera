@@ -41,6 +41,7 @@ import edu.uci.ics.textdb.exp.source.file.FileSourcePredicate;
 import edu.uci.ics.textdb.exp.source.scan.ScanSourcePredicate;
 import edu.uci.ics.textdb.exp.wordcount.WordCountIndexSourcePredicate;
 import edu.uci.ics.textdb.exp.wordcount.WordCountOperatorPredicate;
+import edu.uci.ics.textdb.exp.nltk.NltkPredicate;
 import junit.framework.Assert;
 
 public class PredicateBaseTest {
@@ -248,6 +249,11 @@ public class PredicateBaseTest {
     @Test
     public void testMysqlSink() throws Exception {
         testPredicate(new MysqlSinkPredicate("host", 1234, "db", "table", "user", "pass", null, null)) ;
+    }
+
+    @Test
+    public void testNLTK() throws Exception {
+        testPredicate(new NltkPredicate()) ;
     }
 
 }

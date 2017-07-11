@@ -619,6 +619,28 @@ let mysqlSink = {
   }
 }
 
+var nltk = {
+    top: 20,
+    left: 20,
+    properties: {
+        title: 'Nltk',
+        inputs: {
+            input_1: {
+                label: "Input (:i)",
+            }
+        },
+        outputs: {
+            output_1: {
+                label: "Output (:i)",
+            }
+        },
+        attributes: {
+            "operatorType": "Nltk",
+        }
+    }
+};
+
+
 export const DEFAULT_MATCHERS: Data[] = [
     {id: 0, jsonData: regexMatcher},
     {id: 1, jsonData: keywordMatcher},
@@ -645,4 +667,5 @@ export const DEFAULT_MATCHERS: Data[] = [
     {id: 23, jsonData: emojiSentiment},
     {id: 24, jsonData: fileSource},
     {id: 25, jsonData: mysqlSink},
+    {id: 26, jsonData: nltk},
 ];
