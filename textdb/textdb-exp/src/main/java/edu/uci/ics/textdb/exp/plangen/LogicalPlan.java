@@ -325,7 +325,7 @@ public class LogicalPlan {
         boolean sourceExist = adjacencyList.keySet().stream()
                 .map(operator -> operatorPredicateMap.get(operator).getClass().toString())
                 .anyMatch(predicateClass -> predicateClass.toLowerCase().contains("source"));
-        
+
         PlanGenUtils.planGenAssert(sourceExist, "There must be at least one source operator.");
     }
     

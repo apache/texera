@@ -313,6 +313,31 @@ let scanSource = {
   }
 }
 
+ let twitterfeedSource = {
+     top : 20,
+     left : 20,
+     properties : {
+         title : 'Source: TwitterFeed',
+         inputs : {
+             input_1 : {
+                 label : "Input (:i)",
+             }
+         },
+         outputs : {
+             output_1 : {
+                 label : "Output (:i)",
+             }
+         },
+         attributes : {
+             "operatorType": "TwitterFeed",
+             "tweetNum": 10,
+             "keywordQuery": [],
+             "locations": "longSW, latiSW, longNE, latiNE",
+             "language": []
+         }
+     }
+ }
+
 let keywordSource = {
   top : 20,
   left : 20,
@@ -645,4 +670,5 @@ export const DEFAULT_MATCHERS: Data[] = [
     {id: 23, jsonData: emojiSentiment},
     {id: 24, jsonData: fileSource},
     {id: 25, jsonData: mysqlSink},
+    {id: 26, jsonData: twitterfeedSource}
 ];
