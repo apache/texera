@@ -56,7 +56,9 @@ public class TwitterClient {
             return client;
         }
 
-
+        public void setMessageQueue(BlockingQueue queue){
+            this.messageQueue = queue;
+        }
         public BlockingQueue<String> getMsgQueue() {
         return messageQueue;
     }

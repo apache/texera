@@ -332,7 +332,7 @@ let scanSource = {
              "operatorType": "TwitterFeed",
              "tweetNum": 10,
              "keywordQuery": [],
-             "locations": "longSW, latiSW, longNE, latiNE",
+             "locations": "",
              "language": []
          }
      }
