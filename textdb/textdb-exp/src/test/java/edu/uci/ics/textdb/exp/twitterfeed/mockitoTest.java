@@ -43,6 +43,7 @@ public class mockitoTest {
         tupleSink.setInputOperator(operator);
         tupleSink.open();
         List<Tuple> result = tupleSink.collectAllTuples();
+        tupleSink.close();
         JSONObject tweet = new JSONObject(inputStream);
         Tuple expectedTuple = new Tuple(TwitterUtils.twitterSchema.TWITTER_SCHEMA,
                 new TextField(TwitterUtils.getTexts(tweet)),

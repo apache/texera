@@ -19,6 +19,8 @@ import static org.junit.Assert.assertTrue;
  * Created by Chang on 7/13/17.
  */
 public class TwitterFeedTest {
+
+    private TwitterClient client;
     /***
      * Test limit on the number of output tuple from twitter stream API.
      * @throws Exception
@@ -81,6 +83,7 @@ public class TwitterFeedTest {
         Assert.assertTrue(TwitterFeedTestHelper.containsQuery(exactResults, lang, attribute));
 
     }
+
     @Test
     public void testSchemaNum() throws Exception {
         List<String> query = new ArrayList<>(Arrays.asList("hello"));
@@ -97,7 +100,7 @@ public class TwitterFeedTest {
         Assert.assertTrue(TwitterFeedTestHelper.inLocation(exactResults, NEWYORK));
     }
 
-    private TwitterClient client;
+
 
     @Before
     public void setUp() throws Exception {
@@ -121,7 +124,5 @@ public class TwitterFeedTest {
             msg++;
         }
     }
-
-
 
 }
