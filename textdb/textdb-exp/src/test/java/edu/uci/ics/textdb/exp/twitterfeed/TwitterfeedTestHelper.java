@@ -71,15 +71,6 @@ public class TwitterFeedTestHelper {
         return true;
     }
 
-
-    public static boolean schemaNums(List<Tuple> exactResult){
-        for(Tuple tuple: exactResult){
-            Schema expectedSchema = Utils.getSchemaWithID(TwitterUtils.twitterSchema.TWITTER_SCHEMA);
-            if (!tuple.getSchema().equals(expectedSchema)) return false;
-        }
-        return true;
-    }
-
     public static boolean inLocation(List<Tuple> tuple,  String location) {
         List<String> boudingCoordinate = Arrays.asList(location.trim().split(","));
         List<Double> boundingBox = new ArrayList<>();

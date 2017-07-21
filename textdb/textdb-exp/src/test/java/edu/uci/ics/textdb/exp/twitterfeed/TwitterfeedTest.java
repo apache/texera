@@ -43,53 +43,14 @@ public class TwitterFeedTest {
 
     }
 
-    /***
-     * Test tuple with ID.
-     * @throws Exception
-     */
-    @Test
-    public void testSchemaID() throws Exception {
-        List<String> query = new ArrayList<>(Arrays.asList("trump"));
-        int limit = 1;
-        List<Tuple> exactResults = TwitterFeedTestHelper.getQueryResults(query, null, null, limit);
-        String exactID = exactResults.get(0).getField(0).getValue().toString();
-        String expectedID = exactResults.get(0).getField(SchemaConstants._ID).getValue().toString();
-        Assert.assertEquals(exactResults.size(), limit);
-        Assert.assertEquals(exactID, expectedID);
-
-    }
-
-
-
-
     @Test
     public void testKeywordQuery() throws Exception {
-        List<String> query = new ArrayList<>(Arrays.asList("Trump team"));
+        List<String> query = new ArrayList<>(Arrays.asList("day"));
         int limit = 10;
         List<String> attribute = new ArrayList<>(Arrays.asList("text", "user_screen_name"));
         List<Tuple> exactResults = TwitterFeedTestHelper.getQueryResults(query, null, null, limit);
-      //  System.out.println(exactResults.get(0).getField("text").getValue().toString());
         Assert.assertTrue(TwitterFeedTestHelper.containsFuzzyQuery(exactResults, query, attribute));
 
-    }
-
-    @Test
-    public void testLanguage() throws Exception {
-        List<String> lang = new ArrayList<>(Arrays.asList("en"));
-        List<String> attribute = new ArrayList<>(Arrays.asList("lang"));
-        List<String> query = new ArrayList<>(Arrays.asList("trump"));
-        int limit = 2;
-        List<Tuple> exactResults = TwitterFeedTestHelper.getQueryResults(query, null, lang, limit);
-        Assert.assertTrue(TwitterFeedTestHelper.containsQuery(exactResults, lang, attribute));
-
-    }
-
-    @Test
-    public void testSchemaNum() throws Exception {
-        List<String> query = new ArrayList<>(Arrays.asList("hello"));
-        int limit = 10;
-        List<Tuple> exactResults = TwitterFeedTestHelper.getQueryResults(query, null, null, limit);
-        Assert.assertTrue(TwitterFeedTestHelper.schemaNums(exactResults));
     }
 
     @Test
@@ -101,10 +62,9 @@ public class TwitterFeedTest {
     }
 
 
-
     @Before
     public void setUp() throws Exception {
-        List<String> keyWord = new ArrayList<>(Arrays.asList("trump"));
+        List<String> keyWord = new ArrayList<>(Arrays.asList("is"));
         client= new TwitterClient(keyWord, null, null);
         client.getClient().connect();
 
@@ -119,7 +79,7 @@ public class TwitterFeedTest {
     public void testTwitterClient() throws Exception {
         int msg = 0;
         while (msg < 2) {
-            String message = client.getMsgQueue().poll(20, TimeUnit.SECONDS);
+            String message = client.getMsgQueue().take();
             assertTrue(! TwitterUtils.getUserScreenName(new JSONObject(message)).isEmpty());
             msg++;
         }

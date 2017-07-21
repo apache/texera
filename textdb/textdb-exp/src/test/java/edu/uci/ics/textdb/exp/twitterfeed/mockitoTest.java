@@ -2,6 +2,7 @@ package edu.uci.ics.textdb.exp.twitterfeed;
 
 
 import com.twitter.hbc.httpclient.BasicClient;
+import edu.uci.ics.textdb.api.constants.SchemaConstants;
 import edu.uci.ics.textdb.api.field.IntegerField;
 import edu.uci.ics.textdb.api.field.StringField;
 import edu.uci.ics.textdb.api.field.TextField;
@@ -42,7 +43,7 @@ public class mockitoTest {
         TupleSink tupleSink = new TupleSink();
         tupleSink.setInputOperator(operator);
         tupleSink.open();
-        List<Tuple> result = tupleSink.collectAllTuples();
+        List<Tuple> exactResults = tupleSink.collectAllTuples();
         tupleSink.close();
         JSONObject tweet = new JSONObject(inputStream);
         Tuple expectedTuple = new Tuple(TwitterUtils.twitterSchema.TWITTER_SCHEMA,
@@ -59,7 +60,11 @@ public class mockitoTest {
                 new TextField(TwitterUtils.getPlaceName(tweet)),
                 new StringField(TwitterUtils.getCoordinates(tweet)),
                 new StringField(TwitterUtils.getLanguage(tweet)));
-        Assert.assertTrue(TwitterFeedTestHelper.compareTuples(result, expectedTuple));
+        String exactID = exactResults.get(0).getField(0).getValue().toString();
+        String expectedID = exactResults.get(0).getField(SchemaConstants._ID).getValue().toString();
+        Assert.assertEquals(exactResults.size(), 1);
+        Assert.assertEquals(exactID, expectedID);
+        Assert.assertTrue(TwitterFeedTestHelper.compareTuples(exactResults, expectedTuple));
 
     }
 }
