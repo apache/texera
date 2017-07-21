@@ -230,7 +230,7 @@ public class DataWriter {
     /*
      * Adds the _id to the front of the tuple, if the _id field doesn't exist in the tuple.
      */
-    private static Tuple getTupleWithID(Tuple tuple, IDField _id) {
+    public static Tuple getTupleWithID(Tuple tuple, IDField _id) {
         Tuple tupleWithID = tuple;
         
         Schema tupleSchema = tuple.getSchema();
