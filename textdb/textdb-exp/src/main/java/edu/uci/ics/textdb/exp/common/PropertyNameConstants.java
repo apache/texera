@@ -30,7 +30,13 @@ public class PropertyNameConstants {
     public static final String LIMIT = "limit";
     public static final String OFFSET = "offset";
     public static final String ADD_SPANS = "addSpans";
-    
+
+    // related to twitterfeed operator
+    public static final String TWEET_NUM = "tweetNum";
+    public static final String QUERY_LIST = "keywordQuery";
+    public static final String LOCATION_LIST = "locations";
+    public static final String LANGUAGE_LIST = "language";
+
     // related to keyword matcher
     public static final String KEYWORD_QUERY = "query";
     public static final String KEYWORD_MATCHING_TYPE = "matchingType";

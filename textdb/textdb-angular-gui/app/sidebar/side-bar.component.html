@@ -42,6 +42,11 @@
                     <input class="form-control" id="{{attribute}}" placeholder="Enter dictionary entries" [ngModel]="dictionaryContent.toString()" (ngModelChange)="dictionaryManuallyAdded($event)" name="{{attribute}}" #{{attribute}}="ngModel">
                 </div>
 
+
+                <input *ngIf="attribute === 'keywordQuery'" class="form-control" id="{{attribute}}" [ngModel]="data.properties.attributes[attribute]" (ngModelChange)="twitterQueryManuallyAdded($event)" name="{{attribute}}" #{{attribute}}="ngModel" required>
+
+                <input *ngIf="attribute === 'language'" class="form-control" id="{{attribute}}" [ngModel]="data.properties.attributes[attribute]" (ngModelChange)="twitterLanguageManuallyAdded($event)" name="{{attribute}}" #{{attribute}}="ngModel" required>
+
                 <div *ngIf="attribute === 'attribute'">
                     <select class="form-control" name="{{attribute}}+Selector" [(ngModel)]="selectedAttributeSingle" (ngModelChange)="attributeAdded('single')">
                         <option selected hidden value="">Select attributes</option>
@@ -50,12 +55,13 @@
                     <input class="form-control" id="{{attribute}}" placeholder="Enter attributes" [(ngModel)]="data.properties.attributes[attribute]" (ngModelChange)="onFormChange(attribute)" name="{{attribute}}" #{{attribute}}="ngModel">
                 </div>
 
+
                 <select *ngIf="attribute === 'tableName'" class="form-control" id="{{attribute}}" [(ngModel)]="data.properties.attributes[attribute]" (ngModelChange)="getAttributesForTable($event)" name="{{attribute}}" #{{attribute}}="ngModel">
                     <option selected hidden value="">Select table</option>
                     <option *ngFor="let tableName of tableNameItems" [value] = "tableName">{{tableName}}</option>
                 </select>
                 
-                
+
                 <input *ngIf="attribute === 'password'" [(ngModel)]="data.properties.attributes[attribute]" (ngModelChange)="onFormChange(attribute)" name="{{attribute}}" type="password" class="form-control" id="{{attribute}}" defaultValue="{{data.properties.attributes[attribute]}}" #{{attribute}}="ngModel" required>
                 <input *ngIf="checkInSelector(attribute) === -1" [(ngModel)]="data.properties.attributes[attribute]" (ngModelChange)="onFormChange(attribute)" name="{{attribute}}" type="text" class="form-control" id="{{attribute}}" defaultValue="{{data.properties.attributes[attribute]}}" #{{attribute}}="ngModel" required>
             </div>
