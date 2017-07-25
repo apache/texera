@@ -30,7 +30,13 @@ public class PropertyNameConstants {
     public static final String LIMIT = "limit";
     public static final String OFFSET = "offset";
     public static final String ADD_SPANS = "addSpans";
-    
+
+    // related to twitterfeed operator
+    public static final String TWEET_NUM = "tweetNum";
+    public static final String QUERY_LIST = "keywordQuery";
+    public static final String LOCATION_LIST = "locations";
+    public static final String LANGUAGE_LIST = "language";
+
     // related to keyword matcher
     public static final String KEYWORD_QUERY = "query";
     public static final String KEYWORD_MATCHING_TYPE = "matchingType";
@@ -61,7 +67,7 @@ public class PropertyNameConstants {
     public static final String SPLIT_REGEX = "splitRegex";
     public static final String REGEX_OUTPUT_TYPE = "splitOption";
     public static final String REGEX_SPLIT_KEY = "regexSplit";
-    
+
     //related to nltk operator
     public static final String NLP_NLTK_BATCH_SIZE = "nltkBatchSize";
     public static final String NLP_NLTK_MODEL = "nltkModel";
