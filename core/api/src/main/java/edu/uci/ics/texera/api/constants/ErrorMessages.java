@@ -1,5 +1,7 @@
 package edu.uci.ics.texera.api.constants;
 
+import org.apache.commons.lang3.text.translate.AggregateTranslator;
+
 import edu.uci.ics.texera.api.schema.Schema;
 
 /**
@@ -32,4 +34,8 @@ public class ErrorMessages {
                 attributeName, attributeNameList);
     }
     
+    public static final String ATTRIBUTE_TYPE_NOT_FIT_FOR_AGGREGATION(String attributeName, String aggregationType)
+    {
+        return String.format("Attribute %s is not fit for aggregation of type %s", attributeName, aggregationType);
+    }
 }

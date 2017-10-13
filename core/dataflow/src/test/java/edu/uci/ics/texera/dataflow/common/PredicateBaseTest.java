@@ -8,6 +8,8 @@ import org.junit.Test;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import edu.uci.ics.texera.api.utils.TestUtils;
+import edu.uci.ics.texera.dataflow.aggregator.AggregationType;
+import edu.uci.ics.texera.dataflow.aggregator.AggregatorPredicate;
 import edu.uci.ics.texera.dataflow.comparablematcher.ComparablePredicate;
 import edu.uci.ics.texera.dataflow.comparablematcher.ComparisonType;
 import edu.uci.ics.texera.dataflow.dictionarymatcher.Dictionary;
@@ -61,7 +63,13 @@ public class PredicateBaseTest {
     }
     
     private static List<String> attributeNames = Arrays.asList("attr1", "attr2");
-    
+
+    @Test
+    public void testAggregator() throws Exception {
+        AggregatorPredicate aggPredicate = new AggregatorPredicate("inputAttr", AggregationType.AVERAGE, "averageAttr");
+        testPredicate(aggPredicate);
+    }
+
     @Test
     public void testDictionary() throws Exception {
         DictionaryPredicate dictionaryPredicate = new DictionaryPredicate(

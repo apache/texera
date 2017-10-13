@@ -31,6 +31,10 @@ public class PropertyNameConstants {
     public static final String OFFSET = "offset";
     public static final String ADD_SPANS = "addSpans";
     
+    // related to aggregator operator
+    public static final String AGGREGATOR_TYPE = "aggregator";
+    public static final String ATTRIBUTE_NAME_TO_AGG_TYPE = "attributeAndAgg";
+    
     // related to keyword matcher
     public static final String KEYWORD_QUERY = "query";
     public static final String KEYWORD_MATCHING_TYPE = "matchingType";

@@ -108,6 +108,20 @@ public class Schema {
         return "Schema[" + this.attributes.toString() + "]";
     }
     
+    public static boolean isAttributeType(Schema schema, String attributeName, AttributeType type)
+    {
+        checkNotNull(schema);
+        checkNotNull(attributeName);
+        checkNotNull(type);
+        
+        if(type.equals(schema.getAttribute(attributeName).getType()))
+        {
+            return true;
+        }
+        
+        return false;
+    }
+    
     public static void checkAttributeNotExists(Schema schema, String attributeName) {
         checkNotNull(schema);
         checkNotNull(attributeName);
