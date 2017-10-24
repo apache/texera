@@ -125,7 +125,7 @@ public class LogicalPlan {
         return operatorSchema;
     }
 
-    public ObjectNode getAllOperatorOutputSchema() throws PlanGenException {
+    public ObjectNode retrieveAllOperatorOutputSchema() throws PlanGenException {
         ObjectNode outputSchemas = new ObjectMapper().createObjectNode();
 
         for (String operatorID: operatorPredicateMap.keySet()) {
