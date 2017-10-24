@@ -12,7 +12,8 @@ import any = jasmine.any;
 declare var jQuery: any;
 
 const apiUrl = "http://localhost:8080/api";
-const texeraUrl = apiUrl + "/queryplan/execute";
+const texeraRunUrl = apiUrl + "/queryplan/execute";
+const texeraAutoRunUrl = apiUrl + "/queryplan/autoExecute";
 const metadataUrl = apiUrl + "/resources/metadata";
 const uploadDictionaryUrl = apiUrl + "/upload/dictionary";
 const getDictionariesUrl = apiUrl + "/resources/dictionaries";
@@ -56,16 +57,16 @@ export class CurrentDataService {
     }
 
     selectData(operatorNum : number): void {
-      var data_now = jQuery("#the-flowchart").flowchart("getOperatorData",operatorNum);
-      this.newAddition.next({operatorNum: operatorNum, operatorData: data_now});
-      this.setAllOperatorData(jQuery("#the-flowchart").flowchart("getData"));
+        var data_now = jQuery("#the-flowchart").flowchart("getOperatorData",operatorNum);
+        this.newAddition.next({operatorNum: operatorNum, operatorData: data_now});
+        this.setAllOperatorData(jQuery("#the-flowchart").flowchart("getData"));
     }
 
     clearData() : void {
-      this.newAddition.next({operatorNum : null, operatorData: defaultData});
+        this.newAddition.next({operatorNum : null, operatorData: defaultData});
     }
 
-    processData(): void {
+    processData(): object {
 
         let texeraJson = {operators: {}, links: {}};
         var operators = [];
@@ -83,11 +84,11 @@ export class CurrentDataService {
                         attributes[attribute] = currentOperator[operatorIndex]['properties']['attributes'][attribute];
                         // if attribute is an array property, and it's not an array
                         if (jQuery.inArray(attribute, listAttributes) != -1 && ! Array.isArray(attributes[attribute])) {
-                          attributes[attribute] = attributes[attribute].split(",").map((item) => item.trim());
+                            attributes[attribute] = attributes[attribute].split(",").map((item) => item.trim());
                         }
                         // if the value is a string and can be converted to a boolean value
                         if (attributes[attribute] instanceof String && Boolean(attributes[attribute])) {
-                          attributes[attribute] = (attributes[attribute].toLowerCase() === 'true')
+                            attributes[attribute] = (attributes[attribute].toLowerCase() === 'true')
                         }
                     }
                 }
@@ -106,14 +107,41 @@ export class CurrentDataService {
 
         texeraJson.operators = operators;
         texeraJson.links = links;
-        this.sendRequest(texeraJson);
+
+        return texeraJson;
     }
 
-    private sendRequest(texeraJson: any): void {
+    processRunData(): void {
+        let texeraJson = this.processData();
+        this.sendRunRequest(texeraJson);
+    }
+
+    processAutoPlanData(): void {
+        let texeraJson = this.processData();
+        this.sendAutoRunRequest(texeraJson);
+    }
+
+    private sendRunRequest(texeraJson: any): void {
+
         let headers = new Headers({ 'Content-Type': 'application/json' });
         console.log("Texera JSON is:");
         console.log(JSON.stringify(texeraJson));
-        this.http.post(texeraUrl, JSON.stringify(texeraJson), {headers: headers})
+        this.http.post(texeraRunUrl, JSON.stringify(texeraJson), {headers: headers})
+            .subscribe(
+                data => {
+                    this.checkPressed.next(data.json());
+                },
+                err => {
+                    this.checkPressed.next(err.json());
+                }
+            );
+    }
+
+    private sendAutoRunRequest(texeraJson: any): void {
+        let headers = new Headers({ 'Content-Type': 'application/json' });
+        console.log("Texera JSON is:");
+        console.log(JSON.stringify(texeraJson));
+        this.http.post(texeraAutoRunUrl, JSON.stringify(texeraJson), {headers: headers})
             .subscribe(
                 data => {
                     this.checkPressed.next(data.json());
@@ -146,17 +174,17 @@ export class CurrentDataService {
         let formData:FormData = new FormData();
         formData.append('file', file, file.name);
         this.http.post(uploadDictionaryUrl, formData, null)
-          .subscribe(
-            data => {
-              alert(file.name + ' is uploaded');
-              // after adding a new dictionary, refresh the list
-              this.getDictionaries();
-            },
-            err => {
-                alert('Error occurred while uploading ' + file.name);
-                console.log('Error occurred while uploading ' + file.name + '\nError message: ' + err);
-            }
-          );
+            .subscribe(
+                data => {
+                    alert(file.name + ' is uploaded');
+                    // after adding a new dictionary, refresh the list
+                    this.getDictionaries();
+                },
+                err => {
+                    alert('Error occurred while uploading ' + file.name);
+                    console.log('Error occurred while uploading ' + file.name + '\nError message: ' + err);
+                }
+            );
     }
 
     getDictionaries(): void {

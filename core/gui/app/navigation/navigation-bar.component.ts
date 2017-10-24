@@ -33,7 +33,7 @@ export class NavigationBarComponent {
   onClick(event) {
         jQuery('.navigation-btn').button('loading');
         this.currentDataService.setAllOperatorData(jQuery('#the-flowchart').flowchart('getData'));
-        this.currentDataService.processData();
+        this.currentDataService.processAutoPlanData();
   }
 
 	deleteOperator() {

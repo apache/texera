@@ -14,6 +14,7 @@ import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -105,6 +106,36 @@ public class QueryPlanResource {
         } catch (IOException | TexeraException e) {
             throw new TexeraWebException(e.getMessage());
         }   
+    }
+
+    /**
+     * This is the edu.uci.ics.texera.web.request handler for the execution of a Query Plan.
+     * @param logicalPlanJson, the json representation of the logical plan
+     * @return - Generic TexeraWebResponse object
+     */
+    @POST
+    @Path("/autoExecute")
+    // TODO: investigate how to use LogicalPlan directly
+    public JsonNode executeAutoQueryPlan(String logicalPlanJson) {
+        try {
+            LogicalPlan logicalPlan = new ObjectMapper().readValue(logicalPlanJson, LogicalPlan.class);
+            String resultID = UUID.randomUUID().toString();
+
+            ObjectNode response = new ObjectMapper().createObjectNode();
+            response.put("code", 0);
+            response.set("result", logicalPlan.getAllOperatorOutputSchema());
+            response.put("resultID", resultID);
+            return response;
+
+        } catch (JsonMappingException je) {
+            ObjectNode response = new ObjectMapper().createObjectNode();
+            response.put("code", -1);
+            response.put("message", "Json Mapping Exception would not be handled for auto plan. " + je.getMessage());
+            return response;
+
+        } catch (IOException | TexeraException e) {
+            throw new TexeraWebException(e.getMessage());
+        }
     }
     
     

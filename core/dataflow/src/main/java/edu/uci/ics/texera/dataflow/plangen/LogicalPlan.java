@@ -11,6 +11,10 @@ import java.util.List;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import edu.uci.ics.texera.api.dataflow.IOperator;
 import edu.uci.ics.texera.api.dataflow.ISink;
 import edu.uci.ics.texera.api.engine.Plan;
@@ -119,6 +123,22 @@ public class LogicalPlan {
         currentOperator.close();
 
         return operatorSchema;
+    }
+
+    public ObjectNode getAllOperatorOutputSchema() throws PlanGenException {
+        ObjectNode outputSchemas = new ObjectMapper().createObjectNode();
+
+        for (String operatorID: operatorPredicateMap.keySet()) {
+            Schema currentSchema = getOperatorOutputSchema(operatorID);
+
+            ObjectNode currentSchemaNode = new ObjectMapper().createObjectNode();
+            for (String attrName: currentSchema.getAttributeNames()) {
+                currentSchemaNode.set(attrName, JsonNodeFactory.instance.pojoNode(currentSchema.getAttribute(attrName)));
+            }
+
+            outputSchemas.set(operatorID, currentSchemaNode);
+        }
+        return outputSchemas;
     }
 
     /**
