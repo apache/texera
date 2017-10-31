@@ -18,43 +18,24 @@ import edu.uci.ics.texera.dataflow.comparablematcher.ComparableMatcher;
  *
  *AggregatorPredicate is the predicate for the Aggregator Operator.
  */
+
 public class AggregatorPredicate extends PredicateBase{
     
-    private final String attributeName;
-    private final AggregationType aggregatorType;
-    private final String resultAttributeName;
+    private final List<AggregationAttributeAndResult> attributeAggregateResultList;
 
     @JsonCreator
     public AggregatorPredicate(
-            @JsonProperty(value = PropertyNameConstants.ATTRIBUTE_NAME, required = true)
-            String attributeName,
-            @JsonProperty(value = PropertyNameConstants.AGGREGATOR_TYPE, required = true)
-            AggregationType aggregatorType,
-            @JsonProperty(value = PropertyNameConstants.RESULT_ATTRIBUTE_NAME, required = true)
-            String resultAttributeName
+            @JsonProperty(value = PropertyNameConstants.ATTRIBUTE_AGGREGATOR_RESULT_LIST, required = true)
+            List<AggregationAttributeAndResult> attributeAggResultList
             )
     {
-        this.attributeName = attributeName;
-        this.aggregatorType = aggregatorType;
-        this.resultAttributeName = resultAttributeName;
+        this.attributeAggregateResultList = attributeAggResultList;
     }
 
-    @JsonProperty(value = PropertyNameConstants.ATTRIBUTE_NAME)
-    public String getAttributeName()
+    @JsonProperty(value = PropertyNameConstants.ATTRIBUTE_AGGREGATOR_RESULT_LIST)
+    public List<AggregationAttributeAndResult> getAttributeAggregateResultList()
     {
-        return attributeName;
-    }
-
-    @JsonProperty(value = PropertyNameConstants.AGGREGATOR_TYPE)
-    public AggregationType getAggregatorType()
-    {
-        return aggregatorType;
-    }
-    
-    @JsonProperty(value = PropertyNameConstants.RESULT_ATTRIBUTE_NAME)
-    public String getResultAttributeName()
-    {
-        return resultAttributeName;
+        return attributeAggregateResultList;
     }
 
     @Override

@@ -33,7 +33,7 @@ public class PropertyNameConstants {
     
     // related to aggregator operator
     public static final String AGGREGATOR_TYPE = "aggregator";
-    public static final String ATTRIBUTE_NAME_TO_AGG_TYPE = "attributeAndAgg";
+    public static final String ATTRIBUTE_AGGREGATOR_RESULT_LIST = "attributeAggResultName";
     
     // related to keyword matcher
     public static final String KEYWORD_QUERY = "query";

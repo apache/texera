@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.dataflow.common;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -8,6 +9,7 @@ import org.junit.Test;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import edu.uci.ics.texera.api.utils.TestUtils;
+import edu.uci.ics.texera.dataflow.aggregator.AggregationAttributeAndResult;
 import edu.uci.ics.texera.dataflow.aggregator.AggregationType;
 import edu.uci.ics.texera.dataflow.aggregator.AggregatorPredicate;
 import edu.uci.ics.texera.dataflow.comparablematcher.ComparablePredicate;
@@ -66,7 +68,11 @@ public class PredicateBaseTest {
 
     @Test
     public void testAggregator() throws Exception {
-        AggregatorPredicate aggPredicate = new AggregatorPredicate("inputAttr", AggregationType.AVERAGE, "averageAttr");
+        AggregationAttributeAndResult aggEntity = new AggregationAttributeAndResult("inputAttr", AggregationType.AVERAGE, "averageAttr");
+        List<AggregationAttributeAndResult> aggEntitiesList = new ArrayList<>();
+        aggEntitiesList.add(aggEntity);
+        
+        AggregatorPredicate aggPredicate = new AggregatorPredicate(aggEntitiesList);
         testPredicate(aggPredicate);
     }
 
