@@ -97,6 +97,17 @@ public class JsonSerializationTest {
         TestUtils.testJsonSerialization(tuple);
     }
     
+    @Test
+    public void testTupleWithSpanlist() {
+        Tuple tuple = new Tuple.Builder()
+                .add("attr1", AttributeType.TEXT, new TextField("test"))
+                .add("spanList", AttributeType.LIST, new ListField<Span>(Arrays.asList(
+                        new Span("attr1", 0, 4, "test", "test"))))
+                .build();
+        
+        TestUtils.testJsonSerialization(tuple);
+    }
+    
     
     
 }

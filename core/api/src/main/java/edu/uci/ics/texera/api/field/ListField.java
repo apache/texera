@@ -5,11 +5,13 @@ import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.collect.ImmutableList;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import edu.uci.ics.texera.api.constants.JsonConstants;
 
+@JsonDeserialize(using = ListFieldJsonDeserializer.class)
 public class ListField<T> implements IField {
 
     private ImmutableList<T> list;

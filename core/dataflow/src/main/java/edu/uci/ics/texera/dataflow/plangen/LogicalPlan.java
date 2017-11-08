@@ -19,6 +19,7 @@ import edu.uci.ics.texera.dataflow.common.PredicateBase;
 import edu.uci.ics.texera.dataflow.common.PropertyNameConstants;
 import edu.uci.ics.texera.dataflow.connector.OneToNBroadcastConnector;
 import edu.uci.ics.texera.dataflow.join.Join;
+import edu.uci.ics.texera.api.schema.Schema;
 
 /**
  * A graph of operators representing a query plan.
@@ -26,13 +27,17 @@ import edu.uci.ics.texera.dataflow.join.Join;
  * @author Zuozhi Wang
  */
 public class LogicalPlan {
-    
+
+    // Variable indicates whether the plan has been changed
+    private boolean UPDATED = true;
+    // a map from operatorID to its operator
+    private HashMap<String, IOperator> operatorObjectMap;
     // use LinkedHashMap to retain insertion order
     // a map from operatorID to its predicate
-    LinkedHashMap<String, PredicateBase> operatorPredicateMap;
+    private LinkedHashMap<String, PredicateBase> operatorPredicateMap;
     // a map of an operator ID to operator's outputs (a set of operator IDs)
-    LinkedHashMap<String, LinkedHashSet<String>> adjacencyList;
-    
+    private LinkedHashMap<String, LinkedHashSet<String>> adjacencyList;
+
     /**
      * Create an empty logical plan.
      * 
@@ -92,12 +97,37 @@ public class LogicalPlan {
         }
         return linkList;
     }
-    
+
+    /**
+     * Updates the current plan and fetch the schema from an operator
+     * @param operatorID, the ID of an operator
+     * @return Schema, which includes the attributes setting of the operator
+     */
+    public Schema getOperatorOutputSchema(String operatorID) throws PlanGenException {
+
+        if (UPDATED) {
+            buildOperators();
+            checkGraphCyclicity();
+            checkSourceOperator();
+
+            connectOperators(operatorObjectMap);
+        }
+        IOperator currentOperator = operatorObjectMap.get(operatorID);
+
+        currentOperator.open();
+        Schema operatorSchema = currentOperator.getOutputSchema();
+        currentOperator.close();
+
+        return operatorSchema;
+    }
+
     /**
      * Adds a new operator to the logical plan.
      * @param operatorPredicate, the predicate of the operator
      */
     public void addOperator(PredicateBase operatorPredicate) {
+        UPDATED = true;
+
         String operatorID = operatorPredicate.getID();
         PlanGenUtils.planGenAssert(! hasOperator(operatorID), 
                 String.format("duplicate operator id: %s is found", operatorID));
@@ -110,6 +140,8 @@ public class LogicalPlan {
      * @param operatorLink, a link of two operators
      */
     public void addLink(OperatorLink operatorLink) {
+        UPDATED = true;
+
         String origin = operatorLink.getOrigin();
         String destination = operatorLink.getDestination();
         PlanGenUtils.planGenAssert(hasOperator(origin), 
@@ -136,9 +168,11 @@ public class LogicalPlan {
      * @throws PlanGenException, if the operator graph is invalid.
      */
     public Plan buildQueryPlan() throws PlanGenException {
-        HashMap<String, IOperator> operatorObjectMap = buildOperators();
-        validateOperatorGraph();
-        connectOperators(operatorObjectMap);
+        if (UPDATED) {
+            buildOperators();
+            validateOperatorGraph();
+            connectOperators(operatorObjectMap);
+        }
         ISink sink = findSinkOperator(operatorObjectMap);
         
         Plan queryPlan = new Plan(sink);
@@ -148,15 +182,14 @@ public class LogicalPlan {
     /*
      * Build the operator objects from operator properties.
      */
-    private HashMap<String, IOperator> buildOperators() throws PlanGenException {
-        HashMap<String, IOperator> operatorObjectMap = new HashMap<>();
+    private void buildOperators() throws PlanGenException {
+        operatorObjectMap = new HashMap<>();
         for (String operatorID : operatorPredicateMap.keySet()) {
             IOperator operator = operatorPredicateMap.get(operatorID).newOperator();
             operatorObjectMap.put(operatorID, operator);
         }
-        return operatorObjectMap;
+        UPDATED = false;
     }
-
 
     /*
      * Validates the operator graph.
@@ -370,7 +403,7 @@ public class LogicalPlan {
                     handleSetInputOperator(currentOperator, adjacentOperator);
                 }
             }         
-        }     
+        }
     }
 
     /*

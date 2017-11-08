@@ -3,6 +3,9 @@ package edu.uci.ics.texera.dataflow.dictionarymatcher;
 import java.util.*;
 import java.util.regex.Pattern;
 
+import org.apache.commons.lang3.builder.HashCodeBuilder;
+import org.apache.commons.lang3.builder.ToStringBuilder;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -84,7 +87,7 @@ public class Dictionary {
         return null;
     }
 
-
+    @JsonIgnore
     public boolean isEmpty() {
         return (dictionaryEntries == null || dictionaryEntries.isEmpty());
     }
@@ -94,7 +97,7 @@ public class Dictionary {
      * of duplicate tokens in the setup() of DictionaryMather for conjunction matching type.
      * @param luceneAnalyzerStr
      */
-
+    @JsonIgnore
     public void setDictionaryTokenSetList(String luceneAnalyzerStr) {
         this.tokenSetsNoStopwords = new ArrayList<>();
         for (int i = 0; i < dictionaryEntries.size(); i++) {
@@ -109,6 +112,7 @@ public class Dictionary {
      *
      * @param luceneAnalyzerStr
      */
+    @JsonIgnore
     public void setDictionaryTokenListWithStopwords(String luceneAnalyzerStr) {
         this.tokenListsWithStopwords = new ArrayList<>();
         this.tokenListsNoStopwords = new ArrayList<>();
@@ -118,6 +122,7 @@ public class Dictionary {
         }
     }
 
+    @JsonIgnore
     public void setPatternList(){
         this.patternList = new ArrayList<>();
         for(int i = 0; i < dictionaryEntries.size(); i++) {
@@ -149,8 +154,26 @@ public class Dictionary {
     @JsonIgnore
     public void resetCursor() {
         dictionaryIterator = dictionaryEntries.iterator();
-        ;
     }
+    
+    @Override
+    public int hashCode() {
+        return HashCodeBuilder.reflectionHashCode(this.getDictionaryEntries());
+    }
+    
+    @Override
+    public boolean equals(Object that) {
+        if (that == null) return false;
+        if (! (that instanceof Dictionary)) return false;
+        
+        return Objects.equals(this.dictionaryEntries, ((Dictionary) that).dictionaryEntries);
+    }
+    
+    @Override
+    public String toString() {
+        return ToStringBuilder.reflectionToString(this);
+    }
+    
 }
 
 

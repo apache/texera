@@ -94,6 +94,10 @@ public class DictionaryMatcherSourceOperator implements ISourceOperator {
 
     @Override
     public void open() throws TexeraException {
+        if (cursor != CLOSED) {
+            return;
+        }
+
         currentDictionaryEntry = predicate.getDictionary().getNextEntry();
     
         if (predicate.getKeywordMatchingType() == KeywordMatchingType.SUBSTRING_SCANBASED 

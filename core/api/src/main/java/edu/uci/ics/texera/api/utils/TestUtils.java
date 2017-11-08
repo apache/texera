@@ -135,6 +135,7 @@ public class TestUtils {
                 System.out.println(resultJson);
             }
             
+            Assert.assertEquals(object, resultObject);
             Assert.assertEquals(jsonNode, resultJsonNode);
             return jsonNode;
         } catch (IOException e) {
