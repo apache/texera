@@ -8,6 +8,7 @@ import 'rxjs/add/operator/toPromise';
 import { Data } from './data';
 import { TableMetadata } from "./table-metadata";
 import any = jasmine.any;
+import {element} from "protractor";
 
 declare var jQuery: any;
 
@@ -49,6 +50,9 @@ export class CurrentDataService {
 
     private dictionaryContent = new Subject<any>();
     dictionaryContent$ = this.dictionaryContent.asObservable();
+
+    private inputSchemaContent = new Subject<any>();
+    inputSchemaContent$ = this.inputSchemaContent.asObservable();
 
     constructor(private http: Http) { }
 
@@ -145,7 +149,10 @@ export class CurrentDataService {
             .subscribe(
                 data => {
                     console.log(data.json());
-                    // this.checkPressed.next(data.json());
+                    let result = data.json();
+                    if (result.code == 0) {
+                        this.inputSchemaContent.next(result.result);
+                    }
                 },
                 err => {
                     this.checkPressed.next(err.json());
@@ -158,7 +165,6 @@ export class CurrentDataService {
         this.http.get(metadataUrl, {headers: headers})
             .subscribe(
                 data => {
-                    console.log("IS IT HERE");
                     let result = (JSON.parse(data.json().message));
                     let metadata: Array<TableMetadata> = [];
                     result.forEach((x, y) =>

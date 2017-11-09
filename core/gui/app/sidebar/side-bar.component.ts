@@ -56,6 +56,7 @@ export class SideBarComponent {
     selectedAttributeMulti:string = "";
     selectedAttributeSingle:string = "";
     metadataList:Array<TableMetadata> = [];
+    inputSchema:Map<string, Array<string>> = new Map();
 
     dictionaryNames: Array<string> = [];
     dictionaryContent: Array<string> = [];
@@ -166,6 +167,23 @@ export class SideBarComponent {
                 this.onFormChange("dictionary");
             }
         );
+
+        currentDataService.inputSchemaContent$.subscribe(
+            data => {
+                console.log(data);
+                this.inputSchema = new Map();
+                for (var operator in data) {
+                    let currentOperatorAttributes = [];
+                    for (var attribute in data[operator]) {
+                        if (!attribute.startsWith("_")) {
+                            currentOperatorAttributes.push(attribute);
+                        }
+                    }
+                    this.inputSchema.set(operator, currentOperatorAttributes);
+                }
+                console.log(this.inputSchema.get("1"));
+            }
+        )
 
     }
 
