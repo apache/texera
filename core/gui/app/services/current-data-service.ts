@@ -144,7 +144,8 @@ export class CurrentDataService {
         this.http.post(texeraAutoRunUrl, JSON.stringify(texeraJson), {headers: headers})
             .subscribe(
                 data => {
-                    this.checkPressed.next(data.json());
+                    console.log(data.json());
+                    // this.checkPressed.next(data.json());
                 },
                 err => {
                     this.checkPressed.next(err.json());
@@ -157,6 +158,7 @@ export class CurrentDataService {
         this.http.get(metadataUrl, {headers: headers})
             .subscribe(
                 data => {
+                    console.log("IS IT HERE");
                     let result = (JSON.parse(data.json().message));
                     let metadata: Array<TableMetadata> = [];
                     result.forEach((x, y) =>

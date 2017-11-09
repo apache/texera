@@ -123,7 +123,7 @@ public class QueryPlanResource {
 
             ObjectNode response = new ObjectMapper().createObjectNode();
             response.put("code", 0);
-            response.set("result", logicalPlan.retrieveAllOperatorOutputSchema());
+            response.set("result", logicalPlan.retrieveAllOperatorInputSchema());
             response.put("resultID", resultID);
             return response;
 

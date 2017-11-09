@@ -167,7 +167,11 @@ export class TheFlowchartComponent {
         current.currentDataService.clearData();
         current.currentDataService.setAllOperatorData(jQuery('#the-flowchart').flowchart('getData'));
         return true;
-      }
+      },
+      onAfterChange: function (changeType) {
+        current.currentDataService.setAllOperatorData(jQuery('#the-flowchart').flowchart('getData'));
+        current.currentDataService.processAutoPlanData();
+      },
     });
 
     var FlowChartWidth = parseInt(jQuery("#the-flowchart").css("width"));

@@ -19,11 +19,15 @@ import edu.uci.ics.texera.api.dataflow.IOperator;
 import edu.uci.ics.texera.api.dataflow.ISink;
 import edu.uci.ics.texera.api.engine.Plan;
 import edu.uci.ics.texera.api.exception.PlanGenException;
+import edu.uci.ics.texera.dataflow.common.AbstractSingleInputOperator;
 import edu.uci.ics.texera.dataflow.common.PredicateBase;
 import edu.uci.ics.texera.dataflow.common.PropertyNameConstants;
 import edu.uci.ics.texera.dataflow.connector.OneToNBroadcastConnector;
+import edu.uci.ics.texera.dataflow.join.IJoinPredicate;
 import edu.uci.ics.texera.dataflow.join.Join;
 import edu.uci.ics.texera.api.schema.Schema;
+import edu.uci.ics.texera.dataflow.sink.AbstractSink;
+import edu.uci.ics.texera.dataflow.sink.tuple.TupleSink;
 
 /**
  * A graph of operators representing a query plan.
@@ -112,11 +116,27 @@ public class LogicalPlan {
         if (UPDATED) {
             buildOperators();
             checkGraphCyclicity();
-            checkSourceOperator();
 
             connectOperators(operatorObjectMap);
         }
         IOperator currentOperator = operatorObjectMap.get(operatorID);
+
+        if (currentOperator instanceof AbstractSingleInputOperator) {
+            AbstractSingleInputOperator currentSingleInputOperator = (AbstractSingleInputOperator) currentOperator;
+            if (currentSingleInputOperator.getInputOperator() == null) {
+                return new Schema();
+            }
+        } else if (currentOperator instanceof OneToNBroadcastConnector) {
+            OneToNBroadcastConnector currentSingleInputOperator = (OneToNBroadcastConnector) currentOperator;
+            if (currentSingleInputOperator.getInputOperator() == null) {
+                return new Schema();
+            }
+        } else if (currentOperator instanceof TupleSink) {
+            TupleSink currentSingleInputOperator = (TupleSink) currentOperator;
+            if (currentSingleInputOperator.getInputOperator() == null) {
+                return new Schema();
+            }
+        }
 
         currentOperator.open();
         Schema operatorSchema = currentOperator.getOutputSchema();
@@ -125,8 +145,8 @@ public class LogicalPlan {
         return operatorSchema;
     }
 
-    public ObjectNode retrieveAllOperatorOutputSchema() throws PlanGenException {
-        ObjectNode outputSchemas = new ObjectMapper().createObjectNode();
+    public ObjectNode retrieveAllOperatorInputSchema() throws PlanGenException {
+        ObjectNode inputSchemas = new ObjectMapper().createObjectNode();
 
         for (String operatorID: operatorPredicateMap.keySet()) {
             Schema currentSchema = getOperatorOutputSchema(operatorID);
@@ -136,9 +156,15 @@ public class LogicalPlan {
                 currentSchemaNode.set(attrName, JsonNodeFactory.instance.pojoNode(currentSchema.getAttribute(attrName)));
             }
 
-            outputSchemas.set(operatorID, currentSchemaNode);
+            for (String adjacentOperatorID: adjacencyList.get(operatorID)) {
+                PredicateBase adjacentPredicate = operatorPredicateMap.get(adjacentOperatorID);
+                if (adjacentPredicate instanceof IJoinPredicate) {
+                    continue;
+                }
+                inputSchemas.set(adjacentOperatorID, currentSchemaNode);
+            }
         }
-        return outputSchemas;
+        return inputSchemas;
     }
 
     /**
