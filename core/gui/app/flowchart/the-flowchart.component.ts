@@ -169,8 +169,15 @@ export class TheFlowchartComponent {
         return true;
       },
       onAfterChange: function (changeType) {
-        current.currentDataService.setAllOperatorData(jQuery('#the-flowchart').flowchart('getData'));
-        current.currentDataService.processAutoPlanData();
+        console.log(changeType);
+        // If it's only an "operator_moved" or "operator_create" change,
+        // we don't do any update at all. Otherwise, we need to update
+        // the graph, which includes "link_create", "link_delete",
+        // "operator_data_change", and "operator_delete"
+        if (changeType != "operator_moved" && changeType != "operator_create") {
+          current.currentDataService.setAllOperatorData(jQuery('#the-flowchart').flowchart('getData'));
+          current.currentDataService.processAutoPlanData();
+        }
       },
     });
 
