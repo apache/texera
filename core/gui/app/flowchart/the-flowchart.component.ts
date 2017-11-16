@@ -119,6 +119,7 @@ export class TheFlowchartComponent {
 
   initialize(data: any) {
     var current = this;
+    var changedOperatorId = -1;
 
     // unselect operator when user click other div
     jQuery('html').mousedown(function(e) {
@@ -155,6 +156,11 @@ export class TheFlowchartComponent {
     jQuery('#the-flowchart').flowchart({
       data: data,
       multipleLinksOnOutput: true,
+
+      onLinkDelete: function (linkId, forced) {
+        current.currentDataService.clearToOperatorAttribute(linkId);
+        return true;
+      },
       onOperatorSelect: function(operatorId) {
         current.currentDataService.selectData(operatorId);
         return true;
@@ -168,6 +174,10 @@ export class TheFlowchartComponent {
         current.currentDataService.setAllOperatorData(jQuery('#the-flowchart').flowchart('getData'));
         return true;
       },
+      onOperatorCreate: function (operatorId, operatorData, fullElement) {
+        changedOperatorId = operatorId;
+        return true;
+      },
       onAfterChange: function (changeType) {
         console.log(changeType);
         // If it's only an "operator_moved" or "operator_create" change,
@@ -177,6 +187,9 @@ export class TheFlowchartComponent {
         if (changeType != "operator_moved" && changeType != "operator_create") {
           current.currentDataService.setAllOperatorData(jQuery('#the-flowchart').flowchart('getData'));
           current.currentDataService.processAutoPlanData();
+        }
+        if (changeType == "operator_data_change") {
+          current.currentDataService.clearAllOperatorAttributeFromCurrentSource(changedOperatorId);
         }
       },
     });

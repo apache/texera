@@ -181,9 +181,8 @@ export class SideBarComponent {
                     }
                     this.inputSchema.set(operator, currentOperatorAttributes);
                 }
-                console.log(this.inputSchema.get("1"));
             }
-        )
+        );
 
     }
 

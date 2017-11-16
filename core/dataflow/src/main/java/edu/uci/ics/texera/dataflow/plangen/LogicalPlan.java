@@ -15,9 +15,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import edu.uci.ics.texera.api.constants.ErrorMessages;
 import edu.uci.ics.texera.api.dataflow.IOperator;
 import edu.uci.ics.texera.api.dataflow.ISink;
 import edu.uci.ics.texera.api.engine.Plan;
+import edu.uci.ics.texera.api.exception.DataflowException;
 import edu.uci.ics.texera.api.exception.PlanGenException;
 import edu.uci.ics.texera.dataflow.common.AbstractSingleInputOperator;
 import edu.uci.ics.texera.dataflow.common.PredicateBase;
@@ -26,6 +28,7 @@ import edu.uci.ics.texera.dataflow.connector.OneToNBroadcastConnector;
 import edu.uci.ics.texera.dataflow.join.IJoinPredicate;
 import edu.uci.ics.texera.dataflow.join.Join;
 import edu.uci.ics.texera.api.schema.Schema;
+import edu.uci.ics.texera.dataflow.keywordmatcher.KeywordMatcher;
 import edu.uci.ics.texera.dataflow.sink.AbstractSink;
 import edu.uci.ics.texera.dataflow.sink.tuple.TupleSink;
 
@@ -119,28 +122,18 @@ public class LogicalPlan {
 
             connectOperators(operatorObjectMap);
         }
-        IOperator currentOperator = operatorObjectMap.get(operatorID);
 
-        if (currentOperator instanceof AbstractSingleInputOperator) {
-            AbstractSingleInputOperator currentSingleInputOperator = (AbstractSingleInputOperator) currentOperator;
-            if (currentSingleInputOperator.getInputOperator() == null) {
-                return new Schema();
-            }
-        } else if (currentOperator instanceof OneToNBroadcastConnector) {
-            OneToNBroadcastConnector currentSingleInputOperator = (OneToNBroadcastConnector) currentOperator;
-            if (currentSingleInputOperator.getInputOperator() == null) {
-                return new Schema();
-            }
-        } else if (currentOperator instanceof TupleSink) {
-            TupleSink currentSingleInputOperator = (TupleSink) currentOperator;
-            if (currentSingleInputOperator.getInputOperator() == null) {
-                return new Schema();
+        IOperator currentOperator = operatorObjectMap.get(operatorID);
+        Schema operatorSchema = new Schema();
+        try {
+            currentOperator.open();
+            operatorSchema = currentOperator.getOutputSchema();
+            currentOperator.close();
+        } catch(DataflowException e) {
+            if (!e.getMessage().equals(ErrorMessages.INPUT_OPERATOR_NOT_SPECIFIED)) {
+                throw e;
             }
         }
-
-        currentOperator.open();
-        Schema operatorSchema = currentOperator.getOutputSchema();
-        currentOperator.close();
 
         return operatorSchema;
     }

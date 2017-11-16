@@ -9,6 +9,7 @@ import { Data } from './data';
 import { TableMetadata } from "./table-metadata";
 import any = jasmine.any;
 import {element} from "protractor";
+import {isUndefined} from "util";
 
 declare var jQuery: any;
 
@@ -64,6 +65,30 @@ export class CurrentDataService {
         var data_now = jQuery("#the-flowchart").flowchart("getOperatorData",operatorNum);
         this.newAddition.next({operatorNum: operatorNum, operatorData: data_now});
         this.setAllOperatorData(jQuery("#the-flowchart").flowchart("getData"));
+    }
+
+    clearAllOperatorAttributeFromCurrentSource(sourceOperatorId: number) : void {
+        var data = jQuery("#the-flowchart").flowchart("getData");
+        var adjacentList = [];
+        for (var link in data.links) {
+            if (data.links[link]["fromOperator"] == sourceOperatorId) {
+                console.log("ID " + sourceOperatorId);
+                var toOperatorId = data.links[link].toOperator;
+                var data_now = jQuery("#the-flowchart").flowchart("getOperatorData",toOperatorId);
+                data_now.properties.attributes.attributes = [];
+                jQuery("#the-flowchart").flowchart("setOperatorData",toOperatorId, data_now);
+            }
+        }
+
+    }
+    
+
+    clearToOperatorAttribute(linkId: number) : void {
+        var data = jQuery("#the-flowchart").flowchart("getData");
+        var toOperatorId = data.links[linkId].toOperator;
+        var data_now = jQuery("#the-flowchart").flowchart("getOperatorData",toOperatorId);
+        data_now.properties.attributes.attributes = [];
+        jQuery("#the-flowchart").flowchart("setOperatorData",toOperatorId, data_now);
     }
 
     clearData() : void {
