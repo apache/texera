@@ -125,6 +125,8 @@ public class LogicalPlan {
 
         IOperator currentOperator = operatorObjectMap.get(operatorID);
         Schema operatorSchema = new Schema();
+        // Use try statement here in case the currentOperator is not
+        // an instance of AbstractSingleInputOperator
         try {
             currentOperator.open();
             operatorSchema = currentOperator.getOutputSchema();

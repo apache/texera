@@ -214,15 +214,17 @@ export class SideBarComponent {
     }
 
     manuallyAdded (event:string) {
-        if (event.length === 0) {
-            // removed all attributes
-            this.selectedAttributesList = [];
-        } else {
-            this.selectedAttributesList = event.split(",");
-        }
+        setTimeout(()=>{ // Set a time delay on the manual input
+            if (event.length === 0) {
+                // removed all attributes
+                this.selectedAttributesList = [];
+            } else {
+                this.selectedAttributesList = event.split(",");
+            }
 
-        this.data.properties.attributes.attributes = this.selectedAttributesList;
-        this.onFormChange("attributes");
+            this.data.properties.attributes.attributes = this.selectedAttributesList;
+            this.onFormChange("attributes");
+        }, 2000);
     }
 
     getAttributesForTable (event:string) {

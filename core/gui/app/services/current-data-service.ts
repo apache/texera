@@ -81,7 +81,6 @@ export class CurrentDataService {
         }
 
     }
-    
 
     clearToOperatorAttribute(linkId: number) : void {
         var data = jQuery("#the-flowchart").flowchart("getData");

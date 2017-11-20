@@ -115,7 +115,120 @@ public class QueryPlanResource {
      */
     @POST
     @Path("/autoExecute")
-    // TODO: investigate how to use LogicalPlan directly
+    /* EG of using /autoExecute end point (how this inline update method works):
+
+    1. At the beginning of creating a graph, (for example) when a scan source and a keyword search
+        operators are initailized (dragged in the flow-chart) but unlinked, the graph looks like this:
+
+         ___________________                             ___________________
+        |                   |                           |                   |
+        |                   |                           |  Keyword Search   |
+        |  Source: Scan     |                           |  Attributes: N/A  |
+        |  TableName: N/A   |                           |  (Other inputs...)|
+        |                   |                           |                   |
+        |                   |                           |                   |
+        |                   |                           |                   |
+        |___________________|                           |___________________|
+
+    2. Then, you can feel free to link these two operators together, or go ahead and select a
+        table as the source first. Let's link them together first.
+
+         ___________________                             ___________________
+        |                   |                           |                   |
+        |                   |                           |  Keyword Search   |
+        |  Source: Scan     |                           |  Attributes: N/A  |
+        |  TableName: N/A   | ========================> |  (Other inputs...)|
+        |                   |                           |                   |
+        |                   |                           |                   |
+        |                   |                           |                   |
+        |___________________|                           |___________________|
+
+    3. At this moment, the Keyword Search operator still does NOT have any available options for
+        its Attributes field because of the lack of the source. Therefore, we can select a table
+        name as the source next (let's use table "plan" as an example here)
+
+         ___________________                             ___________________
+        |                   |                           |                   |
+        |                   |                           |  Keyword Search   |
+        |  Source: Scan     |                           |  Attributes: N/A  |
+        |  TableName: plan  | ========================> |  (Other inputs...)|
+        |                   |                           |                   |
+        |                   |                           |                   |
+        |                   |                           |                   |
+        |___________________|                           |___________________|
+
+    4. After select table "plan" as the source, now you can see the options list of Attributes in
+        the Keyword Search operator becomes available. you should see 4 options in the list: name,
+        description, logicPlan, payload. Feel free to choose whichever you need for your desired result.
+
+         ___________________                             ___________________
+        |                   |                           |                   |
+        |                   |                           |  Keyword Search   |
+        |  Source: Scan     |                           |  Attributes: name |
+        |  TableName: plan  | ========================> |  (Other inputs...)|
+        |                   |                           |                   |
+        |                   |                           |                   |
+        |                   |                           |                   |
+        |___________________|                           |___________________|
+
+    5. Basically, the method supports that whenever you connect a source (with a valid table name)
+        to a regular search operator, the later operator is able to recognize the metadata of its
+        input operator (which is the source), and then updates its attribute options in the drop-down
+        list. To illustrate how powerful this functionality is, you can add a new (Scan) Source and
+        pick another table which is different than table "plan" we have already created. The graph
+        now should be looked like the following:
+
+         ___________________                             ___________________
+        |                   |                           |                   |
+        |                   |                           |  Keyword Search   |
+        |  Source: Scan     |                           |  Attributes: name |
+        |  TableName: plan  | ========================> |  (Other inputs...)|
+        |                   |                           |                   |
+        |                   |                           |                   |
+        |                   |                           |                   |
+        |___________________|                           |___________________|
+
+
+         _______________________
+        |                       |
+        |                       |
+        | Source: Scan          |
+        | TableName: dictionary |
+        |                       |
+        |                       |
+        |                       |
+        |_______________________|
+
+    6. Then, connect "dictionary" to the Keyword Search operator. The original link between "plan"
+        and Keyword Search will automatically disappear.
+
+
+         ___________________                             ___________________
+        |                   |                           |                   |
+        |                   |                           |  Keyword Search   |
+        |  Source: Scan     |                           |  Attributes: N/A  |
+        |  TableName: plan  |                           |  (Other inputs...)|
+        |                   |            /============> |                   |
+        |                   |           //              |                   |
+        |                   |          //               |                   |
+        |___________________|         //                |___________________|
+                                     //
+                                    //
+         _______________________   //
+        |                       | //
+        |                       |//
+        | Source: Scan          |/
+        | TableName: dictionary |
+        |                       |
+        |                       |
+        |                       |
+        |_______________________|
+
+    7. After the new link generated, the Attributes field of the Keyword Search will be empty again. When
+        you try to check its drop-down list, the options are all updated to dictionary's attributes, which
+        are name and payload. The options from "plan" are all gone.
+
+    */
     public JsonNode executeAutoQueryPlan(String logicalPlanJson) {
         try {
             LogicalPlan logicalPlan = new ObjectMapper().readValue(logicalPlanJson, LogicalPlan.class);

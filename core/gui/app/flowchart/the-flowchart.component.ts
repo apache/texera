@@ -157,6 +157,8 @@ export class TheFlowchartComponent {
       data: data,
       multipleLinksOnOutput: true,
 
+      // When the user delete an operator, all operators' attributes in
+      // the rest of the graph need to be cleaned up
       onLinkDelete: function (linkId, forced) {
         current.currentDataService.clearToOperatorAttribute(linkId);
         return true;
