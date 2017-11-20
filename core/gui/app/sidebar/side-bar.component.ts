@@ -67,6 +67,8 @@ export class SideBarComponent {
 
     optionalTwitterList: Array<string> = ["customerKey","customerSecret","token","tokenSecret"];
 
+    manualAddTimer: any;
+
     checkInHidden(name: string) {
       if (this.advancedPressed){
         var hideItem = ["operatorType"];
@@ -214,7 +216,10 @@ export class SideBarComponent {
     }
 
     manuallyAdded (event:string) {
-        setTimeout(()=>{ // Set a time delay on the manual input
+        if (this.manualAddTimer != null){
+            clearTimeout(this.manualAddTimer);
+        }
+        this.manualAddTimer = setTimeout(()=>{ // Set a time delay on the manual input
             if (event.length === 0) {
                 // removed all attributes
                 this.selectedAttributesList = [];
@@ -224,7 +229,7 @@ export class SideBarComponent {
 
             this.data.properties.attributes.attributes = this.selectedAttributesList;
             this.onFormChange("attributes");
-        }, 2000);
+        }, 3000);
     }
 
     getAttributesForTable (event:string) {
@@ -253,13 +258,18 @@ export class SideBarComponent {
     }
 
     dictionaryManuallyAdded(event: string) {
-        if (event.length === 0) {
-            this.dictionaryContent = [];
-        } else {
-            this.dictionaryContent = event.split(",");
+        if (this.manualAddTimer != null){
+            clearTimeout(this.manualAddTimer);
         }
-        this.data.properties.attributes.dictionaryEntries = this.dictionaryContent;
-        this.onFormChange("dictionary");
+        this.manualAddTimer = setTimeout(()=> { // Set a time delay on the manual input
+            if (event.length === 0) {
+                this.dictionaryContent = [];
+            } else {
+                this.dictionaryContent = event.split(",");
+            }
+            this.data.properties.attributes.dictionaryEntries = this.dictionaryContent;
+            this.onFormChange("dictionary");
+        }, 3000);
     }
 
   onFormChange (attribute: string) {
@@ -290,27 +300,37 @@ export class SideBarComponent {
 
 
     twitterQueryManuallyAdded(event: string) {
-        if (event.length === 0) {
-            this.twitterQuery = [];
-        } else {
-            this.twitterQuery = event.split(",");
+        if (this.manualAddTimer != null){
+            clearTimeout(this.manualAddTimer);
         }
-        this.data.properties.attributes.keywordList = this.twitterQuery;
-        this.onFormChange("keywordList");
+        this.manualAddTimer = setTimeout(()=> { // Set a time delay on the manual input
+            if (event.length === 0) {
+                this.twitterQuery = [];
+            } else {
+                this.twitterQuery = event.split(",");
+            }
+            this.data.properties.attributes.keywordList = this.twitterQuery;
+            this.onFormChange("keywordList");
+        }, 3000);
     }
 
     twitterLanguageManuallyAdded(shortenFormLanguage: string){
-      var languageCheckBox = jQuery("#" + shortenFormLanguage);
-      if (languageCheckBox[0].checked){
-        this.twitterLanguage.push(shortenFormLanguage);
-      } else {
-        var index = this.twitterLanguage.indexOf(shortenFormLanguage);
-          // remove 1 element starting from that index
-        this.twitterLanguage.splice(index, 1);
-      }
-      console.log(this.twitterLanguage);
-      this.data.properties.attributes.languageList = this.twitterLanguage;
-      this.onFormChange("languageList");
+        if (this.manualAddTimer != null){
+            clearTimeout(this.manualAddTimer);
+        }
+        this.manualAddTimer = setTimeout(()=> { // Set a time delay on the manual input
+            var languageCheckBox = jQuery("#" + shortenFormLanguage);
+            if (languageCheckBox[0].checked) {
+                this.twitterLanguage.push(shortenFormLanguage);
+            } else {
+                var index = this.twitterLanguage.indexOf(shortenFormLanguage);
+                // remove 1 element starting from that index
+                this.twitterLanguage.splice(index, 1);
+            }
+            console.log(this.twitterLanguage);
+            this.data.properties.attributes.languageList = this.twitterLanguage;
+            this.onFormChange("languageList");
+        }, 3000);
     }
 
     languageTextClicked(language: string){
