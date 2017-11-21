@@ -139,13 +139,71 @@ export class CurrentDataService {
         return texeraJson;
     }
 
+    processAutoData(): object {
+
+        let texeraJson = {operators: {}, links: {}};
+        var operators = [];
+        var links = [];
+        var emptyTableNameOperator = [];
+
+        var listAttributes : string[] = ["attributes", "dictionaryEntries"]
+
+        for (var operatorIndex in this.allOperatorData.jsonData.operators) {
+            var currentOperator = this.allOperatorData.jsonData['operators'];
+            if (currentOperator.hasOwnProperty(operatorIndex)) {
+                var attributes = {};
+                var emptyTableName = false;
+                attributes["operatorID"] = operatorIndex;
+                for (var attribute in currentOperator[operatorIndex]['properties']['attributes']) {
+                    if (attribute === "tableName" &&
+                        currentOperator[operatorIndex]['properties']['attributes'][attribute] === "") {
+                        emptyTableName = true;
+                        emptyTableNameOperator.push(operatorIndex);
+                        break;
+                    }
+                    if (currentOperator[operatorIndex]['properties']['attributes'].hasOwnProperty(attribute)) {
+                        attributes[attribute] = currentOperator[operatorIndex]['properties']['attributes'][attribute];
+                        // if attribute is an array property, and it's not an array
+                        if (jQuery.inArray(attribute, listAttributes) != -1 && ! Array.isArray(attributes[attribute])) {
+                            attributes[attribute] = attributes[attribute].split(",").map((item) => item.trim());
+                        }
+                        // if the value is a string and can be converted to a boolean value
+                        if (attributes[attribute] instanceof String && Boolean(attributes[attribute])) {
+                            attributes[attribute] = (attributes[attribute].toLowerCase() === 'true')
+                        }
+                    }
+                }
+                if (emptyTableName != true) {
+                    operators.push(attributes);
+                }
+            }
+        }
+        for(var link in this.allOperatorData.jsonData.links){
+            var destination = {};
+            var currentLink = this.allOperatorData.jsonData['links'];
+            if (currentLink[link].hasOwnProperty("fromOperator")){
+                if (emptyTableNameOperator.indexOf(currentLink[link]['fromOperator'].toString()) === -1
+                && emptyTableNameOperator.indexOf(currentLink[link]['toOperator'].toString()) === -1) {
+                    destination["origin"] = currentLink[link]['fromOperator'].toString();
+                    destination["destination"] = currentLink[link]['toOperator'].toString();
+                    links.push(destination);
+                }
+            }
+        }
+
+        texeraJson.operators = operators;
+        texeraJson.links = links;
+
+        return texeraJson;
+    }
+
     processRunData(): void {
         let texeraJson = this.processData();
         this.sendRunRequest(texeraJson);
     }
 
     processAutoPlanData(): void {
-        let texeraJson = this.processData();
+        let texeraJson = this.processAutoData();
         this.sendAutoRunRequest(texeraJson);
     }
 
