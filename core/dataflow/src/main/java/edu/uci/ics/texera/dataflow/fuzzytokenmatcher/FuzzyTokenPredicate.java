@@ -8,6 +8,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import edu.uci.ics.texera.api.dataflow.IOperator;
+import edu.uci.ics.texera.api.exception.TexeraException;
 import edu.uci.ics.texera.dataflow.common.PredicateBase;
 import edu.uci.ics.texera.dataflow.common.PropertyNameConstants;
 import edu.uci.ics.texera.dataflow.utils.DataflowUtils;
@@ -42,6 +43,14 @@ public class FuzzyTokenPredicate extends PredicateBase {
             Double thresholdRatio,
             @JsonProperty(value = PropertyNameConstants.SPAN_LIST_NAME, required = true)
             String spanListName) {
+        
+        if (query.trim().isEmpty()) {
+            throw new TexeraException("query should not be empty");
+        }
+        if (thresholdRatio < 0.0 || thresholdRatio > 1.0) {
+            throw new TexeraException("threshold ratio should be between 0.0 and 1.0");
+        }
+        
         this.query = query;
         this.attributeNames = attributeNames;
         this.luceneAnalyzerStr = luceneAnalyzerStr;
