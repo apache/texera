@@ -240,6 +240,12 @@ public class QueryPlanResource {
             response.put("resultID", resultID);
             return response;
 
+        } catch (JsonMappingException je) {
+            ObjectNode response = new ObjectMapper().createObjectNode();
+            response.put("code", -1);
+            response.put("message", "Json Mapping Exception would not be handled for auto plan. " + je.getMessage());
+            return response;
+
         } catch (IOException | TexeraException e) {
             throw new TexeraWebException(e.getMessage());
         }
