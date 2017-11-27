@@ -347,4 +347,16 @@ export class SideBarComponent {
       this.twitterLanguageManuallyAdded(shortenFormLanguage);
     }
 
+    onInputChange(attribute: string){
+        if (this.manualAddTimer != null){
+            clearTimeout(this.manualAddTimer);
+        }
+        this.manualAddTimer = setTimeout(()=> { // Set a time delay on the onFormChange action
+            var currentData = jQuery("#the-flowchart").flowchart("getOperatorData", this.operatorId);
+            // update the position of the operator if it is moved before the value is changed
+            this.data.left = currentData.left;
+            this.data.top = currentData.top;
+            jQuery("#the-flowchart").flowchart("setOperatorData", this.operatorId, this.data);
+        }, 1000);
+    }
 }
