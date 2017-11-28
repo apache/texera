@@ -44,10 +44,6 @@ public class DictionaryPredicate extends PredicateBase {
             @JsonProperty(value = PropertyNameConstants.SPAN_LIST_NAME, required = false)
             String spanListName) {
         
-        if (dictionary.isEmpty()) {
-            throw new TexeraException("dictionary should not be empty");
-        }
-        
         this.dictionary = dictionary;
         this.luceneAnalyzerStr = luceneAnalyzerStr;
         this.attributeNames = attributeNames;
