@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import edu.uci.ics.texera.api.dataflow.IOperator;
+import edu.uci.ics.texera.api.exception.TexeraException;
 import edu.uci.ics.texera.dataflow.common.PredicateBase;
 import edu.uci.ics.texera.dataflow.common.PropertyNameConstants;
 
@@ -24,6 +25,14 @@ public class TupleSinkPredicate extends PredicateBase {
             @JsonProperty(value = PropertyNameConstants.OFFSET, required = false)
             Integer offset
             ) {
+        
+        if (limit != null && limit < 0) {
+            throw new TexeraException("limit must be greater than 0");
+        }
+        if (offset != null && offset < 0) {
+            throw new TexeraException("offset must be greater than 0");
+        }
+        
         this.limit = limit;
         if (this.limit == null) {
             this.limit = Integer.MAX_VALUE;
