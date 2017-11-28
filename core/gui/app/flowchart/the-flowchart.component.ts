@@ -1,5 +1,6 @@
 import { Component } from '@angular/core';
 import { CurrentDataService } from '../services/current-data-service';
+import any = jasmine.any;
 
 declare var jQuery: any;
 
@@ -156,6 +157,7 @@ export class TheFlowchartComponent {
     jQuery('#the-flowchart').flowchart({
       data: data,
       multipleLinksOnOutput: true,
+      timer: null,
 
       // When the user delete an operator, all operators' attributes in
       // the rest of the graph need to be cleaned up
@@ -181,18 +183,21 @@ export class TheFlowchartComponent {
         return true;
       },
       onAfterChange: function (changeType) {
+        clearTimeout(this.timer);
         console.log(changeType);
         // If it's only an "operator_moved" or "operator_create" change,
         // we don't do any update at all. Otherwise, we need to update
         // the graph, which includes "link_create", "link_delete",
         // "operator_data_change", and "operator_delete"
-        if (changeType != "operator_moved" && changeType != "operator_create") {
-          current.currentDataService.setAllOperatorData(jQuery('#the-flowchart').flowchart('getData'));
-          current.currentDataService.processAutoPlanData();
-        }
-        if (changeType == "operator_data_change") {
-          current.currentDataService.clearAllOperatorAttributeFromCurrentSource(changedOperatorId);
-        }
+        this.timer = setTimeout(() => {
+            if (changeType != "operator_moved" && changeType != "operator_create") {
+                current.currentDataService.setAllOperatorData(jQuery('#the-flowchart').flowchart('getData'));
+                current.currentDataService.processAutoPlanData();
+            }
+            if (changeType == "operator_data_change") {
+                current.currentDataService.clearAllOperatorAttributeFromCurrentSource(changedOperatorId);
+            }
+        }, 50);
       },
     });
 

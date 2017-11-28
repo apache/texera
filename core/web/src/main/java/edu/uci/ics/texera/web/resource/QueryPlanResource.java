@@ -247,6 +247,12 @@ public class QueryPlanResource {
             return response;
 
         } catch (IOException | TexeraException e) {
+            if (e.getMessage().contains("does not exist in the schema:")) {
+                ObjectNode response = new ObjectMapper().createObjectNode();
+                response.put("code", -1);
+                response.put("message", "Attribute Not Exist Exception would not be handled for auto plan. " + e.getMessage());
+                return response;
+            }
             throw new TexeraWebException(e.getMessage());
         }
     }
