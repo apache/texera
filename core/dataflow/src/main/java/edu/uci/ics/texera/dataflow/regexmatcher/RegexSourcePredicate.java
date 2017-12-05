@@ -52,7 +52,7 @@ public class RegexSourcePredicate extends RegexPredicate {
         super(regex, attributeNames, ignoreCase, spanListName);
 
         if (tableName == null || tableName.isEmpty()) {
-            throw new PlanGenException(PropertyNameConstants.EMPTY_NAME_EXCETION);
+            throw new PlanGenException(PropertyNameConstants.EMPTY_NAME_EXCEPTION);
         }
         this.tableName = tableName;
         if (useIndex == null) {

@@ -28,7 +28,7 @@ public class FuzzyTokenSourcePredicate extends FuzzyTokenPredicate {
         super(query, attributeNames, luceneAnalyzerStr, thresholdRatio, spanListName);
 
         if (tableName == null || tableName.isEmpty()) {
-            throw new PlanGenException(PropertyNameConstants.EMPTY_NAME_EXCETION);
+            throw new PlanGenException(PropertyNameConstants.EMPTY_NAME_EXCEPTION);
         }
         this.tableName = tableName;
     }

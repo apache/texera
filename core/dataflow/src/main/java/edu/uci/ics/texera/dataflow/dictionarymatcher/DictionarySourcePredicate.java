@@ -42,7 +42,7 @@ public class DictionarySourcePredicate extends DictionaryPredicate {
         super(dictionary, attributeNames, luceneAnalyzerStr, keywordMatchingType, spanListName);
 
         if (tableName == null || tableName.isEmpty()) {
-            throw new PlanGenException(PropertyNameConstants.EMPTY_NAME_EXCETION);
+            throw new PlanGenException(PropertyNameConstants.EMPTY_NAME_EXCEPTION);
         }
         this.tableName = tableName;
     }

@@ -24,7 +24,7 @@ public class ScanSourcePredicate extends PredicateBase {
             String tableName) {
 
         if (tableName == null || tableName.isEmpty()) {
-            throw new PlanGenException(PropertyNameConstants.EMPTY_NAME_EXCETION);
+            throw new PlanGenException(PropertyNameConstants.EMPTY_NAME_EXCEPTION);
         }
         this.tableName = tableName;
     }

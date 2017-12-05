@@ -26,6 +26,8 @@ import edu.uci.ics.texera.api.engine.Plan;
 import edu.uci.ics.texera.api.exception.TexeraException;
 import edu.uci.ics.texera.api.tuple.Tuple;
 import edu.uci.ics.texera.api.utils.Utils;
+import edu.uci.ics.texera.dataflow.common.PredicateBase;
+import edu.uci.ics.texera.dataflow.common.PropertyNameConstants;
 import edu.uci.ics.texera.dataflow.plangen.LogicalPlan;
 import edu.uci.ics.texera.dataflow.sink.tuple.TupleSink;
 import edu.uci.ics.texera.web.TexeraWebException;
@@ -231,7 +233,50 @@ public class QueryPlanResource {
     */
     public JsonNode executeAutoQueryPlan(String logicalPlanJson) {
         try {
-            LogicalPlan logicalPlan = new ObjectMapper().readValue(logicalPlanJson, LogicalPlan.class);
+            JsonNode logicalPlanNode = new ObjectMapper().readTree(logicalPlanJson);
+            ArrayNode operators = (ArrayNode) logicalPlanNode.get(PropertyNameConstants.OPERATOR_LIST);
+            for (int i = 0; i < operators.size(); ++i) {
+                JsonNode operatorNode = operators.get(i);
+                boolean handled = false;
+                while (!handled) {
+                    try {
+                        PredicateBase operator = new ObjectMapper().treeToValue(operatorNode, PredicateBase.class);
+                        handled = true;
+                    } catch (JsonMappingException e) {
+                        if (e.getMessage().contains(PropertyNameConstants.EMPTY_QUERY_EXCEPTION)) {
+                            ((ObjectNode) operatorNode).put(PropertyNameConstants.QUERY,
+                                    PropertyNameConstants.DEFAULT_QUERY);
+                        } else if (e.getMessage().contains(PropertyNameConstants.INVALID_THRESHOLD_EXCEPTION)) {
+                            ((ObjectNode) operatorNode).put(PropertyNameConstants.FUZZY_TOKEN_THRESHOLD_RATIO,
+                                    PropertyNameConstants.DEFAULT_THRESHOLD);
+                        } else if (e.getMessage().contains(PropertyNameConstants.NAME_NOT_MATCH_EXCEPTION)) {
+                            ((ObjectNode) operatorNode).put(PropertyNameConstants.INNER_ATTRIBUTE_NAME,
+                                    PropertyNameConstants.DEFAULT_ATTRIBUTE_NAME);
+                            ((ObjectNode) operatorNode).put(PropertyNameConstants.OUTER_ATTRIBUTE_NAME,
+                                    PropertyNameConstants.DEFAULT_ATTRIBUTE_NAME);
+                        } else if (e.getMessage().contains(PropertyNameConstants.EMPTY_REGEX_EXCEPTION)) {
+                            ((ObjectNode) operatorNode).put(PropertyNameConstants.REGEX,
+                                    PropertyNameConstants.DEFAULT_REGEX);
+                        } else if (e.getMessage().contains(PropertyNameConstants.INVALID_SAMPLE_SIZE_EXCEPTION)) {
+                            ((ObjectNode) operatorNode).put(PropertyNameConstants.SAMPLE_SIZE,
+                                    PropertyNameConstants.DEFAULT_SAMPLE_SIZE);
+                        } else if (e.getMessage().contains(PropertyNameConstants.INVALID_LIMIT_EXCEPTION)) {
+                            ((ObjectNode) operatorNode).put(PropertyNameConstants.LIMIT,
+                                    PropertyNameConstants.DEFAULT_LIMIT);
+                        } else if (e.getMessage().contains(PropertyNameConstants.INVALID_OFFSET_EXCEPTION)) {
+                            ((ObjectNode) operatorNode).put(PropertyNameConstants.OFFSET,
+                                    PropertyNameConstants.DEFAULT_OFFSET);
+                        } else {
+                            System.out.println(e.getMessage());
+                            throw (e);
+                        }
+                    }
+                }
+                operators.set(i, operatorNode);
+            }
+            ((ObjectNode) logicalPlanNode).put(PropertyNameConstants.OPERATOR_LIST, operators);
+
+            LogicalPlan logicalPlan = new ObjectMapper().treeToValue(logicalPlanNode, LogicalPlan.class);
             String resultID = UUID.randomUUID().toString();
 
             ObjectNode response = new ObjectMapper().createObjectNode();
