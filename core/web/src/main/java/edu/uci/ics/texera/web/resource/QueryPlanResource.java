@@ -3,9 +3,7 @@ package edu.uci.ics.texera.web.resource;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.Collections;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import javax.ws.rs.Consumes;
@@ -18,12 +16,14 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import edu.uci.ics.texera.api.dataflow.ISink;
 import edu.uci.ics.texera.api.engine.Engine;
 import edu.uci.ics.texera.api.engine.Plan;
 import edu.uci.ics.texera.api.exception.TexeraException;
+import edu.uci.ics.texera.api.schema.Schema;
 import edu.uci.ics.texera.api.tuple.Tuple;
 import edu.uci.ics.texera.api.utils.Utils;
 import edu.uci.ics.texera.dataflow.common.PredicateBase;
@@ -235,53 +235,58 @@ public class QueryPlanResource {
         try {
             JsonNode logicalPlanNode = new ObjectMapper().readTree(logicalPlanJson);
             ArrayNode operators = (ArrayNode) logicalPlanNode.get(PropertyNameConstants.OPERATOR_LIST);
-            for (int i = 0; i < operators.size(); ++i) {
-                JsonNode operatorNode = operators.get(i);
-                boolean handled = false;
-                while (!handled) {
-                    try {
-                        PredicateBase operator = new ObjectMapper().treeToValue(operatorNode, PredicateBase.class);
-                        handled = true;
-                    } catch (JsonMappingException e) {
-                        if (e.getMessage().contains(PropertyNameConstants.EMPTY_QUERY_EXCEPTION)) {
-                            ((ObjectNode) operatorNode).put(PropertyNameConstants.QUERY,
-                                    PropertyNameConstants.DEFAULT_QUERY);
-                        } else if (e.getMessage().contains(PropertyNameConstants.INVALID_THRESHOLD_EXCEPTION)) {
-                            ((ObjectNode) operatorNode).put(PropertyNameConstants.FUZZY_TOKEN_THRESHOLD_RATIO,
-                                    PropertyNameConstants.DEFAULT_THRESHOLD);
-                        } else if (e.getMessage().contains(PropertyNameConstants.NAME_NOT_MATCH_EXCEPTION)) {
-                            ((ObjectNode) operatorNode).put(PropertyNameConstants.INNER_ATTRIBUTE_NAME,
-                                    PropertyNameConstants.DEFAULT_ATTRIBUTE_NAME);
-                            ((ObjectNode) operatorNode).put(PropertyNameConstants.OUTER_ATTRIBUTE_NAME,
-                                    PropertyNameConstants.DEFAULT_ATTRIBUTE_NAME);
-                        } else if (e.getMessage().contains(PropertyNameConstants.EMPTY_REGEX_EXCEPTION)) {
-                            ((ObjectNode) operatorNode).put(PropertyNameConstants.REGEX,
-                                    PropertyNameConstants.DEFAULT_REGEX);
-                        } else if (e.getMessage().contains(PropertyNameConstants.INVALID_SAMPLE_SIZE_EXCEPTION)) {
-                            ((ObjectNode) operatorNode).put(PropertyNameConstants.SAMPLE_SIZE,
-                                    PropertyNameConstants.DEFAULT_SAMPLE_SIZE);
-                        } else if (e.getMessage().contains(PropertyNameConstants.INVALID_LIMIT_EXCEPTION)) {
-                            ((ObjectNode) operatorNode).put(PropertyNameConstants.LIMIT,
-                                    PropertyNameConstants.DEFAULT_LIMIT);
-                        } else if (e.getMessage().contains(PropertyNameConstants.INVALID_OFFSET_EXCEPTION)) {
-                            ((ObjectNode) operatorNode).put(PropertyNameConstants.OFFSET,
-                                    PropertyNameConstants.DEFAULT_OFFSET);
-                        } else {
-                            System.out.println(e.getMessage());
-                            throw (e);
-                        }
-                    }
+            ArrayNode links = (ArrayNode) logicalPlanNode.get(PropertyNameConstants.OPERATOR_LINK_LIST);
+
+            ArrayNode validOperators = new ObjectMapper().createArrayNode();
+            ArrayNode validLinks = new ObjectMapper().createArrayNode();
+            ArrayNode linksEndWithInvalidDest = new ObjectMapper().createArrayNode();
+
+            Set<Integer> validOperatorsId = new HashSet<>();
+
+            for (JsonNode operatorNode: operators) {
+                try {
+                    new ObjectMapper().treeToValue(operatorNode, PredicateBase.class);
+                    validOperators.add(operatorNode);
+                    validOperatorsId.add(operatorNode.get(PropertyNameConstants.OPERATOR_ID).asInt());
+                } catch (JsonMappingException e) {
+                    System.out.println(e);
                 }
-                operators.set(i, operatorNode);
             }
-            ((ObjectNode) logicalPlanNode).put(PropertyNameConstants.OPERATOR_LIST, operators);
+
+            for (JsonNode linkNode: links) {
+                int origin = linkNode.get(PropertyNameConstants.ORIGIN_OPERATOR_ID).asInt();
+                int dest = linkNode.get(PropertyNameConstants.DESTINATION_OPERATOR_ID).asInt();
+
+                if (validOperatorsId.contains(origin) && validOperatorsId.contains(dest)) {
+                    validLinks.add(linkNode);
+                } else if (!validOperatorsId.contains(dest)) {
+                    linksEndWithInvalidDest.add(linkNode);
+                }
+            }
+
+            ((ObjectNode) logicalPlanNode).putArray(PropertyNameConstants.OPERATOR_LIST).addAll(validOperators);
+            ((ObjectNode) logicalPlanNode).putArray(PropertyNameConstants.OPERATOR_LINK_LIST).addAll(validLinks);
 
             LogicalPlan logicalPlan = new ObjectMapper().treeToValue(logicalPlanNode, LogicalPlan.class);
             String resultID = UUID.randomUUID().toString();
 
+            ObjectNode result = logicalPlan.retrieveAllOperatorInputSchema();
+            for (JsonNode linkNode: linksEndWithInvalidDest) {
+                int origin = linkNode.get(PropertyNameConstants.ORIGIN_OPERATOR_ID).asInt();
+                int dest = linkNode.get(PropertyNameConstants.DESTINATION_OPERATOR_ID).asInt();
+
+                Schema schema = logicalPlan.getOperatorOutputSchema(Integer.toString(origin));
+                ObjectNode currentSchemaNode = new ObjectMapper().createObjectNode();
+                for (String attrName: schema.getAttributeNames()) {
+                    currentSchemaNode.set(attrName, JsonNodeFactory.instance.pojoNode(schema.getAttribute(attrName)));
+                }
+
+                result.set(Integer.toString(dest), currentSchemaNode);
+            }
+
             ObjectNode response = new ObjectMapper().createObjectNode();
             response.put("code", 0);
-            response.set("result", logicalPlan.retrieveAllOperatorInputSchema());
+            response.set("result", result);
             response.put("resultID", resultID);
             return response;
 
