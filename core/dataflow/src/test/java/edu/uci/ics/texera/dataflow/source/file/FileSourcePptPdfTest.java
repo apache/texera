@@ -65,7 +65,7 @@ public class FileSourcePptPdfTest {
     @Test
     public void extractDocsFile() throws Exception {
         String content = FileExtractorUtils.extractWordFile(wordPath);
-        Assert.assertEquals("Test Microsoft Word Documents", content);
+        Assert.assertEquals("Test Microsoft Word Documents", content.trim());
     }
 
     private static void createPDF(String path) throws Exception {

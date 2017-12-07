@@ -86,16 +86,14 @@ public class FileExtractorUtils {
         }
     }
     
+    /**
+     * Extract data from MS Word DOC/DOCX file to text
+     * 
+     * @param path
+     * @return
+     * @throws DataflowException
+     */
     public static String extractWordFile(Path path) throws DataflowException {
-//        try (FileInputStream inputStream = new FileInputStream(path.toString());
-//                XWPFDocument doc = new XWPFDocument(inputStream);
-//                XWPFWordExtractor extractor = new XWPFWordExtractor(doc)) {
-//            
-//            return extractor.getText();
-//        } catch (IOException e) {
-//            throw new DataflowException(e);
-//        }
-        
         try (FileInputStream inputStream = new FileInputStream(path.toString())) {
             BodyContentHandler handler = new BodyContentHandler();
             Metadata metadata = new Metadata();
