@@ -8,6 +8,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
 
 import edu.uci.ics.texera.api.dataflow.IOperator;
+import edu.uci.ics.texera.api.exception.TexeraException;
 import edu.uci.ics.texera.dataflow.common.PredicateBase;
 import edu.uci.ics.texera.dataflow.common.PropertyNameConstants;
 import edu.uci.ics.texera.dataflow.keywordmatcher.KeywordMatchingType;
@@ -42,6 +43,7 @@ public class DictionaryPredicate extends PredicateBase {
             KeywordMatchingType keywordMatchingType,
             @JsonProperty(value = PropertyNameConstants.SPAN_LIST_NAME, required = false)
             String spanListName) {
+        
         this.dictionary = dictionary;
         this.luceneAnalyzerStr = luceneAnalyzerStr;
         this.attributeNames = attributeNames;

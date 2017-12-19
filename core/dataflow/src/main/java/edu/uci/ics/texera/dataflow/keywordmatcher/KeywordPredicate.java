@@ -7,6 +7,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import edu.uci.ics.texera.api.dataflow.IOperator;
+import edu.uci.ics.texera.api.exception.TexeraException;
 import edu.uci.ics.texera.dataflow.common.PredicateBase;
 import edu.uci.ics.texera.storage.constants.LuceneAnalyzerConstants;
 import edu.uci.ics.texera.dataflow.common.PropertyNameConstants;
@@ -102,6 +103,10 @@ public class KeywordPredicate extends PredicateBase {
             KeywordMatchingType matchingType,
             @JsonProperty(value = PropertyNameConstants.SPAN_LIST_NAME, required = false)
             String spanListName) {
+        
+        if (query.trim().isEmpty()) {
+            throw new TexeraException("query should not be empty");
+        }
         
         this.query = query;
         this.attributeNames = Collections.unmodifiableList(attributeNames);
