@@ -3,6 +3,7 @@
  */
 package edu.uci.ics.texera.dataflow.aggregator;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -12,10 +13,12 @@ import org.junit.Test;
 
 import edu.uci.ics.texera.api.constants.test.TestConstants;
 import edu.uci.ics.texera.api.exception.TexeraException;
+import edu.uci.ics.texera.api.field.DateField;
 import edu.uci.ics.texera.api.field.DoubleField;
 import edu.uci.ics.texera.api.field.IField;
 import edu.uci.ics.texera.api.field.IntegerField;
 import edu.uci.ics.texera.api.field.StringField;
+import edu.uci.ics.texera.api.field.TextField;
 import edu.uci.ics.texera.api.schema.Attribute;
 import edu.uci.ics.texera.api.schema.AttributeType;
 import edu.uci.ics.texera.api.schema.Schema;
@@ -239,6 +242,165 @@ public class AggregatorTest
         
         IField[] row1 = {new DoubleField(5.50), new IntegerField(46)};
         Schema schema = new Schema(new Attribute(resultAttributeName1, AttributeType.DOUBLE), new Attribute(resultAttributeName2, AttributeType.INTEGER));
+        List<Tuple> expectedResults = new ArrayList<>();
+        expectedResults.add(new Tuple(schema, row1));
+        
+        List<Tuple> returnedResults = getQueryResults(aggEntitiesList);
+        Assert.assertEquals(1, returnedResults.size());
+        Assert.assertTrue(TestUtils.equals(expectedResults, returnedResults));
+    }
+    
+    //TEST 8: Find min in DOB and max in age column
+    @Test
+    public void testMinDOBMaxAgeAggregation() throws Exception
+    {
+        Attribute attribute1 = TestConstants.DATE_OF_BIRTH_ATTR;
+        String attributeName1 = attribute1.getName();
+        AggregationType aggType1 = AggregationType.MIN;
+        
+        Attribute attribute2 = TestConstants.AGE_ATTR;
+        String attributeName2 = attribute2.getName();
+        AggregationType aggType2 = AggregationType.MAX;
+        
+        String resultAttributeName1 = AggregatorTestConstants.MIN_DATE_RESULT_ATTR_NAME;
+        String resultAttributeName2 = AggregatorTestConstants.MAX_AGE_RESULT_ATTR_NAME;
+        
+        AggregationAttributeAndResult aggEntity1 = new AggregationAttributeAndResult(attributeName1, aggType1, resultAttributeName1);
+        AggregationAttributeAndResult aggEntity2 = new AggregationAttributeAndResult(attributeName2, aggType2, resultAttributeName2);
+        
+        List<AggregationAttributeAndResult> aggEntitiesList = new ArrayList<>();
+        aggEntitiesList.add(aggEntity1);
+        aggEntitiesList.add(aggEntity2);
+        
+        IField[] row1 = {new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-14-1970")), new IntegerField(46)};
+        Schema schema = new Schema(new Attribute(resultAttributeName1, AttributeType.DATE), new Attribute(resultAttributeName2, AttributeType.INTEGER));
+        List<Tuple> expectedResults = new ArrayList<>();
+        expectedResults.add(new Tuple(schema, row1));
+        
+        List<Tuple> returnedResults = getQueryResults(aggEntitiesList);
+        Assert.assertEquals(1, returnedResults.size());
+        Assert.assertTrue(TestUtils.equals(expectedResults, returnedResults));
+    }
+    
+    //TEST 9: Find max in DOB and min in Name (String) column
+    @Test
+    public void testMaxDOBMinNameAggregation() throws Exception
+    {
+        Attribute attribute1 = TestConstants.DATE_OF_BIRTH_ATTR;
+        String attributeName1 = attribute1.getName();
+        AggregationType aggType1 = AggregationType.MAX;
+        
+        Attribute attribute2 = TestConstants.FIRST_NAME_ATTR;
+        String attributeName2 = attribute2.getName();
+        AggregationType aggType2 = AggregationType.MIN;
+        
+        String resultAttributeName1 = AggregatorTestConstants.MAX_DATE_RESULT_ATTR_NAME;
+        String resultAttributeName2 = AggregatorTestConstants.MIN_FIRST_NAME_RESULT_ATTR_NAME;
+        
+        AggregationAttributeAndResult aggEntity1 = new AggregationAttributeAndResult(attributeName1, aggType1, resultAttributeName1);
+        AggregationAttributeAndResult aggEntity2 = new AggregationAttributeAndResult(attributeName2, aggType2, resultAttributeName2);
+        
+        List<AggregationAttributeAndResult> aggEntitiesList = new ArrayList<>();
+        aggEntitiesList.add(aggEntity1);
+        aggEntitiesList.add(aggEntity2);
+        
+        IField[] row1 = {new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974")), new StringField("Mary brown")};
+        Schema schema = new Schema(new Attribute(resultAttributeName1, AttributeType.DATE), new Attribute(resultAttributeName2, AttributeType.STRING));
+        List<Tuple> expectedResults = new ArrayList<>();
+        expectedResults.add(new Tuple(schema, row1));
+        
+        List<Tuple> returnedResults = getQueryResults(aggEntitiesList);
+        Assert.assertEquals(1, returnedResults.size());
+        Assert.assertTrue(TestUtils.equals(expectedResults, returnedResults));
+    }
+    
+    //TEST 10: Find max in DOB, min in Name (String) and max in Name (String) column
+    @Test
+    public void testMaxDOBMinNameMaxNameAggregation() throws Exception
+    {
+        Attribute attribute1 = TestConstants.DATE_OF_BIRTH_ATTR;
+        String attributeName1 = attribute1.getName();
+        AggregationType aggType1 = AggregationType.MAX;
+        
+        Attribute attribute2 = TestConstants.FIRST_NAME_ATTR;
+        String attributeName2 = attribute2.getName();
+        AggregationType aggType2 = AggregationType.MIN;
+        
+        Attribute attribute3 = TestConstants.FIRST_NAME_ATTR;
+        String attributeName3 = attribute2.getName();
+        AggregationType aggType3 = AggregationType.MAX;
+        
+        String resultAttributeName1 = AggregatorTestConstants.MAX_DATE_RESULT_ATTR_NAME;
+        String resultAttributeName2 = AggregatorTestConstants.MIN_FIRST_NAME_RESULT_ATTR_NAME;
+        String resultAttributeName3 = AggregatorTestConstants.MAX_FIRST_NAME_RESULT_ATTR_NAME;
+        
+        AggregationAttributeAndResult aggEntity1 = new AggregationAttributeAndResult(attributeName1, aggType1, resultAttributeName1);
+        AggregationAttributeAndResult aggEntity2 = new AggregationAttributeAndResult(attributeName2, aggType2, resultAttributeName2);
+        AggregationAttributeAndResult aggEntity3 = new AggregationAttributeAndResult(attributeName3, aggType3, resultAttributeName3);
+        
+        List<AggregationAttributeAndResult> aggEntitiesList = new ArrayList<>();
+        aggEntitiesList.add(aggEntity1);
+        aggEntitiesList.add(aggEntity2);
+        aggEntitiesList.add(aggEntity3);
+        
+        IField[] row1 = {new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974")), new StringField("Mary brown"), new StringField("tom hanks")};
+        Schema schema = new Schema(new Attribute(resultAttributeName1, AttributeType.DATE), new Attribute(resultAttributeName2, AttributeType.STRING), new Attribute(resultAttributeName3, AttributeType.STRING));
+        List<Tuple> expectedResults = new ArrayList<>();
+        expectedResults.add(new Tuple(schema, row1));
+        
+        List<Tuple> returnedResults = getQueryResults(aggEntitiesList);
+        Assert.assertEquals(1, returnedResults.size());
+        Assert.assertTrue(TestUtils.equals(expectedResults, returnedResults));
+    }
+    
+    //TEST 11: Find max in DOB and min in Description (String) column
+    @Test
+    public void testMaxDOBMinDescriptionAggregation() throws Exception
+    {
+        Attribute attribute1 = TestConstants.DATE_OF_BIRTH_ATTR;
+        String attributeName1 = attribute1.getName();
+        AggregationType aggType1 = AggregationType.MAX;
+        
+        Attribute attribute2 = TestConstants.DESCRIPTION_ATTR;
+        String attributeName2 = attribute2.getName();
+        AggregationType aggType2 = AggregationType.MIN;
+        
+        String resultAttributeName1 = AggregatorTestConstants.MAX_DATE_RESULT_ATTR_NAME;
+        String resultAttributeName2 = AggregatorTestConstants.MIN_DESCRIPTION_RESULT_ATTR_NAME;
+        
+        AggregationAttributeAndResult aggEntity1 = new AggregationAttributeAndResult(attributeName1, aggType1, resultAttributeName1);
+        AggregationAttributeAndResult aggEntity2 = new AggregationAttributeAndResult(attributeName2, aggType2, resultAttributeName2);
+        
+        List<AggregationAttributeAndResult> aggEntitiesList = new ArrayList<>();
+        aggEntitiesList.add(aggEntity1);
+        aggEntitiesList.add(aggEntity2);
+        
+        IField[] row1 = {new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974")), new TextField("Lin Clooney is Short and lin clooney is Angry")};
+        Schema schema = new Schema(new Attribute(resultAttributeName1, AttributeType.DATE), new Attribute(resultAttributeName2, AttributeType.TEXT));
+        List<Tuple> expectedResults = new ArrayList<>();
+        expectedResults.add(new Tuple(schema, row1));
+        
+        List<Tuple> returnedResults = getQueryResults(aggEntitiesList);
+        Assert.assertEquals(1, returnedResults.size());
+        Assert.assertTrue(TestUtils.equals(expectedResults, returnedResults));
+    }
+    
+    //TEST 12: Find max in DOB column 
+    @Test
+    public void testMinDateAggregation() throws Exception
+    {
+        Attribute attribute1 = TestConstants.DATE_OF_BIRTH_ATTR;
+        String attributeName1 = attribute1.getName();
+        AggregationType aggType1 = AggregationType.MAX;
+        String resultAttributeName = AggregatorTestConstants.MAX_DATE_RESULT_ATTR_NAME;
+        
+        AggregationAttributeAndResult aggEntity = new AggregationAttributeAndResult(attributeName1, aggType1, resultAttributeName);
+        
+        List<AggregationAttributeAndResult> aggEntitiesList = new ArrayList<>();
+        aggEntitiesList.add(aggEntity);
+        
+        IField[] row1 = {new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974"))};
+        Schema schema = new Schema(new Attribute(resultAttributeName, AttributeType.DATE));
         List<Tuple> expectedResults = new ArrayList<>();
         expectedResults.add(new Tuple(schema, row1));
         

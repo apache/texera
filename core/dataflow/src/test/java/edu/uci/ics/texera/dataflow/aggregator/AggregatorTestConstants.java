@@ -20,4 +20,14 @@ public class AggregatorTestConstants
     public static final String SUM_HEIGHT_RESULT_ATTR_NAME = "Sum_Height";
     
     public static final String MAX_AGE_RESULT_ATTR_NAME = "Max_Age";
+    
+    public static final String MIN_DATE_RESULT_ATTR_NAME = "Min_DOB";
+    
+    public static final String MAX_DATE_RESULT_ATTR_NAME = "Max_DOB";
+    
+    public static final String MIN_FIRST_NAME_RESULT_ATTR_NAME = "Min_FirstName";
+    
+    public static final String MAX_FIRST_NAME_RESULT_ATTR_NAME = "Max_FirstName";
+    
+    public static final String MIN_DESCRIPTION_RESULT_ATTR_NAME = "Min_Desc";
 }
