@@ -8,6 +8,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableMap;
 
+import edu.uci.ics.texera.api.exception.TexeraException;
 import edu.uci.ics.texera.dataflow.common.PredicateBase;
 import edu.uci.ics.texera.dataflow.common.PropertyNameConstants;
 
@@ -25,6 +26,11 @@ public class NlpEntityPredicate extends PredicateBase {
             List<String> attributeNames,
             @JsonProperty(value = PropertyNameConstants.RESULT_ATTRIBUTE_NAME, required = true)
             String resultAttribute) {
+        
+        if (attributeNames.isEmpty()) {
+            throw new TexeraException("attributes should not be empty");
+        }
+        
         this.nlpEntityType = nlpEntityType;
         this.attributeNames = attributeNames;
         if (resultAttribute == null || resultAttribute.trim().isEmpty()) {

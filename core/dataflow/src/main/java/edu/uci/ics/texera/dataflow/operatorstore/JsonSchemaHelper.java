@@ -27,6 +27,7 @@ import edu.uci.ics.texera.api.exception.TexeraException;
 import edu.uci.ics.texera.api.utils.Utils;
 import edu.uci.ics.texera.dataflow.annotation.AdvancedOption;
 import edu.uci.ics.texera.dataflow.common.PredicateBase;
+import edu.uci.ics.texera.dataflow.comparablematcher.ComparablePredicate;
 import edu.uci.ics.texera.dataflow.plangen.OperatorArityConstants;
 
 @SuppressWarnings("unchecked")
@@ -52,7 +53,8 @@ public class JsonSchemaHelper {
     }
     
     public static void main(String[] args) throws Exception {
-        generateAllOperatorSchema();
+//        generateAllOperatorSchema();
+        generateJsonSchema(ComparablePredicate.class);
     }
     
     public static void generateAllOperatorSchema() throws Exception {

@@ -76,6 +76,11 @@ public class PredicateBaseTest {
      * @throws Exception
      */
     public static void testJsonSchema(PredicateBase predicate) throws Exception {
+        // if the operator is not exported, skip the test
+        if (! JsonSchemaHelper.operatorTypeMap.containsKey(predicate.getClass())) {
+            return;
+        }
+        
         // read the json schema of the predicate class
         Path predicateJsonSchemaPath = JsonSchemaHelper.getJsonSchemaPath(predicate.getClass());
         ObjectMapper objectMapper = DataConstants.defaultObjectMapper;
