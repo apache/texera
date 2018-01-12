@@ -115,9 +115,7 @@ public class QueryPlanResource {
      * @param logicalPlanJson, the json representation of the logical plan
      * @return - Generic TexeraWebResponse object
      */
-    @POST
-    @Path("/autoExecute")
-    /* EG of using /autoExecute end point (how this inline update method works):
+    /* EG of using /autocomplete end point (how this inline update method works):
 
     1. At the beginning of creating a graph, (for example) when a scan source and a keyword search
         operators are initailized (dragged in the flow-chart) but unlinked, the graph looks like this:
@@ -231,6 +229,8 @@ public class QueryPlanResource {
         are name and payload. The options from "plan" are all gone.
 
     */
+    @POST
+    @Path("/autocomplete")
     public JsonNode executeAutoQueryPlan(String logicalPlanJson) {
         try {
             JsonNode logicalPlanNode = new ObjectMapper().readTree(logicalPlanJson);

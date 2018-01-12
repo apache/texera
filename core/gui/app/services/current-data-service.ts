@@ -15,7 +15,7 @@ declare var jQuery: any;
 
 const apiUrl = "http://localhost:8080/api";
 const texeraRunUrl = apiUrl + "/queryplan/execute";
-const texeraAutoRunUrl = apiUrl + "/queryplan/autoExecute";
+const texeraAutoRunUrl = apiUrl + "/queryplan/autocomplete";
 const metadataUrl = apiUrl + "/resources/metadata";
 const uploadDictionaryUrl = apiUrl + "/upload/dictionary";
 const getDictionariesUrl = apiUrl + "/resources/dictionaries";
