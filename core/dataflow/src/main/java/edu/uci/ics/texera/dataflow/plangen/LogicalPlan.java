@@ -114,7 +114,7 @@ public class LogicalPlan {
      * @param operatorID, the ID of an operator
      * @return Schema, which includes the attributes setting of the operator
      */
-    public Schema getOperatorOutputSchema(String operatorID) throws PlanGenException {
+    public Schema getOperatorOutputSchema(String operatorID) throws PlanGenException, DataflowException {
 
         if (UPDATED) {
             buildOperators();
@@ -127,15 +127,9 @@ public class LogicalPlan {
         Schema operatorSchema = new Schema();
         // Use try statement here in case the currentOperator is not
         // an instance of AbstractSingleInputOperator
-        try {
-            currentOperator.open();
-            operatorSchema = currentOperator.getOutputSchema();
-            currentOperator.close();
-        } catch(DataflowException e) {
-            if (!e.getMessage().equals(ErrorMessages.INPUT_OPERATOR_NOT_SPECIFIED)) {
-                throw e;
-            }
-        }
+        currentOperator.open();
+        operatorSchema = currentOperator.getOutputSchema();
+        currentOperator.close();
 
         return operatorSchema;
     }
@@ -144,19 +138,28 @@ public class LogicalPlan {
         ObjectNode inputSchemas = new ObjectMapper().createObjectNode();
 
         for (String operatorID: operatorPredicateMap.keySet()) {
-            Schema currentSchema = getOperatorOutputSchema(operatorID);
-
-            ObjectNode currentSchemaNode = new ObjectMapper().createObjectNode();
-            for (String attrName: currentSchema.getAttributeNames()) {
-                currentSchemaNode.set(attrName, JsonNodeFactory.instance.pojoNode(currentSchema.getAttribute(attrName)));
+            Schema currentSchema = null;
+            try {
+                currentSchema = getOperatorOutputSchema(operatorID);
+            } catch(DataflowException e) {
+                if (!e.getMessage().equals(ErrorMessages.INPUT_OPERATOR_NOT_SPECIFIED)) {
+                    throw e;
+                }
             }
 
-            for (String adjacentOperatorID: adjacencyList.get(operatorID)) {
-                PredicateBase adjacentPredicate = operatorPredicateMap.get(adjacentOperatorID);
-                if (adjacentPredicate instanceof IJoinPredicate) {
-                    continue;
+            if (currentSchema != null) {
+                ObjectNode currentSchemaNode = new ObjectMapper().createObjectNode();
+                for (String attrName : currentSchema.getAttributeNames()) {
+                    currentSchemaNode.set(attrName, JsonNodeFactory.instance.pojoNode(currentSchema.getAttribute(attrName)));
                 }
-                inputSchemas.set(adjacentOperatorID, currentSchemaNode);
+
+                for (String adjacentOperatorID : adjacencyList.get(operatorID)) {
+                    PredicateBase adjacentPredicate = operatorPredicateMap.get(adjacentOperatorID);
+                    if (adjacentPredicate instanceof IJoinPredicate) {
+                        continue;
+                    }
+                    inputSchemas.set(adjacentOperatorID, currentSchemaNode);
+                }
             }
         }
         return inputSchemas;

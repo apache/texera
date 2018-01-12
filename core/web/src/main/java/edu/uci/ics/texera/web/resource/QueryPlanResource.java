@@ -241,21 +241,21 @@ public class QueryPlanResource {
             ArrayNode validLinks = new ObjectMapper().createArrayNode();
             ArrayNode linksEndWithInvalidDest = new ObjectMapper().createArrayNode();
 
-            Set<Integer> validOperatorsId = new HashSet<>();
+            Set<String> validOperatorsId = new HashSet<>();
 
             for (JsonNode operatorNode: operators) {
                 try {
                     new ObjectMapper().treeToValue(operatorNode, PredicateBase.class);
                     validOperators.add(operatorNode);
-                    validOperatorsId.add(operatorNode.get(PropertyNameConstants.OPERATOR_ID).asInt());
+                    validOperatorsId.add(operatorNode.get(PropertyNameConstants.OPERATOR_ID).textValue());
                 } catch (JsonMappingException e) {
                     System.out.println(e);
                 }
             }
 
             for (JsonNode linkNode: links) {
-                int origin = linkNode.get(PropertyNameConstants.ORIGIN_OPERATOR_ID).asInt();
-                int dest = linkNode.get(PropertyNameConstants.DESTINATION_OPERATOR_ID).asInt();
+                String origin = linkNode.get(PropertyNameConstants.ORIGIN_OPERATOR_ID).textValue();
+                String dest = linkNode.get(PropertyNameConstants.DESTINATION_OPERATOR_ID).textValue();
 
                 if (validOperatorsId.contains(origin) && validOperatorsId.contains(dest)) {
                     validLinks.add(linkNode);
@@ -272,16 +272,17 @@ public class QueryPlanResource {
 
             ObjectNode result = logicalPlan.retrieveAllOperatorInputSchema();
             for (JsonNode linkNode: linksEndWithInvalidDest) {
-                int origin = linkNode.get(PropertyNameConstants.ORIGIN_OPERATOR_ID).asInt();
-                int dest = linkNode.get(PropertyNameConstants.DESTINATION_OPERATOR_ID).asInt();
+                String origin = linkNode.get(PropertyNameConstants.ORIGIN_OPERATOR_ID).textValue();
+                String dest = linkNode.get(PropertyNameConstants.DESTINATION_OPERATOR_ID).textValue();
 
-                Schema schema = logicalPlan.getOperatorOutputSchema(Integer.toString(origin));
+                System.out.println(origin + " " + dest);
+                Schema schema = logicalPlan.getOperatorOutputSchema(origin);
                 ObjectNode currentSchemaNode = new ObjectMapper().createObjectNode();
                 for (String attrName: schema.getAttributeNames()) {
                     currentSchemaNode.set(attrName, JsonNodeFactory.instance.pojoNode(schema.getAttribute(attrName)));
                 }
 
-                result.set(Integer.toString(dest), currentSchemaNode);
+                result.set(dest, currentSchemaNode);
             }
 
             ObjectNode response = new ObjectMapper().createObjectNode();
