@@ -76,7 +76,7 @@
                 <div *ngIf="attribute === 'attribute'">
                     <select class="form-control" name="{{attribute}}+Selector" [(ngModel)]="selectedAttributeSingle" (ngModelChange)="attributeAdded('single')">
                         <option selected hidden value="">Select attributes</option>
-                        <option *ngFor="let attribute of attributeItems" [value] = "attribute">{{attribute}}</option>
+                        <option *ngFor="let attribute of inputSchema.get(operatorId.toString())" [value] = "attribute">{{attribute}}</option>
                     </select>
                     <input class="form-control" id="{{attribute}}" placeholder="Enter attributes" [(ngModel)]="data.properties.attributes[attribute]" (ngModelChange)="onFormChange(attribute)" name="{{attribute}}" #{{attribute}}="ngModel">
                 </div>
