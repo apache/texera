@@ -95,7 +95,7 @@ public class EmojiSentimentOperator implements IOperator {
         Schema inputSchema = inputOperator.getOutputSchema();
 
         // check if input schema is present
-        if (! inputSchema.containsAttribute(predicate.getInputAttributeName())) {
+        if (!predicate.getInputAttributeName().trim().isEmpty() && !inputSchema.containsAttribute(predicate.getInputAttributeName())) {
             throw new TexeraException(String.format(
                     "input attribute %s is not in the input schema %s",
                     predicate.getInputAttributeName(),

@@ -75,7 +75,11 @@ export class CurrentDataService {
                 console.log("ID " + sourceOperatorId);
                 var toOperatorId = data.links[link].toOperator;
                 var data_now = jQuery("#the-flowchart").flowchart("getOperatorData",toOperatorId);
-                data_now.properties.attributes.attributes = [];
+                if ('attributes' in data_now.properties.attributes) {
+                    data_now.properties.attributes.attributes = [];
+                } else if ('attribute' in data_now.properties.attributes) {
+                    data_now.properties.attributes.attribute = "";
+                }
                 jQuery("#the-flowchart").flowchart("setOperatorData",toOperatorId, data_now);
             }
         }
@@ -86,7 +90,11 @@ export class CurrentDataService {
         var data = jQuery("#the-flowchart").flowchart("getData");
         var toOperatorId = data.links[linkId].toOperator;
         var data_now = jQuery("#the-flowchart").flowchart("getOperatorData",toOperatorId);
-        data_now.properties.attributes.attributes = [];
+        if ('attributes' in data_now.properties.attributes) {
+            data_now.properties.attributes.attributes = [];
+        } else if ('attribute' in data_now.properties.attributes) {
+            data_now.properties.attributes.attribute = "";
+        }
         jQuery("#the-flowchart").flowchart("setOperatorData",toOperatorId, data_now);
     }
 
@@ -237,6 +245,7 @@ export class CurrentDataService {
                     }
                 },
                 err => {
+                    console.log(err.json());
                     this.checkPressed.next(err.json());
                 }
             );
