@@ -56,6 +56,7 @@ export class SideBarComponent {
     selectedAttributeMulti:string = "";
     selectedAttributeSingle:string = "";
     metadataList:Array<TableMetadata> = [];
+    inputSchema:Map<string, Array<string>> = new Map();
 
     dictionaryNames: Array<string> = [];
     dictionaryContent: Array<string> = [];
@@ -65,6 +66,8 @@ export class SideBarComponent {
     locationString:string = "";
 
     optionalTwitterList: Array<string> = ["customerKey","customerSecret","token","tokenSecret"];
+
+    manualAddTimer: any;
 
     checkInHidden(name: string) {
       if (this.advancedPressed){
@@ -167,6 +170,22 @@ export class SideBarComponent {
             }
         );
 
+        currentDataService.inputSchemaContent$.subscribe(
+            data => {
+                console.log(data);
+                this.inputSchema = new Map();
+                for (var operator in data) {
+                    let currentOperatorAttributes = [];
+                    for (var attribute in data[operator]) {
+                        if (!attribute.startsWith("_")) {
+                            currentOperatorAttributes.push(attribute);
+                        }
+                    }
+                    this.inputSchema.set(operator, currentOperatorAttributes);
+                }
+            }
+        );
+
     }
 
     humanize(name: string): string {
@@ -197,15 +216,20 @@ export class SideBarComponent {
     }
 
     manuallyAdded (event:string) {
-        if (event.length === 0) {
-            // removed all attributes
-            this.selectedAttributesList = [];
-        } else {
-            this.selectedAttributesList = event.split(",");
+        if (this.manualAddTimer != null){
+            clearTimeout(this.manualAddTimer);
         }
+        this.manualAddTimer = setTimeout(()=>{ // Set a time delay on the manual input
+            if (event.length === 0) {
+                // removed all attributes
+                this.selectedAttributesList = [];
+            } else {
+                this.selectedAttributesList = event.split(",");
+            }
 
-        this.data.properties.attributes.attributes = this.selectedAttributesList;
-        this.onFormChange("attributes");
+            this.data.properties.attributes.attributes = this.selectedAttributesList;
+            this.onFormChange("attributes");
+        }, 3000);
     }
 
     getAttributesForTable (event:string) {
@@ -234,13 +258,18 @@ export class SideBarComponent {
     }
 
     dictionaryManuallyAdded(event: string) {
-        if (event.length === 0) {
-            this.dictionaryContent = [];
-        } else {
-            this.dictionaryContent = event.split(",");
+        if (this.manualAddTimer != null){
+            clearTimeout(this.manualAddTimer);
         }
-        this.data.properties.attributes.dictionaryEntries = this.dictionaryContent;
-        this.onFormChange("dictionary");
+        this.manualAddTimer = setTimeout(()=> { // Set a time delay on the manual input
+            if (event.length === 0) {
+                this.dictionaryContent = [];
+            } else {
+                this.dictionaryContent = event.split(",");
+            }
+            this.data.properties.attributes.dictionaryEntries = this.dictionaryContent;
+            this.onFormChange("dictionary");
+        }, 3000);
     }
 
   onFormChange (attribute: string) {
@@ -271,27 +300,37 @@ export class SideBarComponent {
 
 
     twitterQueryManuallyAdded(event: string) {
-        if (event.length === 0) {
-            this.twitterQuery = [];
-        } else {
-            this.twitterQuery = event.split(",");
+        if (this.manualAddTimer != null){
+            clearTimeout(this.manualAddTimer);
         }
-        this.data.properties.attributes.keywordList = this.twitterQuery;
-        this.onFormChange("keywordList");
+        this.manualAddTimer = setTimeout(()=> { // Set a time delay on the manual input
+            if (event.length === 0) {
+                this.twitterQuery = [];
+            } else {
+                this.twitterQuery = event.split(",");
+            }
+            this.data.properties.attributes.keywordList = this.twitterQuery;
+            this.onFormChange("keywordList");
+        }, 3000);
     }
 
     twitterLanguageManuallyAdded(shortenFormLanguage: string){
-      var languageCheckBox = jQuery("#" + shortenFormLanguage);
-      if (languageCheckBox[0].checked){
-        this.twitterLanguage.push(shortenFormLanguage);
-      } else {
-        var index = this.twitterLanguage.indexOf(shortenFormLanguage);
-          // remove 1 element starting from that index
-        this.twitterLanguage.splice(index, 1);
-      }
-      console.log(this.twitterLanguage);
-      this.data.properties.attributes.languageList = this.twitterLanguage;
-      this.onFormChange("languageList");
+        if (this.manualAddTimer != null){
+            clearTimeout(this.manualAddTimer);
+        }
+        this.manualAddTimer = setTimeout(()=> { // Set a time delay on the manual input
+            var languageCheckBox = jQuery("#" + shortenFormLanguage);
+            if (languageCheckBox[0].checked) {
+                this.twitterLanguage.push(shortenFormLanguage);
+            } else {
+                var index = this.twitterLanguage.indexOf(shortenFormLanguage);
+                // remove 1 element starting from that index
+                this.twitterLanguage.splice(index, 1);
+            }
+            console.log(this.twitterLanguage);
+            this.data.properties.attributes.languageList = this.twitterLanguage;
+            this.onFormChange("languageList");
+        }, 3000);
     }
 
     languageTextClicked(language: string){
@@ -308,4 +347,16 @@ export class SideBarComponent {
       this.twitterLanguageManuallyAdded(shortenFormLanguage);
     }
 
+    onInputChange(attribute: string){
+        if (this.manualAddTimer != null){
+            clearTimeout(this.manualAddTimer);
+        }
+        this.manualAddTimer = setTimeout(()=> { // Set a time delay on the onFormChange action
+            var currentData = jQuery("#the-flowchart").flowchart("getOperatorData", this.operatorId);
+            // update the position of the operator if it is moved before the value is changed
+            this.data.left = currentData.left;
+            this.data.top = currentData.top;
+            jQuery("#the-flowchart").flowchart("setOperatorData", this.operatorId, this.data);
+        }, 1000);
+    }
 }

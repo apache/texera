@@ -5,6 +5,7 @@ import java.util.List;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import edu.uci.ics.texera.api.dataflow.IOperator;
+import edu.uci.ics.texera.api.exception.PlanGenException;
 import edu.uci.ics.texera.dataflow.common.PropertyNameConstants;
 
 public class FuzzyTokenSourcePredicate extends FuzzyTokenPredicate {
@@ -25,6 +26,10 @@ public class FuzzyTokenSourcePredicate extends FuzzyTokenPredicate {
             @JsonProperty(value = PropertyNameConstants.SPAN_LIST_NAME, required = true)
             String spanListName) {
         super(query, attributeNames, luceneAnalyzerStr, thresholdRatio, spanListName);
+
+        if (tableName == null || tableName.isEmpty()) {
+            throw new PlanGenException(PropertyNameConstants.EMPTY_NAME_EXCEPTION);
+        }
         this.tableName = tableName;
     }
     
