@@ -25,6 +25,14 @@ public class TupleSinkPredicate extends PredicateBase {
             @JsonProperty(value = PropertyNameConstants.OFFSET, required = false)
             Integer offset
             ) {
+        
+        if (limit != null && limit < 0) {
+            throw new TexeraException("limit must be greater than 0");
+        }
+        if (offset != null && offset < 0) {
+            throw new TexeraException("offset must be greater than 0");
+        }
+        
         this.limit = limit;
         if (this.limit == null) {
             this.limit = Integer.MAX_VALUE;

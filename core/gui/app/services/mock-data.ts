@@ -23,7 +23,7 @@ let keywordMatcher = {
             "matchingType": "phrase",
             "spanListName": " "
         },
-        image : '../thirdparty/images/keywordSearch.png',
+        image : 'thirdparty/images/keywordSearch.png',
         color : '#80bfff',
         description: "Search the documents using a keyword",
     }
@@ -51,7 +51,7 @@ let regexMatcher = {
         "regexIgnoreCase": false,
         "spanListName": " "
     },
-    image : '../thirdparty/images/regexMatch.png',
+    image : 'thirdparty/images/regexMatch.png',
     color : '#66b3ff',
     description: "Search the documents using a regular expression"
   }
@@ -80,7 +80,7 @@ let dictionaryMatcher = {
         "matchingType": "phrase",
         "spanListName": " "
     },
-    image : '../thirdparty/images/dictionarySearch.png',
+    image : 'thirdparty/images/dictionarySearch.png',
     color : '#66b3ff',
     description: "Search the documents using a dictionary (multiple keywords)",
   }
@@ -109,7 +109,7 @@ let fuzzyMatcher = {
         "thresholdRatio": 0.8,
         "spanListName": " ",
     },
-    image : '../thirdparty/images/fuzzy.png',
+    image : 'thirdparty/images/fuzzy.png',
     color : '#66b3ff',
     description: "Search the documents according to the similarity of given tokens",
   }
@@ -136,7 +136,7 @@ let nlpEntity = {
         "nlpEntityType": "location",
         "spanListName": " "
     },
-    image : '../thirdparty/images/entityRecognition.png',
+    image : 'thirdparty/images/entityRecognition.png',
     color : '#85e085',
     description: "Recognize entities in the text (person, location, date, ..)",
   }
@@ -162,7 +162,7 @@ let nlpSentiment = {
         "attribute": "",
         "resultAttribute": "resultAttr"
     },
-    image : '../thirdparty/images/sentimentAnalysis.png',
+    image : 'thirdparty/images/sentimentAnalysis.png',
     color : '#85e085',
     description: "Sentiment analysis based on Stanford NLP package",
   }
@@ -188,7 +188,7 @@ let emojiSentiment = {
         "attribute": "",
         "resultAttribute": "resultAttr"
     },
-    image : '../thirdparty/images/emojiAnalysis.png',
+    image : 'thirdparty/images/emojiAnalysis.png',
     color : '#85e085',
     description: "Sentiment analysis with the emojis in consideration",
   }
@@ -216,7 +216,7 @@ let nltkSentiment = {
         "batchSize": "1000",
         "inputAttributeModel": "NltkSentiment.pickle"
     },
-    image : "../thirdparty/images/nltk.jpg",
+    image : "thirdparty/images/nltk.jpg",
     color : '#85e085',
     description: "Sentiment analysis based on Python's NLTK package",
   }
@@ -245,7 +245,7 @@ let regexSplit = {
         "splitType": "standalone",
         "splitOption": "oneToMany"
     },
-    image : '../thirdparty/images/regex.png',
+    image : 'thirdparty/images/regex.png',
     color : '#e6e600',
     description: "Split the text into multiple segments based on a regular expression",
   }
@@ -272,7 +272,7 @@ let nlpSplit = {
         "resultAttribute": "splitText",
         "splitOption": "oneToMany",
     },
-    image : '../thirdparty/images/sentencesplit.png',
+    image : 'thirdparty/images/sentencesplit.png',
     color : '#e6e600',
     description: "Automatically split the text into multiple sentences using Natural Language Processing ",
   }
@@ -298,7 +298,7 @@ let sampler = {
         "sampleSize": 10,
         "sampleType": "firstk"
     },
-    image : '../thirdparty/images/sampling.png',
+    image : 'thirdparty/images/sampling.png',
     color : '#ffdb4d',
     description: "Sample a subset of data from all the documents",
   }
@@ -323,7 +323,7 @@ let projection = {
         "operatorType": "Projection",
         "attributes": []
     },
-    image : '../thirdparty/images/projection.png',
+    image : 'thirdparty/images/projection.png',
     color : '#ffdb4d',
     description: "Select a subset of columns",
   }
@@ -354,7 +354,7 @@ let asterixSource = {
         "query": "drug",
         "limit": 100000,
     },
-    image : '../thirdparty/images/asterixSource.png',
+    image : 'thirdparty/images/asterixSource.png',
     color : '#cc99ff',
     description: "Connect to an AsterixDB instance",
   }
@@ -380,7 +380,7 @@ let fileSource = {
         "filePath": "",
         "resultAttribute": "",
     },
-    image : '../thirdparty/images/fileSource.png',
+    image : 'thirdparty/images/fileSource.png',
     color : '#cc99ff',
     description: "Read the content of one file or multiple files.",
   }
@@ -405,7 +405,7 @@ let scanSource = {
         "operatorType": "ScanSource",
         "tableName": ""
     },
-    image : '../thirdparty/images/scan.png',
+    image : 'thirdparty/images/scan.png',
     color : '#cc99ff',
     description: "Read records from a table one by one",
   }
@@ -437,7 +437,7 @@ let scanSource = {
              "tokenSecret": "",
              "languageList": ["en"]
          },
-         image: '../thirdparty/images/twitterFeed.png',
+         image: 'thirdparty/images/twitterFeed.png',
          color: '#cc99ff',
          description: "Obtain real-time tweets using Twitter API",
      }
@@ -467,7 +467,7 @@ let keywordSource = {
         "matchingType": "phrase",
         "spanListName": " "
     },
-    image : '../thirdparty/images/keywordSource.png',
+    image : 'thirdparty/images/keywordSource.png',
     color : '#cc99ff',
     description: "Perform an index-based search on a table using a keyword",
   }
@@ -498,7 +498,7 @@ let dictionarySource = {
         "matchingType": "phrase",
         "spanListName": " "
     },
-    image : '../thirdparty/images/dictionary.png',
+    image : 'thirdparty/images/dictionary.png',
     color : '#cc99ff',
     description: "Perform an index-based search on a table using a dictionary",
 
@@ -529,7 +529,7 @@ let regexSource = {
         "regexUseIndex": true,
         "spanListName": " "
     },
-    image : '../thirdparty/images/regex.png',
+    image : 'thirdparty/images/regex.png',
     color : '#cc99ff',
     description: "Perform an index-based search on a table using a regular expression",
   }
@@ -559,7 +559,7 @@ let fuzzyTokenSource = {
         "thresholdRatio": 0.8,
         "spanListName": " ",
     },
-    image : '../thirdparty/images/fuzzySource.png',
+    image : 'thirdparty/images/fuzzySource.png',
     color : '#cc99ff',
     description: "Perform an index-based search on a table for records similar to given tokens",
   }
@@ -585,7 +585,7 @@ let wordCountSource = {
         "tableName": "",
         "attribute": "",
     },
-    image : '../thirdparty/images/countSource.svg',
+    image : 'thirdparty/images/countSource.svg',
     color : '#cc99ff',
     description: "Count the frequency of for each word using index",
   }
@@ -611,7 +611,7 @@ let wordCount = {
         "attribute": "",
 	      "luceneAnalyzer": "standard",
     },
-    image : '../thirdparty/images/counting.png',
+    image : 'thirdparty/images/counting.png',
     color : '#ffdb4d',
     description: "Count the frequency of each word in all the documents",
   }
@@ -635,7 +635,7 @@ let twitterConverter = {
     attributes : {
         "operatorType": "TwitterConverter"
     },
-    image : '../thirdparty/images/twitterConverer.png',
+    image : 'thirdparty/images/twitterConverer.png',
     color : '#ffdb4d',
     description: "Convert the raw twitter data to readable records",
   }
@@ -662,7 +662,7 @@ let comparison = {
         "comparisonType": "=",
 	      "compareTo": "",
     },
-    image : '../thirdparty/images/compare.png',
+    image : 'thirdparty/images/compare.png',
     color : '#ffdb4d',
     description: "Select data based on a condition (>, <, =, ..)",
   }
@@ -692,7 +692,7 @@ let characterDistanceJoin = {
         "outerAttribute": "attr1",
         "spanDistance": 100
     },
-    image : '../thirdparty/images/characterjoin.png',
+    image : 'thirdparty/images/characterjoin.png',
     color : '#ffa366',
     description: "Join two tables based on the character distance of two attributes",
   }
@@ -722,7 +722,7 @@ let similarityJoin = {
         "outerAttribute": "attr1",
         "similarityThreshold": 0.8
     },
-    image : '../thirdparty/images/similarityjoin.png',
+    image : 'thirdparty/images/similarityjoin.png',
     color : '#ffa366',
     description: "Join two tables based on the string similarity of two tuples",
   }
@@ -748,7 +748,7 @@ let result = {
         "limit": 10,
         "offset": 0,
     },
-    image : '../thirdparty/images/view-result.png',
+    image : 'thirdparty/images/view-result.png',
     color : '#d2a679',
     description: "View the results of the workflow",
   }
@@ -778,7 +778,7 @@ let mysqlSink = {
         "username": "test",
         "password": "test"
     },
-    image : '../thirdparty/images/sql.jpg',
+    image : 'thirdparty/images/sql.jpg',
     color : '#ff8080',
     description: "Write the results to a mysql database",
   }
