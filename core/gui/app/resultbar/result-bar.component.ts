@@ -67,10 +67,7 @@ export class ResultBarComponent {
         this.result = [];
         this.checkErrorOrDetail = 1;
         // check if the result is valid
-        if (data.code == -1) {
-          //Json Mapping Exception would not be handled for auto plan
-        }else if (data.code === 0) {
-          console.log(data.result);
+        if (data.code === 0) {
           var ResultDisplay = (data.result.length < 20) ? data.result.length : this.ResultDisplayLimit;
           for (var i = 0; i < ResultDisplay; ++i) {
             this.result.push(data.result[i]);

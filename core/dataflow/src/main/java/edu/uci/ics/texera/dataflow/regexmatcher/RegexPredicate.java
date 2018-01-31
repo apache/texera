@@ -53,7 +53,7 @@ public class RegexPredicate extends PredicateBase {
             String spanListName) {
         
         if (regex.trim().isEmpty()) {
-            throw new TexeraException(PropertyNameConstants.EMPTY_REGEX_EXCEPTION);
+            throw new TexeraException("regex should not be empty");
         }
         
         this.regex = regex;

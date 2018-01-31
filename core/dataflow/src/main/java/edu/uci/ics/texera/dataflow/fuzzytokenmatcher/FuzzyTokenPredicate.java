@@ -45,10 +45,10 @@ public class FuzzyTokenPredicate extends PredicateBase {
             String spanListName) {
         
         if (query.trim().isEmpty()) {
-            throw new TexeraException(PropertyNameConstants.EMPTY_QUERY_EXCEPTION);
+            throw new TexeraException("query should not be empty");
         }
         if (thresholdRatio < 0.0 || thresholdRatio > 1.0) {
-            throw new TexeraException(PropertyNameConstants.INVALID_THRESHOLD_EXCEPTION);
+            throw new TexeraException("threshold ratio should be between 0.0 and 1.0");
         }
         
         this.query = query;
