@@ -3,7 +3,6 @@ package edu.uci.ics.texera.dataflow.nlp.sentiment;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import edu.uci.ics.texera.api.exception.TexeraException;
 import edu.uci.ics.texera.dataflow.common.PredicateBase;
 import edu.uci.ics.texera.dataflow.common.PropertyNameConstants;
 
@@ -24,12 +23,6 @@ public class NltkSentimentOperatorPredicate extends PredicateBase {
             int batchSize,
             @JsonProperty(value = PropertyNameConstants.NLP_NLTK_MODEL, required = true)
             String inputAttributeModel) {
-        if (inputAttributeName.trim().isEmpty()) {
-            throw new TexeraException("Input Attribute Name Cannot Be Empty");
-        }
-        if (resultAttributeName.trim().isEmpty()) {
-            throw new TexeraException("Result Attribute Name Cannot Be Empty");
-        }
         this.inputAttributeName = inputAttributeName;
         this.resultAttributeName = resultAttributeName;
         this.batchSize = batchSize;

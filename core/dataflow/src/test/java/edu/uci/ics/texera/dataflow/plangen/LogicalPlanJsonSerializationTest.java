@@ -8,7 +8,6 @@ public class LogicalPlanJsonSerializationTest {
     
     @Test
     public void testLogicalPlan() throws Exception {
-        LogicalPlanTest.setUp();
         LogicalPlan logicalPlan = LogicalPlanTest.getLogicalPlan1();
         TestUtils.testJsonSerialization(logicalPlan);
     }

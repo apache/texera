@@ -112,7 +112,7 @@ public class JoinDistancePredicate extends PredicateBase implements IJoinPredica
             @JsonProperty(value = PropertyNameConstants.SPAN_DISTANCE, required = true)
             Integer threshold) {
         if (! innerAttributeName.equalsIgnoreCase(outerAttributeName)) {
-            throw new TexeraException(PropertyNameConstants.NAME_NOT_MATCH_EXCEPTION);
+            throw new TexeraException("inner attribute name and outer attribute name are different");
         }
         this.joinAttributeName = innerAttributeName;
         this.threshold = threshold;
