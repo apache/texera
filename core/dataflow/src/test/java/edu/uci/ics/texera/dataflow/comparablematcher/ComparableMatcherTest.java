@@ -1,13 +1,8 @@
 package edu.uci.ics.texera.dataflow.comparablematcher;
 
 import edu.uci.ics.texera.api.constants.test.TestConstants;
+import edu.uci.ics.texera.api.constants.test.TestConstantsRegexSplit;
 import edu.uci.ics.texera.api.exception.TexeraException;
-import edu.uci.ics.texera.api.field.DateField;
-import edu.uci.ics.texera.api.field.DoubleField;
-import edu.uci.ics.texera.api.field.IField;
-import edu.uci.ics.texera.api.field.IntegerField;
-import edu.uci.ics.texera.api.field.StringField;
-import edu.uci.ics.texera.api.field.TextField;
 import edu.uci.ics.texera.api.schema.Attribute;
 import edu.uci.ics.texera.api.tuple.Tuple;
 import edu.uci.ics.texera.api.utils.TestUtils;
@@ -22,7 +17,6 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -32,6 +26,7 @@ import java.util.List;
 public class ComparableMatcherTest {
     
     public static final String PEOPLE_TABLE = "comparable_test_people";
+    public static final String PEOPLE_TABLE_2 = "comparable_test_people_2";
 
     @BeforeClass
     public static void setUp() throws TexeraException {
@@ -47,30 +42,36 @@ public class ComparableMatcherTest {
             peopleDataWriter.insertTuple(tuple);
         }
         peopleDataWriter.close();
+        
+        // create the people table 2 and write tuples
+        relationManager.createTable(PEOPLE_TABLE_2, TestUtils.getDefaultTestIndex().resolve(PEOPLE_TABLE_2), 
+                TestConstantsRegexSplit.SCHEMA_PEOPLE, LuceneAnalyzerConstants.standardAnalyzerString());
+        
+        DataWriter people2DataWriter = relationManager.getTableDataWriter(PEOPLE_TABLE_2);
+        people2DataWriter.open();
+        for (Tuple tuple : TestConstantsRegexSplit.constructSamplePeopleTuples()) {
+            people2DataWriter.insertTuple(tuple);
+        }
+        people2DataWriter.close();
     }
 
     @AfterClass
     public static void cleanUp() throws TexeraException {
         RelationManager relationManager = RelationManager.getInstance();
         relationManager.deleteTable(PEOPLE_TABLE);
+        relationManager.deleteTable(PEOPLE_TABLE_2);
     }
-
-    public List<Tuple> getDoubleQueryResults(String attributeName, ComparisonType matchingType, double threshold)
+    
+    public List<Tuple> getQueryResults(String attributeName, ComparisonType matchingType, Object compareToValue)
             throws TexeraException {
         // Perform the query
-        ComparablePredicate comparablePredicate = new ComparablePredicate(attributeName, matchingType, threshold);
+        ComparablePredicate comparablePredicate = new ComparablePredicate(attributeName, matchingType, compareToValue);
         ComparableMatcher comparableMatcher = new ComparableMatcher(comparablePredicate);
         setDefaultMatcherConfig(comparableMatcher);
-        return getQueryResults(comparableMatcher);
-    }
-
-    public List<Tuple> getIntegerQueryResults(String attributeName, ComparisonType matchingType, int threshold)
-            throws TexeraException {
-        // Perform the query
-        ComparablePredicate comparablePredicate = new ComparablePredicate(attributeName, matchingType, threshold);
-        ComparableMatcher comparableMatcher = new ComparableMatcher(comparablePredicate);
-        setDefaultMatcherConfig(comparableMatcher);
-        return getQueryResults(comparableMatcher);
+        comparableMatcher.open();
+        List<Tuple> results =  getQueryResults(comparableMatcher);
+        comparableMatcher.close();
+        return results;
     }
 
     public void setDefaultMatcherConfig(ComparableMatcher comparableMatcher) throws TexeraException {
@@ -78,7 +79,6 @@ public class ComparableMatcherTest {
         ScanBasedSourceOperator sourceOperator = new ScanBasedSourceOperator(
                 new ScanSourcePredicate(PEOPLE_TABLE));
         comparableMatcher.setInputOperator(sourceOperator);
-        comparableMatcher.open();
         comparableMatcher.setLimit(Integer.MAX_VALUE);
         comparableMatcher.setOffset(0);
     }
@@ -107,20 +107,14 @@ public class ComparableMatcherTest {
         ComparisonType matchingType = ComparisonType.GREATER_THAN;
 
         // Perform the query
-        List<Tuple> returnedResults = getDoubleQueryResults(attributeName, matchingType, threshold);
+        List<Tuple> returnedResults = getQueryResults(attributeName, matchingType, threshold);
 
         // check the results
-        IField[] fields1 = {new StringField("brad lie angelina"), new StringField("pitt"), new IntegerField(44),
-                new DoubleField(6.10), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-12-1972")),
-                new TextField("White Angry")};
-        IField[] fields2 = {new StringField("george lin lin"), new StringField("lin clooney"), new IntegerField(43),
-                new DoubleField(6.06), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1973")),
-                new TextField("Lin Clooney is Short and lin clooney is Angry")};
         List<Tuple> expectedResults = new ArrayList<>();
-        expectedResults.add(new Tuple(TestConstants.SCHEMA_PEOPLE, fields1));
-        expectedResults.add(new Tuple(TestConstants.SCHEMA_PEOPLE, fields2));
+        expectedResults.add(TestConstants.getSamplePeopleTuples().get(2));
+        expectedResults.add(TestConstants.getSamplePeopleTuples().get(3));
 
-        Assert.assertEquals(2, returnedResults.size());
+        Assert.assertEquals(expectedResults.size(), returnedResults.size());
         Assert.assertTrue(TestUtils.equals(expectedResults, returnedResults));
     }
 
@@ -138,16 +132,13 @@ public class ComparableMatcherTest {
         ComparisonType matchingType = ComparisonType.LESS_THAN;
 
         // Perform the query
-        List<Tuple> returnedResults = getDoubleQueryResults(attributeName, matchingType, threshold);
+        List<Tuple> returnedResults = getQueryResults(attributeName, matchingType, threshold);
 
-        IField[] fields1 = {new StringField("bruce"), new StringField("john Lee"), new IntegerField(46),
-                new DoubleField(5.50), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-14-1970")),
-                new TextField("Tall Angry")};
         List<Tuple> expectedResults = new ArrayList<>();
-        expectedResults.add(new Tuple(TestConstants.SCHEMA_PEOPLE, fields1));
+        expectedResults.add(TestConstants.getSamplePeopleTuples().get(0));
 
         // check the results
-        Assert.assertEquals(1, returnedResults.size());
+        Assert.assertEquals(expectedResults.size(), returnedResults.size());
         Assert.assertTrue(TestUtils.equals(expectedResults, returnedResults));
     }
 
@@ -165,20 +156,14 @@ public class ComparableMatcherTest {
         ComparisonType matchingType = ComparisonType.LESS_THAN_OR_EQUAL_TO;
 
         // Perform the query
-        List<Tuple> returnedResults = getDoubleQueryResults(attributeName, matchingType, threshold);
+        List<Tuple> returnedResults = getQueryResults(attributeName, matchingType, threshold);
 
-        IField[] fields1 = {new StringField("bruce"), new StringField("john Lee"), new IntegerField(46),
-                new DoubleField(5.50), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-14-1970")),
-                new TextField("Tall Angry")};
-        IField[] fields2 = {new StringField("tom hanks"), new StringField("cruise"), new IntegerField(45),
-                new DoubleField(5.95), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1971")),
-                new TextField("Short Brown")};
         List<Tuple> expectedResults = new ArrayList<>();
-        expectedResults.add(new Tuple(TestConstants.SCHEMA_PEOPLE, fields1));
-        expectedResults.add(new Tuple(TestConstants.SCHEMA_PEOPLE, fields2));
+        expectedResults.add(TestConstants.getSamplePeopleTuples().get(0));
+        expectedResults.add(TestConstants.getSamplePeopleTuples().get(1));
 
         // check the results
-        Assert.assertEquals(2, returnedResults.size());
+        Assert.assertEquals(expectedResults.size(), returnedResults.size());
         Assert.assertTrue(TestUtils.equals(expectedResults, returnedResults));
     }
 
@@ -196,32 +181,18 @@ public class ComparableMatcherTest {
         ComparisonType matchingType = ComparisonType.GREATER_THAN_OR_EQUAL_TO;
 
         // Perform the query
-        List<Tuple> returnedResults = getDoubleQueryResults(attributeName, matchingType, threshold);
+        List<Tuple> returnedResults = getQueryResults(attributeName, matchingType, threshold);
 
-        IField[] fields1 = {new StringField("tom hanks"), new StringField("cruise"), new IntegerField(45),
-                new DoubleField(5.95), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1971")),
-                new TextField("Short Brown")};
-        IField[] fields2 = {new StringField("brad lie angelina"), new StringField("pitt"), new IntegerField(44),
-                new DoubleField(6.10), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-12-1972")),
-                new TextField("White Angry")};
-        IField[] fields3 = {new StringField("george lin lin"), new StringField("lin clooney"), new IntegerField(43),
-                new DoubleField(6.06), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1973")),
-                new TextField("Lin Clooney is Short and lin clooney is Angry")};
-        IField[] fields4 = {new StringField("christian john wayne"), new StringField("rock bale"),
-                new IntegerField(42), new DoubleField(5.99),
-                new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974")), new TextField("Tall Fair")};
-        IField[] fields5 = {new StringField("Mary brown"), new StringField("Lake Forest"),
-                new IntegerField(42), new DoubleField(5.99),
-                new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974")), new TextField("Short angry")};
+
         List<Tuple> expectedResults = new ArrayList<>();
-        expectedResults.add(new Tuple(TestConstants.SCHEMA_PEOPLE, fields1));
-        expectedResults.add(new Tuple(TestConstants.SCHEMA_PEOPLE, fields2));
-        expectedResults.add(new Tuple(TestConstants.SCHEMA_PEOPLE, fields3));
-        expectedResults.add(new Tuple(TestConstants.SCHEMA_PEOPLE, fields4));
-        expectedResults.add(new Tuple(TestConstants.SCHEMA_PEOPLE, fields5));
+        expectedResults.add(TestConstants.getSamplePeopleTuples().get(1));
+        expectedResults.add(TestConstants.getSamplePeopleTuples().get(2));
+        expectedResults.add(TestConstants.getSamplePeopleTuples().get(3));
+        expectedResults.add(TestConstants.getSamplePeopleTuples().get(4));
+        expectedResults.add(TestConstants.getSamplePeopleTuples().get(5));
 
         // check the results
-        Assert.assertEquals(5, returnedResults.size());
+        Assert.assertEquals(expectedResults.size(), returnedResults.size());
         Assert.assertTrue(TestUtils.equals(expectedResults, returnedResults));
     }
 
@@ -239,16 +210,13 @@ public class ComparableMatcherTest {
         ComparisonType matchingType = ComparisonType.EQUAL_TO;
 
         // Perform the query
-        List<Tuple> returnedResults = getDoubleQueryResults(attributeName, matchingType, threshold);
+        List<Tuple> returnedResults = getQueryResults(attributeName, matchingType, threshold);
 
-        IField[] fields1 = {new StringField("brad lie angelina"), new StringField("pitt"), new IntegerField(44),
-                new DoubleField(6.10), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-12-1972")),
-                new TextField("White Angry")};
         List<Tuple> expectedResults = new ArrayList<>();
-        expectedResults.add(new Tuple(TestConstants.SCHEMA_PEOPLE, fields1));
+        expectedResults.add(TestConstants.getSamplePeopleTuples().get(2));
 
         // check the results
-        Assert.assertEquals(1, returnedResults.size());
+        Assert.assertEquals(expectedResults.size(), returnedResults.size());
         Assert.assertTrue(TestUtils.equals(expectedResults, returnedResults));
     }
 
@@ -266,33 +234,18 @@ public class ComparableMatcherTest {
         ComparisonType matchingType = ComparisonType.NOT_EQUAL_TO;
 
         // Perform the query
-        List<Tuple> returnedResults = getDoubleQueryResults(attributeName, matchingType, threshold);
+        List<Tuple> returnedResults = getQueryResults(attributeName, matchingType, threshold);
 
-        IField[] fields1 = { new StringField("bruce"), new StringField("john Lee"), new IntegerField(46),
-                new DoubleField(5.50), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-14-1970")),
-                new TextField("Tall Angry") };
-        IField[] fields2 = { new StringField("tom hanks"), new StringField("cruise"), new IntegerField(45),
-                new DoubleField(5.95), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1971")),
-                new TextField("Short Brown") };
-        IField[] fields3 = { new StringField("george lin lin"), new StringField("lin clooney"), new IntegerField(43),
-                new DoubleField(6.06), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1973")),
-                new TextField("Lin Clooney is Short and lin clooney is Angry") };
-        IField[] fields4 = { new StringField("christian john wayne"), new StringField("rock bale"),
-                new IntegerField(42), new DoubleField(5.99),
-                new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974")), new TextField("Tall Fair") };
-        IField[] fields5 = { new StringField("Mary brown"), new StringField("Lake Forest"),
-                new IntegerField(42), new DoubleField(5.99),
-                new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974")), new TextField("Short angry") };
 
         List<Tuple> expectedResults = new ArrayList<>();
-        expectedResults.add(new Tuple(TestConstants.SCHEMA_PEOPLE, fields1));
-        expectedResults.add(new Tuple(TestConstants.SCHEMA_PEOPLE, fields2));
-        expectedResults.add(new Tuple(TestConstants.SCHEMA_PEOPLE, fields3));
-        expectedResults.add(new Tuple(TestConstants.SCHEMA_PEOPLE, fields4));
-        expectedResults.add(new Tuple(TestConstants.SCHEMA_PEOPLE, fields5));
+        expectedResults.add(TestConstants.getSamplePeopleTuples().get(0));
+        expectedResults.add(TestConstants.getSamplePeopleTuples().get(1));
+        expectedResults.add(TestConstants.getSamplePeopleTuples().get(3));
+        expectedResults.add(TestConstants.getSamplePeopleTuples().get(4));
+        expectedResults.add(TestConstants.getSamplePeopleTuples().get(5));
 
         // check the results
-        Assert.assertEquals(5, returnedResults.size());
+        Assert.assertEquals(expectedResults.size(), returnedResults.size());
         Assert.assertTrue(TestUtils.equals(expectedResults, returnedResults));
     }
 
@@ -310,20 +263,15 @@ public class ComparableMatcherTest {
         ComparisonType matchingType = ComparisonType.EQUAL_TO;
 
         // Perform the query
-        List<Tuple> returnedResults = getIntegerQueryResults(attributeName, matchingType, threshold);
+        List<Tuple> returnedResults = getQueryResults(attributeName, matchingType, threshold);
 
-        IField[] fields1 = {new StringField("christian john wayne"), new StringField("rock bale"),
-                new IntegerField(42), new DoubleField(5.99),
-                new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974")), new TextField("Tall Fair")};
-        IField[] fields2 = {new StringField("Mary brown"), new StringField("Lake Forest"),
-                new IntegerField(42), new DoubleField(5.99),
-                new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974")), new TextField("Short angry")};
         List<Tuple> expectedResults = new ArrayList<>();
-        expectedResults.add(new Tuple(TestConstants.SCHEMA_PEOPLE, fields1));
-        expectedResults.add(new Tuple(TestConstants.SCHEMA_PEOPLE, fields2));
+        expectedResults.add(TestConstants.getSamplePeopleTuples().get(4));
+        expectedResults.add(TestConstants.getSamplePeopleTuples().get(5));
+
 
         // check the results
-        Assert.assertEquals(2, returnedResults.size());
+        Assert.assertEquals(expectedResults.size(), returnedResults.size());
         Assert.assertTrue(TestUtils.equals(expectedResults, returnedResults));
     }
 
@@ -341,16 +289,13 @@ public class ComparableMatcherTest {
         ComparisonType matchingType = ComparisonType.GREATER_THAN;
 
         // Perform the query
-        List<Tuple> returnedResults = getIntegerQueryResults(attributeName, matchingType, threshold);
-
-        IField[] fields1 = {new StringField("bruce"), new StringField("john Lee"), new IntegerField(46),
-                new DoubleField(5.50), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-14-1970")),
-                new TextField("Tall Angry")};
+        List<Tuple> returnedResults = getQueryResults(attributeName, matchingType, threshold);
         List<Tuple> expectedResults = new ArrayList<>();
-        expectedResults.add(new Tuple(TestConstants.SCHEMA_PEOPLE, fields1));
+        expectedResults.add(TestConstants.getSamplePeopleTuples().get(0));
+
 
         // check the results
-        Assert.assertEquals(1, returnedResults.size());
+        Assert.assertEquals(expectedResults.size(), returnedResults.size());
         Assert.assertTrue(TestUtils.equals(expectedResults, returnedResults));
     }
 
@@ -368,20 +313,15 @@ public class ComparableMatcherTest {
         ComparisonType matchingType = ComparisonType.GREATER_THAN_OR_EQUAL_TO;
 
         // Perform the query
-        List<Tuple> returnedResults = getIntegerQueryResults(attributeName, matchingType, threshold);
+        List<Tuple> returnedResults = getQueryResults(attributeName, matchingType, threshold);
 
-        IField[] fields1 = {new StringField("bruce"), new StringField("john Lee"), new IntegerField(46),
-                new DoubleField(5.50), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-14-1970")),
-                new TextField("Tall Angry")};
-        IField[] fields2 = {new StringField("tom hanks"), new StringField("cruise"), new IntegerField(45),
-                new DoubleField(5.95), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1971")),
-                new TextField("Short Brown")};
         List<Tuple> expectedResults = new ArrayList<>();
-        expectedResults.add(new Tuple(TestConstants.SCHEMA_PEOPLE, fields1));
-        expectedResults.add(new Tuple(TestConstants.SCHEMA_PEOPLE, fields2));
+        expectedResults.add(TestConstants.getSamplePeopleTuples().get(0));
+        expectedResults.add(TestConstants.getSamplePeopleTuples().get(1));
+
 
         // check the results
-        Assert.assertEquals(2, returnedResults.size());
+        Assert.assertEquals(expectedResults.size(), returnedResults.size());
         Assert.assertTrue(TestUtils.equals(expectedResults, returnedResults));
     }
 
@@ -399,24 +339,16 @@ public class ComparableMatcherTest {
         ComparisonType matchingType = ComparisonType.LESS_THAN_OR_EQUAL_TO;
 
         // Perform the query
-        List<Tuple> returnedResults = getIntegerQueryResults(attributeName, matchingType, threshold);
+        List<Tuple> returnedResults = getQueryResults(attributeName, matchingType, threshold);
 
-        IField[] fields1 = {new StringField("george lin lin"), new StringField("lin clooney"), new IntegerField(43),
-                new DoubleField(6.06), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1973")),
-                new TextField("Lin Clooney is Short and lin clooney is Angry")};
-        IField[] fields2 = {new StringField("christian john wayne"), new StringField("rock bale"),
-                new IntegerField(42), new DoubleField(5.99),
-                new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974")), new TextField("Tall Fair")};
-        IField[] fields3 = {new StringField("Mary brown"), new StringField("Lake Forest"),
-                new IntegerField(42), new DoubleField(5.99),
-                new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974")), new TextField("Short angry")};
         List<Tuple> expectedResults = new ArrayList<>();
-        expectedResults.add(new Tuple(TestConstants.SCHEMA_PEOPLE, fields1));
-        expectedResults.add(new Tuple(TestConstants.SCHEMA_PEOPLE, fields2));
-        expectedResults.add(new Tuple(TestConstants.SCHEMA_PEOPLE, fields3));
+        expectedResults.add(TestConstants.getSamplePeopleTuples().get(3));
+        expectedResults.add(TestConstants.getSamplePeopleTuples().get(4));
+        expectedResults.add(TestConstants.getSamplePeopleTuples().get(5));
+
 
         // check the results
-        Assert.assertEquals(3, returnedResults.size());
+        Assert.assertEquals(expectedResults.size(), returnedResults.size());
         Assert.assertTrue(TestUtils.equals(expectedResults, returnedResults));
     }
 
@@ -434,20 +366,14 @@ public class ComparableMatcherTest {
         ComparisonType matchingType = ComparisonType.LESS_THAN;
 
         // Perform the query
-        List<Tuple> returnedResults = getIntegerQueryResults(attributeName, matchingType, threshold);
+        List<Tuple> returnedResults = getQueryResults(attributeName, matchingType, threshold);
 
-        IField[] fields1 = {new StringField("christian john wayne"), new StringField("rock bale"),
-                new IntegerField(42), new DoubleField(5.99),
-                new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974")), new TextField("Tall Fair")};
-        IField[] fields2 = {new StringField("Mary brown"), new StringField("Lake Forest"),
-                new IntegerField(42), new DoubleField(5.99),
-                new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974")), new TextField("Short angry")};
         List<Tuple> expectedResults = new ArrayList<>();
-        expectedResults.add(new Tuple(TestConstants.SCHEMA_PEOPLE, fields1));
-        expectedResults.add(new Tuple(TestConstants.SCHEMA_PEOPLE, fields2));
-
+        expectedResults.add(TestConstants.getSamplePeopleTuples().get(4));
+        expectedResults.add(TestConstants.getSamplePeopleTuples().get(5));
+        
         // check the results
-        Assert.assertEquals(2, returnedResults.size());
+        Assert.assertEquals(expectedResults.size(), returnedResults.size());
         Assert.assertTrue(TestUtils.equals(expectedResults, returnedResults));
     }
 
@@ -465,34 +391,211 @@ public class ComparableMatcherTest {
         ComparisonType matchingType = ComparisonType.NOT_EQUAL_TO;
 
         // Perform the query
-        List<Tuple> returnedResults = getIntegerQueryResults(attributeName, matchingType, threshold);
-
-        IField[] fields1 = { new StringField("bruce"), new StringField("john Lee"), new IntegerField(46),
-                new DoubleField(5.50), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-14-1970")),
-                new TextField("Tall Angry") };
-        IField[] fields2 = { new StringField("tom hanks"), new StringField("cruise"), new IntegerField(45),
-                new DoubleField(5.95), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1971")),
-                new TextField("Short Brown") };
-        IField[] fields3 = { new StringField("brad lie angelina"), new StringField("pitt"), new IntegerField(44),
-                new DoubleField(6.10), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-12-1972")),
-                new TextField("White Angry") };
-        IField[] fields4 = { new StringField("christian john wayne"), new StringField("rock bale"),
-                new IntegerField(42), new DoubleField(5.99),
-                new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974")), new TextField("Tall Fair") };
-        IField[] fields5 = { new StringField("Mary brown"), new StringField("Lake Forest"),
-                new IntegerField(42), new DoubleField(5.99),
-                new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974")), new TextField("Short angry") };
+        List<Tuple> returnedResults = getQueryResults(attributeName, matchingType, threshold);
 
         List<Tuple> expectedResults = new ArrayList<>();
-        expectedResults.add(new Tuple(TestConstants.SCHEMA_PEOPLE, fields1));
-        expectedResults.add(new Tuple(TestConstants.SCHEMA_PEOPLE, fields2));
-        expectedResults.add(new Tuple(TestConstants.SCHEMA_PEOPLE, fields3));
-        expectedResults.add(new Tuple(TestConstants.SCHEMA_PEOPLE, fields4));
-        expectedResults.add(new Tuple(TestConstants.SCHEMA_PEOPLE, fields5));
+        expectedResults.add(TestConstants.getSamplePeopleTuples().get(0));
+        expectedResults.add(TestConstants.getSamplePeopleTuples().get(1));
+        expectedResults.add(TestConstants.getSamplePeopleTuples().get(2));
+        expectedResults.add(TestConstants.getSamplePeopleTuples().get(4));
+        expectedResults.add(TestConstants.getSamplePeopleTuples().get(5));
 
         // check the results
-        Assert.assertEquals(5, returnedResults.size());
+        Assert.assertEquals(expectedResults.size(), returnedResults.size());
+        Assert.assertTrue(TestUtils.equals(expectedResults, returnedResults));
+    }
+    
+    @Test
+    public void testDate1() throws Exception {
+        // Prepare the query
+        String dateCompared = "1970-01-14";
+        String attributeName = TestConstants.DATE_OF_BIRTH_ATTR.getName();
+        ComparisonType matchingType = ComparisonType.EQUAL_TO;
+        
+        // Perform the query
+        List<Tuple> returnedResults = getQueryResults(attributeName, matchingType, dateCompared);
+        
+        List<Tuple> expectedResults = new ArrayList<>();
+        expectedResults.add(TestConstants.getSamplePeopleTuples().get(0));
+
+        // check the results
+        Assert.assertEquals(expectedResults.size(), returnedResults.size());
+        Assert.assertTrue(TestUtils.equals(expectedResults, returnedResults));
+    }
+    
+    
+    @Test
+    public void testDate2() throws Exception {
+        // Prepare the query
+        String dateCompared = "1973-01-13";
+        String attributeName = TestConstants.DATE_OF_BIRTH_ATTR.getName();
+        ComparisonType matchingType = ComparisonType.GREATER_THAN;
+        
+        // Perform the query
+        List<Tuple> returnedResults = getQueryResults(attributeName, matchingType, dateCompared);
+        
+        List<Tuple> expectedResults = new ArrayList<>();
+        expectedResults.add(TestConstants.getSamplePeopleTuples().get(4));
+        expectedResults.add(TestConstants.getSamplePeopleTuples().get(5));
+
+        // check the results
+        Assert.assertEquals(expectedResults.size(), returnedResults.size());
+        Assert.assertTrue(TestUtils.equals(expectedResults, returnedResults));
+    }
+    
+    @Test
+    public void testDate3() throws Exception {
+        // Prepare the query
+        String dateCompared = "1973-01-13";
+        String attributeName = TestConstants.DATE_OF_BIRTH_ATTR.getName();
+        ComparisonType matchingType = ComparisonType.GREATER_THAN_OR_EQUAL_TO;
+        
+        // Perform the query
+        List<Tuple> returnedResults = getQueryResults(attributeName, matchingType, dateCompared);
+        
+        List<Tuple> expectedResults = new ArrayList<>();
+        expectedResults.add(TestConstants.getSamplePeopleTuples().get(3));
+        expectedResults.add(TestConstants.getSamplePeopleTuples().get(4));
+        expectedResults.add(TestConstants.getSamplePeopleTuples().get(5));
+
+        // check the results
+        Assert.assertEquals(expectedResults.size(), returnedResults.size());
+        Assert.assertTrue(TestUtils.equals(expectedResults, returnedResults));
+    }
+    
+    @Test
+    public void testDate4() throws Exception {
+        // Prepare the query
+        String dateCompared = "1973-01-13";
+        String attributeName = TestConstants.DATE_OF_BIRTH_ATTR.getName();
+        ComparisonType matchingType = ComparisonType.LESS_THAN;
+        
+        // Perform the query
+        List<Tuple> returnedResults = getQueryResults(attributeName, matchingType, dateCompared);
+        
+        List<Tuple> expectedResults = new ArrayList<>();
+        expectedResults.add(TestConstants.getSamplePeopleTuples().get(0));
+        expectedResults.add(TestConstants.getSamplePeopleTuples().get(1));
+        expectedResults.add(TestConstants.getSamplePeopleTuples().get(2));
+
+        // check the results
+        Assert.assertEquals(expectedResults.size(), returnedResults.size());
+        Assert.assertTrue(TestUtils.equals(expectedResults, returnedResults));
+    }
+    
+    @Test
+    public void testDate5() throws Exception {
+        // Prepare the query
+        String dateCompared = "1973-01-13";
+        String attributeName = TestConstants.DATE_OF_BIRTH_ATTR.getName();
+        ComparisonType matchingType = ComparisonType.LESS_THAN_OR_EQUAL_TO;
+        
+        // Perform the query
+        List<Tuple> returnedResults = getQueryResults(attributeName, matchingType, dateCompared);
+        
+        List<Tuple> expectedResults = new ArrayList<>();
+        expectedResults.add(TestConstants.getSamplePeopleTuples().get(0));
+        expectedResults.add(TestConstants.getSamplePeopleTuples().get(1));
+        expectedResults.add(TestConstants.getSamplePeopleTuples().get(2));
+        expectedResults.add(TestConstants.getSamplePeopleTuples().get(3));
+
+        // check the results
+        Assert.assertEquals(expectedResults.size(), returnedResults.size());
+        Assert.assertTrue(TestUtils.equals(expectedResults, returnedResults));
+    }
+    
+    @Test
+    public void testDate6() throws Exception {
+        // Prepare the query
+        String dateCompared = "1973-01-13";
+        String attributeName = TestConstants.DATE_OF_BIRTH_ATTR.getName();
+        ComparisonType matchingType = ComparisonType.NOT_EQUAL_TO;
+        
+        // Perform the query
+        List<Tuple> returnedResults = getQueryResults(attributeName, matchingType, dateCompared);
+        
+        List<Tuple> expectedResults = new ArrayList<>();
+        expectedResults.add(TestConstants.getSamplePeopleTuples().get(0));
+        expectedResults.add(TestConstants.getSamplePeopleTuples().get(1));
+        expectedResults.add(TestConstants.getSamplePeopleTuples().get(2));
+        expectedResults.add(TestConstants.getSamplePeopleTuples().get(4));
+        expectedResults.add(TestConstants.getSamplePeopleTuples().get(5));
+
+        // check the results
+        Assert.assertEquals(expectedResults.size(), returnedResults.size());
         Assert.assertTrue(TestUtils.equals(expectedResults, returnedResults));
     }
 
+    
+    @Test
+    public void testDateTime1() throws Exception {
+        
+        // Prepare the query
+        String dateCompared = "1970-01-01T11:11:11";
+        String attributeName = TestConstants.DATE_OF_BIRTH_ATTR.getName();
+        ComparisonType matchingType = ComparisonType.EQUAL_TO;
+        
+        ComparablePredicate comparablePredicate = new ComparablePredicate(attributeName, matchingType, dateCompared);
+        ComparableMatcher comparableMatcher = new ComparableMatcher(comparablePredicate);
+        setDefaultMatcherConfig(comparableMatcher);
+        
+        // Perform the query
+        ScanBasedSourceOperator sourceOperator = new ScanBasedSourceOperator(
+                new ScanSourcePredicate(PEOPLE_TABLE_2));
+        comparableMatcher.setInputOperator(sourceOperator);
+        comparableMatcher.open();
+        comparableMatcher.setLimit(Integer.MAX_VALUE);
+        comparableMatcher.setOffset(0);
+        
+        List<Tuple> returnedResults = new ArrayList<>();
+        Tuple nextTuple = null;
+
+        while ((nextTuple = comparableMatcher.getNextTuple()) != null) {
+            returnedResults.add(nextTuple);
+        }
+        comparableMatcher.close();        
+        
+        List<Tuple> expectedResults = new ArrayList<>();
+        expectedResults.add(TestConstantsRegexSplit.constructSamplePeopleTuples().get(0));
+
+        // check the results
+        Assert.assertEquals(expectedResults.size(), returnedResults.size());
+        Assert.assertTrue(TestUtils.equals(expectedResults, returnedResults));
+    }
+    
+    @Test
+    public void testDateTime2() throws Exception {
+        
+        // Prepare the query
+        String dateCompared = "1970-01-01T11:11:12";
+        String attributeName = TestConstants.DATE_OF_BIRTH_ATTR.getName();
+        ComparisonType matchingType = ComparisonType.LESS_THAN;
+        
+        ComparablePredicate comparablePredicate = new ComparablePredicate(attributeName, matchingType, dateCompared);
+        ComparableMatcher comparableMatcher = new ComparableMatcher(comparablePredicate);
+        setDefaultMatcherConfig(comparableMatcher);
+        
+        // Perform the query
+        ScanBasedSourceOperator sourceOperator = new ScanBasedSourceOperator(
+                new ScanSourcePredicate(PEOPLE_TABLE_2));
+        comparableMatcher.setInputOperator(sourceOperator);
+        comparableMatcher.open();
+        comparableMatcher.setLimit(Integer.MAX_VALUE);
+        comparableMatcher.setOffset(0);
+        
+        List<Tuple> returnedResults = new ArrayList<>();
+        Tuple nextTuple = null;
+
+        while ((nextTuple = comparableMatcher.getNextTuple()) != null) {
+            returnedResults.add(nextTuple);
+        }
+        comparableMatcher.close();        
+        
+        List<Tuple> expectedResults = new ArrayList<>();
+        expectedResults.add(TestConstantsRegexSplit.constructSamplePeopleTuples().get(0));
+
+        // check the results
+        Assert.assertEquals(expectedResults.size(), returnedResults.size());
+        Assert.assertTrue(TestUtils.equals(expectedResults, returnedResults));
+    }
 }

@@ -45,33 +45,31 @@ public class TestConstants {
     public static List<Tuple> getSamplePeopleTuples() {
         
         try {
-            IField[] fields1 = { new StringField("bruce"), new StringField("john Lee"), new IntegerField(46),
+            IField[] fields0 = { new StringField("bruce"), new StringField("john Lee"), new IntegerField(46),
                     new DoubleField(5.50), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-14-1970")),
                     new TextField("Tall Angry") };
-            IField[] fields2 = { new StringField("tom hanks"), new StringField("cruise"), new IntegerField(45),
+            IField[] fields1 = { new StringField("tom hanks"), new StringField("cruise"), new IntegerField(45),
                     new DoubleField(5.95), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1971")),
                     new TextField("Short Brown") };
-            IField[] fields3 = { new StringField("brad lie angelina"), new StringField("pitt"), new IntegerField(44),
+            IField[] fields2 = { new StringField("brad lie angelina"), new StringField("pitt"), new IntegerField(44),
                     new DoubleField(6.10), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-12-1972")),
                     new TextField("White Angry") };
-            IField[] fields4 = { new StringField("george lin lin"), new StringField("lin clooney"), new IntegerField(43),
+            IField[] fields3 = { new StringField("george lin lin"), new StringField("lin clooney"), new IntegerField(43),
                     new DoubleField(6.06), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1973")),
                     new TextField("Lin Clooney is Short and lin clooney is Angry") };
-            IField[] fields5 = { new StringField("christian john wayne"), new StringField("rock bale"),
-                    new IntegerField(42), new DoubleField(5.99),
-                    new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974")), new TextField("Tall Fair") };
-            IField[] fields6 = { new StringField("Mary brown"), new StringField("Lake Forest"),
-                    new IntegerField(42), new DoubleField(5.99),
-                    new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974")), new TextField("Short angry") };
+            IField[] fields4 = { new StringField("christian john wayne"), new StringField("rock bale"), new IntegerField(42), 
+                    new DoubleField(5.99), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974")), new TextField("Tall Fair") };
+            IField[] fields5 = { new StringField("Mary brown"), new StringField("Lake Forest"), new IntegerField(42), 
+                    new DoubleField(5.99), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1974")), new TextField("Short angry") };
 
+            Tuple tuple0 = new Tuple(SCHEMA_PEOPLE, fields0);
             Tuple tuple1 = new Tuple(SCHEMA_PEOPLE, fields1);
             Tuple tuple2 = new Tuple(SCHEMA_PEOPLE, fields2);
             Tuple tuple3 = new Tuple(SCHEMA_PEOPLE, fields3);
             Tuple tuple4 = new Tuple(SCHEMA_PEOPLE, fields4);
             Tuple tuple5 = new Tuple(SCHEMA_PEOPLE, fields5);
-            Tuple tuple6 = new Tuple(SCHEMA_PEOPLE, fields6);
 
-            return Arrays.asList(tuple1, tuple2, tuple3, tuple4, tuple5, tuple6);   
+            return Arrays.asList(tuple0, tuple1, tuple2, tuple3, tuple4, tuple5);   
         } catch (ParseException e) {
             // exception should not happen because we know the data is correct
             e.printStackTrace();
