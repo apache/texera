@@ -26,6 +26,10 @@ public class NlpEntityPredicate extends PredicateBase {
             @JsonProperty(value = PropertyNameConstants.SPAN_LIST_NAME, required = true)
             String spanListName) {
         
+        if (attributeNames.isEmpty()) {
+            throw new TexeraException("attributes should not be empty");
+        }
+        
         this.nlpEntityType = nlpEntityType;
         this.attributeNames = attributeNames;
         if (spanListName == null || spanListName.trim().isEmpty()) {

@@ -6,7 +6,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import edu.uci.ics.texera.api.dataflow.IOperator;
-import edu.uci.ics.texera.api.exception.PlanGenException;
 import edu.uci.ics.texera.dataflow.common.PropertyNameConstants;
 
 public class RegexSourcePredicate extends RegexPredicate {
@@ -50,10 +49,6 @@ public class RegexSourcePredicate extends RegexPredicate {
             @JsonProperty(value = PropertyNameConstants.SPAN_LIST_NAME, required = true)
             String spanListName) {
         super(regex, attributeNames, ignoreCase, spanListName);
-
-        if (tableName == null || tableName.isEmpty()) {
-            throw new PlanGenException(PropertyNameConstants.EMPTY_NAME_EXCEPTION);
-        }
         this.tableName = tableName;
         if (useIndex == null) {
             this.useIndex = true;
