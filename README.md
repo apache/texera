@@ -1,6 +1,9 @@
 # Texera
 Cloud-based text analytics using declarative and GUI-based workflows
 
+travis-ci
+[![Build Status](https://travis-ci.org/Texera/texera.svg?branch=master)](https://travis-ci.org/Texera/texera)
+
 Check [this video](https://www.youtube.com/watch?v=67RY2S0pE-o) to see Texera in action (formerly known as TextDB)!    
 To access a live deployment and do tweet analysis, go to [texera.ics.uci.edu/twitter](http://texera.ics.uci.edu/twitter/) (currently accessible within UCI only)
 
@@ -10,7 +13,4 @@ Empty Workspace
 
 Keyword search on tweets
 ![](https://docs.google.com/drawings/d/e/2PACX-1vSKatl1eDIoEw5i97mjrcFcHDRtuPr0IC4TSY86xNiFfkUcChQPCcNRzqa0rnEWHjboTdQsoOOmeKCx/pub?w=960&h=720)
-
-travis-ci
-[![Build Status](https://travis-ci.org/Texera/texera.svg?branch=master)](https://travis-ci.org/Texera/texera)
 
