@@ -8,7 +8,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import edu.uci.ics.texera.api.constants.DataConstants;
 import edu.uci.ics.texera.api.exception.StorageException;
 import edu.uci.ics.texera.dataflow.common.PredicateBase;
-import edu.uci.ics.texera.dataflow.operatorstore.JsonSchemaHelper;
+import edu.uci.ics.texera.dataflow.jsonschema.JsonSchemaHelper;
 import edu.uci.ics.texera.dataflow.resource.dictionary.DictionaryManager;
 import edu.uci.ics.texera.storage.RelationManager;
 import edu.uci.ics.texera.storage.TableMetadata;
