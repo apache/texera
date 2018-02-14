@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.dataflow.operatorstore;
+package edu.uci.ics.texera.dataflow.jsonschema;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
@@ -27,7 +27,6 @@ import edu.uci.ics.texera.api.exception.TexeraException;
 import edu.uci.ics.texera.api.utils.Utils;
 import edu.uci.ics.texera.dataflow.annotation.AdvancedOption;
 import edu.uci.ics.texera.dataflow.common.PredicateBase;
-import edu.uci.ics.texera.dataflow.comparablematcher.ComparablePredicate;
 import edu.uci.ics.texera.dataflow.plangen.OperatorArityConstants;
 
 @SuppressWarnings("unchecked")
@@ -53,8 +52,8 @@ public class JsonSchemaHelper {
     }
     
     public static void main(String[] args) throws Exception {
-//        generateAllOperatorSchema();
-        generateJsonSchema(ComparablePredicate.class);
+        generateAllOperatorSchema();
+//        generateJsonSchema(ComparablePredicate.class);
     }
     
     public static void generateAllOperatorSchema() throws Exception {
@@ -64,6 +63,10 @@ public class JsonSchemaHelper {
     }
     
     public static void generateJsonSchema(Class<? extends PredicateBase> predicateClass) throws Exception {
+        
+        if (! operatorTypeMap.containsKey(predicateClass)) {
+            throw new TexeraException("predicate class " + predicateClass.toString() + " is not registerd in PredicateBase class");
+        }
 
         // find the operatorType of the predicate class
         String operatorType = operatorTypeMap.get(predicateClass);
@@ -75,31 +78,22 @@ public class JsonSchemaHelper {
         Files.deleteIfExists(operatorSchemaPath);
         Files.createFile(operatorSchemaPath);   
         
+        // generate the json schema
         JsonSchemaGenerator jsonSchemaGenerator = new JsonSchemaGenerator(DataConstants.defaultObjectMapper);
         JsonSchema schema = jsonSchemaGenerator.generateSchema(predicateClass);
         
         ObjectNode schemaNode = objectMapper.readValue(objectMapper.writeValueAsBytes(schema), ObjectNode.class);
         // remove the operatorID from the json schema
         ((ObjectNode) schemaNode.get("properties")).remove("operatorID");
-        // add the operator type to the schema
-        schemaNode.put("operatorType", operatorType);
-        // add input and output arity to the schema
-        schemaNode.put("inputNumber", OperatorArityConstants.getFixedInputArity(predicateClass));
-        schemaNode.put("outputNumber", OperatorArityConstants.getFixedOutputArity(predicateClass));
-        
-        // add additional operator metadata to the schema
-        Map<String, Object> operatorMetadata = (Map<String, Object>) predicateClass.getMethod("getOperatorMetadata").invoke(null);
-        for (String key : operatorMetadata.keySet()) {
-            schemaNode.set(key, objectMapper.valueToTree(operatorMetadata.get(key)));
-        }
         
         // add required/optional properties to the schema
         List<String> requriedProperties = getRequiredProperties(predicateClass);
-        schemaNode.set("required", objectMapper.valueToTree(requriedProperties));
         
-        // add advancedOption properties to the schema
-        List<String> advancedOptionProperties = getAdvancedOptionProperties(predicateClass);
-        schemaNode.set("advancedOptions", objectMapper.valueToTree(advancedOptionProperties));
+        // don't add the required properties if it's empty 
+        // because draft v4 doesn't allow it
+        if (! requriedProperties.isEmpty()) {
+            schemaNode.set("required", objectMapper.valueToTree(requriedProperties));
+        }
         
         // add property default values to the schema
         Map<String, Object> defaultValues = getPropertyDefaultValues(predicateClass);
@@ -108,9 +102,37 @@ public class JsonSchemaHelper {
             propertyNode.set("default", objectMapper.convertValue(defaultValues.get(property), JsonNode.class));
         }
         
-        Files.write(operatorSchemaPath, objectMapper.writeValueAsBytes(schemaNode));
+        
+        // add the additionalMetadataNode
+        ObjectNode additionalMetadataNode = objectMapper.createObjectNode();
+        
+        // add additional operator metadata to the additionalMetadataNode
+        Map<String, Object> operatorMetadata = (Map<String, Object>) predicateClass.getMethod("getOperatorMetadata").invoke(null);
+        for (String key : operatorMetadata.keySet()) {
+            additionalMetadataNode.set(key, objectMapper.valueToTree(operatorMetadata.get(key)));
+        }
+        
+        // add input and output arity to the schema
+        additionalMetadataNode.put("inputNumber", OperatorArityConstants.getFixedInputArity(predicateClass));
+        additionalMetadataNode.put("outputNumber", OperatorArityConstants.getFixedOutputArity(predicateClass));    
+        
+        // add advancedOption properties to the schema
+        List<String> advancedOptionProperties = getAdvancedOptionProperties(predicateClass);
+        additionalMetadataNode.set("advancedOptions", objectMapper.valueToTree(advancedOptionProperties));
+        
+        
+        // setup the full metadata node, which contains the schema and additional metadata
+        ObjectNode fullMetadataNode = objectMapper.createObjectNode();
+        
+        // add the operator type to the full node
+        fullMetadataNode.put("operatorType", operatorType);
+        fullMetadataNode.set("propertyJsonSchema", schemaNode);
+        fullMetadataNode.set("additionalMetadata", additionalMetadataNode);
+
+        Files.write(operatorSchemaPath, objectMapper.writeValueAsBytes(fullMetadataNode));
         
         System.out.println("generating schema of " + operatorType + " completed");
+        System.out.println(fullMetadataNode);
     }
     
     public static Path getJsonSchemaPath(Class<? extends PredicateBase> predicateClass) {

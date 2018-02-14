@@ -23,6 +23,7 @@ import edu.uci.ics.texera.dataflow.fuzzytokenmatcher.FuzzyTokenPredicate;
 import edu.uci.ics.texera.dataflow.fuzzytokenmatcher.FuzzyTokenSourcePredicate;
 import edu.uci.ics.texera.dataflow.join.JoinDistancePredicate;
 import edu.uci.ics.texera.dataflow.join.SimilarityJoinPredicate;
+import edu.uci.ics.texera.dataflow.jsonschema.JsonSchemaHelper;
 import edu.uci.ics.texera.dataflow.keywordmatcher.KeywordMatchingType;
 import edu.uci.ics.texera.dataflow.keywordmatcher.KeywordPredicate;
 import edu.uci.ics.texera.dataflow.keywordmatcher.KeywordSourcePredicate;
@@ -32,7 +33,6 @@ import edu.uci.ics.texera.dataflow.nlp.sentiment.EmojiSentimentPredicate;
 import edu.uci.ics.texera.dataflow.nlp.sentiment.NlpSentimentPredicate;
 import edu.uci.ics.texera.dataflow.nlp.splitter.NLPOutputType;
 import edu.uci.ics.texera.dataflow.nlp.splitter.NlpSplitPredicate;
-import edu.uci.ics.texera.dataflow.operatorstore.JsonSchemaHelper;
 import edu.uci.ics.texera.dataflow.projection.ProjectionPredicate;
 import edu.uci.ics.texera.dataflow.regexmatcher.RegexPredicate;
 import edu.uci.ics.texera.dataflow.regexmatcher.RegexSourcePredicate;
@@ -84,12 +84,7 @@ public class PredicateBaseTest {
         // read the json schema of the predicate class
         Path predicateJsonSchemaPath = JsonSchemaHelper.getJsonSchemaPath(predicate.getClass());
         ObjectMapper objectMapper = DataConstants.defaultObjectMapper;
-        ObjectNode schemaJsonNode = objectMapper.readValue(predicateJsonSchemaPath.toFile(), ObjectNode.class);
-        
-        // remove the "required" field if its empty because json schema v4 doesn't allow it
-        if (schemaJsonNode.get("required").size() == 0) {
-            schemaJsonNode.remove("required");
-        }
+        ObjectNode schemaJsonNode = (ObjectNode) objectMapper.readValue(predicateJsonSchemaPath.toFile(), ObjectNode.class);
         
         // convert the jsonNode to jsonSchema for validation
         JsonSchema predicateSchema = JsonSchemaFactory.byDefault().getJsonSchema(schemaJsonNode);

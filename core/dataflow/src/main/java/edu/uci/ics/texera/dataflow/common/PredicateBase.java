@@ -84,7 +84,7 @@ import edu.uci.ics.texera.dataflow.wordcount.WordCountOperatorPredicate;
 
         // remove comparable matcher because of the json schema "any" issue
         // TODO: fix the problem and add Comparable matcher back later
-        // @Type(value = ComparablePredicate.class, name = "Comparison"),
+         @Type(value = ComparablePredicate.class, name = "Comparison"),
         
         @Type(value = AsterixSourcePredicate.class, name = "AsterixSource"),        
         @Type(value = TwitterConverterPredicate.class, name = "TwitterConverter"),
