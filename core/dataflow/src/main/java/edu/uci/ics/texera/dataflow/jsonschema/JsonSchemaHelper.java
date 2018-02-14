@@ -113,8 +113,8 @@ public class JsonSchemaHelper {
         }
         
         // add input and output arity to the schema
-        additionalMetadataNode.put("inputNumber", OperatorArityConstants.getFixedInputArity(predicateClass));
-        additionalMetadataNode.put("outputNumber", OperatorArityConstants.getFixedOutputArity(predicateClass));    
+        additionalMetadataNode.put("numInputPorts", OperatorArityConstants.getFixedInputArity(predicateClass));
+        additionalMetadataNode.put("numOutputPorts", OperatorArityConstants.getFixedOutputArity(predicateClass));    
         
         // add advancedOption properties to the schema
         List<String> advancedOptionProperties = getAdvancedOptionProperties(predicateClass);
