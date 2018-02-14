@@ -126,7 +126,7 @@ public class JsonSchemaHelper {
         
         // add the operator type to the full node
         fullMetadataNode.put("operatorType", operatorType);
-        fullMetadataNode.set("propertyJsonSchema", schemaNode);
+        fullMetadataNode.set("jsonSchema", schemaNode);
         fullMetadataNode.set("additionalMetadata", additionalMetadataNode);
 
         Files.write(operatorSchemaPath, objectMapper.writeValueAsBytes(fullMetadataNode));
