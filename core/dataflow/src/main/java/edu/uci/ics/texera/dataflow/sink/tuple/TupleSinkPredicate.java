@@ -37,6 +37,9 @@ public class TupleSinkPredicate extends PredicateBase {
         if (this.limit == null) {
             this.limit = Integer.MAX_VALUE;
         }
+        if (this.limit <= 0) {
+            throw new TexeraException("limit must > 0");
+        }
         this.offset = offset;
         if (this.offset == null) {
             this.offset = 0;

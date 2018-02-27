@@ -9,16 +9,14 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.text.ParseException;
 import java.util.Arrays;
-import java.util.Date;
 
-import org.apache.lucene.document.DateTools;
-import org.apache.lucene.document.DateTools.Resolution;
 import org.apache.lucene.document.Field.Store;
 import org.apache.lucene.index.IndexOptions;
 import org.apache.lucene.index.IndexableField;
 
 import edu.uci.ics.texera.api.exception.StorageException;
 import edu.uci.ics.texera.api.field.DateField;
+import edu.uci.ics.texera.api.field.DateTimeField;
 import edu.uci.ics.texera.api.field.DoubleField;
 import edu.uci.ics.texera.api.field.IDField;
 import edu.uci.ics.texera.api.field.IField;
@@ -46,7 +44,10 @@ public class StorageUtils {
             field = new DoubleField(Double.parseDouble(fieldValue));
             break;
         case DATE:
-            field = new DateField(DateTools.stringToDate(fieldValue));
+            field = new DateField(fieldValue);
+            break;
+        case DATETIME:
+            field = new DateTimeField(fieldValue);
             break;
         case TEXT:
             field = new TextField(fieldValue);
@@ -72,12 +73,15 @@ public class StorageUtils {
             luceneField = new org.apache.lucene.document.IntField(attributeName, (Integer) fieldValue, Store.YES);
             break;
         case DOUBLE:
-            double value = (Double) fieldValue;
-            luceneField = new org.apache.lucene.document.DoubleField(attributeName, value, Store.YES);
+            luceneField = new org.apache.lucene.document.DoubleField(attributeName, (Double) fieldValue, Store.YES);
             break;
         case DATE:
-            String dateString = DateTools.dateToString((Date) fieldValue, Resolution.MILLISECOND);
+            String dateString = fieldValue.toString();
             luceneField = new org.apache.lucene.document.StringField(attributeName, dateString, Store.YES);
+            break;
+        case DATETIME:
+            String dateTimeString = fieldValue.toString();
+            luceneField = new org.apache.lucene.document.StringField(attributeName, dateTimeString, Store.YES);
             break;
         case TEXT:
             // By default we enable positional indexing in Lucene so that we can

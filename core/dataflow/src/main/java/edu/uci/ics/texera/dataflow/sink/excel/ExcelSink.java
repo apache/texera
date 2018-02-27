@@ -194,7 +194,7 @@ public class ExcelSink implements ISink {
     	} else if (field instanceof IntegerField) {
     	    cell.setCellValue((double) (int) field.getValue());
     	} else if(field instanceof DateField){
-    		cell.setCellValue((Date) field.getValue());
+    		cell.setCellValue(field.getValue().toString());
     	} else{
     		cell.setCellValue(field.getValue().toString());
     	}
