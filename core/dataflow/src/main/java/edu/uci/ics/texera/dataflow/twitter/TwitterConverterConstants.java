@@ -8,6 +8,9 @@ import edu.uci.ics.texera.api.schema.AttributeType;
 
 public class TwitterConverterConstants {
     
+    public static String TWEET_ID = "tweet_id";
+    public static Attribute TWEET_ID_ATTRIBUTE = new Attribute(TWEET_ID, AttributeType.STRING);
+    
     public static String TEXT = "text";
     public static Attribute TEXT_ATTRIBUTE = new Attribute(TEXT, AttributeType.TEXT);
     
@@ -42,10 +45,10 @@ public class TwitterConverterConstants {
     public static Attribute CITY_ATTRIBUTE = new Attribute(CITY, AttributeType.TEXT);
     
     public static String CREATE_AT = "create_at";
-    public static Attribute CREATE_AT_ATTRIBUTE = new Attribute(CREATE_AT, AttributeType.STRING);
+    public static Attribute CREATE_AT_ATTRIBUTE = new Attribute(CREATE_AT, AttributeType.DATETIME);
     
     public static List<Attribute> additionalAttributes = Arrays.asList(
-            TEXT_ATTRIBUTE, TWEET_LINK_ATTRIBUTE, USER_LINK_ATTRIBUTE, 
+            TWEET_ID_ATTRIBUTE, TEXT_ATTRIBUTE, TWEET_LINK_ATTRIBUTE, USER_LINK_ATTRIBUTE, 
             USER_SCREEN_NAME_ATTRIBUTE, USER_NAME_ATTRIBUTE, USER_DESCRIPTION_ATTRIBUTE, 
             USER_FOLLOWERS_COUNT_ATTRIBUTE, USER_FRIENDS_COUNT_ATTRIBUTE, 
             STATE_ATTRIBUTE, COUNTY_ATTRIBUTE, CITY_ATTRIBUTE, CREATE_AT_ATTRIBUTE);
