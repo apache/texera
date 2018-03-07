@@ -40,6 +40,7 @@ import edu.uci.ics.texera.dataflow.sink.tuple.TupleSinkPredicate;
 import edu.uci.ics.texera.dataflow.source.asterix.AsterixSourcePredicate;
 import edu.uci.ics.texera.dataflow.source.file.FileSourcePredicate;
 import edu.uci.ics.texera.dataflow.source.scan.ScanSourcePredicate;
+import edu.uci.ics.texera.dataflow.udf.UserDFOperatorPredicate;
 import edu.uci.ics.texera.dataflow.wordcount.WordCountIndexSourcePredicate;
 import edu.uci.ics.texera.dataflow.wordcount.WordCountOperatorPredicate;
 import junit.framework.Assert;
@@ -253,8 +254,14 @@ public class PredicateBaseTest {
     }
     
     @Test
+    public void tesUserDFOperator() throws Exception {
+        testPredicate(new UserDFOperatorPredicate("filePath")) ;
+    }
+    
+    @Test
     public void testMysqlSink() throws Exception {
         testPredicate(new MysqlSinkPredicate("host", 1234, "db", "table", "user", "pass", null, null)) ;
     }
+    
 
 }

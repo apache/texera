@@ -32,6 +32,7 @@ import edu.uci.ics.texera.dataflow.source.file.FileSourcePredicate;
 import edu.uci.ics.texera.dataflow.source.scan.ScanSourcePredicate;
 import edu.uci.ics.texera.dataflow.twitter.TwitterConverterPredicate;
 import edu.uci.ics.texera.dataflow.twitterfeed.TwitterFeedSourcePredicate;
+import edu.uci.ics.texera.dataflow.udf.UserDFOperatorPredicate;
 import edu.uci.ics.texera.dataflow.wordcount.WordCountIndexSourcePredicate;
 import edu.uci.ics.texera.dataflow.wordcount.WordCountOperatorPredicate;
 
@@ -67,7 +68,8 @@ public class OperatorArityConstants {
         fixedInputArityMap.put(SamplerPredicate.class, 1);
         fixedInputArityMap.put(WordCountIndexSourcePredicate.class, 0);
         fixedInputArityMap.put(WordCountOperatorPredicate.class, 1);
-        fixedInputArityMap.put(ComparablePredicate.class, 1); 
+        fixedInputArityMap.put(ComparablePredicate.class, 1);
+        fixedInputArityMap.put(UserDFOperatorPredicate.class, 1);
         
         fixedInputArityMap.put(AsterixSourcePredicate.class, 0);
         
@@ -107,7 +109,8 @@ public class OperatorArityConstants {
         fixedOutputArityMap.put(SamplerPredicate.class, 1);
         fixedOutputArityMap.put(WordCountIndexSourcePredicate.class, 1);
         fixedOutputArityMap.put(WordCountOperatorPredicate.class, 1);
-        fixedOutputArityMap.put(ComparablePredicate.class, 1); 
+        fixedOutputArityMap.put(ComparablePredicate.class, 1);
+        fixedOutputArityMap.put(UserDFOperatorPredicate.class, 1);
         
         fixedOutputArityMap.put(AsterixSourcePredicate.class, 1);
         

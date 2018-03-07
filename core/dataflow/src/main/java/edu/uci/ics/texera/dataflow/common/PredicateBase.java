@@ -3,6 +3,8 @@ package edu.uci.ics.texera.dataflow.common;
 import java.util.UUID;
 
 import edu.uci.ics.texera.dataflow.twitterfeed.TwitterFeedSourcePredicate;
+import edu.uci.ics.texera.dataflow.udf.UserDFOperatorPredicate;
+
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.apache.commons.lang3.builder.ToStringBuilder;
@@ -84,6 +86,7 @@ import edu.uci.ics.texera.dataflow.wordcount.WordCountOperatorPredicate;
         @Type(value = SamplerPredicate.class, name = "Sampler"),
 
         @Type(value = ComparablePredicate.class, name = "Comparison"),
+        @Type(value = UserDFOperatorPredicate.class, name = "UserDefinedFunction"),
         
         @Type(value = AsterixSourcePredicate.class, name = "AsterixSource"),        
         @Type(value = TwitterConverterPredicate.class, name = "TwitterConverter"),
