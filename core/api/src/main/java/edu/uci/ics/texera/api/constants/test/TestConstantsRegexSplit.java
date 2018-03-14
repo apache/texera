@@ -1,11 +1,10 @@
 package edu.uci.ics.texera.api.constants.test;
 
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 
-import edu.uci.ics.texera.api.field.DateField;
+import edu.uci.ics.texera.api.field.DateTimeField;
 import edu.uci.ics.texera.api.field.DoubleField;
 import edu.uci.ics.texera.api.field.IField;
 import edu.uci.ics.texera.api.field.IntegerField;
@@ -35,7 +34,7 @@ public class TestConstantsRegexSplit {
     public static final Attribute LAST_NAME_ATTR = new Attribute(LAST_NAME, AttributeType.STRING);
     public static final Attribute AGE_ATTR = new Attribute(AGE, AttributeType.INTEGER);
     public static final Attribute HEIGHT_ATTR = new Attribute(HEIGHT, AttributeType.DOUBLE);
-    public static final Attribute DATE_OF_BIRTH_ATTR = new Attribute(DATE_OF_BIRTH, AttributeType.DATE);
+    public static final Attribute DATE_OF_BIRTH_ATTR = new Attribute(DATE_OF_BIRTH, AttributeType.DATETIME);
     public static final Attribute DESCRIPTION_ATTR = new Attribute(DESCRIPTION, AttributeType.TEXT);
 
     // Sample Schema
@@ -45,23 +44,17 @@ public class TestConstantsRegexSplit {
 
     public static List<Tuple> constructSamplePeopleTuples() {
         
-        try {
-            IField[] fields1 = { new StringField("bruce"), new StringField("john Lee"), new IntegerField(46),
-                    new DoubleField(5.50), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-14-1970")),
-                    new TextField("banana") };
-            IField[] fields2 = { new StringField("tom hanks"), new StringField("cruise"), new IntegerField(45),
-                    new DoubleField(5.95), new DateField(new SimpleDateFormat("MM-dd-yyyy").parse("01-13-1971")),
-                    new TextField("mississippi") };
-            
-            Tuple tuple1 = new Tuple(SCHEMA_PEOPLE, fields1);
-            Tuple tuple2 = new Tuple(SCHEMA_PEOPLE, fields2);
-            
-            return Arrays.asList(tuple1, tuple2);   
-        } catch (ParseException e) {
-            // exception should not happen because we know the data is correct
-            e.printStackTrace();
-            return Arrays.asList();
-        }
+        IField[] fields1 = { new StringField("bruce"), new StringField("john Lee"), new IntegerField(46),
+                new DoubleField(5.50), new DateTimeField(LocalDateTime.parse("1970-01-01T11:11:11")),
+                new TextField("banana") };
+        IField[] fields2 = { new StringField("tom hanks"), new StringField("cruise"), new IntegerField(45),
+                new DoubleField(5.95), new DateTimeField(LocalDateTime.parse("1980-01-02T13:14:15")),
+                new TextField("mississippi") };
+        
+        Tuple tuple1 = new Tuple(SCHEMA_PEOPLE, fields1);
+        Tuple tuple2 = new Tuple(SCHEMA_PEOPLE, fields2);
+        
+        return Arrays.asList(tuple1, tuple2);   
 
     }
 }

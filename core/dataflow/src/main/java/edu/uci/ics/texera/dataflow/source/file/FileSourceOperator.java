@@ -42,18 +42,6 @@ import edu.uci.ics.texera.api.tuple.Tuple;
  */
 public class FileSourceOperator implements ISourceOperator {
     
-    /*
-     * A helper function that returns if the file's extension is supported.
-     * The extensions are expected to NOT have the dot "." in the string.
-     * For example, extensions may contain "txt", but not ".txt"
-     */
-    private static boolean isExtensionAllowed(List<String> allowedExtensions, Path path) {       
-        return allowedExtensions.stream()
-            .map(ext -> "."+ext)
-            .filter(ext -> path.getFileName().toString().toLowerCase().endsWith(ext))
-            .findAny().isPresent();
-    }
-    
     private final FileSourcePredicate predicate;
     // output schema of this file source operator
     private final Schema outputSchema;
@@ -100,15 +88,12 @@ public class FileSourceOperator implements ISourceOperator {
         this.pathList = pathList.stream()
             .filter(path -> ! Files.isDirectory(path))
             .filter(path -> ! path.getFileName().startsWith("."))
-            .filter(path -> isExtensionAllowed(this.predicate.getAllowedExtensions(), path))
             .collect(Collectors.toList());
         
         // check if the path list is empty
         if (pathList.isEmpty()) {
             throw new TexeraException(String.format(
-                    "the filePath: %s doesn't contain any valid text files. " + 
-                    "File extension must be one of %s .", 
-                    filePath, this.predicate.getAllowedExtensions()));
+                    "the filePath: %s doesn't contain any files. ", filePath));
         } 
         pathIterator = pathList.iterator();
     }
@@ -138,6 +123,8 @@ public class FileSourceOperator implements ISourceOperator {
                     content = FileExtractorUtils.extractPDFFile(path);
                 } else if (extension.equalsIgnoreCase("ppt") || extension.equalsIgnoreCase("pptx")) {
                     content = FileExtractorUtils.extractPPTFile(path);
+                } else if(extension.equalsIgnoreCase("doc") || extension.equalsIgnoreCase("docx")) {
+                    content = FileExtractorUtils.extractWordFile(path);
                 } else {
                     content = FileExtractorUtils.extractPlainTextFile(path);
                 }

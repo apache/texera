@@ -132,9 +132,12 @@ export class CurrentDataService {
                 data => {
                     let result = (JSON.parse(data.json().message));
                     let metadata: Array<TableMetadata> = [];
-                    result.forEach((x, y) =>
-                        metadata.push(new TableMetadata(x.tableName, x.schema.attributes))
-                    );
+                    for (let i = 0; i < result.length; i++) {
+                        if (result[i].tableName !== 'plan' && result[i].tableName !== 'dictionary') {
+                            metadata.push(new TableMetadata(result[i].tableName, result[i].schema.attributes))
+                        }
+                    }
+                    metadata.sort((a, b) => a.tableName.localeCompare(b.tableName));
                     this.metadataRetrieved.next(metadata);
                 },
                 err => {
