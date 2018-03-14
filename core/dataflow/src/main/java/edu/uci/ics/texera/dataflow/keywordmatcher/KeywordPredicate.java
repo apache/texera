@@ -10,6 +10,7 @@ import com.google.common.collect.ImmutableMap;
 
 import edu.uci.ics.texera.api.dataflow.IOperator;
 import edu.uci.ics.texera.api.exception.TexeraException;
+import edu.uci.ics.texera.dataflow.common.OperatorGroupConstants;
 import edu.uci.ics.texera.dataflow.common.PredicateBase;
 import edu.uci.ics.texera.storage.constants.LuceneAnalyzerConstants;
 import edu.uci.ics.texera.dataflow.common.PropertyNameConstants;
@@ -161,7 +162,7 @@ public class KeywordPredicate extends PredicateBase {
         return ImmutableMap.<String, Object>builder()
             .put(PropertyNameConstants.USER_FRIENDLY_NAME, "Keyword Search")
             .put(PropertyNameConstants.OPERATOR_DESCRIPTION, "Search the documents using a keyword")
-            .put(PropertyNameConstants.OPERATOR_GROUP_NAME, "Search")
+            .put(PropertyNameConstants.OPERATOR_GROUP_NAME, OperatorGroupConstants.SEARCH_GROUP)
             .build();
     }
 

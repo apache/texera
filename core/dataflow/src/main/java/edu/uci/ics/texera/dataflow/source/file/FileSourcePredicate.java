@@ -11,6 +11,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableMap;
 
 import edu.uci.ics.texera.dataflow.annotation.AdvancedOption;
+import edu.uci.ics.texera.dataflow.common.OperatorGroupConstants;
 import edu.uci.ics.texera.dataflow.common.PredicateBase;
 import edu.uci.ics.texera.dataflow.common.PropertyNameConstants;
 
@@ -131,7 +132,7 @@ public class FileSourcePredicate extends PredicateBase {
         return ImmutableMap.<String, Object>builder()
             .put(PropertyNameConstants.USER_FRIENDLY_NAME, "Source: File")
             .put(PropertyNameConstants.OPERATOR_DESCRIPTION, "Read the content of one file or multiple files")
-            .put(PropertyNameConstants.OPERATOR_GROUP_NAME, "Source")
+            .put(PropertyNameConstants.OPERATOR_GROUP_NAME, OperatorGroupConstants.SOURCE_GROUP)
             .build();
     }
 

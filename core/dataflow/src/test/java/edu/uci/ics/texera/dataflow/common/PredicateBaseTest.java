@@ -23,7 +23,7 @@ import edu.uci.ics.texera.dataflow.fuzzytokenmatcher.FuzzyTokenPredicate;
 import edu.uci.ics.texera.dataflow.fuzzytokenmatcher.FuzzyTokenSourcePredicate;
 import edu.uci.ics.texera.dataflow.join.JoinDistancePredicate;
 import edu.uci.ics.texera.dataflow.join.SimilarityJoinPredicate;
-import edu.uci.ics.texera.dataflow.jsonschema.JsonSchemaHelper;
+import edu.uci.ics.texera.dataflow.common.JsonSchemaHelper;
 import edu.uci.ics.texera.dataflow.keywordmatcher.KeywordMatchingType;
 import edu.uci.ics.texera.dataflow.keywordmatcher.KeywordPredicate;
 import edu.uci.ics.texera.dataflow.keywordmatcher.KeywordSourcePredicate;

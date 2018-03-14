@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.dataflow.jsonschema;
+package edu.uci.ics.texera.dataflow.common;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
@@ -26,7 +26,6 @@ import edu.uci.ics.texera.api.constants.DataConstants;
 import edu.uci.ics.texera.api.exception.TexeraException;
 import edu.uci.ics.texera.api.utils.Utils;
 import edu.uci.ics.texera.dataflow.annotation.AdvancedOption;
-import edu.uci.ics.texera.dataflow.common.PredicateBase;
 import edu.uci.ics.texera.dataflow.plangen.OperatorArityConstants;
 
 @SuppressWarnings("unchecked")

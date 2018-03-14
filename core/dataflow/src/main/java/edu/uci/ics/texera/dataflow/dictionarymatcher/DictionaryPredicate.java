@@ -11,6 +11,7 @@ import com.google.common.collect.ImmutableMap;
 
 import edu.uci.ics.texera.api.dataflow.IOperator;
 import edu.uci.ics.texera.dataflow.annotation.AdvancedOption;
+import edu.uci.ics.texera.dataflow.common.OperatorGroupConstants;
 import edu.uci.ics.texera.dataflow.common.PredicateBase;
 import edu.uci.ics.texera.dataflow.common.PropertyNameConstants;
 import edu.uci.ics.texera.dataflow.keywordmatcher.KeywordMatchingType;
@@ -102,7 +103,7 @@ public class DictionaryPredicate extends PredicateBase {
         return ImmutableMap.<String, Object>builder()
             .put(PropertyNameConstants.USER_FRIENDLY_NAME, "Dictionary Search")
             .put(PropertyNameConstants.OPERATOR_DESCRIPTION, "Search the documents using a dictionary (multiple keywords)")
-            .put(PropertyNameConstants.OPERATOR_GROUP_NAME, "Search")
+            .put(PropertyNameConstants.OPERATOR_GROUP_NAME, OperatorGroupConstants.SEARCH_GROUP)
             .build();
     }
     

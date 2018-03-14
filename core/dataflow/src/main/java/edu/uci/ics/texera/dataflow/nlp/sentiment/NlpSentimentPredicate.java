@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableMap;
 
+import edu.uci.ics.texera.dataflow.common.OperatorGroupConstants;
 import edu.uci.ics.texera.dataflow.common.PredicateBase;
 import edu.uci.ics.texera.dataflow.common.PropertyNameConstants;
 
@@ -44,7 +45,7 @@ public class NlpSentimentPredicate extends PredicateBase {
         return ImmutableMap.<String, Object>builder()
             .put(PropertyNameConstants.USER_FRIENDLY_NAME, "Sentiment Analysis")
             .put(PropertyNameConstants.OPERATOR_DESCRIPTION, "Sentiment analysis based on Stanford NLP package")
-            .put(PropertyNameConstants.OPERATOR_GROUP_NAME, "Analysis")
+            .put(PropertyNameConstants.OPERATOR_GROUP_NAME, OperatorGroupConstants.ANALYTICS_GROUP)
             .build();
     }
 

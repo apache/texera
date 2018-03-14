@@ -18,6 +18,7 @@ import edu.uci.ics.texera.api.schema.AttributeType;
 import edu.uci.ics.texera.api.schema.Schema;
 import edu.uci.ics.texera.api.span.Span;
 import edu.uci.ics.texera.api.tuple.*;
+import edu.uci.ics.texera.dataflow.common.OperatorGroupConstants;
 import edu.uci.ics.texera.dataflow.common.PredicateBase;
 import edu.uci.ics.texera.dataflow.common.PropertyNameConstants;
 import info.debatty.java.stringsimilarity.NormalizedLevenshtein;
@@ -264,7 +265,7 @@ public class SimilarityJoinPredicate extends PredicateBase implements IJoinPredi
         return ImmutableMap.<String, Object>builder()
             .put(PropertyNameConstants.USER_FRIENDLY_NAME, "Join: Similarity")
             .put(PropertyNameConstants.OPERATOR_DESCRIPTION, "Join two tables based on the string similarity of two tuples")
-            .put(PropertyNameConstants.OPERATOR_GROUP_NAME, "Join")
+            .put(PropertyNameConstants.OPERATOR_GROUP_NAME, OperatorGroupConstants.JOIN_GROUP)
             .build();
     }
 

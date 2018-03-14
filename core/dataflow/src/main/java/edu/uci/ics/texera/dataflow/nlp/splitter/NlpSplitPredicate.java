@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableMap;
 
+import edu.uci.ics.texera.dataflow.common.OperatorGroupConstants;
 import edu.uci.ics.texera.dataflow.common.PredicateBase;
 import edu.uci.ics.texera.dataflow.common.PropertyNameConstants;
 
@@ -57,7 +58,7 @@ public class NlpSplitPredicate extends PredicateBase {
         return ImmutableMap.<String, Object>builder()
             .put(PropertyNameConstants.USER_FRIENDLY_NAME, "Nlp Sentence Split")
             .put(PropertyNameConstants.OPERATOR_DESCRIPTION, "Automatically split the text into multiple sentences using Natural Language Processing")
-            .put(PropertyNameConstants.OPERATOR_GROUP_NAME, "split")
+            .put(PropertyNameConstants.OPERATOR_GROUP_NAME, OperatorGroupConstants.SPLIT_GROUP)
             .build();
     }
 

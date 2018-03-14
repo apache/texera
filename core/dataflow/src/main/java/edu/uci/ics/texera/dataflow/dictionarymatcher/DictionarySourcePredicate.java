@@ -9,6 +9,7 @@ import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import com.google.common.collect.ImmutableMap;
 
 import edu.uci.ics.texera.dataflow.annotation.AdvancedOption;
+import edu.uci.ics.texera.dataflow.common.OperatorGroupConstants;
 import edu.uci.ics.texera.dataflow.common.PropertyNameConstants;
 import edu.uci.ics.texera.dataflow.keywordmatcher.KeywordMatchingType;
 import edu.uci.ics.texera.storage.constants.LuceneAnalyzerConstants;
@@ -67,7 +68,7 @@ public class DictionarySourcePredicate extends DictionaryPredicate {
         return ImmutableMap.<String, Object>builder()
             .put(PropertyNameConstants.USER_FRIENDLY_NAME, "Source: Dictionary")
             .put(PropertyNameConstants.OPERATOR_DESCRIPTION, "Perform an index-based search on a table using a dictionary")
-            .put(PropertyNameConstants.OPERATOR_GROUP_NAME, "Source")
+            .put(PropertyNameConstants.OPERATOR_GROUP_NAME, OperatorGroupConstants.SOURCE_GROUP)
             .build();
     }   
     

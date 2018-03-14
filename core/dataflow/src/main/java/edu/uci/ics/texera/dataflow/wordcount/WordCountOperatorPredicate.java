@@ -8,6 +8,7 @@ import com.google.common.collect.ImmutableMap;
 
 import edu.uci.ics.texera.api.dataflow.IOperator;
 import edu.uci.ics.texera.dataflow.annotation.AdvancedOption;
+import edu.uci.ics.texera.dataflow.common.OperatorGroupConstants;
 import edu.uci.ics.texera.dataflow.common.PredicateBase;
 import edu.uci.ics.texera.dataflow.common.PropertyNameConstants;
 import edu.uci.ics.texera.storage.constants.LuceneAnalyzerConstants;
@@ -54,7 +55,7 @@ public class WordCountOperatorPredicate extends PredicateBase {
         return ImmutableMap.<String, Object>builder()
             .put(PropertyNameConstants.USER_FRIENDLY_NAME, "Word Count")
             .put(PropertyNameConstants.OPERATOR_DESCRIPTION, "Count the frequency of each word in all the documents")
-            .put(PropertyNameConstants.OPERATOR_GROUP_NAME, "Other")
+            .put(PropertyNameConstants.OPERATOR_GROUP_NAME, OperatorGroupConstants.ANALYTICS_GROUP)
             .build();
     }
     

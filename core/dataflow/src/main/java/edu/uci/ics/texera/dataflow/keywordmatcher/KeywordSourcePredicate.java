@@ -7,6 +7,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableMap;
 
+import edu.uci.ics.texera.dataflow.common.OperatorGroupConstants;
 import edu.uci.ics.texera.dataflow.common.PropertyNameConstants;
 
 /**
@@ -55,7 +56,7 @@ public class KeywordSourcePredicate extends KeywordPredicate {
         return ImmutableMap.<String, Object>builder()
             .put(PropertyNameConstants.USER_FRIENDLY_NAME, "Source: Keyword")
             .put(PropertyNameConstants.OPERATOR_DESCRIPTION, "Perform an index-based search on a table using a keyword")
-            .put(PropertyNameConstants.OPERATOR_GROUP_NAME, "Source")
+            .put(PropertyNameConstants.OPERATOR_GROUP_NAME, OperatorGroupConstants.SOURCE_GROUP)
             .build();
     }
 

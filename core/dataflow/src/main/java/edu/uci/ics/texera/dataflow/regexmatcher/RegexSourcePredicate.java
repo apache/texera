@@ -9,6 +9,7 @@ import com.google.common.collect.ImmutableMap;
 
 import edu.uci.ics.texera.api.dataflow.IOperator;
 import edu.uci.ics.texera.dataflow.annotation.AdvancedOption;
+import edu.uci.ics.texera.dataflow.common.OperatorGroupConstants;
 import edu.uci.ics.texera.dataflow.common.PropertyNameConstants;
 
 public class RegexSourcePredicate extends RegexPredicate {
@@ -88,7 +89,7 @@ public class RegexSourcePredicate extends RegexPredicate {
         return ImmutableMap.<String, Object>builder()
             .put(PropertyNameConstants.USER_FRIENDLY_NAME, "Source: Regex")
             .put(PropertyNameConstants.OPERATOR_DESCRIPTION, "Perform an index-based search on a table using a regular expression")
-            .put(PropertyNameConstants.OPERATOR_GROUP_NAME, "Source")
+            .put(PropertyNameConstants.OPERATOR_GROUP_NAME, OperatorGroupConstants.SOURCE_GROUP)
             .build();
     }
 
