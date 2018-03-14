@@ -1,10 +1,7 @@
 package edu.uci.ics.texera.dataflow.source.file;
 
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -17,14 +14,10 @@ import edu.uci.ics.texera.dataflow.common.PropertyNameConstants;
 
 public class FileSourcePredicate extends PredicateBase {
     
-    public static final List<String> defaultAllowedExtensions = Arrays.asList(
-            "txt", "json", "xml", "csv", "html", "md");
-    
     private final String filePath;
     private final String attributeName;
     private final Integer maxDepth;
     private final Boolean recursive;
-    private final List<String> allowedExtensions;
     
     /**
      * FileSourcePredicate is used by FileSource Operator.
@@ -49,11 +42,7 @@ public class FileSourcePredicate extends PredicateBase {
             
             @AdvancedOption
             @JsonProperty(value = PropertyNameConstants.FILE_MAX_DEPTH, required = false)
-            Integer maxDepth,
-            
-            @AdvancedOption
-            @JsonProperty(value = PropertyNameConstants.FILE_ALLOWED_EXTENSIONS, required = false)
-            List<String> allowedExtensions) {
+            Integer maxDepth) {
         this.filePath = filePath;
         this.attributeName = attributeName;
         
@@ -67,11 +56,6 @@ public class FileSourcePredicate extends PredicateBase {
         } else {
             this.maxDepth = maxDepth;
         }
-        if (allowedExtensions == null || allowedExtensions.isEmpty()) {
-            this.allowedExtensions = unifyExtensions(defaultAllowedExtensions);
-        } else {
-            this.allowedExtensions = unifyExtensions(allowedExtensions);
-        }
     }
     
     /**
@@ -84,18 +68,7 @@ public class FileSourcePredicate extends PredicateBase {
      * @param attributeName
      */
     public FileSourcePredicate(String filePath, String attributeName) {
-        this(filePath, attributeName, null, null, null);
-    }
-    
-    /*
-     * A helper function to remove the dot(".") in the beginning of the extensions.
-     * For example, ".txt" and "txt" will be treated as the same extension: "txt".
-     */
-    private static List<String> unifyExtensions(List<String> extensions) {
-        return extensions.stream()
-                .map(ext -> ext.toLowerCase())
-                .map(ext -> ext.charAt(0) == '.' ? ext.substring(1) : ext)
-                .collect(Collectors.toList());  
+        this(filePath, attributeName, null, null);
     }
     
     @JsonProperty(PropertyNameConstants.FILE_PATH)
@@ -116,11 +89,6 @@ public class FileSourcePredicate extends PredicateBase {
     @JsonProperty(PropertyNameConstants.FILE_MAX_DEPTH)
     public Integer getMaxDepth() {
         return this.maxDepth;
-    }
-    
-    @JsonProperty(PropertyNameConstants.FILE_ALLOWED_EXTENSIONS)
-    public List<String> getAllowedExtensions() {
-        return Collections.unmodifiableList(this.allowedExtensions);
     }
     
     @Override

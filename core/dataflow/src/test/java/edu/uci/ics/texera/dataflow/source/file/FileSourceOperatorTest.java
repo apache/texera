@@ -33,9 +33,6 @@ public class FileSourceOperatorTest {
     public static Path tempFile2Path = tempFolderPath.resolve("test2.txt");
     public static String tempFile2String = "File Source Operator Test File 2. This file is directly under test folder.";
     
-    public static Path tempFile3Path = tempFolderPath.resolve("test3.tmp");
-    public static String tempFile3String = "File Source Operator Test File 3. The extension (tmp) is not allowed by default.";
-    
     public static Path nestedFolderPath = tempFolderPath.resolve("nested/");
     
     public static Path tempFile4Path = nestedFolderPath.resolve("test4.txt");
@@ -53,7 +50,6 @@ public class FileSourceOperatorTest {
      * tempfolder/
      *   test1.txt
      *   test2.txt
-     *   test3.tmp
      *   nested/
      *     test4.txt
      *     nested2/
@@ -74,9 +70,6 @@ public class FileSourceOperatorTest {
         
         Files.createFile(tempFile2Path);
         Files.write(tempFile2Path, tempFile2String.getBytes());
-        
-        Files.createFile(tempFile3Path);
-        Files.write(tempFile3Path, tempFile3String.getBytes());
         
         Files.createDirectories(nestedFolderPath);
         Files.createFile(tempFile4Path);
@@ -170,7 +163,7 @@ public class FileSourceOperatorTest {
         Schema schema = new Schema(new Attribute(attrName, AttributeType.TEXT));
         
         FileSourcePredicate predicate = new FileSourcePredicate(
-                tempFolderPath.toString(), attrName, true, null, null);
+                tempFolderPath.toString(), attrName, true, null);
         FileSourceOperator fileSource = new FileSourceOperator(predicate);
         
         Tuple tuple;
@@ -203,7 +196,7 @@ public class FileSourceOperatorTest {
         Schema schema = new Schema(new Attribute(attrName, AttributeType.TEXT));
         
         FileSourcePredicate predicate = new FileSourcePredicate(
-                tempFolderPath.toString(), attrName, true, 2, null);
+                tempFolderPath.toString(), attrName, true, 2);
         FileSourceOperator fileSource = new FileSourceOperator(predicate);
         
         Tuple tuple;
@@ -222,57 +215,6 @@ public class FileSourceOperatorTest {
         Assert.assertTrue(TestUtils.equals(expectedResults, exactResults));
     }
     
-    /*
-     * Test FileSourceOperator with a single file with an extension (.tmp) not allowed by default.
-     */
-    @Test(expected = TexeraException.class)
-    public void test5() throws Exception {
-        String attrName = "content";
-        
-        FileSourcePredicate predicate = new FileSourcePredicate(
-                tempFile3Path.toString(), attrName);
-        new FileSourceOperator(predicate);
-    }
-    
-    /*
-     * Test FileSourceOperator with custom extensions.
-     * 
-     * Specify "tmp" as q valid extension. Only test3.tmp should be read.
-     */
-    @Test
-    public void test6() throws Exception {
-        String attrName = "content";
-        Schema schema = new Schema(new Attribute(attrName, AttributeType.TEXT));
-        
-        FileSourcePredicate predicate = new FileSourcePredicate(
-                tempFile3Path.toString(), attrName, null, null, Arrays.asList("tmp"));
-        FileSourceOperator fileSource = new FileSourceOperator(predicate);
-        
-        Tuple tuple;
-        ArrayList<Tuple> exactResults = new ArrayList<>();
-        fileSource.open();
-        while ((tuple = fileSource.getNextTuple()) != null) {
-            exactResults.add(tuple);
-        }
-        fileSource.close();
-                
-        List<Tuple> expectedResults = Arrays.asList(
-                new Tuple(schema, new TextField(tempFile3String)));
-                
-        Assert.assertTrue(TestUtils.equals(expectedResults, exactResults));
-    }
-    
-    /*
-     * Test FileSourceOperator with custom extensions that won't match any file.
-     */
-    @Test(expected = TexeraException.class)
-    public void test7() throws Exception {
-        String attrName = "content";
-        
-        FileSourcePredicate predicate = new FileSourcePredicate(
-                tempFile3Path.toString(), attrName, null, null, Arrays.asList("invalid"));
-        new FileSourceOperator(predicate);
-    }
     
     /*
      * Test FileSourceOperator with a single directory that does not contain any valid files
@@ -320,7 +262,7 @@ public class FileSourceOperatorTest {
     public void test11() throws Exception {
         String attrName = "content";
 
-        FileSourcePredicate predicate = new FileSourcePredicate(tempFolderPath.toString(), attrName, true, 10, null);
+        FileSourcePredicate predicate = new FileSourcePredicate(tempFolderPath.toString(), attrName, true, 10);
         FileSourceOperator fileSource = new FileSourceOperator(predicate);
 
         Tuple tuple;
