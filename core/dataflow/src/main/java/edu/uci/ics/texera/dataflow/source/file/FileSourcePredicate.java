@@ -2,7 +2,6 @@ package edu.uci.ics.texera.dataflow.source.file;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import edu.uci.ics.texera.api.dataflow.IOperator;
 import edu.uci.ics.texera.dataflow.common.PredicateBase;
 import edu.uci.ics.texera.dataflow.common.PropertyNameConstants;
 
