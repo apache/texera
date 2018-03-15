@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.dataflow.regexsplit;
 
+import edu.uci.ics.texera.api.constants.ErrorMessages;
 import edu.uci.ics.texera.api.exception.DataflowException;
 import edu.uci.ics.texera.api.exception.TexeraException;
 import edu.uci.ics.texera.api.field.IDField;
@@ -60,7 +61,7 @@ public class RegexSplitOperator extends AbstractSingleInputOperator implements I
         Schema inputSchema = inputOperator.getOutputSchema();
         // generate output schema by transforming the input schema based on what output format
         // is chosen (OneToOne vs. OneToMany)
-        this.outputSchema = transformSchema(inputSchema);
+        this.outputSchema = transformToOutputSchema(inputSchema);
         
         // check if attribute type is valid
         AttributeType inputAttributeType =
@@ -76,20 +77,7 @@ public class RegexSplitOperator extends AbstractSingleInputOperator implements I
         
 
     }
-    
-    /*
-     * adds a new field to the schema, with name resultAttributeName and type list of strings
-     */
-    private Schema transformSchema(Schema inputSchema) throws DataflowException {        
-        Schema.checkAttributeExists(inputSchema, predicate.getInputAttributeName());
-        Schema.checkAttributeNotExists(inputSchema, predicate.getResultAttributeName());
-        
-        if (predicate.getOutputType() == RegexOutputType.ONE_TO_ONE)
-            return new Schema.Builder().add(inputSchema).add(predicate.getResultAttributeName(), AttributeType.LIST).build();
-        else
-            return new Schema.Builder().add(inputSchema).add(predicate.getResultAttributeName(), AttributeType.TEXT).build();
-    }
-    
+
     @Override
     protected Tuple computeNextMatchingTuple() throws TexeraException {
         
@@ -205,5 +193,22 @@ public class RegexSplitOperator extends AbstractSingleInputOperator implements I
     public Tuple processOneInputTuple(Tuple inputTuple) throws TexeraException {
         throw new TexeraException("RegexSplit does not support process one tuple");
     }
-    
+
+
+    /*
+     * adds a new field to the schema, with name resultAttributeName and type list of strings
+     */
+    public Schema transformToOutputSchema(Schema... inputSchema) throws DataflowException {
+
+        if (inputSchema.length != 1)
+            throw new TexeraException(String.format(ErrorMessages.NUMBER_OF_ARGUMENTS_DOES_NOT_MATCH, 1, inputSchema.length));
+
+        Schema.checkAttributeExists(inputSchema[0], predicate.getInputAttributeName());
+        Schema.checkAttributeNotExists(inputSchema[0], predicate.getResultAttributeName());
+
+        if (predicate.getOutputType() == RegexOutputType.ONE_TO_ONE)
+            return new Schema.Builder().add(inputSchema[0]).add(predicate.getResultAttributeName(), AttributeType.LIST).build();
+        else
+            return new Schema.Builder().add(inputSchema[0]).add(predicate.getResultAttributeName(), AttributeType.TEXT).build();
+    }
 }
