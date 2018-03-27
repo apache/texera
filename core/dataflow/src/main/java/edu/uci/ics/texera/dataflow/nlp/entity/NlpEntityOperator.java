@@ -58,9 +58,9 @@ public class NlpEntityOperator extends AbstractSingleInputOperator {
         inputSchema = inputOperator.getOutputSchema();
         
         Schema.checkAttributeExists(inputSchema, predicate.getAttributeNames());
-        Schema.checkAttributeNotExists(inputSchema, predicate.getSpanListName());
+        Schema.checkAttributeNotExists(inputSchema, predicate.getResultAttribute());
 
-        outputSchema = new Schema.Builder().add(inputSchema).add(predicate.getSpanListName(), AttributeType.LIST).build();
+        outputSchema = new Schema.Builder().add(inputSchema).add(predicate.getResultAttribute(), AttributeType.LIST).build();
     }
     
     @Override
@@ -90,7 +90,7 @@ public class NlpEntityOperator extends AbstractSingleInputOperator {
             return null;
         }
         return new Tuple.Builder(inputTuple)
-                .add(predicate.getSpanListName(), AttributeType.LIST, new ListField<Span>(matchingResults))
+                .add(predicate.getResultAttribute(), AttributeType.LIST, new ListField<Span>(matchingResults))
                 .build();
     }
     

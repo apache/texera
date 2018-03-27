@@ -11,7 +11,15 @@ public class PropertyNameConstants {
     
     private PropertyNameConstants() {};
     
-    // metadata property names
+    // operator metadata names, used in generating operator json schema
+    public static final String USER_FRIENDLY_NAME = "userFriendlyName";
+    public static final String OPERATOR_DESCRIPTION = "operatorDescription";
+    public static final String OPERATOR_GROUP_NAME = "operatorGroupName";
+    public static final String OPERATOR_COLOR = "operatorColor";
+    public static final String OPERATOR_IMAGE_PATH = "operatorImagePath";
+    public static final String HIDDEN_PROPERTIES = "hiddenProperties";
+    
+    // logical plan property names
     public static final String OPERATOR_ID = "operatorID";
     public static final String OPERATOR_TYPE = "operatorType";
     public static final String ORIGIN_OPERATOR_ID = "origin";

@@ -13,7 +13,8 @@ declare var jQuery: any;
 
 const apiUrl = "http://localhost:8080/api";
 const texeraUrl = apiUrl + "/queryplan/execute";
-const metadataUrl = apiUrl + "/resources/metadata";
+const operatorMetadataUrl = apiUrl + "/resources/operator-metadata";
+const tableMetadataUrl = apiUrl + "/resources/table-metadata";
 const uploadDictionaryUrl = apiUrl + "/upload/dictionary";
 const getDictionariesUrl = apiUrl + "/resources/dictionaries";
 const getDictionaryContentUrl = apiUrl + "/resources/dictionary?name=";
@@ -126,7 +127,7 @@ export class CurrentDataService {
 
     getMetadata(): void {
         let headers = new Headers({ 'Content-Type': 'application/json' });
-        this.http.get(metadataUrl, {headers: headers})
+        this.http.get(tableMetadataUrl, {headers: headers})
             .subscribe(
                 data => {
                     let result = (JSON.parse(data.json().message));

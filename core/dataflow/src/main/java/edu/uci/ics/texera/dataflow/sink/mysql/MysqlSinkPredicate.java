@@ -1,8 +1,12 @@
 package edu.uci.ics.texera.dataflow.sink.mysql;
 
+import java.util.Map;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.ImmutableMap;
 
+import edu.uci.ics.texera.dataflow.common.OperatorGroupConstants;
 import edu.uci.ics.texera.dataflow.common.PredicateBase;
 import edu.uci.ics.texera.dataflow.common.PropertyNameConstants;
 
@@ -90,4 +94,13 @@ public class MysqlSinkPredicate extends PredicateBase{
     public MysqlSink newOperator() {
         return new MysqlSink(this);
     }
+    
+    public static Map<String, Object> getOperatorMetadata() {
+        return ImmutableMap.<String, Object>builder()
+            .put(PropertyNameConstants.USER_FRIENDLY_NAME, "Write Mysql")
+            .put(PropertyNameConstants.OPERATOR_DESCRIPTION, "Write the results to a mysql database")
+            .put(PropertyNameConstants.OPERATOR_GROUP_NAME, OperatorGroupConstants.DATABASE_GROUP)
+            .build();
+    }
+    
 }

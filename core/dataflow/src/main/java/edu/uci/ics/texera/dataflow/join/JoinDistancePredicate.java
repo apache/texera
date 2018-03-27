@@ -3,13 +3,14 @@ package edu.uci.ics.texera.dataflow.join;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.ImmutableMap;
 
 import edu.uci.ics.texera.api.constants.SchemaConstants;
-import edu.uci.ics.texera.api.dataflow.IOperator;
 import edu.uci.ics.texera.api.exception.DataflowException;
 import edu.uci.ics.texera.api.exception.TexeraException;
 import edu.uci.ics.texera.api.field.IField;
@@ -19,6 +20,7 @@ import edu.uci.ics.texera.api.schema.AttributeType;
 import edu.uci.ics.texera.api.schema.Schema;
 import edu.uci.ics.texera.api.span.Span;
 import edu.uci.ics.texera.api.tuple.*;
+import edu.uci.ics.texera.dataflow.common.OperatorGroupConstants;
 import edu.uci.ics.texera.dataflow.common.PredicateBase;
 import edu.uci.ics.texera.dataflow.common.PropertyNameConstants;
 
@@ -300,8 +302,16 @@ public class JoinDistancePredicate extends PredicateBase implements IJoinPredica
 	}
 	
     @Override
-    public IOperator newOperator() {
+    public Join newOperator() {
         return new Join(this);
+    }
+    
+    public static Map<String, Object> getOperatorMetadata() {
+        return ImmutableMap.<String, Object>builder()
+            .put(PropertyNameConstants.USER_FRIENDLY_NAME, "Join: Character Distance")
+            .put(PropertyNameConstants.OPERATOR_DESCRIPTION, "Join two tables based on the character distance of two attributes")
+            .put(PropertyNameConstants.OPERATOR_GROUP_NAME, OperatorGroupConstants.JOIN_GROUP)
+            .build();
     }
 
 }

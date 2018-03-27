@@ -1,10 +1,13 @@
 package edu.uci.ics.texera.dataflow.regexsplit;
 
+import java.util.Map;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonValue;
+import com.google.common.collect.ImmutableMap;
 
-import edu.uci.ics.texera.api.dataflow.IOperator;
+import edu.uci.ics.texera.dataflow.common.OperatorGroupConstants;
 import edu.uci.ics.texera.dataflow.common.PredicateBase;
 import edu.uci.ics.texera.dataflow.common.PropertyNameConstants;
 
@@ -49,16 +52,23 @@ public class RegexSplitPredicate extends PredicateBase {
      * @param splitType, a type to indicate where the regex pattern merge into. 
      */
     @JsonCreator
-    public RegexSplitPredicate(@JsonProperty(value = PropertyNameConstants.REGEX_OUTPUT_TYPE, required = true)
-            RegexOutputType outputType,
+    public RegexSplitPredicate(
             @JsonProperty(value=PropertyNameConstants.SPLIT_REGEX, required=true)
             String splitRegex,
+            
             @JsonProperty(value=PropertyNameConstants.ATTRIBUTE_NAME, required=true)
             String splitAttribute,
+            
+            @JsonProperty(value = PropertyNameConstants.REGEX_OUTPUT_TYPE, required = true,
+                    defaultValue = RegexOutputType.RegexOutputTypeName.ONE_TO_MANY)
+            RegexOutputType outputType,
+            
             @JsonProperty(value=PropertyNameConstants.SPLIT_TYPE, required=true)
             SplitType splitType,
+            
             @JsonProperty(value = PropertyNameConstants.RESULT_ATTRIBUTE_NAME, required = true)
             String resultAttributeName) {
+        
         this.outputType = outputType;
         this.splitRegex = splitRegex;
         this.inputAttributeName = splitAttribute;
@@ -92,8 +102,16 @@ public class RegexSplitPredicate extends PredicateBase {
     }
     
     @Override
-    public IOperator newOperator() {
+    public RegexSplitOperator newOperator() {
         return new RegexSplitOperator(this);
+    }
+    
+    public static Map<String, Object> getOperatorMetadata() {
+        return ImmutableMap.<String, Object>builder()
+            .put(PropertyNameConstants.USER_FRIENDLY_NAME, "Regex Split")
+            .put(PropertyNameConstants.OPERATOR_DESCRIPTION, "Split the text into multiple segments based on a regular expression")
+            .put(PropertyNameConstants.OPERATOR_GROUP_NAME, OperatorGroupConstants.SPLIT_GROUP)
+            .build();
     }
     
 }

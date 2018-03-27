@@ -1,12 +1,18 @@
 package edu.uci.ics.texera.dataflow.common;
 
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 
 import org.junit.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.github.fge.jsonschema.main.JsonSchema;
+import com.github.fge.jsonschema.main.JsonSchemaFactory;
 
+import edu.uci.ics.texera.api.constants.DataConstants;
 import edu.uci.ics.texera.api.utils.TestUtils;
 import edu.uci.ics.texera.dataflow.comparablematcher.ComparablePredicate;
 import edu.uci.ics.texera.dataflow.comparablematcher.ComparisonType;
@@ -17,6 +23,7 @@ import edu.uci.ics.texera.dataflow.fuzzytokenmatcher.FuzzyTokenPredicate;
 import edu.uci.ics.texera.dataflow.fuzzytokenmatcher.FuzzyTokenSourcePredicate;
 import edu.uci.ics.texera.dataflow.join.JoinDistancePredicate;
 import edu.uci.ics.texera.dataflow.join.SimilarityJoinPredicate;
+import edu.uci.ics.texera.dataflow.common.JsonSchemaHelper;
 import edu.uci.ics.texera.dataflow.keywordmatcher.KeywordMatchingType;
 import edu.uci.ics.texera.dataflow.keywordmatcher.KeywordPredicate;
 import edu.uci.ics.texera.dataflow.keywordmatcher.KeywordSourcePredicate;
@@ -55,9 +62,37 @@ public class PredicateBaseTest {
      *   
      */
     public static void testPredicate(PredicateBase predicate) throws Exception {  
-        JsonNode jsonNode = TestUtils.testJsonSerialization(predicate);
+        JsonNode jsonNode = TestUtils.testJsonSerialization(predicate, true);
         Assert.assertTrue(jsonNode.has(PropertyNameConstants.OPERATOR_TYPE));
         Assert.assertTrue(jsonNode.has(PropertyNameConstants.OPERATOR_ID));
+        
+        testJsonSchema(predicate);
+    }
+    
+    /**
+     * Validate the predicate object against the json schema of the predicate
+     * 
+     * @param predicate
+     * @throws Exception
+     */
+    public static void testJsonSchema(PredicateBase predicate) throws Exception {
+        // if the operator is not exported, skip the test
+        if (! JsonSchemaHelper.operatorTypeMap.containsKey(predicate.getClass())) {
+            return;
+        }
+        
+        // read the json schema of the predicate class
+        Path predicateJsonSchemaPath = JsonSchemaHelper.getJsonSchemaPath(predicate.getClass());
+        ObjectMapper objectMapper = DataConstants.defaultObjectMapper;
+        ObjectNode schemaJsonNode = (ObjectNode) objectMapper.readValue(predicateJsonSchemaPath.toFile(), ObjectNode.class);
+        
+        // convert the jsonNode to jsonSchema for validation
+        JsonSchema predicateSchema = JsonSchemaFactory.byDefault().getJsonSchema(schemaJsonNode);
+        // convert the predicate object to jsonNode
+        JsonNode predicateJsonNode = objectMapper.convertValue(predicate, JsonNode.class);
+        
+        // validate the predicate object against the schema
+        predicateSchema.validate(predicateJsonNode);
     }
     
     private static List<String> attributeNames = Arrays.asList("attr1", "attr2");
@@ -176,9 +211,9 @@ public class PredicateBaseTest {
     @Test
     public void testRegexSplit() throws Exception {
         RegexSplitPredicate regexSplitPredicate = new RegexSplitPredicate(
-                RegexOutputType.ONE_TO_MANY,
                 "regex",
                 "attr1",
+                RegexOutputType.ONE_TO_MANY,
                 SplitType.STANDALONE,
                 "resultAttr");
         testPredicate(regexSplitPredicate);
