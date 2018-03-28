@@ -1,3 +1,8 @@
+/**
+ * This file contains multiple type declarations related to operator schema.
+ * These type declarations should be the same with the backend API.
+ */
+
 interface OperatorAdditionalMetadata {
     userFriendlyName: string;
     numInputPorts: number;
