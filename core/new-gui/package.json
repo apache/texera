@@ -30,9 +30,9 @@
     "bootstrap": "^4.0.0",
     "core-js": "^2.4.1",
     "jointjs": "^2.0.1",
-    "jquery": "^3.3.1",
+    "jquery": "^3.1.1",
     "jquery-ui-dist": "^1.12.1",
-    "lodash": "^4.17.5",
+    "lodash": "^3.10.1",
     "popper.js": "^1.14.1",
     "rxjs": "^5.5.6",
     "zone.js": "^0.8.19"
