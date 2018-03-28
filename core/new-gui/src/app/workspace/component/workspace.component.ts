@@ -24,6 +24,9 @@ export class WorkspaceComponent implements OnInit {
   ) { }
 
   ngOnInit() {
+    // do the following things at app initialization time:
+
+    // fetch the operator metadata from the backend
     this.operatorMetadataService.fetchAllOperatorMetadata();
   }
 

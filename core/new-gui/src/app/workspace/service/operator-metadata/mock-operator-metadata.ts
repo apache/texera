@@ -1,7 +1,7 @@
 
 /**
  * OPERATOR_METADATA const variable is a mock operator metadata consisting of
- *  a few operators, which can be useful when testing.
+ *  a few operators, which can be useful for testing.
  *
  */
 export const OPERATOR_METADATA: OperatorSchema[] = [
