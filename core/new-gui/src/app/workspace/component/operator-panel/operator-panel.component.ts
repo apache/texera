@@ -60,7 +60,7 @@ export class OperatorPanelComponent implements OnInit {
     // slice() will make a copy of the list, because we don't want to sort the orignal list
     this.groupNamesOrdered = operatorMetadata.groups.slice()
       .sort((a, b) => (a.groupOrder - b.groupOrder))
-      .map(groupOrder => groupOrder.groupName);
+      .map(groupInfo => groupInfo.groupName);
 
     // initialize a new empty map from the group name to a list of OperatorSchema
     this.operatorGroupMap = new Map<string, OperatorSchema[]>();

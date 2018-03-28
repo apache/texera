@@ -18,12 +18,12 @@ interface OperatorSchema {
     additionalMetadata: OperatorAdditionalMetadata;
 }
 
-interface GroupOrder {
+interface GroupInfo {
     groupName: string;
     groupOrder: number;
 }
 
 interface OperatorMetadata {
     operators: OperatorSchema[];
-    groups: GroupOrder[];
+    groups: GroupInfo[];
 }
