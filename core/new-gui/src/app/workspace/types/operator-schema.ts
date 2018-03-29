@@ -3,7 +3,7 @@
  * These type declarations should be the same with the backend API.
  */
 
-interface OperatorAdditionalMetadata {
+export interface OperatorAdditionalMetadata {
     userFriendlyName: string;
     numInputPorts: number;
     numOutputPorts: number;
@@ -12,18 +12,18 @@ interface OperatorAdditionalMetadata {
     operatorDescription?: string;
 }
 
-interface OperatorSchema {
+export interface OperatorSchema {
     operatorType: string;
     jsonSchema: Object;
     additionalMetadata: OperatorAdditionalMetadata;
 }
 
-interface GroupInfo {
+export interface GroupInfo {
     groupName: string;
     groupOrder: number;
 }
 
-interface OperatorMetadata {
+export interface OperatorMetadata {
     operators: OperatorSchema[];
     groups: GroupInfo[];
 }

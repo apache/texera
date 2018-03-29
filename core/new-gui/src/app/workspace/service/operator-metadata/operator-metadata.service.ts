@@ -4,8 +4,9 @@ import { Observable } from 'rxjs/Observable';
 import { Subject } from 'rxjs/Subject';
 import '../../../common/rxjs-operators';
 
-import { OPERATOR_METADATA } from './mock-operator-metadata';
 import { AppSettings } from '../../../common/app-setting';
+
+import { OperatorMetadata } from '../../types/operator-schema';
 
 export const OPERATOR_METADATA_ENDPOINT = 'resources/operator-metadata';
 

@@ -1,6 +1,8 @@
 import { Component, OnInit, Input, AfterViewInit } from '@angular/core';
 import { v4 as uuid } from 'uuid';
 
+import { OperatorSchema } from '../../../types/operator-schema';
+
 /**
  * OperatorLabelComponent is one operator box in the operator panel.
  *

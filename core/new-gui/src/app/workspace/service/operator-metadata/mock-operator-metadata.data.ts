@@ -1,10 +1,12 @@
+import { OperatorSchema, OperatorMetadata, GroupInfo } from '../../types/operator-schema';
 
 /**
  * OPERATOR_METADATA const variable is a mock operator metadata consisting of
  *  a few operators, which can be useful for testing.
  *
  */
-export const OPERATOR_METADATA: OperatorSchema[] = [
+
+export const OPERATOR_SCHEMA_LIST: OperatorSchema[] = [
     {
         'operatorType': 'ScanSource',
         'additionalMetadata': {
@@ -60,7 +62,7 @@ export const OPERATOR_METADATA: OperatorSchema[] = [
         'additionalMetadata': {
             'advancedOptions': [],
             'operatorDescription': 'View the results of the workflow',
-            'operatorGroupName': 'standalone',
+            'operatorGroupName': 'View Results',
             'numInputPorts': 1,
             'numOutputPorts': 0,
             'userFriendlyName': 'View Results'
@@ -81,3 +83,14 @@ export const OPERATOR_METADATA: OperatorSchema[] = [
         }
     }
 ];
+
+export const OPERATOR_GROUPS: GroupInfo[] = [
+    { groupName: 'Source', groupOrder: 1 },
+    { groupName: 'Analysis', groupOrder: 2 },
+    { groupName: 'View Results', groupOrder: 3 },
+];
+
+export const OPERATOR_METADATA: OperatorMetadata = {
+    operators: OPERATOR_SCHEMA_LIST,
+    groups: OPERATOR_GROUPS
+};

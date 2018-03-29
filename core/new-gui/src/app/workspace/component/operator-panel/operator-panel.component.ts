@@ -1,6 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { OperatorMetadataService } from '../../service/operator-metadata/operator-metadata.service';
 
+import { OperatorSchema, OperatorMetadata, GroupInfo } from '../../types/operator-schema';
+
 /**
  * OperatorViewComponent is the left-side panel that shows the operators.
  *
@@ -55,22 +57,33 @@ export class OperatorPanelComponent implements OnInit {
   private processOperatorMetadata(operatorMetadata: OperatorMetadata): void {
 
     this.operatorSchemaList = operatorMetadata.operators;
+    this.groupNamesOrdered = this.getGroupNamesSorted(operatorMetadata.groups);
+    this.operatorGroupMap = this.getOperatorGroupMap(operatorMetadata);
 
-    // generate a list of group names sorted by the orde
-    // slice() will make a copy of the list, because we don't want to sort the orignal list
-    this.groupNamesOrdered = operatorMetadata.groups.slice()
+  }
+
+  // generates a list of group names sorted by the orde
+  // slice() will make a copy of the list, because we don't want to sort the orignal list
+  public getGroupNamesSorted(groupInfoList: GroupInfo[]): string[] {
+
+    return groupInfoList.slice()
       .sort((a, b) => (a.groupOrder - b.groupOrder))
       .map(groupInfo => groupInfo.groupName);
+  }
 
-    // initialize a new empty map from the group name to a list of OperatorSchema
-    this.operatorGroupMap = new Map<string, OperatorSchema[]>();
-    this.groupNamesOrdered.forEach(
+  // returns a new empty map from the group name to a list of OperatorSchema
+  public getOperatorGroupMap(
+    operatorMetadata: OperatorMetadata): Map<string, OperatorSchema[]> {
+
+    const groups = operatorMetadata.groups.map(groupInfo => groupInfo.groupName);
+    const operatorGroupMap = new Map<string, OperatorSchema[]>();
+    groups.forEach(
       groupName => {
         const operators = operatorMetadata.operators.filter(x => x.additionalMetadata.operatorGroupName === groupName);
-        this.operatorGroupMap.set(groupName, operators);
+        operatorGroupMap.set(groupName, operators);
       }
     );
-
+    return operatorGroupMap;
   }
 
 }
