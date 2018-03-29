@@ -10,6 +10,7 @@ import { OperatorMetadata } from '../../types/operator-schema';
 
 export const OPERATOR_METADATA_ENDPOINT = 'resources/operator-metadata';
 
+export const EMPTY_OPERATOR_METADATA: OperatorMetadata = {operators: [], groups: []};
 
 /**
  * OperatorMetadataService talks to the backend to fetch the operator metadata,
@@ -34,21 +35,26 @@ export class OperatorMetadataService {
 
   constructor(private httpClient: HttpClient) { }
 
-  private operatorMetadataSubject = new Subject<OperatorMetadata>();
   /**
-   * Emit the OperatorMetadata Object after it's fetched from the backend.
+   * Emit an empty OperatorMetadata first.
+   * Send a http request immediately, after the response is received,
+   *   emit the OperatorMetadata Object after it's fetched from the backend.
+   *
+   * This observable is shared among subscribers with replay buffer size 1.
+   *
+   * Marble diagram:
+   *
+   * url------------>
+   *  http
+   * ------res------>
+   *  startWith
+   * E-----res------>
+   * (E stands for empty OperatorMetadata)
+   *
    */
-  public operatorMetadataObservable = this.operatorMetadataSubject.asObservable();
-
-  /**
-   * Initiates fetching the operator metadata from the backend.
-   */
-  public fetchAllOperatorMetadata(): void {
-    this.httpClient.get<OperatorMetadata>(`${AppSettings.API_ENDPOINT}/${OPERATOR_METADATA_ENDPOINT}`).subscribe(
-      value => {
-        this.operatorMetadataSubject.next(value);
-      }
-    );
-  }
+  public operatorMetadataObservable = this.httpClient
+    .get<OperatorMetadata>(`${AppSettings.API_ENDPOINT}/${OPERATOR_METADATA_ENDPOINT}`)
+    .startWith(EMPTY_OPERATOR_METADATA)
+    .shareReplay(1);
 
 }

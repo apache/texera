@@ -25,11 +25,11 @@ import { OperatorSchema, OperatorMetadata, GroupInfo } from '../../types/operato
 export class OperatorPanelComponent implements OnInit {
 
   // a list of all operator's schema
-  public operatorSchemaList: OperatorSchema[] = [];
+  public operatorSchemaList: OperatorSchema[];
   // a list of group names, sorted based on the groupOrder from OperatorMetadata
-  public groupNamesOrdered: string[] = [];
+  public groupNamesOrdered: string[];
   // a map of group name to a list of operator schema of this group
-  public operatorGroupMap = new Map<string, OperatorSchema[]>();
+  public operatorGroupMap: Map<string, OperatorSchema[]>;
 
 
   constructor(
@@ -55,16 +55,16 @@ export class OperatorPanelComponent implements OnInit {
    * @param operatorMetadata metadata of all operators
    */
   private processOperatorMetadata(operatorMetadata: OperatorMetadata): void {
-
     this.operatorSchemaList = operatorMetadata.operators;
-    this.groupNamesOrdered = this.getGroupNamesSorted(operatorMetadata.groups);
-    this.operatorGroupMap = this.getOperatorGroupMap(operatorMetadata);
-
+    this.groupNamesOrdered = getGroupNamesSorted(operatorMetadata.groups);
+    this.operatorGroupMap = getOperatorGroupMap(operatorMetadata);
   }
+
+}
 
   // generates a list of group names sorted by the orde
   // slice() will make a copy of the list, because we don't want to sort the orignal list
-  public getGroupNamesSorted(groupInfoList: GroupInfo[]): string[] {
+  export function getGroupNamesSorted(groupInfoList: GroupInfo[]): string[] {
 
     return groupInfoList.slice()
       .sort((a, b) => (a.groupOrder - b.groupOrder))
@@ -72,7 +72,7 @@ export class OperatorPanelComponent implements OnInit {
   }
 
   // returns a new empty map from the group name to a list of OperatorSchema
-  public getOperatorGroupMap(
+  export function getOperatorGroupMap(
     operatorMetadata: OperatorMetadata): Map<string, OperatorSchema[]> {
 
     const groups = operatorMetadata.groups.map(groupInfo => groupInfo.groupName);
@@ -85,5 +85,3 @@ export class OperatorPanelComponent implements OnInit {
     );
     return operatorGroupMap;
   }
-
-}
