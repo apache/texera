@@ -45,7 +45,9 @@ import {
 } from '@angular/material';
 
 /**
- * custom NgModule that includes all Material modules
+ * This module includes most of the Angular material components and modules that
+ *  may be used in our App. Therefore we don't have to write import everytime we want to
+ *  use a Material component.
  */
 @NgModule({
   exports: [
