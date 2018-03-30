@@ -21,4 +21,5 @@
     "lang-cfml",
     "cfml"
 ],
+"git.ignoreLimitWarning": true,
 }
