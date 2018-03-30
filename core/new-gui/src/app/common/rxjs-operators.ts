@@ -1,3 +1,11 @@
+/**
+ * This file import commonly used rxjs operators that's used in the project.
+ * If a new rxjs operator needs to be used, it can be added here.
+ *
+ * This approach is recommended by this post:
+ * https://loiane.com/2017/08/angular-rxjs-imports/
+ */
+
 // Observable class extensions
 import 'rxjs/add/observable/of';
 
