@@ -1,18 +1,18 @@
 import { TestBed, inject } from '@angular/core/testing';
-import { Observable } from 'rxjs/Observable';
-import '../../../common/rxjs-operators';
 
 import { HttpClient } from '@angular/common/http';
 import { OperatorMetadataService } from './operator-metadata.service';
 
-import 'rxjs/add/operator/startWith';
+import { Observable } from 'rxjs/Observable';
+
+import '../../../common/rxjs-operators';
 
 
 class StubHttpClient {
   constructor() { }
 
   public get(url: string): Observable<any> {
-    return Observable.of('response');
+    return Observable.of('test response');
   }
 }
 
@@ -29,10 +29,9 @@ describe('OperatorMetadataService', () => {
       ]
     });
     stubHttp = TestBed.get(HttpClient);
-    spyOn(stubHttp, 'get');
   });
 
-  beforeEach(inject([OperatorMetadataService], (ser: OperatorMetadataService) => {
+  beforeEach(inject([OperatorMetadataService, HttpClient], (ser: OperatorMetadataService) => {
     service = ser;
   }));
 
@@ -41,7 +40,9 @@ describe('OperatorMetadataService', () => {
   });
 
   it ('should send http request once', () => {
-    expect(stubHttp.get).toHaveBeenCalledTimes(1);
+    service.getOperatorMetadata().subscribe(
+      value => expect(<any>value).toEqual('test response')
+    );
   });
 
 });

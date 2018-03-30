@@ -25,26 +25,25 @@ import { OperatorSchema, OperatorMetadata, GroupInfo } from '../../types/operato
 export class OperatorPanelComponent implements OnInit {
 
   // a list of all operator's schema
-  public operatorSchemaList: OperatorSchema[];
+  public operatorSchemaList: OperatorSchema[] = [];
   // a list of group names, sorted based on the groupOrder from OperatorMetadata
-  public groupNamesOrdered: string[];
+  public groupNamesOrdered: string[] = [];
   // a map of group name to a list of operator schema of this group
-  public operatorGroupMap: Map<string, OperatorSchema[]>;
+  public operatorGroupMap = new Map<string, OperatorSchema[]>();
 
 
   constructor(
     private operatorMetadataService: OperatorMetadataService
   ) {
-    // subscribe to the operator metadata changed observable and process it
-    // the operator metadata will be fetched asynchronously on application init
-    //   after the data is fetched, it will be passed through this observable
-    this.operatorMetadataService.operatorMetadataObservable.subscribe(
-      value => this.processOperatorMetadata(value)
-    );
-
   }
 
   ngOnInit() {
+    // subscribe to the operator metadata changed observable and process it
+    // the operator metadata will be fetched asynchronously on application init
+    //   after the data is fetched, it will be passed through this observable
+    this.operatorMetadataService.getOperatorMetadata().subscribe(
+      value => this.processOperatorMetadata(value)
+    );
   }
 
   /**
@@ -62,26 +61,26 @@ export class OperatorPanelComponent implements OnInit {
 
 }
 
-  // generates a list of group names sorted by the orde
-  // slice() will make a copy of the list, because we don't want to sort the orignal list
-  export function getGroupNamesSorted(groupInfoList: GroupInfo[]): string[] {
+// generates a list of group names sorted by the orde
+// slice() will make a copy of the list, because we don't want to sort the orignal list
+export function getGroupNamesSorted(groupInfoList: GroupInfo[]): string[] {
 
-    return groupInfoList.slice()
-      .sort((a, b) => (a.groupOrder - b.groupOrder))
-      .map(groupInfo => groupInfo.groupName);
-  }
+  return groupInfoList.slice()
+    .sort((a, b) => (a.groupOrder - b.groupOrder))
+    .map(groupInfo => groupInfo.groupName);
+}
 
-  // returns a new empty map from the group name to a list of OperatorSchema
-  export function getOperatorGroupMap(
-    operatorMetadata: OperatorMetadata): Map<string, OperatorSchema[]> {
+// returns a new empty map from the group name to a list of OperatorSchema
+export function getOperatorGroupMap(
+  operatorMetadata: OperatorMetadata): Map<string, OperatorSchema[]> {
 
-    const groups = operatorMetadata.groups.map(groupInfo => groupInfo.groupName);
-    const operatorGroupMap = new Map<string, OperatorSchema[]>();
-    groups.forEach(
-      groupName => {
-        const operators = operatorMetadata.operators.filter(x => x.additionalMetadata.operatorGroupName === groupName);
-        operatorGroupMap.set(groupName, operators);
-      }
-    );
-    return operatorGroupMap;
-  }
+  const groups = operatorMetadata.groups.map(groupInfo => groupInfo.groupName);
+  const operatorGroupMap = new Map<string, OperatorSchema[]>();
+  groups.forEach(
+    groupName => {
+      const operators = operatorMetadata.operators.filter(x => x.additionalMetadata.operatorGroupName === groupName);
+      operatorGroupMap.set(groupName, operators);
+    }
+  );
+  return operatorGroupMap;
+}
