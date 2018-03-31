@@ -1,12 +1,9 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs/Observable';
-import { Subject } from 'rxjs/Subject';
-
 import '../../../common/rxjs-operators';
 
 import { AppSettings } from '../../../common/app-setting';
-
 import { OperatorMetadata } from '../../types/operator-schema';
 
 export const MOCK_OPERATOR_METADATA_ENDPOINT = 'resources/operator-metadata';
@@ -32,6 +29,10 @@ export const MOCK_OPERATOR_METADATA_ENDPOINT = 'resources/operator-metadata';
 @Injectable()
 export class OperatorMetadataService {
 
+  private operatorMetadataObservable = this.httpClient
+    .get<OperatorMetadata>(`${AppSettings.getApiEndpoint()}/${MOCK_OPERATOR_METADATA_ENDPOINT}`)
+    .shareReplay(1);
+
   constructor(private httpClient: HttpClient) { }
 
   /**
@@ -42,9 +43,7 @@ export class OperatorMetadataService {
    *
    */
   public getOperatorMetadata(): Observable<OperatorMetadata> {
-    return this.httpClient
-      .get<OperatorMetadata>(`${AppSettings.API_ENDPOINT}/${MOCK_OPERATOR_METADATA_ENDPOINT}`)
-      .shareReplay(1);
+    return this.operatorMetadataObservable;
   }
 
 }

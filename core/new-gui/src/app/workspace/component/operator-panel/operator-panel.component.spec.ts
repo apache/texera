@@ -6,10 +6,14 @@ import { StubOperatorMetadataService } from '../../service/operator-metadata/stu
 import { NO_ERRORS_SCHEMA } from '@angular/core';
 import { GroupInfo, OperatorSchema } from '../../types/operator-schema';
 
-import { MOCK_OPERATOR_METADATA, MOCK_OPERATOR_GROUPS, MOCK_OPERATOR_SCHEMA_LIST } from '../../service/operator-metadata/mock-operator-metadata.data';
+import {
+  MOCK_OPERATOR_METADATA, MOCK_OPERATOR_GROUPS,
+  MOCK_OPERATOR_SCHEMA_LIST
+} from '../../service/operator-metadata/mock-operator-metadata.data';
 
 import * as c from './operator-panel.component';
 import '../../../common/rxjs-operators';
+import { By } from '@angular/platform-browser';
 
 describe('OperatorPanelComponent', () => {
   let component: OperatorPanelComponent;
@@ -76,6 +80,43 @@ describe('OperatorPanelComponent', () => {
     // we assume the mock data has been received
     expect(component.operatorSchemaList.length).toEqual(MOCK_OPERATOR_SCHEMA_LIST.length);
     expect(component.groupNamesOrdered.length).toEqual(MOCK_OPERATOR_GROUPS.length);
+  });
+
+  it('should have all operator names shown in the UI side panel', () => {
+    // get all the group elements, then map to their inner HTML text
+    const operatorNamesInUI = fixture.debugElement
+      .queryAll(By.css('.texera-operator-group-name'))
+      .map(el => <HTMLElement>el.nativeElement)
+      .map(el => el.innerHTML.trim());
+
+    // check the UI text is the same with mock data
+    expect(operatorNamesInUI).toEqual(
+      MOCK_OPERATOR_GROUPS.map(groupInfo => groupInfo.groupName));
+
+  });
+
+  it('should make operator label visible when clicking a group name', () => {
+    // get one of the operator group name
+    const firstGroupPanelDebugElement = fixture.debugElement.query(By.css('.texera-operator-group-panel'));
+
+    const firstOperatorLabelDebugElement = firstGroupPanelDebugElement.query(By.css('.texerea-operator-name-wrapper'));
+
+    // console.log(firstOperatorLabelDebugElement);
+    // console.log(());
+    const styles = window.getComputedStyle(<HTMLElement>firstOperatorLabelDebugElement.nativeElement, null);
+    console.log(styles['visibility']);
+
+    // trigger a click on this group name
+    firstGroupPanelDebugElement.triggerEventHandler('click', null);
+
+    console.log(styles['visibility']);
+
+    firstGroupPanelDebugElement.triggerEventHandler('click', null);
+
+    console.log(styles['visibility']);
+
+
+
   });
 
 });

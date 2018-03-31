@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { OperatorMetadataService } from '../../service/operator-metadata/operator-metadata.service';
 
 import { OperatorSchema, OperatorMetadata, GroupInfo } from '../../types/operator-schema';
+import { StubOperatorMetadataService } from '../../service/operator-metadata/stub-operator-metadata.service';
 
 /**
  * OperatorViewComponent is the left-side panel that shows the operators.
@@ -20,7 +21,11 @@ import { OperatorSchema, OperatorMetadata, GroupInfo } from '../../types/operato
 @Component({
   selector: 'texera-operator-panel',
   templateUrl: './operator-panel.component.html',
-  styleUrls: ['./operator-panel.component.scss']
+  styleUrls: ['./operator-panel.component.scss'],
+  providers: [
+    // uncomment this line for manual testing without opening backend server
+    // { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
+  ]
 })
 export class OperatorPanelComponent implements OnInit {
 
@@ -43,6 +48,14 @@ export class OperatorPanelComponent implements OnInit {
     //   after the data is fetched, it will be passed through this observable
     this.operatorMetadataService.getOperatorMetadata().subscribe(
       value => this.processOperatorMetadata(value)
+    );
+
+    this.operatorMetadataService.getOperatorMetadata().subscribe(
+      value => console.log('subscribe 2')
+    );
+
+    this.operatorMetadataService.getOperatorMetadata().subscribe(
+      value => console.log('subscribe 3')
     );
   }
 
