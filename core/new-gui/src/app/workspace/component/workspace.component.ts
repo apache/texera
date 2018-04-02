@@ -1,12 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 
-import { NavigationComponent } from './navigation/navigation.component';
-import { OperatorPanelComponent } from './operator-panel/operator-panel.component';
-import { PropertyEditorComponent } from './property-editor/property-editor.component';
-import { WorkflowEditorComponent } from './workflow-editor/workflow-editor.component';
-import { ResultPanelComponent } from './result-panel/result-panel.component';
 import { OperatorMetadataService } from '../service/operator-metadata/operator-metadata.service';
-
 
 
 @Component({

@@ -49,14 +49,6 @@ export class OperatorPanelComponent implements OnInit {
     this.operatorMetadataService.getOperatorMetadata().subscribe(
       value => this.processOperatorMetadata(value)
     );
-
-    this.operatorMetadataService.getOperatorMetadata().subscribe(
-      value => console.log('subscribe 2')
-    );
-
-    this.operatorMetadataService.getOperatorMetadata().subscribe(
-      value => console.log('subscribe 3')
-    );
   }
 
   /**

@@ -1,9 +1,14 @@
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import { NO_ERRORS_SCHEMA } from '@angular/core';
+import { By } from '@angular/platform-browser';
+import '../../../common/rxjs-operators';
+import { CustomNgMaterialModule } from '../../../common/custom-ng-material.module';
+import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 
 import { OperatorPanelComponent } from './operator-panel.component';
-import { OperatorMetadataService } from '../../service/operator-metadata/operator-metadata.service';
+import { OperatorLabelComponent } from './operator-label/operator-label.component';
+import { OperatorMetadataService, EMPTY_OPERATOR_METADATA } from '../../service/operator-metadata/operator-metadata.service';
 import { StubOperatorMetadataService } from '../../service/operator-metadata/stub-operator-metadata.service';
-import { NO_ERRORS_SCHEMA } from '@angular/core';
 import { GroupInfo, OperatorSchema } from '../../types/operator-schema';
 
 import {
@@ -12,8 +17,10 @@ import {
 } from '../../service/operator-metadata/mock-operator-metadata.data';
 
 import * as c from './operator-panel.component';
-import '../../../common/rxjs-operators';
-import { By } from '@angular/platform-browser';
+
+
+
+
 
 describe('OperatorPanelComponent', () => {
   let component: OperatorPanelComponent;
@@ -21,11 +28,11 @@ describe('OperatorPanelComponent', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-      declarations: [OperatorPanelComponent],
+      declarations: [OperatorPanelComponent, OperatorLabelComponent],
       providers: [
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
       ],
-      schemas: [NO_ERRORS_SCHEMA]
+      imports: [CustomNgMaterialModule, BrowserAnimationsModule]
     })
       .compileComponents();
   }));
@@ -61,6 +68,13 @@ describe('OperatorPanelComponent', () => {
 
   });
 
+  it('getGroupNamesSorted test 3 - empty data', () => {
+    const groups: GroupInfo[] = [];
+    const result = c.getGroupNamesSorted(groups);
+    expect(result).toEqual([]);
+
+  });
+
   it('getOperatorGroupMap test 1', () => {
     const opMetadata = MOCK_OPERATOR_METADATA;
 
@@ -75,6 +89,15 @@ describe('OperatorPanelComponent', () => {
 
   });
 
+  it('getOperatorGroupMap test 2 - empty data', () => {
+    const opMetadata = EMPTY_OPERATOR_METADATA;
+    const result = c.getOperatorGroupMap(opMetadata);
+    const expectedResult = new Map<string, OperatorSchema[]>();
+
+    expect(result).toEqual(expectedResult);
+
+  });
+
   it('should receive operator metadata from service', () => {
     // if the length of our schema list is equal to the length of mock data
     // we assume the mock data has been received
@@ -82,41 +105,24 @@ describe('OperatorPanelComponent', () => {
     expect(component.groupNamesOrdered.length).toEqual(MOCK_OPERATOR_GROUPS.length);
   });
 
-  it('should have all operator names shown in the UI side panel', () => {
-    // get all the group elements, then map to their inner HTML text
-    const operatorNamesInUI = fixture.debugElement
+  it('should have all group names shown in the UI side panel', () => {
+    const groupNamesInUI = fixture.debugElement
       .queryAll(By.css('.texera-operator-group-name'))
       .map(el => <HTMLElement>el.nativeElement)
-      .map(el => el.innerHTML.trim());
+      .map(el => el.innerText.trim());
 
-    // check the UI text is the same with mock data
-    expect(operatorNamesInUI).toEqual(
-      MOCK_OPERATOR_GROUPS.map(groupInfo => groupInfo.groupName));
-
+    expect(groupNamesInUI).toEqual(
+      MOCK_OPERATOR_GROUPS.map(group => group.groupName));
   });
 
-  it('should make operator label visible when clicking a group name', () => {
-    // get one of the operator group name
-    const firstGroupPanelDebugElement = fixture.debugElement.query(By.css('.texera-operator-group-panel'));
+  it('should create child operator label component for all operators', () => {
+    const operatorLabels = fixture.debugElement
+      .queryAll(By.directive(OperatorLabelComponent))
+      .map(debugEl => <OperatorLabelComponent>debugEl.componentInstance)
+      .map(operatorLabel => operatorLabel.operator);
 
-    const firstOperatorLabelDebugElement = firstGroupPanelDebugElement.query(By.css('.texerea-operator-name-wrapper'));
-
-    // console.log(firstOperatorLabelDebugElement);
-    // console.log(());
-    const styles = window.getComputedStyle(<HTMLElement>firstOperatorLabelDebugElement.nativeElement, null);
-    console.log(styles['visibility']);
-
-    // trigger a click on this group name
-    firstGroupPanelDebugElement.triggerEventHandler('click', null);
-
-    console.log(styles['visibility']);
-
-    firstGroupPanelDebugElement.triggerEventHandler('click', null);
-
-    console.log(styles['visibility']);
-
-
-
+    expect(operatorLabels.length).toEqual(MOCK_OPERATOR_METADATA.operators.length);
   });
 
 });
+

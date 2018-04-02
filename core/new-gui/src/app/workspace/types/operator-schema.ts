@@ -1,6 +1,10 @@
 /**
  * This file contains multiple type declarations related to operator schema.
  * These type declarations should be the same with the backend API.
+ *
+ * This file include a sample mock data:
+ *   workspace/service/operator-metadata/mock-operator-metadata.data.ts
+ *
  */
 
 export interface OperatorAdditionalMetadata {
