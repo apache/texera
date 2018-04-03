@@ -13,7 +13,7 @@ describe('OperatorViewElementService', () => {
     TestBed.configureTestingModule({
       providers: [
         OperatorViewElementService,
-        {provide: OperatorMetadataService, useClass: StubOperatorMetadataService}
+        { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
       ],
     });
   });
@@ -30,7 +30,9 @@ describe('OperatorViewElementService', () => {
 
   it('getJointjsOperatorElement() should throw an error', () => {
     const nonExistingOperator = 'NotExistOperator';
-    expect(service.getJointjsOperatorElement(nonExistingOperator, 'operatorNaN', 100, 100))
+    expect(
+      function() {service.getJointjsOperatorElement(nonExistingOperator, 'operatorNaN', 100, 100); }
+    )
     .toThrow(new Error('OperatorViewElementService.getOperatorViewElement: ' +
     'cannot find operatorType: ' + nonExistingOperator));
   });
