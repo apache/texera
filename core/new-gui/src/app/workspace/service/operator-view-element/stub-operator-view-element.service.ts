@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
-import { OperatorMetadataService } from '../operator-metadata/operator-metadata.service';
 import { OperatorSchema } from '../../types/operator-schema';
+import { MOCK_OPERATOR_METADATA } from '../operator-metadata/mock-operator-metadata.data';
 
 import * as joint from 'jointjs';
 import { OperatorPort } from '../../types/operator-port';
@@ -8,23 +8,10 @@ import { OperatorPort } from '../../types/operator-port';
 export const DEFAULT_OPERATOR_WIDTH = 140;
 export const DEFAULT_OPERATOR_HEIGHT = 40;
 
-/**
- * OperatorUIElementService controls the shape of an operator
- *  when the operator element is displayed by JointJS.
- *
- * This service alters the basic JointJS element by:
- *  - setting the ID of the JointJS element to be the same as Texera's OperatorID
- *  - changing the look of the operator box (size, colors, lines, etc..)
- *  - adding input and output ports to the box based on the operator metadata
- *  - changing the look of the ports
- *  - adding a new delete button and the callback function of the delete button,
- *      (original JointJS element doesn't have a built-in delete button)
- *
- * @author Henry Chen
- * @author Zuozhi Wang
- */
+
 @Injectable()
-export class OperatorViewElementService {
+export class StubOperatorViewElementService {
+
 
   private operators: OperatorSchema[] = [];
 
@@ -38,14 +25,12 @@ export class OperatorViewElementService {
     <path d="${this.deleteButtonPath}"/>
   </svg>`;
 
-  constructor(
-    private operatorMetadataService: OperatorMetadataService
-  ) {
-    this.operatorMetadataService.getOperatorMetadata().subscribe(
-      value => this.operators = value.operators
-    );
+  constructor() {
+    this.operators = MOCK_OPERATOR_METADATA.operators;
     this.setupCustomJointjsModel();
   }
+
+
 
   /**
    * Gets the JointJS UI Element Object based on OperatorType OperatorID.
@@ -154,7 +139,9 @@ export class OperatorViewElementService {
 
     });
   }
+
 }
+
 
 
 
