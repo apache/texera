@@ -1,4 +1,6 @@
 import { Component, AfterViewInit } from '@angular/core';
+import { Observable } from 'rxjs/Observable';
+import '../../../common/rxjs-operators';
 
 import * as joint from 'jointjs';
 import { OperatorViewElementService } from '../../service/operator-view-element/operator-view-element.service';
@@ -25,10 +27,13 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
   // the DOM element ID of the main editor. It can be used by jQuery and jointJS to find the DOM element
   // in the HTML template, the div element ID is set using this variable
-  public readonly WORKFLOW_EDITOR_ELEMENT_ID = 'texera-workflow-editor-body-id';
+  public readonly WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID = 'texera-workflow-editor-jointjs-wrapper-id';
+  public readonly WORKFLOW_EDITOR_JOINTJS_ID = 'texera-workflow-editor-jointjs-body-id';
 
-  private paper: joint.dia.Paper = null;
-  private graph: joint.dia.Graph = new joint.dia.Graph();
+  public paper: joint.dia.Paper = null;
+  // this is only the temporary place for the graph variable
+  // it will be moved to a service in subsequent PRs
+  public graph: joint.dia.Graph = new joint.dia.Graph();
 
   constructor(
     private operatorViewElementService: OperatorViewElementService
@@ -59,7 +64,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
       { operatorID: 'operator2', portID: 'in0' }
     );
 
-
     this.graph.addCell(link);
 
   }
@@ -70,16 +74,16 @@ export class WorkflowEditorComponent implements AfterViewInit {
    *
    * JointJS documentation about paper: https://resources.jointjs.com/docs/jointjs/v2.0/joint.html#dia.Paper
    */
-  private createJointjsPaper(): joint.dia.Paper {
+  private createJointjsPaper(): void {
 
     const paper = new joint.dia.Paper({
       // bind the DOM element
-      el: $('#' + this.WORKFLOW_EDITOR_ELEMENT_ID),
+      el: $('#' + this.WORKFLOW_EDITOR_JOINTJS_ID),
       // bind the jointjs graph model
       model: this.graph,
-      // set the height and width of the paper to be the height and width of the parent element
-      height: $('#' + this.WORKFLOW_EDITOR_ELEMENT_ID).height(),
-      width: $('#' + this.WORKFLOW_EDITOR_ELEMENT_ID).width(),
+      // set the width and height of the paper to be the width height of the parent wrapper element
+      width: this.getWrapperElementSize().width,
+      height: this.getWrapperElementSize().height,
       // set grid size to 1px (smallest grid)
       gridSize: 1,
       // enable jointjs feature that automatically snaps a link to the closest port when user drops a link
@@ -98,7 +102,17 @@ export class WorkflowEditorComponent implements AfterViewInit {
       preventContextMenu: false,
     });
 
-    return paper;
+    this.paper = paper;
+  }
+
+  /**
+   * get the width and height of the parent wrapper element
+   */
+  private getWrapperElementSize(): {width: number, height: number} {
+    return {
+      width: $('#' + this.WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID).width(),
+      height: $('#' + this.WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID).height()
+    };
   }
 
 }

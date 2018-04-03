@@ -1,6 +1,7 @@
 @import '../workspace.component.scss';
 .texera-workspace-workflow-editor-body {
   border: 2px solid;
+  overflow: hidden;
 }
 
 ::ng-deep .texera-workspace-workflow-editor-body .marker-arrowhead {
@@ -14,18 +15,18 @@
 
 ::ng-deep .texera-workspace-workflow-editor-body .connection-wrap {
   stroke: #919191 !important;
-  stroke-width: 10 !important;
+  stroke-width: 0 !important;
 }
 
 ::ng-deep .texera-workspace-workflow-editor-body .link-tools .tool-remove {
-  width: 24px;
+  width: 24px !important;
 }
 
-::ng-deep .joint-link.joint-theme-default .link-tools .tool-remove path {
-  fill: #D8656A;
-  transform: translate(-12px, -12px);
+::ng-deep .texera-workspace-workflow-editor-body .link-tools .tool-remove path {
+  fill: #D8656A !important;
+  transform: translate(-12px, -12px)  !important;
 }
 
-::ng-deep .joint-link.joint-theme-default .link-tools .tool-remove circle{
-  fill-opacity: 0;
+::ng-deep .texera-workspace-workflow-editor-body .link-tools .tool-remove circle{
+  fill-opacity: 0 !important;
 }

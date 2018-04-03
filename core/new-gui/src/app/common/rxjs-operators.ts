@@ -8,6 +8,7 @@
 
 // Observable class extensions
 import 'rxjs/add/observable/of';
+import 'rxjs/add/observable/fromEvent';
 
 // Observable operators
 import 'rxjs/add/operator/map';
@@ -23,4 +24,5 @@ import 'rxjs/add/operator/shareReplay';
 import 'rxjs/add/operator/first';
 import 'rxjs/add/operator/last';
 import 'rxjs/add/operator/delay';
+import 'rxjs/add/operator/throttleTime';
 
