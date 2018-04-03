@@ -1,6 +1,8 @@
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { WorkflowEditorComponent } from './workflow-editor.component';
+import { OperatorViewElementService } from '../../service/operator-view-element/operator-view-element.service';
+import { StubOperatorViewElementService } from '../../service/operator-view-element/stub-operator-view-element.service';
 
 describe('WorkflowEditorComponent', () => {
   let component: WorkflowEditorComponent;
@@ -8,7 +10,10 @@ describe('WorkflowEditorComponent', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-      declarations: [ WorkflowEditorComponent ]
+      declarations: [ WorkflowEditorComponent ],
+      providers: [
+        {provide: OperatorViewElementService, useClass: StubOperatorViewElementService }
+      ]
     })
     .compileComponents();
   }));
