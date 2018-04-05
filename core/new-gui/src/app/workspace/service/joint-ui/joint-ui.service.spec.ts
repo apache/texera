@@ -1,24 +1,24 @@
 import { TestBed, inject } from '@angular/core/testing';
 import * as joint from 'jointjs';
 
-import { OperatorViewElementService } from './operator-view-element.service';
+import { JointUIService } from './joint-ui.service';
 import { OperatorMetadataService } from '../operator-metadata/operator-metadata.service';
 import { StubOperatorMetadataService } from '../operator-metadata/stub-operator-metadata.service';
 import { MOCK_OPERATOR_METADATA } from '../operator-metadata/mock-operator-metadata.data';
 
-describe('OperatorViewElementService', () => {
-  let service: OperatorViewElementService;
+describe('JointUIService', () => {
+  let service: JointUIService;
 
   beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [
-        OperatorViewElementService,
+        JointUIService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
       ],
     });
   });
 
-  it('should be created', inject([OperatorViewElementService], (ser: OperatorViewElementService) => {
+  it('should be created', inject([JointUIService], (ser: JointUIService) => {
     service = ser;
     expect(service).toBeTruthy();
   }));
@@ -41,7 +41,7 @@ describe('OperatorViewElementService', () => {
         service.getJointjsOperatorElement(nonExistingOperator, 'operatorNaN', 100, 100);
       }
     )
-    .toThrow(new Error('OperatorViewElementService.getOperatorViewElement: ' +
+    .toThrow(new Error('JointUIService.getJointUI: ' +
     'cannot find operatorType: ' + nonExistingOperator));
   });
 

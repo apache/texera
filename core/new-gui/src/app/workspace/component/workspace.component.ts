@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 
 import { OperatorMetadataService } from '../service/operator-metadata/operator-metadata.service';
-import { OperatorViewElementService } from '../service/operator-view-element/operator-view-element.service';
+import { JointUIService } from '../service/joint-ui/joint-ui.service';
 import { StubOperatorMetadataService } from '../service/operator-metadata/stub-operator-metadata.service';
 
 
@@ -14,7 +14,7 @@ import { StubOperatorMetadataService } from '../service/operator-metadata/stub-o
     // StubOperatorMetadataService can be used for debugging without start the backend server
     // { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
 
-    OperatorViewElementService
+    JointUIService
   ]
 })
 export class WorkspaceComponent implements OnInit {

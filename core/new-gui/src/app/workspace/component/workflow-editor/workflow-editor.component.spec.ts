@@ -4,7 +4,7 @@ import { WorkflowEditorComponent } from './workflow-editor.component';
 
 import { OperatorMetadataService } from '../../service/operator-metadata/operator-metadata.service';
 import { StubOperatorMetadataService } from '../../service/operator-metadata/stub-operator-metadata.service';
-import { OperatorViewElementService } from '../../service/operator-view-element/operator-view-element.service';
+import { JointUIService } from '../../service/joint-ui/joint-ui.service';
 import { MOCK_OPERATOR_SCHEMA_LIST } from '../../service/operator-metadata/mock-operator-metadata.data';
 
 import * as joint from 'jointjs';
@@ -12,13 +12,13 @@ import * as joint from 'jointjs';
 describe('WorkflowEditorComponent', () => {
   let component: WorkflowEditorComponent;
   let fixture: ComponentFixture<WorkflowEditorComponent>;
-  let operatorViewElementService: OperatorViewElementService;
+  let jointUIService: JointUIService;
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
       declarations: [WorkflowEditorComponent],
       providers: [
-        OperatorViewElementService,
+        JointUIService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
       ]
     })
@@ -28,7 +28,7 @@ describe('WorkflowEditorComponent', () => {
   beforeEach(() => {
     fixture = TestBed.createComponent(WorkflowEditorComponent);
     component = fixture.componentInstance;
-    operatorViewElementService = fixture.debugElement.injector.get(OperatorViewElementService);
+    jointUIService = fixture.debugElement.injector.get(JointUIService);
     fixture.detectChanges();
   });
 

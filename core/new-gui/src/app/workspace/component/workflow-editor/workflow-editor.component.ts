@@ -3,7 +3,7 @@ import { Observable } from 'rxjs/Observable';
 import '../../../common/rxjs-operators';
 
 import * as joint from 'jointjs';
-import { OperatorViewElementService } from '../../service/operator-view-element/operator-view-element.service';
+import { JointUIService } from '../../service/joint-ui/joint-ui.service';
 
 /**
  * WorkflowEditorComponent is the componenet for the main workflow editor part of the UI.
@@ -36,7 +36,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
   public graph: joint.dia.Graph = new joint.dia.Graph();
 
   constructor(
-    private operatorViewElementService: OperatorViewElementService
+    private jointUIService: JointUIService
   ) { }
 
   ngAfterViewInit() {
@@ -44,7 +44,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
     // add some dummy operators and links to show that JointJS works
     this.graph.addCell(
-      this.operatorViewElementService.getJointjsOperatorElement(
+      this.jointUIService.getJointjsOperatorElement(
         'ScanSource',
         'operator1',
         100, 100
@@ -52,14 +52,14 @@ export class WorkflowEditorComponent implements AfterViewInit {
     );
 
     this.graph.addCell(
-      this.operatorViewElementService.getJointjsOperatorElement(
+      this.jointUIService.getJointjsOperatorElement(
         'ViewResults',
         'operator2',
         500, 100
       )
     );
 
-    const link = this.operatorViewElementService.getJointjsLinkElement(
+    const link = this.jointUIService.getJointjsLinkElement(
       { operatorID: 'operator1', portID: 'out0' },
       { operatorID: 'operator2', portID: 'in0' }
     );
@@ -95,7 +95,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
       // disable jointjs default action of adding vertexes to the link
       interactive: { vertexAdd: false },
       // set a default link element used by jointjs when user creates a link on UI
-      defaultLink: this.operatorViewElementService.getDefaultLinkElement(),
+      defaultLink: this.jointUIService.getDefaultLinkElement(),
       // disable jointjs default action that stops propagate click events on jointjs paper
       preventDefaultBlankAction: false,
       // disable jointjs default action that prevents normal right click menu showing up on jointjs paper

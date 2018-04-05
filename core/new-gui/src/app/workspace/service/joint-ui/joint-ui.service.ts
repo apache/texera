@@ -24,7 +24,7 @@ export const DEFAULT_OPERATOR_HEIGHT = 40;
  * @author Zuozhi Wang
  */
 @Injectable()
-export class OperatorViewElementService {
+export class JointUIService {
 
   private operators: OperatorSchema[] = [];
 
@@ -79,7 +79,7 @@ export class OperatorViewElementService {
     const operatorSchema = this.operators.find(op => op.operatorType === operatorType);
     if (operatorSchema === undefined) {
       throw new Error(
-        'OperatorViewElementService.getOperatorViewElement: ' +
+        'JointUIService.getJointUI: ' +
         'cannot find operatorType: ' + operatorType);
     }
 
