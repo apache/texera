@@ -45,6 +45,16 @@ describe('JointUIService', () => {
     'cannot find operatorType: ' + nonExistingOperator));
   });
 
+
+  // TODOs
+  it('getJointjsOperatorElement() should create correct number of inPorts', () => {
+    const result = service.getJointjsOperatorElement('ScanSource', 'operator1', 100, 100);
+  });
+
+  it('getJointjsOperatorElement() should create correct number of outPorts', () => {
+    const result = service.getJointjsOperatorElement('ScanSource', 'operator1', 100, 100);
+  });
+
   /**
    * Check if the TexeraOperatorShape defined in setupCustomJointjsModel() is
    * correctly registered in the joint.shapes.devs
@@ -56,11 +66,10 @@ describe('JointUIService', () => {
   /**
    * Check if the custom attributes / svgs are correctly used by the JointJS graph
    */
-  it('should change the style of the attributes', () => {
+  it('should apply the custom svgs defined be getCustomOperatorStyleAttrs() and ' +
+  'getDefaultLinkElement() to the JointJS operator', () => {
+
     const graph = new joint.dia.Graph();
-    const deleteButtonPath = 'M14.59 8L12 10.59 9.41 8 8 9.41 10.59 12 8 14.59' +
-    ' 9.41 16 12 13.41 14.59 16 16 14.59 13.41 12 16 9.41 14.59 8zM12 2C6.47' +
-    ' 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z';
 
     graph.addCell(
       service.getJointjsOperatorElement(
@@ -89,6 +98,7 @@ describe('JointUIService', () => {
     const graph_operator2 = graph.getCell('operator2');
     const graph_link = graph.getLinks()[0];
 
+    // testing getCustomOperatorStyleAttrs()
     expect(graph_operator1.attr('rect')).toEqual(
       { fill: '#FFFFFF', 'follow-scale': true, stroke: '#CFCFCF', 'stroke-width': '2' }
     );
@@ -108,8 +118,9 @@ describe('JointUIService', () => {
       }
     );
 
-    expect(graph_link.attr('.marker-source/d')).toEqual('M 0 0 L 0 8 L 8 8 L 8 0 z');
-    expect(graph_link.attr('.marker-target/d')).toEqual('M 12 0 L 0 6 L 12 12 z');
-    expect(graph_link.attr('.tool-remove path/d')).toEqual(deleteButtonPath);
+    // testing getDefaultLinkElement()
+    expect(graph_link.attr('.marker-source/d')).toEqual(service.sourceOperatorHandle);
+    expect(graph_link.attr('.marker-target/d')).toEqual(service.targetOperatorHandle);
+    expect(graph_link.attr('.tool-remove path/d')).toEqual(service.deleteButtonPath);
   });
 });
