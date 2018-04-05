@@ -10,8 +10,9 @@ import { StubOperatorMetadataService } from '../service/operator-metadata/stub-o
   templateUrl: './workspace.component.html',
   styleUrls: ['./workspace.component.scss'],
   providers: [
-    // OperatorMetadataService,
-    { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+    OperatorMetadataService,
+    // StubOperatorMetadataService can be used for debugging without start the backend server
+    // { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
 
     OperatorViewElementService
   ]
