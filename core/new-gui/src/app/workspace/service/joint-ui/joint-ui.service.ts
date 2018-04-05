@@ -76,7 +76,9 @@ export class JointUIService {
    * The JointJS Element could be added to the JointJS graph to let JointJS display the operator accordingly.
    * The function first check if the operatorType exists in the metadata, if it doesn't,
    * the program will throw an error. Then it creates a JointJS shape created from the
-   * setupCustomJointjsModel() function called in the constructor above.
+   * setupCustomJointjsModel() function called in the constructor above. In this function,
+   * the custom JointJS shape will be populated with the operator's data. The style of the operator
+   * will be changed by getCustomOperatorStyleAttrs() and getCustomPortStyleAttrs().
    *
    * @param operatorType the type of the operator
    * @param operatorID the ID of the operator, the JointJS element ID would be the same as operatorID
@@ -151,6 +153,7 @@ export class JointUIService {
    * CSS properties have higher precedence over SVG element attributes."
    * As a result, a separate css/scss file is required to override the default
    * style of the operatorLink.
+   *
    * @returns JointJS Link
    */
   public getDefaultLinkElement(): joint.dia.Link {
@@ -193,7 +196,10 @@ export class JointUIService {
 
   /**
    * This function registers a custom JointJS shape in the
-   * joint.shapes.devs map so it can be used later on.
+   * joint.shapes.devs map so it can be used later on. This will also
+   * attach the delete button svg created to this custom operator
+   * The custom shape created will be a rectangle with a red delete
+   * button on the top-right hand corner.
    */
   private setupCustomJointjsModel(): void {
     joint.shapes.devs['TexeraOperatorShape'] = joint.shapes.devs.Model.extend({
