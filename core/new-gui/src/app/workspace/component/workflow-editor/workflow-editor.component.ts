@@ -40,32 +40,40 @@ export class WorkflowEditorComponent implements AfterViewInit {
   ) { }
 
   ngAfterViewInit() {
+
     this.createJointjsPaper();
 
-    // add some dummy operators and links to show that JointJS works
-    this.graph.addCell(
-      this.jointUIService.getJointjsOperatorElement(
-        'ScanSource',
-        'operator1',
-        100, 100
-      )
+    // add a 500ms delay for joint-ui.service to fetch the operator metaData
+    // this code is temporary and will be deleted in future PRs when drag
+    // and drop is implemented
+
+    Observable.of([]).delay(500).subscribe(
+      emptyData => {
+        // add some dummy operators and links to show that JointJS works
+        this.graph.addCell(
+          this.jointUIService.getJointjsOperatorElement(
+            'ScanSource',
+            'operator1',
+            100, 100
+          )
+        );
+
+        this.graph.addCell(
+          this.jointUIService.getJointjsOperatorElement(
+            'ViewResults',
+            'operator2',
+            500, 100
+          )
+        );
+
+        const link = this.jointUIService.getJointjsLinkElement(
+          { operatorID: 'operator1', portID: 'out0' },
+          { operatorID: 'operator2', portID: 'in0' }
+        );
+
+        this.graph.addCell(link);
+      }
     );
-
-    this.graph.addCell(
-      this.jointUIService.getJointjsOperatorElement(
-        'ViewResults',
-        'operator2',
-        500, 100
-      )
-    );
-
-    const link = this.jointUIService.getJointjsLinkElement(
-      { operatorID: 'operator1', portID: 'out0' },
-      { operatorID: 'operator2', portID: 'in0' }
-    );
-
-    this.graph.addCell(link);
-
   }
 
   /**

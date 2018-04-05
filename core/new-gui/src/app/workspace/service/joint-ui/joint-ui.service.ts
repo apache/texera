@@ -66,6 +66,7 @@ export class JointUIService {
     this.operatorMetadataService.getOperatorMetadata().subscribe(
       value => this.operators = value.operators
     );
+
     this.setupCustomJointjsModel();
   }
 
@@ -114,6 +115,7 @@ export class JointUIService {
     for (let i = 0; i < operatorSchema.additionalMetadata.numOutputPorts; i++) {
       operatorElement.addOutPort(`out${i}`);
     }
+
 
     return operatorElement;
   }

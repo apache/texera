@@ -46,13 +46,29 @@ describe('JointUIService', () => {
   });
 
 
-  // TODOs
-  it('getJointjsOperatorElement() should create correct number of inPorts', () => {
-    const result = service.getJointjsOperatorElement('ScanSource', 'operator1', 100, 100);
-  });
+  /**
+   * Check if the number of inPorts and outPorts created by getJointjsOperatorElement()
+   * matches the port number specified by the operator metadata
+   */
+  it('getJointjsOperatorElement() should create correct number of inPorts and outPorts', () => {
+    const element1 = service.getJointjsOperatorElement('ScanSource', 'operator1', 100, 100);
+    const element2 = service.getJointjsOperatorElement('NlpSentiment', 'operator1', 100, 100);
+    const element3 = service.getJointjsOperatorElement('ViewResults', 'operator1', 100, 100);
 
-  it('getJointjsOperatorElement() should create correct number of outPorts', () => {
-    const result = service.getJointjsOperatorElement('ScanSource', 'operator1', 100, 100);
+    const inPortCount1 = element1.getPorts().filter(port => port.group === 'in').length;
+    const outPortCount1 = element1.getPorts().filter(port => port.group === 'out').length;
+    const inPortCount2 = element2.getPorts().filter(port => port.group === 'in').length;
+    const outPortCount2 = element2.getPorts().filter(port => port.group === 'out').length;
+    const inPortCount3 = element3.getPorts().filter(port => port.group === 'in').length;
+    const outPortCount3 = element3.getPorts().filter(port => port.group === 'out').length;
+
+    expect(inPortCount1).toEqual(0);
+    expect(outPortCount1).toEqual(1);
+    expect(inPortCount2).toEqual(1);
+    expect(outPortCount2).toEqual(1);
+    expect(inPortCount3).toEqual(1);
+    expect(outPortCount3).toEqual(0);
+
   });
 
   /**
