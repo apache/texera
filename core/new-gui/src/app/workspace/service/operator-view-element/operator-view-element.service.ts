@@ -28,10 +28,20 @@ export class OperatorViewElementService {
 
   private operators: OperatorSchema[] = [];
 
-  // tslint:disable:max-line-length
+  /**
+   * This private variable defines the svg property
+   * of a delete button
+   */
   private readonly deleteButtonPath =
-  'M14.59 8L12 10.59 9.41 8 8 9.41 10.59 12 8 14.59 9.41 16 12 13.41 14.59 16 16 14.59 13.41 12 16 9.41 14.59 8zM12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z';
+  'M14.59 8L12 10.59 9.41 8 8 9.41 10.59 12 8 14.59 9.41 16 12 13.41' +
+  ' 14.59 16 16 14.59 13.41 12 16 9.41 14.59 8zM12 2C6.47 2 2 6.47 2' +
+  ' 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z';
 
+  /**
+   * This private variable defines the wrapper around
+   * the button, deciding the size and other styles
+   * for the delte button.
+   */
   private readonly deleteButtonSVG =
   `<svg class="delete-button" fill="#000000" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg">
     <path d="M0 0h24v24H0z" fill="none" pointer-events="visible" />
@@ -51,6 +61,9 @@ export class OperatorViewElementService {
    * Gets the JointJS UI Element Object based on OperatorType OperatorID.
    *
    * The JointJS Element could be added to the JointJS graph to let JointJS display the operator accordingly.
+   * The function first check if the operatorType exists in the metadata, if it doesn't,
+   * the program will throw an error. Then it creates a JointJS shape created from the
+   * setupCustomJointjsModel() function called in the constructor above.
    *
    * @param operatorType the type of the operator
    * @param operatorID the ID of the operator, the JointJS element ID would be the same as operatorID
@@ -64,7 +77,7 @@ export class OperatorViewElementService {
   ): joint.dia.Element {
 
     const operatorSchema = this.operators.find(op => op.operatorType === operatorType);
-    if (operatorSchema === null || operatorSchema === undefined) {
+    if (operatorSchema === undefined) {
       throw new Error(
         'OperatorViewElementService.getOperatorViewElement: ' +
         'cannot find operatorType: ' + operatorType);
@@ -93,6 +106,16 @@ export class OperatorViewElementService {
     return operatorElement;
   }
 
+  /**
+   * This function takes an source and target OperatorPort and
+   * creates a JointJS link element that would be added to the JointJS
+   * graph to let JointJS display the operator accordingly. This function
+   * will connect the source and the target operator together on the graph.
+   *
+   * @param source the OperatorPort of the source of a link
+   * @param target the OperatorPort of the target of a link
+   * @returns JointJS Link Element
+   */
   public getJointjsLinkElement(
     source: OperatorPort, target: OperatorPort
   ): joint.dia.Link {
@@ -102,6 +125,20 @@ export class OperatorViewElementService {
     return link;
   }
 
+  /**
+   * This function will creates a custom JointJS link element using
+   * custom attributes / styles to display the operator. This function
+   * defines the svg properties for each part of link, such as the
+   * shape of the arrow or the link. Other styles are defined in the
+   * "app/workspace/component/workflow-editor/workflow-editor.component.scss".
+   * The reason for separating styles in svg and css is that while we can
+   * change the shape of the operators in svg, according to JointJS official
+   * website, https://resources.jointjs.com/tutorial/element-styling, "
+   * CSS properties have higher precedence over SVG element attributes."
+   * As a result, a separate css/scss file is required to override the default
+   * style of the operatorLink.
+   * @returns JointJS Link
+   */
   public getDefaultLinkElement(): joint.dia.Link {
     const link = new joint.dia.Link({
       attrs: {
@@ -130,7 +167,6 @@ export class OperatorViewElementService {
         },
         '.tool-remove path': {
           d: this.deleteButtonPath,
-
         },
         '.tool-remove circle': {
 
@@ -141,8 +177,11 @@ export class OperatorViewElementService {
     return link;
   }
 
+  /**
+   * This function registers a custom JointJS shape in the
+   * joint.shapes.devs map so it can be used later on.
+   */
   private setupCustomJointjsModel(): void {
-
     joint.shapes.devs['TexeraOperatorShape'] = joint.shapes.devs.Model.extend({
       type: 'devs.TexeraModel',
       markup:
@@ -151,13 +190,17 @@ export class OperatorViewElementService {
           ${this.deleteButtonSVG}
           <text></text>
         </g>`
-
     });
   }
 }
 
-
-
+/**
+ * This function changes the default svg of the operator ports.
+ * It hides the port label that will display 'out/in' beside
+ * the operators.
+ *
+ * @returns the custom attributes of the ports
+ */
 export function getCustomPortStyleAttrs(): Object {
   const portStyleAttrs = {
     '.port-body': {
@@ -172,6 +215,14 @@ export function getCustomPortStyleAttrs(): Object {
   return portStyleAttrs;
 }
 
+/**
+ * This function creates a custom svg style for the operator. Also, this function
+ * will make the delete button defined above to emit the delete event that will
+ * be captured by JointJS.
+ *
+ * @param operatorDisplayName the name of the operator that will display on the UI
+ * @returns the custom attributes of the operator
+ */
 export function getCustomOperatorStyleAttrs(operatorDisplayName: string): Object {
   const operatorStyleAttrs = {
     'rect': { fill: '#FFFFFF', 'follow-scale': true, stroke: '#CFCFCF', 'stroke-width': '2' },

@@ -4,6 +4,20 @@
   overflow: hidden;
 }
 
+/**
+* Component styles normally apply only to the HTML in the component's own template.
+* Using ::ng-deep would force a style down through
+* the child component tree into all the child component views
+**/
+
+
+/**
+* The styles defined here under ::ng-deep is used to override
+* the default style of the operators defined by the JointJS.
+* !important forces the browser to make the style defined here
+* higher prioritized.
+**/
+
 ::ng-deep .texera-workspace-workflow-editor-body .marker-arrowhead {
   fill: #919191 !important;
 }
