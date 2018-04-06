@@ -8,6 +8,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableMap;
 
 import edu.uci.ics.texera.api.exception.PlanGenException;
+import edu.uci.ics.texera.api.dataflow.IOperator;
 import edu.uci.ics.texera.dataflow.annotation.AdvancedOption;
 import edu.uci.ics.texera.dataflow.common.OperatorGroupConstants;
 import edu.uci.ics.texera.dataflow.common.PropertyNameConstants;
