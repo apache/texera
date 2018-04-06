@@ -2,12 +2,15 @@ package edu.uci.ics.texera.dataflow.keywordmatcher;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.ImmutableMap;
 
 import edu.uci.ics.texera.api.dataflow.IOperator;
 import edu.uci.ics.texera.api.exception.TexeraException;
+import edu.uci.ics.texera.dataflow.common.OperatorGroupConstants;
 import edu.uci.ics.texera.dataflow.common.PredicateBase;
 import edu.uci.ics.texera.storage.constants.LuceneAnalyzerConstants;
 import edu.uci.ics.texera.dataflow.common.PropertyNameConstants;
@@ -153,6 +156,14 @@ public class KeywordPredicate extends PredicateBase {
     @Override
     public IOperator newOperator() {
         return new KeywordMatcher(this);
+    }
+    
+    public static Map<String, Object> getOperatorMetadata() {
+        return ImmutableMap.<String, Object>builder()
+            .put(PropertyNameConstants.USER_FRIENDLY_NAME, "Keyword Search")
+            .put(PropertyNameConstants.OPERATOR_DESCRIPTION, "Search the documents using a keyword")
+            .put(PropertyNameConstants.OPERATOR_GROUP_NAME, OperatorGroupConstants.SEARCH_GROUP)
+            .build();
     }
 
 }

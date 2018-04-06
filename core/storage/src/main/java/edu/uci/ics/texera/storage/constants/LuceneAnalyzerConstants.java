@@ -20,17 +20,25 @@ import edu.uci.ics.texera.api.exception.DataflowException;
  */
 public class LuceneAnalyzerConstants {
     
+    public static final String STANDARD_ANALYZER = "standard";
+    
+    public static final String CHINESE_ANALYZER = "chinese";
+    
     
     public static String standardAnalyzerString() {
-        return "standard";
+        return STANDARD_ANALYZER;
     }
     
     public static String nGramAnalyzerString(int gramNum) {
         return gramNum + "-gram";
     }
     
+    /**
+     * Uses Lucene's built-in smart chinese analyzer
+     * @return
+     */
     public static String chineseAnalyzerString() {
-        return "smartchinese";
+        return CHINESE_ANALYZER;
     }
     
     /**
@@ -56,7 +64,7 @@ public class LuceneAnalyzerConstants {
             } catch (NumberFormatException e) {
                 throw new DataflowException(luceneAnalyzerString + " is not a valid lucene analyzer");
             }
-        } else if (luceneAnalyzerString.equals("smartchinese")) {
+        } else if (luceneAnalyzerString.equals("chinese")) {
             return new SmartChineseAnalyzer();
         }
         throw new DataflowException(luceneAnalyzerString + " is not a valid lucene analyzer");

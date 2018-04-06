@@ -60,7 +60,7 @@ public class NlpEntityOperator extends AbstractSingleInputOperator {
         inputSchema = inputOperator.getOutputSchema();
         
         Schema.checkAttributeExists(inputSchema, predicate.getAttributeNames());
-        Schema.checkAttributeNotExists(inputSchema, predicate.getSpanListName());
+        Schema.checkAttributeNotExists(inputSchema, predicate.getResultAttribute());
 
         outputSchema = transformToOutputSchema(inputSchema);
     }
@@ -92,7 +92,7 @@ public class NlpEntityOperator extends AbstractSingleInputOperator {
             return null;
         }
         return new Tuple.Builder(inputTuple)
-                .add(predicate.getSpanListName(), AttributeType.LIST, new ListField<Span>(matchingResults))
+                .add(predicate.getResultAttribute(), AttributeType.LIST, new ListField<Span>(matchingResults))
                 .build();
     }
     
@@ -328,8 +328,8 @@ public class NlpEntityOperator extends AbstractSingleInputOperator {
             throw new TexeraException(String.format(ErrorMessages.NUMBER_OF_ARGUMENTS_DOES_NOT_MATCH, 1, inputSchema.length));
 
         Schema.checkAttributeExists(inputSchema[0], predicate.getAttributeNames());
-        Schema.checkAttributeNotExists(inputSchema[0], predicate.getSpanListName());
+        Schema.checkAttributeNotExists(inputSchema[0], predicate.getResultAttribute());
 
-        return new Schema.Builder().add(inputSchema[0]).add(predicate.getSpanListName(), AttributeType.LIST).build();
+        return new Schema.Builder().add(inputSchema[0]).add(predicate.getResultAttribute(), AttributeType.LIST).build();
     }
 }

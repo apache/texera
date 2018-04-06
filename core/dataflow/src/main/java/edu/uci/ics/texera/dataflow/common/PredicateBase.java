@@ -34,7 +34,6 @@ import edu.uci.ics.texera.dataflow.regexmatcher.RegexPredicate;
 import edu.uci.ics.texera.dataflow.regexmatcher.RegexSourcePredicate;
 import edu.uci.ics.texera.dataflow.regexsplit.RegexSplitPredicate;
 import edu.uci.ics.texera.dataflow.sampler.SamplerPredicate;
-import edu.uci.ics.texera.dataflow.sink.excel.ExcelSinkPredicate;
 import edu.uci.ics.texera.dataflow.sink.mysql.MysqlSinkPredicate;
 import edu.uci.ics.texera.dataflow.sink.tuple.TupleSinkPredicate;
 import edu.uci.ics.texera.dataflow.source.asterix.AsterixSourcePredicate;
@@ -83,7 +82,9 @@ import edu.uci.ics.texera.dataflow.wordcount.WordCountOperatorPredicate;
         @Type(value = NlpSplitPredicate.class, name = "NlpSplit"),
         @Type(value = SamplerPredicate.class, name = "Sampler"),
 
-        @Type(value = ComparablePredicate.class, name = "Comparison"),
+        // remove comparable matcher because of the json schema "any" issue
+        // TODO: fix the problem and add Comparable matcher back later
+         @Type(value = ComparablePredicate.class, name = "Comparison"),
         
         @Type(value = AsterixSourcePredicate.class, name = "AsterixSource"),        
         @Type(value = TwitterConverterPredicate.class, name = "TwitterConverter"),
@@ -91,7 +92,6 @@ import edu.uci.ics.texera.dataflow.wordcount.WordCountOperatorPredicate;
         @Type(value = ScanSourcePredicate.class, name = "ScanSource"),
         @Type(value = FileSourcePredicate.class, name = "FileSource"),        
         @Type(value = TupleSinkPredicate.class, name = "ViewResults"),
-        @Type(value = ExcelSinkPredicate.class, name = "ExcelSink"),
         @Type(value = MysqlSinkPredicate.class, name = "MysqlSink"),
         @Type(value = TwitterFeedSourcePredicate.class, name = "TwitterFeed"),
         

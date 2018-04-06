@@ -71,7 +71,7 @@ public class RegexSplitOperatorTest {
         
         ScanBasedSourceOperator scanSource = new ScanBasedSourceOperator(new ScanSourcePredicate(tableName));
         RegexSplitOperator regexSplit = new RegexSplitOperator(
-                new RegexSplitPredicate(RegexOutputType.ONE_TO_MANY, splitRegex, splitAttrName, splitType, RESULT_ATTR));
+                new RegexSplitPredicate(splitRegex, splitAttrName, RegexOutputType.ONE_TO_MANY, splitType, RESULT_ATTR));
         regexSplit.setInputOperator(scanSource);
         
         List<Tuple> results = new ArrayList<>();
@@ -90,7 +90,7 @@ public class RegexSplitOperatorTest {
         
         ScanBasedSourceOperator scanSource = new ScanBasedSourceOperator(new ScanSourcePredicate(tableName));
         RegexSplitOperator regexSplit = new RegexSplitOperator(
-                new RegexSplitPredicate(RegexOutputType.ONE_TO_ONE, splitRegex, splitAttrName, splitType, RESULT_ATTR));
+                new RegexSplitPredicate(splitRegex, splitAttrName, RegexOutputType.ONE_TO_ONE, splitType, RESULT_ATTR));
         regexSplit.setInputOperator(scanSource);
         
         List<Tuple> results = new ArrayList<>();

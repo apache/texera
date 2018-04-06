@@ -1,0 +1,12 @@
+<div class="texera-workspace-operator-panel-body texera-workflow-component-body">
+  <mat-accordion multi="false">
+    <mat-expansion-panel class="mat-elevation-z0 texera-operator-group-panel" *ngFor="let groupName of groupNamesOrdered">
+      <mat-expansion-panel-header class="texera-operator-group-name">
+        {{groupName}}
+      </mat-expansion-panel-header>
+      <div  *ngFor="let operatorSchema of operatorGroupMap.get(groupName)">
+        <texera-operator-label class="texerea-operator-name-wrapper" [operator]="operatorSchema"></texera-operator-label>
+      </div>
+    </mat-expansion-panel>
+  </mat-accordion>
+</div>

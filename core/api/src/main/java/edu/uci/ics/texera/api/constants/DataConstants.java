@@ -7,10 +7,14 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 /**
  * @author Zuozhi Wang (zuozhi)
  */
 public class DataConstants {
+    
+    public static final ObjectMapper defaultObjectMapper = new ObjectMapper();
     
     public static final String HOME_FOLDER_NAME = "core";
     
