@@ -1,4 +1,4 @@
-import { Component, AfterViewInit } from '@angular/core';
+import { Component, AfterViewInit, HostListener } from '@angular/core';
 import { Observable } from 'rxjs/Observable';
 import '../../../common/rxjs-operators';
 
@@ -100,6 +100,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
       linkPinning: false,
       // provide a validation to determine if two ports could be connected (only output connect to input is allowed)
       validateConnection: validateOperatorConnection,
+      // provide a validation to determine if the port where link starts from is an out port
+      validateMagnet: validateOperatorMagnet,
       // disable jointjs default action of adding vertexes to the link
       interactive: { vertexAdd: false },
       // set a default link element used by jointjs when user creates a link on UI
@@ -123,6 +125,10 @@ export class WorkflowEditorComponent implements AfterViewInit {
     };
   }
 
+  @HostListener('window:resize', ['$event'])
+  onResize(event) {
+    this.paper.setDimensions(this.getWrapperElementSize().width, this.getWrapperElementSize().height);
+  }
 }
 
 /**
@@ -145,6 +151,19 @@ function validateOperatorConnection(sourceView: joint.dia.CellView, sourceMagnet
   if (targetMagnet && targetMagnet.getAttribute('port-group') === 'out') { return false; }
 
   return sourceView.id !== targetView.id;
+}
+
+/**
+* This function is provided to JointJS to disallow links starting from an in port.
+*
+* https://resources.jointjs.com/docs/jointjs/v2.0/joint.html#dia.Paper.prototype.options.validateMagnet
+*
+* @param cellView
+* @param magnet
+*/
+function validateOperatorMagnet(cellView: joint.dia.CellView, magnet: SVGElement): boolean {
+  if (magnet && magnet.getAttribute('port-group') === 'in') {return false; }
+  if (magnet && magnet.getAttribute('port-group') === 'out') {return true; }
 }
 
 
