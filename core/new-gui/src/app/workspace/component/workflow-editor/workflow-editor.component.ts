@@ -1,3 +1,6 @@
+import { WorkflowUtilService } from './../../service/workflow-graph/util/workflow-util.service';
+import { WorkflowModelActionService } from './../../service/workflow-graph/model/workflow-model-action.service';
+import { JointjsModelService } from './../../service/workflow-graph/model/jointjs-model.service';
 import { Component, AfterViewInit } from '@angular/core';
 import { Observable } from 'rxjs/Observable';
 import '../../../common/rxjs-operators';
@@ -31,15 +34,16 @@ export class WorkflowEditorComponent implements AfterViewInit {
   public readonly WORKFLOW_EDITOR_JOINTJS_ID = 'texera-workflow-editor-jointjs-body-id';
 
   public paper: joint.dia.Paper = null;
-  // this is only the temporary place for the graph variable
-  // it will be moved to a service in subsequent PRs
-  public graph: joint.dia.Graph = new joint.dia.Graph();
 
   constructor(
-    private jointUIService: JointUIService
+    private jointUIService: JointUIService,
+    private jointjsModelService: JointjsModelService,
+    private workflowModelActionService: WorkflowModelActionService,
+    private workflowUtilService: WorkflowUtilService
   ) { }
 
   ngAfterViewInit() {
+
 
     this.createJointjsPaper();
 
@@ -50,28 +54,21 @@ export class WorkflowEditorComponent implements AfterViewInit {
     Observable.of([]).delay(500).subscribe(
       emptyData => {
         // add some dummy operators and links to show that JointJS works
-        this.graph.addCell(
-          this.jointUIService.getJointjsOperatorElement(
-            'ScanSource',
-            'operator1',
-            100, 100
-          )
+        this.workflowModelActionService.addOperator(
+          this.workflowUtilService.getNewOperatorPredicate('ScanSource'),
+          { x: 300, y: 250 }
         );
 
-        this.graph.addCell(
-          this.jointUIService.getJointjsOperatorElement(
-            'ViewResults',
-            'operator2',
-            500, 100
-          )
+        this.workflowModelActionService.addOperator(
+          this.workflowUtilService.getNewOperatorPredicate('ViewResults'),
+          { x: 500, y: 200 }
         );
 
-        const link = this.jointUIService.getJointjsLinkElement(
-          { operatorID: 'operator1', portID: 'out0' },
-          { operatorID: 'operator2', portID: 'in0' }
+        this.workflowModelActionService.addOperator(
+          this.workflowUtilService.getNewOperatorPredicate('ViewResults'),
+          { x: 500, y: 300 }
         );
 
-        this.graph.addCell(link);
       }
     );
   }
@@ -88,14 +85,14 @@ export class WorkflowEditorComponent implements AfterViewInit {
       // bind the DOM element
       el: $('#' + this.WORKFLOW_EDITOR_JOINTJS_ID),
       // bind the jointjs graph model
-      model: this.graph,
+      model: this.jointjsModelService.jointGraph,
       // set the width and height of the paper to be the width height of the parent wrapper element
       width: this.getWrapperElementSize().width,
       height: this.getWrapperElementSize().height,
       // set grid size to 1px (smallest grid)
       gridSize: 1,
-      // enable jointjs feature that automatically snaps a link to the closest port when user drops a link
-      snapLinks: true,
+      // enable jointjs feature that automatically snaps a link to the closest port with a radius of 30px
+      snapLinks: { radius: 30 },
       // disable jointjs default action that can make a link not connect to an operator
       linkPinning: false,
       // provide a validation to determine if two ports could be connected (only output connect to input is allowed)
@@ -111,12 +108,13 @@ export class WorkflowEditorComponent implements AfterViewInit {
     });
 
     this.paper = paper;
+    this.jointjsModelService.registerJointPaper(paper);
   }
 
   /**
    * get the width and height of the parent wrapper element
    */
-  private getWrapperElementSize(): {width: number, height: number} {
+  private getWrapperElementSize(): { width: number, height: number } {
     return {
       width: $('#' + this.WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID).width(),
       height: $('#' + this.WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID).height()

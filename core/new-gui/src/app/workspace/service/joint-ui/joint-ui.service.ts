@@ -4,6 +4,7 @@ import { OperatorSchema } from '../../types/operator-schema';
 
 import * as joint from 'jointjs';
 import { OperatorPort } from '../../types/operator-port';
+import { Point } from '../../types/common.interface';
 
 export const DEFAULT_OPERATOR_WIDTH = 140;
 export const DEFAULT_OPERATOR_HEIGHT = 40;
@@ -88,7 +89,7 @@ export class JointUIService {
    * @returns JointJS Element
    */
   public getJointjsOperatorElement(
-    operatorType: string, operatorID: string, xPosition: number, yPosition: number
+    operatorType: string, operatorID: string, jointOffsetPoint: Point
   ): joint.dia.Element {
 
     const operatorSchema = this.operators.find(op => op.operatorType === operatorType);
@@ -100,7 +101,7 @@ export class JointUIService {
 
     const operatorElement: joint.shapes.devs.Model = new joint.shapes.devs['TexeraOperatorShape']({
       id: operatorID,
-      position: { x: xPosition, y: yPosition },
+      position: { x: jointOffsetPoint.x, y: jointOffsetPoint.y },
       size: { width: DEFAULT_OPERATOR_WIDTH, height: DEFAULT_OPERATOR_HEIGHT },
       attrs: getCustomOperatorStyleAttrs(operatorSchema.additionalMetadata.userFriendlyName),
       ports: {
