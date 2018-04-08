@@ -1,0 +1,49 @@
+.subsection-grid-container {
+  min-width: 100%;
+  width: 100%;
+  min-height: 100%;
+  height: 100%;
+}
+
+/**
+* this css is used for creating a 2*2 grid area for the 3 main
+* sub-components. The percentages define the size of each
+* column and row.
+*              ******************
+*              *                *
+*              ******************
+*              *                *
+*              *                *
+*              *                *
+*              *                *
+*              ******************
+**/
+$header-height: 70px;
+.saved-project-container{
+  display: grid;
+  grid-template-rows : $header-height calc((100% - #{$header-height}))
+}
+
+/**
+* the grid of the top bar which contains the logo and user accound
+* icon. The position of the top bar is fix. no adaptation
+**/
+.project-section-title{
+  grid-row-start: 1;
+  grid-row-end: 2;
+}
+
+/**
+* the grid of the feature bar which contains the button directing to
+* various feature. The height of the top bar is flex, filling the browser.
+* Also set the right border color.
+**/
+.project-list{
+  grid-row-start: 2;
+  grid-row-end: 3;
+  overflow: auto;
+}
+
+.sorting_func{
+  text-align: left;
+}

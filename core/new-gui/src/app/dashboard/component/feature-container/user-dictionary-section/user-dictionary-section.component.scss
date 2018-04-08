@@ -1,0 +1,49 @@
+.subsection-grid-container {
+  min-width: 100%;
+  width: 100%;
+  min-height: 100%;
+  height: 100%;
+}
+
+/**
+* this css is used for creating a 2*2 grid area for the 3 main
+* sub-components. The percentages define the size of each
+* column and row.
+*              ******************
+*              *                *
+*              *                *
+*              *                *
+*              *                *
+*              ******************
+**/
+$header-height: 70px;
+.user-dictionary-container{
+  display: grid;
+  grid-template-rows : $header-height calc((100% - #{$header-height}))
+}
+
+/**
+* the grid of the feature bar which contains the button directing to
+* various feature. The height of the top bar is flex, filling the browser.
+* Also set the right border color.
+**/
+.user-dictionary-list{
+  grid-row-start: 2;
+  grid-row-end: 3;
+  overflow: auto;
+}
+
+.user-dictionary-list-item{
+  border: 1px solid #d2d7df;
+  height: 70px;
+  border-radius: 3px;
+  margin-bottom : 5px;
+}
+
+.gap-filler{
+  flex: 1 1 auto;
+}
+
+.view-button{
+  float: right;
+}
