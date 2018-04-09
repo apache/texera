@@ -15,10 +15,10 @@ export class StubOperatorMetadataService {
     .of(MOCK_OPERATOR_METADATA)
     .shareReplay(1);
 
+  constructor() { }
+
   public getOperatorMetadata(): Observable<OperatorMetadata> {
     return this.operatorMetadataObservable;
   }
-
-  constructor() { }
 
 }

@@ -42,23 +42,6 @@ export class JointjsModelService {
     this.jointPaper = jointPaper;
   }
 
-  private addOperator(operator: OperatorPredicate, point: Point): void {
-    const jointOffsetPoint: Point = {
-      x: point.x - this.jointPaper.pageOffset().x,
-      y: point.y - this.jointPaper.pageOffset().y
-    };
-
-    const operatorJointElement = this.jointUIService.getJointjsOperatorElement(
-      operator.operatorType, operator.operatorID, jointOffsetPoint);
-
-    this.jointGraph.addCell(operatorJointElement);
-  }
-
-  private deleteOperator(operatorID: string): void {
-    this.jointGraph.getCell(operatorID).remove();
-  }
-
-
   /**
    * @package
    */
@@ -102,6 +85,22 @@ export class JointjsModelService {
     return jointLinkChangeStream;
   }
 
+
+  private addOperator(operator: OperatorPredicate, point: Point): void {
+    const jointOffsetPoint: Point = {
+      x: point.x - this.jointPaper.pageOffset().x,
+      y: point.y - this.jointPaper.pageOffset().y
+    };
+
+    const operatorJointElement = this.jointUIService.getJointjsOperatorElement(
+      operator.operatorType, operator.operatorID, jointOffsetPoint);
+
+    this.jointGraph.addCell(operatorJointElement);
+  }
+
+  private deleteOperator(operatorID: string): void {
+    this.jointGraph.getCell(operatorID).remove();
+  }
 
 }
 

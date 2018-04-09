@@ -27,8 +27,6 @@ export const DEFAULT_OPERATOR_HEIGHT = 40;
 @Injectable()
 export class JointUIService {
 
-  private operators: OperatorSchema[] = [];
-
   /**
    * This variable defines the svg property
    * of a delete button
@@ -60,6 +58,8 @@ export class JointUIService {
    * of the target operator for a link
    */
   public readonly targetOperatorHandle = 'M 12 0 L 0 6 L 12 12 z';
+
+  private operators: OperatorSchema[] = [];
 
   constructor(
     private operatorMetadataService: OperatorMetadataService

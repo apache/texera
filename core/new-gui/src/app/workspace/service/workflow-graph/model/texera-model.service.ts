@@ -2,80 +2,87 @@ import { OperatorSchema } from './../../../types/operator-schema';
 import { OperatorMetadataService } from './../../operator-metadata/operator-metadata.service';
 import { WorkflowModelActionService } from './workflow-model-action.service';
 import { WorkflowGraphReadonly } from './../../../types/workflow-graph-readonly';
-import { WorkflowGraph, OperatorLink } from './../../../types/workflow-graph';
+import { WorkflowGraph, OperatorLink, OperatorPredicate } from './../../../types/workflow-graph';
 import { JointjsModelService } from './jointjs-model.service';
 import { Injectable } from '@angular/core';
-import { OperatorPredicate } from '../../../types/workflow-graph';
+import { Subject } from 'rxjs/Subject';
 
 @Injectable()
 export class TexeraModelService {
 
   private texeraGraph = new WorkflowGraph();
 
+  private addOperatorSubject = new Subject();
+  private deleteOperatorSubject = new Subject();
+  private addLinkSubject = new Subject();
+  private deleteLinkSubject = new Subject();
+
 
   constructor(
     private workflowModelActionService: WorkflowModelActionService,
     private jointjsModelService: JointjsModelService,
   ) {
+    this.workflowModelActionService._onAddOperatorAction()
+      .subscribe(value => this.addOperator(value.operator));
 
-    this.workflowModelActionService._onAddOperatorAction().subscribe(
-      value => {
-        this.texeraGraph.addOperator(value.operator);
-        console.log('add Operator');
-        console.log(this.texeraGraph);
-      }
-    );
+    this.jointjsModelService._onJointOperatorDelete()
+      .map(element => element.id.toString())
+      .subscribe(elementID => this.deleteLink(elementID));
 
-    this.jointjsModelService._onJointOperatorDelete().subscribe(
-      element => {
-        this.texeraGraph.deleteOperator(element.id.toString());
-        console.log('delete Operator');
-        console.log(this.texeraGraph);
-      }
-    );
 
     this.jointjsModelService._onJointLinkAdd()
       .filter(link => TexeraModelService.isValidLink(link))
       .map(link => TexeraModelService.getOperatorLink(link))
-      .subscribe(
-        link => {
-          this.texeraGraph.addLink(link);
-          console.log('add link');
-          console.log(this.texeraGraph);
-        }
-      );
+      .subscribe(link => this.addLink(link));
 
     this.jointjsModelService._onJointLinkDelete()
-      .filter(link => this.texeraGraph.hasLink(link.id.toString()))
-      .subscribe(
-        link => {
-          this.texeraGraph.deleteLink(link.id.toString());
-          console.log('delete link');
-          console.log(this.texeraGraph);
-        }
-      );
+      .map(link => link.id.toString())
+      .filter(linkID => this.texeraGraph.hasLink(linkID))
+      .subscribe(linkID => this.deleteLink(linkID));
 
     const jointLinkChange = this.jointjsModelService._onJointLinkChange()
+      // we intentially want the side effect (delete the link) to happen **before** other operations in the chain
       .do((link) => {
-        if (this.texeraGraph.hasLink(link.id.toString())) {
-          this.texeraGraph.deleteLink(link.id.toString());
-          console.log('delete link');
-          console.log(this.texeraGraph);
-        }
+        const linkID = link.id.toString();
+        if (this.texeraGraph.hasLink(linkID)) { this.deleteLink(linkID); }
       })
       .filter(link => TexeraModelService.isValidLink(link))
       .map(link => TexeraModelService.getOperatorLink(link))
-      .subscribe(
-        link => {
-          this.texeraGraph.addLink(link);
-
-          console.log('add link');
-          console.log(this.texeraGraph);
-        }
-      );
+      .subscribe(link => this.addLink(link));
 
   }
 
+  public getTexeraGraph(): WorkflowGraphReadonly {
+    return this.texeraGraph;
+  }
+
+  private addOperator(operator: OperatorPredicate): void {
+    this.texeraGraph.addOperator(operator);
+
+    console.log('add operator');
+    console.log(this.texeraGraph);
+  }
+
+  private deleteOperator(operatorID: string): void {
+    this.texeraGraph.deleteOperator(operatorID);
+
+    console.log('delete operator');
+    console.log(this.texeraGraph);
+  }
+
+  private addLink(link: OperatorLink): void {
+    this.texeraGraph.addLink(link);
+
+    console.log('add link');
+    console.log(this.texeraGraph);
+  }
+
+  private deleteLink(linkID: string): void {
+    this.texeraGraph.deleteLink(linkID);
+
+    console.log('delete link');
+    console.log(this.texeraGraph);
+  }
 
   /**
    * @package
@@ -97,9 +104,7 @@ export class TexeraModelService {
     return link.getSourceElement() !== null && link.getTargetElement() !== null;
   }
 
-  public getTexeraGraph(): WorkflowGraphReadonly {
-    return this.texeraGraph;
-  }
+
 
 }
 

@@ -19,7 +19,7 @@ export class WorkflowUtilService {
   }
 
   // generate a new operator ID
-  private getNextAvailableID(): string {
+  public getNextAvailableID(): string {
     this.nextAvailableID++;
     return 'operator-' + this.nextAvailableID.toString();
   }
