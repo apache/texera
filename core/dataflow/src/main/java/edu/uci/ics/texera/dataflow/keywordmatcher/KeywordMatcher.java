@@ -46,15 +46,8 @@ public class KeywordMatcher extends AbstractSingleInputOperator {
         if (addResultAttribute) {
             Schema.checkAttributeNotExists(inputSchema, predicate.getSpanListName());
         }
-        
-        Schema.Builder outputSchemaBuilder = new Schema.Builder(inputOperator.getOutputSchema());
-        if (addPayload) {
-            outputSchemaBuilder.add(SchemaConstants.PAYLOAD_ATTRIBUTE);
-        }
-        if (addResultAttribute) {
-            outputSchemaBuilder.add(predicate.getSpanListName(), AttributeType.LIST);       
-        }
-        outputSchema = outputSchemaBuilder.build();
+
+        outputSchema = transformToOutputSchema(inputOperator.getOutputSchema());
         
         if (this.predicate.getMatchingType() == KeywordMatchingType.CONJUNCTION_INDEXBASED) {
             preProcessKeywordTokens();
@@ -253,6 +246,20 @@ public class KeywordMatcher extends AbstractSingleInputOperator {
 
     public KeywordPredicate getPredicate() {
         return this.predicate;
+    }
+
+    public Schema transformToOutputSchema(Schema... inputSchema) {
+        if (inputSchema.length != 1)
+            throw new TexeraException(String.format(ErrorMessages.NUMBER_OF_ARGUMENTS_DOES_NOT_MATCH, 1, inputSchema.length));
+
+        Schema.Builder outputSchemaBuilder = new Schema.Builder(inputSchema[0]);
+        if (addPayload) {
+            outputSchemaBuilder.add(SchemaConstants.PAYLOAD_ATTRIBUTE);
+        }
+        if (addResultAttribute) {
+            outputSchemaBuilder.add(predicate.getSpanListName(), AttributeType.LIST);
+        }
+        return outputSchemaBuilder.build();
     }
 
 }

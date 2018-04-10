@@ -3,6 +3,7 @@ package edu.uci.ics.texera.dataflow.projection;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import edu.uci.ics.texera.api.constants.ErrorMessages;
 import edu.uci.ics.texera.api.exception.DataflowException;
 import edu.uci.ics.texera.api.exception.TexeraException;
 import edu.uci.ics.texera.api.field.IField;
@@ -24,16 +25,7 @@ public class ProjectionOperator extends AbstractSingleInputOperator {
     @Override
     protected void setUp() throws TexeraException {
         inputSchema = inputOperator.getOutputSchema();
-        List<Attribute> outputAttributes = 
-                inputSchema.getAttributes()
-                .stream()
-                .filter(attr -> predicate.getProjectionFields().contains(attr.getName().toLowerCase()))
-                .collect(Collectors.toList());
-        
-        if (outputAttributes.size() != predicate.getProjectionFields().size()) {
-            throw new DataflowException("input schema doesn't contain one of the attributes to be projected");
-        }
-        outputSchema = new Schema(outputAttributes.stream().toArray(Attribute[]::new));
+        outputSchema = transformToOutputSchema(inputSchema);
     }
 
     @Override
@@ -63,5 +55,21 @@ public class ProjectionOperator extends AbstractSingleInputOperator {
 
     public ProjectionPredicate getPredicate() {
         return predicate;
+    }
+
+    public Schema transformToOutputSchema(Schema... inputSchema) {
+        if (inputSchema.length != 1)
+            throw new TexeraException(String.format(ErrorMessages.NUMBER_OF_ARGUMENTS_DOES_NOT_MATCH, 1, inputSchema.length));
+
+        List<Attribute> outputAttributes =
+                inputSchema[0].getAttributes()
+                        .stream()
+                        .filter(attr -> predicate.getProjectionFields().contains(attr.getName().toLowerCase()))
+                        .collect(Collectors.toList());
+
+        if (outputAttributes.size() != predicate.getProjectionFields().size()) {
+            throw new DataflowException("input schema doesn't contain one of the attributes to be projected");
+        }
+        return new Schema(outputAttributes.stream().toArray(Attribute[]::new));
     }
 }

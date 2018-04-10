@@ -5,6 +5,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import edu.uci.ics.texera.api.constants.ErrorMessages;
+import edu.uci.ics.texera.api.constants.SchemaConstants;
 import edu.uci.ics.texera.api.exception.DataflowException;
 import edu.uci.ics.texera.api.exception.TexeraException;
 import edu.uci.ics.texera.api.field.ListField;
@@ -83,12 +84,8 @@ public class RegexMatcher extends AbstractSingleInputOperator {
         if (addResultAttribute) { 
             Schema.checkAttributeNotExists(inputSchema, predicate.getSpanListName());
         }
-        
-        Schema.Builder outputSchemaBuilder = new Schema.Builder(inputOperator.getOutputSchema());
-        if (addResultAttribute) { 
-            outputSchemaBuilder.add(predicate.getSpanListName(), AttributeType.LIST);
-        }
-        outputSchema = outputSchemaBuilder.build();
+
+        outputSchema = transformToOutputSchema(inputOperator.getOutputSchema());
 
         findRegexType();
         // Check if labeled or unlabeled
@@ -207,5 +204,15 @@ public class RegexMatcher extends AbstractSingleInputOperator {
     public RegexPredicate getPredicate() {
         return this.predicate;
     }
-    
+
+    public Schema transformToOutputSchema(Schema... inputSchema) {
+        if (inputSchema.length != 1)
+            throw new TexeraException(String.format(ErrorMessages.NUMBER_OF_ARGUMENTS_DOES_NOT_MATCH, 1, inputSchema.length));
+
+        Schema.Builder outputSchemaBuilder = new Schema.Builder(inputSchema[0]);
+        if (addResultAttribute) {
+            outputSchemaBuilder.add(predicate.getSpanListName(), AttributeType.LIST);
+        }
+        return outputSchemaBuilder.build();
+    }
 }

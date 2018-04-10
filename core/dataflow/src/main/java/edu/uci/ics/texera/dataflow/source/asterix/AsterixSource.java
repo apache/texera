@@ -130,4 +130,7 @@ public class AsterixSource implements ISourceOperator {
         return ATERIX_SOURCE_SCHEMA;
     }
 
+    public Schema transformToOutputSchema(Schema... inputSchema) throws DataflowException {
+        throw new TexeraException(ErrorMessages.INVALID_INPUT_SCHEMA_FOR_SOURCE);
+    }
 }
