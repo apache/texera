@@ -122,18 +122,6 @@ public class PropertyNameConstants {
     public static final String TWEET_TOKEN = "token";
     public static final String TWEET_TOKEN_SECRET = "tokenSecret";
 
-
-    public static final String QUERY = "query";
-
-    public static final Double DEFAULT_THRESHOLD = 0.8;
-    public static final String DEFAULT_QUERY = "keyword";
-    public static final String DEFAULT_ATTRIBUTE_NAME = "attr1";
-    public static final String DEFAULT_REGEX = "regex";
-
-    public static final Integer DEFAULT_LIMIT = 10;
-    public static final Integer DEFAULT_OFFSET = 0;
-    public static final Integer DEFAULT_SAMPLE_SIZE = 10;
-
     public static final String EMPTY_NAME_EXCEPTION = "Table Name Cannot be Empty";
     public static final String EMPTY_REGEX_EXCEPTION = "regex should not be empty";
     public static final String EMPTY_QUERY_EXCEPTION = "query should not be empty";
