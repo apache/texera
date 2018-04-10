@@ -6,9 +6,11 @@
 }
 
 /**
-* this css is used for creating a 2*2 grid area for the 3 main
+* this css is used for creating a 2*1 grid area for the 3 main
 * sub-components. The percentages define the size of each
-* column and row.
+* column and row, and the first column is empty
+*              ******************
+*              *                *
 *              ******************
 *              *                *
 *              *                *
@@ -23,9 +25,9 @@ $header-height: 70px;
 }
 
 /**
-* the grid of the feature bar which contains the button directing to
-* various feature. The height of the top bar is flex, filling the browser.
-* Also set the right border color.
+* the grid of the dictionary list which contains all the user dictionary.
+* each list item contains a dict name, first three dict item and a view
+* button to check the items in dictionary
 **/
 .user-dictionary-list{
   grid-row-start: 2;
@@ -40,6 +42,9 @@ $header-height: 70px;
   margin-bottom : 5px;
 }
 
+/**
+*this fill the gap between dictionary name and view button
+**/
 .gap-filler{
   flex: 1 1 auto;
 }

@@ -6,9 +6,10 @@
 }
 
 /**
-* this css is used for creating a 2*2 grid area for the 3 main
-* sub-components. The percentages define the size of each
-* column and row.
+* this css is used for creating a 2*1 grid area for the 2 main
+* sub parts. The first row contains add and sort button. The second
+* row contains the saved project list. The percentages define the size
+* of each column and row.
 *              ******************
 *              *                *
 *              ******************
@@ -25,8 +26,8 @@ $header-height: 70px;
 }
 
 /**
-* the grid of the top bar which contains the logo and user accound
-* icon. The position of the top bar is fix. no adaptation
+* the grid of the first row which contains the add and sort button.
+* The position of the first row is fix. no adaptation
 **/
 .project-section-title{
   grid-row-start: 1;
@@ -34,9 +35,8 @@ $header-height: 70px;
 }
 
 /**
-* the grid of the feature bar which contains the button directing to
-* various feature. The height of the top bar is flex, filling the browser.
-* Also set the right border color.
+* the grid of the list of saved project. Each project contains the name, created time and last
+* edited time. This section is flexible to expand downward.
 **/
 .project-list{
   grid-row-start: 2;
@@ -44,6 +44,9 @@ $header-height: 70px;
   overflow: auto;
 }
 
+/**
+* the location of sort button
+**/
 .sorting_func{
   text-align: left;
 }
