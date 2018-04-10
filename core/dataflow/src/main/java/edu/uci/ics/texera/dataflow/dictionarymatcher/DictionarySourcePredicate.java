@@ -8,7 +8,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import com.google.common.collect.ImmutableMap;
 
-import edu.uci.ics.texera.api.exception.PlanGenException;
+import edu.uci.ics.texera.api.exception.TexeraException;
 import edu.uci.ics.texera.dataflow.annotation.AdvancedOption;
 import edu.uci.ics.texera.dataflow.common.OperatorGroupConstants;
 import edu.uci.ics.texera.dataflow.common.PropertyNameConstants;
@@ -55,7 +55,7 @@ public class DictionarySourcePredicate extends DictionaryPredicate {
         super(dictionary, attributeNames, luceneAnalyzerStr, keywordMatchingType, spanListName);
 
         if (tableName == null || tableName.isEmpty()) {
-            throw new PlanGenException(PropertyNameConstants.EMPTY_NAME_EXCEPTION);
+            throw new TexeraException(PropertyNameConstants.EMPTY_NAME_EXCEPTION);
         }
         this.tableName = tableName;
     }
