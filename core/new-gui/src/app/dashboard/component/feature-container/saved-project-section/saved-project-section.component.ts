@@ -15,7 +15,7 @@ import { StubSavedProjectService } from '../../../service/saved-project/stub-sav
 })
 export class SavedProjectSectionComponent implements OnInit {
 
-  public Project: SavedProject[] = [];
+  public projects: SavedProject[] = [];
 
   constructor(
     private mockSavedProjectService: StubSavedProjectService,
@@ -24,42 +24,56 @@ export class SavedProjectSectionComponent implements OnInit {
 
   ngOnInit() {
     this.mockSavedProjectService.getSavedProjectData().subscribe(
-      value => this.Project = value,
+      value => this.projects = value,
     );
-    console.log(this.Project);
+    console.log(this.projects);
   }
 
   public ascSort(): void {
-    this.Project.sort((t1: SavedProject, t2: SavedProject) => {
+    this.projects.sort((t1, t2) => {
       if (t1.name > t2.name) { return 1; }
       if (t1.name < t2.name) { return -1; }
       return 0; });
   }
 
   public dscSort(): void {
-    this.Project.sort((t1: SavedProject, t2: SavedProject) => {
+    this.projects.sort((t1, t2) => {
       if (t1.name > t2.name) { return -1; }
       if (t1.name < t2.name) { return 1; }
       return 0; });
   }
 
   public dateSort(): void {
-    this.Project.sort((t1: SavedProject, t2: SavedProject) => {
-      if (t1.creationTime > t2.creationTime) { return -1; }
-      if (t1.creationTime < t2.creationTime) { return 1; }
+    this.projects.sort((t1, t2) => {
+      if (Date.parse(t1.creationTime) > Date.parse(t2.creationTime)) { return -1; }
+      if (Date.parse(t1.creationTime) < Date.parse(t2.creationTime)) { return 1; }
       return 0; });
   }
 
   public lastSort(): void {
-    this.Project.sort((t1: SavedProject, t2: SavedProject) => {
-        if (t1.lastModifiedTime > t2.lastModifiedTime) { return -1; }
-        if (t1.lastModifiedTime < t2.lastModifiedTime) { return 1; }
+    this.projects.sort((t1, t2) => {
+        if (Date.parse(t1.lastModifiedTime) > Date.parse(t2.lastModifiedTime)) { return -1; }
+        if (Date.parse(t1.lastModifiedTime) < Date.parse(t2.lastModifiedTime)) { return 1; }
         return 0; });
   }
 
   openNgbdModalAddProjectComponent() {
     const modalRef = this.modalService.open(NgbdModalAddProjectComponent);
-    modalRef.componentInstance.projectInputList = this.Project;
+    const projectEventEmitter = <EventEmitter<string>>(modalRef.componentInstance.newProject);
+    const subscription = projectEventEmitter
+      .do(value => console.log(value))
+      .map(value => {return {
+        id: (this.projects.length + 1).toString(),
+        name: value,
+        creationTime: Date.now().toString(),
+        lastModifiedTime: Date.now().toString()
+      }; })
+      .subscribe(
+        value => {
+          console.log(value);
+          this.projects.push(value);
+        }
+      );
   }
 }
 
@@ -90,12 +104,9 @@ export class SavedProjectSectionComponent implements OnInit {
   styleUrls: ['./saved-project-section.component.scss', '../../dashboard.component.scss']
 })
 export class NgbdModalAddProjectComponent {
-  @Input() projectInputList;
-  @Output() newProject =  new EventEmitter<SavedProject>();
+  @Output() newProject =  new EventEmitter<string>();
 
   public name: string;
-  private addedProject: SavedProject;
-
 
   constructor(public activeModal: NgbActiveModal) {}
 
@@ -107,13 +118,7 @@ export class NgbdModalAddProjectComponent {
   }
   addProject() {
       if (this.name !== undefined) {
-          this.addedProject = {  id: (this.projectInputList[-1] + 1),
-                      name: this.name,
-                      creationTime: Date.now().toString(),
-                      lastModifiedTime: Date.now().toString()
-          };
-          this.projectInputList.push(this.addedProject);
-          this.newProject.emit(this.projectInputList);
+          this.newProject.emit(this.name);
           this.name = undefined;
         }
       this.onClose();
