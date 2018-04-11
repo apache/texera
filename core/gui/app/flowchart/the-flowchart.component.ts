@@ -189,13 +189,14 @@ export class TheFlowchartComponent {
         // we don't do any update at all. Otherwise, we need to update
         // the graph, which includes "link_create", "link_delete",
         // "operator_data_change", and "operator_delete"
+        if (changeType == "operator_data_change") {
+            current.currentDataService.clearAllOperatorAttributeFromCurrentSource(changedOperatorId);
+        }
+        
         this.timer = setTimeout(() => {
             if (changeType != "operator_moved" && changeType != "operator_create") {
                 current.currentDataService.setAllOperatorData(jQuery('#the-flowchart').flowchart('getData'));
                 current.currentDataService.processAutoPlanData();
-            }
-            if (changeType == "operator_data_change") {
-                current.currentDataService.clearAllOperatorAttributeFromCurrentSource(changedOperatorId);
             }
         }, 50);
       },
