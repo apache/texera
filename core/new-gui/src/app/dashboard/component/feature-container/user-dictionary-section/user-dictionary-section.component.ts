@@ -31,7 +31,23 @@ export class UserDictionarySectionComponent implements OnInit {
 
   openNgbdModalResourceViewComponent(dictionary: UserDictionary) {
     const modalRef = this.modalService.open(NgbdModalResourceViewComponent);
-    modalRef.componentInstance.dictionary = dictionary;
+    const copyDict = <UserDictionary> {
+      id: dictionary.id,
+      name: dictionary.name,
+      items: dictionary.items,
+      description: dictionary.description
+    };
+    modalRef.componentInstance.dictionary = copyDict;
+
+    const addItemEventEmitter = <EventEmitter<string>>(modalRef.componentInstance.addedName);
+    const subscription = addItemEventEmitter
+      .do(value => console.log(value))
+      .subscribe(
+        value => {
+          console.log(value);
+          dictionary.items.push(value);
+        }
+      );
   }
 
 }
@@ -48,7 +64,7 @@ export class UserDictionarySectionComponent implements OnInit {
   </div>
 
   <div class="modal-body">
-    <p>[ {{dictionary.items}} ]</p>
+    <p>[ {{dictionary.items}},{{name}} ]</p>
     <mat-dialog-actions>
       <input *ngIf="ifAdd" matInput [(ngModel)]="name" placeholder="Add into dictionary">
       <button type="button" class="btn btn-outline-dark add-button" (click)="addKey()"  >Add</button>
@@ -64,7 +80,7 @@ export class UserDictionarySectionComponent implements OnInit {
 })
 export class NgbdModalResourceViewComponent {
   @Input() dictionary;
-  @Output() addedName =  new EventEmitter<UserDictionary>();
+  @Output() addedName =  new EventEmitter<string>();
 
   public name: string;
   public ifAdd = false;
@@ -81,8 +97,7 @@ export class NgbdModalResourceViewComponent {
 
     if (this.ifAdd && this.name !== undefined) {
       console.log('add ' + this.name + ' into dict ' + this.dictionary.name);
-      this.dictionary.items.push(this.name);
-      this.addedName.emit(this.dictionary);
+      this.addedName.emit(this.name);
       this.name = undefined;
     }
     this.ifAdd = !this.ifAdd;
