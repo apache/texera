@@ -1,6 +1,7 @@
 import { Component, AfterViewInit, HostListener } from '@angular/core';
 import { Observable } from 'rxjs/Observable';
 import '../../../common/rxjs-operators';
+import 'rxjs/add/observable/fromEvent';
 
 import * as joint from 'jointjs';
 import { JointUIService } from '../../service/joint-ui/joint-ui.service';
@@ -43,10 +44,13 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
     this.createJointjsPaper();
 
+    Observable.fromEvent(window, 'resize').subscribe(
+      resizeEvent => {this.paper.setDimensions(this.getWrapperElementSize().width, this.getWrapperElementSize().height); }
+    );
+
     // add a 500ms delay for joint-ui.service to fetch the operator metaData
     // this code is temporary and will be deleted in future PRs when drag
     // and drop is implemented
-
     Observable.of([]).delay(500).subscribe(
       emptyData => {
         // add some dummy operators and links to show that JointJS works
@@ -123,11 +127,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
       width: $('#' + this.WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID).width(),
       height: $('#' + this.WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID).height()
     };
-  }
-
-  @HostListener('window:resize', ['$event'])
-  onResize(event) {
-    this.paper.setDimensions(this.getWrapperElementSize().width, this.getWrapperElementSize().height);
   }
 }
 
