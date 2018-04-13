@@ -1,7 +1,6 @@
-import { Component, AfterViewInit} from '@angular/core';
+import { Component, AfterViewInit } from '@angular/core';
 import { Observable } from 'rxjs/Observable';
 import '../../../common/rxjs-operators';
-import 'rxjs/add/observable/fromEvent';
 
 import * as joint from 'jointjs';
 import { JointUIService } from '../../service/joint-ui/joint-ui.service';
@@ -44,7 +43,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
     this.createJointjsPaper();
 
-    Observable.fromEvent(window, 'resize').subscribe(
+    Observable.fromEvent(window, 'resize').auditTime(1000).subscribe(
       resizeEvent => {this.paper.setDimensions(this.getWrapperElementSize().width, this.getWrapperElementSize().height); }
     );
 
