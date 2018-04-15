@@ -332,9 +332,26 @@ public class QueryPlanResource {
     		// remove the oldest file
     		java.nio.file.Path oldestFile = resultFiles.get(0);
     		Files.delete(oldestFile);
-    }    
+    }
 
 
+    /**
+     * Retrieve all the valid operator and links and store into node validOperators and validLinks
+     *
+     * A operator is valid if the json representation of the operator can pass all the test in the specific
+     * operator predicate constructor and can successfully be casted into a PredicateBase object (without throwing any error).
+     * The standard of valid is different from operator to operator and it can be seen in the definition of the
+     * constructor of a specific operator predicate.
+     * An example of invalid operator is a KeywordPredicate has empty query
+     *
+     * A valid link would be a link that connects two valid operators
+     * @param operators
+     * @param links
+     * @param validOperators
+     * @param validLinks
+     * @param linksEndWithInvalidDest
+     * @param validOperatorsId
+     */
     private void getValidOperatorsAndLinks(ArrayNode operators, ArrayNode links,
                                            ArrayNode validOperators, ArrayNode validLinks,
                                            ArrayNode linksEndWithInvalidDest, Set<String> validOperatorsId) {
