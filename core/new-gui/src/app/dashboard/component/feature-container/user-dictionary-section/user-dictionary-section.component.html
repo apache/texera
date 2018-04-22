@@ -1,4 +1,26 @@
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+
 <div class="user-dictionary-container subsection-grid-container">
+
+  <mat-card class="button-area subsection-grid-container">
+    <div ngbDropdown class="d-inline-block">
+      <button class="btn btn-outline-primary" id="sortDropdown" ngbDropdownToggle>Sort</button>
+        <div ngbDropdownMenu aria-labelledby="dropdownBasic1">
+           <mat-list>
+             <button mat-button class="sorting_func" (click)="ascSort()">A -> Z</button>
+             <mat-divider></mat-divider>
+             <button mat-button class="sorting_func" (click)="dscSort()">Z -> A</button>
+             <mat-divider></mat-divider>
+             <button mat-button class="sorting_func" (click)="sizeSort()">By Dictionary Size</button>
+             <mat-divider></mat-divider>
+           </mat-list>
+        </div>
+      <span>&emsp;&emsp;&emsp;</span>
+      <button mat-raised-button color="primary" (click) = "openNgbdModalResourceAddComponent()">Add</button>
+      <span class="gap-filler">&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;</span>
+      <button mat-button class="delete-project-btn" placement="bottom" ngbTooltip="Delete the project"><i class="fa">&#xf1f8;</i> Delete</button>
+    </div>
+  </mat-card>
 
   <mat-card class = "user-dictionary-list subsection-grid-container">
     <mat-card-content>

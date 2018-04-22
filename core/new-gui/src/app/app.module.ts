@@ -1,6 +1,7 @@
 import { BrowserModule } from '@angular/platform-browser';
 import { NgModule } from '@angular/core';
 import { HttpClientModule } from '@angular/common/http';
+import { HttpModule } from '@angular/http';
 
 import { AppRoutingModule } from './app-routing.module';
 
@@ -22,9 +23,12 @@ import { TopBarComponent } from './dashboard/component/top-bar/top-bar.component
 import { UserAccountIconComponent } from './dashboard/component/top-bar/user-account-icon/user-account-icon.component';
 import { FeatureBarComponent } from './dashboard/component/feature-bar/feature-bar.component';
 import { FeatureContainerComponent } from './dashboard/component/feature-container/feature-container.component';
-import { SavedProjectSectionComponent, NgbdModalAddProjectComponent } from './dashboard/component/feature-container/saved-project-section/saved-project-section.component';
+import { SavedProjectSectionComponent,
+  NgbdModalAddProjectComponent} from './dashboard/component/feature-container/saved-project-section/saved-project-section.component';
 import { RunningJobSectionComponent } from './dashboard/component/feature-container/running-job-section/running-job-section.component';
-import { UserDictionarySectionComponent, NgbdModalResourceViewComponent } from './dashboard/component/feature-container/user-dictionary-section/user-dictionary-section.component';
+import { UserDictionarySectionComponent,
+  NgbdModalResourceViewComponent,
+  NgbdModalResourceAddComponent } from './dashboard/component/feature-container/user-dictionary-section/user-dictionary-section.component';
 import { ResourceSectionComponent } from './dashboard/component/feature-container/resource-section/resource-section.component';
 
 @NgModule({
@@ -47,11 +51,13 @@ import { ResourceSectionComponent } from './dashboard/component/feature-containe
     RunningJobSectionComponent,
     UserDictionarySectionComponent,
     NgbdModalResourceViewComponent,
+    NgbdModalResourceAddComponent,
     ResourceSectionComponent,
   ],
   imports: [
     BrowserModule,
     AppRoutingModule,
+    HttpModule,
     HttpClientModule,
 
     CustomNgMaterialModule,
@@ -61,7 +67,8 @@ import { ResourceSectionComponent } from './dashboard/component/feature-containe
   ],
   entryComponents: [
     NgbdModalAddProjectComponent,
-    NgbdModalResourceViewComponent
+    NgbdModalResourceViewComponent,
+    NgbdModalResourceAddComponent
   ],
   providers: [ HttpClientModule ],
   bootstrap: [AppComponent]

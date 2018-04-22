@@ -15,6 +15,10 @@ export const EMPTY_OPERATOR_METADATA: OperatorMetadata = {
   groups: []
 };
 
+const addDictionaryAPIAddress = '/api/resources/dictionary/';
+const getDictionaryAPIAddress = '/api/upload/dictionary/';
+
+
 /**
  * OperatorMetadataService talks to the backend to fetch the operator metadata,
  *  which contains a list of operator schemas.
