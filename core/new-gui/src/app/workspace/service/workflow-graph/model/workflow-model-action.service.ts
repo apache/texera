@@ -1,6 +1,6 @@
 import { Observable } from 'rxjs/Observable';
 import { Injectable } from '@angular/core';
-import { JointjsModelService } from './jointjs-model.service';
+import { JointModelService } from './jointjs-model.service';
 import { TexeraModelService } from './texera-model.service';
 import { OperatorPredicate } from '../../../types/workflow-graph';
 import { Point } from '../../../types/common.interface';
@@ -20,10 +20,7 @@ export class WorkflowModelActionService {
     this.addOperatorActionSubject.next({ operator, point });
   }
 
-  /**
-   * @package
-   */
-  _onAddOperatorAction(): Observable<{ operator: OperatorPredicate, point: Point }> {
+  public onAddOperatorAction(): Observable<{ operator: OperatorPredicate, point: Point }> {
     return this.addOperatorActionSubject.asObservable();
   }
 
@@ -31,10 +28,7 @@ export class WorkflowModelActionService {
     this.deleteOperatorActionSubject.next({ operatorID });
   }
 
-  /**
-   * @package
-   */
-  _onDeleteOperatorAction(): Observable<{ operatorID: string }> {
+  public onDeleteOperatorAction(): Observable<{ operatorID: string }> {
     return this.deleteOperatorActionSubject.asObservable();
   }
 

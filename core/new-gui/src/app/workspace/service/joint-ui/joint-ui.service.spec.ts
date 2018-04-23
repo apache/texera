@@ -16,18 +16,19 @@ describe('JointUIService', () => {
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
       ],
     });
+    service = TestBed.get(JointUIService);
   });
 
-  it('should be created', inject([JointUIService], (ser: JointUIService) => {
-    service = ser;
-    expect(service).toBeTruthy();
+  it('should be created', inject([JointUIService], (injectedService: JointUIService) => {
+    expect(injectedService).toBeTruthy();
   }));
 
   /**
    * Check if the getJointjsOperatorElement() can successfully creates a JointJS Element
    */
   it('getJointjsOperatorElement() should create an operatorElement', () => {
-    const result = service.getJointjsOperatorElement('ScanSource', 'operator1', 100, 100);
+    const result = service.getJointjsOperatorElement(
+      'ScanSource', 'operator1', { x: 100, y: 100 } );
     expect(result).toBeTruthy();
   });
 
@@ -38,7 +39,8 @@ describe('JointUIService', () => {
     const nonExistingOperator = 'NotExistOperator';
     expect(
       function() {
-        service.getJointjsOperatorElement(nonExistingOperator, 'operatorNaN', 100, 100);
+        service.getJointjsOperatorElement(
+          nonExistingOperator, 'operatorNaN', { x: 100, y: 100 });
       }
     )
     .toThrow(new Error('JointUIService.getJointUI: ' +
@@ -51,9 +53,9 @@ describe('JointUIService', () => {
    * matches the port number specified by the operator metadata
    */
   it('getJointjsOperatorElement() should create correct number of inPorts and outPorts', () => {
-    const element1 = service.getJointjsOperatorElement('ScanSource', 'operator1', 100, 100);
-    const element2 = service.getJointjsOperatorElement('NlpSentiment', 'operator1', 100, 100);
-    const element3 = service.getJointjsOperatorElement('ViewResults', 'operator1', 100, 100);
+    const element1 = service.getJointjsOperatorElement('ScanSource', 'operator1', { x: 100, y: 100 });
+    const element2 = service.getJointjsOperatorElement('NlpSentiment', 'operator1', { x: 100, y: 100 });
+    const element3 = service.getJointjsOperatorElement('ViewResults', 'operator1', { x: 100, y: 100 });
 
     const inPortCount1 = element1.getPorts().filter(port => port.group === 'in').length;
     const outPortCount1 = element1.getPorts().filter(port => port.group === 'out').length;
@@ -91,7 +93,7 @@ describe('JointUIService', () => {
       service.getJointjsOperatorElement(
         'ScanSource',
         'operator1',
-        100, 100
+        { x: 100, y: 100 }
       )
     );
 
@@ -99,7 +101,7 @@ describe('JointUIService', () => {
       service.getJointjsOperatorElement(
         'ViewResults',
         'operator2',
-        500, 100
+        { x: 500, y: 100 }
       )
     );
 

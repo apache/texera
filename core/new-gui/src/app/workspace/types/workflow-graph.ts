@@ -9,10 +9,10 @@ export interface OperatorPredicate {
 
 export interface OperatorLink {
   linkID: string;
-  sourceOperator?: string;
-  sourcePort?: string;
-  targetOperator?: string;
-  targetPort?: string;
+  sourceOperator: string;
+  sourcePort: string;
+  targetOperator: string;
+  targetPort: string;
 }
 
 
@@ -41,8 +41,24 @@ export class WorkflowGraph {
     return Array.from(this.operatorIDMap.values());
   }
 
-  public hasLink(linkID: string): boolean {
+  public hasLinkWithID(linkID: string): boolean {
     return this.operatorLinkMap.has(linkID);
+  }
+
+  public hasLink(sourceOperator: string, sourcePort: string, targetOperator: string, targetPort: string): boolean {
+    let linkFound = false;
+    this.operatorLinkMap.forEach(
+      (value, key, map) => {
+        const isEqual = value.sourceOperator === sourceOperator
+          && value.sourcePort === sourcePort
+          && value.targetOperator === targetOperator
+          && value.targetPort === targetPort;
+        if (isEqual) {
+          linkFound = true;
+        }
+      }
+    );
+    return linkFound;
   }
 
   public getLink(linkID: string): OperatorLink {

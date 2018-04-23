@@ -8,7 +8,9 @@ export interface WorkflowGraphReadonly {
 
   getOperators(): OperatorPredicate[];
 
-  hasLink(linkID: string): boolean;
+  hasLinkWithID(linkID: string): boolean;
+
+  hasLink(sourceOperator: string, sourcePort: string, targetOperator: string, targetPort: string): boolean;
 
   getLink(linkID: string): OperatorLink;
 

@@ -1,3 +1,5 @@
+import { WorkflowUtilService } from './../../service/workflow-graph/util/workflow-util.service';
+import { JointModelService } from './../../service/workflow-graph/model/jointjs-model.service';
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { WorkflowEditorComponent } from './workflow-editor.component';
@@ -8,6 +10,7 @@ import { JointUIService } from '../../service/joint-ui/joint-ui.service';
 import { MOCK_OPERATOR_SCHEMA_LIST } from '../../service/operator-metadata/mock-operator-metadata.data';
 
 import * as joint from 'jointjs';
+import { WorkflowModelActionService } from '../../service/workflow-graph/model/workflow-model-action.service';
 
 describe('WorkflowEditorComponent', () => {
   let component: WorkflowEditorComponent;
@@ -19,6 +22,9 @@ describe('WorkflowEditorComponent', () => {
       declarations: [WorkflowEditorComponent],
       providers: [
         JointUIService,
+        JointModelService,
+        WorkflowModelActionService,
+        WorkflowUtilService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
       ]
     })

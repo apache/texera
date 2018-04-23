@@ -1,6 +1,6 @@
 import { WorkflowUtilService } from './../service/workflow-graph/util/workflow-util.service';
 import { WorkflowModelActionService } from './../service/workflow-graph/model/workflow-model-action.service';
-import { JointjsModelService } from './../service/workflow-graph/model/jointjs-model.service';
+import { JointModelService } from './../service/workflow-graph/model/jointjs-model.service';
 import { Component, OnInit } from '@angular/core';
 
 import { OperatorMetadataService } from '../service/operator-metadata/operator-metadata.service';
@@ -19,7 +19,7 @@ import { TexeraModelService } from '../service/workflow-graph/model/texera-model
     { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
 
     JointUIService,
-    JointjsModelService,
+    JointModelService,
     TexeraModelService,
     WorkflowModelActionService,
     WorkflowUtilService

@@ -1,9 +1,10 @@
+import { Observable } from 'rxjs/Observable';
 import { OperatorSchema } from './../../../types/operator-schema';
 import { OperatorMetadataService } from './../../operator-metadata/operator-metadata.service';
 import { WorkflowModelActionService } from './workflow-model-action.service';
 import { WorkflowGraphReadonly } from './../../../types/workflow-graph-readonly';
 import { WorkflowGraph, OperatorLink, OperatorPredicate } from './../../../types/workflow-graph';
-import { JointjsModelService } from './jointjs-model.service';
+import { JointModelService } from './jointjs-model.service';
 import { Injectable } from '@angular/core';
 import { Subject } from 'rxjs/Subject';
 
@@ -12,39 +13,39 @@ export class TexeraModelService {
 
   private texeraGraph = new WorkflowGraph();
 
-  private addOperatorSubject = new Subject();
-  private deleteOperatorSubject = new Subject();
-  private addLinkSubject = new Subject();
-  private deleteLinkSubject = new Subject();
+  private addOperatorSubject = new Subject<OperatorPredicate>();
+  private deleteOperatorSubject = new Subject<OperatorPredicate>();
+  private addLinkSubject = new Subject<OperatorLink>();
+  private deleteLinkSubject = new Subject<OperatorLink>();
 
 
   constructor(
     private workflowModelActionService: WorkflowModelActionService,
-    private jointjsModelService: JointjsModelService,
+    private jointModelService: JointModelService,
   ) {
-    this.workflowModelActionService._onAddOperatorAction()
+    this.workflowModelActionService.onAddOperatorAction()
       .subscribe(value => this.addOperator(value.operator));
 
-    this.jointjsModelService._onJointOperatorDelete()
+    this.jointModelService.onJointOperatorCellDelete()
       .map(element => element.id.toString())
-      .subscribe(elementID => this.deleteLink(elementID));
+      .subscribe(elementID => this.deleteOperator(elementID));
 
 
-    this.jointjsModelService._onJointLinkAdd()
+    this.jointModelService.onJointLinkCellAdd()
       .filter(link => TexeraModelService.isValidLink(link))
       .map(link => TexeraModelService.getOperatorLink(link))
       .subscribe(link => this.addLink(link));
 
-    this.jointjsModelService._onJointLinkDelete()
+    this.jointModelService.onJointLinkCellDelete()
       .map(link => link.id.toString())
-      .filter(linkID => this.texeraGraph.hasLink(linkID))
+      .filter(linkID => this.texeraGraph.hasLinkWithID(linkID))
       .subscribe(linkID => this.deleteLink(linkID));
 
-    const jointLinkChange = this.jointjsModelService._onJointLinkChange()
+    const jointLinkChange = this.jointModelService.onJointLinkCellChange()
       // we intentially want the side effect (delete the link) to happen **before** other operations in the chain
       .do((link) => {
         const linkID = link.id.toString();
-        if (this.texeraGraph.hasLink(linkID)) { this.deleteLink(linkID); }
+        if (this.texeraGraph.hasLinkWithID(linkID)) { this.deleteLink(linkID); }
       })
       .filter(link => TexeraModelService.isValidLink(link))
       .map(link => TexeraModelService.getOperatorLink(link))
@@ -56,52 +57,64 @@ export class TexeraModelService {
     return this.texeraGraph;
   }
 
+  public onOperatorAdd(): Observable<OperatorPredicate> {
+    return this.addOperatorSubject.asObservable();
+  }
+
+  public onOperatorDelete(): Observable<OperatorPredicate> {
+    return this.deleteOperatorSubject.asObservable();
+  }
+
+  public onLinkAdd(): Observable<OperatorLink> {
+    return this.addLinkSubject.asObservable();
+  }
+
+  public onLinkDelete(): Observable<OperatorLink> {
+    return this.deleteLinkSubject.asObservable();
+  }
+
   private addOperator(operator: OperatorPredicate): void {
     this.texeraGraph.addOperator(operator);
-
-    console.log('add operator');
-    console.log(this.texeraGraph);
+    this.addOperatorSubject.next(operator);
   }
 
   private deleteOperator(operatorID: string): void {
-    this.texeraGraph.deleteOperator(operatorID);
-
-    console.log('delete operator');
-    console.log(this.texeraGraph);
+    const deletedOperator = this.texeraGraph.deleteOperator(operatorID);
+    this.deleteOperatorSubject.next(deletedOperator);
   }
 
   private addLink(link: OperatorLink): void {
     this.texeraGraph.addLink(link);
-
-    console.log('add link');
-    console.log(this.texeraGraph);
+    this.addLinkSubject.next(link);
   }
 
   private deleteLink(linkID: string): void {
-    this.texeraGraph.deleteLink(linkID);
-
-    console.log('delete link');
-    console.log(this.texeraGraph);
+    const deletedLink = this.texeraGraph.deleteLink(linkID);
+    this.deleteLinkSubject.next(deletedLink);
   }
 
   /**
-   * @package
-   * @param link
+   * @param jointLink
    */
-  static getOperatorLink(link: joint.dia.Link): OperatorLink {
-    const linkID = link.id.toString();
+  static getOperatorLink(jointLink: joint.dia.Link): OperatorLink {
+    // all links should be valid links, this error should not happen
+    if (! TexeraModelService.isValidLink(jointLink)) {
+      throw new Error('Invalid JointJS Link: ' + jointLink);
+    }
 
-    const sourceOperator = link.getSourceElement().id.toString();
-    const sourcePort = link.get('source').port.toString();
+    const linkID = jointLink.id.toString();
 
-    const targetOperator = link.getTargetElement().id.toString();
-    const targetPort = link.get('target').port.toString();
+    const sourceOperator = jointLink.getSourceElement().id.toString();
+    const sourcePort = jointLink.get('source').port.toString();
+
+    const targetOperator = jointLink.getTargetElement().id.toString();
+    const targetPort = jointLink.get('target').port.toString();
 
     return { linkID, sourceOperator, sourcePort, targetOperator, targetPort };
   }
 
-  static isValidLink(link: joint.dia.Link): boolean {
-    return link.getSourceElement() !== null && link.getTargetElement() !== null;
+  static isValidLink(jointLink: joint.dia.Link): boolean {
+    return jointLink.getSourceElement() !== null && jointLink.getTargetElement() !== null;
   }
 
 

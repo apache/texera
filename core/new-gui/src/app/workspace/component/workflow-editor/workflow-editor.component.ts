@@ -1,6 +1,6 @@
 import { WorkflowUtilService } from './../../service/workflow-graph/util/workflow-util.service';
 import { WorkflowModelActionService } from './../../service/workflow-graph/model/workflow-model-action.service';
-import { JointjsModelService } from './../../service/workflow-graph/model/jointjs-model.service';
+import { JointModelService } from './../../service/workflow-graph/model/jointjs-model.service';
 import { Component, AfterViewInit } from '@angular/core';
 import { Observable } from 'rxjs/Observable';
 import '../../../common/rxjs-operators';
@@ -34,16 +34,18 @@ export class WorkflowEditorComponent implements AfterViewInit {
   public readonly WORKFLOW_EDITOR_JOINTJS_ID = 'texera-workflow-editor-jointjs-body-id';
 
   public paper: joint.dia.Paper = null;
+  public graph: joint.dia.Graph = null;
 
   constructor(
     private jointUIService: JointUIService,
-    private jointjsModelService: JointjsModelService,
+    private jointModelService: JointModelService,
     private workflowModelActionService: WorkflowModelActionService,
     private workflowUtilService: WorkflowUtilService
-  ) { }
+  ) {
+    this.graph = jointModelService.jointGraph;
+  }
 
   ngAfterViewInit() {
-
 
     this.createJointjsPaper();
 
@@ -85,7 +87,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
       // bind the DOM element
       el: $('#' + this.WORKFLOW_EDITOR_JOINTJS_ID),
       // bind the jointjs graph model
-      model: this.jointjsModelService.jointGraph,
+      model: this.graph,
       // set the width and height of the paper to be the width height of the parent wrapper element
       width: this.getWrapperElementSize().width,
       height: this.getWrapperElementSize().height,
@@ -108,7 +110,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     });
 
     this.paper = paper;
-    this.jointjsModelService.registerJointPaper(paper);
+    this.jointModelService.registerJointPaper(paper);
   }
 
   /**
