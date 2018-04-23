@@ -46,17 +46,9 @@ export class JointModelService {
 
   }
 
-  // delete button on operator
-  public onJointOperatorDeleteButton(): Observable<joint.dia.Element> {
-    const jointoperatorDeleteStream = this.jointCellDeleteStream
-      .filter(cell => cell.isElement())
-      .map(cell => <joint.dia.Element>cell);
-    return jointoperatorDeleteStream;
-  }
-
 
   public onJointOperatorCellDelete(): Observable<joint.dia.Element> {
-    const jointOperatorDeleteStream = this.jointCellAddStream
+    const jointOperatorDeleteStream = this.jointCellDeleteStream
       .filter(cell => cell.isElement())
       .map(cell => <joint.dia.Element>cell);
     return jointOperatorDeleteStream;

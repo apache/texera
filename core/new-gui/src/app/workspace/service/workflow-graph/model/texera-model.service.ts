@@ -28,15 +28,10 @@ export class TexeraModelService {
       .subscribe(value => this.addOperator(value.operator));
 
 
-    // button delete
-    this.jointModelService.onJointOperatorDeleteButton()
-      .do(element => console.log(element))
-      .map(element => element.id.toString())
-      .subscribe(elementID => this.deleteOperator(elementID));
-    //
 
 
     this.jointModelService.onJointOperatorCellDelete()
+      .do(element => console.log('delete on operator!'))
       .map(element => element.id.toString())
       .subscribe(elementID => this.deleteOperator(elementID));
 
