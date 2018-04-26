@@ -1,13 +1,15 @@
+import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs/Observable';
-import { OperatorSchema } from './../../../types/operator-schema';
+import { Subject } from 'rxjs/Subject';
+
 import { OperatorMetadataService } from './../../operator-metadata/operator-metadata.service';
 import { WorkflowActionService } from './workflow-action.service';
-import { WorkflowGraphReadonly } from './../../../types/workflow-graph-readonly';
-import { WorkflowGraph, OperatorLink, OperatorPredicate } from './../../../types/workflow-graph';
 import { JointModelService } from './jointjs-model.service';
-import { Injectable } from '@angular/core';
-import { Subject } from 'rxjs/Subject';
-import { element } from 'protractor';
+
+import { WorkflowGraphReadonly } from './../../../types/workflow-graph-readonly';
+import { OperatorSchema } from './../../../types/operator-schema';
+import { WorkflowGraph, OperatorLink, OperatorPredicate } from './../../../types/workflow-graph';
+
 
 @Injectable()
 export class TexeraModelService {
@@ -27,11 +29,7 @@ export class TexeraModelService {
     this.workflowActionService.onAddOperatorAction()
       .subscribe(value => this.addOperator(value.operator));
 
-
-
-
     this.jointModelService.onJointOperatorCellDelete()
-      .do(element => console.log('delete on operator!'))
       .map(element => element.id.toString())
       .subscribe(elementID => this.deleteOperator(elementID));
 
@@ -96,7 +94,7 @@ export class TexeraModelService {
   }
 
   private deleteLink(linkID: string): void {
-    const deletedLink = this.texeraGraph.deleteLink(linkID);
+    const deletedLink = this.texeraGraph.deleteLinkWithID(linkID);
     this.deleteLinkSubject.next(deletedLink);
   }
 

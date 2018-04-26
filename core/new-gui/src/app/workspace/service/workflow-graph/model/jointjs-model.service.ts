@@ -13,7 +13,6 @@ import { JointUIService } from '../../joint-ui/joint-ui.service';
 export class JointModelService {
 
   private jointGraph = new joint.dia.Graph();
-  private jointPaper: joint.dia.Paper | null = null;
 
   private jointCellAddStream = Observable
     .fromEvent(this.jointGraph, 'add')
@@ -29,27 +28,18 @@ export class JointModelService {
     private jointUIService: JointUIService) {
 
     this.workflowActionService.onAddOperatorAction().subscribe(
-      value => this.addOperator(value.operator, value.point)
+      value => this.addJointOperatorElement(value.operator, value.point)
     );
 
     this.workflowActionService.onDeleteOperatorAction().subscribe(
-      value => this.deleteOperator(value.operatorID)
+      value => this.deleteJointOperatorElement(value.operatorID)
     );
   }
 
-  public getJointGraph(): joint.dia.Graph {
-    return this.jointGraph;
+  public attachJointPaper(paperOptions: joint.dia.Paper.Options): joint.dia.Paper.Options {
+    paperOptions.model = this.jointGraph;
+    return paperOptions;
   }
-
-  public registerJointPaper(jointPaper: joint.dia.Paper): void {
-    this.jointPaper = jointPaper;
-    const current = this;
-    this.jointPaper.on('element:delete', function(cellView) {
-      current.deleteOperator(cellView.model.id.toString());
-    });
-
-  }
-
 
   public onJointOperatorCellDelete(): Observable<joint.dia.Element> {
     const jointOperatorDeleteStream = this.jointCellDeleteStream
@@ -82,23 +72,15 @@ export class JointModelService {
     return jointLinkChangeStream;
   }
 
-  private addOperator(operator: OperatorPredicate, point: Point): void {
-    if (this.jointPaper === null) {
-      throw new Error('TODO');
-    }
-
-    const jointOffsetPoint: Point = {
-      x: point.x - this.jointPaper.pageOffset().x,
-      y: point.y - this.jointPaper.pageOffset().y
-    };
+  private addJointOperatorElement(operator: OperatorPredicate, point: Point): void {
 
     const operatorJointElement = this.jointUIService.getJointjsOperatorElement(
-      operator.operatorType, operator.operatorID, jointOffsetPoint);
+      operator.operatorType, operator.operatorID, point);
 
     this.jointGraph.addCell(operatorJointElement);
   }
 
-  private deleteOperator(operatorID: string): void {
+  private deleteJointOperatorElement(operatorID: string): void {
     this.jointGraph.getCell(operatorID).remove();
   }
 

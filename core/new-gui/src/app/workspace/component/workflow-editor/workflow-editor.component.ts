@@ -34,7 +34,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
   public readonly WORKFLOW_EDITOR_JOINTJS_ID = 'texera-workflow-editor-jointjs-body-id';
 
   paper: joint.dia.Paper;
-  graph: joint.dia.Graph;
 
   constructor(
     private jointUIService: JointUIService,
@@ -42,39 +41,52 @@ export class WorkflowEditorComponent implements AfterViewInit {
     private workflowActionService: WorkflowActionService,
     private workflowUtilService: WorkflowUtilService
   ) {
-    this.graph = jointModelService.getJointGraph();
   }
 
   ngAfterViewInit() {
 
-    const paper = this.getJointjsPaper();
-    this.paper = paper;
-    this.jointModelService.registerJointPaper(this.paper);
+    this.createJointjsPaper();
+
+    Observable.fromEvent(window, 'resize').auditTime(1000).subscribe(
+      () => {
+        // reset the origin cooredinates and the dimension of the paper
+        // when the window is resized
+        // see comments in JointJS paper section for the details of the purpose
+
+        const elementOffset = this.getWrapperElementOffset();
+        this.paper.translate(-elementOffset.x, -elementOffset.y);
+
+        const elementSize = this.getWrapperElementSize();
+        this.paper.setDimensions(elementSize.width, elementSize.height);
+      }
+    );
+
 
     // add a 500ms delay for joint-ui.service to fetch the operator metaData
     // this code is temporary and will be deleted in future PRs when drag
     // and drop is implemented
 
-    // Observable.of([]).delay(500).subscribe(
-    //   emptyData => {
-    //     // add some dummy operators and links to show that JointJS works
-    //     this.workflowActionService.addOperator(
-    //       this.workflowUtilService.getNewOperatorPredicate('ScanSource'),
-    //       { x: 300, y: 250 }
-    //     );
+    Observable.from('a').delay(500).subscribe(
+      emptyData => {
+        // add some dummy operators and links to show that JointJS works
+        this.workflowActionService.addOperator(
+          this.workflowUtilService.getNewOperatorPredicate('ScanSource'),
+          { x: 300, y: 250 }
+        );
 
-    //     this.workflowActionService.addOperator(
-    //       this.workflowUtilService.getNewOperatorPredicate('ViewResults'),
-    //       { x: 500, y: 200 }
-    //     );
+        this.workflowActionService.addOperator(
+          this.workflowUtilService.getNewOperatorPredicate('ViewResults'),
+          { x: 500, y: 200 }
+        );
 
-    //     this.workflowActionService.addOperator(
-    //       this.workflowUtilService.getNewOperatorPredicate('ViewResults'),
-    //       { x: 500, y: 300 }
-    //     );
+        this.workflowActionService.addOperator(
+          this.workflowUtilService.getNewOperatorPredicate('ViewResults'),
+          { x: 500, y: 300 }
+        );
 
-    //   }
-    // );
+      }
+    );
+
   }
 
   /**
@@ -83,13 +95,11 @@ export class WorkflowEditorComponent implements AfterViewInit {
    *
    * JointJS documentation about paper: https://resources.jointjs.com/docs/jointjs/v2.0/joint.html#dia.Paper
    */
-  private getJointjsPaper(): joint.dia.Paper {
+  private createJointjsPaper(): void {
 
-    const paper = new joint.dia.Paper({
+    let jointPaperOptions: joint.dia.Paper.Options = {
       // bind the DOM element
       el: $('#' + this.WORKFLOW_EDITOR_JOINTJS_ID),
-      // bind the jointjs graph model
-      model: this.graph,
       // set the width and height of the paper to be the width height of the parent wrapper element
       width: this.getWrapperElementSize().width,
       height: this.getWrapperElementSize().height,
@@ -101,6 +111,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
       linkPinning: false,
       // provide a validation to determine if two ports could be connected (only output connect to input is allowed)
       validateConnection: validateOperatorConnection,
+      // provide a validation to determine if the port where link starts from is an out port
+      validateMagnet: validateOperatorMagnet,
       // disable jointjs default action of adding vertexes to the link
       interactive: { vertexAdd: false },
       // set a default link element used by jointjs when user creates a link on UI
@@ -109,9 +121,31 @@ export class WorkflowEditorComponent implements AfterViewInit {
       preventDefaultBlankAction: false,
       // disable jointjs default action that prevents normal right click menu showing up on jointjs paper
       preventContextMenu: false,
-    });
+    };
 
-    return paper;
+    // attach the JointJS graph (model) to the paper (view)
+    jointPaperOptions = this.jointModelService.attachJointPaper(jointPaperOptions);
+
+    // create the JointJS paper with the options
+    this.paper = new joint.dia.Paper(jointPaperOptions);
+
+    // modify the JointJS paper origin coordinates by shifting it to the left top (minus the x and y offset)
+    //   so that the coordinates of the paper can be the same as actual document coordinate
+    // note: attribute `origin` and function `setOrigin` are deprecated and won't work.
+    // function `translate` does the same thing
+    const elementOffset = this.getWrapperElementOffset();
+    this.paper.translate(-elementOffset.x, -elementOffset.y);
+
+    // bind the delete button event to call the delete operator function in joint model action
+    Observable
+      .fromEvent(this.paper, 'element:delete')
+      .map(value => <joint.dia.ElementView>value)
+      .subscribe(
+        elementView => {
+          this.workflowActionService.deleteOperator(elementView.model.id.toString());
+        }
+      );
+
   }
 
   /**
@@ -122,12 +156,19 @@ export class WorkflowEditorComponent implements AfterViewInit {
     const height = $('#' + this.WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID).height();
 
     if (width === undefined || height === undefined) {
-      throw new Error('TODO');
+      throw new Error('fail to get Workflow Editor wrapper element size');
     }
 
     return { width, height };
   }
 
+  private getWrapperElementOffset(): { x: number, y: number } {
+    const offset = $('#' + this.WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID).offset();
+    if (offset === undefined) {
+      throw new Error('fail to get Workflow Editor wrapper element offset');
+    }
+    return { x: offset.left, y: offset.top };
+  }
 }
 
 /**
@@ -150,6 +191,21 @@ function validateOperatorConnection(sourceView: joint.dia.CellView, sourceMagnet
   if (targetMagnet && targetMagnet.getAttribute('port-group') === 'out') { return false; }
 
   return sourceView.id !== targetView.id;
+}
+
+/**
+* This function is provided to JointJS to disallow links starting from an in port.
+*
+* https://resources.jointjs.com/docs/jointjs/v2.0/joint.html#dia.Paper.prototype.options.validateMagnet
+*
+* @param cellView
+* @param magnet
+*/
+function validateOperatorMagnet(cellView: joint.dia.CellView, magnet: SVGElement): boolean {
+  if (magnet && magnet.getAttribute('port-group') === 'out') {
+    return true;
+  }
+  return false;
 }
 
 
