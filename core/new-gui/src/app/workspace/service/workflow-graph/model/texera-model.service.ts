@@ -7,6 +7,7 @@ import { WorkflowGraph, OperatorLink, OperatorPredicate } from './../../../types
 import { JointModelService } from './jointjs-model.service';
 import { Injectable } from '@angular/core';
 import { Subject } from 'rxjs/Subject';
+import { element } from 'protractor';
 
 @Injectable()
 export class TexeraModelService {
@@ -26,7 +27,11 @@ export class TexeraModelService {
     this.workflowActionService.onAddOperatorAction()
       .subscribe(value => this.addOperator(value.operator));
 
+
+
+
     this.jointModelService.onJointOperatorCellDelete()
+      .do(element => console.log('delete on operator!'))
       .map(element => element.id.toString())
       .subscribe(elementID => this.deleteOperator(elementID));
 

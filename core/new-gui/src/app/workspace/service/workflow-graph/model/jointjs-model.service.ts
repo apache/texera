@@ -43,7 +43,13 @@ export class JointModelService {
 
   public registerJointPaper(jointPaper: joint.dia.Paper): void {
     this.jointPaper = jointPaper;
+    const current = this;
+    this.jointPaper.on('element:delete', function(cellView) {
+      current.deleteOperator(cellView.model.id.toString());
+    });
+
   }
+
 
   public onJointOperatorCellDelete(): Observable<joint.dia.Element> {
     const jointOperatorDeleteStream = this.jointCellDeleteStream
