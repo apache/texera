@@ -6,7 +6,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableMap;
 
-import edu.uci.ics.texera.api.dataflow.IOperator;
 import edu.uci.ics.texera.dataflow.annotation.AdvancedOption;
 import edu.uci.ics.texera.dataflow.common.OperatorGroupConstants;
 import edu.uci.ics.texera.dataflow.common.PredicateBase;
@@ -47,7 +46,7 @@ public class WordCountOperatorPredicate extends PredicateBase {
     }
 
     @Override
-    public IOperator newOperator() {
+    public WordCountOperator newOperator() {
         return new WordCountOperator(this);
     }
     

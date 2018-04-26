@@ -5,6 +5,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import edu.uci.ics.texera.api.constants.ErrorMessages;
 import edu.uci.ics.texera.api.constants.SchemaConstants;
 import edu.uci.ics.texera.api.exception.DataflowException;
 import edu.uci.ics.texera.api.exception.TexeraException;
@@ -47,15 +48,8 @@ public class FuzzyTokenMatcher extends AbstractSingleInputOperator {
         if (addResultAttribute) {
             Schema.checkAttributeNotExists(inputSchema, predicate.getSpanListName());
         }
-        
-        Schema.Builder outputSchemaBuilder = new Schema.Builder(inputOperator.getOutputSchema());
-        if (addPayload) {
-            outputSchemaBuilder.add(SchemaConstants.PAYLOAD_ATTRIBUTE);
-        }
-        if (addResultAttribute) {
-            outputSchemaBuilder.add(predicate.getSpanListName(), AttributeType.LIST);       
-        }
-        outputSchema = outputSchemaBuilder.build();
+
+        outputSchema = transformToOutputSchema(inputOperator.getOutputSchema());
     }
 
     @Override
@@ -133,6 +127,20 @@ public class FuzzyTokenMatcher extends AbstractSingleInputOperator {
             }
         }
         return relevantSpans;
+    }
+
+    public Schema transformToOutputSchema(Schema... inputSchema) {
+        if (inputSchema.length != 1)
+            throw new TexeraException(String.format(ErrorMessages.NUMBER_OF_ARGUMENTS_DOES_NOT_MATCH, 1, inputSchema.length));
+
+        Schema.Builder outputSchemaBuilder = new Schema.Builder(inputSchema[0]);
+        if (addPayload) {
+            outputSchemaBuilder.add(SchemaConstants.PAYLOAD_ATTRIBUTE);
+        }
+        if (addResultAttribute) {
+            outputSchemaBuilder.add(predicate.getSpanListName(), AttributeType.LIST);
+        }
+        return outputSchemaBuilder.build();
     }
 
     @Override

@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
+import edu.uci.ics.texera.api.constants.ErrorMessages;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -202,6 +203,10 @@ public class ExcelSink implements ISink {
     
     public Path getFilePath() {
         return excelIndexDirectory.resolve(fileName);
+    }
+
+    public Schema transformToOutputSchema(Schema... inputSchema) throws DataflowException {
+        throw new TexeraException(ErrorMessages.INVALID_OUTPUT_SCHEMA_FOR_SINK);
     }
     
 }
