@@ -7,6 +7,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableMap;
 
+import edu.uci.ics.texera.api.exception.TexeraException;
 import edu.uci.ics.texera.dataflow.common.OperatorGroupConstants;
 import edu.uci.ics.texera.dataflow.common.PropertyNameConstants;
 
@@ -39,6 +40,10 @@ public class KeywordSourcePredicate extends KeywordPredicate {
             String spanListName) {
         
         super(query, attributeNames, luceneAnalyzerString, matchingType, spanListName);
+
+        if (tableName == null || tableName.isEmpty()) {
+            throw new TexeraException(PropertyNameConstants.EMPTY_NAME_EXCEPTION);
+        }
         this.tableName = tableName;
     }
     

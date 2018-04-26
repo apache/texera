@@ -3,6 +3,7 @@ package edu.uci.ics.texera.dataflow.keywordmatcher;
 import java.util.ArrayList;
 import java.util.HashSet;
 
+import edu.uci.ics.texera.api.constants.ErrorMessages;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.queryparser.classic.ParseException;
@@ -218,5 +219,15 @@ public class KeywordMatcherSourceOperator extends AbstractSingleInputOperator im
         return new MatchAllDocsQuery();
     }
 
+    public Schema transformToOutputSchema(Schema... inputSchema) {
+        if (inputSchema == null || inputSchema.length == 0) {
+            if (outputSchema == null) {
+                open();
+                close();
+            }
+            return getOutputSchema();
+        }
+        throw new TexeraException(ErrorMessages.INVALID_INPUT_SCHEMA_FOR_SOURCE);
+    }
 
 }

@@ -108,7 +108,7 @@ public class KeywordPredicate extends PredicateBase {
             String spanListName) {
         
         if (query.trim().isEmpty()) {
-            throw new TexeraException("query should not be empty");
+            throw new TexeraException(PropertyNameConstants.EMPTY_QUERY_EXCEPTION);
         }
         
         this.query = query;

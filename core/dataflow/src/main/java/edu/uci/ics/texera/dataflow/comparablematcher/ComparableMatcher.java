@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
 
+import edu.uci.ics.texera.api.constants.ErrorMessages;
 import edu.uci.ics.texera.api.exception.DataflowException;
 import edu.uci.ics.texera.api.exception.TexeraException;
 import edu.uci.ics.texera.api.field.DateField;
@@ -12,6 +13,7 @@ import edu.uci.ics.texera.api.field.DoubleField;
 import edu.uci.ics.texera.api.field.IntegerField;
 import edu.uci.ics.texera.api.field.StringField;
 import edu.uci.ics.texera.api.schema.AttributeType;
+import edu.uci.ics.texera.api.schema.Schema;
 import edu.uci.ics.texera.api.tuple.*;
 import edu.uci.ics.texera.dataflow.common.AbstractSingleInputOperator;
 
@@ -210,6 +212,18 @@ public class ComparableMatcher extends AbstractSingleInputOperator {
 
     @Override
     protected void cleanUp() throws DataflowException {
+    }
+
+    public Schema transformToOutputSchema(Schema... inputSchema) throws DataflowException {
+        if (inputSchema.length != 1)
+            throw new TexeraException(String.format(ErrorMessages.NUMBER_OF_ARGUMENTS_DOES_NOT_MATCH, 1, inputSchema.length));
+
+        Schema output = inputSchema[0];
+        if (! output.containsAttribute(predicate.getAttributeName())) {
+            throw new DataflowException(String.format("attribute %s not contained in input schema %s",
+                predicate.getAttributeName(), output.getAttributeNames()));
+        }
+        return output;
     }
 
 }

@@ -1,8 +1,10 @@
 package edu.uci.ics.texera.dataflow.sink;
 
+import edu.uci.ics.texera.api.constants.ErrorMessages;
 import edu.uci.ics.texera.api.exception.DataflowException;
 import edu.uci.ics.texera.api.exception.StorageException;
 import edu.uci.ics.texera.api.exception.TexeraException;
+import edu.uci.ics.texera.api.schema.Schema;
 import edu.uci.ics.texera.api.tuple.Tuple;
 import edu.uci.ics.texera.storage.DataWriter;
 import edu.uci.ics.texera.storage.RelationManager;
@@ -45,6 +47,10 @@ public class IndexSink extends AbstractSink {
             this.dataWriter.close();
         }
         super.close();
+    }
+
+    public Schema transformToOutputSchema(Schema... inputSchema) throws DataflowException {
+        throw new TexeraException(ErrorMessages.INVALID_OUTPUT_SCHEMA_FOR_SINK);
     }
 
 }
