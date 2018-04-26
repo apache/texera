@@ -6,6 +6,8 @@ import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.List;
 
+import edu.uci.ics.texera.api.exception.DataflowException;
+import edu.uci.ics.texera.api.exception.TexeraException;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
@@ -241,5 +243,8 @@ public class DataReader implements IOperator {
     public IndexReader getLuceneIndexReader() {
         return this.luceneIndexReader;
     }
-    
+
+    public Schema transformToOutputSchema(Schema... inputSchema) throws DataflowException {
+        throw new TexeraException(ErrorMessages.INVALID_FUNCTION_CALL);
+    }
 }

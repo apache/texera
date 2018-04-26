@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableMap;
 
+import edu.uci.ics.texera.api.exception.TexeraException;
 import edu.uci.ics.texera.dataflow.common.OperatorGroupConstants;
 import edu.uci.ics.texera.dataflow.common.PredicateBase;
 import edu.uci.ics.texera.dataflow.common.PropertyNameConstants;
@@ -24,6 +25,10 @@ public class ScanSourcePredicate extends PredicateBase {
     public ScanSourcePredicate(
             @JsonProperty(value = PropertyNameConstants.TABLE_NAME, required=true)
             String tableName) {
+
+        if (tableName == null || tableName.isEmpty()) {
+            throw new TexeraException(PropertyNameConstants.EMPTY_NAME_EXCEPTION);
+        }
         this.tableName = tableName;
     }
 

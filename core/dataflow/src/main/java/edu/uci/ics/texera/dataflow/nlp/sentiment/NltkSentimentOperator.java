@@ -82,29 +82,9 @@ public class NltkSentimentOperator implements IOperator {
         }
         inputOperator.open();
         Schema inputSchema = inputOperator.getOutputSchema();
-        
-        // check if the input schema is presented
-        if (! inputSchema.containsAttribute(predicate.getInputAttributeName())) {
-            throw new TexeraException(String.format(
-                    "input attribute %s is not in the input schema %s",
-                    predicate.getInputAttributeName(),
-                    inputSchema.getAttributeNames()));
-        }
-        
-        // check if the attribute type is valid
-        AttributeType inputAttributeType = 
-                inputSchema.getAttribute(predicate.getInputAttributeName()).getType();
-        boolean isValidType = inputAttributeType.equals(AttributeType.STRING) || 
-                inputAttributeType.equals(AttributeType.TEXT);
-        if (! isValidType) {
-            throw new TexeraException(String.format(
-                    "input attribute %s must have type String or Text, its actual type is %s",
-                    predicate.getInputAttributeName(),
-                    inputAttributeType));
-        }
-        
+
         // generate output schema by transforming the input schema
-        outputSchema = transformSchema(inputOperator.getOutputSchema());
+        outputSchema = transformToOutputSchema(inputSchema);
         
         cursor = OPENED;
     }
@@ -224,5 +204,33 @@ public class NltkSentimentOperator implements IOperator {
     @Override
     public Schema getOutputSchema() {
         return this.outputSchema;
+    }
+
+    public Schema transformToOutputSchema(Schema... inputSchema) {
+
+        if (inputSchema.length != 1)
+            throw new TexeraException(String.format(ErrorMessages.NUMBER_OF_ARGUMENTS_DOES_NOT_MATCH, 1, inputSchema.length));
+
+        // check if the input schema is presented
+        if (! inputSchema[0].containsAttribute(predicate.getInputAttributeName())) {
+            throw new TexeraException(String.format(
+                    "input attribute %s is not in the input schema %s",
+                    predicate.getInputAttributeName(),
+                    inputSchema[0].getAttributeNames()));
+        }
+
+        // check if the attribute type is valid
+        AttributeType inputAttributeType =
+                inputSchema[0].getAttribute(predicate.getInputAttributeName()).getType();
+        boolean isValidType = inputAttributeType.equals(AttributeType.STRING) ||
+                inputAttributeType.equals(AttributeType.TEXT);
+        if (! isValidType) {
+            throw new TexeraException(String.format(
+                    "input attribute %s must have type String or Text, its actual type is %s",
+                    predicate.getInputAttributeName(),
+                    inputAttributeType));
+        }
+
+        return transformSchema(inputSchema[0]);
     }
 }

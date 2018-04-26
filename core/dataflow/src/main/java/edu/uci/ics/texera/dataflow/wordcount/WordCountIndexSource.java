@@ -133,4 +133,8 @@ public class WordCountIndexSource implements ISourceOperator {
     public Schema getOutputSchema() {
         return SCHEMA_WORD_COUNT;
     }
+
+    public Schema transformToOutputSchema(Schema... inputSchema) throws DataflowException {
+        throw new TexeraException(ErrorMessages.INVALID_INPUT_SCHEMA_FOR_SOURCE);
+    }
 }

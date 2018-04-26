@@ -19,4 +19,6 @@ public interface IOperator {
     void close() throws TexeraException;
 
     Schema getOutputSchema();
+
+    Schema transformToOutputSchema(Schema... inputSchema);
 }

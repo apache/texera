@@ -8,6 +8,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonUnwrapped;
 import com.google.common.collect.ImmutableMap;
 
+import edu.uci.ics.texera.api.exception.TexeraException;
 import edu.uci.ics.texera.dataflow.annotation.AdvancedOption;
 import edu.uci.ics.texera.dataflow.common.OperatorGroupConstants;
 import edu.uci.ics.texera.dataflow.common.PropertyNameConstants;
@@ -17,7 +18,7 @@ import edu.uci.ics.texera.storage.constants.LuceneAnalyzerConstants;
 public class DictionarySourcePredicate extends DictionaryPredicate {
     
     private final String tableName;
-    
+
     /**
      * DictionarySourcePredicate is used to create a DictionarySourceOperator.
      * 
@@ -50,7 +51,12 @@ public class DictionarySourcePredicate extends DictionaryPredicate {
             
             @JsonProperty(value = PropertyNameConstants.SPAN_LIST_NAME, required = false)
             String spanListName) {
+
         super(dictionary, attributeNames, luceneAnalyzerStr, keywordMatchingType, spanListName);
+
+        if (tableName == null || tableName.isEmpty()) {
+            throw new TexeraException(PropertyNameConstants.EMPTY_NAME_EXCEPTION);
+        }
         this.tableName = tableName;
     }
     
