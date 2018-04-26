@@ -1,7 +1,7 @@
 import { Observable } from 'rxjs/Observable';
 import { OperatorSchema } from './../../../types/operator-schema';
 import { OperatorMetadataService } from './../../operator-metadata/operator-metadata.service';
-import { WorkflowModelActionService } from './workflow-model-action.service';
+import { WorkflowActionService } from './workflow-action.service';
 import { WorkflowGraphReadonly } from './../../../types/workflow-graph-readonly';
 import { WorkflowGraph, OperatorLink, OperatorPredicate } from './../../../types/workflow-graph';
 import { JointModelService } from './jointjs-model.service';
@@ -20,10 +20,10 @@ export class TexeraModelService {
 
 
   constructor(
-    private workflowModelActionService: WorkflowModelActionService,
+    private workflowActionService: WorkflowActionService,
     private jointModelService: JointModelService,
   ) {
-    this.workflowModelActionService.onAddOperatorAction()
+    this.workflowActionService.onAddOperatorAction()
       .subscribe(value => this.addOperator(value.operator));
 
     this.jointModelService.onJointOperatorCellDelete()
@@ -37,8 +37,8 @@ export class TexeraModelService {
       .subscribe(link => this.addLink(link));
 
     this.jointModelService.onJointLinkCellDelete()
+      .filter(link => TexeraModelService.isValidLink(link))
       .map(link => link.id.toString())
-      .filter(linkID => this.texeraGraph.hasLinkWithID(linkID))
       .subscribe(linkID => this.deleteLink(linkID));
 
     const jointLinkChange = this.jointModelService.onJointLinkCellChange()
@@ -49,7 +49,9 @@ export class TexeraModelService {
       })
       .filter(link => TexeraModelService.isValidLink(link))
       .map(link => TexeraModelService.getOperatorLink(link))
-      .subscribe(link => this.addLink(link));
+      .subscribe(link => {
+        this.addLink(link);
+      });
 
   }
 
@@ -94,29 +96,40 @@ export class TexeraModelService {
   }
 
   /**
+   * Transforms a JointJS link (joint.dia.Link) to a Texera Link Object
+   * The JointJS link must be valid, otherwise an error will be thrown.
    * @param jointLink
    */
   static getOperatorLink(jointLink: joint.dia.Link): OperatorLink {
-    // all links should be valid links, this error should not happen
-    if (! TexeraModelService.isValidLink(jointLink)) {
-      throw new Error('Invalid JointJS Link: ' + jointLink);
+
+    // the link should be a valid link (both source and target are connected to an operator)
+    // isValidLink function is not reused because of Typescript strict null checking
+    const jointSourceElement = jointLink.getSourceElement();
+    const jointTargetElement = jointLink.getTargetElement();
+
+    if (jointSourceElement === null || jointTargetElement === null) {
+      throw new Error('Invalid JointJS Link:');
     }
 
     const linkID = jointLink.id.toString();
 
-    const sourceOperator = jointLink.getSourceElement().id.toString();
+    const sourceOperator = jointSourceElement.id.toString();
     const sourcePort = jointLink.get('source').port.toString();
 
-    const targetOperator = jointLink.getTargetElement().id.toString();
+    const targetOperator = jointTargetElement.id.toString();
     const targetPort = jointLink.get('target').port.toString();
 
     return { linkID, sourceOperator, sourcePort, targetOperator, targetPort };
   }
 
+  /**
+   * Determines if a jointJS link is valid (both ends are connected to a port of an operator).
+   * If a JointJS link's target is still a point (not connected), it's not a valid link.
+   * @param jointLink
+   */
   static isValidLink(jointLink: joint.dia.Link): boolean {
     return jointLink.getSourceElement() !== null && jointLink.getTargetElement() !== null;
   }
-
 
 
 }

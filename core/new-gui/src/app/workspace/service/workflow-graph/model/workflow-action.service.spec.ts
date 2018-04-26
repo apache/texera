@@ -1,19 +1,19 @@
 import { TestBed, inject } from '@angular/core/testing';
 
-import { WorkflowModelActionService } from './workflow-model-action.service';
+import { WorkflowActionService } from './workflow-action.service';
 
-describe('WorkflowModelActionService', () => {
+describe('WorkflowActionService', () => {
 
-  let service: WorkflowModelActionService = null;
+  let service: WorkflowActionService;
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [WorkflowModelActionService]
+      providers: [WorkflowActionService]
     });
-    service = TestBed.get(WorkflowModelActionService);
+    service = TestBed.get(WorkflowActionService);
   });
 
-  it('should be created', inject([WorkflowModelActionService], (injectedService: WorkflowModelActionService) => {
+  it('should be created', inject([WorkflowActionService], (injectedService: WorkflowActionService) => {
     expect(injectedService).toBeTruthy();
   }));
 

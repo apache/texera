@@ -47,7 +47,7 @@ describe('OperatorPanelComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('getGroupNamesSorted test 1', () => {
+  it('should sort group names correctly based on order', () => {
     const groups = MOCK_OPERATOR_GROUPS;
 
     const result = c.getGroupNamesSorted(groups);
@@ -56,7 +56,7 @@ describe('OperatorPanelComponent', () => {
 
   });
 
-  it('getGroupNamesSorted test 2', () => {
+  it('should sort group names correctly based on order relatively. ex: (100, 1) -> (1, 100)', () => {
     const groups: GroupInfo[] = [
       { groupName: 'group_1', groupOrder: 1 },
       { groupName: 'group_2', groupOrder: 100 }
@@ -68,14 +68,14 @@ describe('OperatorPanelComponent', () => {
 
   });
 
-  it('getGroupNamesSorted test 3 - empty data', () => {
+  it('should sort group names correctly from an empty list', () => {
     const groups: GroupInfo[] = [];
     const result = c.getGroupNamesSorted(groups);
     expect(result).toEqual([]);
 
   });
 
-  it('getOperatorGroupMap test 1', () => {
+  it('should generate a map from operator groups to a list operators correctly', () => {
     const opMetadata = MOCK_OPERATOR_METADATA;
 
     const result = c.getOperatorGroupMap(opMetadata);
@@ -89,7 +89,7 @@ describe('OperatorPanelComponent', () => {
 
   });
 
-  it('getOperatorGroupMap test 2 - empty data', () => {
+  it('should generate a map from operator groups to a list operators correctly from an empty list', () => {
     const opMetadata = EMPTY_OPERATOR_METADATA;
     const result = c.getOperatorGroupMap(opMetadata);
     const expectedResult = new Map<string, OperatorSchema[]>();

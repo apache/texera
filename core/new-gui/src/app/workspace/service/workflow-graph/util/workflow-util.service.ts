@@ -30,6 +30,9 @@ export class WorkflowUtilService {
     const operatorProperties = {};
 
     const operatorSchema = this.operatorSchemaList.find(schema => schema.operatorType === operatorType);
+    if (operatorSchema === undefined) {
+      throw new Error('TODO');
+    }
 
     const inputPorts: string[] = [];
     const outputPorts: string[] = [];

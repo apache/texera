@@ -10,7 +10,7 @@ import { JointUIService } from '../../service/joint-ui/joint-ui.service';
 import { MOCK_OPERATOR_SCHEMA_LIST } from '../../service/operator-metadata/mock-operator-metadata.data';
 
 import * as joint from 'jointjs';
-import { WorkflowModelActionService } from '../../service/workflow-graph/model/workflow-model-action.service';
+import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
 
 describe('WorkflowEditorComponent', () => {
   let component: WorkflowEditorComponent;
@@ -23,7 +23,7 @@ describe('WorkflowEditorComponent', () => {
       providers: [
         JointUIService,
         JointModelService,
-        WorkflowModelActionService,
+        WorkflowActionService,
         WorkflowUtilService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
       ]

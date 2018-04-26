@@ -7,7 +7,7 @@ import { Point } from '../../../types/common.interface';
 import { Subject } from 'rxjs/Subject';
 
 @Injectable()
-export class WorkflowModelActionService {
+export class WorkflowActionService {
 
   private addOperatorActionSubject: Subject<{ operator: OperatorPredicate, point: Point }> = new Subject();
 

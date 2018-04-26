@@ -1,5 +1,5 @@
 import { WorkflowUtilService } from './../service/workflow-graph/util/workflow-util.service';
-import { WorkflowModelActionService } from './../service/workflow-graph/model/workflow-model-action.service';
+import { WorkflowActionService } from './../service/workflow-graph/model/workflow-action.service';
 import { JointModelService } from './../service/workflow-graph/model/jointjs-model.service';
 import { Component, OnInit } from '@angular/core';
 
@@ -21,7 +21,7 @@ import { TexeraModelService } from '../service/workflow-graph/model/texera-model
     JointUIService,
     JointModelService,
     TexeraModelService,
-    WorkflowModelActionService,
+    WorkflowActionService,
     WorkflowUtilService
   ]
 })

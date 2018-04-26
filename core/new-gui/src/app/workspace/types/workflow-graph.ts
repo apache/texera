@@ -1,4 +1,6 @@
+import { WorkflowGraphReadonly } from './workflow-graph-readonly';
 import { OperatorLink } from './workflow-graph';
+
 export interface OperatorPredicate {
   operatorID: string;
   operatorType: string;
@@ -16,7 +18,7 @@ export interface OperatorLink {
 }
 
 
-export class WorkflowGraph {
+export class WorkflowGraph implements WorkflowGraphReadonly {
 
   private operatorIDMap = new Map<string, OperatorPredicate>();
   private operatorLinkMap = new Map<string, OperatorLink>();
@@ -29,16 +31,65 @@ export class WorkflowGraph {
     operatorLinks.forEach(link => this.operatorLinkMap.set(link.linkID, link));
   }
 
+  public addOperator(operator: OperatorPredicate): void {
+    if (this.hasOperator(operator.operatorID)) {
+      throw new Error(`operator with ID ${operator.operatorID} already exists`);
+    }
+    this.operatorIDMap.set(operator.operatorID, operator);
+  }
+
+  public deleteOperator(operatorID: string): OperatorPredicate {
+    const operator = this.operatorIDMap.get(operatorID);
+    if (operator === undefined) {
+      throw new Error(`operator with ID ${operatorID} doesn't exist`);
+    }
+    this.operatorIDMap.delete(operatorID);
+    return operator;
+  }
+
   public hasOperator(operatorID: string): boolean {
     return this.operatorIDMap.has(operatorID);
   }
 
   public getOperator(operatorID: string): OperatorPredicate {
-    return this.operatorIDMap.get(operatorID);
+    const operator = this.operatorIDMap.get(operatorID);
+    if (operator === undefined) {
+      throw new Error(`operator with ID ${operatorID} doesn't exist`);
+    }
+    return operator;
   }
 
   public getOperators(): OperatorPredicate[] {
     return Array.from(this.operatorIDMap.values());
+  }
+
+  public addLink(link: OperatorLink): void {
+    if (this.hasLinkWithID(link.linkID)) {
+      throw new Error(`link with ID ${link.linkID} already exists`);
+    }
+    if (this.hasLink(link.sourceOperator, link.sourcePort, link.targetOperator, link.targetPort)) {
+      throw new Error(`link from ${link.sourceOperator}.${link.sourcePort}
+        to ${link.targetOperator}.${link.targetPort} already exists`);
+    }
+    this.operatorLinkMap.set(link.linkID, link);
+  }
+
+  public deleteLinkWithID(linkID: string): OperatorLink {
+    const link = this.operatorLinkMap.get(linkID);
+    if (link === undefined) {
+      throw new Error(`link with ID ${linkID} doesn't exist`);
+    }
+    this.operatorLinkMap.delete(linkID);
+    return link;
+  }
+
+  public deleteLink(sourceOperator: string, sourcePort: string, targetOperator: string, targetPort: string): OperatorLink {
+    if (!this.hasLink(sourceOperator, sourcePort, targetOperator, targetPort)) {
+      throw new Error(`link from ${sourceOperator}.${sourcePort} to ${targetOperator}.${targetPort} doesn't exist`);
+    }
+    const link = this.getLink(sourceOperator, sourcePort, targetOperator, targetPort);
+    this.operatorLinkMap.delete(link.linkID);
+    return link;
   }
 
   public hasLinkWithID(linkID: string): boolean {
@@ -46,56 +97,59 @@ export class WorkflowGraph {
   }
 
   public hasLink(sourceOperator: string, sourcePort: string, targetOperator: string, targetPort: string): boolean {
-    let linkFound = false;
-    this.operatorLinkMap.forEach(
-      (value, key, map) => {
-        const isEqual = value.sourceOperator === sourceOperator
-          && value.sourcePort === sourcePort
-          && value.targetOperator === targetOperator
-          && value.targetPort === targetPort;
-        if (isEqual) {
-          linkFound = true;
-        }
-      }
+    const links = this.getLinks().filter(
+      value => value.sourceOperator === sourceOperator && value.sourcePort === sourcePort
+        && value.targetOperator === targetOperator && value.targetPort === targetPort
     );
-    return linkFound;
+
+    if (links.length === 1) {
+      return true;
+    } else if (links.length === 0) {
+      return false;
+    } else {
+      // duplicate links found, this should never happen
+      throw new Error(`find multiple duplicate links
+        from ${sourceOperator}.${sourcePort} to ${targetOperator}.${targetPort},
+        workflow graph is in inconsistent state.`);
+    }
   }
 
-  public getLink(linkID: string): OperatorLink {
-    return this.operatorLinkMap.get(linkID);
+  public getLinkWithID(linkID: string): OperatorLink {
+    const link = this.operatorLinkMap.get(linkID);
+    if (link === undefined) {
+      throw new Error(`link with ID ${linkID} does not exist`);
+    }
+    return link;
+  }
+
+  public getLink(sourceOperator: string, sourcePort: string, targetOperator: string, targetPort: string): OperatorLink {
+    const links = this.getLinks().filter(
+      value => value.sourceOperator === sourceOperator && value.sourcePort === sourcePort
+        && value.targetOperator === targetOperator && value.targetPort === targetPort
+    );
+
+    if (links.length === 1) {
+      return links[0];
+    } else if (links.length === 0) {
+      throw new Error(`link from ${sourceOperator}.${sourcePort} to ${targetOperator}.${targetPort} doesn't exist`);
+    } else {
+      // duplicate links found, this should never happen
+      throw new Error(`find multiple duplicate links
+        from ${sourceOperator}.${sourcePort} to ${targetOperator}.${targetPort},
+        workflow graph is in inconsistent state.`);
+    }
   }
 
   public getLinks(): OperatorLink[] {
     return Array.from(this.operatorLinkMap.values());
   }
 
-  public addOperator(operator: OperatorPredicate): void {
-    this.operatorIDMap.set(operator.operatorID, operator);
-  }
-
-  public deleteOperator(operatorID: string): OperatorPredicate {
-    const operator = this.operatorIDMap.get(operatorID);
-    this.operatorIDMap.delete(operatorID);
-    return operator;
-  }
-
   public changeOperatorProperty(operatorID: string, newProperty: Object) {
-    this.operatorIDMap.get(operatorID).operatorProperties = newProperty;
-  }
-
-  public addLink(operatorLink: OperatorLink): void {
-    this.operatorLinkMap.set(operatorLink.linkID, operatorLink);
-  }
-
-  public deleteLink(linkID: string): OperatorLink {
-    const link = this.operatorLinkMap.get(linkID);
-    this.operatorLinkMap.delete(linkID);
-    return link;
-  }
-
-  public changeLink(link: OperatorLink): void {
-    this.deleteLink(link.linkID);
-    this.addLink(link);
+    const operator = this.operatorIDMap.get(operatorID);
+    if (operator === undefined) {
+      throw new Error(`operator with ID ${operatorID} doesn't exist`);
+    }
+    operator.operatorProperties = newProperty;
   }
 
 }

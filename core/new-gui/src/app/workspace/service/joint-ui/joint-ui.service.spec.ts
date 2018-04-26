@@ -26,7 +26,7 @@ describe('JointUIService', () => {
   /**
    * Check if the getJointjsOperatorElement() can successfully creates a JointJS Element
    */
-  it('getJointjsOperatorElement() should create an operatorElement', () => {
+  it('should create an JointJS Element successfully when the function is called', () => {
     const result = service.getJointjsOperatorElement(
       'ScanSource', 'operator1', { x: 100, y: 100 } );
     expect(result).toBeTruthy();
@@ -35,7 +35,7 @@ describe('JointUIService', () => {
   /**
    * Check if the error in getJointjsOperatorElement() is correctly thrown
    */
-  it('getJointjsOperatorElement() should throw an error', () => {
+  it('should throw an error with an non existing operator', () => {
     const nonExistingOperator = 'NotExistOperator';
     expect(
       function() {
@@ -52,7 +52,7 @@ describe('JointUIService', () => {
    * Check if the number of inPorts and outPorts created by getJointjsOperatorElement()
    * matches the port number specified by the operator metadata
    */
-  it('getJointjsOperatorElement() should create correct number of inPorts and outPorts', () => {
+  it('should create correct number of inPorts and outPorts based on operator metadata', () => {
     const element1 = service.getJointjsOperatorElement('ScanSource', 'operator1', { x: 100, y: 100 });
     const element2 = service.getJointjsOperatorElement('NlpSentiment', 'operator1', { x: 100, y: 100 });
     const element3 = service.getJointjsOperatorElement('ViewResults', 'operator1', { x: 100, y: 100 });
@@ -77,15 +77,14 @@ describe('JointUIService', () => {
    * Check if the TexeraOperatorShape defined in setupCustomJointjsModel() is
    * correctly registered in the joint.shapes.devs
    */
-  it('setupCustomJointjsModel() should create a custom jointjs model in constructor', () => {
+  it('should create Texera\'s custom jointjs shape template in constructor', () => {
     expect(joint.shapes.devs['TexeraOperatorShape']).toBeTruthy();
   });
 
   /**
    * Check if the custom attributes / svgs are correctly used by the JointJS graph
    */
-  it('should apply the custom svgs defined be getCustomOperatorStyleAttrs() and ' +
-  'getDefaultLinkElement() to the JointJS operator', () => {
+  it('should apply the custom SVG styling to the JointJS element', () => {
 
     const graph = new joint.dia.Graph();
 

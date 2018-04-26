@@ -35,7 +35,7 @@ describe('OperatorLabelComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should create an ID', () => {
+  it('should generate an ID for the component DOM element', () => {
     expect(component.operatorLabelID).toContain('texera-operator-label-');
   });
 

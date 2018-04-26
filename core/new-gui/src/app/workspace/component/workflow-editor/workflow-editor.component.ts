@@ -1,5 +1,5 @@
 import { WorkflowUtilService } from './../../service/workflow-graph/util/workflow-util.service';
-import { WorkflowModelActionService } from './../../service/workflow-graph/model/workflow-model-action.service';
+import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
 import { JointModelService } from './../../service/workflow-graph/model/jointjs-model.service';
 import { Component, AfterViewInit } from '@angular/core';
 import { Observable } from 'rxjs/Observable';
@@ -33,46 +33,48 @@ export class WorkflowEditorComponent implements AfterViewInit {
   public readonly WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID = 'texera-workflow-editor-jointjs-wrapper-id';
   public readonly WORKFLOW_EDITOR_JOINTJS_ID = 'texera-workflow-editor-jointjs-body-id';
 
-  public paper: joint.dia.Paper = null;
-  public graph: joint.dia.Graph = null;
+  paper: joint.dia.Paper;
+  graph: joint.dia.Graph;
 
   constructor(
     private jointUIService: JointUIService,
     private jointModelService: JointModelService,
-    private workflowModelActionService: WorkflowModelActionService,
+    private workflowActionService: WorkflowActionService,
     private workflowUtilService: WorkflowUtilService
   ) {
-    this.graph = jointModelService.jointGraph;
+    this.graph = jointModelService.getJointGraph();
   }
 
   ngAfterViewInit() {
 
-    this.createJointjsPaper();
+    const paper = this.getJointjsPaper();
+    this.paper = paper;
+    this.jointModelService.registerJointPaper(this.paper);
 
     // add a 500ms delay for joint-ui.service to fetch the operator metaData
     // this code is temporary and will be deleted in future PRs when drag
     // and drop is implemented
 
-    Observable.of([]).delay(500).subscribe(
-      emptyData => {
-        // add some dummy operators and links to show that JointJS works
-        this.workflowModelActionService.addOperator(
-          this.workflowUtilService.getNewOperatorPredicate('ScanSource'),
-          { x: 300, y: 250 }
-        );
+    // Observable.of([]).delay(500).subscribe(
+    //   emptyData => {
+    //     // add some dummy operators and links to show that JointJS works
+    //     this.workflowActionService.addOperator(
+    //       this.workflowUtilService.getNewOperatorPredicate('ScanSource'),
+    //       { x: 300, y: 250 }
+    //     );
 
-        this.workflowModelActionService.addOperator(
-          this.workflowUtilService.getNewOperatorPredicate('ViewResults'),
-          { x: 500, y: 200 }
-        );
+    //     this.workflowActionService.addOperator(
+    //       this.workflowUtilService.getNewOperatorPredicate('ViewResults'),
+    //       { x: 500, y: 200 }
+    //     );
 
-        this.workflowModelActionService.addOperator(
-          this.workflowUtilService.getNewOperatorPredicate('ViewResults'),
-          { x: 500, y: 300 }
-        );
+    //     this.workflowActionService.addOperator(
+    //       this.workflowUtilService.getNewOperatorPredicate('ViewResults'),
+    //       { x: 500, y: 300 }
+    //     );
 
-      }
-    );
+    //   }
+    // );
   }
 
   /**
@@ -81,7 +83,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
    *
    * JointJS documentation about paper: https://resources.jointjs.com/docs/jointjs/v2.0/joint.html#dia.Paper
    */
-  private createJointjsPaper(): void {
+  private getJointjsPaper(): joint.dia.Paper {
 
     const paper = new joint.dia.Paper({
       // bind the DOM element
@@ -109,18 +111,21 @@ export class WorkflowEditorComponent implements AfterViewInit {
       preventContextMenu: false,
     });
 
-    this.paper = paper;
-    this.jointModelService.registerJointPaper(paper);
+    return paper;
   }
 
   /**
    * get the width and height of the parent wrapper element
    */
   private getWrapperElementSize(): { width: number, height: number } {
-    return {
-      width: $('#' + this.WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID).width(),
-      height: $('#' + this.WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID).height()
-    };
+    const width = $('#' + this.WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID).width();
+    const height = $('#' + this.WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID).height();
+
+    if (width === undefined || height === undefined) {
+      throw new Error('TODO');
+    }
+
+    return { width, height };
   }
 
 }

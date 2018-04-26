@@ -1,5 +1,5 @@
 import { OperatorPredicate } from './../../../types/workflow-graph';
-import { WorkflowModelActionService } from './workflow-model-action.service';
+import { WorkflowActionService } from './workflow-action.service';
 import { Injectable } from '@angular/core';
 import { Point } from '../../../types/common.interface';
 import { Observable } from 'rxjs/Observable';
@@ -12,8 +12,8 @@ import { JointUIService } from '../../joint-ui/joint-ui.service';
 @Injectable()
 export class JointModelService {
 
-  public jointGraph = new joint.dia.Graph();
-  private jointPaper: joint.dia.Paper = null;
+  private jointGraph = new joint.dia.Graph();
+  private jointPaper: joint.dia.Paper | null = null;
 
   private jointCellAddStream = Observable
     .fromEvent(this.jointGraph, 'add')
@@ -25,16 +25,20 @@ export class JointModelService {
 
 
   constructor(
-    private workflowModelActionService: WorkflowModelActionService,
+    private workflowActionService: WorkflowActionService,
     private jointUIService: JointUIService) {
 
-    this.workflowModelActionService.onAddOperatorAction().subscribe(
+    this.workflowActionService.onAddOperatorAction().subscribe(
       value => this.addOperator(value.operator, value.point)
     );
 
-    this.workflowModelActionService.onDeleteOperatorAction().subscribe(
+    this.workflowActionService.onDeleteOperatorAction().subscribe(
       value => this.deleteOperator(value.operatorID)
     );
+  }
+
+  public getJointGraph(): joint.dia.Graph {
+    return this.jointGraph;
   }
 
   public registerJointPaper(jointPaper: joint.dia.Paper): void {
@@ -42,7 +46,7 @@ export class JointModelService {
   }
 
   public onJointOperatorCellDelete(): Observable<joint.dia.Element> {
-    const jointOperatorDeleteStream = this.jointCellAddStream
+    const jointOperatorDeleteStream = this.jointCellDeleteStream
       .filter(cell => cell.isElement())
       .map(cell => <joint.dia.Element>cell);
     return jointOperatorDeleteStream;
@@ -73,6 +77,10 @@ export class JointModelService {
   }
 
   private addOperator(operator: OperatorPredicate, point: Point): void {
+    if (this.jointPaper === null) {
+      throw new Error('TODO');
+    }
+
     const jointOffsetPoint: Point = {
       x: point.x - this.jointPaper.pageOffset().x,
       y: point.y - this.jointPaper.pageOffset().y
