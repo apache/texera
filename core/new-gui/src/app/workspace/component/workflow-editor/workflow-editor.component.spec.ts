@@ -36,7 +36,8 @@ describe('WorkflowEditorComponent', () => {
     fixture = TestBed.createComponent(WorkflowEditorComponent);
     component = fixture.componentInstance;
     jointUIService = fixture.debugElement.injector.get(JointUIService);
-    jointGraph = (jointUIService as any).jointGraph;
+    const jointModelService = fixture.debugElement.injector.get(JointModelService);
+    jointGraph = (jointModelService as any).jointGraph;
     fixture.detectChanges();
   });
 

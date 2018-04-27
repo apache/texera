@@ -1,6 +1,10 @@
+import { Point } from './../../../types/common.interface';
 import { MOCK_OPERATOR_SCHEMA_LIST } from './../../operator-metadata/mock-operator-metadata.data';
 import { OperatorPredicate, OperatorLink } from './../../../types/workflow-graph';
 
+export const mockPoint: Point = {
+  x: 100, y: 100
+};
 
 export const mockScanSourcePredicate: OperatorPredicate = {
   operatorID: '1',

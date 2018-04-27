@@ -367,6 +367,9 @@ describe('TexeraModelService', () => {
 
     jointModelService.onJointLinkCellAdd().subscribe({
       complete: () => {
+        console.log(texeraModelService.getTexeraGraph());
+        console.log(texeraModelService.getTexeraGraph().hasLink(mockLinkSourceViewResult.source, mockLinkSourceViewResult.target));
+
         expect(texeraModelService.getTexeraGraph().getOperators().length).toEqual(2);
         expect(texeraModelService.getTexeraGraph().getLinks().length).toEqual(1);
         expect(texeraModelService.getTexeraGraph().hasLinkWithID(mockLinkSourceViewResult.linkID)).toBeTruthy();

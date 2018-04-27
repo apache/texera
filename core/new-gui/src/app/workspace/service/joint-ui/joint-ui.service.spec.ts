@@ -42,7 +42,7 @@ describe('JointUIService', () => {
    * Check if the error in getJointjsOperatorElement() is correctly thrown
    */
   it('should throw an error with an non existing operator', () => {
-    expect(
+    expect(() => {
       service.getJointjsOperatorElement(
         {
           operatorID: 'nonexistOperator',
@@ -52,8 +52,8 @@ describe('JointUIService', () => {
           outputPorts: []
         },
         mockPoint
-      )
-    ).toThrowError();
+      );
+    }).toThrowError();
   });
 
 
@@ -112,14 +112,14 @@ describe('JointUIService', () => {
     );
 
     const link = service.getJointjsLinkElement(
-      { operatorID: 'operator1', portID: 'out0' },
-      { operatorID: 'operator2', portID: 'in0' }
+      { operatorID: mockScanSourcePredicate.operatorID, portID: mockScanSourcePredicate.outputPorts[0] },
+      { operatorID: mockViewResultPredicate.operatorID, portID: mockViewResultPredicate.inputPorts[0] }
     );
 
     graph.addCell(link);
 
-    const graph_operator1 = graph.getCell('operator1');
-    const graph_operator2 = graph.getCell('operator2');
+    const graph_operator1 = graph.getCell(mockScanSourcePredicate.operatorID);
+    const graph_operator2 = graph.getCell(mockViewResultPredicate.operatorID);
     const graph_link = graph.getLinks()[0];
 
     // testing getCustomOperatorStyleAttrs()

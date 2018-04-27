@@ -1,6 +1,7 @@
 import { WorkflowGraphReadonly } from './workflow-graph-readonly';
 import { OperatorLink } from './workflow-graph';
 import { OperatorPort } from './operator-port';
+import { isEqual } from 'lodash-es';
 
 export interface OperatorPredicate {
   operatorID: string;
@@ -98,7 +99,7 @@ export class WorkflowGraph implements WorkflowGraphReadonly {
 
   public hasLink(source: OperatorPort, target: OperatorPort): boolean {
     const links = this.getLinks().filter(
-      value => value.source === source && value.target === target
+      value => isEqual(value.source, source) && isEqual(value.target, target)
     );
     if (links.length === 0) {
       return false;
@@ -116,7 +117,7 @@ export class WorkflowGraph implements WorkflowGraphReadonly {
 
   public getLink(source: OperatorPort, target: OperatorPort): OperatorLink {
     const links = this.getLinks().filter(
-      value => value.source === source && value.target === target
+      value => isEqual(value.source, source) && isEqual(value.target, target)
     );
 
     if (links.length === 0) {
