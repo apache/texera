@@ -1,3 +1,4 @@
+import { OperatorPort } from './operator-port';
 import { OperatorPredicate, OperatorLink } from './workflow-graph';
 
 /**
@@ -14,11 +15,11 @@ export interface WorkflowGraphReadonly {
 
   hasLinkWithID(linkID: string): boolean;
 
-  hasLink(sourceOperator: string, sourcePort: string, targetOperator: string, targetPort: string): boolean;
+  hasLink(source: OperatorPort, target: OperatorPort): boolean;
 
   getLinkWithID(linkID: string): OperatorLink;
 
-  getLink(sourceOperator: string, sourcePort: string, targetOperator: string, targetPort: string): OperatorLink;
+  getLink(source: OperatorPort, target: OperatorPort): OperatorLink;
 
   getLinks(): OperatorLink[];
 

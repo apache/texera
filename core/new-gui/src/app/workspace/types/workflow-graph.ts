@@ -1,5 +1,6 @@
 import { WorkflowGraphReadonly } from './workflow-graph-readonly';
 import { OperatorLink } from './workflow-graph';
+import { OperatorPort } from './operator-port';
 
 export interface OperatorPredicate {
   operatorID: string;
@@ -11,10 +12,8 @@ export interface OperatorPredicate {
 
 export interface OperatorLink {
   linkID: string;
-  sourceOperator: string;
-  sourcePort: string;
-  targetOperator: string;
-  targetPort: string;
+  source: OperatorPort;
+  target: OperatorPort;
 }
 
 
@@ -67,9 +66,9 @@ export class WorkflowGraph implements WorkflowGraphReadonly {
     if (this.hasLinkWithID(link.linkID)) {
       throw new Error(`link with ID ${link.linkID} already exists`);
     }
-    if (this.hasLink(link.sourceOperator, link.sourcePort, link.targetOperator, link.targetPort)) {
-      throw new Error(`link from ${link.sourceOperator}.${link.sourcePort}
-        to ${link.targetOperator}.${link.targetPort} already exists`);
+    if (this.hasLink(link.source, link.target)) {
+        throw new Error(`link from ${link.source.operatorID}.${link.source.portID}
+        to ${link.target.operatorID}.${link.target.portID} already exists`);
     }
     this.operatorLinkMap.set(link.linkID, link);
   }
@@ -83,11 +82,12 @@ export class WorkflowGraph implements WorkflowGraphReadonly {
     return link;
   }
 
-  public deleteLink(sourceOperator: string, sourcePort: string, targetOperator: string, targetPort: string): OperatorLink {
-    if (!this.hasLink(sourceOperator, sourcePort, targetOperator, targetPort)) {
-      throw new Error(`link from ${sourceOperator}.${sourcePort} to ${targetOperator}.${targetPort} doesn't exist`);
+  public deleteLink(source: OperatorPort, target: OperatorPort): OperatorLink {
+    if (!this.hasLink(source, target)) {
+      throw new Error(`link from ${source.operatorID}.${source.portID}
+        to ${target.operatorID}.${target.portID} doesn't exist`);
     }
-    const link = this.getLink(sourceOperator, sourcePort, targetOperator, targetPort);
+    const link = this.getLink(source, target);
     this.operatorLinkMap.delete(link.linkID);
     return link;
   }
@@ -96,22 +96,14 @@ export class WorkflowGraph implements WorkflowGraphReadonly {
     return this.operatorLinkMap.has(linkID);
   }
 
-  public hasLink(sourceOperator: string, sourcePort: string, targetOperator: string, targetPort: string): boolean {
+  public hasLink(source: OperatorPort, target: OperatorPort): boolean {
     const links = this.getLinks().filter(
-      value => value.sourceOperator === sourceOperator && value.sourcePort === sourcePort
-        && value.targetOperator === targetOperator && value.targetPort === targetPort
+      value => value.source === source && value.target === target
     );
-
-    if (links.length === 1) {
-      return true;
-    } else if (links.length === 0) {
+    if (links.length === 0) {
       return false;
-    } else {
-      // duplicate links found, this should never happen
-      throw new Error(`find multiple duplicate links
-        from ${sourceOperator}.${sourcePort} to ${targetOperator}.${targetPort},
-        workflow graph is in inconsistent state.`);
     }
+    return true;
   }
 
   public getLinkWithID(linkID: string): OperatorLink {
@@ -122,22 +114,16 @@ export class WorkflowGraph implements WorkflowGraphReadonly {
     return link;
   }
 
-  public getLink(sourceOperator: string, sourcePort: string, targetOperator: string, targetPort: string): OperatorLink {
+  public getLink(source: OperatorPort, target: OperatorPort): OperatorLink {
     const links = this.getLinks().filter(
-      value => value.sourceOperator === sourceOperator && value.sourcePort === sourcePort
-        && value.targetOperator === targetOperator && value.targetPort === targetPort
+      value => value.source === source && value.target === target
     );
 
-    if (links.length === 1) {
-      return links[0];
-    } else if (links.length === 0) {
-      throw new Error(`link from ${sourceOperator}.${sourcePort} to ${targetOperator}.${targetPort} doesn't exist`);
-    } else {
-      // duplicate links found, this should never happen
-      throw new Error(`find multiple duplicate links
-        from ${sourceOperator}.${sourcePort} to ${targetOperator}.${targetPort},
-        workflow graph is in inconsistent state.`);
+    if (links.length === 0) {
+      throw new Error(`link from ${source.operatorID}.${source.portID}
+        to ${target.operatorID}.${target.portID} doesn't exist`);
     }
+    return links[0];
   }
 
   public getLinks(): OperatorLink[] {

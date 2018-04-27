@@ -1,12 +1,15 @@
 import { WorkflowUtilService } from './../../service/workflow-graph/util/workflow-util.service';
 import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
-import { JointModelService } from './../../service/workflow-graph/model/jointjs-model.service';
+import { JointModelService } from './../../service/workflow-graph/model/joint-model.service';
 import { Component, AfterViewInit } from '@angular/core';
 import { Observable } from 'rxjs/Observable';
 import '../../../common/rxjs-operators';
 
 import * as joint from 'jointjs';
 import { JointUIService } from '../../service/joint-ui/joint-ui.service';
+import {
+  mockScanSourcePredicate, mockViewResultPredicate, mockLinkSourceViewResult
+} from '../../service/workflow-graph/model/mock-workflow-data';
 
 /**
  * WorkflowEditorComponent is the componenet for the main workflow editor part of the UI.
@@ -68,21 +71,22 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
     Observable.from('a').delay(500).subscribe(
       emptyData => {
+        const scanSource = mockScanSourcePredicate;
+        const viewResult = mockViewResultPredicate;
+        const link = mockLinkSourceViewResult;
+
         // add some dummy operators and links to show that JointJS works
         this.workflowActionService.addOperator(
-          this.workflowUtilService.getNewOperatorPredicate('ScanSource'),
-          { x: 300, y: 250 }
+          scanSource,
+          { x: 300, y: 200 }
         );
 
         this.workflowActionService.addOperator(
-          this.workflowUtilService.getNewOperatorPredicate('ViewResults'),
-          { x: 500, y: 200 }
+          viewResult,
+          { x: 600, y: 200 }
         );
 
-        this.workflowActionService.addOperator(
-          this.workflowUtilService.getNewOperatorPredicate('ViewResults'),
-          { x: 500, y: 300 }
-        );
+        this.workflowActionService.addLink(link);
 
       }
     );

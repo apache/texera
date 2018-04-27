@@ -3,7 +3,7 @@ import { marbles } from 'rxjs-marbles';
 
 import { StubOperatorMetadataService } from './../../operator-metadata/stub-operator-metadata.service';
 import { JointUIService } from './../../joint-ui/joint-ui.service';
-import { JointModelService } from './jointjs-model.service';
+import { JointModelService } from './joint-model.service';
 import { WorkflowActionService } from './workflow-action.service';
 import { OperatorMetadataService } from '../../operator-metadata/operator-metadata.service';
 
@@ -49,14 +49,14 @@ describe('JointModelService', () => {
     it('should add an operator element when add operator is called in workflow action', marbles((m) => {
       const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
 
-      spyOn(workflowActionService, 'onAddOperatorAction').and.returnValue(
+      spyOn(workflowActionService, '_onAddOperatorAction').and.returnValue(
         m.hot('-a-|', { a: { operator: mockScanSourcePredicate, point: mockPoint } })
       );
 
       // get Joint Model Service
       const jointModelService: JointModelService = TestBed.get(JointModelService);
 
-      workflowActionService.onAddOperatorAction().subscribe({
+      workflowActionService._onAddOperatorAction().subscribe({
         complete: () => {
           expect(getJointGraph(jointModelService).getCell(mockScanSourcePredicate.operatorID)).toBeTruthy();
           expect(getJointGraph(jointModelService).getCell(mockScanSourcePredicate.operatorID).isElement()).toBeTruthy();
@@ -68,18 +68,18 @@ describe('JointModelService', () => {
     it('should emit operator delete event correctly when delete operator is called in workflow action', marbles((m) => {
       const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
 
-      spyOn(workflowActionService, 'onAddOperatorAction').and.returnValue(
+      spyOn(workflowActionService, '_onAddOperatorAction').and.returnValue(
         m.hot('-a-|', { a: { operator: mockScanSourcePredicate, point: mockPoint } })
       );
 
-      spyOn(workflowActionService, 'onDeleteOperatorAction').and.returnValue(
+      spyOn(workflowActionService, '_onDeleteOperatorAction').and.returnValue(
         m.hot('--d-|', { d: { operatorID: mockScanSourcePredicate.operatorID } })
       );
 
       // get Joint Model Service
       const jointModelService: JointModelService = TestBed.get(JointModelService);
 
-      workflowActionService.onDeleteOperatorAction().subscribe({
+      workflowActionService._onDeleteOperatorAction().subscribe({
         complete: () => {
           expect(getJointGraph(jointModelService).getCells().length).toEqual(0);
           expect(getJointGraph(jointModelService).getCell(mockScanSourcePredicate.operatorID)).toBeFalsy();
@@ -129,8 +129,6 @@ describe('JointModelService', () => {
       const expectedStream = m.hot('-e-');
 
       m.expect(jointOperatorDeleteStream).toBeObservable(expectedStream);
-
-
 
     }));
 

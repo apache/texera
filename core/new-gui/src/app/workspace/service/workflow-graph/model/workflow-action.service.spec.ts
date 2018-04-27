@@ -19,7 +19,7 @@ describe('WorkflowActionService', () => {
 
   it('should emit event when addOperator is called', () => {
     let eventValue: any;
-    service.onAddOperatorAction().subscribe(
+    service._onAddOperatorAction().subscribe(
       value => eventValue = value
     );
 
@@ -30,7 +30,7 @@ describe('WorkflowActionService', () => {
 
   it('should emit event when deleteOperator is called', () => {
     let eventValue: any;
-    service.onDeleteOperatorAction().subscribe(
+    service._onDeleteOperatorAction().subscribe(
       value => eventValue = value
     );
 

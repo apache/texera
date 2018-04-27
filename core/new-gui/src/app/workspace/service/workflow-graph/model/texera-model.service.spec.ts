@@ -8,7 +8,7 @@ import { Observable } from 'rxjs/Observable';
 import { StubOperatorMetadataService } from './../../operator-metadata/stub-operator-metadata.service';
 import { OperatorMetadataService } from './../../operator-metadata/operator-metadata.service';
 import { JointUIService } from './../../joint-ui/joint-ui.service';
-import { JointModelService } from './jointjs-model.service';
+import { JointModelService } from './joint-model.service';
 import { WorkflowActionService } from './workflow-action.service';
 import { TestBed, inject } from '@angular/core/testing';
 import { marbles, Context } from 'rxjs-marbles';
@@ -73,13 +73,13 @@ describe('TexeraModelService', () => {
     //  that returns the corresponding value
     return {
       id: link.linkID,
-      getSourceElement: () => ({ id: link.sourceOperator }),
-      getTargetElement: () => ({ id: link.targetOperator }),
+      getSourceElement: () => ({ id: link.source.operatorID }),
+      getTargetElement: () => ({ id: link.target.operatorID }),
       get: (port) => {
         if (port === 'source') {
-          return { port: link.sourcePort };
+          return { port: link.source.portID };
         } else if (port === 'target') {
-          return { port: link.targetPort };
+          return { port: link.target.portID };
         } else {
           throw new Error('getJointLinkValue: mock is inconsistent with implementation');
         }
@@ -101,11 +101,11 @@ describe('TexeraModelService', () => {
     //  that returns the corresponding value
     return {
       id: link.linkID,
-      getSourceElement: () => ({ id: link.sourceOperator }),
+      getSourceElement: () => ({ id: link.source.operatorID }),
       getTargetElement: () => null,
       get: (port) => {
         if (port === 'source') {
-          return { port: link.sourcePort };
+          return { port: link.source.portID };
         } else if (port === 'target') {
           return null;
         } else {
@@ -148,7 +148,7 @@ describe('TexeraModelService', () => {
     const marbleValues = {
       a: getAddOperatorValue(mockScanSourcePredicate)
     };
-    spyOn(workflowActionService, 'onAddOperatorAction').and.returnValue(
+    spyOn(workflowActionService, '_onAddOperatorAction').and.returnValue(
       m.hot(marbleString, marbleValues)
     );
 
@@ -156,7 +156,7 @@ describe('TexeraModelService', () => {
     const texeraModelService: TexeraModelService = TestBed.get(TexeraModelService);
 
     // assert workflow graph
-    workflowActionService.onAddOperatorAction().subscribe({
+    workflowActionService._onAddOperatorAction().subscribe({
       complete: () => {
         expect(texeraModelService.getTexeraGraph().hasOperator(mockScanSourcePredicate.operatorID)).toBeTruthy();
         expect(texeraModelService.getTexeraGraph().getOperators().length).toEqual(1);
@@ -189,7 +189,7 @@ describe('TexeraModelService', () => {
       a: getAddOperatorValue(mockScanSourcePredicate),
       b: getAddOperatorValue(mockViewResultPredicate)
     };
-    spyOn(workflowActionService, 'onAddOperatorAction').and.returnValue(
+    spyOn(workflowActionService, '_onAddOperatorAction').and.returnValue(
       m.hot(marbleString, marbleValues)
     );
 
@@ -197,7 +197,7 @@ describe('TexeraModelService', () => {
     const texeraModelService: TexeraModelService = TestBed.get(TexeraModelService);
 
     // assert workflow graph
-    workflowActionService.onAddOperatorAction().subscribe({
+    workflowActionService._onAddOperatorAction().subscribe({
       complete: () => {
         expect(texeraModelService.getTexeraGraph().hasOperator(mockScanSourcePredicate.operatorID)).toBeTruthy();
         expect(texeraModelService.getTexeraGraph().hasOperator(mockViewResultPredicate.operatorID)).toBeTruthy();
@@ -237,7 +237,7 @@ describe('TexeraModelService', () => {
     const addOpMarbleValues = {
       a: getAddOperatorValue(mockScanSourcePredicate)
     };
-    spyOn(workflowActionService, 'onAddOperatorAction').and.returnValue(
+    spyOn(workflowActionService, '_onAddOperatorAction').and.returnValue(
       m.hot(addOpMarbleString, addOpMarbleValues)
     );
 
@@ -293,7 +293,7 @@ describe('TexeraModelService', () => {
       a: getAddOperatorValue(mockScanSourcePredicate),
       b: getAddOperatorValue(mockViewResultPredicate)
     };
-    spyOn(workflowActionService, 'onAddOperatorAction').and.returnValue(
+    spyOn(workflowActionService, '_onAddOperatorAction').and.returnValue(
       m.hot(addOpMarbleString, addOpMarbleValues)
     );
 
@@ -349,7 +349,7 @@ describe('TexeraModelService', () => {
       a: getAddOperatorValue(mockScanSourcePredicate),
       b: getAddOperatorValue(mockViewResultPredicate)
     };
-    spyOn(workflowActionService, 'onAddOperatorAction').and.returnValue(
+    spyOn(workflowActionService, '_onAddOperatorAction').and.returnValue(
       m.hot(addOpMarbleString, addOpMarbleValues)
     );
 
@@ -370,10 +370,9 @@ describe('TexeraModelService', () => {
         expect(texeraModelService.getTexeraGraph().getOperators().length).toEqual(2);
         expect(texeraModelService.getTexeraGraph().getLinks().length).toEqual(1);
         expect(texeraModelService.getTexeraGraph().hasLinkWithID(mockLinkSourceViewResult.linkID)).toBeTruthy();
-        expect(texeraModelService.getTexeraGraph().getLink(mockLinkSourceViewResult.linkID)).toEqual(mockLinkSourceViewResult);
+        expect(texeraModelService.getTexeraGraph().getLinkWithID(mockLinkSourceViewResult.linkID)).toEqual(mockLinkSourceViewResult);
         expect(texeraModelService.getTexeraGraph().hasLink(
-          mockLinkSourceViewResult.sourceOperator, mockLinkSourceViewResult.sourcePort,
-          mockLinkSourceViewResult.targetOperator, mockLinkSourceViewResult.targetPort
+          mockLinkSourceViewResult.source, mockLinkSourceViewResult.target
         )).toBeTruthy();
       }
     });
@@ -410,7 +409,7 @@ describe('TexeraModelService', () => {
       a: getAddOperatorValue(mockScanSourcePredicate),
       b: getAddOperatorValue(mockViewResultPredicate)
     };
-    spyOn(workflowActionService, 'onAddOperatorAction').and.returnValue(
+    spyOn(workflowActionService, '_onAddOperatorAction').and.returnValue(
       m.hot(addOpMarbleString, addOpMarbleValues)
     );
 
@@ -474,7 +473,7 @@ describe('TexeraModelService', () => {
       a: getAddOperatorValue(mockScanSourcePredicate),
       b: getAddOperatorValue(mockViewResultPredicate)
     };
-    spyOn(workflowActionService, 'onAddOperatorAction').and.returnValue(
+    spyOn(workflowActionService, '_onAddOperatorAction').and.returnValue(
       m.hot(addOpMarbleString, addOpMarbleValues)
     );
 
@@ -534,7 +533,7 @@ describe('TexeraModelService', () => {
       a: getAddOperatorValue(mockScanSourcePredicate),
       b: getAddOperatorValue(mockViewResultPredicate)
     };
-    spyOn(workflowActionService, 'onAddOperatorAction').and.returnValue(
+    spyOn(workflowActionService, '_onAddOperatorAction').and.returnValue(
       m.hot(addOpMarbleString, addOpMarbleValues)
     );
 
@@ -600,7 +599,7 @@ describe('TexeraModelService', () => {
       a: getAddOperatorValue(mockScanSourcePredicate),
       b: getAddOperatorValue(mockViewResultPredicate)
     };
-    spyOn(workflowActionService, 'onAddOperatorAction').and.returnValue(
+    spyOn(workflowActionService, '_onAddOperatorAction').and.returnValue(
       m.hot(addOpMarbleString, addOpMarbleValues)
     );
 
@@ -668,7 +667,7 @@ describe('TexeraModelService', () => {
       b: getAddOperatorValue(mockSentimentAnalysisPredicate),
       c: getAddOperatorValue(mockViewResultPredicate),
     };
-    spyOn(workflowActionService, 'onAddOperatorAction').and.returnValue(
+    spyOn(workflowActionService, '_onAddOperatorAction').and.returnValue(
       m.hot(addOpMarbleString, addOpMarbleValues)
     );
 
@@ -702,14 +701,12 @@ describe('TexeraModelService', () => {
       complete: () => {
         expect(texeraModelService.getTexeraGraph().getLinks().length).toEqual(1);
         expect(texeraModelService.getTexeraGraph().hasLinkWithID(mockChangedLink.linkID)).toBeTruthy();
-        expect(texeraModelService.getTexeraGraph().getLink(mockChangedLink.linkID)).toEqual(mockChangedLink);
+        expect(texeraModelService.getTexeraGraph().getLinkWithID(mockChangedLink.linkID)).toEqual(mockChangedLink);
         expect(texeraModelService.getTexeraGraph().hasLink(
-          mockLinkSourceViewResult.sourceOperator, mockLinkSourceViewResult.sourcePort,
-          mockLinkSourceViewResult.targetOperator, mockLinkSourceViewResult.targetPort
+          mockLinkSourceViewResult.source, mockLinkSourceViewResult.target
         )).toBeFalsy();
         expect(texeraModelService.getTexeraGraph().hasLink(
-          mockChangedLink.sourceOperator, mockChangedLink.sourcePort,
-          mockChangedLink.targetOperator, mockChangedLink.targetPort
+          mockChangedLink.source, mockChangedLink.target
         )).toBeTruthy();
       }
     });
@@ -755,7 +752,7 @@ describe('TexeraModelService', () => {
       b: getAddOperatorValue(mockSentimentAnalysisPredicate),
       c: getAddOperatorValue(mockViewResultPredicate),
     };
-    spyOn(workflowActionService, 'onAddOperatorAction').and.returnValue(
+    spyOn(workflowActionService, '_onAddOperatorAction').and.returnValue(
       m.hot(addOpMarbleString, addOpMarbleValues)
     );
 
@@ -792,8 +789,7 @@ describe('TexeraModelService', () => {
       complete: () => {
         expect(texeraModelService.getTexeraGraph().getLinks().length).toEqual(1);
         expect(texeraModelService.getTexeraGraph().hasLink(
-          mockChangedLink.sourceOperator, mockChangedLink.sourcePort,
-          mockChangedLink.targetOperator, mockChangedLink.targetPort
+          mockChangedLink.source, mockChangedLink.target
         )).toBeTruthy();
       }
     });

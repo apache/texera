@@ -17,7 +17,10 @@ describe('WorkflowGraph', () => {
 
   it('should throw an error when tring to get a link from a nonexist source or target', () => {
     expect(
-      workflowGraph.getLink('source', 'source port', 'target', 'taret port')
+      workflowGraph.getLink(
+        { operatorID: 'source', portID: 'source port' },
+        { operatorID: 'target', portID: 'taret port' }
+      )
     ).toThrowError();
   });
 

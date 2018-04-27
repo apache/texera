@@ -31,24 +31,36 @@ export const mockViewResultPredicate: OperatorPredicate = {
 
 export const mockLinkSourceViewResult: OperatorLink = {
   linkID: 'link-1',
-  sourceOperator: mockScanSourcePredicate.operatorID,
-  sourcePort: mockScanSourcePredicate.outputPorts[0],
-  targetOperator: mockViewResultPredicate.operatorID,
-  targetPort: mockViewResultPredicate.inputPorts[0]
+  source: {
+    operatorID: mockScanSourcePredicate.operatorID,
+    portID: mockScanSourcePredicate.outputPorts[0]
+  },
+  target: {
+    operatorID: mockViewResultPredicate.operatorID,
+    portID: mockViewResultPredicate.inputPorts[0]
+  }
 };
 
 export const mockLinkSourceSentiment: OperatorLink = {
   linkID: 'link-2',
-  sourceOperator: mockScanSourcePredicate.operatorID,
-  sourcePort: mockScanSourcePredicate.outputPorts[0],
-  targetOperator: mockSentimentAnalysisPredicate.operatorID,
-  targetPort: mockSentimentAnalysisPredicate.inputPorts[0]
+  source: {
+    operatorID: mockScanSourcePredicate.operatorID,
+    portID: mockScanSourcePredicate.outputPorts[0]
+  },
+  target: {
+    operatorID: mockSentimentAnalysisPredicate.operatorID,
+    portID:  mockSentimentAnalysisPredicate.inputPorts[0]
+  }
 };
 
 export const mockLinkSentimentViewResult: OperatorLink = {
   linkID: 'link-3',
-  sourceOperator: mockSentimentAnalysisPredicate.operatorID,
-  sourcePort: mockSentimentAnalysisPredicate.inputPorts[0],
-  targetOperator: mockSentimentAnalysisPredicate.operatorID,
-  targetPort: mockSentimentAnalysisPredicate.inputPorts[0]
+  source: {
+    operatorID: mockSentimentAnalysisPredicate.operatorID,
+    portID:  mockSentimentAnalysisPredicate.inputPorts[0]
+  },
+  target: {
+    operatorID: mockViewResultPredicate.operatorID,
+    portID: mockViewResultPredicate.inputPorts[0]
+  }
 };

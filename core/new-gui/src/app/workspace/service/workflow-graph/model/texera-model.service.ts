@@ -4,35 +4,41 @@ import { Subject } from 'rxjs/Subject';
 
 import { OperatorMetadataService } from './../../operator-metadata/operator-metadata.service';
 import { WorkflowActionService } from './workflow-action.service';
-import { JointModelService } from './jointjs-model.service';
+import { JointModelService } from './joint-model.service';
 
 import { WorkflowGraphReadonly } from './../../../types/workflow-graph-readonly';
 import { OperatorSchema } from './../../../types/operator-schema';
 import { WorkflowGraph, OperatorLink, OperatorPredicate } from './../../../types/workflow-graph';
 
-
+/**
+ *
+ */
 @Injectable()
 export class TexeraModelService {
 
-  private texeraGraph = new WorkflowGraph();
+  private texeraGraph: WorkflowGraph;
 
   private addOperatorSubject = new Subject<OperatorPredicate>();
   private deleteOperatorSubject = new Subject<OperatorPredicate>();
   private addLinkSubject = new Subject<OperatorLink>();
   private deleteLinkSubject = new Subject<OperatorLink>();
 
-
   constructor(
     private workflowActionService: WorkflowActionService,
     private jointModelService: JointModelService,
   ) {
-    this.workflowActionService.onAddOperatorAction()
+    // bypass Typescript type system to access a private variable
+    //   because Typescript doesn't support package (same folder) access level :(
+    //   and we don't want to expose the write-able workflow graph to be public
+    // this is very dangerous and should be prohibited in most cases
+    this.texeraGraph = (workflowActionService as any).texeraGraph;
+
+    this.workflowActionService._onAddOperatorAction()
       .subscribe(value => this.addOperator(value.operator));
 
     this.jointModelService.onJointOperatorCellDelete()
       .map(element => element.id.toString())
       .subscribe(elementID => this.deleteOperator(elementID));
-
 
     this.jointModelService.onJointLinkCellAdd()
       .filter(link => TexeraModelService.isValidLink(link))
@@ -114,15 +120,17 @@ export class TexeraModelService {
       throw new Error('Invalid JointJS Link:');
     }
 
-    const linkID = jointLink.id.toString();
-
-    const sourceOperator = jointSourceElement.id.toString();
-    const sourcePort = jointLink.get('source').port.toString();
-
-    const targetOperator = jointTargetElement.id.toString();
-    const targetPort = jointLink.get('target').port.toString();
-
-    return { linkID, sourceOperator, sourcePort, targetOperator, targetPort };
+    return {
+      linkID: jointLink.id.toString(),
+      source: {
+        operatorID: jointSourceElement.id.toString(),
+        portID: jointLink.get('source').port.toString()
+      },
+      target: {
+        operatorID: jointTargetElement.id.toString(),
+        portID: jointLink.get('target').port.toString()
+      }
+    };
   }
 
   /**

@@ -1,3 +1,4 @@
+import { OperatorPredicate } from './../../types/workflow-graph';
 import { Injectable } from '@angular/core';
 import { OperatorMetadataService } from '../operator-metadata/operator-metadata.service';
 import { OperatorSchema } from '../../types/operator-schema';
@@ -89,18 +90,18 @@ export class JointUIService {
    * @returns JointJS Element
    */
   public getJointjsOperatorElement(
-    operatorType: string, operatorID: string, jointOffsetPoint: Point
+    operator: OperatorPredicate, jointOffsetPoint: Point
   ): joint.dia.Element {
 
-    const operatorSchema = this.operators.find(op => op.operatorType === operatorType);
+    const operatorSchema = this.operators.find(op => op.operatorType === operator.operatorType);
     if (operatorSchema === undefined) {
       throw new Error(
         'JointUIService.getJointUI: ' +
-        'cannot find operatorType: ' + operatorType);
+        'cannot find operatorType: ' + operator.operatorType);
     }
 
     const operatorElement: joint.shapes.devs.Model = new joint.shapes.devs['TexeraOperatorShape']({
-      id: operatorID,
+      id: operator.operatorID,
       position: { x: jointOffsetPoint.x, y: jointOffsetPoint.y },
       size: { width: DEFAULT_OPERATOR_WIDTH, height: DEFAULT_OPERATOR_HEIGHT },
       attrs: getCustomOperatorStyleAttrs(operatorSchema.additionalMetadata.userFriendlyName),
@@ -112,13 +113,12 @@ export class JointUIService {
       }
     });
 
-    for (let i = 0; i < operatorSchema.additionalMetadata.numInputPorts; i++) {
-      operatorElement.addInPort(`in${i}`);
-    }
-    for (let i = 0; i < operatorSchema.additionalMetadata.numOutputPorts; i++) {
-      operatorElement.addOutPort(`out${i}`);
-    }
-
+    operator.inputPorts.forEach(
+      port => operatorElement.addInPort(port)
+    );
+    operator.outputPorts.forEach(
+      port => operatorElement.addOutPort(port)
+    );
 
     return operatorElement;
   }

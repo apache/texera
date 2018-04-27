@@ -1,5 +1,5 @@
 import { WorkflowUtilService } from './../../service/workflow-graph/util/workflow-util.service';
-import { JointModelService } from './../../service/workflow-graph/model/jointjs-model.service';
+import { JointModelService } from './../../service/workflow-graph/model/joint-model.service';
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { WorkflowEditorComponent } from './workflow-editor.component';
@@ -16,6 +16,7 @@ describe('WorkflowEditorComponent', () => {
   let component: WorkflowEditorComponent;
   let fixture: ComponentFixture<WorkflowEditorComponent>;
   let jointUIService: JointUIService;
+  let jointGraph: joint.dia.Graph;
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
@@ -35,6 +36,7 @@ describe('WorkflowEditorComponent', () => {
     fixture = TestBed.createComponent(WorkflowEditorComponent);
     component = fixture.componentInstance;
     jointUIService = fixture.debugElement.injector.get(JointUIService);
+    jointGraph = component.paper.model;
     fixture.detectChanges();
   });
 
@@ -48,7 +50,7 @@ describe('WorkflowEditorComponent', () => {
     const element = new joint.shapes.basic.Rect();
     element.set('id', operatorID);
 
-    component.graph.addCell(element);
+    jointGraph.addCell(element);
 
     expect(component.paper.findViewByModel(element.id)).toBeTruthy();
 
@@ -75,14 +77,14 @@ describe('WorkflowEditorComponent', () => {
       target: { id: operator2 }
     });
 
-    component.graph.addCell(element1);
-    component.graph.addCell(element2);
-    component.graph.addCell(link1);
+    jointGraph.addCell(element1);
+    jointGraph.addCell(element2);
+    jointGraph.addCell(link1);
 
     // check the model is added correctly
-    expect(component.graph.getElements().find(el => el.id === operator1)).toBeTruthy();
-    expect(component.graph.getElements().find(el => el.id === operator2)).toBeTruthy();
-    expect(component.graph.getLinks().find(link => link.id === link1.id)).toBeTruthy();
+    expect(jointGraph.getElements().find(el => el.id === operator1)).toBeTruthy();
+    expect(jointGraph.getElements().find(el => el.id === operator2)).toBeTruthy();
+    expect(jointGraph.getLinks().find(link => link.id === link1.id)).toBeTruthy();
 
 
     // check the view is updated correctly

@@ -1,4 +1,6 @@
-import { OperatorPredicate } from './../../../types/workflow-graph';
+import { WorkflowGraphReadonly } from './../../../types/workflow-graph-readonly';
+
+import { OperatorPredicate, OperatorLink } from './../../../types/workflow-graph';
 import { WorkflowActionService } from './workflow-action.service';
 import { Injectable } from '@angular/core';
 import { Point } from '../../../types/common.interface';
@@ -9,6 +11,10 @@ import '../../../../common/rxjs-operators';
 import * as joint from 'jointjs';
 import { JointUIService } from '../../joint-ui/joint-ui.service';
 
+/**
+ *
+ *
+ */
 @Injectable()
 export class JointModelService {
 
@@ -27,12 +33,20 @@ export class JointModelService {
     private workflowActionService: WorkflowActionService,
     private jointUIService: JointUIService) {
 
-    this.workflowActionService.onAddOperatorAction().subscribe(
+    this.workflowActionService._onAddOperatorAction().subscribe(
       value => this.addJointOperatorElement(value.operator, value.point)
     );
 
-    this.workflowActionService.onDeleteOperatorAction().subscribe(
+    this.workflowActionService._onDeleteOperatorAction().subscribe(
       value => this.deleteJointOperatorElement(value.operatorID)
+    );
+
+    this.workflowActionService._onAddLinkAction().subscribe(
+      value => this.addJointLinkCell(value.link)
+    );
+
+    this.workflowActionService._onDeleteLinkAction().subscribe(
+      value => this.deleteJointLinkCell(value.linkID)
     );
   }
 
@@ -73,15 +87,23 @@ export class JointModelService {
   }
 
   private addJointOperatorElement(operator: OperatorPredicate, point: Point): void {
-
     const operatorJointElement = this.jointUIService.getJointjsOperatorElement(
-      operator.operatorType, operator.operatorID, point);
+      operator, point);
 
     this.jointGraph.addCell(operatorJointElement);
   }
 
   private deleteJointOperatorElement(operatorID: string): void {
     this.jointGraph.getCell(operatorID).remove();
+  }
+
+  private addJointLinkCell(link: OperatorLink): void {
+    const jointLinkCell = this.jointUIService.getJointjsLinkElement(link.source, link.target);
+    this.jointGraph.addCell(jointLinkCell);
+  }
+
+  private deleteJointLinkCell(linkID: string): void {
+    this.jointGraph.getCell(linkID).remove();
   }
 
 }

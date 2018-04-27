@@ -29,6 +29,7 @@
     "backbone": "^1.3.3",
     "bootstrap": "^4.0.0",
     "core-js": "^2.4.1",
+    "hammerjs": "^2.0.8",
     "jointjs": "^2.0.1",
     "jquery": "^3.1.1",
     "jquery-ui-dist": "^1.12.1",
