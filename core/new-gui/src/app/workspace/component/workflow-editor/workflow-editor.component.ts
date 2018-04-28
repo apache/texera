@@ -84,7 +84,11 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
   private bindJointPaperWithView(): void {
     this.paper.setElement($('#' + this.WORKFLOW_EDITOR_JOINTJS_ID));
+
+    // important: must first call initialize and _ensureElement to make the changes effective
     this.paper.initialize();
+    this.paper._ensureElement();
+
     // modify the JointJS paper origin coordinates by shifting it to the left top (minus the x and y offset)
     //   so that the coordinates of the paper can be the same as actual document coordinate
     // note: attribute `origin` and function `setOrigin` are deprecated and won't work.
@@ -94,6 +98,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     // set the width and height of the paper to be the width height of the parent wrapper element
     const elementSize = this.getWrapperElementSize();
     this.paper.setDimensions(elementSize.width, elementSize.height);
+
   }
 
   private handleWindowResize(): void {

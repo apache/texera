@@ -31,7 +31,7 @@ export class WorkflowUtilService {
 
     const operatorSchema = this.operatorSchemaList.find(schema => schema.operatorType === operatorType);
     if (operatorSchema === undefined) {
-      throw new Error('TODO');
+      throw new Error(`operatorType ${operatorType} doesn't exist in operator metadata`);
     }
 
     const inputPorts: string[] = [];
