@@ -67,10 +67,35 @@ export const getMockSentimentResultLink: () => OperatorLink = () => cloneDeep({
   linkID: 'link-3',
   source: {
     operatorID: getMockSentimentPredicate().operatorID,
-    portID:  getMockSentimentPredicate().inputPorts[0]
+    portID:  getMockSentimentPredicate().outputPorts[0]
   },
   target: {
     operatorID: getMockResultPredicate().operatorID,
     portID: getMockResultPredicate().inputPorts[0]
+  }
+});
+
+
+export const getMockFalseResultSentimentLink: () => OperatorLink = () => cloneDeep({
+  linkID: 'link-4',
+  source: {
+    operatorID : getMockResultPredicate().operatorID,
+    portID: undefined as any
+  },
+  target: {
+    operatorID: getMockSentimentPredicate().operatorID,
+    portID: getMockSentimentPredicate().inputPorts[0]
+  }
+});
+
+export const getMockFalseSentimentScanLink: () => OperatorLink = () => cloneDeep({
+  linkID: 'link-5',
+  source: {
+    operatorID : getMockSentimentPredicate().operatorID,
+    portID : getMockSentimentPredicate().outputPorts[0]
+  },
+  target: {
+    operatorID : getMockScanPredicate().operatorID,
+    portID: undefined as any
   }
 });
