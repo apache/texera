@@ -32,9 +32,7 @@ export class WorkflowActionService {
    * @param point
    */
   public addOperator(operator: OperatorPredicate, point: Point): void {
-    if (this.texeraGraph.hasOperator(operator.operatorID)) {
-      throw new Error(`operator with ID ${operator.operatorID} already exists`);
-    }
+    WorkflowGraph.checkIsValidOperator(this.texeraGraph, operator);
     this.addOperatorActionSubject.next({ operator, point });
   }
 
@@ -68,13 +66,7 @@ export class WorkflowActionService {
    * @param link
    */
   public addLink(link: OperatorLink): void {
-    if (this.texeraGraph.hasLinkWithID(link.linkID)) {
-      throw new Error(`link with ID ${link.linkID} already exists`);
-    }
-    if (this.texeraGraph.hasLink(link.source, link.target)) {
-        throw new Error(`link from ${link.source.operatorID}.${link.source.portID}
-        to ${link.target.operatorID}.${link.target.portID} already exists`);
-    }
+    WorkflowGraph.checkIsValidLink(this.texeraGraph, link);
     this.addLinkActionSubject.next({ link });
   }
 

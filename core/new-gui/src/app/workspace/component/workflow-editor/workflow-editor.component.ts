@@ -8,7 +8,7 @@ import '../../../common/rxjs-operators';
 import * as joint from 'jointjs';
 import { JointUIService } from '../../service/joint-ui/joint-ui.service';
 import {
-  mockScanSourcePredicate, mockViewResultPredicate, mockLinkSourceViewResult
+  getMockScanPredicate, getMockResultPredicate, getMockScanResultLink
 } from '../../service/workflow-graph/model/mock-workflow-data';
 
 /**
@@ -71,9 +71,9 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
     Observable.from('a').delay(500).subscribe(
       emptyData => {
-        const scanSource = mockScanSourcePredicate;
-        const viewResult = mockViewResultPredicate;
-        const link = mockLinkSourceViewResult;
+        const scanSource = getMockScanPredicate();
+        const viewResult = getMockResultPredicate();
+        const link = getMockScanResultLink();
 
         // add some dummy operators and links to show that JointJS works
         this.workflowActionService.addOperator(

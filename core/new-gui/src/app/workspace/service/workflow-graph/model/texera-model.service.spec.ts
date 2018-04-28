@@ -1,8 +1,8 @@
 import { Point } from './../../../types/common.interface';
 import { OperatorPredicate, OperatorLink } from './../../../types/workflow-graph';
 import {
-  mockScanSourcePredicate, mockViewResultPredicate, mockSentimentAnalysisPredicate,
-  mockLinkSourceViewResult, mockLinkSourceSentiment, mockLinkSentimentViewResult
+  getMockScanPredicate, getMockResultPredicate, getMockSentimentPredicate,
+  getMockScanResultLink, getMockScanSentimentLink, getMockSentimentResultLink, getMockPoint
 } from './mock-workflow-data';
 import { Observable } from 'rxjs/Observable';
 import { StubOperatorMetadataService } from './../../operator-metadata/stub-operator-metadata.service';
@@ -41,12 +41,10 @@ class StubJointModelService {
 
 describe('TexeraModelService', () => {
 
-  const mockPoint: Point = { x: 100, y: 100 };
-
   function getAddOperatorValue(operator: OperatorPredicate) {
     return {
       operator: operator,
-      point: mockPoint
+      point: getMockPoint()
     };
   }
 
@@ -146,7 +144,7 @@ describe('TexeraModelService', () => {
     // prepare add operator
     const marbleString = '-a-|';
     const marbleValues = {
-      a: getAddOperatorValue(mockScanSourcePredicate)
+      a: getAddOperatorValue(getMockScanPredicate())
     };
     spyOn(workflowActionService, '_onAddOperatorAction').and.returnValue(
       m.hot(marbleString, marbleValues)
@@ -158,7 +156,7 @@ describe('TexeraModelService', () => {
     // assert workflow graph
     workflowActionService._onAddOperatorAction().subscribe({
       complete: () => {
-        expect(texeraModelService.getTexeraGraph().hasOperator(mockScanSourcePredicate.operatorID)).toBeTruthy();
+        expect(texeraModelService.getTexeraGraph().hasOperator(getMockScanPredicate().operatorID)).toBeTruthy();
         expect(texeraModelService.getTexeraGraph().getOperators().length).toEqual(1);
         expect(texeraModelService.getTexeraGraph().getLinks().length).toEqual(0);
       }
@@ -166,7 +164,7 @@ describe('TexeraModelService', () => {
 
     // assert operator add stream
     const operatorAddStream = texeraModelService.onOperatorAdd();
-    const expectedAddStream = m.hot('-a-', { a: mockScanSourcePredicate });
+    const expectedAddStream = m.hot('-a-', { a: getMockScanPredicate() });
 
     m.expect(operatorAddStream).toBeObservable(expectedAddStream);
 
@@ -186,8 +184,8 @@ describe('TexeraModelService', () => {
     // prepare add operator
     const marbleString = '-a-b-|';
     const marbleValues = {
-      a: getAddOperatorValue(mockScanSourcePredicate),
-      b: getAddOperatorValue(mockViewResultPredicate)
+      a: getAddOperatorValue(getMockScanPredicate()),
+      b: getAddOperatorValue(getMockResultPredicate())
     };
     spyOn(workflowActionService, '_onAddOperatorAction').and.returnValue(
       m.hot(marbleString, marbleValues)
@@ -199,8 +197,8 @@ describe('TexeraModelService', () => {
     // assert workflow graph
     workflowActionService._onAddOperatorAction().subscribe({
       complete: () => {
-        expect(texeraModelService.getTexeraGraph().hasOperator(mockScanSourcePredicate.operatorID)).toBeTruthy();
-        expect(texeraModelService.getTexeraGraph().hasOperator(mockViewResultPredicate.operatorID)).toBeTruthy();
+        expect(texeraModelService.getTexeraGraph().hasOperator(getMockScanPredicate().operatorID)).toBeTruthy();
+        expect(texeraModelService.getTexeraGraph().hasOperator(getMockResultPredicate().operatorID)).toBeTruthy();
         expect(texeraModelService.getTexeraGraph().getOperators().length).toEqual(2);
         expect(texeraModelService.getTexeraGraph().getLinks().length).toEqual(0);
       }
@@ -208,7 +206,7 @@ describe('TexeraModelService', () => {
 
     // assert operator add stream
     const operatorAddStream = texeraModelService.onOperatorAdd();
-    const expectedAddStream = m.hot('-a-b-', { a: mockScanSourcePredicate, b: mockViewResultPredicate });
+    const expectedAddStream = m.hot('-a-b-', { a: getMockScanPredicate(), b: getMockResultPredicate() });
 
     m.expect(operatorAddStream).toBeObservable(expectedAddStream);
 
@@ -235,7 +233,7 @@ describe('TexeraModelService', () => {
     // prepare add operator
     const addOpMarbleString = '-a-|';
     const addOpMarbleValues = {
-      a: getAddOperatorValue(mockScanSourcePredicate)
+      a: getAddOperatorValue(getMockScanPredicate())
     };
     spyOn(workflowActionService, '_onAddOperatorAction').and.returnValue(
       m.hot(addOpMarbleString, addOpMarbleValues)
@@ -244,7 +242,7 @@ describe('TexeraModelService', () => {
     // prepare delete operator
     const deleteOpMarbleString = '---d-|';
     const deleteOpMarbleValues = {
-      d: getJointOperatorValue(mockScanSourcePredicate.operatorID)
+      d: getJointOperatorValue(getMockScanPredicate().operatorID)
     };
     spyOn(jointModelService, 'onJointOperatorCellDelete').and.returnValue(
       m.hot(deleteOpMarbleString, deleteOpMarbleValues)
@@ -256,14 +254,14 @@ describe('TexeraModelService', () => {
     // assert workflow graph
     jointModelService.onJointOperatorCellDelete().subscribe({
       complete: () => {
-        expect(texeraModelService.getTexeraGraph().hasOperator(mockScanSourcePredicate.operatorID)).toBeFalsy();
+        expect(texeraModelService.getTexeraGraph().hasOperator(getMockScanPredicate().operatorID)).toBeFalsy();
         expect(texeraModelService.getTexeraGraph().getOperators().length).toEqual(0);
       }
     });
 
     // assert operator delete stream
     const operatorDeleteStream = texeraModelService.onOperatorDelete();
-    const expectedStream = m.hot('---d-', { d: mockScanSourcePredicate });
+    const expectedStream = m.hot('---d-', { d: getMockScanPredicate() });
 
     m.expect(operatorDeleteStream).toBeObservable(expectedStream);
 
@@ -290,8 +288,8 @@ describe('TexeraModelService', () => {
     // prepare add operator
     const addOpMarbleString = '-a-b-|';
     const addOpMarbleValues = {
-      a: getAddOperatorValue(mockScanSourcePredicate),
-      b: getAddOperatorValue(mockViewResultPredicate)
+      a: getAddOperatorValue(getMockScanPredicate()),
+      b: getAddOperatorValue(getMockResultPredicate())
     };
     spyOn(workflowActionService, '_onAddOperatorAction').and.returnValue(
       m.hot(addOpMarbleString, addOpMarbleValues)
@@ -300,7 +298,7 @@ describe('TexeraModelService', () => {
     // prepare delete operator
     const deleteOpMarbleString = '-----d-|';
     const deleteOpMarbleValues = {
-      d: getJointOperatorValue(mockScanSourcePredicate.operatorID)
+      d: getJointOperatorValue(getMockScanPredicate().operatorID)
     };
     spyOn(jointModelService, 'onJointOperatorCellDelete').and.returnValue(
       m.hot(deleteOpMarbleString, deleteOpMarbleValues)
@@ -311,8 +309,8 @@ describe('TexeraModelService', () => {
 
     jointModelService.onJointOperatorCellDelete().subscribe({
       complete: () => {
-        expect(texeraModelService.getTexeraGraph().hasOperator(mockScanSourcePredicate.operatorID)).toBeFalsy();
-        expect(texeraModelService.getTexeraGraph().hasOperator(mockViewResultPredicate.operatorID)).toBeTruthy();
+        expect(texeraModelService.getTexeraGraph().hasOperator(getMockScanPredicate().operatorID)).toBeFalsy();
+        expect(texeraModelService.getTexeraGraph().hasOperator(getMockResultPredicate().operatorID)).toBeTruthy();
         expect(texeraModelService.getTexeraGraph().getOperators().length).toEqual(1);
         expect(texeraModelService.getTexeraGraph().getLinks().length).toEqual(0);
       }
@@ -320,7 +318,7 @@ describe('TexeraModelService', () => {
 
     // assert operator delete stream
     const operatorDeleteStream = texeraModelService.onOperatorDelete();
-    const expectedStream = m.hot('-----d-', { d: mockScanSourcePredicate });
+    const expectedStream = m.hot('-----d-', { d: getMockScanPredicate() });
 
     m.expect(operatorDeleteStream).toBeObservable(expectedStream);
 
@@ -346,8 +344,8 @@ describe('TexeraModelService', () => {
     // prepare add operator
     const addOpMarbleString = '-a-b-|';
     const addOpMarbleValues = {
-      a: getAddOperatorValue(mockScanSourcePredicate),
-      b: getAddOperatorValue(mockViewResultPredicate)
+      a: getAddOperatorValue(getMockScanPredicate()),
+      b: getAddOperatorValue(getMockResultPredicate())
     };
     spyOn(workflowActionService, '_onAddOperatorAction').and.returnValue(
       m.hot(addOpMarbleString, addOpMarbleValues)
@@ -356,7 +354,7 @@ describe('TexeraModelService', () => {
     // prepare add link
     const addLinkMarbleString = '-----p-|';
     const addLinkMarbleValues = {
-      p: getJointLinkValue(mockLinkSourceViewResult)
+      p: getJointLinkValue(getMockScanResultLink())
     };
     spyOn(jointModelService, 'onJointLinkCellAdd').and.returnValue(
       m.hot(addLinkMarbleString, addLinkMarbleValues)
@@ -369,17 +367,17 @@ describe('TexeraModelService', () => {
       complete: () => {
         expect(texeraModelService.getTexeraGraph().getOperators().length).toEqual(2);
         expect(texeraModelService.getTexeraGraph().getLinks().length).toEqual(1);
-        expect(texeraModelService.getTexeraGraph().hasLinkWithID(mockLinkSourceViewResult.linkID)).toBeTruthy();
-        expect(texeraModelService.getTexeraGraph().getLinkWithID(mockLinkSourceViewResult.linkID)).toEqual(mockLinkSourceViewResult);
+        expect(texeraModelService.getTexeraGraph().hasLinkWithID(getMockScanResultLink().linkID)).toBeTruthy();
+        expect(texeraModelService.getTexeraGraph().getLinkWithID(getMockScanResultLink().linkID)).toEqual(getMockScanResultLink());
         expect(texeraModelService.getTexeraGraph().hasLink(
-          mockLinkSourceViewResult.source, mockLinkSourceViewResult.target
+          getMockScanResultLink().source, getMockScanResultLink().target
         )).toBeTruthy();
       }
     });
 
     // assert link add stream
     const linkAddStream = texeraModelService.onLinkAdd();
-    const expectedStream = m.hot('-----p-', { p: mockLinkSourceViewResult });
+    const expectedStream = m.hot('-----p-', { p: getMockScanResultLink() });
 
     m.expect(linkAddStream).toBeObservable(expectedStream);
 
@@ -406,8 +404,8 @@ describe('TexeraModelService', () => {
     // prepare add operator
     const addOpMarbleString = '-a-b-|';
     const addOpMarbleValues = {
-      a: getAddOperatorValue(mockScanSourcePredicate),
-      b: getAddOperatorValue(mockViewResultPredicate)
+      a: getAddOperatorValue(getMockScanPredicate()),
+      b: getAddOperatorValue(getMockResultPredicate())
     };
     spyOn(workflowActionService, '_onAddOperatorAction').and.returnValue(
       m.hot(addOpMarbleString, addOpMarbleValues)
@@ -416,7 +414,7 @@ describe('TexeraModelService', () => {
     // prepare add link
     const addLinkMarbleString = '-----p-|';
     const addLinkMarbleValues = {
-      p: getJointLinkValue(mockLinkSourceViewResult)
+      p: getJointLinkValue(getMockScanResultLink())
     };
     spyOn(jointModelService, 'onJointLinkCellAdd').and.returnValue(
       m.hot(addLinkMarbleString, addLinkMarbleValues)
@@ -425,7 +423,7 @@ describe('TexeraModelService', () => {
     // prepare delete link
     const deleteLinkMarbleString = '-------r-|';
     const deleteLinkMarbleValues = {
-      r: getJointLinkValue(mockLinkSourceViewResult)
+      r: getJointLinkValue(getMockScanResultLink())
     };
     spyOn(jointModelService, 'onJointLinkCellDelete').and.returnValue(
       m.hot(deleteLinkMarbleString, deleteLinkMarbleValues)
@@ -442,7 +440,7 @@ describe('TexeraModelService', () => {
 
     // assert link delete stream
     const linkDeleteStream = texeraModelService.onLinkDelete();
-    const expectedStream = m.hot('-------r-', { r: mockLinkSourceViewResult });
+    const expectedStream = m.hot('-------r-', { r: getMockScanResultLink() });
 
     m.expect(linkDeleteStream).toBeObservable(expectedStream);
 
@@ -470,8 +468,8 @@ describe('TexeraModelService', () => {
     // prepare add operator
     const addOpMarbleString = '-a-b-|';
     const addOpMarbleValues = {
-      a: getAddOperatorValue(mockScanSourcePredicate),
-      b: getAddOperatorValue(mockViewResultPredicate)
+      a: getAddOperatorValue(getMockScanPredicate()),
+      b: getAddOperatorValue(getMockResultPredicate())
     };
     spyOn(workflowActionService, '_onAddOperatorAction').and.returnValue(
       m.hot(addOpMarbleString, addOpMarbleValues)
@@ -480,7 +478,7 @@ describe('TexeraModelService', () => {
     // prepare add link (incomplete link)
     const addLinkMarbleString = '-----q-|';
     const addLinkMarbleValues = {
-      q: getIncompleteJointLink(mockLinkSourceViewResult)
+      q: getIncompleteJointLink(getMockScanResultLink())
     };
     spyOn(jointModelService, 'onJointLinkCellAdd').and.returnValue(
       m.hot(addLinkMarbleString, addLinkMarbleValues)
@@ -530,8 +528,8 @@ describe('TexeraModelService', () => {
     // prepare add operator
     const addOpMarbleString = '-a-b-|';
     const addOpMarbleValues = {
-      a: getAddOperatorValue(mockScanSourcePredicate),
-      b: getAddOperatorValue(mockViewResultPredicate)
+      a: getAddOperatorValue(getMockScanPredicate()),
+      b: getAddOperatorValue(getMockResultPredicate())
     };
     spyOn(workflowActionService, '_onAddOperatorAction').and.returnValue(
       m.hot(addOpMarbleString, addOpMarbleValues)
@@ -540,7 +538,7 @@ describe('TexeraModelService', () => {
     // prepare add link (incomplete link)
     const addLinkMarbleString = '-----q-|';
     const addLinkMarbleValues = {
-      q: getIncompleteJointLink(mockLinkSourceViewResult)
+      q: getIncompleteJointLink(getMockScanResultLink())
     };
     spyOn(jointModelService, 'onJointLinkCellAdd').and.returnValue(
       m.hot(addLinkMarbleString, addLinkMarbleValues)
@@ -549,7 +547,7 @@ describe('TexeraModelService', () => {
     // prepare delete link (incomplete link)
     const deleteLinkMarbleString = '-------r-|';
     const deleteLinkMarbleValues = {
-      r: getIncompleteJointLink(mockLinkSourceViewResult)
+      r: getIncompleteJointLink(getMockScanResultLink())
     };
     spyOn(jointModelService, 'onJointLinkCellDelete').and.returnValue(
       m.hot(deleteLinkMarbleString, deleteLinkMarbleValues)
@@ -596,8 +594,8 @@ describe('TexeraModelService', () => {
     // prepare add operator
     const addOpMarbleString = '-a-b-|';
     const addOpMarbleValues = {
-      a: getAddOperatorValue(mockScanSourcePredicate),
-      b: getAddOperatorValue(mockViewResultPredicate)
+      a: getAddOperatorValue(getMockScanPredicate()),
+      b: getAddOperatorValue(getMockResultPredicate())
     };
     spyOn(workflowActionService, '_onAddOperatorAction').and.returnValue(
       m.hot(addOpMarbleString, addOpMarbleValues)
@@ -606,7 +604,7 @@ describe('TexeraModelService', () => {
     // prepare add link
     const addLinkMarbleString = '-----p-|';
     const addLinkMarbleValues = {
-      p: getJointLinkValue(mockLinkSourceViewResult)
+      p: getJointLinkValue(getMockScanResultLink())
     };
     spyOn(jointModelService, 'onJointLinkCellAdd').and.returnValue(
       m.hot(addLinkMarbleString, addLinkMarbleValues)
@@ -615,7 +613,7 @@ describe('TexeraModelService', () => {
     // prepare change link (link detached from target port)
     const changeLinkMarbleString = '-------q-|';
     const changeLinkMarbleValues = {
-      q: getIncompleteJointLink(mockLinkSourceViewResult)
+      q: getIncompleteJointLink(getMockScanResultLink())
     };
     spyOn(jointModelService, 'onJointLinkCellChange').and.returnValue(
       m.hot(changeLinkMarbleString, changeLinkMarbleValues)
@@ -632,7 +630,7 @@ describe('TexeraModelService', () => {
 
     // assert link delete stream
     const linkDeleteStream = texeraModelService.onLinkDelete();
-    const expectedStream = m.hot('-------q-', { q: mockLinkSourceViewResult });
+    const expectedStream = m.hot('-------q-', { q: getMockScanResultLink() });
 
     m.expect(linkDeleteStream).toBeObservable(expectedStream);
 
@@ -663,9 +661,9 @@ describe('TexeraModelService', () => {
     // prepare add operator
     const addOpMarbleString = '-a-b-c-|';
     const addOpMarbleValues = {
-      a: getAddOperatorValue(mockScanSourcePredicate),
-      b: getAddOperatorValue(mockSentimentAnalysisPredicate),
-      c: getAddOperatorValue(mockViewResultPredicate),
+      a: getAddOperatorValue(getMockScanPredicate()),
+      b: getAddOperatorValue(getMockSentimentPredicate()),
+      c: getAddOperatorValue(getMockResultPredicate()),
     };
     spyOn(workflowActionService, '_onAddOperatorAction').and.returnValue(
       m.hot(addOpMarbleString, addOpMarbleValues)
@@ -674,7 +672,7 @@ describe('TexeraModelService', () => {
     // prepare add link
     const addLinkMarbleString = '-------p-|';
     const addLinkMarbleValues = {
-      p: getJointLinkValue(mockLinkSourceViewResult)
+      p: getJointLinkValue(getMockScanResultLink())
     };
     spyOn(jointModelService, 'onJointLinkCellAdd').and.returnValue(
       m.hot(addLinkMarbleString, addLinkMarbleValues)
@@ -682,8 +680,8 @@ describe('TexeraModelService', () => {
 
     // create a mock changed link using another link's source/target
     // but the link ID remains the same
-    const mockChangedLink = mockLinkSourceSentiment;
-    mockChangedLink.linkID = mockLinkSourceViewResult.linkID;
+    const mockChangedLink = getMockScanSentimentLink();
+    mockChangedLink.linkID = getMockScanResultLink().linkID;
 
     // prepare change link (link detached from target port)
     const changeLinkMarbleString = '---------t-|';
@@ -703,7 +701,7 @@ describe('TexeraModelService', () => {
         expect(texeraModelService.getTexeraGraph().hasLinkWithID(mockChangedLink.linkID)).toBeTruthy();
         expect(texeraModelService.getTexeraGraph().getLinkWithID(mockChangedLink.linkID)).toEqual(mockChangedLink);
         expect(texeraModelService.getTexeraGraph().hasLink(
-          mockLinkSourceViewResult.source, mockLinkSourceViewResult.target
+          getMockScanResultLink().source, getMockScanResultLink().target
         )).toBeFalsy();
         expect(texeraModelService.getTexeraGraph().hasLink(
           mockChangedLink.source, mockChangedLink.target
@@ -713,12 +711,12 @@ describe('TexeraModelService', () => {
 
     // assert link delete stream: delete original link
     const linkDeleteStream = texeraModelService.onLinkDelete();
-    const expectedDeleteStream = m.hot('---------r-', { r: mockLinkSourceViewResult });
+    const expectedDeleteStream = m.hot('---------r-', { r: getMockScanResultLink() });
     m.expect(linkDeleteStream).toBeObservable(expectedDeleteStream);
 
     // assert link add stream: add original link, then add changed link
     const linkAddStream = texeraModelService.onLinkAdd();
-    const expectedAddStream = m.hot('-------p-t-', { p: mockLinkSourceViewResult, t: mockChangedLink });
+    const expectedAddStream = m.hot('-------p-t-', { p: getMockScanResultLink(), t: mockChangedLink });
     m.expect(linkAddStream).toBeObservable(expectedAddStream);
 
   }));
@@ -748,9 +746,9 @@ describe('TexeraModelService', () => {
     // prepare add operator
     const addOpMarbleString = '-a-b-c-|';
     const addOpMarbleValues = {
-      a: getAddOperatorValue(mockScanSourcePredicate),
-      b: getAddOperatorValue(mockSentimentAnalysisPredicate),
-      c: getAddOperatorValue(mockViewResultPredicate),
+      a: getAddOperatorValue(getMockScanPredicate()),
+      b: getAddOperatorValue(getMockSentimentPredicate()),
+      c: getAddOperatorValue(getMockResultPredicate()),
     };
     spyOn(workflowActionService, '_onAddOperatorAction').and.returnValue(
       m.hot(addOpMarbleString, addOpMarbleValues)
@@ -759,7 +757,7 @@ describe('TexeraModelService', () => {
     // prepare add link
     const addLinkMarbleString = '-------p-|';
     const addLinkMarbleValues = {
-      p: getJointLinkValue(mockLinkSourceViewResult)
+      p: getJointLinkValue(getMockScanResultLink())
     };
     spyOn(jointModelService, 'onJointLinkCellAdd').and.returnValue(
       m.hot(addLinkMarbleString, addLinkMarbleValues)
@@ -767,15 +765,15 @@ describe('TexeraModelService', () => {
 
     // create a mock changed link using another link's source/target
     // but the link ID remains the same
-    const mockChangedLink = mockLinkSourceSentiment;
-    mockChangedLink.linkID = mockLinkSourceViewResult.linkID;
+    const mockChangedLink = getMockScanSentimentLink();
+    mockChangedLink.linkID = getMockScanResultLink().linkID;
 
     // prepare change link (link detached from target port)
     const changeLinkMarbleString = '---------q-r-s-t-|';
     const changeLinkMarbleValues = {
-      q: getIncompleteJointLink(mockLinkSourceViewResult),
-      r: getIncompleteJointLink(mockLinkSourceViewResult),
-      s: getIncompleteJointLink(mockLinkSourceViewResult),
+      q: getIncompleteJointLink(getMockScanResultLink()),
+      r: getIncompleteJointLink(getMockScanResultLink()),
+      s: getIncompleteJointLink(getMockScanResultLink()),
       t: getJointLinkValue(mockChangedLink)
     };
     spyOn(jointModelService, 'onJointLinkCellChange').and.returnValue(
@@ -796,12 +794,12 @@ describe('TexeraModelService', () => {
 
     // assert link delete stream: delete original link
     const linkDeleteStream = texeraModelService.onLinkDelete();
-    const expectedDeleteStream = m.hot('---------q---', { q: mockLinkSourceViewResult });
+    const expectedDeleteStream = m.hot('---------q---', { q: getMockScanResultLink() });
     m.expect(linkDeleteStream).toBeObservable(expectedDeleteStream);
 
     // assert link add stream: add original link, then add changed link after its re-attached
     const linkAddStream = texeraModelService.onLinkAdd();
-    const expectedAddStream = m.hot('-------p-------t-', { p: mockLinkSourceViewResult, t: mockChangedLink });
+    const expectedAddStream = m.hot('-------p-------t-', { p: getMockScanResultLink(), t: mockChangedLink });
     m.expect(linkAddStream).toBeObservable(expectedAddStream);
 
   }));

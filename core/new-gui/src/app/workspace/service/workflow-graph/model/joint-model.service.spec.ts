@@ -7,13 +7,11 @@ import { JointModelService } from './joint-model.service';
 import { WorkflowActionService } from './workflow-action.service';
 import { OperatorMetadataService } from '../../operator-metadata/operator-metadata.service';
 
-import { mockScanSourcePredicate } from './mock-workflow-data';
+import { getMockScanPredicate, getMockPoint } from './mock-workflow-data';
 import { Point } from './../../../types/common.interface';
 
 
 describe('JointModelService', () => {
-
-  const mockPoint: Point = { x: 100, y: 100 };
 
   /**
    * Gets the JointJS graph object <joint.dia.Grap>) from JointModelSerivce
@@ -50,7 +48,7 @@ describe('JointModelService', () => {
       const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
 
       spyOn(workflowActionService, '_onAddOperatorAction').and.returnValue(
-        m.hot('-a-|', { a: { operator: mockScanSourcePredicate, point: mockPoint } })
+        m.hot('-a-|', { a: { operator: getMockScanPredicate(), point: getMockPoint() } })
       );
 
       // get Joint Model Service
@@ -58,8 +56,8 @@ describe('JointModelService', () => {
 
       workflowActionService._onAddOperatorAction().subscribe({
         complete: () => {
-          expect(getJointGraph(jointModelService).getCell(mockScanSourcePredicate.operatorID)).toBeTruthy();
-          expect(getJointGraph(jointModelService).getCell(mockScanSourcePredicate.operatorID).isElement()).toBeTruthy();
+          expect(getJointGraph(jointModelService).getCell(getMockScanPredicate().operatorID)).toBeTruthy();
+          expect(getJointGraph(jointModelService).getCell(getMockScanPredicate().operatorID).isElement()).toBeTruthy();
         }
       });
 
@@ -69,11 +67,11 @@ describe('JointModelService', () => {
       const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
 
       spyOn(workflowActionService, '_onAddOperatorAction').and.returnValue(
-        m.hot('-a-|', { a: { operator: mockScanSourcePredicate, point: mockPoint } })
+        m.hot('-a-|', { a: { operator: getMockScanPredicate(), point: getMockPoint() } })
       );
 
       spyOn(workflowActionService, '_onDeleteOperatorAction').and.returnValue(
-        m.hot('--d-|', { d: { operatorID: mockScanSourcePredicate.operatorID } })
+        m.hot('--d-|', { d: { operatorID: getMockScanPredicate().operatorID } })
       );
 
       // get Joint Model Service
@@ -82,7 +80,7 @@ describe('JointModelService', () => {
       workflowActionService._onDeleteOperatorAction().subscribe({
         complete: () => {
           expect(getJointGraph(jointModelService).getCells().length).toEqual(0);
-          expect(getJointGraph(jointModelService).getCell(mockScanSourcePredicate.operatorID)).toBeFalsy();
+          expect(getJointGraph(jointModelService).getCell(getMockScanPredicate().operatorID)).toBeFalsy();
         }
       });
 
@@ -121,9 +119,9 @@ describe('JointModelService', () => {
 
     it('should emit operator delete event correctly when operator is deleted by JointJS', marbles((m) => {
 
-      workflowActionService.addOperator(mockScanSourcePredicate, mockPoint);
+      workflowActionService.addOperator(getMockScanPredicate(), getMockPoint());
 
-      m.hot('-e-').do(v => getJointGraph(jointModelService).getCell(mockScanSourcePredicate.operatorID).remove()).subscribe();
+      m.hot('-e-').do(v => getJointGraph(jointModelService).getCell(getMockScanPredicate().operatorID).remove()).subscribe();
 
       const jointOperatorDeleteStream = jointModelService.onJointOperatorCellDelete().map(value => 'e');
       const expectedStream = m.hot('-e-');

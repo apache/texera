@@ -32,9 +32,7 @@ export class WorkflowGraph implements WorkflowGraphReadonly {
   }
 
   public addOperator(operator: OperatorPredicate): void {
-    if (this.hasOperator(operator.operatorID)) {
-      throw new Error(`operator with ID ${operator.operatorID} already exists`);
-    }
+    WorkflowGraph.checkIsValidOperator(this, operator);
     this.operatorIDMap.set(operator.operatorID, operator);
   }
 
@@ -64,13 +62,7 @@ export class WorkflowGraph implements WorkflowGraphReadonly {
   }
 
   public addLink(link: OperatorLink): void {
-    if (this.hasLinkWithID(link.linkID)) {
-      throw new Error(`link with ID ${link.linkID} already exists`);
-    }
-    if (this.hasLink(link.source, link.target)) {
-        throw new Error(`link from ${link.source.operatorID}.${link.source.portID}
-        to ${link.target.operatorID}.${link.target.portID} already exists`);
-    }
+    WorkflowGraph.checkIsValidLink(this, link);
     this.operatorLinkMap.set(link.linkID, link);
   }
 
@@ -110,7 +102,7 @@ export class WorkflowGraph implements WorkflowGraphReadonly {
   public getLinkWithID(linkID: string): OperatorLink {
     const link = this.operatorLinkMap.get(linkID);
     if (link === undefined) {
-      throw new Error(`link with ID ${linkID} does not exist`);
+      throw new Error(`link with ID ${linkID} doesn't exist`);
     }
     return link;
   }
@@ -137,6 +129,55 @@ export class WorkflowGraph implements WorkflowGraphReadonly {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
     }
     operator.operatorProperties = newProperty;
+  }
+
+  /**
+   * Checks if it's valid to add the given operator to the graph.
+   * Throws an Error if it's not a valid operator because of:
+   *  - duplicate operator ID
+   * @param graph
+   * @param operator
+   */
+  public static checkIsValidOperator(graph: WorkflowGraphReadonly, operator: OperatorPredicate): void {
+    if (graph.hasOperator(operator.operatorID)) {
+      throw new Error(`operator with ID ${operator.operatorID} already exists`);
+    }
+  }
+
+  /**
+   * Checks if it's valid to add the given link to the graph.
+   * Throws an Error if it's not a valid link because of:
+   *  - duplicate link ID
+   *  - duplicate link source and target
+   *  - incorrect source or target operator
+   *  - incorrect source or target port
+   * @param graph
+   * @param link
+   */
+  public static checkIsValidLink(graph: WorkflowGraphReadonly, link: OperatorLink): void {
+    if (graph.hasLinkWithID(link.linkID)) {
+      throw new Error(`link with ID ${link.linkID} already exists`);
+    }
+    if (graph.hasLink(link.source, link.target)) {
+      throw new Error(`link from ${link.source.operatorID}.${link.source.portID}
+        to ${link.target.operatorID}.${link.target.portID} already exists`);
+    }
+    if (! graph.hasOperator(link.source.operatorID)) {
+      throw new Error(`link's source operator ${link.source.operatorID} doesn't exist`);
+    }
+    if (! graph.hasOperator(link.target.operatorID)) {
+      throw new Error(`link's target operator ${link.target.operatorID} doesn't exist`);
+    }
+    if (graph.getOperator(link.source.operatorID).outputPorts.find(
+      (port) => port === link.source.portID) === undefined) {
+        throw new Error(`link's source port ${link.source.portID} doesn't exist
+          on output ports of the source operator ${link.source.operatorID}`);
+    }
+    if (graph.getOperator(link.target.operatorID).inputPorts.find(
+      (port) => port === link.target.portID) === undefined) {
+        throw new Error(`link's target port ${link.target.portID} doesn't exist
+          on input ports of the target operator ${link.target.operatorID}`);
+    }
   }
 
 }
