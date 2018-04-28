@@ -44,10 +44,11 @@ export class WorkflowEditorComponent implements AfterViewInit {
     private workflowActionService: WorkflowActionService,
     private workflowUtilService: WorkflowUtilService
   ) {
+    // get the custom paper options
     let jointPaperOptions = WorkflowEditorComponent.getJointPaperOptions();
     // attach the JointJS graph (model) to the paper (view)
     jointPaperOptions = this.jointModelService.attachJointPaper(jointPaperOptions);
-    // create jointjs paper
+    // create the JointJS paper
     this.paper = new joint.dia.Paper(jointPaperOptions);
 
   }
@@ -96,32 +97,42 @@ export class WorkflowEditorComponent implements AfterViewInit {
   }
 
   private handleWindowResize(): void {
+    // when the window is resized (limit to at most one event every 1000ms)
     Observable.fromEvent(window, 'resize').auditTime(1000).subscribe(
       () => {
-        // reset the origin cooredinates and the dimension of the paper
-        // when the window is resized
-        // see comments in JointJS paper section for the details of the purpose
-        if (this.paper === undefined) {
-          throw new Error('jointjs paper is not initialized');
-        }
-
+        // reset the origin cooredinates
         this.setJointPaperOriginOffset();
+        // resize the JointJS paper dimensions
         this.setJointPaperDimensions();
-
       }
     );
   }
 
+  /**
+   * Modifies the JointJS paper origin coordinates
+   *  by shifting it to the left top (minus the x and y offset of the wrapper element)
+   * So that elements in JointJS paper have the same coordinates as the actual document.
+   *  and we don't have to convert between JointJS coordinates and actual coordinates.
+   *
+   * Note: attribute `origin` and function `setOrigin` are deprecated and won't work
+   *  function `translate` does the same thing
+   */
   private setJointPaperOriginOffset(): void {
     const elementOffset = this.getWrapperElementOffset();
     this.paper.translate(-elementOffset.x, -elementOffset.y);
   }
 
+  /**
+   * Sets the size of the JointJS paper to be the exact size of its wrapper element.
+   */
   private setJointPaperDimensions(): void {
     const elementSize = this.getWrapperElementSize();
     this.paper.setDimensions(elementSize.width, elementSize.height);
   }
 
+  /**
+   *
+   */
   private handleViewDeleteOperator(): void {
     // bind the delete button event to call the delete operator function in joint model action
     Observable
@@ -135,7 +146,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
   }
 
   /**
-   * get the width and height of the parent wrapper element
+   * Gets the width and height of the parent wrapper element
    */
   private getWrapperElementSize(): { width: number, height: number } {
     const width = $('#' + this.WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID).width();
@@ -148,6 +159,9 @@ export class WorkflowEditorComponent implements AfterViewInit {
     return { width, height };
   }
 
+  /**
+   * Gets the document offset coordinates of the wrapper element's top-left corner.
+   */
   private getWrapperElementOffset(): { x: number, y: number } {
     const offset = $('#' + this.WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID).offset();
     if (offset === undefined) {
@@ -157,11 +171,10 @@ export class WorkflowEditorComponent implements AfterViewInit {
   }
 
   /**
- * Creates a JointJS Paper object, which is the JointJS view object responsible for
- *  rendering the workflow cells and handle UI events.
- *
- * JointJS documentation about paper: https://resources.jointjs.com/docs/jointjs/v2.0/joint.html#dia.Paper
- */
+   * Gets our customize options for the JointJS Paper object, which is the JointJS view object responsible for
+   *  rendering the workflow cells and handle UI events.
+   * JointJS documentation about paper: https://resources.jointjs.com/docs/jointjs/v2.0/joint.html#dia.Paper
+   */
   private static getJointPaperOptions(): joint.dia.Paper.Options {
 
     const jointPaperOptions: joint.dia.Paper.Options = {
