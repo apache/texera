@@ -12,8 +12,7 @@ import { StubOperatorMetadataService } from '../../service/operator-metadata/stu
 import { GroupInfo, OperatorSchema } from '../../types/operator-schema';
 
 import {
-  MOCK_OPERATOR_METADATA, MOCK_OPERATOR_GROUPS,
-  MOCK_OPERATOR_SCHEMA_LIST
+  getMockOperatorMetaData, getMockOperatorGroup, getMockOperatorSchemaList
 } from '../../service/operator-metadata/mock-operator-metadata.data';
 
 import * as c from './operator-panel.component';
@@ -48,7 +47,7 @@ describe('OperatorPanelComponent', () => {
   });
 
   it('should sort group names correctly based on order', () => {
-    const groups = MOCK_OPERATOR_GROUPS;
+    const groups = getMockOperatorGroup();
 
     const result = c.getGroupNamesSorted(groups);
 
@@ -76,7 +75,7 @@ describe('OperatorPanelComponent', () => {
   });
 
   it('should generate a map from operator groups to a list operators correctly', () => {
-    const opMetadata = MOCK_OPERATOR_METADATA;
+    const opMetadata = getMockOperatorMetaData();
 
     const result = c.getOperatorGroupMap(opMetadata);
 
@@ -101,8 +100,8 @@ describe('OperatorPanelComponent', () => {
   it('should receive operator metadata from service', () => {
     // if the length of our schema list is equal to the length of mock data
     // we assume the mock data has been received
-    expect(component.operatorSchemaList.length).toEqual(MOCK_OPERATOR_SCHEMA_LIST.length);
-    expect(component.groupNamesOrdered.length).toEqual(MOCK_OPERATOR_GROUPS.length);
+    expect(component.operatorSchemaList.length).toEqual(getMockOperatorSchemaList.length);
+    expect(component.groupNamesOrdered.length).toEqual(getMockOperatorGroup().length);
   });
 
   it('should have all group names shown in the UI side panel', () => {
@@ -112,7 +111,7 @@ describe('OperatorPanelComponent', () => {
       .map(el => el.innerText.trim());
 
     expect(groupNamesInUI).toEqual(
-      MOCK_OPERATOR_GROUPS.map(group => group.groupName));
+      getMockOperatorGroup().map(group => group.groupName));
   });
 
   it('should create child operator label component for all operators', () => {
@@ -121,7 +120,7 @@ describe('OperatorPanelComponent', () => {
       .map(debugEl => <OperatorLabelComponent>debugEl.componentInstance)
       .map(operatorLabel => operatorLabel.operator);
 
-    expect(operatorLabels.length).toEqual(MOCK_OPERATOR_METADATA.operators.length);
+    expect(operatorLabels.length).toEqual(getMockOperatorMetaData().operators.length);
   });
 
 });

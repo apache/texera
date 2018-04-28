@@ -1,6 +1,6 @@
 import { cloneDeep } from 'lodash-es';
 import { Point } from './../../../types/common.interface';
-import { MOCK_OPERATOR_SCHEMA_LIST } from './../../operator-metadata/mock-operator-metadata.data';
+import { getMockOperatorSchemaList } from './../../operator-metadata/mock-operator-metadata.data';
 import { OperatorPredicate, OperatorLink } from './../../../types/workflow-graph';
 
 /**

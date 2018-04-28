@@ -7,7 +7,6 @@ import * as joint from 'jointjs';
 import { JointUIService } from './joint-ui.service';
 import { OperatorMetadataService } from '../operator-metadata/operator-metadata.service';
 import { StubOperatorMetadataService } from '../operator-metadata/stub-operator-metadata.service';
-import { MOCK_OPERATOR_METADATA } from '../operator-metadata/mock-operator-metadata.data';
 import { getMockScanPredicate, getMockSentimentPredicate } from '../workflow-graph/model/mock-workflow-data';
 
 describe('JointUIService', () => {

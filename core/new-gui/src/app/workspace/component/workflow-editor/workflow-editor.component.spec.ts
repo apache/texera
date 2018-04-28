@@ -7,7 +7,6 @@ import { WorkflowEditorComponent } from './workflow-editor.component';
 import { OperatorMetadataService } from '../../service/operator-metadata/operator-metadata.service';
 import { StubOperatorMetadataService } from '../../service/operator-metadata/stub-operator-metadata.service';
 import { JointUIService } from '../../service/joint-ui/joint-ui.service';
-import { MOCK_OPERATOR_SCHEMA_LIST } from '../../service/operator-metadata/mock-operator-metadata.data';
 
 import * as joint from 'jointjs';
 import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
