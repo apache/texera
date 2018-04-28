@@ -73,7 +73,7 @@ describe('TexeraModelService', () => {
       id: link.linkID,
       getSourceElement: () => ({ id: link.source.operatorID }),
       getTargetElement: () => ({ id: link.target.operatorID }),
-      get: (port) => {
+      get: (port: string) => {
         if (port === 'source') {
           return { port: link.source.portID };
         } else if (port === 'target') {
@@ -101,7 +101,7 @@ describe('TexeraModelService', () => {
       id: link.linkID,
       getSourceElement: () => ({ id: link.source.operatorID }),
       getTargetElement: () => null,
-      get: (port) => {
+      get: (port: string) => {
         if (port === 'source') {
           return { port: link.source.portID };
         } else if (port === 'target') {

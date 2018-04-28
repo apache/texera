@@ -4,7 +4,7 @@ import { getMockResultPredicate, getMockPoint } from './../workflow-graph/model/
 import { TestBed, inject } from '@angular/core/testing';
 import * as joint from 'jointjs';
 
-import { JointUIService } from './joint-ui.service';
+import { JointUIService, deleteButtonPath, sourceOperatorHandle, targetOperatorHandle } from './joint-ui.service';
 import { OperatorMetadataService } from '../operator-metadata/operator-metadata.service';
 import { StubOperatorMetadataService } from '../operator-metadata/stub-operator-metadata.service';
 import { getMockScanPredicate, getMockSentimentPredicate } from '../workflow-graph/model/mock-workflow-data';
@@ -80,14 +80,6 @@ describe('JointUIService', () => {
   });
 
   /**
-   * Check if the TexeraOperatorShape defined in setupCustomJointjsModel() is
-   * correctly registered in the joint.shapes.devs
-   */
-  it('should create Texera\'s custom jointjs shape template in constructor', () => {
-    expect(joint.shapes.devs['TexeraOperatorShape']).toBeTruthy();
-  });
-
-  /**
    * Check if the custom attributes / svgs are correctly used by the JointJS graph
    */
   it('should apply the custom SVG styling to the JointJS element', () => {
@@ -140,8 +132,8 @@ describe('JointUIService', () => {
     );
 
     // testing getDefaultLinkElement()
-    expect(graph_link.attr('.marker-source/d')).toEqual(service.sourceOperatorHandle);
-    expect(graph_link.attr('.marker-target/d')).toEqual(service.targetOperatorHandle);
-    expect(graph_link.attr('.tool-remove path/d')).toEqual(service.deleteButtonPath);
+    expect(graph_link.attr('.marker-source/d')).toEqual(sourceOperatorHandle);
+    expect(graph_link.attr('.marker-target/d')).toEqual(targetOperatorHandle);
+    expect(graph_link.attr('.tool-remove path/d')).toEqual(deleteButtonPath);
   });
 });

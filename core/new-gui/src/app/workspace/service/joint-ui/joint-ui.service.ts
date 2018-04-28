@@ -10,6 +10,37 @@ import { Point } from '../../types/common.interface';
 export const DEFAULT_OPERATOR_WIDTH = 140;
 export const DEFAULT_OPERATOR_HEIGHT = 40;
 
+export const deleteButtonPath =
+  'M14.59 8L12 10.59 9.41 8 8 9.41 10.59 12 8 14.59 9.41 16 12 13.41' +
+  ' 14.59 16 16 14.59 13.41 12 16 9.41 14.59 8zM12 2C6.47 2 2 6.47 2' +
+  ' 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z';
+
+export const deleteButtonSVG =
+  `<svg class="delete-button" height="24" width="24">
+    <path d="M0 0h24v24H0z" fill="none" pointer-events="visible" />
+    <path d="${deleteButtonPath}"/>
+  </svg>`;
+
+/**
+ * Defines the handle (the square at the end) of the source operator for a link
+ */
+export const sourceOperatorHandle = 'M 0 0 L 0 8 L 8 8 L 8 0 z';
+
+/**
+ * Defines the handle (the arrow at the end) of the target operator for a link
+ */
+export const targetOperatorHandle = 'M 12 0 L 0 6 L 12 12 z';
+
+
+class TexeraCustomOperatorShape extends joint.shapes.devs.Model {
+  markup =
+    `<g class="element-node">
+      <rect class="body" stroke-width="2" stroke="blue" rx="5px" ry="5px"></rect>
+      ${deleteButtonSVG}
+      <text></text>
+    </g>`;
+}
+
 /**
  * OperatorUIElementService controls the shape of an operator
  *  when the operator element is displayed by JointJS.
@@ -28,39 +59,8 @@ export const DEFAULT_OPERATOR_HEIGHT = 40;
 @Injectable()
 export class JointUIService {
 
-  /**
-   * This variable defines the svg property
-   * of a delete button
-   */
-  public readonly deleteButtonPath =
-  'M14.59 8L12 10.59 9.41 8 8 9.41 10.59 12 8 14.59 9.41 16 12 13.41' +
-  ' 14.59 16 16 14.59 13.41 12 16 9.41 14.59 8zM12 2C6.47 2 2 6.47 2' +
-  ' 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z';
-
-  /**
-   * This variable defines the wrapper around
-   * the button, deciding the size and other styles
-   * for the delte button.
-   */
-  public readonly deleteButtonSVG =
-  `<svg class="delete-button" height="24" width="24">
-    <path d="M0 0h24v24H0z" fill="none" pointer-events="visible" />
-    <path d="${this.deleteButtonPath}"/>
-  </svg>`;
-
-  /**
-   * This variable defines the handle (the square at the end)
-   * of the source operator for a link
-   */
-  public readonly sourceOperatorHandle = 'M 0 0 L 0 8 L 8 8 L 8 0 z';
-
-  /**
-   * This variable defines the handle (the arrow at the end)
-   * of the target operator for a link
-   */
-  public readonly targetOperatorHandle = 'M 12 0 L 0 6 L 12 12 z';
-
   private operators: OperatorSchema[] = [];
+
 
   constructor(
     private operatorMetadataService: OperatorMetadataService
@@ -69,7 +69,7 @@ export class JointUIService {
       value => this.operators = value.operators
     );
 
-    this.setupCustomJointjsModel();
+    // this.setupCustomJointjsModel();
   }
 
   /**
@@ -100,8 +100,7 @@ export class JointUIService {
         'cannot find operatorType: ' + operator.operatorType);
     }
 
-    const operatorElement: joint.shapes.devs.Model = new joint.shapes.devs['TexeraOperatorShape']({
-      id: operator.operatorID,
+    const operatorElement = new TexeraCustomOperatorShape({
       position: { x: jointOffsetPoint.x, y: jointOffsetPoint.y },
       size: { width: DEFAULT_OPERATOR_WIDTH, height: DEFAULT_OPERATOR_HEIGHT },
       attrs: getCustomOperatorStyleAttrs(operatorSchema.additionalMetadata.userFriendlyName),
@@ -112,6 +111,9 @@ export class JointUIService {
         }
       }
     });
+
+    // set operator element ID
+    operatorElement.set('id', operator.operatorID);
 
     operator.inputPorts.forEach(
       port => operatorElement.addInPort(port)
@@ -136,7 +138,7 @@ export class JointUIService {
   public getJointjsLinkElement(
     source: OperatorPort, target: OperatorPort
   ): joint.dia.Link {
-    const link = this.getDefaultLinkElement();
+    const link = JointUIService.getDefaultLinkElement();
     link.set('source', { id: source.operatorID, port: source.portID });
     link.set('target', { id: target.operatorID, port: target.portID });
     return link;
@@ -157,34 +159,34 @@ export class JointUIService {
    *
    * @returns JointJS Link
    */
-  public getDefaultLinkElement(): joint.dia.Link {
+  public static getDefaultLinkElement(): joint.dia.Link {
     const link = new joint.dia.Link({
       attrs: {
         '.connection-wrap': {
           'stroke-width': 0
         },
         '.marker-source': {
-          d: this.sourceOperatorHandle,
+          d: sourceOperatorHandle,
           stroke: 'none',
           fill: '#919191'
         },
         '.marker-arrowhead-group-source .marker-arrowhead': {
-          d: this.sourceOperatorHandle,
+          d: sourceOperatorHandle,
         },
         '.marker-target': {
-          d: this.targetOperatorHandle,
+          d: targetOperatorHandle,
           stroke: 'none',
           fill: '#919191'
         },
         '.marker-arrowhead-group-target .marker-arrowhead': {
-          d: this.targetOperatorHandle,
+          d: targetOperatorHandle,
         },
         '.tool-remove': {
           fill: '#D8656A',
           width: 24
         },
         '.tool-remove path': {
-          d: this.deleteButtonPath,
+          d: deleteButtonPath,
         },
         '.tool-remove circle': {
 
@@ -195,24 +197,21 @@ export class JointUIService {
     return link;
   }
 
-  /**
-   * This function registers a custom JointJS shape in the
-   * joint.shapes.devs map so it can be used later on. This will also
-   * attach the delete button svg created to this custom operator
-   * The custom shape created will be a rectangle with a red delete
-   * button on the top-right hand corner.
-   */
-  private setupCustomJointjsModel(): void {
-    joint.shapes.devs['TexeraOperatorShape'] = joint.shapes.devs.Model.extend({
-      type: 'devs.TexeraModel',
-      markup:
-        `<g class="element-node">
-          <rect class="body" stroke-width="2" stroke="blue" rx="5px" ry="5px"></rect>
-          ${this.deleteButtonSVG}
-          <text></text>
-        </g>`
-    });
-  }
+  // /**
+  //  * This function registers a custom JointJS shape in the
+  //  * joint.shapes.devs map so it can be used later on. This will also
+  //  * attach the delete button svg created to this custom operator
+  //  * The custom shape created will be a rectangle with a red delete
+  //  * button on the top-right hand corner.
+  //  */
+  // private setupCustomJointjsModel(): void {
+
+  //   // const texeraCustomOperatorShape = joint.shapes.devs.Model.extend({
+  //   //   type: 'devs.TexeraModel',
+  //   //   markup:
+
+  //   // });
+  // }
 }
 
 /**
@@ -222,7 +221,7 @@ export class JointUIService {
  *
  * @returns the custom attributes of the ports
  */
-export function getCustomPortStyleAttrs(): Object {
+export function getCustomPortStyleAttrs(): joint.attributes.SVGAttributes {
   const portStyleAttrs = {
     '.port-body': {
       fill: '#A0A0A0',
@@ -244,7 +243,7 @@ export function getCustomPortStyleAttrs(): Object {
  * @param operatorDisplayName the name of the operator that will display on the UI
  * @returns the custom attributes of the operator
  */
-export function getCustomOperatorStyleAttrs(operatorDisplayName: string): Object {
+export function getCustomOperatorStyleAttrs(operatorDisplayName: string): joint.shapes.devs.ModelSelectors {
   const operatorStyleAttrs = {
     'rect': { fill: '#FFFFFF', 'follow-scale': true, stroke: '#CFCFCF', 'stroke-width': '2' },
     'text': {

@@ -48,6 +48,7 @@
     "@types/jquery": "^3.3.1",
     "@types/lodash": "^4.14.106",
     "@types/node": "~6.0.60",
+    "@types/uuid": "^3.4.3",
     "codelyzer": "^4.0.1",
     "jasmine-core": "~2.8.0",
     "jasmine-spec-reporter": "~4.2.1",
