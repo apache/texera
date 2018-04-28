@@ -18,9 +18,6 @@ import {
 import * as c from './operator-panel.component';
 
 
-
-
-
 describe('OperatorPanelComponent', () => {
   let component: OperatorPanelComponent;
   let fixture: ComponentFixture<OperatorPanelComponent>;
@@ -100,7 +97,7 @@ describe('OperatorPanelComponent', () => {
   it('should receive operator metadata from service', () => {
     // if the length of our schema list is equal to the length of mock data
     // we assume the mock data has been received
-    expect(component.operatorSchemaList.length).toEqual(getMockOperatorSchemaList.length);
+    expect(component.operatorSchemaList.length).toEqual(getMockOperatorSchemaList().length);
     expect(component.groupNamesOrdered.length).toEqual(getMockOperatorGroup().length);
   });
 
