@@ -78,7 +78,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     );
   }
 
-  private throwJointPaperUndefined(): never {
+  private throwJointPaperUndefinedError(): never {
     throw new Error('JointJS paper is undefined');
   }
 
@@ -119,7 +119,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
    */
   private setJointPaperOriginOffset(): void {
     if (this.paper === undefined) {
-      return this.throwJointPaperUndefined();
+      return this.throwJointPaperUndefinedError();
     }
     const elementOffset = this.getWrapperElementOffset();
     this.paper.translate(-elementOffset.x, -elementOffset.y);
@@ -130,7 +130,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
    */
   private setJointPaperDimensions(): void {
     if (this.paper === undefined) {
-      return this.throwJointPaperUndefined();
+      return this.throwJointPaperUndefinedError();
     }
     const elementSize = this.getWrapperElementSize();
     this.paper.setDimensions(elementSize.width, elementSize.height);
@@ -141,7 +141,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
    */
   private handleViewDeleteOperator(): void {
     if (this.paper === undefined) {
-      return this.throwJointPaperUndefined();
+      return this.throwJointPaperUndefinedError();
     }
     // bind the delete button event to call the delete operator function in joint model action
     Observable
