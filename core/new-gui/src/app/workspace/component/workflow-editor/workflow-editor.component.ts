@@ -36,7 +36,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
   public readonly WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID = 'texera-workflow-editor-jointjs-wrapper-id';
   public readonly WORKFLOW_EDITOR_JOINTJS_ID = 'texera-workflow-editor-jointjs-body-id';
 
-  paper: joint.dia.Paper;
+  paper: joint.dia.Paper | undefined;
 
   constructor(
     private jointUIService: JointUIService,
@@ -44,18 +44,14 @@ export class WorkflowEditorComponent implements AfterViewInit {
     private workflowActionService: WorkflowActionService,
     private workflowUtilService: WorkflowUtilService
   ) {
-    // get the custom paper options
-    let jointPaperOptions = WorkflowEditorComponent.getJointPaperOptions();
-    // attach the JointJS graph (model) to the paper (view)
-    jointPaperOptions = this.jointModelService.attachJointPaper(jointPaperOptions);
-    // create the JointJS paper
-    this.paper = new joint.dia.Paper(jointPaperOptions);
+
 
   }
 
   ngAfterViewInit() {
 
-    this.bindJointPaperWithView();
+    this.initializeJointPaper();
+
     this.handleWindowResize();
     this.handleViewDeleteOperator();
 
@@ -82,23 +78,22 @@ export class WorkflowEditorComponent implements AfterViewInit {
     );
   }
 
-  private bindJointPaperWithView(): void {
-    this.paper.setElement($('#' + this.WORKFLOW_EDITOR_JOINTJS_ID));
+  private throwJointPaperUndefined(): never {
+    throw new Error('JointJS paper is undefined');
+  }
 
-    // important: must first call initialize and _ensureElement to make the changes effective
-    this.paper.initialize();
-    this.paper._ensureElement();
+  private initializeJointPaper(): void {
+    // get the custom paper options
+    let jointPaperOptions = WorkflowEditorComponent.getJointPaperOptions();
+    // attach the JointJS graph (model) to the paper (view)
+    jointPaperOptions = this.jointModelService.attachJointPaper(jointPaperOptions);
+    // attach the DOM element to the paper
+    jointPaperOptions.el = $(`#${this.WORKFLOW_EDITOR_JOINTJS_ID}`);
+    // create the JointJS paper
+    this.paper = new joint.dia.Paper(jointPaperOptions);
 
-    // modify the JointJS paper origin coordinates by shifting it to the left top (minus the x and y offset)
-    //   so that the coordinates of the paper can be the same as actual document coordinate
-    // note: attribute `origin` and function `setOrigin` are deprecated and won't work.
-    // function `translate` does the same thing
-    const elementOffset = this.getWrapperElementOffset();
-    this.paper.translate(-elementOffset.x, -elementOffset.y);
-    // set the width and height of the paper to be the width height of the parent wrapper element
-    const elementSize = this.getWrapperElementSize();
-    this.paper.setDimensions(elementSize.width, elementSize.height);
-
+    this.setJointPaperOriginOffset();
+    this.setJointPaperDimensions();
   }
 
   private handleWindowResize(): void {
@@ -123,6 +118,9 @@ export class WorkflowEditorComponent implements AfterViewInit {
    *  function `translate` does the same thing
    */
   private setJointPaperOriginOffset(): void {
+    if (this.paper === undefined) {
+      return this.throwJointPaperUndefined();
+    }
     const elementOffset = this.getWrapperElementOffset();
     this.paper.translate(-elementOffset.x, -elementOffset.y);
   }
@@ -131,6 +129,9 @@ export class WorkflowEditorComponent implements AfterViewInit {
    * Sets the size of the JointJS paper to be the exact size of its wrapper element.
    */
   private setJointPaperDimensions(): void {
+    if (this.paper === undefined) {
+      return this.throwJointPaperUndefined();
+    }
     const elementSize = this.getWrapperElementSize();
     this.paper.setDimensions(elementSize.width, elementSize.height);
   }
@@ -139,6 +140,9 @@ export class WorkflowEditorComponent implements AfterViewInit {
    *
    */
   private handleViewDeleteOperator(): void {
+    if (this.paper === undefined) {
+      return this.throwJointPaperUndefined();
+    }
     // bind the delete button event to call the delete operator function in joint model action
     Observable
       .fromEvent(this.paper, 'element:delete')
