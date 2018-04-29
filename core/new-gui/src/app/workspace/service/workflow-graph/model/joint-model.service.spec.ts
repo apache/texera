@@ -1,5 +1,6 @@
 import { TestBed, inject } from '@angular/core/testing';
 import { marbles } from 'rxjs-marbles';
+import { isEqual } from 'lodash';
 
 import { StubOperatorMetadataService } from './../../operator-metadata/stub-operator-metadata.service';
 import { JointUIService } from './../../joint-ui/joint-ui.service';
@@ -7,7 +8,7 @@ import { JointModelService } from './joint-model.service';
 import { WorkflowActionService } from './workflow-action.service';
 import { OperatorMetadataService } from '../../operator-metadata/operator-metadata.service';
 
-import { getMockScanPredicate, getMockPoint } from './mock-workflow-data';
+import { getMockScanPredicate, getMockResultPredicate, getMockScanResultLink, getMockPoint } from './mock-workflow-data';
 import { Point } from './../../../types/common.interface';
 
 
@@ -88,6 +89,60 @@ describe('JointModelService', () => {
       const expectedStream = m.hot('--e-');
 
       m.expect(jointOperatorDeleteStream).toBeObservable(expectedStream);
+
+    }));
+
+
+    it('should add an operator link when add operator is called in workflow action', marbles((m) => {
+      const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
+
+      spyOn(workflowActionService, '_onAddOperatorAction').and.returnValue(
+        m.hot('-a-b-|', {
+          a : { operator: getMockScanPredicate(), point: getMockPoint()  },
+          b : { operator: getMockResultPredicate(), point: getMockPoint() }
+        })
+      );
+
+      spyOn(workflowActionService, '_onAddLinkAction').and.returnValue(
+        m.hot('----c-|', {
+          c : { link : getMockScanResultLink() }
+        })
+      );
+
+      const jointModelService: JointModelService = TestBed.get(JointModelService);
+
+      workflowActionService._onAddLinkAction().subscribe({
+        complete : () => {
+          console.log(getJointGraph(jointModelService).getCell(getMockScanResultLink().linkID));
+          console.log(getJointGraph(jointModelService).getCells());
+          expect(getJointGraph(jointModelService).getLinks().length).toEqual(1);
+          // expect(getJointGraph(jointModelService).getCell(getMockScanResultLink().linkID)).toBeTruthy();
+          expect(getJointGraph(jointModelService).getLinks().find(
+            link => isEqual(link.attributes.source.id, getMockScanResultLink().source.operatorID) &&
+            isEqual(link.attributes.target.id , getMockScanResultLink().target.operatorID)
+          )).toBeTruthy();
+        }
+      });
+    }));
+
+    it('should emit link delete event correctly when delete link is called in workflow action', marbles((m) => {
+      const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
+      spyOn(workflowActionService, '_onAddOperatorAction').and.returnValue(
+        m.hot('-a-b-|', {
+          a : { operator: getMockScanPredicate(), point: getMockPoint()  },
+          b : { operator: getMockResultPredicate(), point: getMockPoint() }
+        })
+      );
+
+      spyOn(workflowActionService, '_onAddLinkAction').and.returnValue(
+        m.hot('----c-|', {
+          c : { link : getMockScanResultLink() }
+        })
+      );
+
+      spyOn(workflowActionService, '_onDeleteLinkAction').and.returnValue(
+        m.hot('')
+      );
 
     }));
 

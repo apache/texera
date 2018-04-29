@@ -82,7 +82,7 @@ export class WorkflowActionService {
    * @param linkID
    */
   public deleteLinkWithID(linkID: string): void {
-    if (this.texeraGraph.hasLinkWithID(linkID)) {
+    if (!this.texeraGraph.hasLinkWithID(linkID)) {
       throw new Error(`link with ID ${linkID} doesn't exist`);
     }
     this.deleteLinkActionSubject.next({ linkID });
