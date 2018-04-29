@@ -52,7 +52,7 @@ describe('WorkflowEditorComponent', () => {
 
     jointGraph.addCell(element);
 
-    expect(component.paper.findViewByModel(element.id)).toBeTruthy();
+    expect(component.getJointPaper().findViewByModel(element.id)).toBeTruthy();
 
   });
 
@@ -88,9 +88,9 @@ describe('WorkflowEditorComponent', () => {
 
 
     // check the view is updated correctly
-    expect(component.paper.findViewByModel(element1.id)).toBeTruthy();
-    expect(component.paper.findViewByModel(element2.id)).toBeTruthy();
-    expect(component.paper.findViewByModel(link1.id)).toBeTruthy();
+    expect(component.getJointPaper().findViewByModel(element1.id)).toBeTruthy();
+    expect(component.getJointPaper().findViewByModel(element2.id)).toBeTruthy();
+    expect(component.getJointPaper().findViewByModel(link1.id)).toBeTruthy();
 
   });
 

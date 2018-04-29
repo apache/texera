@@ -36,7 +36,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
   public readonly WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID = 'texera-workflow-editor-jointjs-wrapper-id';
   public readonly WORKFLOW_EDITOR_JOINTJS_ID = 'texera-workflow-editor-jointjs-body-id';
 
-  paper: joint.dia.Paper | undefined;
+  private paper: joint.dia.Paper | undefined;
 
   constructor(
     private jointUIService: JointUIService,
@@ -44,8 +44,13 @@ export class WorkflowEditorComponent implements AfterViewInit {
     private workflowActionService: WorkflowActionService,
     private workflowUtilService: WorkflowUtilService
   ) {
+  }
 
-
+  public getJointPaper(): joint.dia.Paper {
+    if (this.paper === undefined) {
+      throw new Error('JointJS paper is undefined');
+    }
+    return this.paper;
   }
 
   ngAfterViewInit() {
@@ -76,10 +81,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
         this.workflowActionService.addLink(link);
       }
     );
-  }
-
-  private throwJointPaperUndefinedError(): never {
-    throw new Error('JointJS paper is undefined');
   }
 
   private initializeJointPaper(): void {
@@ -118,34 +119,25 @@ export class WorkflowEditorComponent implements AfterViewInit {
    *  function `translate` does the same thing
    */
   private setJointPaperOriginOffset(): void {
-    if (this.paper === undefined) {
-      return this.throwJointPaperUndefinedError();
-    }
     const elementOffset = this.getWrapperElementOffset();
-    this.paper.translate(-elementOffset.x, -elementOffset.y);
+    this.getJointPaper().translate(-elementOffset.x, -elementOffset.y);
   }
 
   /**
    * Sets the size of the JointJS paper to be the exact size of its wrapper element.
    */
   private setJointPaperDimensions(): void {
-    if (this.paper === undefined) {
-      return this.throwJointPaperUndefinedError();
-    }
     const elementSize = this.getWrapperElementSize();
-    this.paper.setDimensions(elementSize.width, elementSize.height);
+    this.getJointPaper().setDimensions(elementSize.width, elementSize.height);
   }
 
   /**
    *
    */
   private handleViewDeleteOperator(): void {
-    if (this.paper === undefined) {
-      return this.throwJointPaperUndefinedError();
-    }
     // bind the delete button event to call the delete operator function in joint model action
     Observable
-      .fromEvent(this.paper, 'element:delete')
+      .fromEvent(this.getJointPaper(), 'element:delete')
       .map(value => <joint.dia.ElementView>value)
       .subscribe(
         elementView => {
