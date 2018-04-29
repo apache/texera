@@ -1,6 +1,8 @@
 {
   "compileOnSave": false,
   "compilerOptions": {
+    "strict": true,
+    "skipLibCheck": true,
     "outDir": "./dist/out-tsc",
     "sourceMap": true,
     "declaration": false,
