@@ -30,7 +30,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
   public readonly WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID = 'texera-workflow-editor-jointjs-wrapper-id';
   public readonly WORKFLOW_EDITOR_JOINTJS_ID = 'texera-workflow-editor-jointjs-body-id';
 
-  public paper: joint.dia.Paper = null;
+  public paper: joint.dia.Paper | undefined;
   // this is only the temporary place for the graph variable
   // it will be moved to a service in subsequent PRs
   public graph: joint.dia.Graph = new joint.dia.Graph();
@@ -39,12 +39,19 @@ export class WorkflowEditorComponent implements AfterViewInit {
     private jointUIService: JointUIService
   ) { }
 
+  public getJointPaper(): joint.dia.Paper {
+    if (this.paper === undefined) {
+      throw new Error('JointJS paper is undefined');
+    }
+    return this.paper;
+  }
+
   ngAfterViewInit() {
 
     this.createJointjsPaper();
 
     Observable.fromEvent(window, 'resize').auditTime(1000).subscribe(
-      resizeEvent => {this.paper.setDimensions(this.getWrapperElementSize().width, this.getWrapperElementSize().height); }
+      resizeEvent => { this.getJointPaper().setDimensions(this.getWrapperElementSize().width, this.getWrapperElementSize().height); }
     );
 
     // add a 500ms delay for joint-ui.service to fetch the operator metaData
@@ -108,7 +115,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
       // disable jointjs default action of adding vertexes to the link
       interactive: { vertexAdd: false },
       // set a default link element used by jointjs when user creates a link on UI
-      defaultLink: this.jointUIService.getDefaultLinkElement(),
+      defaultLink: JointUIService.getDefaultLinkElement(),
       // disable jointjs default action that stops propagate click events on jointjs paper
       preventDefaultBlankAction: false,
       // disable jointjs default action that prevents normal right click menu showing up on jointjs paper
@@ -121,11 +128,15 @@ export class WorkflowEditorComponent implements AfterViewInit {
   /**
    * get the width and height of the parent wrapper element
    */
-  private getWrapperElementSize(): {width: number, height: number} {
-    return {
-      width: $('#' + this.WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID).width(),
-      height: $('#' + this.WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID).height()
-    };
+  private getWrapperElementSize(): { width: number, height: number } {
+    const width = $('#' + this.WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID).width();
+    const height = $('#' + this.WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID).height();
+
+    if (width === undefined || height === undefined) {
+      throw new Error('fail to get Workflow Editor wrapper element size');
+    }
+
+    return { width, height };
   }
 }
 
@@ -160,8 +171,10 @@ function validateOperatorConnection(sourceView: joint.dia.CellView, sourceMagnet
 * @param magnet
 */
 function validateOperatorMagnet(cellView: joint.dia.CellView, magnet: SVGElement): boolean {
-  if (magnet && magnet.getAttribute('port-group') === 'in') {return false; }
-  if (magnet && magnet.getAttribute('port-group') === 'out') {return true; }
+  if (magnet && magnet.getAttribute('port-group') === 'out') {
+    return true;
+  }
+  return false;
 }
 
 

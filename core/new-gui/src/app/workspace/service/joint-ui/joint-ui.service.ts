@@ -1,11 +1,9 @@
-import { OperatorPredicate } from './../../types/workflow-graph';
 import { Injectable } from '@angular/core';
 import { OperatorMetadataService } from '../operator-metadata/operator-metadata.service';
 import { OperatorSchema } from '../../types/operator-schema';
 
 import * as joint from 'jointjs';
 import { OperatorPort } from '../../types/operator-port';
-import { Point } from '../../types/common.interface';
 
 export const DEFAULT_OPERATOR_WIDTH = 140;
 export const DEFAULT_OPERATOR_HEIGHT = 40;
@@ -99,21 +97,19 @@ export class JointUIService {
    * @returns JointJS Element
    */
   public getJointjsOperatorElement(
-    operator: OperatorPredicate, jointOffsetPoint: Point
+    operatorType: string, operatorID: string, xPosition: number, yPosition: number
   ): joint.dia.Element {
 
     // check if the operatorType exists in the operator metadata
-    const operatorSchema = this.operators.find(op => op.operatorType === operator.operatorType);
+    const operatorSchema = this.operators.find(op => op.operatorType === operatorType);
     if (operatorSchema === undefined) {
-      throw new Error(
-        'JointUIService.getJointUI: ' +
-        'cannot find operatorType: ' + operator.operatorType);
+      throw new Error(`operator type ${operatorType} doesn't exist`);
     }
 
     // construct a custom Texera JointJS operator element
     //   and customize the styles of the operator box and ports
     const operatorElement = new TexeraCustomJointElement({
-      position: { x: jointOffsetPoint.x, y: jointOffsetPoint.y },
+      position: { x: xPosition, y: yPosition },
       size: { width: DEFAULT_OPERATOR_WIDTH, height: DEFAULT_OPERATOR_HEIGHT },
       attrs: JointUIService.getCustomOperatorStyleAttrs(operatorSchema.additionalMetadata.userFriendlyName),
       ports: {
@@ -125,15 +121,15 @@ export class JointUIService {
     });
 
     // set operator element ID to be operator ID
-    operatorElement.set('id', operator.operatorID);
+    operatorElement.set('id', operatorID);
 
     // set the input ports and output ports based on operator predicate
-    operator.inputPorts.forEach(
-      port => operatorElement.addInPort(port)
-    );
-    operator.outputPorts.forEach(
-      port => operatorElement.addOutPort(port)
-    );
+    for (let i = 0; i < operatorSchema.additionalMetadata.numInputPorts; i++) {
+      operatorElement.addInPort(`in${i}`);
+    }
+    for (let i = 0; i < operatorSchema.additionalMetadata.numOutputPorts; i++) {
+      operatorElement.addOutPort(`out${i}`);
+    }
 
     return operatorElement;
   }

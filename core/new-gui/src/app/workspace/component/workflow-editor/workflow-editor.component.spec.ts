@@ -5,7 +5,6 @@ import { WorkflowEditorComponent } from './workflow-editor.component';
 import { OperatorMetadataService } from '../../service/operator-metadata/operator-metadata.service';
 import { StubOperatorMetadataService } from '../../service/operator-metadata/stub-operator-metadata.service';
 import { JointUIService } from '../../service/joint-ui/joint-ui.service';
-import { MOCK_OPERATOR_SCHEMA_LIST } from '../../service/operator-metadata/mock-operator-metadata.data';
 
 import * as joint from 'jointjs';
 
@@ -44,7 +43,7 @@ describe('WorkflowEditorComponent', () => {
 
     component.graph.addCell(element);
 
-    expect(component.paper.findViewByModel(element.id)).toBeTruthy();
+    expect(component.getJointPaper().findViewByModel(element.id)).toBeTruthy();
 
   });
 
@@ -80,9 +79,9 @@ describe('WorkflowEditorComponent', () => {
 
 
     // check the view is updated correctly
-    expect(component.paper.findViewByModel(element1.id)).toBeTruthy();
-    expect(component.paper.findViewByModel(element2.id)).toBeTruthy();
-    expect(component.paper.findViewByModel(link1.id)).toBeTruthy();
+    expect(component.getJointPaper().findViewByModel(element1.id)).toBeTruthy();
+    expect(component.getJointPaper().findViewByModel(element2.id)).toBeTruthy();
+    expect(component.getJointPaper().findViewByModel(link1.id)).toBeTruthy();
 
   });
 

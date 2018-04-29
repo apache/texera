@@ -1,13 +1,9 @@
-import { Point } from './../../types/common.interface';
-import { OperatorPredicate } from './../../types/workflow-graph';
-import { getMockResultPredicate, getMockPoint } from './../workflow-graph/model/mock-workflow-data';
 import { TestBed, inject } from '@angular/core/testing';
 import * as joint from 'jointjs';
 
 import { JointUIService, deleteButtonPath, sourceOperatorHandle, targetOperatorHandle } from './joint-ui.service';
 import { OperatorMetadataService } from '../operator-metadata/operator-metadata.service';
 import { StubOperatorMetadataService } from '../operator-metadata/stub-operator-metadata.service';
-import { getMockScanPredicate, getMockSentimentPredicate } from '../workflow-graph/model/mock-workflow-data';
 
 describe('JointUIService', () => {
   let service: JointUIService;
@@ -29,9 +25,8 @@ describe('JointUIService', () => {
   /**
    * Check if the getJointjsOperatorElement() can successfully creates a JointJS Element
    */
-  it('should create an JointJS Element successfully when the function is called', () => {
-    const result = service.getJointjsOperatorElement(
-      getMockScanPredicate(), getMockPoint());
+  it('should create an JointJS Element successfully', () => {
+    const result = service.getJointjsOperatorElement('ScanSource', 'operator1', 100, 100);
     expect(result).toBeTruthy();
   });
 
@@ -39,18 +34,13 @@ describe('JointUIService', () => {
    * Check if the error in getJointjsOperatorElement() is correctly thrown
    */
   it('should throw an error with an non existing operator', () => {
-    expect(() => {
-      service.getJointjsOperatorElement(
-        {
-          operatorID: 'nonexistOperator',
-          operatorType: 'nonexistOperatorType',
-          operatorProperties: {},
-          inputPorts: [],
-          outputPorts: []
-        },
-        getMockPoint()
-      );
-    }).toThrowError();
+    const nonExistingOperator = 'NotExistOperator';
+    expect(
+      function () {
+        service.getJointjsOperatorElement(nonExistingOperator, 'operatorNaN', 100, 100);
+      }
+    )
+      .toThrowError(new RegExp(`doesn't exist`));
   });
 
 
@@ -59,9 +49,9 @@ describe('JointUIService', () => {
    * matches the port number specified by the operator metadata
    */
   it('should create correct number of inPorts and outPorts based on operator metadata', () => {
-    const element1 = service.getJointjsOperatorElement(getMockScanPredicate(), getMockPoint());
-    const element2 = service.getJointjsOperatorElement(getMockSentimentPredicate(), getMockPoint());
-    const element3 = service.getJointjsOperatorElement(getMockResultPredicate(), getMockPoint());
+    const element1 = service.getJointjsOperatorElement('ScanSource', 'operator1', 100, 100);
+    const element2 = service.getJointjsOperatorElement('NlpSentiment', 'operator1', 100, 100);
+    const element3 = service.getJointjsOperatorElement('ViewResults', 'operator1', 100, 100);
 
     const inPortCount1 = element1.getPorts().filter(port => port.group === 'in').length;
     const outPortCount1 = element1.getPorts().filter(port => port.group === 'out').length;
@@ -88,27 +78,29 @@ describe('JointUIService', () => {
 
     graph.addCell(
       service.getJointjsOperatorElement(
-        getMockScanPredicate(),
-        getMockPoint()
+        'ScanSource',
+        'operator1',
+        100, 100
       )
     );
 
     graph.addCell(
       service.getJointjsOperatorElement(
-        getMockResultPredicate(),
-        { x: 500, y: 100 }
+        'ViewResults',
+        'operator2',
+        500, 100
       )
     );
 
     const link = service.getJointjsLinkElement(
-      { operatorID: getMockScanPredicate().operatorID, portID: getMockScanPredicate().outputPorts[0] },
-      { operatorID: getMockResultPredicate().operatorID, portID: getMockResultPredicate().inputPorts[0] }
+      { operatorID: 'operator1', portID: 'out0' },
+      { operatorID: 'operator2', portID: 'in0' }
     );
 
     graph.addCell(link);
 
-    const graph_operator1 = graph.getCell(getMockScanPredicate().operatorID);
-    const graph_operator2 = graph.getCell(getMockResultPredicate().operatorID);
+    const graph_operator1 = graph.getCell('operator1');
+    const graph_operator2 = graph.getCell('operator2');
     const graph_link = graph.getLinks()[0];
 
     // testing getCustomOperatorStyleAttrs()
