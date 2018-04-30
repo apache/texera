@@ -50,7 +50,7 @@ describe('JointUIService', () => {
         },
         getMockPoint()
       );
-    }).toThrowError();
+    }).toThrowError(new RegExp(`doesn't exist`));
   });
 
 

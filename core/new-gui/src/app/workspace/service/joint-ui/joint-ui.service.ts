@@ -1,4 +1,4 @@
-import { OperatorPredicate } from './../../types/workflow-graph';
+import { OperatorPredicate, OperatorLink } from './../../types/workflow-graph';
 import { Injectable } from '@angular/core';
 import { OperatorMetadataService } from '../operator-metadata/operator-metadata.service';
 import { OperatorSchema } from '../../types/operator-schema';
@@ -99,21 +99,19 @@ export class JointUIService {
    * @returns JointJS Element
    */
   public getJointjsOperatorElement(
-    operator: OperatorPredicate, jointOffsetPoint: Point
+    operator: OperatorPredicate, point: Point
   ): joint.dia.Element {
 
     // check if the operatorType exists in the operator metadata
     const operatorSchema = this.operators.find(op => op.operatorType === operator.operatorType);
     if (operatorSchema === undefined) {
-      throw new Error(
-        'JointUIService.getJointUI: ' +
-        'cannot find operatorType: ' + operator.operatorType);
+      throw new Error(`operator type ${operator.operatorType} doesn't exist`);
     }
 
     // construct a custom Texera JointJS operator element
     //   and customize the styles of the operator box and ports
     const operatorElement = new TexeraCustomJointElement({
-      position: { x: jointOffsetPoint.x, y: jointOffsetPoint.y },
+      position: point,
       size: { width: DEFAULT_OPERATOR_WIDTH, height: DEFAULT_OPERATOR_HEIGHT },
       attrs: JointUIService.getCustomOperatorStyleAttrs(operatorSchema.additionalMetadata.userFriendlyName),
       ports: {
@@ -147,12 +145,13 @@ export class JointUIService {
    * @returns JointJS Link Element
    */
   public getJointjsLinkElement(
-    source: OperatorPort, target: OperatorPort
+    link: OperatorLink
   ): joint.dia.Link {
-    const link = JointUIService.getDefaultLinkElement();
-    link.set('source', { id: source.operatorID, port: source.portID });
-    link.set('target', { id: target.operatorID, port: target.portID });
-    return link;
+    const jointLinkCell = JointUIService.getDefaultLinkElement();
+    jointLinkCell.set('source', { id: link.source.operatorID, port: link.source.portID });
+    jointLinkCell.set('target', { id: link.target.operatorID, port: link.target.portID });
+    jointLinkCell.set('id', link.linkID);
+    return jointLinkCell;
   }
 
   /**

@@ -98,7 +98,7 @@ export class JointModelService {
   }
 
   private addJointLinkCell(link: OperatorLink): void {
-    const jointLinkCell = this.jointUIService.getJointjsLinkElement(link.source, link.target);
+    const jointLinkCell = this.jointUIService.getJointjsLinkElement(link);
     this.jointGraph.addCell(jointLinkCell);
   }
 

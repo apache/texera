@@ -46,9 +46,8 @@ export class TexeraModelService {
       .subscribe(link => this.addLink(link));
 
     this.jointModelService.onJointLinkCellDelete()
-      .filter(link => TexeraModelService.isValidLink(link))
-      .map(link => link.id.toString())
-      .subscribe(linkID => this.deleteLink(linkID));
+      .filter(link => this.texeraGraph.hasLinkWithID(link.id.toString()))
+      .subscribe(link => this.deleteLink(link.id.toString()));
 
     const jointLinkChange = this.jointModelService.onJointLinkCellChange()
       // we intentially want the side effect (delete the link) to happen **before** other operations in the chain
