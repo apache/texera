@@ -248,9 +248,4 @@ export class JointUIService {
     return operatorStyleAttrs;
   }
 
-
 }
-
-
-
-
