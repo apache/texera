@@ -11,7 +11,7 @@
 
 /**
 * this style is used by all the sub-components
-* to utilize the entire are specified to them by the css grids
+* to utilize the entire area specified to them by the css grids
 **/
 .texera-workflow-component-body {
   min-width: 100%;
@@ -28,7 +28,7 @@
 * the row percentage used for workflow-editor and result-panel. We
 * need to use calc() because when we are using auto or percentage, the
 * size will be based on the child component. Using auto and percentage
-* with a fixed px (header-height) will crash. 
+* with a fixed px (header-height) will crash.
 **/
 $header-height: 56px;
 .texera-workspace-grid-container {
