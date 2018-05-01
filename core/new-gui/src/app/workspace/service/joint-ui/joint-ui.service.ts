@@ -142,7 +142,7 @@ export class JointUIService {
    * @param target the OperatorPort of the target of a link
    * @returns JointJS Link Element
    */
-  public getJointjsLinkElement(
+  public static getJointjsLinkElement(
     source: OperatorPort, target: OperatorPort
   ): joint.dia.Link {
     const link = JointUIService.getDefaultLinkElement();
