@@ -92,7 +92,7 @@ describe('JointUIService', () => {
       )
     );
 
-    const link = service.getJointjsLinkElement(
+    const link = JointUIService.getJointjsLinkElement(
       { operatorID: 'operator1', portID: 'out0' },
       { operatorID: 'operator2', portID: 'in0' }
     );

@@ -1,9 +1,9 @@
+import { JointUIService } from './../../service/joint-ui/joint-ui.service';
 import { Component, AfterViewInit } from '@angular/core';
 import { Observable } from 'rxjs/Observable';
 import '../../../common/rxjs-operators';
 
 import * as joint from 'jointjs';
-import { JointUIService } from '../../service/joint-ui/joint-ui.service';
 
 /**
  * WorkflowEditorComponent is the componenet for the main workflow editor part of the UI.
@@ -76,7 +76,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
           )
         );
 
-        const link = this.jointUIService.getJointjsLinkElement(
+        const link = JointUIService.getJointjsLinkElement(
           { operatorID: 'operator1', portID: 'out0' },
           { operatorID: 'operator2', portID: 'in0' }
         );
