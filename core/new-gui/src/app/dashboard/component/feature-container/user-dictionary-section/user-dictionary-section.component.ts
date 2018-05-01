@@ -1,6 +1,7 @@
 import { Component, OnInit, Input, Output, EventEmitter } from '@angular/core';
 import { NgbModal, NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { MatDialog, MAT_DIALOG_DATA, MatDialogRef } from '@angular/material';
+import { HttpClientModule } from '@angular/common/http';
 
 import { Observable } from 'rxjs/Observable';
 import { UserDictionary } from '../../../type/user-dictionary';
@@ -161,6 +162,20 @@ export class NgbdModalResourceViewComponent {
         matTextareaAutosize matAutosizeMinRows="3">
       </textarea>
       <input class= "separator-area" matInput [(ngModel)]="separator" placeholder="Content Separator">
+      <div class="transmit-area">
+        <mat-divider></mat-divider>
+        <span style="font-family:Roboto, Arial, sans-serif;">OR</span>
+        <mat-divider></mat-divider>
+      </div>
+
+      <div class="file-upload-area" id="hide">
+        <label class="btn-primary" ngbButtonLabel>
+          <input type="file"
+            accept=".txt"  class="file-upload-btn" (change)="onChange($event)"/>
+          <span>Upload Your Dictionary</span>
+        </label>
+      </div>
+
     </mat-dialog-content>
   </div>
 
@@ -169,7 +184,11 @@ export class NgbdModalResourceViewComponent {
     <button type="button" class="btn btn-outline-dark" (click)="onClose()">Close</button>
   </div>
   `,
-  styleUrls: ['./user-dictionary-section.component.scss', '../../dashboard.component.scss']
+  styleUrls: ['./user-dictionary-section.component.scss', '../../dashboard.component.scss'],
+  providers: [
+    UserDictionaryService,
+    StubUserDictionaryService
+  ]
 
 })
 export class NgbdModalResourceAddComponent {
@@ -179,13 +198,27 @@ export class NgbdModalResourceAddComponent {
   public name: string;
   public dictContent: string;
   public separator: string;
+  public selectFile = null;
 
-  constructor(public activeModal: NgbActiveModal) {}
+  constructor(
+    public activeModal: NgbActiveModal,
+    public subMockUserDictionaryService: StubUserDictionaryService
+  ) {}
+
+  onChange(event) {
+    this.selectFile = event.target.files[0];
+  }
 
   onClose() {
     this.activeModal.close('Close');
   }
+
   addKey() {
+
+    if (this.selectFile !== null) {
+        console.log(this.selectFile);
+        this.subMockUserDictionaryService.uploadDictionary(this.selectFile);
+    }
 
     if (this.name !== undefined) {
       console.log('add ' + this.name );
