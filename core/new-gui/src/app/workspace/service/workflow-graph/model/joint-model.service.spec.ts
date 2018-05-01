@@ -8,7 +8,9 @@ import { JointModelService } from './joint-model.service';
 import { WorkflowActionService } from './workflow-action.service';
 import { OperatorMetadataService } from '../../operator-metadata/operator-metadata.service';
 
-import { getMockScanPredicate, getMockResultPredicate, getMockScanResultLink, getMockPoint } from './mock-workflow-data';
+import { getMockScanPredicate, getMockResultPredicate, getMockScanResultLink,
+  getMockSentimentPredicate, getMockScanSentimentLink, getMockSentimentResultLink,
+  getMockPoint } from './mock-workflow-data';
 import { Point } from './../../../types/common.interface';
 
 
@@ -113,14 +115,8 @@ describe('JointModelService', () => {
 
       workflowActionService._onAddLinkAction().subscribe({
         complete : () => {
-          console.log(getJointGraph(jointModelService).getCell(getMockScanResultLink().linkID));
-          console.log(getJointGraph(jointModelService).getCells());
           expect(getJointGraph(jointModelService).getLinks().length).toEqual(1);
-          // expect(getJointGraph(jointModelService).getCell(getMockScanResultLink().linkID)).toBeTruthy();
-          expect(getJointGraph(jointModelService).getLinks().find(
-            link => isEqual(link.attributes.source.id, getMockScanResultLink().source.operatorID) &&
-            isEqual(link.attributes.target.id , getMockScanResultLink().target.operatorID)
-          )).toBeTruthy();
+          expect(getJointGraph(jointModelService).getCell(getMockScanResultLink().linkID)).toBeTruthy();
         }
       });
     }));
@@ -141,10 +137,59 @@ describe('JointModelService', () => {
       );
 
       spyOn(workflowActionService, '_onDeleteLinkAction').and.returnValue(
-        m.hot('')
+        m.hot('-----d-|', {
+          d : { linkID : getMockScanResultLink().linkID}
+        })
       );
 
+      const jointModelService = TestBed.get(JointModelService);
+      workflowActionService._onDeleteOperatorAction().subscribe({
+        complete : () => {
+          expect(getJointGraph(jointModelService).getCells().length).toEqual(2);
+          expect(getJointGraph(jointModelService).getLinks().length).toEqual(0);
+          expect(getJointGraph(jointModelService).getCell(getMockScanResultLink().linkID)).toBeFalsy();
+        }
+      });
     }));
+
+    it('should emit operator delete event and link delete event when delete operator is called on a connected operator',
+      marbles((m) => {
+        const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
+        spyOn(workflowActionService, '_onAddOperatorAction').and.returnValue(
+          m.hot('-a-b-c|', {
+            a : { operator: getMockScanPredicate(), point: getMockPoint()  },
+            b : { operator: getMockResultPredicate(), point: getMockPoint() },
+            c : { operator: getMockSentimentPredicate(), point: getMockPoint() }
+          })
+        );
+
+        spyOn(workflowActionService, '_onAddLinkAction').and.returnValue(
+          m.hot('------e-f|', {
+            e : { link : getMockScanSentimentLink() },
+            f : { link : getMockSentimentResultLink() }
+          })
+        );
+
+        spyOn(workflowActionService, '_onDeleteOperatorAction').and.returnValue(
+          m.hot('---------d|', {
+            d : { operatorID : getMockSentimentPredicate().operatorID }
+          })
+        );
+
+        const jointModelService: JointModelService = TestBed.get(JointModelService);
+
+        workflowActionService._onDeleteOperatorAction().subscribe({
+          complete : () => {
+            expect(getJointGraph(jointModelService).getElements().length).toEqual(2);
+            expect(getJointGraph(jointModelService).getCell(getMockSentimentPredicate().operatorID)).toBeFalsy();
+            expect(getJointGraph(jointModelService).getLinks().length).toEqual(0);
+            expect(getJointGraph(jointModelService).getCell(getMockScanSentimentLink().linkID)).toBeFalsy();
+            expect(getJointGraph(jointModelService).getCell(getMockSentimentResultLink().linkID)).toBeFalsy();
+          }
+        });
+
+
+      }));
 
   });
 
@@ -184,6 +229,89 @@ describe('JointModelService', () => {
       m.expect(jointOperatorDeleteStream).toBeObservable(expectedStream);
 
     }));
+
+
+    it('should emit link add event correctly when a link is added or connected by JointJS', marbles((m) => {
+      workflowActionService.addOperator(getMockScanPredicate(), getMockPoint());
+      workflowActionService.addOperator(getMockResultPredicate(), getMockPoint());
+
+      const jointUIService: JointUIService = TestBed.get(JointUIService);
+      const mockScanResultLinkCell = jointUIService.getJointjsLinkElement(getMockScanResultLink());
+
+      m.hot('-e-').do(event => getJointGraph(jointModelService).addCell(mockScanResultLinkCell)).subscribe();
+
+      const jointLinkAddStream = jointModelService.onJointLinkCellAdd().map(value => 'e');
+      const expectedStream = m.hot('-e-');
+
+      m.expect(jointLinkAddStream).toBeObservable(expectedStream);
+
+    }));
+
+
+    it('should emit link delete event correctly when a link is deleted by JointJS', marbles((m) => {
+      workflowActionService.addOperator(getMockScanPredicate(), getMockPoint());
+      workflowActionService.addOperator(getMockResultPredicate(), getMockPoint());
+
+
+      const jointUIService: JointUIService = TestBed.get(JointUIService);
+      const mockScanResultLinkCell = jointUIService.getJointjsLinkElement(getMockScanResultLink());
+      getJointGraph(jointModelService).addCell(mockScanResultLinkCell);
+
+      m.hot('---e-').do(event => getJointGraph(jointModelService).getCell(getMockScanResultLink().linkID).remove()).subscribe();
+
+      const jointLinkDeleteStream = jointModelService.onJointLinkCellDelete().map(value => 'e');
+      const expectedStream = m.hot('---e-');
+
+      m.expect(jointLinkDeleteStream).toBeObservable(expectedStream);
+
+    }));
+
+    it('should emit operator delete event and link delete event correctly when a connected operator is deleted by JointJS'
+      , marbles((m) => {
+        workflowActionService.addOperator(getMockScanPredicate(), getMockPoint());
+        workflowActionService.addOperator(getMockResultPredicate(), getMockPoint());
+
+
+        const jointUIService: JointUIService = TestBed.get(JointUIService);
+        const mockScanResultLinkCell = jointUIService.getJointjsLinkElement(getMockScanResultLink());
+        getJointGraph(jointModelService).addCell(mockScanResultLinkCell);
+
+        m.hot('-e-').do(event => getJointGraph(jointModelService).getCell(getMockScanPredicate().operatorID).remove()).subscribe();
+
+        const jointOperatorDeleteStream = jointModelService.onJointOperatorCellDelete().map(value => 'e');
+        const jointLinkDeleteStream = jointModelService.onJointLinkCellDelete().map(value => 'e');
+
+        const expectedStream = '-e-';
+
+        m.expect(jointOperatorDeleteStream).toBeObservable(expectedStream);
+        m.expect(jointLinkDeleteStream).toBeObservable(expectedStream);
+
+      }));
+
+    it('should emit operator delete event and link delete event correctly when a connected operator connected by 2 or' +
+      ' more link is deleted by JointJS', marbles((m) => {
+        workflowActionService.addOperator(getMockScanPredicate(), getMockPoint());
+        workflowActionService.addOperator(getMockSentimentPredicate(), getMockPoint());
+        workflowActionService.addOperator(getMockResultPredicate(), getMockPoint());
+
+        const jointUIService: JointUIService = TestBed.get(JointUIService);
+        const mockScanSentimentLinkCell = jointUIService.getJointjsLinkElement(getMockScanSentimentLink());
+        const mockSentimentResultLinkCell = jointUIService.getJointjsLinkElement(getMockSentimentResultLink());
+        getJointGraph(jointModelService).addCell(mockScanSentimentLinkCell);
+        getJointGraph(jointModelService).addCell(mockSentimentResultLinkCell);
+
+        m.hot('-e--').do(event => getJointGraph(jointModelService).getCell(getMockSentimentPredicate().operatorID).remove()).subscribe();
+
+        const jointOperatorDeleteStream = jointModelService.onJointOperatorCellDelete().map(value => 'e');
+        const jointLinkDeleteStream = jointModelService.onJointLinkCellDelete().map(value => 'e');
+
+        const expectedStream = '-e--';
+        const expectedMultiStream = '-(ee)--';
+
+        m.expect(jointOperatorDeleteStream).toBeObservable(expectedStream);
+        m.expect(jointLinkDeleteStream).toBeObservable(expectedMultiStream);
+
+      }));
 
   });
 

@@ -805,4 +805,83 @@ describe('TexeraModelService', () => {
   }));
 
 
+  it('should remove an operator and its connected links when that operator is deleted from workflow-action',
+    marbles((m) => {
+      // prepare the dependencies services
+      const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
+      const jointModelService: JointModelService = TestBed.get(JointModelService);
+
+      const addOperatorMarbleString = '-a-b-c';
+      const addOperatorMarbleValue = {
+        a: getAddOperatorValue(getMockScanPredicate()),
+        b: getAddOperatorValue(getMockSentimentPredicate()),
+        c: getAddOperatorValue(getMockResultPredicate())
+      };
+
+      spyOn(workflowActionService, '_onAddOperatorAction').and.returnValue(
+        m.hot(addOperatorMarbleString, addOperatorMarbleValue)
+      );
+
+      const addLinkMarbleString = '------e-f';
+      const addLinkMarbleValues = {
+        e: getJointLinkValue(getMockScanSentimentLink()),
+        f: getJointLinkValue(getMockSentimentResultLink())
+      };
+
+      spyOn(jointModelService, 'onJointLinkCellAdd').and.returnValue(
+        m.hot(addLinkMarbleString, addLinkMarbleValues)
+      );
+
+      const deleteOperatorString = '---------d-|';
+      const deleteOperatorValue = {
+        d : getJointOperatorValue(getMockSentimentPredicate().operatorID)
+      };
+      spyOn(jointModelService, 'onJointOperatorCellDelete').and.returnValue(
+        m.hot(deleteOperatorString, deleteOperatorValue)
+      );
+
+      const deleteLinkString = '---------(gh)-|';
+      const deleteLinkValue = {
+        g : getJointLinkValue(getMockScanSentimentLink()),
+        h : getJointLinkValue(getMockSentimentResultLink())
+      };
+
+      spyOn(jointModelService, 'onJointLinkCellDelete').and.returnValue(
+        m.hot(deleteLinkString, deleteLinkValue)
+      );
+
+
+
+
+      // construct texera model
+      const texeraModelService: TexeraModelService = TestBed.get(TexeraModelService);
+      jointModelService.onJointOperatorCellDelete().subscribe({
+        complete : () => {
+          expect(texeraModelService.getTexeraGraph().hasOperator(getMockSentimentPredicate().operatorID)).toBeFalsy();
+          expect(texeraModelService.getTexeraGraph().hasOperator(getMockScanPredicate().operatorID)).toBeTruthy();
+          expect(texeraModelService.getTexeraGraph().hasOperator(getMockResultPredicate().operatorID)).toBeTruthy();
+          expect(texeraModelService.getTexeraGraph().getOperators().length).toEqual(2);
+          expect(() => texeraModelService.getTexeraGraph().getLinkWithID(getMockScanSentimentLink().linkID))
+            .toThrowError(new RegExp(`doesn't exist`));
+          expect(() => texeraModelService.getTexeraGraph().getLinkWithID(getMockSentimentResultLink().linkID))
+            .toThrowError(new RegExp(`doesn't exist`));
+          expect(texeraModelService.getTexeraGraph().getLinks().length).toEqual(0);
+        }
+      });
+
+      // assert operator delete stream: delete original operator
+      const operatorDeleteStream = texeraModelService.onOperatorDelete();
+      const expectedDeleteOperatorStream = m.hot('---------d-', { d: getMockSentimentPredicate() });
+      m.expect(operatorDeleteStream).toBeObservable(expectedDeleteOperatorStream);
+
+      // assert link delete stream: delete original link
+      const linkDeleteStream = texeraModelService.onLinkDelete();
+      const expectedDeleteLinkStream = m.hot('---------(gh)-', {
+        g: getMockScanSentimentLink(), h: getMockSentimentResultLink()
+      });
+      m.expect(linkDeleteStream).toBeObservable(expectedDeleteLinkStream);
+
+    }));
+
+
 });

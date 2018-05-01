@@ -1,6 +1,6 @@
 import { Point } from './../../types/common.interface';
 import { OperatorPredicate } from './../../types/workflow-graph';
-import { getMockResultPredicate, getMockPoint } from './../workflow-graph/model/mock-workflow-data';
+import { getMockResultPredicate, getMockPoint, getMockScanResultLink } from './../workflow-graph/model/mock-workflow-data';
 import { TestBed, inject } from '@angular/core/testing';
 import * as joint from 'jointjs';
 
@@ -100,10 +100,7 @@ describe('JointUIService', () => {
       )
     );
 
-    const link = service.getJointjsLinkElement(
-      { operatorID: getMockScanPredicate().operatorID, portID: getMockScanPredicate().outputPorts[0] },
-      { operatorID: getMockResultPredicate().operatorID, portID: getMockResultPredicate().inputPorts[0] }
-    );
+    const link = service.getJointjsLinkElement(getMockScanResultLink());
 
     graph.addCell(link);
 
