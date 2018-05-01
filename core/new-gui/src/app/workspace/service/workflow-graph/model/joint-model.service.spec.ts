@@ -235,8 +235,7 @@ describe('JointModelService', () => {
       workflowActionService.addOperator(getMockScanPredicate(), getMockPoint());
       workflowActionService.addOperator(getMockResultPredicate(), getMockPoint());
 
-      const jointUIService: JointUIService = TestBed.get(JointUIService);
-      const mockScanResultLinkCell = jointUIService.getJointjsLinkElement(getMockScanResultLink());
+      const mockScanResultLinkCell = JointUIService.getJointLinkCell(getMockScanResultLink());
 
       m.hot('-e-').do(event => getJointGraph(jointModelService).addCell(mockScanResultLinkCell)).subscribe();
 
@@ -253,8 +252,7 @@ describe('JointModelService', () => {
       workflowActionService.addOperator(getMockResultPredicate(), getMockPoint());
 
 
-      const jointUIService: JointUIService = TestBed.get(JointUIService);
-      const mockScanResultLinkCell = jointUIService.getJointjsLinkElement(getMockScanResultLink());
+      const mockScanResultLinkCell = JointUIService.getJointLinkCell(getMockScanResultLink());
       getJointGraph(jointModelService).addCell(mockScanResultLinkCell);
 
       m.hot('---e-').do(event => getJointGraph(jointModelService).getCell(getMockScanResultLink().linkID).remove()).subscribe();
@@ -272,8 +270,7 @@ describe('JointModelService', () => {
         workflowActionService.addOperator(getMockResultPredicate(), getMockPoint());
 
 
-        const jointUIService: JointUIService = TestBed.get(JointUIService);
-        const mockScanResultLinkCell = jointUIService.getJointjsLinkElement(getMockScanResultLink());
+        const mockScanResultLinkCell = JointUIService.getJointLinkCell(getMockScanResultLink());
         getJointGraph(jointModelService).addCell(mockScanResultLinkCell);
 
         m.hot('-e-').do(event => getJointGraph(jointModelService).getCell(getMockScanPredicate().operatorID).remove()).subscribe();
@@ -294,9 +291,8 @@ describe('JointModelService', () => {
         workflowActionService.addOperator(getMockSentimentPredicate(), getMockPoint());
         workflowActionService.addOperator(getMockResultPredicate(), getMockPoint());
 
-        const jointUIService: JointUIService = TestBed.get(JointUIService);
-        const mockScanSentimentLinkCell = jointUIService.getJointjsLinkElement(getMockScanSentimentLink());
-        const mockSentimentResultLinkCell = jointUIService.getJointjsLinkElement(getMockSentimentResultLink());
+        const mockScanSentimentLinkCell = JointUIService.getJointLinkCell(getMockScanSentimentLink());
+        const mockSentimentResultLinkCell = JointUIService.getJointLinkCell(getMockSentimentResultLink());
         getJointGraph(jointModelService).addCell(mockScanSentimentLinkCell);
         getJointGraph(jointModelService).addCell(mockSentimentResultLinkCell);
 

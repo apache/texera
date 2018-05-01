@@ -7,9 +7,6 @@ import * as joint from 'jointjs';
 import { OperatorPort } from '../../types/operator-port';
 import { Point } from '../../types/common.interface';
 
-export const DEFAULT_OPERATOR_WIDTH = 140;
-export const DEFAULT_OPERATOR_HEIGHT = 40;
-
 /**
  * Defines the SVG path for the delete button
  */
@@ -68,6 +65,9 @@ class TexeraCustomJointElement extends joint.shapes.devs.Model {
 @Injectable()
 export class JointUIService {
 
+  public static readonly DEFAULT_OPERATOR_WIDTH = 140;
+  public static readonly DEFAULT_OPERATOR_HEIGHT = 40;
+
   private operators: OperatorSchema[] = [];
 
 
@@ -98,7 +98,7 @@ export class JointUIService {
    *
    * @returns JointJS Element
    */
-  public getJointjsOperatorElement(
+  public getJointOperatorElement(
     operator: OperatorPredicate, point: Point
   ): joint.dia.Element {
 
@@ -112,7 +112,7 @@ export class JointUIService {
     //   and customize the styles of the operator box and ports
     const operatorElement = new TexeraCustomJointElement({
       position: point,
-      size: { width: DEFAULT_OPERATOR_WIDTH, height: DEFAULT_OPERATOR_HEIGHT },
+      size: { width: JointUIService.DEFAULT_OPERATOR_WIDTH, height: JointUIService.DEFAULT_OPERATOR_HEIGHT },
       attrs: JointUIService.getCustomOperatorStyleAttrs(operatorSchema.additionalMetadata.userFriendlyName),
       ports: {
         groups: {
@@ -138,16 +138,16 @@ export class JointUIService {
 
   /**
    * This function converts a Texera source and target OperatorPort to
-   *   a JointJS link element <joint.dia.Link> that could be added to the JointJS.
+   *   a JointJS link cell <joint.dia.Link> that could be added to the JointJS.
    *
    * @param source the OperatorPort of the source of a link
    * @param target the OperatorPort of the target of a link
-   * @returns JointJS Link Element
+   * @returns JointJS Link Cell
    */
-  public getJointjsLinkElement(
+  public static getJointLinkCell(
     link: OperatorLink
   ): joint.dia.Link {
-    const jointLinkCell = JointUIService.getDefaultLinkElement();
+    const jointLinkCell = JointUIService.getDefaultLinkCell();
     jointLinkCell.set('source', { id: link.source.operatorID, port: link.source.portID });
     jointLinkCell.set('target', { id: link.target.operatorID, port: link.target.portID });
     jointLinkCell.set('id', link.linkID);
@@ -155,7 +155,7 @@ export class JointUIService {
   }
 
   /**
-   * This function will creates a custom JointJS link element using
+   * This function will creates a custom JointJS link cell using
    *  custom attributes / styles to display the operator.
    *
    * This function defines the svg properties for each part of link, such as the
@@ -165,14 +165,14 @@ export class JointUIService {
    * The reason for separating styles in svg and css is that while we can
    *   change the shape of the operators in svg, according to JointJS official
    *   website, https://resources.jointjs.com/tutorial/element-styling ,
-   *   CSS properties have higher precedence over SVG element attributes.
+   *   CSS properties have higher precedence over SVG attributes.
    *
    * As a result, a separate css/scss file is required to override the default
    * style of the operatorLink.
    *
    * @returns JointJS Link
    */
-  public static getDefaultLinkElement(): joint.dia.Link {
+  public static getDefaultLinkCell(): joint.dia.Link {
     const link = new joint.dia.Link({
       attrs: {
         '.connection-wrap': {
@@ -251,9 +251,4 @@ export class JointUIService {
     return operatorStyleAttrs;
   }
 
-
 }
-
-
-
-

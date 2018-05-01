@@ -87,7 +87,7 @@ export class JointModelService {
   }
 
   private addJointOperatorElement(operator: OperatorPredicate, point: Point): void {
-    const operatorJointElement = this.jointUIService.getJointjsOperatorElement(
+    const operatorJointElement = this.jointUIService.getJointOperatorElement(
       operator, point);
 
     this.jointGraph.addCell(operatorJointElement);
@@ -98,7 +98,7 @@ export class JointModelService {
   }
 
   private addJointLinkCell(link: OperatorLink): void {
-    const jointLinkCell = this.jointUIService.getJointjsLinkElement(link);
+    const jointLinkCell = JointUIService.getJointLinkCell(link);
     this.jointGraph.addCell(jointLinkCell);
   }
 
