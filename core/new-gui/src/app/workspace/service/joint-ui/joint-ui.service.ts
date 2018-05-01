@@ -7,9 +7,6 @@ import * as joint from 'jointjs';
 import { OperatorPort } from '../../types/operator-port';
 import { Point } from '../../types/common.interface';
 
-export const DEFAULT_OPERATOR_WIDTH = 140;
-export const DEFAULT_OPERATOR_HEIGHT = 40;
-
 /**
  * Defines the SVG path for the delete button
  */
@@ -68,6 +65,9 @@ class TexeraCustomJointElement extends joint.shapes.devs.Model {
 @Injectable()
 export class JointUIService {
 
+  public static readonly DEFAULT_OPERATOR_WIDTH = 140;
+  public static readonly DEFAULT_OPERATOR_HEIGHT = 40;
+
   private operators: OperatorSchema[] = [];
 
 
@@ -112,7 +112,7 @@ export class JointUIService {
     //   and customize the styles of the operator box and ports
     const operatorElement = new TexeraCustomJointElement({
       position: point,
-      size: { width: DEFAULT_OPERATOR_WIDTH, height: DEFAULT_OPERATOR_HEIGHT },
+      size: { width: JointUIService.DEFAULT_OPERATOR_WIDTH, height: JointUIService.DEFAULT_OPERATOR_HEIGHT },
       attrs: JointUIService.getCustomOperatorStyleAttrs(operatorSchema.additionalMetadata.userFriendlyName),
       ports: {
         groups: {
