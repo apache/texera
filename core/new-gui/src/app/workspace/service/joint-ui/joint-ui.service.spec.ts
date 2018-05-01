@@ -100,10 +100,11 @@ describe('JointUIService', () => {
       )
     );
 
-    const link = service.getJointjsLinkElement(
-      { operatorID: getMockScanPredicate().operatorID, portID: getMockScanPredicate().outputPorts[0] },
-      { operatorID: getMockResultPredicate().operatorID, portID: getMockResultPredicate().inputPorts[0] }
-    );
+    const link = JointUIService.getJointjsLinkElement({
+      linkID: 'link-1',
+      source: { operatorID: 'operator1', portID: 'out0' },
+      target: { operatorID: 'operator2', portID: 'in0' }
+    });
 
     graph.addCell(link);
 

@@ -144,7 +144,7 @@ export class JointUIService {
    * @param target the OperatorPort of the target of a link
    * @returns JointJS Link Element
    */
-  public getJointjsLinkElement(
+  public static getJointjsLinkElement(
     link: OperatorLink
   ): joint.dia.Link {
     const jointLinkCell = JointUIService.getDefaultLinkElement();
@@ -251,9 +251,4 @@ export class JointUIService {
     return operatorStyleAttrs;
   }
 
-
 }
-
-
-
-
