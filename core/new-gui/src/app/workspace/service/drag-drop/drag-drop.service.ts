@@ -45,10 +45,12 @@ import * as joint from 'jointjs';
 @Injectable()
 export class DragDropService {
 
+  private static readonly DRAG_DROP_TEMP_OPERATOR_TYPE = 'drag-drop-temp-operator-type';
+
   /** mapping of DOM Element ID to operatorType */
   private elementOperatorTypeMap = new Map<string, string>();
   /** the current operatorType of the operator being dragged */
-  private currentOperatorType = 'drag-drop-temp-operator-type';
+  private currentOperatorType = DragDropService.DRAG_DROP_TEMP_OPERATOR_TYPE;
 
 
   /** Subject for operator dragging is started */
@@ -67,6 +69,7 @@ export class DragDropService {
   ) {
     this.getOperatorDropStream().subscribe(
       value => {
+        this.currentOperatorType = DragDropService.DRAG_DROP_TEMP_OPERATOR_TYPE;
         const operator = this.workflowUtilService.getNewOperatorPredicate(value.operatorType);
         this.workflowActionService.addOperator(operator, value.offset);
       }

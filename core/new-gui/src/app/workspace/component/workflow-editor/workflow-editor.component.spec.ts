@@ -1,3 +1,4 @@
+import { DragDropService } from './../../service/drag-drop/drag-drop.service';
 import { WorkflowUtilService } from './../../service/workflow-graph/util/workflow-util.service';
 import { JointModelService } from './../../service/workflow-graph/model/joint-model.service';
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
@@ -25,6 +26,7 @@ describe('WorkflowEditorComponent', () => {
         JointModelService,
         WorkflowActionService,
         WorkflowUtilService,
+        DragDropService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
       ]
     })
