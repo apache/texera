@@ -23,21 +23,21 @@ describe('JointUIService', () => {
   }));
 
   /**
-   * Check if the getJointjsOperatorElement() can successfully creates a JointJS Element
+   * Check if the getJointOperatorElement() can successfully creates a JointJS Element
    */
   it('should create an JointJS Element successfully', () => {
-    const result = service.getJointjsOperatorElement('ScanSource', 'operator1', 100, 100);
+    const result = service.getJointOperatorElement('ScanSource', 'operator1', 100, 100);
     expect(result).toBeTruthy();
   });
 
   /**
-   * Check if the error in getJointjsOperatorElement() is correctly thrown
+   * Check if the error in getJointOperatorElement() is correctly thrown
    */
   it('should throw an error with an non existing operator', () => {
     const nonExistingOperator = 'NotExistOperator';
     expect(
       function () {
-        service.getJointjsOperatorElement(nonExistingOperator, 'operatorNaN', 100, 100);
+        service.getJointOperatorElement(nonExistingOperator, 'operatorNaN', 100, 100);
       }
     )
       .toThrowError(new RegExp(`doesn't exist`));
@@ -45,13 +45,13 @@ describe('JointUIService', () => {
 
 
   /**
-   * Check if the number of inPorts and outPorts created by getJointjsOperatorElement()
+   * Check if the number of inPorts and outPorts created by getJointOperatorElement()
    * matches the port number specified by the operator metadata
    */
   it('should create correct number of inPorts and outPorts based on operator metadata', () => {
-    const element1 = service.getJointjsOperatorElement('ScanSource', 'operator1', 100, 100);
-    const element2 = service.getJointjsOperatorElement('NlpSentiment', 'operator1', 100, 100);
-    const element3 = service.getJointjsOperatorElement('ViewResults', 'operator1', 100, 100);
+    const element1 = service.getJointOperatorElement('ScanSource', 'operator1', 100, 100);
+    const element2 = service.getJointOperatorElement('NlpSentiment', 'operator1', 100, 100);
+    const element3 = service.getJointOperatorElement('ViewResults', 'operator1', 100, 100);
 
     const inPortCount1 = element1.getPorts().filter(port => port.group === 'in').length;
     const outPortCount1 = element1.getPorts().filter(port => port.group === 'out').length;
@@ -77,7 +77,7 @@ describe('JointUIService', () => {
     const graph = new joint.dia.Graph();
 
     graph.addCell(
-      service.getJointjsOperatorElement(
+      service.getJointOperatorElement(
         'ScanSource',
         'operator1',
         100, 100
@@ -85,14 +85,14 @@ describe('JointUIService', () => {
     );
 
     graph.addCell(
-      service.getJointjsOperatorElement(
+      service.getJointOperatorElement(
         'ViewResults',
         'operator2',
         500, 100
       )
     );
 
-    const link = JointUIService.getJointjsLinkElement(
+    const link = JointUIService.getJointLinkCell(
       { operatorID: 'operator1', portID: 'out0' },
       { operatorID: 'operator2', portID: 'in0' }
     );

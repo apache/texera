@@ -61,7 +61,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
       emptyData => {
         // add some dummy operators and links to show that JointJS works
         this.graph.addCell(
-          this.jointUIService.getJointjsOperatorElement(
+          this.jointUIService.getJointOperatorElement(
             'ScanSource',
             'operator1',
             100, 100
@@ -69,14 +69,14 @@ export class WorkflowEditorComponent implements AfterViewInit {
         );
 
         this.graph.addCell(
-          this.jointUIService.getJointjsOperatorElement(
+          this.jointUIService.getJointOperatorElement(
             'ViewResults',
             'operator2',
             500, 100
           )
         );
 
-        const link = JointUIService.getJointjsLinkElement(
+        const link = JointUIService.getJointLinkCell(
           { operatorID: 'operator1', portID: 'out0' },
           { operatorID: 'operator2', portID: 'in0' }
         );
@@ -115,7 +115,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
       // disable jointjs default action of adding vertexes to the link
       interactive: { vertexAdd: false },
       // set a default link element used by jointjs when user creates a link on UI
-      defaultLink: JointUIService.getDefaultLinkElement(),
+      defaultLink: JointUIService.getDefaultLinkCell(),
       // disable jointjs default action that stops propagate click events on jointjs paper
       preventDefaultBlankAction: false,
       // disable jointjs default action that prevents normal right click menu showing up on jointjs paper

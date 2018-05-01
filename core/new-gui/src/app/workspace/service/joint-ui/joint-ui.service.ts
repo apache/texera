@@ -96,7 +96,7 @@ export class JointUIService {
    *
    * @returns JointJS Element
    */
-  public getJointjsOperatorElement(
+  public getJointOperatorElement(
     operatorType: string, operatorID: string, xPosition: number, yPosition: number
   ): joint.dia.Element {
 
@@ -136,23 +136,23 @@ export class JointUIService {
 
   /**
    * This function converts a Texera source and target OperatorPort to
-   *   a JointJS link element <joint.dia.Link> that could be added to the JointJS.
+   *   a JointJS link cell <joint.dia.Link> that could be added to the JointJS.
    *
    * @param source the OperatorPort of the source of a link
    * @param target the OperatorPort of the target of a link
-   * @returns JointJS Link Element
+   * @returns JointJS Link Cell
    */
-  public static getJointjsLinkElement(
+  public static getJointLinkCell(
     source: OperatorPort, target: OperatorPort
   ): joint.dia.Link {
-    const link = JointUIService.getDefaultLinkElement();
+    const link = JointUIService.getDefaultLinkCell();
     link.set('source', { id: source.operatorID, port: source.portID });
     link.set('target', { id: target.operatorID, port: target.portID });
     return link;
   }
 
   /**
-   * This function will creates a custom JointJS link element using
+   * This function will creates a custom JointJS link cell using
    *  custom attributes / styles to display the operator.
    *
    * This function defines the svg properties for each part of link, such as the
@@ -162,14 +162,14 @@ export class JointUIService {
    * The reason for separating styles in svg and css is that while we can
    *   change the shape of the operators in svg, according to JointJS official
    *   website, https://resources.jointjs.com/tutorial/element-styling ,
-   *   CSS properties have higher precedence over SVG element attributes.
+   *   CSS properties have higher precedence over SVG attributes.
    *
    * As a result, a separate css/scss file is required to override the default
    * style of the operatorLink.
    *
    * @returns JointJS Link
    */
-  public static getDefaultLinkElement(): joint.dia.Link {
+  public static getDefaultLinkCell(): joint.dia.Link {
     const link = new joint.dia.Link({
       attrs: {
         '.connection-wrap': {
