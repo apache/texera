@@ -63,8 +63,8 @@ class TexeraCustomJointElement extends joint.shapes.devs.Model {
 @Injectable()
 export class JointUIService {
 
-  public static DEFAULT_OPERATOR_WIDTH = 140;
-  public static DEFAULT_OPERATOR_HEIGHT = 40;
+  public static readonly DEFAULT_OPERATOR_WIDTH = 140;
+  public static readonly DEFAULT_OPERATOR_HEIGHT = 40;
 
   private operators: OperatorSchema[] = [];
 
