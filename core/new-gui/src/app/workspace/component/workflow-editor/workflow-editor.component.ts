@@ -170,7 +170,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
       // disable jointjs default action of adding vertexes to the link
       interactive: { vertexAdd: false },
       // set a default link element used by jointjs when user creates a link on UI
-      defaultLink: JointUIService.getDefaultLinkElement(),
+      defaultLink: JointUIService.getDefaultLinkCell(),
       // disable jointjs default action that stops propagate click events on jointjs paper
       preventDefaultBlankAction: false,
       // disable jointjs default action that prevents normal right click menu showing up on jointjs paper
