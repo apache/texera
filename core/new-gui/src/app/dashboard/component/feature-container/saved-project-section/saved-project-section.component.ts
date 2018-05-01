@@ -33,28 +33,32 @@ export class SavedProjectSectionComponent implements OnInit {
     this.projects.sort((t1, t2) => {
       if (t1.name > t2.name) { return 1; }
       if (t1.name < t2.name) { return -1; }
-      return 0; });
+      return 0;
+    });
   }
 
   public dscSort(): void {
     this.projects.sort((t1, t2) => {
       if (t1.name > t2.name) { return -1; }
       if (t1.name < t2.name) { return 1; }
-      return 0; });
+      return 0;
+    });
   }
 
   public dateSort(): void {
     this.projects.sort((t1, t2) => {
       if (Date.parse(t1.creationTime) > Date.parse(t2.creationTime)) { return -1; }
       if (Date.parse(t1.creationTime) < Date.parse(t2.creationTime)) { return 1; }
-      return 0; });
+      return 0;
+    });
   }
 
   public lastSort(): void {
     this.projects.sort((t1, t2) => {
-        if (Date.parse(t1.lastModifiedTime) > Date.parse(t2.lastModifiedTime)) { return -1; }
-        if (Date.parse(t1.lastModifiedTime) < Date.parse(t2.lastModifiedTime)) { return 1; }
-        return 0; });
+      if (Date.parse(t1.lastModifiedTime) > Date.parse(t2.lastModifiedTime)) { return -1; }
+      if (Date.parse(t1.lastModifiedTime) < Date.parse(t2.lastModifiedTime)) { return 1; }
+      return 0;
+    });
   }
 
   openNgbdModalAddProjectComponent() {
@@ -62,12 +66,12 @@ export class SavedProjectSectionComponent implements OnInit {
     const projectEventEmitter = <EventEmitter<string>>(modalRef.componentInstance.newProject);
     const subscription = projectEventEmitter
       .do(value => console.log(value))
-      .map(value => {return {
+      .map(value => ({
         id: (this.projects.length + 1).toString(),
         name: value,
         creationTime: Date.now().toString(),
         lastModifiedTime: Date.now().toString()
-      }; })
+      }))
       .subscribe(
         value => {
           console.log(value);
@@ -83,32 +87,29 @@ export class SavedProjectSectionComponent implements OnInit {
   selector: 'texera-add-project-section-modal',
   template: `
   <div class="modal-header">
-  <h4 class="modal-title">Add New Project</h4>
-  <button type="button" class="close" aria-label="Close" (click)="onClose()">
-    <span aria-hidden="true">&times;</span>
-  </button>
-</div>
-<div class="modal-body">
-
-      <mat-dialog-content>
-          <input matInput [(ngModel)]="name" placeholder="Name of New Project">
-      </mat-dialog-content>
-
-
-</div>
-<div class="modal-footer">
-  <button type="button" class="btn btn-outline-dark add-button" (click)="addProject()">Add</button>
-  <button type="button" class="btn btn-outline-dark" (click)="onClose()">Close</button>
-</div>
+    <h4 class="modal-title">Add New Project</h4>
+    <button type="button" class="close" aria-label="Close" (click)="onClose()">
+      <span aria-hidden="true">&times;</span>
+    </button>
+  </div>
+  <div class="modal-body">
+    <mat-dialog-content>
+      <input matInput [(ngModel)]="name" placeholder="Name of New Project">
+    </mat-dialog-content>
+  </div>
+  <div class="modal-footer">
+    <button type="button" class="btn btn-outline-dark add-button" (click)="addProject()">Add</button>
+    <button type="button" class="btn btn-outline-dark" (click)="onClose()">Close</button>
+  </div>
   `,
   styleUrls: ['./saved-project-section.component.scss', '../../dashboard.component.scss']
 })
 export class NgbdModalAddProjectComponent {
-  @Output() newProject =  new EventEmitter<string>();
+  @Output() newProject = new EventEmitter<string>();
 
   public name: string;
 
-  constructor(public activeModal: NgbActiveModal) {}
+  constructor(public activeModal: NgbActiveModal) { }
 
   onNoClick(): void {
     this.activeModal.close();
@@ -117,10 +118,10 @@ export class NgbdModalAddProjectComponent {
     this.activeModal.close('Close');
   }
   addProject() {
-      if (this.name !== undefined) {
-          this.newProject.emit(this.name);
-          this.name = undefined;
-        }
-      this.onClose();
+    if (this.name !== undefined) {
+      this.newProject.emit(this.name);
+      this.name = undefined;
     }
+    this.onClose();
+  }
 }

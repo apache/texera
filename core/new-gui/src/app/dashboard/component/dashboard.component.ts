@@ -11,8 +11,8 @@ import { StubSavedProjectService } from '../service/saved-project/stub-saved-pro
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.scss'],
   providers: [
-    UserDictionaryService,
-    StubUserDictionaryService,
+    // UserDictionaryService,
+    { provide: UserDictionaryService, useClass: StubUserDictionaryService },
     SavedProjectService,
     StubSavedProjectService
   ]

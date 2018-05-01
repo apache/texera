@@ -7,7 +7,8 @@ import { Observable } from 'rxjs/Observable';
 import { UserDictionary } from '../../../type/user-dictionary';
 
 import { UserDictionaryService } from '../../../service/user-dictionary/user-dictionary.service';
-import { StubUserDictionaryService } from '../../../service/user-dictionary/stub-user-dictionary.service';
+
+import cloneDeep from 'lodash-es/cloneDeep';
 
 @Component({
   selector: 'texera-user-dictionary-section',
@@ -19,12 +20,12 @@ export class UserDictionarySectionComponent implements OnInit {
   public UserDictionary: UserDictionary[] = [];
 
   constructor(
-    private mockUserDictionaryService: StubUserDictionaryService,
+    private userDictionaryService: UserDictionaryService,
     private modalService: NgbModal
   ) { }
 
   ngOnInit() {
-    this.mockUserDictionaryService.getUserDictionaryData().subscribe(
+    this.userDictionaryService.getUserDictionaryData().subscribe(
       value => this.UserDictionary = value,
     );
     console.log(this.UserDictionary);
@@ -62,7 +63,7 @@ export class UserDictionarySectionComponent implements OnInit {
         value => {
           console.log(value);
           this.UserDictionary.push(value);
-          this.mockUserDictionaryService.addUserDictionaryData(value);
+          this.userDictionaryService.addUserDictionaryData(value);
         }
       );
 
@@ -187,7 +188,6 @@ export class NgbdModalResourceViewComponent {
   styleUrls: ['./user-dictionary-section.component.scss', '../../dashboard.component.scss'],
   providers: [
     UserDictionaryService,
-    StubUserDictionaryService
   ]
 
 })
@@ -202,7 +202,7 @@ export class NgbdModalResourceAddComponent {
 
   constructor(
     public activeModal: NgbActiveModal,
-    public subMockUserDictionaryService: StubUserDictionaryService
+    public userDictionaryService: UserDictionaryService
   ) {}
 
   onChange(event) {
@@ -217,7 +217,7 @@ export class NgbdModalResourceAddComponent {
 
     if (this.selectFile !== null) {
         console.log(this.selectFile);
-        this.subMockUserDictionaryService.uploadDictionary(this.selectFile);
+        this.userDictionaryService.uploadDictionary(this.selectFile);
     }
 
     if (this.name !== undefined) {
