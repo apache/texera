@@ -1,11 +1,13 @@
 import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
 import { JointModelService } from './../../service/workflow-graph/model/joint-model.service';
+import { JointUIService } from '../../service/joint-ui/joint-ui.service';
+import { DragDropService } from '../../service/drag-drop/drag-drop.service';
+
 import { Component, AfterViewInit } from '@angular/core';
 import { Observable } from 'rxjs/Observable';
 import '../../../common/rxjs-operators';
 
 import * as joint from 'jointjs';
-import { JointUIService } from '../../service/joint-ui/joint-ui.service';
 import {
   getMockScanPredicate, getMockResultPredicate, getMockScanResultLink
 } from '../../service/workflow-graph/model/mock-workflow-data';
@@ -41,6 +43,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     private jointUIService: JointUIService,
     private jointModelService: JointModelService,
     private workflowActionService: WorkflowActionService,
+    private dragDropService: DragDropService
   ) {
   }
 
@@ -57,6 +60,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
     this.handleWindowResize();
     this.handleViewDeleteOperator();
+
+    this.dragDropService.registerWorkflowEditorDrop(this.WORKFLOW_EDITOR_JOINTJS_ID);
 
   }
 

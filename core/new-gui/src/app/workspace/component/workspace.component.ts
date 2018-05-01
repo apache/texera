@@ -1,3 +1,4 @@
+import { DragDropService } from './../service/drag-drop/drag-drop.service';
 import { WorkflowUtilService } from './../service/workflow-graph/util/workflow-util.service';
 import { WorkflowActionService } from './../service/workflow-graph/model/workflow-action.service';
 import { JointModelService } from './../service/workflow-graph/model/joint-model.service';
@@ -22,7 +23,8 @@ import { TexeraModelService } from '../service/workflow-graph/model/texera-model
     JointModelService,
     TexeraModelService,
     WorkflowActionService,
-    WorkflowUtilService
+    WorkflowUtilService,
+    DragDropService
   ]
 })
 export class WorkspaceComponent implements OnInit {

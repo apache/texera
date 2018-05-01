@@ -1,3 +1,6 @@
+import { WorkflowActionService } from './../workflow-graph/model/workflow-action.service';
+import { Point } from './../../types/common.interface';
+import { Observable } from 'rxjs/Observable';
 import { WorkflowUtilService } from './../workflow-graph/util/workflow-util.service';
 import { JointUIService } from './../joint-ui/joint-ui.service';
 import { Injectable } from '@angular/core';
@@ -40,45 +43,54 @@ import * as joint from 'jointjs';
  *
  */
 @Injectable()
-export class DragDropServiceService {
+export class DragDropService {
 
   /** mapping of DOM Element ID to operatorType */
   private elementOperatorTypeMap = new Map<string, string>();
   /** the current operatorType of the operator being dragged */
-  private currentOperatorType: string | undefined;
+  private currentOperatorType = 'drag-drop-temp-operator-type';
 
 
   /** Subject for operator dragging is started */
   private operatorDragStartedSubject = new Subject<{ operatorType: string }>();
 
-
-  /**
-   * Observable for operator dragging is started.
-   * Contains an object with:
-   *  - operatorType - the type of the operator dragged
-   */
-  // public operatorDragStarted = this.operatorDragStartedSubject.asObservable();
-
-
   /** Subject for operator is dropped on the main workflow editor (equivalent to dragging is stopped) */
   private operatorDroppedSubject = new Subject<{
-    'operator': OperatorPredicate,
-    'offset': { 'x': number, 'y': number }
+    operatorType: string,
+    offset: Point
   }>();
-
-  /**
-   * Observable for operator is dropped on the main workflow editor.
-   * Contains an object with:
-   *  - operatorType - the type of the operator dropped
-   *  - offset.x - the x offset relative to document root
-   *  - offset.y - the y offset relative to document root
-   */
-  // public operatorDroppedInEditor = this.operatorDroppedSubject.asObservable();
 
   constructor(
     private jointUIService: JointUIService,
-    private workflowUtilService: WorkflowUtilService
+    private workflowUtilService: WorkflowUtilService,
+    private workflowActionService: WorkflowActionService
   ) {
+    this.getOperatorDropStream().subscribe(
+      value => {
+        const operator = this.workflowUtilService.getNewOperatorPredicate(value.operatorType);
+        this.workflowActionService.addOperator(operator, value.offset);
+      }
+    );
+  }
+
+  /**
+   * Gets an observable for operator dragging started event
+   * Contains an object with:
+   *  - operatorType - the type of the dragged operator
+   */
+  public getOperatorStartDragStream(): Observable<{ operatorType: string }> {
+    return this.operatorDragStartedSubject.asObservable();
+  }
+
+
+  /**
+   * Gets an observable for operator is dropped on the main workflow editor event
+   * Contains an object with:
+   *  - operatorType - the type of the operator dropped
+   *  - offset - the x and y point where the operator is dropped (relative to document root)
+   */
+  public getOperatorDropStream(): Observable<{operatorType: string, offset: Point}> {
+    return this.operatorDroppedSubject.asObservable();
   }
 
   /**
@@ -98,7 +110,9 @@ export class DragDropServiceService {
     // register callback functions for jquery UI
     jQuery('#' + dragElementID).draggable({
       helper: () => this.createFlyingOperatorElement(operatorType),
-      start: (event: any, ui) => this.onOperatorDragStarted(event, ui)
+      // declare event as type any because the jQueryUI type declaration is wrong
+      // it should be of type JQuery.Event, which is incompatible with the the declared type Event
+      start: (event: any, ui) => this.handleOperatorStartDrag(event, ui)
     });
   }
 
@@ -108,7 +122,7 @@ export class DragDropServiceService {
   */
   public registerWorkflowEditorDrop(dropElementID: string): void {
     jQuery('#' + dropElementID).droppable({
-      drop: (event: any, ui) => this.onOperatorDropped(event, ui)
+      drop: (event: any, ui) => this.handleOperatorDrop(event, ui)
     });
   }
 
@@ -118,7 +132,7 @@ export class DragDropServiceService {
    * This function temporarily creates a DOM element which contains a JointJS paper that has the exact size of the operator,
    *    then create the operator Element based on the operatorType and make it fully occupy the JointJS paper.
    *
-   * The temporary JointJS paper element has ID "flyPaper". This DOM elememtn will be destroyed by jQueryUI when the dragging ends.
+   * The temporary JointJS paper element has ID "flyingJointPaper". This DOM elememtn will be destroyed by jQueryUI when the dragging ends.
    *
    * @param operatorType - the type of the operator
    */
@@ -126,27 +140,26 @@ export class DragDropServiceService {
     this.currentOperatorType = operatorType;
 
     // create a temporary ghost element
-    jQuery('body').append('<div id="flyPaper" style="position:fixed;z-index:100;pointer-event:none;"></div>');
+    jQuery('body').append('<div id="flyingJointPaper" style="position:fixed;z-index:100;pointer-event:none;"></div>');
 
     // create an operator and get the UI element from the operator type
     const operator = this.workflowUtilService.getNewOperatorPredicate(operatorType);
-    const operatorUIElement = this.jointUIService.getJointjsOperatorElement(operator, { x: 0, y: 0 });
+    const operatorUIElement = this.jointUIService.getJointOperatorElement(operator, { x: 0, y: 0 });
 
     // create the jointjs model and paper of the ghost element
     const tempGhostModel = new joint.dia.Graph();
     const tempGhostPaper = new joint.dia.Paper({
-      el: jQuery('#flyPaper'),
+      el: jQuery('#flyingJointPaper'),
       width: JointUIService.DEFAULT_OPERATOR_WIDTH,
       height: JointUIService.DEFAULT_OPERATOR_HEIGHT,
       model: tempGhostModel,
-      gridSize: 1
     });
 
     // add the operator JointJS element to the paper
     tempGhostModel.addCell(operatorUIElement);
 
     // return the jQuery Object of the DOM Element
-    return jQuery('#flyPaper');
+    return jQuery('#flyingJointPaper');
   }
 
   /**
@@ -156,13 +169,20 @@ export class DragDropServiceService {
    * @param event JQuery.Event type, although JQueryUI typing says the type is Event, the object's actual type is JQuery.Event
    * @param ui jQueryUI Draggable Event UI
    */
-  private onOperatorDragStarted(event: JQuery.Event, ui: JQueryUI.DraggableEventUIParams): void {
+  private handleOperatorStartDrag(event: JQuery.Event, ui: JQueryUI.DraggableEventUIParams): void {
+    const eventElement = event.toElement;
+    if (eventElement === undefined) {
+      throw new Error('drag and drop: cannot find element when drag is started');
+    }
     // get the operatorType based on the DOM element ID
-    const operatorType = this.elementOperatorTypeMap.get(event.toElement.id);
+    const operatorType = this.elementOperatorTypeMap.get(eventElement.id);
+    if (operatorType === undefined) {
+      throw new Error(`drag and drop: cannot find operator type ${operatorType} from DOM element ${eventElement}`);
+    }
     // set the currentOperatorType
     this.currentOperatorType = operatorType;
     // notify the subject of the event
-    this.operatorDragStartedSubject.next({ 'operatorType': operatorType });
+    this.operatorDragStartedSubject.next({operatorType});
   }
 
   /**
@@ -173,12 +193,12 @@ export class DragDropServiceService {
    * @param event
    * @param ui
    */
-  private onOperatorDropped(event: JQuery.Event, ui: JQueryUI.DraggableEventUIParams): void {
+  private handleOperatorDrop(event: JQuery.Event, ui: JQueryUI.DraggableEventUIParams): void {
     console.log('on op dropped called');
     // notify the subject of the event
     // use ui.offset instead of ui.position because offset is relative to document root, where position is relative to parent element
     this.operatorDroppedSubject.next({
-      operator: this.workflowGraphUtilsService.getNewOperatorPredicate(this.currentOperatorType),
+      operatorType: this.currentOperatorType,
       offset: {
         x: ui.offset.left,
         y: ui.offset.top
