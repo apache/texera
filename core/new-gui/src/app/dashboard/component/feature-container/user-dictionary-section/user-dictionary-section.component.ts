@@ -3,11 +3,14 @@ import { NgbModal, NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { MatDialog, MAT_DIALOG_DATA, MatDialogRef } from '@angular/material';
 import { HttpClientModule } from '@angular/common/http';
 
+import { cloneDeep } from 'lodash';
+
 import { Observable } from 'rxjs/Observable';
 import { UserDictionary } from '../../../type/user-dictionary';
 
 import { UserDictionaryService } from '../../../service/user-dictionary/user-dictionary.service';
 import { StubUserDictionaryService } from '../../../service/user-dictionary/stub-user-dictionary.service';
+
 
 @Component({
   selector: 'texera-user-dictionary-section',
@@ -32,13 +35,13 @@ export class UserDictionarySectionComponent implements OnInit {
 
   openNgbdModalResourceViewComponent(dictionary: UserDictionary) {
     const modalRef = this.modalService.open(NgbdModalResourceViewComponent);
-    const copyDict = <UserDictionary> {
-      id: dictionary.id,
-      name: dictionary.name,
-      items: dictionary.items,
-      description: dictionary.description
-    };
-    modalRef.componentInstance.dictionary = copyDict;
+    // const copyDict = <UserDictionary> {
+    //   id: dictionary.id,
+    //   name: dictionary.name,
+    //   items: dictionary.items,
+    //   description: dictionary.description
+    // };
+    modalRef.componentInstance.dictionary = cloneDeep(dictionary);
 
     const addItemEventEmitter = <EventEmitter<string>>(modalRef.componentInstance.addedName);
     const subscription = addItemEventEmitter
@@ -47,6 +50,7 @@ export class UserDictionarySectionComponent implements OnInit {
         value => {
           console.log(value);
           dictionary.items.push(value);
+          modalRef.componentInstance.dictionary = cloneDeep(dictionary);
         }
       );
   }
@@ -103,7 +107,7 @@ export class UserDictionarySectionComponent implements OnInit {
   </div>
 
   <div class="modal-body">
-    <p>[ {{dictionary.items}},{{name}} ]</p>
+    <p>[ {{dictionary.items}} ]</p>
     <mat-dialog-actions>
       <input *ngIf="ifAdd" matInput [(ngModel)]="name" placeholder="Add into dictionary">
       <button type="button" class="btn btn-outline-dark add-button" (click)="addKey()"  >Add</button>

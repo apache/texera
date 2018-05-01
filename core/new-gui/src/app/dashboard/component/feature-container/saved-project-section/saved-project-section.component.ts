@@ -83,23 +83,23 @@ export class SavedProjectSectionComponent implements OnInit {
   selector: 'texera-add-project-section-modal',
   template: `
   <div class="modal-header">
-  <h4 class="modal-title">Add New Project</h4>
-  <button type="button" class="close" aria-label="Close" (click)="onClose()">
-    <span aria-hidden="true">&times;</span>
-  </button>
-</div>
-<div class="modal-body">
+    <h4 class="modal-title">Add New Project</h4>
+    <button type="button" class="close" aria-label="Close" (click)="onClose()">
+      <span aria-hidden="true">&times;</span>
+    </button>
+  </div>
+  <div class="modal-body">
 
       <mat-dialog-content>
           <input matInput [(ngModel)]="name" placeholder="Name of New Project">
       </mat-dialog-content>
 
 
-</div>
-<div class="modal-footer">
-  <button type="button" class="btn btn-outline-dark add-button" (click)="addProject()">Add</button>
-  <button type="button" class="btn btn-outline-dark" (click)="onClose()">Close</button>
-</div>
+  </div>
+  <div class="modal-footer">
+    <button type="button" class="btn btn-outline-dark add-button" (click)="addProject()">Add</button>
+    <button type="button" class="btn btn-outline-dark" (click)="onClose()">Close</button>
+  </div>
   `,
   styleUrls: ['./saved-project-section.component.scss', '../../dashboard.component.scss']
 })
