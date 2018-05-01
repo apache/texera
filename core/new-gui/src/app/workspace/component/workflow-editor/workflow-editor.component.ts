@@ -1,4 +1,3 @@
-import { WorkflowUtilService } from './../../service/workflow-graph/util/workflow-util.service';
 import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
 import { JointModelService } from './../../service/workflow-graph/model/joint-model.service';
 import { Component, AfterViewInit } from '@angular/core';
@@ -42,7 +41,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
     private jointUIService: JointUIService,
     private jointModelService: JointModelService,
     private workflowActionService: WorkflowActionService,
-    private workflowUtilService: WorkflowUtilService
   ) {
   }
 
@@ -60,27 +58,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.handleWindowResize();
     this.handleViewDeleteOperator();
 
-    // add a 500ms delay for joint-ui.service to fetch the operator metaData
-    // this code is temporary and will be deleted in future PRs when drag
-    // and drop is implemented
-    Observable.from('a').delay(500).subscribe(
-      emptyData => {
-        const scanSource = getMockScanPredicate();
-        const viewResult = getMockResultPredicate();
-        const link = getMockScanResultLink();
-
-        // add some dummy operators and links to show that JointJS works
-        this.workflowActionService.addOperator(
-          scanSource,
-          { x: 300, y: 200 }
-        );
-        this.workflowActionService.addOperator(
-          viewResult,
-          { x: 600, y: 200 }
-        );
-        this.workflowActionService.addLink(link);
-      }
-    );
   }
 
   private initializeJointPaper(): void {
