@@ -19,8 +19,6 @@
           </div>
           <span>&emsp;&emsp;&emsp;</span>
           <button mat-raised-button color="primary" (click)= "openNgbdModalAddProjectComponent()">Add</button>
-          <span class="gap-filler">&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;</span>
-          <button mat-button class="delete-project-btn" placement="bottom" ngbTooltip="Delete the project"><i class="fa">&#xf1f8;</i> Delete</button>
         </div>
       </mat-card>
 
@@ -37,6 +35,7 @@
               <p mat-line style="font-family:Roboto, Arial, sans-serif;color:gray" > <br>
                 {{project.lastModifiedTime | date:'yyyy-MM-dd HH:mm:ss Z'}}&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;Created: {{project.creationTime | date:'yyyy-MM-dd HH:mm:ss Z'}}
               </p>
+              <button mat-button class="delete-project-btn" placement="bottom" ngbTooltip="Delete the {{project.name}}" (click)="openNgbdModalDeleteProjectComponent(project)" ><i class="fa">&#xf1f8;</i></button>
             </mat-list-item>
             </div>
           </mat-list>

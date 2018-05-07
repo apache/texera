@@ -24,11 +24,14 @@ import { UserAccountIconComponent } from './dashboard/component/top-bar/user-acc
 import { FeatureBarComponent } from './dashboard/component/feature-bar/feature-bar.component';
 import { FeatureContainerComponent } from './dashboard/component/feature-container/feature-container.component';
 import { SavedProjectSectionComponent,
-  NgbdModalAddProjectComponent} from './dashboard/component/feature-container/saved-project-section/saved-project-section.component';
+  NgbdModalAddProjectComponent,
+  NgbdModalDeleteProjectComponent} from './dashboard/component/feature-container/saved-project-section/saved-project-section.component';
 import { RunningJobSectionComponent } from './dashboard/component/feature-container/running-job-section/running-job-section.component';
 import { UserDictionarySectionComponent,
   NgbdModalResourceViewComponent,
-  NgbdModalResourceAddComponent } from './dashboard/component/feature-container/user-dictionary-section/user-dictionary-section.component';
+  NgbdModalResourceAddComponent,
+  NgbdModalResourceDeleteComponent
+  } from './dashboard/component/feature-container/user-dictionary-section/user-dictionary-section.component';
 import { ResourceSectionComponent } from './dashboard/component/feature-container/resource-section/resource-section.component';
 
 @NgModule({
@@ -41,17 +44,23 @@ import { ResourceSectionComponent } from './dashboard/component/feature-containe
     WorkflowEditorComponent,
     ResultPanelComponent,
     OperatorLabelComponent,
+
     DashboardComponent,
     TopBarComponent,
     UserAccountIconComponent,
     FeatureBarComponent,
     FeatureContainerComponent,
+
     SavedProjectSectionComponent,
     NgbdModalAddProjectComponent,
+    NgbdModalDeleteProjectComponent,
+
     RunningJobSectionComponent,
     UserDictionarySectionComponent,
     NgbdModalResourceViewComponent,
     NgbdModalResourceAddComponent,
+    NgbdModalResourceDeleteComponent,
+
     ResourceSectionComponent,
   ],
   imports: [
@@ -67,8 +76,10 @@ import { ResourceSectionComponent } from './dashboard/component/feature-containe
   ],
   entryComponents: [
     NgbdModalAddProjectComponent,
+    NgbdModalDeleteProjectComponent,
     NgbdModalResourceViewComponent,
-    NgbdModalResourceAddComponent
+    NgbdModalResourceAddComponent,
+    NgbdModalResourceDeleteComponent
   ],
   providers: [ HttpClientModule ],
   bootstrap: [AppComponent]

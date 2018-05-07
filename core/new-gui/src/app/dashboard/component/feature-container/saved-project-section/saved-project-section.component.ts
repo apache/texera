@@ -8,6 +8,8 @@ import { SavedProject } from '../../../type/saved-project';
 import { SavedProjectService } from '../../../service/saved-project/saved-project.service';
 import { StubSavedProjectService } from '../../../service/saved-project/stub-saved-project.service';
 
+import { cloneDeep } from 'lodash';
+
 @Component({
   selector: 'texera-saved-project-section',
   templateUrl: './saved-project-section.component.html',
@@ -79,6 +81,24 @@ export class SavedProjectSectionComponent implements OnInit {
         }
       );
   }
+
+  openNgbdModalDeleteProjectComponent(project: SavedProject) {
+    const modalRef = this.modalService.open(NgbdModalDeleteProjectComponent);
+    modalRef.componentInstance.project = cloneDeep(project);
+
+    const deleteItemEventEmitter = <EventEmitter<boolean>>(modalRef.componentInstance.deleteProject);
+    const subscription = deleteItemEventEmitter
+      .subscribe(
+        value => {
+          if (value) {
+            this.projects = this.projects.filter(obj => obj.id !== project.id);
+            this.mockSavedProjectService.deleteSavedProjectData(project);
+            // this.savedProjectService.deleteSavedProjectData(project);
+          }
+        }
+      );
+
+  }
 }
 
 
@@ -93,18 +113,12 @@ export class SavedProjectSectionComponent implements OnInit {
     </button>
   </div>
   <div class="modal-body">
-<<<<<<< HEAD
 
       <mat-dialog-content>
           <input matInput [(ngModel)]="name" placeholder="Name of New Project">
       </mat-dialog-content>
 
 
-=======
-    <mat-dialog-content>
-      <input matInput [(ngModel)]="name" placeholder="Name of New Project">
-    </mat-dialog-content>
->>>>>>> 347024f1c9fb9564ef3d13b7aed6784bdecc38aa
   </div>
   <div class="modal-footer">
     <button type="button" class="btn btn-outline-dark add-button" (click)="addProject()">Add</button>
@@ -133,4 +147,47 @@ export class NgbdModalAddProjectComponent {
     }
     this.onClose();
   }
+}
+
+// sub component for delete-dictionary popup window
+@Component({
+  selector: 'texera-resource-section-delete-project-modal',
+  template: `
+  <div class="modal-header">
+    <h4 class="modal-title">Delete the Project</h4>
+    <button type="button" class="close" aria-label="Close" (click)="onClose()">
+      <span aria-hidden="true">&times;</span>
+    </button>
+  </div>
+
+  <div class="modal-body">
+    <mat-dialog-actions>
+      <p class="modal-title">Confirm to Delete the Project {{project.name}}</p>
+    </mat-dialog-actions>
+  </div>
+
+  <div class="modal-footer">
+    <button type="button" class="btn btn-outline-dark delete-confirm-button" (click)="deleteSavedProject()"  >Confirm</button>
+    <button type="button" class="btn btn-outline-dark" (click)="onClose()">Close</button>
+  </div>
+  `,
+  styleUrls: ['./saved-project-section.component.scss', '../../dashboard.component.scss']
+
+})
+export class NgbdModalDeleteProjectComponent {
+  @Input() project;
+  @Output() deleteProject =  new EventEmitter<boolean>();
+
+  constructor(public activeModal: NgbActiveModal) {}
+
+  onClose() {
+    this.activeModal.close('Close');
+  }
+
+  deleteSavedProject() {
+    console.log('delete ' + this.project.name);
+    this.deleteProject.emit(true);
+    this.onClose();
+  }
+
 }

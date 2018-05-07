@@ -3,14 +3,13 @@ import { NgbModal, NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { MatDialog, MAT_DIALOG_DATA, MatDialogRef } from '@angular/material';
 import { HttpClientModule } from '@angular/common/http';
 
-import { cloneDeep } from 'lodash';
 
 import { Observable } from 'rxjs/Observable';
 import { UserDictionary } from '../../../type/user-dictionary';
 
 import { UserDictionaryService } from '../../../service/user-dictionary/user-dictionary.service';
 
-import cloneDeep from 'lodash-es/cloneDeep';
+import { cloneDeep } from 'lodash';
 
 
 @Component({
@@ -62,12 +61,29 @@ export class UserDictionarySectionComponent implements OnInit {
     const addItemEventEmitter = <EventEmitter<UserDictionary>>(modalRef.componentInstance.addedDictionary);
     const subscription = addItemEventEmitter
       .do(value => console.log(value))
-      .do(value => value.id = (this.UserDictionary.length + 1).toString())
+      .do(value => value.id = (this.UserDictionary.length + 1).toString()) // leave for correct
       .subscribe(
         value => {
           console.log(value);
           this.UserDictionary.push(value);
           this.userDictionaryService.addUserDictionaryData(value);
+        }
+      );
+
+  }
+
+  openNgbdModalResourceDeleteComponent(dictionary: UserDictionary) {
+    const modalRef = this.modalService.open(NgbdModalResourceDeleteComponent);
+    modalRef.componentInstance.dictionary = cloneDeep(dictionary);
+
+    const deleteItemEventEmitter = <EventEmitter<boolean>>(modalRef.componentInstance.deleteDict);
+    const subscription = deleteItemEventEmitter
+      .subscribe(
+        value => {
+          if (value) {
+            this.UserDictionary = this.UserDictionary.filter(obj => obj.id !== dictionary.id);
+            this.userDictionaryService.deleteUserDictionaryData(dictionary);
+          }
         }
       );
 
@@ -243,4 +259,48 @@ export class NgbdModalResourceAddComponent {
     }
     this.onClose();
   }
+}
+
+
+// sub component for delete-dictionary popup window
+@Component({
+  selector: 'texera-resource-section-delete-dict-modal',
+  template: `
+  <div class="modal-header">
+    <h4 class="modal-title">Delete the Dictionary</h4>
+    <button type="button" class="close" aria-label="Close" (click)="onClose()">
+      <span aria-hidden="true">&times;</span>
+    </button>
+  </div>
+
+  <div class="modal-body">
+    <mat-dialog-actions>
+      <p class="modal-title">Confirm to Delete the Dictionary {{dictionary.name}}</p>
+    </mat-dialog-actions>
+  </div>
+
+  <div class="modal-footer">
+    <button type="button" class="btn btn-outline-dark delete-confirm-button" (click)="deleteDictionary()"  >Confirm</button>
+    <button type="button" class="btn btn-outline-dark" (click)="onClose()">Close</button>
+  </div>
+  `,
+  styleUrls: ['./user-dictionary-section.component.scss', '../../dashboard.component.scss']
+
+})
+export class NgbdModalResourceDeleteComponent {
+  @Input() dictionary;
+  @Output() deleteDict =  new EventEmitter<boolean>();
+
+  constructor(public activeModal: NgbActiveModal) {}
+
+  onClose() {
+    this.activeModal.close('Close');
+  }
+
+  deleteDictionary() {
+    console.log('delete ' + this.dictionary.name);
+    this.deleteDict.emit(true);
+    this.onClose();
+  }
+
 }

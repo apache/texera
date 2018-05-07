@@ -17,8 +17,6 @@
         </div>
       <span>&emsp;&emsp;&emsp;</span>
       <button mat-raised-button color="primary" id="upload-btn" (click) = "openNgbdModalResourceAddComponent()">Upload</button>
-      <span class="gap-filler">&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;</span>
-      <button mat-button class="delete-project-btn" placement="bottom" ngbTooltip="Delete the project"><i class="fa">&#xf1f8;</i> Delete</button>
     </div>
   </mat-card>
 
@@ -34,6 +32,7 @@
               <p font-size= 10px><span style="color:rgb(62, 202, 253); font-size:20px; font-family:Roboto, Arial, sans-serif;">{{dictionary.name}}</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Item Preview: {{dictionary.items.slice(0,3)}}......</p>
              </div>
              <span class="gap-filler"></span>
+             <button mat-button class="delete-project-btn" placement="bottom" ngbTooltip="Delete the {{dictionary.name}}" (click)="openNgbdModalResourceDeleteComponent(dictionary)"><i class="fa">&#xf1f8;</i></button>
              <button mat-raised-button color="primary" class="view-button" (click)= "openNgbdModalResourceViewComponent(dictionary)">View</button>
           </mat-list-item>
         </div>

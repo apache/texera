@@ -13,6 +13,7 @@ import { StubSavedProjectService } from '../service/saved-project/stub-saved-pro
   providers: [
     // UserDictionaryService,
     { provide: UserDictionaryService, useClass: StubUserDictionaryService },
+    // { provide: SavedProjectService, useClass: StubSavedProjectService }
     SavedProjectService,
     StubSavedProjectService
   ]

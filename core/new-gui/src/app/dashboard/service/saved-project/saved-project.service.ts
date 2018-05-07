@@ -12,4 +12,8 @@ export class SavedProjectService {
   public getSavedProjectData(): Observable<SavedProject[]> {
     return null;
   }
+
+  public deleteSavedProjectData(deleteProject: SavedProject) {
+    return null;
+  }
 }
