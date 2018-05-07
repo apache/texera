@@ -1,5 +1,4 @@
-import { OperatorPort } from './operator-port';
-import { OperatorPredicate, OperatorLink } from './workflow-graph';
+import { OperatorPredicate, OperatorLink, OperatorPort } from './common.interface';
 
 /**
  * WorkflowGraphReadonly only exposes the read functions of a workflow graph.

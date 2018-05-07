@@ -6,9 +6,10 @@ import { OperatorMetadataService } from './../../operator-metadata/operator-meta
 import { WorkflowActionService } from './workflow-action.service';
 import { JointModelService } from './joint-model.service';
 
-import { WorkflowGraphReadonly } from './../../../types/workflow-graph-readonly';
-import { OperatorSchema } from './../../../types/operator-schema';
-import { WorkflowGraph, OperatorLink, OperatorPredicate } from './../../../types/workflow-graph';
+import { WorkflowGraphReadonly } from './../../../types/workflow-graph-readonly.interface';
+import { OperatorSchema } from './../../../types/operator-schema.interface';
+import { OperatorLink, OperatorPredicate } from '../../../types/common.interface';
+import { WorkflowGraph } from './../../../types/workflow-graph';
 
 /**
  *

@@ -1,6 +1,6 @@
-import { OperatorPredicate } from './../../../types/workflow-graph';
+import { OperatorPredicate } from './../../../types/common.interface';
 import { OperatorMetadataService } from './../../operator-metadata/operator-metadata.service';
-import { OperatorSchema } from './../../../types/operator-schema';
+import { OperatorSchema } from './../../../types/operator-schema.interface';
 import { Injectable } from '@angular/core';
 
 @Injectable()

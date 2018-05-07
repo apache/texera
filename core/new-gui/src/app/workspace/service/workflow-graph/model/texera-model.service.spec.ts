@@ -1,5 +1,4 @@
-import { Point } from './../../../types/common.interface';
-import { OperatorPredicate, OperatorLink } from './../../../types/workflow-graph';
+import { Point, OperatorPredicate, OperatorLink } from './../../../types/common.interface';
 import {
   getMockScanPredicate, getMockResultPredicate, getMockSentimentPredicate,
   getMockScanResultLink, getMockScanSentimentLink, getMockSentimentResultLink, getMockPoint

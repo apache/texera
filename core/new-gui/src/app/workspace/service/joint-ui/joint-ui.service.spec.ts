@@ -1,5 +1,4 @@
-import { Point } from './../../types/common.interface';
-import { OperatorPredicate } from './../../types/workflow-graph';
+import { Point, OperatorPredicate } from './../../types/common.interface';
 import { getMockResultPredicate, getMockPoint, getMockScanResultLink } from './../workflow-graph/model/mock-workflow-data';
 import { TestBed, inject } from '@angular/core/testing';
 import * as joint from 'jointjs';

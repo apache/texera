@@ -1,7 +1,6 @@
 import { cloneDeep } from 'lodash-es';
-import { Point } from './../../../types/common.interface';
+import { Point, OperatorPredicate, OperatorLink } from './../../../types/common.interface';
 import { getMockOperatorSchemaList } from './../../operator-metadata/mock-operator-metadata.data';
-import { OperatorPredicate, OperatorLink } from './../../../types/workflow-graph';
 
 /**
  * Provides common constants related to operators and link.

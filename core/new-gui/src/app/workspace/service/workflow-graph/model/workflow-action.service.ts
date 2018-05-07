@@ -1,13 +1,28 @@
-import { OperatorLink, WorkflowGraph } from './../../../types/workflow-graph';
+import { WorkflowGraph } from './../../../types/workflow-graph';
 import { Observable } from 'rxjs/Observable';
 import { Injectable } from '@angular/core';
 import { JointModelService } from './joint-model.service';
 import { TexeraModelService } from './texera-model.service';
-import { OperatorPredicate } from '../../../types/workflow-graph';
-import { Point } from '../../../types/common.interface';
+import { Point, OperatorPredicate, OperatorLink } from '../../../types/common.interface';
 import { Subject } from 'rxjs/Subject';
 
 /**
+ * WorkflowActionService exposes functions (actions) to modify the workflow graph,
+ *  such as addOperator, deleteOperator, addLink, deleteLink, etc.
+ * WorkflowActionService checks the validity of these actions,
+ *  for example, check if adding two operators with the same ID.
+ *
+ * All changes(actions) to the workflow graph must go through WorkflowActionService,
+ *  then WorkflowActionService will propagate these actions to the JointModelService and TexeraModelService,
+ *  where the changes will be actually made.
+ *
+ * TexeraModelService exposes a read only version of the workflow graph, and provides
+ *  the events related to workflow graph on a *logical* level.
+ *
+ * JointModelService is only used for hanlding the events only related
+ *
+ *
+ *
  *
  */
 @Injectable()

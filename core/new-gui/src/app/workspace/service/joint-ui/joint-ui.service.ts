@@ -1,11 +1,9 @@
-import { OperatorPredicate, OperatorLink } from './../../types/workflow-graph';
 import { Injectable } from '@angular/core';
 import { OperatorMetadataService } from '../operator-metadata/operator-metadata.service';
-import { OperatorSchema } from '../../types/operator-schema';
+import { OperatorSchema } from '../../types/operator-schema.interface';
 
 import * as joint from 'jointjs';
-import { OperatorPort } from '../../types/operator-port';
-import { Point } from '../../types/common.interface';
+import { Point, OperatorPredicate, OperatorLink, OperatorPort } from '../../types/common.interface';
 
 /**
  * Defines the SVG path for the delete button

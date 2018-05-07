@@ -1,9 +1,8 @@
-import { WorkflowGraphReadonly } from './../../../types/workflow-graph-readonly';
+import { WorkflowGraphReadonly } from './../../../types/workflow-graph-readonly.interface';
 
-import { OperatorPredicate, OperatorLink } from './../../../types/workflow-graph';
 import { WorkflowActionService } from './workflow-action.service';
 import { Injectable } from '@angular/core';
-import { Point } from '../../../types/common.interface';
+import { Point, OperatorPredicate, OperatorLink } from '../../../types/common.interface';
 import { Observable } from 'rxjs/Observable';
 
 import '../../../../common/rxjs-operators';
@@ -12,6 +11,8 @@ import * as joint from 'jointjs';
 import { JointUIService } from '../../joint-ui/joint-ui.service';
 
 /**
+ *
+ * JointModelService includes the JointJS model (workflow graph).
  *
  *
  */

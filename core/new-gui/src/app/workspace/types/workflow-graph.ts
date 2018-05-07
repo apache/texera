@@ -1,21 +1,7 @@
-import { WorkflowGraphReadonly } from './workflow-graph-readonly';
-import { OperatorLink } from './workflow-graph';
-import { OperatorPort } from './operator-port';
+import { OperatorPredicate, OperatorLink, OperatorPort } from './common.interface';
+import { WorkflowGraphReadonly } from './workflow-graph-readonly.interface';
 import { isEqual } from 'lodash-es';
 
-export interface OperatorPredicate {
-  operatorID: string;
-  operatorType: string;
-  operatorProperties: Object;
-  inputPorts: string[];
-  outputPorts: string[];
-}
-
-export interface OperatorLink {
-  linkID: string;
-  source: OperatorPort;
-  target: OperatorPort;
-}
 
 
 export class WorkflowGraph implements WorkflowGraphReadonly {

@@ -8,9 +8,11 @@ import { JointModelService } from './joint-model.service';
 import { WorkflowActionService } from './workflow-action.service';
 import { OperatorMetadataService } from '../../operator-metadata/operator-metadata.service';
 
-import { getMockScanPredicate, getMockResultPredicate, getMockScanResultLink,
+import {
+  getMockScanPredicate, getMockResultPredicate, getMockScanResultLink,
   getMockSentimentPredicate, getMockScanSentimentLink, getMockSentimentResultLink,
-  getMockPoint } from './mock-workflow-data';
+  getMockPoint
+} from './mock-workflow-data';
 import { Point } from './../../../types/common.interface';
 
 
@@ -28,6 +30,11 @@ describe('JointModelService', () => {
     return (jointModelService as any).jointGraph;
   }
 
+  /**
+   * This sub-test suite tests if the module reacts to the events from internal calls of our code correctly.
+   * Calling addOperator, deleteOperator, addLink, deleteLink, etc... should cause the corresponding
+   *  actions to be done in JointJS.
+   */
   describe('should react to events from workflow action', () => {
 
     beforeEach(() => {
@@ -47,7 +54,7 @@ describe('JointModelService', () => {
       expect(service).toBeTruthy();
     }));
 
-    it('should add an operator element when add operator is called in workflow action', marbles((m) => {
+    it('should add an operator element when it is called in workflow action', marbles((m) => {
       const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
 
       spyOn(workflowActionService, '_onAddOperatorAction').and.returnValue(
@@ -66,7 +73,7 @@ describe('JointModelService', () => {
 
     }));
 
-    it('should emit operator delete event correctly when delete operator is called in workflow action', marbles((m) => {
+    it('should delete an operator correctly when it is called in workflow action', marbles((m) => {
       const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
 
       spyOn(workflowActionService, '_onAddOperatorAction').and.returnValue(
@@ -87,64 +94,59 @@ describe('JointModelService', () => {
         }
       });
 
-      const jointOperatorDeleteStream = jointModelService.onJointOperatorCellDelete().map(value => 'e');
-      const expectedStream = m.hot('--e-');
-
-      m.expect(jointOperatorDeleteStream).toBeObservable(expectedStream);
-
     }));
 
 
-    it('should add an operator link when add operator is called in workflow action', marbles((m) => {
+    it('should add an operator link correctly when it is called in workflow action', marbles((m) => {
       const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
 
       spyOn(workflowActionService, '_onAddOperatorAction').and.returnValue(
         m.hot('-a-b-|', {
-          a : { operator: getMockScanPredicate(), point: getMockPoint()  },
-          b : { operator: getMockResultPredicate(), point: getMockPoint() }
+          a: { operator: getMockScanPredicate(), point: getMockPoint() },
+          b: { operator: getMockResultPredicate(), point: getMockPoint() }
         })
       );
 
       spyOn(workflowActionService, '_onAddLinkAction').and.returnValue(
         m.hot('----c-|', {
-          c : { link : getMockScanResultLink() }
+          c: { link: getMockScanResultLink() }
         })
       );
 
       const jointModelService: JointModelService = TestBed.get(JointModelService);
 
       workflowActionService._onAddLinkAction().subscribe({
-        complete : () => {
+        complete: () => {
           expect(getJointGraph(jointModelService).getLinks().length).toEqual(1);
           expect(getJointGraph(jointModelService).getCell(getMockScanResultLink().linkID)).toBeTruthy();
         }
       });
     }));
 
-    it('should emit link delete event correctly when delete link is called in workflow action', marbles((m) => {
+    it('should delete link correctly when it is called in workflow action', marbles((m) => {
       const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
       spyOn(workflowActionService, '_onAddOperatorAction').and.returnValue(
         m.hot('-a-b-|', {
-          a : { operator: getMockScanPredicate(), point: getMockPoint()  },
-          b : { operator: getMockResultPredicate(), point: getMockPoint() }
+          a: { operator: getMockScanPredicate(), point: getMockPoint() },
+          b: { operator: getMockResultPredicate(), point: getMockPoint() }
         })
       );
 
       spyOn(workflowActionService, '_onAddLinkAction').and.returnValue(
         m.hot('----c-|', {
-          c : { link : getMockScanResultLink() }
+          c: { link: getMockScanResultLink() }
         })
       );
 
       spyOn(workflowActionService, '_onDeleteLinkAction').and.returnValue(
         m.hot('-----d-|', {
-          d : { linkID : getMockScanResultLink().linkID}
+          d: { linkID: getMockScanResultLink().linkID }
         })
       );
 
       const jointModelService = TestBed.get(JointModelService);
       workflowActionService._onDeleteOperatorAction().subscribe({
-        complete : () => {
+        complete: () => {
           expect(getJointGraph(jointModelService).getCells().length).toEqual(2);
           expect(getJointGraph(jointModelService).getLinks().length).toEqual(0);
           expect(getJointGraph(jointModelService).getCell(getMockScanResultLink().linkID)).toBeFalsy();
@@ -152,34 +154,34 @@ describe('JointModelService', () => {
       });
     }));
 
-    it('should emit operator delete event and link delete event when delete operator is called on a connected operator',
+    it('should delete all the links attached to the operator when the operator is deleted',
       marbles((m) => {
         const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
         spyOn(workflowActionService, '_onAddOperatorAction').and.returnValue(
           m.hot('-a-b-c|', {
-            a : { operator: getMockScanPredicate(), point: getMockPoint()  },
-            b : { operator: getMockResultPredicate(), point: getMockPoint() },
-            c : { operator: getMockSentimentPredicate(), point: getMockPoint() }
+            a: { operator: getMockScanPredicate(), point: getMockPoint() },
+            b: { operator: getMockResultPredicate(), point: getMockPoint() },
+            c: { operator: getMockSentimentPredicate(), point: getMockPoint() }
           })
         );
 
         spyOn(workflowActionService, '_onAddLinkAction').and.returnValue(
           m.hot('------e-f|', {
-            e : { link : getMockScanSentimentLink() },
-            f : { link : getMockSentimentResultLink() }
+            e: { link: getMockScanSentimentLink() },
+            f: { link: getMockSentimentResultLink() }
           })
         );
 
         spyOn(workflowActionService, '_onDeleteOperatorAction').and.returnValue(
           m.hot('---------d|', {
-            d : { operatorID : getMockSentimentPredicate().operatorID }
+            d: { operatorID: getMockSentimentPredicate().operatorID }
           })
         );
 
         const jointModelService: JointModelService = TestBed.get(JointModelService);
 
         workflowActionService._onDeleteOperatorAction().subscribe({
-          complete : () => {
+          complete: () => {
             expect(getJointGraph(jointModelService).getElements().length).toEqual(2);
             expect(getJointGraph(jointModelService).getCell(getMockSentimentPredicate().operatorID)).toBeFalsy();
             expect(getJointGraph(jointModelService).getLinks().length).toEqual(0);
@@ -193,7 +195,11 @@ describe('JointModelService', () => {
 
   });
 
-  describe('should react to events from JointJS user actions from UI', () => {
+  /**
+   * This sub-test suite tests if the JointJS module outputs the corresponding events properly
+   *  when the actions are done through either UI or own code.
+   */
+  describe('should output JointJS model changes events correctly when actions happen from the UI', () => {
 
     let workflowActionService: WorkflowActionService;
     let jointModelService: JointModelService;
@@ -231,7 +237,7 @@ describe('JointModelService', () => {
     }));
 
 
-    it('should emit link add event correctly when a link is added or connected by JointJS', marbles((m) => {
+    it('should emit link add event correctly when a link is connected by JointJS', marbles((m) => {
       workflowActionService.addOperator(getMockScanPredicate(), getMockPoint());
       workflowActionService.addOperator(getMockResultPredicate(), getMockPoint());
 
@@ -264,7 +270,15 @@ describe('JointModelService', () => {
 
     }));
 
-    it('should emit operator delete event and link delete event correctly when a connected operator is deleted by JointJS'
+    /**
+     * When the user deletes an operator in the UI, jointJS will delete the connected links automatically.
+     *
+     * This test verfies that when an operator is deleted, causing the one connected link to be deleted,
+     *   the JointJS event Observalbe streams are emitted correctly.
+     * It should emit one operator delete event and one link delete event at the same time.
+     */
+    it(`should emit operator delete event and link delete event correctly
+          when an operator along with one connected link are deleted by JonitJS`
       , marbles((m) => {
         workflowActionService.addOperator(getMockScanPredicate(), getMockPoint());
         workflowActionService.addOperator(getMockResultPredicate(), getMockPoint());
@@ -285,8 +299,14 @@ describe('JointModelService', () => {
 
       }));
 
-    it('should emit operator delete event and link delete event correctly when a connected operator connected by 2 or' +
-      ' more link is deleted by JointJS', marbles((m) => {
+    /**
+     *
+     * This test verfies that when an operator is deleted, causing *multiple* connected links to be deleted,
+     *   the JointJS event Observalbe streams are emitted correctly.
+     * It should emit one operator delete event and one link delete event at the same time.
+     */
+    it(`should emit operator delete event and link delete event correctly when
+        an operator along with multiple links are deleted by JointJS`, marbles((m) => {
         workflowActionService.addOperator(getMockScanPredicate(), getMockPoint());
         workflowActionService.addOperator(getMockSentimentPredicate(), getMockPoint());
         workflowActionService.addOperator(getMockResultPredicate(), getMockPoint());
