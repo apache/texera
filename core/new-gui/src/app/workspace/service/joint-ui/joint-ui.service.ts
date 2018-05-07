@@ -46,14 +46,14 @@ class TexeraCustomJointElement extends joint.shapes.devs.Model {
 }
 
 /**
- * OperatorUIElementService controls the shape of an operator
- *  when the operator element is displayed by JointJS.
+ * JointUIService controls the shape of an operator and a link
+ *  when they is displayed by JointJS.
  *
  * This service alters the basic JointJS element by:
  *  - setting the ID of the JointJS element to be the same as Texera's OperatorID
  *  - changing the look of the operator box (size, colors, lines, etc..)
  *  - adding input and output ports to the box based on the operator metadata
- *  - changing the look of the ports
+ *  - changing the SVG element and CSS styles of operators, links, ports, etc..
  *  - adding a new delete button and the callback function of the delete button,
  *      (original JointJS element doesn't have a built-in delete button)
  *
