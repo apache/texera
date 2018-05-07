@@ -5,12 +5,12 @@ import { OperatorMetadataService } from '../../../service/operator-metadata/oper
 import { StubOperatorMetadataService } from '../../../service/operator-metadata/stub-operator-metadata.service';
 import { NO_ERRORS_SCHEMA } from '@angular/core';
 
-import {CustomNgMaterialModule} from '../../../../common/custom-ng-material.module';
-import { MOCK_OPERATOR_SCHEMA_LIST } from '../../../service/operator-metadata/mock-operator-metadata.data';
+import { CustomNgMaterialModule } from '../../../../common/custom-ng-material.module';
+import { getMockOperatorSchemaList } from '../../../service/operator-metadata/mock-operator-metadata.data';
 import { By } from '@angular/platform-browser';
 
 describe('OperatorLabelComponent', () => {
-  const mockOperatorData = MOCK_OPERATOR_SCHEMA_LIST[0];
+  const mockOperatorData = getMockOperatorSchemaList()[0];
   let component: OperatorLabelComponent;
   let fixture: ComponentFixture<OperatorLabelComponent>;
 
@@ -35,7 +35,7 @@ describe('OperatorLabelComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should create an ID', () => {
+  it('should generate an ID for the component DOM element', () => {
     expect(component.operatorLabelID).toContain('texera-operator-label-');
   });
 

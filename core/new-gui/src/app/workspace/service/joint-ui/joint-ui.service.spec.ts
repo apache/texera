@@ -1,10 +1,9 @@
 import { TestBed, inject } from '@angular/core/testing';
 import * as joint from 'jointjs';
 
-import { JointUIService } from './joint-ui.service';
+import { JointUIService, deleteButtonPath, sourceOperatorHandle, targetOperatorHandle } from './joint-ui.service';
 import { OperatorMetadataService } from '../operator-metadata/operator-metadata.service';
 import { StubOperatorMetadataService } from '../operator-metadata/stub-operator-metadata.service';
-import { MOCK_OPERATOR_METADATA } from '../operator-metadata/mock-operator-metadata.data';
 
 describe('JointUIService', () => {
   let service: JointUIService;
@@ -16,44 +15,43 @@ describe('JointUIService', () => {
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
       ],
     });
+    service = TestBed.get(JointUIService);
   });
 
-  it('should be created', inject([JointUIService], (ser: JointUIService) => {
-    service = ser;
-    expect(service).toBeTruthy();
+  it('should be created', inject([JointUIService], (injectedService: JointUIService) => {
+    expect(injectedService).toBeTruthy();
   }));
 
   /**
-   * Check if the getJointjsOperatorElement() can successfully creates a JointJS Element
+   * Check if the getJointOperatorElement() can successfully creates a JointJS Element
    */
-  it('getJointjsOperatorElement() should create an operatorElement', () => {
-    const result = service.getJointjsOperatorElement('ScanSource', 'operator1', 100, 100);
+  it('should create an JointJS Element successfully', () => {
+    const result = service.getJointOperatorElement('ScanSource', 'operator1', 100, 100);
     expect(result).toBeTruthy();
   });
 
   /**
-   * Check if the error in getJointjsOperatorElement() is correctly thrown
+   * Check if the error in getJointOperatorElement() is correctly thrown
    */
-  it('getJointjsOperatorElement() should throw an error', () => {
+  it('should throw an error with an non existing operator', () => {
     const nonExistingOperator = 'NotExistOperator';
     expect(
-      function() {
-        service.getJointjsOperatorElement(nonExistingOperator, 'operatorNaN', 100, 100);
+      function () {
+        service.getJointOperatorElement(nonExistingOperator, 'operatorNaN', 100, 100);
       }
     )
-    .toThrow(new Error('JointUIService.getJointUI: ' +
-    'cannot find operatorType: ' + nonExistingOperator));
+      .toThrowError(new RegExp(`doesn't exist`));
   });
 
 
   /**
-   * Check if the number of inPorts and outPorts created by getJointjsOperatorElement()
+   * Check if the number of inPorts and outPorts created by getJointOperatorElement()
    * matches the port number specified by the operator metadata
    */
-  it('getJointjsOperatorElement() should create correct number of inPorts and outPorts', () => {
-    const element1 = service.getJointjsOperatorElement('ScanSource', 'operator1', 100, 100);
-    const element2 = service.getJointjsOperatorElement('NlpSentiment', 'operator1', 100, 100);
-    const element3 = service.getJointjsOperatorElement('ViewResults', 'operator1', 100, 100);
+  it('should create correct number of inPorts and outPorts based on operator metadata', () => {
+    const element1 = service.getJointOperatorElement('ScanSource', 'operator1', 100, 100);
+    const element2 = service.getJointOperatorElement('NlpSentiment', 'operator1', 100, 100);
+    const element3 = service.getJointOperatorElement('ViewResults', 'operator1', 100, 100);
 
     const inPortCount1 = element1.getPorts().filter(port => port.group === 'in').length;
     const outPortCount1 = element1.getPorts().filter(port => port.group === 'out').length;
@@ -72,23 +70,14 @@ describe('JointUIService', () => {
   });
 
   /**
-   * Check if the TexeraOperatorShape defined in setupCustomJointjsModel() is
-   * correctly registered in the joint.shapes.devs
-   */
-  it('setupCustomJointjsModel() should create a custom jointjs model in constructor', () => {
-    expect(joint.shapes.devs['TexeraOperatorShape']).toBeTruthy();
-  });
-
-  /**
    * Check if the custom attributes / svgs are correctly used by the JointJS graph
    */
-  it('should apply the custom svgs defined be getCustomOperatorStyleAttrs() and ' +
-  'getDefaultLinkElement() to the JointJS operator', () => {
+  it('should apply the custom SVG styling to the JointJS element', () => {
 
     const graph = new joint.dia.Graph();
 
     graph.addCell(
-      service.getJointjsOperatorElement(
+      service.getJointOperatorElement(
         'ScanSource',
         'operator1',
         100, 100
@@ -96,14 +85,14 @@ describe('JointUIService', () => {
     );
 
     graph.addCell(
-      service.getJointjsOperatorElement(
+      service.getJointOperatorElement(
         'ViewResults',
         'operator2',
         500, 100
       )
     );
 
-    const link = service.getJointjsLinkElement(
+    const link = JointUIService.getJointLinkCell(
       { operatorID: 'operator1', portID: 'out0' },
       { operatorID: 'operator2', portID: 'in0' }
     );
@@ -135,8 +124,8 @@ describe('JointUIService', () => {
     );
 
     // testing getDefaultLinkElement()
-    expect(graph_link.attr('.marker-source/d')).toEqual(service.sourceOperatorHandle);
-    expect(graph_link.attr('.marker-target/d')).toEqual(service.targetOperatorHandle);
-    expect(graph_link.attr('.tool-remove path/d')).toEqual(service.deleteButtonPath);
+    expect(graph_link.attr('.marker-source/d')).toEqual(sourceOperatorHandle);
+    expect(graph_link.attr('.marker-target/d')).toEqual(targetOperatorHandle);
+    expect(graph_link.attr('.tool-remove path/d')).toEqual(deleteButtonPath);
   });
 });

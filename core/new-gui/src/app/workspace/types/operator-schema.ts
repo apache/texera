@@ -11,8 +11,8 @@ export interface OperatorAdditionalMetadata {
     userFriendlyName: string;
     numInputPorts: number;
     numOutputPorts: number;
+    operatorGroupName: string;
     advancedOptions?: string[];
-    operatorGroupName?: string;
     operatorDescription?: string;
 }
 
