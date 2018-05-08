@@ -67,6 +67,10 @@ export class DragDropService {
     private workflowUtilService: WorkflowUtilService,
     private workflowActionService: WorkflowActionService
   ) {
+    this.handleOperatorDropEvent();
+  }
+
+  public handleOperatorDropEvent(): void {
     this.getOperatorDropStream().subscribe(
       value => {
         this.currentOperatorType = DragDropService.DRAG_DROP_TEMP_OPERATOR_TYPE;
