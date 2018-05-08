@@ -18,13 +18,20 @@ export class WorkflowUtilService {
     );
   }
 
-  // generate a new operator ID
+  /**
+   * This will generate a new, unique ID for an operator
+   */
   public getNextAvailableID(): string {
     this.nextAvailableID++;
     return 'operator-' + this.nextAvailableID.toString();
   }
 
-  // return a new OperatorPredicate with a new ID and default intial properties
+  /**
+   * This method will use a unique ID and a operatorType to create and return a
+   * new OperatorPredicate with default initial properties
+   *
+   * @param operatorType type of an Operator
+   */
   public getNewOperatorPredicate(operatorType: string): OperatorPredicate {
     const operatorID = this.getNextAvailableID();
     const operatorProperties = {};

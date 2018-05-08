@@ -34,6 +34,10 @@ export class TexeraModelService {
     // this is very dangerous and should be prohibited in most cases
     this.texeraGraph = (workflowActionService as any).texeraGraph;
 
+    /**
+     * These will listen to both JointJS UI events and workflowAction events
+     */
+
     this.workflowActionService._onAddOperatorAction()
       .subscribe(value => this.addOperator(value.operator));
 

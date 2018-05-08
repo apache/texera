@@ -1,3 +1,8 @@
+/**
+ * This file contains multiple type declarations related to workflow-graph.
+ * These type declarations should be identical to the backend API.
+ */
+
 export interface Point {
   readonly x: number;
   readonly y: number;

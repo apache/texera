@@ -19,7 +19,7 @@ import { Subject } from 'rxjs/Subject';
  * TexeraModelService exposes a read only version of the workflow graph, and provides
  *  the events related to workflow graph on a *logical* level.
  *
- * JointModelService is only used for hanlding the events only related
+ * JointModelService is only used for handling the events only related to JointJS.
  *
  *
  *
