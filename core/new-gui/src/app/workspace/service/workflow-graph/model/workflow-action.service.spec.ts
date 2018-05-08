@@ -19,6 +19,9 @@ describe('WorkflowActionService', () => {
       providers: [WorkflowActionService]
     });
     service = TestBed.get(WorkflowActionService);
+    // we don't want to expose the texeraGraph to be public accessible,
+    //   but we need to access it in the test cases,
+    //   therefore we cast it to <any> type to bypass the private constraint
     texeraGraph = (service as any).texeraGraph;
   });
 
@@ -26,13 +29,21 @@ describe('WorkflowActionService', () => {
     expect(injectedService).toBeTruthy();
   }));
 
+
   it('should emit event when addOperator is called', marbles((m) => {
+    // at the time specified by event stream
     const eventStream = '-e-';
+    // subscribe to that event time and call service.addOperator()
     m.hot(eventStream).subscribe(
       event => service.addOperator(getMockScanPredicate(), getMockPoint())
     );
 
+    // set the added value to be 'e' since we only
+    // want to test if the addOperation is called
     const outputStream = service._onAddOperatorAction().map(value => 'e');
+
+    // This checks if the addOperation(now gives a value 'e') happens at the same
+    //  time as the eventStream.
     m.expect(outputStream).toBeObservable(eventStream);
   }));
 

@@ -4,8 +4,8 @@ import { isEqual } from 'lodash-es';
 
 
 /**
- * WorkflowGraph is the class that will save all the operators and links, and
- *  handle all the ground level events such as add and delete operators. This
+ * WorkflowGraph will save all the operators and links, and
+ *  handle all the ground level events such as add and delete operators and links. This
  *  class will become a model that will be synchronous with JointJS model.
  *
  */

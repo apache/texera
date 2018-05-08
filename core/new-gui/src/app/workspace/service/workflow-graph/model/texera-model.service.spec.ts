@@ -803,7 +803,21 @@ describe('TexeraModelService', () => {
 
   }));
 
-
+  /**
+   * Add three operators
+   * Then add a link from operator 1 to operator 2 and a link from operator 2 to operator 3
+   *
+   * addOperator: -a-b-c-
+   * addLink:     ------e-f
+   * deleteOperator:  ---------d-| (delete operator 2)
+   *
+   * Expected:
+   * There will be 2 operators left
+   * There will be no links left
+   * Texera Operator Delete stream should emit event when the operator is deleted
+   * Texera Link Delete Stream should emit event twice when the operator is deleted
+   *
+   */
   it('should remove an operator and its connected links when that operator is deleted from workflow-action',
     marbles((m) => {
       // prepare the dependencies services

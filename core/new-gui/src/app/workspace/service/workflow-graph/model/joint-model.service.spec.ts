@@ -54,6 +54,16 @@ describe('JointModelService', () => {
       expect(service).toBeTruthy();
     }));
 
+
+    /**
+     * Add 1 operator
+     *
+     * addOperator: -a-|
+     *
+     * Expected:
+     * The cell with this ID should exist in the JointJS graph
+     * The cell with this ID should be an element (operator)
+     */
     it('should add an operator element when it is called in workflow action', marbles((m) => {
       const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
 
@@ -66,6 +76,7 @@ describe('JointModelService', () => {
 
       workflowActionService._onAddOperatorAction().subscribe({
         complete: () => {
+          // cell can be link or element. Element = operator.
           expect(getJointGraph(jointModelService).getCell(getMockScanPredicate().operatorID)).toBeTruthy();
           expect(getJointGraph(jointModelService).getCell(getMockScanPredicate().operatorID).isElement()).toBeTruthy();
         }
@@ -73,6 +84,17 @@ describe('JointModelService', () => {
 
     }));
 
+    /**
+     * Add one operator
+     * Delete one operator
+     *
+     * addOperator:     -a-|
+     * deleteOperator:  --d-|
+     *
+     * Expected:
+     * There is no cell left in the JointJS graph
+     * The operator we added will no longer exist after it is deleted
+     */
     it('should delete an operator correctly when it is called in workflow action', marbles((m) => {
       const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
 
@@ -96,7 +118,17 @@ describe('JointModelService', () => {
 
     }));
 
-
+    /**
+     * Add 2 operators
+     * Add 1 link
+     *
+     * addOperator: -a-b-|
+     * addLink:     ----c-|
+     *
+     * Expected:
+     * There is one link created
+     * The link with that ID exists
+     */
     it('should add an operator link correctly when it is called in workflow action', marbles((m) => {
       const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
 
@@ -123,6 +155,21 @@ describe('JointModelService', () => {
       });
     }));
 
+
+    /**
+     * Add 2 operators
+     * Add 1 link
+     * Delete 1 link
+     *
+     * addOperator:  -a-b-|
+     * addLink:      ----c-|
+     * deleteLInk:   -----d-|
+     *
+     * Expected:
+     * to have 2 cells existing in the JointJS graph
+     * to have 0 links existing in the JointJS graph
+     * to not contain the LinkID we just deleted
+     */
     it('should delete link correctly when it is called in workflow action', marbles((m) => {
       const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
       spyOn(workflowActionService, '_onAddOperatorAction').and.returnValue(
@@ -154,6 +201,21 @@ describe('JointModelService', () => {
       });
     }));
 
+    /**
+     * add 3 operators
+     * add 2 links: operator 1 to operator 2, operator 2 to operator 3
+     * delete operator
+     *
+     * addOperator: -a-b-c|
+     * addLink:     ------e-f|
+     * deleteLink:  ---------d|
+     *
+     * Expected:
+     * to have 2 elements exist in the JointJS graph
+     * the deleted operator to be removed in the JointJS graph
+     * the number of links in JointJS graph = 0
+     * all links to be deleted from the JointJS graph
+     */
     it('should delete all the links attached to the operator when the operator is deleted',
       marbles((m) => {
         const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
