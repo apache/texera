@@ -1,5 +1,13 @@
 <div class="texera-workspace-property-editor-body texera-workflow-component-body">
-  <p>
-    property-editor works!
-  </p>  
+  <div *ngIf="displayForm">
+    <h3 mat-subheader>{{currentSchema.additionalMetadata.userFriendlyName}}</h3>
+    <json-schema-form
+      framework="material-design"
+      loadExternalAssets="true"
+      [schema]="currentSchema.jsonSchema"
+      [data]="initialData"
+      [layout]="formLayout"
+      (onChanges)="onFormChanges($event)">
+    </json-schema-form>
+  </div>
 </div>

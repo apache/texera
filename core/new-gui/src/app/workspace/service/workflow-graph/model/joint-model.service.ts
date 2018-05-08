@@ -10,6 +10,10 @@ import '../../../../common/rxjs-operators';
 
 import * as joint from 'jointjs';
 import { JointUIService } from '../../joint-ui/joint-ui.service';
+import { Subject } from 'rxjs/Subject';
+
+
+type operatorIDType = { operatorID: string };
 
 /**
  *
@@ -20,6 +24,8 @@ export class JointModelService {
 
   private jointGraph = new joint.dia.Graph();
 
+  private currentHighlightedOperator: string | undefined;
+
   private jointCellAddStream = Observable
     .fromEvent(this.jointGraph, 'add')
     .map(value => <joint.dia.Cell>value);
@@ -27,6 +33,11 @@ export class JointModelService {
   private jointCellDeleteStream = Observable
     .fromEvent(this.jointGraph, 'remove')
     .map(value => <joint.dia.Cell>value);
+
+
+  private jointCellHighlightStream = new Subject<operatorIDType>();
+
+  private jointCellUnhighlightStream = new Subject<operatorIDType>();
 
 
   constructor(
@@ -48,11 +59,49 @@ export class JointModelService {
     this.workflowActionService._onDeleteLinkAction().subscribe(
       value => this.deleteJointLinkCell(value.linkID)
     );
+
+    this.onJointOperatorCellDelete()
+      .filter(cell => cell.id.toString() === this.currentHighlightedOperator)
+      .subscribe(value => this.unhighlightCurrent());
   }
 
   public attachJointPaper(paperOptions: joint.dia.Paper.Options): joint.dia.Paper.Options {
     paperOptions.model = this.jointGraph;
     return paperOptions;
+  }
+
+  public getCurrentHighlightedOpeartorID(): string | undefined {
+    return this.currentHighlightedOperator;
+  }
+
+  public highlightOperator(operatorID: string): void {
+    // try to get the operator using operator ID
+    if (!this.hasOperator(operatorID)) {
+      throw new Error(`opeartor with ID ${operatorID} doesn't exist`);
+    }
+    // if there's an existing highlighted cell, unhighlight it first
+    if (this.currentHighlightedOperator && this.currentHighlightedOperator !== operatorID) {
+      this.unhighlightCurrent();
+    }
+    this.currentHighlightedOperator = operatorID;
+    this.jointCellHighlightStream.next({ operatorID });
+  }
+
+  public unhighlightCurrent(): void {
+    if (!this.currentHighlightedOperator) {
+      return;
+    }
+    const unhighlightedOperatorID = this.currentHighlightedOperator;
+    this.currentHighlightedOperator = undefined;
+    this.jointCellUnhighlightStream.next({ operatorID: unhighlightedOperatorID });
+  }
+
+  public onJointCellHighlight(): Observable<operatorIDType> {
+    return this.jointCellHighlightStream.asObservable();
+  }
+
+  public onJointCellUnhighlight(): Observable<operatorIDType> {
+    return this.jointCellUnhighlightStream.asObservable();
   }
 
   public onJointOperatorCellDelete(): Observable<joint.dia.Element> {
@@ -91,6 +140,22 @@ export class JointModelService {
       operator, point);
 
     this.jointGraph.addCell(operatorJointElement);
+  }
+
+  /**
+   * A more type safe method to get an operator from joint js:
+   *  it throws appropriate exception if the operator doesn't exist
+   * @param cellID
+   */
+  private hasOperator(operatorID: string): boolean {
+    const cell: joint.dia.Cell | undefined = this.jointGraph.getCell(operatorID);
+    if (!cell) {
+      return false;
+    }
+    if (!cell.isElement()) {
+      return false;
+    }
+    return true;
   }
 
   private deleteJointOperatorElement(operatorID: string): void {

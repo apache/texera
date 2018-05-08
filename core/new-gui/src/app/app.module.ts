@@ -8,6 +8,10 @@ import { CustomNgMaterialModule } from './common/custom-ng-material.module';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
 
+import {
+  JsonSchemaFormModule, MaterialDesignFrameworkModule
+} from 'angular2-json-schema-form';
+
 import { AppComponent } from './app.component';
 import { WorkspaceComponent } from './workspace/component/workspace.component';
 import { NavigationComponent } from './workspace/component/navigation/navigation.component';
@@ -39,6 +43,9 @@ import 'hammerjs';
     CustomNgMaterialModule,
     BrowserAnimationsModule,
     NgbModule.forRoot(),
+
+    MaterialDesignFrameworkModule,
+    JsonSchemaFormModule.forRoot(MaterialDesignFrameworkModule),
 
   ],
   providers: [ HttpClientModule ],

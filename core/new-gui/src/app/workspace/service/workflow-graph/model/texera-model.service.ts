@@ -9,6 +9,7 @@ import { JointModelService } from './joint-model.service';
 import { WorkflowGraphReadonly } from './../../../types/workflow-graph-readonly';
 import { OperatorSchema } from './../../../types/operator-schema';
 import { WorkflowGraph, OperatorLink, OperatorPredicate } from './../../../types/workflow-graph';
+import { O_APPEND } from 'constants';
 
 /**
  *
@@ -20,6 +21,7 @@ export class TexeraModelService {
 
   private addOperatorSubject = new Subject<OperatorPredicate>();
   private deleteOperatorSubject = new Subject<OperatorPredicate>();
+  private changeOperatorPropertySubject = new Subject<OperatorPredicate>();
   private addLinkSubject = new Subject<OperatorLink>();
   private deleteLinkSubject = new Subject<OperatorLink>();
 
@@ -39,6 +41,9 @@ export class TexeraModelService {
     this.jointModelService.onJointOperatorCellDelete()
       .map(element => element.id.toString())
       .subscribe(elementID => this.deleteOperator(elementID));
+
+    this.workflowActionService._onChangeOperatorPropertyAction()
+      .subscribe(value => this.changeOperatorProperty(value.operatorID, value.operatorProperty));
 
     this.jointModelService.onJointLinkCellAdd()
       .filter(link => TexeraModelService.isValidLink(link))
@@ -75,6 +80,10 @@ export class TexeraModelService {
     return this.deleteOperatorSubject.asObservable();
   }
 
+  public onOperatorPropertyChange(): Observable<OperatorPredicate> {
+    return this.changeOperatorPropertySubject.asObservable();
+  }
+
   public onLinkAdd(): Observable<OperatorLink> {
     return this.addLinkSubject.asObservable();
   }
@@ -91,6 +100,11 @@ export class TexeraModelService {
   private deleteOperator(operatorID: string): void {
     const deletedOperator = this.texeraGraph.deleteOperator(operatorID);
     this.deleteOperatorSubject.next(deletedOperator);
+  }
+
+  private changeOperatorProperty(operatorID: string, operatorProperty: Object): void {
+    this.texeraGraph.changeOperatorProperty(operatorID, operatorProperty);
+    this.changeOperatorPropertySubject.next(this.texeraGraph.getOperator(operatorID));
   }
 
   private addLink(link: OperatorLink): void {

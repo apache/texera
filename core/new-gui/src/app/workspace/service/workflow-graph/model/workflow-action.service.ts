@@ -19,9 +19,12 @@ export class WorkflowActionService {
 
   private deleteOperatorActionSubject: Subject<{ operatorID: string }> = new Subject();
 
+  private changeOperatorPropertyActionSubject: Subject<{ operatorID: string, operatorProperty: Object }> = new Subject();
+
   private addLinkActionSubject: Subject<{ link: OperatorLink }> = new Subject();
 
   private deleteLinkActionSubject: Subject<{ linkID: string }> = new Subject();
+
 
   constructor(
   ) { }
@@ -59,6 +62,21 @@ export class WorkflowActionService {
    */
   _onDeleteOperatorAction(): Observable<{ operatorID: string }> {
     return this.deleteOperatorActionSubject.asObservable();
+  }
+
+  public changeOperatorProperty(operatorID: string, operatorProperty: Object): void {
+    if (!this.texeraGraph.hasOperator(operatorID)) {
+      throw new Error(`operator with ID ${operatorID} doesn't exist`);
+    }
+
+    this.changeOperatorPropertyActionSubject.next({ operatorID, operatorProperty });
+  }
+
+  /**
+   * Gets the event stream of the actions to change the property of an operator
+   */
+  _onChangeOperatorPropertyAction(): Observable<{ operatorID: string, operatorProperty: Object }> {
+    return this.changeOperatorPropertyActionSubject.asObservable();
   }
 
   /**

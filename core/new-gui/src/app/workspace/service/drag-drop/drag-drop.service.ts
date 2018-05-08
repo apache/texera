@@ -1,3 +1,4 @@
+import { JointModelService } from './../workflow-graph/model/joint-model.service';
 import { WorkflowActionService } from './../workflow-graph/model/workflow-action.service';
 import { Point } from './../../types/common.interface';
 import { Observable } from 'rxjs/Observable';
@@ -64,6 +65,7 @@ export class DragDropService {
 
   constructor(
     private jointUIService: JointUIService,
+    private jointModelService: JointModelService,
     private workflowUtilService: WorkflowUtilService,
     private workflowActionService: WorkflowActionService
   ) {
@@ -72,6 +74,7 @@ export class DragDropService {
         this.currentOperatorType = DragDropService.DRAG_DROP_TEMP_OPERATOR_TYPE;
         const operator = this.workflowUtilService.getNewOperatorPredicate(value.operatorType);
         this.workflowActionService.addOperator(operator, value.offset);
+        this.jointModelService.highlightOperator(operator.operatorID);
       }
     );
   }

@@ -60,6 +60,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
     this.handleWindowResize();
     this.handleViewDeleteOperator();
+    this.handleCellHighlight();
 
     this.dragDropService.registerWorkflowEditorDrop(this.WORKFLOW_EDITOR_JOINTJS_ID);
 
@@ -89,6 +90,22 @@ export class WorkflowEditorComponent implements AfterViewInit {
         this.setJointPaperDimensions();
       }
     );
+  }
+
+  private handleCellHighlight(): void {
+    Observable.fromEvent(this.getJointPaper(), 'cell:pointerclick')
+      .map(value => <joint.dia.CellView>value)
+      .filter(cellView => cellView.model.isElement())
+      .subscribe(cellView => this.jointModelService.highlightOperator(cellView.model.id.toString()));
+
+    Observable.fromEvent(this.getJointPaper(), 'blank:pointerclick')
+      .subscribe(value => this.jointModelService.unhighlightCurrent());
+
+    this.jointModelService.onJointCellHighlight()
+      .subscribe(value => this.getJointPaper().findViewByModel(value.operatorID).highlight());
+
+    this.jointModelService.onJointCellUnhighlight()
+      .subscribe(value => this.getJointPaper().findViewByModel(value.operatorID).unhighlight());
   }
 
   /**
