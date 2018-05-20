@@ -45,6 +45,9 @@ public class AsterixSource implements ISourceOperator {
             return;
         }
         try {
+            // disable timeout because data could be large
+            
+            Unirest.setTimeouts(0, 0);
             String asterixAddress = "http://" + predicate.getHost() + ":" + predicate.getPort() + 
                     "/query/service";
             String asterixQuery = generateAsterixQuery(predicate);
@@ -84,7 +87,7 @@ public class AsterixSource implements ISourceOperator {
                     "]";
             String asterixField = "`" + predicate.getField() + "`";
             sb.append("and ftcontains(" + asDataset + "." + asterixField + ", ");
-            sb.append(asterixKeyword + ", " + "{\"mode\":\"all\"}" + ")").append("\n");
+            sb.append(asterixKeyword + ", " + "{\"mode\":\"any\"}" + ")").append("\n");
         }
         if(predicate.getStartDate() != null){
         	String startDate = predicate.getStartDate();

@@ -73,7 +73,7 @@ public class TupleSink implements ISink {
         inputOperator.open();
         inputSchema = inputOperator.getOutputSchema();
         outputSchema = new Schema.Builder(inputSchema)
-                .removeIfExists(SchemaConstants.PAYLOAD, AsterixSource.RAW_DATA).build();
+                .removeIfExists(SchemaConstants.PAYLOAD, AsterixSource.RAW_DATA, SchemaConstants._ID).build();
         cursor = OPENED;
     }
 
@@ -102,7 +102,7 @@ public class TupleSink implements ISink {
             }
         }
         return new Tuple.Builder(resultTuple)
-                .removeIfExists(SchemaConstants.PAYLOAD, AsterixSource.RAW_DATA).build();
+                .removeIfExists(SchemaConstants.PAYLOAD, AsterixSource.RAW_DATA, SchemaConstants._ID).build();
 
     }
 
