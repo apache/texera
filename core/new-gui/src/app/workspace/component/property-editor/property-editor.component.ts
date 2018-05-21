@@ -12,6 +12,9 @@ import {
 
 import cloneDeep from 'lodash-es/cloneDeep';
 
+import { Subject } from 'rxjs/Subject';
+import { Observable } from 'rxjs/Observable';
+import '../../../common/rxjs-operators';
 
 @Component({
   selector: 'texera-property-editor',
@@ -36,6 +39,8 @@ export class PropertyEditorComponent implements OnInit {
 
   formChangeTimes = 0;
 
+
+  private jsonSchemaOnFormChangeStream = new Subject<Object>();
 
   constructor(
     private operatorMetadataService: OperatorMetadataService,
@@ -62,6 +67,11 @@ export class PropertyEditorComponent implements OnInit {
   }
 
   ngOnInit() {
+    this.jsonSchemaOnFormChangeStream.auditTime(50).subscribe(
+      formData => {
+        this.handleFormChange(formData);
+      }
+    );
   }
 
   clearPropertyEditor() {
@@ -90,6 +100,10 @@ export class PropertyEditorComponent implements OnInit {
 
 
   onFormChanges(formData: Object) {
+    this.jsonSchemaOnFormChangeStream.next(formData);
+  }
+
+  handleFormChange(formData: Object) {
     this.formChangeTimes++;
     console.log('onform changes called');
     console.log(formData);

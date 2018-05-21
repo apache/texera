@@ -101,33 +101,27 @@ export class WorkflowEditorComponent implements AfterViewInit {
     Observable.fromEvent(this.getJointPaper(), 'blank:pointerclick')
       .subscribe(value => this.jointModelService.unhighlightCurrent());
 
+    const highlightOptions = {
+      name: 'stroke',
+      options: {
+          attrs: {
+              'stroke-width': 3,
+              stroke: '#404040'
+          }
+      }
+    };
+
     this.jointModelService.onJointCellHighlight()
       .subscribe(value => this.getJointPaper().findViewByModel(value.operatorID).highlight(
         'rect', {
-          highlighter: {
-            name: 'stroke',
-            options: {
-                attrs: {
-                    'stroke-width': 3,
-                    stroke: '#404040'
-                }
-            }
-          }
+          highlighter: highlightOptions
         }
       ));
 
     this.jointModelService.onJointCellUnhighlight()
       .subscribe(value => this.getJointPaper().findViewByModel(value.operatorID).unhighlight(
         'rect', {
-          highlighter: {
-            name: 'stroke',
-            options: {
-                attrs: {
-                    'stroke-width': 3,
-                    stroke: '#404040'
-                }
-            }
-          }
+          highlighter: highlightOptions
         }
       ));
   }
