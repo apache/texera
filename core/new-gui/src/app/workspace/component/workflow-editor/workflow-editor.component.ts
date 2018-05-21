@@ -102,10 +102,34 @@ export class WorkflowEditorComponent implements AfterViewInit {
       .subscribe(value => this.jointModelService.unhighlightCurrent());
 
     this.jointModelService.onJointCellHighlight()
-      .subscribe(value => this.getJointPaper().findViewByModel(value.operatorID).highlight());
+      .subscribe(value => this.getJointPaper().findViewByModel(value.operatorID).highlight(
+        'rect', {
+          highlighter: {
+            name: 'stroke',
+            options: {
+                attrs: {
+                    'stroke-width': 3,
+                    stroke: '#404040'
+                }
+            }
+          }
+        }
+      ));
 
     this.jointModelService.onJointCellUnhighlight()
-      .subscribe(value => this.getJointPaper().findViewByModel(value.operatorID).unhighlight());
+      .subscribe(value => this.getJointPaper().findViewByModel(value.operatorID).unhighlight(
+        'rect', {
+          highlighter: {
+            name: 'stroke',
+            options: {
+                attrs: {
+                    'stroke-width': 3,
+                    stroke: '#404040'
+                }
+            }
+          }
+        }
+      ));
   }
 
   /**
