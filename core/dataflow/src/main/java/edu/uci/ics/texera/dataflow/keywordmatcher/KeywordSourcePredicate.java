@@ -1,11 +1,14 @@
 package edu.uci.ics.texera.dataflow.keywordmatcher;
 
 import java.util.List;
+import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.ImmutableMap;
 
-import edu.uci.ics.texera.api.dataflow.IOperator;
+import edu.uci.ics.texera.api.exception.TexeraException;
+import edu.uci.ics.texera.dataflow.common.OperatorGroupConstants;
 import edu.uci.ics.texera.dataflow.common.PropertyNameConstants;
 
 /**
@@ -37,6 +40,10 @@ public class KeywordSourcePredicate extends KeywordPredicate {
             String spanListName) {
         
         super(query, attributeNames, luceneAnalyzerString, matchingType, spanListName);
+
+        if (tableName == null || tableName.isEmpty()) {
+            throw new TexeraException(PropertyNameConstants.EMPTY_NAME_EXCEPTION);
+        }
         this.tableName = tableName;
     }
     
@@ -46,9 +53,16 @@ public class KeywordSourcePredicate extends KeywordPredicate {
     }
     
     @Override
-    public IOperator newOperator() {
+    public KeywordMatcherSourceOperator newOperator() {
         return new KeywordMatcherSourceOperator(this);
+    }
+    
+    public static Map<String, Object> getOperatorMetadata() {
+        return ImmutableMap.<String, Object>builder()
+            .put(PropertyNameConstants.USER_FRIENDLY_NAME, "Source: Keyword")
+            .put(PropertyNameConstants.OPERATOR_DESCRIPTION, "Perform an index-based search on a table using a keyword")
+            .put(PropertyNameConstants.OPERATOR_GROUP_NAME, OperatorGroupConstants.SOURCE_GROUP)
+            .build();
     }
 
 }
-

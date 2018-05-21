@@ -1,0 +1,13 @@
+// needed by bootstrap
+@import 'variables';
+@import '../node_modules/bootstrap/scss/bootstrap';
+// a theme is required by angular material
+@import "~@angular/material/prebuilt-themes/indigo-pink.css";
+
+
+// make the UI takes full screen
+html, body, .viewport {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+}

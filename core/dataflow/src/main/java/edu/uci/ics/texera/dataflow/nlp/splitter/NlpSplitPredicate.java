@@ -1,7 +1,12 @@
 package edu.uci.ics.texera.dataflow.nlp.splitter;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.Map;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.ImmutableMap;
+
+import edu.uci.ics.texera.dataflow.common.OperatorGroupConstants;
 import edu.uci.ics.texera.dataflow.common.PredicateBase;
 import edu.uci.ics.texera.dataflow.common.PropertyNameConstants;
 
@@ -13,6 +18,7 @@ public class NlpSplitPredicate extends PredicateBase {
     //make a variable "outputType" that takes two values, one for one to one transformation
     // and another for one to many transformation with one to many as default
     
+    @JsonCreator
     public NlpSplitPredicate(
             @JsonProperty(value = PropertyNameConstants.NLP_OUTPUT_TYPE, required = true)
             NLPOutputType outputType,
@@ -46,6 +52,14 @@ public class NlpSplitPredicate extends PredicateBase {
     @Override
     public NlpSplitOperator newOperator() {
         return new NlpSplitOperator(this);
+    }
+    
+    public static Map<String, Object> getOperatorMetadata() {
+        return ImmutableMap.<String, Object>builder()
+            .put(PropertyNameConstants.USER_FRIENDLY_NAME, "Nlp Sentence Split")
+            .put(PropertyNameConstants.OPERATOR_DESCRIPTION, "Automatically split the text into multiple sentences using Natural Language Processing")
+            .put(PropertyNameConstants.OPERATOR_GROUP_NAME, OperatorGroupConstants.SPLIT_GROUP)
+            .build();
     }
 
 }

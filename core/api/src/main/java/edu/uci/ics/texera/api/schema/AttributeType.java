@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
 
 import edu.uci.ics.texera.api.exception.TexeraException;
 import edu.uci.ics.texera.api.field.DateField;
+import edu.uci.ics.texera.api.field.DateTimeField;
 import edu.uci.ics.texera.api.field.DoubleField;
 import edu.uci.ics.texera.api.field.IDField;
 import edu.uci.ics.texera.api.field.IField;
@@ -21,6 +22,7 @@ public enum AttributeType {
     INTEGER("integer", IntegerField.class), 
     DOUBLE("double", DoubleField.class), 
     DATE("date", DateField.class),
+    DATETIME("datetime", DateTimeField.class),
 
     _ID_TYPE("_id", IDField.class),
     // A field that is the list of values

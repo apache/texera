@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
+import edu.uci.ics.texera.api.constants.ErrorMessages;
 import edu.uci.ics.texera.api.constants.SchemaConstants;
 import edu.uci.ics.texera.api.dataflow.ISourceOperator;
 import edu.uci.ics.texera.api.exception.DataflowException;
@@ -99,20 +100,20 @@ public class DictionaryMatcherSourceOperator implements ISourceOperator {
         }
 
         currentDictionaryEntry = predicate.getDictionary().getNextEntry();
-    
-        if (predicate.getKeywordMatchingType() == KeywordMatchingType.SUBSTRING_SCANBASED 
+
+        if (predicate.getKeywordMatchingType() == KeywordMatchingType.SUBSTRING_SCANBASED
                 || predicate.getKeywordMatchingType() == KeywordMatchingType.REGEX) {
-    
+
             // For Substring matching and Regex matching, create a scan source operator followed by a dictionary matcher.
             indexSource = new ScanBasedSourceOperator(new ScanSourcePredicate(predicate.getTableName()));
-    
+
             dictionaryMatcher = new DictionaryMatcher(new DictionaryPredicate(predicate.getDictionary(), predicate.getAttributeNames(),
                     predicate.getAnalyzerString(), predicate.getKeywordMatchingType(), predicate.getSpanListName()));
-    
+
             dictionaryMatcher.setInputOperator(indexSource);
             dictionaryMatcher.open();
             outputSchema = dictionaryMatcher.getOutputSchema();
-            
+
         } else {
             // For other keyword matching types (CONJUNCTION and PHRASE),
             // create an index-based keyword source operator.
@@ -123,9 +124,9 @@ public class DictionaryMatcherSourceOperator implements ISourceOperator {
                     predicate.getKeywordMatchingType(),
                     predicate.getTableName(),
                     predicate.getSpanListName()));
-            
+
             keywordSource.open();
-    
+
             // Other keyword matching types uses a KeywordMatcher, so the
             // output schema is the same as keywordMatcher's schema.
             outputSchema = keywordSource.getOutputSchema();
@@ -203,7 +204,6 @@ public class DictionaryMatcherSourceOperator implements ISourceOperator {
      *  Maintain a HashMap </Tuple_ID, Tuple> to compute all the keyword
      *  matching results for each tuple.
      *
-     * @param resultMap
      */
 
     @SuppressWarnings("unchecked")
@@ -261,6 +261,17 @@ public class DictionaryMatcherSourceOperator implements ISourceOperator {
             e.printStackTrace();
             throw new DataflowException(e.getMessage(), e);
         }
+    }
+
+    public Schema transformToOutputSchema(Schema... inputSchema) {
+        if (inputSchema == null || inputSchema.length == 0) {
+            if (outputSchema == null) {
+                open();
+                close();
+            }
+            return getOutputSchema();
+        }
+        throw new TexeraException(ErrorMessages.INVALID_INPUT_SCHEMA_FOR_SOURCE);
     }
 
     @Override

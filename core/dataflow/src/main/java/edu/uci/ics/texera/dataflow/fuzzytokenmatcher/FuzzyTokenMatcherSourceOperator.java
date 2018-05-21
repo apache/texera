@@ -1,5 +1,7 @@
 package edu.uci.ics.texera.dataflow.fuzzytokenmatcher;
 
+import edu.uci.ics.texera.api.constants.ErrorMessages;
+import edu.uci.ics.texera.api.schema.Schema;
 import org.apache.lucene.queryparser.classic.MultiFieldQueryParser;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.search.BooleanQuery;
@@ -58,7 +60,18 @@ public class FuzzyTokenMatcherSourceOperator extends AbstractSingleInputOperator
     @Override
     protected void cleanUp() throws TexeraException {        
     }
-    
+
+    public Schema transformToOutputSchema(Schema... inputSchema) {
+        if (inputSchema == null || inputSchema.length == 0) {
+            if (outputSchema == null) {
+                open();
+                close();
+            }
+            return getOutputSchema();
+        }
+        throw new TexeraException(ErrorMessages.INVALID_INPUT_SCHEMA_FOR_SOURCE);
+    }
+
     public static Query createLuceneQueryObject(FuzzyTokenPredicate predicate) throws DataflowException {
         try {
             /*

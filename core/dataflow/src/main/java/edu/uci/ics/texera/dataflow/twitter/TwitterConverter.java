@@ -45,7 +45,7 @@ public class TwitterConverter implements IOperator {
             throw new DataflowException(ErrorMessages.INPUT_OPERATOR_NOT_SPECIFIED);
         }
         inputOperator.open();
-        outputSchema = transformSchema(inputOperator.getOutputSchema());
+        outputSchema = transformToOutputSchema(inputOperator.getOutputSchema());
         cursor = OPENED;
     }
 
@@ -124,19 +124,21 @@ public class TwitterConverter implements IOperator {
     public Schema getOutputSchema() {
         return this.outputSchema;
     }
-    
-    private Schema transformSchema(Schema inputSchema) {
-        if (! inputSchema.containsAttribute(rawDataAttribute)) {
+
+    public Schema transformToOutputSchema(Schema... inputSchema) throws DataflowException {
+        if (inputSchema.length != 1)
+            throw new TexeraException(String.format(ErrorMessages.NUMBER_OF_ARGUMENTS_DOES_NOT_MATCH, 1, inputSchema.length));
+
+        if (! inputSchema[0].containsAttribute(rawDataAttribute)) {
             throw new DataflowException(String.format(
                     "raw twitter attribute %s is not present in the input schema %s",
-                    rawDataAttribute, inputSchema.getAttributeNames()));
+                    rawDataAttribute, inputSchema[0].getAttributeNames()));
         }
         ArrayList<Attribute> outputAttributes = new ArrayList<>();
-        outputAttributes.addAll(inputSchema.getAttributes().stream()
+        outputAttributes.addAll(inputSchema[0].getAttributes().stream()
                 .filter(attr -> ! attr.getName().equalsIgnoreCase(rawDataAttribute))
                 .collect(Collectors.toList()));
         outputAttributes.addAll(TwitterConverterConstants.additionalAttributes);
         return new Schema(outputAttributes);
     }
-
 }

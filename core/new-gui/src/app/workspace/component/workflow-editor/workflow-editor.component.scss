@@ -1,0 +1,46 @@
+@import '../workspace.component.scss';
+.texera-workspace-workflow-editor-body {
+  border: 2px solid;
+  overflow: hidden;
+}
+
+/**
+* Component styles normally apply only to the HTML in the component's own template.
+* Using ::ng-deep would force a style down through
+* the child component tree into all the child component views
+**/
+
+
+/**
+* The styles defined here under ::ng-deep is used to override
+* the default style of the operators defined by the JointJS.
+* !important forces the browser to make the style defined here
+* higher prioritized.
+**/
+
+::ng-deep .texera-workspace-workflow-editor-body .marker-arrowhead {
+  fill: #919191 !important;
+}
+
+::ng-deep .texera-workspace-workflow-editor-body .connection {
+  stroke: #919191 !important;
+  stroke-width: 2 !important;
+}
+
+::ng-deep .texera-workspace-workflow-editor-body .connection-wrap {
+  stroke: #919191 !important;
+  stroke-width: 0 !important;
+}
+
+::ng-deep .texera-workspace-workflow-editor-body .link-tools .tool-remove {
+  width: 24px !important;
+}
+
+::ng-deep .texera-workspace-workflow-editor-body .link-tools .tool-remove path {
+  fill: #D8656A !important;
+  transform: translate(-12px, -12px)  !important;
+}
+
+::ng-deep .texera-workspace-workflow-editor-body .link-tools .tool-remove circle{
+  fill-opacity: 0 !important;
+}

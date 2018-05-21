@@ -2,8 +2,13 @@ package edu.uci.ics.texera.dataflow.source.file;
 
 import com.itextpdf.text.*;
 import com.itextpdf.text.pdf.PdfWriter;
+
+import edu.uci.ics.texera.api.constants.DataConstants.TexeraProject;
 import edu.uci.ics.texera.api.exception.StorageException;
+import edu.uci.ics.texera.api.utils.Utils;
 import edu.uci.ics.texera.storage.utils.StorageUtils;
+import junit.framework.Assert;
+
 import org.apache.poi.xslf.usermodel.XMLSlideShow;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -27,6 +32,7 @@ public class FileSourcePptPdfTest {
     private static Path specialFiles = Paths.get("./index/test_tables/filesource/specialfiles");
     private static Path pdfPath = specialFiles.resolve("test.pdf");
     private static Path pptPath = specialFiles.resolve("test.ppt");
+    private static Path wordPath = Utils.getResourcePath("test.docx", TexeraProject.TEXERA_DATAFLOW);
 
     @Before
     public void setUp() throws Exception {
@@ -54,6 +60,12 @@ public class FileSourcePptPdfTest {
         Path pdfFile = Paths.get("./index/test_tables/filesource/specialfiles/test.ppt");
         String file = FileExtractorUtils.extractPPTFile(pdfFile);
         assertTrue(file.isEmpty());
+    }
+    
+    @Test
+    public void extractDocsFile() throws Exception {
+        String content = FileExtractorUtils.extractWordFile(wordPath);
+        Assert.assertEquals("Test Microsoft Word Documents", content.trim());
     }
 
     private static void createPDF(String path) throws Exception {

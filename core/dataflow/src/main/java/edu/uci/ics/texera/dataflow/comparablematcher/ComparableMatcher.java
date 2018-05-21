@@ -1,15 +1,19 @@
 package edu.uci.ics.texera.dataflow.comparablematcher;
 
-import java.text.DateFormat;
-import java.util.Date;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
 
+import edu.uci.ics.texera.api.constants.ErrorMessages;
 import edu.uci.ics.texera.api.exception.DataflowException;
 import edu.uci.ics.texera.api.exception.TexeraException;
 import edu.uci.ics.texera.api.field.DateField;
+import edu.uci.ics.texera.api.field.DateTimeField;
 import edu.uci.ics.texera.api.field.DoubleField;
 import edu.uci.ics.texera.api.field.IntegerField;
 import edu.uci.ics.texera.api.field.StringField;
 import edu.uci.ics.texera.api.schema.AttributeType;
+import edu.uci.ics.texera.api.schema.Schema;
 import edu.uci.ics.texera.api.tuple.*;
 import edu.uci.ics.texera.dataflow.common.AbstractSingleInputOperator;
 
@@ -58,6 +62,9 @@ public class ComparableMatcher extends AbstractSingleInputOperator {
         case DATE:
             conditionSatisfied = compareDate(inputTuple);
             break;
+        case DATETIME:
+            conditionSatisfied = compareDateTime(inputTuple);
+            break;            
         case DOUBLE:
             conditionSatisfied = compareDouble(inputTuple);
             break;
@@ -78,17 +85,40 @@ public class ComparableMatcher extends AbstractSingleInputOperator {
     }
 
     private boolean compareDate(Tuple inputTuple) throws DataflowException {     
-        if (predicate.getCompareToValue().getClass().equals(String.class)) {
+        LocalDate date = inputTuple.getField(predicate.getAttributeName(), DateField.class).getValue();
+        String compareToString = predicate.getCompareToValue().toString();
+        
+        // try to parse the input as date string first
+        try {
+            LocalDate compareToDate = LocalDate.parse(compareToString);
+            return compareValues(date, compareToDate, predicate.getComparisonType());
+        } catch (DateTimeParseException e) {
+            // if it fails, then try to parse as date time string 
             try {
-                String compareTo = (String) predicate.getCompareToValue();
-                Date compareToDate = DateFormat.getDateInstance(DateFormat.MEDIUM).parse(compareTo);
-                Date date = inputTuple.getField(predicate.getAttributeName(), DateField.class).getValue();
-                return compareValues(date, compareToDate, predicate.getComparisonType());
-            } catch (java.text.ParseException e) {
-                throw new DataflowException("Unable to parse date: " + e.getMessage());
+                LocalDateTime compareToDateTime = LocalDateTime.parse(compareToString);
+                return compareValues(date, compareToDateTime.toLocalDate(), predicate.getComparisonType());
+            } catch ( DateTimeParseException e2) {
+                throw new DataflowException("Unable to parse date or time: " + compareToString);
             }
-        } else {
-            throw new DataflowException("Value " + predicate.getCompareToValue() + " is not a string");
+        }
+    }
+    
+    private boolean compareDateTime(Tuple inputTuple) throws DataflowException {
+        LocalDateTime dateTime = inputTuple.getField(predicate.getAttributeName(), DateTimeField.class).getValue();
+        String compareToString = predicate.getCompareToValue().toString();
+        
+        // try to parse the input as date time string first
+        try {
+            LocalDateTime compareToDateTime = LocalDateTime.parse(compareToString);
+            return compareValues(dateTime, compareToDateTime, predicate.getComparisonType());
+        } catch (DateTimeParseException e) {
+            // if it fails, then try to parse as date time string and compare on date
+            try {
+                LocalDate compareToDate = LocalDate.parse(compareToString);
+                return compareValues(dateTime.toLocalDate(), compareToDate, predicate.getComparisonType());
+            } catch ( DateTimeParseException e2) {
+                throw new DataflowException("Unable to parse date or time: " + compareToString);
+            }
         }
     }
 
@@ -149,22 +179,22 @@ public class ComparableMatcher extends AbstractSingleInputOperator {
             }
             break;
         case GREATER_THAN:
-            if (compareResult == 1) {
+            if (compareResult > 0) {
                 return true;
             }
             break;
         case GREATER_THAN_OR_EQUAL_TO:
-            if (compareResult == 0 || compareResult == 1) {
+            if (compareResult >= 0) {
                 return true;
             }
             break;
         case LESS_THAN:
-            if (compareResult == -1) {
+            if (compareResult < 0) {
                 return true;
             }
             break;
         case LESS_THAN_OR_EQUAL_TO:
-            if (compareResult == 0 || compareResult == -1) {
+            if (compareResult <= 0) {
                 return true;
             }
             break;
@@ -182,6 +212,18 @@ public class ComparableMatcher extends AbstractSingleInputOperator {
 
     @Override
     protected void cleanUp() throws DataflowException {
+    }
+
+    public Schema transformToOutputSchema(Schema... inputSchema) throws DataflowException {
+        if (inputSchema.length != 1)
+            throw new TexeraException(String.format(ErrorMessages.NUMBER_OF_ARGUMENTS_DOES_NOT_MATCH, 1, inputSchema.length));
+
+        Schema output = inputSchema[0];
+        if (! output.containsAttribute(predicate.getAttributeName())) {
+            throw new DataflowException(String.format("attribute %s not contained in input schema %s",
+                predicate.getAttributeName(), output.getAttributeNames()));
+        }
+        return output;
     }
 
 }

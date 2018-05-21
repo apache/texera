@@ -76,4 +76,15 @@ public class ScanBasedSourceOperator implements ISourceOperator {
     public Schema getOutputSchema() {
         return dataReader.getOutputSchema();
     }
+
+    public Schema transformToOutputSchema(Schema... inputSchema) throws DataflowException {
+        if (inputSchema == null || inputSchema.length == 0) {
+            if (getOutputSchema() == null) {
+                open();
+                close();
+            }
+            return getOutputSchema();
+        }
+        throw new TexeraException(ErrorMessages.INVALID_INPUT_SCHEMA_FOR_SOURCE);
+    }
 }
