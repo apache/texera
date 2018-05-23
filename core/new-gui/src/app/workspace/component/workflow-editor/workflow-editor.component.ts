@@ -39,10 +39,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
   private paper: joint.dia.Paper | undefined;
 
   constructor(
-    private jointUIService: JointUIService,
     private jointModelService: JointModelService,
     private workflowActionService: WorkflowActionService,
-    private workflowUtilService: WorkflowUtilService
   ) {
   }
 
@@ -132,7 +130,14 @@ export class WorkflowEditorComponent implements AfterViewInit {
   }
 
   /**
+   * Handles the event where the Delete button is clicked for an Operator,
+   *  and call workflowAction to delete the corresponding operator.
    *
+   * JointJS doesn't have delete button built-in with an operator element,
+   *  the delete button is Texera's own customized element.
+   * Therefore JointJS doesn't come with default handler for delete an operator,
+   *  we need to handle the callback event `element:delete`.
+   * The name of this callback event is registered in `JointUIService.getCustomOperatorStyleAttrs`
    */
   private handleViewDeleteOperator(): void {
     // bind the delete button event to call the delete operator function in joint model action

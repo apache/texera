@@ -44,7 +44,7 @@ export class WorkflowActionService {
    * @param point
    */
   public addOperator(operator: OperatorPredicate, point: Point): void {
-    WorkflowGraph.checkIsValidOperator(this.texeraGraph, operator);
+    WorkflowGraph.checkIfOperatorExists(this.texeraGraph, operator);
     this.addOperatorActionSubject.next({ operator, point });
   }
 
