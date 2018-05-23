@@ -9,7 +9,7 @@ import { OperatorPanelComponent } from './operator-panel.component';
 import { OperatorLabelComponent } from './operator-label/operator-label.component';
 import { OperatorMetadataService, EMPTY_OPERATOR_METADATA } from '../../service/operator-metadata/operator-metadata.service';
 import { StubOperatorMetadataService } from '../../service/operator-metadata/stub-operator-metadata.service';
-import { GroupInfo, OperatorSchema } from '../../types/operator-schema';
+import { GroupInfo, OperatorSchema } from '../../types/operator-schema.interface';
 
 import {
   getMockOperatorMetaData, getMockOperatorGroup, getMockOperatorSchemaList
