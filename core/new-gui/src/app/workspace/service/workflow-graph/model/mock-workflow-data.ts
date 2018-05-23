@@ -3,7 +3,21 @@ import { Point, OperatorPredicate, OperatorLink } from './../../../types/common.
 import { getMockOperatorSchemaList } from './../../operator-metadata/mock-operator-metadata.data';
 
 /**
- * Provides common constants related to operators and link.
+ * Provides mock data related operators and links:
+ *
+ * Operators:
+ *  - 1: ScanSource
+ *  - 2: NlpSentiment
+ *  - 3: ViewResults
+ *
+ * Links:
+ *  - link-1: ScanSource -> ViewResults
+ *  - link-2: ScanSource -> NlpSentiment
+ *  - link-3: NlpSentiment -> ScanSource
+ *
+ * Invalid links:
+ *  - link-4: (no source port) -> NlpSentiment
+ *  - link-5: (NlpSentiment) -> (no target port)
  *
  */
 

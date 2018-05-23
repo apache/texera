@@ -7,22 +7,17 @@ import { Point, OperatorPredicate, OperatorLink } from '../../../types/common.in
 import { Subject } from 'rxjs/Subject';
 
 /**
- * WorkflowActionService exposes functions (actions) to modify the workflow graph,
+ *
+ * WorkflowActionService exposes functions (actions) to modify the workflow graph model,
  *  such as addOperator, deleteOperator, addLink, deleteLink, etc.
  * WorkflowActionService checks the validity of these actions,
  *  for example, check if adding two operators with the same ID.
  *
- * All changes(actions) to the workflow graph must go through WorkflowActionService,
+ * All changes(actions) to the workflow graph should be called through WorkflowActionService,
  *  then WorkflowActionService will propagate these actions to the JointModelService and TexeraModelService,
  *  where the changes will be actually made.
  *
- * TexeraModelService exposes a read only version of the workflow graph, and provides
- *  the events related to workflow graph on a *logical* level.
- *
- * JointModelService is only used for handling the events only related to JointJS.
- *
- *
- *
+ * For the details of the services in WorkflowGraphModule, see workflow-graph-design.md
  *
  */
 @Injectable()
@@ -43,6 +38,8 @@ export class WorkflowActionService {
 
   /**
    * Adds an opreator to the workflow graph at a point.
+   * Throws an Error if the operator ID already existed in the Workflow Graph.
+   *
    * @param operator
    * @param point
    */
@@ -60,6 +57,7 @@ export class WorkflowActionService {
 
   /**
    * Deletes an operator from the workflow graph
+   * Throws an Error if the operator ID doesn't exist in the Workflow Graph.
    * @param operatorID
    */
   public deleteOperator(operatorID: string): void {
@@ -78,6 +76,7 @@ export class WorkflowActionService {
 
   /**
    * Adds a link to the workflow graph
+   * Throws an Error if the link ID or the link with same source and target already exists.
    * @param link
    */
   public addLink(link: OperatorLink): void {
@@ -94,6 +93,7 @@ export class WorkflowActionService {
 
   /**
    * Deletes a link from the workflow graph
+   * Throws an Error if the linkID doesn't exist in the workflow graph.
    * @param linkID
    */
   public deleteLinkWithID(linkID: string): void {

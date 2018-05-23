@@ -11,18 +11,32 @@ import * as joint from 'jointjs';
 import { JointUIService } from '../../joint-ui/joint-ui.service';
 
 /**
+ * JointModelService manages the JointJS model (jointGraph).
+ * JointModel provides events and properties of JointJS related to the UI.
+ * Note that these events/properties are from the perspective of the UI.
  *
- * JointModelService includes the JointJS model (workflow graph).
+ * The jointGraph is private, because we only want to expose read-only methods to external components
+ *  if access to more event stream or properties are needed, `getter` methods could be created
  *
- * Whenever the user made changes to the JointJS paper on the UI, such as
- *  deleting a link or an operator, JointModelService will propagate
- *  that event to TexeraModelService to make sure the Texera work graph is
- *  sync with the JointJS graph.
+ * The JointJS model jointGraph is two-way binded with the View, whenever the UI is changed,
+ *  JointJS will change the Model as well, vice versa.
+ * JointModelService also subscribes to the events from Workflow Actions to change the graph accordingly
+ *
+ * Relevant JointJS documentation: https://resources.jointjs.com/tutorial/graph-and-paper
+ * For the details of the services in WorkflowGraphModule, see workflow-graph-design.md
  *
  */
 @Injectable()
 export class JointModelService {
 
+  /**
+   * Cre JointJS graph model, two-way binded with the view
+   * This model is kept private to prevent external modules to
+   *  directly modify the jointGraph and bypass the rules of WorkflowGraphServices
+   *
+   * To access the properties or events of the graph,
+   *  getter methods should be created, changing the jointGraph directly is prohibited.
+   */
   private jointGraph = new joint.dia.Graph();
 
   /**
@@ -47,8 +61,12 @@ export class JointModelService {
     private jointUIService: JointUIService) {
 
     /**
-     * These will listen to the event propagated from workflowActionService
-     *  and update the JointJS graph accordingly
+     * Listen to the action event propagated from workflowActionService
+     *  and update the JointJS graph accordingly:
+     *  - add operator
+     *  - delete operator
+     *  - add link
+     *  - delete link
      */
 
     this.workflowActionService._onAddOperatorAction().subscribe(
@@ -69,11 +87,11 @@ export class JointModelService {
   }
 
   /**
-   * To make our code as modularize as possible, we want the JointJS graph only exist
-   *  in JointModelService. However, to successfully create a JointJS paper, a JointJS graph
-   *  object is required. So, before creating a JointJS paper, it will need to add the
-   *  graph object in JointModelService into the paper options. Then, whenever the JointJS
-   *  paper changes, the graph in JointModelService can detect the events.
+   * Let the JointGraph model be attached to the joint paper (paperOptions will be passed to Joint Paper constructor).
+   * JointPaper (object representing View) in WorkflowEditorComponent must to have a model binded with it during construction.
+   *
+   * We don't want to expose JointModel as a public variable, so instead we let JointPaper to pass the constructor options,
+   *  and JointModel can be still attached to it without being publicly accessible by other modules.
    *
    * @param paperOptions JointJS paper options
    */
@@ -83,8 +101,7 @@ export class JointModelService {
   }
 
   /**
-   * This will return an observable catching the operator delete event
-   *  in JointJS graph.
+   * Returns an Observable stream capturing the operator cell delete event in JointJS graph.
    */
   public onJointOperatorCellDelete(): Observable<joint.dia.Element> {
     const jointOperatorDeleteStream = this.jointCellDeleteStream
@@ -94,8 +111,12 @@ export class JointModelService {
   }
 
   /**
-   * This will return an observable catching the link add event
-   *  in JointJS graph.
+   * Returns an Observable stream capturing the link cell add event in JointJS graph.
+   *
+   * Notice that a link added to JointJS graph doesn't mean it will be added to Texera Workflow Graph as well
+   *  because the link might not be valid (not connected to a target operator and port yet).
+   * This event only represents that a link cell is visually added to the UI.
+   *
    */
   public onJointLinkCellAdd(): Observable<joint.dia.Link> {
     const jointLinkAddStream = this.jointCellAddStream
@@ -106,8 +127,12 @@ export class JointModelService {
   }
 
   /**
-   * This will return an observable catching the link delete event
-   *  in JointJS graph.
+   * Returns an Observable stream capturing the link cell delete event in JointJS graph.
+   *
+   * Notice that a link deleted from JointJS graph doesn't mean the same event happens for Texera Workflow Grap
+   *  because the link might not be valid and doesn't exist logically in the Workflow Graph.
+   * This event only represents that a link cell visually disappears from the UI.
+   *
    */
   public onJointLinkCellDelete(): Observable<joint.dia.Link> {
     const jointLinkDeleteStream = this.jointCellDeleteStream
@@ -118,9 +143,12 @@ export class JointModelService {
   }
 
   /**
-   * This will return an observable catching the link change event
-   *  in JointJS graph. This happens when the user is changing the
-   *  already connected link.
+   * Returns an Observable stream capturing the link cell delete event in JointJS graph.
+   *
+   * Notice that the link change event will be triggered whenever the link's source or target is changed:
+   *  - one end of the link is attached to a port
+   *  - one end of the link is detached to a port and become a point (coordinate) in the paper
+   *  - one end of the link is moved from one point to another point in the paper
    */
   public onJointLinkCellChange(): Observable<joint.dia.Link> {
     const jointLinkChangeStream = Observable
@@ -131,8 +159,10 @@ export class JointModelService {
   }
 
   /**
-   * This will create a JointJS element based on the OperatorPredicate
-   *  passed in. And this element will be created at the position 'point'
+   * This will add a JointJS element based on the OperatorPredicate
+   *  passed in at the position `point`
+   *
+   * The operator should not exist, this precondition is checked in WorkflowActionService.
    *
    * @param operator OperatorPredicate
    * @param point the position to create the element
@@ -145,7 +175,9 @@ export class JointModelService {
   }
 
   /**
-   * Remove a existing JointJS element by ID
+   * Remove a existing JointJS element (operator) by ID
+   *
+   * The operator should already exist, this precondition is checked in WorkflowActionService.
    *
    * @param operatorID ID of an operator
    */
@@ -154,9 +186,9 @@ export class JointModelService {
   }
 
   /**
-   * Create a new link based on the OperatorLink passed in. The source
-   *  and the target element for this link should be created before
-   *  adding this link.
+   * Create a new link based on the OperatorLink passed in.
+   * The source and the target operator and port for this link should already exist.
+   * This precondition is checked in WorkflowActionService.
    *
    * @param link OperatorLink
    */
@@ -166,7 +198,8 @@ export class JointModelService {
   }
 
   /**
-   * This will delete a JointJS link by ID
+   * This will delete a JointJS link by ID.
+   * The link should already exists, this precondition is checked in WorkflowActionService.
    * @param linkID link ID
    */
   private deleteJointLinkCell(linkID: string): void {
