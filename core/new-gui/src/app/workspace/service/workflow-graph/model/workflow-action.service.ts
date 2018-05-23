@@ -1,10 +1,12 @@
+import { JointGraphReadonly } from './../../../types/joint-graph';
+import { JointUIService } from './../../joint-ui/joint-ui.service';
+import { WorkflowGraphReadonly } from './../../../types/workflow-graph-readonly.interface';
 import { WorkflowGraph } from './../../../types/workflow-graph';
 import { Observable } from 'rxjs/Observable';
 import { Injectable } from '@angular/core';
-import { JointModelService } from './joint-model.service';
-import { TexeraModelService } from './texera-model.service';
 import { Point, OperatorPredicate, OperatorLink } from '../../../types/common.interface';
-import { Subject } from 'rxjs/Subject';
+
+import * as joint from 'jointjs';
 
 /**
  *
@@ -23,18 +25,33 @@ import { Subject } from 'rxjs/Subject';
 @Injectable()
 export class WorkflowActionService {
 
-  private texeraGraph: WorkflowGraph = new WorkflowGraph();
-
-  private addOperatorActionSubject: Subject<{ operator: OperatorPredicate, point: Point }> = new Subject();
-
-  private deleteOperatorActionSubject: Subject<{ operatorID: string }> = new Subject();
-
-  private addLinkActionSubject: Subject<{ link: OperatorLink }> = new Subject();
-
-  private deleteLinkActionSubject: Subject<{ linkID: string }> = new Subject();
+  private texeraGraph = new WorkflowGraph();
+  private jointGraph = new joint.dia.Graph();
+  private jointGraphReadonly = new JointGraphReadonly(this.jointGraph);
 
   constructor(
   ) { }
+
+  public getTexeraGraph(): WorkflowGraphReadonly {
+    return this.texeraGraph;
+  }
+
+  public getJointGraphWrapper(): JointGraphReadonly {
+    return this.jointGraphReadonly;
+  }
+
+  /**
+   * Let the JointGraph model be attached to the joint paper (paperOptions will be passed to Joint Paper constructor).
+   *
+   * We don't want to expose JointModel as a public variable, so instead we let JointPaper to pass the constructor options,
+   *  and JointModel can be still attached to it without being publicly accessible by other modules.
+   *
+   * @param paperOptions JointJS paper options
+   */
+  public attachJointPaper(paperOptions: joint.dia.Paper.Options): joint.dia.Paper.Options {
+    paperOptions.model = this.jointGraph;
+    return paperOptions;
+  }
 
   /**
    * Adds an opreator to the workflow graph at a point.
@@ -43,16 +60,12 @@ export class WorkflowActionService {
    * @param operator
    * @param point
    */
-  public addOperator(operator: OperatorPredicate, point: Point): void {
-    WorkflowGraph.checkIfOperatorExists(this.texeraGraph, operator);
-    this.addOperatorActionSubject.next({ operator, point });
-  }
-
-  /**
-   * Gets the event stream of the actions to add an operator.
-   */
-  _onAddOperatorAction(): Observable<{ operator: OperatorPredicate, point: Point }> {
-    return this.addOperatorActionSubject.asObservable();
+  public addOperator(operator: OperatorPredicate, operatorJointElement: joint.dia.Element): void {
+    if (operator.operatorID !== operatorJointElement.id.toString()) {
+      throw new Error(`operatorID ${operator.operatorID} and Joint UI Element ID ${operatorJointElement.id.toString()} are inconsistent`);
+    }
+    this.texeraGraph.addOperator(operator);
+    this.jointGraph.addCell(operatorJointElement);
   }
 
   /**
@@ -61,17 +74,8 @@ export class WorkflowActionService {
    * @param operatorID
    */
   public deleteOperator(operatorID: string): void {
-    if (!this.texeraGraph.hasOperator(operatorID)) {
-      throw new Error(`operator with ID ${operatorID} doesn't exist`);
-    }
-    this.deleteOperatorActionSubject.next({ operatorID });
-  }
-
-  /**
-   * Gets the event stream of the actions to delete an operator
-   */
-  _onDeleteOperatorAction(): Observable<{ operatorID: string }> {
-    return this.deleteOperatorActionSubject.asObservable();
+    this.texeraGraph.deleteOperator(operatorID);
+    this.jointGraph.getCell(operatorID).remove();
   }
 
   /**
@@ -80,15 +84,9 @@ export class WorkflowActionService {
    * @param link
    */
   public addLink(link: OperatorLink): void {
-    WorkflowGraph.checkIsValidLink(this.texeraGraph, link);
-    this.addLinkActionSubject.next({ link });
-  }
-
-  /**
-   * Gets the event stream of the actions to add a link
-   */
-  _onAddLinkAction(): Observable<{ link: OperatorLink }> {
-    return this.addLinkActionSubject.asObservable();
+    this.texeraGraph.addLink(link);
+    const jointLinkCell = JointUIService.getJointLinkCell(link);
+    this.jointGraph.addCell(jointLinkCell);
   }
 
   /**
@@ -97,17 +95,8 @@ export class WorkflowActionService {
    * @param linkID
    */
   public deleteLinkWithID(linkID: string): void {
-    if (!this.texeraGraph.hasLinkWithID(linkID)) {
-      throw new Error(`link with ID ${linkID} doesn't exist`);
-    }
-    this.deleteLinkActionSubject.next({ linkID });
-  }
-
-  /**
-   * Gets the event stream of the actions to delete a link
-   */
-  _onDeleteLinkAction(): Observable<{ linkID: string }> {
-    return this.deleteLinkActionSubject.asObservable();
+    this.texeraGraph.deleteLinkWithID(linkID);
+    this.jointGraph.getCell(linkID).remove();
   }
 
 }

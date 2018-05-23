@@ -1,5 +1,4 @@
 import { WorkflowUtilService } from './../../service/workflow-graph/util/workflow-util.service';
-import { JointModelService } from './../../service/workflow-graph/model/joint-model.service';
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { WorkflowEditorComponent } from './workflow-editor.component';
@@ -22,7 +21,6 @@ describe('WorkflowEditorComponent', () => {
       declarations: [WorkflowEditorComponent],
       providers: [
         JointUIService,
-        JointModelService,
         WorkflowActionService,
         WorkflowUtilService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
@@ -35,9 +33,9 @@ describe('WorkflowEditorComponent', () => {
     fixture = TestBed.createComponent(WorkflowEditorComponent);
     component = fixture.componentInstance;
     jointUIService = fixture.debugElement.injector.get(JointUIService);
-    const jointModelService = fixture.debugElement.injector.get(JointModelService);
-    jointGraph = (jointModelService as any).jointGraph;
+    // detect changes first to run ngAfterViewInit and bind Model
     fixture.detectChanges();
+    jointGraph = component.getJointPaper().model;
   });
 
   it('should create', () => {

@@ -3,27 +3,26 @@
  * These type declarations should be identical to the backend API.
  */
 
-export interface Point {
-  readonly x: number;
-  readonly y: number;
-}
+export interface Point extends Readonly<{
+  x: number;
+  y: number;
+}> { }
 
-export interface OperatorPort {
+export interface OperatorPort extends Readonly<{
   operatorID: string;
   portID: string;
-}
+}> { }
 
-export interface OperatorPredicate {
+export interface OperatorPredicate extends Readonly<{
   operatorID: string;
   operatorType: string;
-  operatorProperties: Object;
+  operatorProperties: Readonly<Object>;
   inputPorts: string[];
   outputPorts: string[];
-}
+}> { }
 
-export interface OperatorLink {
+export interface OperatorLink extends Readonly<{
   linkID: string;
   source: OperatorPort;
   target: OperatorPort;
-}
-
+}> { }

@@ -1,6 +1,6 @@
 import {
-  getMockScanPredicate, getMockSentimentPredicate, getMockResultPredicate,
-  getMockScanSentimentLink, getMockSentimentResultLink, getMockScanResultLink
+  mockScanPredicate, mockSentimentPredicate, mockResultPredicate,
+  mockScanSentimentLink, mockSentimentResultLink, mockScanResultLink
 } from './../service/workflow-graph/model/mock-workflow-data';
 import { WorkflowGraph } from './workflow-graph';
 
@@ -19,36 +19,34 @@ describe('WorkflowGraph', () => {
 
   it('should load an existing graph properly', () => {
     workflowGraph = new WorkflowGraph(
-      [getMockScanPredicate(), getMockSentimentPredicate(), getMockResultPredicate()],
-      [getMockScanSentimentLink(), getMockSentimentResultLink()]
+      [mockScanPredicate, mockSentimentPredicate, mockResultPredicate],
+      [mockScanSentimentLink, mockSentimentResultLink]
     );
     expect(workflowGraph.getOperators().length).toEqual(3);
     expect(workflowGraph.getLinks().length).toEqual(2);
   });
 
   it('should add an operator and get it properly', () => {
-    workflowGraph.addOperator(getMockScanPredicate());
-    expect(workflowGraph.getOperator(getMockScanPredicate().operatorID)).toBeTruthy();
+    workflowGraph.addOperator(mockScanPredicate);
+    expect(workflowGraph.getOperator(mockScanPredicate.operatorID)).toBeTruthy();
     expect(workflowGraph.getOperators().length).toEqual(1);
-    expect(workflowGraph.getOperators()[0]).toEqual(getMockScanPredicate());
+    expect(workflowGraph.getOperators()[0]).toEqual(mockScanPredicate);
   });
 
-  it('should throw an error when tring to get an operator with a nonexist operator ID', () => {
-    expect(() => {
-      workflowGraph.getOperator('nonexist');
-    }).toThrowError();
+  it('should return undefined when get an operator with a nonexist operator ID', () => {
+    expect(workflowGraph.getOperator('nonexist')).toBe(undefined);
   });
 
   it('should throw an error when trying to add an operator with an existing operator ID', () => {
     expect(() => {
-      workflowGraph.addOperator(getMockScanPredicate());
-      workflowGraph.addOperator(getMockScanPredicate());
+      workflowGraph.addOperator(mockScanPredicate);
+      workflowGraph.addOperator(mockScanPredicate);
     }).toThrowError(new RegExp('already exists'));
   });
 
   it('should delete an operator properly', () => {
-    workflowGraph.addOperator(getMockScanPredicate());
-    workflowGraph.deleteOperator(getMockScanPredicate().operatorID);
+    workflowGraph.addOperator(mockScanPredicate);
+    workflowGraph.deleteOperator(mockScanPredicate.operatorID);
     expect(workflowGraph.getOperators().length).toBe(0);
   });
 
@@ -59,28 +57,30 @@ describe('WorkflowGraph', () => {
   });
 
   it('should add and get a link properly', () => {
-    workflowGraph.addOperator(getMockScanPredicate());
-    workflowGraph.addOperator(getMockResultPredicate());
-    workflowGraph.addLink(getMockScanResultLink());
+    workflowGraph.addOperator(mockScanPredicate);
+    workflowGraph.addOperator(mockResultPredicate);
+    workflowGraph.addLink(mockScanResultLink);
 
-    expect(workflowGraph.getLinkWithID(getMockScanResultLink().linkID)).toEqual(getMockScanResultLink());
+    expect(workflowGraph.getLinkWithID(mockScanResultLink.linkID)).toEqual(mockScanResultLink);
     expect(workflowGraph.getLink(
-      getMockScanResultLink().source, getMockScanResultLink().target
-    )).toEqual(getMockScanResultLink());
+      mockScanResultLink.source, mockScanResultLink.target
+    )).toEqual(mockScanResultLink);
     expect(workflowGraph.getLinks().length).toEqual(1);
   });
 
   it('should throw an error when try to add a link with an existingID', () => {
-    workflowGraph.addOperator(getMockScanPredicate());
-    workflowGraph.addOperator(getMockResultPredicate());
-    workflowGraph.addOperator(getMockSentimentPredicate());
-    workflowGraph.addLink(getMockScanResultLink());
+    workflowGraph.addOperator(mockScanPredicate);
+    workflowGraph.addOperator(mockResultPredicate);
+    workflowGraph.addOperator(mockSentimentPredicate);
+    workflowGraph.addLink(mockScanResultLink);
 
-    // modify the target, but don't modify the ID
-    const mockLink = getMockScanResultLink();
-    mockLink.target = {
-      operatorID: getMockSentimentPredicate().operatorID,
-      portID: getMockSentimentPredicate().inputPorts[0]
+    // create a mock link with modified target
+    const mockLink = {
+      ...mockScanResultLink,
+      target: {
+        operatorID: mockSentimentPredicate.operatorID,
+        portID: mockSentimentPredicate.inputPorts[0]
+      },
     };
 
     expect(() => {
@@ -89,56 +89,54 @@ describe('WorkflowGraph', () => {
   });
 
   it('should throw an error when try to add a link with exising source and target but different ID', () => {
-    workflowGraph.addOperator(getMockScanPredicate());
-    workflowGraph.addOperator(getMockResultPredicate());
-    workflowGraph.addOperator(getMockSentimentPredicate());
-    workflowGraph.addLink(getMockScanResultLink());
+    workflowGraph.addOperator(mockScanPredicate);
+    workflowGraph.addOperator(mockResultPredicate);
+    workflowGraph.addOperator(mockSentimentPredicate);
+    workflowGraph.addLink(mockScanResultLink);
 
-    // modify the ID, but don't modify the source/target
-    const mockLink = getMockScanResultLink();
-    mockLink.linkID = 'new-link-id';
+    // create a mock link with modified ID
+    const mockLink = {
+      ...mockScanResultLink,
+      linkID: 'new-link-id',
+    };
 
     expect(() => {
       workflowGraph.addLink(mockLink);
     }).toThrowError(new RegExp('already exists'));
   });
 
-  it('should throw an error when tring to get a nonexist link by link ID', () => {
-    expect(() => {
-      workflowGraph.getLinkWithID('nonexist');
-    }).toThrowError(new RegExp(`doesn't exist`));
+  it('should return undefined when tring to get a nonexist link by link ID', () => {
+    expect(workflowGraph.getLinkWithID('nonexist')).toBe(undefined);
   });
 
   it('should throw an error when tring to get a nonexist link by link source and target', () => {
-    expect(() => {
-      workflowGraph.getLink(
+    expect(workflowGraph.getLink(
         { operatorID: 'source', portID: 'source port' },
         { operatorID: 'target', portID: 'taret port' }
-      );
-    }).toThrowError(new RegExp(`doesn't exist`));
+      )).toBe(undefined);
   });
 
   it('should delete a link by ID properly', () => {
-    workflowGraph.addOperator(getMockScanPredicate());
-    workflowGraph.addOperator(getMockResultPredicate());
-    workflowGraph.addLink(getMockScanResultLink());
-    workflowGraph.deleteLinkWithID(getMockScanResultLink().linkID);
+    workflowGraph.addOperator(mockScanPredicate);
+    workflowGraph.addOperator(mockResultPredicate);
+    workflowGraph.addLink(mockScanResultLink);
+    workflowGraph.deleteLinkWithID(mockScanResultLink.linkID);
 
     expect(workflowGraph.getLinks().length).toEqual(0);
   });
 
   it('should delete a link by source and target properly', () => {
-    workflowGraph.addOperator(getMockScanPredicate());
-    workflowGraph.addOperator(getMockResultPredicate());
-    workflowGraph.addLink(getMockScanResultLink());
-    workflowGraph.deleteLink(getMockScanResultLink().source, getMockScanResultLink().target);
+    workflowGraph.addOperator(mockScanPredicate);
+    workflowGraph.addOperator(mockResultPredicate);
+    workflowGraph.addLink(mockScanResultLink);
+    workflowGraph.deleteLink(mockScanResultLink.source, mockScanResultLink.target);
 
     expect(workflowGraph.getLinks().length).toEqual(0);
   });
 
   it('should throw an error when trying to delete a link (by ID) that doesn\'t exist', () => {
     expect(() => {
-      workflowGraph.deleteLinkWithID(getMockScanResultLink().linkID);
+      workflowGraph.deleteLinkWithID(mockScanResultLink.linkID);
     }).toThrowError(new RegExp(`doesn't exist`));
   });
 
@@ -152,20 +150,22 @@ describe('WorkflowGraph', () => {
   });
 
   it('should set the operator property(attributes) properly', () => {
-    workflowGraph.addOperator(getMockScanPredicate());
+    workflowGraph.addOperator(mockScanPredicate);
 
     const testProperty = { 'tableName': 'testTable' };
-    workflowGraph.changeOperatorProperty(getMockScanPredicate().operatorID, testProperty);
+    workflowGraph.changeOperatorProperty(mockScanPredicate.operatorID, testProperty);
 
-    expect(workflowGraph.getOperator(
-      getMockScanPredicate().operatorID).operatorProperties
-    ).toEqual(testProperty);
+    const operator = workflowGraph.getOperator(mockScanPredicate.operatorID);
+    if (!operator) {
+      throw new Error('test fails: operator is undefined');
+    }
+    expect(operator.operatorProperties).toEqual(testProperty);
   });
 
   it('should throw an error when trying to set the property of an nonexist operator', () => {
     expect(() => {
       const testProperty = { 'tableName': 'testTable' };
-      workflowGraph.changeOperatorProperty(getMockScanPredicate().operatorID, testProperty);
+      workflowGraph.changeOperatorProperty(mockScanPredicate.operatorID, testProperty);
     }).toThrowError(new RegExp(`doesn't exist`));
   });
 

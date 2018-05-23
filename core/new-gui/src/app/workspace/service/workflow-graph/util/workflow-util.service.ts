@@ -11,7 +11,7 @@ import { v4 as uuid } from 'uuid';
 @Injectable()
 export class WorkflowUtilService {
 
-  private operatorSchemaList: OperatorSchema[] = [];
+  private operatorSchemaList: ReadonlyArray<OperatorSchema> = [];
 
   constructor(private operatorMetadataService: OperatorMetadataService
   ) {

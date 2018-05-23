@@ -1,14 +1,13 @@
+import { JointUIService } from './../../service/joint-ui/joint-ui.service';
 import { WorkflowUtilService } from './../../service/workflow-graph/util/workflow-util.service';
 import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
-import { JointModelService } from './../../service/workflow-graph/model/joint-model.service';
 import { Component, AfterViewInit } from '@angular/core';
 import { Observable } from 'rxjs/Observable';
 import '../../../common/rxjs-operators';
 
 import * as joint from 'jointjs';
-import { JointUIService } from '../../service/joint-ui/joint-ui.service';
 import {
-  getMockScanPredicate, getMockResultPredicate, getMockScanResultLink
+  mockScanPredicate, mockResultPredicate, mockScanResultLink
 } from '../../service/workflow-graph/model/mock-workflow-data';
 
 /**
@@ -39,8 +38,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
   private paper: joint.dia.Paper | undefined;
 
   constructor(
-    private jointModelService: JointModelService,
     private workflowActionService: WorkflowActionService,
+    private jointUIService: JointUIService
   ) {
   }
 
@@ -63,18 +62,22 @@ export class WorkflowEditorComponent implements AfterViewInit {
     // and drop is implemented
     Observable.from('a').delay(500).subscribe(
       emptyData => {
-        const scanSource = getMockScanPredicate();
-        const viewResult = getMockResultPredicate();
-        const link = getMockScanResultLink();
+        const scanSource = mockScanPredicate;
+        const viewResult = mockResultPredicate;
+        const link = mockScanResultLink;
 
         // add some dummy operators and links to show that JointJS works
         this.workflowActionService.addOperator(
           scanSource,
-          { x: 300, y: 200 }
+          this.jointUIService.getJointOperatorElement(
+            scanSource, { x: 300, y: 200 }
+          )
         );
         this.workflowActionService.addOperator(
           viewResult,
-          { x: 600, y: 200 }
+          this.jointUIService.getJointOperatorElement(
+            viewResult, { x: 600, y: 200 }
+          )
         );
         this.workflowActionService.addLink(link);
       }
@@ -85,7 +88,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     // get the custom paper options
     let jointPaperOptions = WorkflowEditorComponent.getJointPaperOptions();
     // attach the JointJS graph (model) to the paper (view)
-    jointPaperOptions = this.jointModelService.attachJointPaper(jointPaperOptions);
+    jointPaperOptions = this.workflowActionService.attachJointPaper(jointPaperOptions);
     // attach the DOM element to the paper
     jointPaperOptions.el = $(`#${this.WORKFLOW_EDITOR_JOINTJS_ID}`);
     // create the JointJS paper

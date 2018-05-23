@@ -1,3 +1,4 @@
+import { Observable } from 'rxjs/Observable';
 import { OperatorPredicate, OperatorLink, OperatorPort } from './common.interface';
 
 /**
@@ -24,7 +25,6 @@ export interface WorkflowGraphReadonly {
    * Returns an array of all operators in the graph
    */
   getOperators(): OperatorPredicate[];
-
 
   /**
    * Returns whether the graph contains the link with the linkID
@@ -58,5 +58,33 @@ export interface WorkflowGraphReadonly {
    * Returns an array of all the links in the graph.
    */
   getLinks(): OperatorLink[];
+
+  /**
+   * Gets the observable event stream of an operator being added into the graph.
+   */
+  getOperatorAddStream(): Observable<OperatorPredicate>;
+
+  /**
+   * Gets the observable event stream of an operator being deleted from the graph.
+   * The observable value is the deleted operator.
+   */
+  getOperatorDeleteStream(): Observable<{deletedOperator: OperatorPredicate}>;
+
+  /**
+   *ets the observable event stream of a link being added into the graph.
+   */
+  getLinkAddStream(): Observable<OperatorLink>;
+
+  /**
+   * Gets the observable event stream of a link being deleted from the graph.
+   * The observable value is the deleted link.
+   */
+  getLinkDeleteStream(): Observable<{deletedLink: OperatorLink}>;
+
+  /**
+   * Gets the observable event stream of a link being deleted from the graph.
+   * The observable value includes the old property that is replaced, and the operator with new property.
+   */
+  getOperatorPropertyChangeStream(): Observable<{oldProperty: Object, operator: OperatorPredicate}>;
 
 }

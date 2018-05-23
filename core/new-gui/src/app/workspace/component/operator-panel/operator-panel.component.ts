@@ -30,11 +30,11 @@ import { StubOperatorMetadataService } from '../../service/operator-metadata/stu
 export class OperatorPanelComponent implements OnInit {
 
   // a list of all operator's schema
-  public operatorSchemaList: OperatorSchema[] = [];
+  public operatorSchemaList: ReadonlyArray<OperatorSchema> = [];
   // a list of group names, sorted based on the groupOrder from OperatorMetadata
-  public groupNamesOrdered: string[] = [];
+  public groupNamesOrdered: ReadonlyArray<string> = [];
   // a map of group name to a list of operator schema of this group
-  public operatorGroupMap = new Map<string, OperatorSchema[]>();
+  public operatorGroupMap = new Map<string, ReadonlyArray<OperatorSchema>>();
 
 
   constructor(
@@ -68,7 +68,7 @@ export class OperatorPanelComponent implements OnInit {
 
 // generates a list of group names sorted by the orde
 // slice() will make a copy of the list, because we don't want to sort the orignal list
-export function getGroupNamesSorted(groupInfoList: GroupInfo[]): string[] {
+export function getGroupNamesSorted(groupInfoList: ReadonlyArray<GroupInfo>): string[] {
 
   return groupInfoList.slice()
     .sort((a, b) => (a.groupOrder - b.groupOrder))

@@ -1,12 +1,12 @@
 import { Point, OperatorPredicate } from './../../types/common.interface';
-import { getMockResultPredicate, getMockPoint, getMockScanResultLink } from './../workflow-graph/model/mock-workflow-data';
+import { mockResultPredicate, mockPoint, mockScanResultLink } from './../workflow-graph/model/mock-workflow-data';
 import { TestBed, inject } from '@angular/core/testing';
 import * as joint from 'jointjs';
 
 import { JointUIService, deleteButtonPath, sourceOperatorHandle, targetOperatorHandle } from './joint-ui.service';
 import { OperatorMetadataService } from '../operator-metadata/operator-metadata.service';
 import { StubOperatorMetadataService } from '../operator-metadata/stub-operator-metadata.service';
-import { getMockScanPredicate, getMockSentimentPredicate } from '../workflow-graph/model/mock-workflow-data';
+import { mockScanPredicate, mockSentimentPredicate } from '../workflow-graph/model/mock-workflow-data';
 
 describe('JointUIService', () => {
   let service: JointUIService;
@@ -30,7 +30,7 @@ describe('JointUIService', () => {
    */
   it('should create an JointJS Element successfully when the function is called', () => {
     const result = service.getJointOperatorElement(
-      getMockScanPredicate(), getMockPoint());
+      mockScanPredicate, mockPoint);
     expect(result).toBeTruthy();
   });
 
@@ -47,7 +47,7 @@ describe('JointUIService', () => {
           inputPorts: [],
           outputPorts: []
         },
-        getMockPoint()
+        mockPoint
       );
     }).toThrowError(new RegExp(`doesn't exist`));
   });
@@ -58,9 +58,9 @@ describe('JointUIService', () => {
    * matches the port number specified by the operator metadata
    */
   it('should create correct number of inPorts and outPorts based on operator metadata', () => {
-    const element1 = service.getJointOperatorElement(getMockScanPredicate(), getMockPoint());
-    const element2 = service.getJointOperatorElement(getMockSentimentPredicate(), getMockPoint());
-    const element3 = service.getJointOperatorElement(getMockResultPredicate(), getMockPoint());
+    const element1 = service.getJointOperatorElement(mockScanPredicate, mockPoint);
+    const element2 = service.getJointOperatorElement(mockSentimentPredicate, mockPoint);
+    const element3 = service.getJointOperatorElement(mockResultPredicate, mockPoint);
 
     const inPortCount1 = element1.getPorts().filter(port => port.group === 'in').length;
     const outPortCount1 = element1.getPorts().filter(port => port.group === 'out').length;
@@ -87,14 +87,14 @@ describe('JointUIService', () => {
 
     graph.addCell(
       service.getJointOperatorElement(
-        getMockScanPredicate(),
-        getMockPoint()
+        mockScanPredicate,
+        mockPoint
       )
     );
 
     graph.addCell(
       service.getJointOperatorElement(
-        getMockResultPredicate(),
+        mockResultPredicate,
         { x: 500, y: 100 }
       )
     );
@@ -107,8 +107,8 @@ describe('JointUIService', () => {
 
     graph.addCell(link);
 
-    const graph_operator1 = graph.getCell(getMockScanPredicate().operatorID);
-    const graph_operator2 = graph.getCell(getMockResultPredicate().operatorID);
+    const graph_operator1 = graph.getCell(mockScanPredicate.operatorID);
+    const graph_operator2 = graph.getCell(mockResultPredicate.operatorID);
     const graph_link = graph.getLinks()[0];
 
     // testing getCustomOperatorStyleAttrs()

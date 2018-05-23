@@ -1,3 +1,5 @@
+import { Subject } from 'rxjs/Subject';
+import { Observable } from 'rxjs/Observable';
 import { OperatorPredicate, OperatorLink, OperatorPort } from './common.interface';
 import { WorkflowGraphReadonly } from './workflow-graph-readonly.interface';
 import { isEqual } from 'lodash-es';
@@ -13,6 +15,12 @@ export class WorkflowGraph implements WorkflowGraphReadonly {
 
   private operatorIDMap = new Map<string, OperatorPredicate>();
   private operatorLinkMap = new Map<string, OperatorLink>();
+
+  private operatorAddSubject = new Subject<OperatorPredicate>();
+  private operatorDeleteSubject = new Subject<{ deletedOperator: OperatorPredicate }>();
+  private linkAddSubject = new Subject<OperatorLink>();
+  private linkDeleteSubject = new Subject<{ deletedLink: OperatorLink }>();
+  private operatorPropertyChangeSubject = new Subject<{ oldProperty: Object, operator: OperatorPredicate }>();
 
   constructor(
     operatorPredicates: OperatorPredicate[] = [],
@@ -30,6 +38,7 @@ export class WorkflowGraph implements WorkflowGraphReadonly {
   public addOperator(operator: OperatorPredicate): void {
     WorkflowGraph.checkIfOperatorExists(this, operator);
     this.operatorIDMap.set(operator.operatorID, operator);
+    this.operatorAddSubject.next(operator);
   }
 
   /**
@@ -37,13 +46,13 @@ export class WorkflowGraph implements WorkflowGraphReadonly {
    * Throws an Error if the operator doesn't exist.
    * @param operatorID operator ID
    */
-  public deleteOperator(operatorID: string): OperatorPredicate {
+  public deleteOperator(operatorID: string): void {
     const operator = this.getOperator(operatorID);
-    if (! operator) {
+    if (!operator) {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
     }
     this.operatorIDMap.delete(operatorID);
-    return operator;
+    this.operatorDeleteSubject.next({ deletedOperator: operator });
   }
 
   /**
@@ -81,6 +90,7 @@ export class WorkflowGraph implements WorkflowGraphReadonly {
     WorkflowGraph.checkIsValidLink(this, link);
     WorkflowGraph.checkIfLinkExists(this, link);
     this.operatorLinkMap.set(link.linkID, link);
+    this.linkAddSubject.next(link);
   }
 
   /**
@@ -88,13 +98,13 @@ export class WorkflowGraph implements WorkflowGraphReadonly {
    * Throws an error if the linkID doesn't exist in the graph
    * @param linkID link ID
    */
-  public deleteLinkWithID(linkID: string): OperatorLink {
+  public deleteLinkWithID(linkID: string): void {
     const link = this.getLinkWithID(linkID);
-    if (! link) {
+    if (!link) {
       throw new Error(`link with ID ${linkID} doesn't exist`);
     }
     this.operatorLinkMap.delete(linkID);
-    return link;
+    this.linkDeleteSubject.next({ deletedLink: link });
   }
 
   /**
@@ -103,14 +113,14 @@ export class WorkflowGraph implements WorkflowGraphReadonly {
    * @param source source port
    * @param target target port
    */
-  public deleteLink(source: OperatorPort, target: OperatorPort): OperatorLink {
+  public deleteLink(source: OperatorPort, target: OperatorPort): void {
     const link = this.getLink(source, target);
-    if (! link) {
+    if (!link) {
       throw new Error(`link from ${source.operatorID}.${source.portID}
         to ${target.operatorID}.${target.portID} doesn't exist`);
     }
     this.operatorLinkMap.delete(link.linkID);
-    return link;
+    this.linkDeleteSubject.next({ deletedLink: link });
   }
 
   /**
@@ -171,21 +181,65 @@ export class WorkflowGraph implements WorkflowGraphReadonly {
 
   /**
    * Sets the property of the operator to use the newProperty object.
-   * And returns the old property that is replaced.
    *
    * Throws an error if the operator doesn't exist.
    * @param operatorID operator ID
    * @param newProperty new property to set
-   * @returns the old property being replaced
    */
-  public changeOperatorProperty(operatorID: string, newProperty: Object): Object {
-    const operator = this.operatorIDMap.get(operatorID);
-    if (operator === undefined) {
+  public changeOperatorProperty(operatorID: string, newProperty: Object): void {
+    const originalOperatorData = this.operatorIDMap.get(operatorID);
+    if (originalOperatorData === undefined) {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
     }
-    const oldProperty = operator.operatorProperties;
-    operator.operatorProperties = newProperty;
-    return oldProperty;
+    const oldProperty = originalOperatorData.operatorProperties;
+
+    // constructor a new copy with new operatorProperty and all other original attributes
+    const operator = {
+      ...originalOperatorData,
+      operatorProperties: newProperty,
+    };
+    // set the new copy back to the operator ID map
+    this.operatorIDMap.set(operatorID, operator);
+
+    this.operatorPropertyChangeSubject.next({ oldProperty, operator });
+  }
+
+  /**
+   * Gets the observable event stream of an operator being added into the graph.
+   */
+  public getOperatorAddStream(): Observable<OperatorPredicate> {
+    return this.operatorAddSubject.asObservable();
+  }
+
+  /**
+ * Gets the observable event stream of an operator being deleted from the graph.
+ * The observable value is the deleted operator.
+ */
+  public getOperatorDeleteStream(): Observable<{ deletedOperator: OperatorPredicate }> {
+    return this.operatorDeleteSubject.asObservable();
+  }
+
+  /**
+   *ets the observable event stream of a link being added into the graph.
+   */
+  public getLinkAddStream(): Observable<OperatorLink> {
+    return this.linkAddSubject.asObservable();
+  }
+
+  /**
+   * Gets the observable event stream of a link being deleted from the graph.
+   * The observable value is the deleted link.
+   */
+  public getLinkDeleteStream(): Observable<{ deletedLink: OperatorLink }> {
+    return this.linkDeleteSubject.asObservable();
+  }
+
+  /**
+   * Gets the observable event stream of a link being deleted from the graph.
+   * The observable value includes the old property that is replaced, and the operator with new property.
+   */
+  public getOperatorPropertyChangeStream(): Observable<{ oldProperty: Object, operator: OperatorPredicate }> {
+    return this.operatorPropertyChangeSubject.asObservable();
   }
 
   /**
@@ -229,23 +283,23 @@ export class WorkflowGraph implements WorkflowGraphReadonly {
   public static checkIsValidLink(graph: WorkflowGraphReadonly, link: OperatorLink): void {
 
     const sourceOperator = graph.getOperator(link.source.operatorID);
-    if (! sourceOperator) {
+    if (!sourceOperator) {
       throw new Error(`link's source operator ${link.source.operatorID} doesn't exist`);
     }
 
     const targetOperator = graph.getOperator(link.target.operatorID);
-    if (! targetOperator) {
+    if (!targetOperator) {
       throw new Error(`link's target operator ${link.target.operatorID} doesn't exist`);
     }
 
     if (sourceOperator.outputPorts.find(
       (port) => port === link.source.portID) === undefined) {
-        throw new Error(`link's source port ${link.source.portID} doesn't exist
+      throw new Error(`link's source port ${link.source.portID} doesn't exist
           on output ports of the source operator ${link.source.operatorID}`);
     }
     if (targetOperator.inputPorts.find(
       (port) => port === link.target.portID) === undefined) {
-        throw new Error(`link's target port ${link.target.portID} doesn't exist
+      throw new Error(`link's target port ${link.target.portID} doesn't exist
           on input ports of the target operator ${link.target.operatorID}`);
     }
   }

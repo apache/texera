@@ -7,27 +7,27 @@
  *
  */
 
-export interface OperatorAdditionalMetadata {
-    userFriendlyName: string;
-    numInputPorts: number;
-    numOutputPorts: number;
-    operatorGroupName: string;
-    advancedOptions?: string[];
-    operatorDescription?: string;
-}
+export interface OperatorAdditionalMetadata extends Readonly<{
+  userFriendlyName: string;
+  numInputPorts: number;
+  numOutputPorts: number;
+  operatorGroupName: string;
+  advancedOptions?: ReadonlyArray<string>;
+  operatorDescription?: string;
+}> { }
 
-export interface OperatorSchema {
-    operatorType: string;
-    jsonSchema: Object;
-    additionalMetadata: OperatorAdditionalMetadata;
-}
+export interface OperatorSchema extends Readonly<{
+  operatorType: string;
+  jsonSchema: Readonly<Object>;
+  additionalMetadata: OperatorAdditionalMetadata;
+}> { }
 
-export interface GroupInfo {
-    groupName: string;
-    groupOrder: number;
-}
+export interface GroupInfo extends Readonly<{
+  groupName: string;
+  groupOrder: number;
+}> { }
 
-export interface OperatorMetadata {
-    operators: OperatorSchema[];
-    groups: GroupInfo[];
-}
+export interface OperatorMetadata extends Readonly<{
+  operators: ReadonlyArray<OperatorSchema>;
+  groups: ReadonlyArray<GroupInfo>;
+}> { }

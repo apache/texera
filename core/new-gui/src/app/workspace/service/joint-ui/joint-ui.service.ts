@@ -66,7 +66,7 @@ export class JointUIService {
   public static readonly DEFAULT_OPERATOR_WIDTH = 140;
   public static readonly DEFAULT_OPERATOR_HEIGHT = 40;
 
-  private operators: OperatorSchema[] = [];
+  private operators: ReadonlyArray<OperatorSchema> = [];
 
 
   constructor(
