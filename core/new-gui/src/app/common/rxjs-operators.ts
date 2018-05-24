@@ -25,6 +25,7 @@ import 'rxjs/add/operator/auditTime';
 import 'rxjs/add/operator/distinctUntilChanged';
 import 'rxjs/add/operator/startWith';
 import 'rxjs/add/operator/shareReplay';
+import 'rxjs/add/operator/share';
 import 'rxjs/add/operator/first';
 import 'rxjs/add/operator/last';
 import 'rxjs/add/operator/delay';

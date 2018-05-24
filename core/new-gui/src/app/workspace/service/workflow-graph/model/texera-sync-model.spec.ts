@@ -186,6 +186,56 @@ describe('TexeraSyncModel', () => {
 
 
   /**
+   * Test JointJS delete operator `onJointOperatorCellDelete` event stream handled properly
+   *
+   * Add two operators
+   * Delete on operator (caused by deleteOperator calling from the code)
+   * Operator will also be deleted in JointJS, jointOperatorCellDelete will be emitted,
+   *  causing the handler trying to delete the same operator *twice*
+   * The second delete should be ignored because the operator is already deleted.
+   *
+   * addOperator
+   * jointDeleteOperator: -----d-|
+   *
+   * Expected:
+   * one operator is deleted
+   * no error is thrown
+   */
+  it('should ignore duplicate delete operator event from JointJS if the operator is deleted from the code', marbles((m) => {
+
+    // add operators
+    texeraGraph.addOperator(mockScanPredicate);
+    texeraGraph.addOperator(mockResultPredicate);
+
+    texeraGraph.deleteOperator(mockScanPredicate.operatorID);
+
+    // prepare delete operator
+    const deleteOpMarbleString = '-----d-|';
+    const deleteOpMarbleValues = {
+      d: getJointOperatorValue(mockScanPredicate.operatorID)
+    };
+    // mock delete the operator operation at the same time frame of jointJS deleting it
+    //  but executed before the handler
+    spyOn(jointGraphWrapper, 'onJointOperatorCellDelete').and.returnValue(
+      m.hot(deleteOpMarbleString, deleteOpMarbleValues)
+    );
+
+    // construct the texera sync model with spied dependencies
+    const texeraSyncModel = new TexeraSyncModel(texeraGraph, jointGraphWrapper);
+
+    // no error should be thrown
+    jointGraphWrapper.onJointOperatorCellDelete().subscribe({
+      complete: () => {
+        expect(texeraGraph.hasOperator(mockScanPredicate.operatorID)).toBeFalsy();
+        expect(texeraGraph.hasOperator(mockResultPredicate.operatorID)).toBeTruthy();
+        expect(texeraGraph.getOperators().length).toEqual(1);
+        expect(texeraGraph.getLinks().length).toEqual(0);
+      }
+    });
+
+  }));
+
+  /**
    * Test JointJS add link `onJointLinkCellAdd` event stream handled properly
    *
    * Add two operators

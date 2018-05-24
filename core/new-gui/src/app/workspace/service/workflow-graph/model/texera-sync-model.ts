@@ -49,6 +49,7 @@ export class TexeraSyncModel {
   private handleJointOperatorDelete(): void {
     this.jointGraphWrapper.onJointOperatorCellDelete()
       .map(element => element.id.toString())
+      .filter(operatorID => this.texeraGraph.hasOperator(operatorID))
       .subscribe(elementID => this.texeraGraph.deleteOperator(elementID));
   }
 
@@ -80,6 +81,7 @@ export class TexeraSyncModel {
     this.jointGraphWrapper.onJointLinkCellAdd()
       .filter(link => TexeraSyncModel.isValidJointLink(link))
       .map(link => TexeraSyncModel.getOperatorLink(link))
+      .filter(link => ! this.texeraGraph.hasLink(link.source, link.target))
       .subscribe(link => this.texeraGraph.addLink(link));
 
     /**
