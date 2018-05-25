@@ -1,6 +1,6 @@
 import { Observable } from 'rxjs/Observable';
 
-export class JointGraphReadonly {
+export class JointGraphWrapper {
 
   /**
    * This will capture all events in JointJS

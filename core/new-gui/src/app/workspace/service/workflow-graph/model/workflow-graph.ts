@@ -1,7 +1,7 @@
 import { Subject } from 'rxjs/Subject';
 import { Observable } from 'rxjs/Observable';
-import { OperatorPredicate, OperatorLink, OperatorPort } from './common.interface';
-import { WorkflowGraphReadonly } from './workflow-graph-readonly.interface';
+import { OperatorPredicate, OperatorLink, OperatorPort } from '../../../types/common.interface';
+import { WorkflowGraphReadonly } from '../../../types/workflow-graph-readonly.interface';
 import { isEqual } from 'lodash-es';
 
 
@@ -36,7 +36,7 @@ export class WorkflowGraph implements WorkflowGraphReadonly {
    * @param operator OperatorPredicate
    */
   public addOperator(operator: OperatorPredicate): void {
-    WorkflowGraph.checkIfOperatorExists(this, operator);
+    this.assertOperatorNotExists(operator.operatorID);
     this.operatorIDMap.set(operator.operatorID, operator);
     this.operatorAddSubject.next(operator);
   }
@@ -87,8 +87,8 @@ export class WorkflowGraph implements WorkflowGraphReadonly {
    * @param link
    */
   public addLink(link: OperatorLink): void {
-    WorkflowGraph.checkIsValidLink(this, link);
-    WorkflowGraph.checkIfLinkExists(this, link);
+    this.assertLinkNotExists(link);
+    this.assertLinkIsValid(link);
     this.operatorLinkMap.set(link.linkID, link);
     this.linkAddSubject.next(link);
   }
@@ -167,7 +167,7 @@ export class WorkflowGraph implements WorkflowGraphReadonly {
       return undefined;
     }
     if (links.length > 1) {
-      throw new Error(`WorkflowGraph inconsistency: find duplicate link with same source and target`);
+      throw new Error(`WorkflowGraph inconsistency: find duplicate links with same source and target`);
     }
     return links[0];
   }
@@ -243,32 +243,57 @@ export class WorkflowGraph implements WorkflowGraphReadonly {
   }
 
   /**
-   * Checks if an operator with the same OperatorID already exists in the graph.
-   * Throws an Error if the operator already exists.
+   * Checks if an operator with the OperatorID already exists in the graph.
+   * Throws an Error if the operator doesn't exist.
    * @param graph
    * @param operator
    */
-  public static checkIfOperatorExists(graph: WorkflowGraphReadonly, operator: OperatorPredicate): void {
-    if (graph.hasOperator(operator.operatorID)) {
-      throw new Error(`operator with ID ${operator.operatorID} already exists`);
+  public assertOperatorExists(operatorID: string): void {
+    if (! this.hasOperator(operatorID)) {
+      throw new Error(`operator with ID ${operatorID} doesn't exist`);
     }
   }
 
   /**
-   * Checks whether the link already exists in the graph by checking:
+   * Checks if an operator
+   * Throws an Error if there's a duplicate operator ID
+   * @param graph
+   * @param operator
+   */
+  public assertOperatorNotExists(operatorID: string): void {
+    if (this.hasOperator(operatorID)) {
+      throw new Error(`operator with ID ${operatorID} already exists`);
+    }
+  }
+
+  /**
+   * Asserts that the link doesn't exists in the graph by checking:
    *  - duplicate link ID
    *  - duplicate link source and target
    * Throws an Error if the link already exists.
    * @param graph
    * @param link
    */
-  public static checkIfLinkExists(graph: WorkflowGraphReadonly, link: OperatorLink): void {
-    if (graph.hasLinkWithID(link.linkID)) {
+  public assertLinkNotExists(link: OperatorLink): void {
+    if (this.hasLinkWithID(link.linkID)) {
       throw new Error(`link with ID ${link.linkID} already exists`);
     }
-    if (graph.hasLink(link.source, link.target)) {
+    if (this.hasLink(link.source, link.target)) {
       throw new Error(`link from ${link.source.operatorID}.${link.source.portID}
         to ${link.target.operatorID}.${link.target.portID} already exists`);
+    }
+  }
+
+  public assertLinkWithIDExists(linkID: string): void {
+    if (! this.hasLinkWithID(linkID)) {
+      throw new Error(`link with ID ${linkID} doesn't exist`);
+    }
+  }
+
+  public assertLinkExists(source: OperatorPort, target: OperatorPort): void {
+    if (! this.hasLink(source, target)) {
+      throw new Error(`link from ${source.operatorID}.${source.portID}
+        to ${target.operatorID}.${target.portID} already exists`);
     }
   }
 
@@ -280,14 +305,14 @@ export class WorkflowGraph implements WorkflowGraphReadonly {
    * @param graph
    * @param link
    */
-  public static checkIsValidLink(graph: WorkflowGraphReadonly, link: OperatorLink): void {
+  public assertLinkIsValid(link: OperatorLink): void {
 
-    const sourceOperator = graph.getOperator(link.source.operatorID);
+    const sourceOperator = this.getOperator(link.source.operatorID);
     if (!sourceOperator) {
       throw new Error(`link's source operator ${link.source.operatorID} doesn't exist`);
     }
 
-    const targetOperator = graph.getOperator(link.target.operatorID);
+    const targetOperator = this.getOperator(link.target.operatorID);
     if (!targetOperator) {
       throw new Error(`link's target operator ${link.target.operatorID} doesn't exist`);
     }

@@ -1,6 +1,6 @@
-import { JointGraphReadonly } from './../../../types/joint-graph';
+import { JointGraphWrapper } from './joint-graph';
 import { WorkflowGraphReadonly } from './../../../types/workflow-graph-readonly.interface';
-import { WorkflowGraph } from './../../../types/workflow-graph';
+import { WorkflowGraph } from './workflow-graph';
 import {
   mockScanPredicate, mockResultPredicate, mockSentimentPredicate, mockScanResultLink,
   mockScanSentimentLink, mockSentimentResultLink, mockFalseResultSentimentLink, mockFalseSentimentScanLink,
@@ -15,7 +15,7 @@ describe('WorkflowActionService', () => {
 
   let service: WorkflowActionService;
   let texeraGraph: WorkflowGraphReadonly;
-  let jointGraphWrapper: JointGraphReadonly;
+  let jointGraphWrapper: JointGraphWrapper;
 
   beforeEach(() => {
     TestBed.configureTestingModule({

@@ -1,7 +1,9 @@
-import { JointGraphReadonly } from './../../../types/joint-graph';
+import { SyncTexeraModel } from './sync-texera-model';
+import { OperatorPort } from './../../../types/common.interface';
+import { JointGraphWrapper } from './joint-graph';
 import { JointUIService } from './../../joint-ui/joint-ui.service';
 import { WorkflowGraphReadonly } from './../../../types/workflow-graph-readonly.interface';
-import { WorkflowGraph } from './../../../types/workflow-graph';
+import { WorkflowGraph } from './workflow-graph';
 import { Observable } from 'rxjs/Observable';
 import { Injectable } from '@angular/core';
 import { Point, OperatorPredicate, OperatorLink } from '../../../types/common.interface';
@@ -25,19 +27,25 @@ import * as joint from 'jointjs';
 @Injectable()
 export class WorkflowActionService {
 
-  private texeraGraph = new WorkflowGraph();
-  private jointGraph = new joint.dia.Graph();
-  private jointGraphReadonly = new JointGraphReadonly(this.jointGraph);
+  private readonly texeraGraph: WorkflowGraph;
+  private readonly jointGraph: joint.dia.Graph;
+  private readonly jointGraphWrapper: JointGraphWrapper;
+  private readonly syncTexeraModel: SyncTexeraModel;
 
   constructor(
-  ) { }
+  ) {
+    this.texeraGraph = new WorkflowGraph();
+    this.jointGraph = new joint.dia.Graph();
+    this.jointGraphWrapper = new JointGraphWrapper(this.jointGraph);
+    this.syncTexeraModel = new SyncTexeraModel(this.texeraGraph, this.jointGraphWrapper);
+  }
 
   public getTexeraGraph(): WorkflowGraphReadonly {
     return this.texeraGraph;
   }
 
-  public getJointGraphWrapper(): JointGraphReadonly {
-    return this.jointGraphReadonly;
+  public getJointGraphWrapper(): JointGraphWrapper {
+    return this.jointGraphWrapper;
   }
 
   /**
@@ -61,9 +69,7 @@ export class WorkflowActionService {
    * @param point
    */
   public addOperator(operator: OperatorPredicate, operatorJointElement: joint.dia.Element): void {
-    if (operator.operatorID !== operatorJointElement.id.toString()) {
-      throw new Error(`operatorID ${operator.operatorID} and Joint UI Element ID ${operatorJointElement.id.toString()} are inconsistent`);
-    }
+    this.texeraGraph.assertOperatorNotExists(operator.operatorID);
     this.texeraGraph.addOperator(operator);
     this.jointGraph.addCell(operatorJointElement);
   }
@@ -74,8 +80,10 @@ export class WorkflowActionService {
    * @param operatorID
    */
   public deleteOperator(operatorID: string): void {
-    this.texeraGraph.deleteOperator(operatorID);
+    this.texeraGraph.assertOperatorExists(operatorID);
+    // remove the operator from JointJS
     this.jointGraph.getCell(operatorID).remove();
+    // JointJS operator delete event will propagate and trigger Texera operator delete
   }
 
   /**
@@ -84,19 +92,38 @@ export class WorkflowActionService {
    * @param link
    */
   public addLink(link: OperatorLink): void {
-    this.texeraGraph.addLink(link);
+    this.texeraGraph.assertLinkNotExists(link);
+    this.texeraGraph.assertLinkIsValid(link);
+    // add the link to JointJS
     const jointLinkCell = JointUIService.getJointLinkCell(link);
     this.jointGraph.addCell(jointLinkCell);
+    // JointJS link add event will propagate and trigger Texera link add
   }
 
   /**
-   * Deletes a link from the workflow graph
+   * Deletes a link with the linkID from the workflow graph
    * Throws an Error if the linkID doesn't exist in the workflow graph.
    * @param linkID
    */
   public deleteLinkWithID(linkID: string): void {
-    this.texeraGraph.deleteLinkWithID(linkID);
+    this.texeraGraph.assertLinkWithIDExists(linkID);
     this.jointGraph.getCell(linkID).remove();
+    // JointJS link delete event will propagate and trigger Texera link delete
+  }
+
+  /**
+   * Deletes a link with the source and target from the workflow graph
+   * Throws an Error if the linkID doesn't exist in the workflow graph.
+   * @param linkID
+   */
+  public deleteLink(source: OperatorPort, target: OperatorPort): void {
+    this.texeraGraph.assertLinkExists(source, target);
+    const link = this.texeraGraph.getLink(source, target);
+    if (!link) {
+      throw new Error(`link with source ${source} and target ${target} doesn't exist`);
+    }
+    this.jointGraph.getCell(link.linkID).remove();
+    // JointJS link delete event will propagate and trigger Texera link delete
   }
 
 }

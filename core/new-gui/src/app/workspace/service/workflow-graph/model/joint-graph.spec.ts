@@ -1,6 +1,6 @@
-import { OperatorMetadataService } from './../service/operator-metadata/operator-metadata.service';
-import { JointUIService } from './../service/joint-ui/joint-ui.service';
-import { JointGraphReadonly } from './joint-graph';
+import { OperatorMetadataService } from '../../operator-metadata/operator-metadata.service';
+import { JointUIService } from '../../joint-ui/joint-ui.service';
+import { JointGraphWrapper } from './joint-graph';
 import { TestBed, inject } from '@angular/core/testing';
 import { marbles } from 'rxjs-marbles';
 import { isEqual } from 'lodash';
@@ -9,15 +9,15 @@ import {
   mockScanPredicate, mockResultPredicate, mockScanResultLink,
   mockSentimentPredicate, mockScanSentimentLink, mockSentimentResultLink,
   mockPoint
-} from '../service/workflow-graph/model/mock-workflow-data';
+} from './mock-workflow-data';
 
 import * as joint from 'jointjs';
-import { StubOperatorMetadataService } from '../service/operator-metadata/stub-operator-metadata.service';
+import { StubOperatorMetadataService } from '../../operator-metadata/stub-operator-metadata.service';
 
 describe('JointModelService', () => {
 
   let jointGraph: joint.dia.Graph;
-  let jointGraphWrapper: JointGraphReadonly;
+  let jointGraphWrapper: JointGraphWrapper;
   let jointUIService: JointUIService;
 
   beforeEach(() => {
@@ -28,7 +28,7 @@ describe('JointModelService', () => {
       ]
     });
     jointGraph = new joint.dia.Graph();
-    jointGraphWrapper = new JointGraphReadonly(jointGraph);
+    jointGraphWrapper = new JointGraphWrapper(jointGraph);
     jointUIService = TestBed.get(JointUIService);
   });
 

@@ -3,8 +3,8 @@ import { Injectable } from '@angular/core';
 
 import { WorkflowActionService } from './workflow-action.service';
 
-import { WorkflowGraph } from './../../../types/workflow-graph';
-import { JointGraphReadonly } from '../../../types/joint-graph';
+import { WorkflowGraph } from './workflow-graph';
+import { JointGraphWrapper } from './joint-graph';
 
 /**
  * TexeraModelService manages the Texera Model.
@@ -18,11 +18,11 @@ import { JointGraphReadonly } from '../../../types/joint-graph';
  * For the details of the services in WorkflowGraphModule, see workflow-graph-design.md
  *
  */
-export class TexeraSyncModel {
+export class SyncTexeraModel {
 
   constructor(
     private texeraGraph: WorkflowGraph,
-    private jointGraphWrapper: JointGraphReadonly
+    private jointGraphWrapper: JointGraphWrapper
   ) {
 
     /**
@@ -49,7 +49,6 @@ export class TexeraSyncModel {
   private handleJointOperatorDelete(): void {
     this.jointGraphWrapper.onJointOperatorCellDelete()
       .map(element => element.id.toString())
-      .filter(operatorID => this.texeraGraph.hasOperator(operatorID))
       .subscribe(elementID => this.texeraGraph.deleteOperator(elementID));
   }
 
@@ -79,18 +78,17 @@ export class TexeraSyncModel {
      *  and only add valid links to the graph
      */
     this.jointGraphWrapper.onJointLinkCellAdd()
-      .filter(link => TexeraSyncModel.isValidJointLink(link))
-      .map(link => TexeraSyncModel.getOperatorLink(link))
-      .filter(link => ! this.texeraGraph.hasLink(link.source, link.target))
+      .filter(link => SyncTexeraModel.isValidJointLink(link))
+      .map(link => SyncTexeraModel.getOperatorLink(link))
       .subscribe(link => this.texeraGraph.addLink(link));
 
     /**
      * on link cell delete:
-     * we need to check if the deleted link cell is a valid link beforehead (check if the link ID existed in the Workflow Graph)
+     * we need to check if the deleted link cell is a valid link beforehead
      * and only delete the link by the link ID
      */
     this.jointGraphWrapper.onJointLinkCellDelete()
-      .filter(link => this.texeraGraph.hasLinkWithID(link.id.toString()))
+      .filter(link => SyncTexeraModel.isValidJointLink(link))
       .subscribe(link => this.texeraGraph.deleteLinkWithID(link.id.toString()));
 
 
@@ -105,8 +103,8 @@ export class TexeraSyncModel {
         const linkID = link.id.toString();
         if (this.texeraGraph.hasLinkWithID(linkID)) { this.texeraGraph.deleteLinkWithID(linkID); }
       })
-      .filter(link => TexeraSyncModel.isValidJointLink(link))
-      .map(link => TexeraSyncModel.getOperatorLink(link))
+      .filter(link => SyncTexeraModel.isValidJointLink(link))
+      .map(link => SyncTexeraModel.getOperatorLink(link))
       .subscribe(link => {
         this.texeraGraph.addLink(link);
       });

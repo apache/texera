@@ -1,7 +1,7 @@
 import {
   mockScanPredicate, mockSentimentPredicate, mockResultPredicate,
   mockScanSentimentLink, mockSentimentResultLink, mockScanResultLink
-} from './../service/workflow-graph/model/mock-workflow-data';
+} from './mock-workflow-data';
 import { WorkflowGraph } from './workflow-graph';
 
 describe('WorkflowGraph', () => {
