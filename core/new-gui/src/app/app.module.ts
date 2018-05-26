@@ -17,6 +17,8 @@ import { WorkflowEditorComponent } from './workspace/component/workflow-editor/w
 import { ResultPanelComponent } from './workspace/component/result-panel/result-panel.component';
 import { OperatorLabelComponent } from './workspace/component/operator-panel/operator-label/operator-label.component';
 
+// remove annoying Angular material hammer js warning
+import 'hammerjs';
 
 @NgModule({
   declarations: [
