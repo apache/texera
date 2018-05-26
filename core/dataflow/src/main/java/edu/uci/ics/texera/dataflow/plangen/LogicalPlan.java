@@ -117,20 +117,21 @@ public class LogicalPlan {
     /**
      * Updates the current plan and fetch the schema from an operator
      * @param operatorID, the ID of an operator
+     * @param operatorInputSchemaMap Map of operators to their input schemas
      * @return Schema, which includes the attributes setting of the operator
      */
-    public Schema getOperatorOutputSchema(String operatorID, Map<String, List<Schema>> inputSchemas)
+    public Optional<Schema> getOperatorOutputSchema(String operatorID, Map<String, List<Schema>> operatorInputSchemaMap)
             throws PlanGenException, DataflowException {
 
         IOperator currentOperator = operatorObjectMap.get(operatorID);
-        Schema outputSchema = null;
+        Optional<Schema> outputSchema = null;
         if (currentOperator instanceof ISourceOperator) {
-            outputSchema = currentOperator.transformToOutputSchema();
-        } else if (inputSchemas.containsKey(operatorID)) {
-            List<Schema> inputSchema = inputSchemas.get(operatorID);
+            outputSchema = Optional.ofNullable(currentOperator.transformToOutputSchema());
+        } else if (operatorInputSchemaMap.containsKey(operatorID)) {
+            List<Schema> inputSchemaList = operatorInputSchemaMap.get(operatorID);
             try {
-                outputSchema = currentOperator.transformToOutputSchema(
-                        inputSchema.toArray(new Schema[inputSchema.size()]));
+                outputSchema = Optional.ofNullable(currentOperator.transformToOutputSchema(
+                        inputSchemaList.toArray(new Schema[inputSchemaList.size()])));
             } catch (TexeraException e) {
                 System.out.println(e.getMessage());
             }
@@ -157,32 +158,47 @@ public class LogicalPlan {
             }
         }
 
-        // Get all the source operator
-        Queue<String> queue = new LinkedList<>();
+        // This queue will contain all operators for which input schemas have been completely found. At start, it has all the source operator
+        Queue<String> operatorQueue = new LinkedList<>();
         for (Map.Entry<String, IOperator> entry: operatorObjectMap.entrySet()) {
             if (entry.getValue() instanceof ISourceOperator) {
-                queue.add(entry.getKey());
+                operatorQueue.add(entry.getKey());
             }
         }
 
-        // Retrieve input schema based on topological order
+        // Retrieve input schema based on topological order. Initially, the queue contains only source operators and we find their output schemas.
+        // The output schema of an operator becomes the input schema of another. When, we find output schema of one operator, we record that for the
+        // next operator, we have found one of its input schema and decrease its in-edge count by one (in-edge count represents the inputs for which schema hasn't yet been determined).
+        // When in-edge count reaches 0, all input schemas of the operator has been found. So, the operator is put into queue (as an operator for which we can find output schema).
         Map<String, List<Schema>> inputSchemas = new HashMap<>();
-        while (!queue.isEmpty()) {
-            String origin = queue.poll();
-            Schema curOutputSchema = getOperatorOutputSchema(origin, inputSchemas);
+        while (!operatorQueue.isEmpty()) {
+            String origin = operatorQueue.poll();
+            Optional<Schema> currentOutputSchema = getOperatorOutputSchema(origin, inputSchemas);
 
-            if (curOutputSchema != null) {
-                for (String destination: adjacencyList.get(origin)) {
-                    if (!(operatorObjectMap.get(destination) instanceof ISink)) {
-                        inputSchemas.computeIfAbsent(destination, k -> new ArrayList<>()).add(curOutputSchema);
-                        inEdgeCount.put(destination, inEdgeCount.get(destination) - 1);
-                        if (inEdgeCount.get(destination) == 0) {
-                            inEdgeCount.remove(destination);
-                            queue.offer(destination);
-                        }
-                    }
+            if(!currentOutputSchema.isPresent())
+            {
+                continue;
+            }
+
+            for (String destination: adjacencyList.get(origin)) {
+                if(operatorObjectMap.get(destination) instanceof ISink)
+                {
+                    continue;
+                }
+
+                if (inputSchemas.containsKey(destination)) {
+                    inputSchemas.get(destination).add(currentOutputSchema.get());
+                } else {
+                    inputSchemas.put(destination, new ArrayList<>(Arrays.asList(currentOutputSchema.get())));
+                }
+
+                inEdgeCount.put(destination, inEdgeCount.get(destination) - 1);
+                if (inEdgeCount.get(destination) == 0) {
+                    inEdgeCount.remove(destination);
+                    operatorQueue.offer(destination);
                 }
             }
+
         }
         return inputSchemas;
     }

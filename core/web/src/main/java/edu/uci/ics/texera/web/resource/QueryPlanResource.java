@@ -246,11 +246,11 @@ public class QueryPlanResource {
             getValidOperatorsAndLinks(operators, links, validOperators, validLinks,
                                       linksEndWithInvalidDest, validOperatorsId);
 
-            ((ObjectNode) logicalPlanNode).putArray(PropertyNameConstants.OPERATOR_LIST).addAll(validOperators);
-            ((ObjectNode) logicalPlanNode).putArray(PropertyNameConstants.OPERATOR_LINK_LIST).addAll(validLinks);
+            ObjectNode validLogicalPlanNode = new ObjectMapper().createObjectNode();
+            (validLogicalPlanNode).putArray(PropertyNameConstants.OPERATOR_LIST).addAll(validOperators);
+            (validLogicalPlanNode).putArray(PropertyNameConstants.OPERATOR_LINK_LIST).addAll(validLinks);
 
-            LogicalPlan logicalPlan = new ObjectMapper().treeToValue(logicalPlanNode, LogicalPlan.class);
-            String resultID = UUID.randomUUID().toString();
+            LogicalPlan logicalPlan = new ObjectMapper().treeToValue(validLogicalPlanNode, LogicalPlan.class);
 
             // Get all input schema for valid operator with valid links
             Map<String, List<Schema>> inputSchema = logicalPlan.retrieveAllOperatorInputSchema();
@@ -259,8 +259,15 @@ public class QueryPlanResource {
                 String origin = linkNode.get(PropertyNameConstants.ORIGIN_OPERATOR_ID).textValue();
                 String dest = linkNode.get(PropertyNameConstants.DESTINATION_OPERATOR_ID).textValue();
 
-                Schema schema = logicalPlan.getOperatorOutputSchema(origin, inputSchema);
-                inputSchema.computeIfAbsent(dest, k -> new ArrayList<>()).add(schema);
+                Optional<Schema> schema = logicalPlan.getOperatorOutputSchema(origin, inputSchema);
+                if(schema.isPresent())
+                {
+                    if (inputSchema.containsKey(dest)) {
+                        inputSchema.get(dest).add(schema.get());
+                    } else {
+                        inputSchema.put(dest, new ArrayList<>(Arrays.asList(schema.get())));
+                    }
+                }
             }
 
             ObjectNode result = new ObjectMapper().createObjectNode();
@@ -280,7 +287,6 @@ public class QueryPlanResource {
             ObjectNode response = new ObjectMapper().createObjectNode();
             response.put("code", 0);
             response.set("result", result);
-            response.put("resultID", resultID);
             return response;
 
         } catch (JsonMappingException je) {
@@ -336,6 +342,8 @@ public class QueryPlanResource {
 
 
     /**
+     * Used for automatic schema propagation as user is building the graph.
+     *
      * Retrieve all the valid operator and links and store into node validOperators and validLinks
      *
      * A operator is valid if the json representation of the operator can pass all the test in the specific
@@ -361,7 +369,8 @@ public class QueryPlanResource {
                 new ObjectMapper().treeToValue(operatorNode, PredicateBase.class);
                 validOperators.add(operatorNode);
                 validOperatorsId.add(operatorNode.get(PropertyNameConstants.OPERATOR_ID).textValue());
-                // Fail
+                // Json Parsing Exception will mean that the user hasn't provided all input parameters for the operator till now.
+                // As this function is just used for input suggestion to the user it is fine to skip this exception here.
             } catch (JsonProcessingException e) {
                 System.out.println(e);
             }
