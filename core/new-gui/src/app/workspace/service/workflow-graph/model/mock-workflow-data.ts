@@ -1,4 +1,4 @@
-import { Point, OperatorPredicate, OperatorLink } from './../../../types/common.interface';
+import { Point, OperatorPredicate, OperatorLink } from './../../../types/workflow-common.interface';
 import { getMockOperatorSchemaList } from './../../operator-metadata/mock-operator-metadata.data';
 
 /**

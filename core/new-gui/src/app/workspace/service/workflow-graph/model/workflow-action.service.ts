@@ -1,10 +1,9 @@
 import { SyncTexeraModel } from './sync-texera-model';
-import { OperatorPort } from './../../../types/common.interface';
 import { JointGraphWrapper } from './joint-graph-wrapper';
 import { JointUIService } from './../../joint-ui/joint-ui.service';
 import { WorkflowGraph, WorkflowGraphReadonly } from './workflow-graph';
 import { Injectable } from '@angular/core';
-import { Point, OperatorPredicate, OperatorLink } from '../../../types/common.interface';
+import { Point, OperatorPredicate, OperatorLink, OperatorPort } from '../../../types/workflow-common.interface';
 
 import * as joint from 'jointjs';
 

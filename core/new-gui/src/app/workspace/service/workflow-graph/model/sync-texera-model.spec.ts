@@ -1,7 +1,7 @@
 import { SyncTexeraModel } from './sync-texera-model';
 import { JointGraphWrapper } from './joint-graph-wrapper';
 import { WorkflowGraph } from './workflow-graph';
-import { Point, OperatorPredicate, OperatorLink } from './../../../types/common.interface';
+import { Point, OperatorPredicate, OperatorLink } from './../../../types/workflow-common.interface';
 import {
   mockScanPredicate, mockResultPredicate, mockSentimentPredicate,
   mockScanResultLink, mockScanSentimentLink, mockSentimentResultLink, mockPoint

@@ -1,4 +1,4 @@
-import { OperatorLink } from './../../../types/common.interface';
+import { OperatorLink } from './../../../types/workflow-common.interface';
 
 import { WorkflowGraph } from './workflow-graph';
 import { JointGraphWrapper } from './joint-graph-wrapper';

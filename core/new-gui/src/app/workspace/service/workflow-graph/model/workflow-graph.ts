@@ -1,6 +1,6 @@
 import { Subject } from 'rxjs/Subject';
 import { Observable } from 'rxjs/Observable';
-import { OperatorPredicate, OperatorLink, OperatorPort } from '../../../types/common.interface';
+import { OperatorPredicate, OperatorLink, OperatorPort } from '../../../types/workflow-common.interface';
 import { isEqual } from 'lodash-es';
 
 // define the restricted methods that could change the graph
