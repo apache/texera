@@ -1,15 +1,15 @@
-import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
-import { JointModelService } from './../../service/workflow-graph/model/joint-model.service';
-import { JointUIService } from '../../service/joint-ui/joint-ui.service';
-import { DragDropService } from '../../service/drag-drop/drag-drop.service';
+import { DragDropService } from './../../service/drag-drop/drag-drop.service';
 
+import { JointUIService } from './../../service/joint-ui/joint-ui.service';
+import { WorkflowUtilService } from './../../service/workflow-graph/util/workflow-util.service';
+import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
 import { Component, AfterViewInit } from '@angular/core';
 import { Observable } from 'rxjs/Observable';
 import '../../../common/rxjs-operators';
 
 import * as joint from 'jointjs';
 import {
-  getMockScanPredicate, getMockResultPredicate, getMockScanResultLink
+  mockScanPredicate, mockResultPredicate, mockScanResultLink
 } from '../../service/workflow-graph/model/mock-workflow-data';
 
 /**
@@ -40,10 +40,9 @@ export class WorkflowEditorComponent implements AfterViewInit {
   private paper: joint.dia.Paper | undefined;
 
   constructor(
-    private jointUIService: JointUIService,
-    private jointModelService: JointModelService,
     private workflowActionService: WorkflowActionService,
-    private dragDropService: DragDropService
+    private dragDropService: DragDropService,
+    private jointUIService: JointUIService
   ) {
   }
 
@@ -70,7 +69,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     // get the custom paper options
     let jointPaperOptions = WorkflowEditorComponent.getJointPaperOptions();
     // attach the JointJS graph (model) to the paper (view)
-    jointPaperOptions = this.jointModelService.attachJointPaper(jointPaperOptions);
+    jointPaperOptions = this.workflowActionService.attachJointPaper(jointPaperOptions);
     // attach the DOM element to the paper
     jointPaperOptions.el = $(`#${this.WORKFLOW_EDITOR_JOINTJS_ID}`);
     // create the JointJS paper
@@ -93,36 +92,37 @@ export class WorkflowEditorComponent implements AfterViewInit {
   }
 
   private handleCellHighlight(): void {
+
+    // handle user mouse down events to trigger logically highlight and unhighlight an operator
     Observable.fromEvent(this.getJointPaper(), 'cell:pointerdown')
       .map(value => <joint.dia.CellView>value)
       .filter(cellView => cellView.model.isElement())
-      .subscribe(cellView => this.jointModelService.highlightOperator(cellView.model.id.toString()));
+      .subscribe(cellView => this.workflowActionService.getJointGraphWrapper().highlightOperator(cellView.model.id.toString()));
 
-    Observable.fromEvent(this.getJointPaper(), 'blank:pointerclick')
-      .subscribe(value => this.jointModelService.unhighlightCurrent());
+    Observable.fromEvent(this.getJointPaper(), 'blank:pointerdown')
+      .subscribe(value => this.workflowActionService.getJointGraphWrapper().unhighlightCurrent());
 
+
+    // handle logical operator highlight / unhighlight events to let JointJS
+    //  use our own custom highlighter
     const highlightOptions = {
       name: 'stroke',
       options: {
-          attrs: {
-              'stroke-width': 3,
-              stroke: '#404040'
-          }
+        attrs: {
+          'stroke-width': 3,
+          stroke: '#404040'
+        }
       }
     };
 
-    this.jointModelService.onJointCellHighlight()
+    this.workflowActionService.getJointGraphWrapper().getJointCellHighlightStream()
       .subscribe(value => this.getJointPaper().findViewByModel(value.operatorID).highlight(
-        'rect', {
-          highlighter: highlightOptions
-        }
+        'rect', { highlighter: highlightOptions }
       ));
 
-    this.jointModelService.onJointCellUnhighlight()
+    this.workflowActionService.getJointGraphWrapper().getJointCellUnhighlightStream()
       .subscribe(value => this.getJointPaper().findViewByModel(value.operatorID).unhighlight(
-        'rect', {
-          highlighter: highlightOptions
-        }
+        'rect', { highlighter: highlightOptions }
       ));
   }
 
@@ -149,7 +149,14 @@ export class WorkflowEditorComponent implements AfterViewInit {
   }
 
   /**
+   * Handles the event where the Delete button is clicked for an Operator,
+   *  and call workflowAction to delete the corresponding operator.
    *
+   * JointJS doesn't have delete button built-in with an operator element,
+   *  the delete button is Texera's own customized element.
+   * Therefore JointJS doesn't come with default handler for delete an operator,
+   *  we need to handle the callback event `element:delete`.
+   * The name of this callback event is registered in `JointUIService.getCustomOperatorStyleAttrs`
    */
   private handleViewDeleteOperator(): void {
     // bind the delete button event to call the delete operator function in joint model action

@@ -1,8 +1,5 @@
-import { JointModelService } from './../../service/workflow-graph/model/joint-model.service';
-import { OperatorSchema } from './../../types/operator-schema';
+import { OperatorSchema } from './../../types/operator-schema.interface';
 import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
-import { OperatorPredicate } from './../../types/workflow-graph';
-import { TexeraModelService } from './../../service/workflow-graph/model/texera-model.service';
 import { OperatorMetadataService } from './../../service/operator-metadata/operator-metadata.service';
 import { Component, OnInit } from '@angular/core';
 
@@ -15,6 +12,7 @@ import cloneDeep from 'lodash-es/cloneDeep';
 import { Subject } from 'rxjs/Subject';
 import { Observable } from 'rxjs/Observable';
 import '../../../common/rxjs-operators';
+import { OperatorPredicate } from '../../types/workflow-common.interface';
 
 @Component({
   selector: 'texera-property-editor',
@@ -31,7 +29,7 @@ export class PropertyEditorComponent implements OnInit {
   public operatorID: string | undefined;
   public initialData: Object | undefined;
   public currentSchema: OperatorSchema | undefined;
-  public operatorSchemaList: OperatorSchema[] = [];
+  public operatorSchemaList: ReadonlyArray<OperatorSchema> = [];
   public displayForm = false;
 
 
@@ -41,22 +39,20 @@ export class PropertyEditorComponent implements OnInit {
 
   constructor(
     private operatorMetadataService: OperatorMetadataService,
-    private jointModelService: JointModelService,
-    private texeraModelService: TexeraModelService,
     private workflowActionService: WorkflowActionService
   ) {
     this.operatorMetadataService.getOperatorMetadata().subscribe(
       value => { this.operatorSchemaList = value.operators; }
     );
 
-    this.jointModelService.onJointCellHighlight()
+    this.workflowActionService.getJointGraphWrapper().getJointCellHighlightStream()
       .filter(value => value.operatorID !== this.operatorID)
-      .map(value => this.texeraModelService.getTexeraGraph().getOperator(value.operatorID))
+      .map(value => this.workflowActionService.getTexeraGraph().getOperator(value.operatorID))
       .subscribe(
         operator => this.changePropertyEditor(operator)
       );
 
-    this.jointModelService.onJointCellUnhighlight()
+    this.workflowActionService.getJointGraphWrapper().getJointCellUnhighlightStream()
       .filter(value => value.operatorID === this.operatorID)
       .subscribe(value => this.clearPropertyEditor());
 
@@ -82,7 +78,11 @@ export class PropertyEditorComponent implements OnInit {
 
   }
 
-  public changePropertyEditor(operator: OperatorPredicate): void {
+  public changePropertyEditor(operator: OperatorPredicate | undefined): void {
+    if (! operator) {
+      throw new Error(`change property editor: operator is undefined`);
+    }
+
     console.log('changePropertyEditor called');
     console.log('operatorID: ' + operator.operatorID);
     this.operatorID = operator.operatorID;
@@ -108,7 +108,7 @@ export class PropertyEditorComponent implements OnInit {
     if (!this.operatorID) {
       throw new Error(`Property Editor component not binded with the current operatorID`);
     }
-    this.workflowActionService.changeOperatorProperty(this.operatorID, formData);
+    this.workflowActionService.setOperatorProperty(this.operatorID, formData);
   }
 
   // layout for the form

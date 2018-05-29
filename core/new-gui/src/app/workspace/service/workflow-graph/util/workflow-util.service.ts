@@ -1,13 +1,17 @@
-import { OperatorPredicate } from './../../../types/workflow-graph';
+import { OperatorPredicate } from './../../../types/workflow-common.interface';
 import { OperatorMetadataService } from './../../operator-metadata/operator-metadata.service';
-import { OperatorSchema } from './../../../types/operator-schema';
+import { OperatorSchema } from './../../../types/operator-schema.interface';
 import { Injectable } from '@angular/core';
+import { v4 as uuid } from 'uuid';
 
+
+/**
+ * WorkflowUtilService provide utilities related to dealing with operator data.
+ */
 @Injectable()
 export class WorkflowUtilService {
 
-  private nextAvailableID = 0;
-  private operatorSchemaList: OperatorSchema[] = [];
+  private operatorSchemaList: ReadonlyArray<OperatorSchema> = [];
 
   constructor(private operatorMetadataService: OperatorMetadataService
   ) {
@@ -18,15 +22,22 @@ export class WorkflowUtilService {
     );
   }
 
-  // generate a new operator ID
-  public getNextAvailableID(): string {
-    this.nextAvailableID++;
-    return 'operator-' + this.nextAvailableID.toString();
+  /**
+   * Generates a new UUID for operator or link
+   */
+  public getRandomUUID(): string {
+    return 'operator-' + uuid();
   }
 
-  // return a new OperatorPredicate with a new ID and default intial properties
+  /**
+   * This method will use a unique ID and a operatorType to create and return a
+   * new OperatorPredicate with default initial properties.
+   *
+   * @param operatorType type of an Operator
+   * @returns a new OperatorPredicate of the operatorType
+   */
   public getNewOperatorPredicate(operatorType: string): OperatorPredicate {
-    const operatorID = this.getNextAvailableID();
+    const operatorID = this.getRandomUUID();
     const operatorProperties = {};
 
     const operatorSchema = this.operatorSchemaList.find(schema => schema.operatorType === operatorType);

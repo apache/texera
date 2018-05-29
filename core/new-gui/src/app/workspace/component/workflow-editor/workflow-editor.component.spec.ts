@@ -1,6 +1,5 @@
 import { DragDropService } from './../../service/drag-drop/drag-drop.service';
 import { WorkflowUtilService } from './../../service/workflow-graph/util/workflow-util.service';
-import { JointModelService } from './../../service/workflow-graph/model/joint-model.service';
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { WorkflowEditorComponent } from './workflow-editor.component';
@@ -11,6 +10,17 @@ import { JointUIService } from '../../service/joint-ui/joint-ui.service';
 
 import * as joint from 'jointjs';
 import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
+
+
+class StubWorkflowActionService {
+
+  private jointGraph = new joint.dia.Graph();
+
+  public attachJointPaper(paperOptions: joint.dia.Paper.Options): joint.dia.Paper.Options {
+    paperOptions.model = this.jointGraph;
+    return paperOptions;
+  }
+}
 
 describe('WorkflowEditorComponent', () => {
   let component: WorkflowEditorComponent;
@@ -23,10 +33,9 @@ describe('WorkflowEditorComponent', () => {
       declarations: [WorkflowEditorComponent],
       providers: [
         JointUIService,
-        JointModelService,
-        WorkflowActionService,
         WorkflowUtilService,
         DragDropService,
+        { provide: WorkflowActionService, useClass: StubWorkflowActionService },
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
       ]
     })
@@ -37,9 +46,9 @@ describe('WorkflowEditorComponent', () => {
     fixture = TestBed.createComponent(WorkflowEditorComponent);
     component = fixture.componentInstance;
     jointUIService = fixture.debugElement.injector.get(JointUIService);
-    const jointModelService = fixture.debugElement.injector.get(JointModelService);
-    jointGraph = (jointModelService as any).jointGraph;
+    // detect changes first to run ngAfterViewInit and bind Model
     fixture.detectChanges();
+    jointGraph = component.getJointPaper().model;
   });
 
   it('should create', () => {
@@ -64,13 +73,13 @@ describe('WorkflowEditorComponent', () => {
 
     const element1 = new joint.shapes.basic.Rect({
       size: { width: 100, height: 50 },
-      position: { x: 100, y: 400}
+      position: { x: 100, y: 400 }
     });
     element1.set('id', operator1);
 
     const element2 = new joint.shapes.basic.Rect({
       size: { width: 100, height: 50 },
-      position: { x: 100, y: 400}
+      position: { x: 100, y: 400 }
     });
     element2.set('id', operator2);
 

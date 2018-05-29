@@ -1,12 +1,10 @@
-import { JointModelService } from './../workflow-graph/model/joint-model.service';
+import { Point } from './../../types/workflow-common.interface';
 import { WorkflowActionService } from './../workflow-graph/model/workflow-action.service';
-import { Point } from './../../types/common.interface';
 import { Observable } from 'rxjs/Observable';
 import { WorkflowUtilService } from './../workflow-graph/util/workflow-util.service';
 import { JointUIService } from './../joint-ui/joint-ui.service';
 import { Injectable } from '@angular/core';
 import { Subject } from 'rxjs/Subject';
-import { OperatorPredicate } from '../../types/workflow-graph';
 
 import * as joint from 'jointjs';
 
@@ -65,16 +63,19 @@ export class DragDropService {
 
   constructor(
     private jointUIService: JointUIService,
-    private jointModelService: JointModelService,
     private workflowUtilService: WorkflowUtilService,
     private workflowActionService: WorkflowActionService
   ) {
+    this.handleOperatorDropEvent();
+  }
+
+  public handleOperatorDropEvent(): void {
     this.getOperatorDropStream().subscribe(
       value => {
         this.currentOperatorType = DragDropService.DRAG_DROP_TEMP_OPERATOR_TYPE;
         const operator = this.workflowUtilService.getNewOperatorPredicate(value.operatorType);
-        this.workflowActionService.addOperator(operator, value.offset);
-        this.jointModelService.highlightOperator(operator.operatorID);
+        this.workflowActionService.addOperator(operator, this.jointUIService.getJointOperatorElement(operator, value.offset));
+        this.workflowActionService.getJointGraphWrapper().highlightOperator(operator.operatorID);
       }
     );
   }
@@ -200,7 +201,6 @@ export class DragDropService {
    * @param ui
    */
   private handleOperatorDrop(event: JQuery.Event, ui: JQueryUI.DraggableEventUIParams): void {
-    console.log('on op dropped called');
     // notify the subject of the event
     // use ui.offset instead of ui.position because offset is relative to document root, where position is relative to parent element
     this.operatorDroppedSubject.next({

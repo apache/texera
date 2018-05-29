@@ -1,7 +1,7 @@
 // import functions from lodash: import individual functions from lodash-es
 //  to avoid include the entire lodash library
 import cloneDeep from 'lodash-es/cloneDeep';
-import { OperatorSchema, OperatorMetadata, GroupInfo } from '../../types/operator-schema';
+import { OperatorSchema, OperatorMetadata, GroupInfo } from '../../types/operator-schema.interface';
 
 /**
  * Exports constants related to operator schema and operator metadata for testing purposes.

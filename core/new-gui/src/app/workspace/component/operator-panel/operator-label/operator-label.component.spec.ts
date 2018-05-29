@@ -2,7 +2,6 @@ import { Observable } from 'rxjs/Observable';
 import { WorkflowUtilService } from './../../../service/workflow-graph/util/workflow-util.service';
 import { JointUIService } from './../../../service/joint-ui/joint-ui.service';
 import { DragDropService } from './../../../service/drag-drop/drag-drop.service';
-import { JointModelService } from '../../../service/workflow-graph/model/joint-model.service';
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { OperatorLabelComponent } from './operator-label.component';
@@ -27,7 +26,6 @@ describe('OperatorLabelComponent', () => {
       imports: [CustomNgMaterialModule],
       providers: [
         DragDropService,
-        JointModelService,
         JointUIService,
         WorkflowUtilService,
         WorkflowActionService,
