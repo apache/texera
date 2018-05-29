@@ -60,7 +60,7 @@ export class PropertyEditorComponent implements OnInit {
   }
 
   ngOnInit() {
-    this.jsonSchemaOnFormChangeStream.auditTime(50).subscribe(
+    this.jsonSchemaOnFormChangeStream.subscribe(
       formData => {
         this.handleFormChange(formData);
       }

@@ -1,3 +1,4 @@
+import { JointGraphWrapper } from './../../service/workflow-graph/model/joint-graph-wrapper';
 import { DragDropService } from './../../service/drag-drop/drag-drop.service';
 import { WorkflowUtilService } from './../../service/workflow-graph/util/workflow-util.service';
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
@@ -15,10 +16,15 @@ import { WorkflowActionService } from '../../service/workflow-graph/model/workfl
 class StubWorkflowActionService {
 
   private jointGraph = new joint.dia.Graph();
+  private jointGraphWrapper = new JointGraphWrapper(this.jointGraph);
 
   public attachJointPaper(paperOptions: joint.dia.Paper.Options): joint.dia.Paper.Options {
     paperOptions.model = this.jointGraph;
     return paperOptions;
+  }
+
+  public getJointGraphWrapper(): JointGraphWrapper {
+    return this.jointGraphWrapper;
   }
 }
 
