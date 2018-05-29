@@ -185,6 +185,47 @@ describe('JointModelService', () => {
 
     }));
 
+    it('should handle the event when an operator is highlighted or unhighlighted in the JointJS paper', marbles((m) => {
+      jointModelService.onJointCellHighlight().subscribe(
+        operator => {
+          expect(operator.operatorID).toEqual(getMockScanPredicate().operatorID);
+        }
+      );
+
+      workflowActionService.addOperator(getMockScanPredicate(), getMockPoint());
+      jointModelService.highlightOperator(getMockScanPredicate().operatorID);
+
+      expect(jointModelService.getCurrentHighlightedOpeartorID()).toEqual(getMockScanPredicate().operatorID);
+
+
+
+      jointModelService.onJointCellUnhighlight().subscribe(
+        operator => {
+          expect(operator.operatorID).toEqual(getMockScanPredicate().operatorID);
+        }
+      );
+
+      jointModelService.unhighlightCurrent();
+      expect(jointModelService.getCurrentHighlightedOpeartorID()).toBeFalsy();
+    }));
+
+    it('should unhighlight previous highlighted operator if a new operator is highlighted', marbles((m) => {
+      jointModelService.onJointCellUnhighlight().subscribe(
+        operator => {
+          expect(operator.operatorID).toEqual(getMockScanPredicate().operatorID);
+        }
+      );
+
+      workflowActionService.addOperator(getMockScanPredicate(), getMockPoint());
+      workflowActionService.addOperator(getMockResultPredicate(), getMockPoint());
+
+      jointModelService.highlightOperator(getMockScanPredicate().operatorID);
+      jointModelService.highlightOperator(getMockResultPredicate().operatorID);
+
+      expect(jointModelService.getCurrentHighlightedOpeartorID()).toEqual(getMockResultPredicate().operatorID);
+
+    }));
+
   });
 
 

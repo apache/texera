@@ -28,18 +28,15 @@ export class PropertyEditorComponent implements OnInit {
     to prevent "onChanges" event fired continously.
     currentPredicate won't change as the form value changes
   */
-  operatorID: string | undefined;
-  initialData: Object | undefined;
-  currentSchema: OperatorSchema | undefined;
-  formLayout: object = PropertyEditorComponent.generateFormLayout();
-
-  operatorSchemaList: OperatorSchema[] = [];
-
-  displayForm = false;
-
-  formChangeTimes = 0;
+  public operatorID: string | undefined;
+  public initialData: Object | undefined;
+  public currentSchema: OperatorSchema | undefined;
+  public operatorSchemaList: OperatorSchema[] = [];
+  public displayForm = false;
 
 
+  private formLayout: object = PropertyEditorComponent.generateFormLayout();
+  private formChangeTimes = 0;
   private jsonSchemaOnFormChangeStream = new Subject<Object>();
 
   constructor(
@@ -74,7 +71,7 @@ export class PropertyEditorComponent implements OnInit {
     );
   }
 
-  clearPropertyEditor() {
+  public clearPropertyEditor(): void {
     // set displayForm to false in the very beginning
     // hide the view first and then make everything null
     this.displayForm = false;
@@ -85,7 +82,7 @@ export class PropertyEditorComponent implements OnInit {
 
   }
 
-  changePropertyEditor(operator: OperatorPredicate) {
+  public changePropertyEditor(operator: OperatorPredicate): void {
     console.log('changePropertyEditor called');
     console.log('operatorID: ' + operator.operatorID);
     this.operatorID = operator.operatorID;
@@ -99,11 +96,11 @@ export class PropertyEditorComponent implements OnInit {
   }
 
 
-  onFormChanges(formData: Object) {
+  private onFormChanges(formData: Object): void {
     this.jsonSchemaOnFormChangeStream.next(formData);
   }
 
-  handleFormChange(formData: Object) {
+  private handleFormChange(formData: Object): void {
     this.formChangeTimes++;
     console.log('onform changes called');
     console.log(formData);
