@@ -1,6 +1,6 @@
 import { OperatorMetadataService } from '../../operator-metadata/operator-metadata.service';
 import { JointUIService } from '../../joint-ui/joint-ui.service';
-import { JointGraphWrapper } from './joint-graph';
+import { JointGraphWrapper } from './joint-graph-wrapper';
 import { TestBed, inject } from '@angular/core/testing';
 import { marbles } from 'rxjs-marbles';
 import { isEqual } from 'lodash';
@@ -39,7 +39,7 @@ describe('JointModelService', () => {
 
     m.hot('-e-').do(v => jointGraph.getCell(mockScanPredicate.operatorID).remove()).subscribe();
 
-    const jointOperatorDeleteStream = jointGraphWrapper.onJointOperatorCellDelete().map(value => 'e');
+    const jointOperatorDeleteStream = jointGraphWrapper.getJointOperatorCellDeleteStream().map(value => 'e');
     const expectedStream = m.hot('-e-');
 
     m.expect(jointOperatorDeleteStream).toBeObservable(expectedStream);
@@ -56,7 +56,7 @@ describe('JointModelService', () => {
 
     m.hot('-e-').do(event => jointGraph.addCell(mockScanResultLinkCell)).subscribe();
 
-    const jointLinkAddStream = jointGraphWrapper.onJointLinkCellAdd().map(value => 'e');
+    const jointLinkAddStream = jointGraphWrapper.getJointLinkCellAddStream().map(value => 'e');
     const expectedStream = m.hot('-e-');
 
     m.expect(jointLinkAddStream).toBeObservable(expectedStream);
@@ -74,7 +74,7 @@ describe('JointModelService', () => {
 
     m.hot('---e-').do(event => jointGraph.getCell(mockScanResultLink.linkID).remove()).subscribe();
 
-    const jointLinkDeleteStream = jointGraphWrapper.onJointLinkCellDelete().map(value => 'e');
+    const jointLinkDeleteStream = jointGraphWrapper.getJointLinkCellDeleteStream().map(value => 'e');
     const expectedStream = m.hot('---e-');
 
     m.expect(jointLinkDeleteStream).toBeObservable(expectedStream);
@@ -100,8 +100,8 @@ describe('JointModelService', () => {
 
       m.hot('-e-').do(event => jointGraph.getCell(mockScanPredicate.operatorID).remove()).subscribe();
 
-      const jointOperatorDeleteStream = jointGraphWrapper.onJointOperatorCellDelete().map(value => 'e');
-      const jointLinkDeleteStream = jointGraphWrapper.onJointLinkCellDelete().map(value => 'e');
+      const jointOperatorDeleteStream = jointGraphWrapper.getJointOperatorCellDeleteStream().map(value => 'e');
+      const jointLinkDeleteStream = jointGraphWrapper.getJointLinkCellDeleteStream().map(value => 'e');
 
       const expectedStream = '-e-';
 
@@ -130,8 +130,8 @@ describe('JointModelService', () => {
 
       m.hot('-e--').do(event => jointGraph.getCell(mockSentimentPredicate.operatorID).remove()).subscribe();
 
-      const jointOperatorDeleteStream = jointGraphWrapper.onJointOperatorCellDelete().map(value => 'e');
-      const jointLinkDeleteStream = jointGraphWrapper.onJointLinkCellDelete().map(value => 'e');
+      const jointOperatorDeleteStream = jointGraphWrapper.getJointOperatorCellDeleteStream().map(value => 'e');
+      const jointLinkDeleteStream = jointGraphWrapper.getJointLinkCellDeleteStream().map(value => 'e');
 
       const expectedStream = '-e--';
       const expectedMultiStream = '-(ee)--';

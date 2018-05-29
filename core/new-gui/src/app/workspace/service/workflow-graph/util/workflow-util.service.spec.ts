@@ -54,7 +54,7 @@ describe('WorkflowUtilService', () => {
     const idSet = new Set<string>();
     const repeat = 100;
     for (let i = 0; i < repeat; i++) {
-      idSet.add(workflowUtilService.getRandomOperatorUUID());
+      idSet.add(workflowUtilService.getRandomUUID());
     }
     // assert all IDs are distinct
     expect(idSet.size).toEqual(repeat);

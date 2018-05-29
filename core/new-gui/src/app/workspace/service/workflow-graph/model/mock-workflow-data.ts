@@ -1,4 +1,3 @@
-import { cloneDeep } from 'lodash-es';
 import { Point, OperatorPredicate, OperatorLink } from './../../../types/common.interface';
 import { getMockOperatorSchemaList } from './../../operator-metadata/mock-operator-metadata.data';
 

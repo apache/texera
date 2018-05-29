@@ -1,21 +1,17 @@
 import { OperatorLink } from './../../../types/common.interface';
-import { Injectable } from '@angular/core';
-
-import { WorkflowActionService } from './workflow-action.service';
 
 import { WorkflowGraph } from './workflow-graph';
-import { JointGraphWrapper } from './joint-graph';
+import { JointGraphWrapper } from './joint-graph-wrapper';
 
 /**
- * TexeraModelService manages the Texera Model.
- * It provides a read-only version of the workflow graph (changes should be made via `WorkflowActionService`)
- * It also provides event streams for the changes, such as operator/link added/deleted
- *  in a logical level of Texera (contrary to JointJS's UI related events)
+ * SyncTexeraModel subscribes to the graph change events from JointJS,
+ *  then sync the changes to the TexeraGraph:
+ *    - delete operator
+ *    - link events: link add/delete/change
  *
- * External modules should use this service to access the workflow graph,
- *  and listen to the events of changes to the graph.
+ * For details of handling each JointJS event type, see the comments below for each function.
  *
- * For the details of the services in WorkflowGraphModule, see workflow-graph-design.md
+ * For an overview of the services in WorkflowGraphModule, see workflow-graph-design.md
  *
  */
 export class SyncTexeraModel {
@@ -25,11 +21,6 @@ export class SyncTexeraModel {
     private jointGraphWrapper: JointGraphWrapper
   ) {
 
-    /**
-     * Listen events from Joint Model Service to sync the changes:
-     *  - delete operator
-     *  - link events: link add/delete/change
-     */
     this.handleJointOperatorDelete();
     this.handleJointLinkEvents();
   }
@@ -47,7 +38,7 @@ export class SyncTexeraModel {
    *  link delete events and cause texera link to be deleted.
    */
   private handleJointOperatorDelete(): void {
-    this.jointGraphWrapper.onJointOperatorCellDelete()
+    this.jointGraphWrapper.getJointOperatorCellDeleteStream()
       .map(element => element.id.toString())
       .subscribe(elementID => this.texeraGraph.deleteOperator(elementID));
   }
@@ -77,17 +68,17 @@ export class SyncTexeraModel {
      * we need to check if the link is a valid link in Texera's semantic (has both source and target port)
      *  and only add valid links to the graph
      */
-    this.jointGraphWrapper.onJointLinkCellAdd()
+    this.jointGraphWrapper.getJointLinkCellAddStream()
       .filter(link => SyncTexeraModel.isValidJointLink(link))
       .map(link => SyncTexeraModel.getOperatorLink(link))
       .subscribe(link => this.texeraGraph.addLink(link));
 
     /**
      * on link cell delete:
-     * we need to check if the deleted link cell is a valid link beforehead
-     * and only delete the link by the link ID
+     * we need to first check if the link is a valid link
+     *  then delete the link by the link ID
      */
-    this.jointGraphWrapper.onJointLinkCellDelete()
+    this.jointGraphWrapper.getJointLinkCellDeleteStream()
       .filter(link => SyncTexeraModel.isValidJointLink(link))
       .subscribe(link => this.texeraGraph.deleteLinkWithID(link.id.toString()));
 
@@ -97,7 +88,7 @@ export class SyncTexeraModel {
      * link cell change could cause deletion of a link or addition of a link, or simply no effect
      * TODO: finish this documentation
      */
-    this.jointGraphWrapper.onJointLinkCellChange()
+    this.jointGraphWrapper.getJointLinkCellChangeStream()
       // we intentially want the side effect (delete the link) to happen **before** other operations in the chain
       .do((link) => {
         const linkID = link.id.toString();
@@ -110,7 +101,6 @@ export class SyncTexeraModel {
       });
   }
 
-
   /**
    * Transforms a JointJS link (joint.dia.Link) to a Texera Link Object
    * The JointJS link must be valid, otherwise an error will be thrown.
@@ -118,28 +108,30 @@ export class SyncTexeraModel {
    */
   static getOperatorLink(jointLink: joint.dia.Link): OperatorLink {
 
+    type jointLinkEventType = {id: string, port: string} | null | undefined;
+
     // the link should be a valid link (both source and target are connected to an operator)
     // isValidLink function is not reused because of Typescript strict null checking
-    const jointSourceElement = jointLink.getSourceElement();
-    const jointTargetElement = jointLink.getTargetElement();
+    const jointSourceElement: jointLinkEventType = jointLink.attributes.source;
+    const jointTargetElement: jointLinkEventType = jointLink.attributes.target;
 
-    if (jointSourceElement === null) {
+    if (! jointSourceElement) {
       throw new Error(`Invalid JointJS Link: no source element`);
     }
 
-    if (jointTargetElement === null) {
+    if (! jointTargetElement) {
       throw new Error(`Invalid JointJS Link: no target element`);
     }
 
     return {
       linkID: jointLink.id.toString(),
       source: {
-        operatorID: jointSourceElement.id.toString(),
-        portID: jointLink.get('source').port.toString()
+        operatorID: jointSourceElement.id,
+        portID: jointSourceElement.port
       },
       target: {
-        operatorID: jointTargetElement.id.toString(),
-        portID: jointLink.get('target').port.toString()
+        operatorID: jointTargetElement.id,
+        portID: jointTargetElement.port
       }
     };
   }
@@ -150,7 +142,7 @@ export class SyncTexeraModel {
    * @param jointLink
    */
   static isValidJointLink(jointLink: joint.dia.Link): boolean {
-    return jointLink.getSourceElement() !== null && jointLink.getTargetElement() !== null;
+    return jointLink && jointLink.attributes && jointLink.attributes.source && jointLink.attributes.target;
   }
 
 

@@ -10,6 +10,17 @@ import { JointUIService } from '../../service/joint-ui/joint-ui.service';
 import * as joint from 'jointjs';
 import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
 
+
+class StubWorkflowActionService {
+
+  private jointGraph = new joint.dia.Graph();
+
+  public attachJointPaper(paperOptions: joint.dia.Paper.Options): joint.dia.Paper.Options {
+    paperOptions.model = this.jointGraph;
+    return paperOptions;
+  }
+}
+
 describe('WorkflowEditorComponent', () => {
   let component: WorkflowEditorComponent;
   let fixture: ComponentFixture<WorkflowEditorComponent>;
@@ -21,8 +32,8 @@ describe('WorkflowEditorComponent', () => {
       declarations: [WorkflowEditorComponent],
       providers: [
         JointUIService,
-        WorkflowActionService,
         WorkflowUtilService,
+        { provide: WorkflowActionService, useClass: StubWorkflowActionService },
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
       ]
     })
@@ -60,13 +71,13 @@ describe('WorkflowEditorComponent', () => {
 
     const element1 = new joint.shapes.basic.Rect({
       size: { width: 100, height: 50 },
-      position: { x: 100, y: 400}
+      position: { x: 100, y: 400 }
     });
     element1.set('id', operator1);
 
     const element2 = new joint.shapes.basic.Rect({
       size: { width: 100, height: 50 },
-      position: { x: 100, y: 400}
+      position: { x: 100, y: 400 }
     });
     element2.set('id', operator2);
 

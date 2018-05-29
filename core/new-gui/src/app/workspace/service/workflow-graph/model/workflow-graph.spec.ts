@@ -153,7 +153,7 @@ describe('WorkflowGraph', () => {
     workflowGraph.addOperator(mockScanPredicate);
 
     const testProperty = { 'tableName': 'testTable' };
-    workflowGraph.changeOperatorProperty(mockScanPredicate.operatorID, testProperty);
+    workflowGraph.setOperatorProperty(mockScanPredicate.operatorID, testProperty);
 
     const operator = workflowGraph.getOperator(mockScanPredicate.operatorID);
     if (!operator) {
@@ -165,7 +165,7 @@ describe('WorkflowGraph', () => {
   it('should throw an error when trying to set the property of an nonexist operator', () => {
     expect(() => {
       const testProperty = { 'tableName': 'testTable' };
-      workflowGraph.changeOperatorProperty(mockScanPredicate.operatorID, testProperty);
+      workflowGraph.setOperatorProperty(mockScanPredicate.operatorID, testProperty);
     }).toThrowError(new RegExp(`doesn't exist`));
   });
 

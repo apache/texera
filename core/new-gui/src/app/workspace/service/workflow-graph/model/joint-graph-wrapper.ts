@@ -1,5 +1,23 @@
 import { Observable } from 'rxjs/Observable';
 
+/**
+ * JointGraphWrapper wraps jointGraph to provide:
+ *  - getters of the properties (to hide the methods that could alther the jointGraph directly)
+ *  - event streams of JointGraph in RxJS Observables (instead of the callback functions to fit our use of RxJS)
+ *
+ * JointJS Graph only contains information related the UI, such as:
+ *  - position of operator elements
+ *  - events of a cell (operator or link) being dragging around
+ *  - events of adding/deleting a link on the UI,
+ *      this doesn't necessarily corresponds to adding/deleting a link logically on the graph
+ *      because the link might not connect to a target operator while user is dragging the link
+ *
+ * If an external module needs to access more properties of JointJS graph,
+ *  or to make changes **irrelevant** to the graph data structure, but related direcly to the UI,
+ *  (such as changing the color of an operator), more methods can be added in this class.
+ *
+ * For an overview of the services in WorkflowGraphModule, see workflow-graph-design.md
+ */
 export class JointGraphWrapper {
 
   /**
@@ -25,7 +43,7 @@ export class JointGraphWrapper {
   /**
    * Returns an Observable stream capturing the operator cell delete event in JointJS graph.
    */
-  public onJointOperatorCellDelete(): Observable<joint.dia.Element> {
+  public getJointOperatorCellDeleteStream(): Observable<joint.dia.Element> {
     const jointOperatorDeleteStream = this.jointCellDeleteStream
       .filter(cell => cell.isElement())
       .map(cell => <joint.dia.Element>cell);
@@ -40,7 +58,7 @@ export class JointGraphWrapper {
    * This event only represents that a link cell is visually added to the UI.
    *
    */
-  public onJointLinkCellAdd(): Observable<joint.dia.Link> {
+  public getJointLinkCellAddStream(): Observable<joint.dia.Link> {
     const jointLinkAddStream = this.jointCellAddStream
       .filter(cell => cell.isLink())
       .map(cell => <joint.dia.Link>cell);
@@ -56,7 +74,7 @@ export class JointGraphWrapper {
    * This event only represents that a link cell visually disappears from the UI.
    *
    */
-  public onJointLinkCellDelete(): Observable<joint.dia.Link> {
+  public getJointLinkCellDeleteStream(): Observable<joint.dia.Link> {
     const jointLinkDeleteStream = this.jointCellDeleteStream
       .filter(cell => cell.isLink())
       .map(cell => <joint.dia.Link>cell);
@@ -72,7 +90,7 @@ export class JointGraphWrapper {
    *  - one end of the link is detached to a port and become a point (coordinate) in the paper
    *  - one end of the link is moved from one point to another point in the paper
    */
-  public onJointLinkCellChange(): Observable<joint.dia.Link> {
+  public getJointLinkCellChangeStream(): Observable<joint.dia.Link> {
     const jointLinkChangeStream = Observable
       .fromEvent(this.jointGraph, 'change:source change:target')
       .map(value => <joint.dia.Link>value);

@@ -1,9 +1,26 @@
 import { Subject } from 'rxjs/Subject';
 import { Observable } from 'rxjs/Observable';
 import { OperatorPredicate, OperatorLink, OperatorPort } from '../../../types/common.interface';
-import { WorkflowGraphReadonly } from '../../../types/workflow-graph-readonly.interface';
 import { isEqual } from 'lodash-es';
 
+// define the restricted methods that could change the graph
+type restrictedMethods =
+  'addOperator' | 'deleteOperator' | 'addLink' | 'deleteLink' | 'deleteLinkWithID' | 'setOperatorProperty';
+
+// define a type Omit that creates a type with certain methods/properties omitted from it
+// http://ideasintosoftware.com/typescript-advanced-tricks/
+type Diff<T extends string, U extends string> = ({[P in T]: P } & {[P in U]: never } & { [x: string]: never })[T];
+type Omit<T, K extends keyof T> = Pick<T, Diff<keyof T, K>>;
+// TODO: after updating to Angular 6 (which uses Typescript > 2.8, this can be changed to the following)
+// type Omit<T, K extends keyof T> = Pick<T, Exclude<keyof T, K>>;
+
+/**
+ * WorkflowGraphReadonly is a type that only contains the readonly methods of WorkflowGraph.
+ *
+ * Methods that could alter the graph: add/delete operator or link, set operator property
+ *  are omitted from this type.
+ */
+export type WorkflowGraphReadonly = Omit<WorkflowGraph, restrictedMethods>;
 
 /**
  * WorkflowGraph represents the Texera's logical WorkflowGraph,
@@ -11,16 +28,16 @@ import { isEqual } from 'lodash-es';
  *  each operator and link has its own unique ID.
  *
  */
-export class WorkflowGraph implements WorkflowGraphReadonly {
+export class WorkflowGraph {
 
-  private operatorIDMap = new Map<string, OperatorPredicate>();
-  private operatorLinkMap = new Map<string, OperatorLink>();
+  private readonly operatorIDMap = new Map<string, OperatorPredicate>();
+  private readonly operatorLinkMap = new Map<string, OperatorLink>();
 
-  private operatorAddSubject = new Subject<OperatorPredicate>();
-  private operatorDeleteSubject = new Subject<{ deletedOperator: OperatorPredicate }>();
-  private linkAddSubject = new Subject<OperatorLink>();
-  private linkDeleteSubject = new Subject<{ deletedLink: OperatorLink }>();
-  private operatorPropertyChangeSubject = new Subject<{ oldProperty: Object, operator: OperatorPredicate }>();
+  private readonly operatorAddSubject = new Subject<OperatorPredicate>();
+  private readonly operatorDeleteSubject = new Subject<{ deletedOperator: OperatorPredicate }>();
+  private readonly linkAddSubject = new Subject<OperatorLink>();
+  private readonly linkDeleteSubject = new Subject<{ deletedLink: OperatorLink }>();
+  private readonly operatorPropertyChangeSubject = new Subject<{ oldProperty: Object, operator: OperatorPredicate }>();
 
   constructor(
     operatorPredicates: OperatorPredicate[] = [],
@@ -186,7 +203,7 @@ export class WorkflowGraph implements WorkflowGraphReadonly {
    * @param operatorID operator ID
    * @param newProperty new property to set
    */
-  public changeOperatorProperty(operatorID: string, newProperty: Object): void {
+  public setOperatorProperty(operatorID: string, newProperty: Object): void {
     const originalOperatorData = this.operatorIDMap.get(operatorID);
     if (originalOperatorData === undefined) {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
@@ -249,7 +266,7 @@ export class WorkflowGraph implements WorkflowGraphReadonly {
    * @param operator
    */
   public assertOperatorExists(operatorID: string): void {
-    if (! this.hasOperator(operatorID)) {
+    if (!this.hasOperator(operatorID)) {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
     }
   }
@@ -285,13 +302,13 @@ export class WorkflowGraph implements WorkflowGraphReadonly {
   }
 
   public assertLinkWithIDExists(linkID: string): void {
-    if (! this.hasLinkWithID(linkID)) {
+    if (!this.hasLinkWithID(linkID)) {
       throw new Error(`link with ID ${linkID} doesn't exist`);
     }
   }
 
   public assertLinkExists(source: OperatorPort, target: OperatorPort): void {
-    if (! this.hasLink(source, target)) {
+    if (!this.hasLink(source, target)) {
       throw new Error(`link from ${source.operatorID}.${source.portID}
         to ${target.operatorID}.${target.portID} already exists`);
     }

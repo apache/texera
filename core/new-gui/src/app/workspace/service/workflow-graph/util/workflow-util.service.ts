@@ -23,9 +23,9 @@ export class WorkflowUtilService {
   }
 
   /**
-   * Generates a new UUID for operator
+   * Generates a new UUID for operator or link
    */
-  public getRandomOperatorUUID(): string {
+  public getRandomUUID(): string {
     return 'operator-' + uuid();
   }
 
@@ -37,7 +37,7 @@ export class WorkflowUtilService {
    * @returns a new OperatorPredicate of the operatorType
    */
   public getNewOperatorPredicate(operatorType: string): OperatorPredicate {
-    const operatorID = this.getRandomOperatorUUID();
+    const operatorID = this.getRandomUUID();
     const operatorProperties = {};
 
     const operatorSchema = this.operatorSchemaList.find(schema => schema.operatorType === operatorType);

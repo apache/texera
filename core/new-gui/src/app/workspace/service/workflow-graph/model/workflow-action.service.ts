@@ -1,27 +1,25 @@
 import { SyncTexeraModel } from './sync-texera-model';
 import { OperatorPort } from './../../../types/common.interface';
-import { JointGraphWrapper } from './joint-graph';
+import { JointGraphWrapper } from './joint-graph-wrapper';
 import { JointUIService } from './../../joint-ui/joint-ui.service';
-import { WorkflowGraphReadonly } from './../../../types/workflow-graph-readonly.interface';
-import { WorkflowGraph } from './workflow-graph';
-import { Observable } from 'rxjs/Observable';
+import { WorkflowGraph, WorkflowGraphReadonly } from './workflow-graph';
 import { Injectable } from '@angular/core';
 import { Point, OperatorPredicate, OperatorLink } from '../../../types/common.interface';
 
 import * as joint from 'jointjs';
 
+
 /**
  *
- * WorkflowActionService exposes functions (actions) to modify the workflow graph model,
+ * WorkflowActionService exposes functions (actions) to modify the workflow graph model of both JointJS and Texera,
  *  such as addOperator, deleteOperator, addLink, deleteLink, etc.
- * WorkflowActionService checks the validity of these actions,
- *  for example, check if adding two operators with the same ID.
+ * WorkflowActionService performs checks the validity of these actions,
+ *  for example, throws an error if deleting an nonexist operator
  *
  * All changes(actions) to the workflow graph should be called through WorkflowActionService,
- *  then WorkflowActionService will propagate these actions to the JointModelService and TexeraModelService,
- *  where the changes will be actually made.
+ *  then WorkflowActionService will propagate these actions to JointModel and Texera Model automatically.
  *
- * For the details of the services in WorkflowGraphModule, see workflow-graph-design.md
+ * For an overview of the services in WorkflowGraphModule, see workflow-graph-design.md
  *
  */
 @Injectable()
@@ -40,10 +38,24 @@ export class WorkflowActionService {
     this.syncTexeraModel = new SyncTexeraModel(this.texeraGraph, this.jointGraphWrapper);
   }
 
+  /**
+   * Gets the read-only version of the TexeraGraph
+   *  to access the properties and event streams.
+   *
+   * Texera Graph contains information about the logical workflow plan of Texera,
+   *  such as the types and properties of the operators.
+   */
   public getTexeraGraph(): WorkflowGraphReadonly {
     return this.texeraGraph;
   }
 
+  /**
+   * Gets the JointGraph Wrapper, which contains
+   *  getter for properties and event streams as RxJS Observables.
+   *
+   * JointJS Graph contains information about the UI,
+   *  such as the position of operator elements, and the event of user dragging a cell around.
+   */
   public getJointGraphWrapper(): JointGraphWrapper {
     return this.jointGraphWrapper;
   }
@@ -124,6 +136,10 @@ export class WorkflowActionService {
     }
     this.jointGraph.getCell(link.linkID).remove();
     // JointJS link delete event will propagate and trigger Texera link delete
+  }
+
+  public setOperatorProperty(operatorID: string, newProperty: Object) {
+    this.texeraGraph.setOperatorProperty(operatorID, newProperty);
   }
 
 }
