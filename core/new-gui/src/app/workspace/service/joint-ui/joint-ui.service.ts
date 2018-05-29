@@ -3,7 +3,7 @@ import { OperatorMetadataService } from '../operator-metadata/operator-metadata.
 import { OperatorSchema } from '../../types/operator-schema.interface';
 
 import * as joint from 'jointjs';
-import { OperatorPort } from '../../types/common.interface';
+import { OperatorPort } from '../../types/workflow-common.interface';
 
 /**
  * Defines the SVG path for the delete button
