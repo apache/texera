@@ -142,7 +142,10 @@ export class SyncTexeraModel {
    * @param jointLink
    */
   static isValidJointLink(jointLink: joint.dia.Link): boolean {
-    return jointLink && jointLink.attributes && jointLink.attributes.source && jointLink.attributes.target;
+    return jointLink && jointLink.attributes &&
+      jointLink.attributes.source && jointLink.attributes.target &&
+      jointLink.attributes.source.id && jointLink.attributes.source.port &&
+      jointLink.attributes.target.id && jointLink.attributes.target.port;
   }
 
 
