@@ -1,98 +1,144 @@
-import { OperatorLink, WorkflowGraph } from './../../../types/workflow-graph';
-import { Observable } from 'rxjs/Observable';
+import { SyncTexeraModel } from './sync-texera-model';
+import { JointGraphWrapper } from './joint-graph-wrapper';
+import { JointUIService } from './../../joint-ui/joint-ui.service';
+import { WorkflowGraph, WorkflowGraphReadonly } from './workflow-graph';
 import { Injectable } from '@angular/core';
-import { JointModelService } from './joint-model.service';
-import { TexeraModelService } from './texera-model.service';
-import { OperatorPredicate } from '../../../types/workflow-graph';
-import { Point } from '../../../types/common.interface';
-import { Subject } from 'rxjs/Subject';
+import { Point, OperatorPredicate, OperatorLink, OperatorPort } from '../../../types/workflow-common.interface';
+
+import * as joint from 'jointjs';
+
 
 /**
+ *
+ * WorkflowActionService exposes functions (actions) to modify the workflow graph model of both JointJS and Texera,
+ *  such as addOperator, deleteOperator, addLink, deleteLink, etc.
+ * WorkflowActionService performs checks the validity of these actions,
+ *  for example, throws an error if deleting an nonexist operator
+ *
+ * All changes(actions) to the workflow graph should be called through WorkflowActionService,
+ *  then WorkflowActionService will propagate these actions to JointModel and Texera Model automatically.
+ *
+ * For an overview of the services in WorkflowGraphModule, see workflow-graph-design.md
  *
  */
 @Injectable()
 export class WorkflowActionService {
 
-  private texeraGraph: WorkflowGraph = new WorkflowGraph();
-
-  private addOperatorActionSubject: Subject<{ operator: OperatorPredicate, point: Point }> = new Subject();
-
-  private deleteOperatorActionSubject: Subject<{ operatorID: string }> = new Subject();
-
-  private addLinkActionSubject: Subject<{ link: OperatorLink }> = new Subject();
-
-  private deleteLinkActionSubject: Subject<{ linkID: string }> = new Subject();
+  private readonly texeraGraph: WorkflowGraph;
+  private readonly jointGraph: joint.dia.Graph;
+  private readonly jointGraphWrapper: JointGraphWrapper;
+  private readonly syncTexeraModel: SyncTexeraModel;
 
   constructor(
-  ) { }
-
-  /**
-   * Adds an opreator to the workflow graph at a point.
-   * @param operator
-   * @param point
-   */
-  public addOperator(operator: OperatorPredicate, point: Point): void {
-    WorkflowGraph.checkIsValidOperator(this.texeraGraph, operator);
-    this.addOperatorActionSubject.next({ operator, point });
+  ) {
+    this.texeraGraph = new WorkflowGraph();
+    this.jointGraph = new joint.dia.Graph();
+    this.jointGraphWrapper = new JointGraphWrapper(this.jointGraph);
+    this.syncTexeraModel = new SyncTexeraModel(this.texeraGraph, this.jointGraphWrapper);
   }
 
   /**
-   * Gets the event stream of the actions to add an operator.
+   * Gets the read-only version of the TexeraGraph
+   *  to access the properties and event streams.
+   *
+   * Texera Graph contains information about the logical workflow plan of Texera,
+   *  such as the types and properties of the operators.
    */
-  _onAddOperatorAction(): Observable<{ operator: OperatorPredicate, point: Point }> {
-    return this.addOperatorActionSubject.asObservable();
+  public getTexeraGraph(): WorkflowGraphReadonly {
+    return this.texeraGraph;
+  }
+
+  /**
+   * Gets the JointGraph Wrapper, which contains
+   *  getter for properties and event streams as RxJS Observables.
+   *
+   * JointJS Graph contains information about the UI,
+   *  such as the position of operator elements, and the event of user dragging a cell around.
+   */
+  public getJointGraphWrapper(): JointGraphWrapper {
+    return this.jointGraphWrapper;
+  }
+
+  /**
+   * Let the JointGraph model be attached to the joint paper (paperOptions will be passed to Joint Paper constructor).
+   *
+   * We don't want to expose JointModel as a public variable, so instead we let JointPaper to pass the constructor options,
+   *  and JointModel can be still attached to it without being publicly accessible by other modules.
+   *
+   * @param paperOptions JointJS paper options
+   */
+  public attachJointPaper(paperOptions: joint.dia.Paper.Options): joint.dia.Paper.Options {
+    paperOptions.model = this.jointGraph;
+    return paperOptions;
+  }
+
+  /**
+   * Adds an opreator to the workflow graph at a point.
+   * Throws an Error if the operator ID already existed in the Workflow Graph.
+   *
+   * @param operator
+   * @param point
+   */
+  public addOperator(operator: OperatorPredicate, operatorJointElement: joint.dia.Element): void {
+    this.texeraGraph.assertOperatorNotExists(operator.operatorID);
+    this.texeraGraph.addOperator(operator);
+    this.jointGraph.addCell(operatorJointElement);
   }
 
   /**
    * Deletes an operator from the workflow graph
+   * Throws an Error if the operator ID doesn't exist in the Workflow Graph.
    * @param operatorID
    */
   public deleteOperator(operatorID: string): void {
-    if (!this.texeraGraph.hasOperator(operatorID)) {
-      throw new Error(`operator with ID ${operatorID} doesn't exist`);
-    }
-    this.deleteOperatorActionSubject.next({ operatorID });
-  }
-
-  /**
-   * Gets the event stream of the actions to delete an operator
-   */
-  _onDeleteOperatorAction(): Observable<{ operatorID: string }> {
-    return this.deleteOperatorActionSubject.asObservable();
+    this.texeraGraph.assertOperatorExists(operatorID);
+    // remove the operator from JointJS
+    this.jointGraph.getCell(operatorID).remove();
+    // JointJS operator delete event will propagate and trigger Texera operator delete
   }
 
   /**
    * Adds a link to the workflow graph
+   * Throws an Error if the link ID or the link with same source and target already exists.
    * @param link
    */
   public addLink(link: OperatorLink): void {
-    WorkflowGraph.checkIsValidLink(this.texeraGraph, link);
-    this.addLinkActionSubject.next({ link });
+    this.texeraGraph.assertLinkNotExists(link);
+    this.texeraGraph.assertLinkIsValid(link);
+    // add the link to JointJS
+    const jointLinkCell = JointUIService.getJointLinkCell(link);
+    this.jointGraph.addCell(jointLinkCell);
+    // JointJS link add event will propagate and trigger Texera link add
   }
 
   /**
-   * Gets the event stream of the actions to add a link
-   */
-  _onAddLinkAction(): Observable<{ link: OperatorLink }> {
-    return this.addLinkActionSubject.asObservable();
-  }
-
-  /**
-   * Deletes a link from the workflow graph
+   * Deletes a link with the linkID from the workflow graph
+   * Throws an Error if the linkID doesn't exist in the workflow graph.
    * @param linkID
    */
   public deleteLinkWithID(linkID: string): void {
-    if (!this.texeraGraph.hasLinkWithID(linkID)) {
-      throw new Error(`link with ID ${linkID} doesn't exist`);
-    }
-    this.deleteLinkActionSubject.next({ linkID });
+    this.texeraGraph.assertLinkWithIDExists(linkID);
+    this.jointGraph.getCell(linkID).remove();
+    // JointJS link delete event will propagate and trigger Texera link delete
   }
 
   /**
-   * Gets the event stream of the actions to delete a link
+   * Deletes a link with the source and target from the workflow graph
+   * Throws an Error if the linkID doesn't exist in the workflow graph.
+   * @param linkID
    */
-  _onDeleteLinkAction(): Observable<{ linkID: string }> {
-    return this.deleteLinkActionSubject.asObservable();
+  public deleteLink(source: OperatorPort, target: OperatorPort): void {
+    this.texeraGraph.assertLinkExists(source, target);
+    const link = this.texeraGraph.getLink(source, target);
+    if (!link) {
+      throw new Error(`link with source ${source} and target ${target} doesn't exist`);
+    }
+    this.jointGraph.getCell(link.linkID).remove();
+    // JointJS link delete event will propagate and trigger Texera link delete
+  }
+
+  public setOperatorProperty(operatorID: string, newProperty: Object) {
+    this.texeraGraph.setOperatorProperty(operatorID, newProperty);
   }
 
 }

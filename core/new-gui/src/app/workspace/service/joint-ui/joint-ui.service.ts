@@ -1,11 +1,9 @@
-import { OperatorPredicate, OperatorLink } from './../../types/workflow-graph';
 import { Injectable } from '@angular/core';
 import { OperatorMetadataService } from '../operator-metadata/operator-metadata.service';
-import { OperatorSchema } from '../../types/operator-schema';
+import { OperatorSchema } from '../../types/operator-schema.interface';
 
 import * as joint from 'jointjs';
-import { OperatorPort } from '../../types/operator-port';
-import { Point } from '../../types/common.interface';
+import { Point, OperatorPredicate, OperatorLink, OperatorPort } from '../../types/workflow-common.interface';
 
 /**
  * Defines the SVG path for the delete button
@@ -48,14 +46,14 @@ class TexeraCustomJointElement extends joint.shapes.devs.Model {
 }
 
 /**
- * OperatorUIElementService controls the shape of an operator
- *  when the operator element is displayed by JointJS.
+ * JointUIService controls the shape of an operator and a link
+ *  when they is displayed by JointJS.
  *
  * This service alters the basic JointJS element by:
  *  - setting the ID of the JointJS element to be the same as Texera's OperatorID
  *  - changing the look of the operator box (size, colors, lines, etc..)
  *  - adding input and output ports to the box based on the operator metadata
- *  - changing the look of the ports
+ *  - changing the SVG element and CSS styles of operators, links, ports, etc..
  *  - adding a new delete button and the callback function of the delete button,
  *      (original JointJS element doesn't have a built-in delete button)
  *
@@ -68,7 +66,7 @@ export class JointUIService {
   public static readonly DEFAULT_OPERATOR_WIDTH = 140;
   public static readonly DEFAULT_OPERATOR_HEIGHT = 40;
 
-  private operators: OperatorSchema[] = [];
+  private operators: ReadonlyArray<OperatorSchema> = [];
 
 
   constructor(
