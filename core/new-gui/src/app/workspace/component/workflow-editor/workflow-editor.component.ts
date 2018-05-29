@@ -93,7 +93,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
   }
 
   private handleCellHighlight(): void {
-    Observable.fromEvent(this.getJointPaper(), 'cell:pointerclick')
+    Observable.fromEvent(this.getJointPaper(), 'cell:pointerdown')
       .map(value => <joint.dia.CellView>value)
       .filter(cellView => cellView.model.isElement())
       .subscribe(cellView => this.jointModelService.highlightOperator(cellView.model.id.toString()));
