@@ -1,3 +1,5 @@
+import { OperatorMetadataService } from './../../operator-metadata/operator-metadata.service';
+import { OperatorMetadata } from './../../../types/operator-schema.interface';
 import { SyncTexeraModel } from './sync-texera-model';
 import { JointGraphWrapper } from './joint-graph-wrapper';
 import { JointUIService } from './../../joint-ui/joint-ui.service';
@@ -30,6 +32,8 @@ export class WorkflowActionService {
   private readonly syncTexeraModel: SyncTexeraModel;
 
   constructor(
+    private operatorMetadataService: OperatorMetadataService,
+    private jointUIService: JointUIService
   ) {
     this.texeraGraph = new WorkflowGraph();
     this.jointGraph = new joint.dia.Graph();
@@ -79,10 +83,21 @@ export class WorkflowActionService {
    * @param operator
    * @param point
    */
-  public addOperator(operator: OperatorPredicate, operatorJointElement: joint.dia.Element): void {
+  public addOperator(operator: OperatorPredicate, point: Point): void {
+    // check that the operator doesn't exist
     this.texeraGraph.assertOperatorNotExists(operator.operatorID);
-    this.texeraGraph.addOperator(operator);
+    // check that the operator type exists
+    if (! this.operatorMetadataService.operatorTypeExists(operator.operatorType)) {
+      throw new Error(`operator type ${operator.operatorType} is invalid`);
+    }
+    // get the JointJS UI element
+    const operatorJointElement = this.jointUIService.getJointOperatorElement(operator, point);
+
+    // add operator to joint graph first
+    // if jointJS throws an error, it won't cause the inconsistency in texera graph
     this.jointGraph.addCell(operatorJointElement);
+    // add operator to texera graph
+    this.texeraGraph.addOperator(operator);
   }
 
   /**

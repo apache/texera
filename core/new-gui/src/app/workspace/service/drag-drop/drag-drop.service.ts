@@ -74,7 +74,7 @@ export class DragDropService {
       value => {
         this.currentOperatorType = DragDropService.DRAG_DROP_TEMP_OPERATOR_TYPE;
         const operator = this.workflowUtilService.getNewOperatorPredicate(value.operatorType);
-        this.workflowActionService.addOperator(operator, this.jointUIService.getJointOperatorElement(operator, value.offset));
+        this.workflowActionService.addOperator(operator, value.offset);
       }
     );
   }
