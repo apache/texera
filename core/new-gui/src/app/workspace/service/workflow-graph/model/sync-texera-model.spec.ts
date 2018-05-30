@@ -218,7 +218,7 @@ describe('SyncTexeraModel', () => {
     // mock delete the operator operation at the same time frame of jointJS deleting it
     //  but executed before the handler
     spyOn(jointGraphWrapper, 'getJointOperatorCellDeleteStream').and.returnValue(
-      m.hot(deleteOpMarbleString, deleteOpMarbleValues).share()
+      m.hot(deleteOpMarbleString, deleteOpMarbleValues)
     );
 
     // construct the texera sync model with spied dependencies
@@ -226,6 +226,9 @@ describe('SyncTexeraModel', () => {
     // TODO: expect error to be thrown
     // const texeraSyncModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper);
 
+
+    // this should throw an error when the model is constructed and the
+    //  delete is called for second time on the same operator by the delete stream
   }));
 
   /**
