@@ -69,15 +69,11 @@ export class WorkflowEditorComponent implements AfterViewInit {
         // add some dummy operators and links to show that JointJS works
         this.workflowActionService.addOperator(
           scanSource,
-          this.jointUIService.getJointOperatorElement(
-            scanSource, { x: 300, y: 200 }
-          )
+          { x: 300, y: 200 }
         );
         this.workflowActionService.addOperator(
           viewResult,
-          this.jointUIService.getJointOperatorElement(
-            viewResult, { x: 600, y: 200 }
-          )
+          { x: 600, y: 200 }
         );
         this.workflowActionService.addLink(link);
       }

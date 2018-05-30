@@ -34,12 +34,19 @@ export const EMPTY_OPERATOR_METADATA: OperatorMetadata = {
 @Injectable()
 export class OperatorMetadataService {
 
+  // holds the current version of operator metadata
+  private currentOperatorMetadata: OperatorMetadata | undefined;
+
   private operatorMetadataObservable = this.httpClient
     .get<OperatorMetadata>(`${AppSettings.getApiEndpoint()}/${MOCK_OPERATOR_METADATA_ENDPOINT}`)
     .startWith(EMPTY_OPERATOR_METADATA)
     .shareReplay(1);
 
-  constructor(private httpClient: HttpClient) { }
+  constructor(private httpClient: HttpClient) {
+    this.getOperatorMetadata().subscribe(
+      data => this.currentOperatorMetadata = data
+    );
+  }
 
   /**
    * Gets an Observable for operator metadata.
@@ -50,6 +57,24 @@ export class OperatorMetadataService {
    */
   public getOperatorMetadata(): Observable<OperatorMetadata> {
     return this.operatorMetadataObservable;
+  }
+
+  /**
+   * Returns if the operator type exists *in the current operator metadata*.
+   * For example, if the first HTTP request to the backend hasn't returned yet,
+   *  the current operator metadata is empty, and no operator type exists.
+   *
+   * @param operatorType
+   */
+  public operatorTypeExists(operatorType: string): boolean {
+    if (! this.currentOperatorMetadata) {
+      return false;
+    }
+    const operator = this.currentOperatorMetadata.operators.filter(op => op.operatorType === operatorType);
+    if (operator.length === 0) {
+      return false;
+    }
+    return true;
   }
 
 }
