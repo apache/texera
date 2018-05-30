@@ -21,4 +21,12 @@ export class StubOperatorMetadataService {
     return this.operatorMetadataObservable;
   }
 
+  public operatorTypeExists(operatorType: string): boolean {
+    const operator = getMockOperatorMetaData().operators.filter(op => op.operatorType === operatorType);
+    if (operator.length === 0) {
+      return false;
+    }
+    return true;
+  }
+
 }

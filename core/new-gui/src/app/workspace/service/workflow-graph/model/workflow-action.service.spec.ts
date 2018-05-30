@@ -12,6 +12,7 @@ import { TestBed, inject } from '@angular/core/testing';
 
 import { WorkflowActionService } from './workflow-action.service';
 import { marbles } from 'rxjs-marbles';
+import { OperatorPredicate } from '../../../types/workflow-common.interface';
 
 describe('WorkflowActionService', () => {
 
@@ -51,6 +52,17 @@ describe('WorkflowActionService', () => {
     expect(() => {
       service.addOperator(mockScanPredicate, mockPoint);
     }).toThrowError(new RegExp(`exists`));
+  });
+
+  it('should throw an error when adding an operator with invalid operator type', () => {
+    const invalidOperator: OperatorPredicate = {
+      ...mockScanPredicate,
+      operatorType: 'invalidOperatorTypeForTesting'
+    };
+
+    expect(() => {
+      service.addOperator(invalidOperator, mockPoint);
+    }).toThrowError(new RegExp(`invalid`));
   });
 
   it('should delete an operator to both jointjs and texera graph correctly', () => {

@@ -88,7 +88,7 @@ export class WorkflowActionService {
     this.texeraGraph.assertOperatorNotExists(operator.operatorID);
     // check that the operator type exists
     if (! this.operatorMetadataService.operatorTypeExists(operator.operatorType)) {
-      throw new Error(`operator type ${operator.operatorType} doesn't exist`);
+      throw new Error(`operator type ${operator.operatorType} is invalid`);
     }
     // get the JointJS UI element
     const operatorJointElement = this.jointUIService.getJointOperatorElement(operator, point);
