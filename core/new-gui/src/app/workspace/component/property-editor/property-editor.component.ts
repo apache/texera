@@ -96,7 +96,7 @@ export class PropertyEditorComponent implements OnInit {
   }
 
 
-  private onFormChanges(formData: Object): void {
+  public onFormChanges(formData: Object): void {
     this.jsonSchemaOnFormChangeStream.next(formData);
   }
 
