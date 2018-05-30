@@ -22,7 +22,7 @@ We use JointJS library to display the graph (operators and links) and let the us
 
 JointJS has its own model `jointGraph: joint.dia.Graph` containing the information needed by JointJS to display them.
 The model object `jointGraph` is two-way binded with the view object `jointPaper: joint.dia.Paper` by JointJS.
-Whenver the View `jointPaper` is changed by the user, the model `jointGraph` is also automatically changed, 
+Whenever the View `jointPaper` is changed by the user, the model `jointGraph` is also automatically changed, 
   and corresponding events will be emitted. Changing the model can automatically cause the view to be changed accordingly.
 
 #### Overview of classes in Workflow Graph Services
@@ -30,7 +30,7 @@ We maintain two separate models:
   - `jointGraph`, representing the graph in the UI by JointJS, and `texeraGraph`
   - `texeraGraph`, representing the logical DAG workflow (plan) for Texera
 These two models needs to be in sync, and we want to expose a uniform way to change the model and listen to events.
-The operator IDs anre the linkIDs in `texeraGraph` and `jointGraph` are the same for all operators and links.
+The operator IDs and the linkIDs in `texeraGraph` and `jointGraph` are the same for all operators and links.
 
 The following classes work together to achieve the sync of two models:
   - `WorkflowActionServie`: provides the entry points for `actions` on the graph, such as add/delete operator, add/delete link, etc..
@@ -52,7 +52,7 @@ If an external module wants to:
 
 #### Internal implementation to keep texera and joint graph in sync 
 Internally, the workflow graph module manages the sync of `JointModelService` and `TexeraModelService` by:
-  - `WorkflowActionServie` calls corresponding methods for JointGraphd and TexeraGraph to make changes
+  - `WorkflowActionServie` calls corresponding methods for JointGraph and TexeraGraph to make changes
   
   - For `deleteOperator`, `addLink`, and `deleteLink`
     - only call `jointGraph` methods. events will propagate to `syncTexeraModel`, where changes are made
