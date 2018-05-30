@@ -111,4 +111,10 @@ describe('WorkflowEditorComponent', () => {
 
   });
 
+  it('should register itself as a droppable element', () => {
+    const jqueryElement = jQuery(`#${component.WORKFLOW_EDITOR_JOINTJS_ID}`);
+    expect(jqueryElement.data('uiDroppable')).toBeTruthy();
+  });
+
+
 });

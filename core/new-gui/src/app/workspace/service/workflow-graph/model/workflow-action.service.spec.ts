@@ -12,6 +12,7 @@ import { TestBed, inject } from '@angular/core/testing';
 
 import { WorkflowActionService } from './workflow-action.service';
 import { marbles } from 'rxjs-marbles';
+import { OperatorPredicate } from '../../../types/workflow-common.interface';
 
 describe('WorkflowActionService', () => {
 
@@ -39,22 +40,33 @@ describe('WorkflowActionService', () => {
   }));
 
   it('should add an operator to both jointjs and texera graph correctly', () => {
-    service.addOperator(mockScanPredicate, jointUIService.getJointOperatorElement(mockScanPredicate, { x: 1, y: 1 }));
+    service.addOperator(mockScanPredicate, mockPoint);
 
     expect(texeraGraph.hasOperator(mockScanPredicate.operatorID)).toBeTruthy();
     expect(jointGraph.getCell(mockScanPredicate.operatorID)).toBeTruthy();
   });
 
   it('should throw an error when adding an existed operator', () => {
-    service.addOperator(mockScanPredicate, jointUIService.getJointOperatorElement(mockScanPredicate, { x: 1, y: 1 }));
+    service.addOperator(mockScanPredicate, mockPoint);
 
     expect(() => {
-      service.addOperator(mockScanPredicate, jointUIService.getJointOperatorElement(mockScanPredicate, { x: 1, y: 1 }));
+      service.addOperator(mockScanPredicate, mockPoint);
     }).toThrowError(new RegExp(`exists`));
   });
 
+  it('should throw an error when adding an operator with invalid operator type', () => {
+    const invalidOperator: OperatorPredicate = {
+      ...mockScanPredicate,
+      operatorType: 'invalidOperatorTypeForTesting'
+    };
+
+    expect(() => {
+      service.addOperator(invalidOperator, mockPoint);
+    }).toThrowError(new RegExp(`invalid`));
+  });
+
   it('should delete an operator to both jointjs and texera graph correctly', () => {
-    service.addOperator(mockScanPredicate, jointUIService.getJointOperatorElement(mockScanPredicate, { x: 1, y: 1 }));
+    service.addOperator(mockScanPredicate, mockPoint);
 
     service.deleteOperator(mockScanPredicate.operatorID);
 
@@ -70,8 +82,8 @@ describe('WorkflowActionService', () => {
 
 
   it('should add a link to both jointjs and texera graph correctly', () => {
-    service.addOperator(mockScanPredicate, jointUIService.getJointOperatorElement(mockScanPredicate, { x: 100, y: 100 }));
-    service.addOperator(mockResultPredicate, jointUIService.getJointOperatorElement(mockResultPredicate, { x: 200, y: 200 }));
+    service.addOperator(mockScanPredicate, mockPoint);
+    service.addOperator(mockResultPredicate, mockPoint);
 
     service.addLink(mockScanResultLink);
 
@@ -81,8 +93,8 @@ describe('WorkflowActionService', () => {
   });
 
   it('should throw appropriate errors when adding various types of incorrect links', () => {
-    service.addOperator(mockScanPredicate, jointUIService.getJointOperatorElement(mockScanPredicate, { x: 100, y: 100 }));
-    service.addOperator(mockResultPredicate, jointUIService.getJointOperatorElement(mockResultPredicate, { x: 200, y: 200 }));
+    service.addOperator(mockScanPredicate, mockPoint);
+    service.addOperator(mockResultPredicate, mockPoint);
     service.addLink(mockScanResultLink);
 
     // link already exist
@@ -127,8 +139,8 @@ describe('WorkflowActionService', () => {
   });
 
   it('should delete a link by link ID from both jointjs and texera graph correctly', () => {
-    service.addOperator(mockScanPredicate, jointUIService.getJointOperatorElement(mockScanPredicate, { x: 100, y: 100 }));
-    service.addOperator(mockResultPredicate, jointUIService.getJointOperatorElement(mockResultPredicate, { x: 200, y: 200 }));
+    service.addOperator(mockScanPredicate, mockPoint);
+    service.addOperator(mockResultPredicate, mockPoint);
     service.addLink(mockScanResultLink);
 
     // test delete by link ID
@@ -140,8 +152,8 @@ describe('WorkflowActionService', () => {
   });
 
   it('should delete a link by source and target from both jointjs and texera graph correctly', () => {
-    service.addOperator(mockScanPredicate, jointUIService.getJointOperatorElement(mockScanPredicate, { x: 100, y: 100 }));
-    service.addOperator(mockResultPredicate, jointUIService.getJointOperatorElement(mockResultPredicate, { x: 200, y: 200 }));
+    service.addOperator(mockScanPredicate, mockPoint);
+    service.addOperator(mockResultPredicate, mockPoint);
     service.addLink(mockScanResultLink);
 
     // test delete by link source and target
@@ -153,8 +165,8 @@ describe('WorkflowActionService', () => {
   });
 
   it('should throw an error when trying to delete non-existing link', () => {
-    service.addOperator(mockScanPredicate, jointUIService.getJointOperatorElement(mockScanPredicate, { x: 100, y: 100 }));
-    service.addOperator(mockResultPredicate, jointUIService.getJointOperatorElement(mockResultPredicate, { x: 200, y: 200 }));
+    service.addOperator(mockScanPredicate, mockPoint);
+    service.addOperator(mockResultPredicate, mockPoint);
 
     expect(() => {
       service.deleteLinkWithID(mockScanResultLink.linkID);
@@ -166,7 +178,7 @@ describe('WorkflowActionService', () => {
   });
 
   it('should set operator property to texera graph correctly', () => {
-    service.addOperator(mockScanPredicate, jointUIService.getJointOperatorElement(mockScanPredicate, { x: 100, y: 100 }));
+    service.addOperator(mockScanPredicate, mockPoint);
 
     const newProperty = { table: 'test-table' };
     service.setOperatorProperty(mockScanPredicate.operatorID, newProperty);
@@ -187,9 +199,9 @@ describe('WorkflowActionService', () => {
 
   it('should handle delete an operator causing connected links to be deleted correctly', () => {
     // add operator scan, sentiment, and result
-    service.addOperator(mockScanPredicate, jointUIService.getJointOperatorElement(mockScanPredicate, { x: 100, y: 100 }));
-    service.addOperator(mockSentimentPredicate, jointUIService.getJointOperatorElement(mockSentimentPredicate, { x: 200, y: 200 }));
-    service.addOperator(mockResultPredicate, jointUIService.getJointOperatorElement(mockResultPredicate, { x: 200, y: 200 }));
+    service.addOperator(mockScanPredicate, mockPoint);
+    service.addOperator(mockSentimentPredicate, mockPoint);
+    service.addOperator(mockResultPredicate, mockPoint);
     // add link scan -> result, and sentiment -> result
     service.addLink(mockScanResultLink);
     service.addLink(mockSentimentResultLink);

@@ -142,52 +142,56 @@ describe('JointModelService', () => {
 
     }));
 
-    it('should handle the event when an operator is highlighted or unhighlighted in the JointJS paper', marbles((m) => {
-      const workflowActionService = new WorkflowActionService();
-      const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
+  it('should handle the event when an operator is highlighted or unhighlighted in the JointJS paper', marbles((m) => {
+    const workflowActionService = new WorkflowActionService(
+      TestBed.get(OperatorMetadataService), TestBed.get(JointUIService)
+    );
+    const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
-      localJointGraphWrapper.getJointCellHighlightStream().subscribe(
-        operator => {
-          expect(operator.operatorID).toEqual(mockScanPredicate.operatorID);
-        }
-      );
+    localJointGraphWrapper.getJointCellHighlightStream().subscribe(
+      operator => {
+        expect(operator.operatorID).toEqual(mockScanPredicate.operatorID);
+      }
+    );
 
-      workflowActionService.addOperator(mockScanPredicate, jointUIService.getJointOperatorElement(mockScanPredicate, mockPoint));
-      localJointGraphWrapper.highlightOperator(mockScanPredicate.operatorID);
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    localJointGraphWrapper.highlightOperator(mockScanPredicate.operatorID);
 
-      expect(localJointGraphWrapper.getCurrentHighlightedOpeartorID()).toEqual(mockScanPredicate.operatorID);
+    expect(localJointGraphWrapper.getCurrentHighlightedOpeartorID()).toEqual(mockScanPredicate.operatorID);
 
 
-      localJointGraphWrapper.getJointCellUnhighlightStream().subscribe(
-        operator => {
-          expect(operator.operatorID).toEqual(mockScanPredicate.operatorID);
-        }
-      );
+    localJointGraphWrapper.getJointCellUnhighlightStream().subscribe(
+      operator => {
+        expect(operator.operatorID).toEqual(mockScanPredicate.operatorID);
+      }
+    );
 
-      localJointGraphWrapper.unhighlightCurrent();
-      expect(localJointGraphWrapper.getCurrentHighlightedOpeartorID()).toBeFalsy();
-    }));
+    localJointGraphWrapper.unhighlightCurrent();
+    expect(localJointGraphWrapper.getCurrentHighlightedOpeartorID()).toBeFalsy();
+  }));
 
-    it('should unhighlight previous highlighted operator if a new operator is highlighted', marbles((m) => {
+  it('should unhighlight previous highlighted operator if a new operator is highlighted', marbles((m) => {
 
-      const workflowActionService = new WorkflowActionService();
-      const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
+    const workflowActionService = new WorkflowActionService(
+      TestBed.get(OperatorMetadataService), TestBed.get(JointUIService)
+    );
+    const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
-      localJointGraphWrapper.getJointCellUnhighlightStream().subscribe(
-        operator => {
-          expect(operator.operatorID).toEqual(mockScanPredicate.operatorID);
-        }
-      );
+    localJointGraphWrapper.getJointCellUnhighlightStream().subscribe(
+      operator => {
+        expect(operator.operatorID).toEqual(mockScanPredicate.operatorID);
+      }
+    );
 
-      workflowActionService.addOperator(mockScanPredicate, jointUIService.getJointOperatorElement(mockScanPredicate, mockPoint));
-      workflowActionService.addOperator(mockResultPredicate, jointUIService.getJointOperatorElement(mockResultPredicate, mockPoint));
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    workflowActionService.addOperator(mockResultPredicate, mockPoint);
 
-      localJointGraphWrapper.highlightOperator(mockScanPredicate.operatorID);
-      localJointGraphWrapper.highlightOperator(mockResultPredicate.operatorID);
+    localJointGraphWrapper.highlightOperator(mockScanPredicate.operatorID);
+    localJointGraphWrapper.highlightOperator(mockResultPredicate.operatorID);
 
-      expect(localJointGraphWrapper.getCurrentHighlightedOpeartorID()).toEqual(mockResultPredicate.operatorID);
+    expect(localJointGraphWrapper.getCurrentHighlightedOpeartorID()).toEqual(mockResultPredicate.operatorID);
 
-    }));
+  }));
 
 });
 

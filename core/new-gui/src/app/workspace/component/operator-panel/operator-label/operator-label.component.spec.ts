@@ -57,76 +57,12 @@ describe('OperatorLabelComponent', () => {
     expect(element.innerHTML.trim()).toEqual(mockOperatorData.additionalMetadata.userFriendlyName);
   });
 
-  it('should be able to drag the label into an operator', marbles((m) => {
-    fixture.detectChanges();
+  it('should register itself as a draggable element', () => {
+    const jqueryElement = jQuery(`#${component.operatorLabelID}`);
+    expect(jqueryElement.data('uiDraggable')).toBeTruthy();
+  });
 
-    const mouseDown = m.hot('-s-|');
-
-    const mouseMove = m.hot('---abcdefg-|', {
-      a: { x: 10, y: 10 },
-      b: { x: 10, y: 30 },
-      c: { x: 10, y: 50 },
-      d: { x: 10, y: 70 },
-      e: { x: 10, y: 90 },
-      f: { x: 10, y: 110 },
-      g: { x: 10, y: 130 },
-    });
-
-    mouseDown
-      .subscribe(
-        value => {
-          const el: HTMLElement = fixture.nativeElement;
-          el.dispatchEvent(new MouseEvent('mousedown',
-            { clientX: 10 + el.getBoundingClientRect().left, clientY: 10 + el.getBoundingClientRect().top }));
-          fixture.detectChanges();
-          console.log('drag test: mouse down!');
-        }
-      );
-
-    mouseMove
-      .subscribe(
-        value => {
-          const el: HTMLElement = fixture.nativeElement;
-          el.dispatchEvent(new MouseEvent('mousemove', {
-            clientX: value.x + el.getBoundingClientRect().left, clientY: value.y + el.getBoundingClientRect().top
-          }));
-          el.dispatchEvent(new MouseEvent('drag',
-            { clientX: value.x + el.getBoundingClientRect().left, clientY: value.y + el.getBoundingClientRect().top }));
-          fixture.detectChanges();
-          console.log('drag test: mouse move!');
-        }
-      );
-
-    Observable.fromEvent(fixture.debugElement.nativeElement, 'mousedown').subscribe(
-      value => console.log(value)
-    );
-
-    Observable.fromEvent(fixture.debugElement.nativeElement, 'mousemove').subscribe(
-      value => console.log(value)
-    );
-
-    const dragDropService: DragDropService = TestBed.get(DragDropService);
-
-    dragDropService.getOperatorStartDragStream().subscribe(
-      v => console.log('drag test: start drag!')
-    );
-
-    // mouseDown.subscribe(
-    //   value => {
-    //     fixture.debugElement.triggerEventHandler(
-    //       'mousedown', null
-    //     );
-    //   }
-    // );
-
-    // mouseMove.subscribe(
-    //   value => {
-    //     fixture.debugElement.triggerEventHandler(
-
-    //     )
-    //   }
-    // );
-
-  }));
+  // TODO: simulate drag and drop in tests, possibly using jQueryUI Simulate plugin
+  //  https://github.com/j-ulrich/jquery-simulate-ext/blob/master/doc/drag-n-drop.md
 
 });

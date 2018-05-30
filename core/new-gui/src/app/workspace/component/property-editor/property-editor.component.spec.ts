@@ -79,7 +79,7 @@ describe('PropertyEditorComponent', () => {
     const jointUIService: JointUIService = TestBed.get(JointUIService);
     const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
-    workflowActionService.addOperator(mockScanPredicate, jointUIService.getJointOperatorElement(mockScanPredicate, mockPoint));
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
     jointGraphWrapper.highlightOperator(mockScanPredicate.operatorID);
 
     expect(component.operatorID).toEqual(mockScanPredicate.operatorID);

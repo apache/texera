@@ -6,6 +6,7 @@ import { OperatorMetadataService, EMPTY_OPERATOR_METADATA } from './operator-met
 import { Observable } from 'rxjs/Observable';
 
 import '../../../common/rxjs-operators';
+import { getMockOperatorMetaData } from './mock-operator-metadata.data';
 
 
 class StubHttpClient {
@@ -13,7 +14,7 @@ class StubHttpClient {
 
   // fake an async http response with a very small delay
   public get(url: string): Observable<any> {
-    return Observable.of('test response').delay(1);
+    return Observable.of(getMockOperatorMetaData()).delay(1);
   }
 }
 
@@ -46,9 +47,18 @@ describe('OperatorMetadataService', () => {
     );
   });
 
-  it ('should send http request once', () => {
+  it('should send http request once', () => {
     service.getOperatorMetadata().last().subscribe(
-      value => expect(<any>value).toEqual('test response')
+      value => expect(<any>value).toBeTruthy()
+    );
+  });
+
+  it('should check if operatorType exists correctly', () => {
+    service.getOperatorMetadata().last().subscribe(
+      value => {
+        expect(service.operatorTypeExists('ScanSource')).toBeTruthy();
+        expect(service.operatorTypeExists('InvalidOperatorType')).toBeFalsy();
+      }
     );
   });
 
