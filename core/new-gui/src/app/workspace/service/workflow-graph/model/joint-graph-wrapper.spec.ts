@@ -15,7 +15,7 @@ import {
 import * as joint from 'jointjs';
 import { StubOperatorMetadataService } from '../../operator-metadata/stub-operator-metadata.service';
 
-describe('JointModelService', () => {
+describe('JointGraphWrapperService', () => {
 
   let jointGraph: joint.dia.Graph;
   let jointGraphWrapper: JointGraphWrapper;
@@ -25,6 +25,7 @@ describe('JointModelService', () => {
     TestBed.configureTestingModule({
       providers: [
         JointUIService,
+        WorkflowActionService
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
       ]
     });
@@ -143,9 +144,7 @@ describe('JointModelService', () => {
     }));
 
   it('should handle the event when an operator is highlighted or unhighlighted in the JointJS paper', marbles((m) => {
-    const workflowActionService = new WorkflowActionService(
-      TestBed.get(OperatorMetadataService), TestBed.get(JointUIService)
-    );
+    const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
     const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
     localJointGraphWrapper.getJointCellHighlightStream().subscribe(
@@ -172,9 +171,8 @@ describe('JointModelService', () => {
 
   it('should unhighlight previous highlighted operator if a new operator is highlighted', marbles((m) => {
 
-    const workflowActionService = new WorkflowActionService(
-      TestBed.get(OperatorMetadataService), TestBed.get(JointUIService)
-    );
+    const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
+
     const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
     localJointGraphWrapper.getJointCellUnhighlightStream().subscribe(
