@@ -7,7 +7,7 @@ import { AppSettings } from './../../../common/app-setting';
 
 import { WorkflowActionService } from './../workflow-graph/model/workflow-action.service';
 import { WorkflowGraph, WorkflowGraphReadonly } from './../workflow-graph/model/workflow-graph';
-import { LogicalLink, LogicalPlan } from './../../types/workflow-execute.interface';
+import { LogicalLink, LogicalPlan, LogicalOperator } from './../../types/workflow-execute.interface';
 
 import { MOCK_RESULT_DATA } from './mock-result-data';
 import { MOCK_WORKFLOW_PLAN } from './mock-workflow-plan';
@@ -20,7 +20,7 @@ export class StubExecuteWorkflowService {
 
 
   private executeStartedStream = new Subject<string>();
-  private executeEndedStream = new Subject<Object>();
+  private executeEndedStream = new Subject<object>();
 
   constructor(private workflowActionService: WorkflowActionService) { }
 
@@ -34,7 +34,7 @@ export class StubExecuteWorkflowService {
     return this.executeStartedStream.asObservable();
   }
 
-  public getExecuteEndedStream(): Observable<Object> {
+  public getExecuteEndedStream(): Observable<object> {
     return this.executeEndedStream.asObservable();
   }
 
@@ -86,7 +86,7 @@ export class StubExecuteWorkflowService {
 
     // const logicalPlanJson = { operators: [] as any, links: [] as any};
 
-    const logicalOperators = [] as any;
+    const logicalOperators = [] as LogicalOperator[];
     const logicalLinks = [] as LogicalLink[];
 
     // each operator only needs the operatorID, operatorType, and the properties
@@ -94,9 +94,9 @@ export class StubExecuteWorkflowService {
     workflowGraph.getOperators().forEach(
       op => logicalOperators.push(
         {
+          ...op.operatorProperties,
           operatorID: op.operatorID,
-          operatorType: op.operatorType,
-          ...op.operatorProperties
+          operatorType: op.operatorType
         }
       )
     );
@@ -115,5 +115,6 @@ export class StubExecuteWorkflowService {
     );
 
     return { operators : logicalOperators , links: logicalLinks };
+
   }
 }

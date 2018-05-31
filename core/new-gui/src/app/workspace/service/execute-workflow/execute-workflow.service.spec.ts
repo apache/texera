@@ -17,7 +17,7 @@ class StubHttpClient {
   constructor() { }
 
   // fake an async http response with a very small delay
-  public post(url: string, body: string, headers: Object): Observable<any> {
+  public post(url: string, body: string, headers: object): Observable<any> {
     return Observable.of(MOCK_RESULT_DATA).delay(1);
   }
 

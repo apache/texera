@@ -1,4 +1,4 @@
-export const MOCK_RESULT_DATA: Object[] = [
+export const MOCK_RESULT_DATA: object[] = [
   {
       'id': 1,
       'layer': 'Disk Space and I/O Managers',

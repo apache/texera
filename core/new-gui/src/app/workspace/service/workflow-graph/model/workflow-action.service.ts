@@ -152,7 +152,7 @@ export class WorkflowActionService {
     // JointJS link delete event will propagate and trigger Texera link delete
   }
 
-  public setOperatorProperty(operatorID: string, newProperty: Object) {
+  public setOperatorProperty(operatorID: string, newProperty: object) {
     this.texeraGraph.setOperatorProperty(operatorID, newProperty);
   }
 

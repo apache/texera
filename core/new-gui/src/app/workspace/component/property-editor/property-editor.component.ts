@@ -27,7 +27,7 @@ export class PropertyEditorComponent implements OnInit {
     currentPredicate won't change as the form value changes
   */
   public operatorID: string | undefined;
-  public initialData: Object | undefined;
+  public initialData: object | undefined;
   public currentSchema: OperatorSchema | undefined;
   public operatorSchemaList: ReadonlyArray<OperatorSchema> = [];
   public displayForm = false;
@@ -35,7 +35,7 @@ export class PropertyEditorComponent implements OnInit {
 
   private formLayout: object = PropertyEditorComponent.generateFormLayout();
   private formChangeTimes = 0;
-  private jsonSchemaOnFormChangeStream = new Subject<Object>();
+  private jsonSchemaOnFormChangeStream = new Subject<object>();
 
   constructor(
     private operatorMetadataService: OperatorMetadataService,
@@ -96,11 +96,11 @@ export class PropertyEditorComponent implements OnInit {
   }
 
 
-  public onFormChanges(formData: Object): void {
+  public onFormChanges(formData: object): void {
     this.jsonSchemaOnFormChangeStream.next(formData);
   }
 
-  private handleFormChange(formData: Object): void {
+  private handleFormChange(formData: object): void {
     this.formChangeTimes++;
     console.log('onform changes called');
     console.log(formData);
@@ -112,7 +112,7 @@ export class PropertyEditorComponent implements OnInit {
   }
 
   // layout for the form
-  private static generateFormLayout(): Object {
+  private static generateFormLayout(): object {
     // hide submit button
     return [
       '*',

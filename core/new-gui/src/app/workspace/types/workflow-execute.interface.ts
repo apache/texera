@@ -8,7 +8,13 @@ export interface LogicalLink extends Readonly<{
   destination: string
 }> { }
 
+export interface LogicalOperator extends Readonly<{
+  operatorID: string,
+  operatorType: string,
+  [operatorProperties: string]: any
+}> { }
+
 export interface LogicalPlan extends Readonly<{
-  operators: Object,
+  operators: LogicalOperator[],
   links: LogicalLink[]
 }> { }
