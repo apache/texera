@@ -1,4 +1,7 @@
 import { Component, OnInit } from '@angular/core';
+import { ExcuteWorkflowService } from './../../service/execute-workflow/excute-workflow.service';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+
 
 @Component({
   selector: 'texera-navigation',
@@ -7,9 +10,24 @@ import { Component, OnInit } from '@angular/core';
 })
 export class NavigationComponent implements OnInit {
 
-  constructor() { }
+  // variable binded with HTML to decide if the running spinner should show
+  public showSpinner = false;
+
+  constructor(private executeWorkflowService: ExcuteWorkflowService) {
+    // hide the spinner after the execution is finished
+    executeWorkflowService.getExecuteEndedStream().subscribe(
+      value => this.showSpinner = false,
+      error => this.showSpinner = false
+    );
+  }
 
   ngOnInit() {
+  }
+
+  private onClickRun(): void {
+    // show the spinner after the "Run" button is clicked
+    this.showSpinner = true;
+    this.executeWorkflowService.executeWorkflow();
   }
 
 }
