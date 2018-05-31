@@ -11,7 +11,7 @@ export interface LogicalLink extends Readonly<{
 export interface LogicalOperator extends Readonly<{
   operatorID: string,
   operatorType: string,
-  [operatorProperties: string]: any
+  [uniqueAttributes: string]: any
 }> { }
 
 export interface LogicalPlan extends Readonly<{
