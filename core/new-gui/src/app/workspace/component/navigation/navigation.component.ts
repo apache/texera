@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { ExcuteWorkflowService } from './../../service/execute-workflow/excute-workflow.service';
+import { ExecuteWorkflowService } from './../../service/execute-workflow/execute-workflow.service';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 
@@ -13,7 +13,7 @@ export class NavigationComponent implements OnInit {
   // variable binded with HTML to decide if the running spinner should show
   public showSpinner = false;
 
-  constructor(private executeWorkflowService: ExcuteWorkflowService) {
+  constructor(private executeWorkflowService: ExecuteWorkflowService) {
     // hide the spinner after the execution is finished
     executeWorkflowService.getExecuteEndedStream().subscribe(
       value => this.showSpinner = false,

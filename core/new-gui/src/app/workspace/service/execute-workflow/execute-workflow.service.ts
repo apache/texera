@@ -15,8 +15,10 @@ import { MOCK_WORKFLOW_PLAN } from './mock-workflow-plan';
 
 export const EXECUTE_WORKFLOW_ENDPOINT = 'queryplan/execute';
 
+
 @Injectable()
-export class ExcuteWorkflowService {
+export class ExecuteWorkflowService {
+
 
   private executeStartedStream = new Subject<string>();
   private executeEndedStream = new Subject<Object>();

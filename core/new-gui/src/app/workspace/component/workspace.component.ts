@@ -1,4 +1,4 @@
-import { ExcuteWorkflowService } from './../service/execute-workflow/excute-workflow.service';
+import { ExecuteWorkflowService } from './../service/execute-workflow/execute-workflow.service';
 import { DragDropService } from './../service/drag-drop/drag-drop.service';
 import { WorkflowUtilService } from './../service/workflow-graph/util/workflow-util.service';
 import { WorkflowActionService } from './../service/workflow-graph/model/workflow-action.service';
@@ -22,7 +22,7 @@ import { StubOperatorMetadataService } from '../service/operator-metadata/stub-o
     WorkflowActionService,
     WorkflowUtilService,
     DragDropService,
-    ExcuteWorkflowService
+    ExecuteWorkflowService
   ]
 })
 export class WorkspaceComponent implements OnInit {
