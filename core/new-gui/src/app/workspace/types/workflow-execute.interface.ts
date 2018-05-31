@@ -8,8 +8,8 @@ import { OperatorPort } from './workflow-common.interface';
 
 
 export interface LogicalLink extends Readonly<{
-  origin: OperatorPort,
-  destination: OperatorPort
+  origin: string,
+  destination: string
 }> { }
 
 export interface LogicalPlan extends Readonly<{

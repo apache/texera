@@ -108,8 +108,8 @@ export class ExcuteWorkflowService {
     .forEach(
       link => logicalLinks.push(
         {
-          origin: link.source,
-          destination: link.target
+          origin: link.source.operatorID,
+          destination: link.target.operatorID
         }
       )
     );
