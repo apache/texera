@@ -25,7 +25,7 @@ describe('JointGraphWrapperService', () => {
     TestBed.configureTestingModule({
       providers: [
         JointUIService,
-        WorkflowActionService
+        WorkflowActionService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
       ]
     });
