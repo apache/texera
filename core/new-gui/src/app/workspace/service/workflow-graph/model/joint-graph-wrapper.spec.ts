@@ -170,9 +170,7 @@ describe('JointGraphWrapperService', () => {
   }));
 
   it('should unhighlight previous highlighted operator if a new operator is highlighted', marbles((m) => {
-
     const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
-
     const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
     localJointGraphWrapper.getJointCellUnhighlightStream().subscribe(

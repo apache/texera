@@ -92,8 +92,15 @@ export class WorkflowEditorComponent implements AfterViewInit {
   }
 
   private handleCellHighlight(): void {
+    this.handleHighlightMouseInput();
+    this.handleOperatorHightlightEvent();
+  }
 
-    // handle user mouse down events to trigger logically highlight and unhighlight an operator
+
+  /**
+   * Handles user mouse down events to trigger logically highlight and unhighlight an operator
+   */
+  private handleHighlightMouseInput(): void {
     Observable.fromEvent(this.getJointPaper(), 'cell:pointerdown')
       .map(value => <joint.dia.CellView>value)
       .filter(cellView => cellView.model.isElement())
@@ -101,16 +108,17 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
     Observable.fromEvent(this.getJointPaper(), 'blank:pointerdown')
       .subscribe(value => this.workflowActionService.getJointGraphWrapper().unhighlightCurrent());
+  }
 
-
+  private handleOperatorHightlightEvent(): void {
     // handle logical operator highlight / unhighlight events to let JointJS
     //  use our own custom highlighter
     const highlightOptions = {
       name: 'stroke',
       options: {
         attrs: {
-          'stroke-width': 3,
-          stroke: '#404040'
+          'stroke-width': 1,
+          stroke: '#afafaf'
         }
       }
     };

@@ -236,7 +236,7 @@ export class JointUIService {
    */
   public static getCustomOperatorStyleAttrs(operatorDisplayName: string): joint.shapes.devs.ModelSelectors {
     const operatorStyleAttrs = {
-      'rect': { fill: '#FFFFFF', 'follow-scale': true, stroke: '#CFCFCF', 'stroke-width': '2' },
+      'rect': { fill: '#FFFFFF', 'follow-scale': true, stroke: '#CFCFCF', 'stroke-width': 2 },
       'text': {
         text: operatorDisplayName, fill: 'black', 'font-size': '12px',
         'ref-x': 0.5, 'ref-y': 0.5, ref: 'rect', 'y-alignment': 'middle', 'x-alignment': 'middle'
