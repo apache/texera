@@ -33,58 +33,9 @@ import isEqual from 'lodash-es/isEqual';
  * We use library `angular2-json-schema-form` to generate form from json schema
  * https://github.com/dschnelldavis/angular2-json-schema-form
  *
- * There are also many other libraries available. Here's the metrics to compare them:
- *  if it's written for Angular 2+
- *    (if it's not for Angular 2+, then if it's in pure Javascript,
- *      we want to avoid libraries for other frameworks, such as Angular 1 or React)
- *  if it supports Typescript
- *    (if the library isn't written for Angular 2+. Libraries for Angular 2 are written in Typescript)
- *  popularity, how many stars on github
- *  maintenance and activeness, if the library author is actively maintaining it
- *  user-friendliness and looks of the form it generated
+ * For more details of comparing different libraries, and the problems of the current library,
+ *  see `json-schema-library.md`
  *
- * Here are the options:
- *
- * There are only 2 libraries written for Angular 2+:
- *  - `dschnelldavis/angular2-json-schema-form` (our choice) https://github.com/dschnelldavis/angular2-json-schema-form
- *  - `makinacorpus/ngx-schema-form`: https://github.com/makinacorpus/ngx-schema-form
- * Comparing two libraries:
- *  popularity: about the same (200+ stars)
- *  maintenance: both are *very* poorly maintained - hasn't updated for months and author hardly reply on Github Issues
- *  user-friendliness and look: our choice generates prettier looks and it allows switching themes
- *
- * Other Libraries:
- *  * `json-schema-form/angular-schema-form`: https://github.com/json-schema-form/angular-schema-form
- *    + very popular: 2000+ stars
- *    + authors are actively maintaining it
- *    + form looks good
- *    - written for Angular 1, possibly very hard to port
- *    - although authors showed intent to write an Angular 2 version (2 years ago), the progress is very slow
- *  * `jdorn/json-editor`: https://github.com/jdorn/json-editor
- *    + very popular: 4000+ stars
- *    + form looks okay
- *    - written in pure Javascript
- *    - original author no longer maintains it
- *    - primary fork maintained by community: https://github.com/json-editor/json-editor
- *  * `joshfire/jsonform`: https://github.com/joshfire/jsonform
- *    + popular: 1000+ stars
- *    - written in pure Javascript
- *    - last update is 5 years ago
- *  * `gitana/alpaca`: https://github.com/gitana/alpaca
- *    - popuarl: 900+ stars
- *    - written in jQuery
- *    - not actively maintained: 300+ issues left open
- *
- * In conclusion, among all the potential libraries, there's only 2 for Angular 2+, most of them are not actively maintained.
- *
- * If our current choice cannot satisfy our need or blocked our way of updating Angular,
- *  we are open to:
- *  switch to another library:
- *    - `makinacorpus/ngx-schema-form`: recently added a PR to support Angular 6
- *    - `json-schema-form/angular-schema-form`: spend time integrating Angular 1 library into our app
- *  or make a fork of the current library:
- *    - many people have forked the library to meet their need
- *    https://github.com/dschnelldavis/angular2-json-schema-form/pull/230#issuecomment-383591628
  *
  */
 @Component({
