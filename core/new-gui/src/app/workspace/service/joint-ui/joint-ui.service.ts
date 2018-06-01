@@ -79,7 +79,7 @@ export class JointUIService {
   }
 
   /**
-   * Gets the JointJS UI Element Object based on the operator predicate.
+   * Gets the JointJS UI Element object based on the operator predicate.
    * A JointJS Element could be added to the JointJS graph to let JointJS display the operator accordingly.
    *
    * The function checks if the operatorType exists in the metadata,
