@@ -260,8 +260,7 @@ public class QueryPlanResource {
                 String dest = linkNode.get(PropertyNameConstants.DESTINATION_OPERATOR_ID).textValue();
 
                 Optional<Schema> schema = logicalPlan.getOperatorOutputSchema(origin, inputSchema);
-                if(schema.isPresent())
-                {
+                if(schema.isPresent()) {
                     if (inputSchema.containsKey(dest)) {
                         inputSchema.get(dest).add(schema.get());
                     } else {

@@ -124,7 +124,7 @@ public class LogicalPlan {
             throws PlanGenException, DataflowException {
 
         IOperator currentOperator = operatorObjectMap.get(operatorID);
-        Optional<Schema> outputSchema = null;
+        Optional<Schema> outputSchema = Optional.empty();
         if (currentOperator instanceof ISourceOperator) {
             outputSchema = Optional.ofNullable(currentOperator.transformToOutputSchema());
         } else if (operatorInputSchemaMap.containsKey(operatorID)) {
@@ -175,14 +175,12 @@ public class LogicalPlan {
             String origin = operatorQueue.poll();
             Optional<Schema> currentOutputSchema = getOperatorOutputSchema(origin, inputSchemas);
 
-            if(!currentOutputSchema.isPresent())
-            {
+            if(!currentOutputSchema.isPresent()) {
                 continue;
             }
 
             for (String destination: adjacencyList.get(origin)) {
-                if(operatorObjectMap.get(destination) instanceof ISink)
-                {
+                if(operatorObjectMap.get(destination) instanceof ISink) {
                     continue;
                 }
 
