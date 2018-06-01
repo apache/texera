@@ -18,7 +18,7 @@ export interface OperatorAdditionalMetadata extends Readonly<{
 
 export interface OperatorSchema extends Readonly<{
   operatorType: string;
-  jsonSchema: Readonly<Object>;
+  jsonSchema: Readonly<object>;
   additionalMetadata: OperatorAdditionalMetadata;
 }> { }
 

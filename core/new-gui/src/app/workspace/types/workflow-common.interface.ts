@@ -16,7 +16,7 @@ export interface OperatorPort extends Readonly<{
 export interface OperatorPredicate extends Readonly<{
   operatorID: string;
   operatorType: string;
-  operatorProperties: Readonly<Object>;
+  operatorProperties: Readonly<object>;
   inputPorts: string[];
   outputPorts: string[];
 }> { }
