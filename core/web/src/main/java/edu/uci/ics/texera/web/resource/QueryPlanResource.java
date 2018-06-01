@@ -232,7 +232,7 @@ public class QueryPlanResource {
     */
     @POST
     @Path("/autocomplete")
-    public JsonNode executeAutoQueryPlan(String logicalPlanJson) {
+    public JsonNode suggestAutocompleteSchema(String logicalPlanJson) {
         try {
             JsonNode logicalPlanNode = new ObjectMapper().readTree(logicalPlanJson);
             ArrayNode operators = (ArrayNode) logicalPlanNode.get(PropertyNameConstants.OPERATOR_LIST);
