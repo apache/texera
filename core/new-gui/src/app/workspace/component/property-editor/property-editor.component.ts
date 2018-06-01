@@ -1,41 +1,51 @@
 import { OperatorSchema } from './../../types/operator-schema.interface';
+import { OperatorPredicate } from '../../types/workflow-common.interface';
 import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
 import { OperatorMetadataService } from './../../service/operator-metadata/operator-metadata.service';
 import { Component, OnInit } from '@angular/core';
 
-import {
-  JsonSchemaFormModule, MaterialDesignFrameworkModule
-} from 'angular2-json-schema-form';
-
-import cloneDeep from 'lodash-es/cloneDeep';
-
 import { Subject } from 'rxjs/Subject';
 import { Observable } from 'rxjs/Observable';
 import '../../../common/rxjs-operators';
-import { OperatorPredicate } from '../../types/workflow-common.interface';
 
+// all lodash import should follow this parttern
+// import `functionName` from `lodash-es/functionName`
+// to import only the function that we use
+import cloneDeep from 'lodash-es/cloneDeep';
+import isEqual from 'lodash-es/isEqual';
+
+
+/**
+ * PropertyEditorComponent is the panel that allows user to edit operator properties.
+ *
+ *
+ *
+ */
 @Component({
   selector: 'texera-property-editor',
   templateUrl: './property-editor.component.html',
-  styleUrls: ['./property-editor.component.scss']
+  styleUrls: ['./property-editor.component.scss'],
 })
-export class PropertyEditorComponent implements OnInit {
+export class PropertyEditorComponent {
 
-  /*
-    Disable two-way data binding of currentPredicate
-    to prevent "onChanges" event fired continously.
-    currentPredicate won't change as the form value changes
-  */
-  public operatorID: string | undefined;
-  public initialData: Object | undefined;
-  public currentSchema: OperatorSchema | undefined;
+  // the operatorID corresponds to the property editor's current operator
+  public currentOperatorID: string | undefined;
+  // a *copy* of the operator property as the initial input to the json schema form
+  // see details of why making a copy below at where the copy is made
+  public currentOperatorInitialData: object | undefined;
+  // the operator schema of the current operator
+  public currentOperatorSchema: OperatorSchema | undefined;
+  // used in HTML template to control if the form is displayed
+  public displayForm: boolean = false;
+
+  // the form layout passed to angular json schema library to hide *submit* button
+  public formLayout: object = PropertyEditorComponent.generateFormLayout();
+
+  // the observable event stream of the property change is triggered in the form
+  public jsonSchemaOnFormChangeStream = new Subject<object>();
+  // the current operator schema list, used to find the operator schema of current operator
   public operatorSchemaList: ReadonlyArray<OperatorSchema> = [];
-  public displayForm = false;
 
-
-  private formLayout: object = PropertyEditorComponent.generateFormLayout();
-  private formChangeTimes = 0;
-  private jsonSchemaOnFormChangeStream = new Subject<Object>();
 
   constructor(
     private operatorMetadataService: OperatorMetadataService,
@@ -45,75 +55,147 @@ export class PropertyEditorComponent implements OnInit {
       value => { this.operatorSchemaList = value.operators; }
     );
 
-    this.workflowActionService.getJointGraphWrapper().getJointCellHighlightStream()
-      .filter(value => value.operatorID !== this.operatorID)
-      .map(value => this.workflowActionService.getTexeraGraph().getOperator(value.operatorID))
-      .subscribe(
-        operator => this.changePropertyEditor(operator)
-      );
-
-    this.workflowActionService.getJointGraphWrapper().getJointCellUnhighlightStream()
-      .filter(value => value.operatorID === this.operatorID)
-      .subscribe(value => this.clearPropertyEditor());
-
-
+    this.handleHighlightEvents();
+    this.handleFormChangeEventStream();
   }
 
-  ngOnInit() {
-    this.jsonSchemaOnFormChangeStream.subscribe(
-      formData => {
-        this.handleFormChange(formData);
-      }
-    );
+  /**
+   * Callback function provided to the Angular Json Schema Form library,
+   *  whenever the form data is changed, this function is called.
+   * It only serves as a bridge from a callback function to RxJS Observable
+   * @param formData
+   */
+  public onFormChanges(formData: object): void {
+    this.jsonSchemaOnFormChangeStream.next(formData);
   }
 
+  /**
+   * Hides the form and clears all the data of the current the property editor
+   */
   public clearPropertyEditor(): void {
     // set displayForm to false in the very beginning
     // hide the view first and then make everything null
     this.displayForm = false;
 
-    this.operatorID = undefined;
-    this.initialData = undefined;
-    this.currentSchema = undefined;
+    this.currentOperatorID = undefined;
+    this.currentOperatorInitialData = undefined;
+    this.currentOperatorSchema = undefined;
 
   }
 
+  /**
+   * Changes the property editor to use the new operator data.
+   * Sets all the data needed by the json schema form and displays the form.
+   * @param operator
+   */
   public changePropertyEditor(operator: OperatorPredicate | undefined): void {
     if (! operator) {
       throw new Error(`change property editor: operator is undefined`);
     }
 
-    console.log('changePropertyEditor called');
-    console.log('operatorID: ' + operator.operatorID);
-    this.operatorID = operator.operatorID;
-    this.currentSchema = this.operatorSchemaList.find(schema => schema.operatorType === operator.operatorType);
-    // make a copy of the property data
-    this.initialData = cloneDeep(operator.operatorProperties);
+    // set displayForm to false first to hide the view while constructing data
+    this.displayForm = false
 
-    // set displayForm to true in the end
-    //  because we need to initialize all the data first then show the view
+    // set the operator data needed
+    this.currentOperatorID = operator.operatorID;
+    this.currentOperatorSchema = this.operatorSchemaList.find(schema => schema.operatorType === operator.operatorType);
+    if (! this.currentOperatorSchema) {
+      throw new Error(`operator schema for operator type ${operator.operatorType} doesn't exist`)
+    }
+    /**
+     * Make a deep copy of the initial property data object.
+     * It's important to make a deep copy. If it's a reference to the operator's property object,
+     *  form change event -> property object change -> input to form change -> form change event
+     *  although the it falls into an infinite loop of tirggering events.
+     * Making a copy prevents that property object change triggers the input to the form changes.
+     *
+     * Although currently other methods also prevent this to happen, it's still good to explicitly make a copy.
+     *  - now the operator property object is immutable, meaning a new property object is construct to replace the old one,
+     *      instead of directly mutating the same object reference
+     *  - now the formChange event handler checks if the new formData is equal to the current operator data,
+     *      which prevents the
+     */
+    this.currentOperatorInitialData = cloneDeep(operator.operatorProperties);
+
+    // set displayForm to true in the end - first initialize all the data then show the view
     this.displayForm = true;
   }
 
+  /**
+   * Handles the highlight / unhighlight events.
+   * On highlight -> display the form of the highlighted operator
+   * On unhighlight -> hides the form
+   */
+  private handleHighlightEvents() {
+    this.workflowActionService.getJointGraphWrapper().getJointCellHighlightStream()
+      .filter(value => value.operatorID !== this.currentOperatorID)
+      .map(value => this.workflowActionService.getTexeraGraph().getOperator(value.operatorID))
+      .do(value => {
+        console.log('highlight');
+        console.log(value);
+      })
+      .subscribe(
+        operator => this.changePropertyEditor(operator)
+      );
 
-  public onFormChanges(formData: Object): void {
-    this.jsonSchemaOnFormChangeStream.next(formData);
+    this.workflowActionService.getJointGraphWrapper().getJointCellUnhighlightStream()
+      .filter(value => value.operatorID === this.currentOperatorID)
+      .subscribe(value => this.clearPropertyEditor());
   }
 
-  private handleFormChange(formData: Object): void {
-    this.formChangeTimes++;
-    console.log('onform changes called');
-    console.log(formData);
-    console.log('called ' + this.formChangeTimes.toString() + ' times');
-    if (!this.operatorID) {
-      throw new Error(`Property Editor component not binded with the current operatorID`);
-    }
-    this.workflowActionService.setOperatorProperty(this.operatorID, formData);
+  /**
+   * Handles the form change event stream observable,
+   *  which corresponds to every event the json schema form library emits.
+   *
+   * Applies rules that transform the event stream to trigger resonably and less frequently ,
+   *  such as debounce time and distince condition.
+   *
+   * Then modifies the operator property to use the new form data.
+   */
+  private handleFormChangeEventStream(): void {
+
+    this.jsonSchemaOnFormChangeStream
+      // set a debounce time to avoid events triggering too often
+      //  and to circumvent a bug of the library - each action triggers event twice
+      .debounceTime(175)
+      // don't emit the event until the data is changed
+      .distinctUntilChanged()
+      // don't emit the event if form data is same with current actual data
+      // also check for other unlikely circumstances (see below)
+      .filter(formData => {
+        // check if the current operator ID still exists
+        // the user could un-select this operator during deboucne time
+        if (!this.currentOperatorID) {
+          return false;
+        }
+        // check if the operator still exists
+        // the operator could've been deleted during deboucne time
+        const operator = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorID);
+        if (!operator) {
+          return false;
+        }
+        // don't emit event if the form data is equal to actual current property
+        // this is to circumvent the library's behavior
+        // when the form is initialized, the change event is triggered for the inital data
+        // however, the operator property is not changed and shouldn't emit this event
+        return ! isEqual(formData, operator.operatorProperties);
+      })
+      .subscribe(
+        formData => {
+          // set the operator property to be the new form data
+          if (this.currentOperatorID) {
+            this.workflowActionService.setOperatorProperty(this.currentOperatorID, formData);
+          }
+        }
+      );
   }
 
-  // layout for the form
-  private static generateFormLayout(): Object {
-    // hide submit button
+  /**
+   * Generates a form layout used by the json schema form library
+   *  to hide the *submit* button.
+   * ttps://github.com/json-schema-form/angular-schema-form/blob/master/docs/index.md#form-definitions
+   */
+  private static generateFormLayout(): object {
     return [
       '*',
       { type: 'submit', condition: 'false' }

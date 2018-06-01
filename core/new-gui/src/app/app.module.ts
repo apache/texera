@@ -9,7 +9,8 @@ import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
 
 import {
-  JsonSchemaFormModule, MaterialDesignFrameworkModule
+  MaterialDesignFrameworkModule, JsonSchemaFormModule, JsonSchemaFormService,
+  FrameworkLibraryService, WidgetLibraryService, Framework, MaterialDesignFramework
 } from 'angular2-json-schema-form';
 
 import { AppComponent } from './app.component';
@@ -45,7 +46,17 @@ import 'hammerjs';
     NgbModule.forRoot(),
 
     MaterialDesignFrameworkModule,
-    JsonSchemaFormModule.forRoot(MaterialDesignFrameworkModule),
+    // workaround to import the angular json schema module to avoid errros in compliation
+    // https://github.com/dschnelldavis/angular2-json-schema-form/issues/189#issuecomment-365971521
+    {
+      ngModule: JsonSchemaFormModule,
+      providers: [
+          JsonSchemaFormService,
+          FrameworkLibraryService,
+          WidgetLibraryService,
+          {provide: Framework, useClass: MaterialDesignFramework, multi: true}
+      ]
+    },
 
   ],
   providers: [ HttpClientModule ],

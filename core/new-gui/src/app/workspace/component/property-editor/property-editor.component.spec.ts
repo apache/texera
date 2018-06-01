@@ -2,7 +2,6 @@ import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { PropertyEditorComponent } from './property-editor.component';
 
-
 import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
 import { OperatorMetadataService } from './../../service/operator-metadata/operator-metadata.service';
 import { StubOperatorMetadataService } from './../../service/operator-metadata/stub-operator-metadata.service';
@@ -13,9 +12,6 @@ import { getMockOperatorSchemaList } from './../../service/operator-metadata/moc
 import { marbles } from 'rxjs-marbles';
 
 
-import {
-  JsonSchemaFormModule, MaterialDesignFrameworkModule
-} from 'angular2-json-schema-form';
 import { mockScanPredicate, mockPoint } from '../../service/workflow-graph/model/mock-workflow-data';
 import { OperatorPredicate } from '../../types/workflow-common.interface';
 
@@ -31,10 +27,6 @@ describe('PropertyEditorComponent', () => {
         JointUIService,
         WorkflowActionService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
-      ],
-      imports: [
-        MaterialDesignFrameworkModule,
-        JsonSchemaFormModule.forRoot(MaterialDesignFrameworkModule)
       ]
     })
     .compileComponents();
@@ -58,18 +50,18 @@ describe('PropertyEditorComponent', () => {
     //  is highlighted has correctly update the variables
     component.changePropertyEditor(predicate);
 
-    expect(component.operatorID).toEqual(predicate.operatorID);
-    expect(component.currentSchema).toEqual(currentSchema);
-    expect(component.initialData).toEqual(predicate.operatorProperties);
+    expect(component.currentOperatorID).toEqual(predicate.operatorID);
+    expect(component.currentOperatorSchema).toEqual(currentSchema);
+    expect(component.currentOperatorInitialData).toEqual(predicate.operatorProperties);
     expect(component.displayForm).toBeTruthy();
 
     // check if the clearPropertyEditor called after the operator
     //  is unhighlighted has correctly update the variables
     component.clearPropertyEditor();
 
-    expect(component.operatorID).toBeFalsy();
-    expect(component.currentSchema).toBeFalsy();
-    expect(component.initialData).toBeFalsy();
+    expect(component.currentOperatorID).toBeFalsy();
+    expect(component.currentOperatorSchema).toBeFalsy();
+    expect(component.currentOperatorInitialData).toBeFalsy();
     expect(component.displayForm).toBeFalsy();
 
   });
@@ -90,18 +82,18 @@ describe('PropertyEditorComponent', () => {
 
     jointGraphWrapper.highlightOperator(mockScanPredicate.operatorID);
 
-    expect(component.operatorID).toEqual(mockScanPredicate.operatorID);
-    expect(component.currentSchema).toEqual(getMockOperatorSchemaList()[0]);
-    expect(component.initialData).toEqual(mockScanPredicate.operatorProperties);
+    expect(component.currentOperatorID).toEqual(mockScanPredicate.operatorID);
+    expect(component.currentOperatorSchema).toEqual(getMockOperatorSchemaList()[0]);
+    expect(component.currentOperatorInitialData).toEqual(mockScanPredicate.operatorProperties);
     expect(component.displayForm).toBeTruthy();
 
     // check if the unhighlight function successfully updated the
     //  variables inside property editor component
     jointGraphWrapper.unhighlightCurrent();
 
-    expect(component.operatorID).toBeFalsy();
-    expect(component.currentSchema).toBeFalsy();
-    expect(component.initialData).toBeFalsy();
+    expect(component.currentOperatorID).toBeFalsy();
+    expect(component.currentOperatorSchema).toBeFalsy();
+    expect(component.currentOperatorInitialData).toBeFalsy();
     expect(component.displayForm).toBeFalsy();
 
   }));
