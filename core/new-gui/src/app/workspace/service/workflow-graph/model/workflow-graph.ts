@@ -37,7 +37,7 @@ export class WorkflowGraph {
   private readonly operatorDeleteSubject = new Subject<{ deletedOperator: OperatorPredicate }>();
   private readonly linkAddSubject = new Subject<OperatorLink>();
   private readonly linkDeleteSubject = new Subject<{ deletedLink: OperatorLink }>();
-  private readonly operatorPropertyChangeSubject = new Subject<{ oldProperty: Object, operator: OperatorPredicate }>();
+  private readonly operatorPropertyChangeSubject = new Subject<{ oldProperty: object, operator: OperatorPredicate }>();
 
   constructor(
     operatorPredicates: OperatorPredicate[] = [],
@@ -203,7 +203,7 @@ export class WorkflowGraph {
    * @param operatorID operator ID
    * @param newProperty new property to set
    */
-  public setOperatorProperty(operatorID: string, newProperty: Object): void {
+  public setOperatorProperty(operatorID: string, newProperty: object): void {
     const originalOperatorData = this.operatorIDMap.get(operatorID);
     if (originalOperatorData === undefined) {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
@@ -255,7 +255,7 @@ export class WorkflowGraph {
    * Gets the observable event stream of a link being deleted from the graph.
    * The observable value includes the old property that is replaced, and the operator with new property.
    */
-  public getOperatorPropertyChangeStream(): Observable<{ oldProperty: Object, operator: OperatorPredicate }> {
+  public getOperatorPropertyChangeStream(): Observable<{ oldProperty: object, operator: OperatorPredicate }> {
     return this.operatorPropertyChangeSubject.asObservable();
   }
 
