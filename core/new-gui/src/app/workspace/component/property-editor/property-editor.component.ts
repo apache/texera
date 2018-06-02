@@ -36,7 +36,7 @@ import isEqual from 'lodash-es/isEqual';
  * For more details of comparing different libraries, and the problems of the current library,
  *  see `json-schema-library.md`
  *
- *
+ * @author Zuozhi Wang
  */
 @Component({
   selector: 'texera-property-editor',
@@ -58,10 +58,18 @@ export class PropertyEditorComponent {
   // the form layout passed to angular json schema library to hide *submit* button
   public formLayout: object = PropertyEditorComponent.generateFormLayout();
 
-  // the observable event stream of the property change is triggered in the form
-  public jsonSchemaOnFormChangeStream = new Subject<object>();
+  // the source event stream of form change triggered by library at each user input
+  public sourceFormChangeEventStream = new Subject<object>();
+
+  // the output form change event stream after debouce time and filtering out values
+  public outputFormChangeEventStream: Observable<object>;
+
   // the current operator schema list, used to find the operator schema of current operator
   public operatorSchemaList: ReadonlyArray<OperatorSchema> = [];
+
+  // debounce time for form input in miliseconds
+  //  please set this to multiples of 10 to make writing tests easy
+  public static formInputDebounceTime: number = 150;
 
 
   constructor(
@@ -73,7 +81,13 @@ export class PropertyEditorComponent {
     );
 
     this.handleHighlightEvents();
-    this.handleFormChangeEventStream();
+    this.outputFormChangeEventStream = this.createOutputFormChangeEventStream(this.sourceFormChangeEventStream);
+    this.outputFormChangeEventStream.subscribe(formData => {
+      // set the operator property to be the new form data
+      if (this.currentOperatorID) {
+        this.workflowActionService.setOperatorProperty(this.currentOperatorID, formData);
+      }
+    })
   }
 
   /**
@@ -83,7 +97,7 @@ export class PropertyEditorComponent {
    * @param formData
    */
   public onFormChanges(formData: object): void {
-    this.jsonSchemaOnFormChangeStream.next(formData);
+    this.sourceFormChangeEventStream.next(formData);
   }
 
   /**
@@ -106,7 +120,7 @@ export class PropertyEditorComponent {
    * @param operator
    */
   public changePropertyEditor(operator: OperatorPredicate | undefined): void {
-    if (! operator) {
+    if (!operator) {
       throw new Error(`change property editor: operator is undefined`);
     }
 
@@ -116,7 +130,7 @@ export class PropertyEditorComponent {
     // set the operator data needed
     this.currentOperatorID = operator.operatorID;
     this.currentOperatorSchema = this.operatorSchemaList.find(schema => schema.operatorType === operator.operatorType);
-    if (! this.currentOperatorSchema) {
+    if (!this.currentOperatorSchema) {
       throw new Error(`operator schema for operator type ${operator.operatorType} doesn't exist`)
     }
     /**
@@ -143,7 +157,7 @@ export class PropertyEditorComponent {
    * On highlight -> display the form of the highlighted operator
    * On unhighlight -> hides the form
    */
-  private handleHighlightEvents() {
+  public handleHighlightEvents() {
     this.workflowActionService.getJointGraphWrapper().getJointCellHighlightStream()
       .filter(value => value.operatorID !== this.currentOperatorID)
       .map(value => this.workflowActionService.getTexeraGraph().getOperator(value.operatorID))
@@ -165,12 +179,12 @@ export class PropertyEditorComponent {
    *
    * Then modifies the operator property to use the new form data.
    */
-  private handleFormChangeEventStream(): void {
+  public createOutputFormChangeEventStream(originalSourceFormChangeEvent: Observable<object>): Observable<object> {
 
-    this.jsonSchemaOnFormChangeStream
+    return originalSourceFormChangeEvent
       // set a debounce time to avoid events triggering too often
       //  and to circumvent a bug of the library - each action triggers event twice
-      .debounceTime(175)
+      .debounceTime(PropertyEditorComponent.formInputDebounceTime)
       // don't emit the event until the data is changed
       .distinctUntilChanged()
       // don't emit the event if form data is same with current actual data
@@ -191,16 +205,14 @@ export class PropertyEditorComponent {
         // this is to circumvent the library's behavior
         // when the form is initialized, the change event is triggered for the inital data
         // however, the operator property is not changed and shouldn't emit this event
-        return ! isEqual(formData, operator.operatorProperties);
-      })
-      .subscribe(
-        formData => {
-          // set the operator property to be the new form data
-          if (this.currentOperatorID) {
-            this.workflowActionService.setOperatorProperty(this.currentOperatorID, formData);
-          }
+        if (isEqual(formData, operator.operatorProperties)) {
+          return false
         }
-      );
+        return true;
+      })
+      // share() because the original observable is a hot observable
+      .share();
+
   }
 
   /**
