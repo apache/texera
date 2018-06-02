@@ -15,16 +15,17 @@ Here is the comparison table:
 |-------------------------------------------------------------------------------------------------------------------|-----------------|------------|--------------------------------------------------------------------------------------------------------------------------------------|------|
 | Our choice: [dschnelldavis/angular2-json-schema-form](https://github.com/dschnelldavis/angular2-json-schema-form) | Yes | 200+ | Very poor | Good |
 | [makinacorpus/ngx-schema-form](https://github.com/makinacorpus/ngx-schema-form) | Yes | 200+ | Very poor | Bad |
-| [json-schema-form/angular-schema-form](https://github.com/json-schema-form/angular-schema-form) | No (Angular 1) | 2000+ | Good. Very slow progress of [Angular 2 Version](https://github.com/json-schema-form/angular-schema-form/issues/774)  | Good |
-| [jdorn/json-editor](https://github.com/jdorn/json-editor) | No (JavaScript) | 4000+ | Original author no longer maintains.Primary Fork by community: [json-editor/json-editor](https://github.com/json-editor/json-editor) | Ok |
-| [joshfire/jsonform](https://github.com/joshfire/jsonform) | No (JavaScript) | 1000+ | Last updated 5 years ago | - |
-| [gitana/alpaca](https://github.com/gitana/alpaca) | No (jQuery) | 900+ | not actively maintained: 300+ issues left open | Ok |
+| [json-schema-form/angular-schema-form](https://github.com/json-schema-form/angular-schema-form) | Angular 1 | 2000+ | Good. The author intended to make an [Angular 2+ version](https://github.com/json-schema-form/angular-schema-form/issues/774), but progress is very very slow | Good |
+| [jdorn/json-editor](https://github.com/jdorn/json-editor) | JavaScript | 4000+ | Original author no longer maintains. Primary Fork by community: [json-editor/json-editor](https://github.com/json-editor/json-editor) | Ok |
+| [joshfire/jsonform](https://github.com/joshfire/jsonform) | JavaScript | 1000+ | Last updated 5 years ago | - |
+| [gitana/alpaca](https://github.com/gitana/alpaca) | jQuer) | 900+ | not actively maintained: 300+ issues left open | Ok |
 
 
 In conclusion, among all the potential libraries:
   - there's only 2 for Angular 2+, both are pooly maintained
   - most of them are not actively maintained (except the angular 1 library)
 
+We chose the Angular 2 library because it's easy to integrate and the form it generates looks good.
 
 However, the current library blocks our way of updating to Angular 6:
   - it relies on a beta version of `@angular/flex-layout`, updating it would break
