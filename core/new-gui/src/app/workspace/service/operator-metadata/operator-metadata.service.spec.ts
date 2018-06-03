@@ -6,7 +6,7 @@ import { OperatorMetadataService, EMPTY_OPERATOR_METADATA } from './operator-met
 import { Observable } from 'rxjs/Observable';
 
 import '../../../common/rxjs-operators';
-import { getMockOperatorMetaData } from './mock-operator-metadata.data';
+import { mockOperatorMetaData } from './mock-operator-metadata.data';
 
 
 class StubHttpClient {
@@ -14,7 +14,7 @@ class StubHttpClient {
 
   // fake an async http response with a very small delay
   public get(url: string): Observable<any> {
-    return Observable.of(getMockOperatorMetaData()).delay(1);
+    return Observable.of(mockOperatorMetaData).delay(1);
   }
 }
 
