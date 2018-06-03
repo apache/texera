@@ -101,13 +101,19 @@ export class WorkflowEditorComponent implements AfterViewInit {
    * Handles user mouse down events to trigger logically highlight and unhighlight an operator
    */
   private handleHighlightMouseInput(): void {
+    // on user mouse pointer down a operator cell, highlight that operator
     Observable.fromEvent(this.getJointPaper(), 'cell:pointerdown')
       .map(value => <joint.dia.CellView>value)
       .filter(cellView => cellView.model.isElement())
       .subscribe(cellView => this.workflowActionService.getJointGraphWrapper().highlightOperator(cellView.model.id.toString()));
 
-    Observable.fromEvent(this.getJointPaper(), 'blank:pointerdown')
-      .subscribe(value => this.workflowActionService.getJointGraphWrapper().unhighlightCurrent());
+    /**
+     * One possible way to unhighlight an operator when user clicks on the blank area,
+     *  and bind `blank:pointerdown` event to unhighlight the operator.
+     * However, in real life, randomly clicking the blank area happens a lot,
+     *  and users are forced to click the operator again to highlight it,
+     *  which would make the UI not user-friendly
+     */
   }
 
   private handleOperatorHightlightEvent(): void {

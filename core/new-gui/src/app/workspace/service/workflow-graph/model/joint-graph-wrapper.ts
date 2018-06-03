@@ -45,6 +45,7 @@ export class JointGraphWrapper {
 
 
   constructor(private jointGraph: joint.dia.Graph) {
+    this.handleOperatorDeleteUnhighlight();
   }
 
   public getCurrentHighlightedOpeartorID(): string | undefined {
@@ -53,7 +54,7 @@ export class JointGraphWrapper {
 
   public highlightOperator(operatorID: string): void {
     // try to get the operator using operator ID
-    if (! this.jointGraph.getCell(operatorID)) {
+    if (!this.jointGraph.getCell(operatorID)) {
       throw new Error(`opeartor with ID ${operatorID} doesn't exist`);
     }
     // if there's an existing highlighted cell, unhighlight it first
@@ -140,5 +141,12 @@ export class JointGraphWrapper {
   }
 
 
+  private handleOperatorDeleteUnhighlight(): void {
+    this.getJointOperatorCellDeleteStream().subscribe(deletedOperatorCell => {
+      if (this.currentHighlightedOperator === deletedOperatorCell.id.toString()) {
+        this.unhighlightCurrent();
+      }
+    });
+  }
 
 }
