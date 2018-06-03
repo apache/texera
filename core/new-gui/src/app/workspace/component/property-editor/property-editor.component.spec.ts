@@ -96,7 +96,6 @@ describe('PropertyEditorComponent', () => {
     expect(component.displayForm).toBeTruthy();
 
     // check HTML form are displayed
-    console.log(fixture.debugElement.nativeElement);
     const formTitleElement = fixture.debugElement.query(By.css('.texera-workspace-property-editor-title'));
     const jsonSchemaFormElement = fixture.debugElement.query(By.css('.texera-workspace-property-editor-form'));
 
@@ -104,10 +103,10 @@ describe('PropertyEditorComponent', () => {
     expect((formTitleElement.nativeElement as HTMLElement).innerText).toEqual(
       currentSchema!.additionalMetadata.userFriendlyName);
 
-    // check if the panel has the property names
-    currentSchema!.jsonSchema
-
-    console.log((jsonSchemaFormElement.nativeElement as HTMLElement).innerHTML);
+    // check if the form has the all the json schema property names
+    Object.keys(currentSchema!.jsonSchema.properties!).forEach((propertyName) => {
+      expect((jsonSchemaFormElement.nativeElement as HTMLElement).innerHTML).toContain(propertyName)
+    });
 
   });
 
@@ -119,9 +118,14 @@ describe('PropertyEditorComponent', () => {
     workflowActionService.addOperator(mockScanPredicate, mockPoint);
     workflowActionService.addOperator(mockResultPredicate, mockPoint);
 
+    const scanOperatorSchema = component.operatorSchemaList.find(schema => schema.operatorType === mockScanPredicate.operatorType);
+    const resultOperatorSchema = component.operatorSchemaList.find(schema => schema.operatorType === mockResultPredicate.operatorType);
+
     // highlight the first operator
     jointGraphWrapper.highlightOperator(mockScanPredicate.operatorID);
+    fixture.detectChanges();
 
+    // check the variables
     expect(component.currentOperatorID).toEqual(mockScanPredicate.operatorID);
     expect(component.currentOperatorSchema).toEqual(mockOperatorSchemaList[0]);
     expect(component.currentOperatorInitialData).toEqual(mockScanPredicate.operatorProperties);
@@ -129,11 +133,26 @@ describe('PropertyEditorComponent', () => {
 
     // highlight the second operator
     jointGraphWrapper.highlightOperator(mockResultPredicate.operatorID);
+    fixture.detectChanges();
 
     expect(component.currentOperatorID).toEqual(mockResultPredicate.operatorID);
     expect(component.currentOperatorSchema).toEqual(mockOperatorSchemaList[2]);
     expect(component.currentOperatorInitialData).toEqual(mockResultPredicate.operatorProperties);
     expect(component.displayForm).toBeTruthy();
+
+    // check HTML form are displayed
+    const formTitleElementAfterChange = fixture.debugElement.query(By.css('.texera-workspace-property-editor-title'));
+    const jsonSchemaFormElementAfterChange = fixture.debugElement.query(By.css('.texera-workspace-property-editor-form'));
+
+    // check the panel title
+    expect((formTitleElementAfterChange.nativeElement as HTMLElement).innerText).toEqual(
+      resultOperatorSchema!.additionalMetadata.userFriendlyName);
+
+    // check if the form has the all the json schema property names
+    Object.keys(resultOperatorSchema!.jsonSchema.properties!).forEach((propertyName) => {
+      expect((jsonSchemaFormElementAfterChange.nativeElement as HTMLElement).innerHTML).toContain(propertyName)
+    });
+
 
   });
 
@@ -150,11 +169,19 @@ describe('PropertyEditorComponent', () => {
     // check if the clearPropertyEditor called after the operator
     //  is unhighlighted has correctly update the variables
     component.clearPropertyEditor();
+    fixture.detectChanges();
 
     expect(component.currentOperatorID).toBeFalsy();
     expect(component.currentOperatorSchema).toBeFalsy();
     expect(component.currentOperatorInitialData).toBeFalsy();
     expect(component.displayForm).toBeFalsy();
+
+    // check HTML form are not displayed
+    const formTitleElement = fixture.debugElement.query(By.css('.texera-workspace-property-editor-title'));
+    const jsonSchemaFormElement = fixture.debugElement.query(By.css('.texera-workspace-property-editor-form'));
+
+    expect(formTitleElement).toBeFalsy();
+    expect(jsonSchemaFormElement).toBeFalsy();
   })
 
   it('should change Texera graph property when the form is edited by the user', fakeAsync(() => {
