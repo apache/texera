@@ -62,7 +62,7 @@ export class PropertyEditorComponent {
   public sourceFormChangeEventStream = new Subject<object>();
 
   // the output form change event stream after debouce time and filtering out values
-  public outputFormChangeEventStream: Observable<object>;
+  public outputFormChangeEventStream = this.createOutputFormChangeEventStream(this.sourceFormChangeEventStream);
 
   // the current operator schema list, used to find the operator schema of current operator
   public operatorSchemaList: ReadonlyArray<OperatorSchema> = [];
@@ -76,18 +76,22 @@ export class PropertyEditorComponent {
     private operatorMetadataService: OperatorMetadataService,
     private workflowActionService: WorkflowActionService
   ) {
+    // handle getting operator metadata
     this.operatorMetadataService.getOperatorMetadata().subscribe(
       value => { this.operatorSchemaList = value.operators; }
     );
 
-    this.handleHighlightEvents();
-    this.outputFormChangeEventStream = this.createOutputFormChangeEventStream(this.sourceFormChangeEventStream);
+    // handle the form change event to actually set the operator property
     this.outputFormChangeEventStream.subscribe(formData => {
       // set the operator property to be the new form data
       if (this.currentOperatorID) {
         this.workflowActionService.setOperatorProperty(this.currentOperatorID, formData);
       }
-    })
+    });
+
+    // handle highlight / unhighlight event to show / hide the property editor form
+    this.handleHighlightEvents();
+
   }
 
   /**

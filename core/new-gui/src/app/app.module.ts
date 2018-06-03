@@ -46,7 +46,9 @@ import 'hammerjs';
     NgbModule.forRoot(),
 
     MaterialDesignFrameworkModule,
-    // workaround to import the angular json schema module to avoid errros in compliation
+    // workaround to import the angular json schema library to avoid errros for Angular AOT compiler
+    // thanks to Angular having two compilers that behaves differently
+    //  and makes you to google around for a whole day to solve the problems.
     // https://github.com/dschnelldavis/angular2-json-schema-form/issues/189#issuecomment-365971521
     {
       ngModule: JsonSchemaFormModule,

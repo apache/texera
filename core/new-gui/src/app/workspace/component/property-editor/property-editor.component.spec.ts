@@ -1,5 +1,11 @@
+import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
+import { By } from '@angular/platform-browser';
+import { mockResultPredicate } from './../../service/workflow-graph/model/mock-workflow-data';
 import { Observable } from 'rxjs/Observable';
-import { JsonSchemaFormModule, MaterialDesignFrameworkModule } from 'angular2-json-schema-form';
+import {
+  MaterialDesignFrameworkModule, JsonSchemaFormModule, JsonSchemaFormService,
+  FrameworkLibraryService, WidgetLibraryService, Framework, MaterialDesignFramework
+} from 'angular2-json-schema-form';
 import { async, ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 
 import { PropertyEditorComponent } from './property-editor.component';
@@ -9,7 +15,7 @@ import { OperatorMetadataService } from './../../service/operator-metadata/opera
 import { StubOperatorMetadataService } from './../../service/operator-metadata/stub-operator-metadata.service';
 import { JointUIService } from './../../service/joint-ui/joint-ui.service';
 
-import { getMockOperatorSchemaList } from './../../service/operator-metadata/mock-operator-metadata.data';
+import { mockOperatorSchemaList } from './../../service/operator-metadata/mock-operator-metadata.data';
 
 import { marbles } from 'rxjs-marbles';
 
@@ -18,6 +24,7 @@ import { mockScanPredicate, mockPoint } from '../../service/workflow-graph/model
 import { OperatorPredicate } from '../../types/workflow-common.interface';
 import { HotObservable } from 'rxjs/testing/HotObservable';
 import { TestScheduler } from 'rxjs/testing/TestScheduler';
+import { CustomNgMaterialModule } from '../../../common/custom-ng-material.module';
 
 
 describe('PropertyEditorComponent', () => {
@@ -35,8 +42,18 @@ describe('PropertyEditorComponent', () => {
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
       ],
       imports: [
+        CustomNgMaterialModule,
+        BrowserAnimationsModule,
         MaterialDesignFrameworkModule,
-        JsonSchemaFormModule
+        {
+          ngModule: JsonSchemaFormModule,
+          providers: [
+            JsonSchemaFormService,
+            FrameworkLibraryService,
+            WidgetLibraryService,
+            { provide: Framework, useClass: MaterialDesignFramework, multi: true }
+          ]
+        },
       ]
     })
       .compileComponents();
@@ -56,12 +73,12 @@ describe('PropertyEditorComponent', () => {
   });
 
   it('should receive operator json schema from operator metadata service', () => {
-    expect(component.operatorSchemaList.length).toEqual(getMockOperatorSchemaList().length);
+    expect(component.operatorSchemaList.length).toEqual(mockOperatorSchemaList.length);
   });
 
   /**
-   * check if the changePropertyEditor called after the operator
-   *  is highlighted has correctly update the variables
+   * test if the property editor correctly receives the operator highlight stream,
+   *  get the operator data (id, property, and metadata), and then display the form.
    */
   it('should change the content of property editor from an empty panel correctly', () => {
     const predicate = mockScanPredicate;
@@ -70,15 +87,61 @@ describe('PropertyEditorComponent', () => {
     // check if the changePropertyEditor called after the operator
     //  is highlighted has correctly update the variables
     component.changePropertyEditor(predicate);
+    fixture.detectChanges();
 
+    // check variables are set correctly
     expect(component.currentOperatorID).toEqual(predicate.operatorID);
     expect(component.currentOperatorSchema).toEqual(currentSchema);
     expect(component.currentOperatorInitialData).toEqual(predicate.operatorProperties);
     expect(component.displayForm).toBeTruthy();
 
+    // check HTML form are displayed
+    console.log(fixture.debugElement.nativeElement);
+    const formTitleElement = fixture.debugElement.query(By.css('.texera-workspace-property-editor-title'));
+    const jsonSchemaFormElement = fixture.debugElement.query(By.css('.texera-workspace-property-editor-form'));
+
+    // check the panel title
+    expect((formTitleElement.nativeElement as HTMLElement).innerText).toEqual(
+      currentSchema!.additionalMetadata.userFriendlyName);
+
+    // check if the panel has the property names
+    currentSchema!.jsonSchema
+
+    console.log((jsonSchemaFormElement.nativeElement as HTMLElement).innerHTML);
+
   });
 
-  it('should clear the property editor panel correctly', () => {
+
+  it('should switch the content of property editor to another operator from the former operator correctly', () => {
+    const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
+
+    // add two operators
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    workflowActionService.addOperator(mockResultPredicate, mockPoint);
+
+    // highlight the first operator
+    jointGraphWrapper.highlightOperator(mockScanPredicate.operatorID);
+
+    expect(component.currentOperatorID).toEqual(mockScanPredicate.operatorID);
+    expect(component.currentOperatorSchema).toEqual(mockOperatorSchemaList[0]);
+    expect(component.currentOperatorInitialData).toEqual(mockScanPredicate.operatorProperties);
+    expect(component.displayForm).toBeTruthy();
+
+    // highlight the second operator
+    jointGraphWrapper.highlightOperator(mockResultPredicate.operatorID);
+
+    expect(component.currentOperatorID).toEqual(mockResultPredicate.operatorID);
+    expect(component.currentOperatorSchema).toEqual(mockOperatorSchemaList[2]);
+    expect(component.currentOperatorInitialData).toEqual(mockResultPredicate.operatorProperties);
+    expect(component.displayForm).toBeTruthy();
+
+  });
+
+  /**
+   * test if the property editor correctly receives the operator unhighlight stream
+   *  and clears all the operator data, and hide the form.
+   */
+  it('should clear and hide the property editor panel correctly on unhighlighting an operator', () => {
     const predicate = mockScanPredicate;
     const currentSchema = component.operatorSchemaList.find(schema => schema.operatorType === predicate.operatorType);
 
@@ -94,34 +157,6 @@ describe('PropertyEditorComponent', () => {
     expect(component.displayForm).toBeFalsy();
   })
 
-  it('should capture highlight and unhighlight event from JointJS paper', () => {
-
-    const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
-
-    workflowActionService.addOperator(mockScanPredicate, mockPoint);
-
-    // check if the highlight function successfully updated the
-    //  variables inside property editor component
-
-    jointGraphWrapper.highlightOperator(mockScanPredicate.operatorID);
-
-    expect(component.currentOperatorID).toEqual(mockScanPredicate.operatorID);
-    expect(component.currentOperatorSchema).toEqual(getMockOperatorSchemaList()[0]);
-    expect(component.currentOperatorInitialData).toEqual(mockScanPredicate.operatorProperties);
-    expect(component.displayForm).toBeTruthy();
-
-    // check if the unhighlight function successfully updated the
-    //  variables inside property editor component
-    jointGraphWrapper.unhighlightCurrent();
-
-    expect(component.currentOperatorID).toBeFalsy();
-    expect(component.currentOperatorSchema).toBeFalsy();
-    expect(component.currentOperatorInitialData).toBeFalsy();
-    expect(component.displayForm).toBeFalsy();
-
-  });
-
-
   it('should change Texera graph property when the form is edited by the user', fakeAsync(() => {
     const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
@@ -134,7 +169,11 @@ describe('PropertyEditorComponent', () => {
     const formChangeValue = { tableName: 'twitter_sample' };
     component.onFormChanges(formChangeValue)
 
-    // tick first, wait for the set property to be done
+    // maintain a counter of how many times the event is emitted
+    let emitEventCounter = 0;
+    component.outputFormChangeEventStream.subscribe(() => emitEventCounter++);
+
+    // fakeAsync enables tick, which waits for the set property debounce time to finish
     tick(PropertyEditorComponent.formInputDebounceTime + 10);
 
     // then get the opeator, because operator is immutable, the operator before the tick
@@ -144,6 +183,7 @@ describe('PropertyEditorComponent', () => {
       throw new Error(`operator ${mockScanPredicate.operatorID} is undefined`);
     }
     expect(operator.operatorProperties).toEqual(formChangeValue);
+    expect(emitEventCounter).toEqual(1);
   }));
 
   it('should debounce the user form input to avoid emitting event too frequently', marbles(m => {
@@ -187,5 +227,34 @@ describe('PropertyEditorComponent', () => {
     m.expect(actualFormChangeEventStream).toBeObservable(expectedFormChangeEventStream);
 
   }));
+
+  it('should not emit operator property change event if the new property is the same as the old property', fakeAsync(() => {
+    const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
+
+    // add an operator and highligh the operator so that the
+    //  variables in property editor component is set correctly
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    const mockOperatorProperty = { tableName: 'table' }
+    // set operator property first before displaying the operator property in property panel
+    workflowActionService.setOperatorProperty(mockScanPredicate.operatorID, mockOperatorProperty);
+    jointGraphWrapper.highlightOperator(mockScanPredicate.operatorID);
+
+
+    // stimulate a form change with the same property
+    component.onFormChanges(mockOperatorProperty);
+
+    // maintain a counter of how many times the event is emitted
+    let emitEventCounter = 0;
+    component.outputFormChangeEventStream.subscribe(() => emitEventCounter++);
+
+    // fakeAsync enables tick, which waits for the set property debounce time to finish
+    tick(PropertyEditorComponent.formInputDebounceTime + 10);
+
+    // assert that the form change event doesn't emit any time
+    // because the form change value is the same
+    expect(emitEventCounter).toEqual(0);
+
+
+  }))
 
 });

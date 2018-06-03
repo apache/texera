@@ -10,13 +10,13 @@ import { StubOperatorMetadataService } from '../../../service/operator-metadata/
 import { NO_ERRORS_SCHEMA } from '@angular/core';
 
 import { CustomNgMaterialModule } from '../../../../common/custom-ng-material.module';
-import { getMockOperatorSchemaList } from '../../../service/operator-metadata/mock-operator-metadata.data';
+import { mockOperatorSchemaList } from '../../../service/operator-metadata/mock-operator-metadata.data';
 import { By } from '@angular/platform-browser';
 import { WorkflowActionService } from '../../../service/workflow-graph/model/workflow-action.service';
 import { marbles } from 'rxjs-marbles';
 
 describe('OperatorLabelComponent', () => {
-  const mockOperatorData = getMockOperatorSchemaList()[0];
+  const mockOperatorData = mockOperatorSchemaList[0];
   let component: OperatorLabelComponent;
   let fixture: ComponentFixture<OperatorLabelComponent>;
 
