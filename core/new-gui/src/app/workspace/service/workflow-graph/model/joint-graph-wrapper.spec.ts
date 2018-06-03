@@ -1,3 +1,4 @@
+import { WorkflowActionService } from './workflow-action.service';
 import { OperatorMetadataService } from '../../operator-metadata/operator-metadata.service';
 import { JointUIService } from '../../joint-ui/joint-ui.service';
 import { JointGraphWrapper } from './joint-graph-wrapper';
@@ -14,7 +15,7 @@ import {
 import * as joint from 'jointjs';
 import { StubOperatorMetadataService } from '../../operator-metadata/stub-operator-metadata.service';
 
-describe('JointModelService', () => {
+describe('JointGraphWrapperService', () => {
 
   let jointGraph: joint.dia.Graph;
   let jointGraphWrapper: JointGraphWrapper;
@@ -24,6 +25,7 @@ describe('JointModelService', () => {
     TestBed.configureTestingModule({
       providers: [
         JointUIService,
+        WorkflowActionService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
       ]
     });
@@ -141,6 +143,51 @@ describe('JointModelService', () => {
 
     }));
 
+  it('should handle the event when an operator is highlighted or unhighlighted in the JointJS paper', marbles((m) => {
+    const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
+    const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
+
+    localJointGraphWrapper.getJointCellHighlightStream().subscribe(
+      operator => {
+        expect(operator.operatorID).toEqual(mockScanPredicate.operatorID);
+      }
+    );
+
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    localJointGraphWrapper.highlightOperator(mockScanPredicate.operatorID);
+
+    expect(localJointGraphWrapper.getCurrentHighlightedOpeartorID()).toEqual(mockScanPredicate.operatorID);
+
+
+    localJointGraphWrapper.getJointCellUnhighlightStream().subscribe(
+      operator => {
+        expect(operator.operatorID).toEqual(mockScanPredicate.operatorID);
+      }
+    );
+
+    localJointGraphWrapper.unhighlightCurrent();
+    expect(localJointGraphWrapper.getCurrentHighlightedOpeartorID()).toBeFalsy();
+  }));
+
+  it('should unhighlight previous highlighted operator if a new operator is highlighted', marbles((m) => {
+    const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
+    const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
+
+    localJointGraphWrapper.getJointCellUnhighlightStream().subscribe(
+      operator => {
+        expect(operator.operatorID).toEqual(mockScanPredicate.operatorID);
+      }
+    );
+
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    workflowActionService.addOperator(mockResultPredicate, mockPoint);
+
+    localJointGraphWrapper.highlightOperator(mockScanPredicate.operatorID);
+    localJointGraphWrapper.highlightOperator(mockResultPredicate.operatorID);
+
+    expect(localJointGraphWrapper.getCurrentHighlightedOpeartorID()).toEqual(mockResultPredicate.operatorID);
+
+  }));
 
 });
 

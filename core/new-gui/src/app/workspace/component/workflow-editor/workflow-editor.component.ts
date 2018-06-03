@@ -59,6 +59,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
     this.handleWindowResize();
     this.handleViewDeleteOperator();
+    this.handleCellHighlight();
 
     this.dragDropService.registerWorkflowEditorDrop(this.WORKFLOW_EDITOR_JOINTJS_ID);
 
@@ -88,6 +89,49 @@ export class WorkflowEditorComponent implements AfterViewInit {
         this.setJointPaperDimensions();
       }
     );
+  }
+
+  private handleCellHighlight(): void {
+    this.handleHighlightMouseInput();
+    this.handleOperatorHightlightEvent();
+  }
+
+
+  /**
+   * Handles user mouse down events to trigger logically highlight and unhighlight an operator
+   */
+  private handleHighlightMouseInput(): void {
+    Observable.fromEvent(this.getJointPaper(), 'cell:pointerdown')
+      .map(value => <joint.dia.CellView>value)
+      .filter(cellView => cellView.model.isElement())
+      .subscribe(cellView => this.workflowActionService.getJointGraphWrapper().highlightOperator(cellView.model.id.toString()));
+
+    Observable.fromEvent(this.getJointPaper(), 'blank:pointerdown')
+      .subscribe(value => this.workflowActionService.getJointGraphWrapper().unhighlightCurrent());
+  }
+
+  private handleOperatorHightlightEvent(): void {
+    // handle logical operator highlight / unhighlight events to let JointJS
+    //  use our own custom highlighter
+    const highlightOptions = {
+      name: 'stroke',
+      options: {
+        attrs: {
+          'stroke-width': 1,
+          stroke: '#afafaf'
+        }
+      }
+    };
+
+    this.workflowActionService.getJointGraphWrapper().getJointCellHighlightStream()
+      .subscribe(value => this.getJointPaper().findViewByModel(value.operatorID).highlight(
+        'rect', { highlighter: highlightOptions }
+      ));
+
+    this.workflowActionService.getJointGraphWrapper().getJointCellUnhighlightStream()
+      .subscribe(value => this.getJointPaper().findViewByModel(value.operatorID).unhighlight(
+        'rect', { highlighter: highlightOptions }
+      ));
   }
 
   /**

@@ -1,4 +1,7 @@
+import { Subject } from 'rxjs/Subject';
 import { Observable } from 'rxjs/Observable';
+
+type operatorIDType = { operatorID: string };
 
 /**
  * JointGraphWrapper wraps jointGraph to provide:
@@ -20,6 +23,10 @@ import { Observable } from 'rxjs/Observable';
  */
 export class JointGraphWrapper {
 
+  private currentHighlightedOperator: string | undefined;
+  private jointCellHighlightStream = new Subject<operatorIDType>();
+  private jointCellUnhighlightStream = new Subject<operatorIDType>();
+
   /**
    * This will capture all events in JointJS
    *  involving the 'add' operation
@@ -38,6 +45,40 @@ export class JointGraphWrapper {
 
 
   constructor(private jointGraph: joint.dia.Graph) {
+  }
+
+  public getCurrentHighlightedOpeartorID(): string | undefined {
+    return this.currentHighlightedOperator;
+  }
+
+  public highlightOperator(operatorID: string): void {
+    // try to get the operator using operator ID
+    if (! this.jointGraph.getCell(operatorID)) {
+      throw new Error(`opeartor with ID ${operatorID} doesn't exist`);
+    }
+    // if there's an existing highlighted cell, unhighlight it first
+    if (this.currentHighlightedOperator && this.currentHighlightedOperator !== operatorID) {
+      this.unhighlightCurrent();
+    }
+    this.currentHighlightedOperator = operatorID;
+    this.jointCellHighlightStream.next({ operatorID });
+  }
+
+  public unhighlightCurrent(): void {
+    if (!this.currentHighlightedOperator) {
+      return;
+    }
+    const unhighlightedOperatorID = this.currentHighlightedOperator;
+    this.currentHighlightedOperator = undefined;
+    this.jointCellUnhighlightStream.next({ operatorID: unhighlightedOperatorID });
+  }
+
+  public getJointCellHighlightStream(): Observable<operatorIDType> {
+    return this.jointCellHighlightStream.asObservable();
+  }
+
+  public getJointCellUnhighlightStream(): Observable<operatorIDType> {
+    return this.jointCellUnhighlightStream.asObservable();
   }
 
   /**
