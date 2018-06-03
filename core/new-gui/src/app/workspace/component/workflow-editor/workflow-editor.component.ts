@@ -101,8 +101,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
    * Handles user mouse down events to trigger logically highlight and unhighlight an operator
    */
   private handleHighlightMouseInput(): void {
-    // on user mouse pointer down a operator cell, highlight that operator
-    Observable.fromEvent(this.getJointPaper(), 'cell:pointerdown')
+    // on user mouse clicks a operator cell, highlight that operator
+    Observable.fromEvent(this.getJointPaper(), 'cell:lcick')
       .map(value => <joint.dia.CellView>value)
       .filter(cellView => cellView.model.isElement())
       .subscribe(cellView => this.workflowActionService.getJointGraphWrapper().highlightOperator(cellView.model.id.toString()));
