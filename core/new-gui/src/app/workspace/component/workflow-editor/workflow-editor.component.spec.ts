@@ -36,7 +36,7 @@ describe('WorkflowEditorComponent', () => {
    * It uses a fake stub Workflow model that only provides the binding of JointJS graph.
    * It tests if manipulating the JointJS graph is correctly shown in the UI.
    */
-  describe('WorkflowEditorComponent JointJS Paper', () => {
+  describe('JointJS Paper', () => {
     let component: WorkflowEditorComponent;
     let fixture: ComponentFixture<WorkflowEditorComponent>;
     let jointUIService: JointUIService;
@@ -78,7 +78,6 @@ describe('WorkflowEditorComponent', () => {
       jointGraph.addCell(element);
 
       expect(component.getJointPaper().findViewByModel(element.id)).toBeTruthy();
-
     });
 
     it('should create a graph of multiple cells in the UI', () => {
@@ -116,9 +115,7 @@ describe('WorkflowEditorComponent', () => {
       expect(component.getJointPaper().findViewByModel(element1.id)).toBeTruthy();
       expect(component.getJointPaper().findViewByModel(element2.id)).toBeTruthy();
       expect(component.getJointPaper().findViewByModel(link1.id)).toBeTruthy();
-
     });
-
 
   });
 
@@ -127,7 +124,7 @@ describe('WorkflowEditorComponent', () => {
    * This sub test suites test the Integration of WorkflowEditorComponent with external modules,
    *  such as drag and drop module, and highlight operator module.
    */
-  describe('WorkflowEditorComponent External Module Integration', () => {
+  describe('External Module Integration', () => {
 
     let component: WorkflowEditorComponent;
     let fixture: ComponentFixture<WorkflowEditorComponent>;
@@ -179,7 +176,6 @@ describe('WorkflowEditorComponent', () => {
       expect(highlightOperatorFunctionSpy.calls.count()).toEqual(1);
       // assert the highlighted operator is correct
       expect(JointGraphWrapper.getCurrentHighlightedOpeartorID()).toEqual(mockScanPredicate.operatorID);
-
     });
 
     it('should react to operator highlight event and change the appearance of the operator to be highlighted', () => {
@@ -221,9 +217,8 @@ describe('WorkflowEditorComponent', () => {
       // the highlighter element should not exist
       const jointHighlighterElementAfterUnhighlight = jointCellView.$el.children('.joint-highlight-stroke');
       expect(jointHighlighterElementAfterUnhighlight.length).toEqual(0);
+    });
 
-    })
-
-  })
+  });
 
 });
