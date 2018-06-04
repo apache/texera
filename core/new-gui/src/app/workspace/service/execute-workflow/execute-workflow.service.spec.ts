@@ -9,8 +9,11 @@ import { JointUIService } from '../joint-ui/joint-ui.service';
 import { Observable } from 'rxjs/Observable';
 
 import { MOCK_RESULT_DATA } from './mock-result-data';
-import { MOCK_WORKFLOW_PLAN } from './mock-workflow-plan';
+import { MOCK_WORKFLOW_PLAN, MOCK_LOGICAL_PLAN } from './mock-workflow-plan';
 import { HttpClient } from '@angular/common/http';
+import { marbles } from 'rxjs-marbles';
+import { WorkflowGraph } from '../workflow-graph/model/workflow-graph';
+import { LogicalPlan } from '../../types/workflow-execute.interface';
 
 
 class StubHttpClient {
@@ -23,6 +26,8 @@ class StubHttpClient {
 
 }
 
+let service: ExecuteWorkflowService;
+
 describe('ExecuteWorkflowService', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
@@ -34,9 +39,28 @@ describe('ExecuteWorkflowService', () => {
         { provide: HttpClient, useClass: StubHttpClient}
       ]
     });
+
+    service = TestBed.get(ExecuteWorkflowService);
   });
 
-  it('should be created', inject([ExecuteWorkflowService], (service: ExecuteWorkflowService) => {
-    expect(service).toBeTruthy();
+  it('should be created', inject([ExecuteWorkflowService], (injectedService: ExecuteWorkflowService) => {
+    expect(injectedService).toBeTruthy();
+  }));
+
+  it('should generate a logical plan request based on the workflow graph that is passed to the function', marbles((m)=>{
+    const workflowGraph: WorkflowGraph = MOCK_WORKFLOW_PLAN;
+    const newLogicalPlan: LogicalPlan = service.getLogicalPlanRequest(workflowGraph);
+    expect(MOCK_LOGICAL_PLAN).toEqual(newLogicalPlan);
+  }));
+
+  it('should execute the workflow plan and get the correct result in execute stream observable', marbles((m)=>{
+    service.getExecuteEndedStream().subscribe(
+      executionResult => {
+        expect(executionResult).toEqual(MOCK_RESULT_DATA)
+      }
+    );
+
+    service.executeWorkflow();
+
   }));
 });
