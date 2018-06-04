@@ -195,7 +195,7 @@ export class PropertyEditorComponent {
       // also check for other unlikely circumstances (see below)
       .filter(formData => {
         // check if the current operator ID still exists
-        // the user could un-select this operator during deboucne time
+        // the user could un-select this operator during debounce time
         if (!this.currentOperatorID) {
           return false;
         }
@@ -222,7 +222,7 @@ export class PropertyEditorComponent {
   /**
    * Generates a form layout used by the json schema form library
    *  to hide the *submit* button.
-   * ttps://github.com/json-schema-form/angular-schema-form/blob/master/docs/index.md#form-definitions
+   * https://github.com/json-schema-form/angular-schema-form/blob/master/docs/index.md#form-definitions
    */
   private static generateFormLayout(): object {
     return [

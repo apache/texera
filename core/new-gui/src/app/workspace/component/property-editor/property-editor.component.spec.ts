@@ -1,6 +1,5 @@
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { By } from '@angular/platform-browser';
-import { mockResultPredicate } from './../../service/workflow-graph/model/mock-workflow-data';
 import { Observable } from 'rxjs/Observable';
 import {
   MaterialDesignFrameworkModule, JsonSchemaFormModule, JsonSchemaFormService,
@@ -20,7 +19,7 @@ import { mockOperatorSchemaList } from './../../service/operator-metadata/mock-o
 import { marbles } from 'rxjs-marbles';
 
 
-import { mockScanPredicate, mockPoint } from '../../service/workflow-graph/model/mock-workflow-data';
+import { mockResultPredicate, mockScanPredicate, mockPoint } from '../../service/workflow-graph/model/mock-workflow-data';
 import { OperatorPredicate } from '../../types/workflow-common.interface';
 import { HotObservable } from 'rxjs/testing/HotObservable';
 import { TestScheduler } from 'rxjs/testing/TestScheduler';
