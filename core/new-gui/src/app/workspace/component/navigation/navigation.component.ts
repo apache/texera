@@ -24,7 +24,7 @@ export class NavigationComponent implements OnInit {
   ngOnInit() {
   }
 
-  private onClickRun(): void {
+  public onClickRun(): void {
     // show the spinner after the "Run" button is clicked
     this.showSpinner = true;
     this.executeWorkflowService.executeWorkflow();
