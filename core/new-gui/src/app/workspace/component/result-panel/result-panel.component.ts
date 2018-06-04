@@ -45,7 +45,7 @@ export class ResultPanelComponent implements OnInit {
       console.log('show success data');
       this.showMessage = false;
       // generate columnDef from first row
-      const resultData: Object[] = response.result;
+      const resultData: object[] = response.result;
       this.currentDisplayColumns = Object.keys(resultData[0]).filter(x => x !== '_id');
       this.currentColumns = this.generateColumns(this.currentDisplayColumns);
       this.currentDataSource = new ResultDataSource(resultData);
@@ -85,13 +85,13 @@ export class TableColumn {
 }
 
 
-export class ResultDataSource extends DataSource<Object> {
+export class ResultDataSource extends DataSource<object> {
 
-  constructor(private resultData: Object[]) {
+  constructor(private resultData: object[]) {
     super();
   }
 
-  connect(): Observable<Object[]> {
+  connect(): Observable<object[]> {
     return Observable.of(this.resultData);
   }
 
