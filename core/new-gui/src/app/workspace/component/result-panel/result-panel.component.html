@@ -1,5 +1,31 @@
+<ng-template #content let-c="close" let-d="dismiss">
+  <div class="modal-header">
+    <h4 class="modal-title">Row Details</h4>
+    <button type="button" class="close" aria-label="Close" (click)="d('Cross click')">
+      <span aria-hidden="true">&times;</span>
+    </button>
+  </div>
+  <div class="modal-body">
+    <pre>{{currentDisplayRows}}</pre>
+  </div>
+  <div class="modal-footer">
+    <button type="button" class="btn btn-outline-dark" (click)="c('Close click')">Close</button>
+  </div>
+</ng-template>
+
+
 <div class="texera-workspace-result-panel-body texera-workflow-component-body">
-  <p>
-    result-panel works!
-  </p>
+  <div *ngIf="showMessage">
+    <p>{{ message }}</p>
+  </div>
+  <div id="result-table" *ngIf="currentColumns && !showMessage">
+    <mat-table #table [dataSource]="currentDataSource">
+      <ng-container *ngFor="let column of currentColumns" matColumnDef={{column.columnDef}}>
+        <mat-header-cell *matHeaderCellDef>{{ column.header }}</mat-header-cell>
+        <mat-cell  *matCellDef="let row">{{ column.cell(row) }}</mat-cell>
+      </ng-container>
+      <mat-header-row *matHeaderRowDef="currentDisplayColumns"></mat-header-row>
+      <mat-row *matRowDef="let row; columns: currentDisplayColumns;" (click)="getRowDetails(row, content)"></mat-row>
+    </mat-table>
+  </div>
 </div>
