@@ -102,7 +102,7 @@ export class SyncTexeraModel {
   }
 
   /**
-   * Transforms a JointJS link (joint.dia.Link) to a Texera Link Object
+   * Transforms a JointJS link (joint.dia.Link) to a Texera Link object
    * The JointJS link must be valid, otherwise an error will be thrown.
    * @param jointLink
    */

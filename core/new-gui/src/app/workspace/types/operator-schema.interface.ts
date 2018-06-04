@@ -1,3 +1,5 @@
+import { JSONSchema4, JSONSchema6 } from "json-schema";
+
 /**
  * This file contains multiple type declarations related to operator schema.
  * These type declarations should be the same with the backend API.
@@ -18,7 +20,7 @@ export interface OperatorAdditionalMetadata extends Readonly<{
 
 export interface OperatorSchema extends Readonly<{
   operatorType: string;
-  jsonSchema: Readonly<object>;
+  jsonSchema: Readonly<JSONSchema4>;
   additionalMetadata: OperatorAdditionalMetadata;
 }> { }
 

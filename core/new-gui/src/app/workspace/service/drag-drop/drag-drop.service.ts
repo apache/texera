@@ -165,7 +165,7 @@ export class DragDropService {
     // add the operator JointJS element to the paper
     tempGhostModel.addCell(operatorUIElement);
 
-    // return the jQuery Object of the DOM Element
+    // return the jQuery object of the DOM Element
     return jQuery('#flyingJointPaper');
   }
 

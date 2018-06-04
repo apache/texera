@@ -47,6 +47,7 @@
     "@types/jasmine": "~2.8.3",
     "@types/jasminewd2": "~2.0.2",
     "@types/jquery": "^3.3.1",
+    "@types/json-schema": "^6.0.1",
     "@types/lodash": "^4.14.106",
     "@types/node": "~6.0.60",
     "@types/uuid": "^3.4.3",
