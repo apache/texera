@@ -12,7 +12,6 @@ import { OperatorMetadataService } from '../../service/operator-metadata/operato
 import { JointUIService } from '../../service/joint-ui/joint-ui.service';
 
 import { Observable } from 'rxjs/Observable';
-import { MOCK_RESULT_DATA } from '../../service/execute-workflow/mock-result-data';
 import { StubExecuteWorkflowService } from '../../service/execute-workflow/stub-execute-workflow.service';
 import { marbles, Context } from "rxjs-marbles";
 

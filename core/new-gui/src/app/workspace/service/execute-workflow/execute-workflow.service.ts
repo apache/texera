@@ -8,10 +8,10 @@ import { AppSettings } from './../../../common/app-setting';
 
 import { WorkflowActionService } from './../workflow-graph/model/workflow-action.service';
 import { WorkflowGraph, WorkflowGraphReadonly } from './../workflow-graph/model/workflow-graph';
-import { LogicalLink, LogicalPlan, LogicalOperator } from './../../types/workflow-execute.interface';
+import { LogicalLink, LogicalPlan, LogicalOperator, ExecutionResult } from './../../types/workflow-execute.interface';
 
-import { MOCK_RESULT_DATA } from './mock-result-data';
 import { MOCK_WORKFLOW_PLAN } from './mock-workflow-plan';
+import { MOCK_EXECUTION_RESULT } from './mock-result-data';
 
 export const EXECUTE_WORKFLOW_ENDPOINT = 'queryplan/execute';
 
@@ -21,7 +21,7 @@ export class ExecuteWorkflowService {
 
 
   private executeStartedStream = new Subject<string>();
-  private executeEndedStream = new Subject<object>();
+  private executeEndedStream = new Subject<ExecutionResult>();
 
   constructor(private workflowActionService: WorkflowActionService, private http: HttpClient) { }
 
@@ -45,12 +45,16 @@ export class ExecuteWorkflowService {
 
   /**
    * Get the observable for execution ended event
-   * Contains an object with:
+   * When correct, Contains an object with:
    * -  resultID: the result ID of this execution
-   * -  Code: the result code
+   * -  Code: the result code of 0
    * -  result: the actual result data to be displayed
+   *
+   * When incorrect, Contains an object with:
+   * -  Code: the result code is not 0
+   * -  message: error message received from backend
    */
-  public getExecuteEndedStream(): Observable<object> {
+  public getExecuteEndedStream(): Observable<ExecutionResult> {
     return this.executeEndedStream.asObservable();
   }
 
@@ -60,7 +64,7 @@ export class ExecuteWorkflowService {
    */
   private showMockResultData(): void {
     this.executeStartedStream.next('started');
-    this.executeEndedStream.next({code: 0, result: MOCK_RESULT_DATA});
+    this.executeEndedStream.next(MOCK_EXECUTION_RESULT);
   }
 
   /**
@@ -96,7 +100,7 @@ export class ExecuteWorkflowService {
     this.executeStartedStream.next('execution started');
     this.http.post(`${AppSettings.getApiEndpoint()}/${EXECUTE_WORKFLOW_ENDPOINT}`, JSON.stringify(body),
       {headers: {'Content-Type': 'application/json'}}).subscribe(
-        response => this.handleExecuteResult(response),
+        response => this.handleExecuteResult(response as ExecutionResult),
         errorResponse => this.handleExecuteError(errorResponse)
     );
   }
@@ -109,7 +113,7 @@ export class ExecuteWorkflowService {
    *
    * @param response
    */
-  private handleExecuteResult(response: any): void {
+  private handleExecuteResult(response: ExecutionResult): void {
     console.log('handling success result ');
     console.log('result value is:');
     console.log(response);
@@ -128,7 +132,7 @@ export class ExecuteWorkflowService {
     console.log('handling error result ');
     console.log('error value is:');
     console.log(errorResponse);
-    this.executeEndedStream.next(errorResponse.error);
+    this.executeEndedStream.next(errorResponse.error as ExecutionResult);
   }
 
   /**

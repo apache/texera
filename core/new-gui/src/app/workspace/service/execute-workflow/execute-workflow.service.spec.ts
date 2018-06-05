@@ -8,7 +8,7 @@ import { StubOperatorMetadataService } from '../operator-metadata/stub-operator-
 import { JointUIService } from '../joint-ui/joint-ui.service';
 import { Observable } from 'rxjs/Observable';
 
-import { MOCK_RESULT_DATA } from './mock-result-data';
+import { MOCK_EXECUTION_RESULT } from './mock-result-data';
 import { MOCK_WORKFLOW_PLAN, MOCK_LOGICAL_PLAN } from './mock-workflow-plan';
 import { HttpClient } from '@angular/common/http';
 import { marbles } from 'rxjs-marbles';
@@ -21,7 +21,7 @@ class StubHttpClient {
 
   // fake an async http response with a very small delay
   public post(url: string, body: string, headers: object): Observable<any> {
-    return Observable.of(MOCK_RESULT_DATA);
+    return Observable.of(MOCK_EXECUTION_RESULT);
   }
 
 }
@@ -67,7 +67,7 @@ describe('ExecuteWorkflowService', () => {
 
   it('should notify execution end event stream when a correct result is passed from backend', marbles((m) => {
     const executionEndStream = service.getExecuteEndedStream()
-      .do(result => expect(result).toEqual(MOCK_RESULT_DATA))
+      .do(result => expect(result).toEqual(MOCK_EXECUTION_RESULT))
       .map(value => 'a');
 
     // execute workflow at this time
