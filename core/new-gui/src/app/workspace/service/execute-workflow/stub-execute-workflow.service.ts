@@ -10,8 +10,8 @@ import { WorkflowActionService } from './../workflow-graph/model/workflow-action
 import { WorkflowGraph, WorkflowGraphReadonly } from './../workflow-graph/model/workflow-graph';
 import { LogicalLink, LogicalPlan, LogicalOperator, ExecutionResult } from './../../types/workflow-execute.interface';
 
-import { MOCK_EXECUTION_RESULT } from './mock-result-data';
-import { MOCK_WORKFLOW_PLAN } from './mock-workflow-plan';
+import { mockExecutionResult } from './mock-result-data';
+import { mockWorkflowPlan } from './mock-workflow-plan';
 
 export const EXECUTE_WORKFLOW_ENDPOINT = 'queryplan/execute';
 
@@ -27,12 +27,12 @@ export const EXECUTE_WORKFLOW_ENDPOINT = 'queryplan/execute';
 export class StubExecuteWorkflowService extends ExecuteWorkflowService {
 
   public executeWorkflow(): void {
-    const workflowPlan = MOCK_WORKFLOW_PLAN;
+    const workflowPlan = mockWorkflowPlan;
 
     const body = ExecuteWorkflowService.getLogicalPlanRequest(workflowPlan);
 
     this.executeStartedStream.next('execution started');
-    Observable.of(MOCK_EXECUTION_RESULT)
+    Observable.of(mockExecutionResult)
       .subscribe(
         response => this.handleExecuteResult(response)
       );

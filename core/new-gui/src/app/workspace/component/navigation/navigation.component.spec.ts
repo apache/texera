@@ -14,6 +14,12 @@ import { JointUIService } from '../../service/joint-ui/joint-ui.service';
 import { Observable } from 'rxjs/Observable';
 import { StubExecuteWorkflowService } from '../../service/execute-workflow/stub-execute-workflow.service';
 import { marbles, Context } from 'rxjs-marbles';
+import { HttpClient } from '@angular/common/http';
+
+class StubHttpClient {
+  constructor() { }
+}
+
 
 describe('NavigationComponent', () => {
   let component: NavigationComponent;
@@ -28,7 +34,8 @@ describe('NavigationComponent', () => {
         WorkflowActionService,
         JointUIService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
-        { provide: ExecuteWorkflowService, useClass: StubExecuteWorkflowService }
+        { provide: ExecuteWorkflowService, useClass: StubExecuteWorkflowService },
+        { provide: HttpClient, useClass: StubHttpClient}
       ]
     })
     .compileComponents();

@@ -11,9 +11,6 @@ import { WorkflowGraph, WorkflowGraphReadonly } from './../workflow-graph/model/
 import { LogicalLink, LogicalPlan, LogicalOperator,
   ExecutionResult, ErrorExecutionResult, SuccessExecutionResult } from './../../types/workflow-execute.interface';
 
-import { MOCK_WORKFLOW_PLAN } from './mock-workflow-plan';
-import { MOCK_EXECUTION_RESULT } from './mock-result-data';
-
 export const EXECUTE_WORKFLOW_ENDPOINT = 'queryplan/execute';
 
 

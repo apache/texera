@@ -4,7 +4,7 @@ import { LogicalPlan, LogicalLink, LogicalOperator } from '../../types/workflow-
 
 
 // TODO: unify the port handling interface
-export const MOCK_WORKFLOW_PLAN: WorkflowGraph = new WorkflowGraph(
+export const mockWorkflowPlan: WorkflowGraph = new WorkflowGraph(
     [
         mockScanPredicate,
         mockResultPredicate
@@ -15,7 +15,7 @@ export const MOCK_WORKFLOW_PLAN: WorkflowGraph = new WorkflowGraph(
 );
 
 
-export const MOCK_LOGICAL_PLAN: LogicalPlan = {
+export const mockLogicalPlan: LogicalPlan = {
   operators : [
     {
       ...mockScanPredicate.operatorProperties,
