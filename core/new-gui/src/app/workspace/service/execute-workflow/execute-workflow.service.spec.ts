@@ -21,7 +21,7 @@ class StubHttpClient {
 
   // fake an async http response with a very small delay
   public post(url: string, body: string, headers: object): Observable<any> {
-    return Observable.of(MOCK_RESULT_DATA).delay(1);
+    return Observable.of(MOCK_RESULT_DATA);
   }
 
 }
@@ -53,14 +53,30 @@ describe('ExecuteWorkflowService', () => {
     expect(MOCK_LOGICAL_PLAN).toEqual(newLogicalPlan);
   }));
 
-  it('should execute the workflow plan and get the correct result in execute stream observable', marbles((m)=>{
-    service.getExecuteEndedStream().subscribe(
-      executionResult => {
-        expect(executionResult).toEqual(MOCK_RESULT_DATA)
-      }
-    );
+  it('should notify execution start event stream when an execution begins', marbles((m) => {
+    const executionStartStream = service.getExecuteStartedStream()
+      .map(value => 'a');
 
-    service.executeWorkflow();
+    m.hot('-a-').do(event => service.executeWorkflow()).subscribe();
+
+    const expectedStream = m.hot('-a-');
+
+    m.expect(executionStartStream).toBeObservable(expectedStream);
 
   }));
+
+  it('should notify execution end event stream when a correct result is passed from backend', marbles((m) => {
+    const executionEndStream = service.getExecuteEndedStream()
+      .do(result => expect(result).toEqual(MOCK_RESULT_DATA))
+      .map(value => 'a');
+
+    // execute workflow at this time
+    m.hot('-a-').do(event => service.executeWorkflow()).subscribe();
+
+    const expectedStream = m.hot('-a-');
+
+    m.expect(executionEndStream).toBeObservable(expectedStream);
+
+  }));
+
 });

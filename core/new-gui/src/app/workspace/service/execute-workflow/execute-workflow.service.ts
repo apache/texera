@@ -93,6 +93,7 @@ export class ExecuteWorkflowService {
     console.log('body is:');
     console.log(body);
     console.log(`${AppSettings.getApiEndpoint()}/${EXECUTE_WORKFLOW_ENDPOINT}`);
+    this.executeStartedStream.next('execution started');
     this.http.post(`${AppSettings.getApiEndpoint()}/${EXECUTE_WORKFLOW_ENDPOINT}`, JSON.stringify(body),
       {headers: {'Content-Type': 'application/json'}}).subscribe(
         response => this.handleExecuteResult(response),
