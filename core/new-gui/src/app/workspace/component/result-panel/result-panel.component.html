@@ -6,7 +6,7 @@
     </button>
   </div>
   <div class="modal-body">
-    <pre>{{currentDisplayRows}}</pre>
+    <pre>{{currentDisplayRow}}</pre>
   </div>
   <div class="modal-footer">
     <button type="button" class="btn btn-outline-dark" (click)="!c('Close click')">Close</button>
@@ -27,5 +27,6 @@
       <mat-header-row *matHeaderRowDef="currentDisplayColumns"></mat-header-row>
       <mat-row *matRowDef="let row; columns: currentDisplayColumns;" (click)="getRowDetails(row, content)"></mat-row>
     </mat-table>
+    <mat-paginator [pageSize]="10" [showFirstLastButtons]="true"></mat-paginator>
   </div>
 </div>
