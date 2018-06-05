@@ -1,3 +1,5 @@
+import { ExecutionResult } from "./../../types/workflow-execute.interface";
+
 export const MOCK_RESULT_DATA: object[] = [
   {
       'id': 1,
@@ -36,3 +38,9 @@ export const MOCK_RESULT_DATA: object[] = [
       'slides': 'Cost estimation: slide 14. SystemR Optimizer: slide 15'
   }
 ];
+
+export const MOCK_EXECUTION_RESULT: ExecutionResult = {
+  code: 0,
+  resultID: '1',
+  result: MOCK_RESULT_DATA
+}

@@ -18,3 +18,13 @@ export interface LogicalPlan extends Readonly<{
   operators: LogicalOperator[],
   links: LogicalLink[]
 }> { }
+
+
+export interface ExecutionResult extends Readonly<{
+  code: number,
+  // show only when correct result
+  result?: object[],
+  resultID?: string,
+  // show only when incorrect result
+  message?: string
+}> { }

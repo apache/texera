@@ -7,9 +7,9 @@ import { AppSettings } from './../../../common/app-setting';
 
 import { WorkflowActionService } from './../workflow-graph/model/workflow-action.service';
 import { WorkflowGraph, WorkflowGraphReadonly } from './../workflow-graph/model/workflow-graph';
-import { LogicalLink, LogicalPlan, LogicalOperator } from './../../types/workflow-execute.interface';
+import { LogicalLink, LogicalPlan, LogicalOperator, ExecutionResult } from './../../types/workflow-execute.interface';
 
-import { MOCK_RESULT_DATA } from './mock-result-data';
+import { MOCK_EXECUTION_RESULT } from './mock-result-data';
 import { MOCK_WORKFLOW_PLAN } from './mock-workflow-plan';
 
 export const EXECUTE_WORKFLOW_ENDPOINT = 'queryplan/execute';
@@ -20,7 +20,7 @@ export class StubExecuteWorkflowService {
 
 
   private executeStartedStream = new Subject<string>();
-  private executeEndedStream = new Subject<object>();
+  private executeEndedStream = new Subject<ExecutionResult>();
 
   constructor(private workflowActionService: WorkflowActionService) { }
 
@@ -34,13 +34,13 @@ export class StubExecuteWorkflowService {
     return this.executeStartedStream.asObservable();
   }
 
-  public getExecuteEndedStream(): Observable<object> {
+  public getExecuteEndedStream(): Observable<ExecutionResult> {
     return this.executeEndedStream.asObservable();
   }
 
   private showMockResultData(): void {
     this.executeStartedStream.next('started');
-    this.executeEndedStream.next({code: 0, result: MOCK_RESULT_DATA});
+    this.executeEndedStream.next(MOCK_EXECUTION_RESULT);
   }
 
   private executeMockPlan(): void {
@@ -58,13 +58,13 @@ export class StubExecuteWorkflowService {
     // console.log(body);
     // console.log(`${AppSettings.getApiEndpoint()}/${EXECUTE_WORKFLOW_ENDPOINT}`);
     this.executeStartedStream.next('execution started');
-    Observable.of(MOCK_RESULT_DATA).subscribe(
+    Observable.of(MOCK_EXECUTION_RESULT).subscribe(
         response => this.handleExecuteResult(response),
         errorResponse => this.handleExecuteError(errorResponse)
     );
   }
 
-  private handleExecuteResult(response: any): void {
+  private handleExecuteResult(response: ExecutionResult): void {
     // console.log('handling success result ');
     // console.log('result value is:');
     // console.log(response);
@@ -75,7 +75,7 @@ export class StubExecuteWorkflowService {
     // console.log('handling error result ');
     // console.log('error value is:');
     // console.log(errorResponse);
-    this.executeEndedStream.next(errorResponse.error);
+    this.executeEndedStream.next(errorResponse.error as ExecutionResult);
   }
 
   /**
