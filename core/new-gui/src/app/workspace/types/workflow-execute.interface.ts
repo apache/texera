@@ -20,11 +20,15 @@ export interface LogicalPlan extends Readonly<{
 }> { }
 
 
-export interface ExecutionResult extends Readonly<{
-  code: number,
-  // show only when correct result
-  result?: object[],
-  resultID?: string,
-  // show only when incorrect result
-  message?: string
+export interface SuccessExecutionResult extends Readonly<{
+  code: 0,
+  result: ReadonlyArray<object>,
+  resultID: string
 }> { }
+
+export interface ErrorExecutionResult extends Readonly< {
+  code: 1,
+  message: string
+}> { }
+
+export type ExecutionResult = SuccessExecutionResult | ErrorExecutionResult;
