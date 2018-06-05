@@ -19,24 +19,22 @@ export const EXECUTE_WORKFLOW_ENDPOINT = 'queryplan/execute';
 @Injectable()
 export class ExecuteWorkflowService {
 
-
   private executeStartedStream = new Subject<string>();
   private executeEndedStream = new Subject<ExecutionResult>();
 
   constructor(private workflowActionService: WorkflowActionService, private http: HttpClient) { }
 
   /**
-   * Creates a Logical Plan based on the workflow graph objected
-   *  passed and make a http post request to the API endpoint with
-   *  the logical plan object. The backend will either respond
-   *  an execution result or an error encountered in the backend.
-   *  Both results will be handled accordingly.
+   * Sends the current workflow data to the backend
+   *  to execute the workflow and get the results.
    *
    * @param workflowPlan
    */
   public executeWorkflow(): void {
+    // get the current workflow graph
     const workflowPlan = this.workflowActionService.getTexeraGraph();
 
+    // create a Logical Plan based on the workflow graph
     const body = ExecuteWorkflowService.getLogicalPlanRequest(workflowPlan);
     const requestURL = `${AppSettings.getApiEndpoint()}/${EXECUTE_WORKFLOW_ENDPOINT}`;
 
@@ -44,18 +42,22 @@ export class ExecuteWorkflowService {
     console.log(body);
 
     this.executeStartedStream.next('execution started');
+
+    // make a http post request to the API endpoint with the logical plan object
     this.http.post<SuccessExecutionResult>(
       requestURL,
       JSON.stringify(body),
       { headers: { 'Content-Type': 'application/json' } })
       .subscribe(
+        // backend will either respond an execution result or an error will occur
+        // handle both cases
         response => this.handleExecuteResult(response),
         errorResponse => this.handleExecuteError(errorResponse)
       );
   }
 
   /**
-   * Get the observable for execution started event
+   * Gets the observable for execution started event
    * Contains a string that says:
    *  - execution process has begun
    */
@@ -64,25 +66,25 @@ export class ExecuteWorkflowService {
   }
 
   /**
-   * Get the observable for execution ended event
-   * When correct, Contains an object with:
-   * -  resultID: the result ID of this execution
-   * -  Code: the result code of 0
-   * -  result: the actual result data to be displayed
+   * Gets the observable for execution ended event
+   * If execution succeeded, it contains an object with type
+   *  `SuccessExecutionResult`:
+   *    -  resultID: the result ID of this execution
+   *    -  Code: the result code of 0
+   *    -  result: the actual result data to be displayed
    *
-   * When incorrect, Contains an object with:
-   * -  Code: the result code is not 0
-   * -  message: error message received from backend
+   * If execution succeeded, it contains an object with type
+   *  `ErrorExecutionResult`:
+   *    -  Code: the result code 1
+   *    -  message: error message
    */
   public getExecuteEndedStream(): Observable<ExecutionResult> {
     return this.executeEndedStream.asObservable();
   }
 
   /**
-   * Handler function for valid execution result from the
-   * backend.
-   * Send the execution result to the execution end
-   * event stream.
+   * Handles valid execution result from the backend.
+   * Sends the execution result to the execution end event stream.
    *
    * @param response
    */
@@ -95,8 +97,10 @@ export class ExecuteWorkflowService {
   /**
    * Handler function for invalid execution.
    *
-   * Send the error messages generated from the backend
-   * to the execution end event stream.
+   * Send the error messages generated from
+   *  backend (if workflow is invalid or server error)
+   *  or frontend (if there's no network connection)
+   *  to the execution end event stream.
    *
    * @param errorResponse
    */
@@ -140,6 +144,11 @@ export class ExecuteWorkflowService {
     return { operators, links };
   }
 
+  /**
+   * Handles the HTTP Error response in different failure scenarios
+   *  and converts to an ErrorExecutionResult object.
+   * @param errorResponse
+   */
   private static processErrorResponse(errorResponse: HttpErrorResponse): ErrorExecutionResult {
     // client side error, such as no internet connect
     if (errorResponse.error instanceof ErrorEvent) {
@@ -149,9 +158,11 @@ export class ExecuteWorkflowService {
       };
     }
     // the workflow graph is invalid
+    // error message from backend will be included in the error property
     if (errorResponse.status === 400) {
       return <ErrorExecutionResult>(errorResponse.error);
     }
+    // other kinds of server error
     return {
       code: 1,
       message: `Texera server error: ${errorResponse.message}`

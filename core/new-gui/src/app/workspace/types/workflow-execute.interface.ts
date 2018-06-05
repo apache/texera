@@ -1,6 +1,7 @@
 /**
- * This file contains some type declaration for what
- *  should be sent directly to the backend
+ * This file contains some type declaration for the WorkflowGraph interface of the **backend**.
+ * The API of the backend is (currently) not the same as the Graph representation in the frontend.
+ * These interfaces confronts to the backend API.
 */
 
 export interface LogicalLink extends Readonly<{

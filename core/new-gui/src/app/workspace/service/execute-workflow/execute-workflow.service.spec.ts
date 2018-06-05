@@ -26,6 +26,15 @@ class StubHttpClient {
 
 }
 
+class FailureStubHttpClient {
+  constructor() { }
+
+  // fake an async http response with a very small delay
+  public post<T>(url: string, body: string, headers: object): Observable<SuccessExecutionResult> {
+    return Observable.throw('placeholder');
+  }
+}
+
 let service: ExecuteWorkflowService;
 
 describe('ExecuteWorkflowService', () => {
