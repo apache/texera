@@ -1,3 +1,4 @@
+import { ExecutionResult } from './../../types/workflow-execute.interface';
 import { TestBed, inject } from '@angular/core/testing';
 
 import { ExecuteWorkflowService } from './execute-workflow.service';
@@ -17,27 +18,17 @@ import { LogicalPlan, SuccessExecutionResult } from '../../types/workflow-execut
 
 
 class StubHttpClient {
-  constructor() { }
 
-  // fake an async http response with a very small delay
-  public post<T>(url: string, body: string, headers: object): Observable<SuccessExecutionResult> {
-    return Observable.of(mockExecutionResult);
-  }
+  public post<T>(): Observable<string> { return Observable.of('a'); }
 
 }
 
-class FailureStubHttpClient {
-  constructor() { }
+/* tslint:disable:no-non-null-assertion */
 
-  // fake an async http response with a very small delay
-  public post<T>(url: string, body: string, headers: object): Observable<SuccessExecutionResult> {
-    return Observable.throw('placeholder');
-  }
-}
+fdescribe('ExecuteWorkflowService', () => {
 
-let service: ExecuteWorkflowService;
+  let service: ExecuteWorkflowService;
 
-describe('ExecuteWorkflowService', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [
@@ -45,7 +36,7 @@ describe('ExecuteWorkflowService', () => {
         WorkflowActionService,
         JointUIService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
-        { provide: HttpClient, useClass: StubHttpClient}
+        { provide: HttpClient, useClass: StubHttpClient},
       ]
     });
 
@@ -76,7 +67,6 @@ describe('ExecuteWorkflowService', () => {
 
   it('should notify execution end event stream when a correct result is passed from backend', marbles((m) => {
     const executionEndStream = service.getExecuteEndedStream()
-      .do(result => expect(result).toEqual(mockExecutionResult))
       .map(value => 'a');
 
     // execute workflow at this time
@@ -90,12 +80,42 @@ describe('ExecuteWorkflowService', () => {
 
   it('should call post function when executing workflow', () => {
     const httpClient: HttpClient = TestBed.get(HttpClient);
-    const postMethodSpy = spyOn(httpClient, 'post').and.callThrough();
+    const postMethodSpy = spyOn(httpClient, 'post').and.returnValue(
+      Observable.of(mockExecutionResult)
+    );
 
     service.executeWorkflow();
 
     expect(postMethodSpy.calls.count()).toEqual(1);
 
   });
+
+  it('should call post function when executing workflow', () => {
+    const mockErrorMessage = 'mock backend error message';
+
+    const httpClient: HttpClient = TestBed.get(HttpClient);
+    const postMethodSpy = spyOn(httpClient, 'post').and.returnValue(
+      Observable.throw({
+        status: 400,
+        error: {
+          code: 1,
+          message: mockErrorMessage
+        }
+      })
+    );
+
+    let executionResult: ExecutionResult | undefined;
+    service.getExecuteEndedStream().subscribe(value => executionResult = value);
+
+    service.executeWorkflow();
+
+    expect(executionResult!.code).toEqual(1);
+    if (! ExecuteWorkflowService.executionResultSuccess(executionResult)) {
+      expect(executionResult!.message).toEqual(mockErrorMessage);
+    }
+
+  });
+
+
 
 });

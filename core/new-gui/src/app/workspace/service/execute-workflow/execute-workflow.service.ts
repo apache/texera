@@ -144,6 +144,10 @@ export class ExecuteWorkflowService {
     return { operators, links };
   }
 
+  public static executionResultSuccess(result: ExecutionResult | undefined): result is SuccessExecutionResult {
+    return !!result && result.code === 0;
+  }
+
   /**
    * Handles the HTTP Error response in different failure scenarios
    *  and converts to an ErrorExecutionResult object.
