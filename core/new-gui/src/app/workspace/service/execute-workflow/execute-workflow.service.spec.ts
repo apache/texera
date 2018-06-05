@@ -13,14 +13,14 @@ import { mockWorkflowPlan, mockLogicalPlan } from './mock-workflow-plan';
 import { HttpClient } from '@angular/common/http';
 import { marbles } from 'rxjs-marbles';
 import { WorkflowGraph } from '../workflow-graph/model/workflow-graph';
-import { LogicalPlan } from '../../types/workflow-execute.interface';
+import { LogicalPlan, SuccessExecutionResult } from '../../types/workflow-execute.interface';
 
 
 class StubHttpClient {
   constructor() { }
 
   // fake an async http response with a very small delay
-  public post(url: string, body: string, headers: object): Observable<any> {
+  public post<T>(url: string, body: string, headers: object): Observable<SuccessExecutionResult> {
     return Observable.of(mockExecutionResult);
   }
 
@@ -85,7 +85,7 @@ describe('ExecuteWorkflowService', () => {
 
     service.executeWorkflow();
 
-    expect(postMethodSpy.calls.count).toEqual(1);
+    expect(postMethodSpy.calls.count()).toEqual(1);
 
   });
 
