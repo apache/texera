@@ -57,6 +57,7 @@ export class StubExecuteWorkflowService {
     // console.log('body is:');
     // console.log(body);
     // console.log(`${AppSettings.getApiEndpoint()}/${EXECUTE_WORKFLOW_ENDPOINT}`);
+    this.executeStartedStream.next('execution started');
     Observable.of(MOCK_RESULT_DATA).subscribe(
         response => this.handleExecuteResult(response),
         errorResponse => this.handleExecuteError(errorResponse)
