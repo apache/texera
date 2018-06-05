@@ -8,11 +8,10 @@ import { AppSettings } from './../../../common/app-setting';
 
 import { WorkflowActionService } from './../workflow-graph/model/workflow-action.service';
 import { WorkflowGraph, WorkflowGraphReadonly } from './../workflow-graph/model/workflow-graph';
-import { LogicalLink, LogicalPlan, LogicalOperator,
-  ExecutionResult, ErrorExecutionResult, SuccessExecutionResult } from './../../types/workflow-execute.interface';
-
-import { MOCK_WORKFLOW_PLAN } from './mock-workflow-plan';
-import { MOCK_EXECUTION_RESULT } from './mock-result-data';
+import {
+  LogicalLink, LogicalPlan, LogicalOperator,
+  ExecutionResult, ErrorExecutionResult, SuccessExecutionResult
+} from './../../types/workflow-execute.interface';
 
 export const EXECUTE_WORKFLOW_ENDPOINT = 'queryplan/execute';
 
@@ -101,78 +100,63 @@ export class ExecuteWorkflowService {
    *
    * @param errorResponse
    */
-  protected handleExecuteError(errorResponse: HttpErrorResponse): void {
+  private handleExecuteError(errorResponse: HttpErrorResponse): void {
     console.log('handling error result ');
     console.log(errorResponse);
 
     // error shown to the user in different error scenarios
-    let displayedErrorMessage: ErrorExecutionResult;
-
-    // client side error, such as no internet connect
-    if (errorResponse.error instanceof ErrorEvent) {
-      displayedErrorMessage = {
-        code: 1,
-        message: 'Could not reach Texera server'
-      };
-    } else {
-      // the workflow graph is invalid
-      if (errorResponse.status === 400) {
-        displayedErrorMessage = <ErrorExecutionResult>(errorResponse.error);
-      } else {
-        displayedErrorMessage = {
-          code: 1,
-          message: `Texera server error: ${errorResponse.message}`
-        };
-      }
-    }
+    const displayedErrorMessage = ExecuteWorkflowService.processErrorResponse(errorResponse);
     this.executeEndedStream.next(displayedErrorMessage);
   }
 
   /**
    * Transform a workflowGraph object to the HTTP request body according to the backend API.
    *
-   *  All the operators in the workflowGraph will be transformed to LogicalOperator objects,
-   *  where each operator might have some unique properties and must have an operatorID and
-   *  an operator type.
+   * All the operators in the workflowGraph will be transformed to LogicalOperator objects,
+   *  where each operator has an operatorID and operatorType along with
+   *  the properties of the operator.
    *
-   *  All the links in the workflowGraph will be tranformed to LogicalLink objects,
-   *  where each link will store its source id as its origin and target id as its
-   *  destination.
+   *
+   * All the links in the workflowGraph will be tranformed to LogicalLink objects,
+   *  where each link will store its source id as its origin and target id as its destination.
    *
    * @param workflowGraph
    */
   public static getLogicalPlanRequest(workflowGraph: WorkflowGraphReadonly): LogicalPlan {
 
-    // const logicalPlanJson = { operators: [] as any, links: [] as any};
+    const operators: LogicalOperator[] = workflowGraph
+      .getOperators().map(op => ({
+        ...op.operatorProperties,
+        operatorID: op.operatorID,
+        operatorType: op.operatorType
+      }));
 
-    const logicalOperators = [] as LogicalOperator[];
-    const logicalLinks = [] as LogicalLink[];
+    const links: LogicalLink[] = workflowGraph
+      .getLinks().map(link => ({
+        origin: link.source.operatorID,
+        destination: link.target.operatorID
+      }));
 
-    // each operator only needs the operatorID, operatorType, and the properties
-    // inputPorts and outputPorts are not needed (for now)
-    workflowGraph.getOperators().forEach(
-      op => logicalOperators.push(
-        {
-          ...op.operatorProperties,
-          operatorID: op.operatorID,
-          operatorType: op.operatorType
-        }
-      )
-    );
-
-    // filter out the non-connected links (because the workflowGraph model allows links that only connected to one operator)
-    //  and generates json object with key 'origin' and 'destination'
-    workflowGraph.getLinks()
-      .filter(link => (link.source && link.target))
-      .forEach(
-        link => logicalLinks.push(
-          {
-            origin: link.source.operatorID,
-            destination: link.target.operatorID
-          }
-        )
-      );
-
-    return { operators: logicalOperators, links: logicalLinks };
+    return { operators, links };
   }
+
+  private static processErrorResponse(errorResponse: HttpErrorResponse): ErrorExecutionResult {
+    // client side error, such as no internet connect
+    if (errorResponse.error instanceof ErrorEvent) {
+      return {
+        code: 1,
+        message: 'Could not reach Texera server'
+      };
+    }
+    // the workflow graph is invalid
+    if (errorResponse.status === 400) {
+      return <ErrorExecutionResult>(errorResponse.error);
+    }
+    return {
+      code: 1,
+      message: `Texera server error: ${errorResponse.message}`
+    };
+  }
+
+
 }
