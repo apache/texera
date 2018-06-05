@@ -5,6 +5,7 @@ import { ExecuteWorkflowService } from "./../../service/execute-workflow/execute
 
 import { Observable } from 'rxjs/Observable';
 import { NgbModal , ModalDismissReasons } from '@ng-bootstrap/ng-bootstrap';
+import { ExecutionResult } from "./../../types/workflow-execute.interface";
 
 @Component({
   selector: 'texera-result-panel',
@@ -26,7 +27,7 @@ export class ResultPanelComponent implements OnInit {
   constructor(private executeWorkflowService: ExecuteWorkflowService, private changeDetectorRef: ChangeDetectorRef,
     private modalService: NgbModal) {
     this.executeWorkflowService.getExecuteEndedStream().subscribe(
-      value => this.handleResultData(value),
+      executionResult => this.handleResultData(executionResult),
     );
   }
 
@@ -38,18 +39,25 @@ export class ResultPanelComponent implements OnInit {
     });
   }
 
-  private handleResultData(response: any): void {
+  private changeResultTableProperty(response: ExecutionResult) {
+    const resultData: object[] | undefined = response.result;
+    if (resultData !== undefined){
+      this.currentDisplayColumns = Object.keys(resultData[0]).filter(x => x !== '_id');
+      this.currentColumns = this.generateColumns(this.currentDisplayColumns);
+      this.currentDataSource = new ResultDataSource(resultData);
+      console.log(this.currentDisplayColumns);
+    }
+  }
+
+  private handleResultData(response: ExecutionResult): void {
     console.log('view result compoenent, ');
+
     console.log(response);
     if (response.code === 0) {
       console.log('show success data');
       this.showMessage = false;
       // generate columnDef from first row
-      const resultData: object[] = response.result;
-      this.currentDisplayColumns = Object.keys(resultData[0]).filter(x => x !== '_id');
-      this.currentColumns = this.generateColumns(this.currentDisplayColumns);
-      this.currentDataSource = new ResultDataSource(resultData);
-      console.log(this.currentDisplayColumns);
+      this.changeResultTableProperty(response);
     } else {
       console.log('show fail message');
       this.showMessage = true;
@@ -64,7 +72,7 @@ export class ResultPanelComponent implements OnInit {
     return columns;
   }
 
-  private getRowDetails(row: any, content: any): void {
+  public getRowDetails(row: any, content: any): void {
     console.log('ROw clicked');
     console.log(row);
     this.currentDisplayRows = JSON.stringify(row, undefined, 2);
