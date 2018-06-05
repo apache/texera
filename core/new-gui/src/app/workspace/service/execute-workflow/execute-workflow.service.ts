@@ -8,7 +8,8 @@ import { AppSettings } from './../../../common/app-setting';
 
 import { WorkflowActionService } from './../workflow-graph/model/workflow-action.service';
 import { WorkflowGraph, WorkflowGraphReadonly } from './../workflow-graph/model/workflow-graph';
-import { LogicalLink, LogicalPlan, LogicalOperator, ExecutionResult, ErrorExecutionResult, SuccessExecutionResult } from './../../types/workflow-execute.interface';
+import { LogicalLink, LogicalPlan, LogicalOperator,
+  ExecutionResult, ErrorExecutionResult, SuccessExecutionResult } from './../../types/workflow-execute.interface';
 
 import { MOCK_WORKFLOW_PLAN } from './mock-workflow-plan';
 import { MOCK_EXECUTION_RESULT } from './mock-result-data';
@@ -37,8 +38,8 @@ export class ExecuteWorkflowService {
   public executeWorkflow(): void {
     const workflowPlan = this.workflowActionService.getTexeraGraph();
 
-    const body = this.getLogicalPlanRequest(workflowPlan);
-    const requestURL = `${AppSettings.getApiEndpoint()}/${EXECUTE_WORKFLOW_ENDPOINT}`
+    const body = ExecuteWorkflowService.getLogicalPlanRequest(workflowPlan);
+    const requestURL = `${AppSettings.getApiEndpoint()}/${EXECUTE_WORKFLOW_ENDPOINT}`;
 
     console.log(`making http post request to backend ${requestURL}`);
     console.log(body);
@@ -112,20 +113,16 @@ export class ExecuteWorkflowService {
       displayedErrorMessage = {
         code: 1,
         message: 'Could not reach Texera server'
-      }
-    }
-    // server side error, server sends back an error response such as 400/404/500
-    else {
+      };
+    } else {
       // the workflow graph is invalid
       if (errorResponse.status === 400) {
         displayedErrorMessage = <ErrorExecutionResult>(errorResponse.error);
-      }
-      // other server side error, such as 500 Internal Error (server code crashed)
-      else {
+      } else {
         displayedErrorMessage = {
           code: 1,
           message: `Texera server error: ${errorResponse.message}`
-        }
+        };
       }
     }
     this.executeEndedStream.next(displayedErrorMessage);
@@ -144,7 +141,7 @@ export class ExecuteWorkflowService {
    *
    * @param workflowGraph
    */
-  public getLogicalPlanRequest(workflowGraph: WorkflowGraphReadonly): LogicalPlan {
+  public static getLogicalPlanRequest(workflowGraph: WorkflowGraphReadonly): LogicalPlan {
 
     // const logicalPlanJson = { operators: [] as any, links: [] as any};
 

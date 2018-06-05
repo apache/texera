@@ -47,9 +47,9 @@ describe('ExecuteWorkflowService', () => {
     expect(injectedService).toBeTruthy();
   }));
 
-  it('should generate a logical plan request based on the workflow graph that is passed to the function', marbles((m)=>{
+  it('should generate a logical plan request based on the workflow graph that is passed to the function', marbles((m) => {
     const workflowGraph: WorkflowGraph = MOCK_WORKFLOW_PLAN;
-    const newLogicalPlan: LogicalPlan = service.getLogicalPlanRequest(workflowGraph);
+    const newLogicalPlan: LogicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(workflowGraph);
     expect(MOCK_LOGICAL_PLAN).toEqual(newLogicalPlan);
   }));
 
