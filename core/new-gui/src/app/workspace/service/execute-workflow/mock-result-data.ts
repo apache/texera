@@ -44,3 +44,9 @@ export const MOCK_EXECUTION_RESULT: ExecutionResult = {
   resultID: '1',
   result: MOCK_RESULT_DATA
 }
+
+
+export const MOCK_EXECUTION_ERROR: ExecutionResult = {
+  code: 1,
+  message: 'custom error happening'
+}

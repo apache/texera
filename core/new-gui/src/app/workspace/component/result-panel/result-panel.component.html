@@ -18,14 +18,15 @@
   <div *ngIf="showMessage">
     <p>{{ message }}</p>
   </div>
-  <div id="result-table" *ngIf="currentColumns && !showMessage">
+  <div class="result-table" *ngIf="currentColumns && !showMessage">
     <mat-table #table [dataSource]="currentDataSource">
       <ng-container *ngFor="let column of currentColumns" matColumnDef={{column.columnDef}}>
         <mat-header-cell *matHeaderCellDef>{{ column.header }}</mat-header-cell>
         <mat-cell  *matCellDef="let row">{{ column.cell(row) }}</mat-cell>
       </ng-container>
       <mat-header-row *matHeaderRowDef="currentDisplayColumns"></mat-header-row>
-      <mat-row *matRowDef="let row; columns: currentDisplayColumns;" (click)="getRowDetails(row, content)"></mat-row>
+      <mat-row class="result-table-row" *matRowDef="let row; columns: currentDisplayColumns;"
+          (click)="getRowDetails(row, content)"></mat-row>
     </mat-table>
     <mat-paginator [pageSize]="10" [showFirstLastButtons]="true"></mat-paginator>
   </div>
