@@ -1,5 +1,5 @@
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
-import { By } from "@angular/platform-browser";
+import { By } from '@angular/platform-browser';
 
 import { NavigationComponent } from './navigation.component';
 import { ExecuteWorkflowService } from './../../service/execute-workflow/execute-workflow.service';
@@ -13,7 +13,7 @@ import { JointUIService } from '../../service/joint-ui/joint-ui.service';
 
 import { Observable } from 'rxjs/Observable';
 import { StubExecuteWorkflowService } from '../../service/execute-workflow/stub-execute-workflow.service';
-import { marbles, Context } from "rxjs-marbles";
+import { marbles, Context } from 'rxjs-marbles';
 
 describe('NavigationComponent', () => {
   let component: NavigationComponent;
@@ -60,8 +60,8 @@ describe('NavigationComponent', () => {
     // expect initially there is no spinner
 
     expect(component.showSpinner).toBeFalsy();
-    let Spinner = fixture.debugElement.query(By.css('.texera-loading-spinner'));
-    expect(Spinner).toBeFalsy();
+    let spinner = fixture.debugElement.query(By.css('.texera-loading-spinner'));
+    expect(spinner).toBeFalsy();
 
     m.hot('-e-').do(event => component.onClickRun()).subscribe();
 
@@ -69,8 +69,8 @@ describe('NavigationComponent', () => {
       event => {
         fixture.detectChanges();
         expect(component.showSpinner).toBeTruthy();
-        Spinner = fixture.debugElement.query(By.css('.texera-loading-spinner'));
-        expect(Spinner).toBeTruthy();
+        spinner = fixture.debugElement.query(By.css('.texera-loading-spinner'));
+        expect(spinner).toBeTruthy();
       }
     );
 
@@ -78,8 +78,8 @@ describe('NavigationComponent', () => {
       event => {
         fixture.detectChanges();
         expect(component.showSpinner).toBeFalsy();
-        let Spinner = fixture.debugElement.query(By.css('.texera-loading-spinner'));
-        expect(Spinner).toBeFalsy();
+        spinner = fixture.debugElement.query(By.css('.texera-loading-spinner'));
+        expect(spinner).toBeFalsy();
       }
     );
 

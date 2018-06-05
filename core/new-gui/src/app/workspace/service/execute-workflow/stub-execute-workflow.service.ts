@@ -1,3 +1,4 @@
+import { ExecuteWorkflowService } from './execute-workflow.service';
 import { Injectable } from '@angular/core';
 
 import { Subject } from 'rxjs/Subject';
@@ -16,106 +17,18 @@ export const EXECUTE_WORKFLOW_ENDPOINT = 'queryplan/execute';
 
 
 @Injectable()
-export class StubExecuteWorkflowService {
-
-
-  private executeStartedStream = new Subject<string>();
-  private executeEndedStream = new Subject<ExecutionResult>();
-
-  constructor(private workflowActionService: WorkflowActionService) { }
+export class StubExecuteWorkflowService extends ExecuteWorkflowService {
 
   public executeWorkflow(): void {
-    // console.log('execute workflow plan');
-    // console.log(this.workflowActionService.getTexeraGraph());
-    this.executeRealPlan();
-  }
+    const workflowPlan = MOCK_WORKFLOW_PLAN;
 
-  public getExecuteStartedStream(): Observable<string> {
-    return this.executeStartedStream.asObservable();
-  }
+    const body = ExecuteWorkflowService.getLogicalPlanRequest(workflowPlan);
 
-  public getExecuteEndedStream(): Observable<ExecutionResult> {
-    return this.executeEndedStream.asObservable();
-  }
-
-  private showMockResultData(): void {
-    this.executeStartedStream.next('started');
-    this.executeEndedStream.next(MOCK_EXECUTION_RESULT);
-  }
-
-  private executeMockPlan(): void {
-    this.executeWorkflowPlan(MOCK_WORKFLOW_PLAN);
-  }
-
-  private executeRealPlan(): void {
-    this.executeWorkflowPlan(this.workflowActionService.getTexeraGraph());
-  }
-
-  private executeWorkflowPlan(workflowPlan: WorkflowGraphReadonly): void {
-    const body = this.getLogicalPlanRequest(workflowPlan);
-    // console.log('making http post request to backend');
-    // console.log('body is:');
-    // console.log(body);
-    // console.log(`${AppSettings.getApiEndpoint()}/${EXECUTE_WORKFLOW_ENDPOINT}`);
     this.executeStartedStream.next('execution started');
-    Observable.of(MOCK_EXECUTION_RESULT).subscribe(
-        response => this.handleExecuteResult(response),
-        errorResponse => this.handleExecuteError(errorResponse)
-    );
+    Observable.of(MOCK_EXECUTION_RESULT)
+      .subscribe(
+        response => this.handleExecuteResult(response)
+      );
   }
 
-  private handleExecuteResult(response: ExecutionResult): void {
-    // console.log('handling success result ');
-    // console.log('result value is:');
-    // console.log(response);
-    this.executeEndedStream.next(response);
-  }
-
-  private handleExecuteError(errorResponse: any): void {
-    // console.log('handling error result ');
-    // console.log('error value is:');
-    // console.log(errorResponse);
-    this.executeEndedStream.next(errorResponse.error as ExecutionResult);
-  }
-
-  /**
-   * Transform a workflowGraph object to the HTTP request body according to the backend API.
-   *
-   * @param logicalPlan
-   */
-  private getLogicalPlanRequest(workflowGraph: WorkflowGraphReadonly): LogicalPlan {
-
-    // const logicalPlanJson = { operators: [] as any, links: [] as any};
-
-    const logicalOperators = [] as LogicalOperator[];
-    const logicalLinks = [] as LogicalLink[];
-
-    // each operator only needs the operatorID, operatorType, and the properties
-    // inputPorts and outputPorts are not needed (for now)
-    workflowGraph.getOperators().forEach(
-      op => logicalOperators.push(
-        {
-          ...op.operatorProperties,
-          operatorID: op.operatorID,
-          operatorType: op.operatorType
-        }
-      )
-    );
-
-    // filter out the non-connected links (because the workflowGraph model allows links that only connected to one operator)
-    //  and generates json object with key 'origin' and 'destination'
-    workflowGraph.getLinks()
-    .filter(link => (link.source && link.target))
-    .forEach(
-      link => logicalLinks.push(
-        {
-          origin: link.source.operatorID,
-          destination: link.target.operatorID
-        }
-      )
-    );
-
-    return { operators : logicalOperators , links: logicalLinks };
-
-  }
 }

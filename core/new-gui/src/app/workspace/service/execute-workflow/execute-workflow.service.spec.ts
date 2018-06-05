@@ -50,7 +50,7 @@ describe('ExecuteWorkflowService', () => {
   it('should generate a logical plan request based on the workflow graph that is passed to the function', marbles((m) => {
     const workflowGraph: WorkflowGraph = MOCK_WORKFLOW_PLAN;
     const newLogicalPlan: LogicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(workflowGraph);
-    expect(MOCK_LOGICAL_PLAN).toEqual(newLogicalPlan);
+    expect(newLogicalPlan).toEqual(MOCK_LOGICAL_PLAN);
   }));
 
   it('should notify execution start event stream when an execution begins', marbles((m) => {
@@ -78,5 +78,15 @@ describe('ExecuteWorkflowService', () => {
     m.expect(executionEndStream).toBeObservable(expectedStream);
 
   }));
+
+  it('should call post function when executing workflow', () => {
+    const httpClient: HttpClient = TestBed.get(HttpClient);
+    const postMethodSpy = spyOn(httpClient, 'post').and.callThrough();
+
+    service.executeWorkflow();
+
+    expect(postMethodSpy.calls.count).toEqual(1);
+
+  });
 
 });

@@ -1,4 +1,4 @@
-import { ExecutionResult } from "./../../types/workflow-execute.interface";
+import { SuccessExecutionResult } from './../../types/workflow-execute.interface';
 
 export const MOCK_RESULT_DATA: object[] = [
   {
@@ -39,8 +39,8 @@ export const MOCK_RESULT_DATA: object[] = [
   }
 ];
 
-export const MOCK_EXECUTION_RESULT: ExecutionResult = {
+export const MOCK_EXECUTION_RESULT: SuccessExecutionResult = {
   code: 0,
   resultID: '1',
   result: MOCK_RESULT_DATA
-}
+};
