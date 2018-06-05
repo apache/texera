@@ -20,8 +20,8 @@ export const EXECUTE_WORKFLOW_ENDPOINT = 'queryplan/execute';
 export class ExecuteWorkflowService {
 
 
-  protected executeStartedStream = new Subject<string>();
-  protected executeEndedStream = new Subject<ExecutionResult>();
+  private executeStartedStream = new Subject<string>();
+  private executeEndedStream = new Subject<ExecutionResult>();
 
   constructor(private workflowActionService: WorkflowActionService, private http: HttpClient) { }
 
@@ -86,7 +86,7 @@ export class ExecuteWorkflowService {
    *
    * @param response
    */
-  protected handleExecuteResult(response: SuccessExecutionResult): void {
+  private handleExecuteResult(response: SuccessExecutionResult): void {
     console.log('handling success result ');
     console.log(response);
     this.executeEndedStream.next(response);

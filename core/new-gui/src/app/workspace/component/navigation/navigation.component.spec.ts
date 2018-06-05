@@ -12,8 +12,21 @@ import { OperatorMetadataService } from '../../service/operator-metadata/operato
 import { JointUIService } from '../../service/joint-ui/joint-ui.service';
 
 import { Observable } from 'rxjs/Observable';
-import { StubExecuteWorkflowService } from '../../service/execute-workflow/stub-execute-workflow.service';
 import { marbles, Context } from 'rxjs-marbles';
+import { HttpClient } from '@angular/common/http';
+import { SuccessExecutionResult } from '../../types/workflow-execute.interface';
+import { mockExecutionResult } from '../../service/execute-workflow/mock-result-data';
+
+class StubHttpClient {
+  constructor() { }
+
+  // fake an async http response with a very small delay
+  public post<T>(url: string, body: string, headers: object): Observable<SuccessExecutionResult> {
+    return Observable.of(mockExecutionResult);
+  }
+
+}
+
 
 describe('NavigationComponent', () => {
   let component: NavigationComponent;
@@ -27,8 +40,9 @@ describe('NavigationComponent', () => {
       providers: [
         WorkflowActionService,
         JointUIService,
+        ExecuteWorkflowService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
-        { provide: ExecuteWorkflowService, useClass: StubExecuteWorkflowService }
+        { provide: HttpClient, useClass: StubHttpClient}
       ]
     })
     .compileComponents();
