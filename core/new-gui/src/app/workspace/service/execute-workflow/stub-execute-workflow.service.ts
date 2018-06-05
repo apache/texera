@@ -15,7 +15,14 @@ import { MOCK_WORKFLOW_PLAN } from './mock-workflow-plan';
 
 export const EXECUTE_WORKFLOW_ENDPOINT = 'queryplan/execute';
 
-
+/**
+ * This class is mainly use for testing purposes.
+ * It inherits all the functionality from the ExecuteWorkflowService class.
+ *
+ * To avoid sending an actual http request during testing,
+ *  we overload the executeWorkflow() function to send
+ *  the mock execution result instead.
+ */
 @Injectable()
 export class StubExecuteWorkflowService extends ExecuteWorkflowService {
 

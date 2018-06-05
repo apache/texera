@@ -11,7 +11,9 @@ export interface LogicalLink extends Readonly<{
 export interface LogicalOperator extends Readonly<{
   operatorID: string,
   operatorType: string,
-  [uniqueAttributes: string]: any
+  // reason for not using `any` in this case is to
+  //  prevent types such as `undefined` or `null`
+  [uniqueAttributes: string]: string | number | boolean | object
 }> { }
 
 export interface LogicalPlan extends Readonly<{
@@ -31,4 +33,12 @@ export interface ErrorExecutionResult extends Readonly< {
   message: string
 }> { }
 
+/**
+ * Discriminated Union
+ * http://www.typescriptlang.org/docs/handbook/advanced-types.html
+ *
+ * Execution Result type can be either SuccessExecutionResult type
+ *  or ErrorExecutionResult type. But cannot contain both structures
+ * at the same time
+ */
 export type ExecutionResult = SuccessExecutionResult | ErrorExecutionResult;
