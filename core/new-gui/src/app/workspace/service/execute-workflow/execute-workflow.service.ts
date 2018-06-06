@@ -16,6 +16,25 @@ import {
 export const EXECUTE_WORKFLOW_ENDPOINT = 'queryplan/execute';
 
 
+/**
+ * ExecuteWorkflowService send the current workflow data to the backend
+ *  for execution, then receive backend's response to display on the
+ *  user interface.
+ * ExecuteWorkflowService will be responsible for transforming the frontend
+ *  formated graph into backend API formatted graph.
+ *
+ * Components should call executeWorkflow() function to fetch the current workflow
+ *  graph and execute the current workflow
+ *
+ * Components and Services should call getExecuteStartedStream() and subscribe
+ *  to the Observable in order to capture the time in which workflow graph
+ *  starts executing.
+ *
+ * Components and Services should call getExecuteEndedStream() and subscribe to
+ *  the Observable in order to capture the ending moment of execution and get
+ *  the final result of executing the workflow, either some results or errors
+ *
+ */
 @Injectable()
 export class ExecuteWorkflowService {
 
@@ -155,7 +174,7 @@ export class ExecuteWorkflowService {
    */
   private static processErrorResponse(errorResponse: HttpErrorResponse): ErrorExecutionResult {
     // client side error, such as no internet connect
-    if (errorResponse.error instanceof ErrorEvent) {
+    if (errorResponse.error instanceof ProgressEvent) {
       return {
         code: 1,
         message: 'Could not reach Texera server'
@@ -169,7 +188,7 @@ export class ExecuteWorkflowService {
     // other kinds of server error
     return {
       code: 1,
-      message: `Texera server error: ${errorResponse.message}`
+      message: `Texera server error: ${errorResponse.error.message}`
     };
   }
 

@@ -11,7 +11,7 @@ import { Observable } from 'rxjs/Observable';
 
 import { mockExecutionResult } from './mock-result-data';
 import { mockWorkflowPlan, mockLogicalPlan } from './mock-workflow-plan';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { marbles } from 'rxjs-marbles';
 import { WorkflowGraph } from '../workflow-graph/model/workflow-graph';
 import { LogicalPlan, SuccessExecutionResult } from '../../types/workflow-execute.interface';
@@ -25,7 +25,7 @@ class StubHttpClient {
 
 /* tslint:disable:no-non-null-assertion */
 
-fdescribe('ExecuteWorkflowService', () => {
+describe('ExecuteWorkflowService', () => {
 
   let service: ExecuteWorkflowService;
 
@@ -90,7 +90,7 @@ fdescribe('ExecuteWorkflowService', () => {
 
   });
 
-  it('should call post function when executing workflow', () => {
+  it('should stimulate backend error for invalid workflow graph and generate correct error messages', () => {
     const mockErrorMessage = 'mock backend error message';
 
     const httpClient: HttpClient = TestBed.get(HttpClient);
@@ -113,6 +113,67 @@ fdescribe('ExecuteWorkflowService', () => {
     if (! ExecuteWorkflowService.executionResultSuccess(executionResult)) {
       expect(executionResult!.message).toEqual(mockErrorMessage);
     }
+
+  });
+
+  it('should stimulate a backend server system error and generate correct error messages', () => {
+
+    const mockErrorMessage = 'mock server error message';
+
+    const httpClient: HttpClient = TestBed.get(HttpClient);
+    const postMethodSpy = spyOn(httpClient, 'post').and.returnValue(
+      Observable.throw({
+        status: 500,
+        error: {
+          code: 1,
+          message: mockErrorMessage
+        }
+      })
+    );
+
+    let executionResult: ExecutionResult | undefined;
+    service.getExecuteEndedStream().subscribe(value => executionResult = value);
+
+    service.executeWorkflow();
+
+    expect(executionResult!.code).toEqual(1);
+    if (!ExecuteWorkflowService.executionResultSuccess(executionResult)) {
+      expect(executionResult!.message).toEqual(`Texera server error: ${mockErrorMessage}`);
+    }
+
+  });
+
+  it('should stimulate frontend internet error and generate correct error messages', () => {
+
+    const mockErrorMessage = 'mock interent error message';
+
+    const httpClient: HttpClient = TestBed.get(HttpClient);
+
+    const progressEvent: ProgressEvent = new ProgressEvent(mockErrorMessage, undefined);
+
+    spyOn(httpClient, 'post').and.returnValue(
+      Observable.throw(new HttpErrorResponse(
+        {
+          error: progressEvent,
+          headers: undefined,
+          status: 0,
+          statusText: '',
+          url: ''}
+        )
+      )
+    );
+
+    let executionResult: ExecutionResult | undefined;
+    service.getExecuteEndedStream().subscribe(value => executionResult = value);
+
+    service.executeWorkflow();
+
+    expect(executionResult!.code).toEqual(1);
+
+    if (!ExecuteWorkflowService.executionResultSuccess(executionResult)) {
+      expect(executionResult!.message).toEqual(`Could not reach Texera server`);
+    }
+
 
   });
 

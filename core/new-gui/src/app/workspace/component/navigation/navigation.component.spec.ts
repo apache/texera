@@ -18,12 +18,8 @@ import { SuccessExecutionResult } from '../../types/workflow-execute.interface';
 import { mockExecutionResult } from '../../service/execute-workflow/mock-result-data';
 
 class StubHttpClient {
-  constructor() { }
 
-  // fake an async http response with a very small delay
-  public post<T>(url: string, body: string, headers: object): Observable<SuccessExecutionResult> {
-    return Observable.of(mockExecutionResult);
-  }
+  public post<T>(): Observable<string> { return Observable.of('a'); }
 
 }
 
@@ -60,6 +56,13 @@ describe('NavigationComponent', () => {
   });
 
   it('should execute the workflow when run button is clicked', marbles((m) => {
+
+    const httpClient: HttpClient = TestBed.get(HttpClient);
+    const postMethodSpy = spyOn(httpClient, 'post').and.returnValue(
+      Observable.of(mockExecutionResult)
+    );
+
+
     const runButtonElement = fixture.debugElement.query(By.css('.texera-workspace-navigation-run'));
     m.hot('-e-').do(event => runButtonElement.triggerEventHandler('click', null)).subscribe();
 
@@ -71,6 +74,12 @@ describe('NavigationComponent', () => {
   }));
 
   it('should show spinner when the workflow execution begins and hide spinner when execution ends', marbles((m) => {
+
+    const httpClient: HttpClient = TestBed.get(HttpClient);
+    const postMethodSpy = spyOn(httpClient, 'post').and.returnValue(
+      Observable.of(mockExecutionResult)
+    );
+
     // expect initially there is no spinner
 
     expect(component.showSpinner).toBeFalsy();
