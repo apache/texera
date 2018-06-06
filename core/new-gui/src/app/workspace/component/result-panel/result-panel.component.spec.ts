@@ -1,20 +1,28 @@
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { ResultPanelComponent } from './result-panel.component';
-import { ExecuteWorkflowService } from "./../../service/execute-workflow/execute-workflow.service";
-import { StubExecuteWorkflowService } from "./../../service/execute-workflow/stub-execute-workflow.service";
-import { CustomNgMaterialModule } from "./../../../common/custom-ng-material.module";
+import { ExecuteWorkflowService } from './../../service/execute-workflow/execute-workflow.service';
+import { CustomNgMaterialModule } from './../../../common/custom-ng-material.module';
 
-import { WorkflowActionService } from "./../../service/workflow-graph/model/workflow-action.service";
-import { JointUIService } from "./../../service/joint-ui/joint-ui.service";
-import { OperatorMetadataService } from "./../../service/operator-metadata/operator-metadata.service";
-import { StubOperatorMetadataService } from "./../../service/operator-metadata/stub-operator-metadata.service";
+import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
+import { JointUIService } from './../../service/joint-ui/joint-ui.service';
+import { OperatorMetadataService } from './../../service/operator-metadata/operator-metadata.service';
+import { StubOperatorMetadataService } from './../../service/operator-metadata/stub-operator-metadata.service';
 import { NgbModule, NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { marbles } from 'rxjs-marbles';
-import { MOCK_EXECUTION_RESULT, MOCK_RESULT_DATA, MOCK_EXECUTION_ERROR } from '../../service/execute-workflow/mock-result-data';
+import { mockExecutionResult, mockResultData, mockExecutionErrorResult } from '../../service/execute-workflow/mock-result-data';
 import { MatTableDataSource } from '@angular/material';
 import { By } from '@angular/platform-browser';
+import { Observable } from 'rxjs/Observable';
+import { HttpClient } from '@angular/common/http';
+import { ExecutionResult } from '../../types/workflow-execute.interface';
 
+
+class StubHttpClient {
+  constructor() {}
+
+  public post<T>(): Observable<string> { return Observable.of('a'); }
+}
 
 describe('ResultPanelComponent', () => {
   let component: ResultPanelComponent;
@@ -32,8 +40,9 @@ describe('ResultPanelComponent', () => {
       providers: [
         WorkflowActionService,
         JointUIService,
-        { provide: ExecuteWorkflowService, useClass: StubExecuteWorkflowService },
-        { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
+        ExecuteWorkflowService,
+        { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+        { provide: HttpClient, useClass: StubHttpClient }
       ]
     })
     .compileComponents();
@@ -56,18 +65,18 @@ describe('ResultPanelComponent', () => {
 
     const endMarbleString = '-e-|';
     const endMarblevalues = {
-      e: MOCK_EXECUTION_RESULT
+      e: mockExecutionResult
     };
 
     spyOn(executeWorkflowService, 'getExecuteEndedStream').and.returnValue(
       m.hot(endMarbleString, endMarblevalues)
-    )
+    );
 
     const testComponent = new ResultPanelComponent(executeWorkflowService, ngbModel);
 
     executeWorkflowService.getExecuteEndedStream().subscribe({
       complete: () => {
-        const mockColumns = Object.keys(MOCK_RESULT_DATA[0]);
+        const mockColumns = Object.keys(mockResultData[0]);
         expect(testComponent.currentDisplayColumns).toEqual(mockColumns);
         expect(testComponent.currentColumns).toBeTruthy();
         expect(testComponent.currentDataSource).toBeTruthy();
@@ -79,7 +88,7 @@ describe('ResultPanelComponent', () => {
   it('should respond to error and print error messages', marbles((m) => {
     const endMarbleString = '-e-|';
     const endMarbleValues = {
-      e: MOCK_EXECUTION_ERROR
+      e: mockExecutionErrorResult
     };
 
     spyOn(executeWorkflowService, 'getExecuteEndedStream').and.returnValue(
@@ -93,15 +102,15 @@ describe('ResultPanelComponent', () => {
         expect(testComponent.showMessage).toBeTruthy();
         expect(testComponent.message.length).toBeGreaterThan(0);
       }
-    })
+    });
 
   }));
 
   it('should update the result panel when new execution result arrives', marbles((m) => {
     const endMarbleString = '-a-b-|';
     const endMarblevalues = {
-      a: MOCK_EXECUTION_ERROR,
-      b: MOCK_EXECUTION_RESULT
+      a: mockExecutionErrorResult,
+      b: mockExecutionResult
     };
 
     spyOn(executeWorkflowService, 'getExecuteEndedStream').and.returnValue(
@@ -112,7 +121,7 @@ describe('ResultPanelComponent', () => {
 
     executeWorkflowService.getExecuteEndedStream().subscribe({
       complete: () => {
-        const mockColumns = Object.keys(MOCK_RESULT_DATA[0]);
+        const mockColumns = Object.keys(mockResultData[0]);
         expect(testComponent.currentDisplayColumns).toEqual(mockColumns);
         expect(testComponent.currentColumns).toBeTruthy();
         expect(testComponent.currentDataSource).toBeTruthy();
@@ -122,6 +131,13 @@ describe('ResultPanelComponent', () => {
   }));
 
   it('should generate the result table correctly on the user interface', marbles((m) => {
+
+    const httpClient: HttpClient = TestBed.get(HttpClient);
+    spyOn(httpClient, 'post').and.returnValue(
+      Observable.of(mockExecutionResult)
+    );
+
+    executeWorkflowService.getExecuteEndedStream().subscribe();
 
     executeWorkflowService.executeWorkflow();
 
@@ -134,6 +150,15 @@ describe('ResultPanelComponent', () => {
   }));
 
   it('should successfully open the row detail modal when a row from the result is clicked', marbles((m) => {
+
+    const httpClient: HttpClient = TestBed.get(HttpClient);
+    spyOn(httpClient, 'post').and.returnValue(
+      Observable.of(mockExecutionResult)
+    );
+
+    executeWorkflowService.getExecuteEndedStream().subscribe();
+
+
     executeWorkflowService.executeWorkflow();
     fixture.detectChanges();
 

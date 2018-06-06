@@ -1,5 +1,5 @@
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
-import { By } from "@angular/platform-browser";
+import { By } from '@angular/platform-browser';
 
 import { NavigationComponent } from './navigation.component';
 import { ExecuteWorkflowService } from './../../service/execute-workflow/execute-workflow.service';
@@ -12,8 +12,17 @@ import { OperatorMetadataService } from '../../service/operator-metadata/operato
 import { JointUIService } from '../../service/joint-ui/joint-ui.service';
 
 import { Observable } from 'rxjs/Observable';
-import { StubExecuteWorkflowService } from '../../service/execute-workflow/stub-execute-workflow.service';
-import { marbles, Context } from "rxjs-marbles";
+import { marbles, Context } from 'rxjs-marbles';
+import { HttpClient } from '@angular/common/http';
+import { SuccessExecutionResult } from '../../types/workflow-execute.interface';
+import { mockExecutionResult } from '../../service/execute-workflow/mock-result-data';
+
+class StubHttpClient {
+
+  public post<T>(): Observable<string> { return Observable.of('a'); }
+
+}
+
 
 describe('NavigationComponent', () => {
   let component: NavigationComponent;
@@ -27,8 +36,9 @@ describe('NavigationComponent', () => {
       providers: [
         WorkflowActionService,
         JointUIService,
+        ExecuteWorkflowService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
-        { provide: ExecuteWorkflowService, useClass: StubExecuteWorkflowService }
+        { provide: HttpClient, useClass: StubHttpClient}
       ]
     })
     .compileComponents();
@@ -46,6 +56,13 @@ describe('NavigationComponent', () => {
   });
 
   it('should execute the workflow when run button is clicked', marbles((m) => {
+
+    const httpClient: HttpClient = TestBed.get(HttpClient);
+    const postMethodSpy = spyOn(httpClient, 'post').and.returnValue(
+      Observable.of(mockExecutionResult)
+    );
+
+
     const runButtonElement = fixture.debugElement.query(By.css('.texera-workspace-navigation-run'));
     m.hot('-e-').do(event => runButtonElement.triggerEventHandler('click', null)).subscribe();
 
@@ -57,11 +74,17 @@ describe('NavigationComponent', () => {
   }));
 
   it('should show spinner when the workflow execution begins and hide spinner when execution ends', marbles((m) => {
+
+    const httpClient: HttpClient = TestBed.get(HttpClient);
+    const postMethodSpy = spyOn(httpClient, 'post').and.returnValue(
+      Observable.of(mockExecutionResult)
+    );
+
     // expect initially there is no spinner
 
     expect(component.showSpinner).toBeFalsy();
-    let Spinner = fixture.debugElement.query(By.css('.texera-loading-spinner'));
-    expect(Spinner).toBeFalsy();
+    let spinner = fixture.debugElement.query(By.css('.texera-loading-spinner'));
+    expect(spinner).toBeFalsy();
 
     m.hot('-e-').do(event => component.onClickRun()).subscribe();
 
@@ -69,8 +92,8 @@ describe('NavigationComponent', () => {
       event => {
         fixture.detectChanges();
         expect(component.showSpinner).toBeTruthy();
-        Spinner = fixture.debugElement.query(By.css('.texera-loading-spinner'));
-        expect(Spinner).toBeTruthy();
+        spinner = fixture.debugElement.query(By.css('.texera-loading-spinner'));
+        expect(spinner).toBeTruthy();
       }
     );
 
@@ -78,8 +101,8 @@ describe('NavigationComponent', () => {
       event => {
         fixture.detectChanges();
         expect(component.showSpinner).toBeFalsy();
-        let Spinner = fixture.debugElement.query(By.css('.texera-loading-spinner'));
-        expect(Spinner).toBeFalsy();
+        spinner = fixture.debugElement.query(By.css('.texera-loading-spinner'));
+        expect(spinner).toBeFalsy();
       }
     );
 

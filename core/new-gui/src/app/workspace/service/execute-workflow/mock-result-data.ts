@@ -1,6 +1,6 @@
-import { ExecutionResult } from "./../../types/workflow-execute.interface";
+import { SuccessExecutionResult, ErrorExecutionResult } from './../../types/workflow-execute.interface';
 
-export const MOCK_RESULT_DATA: object[] = [
+export const mockResultData: object[] = [
   {
       'id': 1,
       'layer': 'Disk Space and I/O Managers',
@@ -39,14 +39,14 @@ export const MOCK_RESULT_DATA: object[] = [
   }
 ];
 
-export const MOCK_EXECUTION_RESULT: ExecutionResult = {
+export const mockExecutionResult: SuccessExecutionResult = {
   code: 0,
   resultID: '1',
-  result: MOCK_RESULT_DATA
-}
+  result: mockResultData
+};
 
 
-export const MOCK_EXECUTION_ERROR: ExecutionResult = {
+export const mockExecutionErrorResult: ErrorExecutionResult = {
   code: 1,
   message: 'custom error happening'
-}
+};

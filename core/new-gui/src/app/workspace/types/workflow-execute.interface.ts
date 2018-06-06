@@ -1,6 +1,7 @@
 /**
- * This file contains some type declaration for what
- *  should be sent directly to the backend
+ * This file contains some type declaration for the WorkflowGraph interface of the **backend**.
+ * The API of the backend is (currently) not the same as the Graph representation in the frontend.
+ * These interfaces confronts to the backend API.
 */
 
 export interface LogicalLink extends Readonly<{
@@ -11,7 +12,9 @@ export interface LogicalLink extends Readonly<{
 export interface LogicalOperator extends Readonly<{
   operatorID: string,
   operatorType: string,
-  [uniqueAttributes: string]: any
+  // reason for not using `any` in this case is to
+  //  prevent types such as `undefined` or `null`
+  [uniqueAttributes: string]: string | number | boolean | object
 }> { }
 
 export interface LogicalPlan extends Readonly<{
@@ -20,11 +23,23 @@ export interface LogicalPlan extends Readonly<{
 }> { }
 
 
-export interface ExecutionResult extends Readonly<{
-  code: number,
-  // show only when correct result
-  result?: object[],
-  resultID?: string,
-  // show only when incorrect result
-  message?: string
+export interface SuccessExecutionResult extends Readonly<{
+  code: 0,
+  result: ReadonlyArray<object>,
+  resultID: string
 }> { }
+
+export interface ErrorExecutionResult extends Readonly< {
+  code: 1,
+  message: string
+}> { }
+
+/**
+ * Discriminated Union
+ * http://www.typescriptlang.org/docs/handbook/advanced-types.html
+ *
+ * Execution Result type can be either SuccessExecutionResult type
+ *  or ErrorExecutionResult type. But cannot contain both structures
+ * at the same time
+ */
+export type ExecutionResult = SuccessExecutionResult | ErrorExecutionResult;

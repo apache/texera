@@ -2,7 +2,21 @@ import { Component, OnInit } from '@angular/core';
 import { ExecuteWorkflowService } from './../../service/execute-workflow/execute-workflow.service';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
-
+/**
+ * NavigationComponent is the top level navigation bar that shows
+ *  the Texera title and workflow execution button
+ *
+ * This Component will be the only Component capable of executing
+ *  the workflow in the WorkflowEditor Component.
+ *
+ * Clicking the run button on the top-right hand corner will begin
+ *  the execution. During execution, the run button will be unavailble
+ *  and a spinner will be displayed to show that graph is under execution.
+ *
+ * @author Zuozhi Wang
+ * @author Henry Chen
+ *
+ */
 @Component({
   selector: 'texera-navigation',
   templateUrl: './navigation.component.html',

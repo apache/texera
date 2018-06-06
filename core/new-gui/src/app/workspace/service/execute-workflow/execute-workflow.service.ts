@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 
 import { Subject } from 'rxjs/Subject';
 import { Observable } from 'rxjs/Observable';
@@ -8,17 +8,35 @@ import { AppSettings } from './../../../common/app-setting';
 
 import { WorkflowActionService } from './../workflow-graph/model/workflow-action.service';
 import { WorkflowGraph, WorkflowGraphReadonly } from './../workflow-graph/model/workflow-graph';
-import { LogicalLink, LogicalPlan, LogicalOperator, ExecutionResult } from './../../types/workflow-execute.interface';
-
-import { MOCK_WORKFLOW_PLAN } from './mock-workflow-plan';
-import { MOCK_EXECUTION_RESULT } from './mock-result-data';
+import {
+  LogicalLink, LogicalPlan, LogicalOperator,
+  ExecutionResult, ErrorExecutionResult, SuccessExecutionResult
+} from './../../types/workflow-execute.interface';
 
 export const EXECUTE_WORKFLOW_ENDPOINT = 'queryplan/execute';
 
 
+/**
+ * ExecuteWorkflowService send the current workflow data to the backend
+ *  for execution, then receive backend's response to display on the
+ *  user interface.
+ * ExecuteWorkflowService will be responsible for transforming the frontend
+ *  formated graph into backend API formatted graph.
+ *
+ * Components should call executeWorkflow() function to fetch the current workflow
+ *  graph and execute the current workflow
+ *
+ * Components and Services should call getExecuteStartedStream() and subscribe
+ *  to the Observable in order to capture the time in which workflow graph
+ *  starts executing.
+ *
+ * Components and Services should call getExecuteEndedStream() and subscribe to
+ *  the Observable in order to capture the ending moment of execution and get
+ *  the final result of executing the workflow, either some results or errors
+ *
+ */
 @Injectable()
 export class ExecuteWorkflowService {
-
 
   private executeStartedStream = new Subject<string>();
   private executeEndedStream = new Subject<ExecutionResult>();
@@ -26,16 +44,39 @@ export class ExecuteWorkflowService {
   constructor(private workflowActionService: WorkflowActionService, private http: HttpClient) { }
 
   /**
-   * Execute the workflow based on the existing graph
+   * Sends the current workflow data to the backend
+   *  to execute the workflow and get the results.
+   *
+   * @param workflowPlan
    */
   public executeWorkflow(): void {
-    console.log('execute workflow plan');
-    console.log(this.workflowActionService.getTexeraGraph());
-    this.executeRealPlan();
+    // get the current workflow graph
+    const workflowPlan = this.workflowActionService.getTexeraGraph();
+
+    // create a Logical Plan based on the workflow graph
+    const body = ExecuteWorkflowService.getLogicalPlanRequest(workflowPlan);
+    const requestURL = `${AppSettings.getApiEndpoint()}/${EXECUTE_WORKFLOW_ENDPOINT}`;
+
+    console.log(`making http post request to backend ${requestURL}`);
+    console.log(body);
+
+    this.executeStartedStream.next('execution started');
+
+    // make a http post request to the API endpoint with the logical plan object
+    this.http.post<SuccessExecutionResult>(
+      requestURL,
+      JSON.stringify(body),
+      { headers: { 'Content-Type': 'application/json' } })
+      .subscribe(
+        // backend will either respond an execution result or an error will occur
+        // handle both cases
+        response => this.handleExecuteResult(response),
+        errorResponse => this.handleExecuteError(errorResponse)
+      );
   }
 
   /**
-   * Get the observable for execution started event
+   * Gets the observable for execution started event
    * Contains a string that says:
    *  - execution process has begun
    */
@@ -44,78 +85,30 @@ export class ExecuteWorkflowService {
   }
 
   /**
-   * Get the observable for execution ended event
-   * When correct, Contains an object with:
-   * -  resultID: the result ID of this execution
-   * -  Code: the result code of 0
-   * -  result: the actual result data to be displayed
+   * Gets the observable for execution ended event
+   * If execution succeeded, it contains an object with type
+   *  `SuccessExecutionResult`:
+   *    -  resultID: the result ID of this execution
+   *    -  Code: the result code of 0
+   *    -  result: the actual result data to be displayed
    *
-   * When incorrect, Contains an object with:
-   * -  Code: the result code is not 0
-   * -  message: error message received from backend
+   * If execution succeeded, it contains an object with type
+   *  `ErrorExecutionResult`:
+   *    -  Code: the result code 1
+   *    -  message: error message
    */
   public getExecuteEndedStream(): Observable<ExecutionResult> {
     return this.executeEndedStream.asObservable();
   }
 
   /**
-   * Stimulate an execution and passed the mock result
-   *  data back to the execution end event stream
-   */
-  private showMockResultData(): void {
-    this.executeStartedStream.next('started');
-    this.executeEndedStream.next(MOCK_EXECUTION_RESULT);
-  }
-
-  /**
-   * Execute a mock workflow plan for testing
-   */
-  private executeMockPlan(): void {
-    this.executeWorkflowPlan(MOCK_WORKFLOW_PLAN);
-  }
-
-  /**
-   * Execute the real workflow plan using the current
-   *  workflow graph saved.
-   */
-  private executeRealPlan(): void {
-    this.executeWorkflowPlan(this.workflowActionService.getTexeraGraph());
-  }
-
-  /**
-   * Creates a Logical Plan based on the workflow graph objected
-   *  passed and make a http post request to the API endpoint with
-   *  the logical plan object. The backend will either respond
-   *  an execution result or an error encountered in the backend.
-   *  Both results will be handled accordingly.
-   *
-   * @param workflowPlan
-   */
-  private executeWorkflowPlan(workflowPlan: WorkflowGraphReadonly): void {
-    const body = this.getLogicalPlanRequest(workflowPlan);
-    console.log('making http post request to backend');
-    console.log('body is:');
-    console.log(body);
-    console.log(`${AppSettings.getApiEndpoint()}/${EXECUTE_WORKFLOW_ENDPOINT}`);
-    this.executeStartedStream.next('execution started');
-    this.http.post(`${AppSettings.getApiEndpoint()}/${EXECUTE_WORKFLOW_ENDPOINT}`, JSON.stringify(body),
-      {headers: {'Content-Type': 'application/json'}}).subscribe(
-        response => this.handleExecuteResult(response as ExecutionResult),
-        errorResponse => this.handleExecuteError(errorResponse)
-    );
-  }
-
-  /**
-   * Handler function for valid execution result from the
-   * backend.
-   * Send the execution result to the execution end
-   * event stream.
+   * Handles valid execution result from the backend.
+   * Sends the execution result to the execution end event stream.
    *
    * @param response
    */
-  private handleExecuteResult(response: ExecutionResult): void {
+  private handleExecuteResult(response: SuccessExecutionResult): void {
     console.log('handling success result ');
-    console.log('result value is:');
     console.log(response);
     this.executeEndedStream.next(response);
   }
@@ -123,63 +116,81 @@ export class ExecuteWorkflowService {
   /**
    * Handler function for invalid execution.
    *
-   * Send the error messages generated from the backend
-   * to the execution end event stream.
+   * Send the error messages generated from
+   *  backend (if workflow is invalid or server error)
+   *  or frontend (if there's no network connection)
+   *  to the execution end event stream.
    *
    * @param errorResponse
    */
-  private handleExecuteError(errorResponse: any): void {
+  private handleExecuteError(errorResponse: HttpErrorResponse): void {
     console.log('handling error result ');
-    console.log('error value is:');
     console.log(errorResponse);
-    this.executeEndedStream.next(errorResponse.error as ExecutionResult);
+
+    // error shown to the user in different error scenarios
+    const displayedErrorMessage = ExecuteWorkflowService.processErrorResponse(errorResponse);
+    this.executeEndedStream.next(displayedErrorMessage);
   }
 
   /**
    * Transform a workflowGraph object to the HTTP request body according to the backend API.
    *
-   *  All the operators in the workflowGraph will be transformed to LogicalOperator objects,
-   *  where each operator might have some unique properties and must have an operatorID and
-   *  an operator type.
+   * All the operators in the workflowGraph will be transformed to LogicalOperator objects,
+   *  where each operator has an operatorID and operatorType along with
+   *  the properties of the operator.
    *
-   *  All the links in the workflowGraph will be tranformed to LogicalLink objects,
-   *  where each link will store its source id as its origin and target id as its
-   *  destination.
+   *
+   * All the links in the workflowGraph will be tranformed to LogicalLink objects,
+   *  where each link will store its source id as its origin and target id as its destination.
    *
    * @param workflowGraph
    */
-  public getLogicalPlanRequest(workflowGraph: WorkflowGraphReadonly): LogicalPlan {
+  public static getLogicalPlanRequest(workflowGraph: WorkflowGraphReadonly): LogicalPlan {
 
-    // const logicalPlanJson = { operators: [] as any, links: [] as any};
+    const operators: LogicalOperator[] = workflowGraph
+      .getOperators().map(op => ({
+        ...op.operatorProperties,
+        operatorID: op.operatorID,
+        operatorType: op.operatorType
+      }));
 
-    const logicalOperators = [] as LogicalOperator[];
-    const logicalLinks = [] as LogicalLink[];
+    const links: LogicalLink[] = workflowGraph
+      .getLinks().map(link => ({
+        origin: link.source.operatorID,
+        destination: link.target.operatorID
+      }));
 
-    // each operator only needs the operatorID, operatorType, and the properties
-    // inputPorts and outputPorts are not needed (for now)
-    workflowGraph.getOperators().forEach(
-      op => logicalOperators.push(
-        {
-          ...op.operatorProperties,
-          operatorID: op.operatorID,
-          operatorType: op.operatorType
-        }
-      )
-    );
-
-    // filter out the non-connected links (because the workflowGraph model allows links that only connected to one operator)
-    //  and generates json object with key 'origin' and 'destination'
-    workflowGraph.getLinks()
-    .filter(link => (link.source && link.target))
-    .forEach(
-      link => logicalLinks.push(
-        {
-          origin: link.source.operatorID,
-          destination: link.target.operatorID
-        }
-      )
-    );
-
-    return { operators : logicalOperators , links: logicalLinks };
+    return { operators, links };
   }
+
+  public static executionResultSuccess(result: ExecutionResult | undefined): result is SuccessExecutionResult {
+    return !!result && result.code === 0;
+  }
+
+  /**
+   * Handles the HTTP Error response in different failure scenarios
+   *  and converts to an ErrorExecutionResult object.
+   * @param errorResponse
+   */
+  private static processErrorResponse(errorResponse: HttpErrorResponse): ErrorExecutionResult {
+    // client side error, such as no internet connect
+    if (errorResponse.error instanceof ProgressEvent) {
+      return {
+        code: 1,
+        message: 'Could not reach Texera server'
+      };
+    }
+    // the workflow graph is invalid
+    // error message from backend will be included in the error property
+    if (errorResponse.status === 400) {
+      return <ErrorExecutionResult>(errorResponse.error);
+    }
+    // other kinds of server error
+    return {
+      code: 1,
+      message: `Texera server error: ${errorResponse.error.message}`
+    };
+  }
+
+
 }
