@@ -9,6 +9,24 @@ import { Observable } from 'rxjs/Observable';
 import { NgbModal , ModalDismissReasons } from '@ng-bootstrap/ng-bootstrap';
 import { ExecutionResult, SuccessExecutionResult } from './../../types/workflow-execute.interface';
 
+/**
+ * ResultPanelCompoent is the bottom level area that
+ *  displays the execution result of a workflow after
+ *  the execution finishes.
+ *
+ * The Component will display the result in an excel
+ *  table format, where each row represents a result
+ *  from the workflow and each column represents the
+ *  type of result the workflow returns.
+ *
+ * Clicking each row of the result table will create an
+ *  pop-up window and display the detail of that row
+ *  in a pretty json format.
+ *
+ * @author Henry Chen
+ * @author Zuozhi Wang
+ *
+ */
 @Component({
   selector: 'texera-result-panel',
   templateUrl: './result-panel.component.html',
@@ -27,7 +45,7 @@ export class ResultPanelComponent implements OnInit {
   @ViewChild(MatPaginator) paginator: MatPaginator | null = null;
 
   constructor(private executeWorkflowService: ExecuteWorkflowService, private modalService: NgbModal) {
-    // once the execution ended, update the result panel to dispaly
+    // once an execution has ended, update the result panel to dispaly
     //  execution result or error
     this.executeWorkflowService.getExecuteEndedStream().subscribe(
       executionResult => this.handleResultData(executionResult),
@@ -37,7 +55,7 @@ export class ResultPanelComponent implements OnInit {
   /**
    * Opens the ng-bootstrap model to display the row details in
    *  pretty json format when clicked. User can view the details
-   *  in a larger, expanded format
+   *  in a larger, expanded format.
    *
    * @param content
    */
@@ -51,7 +69,7 @@ export class ResultPanelComponent implements OnInit {
 
 
   /**
-   * Gets the information from the selected row in the result panel,
+   * Fetches the information from the selected row in the result panel,
    *  updates the content of the row to dispaly, and opens the
    *  result panel to display the details of the selected rows.
    *
@@ -59,8 +77,8 @@ export class ResultPanelComponent implements OnInit {
    * @param content
    */
   public getRowDetails(row: any, content: any): void {
-    console.log('getRowDetails: ');
-    console.log(row);
+    // console.log('getRowDetails: ');
+    // console.log(row);
     this.currentDisplayRow = JSON.stringify(row, undefined, 2);
     this.open(content);
   }
@@ -72,7 +90,8 @@ export class ResultPanelComponent implements OnInit {
   /**
    *
    * Update all the result table properties based on the newly acquired
-   * execution result and display a new data table with a new paginator.
+   *  execution result and display a new data table with a new paginator
+   *  on the result panel.
    *
    */
   private changeResultTableProperty(response: SuccessExecutionResult) {
@@ -90,7 +109,7 @@ export class ResultPanelComponent implements OnInit {
       // set the paginator to be the new DataSource's paginator
       this.currentDataSource.paginator = this.paginator;
 
-      console.log(this.currentDisplayColumns);
+      // console.log(this.currentDisplayColumns);
     }
   }
 
@@ -108,8 +127,8 @@ export class ResultPanelComponent implements OnInit {
    * @param response
    */
   private handleResultData(response: ExecutionResult): void {
-    console.log('view result compoenent, ');
-    console.log(response);
+    // console.log('view result compoenent, ');
+    // console.log(response);
     if (response.code === 0) {
       // when the execution had run correctly
       this.showMessage = false;
@@ -127,12 +146,12 @@ export class ResultPanelComponent implements OnInit {
    * @param columnNames
    */
   private generateColumns(columnNames: string[]): TableColumn[] {
-    console.log('generateColumns: ');
+    // console.log('generateColumns: ');
 
     const columns: TableColumn[] = [];
     // generate a TableColumn object for each column
     columnNames.forEach(col => columns.push(new TableColumn(col, col, (row) => `${row[col]}`)));
-    console.log(columns);
+    // console.log(columns);
     return columns;
   }
 
