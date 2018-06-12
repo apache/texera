@@ -19,7 +19,10 @@ export const EXECUTE_WORKFLOW_ENDPOINT = 'queryplan/execute';
 /**
  * ExecuteWorkflowService send the current workflow data to the backend
  *  for execution, then receive backend's response to display on the
- *  user interface.
+ *  user interface. In this PR, the result will be printed onto console.
+ *  In the later PR, once the result panel is added, we will have a better
+ *  way to show the result of an execution.
+ *
  * ExecuteWorkflowService will be responsible for transforming the frontend
  *  formated graph into backend API formatted graph.
  *
