@@ -30,7 +30,7 @@ We maintain two separate models:
   - `jointGraph`, representing the graph in the UI by JointJS, and `texeraGraph`
   - `texeraGraph`, representing the logical DAG workflow (plan) for Texera
 These two models needs to be in sync, and we want to expose a uniform way to change the model and listen to events.
-The operator IDs anre the linkIDs in `texeraGraph` and `jointGraph` are the same for all operators and links.
+The operator IDs and the link IDs in `texeraGraph` and `jointGraph` are the same for all operators and links.
 
 The following classes work together to achieve the sync of two models:
   - `WorkflowActionServie`: provides the entry points for `actions` on the graph, such as add/delete operator, add/delete link, etc..
