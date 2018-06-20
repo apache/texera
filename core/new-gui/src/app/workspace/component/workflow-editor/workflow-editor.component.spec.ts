@@ -1,3 +1,4 @@
+import { WorkflowUtilService } from './../../service/workflow-graph/util/workflow-util.service';
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { WorkflowEditorComponent } from './workflow-editor.component';
@@ -7,17 +8,32 @@ import { StubOperatorMetadataService } from '../../service/operator-metadata/stu
 import { JointUIService } from '../../service/joint-ui/joint-ui.service';
 
 import * as joint from 'jointjs';
+import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
+
+
+class StubWorkflowActionService {
+
+  private jointGraph = new joint.dia.Graph();
+
+  public attachJointPaper(paperOptions: joint.dia.Paper.Options): joint.dia.Paper.Options {
+    paperOptions.model = this.jointGraph;
+    return paperOptions;
+  }
+}
 
 describe('WorkflowEditorComponent', () => {
   let component: WorkflowEditorComponent;
   let fixture: ComponentFixture<WorkflowEditorComponent>;
   let jointUIService: JointUIService;
+  let jointGraph: joint.dia.Graph;
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
       declarations: [WorkflowEditorComponent],
       providers: [
         JointUIService,
+        WorkflowUtilService,
+        { provide: WorkflowActionService, useClass: StubWorkflowActionService },
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
       ]
     })
@@ -28,7 +44,9 @@ describe('WorkflowEditorComponent', () => {
     fixture = TestBed.createComponent(WorkflowEditorComponent);
     component = fixture.componentInstance;
     jointUIService = fixture.debugElement.injector.get(JointUIService);
+    // detect changes first to run ngAfterViewInit and bind Model
     fixture.detectChanges();
+    jointGraph = component.getJointPaper().model;
   });
 
   it('should create', () => {
@@ -41,7 +59,7 @@ describe('WorkflowEditorComponent', () => {
     const element = new joint.shapes.basic.Rect();
     element.set('id', operatorID);
 
-    component.graph.addCell(element);
+    jointGraph.addCell(element);
 
     expect(component.getJointPaper().findViewByModel(element.id)).toBeTruthy();
 
@@ -53,13 +71,13 @@ describe('WorkflowEditorComponent', () => {
 
     const element1 = new joint.shapes.basic.Rect({
       size: { width: 100, height: 50 },
-      position: { x: 100, y: 400}
+      position: { x: 100, y: 400 }
     });
     element1.set('id', operator1);
 
     const element2 = new joint.shapes.basic.Rect({
       size: { width: 100, height: 50 },
-      position: { x: 100, y: 400}
+      position: { x: 100, y: 400 }
     });
     element2.set('id', operator2);
 
@@ -68,14 +86,14 @@ describe('WorkflowEditorComponent', () => {
       target: { id: operator2 }
     });
 
-    component.graph.addCell(element1);
-    component.graph.addCell(element2);
-    component.graph.addCell(link1);
+    jointGraph.addCell(element1);
+    jointGraph.addCell(element2);
+    jointGraph.addCell(link1);
 
     // check the model is added correctly
-    expect(component.graph.getElements().find(el => el.id === operator1)).toBeTruthy();
-    expect(component.graph.getElements().find(el => el.id === operator2)).toBeTruthy();
-    expect(component.graph.getLinks().find(link => link.id === link1.id)).toBeTruthy();
+    expect(jointGraph.getElements().find(el => el.id === operator1)).toBeTruthy();
+    expect(jointGraph.getElements().find(el => el.id === operator2)).toBeTruthy();
+    expect(jointGraph.getLinks().find(link => link.id === link1.id)).toBeTruthy();
 
 
     // check the view is updated correctly

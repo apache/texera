@@ -3,7 +3,7 @@ import { OperatorMetadataService } from '../operator-metadata/operator-metadata.
 import { OperatorSchema } from '../../types/operator-schema.interface';
 
 import * as joint from 'jointjs';
-import { OperatorPort } from '../../types/workflow-common.interface';
+import { Point, OperatorPredicate, OperatorLink, OperatorPort } from '../../types/workflow-common.interface';
 
 /**
  * Defines the SVG path for the delete button
@@ -79,7 +79,7 @@ export class JointUIService {
   }
 
   /**
-   * Gets the JointJS UI Element Object based on the operator predicate.
+   * Gets the JointJS UI Element object based on the operator predicate.
    * A JointJS Element could be added to the JointJS graph to let JointJS display the operator accordingly.
    *
    * The function checks if the operatorType exists in the metadata,
@@ -97,19 +97,19 @@ export class JointUIService {
    * @returns JointJS Element
    */
   public getJointOperatorElement(
-    operatorType: string, operatorID: string, xPosition: number, yPosition: number
+    operator: OperatorPredicate, point: Point
   ): joint.dia.Element {
 
     // check if the operatorType exists in the operator metadata
-    const operatorSchema = this.operators.find(op => op.operatorType === operatorType);
+    const operatorSchema = this.operators.find(op => op.operatorType === operator.operatorType);
     if (operatorSchema === undefined) {
-      throw new Error(`operator type ${operatorType} doesn't exist`);
+      throw new Error(`operator type ${operator.operatorType} doesn't exist`);
     }
 
     // construct a custom Texera JointJS operator element
     //   and customize the styles of the operator box and ports
     const operatorElement = new TexeraCustomJointElement({
-      position: { x: xPosition, y: yPosition },
+      position: point,
       size: { width: JointUIService.DEFAULT_OPERATOR_WIDTH, height: JointUIService.DEFAULT_OPERATOR_HEIGHT },
       attrs: JointUIService.getCustomOperatorStyleAttrs(operatorSchema.additionalMetadata.userFriendlyName),
       ports: {
@@ -121,15 +121,15 @@ export class JointUIService {
     });
 
     // set operator element ID to be operator ID
-    operatorElement.set('id', operatorID);
+    operatorElement.set('id', operator.operatorID);
 
     // set the input ports and output ports based on operator predicate
-    for (let i = 0; i < operatorSchema.additionalMetadata.numInputPorts; i++) {
-      operatorElement.addInPort(`in${i}`);
-    }
-    for (let i = 0; i < operatorSchema.additionalMetadata.numOutputPorts; i++) {
-      operatorElement.addOutPort(`out${i}`);
-    }
+    operator.inputPorts.forEach(
+      port => operatorElement.addInPort(port)
+    );
+    operator.outputPorts.forEach(
+      port => operatorElement.addOutPort(port)
+    );
 
     return operatorElement;
   }
@@ -143,12 +143,13 @@ export class JointUIService {
    * @returns JointJS Link Cell
    */
   public static getJointLinkCell(
-    source: OperatorPort, target: OperatorPort
+    link: OperatorLink
   ): joint.dia.Link {
-    const link = JointUIService.getDefaultLinkCell();
-    link.set('source', { id: source.operatorID, port: source.portID });
-    link.set('target', { id: target.operatorID, port: target.portID });
-    return link;
+    const jointLinkCell = JointUIService.getDefaultLinkCell();
+    jointLinkCell.set('source', { id: link.source.operatorID, port: link.source.portID });
+    jointLinkCell.set('target', { id: link.target.operatorID, port: link.target.portID });
+    jointLinkCell.set('id', link.linkID);
+    return jointLinkCell;
   }
 
   /**

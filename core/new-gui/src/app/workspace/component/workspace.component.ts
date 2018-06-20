@@ -1,3 +1,5 @@
+import { WorkflowUtilService } from './../service/workflow-graph/util/workflow-util.service';
+import { WorkflowActionService } from './../service/workflow-graph/model/workflow-action.service';
 import { Component, OnInit } from '@angular/core';
 
 import { OperatorMetadataService } from '../service/operator-metadata/operator-metadata.service';
@@ -10,11 +12,13 @@ import { StubOperatorMetadataService } from '../service/operator-metadata/stub-o
   templateUrl: './workspace.component.html',
   styleUrls: ['./workspace.component.scss'],
   providers: [
-    OperatorMetadataService,
     // StubOperatorMetadataService can be used for debugging without start the backend server
-    // { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+    { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+    // OperatorMetadataService,
 
-    JointUIService
+    JointUIService,
+    WorkflowActionService,
+    WorkflowUtilService
   ]
 })
 export class WorkspaceComponent implements OnInit {

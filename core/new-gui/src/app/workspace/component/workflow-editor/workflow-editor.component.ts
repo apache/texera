@@ -1,9 +1,14 @@
 import { JointUIService } from './../../service/joint-ui/joint-ui.service';
+import { WorkflowUtilService } from './../../service/workflow-graph/util/workflow-util.service';
+import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
 import { Component, AfterViewInit } from '@angular/core';
 import { Observable } from 'rxjs/Observable';
 import '../../../common/rxjs-operators';
 
 import * as joint from 'jointjs';
+import {
+  mockScanPredicate, mockResultPredicate, mockScanResultLink
+} from '../../service/workflow-graph/model/mock-workflow-data';
 
 /**
  * WorkflowEditorComponent is the componenet for the main workflow editor part of the UI.
@@ -30,14 +35,13 @@ export class WorkflowEditorComponent implements AfterViewInit {
   public readonly WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID = 'texera-workflow-editor-jointjs-wrapper-id';
   public readonly WORKFLOW_EDITOR_JOINTJS_ID = 'texera-workflow-editor-jointjs-body-id';
 
-  public paper: joint.dia.Paper | undefined;
-  // this is only the temporary place for the graph variable
-  // it will be moved to a service in subsequent PRs
-  public graph: joint.dia.Graph = new joint.dia.Graph();
+  private paper: joint.dia.Paper | undefined;
 
   constructor(
+    private workflowActionService: WorkflowActionService,
     private jointUIService: JointUIService
-  ) { }
+  ) {
+  }
 
   public getJointPaper(): joint.dia.Paper {
     if (this.paper === undefined) {
@@ -48,64 +52,142 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
   ngAfterViewInit() {
 
-    this.createJointjsPaper();
+    this.initializeJointPaper();
 
-    Observable.fromEvent(window, 'resize').auditTime(1000).subscribe(
-      resizeEvent => { this.getJointPaper().setDimensions(this.getWrapperElementSize().width, this.getWrapperElementSize().height); }
-    );
+    this.handleWindowResize();
+    this.handleViewDeleteOperator();
 
     // add a 500ms delay for joint-ui.service to fetch the operator metaData
     // this code is temporary and will be deleted in future PRs when drag
     // and drop is implemented
-    Observable.of([]).delay(500).subscribe(
+    Observable.from('a').delay(500).subscribe(
       emptyData => {
+        const scanSource = mockScanPredicate;
+        const viewResult = mockResultPredicate;
+        const link = mockScanResultLink;
+
         // add some dummy operators and links to show that JointJS works
-        this.graph.addCell(
-          this.jointUIService.getJointOperatorElement(
-            'ScanSource',
-            'operator1',
-            100, 100
-          )
+        this.workflowActionService.addOperator(
+          scanSource,
+          { x: 300, y: 200 }
         );
-
-        this.graph.addCell(
-          this.jointUIService.getJointOperatorElement(
-            'ViewResults',
-            'operator2',
-            500, 100
-          )
+        this.workflowActionService.addOperator(
+          viewResult,
+          { x: 600, y: 200 }
         );
+        this.workflowActionService.addLink(link);
+      }
+    );
+  }
 
-        const link = JointUIService.getJointLinkCell(
-          { operatorID: 'operator1', portID: 'out0' },
-          { operatorID: 'operator2', portID: 'in0' }
-        );
+  private initializeJointPaper(): void {
+    // get the custom paper options
+    let jointPaperOptions = WorkflowEditorComponent.getJointPaperOptions();
+    // attach the JointJS graph (model) to the paper (view)
+    jointPaperOptions = this.workflowActionService.attachJointPaper(jointPaperOptions);
+    // attach the DOM element to the paper
+    jointPaperOptions.el = $(`#${this.WORKFLOW_EDITOR_JOINTJS_ID}`);
+    // create the JointJS paper
+    this.paper = new joint.dia.Paper(jointPaperOptions);
 
-        this.graph.addCell(link);
+    this.setJointPaperOriginOffset();
+    this.setJointPaperDimensions();
+  }
+
+  private handleWindowResize(): void {
+    // when the window is resized (limit to at most one event every 1000ms)
+    Observable.fromEvent(window, 'resize').auditTime(1000).subscribe(
+      () => {
+        // reset the origin cooredinates
+        this.setJointPaperOriginOffset();
+        // resize the JointJS paper dimensions
+        this.setJointPaperDimensions();
       }
     );
   }
 
   /**
-   * Creates a JointJS Paper object, which is the JointJS view object responsible for
-   *  rendering the workflow cells and handle UI events.
+   * Modifies the JointJS paper origin coordinates
+   *  by shifting it to the left top (minus the x and y offset of the wrapper element)
+   * So that elements in JointJS paper have the same coordinates as the actual document.
+   *  and we don't have to convert between JointJS coordinates and actual coordinates.
    *
+   * Note: attribute `origin` and function `setOrigin` are deprecated and won't work
+   *  function `translate` does the same thing
+   */
+  private setJointPaperOriginOffset(): void {
+    const elementOffset = this.getWrapperElementOffset();
+    this.getJointPaper().translate(-elementOffset.x, -elementOffset.y);
+  }
+
+  /**
+   * Sets the size of the JointJS paper to be the exact size of its wrapper element.
+   */
+  private setJointPaperDimensions(): void {
+    const elementSize = this.getWrapperElementSize();
+    this.getJointPaper().setDimensions(elementSize.width, elementSize.height);
+  }
+
+  /**
+   * Handles the event where the Delete button is clicked for an Operator,
+   *  and call workflowAction to delete the corresponding operator.
+   *
+   * JointJS doesn't have delete button built-in with an operator element,
+   *  the delete button is Texera's own customized element.
+   * Therefore JointJS doesn't come with default handler for delete an operator,
+   *  we need to handle the callback event `element:delete`.
+   * The name of this callback event is registered in `JointUIService.getCustomOperatorStyleAttrs`
+   */
+  private handleViewDeleteOperator(): void {
+    // bind the delete button event to call the delete operator function in joint model action
+    Observable
+      .fromEvent(this.getJointPaper(), 'element:delete')
+      .map(value => <joint.dia.ElementView>value)
+      .subscribe(
+        elementView => {
+          this.workflowActionService.deleteOperator(elementView.model.id.toString());
+        }
+      );
+  }
+
+  /**
+   * Gets the width and height of the parent wrapper element
+   */
+  private getWrapperElementSize(): { width: number, height: number } {
+    const width = $('#' + this.WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID).width();
+    const height = $('#' + this.WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID).height();
+
+    if (width === undefined || height === undefined) {
+      throw new Error('fail to get Workflow Editor wrapper element size');
+    }
+
+    return { width, height };
+  }
+
+  /**
+   * Gets the document offset coordinates of the wrapper element's top-left corner.
+   */
+  private getWrapperElementOffset(): { x: number, y: number } {
+    const offset = $('#' + this.WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID).offset();
+    if (offset === undefined) {
+      throw new Error('fail to get Workflow Editor wrapper element offset');
+    }
+    return { x: offset.left, y: offset.top };
+  }
+
+  /**
+   * Gets our customize options for the JointJS Paper object, which is the JointJS view object responsible for
+   *  rendering the workflow cells and handle UI events.
    * JointJS documentation about paper: https://resources.jointjs.com/docs/jointjs/v2.0/joint.html#dia.Paper
    */
-  private createJointjsPaper(): void {
+  private static getJointPaperOptions(): joint.dia.Paper.Options {
 
-    const paper = new joint.dia.Paper({
-      // bind the DOM element
-      el: $('#' + this.WORKFLOW_EDITOR_JOINTJS_ID),
-      // bind the jointjs graph model
-      model: this.graph,
-      // set the width and height of the paper to be the width height of the parent wrapper element
-      width: this.getWrapperElementSize().width,
-      height: this.getWrapperElementSize().height,
+    const jointPaperOptions: joint.dia.Paper.Options = {
+
       // set grid size to 1px (smallest grid)
       gridSize: 1,
-      // enable jointjs feature that automatically snaps a link to the closest port when user drops a link
-      snapLinks: true,
+      // enable jointjs feature that automatically snaps a link to the closest port with a radius of 30px
+      snapLinks: { radius: 30 },
       // disable jointjs default action that can make a link not connect to an operator
       linkPinning: false,
       // provide a validation to determine if two ports could be connected (only output connect to input is allowed)
@@ -120,23 +202,9 @@ export class WorkflowEditorComponent implements AfterViewInit {
       preventDefaultBlankAction: false,
       // disable jointjs default action that prevents normal right click menu showing up on jointjs paper
       preventContextMenu: false,
-    });
+    };
 
-    this.paper = paper;
-  }
-
-  /**
-   * get the width and height of the parent wrapper element
-   */
-  private getWrapperElementSize(): { width: number, height: number } {
-    const width = $('#' + this.WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID).width();
-    const height = $('#' + this.WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID).height();
-
-    if (width === undefined || height === undefined) {
-      throw new Error('fail to get Workflow Editor wrapper element size');
-    }
-
-    return { width, height };
+    return jointPaperOptions;
   }
 }
 
