@@ -6,7 +6,7 @@ import { WorkflowActionService } from '../workflow-graph/model/workflow-action.s
 import { WorkflowUtilService } from '../workflow-graph/util/workflow-util.service';
 import { OperatorMetadataService } from '../operator-metadata/operator-metadata.service';
 import { StubOperatorMetadataService } from '../operator-metadata/stub-operator-metadata.service';
-import { getMockOperatorMetaData } from '../operator-metadata/mock-operator-metadata.data';
+import { mockOperatorMetaData } from '../operator-metadata/mock-operator-metadata.data';
 
 import { marbles, Context } from 'rxjs-marbles';
 
@@ -38,7 +38,7 @@ describe('DragDropService', () => {
     const dragElementID = 'testing-draggable-1';
     jQuery('body').append(`<div id="${dragElementID}"></div>`);
 
-    const operatorType = getMockOperatorMetaData().operators[0].operatorType;
+    const operatorType = mockOperatorMetaData.operators[0].operatorType;
     dragDropService.registerOperatorLabelDrag(dragElementID, operatorType);
 
     expect(jQuery('#' + dragElementID).is('.ui-draggable')).toBeTruthy();
@@ -51,7 +51,7 @@ describe('DragDropService', () => {
     const dropElement = 'testing-droppable-1';
     jQuery('body').append(`<div id="${dropElement}"></div>`);
 
-    const operatorType = getMockOperatorMetaData().operators[0].operatorType;
+    const operatorType = mockOperatorMetaData.operators[0].operatorType;
     dragDropService.registerWorkflowEditorDrop(dropElement);
 
     expect(jQuery('#' + dropElement).is('.ui-droppable')).toBeTruthy();
@@ -60,7 +60,7 @@ describe('DragDropService', () => {
 
   it('should add an operator when the element is dropped', marbles((m) => {
 
-    const operatorType = getMockOperatorMetaData().operators[0].operatorType;
+    const operatorType = mockOperatorMetaData.operators[0].operatorType;
 
     const marbleString = '-a-|';
     const marbleValues = {
