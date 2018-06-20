@@ -13,8 +13,8 @@ describe('WorkflowGraph', () => {
   });
 
   it('should have an empty graph from the beginning', () => {
-    expect(workflowGraph.getOperators().length).toEqual(0);
-    expect(workflowGraph.getLinks().length).toEqual(0);
+    expect(workflowGraph.getAllOperators().length).toEqual(0);
+    expect(workflowGraph.getAllLinks().length).toEqual(0);
   });
 
   it('should load an existing graph properly', () => {
@@ -22,15 +22,15 @@ describe('WorkflowGraph', () => {
       [mockScanPredicate, mockSentimentPredicate, mockResultPredicate],
       [mockScanSentimentLink, mockSentimentResultLink]
     );
-    expect(workflowGraph.getOperators().length).toEqual(3);
-    expect(workflowGraph.getLinks().length).toEqual(2);
+    expect(workflowGraph.getAllOperators().length).toEqual(3);
+    expect(workflowGraph.getAllLinks().length).toEqual(2);
   });
 
   it('should add an operator and get it properly', () => {
     workflowGraph.addOperator(mockScanPredicate);
     expect(workflowGraph.getOperator(mockScanPredicate.operatorID)).toBeTruthy();
-    expect(workflowGraph.getOperators().length).toEqual(1);
-    expect(workflowGraph.getOperators()[0]).toEqual(mockScanPredicate);
+    expect(workflowGraph.getAllOperators().length).toEqual(1);
+    expect(workflowGraph.getAllOperators()[0]).toEqual(mockScanPredicate);
   });
 
   it('should return undefined when get an operator with a nonexist operator ID', () => {
@@ -47,7 +47,7 @@ describe('WorkflowGraph', () => {
   it('should delete an operator properly', () => {
     workflowGraph.addOperator(mockScanPredicate);
     workflowGraph.deleteOperator(mockScanPredicate.operatorID);
-    expect(workflowGraph.getOperators().length).toBe(0);
+    expect(workflowGraph.getAllOperators().length).toBe(0);
   });
 
   it('should throw an error when tring to delete an operator that doesn\'t exist', () => {
@@ -65,7 +65,7 @@ describe('WorkflowGraph', () => {
     expect(workflowGraph.getLink(
       mockScanResultLink.source, mockScanResultLink.target
     )).toEqual(mockScanResultLink);
-    expect(workflowGraph.getLinks().length).toEqual(1);
+    expect(workflowGraph.getAllLinks().length).toEqual(1);
   });
 
   it('should throw an error when try to add a link with an existingID', () => {
@@ -122,7 +122,7 @@ describe('WorkflowGraph', () => {
     workflowGraph.addLink(mockScanResultLink);
     workflowGraph.deleteLinkWithID(mockScanResultLink.linkID);
 
-    expect(workflowGraph.getLinks().length).toEqual(0);
+    expect(workflowGraph.getAllLinks().length).toEqual(0);
   });
 
   it('should delete a link by source and target properly', () => {
@@ -131,7 +131,7 @@ describe('WorkflowGraph', () => {
     workflowGraph.addLink(mockScanResultLink);
     workflowGraph.deleteLink(mockScanResultLink.source, mockScanResultLink.target);
 
-    expect(workflowGraph.getLinks().length).toEqual(0);
+    expect(workflowGraph.getAllLinks().length).toEqual(0);
   });
 
   it('should throw an error when trying to delete a link (by ID) that doesn\'t exist', () => {
