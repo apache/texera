@@ -80,6 +80,8 @@ export class DragDropService {
         const operator = this.workflowUtilService.getNewOperatorPredicate(value.operatorType);
         // add the operator
         this.workflowActionService.addOperator(operator, value.offset);
+        // highlight the operator after adding the operator
+        this.workflowActionService.getJointGraphWrapper().highlightOperator(operator.operatorID);
         // reset the current operator type to an non-exist type
         this.currentOperatorType = DragDropService.DRAG_DROP_TEMP_OPERATOR_TYPE;
       }

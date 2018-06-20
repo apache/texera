@@ -59,6 +59,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
     this.handleWindowResize();
     this.handleViewDeleteOperator();
+    this.handleCellHighlight();
 
     this.dragDropService.registerWorkflowEditorDrop(this.WORKFLOW_EDITOR_JOINTJS_ID);
 
@@ -88,6 +89,55 @@ export class WorkflowEditorComponent implements AfterViewInit {
         this.setJointPaperDimensions();
       }
     );
+  }
+
+  private handleCellHighlight(): void {
+    this.handleHighlightMouseInput();
+    this.handleOperatorHightlightEvent();
+  }
+
+
+  /**
+   * Handles user mouse down events to trigger logically highlight and unhighlight an operator
+   */
+  private handleHighlightMouseInput(): void {
+    // on user mouse clicks a operator cell, highlight that operator
+    Observable.fromEvent(this.getJointPaper(), 'cell:pointerclick')
+      .map(value => <joint.dia.CellView>value)
+      .filter(cellView => cellView.model.isElement())
+      .subscribe(cellView => this.workflowActionService.getJointGraphWrapper().highlightOperator(cellView.model.id.toString()));
+
+    /**
+     * One possible way to unhighlight an operator when user clicks on the blank area,
+     *  and bind `blank:pointerdown` event to unhighlight the operator.
+     * However, in real life, randomly clicking the blank area happens a lot,
+     *  and users are forced to click the operator again to highlight it,
+     *  which would make the UI not user-friendly
+     */
+  }
+
+  private handleOperatorHightlightEvent(): void {
+    // handle logical operator highlight / unhighlight events to let JointJS
+    //  use our own custom highlighter
+    const highlightOptions = {
+      name: 'stroke',
+      options: {
+        attrs: {
+          'stroke-width': 1,
+          stroke: '#afafaf'
+        }
+      }
+    };
+
+    this.workflowActionService.getJointGraphWrapper().getJointCellHighlightStream()
+      .subscribe(value => this.getJointPaper().findViewByModel(value.operatorID).highlight(
+        'rect', { highlighter: highlightOptions }
+      ));
+
+    this.workflowActionService.getJointGraphWrapper().getJointCellUnhighlightStream()
+      .subscribe(value => this.getJointPaper().findViewByModel(value.operatorID).unhighlight(
+        'rect', { highlighter: highlightOptions }
+      ));
   }
 
   /**
