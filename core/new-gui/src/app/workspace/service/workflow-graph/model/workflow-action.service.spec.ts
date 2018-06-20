@@ -209,8 +209,8 @@ describe('WorkflowActionService', () => {
     // delete result operator, should cause two links to be deleted as well
     service.deleteOperator(mockResultPredicate.operatorID);
 
-    expect(texeraGraph.getOperators().length).toEqual(2);
-    expect(texeraGraph.getLinks().length).toEqual(0);
+    expect(texeraGraph.getAllOperators().length).toEqual(2);
+    expect(texeraGraph.getAllLinks().length).toEqual(0);
 
   });
 
