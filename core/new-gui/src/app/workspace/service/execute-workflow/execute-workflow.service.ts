@@ -151,14 +151,14 @@ export class ExecuteWorkflowService {
   public static getLogicalPlanRequest(workflowGraph: WorkflowGraphReadonly): LogicalPlan {
 
     const operators: LogicalOperator[] = workflowGraph
-      .getOperators().map(op => ({
+      .getAllOperators().map(op => ({
         ...op.operatorProperties,
         operatorID: op.operatorID,
         operatorType: op.operatorType
       }));
 
     const links: LogicalLink[] = workflowGraph
-      .getLinks().map(link => ({
+      .getAllLinks().map(link => ({
         origin: link.source.operatorID,
         destination: link.target.operatorID
       }));
