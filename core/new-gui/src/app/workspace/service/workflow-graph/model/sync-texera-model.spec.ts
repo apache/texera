@@ -140,7 +140,7 @@ describe('SyncTexeraModel', () => {
     jointGraphWrapper.getJointOperatorCellDeleteStream().subscribe({
       complete: () => {
         expect(texeraGraph.hasOperator(mockScanPredicate.operatorID)).toBeFalsy();
-        expect(texeraGraph.getOperators().length).toEqual(0);
+        expect(texeraGraph.getAllOperators().length).toEqual(0);
       }
     });
 
@@ -181,8 +181,8 @@ describe('SyncTexeraModel', () => {
       complete: () => {
         expect(texeraGraph.hasOperator(mockScanPredicate.operatorID)).toBeFalsy();
         expect(texeraGraph.hasOperator(mockResultPredicate.operatorID)).toBeTruthy();
-        expect(texeraGraph.getOperators().length).toEqual(1);
-        expect(texeraGraph.getLinks().length).toEqual(0);
+        expect(texeraGraph.getAllOperators().length).toEqual(1);
+        expect(texeraGraph.getAllLinks().length).toEqual(0);
       }
     });
 
@@ -263,8 +263,8 @@ describe('SyncTexeraModel', () => {
 
     jointGraphWrapper.getJointLinkCellAddStream().subscribe({
       complete: () => {
-        expect(texeraGraph.getOperators().length).toEqual(2);
-        expect(texeraGraph.getLinks().length).toEqual(1);
+        expect(texeraGraph.getAllOperators().length).toEqual(2);
+        expect(texeraGraph.getAllLinks().length).toEqual(1);
         expect(texeraGraph.hasLinkWithID(mockScanResultLink.linkID)).toBeTruthy();
         expect(texeraGraph.getLinkWithID(mockScanResultLink.linkID)).toEqual(mockScanResultLink);
         expect(texeraGraph.hasLink(
@@ -311,7 +311,7 @@ describe('SyncTexeraModel', () => {
 
     jointGraphWrapper.getJointLinkCellDeleteStream().subscribe({
       complete: () => {
-        expect(texeraGraph.getLinks().length).toEqual(0);
+        expect(texeraGraph.getAllLinks().length).toEqual(0);
       }
     });
 
@@ -352,7 +352,7 @@ describe('SyncTexeraModel', () => {
 
     jointGraphWrapper.getJointLinkCellDeleteStream().subscribe({
       complete: () => {
-        expect(texeraGraph.getLinks().length).toEqual(0);
+        expect(texeraGraph.getAllLinks().length).toEqual(0);
       }
     });
 
@@ -406,7 +406,7 @@ describe('SyncTexeraModel', () => {
 
     jointGraphWrapper.getJointLinkCellAddStream().subscribe({
       complete: () => {
-        expect(texeraGraph.getLinks().length).toEqual(0);
+        expect(texeraGraph.getAllLinks().length).toEqual(0);
       }
     });
 
@@ -450,7 +450,7 @@ describe('SyncTexeraModel', () => {
 
     jointGraphWrapper.getJointLinkCellChangeStream().subscribe({
       complete: () => {
-        expect(texeraGraph.getLinks().length).toEqual(0);
+        expect(texeraGraph.getAllLinks().length).toEqual(0);
       }
     });
 
@@ -513,7 +513,7 @@ describe('SyncTexeraModel', () => {
     jointGraphWrapper.getJointLinkCellChangeStream()
       .subscribe({
         complete: () => {
-          expect(texeraGraph.getLinks().length).toEqual(1);
+          expect(texeraGraph.getAllLinks().length).toEqual(1);
           expect(texeraGraph.hasLinkWithID(mockChangedLink.linkID)).toBeTruthy();
           expect(texeraGraph.getLinkWithID(mockChangedLink.linkID)).toEqual(mockChangedLink);
           expect(texeraGraph.hasLink(
@@ -579,7 +579,7 @@ describe('SyncTexeraModel', () => {
 
     jointGraphWrapper.getJointLinkCellChangeStream().subscribe({
       complete: () => {
-        expect(texeraGraph.getLinks().length).toEqual(1);
+        expect(texeraGraph.getAllLinks().length).toEqual(1);
         expect(texeraGraph.hasLink(
           mockChangedLink.source, mockChangedLink.target
         )).toBeTruthy();
@@ -657,10 +657,10 @@ describe('SyncTexeraModel', () => {
           expect(texeraGraph.hasOperator(mockSentimentPredicate.operatorID)).toBeFalsy();
           expect(texeraGraph.hasOperator(mockScanPredicate.operatorID)).toBeTruthy();
           expect(texeraGraph.hasOperator(mockResultPredicate.operatorID)).toBeTruthy();
-          expect(texeraGraph.getOperators().length).toEqual(2);
+          expect(texeraGraph.getAllOperators().length).toEqual(2);
           expect(texeraGraph.getLinkWithID(mockScanSentimentLink.linkID)).toBe(undefined);
           expect(texeraGraph.getLinkWithID(mockSentimentResultLink.linkID)).toBe(undefined);
-          expect(texeraGraph.getLinks().length).toEqual(0);
+          expect(texeraGraph.getAllLinks().length).toEqual(0);
         }
       });
 
