@@ -108,12 +108,12 @@ export class SyncTexeraModel {
    */
   static getOperatorLink(jointLink: joint.dia.Link): OperatorLink {
 
-    type jointLinkEventType = {id: string, port: string} | null | undefined;
+    type jointLinkEndpointType = {id: string, port: string} | null | undefined;
 
     // the link should be a valid link (both source and target are connected to an operator)
     // isValidLink function is not reused because of Typescript strict null checking
-    const jointSourceElement: jointLinkEventType = jointLink.attributes.source;
-    const jointTargetElement: jointLinkEventType = jointLink.attributes.target;
+    const jointSourceElement: jointLinkEndpointType = jointLink.attributes.source;
+    const jointTargetElement: jointLinkEndpointType = jointLink.attributes.target;
 
     if (! jointSourceElement) {
       throw new Error(`Invalid JointJS Link: no source element`);

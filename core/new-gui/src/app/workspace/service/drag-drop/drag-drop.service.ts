@@ -69,12 +69,19 @@ export class DragDropService {
     this.handleOperatorDropEvent();
   }
 
+  /**
+   * Handles the event of operator being dropped.
+   * Adds the operator to the workflow graph at the same position of it being dropped.
+   */
   public handleOperatorDropEvent(): void {
     this.getOperatorDropStream().subscribe(
       value => {
-        this.currentOperatorType = DragDropService.DRAG_DROP_TEMP_OPERATOR_TYPE;
+        // construct the operator from the drop stream value
         const operator = this.workflowUtilService.getNewOperatorPredicate(value.operatorType);
+        // add the operator
         this.workflowActionService.addOperator(operator, value.offset);
+        // reset the current operator type to an non-exist type
+        this.currentOperatorType = DragDropService.DRAG_DROP_TEMP_OPERATOR_TYPE;
       }
     );
   }
@@ -95,7 +102,7 @@ export class DragDropService {
    *  - operatorType - the type of the operator dropped
    *  - offset - the x and y point where the operator is dropped (relative to document root)
    */
-  public getOperatorDropStream(): Observable<{operatorType: string, offset: Point}> {
+  public getOperatorDropStream(): Observable<{ operatorType: string, offset: Point }> {
     return this.operatorDroppedSubject.asObservable();
   }
 
@@ -143,6 +150,8 @@ export class DragDropService {
    * @param operatorType - the type of the operator
    */
   private createFlyingOperatorElement(operatorType: string): JQuery<HTMLElement> {
+    // set the current operator type from an nonexist placeholder operator type
+    //  to the operator type being dragged
     this.currentOperatorType = operatorType;
 
     // create a temporary ghost element
@@ -188,13 +197,13 @@ export class DragDropService {
     // set the currentOperatorType
     this.currentOperatorType = operatorType;
     // notify the subject of the event
-    this.operatorDragStartedSubject.next({operatorType});
+    this.operatorDragStartedSubject.next({ operatorType });
   }
 
   /**
-   * Hanlder function for jQueryUI's drag started event.
+   * Hanlder function for jQueryUI's drag stopped event.
    * It converts the event to the drag stopped Subject.
-   * Notice that we view Drag Stopp is equivalent to
+   * Notice that we view Drag Stopped is equivalent to the operator being Dropped
    *
    * @param event
    * @param ui
