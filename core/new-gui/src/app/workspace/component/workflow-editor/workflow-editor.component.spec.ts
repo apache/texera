@@ -1,3 +1,4 @@
+import { DragDropService } from './../../service/drag-drop/drag-drop.service';
 import { WorkflowUtilService } from './../../service/workflow-graph/util/workflow-util.service';
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 
@@ -33,6 +34,7 @@ describe('WorkflowEditorComponent', () => {
       providers: [
         JointUIService,
         WorkflowUtilService,
+        DragDropService,
         { provide: WorkflowActionService, useClass: StubWorkflowActionService },
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
       ]
@@ -102,5 +104,11 @@ describe('WorkflowEditorComponent', () => {
     expect(component.getJointPaper().findViewByModel(link1.id)).toBeTruthy();
 
   });
+
+  it('should register itself as a droppable element', () => {
+    const jqueryElement = jQuery(`#${component.WORKFLOW_EDITOR_JOINTJS_ID}`);
+    expect(jqueryElement.data('uiDroppable')).toBeTruthy();
+  });
+
 
 });

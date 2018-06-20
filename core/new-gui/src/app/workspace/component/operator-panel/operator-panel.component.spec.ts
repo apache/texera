@@ -1,3 +1,4 @@
+import { DragDropService } from './../../service/drag-drop/drag-drop.service';
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 import { NO_ERRORS_SCHEMA } from '@angular/core';
 import { By } from '@angular/platform-browser';
@@ -17,6 +18,12 @@ import {
 
 import * as c from './operator-panel.component';
 
+class StubDragDropService {
+
+  public registerOperatorLabelDrag(input: any) {}
+
+}
+
 
 describe('OperatorPanelComponent', () => {
   let component: OperatorPanelComponent;
@@ -26,7 +33,8 @@ describe('OperatorPanelComponent', () => {
     TestBed.configureTestingModule({
       declarations: [OperatorPanelComponent, OperatorLabelComponent],
       providers: [
-        { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
+        { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+        { provide: DragDropService, useClass: StubDragDropService}
       ],
       imports: [CustomNgMaterialModule, BrowserAnimationsModule]
     })

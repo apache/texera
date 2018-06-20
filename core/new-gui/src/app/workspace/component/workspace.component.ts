@@ -1,3 +1,4 @@
+import { DragDropService } from './../service/drag-drop/drag-drop.service';
 import { WorkflowUtilService } from './../service/workflow-graph/util/workflow-util.service';
 import { WorkflowActionService } from './../service/workflow-graph/model/workflow-action.service';
 import { Component, OnInit } from '@angular/core';
@@ -18,7 +19,8 @@ import { StubOperatorMetadataService } from '../service/operator-metadata/stub-o
 
     JointUIService,
     WorkflowActionService,
-    WorkflowUtilService
+    WorkflowUtilService,
+    DragDropService
   ]
 })
 export class WorkspaceComponent implements OnInit {
