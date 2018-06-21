@@ -14,10 +14,9 @@ import { StubOperatorMetadataService } from '../service/operator-metadata/stub-o
   templateUrl: './workspace.component.html',
   styleUrls: ['./workspace.component.scss'],
   providers: [
-    // StubOperatorMetadataService can be used for debugging without start the backend server
-    { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
-    // OperatorMetadataService,
-
+    // uncomment this line for manual testing without opening backend server
+    // { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
+    OperatorMetadataService,
     JointUIService,
     WorkflowActionService,
     WorkflowUtilService,
