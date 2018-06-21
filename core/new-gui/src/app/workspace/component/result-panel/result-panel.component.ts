@@ -77,7 +77,7 @@ export class ResultPanelComponent implements OnInit {
    * @param row
    * @param content
    */
-  public getRowDetails(row: any, content: TemplateRef<any>): void {
+  public getRowDetails(row: object, content: TemplateRef<any>): void {
     // console.log('getRowDetails: ');
     // console.log(row);
     this.currentDisplayRow = JSON.stringify(row, undefined, 2);
