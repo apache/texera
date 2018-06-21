@@ -46,3 +46,18 @@
     background-color: white;
   }
 }
+
+// force paginator to stick to the left since
+//  ususally we have results greater than 100%
+//  width of the result panel, which will create
+//  an overflow to the right. In this case, the
+//  paginator will not stick to the right-most
+//  point of the overflowed component. Instead,
+//  it will think that the component doesn't have
+//  overflow and display the paginator at
+//  the original width 100% position. Thus, it is
+//  better to stick the paginator on the left
+//  to avoid this kind of situation.
+::ng-deep .mat-paginator-container {
+  justify-content: flex-start !important;
+}

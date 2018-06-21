@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild } from '@angular/core';
+import { Component, OnInit, ViewChild, TemplateRef } from '@angular/core';
 import { DataSource } from '@angular/cdk/table';
 import { MatPaginator, MatTableDataSource } from '@angular/material';
 
@@ -7,7 +7,8 @@ import { ExecuteWorkflowService } from './../../service/execute-workflow/execute
 
 import { Observable } from 'rxjs/Observable';
 import { NgbModal , ModalDismissReasons } from '@ng-bootstrap/ng-bootstrap';
-import { ExecutionResult, SuccessExecutionResult } from './../../types/workflow-execute.interface';
+import { ExecutionResult, SuccessExecutionResult } from './../../types/execute-workflow.interface';
+import { TableColumn } from './../../types/result-table.interface';
 
 /**
  * ResultPanelCompoent is the bottom level area that
@@ -59,7 +60,7 @@ export class ResultPanelComponent implements OnInit {
    *
    * @param content
    */
-  public open(content: any): void {
+  public open(content: TemplateRef<any>): void {
     this.modalService.open(content).result.then((result) => {
       console.log(result);
     }, (reason) => {
@@ -76,7 +77,7 @@ export class ResultPanelComponent implements OnInit {
    * @param row
    * @param content
    */
-  public getRowDetails(row: any, content: any): void {
+  public getRowDetails(row: any, content: TemplateRef<any>): void {
     // console.log('getRowDetails: ');
     // console.log(row);
     this.currentDisplayRow = JSON.stringify(row, undefined, 2);
@@ -96,6 +97,15 @@ export class ResultPanelComponent implements OnInit {
    */
   private changeResultTableProperty(response: SuccessExecutionResult) {
     const resultData: ReadonlyArray<object> | undefined = response.result;
+
+    // When there is a result data from the backend,
+    //  1. Get all the column names except '_id', using the first instance of
+    //      result data.
+    //  2. Use those names to generate a list of display columns, which would
+    //      be used for displaying on angular mateiral table.
+    //  3. Pass the result data as array to generate a new angular material
+    //      data table.
+    //  4. Set the newly created data table to our own paginator.
 
     if (resultData !== undefined) {
       // generate columnDef from first row, column definition is in order
@@ -150,20 +160,10 @@ export class ResultPanelComponent implements OnInit {
 
     const columns: TableColumn[] = [];
     // generate a TableColumn object for each column
-    columnNames.forEach(col => columns.push(new TableColumn(col, col, (row) => `${row[col]}`)));
+    columnNames.forEach(col => columns.push({columnDef: col, header: col, cell: (row) => `${row[col]}`}));
     // console.log(columns);
     return columns;
   }
 
 }
 
-/**
- * Class for holding the properties for each column
- */
-export class TableColumn {
-  constructor(
-    public columnDef: string,
-    public header: string,
-    public cell: (row: any) => any
-  ) { }
-}
