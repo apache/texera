@@ -11,7 +11,7 @@ import { WorkflowGraph, WorkflowGraphReadonly } from './../workflow-graph/model/
 import {
   LogicalLink, LogicalPlan, LogicalOperator,
   ExecutionResult, ErrorExecutionResult, SuccessExecutionResult
-} from './../../types/workflow-execute.interface';
+} from '../../types/execute-workflow.interface';
 
 export const EXECUTE_WORKFLOW_ENDPOINT = 'queryplan/execute';
 
@@ -176,7 +176,7 @@ export class ExecuteWorkflowService {
    * @param errorResponse
    */
   private static processErrorResponse(errorResponse: HttpErrorResponse): ErrorExecutionResult {
-    // client side error, such as no internet connect
+    // client side error, such as no internet connection
     if (errorResponse.error instanceof ProgressEvent) {
       return {
         code: 1,
