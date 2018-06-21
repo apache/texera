@@ -1,6 +1,6 @@
 import { WorkflowGraph } from './../workflow-graph/model/workflow-graph';
 import { mockScanPredicate, mockResultPredicate, mockScanResultLink } from './../workflow-graph/model/mock-workflow-data';
-import { LogicalPlan, LogicalLink, LogicalOperator } from '../../types/workflow-execute.interface';
+import { LogicalPlan, LogicalLink, LogicalOperator } from '../../types/execute-workflow.interface';
 
 
 // TODO: unify the port handling interface

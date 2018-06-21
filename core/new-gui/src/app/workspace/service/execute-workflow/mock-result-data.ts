@@ -1,4 +1,4 @@
-import { SuccessExecutionResult, ErrorExecutionResult } from './../../types/workflow-execute.interface';
+import { SuccessExecutionResult, ErrorExecutionResult } from '../../types/execute-workflow.interface';
 
 export const mockResultData: object[] = [
   {

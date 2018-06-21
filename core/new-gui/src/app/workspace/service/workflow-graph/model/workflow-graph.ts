@@ -92,7 +92,7 @@ export class WorkflowGraph {
   /**
    * Returns an array of all operators in the graph
    */
-  public getOperators(): OperatorPredicate[] {
+  public getAllOperators(): OperatorPredicate[] {
     return Array.from(this.operatorIDMap.values());
   }
 
@@ -177,7 +177,7 @@ export class WorkflowGraph {
    * @param target target operator and port of the link
    */
   public getLink(source: OperatorPort, target: OperatorPort): OperatorLink | undefined {
-    const links = this.getLinks().filter(
+    const links = this.getAllLinks().filter(
       value => isEqual(value.source, source) && isEqual(value.target, target)
     );
     if (links.length === 0) {
@@ -192,7 +192,7 @@ export class WorkflowGraph {
   /**
    * Returns an array of all the links in the graph.
    */
-  public getLinks(): OperatorLink[] {
+  public getAllLinks(): OperatorLink[] {
     return Array.from(this.operatorLinkMap.values());
   }
 

@@ -14,7 +14,7 @@ import { JointUIService } from '../../service/joint-ui/joint-ui.service';
 import { Observable } from 'rxjs/Observable';
 import { marbles, Context } from 'rxjs-marbles';
 import { HttpClient } from '@angular/common/http';
-import { SuccessExecutionResult } from '../../types/workflow-execute.interface';
+import { SuccessExecutionResult } from '../../types/execute-workflow.interface';
 import { mockExecutionResult } from '../../service/execute-workflow/mock-result-data';
 
 class StubHttpClient {

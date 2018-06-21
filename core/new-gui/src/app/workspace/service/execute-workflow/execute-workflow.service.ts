@@ -11,7 +11,7 @@ import { WorkflowGraph, WorkflowGraphReadonly } from './../workflow-graph/model/
 import {
   LogicalLink, LogicalPlan, LogicalOperator,
   ExecutionResult, ErrorExecutionResult, SuccessExecutionResult
-} from './../../types/workflow-execute.interface';
+} from '../../types/execute-workflow.interface';
 
 export const EXECUTE_WORKFLOW_ENDPOINT = 'queryplan/execute';
 
@@ -151,14 +151,14 @@ export class ExecuteWorkflowService {
   public static getLogicalPlanRequest(workflowGraph: WorkflowGraphReadonly): LogicalPlan {
 
     const operators: LogicalOperator[] = workflowGraph
-      .getOperators().map(op => ({
+      .getAllOperators().map(op => ({
         ...op.operatorProperties,
         operatorID: op.operatorID,
         operatorType: op.operatorType
       }));
 
     const links: LogicalLink[] = workflowGraph
-      .getLinks().map(link => ({
+      .getAllLinks().map(link => ({
         origin: link.source.operatorID,
         destination: link.target.operatorID
       }));
@@ -166,7 +166,7 @@ export class ExecuteWorkflowService {
     return { operators, links };
   }
 
-  public static executionResultSuccess(result: ExecutionResult | undefined): result is SuccessExecutionResult {
+  public static isExecutionSuccessful(result: ExecutionResult | undefined): result is SuccessExecutionResult {
     return !!result && result.code === 0;
   }
 
@@ -176,7 +176,7 @@ export class ExecuteWorkflowService {
    * @param errorResponse
    */
   private static processErrorResponse(errorResponse: HttpErrorResponse): ErrorExecutionResult {
-    // client side error, such as no internet connect
+    // client side error, such as no internet connection
     if (errorResponse.error instanceof ProgressEvent) {
       return {
         code: 1,

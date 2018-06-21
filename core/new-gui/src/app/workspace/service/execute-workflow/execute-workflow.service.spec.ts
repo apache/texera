@@ -1,4 +1,4 @@
-import { ExecutionResult } from './../../types/workflow-execute.interface';
+import { ExecutionResult } from '../../types/execute-workflow.interface';
 import { TestBed, inject } from '@angular/core/testing';
 
 import { ExecuteWorkflowService } from './execute-workflow.service';
@@ -14,7 +14,7 @@ import { mockWorkflowPlan, mockLogicalPlan } from './mock-workflow-plan';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { marbles } from 'rxjs-marbles';
 import { WorkflowGraph } from '../workflow-graph/model/workflow-graph';
-import { LogicalPlan, SuccessExecutionResult } from '../../types/workflow-execute.interface';
+import { LogicalPlan, SuccessExecutionResult } from '../../types/execute-workflow.interface';
 
 
 class StubHttpClient {
@@ -112,7 +112,7 @@ describe('ExecuteWorkflowService', () => {
     service.executeWorkflow();
 
     expect(executionResult!.code).toEqual(1);
-    if (! ExecuteWorkflowService.executionResultSuccess(executionResult)) {
+    if (! ExecuteWorkflowService.isExecutionSuccessful(executionResult)) {
       expect(executionResult!.message).toEqual(mockErrorMessage);
     }
 
@@ -139,7 +139,7 @@ describe('ExecuteWorkflowService', () => {
     service.executeWorkflow();
 
     expect(executionResult!.code).toEqual(1);
-    if (!ExecuteWorkflowService.executionResultSuccess(executionResult)) {
+    if (!ExecuteWorkflowService.isExecutionSuccessful(executionResult)) {
       expect(executionResult!.message).toEqual(`Texera server error: ${mockErrorMessage}`);
     }
 
@@ -172,7 +172,7 @@ describe('ExecuteWorkflowService', () => {
 
     expect(executionResult!.code).toEqual(1);
 
-    if (!ExecuteWorkflowService.executionResultSuccess(executionResult)) {
+    if (!ExecuteWorkflowService.isExecutionSuccessful(executionResult)) {
       expect(executionResult!.message).toEqual(`Could not reach Texera server`);
     }
 

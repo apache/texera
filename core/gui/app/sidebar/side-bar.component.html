@@ -33,7 +33,7 @@
                 <div *ngIf="attribute === 'attributes'">
                     <select class="form-control" name="{{attribute}}+Selector" [(ngModel)]="selectedAttributeMulti" (ngModelChange)="attributeAdded('multi')">
                         <option selected hidden value="">Select attributes</option>
-                        <option *ngFor="let attribute of attributeItems" [value] = "attribute">{{attribute}}</option>
+                        <option *ngFor="let attribute of inputSchema.get(operatorId.toString())" [value] = "attribute">{{attribute}}</option>
                     </select>
                     <input class="form-control" id="{{attribute}}" placeholder="Enter attributes" [ngModel]="selectedAttributesList.toString()" (ngModelChange)="manuallyAdded($event)" name="{{attribute}}" #{{attribute}}="ngModel">
 
@@ -76,7 +76,7 @@
                 <div *ngIf="attribute === 'attribute'">
                     <select class="form-control" name="{{attribute}}+Selector" [(ngModel)]="selectedAttributeSingle" (ngModelChange)="attributeAdded('single')">
                         <option selected hidden value="">Select attributes</option>
-                        <option *ngFor="let attribute of attributeItems" [value] = "attribute">{{attribute}}</option>
+                        <option *ngFor="let attribute of inputSchema.get(operatorId.toString())" [value] = "attribute">{{attribute}}</option>
                     </select>
                     <input class="form-control" id="{{attribute}}" placeholder="Enter attributes" [(ngModel)]="data.properties.attributes[attribute]" (ngModelChange)="onFormChange(attribute)" name="{{attribute}}" #{{attribute}}="ngModel">
                 </div>
@@ -88,8 +88,8 @@
                 </select>
 
 
-                <input *ngIf="attribute === 'password'" [(ngModel)]="data.properties.attributes[attribute]" (ngModelChange)="onFormChange(attribute)" name="{{attribute}}" type="password" class="form-control" id="{{attribute}}" defaultValue="{{data.properties.attributes[attribute]}}" #{{attribute}}="ngModel" required>
-                <input *ngIf="checkInSelector(attribute) === -1" [(ngModel)]="data.properties.attributes[attribute]" (ngModelChange)="onFormChange(attribute)" name="{{attribute}}" type="text" class="form-control" id="{{attribute}}" defaultValue="{{data.properties.attributes[attribute]}}" #{{attribute}}="ngModel" required>
+                <input *ngIf="attribute === 'password'" [(ngModel)]="data.properties.attributes[attribute]" (ngModelChange)="onInputChange(attribute)" name="{{attribute}}" type="password" class="form-control" id="{{attribute}}" defaultValue="{{data.properties.attributes[attribute]}}" #{{attribute}}="ngModel" required>
+                <input *ngIf="checkInSelector(attribute) === -1" [(ngModel)]="data.properties.attributes[attribute]" (ngModelChange)="onInputChange(attribute)" name="{{attribute}}" type="text" class="form-control" id="{{attribute}}" defaultValue="{{data.properties.attributes[attribute]}}" #{{attribute}}="ngModel" required>
             </div>
             <button type="button" class="btn btn-default" (click) = "onDelete()">Delete</button>
             <button *ngIf="!advancedPressed" type="button" class="btn btn-default" (click) = "onAdvanced()">Advanced</button>
