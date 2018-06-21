@@ -166,7 +166,7 @@ export class ExecuteWorkflowService {
     return { operators, links };
   }
 
-  public static executionResultSuccess(result: ExecutionResult | undefined): result is SuccessExecutionResult {
+  public static isExecutionSuccessful(result: ExecutionResult | undefined): result is SuccessExecutionResult {
     return !!result && result.code === 0;
   }
 
