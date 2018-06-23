@@ -15,7 +15,7 @@ import { MatTableDataSource } from '@angular/material';
 import { By } from '@angular/platform-browser';
 import { Observable } from 'rxjs/Observable';
 import { HttpClient } from '@angular/common/http';
-import { ExecutionResult } from '../../types/workflow-execute.interface';
+import { ExecutionResult } from '../../types/execute-workflow.interface';
 
 
 class StubHttpClient {
