@@ -1,11 +1,10 @@
-import { Component, OnInit, ViewChild, TemplateRef } from '@angular/core';
+import { Component, ViewChild, TemplateRef } from '@angular/core';
 import { DataSource } from '@angular/cdk/table';
 import { MatPaginator, MatTableDataSource } from '@angular/material';
 
 
 import { ExecuteWorkflowService } from './../../service/execute-workflow/execute-workflow.service';
 
-import { Observable } from 'rxjs/Observable';
 import { NgbModal , ModalDismissReasons } from '@ng-bootstrap/ng-bootstrap';
 import { ExecutionResult, SuccessExecutionResult } from './../../types/execute-workflow.interface';
 import { TableColumn } from './../../types/result-table.interface';
@@ -33,7 +32,7 @@ import { TableColumn } from './../../types/result-table.interface';
   templateUrl: './result-panel.component.html',
   styleUrls: ['./result-panel.component.scss']
 })
-export class ResultPanelComponent implements OnInit {
+export class ResultPanelComponent {
 
   public showMessage: boolean = false;
   public message: string = '';
@@ -61,11 +60,8 @@ export class ResultPanelComponent implements OnInit {
    * @param content
    */
   public open(content: TemplateRef<any>): void {
-    this.modalService.open(content).result.then((result) => {
-      console.log(result);
-    }, (reason) => {
-      console.log(reason);
-    });
+    console.log(content);
+    this.modalService.open(content);
   }
 
 
@@ -78,14 +74,8 @@ export class ResultPanelComponent implements OnInit {
    * @param content
    */
   public getRowDetails(row: object, content: TemplateRef<any>): void {
-    // console.log('getRowDetails: ');
-    // console.log(row);
     this.currentDisplayRow = JSON.stringify(row, undefined, 2);
     this.open(content);
-  }
-
-  ngOnInit() {
-
   }
 
   /**
@@ -110,7 +100,7 @@ export class ResultPanelComponent implements OnInit {
     if (resultData !== undefined) {
       // generate columnDef from first row, column definition is in order
       this.currentDisplayColumns = Object.keys(resultData[0]).filter(x => x !== '_id');
-      this.currentColumns = this.generateColumns(this.currentDisplayColumns);
+      this.currentColumns = ResultPanelComponent.generateColumns(this.currentDisplayColumns);
 
 
       // create a new DataSource object based on the new result data
@@ -155,13 +145,13 @@ export class ResultPanelComponent implements OnInit {
    *
    * @param columnNames
    */
-  private generateColumns(columnNames: string[]): TableColumn[] {
-    // console.log('generateColumns: ');
-
+  private static generateColumns(columnNames: string[]): TableColumn[] {
     const columns: TableColumn[] = [];
     // generate a TableColumn object for each column
-    columnNames.forEach(col => columns.push({columnDef: col, header: col, cell: (row) => `${row[col]}`}));
-    // console.log(columns);
+    columnNames.forEach(col => columns.push({
+      columnDef: col,
+      header: col,
+      cell: (row) => `${row[col]}`}));
     return columns;
   }
 
