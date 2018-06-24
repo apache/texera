@@ -1,3 +1,4 @@
+import { DragDropService } from './../../service/drag-drop/drag-drop.service';
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 import { NO_ERRORS_SCHEMA } from '@angular/core';
 import { By } from '@angular/platform-browser';
@@ -9,13 +10,19 @@ import { OperatorPanelComponent } from './operator-panel.component';
 import { OperatorLabelComponent } from './operator-label/operator-label.component';
 import { OperatorMetadataService, EMPTY_OPERATOR_METADATA } from '../../service/operator-metadata/operator-metadata.service';
 import { StubOperatorMetadataService } from '../../service/operator-metadata/stub-operator-metadata.service';
-import { GroupInfo, OperatorSchema } from '../../types/operator-schema';
+import { GroupInfo, OperatorSchema } from '../../types/operator-schema.interface';
 
 import {
-  getMockOperatorMetaData, getMockOperatorGroup, getMockOperatorSchemaList
+  mockOperatorMetaData, mockOperatorGroup, mockOperatorSchemaList
 } from '../../service/operator-metadata/mock-operator-metadata.data';
 
 import * as c from './operator-panel.component';
+
+class StubDragDropService {
+
+  public registerOperatorLabelDrag(input: any) {}
+
+}
 
 
 describe('OperatorPanelComponent', () => {
@@ -26,7 +33,8 @@ describe('OperatorPanelComponent', () => {
     TestBed.configureTestingModule({
       declarations: [OperatorPanelComponent, OperatorLabelComponent],
       providers: [
-        { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
+        { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+        { provide: DragDropService, useClass: StubDragDropService}
       ],
       imports: [CustomNgMaterialModule, BrowserAnimationsModule]
     })
@@ -44,7 +52,7 @@ describe('OperatorPanelComponent', () => {
   });
 
   it('should sort group names correctly based on order', () => {
-    const groups = getMockOperatorGroup();
+    const groups = mockOperatorGroup;
 
     const result = c.getGroupNamesSorted(groups);
 
@@ -72,7 +80,7 @@ describe('OperatorPanelComponent', () => {
   });
 
   it('should generate a map from operator groups to a list operators correctly', () => {
-    const opMetadata = getMockOperatorMetaData();
+    const opMetadata = mockOperatorMetaData;
 
     const result = c.getOperatorGroupMap(opMetadata);
 
@@ -97,8 +105,8 @@ describe('OperatorPanelComponent', () => {
   it('should receive operator metadata from service', () => {
     // if the length of our schema list is equal to the length of mock data
     // we assume the mock data has been received
-    expect(component.operatorSchemaList.length).toEqual(getMockOperatorSchemaList().length);
-    expect(component.groupNamesOrdered.length).toEqual(getMockOperatorGroup().length);
+    expect(component.operatorSchemaList.length).toEqual(mockOperatorSchemaList.length);
+    expect(component.groupNamesOrdered.length).toEqual(mockOperatorGroup.length);
   });
 
   it('should have all group names shown in the UI side panel', () => {
@@ -108,7 +116,7 @@ describe('OperatorPanelComponent', () => {
       .map(el => el.innerText.trim());
 
     expect(groupNamesInUI).toEqual(
-      getMockOperatorGroup().map(group => group.groupName));
+      mockOperatorGroup.map(group => group.groupName));
   });
 
   it('should create child operator label component for all operators', () => {
@@ -117,7 +125,7 @@ describe('OperatorPanelComponent', () => {
       .map(debugEl => <OperatorLabelComponent>debugEl.componentInstance)
       .map(operatorLabel => operatorLabel.operator);
 
-    expect(operatorLabels.length).toEqual(getMockOperatorMetaData().operators.length);
+    expect(operatorLabels.length).toEqual(mockOperatorMetaData.operators.length);
   });
 
 });

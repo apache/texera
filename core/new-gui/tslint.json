@@ -26,7 +26,7 @@
       true,
       "spaces"
     ],
-    "interface-over-type-literal": true,
+    "interface-over-type-literal": false,
     "label-position": true,
     "max-line-length": [
       true,
@@ -57,7 +57,8 @@
     "no-eval": true,
     "no-inferrable-types": [
       true,
-      "ignore-params"
+      "ignore-params",
+      "ignore-properties"
     ],
     "no-misused-new": true,
     "no-non-null-assertion": true,

@@ -1,5 +1,6 @@
 import { Component } from '@angular/core';
 import { CurrentDataService } from '../services/current-data-service';
+import any = jasmine.any;
 
 declare var jQuery: any;
 
@@ -119,6 +120,7 @@ export class TheFlowchartComponent {
 
   initialize(data: any) {
     var current = this;
+    var changedOperatorId = -1;
 
     // unselect operator when user click other div
     jQuery('html').mousedown(function(e) {
@@ -155,6 +157,14 @@ export class TheFlowchartComponent {
     jQuery('#the-flowchart').flowchart({
       data: data,
       multipleLinksOnOutput: true,
+      timer: null,
+
+      // When the user delete an operator, all operators' attributes in
+      // the rest of the graph need to be cleaned up
+      onLinkDelete: function (linkId, forced) {
+        current.currentDataService.clearToOperatorAttribute(linkId);
+        return true;
+      },
       onOperatorSelect: function(operatorId) {
         current.currentDataService.selectData(operatorId);
         return true;
@@ -167,7 +177,29 @@ export class TheFlowchartComponent {
         current.currentDataService.clearData();
         current.currentDataService.setAllOperatorData(jQuery('#the-flowchart').flowchart('getData'));
         return true;
-      }
+      },
+      onOperatorCreate: function (operatorId, operatorData, fullElement) {
+        changedOperatorId = operatorId;
+        return true;
+      },
+      onAfterChange: function (changeType) {
+        clearTimeout(this.timer);
+        console.log(changeType);
+        // If it's only an "operator_moved" or "operator_create" change,
+        // we don't do any update at all. Otherwise, we need to update
+        // the graph, which includes "link_create", "link_delete",
+        // "operator_data_change", and "operator_delete"
+        if (changeType == "operator_data_change") {
+            current.currentDataService.clearAllOperatorAttributeFromCurrentSource(changedOperatorId);
+        }
+        
+        this.timer = setTimeout(() => {
+            if (changeType != "operator_moved" && changeType != "operator_create") {
+                current.currentDataService.setAllOperatorData(jQuery('#the-flowchart').flowchart('getData'));
+                current.currentDataService.processAutoPlanData();
+            }
+        }, 50);
+      },
     });
 
     var FlowChartWidth = parseInt(jQuery("#the-flowchart").css("width"));
