@@ -287,6 +287,14 @@ public class UserDFOperator extends AbstractSingleInputOperator implements Signa
         }
         return outputTuple;
     }
+
+    public Schema transformToOutputSchema(Schema... inputSchema) {
+        if(inputSchema.length != 1){
+            throw new TexeraException(String.format(ErrorMessages.NUMBER_OF_ARGUMENTS_DOES_NOT_MATCH, 1, inputSchema.length));
+        }
+
+        return getOutputSchema();
+    }
     
     /* Return one of the indications: TAG-WAIT, TAG_NULL or TAG_LEN
      * */
