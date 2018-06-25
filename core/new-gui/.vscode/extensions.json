@@ -11,6 +11,7 @@
     "formulahendry.auto-close-tag", // auto close tag
     "HookyQR.beautify", // beautify code
     "codezombiech.gitignore", // gitignore
+    "msjsdiag.debugger-for-chrome", // debugger for chrome
 
 	]
 }
