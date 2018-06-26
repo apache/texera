@@ -2,8 +2,10 @@ package edu.uci.ics.texera.dataflow.connector;
 
 import java.util.ArrayList;
 
+import edu.uci.ics.texera.api.constants.ErrorMessages;
 import edu.uci.ics.texera.api.dataflow.IConnector;
 import edu.uci.ics.texera.api.dataflow.IOperator;
+import edu.uci.ics.texera.api.exception.DataflowException;
 import edu.uci.ics.texera.api.exception.TexeraException;
 import edu.uci.ics.texera.api.schema.Schema;
 import edu.uci.ics.texera.api.tuple.Tuple;
@@ -186,7 +188,12 @@ public class OneToNBroadcastConnector implements IConnector {
         public int getOutputIndex() {
             return this.outputIndex;
         }
-        
+
+        public Schema transformToOutputSchema(Schema... inputSchema) throws DataflowException {
+            if (inputSchema.length != 1)
+                throw new TexeraException(String.format(ErrorMessages.NUMBER_OF_ARGUMENTS_DOES_NOT_MATCH, 1, inputSchema.length));
+            return inputSchema[0];
+        }
     }
    
 }

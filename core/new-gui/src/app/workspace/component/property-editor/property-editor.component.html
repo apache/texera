@@ -1,0 +1,16 @@
+<div class="texera-workspace-property-editor-body texera-workflow-component-body">
+  <div *ngIf="displayForm">
+    <h3 class="texera-workspace-property-editor-title" mat-subheader>
+      {{currentOperatorSchema?.additionalMetadata.userFriendlyName}}
+    </h3>
+    <json-schema-form
+      class="texera-workspace-property-editor-form"
+      framework="material-design"
+      loadExternalAssets="true"
+      [schema]="currentOperatorSchema?.jsonSchema"
+      [data]="currentOperatorInitialData"
+      [layout]="formLayout"
+      (onChanges)="onFormChanges($event)">
+    </json-schema-form>
+  </div>
+</div>

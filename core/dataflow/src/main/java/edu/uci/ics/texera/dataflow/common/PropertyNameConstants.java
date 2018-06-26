@@ -11,7 +11,15 @@ public class PropertyNameConstants {
     
     private PropertyNameConstants() {};
     
-    // metadata property names
+    // operator metadata names, used in generating operator json schema
+    public static final String USER_FRIENDLY_NAME = "userFriendlyName";
+    public static final String OPERATOR_DESCRIPTION = "operatorDescription";
+    public static final String OPERATOR_GROUP_NAME = "operatorGroupName";
+    public static final String OPERATOR_COLOR = "operatorColor";
+    public static final String OPERATOR_IMAGE_PATH = "operatorImagePath";
+    public static final String HIDDEN_PROPERTIES = "hiddenProperties";
+    
+    // logical plan property names
     public static final String OPERATOR_ID = "operatorID";
     public static final String OPERATOR_TYPE = "operatorType";
     public static final String ORIGIN_OPERATOR_ID = "origin";
@@ -117,5 +125,13 @@ public class PropertyNameConstants {
     public static final String TWEET_CUSTOMER_SECRET = "customerSecret";
     public static final String TWEET_TOKEN = "token";
     public static final String TWEET_TOKEN_SECRET = "tokenSecret";
-    
+
+    public static final String EMPTY_NAME_EXCEPTION = "Table Name Cannot be Empty";
+    public static final String EMPTY_REGEX_EXCEPTION = "regex should not be empty";
+    public static final String EMPTY_QUERY_EXCEPTION = "query should not be empty";
+    public static final String NAME_NOT_MATCH_EXCEPTION = "inner attribute name and outer attribute name are different";
+    public static final String INVALID_THRESHOLD_EXCEPTION = "threshold ratio should be between 0.0 and 1.0";
+    public static final String INVALID_SAMPLE_SIZE_EXCEPTION = "Sample size should be greater than 0.";
+    public static final String INVALID_LIMIT_EXCEPTION = "limit must be greater than or equal to 0";
+    public static final String INVALID_OFFSET_EXCEPTION = "offset must be greater than or equal to 0";
 }

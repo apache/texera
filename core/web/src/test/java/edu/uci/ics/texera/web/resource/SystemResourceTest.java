@@ -33,9 +33,9 @@ public class SystemResourceTest {
     }
     
 	@Test
-	public void checkMetadata() throws Exception {
+	public void checkTableMetadata() throws Exception {
 		Response response = client.target(
-						String.format("http://localhost:%d/api/resources/metadata", RULE.getLocalPort()))
+						String.format("http://localhost:%d/api/resources/table-metadata", RULE.getLocalPort()))
 						.request()
 						.get();
 

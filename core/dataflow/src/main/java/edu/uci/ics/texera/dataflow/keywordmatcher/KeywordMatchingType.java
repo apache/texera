@@ -53,17 +53,16 @@ import edu.uci.ics.texera.api.exception.TexeraException;
  * 
  */
 public enum KeywordMatchingType {
-    SUBSTRING_SCANBASED("substring"),
-
-    CONJUNCTION_INDEXBASED("conjunction"),
-
-    PHRASE_INDEXBASED("phrase"),
-
-    REGEX("regex");
-
-
     
-    private final String name;
+    SUBSTRING_SCANBASED(KeywordMatchingTypeName.SCAN),
+
+    CONJUNCTION_INDEXBASED(KeywordMatchingTypeName.CONJUNCTION),
+
+    PHRASE_INDEXBASED(KeywordMatchingTypeName.PHRASE),
+
+    REGEX(KeywordMatchingTypeName.REGEX);
+    
+    public final String name;
     
     private KeywordMatchingType(String name) {
         this.name = name;
@@ -91,5 +90,12 @@ public enum KeywordMatchingType {
         } else {
             throw new TexeraException("Cannot convert " + name + " to KeywordMatchingType");
         }
+    }
+    
+    public class KeywordMatchingTypeName {
+        public static final String SCAN = "scan";
+        public static final String CONJUNCTION = "conjunction";
+        public static final String PHRASE = "phrase";
+        public static final String REGEX = "regex";
     }
 }

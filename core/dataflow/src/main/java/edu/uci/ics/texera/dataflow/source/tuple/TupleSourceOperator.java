@@ -5,8 +5,10 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
+import edu.uci.ics.texera.api.constants.ErrorMessages;
 import edu.uci.ics.texera.api.constants.SchemaConstants;
 import edu.uci.ics.texera.api.dataflow.ISourceOperator;
+import edu.uci.ics.texera.api.exception.DataflowException;
 import edu.uci.ics.texera.api.exception.TexeraException;
 import edu.uci.ics.texera.api.field.IDField;
 import edu.uci.ics.texera.api.field.IField;
@@ -80,5 +82,10 @@ public class TupleSourceOperator implements ISourceOperator {
     public Schema getOutputSchema() {
         return outputSchema;
     }
-    
+
+    public Schema transformToOutputSchema(Schema... inputSchema) throws DataflowException {
+        if (inputSchema == null || inputSchema.length == 0)
+            return getOutputSchema();
+        throw new TexeraException(ErrorMessages.INVALID_INPUT_SCHEMA_FOR_SOURCE);
+    }
 }

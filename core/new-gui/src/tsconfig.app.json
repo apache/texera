@@ -1,0 +1,20 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "../out-tsc/app",
+    "baseUrl": "./",
+    "module": "es2015",
+    "types": []
+  },
+  "exclude": [
+    "test.ts",
+    "**/*.spec.ts"
+  ],
+  // ask Angular to check template error during the compilation process
+  // this option isn't enabled by default until Angular 6, we can remove this after updating to Angular 6
+  // they should've done this a thousand years ago
+  // I can't believe Angular doesn't check template errors and just fail silently
+  "angularCompilerOptions": {
+    "fullTemplateTypeCheck": true
+  }
+}

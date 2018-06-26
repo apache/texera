@@ -7,14 +7,12 @@ import java.util.*;
  */
 public class TrieNode {
 
-    private boolean isRoot;
     private final TrieNode root;
     private Map<Character, TrieNode> success = new HashMap<>();
     private TrieNode failure;
     private Set<String> emits = null;
 
     private TrieNode(boolean isRoot) {
-        this.isRoot = isRoot;
         this.root = isRoot ? this : null;
     }
 

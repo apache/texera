@@ -1,8 +1,10 @@
 package edu.uci.ics.texera.dataflow.sampler;
 
+import edu.uci.ics.texera.api.constants.ErrorMessages;
 import edu.uci.ics.texera.api.dataflow.ISourceOperator;
 import edu.uci.ics.texera.api.exception.DataflowException;
 import edu.uci.ics.texera.api.exception.TexeraException;
+import edu.uci.ics.texera.api.schema.Schema;
 import edu.uci.ics.texera.api.tuple.Tuple;
 import java.util.ArrayList;
 import java.util.List;
@@ -107,5 +109,11 @@ public class Sampler extends AbstractSingleInputOperator implements ISourceOpera
     @Override
     public Tuple processOneInputTuple(Tuple inputTuple) throws TexeraException {
         throw new TexeraException("Sampler does not support process one tuple");
+    }
+
+    public Schema transformToOutputSchema(Schema... inputSchema) throws DataflowException {
+        if (inputSchema.length != 1)
+            throw new TexeraException(String.format(ErrorMessages.NUMBER_OF_ARGUMENTS_DOES_NOT_MATCH, 1, inputSchema.length));
+        return inputSchema[0];
     }
 }

@@ -2,10 +2,13 @@ package edu.uci.ics.texera.dataflow.source.asterix;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.ImmutableMap;
 
+import edu.uci.ics.texera.dataflow.common.OperatorGroupConstants;
 import edu.uci.ics.texera.dataflow.common.PredicateBase;
 import edu.uci.ics.texera.dataflow.common.PropertyNameConstants;
 
@@ -132,6 +135,14 @@ public class AsterixSourcePredicate extends PredicateBase {
     @Override
     public AsterixSource newOperator() {
         return new AsterixSource(this);
+    }
+    
+    public static Map<String, Object> getOperatorMetadata() {
+        return ImmutableMap.<String, Object>builder()
+            .put(PropertyNameConstants.USER_FRIENDLY_NAME, "Source: Asterix")
+            .put(PropertyNameConstants.OPERATOR_DESCRIPTION, "Connect to an AsterixDB instance")
+            .put(PropertyNameConstants.OPERATOR_GROUP_NAME, OperatorGroupConstants.SOURCE_GROUP)
+            .build();
     }
     
 }

@@ -1,25 +1,24 @@
 package edu.uci.ics.texera.dataflow.plangen;
 
 import java.lang.reflect.InvocationTargetException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
+import java.util.*;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import edu.uci.ics.texera.api.dataflow.IOperator;
 import edu.uci.ics.texera.api.dataflow.ISink;
+import edu.uci.ics.texera.api.dataflow.ISourceOperator;
 import edu.uci.ics.texera.api.engine.Plan;
+import edu.uci.ics.texera.api.exception.DataflowException;
 import edu.uci.ics.texera.api.exception.PlanGenException;
+import edu.uci.ics.texera.api.exception.TexeraException;
 import edu.uci.ics.texera.dataflow.common.PredicateBase;
 import edu.uci.ics.texera.dataflow.common.PropertyNameConstants;
 import edu.uci.ics.texera.dataflow.connector.OneToNBroadcastConnector;
 import edu.uci.ics.texera.dataflow.join.Join;
 import edu.uci.ics.texera.api.schema.Schema;
+
 
 /**
  * A graph of operators representing a query plan.
@@ -28,8 +27,6 @@ import edu.uci.ics.texera.api.schema.Schema;
  */
 public class LogicalPlan {
 
-    // Variable indicates whether the plan has been changed
-    private boolean UPDATED = true;
     // a map from operatorID to its operator
     private HashMap<String, IOperator> operatorObjectMap;
     // use LinkedHashMap to retain insertion order
@@ -103,17 +100,13 @@ public class LogicalPlan {
      * @param operatorID, the ID of an operator
      * @return Schema, which includes the attributes setting of the operator
      */
-    public Schema getOperatorOutputSchema(String operatorID) throws PlanGenException {
+    public Schema getOperatorOutputSchema(String operatorID) throws PlanGenException, DataflowException {
 
-        if (UPDATED) {
-            buildOperators();
-            checkGraphCyclicity();
-            checkSourceOperator();
+        buildOperators();
+        checkGraphCyclicity();
+        connectOperators(operatorObjectMap);
 
-            connectOperators(operatorObjectMap);
-        }
         IOperator currentOperator = operatorObjectMap.get(operatorID);
-
         currentOperator.open();
         Schema operatorSchema = currentOperator.getOutputSchema();
         currentOperator.close();
@@ -122,11 +115,97 @@ public class LogicalPlan {
     }
 
     /**
+     * Updates the current plan and fetch the schema from an operator
+     * @param operatorID, the ID of an operator
+     * @param operatorInputSchemaMap Map of operators to their input schemas
+     * @return Schema, which includes the attributes setting of the operator
+     */
+    public Optional<Schema> getOperatorOutputSchema(String operatorID, Map<String, List<Schema>> operatorInputSchemaMap)
+            throws PlanGenException, DataflowException {
+
+        IOperator currentOperator = operatorObjectMap.get(operatorID);
+        Optional<Schema> outputSchema = Optional.empty();
+        if (currentOperator instanceof ISourceOperator) {
+            outputSchema = Optional.ofNullable(currentOperator.transformToOutputSchema());
+        } else if (operatorInputSchemaMap.containsKey(operatorID)) {
+            List<Schema> inputSchemaList = operatorInputSchemaMap.get(operatorID);
+            try {
+                outputSchema = Optional.ofNullable(currentOperator.transformToOutputSchema(
+                        inputSchemaList.toArray(new Schema[inputSchemaList.size()])));
+            } catch (TexeraException e) {
+                System.out.println(e.getMessage());
+            }
+        }
+        return outputSchema;
+    }
+
+    /**
+     * For each operator, get its input schema based on the topological order of the graph
+     * @return Map where id of the operator as the key and input schema as the value
+     * @throws PlanGenException
+     */
+    public Map<String, List<Schema>> retrieveAllOperatorInputSchema() throws PlanGenException {
+
+        buildOperators();
+        checkGraphCyclicity();
+
+        // Calculate the in-edge count of each operator
+        Map<String, Integer> inEdgeCount = new HashMap<>();
+        for (Map.Entry<String, LinkedHashSet<String>> entry: adjacencyList.entrySet()) {
+            inEdgeCount.putIfAbsent(entry.getKey(), 0);
+            for (String to: entry.getValue()) {
+                inEdgeCount.put(to, inEdgeCount.getOrDefault(to, 0)+1);
+            }
+        }
+
+        // This queue will contain all operators for which input schemas have been completely found. At start, it has all the source operator
+        Queue<String> operatorQueue = new LinkedList<>();
+        for (Map.Entry<String, IOperator> entry: operatorObjectMap.entrySet()) {
+            if (entry.getValue() instanceof ISourceOperator) {
+                operatorQueue.add(entry.getKey());
+            }
+        }
+
+        // Retrieve input schema based on topological order. Initially, the queue contains only source operators and we find their output schemas.
+        // The output schema of an operator becomes the input schema of another. When, we find output schema of one operator, we record that for the
+        // next operator, we have found one of its input schema and decrease its in-edge count by one (in-edge count represents the inputs for which schema hasn't yet been determined).
+        // When in-edge count reaches 0, all input schemas of the operator has been found. So, the operator is put into queue (as an operator for which we can find output schema).
+        Map<String, List<Schema>> inputSchemas = new HashMap<>();
+        while (!operatorQueue.isEmpty()) {
+            String origin = operatorQueue.poll();
+            Optional<Schema> currentOutputSchema = getOperatorOutputSchema(origin, inputSchemas);
+
+            if(!currentOutputSchema.isPresent()) {
+                continue;
+            }
+
+            for (String destination: adjacencyList.get(origin)) {
+                if(operatorObjectMap.get(destination) instanceof ISink) {
+                    continue;
+                }
+
+                if (inputSchemas.containsKey(destination)) {
+                    inputSchemas.get(destination).add(currentOutputSchema.get());
+                } else {
+                    inputSchemas.put(destination, new ArrayList<>(Arrays.asList(currentOutputSchema.get())));
+                }
+
+                inEdgeCount.put(destination, inEdgeCount.get(destination) - 1);
+                if (inEdgeCount.get(destination) == 0) {
+                    inEdgeCount.remove(destination);
+                    operatorQueue.offer(destination);
+                }
+            }
+
+        }
+        return inputSchemas;
+    }
+
+    /**
      * Adds a new operator to the logical plan.
      * @param operatorPredicate, the predicate of the operator
      */
     public void addOperator(PredicateBase operatorPredicate) {
-        UPDATED = true;
 
         String operatorID = operatorPredicate.getID();
         PlanGenUtils.planGenAssert(! hasOperator(operatorID), 
@@ -140,7 +219,6 @@ public class LogicalPlan {
      * @param operatorLink, a link of two operators
      */
     public void addLink(OperatorLink operatorLink) {
-        UPDATED = true;
 
         String origin = operatorLink.getOrigin();
         String destination = operatorLink.getDestination();
@@ -168,11 +246,11 @@ public class LogicalPlan {
      * @throws PlanGenException, if the operator graph is invalid.
      */
     public Plan buildQueryPlan() throws PlanGenException {
-        if (UPDATED) {
-            buildOperators();
-            validateOperatorGraph();
-            connectOperators(operatorObjectMap);
-        }
+
+        buildOperators();
+        validateOperatorGraph();
+        connectOperators(operatorObjectMap);
+
         ISink sink = findSinkOperator(operatorObjectMap);
         
         Plan queryPlan = new Plan(sink);
@@ -188,7 +266,6 @@ public class LogicalPlan {
             IOperator operator = operatorPredicateMap.get(operatorID).newOperator();
             operatorObjectMap.put(operatorID, operator);
         }
-        UPDATED = false;
     }
 
     /*

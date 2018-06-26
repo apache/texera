@@ -1,0 +1,16 @@
+// needed by bootstrap and font-awesome
+@import 'variables';
+
+// import font awesome library
+@import '../node_modules/font-awesome/scss/font-awesome';
+@import '../node_modules/bootstrap/scss/bootstrap';
+// a theme is required by angular material
+@import "~@angular/material/prebuilt-themes/indigo-pink.css";
+
+
+// make the UI takes full screen
+html, body, .viewport {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+}
