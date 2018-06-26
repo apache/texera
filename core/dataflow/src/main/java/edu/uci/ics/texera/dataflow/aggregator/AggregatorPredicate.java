@@ -14,6 +14,7 @@ import edu.uci.ics.texera.api.dataflow.IOperator;
 import edu.uci.ics.texera.dataflow.common.PredicateBase;
 import edu.uci.ics.texera.dataflow.common.PropertyNameConstants;
 import edu.uci.ics.texera.dataflow.comparablematcher.ComparableMatcher;
+import edu.uci.ics.texera.dataflow.common.OperatorGroupConstants;
 
 /**
  * @author avinash
@@ -47,9 +48,9 @@ public class AggregatorPredicate extends PredicateBase{
 
     public static Map<String,Object> getOperatorMetadata(){
         return ImmutableMap.<String, Object>builder()
-                .put(PropertyNameConstants.USER_FRIENDLY_NAME, "Entity Recognition")
-                .put(PropertyNameConstants.OPERATOR_DESCRIPTION, "Recognize entities in the text (person, location, date, ..)")
-                .put(PropertyNameConstants.OPERATOR_GROUP_NAME, OperatorGroupConstants.ANALYTICS_GROUP)
+                .put(PropertyNameConstants.USER_FRIENDLY_NAME, "Aggregation")
+                .put(PropertyNameConstants.OPERATOR_DESCRIPTION, "Aggregate one or more columns to find min, max ...")
+                .put(PropertyNameConstants.OPERATOR_GROUP_NAME, OperatorGroupConstants.UTILITY_GROUP)
                 .build();
     }
 }

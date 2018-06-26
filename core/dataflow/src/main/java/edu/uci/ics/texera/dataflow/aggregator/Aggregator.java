@@ -3,6 +3,7 @@
  */
 package edu.uci.ics.texera.dataflow.aggregator;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
@@ -112,13 +113,21 @@ public class Aggregator extends AbstractSingleInputOperator
             }
         }
 
+        outputSchema = transformToOutputSchema(inputSchema);
+    }
+
+    public Schema transformToOutputSchema(Schema... inputSchema) {
+        if (inputSchema.length != 1)
+            throw new TexeraException(String.format(ErrorMessages.NUMBER_OF_ARGUMENTS_DOES_NOT_MATCH, 1, inputSchema.length));
+
+        List<AggregationAttributeAndResult> aggregationItems = predicate.getAttributeAggregateResultList();
         Builder schemaBuilder = new Schema.Builder();
         for(int i=0; i<aggregationItems.size(); i++)
         {
-            schemaBuilder = schemaBuilder.add(aggregationItems.get(i).getResultAttributeName(), inputSchema.getAttribute(aggregationItems.get(i).getAttributeName()).getType());
+            schemaBuilder = schemaBuilder.add(aggregationItems.get(i).getResultAttributeName(), inputSchema[0].getAttribute(aggregationItems.get(i).getAttributeName()).getType());
         }
-        
-        outputSchema = schemaBuilder.build();
+
+        return schemaBuilder.build();
     }
 
     @Override
@@ -162,33 +171,33 @@ public class Aggregator extends AbstractSingleInputOperator
                     switch(inputAttr.getType())
                     {
                     case INTEGER:
-                        if((int)field.getValue() < (int)aggregatedResults.get(i+1).getValue())
+                        if(compare((Integer)field.getValue(), (Integer)aggregatedResults.get(i+1).getValue()) < 0)
                         {
                             aggregatedResults.set(i+1, new IntegerField((int)field.getValue()));
                         }
                         break;
                     case DOUBLE:
-                        if((double)field.getValue() < (double)aggregatedResults.get(i+1).getValue())
+                        if(compare((Double)field.getValue(), (Double)aggregatedResults.get(i+1).getValue()) < 0)
                         {
                             aggregatedResults.set(i+1, new DoubleField((double)field.getValue()));
                         }
                         break;
                     case TEXT:
-                        if(((String)field.getValue()).compareTo((String)aggregatedResults.get(i+1).getValue()) < 0)
+                        if(compare((String)field.getValue(), (String)aggregatedResults.get(i+1).getValue()) < 0)
                         {
                             aggregatedResults.set(i+1, new TextField((String)field.getValue()));
                         }
                         break;
                     case STRING:
-                        if(((String)field.getValue()).compareTo((String)aggregatedResults.get(i+1).getValue()) < 0)
+                        if(compare((String)field.getValue(), (String)aggregatedResults.get(i+1).getValue()) < 0)
                         {
                             aggregatedResults.set(i+1, new StringField((String)field.getValue()));
                         }
                         break;
                     case DATE:
-                        if(((Date)field.getValue()).compareTo((Date)aggregatedResults.get(i+1).getValue()) < 0)
+                        if(compare((LocalDate)field.getValue(), (LocalDate)aggregatedResults.get(i+1).getValue()) < 0)
                         {
-                            aggregatedResults.set(i+1, new DateField((Date)field.getValue()));
+                            aggregatedResults.set(i+1, new DateField((LocalDate)field.getValue()));
                         }
                         break;
                     }
@@ -199,33 +208,33 @@ public class Aggregator extends AbstractSingleInputOperator
                     switch(inputAttr.getType())
                     {
                     case INTEGER:
-                        if((int)field.getValue() > (int)aggregatedResults.get(i+1).getValue())
+                        if(compare((Integer)field.getValue(), (Integer)aggregatedResults.get(i+1).getValue()) > 0)
                         {
                             aggregatedResults.set(i+1, new IntegerField((int)field.getValue()));
                         }
                         break;
                     case DOUBLE:
-                        if((double)field.getValue() > (double)aggregatedResults.get(i+1).getValue())
+                        if(compare((Double)field.getValue(), (Double)aggregatedResults.get(i+1).getValue()) > 0)
                         {
                             aggregatedResults.set(i+1, new DoubleField((double)field.getValue()));
                         }
                         break;
                     case TEXT:
-                        if(((String)field.getValue()).compareTo((String)aggregatedResults.get(i+1).getValue()) > 0)
+                        if(compare((String)field.getValue(), (String)aggregatedResults.get(i+1).getValue()) > 0)
                         {
                             aggregatedResults.set(i+1, new TextField((String)field.getValue()));
                         }
                         break;
                     case STRING:
-                        if(((String)field.getValue()).compareTo((String)aggregatedResults.get(i+1).getValue()) > 0)
+                        if(compare((String)field.getValue(), (String)aggregatedResults.get(i+1).getValue()) > 0)
                         {
                             aggregatedResults.set(i+1, new StringField((String)field.getValue()));
                         }
                         break;
                     case DATE:
-                        if(((Date)field.getValue()).compareTo((Date)aggregatedResults.get(i+1).getValue()) > 0)
+                        if(compare((LocalDate)field.getValue(), (LocalDate)aggregatedResults.get(i+1).getValue()) > 0)
                         {
-                            aggregatedResults.set(i+1, new DateField((Date)field.getValue()));
+                            aggregatedResults.set(i+1, new DateField((LocalDate)field.getValue()));
                         }
                         break;
                     }
@@ -320,8 +329,8 @@ public class Aggregator extends AbstractSingleInputOperator
         return tupleBuilder.build();
     }
 
-    private <T> int compare(T a, T b){
-
+    private <T extends Comparable<T>> int compare(T a, T b){
+        return a.compareTo(b);
     }
     
     private List<IField> initialiseResultFieldsList(Tuple firstTuple)
@@ -352,7 +361,7 @@ public class Aggregator extends AbstractSingleInputOperator
                 aggregatedResults.add(new DoubleField((Double)fieldEntry.getValue()));
                 break;
             case DATE:
-                aggregatedResults.add(new DateField((Date)fieldEntry.getValue()));
+                aggregatedResults.add(new DateField((LocalDate)fieldEntry.getValue()));
                 break;
             case TEXT:
                 aggregatedResults.add(new TextField((String)fieldEntry.getValue()));

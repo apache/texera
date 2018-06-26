@@ -2,6 +2,7 @@ package edu.uci.ics.texera.dataflow.common;
 
 import java.util.UUID;
 
+import edu.uci.ics.texera.dataflow.aggregator.AggregatorPredicate;
 import edu.uci.ics.texera.dataflow.twitterfeed.TwitterFeedSourcePredicate;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
@@ -96,7 +97,8 @@ import edu.uci.ics.texera.dataflow.wordcount.WordCountOperatorPredicate;
         @Type(value = TwitterFeedSourcePredicate.class, name = "TwitterFeed"),
         
         @Type(value = WordCountIndexSourcePredicate.class, name = "WordCountIndexSource"),
-        @Type(value = WordCountOperatorPredicate.class, name = "WordCount"),        
+        @Type(value = WordCountOperatorPredicate.class, name = "WordCount"),
+        @Type(value = AggregatorPredicate.class, name = "Aggregation"),
 })
 public abstract class PredicateBase implements IPredicate {
     

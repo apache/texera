@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import edu.uci.ics.texera.api.exception.PlanGenException;
+import edu.uci.ics.texera.dataflow.aggregator.AggregatorPredicate;
 import edu.uci.ics.texera.dataflow.common.PredicateBase;
 import edu.uci.ics.texera.dataflow.comparablematcher.ComparablePredicate;
 import edu.uci.ics.texera.dataflow.dictionarymatcher.DictionaryPredicate;
@@ -67,8 +68,9 @@ public class OperatorArityConstants {
         fixedInputArityMap.put(SamplerPredicate.class, 1);
         fixedInputArityMap.put(WordCountIndexSourcePredicate.class, 0);
         fixedInputArityMap.put(WordCountOperatorPredicate.class, 1);
-        fixedInputArityMap.put(ComparablePredicate.class, 1); 
-        
+        fixedInputArityMap.put(ComparablePredicate.class, 1);
+        fixedInputArityMap.put(AggregatorPredicate.class, 1);
+
         fixedInputArityMap.put(AsterixSourcePredicate.class, 0);
         
         fixedInputArityMap.put(TwitterConverterPredicate.class, 1);
@@ -107,8 +109,9 @@ public class OperatorArityConstants {
         fixedOutputArityMap.put(SamplerPredicate.class, 1);
         fixedOutputArityMap.put(WordCountIndexSourcePredicate.class, 1);
         fixedOutputArityMap.put(WordCountOperatorPredicate.class, 1);
-        fixedOutputArityMap.put(ComparablePredicate.class, 1); 
-        
+        fixedOutputArityMap.put(ComparablePredicate.class, 1);
+        fixedOutputArityMap.put(AggregatorPredicate.class, 1);
+
         fixedOutputArityMap.put(AsterixSourcePredicate.class, 1);
         
         fixedOutputArityMap.put(TwitterConverterPredicate.class, 1);

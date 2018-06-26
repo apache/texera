@@ -387,7 +387,7 @@ public class AggregatorTest
     
     //TEST 12: Find max in DOB column 
     @Test
-    public void testMinDateAggregation() throws Exception
+    public void testMaxDateAggregation() throws Exception
     {
         Attribute attribute1 = TestConstants.DATE_OF_BIRTH_ATTR;
         String attributeName1 = attribute1.getName();
