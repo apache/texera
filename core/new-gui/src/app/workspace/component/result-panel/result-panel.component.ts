@@ -5,7 +5,7 @@ import { ExecuteWorkflowService } from './../../service/execute-workflow/execute
 
 import { NgbModal, NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { ExecutionResult, SuccessExecutionResult } from './../../types/execute-workflow.interface';
-import { TableColumn } from './../../types/result-table.interface';
+import { TableColumn, IndexableObject } from './../../types/result-table.interface';
 
 /**
  * ResultPanelCompoent is the bottom level area that displays the
@@ -61,21 +61,64 @@ export class ResultPanelComponent {
   }
 
   /**
-   * Updates all the result table properties based on the newly acquired
-   *  execution result and display a new data table with a new paginator
-   *  on the result panel.
+   * Handler for the execution result.
+   *
+   * Response code == 0:
+   *  - Execution had run correctly
+   *  - Don't show any error message
+   *  - Update data table's property to display new result
+   * Response code == 1:
+   *  - Execution had encountered an error
+   *  - Update and show the error message on the panel
+   *
+   * @param response
    */
-  private changeResultTableProperty(response: SuccessExecutionResult): void {
-    // This handles a special case when the execution result produces no value.
-    //  Display corresponding error message to the user.
-    if (response.result.length === 0) {
-      this.currentDataSource = undefined;
-      this.currentColumns = undefined;
-      this.currentDisplayColumns = undefined;
-      this.showMessage = true;
-      this.message = 'Execution returns 0 result';
+  private handleResultData(response: ExecutionResult): void {
+    // backend returns error, display error message
+    if (response.code === 1) {
+      this.displayErrorMessage(response.message);
       return;
     }
+
+    // execution success, but result is empty, also display message
+    if (response.result.length === 0) {
+      this.displayErrorMessage(`execution doesn't have any results`);
+      return;
+    }
+
+    // execution success, display result table
+    this.displayResultTable(response);
+  }
+
+  /**
+   * Displays the error message instead of the result table,
+   *  sets all the local properties correctly.
+   * @param errorMessage
+   */
+  private displayErrorMessage(errorMessage: string): void {
+    // clear data source and columns
+    this.currentDataSource = undefined;
+    this.currentColumns = undefined;
+    this.currentDisplayColumns = undefined;
+
+    // display message
+    this.showMessage = true;
+    this.message = errorMessage;
+  }
+
+  /**
+   * Updates all the result table properties based on the execution result,
+   *  displays a new data table with a new paginator on the result panel.
+   *
+   * @param response
+   */
+  private displayResultTable(response: SuccessExecutionResult): void {
+    if (response.result.length < 1) {
+      throw new Error(`display result table inconsistency: result data should not be empty`);
+    }
+
+    // don't display message, display result table instead
+    this.showMessage = false;
 
     // creates a shallow copy of the readonly response.result,
     //  this copy will be has type object[] because MatTableDataSource's input needs to be object[]
@@ -100,32 +143,6 @@ export class ResultPanelComponent {
 
     // set the paginator to be the new DataSource's paginator
     this.currentDataSource.paginator = this.paginator;
-
-  }
-
-  /**
-   * Handler for the execution result.
-   *
-   * Response code == 0:
-   *  - Execution had run correctly
-   *  - Don't show any error message
-   *  - Update data table's property to display new result
-   * Response code == 1:
-   *  - Execution had encountered an error
-   *  - Update and show the error message on the panel
-   *
-   * @param response
-   */
-  private handleResultData(response: ExecutionResult): void {
-    if (response.code === 0) {
-      // when the execution had run correctly
-      this.showMessage = false;
-      this.changeResultTableProperty(response);
-    } else {
-      // when the execution encountered an error
-      this.showMessage = true;
-      this.message = JSON.stringify(response.message);
-    }
   }
 
   /**
@@ -134,14 +151,11 @@ export class ResultPanelComponent {
    * @param columnNames
    */
   private static generateColumns(columnNames: string[]): TableColumn[] {
-    const columns: TableColumn[] = [];
-    // generate a TableColumn object for each column
-    columnNames.forEach(col => columns.push({
+    return columnNames.map(col => ({
       columnDef: col,
       header: col,
-      getCell: (row) => `${row[col]}`}));
-
-    return columns;
+      getCell: (row: IndexableObject) => `${row[col]}`
+    }));
   }
 }
 

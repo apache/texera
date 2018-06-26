@@ -10,13 +10,13 @@
     removing the elements, but rather modify their css to make these elements invisible
     to the users-->
   <div class="result-table" [hidden]="!currentColumns || showMessage">
-    <mat-table #table [dataSource]="currentDataSource">
-      <ng-container *ngFor="let column of currentColumns" matColumnDef={{column.columnDef}}>
+    <mat-table #table [dataSource]="currentDataSource!">
+      <ng-container *ngFor="let column of currentColumns!" matColumnDef={{column.columnDef}}>
         <mat-header-cell *matHeaderCellDef>{{ column.header }}</mat-header-cell>
-        <mat-cell  *matCellDef="let row">{{ column.cell(row) }}</mat-cell>
+        <mat-cell  *matCellDef="let row">{{ column.getCell(row) }}</mat-cell>
       </ng-container>
       <mat-header-row *matHeaderRowDef="currentDisplayColumns"></mat-header-row>
-      <mat-row class="result-table-row" *matRowDef="let row; columns: currentDisplayColumns;"
+      <mat-row class="result-table-row" *matRowDef="let row; columns: currentDisplayColumns!;"
           (click)="open(row)"></mat-row>
     </mat-table>
     <mat-paginator [pageSize]="10" [showFirstLastButtons]="true"></mat-paginator>
