@@ -4,10 +4,12 @@
 package edu.uci.ics.texera.dataflow.aggregator;
 
 import java.util.List;
+import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import com.google.common.collect.ImmutableMap;
 import edu.uci.ics.texera.api.dataflow.IOperator;
 import edu.uci.ics.texera.dataflow.common.PredicateBase;
 import edu.uci.ics.texera.dataflow.common.PropertyNameConstants;
@@ -41,5 +43,13 @@ public class AggregatorPredicate extends PredicateBase{
     @Override
     public IOperator newOperator() {
         return new Aggregator(this);
+    }
+
+    public static Map<String,Object> getOperatorMetadata(){
+        return ImmutableMap.<String, Object>builder()
+                .put(PropertyNameConstants.USER_FRIENDLY_NAME, "Entity Recognition")
+                .put(PropertyNameConstants.OPERATOR_DESCRIPTION, "Recognize entities in the text (person, location, date, ..)")
+                .put(PropertyNameConstants.OPERATOR_GROUP_NAME, OperatorGroupConstants.ANALYTICS_GROUP)
+                .build();
     }
 }

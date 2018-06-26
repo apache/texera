@@ -136,7 +136,7 @@ public class Aggregator extends AbstractSingleInputOperator
     public Tuple processAllTuples(IOperator inputOperator)
     {
         Tuple inputTuple = inputOperator.getNextTuple();
-        List<IField> aggregatedResults = new ArrayList<IField>();;
+        List<IField> aggregatedResults = new ArrayList<IField>();
         if(inputTuple != null)
         {
             aggregatedResults = initialiseResultFieldsList(inputTuple);
@@ -318,6 +318,10 @@ public class Aggregator extends AbstractSingleInputOperator
         }
         
         return tupleBuilder.build();
+    }
+
+    private <T> int compare(T a, T b){
+
     }
     
     private List<IField> initialiseResultFieldsList(Tuple firstTuple)
