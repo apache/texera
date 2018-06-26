@@ -149,28 +149,4 @@ describe('ResultPanelComponent', () => {
 
   }));
 
-  it('should successfully open the row detail modal when a row from the result is clicked', marbles((m) => {
-
-    const httpClient: HttpClient = TestBed.get(HttpClient);
-    spyOn(httpClient, 'post').and.returnValue(
-      Observable.of(mockExecutionResult)
-    );
-
-    executeWorkflowService.getExecuteEndedStream().subscribe();
-
-
-    executeWorkflowService.executeWorkflow();
-    fixture.detectChanges();
-
-    const resultTableRow = fixture.debugElement.query(By.css('.result-table-row'));
-    expect(resultTableRow).toBeTruthy();
-
-    resultTableRow.triggerEventHandler('click', null);
-
-    expect(component.currentDisplayRow).toBeTruthy();
-
-
-
-  }));
-
 });
