@@ -1,31 +1,25 @@
 import { Component, ViewChild, Input } from '@angular/core';
-import { DataSource } from '@angular/cdk/table';
 import { MatPaginator, MatTableDataSource } from '@angular/material';
-
 
 import { ExecuteWorkflowService } from './../../service/execute-workflow/execute-workflow.service';
 
-import { NgbModal , ModalDismissReasons, NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
+import { NgbModal, NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { ExecutionResult, SuccessExecutionResult } from './../../types/execute-workflow.interface';
 import { TableColumn } from './../../types/result-table.interface';
 
 /**
- * ResultPanelCompoent is the bottom level area that
- *  displays the execution result of a workflow after
- *  the execution finishes.
+ * ResultPanelCompoent is the bottom level area that displays the
+ *  execution result of a workflow after the execution finishes.
  *
- * The Component will display the result in an excel
- *  table format, where each row represents a result
- *  from the workflow and each column represents the
- *  type of result the workflow returns.
+ * The Component will display the result in an excel table format,
+ *  where each row represents a result from the workflow,
+ *  and each column represents the type of result the workflow returns.
  *
- * Clicking each row of the result table will create an
- *  pop-up window and display the detail of that row
- *  in a pretty json format.
+ * Clicking each row of the result table will create an pop-up window
+ *  and display the detail of that row in a pretty json format.
  *
  * @author Henry Chen
  * @author Zuozhi Wang
- *
  */
 @Component({
   selector: 'texera-result-panel',
@@ -56,19 +50,20 @@ export class ResultPanelComponent {
    *  pretty json format when clicked. User can view the details
    *  in a larger, expanded format.
    *
-   * @param content
+   * @param rowData the object containing the data of the current row in columnDef and cellData pairs
    */
-  public open(row: object): void {
+  public open(rowData: object): void {
     const modalRef = this.modalService.open(NgbModalComponent);
-    modalRef.componentInstance.currentDisplayRow = row;
+    // cast the instance type from `any` to NgbModalComponent
+    const modalComponentInstance = modalRef.componentInstance as NgbModalComponent;
+    // set the currentDisplayRowData of the modal to be the data of clicked row
+    modalComponentInstance.currentDisplayRowData = rowData;
   }
 
   /**
-   *
-   * Update all the result table properties based on the newly acquired
+   * Updates all the result table properties based on the newly acquired
    *  execution result and display a new data table with a new paginator
    *  on the result panel.
-   *
    */
   private changeResultTableProperty(response: SuccessExecutionResult): void {
     // This handles a special case when the execution result produces no value.
@@ -82,8 +77,8 @@ export class ResultPanelComponent {
       return;
     }
 
-    // creates a copy of the response.result, this copy will be
-    //  in the format -> object[]
+    // creates a shallow copy of the readonly response.result,
+    //  this copy will be has type object[] because MatTableDataSource's input needs to be object[]
     const resultData = response.result.slice();
 
     // When there is a result data from the backend,
@@ -104,7 +99,6 @@ export class ResultPanelComponent {
     this.currentDataSource = new MatTableDataSource<object> (resultData);
 
     // set the paginator to be the new DataSource's paginator
-
     this.currentDataSource.paginator = this.paginator;
 
   }
@@ -145,7 +139,7 @@ export class ResultPanelComponent {
     columnNames.forEach(col => columns.push({
       columnDef: col,
       header: col,
-      cell: (row) => `${row[col]}`}));
+      getCell: (row) => `${row[col]}`}));
 
     return columns;
   }
@@ -174,11 +168,12 @@ export class NgbModalComponent {
   // when modal is opened, currentDisplayRow will be passed as
   //  componentInstance to this NgbModalComponent to display
   //  as data table.
-  @Input() currentDisplayRow: object = {};
+  @Input() currentDisplayRowData: object = {};
 
   // activeModal is responsible for interacting with the
   //  ng-bootstrap modal, such as dismissing or exitting
   //  the pop-up modal.
+  // it is used in the HTML template
 
   constructor(public activeModal: NgbActiveModal) {}
 

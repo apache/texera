@@ -7,7 +7,7 @@ import './../../../common/rxjs-operators';
 import { AppSettings } from './../../../common/app-setting';
 
 import { WorkflowActionService } from './../workflow-graph/model/workflow-action.service';
-import { WorkflowGraph, WorkflowGraphReadonly } from './../workflow-graph/model/workflow-graph';
+import { WorkflowGraphReadonly } from './../workflow-graph/model/workflow-graph';
 import {
   LogicalLink, LogicalPlan, LogicalOperator,
   ExecutionResult, ErrorExecutionResult, SuccessExecutionResult
@@ -31,6 +31,8 @@ export const EXECUTE_WORKFLOW_ENDPOINT = 'queryplan/execute';
  * Components and Services subscribe to getExecuteEndedStream()
  *  for the event of the execution result (or errro) returned by the backend.
  *
+ * @author Zuozhi Wang
+ * @author Henry Chen
  */
 @Injectable()
 export class ExecuteWorkflowService {

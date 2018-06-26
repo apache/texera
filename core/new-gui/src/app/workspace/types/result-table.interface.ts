@@ -17,20 +17,19 @@ export interface IndexableObject extends Readonly<{
 /**
  * This type represent the function type interface for
  *  retreiving each attribute from each result row.
- *  Given a row, extract the value of each column, which
- *  can be type object, string, number, and boolean.
+ * Given a row, extract the cell value of each column.
  */
 type TableCellMethod = (row: IndexableObject) => object | string | number | boolean;
 
 /**
  * TableColumn specifies the information about each column.
- *  It stores the columnDef, which is the type of the value that
- *  one column stores. Header is the header of that column, which
- *  will be displayed on the GUI. Cell is a function that returns
- *  the value that will be dispalyed in each cell of the data table.
+ * It has:
+ *  - columnDef - the value to reference that column
+ *  - header - the header of that column, which is the text to be displayed on the GUI
+ *  - getCell - a function that returns the cell value that will be dispalyed in each cell of the data table
  */
 export interface TableColumn extends Readonly<{
   columnDef: string;
   header: string;
-  cell: TableCellMethod;
+  getCell: TableCellMethod;
 }> { }
