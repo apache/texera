@@ -1,11 +1,11 @@
-import { Component, ViewChild, TemplateRef } from '@angular/core';
+import { Component, ViewChild, Input } from '@angular/core';
 import { DataSource } from '@angular/cdk/table';
 import { MatPaginator, MatTableDataSource } from '@angular/material';
 
 
 import { ExecuteWorkflowService } from './../../service/execute-workflow/execute-workflow.service';
 
-import { NgbModal , ModalDismissReasons } from '@ng-bootstrap/ng-bootstrap';
+import { NgbModal , ModalDismissReasons, NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { ExecutionResult, SuccessExecutionResult } from './../../types/execute-workflow.interface';
 import { TableColumn } from './../../types/result-table.interface';
 
@@ -40,7 +40,6 @@ export class ResultPanelComponent {
   public currentColumns: TableColumn[] | undefined;
   public currentDisplayColumns: string[] | undefined;
   public currentDataSource: MatTableDataSource<object> | undefined;
-  public currentDisplayRow: string = '';
 
   @ViewChild(MatPaginator) paginator: MatPaginator | null = null;
 
@@ -59,23 +58,9 @@ export class ResultPanelComponent {
    *
    * @param content
    */
-  public open(content: TemplateRef<any>): void {
-    console.log(content);
-    this.modalService.open(content);
-  }
-
-
-  /**
-   * Fetches the information from the selected row in the result panel,
-   *  updates the content of the row to dispaly, and opens the
-   *  result panel to display the details of the selected rows.
-   *
-   * @param row
-   * @param content
-   */
-  public getRowDetails(row: object, content: TemplateRef<any>): void {
-    this.currentDisplayRow = JSON.stringify(row, undefined, 2);
-    this.open(content);
+  public open(row: object): void {
+    const modalRef = this.modalService.open(NgbModalComponent);
+    modalRef.componentInstance.currentDisplayRow = row;
   }
 
   /**
@@ -85,8 +70,21 @@ export class ResultPanelComponent {
    *  on the result panel.
    *
    */
-  private changeResultTableProperty(response: SuccessExecutionResult) {
-    const resultData: ReadonlyArray<object> | undefined = response.result;
+  private changeResultTableProperty(response: SuccessExecutionResult): void {
+    // This handles a special case when the execution result produces no value.
+    //  Display corresponding error message to the user.
+    if (response.result.length === 0) {
+      this.currentDataSource = undefined;
+      this.currentColumns = undefined;
+      this.currentDisplayColumns = undefined;
+      this.showMessage = true;
+      this.message = 'Execution returns 0 result';
+      return;
+    }
+
+    // creates a copy of the response.result, this copy will be
+    //  in the format -> object[]
+    const resultData = response.result.slice();
 
     // When there is a result data from the backend,
     //  1. Get all the column names except '_id', using the first instance of
@@ -97,20 +95,18 @@ export class ResultPanelComponent {
     //      data table.
     //  4. Set the newly created data table to our own paginator.
 
-    if (resultData !== undefined) {
-      // generate columnDef from first row, column definition is in order
-      this.currentDisplayColumns = Object.keys(resultData[0]).filter(x => x !== '_id');
-      this.currentColumns = ResultPanelComponent.generateColumns(this.currentDisplayColumns);
 
+    // generate columnDef from first row, column definition is in order
+    this.currentDisplayColumns = Object.keys(resultData[0]).filter(x => x !== '_id');
+    this.currentColumns = ResultPanelComponent.generateColumns(this.currentDisplayColumns);
 
-      // create a new DataSource object based on the new result data
-      this.currentDataSource = new MatTableDataSource<object> (resultData as Array<object>);
+    // create a new DataSource object based on the new result data
+    this.currentDataSource = new MatTableDataSource<object> (resultData);
 
-      // set the paginator to be the new DataSource's paginator
-      this.currentDataSource.paginator = this.paginator;
+    // set the paginator to be the new DataSource's paginator
 
-      // console.log(this.currentDisplayColumns);
-    }
+    this.currentDataSource.paginator = this.paginator;
+
   }
 
   /**
@@ -127,8 +123,6 @@ export class ResultPanelComponent {
    * @param response
    */
   private handleResultData(response: ExecutionResult): void {
-    // console.log('view result compoenent, ');
-    // console.log(response);
     if (response.code === 0) {
       // when the execution had run correctly
       this.showMessage = false;
@@ -152,8 +146,41 @@ export class ResultPanelComponent {
       columnDef: col,
       header: col,
       cell: (row) => `${row[col]}`}));
+
     return columns;
   }
+}
+
+
+/**
+ *
+ * NgbModalComponent is the pop-up window that will be
+ *  displayed when the user clicks on a specific row
+ *  to show the displays of that row.
+ *
+ * User can exit the pop-up window by
+ *  1. Clicking the dismiss button on the top-right hand corner
+ *      of the Modal
+ *  2. Clicking the `Close` button at the bottom-right
+ *  3. Clicking any shaded area that is not the pop-up window
+ *  4. Pressing `Esc` button on the keyboard
+ */
+@Component({
+  selector: 'texera-ngbd-modal-content',
+  templateUrl: './result-panel-modal.component.html',
+  styleUrls: ['./result-panel.component.scss']
+})
+export class NgbModalComponent {
+  // when modal is opened, currentDisplayRow will be passed as
+  //  componentInstance to this NgbModalComponent to display
+  //  as data table.
+  @Input() currentDisplayRow: object = {};
+
+  // activeModal is responsible for interacting with the
+  //  ng-bootstrap modal, such as dismissing or exitting
+  //  the pop-up modal.
+
+  constructor(public activeModal: NgbActiveModal) {}
 
 }
 

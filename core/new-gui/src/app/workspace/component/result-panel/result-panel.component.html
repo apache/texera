@@ -1,24 +1,15 @@
-<ng-template #content let-c="close" let-d="dismiss">
-  <div class="modal-header">
-    <h4 class="modal-title">Row Details</h4>
-    <button type="button" class="close" aria-label="Close" (click)="!d('Cross click')">
-      <span aria-hidden="true">&times;</span>
-    </button>
-  </div>
-  <div class="modal-body">
-    <pre>{{currentDisplayRow}}</pre>
-  </div>
-  <div class="modal-footer">
-    <button type="button" class="btn btn-outline-dark" (click)="!c('Close click')">Close</button>
-  </div>
-</ng-template>
-
-
 <div class="texera-workspace-result-panel-body texera-workflow-component-body">
   <div *ngIf="showMessage">
     <p>{{ message }}</p>
   </div>
-  <div class="result-table" *ngIf="currentColumns && !showMessage">
+  <!-- Use [hidden] instead of *ngIf because in *ngIf, when the predicate returns
+    false, the element inside the *ngIf clause will not exist, which @ViewChild(MatPaginator)
+    will not be able to get the paginator when the correct execution result is returned
+    for the first time, since <mat-paginator></mat-paginator> will still be undefined as
+    the elements in *ngIf is still loading. [hidden] attribute solves this issue by not
+    removing the elements, but rather modify their css to make these elements invisible
+    to the users-->
+  <div class="result-table" [hidden]="!currentColumns || showMessage">
     <mat-table #table [dataSource]="currentDataSource">
       <ng-container *ngFor="let column of currentColumns" matColumnDef={{column.columnDef}}>
         <mat-header-cell *matHeaderCellDef>{{ column.header }}</mat-header-cell>
@@ -26,7 +17,7 @@
       </ng-container>
       <mat-header-row *matHeaderRowDef="currentDisplayColumns"></mat-header-row>
       <mat-row class="result-table-row" *matRowDef="let row; columns: currentDisplayColumns;"
-          (click)="getRowDetails(row, content)"></mat-row>
+          (click)="open(row)"></mat-row>
     </mat-table>
     <mat-paginator [pageSize]="10" [showFirstLastButtons]="true"></mat-paginator>
   </div>
