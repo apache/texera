@@ -1,7 +1,12 @@
 import { Component, OnInit, Input, Output, EventEmitter } from '@angular/core';
 import { NgbModal, NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { MatDialog, MAT_DIALOG_DATA, MatDialogRef } from '@angular/material';
+import { MatIconModule } from '@angular/material/icon';
+import { MatChipsModule } from '@angular/material/chips';
 import { HttpClientModule } from '@angular/common/http';
+
+import {MatChipInputEvent} from '@angular/material';
+import {ENTER, COMMA} from '@angular/cdk/keycodes';
 
 
 import { Observable } from 'rxjs/Observable';
@@ -48,8 +53,17 @@ export class UserDictionarySectionComponent implements OnInit {
       .do(value => console.log(value))
       .subscribe(
         value => {
-          console.log(value);
           dictionary.items.push(value);
+          modalRef.componentInstance.dictionary = cloneDeep(dictionary);
+        }
+      );
+
+    const deleteItemEventEmitter = <EventEmitter<string>>(modalRef.componentInstance.deleteName);
+    const delSubscription = deleteItemEventEmitter
+      .do(value => console.log(value))
+      .subscribe(
+        value => {
+          dictionary.items = dictionary.items.filter(obj => obj !== value);
           modalRef.componentInstance.dictionary = cloneDeep(dictionary);
         }
       );
@@ -60,7 +74,6 @@ export class UserDictionarySectionComponent implements OnInit {
 
     const addItemEventEmitter = <EventEmitter<UserDictionary>>(modalRef.componentInstance.addedDictionary);
     const subscription = addItemEventEmitter
-      .do(value => console.log(value))
       .do(value => value.id = (this.UserDictionary.length + 1).toString()) // leave for correct
       .subscribe(
         value => {
@@ -91,22 +104,22 @@ export class UserDictionarySectionComponent implements OnInit {
 
   public ascSort(): void {
     this.UserDictionary.sort((t1, t2) => {
-      if (t1.name > t2.name) { return 1; }
-      if (t1.name < t2.name) { return -1; }
+      if (t1.name.toLowerCase() > t2.name.toLowerCase()) { return 1; }
+      if (t1.name.toLowerCase() < t2.name.toLowerCase()) { return -1; }
       return 0; });
   }
 
   public dscSort(): void {
     this.UserDictionary.sort((t1, t2) => {
-      if (t1.name > t2.name) { return -1; }
-      if (t1.name < t2.name) { return 1; }
+      if (t1.name.toLowerCase() > t2.name.toLowerCase()) { return -1; }
+      if (t1.name.toLowerCase() < t2.name.toLowerCase()) { return 1; }
       return 0; });
   }
 
   public sizeSort(): void {
     this.UserDictionary.sort((t1, t2) => {
-      if (t1.items.length > t2.items.length) { return 1; }
-      if (t1.items.length < t2.items.length) { return -1; }
+      if (t1.items.length > t2.items.length) { return -1; }
+      if (t1.items.length < t2.items.length) { return 1; }
       return 0; });
   }
 
@@ -116,6 +129,7 @@ export class UserDictionarySectionComponent implements OnInit {
 @Component({
   selector: 'texera-resource-section-modal',
   template: `
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
   <div class="modal-header">
     <h4 class="modal-title">{{dictionary.name}}</h4>
     <button type="button" class="close" aria-label="Close" (click)="onClose()">
@@ -124,7 +138,20 @@ export class UserDictionarySectionComponent implements OnInit {
   </div>
 
   <div class="modal-body">
-    <p>[ {{dictionary.items}} ]</p>
+    <!--<p>[ {{dictionary.items}} ]</p>-->
+
+    <mat-chip-list #chipList>
+      <mat-chip *ngFor="let item of dictionary.items" [selectable]="selectable" [removable]="removable" (removed) = "remove(item)">
+        {{item}}
+        <mat-icon matChipRemove  *ngIf="removable">
+          <i class="fa">&#xf057;</i>
+        </mat-icon>
+      </mat-chip>
+    </mat-chip-list>
+    <br>
+    <mat-divider></mat-divider>
+    <br>
+
     <mat-dialog-actions>
       <input *ngIf="ifAdd" matInput [(ngModel)]="name" placeholder="Add into dictionary">
       <button type="button" class="btn btn-outline-dark add-button" (click)="addKey()"  >Add</button>
@@ -141,15 +168,20 @@ export class UserDictionarySectionComponent implements OnInit {
 export class NgbdModalResourceViewComponent {
   @Input() dictionary;
   @Output() addedName =  new EventEmitter<string>();
+  @Output() deleteName =  new EventEmitter<string>();
 
   public name: string;
   public ifAdd = false;
+  public removable = true;
+  public visible = true;
+  public selectable = true;
 
   constructor(public activeModal: NgbActiveModal) {}
 
   onClose() {
     this.activeModal.close('Close');
   }
+
   addKey() {
 
     if (this.ifAdd && this.name !== undefined) {
@@ -159,6 +191,11 @@ export class NgbdModalResourceViewComponent {
     }
     this.ifAdd = !this.ifAdd;
 
+  }
+
+  remove(item: any): void {
+    console.log('delete ' + item + ' in dict ' + this.dictionary.name);
+    this.deleteName.emit(item);
   }
 }
 
@@ -177,12 +214,18 @@ export class NgbdModalResourceViewComponent {
 
   <div class="modal-body">
     <mat-dialog-content class= "add-dictionary-container">
-      <input class= "name-area" matInput [(ngModel)]="name" placeholder="Name of Dictionary">
-      <textarea class= "content-area" matInput
-        [(ngModel)]="dictContent" placeholder="Content of Dictionary"
-        matTextareaAutosize matAutosizeMinRows="3">
-      </textarea>
-      <input class= "separator-area" matInput [(ngModel)]="separator" placeholder="Content Separator">
+      <mat-form-field class= "name-area">
+        <input  matInput [(ngModel)]="name" placeholder="Name of Dictionary">
+      </mat-form-field>
+      <mat-form-field class= "content-area" >
+        <textarea matInput
+          [(ngModel)]="dictContent" placeholder="Content of Dictionary"
+          matTextareaAutosize matAutosizeMinRows="3">
+        </textarea>
+      </mat-form-field>
+      <mat-form-field class= "separator-area">
+        <input  matInput [(ngModel)]="separator" placeholder="Content Separator (' , '    ' \\t '    ' \\n ')">
+      </mat-form-field>
       <div class="transmit-area">
         <mat-divider></mat-divider>
         <span style="font-family:Roboto, Arial, sans-serif;">OR</span>

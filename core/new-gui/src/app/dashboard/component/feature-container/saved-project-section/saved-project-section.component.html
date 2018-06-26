@@ -18,7 +18,8 @@
             </mat-list>
           </div>
           <span>&emsp;&emsp;&emsp;</span>
-          <button mat-raised-button color="primary" (click)= "openNgbdModalAddProjectComponent()">Add</button>
+          <button type="button" class="btn btn-outline-dark add-button"  (click)="openNgbdModalAddProjectComponent()">Add</button>
+          <!--<button mat-raised-button color="primary" (click)= "openNgbdModalAddProjectComponent()">Add</button>-->
         </div>
       </mat-card>
 
@@ -31,12 +32,13 @@
             </div>
             <div class = "scroll">
             <mat-list-item *ngFor="let project of projects" class= "project-list-item">
-              <h3 mat-line style="font-size:20px; font-family:Roboto, Arial, sans-serif;"><a href={{defaultWeb}}>{{project.name}}</a></h3>
+              <h3 mat-line style="font-size:20px; font-family:Roboto, Arial, sans-serif;"><a href={{this.defaultWeb}}>{{project.name}}</a></h3>
               <p mat-line style="font-family:Roboto, Arial, sans-serif;color:gray" > <br>
                 {{project.lastModifiedTime | date:'yyyy-MM-dd HH:mm:ss Z'}}&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;Created: {{project.creationTime | date:'yyyy-MM-dd HH:mm:ss Z'}}
               </p>
               <button mat-button class="delete-project-btn" placement="bottom" ngbTooltip="Delete the {{project.name}}" (click)="openNgbdModalDeleteProjectComponent(project)" ><i class="fa">&#xf1f8;</i></button>
             </mat-list-item>
+
             </div>
           </mat-list>
 

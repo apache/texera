@@ -10,6 +10,7 @@ import { StubSavedProjectService } from '../../../service/saved-project/stub-sav
 
 import { cloneDeep } from 'lodash';
 
+
 @Component({
   selector: 'texera-saved-project-section',
   templateUrl: './saved-project-section.component.html',
@@ -19,13 +20,15 @@ export class SavedProjectSectionComponent implements OnInit {
 
   public projects: SavedProject[] = [];
 
+  defaultWeb: String = 'http://localhost:4200/';
+
   constructor(
-    private mockSavedProjectService: StubSavedProjectService,
+    private savedProjectService: SavedProjectService,
     private modalService: NgbModal
   ) { }
 
   ngOnInit() {
-    this.mockSavedProjectService.getSavedProjectData().subscribe(
+    this.savedProjectService.getSavedProjectData().subscribe(
       value => this.projects = value,
     );
     console.log(this.projects);
@@ -33,16 +36,16 @@ export class SavedProjectSectionComponent implements OnInit {
 
   public ascSort(): void {
     this.projects.sort((t1, t2) => {
-      if (t1.name > t2.name) { return 1; }
-      if (t1.name < t2.name) { return -1; }
+      if (t1.name.toLowerCase() > t2.name.toLowerCase()) { return 1; }
+      if (t1.name.toLowerCase() < t2.name.toLowerCase()) { return -1; }
       return 0;
     });
   }
 
   public dscSort(): void {
     this.projects.sort((t1, t2) => {
-      if (t1.name > t2.name) { return -1; }
-      if (t1.name < t2.name) { return 1; }
+      if (t1.name.toLowerCase() > t2.name.toLowerCase()) { return -1; }
+      if (t1.name.toLowerCase() < t2.name.toLowerCase()) { return 1; }
       return 0;
     });
   }
@@ -92,7 +95,7 @@ export class SavedProjectSectionComponent implements OnInit {
         value => {
           if (value) {
             this.projects = this.projects.filter(obj => obj.id !== project.id);
-            this.mockSavedProjectService.deleteSavedProjectData(project);
+            this.savedProjectService.deleteSavedProjectData(project);
             // this.savedProjectService.deleteSavedProjectData(project);
           }
         }

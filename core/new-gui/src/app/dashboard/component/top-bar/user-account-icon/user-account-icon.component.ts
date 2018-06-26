@@ -7,7 +7,7 @@ import { Component, OnInit } from '@angular/core';
 })
 export class UserAccountIconComponent implements OnInit {
 
-  private userName = 'User';
+  userName = 'User';
 
   constructor() {
   }

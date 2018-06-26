@@ -16,7 +16,8 @@
            </mat-list>
         </div>
       <span>&emsp;&emsp;&emsp;</span>
-      <button mat-raised-button color="primary" id="upload-btn" (click) = "openNgbdModalResourceAddComponent()">Upload</button>
+      <button type="button" class="btn btn-outline-dark add-button" (click)="openNgbdModalResourceAddComponent()">Upload</button>
+      <!--<button mat-raised-button color="primary" id="upload-btn" (click) = "openNgbdModalResourceAddComponent()">Upload</button>-->
     </div>
   </mat-card>
 
@@ -29,11 +30,14 @@
            <mat-list-item *ngFor="let dictionary of UserDictionary" class="user-dictionary-list-item">
              <ng-template #tipContent>Description: {{dictionary.description}}</ng-template>
              <div class="section for tip" placement="bottom" [ngbTooltip]="tipContent">
-              <p font-size= 10px><span style="color:rgb(62, 202, 253); font-size:20px; font-family:Roboto, Arial, sans-serif;">{{dictionary.name}}</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Item Preview: {{dictionary.items.slice(0,3)}}......</p>
+              <p font-size= 10px><span style="color:rgb(62, 202, 253); font-size:20px; font-family:Roboto, Arial, sans-serif;">
+                {{dictionary.name}}</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Item Preview: {{dictionary.items.slice(0,3)}}......
+              </p>
              </div>
              <span class="gap-filler"></span>
+             <button type="button" class="btn btn-outline-dark" style="background-color: rgb(197, 43, 197)" (click)="openNgbdModalResourceViewComponent(dictionary)">View</button>
+             <!--<button mat-raised-button color="primary" class="view-button" (click)= "openNgbdModalResourceViewComponent(dictionary)">View</button>-->
              <button mat-button class="delete-project-btn" placement="bottom" ngbTooltip="Delete the {{dictionary.name}}" (click)="openNgbdModalResourceDeleteComponent(dictionary)"><i class="fa">&#xf1f8;</i></button>
-             <button mat-raised-button color="primary" class="view-button" (click)= "openNgbdModalResourceViewComponent(dictionary)">View</button>
           </mat-list-item>
         </div>
       </mat-list>

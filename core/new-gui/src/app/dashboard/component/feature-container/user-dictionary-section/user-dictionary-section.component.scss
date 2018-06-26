@@ -127,7 +127,9 @@ $header-height: 70px;
   overflow: auto;
 }
 
-
+.modal-body{
+  word-wrap: break-word;
+}
 
 #hide input[type=file] {
   display:none;
@@ -147,3 +149,4 @@ $header-height: 70px;
   background-color:#2D6C7A;
   color:#FFFFFF;
   }
+
