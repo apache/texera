@@ -36,7 +36,6 @@ public class Aggregator extends AbstractSingleInputOperator
     private final AggregatorPredicate predicate;
     
     private Schema inputSchema;
-    private Schema outputSchema;
 
     public Aggregator(AggregatorPredicate predicate)
     {
