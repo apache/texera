@@ -58,7 +58,7 @@ describe('ResultPanelComponent', () => {
   });
 
   it('should create', () => {
-    const messageDiv = fixture.debugElement.query(By.css('.error-message'));
+    const messageDiv = fixture.debugElement.query(By.css('.texera-panel-message'));
     const tableDiv = fixture.debugElement.query(By.css('.result-table'));
     const tableHtmlElement: HTMLElement = tableDiv.nativeElement;
 
