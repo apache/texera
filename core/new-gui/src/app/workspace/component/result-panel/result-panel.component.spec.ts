@@ -10,7 +10,8 @@ import { OperatorMetadataService } from './../../service/operator-metadata/opera
 import { StubOperatorMetadataService } from './../../service/operator-metadata/stub-operator-metadata.service';
 import { NgbModule, NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { marbles } from 'rxjs-marbles';
-import { mockExecutionResult, mockResultData, mockExecutionErrorResult } from '../../service/execute-workflow/mock-result-data';
+import { mockExecutionResult, mockResultData,
+  mockExecutionErrorResult, mockExecutionEmptyResult } from '../../service/execute-workflow/mock-result-data';
 import { MatTableDataSource } from '@angular/material';
 import { By } from '@angular/platform-browser';
 import { Observable } from 'rxjs/Observable';
@@ -57,6 +58,18 @@ describe('ResultPanelComponent', () => {
   });
 
   it('should create', () => {
+    const messageDiv = fixture.debugElement.query(By.css('.error-message'));
+    const tableDiv = fixture.debugElement.query(By.css('.result-table'));
+    const tableHtmlElement: HTMLElement = tableDiv.nativeElement;
+
+    // Tests to check if, initially, messageDiv does not exist while result-table
+    //  exists but no visible.
+    expect(messageDiv).toBeFalsy();
+    expect(tableDiv).toBeTruthy();
+
+    // We only test its attribute because the style isn't directly accessbile
+    //  by the element, rather it was used through this attribute 'hidden'
+    expect(tableHtmlElement.hasAttribute('hidden')).toBeTruthy();
     expect(component).toBeTruthy();
   });
 
@@ -82,6 +95,39 @@ describe('ResultPanelComponent', () => {
         expect(testComponent.currentDataSource).toBeTruthy();
       }
     });
+
+  }));
+
+  it(`should create error message and update the Component's properties when the execution result size is 0`, marbles((m) => {
+    const endMarbleString = '-e-|';
+    const endMarbleValues = {
+      e: mockExecutionEmptyResult
+    };
+
+    spyOn(executeWorkflowService, 'getExecuteEndedStream').and.returnValue(
+      m.hot(endMarbleString, endMarbleValues)
+    );
+
+    const testComponent = new ResultPanelComponent(executeWorkflowService, ngbModel);
+    executeWorkflowService.getExecuteEndedStream().subscribe({
+      complete: () => {
+        expect(testComponent.message).toEqual(`execution doesn't have any results`);
+        expect(testComponent.currentDataSource).toBeFalsy();
+        expect(testComponent.currentColumns).toBeFalsy();
+        expect(testComponent.currentDisplayColumns).toBeFalsy();
+        expect(testComponent.showMessage).toBeTruthy();
+      }
+    });
+  }));
+
+  it(`should throw an error when displayResultTable() is called with execution result that has 0 size`, marbles((m) => {
+
+    // This is a way to get the private method in Components. Since this edge case can
+    //  never be reached in the public method, this architecture is required.
+
+    expect(() =>
+      (component as any).displayResultTable(mockExecutionEmptyResult)
+    ).toThrowError( new RegExp(`result data should not be empty`));
 
   }));
 
@@ -127,7 +173,6 @@ describe('ResultPanelComponent', () => {
         expect(testComponent.currentDataSource).toBeTruthy();
       }
     });
-
   }));
 
   it('should generate the result table correctly on the user interface', marbles((m) => {
@@ -146,7 +191,5 @@ describe('ResultPanelComponent', () => {
 
     const resultTable = fixture.debugElement.query(By.css('.result-table'));
     expect(resultTable).toBeTruthy();
-
   }));
-
 });

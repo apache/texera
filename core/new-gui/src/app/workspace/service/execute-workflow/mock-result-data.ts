@@ -45,6 +45,12 @@ export const mockExecutionResult: SuccessExecutionResult = {
   result: mockResultData
 };
 
+export const mockExecutionEmptyResult: SuccessExecutionResult = {
+  code: 0,
+  resultID: '2',
+  result: []
+};
+
 
 export const mockExecutionErrorResult: ErrorExecutionResult = {
   code: 1,

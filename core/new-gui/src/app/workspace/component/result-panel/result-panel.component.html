@@ -1,5 +1,5 @@
 <div class="texera-workspace-result-panel-body texera-workflow-component-body">
-  <div *ngIf="showMessage">
+  <div class="error-message" *ngIf="showMessage">
     <p>{{ message }}</p>
   </div>
   <!-- Use [hidden] instead of *ngIf because in *ngIf, when the predicate returns
