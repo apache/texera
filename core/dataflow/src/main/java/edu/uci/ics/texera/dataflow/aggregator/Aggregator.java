@@ -6,10 +6,8 @@ package edu.uci.ics.texera.dataflow.aggregator;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Date;
 import java.util.List;
 
-import org.joda.time.DateTime;
 
 import edu.uci.ics.texera.api.constants.ErrorMessages;
 import edu.uci.ics.texera.api.dataflow.IOperator;
@@ -26,7 +24,6 @@ import edu.uci.ics.texera.api.schema.Schema;
 import edu.uci.ics.texera.api.schema.Schema.Builder;
 import edu.uci.ics.texera.api.tuple.Tuple;
 import edu.uci.ics.texera.dataflow.common.AbstractSingleInputOperator;
-import edu.uci.ics.texera.dataflow.comparablematcher.ComparablePredicate;
 
 /**
  * @author avinash
