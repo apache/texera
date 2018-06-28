@@ -96,8 +96,7 @@ export const mockOperatorGroup: ReadonlyArray<GroupInfo> =
     { groupName: 'View Results', groupOrder: 3 },
   ];
 
-export const mockOperatorMetaData: OperatorMetadata =
-{
+export const mockOperatorMetaData: OperatorMetadata = {
     operators: mockOperatorSchemaList,
     groups: mockOperatorGroup
   };
@@ -118,5 +117,5 @@ export const testJsonSchema: JSONSchema4 = {
     'resultAttribute'
   ],
   type: 'object'
-}
+};
 

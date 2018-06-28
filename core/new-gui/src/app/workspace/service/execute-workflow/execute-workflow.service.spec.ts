@@ -19,6 +19,8 @@ import { LogicalPlan, SuccessExecutionResult } from '../../types/execute-workflo
 
 class StubHttpClient {
 
+  constructor() {}
+
   public post<T>(): Observable<string> { return Observable.of('a'); }
 
 }

@@ -19,7 +19,7 @@ import { NavigationComponent } from './workspace/component/navigation/navigation
 import { OperatorPanelComponent } from './workspace/component/operator-panel/operator-panel.component';
 import { PropertyEditorComponent } from './workspace/component/property-editor/property-editor.component';
 import { WorkflowEditorComponent } from './workspace/component/workflow-editor/workflow-editor.component';
-import { ResultPanelComponent } from './workspace/component/result-panel/result-panel.component';
+import { ResultPanelComponent, NgbModalComponent } from './workspace/component/result-panel/result-panel.component';
 import { OperatorLabelComponent } from './workspace/component/operator-panel/operator-label/operator-label.component';
 
 // remove annoying Angular material hammer js warning
@@ -34,7 +34,8 @@ import 'hammerjs';
     PropertyEditorComponent,
     WorkflowEditorComponent,
     ResultPanelComponent,
-    OperatorLabelComponent,
+    NgbModalComponent,
+    OperatorLabelComponent
   ],
   imports: [
     BrowserModule,
@@ -62,6 +63,8 @@ import 'hammerjs';
 
   ],
   providers: [ HttpClientModule ],
-  bootstrap: [AppComponent]
+  bootstrap: [AppComponent],
+  // dynamically created component must be placed in the entryComponents attribute
+  entryComponents: [ NgbModalComponent ]
 })
 export class AppModule { }
