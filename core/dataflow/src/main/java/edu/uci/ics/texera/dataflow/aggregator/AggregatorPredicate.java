@@ -49,7 +49,7 @@ public class AggregatorPredicate extends PredicateBase{
     public static Map<String,Object> getOperatorMetadata(){
         return ImmutableMap.<String, Object>builder()
                 .put(PropertyNameConstants.USER_FRIENDLY_NAME, "Aggregation")
-                .put(PropertyNameConstants.OPERATOR_DESCRIPTION, "Aggregate one or more columns to find min, max ...")
+                .put(PropertyNameConstants.OPERATOR_DESCRIPTION, "Aggregate one or more columns to find min, max, sum, average, count of the column")
                 .put(PropertyNameConstants.OPERATOR_GROUP_NAME, OperatorGroupConstants.UTILITY_GROUP)
                 .build();
     }
