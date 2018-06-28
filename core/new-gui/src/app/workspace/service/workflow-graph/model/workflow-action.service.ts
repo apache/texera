@@ -1,5 +1,4 @@
 import { OperatorMetadataService } from './../../operator-metadata/operator-metadata.service';
-import { OperatorMetadata } from './../../../types/operator-schema.interface';
 import { SyncTexeraModel } from './sync-texera-model';
 import { JointGraphWrapper } from './joint-graph-wrapper';
 import { JointUIService } from './../../joint-ui/joint-ui.service';

@@ -1,16 +1,12 @@
 import { DragDropService } from './../../service/drag-drop/drag-drop.service';
 
 import { JointUIService } from './../../service/joint-ui/joint-ui.service';
-import { WorkflowUtilService } from './../../service/workflow-graph/util/workflow-util.service';
 import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
 import { Component, AfterViewInit } from '@angular/core';
 import { Observable } from 'rxjs/Observable';
 import '../../../common/rxjs-operators';
 
 import * as joint from 'jointjs';
-import {
-  mockScanPredicate, mockResultPredicate, mockScanResultLink
-} from '../../service/workflow-graph/model/mock-workflow-data';
 
 /**
  * WorkflowEditorComponent is the componenet for the main workflow editor part of the UI.
@@ -42,7 +38,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
   constructor(
     private workflowActionService: WorkflowActionService,
     private dragDropService: DragDropService,
-    private jointUIService: JointUIService
   ) {
   }
 

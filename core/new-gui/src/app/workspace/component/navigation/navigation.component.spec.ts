@@ -12,9 +12,8 @@ import { OperatorMetadataService } from '../../service/operator-metadata/operato
 import { JointUIService } from '../../service/joint-ui/joint-ui.service';
 
 import { Observable } from 'rxjs/Observable';
-import { marbles, Context } from 'rxjs-marbles';
+import { marbles } from 'rxjs-marbles';
 import { HttpClient } from '@angular/common/http';
-import { SuccessExecutionResult } from '../../types/execute-workflow.interface';
 import { mockExecutionResult } from '../../service/execute-workflow/mock-result-data';
 
 class StubHttpClient {
@@ -58,7 +57,7 @@ describe('NavigationComponent', () => {
   it('should execute the workflow when run button is clicked', marbles((m) => {
 
     const httpClient: HttpClient = TestBed.get(HttpClient);
-    const postMethodSpy = spyOn(httpClient, 'post').and.returnValue(
+    spyOn(httpClient, 'post').and.returnValue(
       Observable.of(mockExecutionResult)
     );
 
@@ -76,7 +75,7 @@ describe('NavigationComponent', () => {
   it('should show spinner when the workflow execution begins and hide spinner when execution ends', marbles((m) => {
 
     const httpClient: HttpClient = TestBed.get(HttpClient);
-    const postMethodSpy = spyOn(httpClient, 'post').and.returnValue(
+    spyOn(httpClient, 'post').and.returnValue(
       Observable.of(mockExecutionResult)
     );
 
@@ -86,10 +85,10 @@ describe('NavigationComponent', () => {
     let spinner = fixture.debugElement.query(By.css('.texera-loading-spinner'));
     expect(spinner).toBeFalsy();
 
-    m.hot('-e-').do(event => component.onClickRun()).subscribe();
+    m.hot('-e-').do(() => component.onClickRun()).subscribe();
 
     executeWorkFlowService.getExecuteStartedStream().subscribe(
-      event => {
+      () => {
         fixture.detectChanges();
         expect(component.showSpinner).toBeTruthy();
         spinner = fixture.debugElement.query(By.css('.texera-loading-spinner'));
@@ -98,7 +97,7 @@ describe('NavigationComponent', () => {
     );
 
     executeWorkFlowService.getExecuteEndedStream().subscribe(
-      event => {
+      () => {
         fixture.detectChanges();
         expect(component.showSpinner).toBeFalsy();
         spinner = fixture.debugElement.query(By.css('.texera-loading-spinner'));

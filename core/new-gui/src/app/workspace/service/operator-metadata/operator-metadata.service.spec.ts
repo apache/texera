@@ -21,7 +21,6 @@ class StubHttpClient {
 describe('OperatorMetadataService', () => {
 
   let service: OperatorMetadataService;
-  let stubHttp: StubHttpClient;
 
   beforeEach(() => {
     TestBed.configureTestingModule({
@@ -30,7 +29,6 @@ describe('OperatorMetadataService', () => {
         { provide: HttpClient, useClass: StubHttpClient }
       ]
     });
-    stubHttp = TestBed.get(HttpClient);
   });
 
   beforeEach(inject([OperatorMetadataService, HttpClient], (ser: OperatorMetadataService) => {
@@ -55,7 +53,7 @@ describe('OperatorMetadataService', () => {
 
   it('should check if operatorType exists correctly', () => {
     service.getOperatorMetadata().last().subscribe(
-      value => {
+      () => {
         expect(service.operatorTypeExists('ScanSource')).toBeTruthy();
         expect(service.operatorTypeExists('InvalidOperatorType')).toBeFalsy();
       }
