@@ -12,17 +12,15 @@ import { NgbModule, NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { marbles } from 'rxjs-marbles';
 import { mockExecutionResult, mockResultData,
   mockExecutionErrorResult, mockExecutionEmptyResult } from '../../service/execute-workflow/mock-result-data';
-import { MatTableDataSource } from '@angular/material';
 import { By } from '@angular/platform-browser';
 import { Observable } from 'rxjs/Observable';
 import { HttpClient } from '@angular/common/http';
-import { ExecutionResult } from '../../types/execute-workflow.interface';
 
 
 class StubHttpClient {
   constructor() {}
 
-  public post<T>(): Observable<string> { return Observable.of('a'); }
+  public post(): Observable<string> { return Observable.of('a'); }
 }
 
 describe('ResultPanelComponent', () => {
@@ -120,7 +118,7 @@ describe('ResultPanelComponent', () => {
     });
   }));
 
-  it(`should throw an error when displayResultTable() is called with execution result that has 0 size`, marbles((m) => {
+  it(`should throw an error when displayResultTable() is called with execution result that has 0 size`, () => {
 
     // This is a way to get the private method in Components. Since this edge case can
     //  never be reached in the public method, this architecture is required.
@@ -129,7 +127,7 @@ describe('ResultPanelComponent', () => {
       (component as any).displayResultTable(mockExecutionEmptyResult)
     ).toThrowError( new RegExp(`result data should not be empty`));
 
-  }));
+  });
 
   it('should respond to error and print error messages', marbles((m) => {
     const endMarbleString = '-e-|';
@@ -175,7 +173,7 @@ describe('ResultPanelComponent', () => {
     });
   }));
 
-  it('should generate the result table correctly on the user interface', marbles((m) => {
+  it('should generate the result table correctly on the user interface', () => {
 
     const httpClient: HttpClient = TestBed.get(HttpClient);
     spyOn(httpClient, 'post').and.returnValue(
@@ -191,5 +189,6 @@ describe('ResultPanelComponent', () => {
 
     const resultTable = fixture.debugElement.query(By.css('.result-table'));
     expect(resultTable).toBeTruthy();
-  }));
+  });
+
 });

@@ -8,7 +8,7 @@ import { OperatorMetadataService } from '../operator-metadata/operator-metadata.
 import { StubOperatorMetadataService } from '../operator-metadata/stub-operator-metadata.service';
 import { mockOperatorMetaData } from '../operator-metadata/mock-operator-metadata.data';
 
-import { marbles, Context } from 'rxjs-marbles';
+import { marbles } from 'rxjs-marbles';
 
 describe('DragDropService', () => {
 
@@ -33,7 +33,7 @@ describe('DragDropService', () => {
   }));
 
 
-  it('should successfully register the element as draggable', marbles((m) => {
+  it('should successfully register the element as draggable', () => {
 
     const dragElementID = 'testing-draggable-1';
     jQuery('body').append(`<div id="${dragElementID}"></div>`);
@@ -43,20 +43,19 @@ describe('DragDropService', () => {
 
     expect(jQuery('#' + dragElementID).is('.ui-draggable')).toBeTruthy();
 
-  }));
+  });
 
 
-  it('should successfully register the element as droppable', marbles((m) => {
+  it('should successfully register the element as droppable', () => {
 
     const dropElement = 'testing-droppable-1';
     jQuery('body').append(`<div id="${dropElement}"></div>`);
 
-    const operatorType = mockOperatorMetaData.operators[0].operatorType;
     dragDropService.registerWorkflowEditorDrop(dropElement);
 
     expect(jQuery('#' + dropElement).is('.ui-droppable')).toBeTruthy();
 
-  }));
+  });
 
   it('should add an operator when the element is dropped', marbles((m) => {
 
@@ -75,7 +74,7 @@ describe('DragDropService', () => {
 
     dragDropService.handleOperatorDropEvent();
 
-    const addOperatorStream = workflowActionService.getTexeraGraph().getOperatorAddStream().map(value => 'a');
+    const addOperatorStream = workflowActionService.getTexeraGraph().getOperatorAddStream().map(() => 'a');
 
     const expectedStream = m.hot('-a-');
     m.expect(addOperatorStream).toBeObservable(expectedStream);

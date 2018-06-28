@@ -1,7 +1,6 @@
 import { StubOperatorMetadataService } from './../../operator-metadata/stub-operator-metadata.service';
 import { OperatorMetadataService } from './../../operator-metadata/operator-metadata.service';
 import { JointUIService } from './../../joint-ui/joint-ui.service';
-import { JointGraphWrapper } from './joint-graph-wrapper';
 import { WorkflowGraph } from './workflow-graph';
 import {
   mockScanPredicate, mockResultPredicate, mockSentimentPredicate, mockScanResultLink,
@@ -11,13 +10,11 @@ import {
 import { TestBed, inject } from '@angular/core/testing';
 
 import { WorkflowActionService } from './workflow-action.service';
-import { marbles } from 'rxjs-marbles';
 import { OperatorPredicate } from '../../../types/workflow-common.interface';
 
 describe('WorkflowActionService', () => {
 
   let service: WorkflowActionService;
-  let jointUIService: JointUIService;
   let texeraGraph: WorkflowGraph;
   let jointGraph: joint.dia.Graph;
 
@@ -30,7 +27,6 @@ describe('WorkflowActionService', () => {
       ]
     });
     service = TestBed.get(WorkflowActionService);
-    jointUIService = TestBed.get(JointUIService);
     texeraGraph = (service as any).texeraGraph;
     jointGraph = (service as any).jointGraph;
   });

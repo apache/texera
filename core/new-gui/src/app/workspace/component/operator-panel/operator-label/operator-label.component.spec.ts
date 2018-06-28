@@ -1,4 +1,3 @@
-import { Observable } from 'rxjs/Observable';
 import { WorkflowUtilService } from './../../../service/workflow-graph/util/workflow-util.service';
 import { JointUIService } from './../../../service/joint-ui/joint-ui.service';
 import { DragDropService } from './../../../service/drag-drop/drag-drop.service';
@@ -7,13 +6,11 @@ import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 import { OperatorLabelComponent } from './operator-label.component';
 import { OperatorMetadataService } from '../../../service/operator-metadata/operator-metadata.service';
 import { StubOperatorMetadataService } from '../../../service/operator-metadata/stub-operator-metadata.service';
-import { NO_ERRORS_SCHEMA } from '@angular/core';
 
 import { CustomNgMaterialModule } from '../../../../common/custom-ng-material.module';
 import { mockOperatorSchemaList } from '../../../service/operator-metadata/mock-operator-metadata.data';
 import { By } from '@angular/platform-browser';
 import { WorkflowActionService } from '../../../service/workflow-graph/model/workflow-action.service';
-import { marbles } from 'rxjs-marbles';
 
 describe('OperatorLabelComponent', () => {
   const mockOperatorData = mockOperatorSchemaList[0];

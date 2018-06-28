@@ -1,5 +1,5 @@
 import { DragDropService } from './../../../service/drag-drop/drag-drop.service';
-import { Component, OnInit, Input, AfterViewInit } from '@angular/core';
+import { Component, Input, AfterViewInit } from '@angular/core';
 import { v4 as uuid } from 'uuid';
 
 import { OperatorSchema } from '../../../types/operator-schema.interface';
