@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package edu.uci.ics.texera.dataflow.aggregator;
 
@@ -29,50 +29,42 @@ import edu.uci.ics.texera.dataflow.common.AbstractSingleInputOperator;
  *
  * @author avinash
  */
-public class Aggregator extends AbstractSingleInputOperator
-{
+public class Aggregator extends AbstractSingleInputOperator {
     private final AggregatorPredicate predicate;
-    
+
     private Schema inputSchema;
 
     private int rowsCount = 0;
 
-    public Aggregator(AggregatorPredicate predicate)
-    {
+    public Aggregator(AggregatorPredicate predicate) {
         this.predicate = predicate;
     }
 
-    private int getRowsCount()
-    {
+    private int getRowsCount() {
         return rowsCount;
     }
 
-    private void incrementRowsProcessed()
-    {
+    private void incrementRowsProcessed() {
         rowsCount++;
     }
-    
-    private boolean isAggregationTypeAllowed(AttributeType inputAttrType, AggregationType aggType)
-    {
+
+    private boolean isAggregationTypeAllowed(AttributeType inputAttrType, AggregationType aggType) {
         boolean retVal = false;
-        switch (aggType)
-        {
+        switch (aggType) {
             case COUNT:
                 retVal = true;
                 break;
 
             case MAX:
             case MIN:
-                if(Arrays.asList(AttributeType.DATETIME, AttributeType.DATE, AttributeType.STRING, AttributeType.TEXT, AttributeType.INTEGER, AttributeType.DOUBLE).contains(inputAttrType))
-                {
+                if (Arrays.asList(AttributeType.DATETIME, AttributeType.DATE, AttributeType.STRING, AttributeType.TEXT, AttributeType.INTEGER, AttributeType.DOUBLE).contains(inputAttrType)) {
                     retVal = true;
                 }
                 break;
 
             case SUM:
             case AVERAGE:
-                if(Arrays.asList(AttributeType.INTEGER, AttributeType.DOUBLE).contains(inputAttrType))
-                {
+                if (Arrays.asList(AttributeType.INTEGER, AttributeType.DOUBLE).contains(inputAttrType)) {
                     retVal = true;
                 }
                 break;
@@ -80,22 +72,18 @@ public class Aggregator extends AbstractSingleInputOperator
 
         return retVal;
     }
-    
+
     @Override
-    protected void setUp() throws TexeraException
-    {
+    protected void setUp() throws TexeraException {
         inputSchema = inputOperator.getOutputSchema();
         List<AggregationAttributeAndResult> aggregationItems = predicate.getAttributeAggregateResultList();
-        for(AggregationAttributeAndResult aggregationItem : aggregationItems)
-        {
+        for (AggregationAttributeAndResult aggregationItem : aggregationItems) {
             Schema.checkAttributeExists(inputSchema, aggregationItem.getAttributeName());
             Schema.checkAttributeNotExists(inputSchema, aggregationItem.getResultAttributeName());
         }
 
-        for(AggregationAttributeAndResult aggregationItem : aggregationItems)
-        {
-            if(!isAggregationTypeAllowed(inputSchema.getAttribute(aggregationItem.getAttributeName()).getType(), aggregationItem.getAggregatorType()))
-            {
+        for (AggregationAttributeAndResult aggregationItem : aggregationItems) {
+            if (!isAggregationTypeAllowed(inputSchema.getAttribute(aggregationItem.getAttributeName()).getType(), aggregationItem.getAggregatorType())) {
                 throw new TexeraException(
                         AggregatorErrorMessages.ATTRIBUTE_TYPE_NOT_FIT_FOR_AGGREGATION(aggregationItem.getAttributeName(),
                                 aggregationItem.getAggregatorType().toString()));
@@ -111,8 +99,7 @@ public class Aggregator extends AbstractSingleInputOperator
 
         List<AggregationAttributeAndResult> aggregationItems = predicate.getAttributeAggregateResultList();
         Builder schemaBuilder = new Schema.Builder();
-        for(AggregationAttributeAndResult aggregationItem : aggregationItems)
-        {
+        for (AggregationAttributeAndResult aggregationItem : aggregationItems) {
             schemaBuilder = schemaBuilder.add(aggregationItem.getResultAttributeName(), inputSchema[0].getAttribute(aggregationItem.getAttributeName()).getType());
         }
 
@@ -120,8 +107,7 @@ public class Aggregator extends AbstractSingleInputOperator
     }
 
     @Override
-    protected Tuple computeNextMatchingTuple() throws TexeraException
-    {
+    protected Tuple computeNextMatchingTuple() throws TexeraException {
         if (cursor == CLOSED || cursor >= 1) {
             return null;
         }
@@ -132,63 +118,52 @@ public class Aggregator extends AbstractSingleInputOperator
         return resultTuple;
     }
 
-    private List<IField> processAllTuples(IOperator inputOperator)
-    {
+    private List<IField> processAllTuples(IOperator inputOperator) {
         Tuple inputTuple = inputOperator.getNextTuple();
         List<IField> aggregatedResults = new ArrayList<IField>();
-        if(inputTuple != null)
-        {
+        if (inputTuple != null) {
             aggregatedResults = initialiseResultFieldsList(inputTuple);
             incrementRowsProcessed();
         }
-        
+
         List<AggregationAttributeAndResult> aggregationItems = predicate.getAttributeAggregateResultList();
-        
-        while ((inputTuple = inputOperator.getNextTuple()) != null)
-        {
+
+        while ((inputTuple = inputOperator.getNextTuple()) != null) {
             incrementRowsProcessed();
-            
-            for(int i=0; i<aggregationItems.size(); i++)
-            {
+
+            for (int i = 0; i < aggregationItems.size(); i++) {
                 IField field = inputTuple.getField(aggregationItems.get(i).getAttributeName());
-                Attribute inputAttr= inputSchema.getAttribute(aggregationItems.get(i).getAttributeName());
-                
-                switch(aggregationItems.get(i).getAggregatorType())
-                {
-                case MIN:
-                {
-                    if(compare(field, aggregatedResults.get(i), inputAttr.getType()) < 0)
-                    {
-                        aggregatedResults.set(i, field);
-                    }
-                    break;
-                }
-                case MAX:
-                {
-                    if(compare(field, aggregatedResults.get(i), inputAttr.getType()) > 0)
-                    {
-                        aggregatedResults.set(i, field);
-                    }
-                    break;
-                }
-                case AVERAGE:
-                case SUM:
-                {
-                  //We calculate sum and then at last divide it by totalRowsCount
-                    switch(inputAttr.getType())
-                    {
-                    case INTEGER:
-                        aggregatedResults.set(i, new IntegerField((int)aggregatedResults.get(i).getValue() + (int)field.getValue()));
-                        break;
-                    case DOUBLE:
-                        aggregatedResults.set(i, new DoubleField((double)aggregatedResults.get(i).getValue() + (double)field.getValue()));
+                Attribute inputAttr = inputSchema.getAttribute(aggregationItems.get(i).getAttributeName());
+
+                switch (aggregationItems.get(i).getAggregatorType()) {
+                    case MIN: {
+                        if (compare(field, aggregatedResults.get(i), inputAttr.getType()) < 0) {
+                            aggregatedResults.set(i, field);
+                        }
                         break;
                     }
-                    break;
-                }
-                case COUNT:
-                    aggregatedResults.set(i, new IntegerField((int)aggregatedResults.get(i).getValue() + 1));
-                    break;
+                    case MAX: {
+                        if (compare(field, aggregatedResults.get(i), inputAttr.getType()) > 0) {
+                            aggregatedResults.set(i, field);
+                        }
+                        break;
+                    }
+                    case AVERAGE:
+                    case SUM: {
+                        //We calculate sum and then at last divide it by totalRowsCount
+                        switch (inputAttr.getType()) {
+                            case INTEGER:
+                                aggregatedResults.set(i, new IntegerField((int) aggregatedResults.get(i).getValue() + (int) field.getValue()));
+                                break;
+                            case DOUBLE:
+                                aggregatedResults.set(i, new DoubleField((double) aggregatedResults.get(i).getValue() + (double) field.getValue()));
+                                break;
+                        }
+                        break;
+                    }
+                    case COUNT:
+                        aggregatedResults.set(i, new IntegerField((int) aggregatedResults.get(i).getValue() + 1));
+                        break;
                 }
             }
         }
@@ -200,34 +175,28 @@ public class Aggregator extends AbstractSingleInputOperator
         Tuple.Builder tupleBuilder = new Tuple.Builder();
 
         List<AggregationAttributeAndResult> aggregationItems = predicate.getAttributeAggregateResultList();
-        for(int i=0; i<aggregationItems.size(); i++)
-        {
-            Attribute inputAttr= inputSchema.getAttribute(aggregationItems.get(i).getAttributeName());
-            switch(aggregationItems.get(i).getAggregatorType())
-            {
+        for (int i = 0; i < aggregationItems.size(); i++) {
+            Attribute inputAttr = inputSchema.getAttribute(aggregationItems.get(i).getAttributeName());
+            switch (aggregationItems.get(i).getAggregatorType()) {
                 case MIN:
                 case MAX:
-                case SUM:
-                {
+                case SUM: {
                     tupleBuilder.add(aggregationItems.get(i).getResultAttributeName(), inputAttr.getType(), aggregatedResults.get(i));
                     break;
                 }
 
-                case AVERAGE:
-                {
-                    switch(inputAttr.getType())
-                    {
+                case AVERAGE: {
+                    switch (inputAttr.getType()) {
                         case INTEGER:
-                            tupleBuilder.add(aggregationItems.get(i).getResultAttributeName(), AttributeType.DOUBLE, new DoubleField(((int)aggregatedResults.get(i).getValue())*1.0/getRowsCount()*1.0));
+                            tupleBuilder.add(aggregationItems.get(i).getResultAttributeName(), AttributeType.DOUBLE, new DoubleField(((int) aggregatedResults.get(i).getValue()) * 1.0 / getRowsCount() * 1.0));
                             break;
                         case DOUBLE:
-                            tupleBuilder.add(aggregationItems.get(i).getResultAttributeName(), AttributeType.DOUBLE, new DoubleField((double)aggregatedResults.get(i).getValue()/getRowsCount()*1.0));
+                            tupleBuilder.add(aggregationItems.get(i).getResultAttributeName(), AttributeType.DOUBLE, new DoubleField((double) aggregatedResults.get(i).getValue() / getRowsCount() * 1.0));
                             break;
                     }
                     break;
                 }
-                case COUNT:
-                {
+                case COUNT: {
                     tupleBuilder.add(aggregationItems.get(i).getResultAttributeName(), AttributeType.INTEGER, aggregatedResults.get(i));
                     break;
                 }
@@ -237,67 +206,59 @@ public class Aggregator extends AbstractSingleInputOperator
         return tupleBuilder.build();
     }
 
-    private int compare(IField a, IField b, AttributeType attrType){
+    private int compare(IField a, IField b, AttributeType attrType) {
         int retVal = 0;
-        switch (attrType){
+        switch (attrType) {
             case INTEGER:
-                retVal = ((IntegerField)a).getValue().compareTo(((IntegerField)b).getValue());
+                retVal = ((IntegerField) a).getValue().compareTo(((IntegerField) b).getValue());
                 break;
             case DOUBLE:
-                retVal = ((DoubleField)a).getValue().compareTo(((DoubleField)b).getValue());
+                retVal = ((DoubleField) a).getValue().compareTo(((DoubleField) b).getValue());
                 break;
             case TEXT:
-                retVal =  ((TextField)a).getValue().compareTo(((TextField)b).getValue());
+                retVal = ((TextField) a).getValue().compareTo(((TextField) b).getValue());
                 break;
             case STRING:
-                retVal = ((StringField)a).getValue().compareTo(((StringField)b).getValue());
+                retVal = ((StringField) a).getValue().compareTo(((StringField) b).getValue());
                 break;
             case DATE:
-                retVal =  ((DateField)a).getValue().compareTo(((DateField)b).getValue());
+                retVal = ((DateField) a).getValue().compareTo(((DateField) b).getValue());
                 break;
             case DATETIME:
-                retVal =  ((DateTimeField)a).getValue().compareTo(((DateTimeField)b).getValue());
+                retVal = ((DateTimeField) a).getValue().compareTo(((DateTimeField) b).getValue());
                 break;
         }
 
         return retVal;
     }
-    
-    private List<IField> initialiseResultFieldsList(Tuple firstTuple)
-    {
+
+    private List<IField> initialiseResultFieldsList(Tuple firstTuple) {
         List<IField> aggregatedResults = new ArrayList<IField>();
-        
+
         List<AggregationAttributeAndResult> aggregationItems = predicate.getAttributeAggregateResultList();
 
-        for(AggregationAttributeAndResult aggregationItem : aggregationItems)
-        {
-            if(aggregationItem.getAggregatorType() == AggregationType.COUNT)
-            {
+        for (AggregationAttributeAndResult aggregationItem : aggregationItems) {
+            if (aggregationItem.getAggregatorType() == AggregationType.COUNT) {
                 aggregatedResults.add(new IntegerField(1));
-            }
-            else
-            {
+            } else {
                 IField fieldEntry = firstTuple.getField(aggregationItem.getAttributeName());
                 aggregatedResults.add(fieldEntry);
             }
         }
-        
+
         return aggregatedResults;
     }
 
     @Override
-    public Tuple processOneInputTuple(Tuple inputTuple) throws TexeraException
-    {
+    public Tuple processOneInputTuple(Tuple inputTuple) throws TexeraException {
         return null;
     }
 
     @Override
-    protected void cleanUp() throws TexeraException
-    {
+    protected void cleanUp() throws TexeraException {
     }
 
-    public AggregatorPredicate getPredicate()
-    {
+    public AggregatorPredicate getPredicate() {
         return this.predicate;
     }
 }

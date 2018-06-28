@@ -1,5 +1,5 @@
 /**
- * 
+ *
  */
 package edu.uci.ics.texera.dataflow.aggregator;
 
@@ -18,26 +18,24 @@ import edu.uci.ics.texera.dataflow.common.OperatorGroupConstants;
 
 /**
  * @author avinash
- *
- *AggregatorPredicate is the predicate for the Aggregator Operator.
+ * <p>
+ * AggregatorPredicate is the predicate for the Aggregator Operator.
  */
 
-public class AggregatorPredicate extends PredicateBase{
-    
+public class AggregatorPredicate extends PredicateBase {
+
     private final List<AggregationAttributeAndResult> attributeAggregateResultList;
 
     @JsonCreator
     public AggregatorPredicate(
             @JsonProperty(value = PropertyNameConstants.ATTRIBUTE_AGGREGATOR_RESULT_LIST, required = true)
-            List<AggregationAttributeAndResult> attributeAggResultList
-            )
-    {
+                    List<AggregationAttributeAndResult> attributeAggResultList
+    ) {
         this.attributeAggregateResultList = attributeAggResultList;
     }
 
     @JsonProperty(value = PropertyNameConstants.ATTRIBUTE_AGGREGATOR_RESULT_LIST)
-    public List<AggregationAttributeAndResult> getAttributeAggregateResultList()
-    {
+    public List<AggregationAttributeAndResult> getAttributeAggregateResultList() {
         return attributeAggregateResultList;
     }
 
@@ -46,7 +44,7 @@ public class AggregatorPredicate extends PredicateBase{
         return new Aggregator(this);
     }
 
-    public static Map<String,Object> getOperatorMetadata(){
+    public static Map<String, Object> getOperatorMetadata() {
         return ImmutableMap.<String, Object>builder()
                 .put(PropertyNameConstants.USER_FRIENDLY_NAME, "Aggregation")
                 .put(PropertyNameConstants.OPERATOR_DESCRIPTION, "Aggregate one or more columns to find min, max, sum, average, count of the column")
