@@ -1,4 +1,4 @@
-This example is to validate if we could use hadoop as backend engine. 
+This example is to evaluate if we could use hadoop as runtime engine. 
 
 It is a simple test to simulate texera operator with hadoop map-reduce.However, there are lots of work to do, such as query plan optimization, table metedata maintain.
 
