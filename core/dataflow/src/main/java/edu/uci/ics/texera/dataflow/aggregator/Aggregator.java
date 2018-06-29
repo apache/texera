@@ -48,6 +48,13 @@ public class Aggregator extends AbstractSingleInputOperator {
         rowsCount++;
     }
 
+    /***
+     * Not all aggregations are allowed for different attribute types. eg: Average makes no sense for Text. This function checks if the aggregation and attribute type
+     * selected are compatible.
+     * @param inputAttrType
+     * @param aggType
+     * @return
+     */
     private boolean isAggregationTypeAllowed(AttributeType inputAttrType, AggregationType aggType) {
         boolean retVal = false;
         switch (aggType) {
@@ -118,11 +125,17 @@ public class Aggregator extends AbstractSingleInputOperator {
         return resultTuple;
     }
 
+    /**
+     * Processes all the tuples from input operator and generates the aggregations requested by the user. The aggregations
+     * are put in a list. As the tuples from input operator are processed, the aggregations are updated in the list.
+     * @param inputOperator
+     * @return List<IField>
+     */
     private List<IField> processAllTuples(IOperator inputOperator) {
         Tuple inputTuple = inputOperator.getNextTuple();
         List<IField> aggregatedResults = new ArrayList<IField>();
         if (inputTuple != null) {
-            aggregatedResults = initialiseResultFieldsList(inputTuple);
+            aggregatedResults = initializeResultFieldsList(inputTuple);
             incrementRowsProcessed();
         }
 
@@ -171,6 +184,11 @@ public class Aggregator extends AbstractSingleInputOperator {
         return aggregatedResults;
     }
 
+    /**
+     * Takes the aggregates generated after processing all the tuples and puts it into a Tuple which is sent to next operator.
+     * @param aggregatedResults
+     * @return Tuple
+     */
     private Tuple putResultsIntoTuple(List<IField> aggregatedResults) {
         Tuple.Builder tupleBuilder = new Tuple.Builder();
 
@@ -232,7 +250,7 @@ public class Aggregator extends AbstractSingleInputOperator {
         return retVal;
     }
 
-    private List<IField> initialiseResultFieldsList(Tuple firstTuple) {
+    private List<IField> initializeResultFieldsList(Tuple firstTuple) {
         List<IField> aggregatedResults = new ArrayList<IField>();
 
         List<AggregationAttributeAndResult> aggregationItems = predicate.getAttributeAggregateResultList();

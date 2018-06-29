@@ -17,9 +17,13 @@ import edu.uci.ics.texera.dataflow.comparablematcher.ComparableMatcher;
 import edu.uci.ics.texera.dataflow.common.OperatorGroupConstants;
 
 /**
- * @author avinash
+ *
  * <p>
- * AggregatorPredicate is the predicate for the Aggregator Operator.
+ * AggregatorPredicate is the predicate for the Aggregator Operator. It accepts a list of aggregation and attribute.
+ * eg: If input table contains three attributes A, B and C, the users can use aggregator operator to do MAX(A),
+ * MIN(B), SUM(C).
+ *
+ * @author avinash
  */
 
 public class AggregatorPredicate extends PredicateBase {

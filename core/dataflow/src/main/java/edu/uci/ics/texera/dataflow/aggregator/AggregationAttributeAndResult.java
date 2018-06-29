@@ -8,6 +8,11 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import edu.uci.ics.texera.dataflow.common.PropertyNameConstants;
 
+/**
+ * AggregatorPredicate accepts a list of aggregation and attribute. Each member of that list is of type AggregationAttributeAndResult.
+ * It tells aggregator about what aggregation is to be done on which attribute and what should be the result attribute name.
+ *  eg: If input table contains three attributes A, B and C, the users can use aggregator operator to do MAX(A), MIN(B), SUM(C).
+ */
 public class AggregationAttributeAndResult {
     private final String attributeName;
     private final AggregationType aggregatorType;
