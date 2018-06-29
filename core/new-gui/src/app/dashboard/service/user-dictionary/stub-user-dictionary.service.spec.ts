@@ -2,10 +2,13 @@ import { TestBed, inject } from '@angular/core/testing';
 
 import { StubUserDictionaryService } from './stub-user-dictionary.service';
 
+import { HttpModule } from '@angular/http';
+
 describe('StubUserDictionaryService', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [StubUserDictionaryService]
+      providers: [StubUserDictionaryService],
+      imports: [HttpModule]
     });
   });
 
