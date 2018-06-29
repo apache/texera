@@ -15,7 +15,7 @@ public class CountShuffleOperator extends Operator {
     public KeyValue processOneValue(KeyValue input){
 
         JSONObject value = new JSONObject((input.getValue()).toString());
-
+        //hard code to get only date info
         Text key = new Text(value.getString(attributeName).substring(0,10));
 
         return new KeyValue(key,new Text(Integer.toString(1)));

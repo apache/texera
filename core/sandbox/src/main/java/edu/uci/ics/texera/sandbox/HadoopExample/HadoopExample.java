@@ -40,9 +40,9 @@ public class HadoopExample extends Configured implements Tool{
         JobControl jobControl = new JobControl("job_chain");
 
         //file path
-        Path inputPath = new Path("/test/tweets.json");
+        Path inputPath = new Path(args[0]);
         Path outputPath;
-        Path outputPathFinal = new Path("/output/final");
+        Path outputPathFinal = new Path(args[1]);
 
         for(int i=0; i<queryPlans.size();i++){
             Configuration conf = new Configuration();
@@ -102,7 +102,7 @@ public class HadoopExample extends Configured implements Tool{
             try{
                 Thread.sleep(5000);
             }catch ( Exception e){
-
+                System.out.println("Error");
             }
         }
         System.out.println(jobPool.get(0).getMessage());
