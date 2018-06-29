@@ -1,10 +1,5 @@
 import { JSONSchema4 } from 'json-schema';
-import { JSONSchema6 } from 'json-schema';
-// import functions from lodash: import individual functions from lodash-es
-//  to avoid include the entire lodash library
-import cloneDeep from 'lodash-es/cloneDeep';
 import { OperatorSchema, OperatorMetadata, GroupInfo } from '../../types/operator-schema.interface';
-import { JSONSchema6TypeName, JSONSchema6Type } from 'json-schema';
 
 /**
  * Exports constants related to operator schema and operator metadata for testing purposes.
@@ -96,8 +91,7 @@ export const mockOperatorGroup: ReadonlyArray<GroupInfo> =
     { groupName: 'View Results', groupOrder: 3 },
   ];
 
-export const mockOperatorMetaData: OperatorMetadata =
-{
+export const mockOperatorMetaData: OperatorMetadata = {
     operators: mockOperatorSchemaList,
     groups: mockOperatorGroup
   };
@@ -118,5 +112,5 @@ export const testJsonSchema: JSONSchema4 = {
     'resultAttribute'
   ],
   type: 'object'
-}
+};
 

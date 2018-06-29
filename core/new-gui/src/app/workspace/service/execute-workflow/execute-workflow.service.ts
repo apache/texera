@@ -7,7 +7,7 @@ import './../../../common/rxjs-operators';
 import { AppSettings } from './../../../common/app-setting';
 
 import { WorkflowActionService } from './../workflow-graph/model/workflow-action.service';
-import { WorkflowGraph, WorkflowGraphReadonly } from './../workflow-graph/model/workflow-graph';
+import { WorkflowGraphReadonly } from './../workflow-graph/model/workflow-graph';
 import {
   LogicalLink, LogicalPlan, LogicalOperator,
   ExecutionResult, ErrorExecutionResult, SuccessExecutionResult
@@ -17,26 +17,22 @@ export const EXECUTE_WORKFLOW_ENDPOINT = 'queryplan/execute';
 
 
 /**
- * ExecuteWorkflowService send the current workflow data to the backend
- *  for execution, then receive backend's response to display on the
- *  user interface. In this PR, the result will be printed onto console.
- *  In the later PR, once the result panel is added, we will have a better
- *  way to show the result of an execution.
+ * ExecuteWorkflowService sends the current workflow data to the backend
+ *  for execution, then receives backend's response and broadcast it to other components.
  *
- * ExecuteWorkflowService will be responsible for transforming the frontend
- *  formated graph into backend API formatted graph.
+ * ExecuteWorkflowService transforms the frontend workflow graph
+ *  into backend API compatible workflow graph before sending the request.
  *
- * Components should call executeWorkflow() function to fetch the current workflow
- *  graph and execute the current workflow
+ * Components should call executeWorkflow() function to execute the current workflow
  *
- * Components and Services should call getExecuteStartedStream() and subscribe
- *  to the Observable in order to capture the time in which workflow graph
- *  starts executing.
+ * Components and Services should subscribe to getExecuteStartedStream()
+ *  in order to capture the event of workflow graph starts executing.
  *
- * Components and Services should call getExecuteEndedStream() and subscribe to
- *  the Observable in order to capture the ending moment of execution and get
- *  the final result of executing the workflow, either some results or errors
+ * Components and Services subscribe to getExecuteEndedStream()
+ *  for the event of the execution result (or errro) returned by the backend.
  *
+ * @author Zuozhi Wang
+ * @author Henry Chen
  */
 @Injectable()
 export class ExecuteWorkflowService {
@@ -48,9 +44,8 @@ export class ExecuteWorkflowService {
 
   /**
    * Sends the current workflow data to the backend
-   *  to execute the workflow and get the results.
+   *  to execute the workflow and gets the results.
    *
-   * @param workflowPlan
    */
   public executeWorkflow(): void {
     // get the current workflow graph
@@ -59,9 +54,6 @@ export class ExecuteWorkflowService {
     // create a Logical Plan based on the workflow graph
     const body = ExecuteWorkflowService.getLogicalPlanRequest(workflowPlan);
     const requestURL = `${AppSettings.getApiEndpoint()}/${EXECUTE_WORKFLOW_ENDPOINT}`;
-
-    console.log(`making http post request to backend ${requestURL}`);
-    console.log(body);
 
     this.executeStartedStream.next('execution started');
 
@@ -111,8 +103,6 @@ export class ExecuteWorkflowService {
    * @param response
    */
   private handleExecuteResult(response: SuccessExecutionResult): void {
-    console.log('handling success result ');
-    console.log(response);
     this.executeEndedStream.next(response);
   }
 
@@ -127,9 +117,6 @@ export class ExecuteWorkflowService {
    * @param errorResponse
    */
   private handleExecuteError(errorResponse: HttpErrorResponse): void {
-    console.log('handling error result ');
-    console.log(errorResponse);
-
     // error shown to the user in different error scenarios
     const displayedErrorMessage = ExecuteWorkflowService.processErrorResponse(errorResponse);
     this.executeEndedStream.next(displayedErrorMessage);

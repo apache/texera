@@ -1,4 +1,3 @@
-import { BrowserModule } from '@angular/platform-browser';
 import { NgModule } from '@angular/core';
 
 // import angular CDK modules
@@ -42,7 +41,9 @@ import {
   MatTabsModule,
   MatToolbarModule,
   MatTooltipModule,
+  MatPaginatorModule
 } from '@angular/material';
+
 
 /**
  * This module includes most of the Angular material components and modules that
@@ -92,6 +93,7 @@ import {
     MatToolbarModule,
     MatTooltipModule,
     MatNativeDateModule,
+    MatPaginatorModule
   ]
 })
 export class CustomNgMaterialModule { }

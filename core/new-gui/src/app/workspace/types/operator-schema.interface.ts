@@ -1,4 +1,4 @@
-import { JSONSchema4, JSONSchema6 } from "json-schema";
+import { JSONSchema4 } from 'json-schema';
 
 /**
  * This file contains multiple type declarations related to operator schema.
