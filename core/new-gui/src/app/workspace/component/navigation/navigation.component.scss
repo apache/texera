@@ -1,18 +1,20 @@
 @import '../workspace.component.scss';
-
 .texera-workspace-navigation-body {
-    border: 2px solid;
+  height: 100%;
+  padding-left: 24px;
+  padding-right: 24px;
 }
 
-
-.texera-workspace-navigation-run {
-  border-radius: 3px;
-}
-
-.texera-workspace-navigation-run:hover {
-  background-color: #81C784;
-}
-
-.texera-loading-spinner {
-  color: #85e085;
+.texera-workspace-navigation-run-button {
+  margin-right: 3%;
+  .mat-raised-button {
+    height: 30px;
+  }
+  .texera-workspace-navigation-run-text {
+    font-size: 1rem;
+  }
+  .fa {
+    font-size: 1rem;
+    padding-right: 6px;
+  }
 }
