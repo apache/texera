@@ -1,14 +1,13 @@
 import { SyncTexeraModel } from './sync-texera-model';
 import { JointGraphWrapper } from './joint-graph-wrapper';
 import { WorkflowGraph } from './workflow-graph';
-import { Point, OperatorPredicate, OperatorLink } from './../../../types/workflow-common.interface';
+import { OperatorLink } from './../../../types/workflow-common.interface';
 import {
   mockScanPredicate, mockResultPredicate, mockSentimentPredicate,
-  mockScanResultLink, mockScanSentimentLink, mockSentimentResultLink, mockPoint
+  mockScanResultLink, mockScanSentimentLink, mockSentimentResultLink
 } from './mock-workflow-data';
-import { Observable } from 'rxjs/Observable';
-import { TestBed, inject } from '@angular/core/testing';
-import { marbles, Context } from 'rxjs-marbles';
+import { TestBed } from '@angular/core/testing';
+import { marbles } from 'rxjs-marbles';
 
 import '../../../../common/rxjs-operators';
 
@@ -19,13 +18,6 @@ describe('SyncTexeraModel', () => {
 
   let texeraGraph: WorkflowGraph;
   let jointGraphWrapper: JointGraphWrapper;
-
-  function getAddOperatorValue(operator: OperatorPredicate) {
-    return {
-      operator: operator,
-      point: mockPoint
-    };
-  }
 
   /**
    * Returns a mock JointJS operator Element object (joint.dia.Element)
@@ -134,7 +126,7 @@ describe('SyncTexeraModel', () => {
     );
 
     // construct the texera sync model with spied dependencies
-    const texeraSyncModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper);
+    const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper);
 
     // assert workflow graph
     jointGraphWrapper.getJointOperatorCellDeleteStream().subscribe({
@@ -175,7 +167,7 @@ describe('SyncTexeraModel', () => {
     );
 
     // construct the texera sync model with spied dependencies
-    const texeraSyncModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper);
+    const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper);
 
     jointGraphWrapper.getJointOperatorCellDeleteStream().subscribe({
       complete: () => {
@@ -224,7 +216,7 @@ describe('SyncTexeraModel', () => {
     // construct the texera sync model with spied dependencies
 
     // TODO: expect error to be thrown
-    // const texeraSyncModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper);
+    // const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper);
 
 
     // this should throw an error when the model is constructed and the
@@ -259,7 +251,7 @@ describe('SyncTexeraModel', () => {
     );
 
     // construct the texera sync model with spied dependencies
-    const texeraSyncModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper);
+    const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper);
 
     jointGraphWrapper.getJointLinkCellAddStream().subscribe({
       complete: () => {
@@ -307,7 +299,7 @@ describe('SyncTexeraModel', () => {
     );
 
     // construct the texera sync model with spied dependencies
-    const texeraSyncModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper);
+    const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper);
 
     jointGraphWrapper.getJointLinkCellDeleteStream().subscribe({
       complete: () => {
@@ -348,7 +340,7 @@ describe('SyncTexeraModel', () => {
     );
 
     // construct the texera sync model with spied dependencies
-    const texeraSyncModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper);
+    const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper);
 
     jointGraphWrapper.getJointLinkCellDeleteStream().subscribe({
       complete: () => {
@@ -402,7 +394,7 @@ describe('SyncTexeraModel', () => {
     );
 
     // construct the texera sync model with spied dependencies
-    const texeraSyncModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper);
+    const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper);
 
     jointGraphWrapper.getJointLinkCellAddStream().subscribe({
       complete: () => {
@@ -446,7 +438,7 @@ describe('SyncTexeraModel', () => {
     );
 
     // construct the texera sync model with spied dependencies
-    const texeraSyncModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper);
+    const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper);
 
     jointGraphWrapper.getJointLinkCellChangeStream().subscribe({
       complete: () => {
@@ -508,7 +500,7 @@ describe('SyncTexeraModel', () => {
     );
 
     // construct the texera sync model with spied dependencies
-    const texeraSyncModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper);
+    const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper);
 
     jointGraphWrapper.getJointLinkCellChangeStream()
       .subscribe({
@@ -575,7 +567,7 @@ describe('SyncTexeraModel', () => {
     );
 
     // construct the texera sync model with spied dependencies
-    const texeraSyncModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper);
+    const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper);
 
     jointGraphWrapper.getJointLinkCellChangeStream().subscribe({
       complete: () => {
@@ -651,7 +643,7 @@ describe('SyncTexeraModel', () => {
       );
 
       // construct texera model
-      const texeraSyncModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper);
+      const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper);
       jointGraphWrapper.getJointOperatorCellDeleteStream().subscribe({
         complete: () => {
           expect(texeraGraph.hasOperator(mockSentimentPredicate.operatorID)).toBeFalsy();

@@ -14,12 +14,14 @@ import { mockWorkflowPlan, mockLogicalPlan } from './mock-workflow-plan';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { marbles } from 'rxjs-marbles';
 import { WorkflowGraph } from '../workflow-graph/model/workflow-graph';
-import { LogicalPlan, SuccessExecutionResult } from '../../types/execute-workflow.interface';
+import { LogicalPlan } from '../../types/execute-workflow.interface';
 
 
 class StubHttpClient {
 
-  public post<T>(): Observable<string> { return Observable.of('a'); }
+  constructor() {}
+
+  public post(): Observable<string> { return Observable.of('a'); }
 
 }
 
@@ -47,17 +49,17 @@ describe('ExecuteWorkflowService', () => {
     expect(injectedService).toBeTruthy();
   }));
 
-  it('should generate a logical plan request based on the workflow graph that is passed to the function', marbles((m) => {
+  it('should generate a logical plan request based on the workflow graph that is passed to the function', () => {
     const workflowGraph: WorkflowGraph = mockWorkflowPlan;
     const newLogicalPlan: LogicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(workflowGraph);
     expect(newLogicalPlan).toEqual(mockLogicalPlan);
-  }));
+  });
 
   it('should notify execution start event stream when an execution begins', marbles((m) => {
     const executionStartStream = service.getExecuteStartedStream()
-      .map(value => 'a');
+      .map(() => 'a');
 
-    m.hot('-a-').do(event => service.executeWorkflow()).subscribe();
+    m.hot('-a-').do(() => service.executeWorkflow()).subscribe();
 
     const expectedStream = m.hot('-a-');
 
@@ -67,10 +69,10 @@ describe('ExecuteWorkflowService', () => {
 
   it('should notify execution end event stream when a correct result is passed from backend', marbles((m) => {
     const executionEndStream = service.getExecuteEndedStream()
-      .map(value => 'a');
+      .map(() => 'a');
 
     // execute workflow at this time
-    m.hot('-a-').do(event => service.executeWorkflow()).subscribe();
+    m.hot('-a-').do(() => service.executeWorkflow()).subscribe();
 
     const expectedStream = m.hot('-a-');
 
@@ -94,7 +96,7 @@ describe('ExecuteWorkflowService', () => {
     const mockErrorMessage = 'mock backend error message';
 
     const httpClient: HttpClient = TestBed.get(HttpClient);
-    const postMethodSpy = spyOn(httpClient, 'post').and.returnValue(
+    spyOn(httpClient, 'post').and.returnValue(
       Observable.throw({
         status: 400,
         error: {
@@ -121,7 +123,7 @@ describe('ExecuteWorkflowService', () => {
     const mockErrorMessage = 'mock server error message';
 
     const httpClient: HttpClient = TestBed.get(HttpClient);
-    const postMethodSpy = spyOn(httpClient, 'post').and.returnValue(
+    spyOn(httpClient, 'post').and.returnValue(
       Observable.throw({
         status: 500,
         error: {

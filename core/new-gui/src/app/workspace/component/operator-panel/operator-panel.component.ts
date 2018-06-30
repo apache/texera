@@ -2,7 +2,6 @@ import { Component, OnInit } from '@angular/core';
 import { OperatorMetadataService } from '../../service/operator-metadata/operator-metadata.service';
 
 import { OperatorSchema, OperatorMetadata, GroupInfo } from '../../types/operator-schema.interface';
-import { StubOperatorMetadataService } from '../../service/operator-metadata/stub-operator-metadata.service';
 
 /**
  * OperatorViewComponent is the left-side panel that shows the operators.

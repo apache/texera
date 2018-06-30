@@ -1,4 +1,4 @@
-import { SuccessExecutionResult } from '../../types/execute-workflow.interface';
+import { SuccessExecutionResult, ErrorExecutionResult } from '../../types/execute-workflow.interface';
 
 export const mockResultData: object[] = [
   {
@@ -43,4 +43,16 @@ export const mockExecutionResult: SuccessExecutionResult = {
   code: 0,
   resultID: '1',
   result: mockResultData
+};
+
+export const mockExecutionEmptyResult: SuccessExecutionResult = {
+  code: 0,
+  resultID: '2',
+  result: []
+};
+
+
+export const mockExecutionErrorResult: ErrorExecutionResult = {
+  code: 1,
+  message: 'custom error happening'
 };

@@ -2,7 +2,7 @@ import { OperatorSchema } from './../../types/operator-schema.interface';
 import { OperatorPredicate } from '../../types/workflow-common.interface';
 import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
 import { OperatorMetadataService } from './../../service/operator-metadata/operator-metadata.service';
-import { Component, OnInit } from '@angular/core';
+import { Component } from '@angular/core';
 
 import { Subject } from 'rxjs/Subject';
 import { Observable } from 'rxjs/Observable';
@@ -45,6 +45,10 @@ import isEqual from 'lodash-es/isEqual';
 })
 export class PropertyEditorComponent {
 
+  // debounce time for form input in miliseconds
+  //  please set this to multiples of 10 to make writing tests easy
+  public static formInputDebounceTime: number = 150;
+
   // the operatorID corresponds to the property editor's current operator
   public currentOperatorID: string | undefined;
   // a *copy* of the operator property as the initial input to the json schema form
@@ -66,10 +70,6 @@ export class PropertyEditorComponent {
 
   // the current operator schema list, used to find the operator schema of current operator
   public operatorSchemaList: ReadonlyArray<OperatorSchema> = [];
-
-  // debounce time for form input in miliseconds
-  //  please set this to multiples of 10 to make writing tests easy
-  public static formInputDebounceTime: number = 150;
 
 
   constructor(
@@ -129,13 +129,13 @@ export class PropertyEditorComponent {
     }
 
     // set displayForm to false first to hide the view while constructing data
-    this.displayForm = false
+    this.displayForm = false;
 
     // set the operator data needed
     this.currentOperatorID = operator.operatorID;
     this.currentOperatorSchema = this.operatorSchemaList.find(schema => schema.operatorType === operator.operatorType);
     if (!this.currentOperatorSchema) {
-      throw new Error(`operator schema for operator type ${operator.operatorType} doesn't exist`)
+      throw new Error(`operator schema for operator type ${operator.operatorType} doesn't exist`);
     }
     /**
      * Make a deep copy of the initial property data object.
@@ -171,7 +171,7 @@ export class PropertyEditorComponent {
 
     this.workflowActionService.getJointGraphWrapper().getJointCellUnhighlightStream()
       .filter(value => value.operatorID === this.currentOperatorID)
-      .subscribe(value => this.clearPropertyEditor());
+      .subscribe(() => this.clearPropertyEditor());
   }
 
   /**
@@ -210,7 +210,7 @@ export class PropertyEditorComponent {
         // when the form is initialized, the change event is triggered for the inital data
         // however, the operator property is not changed and shouldn't emit this event
         if (isEqual(formData, operator.operatorProperties)) {
-          return false
+          return false;
         }
         return true;
       })

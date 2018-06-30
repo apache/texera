@@ -39,7 +39,6 @@ describe('WorkflowEditorComponent', () => {
   describe('JointJS Paper', () => {
     let component: WorkflowEditorComponent;
     let fixture: ComponentFixture<WorkflowEditorComponent>;
-    let jointUIService: JointUIService;
     let jointGraph: joint.dia.Graph;
 
     beforeEach(async(() => {
@@ -59,7 +58,6 @@ describe('WorkflowEditorComponent', () => {
     beforeEach(() => {
       fixture = TestBed.createComponent(WorkflowEditorComponent);
       component = fixture.componentInstance;
-      jointUIService = fixture.debugElement.injector.get(JointUIService);
       // detect changes first to run ngAfterViewInit and bind Model
       fixture.detectChanges();
       jointGraph = component.getJointPaper().model;
@@ -158,9 +156,9 @@ describe('WorkflowEditorComponent', () => {
     });
 
     it('should try to highlight the operator when user mouse clicks on an operator', () => {
-      const JointGraphWrapper = workflowActionService.getJointGraphWrapper();
+      const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
       // install a spy on the highlight operator function and pass the call through
-      const highlightOperatorFunctionSpy = spyOn(JointGraphWrapper, 'highlightOperator').and.callThrough();
+      const highlightOperatorFunctionSpy = spyOn(jointGraphWrapper, 'highlightOperator').and.callThrough();
 
       workflowActionService.addOperator(mockScanPredicate, mockPoint);
 
@@ -175,15 +173,15 @@ describe('WorkflowEditorComponent', () => {
       // assert the function is called once
       expect(highlightOperatorFunctionSpy.calls.count()).toEqual(1);
       // assert the highlighted operator is correct
-      expect(JointGraphWrapper.getCurrentHighlightedOpeartorID()).toEqual(mockScanPredicate.operatorID);
+      expect(jointGraphWrapper.getCurrentHighlightedOpeartorID()).toEqual(mockScanPredicate.operatorID);
     });
 
     it('should react to operator highlight event and change the appearance of the operator to be highlighted', () => {
-      const JointGraphWrapper = workflowActionService.getJointGraphWrapper();
+      const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
       workflowActionService.addOperator(mockScanPredicate, mockPoint);
 
       // highlight the operator
-      JointGraphWrapper.highlightOperator(mockScanPredicate.operatorID);
+      jointGraphWrapper.highlightOperator(mockScanPredicate.operatorID);
 
       // find the joint Cell View object of the operator element
       const jointCellView = component.getJointPaper().findViewByModel(mockScanPredicate.operatorID);
@@ -193,14 +191,14 @@ describe('WorkflowEditorComponent', () => {
 
       // the element should have the highlighter element in it
       expect(jointHighlighterElements.length).toEqual(1);
-    })
+    });
 
     it('should react to operator unhighlight event and change the appearance of the operator to be unhighlighted', () => {
-      const JointGraphWrapper = workflowActionService.getJointGraphWrapper();
+      const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
       workflowActionService.addOperator(mockScanPredicate, mockPoint);
 
       // highlight the oprator first
-      JointGraphWrapper.highlightOperator(mockScanPredicate.operatorID);
+      jointGraphWrapper.highlightOperator(mockScanPredicate.operatorID);
 
       // find the joint Cell View object of the operator element
       const jointCellView = component.getJointPaper().findViewByModel(mockScanPredicate.operatorID);
@@ -209,10 +207,10 @@ describe('WorkflowEditorComponent', () => {
       const jointHighlighterElements = jointCellView.$el.children('.joint-highlight-stroke');
 
       // the element should have the highlighter element in it right now
-      expect(jointHighlighterElements.length).toEqual(1)
+      expect(jointHighlighterElements.length).toEqual(1);
 
       // then unhighlight the operator
-      JointGraphWrapper.unhighlightCurrent();
+      jointGraphWrapper.unhighlightCurrent();
 
       // the highlighter element should not exist
       const jointHighlighterElementAfterUnhighlight = jointCellView.$el.children('.joint-highlight-stroke');
