@@ -1,7 +1,7 @@
 import { OperatorSchema } from './../../types/operator-schema.interface';
 import { OperatorPredicate } from '../../types/workflow-common.interface';
 import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
-import { OperatorMetadataService } from './../../service/operator-metadata/operator-metadata.service';
+import { AutocompleteService } from '../../service/autocomplete/model/autocomplete.service';
 import { Component } from '@angular/core';
 
 import { Subject } from 'rxjs/Subject';
@@ -71,14 +71,14 @@ export class PropertyEditorComponent {
   // the current operator schema list, used to find the operator schema of current operator
   public operatorSchemaList: ReadonlyArray<OperatorSchema> = [];
 
+  public sourceTableNames: ReadonlyArray<string> = [];
 
   constructor(
-    private operatorMetadataService: OperatorMetadataService,
-    private workflowActionService: WorkflowActionService
+    private workflowActionService: WorkflowActionService,
+    private autocompleteService: AutocompleteService
   ) {
-    // handle getting operator metadata
-    this.operatorMetadataService.getOperatorMetadata().subscribe(
-      value => { this.operatorSchemaList = value.operators; }
+    this.autocompleteService.getSourceTableAddedOperatorMetadataObservable().subscribe(
+      metadata => { this.operatorSchemaList = metadata.operators; }
     );
 
     // handle the form change event to actually set the operator property
@@ -133,10 +133,11 @@ export class PropertyEditorComponent {
 
     // set the operator data needed
     this.currentOperatorID = operator.operatorID;
-    this.currentOperatorSchema = this.operatorSchemaList.find(schema => schema.operatorType === operator.operatorType);
+     this.currentOperatorSchema = this.operatorSchemaList.find(schema => schema.operatorType === operator.operatorType);
     if (!this.currentOperatorSchema) {
       throw new Error(`operator schema for operator type ${operator.operatorType} doesn't exist`);
     }
+
     /**
      * Make a deep copy of the initial property data object.
      * It's important to make a deep copy. If it's a reference to the operator's property object,

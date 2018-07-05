@@ -20,6 +20,8 @@ import { marbles } from 'rxjs-marbles';
 
 import { mockResultPredicate, mockScanPredicate, mockPoint } from '../../service/workflow-graph/model/mock-workflow-data';
 import { CustomNgMaterialModule } from '../../../common/custom-ng-material.module';
+import { AutocompleteService } from '../../service/autocomplete/model/autocomplete.service';
+import { StubAutocompleteService } from '../../service/autocomplete/model/stub-autocomplete.service';
 
 /* tslint:disable:no-non-null-assertion */
 
@@ -34,7 +36,8 @@ describe('PropertyEditorComponent', () => {
       providers: [
         JointUIService,
         WorkflowActionService,
-        { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
+        { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+        { provide: AutocompleteService, useClass: StubAutocompleteService }
       ],
       imports: [
         CustomNgMaterialModule,

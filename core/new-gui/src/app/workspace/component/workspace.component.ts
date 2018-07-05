@@ -7,6 +7,7 @@ import { Component, OnInit } from '@angular/core';
 import { OperatorMetadataService } from '../service/operator-metadata/operator-metadata.service';
 import { JointUIService } from '../service/joint-ui/joint-ui.service';
 import { StubOperatorMetadataService } from '../service/operator-metadata/stub-operator-metadata.service';
+import { AutocompleteService } from '../service/autocomplete/model/autocomplete.service';
 
 
 @Component({
@@ -16,6 +17,7 @@ import { StubOperatorMetadataService } from '../service/operator-metadata/stub-o
   providers: [
     // uncomment this line for manual testing without opening backend server
     // { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
+    AutocompleteService,
     OperatorMetadataService,
     JointUIService,
     WorkflowActionService,
