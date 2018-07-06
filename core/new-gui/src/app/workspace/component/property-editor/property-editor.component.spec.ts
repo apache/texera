@@ -37,6 +37,7 @@ describe('PropertyEditorComponent', () => {
         JointUIService,
         WorkflowActionService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+        StubOperatorMetadataService,
         { provide: AutocompleteService, useClass: StubAutocompleteService }
       ],
       imports: [

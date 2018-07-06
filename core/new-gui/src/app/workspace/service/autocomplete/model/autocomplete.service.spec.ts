@@ -8,13 +8,14 @@ import { StubOperatorMetadataService } from './../../operator-metadata/stub-oper
 import { Observable } from 'rxjs/Observable';
 
 import '../../../../common/rxjs-operators';
+import { SourceTableNamesAPIResponse } from '../../../types/source-table-names.interface';
 import { mockSourceTableAPIResponse } from './mock-autocomplete-service.data';
 
 class StubHttpClient {
   constructor() { }
 
   // fake an async http response with a very small delay
-  public get(url: string): Observable<any> {
+  public get(url: string): Observable<SourceTableNamesAPIResponse> {
     return Observable.of(mockSourceTableAPIResponse).delay(1);
   }
 }
