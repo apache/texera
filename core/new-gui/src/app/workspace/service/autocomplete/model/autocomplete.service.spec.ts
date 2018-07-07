@@ -8,7 +8,7 @@ import { StubOperatorMetadataService } from './../../operator-metadata/stub-oper
 import { Observable } from 'rxjs/Observable';
 
 import '../../../../common/rxjs-operators';
-import { SourceTableNamesAPIResponse } from '../../../types/source-table-names.interface';
+import { SourceTableNamesAPIResponse } from '../../../types/autocomplete.interface';
 import { mockSourceTableAPIResponse } from './mock-autocomplete-service.data';
 
 class StubHttpClient {

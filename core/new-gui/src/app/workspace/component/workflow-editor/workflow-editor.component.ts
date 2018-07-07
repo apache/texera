@@ -2,6 +2,7 @@ import { DragDropService } from './../../service/drag-drop/drag-drop.service';
 
 import { JointUIService } from './../../service/joint-ui/joint-ui.service';
 import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
+import { AutocompleteService } from './../../service/autocomplete/model/autocomplete.service';
 import { Component, AfterViewInit } from '@angular/core';
 import { Observable } from 'rxjs/Observable';
 import '../../../common/rxjs-operators';
@@ -38,6 +39,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
   constructor(
     private workflowActionService: WorkflowActionService,
     private dragDropService: DragDropService,
+    private autocompleteService: AutocompleteService
   ) {
   }
 
@@ -55,6 +57,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.handleWindowResize();
     this.handleViewDeleteOperator();
     this.handleCellHighlight();
+    this.handleLinkChangeEvent();
 
     this.dragDropService.registerWorkflowEditorDrop(this.WORKFLOW_EDITOR_JOINTJS_ID);
 
@@ -133,6 +136,11 @@ export class WorkflowEditorComponent implements AfterViewInit {
       .subscribe(value => this.getJointPaper().findViewByModel(value.operatorID).unhighlight(
         'rect', { highlighter: highlightOptions }
       ));
+  }
+
+  private handleLinkChangeEvent(): void {
+    Observable.fromEvent(this.getJointPaper(), 'link:connect link:disconnect')
+      .subscribe(() => this.autocompleteService.invokeAutocompleteAPI());
   }
 
   /**

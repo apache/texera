@@ -13,7 +13,7 @@ import '../../../common/rxjs-operators';
 // to import only the function that we use
 import cloneDeep from 'lodash-es/cloneDeep';
 import isEqual from 'lodash-es/isEqual';
-
+import { JSONSchema4 } from '../../../../../node_modules/@types/json-schema';
 
 /**
  * PropertyEditorComponent is the panel that allows user to edit operator properties.
@@ -71,14 +71,28 @@ export class PropertyEditorComponent {
   // the current operator schema list, used to find the operator schema of current operator
   public operatorSchemaList: ReadonlyArray<OperatorSchema> = [];
 
+  // the list of names of all the source tables avaiable on the server
   public sourceTableNames: ReadonlyArray<string> = [];
+
+  // the input schema of operators in the current workflow as returned by the autocomplete API
+  public operatorInputSchemaMap: JSONSchema4 = {};
 
   constructor(
     private workflowActionService: WorkflowActionService,
     private autocompleteService: AutocompleteService
   ) {
+    // subscribe to operator schema information (with source tables names added to source operators' table name properties)
     this.autocompleteService.getSourceTableAddedOperatorMetadataObservable().subscribe(
       metadata => { this.operatorSchemaList = metadata.operators; }
+    );
+
+    this.autocompleteService.getAutocompleteAPIExecutedStream().subscribe(
+      () => {
+        if (this.currentOperatorID) {
+          this.currentOperatorSchema = this.autocompleteService.findAutocompletedSchemaForOperator(
+            this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorID));
+        }
+      }
     );
 
     // handle the form change event to actually set the operator property
@@ -133,7 +147,7 @@ export class PropertyEditorComponent {
 
     // set the operator data needed
     this.currentOperatorID = operator.operatorID;
-     this.currentOperatorSchema = this.operatorSchemaList.find(schema => schema.operatorType === operator.operatorType);
+    this.currentOperatorSchema = this.autocompleteService.findAutocompletedSchemaForOperator(operator);
     if (!this.currentOperatorSchema) {
       throw new Error(`operator schema for operator type ${operator.operatorType} doesn't exist`);
     }

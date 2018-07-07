@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs/Observable';
 
 import { StubOperatorMetadataService } from '../../operator-metadata/stub-operator-metadata.service';
-import { AutocompleteUtils } from '../util/autocomplete-util.service';
+import { AutocompleteUtils } from '../util/autocomplete.utils';
 import { mockSourceTableAPIResponse } from './mock-autocomplete-service.data';
 import { OperatorMetadata, OperatorSchema } from '../../../types/operator-schema.interface';
 

@@ -1,4 +1,4 @@
-import { SourceTableNamesAPIResponse } from '../../../types/source-table-names.interface';
+import { SourceTableNamesAPIResponse } from '../../../types/autocomplete.interface';
 
 /**
  * Export constants related to the source table names present at the server

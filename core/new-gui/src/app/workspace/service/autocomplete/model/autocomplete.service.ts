@@ -1,29 +1,40 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 
 import { AppSettings } from '../../../../common/app-setting';
-import { SourceTableNamesAPIResponse } from '../../../types/source-table-names.interface';
+import { SourceTableNamesAPIResponse, SuccessExecutionResult, OperatorInputSchema } from '../../../types/autocomplete.interface';
 
-import { AutocompleteUtils } from '../util/autocomplete-util.service';
+import { AutocompleteUtils } from '../util/autocomplete.utils';
+import { OperatorPredicate } from '../../../types/workflow-common.interface';
 import { OperatorMetadata, OperatorSchema } from '../../../types/operator-schema.interface';
 import { OperatorMetadataService } from '../../../service/operator-metadata/operator-metadata.service';
+import { WorkflowActionService } from '../../../service/workflow-graph/model/workflow-action.service';
 import { Observable } from 'rxjs/Observable';
 import '../../../../common/rxjs-operators';
 
 import { combineLatest } from 'rxjs/observable/combineLatest';
+import { Subject } from '../../../../../../node_modules/rxjs/Subject';
+import { JSONSchema4 } from '../../../../../../node_modules/@types/json-schema';
 
 export const SOURCE_TABLE_NAMES_ENDPOINT = 'resources/table-metadata';
+export const AUTOMATED_SCHEMA_PROPAGATION_ENDPOINT = 'queryplan/autocomplete';
 
 /**
  * Autocomplete service is used for the purpose of automated schema propagation. The service does
  * following tasks: -
  *  1. Originally the source operators have tableName property which has no options. This service fetches
  *    source table names from backend and adds them as an enum array to the tableName property.
- *  2. (To be added as class develops)
+ *  2. The autocomplete API at backend is invoked using invokeSchemaPropagationAPI() method.
  */
 @Injectable()
 export class AutocompleteService {
-  private sourceTableAddedOperatorMetadata: OperatorMetadata | undefined;
+  // the operator schema list with source table names added in source operators
+  private operatorSchemaList: ReadonlyArray<OperatorSchema> = [];
+
+  private autocompleteAPIExecutedStream = new Subject<string>();
+
+  // the input schema of operators in the current workflow as returned by the autocomplete API
+  private operatorInputSchemaMap: JSONSchema4 = {};
 
   private sourceTableNamesObservable = this.httpClient
   .get<SourceTableNamesAPIResponse>(`${AppSettings.getApiEndpoint()}/${SOURCE_TABLE_NAMES_ENDPOINT}`)
@@ -31,15 +42,12 @@ export class AutocompleteService {
   .shareReplay(1);
 
   constructor(private httpClient: HttpClient,
+              private workflowActionService: WorkflowActionService,
               private operatorMetadataService: OperatorMetadataService) {
 
     this.getSourceTableAddedOperatorMetadataObservable().subscribe(
-      metadata => { this.sourceTableAddedOperatorMetadata = metadata; }
+      metadata => { this.operatorSchemaList = metadata.operators; }
     );
-  }
-
-  public getSourceTablesNamesObservable(): Observable<ReadonlyArray<string>> {
-    return this.sourceTableNamesObservable;
   }
 
   /**
@@ -52,6 +60,91 @@ export class AutocompleteService {
     return  combineLatest(this.getSourceTablesNamesObservable(), this.operatorMetadataService.getOperatorMetadata())
             .map(([tableNames, operatorMetadata]) =>
             AutocompleteUtils.addSourceTableNamesToMetadata(operatorMetadata, tableNames));
+  }
+
+  /**
+   * Modifies the schema of the operator according to autocomplete information obtained from the backend (if autcomplete info
+   * contains the operator id).
+   * @param operator the operator whose property is to be displayed in the property editor
+   */
+  public findAutocompletedSchemaForOperator(operator: Readonly<OperatorPredicate>|undefined): OperatorSchema|undefined {
+    if (!operator) {
+      throw new Error(`autcomplete service:findAutocompletedSchemaForOperator - operator is undefined`);
+    }
+
+    const operatorSchema = this.operatorSchemaList.find(schema => schema.operatorType === operator.operatorType);
+    if (!(operator.operatorID in this.operatorInputSchemaMap)) {
+      return operatorSchema;
+    }
+
+    if (!operatorSchema) {
+      throw new Error(`operator schema for operator type ${operator.operatorType} doesn't exist`);
+    }
+
+    return AutocompleteUtils.addInputSchemaToOperatorSchema(operatorSchema, this.operatorInputSchemaMap[operator.operatorID]);
+  }
+
+  /**
+   * Used for automated propagation of input schema in workflow.
+   *
+   * When users are in the process of building a workflow, Texera can propagate schema forwards so
+   * that users can easily set the properties of the next operator. For eg: If there are two operators Source:Scan and KeywordSearch and
+   * a link is created between them, the attributed of the table selected in Source can be propagated to the KeywordSearch operator.
+   */
+  public invokeAutocompleteAPI(): void {
+    // get the current workflow graph
+    const workflowPlan = this.workflowActionService.getTexeraGraph();
+
+    // create a Logical Plan based on the workflow graph
+    const body = AutocompleteUtils.getLogicalPlanRequest(workflowPlan);
+    const requestURL = `${AppSettings.getApiEndpoint()}/${AUTOMATED_SCHEMA_PROPAGATION_ENDPOINT}`;
+
+    // make a http post request to the API endpoint with the logical plan object
+    this.httpClient.post<SuccessExecutionResult>(
+      requestURL,
+      JSON.stringify(body),
+      { headers: { 'Content-Type': 'application/json' } })
+      .subscribe(
+        // backend will either respond an execution result or an error will occur
+        // handle both cases
+        response => this.handleExecuteResult(response),
+        errorResponse => this.handleExecuteError(errorResponse)
+      );
+  }
+
+  public getAutocompleteAPIExecutedStream(): Observable<string> {
+    return this.autocompleteAPIExecutedStream.asObservable();
+  }
+
+  /**
+   * Handles valid execution result from the backend.
+   * Updates the current autocompleted schema.
+   *
+   * @param response
+   */
+  private handleExecuteResult(response: SuccessExecutionResult): void {
+    this.operatorInputSchemaMap = response.result;
+    this.autocompleteAPIExecutedStream.next('Autocomplete response success');
+  }
+
+    /**
+   * Handler function for unsuccessful schema propagation API call.
+   *
+   * Logs the error message to console.
+   *
+   * @param errorResponse
+   */
+  private handleExecuteError(errorResponse: HttpErrorResponse): void {
+    // error logged in console in different error scenarios
+    const displayedErrorMessage = AutocompleteUtils.processErrorResponse(errorResponse);
+    console.log(displayedErrorMessage.message);
+  }
+
+  /**
+   * returns the observable which produces array of source table names
+   */
+  private getSourceTablesNamesObservable(): Observable<ReadonlyArray<string>> {
+    return this.sourceTableNamesObservable;
   }
 
 }
