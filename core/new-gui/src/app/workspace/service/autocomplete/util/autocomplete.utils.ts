@@ -3,7 +3,7 @@ import { OperatorMetadata, OperatorSchema } from '../../../types/operator-schema
 import { SourceTableNamesAPIResponse } from '../../../types/autocomplete.interface';
 import { SourceTableDetails, ErrorExecutionResult } from '../../../types/autocomplete.interface';
 
-import { WorkflowGraphReadonly } from './../../workflow-graph/model/workflow-graph';
+import { WorkflowGraphReadonly } from '../../workflow-graph/model/workflow-graph';
 import {
   LogicalLink, LogicalPlan, LogicalOperator,
 } from '../../../types/execute-workflow.interface';

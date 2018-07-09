@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { ExecuteWorkflowService } from './../../service/execute-workflow/execute-workflow.service';
+import { ExecuteWorkflowService } from '../../service/execute-workflow/execute-workflow.service';
 
 /**
  * NavigationComponent is the top level navigation bar that shows

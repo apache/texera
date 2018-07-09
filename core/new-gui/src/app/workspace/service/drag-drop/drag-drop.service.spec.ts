@@ -1,4 +1,4 @@
-import { JointUIService } from './../joint-ui/joint-ui.service';
+import { JointUIService } from '../joint-ui/joint-ui.service';
 import { TestBed, inject } from '@angular/core/testing';
 
 import { DragDropService } from './drag-drop.service';
@@ -6,7 +6,7 @@ import { WorkflowActionService } from '../workflow-graph/model/workflow-action.s
 import { WorkflowUtilService } from '../workflow-graph/util/workflow-util.service';
 import { OperatorMetadataService } from '../operator-metadata/operator-metadata.service';
 import { StubOperatorMetadataService } from '../operator-metadata/stub-operator-metadata.service';
-import { mockOperatorMetaData } from '../operator-metadata/mock-operator-metadata.data';
+import { mockOperatorMetaData } from '../../mock-data/mock-operator-metadata.data';
 
 import { marbles } from 'rxjs-marbles';
 

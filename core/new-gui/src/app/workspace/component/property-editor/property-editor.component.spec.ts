@@ -8,17 +8,17 @@ import { async, ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core
 
 import { PropertyEditorComponent } from './property-editor.component';
 
-import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
-import { OperatorMetadataService } from './../../service/operator-metadata/operator-metadata.service';
-import { StubOperatorMetadataService } from './../../service/operator-metadata/stub-operator-metadata.service';
-import { JointUIService } from './../../service/joint-ui/joint-ui.service';
+import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
+import { OperatorMetadataService } from '../../service/operator-metadata/operator-metadata.service';
+import { StubOperatorMetadataService } from '../../service/operator-metadata/stub-operator-metadata.service';
+import { JointUIService } from '../../service/joint-ui/joint-ui.service';
 
-import { mockOperatorSchemaList } from './../../service/operator-metadata/mock-operator-metadata.data';
+import { mockOperatorSchemaList } from '../../mock-data/mock-operator-metadata.data';
 
 import { marbles } from 'rxjs-marbles';
 
 
-import { mockResultPredicate, mockScanPredicate, mockPoint } from '../../service/workflow-graph/model/mock-workflow-data';
+import { mockResultPredicate, mockScanPredicate, mockPoint } from '../../mock-data/mock-workflow-data';
 import { CustomNgMaterialModule } from '../../../common/custom-ng-material.module';
 import { AutocompleteService } from '../../service/autocomplete/model/autocomplete.service';
 import { StubAutocompleteService } from '../../service/autocomplete/model/stub-autocomplete.service';
@@ -124,7 +124,7 @@ describe('PropertyEditorComponent', () => {
 
     // check the variables
     expect(component.currentOperatorID).toEqual(mockScanPredicate.operatorID);
-    expect(component.currentOperatorSchema).toEqual(mockOperatorSchemaList[0]);
+    expect(component.currentOperatorSchema).toEqual(component.operatorSchemaList.find(schema => schema.operatorType === 'ScanSource'));
     expect(component.currentOperatorInitialData).toEqual(mockScanPredicate.operatorProperties);
     expect(component.displayForm).toBeTruthy();
 
@@ -133,7 +133,7 @@ describe('PropertyEditorComponent', () => {
     fixture.detectChanges();
 
     expect(component.currentOperatorID).toEqual(mockResultPredicate.operatorID);
-    expect(component.currentOperatorSchema).toEqual(mockOperatorSchemaList[2]);
+    expect(component.currentOperatorSchema).toEqual(component.operatorSchemaList.find(schema => schema.operatorType === 'ViewResults'));
     expect(component.currentOperatorInitialData).toEqual(mockResultPredicate.operatorProperties);
     expect(component.displayForm).toBeTruthy();
 

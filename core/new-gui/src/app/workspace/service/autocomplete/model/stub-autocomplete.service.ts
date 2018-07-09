@@ -3,7 +3,7 @@ import { Observable } from 'rxjs/Observable';
 
 import { StubOperatorMetadataService } from '../../operator-metadata/stub-operator-metadata.service';
 import { AutocompleteUtils } from '../util/autocomplete.utils';
-import { mockSourceTableAPIResponse } from './mock-autocomplete-service.data';
+import { mockSourceTableAPIResponse } from '../../../mock-data/mock-autocomplete-service.data';
 import { OperatorMetadata, OperatorSchema } from '../../../types/operator-schema.interface';
 
 import { combineLatest } from 'rxjs/observable/combineLatest';

@@ -6,7 +6,7 @@ import { OperatorMetadataService, EMPTY_OPERATOR_METADATA } from './operator-met
 import { Observable } from 'rxjs/Observable';
 
 import '../../../common/rxjs-operators';
-import { mockOperatorMetaData } from './mock-operator-metadata.data';
+import { mockOperatorMetaData } from '../../mock-data/mock-operator-metadata.data';
 
 
 class StubHttpClient {

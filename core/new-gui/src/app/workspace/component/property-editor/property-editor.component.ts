@@ -1,6 +1,6 @@
-import { OperatorSchema } from './../../types/operator-schema.interface';
+import { OperatorSchema } from '../../types/operator-schema.interface';
 import { OperatorPredicate } from '../../types/workflow-common.interface';
-import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
+import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
 import { AutocompleteService } from '../../service/autocomplete/model/autocomplete.service';
 import { Component } from '@angular/core';
 
@@ -13,7 +13,7 @@ import '../../../common/rxjs-operators';
 // to import only the function that we use
 import cloneDeep from 'lodash-es/cloneDeep';
 import isEqual from 'lodash-es/isEqual';
-import { JSONSchema4 } from '../../../../../node_modules/@types/json-schema';
+import { JSONSchema4 } from 'json-schema';
 
 /**
  * PropertyEditorComponent is the panel that allows user to edit operator properties.
@@ -100,6 +100,12 @@ export class PropertyEditorComponent {
       // set the operator property to be the new form data
       if (this.currentOperatorID) {
         this.workflowActionService.setOperatorProperty(this.currentOperatorID, formData);
+
+        // Whenever an operator's property is changed like a tablename added to a source or spanList attribute
+        // name added to KeywordSearch, we invoke autocomplete API.
+        // TODO: the autocomplete API should be invoked only when the the property is changed. Currently,
+        //      it is being invoked even when a new operator is being created.
+         this.autocompleteService.invokeAutocompleteAPI(false);
       }
     });
 

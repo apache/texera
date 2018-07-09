@@ -1,11 +1,11 @@
 import { SyncTexeraModel } from './sync-texera-model';
 import { JointGraphWrapper } from './joint-graph-wrapper';
 import { WorkflowGraph } from './workflow-graph';
-import { OperatorLink } from './../../../types/workflow-common.interface';
+import { OperatorLink } from '../../../types/workflow-common.interface';
 import {
   mockScanPredicate, mockResultPredicate, mockSentimentPredicate,
   mockScanResultLink, mockScanSentimentLink, mockSentimentResultLink
-} from './mock-workflow-data';
+} from '../../../mock-data/mock-workflow-data';
 import { TestBed } from '@angular/core/testing';
 import { marbles } from 'rxjs-marbles';
 

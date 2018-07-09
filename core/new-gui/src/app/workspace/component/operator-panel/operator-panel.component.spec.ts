@@ -1,4 +1,4 @@
-import { DragDropService } from './../../service/drag-drop/drag-drop.service';
+import { DragDropService } from '../../service/drag-drop/drag-drop.service';
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import '../../../common/rxjs-operators';
@@ -13,7 +13,7 @@ import { GroupInfo, OperatorSchema } from '../../types/operator-schema.interface
 
 import {
   mockOperatorMetaData, mockOperatorGroup, mockOperatorSchemaList
-} from '../../service/operator-metadata/mock-operator-metadata.data';
+} from '../../mock-data/mock-operator-metadata.data';
 
 import * as c from './operator-panel.component';
 

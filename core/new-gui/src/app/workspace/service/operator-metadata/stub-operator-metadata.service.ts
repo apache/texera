@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs/Observable';
 
-import { mockOperatorMetaData } from './mock-operator-metadata.data';
+import { mockOperatorMetaData } from '../../mock-data/mock-operator-metadata.data';
 import { OperatorMetadata } from '../../types/operator-schema.interface';
 
 import '../../../common/rxjs-operators';

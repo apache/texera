@@ -1,5 +1,5 @@
 import { JSONSchema4 } from 'json-schema';
-import { OperatorSchema, OperatorMetadata, GroupInfo } from '../../types/operator-schema.interface';
+import { OperatorSchema, OperatorMetadata, GroupInfo } from '../types/operator-schema.interface';
 
 /**
  * Exports constants related to operator schema and operator metadata for testing purposes.

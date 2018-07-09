@@ -7,14 +7,14 @@ import { SourceTableNamesAPIResponse, SuccessExecutionResult, OperatorInputSchem
 import { AutocompleteUtils } from '../util/autocomplete.utils';
 import { OperatorPredicate } from '../../../types/workflow-common.interface';
 import { OperatorMetadata, OperatorSchema } from '../../../types/operator-schema.interface';
-import { OperatorMetadataService } from '../../../service/operator-metadata/operator-metadata.service';
-import { WorkflowActionService } from '../../../service/workflow-graph/model/workflow-action.service';
+import { OperatorMetadataService } from '../../operator-metadata/operator-metadata.service';
+import { WorkflowActionService } from '../../workflow-graph/model/workflow-action.service';
 import { Observable } from 'rxjs/Observable';
 import '../../../../common/rxjs-operators';
 
 import { combineLatest } from 'rxjs/observable/combineLatest';
-import { Subject } from '../../../../../../node_modules/rxjs/Subject';
-import { JSONSchema4 } from '../../../../../../node_modules/@types/json-schema';
+import { Subject } from 'rxjs/Subject';
+import { JSONSchema4 } from 'json-schema';
 
 export const SOURCE_TABLE_NAMES_ENDPOINT = 'resources/table-metadata';
 export const AUTOMATED_SCHEMA_PROPAGATION_ENDPOINT = 'queryplan/autocomplete';
@@ -91,7 +91,7 @@ export class AutocompleteService {
    * that users can easily set the properties of the next operator. For eg: If there are two operators Source:Scan and KeywordSearch and
    * a link is created between them, the attributed of the table selected in Source can be propagated to the KeywordSearch operator.
    */
-  public invokeAutocompleteAPI(): void {
+  public invokeAutocompleteAPI(reloadCurrentOperatorSchema: boolean): void {
     // get the current workflow graph
     const workflowPlan = this.workflowActionService.getTexeraGraph();
 
@@ -107,24 +107,33 @@ export class AutocompleteService {
       .subscribe(
         // backend will either respond an execution result or an error will occur
         // handle both cases
-        response => this.handleExecuteResult(response),
+        response => this.handleExecuteResult(response, reloadCurrentOperatorSchema),
         errorResponse => this.handleExecuteError(errorResponse)
       );
   }
 
+  /**
+   * Returns the observable which outputs a string everytime the autocomplete API is
+   * invoked and response is received successfully.
+   */
   public getAutocompleteAPIExecutedStream(): Observable<string> {
     return this.autocompleteAPIExecutedStream.asObservable();
   }
 
   /**
    * Handles valid execution result from the backend.
-   * Updates the current autocompleted schema.
+   * Updates the current autocompleted schema. A value is inserted into 'autocompleteAPIExecutedStream' only
+   * if the current operator schema is to be reloaded (which is the case when a link is connected/deleted/disconnected)
+   * someplace in the workflow. However, if the operator's property is being changed, the autocomplete API is to be called,
+   * but the operator schema doesn't have to be reloaded.
    *
    * @param response
    */
-  private handleExecuteResult(response: SuccessExecutionResult): void {
+  private handleExecuteResult(response: SuccessExecutionResult, reloadCurrentOperatorSchema: boolean): void {
     this.operatorInputSchemaMap = response.result;
-    this.autocompleteAPIExecutedStream.next('Autocomplete response success');
+    if (reloadCurrentOperatorSchema) {
+      this.autocompleteAPIExecutedStream.next('Autocomplete response success');
+    }
   }
 
     /**
