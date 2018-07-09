@@ -1,3 +1,5 @@
+import { JSONSchema4 } from '../../../../node_modules/@types/json-schema';
+
 /**
  * The type decalaration of the response sent by **backend** when
  * asking for source table names.
@@ -22,21 +24,12 @@ export interface SourceTableAttribute extends Readonly <{
 }> { }
 
 /**
- * The input schema of operators returned by the **backend** when
- * contacted using the autocomplete schema API.
- */
-export interface OperatorInputSchema extends Readonly<{
-  operatorId: string,
-  inputSchema: ReadonlyArray<string>
-}> { }
-
-/**
  * The backend interface of the return object of a successful execution
  * of autocomplete API
  */
 export interface SuccessExecutionResult extends Readonly<{
   code: 0,
-  result: ReadonlyArray<OperatorInputSchema>
+  result: JSONSchema4
 }> { }
 
 /**

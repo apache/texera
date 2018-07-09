@@ -1,4 +1,4 @@
-import { SourceTableNamesAPIResponse } from '../types/autocomplete.interface';
+import { SourceTableNamesAPIResponse, SuccessExecutionResult } from '../types/autocomplete.interface';
 
 /**
  * Export constants related to the source table names present at the server
@@ -52,4 +52,31 @@ export const mockSourceTableAPIResponse: Readonly<SourceTableNamesAPIResponse> =
     }
   }
 ]`
+};
+
+export const mockAutocompleteAPISchemaSuggestionResponse: Readonly<SuccessExecutionResult> = {
+  code: 0,
+  result: {
+    'operator-6383932c-f846-4ac8-bc9d-52d9ddff86f7': [
+      'city',
+      'user_screen_name',
+      'user_name',
+      'county',
+      'tweet_link',
+      'payload',
+      'user_followers_count',
+      'user_link',
+      '_id',
+      'text',
+      'state',
+      'create_at',
+      'user_description',
+      'user_friends_count'
+    ]
+  }
+};
+
+export const mockAutocompleteAPIEmptyResponse: Readonly<SuccessExecutionResult> = {
+  code: 0,
+  result: { }
 };

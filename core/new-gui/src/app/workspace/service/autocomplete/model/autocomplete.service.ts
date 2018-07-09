@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 
 import { AppSettings } from '../../../../common/app-setting';
-import { SourceTableNamesAPIResponse, SuccessExecutionResult, OperatorInputSchema } from '../../../types/autocomplete.interface';
+import { SourceTableNamesAPIResponse, SuccessExecutionResult } from '../../../types/autocomplete.interface';
 
 import { AutocompleteUtils } from '../util/autocomplete.utils';
 import { OperatorPredicate } from '../../../types/workflow-common.interface';
@@ -36,6 +36,7 @@ export class AutocompleteService {
   // the input schema of operators in the current workflow as returned by the autocomplete API
   private operatorInputSchemaMap: JSONSchema4 = {};
 
+  // contacts the **backend** and gets the source tables at the server
   private sourceTableNamesObservable = this.httpClient
   .get<SourceTableNamesAPIResponse>(`${AppSettings.getApiEndpoint()}/${SOURCE_TABLE_NAMES_ENDPOINT}`)
   .map(response => AutocompleteUtils.processSourceTableAPIResponse(response))
@@ -60,6 +61,14 @@ export class AutocompleteService {
     return  combineLatest(this.getSourceTablesNamesObservable(), this.operatorMetadataService.getOperatorMetadata())
             .map(([tableNames, operatorMetadata]) =>
             AutocompleteUtils.addSourceTableNamesToMetadata(operatorMetadata, tableNames));
+  }
+
+  /**
+   * Returns the observable which outputs a string everytime the autocomplete API is
+   * invoked and response is received successfully.
+   */
+  public getAutocompleteAPIExecutedStream(): Observable<string> {
+    return this.autocompleteAPIExecutedStream.asObservable();
   }
 
   /**
@@ -110,14 +119,6 @@ export class AutocompleteService {
         response => this.handleExecuteResult(response, reloadCurrentOperatorSchema),
         errorResponse => this.handleExecuteError(errorResponse)
       );
-  }
-
-  /**
-   * Returns the observable which outputs a string everytime the autocomplete API is
-   * invoked and response is received successfully.
-   */
-  public getAutocompleteAPIExecutedStream(): Observable<string> {
-    return this.autocompleteAPIExecutedStream.asObservable();
   }
 
   /**

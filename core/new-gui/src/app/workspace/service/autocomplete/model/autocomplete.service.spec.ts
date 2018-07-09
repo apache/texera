@@ -8,8 +8,8 @@ import { StubOperatorMetadataService } from '../../operator-metadata/stub-operat
 import { Observable } from 'rxjs/Observable';
 
 import '../../../../common/rxjs-operators';
-import { SourceTableNamesAPIResponse } from '../../../types/autocomplete.interface';
-import { mockSourceTableAPIResponse } from '../../../mock-data/mock-autocomplete-service.data';
+import { SourceTableNamesAPIResponse, SuccessExecutionResult } from '../../../types/autocomplete.interface';
+import { mockSourceTableAPIResponse, mockAutocompleteAPISchemaSuggestionResponse } from '../../../mock-data/mock-autocomplete-service.data';
 import { WorkflowActionService } from '../../workflow-graph/model/workflow-action.service';
 import { JointUIService } from '../../joint-ui/joint-ui.service';
 
@@ -20,6 +20,11 @@ class StubHttpClient {
   public get(url: string): Observable<SourceTableNamesAPIResponse> {
     return Observable.of(mockSourceTableAPIResponse).delay(1);
   }
+
+  public post(url: string): Observable<SuccessExecutionResult> {
+    return Observable.of(mockAutocompleteAPISchemaSuggestionResponse).delay(1);
+  }
+
 }
 
 describe('AutocompleteService', () => {
