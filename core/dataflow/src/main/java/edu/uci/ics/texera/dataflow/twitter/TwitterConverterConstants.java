@@ -47,10 +47,14 @@ public class TwitterConverterConstants {
     public static String CREATE_AT = "create_at";
     public static Attribute CREATE_AT_ATTRIBUTE = new Attribute(CREATE_AT, AttributeType.DATETIME);
     
+    public static String IS_RETWEET = "is_retweet";
+    public static Attribute IS_RETWEET_ATTRIBUTE = new Attribute(IS_RETWEET, AttributeType.STRING);
+
+    
     public static List<Attribute> additionalAttributes = Arrays.asList(
             TWEET_ID_ATTRIBUTE, TEXT_ATTRIBUTE, TWEET_LINK_ATTRIBUTE, USER_LINK_ATTRIBUTE, 
             USER_SCREEN_NAME_ATTRIBUTE, USER_NAME_ATTRIBUTE, USER_DESCRIPTION_ATTRIBUTE, 
             USER_FOLLOWERS_COUNT_ATTRIBUTE, USER_FRIENDS_COUNT_ATTRIBUTE, 
-            STATE_ATTRIBUTE, COUNTY_ATTRIBUTE, CITY_ATTRIBUTE, CREATE_AT_ATTRIBUTE);
+            STATE_ATTRIBUTE, COUNTY_ATTRIBUTE, CITY_ATTRIBUTE, CREATE_AT_ATTRIBUTE, IS_RETWEET_ATTRIBUTE);
 
 }

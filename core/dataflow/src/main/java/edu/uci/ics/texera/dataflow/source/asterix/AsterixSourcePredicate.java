@@ -6,6 +6,7 @@ import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 
 import edu.uci.ics.texera.dataflow.common.OperatorGroupConstants;
@@ -14,6 +15,7 @@ import edu.uci.ics.texera.dataflow.common.PropertyNameConstants;
 
 public class AsterixSourcePredicate extends PredicateBase {
     
+    private final String resultAttribute;
     private final String host;
     private final Integer port;
     private final String dataverse;
@@ -26,6 +28,8 @@ public class AsterixSourcePredicate extends PredicateBase {
     
     @JsonCreator
     public AsterixSourcePredicate(
+            @JsonProperty(value = PropertyNameConstants.RESULT_ATTRIBUTE_NAME, required = true)
+            String resultAttribute,
             @JsonProperty(value = PropertyNameConstants.ASTERIX_HOST, required = true)
             String host,
             @JsonProperty(value = PropertyNameConstants.ASTERIX_PORT, required = true)
@@ -45,6 +49,9 @@ public class AsterixSourcePredicate extends PredicateBase {
             @JsonProperty(value = PropertyNameConstants.LIMIT, required = false)
             Integer limit
             ) {
+        Preconditions.checkArgument(resultAttribute != null && ! resultAttribute.isEmpty());
+        this.resultAttribute = resultAttribute.trim();
+        
         this.host = host.trim();
         this.port = port;
         this.dataverse = dataverse.trim();
@@ -86,6 +93,11 @@ public class AsterixSourcePredicate extends PredicateBase {
         }
         return true;
       }
+    
+    @JsonProperty(value = PropertyNameConstants.RESULT_ATTRIBUTE_NAME)
+    public String getResultAttribute() {
+        return this.resultAttribute;
+    }
     
     @JsonProperty(value = PropertyNameConstants.ASTERIX_HOST)
     public String getHost() {

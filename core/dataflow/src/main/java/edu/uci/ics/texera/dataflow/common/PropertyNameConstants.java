@@ -115,6 +115,9 @@ public class PropertyNameConstants {
     public static final String MYSQL_PASSWORD = "password";
     public static final String MYSQL_LIMIT = "limit";
     public static final String MYSQL_OFFSET = "offset";
+    
+    // related to Twitter converter
+    public static final String TWITTER_CONVERTER_RAW_JSON = "rawJsonStringField";
 
     // related to TwitterFeed Operator
     public static final String TWEET_NUM = "tweetNum";

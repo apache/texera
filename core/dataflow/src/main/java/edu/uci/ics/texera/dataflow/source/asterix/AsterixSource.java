@@ -16,7 +16,7 @@ import edu.uci.ics.texera.api.dataflow.ISourceOperator;
 import edu.uci.ics.texera.api.exception.DataflowException;
 import edu.uci.ics.texera.api.exception.TexeraException;
 import edu.uci.ics.texera.api.field.IDField;
-import edu.uci.ics.texera.api.field.TextField;
+import edu.uci.ics.texera.api.field.StringField;
 import edu.uci.ics.texera.api.schema.Attribute;
 import edu.uci.ics.texera.api.schema.AttributeType;
 import edu.uci.ics.texera.api.schema.Schema;
@@ -25,18 +25,18 @@ import edu.uci.ics.texera.dataflow.utils.DataflowUtils;
 import edu.uci.ics.texera.storage.constants.LuceneAnalyzerConstants;
 
 public class AsterixSource implements ISourceOperator {
-    
-    public static String RAW_DATA = "rawData";
-    public static Attribute RAW_DATA_ATTR = new Attribute(RAW_DATA, AttributeType.TEXT);
-    public static Schema ATERIX_SOURCE_SCHEMA = new Schema(SchemaConstants._ID_ATTRIBUTE, RAW_DATA_ATTR);
-    
+        
     private final AsterixSourcePredicate predicate;
+    private final Schema outputSchema;
     private JSONArray resultJsonArray;
     
     private int cursor = CLOSED;
     
     public AsterixSource(AsterixSourcePredicate predicate) {
         this.predicate = predicate;
+        this.outputSchema = new Schema(
+                SchemaConstants._ID_ATTRIBUTE, 
+                new Attribute(this.predicate.getResultAttribute(), AttributeType.STRING));
     }
 
     @Override
@@ -108,9 +108,9 @@ public class AsterixSource implements ISourceOperator {
             throw new DataflowException(ErrorMessages.OPERATOR_NOT_OPENED);
         }
         if (cursor < resultJsonArray.length()) {
-            Tuple tuple =  new Tuple(ATERIX_SOURCE_SCHEMA, 
+            Tuple tuple =  new Tuple(this.outputSchema, 
                     IDField.newRandomID(),
-                    new TextField(resultJsonArray.getJSONObject(cursor).get("ds").toString()));
+                    new StringField(resultJsonArray.getJSONObject(cursor).get("ds").toString()));
             cursor ++;
             return tuple;
         }
@@ -127,7 +127,7 @@ public class AsterixSource implements ISourceOperator {
 
     @Override
     public Schema getOutputSchema() {
-        return ATERIX_SOURCE_SCHEMA;
+        return this.outputSchema;
     }
 
     public Schema transformToOutputSchema(Schema... inputSchema) throws DataflowException {

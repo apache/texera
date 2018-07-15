@@ -11,7 +11,6 @@ import edu.uci.ics.texera.api.exception.DataflowException;
 import edu.uci.ics.texera.api.exception.TexeraException;
 import edu.uci.ics.texera.api.schema.Schema;
 import edu.uci.ics.texera.api.tuple.Tuple;
-import edu.uci.ics.texera.dataflow.source.asterix.AsterixSource;
 
 /**
  * TupleStreamSink is a sink that can be used by the caller to get tuples one by one.
@@ -73,7 +72,7 @@ public class TupleSink implements ISink {
         inputOperator.open();
         inputSchema = inputOperator.getOutputSchema();
         outputSchema = new Schema.Builder(inputSchema)
-                .removeIfExists(SchemaConstants.PAYLOAD, AsterixSource.RAW_DATA).build();
+                .removeIfExists(SchemaConstants.PAYLOAD).build();
         cursor = OPENED;
     }
 
@@ -102,7 +101,7 @@ public class TupleSink implements ISink {
             }
         }
         return new Tuple.Builder(resultTuple)
-                .removeIfExists(SchemaConstants.PAYLOAD, AsterixSource.RAW_DATA).build();
+                .removeIfExists(SchemaConstants.PAYLOAD).build();
 
     }
 

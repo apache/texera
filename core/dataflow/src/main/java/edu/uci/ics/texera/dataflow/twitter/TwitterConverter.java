@@ -1,9 +1,11 @@
 package edu.uci.ics.texera.dataflow.twitter;
 
-import java.util.ArrayList;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Optional;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -12,24 +14,34 @@ import edu.uci.ics.texera.api.constants.ErrorMessages;
 import edu.uci.ics.texera.api.dataflow.IOperator;
 import edu.uci.ics.texera.api.exception.DataflowException;
 import edu.uci.ics.texera.api.exception.TexeraException;
+import edu.uci.ics.texera.api.field.DateTimeField;
 import edu.uci.ics.texera.api.field.IField;
 import edu.uci.ics.texera.api.field.IntegerField;
 import edu.uci.ics.texera.api.field.StringField;
 import edu.uci.ics.texera.api.field.TextField;
-import edu.uci.ics.texera.api.schema.Attribute;
 import edu.uci.ics.texera.api.schema.Schema;
 import edu.uci.ics.texera.api.tuple.Tuple;
-import edu.uci.ics.texera.dataflow.source.asterix.AsterixSource;
 
+/**
+ * Twitter Converter converts a JSON string representation of a tweet,
+ *  flattens it into many Texera Fields, such as text, author, link, etc...
+ *  and removes the original raw JSON data field.
+ *  
+ * See {@link TwitterConverterConstants} for the full set of fields that this operator extracts,
+ *  note that this operator does not keep all the information and fields in the original twitter JSON string. 
+ * 
+ * @author Zuozhi Wang
+ *
+ */
 public class TwitterConverter implements IOperator {
     
-    private final String rawDataAttribute = AsterixSource.RAW_DATA;
-    
+    private TwitterConverterPredicate predicate;
     private IOperator inputOperator;
     private Schema outputSchema;
     private int cursor = CLOSED;
     
-    public TwitterConverter() {
+    public TwitterConverter(TwitterConverterPredicate predicate) {
+        this.predicate = predicate;
     }
     
     public void setInputOperator(IOperator inputOperator) {
@@ -56,28 +68,33 @@ public class TwitterConverter implements IOperator {
         }
         Tuple tuple;
         while ((tuple = inputOperator.getNextTuple()) != null) {
-            List<IField> tweetFields = generateFieldsFromJson(
-                    tuple.getField(rawDataAttribute).getValue().toString());
-            if (! tweetFields.isEmpty()) {
-                cursor++;
-                
-                List<IField> tupleFields = new ArrayList<>();
-                
-                final Tuple finalTuple = tuple;
-                tupleFields.addAll(tuple.getSchema().getAttributeNames().stream()
-                        .filter(attrName -> ! attrName.equalsIgnoreCase(rawDataAttribute))
-                        .map(attrName -> finalTuple.getField(attrName, IField.class))
-                        .collect(Collectors.toList()));
-                tupleFields.addAll(tweetFields);
-                return new Tuple(outputSchema, tupleFields);
+
+            String rawTwitterJsonString = tuple.getField(this.predicate.getTwitterJsonStringFieldName()).getValue().toString();
+            Optional<List<IField>> convertedTwitterFields = this.generateFieldsFromJson(rawTwitterJsonString);
+            if (! convertedTwitterFields.isPresent()) {
+                continue;
             }
+
+            Tuple outputTuple = new Tuple.Builder(tuple)
+                // remove the raw json field
+                .remove(this.predicate.getTwitterJsonStringFieldName())
+                // add the new fields
+                .add(TwitterConverterConstants.additionalAttributes, convertedTwitterFields.get())
+                .build();
+            
+            cursor++;
+
+            return outputTuple;
         }
         return null;
     }
     
-    private List<IField> generateFieldsFromJson(String rawJsonData) {
+    private Optional<List<IField>> generateFieldsFromJson(String rawJsonData) {
         try {
+            // read the JSON string into a JSON object
             JsonNode tweet = new ObjectMapper().readTree(rawJsonData);
+            
+            // extract fields from the JSON object
             String text = tweet.get("text").asText();
             Long id = tweet.get("id").asLong();
             String tweetLink = "https://twitter.com/statuses/" + id;
@@ -93,7 +110,10 @@ public class TwitterConverter implements IOperator {
             String county = geoTagNode.get("countyName").asText();
             String city = geoTagNode.get("cityName").asText();
             String createAt = tweet.get("create_at").asText();
-            return Arrays.asList(
+            ZonedDateTime zonedCreateAt = ZonedDateTime.parse(createAt, DateTimeFormatter.ISO_INSTANT.withZone(ZoneId.systemDefault()));
+            String isRetweet = tweet.get("is_retweet").asText();
+            
+            return Optional.of(Arrays.asList(
                     new TextField(text),
                     new StringField(tweetLink),
                     new StringField(userLink),
@@ -105,9 +125,10 @@ public class TwitterConverter implements IOperator {
                     new TextField(state),
                     new TextField(county),
                     new TextField(city),
-                    new StringField(createAt));
+                    new DateTimeField(zonedCreateAt.toLocalDateTime()),
+                    new StringField(isRetweet)));
         } catch (Exception e) {
-            return Arrays.asList();
+            return Optional.empty();
         }
     }
 
@@ -125,20 +146,24 @@ public class TwitterConverter implements IOperator {
         return this.outputSchema;
     }
 
+    /**
+     * Returns the transformed output schema of TwitterConverter,
+     *  removes the raw json attribute and adds the new additional attributes.
+     */
     public Schema transformToOutputSchema(Schema... inputSchema) throws DataflowException {
         if (inputSchema.length != 1)
             throw new TexeraException(String.format(ErrorMessages.NUMBER_OF_ARGUMENTS_DOES_NOT_MATCH, 1, inputSchema.length));
 
-        if (! inputSchema[0].containsAttribute(rawDataAttribute)) {
+        if (! inputSchema[0].containsAttribute(this.predicate.getTwitterJsonStringFieldName())) {
             throw new DataflowException(String.format(
-                    "raw twitter attribute %s is not present in the input schema %s",
-                    rawDataAttribute, inputSchema[0].getAttributeNames()));
+                    "raw twitter json attribute %s is not present in the input schema %s",
+                    this.predicate.getTwitterJsonStringFieldName(), inputSchema[0].getAttributeNames()));
         }
-        ArrayList<Attribute> outputAttributes = new ArrayList<>();
-        outputAttributes.addAll(inputSchema[0].getAttributes().stream()
-                .filter(attr -> ! attr.getName().equalsIgnoreCase(rawDataAttribute))
-                .collect(Collectors.toList()));
-        outputAttributes.addAll(TwitterConverterConstants.additionalAttributes);
-        return new Schema(outputAttributes);
+
+        return new Schema.Builder(inputSchema[0])
+            .remove(this.predicate.getTwitterJsonStringFieldName())
+            .add(TwitterConverterConstants.additionalAttributes)
+            .build();
+        
     }
 }
