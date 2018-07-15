@@ -25,6 +25,10 @@ import edu.uci.ics.texera.storage.DataWriter;
 import edu.uci.ics.texera.storage.RelationManager;
 import edu.uci.ics.texera.storage.constants.LuceneAnalyzerConstants;
 
+/**
+ * 
+ * @author Zuozhi Wang
+ */
 public class TwitterSample {
     
     public static String twitterFilePath = PerfTestUtils.getResourcePath("/sample-data-files/twitter/tweets.json").toString();

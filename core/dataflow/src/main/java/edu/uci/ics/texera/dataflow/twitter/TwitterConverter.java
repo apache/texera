@@ -114,6 +114,7 @@ public class TwitterConverter implements IOperator {
             String isRetweet = tweet.get("is_retweet").asText();
             
             return Optional.of(Arrays.asList(
+                    new StringField(id.toString()),
                     new TextField(text),
                     new StringField(tweetLink),
                     new StringField(userLink),

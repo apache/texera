@@ -399,7 +399,7 @@ public class Schema {
         }
         
         private void checkAttributeExists(String attributeName) {
-            if (! this.attributeNames.contains(attributeName)) {
+            if (! this.attributeNames.contains(attributeName.toLowerCase())) {
                 throw new TexeraException(ErrorMessages.ATTRIBUTE_NOT_EXISTS(
                         this.attributeNames, attributeName));
             }
