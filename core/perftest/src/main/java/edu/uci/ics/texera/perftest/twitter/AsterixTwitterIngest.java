@@ -4,6 +4,12 @@ package edu.uci.ics.texera.perftest.twitter;
 import edu.uci.ics.texera.dataflow.source.asterix.AsterixSource;
 import edu.uci.ics.texera.dataflow.source.asterix.AsterixSourcePredicate;
 
+/**
+ * A helper class to query data from the main Asterix database with more than 1 billion of tweets based on a set of keywords,
+ *  and then writes the data to a table.
+ * 
+ * @author Zuozhi Wang
+ */
 public class AsterixTwitterIngest {
     
     public static void main(String[] args) {

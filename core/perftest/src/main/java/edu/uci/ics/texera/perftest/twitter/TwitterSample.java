@@ -6,9 +6,7 @@ import java.util.ArrayList;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import edu.uci.ics.texera.api.constants.SchemaConstants;
 import edu.uci.ics.texera.api.dataflow.ISourceOperator;
-import edu.uci.ics.texera.api.field.IDField;
 import edu.uci.ics.texera.api.field.StringField;
 import edu.uci.ics.texera.api.schema.Attribute;
 import edu.uci.ics.texera.api.schema.AttributeType;
@@ -26,6 +24,7 @@ import edu.uci.ics.texera.storage.RelationManager;
 import edu.uci.ics.texera.storage.constants.LuceneAnalyzerConstants;
 
 /**
+ * Creates an twitter_sample table and ingests a small sample set of twitter data into the table.
  * 
  * @author Zuozhi Wang
  */
@@ -38,30 +37,39 @@ public class TwitterSample {
         writeTwitterIndex();
     }
     
+    /**
+     * Writes the sample twitter data into the twitter_sample table
+     * @throws Exception
+     */
     public static void writeTwitterIndex() throws Exception {
 
         // read the JSON file into a list of JSON string tuples
         JsonNode jsonNode = new ObjectMapper().readTree(new File(twitterFilePath));
         ArrayList<Tuple> jsonStringTupleList = new ArrayList<>();
         
-        Schema tupleSourceSchema = new Schema(
-                SchemaConstants._ID_ATTRIBUTE, 
-                new Attribute("twitterJson", AttributeType.STRING));
+        Schema tupleSourceSchema = new Schema(new Attribute("twitterJson", AttributeType.STRING));
         
         for (JsonNode tweet : jsonNode) {
-            Tuple tuple = new Tuple(tupleSourceSchema, IDField.newRandomID(), new StringField(tweet.toString()));
+            Tuple tuple = new Tuple(tupleSourceSchema, new StringField(tweet.toString()));
             jsonStringTupleList.add(tuple);
         }
         
         // setup the twitter converter DAG
         // TupleSource --> TwitterConverter --> TupleSink
-        TupleSourceOperator tupleSource = new TupleSourceOperator(jsonStringTupleList, tupleSourceSchema);
+        TupleSourceOperator tupleSource = new TupleSourceOperator(jsonStringTupleList, tupleSourceSchema, false);
         
         
         createTwitterTable(twitterClimateTable, tupleSource);
     }
     
     
+    /**
+     * A helper function to create a table and write twitter data into it.
+     * 
+     * @param tableName
+     * @param twitterJsonSourceOperator, a source operator that provides the input raw twitter JSON string tuples
+     * @return
+     */
     public static int createTwitterTable(String tableName, ISourceOperator twitterJsonSourceOperator) {
         
         TwitterConverter twitterConverter = new TwitterConverterPredicate("twitterJson").newOperator();
