@@ -14,12 +14,17 @@ import { StubOperatorMetadataService } from './../../service/operator-metadata/s
 import { JointUIService } from './../../service/joint-ui/joint-ui.service';
 
 import { mockOperatorSchemaList } from './../../service/operator-metadata/mock-operator-metadata.data';
+import { mockAutocompleteAPISchemaSuggestionResponse,
+  mockAutocompletedOperatorSchema } from '../../service/autocomplete/model/mock-autocomplete-service.data';
 
 import { marbles } from 'rxjs-marbles';
 
 
-import { mockResultPredicate, mockScanPredicate, mockPoint } from '../../service/workflow-graph/model/mock-workflow-data';
+import { mockResultPredicate, mockScanPredicate, mockPoint, mockScanSentimentLink,
+  mockSentimentPredicate } from '../../service/workflow-graph/model/mock-workflow-data';
 import { CustomNgMaterialModule } from '../../../common/custom-ng-material.module';
+import { AutocompleteService } from '../../service/autocomplete/model/autocomplete.service';
+import { StubAutocompleteService } from '../../service/autocomplete/model/stub-autocomplete.service';
 
 /* tslint:disable:no-non-null-assertion */
 
@@ -27,6 +32,7 @@ describe('PropertyEditorComponent', () => {
   let component: PropertyEditorComponent;
   let fixture: ComponentFixture<PropertyEditorComponent>;
   let workflowActionService: WorkflowActionService;
+  let autocompleteService: AutocompleteService;
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
@@ -34,7 +40,8 @@ describe('PropertyEditorComponent', () => {
       providers: [
         JointUIService,
         WorkflowActionService,
-        { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
+        { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+        { provide: AutocompleteService, useClass: StubAutocompleteService }
       ],
       imports: [
         CustomNgMaterialModule,
@@ -58,6 +65,7 @@ describe('PropertyEditorComponent', () => {
     fixture = TestBed.createComponent(PropertyEditorComponent);
     component = fixture.componentInstance;
     workflowActionService = TestBed.get(WorkflowActionService);
+    autocompleteService = TestBed.get(AutocompleteService);
 
     fixture.detectChanges();
   });
@@ -120,7 +128,7 @@ describe('PropertyEditorComponent', () => {
 
     // check the variables
     expect(component.currentOperatorID).toEqual(mockScanPredicate.operatorID);
-    expect(component.currentOperatorSchema).toEqual(mockOperatorSchemaList[0]);
+    expect(component.currentOperatorSchema).toEqual(component.operatorSchemaList.find(schema => schema.operatorType === 'ScanSource'));
     expect(component.currentOperatorInitialData).toEqual(mockScanPredicate.operatorProperties);
     expect(component.displayForm).toBeTruthy();
 
@@ -129,7 +137,7 @@ describe('PropertyEditorComponent', () => {
     fixture.detectChanges();
 
     expect(component.currentOperatorID).toEqual(mockResultPredicate.operatorID);
-    expect(component.currentOperatorSchema).toEqual(mockOperatorSchemaList[2]);
+    expect(component.currentOperatorSchema).toEqual(component.operatorSchemaList.find(schema => schema.operatorType === 'ViewResults'));
     expect(component.currentOperatorInitialData).toEqual(mockResultPredicate.operatorProperties);
     expect(component.displayForm).toBeTruthy();
 
@@ -276,4 +284,45 @@ describe('PropertyEditorComponent', () => {
 
   }));
 
+  it('should populate tables names for source operators', () => {
+    const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
+    // add source operator
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    // highlight it
+    jointGraphWrapper.highlightOperator(mockScanPredicate.operatorID);
+
+    expect(component.currentOperatorSchema).toEqual(mockAutocompletedOperatorSchema[0]);
+  });
+
+  it('should autocomplete input schema details when a link is added in the workflow', fakeAsync(() => {
+    const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
+
+    spyOn(autocompleteService, 'invokeAutocompleteAPI').and.callFake( () => {
+      autocompleteService.operatorInputSchemaMap = mockAutocompleteAPISchemaSuggestionResponse.result;
+      autocompleteService.autocompleteAPIExecutedStream.next('Autocomplete response success');
+    }
+    );
+
+    // add three operators but no links
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    workflowActionService.addOperator(mockSentimentPredicate, mockPoint);
+    workflowActionService.addOperator(mockResultPredicate, mockPoint);
+
+    jointGraphWrapper.highlightOperator(mockSentimentPredicate.operatorID);
+    fixture.detectChanges();
+
+    // no changes to the schema
+    expect(component.currentOperatorSchema).toEqual(mockOperatorSchemaList[1]);
+
+    // add link between source to sentiment so that schema propagates
+    workflowActionService.addLink(mockScanSentimentLink);
+
+    fixture.detectChanges();
+    tick(PropertyEditorComponent.formInputDebounceTime + 10);
+
+    // the API should be called only once when link is added
+    expect(autocompleteService.invokeAutocompleteAPI).toHaveBeenCalled();
+    // the sentiment operator should have input schema from source
+    expect(component.currentOperatorSchema).toEqual(mockAutocompletedOperatorSchema[1]);
+  }));
 });

@@ -10,7 +10,7 @@ import { JointUIService } from '../joint-ui/joint-ui.service';
 import { Observable } from 'rxjs/Observable';
 
 import { mockExecutionResult } from './mock-result-data';
-import { mockWorkflowPlan, mockLogicalPlan } from './mock-workflow-plan';
+import { mockWorkflowPlan_scan_result, mockLogicalPlan_scan_result } from './mock-workflow-plan';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { marbles } from 'rxjs-marbles';
 import { WorkflowGraph } from '../workflow-graph/model/workflow-graph';
@@ -50,9 +50,9 @@ describe('ExecuteWorkflowService', () => {
   }));
 
   it('should generate a logical plan request based on the workflow graph that is passed to the function', () => {
-    const workflowGraph: WorkflowGraph = mockWorkflowPlan;
+    const workflowGraph: WorkflowGraph = mockWorkflowPlan_scan_result;
     const newLogicalPlan: LogicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(workflowGraph);
-    expect(newLogicalPlan).toEqual(mockLogicalPlan);
+    expect(newLogicalPlan).toEqual(mockLogicalPlan_scan_result);
   });
 
   it('should notify execution start event stream when an execution begins', marbles((m) => {
