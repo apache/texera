@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs/Observable';
 
-import { StubOperatorMetadataService } from '../../operator-metadata/stub-operator-metadata.service';
+import { OperatorMetadataService } from '../../operator-metadata/operator-metadata.service';
 import { AutocompleteUtils } from '../util/autocomplete.utils';
 import { mockSourceTableAPIResponse, mockAutocompleteAPISchemaSuggestionResponse,
   mockAutocompleteAPIEmptyResponse } from '../../../mock-data/mock-autocomplete-service.data';
@@ -10,6 +10,8 @@ import { OperatorMetadata, OperatorSchema } from '../../../types/operator-schema
 import { OperatorPredicate } from '../../../types/workflow-common.interface';
 
 import { combineLatest } from 'rxjs/observable/combineLatest';
+import { merge } from '../../../../../../node_modules/rxjs/observable/merge';
+import { distinctUntilChanged } from 'rxjs/operators';
 import { Subject } from 'rxjs/Subject';
 
 import { JSONSchema4 } from 'json-schema';
@@ -18,26 +20,35 @@ import { WorkflowActionService } from '../../workflow-graph/model/workflow-actio
 export const SOURCE_OPERATORS_REQUIRING_TABLENAMES: ReadonlyArray<string> = ['KeywordSource', 'RegexSource', 'WordCountIndexSource',
                                                                             'DictionarySource', 'FuzzyTokenSource', 'ScanSource'];
 
+/**
+ * This class is mostly a copy of the original Autocomplete Service class except its sourceTableNamesObservable data member
+ * and invokeAutocompleteAPI() method. The code in this section could be reduced by simply extending Autocomplete Service
+ * and overriding the necessary functions. However, that would lead to HttpClient being introduced as a Provider in all
+ * components that use Autocomplete Service which in turn may lead to confusion among developers about why it hasn't been
+ * overridden by StubHttpClient. So, we are bearing a bit of extra code to make the tests free of unnecessary dependencies.
+ */
 @Injectable()
 export class StubAutocompleteService {
 
+  // the input schema of operators in the current workflow as returned by the mock autocomplete API
+  public operatorInputSchemaMap: JSONSchema4 = {};
+
+  public autocompleteAPIExecutedStream = new Subject<string>();
+
   // the operator schema list with source table names added in source operators
   private operatorSchemaList: ReadonlyArray<OperatorSchema> = [];
-
-  private autocompleteAPIExecutedStream = new Subject<string>();
-
-  // the input schema of operators in the current workflow as returned by the mock autocomplete API
-  private operatorInputSchemaMap: JSONSchema4 = {};
 
   // mocks the source tables at the server
   private sourceTableNamesObservable = Observable.of(mockSourceTableAPIResponse)
                                           .map(response => AutocompleteUtils.processSourceTableAPIResponse(response))
                                           .shareReplay(1);
 
-  constructor(private stubOperatorMetadataService: StubOperatorMetadataService, private workflowActionService: WorkflowActionService) {
+  constructor(private operatorMetadataService: OperatorMetadataService, private workflowActionService: WorkflowActionService) {
     this.getSourceTableAddedOperatorMetadataObservable().subscribe(
       metadata => { this.operatorSchemaList = metadata.operators; }
     );
+
+    this.handleTexeraGraphLinkChangeEvent();
   }
 
   /**
@@ -47,7 +58,7 @@ export class StubAutocompleteService {
    * Thus, any new value in either of the observables will cause recomputation of the modifed operator schema.
    */
   public getSourceTableAddedOperatorMetadataObservable(): Observable<OperatorMetadata> {
-    return  combineLatest(this.getSourceTablesNamesObservable(), this.stubOperatorMetadataService.getOperatorMetadata())
+    return  combineLatest(this.getSourceTablesNamesObservable(), this.operatorMetadataService.getOperatorMetadata())
             .map(([tableNames, operatorMetadata]) => AutocompleteUtils.addSourceTableNamesToMetadata(operatorMetadata, tableNames));
   }
 
@@ -100,5 +111,17 @@ export class StubAutocompleteService {
    */
   private getSourceTablesNamesObservable(): Observable<ReadonlyArray<string>> {
     return this.sourceTableNamesObservable;
+  }
+
+  /**
+   * Handles any kind of changes in the links of the joint graph and invokes the autocomplete API.
+   * There are 3 kinds of change streams exposed by joint graph wrapper - link add, link delete
+   * and link change.
+   */
+  private handleTexeraGraphLinkChangeEvent(): void {
+    merge(this.workflowActionService.getJointGraphWrapper().getJointLinkCellAddStream(),
+      this.workflowActionService.getJointGraphWrapper().getJointLinkCellDeleteStream(),
+      this.workflowActionService.getJointGraphWrapper().getJointLinkCellChangeStream())
+    .subscribe(() => this.invokeAutocompleteAPI(true));
   }
 }

@@ -4,7 +4,7 @@ import {
   MaterialDesignFrameworkModule, JsonSchemaFormModule, JsonSchemaFormService,
   FrameworkLibraryService, WidgetLibraryService, Framework, MaterialDesignFramework
 } from 'angular2-json-schema-form';
-import { async, ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
+import { async, ComponentFixture, TestBed, fakeAsync, tick, flushMicrotasks } from '@angular/core/testing';
 
 import { PropertyEditorComponent } from './property-editor.component';
 
@@ -14,11 +14,14 @@ import { StubOperatorMetadataService } from '../../service/operator-metadata/stu
 import { JointUIService } from '../../service/joint-ui/joint-ui.service';
 
 import { mockOperatorSchemaList } from '../../mock-data/mock-operator-metadata.data';
+import { mockAutocompleteAPISchemaSuggestionResponse,
+  mockAutocompletedOperatorSchema } from '../../mock-data/mock-autocomplete-service.data';
 
 import { marbles } from 'rxjs-marbles';
 
 
-import { mockResultPredicate, mockScanPredicate, mockPoint } from '../../mock-data/mock-workflow-data';
+import { mockResultPredicate, mockScanPredicate, mockPoint, mockScanSentimentLink,
+  mockSentimentPredicate } from '../../mock-data/mock-workflow-data';
 import { CustomNgMaterialModule } from '../../../common/custom-ng-material.module';
 import { AutocompleteService } from '../../service/autocomplete/model/autocomplete.service';
 import { StubAutocompleteService } from '../../service/autocomplete/model/stub-autocomplete.service';
@@ -29,6 +32,7 @@ describe('PropertyEditorComponent', () => {
   let component: PropertyEditorComponent;
   let fixture: ComponentFixture<PropertyEditorComponent>;
   let workflowActionService: WorkflowActionService;
+  let autocompleteService: AutocompleteService;
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
@@ -37,7 +41,6 @@ describe('PropertyEditorComponent', () => {
         JointUIService,
         WorkflowActionService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
-        StubOperatorMetadataService,
         { provide: AutocompleteService, useClass: StubAutocompleteService }
       ],
       imports: [
@@ -62,6 +65,7 @@ describe('PropertyEditorComponent', () => {
     fixture = TestBed.createComponent(PropertyEditorComponent);
     component = fixture.componentInstance;
     workflowActionService = TestBed.get(WorkflowActionService);
+    autocompleteService = TestBed.get(AutocompleteService);
 
     fixture.detectChanges();
   });
@@ -280,4 +284,45 @@ describe('PropertyEditorComponent', () => {
 
   }));
 
+  it('should populate tables names for source operators', () => {
+    const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
+    // add source operator
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    // highlight it
+    jointGraphWrapper.highlightOperator(mockScanPredicate.operatorID);
+
+    expect(component.currentOperatorSchema).toEqual(mockAutocompletedOperatorSchema[0]);
+  });
+
+  it('should autocomplete input schema details when a link is added in the workflow', fakeAsync(() => {
+    const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
+
+    spyOn(autocompleteService, 'invokeAutocompleteAPI').and.callFake( () => {
+      autocompleteService.operatorInputSchemaMap = mockAutocompleteAPISchemaSuggestionResponse.result;
+      autocompleteService.autocompleteAPIExecutedStream.next('Autocomplete response success');
+    }
+    );
+
+    // add three operators but no links
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    workflowActionService.addOperator(mockSentimentPredicate, mockPoint);
+    workflowActionService.addOperator(mockResultPredicate, mockPoint);
+
+    jointGraphWrapper.highlightOperator(mockSentimentPredicate.operatorID);
+    fixture.detectChanges();
+
+    // no changes to the schema
+    expect(component.currentOperatorSchema).toEqual(mockOperatorSchemaList[1]);
+
+    // add link between source to sentiment so that schema propagates
+    workflowActionService.addLink(mockScanSentimentLink);
+
+    fixture.detectChanges();
+    tick(PropertyEditorComponent.formInputDebounceTime + 10);
+
+    // the API should be called only once when link is added
+    expect(autocompleteService.invokeAutocompleteAPI).toHaveBeenCalled();
+    // the sentiment operator should have input schema from source
+    expect(component.currentOperatorSchema).toEqual(mockAutocompletedOperatorSchema[1]);
+  }));
 });

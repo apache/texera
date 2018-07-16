@@ -12,6 +12,7 @@ import { SourceTableNamesAPIResponse, SuccessExecutionResult } from '../../../ty
 import { mockSourceTableAPIResponse, mockAutocompleteAPISchemaSuggestionResponse } from '../../../mock-data/mock-autocomplete-service.data';
 import { WorkflowActionService } from '../../workflow-graph/model/workflow-action.service';
 import { JointUIService } from '../../joint-ui/joint-ui.service';
+import { AutocompleteUtils } from '../util/autocomplete.utils';
 
 class StubHttpClient {
   constructor() { }
@@ -28,6 +29,7 @@ class StubHttpClient {
 }
 
 describe('AutocompleteService', () => {
+  let autcompleteService: AutocompleteService;
   beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [AutocompleteService,
@@ -37,9 +39,21 @@ describe('AutocompleteService', () => {
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService}
       ]
     });
+
+    autcompleteService = TestBed.get(AutocompleteService);
   });
 
   it('should be created', inject([AutocompleteService], (service: AutocompleteService) => {
     expect(service).toBeTruthy();
   }));
+
+  it('should call post when invoking autocomplete API', () => {
+    const httpClient: HttpClient = TestBed.get(HttpClient);
+    spyOn(httpClient, 'post').and.returnValue(
+      Observable.of(mockAutocompleteAPISchemaSuggestionResponse)
+    );
+
+    autcompleteService.invokeAutocompleteAPI(true);
+    expect(httpClient.post).toHaveBeenCalledTimes(1);
+  });
 });

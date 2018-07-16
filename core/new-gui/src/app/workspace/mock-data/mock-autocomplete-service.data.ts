@@ -1,4 +1,5 @@
 import { SourceTableNamesAPIResponse, SuccessExecutionResult } from '../types/autocomplete.interface';
+import { OperatorSchema } from '../types/operator-schema.interface';
 
 /**
  * Export constants related to the source table names present at the server
@@ -57,7 +58,7 @@ export const mockSourceTableAPIResponse: Readonly<SourceTableNamesAPIResponse> =
 export const mockAutocompleteAPISchemaSuggestionResponse: Readonly<SuccessExecutionResult> = {
   code: 0,
   result: {
-    'operator-6383932c-f846-4ac8-bc9d-52d9ddff86f7': [
+    '2': [
       'city',
       'user_screen_name',
       'user_name',
@@ -80,3 +81,97 @@ export const mockAutocompleteAPIEmptyResponse: Readonly<SuccessExecutionResult> 
   code: 0,
   result: { }
 };
+
+export const mockAutocompletedOperatorSchema: ReadonlyArray<OperatorSchema> =
+[
+    {
+      operatorType: 'ScanSource',
+      additionalMetadata: {
+        advancedOptions: [],
+        operatorDescription: 'Read records from a table one by one',
+        operatorGroupName: 'Source',
+        numInputPorts: 0,
+        numOutputPorts: 1,
+        userFriendlyName: 'Source: Scan'
+      },
+      jsonSchema: {
+        id: 'urn:jsonschema:edu:uci:ics:texera:dataflow:source:scan:ScanSourcePredicate',
+        properties: {
+          tableName: {
+            type: 'string',
+            enum: ['promed', 'twitter_sample']
+          }
+        },
+        required: [
+          'tableName'
+        ],
+        type: 'object'
+      }
+    },
+    {
+      operatorType: 'NlpSentiment',
+      additionalMetadata: {
+        advancedOptions: [],
+        operatorDescription: 'Sentiment analysis based on Stanford NLP package',
+        operatorGroupName: 'Analysis',
+        numInputPorts: 1,
+        numOutputPorts: 1,
+        userFriendlyName: 'Sentiment Analysis'
+      },
+      jsonSchema: {
+        id: 'urn:jsonschema:edu:uci:ics:texera:dataflow:nlp:sentiment:NlpSentimentPredicate',
+        properties: {
+          attribute: {
+            type: 'string',
+            enum: ['city',
+            'user_screen_name',
+            'user_name',
+            'county',
+            'tweet_link',
+            'payload',
+            'user_followers_count',
+            'user_link',
+            '_id',
+            'text',
+            'state',
+            'create_at',
+            'user_description',
+            'user_friends_count']
+          },
+          resultAttribute: {
+            type: 'string'
+          }
+        },
+        required: [
+          'attribute',
+          'resultAttribute'
+        ],
+        type: 'object'
+      }
+    },
+    {
+      operatorType: 'ViewResults',
+      additionalMetadata: {
+        advancedOptions: [],
+        operatorDescription: 'View the results of the workflow',
+        operatorGroupName: 'View Results',
+        numInputPorts: 1,
+        numOutputPorts: 0,
+        userFriendlyName: 'View Results'
+      },
+      jsonSchema: {
+        id: 'urn:jsonschema:edu:uci:ics:texera:dataflow:sink:tuple:TupleSinkPredicate',
+        properties: {
+          limit: {
+            default: 10,
+            type: 'integer'
+          },
+          'offset': {
+            default: 0,
+            type: 'integer'
+          }
+        },
+        type: 'object'
+      }
+    }
+  ];

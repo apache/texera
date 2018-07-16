@@ -9,6 +9,7 @@ import { WorkflowEditorComponent } from './workflow-editor.component';
 import { OperatorMetadataService } from '../../service/operator-metadata/operator-metadata.service';
 import { StubOperatorMetadataService } from '../../service/operator-metadata/stub-operator-metadata.service';
 import { JointUIService } from '../../service/joint-ui/joint-ui.service';
+import { WorkflowGraph, WorkflowGraphReadonly } from '../../service/workflow-graph/model/workflow-graph';
 
 import * as joint from 'jointjs';
 import { mockScanPredicate, mockPoint } from '../../mock-data/mock-workflow-data';
@@ -20,6 +21,7 @@ class StubWorkflowActionService {
 
   private jointGraph = new joint.dia.Graph();
   private jointGraphWrapper = new JointGraphWrapper(this.jointGraph);
+  private readonly texeraGraph = new WorkflowGraph();
 
   public attachJointPaper(paperOptions: joint.dia.Paper.Options): joint.dia.Paper.Options {
     paperOptions.model = this.jointGraph;
@@ -28,6 +30,10 @@ class StubWorkflowActionService {
 
   public getJointGraphWrapper(): JointGraphWrapper {
     return this.jointGraphWrapper;
+  }
+
+  public getTexeraGraph(): WorkflowGraphReadonly {
+    return this.texeraGraph;
   }
 }
 

@@ -15,6 +15,8 @@ import '../../../../common/rxjs-operators';
 import { combineLatest } from 'rxjs/observable/combineLatest';
 import { Subject } from 'rxjs/Subject';
 import { JSONSchema4 } from 'json-schema';
+import { merge } from '../../../../../../node_modules/rxjs/observable/merge';
+import { distinctUntilChanged } from 'rxjs/operators';
 
 export const SOURCE_TABLE_NAMES_ENDPOINT = 'resources/table-metadata';
 export const AUTOMATED_SCHEMA_PROPAGATION_ENDPOINT = 'queryplan/autocomplete';
@@ -28,13 +30,13 @@ export const AUTOMATED_SCHEMA_PROPAGATION_ENDPOINT = 'queryplan/autocomplete';
  */
 @Injectable()
 export class AutocompleteService {
+  // the input schema of operators in the current workflow as returned by the autocomplete API
+  public operatorInputSchemaMap: JSONSchema4 = {};
+
+  public autocompleteAPIExecutedStream = new Subject<string>();
+
   // the operator schema list with source table names added in source operators
   private operatorSchemaList: ReadonlyArray<OperatorSchema> = [];
-
-  private autocompleteAPIExecutedStream = new Subject<string>();
-
-  // the input schema of operators in the current workflow as returned by the autocomplete API
-  private operatorInputSchemaMap: JSONSchema4 = {};
 
   // contacts the **backend** and gets the source tables at the server
   private sourceTableNamesObservable = this.httpClient
@@ -49,6 +51,8 @@ export class AutocompleteService {
     this.getSourceTableAddedOperatorMetadataObservable().subscribe(
       metadata => { this.operatorSchemaList = metadata.operators; }
     );
+
+    this.handleTexeraGraphLinkChangeEvent();
   }
 
   /**
@@ -155,6 +159,18 @@ export class AutocompleteService {
    */
   private getSourceTablesNamesObservable(): Observable<ReadonlyArray<string>> {
     return this.sourceTableNamesObservable;
+  }
+
+  /**
+   * Handles any kind of changes in the links of the joint graph and invokes the autocomplete API.
+   * There are 3 kinds of change streams exposed by joint graph wrapper - link add, link delete
+   * and link change.
+   */
+  private handleTexeraGraphLinkChangeEvent(): void {
+    merge(this.workflowActionService.getJointGraphWrapper().getJointLinkCellAddStream(),
+      this.workflowActionService.getJointGraphWrapper().getJointLinkCellDeleteStream(),
+      this.workflowActionService.getJointGraphWrapper().getJointLinkCellChangeStream())
+    .subscribe(() => this.invokeAutocompleteAPI(true));
   }
 
 }

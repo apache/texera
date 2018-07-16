@@ -59,7 +59,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.handleWindowResize();
     this.handleViewDeleteOperator();
     this.handleCellHighlight();
-    this.handleLinkChangeEvent();
 
     this.dragDropService.registerWorkflowEditorDrop(this.WORKFLOW_EDITOR_JOINTJS_ID);
 
@@ -138,12 +137,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
       .subscribe(value => this.getJointPaper().findViewByModel(value.operatorID).unhighlight(
         'rect', { highlighter: highlightOptions }
       ));
-  }
-
-  private handleLinkChangeEvent(): void {
-    merge(Observable.fromEvent(this.getJointPaper(), 'link:connect link:disconnect'),
-            this.workflowActionService.getJointGraphWrapper().getJointLinkCellDeleteStream())
-      .subscribe(() => this.autocompleteService.invokeAutocompleteAPI(true));
   }
 
   /**
