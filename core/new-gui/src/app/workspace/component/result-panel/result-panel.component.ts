@@ -1,11 +1,11 @@
 import { Component, ViewChild, Input } from '@angular/core';
 import { MatPaginator, MatTableDataSource } from '@angular/material';
 
-import { ExecuteWorkflowService } from './../../service/execute-workflow/execute-workflow.service';
+import { ExecuteWorkflowService } from '../../service/execute-workflow/execute-workflow.service';
 
 import { NgbModal, NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
-import { ExecutionResult, SuccessExecutionResult } from './../../types/execute-workflow.interface';
-import { TableColumn, IndexableObject } from './../../types/result-table.interface';
+import { ExecutionResult, SuccessExecutionResult } from '../../types/execute-workflow.interface';
+import { TableColumn, IndexableObject } from '../../types/result-table.interface';
 
 /**
  * ResultPanelCompoent is the bottom level area that displays the

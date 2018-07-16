@@ -1,7 +1,7 @@
-import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
-import { JointGraphWrapper } from './../../service/workflow-graph/model/joint-graph-wrapper';
-import { DragDropService } from './../../service/drag-drop/drag-drop.service';
-import { WorkflowUtilService } from './../../service/workflow-graph/util/workflow-util.service';
+import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
+import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-graph-wrapper';
+import { DragDropService } from '../../service/drag-drop/drag-drop.service';
+import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-util.service';
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { WorkflowEditorComponent } from './workflow-editor.component';
@@ -9,15 +9,19 @@ import { WorkflowEditorComponent } from './workflow-editor.component';
 import { OperatorMetadataService } from '../../service/operator-metadata/operator-metadata.service';
 import { StubOperatorMetadataService } from '../../service/operator-metadata/stub-operator-metadata.service';
 import { JointUIService } from '../../service/joint-ui/joint-ui.service';
+import { WorkflowGraph, WorkflowGraphReadonly } from '../../service/workflow-graph/model/workflow-graph';
 
 import * as joint from 'jointjs';
-import { mockScanPredicate, mockPoint } from '../../service/workflow-graph/model/mock-workflow-data';
+import { mockScanPredicate, mockPoint } from '../../mock-data/mock-workflow-data';
+import { AutocompleteService } from '../../service/autocomplete/model/autocomplete.service';
+import { StubAutocompleteService } from '../../service/autocomplete/model/stub-autocomplete.service';
 
 
 class StubWorkflowActionService {
 
   private jointGraph = new joint.dia.Graph();
   private jointGraphWrapper = new JointGraphWrapper(this.jointGraph);
+  private readonly texeraGraph = new WorkflowGraph();
 
   public attachJointPaper(paperOptions: joint.dia.Paper.Options): joint.dia.Paper.Options {
     paperOptions.model = this.jointGraph;
@@ -26,6 +30,10 @@ class StubWorkflowActionService {
 
   public getJointGraphWrapper(): JointGraphWrapper {
     return this.jointGraphWrapper;
+  }
+
+  public getTexeraGraph(): WorkflowGraphReadonly {
+    return this.texeraGraph;
   }
 }
 
@@ -50,6 +58,7 @@ describe('WorkflowEditorComponent', () => {
           DragDropService,
           { provide: WorkflowActionService, useClass: StubWorkflowActionService },
           { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+          { provide: AutocompleteService, useClass: StubAutocompleteService}
         ]
       })
         .compileComponents();
@@ -137,6 +146,7 @@ describe('WorkflowEditorComponent', () => {
           DragDropService,
           WorkflowActionService,
           { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+          { provide: AutocompleteService, useClass: StubAutocompleteService}
         ]
       })
         .compileComponents();

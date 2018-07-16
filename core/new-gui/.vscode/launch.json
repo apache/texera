@@ -20,6 +20,15 @@
       "port": 9222,
       "webRoot": "${workspaceFolder}",
       "sourceMaps": true
+    },
+    {
+      "type": "chrome",
+      "request": "attach",
+      "name": "Unit tests",
+      "address": "localhost",
+      "port": 9333,
+      "sourceMaps": true,
+      "webRoot": "${workspaceRoot}"
     }
   ]
 }

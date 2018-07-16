@@ -1,17 +1,17 @@
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { ResultPanelComponent } from './result-panel.component';
-import { ExecuteWorkflowService } from './../../service/execute-workflow/execute-workflow.service';
-import { CustomNgMaterialModule } from './../../../common/custom-ng-material.module';
+import { ExecuteWorkflowService } from '../../service/execute-workflow/execute-workflow.service';
+import { CustomNgMaterialModule } from '../../../common/custom-ng-material.module';
 
-import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
-import { JointUIService } from './../../service/joint-ui/joint-ui.service';
-import { OperatorMetadataService } from './../../service/operator-metadata/operator-metadata.service';
-import { StubOperatorMetadataService } from './../../service/operator-metadata/stub-operator-metadata.service';
+import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
+import { JointUIService } from '../../service/joint-ui/joint-ui.service';
+import { OperatorMetadataService } from '../../service/operator-metadata/operator-metadata.service';
+import { StubOperatorMetadataService } from '../../service/operator-metadata/stub-operator-metadata.service';
 import { NgbModule, NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { marbles } from 'rxjs-marbles';
 import { mockExecutionResult, mockResultData,
-  mockExecutionErrorResult, mockExecutionEmptyResult } from '../../service/execute-workflow/mock-result-data';
+  mockExecutionErrorResult, mockExecutionEmptyResult } from '../../mock-data/mock-result-data';
 import { By } from '@angular/platform-browser';
 import { Observable } from 'rxjs/Observable';
 import { HttpClient } from '@angular/common/http';

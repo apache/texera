@@ -3,11 +3,11 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 
 import { Subject } from 'rxjs/Subject';
 import { Observable } from 'rxjs/Observable';
-import './../../../common/rxjs-operators';
-import { AppSettings } from './../../../common/app-setting';
+import '../../../common/rxjs-operators';
+import { AppSettings } from '../../../common/app-setting';
 
-import { WorkflowActionService } from './../workflow-graph/model/workflow-action.service';
-import { WorkflowGraphReadonly } from './../workflow-graph/model/workflow-graph';
+import { WorkflowActionService } from '../workflow-graph/model/workflow-action.service';
+import { WorkflowGraphReadonly } from '../workflow-graph/model/workflow-graph';
 import {
   LogicalLink, LogicalPlan, LogicalOperator,
   ExecutionResult, ErrorExecutionResult, SuccessExecutionResult

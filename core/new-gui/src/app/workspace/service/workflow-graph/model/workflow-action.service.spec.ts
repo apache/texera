@@ -1,12 +1,12 @@
-import { StubOperatorMetadataService } from './../../operator-metadata/stub-operator-metadata.service';
-import { OperatorMetadataService } from './../../operator-metadata/operator-metadata.service';
-import { JointUIService } from './../../joint-ui/joint-ui.service';
+import { StubOperatorMetadataService } from '../../operator-metadata/stub-operator-metadata.service';
+import { OperatorMetadataService } from '../../operator-metadata/operator-metadata.service';
+import { JointUIService } from '../../joint-ui/joint-ui.service';
 import { WorkflowGraph } from './workflow-graph';
 import {
   mockScanPredicate, mockResultPredicate, mockSentimentPredicate, mockScanResultLink,
   mockScanSentimentLink, mockSentimentResultLink, mockFalseResultSentimentLink, mockFalseSentimentScanLink,
   mockPoint
-} from './mock-workflow-data';
+} from '../../../mock-data/mock-workflow-data';
 import { TestBed, inject } from '@angular/core/testing';
 
 import { WorkflowActionService } from './workflow-action.service';

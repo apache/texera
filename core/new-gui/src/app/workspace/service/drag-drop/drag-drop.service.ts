@@ -1,8 +1,8 @@
-import { Point } from './../../types/workflow-common.interface';
-import { WorkflowActionService } from './../workflow-graph/model/workflow-action.service';
+import { Point } from '../../types/workflow-common.interface';
+import { WorkflowActionService } from '../workflow-graph/model/workflow-action.service';
 import { Observable } from 'rxjs/Observable';
-import { WorkflowUtilService } from './../workflow-graph/util/workflow-util.service';
-import { JointUIService } from './../joint-ui/joint-ui.service';
+import { WorkflowUtilService } from '../workflow-graph/util/workflow-util.service';
+import { JointUIService } from '../joint-ui/joint-ui.service';
 import { Injectable } from '@angular/core';
 import { Subject } from 'rxjs/Subject';
 

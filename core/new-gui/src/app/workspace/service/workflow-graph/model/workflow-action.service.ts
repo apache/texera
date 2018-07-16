@@ -1,7 +1,7 @@
-import { OperatorMetadataService } from './../../operator-metadata/operator-metadata.service';
+import { OperatorMetadataService } from '../../operator-metadata/operator-metadata.service';
 import { SyncTexeraModel } from './sync-texera-model';
 import { JointGraphWrapper } from './joint-graph-wrapper';
-import { JointUIService } from './../../joint-ui/joint-ui.service';
+import { JointUIService } from '../../joint-ui/joint-ui.service';
 import { WorkflowGraph, WorkflowGraphReadonly } from './workflow-graph';
 import { Injectable } from '@angular/core';
 import { Point, OperatorPredicate, OperatorLink, OperatorPort } from '../../../types/workflow-common.interface';

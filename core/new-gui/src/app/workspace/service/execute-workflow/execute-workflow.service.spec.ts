@@ -3,14 +3,14 @@ import { TestBed, inject } from '@angular/core/testing';
 
 import { ExecuteWorkflowService } from './execute-workflow.service';
 
-import { WorkflowActionService } from './../workflow-graph/model/workflow-action.service';
+import { WorkflowActionService } from '../workflow-graph/model/workflow-action.service';
 import { OperatorMetadataService } from '../operator-metadata/operator-metadata.service';
 import { StubOperatorMetadataService } from '../operator-metadata/stub-operator-metadata.service';
 import { JointUIService } from '../joint-ui/joint-ui.service';
 import { Observable } from 'rxjs/Observable';
 
-import { mockExecutionResult } from './mock-result-data';
-import { mockWorkflowPlan, mockLogicalPlan } from './mock-workflow-plan';
+import { mockExecutionResult } from '../../mock-data/mock-result-data';
+import { mockWorkflowPlan_scan_result, mockLogicalPlan_scan_result } from '../../mock-data/mock-workflow-plan';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { marbles } from 'rxjs-marbles';
 import { WorkflowGraph } from '../workflow-graph/model/workflow-graph';
@@ -50,9 +50,9 @@ describe('ExecuteWorkflowService', () => {
   }));
 
   it('should generate a logical plan request based on the workflow graph that is passed to the function', () => {
-    const workflowGraph: WorkflowGraph = mockWorkflowPlan;
+    const workflowGraph: WorkflowGraph = mockWorkflowPlan_scan_result;
     const newLogicalPlan: LogicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(workflowGraph);
-    expect(newLogicalPlan).toEqual(mockLogicalPlan);
+    expect(newLogicalPlan).toEqual(mockLogicalPlan_scan_result);
   });
 
   it('should notify execution start event stream when an execution begins', marbles((m) => {

@@ -9,7 +9,7 @@ import {
   mockScanPredicate, mockResultPredicate, mockScanResultLink,
   mockSentimentPredicate, mockScanSentimentLink, mockSentimentResultLink,
   mockPoint
-} from './mock-workflow-data';
+} from '../../../mock-data/mock-workflow-data';
 
 import * as joint from 'jointjs';
 import { StubOperatorMetadataService } from '../../operator-metadata/stub-operator-metadata.service';
