@@ -58,7 +58,6 @@ describe('WorkflowEditorComponent', () => {
           DragDropService,
           { provide: WorkflowActionService, useClass: StubWorkflowActionService },
           { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
-          StubOperatorMetadataService,
           { provide: AutocompleteService, useClass: StubAutocompleteService}
         ]
       })
@@ -147,7 +146,6 @@ describe('WorkflowEditorComponent', () => {
           DragDropService,
           WorkflowActionService,
           { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
-          StubOperatorMetadataService,
           { provide: AutocompleteService, useClass: StubAutocompleteService}
         ]
       })
