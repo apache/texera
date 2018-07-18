@@ -12,7 +12,7 @@ import { SourceTableNamesAPIResponse, SuccessExecutionResult } from '../../../ty
 import { mockSourceTableAPIResponse, mockAutocompleteAPISchemaSuggestionResponse } from './mock-autocomplete-service.data';
 import { WorkflowActionService } from '../../workflow-graph/model/workflow-action.service';
 import { JointUIService } from '../../joint-ui/joint-ui.service';
-import { AutocompleteUtils } from '../util/autocomplete.utils';
+import { marbles } from 'rxjs-marbles';
 
 class StubHttpClient {
   constructor() { }
@@ -29,7 +29,7 @@ class StubHttpClient {
 }
 
 describe('AutocompleteService', () => {
-  let autcompleteService: AutocompleteService;
+  let autocompleteService: AutocompleteService;
   beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [AutocompleteService,
@@ -40,7 +40,7 @@ describe('AutocompleteService', () => {
       ]
     });
 
-    autcompleteService = TestBed.get(AutocompleteService);
+    autocompleteService = TestBed.get(AutocompleteService);
   });
 
   it('should be created', inject([AutocompleteService], (service: AutocompleteService) => {
@@ -53,7 +53,39 @@ describe('AutocompleteService', () => {
       Observable.of(mockAutocompleteAPISchemaSuggestionResponse)
     );
 
-    autcompleteService.invokeAutocompleteAPI(true);
+    autocompleteService.invokeAutocompleteAPI(true);
     expect(httpClient.post).toHaveBeenCalledTimes(1);
   });
+
+  it('should notify autocompleteAPIExecutedStream when autcomplete API is invoked with true parameter', marbles((m) => {
+    const apiExecutedStream = autocompleteService.getAutocompleteAPIExecutedStream()
+      .map(() => 'a');
+
+    const httpClient: HttpClient = TestBed.get(HttpClient);
+    spyOn(httpClient, 'post').and.returnValue(
+      Observable.of(mockAutocompleteAPISchemaSuggestionResponse)
+    );
+
+    m.hot('-a-').do(() => autocompleteService.invokeAutocompleteAPI(true)).subscribe();
+
+    const expectedStream = m.hot('-a-');
+
+    m.expect(apiExecutedStream).toBeObservable(expectedStream);
+  }));
+
+  it('should not notify autocompleteAPIExecutedStream when autcomplete API is invoked with false parameter', marbles((m) => {
+    const apiExecutedStream = autocompleteService.getAutocompleteAPIExecutedStream()
+      .map(() => 'a');
+
+    const httpClient: HttpClient = TestBed.get(HttpClient);
+    spyOn(httpClient, 'post').and.returnValue(
+      Observable.of(mockAutocompleteAPISchemaSuggestionResponse)
+    );
+
+    m.hot('-a-').do(() => autocompleteService.invokeAutocompleteAPI(false)).subscribe();
+
+    const expectedStream = m.hot('---');
+
+    m.expect(apiExecutedStream).toBeObservable(expectedStream);
+  }));
 });
