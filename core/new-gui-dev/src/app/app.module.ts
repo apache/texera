@@ -26,6 +26,7 @@ import { ReactiveFormsModule } from '@angular/forms';
 import { FormsModule } from '@angular/forms';
 import { startWith } from 'rxjs/operators/startWith';
 import { map } from 'rxjs/operators/map';
+import { ProductTourComponent } from './workspace/component/product-tour/product-tour.component';
 
 @NgModule({
   declarations: [
@@ -37,6 +38,7 @@ import { map } from 'rxjs/operators/map';
     OperatorViewComponent,
     ResultViewComponent,
     OperatorLabelComponent,
+    ProductTourComponent,
   ],
   imports: [
     BrowserModule,
