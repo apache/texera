@@ -15,7 +15,7 @@
 
   <mat-accordion multi="false">
     <mat-expansion-panel class="mat-elevation-z0" *ngFor="let groupName of groupNamesOrdered">
-      <mat-expansion-panel-header>
+      <mat-expansion-panel-header [tourAnchor]='groupName'>
         {{groupName}}
       </mat-expansion-panel-header>
       <div *ngFor="let operatorSchema of operatorGroupMap.get(groupName)">
