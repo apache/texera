@@ -7,7 +7,8 @@ import { FlexLayoutModule } from '@angular/flex-layout';
 import { CustomNgMaterialModule } from './common/custom-ng-material.module';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
-
+import { NgxBootstrapProductTourModule } from 'ngx-bootstrap-product-tour';
+import { RouterModule } from '@angular/router';
 
 import {
   JsonSchemaFormModule, MaterialDesignFrameworkModule, Bootstrap4FrameworkModule
@@ -54,6 +55,7 @@ import { ProductTourComponent } from './workspace/component/product-tour/product
     JsonSchemaFormModule.forRoot(MaterialDesignFrameworkModule),
     ReactiveFormsModule,
     FormsModule,
+    NgxBootstrapProductTourModule.forRoot(),
     NgbModule.forRoot()
   ],
   providers: [ HttpClientModule ],
