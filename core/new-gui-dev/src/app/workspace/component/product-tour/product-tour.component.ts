@@ -13,6 +13,7 @@ export class ProductTourComponent implements OnInit {
     this.tourService.end$.subscribe(() => {
       location.reload();
     });
+    this.tourService.events$.subscribe(console.log);
     this.tourService.initialize([{
       anchorId: 'start.tour',
       content: '<h1>Welcome to Texera!</h1><br><font size="5">Texera is a system to support cloud-based text analytics using declarative and GUI-based workflows.</font><br><br><img src="../../../../assets/Tutor_Intro_Sample.png" height="400" width="800">',
@@ -37,12 +38,12 @@ export class ProductTourComponent implements OnInit {
       anchorId: 'texera-operator-label-ScanSource',
       content: 'Drag this and drop to workflow<br><img src="../../../../assets/Tutor_Intro_Drag_Srouce.gif">',
       placement: 'right',
-      backdrop: true
+      
     },
     {
       anchorId: 'texera-workflow-editor-grid-container',
-      content: '<h1>Here is the workflow Panel</h1><br> now we will edit the operator attribute',
-      placement: 'right',
+      content: '<h4>Here is the workflow Panel</h4><br> now we will edit the operator attribute',
+      placement: 'bottom',
       backdrop: true
     },
     {
@@ -58,10 +59,9 @@ export class ProductTourComponent implements OnInit {
       backdrop: true
     },
     {
-      anchorId: 'texera-operator-view-grid-container',
+      anchorId: 'texera-operator-label-ViewResults',
       content: 'Drag this and drop to workflow<br><img src="../../../../assets/Tutor_Intro_Drag_Result.gif">',
       placement: 'right',
-      backdrop: true
     },
     {
       anchorId: 'texera-workflow-editor-grid-container',
@@ -71,13 +71,13 @@ export class ProductTourComponent implements OnInit {
     },
     {
       anchorId: 'texera-workspace-navigation-run',
-      content: '<h1>Click the run button</h1>',
-      placement: 'bottom',
+      content: '<h4>Click the run button</h4>',
+      placement: 'left',
       backdrop: true
     },
     {
       anchorId: 'texera-result-view-grid-container',
-      content: '<h1>You can view the result here</h1>',
+      content: '<h4>You can view the result here</h4>',
       placement: 'top',
       backdrop: true
     },
