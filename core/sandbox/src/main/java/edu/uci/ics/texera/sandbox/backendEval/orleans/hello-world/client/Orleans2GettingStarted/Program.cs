@@ -12,7 +12,7 @@ namespace Orleans2GettingStarted
     {
         static async Task Main(string[] args)
         {
-            const string connectionString = "server=cherry00.ics.uci.edu;uid=<type username here>;pwd=<type pwd here>;database=orleanstest;SslMode=none";
+            const string connectionString = "server=<hostname or IP>;uid=<type username here>;pwd=<type pwd here>;database=orleanstest;SslMode=none";
             var clientBuilder = new ClientBuilder()
                 .Configure<ClusterOptions>(options =>
                 {
