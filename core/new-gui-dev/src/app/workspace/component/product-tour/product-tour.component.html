@@ -2,10 +2,9 @@
     <ng-template>
         <div class="tour-step-content" [innerHTML] = 'tourService.currentStep.content'></div>
         <div class="tour-step-navigation">
-            <button *ngIf="tourService.hasPrev(tourService.currentStep.content)" class="btn btn-sm btn-default" (click)="tourService.prev()">« Prev</button>
-            <button *ngIf="tourService.hasNext(tourService.currentStep.content)" class="btn btn-sm btn-default" (click)="tourService.next()">Next »</button>
-            <button class="btn btn-sm btn-default" (click)="tourService.end()">End</button>
-          </div>
+            <button *ngIf="tourService.hasPrev(tourService.currentStep)" class="btn btn-sm btn-light" (click)="tourService.prev()">« Prev</button>
+            <button *ngIf="tourService.hasNext(tourService.currentStep)" class="btn btn-sm btn-light" (click)="tourService.next()">Next »</button>
+            <button class="btn btn-sm btn-danger" (click)="tourService.end()">End</button>
+        </div>
     </ng-template>
 </ngx-bootstrap-product-tour>
-<a style="cursor: pointer" (click)="tourService.toggle()" class="btn btn-primary" tourAnchor="start.tour">Start Demo Tour</a>

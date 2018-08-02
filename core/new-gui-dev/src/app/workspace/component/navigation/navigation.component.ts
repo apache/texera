@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 
 import { ExecuteWorkflowService } from '../../service/execute-workflow/execute-workflow.service';
 import {MatProgressSpinnerModule} from '@angular/material/progress-spinner';
+import { NgxBootstrapProductTourService } from 'ngx-bootstrap-product-tour';
 
 
 /**
@@ -20,7 +21,7 @@ export class NavigationComponent implements OnInit {
   // variable binded with HTML to decide if the running spinner should show
   showSpinner = false;
 
-  constructor(private executeWorkflowService: ExecuteWorkflowService) {
+  constructor(private executeWorkflowService: ExecuteWorkflowService, public tourService: NgxBootstrapProductTourService) {
     // hide the spinner after the execution is finished
     executeWorkflowService.executeFinished$.subscribe(
       value => this.showSpinner = false,
