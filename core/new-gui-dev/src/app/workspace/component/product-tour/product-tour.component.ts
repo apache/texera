@@ -1,6 +1,26 @@
 import { AfterViewInit, Component, OnInit } from '@angular/core';
 import { NgxBootstrapProductTourService } from 'ngx-bootstrap-product-tour';
-import { resolve, reject } from '../../../../../node_modules/@types/q';
+
+/**
+ * ProductTourComponent is the product tour that shows basic product tutorial.
+ *
+ * Product tour library built with Angular (2+). 
+ * NgxBootstrapProductTourModule is an implementation of the tour ui that uses ngx-bootstrap popovers to display tour steps.
+ *
+ * The component has a step list in this.tourService.initialize that can add, edit or delete steps.
+ * Define anchor points for the tour steps by adding the tourAnchor directive throughout components.
+ * 
+ * <div tourAnchor="some.anchor.id">...</div>
+ * 
+ * Define your tour steps using tourService.initialize(steps).
+ * 
+ * For the full text of the library, go to https://github.com/NMilicic/ngx-bootstrap-product-tour
+ *
+ *
+ * @author Bolin Chen
+ */
+
+
 @Component({
   selector: 'texera-product-tour',
   templateUrl: './product-tour.component.html',
@@ -85,7 +105,7 @@ export class ProductTourComponent implements OnInit {
     },
     {
       anchorId: 'start.tour',
-      content: '<center><h3>Congratulation!</h3></center><p>You have finished the basic tutorial. </p><p>There are many other operators you can use to form a convenient and efficient workflow.</p><center><img src="../../../../assets/Tutor_End_Sample.gif"></center><br><br>',
+      content: '<center><h3>Congratulation!</h3></center><p>You have finished the basic tutorial. </p><p>There are many other operators you can use to form a workflow.</p><center><img src="../../../../assets/Tutor_End_Sample.gif"></center><br><br>',
       placement: 'right',
       title: 'Ending of tutorial',
       orphan: true,
