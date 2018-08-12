@@ -1,5 +1,6 @@
 import { AfterViewInit, Component, OnInit } from '@angular/core';
 import { NgxBootstrapProductTourService } from 'ngx-bootstrap-product-tour';
+import { IStep } from '../../../../../node_modules/ngx-bootstrap-product-tour/ngx-bootstrap-product-tour.models';
 
 /**
  * ProductTourComponent is the product tour that shows basic product tutorial.
@@ -28,12 +29,15 @@ import { NgxBootstrapProductTourService } from 'ngx-bootstrap-product-tour';
 })
 export class ProductTourComponent implements OnInit {
 
-  loaded = false;
+  public loaded = false;
+  
 
   constructor(public tourService: NgxBootstrapProductTourService) { 
+
     this.tourService.end$.subscribe(() => {
       location.reload();
     });
+
     this.tourService.initialize([{
       anchorId: 'start.tour',
       content: '<center><h3>Welcome to Texera!</h3></center><br><p>Texera is a system to support cloud-based text analytics using declarative and GUI-based workflows.</p><br><center><img src="../../../../assets/Tutor_Intro_Sample.png" height="400" width="800"></center><br><br>',
@@ -44,7 +48,7 @@ export class ProductTourComponent implements OnInit {
     },
     {
       anchorId: 'texera-operator-view-grid-container',
-      content: '<p>This is the operator panel which contains all the operators we need. </p><p>Now we want to form a twitter text analysis workflow. Open the first section named <b>Source</b>.</p>',
+      content: '<p>This is the operator panel which contains all the operators we need. </p><p>Now we want to form a twitter text analysis workflow. Open the first section named <b>Source</b>.</p><center><img src="../../../../assets/Tutor_OpenSection_Sample.gif"></center><br><br>',
       placement: 'right',
       title: 'Operator Panel',
       backdrop: true
@@ -111,44 +115,27 @@ export class ProductTourComponent implements OnInit {
       orphan: true,
       backdrop: true
     }]);
+    //this.tourService.start$.subscribe((steps: IStep) => {
+    //  document.getElementById('mat-expansion-panel-header-0').addEventListener("click", this.OnClickHandle);
+    //  this.tourService.next();
+    //  });
+
   }
   
-  
+  //OnClickHandle(): void {
+  //  this.loaded = true;
+  //  console.log(this.loaded);
+  //  this.tourService.next();
+  //}
 
-  onClickSection(): Promise<any> {
-    return this.apiDataLoad().then((data) => {
-      return new Promise(function (resolve, reject) {
-        var elementIsClicked = false; // declare the variable that tracks the state
-        function clickHandler(){ // declare a function that updates the state
-          elementIsClicked = true;
-        }
-        let element = document.getElementById('mat-expansion-panel-header-0');
-        element.addEventListener('click', clickHandler);
-
-        if(elementIsClicked){
-          console.log('clicked');
-          resolve(true);
-        }
-        });
-    });
-
-  }
-
-  apiDataLoad(): Promise<boolean> {
-    return new Promise(function (resolve, reject) {
-      setTimeout(() => {
-        resolve(true);
-      }, 1000);
-    });
-  }
 
 
 
   ngOnInit() {
+     
   }
 
   ngAfterViewInit() {
-    
   }
 
 }
