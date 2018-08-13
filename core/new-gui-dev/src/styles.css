@@ -1,0 +1,9 @@
+/* You can add global styles to this file, and also import other style files */
+/* Use a pre-built theme of Angular Material */
+@import url(~@angular/material/prebuilt-themes/indigo-pink.css);
+html, body, .viewport {
+  width: 100%;
+  height: 100%;
+  margin: 0; }
+
+/*# sourceMappingURL=styles.css.map */

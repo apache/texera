@@ -1,0 +1,23 @@
+@import "~bootswatch/dist/cosmo/variables";
+@import "~bootstrap/scss/bootstrap";
+@import "~bootswatch/dist/cosmo/bootswatch";
+
+.texera-navigation-body {
+    height: 100%;
+}
+
+#texera-workspace-navigation-run {
+    border-radius: 3px;
+}
+
+#texera-workspace-navigation-run:hover {
+    background-color: #81C784;
+}
+
+#texera-workspace-tour-run:hover {
+    background-color: rgb(255, 0, 0);
+}
+
+#texera-loading-spinner {
+    color: #85e085;
+}

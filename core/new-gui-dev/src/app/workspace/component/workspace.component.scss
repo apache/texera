@@ -1,0 +1,66 @@
+@import "~bootswatch/dist/cosmo/variables";
+@import "~bootstrap/scss/bootstrap";
+@import "~bootswatch/dist/cosmo/bootswatch";
+
+.grid-container {
+  min-width: 100%;
+  width: 100%;
+  min-height: 100%;
+  height: 100%;
+}
+
+
+$header-height: 56px;
+.texera-workspace-grid-container {
+  display: grid;
+  // overflow: hidden;
+  grid-template-columns: 14% 70% 16%;
+  // grid-template-rows: 56px 3fr 1fr;
+  grid-template-rows: 
+    $header-height 
+    calc((100% - #{$header-height}) * 0.75) 
+    calc((100% - #{$header-height}) * 0.25) 
+}
+
+.texera-navigation-grid-container {
+  grid-column-start: 1;
+  grid-column-end: 4;
+  grid-row-start: 1;
+  grid-row-end: 2;
+}
+
+.texera-operator-view-grid-container {
+  grid-column-start: 1;
+  grid-column-end: 2;
+  grid-row-start: 2;
+  grid-row-end: 4;
+  overflow: auto;
+}
+
+.texera-property-editor-grid-container {
+  grid-column-start: 3;
+  grid-column-end: 4;
+  grid-row-start: 2;
+  grid-row-end: 4;
+  overflow: auto;
+}
+
+.texera-workflow-editor-grid-container {
+  grid-column-start: 2;
+  grid-column-end: 3;
+  grid-row-start: 2;
+  grid-row-end: 3;
+}
+
+.texera-result-view-grid-container {
+  grid-column-start: 2;
+  grid-column-end: 3;
+  grid-row-start: 3;
+  grid-row-end: 4;
+  overflow: auto;
+  border-right: 2px solid #f2f2f2;
+  border-left: 2px solid #f2f2f2;
+  box-sizing: border-box;
+}
+
+

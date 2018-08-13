@@ -1,6 +1,5 @@
 package edu.uci.ics.texera.dataflow.source.file;
 
-import java.util.List;
 import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
