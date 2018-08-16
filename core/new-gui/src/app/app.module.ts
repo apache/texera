@@ -49,6 +49,7 @@ import { ProductTourComponent } from './workspace/component/product-tour/product
 
     CustomNgMaterialModule,
     BrowserAnimationsModule,
+    RouterModule.forRoot([]),
     NgbModule.forRoot(),
     TourNgxBootstrapModule.forRoot(),
 
