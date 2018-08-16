@@ -1,6 +1,25 @@
 import { Component, OnInit } from '@angular/core';
 import { TourService, IStepOption } from 'ngx-tour-ng-bootstrap';
 
+/**
+ * ProductTourComponent is the product tour that shows basic product tutorial.
+ *
+ * Product tour library built with Angular (2+). 
+ * ngx-tour-ng-bootstrap is an implementation of the tour ui that uses ngx-bootstrap popovers to display tour steps.
+ *
+ * The component has a step list in this.tourService.initialize that can add, edit or delete steps.
+ * Define anchor points for the tour steps by adding the tourAnchor directive throughout components.
+ * 
+ * <div tourAnchor="some.anchor.id">...</div>
+ * 
+ * Define your tour steps using tourService.initialize(steps).
+ * 
+ * For the full text of the library, go to https://isaacplmann.github.io/ngx-tour/ng-bootstrap
+ *
+ *
+ * @author Bolin Chen
+ */
+
 @Component({
   selector: 'texera-product-tour',
   templateUrl: './product-tour.component.html',
@@ -55,7 +74,7 @@ export class ProductTourComponent implements OnInit {
     },
     {
       anchorId: 'View Results',
-      content: '<p>Now we want to view the results of selected data. Open <b>View Results</b> secetion.</p>',
+      content: '<p>Now we want to view the results of selected data. Open <b>View Results</b> section.</p><center><img src="../../../assets/Tutor_OpenResult_Sample.gif"></center><br><br>',
       placement: 'right',
       title: 'Operator Panel'
     },
@@ -85,7 +104,7 @@ export class ProductTourComponent implements OnInit {
     },
     {
       anchorId: 'texera-navigation-grid-container',
-      content: '<center><h3>Congratulation!</h3></center><p>You have finished the basic tutorial. </p><p>There are many other operators you can use to form a workflow.</p><center><img src="../../../assets/Tutor_End_Sample.gif"></center><br><br>',
+      content: '<center><h3>Congratulations!</h3></center><p>You have finished the basic tutorial. </p><p>There are many other operators you can use to form a workflow.</p><center><img src="../../../assets/Tutor_End_Sample.gif"></center><br><br>',
       placement: 'bottom',
       title: 'Ending of tutorial'
     }])
