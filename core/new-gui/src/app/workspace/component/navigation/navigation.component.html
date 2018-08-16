@@ -7,7 +7,7 @@
         <i id="texera-tour-icon" class="fa fa-question-circle-o" aria-hidden="true"></i>
       </span>
     </button>
-  <button class="texera-workspace-navigation-run btn btn-secondary" (click)="onClickRun()">
+  <button class="texera-workspace-navigation-run btn btn-secondary" tourAnchor= "texera-workspace-navigation-run" (click)="onClickRun()">
     <mat-spinner class="texera-loading-spinner" *ngIf="showSpinner" [diameter]="30"></mat-spinner>
     <span *ngIf="! showSpinner">
       <i id="texera-run-icon" class="fa fa-play-circle-o" aria-hidden="true"></i>&nbsp; Run
