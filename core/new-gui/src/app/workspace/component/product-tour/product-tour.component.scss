@@ -1,4 +1,10 @@
 .touranchor--is-active {
     position: relative;
-    box-shadow: 0 0 0 9999px rgba(0,0,0,0.7);
+    z-index: 10000;
+   background: white;
+}
+
+.cdk-overlay-transparent-backdrop, .cdk-overlay-transparent-backdrop.cdk-overlay-backdrop-showing {
+    opacity: 0.75;
+    background: black;
 }
