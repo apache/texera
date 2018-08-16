@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { TourService } from 'ngx-tour-ngx-bootstrap';
+import { TourService, IStepOption } from 'ngx-tour-ng-bootstrap';
 
 @Component({
   selector: 'texera-product-tour',
@@ -24,19 +24,22 @@ export class ProductTourComponent implements OnInit {
       anchorId: 'texera-navigation-grid-container',
       content: '<center><h3>Welcome to Texera!</h3></center><br><p>Texera is a system to support cloud-based text analytics using declarative and GUI-based workflows.</p><br><center><img src="../../../assets/Tutor_Intro_Sample.png" height="400" width="800" alt="intro img"></center><br><br>',
       placement: 'bottom',
-      title: 'Welcome'
+      title: 'Welcome',
+      preventScrolling: true
     },
     {
       anchorId: 'texera-operator-panel',
       content: '<p>This is the operator panel which contains all the operators we need. </p><p>Now we want to form a twitter text analysis workflow. Open the first section named <b>Source</b>.</p><center><img src="../../../assets/Tutor_OpenSection_Sample.gif"></center><br><br>',
       placement: 'right',
-      title: 'Operator Panel'
+      title: 'Operator Panel',
+      preventScrolling: true
     },
     {
-      anchorId: 'texera-operator-label-ScanSource',
+      anchorId: 'Source: Scan',
       content: '<p>Drag <b>Source: Scan</b> and drop to workflow panel. </p><p>Source: Scan is a operator that read records from a table one by one.</p><center><img src="../../../assets/Tutor_Intro_Drag_Srouce.gif"></center><br><br>',
       title: 'Select Operator',
       placement: 'right',
+      preventScrolling: true
     },
     {
       anchorId: 'texera-workflow-editor-grid-container',
@@ -57,7 +60,7 @@ export class ProductTourComponent implements OnInit {
       title: 'Operator Panel'
     },
     {
-      anchorId: 'texera-operator-label-ViewResults',
+      anchorId: 'View Results',
       content: '<p>Drag <b>View Results</b> and drop to workflow panel.</p><center><img src="../../../assets/Tutor_Intro_Drag_Result.gif"></center><br><br>',
       placement: 'right',
       title: 'Select Operator',

@@ -5,7 +5,7 @@ import { HttpClientModule } from '@angular/common/http';
 import { AppRoutingModule } from './app-routing.module';
 
 import { RouterModule } from '@angular/router';
-import { TourNgxBootstrapModule } from 'ngx-tour-ngx-bootstrap';
+import { TourNgBootstrapModule } from 'ngx-tour-ng-bootstrap';
 
 import { CustomNgMaterialModule } from './common/custom-ng-material.module';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
@@ -51,7 +51,7 @@ import { ProductTourComponent } from './workspace/component/product-tour/product
     BrowserAnimationsModule,
     RouterModule.forRoot([]),
     NgbModule.forRoot(),
-    TourNgxBootstrapModule.forRoot(),
+    TourNgBootstrapModule.forRoot(),
 
     MaterialDesignFrameworkModule,
     // workaround to import the angular json schema library to avoid errros for Angular AOT compiler
