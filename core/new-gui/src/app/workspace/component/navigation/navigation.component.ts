@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { ExecuteWorkflowService } from './../../service/execute-workflow/execute-workflow.service';
+import { TourService } from 'ngx-tour-ng-bootstrap';
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -26,7 +27,7 @@ export class NavigationComponent implements OnInit {
   // variable binded with HTML to decide if the running spinner should show
   public showSpinner = false;
 
-  constructor(private executeWorkflowService: ExecuteWorkflowService) {
+  constructor(private executeWorkflowService: ExecuteWorkflowService, public tourService: TourService) {
     // hide the spinner after the execution is finished, either
     //  when the value is valid or invalid
     executeWorkflowService.getExecuteEndedStream().subscribe(

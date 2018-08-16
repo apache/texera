@@ -4,6 +4,9 @@ import { HttpClientModule } from '@angular/common/http';
 
 import { AppRoutingModule } from './app-routing.module';
 
+import { RouterModule } from '@angular/router';
+import { TourNgBootstrapModule } from 'ngx-tour-ng-bootstrap';
+
 import { CustomNgMaterialModule } from './common/custom-ng-material.module';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
@@ -24,6 +27,7 @@ import { OperatorLabelComponent } from './workspace/component/operator-panel/ope
 
 // remove annoying Angular material hammer js warning
 import 'hammerjs';
+import { ProductTourComponent } from './workspace/component/product-tour/product-tour.component';
 
 @NgModule({
   declarations: [
@@ -35,7 +39,8 @@ import 'hammerjs';
     WorkflowEditorComponent,
     ResultPanelComponent,
     NgbModalComponent,
-    OperatorLabelComponent
+    OperatorLabelComponent,
+    ProductTourComponent
   ],
   imports: [
     BrowserModule,
@@ -44,7 +49,9 @@ import 'hammerjs';
 
     CustomNgMaterialModule,
     BrowserAnimationsModule,
+    RouterModule.forRoot([]),
     NgbModule.forRoot(),
+    TourNgBootstrapModule.forRoot(),
 
     MaterialDesignFrameworkModule,
     // workaround to import the angular json schema library to avoid errros for Angular AOT compiler
