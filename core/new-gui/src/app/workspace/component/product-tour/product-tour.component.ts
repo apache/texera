@@ -1,4 +1,5 @@
 import { Component, OnInit } from '@angular/core';
+import { TourService, IStepOption } from 'ngx-tour-ng-bootstrap';
 
 @Component({
   selector: 'texera-product-tour',
@@ -7,7 +8,7 @@ import { Component, OnInit } from '@angular/core';
 })
 export class ProductTourComponent implements OnInit {
 
-  constructor() { }
+  constructor(public tourService: TourService) { }
 
   ngOnInit() {
   }
