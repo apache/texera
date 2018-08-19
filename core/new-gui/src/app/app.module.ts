@@ -7,6 +7,8 @@ import { AppRoutingModule } from './app-routing.module';
 import { CustomNgMaterialModule } from './common/custom-ng-material.module';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
+import { RouterModule } from '@angular/router';
+import { TourNgBootstrapModule } from 'ngx-tour-ng-bootstrap';
 
 import {
   MaterialDesignFrameworkModule, JsonSchemaFormModule, JsonSchemaFormService,
@@ -45,6 +47,8 @@ import 'hammerjs';
     CustomNgMaterialModule,
     BrowserAnimationsModule,
     NgbModule.forRoot(),
+    RouterModule.forRoot([]),
+    TourNgBootstrapModule.forRoot(),
 
     MaterialDesignFrameworkModule,
     // workaround to import the angular json schema library to avoid errros for Angular AOT compiler
