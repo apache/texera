@@ -2,6 +2,8 @@ import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { ProductTourComponent } from './product-tour.component';
 
+import { TourService, IStepOption } from 'ngx-tour-ng-bootstrap';
+
 describe('ProductTourComponent', () => {
   let component: ProductTourComponent;
   let fixture: ComponentFixture<ProductTourComponent>;
