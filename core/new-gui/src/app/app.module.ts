@@ -8,10 +8,8 @@ import { CustomNgMaterialModule } from './common/custom-ng-material.module';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
 
-import {
-  MaterialDesignFrameworkModule, JsonSchemaFormModule, JsonSchemaFormService,
-  FrameworkLibraryService, WidgetLibraryService, Framework, MaterialDesignFramework
-} from 'angular2-json-schema-form';
+import { MaterialDesignFrameworkModule } from 'angular6-json-schema-form';
+
 
 import { AppComponent } from './app.component';
 import { WorkspaceComponent } from './workspace/component/workspace.component';
@@ -46,20 +44,7 @@ import 'hammerjs';
     BrowserAnimationsModule,
     NgbModule.forRoot(),
 
-    MaterialDesignFrameworkModule,
-    // workaround to import the angular json schema library to avoid errros for Angular AOT compiler
-    // thanks to Angular having two compilers that behaves differently
-    //  and makes you to google around for a whole day to solve the problems.
-    // https://github.com/dschnelldavis/angular2-json-schema-form/issues/189#issuecomment-365971521
-    {
-      ngModule: JsonSchemaFormModule,
-      providers: [
-          JsonSchemaFormService,
-          FrameworkLibraryService,
-          WidgetLibraryService,
-          {provide: Framework, useClass: MaterialDesignFramework, multi: true}
-      ]
-    },
+    MaterialDesignFrameworkModule
 
   ],
   providers: [ HttpClientModule ],

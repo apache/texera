@@ -1,9 +1,6 @@
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { By } from '@angular/platform-browser';
-import {
-  MaterialDesignFrameworkModule, JsonSchemaFormModule, JsonSchemaFormService,
-  FrameworkLibraryService, WidgetLibraryService, Framework, MaterialDesignFramework
-} from 'angular2-json-schema-form';
+import { MaterialDesignFrameworkModule } from 'angular6-json-schema-form';
 import { async, ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 
 import { PropertyEditorComponent } from './property-editor.component';
@@ -40,15 +37,6 @@ describe('PropertyEditorComponent', () => {
         CustomNgMaterialModule,
         BrowserAnimationsModule,
         MaterialDesignFrameworkModule,
-        {
-          ngModule: JsonSchemaFormModule,
-          providers: [
-            JsonSchemaFormService,
-            FrameworkLibraryService,
-            WidgetLibraryService,
-            { provide: Framework, useClass: MaterialDesignFramework, multi: true }
-          ]
-        },
       ]
     })
       .compileComponents();
