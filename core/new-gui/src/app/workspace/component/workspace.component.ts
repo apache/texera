@@ -15,8 +15,8 @@ import { StubOperatorMetadataService } from '../service/operator-metadata/stub-o
   styleUrls: ['./workspace.component.scss'],
   providers: [
     // uncomment this line for manual testing without opening backend server
-    // { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
-    OperatorMetadataService,
+    { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+    // OperatorMetadataService,
     JointUIService,
     WorkflowActionService,
     WorkflowUtilService,

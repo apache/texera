@@ -12,8 +12,8 @@ import { JointUIService } from './../../service/joint-ui/joint-ui.service';
 
 import { mockOperatorSchemaList } from './../../service/operator-metadata/mock-operator-metadata.data';
 
-import { marbles } from 'rxjs-marbles';
-
+import { configure } from 'rxjs-marbles';
+const { marbles } = configure({ run: false });
 
 import { mockResultPredicate, mockScanPredicate, mockPoint } from '../../service/workflow-graph/model/mock-workflow-data';
 import { CustomNgMaterialModule } from '../../../common/custom-ng-material.module';
