@@ -1,8 +1,8 @@
-<nav class="texera-workspace-navigation-body navbar navbar-expand-sm bg-dark navbar-dark justify-content-between">
+<nav class="texera-navigation-body navbar navbar-expand-sm bg-dark navbar-dark justify-content-between">
   <a class="navbar-brand" href="#">Texera</a>
-  <button mat-raised-button color="accent" class="texera-workspace-navigation-run-button" (click)="onClickRun()">
-    <mat-spinner class="texera-workspace-navigation-loading-spinner" *ngIf="showSpinner" [diameter]="30"></mat-spinner>
-    <div *ngIf="!showSpinner" class="texera-workspace-navigation-run-text">
+  <button mat-raised-button color="accent" class="texera-navigation-run-button" (click)="onClickRun()">
+    <mat-spinner class="texera-navigation-loading-spinner" *ngIf="showSpinner" [diameter]="30"></mat-spinner>
+    <div *ngIf="!showSpinner" class="texera-navigation-run-text">
       <i id="texera-run-icon" class="fa fa-play" aria-hidden="true"></i>
       Run
     </div>
