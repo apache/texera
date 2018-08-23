@@ -11,10 +11,8 @@ import { RouterModule } from '@angular/router';
 import { TourNgBootstrapModule } from 'ngx-tour-ng-bootstrap';
 
 
-import {
-  MaterialDesignFrameworkModule, JsonSchemaFormModule, JsonSchemaFormService,
-  FrameworkLibraryService, WidgetLibraryService, Framework, MaterialDesignFramework
-} from 'angular2-json-schema-form';
+import { MaterialDesignFrameworkModule } from 'angular6-json-schema-form';
+
 
 import { AppComponent } from './app.component';
 import { WorkspaceComponent } from './workspace/component/workspace.component';
@@ -24,9 +22,6 @@ import { PropertyEditorComponent } from './workspace/component/property-editor/p
 import { WorkflowEditorComponent } from './workspace/component/workflow-editor/workflow-editor.component';
 import { ResultPanelComponent, NgbModalComponent } from './workspace/component/result-panel/result-panel.component';
 import { OperatorLabelComponent } from './workspace/component/operator-panel/operator-label/operator-label.component';
-
-// remove annoying Angular material hammer js warning
-import 'hammerjs';
 import { ProductTourComponent } from './workspace/component/product-tour/product-tour.component';
 
 @NgModule({
@@ -53,20 +48,7 @@ import { ProductTourComponent } from './workspace/component/product-tour/product
     RouterModule.forRoot([]),
     TourNgBootstrapModule.forRoot(),
 
-    MaterialDesignFrameworkModule,
-    // workaround to import the angular json schema library to avoid errros for Angular AOT compiler
-    // thanks to Angular having two compilers that behaves differently
-    //  and makes you to google around for a whole day to solve the problems.
-    // https://github.com/dschnelldavis/angular2-json-schema-form/issues/189#issuecomment-365971521
-    {
-      ngModule: JsonSchemaFormModule,
-      providers: [
-          JsonSchemaFormService,
-          FrameworkLibraryService,
-          WidgetLibraryService,
-          {provide: Framework, useClass: MaterialDesignFramework, multi: true}
-      ]
-    },
+    MaterialDesignFrameworkModule
 
   ],
   providers: [ HttpClientModule ],
