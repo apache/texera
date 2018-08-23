@@ -31,13 +31,13 @@ public class FileUploadResourceTest {
 
     // TODO:: We are getting 400. However, it works with front-end. So we need to fix this test case.
 	@Test
-	@Ignore
+	// @Ignore
 	public void checkDictionaryUpload() throws Exception {
 		Client client = new JerseyClientBuilder(RULE.getEnvironment()).build("test client");
 		client.property(ClientProperties.CONNECT_TIMEOUT, 5000);
 		client.property(ClientProperties.READ_TIMEOUT, 5000);
 		client.register(MultiPartFeature.class);
-
+ 
 		final MultiPart multiPart = new MultiPart();
 		multiPart.setMediaType(MediaType.MULTIPART_FORM_DATA_TYPE);
 		File testDictionaryFile = new File(ResourceHelpers.resourceFilePath("test_dictionary.txt"));

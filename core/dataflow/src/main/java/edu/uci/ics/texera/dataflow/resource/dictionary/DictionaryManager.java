@@ -1,34 +1,41 @@
 package edu.uci.ics.texera.dataflow.resource.dictionary;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.apache.lucene.index.Term;
-import org.apache.lucene.search.MatchAllDocsQuery;
-import org.apache.lucene.search.TermQuery;
+import edu.uci.ics.texera.dataflow.common.MetadataDBConnection;
 
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.sql.Statement;
+
+import edu.uci.ics.texera.api.exception.DataflowException;
 import edu.uci.ics.texera.api.exception.StorageException;
 import edu.uci.ics.texera.api.exception.TexeraException;
-import edu.uci.ics.texera.api.field.StringField;
-import edu.uci.ics.texera.api.tuple.Tuple;
-import edu.uci.ics.texera.storage.DataReader;
-import edu.uci.ics.texera.storage.DataWriter;
-import edu.uci.ics.texera.storage.RelationManager;
-import edu.uci.ics.texera.storage.constants.LuceneAnalyzerConstants;
-import edu.uci.ics.texera.storage.utils.StorageUtils;
+import edu.uci.ics.texera.api.schema.Attribute;
+import static edu.uci.ics.texera.storage.constants.MySQLConstants.*;
 
 public class DictionaryManager {
 
     private static DictionaryManager instance = null;
-    private RelationManager relationManager = null;
+    private static Connection connection;
+    private static Statement statement;
+    private static PreparedStatement prepStatement;
 
     private DictionaryManager() throws StorageException {
-        relationManager = RelationManager.getInstance();
+        // Establish JDBC connection to Database
+        connection = MetadataDBConnection.getConnection("com.mysql.jdbc.Driver", HOST, PORT, DATABASE, USERNAME, PASSWORD);
+        try {
+            statement = connection.createStatement();
+        } catch (Exception e) {
+            System.out.println(e.getMessage());
+        }
+        
     }
+
 
     public synchronized static DictionaryManager getInstance() throws StorageException {
         if (instance == null) {
@@ -39,104 +46,122 @@ public class DictionaryManager {
     }
 
     /**
-     * Creates plan store, both an index and a directory for plan objects.
+     * Creates dictionary table
      *
-     * @throws TexeraException
      */
-    public void createDictionaryManager() throws TexeraException {
-        if (! relationManager.checkTableExistence(DictionaryManagerConstants.TABLE_NAME)) {
-            relationManager.createTable(DictionaryManagerConstants.TABLE_NAME,
-                    DictionaryManagerConstants.INDEX_DIR,
-                    DictionaryManagerConstants.SCHEMA,
-                    LuceneAnalyzerConstants.standardAnalyzerString());
-        }
-        
-        if(! Files.exists(DictionaryManagerConstants.DICTIONARY_DIR_PATH)) {
-            try {
-                Files.createDirectories(DictionaryManagerConstants.DICTIONARY_DIR_PATH);
-            } catch (IOException e) {
-                throw new StorageException(e);
-            }
+    public void createDictionaryManager() {
+        // create the table
+        List<Attribute> attributeList = DictionaryManagerConstants.SCHEMA.getAttributes();
+        String createTableStatement = "CREATE TABLE IF NOT EXISTS " + DictionaryManagerConstants.TABLE_NAME + " (\n";
+        createTableStatement += attributeList.stream().map(attr -> MetadataDBConnection.convertAttribute(attr))
+                .collect(Collectors.joining(",\n"));
+        createTableStatement += "\n); ";
+        try {
+            if (statement == null)
+                statement = connection.createStatement();
+            statement.executeUpdate(createTableStatement);
+        } catch (SQLException e) {
+            throw new DataflowException(
+                    "DictionaryManager failed to create table " + DictionaryManagerConstants.TABLE_NAME + ". " + e.getMessage());
         }
     }
 
     /**
-     * removes plan store, both an index and a directory for dictionary objects.
+     * removes dictionary table
      *
-     * @throws TexeraException
      */
     public void destroyDictionaryManager() throws TexeraException {
-        relationManager.deleteTable(DictionaryManagerConstants.TABLE_NAME);
-        StorageUtils.deleteDirectory(DictionaryManagerConstants.DICTIONARY_DIR);
-    }
-    
-    public List<String> addDictionary(String fileName, String dictionaryContent) throws StorageException {
-        // write metadata info
-        DataWriter dataWriter = relationManager.getTableDataWriter(DictionaryManagerConstants.TABLE_NAME);
-        dataWriter.open();
-        
-        // clean up the same dictionary metadata if it already exists in dictionary table
-        dataWriter.deleteTuple(new TermQuery(new Term(DictionaryManagerConstants.NAME, fileName)));
-        
-        // insert new tuple
-        dataWriter.insertTuple(new Tuple(DictionaryManagerConstants.SCHEMA, new StringField(fileName)));
-        
-        dataWriter.close();
-        
-        // write actual dictionary file
-        writeToFile(fileName, dictionaryContent);
-        
-        return null;
-    }
-    
-    /**
-     * Write uploaded file at the given location (if the file exists, remove it and write a new one.)
-     *
-     * @param content
-     * @param fileUploadDirectory
-     * @param fileName
-     */
-    private void writeToFile(String fileName, String dictionaryContent)  throws StorageException {
+        // table should exist
+        if (!checkTableExistence(DictionaryManagerConstants.TABLE_NAME)) {
+            throw new StorageException(String.format("Table %s does not exist.", DictionaryManagerConstants.TABLE_NAME));
+        }
+        // delete the table
+        String dropTableStatement = "DROP TABLE " + DictionaryManagerConstants.TABLE_NAME + ";";
         try {
-            Path filePath = DictionaryManagerConstants.DICTIONARY_DIR_PATH.resolve(fileName);;
-            Files.deleteIfExists(filePath);
-            Files.createFile(filePath);
-            Files.write(filePath, dictionaryContent.getBytes());
-        } catch (IOException e) {
-            throw new StorageException("Error occurred whlie uploading dictionary");
+            if (statement == null)
+                statement = connection.createStatement();
+            statement.executeUpdate(dropTableStatement);
+        } catch (SQLException e) {
+            throw new DataflowException(
+                    "DictionaryManager failed to delete table " + DictionaryManagerConstants.TABLE_NAME + ". " + e.getMessage());
         }
     }
-    
+
+    /**
+     * add a record into dictionary table
+     * @param fileName
+     * @param dictionaryContent
+     */
+    public void addDictionary(String fileName, String dictionaryContent) throws StorageException {
+        String insertStatement = "INSERT INTO " + DictionaryManagerConstants.TABLE_NAME + " VALUES(?, ?);";
+        try {
+            if (prepStatement == null)
+                prepStatement = connection.prepareStatement(insertStatement);
+            prepStatement.setString(1, fileName);
+            prepStatement.setString(2, dictionaryContent);
+            prepStatement.executeUpdate();
+        } catch (SQLException e) {
+            throw new DataflowException(
+                    "DictionaryManager failed to insert record " + fileName + " into table " + DictionaryManagerConstants.TABLE_NAME + ". " + e.getMessage());
+        }
+    }
+
+    /**
+     * get the names of all records in dictionary table
+     * @return list of all names
+     */
     public List<String> getDictionaries() throws StorageException {
         List<String> dictionaries = new ArrayList<>();
-        
-        DataReader dataReader = relationManager.getTableDataReader(DictionaryManagerConstants.TABLE_NAME, new MatchAllDocsQuery());
-        dataReader.open();
-        
-        Tuple tuple;
-        while ((tuple = dataReader.getNextTuple()) != null) {
-            dictionaries.add(tuple.getField(DictionaryManagerConstants.NAME).getValue().toString());
+        String getAllStatement = "SELECT * FROM " + DictionaryManagerConstants.TABLE_NAME + ";";
+        try {
+            if (statement == null)
+                statement = connection.createStatement();
+            ResultSet rs = statement.executeQuery(getAllStatement);
+            while (rs.next()) {
+                dictionaries.add(rs.getString(DictionaryManagerConstants.NAME));
+            }
+        } catch (SQLException e) {
+            throw new StorageException(
+                    "DictionaryManager failed to get all dictionaries. " + e.getMessage());
         }
-        dataReader.close();
-        
         return dictionaries;
     }
-    
+    /**
+     * get the content of a record with specified name
+     * @param dictionaryName
+     * @return the content of that record
+     */
     public String getDictionary(String dictionaryName) throws StorageException {
-        DataReader dataReader = relationManager.getTableDataReader(DictionaryManagerConstants.TABLE_NAME, 
-                new TermQuery(new Term(DictionaryManagerConstants.NAME, dictionaryName)));
-        dataReader.open();
-        if (dataReader.getNextTuple() == null) {
-            throw new StorageException("Dictionary " + dictionaryName + "does not exist");
-        }
-        dataReader.close();
-        
+        String getOneStatement = "SELECT * FROM " + DictionaryManagerConstants.TABLE_NAME + " WHERE "
+                + DictionaryManagerConstants.NAME + "='" + dictionaryName + "';";
         try {
-            return Files.lines(DictionaryManagerConstants.DICTIONARY_DIR_PATH.resolve(dictionaryName))
-                    .collect(Collectors.joining(","));
-        } catch (IOException e) {
-            throw new StorageException(e);
+            if (statement == null)
+                statement = connection.createStatement();
+            ResultSet rs = statement.executeQuery(getOneStatement);
+            if (rs.next())
+                return rs.getString(DictionaryManagerConstants.CONTENT);
+        } catch (SQLException e) {
+            throw new StorageException(
+                    "DictionaryManager failed get : " + dictionaryName + ". " + e.getMessage());
+        }
+        return null;
+    }
+
+    /**
+     * helper function to check table's existence
+     *
+     */
+    public boolean checkTableExistence(String tableName) throws StorageException {
+        String checkStatement = "SHOW TABLES LIKE '" + tableName + "';";
+        try {
+            if (statement == null)
+                statement = connection.createStatement();
+            ResultSet rs = statement.executeQuery(checkStatement);
+            return rs.next();
+        } catch (SQLException e) {
+            throw new StorageException(
+                    "DictionaryManager failed to check table existence of: " + tableName + ". " + e.getMessage());
         }
     }
-    
+
 }
