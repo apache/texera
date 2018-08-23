@@ -1,23 +1,22 @@
 @import '../workspace.component.scss';
 .texera-workspace-workflow-editor-body {
-  border: 2px solid;
   overflow: hidden;
 }
 
-/**
-* Component styles normally apply only to the HTML in the component's own template.
-* Using ::ng-deep would force a style down through
-* the child component tree into all the child component views
-**/
-
+.texera-workspace-workflow-jointjs {
+  background-color: #f2f2f2;
+}
 
 /**
-* The styles defined here under ::ng-deep is used to override
-* the default style of the operators defined by the JointJS.
-* !important forces the browser to make the style defined here
-* higher prioritized.
-**/
-
+  * Component styles normally apply only to the HTML in the component's own template.
+  * Using ::ng-deep would force a style down through
+  * the child component tree into all the child component views
+  *
+  * The styles defined here under ::ng-deep is used to override
+  * the default style of the operators defined by the JointJS.
+  * !important forces the browser to make the style defined here
+  * higher prioritized.
+  **/
 ::ng-deep .texera-workspace-workflow-editor-body .marker-arrowhead {
   fill: #919191 !important;
 }

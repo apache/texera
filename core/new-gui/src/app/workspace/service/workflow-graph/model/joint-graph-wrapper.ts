@@ -3,6 +3,33 @@ import { Observable } from 'rxjs/Observable';
 
 type operatorIDType = { operatorID: string };
 
+
+type JointModelEventInfo = {
+  add: boolean,
+  merge: boolean,
+  remove: boolean,
+  changes: {
+    added: joint.dia.Cell[],
+    merged: joint.dia.Cell[],
+    removed: joint.dia.Cell[]
+  }
+};
+// argument type of callback event on a JointJS Model,
+// which is a 3-element tuple:
+// 1. the JointJS model (Cell) of the event
+// 2 and 3. additional information of the event
+type JointModelEvent = [
+  joint.dia.Cell,
+  {graph: joint.dia.Graph, models: joint.dia.Cell[]},
+  JointModelEventInfo
+];
+
+type JointLinkChangeEvent = [
+  joint.dia.Link,
+  { x: number, y: number },
+  { ui: boolean, updateConnectionOnly: boolean }
+];
+
 /**
  * JointGraphWrapper wraps jointGraph to provide:
  *  - getters of the properties (to hide the methods that could alther the jointGraph directly)
@@ -27,7 +54,7 @@ export class JointGraphWrapper {
   private currentHighlightedOperator: string | undefined;
   // event stream of highlighting an operator
   private jointCellHighlightStream = new Subject<operatorIDType>();
-    // event stream of un-highlighting an operator
+  // event stream of un-highlighting an operator
   private jointCellUnhighlightStream = new Subject<operatorIDType>();
 
   /**
@@ -35,16 +62,16 @@ export class JointGraphWrapper {
    *  involving the 'add' operation
    */
   private jointCellAddStream = Observable
-    .fromEvent(this.jointGraph, 'add')
-    .map(value => <joint.dia.Cell>value);
+    .fromEvent<JointModelEvent>(this.jointGraph, 'add')
+    .map(value => value[0]);
 
   /**
    * This will capture all events in JointJS
    *  involving the 'remove' operation
    */
   private jointCellDeleteStream = Observable
-    .fromEvent(this.jointGraph, 'remove')
-    .map(value => <joint.dia.Cell>value);
+    .fromEvent<JointModelEvent>(this.jointGraph, 'remove')
+    .map(value => value[0]);
 
 
   constructor(private jointGraph: joint.dia.Graph) {
@@ -169,8 +196,8 @@ export class JointGraphWrapper {
    */
   public getJointLinkCellChangeStream(): Observable<joint.dia.Link> {
     const jointLinkChangeStream = Observable
-      .fromEvent(this.jointGraph, 'change:source change:target')
-      .map(value => <joint.dia.Link>value);
+      .fromEvent<JointLinkChangeEvent>(this.jointGraph, 'change:source change:target')
+      .map(value => value[0]);
 
     return jointLinkChangeStream;
   }
