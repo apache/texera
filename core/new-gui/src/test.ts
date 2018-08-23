@@ -8,6 +8,9 @@ import {
   platformBrowserDynamicTesting
 } from '@angular/platform-browser-dynamic/testing';
 
+// import hammerjs needed by Angular Material
+// https://material.angular.io/guide/getting-started#step-5-gesture-support
+import 'hammerjs';
 
 declare const require: any;
 
