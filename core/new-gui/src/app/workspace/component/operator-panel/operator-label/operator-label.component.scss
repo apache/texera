@@ -7,3 +7,10 @@
         cursor: pointer;
     }
 }
+
+.popover {
+    position: absolute;
+    width: 200px;
+    left: 80px;
+    z-index: 9;
+}

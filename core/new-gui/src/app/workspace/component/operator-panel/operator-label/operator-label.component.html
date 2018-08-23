@@ -1,3 +1,6 @@
-<mat-card class="texera-operator-label-body mat-elevation-z1" [attr.id]="operatorLabelID">
+<mat-card class="texera-operator-label-body mat-elevation-z1" [attr.id]="operatorLabelID" (mouseenter) = "displayDescription()" (mouseleave)="hideDescription()">
   {{operator?.additionalMetadata.userFriendlyName}}
+  <div class="popover" *ngIf="isHovering">
+      {{operator?.additionalMetadata.operatorDescription}}
+  </div>
 </mat-card>
