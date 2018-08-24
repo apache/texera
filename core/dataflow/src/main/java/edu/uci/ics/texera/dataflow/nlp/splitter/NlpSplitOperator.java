@@ -58,20 +58,6 @@ public class NlpSplitOperator implements IOperator {
         }
         this.inputOperator = operator;
     }
-    
-    /*
-     * adds a new field to the schema, with name resultAttributeName and type list of strings
-     */
-    private Schema transformSchema(Schema inputSchema) throws DataflowException {
-        Schema.checkAttributeExists(inputSchema, predicate.getInputAttributeName());
-        Schema.checkAttributeNotExists(inputSchema, predicate.getResultAttributeName());
-        
-        if (predicate.getOutputType() == NLPOutputType.ONE_TO_ONE)
-            return new Schema.Builder().add(inputSchema).add(predicate.getResultAttributeName(), AttributeType.LIST).build();
-        else
-            return new Schema.Builder().add(inputSchema).add(predicate.getResultAttributeName(), AttributeType.TEXT).build();
-    }
-      
 
     @Override
     public void open() throws TexeraException {
@@ -86,7 +72,7 @@ public class NlpSplitOperator implements IOperator {
         Schema inputSchema = inputOperator.getOutputSchema();
         // generate output schema by transforming the input schema based on what output format
         // is chosen (OneToOne vs. OneToMany)
-        outputSchema = transformSchema(inputOperator.getOutputSchema());
+        outputSchema = transformToOutputSchema(inputOperator.getOutputSchema());
         
         // check if attribute type is valid
         AttributeType inputAttributeType =
@@ -180,5 +166,22 @@ public class NlpSplitOperator implements IOperator {
     @Override
     public Schema getOutputSchema() {
         return this.outputSchema;
+    }
+
+
+    /*
+     * adds a new field to the schema, with name resultAttributeName and type list of strings
+     */
+    public Schema transformToOutputSchema(Schema... inputSchema) throws DataflowException {
+        if (inputSchema.length != 1)
+            throw new TexeraException(String.format(ErrorMessages.NUMBER_OF_ARGUMENTS_DOES_NOT_MATCH, 1, inputSchema.length));
+
+        Schema.checkAttributeExists(inputSchema[0], predicate.getInputAttributeName());
+        Schema.checkAttributeNotExists(inputSchema[0], predicate.getResultAttributeName());
+
+        if (predicate.getOutputType() == NLPOutputType.ONE_TO_ONE)
+            return new Schema.Builder().add(inputSchema[0]).add(predicate.getResultAttributeName(), AttributeType.LIST).build();
+        else
+            return new Schema.Builder().add(inputSchema[0]).add(predicate.getResultAttributeName(), AttributeType.TEXT).build();
     }
 }

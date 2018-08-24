@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableMap;
 
+import edu.uci.ics.texera.api.exception.TexeraException;
 import edu.uci.ics.texera.dataflow.common.OperatorGroupConstants;
 import edu.uci.ics.texera.dataflow.common.PredicateBase;
 import edu.uci.ics.texera.dataflow.common.PropertyNameConstants;
@@ -22,6 +23,12 @@ public class NlpSentimentPredicate extends PredicateBase {
             @JsonProperty(value = PropertyNameConstants.RESULT_ATTRIBUTE_NAME, required = true)
             String resultAttributeName
             ) {
+        if (inputAttributeName.trim().isEmpty()) {
+            throw new TexeraException("Input Attribute Name Cannot Be Empty");
+        }
+        if (resultAttributeName.trim().isEmpty()) {
+            throw new TexeraException("Result Attribute Name Cannot Be Empty");
+        }
         this.inputAttributeName = inputAttributeName;
         this.resultAttributeName = resultAttributeName;
     }

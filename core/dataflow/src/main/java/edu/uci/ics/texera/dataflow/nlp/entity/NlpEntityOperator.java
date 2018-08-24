@@ -9,6 +9,8 @@ import edu.stanford.nlp.ling.CoreLabel;
 import edu.stanford.nlp.pipeline.Annotation;
 import edu.stanford.nlp.pipeline.StanfordCoreNLP;
 import edu.stanford.nlp.util.CoreMap;
+import edu.uci.ics.texera.api.constants.ErrorMessages;
+import edu.uci.ics.texera.api.constants.SchemaConstants;
 import edu.uci.ics.texera.api.exception.TexeraException;
 import edu.uci.ics.texera.api.field.IField;
 import edu.uci.ics.texera.api.field.ListField;
@@ -42,7 +44,7 @@ public class NlpEntityOperator extends AbstractSingleInputOperator {
     private static StanfordCoreNLP nerPipeline = null;
 
     /**
-     * @param NlpEntityPredicate
+     * @param predicate
      * @about The constructor of the NlpEntityOperator.The operator will only search
      *        within the attributes specified in predicate and return the same tokens that are
      *        recognized as the same input inputNlpEntityType. If the input token
@@ -60,7 +62,7 @@ public class NlpEntityOperator extends AbstractSingleInputOperator {
         Schema.checkAttributeExists(inputSchema, predicate.getAttributeNames());
         Schema.checkAttributeNotExists(inputSchema, predicate.getResultAttribute());
 
-        outputSchema = new Schema.Builder().add(inputSchema).add(predicate.getResultAttribute(), AttributeType.LIST).build();
+        outputSchema = transformToOutputSchema(inputSchema);
     }
     
     @Override
@@ -321,4 +323,13 @@ public class NlpEntityOperator extends AbstractSingleInputOperator {
         return this.predicate;
     }
 
+    public Schema transformToOutputSchema(Schema... inputSchema) {
+        if (inputSchema.length != 1)
+            throw new TexeraException(String.format(ErrorMessages.NUMBER_OF_ARGUMENTS_DOES_NOT_MATCH, 1, inputSchema.length));
+
+        Schema.checkAttributeExists(inputSchema[0], predicate.getAttributeNames());
+        Schema.checkAttributeNotExists(inputSchema[0], predicate.getResultAttribute());
+
+        return new Schema.Builder().add(inputSchema[0]).add(predicate.getResultAttribute(), AttributeType.LIST).build();
+    }
 }

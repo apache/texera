@@ -39,6 +39,10 @@ public class PropertyNameConstants {
     public static final String OFFSET = "offset";
     public static final String ADD_SPANS = "addSpans";
     
+    // related to aggregator operator
+    public static final String AGGREGATOR_TYPE = "aggregator";
+    public static final String ATTRIBUTE_AGGREGATOR_RESULT_LIST = "listOfAggregations";
+    
     // related to keyword matcher
     public static final String KEYWORD_QUERY = "query";
     public static final String KEYWORD_MATCHING_TYPE = "matchingType";
@@ -121,5 +125,13 @@ public class PropertyNameConstants {
     public static final String TWEET_CUSTOMER_SECRET = "customerSecret";
     public static final String TWEET_TOKEN = "token";
     public static final String TWEET_TOKEN_SECRET = "tokenSecret";
-    
+
+    public static final String EMPTY_NAME_EXCEPTION = "Table Name Cannot be Empty";
+    public static final String EMPTY_REGEX_EXCEPTION = "regex should not be empty";
+    public static final String EMPTY_QUERY_EXCEPTION = "query should not be empty";
+    public static final String NAME_NOT_MATCH_EXCEPTION = "inner attribute name and outer attribute name are different";
+    public static final String INVALID_THRESHOLD_EXCEPTION = "threshold ratio should be between 0.0 and 1.0";
+    public static final String INVALID_SAMPLE_SIZE_EXCEPTION = "Sample size should be greater than 0.";
+    public static final String INVALID_LIMIT_EXCEPTION = "limit must be greater than or equal to 0";
+    public static final String INVALID_OFFSET_EXCEPTION = "offset must be greater than or equal to 0";
 }

@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.dataflow.common;
 
+import java.util.ArrayList;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
@@ -14,6 +15,9 @@ import com.github.fge.jsonschema.main.JsonSchemaFactory;
 
 import edu.uci.ics.texera.api.constants.DataConstants;
 import edu.uci.ics.texera.api.utils.TestUtils;
+import edu.uci.ics.texera.dataflow.aggregator.AggregationAttributeAndResult;
+import edu.uci.ics.texera.dataflow.aggregator.AggregationType;
+import edu.uci.ics.texera.dataflow.aggregator.AggregatorPredicate;
 import edu.uci.ics.texera.dataflow.comparablematcher.ComparablePredicate;
 import edu.uci.ics.texera.dataflow.comparablematcher.ComparisonType;
 import edu.uci.ics.texera.dataflow.dictionarymatcher.Dictionary;
@@ -96,7 +100,17 @@ public class PredicateBaseTest {
     }
     
     private static List<String> attributeNames = Arrays.asList("attr1", "attr2");
-    
+
+    @Test
+    public void testAggregator() throws Exception {
+        AggregationAttributeAndResult aggEntity = new AggregationAttributeAndResult("inputAttr", AggregationType.AVERAGE, "averageAttr");
+        List<AggregationAttributeAndResult> aggEntitiesList = new ArrayList<>();
+        aggEntitiesList.add(aggEntity);
+        
+        AggregatorPredicate aggPredicate = new AggregatorPredicate(aggEntitiesList);
+        testPredicate(aggPredicate);
+    }
+
     @Test
     public void testDictionary() throws Exception {
         DictionaryPredicate dictionaryPredicate = new DictionaryPredicate(

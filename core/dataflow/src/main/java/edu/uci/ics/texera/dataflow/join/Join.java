@@ -7,6 +7,7 @@ import edu.uci.ics.texera.api.constants.ErrorMessages;
 import edu.uci.ics.texera.api.dataflow.IOperator;
 import edu.uci.ics.texera.api.exception.DataflowException;
 import edu.uci.ics.texera.api.exception.TexeraException;
+import edu.uci.ics.texera.api.schema.AttributeType;
 import edu.uci.ics.texera.api.schema.Schema;
 import edu.uci.ics.texera.api.tuple.Tuple;
 
@@ -240,5 +241,12 @@ public class Join implements IOperator {
     
     public IJoinPredicate getPredicate() {
         return this.joinPredicate;
+    }
+
+    public Schema transformToOutputSchema(Schema... inputSchema) {
+        if (inputSchema.length != 2)
+            throw new TexeraException(String.format(ErrorMessages.NUMBER_OF_ARGUMENTS_DOES_NOT_MATCH, 2, inputSchema.length));
+
+        return joinPredicate.generateOutputSchema(inputSchema[0], inputSchema[1]);
     }
 }

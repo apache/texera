@@ -1,5 +1,59 @@
 @import '../workspace.component.scss';
 
-.texera-workspace-result-panel-body {
-    border: 2px solid;
+.mat-table {
+
+  .mat-header-row {
+    min-height: 2.5em;
+    font-size: 14px;
+  }
+
+  .mat-row {
+    min-height: 2em;
+    font-size: 14px;
+  }
+
+  .mat-header-row, .mat-row {
+    display: table-row;
+    border: none;
+
+    .mat-header-cell, .mat-cell {
+      display: table-cell;
+      padding: 0px 6px;
+      vertical-align: middle;
+      max-width: 200px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      // border-bottom: 1.5px solid rgba(0, 0, 0, 0.12);
+      border-right: 1.5px solid rgba(0, 0, 0, 0.12);
+    }
+  }
+  .mat-header-cell {
+    font-weight: bold;
+    color :  #e6e6e6;
+    background-color: #494d50;
+    text-transform: uppercase;
+  }
+
+  .mat-row:nth-child(even) {
+    background-color: #C5CAE9;
+  }
+
+  .mat-row:nth-child(odd) {
+    background-color: white;
+  }
+}
+
+// force paginator to stick to the left since
+//  ususally we have results greater than 100%
+//  width of the result panel, which will create
+//  an overflow to the right. In this case, the
+//  paginator will not stick to the right-most
+//  point of the overflowed component. Instead,
+//  it will think that the component doesn't have
+//  overflow and display the paginator at
+//  the original width 100% position. Thus, it is
+//  better to stick the paginator on the left
+//  to avoid this kind of situation.
+::ng-deep .mat-paginator-container {
+  justify-content: flex-start !important;
 }
