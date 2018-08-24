@@ -10,7 +10,7 @@ export class SavedProjectService {
   constructor(private http: Http) { }
 
   public getSavedProjectData(): Observable<SavedProject[]> {
-    return null;
+    return Observable.of([]); // change
   }
 
   public deleteSavedProjectData(deleteProject: SavedProject) {

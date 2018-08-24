@@ -26,7 +26,7 @@ export class StubUserDictionaryService {
   public uploadDictionary(file: File) {
     const formData: FormData = new FormData();
     formData.append('file', file, file.name);
-    this.http.post(uploadDictionaryUrl, formData, null)
+    this.http.post(uploadDictionaryUrl, formData, undefined)
       .subscribe(
         data => {
           alert(file.name + ' is uploaded');

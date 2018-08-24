@@ -21,7 +21,6 @@ import { WorkflowEditorComponent } from './workspace/component/workflow-editor/w
 import { ResultPanelComponent, NgbModalComponent } from './workspace/component/result-panel/result-panel.component';
 import { OperatorLabelComponent } from './workspace/component/operator-panel/operator-label/operator-label.component';
 
-<<<<<<< HEAD
 import { DashboardComponent } from './dashboard/component/dashboard.component';
 import { TopBarComponent } from './dashboard/component/top-bar/top-bar.component';
 import { UserAccountIconComponent } from './dashboard/component/top-bar/user-account-icon/user-account-icon.component';
@@ -38,8 +37,7 @@ import { UserDictionarySectionComponent,
   } from './dashboard/component/feature-container/user-dictionary-section/user-dictionary-section.component';
 import { ResourceSectionComponent } from './dashboard/component/feature-container/resource-section/resource-section.component';
 
-=======
->>>>>>> master
+
 @NgModule({
   declarations: [
     AppComponent,
@@ -49,7 +47,6 @@ import { ResourceSectionComponent } from './dashboard/component/feature-containe
     PropertyEditorComponent,
     WorkflowEditorComponent,
     ResultPanelComponent,
-<<<<<<< HEAD
     OperatorLabelComponent,
 
     DashboardComponent,
@@ -69,10 +66,9 @@ import { ResourceSectionComponent } from './dashboard/component/feature-containe
     NgbdModalResourceDeleteComponent,
 
     ResourceSectionComponent,
-=======
+
     NgbModalComponent,
     OperatorLabelComponent
->>>>>>> master
   ],
   imports: [
     BrowserModule,
@@ -92,11 +88,11 @@ import { ResourceSectionComponent } from './dashboard/component/feature-containe
     NgbdModalDeleteProjectComponent,
     NgbdModalResourceViewComponent,
     NgbdModalResourceAddComponent,
-    NgbdModalResourceDeleteComponent
+    NgbdModalResourceDeleteComponent,
+    NgbModalComponent
   ],
   providers: [ HttpClientModule ],
   bootstrap: [AppComponent],
   // dynamically created component must be placed in the entryComponents attribute
-  entryComponents: [ NgbModalComponent ]
 })
 export class AppModule { }

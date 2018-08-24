@@ -92,7 +92,7 @@ export class SavedProjectSectionComponent implements OnInit {
     const deleteItemEventEmitter = <EventEmitter<boolean>>(modalRef.componentInstance.deleteProject);
     const subscription = deleteItemEventEmitter
       .subscribe(
-        value => {
+        (value: any) => {
           if (value) {
             this.projects = this.projects.filter(obj => obj.id !== project.id);
             this.savedProjectService.deleteSavedProjectData(project);
@@ -133,7 +133,7 @@ export class SavedProjectSectionComponent implements OnInit {
 export class NgbdModalAddProjectComponent {
   @Output() newProject = new EventEmitter<string>();
 
-  public name: string;
+  public name: string = '';
 
   constructor(public activeModal: NgbActiveModal) { }
 
@@ -144,9 +144,9 @@ export class NgbdModalAddProjectComponent {
     this.activeModal.close('Close');
   }
   addProject() {
-    if (this.name !== undefined) {
+    if (this.name !== '') {
       this.newProject.emit(this.name);
-      this.name = undefined;
+      this.name = '';
     }
     this.onClose();
   }
@@ -178,7 +178,7 @@ export class NgbdModalAddProjectComponent {
 
 })
 export class NgbdModalDeleteProjectComponent {
-  @Input() project;
+  @Input() project: any; // potential issue
   @Output() deleteProject =  new EventEmitter<boolean>();
 
   constructor(public activeModal: NgbActiveModal) {}

@@ -14,7 +14,7 @@ export class UserDictionaryService {
   constructor(private http: Http) { }
 
   public getUserDictionaryData(): Observable<UserDictionary[]> {
-    return null;
+    return Observable.of([]);
   }
 
   public addUserDictionaryData(addDict: UserDictionary): void {
@@ -24,7 +24,7 @@ export class UserDictionaryService {
   public uploadDictionary(file: File) {
     const formData: FormData = new FormData();
     formData.append('file', file, file.name);
-    this.http.post(uploadDictionaryUrl, formData, null)
+    this.http.post(uploadDictionaryUrl, formData, undefined)
       .subscribe(
         data => {
           alert(file.name + ' is uploaded');

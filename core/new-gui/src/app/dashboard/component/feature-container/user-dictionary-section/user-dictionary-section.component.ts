@@ -92,7 +92,7 @@ export class UserDictionarySectionComponent implements OnInit {
     const deleteItemEventEmitter = <EventEmitter<boolean>>(modalRef.componentInstance.deleteDict);
     const subscription = deleteItemEventEmitter
       .subscribe(
-        value => {
+        (value: any) => {
           if (value) {
             this.UserDictionary = this.UserDictionary.filter(obj => obj.id !== dictionary.id);
             this.userDictionaryService.deleteUserDictionaryData(dictionary);
@@ -166,11 +166,11 @@ export class UserDictionarySectionComponent implements OnInit {
 
 })
 export class NgbdModalResourceViewComponent {
-  @Input() dictionary;
+  @Input() dictionary: any;
   @Output() addedName =  new EventEmitter<string>();
   @Output() deleteName =  new EventEmitter<string>();
 
-  public name: string;
+  public name: string = '';
   public ifAdd = false;
   public removable = true;
   public visible = true;
@@ -184,10 +184,10 @@ export class NgbdModalResourceViewComponent {
 
   addKey() {
 
-    if (this.ifAdd && this.name !== undefined) {
+    if (this.ifAdd && this.name !== '') {
       console.log('add ' + this.name + ' into dict ' + this.dictionary.name);
       this.addedName.emit(this.name);
-      this.name = undefined;
+      this.name = '';
     }
     this.ifAdd = !this.ifAdd;
 
@@ -257,18 +257,18 @@ export class NgbdModalResourceViewComponent {
 export class NgbdModalResourceAddComponent {
   @Output() addedDictionary =  new EventEmitter<UserDictionary>();
 
-  public newDictionary: UserDictionary;
-  public name: string;
-  public dictContent: string;
-  public separator: string;
-  public selectFile = null;
+  public newDictionary: any; // potential issue
+  public name: string = '';
+  public dictContent: string = '';
+  public separator: string = '';
+  public selectFile: any = null; // potential issue
 
   constructor(
     public activeModal: NgbActiveModal,
     public userDictionaryService: UserDictionaryService
   ) {}
 
-  onChange(event) {
+  onChange(event: any) {
     this.selectFile = event.target.files[0];
   }
 
@@ -283,7 +283,7 @@ export class NgbdModalResourceAddComponent {
         this.userDictionaryService.uploadDictionary(this.selectFile);
     }
 
-    if (this.name !== undefined) {
+    if (this.name !== '') {
       console.log('add ' + this.name );
       this.newDictionary = <UserDictionary> {
         id : '1',
@@ -291,14 +291,14 @@ export class NgbdModalResourceAddComponent {
         items : [],
       };
 
-      if (this.dictContent !== undefined && this.separator !== undefined) {
+      if (this.dictContent !== '' && this.separator !== '') {
         this.newDictionary.items = this.dictContent.split(this.separator);
       }
       this.addedDictionary.emit(this.newDictionary);
 
-      this.name = undefined;
-      this.dictContent = undefined;
-      this.separator = undefined;
+      this.name = '';
+      this.dictContent = '';
+      this.separator = '';
     }
     this.onClose();
   }
@@ -331,7 +331,7 @@ export class NgbdModalResourceAddComponent {
 
 })
 export class NgbdModalResourceDeleteComponent {
-  @Input() dictionary;
+  @Input() dictionary: any;
   @Output() deleteDict =  new EventEmitter<boolean>();
 
   constructor(public activeModal: NgbActiveModal) {}
