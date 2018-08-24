@@ -279,7 +279,7 @@ export class NgbdModalResourceAddComponent {
   addKey() {
 
     if (this.selectFile !== null) {
-        console.log(this.selectFile);
+        // console.log(this.selectFile);
         this.userDictionaryService.uploadDictionary(this.selectFile);
     }
 
