@@ -1,6 +1,5 @@
-<mat-card class="texera-operator-label-body mat-elevation-z1" [attr.id]="operatorLabelID" (mouseenter) = "displayDescription()" (mouseleave)="hideDescription()">
-  {{operator?.additionalMetadata.userFriendlyName}}
-  <div class="popover" *ngIf="isHovering">
-      {{operator?.additionalMetadata.operatorDescription}}
-  </div>
-</mat-card>
+<div ngbTooltip="{{operator?.additionalMetadata.operatorDescription}}" placement="right" triggers="manual" #t="ngbTooltip" (mouseenter) ="displayDescription(t)" (mouseleave)="hideDescription(t)">
+  <mat-card class="texera-operator-label-body mat-elevation-z1" [attr.id]="operatorLabelID">
+    {{operator?.additionalMetadata.userFriendlyName}}
+  </mat-card>
+</div>

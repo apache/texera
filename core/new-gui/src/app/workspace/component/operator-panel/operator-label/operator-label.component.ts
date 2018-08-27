@@ -19,15 +19,14 @@ export class OperatorLabelComponent implements AfterViewInit {
 
   @Input() operator?: OperatorSchema;
   public operatorLabelID: string;
-  public isHovering: boolean;
-  public timer: any;
+  private timer: any; // needed to add a delay to tooltip
 
   constructor(
     private dragDropService: DragDropService
   ) {
     // generate a random ID for this DOM element
     this.operatorLabelID = 'texera-operator-label-' + uuid();
-    this.isHovering = false;
+
   }
 
   ngAfterViewInit() {
@@ -37,14 +36,14 @@ export class OperatorLabelComponent implements AfterViewInit {
     this.dragDropService.registerOperatorLabelDrag(this.operatorLabelID, this.operator.operatorType);
   }
 
-  displayDescription() {
-    // this.isHovering = false;
-    this.timer = setTimeout(() => this.isHovering = true, 1000);
+  // show the tooltip window after 1500ms
+  displayDescription(tooltip: any) {
+    this.timer = setTimeout(() => tooltip.open() , 1500);
   }
 
-  hideDescription() {
+  // hide the tooltip window and reset the timer
+  hideDescription(tooltip: any) {
     clearTimeout(this.timer);
-    this.isHovering = false;
+    tooltip.close();
   }
-
 }
