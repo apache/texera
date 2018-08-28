@@ -2,7 +2,7 @@ import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { ProductTourComponent } from './product-tour.component';
 
-import { TourService, IStepOption } from 'ngx-tour-ng-bootstrap';
+import { TourNgBootstrapModule, TourService } from 'ngx-tour-ng-bootstrap';
 
 import { RouterTestingModule } from '@angular/router/testing';
 
@@ -12,7 +12,7 @@ describe('ProductTourComponent', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-      imports: [RouterTestingModule],
+      imports: [ RouterTestingModule.withRoutes([]), TourNgBootstrapModule.forRoot() ],
       declarations: [ ProductTourComponent ],
       providers: [ TourService ]
     })

@@ -17,13 +17,26 @@ export class ProductTourComponent implements OnInit {
 
     this.tourService.initialize([{
       anchorId: 'texera-navigation-grid-container',
-      content: '<center><h3>Welcome to Texera!</h3></center><br><p>Texera is a system to support cloud-based text analytics using declarative and GUI-based workflows.</p><br><center><img src="../../../assets/Tutor_Intro_Sample.png" height="400" width="800" alt="intro img"></center><br><br>',
+      content: `
+      <center>
+        <h3>Welcome to Texera!</h3>
+      </center>
+      <br>
+      <p>
+      Texera is a system to support cloud-based text analytics using declarative and GUI-based workflows.
+      </p>
+      <br>
+      <center>
+      <img src="../../../assets/Tutor_Intro_Sample.png" height="400" width="800" alt="intro img">
+      </center>
+      <br><br>
+      `,
       placement: 'bottom',
       title: 'Welcome',
       preventScrolling: true
-    }])
+    }]);
 
-   }
+  }
 
   ngOnInit() {
   }

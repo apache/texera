@@ -1,9 +1,11 @@
+import { RouterTestingModule } from '@angular/router/testing';
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 
 import { NavigationComponent } from './navigation.component';
 import { ExecuteWorkflowService } from './../../service/execute-workflow/execute-workflow.service';
 import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
+import { TourService } from 'ngx-tour-ng-bootstrap';
 
 import { CustomNgMaterialModule } from '../../../common/custom-ng-material.module';
 
@@ -22,6 +24,10 @@ class StubHttpClient {
 
 }
 
+class StubTourService {
+
+}
+
 
 describe('NavigationComponent', () => {
   let component: NavigationComponent;
@@ -30,17 +36,20 @@ describe('NavigationComponent', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-      declarations: [ NavigationComponent ],
-      imports: [CustomNgMaterialModule ],
+      declarations: [NavigationComponent],
+      imports: [
+        CustomNgMaterialModule,
+        RouterTestingModule.withRoutes([]),
+      ],
       providers: [
         WorkflowActionService,
         JointUIService,
         ExecuteWorkflowService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
-        { provide: HttpClient, useClass: StubHttpClient}
+        { provide: HttpClient, useClass: StubHttpClient },
+        TourService,
       ]
-    })
-    .compileComponents();
+    }).compileComponents();
   }));
 
   beforeEach(() => {
