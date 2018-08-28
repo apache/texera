@@ -11,9 +11,7 @@ export class ProductTourComponent implements OnInit {
   public loaded = false;
 
   constructor(public tourService: TourService) {
-    this.tourService.end$.subscribe(() => {
-      location.reload();
-    });
+
 
     this.tourService.initialize([{
       anchorId: 'texera-navigation-grid-container',
