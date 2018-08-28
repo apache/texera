@@ -24,11 +24,6 @@ class StubHttpClient {
 
 }
 
-class StubTourService {
-
-}
-
-
 describe('NavigationComponent', () => {
   let component: NavigationComponent;
   let fixture: ComponentFixture<NavigationComponent>;
