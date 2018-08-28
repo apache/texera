@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="DictionaryMapper.xml">
+
+    <update id="createTable">
+        create table if not exists dictionary (name TEXT, content TEXT)
+    </update>
+
+    <update id="dropTable">
+        drop table dictionary
+    </update>
+
+    <insert id="insertDict" parameterType="map">
+        insert into dictionary values (#{name}, #{content})
+    </insert>
+
+    <select id="selectDicts" resultType="edu.uci.ics.texera.dataflow.resource.dictionary.Dictionary">
+        select name from dictionary
+    </select>
+
+    <select id="selectDict" resultType="edu.uci.ics.texera.dataflow.resource.dictionary.Dictionary">
+        select content from dictionary where name = #{name}
+    </select>
+
+</mapper>

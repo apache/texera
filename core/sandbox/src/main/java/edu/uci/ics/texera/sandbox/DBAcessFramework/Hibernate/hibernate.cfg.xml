@@ -1,0 +1,22 @@
+<!DOCTYPE hibernate-configuration PUBLIC
+	"-//Hibernate/Hibernate Configuration DTD 3.0//EN"
+	"http://www.hibernate.org/dtd/hibernate-configuration-3.0.dtd">
+ 
+<hibernate-configuration>
+	<session-factory >
+		<!-- mysql driver -->
+		<property name="hibernate.connection.driver_class">com.mysql.jdbc.Driver</property>
+		<!-- mysql database name -->
+		<property name="hibernate.connection.url">jdbc:mysql://localhost:3306/metadata</property>
+		<!-- login username -->
+		<property name="hibernate.connection.username">test</property>
+		<!-- login password -->
+		<property name="hibernate.connection.password">password</property>
+		<!-- dialect -->
+		<property name="hibernate.dialect">org.hibernate.dialect.MySQL5Dialect</property>
+
+		<property name="hibernate.hbm2ddl.auto">create</property>
+
+		<mapping resource="Dictionary.hbm.xml"/>
+	</session-factory>
+</hibernate-configuration>

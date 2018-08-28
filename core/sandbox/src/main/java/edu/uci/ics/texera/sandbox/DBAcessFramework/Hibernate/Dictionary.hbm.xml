@@ -1,0 +1,12 @@
+<?xml version = "1.0" encoding = "utf-8"?>
+<!DOCTYPE hibernate-mapping PUBLIC
+        "-//Hibernate/Hibernate Mapping DTD//EN"
+        "http://www.hibernate.org/dtd/hibernate-mapping-3.0.dtd">
+
+<hibernate-mapping>
+    <class name = "edu.uci.ics.texera.dataflow.resource.dictionary.Dictionary" table = "dictionary" catalog="metadata">
+        <id name = "id" column = "name">
+        </id>
+        <property name = "content" column = "content"/>
+    </class>
+</hibernate-mapping>
