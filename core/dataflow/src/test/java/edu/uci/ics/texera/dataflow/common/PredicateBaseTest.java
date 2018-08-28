@@ -5,6 +5,7 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 
+import edu.uci.ics.texera.dataflow.nlp.sentiment.MLSentimentOperatorPredicate;
 import org.junit.Test;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -34,6 +35,7 @@ import edu.uci.ics.texera.dataflow.keywordmatcher.KeywordSourcePredicate;
 import edu.uci.ics.texera.dataflow.nlp.entity.NlpEntityPredicate;
 import edu.uci.ics.texera.dataflow.nlp.entity.NlpEntityType;
 import edu.uci.ics.texera.dataflow.nlp.sentiment.EmojiSentimentPredicate;
+import edu.uci.ics.texera.dataflow.nlp.sentiment.MLSentimentOperatorPredicate;
 import edu.uci.ics.texera.dataflow.nlp.sentiment.NlpSentimentPredicate;
 import edu.uci.ics.texera.dataflow.nlp.splitter.NLPOutputType;
 import edu.uci.ics.texera.dataflow.nlp.splitter.NlpSplitPredicate;
@@ -54,6 +56,7 @@ import edu.uci.ics.texera.dataflow.source.scan.ScanSourcePredicate;
 import edu.uci.ics.texera.dataflow.wordcount.WordCountIndexSourcePredicate;
 import edu.uci.ics.texera.dataflow.wordcount.WordCountOperatorPredicate;
 import junit.framework.Assert;
+
 
 public class PredicateBaseTest {
     
@@ -199,6 +202,16 @@ public class PredicateBaseTest {
                 "resultAttr");
         testPredicate(nlpSentimentPredicate);
     }
+
+    @Test
+    public void testMLSentiment() throws Exception {
+        MLSentimentOperatorPredicate mlSentimentPredicate = new MLSentimentOperatorPredicate(
+                "inputAttr",
+                "resultAttr",
+                1000);
+        testPredicate(mlSentimentPredicate);
+    }
+
     
     @Test
     public void testProjection() throws Exception {

@@ -26,6 +26,7 @@ import edu.uci.ics.texera.api.constants.DataConstants;
 import edu.uci.ics.texera.api.exception.TexeraException;
 import edu.uci.ics.texera.api.utils.Utils;
 import edu.uci.ics.texera.dataflow.annotation.AdvancedOption;
+import edu.uci.ics.texera.dataflow.nlp.sentiment.MLSentimentOperatorPredicate;
 import edu.uci.ics.texera.dataflow.plangen.OperatorArityConstants;
 
 @SuppressWarnings("unchecked")
@@ -52,7 +53,7 @@ public class JsonSchemaHelper {
     
     public static void main(String[] args) throws Exception {
         generateAllOperatorSchema();
-//        generateJsonSchema(ComparablePredicate.class);
+//        generateJsonSchema(MLSentimentOperatorPredicate.class);
     }
     
     public static void generateAllOperatorSchema() throws Exception {
