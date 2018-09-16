@@ -8,7 +8,7 @@ import { CustomNgMaterialModule } from './common/custom-ng-material.module';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
 import { RouterModule } from '@angular/router';
-import { TourNgBootstrapModule } from 'ngx-tour-ng-bootstrap';
+import { TourNgxBootstrapModule } from 'ngx-tour-ngx-bootstrap';
 
 
 import { MaterialDesignFrameworkModule } from 'angular6-json-schema-form';
@@ -46,7 +46,7 @@ import { ProductTourComponent } from './workspace/component/product-tour/product
     BrowserAnimationsModule,
     NgbModule.forRoot(),
     RouterModule.forRoot([]),
-    TourNgBootstrapModule.forRoot(),
+    TourNgxBootstrapModule.forRoot(),
 
     MaterialDesignFrameworkModule
 
