@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { ExecuteWorkflowService } from './../../service/execute-workflow/execute-workflow.service';
-import { TourService } from 'ngx-tour-ngx-bootstrap';
+import { TourService } from 'ngx-tour-ng-bootstrap';
 
 /**
  * NavigationComponent is the top level navigation bar that shows

@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { TourService, IStepOption } from 'ngx-tour-ngx-bootstrap';
+import { TourService, IStepOption } from 'ngx-tour-ng-bootstrap';
 
 /**
  * ProductTourComponent is the product tour that shows basic product tutorial.
@@ -14,7 +14,7 @@ import { TourService, IStepOption } from 'ngx-tour-ngx-bootstrap';
  * 
  * Define your tour steps using tourService.initialize(steps).
  * 
- * For the full text of the library, go to https://isaacplmann.github.io/ngx-tour/ng-bootstrap
+ * For the full text of the library, go to https://github.com/isaacplmann/ngx-tour
  *
  *
  * @author Bolin Chen
