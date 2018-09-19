@@ -4,6 +4,7 @@ import { By } from '@angular/platform-browser';
 import '../../../common/rxjs-operators';
 import { CustomNgMaterialModule } from '../../../common/custom-ng-material.module';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
+import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
 
 import { OperatorPanelComponent } from './operator-panel.component';
 import { OperatorLabelComponent } from './operator-label/operator-label.component';
@@ -35,7 +36,7 @@ describe('OperatorPanelComponent', () => {
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         { provide: DragDropService, useClass: StubDragDropService}
       ],
-      imports: [CustomNgMaterialModule, BrowserAnimationsModule]
+      imports: [CustomNgMaterialModule, BrowserAnimationsModule, NgbModule]
     })
       .compileComponents();
   }));

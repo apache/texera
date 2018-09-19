@@ -3,7 +3,6 @@ import { Component, Input, AfterViewInit } from '@angular/core';
 import { v4 as uuid } from 'uuid';
 
 import { OperatorSchema } from '../../../types/operator-schema.interface';
-import { Time } from '../../../../../../node_modules/@angular/common';
 
 /**
  * OperatorLabelComponent is one operator box in the operator panel.
@@ -38,12 +37,13 @@ export class OperatorLabelComponent implements AfterViewInit {
 
   // show the tooltip window after 1500ms
   displayDescription(tooltip: any) {
-    this.timer = setTimeout(() => tooltip.open() , 1500);
+    tooltip.open();
+    // this.timer = setTimeout(() => tooltip.open() , 1500);
   }
 
   // hide the tooltip window and reset the timer
   hideDescription(tooltip: any) {
-    clearTimeout(this.timer);
+    // clearTimeout(this.timer);
     tooltip.close();
   }
 }

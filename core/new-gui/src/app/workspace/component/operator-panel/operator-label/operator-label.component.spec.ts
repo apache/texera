@@ -11,6 +11,9 @@ import { CustomNgMaterialModule } from '../../../../common/custom-ng-material.mo
 import { mockOperatorSchemaList } from '../../../service/operator-metadata/mock-operator-metadata.data';
 import { By } from '@angular/platform-browser';
 import { WorkflowActionService } from '../../../service/workflow-graph/model/workflow-action.service';
+import { NgbModule, NgbTooltip} from '@ng-bootstrap/ng-bootstrap';
+import { DebugElement } from '../../../../../../node_modules/@angular/core';
+import { detectChanges } from '../../../../../../node_modules/@angular/core/src/render3';
 
 describe('OperatorLabelComponent', () => {
   const mockOperatorData = mockOperatorSchemaList[0];
@@ -20,7 +23,7 @@ describe('OperatorLabelComponent', () => {
   beforeEach(async(() => {
     TestBed.configureTestingModule({
       declarations: [OperatorLabelComponent],
-      imports: [CustomNgMaterialModule],
+      imports: [CustomNgMaterialModule, NgbModule],
       providers: [
         DragDropService,
         JointUIService,
@@ -57,6 +60,42 @@ describe('OperatorLabelComponent', () => {
   it('should register itself as a draggable element', () => {
     const jqueryElement = jQuery(`#${component.operatorLabelID}`);
     expect(jqueryElement.data('uiDraggable')).toBeTruthy();
+  });
+
+  fit('should display operator description shortly after hovering', () => {
+    console.log(fixture);
+    console.log(fixture.debugElement);
+    // const operatorPanelElement = fixture.debugElement.query(By.css('.texera-workspace-operator-panel-body'));
+
+    // const operatorLabelElement = fixture.debugElement.query(By.css('#' + component.operatorLabelID));
+
+    fixture.debugElement.triggerEventHandler('mouseenter', null);
+    fixture.detectChanges();
+
+    // const tooltipElement = fixture.debugElement.query(By.css('.tooltip-inner'));
+
+    const tooltipElement = jQuery('.tooltip');
+
+
+    console.log('.tooltip');
+    console.log(tooltipElement);
+
+
+
+
+
+    // fixture.detectChanges();
+
+    // expect(element.attributes.placement).toEqual('right');
+
+
+
+
+    // expect(element.attributes.ngbTooltip).toEqual(mockOperatorData.additionalMetadata.operatorDescription);
+
+    // component.displayDescription(element.attributes.t);
+    // fixture.detectChanges();
+    // mockOperatorData.additionalMetadata.operatorDescription
   });
 
   // TODO: simulate drag and drop in tests, possibly using jQueryUI Simulate plugin
