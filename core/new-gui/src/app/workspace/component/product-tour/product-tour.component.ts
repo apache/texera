@@ -63,7 +63,7 @@ export class ProductTourComponent implements OnInit {
       preventScrolling: true
     },
     {
-      anchorId: 'Source: Scan',
+      anchorId: 'texera-operator-label-ScanSource',
       content: `
       <p>Drag <b>Source: Scan</b> and drop to workflow panel. </p>
       <p>Source: Scan is a operator that read records from a table one by one.</p>
@@ -107,7 +107,7 @@ export class ProductTourComponent implements OnInit {
       preventScrolling: true
     },
     {
-      anchorId: 'View Results',
+      anchorId: 'texera-operator-label-ViewResults',
       content: `
       <p>Drag <b>View Results</b> and drop to workflow panel.</p>
       <center><img src="../../../assets/Tutor_Intro_Drag_Result.gif"></center>
