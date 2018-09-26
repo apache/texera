@@ -5,7 +5,13 @@
   padding-right: 24px;
 }
 
-.texera-navigation-run-button .texera-workspace-tour-run {
+.button {
+  display: inherit;
+  .btn.btn-secondary {
+    margin-right: 5px;
+  }
+}
+.texera-navigation-run-button {
   margin-right: 3%;
   .mat-raised-button {
     height: 30px;
@@ -18,3 +24,8 @@
     padding-right: 6px;
   }
 }
+
+
+
+
+
