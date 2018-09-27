@@ -48,7 +48,7 @@ export class ProductTourComponent implements OnInit {
     preventScrolling: true
   },
   {
-    anchorId: 'View Results',
+    anchorId: 'texera-operator-panel',
     content: `
     <p>This is the operator panel which contains all the operators we need. </p>
     <p>Now we want to form a twitter text analysis workflow. Open the first section named <b>Source</b>.</p>
@@ -57,7 +57,6 @@ export class ProductTourComponent implements OnInit {
     `,
     placement: 'right',
     title: 'Operator Panel',
-    preventScrolling: true
   },
   {
     anchorId: 'texera-operator-label-ScanSource',
