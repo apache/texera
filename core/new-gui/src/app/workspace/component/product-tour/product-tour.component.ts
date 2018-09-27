@@ -59,7 +59,7 @@ export class ProductTourComponent implements OnInit {
     title: 'Operator Panel',
   },
   {
-    anchorId: 'texera-operator-label-ScanSource',
+    anchorId: 'texera-operator-panel',
     content: `
     <p>Drag <b>Source: Scan</b> and drop to workflow panel. </p>
     <p>Source: Scan is a operator that read records from a table one by one.</p>
