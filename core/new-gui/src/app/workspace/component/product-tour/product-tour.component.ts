@@ -130,7 +130,7 @@ export class ProductTourComponent implements OnInit {
     <p>Click the run button.</p>
     `,
     title: 'Running the workflow',
-    placement: 'left',
+    placement: 'bottom',
     preventScrolling: true
   },
   {
