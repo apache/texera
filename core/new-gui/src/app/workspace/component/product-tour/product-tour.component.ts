@@ -30,6 +30,7 @@ export class ProductTourComponent implements OnInit {
   steps: any[] = [{
     anchorId: 'texera-navigation-grid-container',
     content: `
+    <div class="intro">
     <center>
       <h3>Welcome to Texera!</h3>
     </center>
@@ -39,9 +40,10 @@ export class ProductTourComponent implements OnInit {
     </p>
     <br>
     <center>
-    <img src="../../../assets/Tutor_Intro_Sample.png" height="400" width="800" alt="intro img">
+    <img src="../../../assets/Tutor_Intro_Sample.jpeg" alt="intro img">
     </center>
     <br><br>
+    </div>
     `,
     placement: 'bottom',
     title: 'Welcome',
@@ -68,16 +70,6 @@ export class ProductTourComponent implements OnInit {
     `,
     title: 'Select Operator',
     placement: 'right',
-    preventScrolling: true
-  },
-  {
-    anchorId: 'texera-workflow-editor-grid-container',
-    content: `
-    <p>This is the workflow Panel</p>
-    <p>We can form a workflow by connecting two or more operators.</p>
-    `,
-    title: 'Workflow Panel',
-    placement: 'bottom',
     preventScrolling: true
   },
   {
