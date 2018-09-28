@@ -36,7 +36,7 @@ export class ProductTourComponent implements OnInit {
     </center>
     <br>
     <p>
-    Texera is a system to support cloud-based text analytics using declarative and GUI-based workflows.
+    Texera is a system to support cloud-based text analytics using declarative and GUI-based workflows. Use '« Prev' and 'Next »' or left and right arrow keys to navigate through the tutorial.
     </p>
     <br>
     <center>
