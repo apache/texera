@@ -1,5 +1,5 @@
 import { DragDropService } from './../../../service/drag-drop/drag-drop.service';
-import { Component, Input, AfterViewInit } from '@angular/core';
+import { Component, Input, AfterViewInit, ViewChild } from '@angular/core';
 import { v4 as uuid } from 'uuid';
 
 import { OperatorSchema } from '../../../types/operator-schema.interface';
@@ -16,6 +16,7 @@ import { OperatorSchema } from '../../../types/operator-schema.interface';
 })
 export class OperatorLabelComponent implements AfterViewInit {
 
+  @ViewChild('t') t: any;
   @Input() operator?: OperatorSchema;
   public operatorLabelID: string;
   private timer: any; // needed to add a delay to tooltip
@@ -36,14 +37,15 @@ export class OperatorLabelComponent implements AfterViewInit {
   }
 
   // show the tooltip window after 1500ms
-  displayDescription(tooltip: any) {
-    tooltip.open();
-    // this.timer = setTimeout(() => tooltip.open() , 1500);
+  // var t means tooltip
+  displayDescription(t: any) {
+    // t.open();
+    this.timer = setTimeout(() => t.open() , 1500);
   }
 
   // hide the tooltip window and reset the timer
-  hideDescription(tooltip: any) {
-    // clearTimeout(this.timer);
-    tooltip.close();
+  hideDescription(t: any) {
+    clearTimeout(this.timer);
+    t.close();
   }
 }

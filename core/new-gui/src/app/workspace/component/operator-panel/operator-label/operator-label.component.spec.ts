@@ -62,40 +62,22 @@ describe('OperatorLabelComponent', () => {
     expect(jqueryElement.data('uiDraggable')).toBeTruthy();
   });
 
-  fit('should display operator description shortly after hovering', () => {
-    console.log(fixture);
-    console.log(fixture.debugElement);
-    // const operatorPanelElement = fixture.debugElement.query(By.css('.texera-workspace-operator-panel-body'));
+  it('should display operator description shortly after hovering on a operator label', () => {
+    expect(component.t._ngbTooltip).toBe(mockOperatorData.additionalMetadata.operatorDescription);
 
-    // const operatorLabelElement = fixture.debugElement.query(By.css('#' + component.operatorLabelID));
+    const spy = spyOn(component, 'displayDescription');
+    const operatorLabelElement = fixture.debugElement.query(By.css('#' + component.operatorLabelID));
+    operatorLabelElement.triggerEventHandler('mouseenter', component.t);
+    expect(spy).toHaveBeenCalled();
 
-    fixture.debugElement.triggerEventHandler('mouseenter', null);
-    fixture.detectChanges();
+    expect(mockOperatorData.additionalMetadata.operatorDescription).toContain(operatorLabelElement.attributes['ng-reflect-ngb-tooltip']);
+  });
 
-    // const tooltipElement = fixture.debugElement.query(By.css('.tooltip-inner'));
-
-    const tooltipElement = jQuery('.tooltip');
-
-
-    console.log('.tooltip');
-    console.log(tooltipElement);
-
-
-
-
-
-    // fixture.detectChanges();
-
-    // expect(element.attributes.placement).toEqual('right');
-
-
-
-
-    // expect(element.attributes.ngbTooltip).toEqual(mockOperatorData.additionalMetadata.operatorDescription);
-
-    // component.displayDescription(element.attributes.t);
-    // fixture.detectChanges();
-    // mockOperatorData.additionalMetadata.operatorDescription
+  it('should hide operator descritption once the cursor leaves a operator label', () => {
+    const spy = spyOn(component, 'hideDescription');
+    const operatorLabelElement = fixture.debugElement.query(By.css('#' + component.operatorLabelID));
+    operatorLabelElement.triggerEventHandler('mouseleave', component.t);
+    expect(spy).toHaveBeenCalled();
   });
 
   // TODO: simulate drag and drop in tests, possibly using jQueryUI Simulate plugin
