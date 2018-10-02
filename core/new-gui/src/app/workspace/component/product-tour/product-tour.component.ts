@@ -15,6 +15,8 @@ import { TourService, IStepOption } from 'ngx-tour-ng-bootstrap';
  * Define your tour steps using tourService.initialize(steps).
  * 
  * For the full text of the library, go to https://github.com/isaacplmann/ngx-tour
+ * 
+ * The screenshots were done by GIPHY Capture
  *
  *
  * @author Bolin Chen
@@ -27,7 +29,7 @@ import { TourService, IStepOption } from 'ngx-tour-ng-bootstrap';
 })
 export class ProductTourComponent implements OnInit {
 
-  steps: any[] = [{
+  steps: IStepOption[] = [{
     anchorId: 'texera-navigation-grid-container',
     content: `
     <div class="intro">
