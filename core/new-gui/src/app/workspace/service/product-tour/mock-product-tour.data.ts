@@ -28,4 +28,4 @@ import { IStepOption } from 'ngx-tour-ng-bootstrap';
     `,
     title: 'Step Three',
     placement: 'right',
- }]
+ }];

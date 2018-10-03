@@ -4,18 +4,18 @@ import { TourService, IStepOption } from 'ngx-tour-ng-bootstrap';
 /**
  * ProductTourComponent is the product tour that shows basic product tutorial.
  *
- * Product tour library built with Angular (2+). 
+ * Product tour library built with Angular (2+).
  * ngx-tour-ngx-bootstrap is an implementation of the tour ui that uses ngx-bootstrap popovers to display tour steps.
  *
  * The component has a step list in this.tourService.initialize that can add, edit or delete steps.
  * Define anchor points for the tour steps by adding the tourAnchor directive throughout components.
- * 
+ *
  * <div tourAnchor="some.anchor.id">...</div>
- * 
+ *
  * Define your tour steps using tourService.initialize(steps).
- * 
+ *
  * For the full text of the library, go to https://github.com/isaacplmann/ngx-tour
- * 
+ *
  * The screenshots were done by GIPHY Capture
  *
  *
@@ -29,7 +29,7 @@ import { TourService, IStepOption } from 'ngx-tour-ng-bootstrap';
 })
 export class ProductTourComponent implements OnInit {
 
-  steps: IStepOption[] = [{
+  private steps: IStepOption[] = [{
     anchorId: 'texera-navigation-grid-container',
     content: `
     <div class="intro">
@@ -38,7 +38,8 @@ export class ProductTourComponent implements OnInit {
     </center>
     <br>
     <p>
-    Texera is a system to support cloud-based text analytics using declarative and GUI-based workflows. Use '« Prev' and 'Next »' or left and right arrow keys to navigate through the tutorial.
+    Texera is a system to support cloud-based text analytics using declarative and GUI-based workflows. Use '« Prev' and
+     'Next »' or left and right arrow keys to navigate through the tutorial.
     </p>
     <br>
     <center>
@@ -148,7 +149,7 @@ export class ProductTourComponent implements OnInit {
     placement: 'bottom',
     title: 'Ending of tutorial',
     preventScrolling: true
-  }]
+  }];
 
   constructor(public tourService: TourService) {
 

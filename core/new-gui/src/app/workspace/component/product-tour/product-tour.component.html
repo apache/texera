@@ -3,7 +3,7 @@
     <div class="tour-step-navigation">
         <button *ngIf="tourService.hasPrev(step)" class="btn btn-sm btn-secondary" id="PrevButton" (click)="tourService.prev()">« Prev</button>
         <button *ngIf="tourService.hasNext(step)" class="btn btn-sm btn-secondary" id="NextButton" (click)="tourService.next()">Next »</button>
-        <button class="btn btn-sm btn-danger" (click)="tourService.end()">End</button>
+        <button class="btn btn-sm btn-danger" id="EndButton" (click)="tourService.end()">End</button>
     </div>
     <br>
     <p class="tour-step-content" [innerHTML] = 'tourService.currentStep.content'></p>
