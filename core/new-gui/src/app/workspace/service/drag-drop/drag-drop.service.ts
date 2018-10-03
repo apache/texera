@@ -187,7 +187,7 @@ export class DragDropService {
    * @param ui jQueryUI Draggable Event UI
    */
   private handleOperatorStartDrag(event: JQuery.Event, ui: JQueryUI.DraggableEventUIParams): void {
-    const eventElement = event.toElement;
+    const eventElement = event.target;
     if (eventElement === undefined) {
       throw new Error('drag and drop: cannot find element when drag is started');
     }
