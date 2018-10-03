@@ -152,8 +152,6 @@ export class ProductTourComponent implements OnInit {
 
   constructor(public tourService: TourService) {
 
-    
-
     this.tourService.initialize(this.steps);
 
   }
