@@ -10,6 +10,9 @@ import { mockTourSteps } from '../../service/product-tour/mock-product-tour.data
 
 import { marbles } from 'rxjs-marbles';
 
+import { By } from '@angular/platform-browser';
+
+
 
 describe('ProductTourComponent', () => {
   let component: ProductTourComponent;
@@ -30,6 +33,7 @@ describe('ProductTourComponent', () => {
     component = fixture.componentInstance;
     tourService = TestBed.get(TourService);
     fixture.detectChanges();
+
   });
 
   it('should create', () => {
@@ -40,30 +44,15 @@ describe('ProductTourComponent', () => {
     const mockdata = mockTourSteps;
     tourService.initialize$.subscribe((steps: IStepOption[]) => {
       expect(steps.length).toEqual(3);
-      expect(steps[0].anchorId).toEqual('texera-navigation-grid-container');
+      expect(steps[0].anchorId).toEqual('test1');
       expect(steps[0].placement).toEqual('bottom');
-      expect(steps[1].anchorId).toEqual('texera-operator-panel');
+      expect(steps[1].anchorId).toEqual('test2');
       expect(steps[1].placement).toEqual('right');
-      expect(steps[2].anchorId).toEqual('texera-operator-panel');
+      expect(steps[2].anchorId).toEqual('test3');
       expect(steps[2].placement).toEqual('right');
     });
     tourService.initialize(mockdata);
   });
-
-  // // not working currently because tourService toggle() cannot find the [tourAnchor] attribute
-  // it('should execute the previous step and hide the current step if tourService.prev() is called', () => {
-  //   const mockdata = mockTourSteps;
-  //   tourService.initialize(mockdata);
-  //   tourService.toggle();
-  //   tourService.next();
-  //   tourService.stepShow$.subscribe((steps: IStepOption) => {
-  //     expect(steps.title).toEqual('Step One');
-  //   });
-  //   tourService.stepHide$.subscribe((steps: IStepOption) => {
-  //     expect(steps.title).toEqual('Step Two');
-  //   });
-  //   tourService.prev();
-  // });
 
   it('should trigger a start event when the toggle() method call is execute', marbles((m) => {
     const tourServiceStartStream = tourService.start$.map(() => 'a');
@@ -74,7 +63,7 @@ describe('ProductTourComponent', () => {
 
   it('should trigger an end event when the end() method call is executed', marbles((m) => {
     const tourServiceEndStream = tourService.end$.map(() => 'a');
-        // change this tourService.end() call to html element triggerEvent(click, null) once toggle problem is resolved
+    // change this tourService.end() call to html element triggerEvent(click, null) once toggle problem is resolved
     m.hot('-a-').do(() => tourService.end()).subscribe();
     const expectedStream = m.hot('-a-');
     m.expect(tourServiceEndStream).toBeObservable(expectedStream);

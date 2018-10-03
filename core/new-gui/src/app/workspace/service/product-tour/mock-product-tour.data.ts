@@ -6,7 +6,7 @@ import { IStepOption } from 'ngx-tour-ng-bootstrap';
  */
 
  export const mockTourSteps: IStepOption[] = [{
-    anchorId: 'texera-navigation-grid-container',
+    anchorId: 'test1',
     content: `
     Test Step One
     `,
@@ -14,7 +14,7 @@ import { IStepOption } from 'ngx-tour-ng-bootstrap';
     title: 'Step One',
   },
   {
-    anchorId: 'texera-operator-panel',
+    anchorId: 'test2',
     content: `
     Test Step Two
     `,
@@ -22,7 +22,7 @@ import { IStepOption } from 'ngx-tour-ng-bootstrap';
     title: 'Step Two',
   },
   {
-    anchorId: 'texera-operator-panel',
+    anchorId: 'test3',
     content: `
     Test Step Three
     `,
