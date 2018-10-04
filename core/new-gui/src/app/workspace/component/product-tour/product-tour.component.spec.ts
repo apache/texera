@@ -6,12 +6,7 @@ import { TourNgBootstrapModule, TourService, IStepOption } from 'ngx-tour-ng-boo
 
 import { RouterTestingModule } from '@angular/router/testing';
 
-import { mockTourSteps } from '../../service/product-tour/mock-product-tour.data';
-
 import { marbles } from 'rxjs-marbles';
-
-import { By } from '@angular/platform-browser';
-
 
 
 describe('ProductTourComponent', () => {
@@ -41,17 +36,16 @@ describe('ProductTourComponent', () => {
   });
 
   it('should initialize three steps and their properties according to the input passed', () => {
-    const mockdata = mockTourSteps;
+
     tourService.initialize$.subscribe((steps: IStepOption[]) => {
-      expect(steps.length).toEqual(3);
-      expect(steps[0].anchorId).toEqual('test1');
+      expect(steps.length).toEqual(10);
+      expect(steps[0].anchorId).toEqual('texera-navigation-grid-container');
       expect(steps[0].placement).toEqual('bottom');
-      expect(steps[1].anchorId).toEqual('test2');
+      expect(steps[1].anchorId).toEqual('texera-operator-panel');
       expect(steps[1].placement).toEqual('right');
-      expect(steps[2].anchorId).toEqual('test3');
-      expect(steps[2].placement).toEqual('right');
     });
-    tourService.initialize(mockdata);
+
+    const mockComponent: ProductTourComponent = new ProductTourComponent(tourService);
   });
 
   it('should trigger a start event when the toggle() method call is execute', marbles((m) => {
@@ -63,7 +57,6 @@ describe('ProductTourComponent', () => {
 
   it('should trigger an end event when the end() method call is executed', marbles((m) => {
     const tourServiceEndStream = tourService.end$.map(() => 'a');
-    // change this tourService.end() call to html element triggerEvent(click, null) once toggle problem is resolved
     m.hot('-a-').do(() => tourService.end()).subscribe();
     const expectedStream = m.hot('-a-');
     m.expect(tourServiceEndStream).toBeObservable(expectedStream);

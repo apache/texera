@@ -38,8 +38,8 @@ export class ProductTourComponent implements OnInit {
     </center>
     <br>
     <p>
-    Texera is a system to support cloud-based text analytics using declarative and GUI-based workflows. Use '« Prev' and
-     'Next »' or left and right arrow keys to navigate through the tutorial.
+    Texera is a system to support cloud-based text analytics using declarative and GUI-based workflows. Use <b>« Prev</b> and
+     <b>Next »</b> or left and right arrow keys to navigate through the tutorial.
     </p>
     <br>
     <center>
@@ -55,20 +55,21 @@ export class ProductTourComponent implements OnInit {
   {
     anchorId: 'texera-operator-panel',
     content: `
-    <p>This is the operator panel which contains all the operators we need. </p>
-    <p>Now we want to form a twitter text analysis workflow. Open the first section named <b>Source</b>.</p>
-    <center><img src="../../../assets/Tutor_OpenSection_Sample.gif"></center>
+    <p>This <b>Operator Panel</b> contains all the operators we need. </p>
+    <p>To form a basic twitter text analysis workflow, open the first section named <b>Source</b>.</p>
+    <center><img src="../../../assets/Tutor_OpenSection_Sample.gif" height="400" width="590"></center>
     <br><br>
     `,
     placement: 'right',
     title: 'Operator Panel',
+    preventScrolling: true
   },
   {
     anchorId: 'texera-operator-panel',
     content: `
-    <p>Drag <b>Source: Scan</b> and drop to workflow panel. </p>
-    <p>Source: Scan is a operator that read records from a table one by one.</p>
-    <center><img src="../../../assets/Tutor_Intro_Drag_Srouce.gif"></center>
+    <p>Drag <b>Source: Scan</b> operator and drop it to the workflow panel. </p>
+    <p><b>Source: Scan</b> is a operator that read records from a table one by one.</p>
+    <center><img src="../../../assets/Tutor_Intro_Drag_Srouce.gif" height="450" width="600"></center>
     <br><br>
     `,
     title: 'Select Operator',
@@ -78,9 +79,10 @@ export class ProductTourComponent implements OnInit {
   {
     anchorId: 'texera-property-editor-grid-container',
     content: `
-    <p>This is operator editor area which we can set the properties of the operator. </p>
-    <p>Now we want to edit the property of Source: Scan Operator by typing <b>twitter_sample</b> which specify the data we want to use.</p>
-    <center><img src="../../../assets/Tutor_Property_Sample.gif"></center>
+    <p>This is the operator editor area where users can set the properties of the operator. </p>
+    <p>Now we want to edit the property of <b>Source: Scan</b> operator by typing <b>twitter_sample</b>
+    , which specifies the data we want to use.</p>
+    <center><img src="../../../assets/Tutor_Property_Sample.gif" height="260" width="500"></center>
     <br><br>
     `,
     placement: 'left',
@@ -88,9 +90,9 @@ export class ProductTourComponent implements OnInit {
     preventScrolling: true
   },
   {
-    anchorId: 'View Results',
+    anchorId: 'texera-operator-panel',
     content: `<p>Now we want to view the results of selected data. Open <b>View Results</b> section.</p>
-    <center><img src="../../../assets/Tutor_OpenResult_Sample.gif"></center>
+    <center><img src="../../../assets/Tutor_OpenResult_Sample.gif" height="270" width="500"></center>
     <br><br>
     `,
     placement: 'right',
@@ -98,10 +100,10 @@ export class ProductTourComponent implements OnInit {
     preventScrolling: true
   },
   {
-    anchorId: 'texera-operator-label-ViewResults',
+    anchorId: 'texera-operator-panel',
     content: `
-    <p>Drag <b>View Results</b> and drop to workflow panel.</p>
-    <center><img src="../../../assets/Tutor_Intro_Drag_Result.gif"></center>
+    <p>Drag <b>View Results</b> operator and drop it to the workflow panel.</p>
+    <center><img src="../../../assets/Tutor_Intro_Drag_Result.gif" height="400" width="590"></center>
     <br><br>
     `,
     placement: 'right',
@@ -112,7 +114,7 @@ export class ProductTourComponent implements OnInit {
     anchorId: 'texera-property-editor-grid-container',
     content: `
     <p>Connect those two operators.</p><center>
-    <img src="../../../assets/Tutor_JointJS_Sample.gif"></center>
+    <img src="../../../assets/Tutor_JointJS_Sample.gif" height="150" width="500"></center>
     <br><br>
     `,
     placement: 'left',
@@ -122,7 +124,7 @@ export class ProductTourComponent implements OnInit {
   {
     anchorId: 'texera-workspace-navigation-run',
     content: `
-    <p>Click the run button.</p>
+    <p>Click the run button to execute the workflow.</p>
     `,
     title: 'Running the workflow',
     placement: 'bottom',
@@ -143,13 +145,14 @@ export class ProductTourComponent implements OnInit {
     <center><h3>Congratulations!</h3></center>
     <p>You have finished the basic tutorial. </p>
     <p>There are many other operators you can use to form a workflow.</p>
-    <center><img src="../../../assets/Tutor_End_Sample.gif"></center>
+    <center><img src="../../../assets/Tutor_End_Sample.gif" height="335" width="640"></center>
     <br><br>
     `,
     placement: 'bottom',
     title: 'Ending of tutorial',
     preventScrolling: true
   }];
+
 
   constructor(public tourService: TourService) {
 
