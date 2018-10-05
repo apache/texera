@@ -132,9 +132,9 @@ describe('SavedProjectSectionComponent', () => {
     addcomponent = addfixture.componentInstance;
     addfixture.detectChanges();
 
-    let getResult: String = null;
+    let getResult: String = '';
     addcomponent.name = 'test';
-    addcomponent.newProject.subscribe(out => getResult = out);
+    addcomponent.newProject.subscribe((out: any) => getResult = out);
     addcomponent.addProject();
 
     expect(getResult).toEqual('test');
@@ -145,14 +145,14 @@ describe('SavedProjectSectionComponent', () => {
     deletecomponent = deletefixture.componentInstance;
     // deletefixture.detectChanges();
 
-    let getBool: boolean;
+    let getBool: Boolean = false;
     deletecomponent.project = {
       id: '4',
       name: 'project 1',
       creationTime: '2017-10-25T12:34:50Z',
       lastModifiedTime: '2018-01-17T06:26:50Z',
     };
-    deletecomponent.deleteProject.subscribe(outb => getBool = outb);
+    deletecomponent.deleteProject.subscribe((outb: any) => getBool = outb);
     deletecomponent.deleteSavedProject();
 
     expect(getBool).toEqual(true);

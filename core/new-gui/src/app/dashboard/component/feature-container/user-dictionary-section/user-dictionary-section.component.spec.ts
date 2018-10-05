@@ -122,7 +122,7 @@ describe('UserDictionarySectionComponent', () => {
     viewcomponent = viewfixture.componentInstance;
     // viewfixture.detectChanges();
 
-    let getResult: String = null;
+    let getResult: String = '';
     viewcomponent.dictionary = {
       id: '1',
       name: 'police violence',
@@ -130,7 +130,7 @@ describe('UserDictionarySectionComponent', () => {
     };
     viewcomponent.name = 'test';
     viewcomponent.ifAdd = true;
-    viewcomponent.addedName.subscribe(out => getResult = out);
+    viewcomponent.addedName.subscribe((out: any) => getResult = out);
     viewcomponent.addKey();
 
     expect(getResult).toEqual('test');
@@ -140,7 +140,7 @@ describe('UserDictionarySectionComponent', () => {
     viewfixture = TestBed.createComponent(NgbdModalResourceViewComponent);
     viewcomponent = viewfixture.componentInstance;
 
-    let getRemove: String = null;
+    let getRemove: String = '';
     viewcomponent.dictionary = {
       id: '1',
       name: 'police violence',
@@ -148,7 +148,7 @@ describe('UserDictionarySectionComponent', () => {
     };
     let item: String;
     item  = 'deleted keyword';
-    viewcomponent.deleteName.subscribe(outr => getRemove = outr);
+    viewcomponent.deleteName.subscribe((outr: any) => getRemove = outr);
     viewcomponent.remove(item);
 
     expect(getRemove).toEqual('deleted keyword');
@@ -159,12 +159,12 @@ describe('UserDictionarySectionComponent', () => {
     addcomponent = addfixture.componentInstance;
     // addfixture.detectChanges();
 
-    let getResultDict: UserDictionary = null;
+    let getResultDict = <UserDictionary>{};
 
     addcomponent.dictContent = 'key1,key2,key3';
     addcomponent.name = 'test';
     addcomponent.separator = ',';
-    addcomponent.addedDictionary.subscribe(outd => getResultDict = outd);
+    addcomponent.addedDictionary.subscribe((outd: any) => getResultDict = outd);
     addcomponent.addKey();
 
     expect(getResultDict.id).toEqual('1');
@@ -183,7 +183,7 @@ describe('UserDictionarySectionComponent', () => {
       items: ['BLM']
     };
     let deleteSignal: Boolean = false;
-    deletecomponent.deleteDict.subscribe(outb => deleteSignal = outb);
+    deletecomponent.deleteDict.subscribe((outb: any) => deleteSignal = outb);
     deletecomponent.deleteDictionary();
 
     expect(deleteSignal).toEqual(true);
