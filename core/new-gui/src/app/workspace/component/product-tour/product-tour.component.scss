@@ -1,10 +1,6 @@
-::ng-deep .tour-backdrop {
-    z-index: 10;
-    background-color: rgba(0, 0, 0, 0.5)
+.texera-tour-prev-button {
+    margin-right: 5px;
 }
-
-::ng-deep .tour-step-backdrop{
-    position: relative;
-    z-index: 11;
-    background-color:#fff
+.texera-tour-next-button {
+    margin-right: 5px;
 }
