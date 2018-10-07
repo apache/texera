@@ -15,7 +15,6 @@ import '../../../../common/rxjs-operators';
 import { combineLatest } from 'rxjs/observable/combineLatest';
 import { Subject } from 'rxjs/Subject';
 import { JSONSchema4 } from 'json-schema';
-import { merge } from 'rxjs/observable/merge';
 
 export const SOURCE_TABLE_NAMES_ENDPOINT = 'resources/table-metadata';
 export const AUTOMATED_SCHEMA_PROPAGATION_ENDPOINT = 'queryplan/autocomplete';
@@ -166,9 +165,8 @@ export class AutocompleteService {
    * and link change.
    */
   private handleTexeraGraphLinkChangeEvent(): void {
-    merge(this.workflowActionService.getJointGraphWrapper().getJointLinkCellAddStream(),
-      this.workflowActionService.getJointGraphWrapper().getJointLinkCellDeleteStream(),
-      this.workflowActionService.getJointGraphWrapper().getJointLinkCellChangeStream())
+    Observable.merge(this.workflowActionService.getTexeraGraph().getLinkAddStream(),
+      this.workflowActionService.getTexeraGraph().getLinkDeleteStream())
     .subscribe(() => this.invokeAutocompleteAPI(true));
   }
 

@@ -4,6 +4,8 @@ import { OperatorSchema } from '../../../types/operator-schema.interface';
 /**
  * Export constants related to the source table names present at the server
  */
+// TODO: All responses from backend should come as a JSON object. The JSON message below will
+// have to be changed to be a JSON object. Same change will need to be done on the backend.
 export const mockSourceTableAPIResponse: Readonly<SourceTableNamesAPIResponse> = {
   code: 0,
   message: `[

@@ -17,9 +17,6 @@ import { Subject } from 'rxjs/Subject';
 import { JSONSchema4 } from 'json-schema';
 import { WorkflowActionService } from '../../workflow-graph/model/workflow-action.service';
 
-export const SOURCE_OPERATORS_REQUIRING_TABLENAMES: ReadonlyArray<string> = ['KeywordSource', 'RegexSource', 'WordCountIndexSource',
-                                                                            'DictionarySource', 'FuzzyTokenSource', 'ScanSource'];
-
 /**
  * This class is mostly a copy of the original Autocomplete Service class except its sourceTableNamesObservable data member
  * and invokeAutocompleteAPI() method. The code in this section could be reduced by simply extending Autocomplete Service
