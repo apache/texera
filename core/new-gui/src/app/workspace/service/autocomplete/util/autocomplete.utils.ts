@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { OperatorMetadata, OperatorSchema } from '../../../types/operator-schema.interface';
 import { SourceTableNamesAPIResponse } from '../../../types/autocomplete.interface';
-import { SourceTableDetails, ErrorExecutionResult } from '../../../types/autocomplete.interface';
+import { SourceTableDetails, AutocompleteErrorResult } from '../../../types/autocomplete.interface';
 
 import { WorkflowGraphReadonly } from '../../workflow-graph/model/workflow-graph';
 import {
@@ -9,9 +9,6 @@ import {
 } from '../../../types/execute-workflow.interface';
 
 import cloneDeep from 'lodash-es/cloneDeep';
-
-export const SOURCE_OPERATORS_REQUIRING_TABLENAMES: ReadonlyArray<string> = ['KeywordSource', 'RegexSource', 'WordCountIndexSource',
-                                                                            'DictionarySource', 'FuzzyTokenSource', 'ScanSource'];
 
 export class AutocompleteUtils {
 
@@ -52,22 +49,22 @@ export class AutocompleteUtils {
 
     const operatorSchemaList: Array<OperatorSchema> = cloneDeep(operatorMetadata.operators.slice());
     for (let i = 0; i < operatorSchemaList.length; i++) {
-      if (SOURCE_OPERATORS_REQUIRING_TABLENAMES.includes(operatorSchemaList[i].operatorType)) {
         const jsonSchemaToModify = cloneDeep(operatorSchemaList[i].jsonSchema);
         const operatorProperties = jsonSchemaToModify.properties;
         if (!operatorProperties) {
           throw new Error(`Operator ${operatorSchemaList[i].operatorType} does not have properties in its schema`);
         }
 
-        operatorProperties['tableName'] = { type: 'string', enum: tablesNames.slice() };
+        if (operatorProperties['tableName']) {
+          operatorProperties['tableName'] = { type: 'string', enum: tablesNames.slice() };
 
-        const newOperatorSchema: OperatorSchema = {
-          ...operatorSchemaList[i],
-          jsonSchema: jsonSchemaToModify
-        };
+          const newOperatorSchema: OperatorSchema = {
+            ...operatorSchemaList[i],
+            jsonSchema: jsonSchemaToModify
+          };
 
-        operatorSchemaList[i] = newOperatorSchema;
-      }
+          operatorSchemaList[i] = newOperatorSchema;
+        }
     }
 
     const operatorMetadataModified: OperatorMetadata = {
@@ -156,7 +153,7 @@ export class AutocompleteUtils {
    *  and converts to an ErrorExecutionResult object.
    * @param errorResponse
    */
-  public static processErrorResponse(errorResponse: HttpErrorResponse): ErrorExecutionResult {
+  public static processErrorResponse(errorResponse: HttpErrorResponse): AutocompleteErrorResult {
     // client side error, such as no internet connection
     if (errorResponse.error instanceof ProgressEvent) {
       return {

@@ -14,7 +14,6 @@ import { WorkflowGraph, WorkflowGraphReadonly } from '../../service/workflow-gra
 import * as joint from 'jointjs';
 import { mockScanPredicate, mockPoint } from '../../service/workflow-graph/model/mock-workflow-data';
 import { AutocompleteService } from '../../service/autocomplete/model/autocomplete.service';
-import { StubAutocompleteService } from '../../service/autocomplete/model/stub-autocomplete.service';
 
 
 class StubWorkflowActionService {
@@ -58,7 +57,7 @@ describe('WorkflowEditorComponent', () => {
           DragDropService,
           { provide: WorkflowActionService, useClass: StubWorkflowActionService },
           { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
-          { provide: AutocompleteService, useClass: StubAutocompleteService}
+          AutocompleteService
         ]
       })
         .compileComponents();
@@ -145,8 +144,7 @@ describe('WorkflowEditorComponent', () => {
           WorkflowUtilService,
           DragDropService,
           WorkflowActionService,
-          { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
-          { provide: AutocompleteService, useClass: StubAutocompleteService}
+          { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
         ]
       })
         .compileComponents();

@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 
 import { AppSettings } from '../../../../common/app-setting';
-import { SourceTableNamesAPIResponse, SuccessExecutionResult } from '../../../types/autocomplete.interface';
+import { SourceTableNamesAPIResponse, AutocompleteSucessResult } from '../../../types/autocomplete.interface';
 
 import { AutocompleteUtils } from '../util/autocomplete.utils';
 import { OperatorPredicate } from '../../../types/workflow-common.interface';
@@ -31,7 +31,7 @@ export class AutocompleteService {
   // the input schema of operators in the current workflow as returned by the autocomplete API
   public operatorInputSchemaMap: JSONSchema4 = {};
 
-  public autocompleteAPIExecutedStream = new Subject<string>();
+  private autocompleteAPIExecutedStream = new Subject<string>();
 
   // the operator schema list with source table names added in source operators
   private operatorSchemaList: ReadonlyArray<OperatorSchema> = [];
@@ -111,7 +111,7 @@ export class AutocompleteService {
     const requestURL = `${AppSettings.getApiEndpoint()}/${AUTOMATED_SCHEMA_PROPAGATION_ENDPOINT}`;
 
     // make a http post request to the API endpoint with the logical plan object
-    this.httpClient.post<SuccessExecutionResult>(
+    this.httpClient.post<AutocompleteSucessResult>(
       requestURL,
       JSON.stringify(body),
       { headers: { 'Content-Type': 'application/json' } })
@@ -132,7 +132,7 @@ export class AutocompleteService {
    *
    * @param response
    */
-  private handleExecuteResult(response: SuccessExecutionResult, reloadCurrentOperatorSchema: boolean): void {
+  private handleExecuteResult(response: AutocompleteSucessResult, reloadCurrentOperatorSchema: boolean): void {
     this.operatorInputSchemaMap = response.result;
     if (reloadCurrentOperatorSchema) {
       this.autocompleteAPIExecutedStream.next('Autocomplete response success');
@@ -161,8 +161,7 @@ export class AutocompleteService {
 
   /**
    * Handles any kind of changes in the links of the joint graph and invokes the autocomplete API.
-   * There are 3 kinds of change streams exposed by joint graph wrapper - link add, link delete
-   * and link change.
+   * There are 2 kinds of change streams exposed by texera graph wrapper - link add, link delete.
    */
   private handleTexeraGraphLinkChangeEvent(): void {
     Observable.merge(this.workflowActionService.getTexeraGraph().getLinkAddStream(),

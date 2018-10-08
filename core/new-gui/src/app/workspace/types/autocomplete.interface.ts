@@ -27,7 +27,7 @@ export interface SourceTableAttribute extends Readonly <{
  * The backend interface of the return object of a successful execution
  * of autocomplete API
  */
-export interface SuccessExecutionResult extends Readonly<{
+export interface AutocompleteSucessResult extends Readonly<{
   code: 0,
   result: JSONSchema4
 }> { }
@@ -36,7 +36,7 @@ export interface SuccessExecutionResult extends Readonly<{
  * The backend interface of the return object of a failed execution of
  * autocomplete API
  */
-export interface ErrorExecutionResult extends Readonly< {
+export interface AutocompleteErrorResult extends Readonly< {
   code: -1,
   message: string
 }> { }
@@ -45,10 +45,10 @@ export interface ErrorExecutionResult extends Readonly< {
  * Discriminated Union
  * http://www.typescriptlang.org/docs/handbook/advanced-types.html
  *
- * ExecutionResult type can be either SuccessExecutionResult or ErrorExecutionResult.
+ * AutocompleteResult type can be either AutocompleteSucessResult or AutocompleteErrorResult.
  *  but cannot contain both structures at the same time.
  * In this case:
- *  if the code value is 0, then the object type must be SuccessExecutionResult
- *  if the code value is -1, then the object type must be ErrorExecutionResult
+ *  if the code value is 0, then the object type must be AutocompleteSucessResult
+ *  if the code value is -1, then the object type must be AutocompleteErrorResult
  */
-export type ExecutionResult = SuccessExecutionResult | ErrorExecutionResult;
+export type AutocompleteResult = AutocompleteSucessResult | AutocompleteErrorResult;

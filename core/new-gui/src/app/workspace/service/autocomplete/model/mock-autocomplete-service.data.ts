@@ -1,4 +1,4 @@
-import { SourceTableNamesAPIResponse, SuccessExecutionResult } from '../../../types/autocomplete.interface';
+import { SourceTableNamesAPIResponse, AutocompleteSucessResult } from '../../../types/autocomplete.interface';
 import { OperatorSchema } from '../../../types/operator-schema.interface';
 
 /**
@@ -57,7 +57,7 @@ export const mockSourceTableAPIResponse: Readonly<SourceTableNamesAPIResponse> =
 ]`
 };
 
-export const mockAutocompleteAPISchemaSuggestionResponse: Readonly<SuccessExecutionResult> = {
+export const mockAutocompleteAPISchemaSuggestionResponse: Readonly<AutocompleteSucessResult> = {
   code: 0,
   result: {
     '2': [
@@ -79,7 +79,7 @@ export const mockAutocompleteAPISchemaSuggestionResponse: Readonly<SuccessExecut
   }
 };
 
-export const mockAutocompleteAPIEmptyResponse: Readonly<SuccessExecutionResult> = {
+export const mockAutocompleteAPIEmptyResponse: Readonly<AutocompleteSucessResult> = {
   code: 0,
   result: { }
 };

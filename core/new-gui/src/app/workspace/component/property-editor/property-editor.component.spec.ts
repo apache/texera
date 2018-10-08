@@ -2,6 +2,7 @@ import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { By } from '@angular/platform-browser';
 import { MaterialDesignFrameworkModule } from 'angular6-json-schema-form';
 import { async, ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
+import { Observable } from 'rxjs/Observable';
 
 import { PropertyEditorComponent } from './property-editor.component';
 
@@ -9,9 +10,11 @@ import { WorkflowActionService } from './../../service/workflow-graph/model/work
 import { OperatorMetadataService } from './../../service/operator-metadata/operator-metadata.service';
 import { StubOperatorMetadataService } from './../../service/operator-metadata/stub-operator-metadata.service';
 import { JointUIService } from './../../service/joint-ui/joint-ui.service';
+import { SourceTableNamesAPIResponse } from '../../types/autocomplete.interface';
+
 
 import { mockOperatorSchemaList } from './../../service/operator-metadata/mock-operator-metadata.data';
-import { mockAutocompleteAPISchemaSuggestionResponse,
+import { mockSourceTableAPIResponse, mockAutocompleteAPISchemaSuggestionResponse,
   mockAutocompletedOperatorSchema } from '../../service/autocomplete/model/mock-autocomplete-service.data';
 
 import { configure } from 'rxjs-marbles';
@@ -21,9 +24,17 @@ import { mockResultPredicate, mockScanPredicate, mockPoint, mockScanSentimentLin
   mockSentimentPredicate } from '../../service/workflow-graph/model/mock-workflow-data';
 import { CustomNgMaterialModule } from '../../../common/custom-ng-material.module';
 import { AutocompleteService } from '../../service/autocomplete/model/autocomplete.service';
-import { StubAutocompleteService } from '../../service/autocomplete/model/stub-autocomplete.service';
+import { HttpClient } from '@angular/common/http';
 
 /* tslint:disable:no-non-null-assertion */
+
+class StubHttpClient {
+
+  public get<T>(url: string): Observable<SourceTableNamesAPIResponse> {
+      return Observable.of(mockSourceTableAPIResponse);
+  }
+
+}
 
 describe('PropertyEditorComponent', () => {
   let component: PropertyEditorComponent;
@@ -38,7 +49,8 @@ describe('PropertyEditorComponent', () => {
         JointUIService,
         WorkflowActionService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
-        { provide: AutocompleteService, useClass: StubAutocompleteService }
+        AutocompleteService,
+        { provide: HttpClient, useClass: StubHttpClient }
       ],
       imports: [
         CustomNgMaterialModule,
@@ -180,6 +192,12 @@ describe('PropertyEditorComponent', () => {
     workflowActionService.addOperator(mockScanPredicate, mockPoint);
     jointGraphWrapper.highlightOperator(mockScanPredicate.operatorID);
 
+    spyOn(autocompleteService, 'invokeAutocompleteAPI').and.callFake( () => {
+      autocompleteService.operatorInputSchemaMap = mockAutocompleteAPISchemaSuggestionResponse.result;
+      (autocompleteService as any).autocompleteAPIExecutedStream.next('Autocomplete response success');
+    }
+    );
+
     // stimulate a form change by the user
     const formChangeValue = { tableName: 'twitter_sample' };
     component.onFormChanges(formChangeValue);
@@ -287,7 +305,7 @@ describe('PropertyEditorComponent', () => {
 
     spyOn(autocompleteService, 'invokeAutocompleteAPI').and.callFake( () => {
       autocompleteService.operatorInputSchemaMap = mockAutocompleteAPISchemaSuggestionResponse.result;
-      autocompleteService.autocompleteAPIExecutedStream.next('Autocomplete response success');
+      (autocompleteService as any).autocompleteAPIExecutedStream.next('Autocomplete response success');
     }
     );
 
