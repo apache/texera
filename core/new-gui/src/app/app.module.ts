@@ -8,6 +8,9 @@ import { AppRoutingModule } from './app-routing.module';
 import { CustomNgMaterialModule } from './common/custom-ng-material.module';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
+import { RouterModule } from '@angular/router';
+import { TourNgBootstrapModule } from 'ngx-tour-ng-bootstrap';
+
 
 import { MaterialDesignFrameworkModule } from 'angular6-json-schema-form';
 
@@ -20,6 +23,7 @@ import { PropertyEditorComponent } from './workspace/component/property-editor/p
 import { WorkflowEditorComponent } from './workspace/component/workflow-editor/workflow-editor.component';
 import { ResultPanelComponent, NgbModalComponent } from './workspace/component/result-panel/result-panel.component';
 import { OperatorLabelComponent } from './workspace/component/operator-panel/operator-label/operator-label.component';
+import { ProductTourComponent } from './workspace/component/product-tour/product-tour.component';
 
 import { DashboardComponent } from './dashboard/component/dashboard.component';
 import { TopBarComponent } from './dashboard/component/top-bar/top-bar.component';
@@ -68,7 +72,8 @@ import { ResourceSectionComponent } from './dashboard/component/feature-containe
     ResourceSectionComponent,
 
     NgbModalComponent,
-    OperatorLabelComponent
+    OperatorLabelComponent,
+    ProductTourComponent
   ],
   imports: [
     BrowserModule,
@@ -79,6 +84,8 @@ import { ResourceSectionComponent } from './dashboard/component/feature-containe
     CustomNgMaterialModule,
     BrowserAnimationsModule,
     NgbModule.forRoot(),
+    RouterModule.forRoot([]),
+    TourNgBootstrapModule.forRoot(),
 
     MaterialDesignFrameworkModule
 

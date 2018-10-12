@@ -37,6 +37,8 @@
     "jquery-ui-dist": "^1.12.1",
     "lodash": "^3.10.1",
     "lodash-es": "^4.17.10",
+    "ngx-tour-core": "^3.0.0",
+    "ngx-tour-ng-bootstrap": "^3.0.0",
     "popper.js": "^1.14.1",
     "rxjs": "^6.2.2",
     "rxjs-compat": "^6.0.0-rc.0",
