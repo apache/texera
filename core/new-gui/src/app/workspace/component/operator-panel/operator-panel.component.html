@@ -1,7 +1,7 @@
 <div class="texera-workspace-operator-panel-body">
   <mat-accordion multi="false">
     <mat-expansion-panel class="mat-elevation-z3 texera-operator-group-panel" *ngFor="let groupName of groupNamesOrdered">
-      <mat-expansion-panel-header class="texera-operator-group-name" tourAnchor='groupName'>
+      <mat-expansion-panel-header class="texera-operator-group-name" [tourAnchor]='groupName'>
         {{groupName}}
       </mat-expansion-panel-header>
       <div  *ngFor="let operatorSchema of operatorGroupMap.get(groupName)">
