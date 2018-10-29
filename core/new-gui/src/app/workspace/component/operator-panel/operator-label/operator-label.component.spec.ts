@@ -14,6 +14,7 @@ import { WorkflowActionService } from '../../../service/workflow-graph/model/wor
 import { NgbModule, NgbTooltip} from '@ng-bootstrap/ng-bootstrap';
 import { DebugElement } from '../../../../../../node_modules/@angular/core';
 import { detectChanges } from '../../../../../../node_modules/@angular/core/src/render3';
+import { by } from '../../../../../../node_modules/protractor';
 
 describe('OperatorLabelComponent', () => {
   const mockOperatorData = mockOperatorSchemaList[0];
@@ -62,25 +63,29 @@ describe('OperatorLabelComponent', () => {
     expect(jqueryElement.data('uiDraggable')).toBeTruthy();
   });
 
-  it('should display operator description shortly after hovering on a operator label', () => {
+  fit('should display operator description shortly after hovering on a operator label', () => {
     expect(component.t._ngbTooltip).toBe(mockOperatorData.additionalMetadata.operatorDescription);
 
-    const spy = spyOn(component, 'displayDescription');
+    const spy = spyOn<any>(component, 'displayDescription');
     const operatorLabelElement = fixture.debugElement.query(By.css('#' + component.operatorLabelID));
     operatorLabelElement.triggerEventHandler('mouseenter', component.t);
+
+
+    const tpWindow = fixture.debugElement.query(By.css('#ngb-tooltip-window'));
+    console.log(tpWindow); // unable to find tpWindow
     expect(spy).toHaveBeenCalled();
 
     expect(mockOperatorData.additionalMetadata.operatorDescription).toContain(operatorLabelElement.attributes['ng-reflect-ngb-tooltip']);
   });
 
-  it('should hide operator descritption once the cursor leaves a operator label', () => {
-    const spy = spyOn(component, 'hideDescription');
+  fit('should hide operator descritption once the cursor leaves a operator label', () => {
+    const spy = spyOn<any>(component, 'hideDescription');
     const operatorLabelElement = fixture.debugElement.query(By.css('#' + component.operatorLabelID));
     operatorLabelElement.triggerEventHandler('mouseleave', component.t);
     expect(spy).toHaveBeenCalled();
   });
 
-  // TODO: simulate drag and drop in tests, possibly using jQueryUI Simulate plugin
-  //  https://github.com/j-ulrich/jquery-simulate-ext/blob/master/doc/drag-n-drop.md
+//   // TODO: simulate drag and drop in tests, possibly using jQueryUI Simulate plugin
+//   //  https://github.com/j-ulrich/jquery-simulate-ext/blob/master/doc/drag-n-drop.md
 
 });
