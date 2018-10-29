@@ -70,6 +70,9 @@ describe('OperatorLabelComponent', () => {
     operatorLabelElement.triggerEventHandler('mouseenter', component.t);
     expect(spy).toHaveBeenCalled();
 
+    // the content inside the ng-reflect-ngb-tooltip is only part of the Description content.
+    // the full Description was not accessable because the triggerEventHandler() function is
+    // not functioning correctly during Jasmine test
     expect(mockOperatorData.additionalMetadata.operatorDescription).toContain(operatorLabelElement.attributes['ng-reflect-ngb-tooltip']);
   });
 
