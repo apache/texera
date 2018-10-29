@@ -65,7 +65,7 @@ describe('OperatorLabelComponent', () => {
   it('should display operator description shortly after hovering on a operator label', () => {
     expect(component.t._ngbTooltip).toBe(mockOperatorData.additionalMetadata.operatorDescription);
 
-    const spy = spyOn(component, 'displayDescription');
+    const spy = spyOn<any>(component, 'displayDescription');
     const operatorLabelElement = fixture.debugElement.query(By.css('#' + component.operatorLabelID));
     operatorLabelElement.triggerEventHandler('mouseenter', component.t);
     expect(spy).toHaveBeenCalled();
@@ -77,7 +77,7 @@ describe('OperatorLabelComponent', () => {
   });
 
   it('should hide operator descritption once the cursor leaves a operator label', () => {
-    const spy = spyOn(component, 'hideDescription');
+    const spy = spyOn<any>(component, 'hideDescription');
     const operatorLabelElement = fixture.debugElement.query(By.css('#' + component.operatorLabelID));
     operatorLabelElement.triggerEventHandler('mouseleave', component.t);
     expect(spy).toHaveBeenCalled();
