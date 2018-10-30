@@ -42,7 +42,7 @@ export class OperatorLabelComponent implements AfterViewInit {
 
   // show the tooltip window after 1500ms
   // var t means tooltip
-  private displayDescription(t: any): void {
+  public displayDescription(t: any): void {
     this.isHovering = true;
     const secondsCounter = interval(1500);
 
@@ -59,7 +59,7 @@ export class OperatorLabelComponent implements AfterViewInit {
   // hide the tooltip window
   // reset the timer
   // set isHovering to false to indicate that the cursor has left the operator label
-  private hideDescription(t: any): void {
+  public hideDescription(t: any): void {
     this.isHovering = false;
     this.t.close();
     this.timer.unsubscribe();
