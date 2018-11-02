@@ -8,6 +8,7 @@ import { OperatorMetadataService } from '../service/operator-metadata/operator-m
 import { JointUIService } from '../service/joint-ui/joint-ui.service';
 import { StubOperatorMetadataService } from '../service/operator-metadata/stub-operator-metadata.service';
 
+import{ResultPanelService} from './../service/result-panel/result-panel.service'
 
 @Component({
   selector: 'texera-workspace',
@@ -26,8 +27,7 @@ import { StubOperatorMetadataService } from '../service/operator-metadata/stub-o
 })
 export class WorkspaceComponent implements OnInit {
 
-  constructor(
-  ) { }
+  constructor(public resultPanelService:ResultPanelService) { }
 
   ngOnInit() {
   }

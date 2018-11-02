@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { ExecuteWorkflowService } from './../../service/execute-workflow/execute-workflow.service';
-
+import { ResultPanelService } from './../../service/result-panel/result-panel.service'
 /**
  * NavigationComponent is the top level navigation bar that shows
  *  the Texera title and workflow execution button
@@ -49,5 +49,7 @@ export class NavigationComponent implements OnInit {
     this.showSpinner = true;
     this.executeWorkflowService.executeWorkflow();
   }
+
+  
 
 }

@@ -2,6 +2,11 @@
   <texera-navigation class="texera-navigation-grid-container grid-container"></texera-navigation>
   <texera-operator-panel class="texera-operator-panel-grid-container grid-container"></texera-operator-panel>
   <texera-property-editor class="texera-property-editor-grid-container grid-container"></texera-property-editor>
-  <texera-workflow-editor class="texera-workflow-editor-grid-container grid-container"></texera-workflow-editor>
+
   <texera-result-panel class="texera-result-panel-grid-container grid-container"></texera-result-panel>
+  
+  <texera-workflow-editor [ngClass]="{'texera-workflow-original-editor-grid-container grid-container':!resultPanelService.showResultPanel,'texera-workflow-editor-grid-container grid-container':resultPanelService.showResultPanel}"></texera-workflow-editor>
+  <!--
+    <p>{{resultPanelService.showResultPanel}}</p>
+  -->
 </div>

@@ -7,6 +7,8 @@ import { NgbModal, NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { ExecutionResult, SuccessExecutionResult } from './../../types/execute-workflow.interface';
 import { TableColumn, IndexableObject } from './../../types/result-table.interface';
 
+import{ResultPanelService} from './../../service/result-panel/result-panel.service'
+
 /**
  * ResultPanelCompoent is the bottom level area that displays the
  *  execution result of a workflow after the execution finishes.
@@ -35,10 +37,18 @@ export class ResultPanelComponent {
   public currentDisplayColumns: string[] | undefined;
   public currentDataSource: MatTableDataSource<object> | undefined;
 
+  
+  //public showResultPanel:boolean = false;
+
+
+
   @ViewChild(MatPaginator) paginator: MatPaginator | null = null;
 
-  constructor(private executeWorkflowService: ExecuteWorkflowService, private modalService: NgbModal) {
-    // once an execution has ended, update the result panel to dispaly
+  constructor(private executeWorkflowService: ExecuteWorkflowService, private modalService: NgbModal,
+    public resultPanelService:ResultPanelService) {
+    
+    
+      // once an execution has ended, update the result panel to dispaly
     //  execution result or error
     this.executeWorkflowService.getExecuteEndedStream().subscribe(
       executionResult => this.handleResultData(executionResult),
@@ -53,6 +63,7 @@ export class ResultPanelComponent {
    * @param rowData the object containing the data of the current row in columnDef and cellData pairs
    */
   public open(rowData: object): void {
+    
     const modalRef = this.modalService.open(NgbModalComponent);
     // cast the instance type from `any` to NgbModalComponent
     const modalComponentInstance = modalRef.componentInstance as NgbModalComponent;
@@ -74,6 +85,12 @@ export class ResultPanelComponent {
    * @param response
    */
   private handleResultData(response: ExecutionResult): void {
+    
+    //show resultPanel
+    this.resultPanelService.setShowResultPanel(true);
+
+
+    
     // backend returns error, display error message
     if (response.code === 1) {
       this.displayErrorMessage(response.message);

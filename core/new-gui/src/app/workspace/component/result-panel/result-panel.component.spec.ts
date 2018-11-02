@@ -16,6 +16,8 @@ import { By } from '@angular/platform-browser';
 import { Observable } from 'rxjs/Observable';
 import { HttpClient } from '@angular/common/http';
 
+import{ResultPanelService} from './../../service/result-panel/result-panel.service'
+
 
 class StubHttpClient {
   constructor() {}
@@ -28,6 +30,8 @@ describe('ResultPanelComponent', () => {
   let fixture: ComponentFixture<ResultPanelComponent>;
   let executeWorkflowService: ExecuteWorkflowService;
   let ngbModel: NgbModal;
+  
+  let resultPanelService: ResultPanelService;
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
@@ -40,6 +44,7 @@ describe('ResultPanelComponent', () => {
         WorkflowActionService,
         JointUIService,
         ExecuteWorkflowService,
+        ResultPanelService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         { provide: HttpClient, useClass: StubHttpClient }
       ]
@@ -51,6 +56,7 @@ describe('ResultPanelComponent', () => {
     fixture = TestBed.createComponent(ResultPanelComponent);
     component = fixture.componentInstance;
     executeWorkflowService = TestBed.get(ExecuteWorkflowService);
+    resultPanelService = TestBed.get(ResultPanelService);
     ngbModel = TestBed.get(NgbModal);
     fixture.detectChanges();
   });
@@ -83,7 +89,7 @@ describe('ResultPanelComponent', () => {
       m.hot(endMarbleString, endMarblevalues)
     );
 
-    const testComponent = new ResultPanelComponent(executeWorkflowService, ngbModel);
+    const testComponent = new ResultPanelComponent(executeWorkflowService, ngbModel,resultPanelService);
 
     executeWorkflowService.getExecuteEndedStream().subscribe({
       complete: () => {
@@ -106,7 +112,7 @@ describe('ResultPanelComponent', () => {
       m.hot(endMarbleString, endMarbleValues)
     );
 
-    const testComponent = new ResultPanelComponent(executeWorkflowService, ngbModel);
+    const testComponent = new ResultPanelComponent(executeWorkflowService, ngbModel,resultPanelService);
     executeWorkflowService.getExecuteEndedStream().subscribe({
       complete: () => {
         expect(testComponent.message).toEqual(`execution doesn't have any results`);
@@ -139,7 +145,7 @@ describe('ResultPanelComponent', () => {
       m.hot(endMarbleString, endMarbleValues)
     );
 
-    const testComponent = new ResultPanelComponent(executeWorkflowService, ngbModel);
+    const testComponent = new ResultPanelComponent(executeWorkflowService, ngbModel,resultPanelService);
 
     executeWorkflowService.getExecuteEndedStream().subscribe({
       complete : () => {
@@ -161,7 +167,7 @@ describe('ResultPanelComponent', () => {
       m.hot(endMarbleString, endMarblevalues)
     );
 
-    const testComponent = new ResultPanelComponent(executeWorkflowService, ngbModel);
+    const testComponent = new ResultPanelComponent(executeWorkflowService, ngbModel,resultPanelService);
 
     executeWorkflowService.getExecuteEndedStream().subscribe({
       complete: () => {
@@ -190,5 +196,36 @@ describe('ResultPanelComponent', () => {
     const resultTable = fixture.debugElement.query(By.css('.result-table'));
     expect(resultTable).toBeTruthy();
   });
+
+
+  //test result-panel hidden by default 
+  it('should showresultpanel be false by default',() =>{
+
+    const resultPanelDiv = fixture.debugElement.query(By.css('.texera-workspace-result-panel-body'));
+    const resultPanelHtmlElement: HTMLElement = resultPanelDiv.nativeElement;
+
+    expect(resultPanelDiv).toBeFalsy;
+    expect(resultPanelHtmlElement.hasAttribute('hidden')).toBeTruthy();
+
+    //m.hot('-e-').do(() => component.onClickRun()).subscribe();
+
+    
+
+  });
+
+  it('should showresultPanel be true if click run',()=>{
+    resultPanelService.setShowResultPanel(true);
+    fixture.detectChanges();
+    const resultPanelDiv = fixture.debugElement.query(By.css('.texera-workspace-result-panel-body'));
+    const resultPanelHtmlElement: HTMLElement = resultPanelDiv.nativeElement;
+
+    expect(resultPanelDiv).toBeTruthy;
+    expect(resultPanelHtmlElement.hasAttribute('hidden')).toBeFalsy();
+
+  });
+
+  
+
+
 
 });

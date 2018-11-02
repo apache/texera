@@ -1,4 +1,7 @@
-<div class="texera-workspace-result-panel-body texera-workflow-component-body">
+<div class="texera-workspace-result-panel-body texera-workflow-component-body" [hidden]="!resultPanelService.showResultPanel">
+  <!--
+    <P>{{resultPanelService.showResultPanel}}</P>
+  -->
   <div class="texera-panel-message" *ngIf="showMessage">
     <p>{{ message }}</p>
   </div>

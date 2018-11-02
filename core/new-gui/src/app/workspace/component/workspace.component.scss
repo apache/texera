@@ -89,6 +89,17 @@ $header-height: 56px;
   grid-row-end: 3;
 }
 
+
+/**
+ * this style is the orignal style before click result button
+ */
+.texera-workflow-original-editor-grid-container {
+  grid-column-start: 2;
+  grid-column-end: 3;
+  grid-row-start: 2;
+  grid-row-end: 4;
+}
+
 /**
   * this style specifies that the result panel in the middle
   * will occupy the 2nd (middle) columm and use the last row (middle). It will
