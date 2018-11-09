@@ -10,7 +10,10 @@ import { OperatorPanelComponent } from './operator-panel.component';
 import { OperatorLabelComponent } from './operator-label/operator-label.component';
 import { OperatorMetadataService, EMPTY_OPERATOR_METADATA } from '../../service/operator-metadata/operator-metadata.service';
 import { StubOperatorMetadataService } from '../../service/operator-metadata/stub-operator-metadata.service';
+import { TourService } from 'ngx-tour-ng-bootstrap';
 import { GroupInfo, OperatorSchema } from '../../types/operator-schema.interface';
+import { RouterTestingModule } from '@angular/router/testing';
+import { TourNgBootstrapModule } from 'ngx-tour-ng-bootstrap';
 
 import {
   mockOperatorMetaData, mockOperatorGroup, mockOperatorSchemaList
@@ -34,9 +37,11 @@ describe('OperatorPanelComponent', () => {
       declarations: [OperatorPanelComponent, OperatorLabelComponent],
       providers: [
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
-        { provide: DragDropService, useClass: StubDragDropService}
+        { provide: DragDropService, useClass: StubDragDropService},
+        TourService
       ],
-      imports: [CustomNgMaterialModule, BrowserAnimationsModule, NgbModule]
+      imports: [CustomNgMaterialModule, BrowserAnimationsModule,
+                RouterTestingModule.withRoutes([]), TourNgBootstrapModule.forRoot(), NgbModule]
     })
       .compileComponents();
   }));

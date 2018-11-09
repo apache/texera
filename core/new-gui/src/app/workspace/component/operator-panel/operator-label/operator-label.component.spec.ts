@@ -11,8 +11,14 @@ import { CustomNgMaterialModule } from '../../../../common/custom-ng-material.mo
 import { mockOperatorSchemaList } from '../../../service/operator-metadata/mock-operator-metadata.data';
 import { By } from '@angular/platform-browser';
 import { WorkflowActionService } from '../../../service/workflow-graph/model/workflow-action.service';
+<<<<<<< HEAD
 import { NgbModule, NgbTooltip} from '@ng-bootstrap/ng-bootstrap';
 
+=======
+import { TourService } from 'ngx-tour-ng-bootstrap';
+import { RouterTestingModule } from '@angular/router/testing';
+import { TourNgBootstrapModule } from 'ngx-tour-ng-bootstrap';
+>>>>>>> 5e7f22bd976d3ac5a195ec621145d5965371c73d
 
 describe('OperatorLabelComponent', () => {
   const mockOperatorData = mockOperatorSchemaList[0];
@@ -22,13 +28,22 @@ describe('OperatorLabelComponent', () => {
   beforeEach(async(() => {
     TestBed.configureTestingModule({
       declarations: [OperatorLabelComponent],
+<<<<<<< HEAD
       imports: [CustomNgMaterialModule, NgbModule],
+=======
+      imports: [
+        CustomNgMaterialModule,
+        RouterTestingModule.withRoutes([]),
+        TourNgBootstrapModule.forRoot()
+      ],
+>>>>>>> 5e7f22bd976d3ac5a195ec621145d5965371c73d
       providers: [
         DragDropService,
         JointUIService,
         WorkflowUtilService,
         WorkflowActionService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+        TourService
       ]
     })
       .compileComponents();
