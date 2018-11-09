@@ -6,7 +6,7 @@ import { takeUntil } from 'rxjs/operators';
 
 
 import { OperatorSchema } from '../../../types/operator-schema.interface';
-import { NgbTooltipWindow, NgbTooltip } from '../../../../../../node_modules/@ng-bootstrap/ng-bootstrap/tooltip/tooltip';
+import { NgbTooltip } from '../../../../../../node_modules/@ng-bootstrap/ng-bootstrap/tooltip/tooltip';
 
 /**
  * OperatorLabelComponent is one operator box in the operator panel.

@@ -14,6 +14,7 @@ import { WorkflowActionService } from '../../../service/workflow-graph/model/wor
 import { TourService } from 'ngx-tour-ng-bootstrap';
 import { RouterTestingModule } from '@angular/router/testing';
 import { TourNgBootstrapModule } from 'ngx-tour-ng-bootstrap';
+import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
 
 describe('OperatorLabelComponent', () => {
   const mockOperatorData = mockOperatorSchemaList[0];
@@ -26,7 +27,8 @@ describe('OperatorLabelComponent', () => {
       imports: [
         CustomNgMaterialModule,
         RouterTestingModule.withRoutes([]),
-        TourNgBootstrapModule.forRoot()
+        TourNgBootstrapModule.forRoot(),
+        NgbModule
       ],
       providers: [
         DragDropService,
@@ -67,7 +69,7 @@ describe('OperatorLabelComponent', () => {
     expect(jqueryElement.data('uiDraggable')).toBeTruthy();
   });
 
-  it('should display operator description shortly after hovering on a operator label', () => {
+  fit('should display operator description shortly after hovering on a operator label', () => {
     const spy = spyOn<any>(component, 'mouseEnter');
     const operatorLabelElement = fixture.debugElement.query(By.css('#' + component.operatorLabelID));
     operatorLabelElement.triggerEventHandler('mouseenter', component);
@@ -75,7 +77,7 @@ describe('OperatorLabelComponent', () => {
     expect(mockOperatorData.additionalMetadata.operatorDescription).toContain(operatorLabelElement.attributes['ng-reflect-ngb-tooltip']);
   });
 
-  it('should hide operator descritption once the cursor leaves a operator label', () => {
+  fit('should hide operator descritption once the cursor leaves a operator label', () => {
     const spy = spyOn<any>(component, 'mouseLeave');
     const operatorLabelElement = fixture.debugElement.query(By.css('#' + component.operatorLabelID));
     operatorLabelElement.triggerEventHandler('mouseleave', component.tooltipWindow);
