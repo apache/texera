@@ -28,7 +28,7 @@ describe('OperatorLabelComponent', () => {
         CustomNgMaterialModule,
         RouterTestingModule.withRoutes([]),
         TourNgBootstrapModule.forRoot(),
-        NgbModule
+        NgbModule.forRoot()
       ],
       providers: [
         DragDropService,
@@ -69,7 +69,7 @@ describe('OperatorLabelComponent', () => {
     expect(jqueryElement.data('uiDraggable')).toBeTruthy();
   });
 
-  fit('should display operator description shortly after hovering on a operator label', () => {
+  it('should display operator description shortly after hovering on a operator label', () => {
     const spy = spyOn<any>(component, 'mouseEnter');
     const operatorLabelElement = fixture.debugElement.query(By.css('#' + component.operatorLabelID));
     operatorLabelElement.triggerEventHandler('mouseenter', component);
@@ -77,7 +77,7 @@ describe('OperatorLabelComponent', () => {
     expect(mockOperatorData.additionalMetadata.operatorDescription).toContain(operatorLabelElement.attributes['ng-reflect-ngb-tooltip']);
   });
 
-  fit('should hide operator descritption once the cursor leaves a operator label', () => {
+  it('should hide operator descritption once the cursor leaves a operator label', () => {
     const spy = spyOn<any>(component, 'mouseLeave');
     const operatorLabelElement = fixture.debugElement.query(By.css('#' + component.operatorLabelID));
     operatorLabelElement.triggerEventHandler('mouseleave', component.tooltipWindow);

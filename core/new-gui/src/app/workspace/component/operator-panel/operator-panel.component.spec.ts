@@ -41,7 +41,7 @@ describe('OperatorPanelComponent', () => {
         TourService
       ],
       imports: [CustomNgMaterialModule, BrowserAnimationsModule,
-                RouterTestingModule.withRoutes([]), TourNgBootstrapModule.forRoot(), NgbModule]
+                RouterTestingModule.withRoutes([]), TourNgBootstrapModule.forRoot(), NgbModule.forRoot()]
     })
       .compileComponents();
   }));
