@@ -46,7 +46,7 @@ export class OperatorLabelComponent implements OnInit, AfterViewInit {
     this.dragDropService.registerOperatorLabelDrag(this.operatorLabelID, this.operator.operatorType);
 
     this.mouseEnterSubject$.flatMap(v =>
-      of(v).delay(2000).pipe(takeUntil(this.mouseLeaveSubject$))
+      of(v).delay(500).pipe(takeUntil(this.mouseLeaveSubject$))
     ).subscribe(v => {
       if (this.tooltipWindow) {
         this.tooltipWindow.open();
