@@ -12,9 +12,7 @@ import { mockOperatorSchemaList } from '../../../service/operator-metadata/mock-
 import { By } from '@angular/platform-browser';
 import { WorkflowActionService } from '../../../service/workflow-graph/model/workflow-action.service';
 import { NgbModule, NgbTooltip} from '@ng-bootstrap/ng-bootstrap';
-import { DebugElement } from '../../../../../../node_modules/@angular/core';
-import { detectChanges } from '../../../../../../node_modules/@angular/core/src/render3';
-import { by } from '../../../../../../node_modules/protractor';
+
 
 describe('OperatorLabelComponent', () => {
   const mockOperatorData = mockOperatorSchemaList[0];
@@ -63,25 +61,23 @@ describe('OperatorLabelComponent', () => {
     expect(jqueryElement.data('uiDraggable')).toBeTruthy();
   });
 
-  xit('should display operator description shortly after hovering on a operator label', () => {
+  it('should display operator description shortly after hovering on a operator label', () => {
     // expect(component.t._ngbTooltip).toBe(mockOperatorData.additionalMetadata.operatorDescription);
 
-    const spy = spyOn<any>(component, 'displayDescription');
+    const spy = spyOn<any>(component, 'mouseEnter');
     const operatorLabelElement = fixture.debugElement.query(By.css('#' + component.operatorLabelID));
-    // operatorLabelElement.triggerEventHandler('mouseenter', component.t);
-
+    operatorLabelElement.triggerEventHandler('mouseenter', component);
 
     const tpWindow = fixture.debugElement.query(By.css('#ngb-tooltip-window'));
-    console.log(tpWindow); // unable to find tpWindow
+    // console.log(tpWindow); // unable to find tpWindow
     expect(spy).toHaveBeenCalled();
-
     expect(mockOperatorData.additionalMetadata.operatorDescription).toContain(operatorLabelElement.attributes['ng-reflect-ngb-tooltip']);
   });
 
-  xit('should hide operator descritption once the cursor leaves a operator label', () => {
-    const spy = spyOn<any>(component, 'hideDescription');
+  it('should hide operator descritption once the cursor leaves a operator label', () => {
+    const spy = spyOn<any>(component, 'mouseLeave');
     const operatorLabelElement = fixture.debugElement.query(By.css('#' + component.operatorLabelID));
-    // operatorLabelElement.triggerEventHandler('mouseleave', component.t);
+    operatorLabelElement.triggerEventHandler('mouseleave', component.tooltipWindow);
     expect(spy).toHaveBeenCalled();
   });
 

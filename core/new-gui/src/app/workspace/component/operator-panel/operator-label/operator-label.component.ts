@@ -27,8 +27,6 @@ export class OperatorLabelComponent implements AfterViewInit {
   private mouseEnterSubject$ = new Subject<void>();
   private mouseLeaveSubject$ = new Subject<void>();
 
-
-
   constructor(
     private dragDropService: DragDropService
   ) {
@@ -43,7 +41,7 @@ export class OperatorLabelComponent implements AfterViewInit {
     this.dragDropService.registerOperatorLabelDrag(this.operatorLabelID, this.operator.operatorType);
 
     this.mouseEnterSubject$.flatMap(v =>
-      of(v).delay(500).pipe(takeUntil(this.mouseLeaveSubject$))
+      of(v).delay(2000).pipe(takeUntil(this.mouseLeaveSubject$))
     ).subscribe(v => {
       if (this.tooltipWindow) {
         this.tooltipWindow.open();
