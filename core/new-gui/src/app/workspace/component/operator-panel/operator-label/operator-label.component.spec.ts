@@ -18,7 +18,6 @@ import { NgbModule, NgbTooltip} from '@ng-bootstrap/ng-bootstrap';
 import { TourService } from 'ngx-tour-ng-bootstrap';
 import { RouterTestingModule } from '@angular/router/testing';
 import { TourNgBootstrapModule } from 'ngx-tour-ng-bootstrap';
->>>>>>> 5e7f22bd976d3ac5a195ec621145d5965371c73d
 
 describe('OperatorLabelComponent', () => {
   const mockOperatorData = mockOperatorSchemaList[0];
