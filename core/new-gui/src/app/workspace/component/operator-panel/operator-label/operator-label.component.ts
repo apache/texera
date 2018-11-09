@@ -42,26 +42,16 @@ export class OperatorLabelComponent implements AfterViewInit {
     }
     this.dragDropService.registerOperatorLabelDrag(this.operatorLabelID, this.operator.operatorType);
 
-    this.mouseEnterSubject$.subscribe( v => {
-      console.log('ok');
+    this.mouseEnterSubject$.flatMap(v =>
+      of(v).delay(500).pipe(takeUntil(this.mouseLeaveSubject$))
+    ).subscribe(v => {
       if (this.tooltipWindow) {
-        console.log('open');
         this.tooltipWindow.open();
       }
     });
 
-    // this.mouseEnterSubject$.flatMap(v =>
-    //   of(v).delay(500).pipe(takeUntil(this.mouseLeaveSubject$))
-    // ).subscribe(v => {
-    //   if (this.tooltipWindow) {
-    //     console.log('open');
-    //     this.tooltipWindow.open();
-    //   }
-    // });
-
     this.mouseLeaveSubject$.subscribe(v => {
       if (this.tooltipWindow) {
-        console.log('close');
         this.tooltipWindow.close();
       }
     });
@@ -69,11 +59,9 @@ export class OperatorLabelComponent implements AfterViewInit {
 
   mouseEnter(): void {
     this.mouseEnterSubject$.next();
-    console.log('enter');
   }
 
   mouseLeave(): void {
     this.mouseLeaveSubject$.next();
-    console.log('leave');
   }
 }
