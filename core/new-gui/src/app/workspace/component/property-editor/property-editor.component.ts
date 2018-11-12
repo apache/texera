@@ -71,11 +71,8 @@ export class PropertyEditorComponent {
   // the current operator schema list, used to find the operator schema of current operator
   public operatorSchemaList: ReadonlyArray<OperatorSchema> = [];
 
-  // the list of names of all the source tables avaiable on the server
-  public sourceTableNames: ReadonlyArray<string> = [];
-
-  // the input schema of operators in the current workflow as returned by the autocomplete API
-  public operatorInputSchemaMap: JSONSchema4 = {};
+  // the operator data need to be stored if the Json Schema changes, else the currently modified changes will be lost
+  public cachedFormData: object | undefined;
 
   constructor(
     private workflowActionService: WorkflowActionService,
@@ -89,6 +86,8 @@ export class PropertyEditorComponent {
     this.autocompleteService.getAutocompleteAPIExecutedStream().subscribe(
       () => {
         if (this.currentOperatorID) {
+          // used the cached data as new schema's initial data
+          this.currentOperatorInitialData = this.cachedFormData;
           this.currentOperatorSchema = this.autocompleteService.findAutocompletedSchemaForOperator(
             this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorID));
         }
@@ -100,12 +99,8 @@ export class PropertyEditorComponent {
       // set the operator property to be the new form data
       if (this.currentOperatorID) {
         this.workflowActionService.setOperatorProperty(this.currentOperatorID, formData);
-
-        // Whenever an operator's property is changed like a tablename added to a source or spanList attribute
-        // name added to KeywordSearch, we invoke autocomplete API.
-        // TODO: the autocomplete API should be invoked only when the the property is changed. Currently,
-        //      it is being invoked even when a new operator is being created.
-         this.autocompleteService.invokeAutocompleteAPI(false);
+        // keep the latest change to the form data as cache
+        this.cachedFormData = formData;
       }
     });
 

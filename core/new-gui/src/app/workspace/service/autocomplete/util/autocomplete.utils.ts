@@ -26,10 +26,7 @@ export class AutocompleteUtils {
     }
     const message = response.message;
     const tablesList: ReadonlyArray<SourceTableDetails> = JSON.parse(message);
-    tablesList.forEach((table) => {
-      tableNames.push(table.tableName);
-    });
-    return tableNames;
+    return tablesList.map(table => table.tableName);
   }
 
   /**
@@ -47,25 +44,28 @@ export class AutocompleteUtils {
       return operatorMetadata;
     }
 
-    const operatorSchemaList: Array<OperatorSchema> = cloneDeep(operatorMetadata.operators.slice());
-    for (let i = 0; i < operatorSchemaList.length; i++) {
-        const jsonSchemaToModify = cloneDeep(operatorSchemaList[i].jsonSchema);
+    const operatorSchemaList: Array<OperatorSchema> = operatorMetadata.operators.map(
+      operator => {
+        const jsonSchemaToModify = cloneDeep(operator.jsonSchema);
         const operatorProperties = jsonSchemaToModify.properties;
         if (!operatorProperties) {
-          throw new Error(`Operator ${operatorSchemaList[i].operatorType} does not have properties in its schema`);
+          throw new Error(`Operator ${operator.operatorType} does not have properties in its schema`);
         }
-
+        // if the property contains a `tableName`, add the tableNames options to their json schema properties
+        //  and return a new Operator Schema.
         if (operatorProperties['tableName']) {
           operatorProperties['tableName'] = { type: 'string', enum: tablesNames.slice() };
 
           const newOperatorSchema: OperatorSchema = {
-            ...operatorSchemaList[i],
+            ...operator,
             jsonSchema: jsonSchemaToModify
           };
 
-          operatorSchemaList[i] = newOperatorSchema;
+          return newOperatorSchema;
         }
-    }
+        return operator;
+      }
+    );
 
     const operatorMetadataModified: OperatorMetadata = {
       ...operatorMetadata,
@@ -115,37 +115,6 @@ export class AutocompleteUtils {
     };
 
     return newOperatorSchema;
-  }
-
-   /**
-   * Transform a workflowGraph object to the HTTP request body according to the backend API.
-   *
-   * All the operators in the workflowGraph will be transformed to LogicalOperator objects,
-   *  where each operator has an operatorID and operatorType along with
-   *  the properties of the operator.
-   *
-   *
-   * All the links in the workflowGraph will be tranformed to LogicalLink objects,
-   *  where each link will store its source id as its origin and target id as its destination.
-   *
-   * @param workflowGraph
-   */
-  public static getLogicalPlanRequest(workflowGraph: WorkflowGraphReadonly): LogicalPlan {
-
-    const operators: LogicalOperator[] = workflowGraph
-      .getAllOperators().map(op => ({
-        ...op.operatorProperties,
-        operatorID: op.operatorID,
-        operatorType: op.operatorType
-      }));
-
-    const links: LogicalLink[] = workflowGraph
-      .getAllLinks().map(link => ({
-        origin: link.source.operatorID,
-        destination: link.target.operatorID
-      }));
-
-    return { operators, links };
   }
 
     /**

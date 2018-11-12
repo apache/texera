@@ -2,12 +2,9 @@ import { DragDropService } from './../../service/drag-drop/drag-drop.service';
 
 import { JointUIService } from './../../service/joint-ui/joint-ui.service';
 import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
-import { AutocompleteService } from '../../service/autocomplete/model/autocomplete.service';
 import { Component, AfterViewInit } from '@angular/core';
 import { Observable } from 'rxjs/Observable';
 import '../../../common/rxjs-operators';
-
-import { merge } from 'rxjs/observable/merge';
 
 import * as joint from 'jointjs';
 

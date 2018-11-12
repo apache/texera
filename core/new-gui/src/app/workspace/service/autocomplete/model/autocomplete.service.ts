@@ -15,6 +15,7 @@ import '../../../../common/rxjs-operators';
 import { combineLatest } from 'rxjs/observable/combineLatest';
 import { Subject } from 'rxjs/Subject';
 import { JSONSchema4 } from 'json-schema';
+import { ExecuteWorkflowService } from '../../execute-workflow/execute-workflow.service';
 
 export const SOURCE_TABLE_NAMES_ENDPOINT = 'resources/table-metadata';
 export const AUTOMATED_SCHEMA_PROPAGATION_ENDPOINT = 'queryplan/autocomplete';
@@ -50,6 +51,7 @@ export class AutocompleteService {
       metadata => { this.operatorSchemaList = metadata.operators; }
     );
 
+    this.handleTexeraGraphPropertyChangeEvent();
     this.handleTexeraGraphLinkChangeEvent();
   }
 
@@ -78,18 +80,18 @@ export class AutocompleteService {
    * contains the operator id).
    * @param operator the operator whose property is to be displayed in the property editor
    */
-  public findAutocompletedSchemaForOperator(operator: Readonly<OperatorPredicate>|undefined): OperatorSchema|undefined {
+  public findAutocompletedSchemaForOperator(operator: Readonly<OperatorPredicate>|undefined): OperatorSchema {
     if (!operator) {
       throw new Error(`autcomplete service:findAutocompletedSchemaForOperator - operator is undefined`);
     }
 
     const operatorSchema = this.operatorSchemaList.find(schema => schema.operatorType === operator.operatorType);
-    if (!(operator.operatorID in this.operatorInputSchemaMap)) {
-      return operatorSchema;
-    }
-
     if (!operatorSchema) {
       throw new Error(`operator schema for operator type ${operator.operatorType} doesn't exist`);
+    }
+
+    if (!(operator.operatorID in this.operatorInputSchemaMap)) {
+      return operatorSchema;
     }
 
     return AutocompleteUtils.addInputSchemaToOperatorSchema(operatorSchema, this.operatorInputSchemaMap[operator.operatorID]);
@@ -107,7 +109,7 @@ export class AutocompleteService {
     const workflowPlan = this.workflowActionService.getTexeraGraph();
 
     // create a Logical Plan based on the workflow graph
-    const body = AutocompleteUtils.getLogicalPlanRequest(workflowPlan);
+    const body = ExecuteWorkflowService.getLogicalPlanRequest(workflowPlan);
     const requestURL = `${AppSettings.getApiEndpoint()}/${AUTOMATED_SCHEMA_PROPAGATION_ENDPOINT}`;
 
     // make a http post request to the API endpoint with the logical plan object
@@ -167,6 +169,17 @@ export class AutocompleteService {
     Observable.merge(this.workflowActionService.getTexeraGraph().getLinkAddStream(),
       this.workflowActionService.getTexeraGraph().getLinkDeleteStream())
     .subscribe(() => this.invokeAutocompleteAPI(true));
+  }
+
+
+  /**
+   * Handles any kind of changes in the operator properties. Whenever an operator's porperty is changed, for instance
+   * a tableName is added to a source or spanList attribute name is added to Keyword Search, we invoke the auto-complete
+   * API.
+   */
+  private handleTexeraGraphPropertyChangeEvent(): void {
+    this.workflowActionService.getTexeraGraph().getOperatorPropertyChangeStream()
+      .subscribe(() => this.invokeAutocompleteAPI(false));
   }
 
 }
