@@ -10,7 +10,7 @@ import { WorkflowActionService } from './../../service/workflow-graph/model/work
 import { OperatorMetadataService } from './../../service/operator-metadata/operator-metadata.service';
 import { StubOperatorMetadataService } from './../../service/operator-metadata/stub-operator-metadata.service';
 import { JointUIService } from './../../service/joint-ui/joint-ui.service';
-import { SourceTableNamesAPIResponse } from '../../types/autocomplete.interface';
+import { SourceTableNamesAPIResponse, AutocompleteSucessResult } from '../../types/autocomplete.interface';
 
 
 import { mockOperatorSchemaList } from './../../service/operator-metadata/mock-operator-metadata.data';
@@ -32,6 +32,10 @@ class StubHttpClient {
 
   public get<T>(url: string): Observable<SourceTableNamesAPIResponse> {
       return Observable.of(mockSourceTableAPIResponse);
+  }
+
+  public post<T>(): Observable<AutocompleteSucessResult> {
+    return Observable.of(mockAutocompleteAPISchemaSuggestionResponse);
   }
 
 }
