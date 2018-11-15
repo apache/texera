@@ -63,15 +63,15 @@ export class OperatorLabelComponent implements OnInit, AfterViewInit {
     });
   }
 
-  getopenCommandsObservable(): Observable<void> {
+  public getopenCommandsObservable(): Observable<void> {
     return this.openCommandsObservable$;
   }
 
-  mouseEnter(): void {
+  public mouseEnter(): void {
     this.mouseEnterSubject$.next();
   }
 
-  mouseLeave(): void {
+  public mouseLeave(): void {
     this.mouseLeaveSubject$.next();
   }
 }
