@@ -79,7 +79,7 @@ describe('OperatorLabelComponent', () => {
     expect(spy).toHaveBeenCalled();
   });
 
-  fit('should call the mouseLeave function once the cursor leaves a operator label', () => {
+  it('should call the mouseLeave function once the cursor leaves a operator label', () => {
     const spy = spyOn<any>(component, 'mouseLeave');
     const operatorLabelElement = fixture.debugElement.query(By.css('#' + component.operatorLabelID));
     operatorLabelElement.triggerEventHandler('mouseleave', component);
