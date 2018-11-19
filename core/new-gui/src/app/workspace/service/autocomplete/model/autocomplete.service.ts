@@ -21,6 +21,8 @@ import { OperatorPredicate } from '../../../types/workflow-common.interface';
 export const SOURCE_TABLE_NAMES_ENDPOINT = 'resources/table-metadata';
 export const AUTOMATED_SCHEMA_PROPAGATION_ENDPOINT = 'queryplan/autocomplete';
 
+import * as Ajv from 'ajv';
+
 /**
  * Autocomplete service is used for the purpose of automated schema propagation. The service does
  * following tasks: -
@@ -147,6 +149,67 @@ export class AutocompleteService {
       );
   }
 
+    /**
+   * This method uses `Another JSON Schema Validator` library to check if the data passed
+   *  into the method satisfy the constraint set by the Json Schema for an operator
+   *
+   * https://github.com/epoberezkin/ajv
+   *
+   * @param schema json schema of an operator
+   * @param data data to check
+   */
+  public validateJsonSchema(operator: OperatorPredicate, schema: OperatorSchema, data: object): void {
+    const ajv = new Ajv({ schemaId : 'auto' });
+    // only supports version 4 json schema currently
+    ajv.addMetaSchema(require('ajv/lib/refs/json-schema-draft-04.json'));
+    const valid = ajv.validate(schema.jsonSchema, data);
+    if (!valid) {
+      this.handleInvalidSchema(operator, ajv.errors);
+    }
+  }
+
+  /**
+   * This method handles the scenario when calling ajv.validate() on operator properties using
+   *  new json schema return invalid. This method will fetch all the fields that contain errors,
+   *  currently only 'attributes' and 'attribute', and create a new object that does not
+   *  contains these fields generating errors.
+   *
+   * This method will call 'workflowActionService.setOperatorProperty()' to update the operator's property
+   *
+   * @param operator operator that does not satisfy the new schema
+   * @param schemaError the schema error returned by Ajv
+   */
+  private handleInvalidSchema(operator: OperatorPredicate, schemaError: Ajv.ErrorObject[] | undefined): void {
+    if (!schemaError) {
+      throw new Error(`schema error does not exist for operator ${operator.operatorID}`);
+    }
+    const attribute_list_key_in_schemajson = 'attributes';
+    const single_attribute_in_schemajson = 'attribute';
+    const propertiesToRemove: Array<String> = [];
+    schemaError.forEach(error => {
+      const errorPath: string = error.dataPath;
+      if (errorPath.includes(attribute_list_key_in_schemajson)) {
+        propertiesToRemove.push(attribute_list_key_in_schemajson);
+      } else if (errorPath.includes(single_attribute_in_schemajson)) {
+        propertiesToRemove.push(single_attribute_in_schemajson);
+      }
+    });
+
+    // create new object that does not include the key-value pairs to remove
+    // property = key-value pair in the properties. Ex: {'matchingType' : 'scan'}
+    const newProperties = Object.entries(operator.operatorProperties)
+      .filter(property => !(propertiesToRemove.includes(property[0])))
+      .reduce((newObject, property) => {
+        return {
+          ...newObject,
+          [property[0]]: property[1]
+        };
+      }, {});
+
+    // update the operator's properties
+    this.workflowActionService.setOperatorProperty(operator.operatorID, newProperties);
+  }
+
   /**
    * Handles valid execution result from the backend.
    * Updates the current autocompleted schema by checking
@@ -166,25 +229,26 @@ export class AutocompleteService {
   private handleExecuteResult(response: AutocompleteSucessResult): void {
     this.dynamicSchemaMap.forEach((value, operatorID, map) => {
       const currentPredicate = this.workflowActionService.getTexeraGraph().getOperator(operatorID);
+      if (!currentPredicate) {
+        throw new Error(`operator predicate for operator ID ${operatorID} doesn't exist in handleExecuteResult`);
+      }
+      const operatorSchema = this.operatorSchemaList.find(schema => schema.operatorType === currentPredicate.operatorType);
+      if (!operatorSchema) {
+        throw new Error(`operator schema for operator type ${currentPredicate.operatorType} doesn't exist in handleExecuteResult`);
+      }
       if (!response.result[operatorID]) {
         // case1: if the old attributes does not exist in the new attributes, update the dynamic schema to use
         //  default schema from the operatorSchemaList
-        if (currentPredicate) {
-          const operatorSchema = this.operatorSchemaList.find(schema => schema.operatorType === currentPredicate.operatorType);
-          if (operatorSchema && operatorSchema !== this.dynamicSchemaMap.get(operatorID)) {
-            this.dynamicSchemaMap.set(operatorID, operatorSchema);
-            this.operatorSchemaChangedStream.next(operatorID);
-          }
+        if (!isEqual(operatorSchema, this.dynamicSchemaMap.get(operatorID))) {
+          this.dynamicSchemaMap.set(operatorID, operatorSchema);
+          this.operatorSchemaChangedStream.next(operatorID);
         }
       } else {
         // case2: if the a newSchema is different from the dynamic Schema, update the dynamic schema
-        if (currentPredicate) {
-          const operatorSchema = this.operatorSchemaList.find(schema => schema.operatorType === currentPredicate.operatorType);
-          const newSchema = this.generateAutoCompleteSchemaForOperator(operatorSchema, response.result[operatorID]);
-          if (!isEqual(newSchema, this.dynamicSchemaMap.get(operatorID))) {
-            this.dynamicSchemaMap.set(operatorID, newSchema);
-            this.operatorSchemaChangedStream.next(operatorID);
-          }
+        const newSchema = this.generateAutoCompleteSchemaForOperator(operatorSchema, response.result[operatorID]);
+        if (!isEqual(newSchema, this.dynamicSchemaMap.get(operatorID))) {
+          this.dynamicSchemaMap.set(operatorID, newSchema);
+          this.operatorSchemaChangedStream.next(operatorID);
         }
       }
     });
@@ -238,9 +302,10 @@ export class AutocompleteService {
     this.workflowActionService.getTexeraGraph().getOperatorAddStream()
       .subscribe(operator => {
         const operatorSchema = this.operatorSchemaList.find(schema => schema.operatorType === operator.operatorType);
-        if (operatorSchema) {
-          this.dynamicSchemaMap.set(operator.operatorID, operatorSchema);
+        if (!operatorSchema) {
+          throw new Error(`operator schema for operator type ${operator.operatorType} doesn't exist in handleOperatorAddEvent`);
         }
+        this.dynamicSchemaMap.set(operator.operatorID, operatorSchema);
       });
   }
 

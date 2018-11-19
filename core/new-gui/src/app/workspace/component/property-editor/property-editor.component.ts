@@ -8,7 +8,6 @@ import { Subject } from 'rxjs/Subject';
 import { Observable } from 'rxjs/Observable';
 import '../../../common/rxjs-operators';
 
-import * as Ajv from 'ajv';
 
 // all lodash import should follow this parttern
 // import `functionName` from `lodash-es/functionName`
@@ -87,39 +86,32 @@ export class PropertyEditorComponent {
     this.autocompleteService.getOperatorSchemaChangedStream().subscribe(
       operatorID => {
         if (this.currentOperatorID) {
-          //  Check if the operator's property are still all valid. If a property is not valid anymore,
-          //   remove the property of the operator in WorkflowGraph.
           const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorID);
           if (!operator) {
-            throw new Error(`Operator is undefined`);
+            throw new Error(`operator predicate for operator ID ${operatorID} doesn't exist`);
           }
           const schemaChanged = this.autocompleteService.getDynamicSchema(operator);
-          const valid = this.validateJsonSchema(schemaChanged, operator.operatorProperties);
-
-          // change the current operator data displaying in the property panel if the changed schema
-          //  belongs to the current operator.
+          //  Check if the operator's property are still all valid. If a property is not valid anymore,
+          //   remove the property of the operator in WorkflowGraph.
+          this.autocompleteService.validateJsonSchema(operator, schemaChanged, operator.operatorProperties);
           if (operatorID === this.currentOperatorID) {
-            // if  operator's properties is still valid for the new schema
-            if (valid) {
-              // use the current operator's properties as new schema's initial data
-              this.currentOperatorInitialData = operator.operatorProperties;
-            } else {
-              // remove the properties that do not satisfy the new schema in the graph
-              this.currentOperatorInitialData = {};
-            }
             this.currentOperatorSchema = schemaChanged;
-          } else {
-            // if the schema changed is not for the current operator, set that operator's property to empty
-            if (!valid) {
-              this.workflowActionService.setOperatorProperty(operatorID, {});
-            }
           }
         }
       }
     );
 
+    // when the operator's property is updated via program instead of user updating the json schema form,
+    //  this observable will be responsible in handling these events.
+    this.workflowActionService.getTexeraGraph().getOperatorPropertyChangeStream()
+      .filter(operatorChanged => operatorChanged.operator.operatorID === this.currentOperatorID)
+      .subscribe(operatorChanged => {
+        this.currentOperatorInitialData = cloneDeep(operatorChanged.operator.operatorProperties);
+      });
+
     // handle the form change event to actually set the operator property
-    this.outputFormChangeEventStream.subscribe(formData => {
+    this.outputFormChangeEventStream
+    .subscribe(formData => {
       // set the operator property to be the new form data
       if (this.currentOperatorID) {
         this.workflowActionService.setOperatorProperty(this.currentOperatorID, formData);
@@ -129,20 +121,6 @@ export class PropertyEditorComponent {
     // handle highlight / unhighlight event to show / hide the property editor form
     this.handleHighlightEvents();
 
-  }
-
-  /**
-   * This method uses `Another JSON Schema Validator` library to check if the data passed
-   *  into the method satisfy the constraint set by the Json Schema for an operator
-   *
-   * https://github.com/epoberezkin/ajv
-   *
-   * @param schema json schema of an operator
-   * @param data data to check
-   */
-  public validateJsonSchema(schema: OperatorSchema, data: object): boolean | PromiseLike<any> {
-    const ajv = new Ajv({ schemaId : 'auto' });
-    return ajv.validate(schema.jsonSchema, data);
   }
 
   /**
