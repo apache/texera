@@ -3,11 +3,6 @@ import { OperatorMetadata, OperatorSchema } from '../../../types/operator-schema
 import { SourceTableNamesAPIResponse } from '../../../types/autocomplete.interface';
 import { SourceTableDetails, AutocompleteErrorResult } from '../../../types/autocomplete.interface';
 
-import { WorkflowGraphReadonly } from '../../workflow-graph/model/workflow-graph';
-import {
-  LogicalLink, LogicalPlan, LogicalOperator,
-} from '../../../types/execute-workflow.interface';
-
 import cloneDeep from 'lodash-es/cloneDeep';
 
 export class AutocompleteUtils {

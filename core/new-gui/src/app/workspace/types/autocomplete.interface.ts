@@ -1,4 +1,4 @@
-import { JSONSchema4 } from 'json-schema';
+import { OperatorSchema } from './operator-schema.interface';
 
 /**
  * The type decalaration of the response sent by **backend** when
@@ -26,10 +26,21 @@ export interface SourceTableAttribute extends Readonly <{
 /**
  * The backend interface of the return object of a successful execution
  * of autocomplete API
+ *
+ * An example data format for AutocompleteSucessResult will look like:
+ * {
+ *  code: 0,
+ *  result: {
+ *    'operatorID1' : ['attribute1','attribute2','attribute3'],
+ *    'operatorID3' : ['name', 'text', 'follower_count']
+ *  }
+ * }
  */
 export interface AutocompleteSucessResult extends Readonly<{
   code: 0,
-  result: JSONSchema4
+  result: {
+    [key: string]: string[]
+  }
 }> { }
 
 /**

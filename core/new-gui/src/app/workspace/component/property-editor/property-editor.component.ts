@@ -8,12 +8,13 @@ import { Subject } from 'rxjs/Subject';
 import { Observable } from 'rxjs/Observable';
 import '../../../common/rxjs-operators';
 
+import * as Ajv from 'ajv';
+
 // all lodash import should follow this parttern
 // import `functionName` from `lodash-es/functionName`
 // to import only the function that we use
 import cloneDeep from 'lodash-es/cloneDeep';
 import isEqual from 'lodash-es/isEqual';
-import { JSONSchema4 } from 'json-schema';
 
 /**
  * PropertyEditorComponent is the panel that allows user to edit operator properties.
@@ -83,13 +84,36 @@ export class PropertyEditorComponent {
       metadata => { this.operatorSchemaList = metadata.operators; }
     );
 
-    this.autocompleteService.getAutocompleteAPIExecutedStream().subscribe(
-      () => {
+    this.autocompleteService.getOperatorSchemaChangedStream().subscribe(
+      operatorID => {
         if (this.currentOperatorID) {
-          // used the cached data as new schema's initial data
-          this.currentOperatorInitialData = this.cachedFormData;
-          this.currentOperatorSchema = this.autocompleteService.findAutocompletedSchemaForOperator(
-            this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorID));
+          //  Check if the operator's property are still all valid. If a property is not valid anymore,
+          //   remove the property of the operator in WorkflowGraph.
+          const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorID);
+          if (!operator) {
+            throw new Error(`Operator is undefined`);
+          }
+          const schemaChanged = this.autocompleteService.getDynamicSchema(operator);
+          const valid = this.validateJsonSchema(schemaChanged, operator.operatorProperties);
+
+          // change the current operator data displaying in the property panel if the changed schema
+          //  belongs to the current operator.
+          if (operatorID === this.currentOperatorID) {
+            // if  operator's properties is still valid for the new schema
+            if (valid) {
+              // use the current operator's properties as new schema's initial data
+              this.currentOperatorInitialData = operator.operatorProperties;
+            } else {
+              // remove the properties that do not satisfy the new schema in the graph
+              this.currentOperatorInitialData = {};
+            }
+            this.currentOperatorSchema = schemaChanged;
+          } else {
+            // if the schema changed is not for the current operator, set that operator's property to empty
+            if (!valid) {
+              this.workflowActionService.setOperatorProperty(operatorID, {});
+            }
+          }
         }
       }
     );
@@ -99,14 +123,26 @@ export class PropertyEditorComponent {
       // set the operator property to be the new form data
       if (this.currentOperatorID) {
         this.workflowActionService.setOperatorProperty(this.currentOperatorID, formData);
-        // keep the latest change to the form data as cache
-        this.cachedFormData = formData;
       }
     });
 
     // handle highlight / unhighlight event to show / hide the property editor form
     this.handleHighlightEvents();
 
+  }
+
+  /**
+   * This method uses `Another JSON Schema Validator` library to check if the data passed
+   *  into the method satisfy the constraint set by the Json Schema for an operator
+   *
+   * https://github.com/epoberezkin/ajv
+   *
+   * @param schema json schema of an operator
+   * @param data data to check
+   */
+  public validateJsonSchema(schema: OperatorSchema, data: object): boolean | PromiseLike<any> {
+    const ajv = new Ajv({ schemaId : 'auto' });
+    return ajv.validate(schema.jsonSchema, data);
   }
 
   /**
@@ -148,7 +184,7 @@ export class PropertyEditorComponent {
 
     // set the operator data needed
     this.currentOperatorID = operator.operatorID;
-    this.currentOperatorSchema = this.autocompleteService.findAutocompletedSchemaForOperator(operator);
+    this.currentOperatorSchema = this.autocompleteService.getDynamicSchema(operator);
     if (!this.currentOperatorSchema) {
       throw new Error(`operator schema for operator type ${operator.operatorType} doesn't exist`);
     }

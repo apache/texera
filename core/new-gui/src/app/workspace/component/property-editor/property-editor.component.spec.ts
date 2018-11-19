@@ -87,6 +87,7 @@ describe('PropertyEditorComponent', () => {
    *  get the operator data (id, property, and metadata), and then display the form.
    */
   it('should change the content of property editor from an empty panel correctly', () => {
+
     const predicate = mockScanPredicate;
     const currentSchema = component.operatorSchemaList.find(schema => schema.operatorType === predicate.operatorType);
 
@@ -197,8 +198,7 @@ describe('PropertyEditorComponent', () => {
     jointGraphWrapper.highlightOperator(mockScanPredicate.operatorID);
 
     spyOn(autocompleteService, 'invokeAutocompleteAPI').and.callFake( () => {
-      autocompleteService.operatorInputSchemaMap = mockAutocompleteAPISchemaSuggestionResponse.result;
-      (autocompleteService as any).autocompleteAPIExecutedStream.next('Autocomplete response success');
+      (autocompleteService as any).handleExecuteResult(mockAutocompleteAPISchemaSuggestionResponse);
     }
     );
 
@@ -308,8 +308,7 @@ describe('PropertyEditorComponent', () => {
     const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
     spyOn(autocompleteService, 'invokeAutocompleteAPI').and.callFake( () => {
-      autocompleteService.operatorInputSchemaMap = mockAutocompleteAPISchemaSuggestionResponse.result;
-      (autocompleteService as any).autocompleteAPIExecutedStream.next('Autocomplete response success');
+      (autocompleteService as any).handleExecuteResult(mockAutocompleteAPISchemaSuggestionResponse);
     }
     );
 

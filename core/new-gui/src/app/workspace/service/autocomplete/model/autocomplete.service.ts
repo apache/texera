@@ -5,7 +5,6 @@ import { AppSettings } from '../../../../common/app-setting';
 import { SourceTableNamesAPIResponse, AutocompleteSucessResult } from '../../../types/autocomplete.interface';
 
 import { AutocompleteUtils } from '../util/autocomplete.utils';
-import { OperatorPredicate } from '../../../types/workflow-common.interface';
 import { OperatorMetadata, OperatorSchema } from '../../../types/operator-schema.interface';
 import { OperatorMetadataService } from '../../operator-metadata/operator-metadata.service';
 import { WorkflowActionService } from '../../workflow-graph/model/workflow-action.service';
@@ -14,8 +13,10 @@ import '../../../../common/rxjs-operators';
 
 import { combineLatest } from 'rxjs/observable/combineLatest';
 import { Subject } from 'rxjs/Subject';
-import { JSONSchema4 } from 'json-schema';
+import isEqual from 'lodash-es/isEqual';
+
 import { ExecuteWorkflowService } from '../../execute-workflow/execute-workflow.service';
+import { OperatorPredicate } from '../../../types/workflow-common.interface';
 
 export const SOURCE_TABLE_NAMES_ENDPOINT = 'resources/table-metadata';
 export const AUTOMATED_SCHEMA_PROPAGATION_ENDPOINT = 'queryplan/autocomplete';
@@ -29,10 +30,17 @@ export const AUTOMATED_SCHEMA_PROPAGATION_ENDPOINT = 'queryplan/autocomplete';
  */
 @Injectable()
 export class AutocompleteService {
-  // the input schema of operators in the current workflow as returned by the autocomplete API
-  public operatorInputSchemaMap: JSONSchema4 = {};
+  // the input schema of operators in the current workflow as returned by the autocomplete API.
+  // This map will be used to get the propagated operator schema.
+  // This is an example state of dynamicSchemaMap:
+  // {
+  //   'operatorID2' : newAutoCompleteGenerated_OperatorSchema,
+  //   'operatorID3' : newAutoCompleteGenerated_OperatorSchema2
+  // }
+  private dynamicSchemaMap: Map<string, OperatorSchema> = new Map<string, OperatorSchema> ();
 
-  private autocompleteAPIExecutedStream = new Subject<string>();
+  // this stream is used to capture the event when json schema is changed
+  private operatorSchemaChangedStream: Subject<string> = new Subject<string> ();
 
   // the operator schema list with source table names added in source operators
   private operatorSchemaList: ReadonlyArray<OperatorSchema> = [];
@@ -51,8 +59,13 @@ export class AutocompleteService {
       metadata => { this.operatorSchemaList = metadata.operators; }
     );
 
+    // property change event
     this.handleTexeraGraphPropertyChangeEvent();
     this.handleTexeraGraphLinkChangeEvent();
+
+    // add / delete event
+    this.handleOperatorAddEvent();
+    this.handleOperatorDeleteEvent();
   }
 
   /**
@@ -71,30 +84,39 @@ export class AutocompleteService {
    * Returns the observable which outputs a string everytime the autocomplete API is
    * invoked and response is received successfully.
    */
-  public getAutocompleteAPIExecutedStream(): Observable<string> {
-    return this.autocompleteAPIExecutedStream.asObservable();
+  public getOperatorSchemaChangedStream(): Observable<string> {
+    return this.operatorSchemaChangedStream.asObservable();
+  }
+
+  /**
+   * Based on the operatorID, get the current dynamic operator schema that is created through autocomplete
+   * @param operatorID The ID of an operator
+   */
+  public getDynamicSchema(operator: Readonly<OperatorPredicate>): OperatorSchema {
+    const dynamicSchema = this.dynamicSchemaMap.get(operator.operatorID);
+    if (dynamicSchema !== undefined) {
+      return dynamicSchema;
+    }
+    const operatorSchema = this.operatorSchemaList.find(schema => schema.operatorType === operator.operatorType);
+    if (!operatorSchema) {
+      throw new Error(`operator schema for operator type ${operator.operatorType} doesn't exist`);
+    }
+    return  operatorSchema;
   }
 
   /**
    * Modifies the schema of the operator according to autocomplete information obtained from the backend (if autcomplete info
    * contains the operator id).
-   * @param operator the operator whose property is to be displayed in the property editor
+   * @param operatorSchema the original operator schema
+   * @param inputs new input attributes for the operator schema
    */
-  public findAutocompletedSchemaForOperator(operator: Readonly<OperatorPredicate>|undefined): OperatorSchema {
-    if (!operator) {
-      throw new Error(`autcomplete service:findAutocompletedSchemaForOperator - operator is undefined`);
-    }
-
-    const operatorSchema = this.operatorSchemaList.find(schema => schema.operatorType === operator.operatorType);
+  public generateAutoCompleteSchemaForOperator(operatorSchema: Readonly<OperatorSchema> | undefined,
+      inputs: string[]) {
     if (!operatorSchema) {
-      throw new Error(`operator schema for operator type ${operator.operatorType} doesn't exist`);
+      throw new Error(`operator schema doesn't exist`);
     }
 
-    if (!(operator.operatorID in this.operatorInputSchemaMap)) {
-      return operatorSchema;
-    }
-
-    return AutocompleteUtils.addInputSchemaToOperatorSchema(operatorSchema, this.operatorInputSchemaMap[operator.operatorID]);
+    return AutocompleteUtils.addInputSchemaToOperatorSchema(operatorSchema, inputs);
   }
 
   /**
@@ -104,7 +126,7 @@ export class AutocompleteService {
    * that users can easily set the properties of the next operator. For eg: If there are two operators Source:Scan and KeywordSearch and
    * a link is created between them, the attributed of the table selected in Source can be propagated to the KeywordSearch operator.
    */
-  public invokeAutocompleteAPI(reloadCurrentOperatorSchema: boolean): void {
+  public invokeAutocompleteAPI(): void {
     // get the current workflow graph
     const workflowPlan = this.workflowActionService.getTexeraGraph();
 
@@ -120,25 +142,52 @@ export class AutocompleteService {
       .subscribe(
         // backend will either respond an execution result or an error will occur
         // handle both cases
-        response => this.handleExecuteResult(response, reloadCurrentOperatorSchema),
+        response => this.handleExecuteResult(response),
         errorResponse => this.handleExecuteError(errorResponse)
       );
   }
 
   /**
    * Handles valid execution result from the backend.
-   * Updates the current autocompleted schema. A value is inserted into 'autocompleteAPIExecutedStream' only
-   * if the current operator schema is to be reloaded (which is the case when a link is connected/deleted/disconnected)
-   * someplace in the workflow. However, if the operator's property is being changed, the autocomplete API is to be called,
-   * but the operator schema doesn't have to be reloaded.
+   * Updates the current autocompleted schema by checking
+   *  1. does the input attributes existing in the dynamic schema map still exist in the new result?
+   *      If not, revert the dynamic schema to the default operator schema
+   *  2. does the input attributes coming from the new result differs from that of dynamic schema map?
+   *      If it does differ, update dynamic schema to use the new schema generated by using the new
+   *      input attributes passed from the backend response.
+   * Both of these scenario will pass operator changed and its new schema to `operatorSchemaChangedStream`.
+   *  At another end, it will check if the original data is valid for the newly generated operator Schema.
+   *  If invalid, the properties of that operator inside the workflow will be cleared. Also, if the operator
+   *  changed is the current operator in the property panel, the operator schema is the property panel will
+   *  be reloaded.
    *
-   * @param response
+   * @param response response from the backend containing a map of operatorID to input attributes for autocomplete
    */
-  private handleExecuteResult(response: AutocompleteSucessResult, reloadCurrentOperatorSchema: boolean): void {
-    this.operatorInputSchemaMap = response.result;
-    if (reloadCurrentOperatorSchema) {
-      this.autocompleteAPIExecutedStream.next('Autocomplete response success');
-    }
+  private handleExecuteResult(response: AutocompleteSucessResult): void {
+    this.dynamicSchemaMap.forEach((value, operatorID, map) => {
+      const currentPredicate = this.workflowActionService.getTexeraGraph().getOperator(operatorID);
+      if (!response.result[operatorID]) {
+        // case1: if the old attributes does not exist in the new attributes, update the dynamic schema to use
+        //  default schema from the operatorSchemaList
+        if (currentPredicate) {
+          const operatorSchema = this.operatorSchemaList.find(schema => schema.operatorType === currentPredicate.operatorType);
+          if (operatorSchema && operatorSchema !== this.dynamicSchemaMap.get(operatorID)) {
+            this.dynamicSchemaMap.set(operatorID, operatorSchema);
+            this.operatorSchemaChangedStream.next(operatorID);
+          }
+        }
+      } else {
+        // case2: if the a newSchema is different from the dynamic Schema, update the dynamic schema
+        if (currentPredicate) {
+          const operatorSchema = this.operatorSchemaList.find(schema => schema.operatorType === currentPredicate.operatorType);
+          const newSchema = this.generateAutoCompleteSchemaForOperator(operatorSchema, response.result[operatorID]);
+          if (!isEqual(newSchema, this.dynamicSchemaMap.get(operatorID))) {
+            this.dynamicSchemaMap.set(operatorID, newSchema);
+            this.operatorSchemaChangedStream.next(operatorID);
+          }
+        }
+      }
+    });
   }
 
     /**
@@ -168,7 +217,7 @@ export class AutocompleteService {
   private handleTexeraGraphLinkChangeEvent(): void {
     Observable.merge(this.workflowActionService.getTexeraGraph().getLinkAddStream(),
       this.workflowActionService.getTexeraGraph().getLinkDeleteStream())
-    .subscribe(() => this.invokeAutocompleteAPI(true));
+    .subscribe(() => this.invokeAutocompleteAPI());
   }
 
 
@@ -179,7 +228,32 @@ export class AutocompleteService {
    */
   private handleTexeraGraphPropertyChangeEvent(): void {
     this.workflowActionService.getTexeraGraph().getOperatorPropertyChangeStream()
-      .subscribe(() => this.invokeAutocompleteAPI(false));
+      .subscribe(() => this.invokeAutocompleteAPI());
+  }
+
+  /**
+   * Handles the operator add event by adding the operator schema into the dynamic schema map.
+   */
+  private handleOperatorAddEvent(): void {
+    this.workflowActionService.getTexeraGraph().getOperatorAddStream()
+      .subscribe(operator => {
+        const operatorSchema = this.operatorSchemaList.find(schema => schema.operatorType === operator.operatorType);
+        if (operatorSchema) {
+          this.dynamicSchemaMap.set(operator.operatorID, operatorSchema);
+        }
+      });
+  }
+
+  /**
+   * Handles the operator delete event by removing the operator schema from the dynamic schema map.
+   */
+  private handleOperatorDeleteEvent(): void {
+    this.workflowActionService.getTexeraGraph().getOperatorDeleteStream()
+      .subscribe(operator => {
+        if (this.dynamicSchemaMap.has(operator.deletedOperator.operatorID)) {
+          this.dynamicSchemaMap.delete(operator.deletedOperator.operatorID);
+        }
+      });
   }
 
 }
