@@ -15,9 +15,7 @@ import { TourService } from 'ngx-tour-ng-bootstrap';
 import { RouterTestingModule } from '@angular/router/testing';
 import { TourNgBootstrapModule } from 'ngx-tour-ng-bootstrap';
 import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
-import { HotObservable } from '../../../../../../node_modules/rxjs/internal/testing/HotObservable';
 import { marbles } from '../../../../../../node_modules/rxjs-marbles';
-import { by } from '../../../../../../node_modules/protractor';
 
 describe('OperatorLabelComponent', () => {
   const mockOperatorData = mockOperatorSchemaList[0];
@@ -88,25 +86,25 @@ describe('OperatorLabelComponent', () => {
 
   it('should emits a command to open an tooltip instance after 500ms delay', marbles((m) => {
     const expectedStream = m.hot('500ms -a-');
-    const actualStream = component.getopenCommandsObservable().map(() => 'a');
+    const actualStream = component.getopenCommandsStream().map(() => 'a');
     m.hot('-a-').do(() => component.mouseEnter()).subscribe();
     m.expect(actualStream).toBeObservable(expectedStream);
   }));
 
   it('should display a tooltip instance with the correct content when openCommandObservable$ emits a value', marbles((m) => {
     const operatorLabelElement = fixture.debugElement.query(By.css('#' + component.operatorLabelID));
-    m.hot('-a-').do(() => component.mouseEnter()).subscribe();
-    component.getopenCommandsObservable().subscribe(x => {
+    component.getopenCommandsStream().subscribe(x => {
       if (operatorLabelElement.parent) {
         const tooltipInstance = operatorLabelElement.parent.childNodes[1].nativeNode;
         expect(tooltipInstance.innerText).toBe(mockOperatorData.additionalMetadata.operatorDescription);
       }
     });
+    m.hot('-a-').do(() => component.mouseEnter()).subscribe();
   }));
 
   it('should not emits a command to open tooltip instance if the cursor has left the operator label', marbles((m) => {
     const expectedStream_1 = m.hot('-----');
-    const actualStream_1 = component.getopenCommandsObservable().map(() => 'a');
+    const actualStream_1 = component.getopenCommandsStream().map(() => 'a');
     m.hot('-a-----').do(() => component.mouseEnter()).subscribe();
     m.hot('---b---').do(() => component.mouseLeave()).subscribe();
     m.expect(actualStream_1).toBeObservable(expectedStream_1);
@@ -114,19 +112,22 @@ describe('OperatorLabelComponent', () => {
 
   it('should hide the tooltip instance if cursor leaves the operator label', marbles((m) => {
     const operatorLabelElement = fixture.debugElement.query(By.css('#' + component.operatorLabelID));
-    m.hot('-a-').do(() => component.mouseEnter()).subscribe();
-    component.getopenCommandsObservable().subscribe(x => {
+    component.getopenCommandsStream().subscribe(() => {
       if (operatorLabelElement.parent) {
         const tooltipInstance = operatorLabelElement.parent.childNodes[1].nativeNode;
         expect(tooltipInstance).not.toBeNull();
         expect(operatorLabelElement.parent.childNodes.length).toBe(2);
       }
     });
+    m.hot('-a-').do(() => component.mouseEnter()).subscribe();
 
-    m.hot('-b-').do(() => component.mouseLeave()).subscribe();
-    if (operatorLabelElement.parent) {
-      expect(operatorLabelElement.parent.childNodes.length).toBe(1);
-    }
+    component.getmouseLeaveEventStream().subscribe(() => {
+      if (operatorLabelElement.parent) {
+        expect(operatorLabelElement.parent.childNodes.length).toBe(1);
+      }
+    });
+    m.hot('600ms b-').do(() => component.mouseLeave()).subscribe();
+
   }));
 
   // TODO: simulate drag and drop in tests, possibly using jQueryUI Simulate plugin

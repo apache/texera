@@ -24,9 +24,9 @@ export class OperatorLabelComponent implements OnInit, AfterViewInit {
   @Input() operator?: OperatorSchema;
   public operatorLabelID?: string;
 
-  private mouseEnterSubject$ = new Subject<void>();
-  private mouseLeaveSubject$ = new Subject<void>();
-  private openCommandsObservable$ = new Observable<void>();
+  private mouseEnterEventStream = new Subject<void>();
+  private mouseLeaveEventStream = new Subject<void>();
+  private openCommandsStream = new Observable<void>();
 
   constructor(
     private dragDropService: DragDropService
@@ -46,32 +46,36 @@ export class OperatorLabelComponent implements OnInit, AfterViewInit {
     }
     this.dragDropService.registerOperatorLabelDrag(this.operatorLabelID, this.operator.operatorType);
 
-    this.openCommandsObservable$ = this.mouseEnterSubject$.flatMap(v =>
-      of(v).delay(500).pipe(takeUntil(this.mouseLeaveSubject$))
+    this.openCommandsStream = this.mouseEnterEventStream.flatMap(v =>
+      of(v).delay(500).pipe(takeUntil(this.mouseLeaveEventStream))
     );
 
-    this.openCommandsObservable$.subscribe(v => {
+    this.openCommandsStream.subscribe(v => {
       if (this.tooltipWindow) {
         this.tooltipWindow.open();
       }
     });
 
-    this.mouseLeaveSubject$.subscribe(v => {
+    this.mouseLeaveEventStream.subscribe(v => {
       if (this.tooltipWindow) {
         this.tooltipWindow.close();
       }
     });
   }
 
-  public getopenCommandsObservable(): Observable<void> {
-    return this.openCommandsObservable$;
+  public getopenCommandsStream(): Observable<void> {
+    return this.openCommandsStream;
+  }
+
+  public getmouseLeaveEventStream(): Observable<void> {
+    return this.mouseLeaveEventStream.asObservable();
   }
 
   public mouseEnter(): void {
-    this.mouseEnterSubject$.next();
+    this.mouseEnterEventStream.next();
   }
 
   public mouseLeave(): void {
-    this.mouseLeaveSubject$.next();
+    this.mouseLeaveEventStream.next();
   }
 }
