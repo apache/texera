@@ -199,33 +199,28 @@ describe('ResultPanelComponent', () => {
 
 
   //test result-panel hidden by default 
-  it('should showresultpanel be false by default',() =>{
+  it('should hide resultpanel by default',() =>{
 
     const resultPanelDiv = fixture.debugElement.query(By.css('.texera-workspace-result-panel-body'));
     const resultPanelHtmlElement: HTMLElement = resultPanelDiv.nativeElement;
-
-    expect(resultPanelDiv).toBeFalsy;
+    console.log(resultPanelHtmlElement);
     expect(resultPanelHtmlElement.hasAttribute('hidden')).toBeTruthy();
+   });
 
-    //m.hot('-e-').do(() => component.onClickRun()).subscribe();
 
-    
-
-  });
-
-  it('should showresultPanel be true if click run',()=>{
-    resultPanelService.setShowResultPanel(true);
+  it('should show resultPanel if click run and execute workflow',()=>{
+    //resultPanelService.setShowResultPanel(true);
+    const httpClient: HttpClient = TestBed.get(HttpClient);
+    spyOn(httpClient, 'post').and.returnValue(
+      Observable.of(mockExecutionResult)
+    );
+    executeWorkflowService.getExecuteEndedStream().subscribe();
+    executeWorkflowService.executeWorkflow();
     fixture.detectChanges();
     const resultPanelDiv = fixture.debugElement.query(By.css('.texera-workspace-result-panel-body'));
     const resultPanelHtmlElement: HTMLElement = resultPanelDiv.nativeElement;
-
-    expect(resultPanelDiv).toBeTruthy;
     expect(resultPanelHtmlElement.hasAttribute('hidden')).toBeFalsy();
-
   });
-
-  
-
 
 
 });

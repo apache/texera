@@ -19,7 +19,7 @@ import { PropertyEditorComponent } from './workspace/component/property-editor/p
 import { WorkflowEditorComponent } from './workspace/component/workflow-editor/workflow-editor.component';
 import { ResultPanelComponent, NgbModalComponent } from './workspace/component/result-panel/result-panel.component';
 import { OperatorLabelComponent } from './workspace/component/operator-panel/operator-label/operator-label.component';
-
+import { ResultbarComponent} from './workspace/component/resultbar/resultbar.component'
 @NgModule({
   declarations: [
     AppComponent,
@@ -30,7 +30,8 @@ import { OperatorLabelComponent } from './workspace/component/operator-panel/ope
     WorkflowEditorComponent,
     ResultPanelComponent,
     NgbModalComponent,
-    OperatorLabelComponent
+    OperatorLabelComponent,
+    ResultbarComponent
   ],
   imports: [
     BrowserModule,

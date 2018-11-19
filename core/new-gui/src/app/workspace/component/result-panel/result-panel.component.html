@@ -1,8 +1,5 @@
-<div class="texera-workspace-result-panel-body texera-workflow-component-body" [hidden]="!resultPanelService.showResultPanel">
-  <!--
-    <P>{{resultPanelService.showResultPanel}}</P>
-  -->
-  <div class="texera-panel-message" *ngIf="showMessage">
+<div class="texera-workspace-result-panel-body texera-workflow-component-body"  [hidden]="!resultPanelService.showResultPanel">
+  <div class="texera-panel-message" *ngIf="showMessage" >
     <p>{{ message }}</p>
   </div>
   <!-- Use [hidden] instead of *ngIf because in *ngIf, when the predicate returns

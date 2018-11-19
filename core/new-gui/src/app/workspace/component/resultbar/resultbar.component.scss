@@ -1,0 +1,14 @@
+@import '../workspace.component.scss';
+
+.texera-resultbar{
+    background: #044688 ; 
+    color:white; 
+    font-size: 25px;
+    font-style: inherit;
+	height: 35px;
+
+    &:hover {
+        background-color: #6c747e;
+        cursor: pointer;
+    }
+}

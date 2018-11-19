@@ -37,6 +37,7 @@ export class ResultPanelComponent {
   public currentDisplayColumns: string[] | undefined;
   public currentDataSource: MatTableDataSource<object> | undefined;
 
+   
   
   //public showResultPanel:boolean = false;
 
@@ -174,6 +175,7 @@ export class ResultPanelComponent {
       getCell: (row: IndexableObject) => `${row[col]}`
     }));
   }
+
 }
 
 
