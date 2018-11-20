@@ -116,18 +116,16 @@ describe('OperatorLabelComponent', () => {
       if (operatorLabelElement.parent) {
         const tooltipInstance = operatorLabelElement.parent.childNodes[1].nativeNode;
         expect(tooltipInstance).not.toBeNull();
-        expect(operatorLabelElement.parent.childNodes.length).toBe(2);
       }
     });
     m.hot('-a-').do(() => component.mouseEnter()).subscribe();
-
-    component.getmouseLeaveEventStream().subscribe(() => {
+    // at this moment, the tooltip is open
+    // it will be closed in the following lines
+    m.hot('600ms b-').do(() => component.mouseLeave()).subscribe(() => {
       if (operatorLabelElement.parent) {
         expect(operatorLabelElement.parent.childNodes.length).toBe(1);
       }
     });
-    m.hot('600ms b-').do(() => component.mouseLeave()).subscribe();
-
   }));
 
   // TODO: simulate drag and drop in tests, possibly using jQueryUI Simulate plugin
