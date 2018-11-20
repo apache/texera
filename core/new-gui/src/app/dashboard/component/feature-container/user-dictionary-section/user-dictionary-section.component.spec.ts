@@ -20,7 +20,7 @@ import { FormsModule } from '@angular/forms';
 
 import { UserDictionary } from '../../../type/user-dictionary';
 
-import { HttpModule } from '@angular/http';
+import { HttpClientModule, HttpClient } from '@angular/common/http';
 import { NgbdModalAddProjectComponent } from '../saved-project-section/saved-project-section.component';
 
 describe('UserDictionarySectionComponent', () => {
@@ -75,7 +75,7 @@ describe('UserDictionarySectionComponent', () => {
 
         NgbModule.forRoot(),
         FormsModule,
-        HttpModule]
+        HttpClientModule]
     })
     .compileComponents();
   }));

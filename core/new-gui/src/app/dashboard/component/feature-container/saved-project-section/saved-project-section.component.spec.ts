@@ -16,7 +16,7 @@ import { FormsModule } from '@angular/forms';
 import { SavedProject } from '../../../type/saved-project';
 
 import * as c from './saved-project-section.component';
-import { HttpModule } from '@angular/http';
+import { HttpClientModule } from '@angular/common/http';
 
 describe('SavedProjectSectionComponent', () => {
   let component: SavedProjectSectionComponent;
@@ -76,7 +76,7 @@ describe('SavedProjectSectionComponent', () => {
         MatDialogModule,
         NgbModule.forRoot(),
         FormsModule,
-        HttpModule]
+        HttpClientModule]
     })
     .compileComponents();
   }));

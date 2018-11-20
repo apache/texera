@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { Response, Http } from '@angular/http';
+import { HttpClient } from '@angular/common/http';
 
 import { Observable } from 'rxjs/Observable';
 import { UserDictionary } from '../../type/user-dictionary';
@@ -13,7 +13,7 @@ const uploadDictionaryUrl = apiUrl + '/upload/dictionary';
 @Injectable()
 export class StubUserDictionaryService {
 
-  constructor(private http: Http) { }
+  constructor(private http: HttpClient) { }
 
   public getUserDictionaryData(): Observable<UserDictionary[]> {
     return Observable.of(MOCK_USER_DICTIONARY_LIST);

@@ -1,7 +1,7 @@
 import { BrowserModule } from '@angular/platform-browser';
 import { NgModule } from '@angular/core';
 import { HttpClientModule } from '@angular/common/http';
-import { HttpModule } from '@angular/http';
+// import { HttpModule } from '@angular/http';
 
 import { AppRoutingModule } from './app-routing.module';
 
@@ -78,7 +78,7 @@ import { ResourceSectionComponent } from './dashboard/component/feature-containe
   imports: [
     BrowserModule,
     AppRoutingModule,
-    HttpModule,
+    // HttpModule,
     HttpClientModule,
 
     CustomNgMaterialModule,

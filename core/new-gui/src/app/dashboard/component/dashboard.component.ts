@@ -15,7 +15,7 @@ import { StubSavedProjectService } from '../service/saved-project/stub-saved-pro
     { provide: UserDictionaryService, useClass: StubUserDictionaryService },
     { provide: SavedProjectService, useClass: StubSavedProjectService },
     // SavedProjectService,
-    StubSavedProjectService
+    // StubSavedProjectService
   ]
 })
 export class DashboardComponent implements OnInit {

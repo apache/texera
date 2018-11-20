@@ -2,13 +2,19 @@ import { TestBed, inject } from '@angular/core/testing';
 
 import { SavedProjectService } from './saved-project.service';
 
-import { HttpModule } from '@angular/http';
+import { HttpClient } from '@angular/common/http';
+
+class StubHttpClient {
+  constructor() { }
+}
 
 describe('SavedProjectService', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [SavedProjectService],
-      imports: [HttpModule]
+      providers: [
+        SavedProjectService,
+        { provide: HttpClient, useClass: StubHttpClient }
+      ]
     });
   });
 
