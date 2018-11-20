@@ -94,10 +94,10 @@ describe('OperatorLabelComponent', () => {
   it('should display a tooltip instance with the correct content when openCommandObservable$ emits a value', marbles((m) => {
     const operatorLabelElement = fixture.debugElement.query(By.css('#' + component.operatorLabelID));
     component.getopenCommandsStream().subscribe(x => {
-      if (operatorLabelElement.parent) {
-        const tooltipInstance = operatorLabelElement.parent.childNodes[1].nativeNode;
-        expect(tooltipInstance.innerText).toBe(mockOperatorData.additionalMetadata.operatorDescription);
-      }
+      const parent = operatorLabelElement.parent;
+      if (!parent) { expect(true).toBeFalsy(); return; }
+      const tooltipInstance = parent.childNodes[1].nativeNode;
+      expect(tooltipInstance.innerText).toBe(mockOperatorData.additionalMetadata.operatorDescription);
     });
     m.hot('-a-').do(() => component.mouseEnter()).subscribe();
   }));
@@ -113,18 +113,18 @@ describe('OperatorLabelComponent', () => {
   it('should hide the tooltip instance if cursor leaves the operator label', marbles((m) => {
     const operatorLabelElement = fixture.debugElement.query(By.css('#' + component.operatorLabelID));
     component.getopenCommandsStream().subscribe(() => {
-      if (operatorLabelElement.parent) {
-        const tooltipInstance = operatorLabelElement.parent.childNodes[1].nativeNode;
-        expect(tooltipInstance).not.toBeNull();
-      }
+      const parent = operatorLabelElement.parent;
+      if (!parent) { expect(true).toBeFalsy(); return; }
+      const tooltipInstance = parent.childNodes[1].nativeNode;
+      expect(tooltipInstance).not.toBeNull();
     });
     m.hot('-a-').do(() => component.mouseEnter()).subscribe();
     // at this moment, the tooltip is open
     // it will be closed in the following lines
     m.hot('600ms b-').do(() => component.mouseLeave()).subscribe(() => {
-      if (operatorLabelElement.parent) {
-        expect(operatorLabelElement.parent.childNodes.length).toBe(1);
-      }
+      const parent = operatorLabelElement.parent;
+      if (!parent) { expect(true).toBeFalsy(); return; }
+      expect(parent.childNodes.length).toBe(1);
     });
   }));
 
