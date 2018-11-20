@@ -5,6 +5,12 @@
   padding-right: 24px;
 }
 
+.button {
+  display: inherit;
+  .btn.btn-secondary {
+    margin-right: 5px;
+  }
+}
 .texera-navigation-run-button {
   margin-right: 3%;
   .mat-raised-button {
@@ -20,3 +26,9 @@
 }
 
 
+<<<<<<< HEAD
+=======
+
+
+
+>>>>>>> 5e7f22bd976d3ac5a195ec621145d5965371c73d
