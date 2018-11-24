@@ -83,45 +83,21 @@ export class PropertyEditorComponent {
       metadata => { this.operatorSchemaList = metadata.operators; }
     );
 
-    this.autocompleteService.getOperatorSchemaChangedStream().subscribe(
-      operatorID => {
-        if (this.currentOperatorID) {
-          const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorID);
-          if (!operator) {
-            throw new Error(`operator predicate for operator ID ${operatorID} doesn't exist`);
-          }
-          const schemaChanged = this.autocompleteService.getDynamicSchema(operator);
-          //  Check if the operator's property are still all valid. If a property is not valid anymore,
-          //   remove the property of the operator in WorkflowGraph.
-          this.autocompleteService.validateJsonSchema(operator, schemaChanged, operator.operatorProperties);
-          if (operatorID === this.currentOperatorID) {
-            this.currentOperatorSchema = schemaChanged;
-          }
-        }
-      }
-    );
+    // listen to the autocomplete event, remove invalid properties, and update the schema displayed on the form
+    this.handleOperatorSchemaChange();
 
     // when the operator's property is updated via program instead of user updating the json schema form,
     //  this observable will be responsible in handling these events.
-    this.workflowActionService.getTexeraGraph().getOperatorPropertyChangeStream()
-      .filter(operatorChanged => operatorChanged.operator.operatorID === this.currentOperatorID)
-      .subscribe(operatorChanged => {
-        this.currentOperatorInitialData = cloneDeep(operatorChanged.operator.operatorProperties);
-      });
+    this.handleOperatorPropertyChange();
 
-    // handle the form change event to actually set the operator property
-    this.outputFormChangeEventStream
-    .subscribe(formData => {
-      // set the operator property to be the new form data
-      if (this.currentOperatorID) {
-        this.workflowActionService.setOperatorProperty(this.currentOperatorID, formData);
-      }
-    });
+    // handle the form change event on the user interface to actually set the operator property
+    this.handleOnFormChange();
 
     // handle highlight / unhighlight event to show / hide the property editor form
     this.handleHighlightEvents();
 
   }
+
 
   /**
    * Callback function provided to the Angular Json Schema Form library,
@@ -250,6 +226,65 @@ export class PropertyEditorComponent {
   }
 
   /**
+   * This method handles the schema change event from autocomplete. It will get the new schema
+   *  propagated from autocomplete and check if the operators' properties that users input
+   *  previously are still valid. If invalid, it will remove these fields and triggered an event so
+   *  that the user interface will be updated through handleOperatorPropertyChange() method.
+   *
+   * If the operator that experiences schema changed is the same as the operator that is currently
+   *  displaying on the property panel, this handler will update the current operator schema
+   *  to the new schema.
+   */
+  private handleOperatorSchemaChange(): void {
+    this.autocompleteService.getOperatorSchemaChangedStream().subscribe(
+      operatorID => {
+        if (this.currentOperatorID) {
+          const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorID);
+          if (!operator) {
+            throw new Error(`operator predicate for operator ID ${operatorID} doesn't exist`);
+          }
+          const schemaChanged = this.autocompleteService.getDynamicSchema(operator);
+          //  Check if the operator's property are still all valid. If a property is not valid anymore,
+          //   remove the property of the operator in WorkflowGraph.
+          this.autocompleteService.validateJsonSchema(operator, schemaChanged, operator.operatorProperties);
+          if (operatorID === this.currentOperatorID) {
+            this.currentOperatorSchema = schemaChanged;
+          }
+        }
+      }
+    );
+  }
+
+  /**
+   * This method captures the change in operator's property via program instead of user updating the
+   *  json schema form in the user interface.
+   *
+   * For instance, when the input doesn't matching the new json schema and the UI needs to remove the
+   *  invalid fields, this form will capture those events.
+   */
+  private handleOperatorPropertyChange(): void {
+    this.workflowActionService.getTexeraGraph().getOperatorPropertyChangeStream()
+      .filter(operatorChanged => operatorChanged.operator.operatorID === this.currentOperatorID)
+      .subscribe(operatorChanged => {
+        this.currentOperatorInitialData = cloneDeep(operatorChanged.operator.operatorProperties);
+      });
+  }
+
+  /**
+   * This method handles the form change event and set the operator property
+   *  in the texera graph.
+   */
+  private handleOnFormChange(): void {
+    this.outputFormChangeEventStream
+      .subscribe(formData => {
+      // set the operator property to be the new form data
+      if (this.currentOperatorID) {
+        this.workflowActionService.setOperatorProperty(this.currentOperatorID, formData);
+      }
+    });
+  }
+
+  /**
    * Generates a form layout used by the json schema form library
    *  to hide the *submit* button.
    * https://github.com/json-schema-form/angular-schema-form/blob/master/docs/index.md#form-definitions
@@ -260,5 +295,7 @@ export class PropertyEditorComponent {
       { type: 'submit', condition: 'false' }
     ];
   }
+
+
 
 }

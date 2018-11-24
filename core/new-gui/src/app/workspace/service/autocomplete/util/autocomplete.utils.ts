@@ -4,10 +4,6 @@ import { SourceTableNamesAPIResponse } from '../../../types/autocomplete.interfa
 import { SourceTableDetails, AutocompleteErrorResult } from '../../../types/autocomplete.interface';
 
 import cloneDeep from 'lodash-es/cloneDeep';
-import { OperatorPredicate } from '../../../types/workflow-common.interface';
-
-import * as Ajv from 'ajv';
-import { isEqual } from 'lodash-es';
 
 export class AutocompleteUtils {
 
@@ -19,9 +15,8 @@ export class AutocompleteUtils {
   * @param response The response from resourse/table-metadata API
   */
   public static processSourceTableAPIResponse(response: SourceTableNamesAPIResponse): Array<string> {
-    const tableNames: Array<string> = [];
     if (response.code !== 0) {
-      return tableNames;
+      return [];
     }
     const message = response.message;
     const tablesList: ReadonlyArray<SourceTableDetails> = JSON.parse(message);
