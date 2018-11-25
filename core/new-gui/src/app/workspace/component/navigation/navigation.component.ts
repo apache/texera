@@ -51,6 +51,6 @@ export class NavigationComponent implements OnInit {
     this.executeWorkflowService.executeWorkflow();
   }
 
-  
+
 
 }
