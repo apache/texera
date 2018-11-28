@@ -22,6 +22,10 @@ import { PropertyEditorComponent } from './workspace/component/property-editor/p
 import { WorkflowEditorComponent } from './workspace/component/workflow-editor/workflow-editor.component';
 import { ResultPanelComponent, NgbModalComponent } from './workspace/component/result-panel/result-panel.component';
 import { OperatorLabelComponent } from './workspace/component/operator-panel/operator-label/operator-label.component';
+<<<<<<< HEAD
+=======
+import { ResultbarComponent} from './workspace/component/resultbar/resultbar.component';
+>>>>>>> 94c6b1a6955b4e2b64506f723d3f1bf388fa0c0a
 import { ProductTourComponent } from './workspace/component/product-tour/product-tour.component';
 import { ResultPanelToggleComponent } from './workspace/component/result-panel-toggle/result-panel-toggle.component';
 
@@ -36,8 +40,13 @@ import { ResultPanelToggleComponent } from './workspace/component/result-panel-t
     ResultPanelComponent,
     NgbModalComponent,
     OperatorLabelComponent,
+<<<<<<< HEAD
     ProductTourComponent,
     ResultPanelToggleComponent
+=======
+    ResultbarComponent,
+    ProductTourComponent
+>>>>>>> 94c6b1a6955b4e2b64506f723d3f1bf388fa0c0a
   ],
   imports: [
     BrowserModule,
