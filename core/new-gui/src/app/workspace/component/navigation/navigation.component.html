@@ -1,15 +1,5 @@
 <nav class="texera-navigation-body navbar navbar-expand-sm bg-dark navbar-dark justify-content-between">
   <a class="navbar-brand" href="#">Texera</a>
-<<<<<<< HEAD
-  <button mat-raised-button color="accent" class="texera-navigation-run-button" (click)="onClickRun()">
-    <mat-spinner class="texera-navigation-loading-spinner" *ngIf="showSpinner" [diameter]="30"></mat-spinner>
-    <div *ngIf="!showSpinner" class="texera-navigation-run-text">
-      <i id="texera-run-icon" class="fa fa-play" aria-hidden="true"></i>
-      Run
-    </div>
-  </button>
-  
-=======
   <div class="button" tourAnchor= "texera-workspace-navigation-run">
     <button class="btn btn-secondary texera-workspace-tour-run" (click)="tourService.toggle()" tourAnchor="start.tour">
         <span>
@@ -24,5 +14,4 @@
       </div>
     </button>
   </div>
->>>>>>> 5e7f22bd976d3ac5a195ec621145d5965371c73d
 </nav>

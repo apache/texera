@@ -6,8 +6,7 @@ import { ExecuteWorkflowService } from './../../service/execute-workflow/execute
 import { NgbModal, NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { ExecutionResult, SuccessExecutionResult } from './../../types/execute-workflow.interface';
 import { TableColumn, IndexableObject } from './../../types/result-table.interface';
-
-import{ResultPanelService} from './../../service/result-panel/result-panel.service'
+import{ ResultPanelToggleService } from './../../service/result-panel-toggle/result-panel-toggle.service';
 
 /**
  * ResultPanelCompoent is the bottom level area that displays the
@@ -36,7 +35,7 @@ export class ResultPanelComponent {
   public currentColumns: TableColumn[] | undefined;
   public currentDisplayColumns: string[] | undefined;
   public currentDataSource: MatTableDataSource<object> | undefined;
-
+  public showPanel : boolean | undefined;
    
   
   //public showResultPanel:boolean = false;
@@ -46,13 +45,17 @@ export class ResultPanelComponent {
   @ViewChild(MatPaginator) paginator: MatPaginator | null = null;
 
   constructor(private executeWorkflowService: ExecuteWorkflowService, private modalService: NgbModal,
-    public resultPanelService:ResultPanelService) {
+    private resultPanelToggleService:ResultPanelToggleService) {
     
     
       // once an execution has ended, update the result panel to dispaly
     //  execution result or error
     this.executeWorkflowService.getExecuteEndedStream().subscribe(
       executionResult => this.handleResultData(executionResult),
+    );
+
+    this.resultPanelToggleService.getToggleChangeStream().subscribe(
+      value => this.showPanel = value,
     );
   }
 
@@ -88,10 +91,8 @@ export class ResultPanelComponent {
   private handleResultData(response: ExecutionResult): void {
     
     //show resultPanel
-    this.resultPanelService.setShowResultPanel(true);
-
-
-    
+    this.resultPanelToggleService.openResultPanel();
+  
     // backend returns error, display error message
     if (response.code === 1) {
       this.displayErrorMessage(response.message);

@@ -16,7 +16,7 @@ import { By } from '@angular/platform-browser';
 import { Observable } from 'rxjs/Observable';
 import { HttpClient } from '@angular/common/http';
 
-import{ResultPanelService} from './../../service/result-panel/result-panel.service'
+import{ResultPanelToggleService} from './../../service/result-panel-toggle/result-panel-toggle.service';
 
 
 class StubHttpClient {
@@ -31,7 +31,7 @@ describe('ResultPanelComponent', () => {
   let executeWorkflowService: ExecuteWorkflowService;
   let ngbModel: NgbModal;
   
-  let resultPanelService: ResultPanelService;
+  let resultPanelToggleService: ResultPanelToggleService;
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
@@ -44,7 +44,7 @@ describe('ResultPanelComponent', () => {
         WorkflowActionService,
         JointUIService,
         ExecuteWorkflowService,
-        ResultPanelService,
+        ResultPanelToggleService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         { provide: HttpClient, useClass: StubHttpClient }
       ]
@@ -56,7 +56,7 @@ describe('ResultPanelComponent', () => {
     fixture = TestBed.createComponent(ResultPanelComponent);
     component = fixture.componentInstance;
     executeWorkflowService = TestBed.get(ExecuteWorkflowService);
-    resultPanelService = TestBed.get(ResultPanelService);
+    resultPanelToggleService = TestBed.get(ResultPanelToggleService);
     ngbModel = TestBed.get(NgbModal);
     fixture.detectChanges();
   });
@@ -203,7 +203,6 @@ describe('ResultPanelComponent', () => {
 
     const resultPanelDiv = fixture.debugElement.query(By.css('.texera-workspace-result-panel-body'));
     const resultPanelHtmlElement: HTMLElement = resultPanelDiv.nativeElement;
-    console.log(resultPanelHtmlElement);
     expect(resultPanelHtmlElement.hasAttribute('hidden')).toBeTruthy();
    });
 

@@ -7,8 +7,7 @@ import { Component, OnInit } from '@angular/core';
 import { OperatorMetadataService } from '../service/operator-metadata/operator-metadata.service';
 import { JointUIService } from '../service/joint-ui/joint-ui.service';
 import { StubOperatorMetadataService } from '../service/operator-metadata/stub-operator-metadata.service';
-
-import{ResultPanelService} from './../service/result-panel/result-panel.service'
+import { ResultPanelToggleService } from '../service/result-panel-toggle/result-panel-toggle.service';
 
 @Component({
   selector: 'texera-workspace',
@@ -27,7 +26,12 @@ import{ResultPanelService} from './../service/result-panel/result-panel.service'
 })
 export class WorkspaceComponent implements OnInit {
 
-  constructor(public resultPanelService:ResultPanelService) { }
+  private showPanel: boolean | undefined;
+  constructor(private resultPanelToggleService:ResultPanelToggleService) { 
+    this.resultPanelToggleService.getToggleChangeStream().subscribe(
+      value => this.showPanel = value,
+    );
+  }
 
   ngOnInit() {
   }
