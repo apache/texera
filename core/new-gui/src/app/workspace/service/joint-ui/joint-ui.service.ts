@@ -42,6 +42,7 @@ class TexeraCustomJointElement extends joint.shapes.devs.Model {
       <rect class="body" stroke-width="2" stroke="blue" rx="5px" ry="5px"></rect>
       ${deleteButtonSVG}
       <text></text>
+      <image></image>
     </g>`;
 }
 
@@ -64,7 +65,7 @@ class TexeraCustomJointElement extends joint.shapes.devs.Model {
 export class JointUIService {
 
   public static readonly DEFAULT_OPERATOR_WIDTH = 140;
-  public static readonly DEFAULT_OPERATOR_HEIGHT = 40;
+  public static readonly DEFAULT_OPERATOR_HEIGHT = 80;
 
   private operators: ReadonlyArray<OperatorSchema> = [];
 
@@ -111,7 +112,7 @@ export class JointUIService {
     const operatorElement = new TexeraCustomJointElement({
       position: point,
       size: { width: JointUIService.DEFAULT_OPERATOR_WIDTH, height: JointUIService.DEFAULT_OPERATOR_HEIGHT },
-      attrs: JointUIService.getCustomOperatorStyleAttrs(operatorSchema.additionalMetadata.userFriendlyName),
+      attrs: JointUIService.getCustomOperatorStyleAttrs(operatorSchema.additionalMetadata.userFriendlyName, operatorSchema.operatorType),
       ports: {
         groups: {
           'in': { attrs: JointUIService.getCustomPortStyleAttrs() },
@@ -234,16 +235,24 @@ export class JointUIService {
    * @param operatorDisplayName the name of the operator that will display on the UI
    * @returns the custom attributes of the operator
    */
-  public static getCustomOperatorStyleAttrs(operatorDisplayName: string): joint.shapes.devs.ModelSelectors {
+  public static getCustomOperatorStyleAttrs(operatorDisplayName: string, operatorType: string): joint.shapes.devs.ModelSelectors {
     const operatorStyleAttrs = {
       'rect': { fill: '#FFFFFF', 'follow-scale': true, stroke: '#CFCFCF', 'stroke-width': '2' },
       'text': {
         text: operatorDisplayName, fill: 'black', 'font-size': '12px',
-        'ref-x': 0.5, 'ref-y': 0.5, ref: 'rect', 'y-alignment': 'middle', 'x-alignment': 'middle'
+        'ref-x': 0.5, 'ref-y': 0.2, ref: 'rect', 'y-alignment': 'middle', 'x-alignment': 'middle'
       },
       '.delete-button': {
         x: 135, y: -20, cursor: 'pointer',
         fill: '#D8656A', event: 'element:delete'
+      },
+      'image': {
+        'href': '/src/assets/operator_images/' + operatorType + '.png',
+        width: 40, height: 40,
+        'ref-x': .5, 'ref-y': .6,
+        ref: 'rect',
+        'x-alignment': 'middle',
+        'y-alignment': 'middle'
       },
     };
     return operatorStyleAttrs;
