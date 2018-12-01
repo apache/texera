@@ -38,7 +38,7 @@ export class ResultPanelComponent {
   public showPanel: boolean | undefined;
 
 
-  // public showResultPanel:boolean = false;
+
 
 
 

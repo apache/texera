@@ -200,7 +200,7 @@ describe('ResultPanelComponent', () => {
   });
 
 
-  // test result-panel hidden by default
+
   it('should hide resultpanel by default', () => {
 
     const resultPanelDiv = fixture.debugElement.query(By.css('.texera-workspace-result-panel-body'));

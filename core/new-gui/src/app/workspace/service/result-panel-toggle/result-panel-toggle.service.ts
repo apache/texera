@@ -1,7 +1,6 @@
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs/Observable';
 import { Subject } from 'rxjs/Subject';
-import { ResultPanelComponent } from '../../component/result-panel/result-panel.component';
 @Injectable({
   providedIn: 'root'
 })
@@ -48,8 +47,8 @@ export class ResultPanelToggleService {
    * if resultPanel is closed, then it will open.
    * @param flag
    */
-  public toggleResultPanel(flag: boolean): void {
-    if (flag) {
+  public toggleResultPanel(currentResultPanelStatus: boolean): void {
+    if (currentResultPanelStatus) {
       this.closeResultPanel();
     } else {
       this.openResultPanel();

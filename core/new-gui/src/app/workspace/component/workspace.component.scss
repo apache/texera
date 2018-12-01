@@ -30,10 +30,9 @@
   * size will be based on the child component. Using auto and percentage
   * with a fixed px (header-height) will crash.
   */
-
-.texera-workspace-grid-container {
   $header-height: 56px;
   $resultbar-height: 35px;
+.texera-workspace-grid-container {
   display: grid;
   grid-template-columns: 14% 70% 16%;
   grid-template-rows: $header-height calc((100% - #{$header-height} - #{$resultbar-height}) * 0.75) $resultbar-height calc((100% - #{$header-height} - #{$resultbar-height}) * 0.25)
@@ -48,15 +47,9 @@
  */
 
 .texera-original-workspace-grid-container{
-  min-width: 100%;
-  width: 100%;
-  min-height: 100%;
-  height: 100%;
-  $header-height: 56px;
-  $resultbar-height: 35px;
   display: grid;
   grid-template-columns: 14% 70% 16%;
-  grid-template-rows: $header-height calc((100% - #{$header-height} - #{$resultbar-height}) * 0.99) $resultbar-height 0px
+  grid-template-rows: $header-height calc((100% - #{$header-height} - #{$resultbar-height})) $resultbar-height 0px
 }
 
 /**
