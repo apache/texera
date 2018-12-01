@@ -7,10 +7,11 @@ import { ResultPanelComponent } from '../../component/result-panel/result-panel.
 })
 export class ResultPanelToggleService {
 
-  constructor() { }
-
   private showResultPanel: boolean = false;
   private toggleDisplayChangeStream = new Subject<boolean>();
+
+  constructor() { }
+
 
   /**
    * Gets an observable for operator is dropped on the main workflow editor event
@@ -45,9 +46,9 @@ export class ResultPanelToggleService {
    * switch the status of resultpanel and grid css style of workspace
    * if resultPanel is open, then it will be closed, or
    * if resultPanel is closed, then it will open.
-   * @param flag 
+   * @param flag
    */
-  public toggle(flag: boolean): void {
+  public toggleResultPanel(flag: boolean): void {
     if (flag) {
       this.closeResultPanel();
     } else {

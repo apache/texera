@@ -1,5 +1,5 @@
-<div class="texera-workspace-result-panel-body texera-workflow-component-body"  [hidden]="!showPanel">
-  <div class="texera-panel-message" *ngIf="showMessage" >
+<div class="texera-workspace-result-panel-body texera-workflow-component-body" [hidden]="!showPanel">
+  <div class="texera-panel-message" *ngIf="showMessage">
     <p>{{ message }}</p>
   </div>
   <!-- Use [hidden] instead of *ngIf because in *ngIf, when the predicate returns
@@ -13,11 +13,10 @@
     <mat-table #table [dataSource]="currentDataSource!">
       <ng-container *ngFor="let column of currentColumns!" matColumnDef={{column.columnDef}}>
         <mat-header-cell *matHeaderCellDef>{{ column.header }}</mat-header-cell>
-        <mat-cell  *matCellDef="let row">{{ column.getCell(row) }}</mat-cell>
+        <mat-cell *matCellDef="let row">{{ column.getCell(row) }}</mat-cell>
       </ng-container>
       <mat-header-row *matHeaderRowDef="currentDisplayColumns"></mat-header-row>
-      <mat-row class="result-table-row" *matRowDef="let row; columns: currentDisplayColumns!;"
-          (click)="open(row)"></mat-row>
+      <mat-row class="result-table-row" *matRowDef="let row; columns: currentDisplayColumns!;" (click)="open(row)"></mat-row>
     </mat-table>
     <mat-paginator [pageSize]="10" [showFirstLastButtons]="true"></mat-paginator>
   </div>

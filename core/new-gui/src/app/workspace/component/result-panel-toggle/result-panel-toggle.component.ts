@@ -23,7 +23,7 @@ export class ResultPanelToggleComponent implements OnInit {
    */
 
   public onClickResultBar(): void {
-    this.resultPanelToggleService.toggle(this.showResultPanel);
+    this.resultPanelToggleService.toggleResultPanel(this.showResultPanel);
   }
 }
 

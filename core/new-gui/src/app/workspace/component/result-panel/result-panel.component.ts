@@ -38,7 +38,7 @@ export class ResultPanelComponent {
   public showPanel: boolean | undefined;
 
 
-  //public showResultPanel:boolean = false;
+  // public showResultPanel:boolean = false;
 
 
 
@@ -90,7 +90,7 @@ export class ResultPanelComponent {
    */
   private handleResultData(response: ExecutionResult): void {
 
-    //show resultPanel
+    // show resultPanel
     this.resultPanelToggleService.openResultPanel();
 
     // backend returns error, display error message

@@ -26,8 +26,8 @@ import { ResultPanelToggleService } from '../service/result-panel-toggle/result-
 })
 export class WorkspaceComponent implements OnInit {
 
-  private showPanel: boolean | undefined;
-  constructor(private resultPanelToggleService:ResultPanelToggleService) { 
+  public showPanel: boolean | undefined;
+  constructor(private resultPanelToggleService: ResultPanelToggleService) {
     this.resultPanelToggleService.getToggleChangeStream().subscribe(
       value => this.showPanel = value,
     );
@@ -36,5 +36,5 @@ export class WorkspaceComponent implements OnInit {
   ngOnInit() {
   }
 
-  
+
 }

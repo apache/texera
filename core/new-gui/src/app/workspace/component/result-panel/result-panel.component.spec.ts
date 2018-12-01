@@ -200,7 +200,7 @@ describe('ResultPanelComponent', () => {
   });
 
 
-  //test result-panel hidden by default 
+  // test result-panel hidden by default
   it('should hide resultpanel by default', () => {
 
     const resultPanelDiv = fixture.debugElement.query(By.css('.texera-workspace-result-panel-body'));
@@ -210,7 +210,7 @@ describe('ResultPanelComponent', () => {
 
 
   it('should show resultPanel if click run and execute workflow', () => {
-    //resultPanelService.setShowResultPanel(true);
+
     const httpClient: HttpClient = TestBed.get(HttpClient);
     spyOn(httpClient, 'post').and.returnValue(
       Observable.of(mockExecutionResult)
