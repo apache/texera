@@ -13,6 +13,7 @@ export class SavedProjectService {
     return Observable.of([]); // change
   }
 
+
   public deleteSavedProjectData(deleteProject: SavedProject) {
     return null;
   }

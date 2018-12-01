@@ -31,7 +31,7 @@ export class SavedProjectSectionComponent implements OnInit {
     this.savedProjectService.getSavedProjectData().subscribe(
       value => this.projects = value,
     );
-    console.log(this.projects);
+    // console.log(this.projects);
   }
 
   public ascSort(): void {
@@ -79,7 +79,7 @@ export class SavedProjectSectionComponent implements OnInit {
       }))
       .subscribe(
         value => {
-          console.log(value);
+          // console.log(value);
           this.projects.push(value);
         }
       );
@@ -188,7 +188,7 @@ export class NgbdModalDeleteProjectComponent {
   }
 
   deleteSavedProject() {
-    console.log('delete ' + this.project.name);
+    // console.log('delete ' + this.project.name);
     this.deleteProject.emit(true);
     this.onClose();
   }

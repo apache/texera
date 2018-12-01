@@ -35,7 +35,7 @@ export class UserDictionarySectionComponent implements OnInit {
     this.userDictionaryService.getUserDictionaryData().subscribe(
       value => this.UserDictionary = value,
     );
-    console.log(this.UserDictionary);
+    // console.log(this.UserDictionary);
   }
 
   openNgbdModalResourceViewComponent(dictionary: UserDictionary) {
@@ -77,7 +77,7 @@ export class UserDictionarySectionComponent implements OnInit {
       .do(value => value.id = (this.UserDictionary.length + 1).toString()) // leave for correct
       .subscribe(
         value => {
-          console.log(value);
+          // console.log(value);
           this.UserDictionary.push(value);
           this.userDictionaryService.addUserDictionaryData(value);
         }
@@ -185,7 +185,7 @@ export class NgbdModalResourceViewComponent {
   addKey() {
 
     if (this.ifAdd && this.name !== '') {
-      console.log('add ' + this.name + ' into dict ' + this.dictionary.name);
+      // console.log('add ' + this.name + ' into dict ' + this.dictionary.name);
       this.addedName.emit(this.name);
       this.name = '';
     }
@@ -194,7 +194,7 @@ export class NgbdModalResourceViewComponent {
   }
 
   remove(item: any): void {
-    console.log('delete ' + item + ' in dict ' + this.dictionary.name);
+    // console.log('delete ' + item + ' in dict ' + this.dictionary.name);
     this.deleteName.emit(item);
   }
 }
@@ -284,7 +284,7 @@ export class NgbdModalResourceAddComponent {
     }
 
     if (this.name !== '') {
-      console.log('add ' + this.name );
+      // console.log('add ' + this.name );
       this.newDictionary = <UserDictionary> {
         id : '1',
         name : this.name,
@@ -341,7 +341,7 @@ export class NgbdModalResourceDeleteComponent {
   }
 
   deleteDictionary() {
-    console.log('delete ' + this.dictionary.name);
+    // console.log('delete ' + this.dictionary.name);
     this.deleteDict.emit(true);
     this.onClose();
   }
