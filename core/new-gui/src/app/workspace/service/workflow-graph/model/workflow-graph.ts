@@ -8,11 +8,7 @@ type restrictedMethods =
   'addOperator' | 'deleteOperator' | 'addLink' | 'deleteLink' | 'deleteLinkWithID' | 'setOperatorProperty';
 
 // define a type Omit that creates a type with certain methods/properties omitted from it
-// http://ideasintosoftware.com/typescript-advanced-tricks/
-type Diff<T extends string, U extends string> = ({[P in T]: P } & {[P in U]: never } & { [x: string]: never })[T];
-type Omit<T, K extends keyof T> = Pick<T, Diff<keyof T, K>>;
-// TODO: after updating to Angular 6 (which uses Typescript > 2.8, this can be changed to the following)
-// type Omit<T, K extends keyof T> = Pick<T, Exclude<keyof T, K>>;
+type Omit<T, K extends keyof T> = Pick<T, Exclude<keyof T, K>>;
 
 /**
  * WorkflowGraphReadonly is a type that only contains the readonly methods of WorkflowGraph.
