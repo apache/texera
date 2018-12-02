@@ -1,0 +1,11 @@
+<tour-step-template>
+  <ng-template let-step="step">
+    <div class="tour-step-navigation">
+        <button *ngIf="tourService.hasPrev(step)" class="btn btn-sm btn-secondary texera-tour-prev-button" (click)="tourService.prev()">« Prev</button>
+        <button *ngIf="tourService.hasNext(step)" class="btn btn-sm btn-secondary texera-tour-next-button" (click)="tourService.next()">Next »</button>
+        <button class="btn btn-sm btn-danger" id="EndButton" (click)="tourService.end()">End</button>
+    </div>
+    <br>
+    <p class="tour-step-content" [innerHTML] = 'tourService.currentStep.content'></p>
+  </ng-template>
+</tour-step-template>

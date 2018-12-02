@@ -1,18 +1,31 @@
 @import '../workspace.component.scss';
+.texera-navigation-body {
+  height: 100%;
+  padding-left: 24px;
+  padding-right: 24px;
+}
 
-.texera-workspace-navigation-body {
-    border: 2px solid;
+.button {
+  display: inherit;
+  .btn.btn-secondary {
+    margin-right: 5px;
+  }
+}
+.texera-navigation-run-button {
+  margin-right: 3%;
+  .mat-raised-button {
+    height: 30px;
+  }
+  .texera-navigation-run-text {
+    font-size: 1rem;
+  }
+  .fa {
+    font-size: 1rem;
+    padding-right: 6px;
+  }
 }
 
 
-.texera-workspace-navigation-run {
-  border-radius: 3px;
-}
 
-.texera-workspace-navigation-run:hover {
-  background-color: #81C784;
-}
 
-.texera-loading-spinner {
-  color: #85e085;
-}
+

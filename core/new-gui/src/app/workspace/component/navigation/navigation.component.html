@@ -1,10 +1,17 @@
-<nav class="texera-workspace-navigation-body texera-workflow-component-body
-  navbar navbar-expand-lg navbar-dark bg-dark texera-navigation-body justify-content-between">
-  <a class="navbar-brand">Texera</a>
-  <button class="texera-workspace-navigation-run btn btn-secondary" (click)="onClickRun()">
-    <mat-spinner class="texera-loading-spinner" *ngIf="showSpinner" [diameter]="30"></mat-spinner>
-    <span *ngIf="! showSpinner">
-      <i id="texera-run-icon" class="fa fa-play-circle-o" aria-hidden="true"></i>&nbsp; Run
-    </span>
-  </button>
+<nav class="texera-navigation-body navbar navbar-expand-sm bg-dark navbar-dark justify-content-between">
+  <a class="navbar-brand" href="#">Texera</a>
+  <div class="button" tourAnchor= "texera-workspace-navigation-run">
+    <button class="btn btn-secondary texera-workspace-tour-run" (click)="tourService.toggle()" tourAnchor="start.tour">
+        <span>
+          <i id="texera-tour-icon" class="fa fa-question-circle-o" aria-hidden="true"></i>
+        </span>
+    </button>
+    <button mat-raised-button color="accent" class="texera-navigation-run-button" (click)="onClickRun()">
+      <mat-spinner class="texera-navigation-loading-spinner" *ngIf="showSpinner" [diameter]="30"></mat-spinner>
+      <div *ngIf="!showSpinner" class="texera-navigation-run-text">
+        <i id="texera-run-icon" class="fa fa-play" aria-hidden="true"></i>
+        Run
+      </div>
+    </button>
+  </div>
 </nav>

@@ -8,6 +8,13 @@ import '../../../common/rxjs-operators';
 
 import * as joint from 'jointjs';
 
+// argument type of callback event on a JointJS Paper
+// which is a 4-element tuple:
+// 1. the JointJS View (CellView) of the event
+// 2. the corresponding original JQuery Event
+// 3. x coordinate, 4. y coordinate
+type JointPaperEvent = [joint.dia.CellView, JQuery.Event, number, number];
+
 /**
  * WorkflowEditorComponent is the componenet for the main workflow editor part of the UI.
  *
@@ -97,8 +104,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
    */
   private handleHighlightMouseInput(): void {
     // on user mouse clicks a operator cell, highlight that operator
-    Observable.fromEvent(this.getJointPaper(), 'cell:pointerclick')
-      .map(value => <joint.dia.CellView>value)
+    Observable.fromEvent<JointPaperEvent>(this.getJointPaper(), 'cell:pointerclick')
+      .map(value => value[0])
       .filter(cellView => cellView.model.isElement())
       .subscribe(cellView => this.workflowActionService.getJointGraphWrapper().highlightOperator(cellView.model.id.toString()));
 
@@ -170,8 +177,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
   private handleViewDeleteOperator(): void {
     // bind the delete button event to call the delete operator function in joint model action
     Observable
-      .fromEvent(this.getJointPaper(), 'element:delete')
-      .map(value => <joint.dia.ElementView>value)
+      .fromEvent<JointPaperEvent>(this.getJointPaper(), 'element:delete')
+      .map(value => value[0])
       .subscribe(
         elementView => {
           this.workflowActionService.deleteOperator(elementView.model.id.toString());

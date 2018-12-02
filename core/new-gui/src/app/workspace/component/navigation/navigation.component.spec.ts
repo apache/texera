@@ -1,9 +1,11 @@
+import { RouterTestingModule } from '@angular/router/testing';
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 
 import { NavigationComponent } from './navigation.component';
 import { ExecuteWorkflowService } from './../../service/execute-workflow/execute-workflow.service';
 import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
+import { TourService } from 'ngx-tour-ng-bootstrap';
 
 import { CustomNgMaterialModule } from '../../../common/custom-ng-material.module';
 
@@ -22,7 +24,6 @@ class StubHttpClient {
 
 }
 
-
 describe('NavigationComponent', () => {
   let component: NavigationComponent;
   let fixture: ComponentFixture<NavigationComponent>;
@@ -30,17 +31,20 @@ describe('NavigationComponent', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-      declarations: [ NavigationComponent ],
-      imports: [CustomNgMaterialModule ],
+      declarations: [NavigationComponent],
+      imports: [
+        CustomNgMaterialModule,
+        RouterTestingModule.withRoutes([]),
+      ],
       providers: [
         WorkflowActionService,
         JointUIService,
         ExecuteWorkflowService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
-        { provide: HttpClient, useClass: StubHttpClient}
+        { provide: HttpClient, useClass: StubHttpClient },
+        TourService,
       ]
-    })
-    .compileComponents();
+    }).compileComponents();
   }));
 
   beforeEach(() => {
@@ -62,7 +66,7 @@ describe('NavigationComponent', () => {
     );
 
 
-    const runButtonElement = fixture.debugElement.query(By.css('.texera-workspace-navigation-run'));
+    const runButtonElement = fixture.debugElement.query(By.css('.texera-navigation-run-button'));
     m.hot('-e-').do(event => runButtonElement.triggerEventHandler('click', null)).subscribe();
 
     const executionEndStream = executeWorkFlowService.getExecuteEndedStream().map(value => 'e');
@@ -82,7 +86,7 @@ describe('NavigationComponent', () => {
     // expect initially there is no spinner
 
     expect(component.showSpinner).toBeFalsy();
-    let spinner = fixture.debugElement.query(By.css('.texera-loading-spinner'));
+    let spinner = fixture.debugElement.query(By.css('.texera-navigation-loading-spinner'));
     expect(spinner).toBeFalsy();
 
     m.hot('-e-').do(() => component.onClickRun()).subscribe();
@@ -91,7 +95,7 @@ describe('NavigationComponent', () => {
       () => {
         fixture.detectChanges();
         expect(component.showSpinner).toBeTruthy();
-        spinner = fixture.debugElement.query(By.css('.texera-loading-spinner'));
+        spinner = fixture.debugElement.query(By.css('.texera-navigation-loading-spinner'));
         expect(spinner).toBeTruthy();
       }
     );
@@ -100,7 +104,7 @@ describe('NavigationComponent', () => {
       () => {
         fixture.detectChanges();
         expect(component.showSpinner).toBeFalsy();
-        spinner = fixture.debugElement.query(By.css('.texera-loading-spinner'));
+        spinner = fixture.debugElement.query(By.css('.texera-navigation-loading-spinner'));
         expect(spinner).toBeFalsy();
       }
     );
