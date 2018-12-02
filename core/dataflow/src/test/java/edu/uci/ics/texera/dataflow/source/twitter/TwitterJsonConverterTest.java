@@ -39,7 +39,6 @@ public class TwitterJsonConverterTest {
     // get the sample twitter data from the perf test resources folder
     public static String twitterFilePath =  Utils.getResourcePath("/sample-data-files/twitter/tweets.json", TexeraProject.TEXERA_PERFTEST).toString();
 
-    
     public static List<Tuple> getAllSampleTwitterTuples() throws Exception {
         
         // read the JSON file into a list of JSON string tuples
@@ -86,14 +85,6 @@ public class TwitterJsonConverterTest {
         
         // make sure that all the additional attributes are in the schema
         Assert.assertTrue(testTuple.getSchema().getAttributes().containsAll(TwitterJsonConverterConstants.additionalAttributes));
-        
-        // make sure that all the tuple fields corresponds to the schema
-        for (Attribute attr : testTuple.getSchema().getAttributes()) {
-            Class<? extends IField> expectedFieldClass = attr.getType().getFieldClass();
-            Class<? extends IField> actualFieldClass = testTuple.getField(attr.getName()).getClass();
-
-            Assert.assertEquals(expectedFieldClass, actualFieldClass);
-        }
         
     }
 
