@@ -6,7 +6,7 @@ import java.util.List;
 import edu.uci.ics.texera.api.schema.Attribute;
 import edu.uci.ics.texera.api.schema.AttributeType;
 
-public class TwitterConverterConstants {
+public class TwitterJsonConverterConstants {
     
     public static String TWEET_ID = "tweet_id";
     public static Attribute TWEET_ID_ATTRIBUTE = new Attribute(TWEET_ID, AttributeType.STRING);

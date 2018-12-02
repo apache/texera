@@ -117,7 +117,7 @@ public class PropertyNameConstants {
     public static final String MYSQL_OFFSET = "offset";
     
     // related to Twitter converter
-    public static final String TWITTER_CONVERTER_RAW_JSON = "rawJsonStringField";
+    public static final String TWITTER_CONVERTER_RAW_JSON = "rawJsonStringAttributeName";
 
     // related to TwitterFeed Operator
     public static final String TWEET_NUM = "tweetNum";

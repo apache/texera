@@ -16,8 +16,8 @@ import edu.uci.ics.texera.api.utils.Utils;
 import edu.uci.ics.texera.dataflow.sink.tuple.TupleSink;
 import edu.uci.ics.texera.dataflow.sink.tuple.TupleSinkPredicate;
 import edu.uci.ics.texera.dataflow.source.tuple.TupleSourceOperator;
-import edu.uci.ics.texera.dataflow.twitter.TwitterConverter;
-import edu.uci.ics.texera.dataflow.twitter.TwitterConverterPredicate;
+import edu.uci.ics.texera.dataflow.twitter.TwitterJsonConverter;
+import edu.uci.ics.texera.dataflow.twitter.TwitterJsonConverterPredicate;
 import edu.uci.ics.texera.perftest.utils.PerfTestUtils;
 import edu.uci.ics.texera.storage.DataWriter;
 import edu.uci.ics.texera.storage.RelationManager;
@@ -55,7 +55,7 @@ public class TwitterSample {
         }
         
         // setup the twitter converter DAG
-        // TupleSource --> TwitterConverter --> TupleSink
+        // TupleSource --> TwitterJsonConverter --> TupleSink
         TupleSourceOperator tupleSource = new TupleSourceOperator(jsonStringTupleList, tupleSourceSchema, false);
         
         
@@ -72,12 +72,12 @@ public class TwitterSample {
      */
     public static int createTwitterTable(String tableName, ISourceOperator twitterJsonSourceOperator) {
         
-        TwitterConverter twitterConverter = new TwitterConverterPredicate("twitterJson").newOperator();
+        TwitterJsonConverter twitterJsonConverter = new TwitterJsonConverterPredicate("twitterJson").newOperator();
 
         TupleSink tupleSink = new TupleSinkPredicate(null, null).newOperator();
         
-        twitterConverter.setInputOperator(twitterJsonSourceOperator);
-        tupleSink.setInputOperator(twitterConverter);
+        twitterJsonConverter.setInputOperator(twitterJsonSourceOperator);
+        tupleSink.setInputOperator(twitterJsonConverter);
 
         // open the workflow plan and get the output schema
         tupleSink.open();

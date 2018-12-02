@@ -27,20 +27,20 @@ import edu.uci.ics.texera.api.tuple.Tuple;
  *  flattens it into many Texera Fields, such as text, author, link, etc...
  *  and removes the original raw JSON data field.
  *  
- * See {@link TwitterConverterConstants} for the full set of fields that this operator extracts,
+ * See {@link TwitterJsonConverterConstants} for the full set of fields that this operator extracts,
  *  note that this operator does not keep all the information and fields in the original twitter JSON string. 
  * 
  * @author Zuozhi Wang
  *
  */
-public class TwitterConverter implements IOperator {
+public class TwitterJsonConverter implements IOperator {
     
-    private TwitterConverterPredicate predicate;
+    private TwitterJsonConverterPredicate predicate;
     private IOperator inputOperator;
     private Schema outputSchema;
     private int cursor = CLOSED;
     
-    public TwitterConverter(TwitterConverterPredicate predicate) {
+    public TwitterJsonConverter(TwitterJsonConverterPredicate predicate) {
         this.predicate = predicate;
     }
     
@@ -66,29 +66,30 @@ public class TwitterConverter implements IOperator {
         if (cursor == CLOSED) {
             throw new DataflowException(ErrorMessages.OPERATOR_NOT_OPENED);
         }
-        Tuple tuple;
-        while ((tuple = inputOperator.getNextTuple()) != null) {
+        Tuple inputTuple;
+        while ((inputTuple = inputOperator.getNextTuple()) != null) {
 
-            String rawTwitterJsonString = tuple.getField(this.predicate.getTwitterJsonStringFieldName()).getValue().toString();
+            String rawTwitterJsonString = inputTuple.getField(this.predicate.getTwitterJsonStringAttributeName()).getValue().toString();
             Optional<List<IField>> convertedTwitterFields = this.generateFieldsFromJson(rawTwitterJsonString);
-            if (! convertedTwitterFields.isPresent()) {
-                continue;
+
+            if (convertedTwitterFields.isPresent()) {
+                cursor++;
+                return new Tuple.Builder(inputTuple)
+                        // remove the raw json field
+                        .remove(this.predicate.getTwitterJsonStringAttributeName())
+                        // add the new fields
+                        .add(TwitterJsonConverterConstants.additionalAttributes, convertedTwitterFields.get())
+                        .build();
             }
 
-            Tuple outputTuple = new Tuple.Builder(tuple)
-                // remove the raw json field
-                .remove(this.predicate.getTwitterJsonStringFieldName())
-                // add the new fields
-                .add(TwitterConverterConstants.additionalAttributes, convertedTwitterFields.get())
-                .build();
-            
-            cursor++;
-
-            return outputTuple;
         }
         return null;
     }
-    
+
+    /**
+     * Generates Fields from the raw JSON tweet.
+     * Returns Optional.Empty() if something goes wrong while parsing this tweet.
+     */
     private Optional<List<IField>> generateFieldsFromJson(String rawJsonData) {
         try {
             // read the JSON string into a JSON object
@@ -148,22 +149,22 @@ public class TwitterConverter implements IOperator {
     }
 
     /**
-     * Returns the transformed output schema of TwitterConverter,
+     * Returns the transformed output schema of TwitterJsonConverter,
      *  removes the raw json attribute and adds the new additional attributes.
      */
     public Schema transformToOutputSchema(Schema... inputSchema) throws DataflowException {
         if (inputSchema.length != 1)
             throw new TexeraException(String.format(ErrorMessages.NUMBER_OF_ARGUMENTS_DOES_NOT_MATCH, 1, inputSchema.length));
 
-        if (! inputSchema[0].containsAttribute(this.predicate.getTwitterJsonStringFieldName())) {
+        if (! inputSchema[0].containsAttribute(this.predicate.getTwitterJsonStringAttributeName())) {
             throw new DataflowException(String.format(
                     "raw twitter json attribute %s is not present in the input schema %s",
-                    this.predicate.getTwitterJsonStringFieldName(), inputSchema[0].getAttributeNames()));
+                    this.predicate.getTwitterJsonStringAttributeName(), inputSchema[0].getAttributeNames()));
         }
 
         return new Schema.Builder(inputSchema[0])
-            .remove(this.predicate.getTwitterJsonStringFieldName())
-            .add(TwitterConverterConstants.additionalAttributes)
+            .remove(this.predicate.getTwitterJsonStringAttributeName())
+            .add(TwitterJsonConverterConstants.additionalAttributes)
             .build();
         
     }

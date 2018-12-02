@@ -22,19 +22,19 @@ import edu.uci.ics.texera.api.utils.Utils;
 import edu.uci.ics.texera.dataflow.sink.tuple.TupleSink;
 import edu.uci.ics.texera.dataflow.sink.tuple.TupleSinkPredicate;
 import edu.uci.ics.texera.dataflow.source.tuple.TupleSourceOperator;
-import edu.uci.ics.texera.dataflow.twitter.TwitterConverter;
-import edu.uci.ics.texera.dataflow.twitter.TwitterConverterConstants;
-import edu.uci.ics.texera.dataflow.twitter.TwitterConverterPredicate;
+import edu.uci.ics.texera.dataflow.twitter.TwitterJsonConverter;
+import edu.uci.ics.texera.dataflow.twitter.TwitterJsonConverterConstants;
+import edu.uci.ics.texera.dataflow.twitter.TwitterJsonConverterPredicate;
 import junit.framework.Assert;
 
 /**
- * Test cases for operator {@link TwitterConverter}, 
+ * Test cases for operator {@link TwitterJsonConverter},
  *  which converts the JSON string representation of twitter to Texera fields.
  * 
  * @author Zuozhi Wang
  *
  */
-public class TwitterConverterTest {
+public class TwitterJsonConverterTest {
     
     // get the sample twitter data from the perf test resources folder
     public static String twitterFilePath =  Utils.getResourcePath("/sample-data-files/twitter/tweets.json", TexeraProject.TEXERA_PERFTEST).toString();
@@ -56,15 +56,15 @@ public class TwitterConverterTest {
         }
         
         // setup the twitter converter DAG
-        // TupleSource --> TwitterConverter --> TupleSink
+        // TupleSource --> TwitterJsonConverter --> TupleSink
         TupleSourceOperator tupleSource = new TupleSourceOperator(jsonStringTupleList, tupleSourceSchema);
 
-        TwitterConverter twitterConverter = new TwitterConverterPredicate("twitterJson").newOperator();
+        TwitterJsonConverter twitterJsonConverter = new TwitterJsonConverterPredicate("twitterJson").newOperator();
 
         TupleSink tupleSink = new TupleSinkPredicate(null, null).newOperator();
         
-        twitterConverter.setInputOperator(tupleSource);
-        tupleSink.setInputOperator(twitterConverter);
+        twitterJsonConverter.setInputOperator(tupleSource);
+        tupleSink.setInputOperator(twitterJsonConverter);
         
         tupleSink.open();
         
@@ -85,7 +85,7 @@ public class TwitterConverterTest {
         Tuple testTuple = twitterTuples.get(0);
         
         // make sure that all the additional attributes are in the schema
-        Assert.assertTrue(testTuple.getSchema().getAttributes().containsAll(TwitterConverterConstants.additionalAttributes));
+        Assert.assertTrue(testTuple.getSchema().getAttributes().containsAll(TwitterJsonConverterConstants.additionalAttributes));
         
         // make sure that all the tuple fields corresponds to the schema
         for (Attribute attr : testTuple.getSchema().getAttributes()) {
