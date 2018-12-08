@@ -7,7 +7,7 @@ import { ResultPanelToggleService } from './../../service/result-panel-toggle/re
 })
 export class ResultPanelToggleComponent implements OnInit {
 
-  private showResultPanel: boolean = false;
+  public showResultPanel: boolean = false;
   constructor(private resultPanelToggleService: ResultPanelToggleService) {
     this.resultPanelToggleService.getToggleChangeStream().subscribe(
       value => this.showResultPanel = value,

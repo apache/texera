@@ -223,5 +223,44 @@ describe('ResultPanelComponent', () => {
     expect(resultPanelHtmlElement.hasAttribute('hidden')).toBeFalsy();
   });
 
+  it('should hide resultPanel if current status of resultpanel is shown and then click result toggle', () => {
+    const currentStatus = true;
+    resultPanelToggleService.toggleResultPanel(currentStatus);
+    fixture.detectChanges();
+    const resultPanelDiv = fixture.debugElement.query(By.css('.texera-workspace-result-panel-body'));
+    const resultPanelHtmlElement: HTMLElement = resultPanelDiv.nativeElement;
+    expect(resultPanelHtmlElement.hasAttribute('hidden')).toBeTruthy();
+
+  });
+
+  it('should show resultPanel  if current status of resultpanel is hidden and then click result toggle', () => {
+    const currentStatus = false;
+    resultPanelToggleService.toggleResultPanel(currentStatus);
+    fixture.detectChanges();
+    const resultPanelDiv = fixture.debugElement.query(By.css('.texera-workspace-result-panel-body'));
+    const resultPanelHtmlElement: HTMLElement = resultPanelDiv.nativeElement;
+    expect(resultPanelHtmlElement.hasAttribute('hidden')).toBeFalsy();
+
+  });
+
+  fit('should return true value of toggleDisplayChangeStream if call toggleResultPanel', () => {
+
+    resultPanelToggleService.getToggleChangeStream().subscribe(
+      res => {
+        expect(res).toBeTruthy();
+      }
+    );
+    const hiddenStatus = false;
+    resultPanelToggleService.toggleResultPanel(hiddenStatus);
+  });
+
+  fit('should reurn true value of toggleDisplayChangeStream if click run and execute workflow', () => {
+    resultPanelToggleService.getToggleChangeStream().subscribe(
+      res => {
+        expect(res).toBeTruthy();
+      }
+    );
+    executeWorkflowService.executeWorkflow();
+  });
 
 });
