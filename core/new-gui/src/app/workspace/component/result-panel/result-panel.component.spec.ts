@@ -243,7 +243,7 @@ describe('ResultPanelComponent', () => {
 
   });
 
-  fit('should return true value of toggleDisplayChangeStream if call toggleResultPanel', () => {
+  it('should return true value of toggleDisplayChangeStream if call toggleResultPanel', () => {
 
     resultPanelToggleService.getToggleChangeStream().subscribe(
       res => {
@@ -254,7 +254,7 @@ describe('ResultPanelComponent', () => {
     resultPanelToggleService.toggleResultPanel(hiddenStatus);
   });
 
-  fit('should reurn true value of toggleDisplayChangeStream if click run and execute workflow', () => {
+  it('should reurn true value of toggleDisplayChangeStream if click run and execute workflow', () => {
     resultPanelToggleService.getToggleChangeStream().subscribe(
       res => {
         expect(res).toBeTruthy();
