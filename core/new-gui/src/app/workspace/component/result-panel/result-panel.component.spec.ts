@@ -254,13 +254,20 @@ describe('ResultPanelComponent', () => {
     resultPanelToggleService.toggleResultPanel(hiddenStatus);
   });
 
-  it('should reurn true value of toggleDisplayChangeStream if click run and execute workflow', () => {
+  it('should return true value of toggleDisplayChangeStream if click run and execute workflow', () => {
+    const httpClient: HttpClient = TestBed.get(HttpClient);
+    spyOn(httpClient, 'post').and.returnValue(
+      Observable.of(mockExecutionResult)
+    );
+
+    executeWorkflowService.getExecuteEndedStream().subscribe();
+    executeWorkflowService.executeWorkflow();
+    fixture.detectChanges();
     resultPanelToggleService.getToggleChangeStream().subscribe(
       res => {
         expect(res).toBeTruthy();
       }
     );
-    executeWorkflowService.executeWorkflow();
   });
 
 });
