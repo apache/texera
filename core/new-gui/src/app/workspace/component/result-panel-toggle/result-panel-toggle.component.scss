@@ -3,7 +3,9 @@
 .texera-result-panel-toggle{
     background: #6c747e ;
     color:white;
-    font-size: 25px;
+    padding: 2.5px;
+    font-size: 20px;
+    min-height: 100%;
     font-style: inherit;
     text-align: center;
     &:hover {

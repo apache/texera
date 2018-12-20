@@ -1,51 +1,62 @@
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs/Observable';
 import { Subject } from 'rxjs/Subject';
-@Injectable({
-  providedIn: 'root'
-})
+
+/**
+ * ResultPanelToggleService handles the logic to open / close the result panel
+ *  when the user clicks the panel toggle or when the result is returned
+ *  from the backend to be displayed on the result panel.
+ *
+ * @author Angela Wang
+ */
+@Injectable()
 export class ResultPanelToggleService {
 
-  private showResultPanel: boolean = false;
   private toggleDisplayChangeStream = new Subject<boolean>();
-
   constructor() { }
 
-
   /**
-   * Gets an observable for operator is dropped on the main workflow editor event
-   * Contains an object with:
-   *  boolean : the status of showresultPanel
+   * Gets the observable for result panel toggle change event.
+   * Contains a boolean variable that indicates:
+   *  - the new status for the result panel
    */
+
   public getToggleChangeStream(): Observable<boolean> {
     return this.toggleDisplayChangeStream.asObservable();
   }
 
   /**
-   * notify the subject of the event
-   * if the showResultPanel is true, the css of workspace will be texera-workspace-grid-container
-   * and resultPanel will be shown.
+   * Notify the toggle display subject to open the result panel.
+   *
+   * This will trigger an event that modifies the current css of
+   *  workspace to use 'texera-workspace-grid-container' to show
+   *  the result panel.
+   *
    */
   public openResultPanel(): void {
-    this.showResultPanel = true;
     this.toggleDisplayChangeStream.next(true);
   }
 
   /**
-   * notify the subject of the event
-   * if showRescultPanel is false, the css of workspace will be texera-original-workspace-grid-container
-   * and resultPanel will be hidden.
+   * Notify the toggle display subject to close the result panel.
+   *
+   * This will trigger an event that modifies the current css of
+   *  workspace to use 'texera-original-workspace-grid-container' to hide
+   *  the result panel.
+   *
    */
   public closeResultPanel(): void {
-    this.showResultPanel = false;
     this.toggleDisplayChangeStream.next(false);
   }
 
   /**
-   * switch the status of resultpanel and grid css style of workspace
-   * if resultPanel is open, then it will be closed, or
-   * if resultPanel is closed, then it will open.
-   * @param flag
+   * Toggle the current status of result panel and modify the css
+   *  grid-cell design of the workspace to hide/show the result panel.
+   *
+   * When current status = open  : close the result panel
+   * When current status = close : open the result panel
+   *
+   * @param currentResultPanelStatus current status of the result panel
    */
   public toggleResultPanel(currentResultPanelStatus: boolean): void {
     if (currentResultPanelStatus) {

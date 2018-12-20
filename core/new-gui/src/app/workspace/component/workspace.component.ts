@@ -21,7 +21,8 @@ import { ResultPanelToggleService } from '../service/result-panel-toggle/result-
     WorkflowActionService,
     WorkflowUtilService,
     DragDropService,
-    ExecuteWorkflowService
+    ExecuteWorkflowService,
+    ResultPanelToggleService
   ]
 })
 export class WorkspaceComponent implements OnInit {

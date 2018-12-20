@@ -1,5 +1,15 @@
 import { Component, OnInit } from '@angular/core';
 import { ResultPanelToggleService } from './../../service/result-panel-toggle/result-panel-toggle.service';
+
+/**
+ * ResultPanelToggleComponent is the small bar directly above ResultPanelCompoent at the
+ *  bottom level. When the user interface first initialized, ResultPanelCompoent will be
+ *  hidden and ResultPanelToggleComponent will be at the bottom of the UI.
+ *
+ * This Component is a toggle button to open / close the result panel.
+ *
+ * @author Angela Wang
+ */
 @Component({
   selector: 'texera-result-panel-toggle',
   templateUrl: './result-panel-toggle.component.html',
@@ -8,20 +18,20 @@ import { ResultPanelToggleService } from './../../service/result-panel-toggle/re
 export class ResultPanelToggleComponent implements OnInit {
 
   public showResultPanel: boolean = false;
+
   constructor(private resultPanelToggleService: ResultPanelToggleService) {
     this.resultPanelToggleService.getToggleChangeStream().subscribe(
-      value => this.showResultPanel = value,
+      newPanelStatus => this.showResultPanel = newPanelStatus,
     );
   }
-
 
   ngOnInit() {
   }
 
   /**
-   * click the resultBar and it will switch the result panel and let it hide or show
+   * When the result panel toggle is clicked, it will call 'toggleResultPanel'
+   *  to switch the status of the result panel.
    */
-
   public onClickResultBar(): void {
     this.resultPanelToggleService.toggleResultPanel(this.showResultPanel);
   }

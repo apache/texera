@@ -1,6 +1,7 @@
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { ResultPanelToggleComponent } from './result-panel-toggle.component';
+import { ResultPanelToggleService } from '../../service/result-panel-toggle/result-panel-toggle.service';
 
 describe('ResultPanelToggleComponent', () => {
   let component: ResultPanelToggleComponent;
@@ -8,7 +9,10 @@ describe('ResultPanelToggleComponent', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-      declarations: [ ResultPanelToggleComponent ]
+      declarations: [ ResultPanelToggleComponent ],
+      providers: [
+        ResultPanelToggleService
+      ]
     })
     .compileComponents();
   }));

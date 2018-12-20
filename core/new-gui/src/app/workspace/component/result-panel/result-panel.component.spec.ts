@@ -201,21 +201,19 @@ describe('ResultPanelComponent', () => {
 
 
 
-  it('should hide resultpanel by default', () => {
-
+  it('should hide the result panel by default', () => {
     const resultPanelDiv = fixture.debugElement.query(By.css('.texera-workspace-result-panel-body'));
     const resultPanelHtmlElement: HTMLElement = resultPanelDiv.nativeElement;
     expect(resultPanelHtmlElement.hasAttribute('hidden')).toBeTruthy();
   });
 
 
-  it('should show resultPanel if click run and execute workflow', () => {
+  it('should show the result panel if a workflow finishes execution', () => {
 
     const httpClient: HttpClient = TestBed.get(HttpClient);
     spyOn(httpClient, 'post').and.returnValue(
       Observable.of(mockExecutionResult)
     );
-    executeWorkflowService.getExecuteEndedStream().subscribe();
     executeWorkflowService.executeWorkflow();
     fixture.detectChanges();
     const resultPanelDiv = fixture.debugElement.query(By.css('.texera-workspace-result-panel-body'));
@@ -223,51 +221,42 @@ describe('ResultPanelComponent', () => {
     expect(resultPanelHtmlElement.hasAttribute('hidden')).toBeFalsy();
   });
 
-  it('should hide resultPanel if current status of resultpanel is shown and then click result toggle', () => {
-    const currentStatus = true;
-    resultPanelToggleService.toggleResultPanel(currentStatus);
-    fixture.detectChanges();
+  it(`should show the result panel if the current status of the result panel is hidden and when the toggle is triggered`, () => {
+
     const resultPanelDiv = fixture.debugElement.query(By.css('.texera-workspace-result-panel-body'));
     const resultPanelHtmlElement: HTMLElement = resultPanelDiv.nativeElement;
+
     expect(resultPanelHtmlElement.hasAttribute('hidden')).toBeTruthy();
 
-  });
-
-  it('should show resultPanel  if current status of resultpanel is hidden and then click result toggle', () => {
     const currentStatus = false;
     resultPanelToggleService.toggleResultPanel(currentStatus);
     fixture.detectChanges();
-    const resultPanelDiv = fixture.debugElement.query(By.css('.texera-workspace-result-panel-body'));
-    const resultPanelHtmlElement: HTMLElement = resultPanelDiv.nativeElement;
+
     expect(resultPanelHtmlElement.hasAttribute('hidden')).toBeFalsy();
 
   });
 
-  it('should return true value of toggleDisplayChangeStream if call toggleResultPanel', () => {
+  it(`should hide the result panel if the current status of the result panel is already
+      shown when the toggle is triggered`, () => {
 
-    resultPanelToggleService.getToggleChangeStream().subscribe(
-      res => {
-        expect(res).toBeTruthy();
-      }
-    );
-    const hiddenStatus = false;
-    resultPanelToggleService.toggleResultPanel(hiddenStatus);
-  });
-
-  it('should return true value of toggleDisplayChangeStream if click run and execute workflow', () => {
     const httpClient: HttpClient = TestBed.get(HttpClient);
     spyOn(httpClient, 'post').and.returnValue(
       Observable.of(mockExecutionResult)
     );
 
-    executeWorkflowService.getExecuteEndedStream().subscribe();
+    const resultPanelDiv = fixture.debugElement.query(By.css('.texera-workspace-result-panel-body'));
+    const resultPanelHtmlElement: HTMLElement = resultPanelDiv.nativeElement;
+
     executeWorkflowService.executeWorkflow();
     fixture.detectChanges();
-    resultPanelToggleService.getToggleChangeStream().subscribe(
-      res => {
-        expect(res).toBeTruthy();
-      }
-    );
+    expect(resultPanelHtmlElement.hasAttribute('hidden')).toBeFalsy();
+
+    const currentStatus = true;
+    resultPanelToggleService.toggleResultPanel(currentStatus);
+    fixture.detectChanges();
+
+    expect(resultPanelHtmlElement.hasAttribute('hidden')).toBeTruthy();
+
   });
 
 });
