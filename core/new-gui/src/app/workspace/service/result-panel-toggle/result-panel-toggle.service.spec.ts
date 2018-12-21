@@ -1,7 +1,6 @@
-import { ObserversModule } from '@angular/cdk/observers';
 import { TestBed, inject } from '@angular/core/testing';
-import { Observable } from 'rxjs/Observable';
 import { ResultPanelToggleService } from './result-panel-toggle.service';
+import { marbles } from 'rxjs-marbles';
 
 describe('ResultPanelToggleService', () => {
   let resultPanelToggleService: ResultPanelToggleService;
@@ -23,9 +22,7 @@ describe('ResultPanelToggleService', () => {
   }));
 
   it(`should receive 'true' from toggleDisplayChangeStream when toggleResultPanel
-     is called when the current result panel status is hidden`, () => {
-
-    const openResultPanelSpy = spyOn(resultPanelToggleService, 'openResultPanel');
+    is called when the current result panel status is hidden`, marbles((m) => {
 
     resultPanelToggleService.getToggleChangeStream().subscribe(
       newToggleStatus => {
@@ -33,17 +30,18 @@ describe('ResultPanelToggleService', () => {
       }
     );
 
+    const expectedStream = '-a-';
     const hiddenStatus = false;
-    resultPanelToggleService.toggleResultPanel(hiddenStatus);
-    expect(openResultPanelSpy).toHaveBeenCalled();
 
-  });
+    const toggleStream = resultPanelToggleService.getToggleChangeStream().map(value => 'a');
+    m.hot('-a-').do(event => resultPanelToggleService.toggleResultPanel(hiddenStatus)).subscribe();
+    m.expect(toggleStream).toBeObservable(expectedStream);
+
+  }));
 
 
   it(`should receive 'false' from toggleDisplayChangeStream when toggleResultPanel
-     is called when the current result panel status is open`, () => {
-
-    const closeResultPanelSpy = spyOn(resultPanelToggleService, 'closeResultPanel');
+    is called when the current result panel status is open`, marbles((m) => {
 
     resultPanelToggleService.getToggleChangeStream().subscribe(
       newToggleStatus => {
@@ -51,12 +49,14 @@ describe('ResultPanelToggleService', () => {
       }
     );
 
+    const expectedStream = '-a-';
     const openStatus = true;
-    resultPanelToggleService.toggleResultPanel(openStatus);
-    expect(closeResultPanelSpy).toHaveBeenCalled();
 
-  });
+    const toggleStream = resultPanelToggleService.getToggleChangeStream().map(value => 'a');
+    m.hot('-a-').do(event => resultPanelToggleService.toggleResultPanel(openStatus)).subscribe();
+    m.expect(toggleStream).toBeObservable(expectedStream);
 
+  }));
 
 
 });
