@@ -16,7 +16,6 @@ describe('ResultPanelToggleService', () => {
 
   });
 
-
   it('should be created', inject([ResultPanelToggleService], (injectedservice: ResultPanelToggleService) => {
     expect(injectedservice).toBeTruthy();
   }));
@@ -39,7 +38,6 @@ describe('ResultPanelToggleService', () => {
 
   }));
 
-
   it(`should receive 'false' from toggleDisplayChangeStream when toggleResultPanel
     is called when the current result panel status is open`, marbles((m) => {
 
@@ -57,6 +55,5 @@ describe('ResultPanelToggleService', () => {
     m.expect(toggleStream).toBeObservable(expectedStream);
 
   }));
-
 
 });

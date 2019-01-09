@@ -1,5 +1,4 @@
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
-
 import { ResultPanelToggleComponent } from './result-panel-toggle.component';
 import { ResultPanelToggleService } from '../../service/result-panel-toggle/result-panel-toggle.service';
 

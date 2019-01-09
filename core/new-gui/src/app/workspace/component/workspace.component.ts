@@ -27,10 +27,10 @@ import { ResultPanelToggleService } from '../service/result-panel-toggle/result-
 })
 export class WorkspaceComponent implements OnInit {
 
-  public showPanel: boolean | undefined;
+  public showResultPanel: boolean = false;
   constructor(private resultPanelToggleService: ResultPanelToggleService) {
     this.resultPanelToggleService.getToggleChangeStream().subscribe(
-      value => this.showPanel = value,
+      value => this.showResultPanel = value,
     );
   }
 

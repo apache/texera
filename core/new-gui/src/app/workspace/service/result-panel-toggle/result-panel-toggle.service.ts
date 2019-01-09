@@ -66,10 +66,7 @@ export class ResultPanelToggleService {
     }
   }
 
-
 }
-
-
 
 
 

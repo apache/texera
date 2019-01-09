@@ -31,11 +31,10 @@ export class ResultPanelComponent {
 
   public showMessage: boolean = false;
   public message: string = '';
-
   public currentColumns: TableColumn[] | undefined;
   public currentDisplayColumns: string[] | undefined;
   public currentDataSource: MatTableDataSource<object> | undefined;
-  public showPanel: boolean | undefined;
+  public showResultPanel: boolean | undefined;
 
 
 
@@ -55,7 +54,7 @@ export class ResultPanelComponent {
     );
 
     this.resultPanelToggleService.getToggleChangeStream().subscribe(
-      value => this.showPanel = value,
+      value => this.showResultPanel = value,
     );
   }
 
