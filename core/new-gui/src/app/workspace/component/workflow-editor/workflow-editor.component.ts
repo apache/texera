@@ -7,6 +7,8 @@ import { Observable } from 'rxjs/Observable';
 import '../../../common/rxjs-operators';
 
 import * as joint from 'jointjs';
+import { forEach } from 'lodash-es';
+import { element } from '@angular/core/src/render3/instructions';
 
 // argument type of callback event on a JointJS Paper
 // which is a 4-element tuple:
@@ -40,7 +42,11 @@ export class WorkflowEditorComponent implements AfterViewInit {
   public readonly WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID = 'texera-workflow-editor-jointjs-wrapper-id';
   public readonly WORKFLOW_EDITOR_JOINTJS_ID = 'texera-workflow-editor-jointjs-body-id';
 
+  public readonly MAP_ID = 'texera-map-itself';
+
   private paper: joint.dia.Paper | undefined;
+  private map_paper: joint.dia.Paper | undefined;
+  private map_graph: joint.dia.Graph | undefined;
 
   constructor(
     private workflowActionService: WorkflowActionService,
@@ -55,10 +61,16 @@ export class WorkflowEditorComponent implements AfterViewInit {
     return this.paper;
   }
 
+  public getMapPaper(): joint.dia.Paper {
+    if (this.map_paper === undefined) {
+      throw new Error('JointJS paper is undefined');
+    }
+    return this.map_paper;
+  }
   ngAfterViewInit() {
 
     this.initializeJointPaper();
-
+    this.initializemappaper();
     this.handleWindowResize();
     this.handleViewDeleteOperator();
     this.handleCellHighlight();
@@ -67,6 +79,29 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
   }
 
+
+  private initializemappaper(): void {
+    // make a copy of this paper, changing the style of the elements
+    const size = this.getMapWrapperSize();
+    if (this.paper !== undefined) {
+      this.map_paper =  new joint.dia.Paper({
+        el: document.getElementById('texera-map-itself'),
+        model: this.paper.model, // this.paper.model,
+        width: size.width, // map_paper_width,
+        height: size.height, // map_paper_height,
+        gridSize: 10,
+        drawGrid: true,
+        background: {
+           color: '#f2f2f2',
+        },
+        // origin: {x: 100, y: 100},
+        interactive: false
+      });
+      this.map_paper.scale(0.15);
+      this.setMapPaperDimensions();
+    }
+
+  }
   private initializeJointPaper(): void {
     // get the custom paper options
     let jointPaperOptions = WorkflowEditorComponent.getJointPaperOptions();
@@ -89,6 +124,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
         this.setJointPaperOriginOffset();
         // resize the JointJS paper dimensions
         this.setJointPaperDimensions();
+        // added:
+        this.setMapPaperDimensions();
       }
     );
   }
@@ -154,6 +191,9 @@ export class WorkflowEditorComponent implements AfterViewInit {
   private setJointPaperOriginOffset(): void {
     const elementOffset = this.getWrapperElementOffset();
     this.getJointPaper().translate(-elementOffset.x, -elementOffset.y);
+
+    // const mapoffset = this.getMapOffset();
+    // this.getMapPaper().translate(-mapoffset.x, -mapoffset.y);
   }
 
   /**
@@ -164,6 +204,10 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.getJointPaper().setDimensions(elementSize.width, elementSize.height);
   }
 
+  private setMapPaperDimensions(): void {
+    const size = this.getMapWrapperSize();
+    this.getMapPaper().setDimensions(size.width, size.height);
+  }
   /**
    * Handles the event where the Delete button is clicked for an Operator,
    *  and call workflowAction to delete the corresponding operator.
@@ -200,11 +244,30 @@ export class WorkflowEditorComponent implements AfterViewInit {
     return { width, height };
   }
 
+  private getMapWrapperSize(): { width: number, height: number } {
+    let dh = 1;
+    let dw = 1;
+    const workflow = this.getJointPaper().getArea();
+    dw = workflow.width / 4.5;
+    dh = workflow.height / 4.5;
+    const width = dw;
+    const height = dh;
+    return { width, height };
+  }
+
   /**
    * Gets the document offset coordinates of the wrapper element's top-left corner.
    */
   private getWrapperElementOffset(): { x: number, y: number } {
     const offset = $('#' + this.WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID).offset();
+    if (offset === undefined) {
+      throw new Error('fail to get Workflow Editor wrapper element offset');
+    }
+    return { x: offset.left, y: offset.top };
+  }
+
+  private getMapOffset(): { x: number, y: number } {
+    const offset = $('#texera-map-itself').offset();
     if (offset === undefined) {
       throw new Error('fail to get Workflow Editor wrapper element offset');
     }

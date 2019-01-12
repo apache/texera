@@ -1,0 +1,12 @@
+@import '../workspace.component.scss';
+.texera-map-view-body {
+  overflow: hidden;
+}
+
+
+.texera-map-view-body .map-operator {
+  height: 10px;
+  width: 20px;
+  fill: #db32b7;
+}
+

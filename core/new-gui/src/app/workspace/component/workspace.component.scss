@@ -73,9 +73,10 @@ $header-height: 56px;
   grid-column-start: 3;
   grid-column-end: 4;
   grid-row-start: 2;
-  grid-row-end: 4;
+  grid-row-end: 3;
   overflow: auto;
 }
+
 
 /**
 * this style specifies that the workflow editor in the middle
@@ -88,6 +89,7 @@ $header-height: 56px;
   grid-row-start: 2;
   grid-row-end: 3;
 }
+
 
 /**
   * this style specifies that the result panel in the middle
