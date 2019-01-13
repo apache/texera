@@ -78,7 +78,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
   }
   Shrink() {
-    const elementSize = this.getWrapperElementSize();
     this.offsetZoom -= 0.1;
     this.dragDropService.SetZoomX(this.offsetZoom);
     this.dragDropService.SetZoomY(this.offsetZoom);
@@ -111,17 +110,14 @@ export class WorkflowEditorComponent implements AfterViewInit {
     });
     observables.mouseMoves.forEach((coordinate: any) => {
       if (if_down === true && if_up === false) {
+        const offsetX = (coordinate.x - down_offsetX * this.offsetZoom);
+        const offsetY = (coordinate.y - down_offsetY * this.offsetZoom);
         this.getJointPaper().translate(
-        (- elementOffset.x + (coordinate.x - down_offsetX) * this.offsetZoom),
-        (- elementOffset.y + (coordinate.y - down_offsetY) * this.offsetZoom)
+          (- elementOffset.x + offsetX),
+          (- elementOffset.y + offsetY)
         );
-        // console.log('', (- elementOffset.x + (coordinate.x - down_offsetX)),
-        // (- elementOffset.y + (coordinate.y - down_offsetY))) ;
-        console.log('coordinate x: ',coordinate.x);
-        this.dragOffsetX =  (coordinate.x - down_offsetX);
-        this.dragOffsetY =  (coordinate.y - down_offsetY);
-        this.dragDropService.SetOffsetX(this.dragOffsetX);
-        this.dragDropService.SetOffsetY(this.dragOffsetY);
+        this.dragDropService.SetOffsetX(offsetX);
+        this.dragDropService.SetOffsetY(offsetY);
       }
     });
     this.getJointPaper().on('blank:pointerup', function(evt: any, x: any, y: any) {
