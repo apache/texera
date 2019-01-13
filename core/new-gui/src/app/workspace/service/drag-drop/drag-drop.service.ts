@@ -46,6 +46,11 @@ export class DragDropService {
 
   private static readonly DRAG_DROP_TEMP_OPERATOR_TYPE = 'drag-drop-temp-operator-type';
 
+  dragOffsetX: number = 0;
+  dragOffsetY: number = 0;
+  zoomOffsetX: number = 1;
+  zoomOffsetY: number = 1;
+
   /** mapping of DOM Element ID to operatorType */
   private elementOperatorTypeMap = new Map<string, string>();
   /** the current operatorType of the operator being dragged */
@@ -78,8 +83,13 @@ export class DragDropService {
       value => {
         // construct the operator from the drop stream value
         const operator = this.workflowUtilService.getNewOperatorPredicate(value.operatorType);
+
+        const point_temp = this.GetOffsetPoint(
+          (value.offset.x - this.GetOffsetX()) / this.GetZoomX(),
+          (value.offset.y - this.GetOffsetY()) / this.GetZoomY()
+          );
         // add the operator
-        this.workflowActionService.addOperator(operator, value.offset);
+        this.workflowActionService.addOperator(operator, point_temp);
         // highlight the operator after adding the operator
         this.workflowActionService.getJointGraphWrapper().highlightOperator(operator.operatorID);
         // reset the current operator type to an non-exist type
@@ -104,10 +114,38 @@ export class DragDropService {
    *  - operatorType - the type of the operator dropped
    *  - offset - the x and y point where the operator is dropped (relative to document root)
    */
+
   public getOperatorDropStream(): Observable<{ operatorType: string, offset: Point }> {
     return this.operatorDroppedSubject.asObservable();
   }
+  public GetOffsetPoint(x: number, y: number): Point {
+    return {x, y};
+  }
+  public SetOffsetX(x: number) {
+    this.dragOffsetX = x;
+  }
+  public GetOffsetX(): number {
+    return this.dragOffsetX;
+  }
+  public SetOffsetY(y: number) {
+    this.dragOffsetY = y;
+  }
+  public GetOffsetY(): number {
+    return this.dragOffsetY;
+  }
 
+  public SetZoomX(x: number) {
+      this.zoomOffsetX = x;
+  }
+  public GetZoomX(): number {
+    return this.zoomOffsetX;
+  }
+  public SetZoomY(y: number) {
+    this.zoomOffsetY = y;
+  }
+  public GetZoomY(): number {
+    return this.zoomOffsetY;
+  }
   /**
    * This function is intended by be used by the operator labels to make the element draggable.
    * It also binds hanlder functions the following property or events:

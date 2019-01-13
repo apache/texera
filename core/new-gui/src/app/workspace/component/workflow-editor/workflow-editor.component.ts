@@ -33,6 +33,19 @@ type JointPaperEvent = [joint.dia.CellView, JQuery.Event, number, number];
 })
 export class WorkflowEditorComponent implements AfterViewInit {
 
+  elementOffsetX: number = 0;
+  elementOffsetY: number = 0;
+  dragOffsetX: number = 0;
+  dragOffsetY: number = 0;
+  offsetHorizontalValue: number = 0;
+  offsetVerticalValue: number = 0;
+  offsetZoom: number = 1;
+  operator_offsetX: number = 0;
+  operator_offsetY: number = 0;
+  intialX: any = 0;
+  intialY: any = 0;
+  endX: any = 0;
+  endY: any = 0;
   // the DOM element ID of the main editor. It can be used by jQuery and jointJS to find the DOM element
   // in the HTML template, the div element ID is set using this variable
   public readonly WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID = 'texera-workflow-editor-jointjs-wrapper-id';
@@ -60,9 +73,62 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.handleWindowResize();
     this.handleViewDeleteOperator();
     this.handleCellHighlight();
-
+    this.Draggable();
     this.dragDropService.registerWorkflowEditorDrop(this.WORKFLOW_EDITOR_JOINTJS_ID);
 
+  }
+  Shrink() {
+    const elementSize = this.getWrapperElementSize();
+    this.offsetZoom -= 0.1;
+    this.dragDropService.SetZoomX(this.offsetZoom);
+    this.dragDropService.SetZoomY(this.offsetZoom);
+    this.getJointPaper().scale(this.offsetZoom, this.offsetZoom);
+  }
+  Zoom() {
+    this.offsetZoom += 0.1;
+    this.dragDropService.SetZoomX(this.offsetZoom);
+    this.dragDropService.SetZoomY(this.offsetZoom);
+    this.getJointPaper().scale(this.offsetZoom, this.offsetZoom);
+  }
+
+  private Draggable(): {x: number, y: number} {
+    const observables = getObservables(this.getJointPaper());
+    let if_down = false;
+    let if_up = false;
+    let down_offsetX = 0;
+    let down_offsetY = 0;
+    const elementOffset = this.getWrapperElementOffset();
+    let outputX: number = 0;
+    let outputY: number = 0;
+    // let elementOffsetDynamicX = elementOffset.x;
+    // let elementOffsetDynamicY = elementOffset.y;
+    this.getJointPaper().on('blank:pointerdown', function(evt: any, x: any, y: any) {
+      down_offsetX = x;
+      down_offsetY = y;
+      if_down = true;
+      if_up = false;
+      console.log('down:', x, y);
+    });
+    observables.mouseMoves.forEach((coordinate: any) => {
+      if (if_down === true && if_up === false) {
+        this.getJointPaper().translate(
+        (- elementOffset.x + (coordinate.x - down_offsetX) * this.offsetZoom),
+        (- elementOffset.y + (coordinate.y - down_offsetY) * this.offsetZoom)
+        );
+        // console.log('', (- elementOffset.x + (coordinate.x - down_offsetX)),
+        // (- elementOffset.y + (coordinate.y - down_offsetY))) ;
+        console.log('coordinate x: ',coordinate.x);
+        this.dragOffsetX =  (coordinate.x - down_offsetX);
+        this.dragOffsetY =  (coordinate.y - down_offsetY);
+        this.dragDropService.SetOffsetX(this.dragOffsetX);
+        this.dragDropService.SetOffsetY(this.dragOffsetY);
+      }
+    });
+    this.getJointPaper().on('blank:pointerup', function(evt: any, x: any, y: any) {
+      if_down = false;
+      if_up = true;
+    });
+    return {x: outputX, y: outputY};
   }
 
   private initializeJointPaper(): void {
@@ -240,6 +306,44 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
     return jointPaperOptions;
   }
+}
+/**/
+function getObservables(domItem: any) {
+  const mouseEventToCoordinate = (mouseEvent: any) => {
+    mouseEvent.preventDefault();
+    return {
+      x: mouseEvent.clientX,
+      y: mouseEvent.clientY
+    };
+  };
+
+  const touchEventToCoordinate = (touchEvent: any) => {
+    touchEvent.preventDefault();
+    return {
+      x: touchEvent.changedTouches[0].clientX,
+      y: touchEvent.changedTouches[0].clientY
+    };
+  };
+
+  const wheelEventToCoordinate = (WheelEvent: any) => {
+    WheelEvent.preventDefault();
+    return {
+      x: WheelEvent.changedTouches[0].clientX,
+      y: WheelEvent.changedTouches[0].clientY
+    };
+  };
+  const mouseDowns = Observable.fromEvent(domItem, 'mousedown').map(mouseEventToCoordinate);
+  const mouseMoves = Observable.fromEvent(window, 'mousemove').map(mouseEventToCoordinate);
+  const mouseUps = Observable.fromEvent(window, 'mouseup').map(mouseEventToCoordinate);
+
+  const wheelCall = Observable.fromEvent(domItem, 'mousewheel').map(wheelEventToCoordinate);
+
+  const touchStarts = Observable.fromEvent(domItem, 'touchstart').map(touchEventToCoordinate);
+  const touchMoves = Observable.fromEvent(domItem, 'touchmove').map(touchEventToCoordinate);
+  const touchEnds = Observable.fromEvent(window, 'touchend').map(touchEventToCoordinate);
+
+  // s
+  return { mouseDowns, mouseMoves, mouseUps, wheelCall };
 }
 
 /**
