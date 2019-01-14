@@ -37,7 +37,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
   // in the HTML template, the div element ID is set using this variable
   public readonly WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID = 'texera-workflow-editor-jointjs-wrapper-id';
   public readonly WORKFLOW_EDITOR_JOINTJS_ID = 'texera-workflow-editor-jointjs-body-id';
-
   private paper: joint.dia.Paper | undefined;
   private offsetZoom: number = 1;
   constructor(
@@ -66,7 +65,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.handleCellHighlight();
     this.handleWindowDrag();
     this.dragDropService.registerWorkflowEditorDrop(this.WORKFLOW_EDITOR_JOINTJS_ID);
-
   }
 
   private initializeJointPaper(): void {
@@ -104,8 +102,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
         const dragOffsetX = (coordinate.x - down_offsetX * this.offsetZoom);
         const dragOffsetY = (coordinate.y - down_offsetY * this.offsetZoom);
         this.getJointPaper().translate(
-          (- elementOffset.x + dragOffsetX),
-          (- elementOffset.y + dragOffsetY)
+          (- this.getWrapperElementOffset().x + dragOffsetX),
+          (- this.getWrapperElementOffset().y + dragOffsetY)
         );
         this.dragDropService.SetOffsetX((coordinate.x - down_offsetX * this.offsetZoom));
         this.dragDropService.SetOffsetY((coordinate.y - down_offsetY * this.offsetZoom));
