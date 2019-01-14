@@ -1,0 +1,15 @@
+@import '../workspace.component.scss';
+
+.texera-result-panel-toggle{
+    background: #6c747e ;
+    color:white;
+    padding: 2.5px;
+    font-size: 18px;
+    min-height: 100%;
+    font-style: inherit;
+    text-align: center;
+    &:hover {
+        background-color: #32363a;
+        cursor: pointer;
+    }
+}
