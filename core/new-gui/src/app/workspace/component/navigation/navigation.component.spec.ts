@@ -76,36 +76,30 @@ describe('NavigationComponent', () => {
 
   }));
 
-  it('should show spinner when the workflow execution begins and hide spinner when execution ends', marbles((m) => {
+  it('should show pause/resume button when the workflow execution begins and hide the button when execution ends', marbles((m) => {
 
     const httpClient: HttpClient = TestBed.get(HttpClient);
     spyOn(httpClient, 'post').and.returnValue(
       Observable.of(mockExecutionResult)
     );
 
-    // expect initially there is no spinner
+    // expect initially the pause/resume button is not showing
 
-    expect(component.showSpinner).toBeFalsy();
-    let spinner = fixture.debugElement.query(By.css('.texera-navigation-loading-spinner'));
-    expect(spinner).toBeFalsy();
+    expect(component.running).toBeFalsy();
 
     m.hot('-e-').do(() => component.onClickRun()).subscribe();
 
     executeWorkFlowService.getExecuteStartedStream().subscribe(
       () => {
         fixture.detectChanges();
-        expect(component.showSpinner).toBeTruthy();
-        spinner = fixture.debugElement.query(By.css('.texera-navigation-loading-spinner'));
-        expect(spinner).toBeTruthy();
+        expect(component.running).toBeTruthy();
       }
     );
 
     executeWorkFlowService.getExecuteEndedStream().subscribe(
       () => {
         fixture.detectChanges();
-        expect(component.showSpinner).toBeFalsy();
-        spinner = fixture.debugElement.query(By.css('.texera-navigation-loading-spinner'));
-        expect(spinner).toBeFalsy();
+        expect(component.running).toBeFalsy();
       }
     );
 

@@ -6,11 +6,22 @@
           <i id="texera-tour-icon" class="fa fa-question-circle-o" aria-hidden="true"></i>
         </span>
     </button>
-    <button mat-raised-button color="accent" class="texera-navigation-run-button" (click)="onClickRun()">
-      <mat-spinner class="texera-navigation-loading-spinner" *ngIf="showSpinner" [diameter]="30"></mat-spinner>
-      <div *ngIf="!showSpinner" class="texera-navigation-run-text">
+    <button *ngIf="!running" mat-raised-button color="accent" class="texera-navigation-run-button" (click)="onClickRun()">
+      <span class="texera-navigation-run-text">
+          <i id="texera-run-icon" class="fa fa-play" aria-hidden="true"></i>
+          Run
+      </span>
+    </button>
+
+    <button *ngIf="running" mat-raised-button color="accent" class="texera-navigation-run-button" (click)="onClickPauseResume()">
+      <div *ngIf="!isPaused" class="texera-navigation-run-text">
+          <i id="texera-run-icon" class="fa fa-spinner fa-spin" aria-hidden="true"></i>
+        Pause
+      </div>
+
+      <div *ngIf="isPaused" class="texera-navigation-run-text">
         <i id="texera-run-icon" class="fa fa-play" aria-hidden="true"></i>
-        Run
+        Resume
       </div>
     </button>
   </div>

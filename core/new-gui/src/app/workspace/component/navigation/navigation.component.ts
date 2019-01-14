@@ -10,8 +10,8 @@ import { TourService } from 'ngx-tour-ng-bootstrap';
  *  the workflow in the WorkflowEditor Component.
  *
  * Clicking the run button on the top-right hand corner will begin
- *  the execution. During execution, the run button will be unavailble
- *  and a spinner will be displayed to show that graph is under execution.
+ *  the execution. During execution, the run button will be replaced
+ *  with a pause/resume button to show that graph is under execution.
  *
  * @author Zuozhi Wang
  * @author Henry Chen
@@ -24,15 +24,15 @@ import { TourService } from 'ngx-tour-ng-bootstrap';
 })
 export class NavigationComponent implements OnInit {
 
-  // variable binded with HTML to decide if the running spinner should show
-  public showSpinner = false;
+  public running = false; // set this to true when the workflow is started
+  public isPaused = false; // this will be modified by clicking pause/resume while the workflow is running
 
   constructor(private executeWorkflowService: ExecuteWorkflowService, public tourService: TourService) {
-    // hide the spinner after the execution is finished, either
+    // return the run button after the execution is finished, either
     //  when the value is valid or invalid
     executeWorkflowService.getExecuteEndedStream().subscribe(
-      value => this.showSpinner = false,
-      error => this.showSpinner = false
+      value => this.running = false,
+      error => this.running = false
     );
   }
 
@@ -41,14 +41,23 @@ export class NavigationComponent implements OnInit {
 
   /**
    * Executes the current existing workflow on the JointJS paper. It will
-   *  also set the `showSpinner` variable to true to show that the backend
-   *  is loading the workflow by addding a active spinner next to the
-   *  run button.
+   *  also set the `running` variable to true to show that the backend
+   *  is loading the workflow by displaying the pause/resume button.
    */
   public onClickRun(): void {
-    // show the spinner after the "Run" button is clicked
-    this.showSpinner = true;
+    // modifying the `running` and `isPaused` variables will display the pause button
+    this.running = true;
+    this.isPaused = false;
     this.executeWorkflowService.executeWorkflow();
+  }
+
+  /**
+   * Pauses/resumes the current existing workflow on the JointJS paper. It will
+   * also swap the button between pause and resume whenever you click on it to show whether
+   * the backend is currently paused or not.
+   */
+  public onClickPauseResume(): void {
+    this.isPaused = !this.isPaused;
   }
 
 }
