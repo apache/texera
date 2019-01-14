@@ -11,6 +11,25 @@
     margin-right: 5px;
   }
 }
+.zoom_button:active {
+  background-color: #1E90FF;
+  box-shadow: 0 5px #666;
+  transform: translateY(4px);
+}
+
+.zoom_button {
+  background-size: 40px 40px;
+  width: 40px;
+  height: 40px;
+
+	cursor: pointer;
+	outline: none;
+	font-family: Microsoft YaHei;
+
+  font-size: 17px;
+  border-radius:50%;
+}
+
 .texera-navigation-run-button {
   margin-right: 3%;
   .mat-raised-button {

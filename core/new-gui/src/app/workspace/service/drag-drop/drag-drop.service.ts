@@ -45,7 +45,7 @@ import * as joint from 'jointjs';
 export class DragDropService {
 
   private static readonly DRAG_DROP_TEMP_OPERATOR_TYPE = 'drag-drop-temp-operator-type';
-
+  public handleZoomBus: Subject<number> = new Subject<number>();
   dragOffsetX: number = 0;
   dragOffsetY: number = 0;
   zoomOffsetX: number = 1;
@@ -118,34 +118,22 @@ export class DragDropService {
   public getOperatorDropStream(): Observable<{ operatorType: string, offset: Point }> {
     return this.operatorDroppedSubject.asObservable();
   }
-  public GetOffsetPoint(x: number, y: number): Point {
-    return {x, y};
-  }
   public SetOffsetX(x: number) {
     this.dragOffsetX = x;
   }
-  public GetOffsetX(): number {
-    return this.dragOffsetX;
-  }
+
   public SetOffsetY(y: number) {
     this.dragOffsetY = y;
-  }
-  public GetOffsetY(): number {
-    return this.dragOffsetY;
   }
 
   public SetZoomX(x: number) {
       this.zoomOffsetX = x;
   }
-  public GetZoomX(): number {
-    return this.zoomOffsetX;
-  }
+
   public SetZoomY(y: number) {
     this.zoomOffsetY = y;
   }
-  public GetZoomY(): number {
-    return this.zoomOffsetY;
-  }
+
   /**
    * This function is intended by be used by the operator labels to make the element draggable.
    * It also binds hanlder functions the following property or events:
@@ -179,6 +167,23 @@ export class DragDropService {
     });
   }
 
+  private GetZoomX(): number {
+    return this.zoomOffsetX;
+  }
+
+  private GetOffsetPoint(x: number, y: number): Point {
+    return {x, y};
+  }
+  private GetOffsetX(): number {
+    return this.dragOffsetX;
+  }
+  private GetOffsetY(): number {
+    return this.dragOffsetY;
+  }
+
+  private GetZoomY(): number {
+    return this.zoomOffsetY;
+  }
   /**
    * Creates a DOM Element that visually looks identical to the operator when dropped on main workflow editor
    *

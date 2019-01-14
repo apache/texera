@@ -33,26 +33,13 @@ type JointPaperEvent = [joint.dia.CellView, JQuery.Event, number, number];
 })
 export class WorkflowEditorComponent implements AfterViewInit {
 
-  elementOffsetX: number = 0;
-  elementOffsetY: number = 0;
-  dragOffsetX: number = 0;
-  dragOffsetY: number = 0;
-  offsetHorizontalValue: number = 0;
-  offsetVerticalValue: number = 0;
-  offsetZoom: number = 1;
-  operator_offsetX: number = 0;
-  operator_offsetY: number = 0;
-  intialX: any = 0;
-  intialY: any = 0;
-  endX: any = 0;
-  endY: any = 0;
   // the DOM element ID of the main editor. It can be used by jQuery and jointJS to find the DOM element
   // in the HTML template, the div element ID is set using this variable
   public readonly WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID = 'texera-workflow-editor-jointjs-wrapper-id';
   public readonly WORKFLOW_EDITOR_JOINTJS_ID = 'texera-workflow-editor-jointjs-body-id';
 
   private paper: joint.dia.Paper | undefined;
-
+  private offsetZoom: number = 1;
   constructor(
     private workflowActionService: WorkflowActionService,
     private dragDropService: DragDropService,
@@ -65,66 +52,21 @@ export class WorkflowEditorComponent implements AfterViewInit {
     }
     return this.paper;
   }
-
+  public handleWindowSize(): void {
+    this.dragDropService.handleZoomBus.subscribe((value) => {
+      this.offsetZoom = value;
+      this.getJointPaper().scale(this.offsetZoom, this.offsetZoom);
+    });
+  }
   ngAfterViewInit() {
-
+    this.handleWindowSize();
     this.initializeJointPaper();
-
     this.handleWindowResize();
     this.handleViewDeleteOperator();
     this.handleCellHighlight();
-    this.Draggable();
+    this.handleWindowDrag();
     this.dragDropService.registerWorkflowEditorDrop(this.WORKFLOW_EDITOR_JOINTJS_ID);
 
-  }
-  Shrink() {
-    this.offsetZoom -= 0.1;
-    this.dragDropService.SetZoomX(this.offsetZoom);
-    this.dragDropService.SetZoomY(this.offsetZoom);
-    this.getJointPaper().scale(this.offsetZoom, this.offsetZoom);
-  }
-  Zoom() {
-    this.offsetZoom += 0.1;
-    this.dragDropService.SetZoomX(this.offsetZoom);
-    this.dragDropService.SetZoomY(this.offsetZoom);
-    this.getJointPaper().scale(this.offsetZoom, this.offsetZoom);
-  }
-
-  private Draggable(): {x: number, y: number} {
-    const observables = getObservables(this.getJointPaper());
-    let if_down = false;
-    let if_up = false;
-    let down_offsetX = 0;
-    let down_offsetY = 0;
-    const elementOffset = this.getWrapperElementOffset();
-    let outputX: number = 0;
-    let outputY: number = 0;
-    // let elementOffsetDynamicX = elementOffset.x;
-    // let elementOffsetDynamicY = elementOffset.y;
-    this.getJointPaper().on('blank:pointerdown', function(evt: any, x: any, y: any) {
-      down_offsetX = x;
-      down_offsetY = y;
-      if_down = true;
-      if_up = false;
-      console.log('down:', x, y);
-    });
-    observables.mouseMoves.forEach((coordinate: any) => {
-      if (if_down === true && if_up === false) {
-        const offsetX = (coordinate.x - down_offsetX * this.offsetZoom);
-        const offsetY = (coordinate.y - down_offsetY * this.offsetZoom);
-        this.getJointPaper().translate(
-          (- elementOffset.x + offsetX),
-          (- elementOffset.y + offsetY)
-        );
-        this.dragDropService.SetOffsetX(offsetX);
-        this.dragDropService.SetOffsetY(offsetY);
-      }
-    });
-    this.getJointPaper().on('blank:pointerup', function(evt: any, x: any, y: any) {
-      if_down = false;
-      if_up = true;
-    });
-    return {x: outputX, y: outputY};
   }
 
   private initializeJointPaper(): void {
@@ -139,6 +81,41 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
     this.setJointPaperOriginOffset();
     this.setJointPaperDimensions();
+  }
+
+  private handleWindowDrag(): void {
+    const observables = getObservables(this.getJointPaper());
+    let ifMouseDown = false;
+    let ifMouseUp = false;
+    let down_offsetX = 0;
+    let down_offsetY = 0;
+    const elementOffset = this.getWrapperElementOffset();
+    // listen to the event when mouse was being clicked down.
+    this.getJointPaper().on('blank:pointerdown', function(evt: any, x: any, y: any) {
+      down_offsetX = x;
+      down_offsetY = y;
+      ifMouseDown = true;
+      ifMouseUp = false;
+      console.log('down:', x, y);
+    });
+    // listen to the event when mouse was moving.
+    observables.mouseMoves.forEach((coordinate: any) => {
+      if (ifMouseDown === true && ifMouseUp === false) {
+        const dragOffsetX = (coordinate.x - down_offsetX * this.offsetZoom);
+        const dragOffsetY = (coordinate.y - down_offsetY * this.offsetZoom);
+        this.getJointPaper().translate(
+          (- elementOffset.x + dragOffsetX),
+          (- elementOffset.y + dragOffsetY)
+        );
+        this.dragDropService.SetOffsetX(dragOffsetX);
+        this.dragDropService.SetOffsetY(dragOffsetY);
+      }
+    });
+    // listen to the event when mouse was being up.
+    this.getJointPaper().on('blank:pointerup', function(evt: any, x: any, y: any) {
+      ifMouseDown = false;
+      ifMouseUp = true;
+    });
   }
 
   private handleWindowResize(): void {

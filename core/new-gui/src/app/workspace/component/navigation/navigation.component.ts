@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { ExecuteWorkflowService } from './../../service/execute-workflow/execute-workflow.service';
 import { TourService } from 'ngx-tour-ng-bootstrap';
-
+import { DragDropService } from './../../service/drag-drop/drag-drop.service';
 /**
  * NavigationComponent is the top level navigation bar that shows
  *  the Texera title and workflow execution button
@@ -26,8 +26,9 @@ export class NavigationComponent implements OnInit {
 
   // variable binded with HTML to decide if the running spinner should show
   public showSpinner = false;
-
-  constructor(private executeWorkflowService: ExecuteWorkflowService, public tourService: TourService) {
+  private offsetZoom: number = 1;
+  constructor(private dragDropService: DragDropService,
+    private executeWorkflowService: ExecuteWorkflowService, public tourService: TourService) {
     // hide the spinner after the execution is finished, either
     //  when the value is valid or invalid
     executeWorkflowService.getExecuteEndedStream().subscribe(
@@ -38,6 +39,7 @@ export class NavigationComponent implements OnInit {
 
   ngOnInit() {
   }
+
 
   /**
    * Executes the current existing workflow on the JointJS paper. It will
@@ -50,5 +52,15 @@ export class NavigationComponent implements OnInit {
     this.showSpinner = true;
     this.executeWorkflowService.executeWorkflow();
   }
-
+  /**
+   * send the offset value to the work flow editor panel.
+  */
+  public onClickZoomButton(): void {
+    this.offsetZoom += 0.01;
+    this.dragDropService.handleZoomBus.next(this.offsetZoom);
+  }
+  public onClickShrinkButton(): void {
+    this.offsetZoom -= 0.01;
+    this.dragDropService.handleZoomBus.next(this.offsetZoom);
+  }
 }
