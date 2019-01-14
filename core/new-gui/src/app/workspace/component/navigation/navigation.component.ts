@@ -57,10 +57,15 @@ export class NavigationComponent implements OnInit {
   */
   public onClickZoomButton(): void {
     this.offsetZoom += 0.01;
+    // console.log('send offsetZoom: ', this.offsetZoom);
+    this.dragDropService.SetZoomX(this.offsetZoom);
+    this.dragDropService.SetZoomY(this.offsetZoom);
     this.dragDropService.handleZoomBus.next(this.offsetZoom);
   }
   public onClickShrinkButton(): void {
     this.offsetZoom -= 0.01;
+    this.dragDropService.SetZoomX(this.offsetZoom);
+    this.dragDropService.SetZoomY(this.offsetZoom);
     this.dragDropService.handleZoomBus.next(this.offsetZoom);
   }
 }

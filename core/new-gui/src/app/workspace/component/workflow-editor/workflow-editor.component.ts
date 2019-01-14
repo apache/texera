@@ -96,7 +96,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
       down_offsetY = y;
       ifMouseDown = true;
       ifMouseUp = false;
-      console.log('down:', x, y);
+      console.log('down: ', x, y);
     });
     // listen to the event when mouse was moving.
     observables.mouseMoves.forEach((coordinate: any) => {
@@ -107,8 +107,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
           (- elementOffset.x + dragOffsetX),
           (- elementOffset.y + dragOffsetY)
         );
-        this.dragDropService.SetOffsetX(dragOffsetX);
-        this.dragDropService.SetOffsetY(dragOffsetY);
+        this.dragDropService.SetOffsetX((coordinate.x - down_offsetX * this.offsetZoom));
+        this.dragDropService.SetOffsetY((coordinate.y - down_offsetY * this.offsetZoom));
       }
     });
     // listen to the event when mouse was being up.

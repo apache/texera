@@ -83,7 +83,7 @@ export class DragDropService {
       value => {
         // construct the operator from the drop stream value
         const operator = this.workflowUtilService.getNewOperatorPredicate(value.operatorType);
-
+        console.log('zoomoffset:', this.GetZoomX());
         const point_temp = this.GetOffsetPoint(
           (value.offset.x - this.GetOffsetX()) / this.GetZoomX(),
           (value.offset.y - this.GetOffsetY()) / this.GetZoomY()
@@ -266,6 +266,7 @@ export class DragDropService {
         y: ui.offset.top
       }
     });
+    console.log('drop location: ', ui.offset.left, ui.offset.top);
   }
 
 }
