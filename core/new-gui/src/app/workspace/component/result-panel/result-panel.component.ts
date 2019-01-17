@@ -6,6 +6,7 @@ import { ExecuteWorkflowService } from './../../service/execute-workflow/execute
 import { NgbModal, NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { ExecutionResult, SuccessExecutionResult } from './../../types/execute-workflow.interface';
 import { TableColumn, IndexableObject } from './../../types/result-table.interface';
+import { ResultPanelToggleService } from './../../service/result-panel-toggle/result-panel-toggle.service';
 
 /**
  * ResultPanelCompoent is the bottom level area that displays the
@@ -30,18 +31,30 @@ export class ResultPanelComponent {
 
   public showMessage: boolean = false;
   public message: string = '';
-
   public currentColumns: TableColumn[] | undefined;
   public currentDisplayColumns: string[] | undefined;
   public currentDataSource: MatTableDataSource<object> | undefined;
+  public showResultPanel: boolean | undefined;
+
+
+
+
+
 
   @ViewChild(MatPaginator) paginator: MatPaginator | null = null;
 
-  constructor(private executeWorkflowService: ExecuteWorkflowService, private modalService: NgbModal) {
+  constructor(private executeWorkflowService: ExecuteWorkflowService, private modalService: NgbModal,
+    private resultPanelToggleService: ResultPanelToggleService) {
+
+
     // once an execution has ended, update the result panel to dispaly
     //  execution result or error
     this.executeWorkflowService.getExecuteEndedStream().subscribe(
       executionResult => this.handleResultData(executionResult),
+    );
+
+    this.resultPanelToggleService.getToggleChangeStream().subscribe(
+      value => this.showResultPanel = value,
     );
   }
 
@@ -53,6 +66,7 @@ export class ResultPanelComponent {
    * @param rowData the object containing the data of the current row in columnDef and cellData pairs
    */
   public open(rowData: object): void {
+
     const modalRef = this.modalService.open(NgbModalComponent);
     // cast the instance type from `any` to NgbModalComponent
     const modalComponentInstance = modalRef.componentInstance as NgbModalComponent;
@@ -74,6 +88,10 @@ export class ResultPanelComponent {
    * @param response
    */
   private handleResultData(response: ExecutionResult): void {
+
+    // show resultPanel
+    this.resultPanelToggleService.openResultPanel();
+
     // backend returns error, display error message
     if (response.code === 1) {
       this.displayErrorMessage(response.message);
@@ -139,7 +157,7 @@ export class ResultPanelComponent {
     this.currentColumns = ResultPanelComponent.generateColumns(this.currentDisplayColumns);
 
     // create a new DataSource object based on the new result data
-    this.currentDataSource = new MatTableDataSource<object> (resultData);
+    this.currentDataSource = new MatTableDataSource<object>(resultData);
 
     // set the paginator to be the new DataSource's paginator
     this.currentDataSource.paginator = this.paginator;
@@ -157,6 +175,7 @@ export class ResultPanelComponent {
       getCell: (row: IndexableObject) => `${row[col]}`
     }));
   }
+
 }
 
 
@@ -189,7 +208,7 @@ export class NgbModalComponent {
   //  the pop-up modal.
   // it is used in the HTML template
 
-  constructor(public activeModal: NgbActiveModal) {}
+  constructor(public activeModal: NgbActiveModal) { }
 
 }
 
