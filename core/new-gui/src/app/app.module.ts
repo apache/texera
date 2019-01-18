@@ -23,7 +23,6 @@ import { WorkflowEditorComponent } from './workspace/component/workflow-editor/w
 import { ResultPanelComponent, NgbModalComponent } from './workspace/component/result-panel/result-panel.component';
 import { OperatorLabelComponent } from './workspace/component/operator-panel/operator-label/operator-label.component';
 import { ProductTourComponent } from './workspace/component/product-tour/product-tour.component';
-import { MapViewComponent } from './workspace/component/map-view/map-view.component';
 
 
 @NgModule({
@@ -38,7 +37,6 @@ import { MapViewComponent } from './workspace/component/map-view/map-view.compon
     NgbModalComponent,
     OperatorLabelComponent,
     ProductTourComponent,
-    MapViewComponent,
   ],
   imports: [
     BrowserModule,
