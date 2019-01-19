@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, NgModule } from '@angular/core';
 import { ExecuteWorkflowService } from './../../service/execute-workflow/execute-workflow.service';
 import { TourService } from 'ngx-tour-ng-bootstrap';
 import { DragDropService } from './../../service/drag-drop/drag-drop.service';
@@ -22,6 +22,11 @@ import { DragDropService } from './../../service/drag-drop/drag-drop.service';
   templateUrl: './navigation.component.html',
   styleUrls: ['./navigation.component.scss']
 })
+@NgModule(
+  {
+    providers: [DragDropService]
+  }
+)
 export class NavigationComponent implements OnInit {
 
   // variable binded with HTML to decide if the running spinner should show
@@ -53,7 +58,7 @@ export class NavigationComponent implements OnInit {
     this.executeWorkflowService.executeWorkflow();
   }
   /**
-   * send the offset value to the work flow editor panel.
+   * send the offset value to the work flow editor panel using drag and drop service.
   */
   public onClickZoomButton(): void {
     this.offsetZoom += 0.01;

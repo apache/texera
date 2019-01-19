@@ -5,6 +5,7 @@ import { Component, AfterViewInit } from '@angular/core';
 import { Observable } from 'rxjs/Observable';
 import '../../../common/rxjs-operators';
 import * as joint from 'jointjs';
+import { loadElement } from '@angular/core/src/render3/instructions';
 
 // argument type of callback event on a JointJS Paper
 // which is a 4-element tuple:
@@ -39,6 +40,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
   public readonly WORKFLOW_EDITOR_JOINTJS_ID = 'texera-workflow-editor-jointjs-body-id';
   private paper: joint.dia.Paper | undefined;
   private offsetZoom: number = 1;
+  private zoomCoordinateX;
+  private zoomCoordinateY;
   constructor(
     private workflowActionService: WorkflowActionService,
     private dragDropService: DragDropService,
@@ -52,14 +55,21 @@ export class WorkflowEditorComponent implements AfterViewInit {
     return this.paper;
   }
   public handleWindowSize(): void {
+    /**
+     * subscribe the value passed from navigation.component.ts, which can be uesed to
+     * make the panel larger or smaller.
+     */
     this.dragDropService.handleZoomBus.subscribe((value) => {
       this.offsetZoom = value;
       this.getJointPaper().scale(this.offsetZoom, this.offsetZoom);
+      this.zoomCoordinateX = this.zoomCoordinateX /  this.offsetZoom;
+      this.zoomCoordinateY = this.zoomCoordinateY / this.offsetZoom;
+      console.log('zoomCCCC: ', this.zoomCoordinateX, this.zoomCoordinateY);
     });
   }
   ngAfterViewInit() {
-    this.handleWindowSize();
     this.initializeJointPaper();
+    this.handleWindowSize();
     this.handleWindowResize();
     this.handleViewDeleteOperator();
     this.handleCellHighlight();
@@ -77,6 +87,9 @@ export class WorkflowEditorComponent implements AfterViewInit {
     // create the JointJS paper
     this.paper = new joint.dia.Paper(jointPaperOptions);
 
+    this.zoomCoordinateX = this.getWrapperElementOffset().x;
+    this.zoomCoordinateY = this.getWrapperElementOffset().y;
+
     this.setJointPaperOriginOffset();
     this.setJointPaperDimensions();
   }
@@ -88,6 +101,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     let down_offsetX = 0;
     let down_offsetY = 0;
     const elementOffset = this.getWrapperElementOffset();
+    console.log('original offset: ', elementOffset.x, elementOffset.y);
     // listen to the event when mouse was being clicked down.
     this.getJointPaper().on('blank:pointerdown', function(evt: any, x: any, y: any) {
       down_offsetX = x;
@@ -196,6 +210,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
    */
   private setJointPaperDimensions(): void {
     const elementSize = this.getWrapperElementSize();
+    console.log('window size: ', elementSize.width, elementSize.height);
     this.getJointPaper().setDimensions(elementSize.width, elementSize.height);
   }
 

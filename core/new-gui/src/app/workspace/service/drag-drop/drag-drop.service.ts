@@ -45,6 +45,7 @@ import * as joint from 'jointjs';
 export class DragDropService {
 
   private static readonly DRAG_DROP_TEMP_OPERATOR_TYPE = 'drag-drop-temp-operator-type';
+  // a subject that can restore the value passed from navigation.component.ts
   public handleZoomBus: Subject<number> = new Subject<number>();
   dragOffsetX: number = 0;
   dragOffsetY: number = 0;
