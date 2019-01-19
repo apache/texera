@@ -17,6 +17,8 @@ import { Observable } from 'rxjs/Observable';
 import { marbles } from 'rxjs-marbles';
 import { HttpClient } from '@angular/common/http';
 import { mockExecutionResult } from '../../service/execute-workflow/mock-result-data';
+import { DragDropService } from '../../service/drag-drop/drag-drop.service';
+import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-util.service';
 
 class StubHttpClient {
 
@@ -38,8 +40,10 @@ describe('NavigationComponent', () => {
       ],
       providers: [
         WorkflowActionService,
+        WorkflowUtilService,
         JointUIService,
         ExecuteWorkflowService,
+        DragDropService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         { provide: HttpClient, useClass: StubHttpClient },
         TourService,

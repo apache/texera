@@ -5,7 +5,6 @@ import { Component, AfterViewInit } from '@angular/core';
 import { Observable } from 'rxjs/Observable';
 import '../../../common/rxjs-operators';
 import * as joint from 'jointjs';
-import { loadElement } from '@angular/core/src/render3/instructions';
 
 // argument type of callback event on a JointJS Paper
 // which is a 4-element tuple:
@@ -40,8 +39,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
   public readonly WORKFLOW_EDITOR_JOINTJS_ID = 'texera-workflow-editor-jointjs-body-id';
   private paper: joint.dia.Paper | undefined;
   private offsetZoom: number = 1;
-  private zoomCoordinateX;
-  private zoomCoordinateY;
   constructor(
     private workflowActionService: WorkflowActionService,
     private dragDropService: DragDropService,
@@ -62,9 +59,9 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.dragDropService.handleZoomBus.subscribe((value) => {
       this.offsetZoom = value;
       this.getJointPaper().scale(this.offsetZoom, this.offsetZoom);
-      this.zoomCoordinateX = this.zoomCoordinateX /  this.offsetZoom;
-      this.zoomCoordinateY = this.zoomCoordinateY / this.offsetZoom;
-      console.log('zoomCCCC: ', this.zoomCoordinateX, this.zoomCoordinateY);
+      // this.zoomCoordinateX = this.zoomCoordinateX /  this.offsetZoom;
+      // this.zoomCoordinateY = this.zoomCoordinateY / this.offsetZoom;
+
     });
   }
   ngAfterViewInit() {
@@ -87,9 +84,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
     // create the JointJS paper
     this.paper = new joint.dia.Paper(jointPaperOptions);
 
-    this.zoomCoordinateX = this.getWrapperElementOffset().x;
-    this.zoomCoordinateY = this.getWrapperElementOffset().y;
-
     this.setJointPaperOriginOffset();
     this.setJointPaperDimensions();
   }
@@ -101,14 +95,14 @@ export class WorkflowEditorComponent implements AfterViewInit {
     let down_offsetX = 0;
     let down_offsetY = 0;
     const elementOffset = this.getWrapperElementOffset();
-    console.log('original offset: ', elementOffset.x, elementOffset.y);
+    // console.log('original offset: ', elementOffset.x, elementOffset.y);
     // listen to the event when mouse was being clicked down.
     this.getJointPaper().on('blank:pointerdown', function(evt: any, x: any, y: any) {
       down_offsetX = x;
       down_offsetY = y;
       ifMouseDown = true;
       ifMouseUp = false;
-      console.log('down: ', x, y);
+      // console.log('down: ', x, y);
     });
     // listen to the event when mouse was moving.
     observables.mouseMoves.forEach((coordinate: any) => {

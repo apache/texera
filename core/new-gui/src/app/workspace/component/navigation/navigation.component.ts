@@ -22,11 +22,7 @@ import { DragDropService } from './../../service/drag-drop/drag-drop.service';
   templateUrl: './navigation.component.html',
   styleUrls: ['./navigation.component.scss']
 })
-@NgModule(
-  {
-    providers: [DragDropService]
-  }
-)
+
 export class NavigationComponent implements OnInit {
 
   // variable binded with HTML to decide if the running spinner should show
