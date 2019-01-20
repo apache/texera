@@ -6,23 +6,23 @@
           <i id="texera-tour-icon" class="fa fa-question-circle-o" aria-hidden="true"></i>
         </span>
     </button>
-    <button *ngIf="!running" mat-raised-button color="accent" class="texera-navigation-run-button" (click)="onClickRun()">
+    <button *ngIf="!isWorkflowRunning" mat-raised-button color="accent" class="texera-navigation-run-button" (click)="onClickRun()">
       <span class="texera-navigation-run-text">
           <i id="texera-run-icon" class="fa fa-play" aria-hidden="true"></i>
           Run
       </span>
     </button>
 
-    <button *ngIf="running" mat-raised-button color="accent" class="texera-navigation-run-button" (click)="onClickPauseResume()">
-      <div *ngIf="!isPaused" class="texera-navigation-run-text">
-          <i id="texera-run-icon" class="fa fa-spinner fa-spin" aria-hidden="true"></i>
+    <button *ngIf="isWorkflowRunning" mat-raised-button color="accent" class="texera-navigation-run-button" (click)="onClickPauseResumeToggle()">
+      <span *ngIf="!isWorkflowPaused" class="texera-navigation-run-text">
+          <i id="texera-pause-icon" class="fa fa-spinner fa-spin" aria-hidden="true"></i>
         Pause
-      </div>
+      </span>
 
-      <div *ngIf="isPaused" class="texera-navigation-run-text">
-        <i id="texera-run-icon" class="fa fa-play" aria-hidden="true"></i>
+      <span *ngIf="isWorkflowPaused" class="texera-navigation-run-text">
+        <i id="texera-resume-icon" class="fa fa-play" aria-hidden="true"></i>
         Resume
-      </div>
+      </span>
     </button>
   </div>
 </nav>

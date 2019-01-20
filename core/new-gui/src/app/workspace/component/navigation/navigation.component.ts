@@ -24,15 +24,15 @@ import { TourService } from 'ngx-tour-ng-bootstrap';
 })
 export class NavigationComponent implements OnInit {
 
-  public running = false; // set this to true when the workflow is started
-  public isPaused = false; // this will be modified by clicking pause/resume while the workflow is running
+  public isWorkflowRunning: boolean = true; // set this to true when the workflow is started
+  public isWorkflowPaused: boolean = false; // this will be modified by clicking pause/resume while the workflow is running
 
   constructor(private executeWorkflowService: ExecuteWorkflowService, public tourService: TourService) {
     // return the run button after the execution is finished, either
     //  when the value is valid or invalid
     executeWorkflowService.getExecuteEndedStream().subscribe(
-      value => this.running = false,
-      error => this.running = false
+      () => this.isWorkflowRunning = false,
+      () => this.isWorkflowPaused = false
     );
   }
 
@@ -41,13 +41,12 @@ export class NavigationComponent implements OnInit {
 
   /**
    * Executes the current existing workflow on the JointJS paper. It will
-   *  also set the `running` variable to true to show that the backend
+   *  also set the `isWorkflowRunning` variable to true to show that the backend
    *  is loading the workflow by displaying the pause/resume button.
    */
   public onClickRun(): void {
     // modifying the `running` and `isPaused` variables will display the pause button
-    this.running = true;
-    this.isPaused = false;
+    this.isWorkflowRunning = true;
     this.executeWorkflowService.executeWorkflow();
   }
 
@@ -56,8 +55,8 @@ export class NavigationComponent implements OnInit {
    * also swap the button between pause and resume whenever you click on it to show whether
    * the backend is currently paused or not.
    */
-  public onClickPauseResume(): void {
-    this.isPaused = !this.isPaused;
+  public onClickPauseResumeToggle(): void {
+    this.isWorkflowPaused = !this.isWorkflowPaused;
   }
 
 }
