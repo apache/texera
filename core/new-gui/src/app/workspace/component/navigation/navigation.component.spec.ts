@@ -85,23 +85,46 @@ describe('NavigationComponent', () => {
 
     // expect initially the pause/resume button is not showing
 
-    expect(component.running).toBeFalsy();
+    expect(component.isWorkflowRunning).toBeFalsy();
+    expect(component.isWorkflowPaused).toBeFalsy();
 
     m.hot('-e-').do(() => component.onClickRun()).subscribe();
 
     executeWorkFlowService.getExecuteStartedStream().subscribe(
       () => {
         fixture.detectChanges();
-        expect(component.running).toBeTruthy();
+        expect(component.isWorkflowRunning).toBeTruthy();
+        expect(component.isWorkflowPaused).toBeFalsy();
       }
     );
 
     executeWorkFlowService.getExecuteEndedStream().subscribe(
       () => {
         fixture.detectChanges();
-        expect(component.running).toBeFalsy();
+        expect(component.isWorkflowRunning).toBeFalsy();
+        expect(component.isWorkflowPaused).toBeFalsy();
       }
     );
+
+  }));
+
+  it('onClickPauseResumeToggle() should flip the value of isWorkflowPaused', marbles((m) => {
+
+    const httpClient: HttpClient = TestBed.get(HttpClient);
+    spyOn(httpClient, 'post').and.returnValue(
+      Observable.of(mockExecutionResult)
+    );
+
+    // expect initially to be false
+    expect(component.isWorkflowPaused).toBeFalsy();
+    component.onClickPauseResumeToggle();
+
+    // should now be true
+    expect(component.isWorkflowPaused).toBeTruthy();
+    component.onClickPauseResumeToggle();
+
+    // should be false
+    expect(component.isWorkflowPaused).toBeFalsy();
 
   }));
 

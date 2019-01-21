@@ -24,7 +24,7 @@ import { TourService } from 'ngx-tour-ng-bootstrap';
 })
 export class NavigationComponent implements OnInit {
 
-  public isWorkflowRunning: boolean = true; // set this to true when the workflow is started
+  public isWorkflowRunning: boolean = false; // set this to true when the workflow is started
   public isWorkflowPaused: boolean = false; // this will be modified by clicking pause/resume while the workflow is running
 
   constructor(private executeWorkflowService: ExecuteWorkflowService, public tourService: TourService) {
