@@ -57,16 +57,14 @@ export class NavigationComponent implements OnInit {
    * send the offset value to the work flow editor panel using drag and drop service.
   */
   public onClickZoomButton(): void {
-    this.offsetZoom += 0.01;
+    this.offsetZoom += 0.02;
     // console.log('send offsetZoom: ', this.offsetZoom);
-    this.dragDropService.SetZoomX(this.offsetZoom);
-    this.dragDropService.SetZoomY(this.offsetZoom);
+    this.dragDropService.SetZoom(this.offsetZoom);
     this.dragDropService.handleZoomBus.next(this.offsetZoom);
   }
   public onClickShrinkButton(): void {
-    this.offsetZoom -= 0.01;
-    this.dragDropService.SetZoomX(this.offsetZoom);
-    this.dragDropService.SetZoomY(this.offsetZoom);
+    this.offsetZoom -= 0.02;
+    this.dragDropService.SetZoom(this.offsetZoom);
     this.dragDropService.handleZoomBus.next(this.offsetZoom);
   }
 }

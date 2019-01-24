@@ -47,11 +47,8 @@ export class DragDropService {
   private static readonly DRAG_DROP_TEMP_OPERATOR_TYPE = 'drag-drop-temp-operator-type';
   // a subject that can restore the value passed from navigation.component.ts
   public handleZoomBus: Subject<number> = new Subject<number>();
-  dragOffsetX: number = 0;
-  dragOffsetY: number = 0;
-  zoomOffsetX: number = 1;
-  zoomOffsetY: number = 1;
-
+  zoomOffset: number = 1;
+  DragOffset = new Array(2, 0);
   /** mapping of DOM Element ID to operatorType */
   private elementOperatorTypeMap = new Map<string, string>();
   /** the current operatorType of the operator being dragged */
@@ -84,10 +81,10 @@ export class DragDropService {
       value => {
         // construct the operator from the drop stream value
         const operator = this.workflowUtilService.getNewOperatorPredicate(value.operatorType);
-        // console.log('zoomoffset:', this.GetZoomX());
+        // get the new drop coordinate of operator.
         const point_temp = this.GetOffsetPoint(
-          (value.offset.x - this.GetOffsetX()) / this.GetZoomX(),
-          (value.offset.y - this.GetOffsetY()) / this.GetZoomY()
+          (value.offset.x - this.GetOffset()[0]) / this.GetZoom(),
+          (value.offset.y - this.GetOffset()[1]) / this.GetZoom()
           );
         // add the operator
         this.workflowActionService.addOperator(operator, point_temp);
@@ -119,20 +116,13 @@ export class DragDropService {
   public getOperatorDropStream(): Observable<{ operatorType: string, offset: Point }> {
     return this.operatorDroppedSubject.asObservable();
   }
-  public SetOffsetX(x: number) {
-    this.dragOffsetX = x;
+  public SetOffset(offset: Array<number>) {
+    this.DragOffset[0] = offset[0];
+    this.DragOffset[1] = offset[1];
   }
 
-  public SetOffsetY(y: number) {
-    this.dragOffsetY = y;
-  }
-
-  public SetZoomX(x: number) {
-      this.zoomOffsetX = x;
-  }
-
-  public SetZoomY(y: number) {
-    this.zoomOffsetY = y;
+  public SetZoom(x: number) {
+      this.zoomOffset = x;
   }
 
   /**
@@ -168,22 +158,15 @@ export class DragDropService {
     });
   }
 
-  private GetZoomX(): number {
-    return this.zoomOffsetX;
+  private GetZoom(): number {
+    return this.zoomOffset;
   }
 
   private GetOffsetPoint(x: number, y: number): Point {
     return {x, y};
   }
-  private GetOffsetX(): number {
-    return this.dragOffsetX;
-  }
-  private GetOffsetY(): number {
-    return this.dragOffsetY;
-  }
-
-  private GetZoomY(): number {
-    return this.zoomOffsetY;
+  private GetOffset(): number[] {
+    return this.DragOffset;
   }
   /**
    * Creates a DOM Element that visually looks identical to the operator when dropped on main workflow editor
