@@ -1,8 +1,8 @@
 <nav class="texera-navigation-body navbar navbar-expand-sm bg-dark navbar-dark justify-content-between">
   <a class="navbar-brand" href="#">Texera</a>
   <div style = "text-align: center;">
-    <button class = "zoom-button" style = "background-image: url('../../../../assets/ZoomIn.jpeg');" (click)="onClickZoomOut()"></button>
-    <button class = "zoom-button" style = "background-image: url('../../../../assets/ZoomOut.jpeg');" (click)="onClickZoomIn()"></button>
+    <button class = "zoom-button zoom-in-button" (click)="onClickZoomOut()"></button>
+    <button class = "zoom-button zoom-out-button" (click)="onClickZoomIn()"></button>
   </div>
   <div class="button" tourAnchor= "texera-workspace-navigation-run">
     <button class="btn btn-secondary texera-workspace-tour-run" (click)="tourService.toggle()" tourAnchor="start.tour">

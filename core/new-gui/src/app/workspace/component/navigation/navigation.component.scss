@@ -25,11 +25,15 @@
 	cursor: pointer;
 	outline: none;
 	font-family: Microsoft YaHei;
-
   font-size: 17px;
   border-radius:50%;
 }
-
+.zoom-in-button {
+  background-image: url('../../../../assets/ZoomIn.jpeg');
+}
+.zoom-out-button{
+  background-image: url('../../../../assets/ZoomOut.jpeg');
+}
 .texera-navigation-run-button {
   margin-right: 3%;
   .mat-raised-button {
