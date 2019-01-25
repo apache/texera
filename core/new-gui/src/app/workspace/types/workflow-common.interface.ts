@@ -26,3 +26,9 @@ export interface OperatorLink extends Readonly<{
   source: OperatorPort;
   target: OperatorPort;
 }> { }
+
+export interface InvalidOperatorLink extends Readonly<{
+  linkID: string;
+  source: OperatorPort;
+  target: Point;
+}> { }
