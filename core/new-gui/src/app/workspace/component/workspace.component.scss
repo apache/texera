@@ -90,6 +90,12 @@ $header-height: 56px;
   grid-row-end: 3;
 }
 
+.texera-mini-map {
+  grid-column-start: 3;
+  grid-column-end: 4;
+  grid-row-start: 3;
+  grid-row-end: 4;
+}
 
 /**
   * this style specifies that the result panel in the middle

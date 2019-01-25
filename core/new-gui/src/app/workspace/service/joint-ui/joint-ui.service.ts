@@ -120,13 +120,6 @@ export class JointUIService {
       }
     });
 
-    // // crazy:
-    // const mapOperatorElement = new TexeraCustomJointElement({
-    //   position: {x: 10, y: 10},
-    //   size: { width: 15, height: 15 },
-    //   attrs: JointUIService.getMapStyleAttrs(),
-    // });
-
     // set operator element ID to be operator ID
     operatorElement.set('id', operator.operatorID);
 
@@ -256,12 +249,6 @@ export class JointUIService {
     return operatorStyleAttrs;
   }
 
-  // crazy:
-  public static getMapStyleAttrs(): joint.shapes.devs.ModelSelectors {
-    const operatorStyleAttrs = {
-      'rect': { fill: '#FFFFFF', 'follow-scale': true, stroke: '#CFCFCF', 'stroke-width': '2' },
-    };
-    return operatorStyleAttrs;
-  }
+
 
 }
