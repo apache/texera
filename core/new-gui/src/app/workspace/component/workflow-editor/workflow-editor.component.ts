@@ -42,8 +42,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
    * Logically, set ZoomOffset to be 1 since the intial zoom time is 1.
    */
   private newZoomRatio: number = 1;
-  
-
   constructor(
     private workflowActionService: WorkflowActionService,
     private dragDropService: DragDropService,

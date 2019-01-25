@@ -29,6 +29,7 @@ export class NavigationComponent implements OnInit {
   public showSpinner = false;
   // the newZoomRatio represents the ratio of the size of the the new window to the original one.
   private newZoomRatio: number = 1;
+
   constructor(private dragDropService: DragDropService,
     private executeWorkflowService: ExecuteWorkflowService, public tourService: TourService) {
     // hide the spinner after the execution is finished, either
@@ -41,8 +42,6 @@ export class NavigationComponent implements OnInit {
 
   ngOnInit() {
   }
-
-
   /**
    * Executes the current existing workflow on the JointJS paper. It will
    *  also set the `showSpinner` variable to true to show that the backend
@@ -59,10 +58,12 @@ export class NavigationComponent implements OnInit {
    * when users click on the button, we change the zoomoffset to make window larger or smaller.
   */
   public onClickZoomIn(): void {
+    // make the ratio small. 
     this.newZoomRatio += 0.02;
     this.dragDropService.setZoomProperty(this.newZoomRatio);
   }
   public onClickZoomOut(): void {
+    // make the ratio big.
     this.newZoomRatio -= 0.02;
     this.dragDropService.setZoomProperty(this.newZoomRatio);
   }

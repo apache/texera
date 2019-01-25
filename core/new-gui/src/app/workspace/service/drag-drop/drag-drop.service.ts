@@ -47,7 +47,11 @@ export class DragDropService {
   private static readonly DRAG_DROP_TEMP_OPERATOR_TYPE = 'drag-drop-temp-operator-type';
   // a subject that can restore the value passed from navigation.component.ts
   private workflowEditorZoomSubject: Subject<number> = new Subject<number>();
-  private zoomOffset: number = 1;
+  /**
+   * Logically, set ZoomOffset to be 1 since the intial zoom time is 1.
+   */
+  private newZoomRatio: number = 1;
+  // DragOffset has two elements, first is the drag offset alongside x axis, second is the drag offset alongside y axis.
   private DragOffset = new Array(2, 0);
   /** mapping of DOM Element ID to operatorType */
   private elementOperatorTypeMap = new Map<string, string>();
@@ -126,9 +130,9 @@ export class DragDropService {
     this.DragOffset[1] = offset[1];
   }
 
-  public setZoomProperty(x: number) {
-      this.zoomOffset = x;
-      this.getworkflowEditorZoomSubject().next(this.zoomOffset);
+  public setZoomProperty(ratio: number) {
+      this.newZoomRatio = ratio;
+      this.getworkflowEditorZoomSubject().next(this.newZoomRatio);
   }
 
   /**
@@ -165,7 +169,7 @@ export class DragDropService {
   }
 
   private GetZoom(): number {
-    return this.zoomOffset;
+    return this.newZoomRatio;
   }
 
   private GetOffsetPoint(x: number, y: number): Point {
