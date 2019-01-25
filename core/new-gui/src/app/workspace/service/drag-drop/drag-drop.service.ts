@@ -46,9 +46,9 @@ export class DragDropService {
 
   private static readonly DRAG_DROP_TEMP_OPERATOR_TYPE = 'drag-drop-temp-operator-type';
   // a subject that can restore the value passed from navigation.component.ts
-  public handleZoomBus: Subject<number> = new Subject<number>();
-  zoomOffset: number = 1;
-  DragOffset = new Array(2, 0);
+  private workflowEditorZoomSubject: Subject<number> = new Subject<number>();
+  private zoomOffset: number = 1;
+  private DragOffset = new Array(2, 0);
   /** mapping of DOM Element ID to operatorType */
   private elementOperatorTypeMap = new Map<string, string>();
   /** the current operatorType of the operator being dragged */
@@ -81,13 +81,16 @@ export class DragDropService {
       value => {
         // construct the operator from the drop stream value
         const operator = this.workflowUtilService.getNewOperatorPredicate(value.operatorType);
-        // get the new drop coordinate of operator.
-        const point_temp = this.GetOffsetPoint(
+        /**  
+         * get the new drop coordinate of operator, when users drag or zoom the panel, to make sure the operator will
+         drop on the right location.
+         */
+        const newOperatorOffset = this.GetOffsetPoint(
           (value.offset.x - this.GetOffset()[0]) / this.GetZoom(),
           (value.offset.y - this.GetOffset()[1]) / this.GetZoom()
           );
         // add the operator
-        this.workflowActionService.addOperator(operator, point_temp);
+        this.workflowActionService.addOperator(operator, newOperatorOffset);
         // highlight the operator after adding the operator
         this.workflowActionService.getJointGraphWrapper().highlightOperator(operator.operatorID);
         // reset the current operator type to an non-exist type
@@ -105,7 +108,9 @@ export class DragDropService {
     return this.operatorDragStartedSubject.asObservable();
   }
 
-
+  public getworkflowEditorZoomSubject(): Subject<number> {
+    return this.workflowEditorZoomSubject;
+  }
   /**
    * Gets an observable for operator is dropped on the main workflow editor event
    * Contains an object with:
@@ -121,8 +126,9 @@ export class DragDropService {
     this.DragOffset[1] = offset[1];
   }
 
-  public SetZoom(x: number) {
+  public setZoomProperty(x: number) {
       this.zoomOffset = x;
+      this.getworkflowEditorZoomSubject().next(this.zoomOffset);
   }
 
   /**
@@ -250,7 +256,6 @@ export class DragDropService {
         y: ui.offset.top
       }
     });
-    // console.log('drop location: ', ui.offset.left, ui.offset.top);
   }
 
 }

@@ -27,7 +27,8 @@ export class NavigationComponent implements OnInit {
 
   // variable binded with HTML to decide if the running spinner should show
   public showSpinner = false;
-  private offsetZoom: number = 1;
+  // the newZoomRatio represents the ratio of the size of the the new window to the original one.
+  private newZoomRatio: number = 1;
   constructor(private dragDropService: DragDropService,
     private executeWorkflowService: ExecuteWorkflowService, public tourService: TourService) {
     // hide the spinner after the execution is finished, either
@@ -55,16 +56,14 @@ export class NavigationComponent implements OnInit {
   }
   /**
    * send the offset value to the work flow editor panel using drag and drop service.
+   * when users click on the button, we change the zoomoffset to make window larger or smaller.
   */
-  public onClickZoomButton(): void {
-    this.offsetZoom += 0.02;
-    // console.log('send offsetZoom: ', this.offsetZoom);
-    this.dragDropService.SetZoom(this.offsetZoom);
-    this.dragDropService.handleZoomBus.next(this.offsetZoom);
+  public onClickZoomIn(): void {
+    this.newZoomRatio += 0.02;
+    this.dragDropService.setZoomProperty(this.newZoomRatio);
   }
-  public onClickShrinkButton(): void {
-    this.offsetZoom -= 0.02;
-    this.dragDropService.SetZoom(this.offsetZoom);
-    this.dragDropService.handleZoomBus.next(this.offsetZoom);
+  public onClickZoomOut(): void {
+    this.newZoomRatio -= 0.02;
+    this.dragDropService.setZoomProperty(this.newZoomRatio);
   }
 }

@@ -38,7 +38,12 @@ export class WorkflowEditorComponent implements AfterViewInit {
   public readonly WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID = 'texera-workflow-editor-jointjs-wrapper-id';
   public readonly WORKFLOW_EDITOR_JOINTJS_ID = 'texera-workflow-editor-jointjs-body-id';
   private paper: joint.dia.Paper | undefined;
-  private ZoomOffset: number = 1;
+  /**
+   * Logically, set ZoomOffset to be 1 since the intial zoom time is 1.
+   */
+  private newZoomRatio: number = 1;
+  
+
   constructor(
     private workflowActionService: WorkflowActionService,
     private dragDropService: DragDropService,
@@ -51,14 +56,14 @@ export class WorkflowEditorComponent implements AfterViewInit {
     }
     return this.paper;
   }
-  public handleWindowSize(): void {
-    /**
+  /**
      * subscribe the value passed from navigation.component.ts, which can be uesed to
      * make the panel larger or smaller.
      */
-    this.dragDropService.handleZoomBus.subscribe((value) => {
-      this.ZoomOffset = value;
-      this.getJointPaper().scale(this.ZoomOffset, this.ZoomOffset);
+  public handleWindowSize(): void {
+    this.dragDropService.getworkflowEditorZoomSubject().subscribe((value) => {
+      this.newZoomRatio = value;
+      this.getJointPaper().scale(this.newZoomRatio, this.newZoomRatio);
     });
   }
   ngAfterViewInit() {
@@ -88,31 +93,40 @@ export class WorkflowEditorComponent implements AfterViewInit {
    * Handles user mouse drag events to trigger logically window move.
    */
   private handleWindowDrag(): void {
-    const observables = getObservables(this.getJointPaper());
-    let ifMouseDown = false;
+    let ifMouseDown: boolean = false;
     let MouseDown = new Array(2);
     let dragOffset = new Array(2);
-    this.getJointPaper().on('blank:pointerdown',function(evt:any, x: any,y: any){
-          MouseDown[0] = x;
-          MouseDown[1] = y
-          ifMouseDown = true;
-    });
-    // ifMouseDown = this.handleMouseDown(ifMouseDown,MouseDown);
-    observables.mouseMoves.forEach((coordinate: any) => {
-      if (ifMouseDown === true) {
-        /**
-         * dragOffset[0]: the offset of x axis when we tried to drag the window
-         * dragOffset[1]: the offset of y axis when we tried to drag the window
-         */
-        dragOffset[0] = (coordinate.x - MouseDown[0] * this.ZoomOffset);
-        dragOffset[1] = (coordinate.y - MouseDown[1] * this.ZoomOffset);
-        this.getJointPaper().translate(
-          (- this.getWrapperElementOffset().x + dragOffset[0]),
-          (- this.getWrapperElementOffset().y + dragOffset[1])
-        );
-        this.dragDropService.SetOffset(dragOffset);
-      }
-    });
+    Observable
+      .fromEvent(this.getJointPaper(),'blank:pointerdown',
+      function (evt:any, x: any, y: any){
+          return {x: x, y: y};
+      }).subscribe(
+          function (coordinate) {
+            MouseDown[0] = coordinate.x;
+            MouseDown[1] = coordinate.y;
+            ifMouseDown = true;
+          }
+      );
+    /**
+     * dragOffset[0]: the offset of x axis when we tried to drag the window
+     * dragOffset[1]: the offset of y axis when we tried to drag the window
+     */
+    Observable
+      .fromEvent<MouseEvent>(document,'mousemove').forEach(
+        (coordinate: any) => {
+          if (ifMouseDown === true) {
+            // calculate the drag offset between user click on the mouse and then release the mouse, including zooming value.
+            dragOffset[0] = (coordinate.x - MouseDown[0] * this.newZoomRatio);
+            dragOffset[1] = (coordinate.y - MouseDown[1] * this.newZoomRatio);
+            // do paper movement.
+            this.getJointPaper().translate(
+              (- this.getWrapperElementOffset().x + dragOffset[0]),
+              (- this.getWrapperElementOffset().y + dragOffset[1])
+            );
+            // pass offset to the drag-and0drop.service, make drop operator be at the right location.
+            this.dragDropService.SetOffset(dragOffset);
+          }
+        });
     Observable
       .fromEvent<JointPaperEvent>(this.getJointPaper(), 'blank:pointerup').subscribe(
         () => {
@@ -283,22 +297,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
     return jointPaperOptions;
   }
 }
-/**/
-function getObservables(domItem: any) {
-  //convert mouse event into coordinate.
-  const mouseEventToCoordinate = (mouseEvent: any) => {
-    mouseEvent.preventDefault();
-    return {
-      x: mouseEvent.clientX,
-      y: mouseEvent.clientY
-    };
-  };
-  const mouseDowns = Observable.fromEvent(domItem, 'mousedown').map(mouseEventToCoordinate);
-  const mouseMoves = Observable.fromEvent(window, 'mousemove').map(mouseEventToCoordinate);
-  const mouseUps = Observable.fromEvent(window, 'mouseup').map(mouseEventToCoordinate);
-  return { mouseDowns, mouseMoves, mouseUps};
-}
-
 /**
 * This function is provided to JointJS to disable some invalid connections on the UI.
 * If the connection is invalid, users are not able to connect the links on the UI.

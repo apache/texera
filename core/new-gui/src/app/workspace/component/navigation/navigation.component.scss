@@ -11,17 +11,17 @@
     margin-right: 5px;
   }
 }
-.zoom_button:active {
-  background-color: #1E90FF;
-  box-shadow: 0 5px #666;
+.zoom-button:active {
+  // background-color: #1E90FF;
+  // box-shadow: 0 5px #666;
   transform: translateY(4px);
 }
 
-.zoom_button {
+.zoom-button {
   background-size: 40px 40px;
   width: 40px;
   height: 40px;
-
+  text-align: center;
 	cursor: pointer;
 	outline: none;
 	font-family: Microsoft YaHei;
