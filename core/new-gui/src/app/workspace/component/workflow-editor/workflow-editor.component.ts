@@ -86,7 +86,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     // create the JointJS paper
     this.paper = new joint.dia.Paper(jointPaperOptions);
 
-    this.miniMapService.initializeMapPaper(this.paper);
+    // this.miniMapService.initializeMapPaper(this.paper);
 
     this.setJointPaperOriginOffset();
     this.setJointPaperDimensions();

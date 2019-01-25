@@ -69,13 +69,13 @@ export class MiniMapComponent implements OnInit {
   }
 
   private getWrapperElementSize(): { width: number, height: number } {
-    const width = $('#' + this.MINI_MAP_JOINTJS_MAP_WRAPPER_ID).width();
-    const height = $('#' + this.MINI_MAP_JOINTJS_MAP_WRAPPER_ID).height();
+    const e = $('#' + this.MINI_MAP_JOINTJS_MAP_WRAPPER_ID);
+    const width = e.width();
+    const height = e.height();
 
     if (width === undefined || height === undefined) {
       throw new Error('fail to get MAP wrapper element size');
     }
-
 
     return { width, height };
   }
