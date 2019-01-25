@@ -71,6 +71,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.handleViewDeleteOperator();
     this.handleCellHighlight();
 
+    this.miniMapService.initializeMapPaper(this.getJointPaper());
     this.dragDropService.registerWorkflowEditorDrop(this.WORKFLOW_EDITOR_JOINTJS_ID);
 
   }

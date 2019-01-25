@@ -76,6 +76,7 @@ export class MiniMapComponent implements OnInit {
       throw new Error('fail to get MAP wrapper element size');
     }
 
+
     return { width, height };
   }
 
