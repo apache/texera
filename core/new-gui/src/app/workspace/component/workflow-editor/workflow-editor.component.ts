@@ -255,7 +255,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
       // set grid size to 1px (smallest grid)
       gridSize: 1,
       // enable jointjs feature that automatically snaps a link to the closest port with a radius of 30px
-      snapLinks: { radius: 150 },
+      snapLinks: { radius: 75 },
       // disable jointjs default action that can make a link not connect to an operator
       linkPinning: false,
       // provide a validation to determine if two ports could be connected (only output connect to input is allowed)
