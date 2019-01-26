@@ -64,8 +64,8 @@ class TexeraCustomJointElement extends joint.shapes.devs.Model {
 @Injectable()
 export class JointUIService {
 
-  public static readonly DEFAULT_OPERATOR_WIDTH = 140;
-  public static readonly DEFAULT_OPERATOR_HEIGHT = 80;
+  public static readonly DEFAULT_OPERATOR_WIDTH = 60;
+  public static readonly DEFAULT_OPERATOR_HEIGHT = 60;
 
   private operators: ReadonlyArray<OperatorSchema> = [];
 
@@ -173,6 +173,12 @@ export class JointUIService {
    */
   public static getDefaultLinkCell(): joint.dia.Link {
     const link = new joint.dia.Link({
+      router: {
+        name: 'manhattan'
+      },
+      connector: {
+        name: 'rounded'
+      },
       attrs: {
         '.connection-wrap': {
           'stroke-width': 0
@@ -239,17 +245,17 @@ export class JointUIService {
     const operatorStyleAttrs = {
       'rect': { fill: '#FFFFFF', 'follow-scale': true, stroke: '#CFCFCF', 'stroke-width': '2' },
       'text': {
-        text: operatorDisplayName, fill: 'black', 'font-size': '12px',
-        'ref-x': 0.5, 'ref-y': 0.2, ref: 'rect', 'y-alignment': 'middle', 'x-alignment': 'middle'
+        text: operatorDisplayName, fill: 'gray', 'font-size': '12px',
+        'ref-x': 0.5, 'ref-y': 80, ref: 'rect', 'y-alignment': 'middle', 'x-alignment': 'middle'
       },
       '.delete-button': {
-        x: 135, y: -20, cursor: 'pointer',
+        x: 67, y: -20, cursor: 'pointer',
         fill: '#D8656A', event: 'element:delete'
       },
       'image': {
         'href': '/src/assets/operator_images/' + operatorType + '.png',
-        width: 40, height: 40,
-        'ref-x': .5, 'ref-y': .6,
+        width: 25, height: 25,
+        'ref-x': .5, 'ref-y': .5,
         ref: 'rect',
         'x-alignment': 'middle',
         'y-alignment': 'middle'
