@@ -13,13 +13,16 @@
       </span>
     </button>
 
-    <button *ngIf="isWorkflowRunning" mat-raised-button color="accent" class="texera-navigation-run-button" (click)="onClickPauseResumeToggle()">
-      <span *ngIf="!isWorkflowPaused" class="texera-navigation-run-text">
+    <button *ngIf="isWorkflowRunning && !isWorkflowPaused" mat-raised-button color="paused" class="texera-navigation-run-button" (click)="onClickPauseResumeToggle()">
+      <span class="texera-navigation-run-text">
           <i id="texera-pause-icon" class="fa fa-spinner fa-spin" aria-hidden="true"></i>
         Pause
       </span>
+    </button>
 
-      <span *ngIf="isWorkflowPaused" class="texera-navigation-run-text">
+    <button *ngIf="isWorkflowRunning && isWorkflowPaused" mat-raised-button color="resume" class="texera-navigation-run-button" (click)="onClickPauseResumeToggle()">
+
+      <span class="texera-navigation-run-text">
         <i id="texera-resume-icon" class="fa fa-play" aria-hidden="true"></i>
         Resume
       </span>
