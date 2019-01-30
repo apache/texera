@@ -128,6 +128,7 @@ export class PropertyEditorComponent {
       throw new Error(`change property editor: operator is undefined`);
     }
 
+
     // set displayForm to false first to hide the view while constructing data
     this.displayForm = false;
 

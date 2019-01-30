@@ -193,6 +193,36 @@ export class WorkflowGraph {
   }
 
   /**
+   * Returna an array of all input links of an operator in the graph.
+   * @param operatorID
+   */
+  public getInputLinksByOperatorId(operatorID: string): OperatorLink[] {
+    const inputLinks: OperatorLink[] = [];
+    const allLinks: OperatorLink[] = this.getAllLinks();
+    for (let i = 0; i < allLinks.length; i++) {
+      if (isEqual(allLinks[i].target.operatorID, (operatorID))) {
+        inputLinks.push(allLinks[i]);
+      }
+    }
+    return inputLinks;
+  }
+
+  /**
+   * Returna an array of all output links of an operator in the graph.
+   * @param operatorID
+   */
+  public getOutputLinksByOperatorId(operatorID: string): OperatorLink[] {
+    const outputLinks: OperatorLink[] = [];
+    const allLinks: OperatorLink[] = this.getAllLinks();
+    for (let i = 0; i < allLinks.length; i++) {
+      if (isEqual(allLinks[i].source.operatorID, (operatorID))) {
+        outputLinks.push(allLinks[i]);
+      }
+    }
+    return outputLinks;
+  }
+
+  /**
    * Sets the property of the operator to use the newProperty object.
    *
    * Throws an error if the operator doesn't exist.
@@ -341,5 +371,6 @@ export class WorkflowGraph {
           on input ports of the target operator ${link.target.operatorID}`);
     }
   }
+
 
 }
