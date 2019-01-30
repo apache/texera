@@ -10,6 +10,14 @@
   .btn.btn-secondary {
     margin-right: 5px;
   }
+  .mat-paused {
+    background-color: rgb(230, 72, 72);
+    color: #fff;
+  }
+  .mat-resume {
+    background-color: rgb(91, 214, 91);
+    color: #fff;
+  }
 }
 .texera-navigation-run-button {
   margin-right: 3%;
@@ -18,6 +26,9 @@
   }
   .texera-navigation-run-text {
     font-size: 1rem;
+    &:hover {
+      color:rgb(185, 152, 89);
+    }
   }
   .fa {
     font-size: 1rem;
