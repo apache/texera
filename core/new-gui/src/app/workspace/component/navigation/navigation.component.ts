@@ -58,7 +58,7 @@ export class NavigationComponent implements OnInit {
    * when users click on the button, we change the zoomoffset to make window larger or smaller.
   */
   public onClickZoomIn(): void {
-    // make the ratio small. 
+    // make the ratio small.
     this.newZoomRatio += 0.02;
     this.dragDropService.setZoomProperty(this.newZoomRatio);
   }

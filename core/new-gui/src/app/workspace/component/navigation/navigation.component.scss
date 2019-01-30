@@ -11,11 +11,7 @@
     margin-right: 5px;
   }
 }
-.zoom-button:active {
-  // background-color: #1E90FF;
-  // box-shadow: 0 5px #666;
-  transform: translateY(4px);
-}
+
 
 .zoom-button {
   background-size: 40px 40px;
@@ -46,6 +42,10 @@
     font-size: 1rem;
     padding-right: 6px;
   }
+}
+
+.zoom-wrapper {
+  text-align: center;
 }
 
 

@@ -5,6 +5,7 @@ import { Component, AfterViewInit } from '@angular/core';
 import { Observable } from 'rxjs/Observable';
 import '../../../common/rxjs-operators';
 import * as joint from 'jointjs';
+import { Point } from '../../types/workflow-common.interface';
 
 // argument type of callback event on a JointJS Paper
 // which is a 4-element tuple:
@@ -12,6 +13,9 @@ import * as joint from 'jointjs';
 // 2. the corresponding original JQuery Event
 // 3. x coordinate, 4. y coordinate
 type JointPaperEvent = [joint.dia.CellView, JQuery.Event, number, number];
+
+// argument type of callback event on a JointJS Paper only for blank:pointerdown event
+type JointPointerDownEvent = [JQuery.Event, number, number];
 
 /**
  * WorkflowEditorComponent is the componenet for the main workflow editor part of the UI.
@@ -42,6 +46,13 @@ export class WorkflowEditorComponent implements AfterViewInit {
    * Logically, set ZoomOffset to be 1 since the intial zoom time is 1.
    */
   private newZoomRatio: number = 1;
+
+
+  private ifMouseDown: boolean = false;
+  private MouseDown: Point | undefined;
+  private dragOffset: Point | undefined;
+
+
   constructor(
     private workflowActionService: WorkflowActionService,
     private dragDropService: DragDropService,
@@ -91,46 +102,62 @@ export class WorkflowEditorComponent implements AfterViewInit {
    * Handles user mouse drag events to trigger logically window move.
    */
   private handleWindowDrag(): void {
-    let ifMouseDown: boolean = false;
-    let MouseDown = new Array(2);
-    let dragOffset = new Array(2);
-    Observable
-      .fromEvent(this.getJointPaper(),'blank:pointerdown',
-      function (evt:any, x: any, y: any){
-          return {x: x, y: y};
-      }).subscribe(
-          function (coordinate) {
-            MouseDown[0] = coordinate.x;
-            MouseDown[1] = coordinate.y;
-            ifMouseDown = true;
-          }
+
+    const current = this;
+
+    Observable.fromEvent<JointPointerDownEvent>(this.getJointPaper(), 'blank:pointerdown')
+      .subscribe(
+        coordinate => {
+          current.MouseDown = {x : coordinate[1], y: coordinate[2]};
+          current.ifMouseDown = true;
+        }
       );
+
+    // Observable.fromEvent(this.getJointPaper(), 'blank:pointerdown',
+    //   function (evt: any, x: any, y: any) {
+    //       return {x: x, y: y};
+    //   })
+    //   .do(coordinate => console.log(`basic function => ${coordinate.x} + ${coordinate.y}`))
+    //   .subscribe(
+    //       function (coordinate) {
+    //         current.MouseDown[0] = coordinate.x;
+    //         current.MouseDown[1] = coordinate.y;
+    //         current.ifMouseDown = true;
+    //       }
+    //   );
+
+
     /**
      * dragOffset[0]: the offset of x axis when we tried to drag the window
      * dragOffset[1]: the offset of y axis when we tried to drag the window
      */
-    Observable
-      .fromEvent<MouseEvent>(document,'mousemove').forEach(
-        (coordinate: any) => {
-          if (ifMouseDown === true) {
+    Observable.fromEvent<MouseEvent>(document, 'mousemove')
+      .forEach(
+        coordinate => {
+          if (current.ifMouseDown === true) {
             // calculate the drag offset between user click on the mouse and then release the mouse, including zooming value.
-            dragOffset[0] = (coordinate.x - MouseDown[0] * this.newZoomRatio);
-            dragOffset[1] = (coordinate.y - MouseDown[1] * this.newZoomRatio);
+
+            if (current.MouseDown === undefined) {
+              throw new Error('Error: Mouse down is undefined');
+            }
+
+            current.dragOffset = {
+              x : coordinate.x - current.MouseDown.x * this.newZoomRatio,
+              y : coordinate.y - current.MouseDown.y * this.newZoomRatio
+            };
             // do paper movement.
             this.getJointPaper().translate(
-              (- this.getWrapperElementOffset().x + dragOffset[0]),
-              (- this.getWrapperElementOffset().y + dragOffset[1])
+              (- this.getWrapperElementOffset().x + current.dragOffset.x),
+              (- this.getWrapperElementOffset().y + current.dragOffset.y)
             );
             // pass offset to the drag-and0drop.service, make drop operator be at the right location.
-            this.dragDropService.SetOffset(dragOffset);
+            this.dragDropService.setOffset(current.dragOffset);
           }
         });
-    Observable
-      .fromEvent<JointPaperEvent>(this.getJointPaper(), 'blank:pointerup').subscribe(
-        () => {
-          ifMouseDown = false;
-        }
-      );
+
+    Observable.fromEvent<JointPaperEvent>(this.getJointPaper(), 'blank:pointerup').subscribe(
+        () => current.ifMouseDown = false
+    );
   }
 
   private handleWindowResize(): void {
