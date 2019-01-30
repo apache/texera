@@ -26,13 +26,12 @@ export class NavigationComponent implements OnInit {
 
   public isWorkflowRunning: boolean = false; // set this to true when the workflow is started
   public isWorkflowPaused: boolean = false; // this will be modified by clicking pause/resume while the workflow is running
-
   constructor(private executeWorkflowService: ExecuteWorkflowService, public tourService: TourService) {
     // return the run button after the execution is finished, either
     //  when the value is valid or invalid
     executeWorkflowService.getExecuteEndedStream().subscribe(
       () => this.isWorkflowRunning = false,
-      () => this.isWorkflowPaused = false
+      () => this.isWorkflowPaused = false,
     );
   }
 
@@ -47,6 +46,7 @@ export class NavigationComponent implements OnInit {
   public onClickRun(): void {
     // modifying the `running` and `isPaused` variables will display the pause button
     this.isWorkflowRunning = true;
+    this.isWorkflowPaused = false;
     this.executeWorkflowService.executeWorkflow();
   }
 
