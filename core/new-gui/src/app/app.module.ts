@@ -25,6 +25,7 @@ import { OperatorLabelComponent } from './workspace/component/operator-panel/ope
 import { ProductTourComponent } from './workspace/component/product-tour/product-tour.component';
 import { MiniMapComponent } from './workspace/component/mini-map/mini-map.component';
 
+import { ResultPanelToggleComponent } from './workspace/component/result-panel-toggle/result-panel-toggle.component';
 
 @NgModule({
   declarations: [
@@ -39,6 +40,7 @@ import { MiniMapComponent } from './workspace/component/mini-map/mini-map.compon
     OperatorLabelComponent,
     ProductTourComponent,
     MiniMapComponent
+    ResultPanelToggleComponent
   ],
   imports: [
     BrowserModule,

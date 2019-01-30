@@ -1,11 +1,9 @@
 import { DragDropService } from './../../service/drag-drop/drag-drop.service';
-
 import { JointUIService } from './../../service/joint-ui/joint-ui.service';
 import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
 import { Component, AfterViewInit } from '@angular/core';
 import { Observable } from 'rxjs/Observable';
 import '../../../common/rxjs-operators';
-
 import * as joint from 'jointjs';
 import { forEach } from 'lodash-es';
 import { element } from '@angular/core/src/render3/instructions';

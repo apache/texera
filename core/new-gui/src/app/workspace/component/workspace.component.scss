@@ -21,7 +21,7 @@
 }
 
 /**
-  * this css is used for creating a 3x3 grid area for the 5
+  * this css is used for creating a 3x4 grid area for the 5
   * sub-components. The percentages define the size of each
   * column and row. $header-height is the default height
   * set for the navigation bar. The function calc() calculates
@@ -30,11 +30,26 @@
   * size will be based on the child component. Using auto and percentage
   * with a fixed px (header-height) will crash.
   */
-$header-height: 56px;
+  $header-height: 56px;
+  $resultbar-height: 25px;
 .texera-workspace-grid-container {
   display: grid;
   grid-template-columns: 14% 70% 16%;
-  grid-template-rows: $header-height calc((100% - #{$header-height}) * 0.75) calc((100% - #{$header-height}) * 0.25)
+  grid-template-rows: $header-height calc((100% - #{$header-height} - #{$resultbar-height}) * 0.75) $resultbar-height calc((100% - #{$header-height} - #{$resultbar-height}) * 0.25)
+}
+
+/**
+ * this css is used for creating a 3x4 grid area for the 5 sub-components.
+ * ResultPanelToggleComponent uses all three columns and the third row.
+ * Resultpanel component uses all three columns and the fourth row,
+ * and the height of fourth row is 0px.
+ * this original css style is used before any operations
+ */
+
+.texera-original-workspace-grid-container{
+  display: grid;
+  grid-template-columns: 14% 70% 16%;
+  grid-template-rows: $header-height calc((100% - #{$header-height} - #{$resultbar-height})) $resultbar-height 0px
 }
 
 /**
@@ -59,7 +74,7 @@ $header-height: 56px;
   grid-column-start: 1;
   grid-column-end: 2;
   grid-row-start: 2;
-  grid-row-end: 4;
+  grid-row-end: 5;
   overflow: auto;
 }
 
@@ -73,7 +88,7 @@ $header-height: 56px;
   grid-column-start: 3;
   grid-column-end: 4;
   grid-row-start: 2;
-  grid-row-end: 3;
+  grid-row-end: 4;
   overflow: auto;
 }
 
@@ -82,7 +97,6 @@ $header-height: 56px;
 * this style specifies that the workflow editor in the middle
 * will occupy the 2nd (middle) columm and use the second row (middle)
 **/
-
 .texera-workflow-editor-grid-container {
   grid-column-start: 2;
   grid-column-end: 3;
@@ -105,7 +119,14 @@ $header-height: 56px;
 .texera-result-panel-grid-container {
   grid-column-start: 2;
   grid-column-end: 3;
+  grid-row-start: 4;
+  grid-row-end: 5;
+  overflow: auto;
+}
+
+.texera-result-panel-toggle-grid-container{
+  grid-column-start: 2;
+  grid-column-end: 3;
   grid-row-start: 3;
   grid-row-end: 4;
-  overflow: auto;
 }
