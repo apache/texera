@@ -190,32 +190,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
     this.validationWorkflowService.getOperatorValidationStream()
       .subscribe( value => {
-
-
-        console.log(this.getJointPaper().findViewByModel(value.operatorID).findBySelector('g'));
-        // this.getJointPaper().findViewByModel(value.operatorID).findBySelector('g').attr('rect/stroke', 'green');
-
-
-        console.log('workfloweditor_handleValidateOperatorStream');
-        console.log(value.status);
-        console.log(value.operatorID);
-        console.log('wht');
-        // console.log(this.getJointPaper().findViewByModel(value.operatorID));
-        // console.log(this.getJointPaper().findViewByModel(value.operatorID).findBySelector('g'));
-        // console.log(this.getJointPaper().findViewByModel(value.operatorID).findBySelector('g').get(0));
-
-        console.log(this.getJointPaper().getModelById(value.operatorID).attr({
-          body: {
-            fill: 'green'
-          }
-        }));
-
-        this.getJointPaper().getModelById(value.operatorID).attr({
-          body: {
-            fill: 'green'
-          }
-        });
-
+        this.getJointPaper().getModelById(value.operatorID).attr('rect/stroke', 'green');
       });
   }
 
