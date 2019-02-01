@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { MiniMapService } from './../../service/workflow-graph/model/mini-map.service';
 import { Observable } from 'rxjs/Observable';
 import * as joint from 'jointjs';
+import { ResultPanelToggleService } from '../../service/result-panel-toggle/result-panel-toggle.service';
 
 @Component({
   selector: 'texera-mini-map',
@@ -14,7 +15,8 @@ export class MiniMapComponent implements OnInit {
 
   private workflowPaper: joint.dia.Paper | undefined;
   private mapPaper: joint.dia.Paper | undefined;
-  constructor(private miniMapService: MiniMapService) { }
+  constructor(private miniMapService: MiniMapService,
+    private resultPanelToggleService: ResultPanelToggleService) { }
 
   ngOnInit() {
     this.initializeGraph();
@@ -52,7 +54,7 @@ export class MiniMapComponent implements OnInit {
       gridSize: 10,
       drawGrid: true,
       background: {
-        color: '#f2f2f2',
+        color: '#efefef',
       },
       interactive: false
     });
@@ -61,7 +63,10 @@ export class MiniMapComponent implements OnInit {
   }
 
   private handleWindowResize(): void {
-    Observable.fromEvent(window, 'resize').auditTime(1000).subscribe(
+    Observable.merge(
+      Observable.fromEvent(window, 'resize').auditTime(1000),
+      this.resultPanelToggleService.getToggleChangeStream().debounceTime(50)
+      ).subscribe(
       () => {
         this.setMapPaperDimensions();
       }

@@ -9,6 +9,7 @@ import { forEach } from 'lodash-es';
 import { element } from '@angular/core/src/render3/instructions';
 
 import { MiniMapService } from './../../service/workflow-graph/model/mini-map.service';
+import { ResultPanelToggleService } from '../../service/result-panel-toggle/result-panel-toggle.service';
 
 
 // argument type of callback event on a JointJS Paper
@@ -50,7 +51,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
   constructor(
     private workflowActionService: WorkflowActionService,
     private dragDropService: DragDropService,
-    private miniMapService: MiniMapService
+    private miniMapService: MiniMapService,
+    private resultPanelToggleService: ResultPanelToggleService
   ) {
   }
 
@@ -92,7 +94,10 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
   private handleWindowResize(): void {
     // when the window is resized (limit to at most one event every 1000ms)
-    Observable.fromEvent(window, 'resize').auditTime(1000).subscribe(
+    Observable.merge(
+      Observable.fromEvent(window, 'resize').auditTime(1000),
+      this.resultPanelToggleService.getToggleChangeStream().debounceTime(50)
+      ).subscribe(
       () => {
         // reset the origin cooredinates
         this.setJointPaperOriginOffset();
@@ -100,6 +105,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
         this.setJointPaperDimensions();
       }
     );
+
   }
 
   private handleCellHighlight(): void {
