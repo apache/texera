@@ -1,7 +1,6 @@
 import { DragDropService } from './../../service/drag-drop/drag-drop.service';
 import { JointUIService } from './../../service/joint-ui/joint-ui.service';
 import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
-import { Point } from '../../types/workflow-common.interface';
 import { Component, AfterViewInit } from '@angular/core';
 import { Observable } from 'rxjs/Observable';
 import '../../../common/rxjs-operators';
@@ -141,39 +140,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
       ));
   }
 
-  private handleLinkChangeHighlightEvent(): void {
-    const changePortOpetions = {
-
-      ports: {
-        groups: {
-          'in': { attrs: JointUIService.getCustomPortStyleAttrs() },
-          'out': { attrs: JointUIService.getCustomPortStyleAttrs() }
-        }
-      }
-    };
-
-    this.workflowActionService.getJointGraphWrapper().getJointLinkCellChangeStream()
-      .do((link) => {
-        const linkID = link.id.toString();
-      })
-      .subscribe(link => {
-        const target = link.getTargetElement();
-        const elementOffset = this.getWrapperElementOffset();
-        const elementDimension = this.getWrapperElementSize();
-        const rect = {
-          x: -elementOffset.x,
-          y: -elementOffset.y,
-          width: elementDimension.width,
-          height: elementDimension.height,
-        };
-        if (target && target.attributes && target.attributes.x && target.attributes.y) {
-          const elementsList = this.getJointPaper().findViewsInArea( rect );
-
-        }
-        this.getJointPaper();
-      });
-  }
-
   /**
    * Modifies the JointJS paper origin coordinates
    *  by shifting it to the left top (minus the x and y offset of the wrapper element)
@@ -255,7 +221,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
       // set grid size to 1px (smallest grid)
       gridSize: 1,
       // enable jointjs feature that automatically snaps a link to the closest port with a radius of 30px
-      snapLinks: { radius: 75 },
+      snapLinks: { radius: 100 },
       // disable jointjs default action that can make a link not connect to an operator
       linkPinning: false,
       // provide a validation to determine if two ports could be connected (only output connect to input is allowed)

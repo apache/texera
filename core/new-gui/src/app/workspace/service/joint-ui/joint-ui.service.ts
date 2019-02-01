@@ -221,28 +221,6 @@ export class JointUIService {
       },
       '.port-label': {
         display: 'none'
-      },
-      '.available-magnet': {
-        fill: '#A0A0A0',
-        r: 5,
-        stroke: '#06553550',
-        'stroke-width': '200'
-      }
-    };
-    return portStyleAttrs;
-  }
-
-  // 065535 - green
-  public static getSuggestionPortStyleAttrs(): joint.attributes.SVGAttributes {
-    const portStyleAttrs = {
-      '.port-body': {
-        fill: '#A0A0A0',
-        r: 5,
-        stroke: '#06553550',
-        'stroke-width': '200'
-      },
-      '.port-label': {
-        display: 'none'
       }
     };
     return portStyleAttrs;
