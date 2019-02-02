@@ -11,21 +11,28 @@ import {
   UserDictionarySectionComponent
 } from './dashboard/component/feature-container/user-dictionary-section/user-dictionary-section.component';
 
+/*
+*  This file defines the url path
+*  The workflow workspace is set as default pathu
+*  The user dashboard is under path '/dashboard'
+*  The saved project is under path '/dashboard/savedproject'
+*  The user dictionary is under path '/dashboard/userdictionary'
+*/
 const routes: Routes = [
   {
     path : '',
     component : WorkspaceComponent
   },
   {
-    path : 'Dashboard',
+    path : 'dashboard',
     component : DashboardComponent,
     children : [
       {
-        path : 'SavedProject',
+        path : 'savedproject',
         component : SavedProjectSectionComponent,
       },
       {
-        path : 'UserDictionary',
+        path : 'userdictionary',
         component : UserDictionarySectionComponent
       }
     ]

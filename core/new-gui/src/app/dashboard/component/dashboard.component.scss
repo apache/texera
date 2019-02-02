@@ -52,10 +52,10 @@ button{
 *              *   *            *
 *              ******************
 **/
-$header-height: 70px;
+$header-height: 8%;
 .dashboard-grid-container{
   display: grid;
-  grid-template-columns: 20% 80%;
+  grid-template-columns: 14% 86%;
   grid-template-rows : $header-height calc((100% - #{$header-height}))
 }
 
