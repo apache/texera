@@ -249,7 +249,7 @@ export class JointUIService {
         'ref-x': 0.5, 'ref-y': 80, ref: 'rect', 'y-alignment': 'middle', 'x-alignment': 'middle'
       },
       '.delete-button': {
-        x: 67, y: -20, cursor: 'pointer',
+        x: 68, y: -20, cursor: 'pointer',
         fill: '#D8656A', event: 'element:delete'
       },
       'image': {
