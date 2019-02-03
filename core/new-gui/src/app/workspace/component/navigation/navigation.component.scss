@@ -1,14 +1,9 @@
 @import '../workspace.component.scss';
 .texera-navigation-body {
   height: 100%;
+  width: 100%;
   padding-left: 24px;
   padding-right: 24px;
-}
-.texera-navigation-body {
-  .span {
-    float: left;
-    padding-top: 100px;
-  }
 }
 .button {
   display: inherit;
@@ -16,22 +11,29 @@
     margin-right: 5px;
   }
 }
-.texera-navigation-run-button {
-  margin-right: 3%;
-  .mat-raised-button {
-    height: 30px;
-  }
-  .texera-navigation-run-text {
-    font-size: 1rem;
-  }
-  .fa {
-    font-size: 1rem;
-    padding-right: 6px;
+.zoom-button:hover {
+    cursor: pointer;
+    color: gray;
+}
+.texera-navigation-body{
+  .zoom-button {  
+    margin-left: 5px;
   }
 }
-
-.zoom-wrapper {
-  text-align: center;
+.texera-navigation-body{
+  .texera-navigation-run-button {
+    margin-right: 3%;
+    .mat-raised-button {
+      height: 30px;
+    }
+    .texera-navigation-run-text {
+      font-size: 1rem;
+    }
+    .fa {
+      font-size: 1rem;
+      padding-right: 6px;
+    }
+  }
 }
 
 
