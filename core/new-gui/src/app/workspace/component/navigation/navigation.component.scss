@@ -4,31 +4,17 @@
   padding-left: 24px;
   padding-right: 24px;
 }
-
+.texera-navigation-body {
+  .span {
+    float: left;
+    padding-top: 100px;
+  }
+}
 .button {
   display: inherit;
   .btn.btn-secondary {
     margin-right: 5px;
   }
-}
-
-
-.zoom-button {
-  background-size: 40px 40px;
-  width: 40px;
-  height: 40px;
-  text-align: center;
-	cursor: pointer;
-	outline: none;
-	font-family: Microsoft YaHei;
-  font-size: 17px;
-  border-radius:50%;
-}
-.zoom-in-button {
-  background-image: url('../../../../assets/ZoomIn.jpeg');
-}
-.zoom-out-button{
-  background-image: url('../../../../assets/ZoomOut.jpeg');
 }
 .texera-navigation-run-button {
   margin-right: 3%;
