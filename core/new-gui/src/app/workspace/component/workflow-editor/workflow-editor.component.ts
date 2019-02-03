@@ -50,7 +50,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
   private ifMouseDown: boolean = false;
   private MouseDown: Point | undefined;
-  private dragOffset: Point | undefined;
+  private dragOffset: Point = { x : 0 , y : 0};
 
 
   constructor(
@@ -232,7 +232,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
    */
   private setJointPaperOriginOffset(): void {
     const elementOffset = this.getWrapperElementOffset();
-    this.getJointPaper().translate(-elementOffset.x, -elementOffset.y);
+    this.getJointPaper().translate(-elementOffset.x + this.dragOffset.x, -elementOffset.y + this.dragOffset.y);
   }
 
   /**
