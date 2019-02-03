@@ -53,6 +53,7 @@ export class NavigationComponent implements OnInit {
     this.showSpinner = true;
     this.executeWorkflowService.executeWorkflow();
   }
+
   /**
    * send the offset value to the work flow editor panel using drag and drop service.
    * when users click on the button, we change the zoomoffset to make window larger or smaller.

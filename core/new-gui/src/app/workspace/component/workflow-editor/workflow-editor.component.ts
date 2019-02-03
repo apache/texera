@@ -65,16 +65,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
     }
     return this.paper;
   }
-  /**
-     * subscribe the value passed from navigation.component.ts, which can be uesed to
-     * make the panel larger or smaller.
-     */
-  public handleWindowSize(): void {
-    this.dragDropService.getworkflowEditorZoomSubject().subscribe((value) => {
-      this.newZoomRatio = value;
-      this.getJointPaper().scale(this.newZoomRatio, this.newZoomRatio);
-    });
-  }
+
+
   ngAfterViewInit() {
     this.initializeJointPaper();
     this.handleWindowSize();
@@ -98,51 +90,67 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.setJointPaperOriginOffset();
     this.setJointPaperDimensions();
   }
- /**
-   * Handles user mouse drag events to trigger logically window move.
+
+    /**
+     * Handles zoom events passed from navigation-component, which can be used to
+     *  make the jointJS paper larger or smaller.
+     */
+    private handleWindowSize(): void {
+      this.dragDropService.getWorkflowEditorZoomStream().subscribe((value) => {
+        this.newZoomRatio = value;
+        this.getJointPaper().scale(this.newZoomRatio, this.newZoomRatio);
+      });
+    }
+
+  /**
+   * This method handles user mouse drag events to pan JointJS paper.
+   *
+   * This method will listen to 3 events to implement the pan feature
+   *   1. pointerdown event in the JointJS paper to start panning
+   *   2. mousemove event on the document to change the offset of the paper
+   *   3. pointerup event in the JointJS paper to stop panning
    */
   private handleWindowDrag(): void {
 
-    const current = this;
-
+    // pointer down event to start the panning, this will record the original paper offset
     Observable.fromEvent<JointPointerDownEvent>(this.getJointPaper(), 'blank:pointerdown')
       .subscribe(
         coordinate => {
-          current.MouseDown = {x : coordinate[1], y: coordinate[2]};
-          current.ifMouseDown = true;
+          this.MouseDown = {x : coordinate[1], y: coordinate[2]};
+          this.ifMouseDown = true;
         }
       );
-    /**
-     * dragOffset[0]: the offset of x axis when we tried to drag the window
-     * dragOffset[1]: the offset of y axis when we tried to drag the window
-     */
+
+    // mousemove event to move paper, this will calculate the new coordinate based on the
+    //  starting coordinate, the mousemove offset, and the current zoom ratio.
+    // To move the paper based on the new coordinate, this will translate the paper by calling
+    //  the JointJS method .translate() to move paper's offset.
     Observable.fromEvent<MouseEvent>(document, 'mousemove')
-      .forEach(
-        coordinate => {
-          if (current.ifMouseDown === true) {
-            // calculate the drag offset between user click on the mouse and then release the mouse, including zooming value.
+        .filter(() => this.ifMouseDown === true)
+        .filter(() => this.MouseDown !== undefined)
+        .forEach( coordinate => {
 
-            if (current.MouseDown === undefined) {
-              throw new Error('Error: Mouse down is undefined');
-            }
-
-            current.dragOffset = {
-              x : coordinate.x - current.MouseDown.x * this.newZoomRatio,
-              y : coordinate.y - current.MouseDown.y * this.newZoomRatio
-            };
-            // do paper movement.
-            this.getJointPaper().translate(
-              (- this.getWrapperElementOffset().x + current.dragOffset.x),
-              (- this.getWrapperElementOffset().y + current.dragOffset.y)
-            );
-            // pass offset to the drag-and0drop.service, make drop operator be at the right location.
-            this.dragDropService.setOffset(current.dragOffset);
+          if (this.MouseDown === undefined) {
+            throw new Error('Error: Mouse down is undefined after the filter');
           }
+
+          // calculate the drag offset between user click on the mouse and then release the mouse, including zooming value.
+          this.dragOffset = {
+            x : coordinate.x - this.MouseDown.x * this.newZoomRatio,
+            y : coordinate.y - this.MouseDown.y * this.newZoomRatio
+          };
+          // do paper movement.
+          this.getJointPaper().translate(
+            (- this.getWrapperElementOffset().x + this.dragOffset.x),
+            (- this.getWrapperElementOffset().y + this.dragOffset.y)
+          );
+          // pass offset to the drag-and0drop.service, make drop operator be at the right location.
+          this.dragDropService.setOffset(this.dragOffset);
         });
 
-    Observable.fromEvent<JointPaperEvent>(this.getJointPaper(), 'blank:pointerup').subscribe(
-        () => current.ifMouseDown = false
-    );
+    // This observable captures the drop event to stop the panning
+    Observable.fromEvent<JointPaperEvent>(this.getJointPaper(), 'blank:pointerup')
+      .subscribe(() => this.ifMouseDown = false);
   }
 
   private handleWindowResize(): void {
