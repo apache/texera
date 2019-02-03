@@ -30,7 +30,7 @@ describe('NavigationComponent', () => {
   let component: NavigationComponent;
   let fixture: ComponentFixture<NavigationComponent>;
   let executeWorkFlowService: ExecuteWorkflowService;
-
+  let dragDropService: DragDropService;
   beforeEach(async(() => {
     TestBed.configureTestingModule({
       declarations: [NavigationComponent],
@@ -55,6 +55,7 @@ describe('NavigationComponent', () => {
     fixture = TestBed.createComponent(NavigationComponent);
     component = fixture.componentInstance;
     executeWorkFlowService = TestBed.get(ExecuteWorkflowService);
+    dragDropService = TestBed.get(DragDropService);
     fixture.detectChanges();
   });
 
@@ -115,4 +116,43 @@ describe('NavigationComponent', () => {
 
   }));
 
+  it('should change zoom to be smaller when user click on the zoom out buttons', marbles((m) => {
+    const httpClient: HttpClient = TestBed.get(HttpClient);
+    spyOn(httpClient, 'post').and.returnValue(
+      Observable.of(mockExecutionResult)
+    );
+    // // expect initially the zoom ratio is 1;
+    // expect(component.getNewZoomRatio()).toEqual(1);
+
+    const preZoomRatio = component.getNewZoomRatio();
+    m.hot('-e-').do(() => component.onClickZoomOut()).subscribe();
+
+    dragDropService.getWorkflowEditorZoomStream().subscribe(
+      () => {
+        fixture.detectChanges();
+        expect(component.getNewZoomRatio()).toBeLessThan(preZoomRatio);
+      }
+    );
+
+  }));
+
+  it('should change zoom to be bigger when user click on the zoom in buttons', marbles((m) => {
+    const httpClient: HttpClient = TestBed.get(HttpClient);
+    spyOn(httpClient, 'post').and.returnValue(
+      Observable.of(mockExecutionResult)
+    );
+    // // expect initially the zoom ratio is 1;
+    // expect(component.getNewZoomRatio()).toEqual(1);
+
+    const preZoomRatio = component.getNewZoomRatio();
+    m.hot('-e-').do(() => component.onClickZoomIn()).subscribe();
+
+    dragDropService.getWorkflowEditorZoomStream().subscribe(
+      () => {
+        fixture.detectChanges();
+        expect(component.getNewZoomRatio()).toBeGreaterThan(preZoomRatio);
+      }
+    );
+
+  }));
 });

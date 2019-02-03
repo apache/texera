@@ -42,6 +42,13 @@ export class NavigationComponent implements OnInit {
 
   ngOnInit() {
   }
+
+  /**
+   * get new zoom ratio to test if when user clicks on buttons, the value is changed or not.
+   */
+  public getNewZoomRatio() {
+    return this.newZoomRatio;
+  }
   /**
    * Executes the current existing workflow on the JointJS paper. It will
    *  also set the `showSpinner` variable to true to show that the backend
