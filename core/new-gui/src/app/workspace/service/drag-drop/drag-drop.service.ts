@@ -117,8 +117,8 @@ export class DragDropService {
   /**
    * get subject from drag-and-drop service in order to get the zoom ratio value.
    */
-  public getworkflowEditorZoomSubject(): Subject<number> {
-    return this.workflowEditorZoomSubject;
+  public getworkflowEditorZoomSubject(): Observable<number> {
+    return this.workflowEditorZoomSubject.asObservable();
   }
 
   /**
@@ -145,7 +145,7 @@ export class DragDropService {
    */
   public setZoomProperty(ratio: number) {
       this.newZoomRatio = ratio;
-      this.getworkflowEditorZoomSubject().next(this.newZoomRatio);
+      this.workflowEditorZoomSubject.next(this.newZoomRatio);
   }
 
   /**

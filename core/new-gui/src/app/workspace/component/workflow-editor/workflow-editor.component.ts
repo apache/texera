@@ -112,21 +112,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
           current.ifMouseDown = true;
         }
       );
-
-    // Observable.fromEvent(this.getJointPaper(), 'blank:pointerdown',
-    //   function (evt: any, x: any, y: any) {
-    //       return {x: x, y: y};
-    //   })
-    //   .do(coordinate => console.log(`basic function => ${coordinate.x} + ${coordinate.y}`))
-    //   .subscribe(
-    //       function (coordinate) {
-    //         current.MouseDown[0] = coordinate.x;
-    //         current.MouseDown[1] = coordinate.y;
-    //         current.ifMouseDown = true;
-    //       }
-    //   );
-
-
     /**
      * dragOffset[0]: the offset of x axis when we tried to drag the window
      * dragOffset[1]: the offset of y axis when we tried to drag the window
