@@ -117,42 +117,45 @@ describe('NavigationComponent', () => {
   }));
 
   it('should change zoom to be smaller when user click on the zoom out buttons', marbles((m) => {
-    const httpClient: HttpClient = TestBed.get(HttpClient);
-    spyOn(httpClient, 'post').and.returnValue(
-      Observable.of(mockExecutionResult)
-    );
-    // // expect initially the zoom ratio is 1;
-    // expect(component.getNewZoomRatio()).toEqual(1);
+     // expect initially the zoom ratio is 1;
+   const originalZoomratio = 1;
 
-    const preZoomRatio = component.getNewZoomRatio();
-    m.hot('-e-').do(() => component.onClickZoomOut()).subscribe();
-
-    dragDropService.getWorkflowEditorZoomStream().subscribe(
-      () => {
-        fixture.detectChanges();
-        expect(component.getNewZoomRatio()).toBeLessThan(preZoomRatio);
-      }
-    );
+   m.hot('-e-').do(() => component.onClickZoomOut()).subscribe();
+   dragDropService.getWorkflowEditorZoomStream().subscribe(
+     newRatio => {
+       fixture.detectChanges();
+       expect(newRatio).toBeLessThan(originalZoomratio);
+     }
+   );
 
   }));
 
   it('should change zoom to be bigger when user click on the zoom in buttons', marbles((m) => {
-    const httpClient: HttpClient = TestBed.get(HttpClient);
-    spyOn(httpClient, 'post').and.returnValue(
-      Observable.of(mockExecutionResult)
-    );
-    // // expect initially the zoom ratio is 1;
-    // expect(component.getNewZoomRatio()).toEqual(1);
+    // expect initially the zoom ratio is 1;
+   const originalZoomratio = 1;
 
-    const preZoomRatio = component.getNewZoomRatio();
-    m.hot('-e-').do(() => component.onClickZoomIn()).subscribe();
+   m.hot('-e-').do(() => component.onClickZoomIn()).subscribe();
+   dragDropService.getWorkflowEditorZoomStream().subscribe(
+     newRatio => {
+       fixture.detectChanges();
+       expect(newRatio).toBeGreaterThan(originalZoomratio);
+     }
+   );
 
-    dragDropService.getWorkflowEditorZoomStream().subscribe(
-      () => {
-        fixture.detectChanges();
-        expect(component.getNewZoomRatio()).toBeGreaterThan(preZoomRatio);
-      }
-    );
 
+  }));
+
+  it('should execute the zoom in function when we click on the Zoom In button', marbles((m) => {
+    m.hot('-e-').do(event => component.onClickZoomIn()).subscribe();
+    const zoomEndStream = dragDropService.getWorkflowEditorZoomStream().map(value => 'e');
+    const expectedStream = '-e-';
+    m.expect(zoomEndStream).toBeObservable(expectedStream);
+  }));
+
+  it('should execute the zoom out function when we click on the Zoom Out button', marbles((m) => {
+    m.hot('-e-').do(event => component.onClickZoomOut()).subscribe();
+    const zoomEndStream = dragDropService.getWorkflowEditorZoomStream().map(value => 'e');
+    const expectedStream = '-e-';
+    m.expect(zoomEndStream).toBeObservable(expectedStream);
   }));
 });
