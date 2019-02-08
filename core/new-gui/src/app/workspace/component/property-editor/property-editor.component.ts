@@ -1,7 +1,7 @@
 import { OperatorSchema } from './../../types/operator-schema.interface';
 import { OperatorPredicate } from '../../types/workflow-common.interface';
 import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
-import { AutocompleteService } from '../../service/autocomplete/model/autocomplete.service';
+import { DynamicSchemaService } from '../../service/dynamic-schema/dynamic-schema.service';
 import { Component } from '@angular/core';
 
 import { Subject } from 'rxjs/Subject';
@@ -69,19 +69,19 @@ export class PropertyEditorComponent {
   public outputFormChangeEventStream = this.createOutputFormChangeEventStream(this.sourceFormChangeEventStream);
 
   // the current operator schema list, used to find the operator schema of current operator
-  public operatorSchemaList: ReadonlyArray<OperatorSchema> = [];
+  // public operatorSchemaList: ReadonlyArray<OperatorSchema> = [];
 
   // the operator data need to be stored if the Json Schema changes, else the currently modified changes will be lost
   public cachedFormData: object | undefined;
 
   constructor(
     private workflowActionService: WorkflowActionService,
-    private autocompleteService: AutocompleteService
+    private autocompleteService: DynamicSchemaService
   ) {
     // subscribe to operator schema information (with source tables names added to source operators' table name properties)
-    this.autocompleteService.getSourceTableAddedOperatorMetadataObservable().subscribe(
-      metadata => { this.operatorSchemaList = metadata.operators; }
-    );
+    // this.autocompleteService.getSourceTableAddedOperatorMetadataObservable().subscribe(
+    //   metadata => { this.operatorSchemaList = metadata.operators; }
+    // );
 
     // listen to the autocomplete event, remove invalid properties, and update the schema displayed on the form
     this.handleOperatorSchemaChange();
@@ -138,7 +138,7 @@ export class PropertyEditorComponent {
 
     // set the operator data needed
     this.currentOperatorID = operator.operatorID;
-    this.currentOperatorSchema = this.autocompleteService.getDynamicSchema(operator);
+    this.currentOperatorSchema = this.autocompleteService.getDynamicSchema(this.currentOperatorID);
     if (!this.currentOperatorSchema) {
       throw new Error(`operator schema for operator type ${operator.operatorType} doesn't exist`);
     }
@@ -236,20 +236,10 @@ export class PropertyEditorComponent {
    *  to the new schema.
    */
   private handleOperatorSchemaChange(): void {
-    this.autocompleteService.getOperatorSchemaChangedStream().subscribe(
-      operatorID => {
-        if (this.currentOperatorID) {
-          const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorID);
-          if (!operator) {
-            throw new Error(`operator predicate for operator ID ${operatorID} doesn't exist`);
-          }
-          const schemaChanged = this.autocompleteService.getDynamicSchema(operator);
-          //  Check if the operator's property are still all valid. If a property is not valid anymore,
-          //   remove the property of the operator in WorkflowGraph.
-          this.autocompleteService.validateJsonSchema(operator, schemaChanged, operator.operatorProperties);
-          if (operatorID === this.currentOperatorID) {
-            this.currentOperatorSchema = schemaChanged;
-          }
+    this.autocompleteService.getOperatorDynamicSchemaChangedStream().subscribe(
+      event => {
+        if (event.operatorID === this.currentOperatorID) {
+          this.currentOperatorSchema = this.autocompleteService.getDynamicSchema(this.currentOperatorID);
         }
       }
     );

@@ -7,7 +7,9 @@ import { Component, OnInit } from '@angular/core';
 import { OperatorMetadataService } from '../service/operator-metadata/operator-metadata.service';
 import { JointUIService } from '../service/joint-ui/joint-ui.service';
 import { StubOperatorMetadataService } from '../service/operator-metadata/stub-operator-metadata.service';
-import { AutocompleteService } from '../service/autocomplete/model/autocomplete.service';
+import { DynamicSchemaService } from '../service/dynamic-schema/dynamic-schema.service';
+import { SourceTablesService } from '../service/dynamic-schema/source-tables/source-tables.service';
+import { SchemaPropagationService } from '../service/dynamic-schema/schema-propagation/schema-propagation.service';
 
 
 @Component({
@@ -16,9 +18,11 @@ import { AutocompleteService } from '../service/autocomplete/model/autocomplete.
   styleUrls: ['./workspace.component.scss'],
   providers: [
     // uncomment this line for manual testing without opening backend server
-    // { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
-    AutocompleteService,
+    // { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
     OperatorMetadataService,
+    DynamicSchemaService,
+    SourceTablesService,
+    SchemaPropagationService,
     JointUIService,
     WorkflowActionService,
     WorkflowUtilService,
@@ -29,6 +33,9 @@ import { AutocompleteService } from '../service/autocomplete/model/autocomplete.
 export class WorkspaceComponent implements OnInit {
 
   constructor(
+    // list services in constructor so they are initialized even if no one use them directly
+    private sourceTablesService: SourceTablesService,
+    private schemaPropagationService: SchemaPropagationService
   ) { }
 
   ngOnInit() {

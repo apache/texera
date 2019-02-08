@@ -13,8 +13,6 @@ import { WorkflowGraph, WorkflowGraphReadonly } from '../../service/workflow-gra
 
 import * as joint from 'jointjs';
 import { mockScanPredicate, mockPoint } from '../../service/workflow-graph/model/mock-workflow-data';
-import { AutocompleteService } from '../../service/autocomplete/model/autocomplete.service';
-
 
 class StubWorkflowActionService {
 
@@ -56,8 +54,7 @@ describe('WorkflowEditorComponent', () => {
           WorkflowUtilService,
           DragDropService,
           { provide: WorkflowActionService, useClass: StubWorkflowActionService },
-          { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
-          AutocompleteService
+          { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
         ]
       })
         .compileComponents();

@@ -4,14 +4,17 @@ import { Observable } from 'rxjs/Observable';
 import '../../../common/rxjs-operators';
 
 import { AppSettings } from '../../../common/app-setting';
-import { OperatorMetadata } from '../../types/operator-schema.interface';
+import { OperatorMetadata, OperatorSchema } from '../../types/operator-schema.interface';
 
-export const MOCK_OPERATOR_METADATA_ENDPOINT = 'resources/operator-metadata';
+export const OPERATOR_METADATA_ENDPOINT = 'resources/operator-metadata';
 
 export const EMPTY_OPERATOR_METADATA: OperatorMetadata = {
   operators: [],
   groups: []
 };
+
+// interface only containing public methods
+export type IOperatorMetadataService = Pick<OperatorMetadataService, keyof OperatorMetadataService>;
 
 /**
  * OperatorMetadataService talks to the backend to fetch the operator metadata,
@@ -36,7 +39,7 @@ export class OperatorMetadataService {
   private currentOperatorMetadata: OperatorMetadata | undefined;
 
   private operatorMetadataObservable = this.httpClient
-    .get<OperatorMetadata>(`${AppSettings.getApiEndpoint()}/${MOCK_OPERATOR_METADATA_ENDPOINT}`)
+    .get<OperatorMetadata>(`${AppSettings.getApiEndpoint()}/${OPERATOR_METADATA_ENDPOINT}`)
     .startWith(EMPTY_OPERATOR_METADATA)
     .shareReplay(1);
 
@@ -52,9 +55,22 @@ export class OperatorMetadataService {
    *
    * Upon subscription of this observable, if the data hasn't arrived from the backend,
    *   you will receive an empty OperatorMetadata.
+   *
+   * // TODO: refactor this to 2 functions: getOperatorMetadataStream() and getOperatorMetadata()
    */
   public getOperatorMetadata(): Observable<OperatorMetadata> {
     return this.operatorMetadataObservable;
+  }
+
+  public getOperatorSchema(operatorType: string): OperatorSchema {
+    if (! this.currentOperatorMetadata) {
+      throw new Error('operator metadata is undefined');
+    }
+    const operatorSchema = this.currentOperatorMetadata.operators.find(schema => schema.operatorType === operatorType);
+    if (! operatorSchema) {
+      throw new Error(`can\'t find operator schema of type ${operatorType}`);
+    }
+    return operatorSchema;
   }
 
   /**
@@ -74,5 +90,8 @@ export class OperatorMetadataService {
     }
     return true;
   }
+
+
+
 
 }
