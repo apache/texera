@@ -91,7 +91,4 @@ export class OperatorMetadataService {
     return true;
   }
 
-
-
-
 }

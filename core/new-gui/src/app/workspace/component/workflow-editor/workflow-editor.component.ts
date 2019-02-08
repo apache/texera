@@ -44,7 +44,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
   constructor(
     private workflowActionService: WorkflowActionService,
-    private dragDropService: DragDropService
+    private dragDropService: DragDropService,
   ) {
   }
 

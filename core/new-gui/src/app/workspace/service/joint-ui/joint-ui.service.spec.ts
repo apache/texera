@@ -1,11 +1,11 @@
-import { mockResultPredicate, mockPoint,
-  mockScanPredicate, mockSentimentPredicate } from './../workflow-graph/model/mock-workflow-data';
+import { mockResultPredicate, mockPoint } from './../workflow-graph/model/mock-workflow-data';
 import { TestBed, inject } from '@angular/core/testing';
 import * as joint from 'jointjs';
 
 import { JointUIService, deleteButtonPath, sourceOperatorHandle, targetOperatorHandle } from './joint-ui.service';
 import { OperatorMetadataService } from '../operator-metadata/operator-metadata.service';
 import { StubOperatorMetadataService } from '../operator-metadata/stub-operator-metadata.service';
+import { mockScanPredicate, mockSentimentPredicate } from '../workflow-graph/model/mock-workflow-data';
 
 describe('JointUIService', () => {
   let service: JointUIService;

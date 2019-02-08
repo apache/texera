@@ -8,12 +8,12 @@ import { Subject } from 'rxjs/Subject';
 import { Observable } from 'rxjs/Observable';
 import '../../../common/rxjs-operators';
 
-
 // all lodash import should follow this parttern
 // import `functionName` from `lodash-es/functionName`
 // to import only the function that we use
 import cloneDeep from 'lodash-es/cloneDeep';
 import isEqual from 'lodash-es/isEqual';
+
 
 /**
  * PropertyEditorComponent is the panel that allows user to edit operator properties.
@@ -68,9 +68,6 @@ export class PropertyEditorComponent {
   // the output form change event stream after debouce time and filtering out values
   public outputFormChangeEventStream = this.createOutputFormChangeEventStream(this.sourceFormChangeEventStream);
 
-  // the current operator schema list, used to find the operator schema of current operator
-  // public operatorSchemaList: ReadonlyArray<OperatorSchema> = [];
-
   // the operator data need to be stored if the Json Schema changes, else the currently modified changes will be lost
   public cachedFormData: object | undefined;
 
@@ -97,7 +94,6 @@ export class PropertyEditorComponent {
     this.handleHighlightEvents();
 
   }
-
 
   /**
    * Callback function provided to the Angular Json Schema Form library,
@@ -285,7 +281,5 @@ export class PropertyEditorComponent {
       { type: 'submit', condition: 'false' }
     ];
   }
-
-
 
 }

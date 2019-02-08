@@ -14,6 +14,7 @@ import { WorkflowGraph, WorkflowGraphReadonly } from '../../service/workflow-gra
 import * as joint from 'jointjs';
 import { mockScanPredicate, mockPoint } from '../../service/workflow-graph/model/mock-workflow-data';
 
+
 class StubWorkflowActionService {
 
   private jointGraph = new joint.dia.Graph();
