@@ -13,6 +13,9 @@ import { JointUIService } from '../../service/joint-ui/joint-ui.service';
 import * as joint from 'jointjs';
 import { mockScanPredicate, mockPoint } from '../../service/workflow-graph/model/mock-workflow-data';
 
+import { MiniMapService } from '../../service/workflow-graph/model/mini-map.service';
+import { ResultPanelToggleService } from '../../service/result-panel-toggle/result-panel-toggle.service';
+
 
 class StubWorkflowActionService {
 
@@ -48,6 +51,8 @@ describe('WorkflowEditorComponent', () => {
           JointUIService,
           WorkflowUtilService,
           DragDropService,
+          MiniMapService,
+          ResultPanelToggleService,
           { provide: WorkflowActionService, useClass: StubWorkflowActionService },
           { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         ]
@@ -66,6 +71,7 @@ describe('WorkflowEditorComponent', () => {
     it('should create', () => {
       expect(component).toBeTruthy();
     });
+
 
     it('should create element in the UI after adding operator in the model', () => {
       const operatorID = 'test_one_operator_1';
@@ -127,6 +133,7 @@ describe('WorkflowEditorComponent', () => {
     let component: WorkflowEditorComponent;
     let fixture: ComponentFixture<WorkflowEditorComponent>;
     let workflowActionService: WorkflowActionService;
+    let miniMapService: MiniMapService; // added
 
     beforeEach(async(() => {
       TestBed.configureTestingModule({
@@ -136,6 +143,8 @@ describe('WorkflowEditorComponent', () => {
           WorkflowUtilService,
           DragDropService,
           WorkflowActionService,
+          MiniMapService,
+          ResultPanelToggleService,
           { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         ]
       })
@@ -146,8 +155,13 @@ describe('WorkflowEditorComponent', () => {
       fixture = TestBed.createComponent(WorkflowEditorComponent);
       component = fixture.componentInstance;
       workflowActionService = TestBed.get(WorkflowActionService);
+      miniMapService = TestBed.get(MiniMapService);
       // detect changes to run ngAfterViewInit and bind Model
       fixture.detectChanges();
+    });
+
+    fit('check if mini map recieve event when workflow editor is initialized', () => {
+      expect(miniMapService.getMiniMapInitializeStream()).toBeTruthy();
     });
 
     it('should register itself as a droppable element', () => {

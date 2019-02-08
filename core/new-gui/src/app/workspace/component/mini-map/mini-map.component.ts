@@ -13,7 +13,8 @@ export class MiniMapComponent implements OnInit {
   public readonly MINI_MAP_JOINTJS_MAP_WRAPPER_ID = 'texera-mini-map-editor-jointjs-wrapper-id';
   public readonly MINI_MAP_JOINTJS_MAP_ID = 'texera-mini-map-editor-jointjs-body-id';
 
-  private workflowPaper: joint.dia.Paper | undefined;
+  private miniMapScaleSize = 0.15;
+  private miniMapGridSize = 45;
   private mapPaper: joint.dia.Paper | undefined;
   constructor(private miniMapService: MiniMapService,
     private resultPanelToggleService: ResultPanelToggleService) { }
@@ -23,16 +24,9 @@ export class MiniMapComponent implements OnInit {
     this.handleWindowResize();
   }
 
-  public getWorkflowPaper(): joint.dia.Paper {
-    if (this.workflowPaper === undefined) {
-      throw new Error('JointJS Workflow paper is undefined');
-    }
-    return this.workflowPaper;
-  }
-
   public getMapPaper(): joint.dia.Paper {
     if (this.mapPaper === undefined) {
-      throw new Error('JointJS Workflow paper is undefined');
+      throw new Error('JointJS Map paper is undefined');
     }
     return this.mapPaper;
   }
@@ -43,22 +37,22 @@ export class MiniMapComponent implements OnInit {
     } );
   }
 
-  private initializeMapPaper(workflow_paper: joint.dia.Paper): void {
-    if (workflow_paper === undefined) {
+  private initializeMapPaper(workflowPaper: joint.dia.Paper): void {
+    if (workflowPaper === undefined) {
       throw new Error('Workflow Graph is undefined');
     }
-    this.workflowPaper = workflow_paper;
     this.mapPaper =  new joint.dia.Paper({
       el: document.getElementById(this.MINI_MAP_JOINTJS_MAP_ID),
-      model: workflow_paper.model,
-      gridSize: 10,
+      model: workflowPaper.model,
+      gridSize: this.miniMapGridSize,
       drawGrid: true,
       background: {
-        color: '#efefef',
+        color:  '#efefef',
       },
       interactive: false
     });
-    this.mapPaper.scale(0.15);
+    this.mapPaper.scale(this.miniMapScaleSize);
+    this.mapPaper.drawGrid({'color' : '#D8656A', 'thickness': 3 });
     this.setMapPaperDimensions();
   }
 

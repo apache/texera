@@ -11,7 +11,7 @@ export class MiniMapService {
   constructor() { }
 
   public initializeMapPaper(mapPaper: joint.dia.Paper) {
-    this.miniMapGraphSubject.next(mapPaper); // .model);
+    this.miniMapGraphSubject.next(mapPaper);
   }
 
   public getMiniMapInitializeStream(): Observable<joint.dia.Paper> {

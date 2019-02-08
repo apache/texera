@@ -44,8 +44,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
   public readonly WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID = 'texera-workflow-editor-jointjs-wrapper-id';
   public readonly WORKFLOW_EDITOR_JOINTJS_ID = 'texera-workflow-editor-jointjs-body-id';
 
-  // public readonly WORKFLOW_EDITOR_JOINTJS_MAP_ID = 'texera-mini-map-editor-body';
-
   private paper: joint.dia.Paper | undefined;
 
   constructor(
@@ -71,7 +69,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.handleViewDeleteOperator();
     this.handleCellHighlight();
 
-    this.miniMapService.initializeMapPaper(this.getJointPaper());
     this.dragDropService.registerWorkflowEditorDrop(this.WORKFLOW_EDITOR_JOINTJS_ID);
 
   }
@@ -86,7 +83,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     // create the JointJS paper
     this.paper = new joint.dia.Paper(jointPaperOptions);
 
-    // this.miniMapService.initializeMapPaper(this.paper);
+    this.miniMapService.initializeMapPaper(this.paper);
 
     this.setJointPaperOriginOffset();
     this.setJointPaperDimensions();

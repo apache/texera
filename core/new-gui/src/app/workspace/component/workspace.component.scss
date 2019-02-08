@@ -82,7 +82,7 @@
   grid-column-start: 1;
   grid-column-end: 2;
   grid-row-start: 2;
-  grid-row-end: 6; // possibly 6
+  grid-row-end: 6;
   overflow: auto;
 }
 
@@ -96,7 +96,7 @@
   grid-column-start: 3;
   grid-column-end: 4;
   grid-row-start: 2;
-  grid-row-end: 3; // was 4
+  grid-row-end: 3;
   overflow: auto;
 }
 
@@ -122,8 +122,8 @@
 .texera-mini-map-with-result {
   grid-column-start: 3;
   grid-column-end: 4;
-  grid-row-start: 4; // 4;
-  grid-row-end: 6; //5;
+  grid-row-start: 4;
+  grid-row-end: 6;
 }
 
 /**
@@ -142,6 +142,6 @@
 .texera-result-panel-toggle-grid-container{
   grid-column-start: 2;
   grid-column-end: 3;
-  grid-row-start: 4; //3;
-  grid-row-end: 5; //4;
+  grid-row-start: 4;
+  grid-row-end: 5;
 }

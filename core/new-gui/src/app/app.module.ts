@@ -39,7 +39,7 @@ import { ResultPanelToggleComponent } from './workspace/component/result-panel-t
     NgbModalComponent,
     OperatorLabelComponent,
     ProductTourComponent,
-    MiniMapComponent
+    MiniMapComponent,
     ResultPanelToggleComponent
   ],
   imports: [

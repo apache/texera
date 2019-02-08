@@ -1,5 +1,4 @@
 <div [ngClass] = "{ 'mat-typography' : true, 'grid-container' : true,
-
 'texera-original-workspace-grid-container' : !showResultPanel ,
 'texera-workspace-grid-container' : showResultPanel}">
   <texera-navigation class="texera-navigation-grid-container grid-container" tourAnchor="texera-navigation-grid-container"></texera-navigation>
@@ -8,7 +7,6 @@
   <texera-workflow-editor class="texera-workflow-editor-grid-container grid-container" tourAnchor="texera-workflow-editor-grid-container"></texera-workflow-editor>
   <texera-mini-map [ngClass]= "{'texera-mini-map' : !showResultPanel ,
                                 'texera-mini-map-with-result' : showResultPanel}"></texera-mini-map>
-
   <texera-result-panel-toggle class="texera-result-panel-toggle-grid-container grid-container"></texera-result-panel-toggle>
   <texera-result-panel class="texera-result-panel-grid-container grid-container" tourAnchor="texera-result-view-grid-container"></texera-result-panel>
 </div>
