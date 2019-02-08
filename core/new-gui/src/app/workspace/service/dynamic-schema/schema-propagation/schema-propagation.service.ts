@@ -67,12 +67,18 @@ export class SchemaPropagationService {
   private _applySchemaPropagationResult(schemaPropagationResult: { [key: string]: string[] }): void {
     // for each operator, try to apply schema propagation result
     Array.from(this.dynamicSchemaService.getDynamicSchemaMap().keys()).forEach(operatorID => {
+      const currentDynamicSchema = this.dynamicSchemaService.getDynamicSchema(operatorID);
       // if operator input attributes are in the result, set them in dynamic schema
       if (schemaPropagationResult[operatorID]) {
-        const currentDynamicSchema = this.dynamicSchemaService.getDynamicSchema(operatorID);
         const newSchema = SchemaPropagationService.setOperatorInputAttrs(currentDynamicSchema, schemaPropagationResult[operatorID]);
-
         this.dynamicSchemaService.setDynamicSchema(operatorID, newSchema);
+      } else {
+        // otherwise, the input attributes of the operator is unknown
+        // if the operator is not a source operator, restore its original schema of input attributes
+        if (currentDynamicSchema.additionalMetadata.numInputPorts > 0) {
+          const newSchema = SchemaPropagationService.restoreOperatorInputAttrs(currentDynamicSchema);
+          this.dynamicSchemaService.setDynamicSchema(operatorID, newSchema);
+        }
       }
 
     });
@@ -111,6 +117,21 @@ export class SchemaPropagationService {
 
     newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, attributeListInJsonSchema,
       () => ({ type: 'array', items: { type: 'string', enum: inputAttributes.slice() } }));
+
+    return {
+      ...operatorSchema,
+      jsonSchema: newJsonSchema
+    };
+  }
+
+  public static restoreOperatorInputAttrs(operatorSchema: OperatorSchema): OperatorSchema {
+
+    let newJsonSchema = operatorSchema.jsonSchema;
+    newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, attributeInJsonSchema,
+      () => ({ type: 'string' }));
+
+    newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, attributeListInJsonSchema,
+      () => ({ type: 'array', items: { type: 'string' } }));
 
     return {
       ...operatorSchema,
