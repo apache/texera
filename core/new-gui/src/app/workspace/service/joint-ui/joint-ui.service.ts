@@ -245,16 +245,16 @@ export class JointUIService {
     const operatorStyleAttrs = {
       'rect': { fill: '#FFFFFF', 'follow-scale': true, stroke: '#CFCFCF', 'stroke-width': '2' },
       'text': {
-        text: operatorDisplayName, fill: 'gray', 'font-size': '12px',
+        text: operatorDisplayName, fill: '#595959', 'font-size': '14px',
         'ref-x': 0.5, 'ref-y': 80, ref: 'rect', 'y-alignment': 'middle', 'x-alignment': 'middle'
       },
       '.delete-button': {
-        x: 66, y: -20, cursor: 'pointer',
+        x: 60, y: -20, cursor: 'pointer',
         fill: '#D8656A', event: 'element:delete'
       },
       'image': {
         'href': '/src/assets/operator_images/' + operatorType + '.png',
-        width: 25, height: 25,
+        width: 35, height: 35,
         'ref-x': .5, 'ref-y': .5,
         ref: 'rect',
         'x-alignment': 'middle',
