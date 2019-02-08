@@ -11,7 +11,6 @@ import { OperatorSchema } from '../../types/operator-schema.interface';
 import { OperatorMetadataService } from '../operator-metadata/operator-metadata.service';
 import { WorkflowActionService } from '../workflow-graph/model/workflow-action.service';
 import { isEqual, remove, cloneDeep, get, set } from 'lodash-es';
-import * as Ajv from 'ajv';
 
 export type SchemaTransformer = (operator: OperatorPredicate, schema: OperatorSchema) => OperatorSchema;
 
@@ -101,46 +100,17 @@ export class DynamicSchemaService {
    *
    */
   public setDynamicSchema(operatorID: string, dynamicSchema: OperatorSchema): void {
-    const oldDynamicSchema = this.dynamicSchemaMap.get(operatorID);
+    const currentDynamicSchema = this.dynamicSchemaMap.get(operatorID);
 
     // do nothing if old & new schema are the same
-    if (isEqual(oldDynamicSchema, dynamicSchema)) {
+    if (isEqual(currentDynamicSchema, dynamicSchema)) {
       return;
     }
 
-    const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorID);
-    if (! operator) {
-      throw new Error(`operator ${operatorID} not found`);
-    }
-    // if  dynamic schema is not set yet, use its static schema as initial dynamic schema
-    let currentDynamicSchema: OperatorSchema;
-    if (oldDynamicSchema) {
-      currentDynamicSchema = oldDynamicSchema;
-    } else {
-      currentDynamicSchema = this.operatorMetadataService.getOperatorSchema(operator.operatorType);
-    }
-
-    // new dynamic schema might introduce additional errors for the current operator property data
-    // check for new errors and if any exists, set the new errored property to undefined
-    // validate the data against old and new schema, and diff newErrorList - oldErrorList
-
-    const oldErrors = DynamicSchemaService.validateJsonSchema(operator, currentDynamicSchema);
-    const newErrors = DynamicSchemaService.validateJsonSchema(operator, dynamicSchema);
-    const errorsDiff = DynamicSchemaService.diffAjvErrors(oldErrors, newErrors);
-
-    if (errorsDiff.length > 0) {
-      const newOperatorProperty = cloneDeep(operator.operatorProperties);
-      errorsDiff.forEach(error => {
-        // error.dataPath is a string to access the property, starts with a dot, for example ".a.b.c"
-        // lodash.set will set the property based on the string path, equiavlent to "obj.a.b.c = value"
-        set(newOperatorProperty, error.dataPath.substr(1), undefined);
-      });
-      this.workflowActionService.setOperatorProperty(operator.operatorID, newOperatorProperty);
-    }
-
-    // set the new dynamic schema and emit event
-    this.dynamicSchemaMap.set(operator.operatorID, dynamicSchema);
-    if (oldDynamicSchema) {
+    // set the new dynamic schema
+    this.dynamicSchemaMap.set(operatorID, dynamicSchema);
+    // only emit event if the old dynamic schema is not present
+    if (currentDynamicSchema) {
       this.operatorDynamicSchemaChangedStream.next({ operatorID });
     }
   }
@@ -163,14 +133,21 @@ export class DynamicSchemaService {
 
   /**
    * Helper function to change a property in a json schema of an operator schema.
-   * Returns a new operator schema containing the new json schema property.
+   * It recursively walks through the property field of a JSON schema, and tries to find the property name.
+   * Once it finds the property name, it invokes the mutationFunction to get the new property and replaces the old property.
+   * The mutationFunction optionally takes a input with current property of the propertyName and outputs the new mutated property.
+   *
+   * Returns a new object containing the new json schema property.
    */
   public static mutateProperty(
-    jsonSchemaToChange: JSONSchema4, propertyName: string, mutationFunc: (arg: JSONSchema4) => JSONSchema4): JSONSchema4 {
+    jsonSchemaToChange: JSONSchema4, propertyName: string, mutationFunc: (arg: JSONSchema4) => JSONSchema4
+  ): JSONSchema4 {
 
+    // recursively walks the JSON schema property tree to find the property name
     const mutatePropertyRecurse = (jsonSchema: JSONSchema4) => {
       const schemaProperties = jsonSchema.properties;
       const schemaItems = jsonSchema.items;
+      // nested JSON schema property can have 2 types: object or array
       if (schemaProperties) {
         Object.keys(schemaProperties).forEach(property => {
           if (property === propertyName) {
@@ -189,43 +166,11 @@ export class DynamicSchemaService {
       }
     };
 
+    // deep copy the schema first to avoid changing the original schema object
     const jsonSchemaCopy = cloneDeep(jsonSchemaToChange);
     mutatePropertyRecurse(jsonSchemaCopy);
 
     return jsonSchemaCopy;
-  }
-
-
-  /**
-   * This method uses `Another JSON Schema Validator` library to check if the data passed
-   *  into the method satisfy the constraint set by the Json Schema for an operator
-   * https://github.com/epoberezkin/ajv
-   *
-   * @param schema json schema of an operator
-   * @param data data to check
-   */
-  private static validateJsonSchema(operator: OperatorPredicate, schema: OperatorSchema): Ajv.ErrorObject[] | undefined {
-    const ajv = new Ajv({ schemaId: 'auto', allErrors: true });
-    // only supports version 4 json schema currently
-    ajv.addMetaSchema(require('ajv/lib/refs/json-schema-draft-04.json'));
-    ajv.validate(schema.jsonSchema, operator.operatorProperties);
-    return ajv.errors;
-  }
-
-  /**
-   * Calcultes the diff between newErrors and oldErrors of ajv validation result.
-   */
-  private static diffAjvErrors(oldErrors: Ajv.ErrorObject[] | undefined, newErrors: Ajv.ErrorObject[] | undefined): Ajv.ErrorObject[] {
-    if (!newErrors) {
-      return [];
-    }
-    if (!oldErrors) {
-      return newErrors;
-    }
-    const errorsDiff = remove(newErrors, error =>
-      oldErrors.filter(e => isEqual(e, error)).length === 0
-    );
-    return errorsDiff;
   }
 
 }

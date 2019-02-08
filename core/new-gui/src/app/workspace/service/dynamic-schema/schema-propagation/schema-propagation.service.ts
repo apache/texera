@@ -3,9 +3,7 @@ import { environment } from '../../../../../environments/environment';
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-
 import { OperatorSchema } from '../../../types/operator-schema.interface';
-
 import { DynamicSchemaService } from './../dynamic-schema.service';
 import { ExecuteWorkflowService } from './../../execute-workflow/execute-workflow.service';
 import { WorkflowActionService } from './../../workflow-graph/model/workflow-action.service';
@@ -13,13 +11,20 @@ import { WorkflowActionService } from './../../workflow-graph/model/workflow-act
 
 // endpoint for schema propagation
 export const SCHEMA_PROPAGATION_ENDPOINT = 'queryplan/autocomplete';
-
+// By contract, property name name for texera table input attribute (column names)
 export const attributeInJsonSchema = 'attribute';
 export const attributeListInJsonSchema = 'attributes';
 
 
 /**
- * TODO
+ * Schema Propagation Service provides autocomplete functionaility for attribute property of operators.
+ * When user creates and connects operators in workflow, the backend can propagate the schema information,
+ * so that an operator knows its input attributes (column names).
+ *
+ * The input box for the attribute can be changed to be a drop-down menu to select the available attributes.
+ *
+ * By contract, property name `attribute` and `attributes` indicate the field is a column of the operator's input,
+ *  and schema propagation can provide autocomplete for the column names.
  */
 @Injectable({
   providedIn: 'root'
@@ -45,11 +50,7 @@ export class SchemaPropagationService {
         this.workflowActionService.getTexeraGraph().getOperatorPropertyChangeStream())
       .flatMap(() => this.invokeSchemaPropagationAPI())
       .filter(response => response.code === 0)
-      .subscribe(response => {
-        Array.from(this.dynamicSchemaService.getDynamicSchemaMap().keys()).forEach(operatorID => {
-          this.dynamicSchemaService.setDynamicSchema(operatorID, this._applySchemaPropagationResult(response.result, operatorID));
-        });
-      });
+      .subscribe(response => this._applySchemaPropagationResult(response.result));
   }
 
   /**
@@ -63,16 +64,18 @@ export class SchemaPropagationService {
    * @param schemaPropagationResult
    * @param operatorID
    */
-  private _applySchemaPropagationResult(schemaPropagationResult: { [key: string]: string[] }, operatorID: string): OperatorSchema {
-    const currentDynamicSchema = this.dynamicSchemaService.getDynamicSchema(operatorID);
+  private _applySchemaPropagationResult(schemaPropagationResult: { [key: string]: string[] }): void {
+    // for each operator, try to apply schema propagation result
+    Array.from(this.dynamicSchemaService.getDynamicSchemaMap().keys()).forEach(operatorID => {
+      // if operator input attributes are in the result, set them in dynamic schema
+      if (schemaPropagationResult[operatorID]) {
+        const currentDynamicSchema = this.dynamicSchemaService.getDynamicSchema(operatorID);
+        const newSchema = SchemaPropagationService.setOperatorInputAttrs(currentDynamicSchema, schemaPropagationResult[operatorID]);
 
-    // if operator input attributes are in the result, set them in dynamic schema
-    if (schemaPropagationResult[operatorID]) {
-      return SchemaPropagationService.setOperatorInputAttrs(currentDynamicSchema, schemaPropagationResult[operatorID]);
-    }
+        this.dynamicSchemaService.setDynamicSchema(operatorID, newSchema);
+      }
 
-    // operator input attributes cannot be inferred, leave the dynamic schema unchanged.
-    return currentDynamicSchema;
+    });
   }
 
   /**
@@ -141,7 +144,7 @@ export interface SchemaPropagationResponse extends Readonly<{
  * The backend interface of the return object of a failed execution of
  * autocomplete API
  */
-export interface SchemaPropagationError extends Readonly< {
+export interface SchemaPropagationError extends Readonly<{
   code: -1,
   message: string
 }> { }
