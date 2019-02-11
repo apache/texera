@@ -27,8 +27,13 @@ export class NavigationComponent implements OnInit {
 
   // variable binded with HTML to decide if the running spinner should show
   public showSpinner = false;
+
+  // zoomDifference represents the ratio that is zoom in/out everytime.
+  public zoomDifference: number = 0.02;
+
   // the newZoomRatio represents the ratio of the size of the the new window to the original one.
   private newZoomRatio: number = 1;
+
 
   constructor(private dragDropService: DragDropService,
     private executeWorkflowService: ExecuteWorkflowService, public tourService: TourService) {
@@ -61,12 +66,12 @@ export class NavigationComponent implements OnInit {
   */
   public onClickZoomIn(): void {
     // make the ratio small.
-    this.newZoomRatio += 0.02;
+    this.newZoomRatio += this.zoomDifference;
     this.dragDropService.setZoomProperty(this.newZoomRatio);
   }
   public onClickZoomOut(): void {
     // make the ratio big.
-    this.newZoomRatio -= 0.02;
+    this.newZoomRatio -= this.zoomDifference;
     this.dragDropService.setZoomProperty(this.newZoomRatio);
   }
 }

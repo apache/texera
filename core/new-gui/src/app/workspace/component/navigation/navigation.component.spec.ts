@@ -118,13 +118,14 @@ describe('NavigationComponent', () => {
 
   it('should change zoom to be smaller when user click on the zoom out buttons', marbles((m) => {
      // expect initially the zoom ratio is 1;
-   const originalZoomratio = 1;
+   const originalZoomRatio = 1;
 
    m.hot('-e-').do(() => component.onClickZoomOut()).subscribe();
    dragDropService.getWorkflowEditorZoomStream().subscribe(
      newRatio => {
        fixture.detectChanges();
-       expect(newRatio).toBeLessThan(originalZoomratio);
+       expect(newRatio).toBeLessThan(originalZoomRatio);
+       expect(newRatio).toEqual(originalZoomRatio - component.zoomDifference);
      }
    );
 
@@ -132,13 +133,14 @@ describe('NavigationComponent', () => {
 
   it('should change zoom to be bigger when user click on the zoom in buttons', marbles((m) => {
     // expect initially the zoom ratio is 1;
-   const originalZoomratio = 1;
+   const originalZoomRatio = 1;
 
    m.hot('-e-').do(() => component.onClickZoomIn()).subscribe();
    dragDropService.getWorkflowEditorZoomStream().subscribe(
      newRatio => {
        fixture.detectChanges();
-       expect(newRatio).toBeGreaterThan(originalZoomratio);
+       expect(newRatio).toBeGreaterThan(originalZoomRatio);
+       expect(newRatio).toEqual(originalZoomRatio + component.zoomDifference);
      }
    );
 

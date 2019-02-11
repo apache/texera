@@ -69,7 +69,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
   ngAfterViewInit() {
     this.initializeJointPaper();
-    this.handleWindowSize();
+    this.handlePaperResize();
     this.handleWindowResize();
     this.handleViewDeleteOperator();
     this.handleCellHighlight();
@@ -95,7 +95,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
      * Handles zoom events passed from navigation-component, which can be used to
      *  make the jointJS paper larger or smaller.
      */
-    private handleWindowSize(): void {
+    private handlePaperResize(): void {
       this.dragDropService.getWorkflowEditorZoomStream().subscribe((value) => {
         this.newZoomRatio = value;
         this.getJointPaper().scale(this.newZoomRatio, this.newZoomRatio);
