@@ -104,15 +104,22 @@ export class ExecuteWorkflowService {
     const params = new HttpParams().set('action', 'pause');
 
     // The endpoint will be 'api/pause?action=pause', and workflowExecutionID will be the body
-    this.http.post(
-      requestURL,
-      JSON.stringify(body),
-      { headers: {'Content-Type' : 'application/json'},
-        params: params})
-      .subscribe(
-        response => this.executionPauseResumeStream.next(0),
-        error => console.log(error)
-    );
+
+    // TODO: Create a new resource handling this URL, currently there is none.
+    // TODO: After defining a new resource, uncomment this section
+
+    // this.http.post(
+    //   requestURL,
+    //   JSON.stringify(body),
+    //   { headers: {'Content-Type' : 'application/json'},
+    //     params: params})
+    //   .subscribe(
+    //     response => this.executionPauseResumeStream.next(0),
+    //     error => console.log(error)
+    // );
+
+    // TODO: Comment out this section when uncommenting http post request above
+    this.executionPauseResumeStream.next(0);
   }
 
   /**
@@ -131,16 +138,23 @@ export class ExecuteWorkflowService {
     const params = new HttpParams().set('action', 'resume');
 
     // The endpoint will be 'api/pause?action=resume', and workflowExecutionID will be the body
-    this.http.post(
-      requestURL,
-      JSON.stringify(body),
-      { headers: {'Content-Type' : 'application/json'},
-        params: params})
-      .subscribe(
-        response => this.executionPauseResumeStream.next(1),
-        error => console.log(error)
-    );
 
+    // TODO: Create a new resource handling this URL, currently there is none.
+    // TODO: After defining a new resource, uncomment this section
+
+    // this.http.post(
+    //   requestURL,
+    //   JSON.stringify(body),
+    //   { headers: {'Content-Type' : 'application/json'},
+    //     params: params})
+    //   .subscribe(
+    //     response => this.executionPauseResumeStream.next(1),
+    //     error => console.log(error)
+    // );
+
+
+    // TODO: Comment out this section when uncommenting http post request above
+    this.executionPauseResumeStream.next(1);
   }
 
   /**

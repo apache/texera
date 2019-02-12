@@ -179,20 +179,40 @@ describe('ExecuteWorkflowService', () => {
 
   });
 
-  fit('it should raise an error when pauseWorkflow() is called without having a execution ID', () => {
-    expect(true).toBeTruthy();
+
+  it('it should raise an error when pauseWorkflow() is called without having a execution ID', () => {
+    expect(function() {
+      service.pauseWorkflow();
+    }).toThrowError(new RegExp(`Workflow ID undefined when attempting to pause`));
   });
 
-  fit('it should raise an error when resumeWorkflow() is called without having a execution ID', () => {
-    expect(true).toBeTruthy();
+
+  it('it should raise an error when resumeWorkflow() is called without having a execution ID', () => {
+    expect(function() {
+      service.resumeWorkflow();
+    }).toThrowError(new RegExp(`Workflow ID undefined when attempting to resume`));
   });
 
-  fit('should invoke pause API when pauseWorkflow() is called', () => {
-    expect(true).toBeTruthy();
-  });
 
-  fit('should invoke resume API when resumeWorkflow() is called', () => {
-    expect(true).toBeTruthy();
-  });
+  it('should notify pause and resume stream when a result is returned from backend after calling pauseWorkflow()', marbles((m) => {
+    (service as any).workflowExecutionID = 'DEFAULT_WORKFLOW_ID';
+
+    m.hot('-e-').do(() => service.pauseWorkflow()).subscribe();
+    const resultStream = service.getExecutionPauseResumeStream().map(value => 'e');
+
+    const expectedStream = m.hot('-e-');
+    m.expect(resultStream).toBeObservable(expectedStream);
+  }));
+
+
+  it('should notify pause and resume stream when a result is returned from backend after calling resumeWorkflow()', marbles((m) => {
+    (service as any).workflowExecutionID = 'DEFAULT_WORKFLOW_ID';
+
+    m.hot('-e-').do(() => service.resumeWorkflow()).subscribe();
+    const resultStream = service.getExecutionPauseResumeStream().map(value => 'e');
+
+    const expectedStream = m.hot('-e-');
+    m.expect(resultStream).toBeObservable(expectedStream);
+  }));
 
 });
