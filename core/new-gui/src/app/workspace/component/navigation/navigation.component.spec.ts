@@ -18,6 +18,7 @@ import { marbles } from 'rxjs-marbles';
 import { HttpClient } from '@angular/common/http';
 import { mockExecutionResult } from '../../service/execute-workflow/mock-result-data';
 
+
 class StubHttpClient {
 
   public post<T>(): Observable<string> { return Observable.of('a'); }
@@ -108,24 +109,74 @@ describe('NavigationComponent', () => {
 
   }));
 
-  it('onClickPauseResumeToggle() should flip the value of isWorkflowPaused', marbles((m) => {
+  it('should call pauseWorkflow function when isWorkflowPaused is false', () => {
+    const pauseWorkflowSpy = spyOn(executeWorkFlowService, 'pauseWorkflow').and.callThrough();
+    component.isWorkflowRunning = true;
+    component.isWorkflowPaused = false;
 
-    const httpClient: HttpClient = TestBed.get(HttpClient);
-    spyOn(httpClient, 'post').and.returnValue(
-      Observable.of(mockExecutionResult)
+    (executeWorkFlowService as any).workflowExecutionID = 'MOCK_EXECUTION_ID';
+
+    component.onClickPauseResumeToggle();
+    expect(pauseWorkflowSpy).toHaveBeenCalled();
+  });
+
+  it('should call resumeWorkflow function when isWorkflowPaused is true', () => {
+    const resumeWorkflowSpy = spyOn(executeWorkFlowService, 'resumeWorkflow').and.callThrough();
+    component.isWorkflowRunning = true;
+    component.isWorkflowPaused = true;
+
+    (executeWorkFlowService as any).workflowExecutionID = 'MOCK_EXECUTION_ID';
+
+    component.onClickPauseResumeToggle();
+    expect(resumeWorkflowSpy).toHaveBeenCalled();
+  });
+
+  it('should not call resumeWorkflow or pauseWorkflow if the workflow is not currently running', () => {
+    const pauseWorkflowSpy = spyOn(executeWorkFlowService, 'pauseWorkflow').and.callThrough();
+    const resumeWorkflowSpy = spyOn(executeWorkFlowService, 'resumeWorkflow').and.callThrough();
+
+    component.onClickPauseResumeToggle();
+    expect(pauseWorkflowSpy).toHaveBeenCalledTimes(0);
+    expect(resumeWorkflowSpy).toHaveBeenCalledTimes(0);
+  });
+
+  it('it should update isWorkflowPaused variable to true when 0 is returned from getExecutionPauseResumeStream', marbles((m) => {
+    const endMarbleString = '-e-|';
+    const endMarblevalues = {
+      e: 0
+    };
+
+    spyOn(executeWorkFlowService, 'getExecutionPauseResumeStream').and.returnValue(
+      m.hot(endMarbleString, endMarblevalues)
     );
 
-    // expect initially to be false
-    expect(component.isWorkflowPaused).toBeFalsy();
-    component.onClickPauseResumeToggle();
+    const mockComponent = new NavigationComponent(executeWorkFlowService, TestBed.get(TourService));
 
-    // should now be true
-    expect(component.isWorkflowPaused).toBeTruthy();
-    component.onClickPauseResumeToggle();
-
-    // should be false
-    expect(component.isWorkflowPaused).toBeFalsy();
-
+    executeWorkFlowService.getExecutionPauseResumeStream()
+      .subscribe({
+        complete: () => {
+          expect(mockComponent.isWorkflowPaused).toBeTruthy();
+        }
+      });
   }));
 
+  it('it should update isWorkflowPaused variable to false when 1 is returned from getExecutionPauseResumeStream', marbles((m) => {
+    const endMarbleString = '-e-|';
+    const endMarblevalues = {
+      e: 1
+    };
+
+    spyOn(executeWorkFlowService, 'getExecutionPauseResumeStream').and.returnValue(
+      m.hot(endMarbleString, endMarblevalues)
+    );
+
+    const mockComponent = new NavigationComponent(executeWorkFlowService, TestBed.get(TourService));
+
+    executeWorkFlowService.getExecutionPauseResumeStream()
+      .subscribe({
+        complete: () => {
+          expect(mockComponent.isWorkflowPaused).toBeFalsy();
+        }
+      });
+  }));
 });

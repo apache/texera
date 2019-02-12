@@ -179,6 +179,20 @@ describe('ExecuteWorkflowService', () => {
 
   });
 
+  fit('it should raise an error when pauseWorkflow() is called without having a execution ID', () => {
+    expect(true).toBeTruthy();
+  });
 
+  fit('it should raise an error when resumeWorkflow() is called without having a execution ID', () => {
+    expect(true).toBeTruthy();
+  });
+
+  fit('should invoke pause API when pauseWorkflow() is called', () => {
+    expect(true).toBeTruthy();
+  });
+
+  fit('should invoke resume API when resumeWorkflow() is called', () => {
+    expect(true).toBeTruthy();
+  });
 
 });

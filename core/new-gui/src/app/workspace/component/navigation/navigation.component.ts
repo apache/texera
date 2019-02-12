@@ -30,9 +30,21 @@ export class NavigationComponent implements OnInit {
     // return the run button after the execution is finished, either
     //  when the value is valid or invalid
     executeWorkflowService.getExecuteEndedStream().subscribe(
-      () => this.isWorkflowRunning = false,
-      () => this.isWorkflowPaused = false,
+      () => {
+        this.isWorkflowRunning = false;
+        this.isWorkflowPaused = false;
+      },
+      () => {
+        this.isWorkflowPaused = false;
+        this.isWorkflowRunning = false;
+      }
     );
+
+    // update the pause/resume button after a pause/resume request
+    //  is returned from the backend.
+    // this will swap button between pause and resume
+    executeWorkflowService.getExecutionPauseResumeStream()
+      .subscribe(state => this.isWorkflowPaused = (state === 0));
   }
 
   ngOnInit() {
@@ -44,19 +56,22 @@ export class NavigationComponent implements OnInit {
    *  is loading the workflow by displaying the pause/resume button.
    */
   public onClickRun(): void {
-    // modifying the `running` and `isPaused` variables will display the pause button
+    // modifying the `running` variable will display the pause button
     this.isWorkflowRunning = true;
-    this.isWorkflowPaused = false;
     this.executeWorkflowService.executeWorkflow();
   }
 
   /**
-   * Pauses/resumes the current existing workflow on the JointJS paper. It will
-   * also swap the button between pause and resume whenever you click on it to show whether
-   * the backend is currently paused or not.
+   * Pauses/resumes the current existing workflow on the JointJS paper.
    */
   public onClickPauseResumeToggle(): void {
-    this.isWorkflowPaused = !this.isWorkflowPaused;
+    if (!this.isWorkflowRunning) {
+      return;
+    }
+    if (this.isWorkflowPaused) {
+      this.executeWorkflowService.resumeWorkflow();
+    } else {
+      this.executeWorkflowService.pauseWorkflow();
+    }
   }
-
 }
