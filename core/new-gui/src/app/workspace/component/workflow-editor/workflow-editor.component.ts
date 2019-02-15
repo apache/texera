@@ -121,10 +121,12 @@ export class WorkflowEditorComponent implements AfterViewInit {
         }
       );
 
-    // mousemove event to move paper, this will calculate the new coordinate based on the
-    //  starting coordinate, the mousemove offset, and the current zoom ratio.
-    // To move the paper based on the new coordinate, this will translate the paper by calling
-    //  the JointJS method .translate() to move paper's offset.
+    /* mousemove event to move paper, this will calculate the new coordinate based on the
+     *  starting coordinate, the mousemove offset, and the current zoom ratio.
+     *  To move the paper based on the new coordinate, this will translate the paper by calling
+     *  the JointJS method .translate() to move paper's offset.
+     */
+    
     Observable.fromEvent<MouseEvent>(document, 'mousemove')
         .filter(() => this.ifMouseDown === true)
         .filter(() => this.MouseDown !== undefined)

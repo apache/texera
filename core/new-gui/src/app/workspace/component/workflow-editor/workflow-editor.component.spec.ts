@@ -127,7 +127,6 @@ describe('WorkflowEditorComponent', () => {
     let component: WorkflowEditorComponent;
     let fixture: ComponentFixture<WorkflowEditorComponent>;
     let workflowActionService: WorkflowActionService;
-
     beforeEach(async(() => {
       TestBed.configureTestingModule({
         declarations: [WorkflowEditorComponent],
@@ -216,7 +215,6 @@ describe('WorkflowEditorComponent', () => {
       const jointHighlighterElementAfterUnhighlight = jointCellView.$el.children('.joint-highlight-stroke');
       expect(jointHighlighterElementAfterUnhighlight.length).toEqual(0);
     });
-
   });
 
 });

@@ -160,4 +160,5 @@ describe('NavigationComponent', () => {
     const expectedStream = '-e-';
     m.expect(zoomEndStream).toBeObservable(expectedStream);
   }));
+
 });
