@@ -34,8 +34,6 @@ export class UserDictionaryService {
       .subscribe(
         data => {
           alert(file.name + ' is uploaded');
-          // after adding a new dictionary, refresh the list
-          // this.getDictionaries();
         },
         err => {
             alert('Error occurred while uploading ' + file.name);
