@@ -23,4 +23,6 @@ public class NlpSentimentTestConstants {
     public static Tuple NEGATIVE_TUPLE = new Tuple(SENTIMENT_SCHEMA,
             new TextField("Bugs are always annoying."));
     
+    public static Tuple MULTIPLE_SENTENCES_TUPLE=new Tuple(SENTIMENT_SCHEMA,new TextField("Blabla. Bugs are always annoying. But programming is so super awesome. Blabla."));
+    
 }
