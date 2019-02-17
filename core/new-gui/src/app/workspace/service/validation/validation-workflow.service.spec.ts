@@ -53,7 +53,7 @@ describe('ValidationWorkflowService', () => {
   }
   );
 
-  it('should receive false from operatorValidationStream when operator box is not connected or required properties are complete ',
+  it('should receive false from operatorValidationStream when operator box is not connected or required properties are not complete ',
   () => {
     workflowActionservice.addOperator(mockScanPredicate, mockPoint);
     workflowActionservice.addOperator(mockResultPredicate, mockPoint);
