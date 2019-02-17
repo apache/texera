@@ -14,7 +14,7 @@ export class ValidationWorkflowService {
 
   /**
    * subcribe the add opertor event, delete operator event, add link event, delete link event
-   * and change operator property event. add each change into operatorValidationStream
+   * and change operator property event. observe each change and record changes in operatorValidationStream
    * @param texeraGraph
    * @param workflowActionService
    */
@@ -81,13 +81,10 @@ export class ValidationWorkflowService {
   }
 
   /**
-   * change the color of operator box from red to '#cfcfcf'.
-   * if the color is 'cfcfcf', the operator box is valiad.
-   * @param
+   * if all ports of the operator are connected and all properties are completed
+   * then the operator is valid.
    */
   public validateOperator(operatorID: string): boolean {
-    console.log('isolated?');
-    console.log(this.isOperatorIsolated(operatorID));
     if (!this.isOperatorIsolated(operatorID) && this.isJsonSchemaValiad(operatorID)) {
       return true;
     }
@@ -95,8 +92,8 @@ export class ValidationWorkflowService {
   }
 
   /**
-   * this method is used to check whether all required properties of the operator have been completed.
-   * if completed correctly, the operator box will be validated.
+   * This method is used to check whether all required properties of the operator have been completed.
+   * if completed correctly, the operator box is valid.
    */
   private isJsonSchemaValiad(operatorID: string): boolean {
     const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorID);
@@ -118,8 +115,8 @@ export class ValidationWorkflowService {
   }
 
   /**
-   * This method is used to check whether operator box has been connected to each other
-   * and make sure that there is no isolated operator box.
+   * This method is used to check whether all ports of the operator box has been connected.
+   * if all ports of the operator box is connected, the operator is valid.
    */
   private isOperatorIsolated(operatorID: string): boolean {
      const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorID);

@@ -3,6 +3,7 @@ import { JointGraphWrapper } from './../../service/workflow-graph/model/joint-gr
 import { DragDropService } from './../../service/drag-drop/drag-drop.service';
 import { WorkflowUtilService } from './../../service/workflow-graph/util/workflow-util.service';
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import { ValidationWorkflowService } from './../../service/validation/validation-workflow.service';
 
 import { WorkflowEditorComponent } from './workflow-editor.component';
 
@@ -12,12 +13,13 @@ import { JointUIService } from '../../service/joint-ui/joint-ui.service';
 
 import * as joint from 'jointjs';
 import { mockScanPredicate, mockPoint } from '../../service/workflow-graph/model/mock-workflow-data';
-
+import { WorkflowGraphReadonly, WorkflowGraph } from "../../service/workflow-graph/model/workflow-graph";
 
 class StubWorkflowActionService {
 
   private jointGraph = new joint.dia.Graph();
   private jointGraphWrapper = new JointGraphWrapper(this.jointGraph);
+  private texeraGraph = new WorkflowGraph();
 
   public attachJointPaper(paperOptions: joint.dia.Paper.Options): joint.dia.Paper.Options {
     paperOptions.model = this.jointGraph;
@@ -26,6 +28,10 @@ class StubWorkflowActionService {
 
   public getJointGraphWrapper(): JointGraphWrapper {
     return this.jointGraphWrapper;
+  }
+
+  public getTexeraGraph(): WorkflowGraphReadonly {
+    return this.texeraGraph;
   }
 }
 
@@ -48,6 +54,7 @@ describe('WorkflowEditorComponent', () => {
           JointUIService,
           WorkflowUtilService,
           DragDropService,
+          ValidationWorkflowService,
           { provide: WorkflowActionService, useClass: StubWorkflowActionService },
           { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         ]
@@ -136,6 +143,7 @@ describe('WorkflowEditorComponent', () => {
           WorkflowUtilService,
           DragDropService,
           WorkflowActionService,
+          ValidationWorkflowService,
           { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         ]
       })
