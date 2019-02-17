@@ -297,4 +297,3 @@ function validateOperatorMagnet(cellView: joint.dia.CellView, magnet: SVGElement
   return false;
 }
 
-
