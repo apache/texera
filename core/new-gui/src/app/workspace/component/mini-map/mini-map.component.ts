@@ -16,6 +16,7 @@ export class MiniMapComponent implements OnInit {
   private miniMapScaleSize = 0.15;
   private miniMapGridSize = 45;
   private mapPaper: joint.dia.Paper | undefined;
+
   constructor(private miniMapService: MiniMapService,
     private resultPanelToggleService: ResultPanelToggleService) { }
 
@@ -53,6 +54,7 @@ export class MiniMapComponent implements OnInit {
     });
     this.mapPaper.scale(this.miniMapScaleSize);
     this.mapPaper.drawGrid({'color' : '#D8656A', 'thickness': 3 });
+
     this.setMapPaperDimensions();
   }
 

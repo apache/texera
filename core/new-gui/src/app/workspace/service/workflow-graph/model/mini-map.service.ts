@@ -6,6 +6,7 @@ import * as joint from 'jointjs';
   providedIn: 'root'
 })
 export class MiniMapService {
+
   private miniMapGraphSubject = new Subject<joint.dia.Paper>();
 
   constructor() { }
