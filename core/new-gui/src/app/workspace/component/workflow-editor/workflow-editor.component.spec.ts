@@ -15,6 +15,7 @@ import { mockScanPredicate, mockPoint } from '../../service/workflow-graph/model
 
 import { MiniMapService } from '../../service/workflow-graph/model/mini-map.service';
 import { ResultPanelToggleService } from '../../service/result-panel-toggle/result-panel-toggle.service';
+import { marbles } from 'rxjs-marbles';
 
 
 class StubWorkflowActionService {
@@ -158,10 +159,6 @@ describe('WorkflowEditorComponent', () => {
       miniMapService = TestBed.get(MiniMapService);
       // detect changes to run ngAfterViewInit and bind Model
       fixture.detectChanges();
-    });
-
-    fit('check if mini map recieve event when workflow editor is initialized', () => {
-      expect(miniMapService.getMiniMapInitializeStream()).toBeTruthy();
     });
 
     it('should register itself as a droppable element', () => {
