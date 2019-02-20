@@ -4,12 +4,23 @@ import { Observable } from 'rxjs/Observable';
 import * as joint from 'jointjs';
 import { ResultPanelToggleService } from '../../service/result-panel-toggle/result-panel-toggle.service';
 
+/**
+ * MiniMapComponent is the componenet for the mini map part of the UI.
+ *
+ * The mini map component is bound to a JointJS Paper. The mini map's paper uses the same graph/model
+ * as the main workflow (WorkflowEditorComponent's model), making it so that the map will always have
+ * the same operators and links as the main workflow.
+ *
+ * @author Cynthia Wang
+ */
 @Component({
   selector: 'texera-mini-map',
   templateUrl: './mini-map.component.html',
   styleUrls: ['./mini-map.component.scss']
 })
 export class MiniMapComponent implements OnInit {
+  // the DOM element ID of map. It can be used by jQuery and jointJS to find the DOM element
+  // in the HTML template, the div element ID is set using this variable
   public readonly MINI_MAP_JOINTJS_MAP_WRAPPER_ID = 'texera-mini-map-editor-jointjs-wrapper-id';
   public readonly MINI_MAP_JOINTJS_MAP_ID = 'texera-mini-map-editor-jointjs-body-id';
 
@@ -32,19 +43,27 @@ export class MiniMapComponent implements OnInit {
     return this.mapPaper;
   }
 
+  /**
+   * Gets the WorkflowEditorComponent's paper from MiniMapService,
+   * and calls initializeMapPaper() to set initialize the mapPaper
+   */
   private initializeGraph(): void {
     this.miniMapService.getMiniMapInitializeStream().subscribe( paper => {
       this.initializeMapPaper(paper);
     } );
   }
 
+  /**
+   * Function is used by initializeGraph() and it sets the mapPaper's
+   * properties.
+   */
   private initializeMapPaper(workflowPaper: joint.dia.Paper): void {
     if (workflowPaper === undefined) {
       throw new Error('Workflow Graph is undefined');
     }
     this.mapPaper =  new joint.dia.Paper({
       el: document.getElementById(this.MINI_MAP_JOINTJS_MAP_ID),
-      model: workflowPaper.model,
+      model: workflowPaper.model, // binds the main workflow's graph/model to the map
       gridSize: this.miniMapGridSize,
       drawGrid: true,
       background: {
@@ -58,6 +77,9 @@ export class MiniMapComponent implements OnInit {
     this.setMapPaperDimensions();
   }
 
+  /**
+   * When window is resized, reset map's dimensions
+   */
   private handleWindowResize(): void {
     Observable.merge(
       Observable.fromEvent(window, 'resize').auditTime(1000),
