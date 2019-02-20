@@ -16,7 +16,6 @@ export class StubSavedProjectService {
   }
 
   public deleteSavedProjectData(deleteProject: SavedProject) {
-    // console.log('delete: ', deleteProject.id.toString());
     return null;
   }
 }

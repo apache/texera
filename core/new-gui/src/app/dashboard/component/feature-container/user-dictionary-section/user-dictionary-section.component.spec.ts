@@ -1,9 +1,11 @@
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { UserDictionarySectionComponent,
-  NgbdModalResourceAddComponent,
-  NgbdModalResourceDeleteComponent,
-  NgbdModalResourceViewComponent } from './user-dictionary-section.component';
+import { UserDictionarySectionComponent } from './user-dictionary-section.component';
+
+import { NgbdModalResourceAddComponent } from './ngbd-modal-resource-add/ngbd-modal-resource-add.component';
+import { NgbdModalResourceDeleteComponent } from './ngbd-modal-resource-delete/ngbd-modal-resource-delete.component';
+import { NgbdModalResourceViewComponent } from './ngbd-modal-resource-view/ngbd-modal-resource-view.component';
+
 import { UserDictionaryService } from '../../../service/user-dictionary/user-dictionary.service';
 import { StubUserDictionaryService } from '../../../service/user-dictionary/stub-user-dictionary.service';
 

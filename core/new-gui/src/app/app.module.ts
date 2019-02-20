@@ -1,7 +1,6 @@
 import { BrowserModule } from '@angular/platform-browser';
 import { NgModule } from '@angular/core';
 import { HttpClientModule } from '@angular/common/http';
-// import { HttpModule } from '@angular/http';
 
 import { AppRoutingModule } from './app-routing.module';
 
@@ -31,15 +30,28 @@ import { TopBarComponent } from './dashboard/component/top-bar/top-bar.component
 import { UserAccountIconComponent } from './dashboard/component/top-bar/user-account-icon/user-account-icon.component';
 import { FeatureBarComponent } from './dashboard/component/feature-bar/feature-bar.component';
 import { FeatureContainerComponent } from './dashboard/component/feature-container/feature-container.component';
-import { SavedProjectSectionComponent,
-  NgbdModalAddProjectComponent,
-  NgbdModalDeleteProjectComponent} from './dashboard/component/feature-container/saved-project-section/saved-project-section.component';
+import { SavedProjectSectionComponent} from './dashboard/component/feature-container/saved-project-section/saved-project-section.component';
+import {
+  NgbdModalAddProjectComponent
+  } from './dashboard/component/feature-container/saved-project-section/ngbd-modal-add-project/ngbd-modal-add-project.component';
+import {
+  NgbdModalDeleteProjectComponent
+  } from './dashboard/component/feature-container/saved-project-section/ngbd-modal-delete-project/ngbd-modal-delete-project.component';
+
 import { RunningJobSectionComponent } from './dashboard/component/feature-container/running-job-section/running-job-section.component';
-import { UserDictionarySectionComponent,
-  NgbdModalResourceViewComponent,
-  NgbdModalResourceAddComponent,
-  NgbdModalResourceDeleteComponent
+import {
+  UserDictionarySectionComponent
   } from './dashboard/component/feature-container/user-dictionary-section/user-dictionary-section.component';
+import {
+  NgbdModalResourceViewComponent
+  } from './dashboard/component/feature-container/user-dictionary-section/ngbd-modal-resource-view/ngbd-modal-resource-view.component';
+import {
+  NgbdModalResourceAddComponent
+  } from './dashboard/component/feature-container/user-dictionary-section/ngbd-modal-resource-add/ngbd-modal-resource-add.component';
+import {
+  NgbdModalResourceDeleteComponent
+  } from './dashboard/component/feature-container/user-dictionary-section/ngbd-modal-resource-delete/ngbd-modal-resource-delete.component';
+
 import { ResourceSectionComponent } from './dashboard/component/feature-container/resource-section/resource-section.component';
 
 
@@ -80,7 +92,6 @@ import { ResourceSectionComponent } from './dashboard/component/feature-containe
   imports: [
     BrowserModule,
     AppRoutingModule,
-    // HttpModule,
     HttpClientModule,
 
     CustomNgMaterialModule,

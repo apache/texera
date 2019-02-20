@@ -31,7 +31,6 @@ export class StubUserDictionaryService {
         data => {
           alert(file.name + ' is uploaded');
           // after adding a new dictionary, refresh the list
-          // this.getDictionaries();
         },
         err => {
             alert('Error occurred while uploading ' + file.name);
@@ -41,7 +40,6 @@ export class StubUserDictionaryService {
   }
 
   public deleteUserDictionaryData(deleteDictionary: UserDictionary) {
-    // console.log('delete: ', deleteDictionary.id.toString());
     return null;
   }
 

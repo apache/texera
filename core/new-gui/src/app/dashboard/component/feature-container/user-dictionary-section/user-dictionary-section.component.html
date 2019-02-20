@@ -1,5 +1,3 @@
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
-
 <div class="user-dictionary-container subsection-grid-container">
 
   <mat-card class="button-area subsection-grid-container">
@@ -25,20 +23,19 @@
   <mat-card class="user-dictionary-list subsection-grid-container">
     <mat-card-content>
       <mat-list>
-        <h2 style="font-family:Roboto, Arial, sans-serif;">Dictionaries</h2>
+        <h2 class="page-title">Dictionaries</h2>
         <br />
         <div class="scroll">
           <mat-list-item *ngFor="let dictionary of UserDictionary" class="user-dictionary-list-item">
             <ng-template #tipContent>Description: {{dictionary.description}}</ng-template>
             <div class="section for tip" placement="bottom" [ngbTooltip]="tipContent">
-              <p font-size=10px><span style="color:rgb(62, 202, 253); font-size:20px; font-family:Roboto, Arial, sans-serif;">
+              <p font-size=10px><span class="dict-name">
                   {{dictionary.name}}</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Item
                 Preview: {{dictionary.items.slice(0,3)}}....
               </p>
             </div>
             <span class="gap-filler"></span>
-            <button type="button" class="btn btn-outline-dark" style="background-color: #1fe23f7c" (click)="openNgbdModalResourceViewComponent(dictionary)">View</button>
-            <!--<button mat-raised-button color="primary" class="view-button" (click)= "openNgbdModalResourceViewComponent(dictionary)">View</button>-->
+            <button type="button" class="btn btn-outline-dark view-button" (click)="openNgbdModalResourceViewComponent(dictionary)">View</button>
             <button mat-button class="delete-project-btn" placement="bottom" ngbTooltip="Delete the {{dictionary.name}}"
               (click)="openNgbdModalResourceDeleteComponent(dictionary)"><i class="fa">&#xf1f8;</i></button>
           </mat-list-item>

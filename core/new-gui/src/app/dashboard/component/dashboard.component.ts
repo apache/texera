@@ -11,11 +11,10 @@ import { StubSavedProjectService } from '../service/saved-project/stub-saved-pro
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.scss'],
   providers: [
-    // UserDictionaryService,
     { provide: UserDictionaryService, useClass: StubUserDictionaryService },
+    // UserDictionaryService,
     { provide: SavedProjectService, useClass: StubSavedProjectService },
-    // SavedProjectService,
-    // StubSavedProjectService
+    // SavedProjectService
   ]
 })
 export class DashboardComponent implements OnInit {

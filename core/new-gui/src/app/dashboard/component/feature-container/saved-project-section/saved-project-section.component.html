@@ -1,5 +1,3 @@
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
-
 <div class="saved-project-container subsection-grid-container">
 
       <mat-card class="project-section-title subsection-grid-container">
@@ -19,7 +17,6 @@
           </div>
           <span>&emsp;&emsp;&emsp;</span>
           <button type="button" class="btn btn-outline-dark add-button"  (click)="openNgbdModalAddProjectComponent()"><i color="dark" class="fa">&#xf067;</i></button>
-          <!--<button mat-raised-button color="primary" (click)= "openNgbdModalAddProjectComponent()">Add</button>-->
         </div>
       </mat-card>
 
@@ -27,13 +24,13 @@
         <mat-card-content>
           <mat-list >
             <div>
-              <h2 style="font-family:Roboto, Arial, sans-serif;">Projects</h2>
+              <h2 class="page-title">Projects</h2>
               <br/>
             </div>
             <div class = "scroll">
             <mat-list-item *ngFor="let project of projects" class= "project-list-item">
-              <h3 mat-line style="font-size:20px; font-family:Roboto, Arial, sans-serif;"><a href={{this.defaultWeb}}>{{project.name}}</a></h3>
-              <p mat-line style="font-family:Roboto, Arial, sans-serif;color:gray" > <br>
+              <h3 mat-line class="project-title"><a href={{this.defaultWeb}}>{{project.name}}</a></h3>
+              <p mat-line class="project-time" > <br>
                 {{project.lastModifiedTime | date:'yyyy-MM-dd HH:mm:ss Z'}}&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;Created: {{project.creationTime | date:'yyyy-MM-dd HH:mm:ss Z'}}
               </p>
               <button mat-button class="delete-project-btn" placement="bottom" ngbTooltip="Delete the {{project.name}}" (click)="openNgbdModalDeleteProjectComponent(project)" ><i class="fa">&#xf1f8;</i></button>

@@ -1,0 +1,88 @@
+.modal-body{
+  word-wrap: break-word;
+}
+
+
+.file-upload-btn{
+  background-color: #1dc739
+}
+
+.or-separator{
+  font-family:Roboto, Arial, sans-serif;
+}
+
+/**
+* this css is used for creating a 3*2 grid area for the Add
+* dictionary window. The percentages define the size of each
+* column and row, and the first column is empty
+*              ******************
+*              *                *
+*              ******************
+*              *                *
+*              *                *
+*              *                *
+*              ******************
+*              *                *
+*              ******************
+**/
+.add-dictionary-container{
+  display: grid;
+  grid-template-columns: 70% 30%;
+  grid-template-rows : 10% 60% 10% 5% 15%;
+  grid-row-gap: 10px;
+}
+
+.name-area{
+  grid-row-start: 1;
+  grid-row-end: 2;
+  grid-column-start: 1;
+  grid-column-end: 2;
+}
+
+.content-area{
+  grid-row-start: 2;
+  grid-row-end: 3;
+  grid-column-start: 1;
+  grid-column-end: 3;
+}
+
+.separator-area{
+  grid-row-start: 3;
+  grid-row-end: 4;
+  grid-column-start: 1;
+  grid-column-end: 2;
+}
+
+.transmit-area{
+  grid-row-start: 4;
+  grid-row-end: 5;
+  grid-column-start: 1;
+  grid-column-end: 3;
+}
+
+.file-upload-area{
+  grid-row-start: 5;
+  grid-row-end: 6;
+  grid-column-start: 1;
+  grid-column-end: 3;
+  overflow: auto;
+}
+
+#hide input[type=file] {
+  display:none;
+  margin:10px;
+  }
+#hide input[type=file] + label {
+  display:inline-block;
+  margin:20px;
+  padding: 4px 32px;
+  background-color: #FFFFFF;
+  border:solid 1px #666F77;
+  border-radius: 6px;
+  color:#666F77;
+  }
+#hide input[type=file]:active + label {
+  background-image: none;
+  background-color:#2D6C7A;
+  color:#FFFFFF;
+  }

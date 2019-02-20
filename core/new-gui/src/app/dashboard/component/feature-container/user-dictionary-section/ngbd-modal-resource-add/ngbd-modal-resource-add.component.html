@@ -1,0 +1,42 @@
+<div class="modal-header">
+  <h4 class="modal-title">Add Dictionary</h4>
+  <button type="button" class="close" aria-label="Close" (click)="onClose()">
+    <span aria-hidden="true">&times;</span>
+  </button>
+</div>
+
+<div class="modal-body">
+  <mat-dialog-content class= "add-dictionary-container">
+    <mat-form-field class= "name-area">
+      <input  matInput [(ngModel)]="name" placeholder="Name of Dictionary">
+    </mat-form-field>
+    <mat-form-field class= "content-area" >
+      <textarea matInput
+        [(ngModel)]="dictContent" placeholder="Content of Dictionary"
+        matTextareaAutosize matAutosizeMinRows="3">
+      </textarea>
+    </mat-form-field>
+    <mat-form-field class= "separator-area">
+      <input  matInput [(ngModel)]="separator" placeholder="Content Separator (' , '    ' \\t '    ' \\n ')">
+    </mat-form-field>
+    <div class="transmit-area">
+      <mat-divider></mat-divider>
+      <span class="or-separator">OR</span>
+      <mat-divider></mat-divider>
+    </div>
+
+    <div class="file-upload-area" id="hide">
+      <label class="btn-primary" ngbButtonLabel>
+        <input type="file"
+          accept=".txt"  class="file-upload-btn" (change)="onChange($event)"/>
+        <span>Upload Your Dictionary</span>
+      </label>
+    </div>
+
+  </mat-dialog-content>
+</div>
+
+<div class="modal-footer">
+  <button type="button" class="btn btn-outline-dark add-button" (click)="addKey()"  >Add</button>
+  <button type="button" class="btn btn-outline-dark" (click)="onClose()">Close</button>
+</div>

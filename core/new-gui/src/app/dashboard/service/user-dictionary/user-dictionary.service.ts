@@ -47,7 +47,6 @@ export class UserDictionaryService {
   }
 
   public deleteUserDictionaryData(deleteDictionary: UserDictionary) {
-    // console.log('delete: ', deleteDictionary.id.toString());
     return null;
   }
 

@@ -1,8 +1,9 @@
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { SavedProjectSectionComponent,
-  NgbdModalAddProjectComponent,
-  NgbdModalDeleteProjectComponent } from './saved-project-section.component';
+import { SavedProjectSectionComponent} from './saved-project-section.component';
+import { NgbdModalAddProjectComponent} from './ngbd-modal-add-project/ngbd-modal-add-project.component';
+import { NgbdModalDeleteProjectComponent } from './ngbd-modal-delete-project/ngbd-modal-delete-project.component';
+
 import { SavedProjectService } from '../../../service/saved-project/saved-project.service';
 import { StubSavedProjectService } from '../../../service/saved-project/stub-saved-project.service';
 import {MatDividerModule} from '@angular/material/divider';
@@ -143,7 +144,6 @@ describe('SavedProjectSectionComponent', () => {
   it('deleteProjectComponent deleteSavedProject should delete project in list', () => {
     deletefixture = TestBed.createComponent(NgbdModalDeleteProjectComponent);
     deletecomponent = deletefixture.componentInstance;
-    // deletefixture.detectChanges();
 
     let getBool: Boolean = false;
     deletecomponent.project = {
