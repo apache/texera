@@ -7,6 +7,7 @@ import { NgbModal, NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { ExecutionResult, SuccessExecutionResult } from './../../types/execute-workflow.interface';
 import { TableColumn, IndexableObject } from './../../types/result-table.interface';
 import { ResultPanelToggleService } from './../../service/result-panel-toggle/result-panel-toggle.service';
+import { clone, cloneDeep } from 'lodash-es';
 
 /**
  * ResultPanelCompoent is the bottom level area that displays the
@@ -29,17 +30,15 @@ import { ResultPanelToggleService } from './../../service/result-panel-toggle/re
 })
 export class ResultPanelComponent {
 
+  private static readonly PRETTY_JSON_TEXT_LIMIT: number = 2000;
+  private static readonly TABLE_COLUMN_TEXT_LIMIT: number = 30;
+
   public showMessage: boolean = false;
   public message: string = '';
   public currentColumns: TableColumn[] | undefined;
   public currentDisplayColumns: string[] | undefined;
   public currentDataSource: MatTableDataSource<object> | undefined;
   public showResultPanel: boolean | undefined;
-
-
-
-
-
 
   @ViewChild(MatPaginator) paginator: MatPaginator | null = null;
 
@@ -66,12 +65,47 @@ export class ResultPanelComponent {
    * @param rowData the object containing the data of the current row in columnDef and cellData pairs
    */
   public open(rowData: object): void {
+    // generate a new row data that shortens the column text to limit rendering time for pretty json
+    const rowDataCopy = this.mutateColumnData(rowData as IndexableObject);
 
+    // open the modal component
     const modalRef = this.modalService.open(NgbModalComponent);
+
     // cast the instance type from `any` to NgbModalComponent
     const modalComponentInstance = modalRef.componentInstance as NgbModalComponent;
+
     // set the currentDisplayRowData of the modal to be the data of clicked row
-    modalComponentInstance.currentDisplayRowData = rowData;
+    modalComponentInstance.currentDisplayRowData = rowDataCopy;
+  }
+
+  /**
+   * This method will recursively iterate through the content of the row data and shorten
+   *  the column string if it exceeds a limit that will excessively slow down the rendering time
+   *  of the UI.
+   *
+   * This method will return a new copy of the row data that will be displayed on the UI.
+   *
+   * @param rowData original row data returns from execution
+   */
+  private mutateColumnData(rowData: IndexableObject): object {
+    let rowDataCopy = cloneDeep(rowData);
+    Object.keys(rowDataCopy).forEach(column => {
+      const currentColumnData = rowDataCopy[column];
+      if (typeof currentColumnData === 'string') {
+        const columnString: string = currentColumnData;
+        const trimmedColumnData: string = columnString.length > ResultPanelComponent.PRETTY_JSON_TEXT_LIMIT
+          ? columnString.substring(0, ResultPanelComponent.PRETTY_JSON_TEXT_LIMIT) + '...' : columnString;
+        rowDataCopy = { ...rowDataCopy, [column]: trimmedColumnData };
+      } else if (Array.isArray(currentColumnData)) {
+        const columnArray: Array<object> = currentColumnData;
+        columnArray.forEach(nestedColumn =>
+          rowDataCopy = { ...rowDataCopy, [column]: this.mutateColumnData(nestedColumn as IndexableObject) });
+      } else if (typeof currentColumnData === 'object') {
+        rowDataCopy = { ...rowDataCopy, [column]: this.mutateColumnData(currentColumnData as IndexableObject)};
+      }
+    });
+
+    return rowDataCopy;
   }
 
   /**
@@ -172,7 +206,7 @@ export class ResultPanelComponent {
     return columnNames.map(col => ({
       columnDef: col,
       header: col,
-      getCell: (row: IndexableObject) => `${row[col]}`
+      getCell: (row: IndexableObject) => `${row[col]}`.substring(0, ResultPanelComponent.TABLE_COLUMN_TEXT_LIMIT)
     }));
   }
 

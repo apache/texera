@@ -11,7 +11,7 @@
  *  to make `row` indexable and execute operation like `row[col]`.
  */
 export interface IndexableObject extends Readonly<{
-  [key: string]: object;
+  [key: string]: object | string | number | boolean | Array<object>;
 }> { }
 
 /**
