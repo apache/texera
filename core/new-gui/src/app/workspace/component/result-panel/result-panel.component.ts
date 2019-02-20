@@ -196,15 +196,19 @@ export class ResultPanelComponent {
       const currentColumnData = rowDataCopy[column];
       if (typeof currentColumnData === 'string') {
         const columnString: string = currentColumnData;
-        console.log(columnString);
+        // shorten the column text
         const trimmedColumnData: string = columnString.length > ResultPanelComponent.PRETTY_JSON_TEXT_LIMIT
           ? columnString.substring(0, ResultPanelComponent.PRETTY_JSON_TEXT_LIMIT) + '...' : columnString;
+
+        // update row data
         rowDataCopy = { ...rowDataCopy, [column]: trimmedColumnData };
       } else if (Array.isArray(currentColumnData)) {
         const columnArray: Array<object> = currentColumnData;
         columnArray.forEach(nestedColumn =>
+          // recursively call mutateColumnData on each object inside the array
           rowDataCopy = { ...rowDataCopy, [column]: this.mutateColumnData(nestedColumn as IndexableObject) });
       } else if (typeof currentColumnData === 'object') {
+        // recursively call mutateColumnData on the object type
         rowDataCopy = { ...rowDataCopy, [column]: this.mutateColumnData(currentColumnData as IndexableObject)};
       }
     });
