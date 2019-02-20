@@ -24,7 +24,7 @@ export class UserDictionaryService {
     console.log('dict added');
   }
 
-  public uploadDictionary(file: File) {
+  public uploadDictionary(file: File): void {
     const formData: FormData = new FormData();
     formData.append('file', file, file.name);
 

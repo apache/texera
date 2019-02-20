@@ -1,5 +1,6 @@
 import { Component, OnInit, Input, Output, EventEmitter } from '@angular/core';
 import { NgbModal, NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
+import { UserDictionary } from '../../../../type/user-dictionary';
 
 // sub component for view-dictionary popup window
 @Component({
@@ -21,11 +22,11 @@ export class NgbdModalResourceViewComponent {
 
   constructor(public activeModal: NgbActiveModal) {}
 
-  onClose() {
+  public onClose(): void {
     this.activeModal.close('Close');
   }
 
-  addKey() {
+  public addKey(): void {
 
     if (this.ifAdd && this.name !== '') {
       this.addedName.emit(this.name);
@@ -35,7 +36,7 @@ export class NgbdModalResourceViewComponent {
 
   }
 
-  remove(item: any): void {
+  public remove(item: string): void {
     this.deleteName.emit(item);
   }
 }

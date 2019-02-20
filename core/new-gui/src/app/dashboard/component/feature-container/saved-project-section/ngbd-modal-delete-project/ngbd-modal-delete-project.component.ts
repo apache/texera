@@ -14,11 +14,11 @@ export class NgbdModalDeleteProjectComponent {
 
   constructor(public activeModal: NgbActiveModal) {}
 
-  onClose() {
+  public onClose(): void {
     this.activeModal.close('Close');
   }
 
-  deleteSavedProject() {
+  public deleteSavedProject(): void {
     this.deleteProject.emit(true);
     this.onClose();
   }

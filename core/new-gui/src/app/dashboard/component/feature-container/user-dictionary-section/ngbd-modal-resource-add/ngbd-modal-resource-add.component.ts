@@ -28,15 +28,15 @@ export class NgbdModalResourceAddComponent {
     public userDictionaryService: UserDictionaryService
   ) {}
 
-  onChange(event: any) {
+  public onChange(event: any): void {
     this.selectFile = event.target.files[0];
   }
 
-  onClose() {
+  public onClose(): void {
     this.activeModal.close('Close');
   }
 
-  addKey() {
+  public addKey(): void {
 
     if (this.selectFile !== null) {
         this.userDictionaryService.uploadDictionary(this.selectFile);

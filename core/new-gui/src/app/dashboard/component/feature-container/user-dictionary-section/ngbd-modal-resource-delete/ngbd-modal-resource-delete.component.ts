@@ -15,11 +15,11 @@ export class NgbdModalResourceDeleteComponent {
 
   constructor(public activeModal: NgbActiveModal) {}
 
-  onClose() {
+  public onClose(): void {
     this.activeModal.close('Close');
   }
 
-  deleteDictionary() {
+  public deleteDictionary(): void {
     this.deleteDict.emit(true);
     this.onClose();
   }

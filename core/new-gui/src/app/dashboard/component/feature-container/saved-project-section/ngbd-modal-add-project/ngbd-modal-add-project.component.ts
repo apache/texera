@@ -14,13 +14,13 @@ export class NgbdModalAddProjectComponent {
 
   constructor(public activeModal: NgbActiveModal) { }
 
-  onNoClick(): void {
+  public onNoClick(): void {
     this.activeModal.close();
   }
-  onClose() {
+  public onClose(): void {
     this.activeModal.close('Close');
   }
-  addProject() {
+  public addProject(): void {
     if (this.name !== '') {
       this.newProject.emit(this.name);
       this.name = '';

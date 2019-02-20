@@ -23,7 +23,7 @@ export class SavedProjectSectionComponent implements OnInit {
 
   public projects: SavedProject[] = [];
 
-  defaultWeb: String = 'http://localhost:4200/';
+  private defaultWeb: String = 'http://localhost:4200/';
 
   constructor(
     private savedProjectService: SavedProjectService,
@@ -68,7 +68,7 @@ export class SavedProjectSectionComponent implements OnInit {
     });
   }
 
-  openNgbdModalAddProjectComponent() {
+  public openNgbdModalAddProjectComponent(): void {
     const modalRef = this.modalService.open(NgbdModalAddProjectComponent);
     const projectEventEmitter = <EventEmitter<string>>(modalRef.componentInstance.newProject);
     const subscription = projectEventEmitter
@@ -86,7 +86,7 @@ export class SavedProjectSectionComponent implements OnInit {
       );
   }
 
-  openNgbdModalDeleteProjectComponent(project: SavedProject) {
+  public openNgbdModalDeleteProjectComponent(project: SavedProject): void {
     const modalRef = this.modalService.open(NgbdModalDeleteProjectComponent);
     modalRef.componentInstance.project = cloneDeep(project);
 

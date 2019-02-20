@@ -23,7 +23,7 @@ import { FormsModule } from '@angular/forms';
 import { UserDictionary } from '../../../type/user-dictionary';
 
 import { HttpClientModule, HttpClient } from '@angular/common/http';
-import { NgbdModalAddProjectComponent } from '../saved-project-section/saved-project-section.component';
+import { NgbdModalAddProjectComponent } from '../saved-project-section/ngbd-modal-add-project/ngbd-modal-add-project.component';
 
 describe('UserDictionarySectionComponent', () => {
   let component: UserDictionarySectionComponent;
@@ -122,7 +122,6 @@ describe('UserDictionarySectionComponent', () => {
   it('resourceViewComponent addKey should generate new key', () => {
     viewfixture = TestBed.createComponent(NgbdModalResourceViewComponent);
     viewcomponent = viewfixture.componentInstance;
-    // viewfixture.detectChanges();
 
     let getResult: String = '';
     viewcomponent.dictionary = {
@@ -148,7 +147,7 @@ describe('UserDictionarySectionComponent', () => {
       name: 'police violence',
       items: ['BLM']
     };
-    let item: String;
+    let item: string;
     item  = 'deleted keyword';
     viewcomponent.deleteName.subscribe((outr: any) => getRemove = outr);
     viewcomponent.remove(item);
@@ -159,7 +158,6 @@ describe('UserDictionarySectionComponent', () => {
   it('resourceAddComponent addKey should add a new dictionary', () => {
     addfixture = TestBed.createComponent(NgbdModalResourceAddComponent);
     addcomponent = addfixture.componentInstance;
-    // addfixture.detectChanges();
 
     let getResultDict = <UserDictionary>{};
 
@@ -177,7 +175,6 @@ describe('UserDictionarySectionComponent', () => {
   it('resourceDeleteComponent deleteDictionary should delete a certain dictionary', () => {
     deletefixture = TestBed.createComponent(NgbdModalResourceDeleteComponent);
     deletecomponent = deletefixture.componentInstance;
-    // deletefixture.detectChanges();
 
     deletecomponent.dictionary = {
       id: '1',

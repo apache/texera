@@ -41,7 +41,7 @@ export class UserDictionarySectionComponent implements OnInit {
     );
   }
 
-  openNgbdModalResourceViewComponent(dictionary: UserDictionary) {
+  public openNgbdModalResourceViewComponent(dictionary: UserDictionary): void {
     const modalRef = this.modalService.open(NgbdModalResourceViewComponent);
     modalRef.componentInstance.dictionary = cloneDeep(dictionary);
 
@@ -66,7 +66,7 @@ export class UserDictionarySectionComponent implements OnInit {
       );
   }
 
-  openNgbdModalResourceAddComponent() {
+  public openNgbdModalResourceAddComponent(): void {
     const modalRef = this.modalService.open(NgbdModalResourceAddComponent);
 
     const addItemEventEmitter = <EventEmitter<UserDictionary>>(modalRef.componentInstance.addedDictionary);
@@ -81,7 +81,7 @@ export class UserDictionarySectionComponent implements OnInit {
 
   }
 
-  openNgbdModalResourceDeleteComponent(dictionary: UserDictionary) {
+  public openNgbdModalResourceDeleteComponent(dictionary: UserDictionary): void {
     const modalRef = this.modalService.open(NgbdModalResourceDeleteComponent);
     modalRef.componentInstance.dictionary = cloneDeep(dictionary);
 
