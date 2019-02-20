@@ -47,12 +47,10 @@ export class DragDropService {
   private static readonly DRAG_DROP_TEMP_OPERATOR_TYPE = 'drag-drop-temp-operator-type';
   // a subject that can restore the value passed from navigation.component.ts
   private workflowEditorZoomSubject: Subject<number> = new Subject<number>();
-  /**
-   * Logically, set ZoomOffset to be 1 since the intial zoom time is 1.
-   */
+  // initially the zoom ratio is 1
   private newZoomRatio: number = 1;
-  // DragOffset has two elements, first is the drag offset alongside x axis, second is the drag offset alongside y axis.
-  private DragOffset: Point = {x : 0,  y : 0};
+  // dragOffset has two elements, first is the drag offset alongside x axis, second is the drag offset alongside y axis.
+  private dragOffset: Point = {x : 0,  y : 0};
   /** mapping of DOM Element ID to operatorType */
   private elementOperatorTypeMap = new Map<string, string>();
   /** the current operatorType of the operator being dragged */
@@ -91,8 +89,8 @@ export class DragDropService {
          */
 
         const newOperatorOffset: Point = {
-          x:  (value.offset.x - this.DragOffset.x) / this.newZoomRatio,
-          y: (value.offset.y - this.DragOffset.y) / this.newZoomRatio
+          x:  (value.offset.x - this.dragOffset.x) / this.newZoomRatio,
+          y: (value.offset.y - this.dragOffset.y) / this.newZoomRatio
         };
 
         // add the operator
@@ -132,16 +130,20 @@ export class DragDropService {
   }
 
   /**
-   * update drag offset,
-   * @param offset
+   * This method will update the drag offset so that dropping
+   *  a new operator will appear at the correct location on the UI.
+   *
+   * @param offset new offset from panning
    */
   public setOffset(offset: Point) {
-    this.DragOffset = {x: offset.x, y: offset.y};
+    this.dragOffset = {x: offset.x, y: offset.y};
   }
 
   /**
-   * update zoom ratio.
-   * @param ratio
+   * This method will update the zoom ratio, which will be used
+   *  in calculating the position of the operator dropped on the UI.
+   *
+   * @param ratio new ratio from zooming
    */
   public setZoomProperty(ratio: number) {
       this.newZoomRatio = ratio;

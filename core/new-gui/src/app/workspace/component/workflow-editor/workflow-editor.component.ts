@@ -49,7 +49,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
 
   private ifMouseDown: boolean = false;
-  private MouseDown: Point | undefined;
+  private mouseDown: Point | undefined;
   private dragOffset: Point = { x : 0 , y : 0};
 
 
@@ -69,7 +69,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
   ngAfterViewInit() {
     this.initializeJointPaper();
-    this.handlePaperResize();
+    this.handlePaperZoom();
     this.handleWindowResize();
     this.handleViewDeleteOperator();
     this.handleCellHighlight();
@@ -95,9 +95,9 @@ export class WorkflowEditorComponent implements AfterViewInit {
      * Handles zoom events passed from navigation-component, which can be used to
      *  make the jointJS paper larger or smaller.
      */
-    private handlePaperResize(): void {
-      this.dragDropService.getWorkflowEditorZoomStream().subscribe((value) => {
-        this.newZoomRatio = value;
+    private handlePaperZoom(): void {
+      this.dragDropService.getWorkflowEditorZoomStream().subscribe((newRatio) => {
+        this.newZoomRatio = newRatio;
         this.getJointPaper().scale(this.newZoomRatio, this.newZoomRatio);
       });
     }
@@ -116,7 +116,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     Observable.fromEvent<JointPointerDownEvent>(this.getJointPaper(), 'blank:pointerdown')
       .subscribe(
         coordinate => {
-          this.MouseDown = {x : coordinate[1], y: coordinate[2]};
+          this.mouseDown = {x : coordinate[1], y: coordinate[2]};
           this.ifMouseDown = true;
         }
       );
@@ -126,27 +126,27 @@ export class WorkflowEditorComponent implements AfterViewInit {
      *  To move the paper based on the new coordinate, this will translate the paper by calling
      *  the JointJS method .translate() to move paper's offset.
      */
-    
+
     Observable.fromEvent<MouseEvent>(document, 'mousemove')
         .filter(() => this.ifMouseDown === true)
-        .filter(() => this.MouseDown !== undefined)
+        .filter(() => this.mouseDown !== undefined)
         .forEach( coordinate => {
 
-          if (this.MouseDown === undefined) {
+          if (this.mouseDown === undefined) {
             throw new Error('Error: Mouse down is undefined after the filter');
           }
 
           // calculate the drag offset between user click on the mouse and then release the mouse, including zooming value.
           this.dragOffset = {
-            x : coordinate.x - this.MouseDown.x * this.newZoomRatio,
-            y : coordinate.y - this.MouseDown.y * this.newZoomRatio
+            x : coordinate.x - this.mouseDown.x * this.newZoomRatio,
+            y : coordinate.y - this.mouseDown.y * this.newZoomRatio
           };
           // do paper movement.
           this.getJointPaper().translate(
             (- this.getWrapperElementOffset().x + this.dragOffset.x),
             (- this.getWrapperElementOffset().y + this.dragOffset.y)
           );
-          // pass offset to the drag-and0drop.service, make drop operator be at the right location.
+          // pass offset to the drag-and-drop.service, make drop operator be at the right location.
           this.dragDropService.setOffset(this.dragOffset);
         });
 
@@ -221,6 +221,9 @@ export class WorkflowEditorComponent implements AfterViewInit {
    *  by shifting it to the left top (minus the x and y offset of the wrapper element)
    * So that elements in JointJS paper have the same coordinates as the actual document.
    *  and we don't have to convert between JointJS coordinates and actual coordinates.
+   *
+   * dragOffset is added to this translation to consider the situation that the paper
+   *  has been panned by the user previously.
    *
    * Note: attribute `origin` and function `setOrigin` are deprecated and won't work
    *  function `translate` does the same thing

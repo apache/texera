@@ -25,11 +25,11 @@ import { DragDropService } from './../../service/drag-drop/drag-drop.service';
 
 export class NavigationComponent implements OnInit {
 
+  // zoomDifference represents the ratio that is zoom in/out everytime.
+  public static readonly ZOOM_DIFFERENCE: number = 0.02;
+
   // variable binded with HTML to decide if the running spinner should show
   public showSpinner = false;
-
-  // zoomDifference represents the ratio that is zoom in/out everytime.
-  public zoomDifference: number = 0.02;
 
   // the newZoomRatio represents the ratio of the size of the the new window to the original one.
   private newZoomRatio: number = 1;
@@ -66,12 +66,12 @@ export class NavigationComponent implements OnInit {
   */
   public onClickZoomIn(): void {
     // make the ratio small.
-    this.newZoomRatio += this.zoomDifference;
+    this.newZoomRatio += NavigationComponent.ZOOM_DIFFERENCE;
     this.dragDropService.setZoomProperty(this.newZoomRatio);
   }
   public onClickZoomOut(): void {
     // make the ratio big.
-    this.newZoomRatio -= this.zoomDifference;
+    this.newZoomRatio -= NavigationComponent.ZOOM_DIFFERENCE;
     this.dragDropService.setZoomProperty(this.newZoomRatio);
   }
 }
