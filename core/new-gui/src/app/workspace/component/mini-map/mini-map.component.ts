@@ -67,7 +67,7 @@ export class MiniMapComponent implements OnInit {
       gridSize: this.miniMapGridSize,
       drawGrid: true,
       background: {
-        color:  '#efefef',
+        color:  '#F7F6F6',
       },
       interactive: false
     });
