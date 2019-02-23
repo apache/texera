@@ -8,6 +8,7 @@ import { DynamicSchemaService } from './../dynamic-schema.service';
 import { ExecuteWorkflowService } from './../../execute-workflow/execute-workflow.service';
 import { WorkflowActionService } from './../../workflow-graph/model/workflow-action.service';
 
+import { isEqual, remove, cloneDeep, get, set } from 'lodash-es';
 
 // endpoint for schema propagation
 export const SCHEMA_PROPAGATION_ENDPOINT = 'queryplan/autocomplete';
@@ -69,16 +70,22 @@ export class SchemaPropagationService {
     Array.from(this.dynamicSchemaService.getDynamicSchemaMap().keys()).forEach(operatorID => {
       const currentDynamicSchema = this.dynamicSchemaService.getDynamicSchema(operatorID);
       // if operator input attributes are in the result, set them in dynamic schema
+      let newDynamicSchema: OperatorSchema;
       if (schemaPropagationResult[operatorID]) {
-        const newSchema = SchemaPropagationService.setOperatorInputAttrs(currentDynamicSchema, schemaPropagationResult[operatorID]);
-        this.dynamicSchemaService.setDynamicSchema(operatorID, newSchema);
+        newDynamicSchema = SchemaPropagationService.setOperatorInputAttrs(currentDynamicSchema, schemaPropagationResult[operatorID]);
       } else {
         // otherwise, the input attributes of the operator is unknown
         // if the operator is not a source operator, restore its original schema of input attributes
         if (currentDynamicSchema.additionalMetadata.numInputPorts > 0) {
-          const newSchema = SchemaPropagationService.restoreOperatorInputAttrs(currentDynamicSchema);
-          this.dynamicSchemaService.setDynamicSchema(operatorID, newSchema);
+          newDynamicSchema = SchemaPropagationService.restoreOperatorInputAttrs(currentDynamicSchema);
+        } else {
+          newDynamicSchema = currentDynamicSchema;
         }
+      }
+
+      if (! isEqual(currentDynamicSchema, newDynamicSchema)) {
+        this.resetAttributeOfOperator(operatorID);
+        this.dynamicSchemaService.setDynamicSchema(operatorID, newDynamicSchema);
       }
 
     });
@@ -99,6 +106,28 @@ export class SchemaPropagationService {
       `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}`,
       JSON.stringify(body),
       { headers: { 'Content-Type': 'application/json' } });
+  }
+
+  private resetAttributeOfOperator(operatorID: string): void {
+    const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorID);
+    if (! operator) {
+      throw new Error(`${operatorID} not found`);
+    }
+
+    const walkPropertiesRecurse = (propertyObject: {[key: string]: any}) => {
+      Object.keys(propertyObject).forEach(key => {
+        if (key === 'attribute' || key === 'attributes') {
+          delete propertyObject[key];
+        } else if (typeof propertyObject[key] === 'object') {
+          walkPropertiesRecurse(propertyObject[key]);
+        }
+      });
+    };
+
+    const propertyClone = cloneDeep(operator.operatorProperties);
+    walkPropertiesRecurse(propertyClone);
+
+    this.workflowActionService.setOperatorProperty(operatorID, propertyClone);
   }
 
   public static setOperatorInputAttrs(operatorSchema: OperatorSchema, inputAttributes: ReadonlyArray<string> | undefined): OperatorSchema {
