@@ -58,6 +58,7 @@ describe('ValidationWorkflowService', () => {
     workflowActionservice.addOperator(mockScanPredicate, mockPoint);
     workflowActionservice.addOperator(mockResultPredicate, mockPoint);
     workflowActionservice.addLink(mockScanResultLink);
+
     validationWorkflowService.getOperatorValidationStream().subscribe(value => {
       if (value.operatorID === '1') {
         expect(value.status).toBeFalsy();

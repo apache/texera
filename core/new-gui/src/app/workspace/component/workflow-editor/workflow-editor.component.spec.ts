@@ -12,9 +12,10 @@ import { StubOperatorMetadataService } from '../../service/operator-metadata/stu
 import { JointUIService } from '../../service/joint-ui/joint-ui.service';
 
 import * as joint from 'jointjs';
-import { mockScanPredicate, mockPoint } from '../../service/workflow-graph/model/mock-workflow-data';
-import { WorkflowGraphReadonly, WorkflowGraph } from "../../service/workflow-graph/model/workflow-graph";
-
+import {
+  mockScanPredicate, mockPoint, mockScanResultLink, mockResultPredicate
+} from '../../service/workflow-graph/model/mock-workflow-data';
+import { WorkflowGraphReadonly, WorkflowGraph } from '../../service/workflow-graph/model/workflow-graph';
 class StubWorkflowActionService {
 
   private jointGraph = new joint.dia.Graph();
@@ -134,7 +135,7 @@ describe('WorkflowEditorComponent', () => {
     let component: WorkflowEditorComponent;
     let fixture: ComponentFixture<WorkflowEditorComponent>;
     let workflowActionService: WorkflowActionService;
-
+    let jointGraph: joint.dia.Graph;
     beforeEach(async(() => {
       TestBed.configureTestingModule({
         declarations: [WorkflowEditorComponent],
@@ -148,6 +149,7 @@ describe('WorkflowEditorComponent', () => {
         ]
       })
         .compileComponents();
+        jointGraph = (workflowActionService as any).jointGraph;
     }));
 
     beforeEach(() => {
