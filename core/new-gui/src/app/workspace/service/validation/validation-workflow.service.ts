@@ -95,7 +95,7 @@ export class ValidationWorkflowService {
    * This method is used to check whether all required properties of the operator have been completed.
    * if completed correctly, the operator box is valid.
    */
-  public isJsonSchemaValiad(operatorID: string): boolean {
+  private isJsonSchemaValiad(operatorID: string): boolean {
     const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorID);
     if (operator === undefined) {
       throw new Error(`operator ${operatorID} doesn't exist`);
