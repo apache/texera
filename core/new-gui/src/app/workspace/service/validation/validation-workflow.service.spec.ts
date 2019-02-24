@@ -34,7 +34,7 @@ describe('ValidationWorkflowService', () => {
     expect(service).toBeTruthy();
   }));
 
-  fit('should receive true from validateOperator when operator box is connected and required properties are complete ',
+  it('should receive true from validateOperator when operator box is connected and required properties are complete ',
   () => {
     workflowActionservice.addOperator(mockScanPredicate, mockPoint);
     workflowActionservice.addOperator(mockResultPredicate, mockPoint);
@@ -46,7 +46,7 @@ describe('ValidationWorkflowService', () => {
   }
   );
 
-  fit('should receive false from validateOperator when operator box is not connected or required properties are not complete ',
+  it('should receive false from validateOperator when operator box is not connected or required properties are not complete ',
   () => {
     workflowActionservice.addOperator(mockScanPredicate, mockPoint);
     workflowActionservice.addOperator(mockResultPredicate, mockPoint);
