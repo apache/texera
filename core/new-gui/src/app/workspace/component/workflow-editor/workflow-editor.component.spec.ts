@@ -135,7 +135,7 @@ describe('WorkflowEditorComponent', () => {
     let component: WorkflowEditorComponent;
     let fixture: ComponentFixture<WorkflowEditorComponent>;
     let workflowActionService: WorkflowActionService;
-    let jointGraph: joint.dia.Graph;
+    let validationWorkflowService: ValidationWorkflowService;
     beforeEach(async(() => {
       TestBed.configureTestingModule({
         declarations: [WorkflowEditorComponent],
@@ -149,13 +149,13 @@ describe('WorkflowEditorComponent', () => {
         ]
       })
         .compileComponents();
-        jointGraph = (workflowActionService as any).jointGraph;
     }));
 
     beforeEach(() => {
       fixture = TestBed.createComponent(WorkflowEditorComponent);
       component = fixture.componentInstance;
       workflowActionService = TestBed.get(WorkflowActionService);
+      validationWorkflowService = TestBed.get(ValidationWorkflowService);
       // detect changes to run ngAfterViewInit and bind Model
       fixture.detectChanges();
     });
@@ -227,6 +227,23 @@ describe('WorkflowEditorComponent', () => {
       expect(jointHighlighterElementAfterUnhighlight.length).toEqual(0);
     });
 
+    it('should react to operator validation and change the color of operator box if the operator is valid ',
+         () => {
+    const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    workflowActionService.addOperator(mockResultPredicate, mockPoint);
+    workflowActionService.addLink(mockScanResultLink);
+    const newProperty = { 'tableName': 'test-table' };
+    workflowActionService.setOperatorProperty(mockScanPredicate.operatorID, newProperty);
+    const operator1 = component.getJointPaper().getModelById(mockScanPredicate.operatorID);
+    const operator2 = component.getJointPaper().getModelById(mockResultPredicate.operatorID);
+    expect(operator1.attr('rect/stroke')).toEqual('green');
+    expect(operator2.attr('rect/stroke')).toEqual('green');
+
+
   });
+
+  });
+
 
 });

@@ -11,12 +11,11 @@ import { WorkflowGraph } from '../workflow-graph/model/workflow-graph';
 import { OperatorMetadataService } from '../operator-metadata/operator-metadata.service';
 import { StubOperatorMetadataService } from '../operator-metadata/stub-operator-metadata.service';
 import { JointUIService } from '.././joint-ui/joint-ui.service';
+import { marbles } from 'rxjs-marbles';
+import { values } from 'lodash-es';
 describe('ValidationWorkflowService', () => {
   let validationWorkflowService: ValidationWorkflowService;
   let workflowActionservice: WorkflowActionService;
-  let texeraGraph: WorkflowGraph;
-  let jointGraph: joint.dia.Graph;
-
   beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [
@@ -28,46 +27,35 @@ describe('ValidationWorkflowService', () => {
 
     validationWorkflowService = TestBed.get(ValidationWorkflowService);
     workflowActionservice = TestBed.get(WorkflowActionService);
-    texeraGraph = (workflowActionservice as any).texeraGraph;
-    jointGraph = (workflowActionservice as any).jointGraph;
+
   });
 
   it('should be created', inject([ValidationWorkflowService], (service: ValidationWorkflowService) => {
     expect(service).toBeTruthy();
   }));
 
-  it('should receive true from operatorValidationStream when operator box is connected and required properties are complete ',
+  fit('should receive true from validateOperator when operator box is connected and required properties are complete ',
   () => {
     workflowActionservice.addOperator(mockScanPredicate, mockPoint);
     workflowActionservice.addOperator(mockResultPredicate, mockPoint);
     workflowActionservice.addLink(mockScanResultLink);
-    const newProperty = { table: 'test-table' };
+    const newProperty = { 'tableName': 'test-table' };
     workflowActionservice.setOperatorProperty(mockScanPredicate.operatorID, newProperty);
-    validationWorkflowService.getOperatorValidationStream().subscribe(value => {
-    if (value.operatorID === '1') {
-      expect(value.status).toBeTruthy();
-    } else if (value.operatorID === '3') {
-      expect(value.status).toBeTruthy();
-    }
-  });
+    expect(validationWorkflowService.validateOperator(mockResultPredicate.operatorID)).toBeTruthy();
+    expect(validationWorkflowService.validateOperator(mockScanPredicate.operatorID)).toBeTruthy();
   }
   );
 
-  it('should receive false from operatorValidationStream when operator box is not connected or required properties are not complete ',
+  fit('should receive false from validateOperator when operator box is not connected or required properties are not complete ',
   () => {
     workflowActionservice.addOperator(mockScanPredicate, mockPoint);
     workflowActionservice.addOperator(mockResultPredicate, mockPoint);
     workflowActionservice.addLink(mockScanResultLink);
+    expect(validationWorkflowService.validateOperator(mockResultPredicate.operatorID)).toBeTruthy();
+    expect(validationWorkflowService.validateOperator(mockScanPredicate.operatorID)).toBeFalsy();
+  });
 
-    validationWorkflowService.getOperatorValidationStream().subscribe(value => {
-      if (value.operatorID === '1') {
-        expect(value.status).toBeFalsy();
-      } else if (value.operatorID === '3') {
-        expect(value.status).toBeTruthy();
-      }
-    });
-  }
-  );
+
 
 
 

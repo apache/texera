@@ -4,6 +4,7 @@ import { OperatorSchema } from '../../types/operator-schema.interface';
 
 import * as joint from 'jointjs';
 import { Point, OperatorPredicate, OperatorLink } from '../../types/workflow-common.interface';
+import { optimizeGroupPlayer } from '@angular/animations/browser/src/render/shared';
 
 /**
  * Defines the SVG path for the delete button
@@ -258,12 +259,13 @@ export class JointUIService {
         fill: '#D8656A', event: 'element:delete'
       },
       'image': {
-        'href': '/src/assets/operator_images/' + operatorType + '.png',
+        'xlink:href': '/src/assets/operator_images/' + operatorType + '.png',
         width: 35, height: 35,
         'ref-x': .5, 'ref-y': .5,
         ref: 'rect',
         'x-alignment': 'middle',
-        'y-alignment': 'middle'
+        'y-alignment': 'middle',
+
       },
     };
     return operatorStyleAttrs;
