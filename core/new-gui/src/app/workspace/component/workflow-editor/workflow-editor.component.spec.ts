@@ -5,7 +5,9 @@ import { WorkflowUtilService } from './../../service/workflow-graph/util/workflo
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { WorkflowEditorComponent } from './workflow-editor.component';
+import { NavigationComponent } from './../navigation/navigation.component';
 
+import { marbles } from 'rxjs-marbles';
 import { OperatorMetadataService } from '../../service/operator-metadata/operator-metadata.service';
 import { StubOperatorMetadataService } from '../../service/operator-metadata/stub-operator-metadata.service';
 import { JointUIService } from '../../service/joint-ui/joint-ui.service';
@@ -117,7 +119,6 @@ describe('WorkflowEditorComponent', () => {
 
   });
 
-
   /**
    * This sub test suites test the Integration of WorkflowEditorComponent with external modules,
    *  such as drag and drop module, and highlight operator module.
@@ -127,6 +128,7 @@ describe('WorkflowEditorComponent', () => {
     let component: WorkflowEditorComponent;
     let fixture: ComponentFixture<WorkflowEditorComponent>;
     let workflowActionService: WorkflowActionService;
+    let dragDropService: DragDropService;
     beforeEach(async(() => {
       TestBed.configureTestingModule({
         declarations: [WorkflowEditorComponent],
@@ -145,6 +147,7 @@ describe('WorkflowEditorComponent', () => {
       fixture = TestBed.createComponent(WorkflowEditorComponent);
       component = fixture.componentInstance;
       workflowActionService = TestBed.get(WorkflowActionService);
+      dragDropService = TestBed.get(DragDropService);
       // detect changes to run ngAfterViewInit and bind Model
       fixture.detectChanges();
     });
@@ -215,6 +218,20 @@ describe('WorkflowEditorComponent', () => {
       const jointHighlighterElementAfterUnhighlight = jointCellView.$el.children('.joint-highlight-stroke');
       expect(jointHighlighterElementAfterUnhighlight.length).toEqual(0);
     });
+
+    it('shoud detect changes of the zoom values when users slide the mouse wheel', marbles((m) => {
+      m.hot('-e-').do(event => component.getZoomRatio()).subscribe();
+      const originZoomRatio = 1;
+      let ifZoomRatioChange = false;
+      dragDropService.getWorkflowEditorZoomStream().subscribe(
+        newRatio => {
+          fixture.detectChanges();
+          if (originZoomRatio !== newRatio) {
+            ifZoomRatioChange = true;
+          }
+          expect(ifZoomRatioChange).toBeTruthy();
+      });
+    }));
   });
 
 });
