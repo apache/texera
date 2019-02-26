@@ -2,6 +2,7 @@ import { Component, OnInit, NgModule } from '@angular/core';
 import { ExecuteWorkflowService } from './../../service/execute-workflow/execute-workflow.service';
 import { TourService } from 'ngx-tour-ng-bootstrap';
 import { DragDropService } from './../../service/drag-drop/drag-drop.service';
+import { Observable } from 'rxjs';
 /**
  * NavigationComponent is the top level navigation bar that shows
  *  the Texera title and workflow execution button
@@ -46,6 +47,13 @@ export class NavigationComponent implements OnInit {
   }
 
   ngOnInit() {
+    /**
+     * Get the new value from the mouse wheel zoom function.
+     */
+    this.dragDropService.getWorkflowEditorZoomStream().subscribe(
+      newRatio => {
+          this.newZoomRatio = newRatio;
+    });
   }
 
   /**

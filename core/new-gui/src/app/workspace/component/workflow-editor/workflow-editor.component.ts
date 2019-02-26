@@ -6,6 +6,7 @@ import { Observable } from 'rxjs/Observable';
 import '../../../common/rxjs-operators';
 import * as joint from 'jointjs';
 import { Point } from '../../types/workflow-common.interface';
+import { NavigationComponent } from '../navigation/navigation.component';
 
 // argument type of callback event on a JointJS Paper
 // which is a 4-element tuple:
@@ -37,15 +38,20 @@ type JointPointerDownEvent = [JQuery.Event, number, number];
 })
 export class WorkflowEditorComponent implements AfterViewInit {
 
+  // zoomDifference represents the ratio that is zoom in/out everytime.
+  public static readonly ZOOM_DIFFERENCE: number = 0.02;
+
   // the DOM element ID of the main editor. It can be used by jQuery and jointJS to find the DOM element
   // in the HTML template, the div element ID is set using this variable
   public readonly WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID = 'texera-workflow-editor-jointjs-wrapper-id';
   public readonly WORKFLOW_EDITOR_JOINTJS_ID = 'texera-workflow-editor-jointjs-body-id';
+
   private paper: joint.dia.Paper | undefined;
   /**
    * Logically, set ZoomOffset to be 1 since the intial zoom time is 1.
    */
   private newZoomRatio: number = 1;
+
 
 
   private ifMouseDown: boolean = false;
@@ -66,6 +72,9 @@ export class WorkflowEditorComponent implements AfterViewInit {
     return this.paper;
   }
 
+  public getZoomRatio(): number {
+    return this.newZoomRatio;
+  }
 
   ngAfterViewInit() {
     this.initializeJointPaper();
@@ -74,6 +83,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.handleViewDeleteOperator();
     this.handleCellHighlight();
     this.handleWindowDrag();
+    this.handlePaperMouseZoom();
     this.dragDropService.registerWorkflowEditorDrop(this.WORKFLOW_EDITOR_JOINTJS_ID);
   }
 
@@ -102,6 +112,34 @@ export class WorkflowEditorComponent implements AfterViewInit {
       });
     }
 
+    /**
+     * Handles zoom events when user slides the mouse wheel.
+     */
+    private handlePaperMouseZoom(): void {
+      Observable.fromEvent<WheelEvent>(document, 'mousewheel')
+        .forEach(
+          value => {
+            if (value === undefined) {
+              throw new Error('Error: Mouse wheel event is undefined!');
+            }
+            /**
+             * delta Y is smaller than 0, the wheel was sliding down. we should zoom in the window.
+             * delta Y is bigger than 0, the wheel was sliding up, we should zoom out the window.
+            */
+            if (value.deltaY < 0) {
+              this.newZoomRatio -= NavigationComponent.ZOOM_DIFFERENCE;
+              this.getJointPaper().scale(this.newZoomRatio, this.newZoomRatio);
+              this.dragDropService.setZoomProperty(this.newZoomRatio);
+            }
+            if (value.deltaX > 0) {
+              this.newZoomRatio += NavigationComponent.ZOOM_DIFFERENCE;
+              this.getJointPaper().scale(this.newZoomRatio, this.newZoomRatio);
+              this.dragDropService.setZoomProperty(this.newZoomRatio);
+            }
+          }
+
+        );
+    }
   /**
    * This method handles user mouse drag events to pan JointJS paper.
    *

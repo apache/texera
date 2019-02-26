@@ -133,8 +133,8 @@ describe('WorkflowEditorComponent', () => {
         providers: [
           JointUIService,
           WorkflowUtilService,
-          DragDropService,
           WorkflowActionService,
+          DragDropService,
           { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         ]
       })
