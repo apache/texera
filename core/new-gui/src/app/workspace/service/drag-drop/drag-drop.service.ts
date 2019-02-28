@@ -301,17 +301,24 @@ export class DragDropService {
         const dis = (this.mouseAt.x - position[0]) ** 2 + (this.mouseAt.y - position[1]) ** 2;
         if (dis < distance[0]) {
           distance[0] = dis;
-          if (this.suggestionOperator !== undefined) {
-            const operatorID = this.suggestionOperator.operatorID;
-            const status = true;
-            this.operatorSuggestionUnhighlightStream.next({status, operatorID});
-          }
-          this.suggestionOperator = operator_list[i];
-          if (position[0] < this.mouseAt.x && operator_list[i].outputPorts.length > 0) {
-            this.isLeft = true;
-          } else if (position[0] > this.mouseAt.x && operator_list[i].inputPorts.length > 0) {
-            this.isLeft = false;
+
+          if ((position[0] < this.mouseAt.x && operator_list[i].outputPorts.length > 0)
+            || (position[0] > this.mouseAt.x && operator_list[i].inputPorts.length > 0)) {
+            // Unhighlight the previous highlight operator
+            if (this.suggestionOperator !== undefined) {
+              const operatorID = this.suggestionOperator.operatorID;
+              const status = true;
+              this.operatorSuggestionUnhighlightStream.next({status, operatorID});
+            }
+            this.suggestionOperator = operator_list[i];
+            if (position[0] < this.mouseAt.x && operator_list[i].outputPorts.length > 0) {
+              this.isLeft = true;
+            } else if (position[0] > this.mouseAt.x && operator_list[i].inputPorts.length > 0) {
+              this.isLeft = false;
+            }
           } else {
+            // When this.isLeft is undefined, it means that the operate_list[i] is not available to create an correct link.
+            // this.isLeft is unable to observe the dragging operator's ports info.
             this.isLeft = undefined;
           }
         }
