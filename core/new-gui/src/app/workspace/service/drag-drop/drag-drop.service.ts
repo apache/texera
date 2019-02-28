@@ -51,6 +51,7 @@ export class DragDropService {
 
   private suggestionOperator: OperatorPredicate | undefined;
   private mouseAt: Point | undefined;
+  private isLeft: Boolean | undefined;
 
   /** mapping of DOM Element ID to operatorType */
   private elementOperatorTypeMap = new Map<string, string>();
@@ -88,14 +89,18 @@ export class DragDropService {
         this.workflowActionService.addOperator(operator, value.offset);
 
         if (this.suggestionOperator !== undefined) {
-          if ( operator.outputPorts.length > 0 ) {
-           const linkCell = this.workflowUtilService.getNewOperatorLink(operator, this.suggestionOperator);
-           this.workflowActionService.addLink(linkCell);
+          if (this.isLeft !== undefined && this.isLeft && operator.inputPorts.length > 0) {
+            const linkCell = this.workflowUtilService.getNewOperatorLink(this.suggestionOperator, operator);
+            this.workflowActionService.addLink(linkCell);
+          } else if (this.isLeft !== undefined && !this.isLeft && operator.outputPorts.length > 0) {
+            const linkCell = this.workflowUtilService.getNewOperatorLink(operator, this.suggestionOperator);
+            this.workflowActionService.addLink(linkCell);
           }
           const operatorID = this.suggestionOperator.operatorID;
           const status = true;
           this.operatorSuggestionUnhighlightStream.next({status, operatorID});
           this.suggestionOperator = undefined;
+          this.isLeft = undefined;
         }
         // highlight the operator after adding the operator
         this.workflowActionService.getJointGraphWrapper().highlightOperator(operator.operatorID);
@@ -291,24 +296,29 @@ export class DragDropService {
     const distance: number[] = [Number.MAX_VALUE];
 
     for (let i = 0; i < operator_list.length; i++) {
-      if (operator_list[i].inputPorts.length > 0) {
-        const position = this.workflowActionService.getJointGraphWrapper().getJointOperatorCellPostion(operator_list[i].operatorID);
-        if (position !== undefined && this.mouseAt !== undefined) {
-          const dis = (this.mouseAt.x - position[0]) ** 2 + (this.mouseAt.y - position[1]) ** 2;
-          if (dis < distance[0]) {
-            distance[0] = dis;
-            if (this.suggestionOperator !== undefined) {
-              const operatorID = this.suggestionOperator.operatorID;
-              const status = true;
-              this.operatorSuggestionUnhighlightStream.next({status, operatorID});
-            }
-            this.suggestionOperator = operator_list[i];
+      const position = this.workflowActionService.getJointGraphWrapper().getJointOperatorCellPostion(operator_list[i].operatorID);
+      if (position !== undefined && this.mouseAt !== undefined) {
+        const dis = (this.mouseAt.x - position[0]) ** 2 + (this.mouseAt.y - position[1]) ** 2;
+        if (dis < distance[0]) {
+          distance[0] = dis;
+          if (this.suggestionOperator !== undefined) {
+            const operatorID = this.suggestionOperator.operatorID;
+            const status = true;
+            this.operatorSuggestionUnhighlightStream.next({status, operatorID});
+          }
+          this.suggestionOperator = operator_list[i];
+          if (position[0] < this.mouseAt.x && operator_list[i].outputPorts.length > 0) {
+            this.isLeft = true;
+          } else if (position[0] > this.mouseAt.x && operator_list[i].inputPorts.length > 0) {
+            this.isLeft = false;
+          } else {
+            this.isLeft = undefined;
           }
         }
       }
     }
 
-    if (this.suggestionOperator !== undefined) {
+    if (this.suggestionOperator !== undefined && this.isLeft !== undefined) {
       const operatorID = this.suggestionOperator.operatorID;
       const status = true;
       this.operatorClosestPositionStream.next({status, operatorID});
