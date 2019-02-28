@@ -61,6 +61,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.handleViewDeleteOperator();
     this.handleCellHighlight();
 
+    this.handleOperatorSuggestionHighlightEvent();
     this.dragDropService.registerWorkflowEditorDrop(this.WORKFLOW_EDITOR_JOINTJS_ID);
 
   }
@@ -139,6 +140,29 @@ export class WorkflowEditorComponent implements AfterViewInit {
         'rect', { highlighter: highlightOptions }
       ));
   }
+
+  private handleOperatorSuggestionHighlightEvent(): void {
+    const highlightOptions = {
+      name: 'stroke',
+      options: {
+        attrs: {
+          'stroke-width': 5,
+          stroke: '#551A8B70'
+        }
+      }
+    };
+
+    this.dragDropService.getOperatorSuggestionHighlightStream()
+      .subscribe( value => {
+        this.getJointPaper().findViewByModel(value.operatorID).highlight('rect', { highlighter: highlightOptions});
+      });
+
+    this.dragDropService.getOperatorSuggestionUnhighlightStream()
+      .subscribe( value => {
+        this.getJointPaper().findViewByModel(value.operatorID).unhighlight('rect', { highlighter: highlightOptions});
+      });
+  }
+
 
   /**
    * Modifies the JointJS paper origin coordinates

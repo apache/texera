@@ -1,4 +1,4 @@
-import { OperatorPredicate } from './../../../types/workflow-common.interface';
+import { OperatorPredicate, OperatorLink } from './../../../types/workflow-common.interface';
 import { OperatorMetadataService } from './../../operator-metadata/operator-metadata.service';
 import { OperatorSchema } from './../../../types/operator-schema.interface';
 import { Injectable } from '@angular/core';
@@ -58,6 +58,13 @@ export class WorkflowUtilService {
 
     return { operatorID, operatorType, operatorProperties, inputPorts, outputPorts };
 
+  }
+
+  public getNewOperatorLink(sourceOperator: OperatorPredicate, targetOperator: OperatorPredicate): OperatorLink {
+    const linkID = 'link-' + uuid();
+    const source = { operatorID: sourceOperator.operatorID, portID: sourceOperator.outputPorts[0]};
+    const target = { operatorID: targetOperator.operatorID, portID: targetOperator.inputPorts[0]};
+    return { linkID, source, target };
   }
 
 }

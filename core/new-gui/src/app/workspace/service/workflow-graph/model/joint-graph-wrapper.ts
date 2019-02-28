@@ -1,5 +1,6 @@
 import { Subject } from 'rxjs/Subject';
 import { Observable } from 'rxjs/Observable';
+import { dia } from 'jointjs';
 
 type operatorIDType = { operatorID: string };
 
@@ -202,6 +203,17 @@ export class JointGraphWrapper {
     return jointLinkChangeStream;
   }
 
+  public getJointOperatorCellPostion(operatorID: string): number[] | undefined {
+    const operators = this.jointGraph.getElements();
+    const operatorCell = this.jointGraph.getCell(operatorID);
+    const position: number[] = [];
+    if (operatorCell.isElement()) {
+      const result: dia.Element  = new dia.Element(operatorCell.attributes);
+      position.push(result.position().x);
+      position.push(result.position().y);
+      return position;
+    }
+  }
 
   /**
    * Subscribes to operator cell delete event stream,
