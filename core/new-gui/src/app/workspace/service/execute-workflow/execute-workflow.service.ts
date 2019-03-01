@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
 
 import { Subject } from 'rxjs/Subject';
 import { Observable } from 'rxjs/Observable';
@@ -13,8 +13,12 @@ import {
   ExecutionResult, ErrorExecutionResult, SuccessExecutionResult
 } from '../../types/execute-workflow.interface';
 
+import { v4 as uuid } from 'uuid';
+
 export const EXECUTE_WORKFLOW_ENDPOINT = 'queryplan/execute';
 
+export const PAUSE_WORKFLOW_ENDPOINT = 'pause';
+export const RESUME_WORKFLOW_ENDPOINT = 'resume';
 
 /**
  * ExecuteWorkflowService sends the current workflow data to the backend
@@ -40,6 +44,10 @@ export class ExecuteWorkflowService {
   private executeStartedStream = new Subject<string>();
   private executeEndedStream = new Subject<ExecutionResult>();
 
+  private workflowExecutionID: string | undefined;
+
+  private executionPauseResumeStream = new Subject <number> ();
+
   constructor(private workflowActionService: WorkflowActionService, private http: HttpClient) { }
 
   /**
@@ -48,6 +56,10 @@ export class ExecuteWorkflowService {
    *
    */
   public executeWorkflow(): void {
+
+    // set the UUID for the current workflow
+    this.workflowExecutionID = this.getRandomUUID();
+
     // get the current workflow graph
     const workflowPlan = this.workflowActionService.getTexeraGraph();
 
@@ -65,9 +77,84 @@ export class ExecuteWorkflowService {
       .subscribe(
         // backend will either respond an execution result or an error will occur
         // handle both cases
-        response => this.handleExecuteResult(response),
-        errorResponse => this.handleExecuteError(errorResponse)
+        response => {
+          this.handleExecuteResult(response);
+          this.workflowExecutionID = undefined;
+        },
+        errorResponse => {
+          this.handleExecuteError(errorResponse);
+          this.workflowExecutionID = undefined;
+        }
       );
+  }
+
+  /**
+   * Sends the current worfklow ID to the server to
+   *  pause current workflow in the backend
+   */
+  public pauseWorkflow(): void {
+    if (this.workflowExecutionID === undefined) {
+      throw new Error('Workflow ID undefined when attempting to pause workflow');
+    }
+
+    console.log('Pause = ' + this.workflowExecutionID);
+
+    const requestURL = `${AppSettings.getApiEndpoint()}/${PAUSE_WORKFLOW_ENDPOINT}`;
+    const body = {'workflowID' : this.workflowExecutionID};
+    const params = new HttpParams().set('action', 'pause');
+
+    // The endpoint will be 'api/pause?action=pause', and workflowExecutionID will be the body
+
+    // TODO: Create a new resource handling this URL, currently there is none.
+    // TODO: After defining a new resource, uncomment this section
+
+    // this.http.post(
+    //   requestURL,
+    //   JSON.stringify(body),
+    //   { headers: {'Content-Type' : 'application/json'},
+    //     params: params})
+    //   .subscribe(
+    //     response => this.executionPauseResumeStream.next(0),
+    //     error => console.log(error)
+    // );
+
+    // TODO: Comment out this section when uncommenting http post request above
+    this.executionPauseResumeStream.next(0);
+  }
+
+  /**
+   * Sends the current workflow ID to the server to
+   *  resume current workflow in the backend
+   */
+  public resumeWorkflow(): void {
+    if (this.workflowExecutionID === undefined) {
+      throw new Error('Workflow ID undefined when attempting to resume workflow');
+    }
+
+    console.log('Resume = ' + this.workflowExecutionID);
+
+    const requestURL = `${AppSettings.getApiEndpoint()}/${RESUME_WORKFLOW_ENDPOINT}`;
+    const body = {'workflowID' : this.workflowExecutionID};
+    const params = new HttpParams().set('action', 'resume');
+
+    // The endpoint will be 'api/pause?action=resume', and workflowExecutionID will be the body
+
+    // TODO: Create a new resource handling this URL, currently there is none.
+    // TODO: After defining a new resource, uncomment this section
+
+    // this.http.post(
+    //   requestURL,
+    //   JSON.stringify(body),
+    //   { headers: {'Content-Type' : 'application/json'},
+    //     params: params})
+    //   .subscribe(
+    //     response => this.executionPauseResumeStream.next(1),
+    //     error => console.log(error)
+    // );
+
+
+    // TODO: Comment out this section when uncommenting http post request above
+    this.executionPauseResumeStream.next(1);
   }
 
   /**
@@ -94,6 +181,19 @@ export class ExecuteWorkflowService {
    */
   public getExecuteEndedStream(): Observable<ExecutionResult> {
     return this.executeEndedStream.asObservable();
+  }
+
+  /**
+   * Gets the observable for pause and resume event
+   *  If pause succeeds, it will contain a number = 0
+   *  If resume succeeds, it will contain a number = 1
+   */
+  public getExecutionPauseResumeStream(): Observable<number> {
+    return this.executionPauseResumeStream.asObservable();
+  }
+
+  private getRandomUUID(): string {
+    return 'texera-workflow-' + uuid();
   }
 
   /**
