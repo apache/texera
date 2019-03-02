@@ -108,25 +108,38 @@ export class SchemaPropagationService {
       { headers: { 'Content-Type': 'application/json' } });
   }
 
+   /**
+    * This method reset the attribute / attributes fields of a operator properties
+    *  when the json schema has been changed, since the attribute fields might
+    *  be different for each json schema.
+    *
+    * For instance,
+    *  twitter_sample table contains the 'country' attribute
+    *  promed table does not contain the 'country' attribute
+    *
+    * @param operatorID operator that has the changed schema
+    */
   private resetAttributeOfOperator(operatorID: string): void {
     const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorID);
     if (! operator) {
       throw new Error(`${operatorID} not found`);
     }
 
-    const walkPropertiesRecurse = (propertyObject: {[key: string]: any}) => {
+    // recursive function that removes the attribute properties and returns the new object
+    const walkPropertiesRecurse = (propertyObject: {[key: string]: any}) =>  {
       Object.keys(propertyObject).forEach(key => {
         if (key === 'attribute' || key === 'attributes') {
-          delete propertyObject[key];
+          const {[key]: [], ...removedAttributeProperties} = propertyObject;
+          propertyObject = removedAttributeProperties;
         } else if (typeof propertyObject[key] === 'object') {
-          walkPropertiesRecurse(propertyObject[key]);
+          propertyObject[key] = walkPropertiesRecurse(propertyObject[key]);
         }
       });
+
+      return propertyObject;
     };
 
-    const propertyClone = cloneDeep(operator.operatorProperties);
-    walkPropertiesRecurse(propertyClone);
-
+    const propertyClone = walkPropertiesRecurse(operator.operatorProperties);
     this.workflowActionService.setOperatorProperty(operatorID, propertyClone);
   }
 

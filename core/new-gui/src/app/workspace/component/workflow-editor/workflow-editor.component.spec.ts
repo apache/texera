@@ -172,7 +172,7 @@ describe('WorkflowEditorComponent', () => {
       const jointCellView = component.getJointPaper().findViewByModel(mockScanPredicate.operatorID);
 
       // tirgger a click on the cell view using its jQuery element
-      jointCellView.$el.trigger('click');
+      jointCellView.$el.trigger('mousedown');
 
       fixture.detectChanges();
 
