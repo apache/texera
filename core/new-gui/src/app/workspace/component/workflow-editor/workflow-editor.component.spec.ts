@@ -221,8 +221,13 @@ describe('WorkflowEditorComponent', () => {
 
     it('shoud detect changes of the zoom values when users slide the mouse wheel', marbles((m) => {
       m.hot('-e-').do(event => component.getZoomRatio()).subscribe();
+
+      // originZoonratio is the zoom ratio that will be loaded when user first open the web page.
       const originZoomRatio = 1;
+
+      // to justify if the zoom ratio is being changed or not.
       let ifZoomRatioChange = false;
+
       dragDropService.getWorkflowEditorZoomStream().subscribe(
         newRatio => {
           fixture.detectChanges();

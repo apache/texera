@@ -169,7 +169,12 @@ export class DragDropService {
       helper: () => this.createFlyingOperatorElement(operatorType),
       // declare event as type any because the jQueryUI type declaration is wrong
       // it should be of type JQuery.Event, which is incompatible with the the declared type Event
-      start: (event: any, ui) => this.handleOperatorStartDrag(event, ui)
+      start: (event: any, ui) => this.handleOperatorStartDrag(event, ui),
+      // The draggable element will be created with the mouse starting point at the center
+      cursorAt : {
+        left: JointUIService.DEFAULT_OPERATOR_WIDTH / 2,
+        top: JointUIService.DEFAULT_OPERATOR_HEIGHT / 2
+      }
     });
   }
 
