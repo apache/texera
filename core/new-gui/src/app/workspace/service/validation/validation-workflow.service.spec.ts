@@ -80,7 +80,7 @@ describe('ValidationWorkflowService', () => {
 
   it('should subscribe the changes of validateOperatorStream when one operator box is deleted after valid status ',
   marbles((m) => {
-    const testEvents = m.hot('-a-b-c----d-e----', {
+    const testEvents = m.hot('-a-b-c----d-e-----', {
       'a': () => workflowActionservice.addOperator(mockScanPredicate, mockPoint),
       'b': () => workflowActionservice.addOperator(mockResultPredicate, mockPoint),
       'c': () => workflowActionservice.addLink(mockScanResultLink),
@@ -90,14 +90,15 @@ describe('ValidationWorkflowService', () => {
 
     testEvents.subscribe(action => action());
 
-    const expected = m.hot('-t-u-(vw)-x-(yz)', {
+    const expected = m.hot('-t-u-(vw)-x-(yza)-)', {
       't': {operatorID: '1', status: false},
       'u': {operatorID: '3', status: false},
       'v': {operatorID: '1', status: false},
       'w': {operatorID: '3', status: true},
       'x': {operatorID: '1', status: true},
       'y': {operatorID: '1', status: false}, // If one of the oprator is deleted, the other one is invaild since it is isolated
-      'z': {operatorID: '3', status: false}
+      'z': {operatorID: '3', status: false},
+      'a': {operatorID: '3', status: false}// If the operator is deleted,it will triger deletelinkstream and deleteoperator stream
     });
 
     m.expect(validationWorkflowService.getOperatorValidationStream()).toBeObservable(expected);
@@ -116,7 +117,7 @@ describe('ValidationWorkflowService', () => {
 
     testEvents.subscribe(action => action());
 
-    const expected = m.hot('-t-u-(vw)-x-(yz)', {
+    const expected = m.hot('-t-u-(vw)-x-(yz)-', {
       't': {operatorID: '1', status: false},
       'u': {operatorID: '3', status: false},
       'v': {operatorID: '1', status: false},

@@ -97,17 +97,17 @@ export class ValidationWorkflowService {
    */
   private isJsonSchemaValiad(operatorID: string): boolean {
     const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorID);
-    if (operator === undefined) {
-      throw new Error(`operator ${operatorID} doesn't exist`);
-    }
-
-    const operatorSchema = this.operatorSchemaList.find(schema => schema.operatorType === operator.operatorType);
-    if (operatorSchema === undefined) {
-      throw new Error(`operatorSchema ${operator.operatorType} doesn't exist`);
-    }
+    let operatorSchema;
+    let isValid;
     const ajv = new Ajv ({schemaId: 'auto', allErrors: true});
     ajv.addMetaSchema(require('ajv/lib/refs/json-schema-draft-04.json'));
-    const isValid =  ajv.validate(operatorSchema.jsonSchema, operator.operatorProperties);
+    if (operator !== undefined) {
+      operatorSchema = this.operatorSchemaList.find(schema => schema.operatorType === operator.operatorType);
+      if (operatorSchema !== undefined) {
+        isValid =  ajv.validate(operatorSchema.jsonSchema, operator.operatorProperties);
+      }
+    }
+
     if (isValid) {
       return true;
     }
@@ -120,11 +120,13 @@ export class ValidationWorkflowService {
    */
   private isOperatorIsolated(operatorID: string): boolean {
      const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorID);
-     if (operator === undefined) {
-      throw new Error(`operator ${operatorID} doesn't exist`);
+     let inputPortsNum = null;
+     let outputPortsNum = null;
+     if (operator !== undefined) {
+     inputPortsNum = operator.inputPorts.length;
+     outputPortsNum = operator.outputPorts.length;
      }
-     const inputPortsNum = operator.inputPorts.length;
-     const outputPortsNum = operator.outputPorts.length;
+
      if (isEqual(inputPortsNum, this.workflowActionService.getTexeraGraph().getInputLinksByOperatorId(operatorID).length) &&
      isEqual(outputPortsNum, this.workflowActionService.getTexeraGraph().getOutputLinksByOperatorId(operatorID).length)) {
       return false;
