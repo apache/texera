@@ -41,13 +41,13 @@ describe('OperatorMetadataService', () => {
 
   it('should emit an empty operator metadata first', () => {
     service.getOperatorMetadata().first().subscribe(
-      value => expect(<any>value).toEqual(EMPTY_OPERATOR_METADATA)
+      value => expect(value).toEqual(EMPTY_OPERATOR_METADATA)
     );
   });
 
   it('should send http request once', () => {
     service.getOperatorMetadata().last().subscribe(
-      value => expect(<any>value).toBeTruthy()
+      value => expect(value).toBeTruthy()
     );
   });
 
