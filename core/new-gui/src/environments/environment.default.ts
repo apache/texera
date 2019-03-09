@@ -19,7 +19,12 @@ export const defaultEnvironment = {
    * whether operator schema propagation and autocomplete feature is enabled,
    * see SchemaPropgationService for details
    */
-  schemaPropagationEnabled: true
+  schemaPropagationEnabled: true,
+
+  /**
+   * whether the backend support pause/resume functionaility
+   */
+  pauseResumeEnabled: false,
 };
 
 export type AppEnv = Readonly<typeof defaultEnvironment>;

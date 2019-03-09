@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { ExecuteWorkflowService } from './../../service/execute-workflow/execute-workflow.service';
 import { TourService } from 'ngx-tour-ng-bootstrap';
+import { environment } from '../../../../environments/environment';
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -35,8 +36,8 @@ export class NavigationComponent implements OnInit {
         this.isWorkflowPaused = false;
       },
       () => {
-        this.isWorkflowPaused = false;
         this.isWorkflowRunning = false;
+        this.isWorkflowPaused = false;
       }
     );
 
@@ -55,24 +56,60 @@ export class NavigationComponent implements OnInit {
    *  also set the `isWorkflowRunning` variable to true to show that the backend
    *  is loading the workflow by displaying the pause/resume button.
    */
-  public onClickRun(): void {
-    // modifying the `running` variable will display the pause button
-    this.isWorkflowRunning = true;
-    this.isWorkflowPaused = false;
-    this.executeWorkflowService.executeWorkflow();
+  public onButtonClick(): void {
+    if (! environment.pauseResumeEnabled) {
+      if (! this.isWorkflowRunning) {
+        this.executeWorkflowService.executeWorkflow();
+        this.isWorkflowRunning = true;
+      }
+    } else {
+      if (!this.isWorkflowRunning && !this.isWorkflowPaused) {
+        this.executeWorkflowService.executeWorkflow();
+        this.isWorkflowRunning = true;
+      } else if (!this.isWorkflowRunning && this.isWorkflowPaused) {
+        this.executeWorkflowService.resumeWorkflow();
+      } else if (this.isWorkflowRunning && !this.isWorkflowPaused) {
+        this.executeWorkflowService.pauseWorkflow();
+      } else {
+        throw new Error('internal error: workflow cannot be both running and paused');
+      }
+    }
   }
 
-  /**
-   * Pauses/resumes the current existing workflow on the JointJS paper.
-   */
-  public onClickPauseResumeToggle(): void {
-    if (!this.isWorkflowRunning) {
-      return;
-    }
-    if (this.isWorkflowPaused) {
-      this.executeWorkflowService.resumeWorkflow();
+  public getRunButtonText(): string {
+    if (! environment.pauseResumeEnabled) {
+      return 'Run';
     } else {
-      this.executeWorkflowService.pauseWorkflow();
+      if (!this.isWorkflowRunning && !this.isWorkflowPaused) {
+        return 'Run';
+      } else if (!this.isWorkflowRunning && this.isWorkflowPaused) {
+        return 'Resume';
+      } else if (this.isWorkflowRunning && !this.isWorkflowPaused) {
+        return 'Pause';
+      } else {
+        throw new Error('internal error: workflow cannot be both running and paused');
+      }
     }
   }
+
+  public runSpinner(): boolean {
+    if (! environment.pauseResumeEnabled) {
+      if (this.isWorkflowRunning) {
+        return true;
+      } else {
+        return false;
+      }
+    } else {
+      if (!this.isWorkflowRunning && !this.isWorkflowPaused) {
+        return false;
+      } else if (!this.isWorkflowRunning && this.isWorkflowPaused) {
+        return false;
+      } else if (this.isWorkflowRunning && !this.isWorkflowPaused) {
+        return true;
+      } else {
+        throw new Error('internal error: workflow cannot be both running and paused');
+      }
+    }
+  }
+
 }
