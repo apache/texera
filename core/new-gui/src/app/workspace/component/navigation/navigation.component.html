@@ -9,9 +9,23 @@
             <i id="texera-tour-icon" class="fa fa-question-circle-o" aria-hidden="true"></i>
           </span>
       </button>
-      <button *ngIf="!isWorkflowRunning" mat-raised-button class="texera-navigation-run-button" (click)="onClickRun()">
+
+      <button mat-raised-button class="texera-navigation-run-button" (click)="onButtonClick()">
+        <div>
+          <i *ngIf="!runSpinner()" id="texera-run-icon" class="fa fa-play" aria-hidden="true"></i>
+          <i *ngIf="runSpinner()" id="texera-pause-icon" class="fa fa-spinner fa-spin" aria-hidden="true"></i>
+
+        </div>
+        <div>
+          <span class="texera-navigation-run-text">
+            {{ getRunButtonText() }}
+          </span>
+        </div>
+      </button>
+
+
+      <!-- <button *ngIf="!isWorkflowRunning" mat-raised-button class="texera-navigation-run-button" (click)="onClickRun()">
         <span class="texera-navigation-run-text">
-            <i id="texera-run-icon" class="fa fa-play" aria-hidden="true"></i>
             Run
         </span>
       </button>
@@ -29,6 +43,7 @@
           <i id="texera-resume-icon" class="fa fa-play" aria-hidden="true"></i>
           Resume
         </span>
-      </button>
+      </button> -->
+
     </div>
   </nav>

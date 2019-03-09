@@ -14,6 +14,7 @@ import {
 } from '../../types/execute-workflow.interface';
 
 import { v4 as uuid } from 'uuid';
+import { environment } from '../../../../environments/environment';
 
 export const EXECUTE_WORKFLOW_ENDPOINT = 'queryplan/execute';
 
@@ -93,33 +94,28 @@ export class ExecuteWorkflowService {
    *  pause current workflow in the backend
    */
   public pauseWorkflow(): void {
+    if (! environment.pauseResumeEnabled) {
+      return;
+    }
     if (this.workflowExecutionID === undefined) {
       throw new Error('Workflow ID undefined when attempting to pause workflow');
     }
-
-    console.log('Pause = ' + this.workflowExecutionID);
 
     const requestURL = `${AppSettings.getApiEndpoint()}/${PAUSE_WORKFLOW_ENDPOINT}`;
     const body = {'workflowID' : this.workflowExecutionID};
     const params = new HttpParams().set('action', 'pause');
 
     // The endpoint will be 'api/pause?action=pause', and workflowExecutionID will be the body
+    this.http.post(
+      requestURL,
+      JSON.stringify(body),
+      { headers: {'Content-Type' : 'application/json'},
+        params: params})
+      .subscribe(
+        response => this.executionPauseResumeStream.next(0),
+        error => console.log(error)
+    );
 
-    // TODO: Create a new resource handling this URL, currently there is none.
-    // TODO: After defining a new resource, uncomment this section
-
-    // this.http.post(
-    //   requestURL,
-    //   JSON.stringify(body),
-    //   { headers: {'Content-Type' : 'application/json'},
-    //     params: params})
-    //   .subscribe(
-    //     response => this.executionPauseResumeStream.next(0),
-    //     error => console.log(error)
-    // );
-
-    // TODO: Comment out this section when uncommenting http post request above
-    this.executionPauseResumeStream.next(0);
   }
 
   /**
@@ -127,34 +123,28 @@ export class ExecuteWorkflowService {
    *  resume current workflow in the backend
    */
   public resumeWorkflow(): void {
+    if (! environment.pauseResumeEnabled) {
+      return;
+    }
     if (this.workflowExecutionID === undefined) {
       throw new Error('Workflow ID undefined when attempting to resume workflow');
     }
-
-    console.log('Resume = ' + this.workflowExecutionID);
 
     const requestURL = `${AppSettings.getApiEndpoint()}/${RESUME_WORKFLOW_ENDPOINT}`;
     const body = {'workflowID' : this.workflowExecutionID};
     const params = new HttpParams().set('action', 'resume');
 
     // The endpoint will be 'api/pause?action=resume', and workflowExecutionID will be the body
+    this.http.post(
+      requestURL,
+      JSON.stringify(body),
+      { headers: {'Content-Type' : 'application/json'},
+        params: params})
+      .subscribe(
+        response => this.executionPauseResumeStream.next(1),
+        error => console.log(error)
+    );
 
-    // TODO: Create a new resource handling this URL, currently there is none.
-    // TODO: After defining a new resource, uncomment this section
-
-    // this.http.post(
-    //   requestURL,
-    //   JSON.stringify(body),
-    //   { headers: {'Content-Type' : 'application/json'},
-    //     params: params})
-    //   .subscribe(
-    //     response => this.executionPauseResumeStream.next(1),
-    //     error => console.log(error)
-    // );
-
-
-    // TODO: Comment out this section when uncommenting http post request above
-    this.executionPauseResumeStream.next(1);
   }
 
   /**
