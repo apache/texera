@@ -65,7 +65,15 @@ export class ExecuteWorkflowService {
     const workflowPlan = this.workflowActionService.getTexeraGraph();
 
     // create a Logical Plan based on the workflow graph
-    const body = ExecuteWorkflowService.getLogicalPlanRequest(workflowPlan);
+    let body;
+    if (! environment.pauseResumeEnabled) {
+      body = ExecuteWorkflowService.getLogicalPlanRequest(workflowPlan);
+    } else {
+      body = {
+        logicalPlan: ExecuteWorkflowService.getLogicalPlanRequest(workflowPlan),
+        workflowID: this.workflowExecutionID
+      };
+    }
     const requestURL = `${AppSettings.getApiEndpoint()}/${EXECUTE_WORKFLOW_ENDPOINT}`;
 
     this.executeStartedStream.next('execution started');
@@ -103,14 +111,12 @@ export class ExecuteWorkflowService {
 
     const requestURL = `${AppSettings.getApiEndpoint()}/${PAUSE_WORKFLOW_ENDPOINT}`;
     const body = {'workflowID' : this.workflowExecutionID};
-    const params = new HttpParams().set('action', 'pause');
 
     // The endpoint will be 'api/pause?action=pause', and workflowExecutionID will be the body
     this.http.post(
       requestURL,
       JSON.stringify(body),
-      { headers: {'Content-Type' : 'application/json'},
-        params: params})
+      { headers: {'Content-Type' : 'application/json'}})
       .subscribe(
         response => this.executionPauseResumeStream.next(0),
         error => console.log(error)
@@ -132,14 +138,12 @@ export class ExecuteWorkflowService {
 
     const requestURL = `${AppSettings.getApiEndpoint()}/${RESUME_WORKFLOW_ENDPOINT}`;
     const body = {'workflowID' : this.workflowExecutionID};
-    const params = new HttpParams().set('action', 'resume');
 
     // The endpoint will be 'api/pause?action=resume', and workflowExecutionID will be the body
     this.http.post(
       requestURL,
       JSON.stringify(body),
-      { headers: {'Content-Type' : 'application/json'},
-        params: params})
+      { headers: {'Content-Type' : 'application/json'}})
       .subscribe(
         response => this.executionPauseResumeStream.next(1),
         error => console.log(error)
