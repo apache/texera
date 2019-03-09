@@ -10,17 +10,14 @@
           </span>
       </button>
 
-      <button mat-raised-button class="texera-navigation-run-button" (click)="onButtonClick()">
-        <div>
+      <button mat-raised-button class="texera-navigation-run-button texera-navigation-run-text" (click)="onButtonClick()">
+        <span>
           <i *ngIf="!runSpinner()" id="texera-run-icon" class="fa fa-play" aria-hidden="true"></i>
           <i *ngIf="runSpinner()" id="texera-pause-icon" class="fa fa-spinner fa-spin" aria-hidden="true"></i>
-
-        </div>
-        <div>
-          <span class="texera-navigation-run-text">
-            {{ getRunButtonText() }}
-          </span>
-        </div>
+        </span>
+        <span>
+            {{ getRunButtonText()}}
+        </span>
       </button>
 
 

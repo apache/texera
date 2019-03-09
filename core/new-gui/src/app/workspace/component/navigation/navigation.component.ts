@@ -66,7 +66,7 @@ export class NavigationComponent implements OnInit {
       if (!this.isWorkflowRunning && !this.isWorkflowPaused) {
         this.executeWorkflowService.executeWorkflow();
         this.isWorkflowRunning = true;
-      } else if (!this.isWorkflowRunning && this.isWorkflowPaused) {
+      } else if (this.isWorkflowRunning && this.isWorkflowPaused) {
         this.executeWorkflowService.resumeWorkflow();
       } else if (this.isWorkflowRunning && !this.isWorkflowPaused) {
         this.executeWorkflowService.pauseWorkflow();
@@ -82,7 +82,7 @@ export class NavigationComponent implements OnInit {
     } else {
       if (!this.isWorkflowRunning && !this.isWorkflowPaused) {
         return 'Run';
-      } else if (!this.isWorkflowRunning && this.isWorkflowPaused) {
+      } else if (this.isWorkflowRunning && this.isWorkflowPaused) {
         return 'Resume';
       } else if (this.isWorkflowRunning && !this.isWorkflowPaused) {
         return 'Pause';
@@ -94,7 +94,7 @@ export class NavigationComponent implements OnInit {
 
   public runSpinner(): boolean {
     if (! environment.pauseResumeEnabled) {
-      if (this.isWorkflowRunning) {
+      if (this.isWorkflowRunning && !this.isWorkflowPaused) {
         return true;
       } else {
         return false;
@@ -102,7 +102,7 @@ export class NavigationComponent implements OnInit {
     } else {
       if (!this.isWorkflowRunning && !this.isWorkflowPaused) {
         return false;
-      } else if (!this.isWorkflowRunning && this.isWorkflowPaused) {
+      } else if (this.isWorkflowRunning && this.isWorkflowPaused) {
         return false;
       } else if (this.isWorkflowRunning && !this.isWorkflowPaused) {
         return true;
