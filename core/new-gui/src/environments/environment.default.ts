@@ -27,5 +27,5 @@ export const defaultEnvironment = {
   pauseResumeEnabled: false,
 };
 
-export type AppEnv = Readonly<typeof defaultEnvironment>;
+export type AppEnv = typeof defaultEnvironment;
 

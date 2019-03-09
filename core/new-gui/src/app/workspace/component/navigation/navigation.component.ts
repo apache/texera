@@ -59,13 +59,13 @@ export class NavigationComponent implements OnInit {
   public onButtonClick(): void {
     if (! environment.pauseResumeEnabled) {
       if (! this.isWorkflowRunning) {
-        this.executeWorkflowService.executeWorkflow();
         this.isWorkflowRunning = true;
+        this.executeWorkflowService.executeWorkflow();
       }
     } else {
       if (!this.isWorkflowRunning && !this.isWorkflowPaused) {
-        this.executeWorkflowService.executeWorkflow();
         this.isWorkflowRunning = true;
+        this.executeWorkflowService.executeWorkflow();
       } else if (this.isWorkflowRunning && this.isWorkflowPaused) {
         this.executeWorkflowService.resumeWorkflow();
       } else if (this.isWorkflowRunning && !this.isWorkflowPaused) {

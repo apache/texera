@@ -15,7 +15,7 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { marbles } from 'rxjs-marbles';
 import { WorkflowGraph } from '../workflow-graph/model/workflow-graph';
 import { LogicalPlan } from '../../types/execute-workflow.interface';
-
+import { environment } from '../../../../environments/environment';
 
 class StubHttpClient {
 
@@ -43,6 +43,7 @@ describe('ExecuteWorkflowService', () => {
     });
 
     service = TestBed.get(ExecuteWorkflowService);
+    environment.pauseResumeEnabled = true;
   });
 
   it('should be created', inject([ExecuteWorkflowService], (injectedService: ExecuteWorkflowService) => {

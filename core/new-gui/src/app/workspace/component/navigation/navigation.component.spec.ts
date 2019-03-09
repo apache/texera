@@ -17,7 +17,7 @@ import { Observable } from 'rxjs/Observable';
 import { marbles } from 'rxjs-marbles';
 import { HttpClient } from '@angular/common/http';
 import { mockExecutionResult } from '../../service/execute-workflow/mock-result-data';
-
+import { environment } from '../../../../environments/environment';
 
 class StubHttpClient {
 
@@ -53,6 +53,7 @@ describe('NavigationComponent', () => {
     component = fixture.componentInstance;
     executeWorkFlowService = TestBed.get(ExecuteWorkflowService);
     fixture.detectChanges();
+    environment.pauseResumeEnabled = true;
   });
 
   it('should create', () => {
@@ -89,8 +90,6 @@ describe('NavigationComponent', () => {
     expect(component.isWorkflowRunning).toBeFalsy();
     expect(component.isWorkflowPaused).toBeFalsy();
 
-    m.hot('-e-').do(() => component.onClickRun()).subscribe();
-
     executeWorkFlowService.getExecuteStartedStream().subscribe(
       () => {
         fixture.detectChanges();
@@ -107,6 +106,8 @@ describe('NavigationComponent', () => {
       }
     );
 
+    m.hot('-e-').do(() => component.onButtonClick()).subscribe();
+
   }));
 
   it('should call pauseWorkflow function when isWorkflowPaused is false', () => {
@@ -116,7 +117,7 @@ describe('NavigationComponent', () => {
 
     (executeWorkFlowService as any).workflowExecutionID = 'MOCK_EXECUTION_ID';
 
-    component.onClickPauseResumeToggle();
+    component.onButtonClick();
     expect(pauseWorkflowSpy).toHaveBeenCalled();
   });
 
@@ -127,7 +128,7 @@ describe('NavigationComponent', () => {
 
     (executeWorkFlowService as any).workflowExecutionID = 'MOCK_EXECUTION_ID';
 
-    component.onClickPauseResumeToggle();
+    component.onButtonClick();
     expect(resumeWorkflowSpy).toHaveBeenCalled();
   });
 
@@ -135,7 +136,7 @@ describe('NavigationComponent', () => {
     const pauseWorkflowSpy = spyOn(executeWorkFlowService, 'pauseWorkflow').and.callThrough();
     const resumeWorkflowSpy = spyOn(executeWorkFlowService, 'resumeWorkflow').and.callThrough();
 
-    component.onClickPauseResumeToggle();
+    component.onButtonClick();
     expect(pauseWorkflowSpy).toHaveBeenCalledTimes(0);
     expect(resumeWorkflowSpy).toHaveBeenCalledTimes(0);
   });
