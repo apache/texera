@@ -57,3 +57,34 @@
 ::ng-deep .mat-paginator-container {
   justify-content: flex-start !important;
 }
+
+// change the internal color of pretty json of the result details
+
+$type-colors: (
+  string: black,
+  number: #27837a,
+  boolean: #751866,
+  date: #10536d,
+
+  array: #999,
+  object: #999,
+  function: #999,
+
+  'null': #fff,
+  undefined: #fff
+);
+
+@each $type, $color in $type-colors {
+  ::ng-deep .segment-type-#{$type} > .segment-main > .segment-value {
+    color: $color !important;
+  }
+}
+
+::ng-deep .segment > .segment-main > .segment-key {
+  color : #BB1A1A !important;
+}
+
+::ng-deep .segment > .segment-main > .segment-value {
+  white-space: pre-line;
+}
+
