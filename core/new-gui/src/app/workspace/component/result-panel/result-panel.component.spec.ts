@@ -10,15 +10,19 @@ import { OperatorMetadataService } from './../../service/operator-metadata/opera
 import { StubOperatorMetadataService } from './../../service/operator-metadata/stub-operator-metadata.service';
 import { NgbModule, NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { marbles } from 'rxjs-marbles';
-import { mockExecutionResult, mockResultData,
-  mockExecutionErrorResult, mockExecutionEmptyResult } from '../../service/execute-workflow/mock-result-data';
+import {
+  mockExecutionResult, mockResultData,
+  mockExecutionErrorResult, mockExecutionEmptyResult
+} from '../../service/execute-workflow/mock-result-data';
 import { By } from '@angular/platform-browser';
 import { Observable } from 'rxjs/Observable';
 import { HttpClient } from '@angular/common/http';
 
+import { ResultPanelToggleService } from './../../service/result-panel-toggle/result-panel-toggle.service';
+
 
 class StubHttpClient {
-  constructor() {}
+  constructor() { }
 
   public post(): Observable<string> { return Observable.of('a'); }
 }
@@ -29,9 +33,11 @@ describe('ResultPanelComponent', () => {
   let executeWorkflowService: ExecuteWorkflowService;
   let ngbModel: NgbModal;
 
+  let resultPanelToggleService: ResultPanelToggleService;
+
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-      declarations: [ ResultPanelComponent ],
+      declarations: [ResultPanelComponent],
       imports: [
         NgbModule.forRoot(),
         CustomNgMaterialModule
@@ -40,17 +46,19 @@ describe('ResultPanelComponent', () => {
         WorkflowActionService,
         JointUIService,
         ExecuteWorkflowService,
+        ResultPanelToggleService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         { provide: HttpClient, useClass: StubHttpClient }
       ]
     })
-    .compileComponents();
+      .compileComponents();
   }));
 
   beforeEach(() => {
     fixture = TestBed.createComponent(ResultPanelComponent);
     component = fixture.componentInstance;
     executeWorkflowService = TestBed.get(ExecuteWorkflowService);
+    resultPanelToggleService = TestBed.get(ResultPanelToggleService);
     ngbModel = TestBed.get(NgbModal);
     fixture.detectChanges();
   });
@@ -83,7 +91,7 @@ describe('ResultPanelComponent', () => {
       m.hot(endMarbleString, endMarblevalues)
     );
 
-    const testComponent = new ResultPanelComponent(executeWorkflowService, ngbModel);
+    const testComponent = new ResultPanelComponent(executeWorkflowService, ngbModel, resultPanelToggleService);
 
     executeWorkflowService.getExecuteEndedStream().subscribe({
       complete: () => {
@@ -106,7 +114,7 @@ describe('ResultPanelComponent', () => {
       m.hot(endMarbleString, endMarbleValues)
     );
 
-    const testComponent = new ResultPanelComponent(executeWorkflowService, ngbModel);
+    const testComponent = new ResultPanelComponent(executeWorkflowService, ngbModel, resultPanelToggleService);
     executeWorkflowService.getExecuteEndedStream().subscribe({
       complete: () => {
         expect(testComponent.message).toEqual(`execution doesn't have any results`);
@@ -125,7 +133,7 @@ describe('ResultPanelComponent', () => {
 
     expect(() =>
       (component as any).displayResultTable(mockExecutionEmptyResult)
-    ).toThrowError( new RegExp(`result data should not be empty`));
+    ).toThrowError(new RegExp(`result data should not be empty`));
 
   });
 
@@ -139,10 +147,10 @@ describe('ResultPanelComponent', () => {
       m.hot(endMarbleString, endMarbleValues)
     );
 
-    const testComponent = new ResultPanelComponent(executeWorkflowService, ngbModel);
+    const testComponent = new ResultPanelComponent(executeWorkflowService, ngbModel, resultPanelToggleService);
 
     executeWorkflowService.getExecuteEndedStream().subscribe({
-      complete : () => {
+      complete: () => {
         expect(testComponent.showMessage).toBeTruthy();
         expect(testComponent.message.length).toBeGreaterThan(0);
       }
@@ -161,7 +169,7 @@ describe('ResultPanelComponent', () => {
       m.hot(endMarbleString, endMarblevalues)
     );
 
-    const testComponent = new ResultPanelComponent(executeWorkflowService, ngbModel);
+    const testComponent = new ResultPanelComponent(executeWorkflowService, ngbModel, resultPanelToggleService);
 
     executeWorkflowService.getExecuteEndedStream().subscribe({
       complete: () => {
@@ -189,6 +197,66 @@ describe('ResultPanelComponent', () => {
 
     const resultTable = fixture.debugElement.query(By.css('.result-table'));
     expect(resultTable).toBeTruthy();
+  });
+
+
+
+  it('should hide the result panel by default', () => {
+    const resultPanelDiv = fixture.debugElement.query(By.css('.texera-workspace-result-panel-body'));
+    const resultPanelHtmlElement: HTMLElement = resultPanelDiv.nativeElement;
+    expect(resultPanelHtmlElement.hasAttribute('hidden')).toBeTruthy();
+  });
+
+
+  it('should show the result panel if a workflow finishes execution', () => {
+
+    const httpClient: HttpClient = TestBed.get(HttpClient);
+    spyOn(httpClient, 'post').and.returnValue(
+      Observable.of(mockExecutionResult)
+    );
+    executeWorkflowService.executeWorkflow();
+    fixture.detectChanges();
+    const resultPanelDiv = fixture.debugElement.query(By.css('.texera-workspace-result-panel-body'));
+    const resultPanelHtmlElement: HTMLElement = resultPanelDiv.nativeElement;
+    expect(resultPanelHtmlElement.hasAttribute('hidden')).toBeFalsy();
+  });
+
+  it(`should show the result panel if the current status of the result panel is hidden and when the toggle is triggered`, () => {
+
+    const resultPanelDiv = fixture.debugElement.query(By.css('.texera-workspace-result-panel-body'));
+    const resultPanelHtmlElement: HTMLElement = resultPanelDiv.nativeElement;
+
+    expect(resultPanelHtmlElement.hasAttribute('hidden')).toBeTruthy();
+
+    const currentStatus = false;
+    resultPanelToggleService.toggleResultPanel(currentStatus);
+    fixture.detectChanges();
+
+    expect(resultPanelHtmlElement.hasAttribute('hidden')).toBeFalsy();
+
+  });
+
+  it(`should hide the result panel if the current status of the result panel is already
+      shown when the toggle is triggered`, () => {
+
+    const httpClient: HttpClient = TestBed.get(HttpClient);
+    spyOn(httpClient, 'post').and.returnValue(
+      Observable.of(mockExecutionResult)
+    );
+
+    const resultPanelDiv = fixture.debugElement.query(By.css('.texera-workspace-result-panel-body'));
+    const resultPanelHtmlElement: HTMLElement = resultPanelDiv.nativeElement;
+
+    executeWorkflowService.executeWorkflow();
+    fixture.detectChanges();
+    expect(resultPanelHtmlElement.hasAttribute('hidden')).toBeFalsy();
+
+    const currentStatus = true;
+    resultPanelToggleService.toggleResultPanel(currentStatus);
+    fixture.detectChanges();
+
+    expect(resultPanelHtmlElement.hasAttribute('hidden')).toBeTruthy();
+
   });
 
 });

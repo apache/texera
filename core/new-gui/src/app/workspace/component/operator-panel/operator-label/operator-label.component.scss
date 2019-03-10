@@ -9,3 +9,10 @@
         cursor: pointer;
     }
 }
+
+// sets the style for the popup tooltips, 
+// ::ng-deep is needed to force the style down to all the tooltip windows
+::ng-deep .tooltip-inner{
+    color: black;
+    background: lightgray;
+}

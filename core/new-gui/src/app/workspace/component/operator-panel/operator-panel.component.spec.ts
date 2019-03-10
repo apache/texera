@@ -4,6 +4,7 @@ import { By } from '@angular/platform-browser';
 import '../../../common/rxjs-operators';
 import { CustomNgMaterialModule } from '../../../common/custom-ng-material.module';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
+import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
 
 import { OperatorPanelComponent } from './operator-panel.component';
 import { OperatorLabelComponent } from './operator-label/operator-label.component';
@@ -39,7 +40,8 @@ describe('OperatorPanelComponent', () => {
         { provide: DragDropService, useClass: StubDragDropService},
         TourService
       ],
-      imports: [CustomNgMaterialModule, BrowserAnimationsModule, RouterTestingModule.withRoutes([]), TourNgBootstrapModule.forRoot()]
+      imports: [CustomNgMaterialModule, BrowserAnimationsModule,
+                RouterTestingModule.withRoutes([]), TourNgBootstrapModule.forRoot(), NgbModule.forRoot()]
     })
       .compileComponents();
   }));
@@ -87,10 +89,14 @@ describe('OperatorPanelComponent', () => {
 
     const result = c.getOperatorGroupMap(opMetadata);
 
+    const sourceOperators = opMetadata.operators.filter(op => op.additionalMetadata.operatorGroupName === 'Source');
+    const analysisOperators = opMetadata.operators.filter(op => op.additionalMetadata.operatorGroupName === 'Analysis');
+    const resultOperators = opMetadata.operators.filter(op => op.additionalMetadata.operatorGroupName === 'View Results');
+
     const expectedResult = new Map<string, OperatorSchema[]>();
-    expectedResult.set('Source', [opMetadata.operators[0]]);
-    expectedResult.set('Analysis', [opMetadata.operators[1]]);
-    expectedResult.set('View Results', [opMetadata.operators[2]]);
+    expectedResult.set('Source', sourceOperators);
+    expectedResult.set('Analysis', analysisOperators);
+    expectedResult.set('View Results', resultOperators);
 
     expect(result).toEqual(expectedResult);
 
