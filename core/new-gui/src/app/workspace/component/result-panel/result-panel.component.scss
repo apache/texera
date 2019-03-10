@@ -83,3 +83,8 @@ $type-colors: (
 ::ng-deep .segment > .segment-main > .segment-key {
   color : #BB1A1A !important;
 }
+
+::ng-deep .segment > .segment-main > .segment-value {
+  white-space: pre-line;
+}
+

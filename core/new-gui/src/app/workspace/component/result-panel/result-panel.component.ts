@@ -7,7 +7,7 @@ import { NgbModal, NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { ExecutionResult, SuccessExecutionResult } from './../../types/execute-workflow.interface';
 import { TableColumn, IndexableObject } from './../../types/result-table.interface';
 import { ResultPanelToggleService } from './../../service/result-panel-toggle/result-panel-toggle.service';
-import { clone, cloneDeep } from 'lodash-es';
+import deepMap from 'deep-map';
 
 /**
  * ResultPanelCompoent is the bottom level area that displays the
@@ -30,8 +30,8 @@ import { clone, cloneDeep } from 'lodash-es';
 })
 export class ResultPanelComponent {
 
-  private static readonly PRETTY_JSON_TEXT_LIMIT: number = 2000;
-  private static readonly TABLE_COLUMN_TEXT_LIMIT: number = 30;
+  private static readonly PRETTY_JSON_TEXT_LIMIT: number = 50000;
+  private static readonly TABLE_COLUMN_TEXT_LIMIT: number = 1000;
 
   public showMessage: boolean = false;
   public message: string = '';
@@ -66,10 +66,10 @@ export class ResultPanelComponent {
    */
   public open(rowData: object): void {
     // generate a new row data that shortens the column text to limit rendering time for pretty json
-    const rowDataCopy = ResultPanelComponent.mutateColumnData(rowData as IndexableObject);
+    const rowDataCopy = ResultPanelComponent.trimDisplayJsonData(rowData as IndexableObject);
 
     // open the modal component
-    const modalRef = this.modalService.open(NgbModalComponent);
+    const modalRef = this.modalService.open(NgbModalComponent, {size: 'lg'});
 
     // cast the instance type from `any` to NgbModalComponent
     const modalComponentInstance = modalRef.componentInstance as NgbModalComponent;
@@ -176,10 +176,16 @@ export class ResultPanelComponent {
     return columnNames.map(col => ({
       columnDef: col,
       header: col,
-      getCell: (row: IndexableObject) => `${row[col]}`.substring(0, ResultPanelComponent.TABLE_COLUMN_TEXT_LIMIT)
+      getCell: (row: IndexableObject) => this.trimTableCell(row[col].toString())
     }));
   }
 
+  private static trimTableCell(cellContent: string): string {
+    if (cellContent.length > this.TABLE_COLUMN_TEXT_LIMIT) {
+      return cellContent.substring(0, this.TABLE_COLUMN_TEXT_LIMIT);
+    }
+    return cellContent;
+  }
 
   /**
    * This method will recursively iterate through the content of the row data and shorten
@@ -190,30 +196,15 @@ export class ResultPanelComponent {
    *
    * @param rowData original row data returns from execution
    */
-  private static mutateColumnData(rowData: IndexableObject): object {
-    let rowDataCopy = cloneDeep(rowData);
-    Object.keys(rowDataCopy).forEach(column => {
-      const currentColumnData = rowDataCopy[column];
-      if (typeof currentColumnData === 'string') {
-        const columnString: string = currentColumnData;
-        // shorten the column text
-        const trimmedColumnData: string = columnString.length > ResultPanelComponent.PRETTY_JSON_TEXT_LIMIT
-          ? columnString.substring(0, ResultPanelComponent.PRETTY_JSON_TEXT_LIMIT) + '...' : columnString;
-
-        // update row data
-        rowDataCopy = { ...rowDataCopy, [column]: trimmedColumnData };
-      } else if (Array.isArray(currentColumnData)) {
-        const columnArray: Array<object> = currentColumnData;
-        columnArray.forEach(nestedColumn =>
-          // recursively call mutateColumnData on each object inside the array
-          rowDataCopy = { ...rowDataCopy, [column]: this.mutateColumnData(nestedColumn as IndexableObject) });
-      } else if (typeof currentColumnData === 'object') {
-        // recursively call mutateColumnData on the object type
-        rowDataCopy = { ...rowDataCopy, [column]: this.mutateColumnData(currentColumnData as IndexableObject)};
+  private static trimDisplayJsonData(rowData: IndexableObject): object {
+    const rowDataTrimmed = deepMap(rowData, value => {
+      if (typeof value === 'string' && value.length > this.PRETTY_JSON_TEXT_LIMIT) {
+        return value.substring(0, this.PRETTY_JSON_TEXT_LIMIT) + '...';
+      } else {
+        return value;
       }
     });
-
-    return rowDataCopy;
+    return rowDataTrimmed;
   }
 
 }
