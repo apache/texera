@@ -6,10 +6,5 @@
 import { AppEnv, defaultEnvironment } from './environment.default';
 
 export const environment: AppEnv = {
-  ...defaultEnvironment,
-  /**
-   * if we are in development mode (we use angular CLI development server at localhost:4200)
-   * we need to send request to localhost:8080 api endpoint
-   */
-  apiUrl: 'localhost:8080/api'
+  ...defaultEnvironment
 };
