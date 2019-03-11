@@ -1,8 +1,10 @@
 import { Component, OnInit, NgModule } from '@angular/core';
 import { ExecuteWorkflowService } from './../../service/execute-workflow/execute-workflow.service';
 import { TourService } from 'ngx-tour-ng-bootstrap';
-import { DragDropService } from './../../service/drag-drop/drag-drop.service';
 import { environment } from '../../../../environments/environment';
+import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
+import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-graph-wrapper';
+
 /**
  * NavigationComponent is the top level navigation bar that shows
  *  the Texera title and workflow execution button
@@ -26,9 +28,6 @@ import { environment } from '../../../../environments/environment';
 
 export class NavigationComponent implements OnInit {
 
-  // zoomDifference represents the ratio that is zoom in/out everytime.
-  public static readonly ZOOM_DIFFERENCE: number = 0.02;
-
   public isWorkflowRunning: boolean = false; // set this to true when the workflow is started
   public isWorkflowPaused: boolean = false; // this will be modified by clicking pause/resume while the workflow is running
 
@@ -38,8 +37,8 @@ export class NavigationComponent implements OnInit {
   // the newZoomRatio represents the ratio of the size of the the new window to the original one.
   private newZoomRatio: number = 1;
 
-  constructor(private dragDropService: DragDropService,
-    private executeWorkflowService: ExecuteWorkflowService, public tourService: TourService) {
+  constructor(private executeWorkflowService: ExecuteWorkflowService,
+    public tourService: TourService, private workflowActionService: WorkflowActionService) {
     // return the run button after the execution is finished, either
     //  when the value is valid or invalid
     executeWorkflowService.getExecuteEndedStream().subscribe(
@@ -58,16 +57,17 @@ export class NavigationComponent implements OnInit {
     // this will swap button between pause and resume
     executeWorkflowService.getExecutionPauseResumeStream()
       .subscribe(state => this.isWorkflowPaused = (state === 0));
-  }
 
-  ngOnInit() {
     /**
      * Get the new value from the mouse wheel zoom function.
      */
-    this.dragDropService.getWorkflowEditorZoomStream().subscribe(
-      newRatio => {
-          this.newZoomRatio = newRatio;
-    });
+    workflowActionService.getJointGraphWrapper().getWorkflowEditorZoomStream().subscribe(
+      newRatio => this.newZoomRatio = newRatio
+    );
+  }
+
+  ngOnInit() {
+
   }
 
   /**
@@ -137,12 +137,12 @@ export class NavigationComponent implements OnInit {
   */
   public onClickZoomIn(): void {
     // make the ratio small.
-    this.newZoomRatio += NavigationComponent.ZOOM_DIFFERENCE;
-    this.dragDropService.setZoomProperty(this.newZoomRatio);
+    this.workflowActionService.getJointGraphWrapper()
+      .setZoomProperty(this.newZoomRatio + JointGraphWrapper.ZOOM_DIFFERENCE);
   }
   public onClickZoomOut(): void {
     // make the ratio big.
-    this.newZoomRatio -= NavigationComponent.ZOOM_DIFFERENCE;
-    this.dragDropService.setZoomProperty(this.newZoomRatio);
+    this.workflowActionService.getJointGraphWrapper()
+      .setZoomProperty(this.newZoomRatio - JointGraphWrapper.ZOOM_DIFFERENCE);
   }
 }

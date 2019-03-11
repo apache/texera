@@ -83,8 +83,10 @@ describe('DragDropService', () => {
   }));
 
   it('should change the add an operator at correct position when the element is dropped', marbles((m) => {
-    dragDropService.setOffset({x: 100, y: 100});
-    dragDropService.setZoomProperty(0.1);
+    const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
+
+    workflowActionService.getJointGraphWrapper().setOffset({x: 100, y: 100});
+    workflowActionService.getJointGraphWrapper().setZoomProperty(0.1);
 
     const operatorType = mockOperatorMetaData.operators[0].operatorType;
     const marbleString = '-e-|';
@@ -96,7 +98,6 @@ describe('DragDropService', () => {
       m.hot(marbleString, marbleValues)
     );
 
-    const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
 
     dragDropService.handleOperatorDropEvent();
 
@@ -107,41 +108,5 @@ describe('DragDropService', () => {
         expect(currenOperatorPosition.x).toEqual(1000);
         expect(currenOperatorPosition.y).toEqual(1000);
       });
-
-
   }));
-
-  it('should successfully set a new drag offset', () => {
-    let currentDragOffset = (dragDropService as any).dragOffset;
-    expect(currentDragOffset.x).toEqual(0);
-    expect(currentDragOffset.y).toEqual(0);
-
-    dragDropService.setOffset({x: 100, y: 200});
-    currentDragOffset = (dragDropService as any).dragOffset;
-    expect(currentDragOffset.x).toEqual(100);
-    expect(currentDragOffset.y).toEqual(200);
-  });
-
-  it('should successfully set a new zoom property', () => {
-    const mockNewZoomProperty = 0.5;
-
-    let currentZoomRatio = (dragDropService as any).newZoomRatio;
-    expect(currentZoomRatio).toEqual(1);
-
-    dragDropService.setZoomProperty(mockNewZoomProperty);
-    currentZoomRatio = (dragDropService as any).newZoomRatio;
-    expect(currentZoomRatio).toEqual(mockNewZoomProperty);
-
-  });
-
-  it('should triggle getWorkflowEditorZoomStream when new zoom ratio is set', marbles((m) => {
-    const mockNewZoomProperty = 0.5;
-
-    m.hot('-e-').do(event => dragDropService.setZoomProperty(mockNewZoomProperty)).subscribe();
-    const zoomStream = dragDropService.getWorkflowEditorZoomStream().map(value => 'e');
-    const expectedStream = '-e-';
-
-    m.expect(zoomStream).toBeObservable(expectedStream);
-  }));
-
 });

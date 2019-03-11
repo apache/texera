@@ -5,7 +5,6 @@ import { WorkflowUtilService } from './../../service/workflow-graph/util/workflo
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { WorkflowEditorComponent } from './workflow-editor.component';
-import { NavigationComponent } from './../navigation/navigation.component';
 
 import { marbles } from 'rxjs-marbles';
 import { OperatorMetadataService } from '../../service/operator-metadata/operator-metadata.service';
@@ -226,7 +225,7 @@ describe('WorkflowEditorComponent', () => {
     });
 
     it('shoud detect changes of the zoom values when users slide the mouse wheel', marbles((m) => {
-      m.hot('-e-').do(event => component.getZoomRatio()).subscribe();
+      m.hot('-e-').do(event => (component as any).newZoomRatio).subscribe();
 
       // originZoonratio is the zoom ratio that will be loaded when user first open the web page.
       const originZoomRatio = 1;
@@ -234,7 +233,7 @@ describe('WorkflowEditorComponent', () => {
       // to justify if the zoom ratio is being changed or not.
       let ifZoomRatioChange = false;
 
-      dragDropService.getWorkflowEditorZoomStream().subscribe(
+      workflowActionService.getJointGraphWrapper().getWorkflowEditorZoomStream().subscribe(
         newRatio => {
           fixture.detectChanges();
           if (originZoomRatio !== newRatio) {

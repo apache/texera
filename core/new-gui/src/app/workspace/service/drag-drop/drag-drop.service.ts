@@ -7,6 +7,7 @@ import { Injectable } from '@angular/core';
 import { Subject } from 'rxjs/Subject';
 
 import * as joint from 'jointjs';
+import { JointGraphWrapper } from '../workflow-graph/model/joint-graph-wrapper';
 
 /**
  * The OperatorDragDropService class implements the behavior of dragging an operator label from the side bar
@@ -45,18 +46,11 @@ import * as joint from 'jointjs';
 export class DragDropService {
 
   private static readonly DRAG_DROP_TEMP_OPERATOR_TYPE = 'drag-drop-temp-operator-type';
-  // a subject that can restore the value passed from navigation.component.ts
-  private workflowEditorZoomSubject: Subject<number> = new Subject<number>();
-  // initially the zoom ratio is 1
-  private newZoomRatio: number = 1;
-  // dragOffset has two elements, first is the drag offset alongside x axis, second is the drag offset alongside y axis.
-  private dragOffset: Point = {x : 0,  y : 0};
+
   /** mapping of DOM Element ID to operatorType */
   private elementOperatorTypeMap = new Map<string, string>();
   /** the current operatorType of the operator being dragged */
   private currentOperatorType = DragDropService.DRAG_DROP_TEMP_OPERATOR_TYPE;
-
-
   /** Subject for operator dragging is started */
   private operatorDragStartedSubject = new Subject<{ operatorType: string }>();
 
@@ -89,8 +83,10 @@ export class DragDropService {
          */
 
         const newOperatorOffset: Point = {
-          x:  (value.offset.x - this.dragOffset.x) / this.newZoomRatio,
-          y: (value.offset.y - this.dragOffset.y) / this.newZoomRatio
+          x:  (value.offset.x - this.workflowActionService.getJointGraphWrapper().getOffset().x)
+              / this.workflowActionService.getJointGraphWrapper().getZoomRatio(),
+          y: (value.offset.y - this.workflowActionService.getJointGraphWrapper().getOffset().y)
+              / this.workflowActionService.getJointGraphWrapper().getZoomRatio()
         };
 
         // add the operator
@@ -113,13 +109,6 @@ export class DragDropService {
   }
 
   /**
-   * get subject from drag-and-drop service in order to get the zoom ratio value.
-   */
-  public getWorkflowEditorZoomStream(): Observable<number> {
-    return this.workflowEditorZoomSubject.asObservable();
-  }
-
-  /**
    * Gets an observable for operator is dropped on the main workflow editor event
    * Contains an object with:
    *  - operatorType - the type of the operator dropped
@@ -129,26 +118,6 @@ export class DragDropService {
     return this.operatorDroppedSubject.asObservable();
   }
 
-  /**
-   * This method will update the drag offset so that dropping
-   *  a new operator will appear at the correct location on the UI.
-   *
-   * @param offset new offset from panning
-   */
-  public setOffset(offset: Point) {
-    this.dragOffset = {x: offset.x, y: offset.y};
-  }
-
-  /**
-   * This method will update the zoom ratio, which will be used
-   *  in calculating the position of the operator dropped on the UI.
-   *
-   * @param ratio new ratio from zooming
-   */
-  public setZoomProperty(ratio: number) {
-      this.newZoomRatio = ratio;
-      this.workflowEditorZoomSubject.next(this.newZoomRatio);
-  }
 
   /**
    * This function is intended by be used by the operator labels to make the element draggable.
