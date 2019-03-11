@@ -11,6 +11,7 @@ import { marbles } from 'rxjs-marbles';
 import { OperatorMetadataService } from '../../service/operator-metadata/operator-metadata.service';
 import { StubOperatorMetadataService } from '../../service/operator-metadata/stub-operator-metadata.service';
 import { JointUIService } from '../../service/joint-ui/joint-ui.service';
+import { WorkflowGraph, WorkflowGraphReadonly } from '../../service/workflow-graph/model/workflow-graph';
 
 import * as joint from 'jointjs';
 import { mockScanPredicate, mockPoint } from '../../service/workflow-graph/model/mock-workflow-data';
@@ -20,6 +21,7 @@ class StubWorkflowActionService {
 
   private jointGraph = new joint.dia.Graph();
   private jointGraphWrapper = new JointGraphWrapper(this.jointGraph);
+  private readonly texeraGraph = new WorkflowGraph();
 
   public attachJointPaper(paperOptions: joint.dia.Paper.Options): joint.dia.Paper.Options {
     paperOptions.model = this.jointGraph;
@@ -28,6 +30,10 @@ class StubWorkflowActionService {
 
   public getJointGraphWrapper(): JointGraphWrapper {
     return this.jointGraphWrapper;
+  }
+
+  public getTexeraGraph(): WorkflowGraphReadonly {
+    return this.texeraGraph;
   }
 }
 
@@ -51,7 +57,7 @@ describe('WorkflowEditorComponent', () => {
           WorkflowUtilService,
           DragDropService,
           { provide: WorkflowActionService, useClass: StubWorkflowActionService },
-          { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+          { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
         ]
       })
         .compileComponents();
@@ -168,7 +174,7 @@ describe('WorkflowEditorComponent', () => {
       const jointCellView = component.getJointPaper().findViewByModel(mockScanPredicate.operatorID);
 
       // tirgger a click on the cell view using its jQuery element
-      jointCellView.$el.trigger('click');
+      jointCellView.$el.trigger('mousedown');
 
       fixture.detectChanges();
 

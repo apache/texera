@@ -11,23 +11,28 @@
     margin-right: 5px;
   }
 }
+
 .zoom-button:hover {
     cursor: pointer;
     color: gray;
 }
-.texera-navigation-body{
-  .texera-navigation-run-button {
-    margin-right: 3%;
-    .mat-raised-button {
-      height: 30px;
-    }
-    .texera-navigation-run-text {
-      font-size: 1rem;
-    }
-    .fa {
-      font-size: 1rem;
-      padding-right: 6px;
-    }
+
+.texera-navigation-run-text {
+  font-size: 1rem;
+}
+
+.texera-navigation-run-button {
+  margin-right: 3%;
+  background-color: #5081F3;
+  color: white;
+  &:hover {
+    background-color: #2E66E9;
+  }
+  .mat-raised-button {
+    height: 30px;
+  }
+  .fa {
+    padding-right: 6px;
   }
 }
 
@@ -35,7 +40,4 @@
   color: #F2F1F1;
   font-size: 10px;
 }
-
-
-
 

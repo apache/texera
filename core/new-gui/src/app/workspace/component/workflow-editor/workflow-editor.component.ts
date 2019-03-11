@@ -3,7 +3,7 @@ import { JointUIService } from './../../service/joint-ui/joint-ui.service';
 import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
 import { Component, AfterViewInit } from '@angular/core';
 import { Observable } from 'rxjs/Observable';
- 
+
 import '../../../common/rxjs-operators';
 import * as joint from 'jointjs';
 import { Point } from '../../types/workflow-common.interface';
@@ -195,9 +195,10 @@ export class WorkflowEditorComponent implements AfterViewInit {
   }
 
   private handleWindowResize(): void {
-    // when the window is resized (limit to at most one event every 1000ms)
-    Observable.fromEvent(window, 'resize').auditTime(1000).subscribe(
+    // when the window is resized (limit to at most one event every 30ms)
+    Observable.fromEvent(window, 'resize').auditTime(30).subscribe(
       () => {
+        console.log('resize');
         // reset the origin cooredinates
         this.setJointPaperOriginOffset();
         // resize the JointJS paper dimensions
@@ -217,7 +218,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
    */
   private handleHighlightMouseInput(): void {
     // on user mouse clicks a operator cell, highlight that operator
-    Observable.fromEvent<JointPaperEvent>(this.getJointPaper(), 'cell:pointerclick')
+    Observable.fromEvent<JointPaperEvent>(this.getJointPaper(), 'cell:pointerdown')
       .map(value => value[0])
       .filter(cellView => cellView.model.isElement())
       .subscribe(cellView => this.workflowActionService.getJointGraphWrapper().highlightOperator(cellView.model.id.toString()));
@@ -336,8 +337,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
     const jointPaperOptions: joint.dia.Paper.Options = {
 
-      // set grid size to 1px (smallest grid)
-      gridSize: 1,
       // enable jointjs feature that automatically snaps a link to the closest port with a radius of 30px
       snapLinks: { radius: 30 },
       // disable jointjs default action that can make a link not connect to an operator
@@ -354,6 +353,10 @@ export class WorkflowEditorComponent implements AfterViewInit {
       preventDefaultBlankAction: false,
       // disable jointjs default action that prevents normal right click menu showing up on jointjs paper
       preventContextMenu: false,
+      // draw dots in the background of the paper
+      drawGrid: {name: 'fixedDot', args: {color: 'black', scaleFactor: 8, thickness: 1.2 } },
+      // set grid size
+      gridSize: 2,
     };
 
     return jointPaperOptions;

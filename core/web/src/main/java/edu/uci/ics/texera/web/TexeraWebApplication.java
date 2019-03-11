@@ -32,7 +32,7 @@ public class TexeraWebApplication extends Application<TexeraWebConfiguration> {
     @Override
     public void initialize(Bootstrap<TexeraWebConfiguration> bootstrap) {
         // serve static frontend GUI files
-        bootstrap.addBundle(new FileAssetsBundle("./gui/", "/", "index.html"));
+        bootstrap.addBundle(new FileAssetsBundle("./new-gui/dist/", "/", "index.html"));
     }
 
     @Override
@@ -72,16 +72,7 @@ public class TexeraWebApplication extends Application<TexeraWebConfiguration> {
         // Configuring the object mapper used by Dropwizard
         environment.getObjectMapper().configure(MapperFeature.USE_GETTERS_AS_SETTERS, false);
         environment.getObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-
-        // Enable CORS headers
-        final FilterRegistration.Dynamic cors =
-                environment.servlets().addFilter("CORS", CrossOriginFilter.class);
-        // Configure CORS parameters
-        cors.setInitParameter("allowedOrigins", "*");
-        cors.setInitParameter("allowedHeaders", "X-Requested-With,Content-Type,Accept,Origin");
-        cors.setInitParameter("allowedMethods", "OPTIONS,GET,PUT,POST,DELETE,HEAD");
-        // Add URL mapping
-        cors.addMappingForUrlPatterns(EnumSet.allOf(DispatcherType.class), true, "/*");
+        
     }
 
     public static void main(String args[]) throws Exception {
