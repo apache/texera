@@ -251,11 +251,9 @@ export class PropertyEditorComponent {
   private handleOperatorPropertyChange(): void {
     this.workflowActionService.getTexeraGraph().getOperatorPropertyChangeStream()
       .filter(operatorChanged => operatorChanged.operator.operatorID === this.currentOperatorID)
+      .filter(operatorChanged => !isEqual(this.cachedFormData, operatorChanged.operator.operatorProperties))
       .subscribe(operatorChanged => {
-        if (!isEqual(this.cachedFormData, operatorChanged.operator.operatorProperties)) {
-          this.currentOperatorInitialData = cloneDeep(operatorChanged.operator.operatorProperties);
-        }
-
+        this.currentOperatorInitialData = cloneDeep(operatorChanged.operator.operatorProperties);
       });
   }
 
