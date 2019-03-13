@@ -103,7 +103,11 @@ export class WorkflowActionService {
     if (this.pointsUndo.has(operator.operatorID) === false) {
       this.pointsUndo.set(operator.operatorID, []);
       this.pointsPointer.set(operator.operatorID, 0);
-      this.pointsUndo.get(operator.operatorID).push(point);
+      const points = this.pointsUndo.get(operator.operatorID);
+      if (points) {
+        points.push(point);
+      }
+
     }
     // highlight operator
     this.jointGraphWrapper.unhighlightCurrent();
@@ -179,10 +183,14 @@ export class WorkflowActionService {
     // cast cell to Element
     const operatorCell = this.jointGraph.getCell(operatorID);
     if (operatorCell instanceof joint.dia.Element) { // just do a type check
-      if (this.pointsPointer.get(operatorID) > 0) {
-        const currentPoint = this.pointsUndo.get(operatorID)[this.pointsPointer.get(operatorID)];
-        this.pointsPointer.set(operatorID, this.pointsPointer.get(operatorID) - 1);
-        const previousPoint = this.pointsUndo.get(operatorID)[this.pointsPointer.get(operatorID)];
+      // MIGHT HAVE TO FIX THIS PART
+      let pointer = this.pointsPointer.get(operatorID);
+      const points = this.pointsUndo.get(operatorID);
+      if (points && pointer && pointer > 0) {
+        const currentPoint = points[pointer];
+       // this.pointsPointer.set(operatorID, pointer - 1);
+        pointer = pointer - 1;
+        const previousPoint = points[pointer];
         operatorCell.translate(previousPoint.x - currentPoint.x, previousPoint.y - currentPoint.y);
       }
       // next, figure out a way to store the the previous x, y coordinates
@@ -190,19 +198,19 @@ export class WorkflowActionService {
     } else {
       throw new Error(`Dragged cell is not an operator`);
     }
-    console.log('UNDO');
-    console.log(this.pointsPointer.get(operatorID));
-    console.log(this.pointsUndo.get(operatorID).length - 1);
   }
 
   // for redoing drag
   public redoDragOperator(operatorID: string) {
     const operatorCell = this.jointGraph.getCell(operatorID);
     if (operatorCell instanceof joint.dia.Element) { // just do a type check
-      if (this.pointsPointer.get(operatorID) >= 0 && this.pointsPointer.get(operatorID) < this.pointsUndo.get(operatorID).length - 1) {
-        const currentPoint = this.pointsUndo.get(operatorID)[this.pointsPointer.get(operatorID)];
-        this.pointsPointer.set(operatorID, this.pointsPointer.get(operatorID) + 1);
-        const newPoint = this.pointsUndo.get(operatorID)[this.pointsPointer.get(operatorID)];
+      let pointer = this.pointsPointer.get(operatorID);
+      const points = this.pointsUndo.get(operatorID);
+      if (pointer && points && pointer >= 0 && pointer < points.length - 1) {
+        const currentPoint = points[pointer];
+      //  this.pointsPointer.set(operatorID, this.pointsPointer.get(operatorID) + 1);
+        pointer = pointer + 1;
+        const newPoint = points[pointer];
         operatorCell.translate(newPoint.x - currentPoint.x, newPoint.y - currentPoint.y);
       }
       // next, figure out a way to store the the previous x, y coordinates
@@ -210,18 +218,17 @@ export class WorkflowActionService {
     } else {
       throw new Error(`Dragged cell is not an operator`);
     }
-    console.log('REDO');
-    console.log(this.pointsPointer.get(operatorID));
-    console.log(this.pointsUndo.get(operatorID).length - 1);
   }
 
   // TEMP FUNCTION
    public getPoint(operatorID: string): Point  {
-    if (this.pointsUndo.has(operatorID) === false) {
+    const points = this.pointsUndo.get(operatorID);
+    const pointer = this.pointsPointer.get(operatorID);
+    if (!points || !pointer) {
       throw new Error(`operator ID does not exist in graph`);
     }
-    const points = this.pointsUndo.get(operatorID);
-    return points[this.pointsPointer.get(operatorID)];
+
+    return points[pointer];
   }
 
 }

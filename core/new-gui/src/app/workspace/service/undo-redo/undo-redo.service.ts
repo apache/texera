@@ -128,13 +128,15 @@ export class UndoRedoService {
             workflowActionService.pointsPointer.set(String(value.id), workflowActionService.pointsUndo.get(String(value.id)).length - 1); */
             this.redos = [];
           }
-          if (workflowActionService.pointsPointer.get(String(value.id)) ===
-          workflowActionService.pointsUndo.get(String(value.id)).length - 1 && this.clearRedo) { // only want to expand when not redoing
+          let pointer = workflowActionService.pointsPointer.get(String(value.id));
+          const points = workflowActionService.pointsUndo.get(String(value.id));
+          if (pointer && points && pointer === points.length - 1 && this.clearRedo) { // only want to expand when not redoing
             // increment the pointer
             console.log('Expanding');
-            workflowActionService.pointsPointer.set(String(value.id), workflowActionService.pointsPointer.get(String(value.id)) + 1);
+            pointer = pointer + 1;
+            // workflowActionService.pointsPointer.set(String(value.id), workflowActionService.pointsPointer.get(String(value.id)) + 1);
             // add value to map
-            workflowActionService.pointsUndo.get(String(value.id)).push(value.attributes.position);
+            points.push(value.attributes.position);
           }
           this.undos.push(function() {workflowActionService.undoDragOperator(String(value.id)); });
         } else {
