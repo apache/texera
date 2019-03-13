@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { ExecuteWorkflowService } from './../../service/execute-workflow/execute-workflow.service';
 import { UndoRedoService } from './../../service/undo-redo/undo-redo.service';
 import { TourService } from 'ngx-tour-ng-bootstrap';
+import { environment } from '../../../../environments/environment';
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -32,9 +33,21 @@ export class NavigationComponent implements OnInit {
     // return the run button after the execution is finished, either
     //  when the value is valid or invalid
     executeWorkflowService.getExecuteEndedStream().subscribe(
-      () => this.isWorkflowRunning = false,
-      () => this.isWorkflowPaused = false
+      () => {
+        this.isWorkflowRunning = false;
+        this.isWorkflowPaused = false;
+      },
+      () => {
+        this.isWorkflowRunning = false;
+        this.isWorkflowPaused = false;
+      }
     );
+
+    // update the pause/resume button after a pause/resume request
+    //  is returned from the backend.
+    // this will swap button between pause and resume
+    executeWorkflowService.getExecutionPauseResumeStream()
+      .subscribe(state => this.isWorkflowPaused = (state === 0));
   }
 
   ngOnInit() {
@@ -45,19 +58,60 @@ export class NavigationComponent implements OnInit {
    *  also set the `isWorkflowRunning` variable to true to show that the backend
    *  is loading the workflow by displaying the pause/resume button.
    */
-  public onClickRun(): void {
-    // modifying the `running` and `isPaused` variables will display the pause button
-    this.isWorkflowRunning = true;
-    this.executeWorkflowService.executeWorkflow();
+  public onButtonClick(): void {
+    if (! environment.pauseResumeEnabled) {
+      if (! this.isWorkflowRunning) {
+        this.isWorkflowRunning = true;
+        this.executeWorkflowService.executeWorkflow();
+      }
+    } else {
+      if (!this.isWorkflowRunning && !this.isWorkflowPaused) {
+        this.isWorkflowRunning = true;
+        this.executeWorkflowService.executeWorkflow();
+      } else if (this.isWorkflowRunning && this.isWorkflowPaused) {
+        this.executeWorkflowService.resumeWorkflow();
+      } else if (this.isWorkflowRunning && !this.isWorkflowPaused) {
+        this.executeWorkflowService.pauseWorkflow();
+      } else {
+        throw new Error('internal error: workflow cannot be both running and paused');
+      }
+    }
   }
 
-  /**
-   * Pauses/resumes the current existing workflow on the JointJS paper. It will
-   * also swap the button between pause and resume whenever you click on it to show whether
-   * the backend is currently paused or not.
-   */
-  public onClickPauseResumeToggle(): void {
-    this.isWorkflowPaused = !this.isWorkflowPaused;
+  public getRunButtonText(): string {
+    if (! environment.pauseResumeEnabled) {
+      return 'Run';
+    } else {
+      if (!this.isWorkflowRunning && !this.isWorkflowPaused) {
+        return 'Run';
+      } else if (this.isWorkflowRunning && this.isWorkflowPaused) {
+        return 'Resume';
+      } else if (this.isWorkflowRunning && !this.isWorkflowPaused) {
+        return 'Pause';
+      } else {
+        throw new Error('internal error: workflow cannot be both running and paused');
+      }
+    }
+  }
+
+  public runSpinner(): boolean {
+    if (! environment.pauseResumeEnabled) {
+      if (this.isWorkflowRunning && !this.isWorkflowPaused) {
+        return true;
+      } else {
+        return false;
+      }
+    } else {
+      if (!this.isWorkflowRunning && !this.isWorkflowPaused) {
+        return false;
+      } else if (this.isWorkflowRunning && this.isWorkflowPaused) {
+        return false;
+      } else if (this.isWorkflowRunning && !this.isWorkflowPaused) {
+        return true;
+      } else {
+        throw new Error('internal error: workflow cannot be both running and paused');
+      }
+    }
   }
 
 }

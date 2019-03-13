@@ -1,11 +1,9 @@
 import { DragDropService } from './../../service/drag-drop/drag-drop.service';
-
 import { JointUIService } from './../../service/joint-ui/joint-ui.service';
 import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
 import { Component, AfterViewInit } from '@angular/core';
 import { Observable } from 'rxjs/Observable';
 import '../../../common/rxjs-operators';
-
 import * as joint from 'jointjs';
 
 // argument type of callback event on a JointJS Paper
@@ -82,9 +80,10 @@ export class WorkflowEditorComponent implements AfterViewInit {
   }
 
   private handleWindowResize(): void {
-    // when the window is resized (limit to at most one event every 1000ms)
-    Observable.fromEvent(window, 'resize').auditTime(1000).subscribe(
+    // when the window is resized (limit to at most one event every 30ms)
+    Observable.fromEvent(window, 'resize').auditTime(30).subscribe(
       () => {
+        console.log('resize');
         // reset the origin cooredinates
         this.setJointPaperOriginOffset();
         // resize the JointJS paper dimensions
@@ -104,7 +103,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
    */
   private handleHighlightMouseInput(): void {
     // on user mouse clicks a operator cell, highlight that operator
-    Observable.fromEvent<JointPaperEvent>(this.getJointPaper(), 'cell:pointerclick')
+    Observable.fromEvent<JointPaperEvent>(this.getJointPaper(), 'cell:pointerdown')
       .map(value => value[0])
       .filter(cellView => cellView.model.isElement())
       .subscribe(cellView => this.workflowActionService.getJointGraphWrapper().highlightOperator(cellView.model.id.toString()));

@@ -6,6 +6,8 @@ import { ExecuteWorkflowService } from './../../service/execute-workflow/execute
 import { NgbModal, NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { ExecutionResult, SuccessExecutionResult } from './../../types/execute-workflow.interface';
 import { TableColumn, IndexableObject } from './../../types/result-table.interface';
+import { ResultPanelToggleService } from './../../service/result-panel-toggle/result-panel-toggle.service';
+import deepMap from 'deep-map';
 
 /**
  * ResultPanelCompoent is the bottom level area that displays the
@@ -28,20 +30,30 @@ import { TableColumn, IndexableObject } from './../../types/result-table.interfa
 })
 export class ResultPanelComponent {
 
+  private static readonly PRETTY_JSON_TEXT_LIMIT: number = 50000;
+  private static readonly TABLE_COLUMN_TEXT_LIMIT: number = 1000;
+
   public showMessage: boolean = false;
   public message: string = '';
-
   public currentColumns: TableColumn[] | undefined;
   public currentDisplayColumns: string[] | undefined;
   public currentDataSource: MatTableDataSource<object> | undefined;
+  public showResultPanel: boolean | undefined;
 
   @ViewChild(MatPaginator) paginator: MatPaginator | null = null;
 
-  constructor(private executeWorkflowService: ExecuteWorkflowService, private modalService: NgbModal) {
+  constructor(private executeWorkflowService: ExecuteWorkflowService, private modalService: NgbModal,
+    private resultPanelToggleService: ResultPanelToggleService) {
+
+
     // once an execution has ended, update the result panel to dispaly
     //  execution result or error
     this.executeWorkflowService.getExecuteEndedStream().subscribe(
       executionResult => this.handleResultData(executionResult),
+    );
+
+    this.resultPanelToggleService.getToggleChangeStream().subscribe(
+      value => this.showResultPanel = value,
     );
   }
 
@@ -53,11 +65,17 @@ export class ResultPanelComponent {
    * @param rowData the object containing the data of the current row in columnDef and cellData pairs
    */
   public open(rowData: object): void {
-    const modalRef = this.modalService.open(NgbModalComponent);
+    // generate a new row data that shortens the column text to limit rendering time for pretty json
+    const rowDataCopy = ResultPanelComponent.trimDisplayJsonData(rowData as IndexableObject);
+
+    // open the modal component
+    const modalRef = this.modalService.open(NgbModalComponent, {size: 'lg'});
+
     // cast the instance type from `any` to NgbModalComponent
     const modalComponentInstance = modalRef.componentInstance as NgbModalComponent;
+
     // set the currentDisplayRowData of the modal to be the data of clicked row
-    modalComponentInstance.currentDisplayRowData = rowData;
+    modalComponentInstance.currentDisplayRowData = rowDataCopy;
   }
 
   /**
@@ -74,6 +92,10 @@ export class ResultPanelComponent {
    * @param response
    */
   private handleResultData(response: ExecutionResult): void {
+
+    // show resultPanel
+    this.resultPanelToggleService.openResultPanel();
+
     // backend returns error, display error message
     if (response.code === 1) {
       this.displayErrorMessage(response.message);
@@ -139,7 +161,7 @@ export class ResultPanelComponent {
     this.currentColumns = ResultPanelComponent.generateColumns(this.currentDisplayColumns);
 
     // create a new DataSource object based on the new result data
-    this.currentDataSource = new MatTableDataSource<object> (resultData);
+    this.currentDataSource = new MatTableDataSource<object>(resultData);
 
     // set the paginator to be the new DataSource's paginator
     this.currentDataSource.paginator = this.paginator;
@@ -154,9 +176,37 @@ export class ResultPanelComponent {
     return columnNames.map(col => ({
       columnDef: col,
       header: col,
-      getCell: (row: IndexableObject) => `${row[col]}`
+      getCell: (row: IndexableObject) => this.trimTableCell(row[col].toString())
     }));
   }
+
+  private static trimTableCell(cellContent: string): string {
+    if (cellContent.length > this.TABLE_COLUMN_TEXT_LIMIT) {
+      return cellContent.substring(0, this.TABLE_COLUMN_TEXT_LIMIT);
+    }
+    return cellContent;
+  }
+
+  /**
+   * This method will recursively iterate through the content of the row data and shorten
+   *  the column string if it exceeds a limit that will excessively slow down the rendering time
+   *  of the UI.
+   *
+   * This method will return a new copy of the row data that will be displayed on the UI.
+   *
+   * @param rowData original row data returns from execution
+   */
+  private static trimDisplayJsonData(rowData: IndexableObject): object {
+    const rowDataTrimmed = deepMap(rowData, value => {
+      if (typeof value === 'string' && value.length > this.PRETTY_JSON_TEXT_LIMIT) {
+        return value.substring(0, this.PRETTY_JSON_TEXT_LIMIT) + '...';
+      } else {
+        return value;
+      }
+    });
+    return rowDataTrimmed;
+  }
+
 }
 
 
@@ -189,7 +239,7 @@ export class NgbModalComponent {
   //  the pop-up modal.
   // it is used in the HTML template
 
-  constructor(public activeModal: NgbActiveModal) {}
+  constructor(public activeModal: NgbActiveModal) { }
 
 }
 
