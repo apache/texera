@@ -62,7 +62,8 @@ export class JointGraphWrapper {
   private jointCellUnhighlightStream = new Subject<operatorIDType>();
   // event stream of zooming the jointJs paper
   private workflowEditorZoomSubject: Subject<number> = new Subject<number>();
-
+  // event stream of restoring zoom / offset default of the jointJS paper
+  private restorePaperOffsetSubject: Subject<Point> = new Subject<Point>();
 
   // initially the zoom ratio is 1
   private newZoomRatio: number = 1;
@@ -199,13 +200,6 @@ export class JointGraphWrapper {
   }
 
   /**
-   * get subject from drag-and-drop service in order to get the zoom ratio value.
-   */
-  public getWorkflowEditorZoomStream(): Observable<number> {
-    return this.workflowEditorZoomSubject.asObservable();
-  }
-
-  /**
    * This method will update the drag offset so that dropping
    *  a new operator will appear at the correct location on the UI.
    *
@@ -226,12 +220,50 @@ export class JointGraphWrapper {
       this.workflowEditorZoomSubject.next(this.newZoomRatio);
   }
 
+  /**
+   * Returns an observable stream containing the new zoom ratio
+   *  for the jointJS paper.
+   */
+  public getWorkflowEditorZoomStream(): Observable<number> {
+    return this.workflowEditorZoomSubject.asObservable();
+  }
+
+  /**
+   * This method will fetch current offset of the paper. This will
+   *  be used in drag-and-drop.
+   */
   public getOffset(): Point {
     return this.dragOffset;
   }
 
+  /**
+   * This method will fetch current zoom ratio of the paper. This will
+   *  be used in drag-and-drop.
+   */
   public getZoomRatio(): number {
     return this.newZoomRatio;
+  }
+
+  /**
+   * This method will restore the default zoom ratio and offset for
+   *  the jointjs paper by sending an event to restorePaperSubject.
+   *
+   * Default zoom ratio  = 1
+   * Default drag offset = {x : 0, y : 0}
+   *
+   */
+  public resumeDefaultZoomAndOffset(): void {
+    this.setZoomProperty(1);
+    this.dragOffset = {x : 0, y: 0};
+    this.restorePaperOffsetSubject.next(this.dragOffset);
+  }
+
+  /**
+   * Returns an Observable stream capturing the event of restoring
+   *  default offset
+   */
+  public getRestorePaperOffsetStream(): Observable<Point> {
+    return this.restorePaperOffsetSubject.asObservable();
   }
 
   /**

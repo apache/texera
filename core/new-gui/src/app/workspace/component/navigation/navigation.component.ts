@@ -145,4 +145,11 @@ export class NavigationComponent implements OnInit {
     this.workflowActionService.getJointGraphWrapper()
       .setZoomProperty(this.newZoomRatio - JointGraphWrapper.ZOOM_DIFFERENCE);
   }
+
+  /**
+   * Restore paper default zoom ratio and paper offset
+   */
+  public onClickRestoreZoomOffsetDefaullt(): void {
+    this.workflowActionService.getJointGraphWrapper().resumeDefaultZoomAndOffset();
+  }
 }

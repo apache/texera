@@ -217,18 +217,25 @@ describe('NavigationComponent', () => {
 
   }));
 
-  it('should execute the zoom in function when we click on the Zoom In button', marbles((m) => {
+  it('should execute the zoom in function when the user click on the Zoom In button', marbles((m) => {
     m.hot('-e-').do(event => component.onClickZoomIn()).subscribe();
     const zoomEndStream = workflowActionService.getJointGraphWrapper().getWorkflowEditorZoomStream().map(value => 'e');
     const expectedStream = '-e-';
     m.expect(zoomEndStream).toBeObservable(expectedStream);
   }));
 
-  it('should execute the zoom out function when we click on the Zoom Out button', marbles((m) => {
+  it('should execute the zoom out function when the user click on the Zoom Out button', marbles((m) => {
     m.hot('-e-').do(event => component.onClickZoomOut()).subscribe();
     const zoomEndStream = workflowActionService.getJointGraphWrapper().getWorkflowEditorZoomStream().map(value => 'e');
     const expectedStream = '-e-';
     m.expect(zoomEndStream).toBeObservable(expectedStream);
+  }));
+
+  it('should execute restore default when the user click on restore button', marbles((m) => {
+    m.hot('-e-').do(event => component.onClickRestoreZoomOffsetDefaullt()).subscribe();
+    const restoreEndStream = workflowActionService.getJointGraphWrapper().getRestorePaperOffsetStream().map(value => 'e');
+    const expectStream = '-e-';
+    m.expect(restoreEndStream).toBeObservable(expectStream);
   }));
 
 });

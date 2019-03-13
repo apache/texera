@@ -339,6 +339,31 @@ describe('JointGraphWrapperService', () => {
     m.expect(zoomStream).toBeObservable(expectedStream);
   }));
 
+  it('should restore default zoom ratio and offset when resumeDefaultZoomAndOffset is called', () => {
+    const defaultOffset = {x: 0, y: 0};
+    const defaultRatio = 1;
+
+    const mockOffset = {x : 20, y : 20};
+    const mockRatio = 0.6;
+    jointGraphWrapper.setOffset(mockOffset);
+    jointGraphWrapper.setZoomProperty(mockRatio);
+    expect(jointGraphWrapper.getOffset().x).not.toEqual(defaultOffset.x);
+    expect(jointGraphWrapper.getOffset().y).not.toEqual(defaultOffset.y);
+    expect(jointGraphWrapper.getZoomRatio()).not.toEqual(defaultRatio);
+
+    jointGraphWrapper.resumeDefaultZoomAndOffset();
+    expect(jointGraphWrapper.getOffset().x).toEqual(defaultOffset.x);
+    expect(jointGraphWrapper.getOffset().y).toEqual(defaultOffset.y);
+    expect(jointGraphWrapper.getZoomRatio()).toEqual(defaultRatio);
+  });
+
+  it('should trigger getRestorePaperOffsetStream when resumeDefaultZoomAndOffset is called', marbles((m) => {
+    m.hot('-e-').do(() => jointGraphWrapper.resumeDefaultZoomAndOffset()).subscribe();
+    const restoreStream = jointGraphWrapper.getRestorePaperOffsetStream().map(value => 'e');
+    const expectedStream = '-e-';
+
+    m.expect(restoreStream).toBeObservable(expectedStream);
+  }));
 
 });
 

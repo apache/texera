@@ -72,6 +72,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
   ngAfterViewInit() {
     this.initializeJointPaper();
+    this.handlePaperRestoreDefaultOffset();
     this.handlePaperZoom();
     this.handleWindowResize();
     this.handleViewDeleteOperator();
@@ -95,44 +96,58 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.setJointPaperDimensions();
   }
 
-    /**
-     * Handles zoom events passed from navigation-component, which can be used to
-     *  make the jointJS paper larger or smaller.
-     */
-    private handlePaperZoom(): void {
-      this.workflowActionService.getJointGraphWrapper().getWorkflowEditorZoomStream().subscribe(newRatio => {
-        this.newZoomRatio = newRatio;
-        this.getJointPaper().scale(this.newZoomRatio, this.newZoomRatio);
+  /**
+   * Handles restore offset default event by translating jointJS paper
+   *  back to original position.
+   */
+  private handlePaperRestoreDefaultOffset(): void {
+    this.workflowActionService.getJointGraphWrapper().getRestorePaperOffsetStream()
+      .subscribe(newOffset => {
+        this.getJointPaper().translate(
+          (- this.getWrapperElementOffset().x + newOffset.x),
+          (- this.getWrapperElementOffset().y + newOffset.y)
+        );
       });
-    }
+  }
 
-    /**
-     * Handles zoom events when user slides the mouse wheel.
-     *
-     * The first filter will removes all the mousewheel events that are undefined
-     * The second filter will remove all the mousewheel events that are
-     *  from different components
-     *
-     * From the mousewheel event:
-     *  1. when delta Y is negative, the wheel is scrolling down, so
-     *      the jointJS paper will zoom in.
-     *  2. when delta Y is positive, the wheel is scrolling up, so the
-     *      jointJS paper will zoom out.
-     */
-    private handlePaperMouseZoom(): void {
-      Observable.fromEvent<WheelEvent>(document, 'mousewheel')
-        .filter(event => event !== undefined)
-        .filter(event => this.elementRef.nativeElement.contains(event.target))
-        .forEach(event => {
-          if (event.deltaY < 0) {
-            this.workflowActionService.getJointGraphWrapper()
-              .setZoomProperty(this.newZoomRatio - JointGraphWrapper.ZOOM_DIFFERENCE);
-          } else {
-            this.workflowActionService.getJointGraphWrapper()
-              .setZoomProperty(this.newZoomRatio + JointGraphWrapper.ZOOM_DIFFERENCE);
-          }
-        });
-    }
+  /**
+   * Handles zoom events passed from navigation-component, which can be used to
+   *  make the jointJS paper larger or smaller.
+   */
+  private handlePaperZoom(): void {
+    this.workflowActionService.getJointGraphWrapper().getWorkflowEditorZoomStream().subscribe(newRatio => {
+      this.newZoomRatio = newRatio;
+      this.getJointPaper().scale(this.newZoomRatio, this.newZoomRatio);
+    });
+  }
+
+  /**
+   * Handles zoom events when user slides the mouse wheel.
+   *
+   * The first filter will removes all the mousewheel events that are undefined
+   * The second filter will remove all the mousewheel events that are
+   *  from different components
+   *
+   * From the mousewheel event:
+   *  1. when delta Y is negative, the wheel is scrolling down, so
+   *      the jointJS paper will zoom in.
+   *  2. when delta Y is positive, the wheel is scrolling up, so the
+   *      jointJS paper will zoom out.
+   */
+  private handlePaperMouseZoom(): void {
+    Observable.fromEvent<WheelEvent>(document, 'mousewheel')
+      .filter(event => event !== undefined)
+      .filter(event => this.elementRef.nativeElement.contains(event.target))
+      .forEach(event => {
+        if (event.deltaY < 0) {
+          this.workflowActionService.getJointGraphWrapper()
+            .setZoomProperty(this.newZoomRatio - JointGraphWrapper.ZOOM_DIFFERENCE);
+        } else {
+          this.workflowActionService.getJointGraphWrapper()
+            .setZoomProperty(this.newZoomRatio + JointGraphWrapper.ZOOM_DIFFERENCE);
+        }
+      });
+  }
 
   /**
    * This method handles user mouse drag events to pan JointJS paper.

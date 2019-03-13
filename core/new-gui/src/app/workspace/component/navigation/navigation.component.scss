@@ -2,9 +2,11 @@
 .texera-navigation-body {
   height: 100%;
   width: 100%;
-  padding-left: 24px;
-  padding-right: 24px;
+  display: grid;
+  grid-template-columns: 14% 64% 22%;
+  grid-template-rows: 100%;
 }
+
 .button {
   display: inherit;
   .btn.btn-secondary {
@@ -12,9 +14,31 @@
   }
 }
 
+.texera-navigation-title {
+  grid-column-start: 1;
+  grid-column-end: 2;
+  grid-row-start: 1;
+  grid-row-end: 1;
+}
+
+.texera-navigation-utilities {
+  grid-column-start: 2;
+  grid-column-end: 3;
+  grid-row-start: 1;
+  grid-row-end: 1;
+}
+
+.texera-navigation-execute {
+  grid-column-start: 3;
+  grid-column-end: 4;
+  grid-row-start: 1;
+  grid-row-end: 1;
+  justify-self: end;
+}
+
 .zoom-button:hover {
-    cursor: pointer;
-    color: gray;
+  cursor: pointer;
+  color: gray;
 }
 
 .texera-navigation-run-text {
@@ -40,4 +64,3 @@
   color: #F2F1F1;
   font-size: 10px;
 }
-
