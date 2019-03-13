@@ -1,5 +1,6 @@
 import { Subject } from 'rxjs/Subject';
 import { Observable } from 'rxjs/Observable';
+import { debounceTime } from 'rxjs/operators';
 
 type operatorIDType = { operatorID: string };
 
@@ -64,6 +65,14 @@ export class JointGraphWrapper {
   private jointCellAddStream = Observable
     .fromEvent<JointModelEvent>(this.jointGraph, 'add')
     .map(value => value[0]);
+
+  /**
+   * This will capture all events in JointJS
+   *  involving the 'change position' operation
+   */
+  private jointCellDragStream = Observable
+      .fromEvent<JointModelEvent>(this.jointGraph, 'change:position')
+      .map(value => value[0]);
 
   /**
    * This will capture all events in JointJS
@@ -145,6 +154,16 @@ export class JointGraphWrapper {
   }
 
   /**
+   * Gets the event stream of an operator being dragged.
+   */
+  public getJointOperatorCellDragStream(): Observable<joint.dia.Element> {
+    const jointOperatorDragStream = this.jointCellDragStream
+      .filter(cell => cell.isElement())
+      .map(cell => <joint.dia.Element>cell);
+    return jointOperatorDragStream;
+  }
+
+  /**
    * Returns an Observable stream capturing the operator cell delete event in JointJS graph.
    */
   public getJointOperatorCellDeleteStream(): Observable<joint.dia.Element> {
@@ -153,6 +172,10 @@ export class JointGraphWrapper {
       .map(cell => <joint.dia.Element>cell);
     return jointOperatorDeleteStream;
   }
+
+  // Returns observable for the drag stream
+
+
 
   /**
    * Returns an Observable stream capturing the link cell add event in JointJS graph.
@@ -169,6 +192,7 @@ export class JointGraphWrapper {
 
     return jointLinkAddStream;
   }
+
 
   /**
    * Returns an Observable stream capturing the link cell delete event in JointJS graph.
@@ -201,6 +225,8 @@ export class JointGraphWrapper {
 
     return jointLinkChangeStream;
   }
+
+
 
 
   /**

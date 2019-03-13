@@ -6,6 +6,11 @@
             <i id="texera-undo-icon" class="fa fa-arrow-left" aria-hidden="true"></i>
           </span>
       </button>
+      <button class="btn btn-secondary texera-workspace-tour-run" (click)="undoRedo.redoAction()">
+          <span>
+            <i id="texera-undo-icon" class="fa fa-arrow-right" aria-hidden="true"></i>
+          </span>
+      </button>
       <button *ngIf="!isWorkflowRunning" mat-raised-button color="accent" class="texera-navigation-run-button" (click)="onClickRun()">
           <span class="texera-navigation-run-text">
               <i id="texera-run-icon" class="fa fa-play" aria-hidden="true"></i>

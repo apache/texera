@@ -2,6 +2,7 @@ import { ExecuteWorkflowService } from './../service/execute-workflow/execute-wo
 import { DragDropService } from './../service/drag-drop/drag-drop.service';
 import { WorkflowUtilService } from './../service/workflow-graph/util/workflow-util.service';
 import { WorkflowActionService } from './../service/workflow-graph/model/workflow-action.service';
+import { UndoRedoService } from './../service/undo-redo/undo-redo.service';
 import { Component, OnInit } from '@angular/core';
 
 import { OperatorMetadataService } from '../service/operator-metadata/operator-metadata.service';
@@ -21,7 +22,8 @@ import { StubOperatorMetadataService } from '../service/operator-metadata/stub-o
     WorkflowActionService,
     WorkflowUtilService,
     DragDropService,
-    ExecuteWorkflowService
+    ExecuteWorkflowService,
+    UndoRedoService
   ]
 })
 export class WorkspaceComponent implements OnInit {

@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { ExecuteWorkflowService } from './../../service/execute-workflow/execute-workflow.service';
+import { UndoRedoService } from './../../service/undo-redo/undo-redo.service';
 import { TourService } from 'ngx-tour-ng-bootstrap';
 
 /**
@@ -27,7 +28,7 @@ export class NavigationComponent implements OnInit {
   public isWorkflowRunning: boolean = false; // set this to true when the workflow is started
   public isWorkflowPaused: boolean = false; // this will be modified by clicking pause/resume while the workflow is running
 
-  constructor(private executeWorkflowService: ExecuteWorkflowService, public tourService: TourService) {
+  constructor(private executeWorkflowService: ExecuteWorkflowService, public tourService: TourService, public undoRedo: UndoRedoService) {
     // return the run button after the execution is finished, either
     //  when the value is valid or invalid
     executeWorkflowService.getExecuteEndedStream().subscribe(
