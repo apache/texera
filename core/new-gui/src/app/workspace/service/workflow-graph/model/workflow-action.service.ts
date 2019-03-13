@@ -186,15 +186,15 @@ export class WorkflowActionService {
       // MIGHT HAVE TO FIX THIS PART
       let pointer = this.pointsPointer.get(operatorID);
       const points = this.pointsUndo.get(operatorID);
-      if (points && pointer && pointer > 0) {
+      if ((pointer) && points && pointer > 0) {
         const currentPoint = points[pointer];
-       // this.pointsPointer.set(operatorID, pointer - 1);
+        console.log('WERE IN');
+        this.pointsPointer.set(operatorID, pointer - 1);
         pointer = pointer - 1;
         const previousPoint = points[pointer];
+        console.log(currentPoint, previousPoint);
         operatorCell.translate(previousPoint.x - currentPoint.x, previousPoint.y - currentPoint.y);
       }
-      // next, figure out a way to store the the previous x, y coordinates
-      // create two maps, one with x/y coordinates and another with a pointer
     } else {
       throw new Error(`Dragged cell is not an operator`);
     }
@@ -206,15 +206,14 @@ export class WorkflowActionService {
     if (operatorCell instanceof joint.dia.Element) { // just do a type check
       let pointer = this.pointsPointer.get(operatorID);
       const points = this.pointsUndo.get(operatorID);
-      if (pointer && points && pointer >= 0 && pointer < points.length - 1) {
+      if ((pointer || pointer === 0) && points && pointer >= 0 && pointer < points.length - 1) {
         const currentPoint = points[pointer];
-      //  this.pointsPointer.set(operatorID, this.pointsPointer.get(operatorID) + 1);
+        this.pointsPointer.set(operatorID, pointer + 1);
         pointer = pointer + 1;
         const newPoint = points[pointer];
+        console.log(currentPoint, newPoint);
         operatorCell.translate(newPoint.x - currentPoint.x, newPoint.y - currentPoint.y);
       }
-      // next, figure out a way to store the the previous x, y coordinates
-      // create two maps, one with x/y coordinates and another with a pointer
     } else {
       throw new Error(`Dragged cell is not an operator`);
     }
@@ -224,7 +223,7 @@ export class WorkflowActionService {
    public getPoint(operatorID: string): Point  {
     const points = this.pointsUndo.get(operatorID);
     const pointer = this.pointsPointer.get(operatorID);
-    if (!points || !pointer) {
+    if (!points || (!pointer && pointer !== 0)) {
       throw new Error(`operator ID does not exist in graph`);
     }
 

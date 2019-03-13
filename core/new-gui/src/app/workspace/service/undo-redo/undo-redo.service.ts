@@ -128,19 +128,19 @@ export class UndoRedoService {
             workflowActionService.pointsPointer.set(String(value.id), workflowActionService.pointsUndo.get(String(value.id)).length - 1); */
             this.redos = [];
           }
-          let pointer = workflowActionService.pointsPointer.get(String(value.id));
+          const pointer = workflowActionService.pointsPointer.get(String(value.id));
           const points = workflowActionService.pointsUndo.get(String(value.id));
-          if (pointer && points && pointer === points.length - 1 && this.clearRedo) { // only want to expand when not redoing
+          if ((pointer || pointer === 0) && points && pointer === points.length - 1 && this.clearRedo) {
             // increment the pointer
             console.log('Expanding');
-            pointer = pointer + 1;
-            // workflowActionService.pointsPointer.set(String(value.id), workflowActionService.pointsPointer.get(String(value.id)) + 1);
+            workflowActionService.pointsPointer.set(String(value.id), pointer + 1);
             // add value to map
             points.push(value.attributes.position);
           }
           this.undos.push(function() {workflowActionService.undoDragOperator(String(value.id)); });
         } else {
           // problem with redo
+          console.log('HELLO');
           this.redos.push(function() {workflowActionService.redoDragOperator(String(value.id)); });
         }
       }
