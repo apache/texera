@@ -129,13 +129,16 @@ export class UndoRedoService {
             this.redos = [];
           }
           const pointer = workflowActionService.pointsPointer.get(String(value.id));
-          const points = workflowActionService.pointsUndo.get(String(value.id));
-          if ((pointer || pointer === 0) && points && pointer === points.length - 1 && this.clearRedo) {
+          let points = workflowActionService.pointsUndo.get(String(value.id));
+          if ((pointer || pointer === 0) && points && this.clearRedo) {
             // increment the pointer
-            console.log('Expanding');
+            if (pointer !== points.length - 1) {
+              points = points.slice(0, pointer + 1);
+            }
             workflowActionService.pointsPointer.set(String(value.id), pointer + 1);
             // add value to map
             points.push(value.attributes.position);
+            workflowActionService.pointsUndo.set(String(value.id), points);
           }
           this.undos.push(function() {workflowActionService.undoDragOperator(String(value.id)); });
         } else {

@@ -188,11 +188,9 @@ export class WorkflowActionService {
       const points = this.pointsUndo.get(operatorID);
       if ((pointer) && points && pointer > 0) {
         const currentPoint = points[pointer];
-        console.log('WERE IN');
         this.pointsPointer.set(operatorID, pointer - 1);
         pointer = pointer - 1;
         const previousPoint = points[pointer];
-        console.log(currentPoint, previousPoint);
         operatorCell.translate(previousPoint.x - currentPoint.x, previousPoint.y - currentPoint.y);
       }
     } else {
@@ -211,7 +209,6 @@ export class WorkflowActionService {
         this.pointsPointer.set(operatorID, pointer + 1);
         pointer = pointer + 1;
         const newPoint = points[pointer];
-        console.log(currentPoint, newPoint);
         operatorCell.translate(newPoint.x - currentPoint.x, newPoint.y - currentPoint.y);
       }
     } else {
