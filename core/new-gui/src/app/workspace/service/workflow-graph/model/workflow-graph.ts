@@ -218,6 +218,28 @@ export class WorkflowGraph {
   }
 
   /**
+   * Sets the show advancedoption status of the operator.
+   *
+   * Throws an error if the operator doesn't exist.
+   * @param operatorID operator ID
+   * @param newShowAdvancedStatus indicates if necessary to show advancedOption
+   */
+  public setOperatorAdvanceStatus(operatorID: string, newShowAdvancedStatus: boolean): void {
+    const originalOperatorData = this.operatorIDMap.get(operatorID);
+    if (originalOperatorData === undefined) {
+      throw new Error(`operator with ID ${operatorID} doesn't exist`);
+    }
+
+    // constructor a new copy with new newShowAdvancedStatus and all other original attributes
+    const operator = {
+      ...originalOperatorData,
+      showAdvanced: newShowAdvancedStatus,
+    };
+    // set the new copy back to the operator ID map
+    this.operatorIDMap.set(operatorID, operator);
+  }
+
+  /**
    * Gets the observable event stream of an operator being added into the graph.
    */
   public getOperatorAddStream(): Observable<OperatorPredicate> {

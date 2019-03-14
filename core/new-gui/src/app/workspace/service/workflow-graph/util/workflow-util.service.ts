@@ -47,6 +47,7 @@ export class WorkflowUtilService {
 
     const inputPorts: string[] = [];
     const outputPorts: string[] = [];
+    const showAdvanced = false;
 
     for (let i = 0; i < operatorSchema.additionalMetadata.numInputPorts; i++) {
       inputPorts.push('input-' + i.toString());
@@ -56,7 +57,7 @@ export class WorkflowUtilService {
       outputPorts.push('output-' + i.toString());
     }
 
-    return { operatorID, operatorType, operatorProperties, inputPorts, outputPorts };
+    return { operatorID, operatorType, operatorProperties, inputPorts, outputPorts, showAdvanced};
 
   }
 

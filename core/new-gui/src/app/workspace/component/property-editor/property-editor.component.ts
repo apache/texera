@@ -15,6 +15,8 @@ import cloneDeep from 'lodash-es/cloneDeep';
 import isEqual from 'lodash-es/isEqual';
 import { forEach } from '@angular/router/src/utils/collection';
 import { CompileMetadataResolver } from '@angular/compiler';
+import { NoneComponent } from 'angular6-json-schema-form';
+import { JSONSchema4 } from 'json-schema';
 
 
 /**
@@ -60,7 +62,7 @@ export class PropertyEditorComponent {
 
   // the operator schemas of the current operator
   public currentOperatorSchema: OperatorSchema | undefined;
-  public tempOperatorSchema: OperatorSchema | undefined;
+  public advancedOperatorSchema: OperatorSchema | undefined;
 
   // used in HTML template to control if the form is displayed
   public displayForm: boolean = false;
@@ -108,15 +110,22 @@ export class PropertyEditorComponent {
    *hide the advancedOptions field
   */
   public hideshowAdvanced() {
-    this.showAdvanced = false;
-    this.currentOperatorSchema = this.hideAdvancedFormLayout(this.currentOperatorSchema);
+    if (this.currentOperatorID) {
+      this.showAdvanced = false;
+      this.workflowActionService.setOperatorAdvanceStatus(this.currentOperatorID, this.showAdvanced);
+      this.currentOperatorSchema = this.hideAdvancedSchema(this.currentOperatorSchema);
+    }
+
   }
   /**
    *show the advanced options by switching back to the original form layout
   */
   public onshowAdvanced() {
-    this.showAdvanced = true;
-    this.currentOperatorSchema = this.tempOperatorSchema;
+    if (this.currentOperatorID) {
+      this.showAdvanced = true;
+      this.workflowActionService.setOperatorAdvanceStatus(this.currentOperatorID, this.showAdvanced);
+      this.currentOperatorSchema = this.advancedOperatorSchema;
+    }
   }
   /**
    * Callback function provided to the Angular Json Schema Form library,
@@ -135,46 +144,59 @@ export class PropertyEditorComponent {
     // set displayForm to false in the very beginning
     // hide the view first and then make everything null
     this.displayForm = false;
-
     this.showAdvanced = false;
     this.currentOperatorID = undefined;
     this.currentOperatorInitialData = undefined;
     this.currentOperatorSchema = undefined;
-    this.tempOperatorSchema = undefined;
+    this.advancedOperatorSchema = undefined;
   }
 
   /**
-   * Hides the advanced option fields in the operator by deleting the field.
+   * Hides the advanced options in the operator.
+   * Generate the form with advanced options hidden.
    * @param operator
    */
-  public hideAdvancedFormLayout(operatorSchema: OperatorSchema | undefined): OperatorSchema {
+  public hideAdvancedSchema(operatorSchema: OperatorSchema | undefined): OperatorSchema {
     if (! operatorSchema) {
       throw new Error('Parameter operator schema is undefined');
     }
-    this.tempOperatorSchema = cloneDeep(this.currentOperatorSchema);
     if (! this.currentOperatorSchema) {
       throw new Error('Current operator schema is undefined');
     }
+    this.advancedOperatorSchema = cloneDeep(this.currentOperatorSchema);
     const advancedOptionsList = this.currentOperatorSchema.additionalMetadata.advancedOptions;
     if (! advancedOptionsList) {
       return this.currentOperatorSchema;
     }
     // make a deep clone of the operator schema and change its properties
-    const jsonSchemaToModify = cloneDeep(operatorSchema.jsonSchema);
-    advancedOptionsList.forEach(advancedOption => {
-      if (jsonSchemaToModify.properties && advancedOption in jsonSchemaToModify.properties) {
-        delete jsonSchemaToModify.properties[advancedOption];
-      }
-      // handles the scenario where the advanced option is also required
-      if (jsonSchemaToModify.required && jsonSchemaToModify.required.includes(advancedOption)) {
-          const index: number = jsonSchemaToModify.required.indexOf(advancedOption);
-          if (index !== -1) {
-          jsonSchemaToModify.required.splice(index, 1); }
+    const currentSchema = operatorSchema.jsonSchema;
+    let currentSchemaProperties = currentSchema.properties;
+    const currentSchemaRequired = cloneDeep(currentSchema.required);
+    advancedOptionsList.forEach(
+      advancedOption => {
+        if (currentSchemaProperties && advancedOption in currentSchemaProperties) {
+          const { [advancedOption] : [], ...newProperties} = currentSchemaProperties;
+          currentSchemaProperties = newProperties;
         }
-    });
+
+        if (currentSchemaRequired && currentSchemaRequired.includes(advancedOption)) {
+          const index = currentSchemaRequired.indexOf(advancedOption);
+          if (index !== -1) {
+            currentSchemaRequired.splice(index, 1);
+          }
+        }
+      }
+    );
+
+    const modifiedJsonSchema: JSONSchema4 = {
+      ...currentSchema,
+      properties: currentSchemaProperties,
+      required: currentSchemaRequired
+    };
+
     const newOperatorSchema: OperatorSchema = {
       ...operatorSchema,
-      jsonSchema: jsonSchemaToModify
+      jsonSchema: modifiedJsonSchema
     };
     return newOperatorSchema;
   }
@@ -194,12 +216,15 @@ export class PropertyEditorComponent {
     // set the operator data needed
     this.currentOperatorID = operator.operatorID;
     this.currentOperatorSchema = this.operatorSchemaList.find(schema => schema.operatorType === operator.operatorType);
+    this.showAdvanced = operator.showAdvanced;
+
     // only show the button if the operator has advanced options
     if (this.currentOperatorSchema && this.currentOperatorSchema.additionalMetadata.advancedOptions) {
       this.hasAdvanced = this.currentOperatorSchema.additionalMetadata.advancedOptions.length === 0 ? false : true;
       }
-    console.log(this.currentOperatorSchema);
-    this.currentOperatorSchema = this.hideAdvancedFormLayout(this.currentOperatorSchema);
+    if (!this.showAdvanced) {
+      this.currentOperatorSchema = this.hideAdvancedSchema(this.currentOperatorSchema);
+    }
     if (!this.currentOperatorSchema) {
       throw new Error(`operator schema for operator type ${operator.operatorType} doesn't exist`);
     }
@@ -293,7 +318,7 @@ export class PropertyEditorComponent {
   private static generateFormLayout(): object {
     return [
       '*',
-      { type: 'submit', condition: 'false' },
+      { type: 'submit', condition: 'false' }
     ];
   }
 }

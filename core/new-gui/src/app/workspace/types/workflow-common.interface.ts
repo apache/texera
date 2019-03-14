@@ -19,6 +19,7 @@ export interface OperatorPredicate extends Readonly<{
   operatorProperties: Readonly<object>;
   inputPorts: string[];
   outputPorts: string[];
+  showAdvanced: boolean;
 }> { }
 
 export interface OperatorLink extends Readonly<{
