@@ -10,6 +10,9 @@ import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
 import { RouterModule } from '@angular/router';
 import { TourNgBootstrapModule } from 'ngx-tour-ng-bootstrap';
 
+//import { MatDialogModule } from '@angular/material'; //
+//import { MatIconModule } from '@angular/material/icon'; //
+//import { MatChipsModule } from '@angular/material/chips'; //
 
 import { MaterialDesignFrameworkModule } from 'angular6-json-schema-form';
 
@@ -30,27 +33,29 @@ import { TopBarComponent } from './dashboard/component/top-bar/top-bar.component
 import { UserAccountIconComponent } from './dashboard/component/top-bar/user-account-icon/user-account-icon.component';
 import { FeatureBarComponent } from './dashboard/component/feature-bar/feature-bar.component';
 import { FeatureContainerComponent } from './dashboard/component/feature-container/feature-container.component';
-import { SavedProjectSectionComponent} from './dashboard/component/feature-container/saved-project-section/saved-project-section.component';
+import {
+  SavedProjectSectionComponent
+} from './dashboard/component/feature-container/saved-project-section/saved-project-section.component';
 import {
   NgbdModalAddProjectComponent
-  } from './dashboard/component/feature-container/saved-project-section/ngbd-modal-add-project/ngbd-modal-add-project.component';
+} from './dashboard/component/feature-container/saved-project-section/ngbd-modal-add-project/ngbd-modal-add-project.component';
 import {
   NgbdModalDeleteProjectComponent
-  } from './dashboard/component/feature-container/saved-project-section/ngbd-modal-delete-project/ngbd-modal-delete-project.component';
+} from './dashboard/component/feature-container/saved-project-section/ngbd-modal-delete-project/ngbd-modal-delete-project.component';
 
 import { RunningJobSectionComponent } from './dashboard/component/feature-container/running-job-section/running-job-section.component';
 import {
   UserDictionarySectionComponent
-  } from './dashboard/component/feature-container/user-dictionary-section/user-dictionary-section.component';
+} from './dashboard/component/feature-container/user-dictionary-section/user-dictionary-section.component';
 import {
   NgbdModalResourceViewComponent
-  } from './dashboard/component/feature-container/user-dictionary-section/ngbd-modal-resource-view/ngbd-modal-resource-view.component';
+} from './dashboard/component/feature-container/user-dictionary-section/ngbd-modal-resource-view/ngbd-modal-resource-view.component';
 import {
   NgbdModalResourceAddComponent
-  } from './dashboard/component/feature-container/user-dictionary-section/ngbd-modal-resource-add/ngbd-modal-resource-add.component';
+} from './dashboard/component/feature-container/user-dictionary-section/ngbd-modal-resource-add/ngbd-modal-resource-add.component';
 import {
   NgbdModalResourceDeleteComponent
-  } from './dashboard/component/feature-container/user-dictionary-section/ngbd-modal-resource-delete/ngbd-modal-resource-delete.component';
+} from './dashboard/component/feature-container/user-dictionary-section/ngbd-modal-resource-delete/ngbd-modal-resource-delete.component';
 
 import { ResourceSectionComponent } from './dashboard/component/feature-container/resource-section/resource-section.component';
 
@@ -94,6 +99,10 @@ import { ResourceSectionComponent } from './dashboard/component/feature-containe
     AppRoutingModule,
     HttpClientModule,
 
+    // MatDialogModule, //
+    //MatChipsModule, //
+    //MatIconModule, //
+
     CustomNgMaterialModule,
     BrowserAnimationsModule,
     NgbModule.forRoot(),
@@ -111,7 +120,7 @@ import { ResourceSectionComponent } from './dashboard/component/feature-containe
     NgbdModalResourceDeleteComponent,
     NgbModalComponent
   ],
-  providers: [ HttpClientModule ],
+  providers: [HttpClientModule],
   bootstrap: [AppComponent],
   // dynamically created component must be placed in the entryComponents attribute
 })

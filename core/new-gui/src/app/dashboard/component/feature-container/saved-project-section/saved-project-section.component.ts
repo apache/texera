@@ -1,6 +1,5 @@
 import { Component, OnInit, Input, Output, EventEmitter } from '@angular/core';
 import { NgbModal, NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
-import { MatDialog, MAT_DIALOG_DATA, MatDialogRef } from '@angular/material';
 
 import { Observable } from 'rxjs/Observable';
 import { SavedProject } from '../../../type/saved-project';
@@ -23,7 +22,7 @@ export class SavedProjectSectionComponent implements OnInit {
 
   public projects: SavedProject[] = [];
 
-  private defaultWeb: String = 'http://localhost:4200/';
+  public defaultWeb: String = 'http://localhost:4200/';
 
   constructor(
     private savedProjectService: SavedProjectService,

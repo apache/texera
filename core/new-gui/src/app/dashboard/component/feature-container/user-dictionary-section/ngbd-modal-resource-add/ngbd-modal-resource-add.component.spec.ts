@@ -1,14 +1,36 @@
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 
+import {MatDividerModule} from '@angular/material/divider';
+import {MatDialogModule} from '@angular/material/dialog';
+import {MatFormFieldModule} from '@angular/material/form-field';
+
+import { NgbModule, NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
+import { FormsModule } from '@angular/forms';
+
+import { HttpClientModule } from '@angular/common/http';
 import { NgbdModalResourceAddComponent } from './ngbd-modal-resource-add.component';
+
+import { UserDictionary } from '../../../../type/user-dictionary';
 
 describe('NgbdModalResourceAddComponent', () => {
   let component: NgbdModalResourceAddComponent;
   let fixture: ComponentFixture<NgbdModalResourceAddComponent>;
 
+  let addcomponent: NgbdModalResourceAddComponent;
+  let addfixture: ComponentFixture<NgbdModalResourceAddComponent>;
+
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-      declarations: [ NgbdModalResourceAddComponent ]
+      declarations: [ NgbdModalResourceAddComponent ],
+      providers: [
+        NgbActiveModal
+      ],
+      imports: [MatDividerModule,
+        MatFormFieldModule,
+        MatDialogModule,
+        NgbModule.forRoot(),
+        FormsModule,
+        HttpClientModule]
     })
     .compileComponents();
   }));
@@ -16,10 +38,27 @@ describe('NgbdModalResourceAddComponent', () => {
   beforeEach(() => {
     fixture = TestBed.createComponent(NgbdModalResourceAddComponent);
     component = fixture.componentInstance;
-    fixture.detectChanges();
+    // fixture.detectChanges();
   });
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  it('resourceAddComponent addKey should add a new dictionary', () => {
+    addfixture = TestBed.createComponent(NgbdModalResourceAddComponent);
+    addcomponent = addfixture.componentInstance;
+
+    let getResultDict = <UserDictionary>{};
+
+    addcomponent.dictContent = 'key1,key2,key3';
+    addcomponent.name = 'test';
+    addcomponent.separator = ',';
+    addcomponent.addedDictionary.subscribe((outd: any) => getResultDict = outd);
+    addcomponent.addKey();
+
+    expect(getResultDict.id).toEqual('1');
+    expect(getResultDict.name).toEqual('test');
+    expect(getResultDict.items).toEqual(['key1', 'key2', 'key3']);
   });
 });

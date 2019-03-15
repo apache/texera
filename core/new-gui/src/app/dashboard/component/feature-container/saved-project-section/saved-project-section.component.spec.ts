@@ -1,8 +1,6 @@
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { SavedProjectSectionComponent} from './saved-project-section.component';
-import { NgbdModalAddProjectComponent} from './ngbd-modal-add-project/ngbd-modal-add-project.component';
-import { NgbdModalDeleteProjectComponent } from './ngbd-modal-delete-project/ngbd-modal-delete-project.component';
 
 import { SavedProjectService } from '../../../service/saved-project/saved-project.service';
 import { StubSavedProjectService } from '../../../service/saved-project/stub-saved-project.service';
@@ -22,12 +20,6 @@ import { HttpClientModule } from '@angular/common/http';
 describe('SavedProjectSectionComponent', () => {
   let component: SavedProjectSectionComponent;
   let fixture: ComponentFixture<SavedProjectSectionComponent>;
-
-  let addcomponent: NgbdModalAddProjectComponent;
-  let addfixture: ComponentFixture<NgbdModalAddProjectComponent>;
-
-  let deletecomponent: NgbdModalDeleteProjectComponent;
-  let deletefixture: ComponentFixture<NgbdModalDeleteProjectComponent>;
 
   const TestCase: SavedProject[] = [
     {
@@ -64,9 +56,7 @@ describe('SavedProjectSectionComponent', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-      declarations: [ SavedProjectSectionComponent,
-        NgbdModalAddProjectComponent,
-        NgbdModalDeleteProjectComponent ],
+      declarations: [ SavedProjectSectionComponent],
       providers: [
         { provide: SavedProjectService, useClass: StubSavedProjectService },
         NgbActiveModal
@@ -126,36 +116,6 @@ describe('SavedProjectSectionComponent', () => {
     const SortedCase = component.projects.map(item => item.lastModifiedTime);
     expect(SortedCase)
       .toEqual(['2018-01-22T17:26:50Z', '2018-01-17T06:26:50Z', '2018-01-17T06:26:50Z', '2018-01-14T22:56:50Z', '2018-01-14T22:56:50Z']);
-  });
-
-  it('addProjectComponent addProject should add new project', () => {
-    addfixture = TestBed.createComponent(NgbdModalAddProjectComponent);
-    addcomponent = addfixture.componentInstance;
-    addfixture.detectChanges();
-
-    let getResult: String = '';
-    addcomponent.name = 'test';
-    addcomponent.newProject.subscribe((out: any) => getResult = out);
-    addcomponent.addProject();
-
-    expect(getResult).toEqual('test');
-  });
-
-  it('deleteProjectComponent deleteSavedProject should delete project in list', () => {
-    deletefixture = TestBed.createComponent(NgbdModalDeleteProjectComponent);
-    deletecomponent = deletefixture.componentInstance;
-
-    let getBool: Boolean = false;
-    deletecomponent.project = {
-      id: '4',
-      name: 'project 1',
-      creationTime: '2017-10-25T12:34:50Z',
-      lastModifiedTime: '2018-01-17T06:26:50Z',
-    };
-    deletecomponent.deleteProject.subscribe((outb: any) => getBool = outb);
-    deletecomponent.deleteSavedProject();
-
-    expect(getBool).toEqual(true);
   });
 
 });
