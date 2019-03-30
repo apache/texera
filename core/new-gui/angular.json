@@ -58,7 +58,8 @@
         "serve": {
           "builder": "@angular-devkit/build-angular:dev-server",
           "options": {
-            "browserTarget": "texera-gui:build"
+            "browserTarget": "texera-gui:build",
+            "proxyConfig": "proxy.config.json"
           },
           "configurations": {
             "production": {

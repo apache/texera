@@ -5,11 +5,12 @@ import * as joint from 'jointjs';
 import { ResultPanelToggleService } from '../../service/result-panel-toggle/result-panel-toggle.service';
 
 /**
- * MiniMapComponent is the componenet for the mini map part of the UI.
+ * MiniMapComponent is the componenet that contains the mini-map of the workflow editor component.
+ *  This component is used for navigating on the workflow editor paper.
  *
  * The mini map component is bound to a JointJS Paper. The mini map's paper uses the same graph/model
- * as the main workflow (WorkflowEditorComponent's model), making it so that the map will always have
- * the same operators and links as the main workflow.
+ *  as the main workflow (WorkflowEditorComponent's model), making it so that the map will always have
+ *  the same operators and links as the main workflow.
  *
  * @author Cynthia Wang
  */
@@ -32,7 +33,7 @@ export class MiniMapComponent implements OnInit {
     private resultPanelToggleService: ResultPanelToggleService) { }
 
   ngOnInit() {
-    this.initializeGraph();
+    this.handleMiniMapInitialize();
     this.handleWindowResize();
   }
 
@@ -45,17 +46,26 @@ export class MiniMapComponent implements OnInit {
 
   /**
    * Gets the WorkflowEditorComponent's paper from MiniMapService,
-   * and calls initializeMapPaper() to set initialize the mapPaper
+   *  and calls initializeMapPaper() to set initialize the mapPaper
    */
-  private initializeGraph(): void {
-    this.miniMapService.getMiniMapInitializeStream().subscribe( paper => {
-      this.initializeMapPaper(paper);
-    } );
+
+  /**
+   * This function handles the initialization of the mini-map paper. It will
+   *  listen to an event that notifies the initialization of the original jointJS paper,
+   *  then get the same paper to initialize the mini-map used for navigation on workflow
+   *  editor.
+   */
+  private handleMiniMapInitialize(): void {
+    this.miniMapService.getMiniMapInitializeStream().subscribe( paper =>
+      this.initializeMapPaper(paper)
+    );
   }
 
   /**
-   * Function is used by initializeGraph() and it sets the mapPaper's
-   * properties.
+   * This function is used to initialize the minimap paper by passing
+   *  the same paper from the workspace editor.
+   *
+   * @param workflowPaper original JointJS paper from workspace editor
    */
   private initializeMapPaper(workflowPaper: joint.dia.Paper): void {
     if (workflowPaper === undefined) {
@@ -78,16 +88,12 @@ export class MiniMapComponent implements OnInit {
   }
 
   /**
-   * When window is resized, reset map's dimensions
+   * When window is resized, reset mini-map's dimensions (introduce
+   *  a delay to limit only one event every 30ms)
    */
   private handleWindowResize(): void {
-    Observable.merge(
-      Observable.fromEvent(window, 'resize').auditTime(1000),
-      this.resultPanelToggleService.getToggleChangeStream().debounceTime(50)
-      ).subscribe(
-      () => {
-        this.setMapPaperDimensions();
-      }
+    Observable.fromEvent(window, 'resize').auditTime(30).subscribe(
+      () => this.setMapPaperDimensions()
     );
   }
 

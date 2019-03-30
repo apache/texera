@@ -89,11 +89,20 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.setJointPaperDimensions();
   }
 
+  /**
+   * This is the handler for window resize event
+   * When the window is resized, trigger an event to set papaer offset and dimension
+   *  and limit the event to at most one every 30ms.
+   *
+   * When user open the result panel and resize, the paper will resize to the size relative
+   *  to the result panel, therefore we also need to listen to the event from opening
+   *  and closing of the result panel.
+   */
   private handleWindowResize(): void {
-    // when the window is resized (limit to at most one event every 1000ms)
+    // when the window is resized (limit to at most one event every 30ms).
     Observable.merge(
-      Observable.fromEvent(window, 'resize').auditTime(1000),
-      this.resultPanelToggleService.getToggleChangeStream().debounceTime(50)
+      Observable.fromEvent(window, 'resize').auditTime(30),
+      this.resultPanelToggleService.getToggleChangeStream().auditTime(30)
       ).subscribe(
       () => {
         // reset the origin cooredinates
@@ -116,7 +125,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
    */
   private handleHighlightMouseInput(): void {
     // on user mouse clicks a operator cell, highlight that operator
-    Observable.fromEvent<JointPaperEvent>(this.getJointPaper(), 'cell:pointerclick')
+    Observable.fromEvent<JointPaperEvent>(this.getJointPaper(), 'cell:pointerdown')
       .map(value => value[0])
       .filter(cellView => cellView.model.isElement())
       .subscribe(cellView => this.workflowActionService.getJointGraphWrapper().highlightOperator(cellView.model.id.toString()));

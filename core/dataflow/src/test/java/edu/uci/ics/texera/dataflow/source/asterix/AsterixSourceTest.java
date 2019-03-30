@@ -10,7 +10,7 @@ public class AsterixSourceTest {
 	
     public static void test1() {
         AsterixSourcePredicate predicate = new AsterixSourcePredicate(
-                "localhost", 19002, "twitter", "ds_tweet", "text", "zika", "2000-01-01", "2017-05-18", 2);
+                "asterixJsonResult", "localhost", 19002, "twitter", "ds_tweet", "text", "zika", "2000-01-01", "2017-05-18", 2);
         AsterixSource asterixSource = predicate.newOperator();
         
         asterixSource.open();

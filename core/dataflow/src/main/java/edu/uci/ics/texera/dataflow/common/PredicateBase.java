@@ -40,7 +40,7 @@ import edu.uci.ics.texera.dataflow.sink.tuple.TupleSinkPredicate;
 import edu.uci.ics.texera.dataflow.source.asterix.AsterixSourcePredicate;
 import edu.uci.ics.texera.dataflow.source.file.FileSourcePredicate;
 import edu.uci.ics.texera.dataflow.source.scan.ScanSourcePredicate;
-import edu.uci.ics.texera.dataflow.twitter.TwitterConverterPredicate;
+import edu.uci.ics.texera.dataflow.twitter.TwitterJsonConverterPredicate;
 import edu.uci.ics.texera.dataflow.wordcount.WordCountIndexSourcePredicate;
 import edu.uci.ics.texera.dataflow.wordcount.WordCountOperatorPredicate;
 
@@ -88,7 +88,7 @@ import edu.uci.ics.texera.dataflow.wordcount.WordCountOperatorPredicate;
          @Type(value = ComparablePredicate.class, name = "Comparison"),
         
         @Type(value = AsterixSourcePredicate.class, name = "AsterixSource"),        
-        @Type(value = TwitterConverterPredicate.class, name = "TwitterConverter"),
+        @Type(value = TwitterJsonConverterPredicate.class, name = "TwitterJsonConverter"),
         
         @Type(value = ScanSourcePredicate.class, name = "ScanSource"),
         @Type(value = FileSourcePredicate.class, name = "FileSource"),        
