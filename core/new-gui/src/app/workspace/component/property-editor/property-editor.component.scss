@@ -4,3 +4,51 @@
   padding: 16px;
   padding-right: 24px;
 }
+
+
+.mat-icon-button {
+  width: 10%;
+  height: 20%;
+  line-height: 0%;
+  float: left;
+}
+
+ .container {
+  height:100%;
+  text-align: left;
+  padding: 0px;
+}
+
+
+ // sets the style for the popup tooltips,
+// ::ng-deep is needed to force the style down to all the tooltip windows
+.texera-workspace-property-editor-body ::ng-deep .tooltip-inner{
+  // color: black;
+  // background: white;
+  max-width : 500px;
+  width: 400px;
+  // border: 5px solid black;
+  padding: 0px;
+}
+
+ .texera-workspace-property-editor-body ::ng-deep .tooltip {
+  height: 35%;
+  overflow: auto;
+  border: 1px solid black;
+  padding: 0px;
+  border-radius: 4px;
+  background-color: grey;
+  opacity: 1;
+}
+
+ .texera-workspace-property-editor-body ::ng-deep .property-detail-title {
+  background-color : grey;
+  color: white;
+  padding: 5px;
+}
+
+ .texera-workspace-property-editor-body ::ng-deep .property-detail-description {
+  background-color : white;
+  color: black;
+  padding: 5px;
+}

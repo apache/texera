@@ -13,14 +13,17 @@ import { JointUIService } from './../../service/joint-ui/joint-ui.service';
 
 import { mockScanSourceSchema, mockViewResultsSchema } from './../../service/operator-metadata/mock-operator-metadata.data';
 
+
+
 import { configure } from 'rxjs-marbles';
 const { marbles } = configure({ run: false });
 
-import { mockResultPredicate, mockScanPredicate, mockPoint, mockScanSentimentLink,
-  mockSentimentPredicate } from '../../service/workflow-graph/model/mock-workflow-data';
+import { mockResultPredicate, mockScanPredicate, mockPoint} from '../../service/workflow-graph/model/mock-workflow-data';
 import { CustomNgMaterialModule } from '../../../common/custom-ng-material.module';
 import { DynamicSchemaService } from '../../service/dynamic-schema/dynamic-schema.service';
-import { HttpClient } from '@angular/common/http';
+
+import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
+import { environment } from '../../../../environments/environment';
 
 /* tslint:disable:no-non-null-assertion */
 
@@ -44,6 +47,7 @@ describe('PropertyEditorComponent', () => {
         CustomNgMaterialModule,
         BrowserAnimationsModule,
         MaterialDesignFrameworkModule,
+        NgbModule.forRoot()
       ]
     })
       .compileComponents();
@@ -56,6 +60,8 @@ describe('PropertyEditorComponent', () => {
     dynamicSchemaService = TestBed.get(DynamicSchemaService);
 
     fixture.detectChanges();
+    environment.propertyDescriptionEnabled = true;
+
   });
 
   it('should create', () => {
@@ -269,5 +275,53 @@ describe('PropertyEditorComponent', () => {
 
 
   }));
+
+
+  it(`should display property description button when property description is provided, when clicked,
+  should display the tooltip window on the GUI`, () => {
+    expect(component.hasPropertyDescription).toBeFalsy();
+    expect(component.propertyDescription.size).toEqual(0);
+
+    let buttonState = fixture.debugElement.query(By.css('.propertyDescriptionButton'));
+    expect(buttonState).toBeFalsy();
+
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    component.changePropertyEditor(mockScanPredicate);
+    fixture.detectChanges();
+    buttonState = fixture.debugElement.query(By.css('.propertyDescriptionButton'));
+
+    expect(buttonState).toBeTruthy();
+
+    let tooltipWindow = fixture.debugElement.query(By.css('.tooltip'));
+    expect(tooltipWindow).toBeFalsy();
+
+    buttonState.triggerEventHandler('click', null);
+    fixture.detectChanges();
+
+    tooltipWindow = fixture.debugElement.query(By.css('.tooltip'));
+    expect(tooltipWindow).toBeTruthy();
+
+    expect(component.hasPropertyDescription).toBeTruthy();
+    expect(component.propertyDescription.size).toBeGreaterThan(0);
+  });
+
+ it('should not display property description button when property description is undefined', () => {
+
+    expect(component.hasPropertyDescription).toBeFalsy();
+    expect(component.propertyDescription.size).toEqual(0);
+
+    let buttonState = fixture.debugElement.query(By.css('.propertyDescriptionButton'));
+    expect(buttonState).toBeFalsy();
+    workflowActionService.addOperator(mockResultPredicate, mockPoint);
+
+    component.changePropertyEditor(mockResultPredicate);
+    fixture.detectChanges();
+    buttonState = fixture.debugElement.query(By.css('.propertyDescriptionButton'));
+
+    expect(buttonState).toBeFalsy();
+
+    expect(component.hasPropertyDescription).toBeFalsy();
+    expect(component.propertyDescription.size).toEqual(0);
+  });
 
 });
