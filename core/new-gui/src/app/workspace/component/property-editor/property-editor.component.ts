@@ -266,7 +266,7 @@ export class PropertyEditorComponent {
   private handleOperatorPropertyDescription(currentOperatorSchema: OperatorSchema): void {
     if (!environment.propertyDescriptionEnabled) {
       this.propertyDescription = new Map();
-      this.hasPropertyDescription = true;
+      this.hasPropertyDescription = false;
       return;
     }
 
