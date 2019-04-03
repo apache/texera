@@ -211,6 +211,7 @@ export class DragDropService {
     tempGhostModel.addCell(operatorUIElement);
     this.handleMouseMove();
 
+    // return the jQuery object of the DOM Element
     return jQuery('#flyingJointPaper');
   }
 
