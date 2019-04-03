@@ -41,6 +41,6 @@ install:
 script:
   - mvn test --batch-mode
   - cd new-gui
-  - ng build --aot
+  - ng build --prod
   - ng test --browsers ChromeHeadless --watch=false
   
