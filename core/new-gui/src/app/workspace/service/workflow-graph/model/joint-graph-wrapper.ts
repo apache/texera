@@ -204,7 +204,6 @@ export class JointGraphWrapper {
   }
 
   public getJointOperatorCellPostion(operatorID: string): number[] | undefined {
-    const operators = this.jointGraph.getElements();
     const operatorCell = this.jointGraph.getCell(operatorID);
     const position: number[] = [];
     if (operatorCell.isElement()) {
