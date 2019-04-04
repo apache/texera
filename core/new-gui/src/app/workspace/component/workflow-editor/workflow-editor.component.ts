@@ -44,6 +44,11 @@ export class WorkflowEditorComponent implements AfterViewInit {
     private workflowActionService: WorkflowActionService,
     private dragDropService: DragDropService,
   ) {
+
+    // bind validation functions to the same scope as component
+    // https://stackoverflow.com/questions/38245450/angular2-components-this-is-undefined-when-executing-callback-function
+    this.validateOperatorConnection = this.validateOperatorConnection.bind(this);
+    this.validateOperatorMagnet = this.validateOperatorMagnet.bind(this);
   }
 
   public getJointPaper(): joint.dia.Paper {
@@ -67,7 +72,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
   private initializeJointPaper(): void {
     // get the custom paper options
-    let jointPaperOptions = WorkflowEditorComponent.getJointPaperOptions();
+    let jointPaperOptions = this.getJointPaperOptions();
     // attach the JointJS graph (model) to the paper (view)
     jointPaperOptions = this.workflowActionService.attachJointPaper(jointPaperOptions);
     // attach the DOM element to the paper
@@ -215,20 +220,19 @@ export class WorkflowEditorComponent implements AfterViewInit {
    *  rendering the workflow cells and handle UI events.
    * JointJS documentation about paper: https://resources.jointjs.com/docs/jointjs/v2.0/joint.html#dia.Paper
    */
-  private static getJointPaperOptions(): joint.dia.Paper.Options {
+  private getJointPaperOptions(): joint.dia.Paper.Options {
 
     const jointPaperOptions: joint.dia.Paper.Options = {
-
       // set grid size to 1px (smallest grid)
       gridSize: 1,
       // enable jointjs feature that automatically snaps a link to the closest port with a radius of 30px
-      snapLinks: { radius: 100 },
+      snapLinks: { radius: 40 },
       // disable jointjs default action that can make a link not connect to an operator
       linkPinning: false,
       // provide a validation to determine if two ports could be connected (only output connect to input is allowed)
-      validateConnection: validateOperatorConnection,
+      validateConnection: this.validateOperatorConnection,
       // provide a validation to determine if the port where link starts from is an out port
-      validateMagnet: validateOperatorMagnet,
+      validateMagnet: this.validateOperatorMagnet,
       // marks all the available magnets or elements when a link is dragged
       markAvailable: true,
       // disable jointjs default action of adding vertexes to the link
@@ -243,44 +247,56 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
     return jointPaperOptions;
   }
-}
 
-/**
-* This function is provided to JointJS to disable some invalid connections on the UI.
-* If the connection is invalid, users are not able to connect the links on the UI.
-*
-* https://resources.jointjs.com/docs/jointjs/v2.0/joint.html#dia.Paper.prototype.options.validateConnection
-*
-* @param sourceView
-* @param sourceMagnet
-* @param targetView
-* @param targetMagnet
-*/
-function validateOperatorConnection(sourceView: joint.dia.CellView, sourceMagnet: SVGElement,
-  targetView: joint.dia.CellView, targetMagnet: SVGElement): boolean {
-  // user cannot draw connection starting from the input port (left side)
-  if (sourceMagnet && sourceMagnet.getAttribute('port-group') === 'in') { return false; }
 
-  // user cannot connect to the output port (right side)
-  if (targetMagnet && targetMagnet.getAttribute('port-group') === 'out') { return false; }
+  /**
+  * This function is provided to JointJS to disable some invalid connections on the UI.
+  * If the connection is invalid, users are not able to connect the links on the UI.
+  *
+  * https://resources.jointjs.com/docs/jointjs/v2.0/joint.html#dia.Paper.prototype.options.validateConnection
+  *
+  * @param sourceView
+  * @param sourceMagnet
+  * @param targetView
+  * @param targetMagnet
+  */
+  private validateOperatorConnection(sourceView: joint.dia.CellView, sourceMagnet: SVGElement,
+    targetView: joint.dia.CellView, targetMagnet: SVGElement): boolean {
+    // user cannot draw connection starting from the input port (left side)
+    if (sourceMagnet && sourceMagnet.getAttribute('port-group') === 'in') { return false; }
 
-  return sourceView.id !== targetView.id;
-}
+    // user cannot connect to the output port (right side)
+    if (targetMagnet && targetMagnet.getAttribute('port-group') === 'out') { return false; }
 
-/**
-* This function is provided to JointJS to disallow links starting from an in port.
-*
-* https://resources.jointjs.com/docs/jointjs/v2.0/joint.html#dia.Paper.prototype.options.validateMagnet
-*
-* @param cellView
-* @param magnet
-*/
-function validateOperatorMagnet(cellView: joint.dia.CellView, magnet: SVGElement): boolean {
-  if (magnet && magnet.getAttribute('port-group') === 'out') {
-    return true;
+    // if port is already connected, do not allow another connection, each port should only contain at most 1 link
+    const checkConnectedLinksToTarget = this.workflowActionService.getTexeraGraph().getAllLinks().filter(
+      link => link.target.operatorID === targetView.model.id && targetMagnet.getAttribute('port') === link.target.portID
+    );
+
+    if (checkConnectedLinksToTarget.length > 0) { return false; }
+
+    // cannot connect to itself
+    return sourceView.id !== targetView.id;
   }
-  return false;
+
+
+  /**
+  * This function is provided to JointJS to disallow links starting from an in port.
+  *
+  * https://resources.jointjs.com/docs/jointjs/v2.0/joint.html#dia.Paper.prototype.options.validateMagnet
+  *
+  * @param cellView
+  * @param magnet
+  */
+  private validateOperatorMagnet(cellView: joint.dia.CellView, magnet: SVGElement): boolean {
+    if (magnet && magnet.getAttribute('port-group') === 'out') {
+      return true;
+    }
+    return false;
+  }
 }
+
+
 
 
 
