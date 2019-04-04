@@ -3,7 +3,7 @@ import { OperatorMetadataService } from './../../operator-metadata/operator-meta
 import { TestBed, inject } from '@angular/core/testing';
 
 import { WorkflowUtilService } from './workflow-util.service';
-import { mockOperatorSchemaList } from '../../operator-metadata/mock-operator-metadata.data';
+import { mockScanSourceSchema } from '../../operator-metadata/mock-operator-metadata.data';
 
 describe('WorkflowUtilService', () => {
 
@@ -24,7 +24,7 @@ describe('WorkflowUtilService', () => {
   }));
 
   it('should be able to generate an operator predicate properly given a valid operator type', () => {
-    const operatorSchema = mockOperatorSchemaList[0];
+    const operatorSchema = mockScanSourceSchema;
     const operatorPredicate = workflowUtilService.getNewOperatorPredicate(
       operatorSchema.operatorType
     );
@@ -61,7 +61,7 @@ describe('WorkflowUtilService', () => {
   });
 
   it('should be able to assign different operator IDs to newly generated operators', () => {
-    const operatorSchema = mockOperatorSchemaList[0];
+    const operatorSchema = mockScanSourceSchema;
     const idSet = new Set<string>();
     const repeat = 100;
 

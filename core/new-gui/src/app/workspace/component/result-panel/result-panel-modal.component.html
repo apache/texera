@@ -5,8 +5,10 @@
   </button>
 </div>
 <div class="modal-body">
-  <pre>{{currentDisplayRowData | json}}</pre>
+  <ngx-json-viewer [json]="currentDisplayRowData" [expanded]="false"></ngx-json-viewer>
 </div>
 <div class="modal-footer">
   <button type="button" class="btn btn-outline-dark" (click)="activeModal.close('Close click')">Close</button>
 </div>
+
+
