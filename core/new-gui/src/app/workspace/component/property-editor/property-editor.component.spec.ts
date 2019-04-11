@@ -2,7 +2,6 @@ import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { By } from '@angular/platform-browser';
 import { MaterialDesignFrameworkModule } from 'angular6-json-schema-form';
 import { async, ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
-import { Observable } from 'rxjs/Observable';
 
 import { PropertyEditorComponent } from './property-editor.component';
 
@@ -13,8 +12,6 @@ import { JointUIService } from './../../service/joint-ui/joint-ui.service';
 
 import { mockScanSourceSchema, mockViewResultsSchema } from './../../service/operator-metadata/mock-operator-metadata.data';
 
-
-
 import { configure } from 'rxjs-marbles';
 const { marbles } = configure({ run: false });
 
@@ -23,7 +20,6 @@ import { CustomNgMaterialModule } from '../../../common/custom-ng-material.modul
 import { DynamicSchemaService } from '../../service/dynamic-schema/dynamic-schema.service';
 
 import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
-import { environment } from '../../../../environments/environment';
 
 /* tslint:disable:no-non-null-assertion */
 
@@ -60,7 +56,6 @@ describe('PropertyEditorComponent', () => {
     dynamicSchemaService = TestBed.get(DynamicSchemaService);
 
     fixture.detectChanges();
-    environment.propertyDescriptionEnabled = true;
 
   });
 

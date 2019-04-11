@@ -7,7 +7,6 @@ import { Component } from '@angular/core';
 import { Subject } from 'rxjs/Subject';
 import { Observable } from 'rxjs/Observable';
 import '../../../common/rxjs-operators';
-import { environment } from '../../../../environments/environment';
 
 // all lodash import should follow this parttern
 // import `functionName` from `lodash-es/functionName`
@@ -264,12 +263,6 @@ export class PropertyEditorComponent {
    * @param currentOperatorSchema
    */
   private handleOperatorPropertyDescription(currentOperatorSchema: OperatorSchema): void {
-    if (!environment.propertyDescriptionEnabled) {
-      this.propertyDescription = new Map();
-      this.hasPropertyDescription = false;
-      return;
-    }
-
     if (currentOperatorSchema.additionalMetadata.propertyDescription !== undefined) {
       this.propertyDescription = new Map(Object.entries(currentOperatorSchema.additionalMetadata.propertyDescription));
       this.hasPropertyDescription = true;
