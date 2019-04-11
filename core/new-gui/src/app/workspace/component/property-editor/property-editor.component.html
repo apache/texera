@@ -3,7 +3,7 @@
     <h3 class="texera-workspace-property-editor-title" mat-subheader>
       {{currentOperatorSchema?.additionalMetadata.userFriendlyName}}
     </h3>
-    
+
     <json-schema-form
       class="texera-workspace-property-editor-form"
       framework="material-design"
@@ -14,10 +14,10 @@
       (onChanges)="onFormChanges($event)"
     >
     </json-schema-form>
-    
-    <button *ngIf="!showAdvanced && hasAdvanced" type="button" class="btn btn-default" (click) = "onshowAdvanced()">Advanced</button>
-    <button *ngIf="showAdvanced && hasAdvanced" type="button" class="btn btn-default" (click) = "hideshowAdvanced()">Hide Advanced</button>
-    
+
+    <button *ngIf="!showAdvanced && hasAdvanced" type="button" class="btn btn-default" (click)="handlePropertyAdvancedToggle()">Advanced</button>
+    <button *ngIf="showAdvanced && hasAdvanced" type="button" class="btn btn-default" (click)="handlePropertyAdvancedToggle()">Hide Advanced</button>
+
   </div>
-  
+
 </div>

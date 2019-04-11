@@ -44,7 +44,8 @@ describe('JointUIService', () => {
           operatorType: 'nonexistOperatorType',
           operatorProperties: {},
           inputPorts: [],
-          outputPorts: []
+          outputPorts: [],
+          showAdvanced: true
         },
         mockPoint
       );
@@ -119,13 +120,13 @@ describe('JointUIService', () => {
     );
     expect(graph_operator1.attr('.delete-button')).toEqual(
       {
-        x: 135, y: -20, cursor: 'pointer',
+        x: 60, y: -20, cursor: 'pointer',
         fill: '#D8656A', event: 'element:delete'
       }
     );
     expect(graph_operator2.attr('.delete-button')).toEqual(
       {
-        x: 135, y: -20, cursor: 'pointer',
+        x: 60, y: -20, cursor: 'pointer',
         fill: '#D8656A', event: 'element:delete'
       }
     );
