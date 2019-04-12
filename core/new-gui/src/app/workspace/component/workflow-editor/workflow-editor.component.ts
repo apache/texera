@@ -193,12 +193,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
     this.validationWorkflowService.getOperatorValidationStream()
       .subscribe( value => {
-        // if (value.status) {
-        //   // find the operator element by its ID and change the css style of the stroke
-        //   this.getJointPaper().getModelById(value.operatorID).attr('rect/stroke', 'green');
-        // } else {
-        //   this.getJointPaper().getModelById(value.operatorID).attr('rect/stroke', 'red');
-        // }
+
         this.jointUIService.changeOperatorColor(this.getJointPaper(), value.operatorID, value.status);
 
       });
