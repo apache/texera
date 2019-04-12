@@ -121,15 +121,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
   private handleOperatorHightlightEvent(): void {
     // handle logical operator highlight / unhighlight events to let JointJS
     //  use our own custom highlighter
-    const highlightOptions = {
-      name: 'stroke',
-      options: {
-        attrs: {
-          'stroke-width': 1,
-          stroke: '#afafaf'
-        }
-      }
-    };
+    const highlightOptions = WorkflowEditorComponent.getHighlightOptionsForRecommendation();
 
     this.workflowActionService.getJointGraphWrapper().getJointCellHighlightStream()
       .subscribe(value => this.getJointPaper().findViewByModel(value.operatorID).highlight(
@@ -232,6 +224,19 @@ export class WorkflowEditorComponent implements AfterViewInit {
       throw new Error('fail to get Workflow Editor wrapper element offset');
     }
     return { x: offset.left, y: offset.top };
+  }
+
+  private static getHighlightOptionsForRecommendation(): object {
+    const highlightOptions = {
+      name: 'stroke',
+      options: {
+        attrs: {
+          'stroke-width': 5,
+          stroke: '#551A8B70'
+        }
+      }
+    };
+    return highlightOptions;
   }
 
   /**
