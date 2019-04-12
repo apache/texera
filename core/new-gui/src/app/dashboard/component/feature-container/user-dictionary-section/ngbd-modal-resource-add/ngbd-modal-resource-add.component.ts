@@ -4,7 +4,13 @@ import { NgbModal, NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { UserDictionaryService } from '../../../../service/user-dictionary/user-dictionary.service';
 import { UserDictionary } from '../../../../type/user-dictionary';
 
-// sub component for add-dictionary popup window
+/**
+ * NgbdModalResourceAddComponent is the pop-up component to let
+ * user upload dictionary. User can either input the dictionary
+ * name and items or upload the dictionary file from local computer.
+ *
+ * @author Zhaomin Li
+ */
 @Component({
   selector: 'texera-resource-section-add-dict-modal',
   templateUrl: 'ngbd-modal-resource-add.component.html',
@@ -36,6 +42,12 @@ export class NgbdModalResourceAddComponent {
     this.activeModal.close('Close');
   }
 
+  /**
+  * addKey records the new dictionary information (DIY/file) and sends
+  * it back to the main component.
+  *
+  * @param
+  */
   public addKey(): void {
 
     if (this.selectFile !== null) {

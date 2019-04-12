@@ -1,7 +1,13 @@
 import { Component, OnInit, Input, Output, EventEmitter } from '@angular/core';
-import { NgbModal, NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
+import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 
-// Sub Component for adding-project popup window
+/**
+ * NgbdModalAddProjectComponent is the pop-up component
+ * to let user create new project. User needs to specify
+ * the project name.
+ *
+ * @author Zhaomin Li
+ */
 @Component({
   selector: 'texera-add-project-section-modal',
   templateUrl: 'ngbd-modal-add-project.component.html',
@@ -20,6 +26,13 @@ export class NgbdModalAddProjectComponent {
   public onClose(): void {
     this.activeModal.close('Close');
   }
+
+  /**
+  * addProject records the project information and return
+  * it to the main component. It does not call any method in service.
+  *
+  * @param
+  */
   public addProject(): void {
     if (this.name !== '') {
       this.newProject.emit(this.name);

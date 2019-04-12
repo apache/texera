@@ -33,7 +33,6 @@ describe('NgbdModalResourceDeleteComponent', () => {
   beforeEach(() => {
     fixture = TestBed.createComponent(NgbdModalResourceDeleteComponent);
     component = fixture.componentInstance;
-    // fixture.detectChanges();
   });
 
   it('should create', () => {

@@ -9,6 +9,18 @@ const apiUrl = 'http://localhost:8080/api';
 
 const uploadDictionaryUrl = apiUrl + '/upload/dictionary';
 
+/**
+ * User Dictionary service should be able to get all the saved-dictionary
+ * data from the back end for a specific user. The user can also upload new
+ * dictionary, view dictionaries, and edit the keys in a specific dictionary
+ * by calling methods in service. StubUserDictionaryService is used for replacing
+ * real service to complete testing cases. It uploads the mock data to the dashboard.
+ *
+ * //Uploading dictionary API is valid with path '/api/upload/dictionary'.
+ *
+ * @author Zhaomin Li
+ */
+
 @Injectable()
 export class UserDictionaryService {
 

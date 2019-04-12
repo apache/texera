@@ -41,7 +41,6 @@ describe('NgbdModalDeleteProjectComponent', () => {
   beforeEach(() => {
     fixture = TestBed.createComponent(NgbdModalDeleteProjectComponent);
     component = fixture.componentInstance;
-    // fixture.detectChanges();
   });
 
   it('should create', () => {

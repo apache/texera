@@ -33,7 +33,6 @@ describe('SavedProjectService', () => {
 
   it('should return the same observable of array as expected if getSavedProjectData is called ', () => {
     const saveDataObservable = service.getSavedProjectData();
-    console.log(saveDataObservable, Observable.of([]));
 
     // the current service test is in hard-coded style since there is no service with can give feedback
 

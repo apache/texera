@@ -85,8 +85,6 @@ describe('NavigationComponent', () => {
       Observable.of(mockExecutionResult)
     );
 
-    // expect initially the pause/resume button is not showing
-
     expect(component.isWorkflowRunning).toBeFalsy();
     expect(component.isWorkflowPaused).toBeFalsy();
 

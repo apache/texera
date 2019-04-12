@@ -38,7 +38,6 @@ describe('NgbdModalResourceViewComponent', () => {
   beforeEach(() => {
     fixture = TestBed.createComponent(NgbdModalResourceViewComponent);
     component = fixture.componentInstance;
-    // fixture.detectChanges();
   });
 
   it('should create', () => {
