@@ -1,5 +1,6 @@
-import { Component, OnInit, Input, Output, EventEmitter } from '@angular/core';
-import { NgbModal, NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
+import { Component, Input, Output, EventEmitter } from '@angular/core';
+import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
+import { SavedProject } from '../../../../type/saved-project';
 
 // sub component for delete-dictionary popup window
 @Component({
@@ -9,7 +10,7 @@ import { NgbModal, NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 
 })
 export class NgbdModalDeleteProjectComponent {
-  @Input() project: any; // potential issue
+  @Input() project: object = {};
   @Output() deleteProject =  new EventEmitter<boolean>();
 
   constructor(public activeModal: NgbActiveModal) {}

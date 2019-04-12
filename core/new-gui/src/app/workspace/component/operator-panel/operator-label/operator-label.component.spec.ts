@@ -8,7 +8,7 @@ import { OperatorMetadataService } from '../../../service/operator-metadata/oper
 import { StubOperatorMetadataService } from '../../../service/operator-metadata/stub-operator-metadata.service';
 
 import { CustomNgMaterialModule } from '../../../../common/custom-ng-material.module';
-import { mockOperatorSchemaList } from '../../../service/operator-metadata/mock-operator-metadata.data';
+import { mockScanSourceSchema } from '../../../service/operator-metadata/mock-operator-metadata.data';
 import { By } from '@angular/platform-browser';
 import { WorkflowActionService } from '../../../service/workflow-graph/model/workflow-action.service';
 import { TourService } from 'ngx-tour-ng-bootstrap';
@@ -18,7 +18,7 @@ import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
 import { marbles } from '../../../../../../node_modules/rxjs-marbles';
 
 describe('OperatorLabelComponent', () => {
-  const mockOperatorData = mockOperatorSchemaList[0];
+  const mockOperatorData = mockScanSourceSchema;
   let component: OperatorLabelComponent;
   let fixture: ComponentFixture<OperatorLabelComponent>;
 

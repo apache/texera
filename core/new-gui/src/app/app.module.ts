@@ -10,12 +10,12 @@ import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
 import { RouterModule } from '@angular/router';
 import { TourNgBootstrapModule } from 'ngx-tour-ng-bootstrap';
 
-//import { MatDialogModule } from '@angular/material'; //
-//import { MatIconModule } from '@angular/material/icon'; //
-//import { MatChipsModule } from '@angular/material/chips'; //
+// import { MatDialogModule } from '@angular/material'; //
+// import { MatIconModule } from '@angular/material/icon'; //
+// import { MatChipsModule } from '@angular/material/chips'; //
 
 import { MaterialDesignFrameworkModule } from 'angular6-json-schema-form';
-
+import { NgxJsonViewerModule } from 'ngx-json-viewer';
 
 import { AppComponent } from './app.component';
 import { WorkspaceComponent } from './workspace/component/workspace.component';
@@ -43,7 +43,9 @@ import {
   NgbdModalDeleteProjectComponent
 } from './dashboard/component/feature-container/saved-project-section/ngbd-modal-delete-project/ngbd-modal-delete-project.component';
 
-import { RunningJobSectionComponent } from './dashboard/component/feature-container/running-job-section/running-job-section.component';
+import {
+  RunningJobSectionComponent
+} from './dashboard/component/feature-container/running-job-section/running-job-section.component';
 import {
   UserDictionarySectionComponent
 } from './dashboard/component/feature-container/user-dictionary-section/user-dictionary-section.component';
@@ -99,10 +101,7 @@ import { ResourceSectionComponent } from './dashboard/component/feature-containe
     AppRoutingModule,
     HttpClientModule,
 
-    // MatDialogModule, //
-    //MatChipsModule, //
-    //MatIconModule, //
-
+    NgxJsonViewerModule,
     CustomNgMaterialModule,
     BrowserAnimationsModule,
     NgbModule.forRoot(),

@@ -36,6 +36,10 @@ const routes: Routes = [
         component : UserDictionarySectionComponent
       }
     ]
+  },
+  {
+    path: '**',
+    redirectTo: ''
   }
 ];
 

@@ -12,9 +12,7 @@ import { StubSavedProjectService } from '../service/saved-project/stub-saved-pro
   styleUrls: ['./dashboard.component.scss'],
   providers: [
     { provide: UserDictionaryService, useClass: StubUserDictionaryService },
-    // UserDictionaryService,
-    { provide: SavedProjectService, useClass: StubSavedProjectService },
-    // SavedProjectService
+    { provide: SavedProjectService, useClass: StubSavedProjectService }
   ]
 })
 export class DashboardComponent implements OnInit {

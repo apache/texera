@@ -1,11 +1,8 @@
-import { Component, OnInit, Input, Output, EventEmitter } from '@angular/core';
-import { NgbModal, NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
+import { Component, OnInit, EventEmitter } from '@angular/core';
+import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
 
-import { Observable } from 'rxjs/Observable';
 import { SavedProject } from '../../../type/saved-project';
-
 import { SavedProjectService } from '../../../service/saved-project/saved-project.service';
-import { StubSavedProjectService } from '../../../service/saved-project/stub-saved-project.service';
 
 import { NgbdModalAddProjectComponent} from './ngbd-modal-add-project/ngbd-modal-add-project.component';
 import { NgbdModalDeleteProjectComponent } from './ngbd-modal-delete-project/ngbd-modal-delete-project.component';
@@ -69,36 +66,28 @@ export class SavedProjectSectionComponent implements OnInit {
 
   public openNgbdModalAddProjectComponent(): void {
     const modalRef = this.modalService.open(NgbdModalAddProjectComponent);
-    const projectEventEmitter = <EventEmitter<string>>(modalRef.componentInstance.newProject);
-    const subscription = projectEventEmitter
-      .do(value => console.log(value))
-      .map(value => ({
+    modalRef.componentInstance.newProject
+      .map((value: boolean) => ({
         id: (this.projects.length + 1).toString(),
         name: value,
         creationTime: Date.now().toString(),
         lastModifiedTime: Date.now().toString()
       }))
-      .subscribe(
-        value => {
-          this.projects.push(value);
-        }
-      );
+      .subscribe((value: SavedProject) => this.projects.push(value));
   }
 
   public openNgbdModalDeleteProjectComponent(project: SavedProject): void {
     const modalRef = this.modalService.open(NgbdModalDeleteProjectComponent);
     modalRef.componentInstance.project = cloneDeep(project);
 
-    const deleteItemEventEmitter = <EventEmitter<boolean>>(modalRef.componentInstance.deleteProject);
-    const subscription = deleteItemEventEmitter
-      .subscribe(
-        (value: any) => {
-          if (value) {
-            this.projects = this.projects.filter(obj => obj.id !== project.id);
-            this.savedProjectService.deleteSavedProjectData(project);
-          }
+    modalRef.componentInstance.deleteProject.subscribe(
+      (value: boolean) => {
+        if (value) {
+          this.projects = this.projects.filter(obj => obj.id !== project.id);
+          this.savedProjectService.deleteSavedProjectData(project);
         }
-      );
+      }
+    );
 
   }
 }

@@ -80,9 +80,10 @@ export class WorkflowEditorComponent implements AfterViewInit {
   }
 
   private handleWindowResize(): void {
-    // when the window is resized (limit to at most one event every 1000ms)
-    Observable.fromEvent(window, 'resize').auditTime(1000).subscribe(
+    // when the window is resized (limit to at most one event every 30ms)
+    Observable.fromEvent(window, 'resize').auditTime(30).subscribe(
       () => {
+        console.log('resize');
         // reset the origin cooredinates
         this.setJointPaperOriginOffset();
         // resize the JointJS paper dimensions
@@ -102,7 +103,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
    */
   private handleHighlightMouseInput(): void {
     // on user mouse clicks a operator cell, highlight that operator
-    Observable.fromEvent<JointPaperEvent>(this.getJointPaper(), 'cell:pointerclick')
+    Observable.fromEvent<JointPaperEvent>(this.getJointPaper(), 'cell:pointerdown')
       .map(value => value[0])
       .filter(cellView => cellView.model.isElement())
       .subscribe(cellView => this.workflowActionService.getJointGraphWrapper().highlightOperator(cellView.model.id.toString()));

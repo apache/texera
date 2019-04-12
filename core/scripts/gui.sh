@@ -1,3 +1,3 @@
-cd gui
+cd new-gui
 npm install
-npm run compile
+ng build --prod
