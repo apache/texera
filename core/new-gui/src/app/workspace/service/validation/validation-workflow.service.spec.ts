@@ -90,7 +90,7 @@ describe('ValidationWorkflowService', () => {
 
     testEvents.subscribe(action => action());
 
-    const expected = m.hot('-t-u-(vw)-x-(yza)-)', {
+    const expected = m.hot('-t-u-(vw)-x-(yz)-)', {
       't': {operatorID: '1', status: false},
       'u': {operatorID: '3', status: false},
       'v': {operatorID: '1', status: false},
@@ -98,7 +98,7 @@ describe('ValidationWorkflowService', () => {
       'x': {operatorID: '1', status: true},
       'y': {operatorID: '1', status: false}, // If one of the oprator is deleted, the other one is invaild since it is isolated
       'z': {operatorID: '3', status: false},
-      'a': {operatorID: '3', status: false}// If the operator is deleted,it will triger deletelinkstream and deleteoperator stream
+
     });
 
     m.expect(validationWorkflowService.getOperatorValidationStream()).toBeObservable(expected);
@@ -125,6 +125,7 @@ describe('ValidationWorkflowService', () => {
       'x': {operatorID: '1', status: true},
       'y': {operatorID: '1', status: false}, // If the link is deleted, two operators are isolated and are invalid
       'z': {operatorID: '3', status: false}
+
     });
 
     m.expect(validationWorkflowService.getOperatorValidationStream()).toBeObservable(expected);

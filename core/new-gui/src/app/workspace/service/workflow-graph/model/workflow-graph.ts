@@ -193,33 +193,21 @@ export class WorkflowGraph {
   }
 
   /**
-   * Returna an array of all input links of an operator in the graph.
+   * Return an array of all input links of an operator in the graph.
    * @param operatorID
    */
-  public getInputLinksByOperatorId(operatorID: string): OperatorLink[] {
-    const inputLinks: OperatorLink[] = [];
-    const allLinks: OperatorLink[] = this.getAllLinks();
-    for (let i = 0; i < allLinks.length; i++) {
-      if (isEqual(allLinks[i].target.operatorID, (operatorID))) {
-        inputLinks.push(allLinks[i]);
-      }
-    }
-    return inputLinks;
+  public getInputLinksByOperatorId(operatorID: string): Number {
+
+    return this.getAllLinks().filter(link => link.target.operatorID === operatorID).length;
+
   }
 
   /**
    * Returna an array of all output links of an operator in the graph.
    * @param operatorID
    */
-  public getOutputLinksByOperatorId(operatorID: string): OperatorLink[] {
-    const outputLinks: OperatorLink[] = [];
-    const allLinks: OperatorLink[] = this.getAllLinks();
-    for (let i = 0; i < allLinks.length; i++) {
-      if (isEqual(allLinks[i].source.operatorID, (operatorID))) {
-        outputLinks.push(allLinks[i]);
-      }
-    }
-    return outputLinks;
+  public getOutputLinksByOperatorId(operatorID: string): Number {
+    return this.getAllLinks().filter(link => link.source.operatorID === operatorID).length;
   }
 
   /**

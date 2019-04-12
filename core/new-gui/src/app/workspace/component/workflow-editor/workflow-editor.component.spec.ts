@@ -34,6 +34,7 @@ class StubWorkflowActionService {
   public getTexeraGraph(): WorkflowGraphReadonly {
     return this.texeraGraph;
   }
+
 }
 
 describe('WorkflowEditorComponent', () => {
@@ -237,8 +238,8 @@ describe('WorkflowEditorComponent', () => {
     workflowActionService.setOperatorProperty(mockScanPredicate.operatorID, newProperty);
     const operator1 = component.getJointPaper().getModelById(mockScanPredicate.operatorID);
     const operator2 = component.getJointPaper().getModelById(mockResultPredicate.operatorID);
-    expect(operator1.attr('rect/stroke')).toEqual('green');
-    expect(operator2.attr('rect/stroke')).toEqual('green');
+    expect(operator1.attr('rect/stroke')).toEqual('#CFCFCF');
+    expect(operator2.attr('rect/stroke')).toEqual('#CFCFCF');
 
 
   });
