@@ -16,7 +16,12 @@ import { UserDictionary } from '../../../../type/user-dictionary';
 
 })
 export class NgbdModalResourceViewComponent {
-  @Input() dictionary: any;
+  defaultUserDictionary: UserDictionary = {
+    name: '',
+    id: '',
+    items: []
+  };
+  @Input() dictionary: UserDictionary = this.defaultUserDictionary;
   @Output() addedName =  new EventEmitter<string>();
   @Output() deleteName =  new EventEmitter<string>();
 

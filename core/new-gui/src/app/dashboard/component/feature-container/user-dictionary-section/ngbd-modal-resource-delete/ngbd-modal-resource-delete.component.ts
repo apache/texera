@@ -16,7 +16,12 @@ import { UserDictionary } from '../../../../type/user-dictionary';
 
 })
 export class NgbdModalResourceDeleteComponent {
-  @Input() dictionary: any;
+  defaultUserDictionary: UserDictionary = {
+    name: '',
+    id: '',
+    items: []
+  };
+  @Input() dictionary: UserDictionary = this.defaultUserDictionary;
   @Output() deleteDict =  new EventEmitter<boolean>();
 
   constructor(public activeModal: NgbActiveModal) {
