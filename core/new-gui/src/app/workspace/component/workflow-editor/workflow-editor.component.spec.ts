@@ -10,12 +10,12 @@ import { WorkflowEditorComponent } from './workflow-editor.component';
 import { OperatorMetadataService } from '../../service/operator-metadata/operator-metadata.service';
 import { StubOperatorMetadataService } from '../../service/operator-metadata/stub-operator-metadata.service';
 import { JointUIService } from '../../service/joint-ui/joint-ui.service';
+import { WorkflowGraph, WorkflowGraphReadonly } from '../../service/workflow-graph/model/workflow-graph';
 
 import * as joint from 'jointjs';
 import {
   mockScanPredicate, mockPoint, mockScanResultLink, mockResultPredicate
 } from '../../service/workflow-graph/model/mock-workflow-data';
-import { WorkflowGraphReadonly, WorkflowGraph } from '../../service/workflow-graph/model/workflow-graph';
 class StubWorkflowActionService {
 
   private jointGraph = new joint.dia.Graph();
@@ -34,7 +34,6 @@ class StubWorkflowActionService {
   public getTexeraGraph(): WorkflowGraphReadonly {
     return this.texeraGraph;
   }
-
 }
 
 describe('WorkflowEditorComponent', () => {
@@ -58,7 +57,7 @@ describe('WorkflowEditorComponent', () => {
           DragDropService,
           ValidationWorkflowService,
           { provide: WorkflowActionService, useClass: StubWorkflowActionService },
-          { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+          { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
         ]
       })
         .compileComponents();
@@ -145,8 +144,7 @@ describe('WorkflowEditorComponent', () => {
           WorkflowUtilService,
           DragDropService,
           WorkflowActionService,
-          ValidationWorkflowService,
-          { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+          { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
         ]
       })
         .compileComponents();
@@ -177,7 +175,7 @@ describe('WorkflowEditorComponent', () => {
       const jointCellView = component.getJointPaper().findViewByModel(mockScanPredicate.operatorID);
 
       // tirgger a click on the cell view using its jQuery element
-      jointCellView.$el.trigger('click');
+      jointCellView.$el.trigger('mousedown');
 
       fixture.detectChanges();
 

@@ -33,7 +33,17 @@ public class TupleSourceOperator implements ISourceOperator {
     private int cursor = CLOSED;
     
     public TupleSourceOperator(Collection<Tuple> inputTuples, Schema schema) {
-        if (! schema.containsAttribute(SchemaConstants._ID)) {
+        this(inputTuples, schema, true);
+    }
+    
+    /**
+     * 
+     * @param inputTuples, a collection of tuples as the source
+     * @param schema, the schema corresponds to the input tuples
+     * @param addIDAttribute, a flag that indicates if TupleSourceOperator automatically adds an _ID attribute or not
+     */
+    public TupleSourceOperator(Collection<Tuple> inputTuples, Schema schema, Boolean addIDAttribute) {
+        if (addIDAttribute && ! schema.containsAttribute(SchemaConstants._ID)) {
             this.outputSchema = new Schema.Builder().add(SchemaConstants._ID_ATTRIBUTE).add(schema).build();
             this.inputTuples = new ArrayList<>();
             for (Tuple tuple : inputTuples) {
