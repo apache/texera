@@ -1,7 +1,9 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, NgModule } from '@angular/core';
 import { ExecuteWorkflowService } from './../../service/execute-workflow/execute-workflow.service';
 import { TourService } from 'ngx-tour-ng-bootstrap';
 import { environment } from '../../../../environments/environment';
+import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
+import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-graph-wrapper';
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -23,11 +25,20 @@ import { environment } from '../../../../environments/environment';
   templateUrl: './navigation.component.html',
   styleUrls: ['./navigation.component.scss']
 })
+
 export class NavigationComponent implements OnInit {
 
   public isWorkflowRunning: boolean = false; // set this to true when the workflow is started
   public isWorkflowPaused: boolean = false; // this will be modified by clicking pause/resume while the workflow is running
-  constructor(private executeWorkflowService: ExecuteWorkflowService, public tourService: TourService) {
+
+  // variable binded with HTML to decide if the running spinner should show
+  public showSpinner = false;
+
+  // the newZoomRatio represents the ratio of the size of the the new window to the original one.
+  private newZoomRatio: number = 1;
+
+  constructor(private executeWorkflowService: ExecuteWorkflowService,
+    public tourService: TourService, private workflowActionService: WorkflowActionService) {
     // return the run button after the execution is finished, either
     //  when the value is valid or invalid
     executeWorkflowService.getExecuteEndedStream().subscribe(
@@ -46,9 +57,17 @@ export class NavigationComponent implements OnInit {
     // this will swap button between pause and resume
     executeWorkflowService.getExecutionPauseResumeStream()
       .subscribe(state => this.isWorkflowPaused = (state === 0));
+
+    /**
+     * Get the new value from the mouse wheel zoom function.
+     */
+    workflowActionService.getJointGraphWrapper().getWorkflowEditorZoomStream().subscribe(
+      newRatio => this.newZoomRatio = newRatio
+    );
   }
 
   ngOnInit() {
+
   }
 
   /**
@@ -112,4 +131,25 @@ export class NavigationComponent implements OnInit {
     }
   }
 
+  /**
+   * send the offset value to the work flow editor panel using drag and drop service.
+   * when users click on the button, we change the zoomoffset to make window larger or smaller.
+  */
+  public onClickZoomIn(): void {
+    // make the ratio small.
+    this.workflowActionService.getJointGraphWrapper()
+      .setZoomProperty(this.newZoomRatio + JointGraphWrapper.ZOOM_DIFFERENCE);
+  }
+  public onClickZoomOut(): void {
+    // make the ratio big.
+    this.workflowActionService.getJointGraphWrapper()
+      .setZoomProperty(this.newZoomRatio - JointGraphWrapper.ZOOM_DIFFERENCE);
+  }
+
+  /**
+   * Restore paper default zoom ratio and paper offset
+   */
+  public onClickRestoreZoomOffsetDefaullt(): void {
+    this.workflowActionService.getJointGraphWrapper().resumeDefaultZoomAndOffset();
+  }
 }

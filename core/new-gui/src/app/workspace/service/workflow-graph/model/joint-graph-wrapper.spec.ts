@@ -303,5 +303,67 @@ describe('JointGraphWrapperService', () => {
 
   }));
 
+
+  it('should successfully set a new drag offset', () => {
+    let currentDragOffset = (jointGraphWrapper as any).dragOffset;
+    expect(currentDragOffset.x).toEqual(0);
+    expect(currentDragOffset.y).toEqual(0);
+
+    jointGraphWrapper.setOffset({x: 100, y: 200});
+    currentDragOffset = (jointGraphWrapper as any).dragOffset;
+    expect(currentDragOffset.x).toEqual(100);
+    expect(currentDragOffset.y).toEqual(200);
+  });
+
+  it('should successfully set a new zoom property', () => {
+
+    const mockNewZoomProperty = 0.5;
+
+    let currentZoomRatio = (jointGraphWrapper as any).newZoomRatio;
+    expect(currentZoomRatio).toEqual(1);
+
+    jointGraphWrapper.setZoomProperty(mockNewZoomProperty);
+    currentZoomRatio = (jointGraphWrapper as any).newZoomRatio;
+    expect(currentZoomRatio).toEqual(mockNewZoomProperty);
+
+  });
+
+  it('should triggle getWorkflowEditorZoomStream when new zoom ratio is set', marbles((m) => {
+
+    const mockNewZoomProperty = 0.5;
+
+    m.hot('-e-').do(event => jointGraphWrapper.setZoomProperty(mockNewZoomProperty)).subscribe();
+    const zoomStream = jointGraphWrapper.getWorkflowEditorZoomStream().map(value => 'e');
+    const expectedStream = '-e-';
+
+    m.expect(zoomStream).toBeObservable(expectedStream);
+  }));
+
+  it('should restore default zoom ratio and offset when resumeDefaultZoomAndOffset is called', () => {
+    const defaultOffset = {x: 0, y: 0};
+    const defaultRatio = 1;
+
+    const mockOffset = {x : 20, y : 20};
+    const mockRatio = 0.6;
+    jointGraphWrapper.setOffset(mockOffset);
+    jointGraphWrapper.setZoomProperty(mockRatio);
+    expect(jointGraphWrapper.getOffset().x).not.toEqual(defaultOffset.x);
+    expect(jointGraphWrapper.getOffset().y).not.toEqual(defaultOffset.y);
+    expect(jointGraphWrapper.getZoomRatio()).not.toEqual(defaultRatio);
+
+    jointGraphWrapper.resumeDefaultZoomAndOffset();
+    expect(jointGraphWrapper.getOffset().x).toEqual(defaultOffset.x);
+    expect(jointGraphWrapper.getOffset().y).toEqual(defaultOffset.y);
+    expect(jointGraphWrapper.getZoomRatio()).toEqual(defaultRatio);
+  });
+
+  it('should trigger getRestorePaperOffsetStream when resumeDefaultZoomAndOffset is called', marbles((m) => {
+    m.hot('-e-').do(() => jointGraphWrapper.resumeDefaultZoomAndOffset()).subscribe();
+    const restoreStream = jointGraphWrapper.getRestorePaperOffsetStream().map(value => 'e');
+    const expectedStream = '-e-';
+
+    m.expect(restoreStream).toBeObservable(expectedStream);
+  }));
+
 });
 

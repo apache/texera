@@ -1,8 +1,47 @@
+<nav class="texera-navigation-body navbar navbar-expand-sm bg-dark navbar-dark">
+  <a class="navbar-brand texera-navigation-title" href="#">
+    Texera <span class="version-number">0.3.0</span>
+  </a>
+  <div class="collapse navbar-collapse texera-navigation-utilities">
+    <i class="navbar-brand zoom-button fa fa-search-minus" (click)="onClickZoomOut()"></i>
+    <i class="navbar-brand zoom-button fa fa-search-plus" (click)="onClickZoomIn()"></i>
+    <i class="navbar-brand zoom-button fa fa-refresh" (click)="onClickRestoreZoomOffsetDefaullt()"></i>
+  </div>
+  <div class="collapse navbar-collapse texera-navigation-execute">
+    <div class="button" tourAnchor="texera-workspace-navigation-run">
+      <button class="btn btn-secondary texera-workspace-tour-run" (click)="tourService.toggle()" tourAnchor="start.tour">
+          <span>
+            <i id="texera-tour-icon" class="fa fa-question-circle-o" aria-hidden="true"></i>
+          </span>
+      </button>
 
-<nav class="texera-navigation-body navbar navbar-expand-sm bg-dark navbar-dark justify-content-between">
+      <button mat-raised-button class="texera-navigation-run-button texera-navigation-run-text" (click)="onButtonClick()">
+        <span>
+          <i *ngIf="!runSpinner()" id="texera-run-icon" class="fa fa-play" aria-hidden="true"></i>
+          <i *ngIf="runSpinner()" id="texera-pause-icon" class="fa fa-spinner fa-spin" aria-hidden="true"></i>
+        </span>
+        <span>
+            {{ getRunButtonText()}}
+        </span>
+      </button>
+    </div>
+  </div>
+
+</nav>
+<!-- <nav class="texera-navigation-body navbar navbar-expand-sm bg-dark navbar-dark">
     <a class="navbar-brand" href="#">
         Texera <span class="version-number">0.3.0</span>
-      </a>
+    </a>
+
+    <div class="collapse navbar-collapse ml-texera">
+      <span>
+        <i class="navbar-brand zoom-button fa fa-search-minus" (click)="onClickZoomOut()"></i>
+      </span>
+      <span>
+        <i class="navbar-brand zoom-button fa fa-search-plus" (click)="onClickZoomIn()"></i>
+      </span>
+    </div>
+
     <div class="button" tourAnchor= "texera-workspace-navigation-run">
       <button class="btn btn-secondary texera-workspace-tour-run" (click)="tourService.toggle()" tourAnchor="start.tour">
           <span>
@@ -20,4 +59,4 @@
         </span>
       </button>
     </div>
-  </nav>
+  </nav> -->

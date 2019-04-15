@@ -130,7 +130,6 @@ describe('WorkflowEditorComponent', () => {
 
   });
 
-
   /**
    * This sub test suites test the Integration of WorkflowEditorComponent with external modules,
    *  such as drag and drop module, and highlight operator module.
@@ -140,18 +139,18 @@ describe('WorkflowEditorComponent', () => {
     let component: WorkflowEditorComponent;
     let fixture: ComponentFixture<WorkflowEditorComponent>;
     let workflowActionService: WorkflowActionService;
-    let miniMapService: MiniMapService; // added
-
+    let miniMapService: MiniMapService;
+    let dragDropService: DragDropService;
     beforeEach(async(() => {
       TestBed.configureTestingModule({
         declarations: [WorkflowEditorComponent],
         providers: [
           JointUIService,
           WorkflowUtilService,
-          DragDropService,
           WorkflowActionService,
           MiniMapService,
           ResultPanelToggleService,
+          DragDropService,
           { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         ]
       })
@@ -163,6 +162,7 @@ describe('WorkflowEditorComponent', () => {
       component = fixture.componentInstance;
       workflowActionService = TestBed.get(WorkflowActionService);
       miniMapService = TestBed.get(MiniMapService);
+      dragDropService = TestBed.get(DragDropService);
       // detect changes to run ngAfterViewInit and bind Model
       fixture.detectChanges();
     });
@@ -233,6 +233,31 @@ describe('WorkflowEditorComponent', () => {
       const jointHighlighterElementAfterUnhighlight = jointCellView.$el.children('.joint-highlight-stroke');
       expect(jointHighlighterElementAfterUnhighlight.length).toEqual(0);
     });
+
+    it('should react to jointJS paper zoom event', marbles((m) => {
+      const mockScaleRatio = 0.5;
+      m.hot('-e-').do(() => workflowActionService.getJointGraphWrapper().setZoomProperty(mockScaleRatio)).subscribe(
+        () => {
+          const currentScale = component.getJointPaper().scale();
+          expect(currentScale.sx).toEqual(mockScaleRatio);
+          expect(currentScale.sy).toEqual(mockScaleRatio);
+        }
+      );
+    }));
+
+    it('should react to jointJS paper restore default offset event', marbles((m) => {
+      const mockTranslation = 20;
+      const originalOffset = component.getJointPaper().translate();
+      component.getJointPaper().translate(mockTranslation, mockTranslation);
+      expect(component.getJointPaper().translate().tx).not.toEqual(originalOffset.tx);
+      expect(component.getJointPaper().translate().ty).not.toEqual(originalOffset.ty);
+      m.hot('-e-').do(() => workflowActionService.getJointGraphWrapper().resumeDefaultZoomAndOffset()).subscribe(
+        () => {
+          expect(component.getJointPaper().translate().tx).toEqual(originalOffset.tx);
+          expect(component.getJointPaper().translate().ty).toEqual(originalOffset.ty);
+        }
+      );
+    }));
 
   });
 

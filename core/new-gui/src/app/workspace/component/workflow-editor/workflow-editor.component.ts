@@ -1,8 +1,9 @@
 import { DragDropService } from './../../service/drag-drop/drag-drop.service';
 import { JointUIService } from './../../service/joint-ui/joint-ui.service';
 import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
-import { Component, AfterViewInit } from '@angular/core';
+import { Component, AfterViewInit, ElementRef } from '@angular/core';
 import { Observable } from 'rxjs/Observable';
+
 import '../../../common/rxjs-operators';
 import * as joint from 'jointjs';
 import { forEach } from 'lodash-es';
@@ -10,6 +11,8 @@ import { element } from '@angular/core/src/render3/instructions';
 
 import { MiniMapService } from './../../service/workflow-graph/model/mini-map.service';
 import { ResultPanelToggleService } from '../../service/result-panel-toggle/result-panel-toggle.service';
+import { Point } from '../../types/workflow-common.interface';
+import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-graph-wrapper';
 
 
 // argument type of callback event on a JointJS Paper
@@ -18,6 +21,9 @@ import { ResultPanelToggleService } from '../../service/result-panel-toggle/resu
 // 2. the corresponding original JQuery Event
 // 3. x coordinate, 4. y coordinate
 type JointPaperEvent = [joint.dia.CellView, JQuery.Event, number, number];
+
+// argument type of callback event on a JointJS Paper only for blank:pointerdown event
+type JointPointerDownEvent = [JQuery.Event, number, number];
 
 /**
  * WorkflowEditorComponent is the componenet for the main workflow editor part of the UI.
@@ -45,12 +51,22 @@ export class WorkflowEditorComponent implements AfterViewInit {
   public readonly WORKFLOW_EDITOR_JOINTJS_ID = 'texera-workflow-editor-jointjs-body-id';
 
   private paper: joint.dia.Paper | undefined;
+  /**
+   * Logically, set ZoomOffset to be 1 since the intial zoom time is 1.
+   */
+  private newZoomRatio: number = 1;
+
+  private ifMouseDown: boolean = false;
+  private mouseDown: Point | undefined;
+  private dragOffset: Point = { x : 0 , y : 0};
+
 
   constructor(
     private workflowActionService: WorkflowActionService,
     private dragDropService: DragDropService,
     private miniMapService: MiniMapService,
-    private resultPanelToggleService: ResultPanelToggleService
+    private resultPanelToggleService: ResultPanelToggleService,
+    private elementRef: ElementRef
   ) {
   }
 
@@ -63,14 +79,15 @@ export class WorkflowEditorComponent implements AfterViewInit {
   }
 
   ngAfterViewInit() {
-
     this.initializeJointPaper();
+    this.handlePaperRestoreDefaultOffset();
+    this.handlePaperZoom();
     this.handleWindowResize();
     this.handleViewDeleteOperator();
     this.handleCellHighlight();
-
+    this.handleWindowDrag();
+    this.handlePaperMouseZoom();
     this.dragDropService.registerWorkflowEditorDrop(this.WORKFLOW_EDITOR_JOINTJS_ID);
-
   }
 
   private initializeJointPaper(): void {
@@ -87,6 +104,112 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
     this.setJointPaperOriginOffset();
     this.setJointPaperDimensions();
+  }
+
+  /**
+   * Handles restore offset default event by translating jointJS paper
+   *  back to original position
+   */
+  private handlePaperRestoreDefaultOffset(): void {
+    this.workflowActionService.getJointGraphWrapper().getRestorePaperOffsetStream()
+      .subscribe(newOffset => {
+        this.getJointPaper().translate(
+          (- this.getWrapperElementOffset().x + newOffset.x),
+          (- this.getWrapperElementOffset().y + newOffset.y)
+        );
+      });
+  }
+
+  /**
+   * Handles zoom events passed from navigation-component, which can be used to
+   *  make the jointJS paper larger or smaller.
+   */
+  private handlePaperZoom(): void {
+    this.workflowActionService.getJointGraphWrapper().getWorkflowEditorZoomStream().subscribe(newRatio => {
+      this.newZoomRatio = newRatio;
+      this.getJointPaper().scale(this.newZoomRatio, this.newZoomRatio);
+    });
+  }
+
+  /**
+   * Handles zoom events when user slides the mouse wheel.
+   *
+   * The first filter will removes all the mousewheel events that are undefined
+   * The second filter will remove all the mousewheel events that are
+   *  from different components
+   *
+   * From the mousewheel event:
+   *  1. when delta Y is negative, the wheel is scrolling down, so
+   *      the jointJS paper will zoom in.
+   *  2. when delta Y is positive, the wheel is scrolling up, so the
+   *      jointJS paper will zoom out.
+   */
+  private handlePaperMouseZoom(): void {
+    Observable.fromEvent<WheelEvent>(document, 'mousewheel')
+      .filter(event => event !== undefined)
+      .filter(event => this.elementRef.nativeElement.contains(event.target))
+      .forEach(event => {
+        if (event.deltaY < 0) {
+          this.workflowActionService.getJointGraphWrapper()
+            .setZoomProperty(this.newZoomRatio - JointGraphWrapper.ZOOM_DIFFERENCE);
+        } else {
+          this.workflowActionService.getJointGraphWrapper()
+            .setZoomProperty(this.newZoomRatio + JointGraphWrapper.ZOOM_DIFFERENCE);
+        }
+      });
+  }
+
+  /**
+   * This method handles user mouse drag events to pan JointJS paper.
+   *
+   * This method will listen to 3 events to implement the pan feature
+   *   1. pointerdown event in the JointJS paper to start panning
+   *   2. mousemove event on the document to change the offset of the paper
+   *   3. pointerup event in the JointJS paper to stop panning
+   */
+  private handleWindowDrag(): void {
+
+    // pointer down event to start the panning, this will record the original paper offset
+    Observable.fromEvent<JointPointerDownEvent>(this.getJointPaper(), 'blank:pointerdown')
+      .subscribe(
+        coordinate => {
+          this.mouseDown = {x : coordinate[1], y: coordinate[2]};
+          this.ifMouseDown = true;
+        }
+      );
+
+    /* mousemove event to move paper, this will calculate the new coordinate based on the
+     *  starting coordinate, the mousemove offset, and the current zoom ratio.
+     *  To move the paper based on the new coordinate, this will translate the paper by calling
+     *  the JointJS method .translate() to move paper's offset.
+     */
+
+    Observable.fromEvent<MouseEvent>(document, 'mousemove')
+        .filter(() => this.ifMouseDown === true)
+        .filter(() => this.mouseDown !== undefined)
+        .forEach( coordinate => {
+
+          if (this.mouseDown === undefined) {
+            throw new Error('Error: Mouse down is undefined after the filter');
+          }
+
+          // calculate the drag offset between user click on the mouse and then release the mouse, including zooming value.
+          this.dragOffset = {
+            x : coordinate.x - this.mouseDown.x * this.newZoomRatio,
+            y : coordinate.y - this.mouseDown.y * this.newZoomRatio
+          };
+          // do paper movement.
+          this.getJointPaper().translate(
+            (- this.getWrapperElementOffset().x + this.dragOffset.x),
+            (- this.getWrapperElementOffset().y + this.dragOffset.y)
+          );
+          // pass offset to the drag-and-drop.service, make drop operator be at the right location.
+          this.workflowActionService.getJointGraphWrapper().setOffset(this.dragOffset);
+        });
+
+    // This observable captures the drop event to stop the panning
+    Observable.fromEvent<JointPaperEvent>(this.getJointPaper(), 'blank:pointerup')
+      .subscribe(() => this.ifMouseDown = false);
   }
 
   /**
@@ -169,12 +292,15 @@ export class WorkflowEditorComponent implements AfterViewInit {
    * So that elements in JointJS paper have the same coordinates as the actual document.
    *  and we don't have to convert between JointJS coordinates and actual coordinates.
    *
+   * dragOffset is added to this translation to consider the situation that the paper
+   *  has been panned by the user previously.
+   *
    * Note: attribute `origin` and function `setOrigin` are deprecated and won't work
    *  function `translate` does the same thing
    */
   private setJointPaperOriginOffset(): void {
     const elementOffset = this.getWrapperElementOffset();
-    this.getJointPaper().translate(-elementOffset.x, -elementOffset.y);
+    this.getJointPaper().translate(-elementOffset.x + this.dragOffset.x, -elementOffset.y + this.dragOffset.y);
   }
 
   /**
@@ -243,8 +369,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
     const jointPaperOptions: joint.dia.Paper.Options = {
 
-      // set grid size to 1px (smallest grid)
-      gridSize: 1,
       // enable jointjs feature that automatically snaps a link to the closest port with a radius of 30px
       snapLinks: { radius: 30 },
       // disable jointjs default action that can make a link not connect to an operator
@@ -261,12 +385,15 @@ export class WorkflowEditorComponent implements AfterViewInit {
       preventDefaultBlankAction: false,
       // disable jointjs default action that prevents normal right click menu showing up on jointjs paper
       preventContextMenu: false,
+      // draw dots in the background of the paper
+      drawGrid: {name: 'fixedDot', args: {color: 'black', scaleFactor: 8, thickness: 1.2 } },
+      // set grid size
+      gridSize: 2,
     };
 
     return jointPaperOptions;
   }
 }
-
 /**
 * This function is provided to JointJS to disable some invalid connections on the UI.
 * If the connection is invalid, users are not able to connect the links on the UI.
