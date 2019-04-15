@@ -68,6 +68,71 @@
   overflow: auto;
 }
 
+.drag-file-area {
+  height: 220px;
+  min-width: 96%;
+  width: 96%;
+  margin-right: 2%;
+  margin-left: 2%;
+  border-radius: 50px;
+  border: dotted 5px lightblue;
+  text-align: center;
+  vertical-align: middle;
+  line-height: 200px;
+  font-size:200%;
+}
+.have-file-over {
+  background:  lightgray;
+}
+.invalid-file {
+  background: linear-gradient(to right,red 10%, white 60%);
+}
+.drag-file-gap{
+  border-bottom:2px solid lightgray;
+  margin-right: 3%;
+  margin-left: 3%;
+}
+.drag-file-container{
+  display: grid;
+  grid-template-columns: 85% 15%;
+  margin-bottom:3px;
+  margin-top:3px;
+  margin-right: 3%;
+  margin-left: 3%;
+  border-bottom:1px solid lightgray;
+}
+.drag-file-container:last-child{
+  border-bottom:none;
+}
+/**
+* this css is used for creating a n*2 grid area for the queue
+*              *******************
+*              *        *        *
+*              *******************
+**/
+.queue-file-name{
+  grid-column-start: 1;
+  grid-column-end: 2;
+}
+.queue-delete-bottom{
+  grid-column-start: 2;
+  grid-column-end: 3;
+  background-color:red;
+  border-radius: 4px;
+  -webkit-transition-duration: 0.4s; 
+  transition-duration: 0.4s;
+}
+.queue-delete-bottom:hover{
+  color: white;
+}
+.warning-space{
+  margin-right: 3%;
+  margin-left: 3%;
+}
+.invalid-file-warning{
+ color:orange;
+}
+
 #hide input[type=file] {
   display:none;
   margin:10px;

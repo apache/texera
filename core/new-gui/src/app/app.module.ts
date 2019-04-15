@@ -61,6 +61,7 @@ import {
 
 import { ResourceSectionComponent } from './dashboard/component/feature-container/resource-section/resource-section.component';
 
+import { FileUploadModule } from 'ng2-file-upload';
 
 @NgModule({
   declarations: [
@@ -108,7 +109,8 @@ import { ResourceSectionComponent } from './dashboard/component/feature-containe
     RouterModule.forRoot([]),
     TourNgBootstrapModule.forRoot(),
 
-    MaterialDesignFrameworkModule
+    MaterialDesignFrameworkModule,
+    FileUploadModule,
 
   ],
   entryComponents: [
