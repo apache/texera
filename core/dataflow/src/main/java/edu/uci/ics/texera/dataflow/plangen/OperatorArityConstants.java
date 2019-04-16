@@ -31,7 +31,7 @@ import edu.uci.ics.texera.dataflow.sink.tuple.TupleSinkPredicate;
 import edu.uci.ics.texera.dataflow.source.asterix.AsterixSourcePredicate;
 import edu.uci.ics.texera.dataflow.source.file.FileSourcePredicate;
 import edu.uci.ics.texera.dataflow.source.scan.ScanSourcePredicate;
-import edu.uci.ics.texera.dataflow.twitter.TwitterConverterPredicate;
+import edu.uci.ics.texera.dataflow.twitter.TwitterJsonConverterPredicate;
 import edu.uci.ics.texera.dataflow.twitterfeed.TwitterFeedSourcePredicate;
 import edu.uci.ics.texera.dataflow.wordcount.WordCountIndexSourcePredicate;
 import edu.uci.ics.texera.dataflow.wordcount.WordCountOperatorPredicate;
@@ -73,7 +73,7 @@ public class OperatorArityConstants {
 
         fixedInputArityMap.put(AsterixSourcePredicate.class, 0);
         
-        fixedInputArityMap.put(TwitterConverterPredicate.class, 1);
+        fixedInputArityMap.put(TwitterJsonConverterPredicate.class, 1);
 
         fixedInputArityMap.put(ScanSourcePredicate.class, 0);
         fixedInputArityMap.put(FileSourcePredicate.class, 0);
@@ -114,7 +114,7 @@ public class OperatorArityConstants {
 
         fixedOutputArityMap.put(AsterixSourcePredicate.class, 1);
         
-        fixedOutputArityMap.put(TwitterConverterPredicate.class, 1);
+        fixedOutputArityMap.put(TwitterJsonConverterPredicate.class, 1);
 
         fixedOutputArityMap.put(ScanSourcePredicate.class, 1);
         fixedOutputArityMap.put(FileSourcePredicate.class, 1);
