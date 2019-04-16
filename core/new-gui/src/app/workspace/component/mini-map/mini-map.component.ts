@@ -2,7 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { MiniMapService } from './../../service/workflow-graph/model/mini-map.service';
 import { Observable } from 'rxjs/Observable';
 import * as joint from 'jointjs';
-import { ResultPanelToggleService } from '../../service/result-panel-toggle/result-panel-toggle.service';
+import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
 
 /**
  * MiniMapComponent is the componenet that contains the mini-map of the workflow editor component.
@@ -25,23 +25,26 @@ export class MiniMapComponent implements OnInit {
   public readonly MINI_MAP_JOINTJS_MAP_WRAPPER_ID = 'texera-mini-map-editor-jointjs-wrapper-id';
   public readonly MINI_MAP_JOINTJS_MAP_ID = 'texera-mini-map-editor-jointjs-body-id';
 
-  private miniMapScaleSize = 0.15;
-  private miniMapGridSize = 45;
-  private mapPaper: joint.dia.Paper | undefined;
+  private readonly MINI_MAP_ZOOM_SCALE = 0.15;
+  private readonly MINI_MAP_GRID_SIZE = 45;
+  private miniMapPaper: joint.dia.Paper | undefined;
 
   constructor(private miniMapService: MiniMapService,
-    private resultPanelToggleService: ResultPanelToggleService) { }
+    private workflowActionService: WorkflowActionService) { }
 
   ngOnInit() {
     this.handleMiniMapInitialize();
     this.handleWindowResize();
+    this.handlePaperPan();
+    this.handlePaperRestoreDefaultOffset();
+    this.handlePaperZoom();
   }
 
-  public getMapPaper(): joint.dia.Paper {
-    if (this.mapPaper === undefined) {
+  public getMiniMapPaper(): joint.dia.Paper {
+    if (this.miniMapPaper === undefined) {
       throw new Error('JointJS Map paper is undefined');
     }
-    return this.mapPaper;
+    return this.miniMapPaper;
   }
 
   /**
@@ -71,21 +74,55 @@ export class MiniMapComponent implements OnInit {
     if (workflowPaper === undefined) {
       throw new Error('Workflow Graph is undefined');
     }
-    this.mapPaper =  new joint.dia.Paper({
+    this.miniMapPaper =  new joint.dia.Paper({
       el: document.getElementById(this.MINI_MAP_JOINTJS_MAP_ID),
       model: workflowPaper.model, // binds the main workflow's graph/model to the map
-      gridSize: this.miniMapGridSize,
+      gridSize: this.MINI_MAP_GRID_SIZE,
       drawGrid: true,
       background: {
         color:  '#F7F6F6',
       },
       interactive: false
     });
-    this.mapPaper.scale(this.miniMapScaleSize);
-    this.mapPaper.drawGrid({'color' : '#D8656A', 'thickness': 3 });
-
+    this.miniMapPaper.scale(this.MINI_MAP_ZOOM_SCALE);
+    this.miniMapPaper.drawGrid({'color' : '#D8656A', 'thickness': 5 });
     this.setMapPaperDimensions();
   }
+
+  /**
+   * Handles the panning event from the workflow editor and reflect translation changes
+   *  on the mini-map paper.
+   */
+  private handlePaperPan(): void {
+    this.workflowActionService.getJointGraphWrapper().getPanPaperOffsetStream().subscribe(
+      newOffset => {
+        this.getMiniMapPaper().translate(
+          newOffset.x * this.MINI_MAP_ZOOM_SCALE,
+          newOffset.y * this.MINI_MAP_ZOOM_SCALE
+        );
+      }
+    );
+  }
+
+  /**
+   * Handles restore offset default event by translating jointJS paper
+   *  back to original position
+   */
+  private handlePaperRestoreDefaultOffset(): void {
+    this.workflowActionService.getJointGraphWrapper().getRestorePaperOffsetStream()
+      .subscribe(() => this.getMiniMapPaper().translate(0, 0));
+  }
+
+  /**
+   * Handles zoom events passed from navigation-component, which can be used to
+   *  make the jointJS paper larger or smaller.
+   */
+  private handlePaperZoom(): void {
+    this.workflowActionService.getJointGraphWrapper().getWorkflowEditorZoomStream().subscribe(newRatio => {
+      this.getMiniMapPaper().scale(this.MINI_MAP_ZOOM_SCALE * newRatio, this.MINI_MAP_ZOOM_SCALE * newRatio);
+    });
+  }
+
 
   /**
    * When window is resized, reset mini-map's dimensions (introduce
@@ -111,7 +148,7 @@ export class MiniMapComponent implements OnInit {
 
   private setMapPaperDimensions(): void {
     const size = this.getWrapperElementSize();
-    this.getMapPaper().setDimensions(size.width, size.height);
+    this.getMiniMapPaper().setDimensions(size.width, size.height);
   }
 
 }

@@ -64,6 +64,8 @@ export class JointGraphWrapper {
   private workflowEditorZoomSubject: Subject<number> = new Subject<number>();
   // event stream of restoring zoom / offset default of the jointJS paper
   private restorePaperOffsetSubject: Subject<Point> = new Subject<Point>();
+  // event stream of panning to make mini-map and main workflow paper compatible in offset
+  private panPaperOffsetSubject: Subject<Point> = new Subject<Point>();
 
   // initially the zoom ratio is 1
   private newZoomRatio: number = 1;
@@ -199,6 +201,10 @@ export class JointGraphWrapper {
     return jointLinkDeleteStream;
   }
 
+  public getPanPaperOffsetStream(): Observable<Point> {
+    return this.panPaperOffsetSubject.asObservable();
+  }
+
   /**
    * This method will update the drag offset so that dropping
    *  a new operator will appear at the correct location on the UI.
@@ -207,6 +213,7 @@ export class JointGraphWrapper {
    */
   public setOffset(offset: Point): void {
     this.dragOffset = {x: offset.x, y: offset.y};
+    this.panPaperOffsetSubject.next(this.dragOffset);
   }
 
   /**
