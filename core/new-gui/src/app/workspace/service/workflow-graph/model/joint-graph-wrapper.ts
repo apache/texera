@@ -52,7 +52,9 @@ type JointLinkChangeEvent = [
 export class JointGraphWrapper {
 
   // zoomDifference represents the ratio that is zoom in/out everytime.
-  public static readonly ZOOM_DIFFERENCE: number = 0.02;
+  public static readonly ZOOM_DIFFERENCE: number = 0.05;
+  public static readonly INIT_ZOOM_VALUE: number = 1;
+  public static readonly INIT_OFFSET_VALUE: Point = {x: 0, y: 0};
 
   // the current highlighted operator ID
   private currentHighlightedOperator: string | undefined;
@@ -67,10 +69,10 @@ export class JointGraphWrapper {
   // event stream of panning to make mini-map and main workflow paper compatible in offset
   private panPaperOffsetSubject: Subject<Point> = new Subject<Point>();
 
-  // initially the zoom ratio is 1
-  private newZoomRatio: number = 1;
+  // current zoom ratio
+  private zoomRatio: number = JointGraphWrapper.INIT_ZOOM_VALUE;
   // dragOffset has two elements, first is the drag offset alongside x axis, second is the drag offset alongside y axis.
-  private dragOffset: Point = {x : 0,  y : 0};
+  private dragOffset: Point = JointGraphWrapper.INIT_OFFSET_VALUE;
 
   /**
    * This will capture all events in JointJS
@@ -209,11 +211,10 @@ export class JointGraphWrapper {
    * This method will update the drag offset so that dropping
    *  a new operator will appear at the correct location on the UI.
    *
-   * @param offset new offset from panning
+   * @param dragOffset new offset from panning
    */
-  public setOffset(offset: Point): void {
-    this.dragOffset = {x: offset.x, y: offset.y};
-    this.panPaperOffsetSubject.next(this.dragOffset);
+  public setDragOffset(dragOffset: Point): void {
+    this.dragOffset = dragOffset;
   }
 
   /**
@@ -223,8 +224,8 @@ export class JointGraphWrapper {
    * @param ratio new ratio from zooming
    */
   public setZoomProperty(ratio: number): void {
-      this.newZoomRatio = ratio;
-      this.workflowEditorZoomSubject.next(this.newZoomRatio);
+      this.zoomRatio = ratio;
+      this.workflowEditorZoomSubject.next(this.zoomRatio);
   }
 
   /**
@@ -239,7 +240,7 @@ export class JointGraphWrapper {
    * This method will fetch current offset of the paper. This will
    *  be used in drag-and-drop.
    */
-  public getOffset(): Point {
+  public getDragOffset(): Point {
     return this.dragOffset;
   }
 
@@ -248,20 +249,16 @@ export class JointGraphWrapper {
    *  be used in drag-and-drop.
    */
   public getZoomRatio(): number {
-    return this.newZoomRatio;
+    return this.zoomRatio;
   }
 
   /**
    * This method will restore the default zoom ratio and offset for
    *  the jointjs paper by sending an event to restorePaperSubject.
-   *
-   * Default zoom ratio  = 1
-   * Default drag offset = {x : 0, y : 0}
-   *
    */
-  public resumeDefaultZoomAndOffset(): void {
-    this.setZoomProperty(1);
-    this.dragOffset = {x : 0, y: 0};
+  public restoreDefaultZoomAndOffset(): void {
+    this.setZoomProperty(JointGraphWrapper.INIT_ZOOM_VALUE);
+    this.dragOffset = JointGraphWrapper.INIT_OFFSET_VALUE;
     this.restorePaperOffsetSubject.next(this.dragOffset);
   }
 

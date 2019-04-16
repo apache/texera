@@ -51,10 +51,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
   public readonly WORKFLOW_EDITOR_JOINTJS_ID = 'texera-workflow-editor-jointjs-body-id';
 
   private paper: joint.dia.Paper | undefined;
-  /**
-   * Logically, set ZoomOffset to be 1 since the intial zoom time is 1.
-   */
-  private newZoomRatio: number = 1;
 
   private ifMouseDown: boolean = false;
   private mouseDown: Point | undefined;
@@ -126,8 +122,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
    */
   private handlePaperZoom(): void {
     this.workflowActionService.getJointGraphWrapper().getWorkflowEditorZoomStream().subscribe(newRatio => {
-      this.newZoomRatio = newRatio;
-      this.getJointPaper().scale(this.newZoomRatio, this.newZoomRatio);
+      this.getJointPaper().scale(newRatio, newRatio);
     });
   }
 
@@ -151,10 +146,10 @@ export class WorkflowEditorComponent implements AfterViewInit {
       .forEach(event => {
         if (event.deltaY < 0) {
           this.workflowActionService.getJointGraphWrapper()
-            .setZoomProperty(this.newZoomRatio - JointGraphWrapper.ZOOM_DIFFERENCE);
+            .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() - JointGraphWrapper.ZOOM_DIFFERENCE);
         } else {
           this.workflowActionService.getJointGraphWrapper()
-            .setZoomProperty(this.newZoomRatio + JointGraphWrapper.ZOOM_DIFFERENCE);
+            .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() + JointGraphWrapper.ZOOM_DIFFERENCE);
         }
       });
   }
@@ -195,8 +190,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
           // calculate the drag offset between user click on the mouse and then release the mouse, including zooming value.
           this.dragOffset = {
-            x : coordinate.x - this.mouseDown.x * this.newZoomRatio,
-            y : coordinate.y - this.mouseDown.y * this.newZoomRatio
+            x : coordinate.x - this.mouseDown.x * this.workflowActionService.getJointGraphWrapper().getZoomRatio(),
+            y : coordinate.y - this.mouseDown.y * this.workflowActionService.getJointGraphWrapper().getZoomRatio()
           };
           // do paper movement.
           this.getJointPaper().translate(
@@ -204,7 +199,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
             (- this.getWrapperElementOffset().y + this.dragOffset.y)
           );
           // pass offset to the drag-and-drop.service, make drop operator be at the right location.
-          this.workflowActionService.getJointGraphWrapper().setOffset(this.dragOffset);
+          this.workflowActionService.getJointGraphWrapper().setDragOffset(this.dragOffset);
         });
 
     // This observable captures the drop event to stop the panning

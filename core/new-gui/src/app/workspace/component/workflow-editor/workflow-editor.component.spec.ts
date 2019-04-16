@@ -141,6 +141,7 @@ describe('WorkflowEditorComponent', () => {
     let workflowActionService: WorkflowActionService;
     let miniMapService: MiniMapService;
     let dragDropService: DragDropService;
+
     beforeEach(async(() => {
       TestBed.configureTestingModule({
         declarations: [WorkflowEditorComponent],
@@ -251,7 +252,7 @@ describe('WorkflowEditorComponent', () => {
       component.getJointPaper().translate(mockTranslation, mockTranslation);
       expect(component.getJointPaper().translate().tx).not.toEqual(originalOffset.tx);
       expect(component.getJointPaper().translate().ty).not.toEqual(originalOffset.ty);
-      m.hot('-e-').do(() => workflowActionService.getJointGraphWrapper().resumeDefaultZoomAndOffset()).subscribe(
+      m.hot('-e-').do(() => workflowActionService.getJointGraphWrapper().restoreDefaultZoomAndOffset()).subscribe(
         () => {
           expect(component.getJointPaper().translate().tx).toEqual(originalOffset.tx);
           expect(component.getJointPaper().translate().ty).toEqual(originalOffset.ty);
