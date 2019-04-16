@@ -16,11 +16,12 @@ import * as joint from 'jointjs';
 import {
   mockScanPredicate, mockPoint, mockScanResultLink, mockResultPredicate
 } from '../../service/workflow-graph/model/mock-workflow-data';
+
 class StubWorkflowActionService {
 
   private jointGraph = new joint.dia.Graph();
   private jointGraphWrapper = new JointGraphWrapper(this.jointGraph);
-  private texeraGraph = new WorkflowGraph();
+  private readonly texeraGraph = new WorkflowGraph();
 
   public attachJointPaper(paperOptions: joint.dia.Paper.Options): joint.dia.Paper.Options {
     paperOptions.model = this.jointGraph;
@@ -144,6 +145,7 @@ describe('WorkflowEditorComponent', () => {
           WorkflowUtilService,
           DragDropService,
           WorkflowActionService,
+          ValidationWorkflowService,
           { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
         ]
       })

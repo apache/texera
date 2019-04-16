@@ -137,5 +137,4 @@ describe('JointUIService', () => {
     expect(graph_link.attr('.marker-target/d')).toEqual(targetOperatorHandle);
     expect(graph_link.attr('.tool-remove path/d')).toEqual(deleteButtonPath);
   });
-
 });
