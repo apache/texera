@@ -205,10 +205,10 @@ export class JointGraphWrapper {
    * This method will update the drag offset so that dropping
    *  a new operator will appear at the correct location on the UI.
    *
-   * @param offset new offset from panning
+   * @param dragOffset new offset from panning
    */
-  public setOffset(offset: Point): void {
-    this.dragOffset = offset;
+  public setDragOffset(dragOffset: Point): void {
+    this.dragOffset = dragOffset;
   }
 
   /**
@@ -234,7 +234,7 @@ export class JointGraphWrapper {
    * This method will fetch current offset of the paper. This will
    *  be used in drag-and-drop.
    */
-  public getOffset(): Point {
+  public getDragOffset(): Point {
     return this.dragOffset;
   }
 

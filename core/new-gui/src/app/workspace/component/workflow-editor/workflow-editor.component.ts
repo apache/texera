@@ -189,7 +189,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
             (- this.getWrapperElementOffset().y + this.dragOffset.y)
           );
           // pass offset to the drag-and-drop.service, make drop operator be at the right location.
-          this.workflowActionService.getJointGraphWrapper().setOffset(this.dragOffset);
+          this.workflowActionService.getJointGraphWrapper().setDragOffset(this.dragOffset);
         });
 
     // This observable captures the drop event to stop the panning
