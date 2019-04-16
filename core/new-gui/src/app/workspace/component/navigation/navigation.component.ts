@@ -34,9 +34,6 @@ export class NavigationComponent implements OnInit {
   // variable binded with HTML to decide if the running spinner should show
   public showSpinner = false;
 
-  // the newZoomRatio represents the ratio of the size of the the new window to the original one.
-  private newZoomRatio: number = 1;
-
   constructor(private executeWorkflowService: ExecuteWorkflowService,
     public tourService: TourService, private workflowActionService: WorkflowActionService) {
     // return the run button after the execution is finished, either
@@ -57,17 +54,9 @@ export class NavigationComponent implements OnInit {
     // this will swap button between pause and resume
     executeWorkflowService.getExecutionPauseResumeStream()
       .subscribe(state => this.isWorkflowPaused = (state === 0));
-
-    /**
-     * Get the new value from the mouse wheel zoom function.
-     */
-    workflowActionService.getJointGraphWrapper().getWorkflowEditorZoomStream().subscribe(
-      newRatio => this.newZoomRatio = newRatio
-    );
   }
 
   ngOnInit() {
-
   }
 
   /**
@@ -134,22 +123,22 @@ export class NavigationComponent implements OnInit {
   /**
    * send the offset value to the work flow editor panel using drag and drop service.
    * when users click on the button, we change the zoomoffset to make window larger or smaller.
-  */
+   */
   public onClickZoomIn(): void {
     // make the ratio small.
     this.workflowActionService.getJointGraphWrapper()
-      .setZoomProperty(this.newZoomRatio + JointGraphWrapper.ZOOM_DIFFERENCE);
+      .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() + JointGraphWrapper.ZOOM_DIFFERENCE);
   }
   public onClickZoomOut(): void {
     // make the ratio big.
     this.workflowActionService.getJointGraphWrapper()
-      .setZoomProperty(this.newZoomRatio - JointGraphWrapper.ZOOM_DIFFERENCE);
+      .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() - JointGraphWrapper.ZOOM_DIFFERENCE);
   }
 
   /**
    * Restore paper default zoom ratio and paper offset
    */
   public onClickRestoreZoomOffsetDefaullt(): void {
-    this.workflowActionService.getJointGraphWrapper().resumeDefaultZoomAndOffset();
+    this.workflowActionService.getJointGraphWrapper().restoreDefaultZoomAndOffset();
   }
 }

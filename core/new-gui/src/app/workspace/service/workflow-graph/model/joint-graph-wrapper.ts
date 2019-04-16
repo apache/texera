@@ -52,7 +52,9 @@ type JointLinkChangeEvent = [
 export class JointGraphWrapper {
 
   // zoomDifference represents the ratio that is zoom in/out everytime.
-  public static readonly ZOOM_DIFFERENCE: number = 0.02;
+  public static readonly ZOOM_DIFFERENCE: number = 0.05;
+  public static readonly INIT_ZOOM_VALUE: number = 1;
+  public static readonly INIT_OFFSET_VALUE: Point = {x: 0, y: 0};
 
   // the current highlighted operator ID
   private currentHighlightedOperator: string | undefined;
@@ -65,10 +67,10 @@ export class JointGraphWrapper {
   // event stream of restoring zoom / offset default of the jointJS paper
   private restorePaperOffsetSubject: Subject<Point> = new Subject<Point>();
 
-  // initially the zoom ratio is 1
-  private newZoomRatio: number = 1;
+  // current zoom ratio
+  private zoomRatio: number = JointGraphWrapper.INIT_ZOOM_VALUE;
   // dragOffset has two elements, first is the drag offset alongside x axis, second is the drag offset alongside y axis.
-  private dragOffset: Point = {x : 0,  y : 0};
+  private dragOffset: Point = JointGraphWrapper.INIT_OFFSET_VALUE;
 
   /**
    * This will capture all events in JointJS
@@ -206,7 +208,7 @@ export class JointGraphWrapper {
    * @param offset new offset from panning
    */
   public setOffset(offset: Point): void {
-    this.dragOffset = {x: offset.x, y: offset.y};
+    this.dragOffset = offset;
   }
 
   /**
@@ -216,8 +218,8 @@ export class JointGraphWrapper {
    * @param ratio new ratio from zooming
    */
   public setZoomProperty(ratio: number): void {
-      this.newZoomRatio = ratio;
-      this.workflowEditorZoomSubject.next(this.newZoomRatio);
+      this.zoomRatio = ratio;
+      this.workflowEditorZoomSubject.next(this.zoomRatio);
   }
 
   /**
@@ -241,20 +243,16 @@ export class JointGraphWrapper {
    *  be used in drag-and-drop.
    */
   public getZoomRatio(): number {
-    return this.newZoomRatio;
+    return this.zoomRatio;
   }
 
   /**
    * This method will restore the default zoom ratio and offset for
    *  the jointjs paper by sending an event to restorePaperSubject.
-   *
-   * Default zoom ratio  = 1
-   * Default drag offset = {x : 0, y : 0}
-   *
    */
-  public resumeDefaultZoomAndOffset(): void {
-    this.setZoomProperty(1);
-    this.dragOffset = {x : 0, y: 0};
+  public restoreDefaultZoomAndOffset(): void {
+    this.setZoomProperty(JointGraphWrapper.INIT_ZOOM_VALUE);
+    this.dragOffset = JointGraphWrapper.INIT_OFFSET_VALUE;
     this.restorePaperOffsetSubject.next(this.dragOffset);
   }
 
