@@ -85,7 +85,7 @@ describe('DragDropService', () => {
   it('should change the add an operator at correct position when the element is dropped', marbles((m) => {
     const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
 
-    workflowActionService.getJointGraphWrapper().setDragOffset({x: 100, y: 100});
+    workflowActionService.getJointGraphWrapper().setPanningOffset({x: 100, y: 100});
     workflowActionService.getJointGraphWrapper().setZoomProperty(0.1);
 
     const operatorType = mockOperatorMetaData.operators[0].operatorType;

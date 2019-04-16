@@ -195,7 +195,7 @@ describe('NavigationComponent', () => {
      newRatio => {
        fixture.detectChanges();
        expect(newRatio).toBeLessThan(originalZoomRatio);
-       expect(newRatio).toEqual(originalZoomRatio - JointGraphWrapper.ZOOM_DIFFERENCE);
+       expect(newRatio).toEqual(originalZoomRatio - JointGraphWrapper.ZOOM_CLICK_DIFF);
      }
    );
 
@@ -210,7 +210,7 @@ describe('NavigationComponent', () => {
      newRatio => {
        fixture.detectChanges();
        expect(newRatio).toBeGreaterThan(originalZoomRatio);
-       expect(newRatio).toEqual(originalZoomRatio + JointGraphWrapper.ZOOM_DIFFERENCE);
+       expect(newRatio).toEqual(originalZoomRatio + JointGraphWrapper.ZOOM_CLICK_DIFF);
      }
    );
 

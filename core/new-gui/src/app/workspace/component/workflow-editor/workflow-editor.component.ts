@@ -9,7 +9,6 @@ import * as joint from 'jointjs';
 import { forEach } from 'lodash-es';
 import { element } from '@angular/core/src/render3/instructions';
 
-import { MiniMapService } from './../../service/workflow-graph/model/mini-map.service';
 import { ResultPanelToggleService } from '../../service/result-panel-toggle/result-panel-toggle.service';
 import { Point } from '../../types/workflow-common.interface';
 import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-graph-wrapper';
@@ -60,7 +59,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
   constructor(
     private workflowActionService: WorkflowActionService,
     private dragDropService: DragDropService,
-    private miniMapService: MiniMapService,
     private resultPanelToggleService: ResultPanelToggleService,
     private elementRef: ElementRef
   ) {
@@ -95,8 +93,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
     jointPaperOptions.el = $(`#${this.WORKFLOW_EDITOR_JOINTJS_ID}`);
     // create the JointJS paper
     this.paper = new joint.dia.Paper(jointPaperOptions);
-    // initialize mini-map paper
-    this.miniMapService.initializeMapPaper(this.paper);
 
     this.setJointPaperOriginOffset();
     this.setJointPaperDimensions();
@@ -146,10 +142,10 @@ export class WorkflowEditorComponent implements AfterViewInit {
       .forEach(event => {
         if (event.deltaY < 0) {
           this.workflowActionService.getJointGraphWrapper()
-            .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() - JointGraphWrapper.ZOOM_DIFFERENCE);
+            .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() - JointGraphWrapper.ZOOM_MOUSEWHEEL_DIFF);
         } else {
           this.workflowActionService.getJointGraphWrapper()
-            .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() + JointGraphWrapper.ZOOM_DIFFERENCE);
+            .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() + JointGraphWrapper.ZOOM_MOUSEWHEEL_DIFF);
         }
       });
   }
@@ -199,7 +195,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
             (- this.getWrapperElementOffset().y + this.dragOffset.y)
           );
           // pass offset to the drag-and-drop.service, make drop operator be at the right location.
-          this.workflowActionService.getJointGraphWrapper().setDragOffset(this.dragOffset);
+          this.workflowActionService.getJointGraphWrapper().setPanningOffset(this.dragOffset);
         });
 
     // This observable captures the drop event to stop the panning

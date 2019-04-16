@@ -51,10 +51,11 @@ type JointLinkChangeEvent = [
  */
 export class JointGraphWrapper {
 
-  // zoomDifference represents the ratio that is zoom in/out everytime.
-  public static readonly ZOOM_DIFFERENCE: number = 0.05;
+  // zoom diff represents the ratio that is zoom in/out everytime, for clicking +/- buttons or using mousewheel
+  public static readonly ZOOM_CLICK_DIFF: number = 0.05;
+  public static readonly ZOOM_MOUSEWHEEL_DIFF: number = 0.01;
   public static readonly INIT_ZOOM_VALUE: number = 1;
-  public static readonly INIT_OFFSET_VALUE: Point = {x: 0, y: 0};
+  public static readonly INIT_PAN_OFFSET: Point = {x: 0, y: 0};
 
   // the current highlighted operator ID
   private currentHighlightedOperator: string | undefined;
@@ -71,8 +72,8 @@ export class JointGraphWrapper {
 
   // current zoom ratio
   private zoomRatio: number = JointGraphWrapper.INIT_ZOOM_VALUE;
-  // dragOffset has two elements, first is the drag offset alongside x axis, second is the drag offset alongside y axis.
-  private dragOffset: Point = JointGraphWrapper.INIT_OFFSET_VALUE;
+  // panOffset, a point of panning offset alongside x and y axis
+  private panOffset: Point = JointGraphWrapper.INIT_PAN_OFFSET;
 
   /**
    * This will capture all events in JointJS
@@ -208,13 +209,13 @@ export class JointGraphWrapper {
   }
 
   /**
-   * This method will update the drag offset so that dropping
+   * This method will update the panning offset so that dropping
    *  a new operator will appear at the correct location on the UI.
    *
-   * @param dragOffset new offset from panning
+   * @param panOffset new offset from panning
    */
-  public setDragOffset(dragOffset: Point): void {
-    this.dragOffset = dragOffset;
+  public setPanningOffset(panOffset: Point): void {
+    this.panOffset = panOffset;
   }
 
   /**
@@ -240,8 +241,8 @@ export class JointGraphWrapper {
    * This method will fetch current offset of the paper. This will
    *  be used in drag-and-drop.
    */
-  public getDragOffset(): Point {
-    return this.dragOffset;
+  public getPanningOffset(): Point {
+    return this.panOffset;
   }
 
   /**
@@ -258,8 +259,8 @@ export class JointGraphWrapper {
    */
   public restoreDefaultZoomAndOffset(): void {
     this.setZoomProperty(JointGraphWrapper.INIT_ZOOM_VALUE);
-    this.dragOffset = JointGraphWrapper.INIT_OFFSET_VALUE;
-    this.restorePaperOffsetSubject.next(this.dragOffset);
+    this.panOffset = JointGraphWrapper.INIT_PAN_OFFSET;
+    this.restorePaperOffsetSubject.next(this.panOffset);
   }
 
   /**

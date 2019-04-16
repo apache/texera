@@ -1,7 +1,6 @@
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { MiniMapComponent } from './mini-map.component';
-import { MiniMapService } from '../../service/workflow-graph/model/mini-map.service';
 
 import { marbles } from 'rxjs-marbles';
 import { WorkflowEditorComponent } from '../workflow-editor/workflow-editor.component';
@@ -23,13 +22,11 @@ import * as joint from 'jointjs';
 describe('MiniMapComponent', () => {
   let component: MiniMapComponent;
   let fixture: ComponentFixture<MiniMapComponent>;
-  let miniMapService: MiniMapService;
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
       declarations: [ MiniMapComponent, WorkflowEditorComponent ],
       providers: [
-        MiniMapService,
         WorkflowActionService,
         JointUIService,
         {provide: OperatorMetadataService, useClass: StubOperatorMetadataService},
@@ -42,7 +39,6 @@ describe('MiniMapComponent', () => {
   beforeEach(() => {
     fixture = TestBed.createComponent(MiniMapComponent);
     component = fixture.componentInstance;
-    miniMapService = TestBed.get(MiniMapService);
 
     fixture.detectChanges();
   });
@@ -51,28 +47,10 @@ describe('MiniMapComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('should register a new JointJS paper when mini-map initialize a new map paper', marbles((m) => {
-
-    const mockMapPaper = new joint.dia.Paper({});
-    m.hot('-e-').do(event => miniMapService.initializeMapPaper(mockMapPaper)).subscribe();
-
-    miniMapService.getMiniMapInitializeStream().subscribe(
-      () => {
-        fixture.detectChanges();
-        expect(component.getMiniMapPaper()).toBeTruthy();
-        expect(component.getMiniMapPaper().model).toEqual(mockMapPaper.model);
-
-        expect(component.getMiniMapPaper().scale().sx).toEqual(0.15);
-        expect(component.getMiniMapPaper().scale().sy).toEqual(0.15);
-      }
-    );
-
-  }));
 
   it('should should a graph with multiple cells in the mini-map', () => {
 
     const mockMapPaper = new joint.dia.Paper({});
-    miniMapService.initializeMapPaper(mockMapPaper);
 
     fixture.detectChanges();
 

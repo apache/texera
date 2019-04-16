@@ -83,9 +83,9 @@ export class DragDropService {
          */
 
         const newOperatorOffset: Point = {
-          x:  (value.offset.x - this.workflowActionService.getJointGraphWrapper().getDragOffset().x)
+          x:  (value.offset.x - this.workflowActionService.getJointGraphWrapper().getPanningOffset().x)
               / this.workflowActionService.getJointGraphWrapper().getZoomRatio(),
-          y: (value.offset.y - this.workflowActionService.getJointGraphWrapper().getDragOffset().y)
+          y: (value.offset.y - this.workflowActionService.getJointGraphWrapper().getPanningOffset().y)
               / this.workflowActionService.getJointGraphWrapper().getZoomRatio()
         };
 
