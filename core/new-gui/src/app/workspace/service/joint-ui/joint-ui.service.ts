@@ -266,7 +266,7 @@ export class JointUIService {
         fill: '#D8656A', event: 'element:delete'
       },
       'image': {
-        'xlink:href': '/src/assets/operator_images/' + operatorType + '.png',
+        'xlink:href': 'assets/operator_images/' + operatorType + '.png',
         width: 35, height: 35,
         'ref-x': .5, 'ref-y': .5,
         ref: 'rect',
