@@ -121,18 +121,53 @@ export class NavigationComponent implements OnInit {
   }
 
   /**
-   * send the offset value to the work flow editor panel using drag and drop service.
-   * when users click on the button, we change the zoomoffset to make window larger or smaller.
+   * This method checks whether the zoom ratio reaches minimum. If it is minimum, this method
+   *  will disable the zoom out button on the navigation bar.
    */
-  public onClickZoomIn(): void {
+  public isZoomRatioMin(): boolean {
+    return this.workflowActionService.getJointGraphWrapper().isZoomRatioMin();
+  }
+
+  /**
+   * This method checks whether the zoom ratio reaches maximum. If it is maximum, this method
+   *  will disable the zoom in button on the navigation bar.
+   */
+  public isZoomRatioMax(): boolean {
+    return this.workflowActionService.getJointGraphWrapper().isZoomRatioMax();
+  }
+
+  /**
+   * This method will decrease the zoom ratio and send the new zoom ratio value
+   *  to the joint graph wrapper to change overall zoom ratio that is used in
+   *  zoom buttons and mouse wheel zoom.
+   *
+   * If the zoom ratio already reaches minimum, this method will not do anything.
+   */
+  public onClickZoomOut(): void {
+
+    // if zoom is already at minimum, don't zoom out again.
+    if (this.isZoomRatioMin()) { return; }
+
     // make the ratio small.
     this.workflowActionService.getJointGraphWrapper()
-      .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() + JointGraphWrapper.ZOOM_CLICK_DIFF);
+      .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() - JointGraphWrapper.ZOOM_CLICK_DIFF);
   }
-  public onClickZoomOut(): void {
+
+  /**
+   * This method will increase the zoom ratio and send the new zoom ratio value
+   *  to the joint graph wrapper to change overall zoom ratio that is used in
+   *  zoom buttons and mouse wheel zoom.
+   *
+   * If the zoom ratio already reaches maximum, this method will not do anything.
+   */
+  public onClickZoomIn(): void {
+
+    // if zoom is already reach maximum, don't zoom in again.
+    if (this.isZoomRatioMax()) { return; }
+
     // make the ratio big.
     this.workflowActionService.getJointGraphWrapper()
-      .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() - JointGraphWrapper.ZOOM_CLICK_DIFF);
+      .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() + JointGraphWrapper.ZOOM_CLICK_DIFF);
   }
 
   /**

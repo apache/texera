@@ -33,7 +33,7 @@ export class MiniMapComponent implements AfterViewInit {
   ngAfterViewInit() {
     this.initializeMapPaper();
     this.handleWindowResize();
-    this.handlePaperPan();
+    this.handleMinimapTranslate();
   }
 
   public getMiniMapPaper(): joint.dia.Paper {
@@ -65,11 +65,18 @@ export class MiniMapComponent implements AfterViewInit {
 
   /**
    * Handles the panning event from the workflow editor and reflect translation changes
-   *  on the mini-map paper.
+   *  on the mini-map paper. There will be 2 events from the main workflow paper
+   *
+   * 1. Paper panning event
+   * 2. Paper pan offset restore default event
+   *
+   * Both events return a position in which the paper should translate to.
    */
-  private handlePaperPan(): void {
-    this.workflowActionService.getJointGraphWrapper().getPanPaperOffsetStream().subscribe(
-      newOffset => {
+  private handleMinimapTranslate(): void {
+    Observable.merge(
+      this.workflowActionService.getJointGraphWrapper().getPanPaperOffsetStream(),
+      this.workflowActionService.getJointGraphWrapper().getRestorePaperOffsetStream()
+    ).subscribe(newOffset => {
         this.getMiniMapPaper().translate(
           newOffset.x * this.MINI_MAP_ZOOM_SCALE,
           newOffset.y * this.MINI_MAP_ZOOM_SCALE

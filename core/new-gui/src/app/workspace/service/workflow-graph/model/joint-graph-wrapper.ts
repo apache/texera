@@ -57,6 +57,9 @@ export class JointGraphWrapper {
   public static readonly INIT_ZOOM_VALUE: number = 1;
   public static readonly INIT_PAN_OFFSET: Point = {x: 0, y: 0};
 
+  public static readonly ZOOM_MINIMUM: number = 0.70;
+  public static readonly ZOOM_MAXIMUM: number = 1.30;
+
   // the current highlighted operator ID
   private currentHighlightedOperator: string | undefined;
   // event stream of highlighting an operator
@@ -216,6 +219,7 @@ export class JointGraphWrapper {
    */
   public setPanningOffset(panOffset: Point): void {
     this.panOffset = panOffset;
+    this.panPaperOffsetSubject.next(panOffset);
   }
 
   /**
@@ -230,6 +234,20 @@ export class JointGraphWrapper {
   }
 
   /**
+   * Check if the zoom ratio reaches the minimum.
+   */
+  public isZoomRatioMin(): boolean {
+    return this.zoomRatio <= JointGraphWrapper.ZOOM_MINIMUM;
+  }
+
+  /**
+   * Check if the zoom ratio reaches the maximum.
+   */
+  public isZoomRatioMax(): boolean {
+    return this.zoomRatio >= JointGraphWrapper.ZOOM_MAXIMUM;
+  }
+
+  /**
    * Returns an observable stream containing the new zoom ratio
    *  for the jointJS paper.
    */
@@ -238,16 +256,14 @@ export class JointGraphWrapper {
   }
 
   /**
-   * This method will fetch current offset of the paper. This will
-   *  be used in drag-and-drop.
+   * This method will fetch current pan offset of the paper.
    */
   public getPanningOffset(): Point {
     return this.panOffset;
   }
 
   /**
-   * This method will fetch current zoom ratio of the paper. This will
-   *  be used in drag-and-drop.
+   * This method will fetch current zoom ratio of the paper.
    */
   public getZoomRatio(): number {
     return this.zoomRatio;

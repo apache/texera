@@ -14,7 +14,6 @@ import { WorkflowGraph, WorkflowGraphReadonly } from '../../service/workflow-gra
 import * as joint from 'jointjs';
 import { mockScanPredicate, mockPoint } from '../../service/workflow-graph/model/mock-workflow-data';
 
-import { MiniMapService } from '../../service/workflow-graph/model/mini-map.service';
 import { ResultPanelToggleService } from '../../service/result-panel-toggle/result-panel-toggle.service';
 import { marbles } from 'rxjs-marbles';
 
@@ -58,7 +57,6 @@ describe('WorkflowEditorComponent', () => {
           JointUIService,
           WorkflowUtilService,
           DragDropService,
-          MiniMapService,
           ResultPanelToggleService,
           { provide: WorkflowActionService, useClass: StubWorkflowActionService },
           { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
@@ -139,7 +137,6 @@ describe('WorkflowEditorComponent', () => {
     let component: WorkflowEditorComponent;
     let fixture: ComponentFixture<WorkflowEditorComponent>;
     let workflowActionService: WorkflowActionService;
-    let miniMapService: MiniMapService;
     let dragDropService: DragDropService;
 
     beforeEach(async(() => {
@@ -149,7 +146,6 @@ describe('WorkflowEditorComponent', () => {
           JointUIService,
           WorkflowUtilService,
           WorkflowActionService,
-          MiniMapService,
           ResultPanelToggleService,
           DragDropService,
           { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
@@ -162,7 +158,6 @@ describe('WorkflowEditorComponent', () => {
       fixture = TestBed.createComponent(WorkflowEditorComponent);
       component = fixture.componentInstance;
       workflowActionService = TestBed.get(WorkflowActionService);
-      miniMapService = TestBed.get(MiniMapService);
       dragDropService = TestBed.get(DragDropService);
       // detect changes to run ngAfterViewInit and bind Model
       fixture.detectChanges();
