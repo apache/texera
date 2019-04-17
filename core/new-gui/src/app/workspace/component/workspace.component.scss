@@ -39,7 +39,8 @@
                       calc((100% - #{$header-height} - #{$resultbar-height}) * 0.75)
                       0px
                       $resultbar-height
-                      calc((100% - #{$header-height} - #{$resultbar-height}) * 0.25)
+                      calc((100% - #{$header-height} - #{$resultbar-height}) * 0.25);
+  position: relative;
 }
 
 /**
@@ -57,7 +58,8 @@
                       calc((100% - #{$header-height} - #{$resultbar-height}) * 0.75)
                       calc((100% - #{$header-height} - #{$resultbar-height}) * 0.25)
                       $resultbar-height
-                      0px
+                      0px;
+  position: relative;
 }
 
 /**
@@ -144,4 +146,11 @@
   grid-column-end: 3;
   grid-row-start: 4;
   grid-row-end: 5;
+}
+
+.texera-mini-map-navigator {
+  border: 1px solid #797A79;
+  position: absolute;
+  grid-area: 3 / 3; // inside grid in row 3 col 3
+  z-index: 1000;
 }

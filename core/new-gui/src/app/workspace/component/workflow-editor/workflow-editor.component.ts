@@ -93,6 +93,10 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
     this.setJointPaperOriginOffset();
     this.setJointPaperDimensions();
+
+    // console.log(this.getJointPaper().translate());
+    // this.getJointPaper().translate(0, 0);
+    // this.workflowActionService.getJointGraphWrapper().setPanningOffset(this.panOffset);
   }
 
   /**
@@ -102,6 +106,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
   private handlePaperRestoreDefaultOffset(): void {
     this.workflowActionService.getJointGraphWrapper().getRestorePaperOffsetStream()
       .subscribe(newOffset => {
+        this.panOffset = newOffset;
         this.getJointPaper().translate(
           (- this.getWrapperElementOffset().x + newOffset.x),
           (- this.getWrapperElementOffset().y + newOffset.y)
@@ -110,8 +115,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
   }
 
   /**
-   * Handles zoom events passed from navigation-component, which can be used to
-   *  make the jointJS paper larger or smaller.
+   * Handles zoom events to make the jointJS paper larger or smaller.
    */
   private handlePaperZoom(): void {
     this.workflowActionService.getJointGraphWrapper().getWorkflowEditorZoomStream().subscribe(newRatio => {
@@ -288,7 +292,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
    * So that elements in JointJS paper have the same coordinates as the actual document.
    *  and we don't have to convert between JointJS coordinates and actual coordinates.
    *
-   * dragOffset is added to this translation to consider the situation that the paper
+   * panOffset is added to this translation to consider the situation that the paper
    *  has been panned by the user previously.
    *
    * Note: attribute `origin` and function `setOrigin` are deprecated and won't work
