@@ -7,6 +7,7 @@ import { ValidationWorkflowService } from './../../service/validation/validation
 
 import { WorkflowEditorComponent } from './workflow-editor.component';
 
+import { marbles } from 'rxjs-marbles';
 import { OperatorMetadataService } from '../../service/operator-metadata/operator-metadata.service';
 import { StubOperatorMetadataService } from '../../service/operator-metadata/stub-operator-metadata.service';
 import { JointUIService } from '../../service/joint-ui/joint-ui.service';
@@ -126,7 +127,6 @@ describe('WorkflowEditorComponent', () => {
 
   });
 
-
   /**
    * This sub test suites test the Integration of WorkflowEditorComponent with external modules,
    *  such as drag and drop module, and highlight operator module.
@@ -136,17 +136,26 @@ describe('WorkflowEditorComponent', () => {
     let component: WorkflowEditorComponent;
     let fixture: ComponentFixture<WorkflowEditorComponent>;
     let workflowActionService: WorkflowActionService;
+<<<<<<< HEAD
     let validationWorkflowService: ValidationWorkflowService;
+=======
+    let dragDropService: DragDropService;
+
+>>>>>>> 04058d4456852b8b8943aa7a09124f2ae0df9ff7
     beforeEach(async(() => {
       TestBed.configureTestingModule({
         declarations: [WorkflowEditorComponent],
         providers: [
           JointUIService,
           WorkflowUtilService,
-          DragDropService,
           WorkflowActionService,
+<<<<<<< HEAD
           ValidationWorkflowService,
           { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
+=======
+          DragDropService,
+          { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+>>>>>>> 04058d4456852b8b8943aa7a09124f2ae0df9ff7
         ]
       })
         .compileComponents();
@@ -156,7 +165,11 @@ describe('WorkflowEditorComponent', () => {
       fixture = TestBed.createComponent(WorkflowEditorComponent);
       component = fixture.componentInstance;
       workflowActionService = TestBed.get(WorkflowActionService);
+<<<<<<< HEAD
       validationWorkflowService = TestBed.get(ValidationWorkflowService);
+=======
+      dragDropService = TestBed.get(DragDropService);
+>>>>>>> 04058d4456852b8b8943aa7a09124f2ae0df9ff7
       // detect changes to run ngAfterViewInit and bind Model
       fixture.detectChanges();
     });
@@ -228,6 +241,7 @@ describe('WorkflowEditorComponent', () => {
       expect(jointHighlighterElementAfterUnhighlight.length).toEqual(0);
     });
 
+<<<<<<< HEAD
     it('should react to operator validation and change the color of operator box if the operator is valid ',
          () => {
     const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
@@ -241,6 +255,32 @@ describe('WorkflowEditorComponent', () => {
     expect(operator1.attr('rect/stroke')).toEqual('#CFCFCF');
     expect(operator2.attr('rect/stroke')).toEqual('#CFCFCF');
 
+=======
+    it('should react to jointJS paper zoom event', marbles((m) => {
+      const mockScaleRatio = 0.5;
+      m.hot('-e-').do(() => workflowActionService.getJointGraphWrapper().setZoomProperty(mockScaleRatio)).subscribe(
+        () => {
+          const currentScale = component.getJointPaper().scale();
+          expect(currentScale.sx).toEqual(mockScaleRatio);
+          expect(currentScale.sy).toEqual(mockScaleRatio);
+        }
+      );
+    }));
+
+    it('should react to jointJS paper restore default offset event', marbles((m) => {
+      const mockTranslation = 20;
+      const originalOffset = component.getJointPaper().translate();
+      component.getJointPaper().translate(mockTranslation, mockTranslation);
+      expect(component.getJointPaper().translate().tx).not.toEqual(originalOffset.tx);
+      expect(component.getJointPaper().translate().ty).not.toEqual(originalOffset.ty);
+      m.hot('-e-').do(() => workflowActionService.getJointGraphWrapper().restoreDefaultZoomAndOffset()).subscribe(
+        () => {
+          expect(component.getJointPaper().translate().tx).toEqual(originalOffset.tx);
+          expect(component.getJointPaper().translate().ty).toEqual(originalOffset.ty);
+        }
+      );
+    }));
+>>>>>>> 04058d4456852b8b8943aa7a09124f2ae0df9ff7
 
   });
 
