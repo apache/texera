@@ -32,12 +32,13 @@ export class NgbdModalResourceAddComponent {
   public separator: string = '';
   public selectFile: any = null; // potential issue
 
-  public duplicateFile:string[] = [];//store the name of invalid file due to duplication
-  public haveDropZoneOver:boolean = false;//state for user draging over the area
-  public invalidFileNumbe:number = 0;//counter for the number of invalid file in the uploader due to invalid type
-  //uploader: https://github.com/valor-software/ng2-file-upload/blob/development/src/file-upload/file-uploader.class.ts
-  //Uploader is from outside library. Here it is used to capture the file and store it. It is capable of sending file but we don't use it. the url="..." is meanless since we send it through our own way.
-  public uploader:FileUploader = new FileUploader({url: "This string doesn't matter"}); 
+  public duplicateFile: string[] = []; // store the name of invalid file due to duplication
+  public haveDropZoneOver: boolean = false; // state for user draging over the area
+  public invalidFileNumbe: number = 0; // counter for the number of invalid file in the uploader due to invalid type
+  // uploader: https://github.com/valor-software/ng2-file-upload/blob/development/src/file-upload/file-uploader.class.ts
+  // Uploader is from outside library. Here it is used to capture the file and store it.
+  // It is capable of sending file but we don't use it. the url="..." is meanless since we send it through our own way.
+  public uploader: FileUploader = new FileUploader({url: 'This string does not matter'});
 
   constructor(
     public activeModal: NgbActiveModal,
@@ -83,45 +84,42 @@ export class NgbdModalResourceAddComponent {
     this.onClose();
   }
 
-  //For "upload" button. Upload the file in the queue and then clear the queue
-  //FileItem: https://github.com/valor-software/ng2-file-upload/blob/development/src/file-upload/file-item.class.ts
-  //typeof queue -> [FileItem]
-  //typeof FileItem._file -> File
-  public uploadFile():void{
-    this.uploader.queue.forEach((item)=>this.userDictionaryService.uploadDictionary(item._file));
-    this.uploader.clearQueue()
+  // For "upload" button. Upload the file in the queue and then clear the queue
+  // FileItem: https://github.com/valor-software/ng2-file-upload/blob/development/src/file-upload/file-item.class.ts
+  // typeof queue -> [FileItem]
+  // typeof FileItem._file -> File
+  public uploadFile(): void {
+    this.uploader.queue.forEach((item) => this.userDictionaryService.uploadDictionary(item._file));
+    this.uploader.clearQueue();
   }
-  //For "delete" button. Remove the specific file and then check the number of invalidFile from duplication and type
-  public removeFile(item:FileItem):void{
-    if (!item._file.type.includes("text")){
+  // For "delete" button. Remove the specific file and then check the number of invalidFile from duplication and type
+  public removeFile(item: FileItem): void {
+    if (!item._file.type.includes('text')) {
       this.invalidFileNumbe--;
     }
     item.remove();
-    this.checkDuplicateFiles()
+    this.checkDuplicateFiles();
   }
-  //when user drag file over the area, this function will be called with a bool
-  public haveFileOver(fileOverEvent:boolean):void {
+  // when user drag file over the area, this function will be called with a bool
+  public haveFileOver(fileOverEvent: boolean): void {
     this.haveDropZoneOver = fileOverEvent;
   }
-  //passed by single file name. check if this file is duplicated in the array
-  public checkThisFileDuplicate(filename:string):boolean{
+  // passed by single file name. check if this file is duplicated in the array
+  public checkThisFileDuplicate(filename: string): boolean {
     return this.duplicateFile.includes(filename);
   }
-  //go through the uploader to check if there exist file with the same name, store the duplicate file in this.duplicateFile
-  public checkDuplicateFiles():void{
+  // go through the uploader to check if there exist file with the same name, store the duplicate file in this.duplicateFile
+  public checkDuplicateFiles(): void {
     const filesArray = this.uploader.queue.map(item => item._file.name);
-    this.duplicateFile=filesArray.filter(this.isDuplicate);
+    this.duplicateFile = filesArray.filter(
+      (fileName: string, index: number, fileArray: string[]) => fileArray.indexOf(fileName) !== index);
   }
-  //used by the filter in above function, check if this file is duplicated
-  private isDuplicate(fileName:string,index:number,fileArray:string[]):boolean{
-    return fileArray.indexOf(fileName) !== index;
-  }
-  //when receive file, check it's type to find if it's valid. if not, counter for invalidfile will plus one. Also check duplicates at the end
-  //the real file is store in this.uploader.
-  public getFileDropped(fileDropEvent:FileList):void{
-    const filelist:FileList = fileDropEvent;
-    for(var i=0;i<filelist.length;i++){
-      if (!filelist[i].type.includes("text")){
+  // check it's type to find if it's valid. if not, counter for invalidfile will plus one. Also check duplicates at the end
+  // the real file is store in this.uploader.
+  public getFileDropped(fileDropEvent: FileList): void {
+    const filelist: FileList = fileDropEvent;
+    for (let i = 0; i < filelist.length; i++) {
+      if (!filelist[i].type.includes('text')) {
         this.invalidFileNumbe++;
       }
     }
