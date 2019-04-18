@@ -136,12 +136,9 @@ describe('WorkflowEditorComponent', () => {
     let component: WorkflowEditorComponent;
     let fixture: ComponentFixture<WorkflowEditorComponent>;
     let workflowActionService: WorkflowActionService;
-<<<<<<< HEAD
     let validationWorkflowService: ValidationWorkflowService;
-=======
     let dragDropService: DragDropService;
 
->>>>>>> 04058d4456852b8b8943aa7a09124f2ae0df9ff7
     beforeEach(async(() => {
       TestBed.configureTestingModule({
         declarations: [WorkflowEditorComponent],
@@ -149,13 +146,9 @@ describe('WorkflowEditorComponent', () => {
           JointUIService,
           WorkflowUtilService,
           WorkflowActionService,
-<<<<<<< HEAD
           ValidationWorkflowService,
-          { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
-=======
           DragDropService,
-          { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
->>>>>>> 04058d4456852b8b8943aa7a09124f2ae0df9ff7
+          { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
         ]
       })
         .compileComponents();
@@ -165,11 +158,8 @@ describe('WorkflowEditorComponent', () => {
       fixture = TestBed.createComponent(WorkflowEditorComponent);
       component = fixture.componentInstance;
       workflowActionService = TestBed.get(WorkflowActionService);
-<<<<<<< HEAD
       validationWorkflowService = TestBed.get(ValidationWorkflowService);
-=======
       dragDropService = TestBed.get(DragDropService);
->>>>>>> 04058d4456852b8b8943aa7a09124f2ae0df9ff7
       // detect changes to run ngAfterViewInit and bind Model
       fixture.detectChanges();
     });
@@ -195,7 +185,7 @@ describe('WorkflowEditorComponent', () => {
       fixture.detectChanges();
 
       // assert the function is called once
-      expect(highlightOperatorFunctionSpy.calls.count()).toEqual(1);
+      expect(highlightOperatorFunctionSpy.calls.count()).toEqual(2);
       // assert the highlighted operator is correct
       expect(jointGraphWrapper.getCurrentHighlightedOpeartorID()).toEqual(mockScanPredicate.operatorID);
     });
@@ -241,7 +231,6 @@ describe('WorkflowEditorComponent', () => {
       expect(jointHighlighterElementAfterUnhighlight.length).toEqual(0);
     });
 
-<<<<<<< HEAD
     it('should react to operator validation and change the color of operator box if the operator is valid ',
          () => {
     const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
@@ -255,7 +244,6 @@ describe('WorkflowEditorComponent', () => {
     expect(operator1.attr('rect/stroke')).toEqual('#CFCFCF');
     expect(operator2.attr('rect/stroke')).toEqual('#CFCFCF');
 
-=======
     it('should react to jointJS paper zoom event', marbles((m) => {
       const mockScaleRatio = 0.5;
       m.hot('-e-').do(() => workflowActionService.getJointGraphWrapper().setZoomProperty(mockScaleRatio)).subscribe(
@@ -280,7 +268,6 @@ describe('WorkflowEditorComponent', () => {
         }
       );
     }));
->>>>>>> 04058d4456852b8b8943aa7a09124f2ae0df9ff7
 
   });
 

@@ -7,13 +7,10 @@ import { Observable } from 'rxjs/Observable';
 
 import '../../../common/rxjs-operators';
 import * as joint from 'jointjs';
-<<<<<<< HEAD
 import { observable } from 'rxjs';
-=======
 import { Point } from '../../types/workflow-common.interface';
 import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-graph-wrapper';
 
->>>>>>> 04058d4456852b8b8943aa7a09124f2ae0df9ff7
 
 // argument type of callback event on a JointJS Paper
 // which is a 4-element tuple:
@@ -60,12 +57,9 @@ export class WorkflowEditorComponent implements AfterViewInit {
   constructor(
     private workflowActionService: WorkflowActionService,
     private dragDropService: DragDropService,
-<<<<<<< HEAD
     private validationWorkflowService: ValidationWorkflowService,
-    private jointUIService: JointUIService
-=======
+    private jointUIService: JointUIService,
     private elementRef: ElementRef
->>>>>>> 04058d4456852b8b8943aa7a09124f2ae0df9ff7
   ) {
   }
 
@@ -395,11 +389,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
     return jointPaperOptions;
   }
 }
-<<<<<<< HEAD
 
 
-=======
->>>>>>> 04058d4456852b8b8943aa7a09124f2ae0df9ff7
 /**
 * This function is provided to JointJS to disable some invalid connections on the UI.
 * If the connection is invalid, users are not able to connect the links on the UI.
