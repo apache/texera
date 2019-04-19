@@ -1,5 +1,6 @@
 import { Subject } from 'rxjs/Subject';
 import { Observable } from 'rxjs/Observable';
+import { Point } from '../../../types/workflow-common.interface';
 
 type operatorIDType = { operatorID: string };
 
@@ -50,12 +51,26 @@ type JointLinkChangeEvent = [
  */
 export class JointGraphWrapper {
 
+  // zoomDifference represents the ratio that is zoom in/out everytime.
+  public static readonly ZOOM_DIFFERENCE: number = 0.05;
+  public static readonly INIT_ZOOM_VALUE: number = 1;
+  public static readonly INIT_OFFSET_VALUE: Point = {x: 0, y: 0};
+
   // the current highlighted operator ID
   private currentHighlightedOperator: string | undefined;
   // event stream of highlighting an operator
   private jointCellHighlightStream = new Subject<operatorIDType>();
   // event stream of un-highlighting an operator
   private jointCellUnhighlightStream = new Subject<operatorIDType>();
+  // event stream of zooming the jointJs paper
+  private workflowEditorZoomSubject: Subject<number> = new Subject<number>();
+  // event stream of restoring zoom / offset default of the jointJS paper
+  private restorePaperOffsetSubject: Subject<Point> = new Subject<Point>();
+
+  // current zoom ratio
+  private zoomRatio: number = JointGraphWrapper.INIT_ZOOM_VALUE;
+  // dragOffset has two elements, first is the drag offset alongside x axis, second is the drag offset alongside y axis.
+  private dragOffset: Point = JointGraphWrapper.INIT_OFFSET_VALUE;
 
   /**
    * This will capture all events in JointJS
@@ -184,6 +199,69 @@ export class JointGraphWrapper {
       .map(cell => <joint.dia.Link>cell);
 
     return jointLinkDeleteStream;
+  }
+
+  /**
+   * This method will update the drag offset so that dropping
+   *  a new operator will appear at the correct location on the UI.
+   *
+   * @param dragOffset new offset from panning
+   */
+  public setDragOffset(dragOffset: Point): void {
+    this.dragOffset = dragOffset;
+  }
+
+  /**
+   * This method will update the zoom ratio, which will be used
+   *  in calculating the position of the operator dropped on the UI.
+   *
+   * @param ratio new ratio from zooming
+   */
+  public setZoomProperty(ratio: number): void {
+      this.zoomRatio = ratio;
+      this.workflowEditorZoomSubject.next(this.zoomRatio);
+  }
+
+  /**
+   * Returns an observable stream containing the new zoom ratio
+   *  for the jointJS paper.
+   */
+  public getWorkflowEditorZoomStream(): Observable<number> {
+    return this.workflowEditorZoomSubject.asObservable();
+  }
+
+  /**
+   * This method will fetch current offset of the paper. This will
+   *  be used in drag-and-drop.
+   */
+  public getDragOffset(): Point {
+    return this.dragOffset;
+  }
+
+  /**
+   * This method will fetch current zoom ratio of the paper. This will
+   *  be used in drag-and-drop.
+   */
+  public getZoomRatio(): number {
+    return this.zoomRatio;
+  }
+
+  /**
+   * This method will restore the default zoom ratio and offset for
+   *  the jointjs paper by sending an event to restorePaperSubject.
+   */
+  public restoreDefaultZoomAndOffset(): void {
+    this.setZoomProperty(JointGraphWrapper.INIT_ZOOM_VALUE);
+    this.dragOffset = JointGraphWrapper.INIT_OFFSET_VALUE;
+    this.restorePaperOffsetSubject.next(this.dragOffset);
+  }
+
+  /**
+   * Returns an Observable stream capturing the event of restoring
+   *  default offset
+   */
+  public getRestorePaperOffsetStream(): Observable<Point> {
+    return this.restorePaperOffsetSubject.asObservable();
   }
 
   /**
