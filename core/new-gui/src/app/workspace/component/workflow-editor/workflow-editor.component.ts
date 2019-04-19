@@ -313,7 +313,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
   }
 
   /**
-   * if the operator is valid , the border of the box will be green
+   * if the operator is valid , the border of the box will be default
    */
   private handleOperatorValidation(): void {
 
@@ -321,7 +321,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
       .subscribe(value =>
         this.jointUIService.changeOperatorColor(this.getJointPaper(), value.operatorID, value.status));
   }
-
   /**
    * Gets the width and height of the parent wrapper element
    */
