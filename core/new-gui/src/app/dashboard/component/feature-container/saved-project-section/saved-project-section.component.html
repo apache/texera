@@ -15,7 +15,6 @@
               <mat-divider></mat-divider>
             </mat-list>
           </div>
-          <span>&emsp;&emsp;&emsp;</span>
           <button type="button" class="btn btn-outline-dark add-button"  (click)="openNgbdModalAddProjectComponent()"><i color="dark" class="fa">&#xf067;</i></button>
         </div>
       </mat-card>
@@ -31,7 +30,9 @@
             <mat-list-item *ngFor="let project of projects" class= "project-list-item">
               <h3 mat-line class="project-title"><a href={{this.defaultWeb}}>{{project.name}}</a></h3>
               <p mat-line class="project-time" > <br>
-                {{project.lastModifiedTime | date:'yyyy-MM-dd HH:mm:ss Z'}}&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;Created: {{project.creationTime | date:'yyyy-MM-dd HH:mm:ss Z'}}
+                Last Access: {{project.lastModifiedTime | date:'yyyy-MM-dd HH:mm'}}
+                <span class="time-space"></span>
+                Created: {{project.creationTime | date:'yyyy-MM-dd HH:mm'}}
               </p>
               <button mat-button class="delete-project-btn" placement="bottom" ngbTooltip="Delete the {{project.name}}" (click)="openNgbdModalDeleteProjectComponent(project)" ><i class="fa">&#xf1f8;</i></button>
             </mat-list-item>

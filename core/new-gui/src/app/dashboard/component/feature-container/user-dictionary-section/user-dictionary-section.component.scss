@@ -9,6 +9,10 @@
   margin-right: 20px;
 }
 
+.add-button{
+  margin-left: 5px;
+}
+
 .page-title{
   font-family:Roboto, Arial, sans-serif;
 }
@@ -49,9 +53,10 @@ $header-height: 70px;
 
 .user-dictionary-list-item{
   border: 1px solid #d2d7df;
-  height: 70px;
+  height: 90px;
   border-radius: 3px;
-  margin-bottom : 5px;
+  margin-bottom : 1.5%;
+  padding-top : 5px;
 }
 
 /**
@@ -75,5 +80,10 @@ $header-height: 70px;
   width: 1%
 }
 
-
+.preview-item{
+  border-radius: 3px;
+  margin-right: 8px;
+  font-style: sans-serif, serif, Times;
+  padding: 4px;
+}
 

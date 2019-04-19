@@ -13,7 +13,6 @@
           <mat-divider></mat-divider>
         </mat-list>
       </div>
-      <span>&emsp;&emsp;&emsp;</span>
       <button type="button" class="btn btn-outline-dark add-button" (click)="openNgbdModalResourceAddComponent()">
         <i class="fa">&#xf0ee;</i>
       </button>
@@ -28,10 +27,15 @@
         <div class="scroll">
           <mat-list-item *ngFor="let dictionary of UserDictionary" class="user-dictionary-list-item">
             <ng-template #tipContent>Description: {{dictionary.description}}</ng-template>
-            <div class="section for tip" placement="bottom" [ngbTooltip]="tipContent">
+            <div class="section-for-tip" placement="bottom" [ngbTooltip]="tipContent">
               <p font-size=10px><span class="dict-name">
-                  {{dictionary.name}}</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Item
-                Preview: {{dictionary.items.slice(0,3)}}....
+                  {{dictionary.name}}</span>
+              </p>
+              <p>
+                Item Preview:
+                <mat-chip class="preview-item" *ngFor="let item of dictionary.items.slice(0,3)" [selectable]="true" >
+                  {{item}}
+                </mat-chip>
               </p>
             </div>
             <span class="gap-filler"></span>
