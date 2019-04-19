@@ -136,6 +136,15 @@ export class JointUIService {
     return operatorElement;
   }
 
+  /**
+   * This method will change the operator's color based on the validation status
+   *  valid  : default color
+   *  invalid: red
+   *
+   * @param jointPaper
+   * @param operatorID
+   * @param status
+   */
   public changeOperatorColor(jointPaper: joint.dia.Paper, operatorID: string, status: boolean): void {
     if (status) {
       jointPaper.getModelById(operatorID).attr('rect/stroke', '#CFCFCF');

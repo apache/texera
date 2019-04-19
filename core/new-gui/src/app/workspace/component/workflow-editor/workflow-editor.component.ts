@@ -7,7 +7,6 @@ import { Observable } from 'rxjs/Observable';
 
 import '../../../common/rxjs-operators';
 import * as joint from 'jointjs';
-import { observable } from 'rxjs';
 import { Point } from '../../types/workflow-common.interface';
 import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-graph-wrapper';
 
@@ -312,22 +311,15 @@ export class WorkflowEditorComponent implements AfterViewInit {
         }
       );
   }
+
   /**
    * if the operator is valid , the border of the box will be green
    */
   private handleOperatorValidation(): void {
 
     this.validationWorkflowService.getOperatorValidationStream()
-      .subscribe( value => {
-        // if (value.status) {
-        //   // find the operator element by its ID and change the css style of the stroke
-        //   this.getJointPaper().getModelById(value.operatorID).attr('rect/stroke', 'green');
-        // } else {
-        //   this.getJointPaper().getModelById(value.operatorID).attr('rect/stroke', 'red');
-        // }
-        this.jointUIService.changeOperatorColor(this.getJointPaper(), value.operatorID, value.status);
-
-      });
+      .subscribe(value =>
+        this.jointUIService.changeOperatorColor(this.getJointPaper(), value.operatorID, value.status));
   }
 
   /**

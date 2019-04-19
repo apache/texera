@@ -196,9 +196,9 @@ export class WorkflowGraph {
    * Return an array of all input links of an operator in the graph.
    * @param operatorID
    */
-  public getInputLinksByOperatorId(operatorID: string): Number {
+  public getInputLinksByOperatorId(operatorID: string): OperatorLink[] {
 
-    return this.getAllLinks().filter(link => link.target.operatorID === operatorID).length;
+    return this.getAllLinks().filter(link => link.target.operatorID === operatorID);
 
   }
 
@@ -206,8 +206,8 @@ export class WorkflowGraph {
    * Returna an array of all output links of an operator in the graph.
    * @param operatorID
    */
-  public getOutputLinksByOperatorId(operatorID: string): Number {
-    return this.getAllLinks().filter(link => link.source.operatorID === operatorID).length;
+  public getOutputLinksByOperatorId(operatorID: string): OperatorLink[] {
+    return this.getAllLinks().filter(link => link.source.operatorID === operatorID);
   }
 
   /**

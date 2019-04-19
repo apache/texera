@@ -1,18 +1,14 @@
 import { TestBed, inject } from '@angular/core/testing';
 import { ValidationWorkflowService } from './validation-workflow.service';
 import {
-  mockScanPredicate, mockResultPredicate, mockSentimentPredicate, mockScanResultLink,
-  mockScanSentimentLink, mockSentimentResultLink, mockFalseResultSentimentLink, mockFalseSentimentScanLink,
-  mockPoint
+  mockScanPredicate, mockResultPredicate, mockScanResultLink, mockPoint
 } from '../workflow-graph/model/mock-workflow-data';
-import { mockExecutionEmptyResult } from '../execute-workflow/mock-result-data';
 import { WorkflowActionService } from '../workflow-graph/model/workflow-action.service';
-import { WorkflowGraph } from '../workflow-graph/model/workflow-graph';
 import { OperatorMetadataService } from '../operator-metadata/operator-metadata.service';
 import { StubOperatorMetadataService } from '../operator-metadata/stub-operator-metadata.service';
 import { JointUIService } from '.././joint-ui/joint-ui.service';
 import { marbles } from 'rxjs-marbles';
-import { values } from 'lodash-es';
+
 describe('ValidationWorkflowService', () => {
   let validationWorkflowService: ValidationWorkflowService;
   let workflowActionservice: WorkflowActionService;
