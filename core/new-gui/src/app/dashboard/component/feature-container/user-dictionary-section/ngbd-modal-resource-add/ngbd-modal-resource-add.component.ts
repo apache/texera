@@ -8,7 +8,8 @@ import { Event } from '_debugger';
 /**
  * NgbdModalResourceAddComponent is the pop-up component to let
  * user upload dictionary. User can either input the dictionary
- * name and items or upload the dictionary file from local computer.
+ * name and items or drag and drop the dictionary file from
+ * local computer.
  *
  * @author Zhaomin Li
  */
@@ -45,7 +46,9 @@ export class NgbdModalResourceAddComponent {
 
   /**
   * addKey records the new dictionary information (DIY/file) and sends
-  * it back to the main component.
+  * it back to the main component. This method will check if the user
+  * upload dictionary files first. If not, the method will read the
+  * dictionary information from the input form.
   *
   * @param
   */

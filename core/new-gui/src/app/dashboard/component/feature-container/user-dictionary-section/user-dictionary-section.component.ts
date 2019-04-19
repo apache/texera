@@ -104,9 +104,9 @@ export class UserDictionarySectionComponent implements OnInit {
   /**
   * openNgbdModalResourceDeleteComponent trigger the delete
   * dictionary component. If user confirms the deletion, the method
-  * sends message to frontend and delete the dicrionary on frontend.
-  * It calls the deleteUserDictionaryData method in service which
-  * using backend API.
+  * sends message to frontend and delete the dicrionary on backend and
+  * update the frontend. It calls the deleteUserDictionaryData method
+  * in service which using backend API.
   *
   * @param dictionary: the dictionary that user wants to remove
   */

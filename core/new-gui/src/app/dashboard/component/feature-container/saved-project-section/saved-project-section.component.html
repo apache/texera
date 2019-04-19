@@ -15,7 +15,7 @@
               <mat-divider></mat-divider>
             </mat-list>
           </div>
-          <button type="button" class="btn btn-outline-dark add-button"  (click)="openNgbdModalAddProjectComponent()"><i color="dark" class="fa">&#xf067;</i></button>
+          <button type="button" class="btn btn-outline-dark add-button"  (click)="openNgbdModalAddProjectComponent()"><i color="dark" class="fa fa-plus"></i></button>
         </div>
       </mat-card>
 
@@ -34,7 +34,7 @@
                 <span class="time-space"></span>
                 Created: {{project.creationTime | date:'yyyy-MM-dd HH:mm'}}
               </p>
-              <button mat-button class="delete-project-btn" placement="bottom" ngbTooltip="Delete the {{project.name}}" (click)="openNgbdModalDeleteProjectComponent(project)" ><i class="fa">&#xf1f8;</i></button>
+              <button mat-button class="delete-project-btn" placement="bottom" ngbTooltip="Delete the {{project.name}}" (click)="openNgbdModalDeleteProjectComponent(project)" ><i class="fa fa-trash"></i></button>
             </mat-list-item>
 
             </div>
