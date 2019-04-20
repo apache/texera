@@ -97,6 +97,19 @@ export class NgbdModalResourceAddComponent {
     this.uploader.clearQueue();
   }
 
+  public clickUploadFile(clickUploaEvent: any): void {
+    const filelist: FileList = clickUploaEvent.target.files;
+    const listOfFile: File[] = Array<File>();
+    for (let i = 0; i < filelist.length; i++) {
+      listOfFile.push(filelist[i]);
+    }
+    this.uploader.addToQueue(listOfFile);
+    console.log(clickUploaEvent);
+    console.log(typeof clickUploaEvent);
+    console.log(clickUploaEvent.target.files);
+    // this.uploader.addToQueue()
+  }
+
   /**
    * For "delete" button. Remove the specific file and then check the number of invalidFile from duplication and type
    */

@@ -12,8 +12,13 @@
         (fileOver)="haveFileOver($event)"
         (onFileDrop)="getFileDropped($event)"
         [uploader]="uploader"
-        class="drag-file-area">
-        Drop files here 
+        class="drag-file-area"
+        (click)="clickUpload.click()">
+        Drop files here
+        <div id="hide">
+              <input #clickUpload type="file"
+                accept=".txt"(change)="clickUploadFile($event)"/>
+        </div>
     </div>
     <div *ngIf="uploader.queue.length">
       <div class="drag-file-gap">
@@ -22,7 +27,7 @@
       </div>
       <div>
         <li *ngFor="let item of uploader.queue"
-        [class.invalid-file]="!item._file.type.includes('text') || checkThisFileDuplicate(item._file.name)"
+        [class.invalid-file]="checkThisFileInvalid(item._file)"
         class="drag-file-container">
           <span class="queue-file-name">{{ item?.file?.name }}</span>
           <button type="button" class="queue-delete-bottom"
