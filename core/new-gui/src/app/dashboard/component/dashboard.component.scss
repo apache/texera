@@ -98,12 +98,35 @@ $header-height: 56px;
 
 /**
 * the classes below are used to stylize the scroll bar insied different
-* windows. The color is set to gray
+* windows. The color is set to gray. UserDictionary and SavedProject
+* utilized scroll class.
 **/
 .scroll{
   position: absolute;
   height: 73%;
-  width: 95%;
+  width: 97.1%;
+  overflow-y: scroll;
+
+  &::-webkit-scrollbar-track
+  {
+    border-radius: 10px;
+  }
+
+  &::-webkit-scrollbar
+  {
+    width: 9px;
+  }
+
+  &::-webkit-scrollbar-thumb
+  {
+    border-radius: 10px;
+  }
+}
+
+.scroll:hover{
+  position: absolute;
+  height: 73%;
+  width: 97.1%;
   overflow-y: scroll;
 
   &::-webkit-scrollbar-track
@@ -115,7 +138,7 @@ $header-height: 56px;
 
   &::-webkit-scrollbar
   {
-    width: 12px;
+    width: 9px;
     background-color: $bthColor;
   }
 
