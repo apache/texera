@@ -13,6 +13,7 @@ import { FileUploader, FileItem } from 'ng2-file-upload';
  * name and items or upload the dictionary file from local computer.
  *
  * @author Zhaomin Li
+ * @author Adam
  */
 @Component({
   selector: 'texera-resource-section-add-dict-modal',
@@ -84,15 +85,21 @@ export class NgbdModalResourceAddComponent {
     this.onClose();
   }
 
-  // For "upload" button. Upload the file in the queue and then clear the queue
-  // FileItem: https://github.com/valor-software/ng2-file-upload/blob/development/src/file-upload/file-item.class.ts
-  // typeof queue -> [FileItem]
-  // typeof FileItem._file -> File
+  /**
+   * For "upload" button. Upload the file in the queue and then clear the queue
+   * The FileType object is a type from third part library, link below
+   * FileItem: https://github.com/valor-software/ng2-file-upload/blob/development/src/file-upload/file-item.class.ts
+   * typeof queue -> [FileItem]
+   * typeof FileItem._file -> File
+   */
   public uploadFile(): void {
     this.uploader.queue.forEach((item) => this.userDictionaryService.uploadDictionary(item._file));
     this.uploader.clearQueue();
   }
-  // For "delete" button. Remove the specific file and then check the number of invalidFile from duplication and type
+
+  /**
+   * For "delete" button. Remove the specific file and then check the number of invalidFile from duplication and type
+   */
   public removeFile(item: FileItem): void {
     if (!item._file.type.includes('text')) {
       this.invalidFileNumbe--;
@@ -100,22 +107,37 @@ export class NgbdModalResourceAddComponent {
     item.remove();
     this.checkDuplicateFiles();
   }
-  // when user drag file over the area, this function will be called with a bool
+
+  /**
+   * when user drag file over the area, this function will be called with a bool
+   * @param fileOverEvent
+   */
   public haveFileOver(fileOverEvent: boolean): void {
     this.haveDropZoneOver = fileOverEvent;
   }
-  // passed by single file name. check if this file is duplicated in the array
-  public checkThisFileDuplicate(filename: string): boolean {
-    return this.duplicateFile.includes(filename);
+
+  /**
+   * passed by single file name. check if this file is duplicated in the array. True indicate invalid
+   * @param file
+   */
+  public checkThisFileInvalid(file: File): boolean {
+    return !file.type.includes('text') || this.duplicateFile.includes(file.name);
   }
-  // go through the uploader to check if there exist file with the same name, store the duplicate file in this.duplicateFile
+
+  /**
+   * go through the uploader to check if there exist file with the same name, store the duplicate file in this.duplicateFile
+   */
   public checkDuplicateFiles(): void {
     const filesArray = this.uploader.queue.map(item => item._file.name);
     this.duplicateFile = filesArray.filter(
       (fileName: string, index: number, fileArray: string[]) => fileArray.indexOf(fileName) !== index);
   }
-  // check it's type to find if it's valid. if not, counter for invalidfile will plus one. Also check duplicates at the end
-  // the real file is store in this.uploader.
+
+  /**
+   * check it's type to find if it's valid. if not, counter for invalidfile will plus one. Also check duplicates at the end
+   * the real file is store in this.uploader.
+   * @param fileDropEvent
+   */
   public getFileDropped(fileDropEvent: FileList): void {
     const filelist: FileList = fileDropEvent;
     for (let i = 0; i < filelist.length; i++) {

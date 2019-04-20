@@ -5,72 +5,79 @@
   </button>
 </div>
 
-<div class="modal-body">
-  <mat-dialog-content class= "add-dictionary-container">
-    <mat-form-field class= "name-area">
-      <input  matInput [(ngModel)]="name" placeholder="Name of Dictionary">
-    </mat-form-field>
-    <mat-form-field class= "content-area" >
-      <textarea matInput
-        [(ngModel)]="dictContent" placeholder="Content of Dictionary"
-        matTextareaAutosize matAutosizeMinRows="3">
-      </textarea>
-    </mat-form-field>
-    <mat-form-field class= "separator-area">
-      <input  matInput [(ngModel)]="separator" placeholder="Content Separator (' , '    ' \\t '    ' \\n ')">
-    </mat-form-field>
-    <div class="transmit-area">
-      <mat-divider></mat-divider>
-      <span class="or-separator">OR</span>
-      <mat-divider></mat-divider>
+<mat-tab-group>
+  <mat-tab label="Upload">
+    <div ng2FileDrop
+        [ngClass]="{'have-file-over': haveDropZoneOver}"
+        (fileOver)="haveFileOver($event)"
+        (onFileDrop)="getFileDropped($event)"
+        [uploader]="uploader"
+        class="drag-file-area">
+        Drop files here 
     </div>
-
-    <div class="file-upload-area" id="hide">
-      <label class="btn-primary" ngbButtonLabel>
-        <input type="file"
-          accept=".txt"  class="file-upload-btn" (change)="onChange($event)"/>
-        <span>Upload Your Dictionary</span>
-      </label>
+    <div *ngIf="uploader.queue.length">
+      <div class="drag-file-gap">
+        <h3>Upload queue</h3>
+        <p>Queue length: {{ uploader?.queue?.length }}</p>
+      </div>
+      <div>
+        <li *ngFor="let item of uploader.queue"
+        [class.invalid-file]="!item._file.type.includes('text') || checkThisFileDuplicate(item._file.name)"
+        class="drag-file-container">
+          <span class="queue-file-name">{{ item?.file?.name }}</span>
+          <button type="button" class="queue-delete-bottom"
+                                      (click)="removeFile(item)">
+                                      <span class="glyphicon glyphicon-trash"> Remove</span>
+          </button>
+        </li>
+      </div>
+      <div class="warning-space">
+        <button type="button" class="btn btn-primary btn-xs"
+                            (click)="uploadFile()" 
+                            [disabled]="invalidFileNumbe || duplicateFile.length">
+                            <span class="glyphicon glyphicon-trash"></span> Upload</button>
+        <label *ngIf="invalidFileNumbe"
+              class="invalid-file-warning"> *You can only upload text file</label>
+        <label *ngIf="duplicateFile.length"
+              class="invalid-file-warning"> *You cannot upload files with the same name</label>
+      </div>
     </div>
+  </mat-tab>
+  <mat-tab label="Add Manually">
+    <div class="modal-body">
+      <mat-dialog-content class= "add-dictionary-container">
+        <mat-form-field class= "name-area">
+          <input  matInput [(ngModel)]="name" placeholder="Name of Dictionary">
+        </mat-form-field>
+        <mat-form-field class= "content-area" >
+          <textarea matInput
+            [(ngModel)]="dictContent" placeholder="Content of Dictionary"
+            matTextareaAutosize matAutosizeMinRows="3">
+          </textarea>
+        </mat-form-field>
+        <mat-form-field class= "separator-area">
+          <input  matInput [(ngModel)]="separator" placeholder="Content Separator (' , '    ' \\t '    ' \\n ')">
+        </mat-form-field>
+        <div class="transmit-area">
+          <mat-divider></mat-divider>
+          <span class="or-separator">OR</span>
+          <mat-divider></mat-divider>
+        </div>
+    
+        <div class="file-upload-area" id="hide">
+          <label class="btn-primary" ngbButtonLabel>
+            <input type="file"
+              accept=".txt"  class="file-upload-btn" (change)="onChange($event)"/>
+            <span>Upload Your Dictionary</span>
+          </label>
+        </div>
+    
+      </mat-dialog-content>
+    </div>
+  </mat-tab>
+</mat-tab-group>
 
-  </mat-dialog-content>
-</div>
 
-<div ng2FileDrop
-    [ngClass]="{'have-file-over': haveDropZoneOver}"
-    (fileOver)="haveFileOver($event)"
-    (onFileDrop)="getFileDropped($event)"
-    [uploader]="uploader"
-    class="drag-file-area">
-    Drop files here 
-</div>
-<div *ngIf="uploader.queue.length">
-  <div class="drag-file-gap">
-    <h3>Upload queue</h3>
-    <p>Queue length: {{ uploader?.queue?.length }}</p>
-  </div>
-  <div>
-    <li *ngFor="let item of uploader.queue"
-    [class.invalid-file]="!item._file.type.includes('text') || checkThisFileDuplicate(item._file.name)"
-    class="drag-file-container">
-      <span class="queue-file-name">{{ item?.file?.name }}</span>
-      <button type="button" class="queue-delete-bottom"
-                                  (click)="removeFile(item)">
-                                  <span class="glyphicon glyphicon-trash"> Remove</span>
-      </button>
-    </li>
-  </div>
-  <div class="warning-space">
-    <button type="button" class="btn btn-primary btn-xs"
-                        (click)="uploadFile()" 
-                        [disabled]="invalidFileNumbe || duplicateFile.length">
-                        <span class="glyphicon glyphicon-trash"></span> Upload</button>
-    <label *ngIf="invalidFileNumbe"
-          class="invalid-file-warning"> *You can only upload text file</label>
-    <label *ngIf="duplicateFile.length"
-          class="invalid-file-warning"> *You cannot upload files with the same name</label>
-  </div>
-</div>
 
 
 <div class="modal-footer">
