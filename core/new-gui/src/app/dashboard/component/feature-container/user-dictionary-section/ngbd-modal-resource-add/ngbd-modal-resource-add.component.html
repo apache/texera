@@ -5,7 +5,7 @@
   </button>
 </div>
 
-<mat-tab-group>
+<mat-tab-group mat-stretch-tabs>
   <mat-tab label="Upload">
     <div ng2FileDrop
         [ngClass]="{'have-file-over': haveDropZoneOver}"
@@ -14,10 +14,10 @@
         [uploader]="uploader"
         class="drag-file-area"
         (click)="clickUpload.click()">
-        Drop files here
+        Drop Files Here
         <div id="hide">
               <input #clickUpload type="file"
-                accept=".txt"(change)="clickUploadFile($event)"/>
+                accept=".txt"(change)="clickUploadFile($event)" multiple/>
         </div>
     </div>
     <div *ngIf="uploader.queue.length">
@@ -32,22 +32,30 @@
           <span class="queue-file-name">{{ item?.file?.name }}</span>
           <button type="button" class="queue-delete-bottom"
                                       (click)="removeFile(item)">
-                                      <span class="glyphicon glyphicon-trash"> Remove</span>
+                                      <i class="fas">&#xf2ed;</i>
+                                      
           </button>
         </li>
       </div>
-      <div class="warning-space">
-        <button type="button" class="btn btn-primary btn-xs"
-                            (click)="uploadFile()" 
-                            [disabled]="invalidFileNumbe || duplicateFile.length">
-                            <span class="glyphicon glyphicon-trash"></span> Upload</button>
+      <div *ngIf="invalidFileNumbe || duplicateFile.length" class="warning-space">
+        <button type="button" class="btn btn-outline-dark add-button" (click)="deleteAllInvalidFile()">Delete Invalid Files</button>
         <label *ngIf="invalidFileNumbe"
-              class="invalid-file-warning"> *You can only upload text file</label>
+          class="invalid-file-warning"> *You can only upload text file</label>
         <label *ngIf="duplicateFile.length"
-              class="invalid-file-warning"> *You cannot upload files with the same name</label>
+          class="invalid-file-warning"> *You cannot upload files with the same name</label>
       </div>
     </div>
+    <div class="modal-footer">
+      <div *ngIf="uploader.queue.length">
+        <button type="button" class="btn btn-primary btn-xs bottom-upload"
+                              (click)="uploadFile()" 
+                              [disabled]="invalidFileNumbe || duplicateFile.length">
+                              <span class="glyphicon glyphicon-trash"></span> Upload</button>
+      </div>
+      <button type="button" class="btn btn-outline-dark bottom-close" (click)="onClose()">Close</button>
+    </div>
   </mat-tab>
+
   <mat-tab label="Add Manually">
     <div class="modal-body">
       <mat-dialog-content class= "add-dictionary-container">
@@ -79,13 +87,10 @@
     
       </mat-dialog-content>
     </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-outline-dark add-button" (click)="addKey()"  >Add</button>
+      <button type="button" class="btn btn-outline-dark" (click)="onClose()">Close</button>
+    </div>
   </mat-tab>
 </mat-tab-group>
 
-
-
-
-<div class="modal-footer">
-  <button type="button" class="btn btn-outline-dark add-button" (click)="addKey()"  >Add</button>
-  <button type="button" class="btn btn-outline-dark" (click)="onClose()">Close</button>
-</div>

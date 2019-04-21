@@ -104,10 +104,7 @@ export class NgbdModalResourceAddComponent {
       listOfFile.push(filelist[i]);
     }
     this.uploader.addToQueue(listOfFile);
-    console.log(clickUploaEvent);
-    console.log(typeof clickUploaEvent);
-    console.log(clickUploaEvent.target.files);
-    // this.uploader.addToQueue()
+    this.checkDuplicateFiles();
   }
 
   /**
@@ -159,6 +156,21 @@ export class NgbdModalResourceAddComponent {
       }
     }
     this.checkDuplicateFiles();
+  }
+
+  public deleteAllInvalidFile(): void {
+    this.uploader.queue = this.uploader.queue.filter(
+      (fileitem: FileItem) => fileitem._file.type.includes('text'));
+    // this.uploader.queue.forEach(
+    //   (fileitem: FileItem) => {
+    //     if (!fileitem._file.type.includes('text')) { fileitem.remove(); }
+    // } );
+    this.invalidFileNumbe = 0;
+
+    this.checkDuplicateFiles();
+    this.duplicateFile.forEach(
+      (fileName: string) => this.uploader.queue.find(fileitem => fileitem._file.name === fileName).remove());
+    this.duplicateFile = <string[]>[];
   }
 
 }
