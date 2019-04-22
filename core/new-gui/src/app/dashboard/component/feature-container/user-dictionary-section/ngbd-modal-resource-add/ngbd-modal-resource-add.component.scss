@@ -28,7 +28,7 @@
 .add-dictionary-container{
   display: grid;
   grid-template-columns: 70% 30%;
-  grid-template-rows : 10% 60% 10% 5% 15%;
+  grid-template-rows : 60px auto 40px 5% 15%;
   grid-row-gap: 10px;
 }
 

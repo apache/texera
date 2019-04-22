@@ -61,7 +61,6 @@ export class NgbdModalResourceAddComponent {
   * @param
   */
   public addKey(): void {
-
     if (this.selectFile !== null) {
         this.userDictionaryService.uploadDictionary(this.selectFile);
     }
@@ -85,6 +84,10 @@ export class NgbdModalResourceAddComponent {
     this.onClose();
   }
 
+  public checkContentLength(): boolean {
+    console.log(this.dictContent.split('\n').length >= 5);
+    return this.dictContent.split('\n').length >= 5;
+  }
   /**
    * For "upload" button. Upload the file in the queue and then clear the queue
    * The FileType object is a type from third part library, link below
@@ -108,7 +111,9 @@ export class NgbdModalResourceAddComponent {
   }
 
   /**
-   * For "delete" button. Remove the specific file and then check the number of invalidFile from duplication and type
+   * For "delete" button. Remove the specific file and then check the number 
+   *  of invalidFile from duplication and type
+   * @param item 
    */
   public removeFile(item: FileItem): void {
     if (!item._file.type.includes('text')) {
@@ -168,9 +173,14 @@ export class NgbdModalResourceAddComponent {
     this.invalidFileNumbe = 0;
 
     this.checkDuplicateFiles();
+    // this.duplicateFile.forEach(
+    //   (fileName: string) => this.uploader.queue.find(fileitem => fileitem._file.name === fileName).remove());
     this.duplicateFile.forEach(
-      (fileName: string) => this.uploader.queue.find(fileitem => fileitem._file.name === fileName).remove());
-    this.duplicateFile = <string[]>[];
+      (fileName: string) => {
+        const file: FileItem|undefined = this.uploader.queue.find(fileitem => fileitem._file.name === fileName);
+        if (file) {file.remove(); }
+        });
+    this.checkDuplicateFiles();
   }
 
 }
