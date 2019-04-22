@@ -89,16 +89,13 @@ export class UserDictionarySectionComponent implements OnInit {
   public openNgbdModalResourceAddComponent(): void {
     const modalRef = this.modalService.open(NgbdModalResourceAddComponent);
 
-    const addItemEventEmitter = <EventEmitter<UserDictionary>>(modalRef.componentInstance.addedDictionary);
-    const subscription = addItemEventEmitter
-      .do(value => value.id = (this.UserDictionary.length + 1).toString()) // leave for correct
-      .subscribe(
-        value => {
-          this.UserDictionary.push(value);
-          this.userDictionaryService.addUserDictionaryData(value);
-        }
-      );
-
+    Observable.from(modalRef.result).subscribe(
+      value => {
+        value.id = (this.UserDictionary.length + 1).toString();
+        this.UserDictionary.push(value);
+        this.userDictionaryService.addUserDictionaryData(value);
+      }
+    );
   }
 
   /**

@@ -50,38 +50,29 @@ export class NgbdModalResourceAddComponent {
     this.selectFile = event.target.files[0];
   }
 
-  public onClose(): void {
-    this.activeModal.close('Close');
-  }
-
   /**
   * addKey records the new dictionary information (DIY/file) and sends
   * it back to the main component.
   *
   * @param
   */
-  public addKey(): void {
-    if (this.selectFile !== null) {
-        this.userDictionaryService.uploadDictionary(this.selectFile);
+  public addDictionary(): void {
+    // assume button is disabled when invalid
+    if (this.name === '' || this.dictContent === '') {
+      throw new Error('one of the parameters required for creating a dictionary is not provided');
     }
 
-    if (this.name !== '') {
-      this.newDictionary = <UserDictionary> {
-        id : '1',
-        name : this.name,
-        items : [],
-      };
+    this.newDictionary = <UserDictionary> {
+      id : '1',
+      name : this.name,
+      items : [],
+    };
 
-      if (this.dictContent !== '' && this.separator !== '') {
-        this.newDictionary.items = this.dictContent.split(this.separator);
-      }
-      this.addedDictionary.emit(this.newDictionary);
+    // when separator is not provided, use comma as default separator
+    if (this.separator === '') { this.separator = ','; }
 
-      this.name = '';
-      this.dictContent = '';
-      this.separator = '';
-    }
-    this.onClose();
+    this.newDictionary.items = this.dictContent.split(this.separator);
+    this.activeModal.close(this.newDictionary);
   }
 
   public checkContentLength(): boolean {
@@ -111,9 +102,9 @@ export class NgbdModalResourceAddComponent {
   }
 
   /**
-   * For "delete" button. Remove the specific file and then check the number 
+   * For "delete" button. Remove the specific file and then check the number
    *  of invalidFile from duplication and type
-   * @param item 
+   * @param item
    */
   public removeFile(item: FileItem): void {
     if (!item._file.type.includes('text')) {

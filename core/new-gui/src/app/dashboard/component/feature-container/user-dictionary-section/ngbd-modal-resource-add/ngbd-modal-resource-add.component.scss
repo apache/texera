@@ -78,9 +78,7 @@
   border-radius: 50px;
   border: dotted 5px lightblue;
   text-align: center;
-  vertical-align: middle;
-  line-height: 200px;
-  font-size:200%;
+  top: 50%;
 }
 .have-file-over {
   background:  lightgray;
@@ -120,7 +118,8 @@
   grid-column-end: 3;
   background-color:red;
   border-radius: 4px;
-  -webkit-transition-duration: 0.4s; 
+  cursor: pointer;
+  -webkit-transition-duration: 0.4s;
   transition-duration: 0.4s;
 }
 .queue-delete-bottom:hover{
