@@ -100,24 +100,30 @@ export class NgbdModalResourceAddComponent {
    * TODO: send http request to the backend and update the user console dictionary list
    */
   public uploadFile(): void {
-    this.uploader.queue.forEach((item) => this.userDictionaryService.uploadDictionary(item._file));
     const result = {
       command: 0,
-      savedQueue: this.uploader.queue.map((fileitem: FileItem, index: number) => {
-        const filereader: FileReader = new FileReader();
-        filereader.readAsText(fileitem._file);
-        filereader.onload = (e) => {
-          if (typeof filereader.result === 'string') {
-            result.savedQueue[index].items = filereader.result.split('\n');
-          } };
-        return <UserDictionary> {
-          id : '1', // TODO: need unique ID
-          name : fileitem._file.name.split('.')[0],
-          items : []
-        };
-      }),
+      savedQueue: [],
       dictionaryData: []
-    };
+    }
+    // this.uploader.queue.forEach((item) => this.userDictionaryService.uploadDictionary(item._file));
+    // const result = {
+    //   command: 0,
+    //   savedQueue: this.uploader.queue.map((fileitem: FileItem, index: number) => {
+    //     const filereader: FileReader = new FileReader();
+    //     filereader.readAsText(fileitem._file);
+    //     filereader.onload = (e) => {
+    //       if (typeof filereader.result === 'string') {
+    //         result.savedQueue[index].items = filereader.result.split('\n');
+    //       }
+    //     };
+    //     return <UserDictionary> {
+    //       id : '1', // TODO: need unique ID
+    //       name : fileitem._file.name.split('.')[0],
+    //       items : []
+    //     };
+    //   }),
+    //   dictionaryData: []
+    // };
     this.uploader.clearQueue();
     this.activeModal.close(result);
   }
@@ -198,9 +204,9 @@ export class NgbdModalResourceAddComponent {
     // this.duplicateFile.forEach(
     //   (fileName: string) => this.uploader.queue.find(fileitem => fileitem._file.name === fileName).remove());
     this.duplicateFile.forEach(
-      (fileName: string) => {
+      fileName => {
         const file: FileItem|undefined = this.uploader.queue.find(fileitem => fileitem._file.name === fileName);
-        if (file) {file.remove(); }
+        if (file) { this.uploader.queue = this.uploader.queue.filter(fileItem => !isEqual(file, fileItem)); }
         });
     this.checkDuplicateFiles();
   }
