@@ -92,15 +92,15 @@ export class UserDictionarySectionComponent implements OnInit {
     const modalRef = this.modalService.open(NgbdModalResourceAddComponent);
     modalRef.componentInstance.uploader.queue = this.savedQueue;
     Observable.from(modalRef.result).subscribe(
-      value => {
-        if (value.commend === 0) { // user wants to upload the file
-          value.fileArray.forEach((userdictionary: UserDictionary) =>{
+      (value: {command: number, savedQueue: FileItem[], dictionaryData: UserDictionary[]}) => {
+        if (value.command === 0) { // user wants to upload the file
+          value.dictionaryData.forEach((userdictionary: UserDictionary) => {
             userdictionary.id = (this.UserDictionary.length + 1).toString();
             this.UserDictionary.push(userdictionary);
             this.userDictionaryService.addUserDictionaryData(userdictionary);
             this.savedQueue = [];
           });
-        } else if (value.commend === 1) { // user close the pop up, but we temporarily store the file array
+        } else if (value.command === 1) { // user close the pop up, but we temporarily store the file array
           this.savedQueue = value.savedQueue;
         }
       }

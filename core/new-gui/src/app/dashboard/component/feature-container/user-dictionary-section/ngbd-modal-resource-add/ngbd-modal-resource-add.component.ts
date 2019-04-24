@@ -6,6 +6,7 @@ import { UserDictionary } from '../../../../type/user-dictionary';
 import { Event } from '_debugger';
 
 import { FileUploader, FileItem } from 'ng2-file-upload';
+import isEqual from 'lodash-es/isEqual';
 
 /**
  * NgbdModalResourceAddComponent is the pop-up component to let
@@ -27,15 +28,15 @@ import { FileUploader, FileItem } from 'ng2-file-upload';
 export class NgbdModalResourceAddComponent {
   @Output() addedDictionary =  new EventEmitter<UserDictionary>();
 
-  public newDictionary: UserDictionary = <UserDictionary>{}; // potential issue
+  public newDictionary: UserDictionary | undefined; // potential issue
   public name: string = '';
   public dictContent: string = '';
   public separator: string = '';
 
   public duplicateFile: string[] = []; // store the name of invalid file due to duplication
   public haveDropZoneOver: boolean = false; // state for user draging over the area
-  public invalidFileNumbe: number = 0; // counter for the number of invalid file in the uploader due to invalid type
-  // uploader: https://github.com/valor-software/ng2-file-upload/blob/development/src/file-upload/file-uploader.class.ts
+  public invalidFileNumber: number = 0; // counter for the number of invalid files in the uploader due to invalid type
+
   // Uploader is from outside library. Here it is used to capture the file and store it.
   // It is capable of sending file but we don't use it. the url="..." is meanless since we send it through our own way.
   public uploader: FileUploader = new FileUploader({url: 'This string does not matter'});
@@ -44,7 +45,7 @@ export class NgbdModalResourceAddComponent {
     public activeModal: NgbActiveModal,
     public userDictionaryService: UserDictionaryService
   ) {
-    
+
   }
 
   /**
@@ -61,14 +62,15 @@ export class NgbdModalResourceAddComponent {
 
     // when separator is not provided, use comma as default separator
     if (this.separator === '') { this.separator = ','; }
-    this.newDictionary = <UserDictionary> {
+    this.newDictionary = {
       id : '1', // TODO: need unique ID
       name : this.name,
       items : this.dictContent.split(this.separator),
     };
     const result = {
-      commend: 0, // commend 0 means user wants to upload the manually created dict.
-      fileArray: [this.newDictionary]
+      command: 0, // commend 0 means user wants to upload the manually created dict.
+      savedQueue: [],
+      dictionaryData: [this.newDictionary]
     };
     this.activeModal.close(result);
   }
@@ -81,8 +83,9 @@ export class NgbdModalResourceAddComponent {
   public onClose() {
     this.deleteAllInvalidFile();
     const result = {
-      commend: 1,
-      savedQueue: this.uploader.queue
+      command: 1,
+      savedQueue: this.uploader.queue,
+      dictionaryData: []
     };
     this.activeModal.close(result);
   }
@@ -93,24 +96,27 @@ export class NgbdModalResourceAddComponent {
    * FileItem: https://github.com/valor-software/ng2-file-upload/blob/development/src/file-upload/file-item.class.ts
    * typeof queue -> [FileItem]
    * typeof FileItem._file -> File
+   *
+   * TODO: send http request to the backend and update the user console dictionary list
    */
   public uploadFile(): void {
     this.uploader.queue.forEach((item) => this.userDictionaryService.uploadDictionary(item._file));
     const result = {
-      commend: 0,
-      fileArray: this.uploader.queue.map((fileitem: FileItem, index: number) => {
+      command: 0,
+      savedQueue: this.uploader.queue.map((fileitem: FileItem, index: number) => {
         const filereader: FileReader = new FileReader();
         filereader.readAsText(fileitem._file);
         filereader.onload = (e) => {
           if (typeof filereader.result === 'string') {
-            result.fileArray[index].items = filereader.result.split('\n');
+            result.savedQueue[index].items = filereader.result.split('\n');
           } };
         return <UserDictionary> {
           id : '1', // TODO: need unique ID
           name : fileitem._file.name.split('.')[0],
           items : []
         };
-      })
+      }),
+      dictionaryData: []
     };
     this.uploader.clearQueue();
     this.activeModal.close(result);
@@ -133,9 +139,10 @@ export class NgbdModalResourceAddComponent {
    */
   public removeFile(item: FileItem): void {
     if (!item._file.type.includes('text/plain')) {
-      this.invalidFileNumbe--;
+      this.invalidFileNumber--;
     }
-    item.remove();
+
+    this.uploader.queue = this.uploader.queue.filter(file => !isEqual(file, item));
     this.checkDuplicateFiles();
   }
 
@@ -170,10 +177,9 @@ export class NgbdModalResourceAddComponent {
    * @param fileDropEvent
    */
   public getFileDropped(fileDropEvent: FileList): void {
-    const filelist: FileList = fileDropEvent;
-    for (let i = 0; i < filelist.length; i++) {
-      if (!filelist[i].type.includes('text/plain')) {
-        this.invalidFileNumbe++;
+    for (let i = 0; i < fileDropEvent.length; i++) {
+      if (!fileDropEvent[i].type.includes('text/plain')) {
+        this.invalidFileNumber++;
       }
     }
     this.checkDuplicateFiles();
@@ -186,7 +192,7 @@ export class NgbdModalResourceAddComponent {
     //   (fileitem: FileItem) => {
     //     if (!fileitem._file.type.includes('text/plain')) { fileitem.remove(); }
     // } );
-    this.invalidFileNumbe = 0;
+    this.invalidFileNumber = 0;
 
     this.checkDuplicateFiles();
     // this.duplicateFile.forEach(

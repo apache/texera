@@ -36,9 +36,9 @@
           </button>
         </li>
       </div>
-      <div *ngIf="invalidFileNumbe || duplicateFile.length" class="warning-space">
+      <div *ngIf="invalidFileNumber || duplicateFile.length" class="warning-space">
         <button type="button" class="btn btn-outline-dark add-button" (click)="deleteAllInvalidFile()">Delete Invalid Files</button>
-        <label *ngIf="invalidFileNumbe"
+        <label *ngIf="invalidFileNumber"
           class="invalid-file-warning"> *You can only upload text file</label>
         <label *ngIf="duplicateFile.length"
           class="invalid-file-warning"> *You cannot upload files with the same name</label>
@@ -48,7 +48,7 @@
       <div *ngIf="uploader.queue.length">
         <button type="button" class="btn btn-primary btn-xs bottom-upload"
                               (click)="uploadFile()"
-                              [disabled]="invalidFileNumbe || duplicateFile.length">
+                              [disabled]="invalidFileNumber || duplicateFile.length">
                               <span class="glyphicon glyphicon-trash"></span> Upload</button>
       </div>
       <button type="button" class="btn btn-outline-dark bottom-close" (click)="onClose()">Close</button>
@@ -74,7 +74,7 @@
       </mat-dialog-content>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-outline-dark add-button" 
+      <button class="btn btn-outline-dark add-button"
               (click)="addDictionary()"
               [disabled]="dictContent === '' || name === '' ">
               Add</button>
