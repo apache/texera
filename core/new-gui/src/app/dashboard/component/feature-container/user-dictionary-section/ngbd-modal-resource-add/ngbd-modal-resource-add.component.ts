@@ -43,7 +43,9 @@ export class NgbdModalResourceAddComponent {
   constructor(
     public activeModal: NgbActiveModal,
     public userDictionaryService: UserDictionaryService
-  ) {}
+  ) {
+    
+  }
 
   /**
   * addKey records the new dictionary information (DIY/file) and sends
@@ -64,14 +66,27 @@ export class NgbdModalResourceAddComponent {
       name : this.name,
       items : this.dictContent.split(this.separator),
     };
-
-    this.activeModal.close(this.newDictionary);
+    const result = {
+      commend: 0, // commend 0 means user wants to upload the manually created dict.
+      fileArray: [this.newDictionary]
+    };
+    this.activeModal.close(result);
   }
 
   public checkContentLength(): boolean {
     console.log(this.dictContent.split('\n').length >= 5);
     return this.dictContent.split('\n').length >= 5;
   }
+
+  public onClose() {
+    this.deleteAllInvalidFile();
+    const result = {
+      commend: 1,
+      savedQueue: this.uploader.queue
+    };
+    this.activeModal.close(result);
+  }
+
   /**
    * For "upload" button. Upload the file in the queue and then clear the queue
    * The FileType object is a type from third part library, link below
@@ -81,7 +96,24 @@ export class NgbdModalResourceAddComponent {
    */
   public uploadFile(): void {
     this.uploader.queue.forEach((item) => this.userDictionaryService.uploadDictionary(item._file));
+    const result = {
+      commend: 0,
+      fileArray: this.uploader.queue.map((fileitem: FileItem, index: number) => {
+        const filereader: FileReader = new FileReader();
+        filereader.readAsText(fileitem._file);
+        filereader.onload = (e) => {
+          if (typeof filereader.result === 'string') {
+            result.fileArray[index].items = filereader.result.split('\n');
+          } };
+        return <UserDictionary> {
+          id : '1', // TODO: need unique ID
+          name : fileitem._file.name.split('.')[0],
+          items : []
+        };
+      })
+    };
     this.uploader.clearQueue();
+    this.activeModal.close(result);
   }
 
   public clickUploadFile(clickUploaEvent: any): void {
@@ -100,7 +132,7 @@ export class NgbdModalResourceAddComponent {
    * @param item
    */
   public removeFile(item: FileItem): void {
-    if (!item._file.type.includes('text')) {
+    if (!item._file.type.includes('text/plain')) {
       this.invalidFileNumbe--;
     }
     item.remove();
@@ -120,7 +152,7 @@ export class NgbdModalResourceAddComponent {
    * @param file
    */
   public checkThisFileInvalid(file: File): boolean {
-    return !file.type.includes('text') || this.duplicateFile.includes(file.name);
+    return !file.type.includes('text/plain') || this.duplicateFile.includes(file.name);
   }
 
   /**
@@ -140,7 +172,7 @@ export class NgbdModalResourceAddComponent {
   public getFileDropped(fileDropEvent: FileList): void {
     const filelist: FileList = fileDropEvent;
     for (let i = 0; i < filelist.length; i++) {
-      if (!filelist[i].type.includes('text')) {
+      if (!filelist[i].type.includes('text/plain')) {
         this.invalidFileNumbe++;
       }
     }
@@ -149,10 +181,10 @@ export class NgbdModalResourceAddComponent {
 
   public deleteAllInvalidFile(): void {
     this.uploader.queue = this.uploader.queue.filter(
-      (fileitem: FileItem) => fileitem._file.type.includes('text'));
+      (fileitem: FileItem) => fileitem._file.type.includes('text/plain'));
     // this.uploader.queue.forEach(
     //   (fileitem: FileItem) => {
-    //     if (!fileitem._file.type.includes('text')) { fileitem.remove(); }
+    //     if (!fileitem._file.type.includes('text/plain')) { fileitem.remove(); }
     // } );
     this.invalidFileNumbe = 0;
 

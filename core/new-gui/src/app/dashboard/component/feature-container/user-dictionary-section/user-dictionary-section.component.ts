@@ -12,6 +12,7 @@ import { NgbdModalResourceDeleteComponent } from './ngbd-modal-resource-delete/n
 import { NgbdModalResourceViewComponent } from './ngbd-modal-resource-view/ngbd-modal-resource-view.component';
 
 import { cloneDeep } from 'lodash';
+import { FileItem } from 'ng2-file-upload';
 
 /**
  * UserDictionarySectionComponent is the main interface
@@ -29,6 +30,7 @@ import { cloneDeep } from 'lodash';
 export class UserDictionarySectionComponent implements OnInit {
 
   public UserDictionary: UserDictionary[] = [];
+  public savedQueue: FileItem[] = [];
 
   constructor(
     private userDictionaryService: UserDictionaryService,
@@ -88,12 +90,19 @@ export class UserDictionarySectionComponent implements OnInit {
   */
   public openNgbdModalResourceAddComponent(): void {
     const modalRef = this.modalService.open(NgbdModalResourceAddComponent);
-
+    modalRef.componentInstance.uploader.queue = this.savedQueue;
     Observable.from(modalRef.result).subscribe(
       value => {
-        value.id = (this.UserDictionary.length + 1).toString();
-        this.UserDictionary.push(value);
-        this.userDictionaryService.addUserDictionaryData(value);
+        if (value.commend === 0) { // user wants to upload the file
+          value.fileArray.forEach((userdictionary: UserDictionary) =>{
+            userdictionary.id = (this.UserDictionary.length + 1).toString();
+            this.UserDictionary.push(userdictionary);
+            this.userDictionaryService.addUserDictionaryData(userdictionary);
+            this.savedQueue = [];
+          });
+        } else if (value.commend === 1) { // user close the pop up, but we temporarily store the file array
+          this.savedQueue = value.savedQueue;
+        }
       }
     );
   }

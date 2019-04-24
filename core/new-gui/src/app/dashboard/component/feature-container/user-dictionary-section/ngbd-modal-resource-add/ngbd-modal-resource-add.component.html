@@ -1,6 +1,6 @@
 <div class="modal-header">
   <h4 class="modal-title">Add Dictionary</h4>
-  <button type="button" class="close" aria-label="Close" (click)="activeModal.close('')">
+  <button type="button" class="close" aria-label="Close" (click)="onClose()">
     <span aria-hidden="true">&times;</span>
   </button>
 </div>
@@ -51,7 +51,7 @@
                               [disabled]="invalidFileNumbe || duplicateFile.length">
                               <span class="glyphicon glyphicon-trash"></span> Upload</button>
       </div>
-      <button type="button" class="btn btn-outline-dark bottom-close" (click)="activeModal.close('')">Close</button>
+      <button type="button" class="btn btn-outline-dark bottom-close" (click)="onClose()">Close</button>
     </div>
   </mat-tab>
 
@@ -78,7 +78,7 @@
               (click)="addDictionary()"
               [disabled]="dictContent === '' || name === '' ">
               Add</button>
-      <button class="btn btn-outline-dark" (click)="activeModal.close('')">Close</button>
+      <button class="btn btn-outline-dark" (click)="onClose()">Close</button>
     </div>
   </mat-tab>
 </mat-tab-group>
