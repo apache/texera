@@ -27,11 +27,10 @@ import { FileUploader, FileItem } from 'ng2-file-upload';
 export class NgbdModalResourceAddComponent {
   @Output() addedDictionary =  new EventEmitter<UserDictionary>();
 
-  public newDictionary: any; // potential issue
+  public newDictionary: UserDictionary = <UserDictionary>{}; // potential issue
   public name: string = '';
   public dictContent: string = '';
   public separator: string = '';
-  public selectFile: any = null; // potential issue
 
   public duplicateFile: string[] = []; // store the name of invalid file due to duplication
   public haveDropZoneOver: boolean = false; // state for user draging over the area
@@ -46,10 +45,6 @@ export class NgbdModalResourceAddComponent {
     public userDictionaryService: UserDictionaryService
   ) {}
 
-  public onChange(event: any): void {
-    this.selectFile = event.target.files[0];
-  }
-
   /**
   * addKey records the new dictionary information (DIY/file) and sends
   * it back to the main component.
@@ -62,16 +57,14 @@ export class NgbdModalResourceAddComponent {
       throw new Error('one of the parameters required for creating a dictionary is not provided');
     }
 
-    this.newDictionary = <UserDictionary> {
-      id : '1',
-      name : this.name,
-      items : [],
-    };
-
     // when separator is not provided, use comma as default separator
     if (this.separator === '') { this.separator = ','; }
+    this.newDictionary = <UserDictionary> {
+      id : '1', // TODO: need unique ID
+      name : this.name,
+      items : this.dictContent.split(this.separator),
+    };
 
-    this.newDictionary.items = this.dictContent.split(this.separator);
     this.activeModal.close(this.newDictionary);
   }
 

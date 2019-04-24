@@ -62,7 +62,7 @@ describe('NgbdModalResourceAddComponent', () => {
     addcomponent.name = 'test';
     addcomponent.separator = ',';
     addcomponent.addedDictionary.subscribe((outd: any) => getResultDict = outd);
-    addcomponent.addKey();
+    addcomponent.addDictionary();
 
     expect(getResultDict.id).toEqual('1');
     expect(getResultDict.name).toEqual('test');

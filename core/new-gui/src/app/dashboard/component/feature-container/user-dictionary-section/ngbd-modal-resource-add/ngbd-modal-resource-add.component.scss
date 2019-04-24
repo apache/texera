@@ -78,7 +78,9 @@
   border-radius: 50px;
   border: dotted 5px lightblue;
   text-align: center;
-  top: 50%;
+  line-height: 200px;
+  font-size:200%;
+  cursor: pointer;
 }
 .have-file-over {
   background:  lightgray;
@@ -119,8 +121,8 @@
   background-color:red;
   border-radius: 4px;
   cursor: pointer;
-  -webkit-transition-duration: 0.4s;
-  transition-duration: 0.4s;
+  -webkit-transition-duration: 0.2s;
+  transition-duration: 0.2s;
 }
 .queue-delete-bottom:hover{
   color: white;

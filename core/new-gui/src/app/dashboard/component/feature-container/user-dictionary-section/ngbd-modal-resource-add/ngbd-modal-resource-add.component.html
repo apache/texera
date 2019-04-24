@@ -33,8 +33,6 @@
           <button type="button" class="queue-delete-bottom"
                                       (click)="removeFile(item)">
                                       <i class="fa fa-trash" aria-hidden="true"></i>
-
-
           </button>
         </li>
       </div>
@@ -61,11 +59,11 @@
     <div class="modal-body">
       <mat-dialog-content class= "add-dictionary-container">
         <mat-form-field class= "name-area">
-          <input  matInput [(ngModel)]="name" placeholder="Name of Dictionary">
+          <input  matInput [(ngModel)]="name" placeholder="Name of Dictionary (*Required)">
         </mat-form-field>
         <mat-form-field class= "content-area" >
           <textarea matInput
-            [(ngModel)]="dictContent" placeholder="Content of Dictionary"
+            [(ngModel)]="dictContent" placeholder="Content of Dictionary (*Required)"
             matTextareaAutosize="checkContentLength()" matAutosizeMaxRows="5">
           </textarea>
         </mat-form-field>
@@ -76,7 +74,10 @@
       </mat-dialog-content>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-outline-dark add-button" (click)="addDictionary()">Add</button>
+      <button class="btn btn-outline-dark add-button" 
+              (click)="addDictionary()"
+              [disabled]="dictContent === '' || name === '' ">
+              Add</button>
       <button class="btn btn-outline-dark" (click)="activeModal.close('')">Close</button>
     </div>
   </mat-tab>
