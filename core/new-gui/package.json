@@ -40,6 +40,7 @@
     "lodash-es": "^4.17.10",
     "ngx-bootstrap": "^3.0.1",
     "ngx-json-viewer": "^2.4.0",
+    "ngx-logger": "^3.3.12",
     "ngx-popper": "^2.7.1",
     "ngx-tour-core": "^3.0.0",
     "ngx-tour-ng-bootstrap": "^3.0.0",
