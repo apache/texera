@@ -299,12 +299,12 @@ export class DragDropService {
       const position = this.workflowActionService.getJointGraphWrapper().getJointOperatorCellPostion(operator_list[i].operatorID);
       if (position !== undefined && this.mouseAt !== undefined) {
         // calculate the distance between the mouse and the operator
-        const dis = (this.mouseAt.x - position[0]) ** 2 + (this.mouseAt.y - position[1]) ** 2;
+        const dis = (this.mouseAt.x - position.x) ** 2 + (this.mouseAt.y - position.y) ** 2;
         if (dis < distance[0]) {
           distance[0] = dis;
           // check if the selected operator has output ports or input port
-          if ((position[0] < this.mouseAt.x && operator_list[i].outputPorts.length > 0)
-            || (position[0] > this.mouseAt.x && operator_list[i].inputPorts.length > 0)) {
+          if ((position.x < this.mouseAt.x && operator_list[i].outputPorts.length > 0)
+            || (position.x > this.mouseAt.x && operator_list[i].inputPorts.length > 0)) {
             // Unhighlight the previous highlight operator
             if (this.suggestionOperator !== undefined) {
               const operatorID = this.suggestionOperator.operatorID;
@@ -314,9 +314,9 @@ export class DragDropService {
             this.suggestionOperator = operator_list[i];
 
             // check if the dragging operator is on the left or right of the selected operator
-            if (position[0] < this.mouseAt.x && operator_list[i].outputPorts.length > 0) {
+            if (position.x < this.mouseAt.x && operator_list[i].outputPorts.length > 0) {
               this.isLeft = true;
-            } else if (position[0] > this.mouseAt.x && operator_list[i].inputPorts.length > 0) {
+            } else if (position.x > this.mouseAt.x && operator_list[i].inputPorts.length > 0) {
               this.isLeft = false;
             }
           } else {

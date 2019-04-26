@@ -1,6 +1,7 @@
 import { Subject } from 'rxjs/Subject';
 import { Observable } from 'rxjs/Observable';
 import { dia } from 'jointjs';
+import { Point } from './../../../types/workflow-common.interface';
 
 type operatorIDType = { operatorID: string };
 
@@ -203,14 +204,10 @@ export class JointGraphWrapper {
     return jointLinkChangeStream;
   }
 
-  public getJointOperatorCellPostion(operatorID: string): number[] | undefined {
+  public getJointOperatorCellPostion(operatorID: string): Point | undefined {
     const operatorCell = this.jointGraph.getCell(operatorID);
-    const position: number[] = [];
     if (operatorCell.isElement()) {
-      const result: dia.Element  = new dia.Element(operatorCell.attributes);
-      position.push(result.position().x);
-      position.push(result.position().y);
-      return position;
+      return  {x: operatorCell.get('position').x, y: operatorCell.get('position').y};
     }
   }
 
