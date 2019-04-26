@@ -52,6 +52,6 @@ describe('NgbdModalResourceDeleteComponent', () => {
     deletecomponent.deleteDict.subscribe((outb: any) => deleteSignal = outb);
     deletecomponent.deleteDictionary();
 
-    expect(deleteSignal).toEqual(true);
+    expect(deleteSignal).toEqual(false);
   });
 });

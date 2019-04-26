@@ -1,5 +1,5 @@
-import { Component, OnInit, Input, Output, EventEmitter } from '@angular/core';
-import { NgbModal, NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
+import { Component, OnInit, Output, EventEmitter } from '@angular/core';
+import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 
 import { UserDictionaryService } from '../../../../service/user-dictionary/user-dictionary.service';
 import { UserDictionary } from '../../../../type/user-dictionary';
@@ -62,14 +62,14 @@ export class NgbdModalResourceAddComponent {
       };
 
       if (this.dictContent !== '' && this.separator !== '') {
-        this.newDictionary.items = this.dictContent.split(this.separator);
+        const listWithDup = this.dictContent.split(this.separator);
+        this.newDictionary.items = listWithDup.filter((v, i) => listWithDup.indexOf(v) === i);
       }
-      this.addedDictionary.emit(this.newDictionary);
 
       this.name = '';
       this.dictContent = '';
       this.separator = '';
     }
-    this.activeModal.close();
+    this.activeModal.close(this.newDictionary);
   }
 }

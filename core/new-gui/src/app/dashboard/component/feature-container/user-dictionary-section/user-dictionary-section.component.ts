@@ -56,25 +56,22 @@ export class UserDictionarySectionComponent implements OnInit {
     const modalRef = this.modalService.open(NgbdModalResourceViewComponent);
     modalRef.componentInstance.dictionary = cloneDeep(dictionary);
 
-    const addItemEventEmitter = <EventEmitter<string>>(modalRef.componentInstance.addedName);
-    const subscription = addItemEventEmitter
-      .do(value => console.log(value))
-      .subscribe(
-        value => {
-          dictionary.items.push(value);
-          modalRef.componentInstance.dictionary = cloneDeep(dictionary);
-        }
-      );
+    const addModelObservable = Observable.from(modalRef.componentInstance.addedName);
+    const deleteModelObservable = Observable.from(modalRef.componentInstance.deleteName);
 
-    const deleteItemEventEmitter = <EventEmitter<string>>(modalRef.componentInstance.deleteName);
-    const delSubscription = deleteItemEventEmitter
-      .do(value => console.log(value))
-      .subscribe(
-        value => {
-          dictionary.items = dictionary.items.filter(obj => obj !== value);
-          modalRef.componentInstance.dictionary = cloneDeep(dictionary);
-        }
-      );
+    addModelObservable.subscribe(
+      value => {
+        dictionary.items.push(<string> value);
+        modalRef.componentInstance.dictionary = cloneDeep(dictionary);
+      }
+    );
+
+    deleteModelObservable.subscribe(
+      value => {
+        dictionary.items = dictionary.items.filter(obj => obj !== <string> value);
+        modalRef.componentInstance.dictionary = cloneDeep(dictionary);
+      }
+    );
   }
 
   /**
@@ -89,15 +86,14 @@ export class UserDictionarySectionComponent implements OnInit {
   public openNgbdModalResourceAddComponent(): void {
     const modalRef = this.modalService.open(NgbdModalResourceAddComponent);
 
-    const addItemEventEmitter = <EventEmitter<UserDictionary>>(modalRef.componentInstance.addedDictionary);
-    const subscription = addItemEventEmitter
-      .do(value => value.id = (this.UserDictionary.length + 1).toString()) // leave for correct
-      .subscribe(
-        value => {
-          this.UserDictionary.push(value);
-          this.userDictionaryService.addUserDictionaryData(value);
-        }
-      );
+    Observable.from(modalRef.result).subscribe(
+      (value: UserDictionary) => {
+
+        value.id = (this.UserDictionary.length + 1).toString();
+        this.UserDictionary.push(value);
+        this.userDictionaryService.addUserDictionaryData(value);
+      }
+    );
 
   }
 
@@ -114,17 +110,14 @@ export class UserDictionarySectionComponent implements OnInit {
     const modalRef = this.modalService.open(NgbdModalResourceDeleteComponent);
     modalRef.componentInstance.dictionary = cloneDeep(dictionary);
 
-    const deleteItemEventEmitter = <EventEmitter<boolean>>(modalRef.componentInstance.deleteDict);
-    const subscription = deleteItemEventEmitter
-      .subscribe(
-        (value: UserDictionary) => {
-          if (value) {
-            this.UserDictionary = this.UserDictionary.filter(obj => obj.id !== dictionary.id);
-            this.userDictionaryService.deleteUserDictionaryData(dictionary);
-          }
+    Observable.from(modalRef.result).subscribe(
+      (value: UserDictionary) => {
+        if (value) {
+          this.UserDictionary = this.UserDictionary.filter(obj => obj.id !== dictionary.id);
+          this.userDictionaryService.deleteUserDictionaryData(dictionary);
         }
-      );
-
+      }
+    );
   }
 
   /**

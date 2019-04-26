@@ -1,5 +1,5 @@
 import { Component, OnInit, Input, Output, EventEmitter } from '@angular/core';
-import { NgbModal, NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
+import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { UserDictionary } from '../../../../type/user-dictionary';
 
 /**
@@ -34,8 +34,7 @@ export class NgbdModalResourceDeleteComponent {
   * @param
   */
   public deleteDictionary(): void {
-    this.deleteDict.emit(true);
-    this.activeModal.close();
+    this.activeModal.close(true);
   }
 
 }
