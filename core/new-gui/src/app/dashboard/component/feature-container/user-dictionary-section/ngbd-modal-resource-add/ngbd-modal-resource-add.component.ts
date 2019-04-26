@@ -75,6 +75,9 @@ export class NgbdModalResourceAddComponent {
     this.activeModal.close(result);
   }
 
+  /**
+   * Doesn't work yet.
+   */
   public checkContentLength(): boolean {
     console.log(this.dictContent.split('\n').length >= 5);
     return this.dictContent.split('\n').length >= 5;
@@ -104,7 +107,7 @@ export class NgbdModalResourceAddComponent {
       command: 0,
       savedQueue: [],
       dictionaryData: []
-    }
+    };
     // this.uploader.queue.forEach((item) => this.userDictionaryService.uploadDictionary(item._file));
     // const result = {
     //   command: 0,
@@ -124,12 +127,20 @@ export class NgbdModalResourceAddComponent {
     //   }),
     //   dictionaryData: []
     // };
-    this.uploader.clearQueue();
+    this.uploader.queue = [];
     this.activeModal.close(result);
   }
 
-  public clickUploadFile(clickUploaEvent: any): void {
-    const filelist: FileList = clickUploaEvent.target.files;
+  /**
+   * handle the event when user click the file upload area
+   * move all the files out from the event and put in the queue.
+   * @param clickUploaEvent
+   */
+  public clickUploadFile(clickUploaEvent: {target: HTMLInputElement}): void {
+    const filelist: FileList | null = clickUploaEvent.target.files;
+    if (filelist === null) {
+      throw new Error(`browser upload does not work as intended`);
+    }
     const listOfFile: File[] = Array<File>();
     for (let i = 0; i < filelist.length; i++) {
       listOfFile.push(filelist[i]);
@@ -170,16 +181,17 @@ export class NgbdModalResourceAddComponent {
 
   /**
    * go through the uploader to check if there exist file with the same name, store the duplicate file in this.duplicateFile
+   * @param
    */
   public checkDuplicateFiles(): void {
-    const filesArray = this.uploader.queue.map(item => item._file.name);
-    this.duplicateFile = filesArray.filter(
-      (fileName: string, index: number, fileArray: string[]) => fileArray.indexOf(fileName) !== index);
+    this.duplicateFile = this.uploader.queue.map(item => item._file.name)
+    .filter((fileName: string, index: number, fileArray: string[]) => fileArray.indexOf(fileName) !== index);
   }
 
   /**
    * check it's type to find if it's valid. if not, counter for invalidfile will plus one. Also check duplicates at the end
    * the real file is store in this.uploader.
+   * the type FileList doesn't have .forEach() or .filter()
    * @param fileDropEvent
    */
   public getFileDropped(fileDropEvent: FileList): void {
@@ -191,23 +203,49 @@ export class NgbdModalResourceAddComponent {
     this.checkDuplicateFiles();
   }
 
+  /**
+   * delete all the invalid file, including type error and duplication.
+   * @param
+   */
   public deleteAllInvalidFile(): void {
-    this.uploader.queue = this.uploader.queue.filter(
+    this.uploader.queue = this.uploader.queue.filter( // delete invalid type file
       (fileitem: FileItem) => fileitem._file.type.includes('text/plain'));
-    // this.uploader.queue.forEach(
-    //   (fileitem: FileItem) => {
-    //     if (!fileitem._file.type.includes('text/plain')) { fileitem.remove(); }
-    // } );
     this.invalidFileNumber = 0;
 
-    this.checkDuplicateFiles();
+    const map: Map<string, number> = new Map(); // create map to count file with the same name
+    this.uploader.queue.map(fileitem => fileitem._file.name)
+    .forEach(name => {
+      const count: number | undefined = map.get(name);
+      if (count === undefined) {
+        map.set(name, 1);
+      } else {
+        map.set(name, count + 1);
+      }
+    });
+    // this.uploader.queue.filter(fileitem => {
+    //   if (map.get(fileitem._file.name) === 1) {
+    //     return true;
+    //   } else {
+    //     map.set(fileitem._file.name, --map.get(fileitem._file.name));
+    //     return false;
+    //   }
+    // });
+    // this.uploader.queue = this.uploader.queue.filter( // delete all the file with occurrence more than one.
+    //   fileitem => (map.get(fileitem._file.name) === 1 || !(map.set(fileitem._file.name, map.get(fileitem._file.name) - 1)))
+    // );
+    this.uploader.queue = this.uploader.queue.filter( // delete all the file with occurrence more than one.
+      fileitem => {
+        const count: number | undefined = map.get(fileitem._file.name);
+        if (count === undefined) { throw new Error('count for map of file shouldn`t be undefined'); }
+        return (count === 1 || !(map.set(fileitem._file.name, count - 1)));
+      });
     // this.duplicateFile.forEach(
-    //   (fileName: string) => this.uploader.queue.find(fileitem => fileitem._file.name === fileName).remove());
-    this.duplicateFile.forEach(
-      fileName => {
-        const file: FileItem|undefined = this.uploader.queue.find(fileitem => fileitem._file.name === fileName);
-        if (file) { this.uploader.queue = this.uploader.queue.filter(fileItem => !isEqual(file, fileItem)); }
-        });
+    //   fileName => {
+    //     const file: FileItem|undefined = this.uploader.queue.find(fileitem => fileitem._file.name === fileName);
+    //     if (file) { this.uploader.queue = this.uploader.queue.filter(fileItem => !isEqual(file, fileItem)); }
+    //     });
+
+
     this.checkDuplicateFiles();
   }
 

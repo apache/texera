@@ -98,8 +98,8 @@ export class UserDictionarySectionComponent implements OnInit {
             userdictionary.id = (this.UserDictionary.length + 1).toString();
             this.UserDictionary.push(userdictionary);
             this.userDictionaryService.addUserDictionaryData(userdictionary);
-            this.savedQueue = [];
           });
+          this.savedQueue = [];
         } else if (value.command === 1) { // user close the pop up, but we temporarily store the file array
           this.savedQueue = value.savedQueue;
         }
