@@ -293,40 +293,40 @@ export class DragDropService {
     const operator_list = this.workflowActionService.getTexeraGraph().getAllOperators();
     const distance: number[] = [Number.MAX_VALUE]; // keep tracking the closest operator
 
-    for (let i = 0; i < operator_list.length; i++) {
+    operator_list.forEach( operator => {
 
       // Get an operator position details by using getJointOperatorCellPostion in workflowActionService
-      const position = this.workflowActionService.getJointGraphWrapper().getJointOperatorCellPostion(operator_list[i].operatorID);
+      const position = this.workflowActionService.getJointGraphWrapper().getJointOperatorCellPostion(operator.operatorID);
       if (position !== undefined && mouseAt !== undefined) {
         // calculate the distance between the mouse and the operator
         const dis = (mouseAt.x - position.x) ** 2 + (mouseAt.y - position.y) ** 2;
         if (dis < distance[0]) {
           distance[0] = dis;
           // check if the selected operator has output ports or input port
-          if ((position.x < mouseAt.x && operator_list[i].outputPorts.length > 0)
-            || (position.x > mouseAt.x && operator_list[i].inputPorts.length > 0)) {
+          if ((position.x < mouseAt.x && operator.outputPorts.length > 0)
+            || (position.x > mouseAt.x && operator.inputPorts.length > 0)) {
             // Unhighlight the previous highlight operator
             if (this.suggestionOperator !== undefined) {
               const operatorID = this.suggestionOperator.operatorID;
               const status = true;
               this.operatorSuggestionUnhighlightStream.next({status, operatorID});
             }
-            this.suggestionOperator = operator_list[i];
+            this.suggestionOperator = operator;
 
             // check if the dragging operator is on the left or right of the selected operator
-            if (position.x < mouseAt.x && operator_list[i].outputPorts.length > 0) {
+            if (position.x < mouseAt.x && operator.outputPorts.length > 0) {
               this.isLeft = true;
-            } else if (position.x > mouseAt.x && operator_list[i].inputPorts.length > 0) {
+            } else if (position.x > mouseAt.x && operator.inputPorts.length > 0) {
               this.isLeft = false;
             }
           } else {
-            // When this.isLeft is undefined, it means that the operate_list[i] is not available to create an correct link.
+            // When this.isLeft is undefined, it means that the operate is not available to create an correct link.
             // this.isLeft is unable to observe the dragging operator's ports info.
             this.isLeft = undefined;
           }
         }
       }
-    }
+    });
 
     if (this.suggestionOperator !== undefined && this.isLeft !== undefined) {
       const operatorID = this.suggestionOperator.operatorID;
