@@ -291,17 +291,16 @@ export class DragDropService {
 
   private findClosestOperator(mouseAt: Point): void {
     const operator_list = this.workflowActionService.getTexeraGraph().getAllOperators();
-    const distance: number[] = [Number.MAX_VALUE]; // keep tracking the closest operator
+    let distance = Number.MAX_VALUE; // keep tracking the closest operator
 
     operator_list.forEach( operator => {
-
       // Get an operator position details by using getJointOperatorCellPostion in workflowActionService
       const position = this.workflowActionService.getJointGraphWrapper().getJointOperatorCellPostion(operator.operatorID);
       if (position !== undefined && mouseAt !== undefined) {
         // calculate the distance between the mouse and the operator
         const dis = (mouseAt.x - position.x) ** 2 + (mouseAt.y - position.y) ** 2;
-        if (dis < distance[0]) {
-          distance[0] = dis;
+        if (dis < distance) {
+          distance = dis;
           // check if the selected operator has output ports or input port
           if ((position.x < mouseAt.x && operator.outputPorts.length > 0)
             || (position.x > mouseAt.x && operator.inputPorts.length > 0)) {
