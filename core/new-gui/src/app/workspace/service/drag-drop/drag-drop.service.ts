@@ -209,7 +209,6 @@ export class DragDropService {
 
     // add the operator JointJS element to the paper
     tempGhostModel.addCell(operatorUIElement);
-    this.handleMouseMove();
 
     // return the jQuery object of the DOM Element
     return jQuery('#flyingJointPaper');
@@ -239,6 +238,8 @@ export class DragDropService {
     this.currentOperatorType = operatorType;
     // notify the subject of the event
     this.operatorDragStartedSubject.next({ operatorType });
+
+    this.handleOperatorRecommendationOnDrag();
   }
 
   /**
@@ -268,7 +269,7 @@ export class DragDropService {
     }
   }
 
-  private handleMouseMove(): void {
+  private handleOperatorRecommendationOnDrag(): void {
     let isDone = false;
 
     Observable.fromEvent<MouseEvent>(window, 'mouseup').first()
