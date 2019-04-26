@@ -283,13 +283,13 @@ export class DragDropService {
     ).filter(() => isOperatorDropped === false).subscribe(
       (mouseCoordinates) => {
           this.mouseAt = {x: mouseCoordinates[0], y: mouseCoordinates[1]};
-          this.findClosestOperator();
+          this.findClosestOperator(this.mouseAt);
       },
       (error) => console.error(error)
     );
   }
 
-  private findClosestOperator(): void {
+  private findClosestOperator(mouseAt: Point): void {
     const operator_list = this.workflowActionService.getTexeraGraph().getAllOperators();
     const distance: number[] = [Number.MAX_VALUE]; // keep tracking the closest operator
 
@@ -297,14 +297,14 @@ export class DragDropService {
 
       // Get an operator position details by using getJointOperatorCellPostion in workflowActionService
       const position = this.workflowActionService.getJointGraphWrapper().getJointOperatorCellPostion(operator_list[i].operatorID);
-      if (position !== undefined && this.mouseAt !== undefined) {
+      if (position !== undefined && mouseAt !== undefined) {
         // calculate the distance between the mouse and the operator
-        const dis = (this.mouseAt.x - position.x) ** 2 + (this.mouseAt.y - position.y) ** 2;
+        const dis = (mouseAt.x - position.x) ** 2 + (mouseAt.y - position.y) ** 2;
         if (dis < distance[0]) {
           distance[0] = dis;
           // check if the selected operator has output ports or input port
-          if ((position.x < this.mouseAt.x && operator_list[i].outputPorts.length > 0)
-            || (position.x > this.mouseAt.x && operator_list[i].inputPorts.length > 0)) {
+          if ((position.x < mouseAt.x && operator_list[i].outputPorts.length > 0)
+            || (position.x > mouseAt.x && operator_list[i].inputPorts.length > 0)) {
             // Unhighlight the previous highlight operator
             if (this.suggestionOperator !== undefined) {
               const operatorID = this.suggestionOperator.operatorID;
@@ -314,9 +314,9 @@ export class DragDropService {
             this.suggestionOperator = operator_list[i];
 
             // check if the dragging operator is on the left or right of the selected operator
-            if (position.x < this.mouseAt.x && operator_list[i].outputPorts.length > 0) {
+            if (position.x < mouseAt.x && operator_list[i].outputPorts.length > 0) {
               this.isLeft = true;
-            } else if (position.x > this.mouseAt.x && operator_list[i].inputPorts.length > 0) {
+            } else if (position.x > mouseAt.x && operator_list[i].inputPorts.length > 0) {
               this.isLeft = false;
             }
           } else {
