@@ -26,10 +26,6 @@ export class NgbdModalDeleteProjectComponent {
   constructor(public activeModal: NgbActiveModal) {
   }
 
-  public onClose(): void {
-    this.activeModal.close('Close');
-  }
-
   /**
   * deleteSavedProject sends the user
   * confirm to the main component. It does not call any method in service.
@@ -38,7 +34,7 @@ export class NgbdModalDeleteProjectComponent {
   */
   public deleteSavedProject(): void {
     this.deleteProject.emit(true);
-    this.onClose();
+    this.activeModal.close();
   }
 
 }

@@ -20,13 +20,6 @@ export class NgbdModalAddProjectComponent {
 
   constructor(public activeModal: NgbActiveModal) { }
 
-  public onNoClick(): void {
-    this.activeModal.close();
-  }
-  public onClose(): void {
-    this.activeModal.close('Close');
-  }
-
   /**
   * addProject records the project information and return
   * it to the main component. It does not call any method in service.
@@ -38,6 +31,6 @@ export class NgbdModalAddProjectComponent {
       this.newProject.emit(this.name);
       this.name = '';
     }
-    this.onClose();
+    this.activeModal.close();
   }
 }

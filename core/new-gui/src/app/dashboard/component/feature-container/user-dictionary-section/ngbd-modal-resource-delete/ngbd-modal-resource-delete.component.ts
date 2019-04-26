@@ -27,10 +27,6 @@ export class NgbdModalResourceDeleteComponent {
   constructor(public activeModal: NgbActiveModal) {
   }
 
-  public onClose(): void {
-    this.activeModal.close('Close');
-  }
-
   /**
   * deleteDictionary sends the user confirm to the frontend to delete
   * a certain dictionary in user storage.
@@ -39,7 +35,7 @@ export class NgbdModalResourceDeleteComponent {
   */
   public deleteDictionary(): void {
     this.deleteDict.emit(true);
-    this.onClose();
+    this.activeModal.close();
   }
 
 }

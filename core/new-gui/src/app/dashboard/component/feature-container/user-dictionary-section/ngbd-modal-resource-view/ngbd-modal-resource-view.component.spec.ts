@@ -44,7 +44,7 @@ describe('NgbdModalResourceViewComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('resourceViewComponent addKey should generate new key', () => {
+  it('resourceViewComponent addDictionaryItem should generate new key', () => {
     viewfixture = TestBed.createComponent(NgbdModalResourceViewComponent);
     viewcomponent = viewfixture.componentInstance;
 
@@ -57,7 +57,7 @@ describe('NgbdModalResourceViewComponent', () => {
     viewcomponent.name = 'test';
     viewcomponent.ifAdd = true;
     viewcomponent.addedName.subscribe((out: any) => getResult = out);
-    viewcomponent.addKey();
+    viewcomponent.addDictionaryItem();
 
     expect(getResult).toEqual('test');
   });

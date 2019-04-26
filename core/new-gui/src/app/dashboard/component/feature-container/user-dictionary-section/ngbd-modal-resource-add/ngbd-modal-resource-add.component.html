@@ -1,6 +1,6 @@
 <div class="modal-header">
   <h4 class="modal-title">Add Dictionary</h4>
-  <button type="button" class="close" aria-label="Close" (click)="onClose()">
+  <button type="button" class="close" aria-label="Close" (click)="activeModal.close()">
     <span aria-hidden="true">&times;</span>
   </button>
 </div>
@@ -37,6 +37,6 @@
 </div>
 
 <div class="modal-footer">
-  <button type="button" class="btn btn-outline-dark add-button" (click)="addKey()"  >Add</button>
-  <button type="button" class="btn btn-outline-dark" (click)="onClose()">Close</button>
+  <button type="button" class="btn btn-outline-dark add-button" (click)="addDictionary()"  >Add</button>
+  <button type="button" class="btn btn-outline-dark" (click)="activeModal.close()">Close</button>
 </div>

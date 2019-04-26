@@ -33,16 +33,12 @@ export class NgbdModalResourceViewComponent {
 
   constructor(public activeModal: NgbActiveModal) {}
 
-  public onClose(): void {
-    this.activeModal.close('Close');
-  }
-
   /**
-  * addKey gets the item added by user and sends it back to the main component.
+  * addDictionaryItem gets the item added by user and sends it back to the main component.
   *
   * @param
   */
-  public addKey(): void {
+  public addDictionaryItem(): void {
 
     if (this.ifAdd && this.name !== '') {
       this.addedName.emit(this.name);

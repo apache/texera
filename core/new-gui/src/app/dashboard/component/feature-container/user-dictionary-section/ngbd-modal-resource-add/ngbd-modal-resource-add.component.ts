@@ -40,19 +40,15 @@ export class NgbdModalResourceAddComponent {
     this.selectFile = event.target.files[0];
   }
 
-  public onClose(): void {
-    this.activeModal.close('Close');
-  }
-
   /**
-  * addKey records the new dictionary information (DIY/file) and sends
+  * addDictionary records the new dictionary information (DIY/file) and sends
   * it back to the main component. This method will check if the user
   * upload dictionary files first. If not, the method will read the
   * dictionary information from the input form.
   *
   * @param
   */
-  public addKey(): void {
+  public addDictionary(): void {
 
     if (this.selectFile !== null) {
         this.userDictionaryService.uploadDictionary(this.selectFile);
@@ -74,6 +70,6 @@ export class NgbdModalResourceAddComponent {
       this.dictContent = '';
       this.separator = '';
     }
-    this.onClose();
+    this.activeModal.close();
   }
 }
