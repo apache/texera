@@ -270,11 +270,11 @@ export class DragDropService {
   }
 
   private handleOperatorRecommendationOnDrag(): void {
-    let isDone = false;
+    let isOperatorDropped = false;
 
     Observable.fromEvent<MouseEvent>(window, 'mouseup').first()
       .subscribe(
-        () => isDone = true,
+        () => isOperatorDropped = true,
         (error) => console.error(error)
       );
 
@@ -282,7 +282,7 @@ export class DragDropService {
       value => [value.clientX, value.clientY]
     ).subscribe(
       (value) => {
-        if (!isDone) {
+        if (!isOperatorDropped) {
           this.mouseAt = {x: value[0], y: value[1]};
           this.findClosestOperator();
         }
