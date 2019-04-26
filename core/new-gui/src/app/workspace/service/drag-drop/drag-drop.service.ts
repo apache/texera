@@ -280,12 +280,10 @@ export class DragDropService {
 
     Observable.fromEvent<MouseEvent>(window, 'mousemove').auditTime(100).map(
       value => [value.clientX, value.clientY]
-    ).subscribe(
-      (value) => {
-        if (!isOperatorDropped) {
-          this.mouseAt = {x: value[0], y: value[1]};
+    ).filter(() => isOperatorDropped === false).subscribe(
+      (mouseCoordinates) => {
+          this.mouseAt = {x: mouseCoordinates[0], y: mouseCoordinates[1]};
           this.findClosestOperator();
-        }
       },
       (error) => console.error(error)
     );
