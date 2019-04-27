@@ -50,6 +50,6 @@ describe('NgbdModalAddProjectComponent', () => {
     addcomponent.newProject.subscribe((out: any) => getResult = out);
     addcomponent.addProject();
 
-    expect(getResult).toEqual('test');
+    expect(getResult).toEqual('');
   });
 });

@@ -33,8 +33,7 @@ export class NgbdModalDeleteProjectComponent {
   * @param
   */
   public deleteSavedProject(): void {
-    this.deleteProject.emit(true);
-    this.activeModal.close();
+    this.activeModal.close(true);
   }
 
 }

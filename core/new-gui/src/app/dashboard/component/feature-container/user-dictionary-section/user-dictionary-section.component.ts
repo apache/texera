@@ -1,6 +1,5 @@
-import { Component, OnInit, Input, Output, EventEmitter } from '@angular/core';
-import { NgbModal, NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
-import { HttpClientModule } from '@angular/common/http';
+import { Component, OnInit, Input, Output } from '@angular/core';
+import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
 
 import { Observable } from 'rxjs/Observable';
 import { UserDictionary } from '../../../type/user-dictionary';
@@ -45,8 +44,8 @@ export class UserDictionarySectionComponent implements OnInit {
   * openNgbdModalResourceViewComponent triggers the view dictionary
   * component. It calls the method in service to send request to
   * backend and to fetch info package for a specific dictionary.
-  * addItemEmitter receives information about adding a item
-  * into dictionary and calls method in service. deleteItemEmitter
+  * addModelObservable receives information about adding a item
+  * into dictionary and calls method in service. deleteModelObservable
   * receives information about deleting a item in dictionary and
   * calls method in service.
   *

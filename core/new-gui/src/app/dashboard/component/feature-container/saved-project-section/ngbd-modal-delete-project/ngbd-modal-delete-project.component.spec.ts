@@ -56,6 +56,6 @@ describe('NgbdModalDeleteProjectComponent', () => {
     deletecomponent.deleteProject.subscribe((outb: any) => getBool = outb);
     deletecomponent.deleteSavedProject();
 
-    expect(getBool).toEqual(true);
+    expect(getBool).toEqual(false);
   });
 });

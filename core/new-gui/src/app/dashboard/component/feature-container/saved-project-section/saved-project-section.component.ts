@@ -4,10 +4,11 @@ import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { SavedProject } from '../../../type/saved-project';
 import { SavedProjectService } from '../../../service/saved-project/saved-project.service';
 
-import { NgbdModalAddProjectComponent} from './ngbd-modal-add-project/ngbd-modal-add-project.component';
+import { NgbdModalAddProjectComponent } from './ngbd-modal-add-project/ngbd-modal-add-project.component';
 import { NgbdModalDeleteProjectComponent } from './ngbd-modal-delete-project/ngbd-modal-delete-project.component';
 
 import { cloneDeep } from 'lodash';
+import { Observable } from 'rxjs';
 
 /**
  * SavedProjectSectionComponent is the main interface for
@@ -101,14 +102,19 @@ export class SavedProjectSectionComponent implements OnInit {
   */
   public openNgbdModalAddProjectComponent(): void {
     const modalRef = this.modalService.open(NgbdModalAddProjectComponent);
-    modalRef.componentInstance.newProject
-      .map((value: boolean) => ({
-        id: (this.projects.length + 1).toString(),
-        name: value,
-        creationTime: Date.now().toString(),
-        lastModifiedTime: Date.now().toString()
-      }))
-      .subscribe((value: SavedProject) => this.projects.push(value));
+
+    Observable.from(modalRef.result)
+      .subscribe((value: string) => {
+        if (value) {
+          const newProject: SavedProject = {
+            id: (this.projects.length + 1).toString(),
+            name: value,
+            creationTime: Date.now().toString(),
+            lastModifiedTime: Date.now().toString()
+          };
+          this.projects.push(newProject);
+        }
+      });
   }
 
   /**
@@ -123,7 +129,7 @@ export class SavedProjectSectionComponent implements OnInit {
     const modalRef = this.modalService.open(NgbdModalDeleteProjectComponent);
     modalRef.componentInstance.project = cloneDeep(project);
 
-    modalRef.componentInstance.deleteProject.subscribe(
+    Observable.from(modalRef.result).subscribe(
       (value: boolean) => {
         if (value) {
           this.projects = this.projects.filter(obj => obj.id !== project.id);

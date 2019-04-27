@@ -1,9 +1,8 @@
-import { Component, OnInit, Output, EventEmitter } from '@angular/core';
+import { Component, Output, EventEmitter } from '@angular/core';
 import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 
 import { UserDictionaryService } from '../../../../service/user-dictionary/user-dictionary.service';
 import { UserDictionary } from '../../../../type/user-dictionary';
-import { Event } from '_debugger';
 
 /**
  * NgbdModalResourceAddComponent is the pop-up component to let

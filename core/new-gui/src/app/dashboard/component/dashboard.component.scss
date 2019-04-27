@@ -161,8 +161,16 @@ $header-height: 56px;
 .add-button{
   background-color: rgba(35, 241, 35, 0.411);
 }
+
+.warning-note{
+  color: red;
+  font-family:Roboto, Arial, sans-serif;
+  padding-top: 15px;
+}
+
 /////////////////////////////////////
 router-outlet{
   height:515px;
   text-align: center;
 }
+
