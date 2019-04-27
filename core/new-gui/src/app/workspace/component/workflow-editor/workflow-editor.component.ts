@@ -6,9 +6,15 @@ import { Observable } from 'rxjs/Observable';
 
 import '../../../common/rxjs-operators';
 import * as joint from 'jointjs';
-import { Point } from '../../types/workflow-common.interface';
+import { Point, OperatorPredicate, OperatorLink, OperatorPort } from '../../types/workflow-common.interface';
 import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-graph-wrapper';
+import { ExecuteWorkflowService } from '../../service/execute-workflow/execute-workflow.service';
+import { PropertyEditorComponent } from '../property-editor/property-editor.component';
+import { NavigationComponent } from '../navigation/navigation.component';
 
+import { LogicalPlan } from '../../types/execute-workflow.interface';
+import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-util.service';
+import { OperatorMetadataService } from '../../service/operator-metadata/operator-metadata.service';
 
 // argument type of callback event on a JointJS Paper
 // which is a 4-element tuple:
@@ -39,14 +45,19 @@ type JointPointerDownEvent = [JQuery.Event, number, number];
   styleUrls: ['./workflow-editor.component.scss']
 })
 export class WorkflowEditorComponent implements AfterViewInit {
-
+  public static key = 'workflow';
+  public static dropPositionKey = 'dropPosition';
+  public static linkKey = 'link';
+  public static formKey = 'formkey';
   // the DOM element ID of the main editor. It can be used by jQuery and jointJS to find the DOM element
   // in the HTML template, the div element ID is set using this variable
   public readonly WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID = 'texera-workflow-editor-jointjs-wrapper-id';
   public readonly WORKFLOW_EDITOR_JOINTJS_ID = 'texera-workflow-editor-jointjs-body-id';
 
   private paper: joint.dia.Paper | undefined;
-
+  private operatorLocations = new Array();
+  private operatorLinks = new Array();
+  private formData = new Array();
   private ifMouseDown: boolean = false;
   private mouseDown: Point | undefined;
   private dragOffset: Point = { x : 0 , y : 0};
@@ -55,8 +66,15 @@ export class WorkflowEditorComponent implements AfterViewInit {
   constructor(
     private workflowActionService: WorkflowActionService,
     private dragDropService: DragDropService,
-    private elementRef: ElementRef
+    private elementRef: ElementRef,
+    private workflowUtilService: WorkflowUtilService,
+    private operatorMetadataService: OperatorMetadataService
   ) {
+    workflowUtilService.getOperatorSchemaListCreatedStream().subscribe(
+      () => {
+        this.reloadWorkflow();
+      }
+    );
   }
 
   public getJointPaper(): joint.dia.Paper {
@@ -67,6 +85,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
   }
 
   ngAfterViewInit() {
+    this.handleAutoSaveWorkFlow();
     this.initializeJointPaper();
     this.handlePaperRestoreDefaultOffset();
     this.handlePaperZoom();
@@ -77,7 +96,52 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.handlePaperMouseZoom();
     this.dragDropService.registerWorkflowEditorDrop(this.WORKFLOW_EDITOR_JOINTJS_ID);
   }
+  public replaceWorkFlow(logicalPlan: LogicalPlan,
+    operatorLocations: Array<{operatorType: string, offset: Point}>, operatorLinks: Array<OperatorLink>): void {
+    let count = 0;
+    logicalPlan.operators.forEach(operator => {
+        const {operatorID: ID, operatorType: opType, ...opProperties} = operator;
+        const operatorPredicate = this.workflowUtilService.getNewOperatorPredicate(opType);
 
+        console.log('property: ', operator);
+        const newOperator = {
+          ...operatorPredicate,
+          operatorID: operator.operatorID,
+          operatorProperties: opProperties
+        };
+
+
+        this.workflowActionService.addOperator(newOperator, {x: operatorLocations[count].offset.x, y: operatorLocations[count].offset.y});
+        count++;
+    });
+
+    const sourcePortID = 'output-';
+    const targetPortID = 'input-';
+    // logicalPlan.links.forEach(link => {
+    //   const sourcePort: OperatorPort = {operatorID: link.origin, portID: 'output-0'};
+    //   const outputPort: OperatorPort = {operatorID: link.destination, portID: 'input-0'};
+    //   const newOperatorLink: OperatorLink = {linkID: link.linkID, source: sourcePort, target: outputPort};
+    //   this.workflowActionService.addLink(newOperatorLink);
+    // });
+  }
+  private reloadWorkflow(): void {
+    let logicalPlan;
+    let operatorLocations;
+    let operatorLinks;
+    if (0 === localStorage.length) {
+
+    } else {
+      // console.log('hi');
+      logicalPlan = localStorage.getItem(WorkflowEditorComponent.key);
+      operatorLocations = localStorage.getItem(WorkflowEditorComponent.dropPositionKey);
+      operatorLinks = localStorage.getItem(WorkflowEditorComponent.linkKey);
+      logicalPlan = JSON.parse(logicalPlan);
+      operatorLocations = JSON.parse(operatorLocations);
+      operatorLinks = JSON.parse(operatorLinks);
+      this.replaceWorkFlow(logicalPlan, operatorLocations, operatorLinks);
+      localStorage.clear();
+    }
+  }
   private initializeJointPaper(): void {
     // get the custom paper options
     let jointPaperOptions = WorkflowEditorComponent.getJointPaperOptions();
@@ -92,6 +156,24 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.setJointPaperDimensions();
   }
 
+  private handleAutoSaveWorkFlow(): void {
+    this.dragDropService.getOperatorDropStream().subscribe(dropPosition => {
+        this.operatorLocations.push(dropPosition);
+        localStorage.setItem(WorkflowEditorComponent.dropPositionKey, JSON.stringify(this.operatorLocations));
+    });
+    Observable.merge(
+      this.workflowActionService.getTexeraGraph().getOperatorAddStream(),
+      this.workflowActionService.getTexeraGraph().getLinkDeleteStream(),
+      this.workflowActionService.getTexeraGraph().getOperatorDeleteStream(),
+      this.workflowActionService.getTexeraGraph().getLinkAddStream(),
+      this.workflowActionService.getTexeraGraph().getOperatorPropertyChangeStream()
+    ).subscribe(() => {
+      const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
+      localStorage.setItem(WorkflowEditorComponent.key, JSON.stringify(logicalPlan));
+      const links = this.workflowActionService.getTexeraGraph().getAllLinks();
+      console.log('link: ', links);
+    });
+  }
   /**
    * Handles restore offset default event by translating jointJS paper
    *  back to original position.

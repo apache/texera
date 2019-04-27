@@ -20,6 +20,7 @@ import { mockExecutionResult } from '../../service/execute-workflow/mock-result-
 import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-graph-wrapper';
 import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-util.service';
 import { environment } from '../../../../environments/environment';
+import { WorkflowGraph } from '../../service/workflow-graph/model/workflow-graph';
 
 class StubHttpClient {
 
@@ -32,6 +33,7 @@ describe('NavigationComponent', () => {
   let fixture: ComponentFixture<NavigationComponent>;
   let executeWorkFlowService: ExecuteWorkflowService;
   let workflowActionService: WorkflowActionService;
+  let workflowGraph: WorkflowGraph;
   beforeEach(async(() => {
     TestBed.configureTestingModule({
       declarations: [NavigationComponent],
@@ -44,6 +46,7 @@ describe('NavigationComponent', () => {
         WorkflowUtilService,
         JointUIService,
         ExecuteWorkflowService,
+        WorkflowGraph,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         { provide: HttpClient, useClass: StubHttpClient },
         TourService,
@@ -56,6 +59,7 @@ describe('NavigationComponent', () => {
     component = fixture.componentInstance;
     executeWorkFlowService = TestBed.get(ExecuteWorkflowService);
     workflowActionService = TestBed.get(WorkflowActionService);
+    workflowGraph = TestBed.get(WorkflowGraph);
     fixture.detectChanges();
     environment.pauseResumeEnabled = true;
   });
