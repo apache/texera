@@ -47,7 +47,6 @@ type JointPointerDownEvent = [JQuery.Event, number, number];
 export class WorkflowEditorComponent implements AfterViewInit {
   public static key = 'workflow';
   public static dropPositionKey = 'dropPosition';
-  public static linkKey = 'link';
   public static formKey = 'formkey';
   // the DOM element ID of the main editor. It can be used by jQuery and jointJS to find the DOM element
   // in the HTML template, the div element ID is set using this variable
@@ -97,13 +96,11 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.dragDropService.registerWorkflowEditorDrop(this.WORKFLOW_EDITOR_JOINTJS_ID);
   }
   public replaceWorkFlow(logicalPlan: LogicalPlan,
-    operatorLocations: Array<{operatorType: string, offset: Point}>, operatorLinks: Array<OperatorLink>): void {
+    operatorLocations: Array<{operatorType: string, offset: Point}>): void {
     let count = 0;
     logicalPlan.operators.forEach(operator => {
         const {operatorID: ID, operatorType: opType, ...opProperties} = operator;
         const operatorPredicate = this.workflowUtilService.getNewOperatorPredicate(opType);
-
-        console.log('property: ', operator);
         const newOperator = {
           ...operatorPredicate,
           operatorID: operator.operatorID,
@@ -117,29 +114,29 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
     const sourcePortID = 'output-';
     const targetPortID = 'input-';
-    // logicalPlan.links.forEach(link => {
-    //   const sourcePort: OperatorPort = {operatorID: link.origin, portID: 'output-0'};
-    //   const outputPort: OperatorPort = {operatorID: link.destination, portID: 'input-0'};
-    //   const newOperatorLink: OperatorLink = {linkID: link.linkID, source: sourcePort, target: outputPort};
-    //   this.workflowActionService.addLink(newOperatorLink);
-    // });
+    const linkID = this.workflowUtilService.getRandomUUID();
+    logicalPlan.links.forEach(link => {
+      const sourcePort: OperatorPort = {operatorID: link.origin, portID: 'output-0'};
+      const outputPort: OperatorPort = {operatorID: link.destination, portID: 'input-0'};
+      const newOperatorLink: OperatorLink = {linkID, source: sourcePort, target: outputPort};
+      this.workflowActionService.addLink(newOperatorLink);
+    });
   }
   private reloadWorkflow(): void {
     let logicalPlan;
     let operatorLocations;
-    let operatorLinks;
     if (0 === localStorage.length) {
 
     } else {
       // console.log('hi');
       logicalPlan = localStorage.getItem(WorkflowEditorComponent.key);
       operatorLocations = localStorage.getItem(WorkflowEditorComponent.dropPositionKey);
-      operatorLinks = localStorage.getItem(WorkflowEditorComponent.linkKey);
-      logicalPlan = JSON.parse(logicalPlan);
-      operatorLocations = JSON.parse(operatorLocations);
-      operatorLinks = JSON.parse(operatorLinks);
-      this.replaceWorkFlow(logicalPlan, operatorLocations, operatorLinks);
-      localStorage.clear();
+      if (logicalPlan !== null && operatorLocations !== null) {
+        logicalPlan = JSON.parse(logicalPlan);
+        operatorLocations = JSON.parse(operatorLocations);
+        this.replaceWorkFlow(logicalPlan, operatorLocations);
+        localStorage.clear();
+      }
     }
   }
   private initializeJointPaper(): void {
@@ -171,7 +168,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
       const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
       localStorage.setItem(WorkflowEditorComponent.key, JSON.stringify(logicalPlan));
       const links = this.workflowActionService.getTexeraGraph().getAllLinks();
-      console.log('link: ', links);
     });
   }
   /**
