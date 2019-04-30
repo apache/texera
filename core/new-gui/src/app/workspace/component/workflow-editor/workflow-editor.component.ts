@@ -112,12 +112,23 @@ export class WorkflowEditorComponent implements AfterViewInit {
         count++;
     });
 
-    const sourcePortID = 'output-';
-    const targetPortID = 'input-';
-    const linkID = this.workflowUtilService.getRandomUUID();
     logicalPlan.links.forEach(link => {
-      const sourcePort: OperatorPort = {operatorID: link.origin, portID: 'output-0'};
-      const outputPort: OperatorPort = {operatorID: link.destination, portID: 'input-0'};
+      const sourcePortID = 'output-';
+      const targetPortID = 'input-';
+      let sourceIndex = 0;
+      let targetIndex = 0;
+      while (this.workflowActionService.getTexeraGraph().hasLinkWithID(sourcePortID + sourceIndex) === true
+        || this.workflowActionService.getTexeraGraph().hasLinkWithID(targetPortID + targetIndex) === true) {
+          if (this.workflowActionService.getTexeraGraph().hasLinkWithID(sourcePortID + sourceIndex) === true) {
+            sourceIndex ++;
+          }
+          if (this.workflowActionService.getTexeraGraph().hasLinkWithID(targetPortID + targetIndex) === true) {
+            targetIndex ++;
+          }
+      }
+      const linkID = this.workflowUtilService.getRandomUUID();
+      const sourcePort: OperatorPort = {operatorID: link.origin, portID: 'output-' + sourceIndex};
+      const outputPort: OperatorPort = {operatorID: link.destination, portID: 'input-' + targetIndex};
       const newOperatorLink: OperatorLink = {linkID, source: sourcePort, target: outputPort};
       this.workflowActionService.addLink(newOperatorLink);
     });
