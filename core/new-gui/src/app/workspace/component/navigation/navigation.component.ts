@@ -4,9 +4,7 @@ import { TourService } from 'ngx-tour-ng-bootstrap';
 import { environment } from '../../../../environments/environment';
 import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
 import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-graph-wrapper';
-import { WorkflowEditorComponent } from '../workflow-editor/workflow-editor.component';
-import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-util.service';
-import { WorkflowGraph } from '../../service/workflow-graph/model/workflow-graph';
+
 /**
  * NavigationComponent is the top level navigation bar that shows
  *  the Texera title and workflow execution button
@@ -35,10 +33,8 @@ export class NavigationComponent implements OnInit {
 
   // variable binded with HTML to decide if the running spinner should show
   public showSpinner = false;
-  private texeraGraph = new WorkflowGraph();
   constructor(private executeWorkflowService: ExecuteWorkflowService,
     public tourService: TourService, private workflowActionService: WorkflowActionService,
-    private workflowUtilService: WorkflowUtilService,
     ) {
     // return the run button after the execution is finished, either
     //  when the value is valid or invalid
