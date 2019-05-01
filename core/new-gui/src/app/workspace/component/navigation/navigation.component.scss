@@ -36,8 +36,16 @@
   justify-self: end;
 }
 
-.zoom-button:hover {
+.utility-button:hover {
   cursor: pointer;
+  color: gray;
+}
+
+.utility-button-disabled {
+  color: gray;
+}
+
+.utility-button-disabled:hover {
   color: gray;
 }
 

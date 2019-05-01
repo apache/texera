@@ -3,9 +3,12 @@
     Texera <span class="version-number">0.3.0</span>
   </a>
   <div class="collapse navbar-collapse texera-navigation-utilities">
-    <i class="navbar-brand zoom-button fa fa-search-minus" (click)="onClickZoomOut()" title="zoom in"></i>
-    <i class="navbar-brand zoom-button fa fa-search-plus" (click)="onClickZoomIn()" title="zoom in"></i>
-    <i class="navbar-brand zoom-button fa fa-arrows-alt" (click)="onClickRestoreZoomOffsetDefaullt()" title="reset zoom"></i>
+    <i class="navbar-brand utility-button fa fa-search-minus" (click)="onClickZoomOut()" title="zoom in"></i>
+    <i class="navbar-brand utility-button fa fa-search-plus" (click)="onClickZoomIn()" title="zoom in"></i>
+    <i class="navbar-brand utility-button fa fa-arrows-alt" (click)="onClickRestoreZoomOffsetDefaullt()" title="reset zoom"></i>
+    <i class="navbar-brand fa fa-cloud-download" [ngClass]="{'utility-button-disabled' : !executionResultID,
+      'utility-button': executionResultID}" (click)="onClickDownloadExecutionResult()"
+      title="download execution result"></i>
   </div>
   <div class="collapse navbar-collapse texera-navigation-execute">
     <div class="button" tourAnchor="texera-workspace-navigation-run">

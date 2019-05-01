@@ -1,7 +1,8 @@
 import { Component, ViewChild, Input } from '@angular/core';
-import { MatPaginator, MatTableDataSource } from '@angular/material';
+import { MatPaginator, MatTableDataSource, PageEvent } from '@angular/material';
 
 import { ExecuteWorkflowService } from './../../service/execute-workflow/execute-workflow.service';
+import { Observable } from 'rxjs/Observable';
 
 import { NgbModal, NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { ExecutionResult, SuccessExecutionResult } from './../../types/execute-workflow.interface';
@@ -42,6 +43,11 @@ export class ResultPanelComponent {
 
   @ViewChild(MatPaginator) paginator: MatPaginator | null = null;
 
+  private currentResult: object[] = [];
+  private currentMaxPageSize: number = 0;
+  private currentPageSize: number = 0;
+  private currentPageIndex: number = 0;
+
   constructor(private executeWorkflowService: ExecuteWorkflowService, private modalService: NgbModal,
     private resultPanelToggleService: ResultPanelToggleService) {
 
@@ -65,17 +71,59 @@ export class ResultPanelComponent {
    * @param rowData the object containing the data of the current row in columnDef and cellData pairs
    */
   public open(rowData: object): void {
+
+    // the row index will include the previous pages, therefore we need to minus the current page index
+    //  multiply by the page size previously.
+    const selectedRowIndex = this.currentResult.findIndex(eachRow =>
+      (rowData as IndexableObject)._id === (eachRow as IndexableObject)._id
+    );
+    const rowPageIndex = selectedRowIndex - this.currentPageIndex * this.currentMaxPageSize;
+
     // generate a new row data that shortens the column text to limit rendering time for pretty json
     const rowDataCopy = ResultPanelComponent.trimDisplayJsonData(rowData as IndexableObject);
 
     // open the modal component
     const modalRef = this.modalService.open(NgbModalComponent, {size: 'lg'});
 
+    // subscribe the modal close event for modal navigations (go to previous or next row detail)
+    Observable.from(modalRef.result)
+      .subscribe((modalResult: number) => {
+        if (modalResult === 1) {
+          // navigate to previous detail modal
+          this.open(this.currentResult[selectedRowIndex - 1]);
+        } else if (modalResult === 2) {
+          // navigate to next detail modal
+          this.open(this.currentResult[selectedRowIndex + 1]);
+        }
+      });
+
     // cast the instance type from `any` to NgbModalComponent
     const modalComponentInstance = modalRef.componentInstance as NgbModalComponent;
 
     // set the currentDisplayRowData of the modal to be the data of clicked row
     modalComponentInstance.currentDisplayRowData = rowDataCopy;
+
+    // set the index value and page size to the modal for navigation
+    modalComponentInstance.currentDisplayRowIndex = rowPageIndex;
+    modalComponentInstance.currentPageSize = this.currentPageSize;
+  }
+
+  /**
+   * This function will listen to the page change event in the paginator
+   *  to update current page index and current page size for
+   *  modal navigations
+   *
+   * @param event paginator event
+   */
+  public onPaginateChange(event: PageEvent): void {
+    this.currentPageIndex = event.pageIndex;
+    const currentPageOffset = event.pageIndex * event.pageSize;
+    const remainingItemCounts = event.length - currentPageOffset;
+    if (remainingItemCounts < 10) {
+      this.currentPageSize = remainingItemCounts;
+    } else {
+      this.currentPageSize = event.length;
+    }
   }
 
   /**
@@ -139,12 +187,19 @@ export class ResultPanelComponent {
       throw new Error(`display result table inconsistency: result data should not be empty`);
     }
 
+    if (this.paginator === null) {
+      throw new Error(`paginator is not loaded correctly`);
+    }
+
     // don't display message, display result table instead
     this.showMessage = false;
 
     // creates a shallow copy of the readonly response.result,
     //  this copy will be has type object[] because MatTableDataSource's input needs to be object[]
     const resultData = response.result.slice();
+
+    // save a copy of current result
+    this.currentResult = resultData;
 
     // When there is a result data from the backend,
     //  1. Get all the column names except '_id', using the first instance of
@@ -163,8 +218,16 @@ export class ResultPanelComponent {
     // create a new DataSource object based on the new result data
     this.currentDataSource = new MatTableDataSource<object>(resultData);
 
+    // move paginator back to page one whenever new results come in. This prevents the error when
+    //  previously paginator is at page 10 while the new result only have 2 pages.
+    this.paginator.firstPage();
+
     // set the paginator to be the new DataSource's paginator
     this.currentDataSource.paginator = this.paginator;
+
+    // get the current page size, if the result length is less than 10, then the maximum number of items
+    //   each page will be the length of the result, otherwise 10.
+    this.currentMaxPageSize = this.currentPageSize = resultData.length < 10 ? resultData.length : 10;
   }
 
   /**
@@ -233,6 +296,15 @@ export class NgbModalComponent {
   //  componentInstance to this NgbModalComponent to display
   //  as data table.
   @Input() currentDisplayRowData: object = {};
+
+  // when modal is opened, currentDisplayRowIndex will be passed as
+  //  component instance to this NgbModalComponent to either
+  //  enable to disable row navigation buttons that allow users
+  //  to navigate between different rows of data.
+  @Input() currentDisplayRowIndex: number = 0;
+
+  // the maximum page index that the navigation can go in the current page
+  @Input() currentPageSize: number = 0;
 
   // activeModal is responsible for interacting with the
   //  ng-bootstrap modal, such as dismissing or exitting

@@ -5,6 +5,9 @@ import { environment } from '../../../../environments/environment';
 import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
 import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-graph-wrapper';
 
+import { ExecutionResult } from './../../types/execute-workflow.interface';
+
+
 /**
  * NavigationComponent is the top level navigation bar that shows
  *  the Texera title and workflow execution button
@@ -33,17 +36,21 @@ export class NavigationComponent implements OnInit {
 
   // variable binded with HTML to decide if the running spinner should show
   public showSpinner = false;
+  public executionResultID: string | undefined;
 
   constructor(private executeWorkflowService: ExecuteWorkflowService,
     public tourService: TourService, private workflowActionService: WorkflowActionService) {
     // return the run button after the execution is finished, either
     //  when the value is valid or invalid
     executeWorkflowService.getExecuteEndedStream().subscribe(
-      () => {
+      executionResult => {
+        // update execution result ID for downloading if execution is valid
+        this.handleResultData(executionResult);
         this.isWorkflowRunning = false;
         this.isWorkflowPaused = false;
       },
       () => {
+        this.executionResultID = undefined;
         this.isWorkflowRunning = false;
         this.isWorkflowPaused = false;
       }
@@ -72,6 +79,8 @@ export class NavigationComponent implements OnInit {
       }
     } else {
       if (!this.isWorkflowRunning && !this.isWorkflowPaused) {
+        // when a new workflow begins, reset the execution result ID.
+        this.executionResultID = undefined;
         this.isWorkflowRunning = true;
         this.executeWorkflowService.executeWorkflow();
       } else if (this.isWorkflowRunning && this.isWorkflowPaused) {
@@ -136,9 +145,42 @@ export class NavigationComponent implements OnInit {
   }
 
   /**
+   * Sends the finished execution result ID to the backend to download execution result in
+   *  excel format.
+   */
+  public onClickDownloadExecutionResult(): void {
+    // there is no valid executionResultID to download from right now
+    if (this.executionResultID === undefined) {
+      return;
+    }
+    this.executeWorkflowService.downloadWorkflowExecutionResult(this.executionResultID);
+  }
+
+  /**
    * Restore paper default zoom ratio and paper offset
    */
   public onClickRestoreZoomOffsetDefaullt(): void {
     this.workflowActionService.getJointGraphWrapper().restoreDefaultZoomAndOffset();
+  }
+
+  /**
+   * Handler for the execution result to extract successful execution ID
+   */
+  private handleResultData(response: ExecutionResult): void {
+
+    // backend returns error, display error message
+    if (response.code === 1) {
+      this.executionResultID = undefined;
+      return;
+    }
+
+    // execution success, but result is empty, also display message
+    if (response.result.length === 0) {
+      this.executionResultID = undefined;
+      return;
+    }
+
+    // set the current execution result ID to the result ID
+    this.executionResultID = response.resultID;
   }
 }
