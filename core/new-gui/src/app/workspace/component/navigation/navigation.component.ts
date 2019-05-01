@@ -145,11 +145,13 @@ export class NavigationComponent implements OnInit {
   }
 
   /**
-   * Sends the finished execution result ID to the backend to download execution result in
+   * This is the handler for the execution result download button.
+   *
+   * This sends the finished execution result ID to the backend to download execution result in
    *  excel format.
    */
   public onClickDownloadExecutionResult(): void {
-    // there is no valid executionResultID to download from right now
+    // If there is no valid executionResultID to download from right now, exit immediately
     if (this.executionResultID === undefined) {
       return;
     }
@@ -167,7 +169,6 @@ export class NavigationComponent implements OnInit {
    * Handler for the execution result to extract successful execution ID
    */
   private handleResultData(response: ExecutionResult): void {
-
     // backend returns error, display error message
     if (response.code === 1) {
       this.executionResultID = undefined;

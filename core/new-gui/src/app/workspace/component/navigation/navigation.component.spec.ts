@@ -24,6 +24,7 @@ import { environment } from '../../../../environments/environment';
 class StubHttpClient {
 
   public post<T>(): Observable<string> { return Observable.of('a'); }
+  public get<T>(): Observable<string> { return Observable.of('a'); }
 
 }
 
@@ -137,12 +138,38 @@ describe('NavigationComponent', () => {
   });
 
   it('should not call resumeWorkflow or pauseWorkflow if the workflow is not currently running', () => {
+
+    const httpClient: HttpClient = TestBed.get(HttpClient);
+    spyOn(httpClient, 'post').and.returnValue(
+      Observable.of(mockExecutionResult)
+    );
+
     const pauseWorkflowSpy = spyOn(executeWorkFlowService, 'pauseWorkflow').and.callThrough();
     const resumeWorkflowSpy = spyOn(executeWorkFlowService, 'resumeWorkflow').and.callThrough();
 
     component.onButtonClick();
     expect(pauseWorkflowSpy).toHaveBeenCalledTimes(0);
     expect(resumeWorkflowSpy).toHaveBeenCalledTimes(0);
+  });
+
+  it('should call downloadExecutionResult if there is a valid execution result currently', () => {
+    const downloadExecutionSpy = spyOn(executeWorkFlowService, 'downloadWorkflowExecutionResult').and.callThrough();
+
+    component.executionResultID = 'mockID';
+    component.onClickDownloadExecutionResult();
+    expect(downloadExecutionSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('should not call downloadExecutionResult if there is no valid execution result currently', () => {
+    const httpClient: HttpClient = TestBed.get(HttpClient);
+    spyOn(httpClient, 'post').and.returnValue(
+      Observable.of(mockExecutionResult)
+    );
+
+    const downloadExecutionSpy = spyOn(executeWorkFlowService, 'downloadWorkflowExecutionResult').and.callThrough();
+
+    component.onClickDownloadExecutionResult();
+    expect(downloadExecutionSpy).toHaveBeenCalledTimes(0);
   });
 
   it('it should update isWorkflowPaused variable to true when 0 is returned from getExecutionPauseResumeStream', marbles((m) => {

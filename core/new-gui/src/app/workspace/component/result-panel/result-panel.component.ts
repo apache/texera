@@ -187,10 +187,6 @@ export class ResultPanelComponent {
       throw new Error(`display result table inconsistency: result data should not be empty`);
     }
 
-    if (this.paginator === null) {
-      throw new Error(`paginator is not loaded correctly`);
-    }
-
     // don't display message, display result table instead
     this.showMessage = false;
 
@@ -220,7 +216,9 @@ export class ResultPanelComponent {
 
     // move paginator back to page one whenever new results come in. This prevents the error when
     //  previously paginator is at page 10 while the new result only have 2 pages.
-    this.paginator.firstPage();
+    if (this.paginator !== null) {
+      this.paginator.firstPage();
+    }
 
     // set the paginator to be the new DataSource's paginator
     this.currentDataSource.paginator = this.paginator;
