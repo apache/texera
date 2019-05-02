@@ -98,6 +98,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
   public replaceWorkFlow(logicalPlan: LogicalPlan,
     operatorLocations: Array<{operatorType: string, offset: Point}>): void {
     let count = 0;
+
     logicalPlan.operators.forEach(operator => {
         const {operatorID: ID, operatorType: opType, ...opProperties} = operator;
         const operatorPredicate = this.workflowUtilService.getNewOperatorPredicate(opType);
