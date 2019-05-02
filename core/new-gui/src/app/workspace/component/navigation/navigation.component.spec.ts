@@ -152,14 +152,6 @@ describe('NavigationComponent', () => {
     expect(resumeWorkflowSpy).toHaveBeenCalledTimes(0);
   });
 
-  it('should call downloadExecutionResult if there is a valid execution result currently', () => {
-    const downloadExecutionSpy = spyOn(executeWorkFlowService, 'downloadWorkflowExecutionResult').and.callThrough();
-
-    component.executionResultID = 'mockID';
-    component.onClickDownloadExecutionResult();
-    expect(downloadExecutionSpy).toHaveBeenCalledTimes(1);
-  });
-
   it('should not call downloadExecutionResult if there is no valid execution result currently', () => {
     const httpClient: HttpClient = TestBed.get(HttpClient);
     spyOn(httpClient, 'post').and.returnValue(
