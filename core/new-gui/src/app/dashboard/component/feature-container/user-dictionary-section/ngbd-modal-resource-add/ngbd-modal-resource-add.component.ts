@@ -70,13 +70,19 @@ export class NgbdModalResourceAddComponent {
     const result = {
       command: 0, // commend 0 means user wants to upload the manually created dict.
       savedQueue: [],
+      savedManualDict : {
+        name : '',
+        content : '',
+        separator : ''
+      },
       dictionaryData: [this.newDictionary]
     };
     this.activeModal.close(result);
   }
 
   /**
-   * Doesn't work yet.
+   * Doesn't work yet. Try to hide the drag on the right when the text is short
+   * @param
    */
   public checkContentLength(): boolean {
     console.log(this.dictContent.split('\n').length >= 5);
@@ -86,8 +92,13 @@ export class NgbdModalResourceAddComponent {
   public onClose() {
     this.deleteAllInvalidFile();
     const result = {
-      command: 1,
+      command: 1, // commannd 1 means close the pop up and save the queue.
       savedQueue: this.uploader.queue,
+      savedManualDict: {
+        name : this.name,
+        content : this.dictContent,
+        separator : this.separator
+      },
       dictionaryData: []
     };
     this.activeModal.close(result);
@@ -104,7 +115,7 @@ export class NgbdModalResourceAddComponent {
    */
   public uploadFile(): void {
     const result = {
-      command: 0,
+      command: 0, // command 0 indicates upload
       savedQueue: [],
       dictionaryData: []
     };

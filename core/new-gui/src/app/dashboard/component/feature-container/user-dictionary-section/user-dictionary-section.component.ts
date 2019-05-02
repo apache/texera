@@ -31,6 +31,11 @@ export class UserDictionarySectionComponent implements OnInit {
 
   public UserDictionary: UserDictionary[] = [];
   public savedQueue: FileItem[] = [];
+  public savedManualDict = {
+    name : '',
+    content : '',
+    separator : ''
+  };
 
   constructor(
     private userDictionaryService: UserDictionaryService,
@@ -91,17 +96,37 @@ export class UserDictionarySectionComponent implements OnInit {
   public openNgbdModalResourceAddComponent(): void {
     const modalRef = this.modalService.open(NgbdModalResourceAddComponent);
     modalRef.componentInstance.uploader.queue = this.savedQueue;
+    modalRef.componentInstance.name = this.savedManualDict.name;
+    modalRef.componentInstance.dictContent = this.savedManualDict.content;
+    modalRef.componentInstance.separator = this.savedManualDict.separator;
     Observable.from(modalRef.result).subscribe(
-      (value: {command: number, savedQueue: FileItem[], dictionaryData: UserDictionary[]}) => {
+      (value: {command: number,
+              savedQueue: FileItem[],
+              savedManualDict: {
+                name: string,
+                content: string,
+                separator: string
+              };
+              dictionaryData: UserDictionary[]}) => {
         if (value.command === 0) { // user wants to upload the file
           value.dictionaryData.forEach((userdictionary: UserDictionary) => {
-            userdictionary.id = (this.UserDictionary.length + 1).toString();
+            userdictionary.id = (this.UserDictionary.length + 1).toString(); // TODO: need unique ID
             this.UserDictionary.push(userdictionary);
             this.userDictionaryService.addUserDictionaryData(userdictionary);
           });
           this.savedQueue = [];
+          this.savedManualDict = {
+            name : '',
+            content : '',
+            separator : ''
+          };
         } else if (value.command === 1) { // user close the pop up, but we temporarily store the file array
           this.savedQueue = value.savedQueue;
+          this.savedManualDict = {
+            name : value.savedManualDict.name,
+            content : value.savedManualDict.content,
+            separator : value.savedManualDict.separator
+          };
         }
       }
     );
