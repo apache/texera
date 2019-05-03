@@ -249,6 +249,27 @@ describe('WorkflowEditorComponent', () => {
       );
     }));
 
+
+    it('should listen to all necessary events', marbles((m) => {
+
+    }));
+
+    it ('should be reload into the right locations when user refreshes the page', marbles((m) => {
+        // workflowActionService.addoperator()
+        // expect()
+
+        // workflowActionService.addLink();
+
+        // workflowActrionService.setOperatorProperty();
+    }));
+
+    it ('should be reload into the link when user refreshes the page', marbles((m) => {
+
+    }));
+
+    it ('should be reload into the operator types when user refreshes the page', marbles((m) => {
+
+    }));
   });
 
 });

@@ -205,7 +205,7 @@ describe('NavigationComponent', () => {
     // expect initially the zoom ratio is 1;
    const originalZoomRatio = 1;
 
-   m.cold('-e-').do(() => component.onClickZoomIn()).subscribe();
+   m.hot('-e-').do(() => component.onClickZoomIn()).subscribe();
    workflowActionService.getJointGraphWrapper().getWorkflowEditorZoomStream().subscribe(
      newRatio => {
        fixture.detectChanges();
@@ -218,14 +218,14 @@ describe('NavigationComponent', () => {
   }));
 
   it('should execute the zoom in function when the user click on the Zoom In button', marbles((m) => {
-    m.cold('-e-').do(event => component.onClickZoomIn()).subscribe();
+    m.hot('-e-').do(event => component.onClickZoomIn()).subscribe();
     const zoomEndStream = workflowActionService.getJointGraphWrapper().getWorkflowEditorZoomStream().map(value => 'e');
     const expectedStream = '-e-';
     m.expect(zoomEndStream).toBeObservable(expectedStream);
   }));
 
   it('should execute the zoom out function when the user click on the Zoom Out button', marbles((m) => {
-    m.cold('-e-').do(event => component.onClickZoomOut()).subscribe();
+    m.hot('-e-').do(event => component.onClickZoomOut()).subscribe();
     const zoomEndStream = workflowActionService.getJointGraphWrapper().getWorkflowEditorZoomStream().map(value => 'e');
     const expectedStream = '-e-';
     m.expect(zoomEndStream).toBeObservable(expectedStream);
