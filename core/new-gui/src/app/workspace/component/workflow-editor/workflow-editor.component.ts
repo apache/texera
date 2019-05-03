@@ -60,6 +60,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.handleWindowResize();
     this.handleViewDeleteOperator();
     this.handleCellHighlight();
+    this.handleViewDeleteLink();
 
     this.dragDropService.registerWorkflowEditorDrop(this.WORKFLOW_EDITOR_JOINTJS_ID);
 
@@ -183,6 +184,16 @@ export class WorkflowEditorComponent implements AfterViewInit {
           this.workflowActionService.deleteOperator(elementView.model.id.toString());
         }
       );
+  }
+
+  private handleViewDeleteLink(): void {
+    Observable
+      .fromEvent<JointPaperEvent>(this.getJointPaper(), 'tool:remove')
+      .map(value => value[0])
+      .subscribe(elementView => {
+        this.workflowActionService.deleteLinkWithID(elementView.model.id.toString());
+      }
+    );
   }
 
   /**
