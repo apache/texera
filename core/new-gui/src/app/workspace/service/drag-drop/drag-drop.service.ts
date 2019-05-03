@@ -7,6 +7,7 @@ import { Injectable } from '@angular/core';
 import { Subject } from 'rxjs/Subject';
 
 import * as joint from 'jointjs';
+import { JointGraphWrapper } from '../workflow-graph/model/joint-graph-wrapper';
 
 /**
  * The OperatorDragDropService class implements the behavior of dragging an operator label from the side bar
@@ -56,8 +57,6 @@ export class DragDropService {
   private elementOperatorTypeMap = new Map<string, string>();
   /** the current operatorType of the operator being dragged */
   private currentOperatorType = DragDropService.DRAG_DROP_TEMP_OPERATOR_TYPE;
-
-
   /** Subject for operator dragging is started */
   private operatorDragStartedSubject = new Subject<{ operatorType: string }>();
 
@@ -84,8 +83,20 @@ export class DragDropService {
       value => {
         // construct the operator from the drop stream value
         const operator = this.workflowUtilService.getNewOperatorPredicate(value.operatorType);
+        /**
+         * get the new drop coordinate of operator, when users drag or zoom the panel, to make sure the operator will
+         drop on the right location.
+         */
+
+        const newOperatorOffset: Point = {
+          x:  (value.offset.x - this.workflowActionService.getJointGraphWrapper().getDragOffset().x)
+              / this.workflowActionService.getJointGraphWrapper().getZoomRatio(),
+          y: (value.offset.y - this.workflowActionService.getJointGraphWrapper().getDragOffset().y)
+              / this.workflowActionService.getJointGraphWrapper().getZoomRatio()
+        };
+
         // add the operator
-        this.workflowActionService.addOperator(operator, value.offset);
+        this.workflowActionService.addOperator(operator, newOperatorOffset);
 
         // has suggestion and must auto-create the operator link between 2 operators.
         if (this.suggestionOperator !== undefined) {
@@ -99,7 +110,6 @@ export class DragDropService {
           this.operatorSuggestionUnhighlightStream.next(this.suggestionOperator.operatorID);
           this.suggestionOperator = undefined;
         }
-
         // highlight the operator after adding the operator
         this.workflowActionService.getJointGraphWrapper().highlightOperator(operator.operatorID);
         // reset the current operator type to an non-exist type
@@ -116,7 +126,6 @@ export class DragDropService {
   public getOperatorStartDragStream(): Observable<{ operatorType: string }> {
     return this.operatorDragStartedSubject.asObservable();
   }
-
 
   /**
    * Gets an observable for operator is dropped on the main workflow editor event
