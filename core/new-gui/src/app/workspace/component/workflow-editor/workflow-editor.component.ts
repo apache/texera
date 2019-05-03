@@ -154,14 +154,15 @@ export class WorkflowEditorComponent implements AfterViewInit {
     };
 
     this.dragDropService.getOperatorSuggestionHighlightStream()
-      .subscribe( value => {
-        this.getJointPaper().findViewByModel(value.operatorID).highlight('rect', { highlighter: highlightOptions});
-      });
+      .subscribe( value =>
+        this.getJointPaper().findViewByModel(value).highlight('rect',
+        { highlighter: highlightOptions}));
 
     this.dragDropService.getOperatorSuggestionUnhighlightStream()
-      .subscribe( value => {
-        this.getJointPaper().findViewByModel(value.operatorID).unhighlight('rect', { highlighter: highlightOptions});
-      });
+      .subscribe(value =>
+        this.getJointPaper().findViewByModel(value).unhighlight('rect',
+        { highlighter: highlightOptions})
+      );
   }
 
 

@@ -204,12 +204,21 @@ export class JointGraphWrapper {
     return jointLinkChangeStream;
   }
 
-  public getJointOperatorCellPostion(operatorID: string): Point | undefined {
-    const operatorCell = this.jointGraph.getCell(operatorID);
-    if (operatorCell.isElement()) {
-      return  {x: operatorCell.get('position').x, y: operatorCell.get('position').y};
+  /**
+   * TODO:
+   */
+  public getOperatorPosition(operatorID: string): Point {
+    const cell: joint.dia.Cell | undefined = this.jointGraph.getCell(operatorID);
+    if (! cell) {
+      throw new Error(`opeartor with ID ${operatorID} doesn't exist`);
     }
-  }
+    if (! cell.isElement()) {
+      throw new Error(`${operatorID} is not an operator`);
+    }
+    const element = <joint.dia.Element> cell;
+    const position = element.position();
+    return { x: position.x, y: position.y };
+    }
 
   /**
    * Subscribes to operator cell delete event stream,
