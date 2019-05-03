@@ -103,4 +103,9 @@ describe('UserDictionarySectionComponent', () => {
       .toEqual(['immigration policy', 'gun control', 'police violence']);
   });
 
+/*
+* more tests of testing return value from pop-up components(windows)
+* should be removed to here
+*/
+
 });

@@ -60,7 +60,9 @@ export class UserDictionarySectionComponent implements OnInit {
 
     addModelObservable.subscribe(
       value => {
-        dictionary.items.push(<string> value);
+        if (!dictionary.items.includes(<string>value)) {
+          dictionary.items.push(<string> value);
+        }
         modalRef.componentInstance.dictionary = cloneDeep(dictionary);
       }
     );

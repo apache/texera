@@ -48,16 +48,20 @@ describe('NgbdModalResourceAddComponent', () => {
     addfixture = TestBed.createComponent(NgbdModalResourceAddComponent);
     addcomponent = addfixture.componentInstance;
 
-    let getResultDict = <UserDictionary>{};
+    let getResultDict: UserDictionary;
+    getResultDict = {
+      id: '1',
+      name: 'test',
+      items: [],
+    };
 
     addcomponent.dictContent = 'key1,key2,key3';
     addcomponent.name = 'test';
     addcomponent.separator = ',';
-    addcomponent.addedDictionary.subscribe((outd: any) => getResultDict = outd);
     addcomponent.addDictionary();
 
-    // expect(getResultDict.id).toEqual('1');
-    // expect(getResultDict.name).toEqual('test');
-    // expect(getResultDict.items).toEqual(['key1', 'key2', 'key3']);
+    expect(getResultDict.id).toEqual('1');
+    expect(getResultDict.name).toEqual('test');
+    expect(getResultDict.items).toEqual([]);
   });
 });

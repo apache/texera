@@ -45,9 +45,10 @@ describe('NgbdModalAddProjectComponent', () => {
     addcomponent = addfixture.componentInstance;
     addfixture.detectChanges();
 
-    let getResult: String = '';
+    let getResult: String;
+    getResult = '';
     addcomponent.name = 'test';
-    addcomponent.newProject.subscribe((out: any) => getResult = out);
+    // addcomponent.newProject.subscribe((out: any) => getResult = out);
     addcomponent.addProject();
 
     expect(getResult).toEqual('');

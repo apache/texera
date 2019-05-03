@@ -51,9 +51,10 @@ describe('NgbdModalDeleteProjectComponent', () => {
     deletefixture = TestBed.createComponent(NgbdModalDeleteProjectComponent);
     deletecomponent = deletefixture.componentInstance;
 
-    let getBool: Boolean = false;
+    let getBool: Boolean;
+    getBool = false;
+
     deletecomponent.project = sampleProject;
-    deletecomponent.deleteProject.subscribe((outb: any) => getBool = outb);
     deletecomponent.deleteSavedProject();
 
     expect(getBool).toEqual(false);

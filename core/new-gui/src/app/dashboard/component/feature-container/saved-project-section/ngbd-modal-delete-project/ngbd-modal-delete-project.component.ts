@@ -21,7 +21,6 @@ export class NgbdModalDeleteProjectComponent {
     lastModifiedTime: ''
   };
   @Input() project: SavedProject = this.defaultSavedProject;
-  @Output() deleteProject =  new EventEmitter<boolean>();
 
   constructor(public activeModal: NgbActiveModal) {
   }

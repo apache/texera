@@ -48,8 +48,8 @@ describe('NgbdModalResourceDeleteComponent', () => {
       name: 'police violence',
       items: ['BLM']
     };
-    let deleteSignal: Boolean = false;
-    deletecomponent.deleteDict.subscribe((outb: any) => deleteSignal = outb);
+    let deleteSignal: Boolean;
+    deleteSignal = false;
     deletecomponent.deleteDictionary();
 
     expect(deleteSignal).toEqual(false);

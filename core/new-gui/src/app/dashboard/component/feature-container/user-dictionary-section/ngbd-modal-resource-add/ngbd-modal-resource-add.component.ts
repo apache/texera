@@ -22,7 +22,6 @@ import { UserDictionary } from '../../../../type/user-dictionary';
 
 })
 export class NgbdModalResourceAddComponent {
-  @Output() addedDictionary =  new EventEmitter<UserDictionary>();
 
   public newDictionary: any; // potential issue
   public name: string = '';

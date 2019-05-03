@@ -22,7 +22,6 @@ export class NgbdModalResourceDeleteComponent {
     items: []
   };
   @Input() dictionary: UserDictionary = this.defaultUserDictionary;
-  @Output() deleteDict =  new EventEmitter<boolean>();
 
   constructor(public activeModal: NgbActiveModal) {
   }

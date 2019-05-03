@@ -14,7 +14,6 @@ import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
   styleUrls: ['../../../dashboard.component.scss', 'ngbd-modal-add-project.component.scss']
 })
 export class NgbdModalAddProjectComponent {
-  @Output() newProject = new EventEmitter<string>();
 
   public name: string = '';
 
