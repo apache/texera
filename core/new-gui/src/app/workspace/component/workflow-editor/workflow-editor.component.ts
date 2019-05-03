@@ -71,9 +71,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
   ngAfterViewInit() {
     this.initializeJointPaper();
-    this.handleWindowResize();
-    this.handleViewDeleteOperator();
-    this.handleCellHighlight();
     this.handleOperatorValidation();
     this.handlePaperRestoreDefaultOffset();
     this.handlePaperZoom();
