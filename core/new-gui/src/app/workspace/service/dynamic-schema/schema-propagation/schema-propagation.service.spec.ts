@@ -3,6 +3,7 @@ import { AppSettings } from './../../../../common/app-setting';
 import { TestBed, inject } from '@angular/core/testing';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
+import { LoggerModule, NgxLoggerLevel } from 'ngx-logger';
 
 import { StubOperatorMetadataService } from '../../operator-metadata/stub-operator-metadata.service';
 import { OperatorMetadataService } from '../../operator-metadata/operator-metadata.service';
@@ -25,7 +26,10 @@ describe('SchemaPropagationService', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule],
+      imports: [
+        HttpClientTestingModule,
+        LoggerModule.forRoot(undefined)
+      ],
       providers: [
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         JointUIService,
@@ -96,6 +100,29 @@ describe('SchemaPropagationService', () => {
     expect(req1.request.method).toEqual('POST');
     req1.flush(mockSchemaPropagationResponse);
     httpTestingController.verify();
+  });
+
+  it('should handle error responses from server gracefully', () => {
+    const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
+    const schemaPropagationService: SchemaPropagationService = TestBed.get(SchemaPropagationService);
+
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    workflowActionService.setOperatorProperty(mockScanPredicate.operatorID, { tableName: 'test' });
+
+    // return error response from server
+    const req1 = httpTestingController.expectOne(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}`);
+    expect(req1.request.method).toEqual('POST');
+    req1.error(new ErrorEvent('network error'));
+    httpTestingController.verify();
+
+    // verify that after the error response, schema propagation service still reacts to events normally
+    workflowActionService.setOperatorProperty(mockScanPredicate.operatorID, { tableName: 'newTable' });
+
+    const req2 = httpTestingController.expectOne(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}`);
+    expect(req2.request.method).toEqual('POST');
+    req2.flush(mockSchemaPropagationResponse);
+    httpTestingController.verify();
+
   });
 
   it('should modify `attribute` of operator schema', () => {

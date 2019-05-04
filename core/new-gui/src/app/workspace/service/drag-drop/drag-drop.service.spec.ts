@@ -82,4 +82,31 @@ describe('DragDropService', () => {
 
   }));
 
+  it('should change the add an operator at correct position when the element is dropped', marbles((m) => {
+    const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
+
+    workflowActionService.getJointGraphWrapper().setDragOffset({x: 100, y: 100});
+    workflowActionService.getJointGraphWrapper().setZoomProperty(0.1);
+
+    const operatorType = mockOperatorMetaData.operators[0].operatorType;
+    const marbleString = '-e-|';
+    const marbleValues = {
+      e : {operatorType: operatorType, offset: {x: 200, y: 200}}
+    };
+
+    spyOn(dragDropService, 'getOperatorDropStream').and.returnValue(
+      m.hot(marbleString, marbleValues)
+    );
+
+
+    dragDropService.handleOperatorDropEvent();
+
+    workflowActionService.getTexeraGraph().getOperatorAddStream().subscribe(
+      value => {
+        const jointGraph: joint.dia.Graph = (workflowActionService as any).jointGraph;
+        const currenOperatorPosition = jointGraph.getCell(value.operatorID).attributes.position;
+        expect(currenOperatorPosition.x).toEqual(1000);
+        expect(currenOperatorPosition.y).toEqual(1000);
+      });
+  }));
 });
