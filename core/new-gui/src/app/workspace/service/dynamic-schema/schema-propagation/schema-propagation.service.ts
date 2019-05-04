@@ -7,6 +7,7 @@ import { OperatorSchema } from '../../../types/operator-schema.interface';
 import { DynamicSchemaService } from './../dynamic-schema.service';
 import { ExecuteWorkflowService } from './../../execute-workflow/execute-workflow.service';
 import { WorkflowActionService } from './../../workflow-graph/model/workflow-action.service';
+import { NGXLogger } from 'ngx-logger';
 
 import { isEqual, remove, cloneDeep, get, set } from 'lodash-es';
 
@@ -35,7 +36,8 @@ export class SchemaPropagationService {
   constructor(
     private httpClient: HttpClient,
     private workflowActionService: WorkflowActionService,
-    private dynamicSchemaService: DynamicSchemaService
+    private dynamicSchemaService: DynamicSchemaService,
+    private logger: NGXLogger
   ) {
     // do nothing if schema propagation is not enabled
     if (!environment.schemaPropagationEnabled) {
@@ -49,6 +51,7 @@ export class SchemaPropagationService {
         this.workflowActionService.getTexeraGraph().getLinkAddStream(),
         this.workflowActionService.getTexeraGraph().getLinkDeleteStream(),
         this.workflowActionService.getTexeraGraph().getOperatorPropertyChangeStream())
+      .do(evt => console.log(evt))
       .flatMap(() => this.invokeSchemaPropagationAPI())
       .filter(response => response.code === 0)
       .subscribe(response => this._applySchemaPropagationResult(response.result));
@@ -105,7 +108,11 @@ export class SchemaPropagationService {
     return this.httpClient.post<SchemaPropagationResponse>(
       `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}`,
       JSON.stringify(body),
-      { headers: { 'Content-Type': 'application/json' } });
+      { headers: { 'Content-Type': 'application/json' } })
+      .catch(err => {
+        this.logger.error('schema propagation API returns error', err);
+        return Observable.empty();
+      });
   }
 
    /**
