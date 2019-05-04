@@ -35,7 +35,7 @@ export class SaveWorkflowService {
       this.workflowActionService.deleteOperator(op.operatorID);
     });
 
-    const savedWorkflowJson = sessionStorage.getItem(SaveWorkflowService.localStorageKey);
+    const savedWorkflowJson = localStorage.getItem(SaveWorkflowService.localStorageKey);
     if (! savedWorkflowJson) {
       return;
     }
@@ -56,7 +56,7 @@ export class SaveWorkflowService {
   }
 
 
-  private handleAutoSaveWorkFlow(): void {
+  public handleAutoSaveWorkFlow(): void {
     Observable.merge(
       this.workflowActionService.getTexeraGraph().getOperatorAddStream(),
       this.workflowActionService.getTexeraGraph().getOperatorDeleteStream(),
@@ -76,7 +76,7 @@ export class SaveWorkflowService {
         operators, operatorPositions, links
       };
 
-      sessionStorage.setItem(SaveWorkflowService.localStorageKey, JSON.stringify(savedWorkflow));
+      localStorage.setItem(SaveWorkflowService.localStorageKey, JSON.stringify(savedWorkflow));
     });
   }
 
