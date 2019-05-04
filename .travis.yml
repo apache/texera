@@ -23,6 +23,7 @@ before_install:
   - sudo apt-get install python3-setuptools 
   - sudo easy_install3 pip
   - export LC_ALL=C
+  - sudo pip3 install setuptools -U
   - sudo pip3 install -U nltk
   - nvm install node
   - nvm use node
