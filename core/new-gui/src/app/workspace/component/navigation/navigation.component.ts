@@ -150,12 +150,12 @@ export class NavigationComponent implements OnInit {
    * This sends the finished execution result ID to the backend to download execution result in
    *  excel format.
    */
-  public onClickDownloadExecutionResult(): void {
+  public onClickDownloadExecutionResult(downloadType: string): void {
     // If there is no valid executionResultID to download from right now, exit immediately
     if (this.executionResultID === undefined) {
       return;
     }
-    this.executeWorkflowService.downloadWorkflowExecutionResult(this.executionResultID);
+    this.executeWorkflowService.downloadWorkflowExecutionResult(this.executionResultID, downloadType);
   }
 
   /**

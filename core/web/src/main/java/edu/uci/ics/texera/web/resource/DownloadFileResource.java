@@ -22,8 +22,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.type.TypeFactory;
 
 import edu.uci.ics.texera.api.tuple.Tuple;
+import edu.uci.ics.texera.dataflow.sink.csv.CSVSink;
+import edu.uci.ics.texera.dataflow.sink.csv.CSVSinkPredicate;
 import edu.uci.ics.texera.dataflow.sink.excel.ExcelSink;
 import edu.uci.ics.texera.dataflow.sink.excel.ExcelSinkPredicate;
+import edu.uci.ics.texera.dataflow.sink.json.JSONSink;
+import edu.uci.ics.texera.dataflow.sink.json.JSONSinkPredicate;
 import edu.uci.ics.texera.dataflow.source.tuple.TupleSourceOperator;
 
 @Path("/download")
@@ -33,7 +37,8 @@ public class DownloadFileResource {
     
     @GET
     @Path("/result")
-    public Response downloadExcelFile(@QueryParam("resultID") String resultID) throws JsonParseException, JsonMappingException, IOException {        
+    public Response downloadFile(@QueryParam("resultID") String resultID, @QueryParam("downloadType") String downloadType) 
+    		throws JsonParseException, JsonMappingException, IOException {        
         java.nio.file.Path resultFile = QueryPlanResource.resultDirectory.resolve(resultID + ".json");        
 
         if (Files.notExists(resultFile)) {
@@ -50,23 +55,81 @@ public class DownloadFileResource {
             return Response.status(Status.NOT_FOUND).build();
         }
         
+        
         TupleSourceOperator tupleSource = new TupleSourceOperator(result, result.get(0).getSchema());
-        ExcelSink excelSink = new ExcelSinkPredicate().newOperator();
-        excelSink.setInputOperator(tupleSource);
-        excelSink.open();
-        excelSink.collectAllTuples();
-        excelSink.close();  
+        if (downloadType.equals("json")) {
+        	return downloadJSONFile(tupleSource);
+        } else if (downloadType.equals("csv")) {
+        	return downloadCSVFile(tupleSource);
+        } else if (downloadType.equals("xlsx")) {
+        	return downloadExcelFile(tupleSource);
+        }
+        
+        System.out.println("Download type " + downloadType + " is unavailable");
+        return Response.status(Status.NOT_FOUND).build();
+        
+    }
+    
+    
+    private Response downloadExcelFile(TupleSourceOperator tupleSource) {
+      ExcelSink excelSink = new ExcelSinkPredicate().newOperator();
+      excelSink.setInputOperator(tupleSource);
+      excelSink.open();
+      excelSink.collectAllTuples();
+      excelSink.close();  
+      
+      StreamingOutput fileStream = new StreamingOutput() {
+          @Override
+          public void write(OutputStream output) throws IOException, WebApplicationException {
+              byte[] data = Files.readAllBytes(excelSink.getFilePath());
+              output.write(data);
+              output.flush();
+          }
+      };
+      return Response.ok(fileStream, MediaType.APPLICATION_OCTET_STREAM)
+              .header("content-disposition", "attachment; filename=result.xlsx")
+              .build();
+    }
+    
+    
+    private Response downloadCSVFile(TupleSourceOperator tupleSource) {
+        CSVSink csvSink = new CSVSinkPredicate().newOperator();
+        csvSink.setInputOperator(tupleSource);
+        csvSink.open();
+        csvSink.collectAllTuples();
+        csvSink.close();  
         
         StreamingOutput fileStream = new StreamingOutput() {
             @Override
             public void write(OutputStream output) throws IOException, WebApplicationException {
-                byte[] data = Files.readAllBytes(excelSink.getFilePath());
+                byte[] data = Files.readAllBytes(csvSink.getFilePath());
                 output.write(data);
                 output.flush();
             }
         };
         return Response.ok(fileStream, MediaType.APPLICATION_OCTET_STREAM)
-                .header("content-disposition", "attachment; filename=result.xlsx")
+                .header("content-disposition", "attachment; filename=result.csv")
+                .build();
+    }
+    
+    
+    private Response downloadJSONFile(TupleSourceOperator tupleSource) {
+        JSONSink jsonSink = new JSONSinkPredicate().newOperator();
+        jsonSink.setInputOperator(tupleSource);
+        jsonSink.open();
+        jsonSink.collectAllTuples();
+        jsonSink.close();  
+        
+        StreamingOutput fileStream = new StreamingOutput() {
+            @Override
+            public void write(OutputStream output) throws IOException, WebApplicationException {
+                byte[] data = Files.readAllBytes(jsonSink.getFilePath());
+                output.write(data);
+                output.flush();
+            }
+        };
+        return Response.ok(fileStream, MediaType.APPLICATION_OCTET_STREAM)
+                .header("content-disposition", "attachment; filename=result.json")
                 .build();
     }
 

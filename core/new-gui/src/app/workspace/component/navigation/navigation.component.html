@@ -6,9 +6,22 @@
     <i class="navbar-brand utility-button fa fa-search-minus" (click)="onClickZoomOut()" title="zoom in"></i>
     <i class="navbar-brand utility-button fa fa-search-plus" (click)="onClickZoomIn()" title="zoom in"></i>
     <i class="navbar-brand utility-button fa fa-arrows-alt" (click)="onClickRestoreZoomOffsetDefaullt()" title="reset zoom"></i>
-    <i class="navbar-brand fa fa-cloud-download" [ngClass]="{'utility-button-disabled' : !executionResultID,
+    <!-- <i class="navbar-brand fa fa-cloud-download" [ngClass]="{'utility-button-disabled' : !executionResultID,
       'utility-button': executionResultID}" (click)="onClickDownloadExecutionResult()"
-      title="download execution result"></i>
+      title="download execution result"></i> -->
+
+      <div ngbDropdown class="d-inline-block">
+        <i class="navbar-brand fa fa-cloud-download"  [ngClass]="{'utility-button-disabled' : !executionResultID,
+        'utility-button': executionResultID}" id="downloadExcelOptions" ngbDropdownToggle
+          title="download execution result"></i>
+        <div class="drop-down-menu" ngbDropdownMenu aria-labelledby="downloadExcelOptions">
+          <button class="drop-down-item" ngbDropdownItem (click)="onClickDownloadExecutionResult('json')">Json File (*.json)</button>
+          <button class="drop-down-item" ngbDropdownItem (click)="onClickDownloadExecutionResult('csv')"> CSV File (*.csv)</button>
+          <button class="drop-down-item" ngbDropdownItem (click)="onClickDownloadExecutionResult('xlsx')">XLSX File (*.xlsx)</button>
+        </div>
+      </div>
+
+
   </div>
   <div class="collapse navbar-collapse texera-navigation-execute">
     <div class="button" tourAnchor="texera-workspace-navigation-run">

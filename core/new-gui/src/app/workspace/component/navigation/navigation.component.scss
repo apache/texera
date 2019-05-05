@@ -72,3 +72,16 @@
   color: #F2F1F1;
   font-size: 10px;
 }
+
+.drop-down-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: transparent;
+  background-color: transparent;
+}
+
+.drop-down-item:hover {
+  background-color: #C6C6C6;
+  cursor: pointer;
+}

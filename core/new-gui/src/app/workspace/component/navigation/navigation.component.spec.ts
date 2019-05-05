@@ -160,7 +160,7 @@ describe('NavigationComponent', () => {
 
     const downloadExecutionSpy = spyOn(executeWorkFlowService, 'downloadWorkflowExecutionResult').and.callThrough();
 
-    component.onClickDownloadExecutionResult();
+    component.onClickDownloadExecutionResult('txt');
     expect(downloadExecutionSpy).toHaveBeenCalledTimes(0);
   });
 
