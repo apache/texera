@@ -82,7 +82,6 @@ export class NavigationComponent implements OnInit {
       }
     }
   }
-
   public getRunButtonText(): string {
     if (! environment.pauseResumeEnabled) {
       return 'Run';
