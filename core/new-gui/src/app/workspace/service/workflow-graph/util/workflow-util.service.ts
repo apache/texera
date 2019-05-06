@@ -16,8 +16,7 @@ export class WorkflowUtilService {
   private operatorSchemaList: ReadonlyArray<OperatorSchema> = [];
 
   constructor(
-    private operatorMetadataService: OperatorMetadataService,
-    private workflowActionService: WorkflowActionService
+    private operatorMetadataService: OperatorMetadataService
   ) {
     this.operatorMetadataService.getOperatorMetadata().subscribe(
       value => {
