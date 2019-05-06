@@ -68,40 +68,40 @@
   overflow: auto;
 }
 
+.modal-body {
+  min-height: calc(100vh - 200px);
+  max-height: calc(100vh - 200px);
+  overflow: auto !important;
+}
+
 .drag-file-area {
-  height: 220px;
-  min-width: 96%;
-  width: 96%;
-  margin-top: 3%;
-  margin-right: 2%;
-  margin-left: 2%;
+  text-align: center;
+  height: 200px;
+  font-size: 2em;
+  justify-content: center;
+  flex-direction: column;
+  display: flex;
   border-radius: 50px;
   border: dotted 5px lightblue;
-  text-align: center;
-  line-height: 200px;
-  font-size:200%;
   cursor: pointer;
+  margin: 10px 0px;
 }
+
 .have-file-over {
   background:  lightgray;
 }
+warning-space
 .invalid-file {
   background: linear-gradient(to right,red 10%, white 60%);
 }
-.drag-file-gap{
-  border-bottom:2px solid lightgray;
-  margin-right: 3%;
-  margin-left: 3%;
+
+.file-queue-item {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px solid grey;
+  margin-bottom: 5px;
 }
-.drag-file-container{
-  display: grid;
-  grid-template-columns: 85% 15%;
-  margin-bottom:3px;
-  margin-top:3px;
-  margin-right: 3%;
-  margin-left: 3%;
-  border-bottom:1px solid lightgray;
-}
+
 .drag-file-container:last-child{
   border-bottom:none;
 }
@@ -111,26 +111,20 @@
 *              *        *        *
 *              *******************
 **/
-.queue-file-name{
-  grid-column-start: 1;
-  grid-column-end: 2;
-}
-.queue-delete-bottom{
-  grid-column-start: 2;
-  grid-column-end: 3;
+
+.queue-delete-button{
   background-color:red;
   border-radius: 4px;
+  width: 50px;
   cursor: pointer;
   -webkit-transition-duration: 0.2s;
   transition-duration: 0.2s;
 }
+
 .queue-delete-bottom:hover{
   color: white;
 }
-.warning-space{
-  margin-right: 3%;
-  margin-left: 3%;
-}
+
 .invalid-file-warning{
  color:orange;
 }

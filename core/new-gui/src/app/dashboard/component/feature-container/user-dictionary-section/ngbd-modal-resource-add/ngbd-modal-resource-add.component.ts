@@ -2,11 +2,12 @@ import { Component, OnInit, Input, Output, EventEmitter } from '@angular/core';
 import { NgbModal, NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 
 import { UserDictionaryService } from '../../../../service/user-dictionary/user-dictionary.service';
-import { UserDictionary } from '../../../../type/user-dictionary';
+import { UserDictionary, SavedManualDictionary, SavedDictionaryResult } from '../../../../type/user-dictionary';
 import { Event } from '_debugger';
 
 import { FileUploader, FileItem } from 'ng2-file-upload';
 import isEqual from 'lodash-es/isEqual';
+import { MatTabChangeEvent } from '@angular/material';
 
 /**
  * NgbdModalResourceAddComponent is the pop-up component to let
@@ -26,6 +27,7 @@ import isEqual from 'lodash-es/isEqual';
 
 })
 export class NgbdModalResourceAddComponent {
+
   @Output() addedDictionary =  new EventEmitter<UserDictionary>();
 
   public newDictionary: UserDictionary | undefined; // potential issue
@@ -41,6 +43,8 @@ export class NgbdModalResourceAddComponent {
   // It is capable of sending file but we don't use it. the url="..." is meanless since we send it through our own way.
   public uploader: FileUploader = new FileUploader({url: 'This string does not matter'});
 
+  public isInUploadFileTab: boolean = true;
+
   constructor(
     public activeModal: NgbActiveModal,
     public userDictionaryService: UserDictionaryService
@@ -49,8 +53,15 @@ export class NgbdModalResourceAddComponent {
   }
 
   /**
-  * addKey records the new dictionary information (DIY/file) and sends
-  * it back to the main component.
+   * Handles the tab change event in the modal popup
+   * @param event
+   */
+  public onTabChangeEvent(event: MatTabChangeEvent) {
+    this.isInUploadFileTab = (event.tab.textLabel === 'Upload');
+  }
+
+  /**
+  * This method will add user dictionary based on user's manually added contents
   *
   * @param
   */
@@ -67,49 +78,44 @@ export class NgbdModalResourceAddComponent {
       name : this.name,
       items : this.dictContent.split(this.separator),
     };
-    const result = {
+
+    const manualDictData: SavedManualDictionary = {name: '', content: '', separator: ''};
+    const result: SavedDictionaryResult = {
       command: 0, // commend 0 means user wants to upload the manually created dict.
       savedQueue: [],
-      savedManualDict : {
-        name : '',
-        content : '',
-        separator : ''
-      },
-      dictionaryData: [this.newDictionary]
+      savedManualDictionary: manualDictData
     };
     this.activeModal.close(result);
   }
 
   /**
-   * Doesn't work yet. Try to hide the drag on the right when the text is short
-   * @param
+   * This method closes the popup modals and temporarily save user uploaded dictionary
+   *  but not yet send to backend or user manually added contents
    */
-  public checkContentLength(): boolean {
-    console.log(this.dictContent.split('\n').length >= 5);
-    return this.dictContent.split('\n').length >= 5;
-  }
-
   public onClose() {
     this.deleteAllInvalidFile();
-    const result = {
+    const result: SavedDictionaryResult = {
       command: 1, // commannd 1 means close the pop up and save the queue.
       savedQueue: this.uploader.queue,
-      savedManualDict: {
+      savedManualDictionary: {
         name : this.name,
         content : this.dictContent,
         separator : this.separator
-      },
-      dictionaryData: []
+      }
     };
     this.activeModal.close(result);
   }
 
   /**
-   * For "upload" button. Upload the file in the queue and then clear the queue
-   * The FileType object is a type from third part library, link below
-   * FileItem: https://github.com/valor-software/ng2-file-upload/blob/development/src/file-upload/file-item.class.ts
-   * typeof queue -> [FileItem]
-   * typeof FileItem._file -> File
+   * This method will handle the upload file action in the user drag file tab
+   *
+   * This will upload the files currently in the file queue nad then clear the queue
+   *  after the files have been successfully uploaded to the user.
+   *
+   * The FileItem type is a type introduced by the ng2-file-upload library. The uploader
+   *  introduced by the library contains a queue of FileItem.
+   *
+   * FileItem._file => regular JS File type
    *
    * TODO: send http request to the backend and update the user console dictionary list
    */
@@ -119,32 +125,17 @@ export class NgbdModalResourceAddComponent {
       savedQueue: [],
       dictionaryData: []
     };
-    // this.uploader.queue.forEach((item) => this.userDictionaryService.uploadDictionary(item._file));
-    // const result = {
-    //   command: 0,
-    //   savedQueue: this.uploader.queue.map((fileitem: FileItem, index: number) => {
-    //     const filereader: FileReader = new FileReader();
-    //     filereader.readAsText(fileitem._file);
-    //     filereader.onload = (e) => {
-    //       if (typeof filereader.result === 'string') {
-    //         result.savedQueue[index].items = filereader.result.split('\n');
-    //       }
-    //     };
-    //     return <UserDictionary> {
-    //       id : '1', // TODO: need unique ID
-    //       name : fileitem._file.name.split('.')[0],
-    //       items : []
-    //     };
-    //   }),
-    //   dictionaryData: []
-    // };
+
+    // reset the uploader queue
     this.uploader.queue = [];
+
     this.activeModal.close(result);
   }
 
   /**
-   * handle the event when user click the file upload area
-   * move all the files out from the event and put in the queue.
+   * This method handles the event when user click the file upload area
+   *  and save their local files to the uploader queue.
+   *
    * @param clickUploaEvent
    */
   public clickUploadFile(clickUploaEvent: {target: HTMLInputElement}): void {
@@ -152,17 +143,20 @@ export class NgbdModalResourceAddComponent {
     if (filelist === null) {
       throw new Error(`browser upload does not work as intended`);
     }
-    const listOfFile: File[] = Array<File>();
+
+    const listOfFile: File[] = [];
     for (let i = 0; i < filelist.length; i++) {
       listOfFile.push(filelist[i]);
     }
+
     this.uploader.addToQueue(listOfFile);
     this.checkDuplicateFiles();
   }
 
   /**
-   * For "delete" button. Remove the specific file and then check the number
-   *  of invalidFile from duplication and type
+   * This method handles the delete file event in the user drag upload tab
+   *  by removing the deleted file from the uploader queue.
+   *
    * @param item
    */
   public removeFile(item: FileItem): void {
@@ -233,29 +227,13 @@ export class NgbdModalResourceAddComponent {
         map.set(name, count + 1);
       }
     });
-    // this.uploader.queue.filter(fileitem => {
-    //   if (map.get(fileitem._file.name) === 1) {
-    //     return true;
-    //   } else {
-    //     map.set(fileitem._file.name, --map.get(fileitem._file.name));
-    //     return false;
-    //   }
-    // });
-    // this.uploader.queue = this.uploader.queue.filter( // delete all the file with occurrence more than one.
-    //   fileitem => (map.get(fileitem._file.name) === 1 || !(map.set(fileitem._file.name, map.get(fileitem._file.name) - 1)))
-    // );
+
     this.uploader.queue = this.uploader.queue.filter( // delete all the file with occurrence more than one.
       fileitem => {
         const count: number | undefined = map.get(fileitem._file.name);
         if (count === undefined) { throw new Error('count for map of file shouldn`t be undefined'); }
         return (count === 1 || !(map.set(fileitem._file.name, count - 1)));
       });
-    // this.duplicateFile.forEach(
-    //   fileName => {
-    //     const file: FileItem|undefined = this.uploader.queue.find(fileitem => fileitem._file.name === fileName);
-    //     if (file) { this.uploader.queue = this.uploader.queue.filter(fileItem => !isEqual(file, fileItem)); }
-    //     });
-
 
     this.checkDuplicateFiles();
   }

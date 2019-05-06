@@ -4,82 +4,81 @@
     <span aria-hidden="true">&times;</span>
   </button>
 </div>
-
-<mat-tab-group mat-stretch-tabs>
-  <mat-tab label="Upload">
-    <div ng2FileDrop
-        [ngClass]="{'have-file-over': haveDropZoneOver}"
-        (fileOver)="haveFileOver($event)"
-        (onFileDrop)="getFileDropped($event)"
-        [uploader]="uploader"
-        class="drag-file-area"
-        (click)="clickUpload.click()">
-        Drop Files Here
-        <div id="hide">
-              <input #clickUpload type="file"
-                accept=".txt"(change)="clickUploadFile($event)" multiple/>
-        </div>
-    </div>
-    <div *ngIf="uploader.queue.length">
-      <div class="drag-file-gap">
-        <h3>Upload queue</h3>
-        <p>Queue length: {{ uploader?.queue?.length }}</p>
+<div class="modal-body">
+  <mat-tab-group mat-stretch-tabs (selectedTabChange)="onTabChangeEvent($event)">
+    <!-- upload file tab -->
+    <mat-tab label="Upload">
+      <div ng2FileDrop
+          [ngClass]="{'have-file-over': haveDropZoneOver}"
+          (fileOver)="haveFileOver($event)"
+          (onFileDrop)="getFileDropped($event)"
+          [uploader]="uploader"
+          class="drag-file-area"
+          (click)="clickUpload.click()">
+          Drop Files Here
+          <div id="hide">
+                <input #clickUpload type="file"
+                  accept=".txt"(change)="clickUploadFile($event)" multiple/>
+          </div>
       </div>
-      <div>
-        <li *ngFor="let item of uploader.queue"
-        [class.invalid-file]="checkThisFileInvalid(item._file)"
-        class="drag-file-container">
-          <span class="queue-file-name">{{ item?.file?.name }}</span>
-          <button type="button" class="queue-delete-bottom"
-                                      (click)="removeFile(item)">
-                                      <i class="fa fa-trash" aria-hidden="true"></i>
+      <div *ngIf="uploader.queue.length">
+        <li *ngFor="let item of uploader.queue" [ngClass]="{'invalid-file':checkThisFileInvalid(item._file)}"
+            class="file-queue-item">
+          <span>{{ item?.file?.name }}</span>
+          <button class="queue-delete-button" (click)="removeFile(item)">
+            <i class="fa fa-trash" aria-hidden="true"></i>
           </button>
         </li>
+        <div *ngIf="invalidFileNumber || duplicateFile.length">
+          <button class="btn btn-outline-dark add-button" (click)="deleteAllInvalidFile()">Delete Invalid Files</button>
+          <label *ngIf="invalidFileNumber"
+            class="invalid-file-warning"> *You can only upload .txt file</label>
+          <label *ngIf="duplicateFile.length"
+            class="invalid-file-warning"> *You cannot upload files with duplicate names</label>
+        </div>
       </div>
-      <div *ngIf="invalidFileNumber || duplicateFile.length" class="warning-space">
-        <button type="button" class="btn btn-outline-dark add-button" (click)="deleteAllInvalidFile()">Delete Invalid Files</button>
-        <label *ngIf="invalidFileNumber"
-          class="invalid-file-warning"> *You can only upload text file</label>
-        <label *ngIf="duplicateFile.length"
-          class="invalid-file-warning"> *You cannot upload files with the same name</label>
+    </mat-tab>
+
+    <!-- user manually add tab -->
+    <mat-tab label="Add Manually">
+      <div class="modal-body">
+        <mat-dialog-content class= "add-dictionary-container">
+          <mat-form-field class= "name-area">
+            <input  matInput [(ngModel)]="name" placeholder="Name of Dictionary (*Required)">
+          </mat-form-field>
+          <mat-form-field class= "content-area" >
+            <textarea matInput
+              [(ngModel)]="dictContent" placeholder="Content of Dictionary (*Required)"
+              matAutosizeMaxRows="5">
+            </textarea>
+          </mat-form-field>
+          <mat-form-field class= "separator-area">
+            <input  matInput [(ngModel)]="separator" placeholder="Content Separator (' , '    ' \\t '    ' \\n ')">
+          </mat-form-field>
+
+        </mat-dialog-content>
       </div>
-    </div>
-    <div class="modal-footer">
+    </mat-tab>
+  </mat-tab-group>
+
+</div>
+<div class="modal-footer">
+  <div *ngIf="isInUploadFileTab">
       <div *ngIf="uploader.queue.length">
-        <button type="button" class="btn btn-primary btn-xs bottom-upload"
-                              (click)="uploadFile()"
-                              [disabled]="invalidFileNumber || duplicateFile.length">
-                              <span class="glyphicon glyphicon-trash"></span> Upload</button>
-      </div>
-      <button type="button" class="btn btn-outline-dark bottom-close" (click)="onClose()">Close</button>
-    </div>
-  </mat-tab>
-
-  <mat-tab label="Add Manually">
-    <div class="modal-body">
-      <mat-dialog-content class= "add-dictionary-container">
-        <mat-form-field class= "name-area">
-          <input  matInput [(ngModel)]="name" placeholder="Name of Dictionary (*Required)">
-        </mat-form-field>
-        <mat-form-field class= "content-area" >
-          <textarea matInput
-            [(ngModel)]="dictContent" placeholder="Content of Dictionary (*Required)"
-            matTextareaAutosize="checkContentLength()" matAutosizeMaxRows="5">
-          </textarea>
-        </mat-form-field>
-        <mat-form-field class= "separator-area">
-          <input  matInput [(ngModel)]="separator" placeholder="Content Separator (' , '    ' \\t '    ' \\n ')">
-        </mat-form-field>
-
-      </mat-dialog-content>
-    </div>
-    <div class="modal-footer">
+          <button type="button" class="btn btn-primary btn-xs bottom-upload"
+                                (click)="uploadFile()"
+                                [disabled]="invalidFileNumber || duplicateFile.length">
+                                <span class="glyphicon glyphicon-trash"></span> Upload</button>
+        </div>
+  </div>
+  <div *ngIf="!isInUploadFileTab">
       <button class="btn btn-outline-dark add-button"
-              (click)="addDictionary()"
-              [disabled]="dictContent === '' || name === '' ">
-              Add</button>
-      <button class="btn btn-outline-dark" (click)="onClose()">Close</button>
-    </div>
-  </mat-tab>
-</mat-tab-group>
+      (click)="addDictionary()"
+      [disabled]="dictContent === '' || name === '' ">
+      Add</button>
+  </div>
+  <button class="btn btn-outline-dark" (click)="onClose()">Close</button>
+</div>
+
+
 
