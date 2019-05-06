@@ -25,9 +25,11 @@ import edu.uci.ics.texera.api.field.DateField;
 import edu.uci.ics.texera.api.field.DoubleField;
 import edu.uci.ics.texera.api.field.IField;
 import edu.uci.ics.texera.api.field.IntegerField;
+import edu.uci.ics.texera.api.field.ListField;
 import edu.uci.ics.texera.api.schema.Attribute;
 import edu.uci.ics.texera.api.schema.AttributeType;
 import edu.uci.ics.texera.api.schema.Schema;
+import edu.uci.ics.texera.api.span.Span;
 import edu.uci.ics.texera.api.tuple.Tuple;
 import edu.uci.ics.texera.api.utils.Utils;
 
@@ -74,7 +76,6 @@ public class JSONSink implements ISink {
         outputSchema = new Schema(inputSchema.getAttributes().stream()
                 .filter(attr -> ! attr.getName().equalsIgnoreCase(SchemaConstants._ID))
                 .filter(attr -> ! attr.getName().equalsIgnoreCase(SchemaConstants.PAYLOAD))
-                .filter(attr -> ! attr.getType().equals(AttributeType.LIST))
                 .toArray(Attribute[]::new));
         
         DateFormat df = new SimpleDateFormat("yyyyMMdd-HHmmss");
@@ -156,12 +157,29 @@ public class JSONSink implements ISink {
     	if(field == null){
     		return;
     	}
+    	
     	if (field instanceof DoubleField) {
     		jsonGenerator.writeNumberField(fieldName, (double) field.getValue());
     	} else if (field instanceof IntegerField) {
     		jsonGenerator.writeNumberField(fieldName, (double) (int) field.getValue());
     	} else if(field instanceof DateField){
     		jsonGenerator.writeStringField(fieldName, field.getValue().toString());
+    	} else if (field instanceof ListField) {
+    		List<Span> allFields = (List<Span>) field.getValue();
+    		jsonGenerator.writeFieldName(fieldName);
+    		jsonGenerator.writeStartArray();
+    		for (int i = 0; i < allFields.size(); ++i) {
+    			Span currentSpan = allFields.get(i);
+    			jsonGenerator.writeStartObject();
+    			jsonGenerator.writeStringField("attributeName", currentSpan.getAttributeName());
+    			jsonGenerator.writeNumberField("start", currentSpan.getStart());
+    			jsonGenerator.writeNumberField("end", currentSpan.getEnd());
+    			jsonGenerator.writeStringField("key", currentSpan.getKey());
+    			jsonGenerator.writeStringField("value", currentSpan.getValue());
+    			jsonGenerator.writeNumberField("tokenOffset", currentSpan.getTokenOffset());
+    			jsonGenerator.writeEndObject();
+    		}
+    		jsonGenerator.writeEndArray();
     	} else{
     		jsonGenerator.writeStringField(fieldName, field.getValue().toString());
     	}

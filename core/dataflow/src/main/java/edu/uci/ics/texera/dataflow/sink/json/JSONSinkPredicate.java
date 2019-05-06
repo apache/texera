@@ -54,8 +54,8 @@ public class JSONSinkPredicate extends PredicateBase {
     
     public static Map<String, Object> getOperatorMetadata() {
         return ImmutableMap.<String, Object>builder()
-            .put(PropertyNameConstants.USER_FRIENDLY_NAME, "Write to CSV file")
-            .put(PropertyNameConstants.OPERATOR_DESCRIPTION, "Write the results to an CSV file")
+            .put(PropertyNameConstants.USER_FRIENDLY_NAME, "Write to JSON file")
+            .put(PropertyNameConstants.OPERATOR_DESCRIPTION, "Write the results to an JSON file")
             .put(PropertyNameConstants.OPERATOR_GROUP_NAME, OperatorGroupConstants.DATABASE_GROUP)
             .build();
     }
