@@ -1,7 +1,6 @@
 package edu.uci.ics.texera.dataflow.sink.csv;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -12,11 +11,6 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
-import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import au.com.bytecode.opencsv.CSVWriter;
 import edu.uci.ics.texera.api.constants.ErrorMessages;
@@ -25,10 +19,6 @@ import edu.uci.ics.texera.api.dataflow.IOperator;
 import edu.uci.ics.texera.api.dataflow.ISink;
 import edu.uci.ics.texera.api.exception.DataflowException;
 import edu.uci.ics.texera.api.exception.TexeraException;
-import edu.uci.ics.texera.api.field.DateField;
-import edu.uci.ics.texera.api.field.DoubleField;
-import edu.uci.ics.texera.api.field.IField;
-import edu.uci.ics.texera.api.field.IntegerField;
 import edu.uci.ics.texera.api.schema.Attribute;
 import edu.uci.ics.texera.api.schema.AttributeType;
 import edu.uci.ics.texera.api.schema.Schema;
