@@ -1,7 +1,7 @@
 import { TestBed, inject } from '@angular/core/testing';
 
 import { SaveWorkflowService, SavedWorkflow } from './save-workflow.service';
-import { mockScanPredicate, mockResultPredicate, mockScanResultLink } from '../workflow-graph/model/mock-workflow-data';
+import { mockResultPredicate, mockScanResultLink } from '../workflow-graph/model/mock-workflow-data';
 import { WorkflowActionService } from '../workflow-graph/model/workflow-action.service';
 import { marbles } from '../../../../../node_modules/rxjs-marbles';
 import { OperatorLink, OperatorPredicate, Point } from '../../types/workflow-common.interface';
@@ -9,14 +9,13 @@ import { OperatorMetadataService } from '../operator-metadata/operator-metadata.
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { JointUIService } from '../joint-ui/joint-ui.service';
 import { StubOperatorMetadataService } from '../operator-metadata/stub-operator-metadata.service';
-import { mockOperatorMetaData } from '../operator-metadata/mock-operator-metadata.data';
 import { WorkflowUtilService } from '../workflow-graph/util/workflow-util.service';
 
 describe('SaveWorkflowService', () => {
   let autoSaveWorkflowService: SaveWorkflowService;
   beforeEach(() => {
 
-// setItem(): {}
+
 
     TestBed.configureTestingModule({
       providers: [
@@ -59,7 +58,6 @@ describe('SaveWorkflowService', () => {
     const marbleValues = {
       operatorID: testOperator.operatorID
     };
-
     spyOn(workflowActionService.getTexeraGraph(), 'getOperatorAddStream').and.returnValue(
       m.hot('-a-', marbleValues)
     );
@@ -74,7 +72,6 @@ describe('SaveWorkflowService', () => {
   fit ('should trigger the operator deleted event when user delete the operators', marbles((m) => {
     const testOperator = mockResultPredicate;
     const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
-    const testPoint: Point = {x: 100, y: 100};
     const marbleValues = {
       operatorID: testOperator.operatorID
     };
@@ -102,12 +99,30 @@ describe('SaveWorkflowService', () => {
       operators: testOperators, operatorPositions: testPosition, links: testLinks
     };
 
-    spyOn(localStorage, 'setItem').and.callFake(localStorage.setItem);
+    const marbleValue = {key: 'workflow', saveWorkFlow: saveWorkFlow};
+    spyOn(localStorage, 'setItem').and.returnValue(
+      m.hot('-a-', marbleValue)
+    );
+
   }));
-  fit ('should get the item from the localstorage when user refreshes the page', marbles((m) => {
+  fit ('should get the item from the localstorage when user trigger the localstorage.setItem', marbles((m) => {
     const plan = localStorage.getItem('workflow');
 
     expect(plan).toBeDefined();
+  }));
+  fit ('should trigger the change position event of the operator when users drag the operator', marbles((m) => {
+    const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
+    const newPosition = {x: 100, y: 100};
+    const testOperator = mockResultPredicate;
+    const marbleValue = {operatorID: testOperator.operatorID, newPosition: newPosition};
+    spyOn(workflowActionService.getJointGraphWrapper(), 'getOperatorPositionChangeEvent').and.returnValue(
+      m.hot('-a-', marbleValue)
+    );
+
+    const stream = workflowActionService.getJointGraphWrapper().getOperatorPositionChangeEvent().map(() => 'a');
+
+    const expectedStream = m.hot('-a-');
+    m.expect(stream).toBeObservable(expectedStream);
   }));
 
 });

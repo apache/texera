@@ -8,14 +8,11 @@ import '../../../common/rxjs-operators';
 import * as joint from 'jointjs';
 import { Point, OperatorPredicate, OperatorLink, OperatorPort } from '../../types/workflow-common.interface';
 import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-graph-wrapper';
-import { ExecuteWorkflowService } from '../../service/execute-workflow/execute-workflow.service';
-import { PropertyEditorComponent } from '../property-editor/property-editor.component';
-import { NavigationComponent } from '../navigation/navigation.component';
+
 
 import { LogicalPlan } from '../../types/execute-workflow.interface';
 import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-util.service';
-import { OperatorMetadataService } from '../../service/operator-metadata/operator-metadata.service';
-import { SaveWorkflowService } from '../../service/save-workflow/save-workflow.service';
+
 
 // argument type of callback event on a JointJS Paper
 // which is a 4-element tuple:
@@ -67,8 +64,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     private dragDropService: DragDropService,
     private elementRef: ElementRef,
     private workflowUtilService: WorkflowUtilService,
-    private operatorMetadataService: OperatorMetadataService,
-    private saveWorkflowService: SaveWorkflowService
+
   ) {
   }
 
