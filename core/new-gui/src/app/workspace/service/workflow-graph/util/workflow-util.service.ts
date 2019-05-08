@@ -1,11 +1,8 @@
-import { OperatorPredicate, OperatorLink } from './../../../types/workflow-common.interface';
+import { OperatorPredicate } from './../../../types/workflow-common.interface';
 import { OperatorMetadataService } from './../../operator-metadata/operator-metadata.service';
 import { OperatorSchema } from './../../../types/operator-schema.interface';
 import { Injectable } from '@angular/core';
 import { v4 as uuid } from 'uuid';
-
-import { WorkflowActionService } from './../model/workflow-action.service';
-
 
 /**
  * WorkflowUtilService provide utilities related to dealing with operator data.

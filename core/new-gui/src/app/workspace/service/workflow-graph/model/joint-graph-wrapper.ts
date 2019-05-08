@@ -281,7 +281,7 @@ export class JointGraphWrapper {
   }
 
   /**
-   * TODO:
+   * This method will get the operator position on the JointJS paper.
    */
   public getOperatorPosition(operatorID: string): Point {
     const cell: joint.dia.Cell | undefined = this.jointGraph.getCell(operatorID);

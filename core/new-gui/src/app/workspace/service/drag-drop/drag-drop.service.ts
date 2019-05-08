@@ -44,11 +44,10 @@ import isEqual from 'lodash-es/isEqual';
  */
 @Injectable()
 export class DragDropService {
+  // distance threshold for suggesting operators before user dropped an operator
+  public static readonly SUGGESTION_DISTANCE_THRESHOLD = 300;
 
   private static readonly DRAG_DROP_TEMP_OPERATOR_TYPE = 'drag-drop-temp-operator-type';
-
-  // distance threshold for suggesting operators before user dropped an operator
-  private static readonly SUGGESTION_DISTANCE_THRESHOLD = 300;
 
   private readonly operatorSuggestionHighlightStream =  new Subject <string>();
   private readonly operatorSuggestionUnhighlightStream =  new Subject <string>();
