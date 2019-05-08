@@ -70,11 +70,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
     private operatorMetadataService: OperatorMetadataService,
     private saveWorkflowService: SaveWorkflowService
   ) {
-    // workflowUtilService.getOperatorSchemaListCreatedStream().subscribe(
-    //   () => {
-    //     this.reloadWorkflow();
-    //   }
-    // );
   }
 
   public getJointPaper(): joint.dia.Paper {
@@ -135,23 +130,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
       this.workflowActionService.addLink(newOperatorLink);
     });
   }
-  // private reloadWorkflow(): void {
-  //   let logicalPlan;
-  //   let operatorLocations;
-  //   if (0 === localStorage.length) {
 
-  //   } else {
-  //     // console.log('hi');
-  //     logicalPlan = localStorage.getItem(WorkflowEditorComponent.key);
-  //     operatorLocations = localStorage.getItem(WorkflowEditorComponent.dropPositionKey);
-  //     if (logicalPlan !== null && operatorLocations !== null) {
-  //       logicalPlan = JSON.parse(logicalPlan);
-  //       operatorLocations = JSON.parse(operatorLocations);
-  //       this.replaceWorkFlow(logicalPlan, operatorLocations);
-  //       localStorage.clear();
-  //     }
-  //   }
-  // }
   private initializeJointPaper(): void {
     // get the custom paper options
     let jointPaperOptions = WorkflowEditorComponent.getJointPaperOptions();
@@ -166,23 +145,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.setJointPaperDimensions();
   }
 
-  // private handleAutoSaveWorkFlow(): void {
-  //   this.dragDropService.getOperatorDropStream().subscribe(dropPosition => {
-  //       this.operatorLocations.push(dropPosition);
-  //       localStorage.setItem(WorkflowEditorComponent.dropPositionKey, JSON.stringify(this.operatorLocations));
-  //   });
-  //   Observable.merge(
-  //     this.workflowActionService.getTexeraGraph().getOperatorAddStream(),
-  //     this.workflowActionService.getTexeraGraph().getLinkDeleteStream(),
-  //     this.workflowActionService.getTexeraGraph().getOperatorDeleteStream(),
-  //     this.workflowActionService.getTexeraGraph().getLinkAddStream(),
-  //     this.workflowActionService.getTexeraGraph().getOperatorPropertyChangeStream()
-  //   ).subscribe(() => {
-  //     const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
-  //     localStorage.setItem(WorkflowEditorComponent.key, JSON.stringify(logicalPlan));
-  //     const links = this.workflowActionService.getTexeraGraph().getAllLinks();
-  //   });
-  // }
   /**
    * Handles restore offset default event by translating jointJS paper
    *  back to original position.

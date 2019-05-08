@@ -57,7 +57,7 @@ describe('DragDropService', () => {
 
   });
 
-  fit('should add an operator when the element is dropped', marbles((m) => {
+  it('should add an operator when the element is dropped', marbles((m) => {
 
     const operatorType = mockOperatorMetaData.operators[0].operatorType;
 

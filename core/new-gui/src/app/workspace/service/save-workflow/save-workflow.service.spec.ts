@@ -15,6 +15,9 @@ import { WorkflowUtilService } from '../workflow-graph/util/workflow-util.servic
 describe('SaveWorkflowService', () => {
   let autoSaveWorkflowService: SaveWorkflowService;
   beforeEach(() => {
+
+// setItem(): {}
+
     TestBed.configureTestingModule({
       providers: [
         SaveWorkflowService,
@@ -28,33 +31,83 @@ describe('SaveWorkflowService', () => {
     autoSaveWorkflowService = TestBed.get(SaveWorkflowService);
   });
 
-  fit('should be created', inject([SaveWorkflowService], (service: SaveWorkflowService) => {
+  it('should be created', inject([SaveWorkflowService], (service: SaveWorkflowService) => {
     expect(service).toBeTruthy();
   }));
   it('should test if the link add event was being triggered or not', marbles((m) => {
+
+    const testLink = mockScanResultLink;
+    const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
+    const testPoint: Point = {x: 100, y: 100};
+    const marbleValues = {
+      operator: testLink, offset: testPoint
+    };
+    spyOn(workflowActionService.getTexeraGraph(), 'getLinkAddStream').and.returnValue(
+      m.hot('-a-', marbleValues)
+    );
+
+
+    const value = workflowActionService.getTexeraGraph().getLinkAddStream().map(() => 'a');
+    const expectedValue = m.hot('-a-');
+
+    m.expect(value).toBeObservable(expectedValue);
   }));
 
-  fit ('should trigger the operator added event when user add the operators', marbles((m) => {
+  it ('should trigger the operator added event when user add the operators', marbles((m) => {
+    const testOperator = mockResultPredicate;
+    const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
+    const marbleValues = {
+      operatorID: testOperator.operatorID
+    };
+
+    spyOn(workflowActionService.getTexeraGraph(), 'getOperatorAddStream').and.returnValue(
+      m.hot('-a-', marbleValues)
+    );
+
+
+    const value = workflowActionService.getTexeraGraph().getOperatorAddStream().map(() => 'a');
+    const expectedValue = m.hot('-a-');
+
+    m.expect(value).toBeObservable(expectedValue);
+  }));
+
+  fit ('should trigger the operator deleted event when user delete the operators', marbles((m) => {
     const testOperator = mockResultPredicate;
     const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
     const testPoint: Point = {x: 100, y: 100};
     const marbleValues = {
-      operator: testOperator, offset: testPoint
+      operatorID: testOperator.operatorID
     };
-    spyOn(workflowActionService, 'addOperator').and.returnValue(
+
+    spyOn(workflowActionService.getTexeraGraph(), 'getOperatorDeleteStream').and.returnValue(
       m.hot('-a-', marbleValues)
     );
 
-    const testStream = workflowActionService.getTexeraGraph().getOperatorAddStream().map(() => 'a');
-    const expectedStream = m.hot('-a-');
-    m.expect(testStream).toBeObservable(expectedStream);
+
+    const value = workflowActionService.getTexeraGraph().getOperatorDeleteStream().map(() => 'a');
+    const expectedValue = m.hot('-a-');
+
+    m.expect(value).toBeObservable(expectedValue);
   }));
 
-  it ('should be reload into the link when user refreshes the page', marbles((m) => {
+  fit ('should save the workflow when user triggets the events', marbles((m) => {
+    const testOperators: OperatorPredicate[] = new Array();
+    testOperators[0] = mockResultPredicate;
+    const testPoint: Point = {x: 100, y: 100};
+    const testLinks: OperatorLink[] = new Array();
+    testLinks[0] = mockScanResultLink;
+    const testPosition: {[key: string]: Point | undefined} = {'test-key': testPoint};
 
+    const saveWorkFlow: SavedWorkflow = {
+      operators: testOperators, operatorPositions: testPosition, links: testLinks
+    };
+
+    spyOn(localStorage, 'setItem').and.callFake(localStorage.setItem);
+  }));
+  fit ('should get the item from the localstorage when user refreshes the page', marbles((m) => {
+    const plan = localStorage.getItem('workflow');
+
+    expect(plan).toBeDefined();
   }));
 
-  it ('should be reload into the operator types when user refreshes the page', marbles((m) => {
-
-  }));
 });
