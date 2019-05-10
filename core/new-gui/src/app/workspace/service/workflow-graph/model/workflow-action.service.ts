@@ -27,6 +27,10 @@ export class WorkflowActionService {
 
   public pointsUndo = new Map<String, Array<Point>>(); // use this to get the points to readd
   public pointsPointer = new Map<String, number>(); // contains pointers to locations in pointsUndo for dragging
+  public operatorLinks = new Map<OperatorPredicate, Array<OperatorLink>>();
+  public separateLink: boolean = true; // we set this to false when we delete an operator so links get bundled together.
+  public deletedLinks: Array<OperatorLink> = [];
+  // lets us know which positions to drag to
   private readonly texeraGraph: WorkflowGraph;
   private readonly jointGraph: joint.dia.Graph;
   private readonly jointGraphWrapper: JointGraphWrapper;
@@ -114,12 +118,26 @@ export class WorkflowActionService {
     this.jointGraphWrapper.highlightOperator(operator.operatorID);
   }
 
+  // define the function to re-add operator with related links.
+  public addOperatorAndLinks(operator: OperatorPredicate, point: Point, links: Array<OperatorLink>): void {
+    this.addOperator(operator, point);
+    this.separateLink = false;
+    for (let i = 0; i < links.length; i++) {
+      if (this.texeraGraph.hasLinkWithID(links[i].linkID) === false) {
+        this.addLink(links[i]);
+      }
+    }
+    this.separateLink = true;
+  }
+
   /**
    * Deletes an operator from the workflow graph
    * Throws an Error if the operator ID doesn't exist in the Workflow Graph.
    * @param operatorID
    */
   public deleteOperator(operatorID: string): void {
+    this.separateLink = false;
+    this.deletedLinks = [];
     this.texeraGraph.assertOperatorExists(operatorID);
     // remove the operator from JointJS
     this.jointGraph.getCell(operatorID).remove();

@@ -3,6 +3,7 @@ import { JointGraphWrapper } from './../workflow-graph/model/joint-graph-wrapper
 import { WorkflowGraphReadonly } from './../workflow-graph/model/workflow-graph';
 import { Injectable } from '@angular/core';
 import { debounceTime } from 'rxjs/operators';
+import { OperatorPredicate, OperatorLink } from '../../types/workflow-common.interface';
 
 
 /* TODO LIST FOR BUGS
@@ -28,134 +29,13 @@ export class UndoRedoService {
   ) {
     this.testGraph = workflowActionService.getTexeraGraph();
 
-    this.testGraph.getOperatorAddStream().subscribe(
-      value => {
-        console.log(value.operatorID);
-        if (this.undoToggle) {
-          this.undos.push(() => {workflowActionService.deleteOperator(value.operatorID); });
-          if (this.clearRedo) {
-            this.redos = [];
-          }
-          this.changeProperty = false; /* sometimes when we create an operator, we trigger a property change event
-          that we want to ignore */
-          setTimeout(() => { // sets changeProperty back to true after half a second since not all operators trigger it
-            this.changeProperty = true;
-          }, 500);
-        } else {
-          this.redos.push(() => {workflowActionService.deleteOperator(value.operatorID); });
-        }
-      }
-    );
+    this.handleOperatorAdd();
+    this.handleOperatorDelete();
+    this.handleLinkAdd();
+    this.handleLinkDelete();
+    this.handlePropertyChange();
+    this.handleOperatorDrag();
 
-    // potential problem: when dragging the link around everytime it gets magnetted to a port and pulled away
-    // it gets counted as link creation/deletion. You end up with a ton of them for one link creation
-    this.testGraph.getOperatorDeleteStream().subscribe(
-      value => {
-        if (this.undoToggle) {
-          // we need to somehow grab the point
-          this.undos.push(() => {workflowActionService.addOperator(value.deletedOperator,
-            workflowActionService.getPoint(value.deletedOperator.operatorID)); });
-
-          if (this.clearRedo) {
-            this.redos = [];
-          }
-        } else {
-          this.redos.push(() => {workflowActionService.addOperator(value.deletedOperator,
-            workflowActionService.getPoint(value.deletedOperator.operatorID)); });
-        }
-      }
-    );
-
-    this.testGraph.getLinkAddStream().subscribe(
-      value => {
-        if (this.undoToggle) {
-          this.undos.push(() => {workflowActionService.deleteLinkWithID(value.linkID); });
-          if (this.clearRedo) {
-            this.redos = [];
-          }
-        } else {
-          this.redos.push(() => {workflowActionService.deleteLinkWithID(value.linkID); });
-        }
-      }
-    );
-    this.testGraph.getLinkDeleteStream().subscribe(
-      value => {
-        if (this.undoToggle) {
-          this.undos.push(() => {workflowActionService.addLink(value.deletedLink); });
-          if (this.clearRedo) {
-            this.redos = [];
-          }
-        } else {
-          this.redos.push(() => {workflowActionService.addLink(value.deletedLink); });
-        }
-      }
-    );
-
-    this.testGraph.getOperatorPropertyChangeStream().subscribe(
-      value => {
-        // another problem: not all operators will trigger this when operator is created SOLVED
-        if (this.undoToggle && this.changeProperty) {
-          this.undos.push(() => {workflowActionService.changeOperatorProperty(value.operator.operatorID, value.oldProperty); });
-          if (this.clearRedo) {
-            this.redos = [];
-          }
-        } else if (this.changeProperty) {
-          this.redos.push(() => {workflowActionService.changeOperatorProperty(value.operator.operatorID, value.oldProperty); });
-        }
-      }
-    );
-
-    // CURRENT BUGS: 1. When undoing too fast, the function for redoing the drag will get added after everything else
-    // 2. After re-adding an operator, the elements change slightly so it won't work. Possible solution: directly modify
-    // undoAction()
-    // problem is you want to wait a bit before adding to undo, but when you redo you want to add it back instantly
-    // solution: write a function in this file, an arrow function(?)
-    // consider moving the
-    workflowActionService.getJointGraphWrapper().getJointOperatorCellDragStream().pipe(debounceTime(400)).subscribe(
-      value => {
-        // only want to trigger stuff in here when new action is performed, not from a stack
-        if (this.undoToggle && this.dragToggle) {
-          if (this.clearRedo) {
-            this.redos = [];
-          }
-          const pointer = workflowActionService.pointsPointer.get(String(value.id));
-          let points = workflowActionService.pointsUndo.get(String(value.id));
-          if ((pointer || pointer === 0) && points && this.clearRedo) {
-            // check to see if we're at the top of the stack
-            if (pointer !== points.length - 1) {
-              points = points.slice(0, pointer + 1);
-            }
-
-            // increment pointer
-            workflowActionService.pointsPointer.set(String(value.id), pointer + 1);
-            // add value to map
-            console.log('boo');
-            points.push(value.attributes.position);
-            workflowActionService.pointsUndo.set(String(value.id), points);
-          }
-          this.undos.push(() => {this.undoDrag(String(value.id)); });
-
-        }
-        this.dragToggle = true;
-      }
-    );
-
-
-  }
-
-  // lets us undo/redo dragging quickly
-  public undoDrag(ID: string): void {
-    console.log('hi');
-    console.log(this.workflowActionService.pointsUndo.get(ID));
-    this.workflowActionService.undoDragOperator(ID);
-    this.redos.push(() => {this.redoDrag(ID); });
-  }
-
-  public redoDrag(ID: string): void {
-    console.log('bye');
-    console.log(this.workflowActionService.pointsUndo.get(ID));
-    this.workflowActionService.redoDragOperator(ID);
-    this.undos.push(() => {this.undoDrag(ID); });
   }
 
   public undoAction(): void {
@@ -179,5 +59,156 @@ export class UndoRedoService {
       this.redos.pop();
     }
     this.clearRedo = true;
+  }
+  private handleOperatorAdd(): void {
+
+    // when we undo to readd link + operators, also toggle the boolean(?). Probably do this in the
+    // new function itself
+    this.testGraph.getOperatorAddStream().subscribe(
+      value => {
+        if (this.undoToggle) {
+          this.undos.push(() => {this.workflowActionService.deleteOperator(value.operatorID); });
+          if (this.clearRedo) {
+            this.redos = [];
+          }
+          this.changeProperty = false; /* sometimes when we create an operator, we trigger a property change event
+          that we want to ignore */
+          setTimeout(() => { // sets changeProperty back to true after half a second since not all operators trigger it
+            this.changeProperty = true;
+          }, 500);
+        } else {
+          this.redos.push(() => {this.workflowActionService.deleteOperator(value.operatorID); });
+        }
+      }
+    );
+  }
+
+  private handleOperatorDelete(): void {
+    // potential problem: when dragging the link around everytime it gets magnetted to a port and pulled away
+    // it gets counted as link creation/deletion. You end up with a ton of them for one link creation
+    this.testGraph.getOperatorDeleteStream().subscribe(
+      value => {
+         // When we click redo to recreate an operator, we don't ever have to worry about creating
+        // the links with it. Only matters for undoing.
+        if (this.undoToggle) {
+          // we need to somehow grab the point
+          const links = this.workflowActionService.deletedLinks;
+          this.undos.push(() => {this.workflowActionService.addOperatorAndLinks(value.deletedOperator,
+            this.workflowActionService.getPoint(value.deletedOperator.operatorID), links); });
+
+          if (this.clearRedo) {
+            this.redos = [];
+          }
+        } else {
+          this.redos.push(() => {this.workflowActionService.addOperator(value.deletedOperator,
+            this.workflowActionService.getPoint(value.deletedOperator.operatorID)); });
+        }
+        this.workflowActionService.deletedLinks = [];
+        this.workflowActionService.separateLink = true;
+      }
+    );
+  }
+
+  private handleLinkAdd(): void {
+    this.testGraph.getLinkAddStream().subscribe(
+      value => {
+        if (this.workflowActionService.separateLink) {
+          if (this.undoToggle) {
+            this.undos.push(() => {this.workflowActionService.deleteLinkWithID(value.linkID); });
+            if (this.clearRedo) {
+              this.redos = [];
+            }
+          } else {
+            this.redos.push(() => {this.workflowActionService.deleteLinkWithID(value.linkID); });
+          }
+        }
+      }
+    );
+  }
+
+  private handleLinkDelete(): void {
+    this.testGraph.getLinkDeleteStream().subscribe(
+      value => {
+        // find a way to capture link deletion and operator deletion at the same time
+        // Idea: have a new boolean toggle whenever we remove an operator. Set it to false
+        // for like half a second, record any links that get deleted within that time.
+        // Those links will get associated with that operator deletion and get stored as a
+        // single command pattern rather than their separate deltions.
+        // Do the same thing when adding back? So when we add the operator with the links nothing
+        // weird happens
+        // we don't even care specifically about LinkID, just the entire link
+          // links are getting deleted first
+        // figure out how to reset the array of things, probably move it to WorkflowActionService
+        if (this.workflowActionService.separateLink) {
+          if (this.undoToggle) {
+            this.undos.push(() => {this.workflowActionService.addLink(value.deletedLink); });
+            if (this.clearRedo) {
+              this.redos = [];
+            }
+          } else {
+            this.redos.push(() => {this.workflowActionService.addLink(value.deletedLink); });
+          }
+        } else {
+          this.workflowActionService.deletedLinks.push(value.deletedLink);
+        }
+      }
+    );
+  }
+
+  private handlePropertyChange(): void {
+    this.testGraph.getOperatorPropertyChangeStream().subscribe(
+      value => {
+        // another problem: not all operators will trigger this when operator is created SOLVED
+        if (this.undoToggle && this.changeProperty) {
+          this.undos.push(() => {this.workflowActionService.changeOperatorProperty(value.operator.operatorID, value.oldProperty); });
+          if (this.clearRedo) {
+            this.redos = [];
+          }
+        } else if (this.changeProperty) {
+          this.redos.push(() => {this.workflowActionService.changeOperatorProperty(value.operator.operatorID, value.oldProperty); });
+        }
+      }
+    );
+  }
+
+  private handleOperatorDrag(): void {
+    this.workflowActionService.getJointGraphWrapper().getJointOperatorCellDragStream().pipe(debounceTime(350)).subscribe(
+      value => {
+        // only want to trigger stuff in here when new action is performed, not from a stack
+        if (this.undoToggle && this.dragToggle) {
+          if (this.clearRedo) {
+            this.redos = [];
+          }
+          const pointer = this.workflowActionService.pointsPointer.get(String(value.id));
+          let points = this.workflowActionService.pointsUndo.get(String(value.id));
+          if ((pointer || pointer === 0) && points) {
+            // check to see if we're at the top of the stack
+            if (pointer !== points.length - 1) {
+              // we're cutting out all of the coordinates we no longer need after we do a new drag
+              points = points.slice(0, pointer + 1);
+            }
+
+            // increment pointer
+            this.workflowActionService.pointsPointer.set(String(value.id), pointer + 1);
+            // add value to map
+            points.push(value.attributes.position);
+            this.workflowActionService.pointsUndo.set(String(value.id), points);
+          }
+          this.undos.push(() => {this.undoDrag(String(value.id)); });
+
+        }
+        this.dragToggle = true;
+      }
+    );
+  }
+  // lets us undo/redo dragging quickly
+  private undoDrag(ID: string): void {
+    this.workflowActionService.undoDragOperator(ID);
+    this.redos.push(() => {this.redoDrag(ID); });
+  }
+
+  private redoDrag(ID: string): void {
+    this.workflowActionService.redoDragOperator(ID);
+    this.undos.push(() => {this.undoDrag(ID); });
   }
 }
