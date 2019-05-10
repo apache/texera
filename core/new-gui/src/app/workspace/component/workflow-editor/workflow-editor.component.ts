@@ -6,11 +6,9 @@ import { Observable } from 'rxjs/Observable';
 
 import '../../../common/rxjs-operators';
 import * as joint from 'jointjs';
-import { Point, OperatorPredicate, OperatorLink, OperatorPort } from '../../types/workflow-common.interface';
+import { Point } from '../../types/workflow-common.interface';
 import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-graph-wrapper';
 
-
-import { LogicalPlan } from '../../types/execute-workflow.interface';
 import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-util.service';
 
 
@@ -43,17 +41,13 @@ type JointPointerDownEvent = [JQuery.Event, number, number];
   styleUrls: ['./workflow-editor.component.scss']
 })
 export class WorkflowEditorComponent implements AfterViewInit {
-  public static dropPositionKey = 'dropPosition';
-  public static formKey = 'formkey';
   // the DOM element ID of the main editor. It can be used by jQuery and jointJS to find the DOM element
   // in the HTML template, the div element ID is set using this variable
   public readonly WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID = 'texera-workflow-editor-jointjs-wrapper-id';
   public readonly WORKFLOW_EDITOR_JOINTJS_ID = 'texera-workflow-editor-jointjs-body-id';
 
   private paper: joint.dia.Paper | undefined;
-  private operatorLocations = new Array();
-  private operatorLinks = new Array();
-  private formData = new Array();
+
   private ifMouseDown: boolean = false;
   private mouseDown: Point | undefined;
   private dragOffset: Point = { x : 0 , y : 0};
@@ -76,7 +70,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
   }
 
   ngAfterViewInit() {
-    // this.handleAutoSaveWorkFlow();
+
     this.initializeJointPaper();
     this.handlePaperRestoreDefaultOffset();
     this.handlePaperZoom();
@@ -87,45 +81,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.handlePaperMouseZoom();
     this.dragDropService.registerWorkflowEditorDrop(this.WORKFLOW_EDITOR_JOINTJS_ID);
   }
-  public replaceWorkFlow(logicalPlan: LogicalPlan,
-    operatorLocations: Array<{operatorType: string, offset: Point}>): void {
-    let count = 0;
 
-    logicalPlan.operators.forEach(operator => {
-        const {operatorID: ID, operatorType: opType, ...opProperties} = operator;
-        const operatorPredicate = this.workflowUtilService.getNewOperatorPredicate(opType);
-        const newOperator = {
-          ...operatorPredicate,
-          operatorID: operator.operatorID,
-          operatorProperties: opProperties
-        };
-
-
-        this.workflowActionService.addOperator(newOperator, {x: operatorLocations[count].offset.x, y: operatorLocations[count].offset.y});
-        count++;
-    });
-
-    logicalPlan.links.forEach(link => {
-      const sourcePortID = 'output-';
-      const targetPortID = 'input-';
-      let sourceIndex = 0;
-      let targetIndex = 0;
-      while (this.workflowActionService.getTexeraGraph().hasLinkWithID(sourcePortID + sourceIndex) === true
-        || this.workflowActionService.getTexeraGraph().hasLinkWithID(targetPortID + targetIndex) === true) {
-          if (this.workflowActionService.getTexeraGraph().hasLinkWithID(sourcePortID + sourceIndex) === true) {
-            sourceIndex ++;
-          }
-          if (this.workflowActionService.getTexeraGraph().hasLinkWithID(targetPortID + targetIndex) === true) {
-            targetIndex ++;
-          }
-      }
-      const linkID = this.workflowUtilService.getRandomUUID();
-      const sourcePort: OperatorPort = {operatorID: link.origin, portID: 'output-' + sourceIndex};
-      const outputPort: OperatorPort = {operatorID: link.destination, portID: 'input-' + targetIndex};
-      const newOperatorLink: OperatorLink = {linkID, source: sourcePort, target: outputPort};
-      this.workflowActionService.addLink(newOperatorLink);
-    });
-  }
 
   private initializeJointPaper(): void {
     // get the custom paper options
