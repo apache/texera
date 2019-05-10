@@ -1,18 +1,15 @@
 import { BrowserModule } from '@angular/platform-browser';
 import { NgModule } from '@angular/core';
 import { HttpClientModule } from '@angular/common/http';
-
 import { AppRoutingModule } from './app-routing.module';
+import { environment } from './../environments/environment';
 
 import { CustomNgMaterialModule } from './common/custom-ng-material.module';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
 import { RouterModule } from '@angular/router';
 import { TourNgBootstrapModule } from 'ngx-tour-ng-bootstrap';
-
-// import { MatDialogModule } from '@angular/material'; //
-// import { MatIconModule } from '@angular/material/icon'; //
-// import { MatChipsModule } from '@angular/material/chips'; //
+import { LoggerModule, NgxLoggerLevel } from 'ngx-logger';
 
 import { MaterialDesignFrameworkModule } from 'angular6-json-schema-form';
 import { NgxJsonViewerModule } from 'ngx-json-viewer';
@@ -107,7 +104,7 @@ import { ResourceSectionComponent } from './dashboard/component/feature-containe
     NgbModule.forRoot(),
     RouterModule.forRoot([]),
     TourNgBootstrapModule.forRoot(),
-
+    LoggerModule.forRoot({level: environment.production ? NgxLoggerLevel.ERROR : NgxLoggerLevel.DEBUG, serverLogLevel: NgxLoggerLevel.OFF}),
     MaterialDesignFrameworkModule
 
   ],
