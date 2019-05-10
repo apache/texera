@@ -26,46 +26,12 @@
 *              ******************
 **/
 .add-dictionary-container{
-  display: grid;
-  grid-template-columns: 70% 30%;
-  grid-template-rows : 60px auto 40px 5% 15%;
-  grid-row-gap: 10px;
+  margin-top:20px;
 }
-
-.name-area{
-  grid-row-start: 1;
-  grid-row-end: 2;
-  grid-column-start: 1;
-  grid-column-end: 2;
-}
-
-.content-area{
-  grid-row-start: 2;
-  grid-row-end: 3;
-  grid-column-start: 1;
-  grid-column-end: 3;
-}
-
-.separator-area{
-  grid-row-start: 3;
-  grid-row-end: 4;
-  grid-column-start: 1;
-  grid-column-end: 2;
-}
-
-.transmit-area{
-  grid-row-start: 4;
-  grid-row-end: 5;
-  grid-column-start: 1;
-  grid-column-end: 3;
-}
-
-.file-upload-area{
-  grid-row-start: 5;
-  grid-row-end: 6;
-  grid-column-start: 1;
-  grid-column-end: 3;
-  overflow: auto;
+.add-dictionary-container > *{
+  display: flex;
+  flex-direction: column;
+  column-fill: balance;
 }
 
 .modal-body {
@@ -90,9 +56,11 @@
 .have-file-over {
   background:  lightgray;
 }
-warning-space
+
 .invalid-file {
-  background: linear-gradient(to right,red 10%, white 60%);
+  // margin-left:10px;
+  padding-left:10px;
+  color:orange;
 }
 
 .file-queue-item {
@@ -105,12 +73,10 @@ warning-space
 .drag-file-container:last-child{
   border-bottom:none;
 }
-/**
-* this css is used for creating a n*2 grid area for the queue
-*              *******************
-*              *        *        *
-*              *******************
-**/
+
+.delete-all-invalid-button{
+  background: red;
+}
 
 .queue-delete-button{
   background-color:red;
@@ -121,8 +87,9 @@ warning-space
   transition-duration: 0.2s;
 }
 
-.queue-delete-bottom:hover{
-  color: white;
+.queue-delete-button:hover{
+  color:white;
+  // background-color: orangered;
 }
 
 .invalid-file-warning{

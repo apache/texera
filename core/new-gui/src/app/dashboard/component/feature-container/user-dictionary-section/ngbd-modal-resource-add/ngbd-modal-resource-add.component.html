@@ -22,15 +22,18 @@
           </div>
       </div>
       <div *ngIf="uploader.queue.length">
-        <li *ngFor="let item of uploader.queue" [ngClass]="{'invalid-file':checkThisFileInvalid(item._file)}"
-            class="file-queue-item">
-          <span>{{ item?.file?.name }}</span>
+        <li *ngFor="let item of uploader.queue" class="file-queue-item">
+          <span>
+            <label>{{ item?.file?.name }}</label>
+            <label *ngIf="checkThisFileInvalid(item._file)" class="invalid-file">*Invalid</label>
+          </span>
           <button class="queue-delete-button" (click)="removeFile(item)">
             <i class="fa fa-trash" aria-hidden="true"></i>
           </button>
         </li>
         <div *ngIf="invalidFileNumber || duplicateFile.length">
-          <button class="btn btn-outline-dark add-button" (click)="deleteAllInvalidFile()">Delete Invalid Files</button>
+          <button type="button" class="delete-all-invalid-button btn btn-outline-dark"
+          (click)="deleteAllInvalidFile()">Delete Invalid Files</button>
           <label *ngIf="invalidFileNumber"
             class="invalid-file-warning"> *You can only upload .txt file</label>
           <label *ngIf="duplicateFile.length"
@@ -41,21 +44,24 @@
 
     <!-- user manually add tab -->
     <mat-tab label="Add Manually">
-      <div class="modal-body">
-        <mat-dialog-content class= "add-dictionary-container">
-          <mat-form-field class= "name-area">
-            <input  matInput [(ngModel)]="name" placeholder="Name of Dictionary (*Required)">
+      <div class= "add-dictionary-container">
+        <mat-dialog-content>
+          <mat-form-field>
+            <input matInput [(ngModel)]="name" placeholder="Name of Dictionary"
+            [formControl]="nameValidator" [errorStateMatcher]="matcher" required>
+            <mat-error *ngIf="nameValidator.invalid">*Name is <strong>required</strong></mat-error>
           </mat-form-field>
-          <mat-form-field class= "content-area" >
-            <textarea matInput
-              [(ngModel)]="dictContent" placeholder="Content of Dictionary (*Required)"
-              matAutosizeMaxRows="5">
+          <mat-form-field>
+            <textarea matInput style="resize: none;"
+              [(ngModel)]="dictContent" placeholder="Content of Dictionary"
+              [formControl]="contentValidator" [errorStateMatcher]="matcher" required
+              matTextareaAutosize matAutosizeMaxRows="8">
             </textarea>
+            <mat-error *ngIf="contentValidator.invalid">*Content is <strong>required</strong></mat-error>
           </mat-form-field>
-          <mat-form-field class= "separator-area">
+          <mat-form-field>
             <input  matInput [(ngModel)]="separator" placeholder="Content Separator (' , '    ' \\t '    ' \\n ')">
           </mat-form-field>
-
         </mat-dialog-content>
       </div>
     </mat-tab>

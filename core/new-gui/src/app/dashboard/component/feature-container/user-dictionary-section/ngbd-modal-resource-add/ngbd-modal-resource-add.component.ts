@@ -17,6 +17,16 @@ import { MatTabChangeEvent } from '@angular/material';
  * @author Zhaomin Li
  * @author Adam
  */
+
+import { ErrorStateMatcher } from '@angular/material';
+import { FormControl, FormGroupDirective, NgForm, Validators } from '@angular/forms';
+
+export class MyErrorStateMatcher implements ErrorStateMatcher {
+  isErrorState(control: FormControl | null, form: FormGroupDirective | NgForm | null): boolean {
+    return !!(control && control.invalid && (control.dirty || control.touched));
+  }
+}
+
 @Component({
   selector: 'texera-resource-section-add-dict-modal',
   templateUrl: 'ngbd-modal-resource-add.component.html',
@@ -42,8 +52,11 @@ export class NgbdModalResourceAddComponent {
   // Uploader is from outside library. Here it is used to capture the file and store it.
   // It is capable of sending file but we don't use it. the url="..." is meanless since we send it through our own way.
   public uploader: FileUploader = new FileUploader({url: 'This string does not matter'});
-
   public isInUploadFileTab: boolean = true;
+
+  public matcher = new MyErrorStateMatcher();
+  public nameValidator: FormControl =  new FormControl('', [Validators.required]);
+  public contentValidator: FormControl =  new FormControl('', [Validators.required]);
 
   constructor(
     public activeModal: NgbActiveModal,
@@ -73,17 +86,21 @@ export class NgbdModalResourceAddComponent {
 
     // when separator is not provided, use comma as default separator
     if (this.separator === '') { this.separator = ','; }
-    this.newDictionary = {
-      id : '1', // TODO: need unique ID
-      name : this.name,
-      items : this.dictContent.split(this.separator),
+    const  manualDictData: SavedManualDictionary = {
+      name: this.name,
+      content: this.dictContent,
+      separator: this.separator
     };
+    // this.newDictionary = {
+    //   id : '1', // TODO: need unique ID
+    //   name : this.name,
+    //   items : this.dictContent.split(this.separator),
+    // };
 
-    const manualDictData: SavedManualDictionary = {name: '', content: '', separator: ''};
     const result: SavedDictionaryResult = {
-      command: 0, // commend 0 means user wants to upload the manually created dict.
+      command: 0, // commend 0 means user wants to upload the manual dict.
       savedQueue: [],
-      savedManualDictionary: manualDictData
+      savedManualDictionary:  manualDictData
     };
     this.activeModal.close(result);
   }
@@ -95,7 +112,7 @@ export class NgbdModalResourceAddComponent {
   public onClose() {
     this.deleteAllInvalidFile();
     const result: SavedDictionaryResult = {
-      command: 1, // commannd 1 means close the pop up and save the queue.
+      command: 2, // commannd 2 means close the pop up and save the queue.
       savedQueue: this.uploader.queue,
       savedManualDictionary: {
         name : this.name,
@@ -120,10 +137,14 @@ export class NgbdModalResourceAddComponent {
    * TODO: send http request to the backend and update the user console dictionary list
    */
   public uploadFile(): void {
-    const result = {
-      command: 0, // command 0 indicates upload
-      savedQueue: [],
-      dictionaryData: []
+    const result: SavedDictionaryResult = {
+      command: 1, // command 0 indicates upload the file in the file queue
+      savedQueue: this.uploader.queue,
+      savedManualDictionary: {
+        name: '',
+        content: '',
+        separator: ''
+      }
     };
 
     // reset the uploader queue
@@ -213,11 +234,11 @@ export class NgbdModalResourceAddComponent {
    * @param
    */
   public deleteAllInvalidFile(): void {
-    this.uploader.queue = this.uploader.queue.filter( // delete invalid type file
+    this.uploader.queue = this.uploader.queue.filter( // delete invalid files due to type
       (fileitem: FileItem) => fileitem._file.type.includes('text/plain'));
     this.invalidFileNumber = 0;
 
-    const map: Map<string, number> = new Map(); // create map to count file with the same name
+    const map: Map<string, number> = new Map(); // create map to count files with the same name
     this.uploader.queue.map(fileitem => fileitem._file.name)
     .forEach(name => {
       const count: number | undefined = map.get(name);

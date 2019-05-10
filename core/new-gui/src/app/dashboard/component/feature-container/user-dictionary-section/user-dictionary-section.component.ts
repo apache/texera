@@ -3,7 +3,7 @@ import { NgbModal, NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { HttpClientModule } from '@angular/common/http';
 
 import { Observable } from 'rxjs/Observable';
-import { UserDictionary } from '../../../type/user-dictionary';
+import { UserDictionary, SavedManualDictionary, SavedDictionaryResult } from '../../../type/user-dictionary';
 
 import { UserDictionaryService } from '../../../service/user-dictionary/user-dictionary.service';
 
@@ -31,10 +31,10 @@ export class UserDictionarySectionComponent implements OnInit {
 
   public UserDictionary: UserDictionary[] = [];
   public savedQueue: FileItem[] = [];
-  public savedManualDict = {
-    name : '',
-    content : '',
-    separator : ''
+  public savedManualDict: SavedManualDictionary = {
+    name: '',
+    content: '',
+    separator: ''
   };
 
   constructor(
@@ -100,19 +100,18 @@ export class UserDictionarySectionComponent implements OnInit {
     modalRef.componentInstance.dictContent = this.savedManualDict.content;
     modalRef.componentInstance.separator = this.savedManualDict.separator;
     Observable.from(modalRef.result).subscribe(
-      (value: {command: number,
-              savedQueue: FileItem[],
-              savedManualDict: {
-                name: string,
-                content: string,
-                separator: string
-              };
-              dictionaryData: UserDictionary[]}) => {
-        if (value.command === 0) { // user wants to upload the file
-          value.dictionaryData.forEach((userdictionary: UserDictionary) => {
-            userdictionary.id = (this.UserDictionary.length + 1).toString(); // TODO: need unique ID
-            this.UserDictionary.push(userdictionary);
-            this.userDictionaryService.addUserDictionaryData(userdictionary);
+      (value: SavedDictionaryResult) => {
+        if (value.command === 0) { // user wants to upload the manual file
+          // TODO: upload the manual file
+          this.savedQueue = [];
+          this.savedManualDict = {
+            name : '',
+            content : '',
+            separator : ''
+          };
+        } else if (value.command === 1) { // user wants to upload the file in the queue
+          value.savedQueue.forEach((fileitem: FileItem) => {
+            this.userDictionaryService.uploadDictionary(fileitem._file);
           });
           this.savedQueue = [];
           this.savedManualDict = {
@@ -120,12 +119,12 @@ export class UserDictionarySectionComponent implements OnInit {
             content : '',
             separator : ''
           };
-        } else if (value.command === 1) { // user close the pop up, but we temporarily store the file array
+        } else if (value.command === 2) { // user close the pop up, but we temporarily store the file array
           this.savedQueue = value.savedQueue;
           this.savedManualDict = {
-            name : value.savedManualDict.name,
-            content : value.savedManualDict.content,
-            separator : value.savedManualDict.separator
+            name : value.savedManualDictionary.name,
+            content : value.savedManualDictionary.content,
+            separator : value.savedManualDictionary.separator
           };
         }
       }

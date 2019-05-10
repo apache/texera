@@ -62,6 +62,7 @@ import {
 import { ResourceSectionComponent } from './dashboard/component/feature-container/resource-section/resource-section.component';
 
 import { FileUploadModule } from 'ng2-file-upload';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 
 @NgModule({
   declarations: [
@@ -111,6 +112,8 @@ import { FileUploadModule } from 'ng2-file-upload';
 
     MaterialDesignFrameworkModule,
     FileUploadModule,
+    FormsModule,
+    ReactiveFormsModule
 
   ],
   entryComponents: [
