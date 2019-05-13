@@ -7,15 +7,15 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * Jackson to serialize an object of this class to JSON
  * Created by kishore on 10/4/16.
  */
-public class TexeraWebResponse {
+public class GenericWebResponse {
     private int code;
     private String message;
 
-    public TexeraWebResponse() {
+    public GenericWebResponse() {
         // Default constructor is required for Jackson JSON serialization
     }
 
-    public TexeraWebResponse(int code, String message) {
+    public GenericWebResponse(int code, String message) {
         this.code = code;
         this.message = message;
     }

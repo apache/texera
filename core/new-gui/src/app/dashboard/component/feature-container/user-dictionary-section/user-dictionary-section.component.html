@@ -25,7 +25,7 @@
         <h2 class="page-title">Dictionaries</h2>
         <br />
         <div class="scroll">
-          <mat-list-item *ngFor="let dictionary of UserDictionary" class="user-dictionary-list-item">
+          <mat-list-item *ngFor="let dictionary of userDictionaries" class="user-dictionary-list-item">
             <ng-template #tipContent>Description: {{dictionary.description}}</ng-template>
             <div class="section-for-tip" placement="bottom" [ngbTooltip]="tipContent">
               <p font-size=10px><span class="dict-name">

@@ -16,7 +16,7 @@ import {MatIconModule} from '@angular/material/icon';
 import { NgbModule, NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { FormsModule } from '@angular/forms';
 
-import { UserDictionary } from '../../../type/user-dictionary';
+import { UserDictionary } from '../../../service/user-dictionary/user-dictionary.interface';
 
 import { HttpClientModule, HttpClient } from '@angular/common/http';
 
@@ -77,28 +77,28 @@ describe('UserDictionarySectionComponent', () => {
   });
 
   it('alphaSortTest increaseOrder', () => {
-    component.UserDictionary = [];
-    component.UserDictionary = component.UserDictionary.concat(TestCase);
+    component.userDictionaries = [];
+    component.userDictionaries = component.userDictionaries.concat(TestCase);
     component.ascSort();
-    const SortedCase = component.UserDictionary.map(item => item.name);
+    const SortedCase = component.userDictionaries.map(item => item.name);
     expect(SortedCase)
       .toEqual(['gun control', 'immigration policy', 'police violence']);
   });
 
   it('alphaSortTest decreaseOrder', () => {
-    component.UserDictionary = [];
-    component.UserDictionary = component.UserDictionary.concat(TestCase);
+    component.userDictionaries = [];
+    component.userDictionaries = component.userDictionaries.concat(TestCase);
     component.dscSort();
-    const SortedCase = component.UserDictionary.map(item => item.name);
+    const SortedCase = component.userDictionaries.map(item => item.name);
     expect(SortedCase)
       .toEqual(['police violence', 'immigration policy', 'gun control']);
   });
 
   it('createDateSortTest', () => {
-    component.UserDictionary = [];
-    component.UserDictionary = component.UserDictionary.concat(TestCase);
+    component.userDictionaries = [];
+    component.userDictionaries = component.userDictionaries.concat(TestCase);
     component.sizeSort();
-    const SortedCase = component.UserDictionary.map(item => item.name);
+    const SortedCase = component.userDictionaries.map(item => item.name);
     expect(SortedCase)
       .toEqual(['immigration policy', 'gun control', 'police violence']);
   });

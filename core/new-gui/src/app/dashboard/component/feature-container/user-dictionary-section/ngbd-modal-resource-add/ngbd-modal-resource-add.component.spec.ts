@@ -10,7 +10,7 @@ import { FormsModule } from '@angular/forms';
 import { HttpClientModule } from '@angular/common/http';
 import { NgbdModalResourceAddComponent } from './ngbd-modal-resource-add.component';
 
-import { UserDictionary } from '../../../../type/user-dictionary';
+import { UserDictionary } from '../../../../service/user-dictionary/user-dictionary.interface';
 
 describe('NgbdModalResourceAddComponent', () => {
   let component: NgbdModalResourceAddComponent;

@@ -2,7 +2,8 @@ import { Component, Output, EventEmitter } from '@angular/core';
 import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 
 import { UserDictionaryService } from '../../../../service/user-dictionary/user-dictionary.service';
-import { UserDictionary } from '../../../../type/user-dictionary';
+import { UserDictionary } from '../../../../service/user-dictionary/user-dictionary.interface';
+import { Observable } from '../../../../../../../node_modules/rxjs';
 
 /**
  * NgbdModalResourceAddComponent is the pop-up component to let
@@ -49,25 +50,29 @@ export class NgbdModalResourceAddComponent {
   public addDictionary(): void {
 
     if (this.selectFile !== null) {
-        this.userDictionaryService.uploadDictionary(this.selectFile);
+      this.activeModal.close(this.userDictionaryService.uploadDictionary(this.selectFile));
+      return;
     }
 
-    if (this.name !== '') {
+    if (this.name !== '' && this.dictContent !== '' && this.separator !== '') {
       this.newDictionary = <UserDictionary> {
         id : '1',
         name : this.name,
         items : [],
       };
 
-      if (this.dictContent !== '' && this.separator !== '') {
-        const listWithDup = this.dictContent.split(this.separator);
-        this.newDictionary.items = listWithDup.filter((v, i) => listWithDup.indexOf(v) === i);
-      }
+      const listWithDup = this.dictContent.split(this.separator);
+      this.newDictionary.items = listWithDup.filter((v, i) => listWithDup.indexOf(v) === i);
 
       this.name = '';
       this.dictContent = '';
       this.separator = '';
+
+      this.activeModal.close(this.userDictionaryService.putUserDictionaryData(this.newDictionary));
+      return;
     }
-    this.activeModal.close(this.newDictionary);
+
+    this.activeModal.close(Observable.empty());
+
   }
 }

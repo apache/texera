@@ -1,13 +1,18 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 
 import { Observable } from 'rxjs/Observable';
 import { Subject } from 'rxjs/Subject';
-import { UserDictionary } from '../../type/user-dictionary';
+import { UserDictionary } from './user-dictionary.interface';
+import { environment } from '../../../../environments/environment';
 
-const apiUrl = 'http://localhost:8080/api';
+const dictionaryUrl = 'users/dictionaries';
+const uploadDictionaryUrl = 'users/dictionaries/upload-file';
 
-const uploadDictionaryUrl = apiUrl + '/upload/dictionary';
+export interface GenericWebResponse {
+  code: number;
+  message: string;
+}
 
 /**
  * User Dictionary service should be able to get all the saved-dictionary
@@ -16,7 +21,6 @@ const uploadDictionaryUrl = apiUrl + '/upload/dictionary';
  * by calling methods in service. StubUserDictionaryService is used for replacing
  * real service to complete testing cases. It uploads the mock data to the dashboard.
  *
- * //Uploading dictionary API is valid with path '/api/upload/dictionary'.
  *
  * @author Zhaomin Li
  */
@@ -24,42 +28,37 @@ const uploadDictionaryUrl = apiUrl + '/upload/dictionary';
 @Injectable()
 export class UserDictionaryService {
 
-  private saveStartedStream = new Subject<string>();
-
   constructor(private http: HttpClient) { }
 
-  public getUserDictionaryData(): Observable<UserDictionary[]> {
-    return Observable.of([]);
+  public listUserDictionaries(): Observable<UserDictionary[]> {
+    return this.http.get<UserDictionary[]>(`${environment.apiUrl}/${dictionaryUrl}`);
   }
 
-  public addUserDictionaryData(addDict: UserDictionary): void {
-    console.log('dict added');
+  public getUserDictionary(dictID: string): Observable<UserDictionary> {
+    return this.http.get<UserDictionary>(`${environment.apiUrl}/${dictionaryUrl}/${dictID}`);
   }
 
-  public uploadDictionary(file: File): void {
+  public putUserDictionaryData(userDict: UserDictionary): Observable<GenericWebResponse> {
+    return this.http.put<GenericWebResponse>(
+      `${environment.apiUrl}/${dictionaryUrl}/${userDict.id}`,
+      JSON.stringify(userDict),
+      {
+        headers: new HttpHeaders({
+          'Content-Type':  'application/json',
+        })
+      }
+    );
+  }
+
+  public uploadDictionary(file: File): Observable<GenericWebResponse> {
     const formData: FormData = new FormData();
     formData.append('file', file, file.name);
 
-    this.saveStartedStream.next('start to upload dictionary');
-
-    this.http.post(uploadDictionaryUrl, formData, undefined)
-      .subscribe(
-        data => {
-          alert(file.name + ' is uploaded');
-        },
-        err => {
-            alert('Error occurred while uploading ' + file.name);
-            console.log('Error occurred while uploading ' + file.name + '\nError message: ' + err);
-        }
-      );
+    return this.http.post<GenericWebResponse>(`${environment.apiUrl}/${uploadDictionaryUrl}`, formData);
   }
 
-  public getUploadDictionary(): Observable<string> {
-    return this.saveStartedStream.asObservable();
-  }
-
-  public deleteUserDictionaryData(deleteDictionary: UserDictionary) {
-    return null;
+  public deleteUserDictionaryData(dictID: string): Observable<GenericWebResponse> {
+    return this.http.delete<GenericWebResponse>(`${environment.apiUrl}/${dictionaryUrl}/${dictID}`);
   }
 
 }

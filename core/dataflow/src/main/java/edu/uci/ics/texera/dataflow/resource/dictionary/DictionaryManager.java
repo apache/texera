@@ -70,31 +70,44 @@ public class DictionaryManager {
         StorageUtils.deleteDirectory(DictionaryManagerConstants.DICTIONARY_DIR);
     }
     
-    public List<String> addDictionary(String fileName, String dictionaryContent) throws StorageException {
+    public void addDictionary(String dictID, String dictionaryContent) throws StorageException {
         // write metadata info
         DataWriter dataWriter = relationManager.getTableDataWriter(DictionaryManagerConstants.TABLE_NAME);
         dataWriter.open();
         
         // clean up the same dictionary metadata if it already exists in dictionary table
-        dataWriter.deleteTuple(new TermQuery(new Term(DictionaryManagerConstants.NAME, fileName)));
+        dataWriter.deleteTuple(new TermQuery(new Term(DictionaryManagerConstants.NAME, dictID)));
         
         // insert new tuple
-        dataWriter.insertTuple(new Tuple(DictionaryManagerConstants.SCHEMA, new StringField(fileName)));
+        dataWriter.insertTuple(new Tuple(DictionaryManagerConstants.SCHEMA, new StringField(dictID)));
         
         dataWriter.close();
         
         // write actual dictionary file
-        writeToFile(fileName, dictionaryContent);
-        
-        return null;
+        writeToFile(dictID, dictionaryContent);
     }
-    
+
+    public void deleteDictionary(String dictID) {
+        DataWriter dataWriter = relationManager.getTableDataWriter(DictionaryManagerConstants.TABLE_NAME);
+        dataWriter.open();
+
+        // clean up the same dictionary metadata if it already exists in dictionary table
+        dataWriter.deleteTuple(new TermQuery(new Term(DictionaryManagerConstants.NAME, dictID)));
+
+        dataWriter.close();
+
+        try {
+            Path filePath = DictionaryManagerConstants.DICTIONARY_DIR_PATH.resolve(dictID);
+            Files.deleteIfExists(filePath);
+        } catch (IOException e) {
+            throw new StorageException("Error occurred whlie uploading dictionary");
+        }
+    }
+
+
     /**
      * Write uploaded file at the given location (if the file exists, remove it and write a new one.)
      *
-     * @param content
-     * @param fileUploadDirectory
-     * @param fileName
      */
     private void writeToFile(String fileName, String dictionaryContent)  throws StorageException {
         try {
@@ -107,7 +120,7 @@ public class DictionaryManager {
         }
     }
     
-    public List<String> getDictionaries() throws StorageException {
+    public List<String> getDictionaryIDs() throws StorageException {
         List<String> dictionaries = new ArrayList<>();
         
         DataReader dataReader = relationManager.getTableDataReader(DictionaryManagerConstants.TABLE_NAME, new MatchAllDocsQuery());

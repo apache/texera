@@ -2,7 +2,7 @@ import { Component, OnInit, Input, Output } from '@angular/core';
 import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
 
 import { Observable } from 'rxjs/Observable';
-import { UserDictionary } from '../../../type/user-dictionary';
+import { UserDictionary } from '../../../service/user-dictionary/user-dictionary.interface';
 
 import { UserDictionaryService } from '../../../service/user-dictionary/user-dictionary.service';
 
@@ -25,18 +25,20 @@ import { cloneDeep } from 'lodash';
   templateUrl: './user-dictionary-section.component.html',
   styleUrls: ['./user-dictionary-section.component.scss', '../../dashboard.component.scss']
 })
-export class UserDictionarySectionComponent implements OnInit {
+export class UserDictionarySectionComponent {
 
-  public UserDictionary: UserDictionary[] = [];
+  public userDictionaries: UserDictionary[] = [];
 
   constructor(
     private userDictionaryService: UserDictionaryService,
     private modalService: NgbModal
-  ) { }
+  ) {
+    this.refreshUserDictionary();
+  }
 
-  ngOnInit() {
-    this.userDictionaryService.getUserDictionaryData().subscribe(
-      value => this.UserDictionary = value,
+  public refreshUserDictionary(): void {
+    this.userDictionaryService.listUserDictionaries().subscribe(
+      value => this.userDictionaries = value,
     );
   }
 
@@ -88,11 +90,10 @@ export class UserDictionarySectionComponent implements OnInit {
     const modalRef = this.modalService.open(NgbdModalResourceAddComponent);
 
     Observable.from(modalRef.result).subscribe(
-      (value: UserDictionary) => {
-
-        value.id = (this.UserDictionary.length + 1).toString();
-        this.UserDictionary.push(value);
-        this.userDictionaryService.addUserDictionaryData(value);
+      (value: Observable<UserDictionary>) => {
+        value.subscribe(res => {
+          this.refreshUserDictionary();
+        });
       }
     );
 
@@ -112,10 +113,11 @@ export class UserDictionarySectionComponent implements OnInit {
     modalRef.componentInstance.dictionary = cloneDeep(dictionary);
 
     Observable.from(modalRef.result).subscribe(
-      (value: UserDictionary) => {
-        if (value) {
-          this.UserDictionary = this.UserDictionary.filter(obj => obj.id !== dictionary.id);
-          this.userDictionaryService.deleteUserDictionaryData(dictionary);
+      (confirmDelete: boolean) => {
+        if (confirmDelete) {
+          this.userDictionaryService.deleteUserDictionaryData(dictionary.id).subscribe(res => {
+            this.refreshUserDictionary();
+          });
         }
       }
     );
@@ -127,7 +129,7 @@ export class UserDictionarySectionComponent implements OnInit {
   * @param
   */
   public ascSort(): void {
-    this.UserDictionary.sort((t1, t2) => {
+    this.userDictionaries.sort((t1, t2) => {
       if (t1.name.toLowerCase() > t2.name.toLowerCase()) { return 1; }
       if (t1.name.toLowerCase() < t2.name.toLowerCase()) { return -1; }
       return 0;
@@ -140,7 +142,7 @@ export class UserDictionarySectionComponent implements OnInit {
   * @param
   */
   public dscSort(): void {
-    this.UserDictionary.sort((t1, t2) => {
+    this.userDictionaries.sort((t1, t2) => {
       if (t1.name.toLowerCase() > t2.name.toLowerCase()) { return -1; }
       if (t1.name.toLowerCase() < t2.name.toLowerCase()) { return 1; }
       return 0;
@@ -153,7 +155,7 @@ export class UserDictionarySectionComponent implements OnInit {
   * @param
   */
   public sizeSort(): void {
-    this.UserDictionary.sort((t1, t2) => {
+    this.userDictionaries.sort((t1, t2) => {
       if (t1.items.length > t2.items.length) { return -1; }
       if (t1.items.length < t2.items.length) { return 1; }
       return 0;

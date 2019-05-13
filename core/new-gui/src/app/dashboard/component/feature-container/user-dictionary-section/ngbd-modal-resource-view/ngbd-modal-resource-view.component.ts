@@ -1,6 +1,6 @@
 import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
-import { UserDictionary } from '../../../../type/user-dictionary';
+import { UserDictionary } from '../../../../service/user-dictionary/user-dictionary.interface';
 
 /**
  * NgbdModalResourceViewComponent is the pop-up component to
