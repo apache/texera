@@ -59,7 +59,11 @@ export class UndoRedoService {
       const command = this.redoStack.pop();
       if (command) {
         this.setListenJointCommand(false);
-        command.execute();
+        if (command.redo) {
+          command.redo();
+        } else {
+          command.execute();
+        }
         this.undoStack.push(command);
         this.setListenJointCommand(true);
       }

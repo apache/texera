@@ -8,11 +8,13 @@ import { Injectable } from '@angular/core';
 import { Point, OperatorPredicate, OperatorLink, OperatorPort } from '../../../types/workflow-common.interface';
 
 import * as joint from 'jointjs';
+import { Observable } from 'rxjs';
 
 
 export interface Command {
   execute(): void;
   undo(): void;
+  redo?(): void;
 }
 
 /**
@@ -54,20 +56,33 @@ export class WorkflowActionService {
     this.texeraGraph.getLinkAddStream().filter(() => this.undoRedoService.listenJointCommand).subscribe(link => {
       const command: Command = {
         execute: () => { },
-        undo: () => this.deleteLinkWithIDInternal(link.linkID)
+        undo: () => this.deleteLinkWithIDInternal(link.linkID),
+        redo: () => this.addLinkInternal(link)
       };
       this.executeAndStoreCommand(command);
     });
   }
 
   public handleJointOperatorDrag(): void {
+    let oldPosition: Point = {x: 0, y: 0};
+    let gotOldPosition = false;
     this.jointGraphWrapper.getOperatorPositionChangeEvent()
-      .debounceTime(10)
+      .filter(() => !gotOldPosition)
       .filter(() => this.undoRedoService.listenJointCommand)
       .subscribe(event => {
+        oldPosition = event.oldPosition;
+        gotOldPosition = true;
+      });
+
+    this.jointGraphWrapper.getOperatorPositionChangeEvent()
+      .filter(() => this.undoRedoService.listenJointCommand)
+      .debounceTime(100)
+      .subscribe(event => {
+        gotOldPosition = false;
+        const currentOldPos = oldPosition;
         const command: Command = {
           execute: () => { },
-          undo: () => this.setOperatorPositionInternal(event.operatorID, event.oldPosition)
+          undo: () => this.setOperatorPositionInternal(event.operatorID, currentOldPos)
         };
         this.executeAndStoreCommand(command);
       });

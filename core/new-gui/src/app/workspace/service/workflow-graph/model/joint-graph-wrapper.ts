@@ -133,11 +133,11 @@ export class JointGraphWrapper {
         if (!oldPosition) {
           throw new Error(`internal error: cannot find operator position for ${operatorID}`);
         }
-        this.operatorPositions.set(operatorID, e[1]);
+        this.operatorPositions.set(operatorID, {x: e[1].x, y: e[1].y});
         return {
           operatorID: operatorID,
           oldPosition: oldPosition,
-          newPosition: e[1]
+          newPosition: {x: e[1].x, y: e[1].y}
         };
       });
   }
