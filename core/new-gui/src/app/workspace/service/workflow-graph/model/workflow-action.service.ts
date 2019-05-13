@@ -1,3 +1,4 @@
+import { UndoRedoService } from './../../undo-redo/undo-redo.service';
 import { OperatorMetadataService } from './../../operator-metadata/operator-metadata.service';
 import { SyncTexeraModel } from './sync-texera-model';
 import { JointGraphWrapper } from './joint-graph-wrapper';
@@ -8,6 +9,11 @@ import { Point, OperatorPredicate, OperatorLink, OperatorPort } from '../../../t
 
 import * as joint from 'jointjs';
 
+
+export interface Command {
+  execute(): void;
+  undo(): void;
+}
 
 /**
  *
@@ -25,24 +31,46 @@ import * as joint from 'jointjs';
 @Injectable()
 export class WorkflowActionService {
 
-  public pointsUndo = new Map<String, Array<Point>>(); // use this to get the points to readd
-  public pointsPointer = new Map<String, number>(); // contains pointers to locations in pointsUndo for dragging
-  public operatorLinks = new Map<OperatorPredicate, Array<OperatorLink>>();
-  public separateLink: boolean = true; // we set this to false when we delete an operator so links get bundled together.
-  public deletedLinks: Array<OperatorLink> = [];
-  // lets us know which positions to drag to
   private readonly texeraGraph: WorkflowGraph;
   private readonly jointGraph: joint.dia.Graph;
   private readonly jointGraphWrapper: JointGraphWrapper;
   private readonly syncTexeraModel: SyncTexeraModel;
+
   constructor(
     private operatorMetadataService: OperatorMetadataService,
-    private jointUIService: JointUIService
+    private jointUIService: JointUIService,
+    private undoRedoService: UndoRedoService
   ) {
     this.texeraGraph = new WorkflowGraph();
     this.jointGraph = new joint.dia.Graph();
     this.jointGraphWrapper = new JointGraphWrapper(this.jointGraph);
     this.syncTexeraModel = new SyncTexeraModel(this.texeraGraph, this.jointGraphWrapper);
+
+    this.handleJointLinkAdd();
+    this.handleJointOperatorDrag();
+  }
+
+  public handleJointLinkAdd(): void {
+    this.texeraGraph.getLinkAddStream().filter(() => this.undoRedoService.listenJointCommand).subscribe(link => {
+      const command: Command = {
+        execute: () => { },
+        undo: () => this.deleteLinkWithIDInternal(link.linkID)
+      };
+      this.executeAndStoreCommand(command);
+    });
+  }
+
+  public handleJointOperatorDrag(): void {
+    this.jointGraphWrapper.getOperatorPositionChangeEvent()
+      .debounceTime(10)
+      .filter(() => this.undoRedoService.listenJointCommand)
+      .subscribe(event => {
+        const command: Command = {
+          execute: () => { },
+          undo: () => this.setOperatorPositionInternal(event.operatorID, event.oldPosition)
+        };
+        this.executeAndStoreCommand(command);
+      });
   }
 
   /**
@@ -80,6 +108,13 @@ export class WorkflowActionService {
     return paperOptions;
   }
 
+  public executeAndStoreCommand(command: Command): void {
+    this.undoRedoService.setListenJointCommand(false);
+    command.execute();
+    this.undoRedoService.addCommand(command);
+    this.undoRedoService.setListenJointCommand(true);
+  }
+
   /**
    * Adds an opreator to the workflow graph at a point.
    * Throws an Error if the operator ID already existed in the Workflow Graph.
@@ -88,60 +123,53 @@ export class WorkflowActionService {
    * @param point
    */
   public addOperator(operator: OperatorPredicate, point: Point): void {
-    // check that the operator doesn't exist
-    this.texeraGraph.assertOperatorNotExists(operator.operatorID);
     // check that the operator type exists
-    if (! this.operatorMetadataService.operatorTypeExists(operator.operatorType)) {
+    if (!this.operatorMetadataService.operatorTypeExists(operator.operatorType)) {
       throw new Error(`operator type ${operator.operatorType} is invalid`);
     }
-    // get the JointJS UI element
-    const operatorJointElement = this.jointUIService.getJointOperatorElement(operator, point);
+    // remember currently highlighted operator
+    const currentHighlighted = this.jointGraphWrapper.getCurrentHighlightedOpeartorID();
 
-    // add operator to joint graph first
-    // if jointJS throws an error, it won't cause the inconsistency in texera graph
-    this.jointGraph.addCell(operatorJointElement);
-    // add operator to texera graph
-    this.texeraGraph.addOperator(operator);
-
-    // add operator to the maps
-    if (this.pointsUndo.has(operator.operatorID) === false) {
-      this.pointsUndo.set(operator.operatorID, []);
-      this.pointsPointer.set(operator.operatorID, 0);
-      const points = this.pointsUndo.get(operator.operatorID);
-      if (points) {
-        points.push(point);
+    const command: Command = {
+      execute: () => {
+        this.addOperatorInternal(operator, point);
+        // highlight the newly added operator
+        this.jointGraphWrapper.highlightOperator(operator.operatorID);
+      },
+      undo: () => {
+        // remove the operator from JointJS
+        this.deleteOperatorInternal(operator.operatorID);
+        // JointJS operator delete event will propagate and trigger Texera operator delete
+        this.jointGraphWrapper.highlightOperator(currentHighlighted);
       }
-
-    }
-    // highlight operator
-    this.jointGraphWrapper.unhighlightCurrent();
-    this.jointGraphWrapper.highlightOperator(operator.operatorID);
-  }
-
-  // define the function to re-add operator with related links.
-  public addOperatorAndLinks(operator: OperatorPredicate, point: Point, links: Array<OperatorLink>): void {
-    this.addOperator(operator, point);
-    this.separateLink = false;
-    for (let i = 0; i < links.length; i++) {
-      if (this.texeraGraph.hasLinkWithID(links[i].linkID) === false) {
-        this.addLink(links[i]);
-      }
-    }
-    this.separateLink = true;
+    };
+    this.executeAndStoreCommand(command);
   }
 
   /**
-   * Deletes an operator from the workflow graph
-   * Throws an Error if the operator ID doesn't exist in the Workflow Graph.
-   * @param operatorID
-   */
+    * Deletes an operator from the workflow graph
+    * Throws an Error if the operator ID doesn't exist in the Workflow Graph.
+    * @param operatorID
+    */
   public deleteOperator(operatorID: string): void {
-    this.separateLink = false;
-    this.deletedLinks = [];
-    this.texeraGraph.assertOperatorExists(operatorID);
-    // remove the operator from JointJS
-    this.jointGraph.getCell(operatorID).remove();
-    // JointJS operator delete event will propagate and trigger Texera operator delete
+    const operator = this.getTexeraGraph().getOperator(operatorID);
+    const position = this.getJointGraphWrapper().getOperatorPosition(operatorID);
+    const linksToDelete = this.getTexeraGraph().getAllLinks()
+      .filter(link => link.source.operatorID === operatorID || link.target.operatorID === operatorID);
+    const currentHighlighted = this.getJointGraphWrapper().getCurrentHighlightedOpeartorID();
+
+    const command: Command = {
+      execute: () => {
+        linksToDelete.forEach(link => this.deleteLinkWithIDInternal(link.linkID));
+        this.deleteOperatorInternal(operatorID);
+      },
+      undo: () => {
+        this.addOperatorInternal(operator, position);
+        linksToDelete.forEach(link => this.addLinkInternal(link));
+        this.getJointGraphWrapper().highlightOperator(currentHighlighted);
+      }
+    };
+    this.executeAndStoreCommand(command);
   }
 
   /**
@@ -150,12 +178,11 @@ export class WorkflowActionService {
    * @param link
    */
   public addLink(link: OperatorLink): void {
-    this.texeraGraph.assertLinkNotExists(link);
-    this.texeraGraph.assertLinkIsValid(link);
-    // add the link to JointJS
-    const jointLinkCell = JointUIService.getJointLinkCell(link);
-    this.jointGraph.addCell(jointLinkCell);
-    // JointJS link add event will propagate and trigger Texera link add
+    const command: Command = {
+      execute: () => this.addLinkInternal(link),
+      undo: () => this.deleteLinkWithIDInternal(link.linkID)
+    };
+    this.executeAndStoreCommand(command);
   }
 
   /**
@@ -164,86 +191,76 @@ export class WorkflowActionService {
    * @param linkID
    */
   public deleteLinkWithID(linkID: string): void {
+    const link = this.getTexeraGraph().getLinkWithID(linkID);
+    const command: Command = {
+      execute: () => this.deleteLinkWithIDInternal(linkID),
+      undo: () => this.addLinkInternal(link)
+    };
+    this.executeAndStoreCommand(command);
+  }
+
+  public deleteLink(source: OperatorPort, target: OperatorPort): void {
+    const link = this.getTexeraGraph().getLink(source, target);
+    this.deleteLinkWithID(link.linkID);
+  }
+
+  public setOperatorProperty(operatorID: string, newProperty: object): void {
+    const prevProperty = this.getTexeraGraph().getOperator(operatorID).operatorProperties;
+    const command: Command = {
+      execute: () => this.setOperatorPropertyInternal(operatorID, newProperty),
+      undo: () => this.setOperatorPropertyInternal(operatorID, prevProperty)
+    };
+    this.executeAndStoreCommand(command);
+  }
+
+  public setOperatorPosition(operatorID: string, newPosition: Point): void {
+    const currentPosition = this.getJointGraphWrapper().getOperatorPosition(operatorID);
+    const command: Command = {
+      execute: () => this.setOperatorPositionInternal(operatorID, newPosition),
+      undo: () => this.setOperatorPositionInternal(operatorID, currentPosition)
+    };
+    this.executeAndStoreCommand(command);
+  }
+
+  private addOperatorInternal(operator: OperatorPredicate, point: Point): void {
+    // get the JointJS UI element
+    const operatorJointElement = this.jointUIService.getJointOperatorElement(operator, point);
+    // add operator to joint graph first
+    // if jointJS throws an error, it won't cause the inconsistency in texera graph
+    this.jointGraph.addCell(operatorJointElement);
+    // add operator to texera graph
+    this.texeraGraph.addOperator(operator);
+  }
+
+  private deleteOperatorInternal(operatorID: string): void {
+    this.texeraGraph.assertOperatorExists(operatorID);
+    // remove the operator from JointJS
+    this.jointGraph.getCell(operatorID).remove();
+    // JointJS operator delete event will propagate and trigger Texera operator delete
+  }
+
+  private addLinkInternal(link: OperatorLink): void {
+    this.texeraGraph.assertLinkNotExists(link);
+    this.texeraGraph.assertLinkIsValid(link);
+    // add the link to JointJS
+    const jointLinkCell = JointUIService.getJointLinkCell(link);
+    this.jointGraph.addCell(jointLinkCell);
+    // JointJS link add event will propagate and trigger Texera link add
+  }
+
+  private deleteLinkWithIDInternal(linkID: string): void {
     this.texeraGraph.assertLinkWithIDExists(linkID);
     this.jointGraph.getCell(linkID).remove();
     // JointJS link delete event will propagate and trigger Texera link delete
   }
 
-  /**
-   * Deletes a link with the source and target from the workflow graph
-   * Throws an Error if the linkID doesn't exist in the workflow graph.
-   * @param linkID
-   */
-  public deleteLink(source: OperatorPort, target: OperatorPort): void {
-    this.texeraGraph.assertLinkExists(source, target);
-    const link = this.texeraGraph.getLink(source, target);
-    if (!link) {
-      throw new Error(`link with source ${source} and target ${target} doesn't exist`);
-    }
-    this.jointGraph.getCell(link.linkID).remove();
-    // JointJS link delete event will propagate and trigger Texera link delete
-  }
-
   // use this to modify properties
-  public setOperatorProperty(operatorID: string, newProperty: object) {
+  private setOperatorPropertyInternal(operatorID: string, newProperty: object) {
     this.texeraGraph.setOperatorProperty(operatorID, newProperty);
   }
 
-  // Function to change the property then rehighlight to immediately see changes
-  public changeOperatorProperty(operatorID: string, newProperty: object) {
-    this.setOperatorProperty(operatorID, newProperty);
-    this.jointGraphWrapper.unhighlightCurrent();
-    this.jointGraphWrapper.highlightOperator(operatorID);
+  private setOperatorPositionInternal(operatorID: string, newPosition: Point) {
+    (this.jointGraph.getCell(operatorID) as joint.dia.Element).position(newPosition.x, newPosition.y);
   }
-
-  // Function to undo the dragging operation
-  public undoDragOperator(operatorID: string) {
-    // cast cell to Element
-    const operatorCell = this.jointGraph.getCell(operatorID);
-    if (operatorCell instanceof joint.dia.Element) { // just do a type check
-      // MIGHT HAVE TO FIX THIS PART
-      let pointer = this.pointsPointer.get(operatorID);
-      const points = this.pointsUndo.get(operatorID);
-      if ((pointer) && points && pointer > 0) {
-        const currentPoint = points[pointer];
-        this.pointsPointer.set(operatorID, pointer - 1);
-        pointer = pointer - 1;
-        const previousPoint = points[pointer];
-        operatorCell.translate(previousPoint.x - currentPoint.x, previousPoint.y - currentPoint.y);
-      }
-    } else {
-      throw new Error(`Dragged cell is not an operator`);
-    }
-  }
-
-  // for redoing drag
-  public redoDragOperator(operatorID: string) {
-    const operatorCell = this.jointGraph.getCell(operatorID);
-    if (operatorCell instanceof joint.dia.Element) { // just do a type check
-      let pointer = this.pointsPointer.get(operatorID);
-      const points = this.pointsUndo.get(operatorID);
-      if ((pointer || pointer === 0) && points && pointer >= 0 && pointer < points.length - 1) {
-        const currentPoint = points[pointer];
-        this.pointsPointer.set(operatorID, pointer + 1);
-        pointer = pointer + 1;
-        const newPoint = points[pointer];
-        operatorCell.translate(newPoint.x - currentPoint.x, newPoint.y - currentPoint.y);
-      }
-    } else {
-      throw new Error(`Dragged cell is not an operator`);
-    }
-  }
-
-  // TEMP FUNCTION
-   public getPoint(operatorID: string): Point  {
-    const points = this.pointsUndo.get(operatorID);
-    const pointer = this.pointsPointer.get(operatorID);
-    if (!points || (!pointer && pointer !== 0)) {
-      throw new Error(`operator ID does not exist in graph`);
-    }
-
-    return points[pointer];
-  }
-
 
 }

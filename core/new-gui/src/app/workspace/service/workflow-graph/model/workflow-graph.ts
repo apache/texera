@@ -81,8 +81,12 @@ export class WorkflowGraph {
    * Throws an Error if the operator doesn't exist.
    * @param operatorID operator ID
    */
-  public getOperator(operatorID: string): OperatorPredicate | undefined {
-    return this.operatorIDMap.get(operatorID);
+  public getOperator(operatorID: string): OperatorPredicate {
+    const operator = this.operatorIDMap.get(operatorID);
+    if (! operator) {
+      throw new Error(`operator ${operatorID} does not exist`);
+    }
+    return operator;
   }
 
   /**
@@ -150,20 +154,25 @@ export class WorkflowGraph {
    * @param target target operator and port of the link
    */
   public hasLink(source: OperatorPort, target: OperatorPort): boolean {
-    const link = this.getLink(source, target);
-    if (link === undefined) {
+    try {
+      const link = this.getLink(source, target);
+      return true;
+    } catch (e) {
       return false;
     }
-    return true;
   }
 
   /**
    * Returns a link with the linkID from operatorLinkMap.
-   * Returns undefined if the link doesn't exist.
+   * Throws an error if the link doesn't exist.
    * @param linkID link ID
    */
-  public getLinkWithID(linkID: string): OperatorLink | undefined {
-    return this.operatorLinkMap.get(linkID);
+  public getLinkWithID(linkID: string): OperatorLink {
+    const link = this.operatorLinkMap.get(linkID);
+    if (! link) {
+      throw new Error(`link ${linkID} does not exist`);
+    }
+    return link;
   }
 
   /**
@@ -172,12 +181,12 @@ export class WorkflowGraph {
    * @param source source operator and port of the link
    * @param target target operator and port of the link
    */
-  public getLink(source: OperatorPort, target: OperatorPort): OperatorLink | undefined {
+  public getLink(source: OperatorPort, target: OperatorPort): OperatorLink {
     const links = this.getAllLinks().filter(
       value => isEqual(value.source, source) && isEqual(value.target, target)
     );
     if (links.length === 0) {
-      return undefined;
+      throw new Error(`link with source ${source} and target ${target} does not exist`);
     }
     if (links.length > 1) {
       throw new Error(`WorkflowGraph inconsistency: find duplicate links with same source and target`);
