@@ -10,3 +10,20 @@
     </mat-expansion-panel>
   </mat-accordion>
 </div>
+
+
+<div class="texera-workspance-search-box">
+  <form class="search-form">
+    <p></p>
+    <i class="fa fa-search" aria-hidden="true"></i>
+    <mat-form-field class="example-full-width">
+      <input class="form-control form-control-sm ml-3 w-75" type="text" placeholder="Search" aria-label="Search"
+      matInput [matAutocomplete]="auto" [formControl]="myControl">
+      <mat-autocomplete #auto="matAutocomplete">
+        <mat-option (click)="OnHumanSelected(option)" *ngFor="let option of filteredOptions | async" [value]="option" >
+          {{option}}
+        </mat-option>
+      </mat-autocomplete>
+    </mat-form-field>
+  </form>
+</div>

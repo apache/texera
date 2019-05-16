@@ -1,3 +1,5 @@
+// @import '../workspace.component.scss';
+
 .texera-operator-label-body {
     padding-left: 14px;
     padding-top: 10px;
@@ -16,3 +18,13 @@
   color: black;
   background: lightgray;
 }
+
+.example-form {
+    min-width: 150px;
+    max-width: 500px;
+    width: 100%;
+  }
+
+.example-full-width {
+    width: 100%;
+  }

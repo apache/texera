@@ -3,6 +3,18 @@ import { OperatorMetadataService } from '../../service/operator-metadata/operato
 
 import { OperatorSchema, OperatorMetadata, GroupInfo } from '../../types/operator-schema.interface';
 
+import {FormControl} from '@angular/forms';
+import {Observable} from 'rxjs';
+
+import { Point } from "../../types/workflow-common.interface";
+
+import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
+import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
+
+// Requires --esModuleInterop compiler flag!
+// import * as Fuse with '--allowSyntheticDefaultImport'
+// or import Fuse = require('fuse.js') with neither
+import * as Fuse from 'fuse.js';
 /**
  * OperatorViewComponent is the left-side panel that shows the operators.
  *
@@ -28,6 +40,12 @@ import { OperatorSchema, OperatorMetadata, GroupInfo } from '../../types/operato
 })
 export class OperatorPanelComponent implements OnInit {
 
+
+  myControl = new FormControl();
+  options: string[] = []
+  filteredOptions: Observable<string[]> | undefined;
+
+
   // a list of all operator's schema
   public operatorSchemaList: ReadonlyArray<OperatorSchema> = [];
   // a list of group names, sorted based on the groupOrder from OperatorMetadata
@@ -37,7 +55,9 @@ export class OperatorPanelComponent implements OnInit {
 
 
   constructor(
-    private operatorMetadataService: OperatorMetadataService
+    private operatorMetadataService: OperatorMetadataService,
+    private workflowActionService: WorkflowActionService,
+    private workflowUtilService: WorkflowUtilService
   ) {
   }
 
@@ -61,6 +81,67 @@ export class OperatorPanelComponent implements OnInit {
     this.operatorSchemaList = operatorMetadata.operators;
     this.groupNamesOrdered = getGroupNamesSorted(operatorMetadata.groups);
     this.operatorGroupMap = getOperatorGroupMap(operatorMetadata);
+
+
+
+    this.filteredOptions = this.myControl.valueChanges
+      .map(value => this._filter(value));
+    }
+
+  private _filter(value: string): string[] {
+
+    type userFriendlyNamesType = {
+      title: string;
+    };
+
+    const userFriendlyNames = this.operatorSchemaList.map(value => value.additionalMetadata.userFriendlyName);
+
+    const new_userFriendlyNames : userFriendlyNamesType[] = []
+    for (let entry of userFriendlyNames) {
+      // console.log(entry); 
+      new_userFriendlyNames.push({'title':entry})
+    }
+
+    const filterValue = value.toLowerCase();
+
+    const options: Fuse.FuseOptions<userFriendlyNamesType> = {
+      location:0,
+      distance:1000,
+      threshold: 0.3,
+      keys: ['title']
+    };
+    const fuse = new Fuse(new_userFriendlyNames,options);
+    //userFriendlyNames.filter(option => option.toLowerCase().includes(filterValue));
+    console.log('fuse');
+    console.log(fuse);
+    const result = fuse.search(filterValue);
+    console.log('filterValue');
+    console.log(filterValue);
+    console.log('result');
+    console.log(result);
+    //userFriendlyNames.filter(option => option.toLowerCase().includes(filterValue));
+
+    const final_result = []
+    for (let entry of result) {
+       console.log(entry); 
+       final_result.push(entry.title);
+    }
+
+    return final_result;
+  }
+
+  public OnHumanSelected(option: string) {
+    // display the operator on the workflow
+    console.log(option);
+    const currentType = this.operatorSchemaList.filter(
+      schema => {
+        return schema.additionalMetadata.userFriendlyName === option;
+      }
+    ).map(schema => schema.operatorType)[0];
+    console.log(currentType);
+    const selectedOperatorPredicate = this.workflowUtilService.getNewOperatorPredicate(currentType);
+    console.log(selectedOperatorPredicate);
+    this.workflowActionService.addOperator(selectedOperatorPredicate, {x:600, y:399});
   }
 
 }
