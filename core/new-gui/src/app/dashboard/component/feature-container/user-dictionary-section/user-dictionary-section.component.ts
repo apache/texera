@@ -91,15 +91,34 @@ export class UserDictionarySectionComponent implements OnInit {
   * the addUserDictionaryData method in to store user-define dictionary,
   * or uploadDictionary in service to upload dictionary file.
   *
+  *
+  * response received from NgbdModalResourceAddComponent:
+  * commend === 0:
+  * User wants to upload the manual dictionary
+  * - clear the current saved value
+  * - upload the manual dictionary received from response
+  * - download new dictionary from the server and refresh the view
+  *
+  * commend === 1:
+  * User wants to upload the files in the queue
+  * - clear the current saved value
+  * - upload the file in the queue received from response
+  * - download new dictionary from the server and refresh the view
+  *
+  * commend === 2:
+  * user close the pop up, but we temporarily store the file queue and manual dictionary
+  * - save the manual dictionary and files in the queue from the response
+  *
   * @param
   */
   public openNgbdModalResourceAddComponent(): void {
     const modalRef = this.modalService.open(NgbdModalResourceAddComponent);
-    // initialize the value for saving, used when user close the popup and they temporarily save dictionary.
+    // initialize the value from saving, used when user close the popup and then temporarily save dictionary.
     modalRef.componentInstance.uploader.queue = this.savedQueue;
     modalRef.componentInstance.name = this.savedManualDict.name;
     modalRef.componentInstance.dictContent = this.savedManualDict.content;
     modalRef.componentInstance.separator = this.savedManualDict.separator;
+
     Observable.from(modalRef.result).subscribe(
       (value: SavedDictionaryResult) => {
         if (value.command === 0) { // user wants to upload the manual file
