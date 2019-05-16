@@ -251,7 +251,7 @@ export class NgbdModalResourceAddComponent {
       fileitem => {
         const count: number | undefined = map.get(fileitem._file.name);
         if (count === undefined) { throw new Error('count for map of file shouldn`t be undefined'); }
-        return (count === 1 || !(map.set(fileitem._file.name, count - 1)));
+        return (count === 1 || !(map.set(fileitem._file.name, count - 1))); // the code after || always return false
       });
 
     this.checkDuplicateFiles();

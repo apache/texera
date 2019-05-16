@@ -95,6 +95,7 @@ export class UserDictionarySectionComponent implements OnInit {
   */
   public openNgbdModalResourceAddComponent(): void {
     const modalRef = this.modalService.open(NgbdModalResourceAddComponent);
+    // initialize the value for saving, used when user close the popup and they temporarily save dictionary.
     modalRef.componentInstance.uploader.queue = this.savedQueue;
     modalRef.componentInstance.name = this.savedManualDict.name;
     modalRef.componentInstance.dictContent = this.savedManualDict.content;
@@ -109,6 +110,7 @@ export class UserDictionarySectionComponent implements OnInit {
             content : '',
             separator : ''
           };
+          // TODO: refresh the file and download from serve
         } else if (value.command === 1) { // user wants to upload the file in the queue
           value.savedQueue.forEach((fileitem: FileItem) => {
             this.userDictionaryService.uploadDictionary(fileitem._file);
@@ -119,6 +121,7 @@ export class UserDictionarySectionComponent implements OnInit {
             content : '',
             separator : ''
           };
+          // TODO: refresh the file and download from serve
         } else if (value.command === 2) { // user close the pop up, but we temporarily store the file array
           this.savedQueue = value.savedQueue;
           this.savedManualDict = {
