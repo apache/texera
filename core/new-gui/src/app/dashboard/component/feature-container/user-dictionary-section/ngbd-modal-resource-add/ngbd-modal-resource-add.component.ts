@@ -133,8 +133,6 @@ export class NgbdModalResourceAddComponent {
    *  introduced by the library contains a queue of FileItem.
    *
    * FileItem._file => regular JS File type
-   *
-   * TODO: send http request to the backend and update the user console dictionary list
    */
   public uploadFile(): void {
     const result: SavedDictionaryResult = {

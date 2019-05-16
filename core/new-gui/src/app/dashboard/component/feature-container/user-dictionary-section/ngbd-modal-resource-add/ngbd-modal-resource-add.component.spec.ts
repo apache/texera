@@ -5,7 +5,7 @@ import {MatDialogModule} from '@angular/material/dialog';
 import {MatFormFieldModule} from '@angular/material/form-field';
 
 import { NgbModule, NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 
 import { HttpClientModule } from '@angular/common/http';
 import { NgbdModalResourceAddComponent } from './ngbd-modal-resource-add.component';
@@ -21,10 +21,10 @@ describe('NgbdModalResourceAddComponent', () => {
   let addcomponent: NgbdModalResourceAddComponent;
   let addfixture: ComponentFixture<NgbdModalResourceAddComponent>;
 
-  let arrayOfBlob:Blob[] = Array<Blob>();//just for test,needed for creating File object.
-  let testTextFile: File=new File( arrayOfBlob,"testTextFile",{type: 'text/plain'});
-  let testPicFile: File=new File( arrayOfBlob,"testPicFile",{type: 'image/jpeg'});
-  let testDocFile: File=new File( arrayOfBlob,"testDocFile",{type: 'application/msword'});
+  const arrayOfBlob: Blob[] = Array<Blob>(); // just for test,needed for creating File object.
+  const testTextFile: File = new File( arrayOfBlob, 'testTextFile', {type: 'text/plain'});
+  const testPicFile: File = new File( arrayOfBlob, 'testPicFile', {type: 'image/jpeg'});
+  const testDocFile: File = new File( arrayOfBlob, 'testDocFile', {type: 'application/msword'});
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
@@ -38,7 +38,9 @@ describe('NgbdModalResourceAddComponent', () => {
         NgbModule.forRoot(),
         FormsModule,
         HttpClientModule,
-        FileUploadModule]
+        FileUploadModule,
+        FormsModule,
+        ReactiveFormsModule]
     })
     .compileComponents();
   }));
@@ -75,7 +77,7 @@ describe('NgbdModalResourceAddComponent', () => {
 
     expect(addcomponent.duplicateFile.length).toEqual(0);
     expect(addcomponent.haveDropZoneOver).toEqual(false);
-    expect(addcomponent.invalidFileNumbe).toEqual(0);
+    expect(addcomponent.invalidFileNumber).toEqual(0);
     expect(addcomponent.uploader.queue.length).toEqual(0);
 
   });
@@ -83,12 +85,12 @@ describe('NgbdModalResourceAddComponent', () => {
   it('resourceAddComponent be able to add text file', () => {
     addfixture = TestBed.createComponent(NgbdModalResourceAddComponent);
     addcomponent = addfixture.componentInstance;
-    let testFileList:File[]=Array<File>();
+    const testFileList: File[] = Array<File>();
     testFileList.push(testTextFile);
 
     addcomponent.uploader.addToQueue(testFileList);
     expect(addcomponent.duplicateFile.length).toEqual(0);
-    expect(addcomponent.invalidFileNumbe).toEqual(0);
+    expect(addcomponent.invalidFileNumber).toEqual(0);
     expect(addcomponent.uploader.queue.length).toEqual(1);
 
   });
@@ -97,16 +99,16 @@ describe('NgbdModalResourceAddComponent', () => {
     addfixture = TestBed.createComponent(NgbdModalResourceAddComponent);
     addcomponent = addfixture.componentInstance;
     expect(addcomponent.duplicateFile.length).toEqual(0);
-    expect(addcomponent.invalidFileNumbe).toEqual(0);
+    expect(addcomponent.invalidFileNumber).toEqual(0);
     expect(addcomponent.uploader.queue.length).toEqual(0);
     const fileList: FileList = {
       length: 3,
       item: () => null,
       0: testTextFile,
-      1:testPicFile,
-      2:testDocFile
+      1: testPicFile,
+      2: testDocFile
     };
-    let testFileList:File[]=Array<File>();
+    const testFileList: File[] = Array<File>();
     testFileList.push(testTextFile);
     testFileList.push(testPicFile);
     testFileList.push(testDocFile);
@@ -116,7 +118,7 @@ describe('NgbdModalResourceAddComponent', () => {
     addcomponent.getFileDropped(fileList);
 
     expect(addcomponent.duplicateFile.length).toEqual(0);
-    expect(addcomponent.invalidFileNumbe).toEqual(2);
+    expect(addcomponent.invalidFileNumber).toEqual(2);
     expect(addcomponent.uploader.queue.length).toEqual(3);
 
   });
@@ -125,7 +127,7 @@ describe('NgbdModalResourceAddComponent', () => {
     addfixture = TestBed.createComponent(NgbdModalResourceAddComponent);
     addcomponent = addfixture.componentInstance;
     expect(addcomponent.duplicateFile.length).toEqual(0);
-    expect(addcomponent.invalidFileNumbe).toEqual(0);
+    expect(addcomponent.invalidFileNumber).toEqual(0);
     expect(addcomponent.uploader.queue.length).toEqual(0);
     const fileList: FileList = {
       length: 2,
@@ -133,7 +135,7 @@ describe('NgbdModalResourceAddComponent', () => {
       0: testTextFile,
       1: testTextFile,
     };
-    let testFileList:File[]=Array<File>();
+    const testFileList: File[] = Array<File>();
     testFileList.push(testTextFile);
     testFileList.push(testTextFile);
 
@@ -142,8 +144,40 @@ describe('NgbdModalResourceAddComponent', () => {
     addcomponent.getFileDropped(fileList);
 
     expect(addcomponent.duplicateFile.length).toEqual(1);
-    expect(addcomponent.invalidFileNumbe).toEqual(0);
+    expect(addcomponent.invalidFileNumber).toEqual(0);
     expect(addcomponent.uploader.queue.length).toEqual(2);
+
+  });
+
+  it('resourceAddComponent can delete the invalid file in the queue', () => {
+    addfixture = TestBed.createComponent(NgbdModalResourceAddComponent);
+    addcomponent = addfixture.componentInstance;
+    expect(addcomponent.duplicateFile.length).toEqual(0);
+    expect(addcomponent.invalidFileNumber).toEqual(0);
+    expect(addcomponent.uploader.queue.length).toEqual(0);
+    const fileList: FileList = {
+      length: 4,
+      item: () => null,
+      0: testTextFile,
+      1: testPicFile,
+      2: testDocFile,
+      3: testTextFile
+    };
+    const testFileList: File[] = Array<File>();
+    testFileList.push(testTextFile);
+    testFileList.push(testPicFile);
+    testFileList.push(testDocFile);
+    testFileList.push(testTextFile);
+
+    addcomponent.uploader.addToQueue(testFileList);
+    addcomponent.checkDuplicateFiles();
+    addcomponent.getFileDropped(fileList);
+
+    addcomponent.deleteAllInvalidFile();
+
+    expect(addcomponent.duplicateFile.length).toEqual(0);
+    expect(addcomponent.invalidFileNumber).toEqual(0);
+    expect(addcomponent.uploader.queue.length).toEqual(1);
 
   });
 });
