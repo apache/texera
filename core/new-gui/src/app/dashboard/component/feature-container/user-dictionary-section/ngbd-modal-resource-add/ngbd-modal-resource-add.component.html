@@ -1,6 +1,6 @@
 <div class="modal-header">
   <h4 class="modal-title">Add Dictionary</h4>
-  <button type="button" class="close" aria-label="Close"  (click)="onClose()">
+  <button type="button" class="close" aria-label="Close"  (click)="activeModal.dismiss('close')">
     <span aria-hidden="true">&times;</span>
   </button>
 </div>
@@ -71,20 +71,23 @@
 <div class="modal-footer">
   <div *ngIf="isInUploadFileTab">
       <div *ngIf="uploader.queue.length">
-          <button type="button" class="btn btn-primary btn-xs bottom-upload"
+          <button class="btn btn-primary btn-xs bottom-upload bottom-size"
                                 (click)="uploadFile()"
                                 [disabled]="invalidFileNumber || duplicateFile.length">
-                                <span class="glyphicon glyphicon-trash"></span> Upload</button>
+                                  <span *ngIf="!isUploading">Upload</span>
+                                  <span *ngIf="isUploading" class='fa fa-spinner fa-spin'></span>
+                              </button>
         </div>
   </div>
   <div *ngIf="!isInUploadFileTab">
-      <button class="btn btn-outline-dark add-button"
+      <button class="btn btn-outline-dark add-button bottom-size"
       (click)="addDictionary()"
       [disabled]="dictContent === '' || dictName === '' ">
-      Add
+        <span *ngIf="!isUploading">Add</span>
+        <span *ngIf="isUploading" class='fa fa-spinner fa-spin'></span>
     </button>
   </div>
-  <button class="btn btn-outline-dark" (click)="onClose()">Close</button>
+  <button class="btn btn-outline-dark bottom-size" (click)="activeModal.dismiss('close')">Close</button>
 </div>
 
 

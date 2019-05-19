@@ -40,7 +40,7 @@ export class NgbdModalResourceAddComponent {
 
   @Output() addedDictionary =  new EventEmitter<UserDictionary>();
 
-  public newDictionary: UserDictionary | undefined; // potential issue
+  // public newDictionary: UserDictionary | undefined; // potential issue
   public dictName: string = '';
   public dictContent: string = '';
   public dictSeparator: string = '';
@@ -113,24 +113,6 @@ export class NgbdModalResourceAddComponent {
     }
   }
 
-  /**
-   * This method closes the popup modals and temporarily save user uploaded dictionary
-   *  but not yet send to backend or user manually added contents
-   */
-  public onClose() {
-    this.activeModal.dismiss('close');
-    // this.deleteAllInvalidFile();
-    // const result: SavedDictionaryResult = {
-    //   command: 2, // commannd 2 means close the pop up and save the queue.
-    //   savedQueue: this.uploader.queue,
-    //   savedManualDictionary: {
-    //     name : this.name,
-    //     content : this.dictContent,
-    //     separator : this.separator
-    //   }
-    // };
-    // this.activeModal.close(result);
-  }
 
   /**
    * This method will handle the upload file action in the user drag file tab
@@ -268,6 +250,15 @@ export class NgbdModalResourceAddComponent {
         return (count === 1 || !(map.set(fileitem._file.name, count - 1))); // the code after || always return false
       });
 
+    this.checkDuplicateFiles();
+  }
+
+  /**
+   * check whether the current files in the queue is valid or not.
+   */
+  public checkCurrentFilesValid() {
+    this.invalidFileNumber = this.uploader.queue.map(fileitem => fileitem._file)
+      .filter(file => !file.type.includes('text/plain')).length;
     this.checkDuplicateFiles();
   }
 
