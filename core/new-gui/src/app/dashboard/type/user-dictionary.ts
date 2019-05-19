@@ -8,14 +8,3 @@ export interface UserDictionary {
   description?: string;
 }
 
-export interface SavedManualDictionary extends Readonly<{
-  name: string;
-  content: string;
-  separator: string;
-}> { }
-
-export interface SavedDictionaryResult extends Readonly<{
-  command: number;
-  savedQueue: FileItem[];
-  savedManualDictionary: SavedManualDictionary;
-}> { }

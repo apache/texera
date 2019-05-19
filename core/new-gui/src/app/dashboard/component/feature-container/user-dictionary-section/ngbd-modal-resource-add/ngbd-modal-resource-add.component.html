@@ -1,6 +1,6 @@
 <div class="modal-header">
   <h4 class="modal-title">Add Dictionary</h4>
-  <button type="button" class="close" aria-label="Close" [autoClose]="'outside'" (click)="onClose()">
+  <button type="button" class="close" aria-label="Close"  (click)="onClose()">
     <span aria-hidden="true">&times;</span>
   </button>
 </div>
@@ -18,7 +18,7 @@
           Drop Files Here
           <div id="hide">
                 <input #clickUpload type="file"
-                  accept=".txt"(change)="clickUploadFile($event)" multiple/>
+                  accept=".txt"(change)="saveUploadFile($event)" multiple/>
           </div>
       </div>
       <div *ngIf="uploader.queue.length">
@@ -47,7 +47,7 @@
       <div class= "add-dictionary-container">
         <mat-dialog-content>
           <mat-form-field>
-            <input matInput [(ngModel)]="name" placeholder="Name of Dictionary"
+            <input matInput [(ngModel)]="dictName" placeholder="Name of Dictionary"
             [formControl]="nameValidator" [errorStateMatcher]="matcher" required>
             <mat-error *ngIf="nameValidator.invalid">*Name is <strong>required</strong></mat-error>
           </mat-form-field>
@@ -60,7 +60,7 @@
             <mat-error *ngIf="contentValidator.invalid">*Content is <strong>required</strong></mat-error>
           </mat-form-field>
           <mat-form-field>
-            <input  matInput [(ngModel)]="separator" placeholder="Content Separator (' , '    ' \\t '    ' \\n ')">
+            <input  matInput [(ngModel)]="dictSeparator" placeholder="Content Separator (' , '    ' \\t '    ' \\n ')">
           </mat-form-field>
         </mat-dialog-content>
       </div>
@@ -80,8 +80,9 @@
   <div *ngIf="!isInUploadFileTab">
       <button class="btn btn-outline-dark add-button"
       (click)="addDictionary()"
-      [disabled]="dictContent === '' || name === '' ">
-      Add</button>
+      [disabled]="dictContent === '' || dictName === '' ">
+      Add
+    </button>
   </div>
   <button class="btn btn-outline-dark" (click)="onClose()">Close</button>
 </div>

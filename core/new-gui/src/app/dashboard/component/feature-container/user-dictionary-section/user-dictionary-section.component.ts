@@ -3,7 +3,7 @@ import { NgbModal, NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { HttpClientModule } from '@angular/common/http';
 
 import { Observable } from 'rxjs/Observable';
-import { UserDictionary, SavedManualDictionary, SavedDictionaryResult } from '../../../type/user-dictionary';
+import { UserDictionary} from '../../../type/user-dictionary';
 
 import { UserDictionaryService } from '../../../service/user-dictionary/user-dictionary.service';
 
@@ -13,6 +13,13 @@ import { NgbdModalResourceViewComponent } from './ngbd-modal-resource-view/ngbd-
 
 import { cloneDeep } from 'lodash';
 import { FileItem } from 'ng2-file-upload';
+
+interface SavedData extends Readonly<{
+  name: string;
+  content: string;
+  separator: string;
+  savedQueue: FileItem[]
+}> { }
 
 /**
  * UserDictionarySectionComponent is the main interface
@@ -30,11 +37,11 @@ import { FileItem } from 'ng2-file-upload';
 export class UserDictionarySectionComponent implements OnInit {
 
   public UserDictionary: UserDictionary[] = [];
-  public savedQueue: FileItem[] = [];
-  public savedManualDict: SavedManualDictionary = {
+  public savedData: SavedData = {
     name: '',
     content: '',
-    separator: ''
+    separator: '',
+    savedQueue: []
   };
 
   constructor(
@@ -112,45 +119,22 @@ export class UserDictionarySectionComponent implements OnInit {
   * @param
   */
   public openNgbdModalResourceAddComponent(): void {
-    const modalRef = this.modalService.open(NgbdModalResourceAddComponent);
-    // initialize the value from saving, used when user close the popup and then temporarily save dictionary.
-    modalRef.componentInstance.uploader.queue = this.savedQueue;
-    modalRef.componentInstance.name = this.savedManualDict.name;
-    modalRef.componentInstance.dictContent = this.savedManualDict.content;
-    modalRef.componentInstance.separator = this.savedManualDict.separator;
-
-    Observable.from(modalRef.result).subscribe(
-      (value: SavedDictionaryResult) => {
-        if (value.command === 0) { // user wants to upload the manual file
-          // TODO: upload the manual file
-          this.savedQueue = [];
-          this.savedManualDict = {
-            name : '',
-            content : '',
-            separator : ''
-          };
-          // TODO: refresh the file and download from serve
-        } else if (value.command === 1) { // user wants to upload the file in the queue
-          value.savedQueue.forEach((fileitem: FileItem) => {
-            this.userDictionaryService.uploadDictionary(fileitem._file);
-          });
-          this.savedQueue = [];
-          this.savedManualDict = {
-            name : '',
-            content : '',
-            separator : ''
-          };
-          // TODO: refresh the file and download from serve
-        } else if (value.command === 2) { // user close the pop up, but we temporarily store the file array
-          this.savedQueue = value.savedQueue;
-          this.savedManualDict = {
-            name : value.savedManualDictionary.name,
-            content : value.savedManualDictionary.content,
-            separator : value.savedManualDictionary.separator
-          };
-        }
+    const modalRef = this.modalService.open(NgbdModalResourceAddComponent, {
+      beforeDismiss: (): boolean => {
+        this.savedData = {
+          name: modalRef.componentInstance.dictNname,
+          content: modalRef.componentInstance.dictContent,
+          separator: modalRef.componentInstance.dictSeparator,
+          savedQueue: modalRef.componentInstance.uploader.queue
+        };
+        return true;
       }
-    );
+    });
+    // initialize the value from saving, used when user close the popup and then temporarily save dictionary.
+    modalRef.componentInstance.uploader.queue = this.savedData.savedQueue;
+    modalRef.componentInstance.dictName = this.savedData.name;
+    modalRef.componentInstance.dictContent = this.savedData.content;
+    modalRef.componentInstance.dictSeparator = this.savedData.separator;
   }
 
   /**

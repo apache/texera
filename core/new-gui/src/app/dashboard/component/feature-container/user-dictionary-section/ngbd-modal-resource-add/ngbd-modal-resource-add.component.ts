@@ -2,7 +2,7 @@ import { Component, OnInit, Input, Output, EventEmitter } from '@angular/core';
 import { NgbModal, NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 
 import { UserDictionaryService } from '../../../../service/user-dictionary/user-dictionary.service';
-import { UserDictionary, SavedManualDictionary, SavedDictionaryResult } from '../../../../type/user-dictionary';
+import { UserDictionary} from '../../../../type/user-dictionary';
 import { Event } from '_debugger';
 
 import { FileUploader, FileItem } from 'ng2-file-upload';
@@ -21,7 +21,7 @@ import { MatTabChangeEvent } from '@angular/material';
 import { ErrorStateMatcher } from '@angular/material';
 import { FormControl, FormGroupDirective, NgForm, Validators } from '@angular/forms';
 
-export class MyErrorStateMatcher implements ErrorStateMatcher {
+class MyErrorStateMatcher implements ErrorStateMatcher {
   isErrorState(control: FormControl | null, form: FormGroupDirective | NgForm | null): boolean {
     return !!(control && control.invalid && (control.dirty || control.touched));
   }
@@ -41,18 +41,19 @@ export class NgbdModalResourceAddComponent {
   @Output() addedDictionary =  new EventEmitter<UserDictionary>();
 
   public newDictionary: UserDictionary | undefined; // potential issue
-  public name: string = '';
+  public dictName: string = '';
   public dictContent: string = '';
-  public separator: string = '';
+  public dictSeparator: string = '';
 
   public duplicateFile: string[] = []; // store the name of invalid file due to duplication
   public haveDropZoneOver: boolean = false; // state for user draging over the area
   public invalidFileNumber: number = 0; // counter for the number of invalid files in the uploader due to invalid type
 
   // Uploader is from outside library. Here it is used to capture the file and store it.
-  // It is capable of sending file but we don't use it. the url="..." is meanless since we send it through our own way.
+  // It is capable of sending file but we don't use it. the url="..." is meaningless since we send it through our own way.
   public uploader: FileUploader = new FileUploader({url: 'This string does not matter'});
   public isInUploadFileTab: boolean = true;
+  public isUploading: boolean = false;
 
   public matcher = new MyErrorStateMatcher();
   public nameValidator: FormControl =  new FormControl('', [Validators.required]);
@@ -79,30 +80,37 @@ export class NgbdModalResourceAddComponent {
   * @param
   */
   public addDictionary(): void {
-    // assume button is disabled when invalid
-    if (this.name === '' || this.dictContent === '') {
-      throw new Error('one of the parameters required for creating a dictionary is not provided');
+
+    if (!this.isUploading) {
+      // assume button is disabled when invalid
+      if (this.dictName === '' || this.dictContent === '') {
+        throw new Error('one of the parameters required for creating a dictionary is not provided');
+      }
+
+      // when separator is not provided, use comma as default separator
+      if (this.dictSeparator === '') { this.dictSeparator = ','; }
+      const  userdictionary: UserDictionary = {
+        id: '0', // TODO: need unique ID
+        name: this.dictName,
+        items: this.dictContent.split(this.dictSeparator)
+      };
+
+      this.isUploading = true;
+      this.userDictionaryService.uploadUserDictionary(userdictionary)
+        .subscribe(
+          data => {
+            this.isUploading = false;
+            this.uploader.queue = [];
+            this.dictName = '';
+            this.dictContent = '';
+            this.dictSeparator = '';
+            this.activeModal.dismiss('close'); },
+          error => { // TODO: explain the reason of failing
+            this.isUploading = false;
+            alert('Error occurred while uploading file');
+          }
+        );
     }
-
-    // when separator is not provided, use comma as default separator
-    if (this.separator === '') { this.separator = ','; }
-    const  manualDictData: SavedManualDictionary = {
-      name: this.name,
-      content: this.dictContent,
-      separator: this.separator
-    };
-    // this.newDictionary = {
-    //   id : '1', // TODO: need unique ID
-    //   name : this.name,
-    //   items : this.dictContent.split(this.separator),
-    // };
-
-    const result: SavedDictionaryResult = {
-      command: 0, // commend 0 means user wants to upload the manual dict.
-      savedQueue: [],
-      savedManualDictionary:  manualDictData
-    };
-    this.activeModal.close(result);
   }
 
   /**
@@ -110,17 +118,18 @@ export class NgbdModalResourceAddComponent {
    *  but not yet send to backend or user manually added contents
    */
   public onClose() {
-    this.deleteAllInvalidFile();
-    const result: SavedDictionaryResult = {
-      command: 2, // commannd 2 means close the pop up and save the queue.
-      savedQueue: this.uploader.queue,
-      savedManualDictionary: {
-        name : this.name,
-        content : this.dictContent,
-        separator : this.separator
-      }
-    };
-    this.activeModal.close(result);
+    this.activeModal.dismiss('close');
+    // this.deleteAllInvalidFile();
+    // const result: SavedDictionaryResult = {
+    //   command: 2, // commannd 2 means close the pop up and save the queue.
+    //   savedQueue: this.uploader.queue,
+    //   savedManualDictionary: {
+    //     name : this.name,
+    //     content : this.dictContent,
+    //     separator : this.separator
+    //   }
+    // };
+    // this.activeModal.close(result);
   }
 
   /**
@@ -135,20 +144,25 @@ export class NgbdModalResourceAddComponent {
    * FileItem._file => regular JS File type
    */
   public uploadFile(): void {
-    const result: SavedDictionaryResult = {
-      command: 1, // command 0 indicates upload the file in the file queue
-      savedQueue: this.uploader.queue,
-      savedManualDictionary: {
-        name: '',
-        content: '',
-        separator: ''
-      }
-    };
+    if (!this.isUploading) {
+      this.isUploading = true;
+      this.userDictionaryService.uploadFileList(this.uploader.queue.map(fileitem => fileitem._file))
+        .subscribe(
+          data => {
+            this.isUploading = false;
+            this.uploader.queue = [];
+            this.dictName = '';
+            this.dictContent = '';
+            this.dictSeparator = '';
+            this.activeModal.dismiss('close'); },
+          error => { // TODO: explain the reason of failing
+            this.isUploading = false;
+            alert('Error occurred while uploading file');
+          }
+        );
+    }
 
-    // reset the uploader queue
-    this.uploader.queue = [];
 
-    this.activeModal.close(result);
   }
 
   /**
@@ -157,8 +171,8 @@ export class NgbdModalResourceAddComponent {
    *
    * @param clickUploaEvent
    */
-  public clickUploadFile(clickUploaEvent: {target: HTMLInputElement}): void {
-    const filelist: FileList | null = clickUploaEvent.target.files;
+  public saveUploadFile(clickUploadEvent: {target: HTMLInputElement}): void {
+    const filelist: FileList | null = clickUploadEvent.target.files;
     if (filelist === null) {
       throw new Error(`browser upload does not work as intended`);
     }

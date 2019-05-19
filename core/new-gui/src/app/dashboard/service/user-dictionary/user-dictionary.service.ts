@@ -7,6 +7,8 @@ import { UserDictionary } from '../../type/user-dictionary';
 
 const apiUrl = 'http://localhost:8080/api';
 
+const uploadFileListURL = 'assume it exist';
+const uploadUserDictionaryURL = 'assume it exist';
 const uploadDictionaryUrl = apiUrl + '/upload/dictionary';
 
 /**
@@ -36,6 +38,14 @@ export class UserDictionaryService {
     console.log('dict added');
   }
 
+  public uploadFileList(filelist: File[]): Observable<object> {
+    return this.http.post(uploadFileListURL, filelist, { headers: { 'Content-Type': 'text/plain' } });
+  }
+
+  public uploadUserDictionary(dict: UserDictionary): Observable<object> {
+    return this.http.post(uploadUserDictionaryURL, dict, { headers: { 'Content-Type': 'UserDictionary' } });
+  }
+
   public uploadDictionary(file: File): void {
     const formData: FormData = new FormData();
     formData.append('file', file, file.name);
@@ -54,7 +64,7 @@ export class UserDictionaryService {
       );
   }
 
-  public getUploadDictionary(): Observable<string> {
+  public getUploadDictionary(): Observable < string > {
     return this.saveStartedStream.asObservable();
   }
 
