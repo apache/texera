@@ -1,5 +1,7 @@
 package edu.uci.ics.texera.dataflow.resource.dictionary;
 
+import java.io.BufferedWriter;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -44,6 +46,7 @@ public class DictionaryManager {
      * @throws TexeraException
      */
     public void createDictionaryManager() throws TexeraException {
+    	destroyDictionaryManager();
         if (! relationManager.checkTableExistence(DictionaryManagerConstants.TABLE_NAME)) {
             relationManager.createTable(DictionaryManagerConstants.TABLE_NAME,
                     DictionaryManagerConstants.INDEX_DIR,
@@ -51,9 +54,25 @@ public class DictionaryManager {
                     LuceneAnalyzerConstants.standardAnalyzerString());
         }
         
-        if(! Files.exists(DictionaryManagerConstants.DICTIONARY_DIR_PATH)) {
+        if(! Files.exists(DictionaryManagerConstants.DICTIONARY_CONTENT_DIR_PATH)) {
             try {
-                Files.createDirectories(DictionaryManagerConstants.DICTIONARY_DIR_PATH);
+                Files.createDirectories(DictionaryManagerConstants.DICTIONARY_CONTENT_DIR_PATH);
+            } catch (IOException e) {
+                throw new StorageException(e);
+            }
+        }
+        
+        if(! Files.exists(DictionaryManagerConstants.DICTIONARY_NAME_DIR_PATH)) {
+            try {
+                Files.createDirectories(DictionaryManagerConstants.DICTIONARY_NAME_DIR_PATH);
+            } catch (IOException e) {
+                throw new StorageException(e);
+            }
+        }
+        
+        if(! Files.exists(DictionaryManagerConstants.DICTIONARY_DESCRIPTION_DIR_PATH)) {
+            try {
+                Files.createDirectories(DictionaryManagerConstants.DICTIONARY_DESCRIPTION_DIR_PATH);
             } catch (IOException e) {
                 throw new StorageException(e);
             }
@@ -67,10 +86,10 @@ public class DictionaryManager {
      */
     public void destroyDictionaryManager() throws TexeraException {
         relationManager.deleteTable(DictionaryManagerConstants.TABLE_NAME);
-        StorageUtils.deleteDirectory(DictionaryManagerConstants.DICTIONARY_DIR);
+        StorageUtils.deleteDirectory(DictionaryManagerConstants.DICTIONARY_CONTENT_DIR);
     }
     
-    public void addDictionary(String dictID, String dictionaryContent) throws StorageException {
+    public void addDictionary(String dictID, String dictionaryContent, String dictionaryName, String dictionaryDescription) throws StorageException {
         // write metadata info
         DataWriter dataWriter = relationManager.getTableDataWriter(DictionaryManagerConstants.TABLE_NAME);
         dataWriter.open();
@@ -84,7 +103,9 @@ public class DictionaryManager {
         dataWriter.close();
         
         // write actual dictionary file
-        writeToFile(dictID, dictionaryContent);
+        writeContentToFile(dictID, dictionaryContent);
+        writeNameToFile(dictID, dictionaryName);
+        writeDescriptionToFile(dictID, dictionaryDescription);
     }
 
     public void deleteDictionary(String dictID) {
@@ -96,12 +117,6 @@ public class DictionaryManager {
 
         dataWriter.close();
 
-        try {
-            Path filePath = DictionaryManagerConstants.DICTIONARY_DIR_PATH.resolve(dictID);
-            Files.deleteIfExists(filePath);
-        } catch (IOException e) {
-            throw new StorageException("Error occurred whlie uploading dictionary");
-        }
     }
 
 
@@ -109,14 +124,44 @@ public class DictionaryManager {
      * Write uploaded file at the given location (if the file exists, remove it and write a new one.)
      *
      */
-    private void writeToFile(String fileName, String dictionaryContent)  throws StorageException {
+    private void writeContentToFile(String dictID, String dictionaryContent)  throws StorageException {
         try {
-            Path filePath = DictionaryManagerConstants.DICTIONARY_DIR_PATH.resolve(fileName);;
-            Files.deleteIfExists(filePath);
-            Files.createFile(filePath);
-            Files.write(filePath, dictionaryContent.getBytes());
+            Path filePath = DictionaryManagerConstants.DICTIONARY_CONTENT_DIR_PATH.resolve(dictID);
+            BufferedWriter writer = new BufferedWriter(new FileWriter(filePath.toString()));
+            writer.write(dictionaryContent);
+            writer.close();
         } catch (IOException e) {
-            throw new StorageException("Error occurred whlie uploading dictionary");
+            throw new StorageException("Error occurred whlie uploading dictionary content");
+        }
+    }
+    
+    /**
+     * Write uploaded file at the given location (if the file exists, remove it and write a new one.)
+     *
+     */
+    private void writeNameToFile(String dictID, String dictionaryName)  throws StorageException {
+        try {
+            Path filePath = DictionaryManagerConstants.DICTIONARY_NAME_DIR_PATH.resolve(dictID);;
+            BufferedWriter writer = new BufferedWriter(new FileWriter(filePath.toString()));
+            writer.write(dictionaryName);
+            writer.close();
+        } catch (IOException e) {
+            throw new StorageException("Error occurred whlie uploading dictionary name");
+        }
+    }
+    
+    /**
+     * Write uploaded file at the given location (if the file exists, remove it and write a new one.)
+     *
+     */
+    private void writeDescriptionToFile(String dictID, String dictionaryDescription)  throws StorageException {
+        try {
+            Path filePath = DictionaryManagerConstants.DICTIONARY_DESCRIPTION_DIR_PATH.resolve(dictID);;
+            BufferedWriter writer = new BufferedWriter(new FileWriter(filePath.toString()));
+            writer.write(dictionaryDescription);
+            writer.close();
+        } catch (IOException e) {
+            throw new StorageException("Error occurred whlie uploading dictionary description");
         }
     }
     
@@ -135,21 +180,59 @@ public class DictionaryManager {
         return dictionaries;
     }
     
-    public String getDictionary(String dictionaryName) throws StorageException {
+    public String getDictionaryContent(String dictID) throws StorageException {
         DataReader dataReader = relationManager.getTableDataReader(DictionaryManagerConstants.TABLE_NAME, 
-                new TermQuery(new Term(DictionaryManagerConstants.NAME, dictionaryName)));
+                new TermQuery(new Term(DictionaryManagerConstants.NAME, dictID)));
         dataReader.open();
         if (dataReader.getNextTuple() == null) {
-            throw new StorageException("Dictionary " + dictionaryName + "does not exist");
+            throw new StorageException("Dictionary " + dictID + "does not exist");
         }
         dataReader.close();
         
         try {
-            return Files.lines(DictionaryManagerConstants.DICTIONARY_DIR_PATH.resolve(dictionaryName))
+            return Files.lines(DictionaryManagerConstants.DICTIONARY_CONTENT_DIR_PATH.resolve(dictID))
                     .collect(Collectors.joining(","));
         } catch (IOException e) {
             throw new StorageException(e);
         }
+    }
+    
+    public String getDictionaryName(String dictID) throws StorageException {
+        DataReader dataReader = relationManager.getTableDataReader(DictionaryManagerConstants.TABLE_NAME, 
+                new TermQuery(new Term(DictionaryManagerConstants.NAME, dictID)));
+        dataReader.open();
+        if (dataReader.getNextTuple() == null) {
+            throw new StorageException("Dictionary " + dictID + "does not exist");
+        }
+        dataReader.close();
+        
+        try {
+            return Files.lines(DictionaryManagerConstants.DICTIONARY_NAME_DIR_PATH.resolve(dictID))
+                    .collect(Collectors.joining(""));
+        } catch (IOException e) {
+            throw new StorageException(e);
+        }
+    }
+    
+    public String getDictionaryDescription(String dictID) throws StorageException {
+        DataReader dataReader = relationManager.getTableDataReader(DictionaryManagerConstants.TABLE_NAME, 
+                new TermQuery(new Term(DictionaryManagerConstants.NAME, dictID)));
+        dataReader.open();
+        if (dataReader.getNextTuple() == null) {
+            throw new StorageException("Dictionary " + dictID + "does not exist");
+        }
+        dataReader.close();
+        
+        try {
+            return Files.lines(DictionaryManagerConstants.DICTIONARY_DESCRIPTION_DIR_PATH.resolve(dictID))
+                    .collect(Collectors.joining(""));
+        } catch (IOException e) {
+            throw new StorageException(e);
+        }
+    }
+    
+    public static void main(String args) {
+    	System.out.println("HEllo WOrld");
     }
     
 }

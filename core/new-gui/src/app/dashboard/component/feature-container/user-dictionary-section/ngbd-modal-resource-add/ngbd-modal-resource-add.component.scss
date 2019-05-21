@@ -11,67 +11,87 @@
   font-family:Roboto, Arial, sans-serif;
 }
 
-/**
-* this css is used for creating a 3*2 grid area for the Add
-* dictionary window. The percentages define the size of each
-* column and row, and the first column is empty
-*              ******************
-*              *                *
-*              ******************
-*              *                *
-*              *                *
-*              *                *
-*              ******************
-*              *                *
-*              ******************
-**/
 .add-dictionary-container{
-  display: grid;
-  grid-template-columns: 70% 30%;
-  grid-template-rows : 10% 60% 10% 5% 15%;
-  grid-row-gap: 10px;
+  margin-top:20px;
 }
 
-.name-area{
-  grid-row-start: 1;
-  grid-row-end: 2;
-  grid-column-start: 1;
-  grid-column-end: 2;
+.add-dictionary-container > *{
+  display: flex;
+  flex-direction: column;
+  column-fill: balance;
 }
 
-.content-area{
-  grid-row-start: 2;
-  grid-row-end: 3;
-  grid-column-start: 1;
-  grid-column-end: 3;
+.modal-body {
+  min-height: calc(100vh - 200px);
+  max-height: calc(100vh - 200px);
+  overflow: auto !important;
 }
 
-.separator-area{
-  grid-row-start: 3;
-  grid-row-end: 4;
-  grid-column-start: 1;
-  grid-column-end: 2;
+.drag-file-area {
+  text-align: center;
+  height: 200px;
+  font-size: 2em;
+  justify-content: center;
+  flex-direction: column;
+  display: flex;
+  border-radius: 50px;
+  border: dotted 5px lightblue;
+  cursor: pointer;
+  margin: 10px 0px;
 }
 
-.transmit-area{
-  grid-row-start: 4;
-  grid-row-end: 5;
-  grid-column-start: 1;
-  grid-column-end: 3;
+.have-file-over {
+  background:  lightgray;
 }
 
-.file-upload-area{
-  grid-row-start: 5;
-  grid-row-end: 6;
-  grid-column-start: 1;
-  grid-column-end: 3;
-  overflow: auto;
+.invalid-file {
+  // margin-left:10px;
+  padding-left:10px;
+  color:orange;
+}
+
+.file-queue-item {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px solid grey;
+  margin-bottom: 5px;
+}
+
+.drag-file-container:last-child{
+  border-bottom:none;
+}
+
+.delete-all-invalid-button{
+  background: red;
+}
+
+.queue-delete-button{
+  background-color:red;
+  border-radius: 4px;
+  width: 50px;
+  cursor: pointer;
+  -webkit-transition-duration: 0.2s;
+  transition-duration: 0.2s;
+}
+
+.queue-delete-button:hover{
+  color:white;
+  // background-color: orangered;
+}
+
+.invalid-file-warning{
+ color:orange;
+}
+
+.bottom-size{
+  width:60px;
 }
 
 #hide input[type=file] {
   display:none;
   margin:10px;
-  }
+}
+
 #hide input[type=file] + label {
   display:inline-block;
   margin:20px;
@@ -80,9 +100,10 @@
   border:solid 1px #666F77;
   border-radius: 6px;
   color:#666F77;
-  }
+}
+
 #hide input[type=file]:active + label {
   background-image: none;
   background-color:#2D6C7A;
   color:#FFFFFF;
-  }
+}

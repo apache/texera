@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.web.resource;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import edu.uci.ics.texera.dataflow.resource.dictionary.DictionaryManager;
 import edu.uci.ics.texera.web.TexeraWebException;
@@ -12,7 +13,10 @@ import javax.ws.rs.core.MediaType;
 import java.io.*;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Path("/users/dictionaries/")
@@ -46,8 +50,11 @@ public class UserDictionaryResource {
     public List<UserDictionary> getDictionaries() {
         DictionaryManager dictionaryManager = DictionaryManager.getInstance();
         List<UserDictionary> dictionaries = dictionaryManager.getDictionaryIDs().stream()
-                .map(dictID -> new UserDictionary(dictID, dictID, this.entriesFromJson(dictionaryManager.getDictionary(dictID)), null))
+                .map(dictID -> new UserDictionary(dictID, dictionaryManager.getDictionaryName(dictID), 
+                		this.entriesFromJson(dictionaryManager.getDictionaryContent(dictID)), 
+                		dictionaryManager.getDictionaryDescription(dictID)))
                 .collect(Collectors.toList());
+        
         return dictionaries;
     }
 
@@ -59,13 +66,14 @@ public class UserDictionaryResource {
     public UserDictionary getDictionary(@PathParam("dictionaryID") String dictID) {
         try {
             DictionaryManager dictionaryManager = DictionaryManager.getInstance();
-            String dictionaryContent = dictionaryManager.getDictionary(dictID);
+            String dictionaryContent = dictionaryManager.getDictionaryContent(dictID);
 
             ObjectMapper objectMapper = new ObjectMapper();
             List<String> dictEntries = objectMapper.readValue(dictionaryContent,
                     objectMapper.getTypeFactory().constructCollectionType(List.class, String.class));
 
-            return new UserDictionary(dictID, dictID, dictEntries, null);
+            return new UserDictionary(dictID, dictionaryManager.getDictionaryName(dictID), dictEntries, 
+            		dictionaryManager.getDictionaryDescription(dictID));
         } catch (Exception e) {
             throw new TexeraWebException(e);
         }
@@ -82,7 +90,8 @@ public class UserDictionaryResource {
         if (dictIDs.contains(dictID)) {
             dictionaryManager.deleteDictionary(dictID);
         }
-        dictionaryManager.addDictionary(dictID, entriesToJson(userDictionary.items));
+        
+        dictionaryManager.addDictionary(dictID, entriesToJson(userDictionary.items), userDictionary.name, userDictionary.description);
 
         return new GenericWebResponse(0, "success");
     }
@@ -108,23 +117,31 @@ public class UserDictionaryResource {
             @FormDataParam("file") InputStream uploadedInputStream,
             @FormDataParam("file") FormDataContentDisposition fileDetail) {
 
-        List<String> lines = new ArrayList<>();
+//        List<String> lines = new ArrayList<>();
+        StringBuilder fileContents = new StringBuilder();
         String line;
         try (BufferedReader br = new BufferedReader(new InputStreamReader(uploadedInputStream))) {
             while ((line = br.readLine()) != null) {
-                lines.add(line);
+//                lines.add(line);
+                fileContents.append(line);
             }
         } catch (IOException e) {
             throw new TexeraWebException("Error occurred while uploading dictionary");
         }
 
         String fileName = fileDetail.getFileName();
-
-        List<String> dictEntries = lines.stream().map(s -> s.trim()).filter(s -> ! s.isEmpty()).collect(Collectors.toList());
+        
+        String contents = fileContents.toString();
+        List<String> dictEntriesWithDup = Arrays.asList(contents.split(",")).stream().map(s -> s.trim()).filter(s -> !s.isEmpty()).collect(Collectors.toList());
+ 
+        Set<String> dictEntriesWithoutDup = new HashSet<String> (dictEntriesWithDup);
+        List<String> dictEntries = new ArrayList<String> (dictEntriesWithoutDup);
+//        List<String> dictEntries = lines.stream().map(s -> s.trim()).filter(s -> ! s.isEmpty()).collect(Collectors.toList());
 
         // save the dictionary
         DictionaryManager dictionaryManager = DictionaryManager.getInstance();
-        dictionaryManager.addDictionary(fileName, entriesToJson(dictEntries));
+        String randomDictionaryID = "dictionary-" + UUID.randomUUID().toString();
+        dictionaryManager.addDictionary(randomDictionaryID, entriesToJson(dictEntries), fileName, "");
 
         return new GenericWebResponse(0, "success");
     }

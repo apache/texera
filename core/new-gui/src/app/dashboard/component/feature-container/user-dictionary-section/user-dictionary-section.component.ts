@@ -54,27 +54,13 @@ export class UserDictionarySectionComponent {
   * @param dictionary: the dictionary that user wants to view
   */
   public openNgbdModalResourceViewComponent(dictionary: UserDictionary): void {
-    const modalRef = this.modalService.open(NgbdModalResourceViewComponent);
+    const modalRef = this.modalService.open(NgbdModalResourceViewComponent, {
+      beforeDismiss: () => {
+        this.refreshUserDictionary();
+        return true;
+      }
+    });
     modalRef.componentInstance.dictionary = cloneDeep(dictionary);
-
-    const addModelObservable = Observable.from(modalRef.componentInstance.addedName);
-    const deleteModelObservable = Observable.from(modalRef.componentInstance.deleteName);
-
-    addModelObservable.subscribe(
-      value => {
-        if (!dictionary.items.includes(<string>value)) {
-          dictionary.items.push(<string> value);
-        }
-        modalRef.componentInstance.dictionary = cloneDeep(dictionary);
-      }
-    );
-
-    deleteModelObservable.subscribe(
-      value => {
-        dictionary.items = dictionary.items.filter(obj => obj !== <string> value);
-        modalRef.componentInstance.dictionary = cloneDeep(dictionary);
-      }
-    );
   }
 
   /**

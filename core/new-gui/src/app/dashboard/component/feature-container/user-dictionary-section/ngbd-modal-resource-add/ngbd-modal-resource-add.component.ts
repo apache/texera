@@ -1,9 +1,10 @@
-import { Component, Output, EventEmitter } from '@angular/core';
+import { Component } from '@angular/core';
 import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 
 import { UserDictionaryService } from '../../../../service/user-dictionary/user-dictionary.service';
 import { UserDictionary } from '../../../../service/user-dictionary/user-dictionary.interface';
 import { Observable } from '../../../../../../../node_modules/rxjs';
+import { v4 as uuid } from 'uuid';
 
 /**
  * NgbdModalResourceAddComponent is the pop-up component to let
@@ -20,14 +21,14 @@ import { Observable } from '../../../../../../../node_modules/rxjs';
   providers: [
     UserDictionaryService,
   ]
-
 })
 export class NgbdModalResourceAddComponent {
 
-  public newDictionary: any; // potential issue
+  public newDictionary: UserDictionary | undefined; // potential issue
   public name: string = '';
   public dictContent: string = '';
   public separator: string = '';
+  public dictionaryDescription: string = '';
   public selectFile: any = null; // potential issue
 
   constructor(
@@ -39,11 +40,12 @@ export class NgbdModalResourceAddComponent {
     this.selectFile = event.target.files[0];
   }
 
+
   /**
-  * addDictionary records the new dictionary information (DIY/file) and sends
-  * it back to the main component. This method will check if the user
-  * upload dictionary files first. If not, the method will read the
-  * dictionary information from the input form.
+  * addDictionary records the new dictionary information and sends
+  *   it to the backend. This method will check if the user
+  *   upload dictionary files first. If not, the method will read the
+  *   dictionary information from the input form.
   *
   * @param
   */
@@ -55,18 +57,20 @@ export class NgbdModalResourceAddComponent {
     }
 
     if (this.name !== '' && this.dictContent !== '' && this.separator !== '') {
-      this.newDictionary = <UserDictionary> {
-        id : '1',
+      this.newDictionary = {
+        id : this.getDictionaryRandomID(),
         name : this.name,
         items : [],
+        description: this.dictionaryDescription
       };
 
-      const listWithDup = this.dictContent.split(this.separator);
+      const listWithDup = this.dictContent.trim().split(this.separator)
+        .map(dictItem => dictItem.trim()).filter(item => item.length !== 0);
+
+
       this.newDictionary.items = listWithDup.filter((v, i) => listWithDup.indexOf(v) === i);
 
-      this.name = '';
-      this.dictContent = '';
-      this.separator = '';
+      this.resetModal();
 
       this.activeModal.close(this.userDictionaryService.putUserDictionaryData(this.newDictionary));
       return;
@@ -74,5 +78,21 @@ export class NgbdModalResourceAddComponent {
 
     this.activeModal.close(Observable.empty());
 
+  }
+
+  /**
+   * Reset the parameters inside the current modal before exiting.
+   */
+  private resetModal(): void {
+    this.name = '';
+    this.dictContent = '';
+    this.separator = '';
+  }
+
+  /**
+   * Generates a random dictionary UUID for the new dictionary generated.
+   */
+  private getDictionaryRandomID(): string {
+    return 'dictionary-' + uuid();
   }
 }

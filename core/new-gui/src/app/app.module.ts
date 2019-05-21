@@ -13,6 +13,7 @@ import { LoggerModule, NgxLoggerLevel } from 'ngx-logger';
 
 import { MaterialDesignFrameworkModule } from 'angular6-json-schema-form';
 import { NgxJsonViewerModule } from 'ngx-json-viewer';
+import { FormsModule } from '@angular/forms';
 
 import { AppComponent } from './app.component';
 import { WorkspaceComponent } from './workspace/component/workspace.component';
@@ -105,7 +106,8 @@ import { ResourceSectionComponent } from './dashboard/component/feature-containe
     RouterModule.forRoot([]),
     TourNgBootstrapModule.forRoot(),
     LoggerModule.forRoot({level: environment.production ? NgxLoggerLevel.ERROR : NgxLoggerLevel.DEBUG, serverLogLevel: NgxLoggerLevel.OFF}),
-    MaterialDesignFrameworkModule
+    MaterialDesignFrameworkModule,
+    FormsModule
 
   ],
   entryComponents: [
