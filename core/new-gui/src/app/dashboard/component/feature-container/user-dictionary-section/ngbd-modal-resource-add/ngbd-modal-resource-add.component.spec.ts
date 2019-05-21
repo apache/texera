@@ -1,14 +1,10 @@
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
-
-import {MatDividerModule} from '@angular/material/divider';
-import {MatDialogModule} from '@angular/material/dialog';
-import {MatFormFieldModule} from '@angular/material/form-field';
-
 import { NgbModule, NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { FormsModule } from '@angular/forms';
 
 import { HttpClientModule } from '@angular/common/http';
 import { NgbdModalResourceAddComponent } from './ngbd-modal-resource-add.component';
+import { CustomNgMaterialModule } from '../../../../../common/custom-ng-material.module';
 
 import { UserDictionary } from '../../../../service/user-dictionary/user-dictionary.interface';
 
@@ -25,12 +21,12 @@ describe('NgbdModalResourceAddComponent', () => {
       providers: [
         NgbActiveModal
       ],
-      imports: [MatDividerModule,
-        MatFormFieldModule,
-        MatDialogModule,
+      imports: [
+        CustomNgMaterialModule,
         NgbModule.forRoot(),
         FormsModule,
-        HttpClientModule]
+        HttpClientModule
+      ]
     })
     .compileComponents();
   }));

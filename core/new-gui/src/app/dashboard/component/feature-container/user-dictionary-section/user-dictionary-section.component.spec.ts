@@ -5,20 +5,13 @@ import { UserDictionarySectionComponent } from './user-dictionary-section.compon
 import { UserDictionaryService } from '../../../service/user-dictionary/user-dictionary.service';
 import { StubUserDictionaryService } from '../../../service/user-dictionary/stub-user-dictionary.service';
 
-import {MatDividerModule} from '@angular/material/divider';
-import {MatListModule} from '@angular/material/list';
-import {MatCardModule} from '@angular/material/card';
-import {MatFormFieldModule} from '@angular/material/form-field';
-import {MatDialogModule} from '@angular/material/dialog';
-import {MatChipsModule} from '@angular/material/chips';
-import {MatIconModule} from '@angular/material/icon';
-
 import { NgbModule, NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { FormsModule } from '@angular/forms';
 
 import { UserDictionary } from '../../../service/user-dictionary/user-dictionary.interface';
 
 import { HttpClientModule, HttpClient } from '@angular/common/http';
+import { CustomNgMaterialModule } from '../../../../common/custom-ng-material.module';
 
 
 describe('UserDictionarySectionComponent', () => {
@@ -48,20 +41,15 @@ describe('UserDictionarySectionComponent', () => {
     TestBed.configureTestingModule({
       declarations: [ UserDictionarySectionComponent],
       providers: [
-        { provide: UserDictionaryService, useClass: StubUserDictionaryService },
+        UserDictionaryService,
         NgbActiveModal
       ],
-      imports: [MatCardModule,
-        MatDividerModule,
-        MatListModule,
-        MatFormFieldModule,
-        MatDialogModule,
-        MatChipsModule,
-        MatIconModule,
-
+      imports: [
+        CustomNgMaterialModule,
         NgbModule.forRoot(),
         FormsModule,
-        HttpClientModule]
+        HttpClientModule
+      ]
     })
     .compileComponents();
   }));

@@ -10,6 +10,7 @@ class StubHttpClient {
   constructor() { }
 
   public post(): Observable<string> { return Observable.of('a'); }
+  public get(): Observable<string> { return Observable.of('a'); }
 }
 
 describe('UserDictionaryService', () => {
@@ -29,17 +30,5 @@ describe('UserDictionaryService', () => {
 
   it('should be created', inject([UserDictionaryService], (InjectableService: UserDictionaryService) => {
     expect(InjectableService).toBeTruthy();
-  }));
-
-  it('should notify upload start when user upload dictionary', marbles((m) => {
-    const savedStartStream = service.getUploadDictionary()
-      .map(() => 'a');
-
-    m.hot('-a-').do(() => service.uploadDictionary(new File([''], 'filename'))).subscribe();
-
-    const expectedStream = m.hot('-a-');
-
-    m.expect(savedStartStream).toBeObservable(expectedStream);
-
   }));
 });

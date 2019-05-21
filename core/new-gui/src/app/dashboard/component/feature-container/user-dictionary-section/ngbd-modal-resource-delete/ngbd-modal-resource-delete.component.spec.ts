@@ -1,6 +1,6 @@
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 
-import {MatDialogModule} from '@angular/material/dialog';
+import { CustomNgMaterialModule } from '../../../../../common/custom-ng-material.module';
 
 import { NgbModule, NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { FormsModule } from '@angular/forms';
@@ -22,7 +22,7 @@ describe('NgbdModalResourceDeleteComponent', () => {
         NgbActiveModal
       ],
       imports: [
-        MatDialogModule,
+        CustomNgMaterialModule,
         NgbModule.forRoot(),
         FormsModule,
         HttpClientModule]
