@@ -46,7 +46,6 @@ public class DictionaryManager {
      * @throws TexeraException
      */
     public void createDictionaryManager() throws TexeraException {
-    	destroyDictionaryManager();
         if (! relationManager.checkTableExistence(DictionaryManagerConstants.TABLE_NAME)) {
             relationManager.createTable(DictionaryManagerConstants.TABLE_NAME,
                     DictionaryManagerConstants.INDEX_DIR,

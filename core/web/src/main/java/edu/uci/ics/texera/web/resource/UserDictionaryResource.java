@@ -117,12 +117,10 @@ public class UserDictionaryResource {
             @FormDataParam("file") InputStream uploadedInputStream,
             @FormDataParam("file") FormDataContentDisposition fileDetail) {
 
-//        List<String> lines = new ArrayList<>();
         StringBuilder fileContents = new StringBuilder();
         String line;
         try (BufferedReader br = new BufferedReader(new InputStreamReader(uploadedInputStream))) {
             while ((line = br.readLine()) != null) {
-//                lines.add(line);
                 fileContents.append(line);
             }
         } catch (IOException e) {
@@ -136,7 +134,6 @@ public class UserDictionaryResource {
  
         Set<String> dictEntriesWithoutDup = new HashSet<String> (dictEntriesWithDup);
         List<String> dictEntries = new ArrayList<String> (dictEntriesWithoutDup);
-//        List<String> dictEntries = lines.stream().map(s -> s.trim()).filter(s -> ! s.isEmpty()).collect(Collectors.toList());
 
         // save the dictionary
         DictionaryManager dictionaryManager = DictionaryManager.getInstance();
