@@ -1,6 +1,7 @@
-import { Component, OnInit, Input, Output, EventEmitter } from '@angular/core';
+import { Component, Input, Output, EventEmitter } from '@angular/core';
 import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
-import { UserDictionary } from '../../../../type/user-dictionary';
+import { UserDictionary } from '../../../../service/user-dictionary/user-dictionary.interface';
+import { UserDictionaryService } from '../../../../service/user-dictionary/user-dictionary.service';
 
 /**
  * NgbdModalResourceViewComponent is the pop-up component to
@@ -12,18 +13,18 @@ import { UserDictionary } from '../../../../type/user-dictionary';
 @Component({
   selector: 'texera-resource-section-modal',
   templateUrl: './ngbd-modal-resource-view.component.html',
-  styleUrls: ['./ngbd-modal-resource-view.component.scss', '../../../dashboard.component.scss']
-
+  styleUrls: ['./ngbd-modal-resource-view.component.scss', '../../../dashboard.component.scss'],
+  providers: [
+    UserDictionaryService,
+  ]
 })
 export class NgbdModalResourceViewComponent {
-  defaultUserDictionary: UserDictionary = {
+
+  public dictionary: UserDictionary = {
     name: '',
     id: '',
     items: []
   };
-  @Input() dictionary: UserDictionary = this.defaultUserDictionary;
-  @Output() addedName =  new EventEmitter<string>();
-  @Output() deleteName =  new EventEmitter<string>();
 
   public name: string = '';
   public ifAdd = false;
@@ -31,21 +32,19 @@ export class NgbdModalResourceViewComponent {
   public visible = true;
   public selectable = true;
 
-  constructor(public activeModal: NgbActiveModal) {}
-
-  public onClose(): void {
-    this.activeModal.close('Close');
-  }
+  constructor(public activeModal: NgbActiveModal, private userDictionaryService: UserDictionaryService) {}
 
   /**
-  * addKey gets the item added by user and sends it back to the main component.
+  * addDictionaryItem gets the item added by user and sends it back to the main component.
   *
   * @param
   */
-  public addKey(): void {
+  public addDictionaryItem(): void {
 
     if (this.ifAdd && this.name !== '') {
-      this.addedName.emit(this.name);
+      this.dictionary.items.push(this.name);
+      this.userDictionaryService.putUserDictionaryData(this.dictionary).subscribe();
+
       this.name = '';
     }
     this.ifAdd = !this.ifAdd;
@@ -58,7 +57,9 @@ export class NgbdModalResourceViewComponent {
   * @param item: name of the dictionary item
   */
   public remove(item: string): void {
-    this.deleteName.emit(item);
+
+    this.dictionary.items = this.dictionary.items.filter(dictItems => dictItems !== item);
+    this.userDictionaryService.putUserDictionaryData(this.dictionary).subscribe();
   }
 }
 

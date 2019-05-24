@@ -1,4 +1,4 @@
-import { UserDictionary } from '../../type/user-dictionary';
+import { UserDictionary } from './user-dictionary.interface';
 
 export const MOCK_USER_DICTIONARY_LIST: UserDictionary[] = [
   {

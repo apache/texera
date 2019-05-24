@@ -1,4 +1,4 @@
-import { Component, OnInit, Input, Output, EventEmitter } from '@angular/core';
+import { Component, Output, EventEmitter } from '@angular/core';
 import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 
 /**
@@ -11,21 +11,13 @@ import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 @Component({
   selector: 'texera-add-project-section-modal',
   templateUrl: 'ngbd-modal-add-project.component.html',
-  styleUrls: ['./ngbd-modal-add-project.component.scss', '../../../dashboard.component.scss']
+  styleUrls: ['../../../dashboard.component.scss', 'ngbd-modal-add-project.component.scss']
 })
 export class NgbdModalAddProjectComponent {
-  @Output() newProject = new EventEmitter<string>();
 
   public name: string = '';
 
   constructor(public activeModal: NgbActiveModal) { }
-
-  public onNoClick(): void {
-    this.activeModal.close();
-  }
-  public onClose(): void {
-    this.activeModal.close('Close');
-  }
 
   /**
   * addProject records the project information and return
@@ -35,9 +27,9 @@ export class NgbdModalAddProjectComponent {
   */
   public addProject(): void {
     if (this.name !== '') {
-      this.newProject.emit(this.name);
-      this.name = '';
+      this.activeModal.close(this.name);
+    } else {
+      $('#warning').text('Please input the project name!');
     }
-    this.onClose();
   }
 }

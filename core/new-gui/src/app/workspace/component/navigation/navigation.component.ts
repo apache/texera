@@ -1,7 +1,9 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, NgModule } from '@angular/core';
 import { ExecuteWorkflowService } from './../../service/execute-workflow/execute-workflow.service';
 import { TourService } from 'ngx-tour-ng-bootstrap';
 import { environment } from '../../../../environments/environment';
+import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
+import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-graph-wrapper';
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -23,11 +25,17 @@ import { environment } from '../../../../environments/environment';
   templateUrl: './navigation.component.html',
   styleUrls: ['./navigation.component.scss']
 })
+
 export class NavigationComponent implements OnInit {
 
   public isWorkflowRunning: boolean = false; // set this to true when the workflow is started
   public isWorkflowPaused: boolean = false; // this will be modified by clicking pause/resume while the workflow is running
-  constructor(private executeWorkflowService: ExecuteWorkflowService, public tourService: TourService) {
+
+  // variable binded with HTML to decide if the running spinner should show
+  public showSpinner = false;
+
+  constructor(private executeWorkflowService: ExecuteWorkflowService,
+    public tourService: TourService, private workflowActionService: WorkflowActionService) {
     // return the run button after the execution is finished, either
     //  when the value is valid or invalid
     executeWorkflowService.getExecuteEndedStream().subscribe(
@@ -112,4 +120,25 @@ export class NavigationComponent implements OnInit {
     }
   }
 
+  /**
+   * send the offset value to the work flow editor panel using drag and drop service.
+   * when users click on the button, we change the zoomoffset to make window larger or smaller.
+   */
+  public onClickZoomIn(): void {
+    // make the ratio small.
+    this.workflowActionService.getJointGraphWrapper()
+      .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() + JointGraphWrapper.ZOOM_DIFFERENCE);
+  }
+  public onClickZoomOut(): void {
+    // make the ratio big.
+    this.workflowActionService.getJointGraphWrapper()
+      .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() - JointGraphWrapper.ZOOM_DIFFERENCE);
+  }
+
+  /**
+   * Restore paper default zoom ratio and paper offset
+   */
+  public onClickRestoreZoomOffsetDefaullt(): void {
+    this.workflowActionService.getJointGraphWrapper().restoreDefaultZoomAndOffset();
+  }
 }

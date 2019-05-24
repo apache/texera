@@ -1,9 +1,11 @@
-import { Component, OnInit, Input, Output, EventEmitter } from '@angular/core';
-import { NgbModal, NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
+import { Component } from '@angular/core';
+import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 
 import { UserDictionaryService } from '../../../../service/user-dictionary/user-dictionary.service';
-import { UserDictionary} from '../../../../type/user-dictionary';
 import { Event } from '_debugger';
+import { UserDictionary } from '../../../../service/user-dictionary/user-dictionary.interface';
+import { Observable } from '../../../../../../../node_modules/rxjs';
+import { v4 as uuid } from 'uuid';
 
 import { FileUploader, FileItem } from 'ng2-file-upload';
 import isEqual from 'lodash-es/isEqual';
@@ -12,7 +14,8 @@ import { MatTabChangeEvent } from '@angular/material';
 /**
  * NgbdModalResourceAddComponent is the pop-up component to let
  * user upload dictionary. User can either input the dictionary
- * name and items or upload the dictionary file from local computer.
+ * name and items or drag and drop the dictionary file from
+ * local computer.
  *
  * @author Zhaomin Li
  * @author Adam
@@ -34,11 +37,8 @@ class MyErrorStateMatcher implements ErrorStateMatcher {
   providers: [
     UserDictionaryService,
   ]
-
 })
 export class NgbdModalResourceAddComponent {
-
-  @Output() addedDictionary =  new EventEmitter<UserDictionary>();
 
   // public newDictionary: UserDictionary | undefined; // potential issue
   public dictName: string = '';
@@ -76,6 +76,12 @@ export class NgbdModalResourceAddComponent {
 
   /**
   * This method will add user dictionary based on user's manually added contents
+
+  /**
+  * addDictionary records the new dictionary information and sends
+  *   it to the backend. This method will check if the user
+  *   upload dictionary files first. If not, the method will read the
+  *   dictionary information from the input form.
   *
   * @param
   */

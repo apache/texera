@@ -118,4 +118,9 @@ describe('SavedProjectSectionComponent', () => {
       .toEqual(['2018-01-22T17:26:50Z', '2018-01-17T06:26:50Z', '2018-01-17T06:26:50Z', '2018-01-14T22:56:50Z', '2018-01-14T22:56:50Z']);
   });
 
+/*
+* more tests of testing return value from pop-up components(windows)
+* should be removed to here
+*/
+
 });

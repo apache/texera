@@ -2,45 +2,38 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 
 import { Observable } from 'rxjs/Observable';
-import { UserDictionary } from '../../type/user-dictionary';
+import { UserDictionary } from './user-dictionary.interface';
 
 import { MOCK_USER_DICTIONARY_LIST } from './mock-user-dictionary.data';
 
-const apiUrl = 'http://localhost:8080/api';
-
-const uploadDictionaryUrl = apiUrl + '/upload/dictionary';
 
 @Injectable()
 export class StubUserDictionaryService {
 
-  constructor(private http: HttpClient) { }
+  private dictList: UserDictionary[] = MOCK_USER_DICTIONARY_LIST;
+
+  constructor(private http: HttpClient) {
+  }
 
   public getUserDictionaryData(): Observable<UserDictionary[]> {
-    return Observable.of(MOCK_USER_DICTIONARY_LIST);
+    return Observable.of(this.dictList);
   }
 
   public addUserDictionaryData(addDict: UserDictionary): void {
-    console.log('dict added');
+    this.dictList.push(addDict);
   }
 
   public uploadDictionary(file: File) {
-    const formData: FormData = new FormData();
-    formData.append('file', file, file.name);
-    this.http.post(uploadDictionaryUrl, formData, undefined)
-      .subscribe(
-        data => {
-          alert(file.name + ' is uploaded');
-          // after adding a new dictionary, refresh the list
-        },
-        err => {
-            alert('Error occurred while uploading ' + file.name);
-            console.log('Error occurred while uploading ' + file.name + '\nError message: ' + err);
-        }
-      );
+    const mockName = new Date().toISOString();
+    this.dictList.push({
+      id: mockName,
+      name: mockName,
+      items: ['mockItem1', 'mockItem2']
+    });
   }
 
-  public deleteUserDictionaryData(deleteDictionary: UserDictionary) {
-    return null;
+  public deleteUserDictionaryData(dictID: string) {
+    this.dictList = this.dictList.filter(dict => dict.id !== dictID);
   }
 
 }

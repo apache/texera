@@ -11,20 +11,6 @@
   font-family:Roboto, Arial, sans-serif;
 }
 
-/**
-* this css is used for creating a 3*2 grid area for the Add
-* dictionary window. The percentages define the size of each
-* column and row, and the first column is empty
-*              ******************
-*              *                *
-*              ******************
-*              *                *
-*              *                *
-*              *                *
-*              ******************
-*              *                *
-*              ******************
-**/
 .add-dictionary-container{
   margin-top:20px;
 }
@@ -103,7 +89,8 @@
 #hide input[type=file] {
   display:none;
   margin:10px;
-  }
+}
+
 #hide input[type=file] + label {
   display:inline-block;
   margin:20px;
@@ -112,9 +99,10 @@
   border:solid 1px #666F77;
   border-radius: 6px;
   color:#666F77;
-  }
+}
+
 #hide input[type=file]:active + label {
   background-image: none;
   background-color:#2D6C7A;
   color:#FFFFFF;
-  }
+}

@@ -1,9 +1,8 @@
-import { Component, OnInit, Input, Output, EventEmitter } from '@angular/core';
-import { NgbModal, NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
-import { HttpClientModule } from '@angular/common/http';
+import { Component, OnInit, Input, Output } from '@angular/core';
+import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
 
 import { Observable } from 'rxjs/Observable';
-import { UserDictionary} from '../../../type/user-dictionary';
+import { UserDictionary } from '../../../service/user-dictionary/user-dictionary.interface';
 
 import { UserDictionaryService } from '../../../service/user-dictionary/user-dictionary.service';
 
@@ -34,9 +33,9 @@ interface SavedData extends Readonly<{
   templateUrl: './user-dictionary-section.component.html',
   styleUrls: ['./user-dictionary-section.component.scss', '../../dashboard.component.scss']
 })
-export class UserDictionarySectionComponent implements OnInit {
+export class UserDictionarySectionComponent {
 
-  public UserDictionary: UserDictionary[] = [];
+  public userDictionaries: UserDictionary[] = [];
   public savedData: SavedData = {
     name: '',
     content: '',
@@ -47,11 +46,13 @@ export class UserDictionarySectionComponent implements OnInit {
   constructor(
     private userDictionaryService: UserDictionaryService,
     private modalService: NgbModal
-  ) { }
+  ) {
+    this.refreshUserDictionary();
+  }
 
-  ngOnInit() {
-    this.userDictionaryService.getUserDictionaryData().subscribe(
-      value => this.UserDictionary = value,
+  public refreshUserDictionary(): void {
+    this.userDictionaryService.listUserDictionaries().subscribe(
+      value => this.userDictionaries = value,
     );
   }
 
@@ -59,36 +60,21 @@ export class UserDictionarySectionComponent implements OnInit {
   * openNgbdModalResourceViewComponent triggers the view dictionary
   * component. It calls the method in service to send request to
   * backend and to fetch info package for a specific dictionary.
-  * addItemEmitter receives information about adding a item
-  * into dictionary and calls method in service. deleteItemEmitter
+  * addModelObservable receives information about adding a item
+  * into dictionary and calls method in service. deleteModelObservable
   * receives information about deleting a item in dictionary and
   * calls method in service.
   *
   * @param dictionary: the dictionary that user wants to view
   */
   public openNgbdModalResourceViewComponent(dictionary: UserDictionary): void {
-    const modalRef = this.modalService.open(NgbdModalResourceViewComponent);
+    const modalRef = this.modalService.open(NgbdModalResourceViewComponent, {
+      beforeDismiss: () => {
+        this.refreshUserDictionary();
+        return true;
+      }
+    });
     modalRef.componentInstance.dictionary = cloneDeep(dictionary);
-
-    const addItemEventEmitter = <EventEmitter<string>>(modalRef.componentInstance.addedName);
-    const subscription = addItemEventEmitter
-      .do(value => console.log(value))
-      .subscribe(
-        value => {
-          dictionary.items.push(value);
-          modalRef.componentInstance.dictionary = cloneDeep(dictionary);
-        }
-      );
-
-    const deleteItemEventEmitter = <EventEmitter<string>>(modalRef.componentInstance.deleteName);
-    const delSubscription = deleteItemEventEmitter
-      .do(value => console.log(value))
-      .subscribe(
-        value => {
-          dictionary.items = dictionary.items.filter(obj => obj !== value);
-          modalRef.componentInstance.dictionary = cloneDeep(dictionary);
-        }
-      );
   }
 
   /**
@@ -119,14 +105,24 @@ export class UserDictionarySectionComponent implements OnInit {
     modalRef.componentInstance.dictContent = this.savedData.content;
     modalRef.componentInstance.dictSeparator = this.savedData.separator;
     modalRef.componentInstance.checkCurrentFilesValid();
+    // const modalRef = this.modalService.open(NgbdModalResourceAddComponent);
+
+    // Observable.from(modalRef.result).subscribe(
+    //   (value: Observable<UserDictionary>) => {
+    //     value.subscribe(res => {
+    //       this.refreshUserDictionary();
+    //     });
+    //   }
+    // );
+
   }
 
   /**
   * openNgbdModalResourceDeleteComponent trigger the delete
   * dictionary component. If user confirms the deletion, the method
-  * sends message to frontend and delete the dicrionary on frontend.
-  * It calls the deleteUserDictionaryData method in service which
-  * using backend API.
+  * sends message to frontend and delete the dicrionary on backend and
+  * update the frontend. It calls the deleteUserDictionaryData method
+  * in service which using backend API.
   *
   * @param dictionary: the dictionary that user wants to remove
   */
@@ -134,17 +130,15 @@ export class UserDictionarySectionComponent implements OnInit {
     const modalRef = this.modalService.open(NgbdModalResourceDeleteComponent);
     modalRef.componentInstance.dictionary = cloneDeep(dictionary);
 
-    const deleteItemEventEmitter = <EventEmitter<boolean>>(modalRef.componentInstance.deleteDict);
-    const subscription = deleteItemEventEmitter
-      .subscribe(
-        (value: UserDictionary) => {
-          if (value) {
-            this.UserDictionary = this.UserDictionary.filter(obj => obj.id !== dictionary.id);
-            this.userDictionaryService.deleteUserDictionaryData(dictionary);
-          }
+    Observable.from(modalRef.result).subscribe(
+      (confirmDelete: boolean) => {
+        if (confirmDelete) {
+          this.userDictionaryService.deleteUserDictionaryData(dictionary.id).subscribe(res => {
+            this.refreshUserDictionary();
+          });
         }
-      );
-
+      }
+    );
   }
 
   /**
@@ -153,7 +147,7 @@ export class UserDictionarySectionComponent implements OnInit {
   * @param
   */
   public ascSort(): void {
-    this.UserDictionary.sort((t1, t2) => {
+    this.userDictionaries.sort((t1, t2) => {
       if (t1.name.toLowerCase() > t2.name.toLowerCase()) { return 1; }
       if (t1.name.toLowerCase() < t2.name.toLowerCase()) { return -1; }
       return 0;
@@ -166,7 +160,7 @@ export class UserDictionarySectionComponent implements OnInit {
   * @param
   */
   public dscSort(): void {
-    this.UserDictionary.sort((t1, t2) => {
+    this.userDictionaries.sort((t1, t2) => {
       if (t1.name.toLowerCase() > t2.name.toLowerCase()) { return -1; }
       if (t1.name.toLowerCase() < t2.name.toLowerCase()) { return 1; }
       return 0;
@@ -179,7 +173,7 @@ export class UserDictionarySectionComponent implements OnInit {
   * @param
   */
   public sizeSort(): void {
-    this.UserDictionary.sort((t1, t2) => {
+    this.userDictionaries.sort((t1, t2) => {
       if (t1.items.length > t2.items.length) { return -1; }
       if (t1.items.length < t2.items.length) { return 1; }
       return 0;

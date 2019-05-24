@@ -1,6 +1,6 @@
-import { Component, OnInit, Input, Output, EventEmitter } from '@angular/core';
-import { NgbModal, NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
-import { UserDictionary } from '../../../../type/user-dictionary';
+import { Component, Input, Output, EventEmitter } from '@angular/core';
+import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
+import { UserDictionary } from '../../../../service/user-dictionary/user-dictionary.interface';
 
 /**
  * NgbdModalResourceDeleteComponent is the pop-up
@@ -16,19 +16,14 @@ import { UserDictionary } from '../../../../type/user-dictionary';
 
 })
 export class NgbdModalResourceDeleteComponent {
-  defaultUserDictionary: UserDictionary = {
+
+  public dictionary: UserDictionary = {
     name: '',
     id: '',
     items: []
   };
-  @Input() dictionary: UserDictionary = this.defaultUserDictionary;
-  @Output() deleteDict =  new EventEmitter<boolean>();
 
   constructor(public activeModal: NgbActiveModal) {
-  }
-
-  public onClose(): void {
-    this.activeModal.close('Close');
   }
 
   /**
@@ -38,8 +33,7 @@ export class NgbdModalResourceDeleteComponent {
   * @param
   */
   public deleteDictionary(): void {
-    this.deleteDict.emit(true);
-    this.onClose();
+    this.activeModal.close(true);
   }
 
 }
