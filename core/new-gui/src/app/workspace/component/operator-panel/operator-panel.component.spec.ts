@@ -14,12 +14,16 @@ import { TourService } from 'ngx-tour-ng-bootstrap';
 import { GroupInfo, OperatorSchema } from '../../types/operator-schema.interface';
 import { RouterTestingModule } from '@angular/router/testing';
 import { TourNgBootstrapModule } from 'ngx-tour-ng-bootstrap';
+import {FormControl, FormsModule, ReactiveFormsModule} from '@angular/forms';
 
 import {
   mockOperatorMetaData, mockOperatorGroup, mockOperatorSchemaList
 } from '../../service/operator-metadata/mock-operator-metadata.data';
 
 import * as c from './operator-panel.component';
+import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
+import { JointUIService } from '../../service/joint-ui/joint-ui.service';
+import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-util.service';
 
 class StubDragDropService {
 
@@ -38,10 +42,14 @@ describe('OperatorPanelComponent', () => {
       providers: [
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         { provide: DragDropService, useClass: StubDragDropService},
+        WorkflowActionService,
+        WorkflowUtilService,
+        JointUIService,
         TourService
       ],
-      imports: [CustomNgMaterialModule, BrowserAnimationsModule,
-                RouterTestingModule.withRoutes([]), TourNgBootstrapModule.forRoot(), NgbModule.forRoot()]
+      imports: [CustomNgMaterialModule, BrowserAnimationsModule, FormsModule,
+        ReactiveFormsModule, RouterTestingModule.withRoutes([]), TourNgBootstrapModule.forRoot(),
+        NgbModule.forRoot()]
     })
       .compileComponents();
   }));

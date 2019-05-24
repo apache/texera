@@ -3,10 +3,8 @@ import { OperatorMetadataService } from '../../service/operator-metadata/operato
 
 import { OperatorSchema, OperatorMetadata, GroupInfo } from '../../types/operator-schema.interface';
 
-import {FormControl} from '@angular/forms';
-import {Observable} from 'rxjs';
-
-import { Point } from "../../types/workflow-common.interface";
+import { FormControl } from '@angular/forms';
+import { Observable } from 'rxjs';
 
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
@@ -98,7 +96,6 @@ export class OperatorPanelComponent implements OnInit {
 
     const new_userFriendlyNames : userFriendlyNamesType[] = []
     for (let entry of userFriendlyNames) {
-      // console.log(entry); 
       new_userFriendlyNames.push({'title':entry})
     }
 
@@ -111,22 +108,11 @@ export class OperatorPanelComponent implements OnInit {
       keys: ['title']
     };
     const fuse = new Fuse(new_userFriendlyNames,options);
-    //userFriendlyNames.filter(option => option.toLowerCase().includes(filterValue));
-    console.log('fuse');
-    console.log(fuse);
     const result = fuse.search(filterValue);
-    console.log('filterValue');
-    console.log(filterValue);
-    console.log('result');
-    console.log(result);
-    //userFriendlyNames.filter(option => option.toLowerCase().includes(filterValue));
-
     const final_result = []
     for (let entry of result) {
-       console.log(entry); 
        final_result.push(entry.title);
     }
-
     return final_result;
   }
 
