@@ -106,10 +106,10 @@ export class NgbdModalResourceAddComponent {
         .subscribe(
           data => {
             this.isUploading = false;
-            this.uploader.queue = [];
-            this.dictName = '';
-            this.dictContent = '';
-            this.dictSeparator = '';
+            // this.uploader.queue = [];
+            // this.dictName = '';
+            // this.dictContent = '';
+            // this.dictSeparator = '';
             this.activeModal.dismiss('close'); },
           error => { // TODO: explain the reason of failing
             this.isUploading = false;
@@ -138,10 +138,10 @@ export class NgbdModalResourceAddComponent {
         .subscribe(
           data => {
             this.isUploading = false;
-            this.uploader.queue = [];
-            this.dictName = '';
-            this.dictContent = '';
-            this.dictSeparator = '';
+            // this.uploader.queue = [];
+            // this.dictName = '';
+            // this.dictContent = '';
+            // this.dictSeparator = '';
             this.activeModal.dismiss('close'); },
           error => { // TODO: explain the reason of failing
             this.isUploading = false;

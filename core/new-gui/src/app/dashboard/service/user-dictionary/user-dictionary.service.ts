@@ -73,12 +73,18 @@ export class UserDictionaryService {
     );
   }
 
-  public uploadFileList(filelist: File[]): Observable<object> {
-    return this.http.post(uploadFileListURL, filelist, { headers: { 'Content-Type': 'text/plain' } });
+  public uploadFileList(fileList: File[]): Observable<GenericWebResponse> {
+    const formDataList: FormData[] = [];
+    fileList.forEach(file => {
+      const formData: FormData = new FormData();
+      formData.append('file', file, file.name);
+      formDataList.push(formData);
+    });
+    return this.http.post<GenericWebResponse>(`${environment.apiUrl}/${uploadFileListURL}`, formDataList);
   }
 
-  public uploadUserDictionary(dict: UserDictionary): Observable<object> {
-    return this.http.post(uploadUserDictionaryURL, dict, { headers: { 'Content-Type': 'UserDictionary' } });
+  public uploadUserDictionary(dict: UserDictionary): Observable<GenericWebResponse> {
+    return this.http.post<GenericWebResponse>(`${environment.apiUrl}/${uploadUserDictionaryURL}`, dict);
   }
 
   /**

@@ -105,15 +105,20 @@ export class UserDictionarySectionComponent {
     modalRef.componentInstance.dictContent = this.savedData.content;
     modalRef.componentInstance.dictSeparator = this.savedData.separator;
     modalRef.componentInstance.checkCurrentFilesValid();
-    // const modalRef = this.modalService.open(NgbdModalResourceAddComponent);
 
-    // Observable.from(modalRef.result).subscribe(
-    //   (value: Observable<UserDictionary>) => {
-    //     value.subscribe(res => {
-    //       this.refreshUserDictionary();
-    //     });
-    //   }
-    // );
+    Observable.from(modalRef.result).subscribe(
+      () => {
+        this.savedData = {
+          name: '',
+          content: '',
+          separator: '',
+          savedQueue: []
+        };
+        this.refreshUserDictionary();
+      },
+      () => {} // Error would occur in subscribe() when activeModule.dismiss() if don't put empty function here.
+               // But we still need to use subscribe() to detect when uploading finishes.
+    );
 
   }
 
