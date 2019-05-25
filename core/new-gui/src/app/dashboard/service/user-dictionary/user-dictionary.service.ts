@@ -2,15 +2,13 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 
 import { Observable } from 'rxjs/Observable';
-import { Subject } from 'rxjs/Subject';
 import { UserDictionary } from './user-dictionary.interface';
 import { environment } from '../../../../environments/environment';
 
 const dictionaryUrl = 'users/dictionaries';
 const uploadDictionaryUrl = 'users/dictionaries/upload-file';
+const uploadFilesURL = 'users/dictionaries/upload-files';
 
-const uploadFileListURL = 'assume it exist';
-const uploadUserDictionaryURL = 'assume it exist';
 export interface GenericWebResponse {
   code: number;
   message: string;
@@ -73,18 +71,18 @@ export class UserDictionaryService {
     );
   }
 
+  /**
+   * This method will handle the request to upload multiple files to the backend.
+   *
+   * @param fileList
+   */
   public uploadFileList(fileList: File[]): Observable<GenericWebResponse> {
-    const formDataList: FormData[] = [];
+    const newFormData = new FormData();
     fileList.forEach(file => {
-      const formData: FormData = new FormData();
-      formData.append('file', file, file.name);
-      formDataList.push(formData);
+      newFormData.append('files', file, file.name);
     });
-    return this.http.post<GenericWebResponse>(`${environment.apiUrl}/${uploadFileListURL}`, formDataList);
-  }
 
-  public uploadUserDictionary(dict: UserDictionary): Observable<GenericWebResponse> {
-    return this.http.post<GenericWebResponse>(`${environment.apiUrl}/${uploadUserDictionaryURL}`, dict);
+    return this.http.post<GenericWebResponse>(`${environment.apiUrl}/${uploadFilesURL}`, newFormData);
   }
 
   /**

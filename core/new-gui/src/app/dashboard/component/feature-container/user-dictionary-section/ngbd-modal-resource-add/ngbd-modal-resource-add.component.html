@@ -1,48 +1,51 @@
 <div class="modal-header">
   <h4 class="modal-title">Add Dictionary</h4>
-  <button type="button" class="close" aria-label="Close"  (click)="activeModal.dismiss('close')">
+  <button type="button" class="close" aria-label="Close" (click)="activeModal.dismiss('close')">
     <span aria-hidden="true">&times;</span>
   </button>
 </div>
 <div class="modal-body">
   <mat-tab-group mat-stretch-tabs (selectedTabChange)="onTabChangeEvent($event)">
-    <!-- upload file tab -->
+    <!-- upload files tab -->
     <mat-tab label="Upload">
       <div ng2FileDrop
-          [ngClass]="{'have-file-over': haveDropZoneOver}"
-          (fileOver)="haveFileOver($event)"
-          (onFileDrop)="getFileDropped($event)"
-          [uploader]="uploader"
-          class="drag-file-area"
-          (click)="clickUpload.click()">
-          Drop Files Here
-          <div id="hide">
-                <input #clickUpload type="file"
-                  accept=".txt"(change)="saveUploadFile($event)" multiple/>
-          </div>
+        [ngClass]="{'have-file-over': haveDropZoneOver}"
+        (fileOver)="haveFileOver($event)"
+        (onFileDrop)="getFileDropped($event)"
+        [uploader]="uploader"
+        class="drag-file-area"
+        (click)="clickUpload.click()">
+
+        Drop Files Here
+        <div id="hide">
+          <input #clickUpload type="file" accept=".txt"(change)="saveUploadFile($event)" multiple/>
+        </div>
+
       </div>
       <div *ngIf="uploader.queue.length">
         <li *ngFor="let item of uploader.queue" class="file-queue-item">
           <span>
-            <label>{{ item?.file?.name }}</label>
+            <label>{{ item.file.name }}</label>
             <label *ngIf="checkThisFileInvalid(item._file)" class="invalid-file">*Invalid</label>
           </span>
           <button class="queue-delete-button" (click)="removeFile(item)">
             <i class="fa fa-trash" aria-hidden="true"></i>
           </button>
         </li>
-        <div *ngIf="invalidFileNumber || duplicateFile.length">
+        <div *ngIf="invalidFileTypeCounter || duplicateFiles.length">
           <button type="button" class="delete-all-invalid-button btn btn-outline-dark"
-          (click)="deleteAllInvalidFile()">Delete Invalid Files</button>
-          <label *ngIf="invalidFileNumber"
-            class="invalid-file-warning"> *You can only upload .txt file</label>
-          <label *ngIf="duplicateFile.length"
-            class="invalid-file-warning"> *You cannot upload files with duplicate names</label>
+            (click)="deleteAllInvalidFile()">Delete Invalid Files</button>
+          <label *ngIf="invalidFileTypeCounter" class="invalid-file-warning">
+            *You can only upload .txt file
+          </label>
+          <label *ngIf="duplicateFiles.length" class="invalid-file-warning">
+            *You cannot upload files with duplicate names
+          </label>
         </div>
       </div>
     </mat-tab>
 
-    <!-- user manually add tab -->
+    <!-- tab for manual dictionary creation by the user -->
     <mat-tab label="Add Manually">
       <div class= "add-dictionary-container">
         <mat-dialog-content>
@@ -62,6 +65,9 @@
           <mat-form-field>
             <input  matInput [(ngModel)]="dictSeparator" placeholder="Content Separator (' , '    ' \\t '    ' \\n ')">
           </mat-form-field>
+          <mat-form-field class= "description-area">
+            <input  matInput [(ngModel)]="dictionaryDescription" placeholder="Dictionary Description" required>
+          </mat-form-field>
         </mat-dialog-content>
       </div>
     </mat-tab>
@@ -69,20 +75,18 @@
 
 </div>
 <div class="modal-footer">
-  <div *ngIf="isInUploadFileTab">
-      <div *ngIf="uploader.queue.length">
-          <button class="btn btn-primary btn-xs bottom-upload bottom-size"
-                                (click)="uploadFile()"
-                                [disabled]="invalidFileNumber || duplicateFile.length">
-                                  <span *ngIf="!isUploading">Upload</span>
-                                  <span *ngIf="isUploading" class='fa fa-spinner fa-spin'></span>
-                              </button>
-        </div>
+  <div *ngIf="isInUploadFileTab && uploader.queue.length">
+    <button class="btn btn-primary btn-xs bottom-upload bottom-size"
+      (click)="uploadFiles()"
+      [disabled]="invalidFileTypeCounter || duplicateFiles.length">
+        <span *ngIf="!isUploading">Upload</span>
+        <span *ngIf="isUploading" class='fa fa-spinner fa-spin'></span>
+    </button>
   </div>
   <div *ngIf="!isInUploadFileTab">
-      <button class="btn btn-outline-dark add-button bottom-size"
+    <button class="btn btn-outline-dark add-button bottom-size"
       (click)="addDictionary()"
-      [disabled]="dictContent === '' || dictName === '' ">
+      [disabled]="!checkDictionaryFormValid()">
         <span *ngIf="!isUploading">Add</span>
         <span *ngIf="isUploading" class='fa fa-spinner fa-spin'></span>
     </button>

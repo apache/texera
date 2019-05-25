@@ -13,11 +13,12 @@ import { NgbdModalResourceViewComponent } from './ngbd-modal-resource-view/ngbd-
 import { cloneDeep } from 'lodash';
 import { FileItem } from 'ng2-file-upload';
 
-interface SavedData extends Readonly<{
+export interface SavedAddDictionaryState extends Readonly<{
   name: string;
   content: string;
   separator: string;
-  savedQueue: FileItem[]
+  description: string;
+  savedQueue: FileItem[];
 }> { }
 
 /**
@@ -36,11 +37,13 @@ interface SavedData extends Readonly<{
 export class UserDictionarySectionComponent {
 
   public userDictionaries: UserDictionary[] = [];
-  public savedData: SavedData = {
+
+  public savedState: SavedAddDictionaryState = {
     name: '',
     content: '',
     separator: '',
-    savedQueue: []
+    description: '',
+    savedQueue: [],
   };
 
   constructor(
@@ -89,37 +92,31 @@ export class UserDictionarySectionComponent {
   */
   public openNgbdModalResourceAddComponent(): void {
     const modalRef = this.modalService.open(NgbdModalResourceAddComponent, {
+      // before the modal closes, save the state and refresh the dictionaries on the feature container
       beforeDismiss: (): boolean => {
-        this.savedData = {
+        this.savedState = {
           name: modalRef.componentInstance.dictName,
           content: modalRef.componentInstance.dictContent,
           separator: modalRef.componentInstance.dictSeparator,
+          description: modalRef.componentInstance.dictionaryDescription,
           savedQueue: modalRef.componentInstance.uploader.queue
         };
+
+        // refresh the dictionaries in the panel to show the new updates done by users
+        this.refreshUserDictionary();
         return true;
       }
     });
+
     // initialize the value from saving, used when user close the popup and then temporarily save dictionary.
-    modalRef.componentInstance.uploader.queue = this.savedData.savedQueue;
-    modalRef.componentInstance.dictName = this.savedData.name;
-    modalRef.componentInstance.dictContent = this.savedData.content;
-    modalRef.componentInstance.dictSeparator = this.savedData.separator;
+    modalRef.componentInstance.uploader.queue = this.savedState.savedQueue;
+    modalRef.componentInstance.dictName = this.savedState.name;
+    modalRef.componentInstance.dictContent = this.savedState.content;
+    modalRef.componentInstance.dictSeparator = this.savedState.separator;
+    modalRef.componentInstance.dictionaryDescription = this.savedState.description;
+
+    // checks if the files saved in the state are valid.
     modalRef.componentInstance.checkCurrentFilesValid();
-
-    Observable.from(modalRef.result).subscribe(
-      () => {
-        this.savedData = {
-          name: '',
-          content: '',
-          separator: '',
-          savedQueue: []
-        };
-        this.refreshUserDictionary();
-      },
-      () => {} // Error would occur in subscribe() when activeModule.dismiss() if don't put empty function here.
-               // But we still need to use subscribe() to detect when uploading finishes.
-    );
-
   }
 
   /**
