@@ -65,6 +65,7 @@ export class NgbdModalResourceAddComponent {
   public matcher = new MyErrorStateMatcher();
   public nameValidator: FormControl =  new FormControl('', [Validators.required]);
   public contentValidator: FormControl =  new FormControl('', [Validators.required]);
+  public descriptionValidator: FormControl =  new FormControl('', [Validators.required]);
 
   constructor(
     public activeModal: NgbActiveModal,

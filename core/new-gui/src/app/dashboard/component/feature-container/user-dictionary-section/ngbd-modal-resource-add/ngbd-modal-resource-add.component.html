@@ -66,7 +66,9 @@
             <input  matInput [(ngModel)]="dictSeparator" placeholder="Content Separator (' , '    ' \\t '    ' \\n ')">
           </mat-form-field>
           <mat-form-field class= "description-area">
-            <input  matInput [(ngModel)]="dictionaryDescription" placeholder="Dictionary Description" required>
+            <input  matInput [(ngModel)]="dictionaryDescription" placeholder="Dictionary Description"
+            [formControl]="descriptionValidator" [errorStateMatcher]="matcher" required>
+            <mat-error *ngIf="descriptionValidator.invalid">*Description is <strong>required</strong></mat-error>
           </mat-form-field>
         </mat-dialog-content>
       </div>
