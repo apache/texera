@@ -208,6 +208,9 @@ export class ResultPanelComponent {
     //  this copy will be has type object[] because MatTableDataSource's input needs to be object[]
     const resultData = response.result.slice();
 
+    console.log('Execution result');
+    console.log(resultData);
+    console.log(resultData.length);
     // save a copy of current result
     this.currentResult = resultData;
 

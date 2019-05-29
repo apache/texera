@@ -24,7 +24,7 @@ export const defaultEnvironment = {
   /**
    * whether the backend support pause/resume functionaility
    */
-  pauseResumeEnabled: false,
+  pauseResumeEnabled: true,
 
   /**
    * whether download execution result is supported
