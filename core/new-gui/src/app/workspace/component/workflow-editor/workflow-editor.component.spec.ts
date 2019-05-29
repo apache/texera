@@ -6,7 +6,6 @@ import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { WorkflowEditorComponent } from './workflow-editor.component';
 
-import { marbles } from 'rxjs-marbles';
 import { OperatorMetadataService } from '../../service/operator-metadata/operator-metadata.service';
 import { StubOperatorMetadataService } from '../../service/operator-metadata/stub-operator-metadata.service';
 import { JointUIService } from '../../service/joint-ui/joint-ui.service';
@@ -14,6 +13,10 @@ import { WorkflowGraph, WorkflowGraphReadonly } from '../../service/workflow-gra
 
 import * as joint from 'jointjs';
 import { mockScanPredicate, mockPoint } from '../../service/workflow-graph/model/mock-workflow-data';
+
+import { ResultPanelToggleService } from '../../service/result-panel-toggle/result-panel-toggle.service';
+import { marbles } from 'rxjs-marbles';
+
 
 class StubWorkflowActionService {
 
@@ -54,6 +57,7 @@ describe('WorkflowEditorComponent', () => {
           JointUIService,
           WorkflowUtilService,
           DragDropService,
+          ResultPanelToggleService,
           { provide: WorkflowActionService, useClass: StubWorkflowActionService },
           { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
         ]
@@ -72,6 +76,7 @@ describe('WorkflowEditorComponent', () => {
     it('should create', () => {
       expect(component).toBeTruthy();
     });
+
 
     it('should create element in the UI after adding operator in the model', () => {
       const operatorID = 'test_one_operator_1';
@@ -141,6 +146,7 @@ describe('WorkflowEditorComponent', () => {
           JointUIService,
           WorkflowUtilService,
           WorkflowActionService,
+          ResultPanelToggleService,
           DragDropService,
           { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         ]

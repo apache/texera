@@ -214,26 +214,25 @@ describe('NavigationComponent', () => {
      newRatio => {
        fixture.detectChanges();
        expect(newRatio).toBeLessThan(originalZoomRatio);
-       expect(newRatio).toEqual(originalZoomRatio - JointGraphWrapper.ZOOM_DIFFERENCE);
+       expect(newRatio).toEqual(originalZoomRatio - JointGraphWrapper.ZOOM_CLICK_DIFF);
      }
    );
 
   }));
 
   it('should change zoom to be bigger when user click on the zoom in buttons', marbles((m) => {
+
     // expect initially the zoom ratio is 1;
-   const originalZoomRatio = 1;
+    const originalZoomRatio = 1;
 
-   m.hot('-e-').do(() => component.onClickZoomIn()).subscribe();
-   workflowActionService.getJointGraphWrapper().getWorkflowEditorZoomStream().subscribe(
-     newRatio => {
-       fixture.detectChanges();
-       expect(newRatio).toBeGreaterThan(originalZoomRatio);
-       expect(newRatio).toEqual(originalZoomRatio + JointGraphWrapper.ZOOM_DIFFERENCE);
-     }
-   );
-
-
+    m.hot('-e-').do(() => component.onClickZoomIn()).subscribe();
+    workflowActionService.getJointGraphWrapper().getWorkflowEditorZoomStream().subscribe(
+      newRatio => {
+        fixture.detectChanges();
+        expect(newRatio).toBeGreaterThan(originalZoomRatio);
+        expect(newRatio).toEqual(originalZoomRatio + JointGraphWrapper.ZOOM_CLICK_DIFF);
+      }
+    );
   }));
 
   it('should execute the zoom in function when the user click on the Zoom In button', marbles((m) => {
@@ -247,6 +246,22 @@ describe('NavigationComponent', () => {
     m.hot('-e-').do(event => component.onClickZoomOut()).subscribe();
     const zoomEndStream = workflowActionService.getJointGraphWrapper().getWorkflowEditorZoomStream().map(value => 'e');
     const expectedStream = '-e-';
+    m.expect(zoomEndStream).toBeObservable(expectedStream);
+  }));
+
+  it('should not increase zoom ratio when the user click on the zoom in button if zoom ratio already reaches maximum', marbles((m) => {
+    workflowActionService.getJointGraphWrapper().setZoomProperty(JointGraphWrapper.ZOOM_MAXIMUM);
+    m.hot('-e-').do(() => component.onClickZoomIn()).subscribe();
+    const zoomEndStream = workflowActionService.getJointGraphWrapper().getWorkflowEditorZoomStream().map(value => 'e');
+    const expectedStream = '---';
+    m.expect(zoomEndStream).toBeObservable(expectedStream);
+  }));
+
+  it('should not decrease zoom ratio when the user click on the zoom out button if zoom ratio already reaches minimum', marbles((m) => {
+    workflowActionService.getJointGraphWrapper().setZoomProperty(JointGraphWrapper.ZOOM_MINIMUM);
+    m.hot('-e-').do(() => component.onClickZoomOut()).subscribe();
+    const zoomEndStream = workflowActionService.getJointGraphWrapper().getWorkflowEditorZoomStream().map(value => 'e');
+    const expectedStream = '---';
     m.expect(zoomEndStream).toBeObservable(expectedStream);
   }));
 

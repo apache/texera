@@ -94,9 +94,9 @@ export class DragDropService {
          */
 
         const newOperatorOffset: Point = {
-          x:  (value.offset.x - this.workflowActionService.getJointGraphWrapper().getDragOffset().x)
+          x:  (value.offset.x - this.workflowActionService.getJointGraphWrapper().getPanningOffset().x)
               / this.workflowActionService.getJointGraphWrapper().getZoomRatio(),
-          y: (value.offset.y - this.workflowActionService.getJointGraphWrapper().getDragOffset().y)
+          y: (value.offset.y - this.workflowActionService.getJointGraphWrapper().getPanningOffset().y)
               / this.workflowActionService.getJointGraphWrapper().getZoomRatio()
         };
 
@@ -313,9 +313,9 @@ export class DragDropService {
       .subscribe(mouseCoordinates => {
           const currentMouseCoordinates = {x: mouseCoordinates[0], y: mouseCoordinates[1]};
           const scaledMouseCoordinates = {
-            x: (currentMouseCoordinates.x - this.workflowActionService.getJointGraphWrapper().getDragOffset().x)
+            x: (currentMouseCoordinates.x - this.workflowActionService.getJointGraphWrapper().getPanningOffset().x)
                 / this.workflowActionService.getJointGraphWrapper().getZoomRatio(),
-            y: (currentMouseCoordinates.y - this.workflowActionService.getJointGraphWrapper().getDragOffset().y)
+            y: (currentMouseCoordinates.y - this.workflowActionService.getJointGraphWrapper().getPanningOffset().y)
                 / this.workflowActionService.getJointGraphWrapper().getZoomRatio()
           };
           this.findClosestOperator(scaledMouseCoordinates);
