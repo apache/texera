@@ -312,7 +312,13 @@ export class DragDropService {
       .filter(() => !isOperatorDropped)
       .subscribe(mouseCoordinates => {
           const currentMouseCoordinates = {x: mouseCoordinates[0], y: mouseCoordinates[1]};
-          this.findClosestOperator(currentMouseCoordinates);
+          const scaledMouseCoordinates = {
+            x: (currentMouseCoordinates.x - this.workflowActionService.getJointGraphWrapper().getDragOffset().x)
+                / this.workflowActionService.getJointGraphWrapper().getZoomRatio(),
+            y: (currentMouseCoordinates.y - this.workflowActionService.getJointGraphWrapper().getDragOffset().y)
+                / this.workflowActionService.getJointGraphWrapper().getZoomRatio()
+          };
+          this.findClosestOperator(scaledMouseCoordinates);
       },
       error => console.error(error)
     );
