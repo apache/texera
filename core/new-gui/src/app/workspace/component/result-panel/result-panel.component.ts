@@ -9,6 +9,7 @@ import { ExecutionResult, SuccessExecutionResult } from './../../types/execute-w
 import { TableColumn, IndexableObject } from './../../types/result-table.interface';
 import { ResultPanelToggleService } from './../../service/result-panel-toggle/result-panel-toggle.service';
 import deepMap from 'deep-map';
+import { isEqual } from 'lodash-es';
 
 /**
  * ResultPanelCompoent is the bottom level area that displays the
@@ -74,9 +75,8 @@ export class ResultPanelComponent {
 
     // the row index will include the previous pages, therefore we need to minus the current page index
     //  multiply by the page size previously.
-    const selectedRowIndex = this.currentResult.findIndex(eachRow =>
-      (rowData as IndexableObject)._id === (eachRow as IndexableObject)._id
-    );
+    const selectedRowIndex = this.currentResult.findIndex(eachRow => isEqual(eachRow, rowData));
+
     const rowPageIndex = selectedRowIndex - this.currentPageIndex * this.currentMaxPageSize;
 
     // generate a new row data that shortens the column text to limit rendering time for pretty json
