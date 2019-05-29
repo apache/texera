@@ -9,6 +9,8 @@ import * as joint from 'jointjs';
 import { Point } from '../../types/workflow-common.interface';
 import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-graph-wrapper';
 
+import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-util.service';
+
 
 // argument type of callback event on a JointJS Paper
 // which is a 4-element tuple:
@@ -39,7 +41,6 @@ type JointPointerDownEvent = [JQuery.Event, number, number];
   styleUrls: ['./workflow-editor.component.scss']
 })
 export class WorkflowEditorComponent implements AfterViewInit {
-
   // the DOM element ID of the main editor. It can be used by jQuery and jointJS to find the DOM element
   // in the HTML template, the div element ID is set using this variable
   public readonly WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID = 'texera-workflow-editor-jointjs-wrapper-id';
@@ -55,7 +56,9 @@ export class WorkflowEditorComponent implements AfterViewInit {
   constructor(
     private workflowActionService: WorkflowActionService,
     private dragDropService: DragDropService,
-    private elementRef: ElementRef
+    private elementRef: ElementRef,
+    private workflowUtilService: WorkflowUtilService,
+
   ) {
   }
 
@@ -67,6 +70,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
   }
 
   ngAfterViewInit() {
+
     this.initializeJointPaper();
     this.handlePaperRestoreDefaultOffset();
     this.handlePaperZoom();
@@ -77,6 +81,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.handlePaperMouseZoom();
     this.dragDropService.registerWorkflowEditorDrop(this.WORKFLOW_EDITOR_JOINTJS_ID);
   }
+
 
   private initializeJointPaper(): void {
     // get the custom paper options
