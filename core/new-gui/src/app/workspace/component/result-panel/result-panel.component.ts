@@ -82,6 +82,13 @@ export class ResultPanelComponent {
     // generate a new row data that shortens the column text to limit rendering time for pretty json
     const rowDataCopy = ResultPanelComponent.trimDisplayJsonData(rowData as IndexableObject);
 
+    console.log('rowData');
+    console.log(rowData);
+    console.log('selectedRowIndex');
+    console.log(selectedRowIndex);
+    console.log('rowPageIndex');
+    console.log(rowPageIndex);
+
     // open the modal component
     const modalRef = this.modalService.open(NgbModalComponent, {size: 'lg'});
 
@@ -90,9 +97,16 @@ export class ResultPanelComponent {
       .subscribe((modalResult: number) => {
         if (modalResult === 1) {
           // navigate to previous detail modal
+          console.log('Previous clicked');
+
+          console.log('selectedRowIndex - 1 = ' + (selectedRowIndex - 1));
           this.open(this.currentResult[selectedRowIndex - 1]);
         } else if (modalResult === 2) {
           // navigate to next detail modal
+          console.log('Next clicked');
+
+          console.log('selectedRowIndex + 1 = ' + (selectedRowIndex + 1));
+
           this.open(this.currentResult[selectedRowIndex + 1]);
         }
       });

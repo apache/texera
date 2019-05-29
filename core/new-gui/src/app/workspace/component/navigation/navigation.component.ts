@@ -169,6 +169,10 @@ export class NavigationComponent implements OnInit {
    * Handler for the execution result to extract successful execution ID
    */
   private handleResultData(response: ExecutionResult): void {
+    if (!environment.downloadExecutionResultEnabled) {
+      return;
+    }
+
     // backend returns error, display error message
     if (response.code === 1) {
       this.executionResultID = undefined;
