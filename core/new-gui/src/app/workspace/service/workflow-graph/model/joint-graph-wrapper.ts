@@ -100,22 +100,6 @@ export class JointGraphWrapper {
     this.handleOperatorDeleteUnhighlight();
   }
 
-  public getOperatorPosition(operatorID: string): Point {
-    const cell: joint.dia.Cell | undefined = this.jointGraph.getCell(operatorID);
-    if (! cell) {
-      throw new Error(`opeartor with ID ${operatorID} doesn't exist`);
-    }
-    if (! cell.isElement()) {
-      throw new Error(`${operatorID} is not an operator`);
-    }
-    const element  = <joint.dia.Element> cell;
-    const position = element.position();
-    return {
-      x: position.x,
-      y: position.y
-    };
-  }
-
   public getOperatorPositionChangeEvent(): Observable<{operatorID: string, newPosition: Point}> {
     return     Observable
     .fromEvent<JointPositionChangeEvent>(this.jointGraph, 'change:position').map(e => {
@@ -311,6 +295,23 @@ export class JointGraphWrapper {
 
     return jointLinkChangeStream;
   }
+
+  /**
+   * This method will get the operator position on the JointJS paper.
+   */
+  public getOperatorPosition(operatorID: string): Point {
+    const cell: joint.dia.Cell | undefined = this.jointGraph.getCell(operatorID);
+    if (! cell) {
+      throw new Error(`opeartor with ID ${operatorID} doesn't exist`);
+    }
+    if (! cell.isElement()) {
+      throw new Error(`${operatorID} is not an operator`);
+    }
+    const element = <joint.dia.Element> cell;
+    const position = element.position();
+    return { x: position.x, y: position.y };
+  }
+
 
 
   /**

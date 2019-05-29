@@ -84,6 +84,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.handleCellHighlight();
     this.handleWindowDrag();
     this.handlePaperMouseZoom();
+    this.handleOperatorSuggestionHighlightEvent();
     this.dragDropService.registerWorkflowEditorDrop(this.WORKFLOW_EDITOR_JOINTJS_ID);
   }
 
@@ -267,6 +268,30 @@ export class WorkflowEditorComponent implements AfterViewInit {
         'rect', { highlighter: highlightOptions }
       ));
   }
+
+  private handleOperatorSuggestionHighlightEvent(): void {
+    const highlightOptions = {
+      name: 'stroke',
+      options: {
+        attrs: {
+          'stroke-width': 5,
+          stroke: '#551A8B70'
+        }
+      }
+    };
+
+    this.dragDropService.getOperatorSuggestionHighlightStream()
+      .do(value => console.log(`getOperatorSuggestion hihglith stream call with id = ${value}`))
+      .subscribe( value => this.getJointPaper().findViewByModel(value).highlight('rect',
+        { highlighter: highlightOptions}
+      ));
+
+    this.dragDropService.getOperatorSuggestionUnhighlightStream()
+      .subscribe(value => this.getJointPaper().findViewByModel(value).unhighlight('rect',
+        { highlighter: highlightOptions}
+      ));
+  }
+
 
   /**
    * Modifies the JointJS paper origin coordinates

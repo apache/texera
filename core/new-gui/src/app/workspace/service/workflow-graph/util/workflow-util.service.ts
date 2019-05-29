@@ -17,8 +17,7 @@ export class WorkflowUtilService {
 
   private operatorSchemaListCreatedSubject: Subject<boolean> = new Subject<boolean>();
 
-  constructor(private operatorMetadataService: OperatorMetadataService
-  ) {
+  constructor(private operatorMetadataService: OperatorMetadataService) {
     this.operatorMetadataService.getOperatorMetadata().subscribe(
       value => {
         this.operatorSchemaList = value.operators;
@@ -69,4 +68,10 @@ export class WorkflowUtilService {
 
   }
 
+  /**
+   * Generates a new UUID for operator or link
+   */
+  public getLinkRandomUUID(): string {
+    return 'link-' + uuid();
+  }
 }
