@@ -43,3 +43,11 @@
 ::ng-deep .texera-workspace-workflow-editor-body .link-tools .tool-remove circle{
   fill-opacity: 0 !important;
 }
+
+::ng-deep .texera-workspace-workflow-editor-body .available-magnet{
+  fill: #6F9D52 !important;
+}
+
+::ng-deep .texera-workspace-workflow-editor-body .available-cell rect {
+  stroke: #70C883 !important;
+}
