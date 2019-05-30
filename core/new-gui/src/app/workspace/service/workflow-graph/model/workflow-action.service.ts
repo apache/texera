@@ -30,6 +30,10 @@ export interface Command {
  * For an overview of the services in WorkflowGraphModule, see workflow-graph-design.md
  *
  */
+
+
+
+ // TODO: adding with property change and a problem with redoing change operator
 @Injectable()
 export class WorkflowActionService {
 
@@ -80,9 +84,11 @@ export class WorkflowActionService {
       .subscribe(event => {
         gotOldPosition = false;
         const currentOldPos = oldPosition;
+        const currentPos = event.newPosition;
         const command: Command = {
           execute: () => { },
-          undo: () => this.setOperatorPositionInternal(event.operatorID, currentOldPos)
+          undo: () => this.setOperatorPositionInternal(event.operatorID, currentOldPos),
+          redo: () => this.setOperatorPositionInternal(event.operatorID, currentPos) // work here
         };
         this.executeAndStoreCommand(command);
       });
@@ -187,6 +193,7 @@ export class WorkflowActionService {
     this.executeAndStoreCommand(command);
   }
 
+  // not used I believe
   /**
    * Adds a link to the workflow graph
    * Throws an Error if the link ID or the link with same source and target already exists.
@@ -219,6 +226,7 @@ export class WorkflowActionService {
     this.deleteLinkWithID(link.linkID);
   }
 
+  // problem here
   public setOperatorProperty(operatorID: string, newProperty: object): void {
     const prevProperty = this.getTexeraGraph().getOperator(operatorID).operatorProperties;
     const command: Command = {
@@ -228,6 +236,7 @@ export class WorkflowActionService {
     this.executeAndStoreCommand(command);
   }
 
+  // is this currently used for anything?
   public setOperatorPosition(operatorID: string, newPosition: Point): void {
     const currentPosition = this.getJointGraphWrapper().getOperatorPosition(operatorID);
     const command: Command = {
