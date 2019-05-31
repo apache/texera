@@ -133,7 +133,7 @@ export class NgbdModalResourceAddComponent {
       }, error => {
         this.isUploading = false;
         console.log(error);
-        alert(`Error encountered: ${error}`);
+        alert(`Error encountered: ${error.status}\nMessage: ${error.message}`);
       }
     );
   }
@@ -166,7 +166,7 @@ export class NgbdModalResourceAddComponent {
       }, error => {
         this.isUploading = false;
         console.log(error);
-        alert(`Error encountered ${error}`);
+        alert(`Error encountered: ${error.status}\nMessage: ${error.message}`);
       }
     );
   }
