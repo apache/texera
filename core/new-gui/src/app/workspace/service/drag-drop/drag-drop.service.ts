@@ -7,7 +7,6 @@ import { Injectable } from '@angular/core';
 import { Subject } from 'rxjs/Subject';
 
 import * as joint from 'jointjs';
-import { JointGraphWrapper } from '../workflow-graph/model/joint-graph-wrapper';
 
 /**
  * The OperatorDragDropService class implements the behavior of dragging an operator label from the side bar
