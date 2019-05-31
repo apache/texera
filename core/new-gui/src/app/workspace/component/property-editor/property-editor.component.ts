@@ -14,6 +14,9 @@ import '../../../common/rxjs-operators';
 import cloneDeep from 'lodash-es/cloneDeep';
 import isEqual from 'lodash-es/isEqual';
 
+export interface IndexableObject extends Readonly<{
+  [key: string]: object | string | boolean | symbol | number | Array<object>;
+}> { }
 
 /**
  * PropertyEditorComponent is the panel that allows user to edit operator properties.
@@ -69,7 +72,7 @@ export class PropertyEditorComponent {
   public outputFormChangeEventStream = this.createOutputFormChangeEventStream(this.sourceFormChangeEventStream);
 
   // the operator data need to be stored if the Json Schema changes, else the currently modified changes will be lost
-  public cachedFormData: object | undefined;
+  public cachedFormData: object = {};
 
   constructor(
     private workflowActionService: WorkflowActionService,
@@ -153,7 +156,8 @@ export class PropertyEditorComponent {
      *      which prevents the
      */
     this.currentOperatorInitialData = cloneDeep(operator.operatorProperties);
-
+    // when operator in the property editor changes, the cachedFormData should also be changed
+    this.cachedFormData = this.currentOperatorInitialData;
     // set displayForm to true in the end - first initialize all the data then show the view
     this.displayForm = true;
   }
@@ -214,6 +218,11 @@ export class PropertyEditorComponent {
         if (isEqual(formData, operator.operatorProperties)) {
           return false;
         }
+
+        // if both of them are empty, dont emit the event
+        if (this.checkPropertyEmpty(formData) && this.checkPropertyEmpty(this.cachedFormData)) {
+          return false;
+        }
         return true;
       })
       // share() because the original observable is a hot observable
@@ -254,6 +263,7 @@ export class PropertyEditorComponent {
       .filter(operatorChanged => !isEqual(this.cachedFormData, operatorChanged.operator.operatorProperties))
       .subscribe(operatorChanged => {
         this.currentOperatorInitialData = cloneDeep(operatorChanged.operator.operatorProperties);
+        this.cachedFormData = this.currentOperatorInitialData;
       });
   }
 
@@ -264,12 +274,24 @@ export class PropertyEditorComponent {
   private handleOnFormChange(): void {
     this.outputFormChangeEventStream
       .subscribe(formData => {
-      // set the operator property to be the new form data
+        // set the operator property to be the new form data
       if (this.currentOperatorID) {
         this.cachedFormData = formData;
         this.workflowActionService.setOperatorProperty(this.currentOperatorID, formData);
       }
     });
+  }
+
+  private checkPropertyEmpty(property: object): boolean {
+    let isEmpty = true;
+    Object.values(property).forEach(value => {
+      if (typeof value === 'object') {
+        if (!this.checkPropertyEmpty(value)) { isEmpty = false; }
+      } else if (Array.isArray(value)) {
+        if (value.length !== 0) { isEmpty = false; }
+      } else { isEmpty =  false; }
+    });
+    return isEmpty;
   }
 
   /**
