@@ -185,7 +185,7 @@ describe('WorkflowEditorComponent', () => {
       fixture.detectChanges();
 
       // assert the function is called once
-      expect(highlightOperatorFunctionSpy.calls.count()).toEqual(2);
+      expect(highlightOperatorFunctionSpy.calls.count()).toEqual(1);
       // assert the highlighted operator is correct
       expect(jointGraphWrapper.getCurrentHighlightedOpeartorID()).toEqual(mockScanPredicate.operatorID);
     });
