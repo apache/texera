@@ -43,5 +43,5 @@ script:
   - mvn test --batch-mode
   - cd new-gui
   - ng build --prod
-  - ng test --browsers ChromeHeadless --watch=false
+  - travis_wait 20 ng test --browsers ChromeHeadless --watch=false
   
