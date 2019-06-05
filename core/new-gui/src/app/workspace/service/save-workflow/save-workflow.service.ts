@@ -4,7 +4,6 @@ import { Observable } from '../../../../../node_modules/rxjs';
 import { OperatorLink, OperatorPredicate, Point } from '../../types/workflow-common.interface';
 import { OperatorMetadataService } from '../operator-metadata/operator-metadata.service';
 
-
 /**
  * SavedWorkflow is used to store the information of the workflow
  *  1. all existing operators and their properties

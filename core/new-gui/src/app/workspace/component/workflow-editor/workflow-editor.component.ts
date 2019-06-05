@@ -1,3 +1,4 @@
+import { ValidationWorkflowService } from './../../service/validation/validation-workflow.service';
 import { DragDropService } from './../../service/drag-drop/drag-drop.service';
 import { JointUIService } from './../../service/joint-ui/joint-ui.service';
 import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
@@ -58,7 +59,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
     private dragDropService: DragDropService,
     private elementRef: ElementRef,
     private workflowUtilService: WorkflowUtilService,
-
+    private validationWorkflowService: ValidationWorkflowService,
+    private jointUIService: JointUIService
   ) {
   }
 
@@ -72,6 +74,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
   ngAfterViewInit() {
 
     this.initializeJointPaper();
+    this.handleOperatorValidation();
     this.handlePaperRestoreDefaultOffset();
     this.handlePaperZoom();
     this.handleWindowResize();
@@ -311,6 +314,15 @@ export class WorkflowEditorComponent implements AfterViewInit {
   }
 
   /**
+   * if the operator is valid , the border of the box will be default
+   */
+  private handleOperatorValidation(): void {
+
+    this.validationWorkflowService.getOperatorValidationStream()
+      .subscribe(value =>
+        this.jointUIService.changeOperatorColor(this.getJointPaper(), value.operatorID, value.status));
+  }
+  /**
    * Gets the width and height of the parent wrapper element
    */
   private getWrapperElementSize(): { width: number, height: number } {
@@ -369,6 +381,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
     return jointPaperOptions;
   }
 }
+
+
 /**
 * This function is provided to JointJS to disable some invalid connections on the UI.
 * If the connection is invalid, users are not able to connect the links on the UI.
@@ -405,6 +419,4 @@ function validateOperatorMagnet(cellView: joint.dia.CellView, magnet: SVGElement
   }
   return false;
 }
-
-
 
