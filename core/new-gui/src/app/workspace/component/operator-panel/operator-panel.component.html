@@ -1,4 +1,18 @@
 <div class="texera-workspace-operator-panel-body">
+  <div class="texera-workspance-search-box">
+    <form class="search-form">
+      <mat-form-field class="operator-search-form">
+        <input class="form-control" type="text" placeholder="Search" aria-label="Search"
+        matInput [matAutocomplete]="auto" [formControl]="myControl">
+        <mat-autocomplete #auto="matAutocomplete">
+          <mat-option (click)="onSearchSelected(option)" *ngFor="let option of filteredOptions | async" [value]="option" >
+            {{option}}
+          </mat-option>
+          <!-- <i class="fa fa-search" aria-hidden="true"></i> -->
+        </mat-autocomplete>
+      </mat-form-field>
+    </form>
+  </div>
   <mat-accordion multi="false">
     <mat-expansion-panel class="mat-elevation-z3 texera-operator-group-panel" *ngFor="let groupName of groupNamesOrdered">
       <mat-expansion-panel-header class="texera-operator-group-name" [tourAnchor]='groupName'>

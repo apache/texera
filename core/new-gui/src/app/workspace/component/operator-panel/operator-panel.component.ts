@@ -9,9 +9,6 @@ import { Observable } from 'rxjs';
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
 
-// Requires --esModuleInterop compiler flag!
-// import * as Fuse with '--allowSyntheticDefaultImport'
-// or import Fuse = require('fuse.js') with neither
 import * as Fuse from 'fuse.js';
 /**
  * OperatorViewComponent is the left-side panel that shows the operators.
@@ -38,9 +35,9 @@ import * as Fuse from 'fuse.js';
 })
 export class OperatorPanelComponent implements OnInit {
 
-
+  // using the formControl directive from ReactiveFormsModule to track the value of the input.
   myControl = new FormControl();
-  options: string[] = []
+  // filtered options
   filteredOptions: Observable<string[]> | undefined;
 
 
@@ -95,13 +92,25 @@ export class OperatorPanelComponent implements OnInit {
     const userFriendlyNames = this.operatorSchemaList.map(value => value.additionalMetadata.userFriendlyName);
 
     const new_userFriendlyNames : userFriendlyNamesType[] = []
-    for (let entry of userFriendlyNames) {
+
+    userFriendlyNames.forEach(function(entry)
+    {
       new_userFriendlyNames.push({'title':entry})
-    }
+    })
 
     const filterValue = value.toLowerCase();
 
     const options: Fuse.FuseOptions<userFriendlyNamesType> = {
+      // location:  Determines approximately where in the text is the pattern expected to be found.
+      // distance:  Determines how close the match must be to the fuzzy location (specified by location). 
+      //            An exact letter match which is distance characters away from the fuzzy location would 
+      //            score as a complete mismatch. A distance of 0 requires the match be at the exact location 
+      //            specified, a distance of 1000 would require a perfect match to be within 800 characters 
+      //            of the location to be found using a threshold of 0.8.
+      // threshold: At what point does the match algorithm give up. A threshold of 0.0 requires a perfect 
+      //            match (of both letters and location), a threshold of 1.0 would match anything.
+      // keys:      List of properties that will be searched. This supports nested properties, weighted search, 
+      //            searching in arrays of strings and objects
       location:0,
       distance:1000,
       threshold: 0.3,
@@ -109,24 +118,26 @@ export class OperatorPanelComponent implements OnInit {
     };
     const fuse = new Fuse(new_userFriendlyNames,options);
     const result = fuse.search(filterValue);
-    const final_result = []
-    for (let entry of result) {
-       final_result.push(entry.title);
-    }
+    const final_result:string[] = []
+
+
+    result.forEach(function(entry)
+    {
+      final_result.push(entry.title)
+    })
+
     return final_result;
   }
 
-  public OnHumanSelected(option: string) {
-    // display the operator on the workflow
-    console.log(option);
+  // display the operator on the workflow when user select any operator
+  public onSearchSelected(option: string) {
+    
     const currentType = this.operatorSchemaList.filter(
       schema => {
         return schema.additionalMetadata.userFriendlyName === option;
       }
     ).map(schema => schema.operatorType)[0];
-    console.log(currentType);
     const selectedOperatorPredicate = this.workflowUtilService.getNewOperatorPredicate(currentType);
-    console.log(selectedOperatorPredicate);
     this.workflowActionService.addOperator(selectedOperatorPredicate, {x:600, y:399});
   }
 
