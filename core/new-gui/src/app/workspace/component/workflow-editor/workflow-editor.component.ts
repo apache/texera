@@ -1,3 +1,4 @@
+import { ValidationWorkflowService } from './../../service/validation/validation-workflow.service';
 import { DragDropService } from './../../service/drag-drop/drag-drop.service';
 import { JointUIService } from './../../service/joint-ui/joint-ui.service';
 import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
@@ -57,8 +58,15 @@ export class WorkflowEditorComponent implements AfterViewInit {
     private workflowActionService: WorkflowActionService,
     private dragDropService: DragDropService,
     private resultPanelToggleService: ResultPanelToggleService,
+    private validationWorkflowService: ValidationWorkflowService,
+    private jointUIService: JointUIService,
     private elementRef: ElementRef
   ) {
+
+    // bind validation functions to the same scope as component
+    // https://stackoverflow.com/questions/38245450/angular2-components-this-is-undefined-when-executing-callback-function
+    this.validateOperatorConnection = this.validateOperatorConnection.bind(this);
+    this.validateOperatorMagnet = this.validateOperatorMagnet.bind(this);
   }
 
   public getJointPaper(): joint.dia.Paper {
@@ -71,6 +79,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
   ngAfterViewInit() {
     this.initializeJointPaper();
+    this.handleOperatorValidation();
     this.handlePaperRestoreDefaultOffset();
     this.handlePaperZoom();
     this.handleWindowResize();
@@ -78,12 +87,13 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.handleCellHighlight();
     this.handlePaperPan();
     this.handlePaperMouseZoom();
+    this.handleOperatorSuggestionHighlightEvent();
     this.dragDropService.registerWorkflowEditorDrop(this.WORKFLOW_EDITOR_JOINTJS_ID);
   }
 
   private initializeJointPaper(): void {
     // get the custom paper options
-    let jointPaperOptions = WorkflowEditorComponent.getJointPaperOptions();
+    let jointPaperOptions = this.getJointPaperOptions();
     // attach the JointJS graph (model) to the paper (view)
     jointPaperOptions = this.workflowActionService.attachJointPaper(jointPaperOptions);
     // attach the DOM element to the paper
@@ -93,10 +103,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
     this.setJointPaperOriginOffset();
     this.setJointPaperDimensions();
-
-    // console.log(this.getJointPaper().translate());
-    // this.getJointPaper().translate(0, 0);
-    // this.workflowActionService.getJointGraphWrapper().setPanningOffset(this.panOffset);
   }
 
   /**
@@ -286,6 +292,29 @@ export class WorkflowEditorComponent implements AfterViewInit {
       ));
   }
 
+  private handleOperatorSuggestionHighlightEvent(): void {
+    const highlightOptions = {
+      name: 'stroke',
+      options: {
+        attrs: {
+          'stroke-width': 5,
+          stroke: '#551A8B70'
+        }
+      }
+    };
+
+    this.dragDropService.getOperatorSuggestionHighlightStream()
+      .subscribe( value => this.getJointPaper().findViewByModel(value).highlight('rect',
+        { highlighter: highlightOptions}
+      ));
+
+    this.dragDropService.getOperatorSuggestionUnhighlightStream()
+      .subscribe(value => this.getJointPaper().findViewByModel(value).unhighlight('rect',
+        { highlighter: highlightOptions}
+      ));
+  }
+
+
   /**
    * Modifies the JointJS paper origin coordinates
    *  by shifting it to the left top (minus the x and y offset of the wrapper element)
@@ -335,6 +364,15 @@ export class WorkflowEditorComponent implements AfterViewInit {
   }
 
   /**
+   * if the operator is valid , the border of the box will be default
+   */
+  private handleOperatorValidation(): void {
+
+    this.validationWorkflowService.getOperatorValidationStream()
+      .subscribe(value =>
+        this.jointUIService.changeOperatorColor(this.getJointPaper(), value.operatorID, value.status));
+  }
+  /**
    * Gets the width and height of the parent wrapper element
    */
   private getWrapperElementSize(): { width: number, height: number } {
@@ -365,18 +403,19 @@ export class WorkflowEditorComponent implements AfterViewInit {
    *  rendering the workflow cells and handle UI events.
    * JointJS documentation about paper: https://resources.jointjs.com/docs/jointjs/v2.0/joint.html#dia.Paper
    */
-  private static getJointPaperOptions(): joint.dia.Paper.Options {
+  private getJointPaperOptions(): joint.dia.Paper.Options {
 
     const jointPaperOptions: joint.dia.Paper.Options = {
-
       // enable jointjs feature that automatically snaps a link to the closest port with a radius of 30px
-      snapLinks: { radius: 30 },
+      snapLinks: { radius: 40 },
       // disable jointjs default action that can make a link not connect to an operator
       linkPinning: false,
       // provide a validation to determine if two ports could be connected (only output connect to input is allowed)
-      validateConnection: validateOperatorConnection,
+      validateConnection: this.validateOperatorConnection,
       // provide a validation to determine if the port where link starts from is an out port
-      validateMagnet: validateOperatorMagnet,
+      validateMagnet: this.validateOperatorMagnet,
+      // marks all the available magnets or elements when a link is dragged
+      markAvailable: true,
       // disable jointjs default action of adding vertexes to the link
       interactive: { vertexAdd: false },
       // set a default link element used by jointjs when user creates a link on UI
@@ -393,43 +432,55 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
     return jointPaperOptions;
   }
-}
-/**
-* This function is provided to JointJS to disable some invalid connections on the UI.
-* If the connection is invalid, users are not able to connect the links on the UI.
-*
-* https://resources.jointjs.com/docs/jointjs/v2.0/joint.html#dia.Paper.prototype.options.validateConnection
-*
-* @param sourceView
-* @param sourceMagnet
-* @param targetView
-* @param targetMagnet
-*/
-function validateOperatorConnection(sourceView: joint.dia.CellView, sourceMagnet: SVGElement,
-  targetView: joint.dia.CellView, targetMagnet: SVGElement): boolean {
-  // user cannot draw connection starting from the input port (left side)
-  if (sourceMagnet && sourceMagnet.getAttribute('port-group') === 'in') { return false; }
 
-  // user cannot connect to the output port (right side)
-  if (targetMagnet && targetMagnet.getAttribute('port-group') === 'out') { return false; }
+  /**
+  * This function is provided to JointJS to disable some invalid connections on the UI.
+  * If the connection is invalid, users are not able to connect the links on the UI.
+  *
+  * https://resources.jointjs.com/docs/jointjs/v2.0/joint.html#dia.Paper.prototype.options.validateConnection
+  *
+  * @param sourceView
+  * @param sourceMagnet
+  * @param targetView
+  * @param targetMagnet
+  */
+  private validateOperatorConnection(sourceView: joint.dia.CellView, sourceMagnet: SVGElement,
+    targetView: joint.dia.CellView, targetMagnet: SVGElement): boolean {
+    // user cannot draw connection starting from the input port (left side)
+    if (sourceMagnet && sourceMagnet.getAttribute('port-group') === 'in') { return false; }
 
-  return sourceView.id !== targetView.id;
-}
+    // user cannot connect to the output port (right side)
+    if (targetMagnet && targetMagnet.getAttribute('port-group') === 'out') { return false; }
 
-/**
-* This function is provided to JointJS to disallow links starting from an in port.
-*
-* https://resources.jointjs.com/docs/jointjs/v2.0/joint.html#dia.Paper.prototype.options.validateMagnet
-*
-* @param cellView
-* @param magnet
-*/
-function validateOperatorMagnet(cellView: joint.dia.CellView, magnet: SVGElement): boolean {
-  if (magnet && magnet.getAttribute('port-group') === 'out') {
-    return true;
+    // if port is already connected, do not allow another connection, each port should only contain at most 1 link
+    const checkConnectedLinksToTarget = this.workflowActionService.getTexeraGraph().getAllLinks().filter(
+      link => link.target.operatorID === targetView.model.id && targetMagnet.getAttribute('port') === link.target.portID
+    );
+
+    if (checkConnectedLinksToTarget.length > 0) { return false; }
+
+    // cannot connect to itself
+    return sourceView.id !== targetView.id;
   }
-  return false;
+
+
+  /**
+  * This function is provided to JointJS to disallow links starting from an in port.
+  *
+  * https://resources.jointjs.com/docs/jointjs/v2.0/joint.html#dia.Paper.prototype.options.validateMagnet
+  *
+  * @param cellView
+  * @param magnet
+  */
+  private validateOperatorMagnet(cellView: joint.dia.CellView, magnet: SVGElement): boolean {
+    if (magnet && magnet.getAttribute('port-group') === 'out') {
+      return true;
+    }
+    return false;
+  }
 }
+
+
 
 
 
