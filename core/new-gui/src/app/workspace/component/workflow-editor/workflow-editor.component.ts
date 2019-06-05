@@ -1,3 +1,4 @@
+import { ValidationWorkflowService } from './../../service/validation/validation-workflow.service';
 import { DragDropService } from './../../service/drag-drop/drag-drop.service';
 import { JointUIService } from './../../service/joint-ui/joint-ui.service';
 import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
@@ -55,6 +56,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
   constructor(
     private workflowActionService: WorkflowActionService,
     private dragDropService: DragDropService,
+    private validationWorkflowService: ValidationWorkflowService,
+    private jointUIService: JointUIService,
     private elementRef: ElementRef
   ) {
 
@@ -73,6 +76,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
   ngAfterViewInit() {
     this.initializeJointPaper();
+    this.handleOperatorValidation();
     this.handlePaperRestoreDefaultOffset();
     this.handlePaperZoom();
     this.handleWindowResize();
@@ -310,6 +314,15 @@ export class WorkflowEditorComponent implements AfterViewInit {
       );
   }
 
+  /**
+   * if the operator is valid , the border of the box will be default
+   */
+  private handleOperatorValidation(): void {
+
+    this.validationWorkflowService.getOperatorValidationStream()
+      .subscribe(value =>
+        this.jointUIService.changeOperatorColor(this.getJointPaper(), value.operatorID, value.status));
+  }
   /**
    * Gets the width and height of the parent wrapper element
    */
