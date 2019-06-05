@@ -4,7 +4,6 @@ import { OperatorSchema } from './../../../types/operator-schema.interface';
 import { Injectable } from '@angular/core';
 import { v4 as uuid } from 'uuid';
 
-
 /**
  * WorkflowUtilService provide utilities related to dealing with operator data.
  */
@@ -13,7 +12,8 @@ export class WorkflowUtilService {
 
   private operatorSchemaList: ReadonlyArray<OperatorSchema> = [];
 
-  constructor(private operatorMetadataService: OperatorMetadataService
+  constructor(
+    private operatorMetadataService: OperatorMetadataService
   ) {
     this.operatorMetadataService.getOperatorMetadata().subscribe(
       value => {
@@ -60,4 +60,10 @@ export class WorkflowUtilService {
 
   }
 
+  /**
+   * Generates a new UUID for operator or link
+   */
+  public getLinkRandomUUID(): string {
+    return 'link-' + uuid();
+  }
 }

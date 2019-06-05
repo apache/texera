@@ -303,6 +303,39 @@ describe('JointGraphWrapperService', () => {
 
   }));
 
+  it('should get operator position successfully if the operator exists in the paper', () => {
+    const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
+    const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
+
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+
+    expect(localJointGraphWrapper.getOperatorPosition(mockScanPredicate.operatorID)).toEqual(mockPoint);
+  });
+
+  it(`should throw an error if operator does not exist in the paper when calling 'getOperatorPosition()'`, () => {
+    const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
+    const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
+
+    expect(function() {
+      localJointGraphWrapper.getOperatorPosition(mockScanPredicate.operatorID);
+    }).toThrowError(`opeartor with ID ${mockScanPredicate.operatorID} doesn't exist`);
+
+  });
+
+  it(`should throw an error if the id we are using is linkID when calling 'getOperatorPosition()'`, () => {
+    const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
+    const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
+
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    workflowActionService.addOperator(mockResultPredicate, mockPoint);
+    workflowActionService.addLink(mockScanResultLink);
+
+    expect(function() {
+      localJointGraphWrapper.getOperatorPosition(mockScanResultLink.linkID);
+    }).toThrowError(`${mockScanResultLink.linkID} is not an operator`);
+
+  });
+
 
   it('should successfully set a new drag offset', () => {
     let currentDragOffset = jointGraphWrapper.getDragOffset();
