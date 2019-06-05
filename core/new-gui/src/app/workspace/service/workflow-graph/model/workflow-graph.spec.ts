@@ -169,4 +169,18 @@ describe('WorkflowGraph', () => {
     }).toThrowError(new RegExp(`doesn't exist`));
   });
 
+  it('it should get input links of the certain operator correctly', () => {
+      workflowGraph.addOperator(mockScanPredicate);
+      workflowGraph.addOperator(mockResultPredicate);
+      workflowGraph.addLink(mockScanResultLink);
+      expect(workflowGraph.getInputLinksByOperatorId('3').length).toEqual(1);
+  });
+
+  it('it should get output links of the certain operator correctly', () => {
+    workflowGraph.addOperator(mockScanPredicate);
+    workflowGraph.addOperator(mockResultPredicate);
+    workflowGraph.addLink(mockScanResultLink);
+    expect(workflowGraph.getOutputLinksByOperatorId('1').length).toEqual(1);
+});
+
 });
