@@ -338,12 +338,12 @@ describe('JointGraphWrapperService', () => {
 
 
   it('should successfully set a new drag offset', () => {
-    let currentDragOffset = jointGraphWrapper.getDragOffset();
+    let currentDragOffset = jointGraphWrapper.getPanningOffset();
     expect(currentDragOffset.x).toEqual(0);
     expect(currentDragOffset.y).toEqual(0);
 
-    jointGraphWrapper.setDragOffset({x: 100, y: 200});
-    currentDragOffset = jointGraphWrapper.getDragOffset();
+    jointGraphWrapper.setPanningOffset({x: 100, y: 200});
+    currentDragOffset = jointGraphWrapper.getPanningOffset();
     expect(currentDragOffset.x).toEqual(100);
     expect(currentDragOffset.y).toEqual(200);
   });
@@ -373,20 +373,20 @@ describe('JointGraphWrapperService', () => {
   }));
 
   it('should restore default zoom ratio and offset when resumeDefaultZoomAndOffset is called', () => {
-    const defaultOffset = JointGraphWrapper.INIT_OFFSET_VALUE;
+    const defaultOffset = JointGraphWrapper.INIT_PAN_OFFSET;
     const defaultRatio = JointGraphWrapper.INIT_ZOOM_VALUE;
 
     const mockOffset = {x : 20, y : 20};
     const mockRatio = 0.6;
-    jointGraphWrapper.setDragOffset(mockOffset);
+    jointGraphWrapper.setPanningOffset(mockOffset);
     jointGraphWrapper.setZoomProperty(mockRatio);
-    expect(jointGraphWrapper.getDragOffset().x).not.toEqual(defaultOffset.x);
-    expect(jointGraphWrapper.getDragOffset().y).not.toEqual(defaultOffset.y);
+    expect(jointGraphWrapper.getPanningOffset().x).not.toEqual(defaultOffset.x);
+    expect(jointGraphWrapper.getPanningOffset().y).not.toEqual(defaultOffset.y);
     expect(jointGraphWrapper.getZoomRatio()).not.toEqual(defaultRatio);
 
     jointGraphWrapper.restoreDefaultZoomAndOffset();
-    expect(jointGraphWrapper.getDragOffset().x).toEqual(defaultOffset.x);
-    expect(jointGraphWrapper.getDragOffset().y).toEqual(defaultOffset.y);
+    expect(jointGraphWrapper.getPanningOffset().x).toEqual(defaultOffset.x);
+    expect(jointGraphWrapper.getPanningOffset().y).toEqual(defaultOffset.y);
     expect(jointGraphWrapper.getZoomRatio()).toEqual(defaultRatio);
   });
 

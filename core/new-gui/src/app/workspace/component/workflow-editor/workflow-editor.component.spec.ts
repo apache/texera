@@ -7,13 +7,16 @@ import { ValidationWorkflowService } from './../../service/validation/validation
 
 import { WorkflowEditorComponent } from './workflow-editor.component';
 
-import { marbles } from 'rxjs-marbles';
 import { OperatorMetadataService } from '../../service/operator-metadata/operator-metadata.service';
 import { StubOperatorMetadataService } from '../../service/operator-metadata/stub-operator-metadata.service';
 import { JointUIService } from '../../service/joint-ui/joint-ui.service';
 import { WorkflowGraph, WorkflowGraphReadonly } from '../../service/workflow-graph/model/workflow-graph';
 
 import * as joint from 'jointjs';
+
+import { ResultPanelToggleService } from '../../service/result-panel-toggle/result-panel-toggle.service';
+import { marbles } from 'rxjs-marbles';
+
 import {
   mockScanPredicate, mockPoint, mockScanResultLink, mockResultPredicate
 } from '../../service/workflow-graph/model/mock-workflow-data';
@@ -57,6 +60,7 @@ describe('WorkflowEditorComponent', () => {
           JointUIService,
           WorkflowUtilService,
           DragDropService,
+          ResultPanelToggleService,
           ValidationWorkflowService,
           { provide: WorkflowActionService, useClass: StubWorkflowActionService },
           { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
@@ -76,6 +80,7 @@ describe('WorkflowEditorComponent', () => {
     it('should create', () => {
       expect(component).toBeTruthy();
     });
+
 
     it('should create element in the UI after adding operator in the model', () => {
       const operatorID = 'test_one_operator_1';
@@ -146,6 +151,7 @@ describe('WorkflowEditorComponent', () => {
           JointUIService,
           WorkflowUtilService,
           WorkflowActionService,
+          ResultPanelToggleService,
           ValidationWorkflowService,
           DragDropService,
           { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
