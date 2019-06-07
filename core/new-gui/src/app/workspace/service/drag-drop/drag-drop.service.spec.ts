@@ -9,6 +9,8 @@ import { StubOperatorMetadataService } from '../operator-metadata/stub-operator-
 import { mockOperatorMetaData } from '../operator-metadata/mock-operator-metadata.data';
 
 import { marbles } from 'rxjs-marbles';
+import { mockScanPredicate, mockResultPredicate, mockScanResultLink } from '../workflow-graph/model/mock-workflow-data';
+import { OperatorLink } from '../../types/workflow-common.interface';
 
 describe('DragDropService', () => {
 
@@ -85,7 +87,7 @@ describe('DragDropService', () => {
   it('should change the add an operator at correct position when the element is dropped', marbles((m) => {
     const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
 
-    workflowActionService.getJointGraphWrapper().setDragOffset({x: 100, y: 100});
+    workflowActionService.getJointGraphWrapper().setPanningOffset({x: 100, y: 100});
     workflowActionService.getJointGraphWrapper().setZoomProperty(0.1);
 
     const operatorType = mockOperatorMetaData.operators[0].operatorType;
@@ -109,4 +111,56 @@ describe('DragDropService', () => {
         expect(currenOperatorPosition.y).toEqual(1000);
       });
   }));
+
+  it('should successfully create a new operator link given 2 operator predicates', () => {
+    const createdLink: OperatorLink = (dragDropService as any).getNewOperatorLink(mockScanPredicate, mockResultPredicate);
+
+    expect(createdLink.source).toEqual(mockScanResultLink.source);
+    expect(createdLink.target).toEqual(mockScanResultLink.target);
+  });
+
+  it('should trigger the highlight event if it found a closest operator', marbles((m) => {
+    const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
+    workflowActionService.addOperator(mockScanPredicate, {x: 0, y: 0});
+    workflowActionService.addOperator(mockResultPredicate, {x: 100, y: 100});
+
+    (dragDropService as any).currentOperatorType = 'NlpSentiment';
+
+    m.hot('-e-').do(() => (dragDropService as any).findClosestOperator({x:  10, y: 10})).subscribe();
+
+    const suggestionHighlightStream = dragDropService.getOperatorSuggestionHighlightStream().map(value => 'e');
+    const expectedStream = '-e-';
+    m.expect(suggestionHighlightStream).toBeObservable(expectedStream);
+  }));
+
+  it('should find the closest operator and highlight it when calling "findClosestOperator()"', marbles((m) => {
+    const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
+    const suggestionSpy = spyOn(dragDropService, 'getOperatorSuggestionHighlightStream').and.callThrough();
+    workflowActionService.addOperator(mockScanPredicate, {x: 0, y: 0});
+    workflowActionService.addOperator(mockResultPredicate, {x: 100, y: 100});
+
+    (dragDropService as any).currentOperatorType = 'NlpSentiment';
+
+    m.hot('-e-').do(() => (dragDropService as any).findClosestOperator({x:  10, y: 10})).subscribe();
+    dragDropService.getOperatorSuggestionHighlightStream().subscribe(
+      operatorID => {
+        expect(operatorID).toEqual(mockScanPredicate.operatorID);
+      }
+    );
+
+    expect(suggestionSpy).toHaveBeenCalledTimes(1);
+  }));
+
+  it('should not find any operator when the mouse coordinate is greater than the threshold defined', () => {
+    const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
+    const suggestionSpy = spyOn(dragDropService, 'getOperatorSuggestionHighlightStream').and.callThrough();
+    workflowActionService.addOperator(mockScanPredicate, {x: 0, y: 0});
+    (dragDropService as any).currentOperatorType = 'NlpSentiment';
+    (dragDropService as any).findClosestOperator(
+      {x:  DragDropService.SUGGESTION_DISTANCE_THRESHOLD + 10, y: DragDropService.SUGGESTION_DISTANCE_THRESHOLD + 10}
+    );
+
+    expect(suggestionSpy).toHaveBeenCalledTimes(0);
+
+  });
 });
