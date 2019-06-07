@@ -126,6 +126,7 @@ describe('PropertyEditorComponent', () => {
     expect(component.currentOperatorInitialData).toEqual(mockResultPredicate.operatorProperties);
     expect(component.displayForm).toBeTruthy();
 
+
     // check HTML form are displayed
     const formTitleElementAfterChange = fixture.debugElement.query(By.css('.texera-workspace-property-editor-title'));
     const jsonSchemaFormElementAfterChange = fixture.debugElement.query(By.css('.texera-workspace-property-editor-form'));

@@ -44,7 +44,8 @@ describe('JointUIService', () => {
           operatorType: 'nonexistOperatorType',
           operatorProperties: {},
           inputPorts: [],
-          outputPorts: []
+          outputPorts: [],
+          showAdvanced: true
         },
         mockPoint
       );

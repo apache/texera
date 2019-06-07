@@ -154,3 +154,11 @@
   grid-area: 3 / 3; // inside grid in row 3 col 3
   z-index: 1000;
 }
+
+#box {
+  width:500px;
+  height:100px;
+  background-color:white;
+  margin-top: 10px;
+  left: 30px;
+}
