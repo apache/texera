@@ -244,20 +244,8 @@ export class PropertyEditorComponent {
     this.currentOperatorID = operator.operatorID;
     this.currentOperatorSchema = this.autocompleteService.getDynamicSchema(this.currentOperatorID);
 
-    if (!this.currentOperatorSchema) {
-      throw new Error(`operator schema for operator type ${operator.operatorType} doesn't exist`);
-    }
-
-    this.showAdvanced = operator.showAdvanced;
-
-    // only show the button if the operator has advanced options
-    if (this.currentOperatorSchema.additionalMetadata.advancedOptions) {
-      this.hasAdvanced = this.currentOperatorSchema.additionalMetadata.advancedOptions.length === 0 ? false : true;
-    }
-
-    if (!this.showAdvanced) {
-      this.currentOperatorSchema = this.hideAdvancedSchema(this.currentOperatorSchema);
-    }
+    // handle generating schemas for advanced / hidden options
+    this.handleUpdateAdvancedSchema(operator);
 
     // handler to show operator detail description button or not
     this.handleOperatorPropertyDescription(this.currentOperatorSchema);
@@ -373,6 +361,11 @@ export class PropertyEditorComponent {
       event => {
         if (event.operatorID === this.currentOperatorID) {
           this.currentOperatorSchema = this.autocompleteService.getDynamicSchema(this.currentOperatorID);
+          const operator = this.workflowActionService.getTexeraGraph().getOperator(event.operatorID);
+          if (! operator) {
+            throw new Error(`operator ${event.operatorID} does not exist`);
+          }
+          this.handleUpdateAdvancedSchema(operator);
         }
       }
     );
@@ -395,6 +388,30 @@ export class PropertyEditorComponent {
     }
   }
 
+  /**
+   * This method will be responsible for getting the advanced option status from the current operator
+   *  showing on property panel.
+   *
+   * In addition, this will generate regular / advanced json schema for the current operator.
+   *
+   * @param operator current operator predicate
+   */
+  private handleUpdateAdvancedSchema(operator: OperatorPredicate): void {
+    if (!this.currentOperatorSchema) {
+      throw new Error(`operator schema for operator type ${operator.operatorType} doesn't exist`);
+    }
+
+    this.showAdvanced = operator.showAdvanced;
+
+    // only show the button if the operator has advanced options
+    if (this.currentOperatorSchema.additionalMetadata.advancedOptions) {
+      this.hasAdvanced = this.currentOperatorSchema.additionalMetadata.advancedOptions.length === 0 ? false : true;
+    }
+
+    if (!this.showAdvanced) {
+      this.currentOperatorSchema = this.hideAdvancedSchema(this.currentOperatorSchema);
+    }
+  }
 
   /**
    * This method captures the change in operator's property via program instead of user updating the

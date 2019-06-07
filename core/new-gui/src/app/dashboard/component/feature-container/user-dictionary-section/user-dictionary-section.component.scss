@@ -1,0 +1,89 @@
+.subsection-grid-container {
+  min-width: 100%;
+  width: 100%;
+  min-height: 100%;
+  height: 100%;
+}
+
+#sortDropdown {
+  margin-right: 20px;
+}
+
+.add-button{
+  margin-left: 5px;
+}
+
+.page-title{
+  font-family:Roboto, Arial, sans-serif;
+}
+/**
+* this css is used for creating a 2*1 grid area for the 3 main
+* sub-components. The percentages define the size of each
+* column and row, and the first column is empty
+*              ******************
+*              *                *
+*              ******************
+*              *                *
+*              *                *
+*              *                *
+*              *                *
+*              ******************
+**/
+$header-height: 70px;
+.user-dictionary-container{
+  display: grid;
+  grid-template-rows : $header-height calc((100% - #{$header-height}))
+}
+
+.button-area{
+  grid-row-start: 1;
+  grid-row-end: 2;
+}
+
+/**
+* the grid of the dictionary list which contains all the user dictionary.
+* each list item contains a dict name, first three dict item and a view
+* button to check the items in dictionary
+**/
+.user-dictionary-list{
+  grid-row-start: 2;
+  grid-row-end: 3;
+  overflow: auto;
+}
+
+.user-dictionary-list-item{
+  border: 1px solid #d2d7df;
+  height: 90px;
+  border-radius: 3px;
+  margin-bottom : 1.5%;
+  padding-top : 5px;
+}
+
+/**
+*this fill the gap between dictionary name and view button
+**/
+.gap-filler{
+  flex: 1 1 auto;
+}
+
+.view-button{
+  background-color: #1fe23f7c
+}
+
+.dict-name{
+  color:rgb(62, 202, 253);
+  font-size:20px;
+  font-family:Roboto, Arial, sans-serif
+}
+
+.delete-project-btn{
+  width: 1%
+}
+
+.preview-item{
+  border-radius: 3px;
+  margin-right: 8px;
+  font-style: Roboto, Arial, sans-serif;
+  padding: 4px;
+}
+

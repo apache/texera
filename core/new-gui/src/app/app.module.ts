@@ -27,6 +27,42 @@ import { MiniMapComponent } from './workspace/component/mini-map/mini-map.compon
 
 import { ResultPanelToggleComponent } from './workspace/component/result-panel-toggle/result-panel-toggle.component';
 
+import { DashboardComponent } from './dashboard/component/dashboard.component';
+import { TopBarComponent } from './dashboard/component/top-bar/top-bar.component';
+import { UserAccountIconComponent } from './dashboard/component/top-bar/user-account-icon/user-account-icon.component';
+import { FeatureBarComponent } from './dashboard/component/feature-bar/feature-bar.component';
+import { FeatureContainerComponent } from './dashboard/component/feature-container/feature-container.component';
+import {
+  SavedProjectSectionComponent
+} from './dashboard/component/feature-container/saved-project-section/saved-project-section.component';
+import {
+  NgbdModalAddProjectComponent
+} from './dashboard/component/feature-container/saved-project-section/ngbd-modal-add-project/ngbd-modal-add-project.component';
+import {
+  NgbdModalDeleteProjectComponent
+} from './dashboard/component/feature-container/saved-project-section/ngbd-modal-delete-project/ngbd-modal-delete-project.component';
+
+import {
+  RunningJobSectionComponent
+} from './dashboard/component/feature-container/running-job-section/running-job-section.component';
+import {
+  UserDictionarySectionComponent
+} from './dashboard/component/feature-container/user-dictionary-section/user-dictionary-section.component';
+import {
+  NgbdModalResourceViewComponent
+} from './dashboard/component/feature-container/user-dictionary-section/ngbd-modal-resource-view/ngbd-modal-resource-view.component';
+import {
+  NgbdModalResourceAddComponent
+} from './dashboard/component/feature-container/user-dictionary-section/ngbd-modal-resource-add/ngbd-modal-resource-add.component';
+import {
+  NgbdModalResourceDeleteComponent
+} from './dashboard/component/feature-container/user-dictionary-section/ngbd-modal-resource-delete/ngbd-modal-resource-delete.component';
+
+import { ResourceSectionComponent } from './dashboard/component/feature-container/resource-section/resource-section.component';
+
+import { FileUploadModule } from 'ng2-file-upload';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+
 @NgModule({
   declarations: [
     AppComponent,
@@ -36,6 +72,26 @@ import { ResultPanelToggleComponent } from './workspace/component/result-panel-t
     PropertyEditorComponent,
     WorkflowEditorComponent,
     ResultPanelComponent,
+    OperatorLabelComponent,
+
+    DashboardComponent,
+    TopBarComponent,
+    UserAccountIconComponent,
+    FeatureBarComponent,
+    FeatureContainerComponent,
+
+    SavedProjectSectionComponent,
+    NgbdModalAddProjectComponent,
+    NgbdModalDeleteProjectComponent,
+
+    RunningJobSectionComponent,
+    UserDictionarySectionComponent,
+    NgbdModalResourceViewComponent,
+    NgbdModalResourceAddComponent,
+    NgbdModalResourceDeleteComponent,
+
+    ResourceSectionComponent,
+
     NgbModalComponent,
     OperatorLabelComponent,
     ProductTourComponent,
@@ -53,13 +109,26 @@ import { ResultPanelToggleComponent } from './workspace/component/result-panel-t
     NgbModule.forRoot(),
     RouterModule.forRoot([]),
     TourNgBootstrapModule.forRoot(),
+
+    MaterialDesignFrameworkModule,
+    FileUploadModule,
+    FormsModule,
+    ReactiveFormsModule,
     LoggerModule.forRoot({level: environment.production ? NgxLoggerLevel.ERROR : NgxLoggerLevel.DEBUG, serverLogLevel: NgxLoggerLevel.OFF}),
-    MaterialDesignFrameworkModule
+    MaterialDesignFrameworkModule,
+    FormsModule
 
   ],
-  providers: [ HttpClientModule ],
+  entryComponents: [
+    NgbdModalAddProjectComponent,
+    NgbdModalDeleteProjectComponent,
+    NgbdModalResourceViewComponent,
+    NgbdModalResourceAddComponent,
+    NgbdModalResourceDeleteComponent,
+    NgbModalComponent
+  ],
+  providers: [HttpClientModule],
   bootstrap: [AppComponent],
   // dynamically created component must be placed in the entryComponents attribute
-  entryComponents: [ NgbModalComponent ]
 })
 export class AppModule { }

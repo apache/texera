@@ -11,7 +11,7 @@ import edu.uci.ics.texera.dataflow.planstore.PlanStore;
 import edu.uci.ics.texera.dataflow.planstore.PlanStoreConstants;
 import edu.uci.ics.texera.storage.DataReader;
 import edu.uci.ics.texera.web.TexeraWebException;
-import edu.uci.ics.texera.web.response.TexeraWebResponse;
+import edu.uci.ics.texera.web.response.GenericWebResponse;
 import edu.uci.ics.texera.web.response.planstore.QueryPlanBean;
 import edu.uci.ics.texera.web.response.planstore.QueryPlanListBean;
 
@@ -95,7 +95,7 @@ public class PlanStoreResource {
     }
 
     @POST
-    public TexeraWebResponse addQueryPlan(String queryPlanBeanJson) {
+    public GenericWebResponse addQueryPlan(String queryPlanBeanJson) {
         try {
             QueryPlanBean queryPlanBean = new ObjectMapper().readValue(queryPlanBeanJson, QueryPlanBean.class);
             // Adding the query plan to the PlanStore
@@ -108,12 +108,12 @@ public class PlanStoreResource {
         catch(IOException e) {
             throw new TexeraWebException(e.getMessage());
         }
-        return new TexeraWebResponse(0, "Success");
+        return new GenericWebResponse(0, "Success");
     }
 
     @DELETE
     @Path("/{plan_name}")
-    public TexeraWebResponse deleteQueryPlan(@PathParam("plan_name") String planName) {
+    public GenericWebResponse deleteQueryPlan(@PathParam("plan_name") String planName) {
         try {
             // Deleting the plan from the plan store
             planStore.deletePlan(planName);
@@ -121,12 +121,12 @@ public class PlanStoreResource {
         catch(TexeraException e) {
             throw new TexeraWebException(e.getMessage());
         }
-        return new TexeraWebResponse(0, "Success");
+        return new GenericWebResponse(0, "Success");
     }
 
     @PUT
     @Path("/{plan_name}")
-    public TexeraWebResponse updateQueryPlan(@PathParam("plan_name") String planName, String queryPlanBeanJson) {
+    public GenericWebResponse updateQueryPlan(@PathParam("plan_name") String planName, String queryPlanBeanJson) {
         try {
             QueryPlanBean queryPlanBean = new ObjectMapper().readValue(queryPlanBeanJson, QueryPlanBean.class);
             // Updating the plan in the plan store
@@ -136,6 +136,6 @@ public class PlanStoreResource {
         catch(IOException | TexeraException e) {
             throw new TexeraWebException(e.getMessage());
         }
-        return new TexeraWebResponse(0, "Success");
+        return new GenericWebResponse(0, "Success");
     }
 }
