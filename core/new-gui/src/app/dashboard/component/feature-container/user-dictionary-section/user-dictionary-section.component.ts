@@ -11,6 +11,15 @@ import { NgbdModalResourceDeleteComponent } from './ngbd-modal-resource-delete/n
 import { NgbdModalResourceViewComponent } from './ngbd-modal-resource-view/ngbd-modal-resource-view.component';
 
 import { cloneDeep } from 'lodash';
+import { FileItem } from 'ng2-file-upload';
+
+export interface SavedAddDictionaryState extends Readonly<{
+  name: string;
+  content: string;
+  separator: string;
+  description: string;
+  savedQueue: FileItem[];
+}> { }
 
 /**
  * UserDictionarySectionComponent is the main interface
@@ -28,6 +37,14 @@ import { cloneDeep } from 'lodash';
 export class UserDictionarySectionComponent {
 
   public userDictionaries: UserDictionary[] = [];
+
+  public savedState: SavedAddDictionaryState = {
+    name: '',
+    content: '',
+    separator: '',
+    description: '',
+    savedQueue: [],
+  };
 
   constructor(
     private userDictionaryService: UserDictionaryService,
@@ -70,19 +87,36 @@ export class UserDictionarySectionComponent {
   * the addUserDictionaryData method in to store user-define dictionary,
   * or uploadDictionary in service to upload dictionary file.
   *
+  *
   * @param
   */
   public openNgbdModalResourceAddComponent(): void {
-    const modalRef = this.modalService.open(NgbdModalResourceAddComponent);
+    const modalRef = this.modalService.open(NgbdModalResourceAddComponent, {
+      // before the modal closes, save the state and refresh the dictionaries on the feature container
+      beforeDismiss: (): boolean => {
+        this.savedState = {
+          name: modalRef.componentInstance.dictName,
+          content: modalRef.componentInstance.dictContent,
+          separator: modalRef.componentInstance.dictSeparator,
+          description: modalRef.componentInstance.dictionaryDescription,
+          savedQueue: modalRef.componentInstance.uploader.queue
+        };
 
-    Observable.from(modalRef.result).subscribe(
-      (value: Observable<UserDictionary>) => {
-        value.subscribe(res => {
-          this.refreshUserDictionary();
-        });
+        // refresh the dictionaries in the panel to show the new updates done by users
+        this.refreshUserDictionary();
+        return true;
       }
-    );
+    });
 
+    // initialize the value from saving, used when user close the popup and then temporarily save dictionary.
+    modalRef.componentInstance.uploader.queue = this.savedState.savedQueue;
+    modalRef.componentInstance.dictName = this.savedState.name;
+    modalRef.componentInstance.dictContent = this.savedState.content;
+    modalRef.componentInstance.dictSeparator = this.savedState.separator;
+    modalRef.componentInstance.dictionaryDescription = this.savedState.description;
+
+    // checks if the files saved in the state are valid.
+    modalRef.componentInstance.checkCurrentFilesValid();
   }
 
   /**

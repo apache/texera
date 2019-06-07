@@ -13,7 +13,6 @@ import { LoggerModule, NgxLoggerLevel } from 'ngx-logger';
 
 import { MaterialDesignFrameworkModule } from 'angular6-json-schema-form';
 import { NgxJsonViewerModule } from 'ngx-json-viewer';
-import { FormsModule } from '@angular/forms';
 
 import { AppComponent } from './app.component';
 import { WorkspaceComponent } from './workspace/component/workspace.component';
@@ -61,6 +60,8 @@ import {
 
 import { ResourceSectionComponent } from './dashboard/component/feature-container/resource-section/resource-section.component';
 
+import { FileUploadModule } from 'ng2-file-upload';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 
 @NgModule({
   declarations: [
@@ -108,6 +109,11 @@ import { ResourceSectionComponent } from './dashboard/component/feature-containe
     NgbModule.forRoot(),
     RouterModule.forRoot([]),
     TourNgBootstrapModule.forRoot(),
+
+    MaterialDesignFrameworkModule,
+    FileUploadModule,
+    FormsModule,
+    ReactiveFormsModule,
     LoggerModule.forRoot({level: environment.production ? NgxLoggerLevel.ERROR : NgxLoggerLevel.DEBUG, serverLogLevel: NgxLoggerLevel.OFF}),
     MaterialDesignFrameworkModule,
     FormsModule

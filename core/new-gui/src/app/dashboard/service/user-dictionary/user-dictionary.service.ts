@@ -2,12 +2,12 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 
 import { Observable } from 'rxjs/Observable';
-import { Subject } from 'rxjs/Subject';
 import { UserDictionary } from './user-dictionary.interface';
 import { environment } from '../../../../environments/environment';
 
 const dictionaryUrl = 'users/dictionaries';
 const uploadDictionaryUrl = 'users/dictionaries/upload-file';
+const uploadFilesURL = 'users/dictionaries/upload-files';
 
 export interface GenericWebResponse {
   code: number;
@@ -69,6 +69,20 @@ export class UserDictionaryService {
         })
       }
     );
+  }
+
+  /**
+   * This method will handle the request to upload multiple files to the backend.
+   *
+   * @param fileList
+   */
+  public uploadFileList(fileList: File[]): Observable<GenericWebResponse> {
+    const newFormData = new FormData();
+    fileList.forEach(file => {
+      newFormData.append('files', file, file.name);
+    });
+
+    return this.http.post<GenericWebResponse>(`${environment.apiUrl}/${uploadFilesURL}`, newFormData);
   }
 
   /**

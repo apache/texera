@@ -5,7 +5,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import edu.uci.ics.texera.dataflow.resource.dictionary.DictionaryManager;
 import edu.uci.ics.texera.web.TexeraWebException;
 import edu.uci.ics.texera.web.response.GenericWebResponse;
+
+import org.glassfish.jersey.media.multipart.BodyPartEntity;
+import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
+import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.glassfish.jersey.media.multipart.FormDataParam;
 
 import javax.ws.rs.*;
@@ -79,6 +83,14 @@ public class UserDictionaryResource {
         }
     }
 
+    /**
+     * This method will handle the request to add / update a
+     * 	dictionary in the Lucene database
+     * 
+     * @param dictID
+     * @param userDictionary
+     * @return
+     */
     @PUT
     @Path("/{dictionaryID}")
     public GenericWebResponse putDictionary(
@@ -96,6 +108,13 @@ public class UserDictionaryResource {
         return new GenericWebResponse(0, "success");
     }
 
+    /**
+     * This method will handle the request to delete a
+     * 	dictionary instance in the Lucene database.
+     * 
+     * @param dictID
+     * @return
+     */
     @DELETE
     @Path("/{dictionaryID}")
     public GenericWebResponse deleteDictionary(
@@ -110,6 +129,13 @@ public class UserDictionaryResource {
     }
 
 
+    /**
+     * This method will handle the request to upload a single file.
+     * 
+     * @param uploadedInputStream
+     * @param fileDetail
+     * @return
+     */
     @POST
     @Path("/upload-file")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
@@ -117,9 +143,51 @@ public class UserDictionaryResource {
             @FormDataParam("file") InputStream uploadedInputStream,
             @FormDataParam("file") FormDataContentDisposition fileDetail) {
 
+        String fileName = fileDetail.getFileName();
+        this.handleDictionaryUpload(uploadedInputStream, fileName);
+
+        return new GenericWebResponse(0, "success");
+    }
+    
+    
+    /**
+     * This method will handle the request to upload multiple files
+     * 
+     * @param multiPart
+     * @return
+     */
+    @POST
+    @Path("upload-files")
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    public GenericWebResponse uploadDictionaryFiles (
+    		FormDataMultiPart multiPart) {
+    	
+		List<FormDataBodyPart> formBodyParts = multiPart.getFields("files");
+
+		for (int i = 0; i < formBodyParts.size(); i++) {
+			BodyPartEntity bodyPartEntity = (BodyPartEntity) formBodyParts.get(i).getEntity();
+			String fileName = formBodyParts.get(i).getContentDisposition().getFileName();
+			InputStream fileStream = bodyPartEntity.getInputStream();
+			this.handleDictionaryUpload(fileStream, fileName);
+		}
+
+    	return new GenericWebResponse(0, "success");
+    }
+    
+    /**
+     * This method will handle the single file upload to the Lucene database.
+     * 
+     * It will first read the dictionary contents from the input stream. Then,
+     * 	it will remove duplicate entries and store its contents inside the Lucene
+     * 	database based on the data we fetched from input stream.
+     * 
+     * @param fileStream
+     * @param fileName
+     */
+    private void handleDictionaryUpload(InputStream fileStream, String fileName) {
         StringBuilder fileContents = new StringBuilder();
         String line;
-        try (BufferedReader br = new BufferedReader(new InputStreamReader(uploadedInputStream))) {
+        try (BufferedReader br = new BufferedReader(new InputStreamReader(fileStream))) {
             while ((line = br.readLine()) != null) {
                 fileContents.append(line);
             }
@@ -127,10 +195,10 @@ public class UserDictionaryResource {
             throw new TexeraWebException("Error occurred while uploading dictionary");
         }
 
-        String fileName = fileDetail.getFileName();
         
         String contents = fileContents.toString();
-        List<String> dictEntriesWithDup = Arrays.asList(contents.split(",")).stream().map(s -> s.trim()).filter(s -> !s.isEmpty()).collect(Collectors.toList());
+        List<String> dictEntriesWithDup = Arrays.asList(contents.split(",")).stream().map(s -> s.trim())
+        		.filter(s -> !s.isEmpty()).collect(Collectors.toList());
  
         Set<String> dictEntriesWithoutDup = new HashSet<String> (dictEntriesWithDup);
         List<String> dictEntries = new ArrayList<String> (dictEntriesWithoutDup);
@@ -139,11 +207,15 @@ public class UserDictionaryResource {
         DictionaryManager dictionaryManager = DictionaryManager.getInstance();
         String randomDictionaryID = "dictionary-" + UUID.randomUUID().toString();
         dictionaryManager.addDictionary(randomDictionaryID, entriesToJson(dictEntries), fileName, "");
-
-        return new GenericWebResponse(0, "success");
     }
 
 
+    /**
+     * This method serializes dictionary entries to JSON string.
+     * 
+     * @param dictEntries
+     * @return
+     */
     private String entriesToJson(List<String> dictEntries) {
         try {
             return new ObjectMapper().writeValueAsString(dictEntries);
@@ -151,7 +223,14 @@ public class UserDictionaryResource {
             throw new UncheckedIOException(e);
         }
     }
-
+    
+    /**
+     * This method deserializes JSON strings to a list of
+     * 	dictionary entries.
+     * 
+     * @param entriesJson
+     * @return
+     */
     private List<String> entriesFromJson(String entriesJson) {
         try {
             ObjectMapper objectMapper = new ObjectMapper();
@@ -161,7 +240,6 @@ public class UserDictionaryResource {
             throw new UncheckedIOException(e);
         }
     }
-
 
 
 }

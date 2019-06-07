@@ -4,7 +4,7 @@ import { TopBarComponent } from './top-bar.component';
 import { UserAccountIconComponent } from './user-account-icon/user-account-icon.component';
 import { RouterTestingModule } from '@angular/router/testing';
 
-import {MatToolbarModule} from '@angular/material/toolbar';
+import { CustomNgMaterialModule } from '../../../common/custom-ng-material.module';
 
 describe('TopBarComponent', () => {
   let component: TopBarComponent;
@@ -13,7 +13,7 @@ describe('TopBarComponent', () => {
   beforeEach(async(() => {
     TestBed.configureTestingModule({
       declarations: [ TopBarComponent, UserAccountIconComponent ],
-      imports: [ RouterTestingModule, MatToolbarModule ]
+      imports: [ RouterTestingModule, CustomNgMaterialModule ]
     })
     .compileComponents();
   }));

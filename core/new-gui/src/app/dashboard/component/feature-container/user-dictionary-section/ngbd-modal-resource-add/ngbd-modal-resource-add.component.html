@@ -1,45 +1,100 @@
 <div class="modal-header">
   <h4 class="modal-title">Add Dictionary</h4>
-  <button type="button" class="close" aria-label="Close" (click)="activeModal.close()">
+  <button type="button" class="close" aria-label="Close" (click)="activeModal.dismiss('close')">
     <span aria-hidden="true">&times;</span>
   </button>
 </div>
-
 <div class="modal-body">
-  <mat-dialog-content class= "add-dictionary-container">
-    <mat-form-field class= "name-area">
-      <input  matInput [(ngModel)]="name" placeholder="Name of Dictionary">
-    </mat-form-field>
-    <mat-form-field class= "content-area" >
-      <textarea matInput
-        [(ngModel)]="dictContent" placeholder="Content of Dictionary"
-        matTextareaAutosize matAutosizeMinRows="3">
-      </textarea>
-    </mat-form-field>
-    <mat-form-field class= "separator-area">
-      <input  matInput [(ngModel)]="separator" placeholder="Content Separator (' , '    ' \\t '    ' \\n ')">
-    </mat-form-field>
-    <mat-form-field class= "description-area">
-      <input  matInput [(ngModel)]="dictionaryDescription" placeholder="Dictionary Description">
-    </mat-form-field>
-    <div class="transmit-area">
-      <mat-divider></mat-divider>
-      <span class="or-separator">OR</span>
-      <mat-divider></mat-divider>
-    </div>
+  <mat-tab-group mat-stretch-tabs (selectedTabChange)="onTabChangeEvent($event)">
+    <!-- upload files tab -->
+    <mat-tab label="Upload">
+      <div ng2FileDrop
+        [ngClass]="{'have-file-over': haveDropZoneOver}"
+        (fileOver)="haveFileOver($event)"
+        (onFileDrop)="getFileDropped($event)"
+        [uploader]="uploader"
+        class="drag-file-area"
+        (click)="clickUpload.click()">
 
-    <div class="file-upload-area" id="hide">
-      <label class="btn-primary" ngbButtonLabel>
-        <input type="file"
-          accept=".txt"  class="file-upload-btn" (change)="onChange($event)"/>
-        <span>Upload Your Dictionary</span>
-      </label>
-    </div>
+        Drop Files Here
+        <div id="hide">
+          <input #clickUpload type="file" accept=".txt"(change)="saveUploadFile($event)" multiple/>
+        </div>
 
-  </mat-dialog-content>
+      </div>
+      <div *ngIf="uploader.queue.length">
+        <li *ngFor="let item of uploader.queue" class="file-queue-item">
+          <span>
+            <label>{{ item.file.name }}</label>
+            <label *ngIf="checkThisFileInvalid(item._file)" class="invalid-file">*Invalid</label>
+          </span>
+          <button class="queue-delete-button" (click)="removeFile(item)">
+            <i class="fa fa-trash" aria-hidden="true"></i>
+          </button>
+        </li>
+        <div *ngIf="invalidFileTypeCounter || duplicateFiles.length">
+          <button type="button" class="delete-all-invalid-button btn btn-outline-dark"
+            (click)="deleteAllInvalidFile()">Delete Invalid Files</button>
+          <label *ngIf="invalidFileTypeCounter" class="invalid-file-warning">
+            *You can only upload .txt file
+          </label>
+          <label *ngIf="duplicateFiles.length" class="invalid-file-warning">
+            *You cannot upload files with duplicate names
+          </label>
+        </div>
+      </div>
+    </mat-tab>
+
+    <!-- tab for manual dictionary creation by the user -->
+    <mat-tab label="Add Manually">
+      <div class= "add-dictionary-container">
+        <mat-dialog-content>
+          <mat-form-field>
+            <input matInput [(ngModel)]="dictName" placeholder="Name of Dictionary"
+            [formControl]="nameValidator" [errorStateMatcher]="matcher" required>
+            <mat-error *ngIf="nameValidator.invalid">*Name is <strong>required</strong></mat-error>
+          </mat-form-field>
+          <mat-form-field>
+            <textarea matInput style="resize: none;"
+              [(ngModel)]="dictContent" placeholder="Content of Dictionary"
+              [formControl]="contentValidator" [errorStateMatcher]="matcher" required
+              matTextareaAutosize matAutosizeMaxRows="8">
+            </textarea>
+            <mat-error *ngIf="contentValidator.invalid">*Content is <strong>required</strong></mat-error>
+          </mat-form-field>
+          <mat-form-field>
+            <input  matInput [(ngModel)]="dictSeparator" placeholder="Content Separator (' , '    ' \\t '    ' \\n ')">
+          </mat-form-field>
+          <mat-form-field class= "description-area">
+            <input  matInput [(ngModel)]="dictionaryDescription" placeholder="Dictionary Description"
+            [formControl]="descriptionValidator" [errorStateMatcher]="matcher" required>
+            <mat-error *ngIf="descriptionValidator.invalid">*Description is <strong>required</strong></mat-error>
+          </mat-form-field>
+        </mat-dialog-content>
+      </div>
+    </mat-tab>
+  </mat-tab-group>
+
 </div>
-
 <div class="modal-footer">
-  <button type="button" class="btn btn-outline-dark add-button" (click)="addDictionary()"  >Add</button>
-  <button type="button" class="btn btn-outline-dark" (click)="activeModal.close()">Close</button>
+  <div *ngIf="isInUploadFileTab && uploader.queue.length">
+    <button class="btn btn-primary btn-xs bottom-upload bottom-size"
+      (click)="uploadFiles()"
+      [disabled]="invalidFileTypeCounter || duplicateFiles.length">
+        <span *ngIf="!isUploading">Upload</span>
+        <span *ngIf="isUploading" class='fa fa-spinner fa-spin'></span>
+    </button>
+  </div>
+  <div *ngIf="!isInUploadFileTab">
+    <button class="btn btn-outline-dark add-button bottom-size"
+      (click)="addDictionary()"
+      [disabled]="!checkDictionaryFormValid()">
+        <span *ngIf="!isUploading">Add</span>
+        <span *ngIf="isUploading" class='fa fa-spinner fa-spin'></span>
+    </button>
+  </div>
+  <button class="btn btn-outline-dark bottom-size" (click)="activeModal.dismiss('close')">Close</button>
 </div>
+
+
+
