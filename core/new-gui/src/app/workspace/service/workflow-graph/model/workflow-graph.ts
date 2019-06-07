@@ -34,6 +34,7 @@ export class WorkflowGraph {
   private readonly linkAddSubject = new Subject<OperatorLink>();
   private readonly linkDeleteSubject = new Subject<{ deletedLink: OperatorLink }>();
   private readonly operatorPropertyChangeSubject = new Subject<{ oldProperty: object, operator: OperatorPredicate }>();
+  private readonly operatorAdvancedChangeSubject = new Subject<{ operator: OperatorPredicate, showAdvanced: boolean }>();
 
   constructor(
     operatorPredicates: OperatorPredicate[] = [],
@@ -202,6 +203,24 @@ export class WorkflowGraph {
   }
 
   /**
+   * Return an array of all input links of an operator in the graph.
+   * @param operatorID
+   */
+  public getInputLinksByOperatorId(operatorID: string): OperatorLink[] {
+
+    return this.getAllLinks().filter(link => link.target.operatorID === operatorID);
+
+  }
+
+  /**
+   * Returna an array of all output links of an operator in the graph.
+   * @param operatorID
+   */
+  public getOutputLinksByOperatorId(operatorID: string): OperatorLink[] {
+    return this.getAllLinks().filter(link => link.source.operatorID === operatorID);
+  }
+
+  /**
    * Sets the property of the operator to use the newProperty object.
    *
    * Throws an error if the operator doesn't exist.
@@ -224,6 +243,29 @@ export class WorkflowGraph {
     this.operatorIDMap.set(operatorID, operator);
 
     this.operatorPropertyChangeSubject.next({ oldProperty, operator });
+  }
+
+  /**
+   * Sets the show advancedoption status of the operator.
+   *
+   * Throws an error if the operator doesn't exist.
+   * @param operatorID operator ID
+   * @param showAdvanced indicates if necessary to show advancedOption
+   */
+  public setOperatorAdvanceStatus(operatorID: string, showAdvanced: boolean): void {
+    const originalOperatorData = this.operatorIDMap.get(operatorID);
+    if (originalOperatorData === undefined) {
+      throw new Error(`operator with ID ${operatorID} doesn't exist`);
+    }
+
+    // constructor a new copy with new newShowAdvancedStatus and all other original attributes
+    const operator = {
+      ...originalOperatorData,
+      showAdvanced: showAdvanced,
+    };
+    // set the new copy back to the operator ID map
+    this.operatorIDMap.set(operatorID, operator);
+    this.operatorAdvancedChangeSubject.next({operator, showAdvanced});
   }
 
   /**
@@ -257,11 +299,19 @@ export class WorkflowGraph {
   }
 
   /**
-   * Gets the observable event stream of a link being deleted from the graph.
+   * Gets the observable event stream of a change in operator's properties.
    * The observable value includes the old property that is replaced, and the operator with new property.
    */
   public getOperatorPropertyChangeStream(): Observable<{ oldProperty: object, operator: OperatorPredicate }> {
     return this.operatorPropertyChangeSubject.asObservable();
+  }
+
+  /**
+   * Gets the observable event stream of a change in operator's show advanced status.
+   * The observable value includes the operator with new property and the new advanced status.
+   */
+  public getOperatorAdvancedOptionChangeSteam(): Observable<{operator: OperatorPredicate, showAdvanced: boolean}> {
+    return this.operatorAdvancedChangeSubject.asObservable();
   }
 
   /**
@@ -350,5 +400,6 @@ export class WorkflowGraph {
           on input ports of the target operator ${link.target.operatorID}`);
     }
   }
+
 
 }

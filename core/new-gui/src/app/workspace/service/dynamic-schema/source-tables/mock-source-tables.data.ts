@@ -1,10 +1,7 @@
-import { SourceTableResponse, SourceTableDetail } from './source-tables.service';
-import { OperatorPredicate } from '../../../types/workflow-common.interface';
-import { OperatorSchema } from '../../../types/operator-schema.interface';
-
+import { TableMetadata } from './source-tables.service';
 // constants related to the source table names present at the server
 
-export const mockTablePromed: SourceTableDetail = {
+export const mockTablePromed: TableMetadata = {
   tableName: 'promed',
   schema: {
     attributes: [
@@ -24,7 +21,7 @@ export const mockTablePromed: SourceTableDetail = {
   }
 };
 
-export const mockTableTwitter: SourceTableDetail = {
+export const mockTableTwitter: TableMetadata = {
   tableName: 'twitter_sample',
   schema: {
     'attributes': [
@@ -84,10 +81,4 @@ export const mockTableTwitter: SourceTableDetail = {
   }
 };
 
-
-// TODO: All responses from backend should come as a JSON object. The JSON message below will
-// have to be changed to be a JSON object. Same change will need to be done on the backend.
-export const mockSourceTableAPIResponse: Readonly<SourceTableResponse> = {
-  code: 0,
-  message: JSON.stringify([mockTablePromed, mockTableTwitter])
-};
+export const mockSourceTableAPIResponse: TableMetadata[] = [mockTablePromed, mockTableTwitter];

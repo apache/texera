@@ -1,0 +1,45 @@
+<div class="saved-project-container subsection-grid-container">
+
+      <mat-card class="project-section-title subsection-grid-container">
+        <div ngbDropdown class="d-inline-block">
+          <button class="btn btn-outline-primary" id="sortDropdown" ngbDropdownToggle>Sort</button>
+          <div ngbDropdownMenu aria-labelledby="dropdownBasic1">
+            <mat-list>
+              <button mat-button class="sorting_func" (click)="lastSort()">By Edit Time</button>
+              <mat-divider></mat-divider>
+              <button mat-button class="sorting_func" (click)="dateSort()">By Create Time</button>
+              <mat-divider></mat-divider>
+              <button mat-button class="sorting_func" (click)="ascSort()">A -> Z</button>
+              <mat-divider></mat-divider>
+              <button mat-button class="sorting_func" (click)="dscSort()">Z -> A</button>
+              <mat-divider></mat-divider>
+            </mat-list>
+          </div>
+          <button type="button" class="btn btn-outline-dark add-button"  (click)="openNgbdModalAddProjectComponent()"><i color="dark" class="fa fa-plus"></i></button>
+        </div>
+      </mat-card>
+
+      <mat-card class="project-list subsection-grid-container">
+        <mat-card-content>
+          <mat-list >
+            <div>
+              <h2 class="page-title">Projects</h2>
+              <br/>
+            </div>
+            <div class = "scroll">
+            <mat-list-item *ngFor="let project of projects" class= "project-list-item">
+              <h3 mat-line class="project-title"><a href={{this.defaultWeb}}>{{project.name}}</a></h3>
+              <p mat-line class="project-time" > <br>
+                Last Access: {{project.lastModifiedTime | date:'yyyy-MM-dd HH:mm'}}
+                <span class="time-space"></span>
+                Created: {{project.creationTime | date:'yyyy-MM-dd HH:mm'}}
+              </p>
+              <button mat-button class="delete-project-btn" placement="bottom" ngbTooltip="Delete the {{project.name}}" (click)="openNgbdModalDeleteProjectComponent(project)" ><i class="fa fa-trash"></i></button>
+            </mat-list-item>
+
+            </div>
+          </mat-list>
+
+        </mat-card-content>
+      </mat-card>
+</div>

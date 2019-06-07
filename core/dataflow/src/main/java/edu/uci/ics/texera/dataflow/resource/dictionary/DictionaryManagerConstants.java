@@ -13,8 +13,14 @@ public class DictionaryManagerConstants {
 
     public static final Path INDEX_DIR = Utils.getDefaultIndexDirectory().resolve("dictionaries");
     
-    public static final Path DICTIONARY_DIR_PATH = Utils.getTexeraHomePath().resolve("user-resources").resolve("dictionaries");
-    public static final String DICTIONARY_DIR = DICTIONARY_DIR_PATH.toString();
+    public static final Path DICTIONARY_CONTENT_DIR_PATH = Utils.getTexeraHomePath().resolve("user-resources").resolve("dictionaries").resolve("contents");
+    public static final String DICTIONARY_CONTENT_DIR = DICTIONARY_CONTENT_DIR_PATH.toString();
+    
+    public static final Path DICTIONARY_NAME_DIR_PATH = Utils.getTexeraHomePath().resolve("user-resources").resolve("dictionaries").resolve("names");
+    public static final String DICTIONARY_NAME_DIR = DICTIONARY_CONTENT_DIR_PATH.toString();
+    
+    public static final Path DICTIONARY_DESCRIPTION_DIR_PATH = Utils.getTexeraHomePath().resolve("user-resources").resolve("dictionaries").resolve("descriptions");
+    public static final String DICTIONARY_DESCRIPTION_DIR = DICTIONARY_CONTENT_DIR_PATH.toString();
 
     public static final String NAME = "name";
     public static final Attribute NAME_ATTR = new Attribute(NAME, AttributeType.STRING);

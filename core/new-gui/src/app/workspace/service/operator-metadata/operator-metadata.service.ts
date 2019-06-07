@@ -13,6 +13,9 @@ export const EMPTY_OPERATOR_METADATA: OperatorMetadata = {
   groups: []
 };
 
+const addDictionaryAPIAddress = '/api/resources/dictionary/';
+const getDictionaryAPIAddress = '/api/upload/dictionary/';
+
 // interface only containing public methods
 export type IOperatorMetadataService = Pick<OperatorMetadataService, keyof OperatorMetadataService>;
 

@@ -18,6 +18,6 @@
       <mat-header-row *matHeaderRowDef="currentDisplayColumns"></mat-header-row>
       <mat-row class="result-table-row" *matRowDef="let row; columns: currentDisplayColumns!;" (click)="open(row)"></mat-row>
     </mat-table>
-    <mat-paginator [pageSize]="10" [showFirstLastButtons]="true"></mat-paginator>
+    <mat-paginator [pageSize]="10" [showFirstLastButtons]="true" (page)="onPaginateChange($event)"></mat-paginator>
   </div>
 </div>

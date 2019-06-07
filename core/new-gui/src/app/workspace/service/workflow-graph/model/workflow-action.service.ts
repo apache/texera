@@ -135,7 +135,9 @@ export class WorkflowActionService {
     this.undoRedoService.addCommand(command);
     this.undoRedoService.setListenJointCommand(true);
   }
-
+  public setOperatorAdvanceStatus(operatorID: string, newShowAdvancedStatus: boolean) {
+    this.texeraGraph.setOperatorAdvanceStatus(operatorID, newShowAdvancedStatus);
+  }
   /**
    * Adds an opreator to the workflow graph at a point.
    * Throws an Error if the operator ID already existed in the Workflow Graph.
@@ -286,5 +288,6 @@ export class WorkflowActionService {
   private setOperatorPositionInternal(operatorID: string, newPosition: Point) {
     (this.jointGraph.getCell(operatorID) as joint.dia.Element).position(newPosition.x, newPosition.y);
   }
+
 
 }
