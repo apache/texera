@@ -69,4 +69,10 @@ export class WorkflowUtilService {
 
   }
 
+  /**
+   * Generates a new UUID for operator or link
+   */
+  public getLinkRandomUUID(): string {
+    return 'link-' + uuid();
+  }
 }

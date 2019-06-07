@@ -3,8 +3,10 @@
     Texera <span class="version-number">0.3.0</span>
   </a>
   <div class="collapse navbar-collapse texera-navigation-utilities">
-    <i class="navbar-brand zoom-button fa fa-search-minus" (click)="onClickZoomOut()" title="zoom in"></i>
-    <i class="navbar-brand zoom-button fa fa-search-plus" (click)="onClickZoomIn()" title="zoom in"></i>
+    <i [ngClass]="{'disabled-button': isZoomRatioMin(), 'zoom-button': !isZoomRatioMin()}"
+        class="navbar-brand fa fa-search-minus" (click)="onClickZoomOut()" title="zoom in"></i>
+    <i [ngClass]="{'disabled-button': isZoomRatioMax(), 'zoom-button': !isZoomRatioMax()}"
+        class="navbar-brand fa fa-search-plus" (click)="onClickZoomIn()" title="zoom in"></i>
     <i class="navbar-brand zoom-button fa fa-arrows-alt" (click)="onClickRestoreZoomOffsetDefaullt()" title="reset zoom"></i>
   </div>
   <div class="collapse navbar-collapse texera-navigation-execute">

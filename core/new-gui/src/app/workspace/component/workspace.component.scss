@@ -35,7 +35,12 @@
 .texera-workspace-grid-container {
   display: grid;
   grid-template-columns: 14% 70% 16%;
-  grid-template-rows: $header-height calc((100% - #{$header-height} - #{$resultbar-height}) * 0.75) $resultbar-height calc((100% - #{$header-height} - #{$resultbar-height}) * 0.25)
+  grid-template-rows: $header-height
+                      calc((100% - #{$header-height} - #{$resultbar-height}) * 0.75)
+                      0px
+                      $resultbar-height
+                      calc((100% - #{$header-height} - #{$resultbar-height}) * 0.25);
+  position: relative;
 }
 
 /**
@@ -49,7 +54,12 @@
 .texera-original-workspace-grid-container{
   display: grid;
   grid-template-columns: 14% 70% 16%;
-  grid-template-rows: $header-height calc((100% - #{$header-height} - #{$resultbar-height})) $resultbar-height 0px
+  grid-template-rows: $header-height
+                      calc((100% - #{$header-height} - #{$resultbar-height}) * 0.75)
+                      calc((100% - #{$header-height} - #{$resultbar-height}) * 0.25)
+                      $resultbar-height
+                      0px;
+  position: relative;
 }
 
 /**
@@ -74,7 +84,7 @@
   grid-column-start: 1;
   grid-column-end: 2;
   grid-row-start: 2;
-  grid-row-end: 5;
+  grid-row-end: 6;
   overflow: auto;
 }
 
@@ -88,9 +98,10 @@
   grid-column-start: 3;
   grid-column-end: 4;
   grid-row-start: 2;
-  grid-row-end: 5;
+  grid-row-end: 3;
   overflow: auto;
 }
+
 
 /**
 * this style specifies that the workflow editor in the middle
@@ -100,7 +111,21 @@
   grid-column-start: 2;
   grid-column-end: 3;
   grid-row-start: 2;
-  grid-row-end: 3;
+  grid-row-end: 4;
+}
+
+.texera-mini-map {
+  grid-column-start: 3;
+  grid-column-end: 4;
+  grid-row-start: 3;
+  grid-row-end: 5;
+}
+
+.texera-mini-map-with-result {
+  grid-column-start: 3;
+  grid-column-end: 4;
+  grid-row-start: 4;
+  grid-row-end: 6;
 }
 
 /**
@@ -111,14 +136,21 @@
 .texera-result-panel-grid-container {
   grid-column-start: 2;
   grid-column-end: 3;
-  grid-row-start: 4;
-  grid-row-end: 5;
+  grid-row-start: 5;
+  grid-row-end: 6;
   overflow: auto;
 }
 
 .texera-result-panel-toggle-grid-container{
   grid-column-start: 2;
   grid-column-end: 3;
-  grid-row-start: 3;
-  grid-row-end: 4;
+  grid-row-start: 4;
+  grid-row-end: 5;
+}
+
+.texera-mini-map-navigator {
+  border: 1px solid #797A79;
+  position: absolute;
+  grid-area: 3 / 3; // inside grid in row 3 col 3
+  z-index: 1000;
 }
