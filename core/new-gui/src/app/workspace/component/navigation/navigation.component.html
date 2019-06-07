@@ -11,9 +11,11 @@
       title="download execution result"></i> -->
 
       <div ngbDropdown class="d-inline-block">
-        <i class="navbar-brand fa fa-cloud-download"  [ngClass]="{'utility-button-disabled' : !executionResultID,
-        'utility-button': executionResultID}" id="downloadExcelOptions" ngbDropdownToggle
-          title="download execution result"></i>
+        <button class="drop-down-button" ngbDropdownToggle [disabled]="!executionResultID">
+          <i class="navbar-brand fa fa-cloud-download drop-down-icon"  [ngClass]="{'utility-button-disabled' : !executionResultID,
+          'utility-button': executionResultID}" id="downloadExcelOptions"
+            title="download execution result"></i>
+        </button>
         <div class="drop-down-menu" ngbDropdownMenu aria-labelledby="downloadExcelOptions">
           <button class="drop-down-item" ngbDropdownItem (click)="onClickDownloadExecutionResult('json')">Json File (*.json)</button>
           <button class="drop-down-item" ngbDropdownItem (click)="onClickDownloadExecutionResult('csv')"> CSV File (*.csv)</button>
