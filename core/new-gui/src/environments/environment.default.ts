@@ -24,7 +24,7 @@ export const defaultEnvironment = {
   /**
    * whether the backend support pause/resume functionaility
    */
-  pauseResumeEnabled: false,
+  pauseResumeEnabled: false
 };
 
 export type AppEnv = typeof defaultEnvironment;

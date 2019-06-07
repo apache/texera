@@ -16,6 +16,9 @@ export interface OperatorAdditionalMetadata extends Readonly<{
   operatorGroupName: string;
   advancedOptions?: ReadonlyArray<string>;
   operatorDescription?: string;
+  propertyDescription?: Readonly <{
+    [attribute: string]: string;
+  }>;
 }> { }
 
 export interface OperatorSchema extends Readonly<{

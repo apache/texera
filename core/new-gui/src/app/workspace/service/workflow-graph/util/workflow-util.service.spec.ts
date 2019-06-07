@@ -60,6 +60,16 @@ describe('WorkflowUtilService', () => {
     expect(idSet.size).toEqual(repeat);
   });
 
+  it('should be able to generate different link IDs', () => {
+    const idSet = new Set<string>();
+    const repeat = 100;
+    for (let i = 0; i < repeat; i++) {
+      idSet.add(workflowUtilService.getLinkRandomUUID());
+    }
+    // assert all IDs are distinct
+    expect(idSet.size).toEqual(repeat);
+  });
+
   it('should be able to assign different operator IDs to newly generated operators', () => {
     const operatorSchema = mockScanSourceSchema;
     const idSet = new Set<string>();

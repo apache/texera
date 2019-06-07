@@ -43,6 +43,13 @@
   }
 }
 
+// make modal body scrollable and modal size fixed
+.modal-body{
+  min-height: calc(100vh - 200px);
+  max-height: calc(100vh - 200px);
+  overflow-y: auto !important;
+}
+
 // force paginator to stick to the left since
 //  ususally we have results greater than 100%
 //  width of the result panel, which will create

@@ -113,10 +113,12 @@ describe('JointUIService', () => {
 
     // testing getCustomOperatorStyleAttrs()
     expect(graph_operator1.attr('rect')).toEqual(
-      { fill: '#FFFFFF', 'follow-scale': true, stroke: '#CFCFCF', 'stroke-width': '2' }
+      { fill: '#FFFFFF', 'follow-scale': true, stroke: 'red', 'stroke-width': '2',
+      rx: '5px', ry: '5px' }
     );
     expect(graph_operator2.attr('rect')).toEqual(
-      { fill: '#FFFFFF', 'follow-scale': true, stroke: '#CFCFCF', 'stroke-width': '2' }
+      { fill: '#FFFFFF', 'follow-scale': true, stroke: 'red', 'stroke-width': '2',
+      rx: '5px', ry: '5px' }
     );
     expect(graph_operator1.attr('.delete-button')).toEqual(
       {
