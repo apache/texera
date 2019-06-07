@@ -69,6 +69,15 @@ export class PropertyEditorComponent {
   // the output form change event stream after debouce time and filtering out values
   public outputFormChangeEventStream = this.createOutputFormChangeEventStream(this.sourceFormChangeEventStream);
 
+  // the current operator schema list, used to find the operator schema of current operator
+  public operatorSchemaList: ReadonlyArray<OperatorSchema> = [];
+
+   // the map of property description (key = property name, value = property description)
+  public propertyDescription: Map<String, String> = new Map();
+
+   // boolean to display the property description button
+  public hasPropertyDescription: boolean = false;
+
   // the operator data need to be stored if the Json Schema changes, else the currently modified changes will be lost
   public cachedFormData: object | undefined;
 
@@ -139,6 +148,9 @@ export class PropertyEditorComponent {
     if (!this.currentOperatorSchema) {
       throw new Error(`operator schema for operator type ${operator.operatorType} doesn't exist`);
     }
+
+    // handler to show operator detail description button or not
+    this.handleOperatorPropertyDescription(this.currentOperatorSchema);
 
     /**
      * Make a deep copy of the initial property data object.
@@ -248,6 +260,24 @@ export class PropertyEditorComponent {
       }
     );
   }
+
+  /**
+   * This function is a handler for displaying property description option on the property panel
+   *
+   * The if-else block will prevent undeclared property description to be displayed on the UI
+   *
+   * @param currentOperatorSchema
+   */
+  private handleOperatorPropertyDescription(currentOperatorSchema: OperatorSchema): void {
+    if (currentOperatorSchema.additionalMetadata.propertyDescription !== undefined) {
+      this.propertyDescription = new Map(Object.entries(currentOperatorSchema.additionalMetadata.propertyDescription));
+      this.hasPropertyDescription = true;
+    } else {
+      this.propertyDescription = new Map();
+      this.hasPropertyDescription = false;
+    }
+  }
+
 
   /**
    * This method captures the change in operator's property via program instead of user updating the
