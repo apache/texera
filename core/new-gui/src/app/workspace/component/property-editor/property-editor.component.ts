@@ -151,8 +151,6 @@ export class PropertyEditorComponent {
 
     // handler to show operator detail description button or not
     this.handleOperatorPropertyDescription(this.currentOperatorSchema);
-    console.log('check handler');
-    console.log(this.hasPropertyDescription);
 
     /**
      * Make a deep copy of the initial property data object.
