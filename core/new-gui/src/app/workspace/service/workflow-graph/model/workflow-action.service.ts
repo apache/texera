@@ -155,4 +155,8 @@ export class WorkflowActionService {
     this.texeraGraph.setOperatorProperty(operatorID, newProperty);
   }
 
+  public setOperatorAdvanceStatus(operatorID: string, newShowAdvancedStatus: boolean) {
+    this.texeraGraph.setOperatorAdvanceStatus(operatorID, newShowAdvancedStatus);
+  }
+
 }

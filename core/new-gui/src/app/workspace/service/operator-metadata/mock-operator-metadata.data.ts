@@ -12,7 +12,10 @@ export const mockScanSourceSchema: OperatorSchema = {
     operatorGroupName: 'Source',
     numInputPorts: 0,
     numOutputPorts: 1,
-    userFriendlyName: 'Source: Scan'
+    userFriendlyName: 'Source: Scan',
+    propertyDescription: {
+      tableName: 'The table name is the name of the source table, including twitter and promed'
+    }
   },
   jsonSchema: {
     properties: {
