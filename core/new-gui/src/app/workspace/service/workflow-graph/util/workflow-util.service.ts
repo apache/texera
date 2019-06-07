@@ -4,6 +4,8 @@ import { OperatorSchema } from './../../../types/operator-schema.interface';
 import { Injectable } from '@angular/core';
 import { v4 as uuid } from 'uuid';
 
+import { Subject } from 'rxjs/Subject';
+import { Observable } from 'rxjs/Observable';
 
 /**
  * WorkflowUtilService provide utilities related to dealing with operator data.
@@ -13,13 +15,20 @@ export class WorkflowUtilService {
 
   private operatorSchemaList: ReadonlyArray<OperatorSchema> = [];
 
+  private operatorSchemaListCreatedSubject: Subject<boolean> = new Subject<boolean>();
+
   constructor(private operatorMetadataService: OperatorMetadataService
   ) {
     this.operatorMetadataService.getOperatorMetadata().subscribe(
       value => {
         this.operatorSchemaList = value.operators;
+        this.operatorSchemaListCreatedSubject.next(true);
       }
     );
+  }
+
+  public getOperatorSchemaListCreatedStream(): Observable<boolean> {
+    return this.operatorSchemaListCreatedSubject.asObservable();
   }
 
   /**
@@ -60,4 +69,10 @@ export class WorkflowUtilService {
 
   }
 
+  /**
+   * Generates a new UUID for operator or link
+   */
+  public getLinkRandomUUID(): string {
+    return 'link-' + uuid();
+  }
 }

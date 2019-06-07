@@ -13,6 +13,7 @@ import '../../../common/rxjs-operators';
 // to import only the function that we use
 import cloneDeep from 'lodash-es/cloneDeep';
 import isEqual from 'lodash-es/isEqual';
+import { IndexableObject } from '../../types/result-table.interface';
 
 
 /**
@@ -167,7 +168,8 @@ export class PropertyEditorComponent {
      *      which prevents the
      */
     this.currentOperatorInitialData = cloneDeep(operator.operatorProperties);
-
+    // when operator in the property editor changes, the cachedFormData should also be changed
+    this.cachedFormData = this.currentOperatorInitialData;
     // set displayForm to true in the end - first initialize all the data then show the view
     this.displayForm = true;
   }
@@ -228,6 +230,12 @@ export class PropertyEditorComponent {
         if (isEqual(formData, operator.operatorProperties)) {
           return false;
         }
+
+        // this checks whether formData and cachedFormData will have the same appearance when rendered in the form
+        if (this.secondCheckPropertyEqual(formData as IndexableObject, this.cachedFormData as IndexableObject)) {
+          return false;
+        }
+
         return true;
       })
       // share() because the original observable is a hot observable
@@ -286,7 +294,80 @@ export class PropertyEditorComponent {
       .filter(operatorChanged => !isEqual(this.cachedFormData, operatorChanged.operator.operatorProperties))
       .subscribe(operatorChanged => {
         this.currentOperatorInitialData = cloneDeep(operatorChanged.operator.operatorProperties);
+        this.cachedFormData = this.currentOperatorInitialData;
       });
+  }
+
+
+  /**
+   * This method is serve as the second check to determine if the form data is equal to the
+   *  cached form data that might be changed by system instead of user changing in property panel.
+   *
+   * This method handles the edge case where isEqual() thinks an empty array does not equal to undefined
+   *  in the form properties. For instance, in isEqual(), if
+   *
+   *  formData = {attributes: Array(0) or []}
+   *  cachedFormData = {}
+   *
+   * isEqual() will return false, while both of these look the same when it is rendered in the property panel.
+   *
+   * This method is mainly for checking whether 2 properties will have the same appearance when it is rendered
+   *  in the JsonSchemaForm.
+   *
+   * @param property1 property from the current form
+   * @param property2 property from the current cached form
+   */
+  private secondCheckPropertyEqual(property1: IndexableObject, property2: IndexableObject): boolean {
+    let isPropertiesEqual = true;
+
+    const propertyOneKeys = Object.keys(property1);
+    const propertyTwoKeys = Object.keys(property2);
+
+    // keys exist in both properties
+    const keyIntersections = propertyOneKeys.filter(key => propertyTwoKeys.includes(key));
+
+    // check whether the values with these keys are equal
+    keyIntersections.forEach(key => {
+      if (!isEqual(property1[key], property2[key])) {
+        isPropertiesEqual = false;
+      }
+    });
+
+    if (!isPropertiesEqual) { return isPropertiesEqual; }
+
+    // difference between properties
+    const keysDifference = propertyOneKeys
+      .filter(key => !propertyTwoKeys.includes(key))
+      .concat(propertyTwoKeys.filter(key => !propertyOneKeys.includes(key)));
+
+    /**
+     * This part will check all the key-value pairs existing only in one
+     *  of the 2 properties. If the value is list and the length is not 0,
+     *  it means 2 properties are different. If length = 0 for an Array,
+     *  it will be the same as having undefined. This property holds same
+     *  for object type. If the key-value pair is not an object or array,
+     *  it means it is a regular data type and set isPropertiesEqual to false
+     *  immediately.
+     */
+    keysDifference.forEach(key => {
+      const value1 = property1[key];
+      const value2 = property2[key];
+      if (value1) {
+        if (Array.isArray(value1)) {
+          if (value1.length !== 0) { isPropertiesEqual = false; }
+        } else if (typeof value1 === 'object') {
+          if (Object.keys(value1).length !== 0) { isPropertiesEqual = false; }
+        } else { isPropertiesEqual = false; }
+      } else {
+        if (Array.isArray(value2)) {
+          if (value2.length !== 0) { isPropertiesEqual = false; }
+        } else if (typeof value2 === 'object') {
+          if (Object.keys(value2).length !== 0) { isPropertiesEqual = false; }
+        } else { isPropertiesEqual = false; }
+      }
+    });
+
+    return isPropertiesEqual;
   }
 
   /**
