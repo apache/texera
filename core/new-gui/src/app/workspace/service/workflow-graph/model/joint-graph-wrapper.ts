@@ -31,6 +31,12 @@ type JointLinkChangeEvent = [
   { ui: boolean, updateConnectionOnly: boolean }
 ];
 
+type JointPositionChangeEvent = [
+  joint.dia.Element,
+  { x: number, y: number },
+  object
+];
+
 /**
  * JointGraphWrapper wraps jointGraph to provide:
  *  - getters of the properties (to hide the methods that could alther the jointGraph directly)
@@ -99,6 +105,16 @@ export class JointGraphWrapper {
     // handle if the current highlighted operator is deleted, it should be unhighlighted
     this.handleOperatorDeleteUnhighlight();
   }
+
+  public getOperatorPositionChangeEvent(): Observable<{operatorID: string, newPosition: Point}> {
+    return  Observable.fromEvent<JointPositionChangeEvent>(this.jointGraph, 'change:position').map(e => {
+      return {
+        operatorID: e[0].id.toString(),
+        newPosition:  e[1]
+      };
+    });
+  }
+
 
   /**
    * Gets the operator ID of the current highlighted operator.
@@ -331,5 +347,6 @@ export class JointGraphWrapper {
       }
     });
   }
+
 
 }

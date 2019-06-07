@@ -41,7 +41,6 @@ type JointPointerDownEvent = [JQuery.Event, number, number];
   styleUrls: ['./workflow-editor.component.scss']
 })
 export class WorkflowEditorComponent implements AfterViewInit {
-
   // the DOM element ID of the main editor. It can be used by jQuery and jointJS to find the DOM element
   // in the HTML template, the div element ID is set using this variable
   public readonly WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID = 'texera-workflow-editor-jointjs-wrapper-id';
@@ -57,10 +56,10 @@ export class WorkflowEditorComponent implements AfterViewInit {
   constructor(
     private workflowActionService: WorkflowActionService,
     private dragDropService: DragDropService,
+    private elementRef: ElementRef,
     private resultPanelToggleService: ResultPanelToggleService,
     private validationWorkflowService: ValidationWorkflowService,
-    private jointUIService: JointUIService,
-    private elementRef: ElementRef
+    private jointUIService: JointUIService
   ) {
 
     // bind validation functions to the same scope as component
@@ -78,6 +77,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
   }
 
   ngAfterViewInit() {
+
     this.initializeJointPaper();
     this.handleOperatorValidation();
     this.handlePaperRestoreDefaultOffset();
@@ -90,6 +90,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.handleOperatorSuggestionHighlightEvent();
     this.dragDropService.registerWorkflowEditorDrop(this.WORKFLOW_EDITOR_JOINTJS_ID);
   }
+
 
   private initializeJointPaper(): void {
     // get the custom paper options

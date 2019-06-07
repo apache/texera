@@ -27,15 +27,15 @@ import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-grap
 })
 
 export class NavigationComponent implements OnInit {
-
+  public static autoSaveState = 'Saved';
   public isWorkflowRunning: boolean = false; // set this to true when the workflow is started
   public isWorkflowPaused: boolean = false; // this will be modified by clicking pause/resume while the workflow is running
 
   // variable binded with HTML to decide if the running spinner should show
   public showSpinner = false;
-
   constructor(private executeWorkflowService: ExecuteWorkflowService,
-    public tourService: TourService, private workflowActionService: WorkflowActionService) {
+    public tourService: TourService, private workflowActionService: WorkflowActionService,
+    ) {
     // return the run button after the execution is finished, either
     //  when the value is valid or invalid
     executeWorkflowService.getExecuteEndedStream().subscribe(
@@ -58,7 +58,6 @@ export class NavigationComponent implements OnInit {
 
   ngOnInit() {
   }
-
   /**
    * Executes the current existing workflow on the JointJS paper. It will
    *  also set the `isWorkflowRunning` variable to true to show that the backend
@@ -83,7 +82,6 @@ export class NavigationComponent implements OnInit {
       }
     }
   }
-
   public getRunButtonText(): string {
     if (! environment.pauseResumeEnabled) {
       return 'Run';
