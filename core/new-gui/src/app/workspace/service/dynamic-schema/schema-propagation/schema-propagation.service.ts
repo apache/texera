@@ -51,7 +51,6 @@ export class SchemaPropagationService {
         this.workflowActionService.getTexeraGraph().getLinkAddStream(),
         this.workflowActionService.getTexeraGraph().getLinkDeleteStream(),
         this.workflowActionService.getTexeraGraph().getOperatorPropertyChangeStream())
-      .do(evt => console.log(evt))
       .flatMap(() => this.invokeSchemaPropagationAPI())
       .filter(response => response.code === 0)
       .subscribe(response => this._applySchemaPropagationResult(response.result));

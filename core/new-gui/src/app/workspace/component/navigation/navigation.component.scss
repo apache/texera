@@ -36,8 +36,16 @@
   justify-self: end;
 }
 
-.zoom-button:hover {
+.utility-button:hover {
   cursor: pointer;
+  color: gray;
+}
+
+.utility-button-disabled {
+  color: gray;
+}
+
+.utility-button-disabled:hover {
   color: gray;
 }
 
@@ -63,4 +71,17 @@
 .version-number {
   color: #F2F1F1;
   font-size: 10px;
+}
+
+.drop-down-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: transparent;
+  background-color: transparent;
+}
+
+.drop-down-item:hover {
+  background-color: #C6C6C6;
+  cursor: pointer;
 }
