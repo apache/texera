@@ -218,7 +218,6 @@ export class PropertyEditorComponent {
         if (isEqual(formData, operator.operatorProperties)) {
           return false;
         }
-
         // this checks whether formData and cachedFormData will have the same appearance when rendered in the form
         if (this.secondCheckPropertyEqual(formData as IndexableObject, this.cachedFormData as IndexableObject)) {
           return false;
@@ -335,21 +334,25 @@ export class PropertyEditorComponent {
     keysDifference.forEach(key => {
       const value1 = property1[key];
       const value2 = property2[key];
-      if (value1) {
+      if (value1 !== undefined) {
         if (Array.isArray(value1)) {
           if (value1.length !== 0) { isPropertiesEqual = false; }
         } else if (typeof value1 === 'object') {
+          console.log('In object check');
           if (Object.keys(value1).length !== 0) { isPropertiesEqual = false; }
+        } else if (typeof value1 === 'boolean') {
+          if (value1 === true) { isPropertiesEqual = false; }
         } else { isPropertiesEqual = false; }
       } else {
         if (Array.isArray(value2)) {
           if (value2.length !== 0) { isPropertiesEqual = false; }
         } else if (typeof value2 === 'object') {
           if (Object.keys(value2).length !== 0) { isPropertiesEqual = false; }
+        } else if (typeof value2 === 'boolean') {
+          if (value2 === true) { isPropertiesEqual = false; }
         } else { isPropertiesEqual = false; }
       }
     });
-
     return isPropertiesEqual;
   }
 

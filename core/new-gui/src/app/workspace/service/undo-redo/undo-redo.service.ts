@@ -13,9 +13,8 @@ after a certain period of time so we don't undo one character at a time */
 
 @Injectable()
 export class UndoRedoService {
-  // TODO: Next step, work on the function that wil add values to the undo/redo stacks
-  // Will probably need to check what kind of value we receive and whatnot
 
+  // lets us know whether to listen to the JointJS observables, most of the time we don't
   public listenJointCommand: boolean = true;
 
   public changeProperty: boolean = true; // when we add an operator, don't want to change properties
@@ -29,10 +28,7 @@ export class UndoRedoService {
   private redoStack: Command[] = [];
 
 
-  constructor(
-  ) {
-    console.log(this);
-  }
+  constructor() { }
 
   public undoAction(): void {
     // We have a toggle to let our service know to add to the redo stack
