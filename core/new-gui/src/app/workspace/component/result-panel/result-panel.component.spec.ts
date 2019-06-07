@@ -1,6 +1,6 @@
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { ResultPanelComponent } from './result-panel.component';
+import { ResultPanelComponent, NgbModalComponent } from './result-panel.component';
 import { ExecuteWorkflowService } from './../../service/execute-workflow/execute-workflow.service';
 import { CustomNgMaterialModule } from './../../../common/custom-ng-material.module';
 
@@ -19,13 +19,28 @@ import { Observable } from 'rxjs/Observable';
 import { HttpClient } from '@angular/common/http';
 
 import { ResultPanelToggleService } from './../../service/result-panel-toggle/result-panel-toggle.service';
+import { NgxJsonViewerModule } from 'ngx-json-viewer';
 
+import { NgModule } from '@angular/core';
 
 class StubHttpClient {
   constructor() { }
 
   public post(): Observable<string> { return Observable.of('a'); }
 }
+
+// this is how to import entry components in testings
+// Stack Overflow Link: https://stackoverflow.com/questions/41483841/providing-entrycomponents-for-a-testbed/45550720
+@NgModule({
+  declarations: [NgbModalComponent],
+  entryComponents: [
+    NgbModalComponent,
+  ],
+  imports: [
+    NgxJsonViewerModule
+  ]
+})
+class CustomNgBModalModule {}
 
 describe('ResultPanelComponent', () => {
   let component: ResultPanelComponent;
@@ -40,7 +55,8 @@ describe('ResultPanelComponent', () => {
       declarations: [ResultPanelComponent],
       imports: [
         NgbModule.forRoot(),
-        CustomNgMaterialModule
+        CustomNgMaterialModule,
+        CustomNgBModalModule
       ],
       providers: [
         WorkflowActionService,
@@ -50,6 +66,7 @@ describe('ResultPanelComponent', () => {
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         { provide: HttpClient, useClass: StubHttpClient }
       ]
+
     })
       .compileComponents();
   }));
@@ -257,6 +274,22 @@ describe('ResultPanelComponent', () => {
 
     expect(resultPanelHtmlElement.hasAttribute('hidden')).toBeTruthy();
 
+  });
+
+  it(`it should call modalService.open() to open the popup for result detail when open() is called`, () => {
+    const httpClient: HttpClient = TestBed.get(HttpClient);
+    spyOn(httpClient, 'post').and.returnValue(
+      Observable.of(mockExecutionResult)
+    );
+
+    const modalSpy =  spyOn(ngbModel, 'open').and.callThrough();
+
+    executeWorkflowService.executeWorkflow();
+    fixture.detectChanges();
+
+    component.open(mockExecutionResult.result[0]);
+
+    expect(modalSpy).toHaveBeenCalledTimes(1);
   });
 
 });
