@@ -4,6 +4,7 @@ import { OperatorSchema } from '../../types/operator-schema.interface';
 
 import * as joint from 'jointjs';
 import { Point, OperatorPredicate, OperatorLink } from '../../types/workflow-common.interface';
+import { optimizeGroupPlayer } from '@angular/animations/browser/src/render/shared';
 
 /**
  * Defines the SVG path for the delete button
@@ -39,7 +40,7 @@ export const targetOperatorHandle = 'M 12 0 L 0 6 L 12 12 z';
 class TexeraCustomJointElement extends joint.shapes.devs.Model {
   markup =
     `<g class="element-node">
-      <rect class="body" stroke-width="2" stroke="blue" rx="5px" ry="5px"></rect>
+      <rect class="body"></rect>
       ${deleteButtonSVG}
       <text></text>
       <image></image>
@@ -134,6 +135,24 @@ export class JointUIService {
 
     return operatorElement;
   }
+
+  /**
+   * This method will change the operator's color based on the validation status
+   *  valid  : default color
+   *  invalid: red
+   *
+   * @param jointPaper
+   * @param operatorID
+   * @param status
+   */
+  public changeOperatorColor(jointPaper: joint.dia.Paper, operatorID: string, status: boolean): void {
+    if (status) {
+      jointPaper.getModelById(operatorID).attr('rect/stroke', '#CFCFCF');
+    } else {
+      jointPaper.getModelById(operatorID).attr('rect/stroke', 'red');
+    }
+  }
+
 
   /**
    * This function converts a Texera source and target OperatorPort to
@@ -253,7 +272,10 @@ export class JointUIService {
    */
   public static getCustomOperatorStyleAttrs(operatorDisplayName: string, operatorType: string): joint.shapes.devs.ModelSelectors {
     const operatorStyleAttrs = {
-      'rect': { fill: '#FFFFFF', 'follow-scale': true, stroke: '#CFCFCF', 'stroke-width': '2' },
+      'rect': {
+        fill: '#FFFFFF', 'follow-scale': true, stroke: 'red', 'stroke-width': '2',
+        rx: '5px', ry: '5px'
+      },
       'text': {
         text: operatorDisplayName, fill: '#595959', 'font-size': '14px',
         'ref-x': 0.5, 'ref-y': 80, ref: 'rect', 'y-alignment': 'middle', 'x-alignment': 'middle'
@@ -263,15 +285,18 @@ export class JointUIService {
         fill: '#D8656A', event: 'element:delete'
       },
       'image': {
-        'href': 'assets/operator_images/' + operatorType + '.png',
+        'xlink:href': 'assets/operator_images/' + operatorType + '.png',
         width: 35, height: 35,
         'ref-x': .5, 'ref-y': .5,
         ref: 'rect',
         'x-alignment': 'middle',
-        'y-alignment': 'middle'
+        'y-alignment': 'middle',
+
       },
     };
     return operatorStyleAttrs;
   }
+
+
 
 }

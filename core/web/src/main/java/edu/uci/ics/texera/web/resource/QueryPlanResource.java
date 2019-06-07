@@ -51,7 +51,7 @@ public class QueryPlanResource {
     /**
      * This is the edu.uci.ics.texera.web.request handler for the execution of a Query Plan.
      * @param logicalPlanJson, the json representation of the logical plan
-     * @return - Generic TexeraWebResponse object
+     * @return - Generic GenericWebResponse object
      */
     @POST
     @Path("/execute")
@@ -114,7 +114,7 @@ public class QueryPlanResource {
     /**
      * This is the edu.uci.ics.texera.web.request handler for the execution of a Query Plan.
      * @param logicalPlanJson, the json representation of the logical plan
-     * @return - Generic TexeraWebResponse object
+     * @return - Generic GenericWebResponse object
      */
     /* EG of using /autocomplete end point (how this inline update method works):
 

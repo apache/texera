@@ -90,7 +90,8 @@ describe('SourceTablesService', () => {
       operatorType: mockKeywordSourceSchema.operatorType,
       operatorProperties: {},
       inputPorts: [],
-      outputPorts: ['output-0']
+      outputPorts: ['output-0'],
+      showAdvanced: true
     };
 
     // add keyword source operator and select a table name, this should trigger the change of "attributes" property

@@ -287,4 +287,9 @@ export class WorkflowActionService {
     (this.jointGraph.getCell(operatorID) as joint.dia.Element).position(newPosition.x, newPosition.y);
   }
 
+  // TODO: Add a command pattern for this method
+  public setOperatorAdvanceStatus(operatorID: string, newShowAdvancedStatus: boolean) {
+    this.texeraGraph.setOperatorAdvanceStatus(operatorID, newShowAdvancedStatus);
+  }
+
 }
