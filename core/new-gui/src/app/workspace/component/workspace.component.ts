@@ -13,6 +13,8 @@ import { SourceTablesService } from '../service/dynamic-schema/source-tables/sou
 import { SchemaPropagationService } from '../service/dynamic-schema/schema-propagation/schema-propagation.service';
 import { ResultPanelToggleService } from '../service/result-panel-toggle/result-panel-toggle.service';
 import { SaveWorkflowService } from '../service/save-workflow/save-workflow.service';
+import { WebsocketService } from '../service/websocket/websocket.service';
+import { WorkflowStatusService } from '../service/workflow-status/workflow-status.service';
 
 @Component({
   selector: 'texera-workspace',
@@ -32,7 +34,9 @@ import { SaveWorkflowService } from '../service/save-workflow/save-workflow.serv
     ExecuteWorkflowService,
     ResultPanelToggleService,
     SaveWorkflowService,
-    ValidationWorkflowService
+    ValidationWorkflowService,
+    WebsocketService,
+    WorkflowStatusService,
   ]
 })
 export class WorkspaceComponent {

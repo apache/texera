@@ -21,6 +21,8 @@ import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-grap
 import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-util.service';
 import { environment } from '../../../../environments/environment';
 
+import { WebsocketService } from '../../service/websocket/websocket.service';
+import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
 class StubHttpClient {
 
   public post<T>(): Observable<string> { return Observable.of('a'); }
@@ -33,6 +35,7 @@ describe('NavigationComponent', () => {
   let fixture: ComponentFixture<NavigationComponent>;
   let executeWorkFlowService: ExecuteWorkflowService;
   let workflowActionService: WorkflowActionService;
+  let workflowStatusService: WorkflowStatusService;
   beforeEach(async(() => {
     TestBed.configureTestingModule({
       declarations: [NavigationComponent],
@@ -57,6 +60,7 @@ describe('NavigationComponent', () => {
     component = fixture.componentInstance;
     executeWorkFlowService = TestBed.get(ExecuteWorkflowService);
     workflowActionService = TestBed.get(WorkflowActionService);
+    workflowStatusService = TestBed.get(workflowStatusService);
     fixture.detectChanges();
     environment.pauseResumeEnabled = true;
   });
@@ -172,7 +176,8 @@ describe('NavigationComponent', () => {
       m.hot(endMarbleString, endMarblevalues)
     );
 
-    const mockComponent = new NavigationComponent(executeWorkFlowService, TestBed.get(TourService), workflowActionService);
+    const mockComponent = new NavigationComponent(executeWorkFlowService, TestBed.get(TourService),
+      workflowActionService, workflowStatusService);
 
     executeWorkFlowService.getExecutionPauseResumeStream()
       .subscribe({
@@ -193,7 +198,8 @@ describe('NavigationComponent', () => {
       m.hot(endMarbleString, endMarblevalues)
     );
 
-    const mockComponent = new NavigationComponent(executeWorkFlowService, TestBed.get(TourService), workflowActionService);
+    const mockComponent = new NavigationComponent(executeWorkFlowService, TestBed.get(TourService),
+      workflowActionService, workflowStatusService);
 
     executeWorkFlowService.getExecutionPauseResumeStream()
       .subscribe({

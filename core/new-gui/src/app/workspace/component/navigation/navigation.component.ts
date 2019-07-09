@@ -6,6 +6,7 @@ import { WorkflowActionService } from '../../service/workflow-graph/model/workfl
 import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-graph-wrapper';
 
 import { ExecutionResult } from './../../types/execute-workflow.interface';
+import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
 
 
 /**
@@ -38,8 +39,12 @@ export class NavigationComponent implements OnInit {
   public showSpinner = false;
   public executionResultID: string | undefined;
 
+  // testing message for websocket
+  private message = 'mock message';
+
   constructor(private executeWorkflowService: ExecuteWorkflowService,
     public tourService: TourService, private workflowActionService: WorkflowActionService,
+    private workflowStatusService: WorkflowStatusService,
     ) {
     // return the run button after the execution is finished, either
     //  when the value is valid or invalid
@@ -62,6 +67,9 @@ export class NavigationComponent implements OnInit {
     // this will swap button between pause and resume
     executeWorkflowService.getExecutionPauseResumeStream()
       .subscribe(state => this.isWorkflowPaused = (state === 0));
+
+    workflowStatusService.status
+      .subscribe(msg => console.log('Engine Current Status: ' + msg));
   }
 
   ngOnInit() {
@@ -83,6 +91,8 @@ export class NavigationComponent implements OnInit {
         this.executionResultID = undefined;
         this.isWorkflowRunning = true;
         this.executeWorkflowService.executeWorkflow();
+        console.log('checking status');
+        this.checkStatus();
       } else if (this.isWorkflowRunning && this.isWorkflowPaused) {
         this.executeWorkflowService.resumeWorkflow();
       } else if (this.isWorkflowRunning && !this.isWorkflowPaused) {
@@ -217,5 +227,10 @@ export class NavigationComponent implements OnInit {
 
     // set the current execution result ID to the result ID
     this.executionResultID = response.resultID;
+  }
+
+  private checkStatus() {
+    console.log('frontend send new message to engine: ', this.message);
+    this.workflowStatusService.status.next(this.message);
   }
 }
