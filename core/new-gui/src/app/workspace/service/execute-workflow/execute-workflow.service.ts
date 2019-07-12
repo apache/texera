@@ -57,7 +57,7 @@ export class ExecuteWorkflowService {
    *  to execute the workflow and gets the results.
    *
    */
-  public executeWorkflow(): void {
+  public executeWorkflow(): string {
 
     // set the UUID for the current workflow
     this.workflowExecutionID = this.getRandomUUID();
@@ -96,6 +96,8 @@ export class ExecuteWorkflowService {
           this.workflowExecutionID = undefined;
         }
       );
+
+    return this.workflowExecutionID;
   }
 
   /**

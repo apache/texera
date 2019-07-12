@@ -39,9 +39,6 @@ export class NavigationComponent implements OnInit {
   public showSpinner = false;
   public executionResultID: string | undefined;
 
-  // testing message for websocket
-  private message = 'mock message';
-
   constructor(private executeWorkflowService: ExecuteWorkflowService,
     public tourService: TourService, private workflowActionService: WorkflowActionService,
     private workflowStatusService: WorkflowStatusService,
@@ -90,9 +87,9 @@ export class NavigationComponent implements OnInit {
         // when a new workflow begins, reset the execution result ID.
         this.executionResultID = undefined;
         this.isWorkflowRunning = true;
-        this.executeWorkflowService.executeWorkflow();
-        console.log('checking status');
-        this.checkStatus();
+        const workflowId = this.executeWorkflowService.executeWorkflow();
+        console.log('checking status of workfolw: ', workflowId);
+        this.checkStatus(workflowId);
       } else if (this.isWorkflowRunning && this.isWorkflowPaused) {
         this.executeWorkflowService.resumeWorkflow();
       } else if (this.isWorkflowRunning && !this.isWorkflowPaused) {
@@ -229,8 +226,8 @@ export class NavigationComponent implements OnInit {
     this.executionResultID = response.resultID;
   }
 
-  private checkStatus() {
-    console.log('frontend send new message to engine: ', this.message);
-    this.workflowStatusService.status.next(this.message);
+  private checkStatus(workflowId: string) {
+    console.log('frontend send new message to engine: ', workflowId);
+    this.workflowStatusService.status.next(workflowId);
   }
 }
