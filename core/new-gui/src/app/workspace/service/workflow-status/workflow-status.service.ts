@@ -12,8 +12,9 @@ export class WorkflowStatusService {
   constructor(wsService: WebsocketService) {
     console.log('creating websocket to ', Engine_URL);
     this.status = <Subject<string>>wsService.connect(Engine_URL).map(
-      (response: string): string => {
-        console.log(response);
+      (response: any): any => {
+        const json = JSON.parse(response.data);
+        console.log(json['operatorsInfo']);
         return response;
       }
     );
