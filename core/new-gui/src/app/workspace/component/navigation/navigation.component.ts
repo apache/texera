@@ -7,7 +7,9 @@ import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-grap
 
 import { ExecutionResult } from './../../types/execute-workflow.interface';
 import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
-
+import { WebsocketService} from '../../service/websocket/websocket.service';
+import {NgbModal, NgbActiveModal} from '@ng-bootstrap/ng-bootstrap';
+import { Observable } from 'rxjs';
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -38,9 +40,10 @@ export class NavigationComponent implements OnInit {
   // variable binded with HTML to decide if the running spinner should show
   public showSpinner = false;
   public executionResultID: string | undefined;
-
+  public showDataResultID: boolean = false;
   constructor(private executeWorkflowService: ExecuteWorkflowService,
-    public tourService: TourService, private workflowActionService: WorkflowActionService,
+    public tourService: TourService, private modalService: NgbModal,
+    private workflowActionService: WorkflowActionService,
     private workflowStatusService: WorkflowStatusService,
     ) {
     // return the run button after the execution is finished, either
@@ -54,6 +57,7 @@ export class NavigationComponent implements OnInit {
       },
       () => {
         this.executionResultID = undefined;
+        this.showDataResultID = false;
         this.isWorkflowRunning = false;
         this.isWorkflowPaused = false;
       }
@@ -86,6 +90,7 @@ export class NavigationComponent implements OnInit {
       if (!this.isWorkflowRunning && !this.isWorkflowPaused) {
         // when a new workflow begins, reset the execution result ID.
         this.executionResultID = undefined;
+        this.showDataResultID = true;
         this.isWorkflowRunning = true;
         const workflowId = this.executeWorkflowService.executeWorkflow();
         console.log('checking status of workfolw: ', workflowId);
@@ -207,6 +212,25 @@ export class NavigationComponent implements OnInit {
   }
 
   /**
+   * this function is for show the infomation of each operators in a workflow
+   */
+  public loadOperatorsData(): void {
+    // get the workflow information from executeWorkflowService
+    if (!this.isWorkflowRunning) {
+      const workflowID = this.executeWorkflowService.executeWorkflow();
+      console.log('workflow ID is : ', workflowID);
+      const modelRef = this.modalService.open(NagivationNgbModalComponent);
+      Observable.from(modelRef.result)
+        .filter(userDecision => userDecision === true)
+        .subscribe(() => {
+
+        },
+        error => {}
+        );
+    }
+
+  }
+  /**
    * Handler for the execution result to extract successful execution ID
    */
   private handleResultData(response: ExecutionResult): void {
@@ -230,4 +254,40 @@ export class NavigationComponent implements OnInit {
     console.log('frontend send new message to engine: ', workflowId);
     this.workflowStatusService.status.next(workflowId);
   }
+}
+
+/**
+ *
+ * NgbModalComponent is the pop-up window that will be
+ *  displayed when the user clicks on a specific row
+ *  to show the displays of that row.
+ *
+ * User can exit the pop-up window by
+ *  1. Clicking the dismiss button on the top-right hand corner
+ *      of the Modal
+ *  2. Clicking the `Close` button at the bottom-right
+ *  3. Clicking any shaded area that is not the pop-up window
+ *  4. Pressing `Esc` button on the keyboard
+ */
+@Component({
+  selector: 'texera-navigation-ngbmodal',
+  templateUrl: './navigation-modal.component.html',
+  styleUrls: ['./navigation.component.scss'],
+  providers: [WorkflowStatusService, WebsocketService]
+})
+export class NagivationNgbModalComponent {
+  public showWorkflowDataResult: string | undefined;
+  constructor(public activeModal: NgbActiveModal,
+    public workflowStatusService: WorkflowStatusService) {
+      this.workflowStatusService.status
+          .subscribe(msg => {
+            if (msg !== null) {
+              this.showWorkflowDataResult = msg;
+            }
+          });
+    }
+
+  // public confirmDelete() {
+  //   this.activeModal.close(true);
+  // }
 }

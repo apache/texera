@@ -9,6 +9,7 @@
     <!-- <i class="navbar-brand fa fa-cloud-download" [ngClass]="{'utility-button-disabled' : !executionResultID,
       'utility-button': executionResultID}" (click)="onClickDownloadExecutionResult()"
       title="download execution result"></i> -->
+    =<i class="navbar-brand fa fa-play-circle"  (click)="loadOperatorsData()"> </i>
 
       <div ngbDropdown class="d-inline-block">
         <button class="drop-down-button" ngbDropdownToggle [disabled]="!executionResultID">
@@ -22,8 +23,6 @@
           <button class="drop-down-item" ngbDropdownItem (click)="onClickDownloadExecutionResult('xlsx')">XLSX File (*.xlsx)</button>
         </div>
       </div>
-
-
   </div>
   <div class="collapse navbar-collapse texera-navigation-execute">
     <div class="button" tourAnchor="texera-workspace-navigation-run">
