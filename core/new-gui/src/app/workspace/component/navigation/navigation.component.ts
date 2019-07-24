@@ -167,7 +167,6 @@ export class NavigationComponent implements OnInit {
 
     // if zoom is already at minimum, don't zoom out again.
     if (this.isZoomRatioMin()) { return; }
-
     // make the ratio small.
     this.workflowActionService.getJointGraphWrapper()
       .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() - JointGraphWrapper.ZOOM_CLICK_DIFF);
@@ -216,9 +215,8 @@ export class NavigationComponent implements OnInit {
    */
   public loadOperatorsData(): void {
     // get the workflow information from executeWorkflowService
-    if (!this.isWorkflowRunning) {
+    if (!this.isWorkflowRunning && this.showDataResultID === true) {
       const workflowID = this.executeWorkflowService.executeWorkflow();
-      console.log('workflow ID is : ', workflowID);
       const modelRef = this.modalService.open(NagivationNgbModalComponent);
       Observable.from(modelRef.result)
         .filter(userDecision => userDecision === true)
@@ -283,6 +281,7 @@ export class NagivationNgbModalComponent {
           .subscribe(msg => {
             if (msg !== null) {
               this.showWorkflowDataResult = msg;
+              console.log('msg is: ', msg);
             }
           });
     }
