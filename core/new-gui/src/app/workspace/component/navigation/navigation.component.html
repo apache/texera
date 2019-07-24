@@ -6,11 +6,11 @@
     <i class="navbar-brand utility-button fa fa-search-minus" (click)="onClickZoomOut()" title="zoom in"></i>
     <i class="navbar-brand utility-button fa fa-search-plus" (click)="onClickZoomIn()" title="zoom in"></i>
     <i class="navbar-brand utility-button fa fa-arrows-alt" (click)="onClickRestoreZoomOffsetDefaullt()" title="reset zoom"></i>
-    <!-- <i class="navbar-brand fa fa-cloud-download" [ngClass]="{'utility-button-disabled' : !executionResultID,
-      'utility-button': executionResultID}" (click)="onClickDownloadExecutionResult()"
-      title="download execution result"></i> -->
-    =<i class="navbar-brand fa fa-play-circle"  (click)="loadOperatorsData()"> </i>
 
+    <i class="navbar-brand fa fa-cloud-download " [ngClass]="{'utility-button-disabled' : !showDataResultID,
+    'utility-button': showDataResultID}" >
+      <button [disabled]="true" (click)="loadOperatorsData()"></button>
+    </i>
       <div ngbDropdown class="d-inline-block">
         <button class="drop-down-button" ngbDropdownToggle [disabled]="!executionResultID">
           <i class="navbar-brand fa fa-cloud-download drop-down-icon"  [ngClass]="{'utility-button-disabled' : !executionResultID,

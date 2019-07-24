@@ -286,8 +286,4 @@ export class NagivationNgbModalComponent {
             }
           });
     }
-
-  // public confirmDelete() {
-  //   this.activeModal.close(true);
-  // }
 }
