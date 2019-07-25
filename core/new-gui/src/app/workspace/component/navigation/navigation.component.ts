@@ -1,15 +1,17 @@
-import { Component, OnInit, NgModule } from '@angular/core';
-import { ExecuteWorkflowService } from './../../service/execute-workflow/execute-workflow.service';
+import { Component, OnInit, NgModule, Input } from '@angular/core';
+import { ExecuteWorkflowService } from '../../service/execute-workflow/execute-workflow.service';
 import { TourService } from 'ngx-tour-ng-bootstrap';
 import { environment } from '../../../../environments/environment';
 import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
 import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-graph-wrapper';
 
-import { ExecutionResult } from './../../types/execute-workflow.interface';
+
+import { ExecutionResult } from '../../types/execute-workflow.interface';
 import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
 import { WebsocketService} from '../../service/websocket/websocket.service';
 import {NgbModal, NgbActiveModal} from '@ng-bootstrap/ng-bootstrap';
 import { Observable } from 'rxjs';
+import { OperatorInfoService } from '../../service/operator-info/operator-info.service';
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -45,6 +47,7 @@ export class NavigationComponent implements OnInit {
     public tourService: TourService, private modalService: NgbModal,
     private workflowActionService: WorkflowActionService,
     private workflowStatusService: WorkflowStatusService,
+    private operatorInfoService: OperatorInfoService
     ) {
     // return the run button after the execution is finished, either
     //  when the value is valid or invalid
@@ -183,7 +186,6 @@ export class NavigationComponent implements OnInit {
 
     // if zoom is already reach maximum, don't zoom in again.
     if (this.isZoomRatioMax()) { return; }
-
     // make the ratio big.
     this.workflowActionService.getJointGraphWrapper()
       .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() + JointGraphWrapper.ZOOM_CLICK_DIFF);
@@ -217,14 +219,15 @@ export class NavigationComponent implements OnInit {
     // get the workflow information from executeWorkflowService
     if (!this.isWorkflowRunning && this.showDataResultID === true) {
       const workflowID = this.executeWorkflowService.executeWorkflow();
+      if (this.workflowStatusService.getOperatorInfo() !== undefined) {
+        this.operatorInfoService.sendOperatorsInfo(this.workflowStatusService.getOperatorInfo());
+      }
       const modelRef = this.modalService.open(NagivationNgbModalComponent);
-      Observable.from(modelRef.result)
-        .filter(userDecision => userDecision === true)
-        .subscribe(() => {
+      const operatorsInformation = this.workflowStatusService.getOperatorInfo();
+      console.log('operators information: ', operatorsInformation);
 
-        },
-        error => {}
-        );
+      modelRef.componentInstance.showWorkflowDataResult = JSON.stringify(operatorsInformation);
+
     }
 
   }
@@ -274,15 +277,10 @@ export class NavigationComponent implements OnInit {
   providers: [WorkflowStatusService, WebsocketService]
 })
 export class NagivationNgbModalComponent {
-  public showWorkflowDataResult: string | undefined;
+  @Input() showWorkflowDataResult: JSON | undefined;
+
   constructor(public activeModal: NgbActiveModal,
+    public operatorInfoService: OperatorInfoService,
     public workflowStatusService: WorkflowStatusService) {
-      this.workflowStatusService.status
-          .subscribe(msg => {
-            if (msg !== null) {
-              this.showWorkflowDataResult = msg;
-              console.log('msg is: ', msg);
-            }
-          });
     }
 }

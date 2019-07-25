@@ -8,11 +8,10 @@
     <i class="navbar-brand utility-button fa fa-arrows-alt" (click)="onClickRestoreZoomOffsetDefaullt()" title="reset zoom"></i>
 
 
-    <i class="navbar-brand fa fa-play-circle "
-    [ngClass]="{'utility-button-disabled' :
+    <i class="navbar-brand fa fa-info-circle " [ngClass]="{'utility-button-disabled' :
     !showDataResultID,
-    'utility-button': showDataResultID}" (click)="loadOperatorsData()">
-      <!-- <button [disabled]="false" (click)="loadOperatorsData()"></button> -->
+    'utility-button': showDataResultID}"
+     (click)="loadOperatorsData()">
     </i>
       <div ngbDropdown class="d-inline-block">
         <button class="drop-down-button" ngbDropdownToggle [disabled]="!executionResultID">
