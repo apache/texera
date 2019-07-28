@@ -209,6 +209,13 @@ export class NavigationComponent implements OnInit {
   }
 
   /**
+   * Returns true if there's any operator on the graph; false otherwise
+   */
+  public hasOperators(): boolean {
+    return this.workflowActionService.getTexeraGraph().getAllOperators().length > 0;
+  }
+
+  /**
    * Handler for the execution result to extract successful execution ID
    */
   private handleResultData(response: ExecutionResult): void {
