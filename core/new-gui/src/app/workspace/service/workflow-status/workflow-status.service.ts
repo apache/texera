@@ -14,7 +14,8 @@ export class WorkflowStatusService {
     this.status = <Subject<string>>wsService.connect(Engine_URL).map(
       (response: any): any => {
         const json = JSON.parse(response.data);
-        console.log(json['operatorsInfo']);
+        console.log(json['ProcessedCount']);
+        console.log(json['OperatorState']);
         return response;
       }
     );
