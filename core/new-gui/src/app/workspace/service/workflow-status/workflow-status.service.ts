@@ -20,4 +20,8 @@ export class WorkflowStatusService {
       }
     );
   }
+
+  public getStatusInformationStream(): Observable<String> {
+    return this.status.asObservable();
+  }
 }
