@@ -211,26 +211,6 @@ export class NavigationComponent implements OnInit {
   public onClickRestoreZoomOffsetDefaullt(): void {
     this.workflowActionService.getJointGraphWrapper().restoreDefaultZoomAndOffset();
   }
-
-  /**
-   * this function is for show the infomation of each operators in a workflow
-   */
-  public loadOperatorsData(): void {
-    // get the workflow information from executeWorkflowService
-    if (!this.isWorkflowRunning && this.showDataResultID === true) {
-      const workflowID = this.executeWorkflowService.executeWorkflow();
-      if (this.workflowStatusService.getOperatorInfo() !== undefined) {
-        this.operatorInfoService.sendOperatorsInfo(this.workflowStatusService.getOperatorInfo());
-      }
-      const modelRef = this.modalService.open(NagivationNgbModalComponent);
-      const operatorsInformation = this.workflowStatusService.getOperatorInfo();
-      console.log('operators information: ', operatorsInformation);
-
-      modelRef.componentInstance.showWorkflowDataResult = JSON.stringify(operatorsInformation);
-
-    }
-
-  }
   /**
    * Handler for the execution result to extract successful execution ID
    */
@@ -255,32 +235,4 @@ export class NavigationComponent implements OnInit {
     console.log('frontend send new message to engine: ', workflowId);
     this.workflowStatusService.status.next(workflowId);
   }
-}
-
-/**
- *
- * NgbModalComponent is the pop-up window that will be
- *  displayed when the user clicks on a specific row
- *  to show the displays of that row.
- *
- * User can exit the pop-up window by
- *  1. Clicking the dismiss button on the top-right hand corner
- *      of the Modal
- *  2. Clicking the `Close` button at the bottom-right
- *  3. Clicking any shaded area that is not the pop-up window
- *  4. Pressing `Esc` button on the keyboard
- */
-@Component({
-  selector: 'texera-navigation-ngbmodal',
-  templateUrl: './navigation-modal.component.html',
-  styleUrls: ['./navigation.component.scss'],
-  providers: [WorkflowStatusService, WebsocketService]
-})
-export class NagivationNgbModalComponent {
-  @Input() showWorkflowDataResult: JSON | undefined;
-
-  constructor(public activeModal: NgbActiveModal,
-    public operatorInfoService: OperatorInfoService,
-    public workflowStatusService: WorkflowStatusService) {
-    }
 }

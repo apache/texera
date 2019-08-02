@@ -16,7 +16,7 @@ import { NgxJsonViewerModule } from 'ngx-json-viewer';
 
 import { AppComponent } from './app.component';
 import { WorkspaceComponent } from './workspace/component/workspace.component';
-import { NavigationComponent, NagivationNgbModalComponent} from './workspace/component/navigation/navigation.component';
+import { NavigationComponent} from './workspace/component/navigation/navigation.component';
 
 import { OperatorPanelComponent } from './workspace/component/operator-panel/operator-panel.component';
 import { PropertyEditorComponent } from './workspace/component/property-editor/property-editor.component';
@@ -69,7 +69,6 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
     AppComponent,
     WorkspaceComponent,
     NavigationComponent,
-    NagivationNgbModalComponent,
     OperatorPanelComponent,
     PropertyEditorComponent,
     WorkflowEditorComponent,
@@ -122,7 +121,6 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 
   ],
   entryComponents: [
-    NagivationNgbModalComponent,
     NgbdModalAddProjectComponent,
     NgbdModalDeleteProjectComponent,
     NgbdModalResourceViewComponent,

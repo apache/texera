@@ -5,6 +5,7 @@ import { OperatorSchema } from '../../types/operator-schema.interface';
 import * as joint from 'jointjs';
 import { Point, OperatorPredicate, OperatorLink } from '../../types/workflow-common.interface';
 import { optimizeGroupPlayer } from '@angular/animations/browser/src/render/shared';
+import { WorkflowStatusService } from '../workflow-status/workflow-status.service';
 
 /**
  * Defines the SVG path for the delete button
@@ -40,10 +41,11 @@ export const targetOperatorHandle = 'M 12 0 L 0 6 L 12 12 z';
 class TexeraCustomJointElement extends joint.shapes.devs.Model {
   markup =
     `<g class="element-node">
+      <text id="operatorStatus"></text>
       <rect class="body"></rect>
       ${deleteButtonSVG}
-      <text></text>
       <image></image>
+      <text id="operatorName"></text>
     </g>`;
 }
 
@@ -69,10 +71,11 @@ export class JointUIService {
   public static readonly DEFAULT_OPERATOR_HEIGHT = 60;
 
   private operators: ReadonlyArray<OperatorSchema> = [];
-
+  private operatorStatus: string | undefined;
 
   constructor(
-    private operatorMetadataService: OperatorMetadataService
+    private operatorMetadataService: OperatorMetadataService,
+    private workflowStatusService: WorkflowStatusService
   ) {
     // subscribe to operator metadata observable
     this.operatorMetadataService.getOperatorMetadata().subscribe(
@@ -113,7 +116,8 @@ export class JointUIService {
     const operatorElement = new TexeraCustomJointElement({
       position: point,
       size: { width: JointUIService.DEFAULT_OPERATOR_WIDTH, height: JointUIService.DEFAULT_OPERATOR_HEIGHT },
-      attrs: JointUIService.getCustomOperatorStyleAttrs(operatorSchema.additionalMetadata.userFriendlyName, operatorSchema.operatorType),
+      attrs: JointUIService.getCustomOperatorStyleAttrs(
+        operatorSchema.additionalMetadata.userFriendlyName, operatorSchema.operatorType),
       ports: {
         groups: {
           'in': { attrs: JointUIService.getCustomPortStyleAttrs() },
@@ -121,6 +125,7 @@ export class JointUIService {
         }
       }
     });
+
 
     // set operator element ID to be operator ID
     operatorElement.set('id', operator.operatorID);
@@ -136,6 +141,10 @@ export class JointUIService {
     return operatorElement;
   }
 
+  public changeOperatorStatus(jointPaper: joint.dia.Paper, operatorID: string, status: string): void {
+      console.log('change the status of the operator!!');
+      jointPaper.getModelById(operatorID).attr('#operatorStatus/text', status);
+  }
   /**
    * This method will change the operator's color based on the validation status
    *  valid  : default color
@@ -152,8 +161,6 @@ export class JointUIService {
       jointPaper.getModelById(operatorID).attr('rect/stroke', 'red');
     }
   }
-
-
   /**
    * This function converts a Texera source and target OperatorPort to
    *   a JointJS link cell <joint.dia.Link> that could be added to the JointJS.
@@ -260,13 +267,19 @@ export class JointUIService {
    * @param operatorDisplayName the name of the operator that will display on the UI
    * @returns the custom attributes of the operator
    */
-  public static getCustomOperatorStyleAttrs(operatorDisplayName: string, operatorType: string): joint.shapes.devs.ModelSelectors {
+  public static getCustomOperatorStyleAttrs(
+    operatorDisplayName: string, operatorType: string): joint.shapes.devs.ModelSelectors {
     const operatorStyleAttrs = {
+      '#operatorStatus': {
+        text: 'status', fill: '#595959', 'font-size': '14px',
+        'ref-x': 0.5, 'ref-y': -10, ref: 'rect', 'y-alignment': 'middle', 'x-alignment': 'middle'
+      },
       'rect': {
         fill: '#FFFFFF', 'follow-scale': true, stroke: 'red', 'stroke-width': '2',
-        rx: '5px', ry: '5px'
+        rx: '5px', ry: '5px', width: 10, height: 10
       },
-      'text': {
+
+      '#operatorName': {
         text: operatorDisplayName, fill: '#595959', 'font-size': '14px',
         'ref-x': 0.5, 'ref-y': 80, ref: 'rect', 'y-alignment': 'middle', 'x-alignment': 'middle'
       },

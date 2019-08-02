@@ -33,4 +33,7 @@ export class WorkflowStatusService {
     return this.operatorsInfoSubject.asObservable();
   }
 
+  public getStatusStream(): Observable<string> {
+    return this.status.asObservable();
+  }
 }

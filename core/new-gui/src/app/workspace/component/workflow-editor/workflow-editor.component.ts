@@ -10,6 +10,7 @@ import * as joint from 'jointjs';
 import { ResultPanelToggleService } from '../../service/result-panel-toggle/result-panel-toggle.service';
 import { Point } from '../../types/workflow-common.interface';
 import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-graph-wrapper';
+import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
 
 
 // argument type of callback event on a JointJS Paper
@@ -59,7 +60,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
     private elementRef: ElementRef,
     private resultPanelToggleService: ResultPanelToggleService,
     private validationWorkflowService: ValidationWorkflowService,
-    private jointUIService: JointUIService
+    private jointUIService: JointUIService,
+    private workflowStatusService: WorkflowStatusService
   ) {
 
     // bind validation functions to the same scope as component
@@ -84,6 +86,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.handlePaperZoom();
     this.handleWindowResize();
     this.handleViewDeleteOperator();
+    this.handleOperatorStatusChange();
     this.handleCellHighlight();
     this.handlePaperPan();
     this.handlePaperMouseZoom();
@@ -92,6 +95,17 @@ export class WorkflowEditorComponent implements AfterViewInit {
   }
 
 
+  private handleOperatorStatusChange(): void {
+    console.log('start receiving state data');
+    this.workflowStatusService.getStatusStream().subscribe(status => {
+      const response = JSON.parse(status);
+      // this.jointUIService.changeOperatorStatus(this.getJointPaper(), );
+      // console.log(response.data['OperatorState']);
+      // console.log(response.data['ProcessedCount']);
+      console.log(response);
+    });
+
+  }
   private initializeJointPaper(): void {
     // get the custom paper options
     let jointPaperOptions = this.getJointPaperOptions();
