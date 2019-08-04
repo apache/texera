@@ -5,13 +5,13 @@ import { environment } from '../../../../environments/environment';
 import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
 import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-graph-wrapper';
 
-
-import { ExecutionResult } from '../../types/execute-workflow.interface';
-import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
 import { WebsocketService} from '../../service/websocket/websocket.service';
 import {NgbModal, NgbActiveModal} from '@ng-bootstrap/ng-bootstrap';
 import { Observable } from 'rxjs';
 import { JointUIService } from '../../service/joint-ui/joint-ui.service';
+import { ExecutionResult } from './../../types/execute-workflow.interface';
+import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
+
 /**
  * NavigationComponent is the top level navigation bar that shows
  *  the Texera title and workflow execution button
@@ -70,9 +70,6 @@ export class NavigationComponent implements OnInit {
     // this will swap button between pause and resume
     executeWorkflowService.getExecutionPauseResumeStream()
       .subscribe(state => this.isWorkflowPaused = (state === 0));
-
-    workflowStatusService.status
-      .subscribe(msg => console.log('Engine Current Status: ' + msg));
   }
 
   ngOnInit() {
@@ -96,9 +93,7 @@ export class NavigationComponent implements OnInit {
         this.isWorkflowRunning = true;
         const workflowId = this.executeWorkflowService.executeWorkflow();
         console.log('checking status of workfolw: ', workflowId);
-        this.checkStatus(workflowId);
-        // receive the state of operators
-        console.log('start receiving state data');
+        this.workflowStatusService.checkStatus(workflowId);
         this.jointUIService.sendOperatorStateMessage();
       } else if (this.isWorkflowRunning && this.isWorkflowPaused) {
         this.executeWorkflowService.resumeWorkflow();
@@ -231,10 +226,5 @@ export class NavigationComponent implements OnInit {
 
     // set the current execution result ID to the result ID
     this.executionResultID = response.resultID;
-  }
-
-  private checkStatus(workflowId: string) {
-    console.log('frontend send new message to engine: ', workflowId);
-    this.workflowStatusService.status.next(workflowId);
   }
 }

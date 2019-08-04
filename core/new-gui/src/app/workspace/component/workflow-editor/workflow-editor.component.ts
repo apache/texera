@@ -112,11 +112,12 @@ export class WorkflowEditorComponent implements AfterViewInit {
   private handleOperatorStatesChange(): void {
     this.jointUIService.getOperatorStateStream().subscribe(() => {
       console.log('receive the signal');
-      this.workflowStatusService.getStatusStream().subscribe(msg => {
+      this.workflowStatusService.getStatusInformationStream().subscribe(msg => {
         console.log('status msg received: ', msg);
-        this.workflowActionService.getTexeraGraph().getAllOperators().forEach(operator => {
-          this.jointUIService.changeOperatorStatus(this.getJointPaper(), operator.operatorID, msg);
-        });
+        // this.workflowActionService.getTexeraGraph().getAllOperators().forEach(operator => {
+        //   this.jointUIService.changeOperatorStatus(
+        //     this.getJointPaper(), operator.operatorID, JSON.stringify(msg['OperatorState']));
+        // });
       });
     });
   }
