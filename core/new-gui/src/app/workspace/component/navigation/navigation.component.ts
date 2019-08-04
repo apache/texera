@@ -11,8 +11,7 @@ import { WorkflowStatusService } from '../../service/workflow-status/workflow-st
 import { WebsocketService} from '../../service/websocket/websocket.service';
 import {NgbModal, NgbActiveModal} from '@ng-bootstrap/ng-bootstrap';
 import { Observable } from 'rxjs';
-import { OperatorInfoService } from '../../service/operator-info/operator-info.service';
-
+import { JointUIService } from '../../service/joint-ui/joint-ui.service';
 /**
  * NavigationComponent is the top level navigation bar that shows
  *  the Texera title and workflow execution button
@@ -47,7 +46,7 @@ export class NavigationComponent implements OnInit {
     public tourService: TourService, private modalService: NgbModal,
     private workflowActionService: WorkflowActionService,
     private workflowStatusService: WorkflowStatusService,
-    private operatorInfoService: OperatorInfoService
+    private jointUIService: JointUIService,
     ) {
     // return the run button after the execution is finished, either
     //  when the value is valid or invalid
@@ -98,6 +97,9 @@ export class NavigationComponent implements OnInit {
         const workflowId = this.executeWorkflowService.executeWorkflow();
         console.log('checking status of workfolw: ', workflowId);
         this.checkStatus(workflowId);
+        // receive the state of operators
+        console.log('start receiving state data');
+        this.jointUIService.sendOperatorStateMessage();
       } else if (this.isWorkflowRunning && this.isWorkflowPaused) {
         this.executeWorkflowService.resumeWorkflow();
       } else if (this.isWorkflowRunning && !this.isWorkflowPaused) {

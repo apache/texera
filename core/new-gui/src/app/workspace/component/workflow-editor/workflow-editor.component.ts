@@ -86,26 +86,15 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.handlePaperZoom();
     this.handleWindowResize();
     this.handleViewDeleteOperator();
-    this.handleOperatorStatusChange();
     this.handleCellHighlight();
     this.handlePaperPan();
     this.handlePaperMouseZoom();
     this.handleOperatorSuggestionHighlightEvent();
+    this.handleOperatorStatesChange();
     this.dragDropService.registerWorkflowEditorDrop(this.WORKFLOW_EDITOR_JOINTJS_ID);
   }
 
 
-  private handleOperatorStatusChange(): void {
-    console.log('start receiving state data');
-    this.workflowStatusService.getStatusStream().subscribe(status => {
-      const response = JSON.parse(status);
-      // this.jointUIService.changeOperatorStatus(this.getJointPaper(), );
-      // console.log(response.data['OperatorState']);
-      // console.log(response.data['ProcessedCount']);
-      console.log(response);
-    });
-
-  }
   private initializeJointPaper(): void {
     // get the custom paper options
     let jointPaperOptions = this.getJointPaperOptions();
@@ -120,6 +109,17 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.setJointPaperDimensions();
   }
 
+  private handleOperatorStatesChange(): void {
+    this.jointUIService.getOperatorStateStream().subscribe(() => {
+      console.log('receive the signal');
+      this.workflowStatusService.getStatusStream().subscribe(msg => {
+        console.log('status msg received: ', msg);
+        this.workflowActionService.getTexeraGraph().getAllOperators().forEach(operator => {
+          this.jointUIService.changeOperatorStatus(this.getJointPaper(), operator.operatorID, msg);
+        });
+      });
+    });
+  }
   /**
    * Handles restore offset default event by translating jointJS paper
    *  back to original position

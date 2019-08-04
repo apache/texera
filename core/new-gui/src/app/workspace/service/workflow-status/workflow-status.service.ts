@@ -8,9 +8,7 @@ const Engine_URL = 'ws://localhost:8080/api/websocket';
 @Injectable()
 export class WorkflowStatusService {
   public status: Subject<string>;
-
-  private operatorsInfoSubject: Subject<JSON> = new Subject<JSON>();
-  private OperatorsInfo: JSON | undefined;
+  public operatorStates: any;
 
   constructor(wsService: WebsocketService) {
     console.log('creating websocket to ', Engine_URL);
@@ -18,22 +16,19 @@ export class WorkflowStatusService {
       (response: any): any => {
         const json = JSON.parse(response.data);
         console.log('this status is : ', json);
-        this.OperatorsInfo = json['operatorsInfo'];
-        this.operatorsInfoSubject.next(this.OperatorsInfo);
+        this.operatorStates = json;
+        // this.OperatorsInfo = json['operatorsInfo'];
+        // this.operatorsInfoSubject.next(this.OperatorsInfo);
         return response;
       }
     );
   }
 
-  public getOperatorInfo(): JSON | undefined {
-    return this.OperatorsInfo;
-  }
-
-  public getOperatorsInfoSubjectStream(): Observable<JSON> {
-    return this.operatorsInfoSubject.asObservable();
-  }
-
   public getStatusStream(): Observable<string> {
     return this.status.asObservable();
+  }
+
+  public getOperatorStates(): any {
+    return this.operatorStates;
   }
 }

@@ -6,6 +6,7 @@ import * as joint from 'jointjs';
 import { Point, OperatorPredicate, OperatorLink } from '../../types/workflow-common.interface';
 import { optimizeGroupPlayer } from '@angular/animations/browser/src/render/shared';
 import { WorkflowStatusService } from '../workflow-status/workflow-status.service';
+import { Subject, Observable } from 'rxjs';
 
 /**
  * Defines the SVG path for the delete button
@@ -70,8 +71,9 @@ export class JointUIService {
   public static readonly DEFAULT_OPERATOR_WIDTH = 60;
   public static readonly DEFAULT_OPERATOR_HEIGHT = 60;
 
+  private operatorStates: string = '';
+  private operatorStatesSubject: Subject<string> = new Subject<string>();
   private operators: ReadonlyArray<OperatorSchema> = [];
-  private operatorStatus: string | undefined;
 
   constructor(
     private operatorMetadataService: OperatorMetadataService,
@@ -117,7 +119,7 @@ export class JointUIService {
       position: point,
       size: { width: JointUIService.DEFAULT_OPERATOR_WIDTH, height: JointUIService.DEFAULT_OPERATOR_HEIGHT },
       attrs: JointUIService.getCustomOperatorStyleAttrs(
-        operatorSchema.additionalMetadata.userFriendlyName, operatorSchema.operatorType),
+        this.operatorStates, operatorSchema.additionalMetadata.userFriendlyName, operatorSchema.operatorType),
       ports: {
         groups: {
           'in': { attrs: JointUIService.getCustomPortStyleAttrs() },
@@ -141,9 +143,18 @@ export class JointUIService {
     return operatorElement;
   }
 
+  public sendOperatorStateMessage(): void {
+    this.operatorStatesSubject.next();
+  }
+
+  public getOperatorStateStream(): Observable<string> {
+    return this.operatorStatesSubject.asObservable();
+  }
+
   public changeOperatorStatus(jointPaper: joint.dia.Paper, operatorID: string, status: string): void {
       console.log('change the status of the operator!!');
-      jointPaper.getModelById(operatorID).attr('#operatorStatus/text', status);
+      this.operatorStates = status;
+      jointPaper.getModelById(operatorID).attr('#operatorStatus/text', this.operatorStates);
   }
   /**
    * This method will change the operator's color based on the validation status
@@ -268,10 +279,10 @@ export class JointUIService {
    * @returns the custom attributes of the operator
    */
   public static getCustomOperatorStyleAttrs(
-    operatorDisplayName: string, operatorType: string): joint.shapes.devs.ModelSelectors {
+    operatorStates: string, operatorDisplayName: string, operatorType: string): joint.shapes.devs.ModelSelectors {
     const operatorStyleAttrs = {
       '#operatorStatus': {
-        text: 'status', fill: '#595959', 'font-size': '14px',
+        text:  operatorStates , fill: '#595959', 'font-size': '14px',
         'ref-x': 0.5, 'ref-y': -10, ref: 'rect', 'y-alignment': 'middle', 'x-alignment': 'middle'
       },
       'rect': {
