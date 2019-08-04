@@ -94,6 +94,7 @@ export class NavigationComponent implements OnInit {
         const workflowId = this.executeWorkflowService.executeWorkflow();
         console.log('checking status of workfolw: ', workflowId);
         this.workflowStatusService.checkStatus(workflowId);
+        // click on button, send the signal to the JointUIService to tell system that user clicks on button.
         this.jointUIService.sendOperatorStateMessage();
       } else if (this.isWorkflowRunning && this.isWorkflowPaused) {
         this.executeWorkflowService.resumeWorkflow();

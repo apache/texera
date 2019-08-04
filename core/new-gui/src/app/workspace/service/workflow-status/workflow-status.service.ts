@@ -33,7 +33,14 @@ export class WorkflowStatusService {
 
   // usage is shown below, need to do (status as any)
   // to access the fields of the JSON object
+
+  //    workflowStatusService.getStatusInformationStream()
+  //     .subscribe(status => {
+  //       console.log((status as any)['OperatorState']);
+  //       console.log((status as any)['ProcessedCount']);
+  //     });
   public getStatusInformationStream(): Observable<JSON> {
-    return this.status.asObservable();
+    return this.status;
   }
+
 }
