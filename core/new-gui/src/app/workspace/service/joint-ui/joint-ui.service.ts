@@ -71,7 +71,7 @@ export class JointUIService {
   public static readonly DEFAULT_OPERATOR_WIDTH = 60;
   public static readonly DEFAULT_OPERATOR_HEIGHT = 60;
 
-  private operatorStates: string = '';
+  private operatorStates: string = 'Ready';
   private operatorStatesSubject: Subject<string> = new Subject<string>();
   private operators: ReadonlyArray<OperatorSchema> = [];
 
@@ -154,7 +154,17 @@ export class JointUIService {
   public changeOperatorStatus(jointPaper: joint.dia.Paper, operatorID: string, status: string): void {
       console.log('change the status of the operator!!');
       this.operatorStates = status;
-      jointPaper.getModelById(operatorID).attr('#operatorStatus/text', this.operatorStates);
+      console.log('state only !!!!!: ', status);
+      if (status === '"Processing"') {
+        jointPaper.getModelById(operatorID).attr('#operatorStatus/text', 'Processing');
+        jointPaper.getModelById(operatorID).attr('#operatorStatus/fill', 'yellow');
+      } else if (status === '"Finished"') {
+        jointPaper.getModelById(operatorID).attr('#operatorStatus/text', 'Finished');
+        jointPaper.getModelById(operatorID).attr('#operatorStatus/fill', 'green');
+      } else {
+        jointPaper.getModelById(operatorID).attr('#operatorStatus/text', 'Ready');
+        jointPaper.getModelById(operatorID).attr('#operatorStatus/fill', 'red');
+      }
   }
   /**
    * This method will change the operator's color based on the validation status
@@ -282,7 +292,7 @@ export class JointUIService {
     operatorStates: string, operatorDisplayName: string, operatorType: string): joint.shapes.devs.ModelSelectors {
     const operatorStyleAttrs = {
       '#operatorStatus': {
-        text:  operatorStates , fill: '#595959', 'font-size': '14px',
+        text:  operatorStates , fill: 'red', 'font-size': '14px',
         'ref-x': 0.5, 'ref-y': -10, ref: 'rect', 'y-alignment': 'middle', 'x-alignment': 'middle'
       },
       'rect': {

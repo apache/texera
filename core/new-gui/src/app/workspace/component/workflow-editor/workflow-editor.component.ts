@@ -110,22 +110,18 @@ export class WorkflowEditorComponent implements AfterViewInit {
   }
 
   private handleOperatorStatesChange(): void {
-    // when users click on button, we can subscribe the signal and change the states of the opeartors
+    // when users click on button, we can subscribe the signal and change the states of the
     this.jointUIService.getOperatorStateStream().subscribe(() => {
-      console.log('receive the signal');
-
       this.workflowStatusService.getStatusInformationStream()
+      .filter(status => status !== undefined)
       .subscribe(status => {
-        console.log((status as any)['OperatorState']);
-        console.log((status as any)['ProcessedCount']);
+        this.workflowActionService.getTexeraGraph().getAllOperators().forEach(operator => {
+          this.jointUIService.changeOperatorStatus(
+            this.getJointPaper(), operator.operatorID, JSON.stringify((status as any)['OperatorState'][operator.operatorID])
+          );
+        });
+
       });
-      // this.workflowStatusService.getStatusInformationStream().subscribe(msg => {
-      //   console.log('status msg received: ', msg);
-      //   // this.workflowActionService.getTexeraGraph().getAllOperators().forEach(operator => {
-      //   //   this.jointUIService.changeOperatorStatus(
-      //   //     this.getJointPaper(), operator.operatorID, JSON.stringify(msg['OperatorState']));
-      //   // });
-      // });
     });
   }
   /**
