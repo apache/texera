@@ -71,7 +71,7 @@ export class JointUIService {
   public static readonly DEFAULT_OPERATOR_WIDTH = 60;
   public static readonly DEFAULT_OPERATOR_HEIGHT = 60;
 
-  private operatorStates: string = 'Ready';
+  private operatorStates: string;
   private operatorStatesSubject: Subject<string> = new Subject<string>();
   private operators: ReadonlyArray<OperatorSchema> = [];
 
@@ -79,6 +79,8 @@ export class JointUIService {
     private operatorMetadataService: OperatorMetadataService,
     private workflowStatusService: WorkflowStatusService
   ) {
+    // initialize the operator status
+    this.operatorStates = 'Ready';
     // subscribe to operator metadata observable
     this.operatorMetadataService.getOperatorMetadata().subscribe(
       value => this.operators = value.operators
@@ -152,18 +154,15 @@ export class JointUIService {
   }
 
   public changeOperatorStatus(jointPaper: joint.dia.Paper, operatorID: string, status: string): void {
-      console.log('change the status of the operator!!');
-      this.operatorStates = status;
-      console.log('state only !!!!!: ', status);
       if (status === '"Processing"') {
-        jointPaper.getModelById(operatorID).attr('#operatorStatus/text', 'Processing');
-        jointPaper.getModelById(operatorID).attr('#operatorStatus/fill', 'yellow');
+        jointPaper.getModelById(operatorID).attr('#operatorStatus/text', 'Process...');
+        jointPaper.getModelById(operatorID).attr('#operatorStatus/fill', 'orange');
       } else if (status === '"Finished"') {
         jointPaper.getModelById(operatorID).attr('#operatorStatus/text', 'Finished');
         jointPaper.getModelById(operatorID).attr('#operatorStatus/fill', 'green');
-      } else {
-        jointPaper.getModelById(operatorID).attr('#operatorStatus/text', 'Ready');
-        jointPaper.getModelById(operatorID).attr('#operatorStatus/fill', 'red');
+      } else if (status === '"Paused"') {
+        jointPaper.getModelById(operatorID).attr('#operatorStatus/text', 'Pause');
+        jointPaper.getModelById(operatorID).attr('#operatorStatus/fill', 'orange');
       }
   }
   /**
