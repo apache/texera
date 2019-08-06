@@ -154,6 +154,7 @@ export class JointUIService {
   }
 
   public changeOperatorStatus(jointPaper: joint.dia.Paper, operatorID: string, status: string): void {
+      this.operatorStates = status;
       if (status === '"Processing"') {
         jointPaper.getModelById(operatorID).attr('#operatorStatus/text', 'Process...');
         jointPaper.getModelById(operatorID).attr('#operatorStatus/fill', 'orange');
