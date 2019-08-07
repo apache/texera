@@ -87,6 +87,10 @@ export class JointUIService {
     );
   }
 
+  public initializeOperatorState(): void {
+    console.log('initialize the operator state');
+    this.operatorStates = 'Ready';
+  }
   /**
    * Gets the JointJS UI Element object based on the operator predicate.
    * A JointJS Element could be added to the JointJS graph to let JointJS display the operator accordingly.
@@ -155,6 +159,7 @@ export class JointUIService {
 
   public changeOperatorStatus(jointPaper: joint.dia.Paper, operatorID: string, status: string): void {
       this.operatorStates = status;
+      console.log('operatorID is: ', operatorID, ' operator status is here: ', status);
       if (status === '"Processing"') {
         jointPaper.getModelById(operatorID).attr('#operatorStatus/text', 'Process...');
         jointPaper.getModelById(operatorID).attr('#operatorStatus/fill', 'orange');
@@ -163,6 +168,12 @@ export class JointUIService {
         jointPaper.getModelById(operatorID).attr('#operatorStatus/fill', 'green');
       } else if (status === '"Paused"') {
         jointPaper.getModelById(operatorID).attr('#operatorStatus/text', 'Pause');
+        jointPaper.getModelById(operatorID).attr('#operatorStatus/fill', 'orange');
+      } else if (status === '"ProcessCompleted"') {
+        jointPaper.getModelById(operatorID).attr('#operatorStatus/text', 'Finished');
+        jointPaper.getModelById(operatorID).attr('#operatorStatus/fill', 'green');
+      } else if (status === '"Pending"') {
+        jointPaper.getModelById(operatorID).attr('#operatorStatus/text', 'Pending');
         jointPaper.getModelById(operatorID).attr('#operatorStatus/fill', 'orange');
       }
   }

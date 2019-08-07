@@ -282,6 +282,8 @@ export class DragDropService {
    * @param ui
    */
   private handleOperatorDrop(event: JQuery.Event, ui: JQueryUI.DraggableEventUIParams): void {
+    // when operator drops, initialize the operator states
+    this.jointUIService.initializeOperatorState();
     // notify the subject of the event
     // use ui.offset instead of ui.position because offset is relative to document root, where position is relative to parent element
     this.operatorDroppedSubject.next({
