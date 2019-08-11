@@ -270,4 +270,9 @@ describe('NavigationComponent', () => {
     m.expect(restoreEndStream).toBeObservable(expectStream);
   }));
 
+  it('should delete all operators on the graph when user clicks on the delete all button', marbles((m) => {
+    m.hot('-e-').do(() => component.onClickDeleteAllOperators()).subscribe();
+    expect(workflowActionService.getTexeraGraph().getAllOperators().length).toBe(0);
+  }));
+
 });
