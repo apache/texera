@@ -42,6 +42,7 @@ export const targetOperatorHandle = 'M 12 0 L 0 6 L 12 12 z';
 class TexeraCustomJointElement extends joint.shapes.devs.Model {
   markup =
     `<g class="element-node">
+      <text id="operatorCount"></text>
       <text id="operatorStatus"></text>
       <rect class="body"></rect>
       ${deleteButtonSVG}
@@ -74,13 +75,13 @@ export class JointUIService {
   private operatorStates: string;
   private operatorStatesSubject: Subject<string> = new Subject<string>();
   private operators: ReadonlyArray<OperatorSchema> = [];
-
+  private operatorCount: string;
   constructor(
     private operatorMetadataService: OperatorMetadataService,
-    private workflowStatusService: WorkflowStatusService
   ) {
     // initialize the operator status
     this.operatorStates = 'Ready';
+    this.operatorCount = '';
     // subscribe to operator metadata observable
     this.operatorMetadataService.getOperatorMetadata().subscribe(
       value => this.operators = value.operators
@@ -90,6 +91,7 @@ export class JointUIService {
   public initializeOperatorState(): void {
     console.log('initialize the operator state');
     this.operatorStates = 'Ready';
+
   }
   /**
    * Gets the JointJS UI Element object based on the operator predicate.
@@ -124,7 +126,7 @@ export class JointUIService {
     const operatorElement = new TexeraCustomJointElement({
       position: point,
       size: { width: JointUIService.DEFAULT_OPERATOR_WIDTH, height: JointUIService.DEFAULT_OPERATOR_HEIGHT },
-      attrs: JointUIService.getCustomOperatorStyleAttrs(
+      attrs: JointUIService.getCustomOperatorStyleAttrs( this.operatorCount,
         this.operatorStates, operatorSchema.additionalMetadata.userFriendlyName, operatorSchema.operatorType),
       ports: {
         groups: {
@@ -159,7 +161,6 @@ export class JointUIService {
 
   public changeOperatorStatus(jointPaper: joint.dia.Paper, operatorID: string, status: string): void {
       this.operatorStates = status;
-      console.log('operatorID is: ', operatorID, ' operator status is here: ', status);
       if (status === '"Processing"') {
         jointPaper.getModelById(operatorID).attr('#operatorStatus/text', 'Process...');
         jointPaper.getModelById(operatorID).attr('#operatorStatus/fill', 'orange');
@@ -176,6 +177,11 @@ export class JointUIService {
         jointPaper.getModelById(operatorID).attr('#operatorStatus/text', 'Pending');
         jointPaper.getModelById(operatorID).attr('#operatorStatus/fill', 'orange');
       }
+  }
+
+  public changeOperatorCount(jointPaper: joint.dia.Paper, operatorID: string, count: string) {
+      // this.operatorCount = count.toString();
+      jointPaper.getModelById(operatorID).attr('#operatorCount/text', count);
   }
   /**
    * This method will change the operator's color based on the validation status
@@ -299,9 +305,13 @@ export class JointUIService {
    * @param operatorDisplayName the name of the operator that will display on the UI
    * @returns the custom attributes of the operator
    */
-  public static getCustomOperatorStyleAttrs(
+  public static getCustomOperatorStyleAttrs( operatorCount: string,
     operatorStates: string, operatorDisplayName: string, operatorType: string): joint.shapes.devs.ModelSelectors {
     const operatorStyleAttrs = {
+      '#operatorCount': {
+        text: operatorCount, fill: 'black', 'font-size': '14px',
+        'ref-x': 0.5, 'ref-y': -20, ref: 'rect', 'y-alignment': 'middle', 'x-alignment': 'middle'
+      },
       '#operatorStatus': {
         text:  operatorStates , fill: 'red', 'font-size': '14px',
         'ref-x': 0.5, 'ref-y': -10, ref: 'rect', 'y-alignment': 'middle', 'x-alignment': 'middle'

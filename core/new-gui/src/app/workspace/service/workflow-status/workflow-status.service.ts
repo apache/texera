@@ -18,6 +18,7 @@ export class WorkflowStatusService {
       (response: string): string => {
         console.log('received status from backend: ');
         const json = JSON.parse((response as any).data);
+        console.log('json: ', json);
         this.status.next(json);
         return response;
       }
