@@ -76,6 +76,8 @@ export class JointUIService {
   private operatorStatesSubject: Subject<string> = new Subject<string>();
   private operators: ReadonlyArray<OperatorSchema> = [];
   private operatorCount: string;
+  private operatorCountSubject: Subject<string> = new Subject<string>();
+  private operatorPopUpWindowDisable: boolean = false;
   constructor(
     private operatorMetadataService: OperatorMetadataService,
   ) {
@@ -86,12 +88,12 @@ export class JointUIService {
     this.operatorMetadataService.getOperatorMetadata().subscribe(
       value => this.operators = value.operators
     );
+
   }
 
   public initializeOperatorState(): void {
-    console.log('initialize the operator state');
     this.operatorStates = 'Ready';
-
+    this.operatorCount = '';
   }
   /**
    * Gets the JointJS UI Element object based on the operator predicate.
@@ -159,6 +161,14 @@ export class JointUIService {
     return this.operatorStatesSubject.asObservable();
   }
 
+  public changeOperatorCountWindow(jointPaper: joint.dia.Paper, operatorID: string, canShow: boolean, count: string) {
+    if (canShow === true) {
+      jointPaper.getModelById(operatorID).attr('#operatorCount/text', count);
+    } else {
+      jointPaper.getModelById(operatorID).attr('#operatorCount/text', '');
+    }
+  }
+
   public changeOperatorStatus(jointPaper: joint.dia.Paper, operatorID: string, status: string): void {
       this.operatorStates = status;
       if (status === '"Processing"') {
@@ -179,10 +189,6 @@ export class JointUIService {
       }
   }
 
-  public changeOperatorCount(jointPaper: joint.dia.Paper, operatorID: string, count: string) {
-      // this.operatorCount = count.toString();
-      jointPaper.getModelById(operatorID).attr('#operatorCount/text', count);
-  }
   /**
    * This method will change the operator's color based on the validation status
    *  valid  : default color
@@ -309,16 +315,16 @@ export class JointUIService {
     operatorStates: string, operatorDisplayName: string, operatorType: string): joint.shapes.devs.ModelSelectors {
     const operatorStyleAttrs = {
       '#operatorCount': {
-        text: operatorCount, fill: 'black', 'font-size': '14px',
-        'ref-x': 0.5, 'ref-y': -20, ref: 'rect', 'y-alignment': 'middle', 'x-alignment': 'middle'
+        text: operatorCount, fill: 'black', 'font-size': '14px', 'visible' : false,
+        'ref-x': 0.5, 'ref-y': -25, ref: 'rect', 'y-alignment': 'middle', 'x-alignment': 'middle'
       },
       '#operatorStatus': {
-        text:  operatorStates , fill: 'red', 'font-size': '14px',
+        text:  operatorStates , fill: 'red', 'font-size': '14px', 'visible' : false,
         'ref-x': 0.5, 'ref-y': -10, ref: 'rect', 'y-alignment': 'middle', 'x-alignment': 'middle'
       },
       'rect': {
         fill: '#FFFFFF', 'follow-scale': true, stroke: 'red', 'stroke-width': '2',
-        rx: '5px', ry: '5px', width: 10, height: 10
+        rx: '5px', ry: '5px', width: 10, height: 10,
       },
 
       '#operatorName': {

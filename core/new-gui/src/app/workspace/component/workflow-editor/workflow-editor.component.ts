@@ -88,11 +88,16 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.handleViewDeleteOperator();
     this.handleCellHighlight();
     this.handlePaperPan();
+    this.handleOperatorStatesChange();
+    this.handlePopupMessageShow();
+    this.handlePopupMesseageHidden();
     this.handlePaperMouseZoom();
     this.handleOperatorSuggestionHighlightEvent();
-    this.handleOperatorStatesChange();
+
     this.dragDropService.registerWorkflowEditorDrop(this.WORKFLOW_EDITOR_JOINTJS_ID);
   }
+
+
 
 
   private initializeJointPaper(): void {
@@ -109,6 +114,37 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.setJointPaperDimensions();
   }
 
+  private handlePopupMessageShow(): void {
+    Observable.fromEvent<MouseEvent>(this.getJointPaper(), 'element:mouseenter').subscribe(
+      event => {
+        const operatorID = (event as any)[0]['model']['id'];
+        if (this.dragDropService.getProcessCountMap().has(operatorID)) {
+          const count = this.dragDropService.getProcessCountMap().get(operatorID);
+          if (count !== undefined) {
+            this.jointUIService.changeOperatorCountWindow(this.getJointPaper(),
+                operatorID, true, count);
+          }
+        }
+      }
+    );
+  }
+
+  private handlePopupMesseageHidden(): void {
+    Observable.fromEvent<MouseEvent>(this.getJointPaper(), 'element:mouseleave').subscribe(
+      event => {
+        const operatorID = (event as any)[0]['model']['id'];
+        console.log('mouse leave over: ', operatorID);
+        this.workflowActionService.getTexeraGraph().getAllOperators().forEach(
+          operator => {
+            if (operatorID === operator.operatorID) {
+              this.jointUIService.changeOperatorCountWindow(this.getJointPaper(),
+              operatorID, true, '');
+            }
+          }
+        );
+      }
+    );
+  }
   private handleOperatorStatesChange(): void {
     // when users click on button, we can subscribe the signal and change the states of the
     this.jointUIService.getOperatorStateStream().subscribe(() => {
@@ -116,7 +152,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
       .filter(status => status !== undefined)
       .subscribe(status => {
         if (status.hasOwnProperty('message') && (status as any)['message'] === 'ProcessCompleted') {
-
           this.workflowActionService.getTexeraGraph().getAllOperators().forEach(operator => {
             // if the operator is not completed the whole process
             this.jointUIService.changeOperatorStatus(
@@ -125,14 +160,13 @@ export class WorkflowEditorComponent implements AfterViewInit {
           });
         } else {
           this.workflowActionService.getTexeraGraph().getAllOperators().forEach(operator => {
-            console.log('processed count: ', (status as any)['ProcessedCount'][operator.operatorID]);
             // if the operator is not completed the whole process
             this.jointUIService.changeOperatorStatus(
               this.getJointPaper(), operator.operatorID, JSON.stringify((status as any)['OperatorState'][operator.operatorID])
             );
-            this.jointUIService.changeOperatorCount(
-              this.getJointPaper(), operator.operatorID, JSON.stringify((status as any)['ProcessedCount'][operator.operatorID])
-            );
+            // update the processed count number to every operator
+            this.dragDropService.setProcessCount(
+              operator.operatorID, JSON.stringify((status as any)['ProcessedCount'][operator.operatorID]));
           });
         }
       });

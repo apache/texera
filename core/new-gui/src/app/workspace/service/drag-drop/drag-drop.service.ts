@@ -51,7 +51,7 @@ export class DragDropService {
 
   private readonly operatorSuggestionHighlightStream =  new Subject <string>();
   private readonly operatorSuggestionUnhighlightStream =  new Subject <string>();
-
+  private processCountMap: Map<string, string> = new Map<string, string>();
   // currently suggested operator to link with
   private suggestionOperator: OperatorPredicate | undefined;
 
@@ -78,7 +78,13 @@ export class DragDropService {
   ) {
     this.handleOperatorDropEvent();
   }
+  public setProcessCount(operatorID: string, count: string) {
+    this.processCountMap.set(operatorID, count);
+  }
 
+  public getProcessCountMap(): Map<string, string> {
+    return this.processCountMap;
+  }
   /**
    * Handles the event of operator being dropped.
    * Adds the operator to the workflow graph at the same position of it being dropped.
@@ -102,6 +108,10 @@ export class DragDropService {
 
         // add the operator
         this.workflowActionService.addOperator(operator, newOperatorOffset);
+
+        // set the process count number
+        console.log('process initial count number: 0 ');
+        this.processCountMap.set(operator.operatorID, '0');
 
         // has suggestion and must auto-create the operator link between 2 operators.
         if (this.suggestionOperator !== undefined) {
