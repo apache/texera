@@ -51,7 +51,8 @@ class TexeraCustomJointElement extends joint.shapes.devs.Model {
 class TexeraCustomTooltipElement extends joint.shapes.devs.Model {
   markup =
   `<g class="element-node">
-    <rect class="body"></rect>
+  <rect class="body"></rect>
+  <text></text>
   </g>`;
 }
 /**
@@ -118,7 +119,7 @@ export class JointUIService {
     const toolTipElement = new TexeraCustomTooltipElement({
       position: tooltipPoint,
       size: {width: JointUIService.DEFAULT_OPERATOR_WIDTH * 2, height: JointUIService.DEFAULT_OPERATOR_HEIGHT * 2},
-      attrs: JointUIService.getCustomTooltipStyleAttrs(tooltip)
+      attrs: JointUIService.getCustomTooltipStyleAttrs()
     });
 
     toolTipElement.set('id', 'tooltip-' + operator.operatorID);
@@ -194,20 +195,20 @@ export class JointUIService {
   public showToolTip(jointPaper: joint.dia.Paper, tooltipID: string): void {
     console.log(jointPaper.getModelById(tooltipID));
     jointPaper.getModelById(tooltipID).removeAttr('rect/display');
+    jointPaper.getModelById(tooltipID).removeAttr('text/display');
   }
 
   public hideToolTip(jointPaper: joint.dia.Paper, tooltipID: string): void {
     console.log('hide tool tip');
     jointPaper.getModelById(tooltipID).attr('rect/display', 'none');
+    jointPaper.getModelById(tooltipID).attr('text/display', 'none');
   }
 
 
-  public changeOperatorCountWindow(jointPaper: joint.dia.Paper, operatorID: string, canShow: boolean, count: string) {
-    if (canShow === true) {
-      jointPaper.getModelById(operatorID).attr('#operatorCount/text', count);
-    } else {
-      jointPaper.getModelById(operatorID).attr('#operatorCount/text', '');
-    }
+  public changeOperatorCountWindow(jointPaper: joint.dia.Paper, tooltipID: string, count: string) {
+      console.log('tooltip passing: ', tooltipID);
+      jointPaper.getModelById(tooltipID).attr('text/text', '123455');
+      jointPaper.getModelById(tooltipID).attr('text/text', count);
   }
 
   public changeOperatorStatus(jointPaper: joint.dia.Paper, operatorID: string, status: string): void {
@@ -344,12 +345,17 @@ export class JointUIService {
     return portStyleAttrs;
   }
 
-  public static getCustomTooltipStyleAttrs(
-    tooltip: TooltipPredicate): joint.shapes.devs.ModelSelectors {
+  public static getCustomTooltipStyleAttrs(): joint.shapes.devs.ModelSelectors {
     const tooltipStyleAttrs = {
       'rect': {
         fill: '#FFFFFF', 'follow-scale': true, stroke: 'green', 'stroke-width': '2',
-        width: 10, height: 10
+      },
+      'text': {
+        fill: '#595959', 'font-size': '14px', ref: 'rect',
+        'x-alignment': 'middle',
+        'y-alignment': 'middle',
+        'ref-x': .5, 'ref-y': .5,
+
       }
     };
     return tooltipStyleAttrs;

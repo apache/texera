@@ -123,6 +123,16 @@ export class WorkflowEditorComponent implements AfterViewInit {
         }
       }
     );
+
+    this.workflowStatusService.getStatusInformationStream().subscribe(
+      (status) => {
+      this.workflowActionService.getTexeraGraph().getAllOperators().forEach(
+        operator => {
+            this.jointUIService.changeOperatorCountWindow(
+              this.getJointPaper(),
+              'tooltip-' + operator.operatorID, JSON.stringify((status as any)['ProcessedCount'][operator.operatorID]));
+        });
+    });
   }
 
   private handlePopupMesseageHidden(): void {
@@ -152,11 +162,9 @@ export class WorkflowEditorComponent implements AfterViewInit {
           this.workflowActionService.getTexeraGraph().getAllOperators().forEach(operator => {
             // if the operator is not completed the whole process
             this.jointUIService.changeOperatorStatus(
-              this.getJointPaper(), operator.operatorID, JSON.stringify((status as any)['OperatorState'][operator.operatorID])
+              this.getJointPaper(), operator.operatorID,
+              JSON.stringify((status as any)['OperatorState'][operator.operatorID])
             );
-            // update the processed count number to every operator
-            // this.dragDropService.setProcessCount(
-            //   operator.operatorID, JSON.stringify((status as any)['ProcessedCount'][operator.operatorID]));
           });
         }
       });
