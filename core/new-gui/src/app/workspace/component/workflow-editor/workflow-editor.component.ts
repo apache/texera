@@ -57,6 +57,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
   private copiedOperatorType: string | undefined;
   private copiedOperatorPosition: Point | undefined;
+  private pastedOperators: string[] = [];
 
 
   constructor(
@@ -518,6 +519,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
         const currentOperatorID = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOpeartorID();
         if (currentOperatorID) {
           this.copyOperatorInfo(currentOperatorID);
+          this.pastedOperators = [currentOperatorID];
         }
       });
   }
@@ -534,6 +536,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
         if (currentOperatorID) {
           this.copyOperatorInfo(currentOperatorID);
           this.workflowActionService.deleteOperator(currentOperatorID);
+          this.pastedOperators = [];
         }
       });
   }
@@ -548,9 +551,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
       .subscribe(() => {
         if (this.copiedOperatorType && this.copiedOperatorPosition) {
           const newOperator = this.workflowUtilService.getNewOperatorPredicate(this.copiedOperatorType);
-          this.copiedOperatorPosition = {x: this.copiedOperatorPosition.x + this.COPY_OPERATOR_OFFSET,
-                                         y: this.copiedOperatorPosition.y + this.COPY_OPERATOR_OFFSET};
-          this.workflowActionService.addOperator(newOperator, this.copiedOperatorPosition);
+          this.workflowActionService.addOperator(newOperator, this.calcOperatorPosition(newOperator.operatorID));
           this.workflowActionService.getJointGraphWrapper().highlightOperator(newOperator.operatorID);
         }
       });
@@ -566,5 +567,30 @@ export class WorkflowEditorComponent implements AfterViewInit {
       this.copiedOperatorType = operator.operatorType;
       this.copiedOperatorPosition = this.workflowActionService.getJointGraphWrapper().getOperatorPosition(operatorID);
     }
+  }
+
+  /**
+   * Utility function to calculate the position to paste the operator.
+   * @param operatorID
+   */
+  private calcOperatorPosition(operatorID: string): Point {
+    if (!this.copiedOperatorPosition) {
+      throw new Error('no operator is copied');
+    }
+
+    let i;
+    for (i = 0; i < this.pastedOperators.length; ++i) {
+      const position = {x: this.copiedOperatorPosition.x + i * this.COPY_OPERATOR_OFFSET,
+                        y: this.copiedOperatorPosition.y + i * this.COPY_OPERATOR_OFFSET};
+      if (!this.workflowActionService.getTexeraGraph().hasOperator(this.pastedOperators[i]) ||
+          this.workflowActionService.getJointGraphWrapper().getOperatorPosition(this.pastedOperators[i]).x !== position.x ||
+          this.workflowActionService.getJointGraphWrapper().getOperatorPosition(this.pastedOperators[i]).y !== position.y) {
+        this.pastedOperators[i] = operatorID;
+        return position;
+      }
+    }
+    this.pastedOperators.push(operatorID);
+    return {x: this.copiedOperatorPosition.x + i * this.COPY_OPERATOR_OFFSET,
+            y: this.copiedOperatorPosition.y + i * this.COPY_OPERATOR_OFFSET};
   }
 }
