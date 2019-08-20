@@ -113,11 +113,14 @@ export class WorkflowEditorComponent implements AfterViewInit {
   }
 
   private handlePopupMessageShow(): void {
-    Observable.fromEvent<MouseEvent>(this.getJointPaper(), 'element:mouseenter').subscribe(
+    Observable.fromEvent<MouseEvent>(this.getJointPaper(), 'element:mouseenter')
+    .debounceTime(500)
+    .subscribe(
       event => {
         const operatorID = (event as any)[0]['model']['id'];
-
-        // (this.getJointPaper().findViewByModel(operatorID) as any)['model'];
+        if (this.workflowActionService.getTexeraGraph().getOperator(operatorID) !== undefined) {
+          this.jointUIService.showToolTip(this.getJointPaper(), 'tooltip-' + operatorID);
+        }
       }
     );
   }
@@ -126,15 +129,9 @@ export class WorkflowEditorComponent implements AfterViewInit {
     Observable.fromEvent<MouseEvent>(this.getJointPaper(), 'element:mouseleave').subscribe(
       event => {
         const operatorID = (event as any)[0]['model']['id'];
-        console.log('mouse leave over: ', operatorID);
-        this.workflowActionService.getTexeraGraph().getAllOperators().forEach(
-          operator => {
-            if (operatorID === operator.operatorID) {
-              this.jointUIService.changeOperatorCountWindow(this.getJointPaper(),
-              operatorID, true, '');
-            }
-          }
-        );
+        if (this.workflowActionService.getTexeraGraph().getOperator(operatorID) !== undefined) {
+          this.jointUIService.hideToolTip(this.getJointPaper(), 'tooltip-' + operatorID);
+        }
       }
     );
   }

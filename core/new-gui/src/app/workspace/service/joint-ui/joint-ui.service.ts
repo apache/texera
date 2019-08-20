@@ -121,7 +121,6 @@ export class JointUIService {
       attrs: JointUIService.getCustomTooltipStyleAttrs(tooltip)
     });
 
-
     toolTipElement.set('id', 'tooltip-' + operator.operatorID);
 
     return toolTipElement;
@@ -192,9 +191,17 @@ export class JointUIService {
     return this.operatorStatesSubject.asObservable();
   }
 
-  public showToolTip(showtooltip: boolean): void {
-
+  public showToolTip(jointPaper: joint.dia.Paper, tooltipID: string): void {
+    console.log(jointPaper.getModelById(tooltipID));
+    jointPaper.getModelById(tooltipID).removeAttr('rect/display');
   }
+
+  public hideToolTip(jointPaper: joint.dia.Paper, tooltipID: string): void {
+    console.log('hide tool tip');
+    jointPaper.getModelById(tooltipID).attr('rect/display', 'none');
+  }
+
+
   public changeOperatorCountWindow(jointPaper: joint.dia.Paper, operatorID: string, canShow: boolean, count: string) {
     if (canShow === true) {
       jointPaper.getModelById(operatorID).attr('#operatorCount/text', count);
@@ -341,7 +348,8 @@ export class JointUIService {
     tooltip: TooltipPredicate): joint.shapes.devs.ModelSelectors {
     const tooltipStyleAttrs = {
       'rect': {
-        text: 'hi, this is tool tip', fill: '#FFFFFF', 'follow-scale': true, stroke: 'green', 'stroke-width': '2',
+        fill: '#FFFFFF', 'follow-scale': true, stroke: 'green', 'stroke-width': '2',
+        width: 10, height: 10
       }
     };
     return tooltipStyleAttrs;
@@ -357,7 +365,6 @@ export class JointUIService {
   public static getCustomOperatorStyleAttrs( operatorCount: string,
     operatorStates: string, operatorDisplayName: string, operatorType: string): joint.shapes.devs.ModelSelectors {
     const operatorStyleAttrs = {
-
       '#operatorStatus': {
         text:  operatorStates , fill: 'red', 'font-size': '14px', 'visible' : false,
         'ref-x': 0.5, 'ref-y': -10, ref: 'rect', 'y-alignment': 'middle', 'x-alignment': 'middle'

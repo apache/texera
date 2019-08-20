@@ -94,7 +94,9 @@ export class WorkflowActionService {
 
     //  console.log('add elements: ', operatorElement);
      // add tool tip to a joint graph
-     this.jointGraph.addCell(tooltipJointElement);
+     this.jointGraph.addCell([operatorElement, tooltipJointElement]);
+
+     this.texeraGraph.addOperator(operator);
    }
   /**
    * Adds an opreator to the workflow graph at a point.
@@ -114,9 +116,8 @@ export class WorkflowActionService {
     const operatorJointElement = this.jointUIService.getJointOperatorElement(operator, point);
     // add operator to joint graph first
     // if jointJS throws an error, it won't cause the inconsistency in texera graph
-    this.jointGraph.addCell(operatorJointElement);
+    // this.jointGraph.addCell(operatorJointElement);
     // add operator to texera graph
-    this.texeraGraph.addOperator(operator);
 
     return operatorJointElement;
   }
