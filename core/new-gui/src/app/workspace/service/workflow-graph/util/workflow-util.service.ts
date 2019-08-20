@@ -1,4 +1,4 @@
-import { OperatorPredicate } from './../../../types/workflow-common.interface';
+import { OperatorPredicate, TooltipPredicate } from './../../../types/workflow-common.interface';
 import { OperatorMetadataService } from './../../operator-metadata/operator-metadata.service';
 import { OperatorSchema } from './../../../types/operator-schema.interface';
 import { Injectable } from '@angular/core';
@@ -73,6 +73,15 @@ export class WorkflowUtilService {
 
   }
 
+  public getNewTooltipPredicate(operator: OperatorPredicate): TooltipPredicate {
+    const processedCount = 0;
+
+    const tooltipID = operator.operatorID;
+
+    const tooltipType = operator.operatorType;
+
+    return {tooltipID, tooltipType, processedCount};
+  }
   /**
    * Generates a new UUID for operator or link
    */

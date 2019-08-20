@@ -27,3 +27,9 @@ export interface OperatorLink extends Readonly<{
   source: OperatorPort;
   target: OperatorPort;
 }> { }
+
+export interface TooltipPredicate extends Readonly<{}> {
+  tooltipID: string;
+  tooltipType: string;
+  processedCount: number;
+}

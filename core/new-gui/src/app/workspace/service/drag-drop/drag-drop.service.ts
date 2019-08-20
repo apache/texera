@@ -1,4 +1,4 @@
-import { Point, OperatorPredicate, OperatorLink } from './../../types/workflow-common.interface';
+import { Point, OperatorPredicate, OperatorLink, TooltipPredicate } from './../../types/workflow-common.interface';
 import { WorkflowActionService } from './../workflow-graph/model/workflow-action.service';
 import { Observable } from 'rxjs/Observable';
 import { WorkflowUtilService } from './../workflow-graph/util/workflow-util.service';
@@ -51,7 +51,7 @@ export class DragDropService {
 
   private readonly operatorSuggestionHighlightStream =  new Subject <string>();
   private readonly operatorSuggestionUnhighlightStream =  new Subject <string>();
-  private processCountMap: Map<string, string> = new Map<string, string>();
+  private tooltipMap: Map<string, TooltipPredicate> = new Map<string, TooltipPredicate>();
   // currently suggested operator to link with
   private suggestionOperator: OperatorPredicate | undefined;
 
@@ -78,12 +78,10 @@ export class DragDropService {
   ) {
     this.handleOperatorDropEvent();
   }
-  public setProcessCount(operatorID: string, count: string) {
-    this.processCountMap.set(operatorID, count);
-  }
 
-  public getProcessCountMap(): Map<string, string> {
-    return this.processCountMap;
+
+  public gettooltipMap(): Map<string, TooltipPredicate> {
+    return this.tooltipMap;
   }
   /**
    * Handles the event of operator being dropped.
@@ -107,11 +105,16 @@ export class DragDropService {
         };
 
         // add the operator
-        this.workflowActionService.addOperator(operator, newOperatorOffset);
+        const parentOperator = this.workflowActionService.addOperator(operator, newOperatorOffset);
+
+        // construct the tooltip from the drop stream value
+        const tooltip = this.workflowUtilService.getNewTooltipPredicate(operator);
+
+        // add the tooltip the bind the tooltip to the operator element, HIERARCHICAL structure
+        this.workflowActionService.addTooltip(parentOperator, operator, tooltip, newOperatorOffset);
 
         // set the process count number
-        console.log('process initial count number: 0 ');
-        this.processCountMap.set(operator.operatorID, '0');
+        this.tooltipMap.set(tooltip.tooltipID, tooltip);
 
         // has suggestion and must auto-create the operator link between 2 operators.
         if (this.suggestionOperator !== undefined) {
@@ -195,6 +198,7 @@ export class DragDropService {
         left: JointUIService.DEFAULT_OPERATOR_WIDTH / 2,
         top: JointUIService.DEFAULT_OPERATOR_HEIGHT / 2
       },
+
       stop: (event: any, ui) => {
         // this is to unhighlight the suggested operator when the user release mouse at other
         //  components than the workflow editor

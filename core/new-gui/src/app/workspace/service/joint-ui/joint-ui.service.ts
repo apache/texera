@@ -3,9 +3,7 @@ import { OperatorMetadataService } from '../operator-metadata/operator-metadata.
 import { OperatorSchema } from '../../types/operator-schema.interface';
 
 import * as joint from 'jointjs';
-import { Point, OperatorPredicate, OperatorLink } from '../../types/workflow-common.interface';
-import { optimizeGroupPlayer } from '@angular/animations/browser/src/render/shared';
-import { WorkflowStatusService } from '../workflow-status/workflow-status.service';
+import { Point, OperatorPredicate, OperatorLink, TooltipPredicate } from '../../types/workflow-common.interface';
 import { Subject, Observable } from 'rxjs';
 
 /**
@@ -42,7 +40,6 @@ export const targetOperatorHandle = 'M 12 0 L 0 6 L 12 12 z';
 class TexeraCustomJointElement extends joint.shapes.devs.Model {
   markup =
     `<g class="element-node">
-      <text id="operatorCount"></text>
       <text id="operatorStatus"></text>
       <rect class="body"></rect>
       ${deleteButtonSVG}
@@ -51,6 +48,12 @@ class TexeraCustomJointElement extends joint.shapes.devs.Model {
     </g>`;
 }
 
+class TexeraCustomTooltipElement extends joint.shapes.devs.Model {
+  markup =
+  `<g class="element-node">
+    <rect class="body"></rect>
+  </g>`;
+}
 /**
  * JointUIService controls the shape of an operator and a link
  *  when they is displayed by JointJS.
@@ -96,6 +99,35 @@ export class JointUIService {
     this.operatorCount = '';
   }
   /**
+   * Gets the JointJS UI element object based on the tooltip predicate
+   * @param tooltipID the id of the tool tip, in this case we set the id the same as the corresponding operator id
+   * @param processedCount the number of the data that operator handle
+   * @param tooltipType the type of the tool tip for further use (i.e to show the flow chart to represent the speed of * the data handling)
+   */
+  public getJointTooltipElement(
+    operator: OperatorPredicate, tooltip: TooltipPredicate, point: Point
+  ): joint.dia.Element {
+      // check if the operatorType exists in the operator metadata
+    const operatorSchema = this.operators.find(op => op.operatorType === operator.operatorType);
+    if (operatorSchema === undefined) {
+      throw new Error(`operator type ${operator.operatorType} doesn't exist`);
+    }
+    const tooltipPoint = {x: point.x - JointUIService.DEFAULT_OPERATOR_WIDTH / 2,
+       y: point.y - JointUIService.DEFAULT_OPERATOR_HEIGHT * 2 - 10};
+
+    const toolTipElement = new TexeraCustomTooltipElement({
+      position: tooltipPoint,
+      size: {width: JointUIService.DEFAULT_OPERATOR_WIDTH * 2, height: JointUIService.DEFAULT_OPERATOR_HEIGHT * 2},
+      attrs: JointUIService.getCustomTooltipStyleAttrs(tooltip)
+    });
+
+
+    toolTipElement.set('id', 'tooltip-' + operator.operatorID);
+
+    return toolTipElement;
+  }
+
+  /**
    * Gets the JointJS UI Element object based on the operator predicate.
    * A JointJS Element could be added to the JointJS graph to let JointJS display the operator accordingly.
    *
@@ -126,6 +158,7 @@ export class JointUIService {
     // construct a custom Texera JointJS operator element
     //   and customize the styles of the operator box and ports
     const operatorElement = new TexeraCustomJointElement({
+
       position: point,
       size: { width: JointUIService.DEFAULT_OPERATOR_WIDTH, height: JointUIService.DEFAULT_OPERATOR_HEIGHT },
       attrs: JointUIService.getCustomOperatorStyleAttrs( this.operatorCount,
@@ -137,8 +170,6 @@ export class JointUIService {
         }
       }
     });
-
-
     // set operator element ID to be operator ID
     operatorElement.set('id', operator.operatorID);
 
@@ -161,6 +192,9 @@ export class JointUIService {
     return this.operatorStatesSubject.asObservable();
   }
 
+  public showToolTip(showtooltip: boolean): void {
+
+  }
   public changeOperatorCountWindow(jointPaper: joint.dia.Paper, operatorID: string, canShow: boolean, count: string) {
     if (canShow === true) {
       jointPaper.getModelById(operatorID).attr('#operatorCount/text', count);
@@ -303,6 +337,15 @@ export class JointUIService {
     return portStyleAttrs;
   }
 
+  public static getCustomTooltipStyleAttrs(
+    tooltip: TooltipPredicate): joint.shapes.devs.ModelSelectors {
+    const tooltipStyleAttrs = {
+      'rect': {
+        text: 'hi, this is tool tip', fill: '#FFFFFF', 'follow-scale': true, stroke: 'green', 'stroke-width': '2',
+      }
+    };
+    return tooltipStyleAttrs;
+  }
   /**
    * This function creates a custom svg style for the operator.
    * This function also make sthe delete button defined above to emit the delete event that will
@@ -314,10 +357,7 @@ export class JointUIService {
   public static getCustomOperatorStyleAttrs( operatorCount: string,
     operatorStates: string, operatorDisplayName: string, operatorType: string): joint.shapes.devs.ModelSelectors {
     const operatorStyleAttrs = {
-      '#operatorCount': {
-        text: operatorCount, fill: 'black', 'font-size': '14px', 'visible' : false,
-        'ref-x': 0.5, 'ref-y': -25, ref: 'rect', 'y-alignment': 'middle', 'x-alignment': 'middle'
-      },
+
       '#operatorStatus': {
         text:  operatorStates , fill: 'red', 'font-size': '14px', 'visible' : false,
         'ref-x': 0.5, 'ref-y': -10, ref: 'rect', 'y-alignment': 'middle', 'x-alignment': 'middle'

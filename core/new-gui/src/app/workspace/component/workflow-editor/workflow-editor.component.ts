@@ -11,7 +11,7 @@ import { ResultPanelToggleService } from '../../service/result-panel-toggle/resu
 import { Point } from '../../types/workflow-common.interface';
 import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-graph-wrapper';
 import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
-
+import { ToolTipService } from '../../service/tool-tip/tool-tip.service';
 
 // argument type of callback event on a JointJS Paper
 // which is a 4-element tuple:
@@ -61,7 +61,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
     private resultPanelToggleService: ResultPanelToggleService,
     private validationWorkflowService: ValidationWorkflowService,
     private jointUIService: JointUIService,
-    private workflowStatusService: WorkflowStatusService
+    private workflowStatusService: WorkflowStatusService,
+    private tooltipService: ToolTipService
   ) {
 
     // bind validation functions to the same scope as component
@@ -97,9 +98,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.dragDropService.registerWorkflowEditorDrop(this.WORKFLOW_EDITOR_JOINTJS_ID);
   }
 
-
-
-
   private initializeJointPaper(): void {
     // get the custom paper options
     let jointPaperOptions = this.getJointPaperOptions();
@@ -118,13 +116,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
     Observable.fromEvent<MouseEvent>(this.getJointPaper(), 'element:mouseenter').subscribe(
       event => {
         const operatorID = (event as any)[0]['model']['id'];
-        if (this.dragDropService.getProcessCountMap().has(operatorID)) {
-          const count = this.dragDropService.getProcessCountMap().get(operatorID);
-          if (count !== undefined) {
-            this.jointUIService.changeOperatorCountWindow(this.getJointPaper(),
-                operatorID, true, count);
-          }
-        }
+
+        // (this.getJointPaper().findViewByModel(operatorID) as any)['model'];
       }
     );
   }
@@ -165,8 +158,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
               this.getJointPaper(), operator.operatorID, JSON.stringify((status as any)['OperatorState'][operator.operatorID])
             );
             // update the processed count number to every operator
-            this.dragDropService.setProcessCount(
-              operator.operatorID, JSON.stringify((status as any)['ProcessedCount'][operator.operatorID]));
+            // this.dragDropService.setProcessCount(
+            //   operator.operatorID, JSON.stringify((status as any)['ProcessedCount'][operator.operatorID]));
           });
         }
       });
