@@ -114,7 +114,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
   private handlePopupMessageShow(): void {
     Observable.fromEvent<MouseEvent>(this.getJointPaper(), 'element:mouseenter')
-    .debounceTime(500)
     .subscribe(
       event => {
         const operatorID = (event as any)[0]['model']['id'];
