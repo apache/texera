@@ -386,6 +386,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
       .subscribe(value =>
         this.jointUIService.changeOperatorColor(this.getJointPaper(), value.operatorID, value.status));
   }
+
   /**
    * Gets the width and height of the parent wrapper element
    */
@@ -571,6 +572,9 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
   /**
    * Utility function to calculate the position to paste the operator.
+   * If a previously pasted operator is moved or deleted, the operator will be
+   * pasted to the emptied position. Otherwise, it will be pasted to a position
+   * that's non-overlapping and calculated according to the copy operator offset.
    * @param operatorID
    */
   private calcOperatorPosition(operatorID: string): Point {
@@ -578,19 +582,46 @@ export class WorkflowEditorComponent implements AfterViewInit {
       throw new Error('no operator is copied');
     }
 
-    let i;
+    let i, position;
     for (i = 0; i < this.pastedOperators.length; ++i) {
-      const position = {x: this.copiedOperatorPosition.x + i * this.COPY_OPERATOR_OFFSET,
-                        y: this.copiedOperatorPosition.y + i * this.COPY_OPERATOR_OFFSET};
+      position = {x: this.copiedOperatorPosition.x + i * this.COPY_OPERATOR_OFFSET,
+                  y: this.copiedOperatorPosition.y + i * this.COPY_OPERATOR_OFFSET};
       if (!this.workflowActionService.getTexeraGraph().hasOperator(this.pastedOperators[i]) ||
           this.workflowActionService.getJointGraphWrapper().getOperatorPosition(this.pastedOperators[i]).x !== position.x ||
           this.workflowActionService.getJointGraphWrapper().getOperatorPosition(this.pastedOperators[i]).y !== position.y) {
         this.pastedOperators[i] = operatorID;
-        return position;
+        return this.getNonOverlappingPosition(position);
       }
     }
     this.pastedOperators.push(operatorID);
-    return {x: this.copiedOperatorPosition.x + i * this.COPY_OPERATOR_OFFSET,
-            y: this.copiedOperatorPosition.y + i * this.COPY_OPERATOR_OFFSET};
+    position = {x: this.copiedOperatorPosition.x + i * this.COPY_OPERATOR_OFFSET,
+                y: this.copiedOperatorPosition.y + i * this.COPY_OPERATOR_OFFSET};
+    return this.getNonOverlappingPosition(position);
+  }
+
+  /**
+   * Utility function to find a non-overlapping position for the pasted operator.
+   * The function will check if the current position overlaps with an existing
+   * operator. If it does, the function will find a new non-overlapping position.
+   * @param position
+   */
+  private getNonOverlappingPosition(position: Point): Point {
+    let overlapped = false;
+    do {
+      const allOperators = this.workflowActionService.getTexeraGraph().getAllOperators();
+      for (const operator of allOperators) {
+        const operatorPosition = this.workflowActionService.getJointGraphWrapper().getOperatorPosition(operator.operatorID);
+        if (operatorPosition.x === position.x && operatorPosition.y === position.y) {
+          position = {x: position.x + this.COPY_OPERATOR_OFFSET, y: position.y + this.COPY_OPERATOR_OFFSET};
+          overlapped = true;
+          break;
+        }
+        overlapped = false;
+      }
+      if (!overlapped) {
+        break;
+      }
+    } while (overlapped);
+    return position;
   }
 }
