@@ -16,9 +16,8 @@ export class WorkflowStatusService {
     console.log('creating websocket to ', Engine_URL);
     this.connectionChannel = <Subject<string>>wsService.connect(Engine_URL).map(
       (response: string): string => {
-        console.log('received status from backend: ');
+        // console.log('received status from backend: ');
         const json = JSON.parse((response as any).data);
-        console.log('json: ', json);
         this.status.next(json);
         return response;
       }

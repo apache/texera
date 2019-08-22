@@ -5,9 +5,7 @@ import { environment } from '../../../../environments/environment';
 import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
 import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-graph-wrapper';
 
-import { WebsocketService} from '../../service/websocket/websocket.service';
 import {NgbModal, NgbActiveModal} from '@ng-bootstrap/ng-bootstrap';
-import { Observable } from 'rxjs';
 import { JointUIService } from '../../service/joint-ui/joint-ui.service';
 import { ExecutionResult } from './../../types/execute-workflow.interface';
 import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
@@ -92,7 +90,7 @@ export class NavigationComponent implements OnInit {
         this.showDataResultID = true;
         this.isWorkflowRunning = true;
         const workflowId = this.executeWorkflowService.executeWorkflow();
-        console.log('checking status of workfolw: ', workflowId);
+        console.log('checking status of workflow: ', workflowId);
         this.workflowStatusService.checkStatus(workflowId);
         // click on button, send the signal to the JointUIService to tell system that user clicks on button.
         this.jointUIService.sendOperatorStateMessage();

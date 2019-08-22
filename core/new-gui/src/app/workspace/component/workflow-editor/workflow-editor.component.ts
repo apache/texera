@@ -62,7 +62,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
     private validationWorkflowService: ValidationWorkflowService,
     private jointUIService: JointUIService,
     private workflowStatusService: WorkflowStatusService,
-    private tooltipService: ToolTipService
   ) {
 
     // bind validation functions to the same scope as component
@@ -112,24 +111,34 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.setJointPaperDimensions();
   }
 
+  /**
+   * handle the event when mouse hover in the operator.
+   * The popup window will be shown.
+   */
   private handlePopupMessageShow(): void {
     Observable.fromEvent<MouseEvent>(this.getJointPaper(), 'element:mouseenter')
     .subscribe(
       event => {
         const operatorID = (event as any)[0]['model']['id'];
         if (this.workflowActionService.getTexeraGraph().getOperator(operatorID) !== undefined) {
-          this.jointUIService.showToolTip(this.getJointPaper(), 'tooltip-' + operatorID);
+          const tooltipID = 'tooltip-' + operatorID;
+          this.jointUIService.showToolTip(this.getJointPaper(), tooltipID);
         }
       }
     );
 
     this.workflowStatusService.getStatusInformationStream().subscribe(
       (status) => {
+      console.log('status: ', status);
       this.workflowActionService.getTexeraGraph().getAllOperators().forEach(
         operator => {
+            const tooltipID = 'tooltip-' + operator.operatorID;
             this.jointUIService.changeOperatorCountWindow(
               this.getJointPaper(),
-              'tooltip-' + operator.operatorID, JSON.stringify((status as any)['ProcessedCount'][operator.operatorID]));
+              tooltipID, JSON.stringify((status as any)['ProcessedCount'][operator.operatorID]));
+
+            this.jointUIService.addOperatorSpeed(tooltipID, (status as any)['ProcessedSpeed'][operator.operatorID]);
+            this.jointUIService.changeOperatorSpeed(this.getJointPaper(), tooltipID);
         });
     });
   }
