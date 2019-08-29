@@ -12,6 +12,7 @@ import { Point } from '../../types/workflow-common.interface';
 import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-graph-wrapper';
 import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
 import { ToolTipService } from '../../service/tool-tip/tool-tip.service';
+import { NavigationComponent } from '../navigation/navigation.component';
 
 // argument type of callback event on a JointJS Paper
 // which is a 4-element tuple:
@@ -137,8 +138,13 @@ export class WorkflowEditorComponent implements AfterViewInit {
               this.getJointPaper(),
               tooltipID, JSON.stringify((status as any)['ProcessedCount'][operator.operatorID]));
 
-            this.jointUIService.addOperatorSpeed(tooltipID, (status as any)['ProcessedSpeed'][operator.operatorID]);
-            this.jointUIService.changeOperatorSpeed(this.getJointPaper(), tooltipID);
+              if (NavigationComponent.testPause === -1) {
+                this.jointUIService.changeOperatorSpeed(
+                  this.getJointPaper(), tooltipID, (status as any)['ProcessedSpeed'][operator.operatorID]);
+            } else {
+              this.jointUIService.changeOperatorSpeed(
+                this.getJointPaper(), tooltipID, 0.0 as DoubleRange);
+            }
         });
     });
   }

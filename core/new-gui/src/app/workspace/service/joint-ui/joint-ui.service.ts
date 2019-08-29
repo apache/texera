@@ -50,13 +50,13 @@ class TexeraCustomJointElement extends joint.shapes.devs.Model {
     </g>`;
 }
 
-/**
- * Extends a basic Joint operator element and adds our own HTML markup.
- */
+// /**
+//  * Extends a basic Joint operator element and adds our own HTML markup.
+//  */
 class TexeraCustomTooltipElement extends joint.shapes.devs.Model {
   markup =
   `<g class="element-node">
-    <rect class="body"></rect>
+    <polygon class="body"></polygon>
     <text id = "operatorCount"></text>
     <text id = "operatorSpeed"></text>
   </g>`;
@@ -82,10 +82,10 @@ export class JointUIService {
   public static readonly DEFAULT_OPERATOR_WIDTH = 60;
   public static readonly DEFAULT_OPERATOR_HEIGHT = 60;
 
-  public static DEFAULT_TOOLTIP_WIDTH = 120;
+  public static DEFAULT_TOOLTIP_WIDTH = 140;
   public static DEFAULT_TOOLTIP_HEIGHT = 120;
 
-  private operatorSpeed: Map<string, Array<DoubleRange>> = new Map();
+  private operatorSpeed: string;
   private operatorStates: string;
   private operatorStatesSubject: Subject<string> = new Subject<string>();
   private operators: ReadonlyArray<OperatorSchema> = [];
@@ -93,9 +93,10 @@ export class JointUIService {
   constructor(
     private operatorMetadataService: OperatorMetadataService,
   ) {
-    // initialize the operator status
+    // initialize the operator information
     this.operatorStates = 'Ready';
     this.operatorCount = '';
+    this.operatorSpeed = '';
     // subscribe to operator metadata observable
     this.operatorMetadataService.getOperatorMetadata().subscribe(
       value => this.operators = value.operators
@@ -107,6 +108,7 @@ export class JointUIService {
     this.operatorStates = 'Ready';
     this.operatorCount = '';
   }
+
   /**
    * Gets the JointJS UI element object based on the tooltip predicate
    * @param tooltipID the id of the tool tip, in this case we set the id the same as the corresponding operator id
@@ -124,7 +126,7 @@ export class JointUIService {
 
     // set the tooltip point to set the default position relative to the operator
 
-    const tooltipPoint = {x: point.x - JointUIService.DEFAULT_OPERATOR_WIDTH / 2,
+    const tooltipPoint = {x: point.x - JointUIService.DEFAULT_OPERATOR_WIDTH / 2 - 10,
        y: point.y - JointUIService.DEFAULT_OPERATOR_HEIGHT};
 
     const toolTipElement = new TexeraCustomTooltipElement({
@@ -132,7 +134,6 @@ export class JointUIService {
       size: {width: JointUIService.DEFAULT_TOOLTIP_WIDTH, height: JointUIService.DEFAULT_OPERATOR_HEIGHT},
       attrs: JointUIService.getCustomTooltipStyleAttrs()
     });
-
     toolTipElement.set('id', 'tooltip-' + operator.operatorID);
     return toolTipElement;
   }
@@ -202,20 +203,20 @@ export class JointUIService {
   }
 
   public showToolTip(jointPaper: joint.dia.Paper, tooltipID: string): void {
-    jointPaper.getModelById(tooltipID).removeAttr('rect/display');
+    jointPaper.getModelById(tooltipID).removeAttr('polygon/display');
     jointPaper.getModelById(tooltipID).removeAttr('#operatorCount/display');
     jointPaper.getModelById(tooltipID).removeAttr('#operatorSpeed/display');
   }
 
   public hideToolTip(jointPaper: joint.dia.Paper, tooltipID: string): void {
-    jointPaper.getModelById(tooltipID).attr('rect/display', 'none');
+    jointPaper.getModelById(tooltipID).attr('polygon/display', 'none');
     jointPaper.getModelById(tooltipID).attr('#operatorCount/display', 'none');
     jointPaper.getModelById(tooltipID).attr('#operatorSpeed/display', 'none');
   }
 
 
   public changeOperatorCountWindow(jointPaper: joint.dia.Paper, tooltipID: string, count: string) {
-      jointPaper.getModelById(tooltipID).attr('#operatorCount/text', count);
+      jointPaper.getModelById(tooltipID).attr('#operatorCount/text', 'Input:' + count + ' tuples');
   }
 
   public changeOperatorStatus(jointPaper: joint.dia.Paper, operatorID: string, status: string): void {
@@ -238,40 +239,9 @@ export class JointUIService {
       }
   }
 
-  public getOperatorSpeed(tooltip: string): string {
-    const speeds = this.operatorSpeed.get(tooltip);
-    if (speeds !== undefined) {
-      return speeds.toString();
-    }
-    return '';
-  }
-  public addOperatorSpeed(tooltipID: string, speed: DoubleRange): void {
-    if (!this.operatorSpeed.has(tooltipID)) {
-      const speedElements: Array<DoubleRange> = new Array<DoubleRange>();
-      speedElements.push(speed);
-      this.operatorSpeed.set(tooltipID, speedElements);
-    } else {
-      const speedElements = this.operatorSpeed.get(tooltipID);
-      if (speedElements !== undefined && speedElements.length < 10) {
-          speedElements.push(speed);
-          this.operatorSpeed.set(tooltipID, speedElements);
-      } else if (speedElements !== undefined && speedElements.length >= 10) {
-        // start from position 0, remove one element.
-          speedElements.splice(0, 1);
-          speedElements.push(speed);
-          this.operatorSpeed.set(tooltipID, speedElements);
-      } else {
-        throw new Error('speed-elements is undefined!!');
-      }
-    }
-  }
 
-
-  public changeOperatorSpeed(jointPaper: joint.dia.Paper, tooltipID: string): void {
-    const speeds = this.operatorSpeed.get(tooltipID);
-    if (speeds !== undefined) {
-      jointPaper.getModelById(tooltipID).attr('#operatorSpeed/text', speeds.toString());
-    }
+  public changeOperatorSpeed(jointPaper: joint.dia.Paper, tooltipID: string, speed: DoubleRange): void {
+      jointPaper.getModelById(tooltipID).attr('#operatorSpeed/text', 'Speed:' + speed.toString() + ' tuples/ms');
   }
   /**
    * This method will change the operator's color based on the validation status
@@ -393,22 +363,23 @@ export class JointUIService {
    */
   public static getCustomTooltipStyleAttrs(): joint.shapes.devs.ModelSelectors {
     const tooltipStyleAttrs = {
-      'rect': {
-        fill: '#FFFFFF', 'follow-scale': true, stroke: 'green', 'stroke-width': '2',
-        rx: '5px', ry: '5px'
+      'polygon': {
+        fill: '#FFFFFF', 'follow-scale': true, stroke: 'purple', 'stroke-width': '2',
+        rx: '5px', ry: '5px', refPoints: '0,30 150,30 150,120 85,120 75,150 65,120 0,120'
       },
       '#operatorCount': {
-        fill: '#595959', 'font-size': '14px', ref: 'rect',
+        fill: '#595959', 'font-size': '12px', ref: 'polygon',
         'y-alignment': 'middle',
-        'x-alignment': 'middle',
-        'ref-x': .5, 'ref-y': .3,
+        'x-alignment': 'left',
+        'ref-x': .05, 'ref-y': .2,
       },
       '#operatorSpeed': {
         fill: '#595959',
-        ref: 'rect',
-        'x-alignment': 'middle',
-        'ref-x': .5, 'ref-y': .6
-      }
+        ref: 'polygon',
+        'x-alignment': 'left',
+        'font-size': '12px',
+        'ref-x': .05, 'ref-y': .5
+      },
     };
     return tooltipStyleAttrs;
   }
