@@ -53,6 +53,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
   private ifMouseDown: boolean = false;
   private mouseDown: Point | undefined;
   private panOffset: Point = { x : 0 , y : 0};
+  private workflowStarted: boolean = false;
 
 
   constructor(
@@ -121,9 +122,11 @@ export class WorkflowEditorComponent implements AfterViewInit {
     .subscribe(
       event => {
         const operatorID = (event as any)[0]['model']['id'];
-        if (this.workflowActionService.getTexeraGraph().getOperator(operatorID) !== undefined) {
-          const tooltipID = 'tooltip-' + operatorID;
-          this.jointUIService.showToolTip(this.getJointPaper(), tooltipID);
+        if (this.workflowStarted) {
+          if (this.workflowActionService.getTexeraGraph().getOperator(operatorID) !== undefined) {
+            const tooltipID = 'tooltip-' + operatorID;
+            this.jointUIService.showToolTip(this.getJointPaper(), tooltipID);
+          }
         }
       }
     );
@@ -131,6 +134,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.workflowStatusService.getStatusInformationStream().subscribe(
       (status) => {
       console.log('status: ', status);
+      this.workflowStarted = true;
       this.workflowActionService.getTexeraGraph().getAllOperators().forEach(
         operator => {
             const tooltipID = 'tooltip-' + operator.operatorID;
