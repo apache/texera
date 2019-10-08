@@ -500,7 +500,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
    */
   private handleOperatorDelete() {
     Observable.fromEvent<KeyboardEvent>(document, 'keydown')
-      .filter(event => !(<HTMLElement> event.target).matches('input'))
+      .filter(event => (<HTMLElement> event.target).nodeName !== 'INPUT')
       .filter(event => event.key === 'Backspace' || event.key === 'Delete')
       .subscribe(() => {
         const currentOperatorID = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOpeartorID();
@@ -517,7 +517,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
    */
   private handleOperatorCopy() {
     Observable.fromEvent<ClipboardEvent>(document, 'copy')
-      .filter(event => !(<HTMLElement> event.target).matches('input'))
+      .filter(event => (<HTMLElement> event.target).nodeName !== 'INPUT')
       .subscribe(() => {
         const currentOperatorID = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOpeartorID();
         if (currentOperatorID) {
@@ -534,7 +534,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
    */
   private handleOperatorCut() {
     Observable.fromEvent<ClipboardEvent>(document, 'cut')
-      .filter(event => !(<HTMLElement> event.target).matches('input'))
+      .filter(event => (<HTMLElement> event.target).nodeName !== 'INPUT')
       .subscribe(() => {
         const currentOperatorID = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOpeartorID();
         if (currentOperatorID) {
@@ -564,7 +564,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
    */
   private handleOperatorPaste() {
     Observable.fromEvent<ClipboardEvent>(document, 'paste')
-      .filter(event => !(<HTMLElement> event.target).matches('input'))
+      .filter(event => (<HTMLElement> event.target).nodeName !== 'INPUT')
       .subscribe(() => {
         if (this.copiedOperator && this.copiedOperatorPosition) {
           const newOperator = this.copyOperator(this.copiedOperator);
