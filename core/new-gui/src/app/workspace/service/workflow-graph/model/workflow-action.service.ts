@@ -31,9 +31,14 @@ export interface Command {
  *
  */
 
+ // working on undo/redo toggle advanced operator
 
+ // createOutputFormChangeEventStream in Property Editor component, maybe cuz this isn't getting called later?
+ // identified it as a problem with the secondPropertyCheck, it's passing the test and registering as an actual change
+ // when we don't want it to
+ // FIXED FOR NOW. Changed secondPropertyEqual in property editor component to ignore predefined
+ // strings and bools in cached form
 
- // TODO: adding with property change and a problem with redoing change operator
 @Injectable()
 export class WorkflowActionService {
 
@@ -135,9 +140,6 @@ export class WorkflowActionService {
     this.undoRedoService.addCommand(command);
     this.undoRedoService.setListenJointCommand(true);
   }
-  public setOperatorAdvanceStatus(operatorID: string, newShowAdvancedStatus: boolean) {
-    this.texeraGraph.setOperatorAdvanceStatus(operatorID, newShowAdvancedStatus);
-  }
   /**
    * Adds an opreator to the workflow graph at a point.
    * Throws an Error if the operator ID already existed in the Workflow Graph.
@@ -232,8 +234,28 @@ export class WorkflowActionService {
   public setOperatorProperty(operatorID: string, newProperty: object): void {
     const prevProperty = this.getTexeraGraph().getOperator(operatorID).operatorProperties;
     const command: Command = {
-      execute: () => this.setOperatorPropertyInternal(operatorID, newProperty),
-      undo: () => this.setOperatorPropertyInternal(operatorID, prevProperty)
+      execute: () => {
+        this.jointGraphWrapper.highlightOperator(operatorID);
+        this.setOperatorPropertyInternal(operatorID, newProperty);
+      },
+      undo: () => {
+        this.jointGraphWrapper.highlightOperator(operatorID);
+        this.setOperatorPropertyInternal(operatorID, prevProperty);
+      }
+    };
+    this.executeAndStoreCommand(command);
+  }
+
+  public setOperatorAdvanceStatus(operatorID: string, newShowAdvancedStatus: boolean) {
+    const command: Command = {
+      execute: () => {
+        this.jointGraphWrapper.highlightOperator(operatorID);
+        this.setOperatorAdvanceStatusInternal(operatorID, newShowAdvancedStatus);
+      },
+      undo: () => {
+        this.jointGraphWrapper.highlightOperator(operatorID);
+        this.setOperatorAdvanceStatusInternal(operatorID, !newShowAdvancedStatus);
+      }
     };
     this.executeAndStoreCommand(command);
   }
@@ -289,5 +311,8 @@ export class WorkflowActionService {
     (this.jointGraph.getCell(operatorID) as joint.dia.Element).position(newPosition.x, newPosition.y);
   }
 
+  private setOperatorAdvanceStatusInternal(operatorID: string, newShowAdvancedStatus: boolean) {
+    this.texeraGraph.setOperatorAdvanceStatus(operatorID, newShowAdvancedStatus);
+  }
 
 }

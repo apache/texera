@@ -16,12 +16,6 @@ export class UndoRedoService {
 
   // lets us know whether to listen to the JointJS observables, most of the time we don't
   public listenJointCommand: boolean = true;
-
-  public changeProperty: boolean = true; // when we add an operator, don't want to change properties
-  public undoToggle: boolean = true; // lets us know whether to push to undo or redo stack
-  public clearRedo: boolean = true; // lets us know whether to clear the redo stack. If we do a normal action, we should reset
-  // the stack
-  public dragToggle: boolean = true; // lets us know when we should append to the undo or redo stack when undoing dragging
   // private testGraph: WorkflowGraphReadonly;
 
   private undoStack: Command[] = [];
@@ -33,8 +27,6 @@ export class UndoRedoService {
   public undoAction(): void {
     // We have a toggle to let our service know to add to the redo stack
     if (this.undoStack.length > 0) {
-      this.undoToggle = false;
-      this.dragToggle = false;
       const command = this.undoStack.pop();
       if (command) {
         this.setListenJointCommand(false);
@@ -43,15 +35,12 @@ export class UndoRedoService {
         this.setListenJointCommand(true);
       }
     }
-    this.undoToggle = true;
   }
 
   public redoAction(): void {
     // need to figure out what to keep on the stack and off
     if (this.redoStack.length > 0) {
       // set clearRedo to false so when we redo an action, we keep the rest of the stack
-      this.clearRedo = false;
-      this.dragToggle = false;
       const command = this.redoStack.pop();
       if (command) {
         this.setListenJointCommand(false);
@@ -64,7 +53,6 @@ export class UndoRedoService {
         this.setListenJointCommand(true);
       }
     }
-    this.clearRedo = true;
 
   }
 
