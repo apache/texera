@@ -20,6 +20,7 @@ import { mockExecutionResult } from '../../service/execute-workflow/mock-result-
 import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-graph-wrapper';
 import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-util.service';
 import { environment } from '../../../../environments/environment';
+import { mockScanPredicate, mockPoint } from '../../service/workflow-graph/model/mock-workflow-data';
 
 class StubHttpClient {
 
@@ -268,6 +269,14 @@ describe('NavigationComponent', () => {
     const restoreEndStream = workflowActionService.getJointGraphWrapper().getRestorePaperOffsetStream().map(value => 'e');
     const expectStream = '-e-';
     m.expect(restoreEndStream).toBeObservable(expectStream);
+  }));
+
+  it('should delete all operators on the graph when user clicks on the delete all button', marbles((m) => {
+    m.hot('-e-').do(() => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      component.onClickDeleteAllOperators();
+    }).subscribe();
+    expect(workflowActionService.getTexeraGraph().getAllOperators().length).toBe(0);
   }));
 
 });
