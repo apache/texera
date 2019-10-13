@@ -39,10 +39,8 @@ export class NavigationComponent implements OnInit {
   public showSpinner = false;
   public executionResultID: string | undefined;
 
-  constructor(private executeWorkflowService: ExecuteWorkflowService,
-    private workflowActionService: WorkflowActionService,
+  constructor(private executeWorkflowService: ExecuteWorkflowService, private workflowActionService: WorkflowActionService,
     public tourService: TourService, public undoRedo: UndoRedoService) {
-
     // return the run button after the execution is finished, either
     //  when the value is valid or invalid
     executeWorkflowService.getExecuteEndedStream().subscribe(

@@ -359,7 +359,6 @@ export class PropertyEditorComponent {
         if (this.secondCheckPropertyEqual(formData as IndexableObject, this.cachedFormData as IndexableObject)) {
           return false;
         }
-        console.log('BEE');
         return true;
       })
       // share() because the original observable is a hot observable
@@ -524,7 +523,6 @@ export class PropertyEditorComponent {
         if (Array.isArray(value1)) {
           if (value1.length !== 0) { isPropertiesEqual = false; }
         } else if (typeof value1 === 'object') {
-          console.log('In object check');
           if (Object.keys(value1).length !== 0) { isPropertiesEqual = false; }
         } else if (typeof value1 === 'boolean') {
           if (value1 === true) { isPropertiesEqual = false; }
