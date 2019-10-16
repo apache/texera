@@ -1,9 +1,5 @@
-import { WorkflowActionService, Command } from './../workflow-graph/model/workflow-action.service';
-import { JointGraphWrapper } from './../workflow-graph/model/joint-graph-wrapper';
-import { WorkflowGraphReadonly } from './../workflow-graph/model/workflow-graph';
+import { Command } from './../workflow-graph/model/workflow-action.service';
 import { Injectable } from '@angular/core';
-import { debounceTime } from 'rxjs/operators';
-import { OperatorPredicate, OperatorLink } from '../../types/workflow-common.interface';
 
 
 /* TODO LIST FOR BUGS
