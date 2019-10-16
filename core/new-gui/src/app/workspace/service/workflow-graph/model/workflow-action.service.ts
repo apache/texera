@@ -31,13 +31,6 @@ export interface Command {
  *
  */
 
- // working on undo/redo toggle advanced operator
-
- // createOutputFormChangeEventStream in Property Editor component, maybe cuz this isn't getting called later?
- // identified it as a problem with the secondPropertyCheck, it's passing the test and registering as an actual change
- // when we don't want it to
- // FIXED FOR NOW. Changed secondPropertyEqual in property editor component to ignore predefined
- // strings and bools in cached form
 
 @Injectable()
 export class WorkflowActionService {
