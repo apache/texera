@@ -55,3 +55,31 @@ export interface ErrorExecutionResult extends Readonly< {
  *  if the code value is 1, then the object type must be ErrorExecutionResult
  */
 export type ExecutionResult = SuccessExecutionResult | ErrorExecutionResult;
+
+export interface SuccessProcessStatus extends Readonly< {
+  code: 0
+  OperatorStatus: ReadonlyMap<string, OperatorStatus>
+  OperatorStatistics: ReadonlyMap<string, Statistics>
+}> {}
+
+ export interface ErrorProcessStatus extends Readonly< {
+  code: 1
+  message: string
+}> {}
+
+ export type ProcessStatus = SuccessProcessStatus | ErrorProcessStatus;
+
+ enum OperatorStatus {
+  Initializing,
+  Ready,
+  Running,
+  Pausing,
+  Paused,
+  Completed
+}
+
+ interface Statistics {
+  inputCount: 0;
+  outputCount: 0;
+  speed: 0;
+}
