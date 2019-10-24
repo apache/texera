@@ -3,7 +3,7 @@ import { Observable, Subject } from 'rxjs';
 import { WebsocketService } from '../websocket/websocket.service';
 import { ProcessStatus, SuccessProcessStatus } from '../../types/execute-workflow.interface';
 
-const Engine_URL = 'ws://localhost:7070/api/websocket';
+const Engine_URL = 'ws://128.195.52.129:7070/api/websocket';
 
 @Injectable()
 export class WorkflowStatusService {
