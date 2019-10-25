@@ -115,6 +115,8 @@ export class DragDropService {
           this.operatorSuggestionUnhighlightStream.next(this.suggestionOperator.operatorID);
           this.suggestionOperator = undefined;
         }
+        // turn off the multiselect mode
+        this.workflowActionService.getJointGraphWrapper().setMultiSelectMode(false);
         // highlight the operator after adding the operator
         this.workflowActionService.getJointGraphWrapper().highlightOperator(operator.operatorID);
         // reset the current operator type to an non-exist type

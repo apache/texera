@@ -272,16 +272,21 @@ export class PropertyEditorComponent {
 
   /**
    * Handles the highlight / unhighlight events.
-   * On highlight -> display the form of the highlighted operator
+   * On highlight -> display the form of the highlighted operator if multiselect mode is off
+   *              -> hides the form if multiselect mode is on
    * On unhighlight -> hides the form
    */
   public handleHighlightEvents() {
     this.workflowActionService.getJointGraphWrapper().getJointCellHighlightStream()
       .filter(value => value.operatorID !== this.currentOperatorID)
       .map(value => this.workflowActionService.getTexeraGraph().getOperator(value.operatorID))
-      .subscribe(
-        operator => this.changePropertyEditor(operator)
-      );
+      .subscribe(operator => {
+        if (this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOpeartorIDs().length === 1) {
+          this.changePropertyEditor(operator);
+        } else {
+          this.clearPropertyEditor();
+        }
+      });
 
     this.workflowActionService.getJointGraphWrapper().getJointCellUnhighlightStream()
       .filter(value => value.operatorID === this.currentOperatorID)
