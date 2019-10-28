@@ -2,13 +2,14 @@ import { ValidationWorkflowService } from './../../service/validation/validation
 import { DragDropService } from './../../service/drag-drop/drag-drop.service';
 import { JointUIService } from './../../service/joint-ui/joint-ui.service';
 import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
+import { WorkflowUtilService } from './../../service/workflow-graph/util/workflow-util.service';
 import { Component, AfterViewInit, ElementRef } from '@angular/core';
 import { Observable } from 'rxjs/Observable';
 
 import '../../../common/rxjs-operators';
 import * as joint from 'jointjs';
 import { ResultPanelToggleService } from '../../service/result-panel-toggle/result-panel-toggle.service';
-import { Point } from '../../types/workflow-common.interface';
+import { Point, OperatorPredicate } from '../../types/workflow-common.interface';
 import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-graph-wrapper';
 
 
@@ -46,11 +47,17 @@ export class WorkflowEditorComponent implements AfterViewInit {
   public readonly WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID = 'texera-workflow-editor-jointjs-wrapper-id';
   public readonly WORKFLOW_EDITOR_JOINTJS_ID = 'texera-workflow-editor-jointjs-body-id';
 
+  public readonly COPY_OPERATOR_OFFSET = 20;
+
   private paper: joint.dia.Paper | undefined;
 
   private ifMouseDown: boolean = false;
   private mouseDown: Point | undefined;
   private panOffset: Point = { x : 0 , y : 0};
+
+  private copiedOperator: OperatorPredicate | undefined;
+  private copiedOperatorPosition: Point | undefined;
+  private pastedOperators: string[] = [];
 
 
   constructor(
@@ -59,7 +66,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
     private elementRef: ElementRef,
     private resultPanelToggleService: ResultPanelToggleService,
     private validationWorkflowService: ValidationWorkflowService,
-    private jointUIService: JointUIService
+    private jointUIService: JointUIService,
+    private workflowUtilService: WorkflowUtilService
   ) {
 
     // bind validation functions to the same scope as component
@@ -90,6 +98,11 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.handlePaperMouseZoom();
     this.handleOperatorSuggestionHighlightEvent();
     this.dragDropService.registerWorkflowEditorDrop(this.WORKFLOW_EDITOR_JOINTJS_ID);
+
+    this.handleOperatorDelete();
+    this.handleOperatorCopy();
+    this.handleOperatorCut();
+    this.handleOperatorPaste();
   }
 
 
@@ -393,6 +406,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
       .subscribe(value =>
         this.jointUIService.changeOperatorColor(this.getJointPaper(), value.operatorID, value.status));
   }
+
   /**
    * Gets the width and height of the parent wrapper element
    */
@@ -499,9 +513,148 @@ export class WorkflowEditorComponent implements AfterViewInit {
     }
     return false;
   }
+
+
+  /**
+   * Deletes the currently highlighted operator when user presses the delete key.
+   */
+  private handleOperatorDelete() {
+    Observable.fromEvent<KeyboardEvent>(document, 'keydown')
+      .filter(event => (<HTMLElement> event.target).nodeName !== 'INPUT')
+      .filter(event => event.key === 'Backspace' || event.key === 'Delete')
+      .subscribe(() => {
+        const currentOperatorID = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOpeartorID();
+        if (currentOperatorID) {
+          this.workflowActionService.deleteOperator(currentOperatorID);
+        }
+      });
+  }
+
+  /**
+   * Caches the currently highlighted operator's info (type and position)
+   * when user triggers the copy event (i.e. presses command/ctrl + c on
+   * keyboard or selects copy option from the browser menu).
+   */
+  private handleOperatorCopy() {
+    Observable.fromEvent<ClipboardEvent>(document, 'copy')
+      .filter(event => (<HTMLElement> event.target).nodeName !== 'INPUT')
+      .subscribe(() => {
+        const currentOperatorID = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOpeartorID();
+        if (currentOperatorID) {
+          this.saveOperatorInfo(currentOperatorID);
+          this.pastedOperators = [currentOperatorID];
+        }
+      });
+  }
+
+  /**
+   * Caches the currently highlighted operator's info (type and position) and
+   * deletes it when user triggers the cut event (i.e. presses command/ctrl + x
+   * on keyboard or selects cut option from the browser menu).
+   */
+  private handleOperatorCut() {
+    Observable.fromEvent<ClipboardEvent>(document, 'cut')
+      .filter(event => (<HTMLElement> event.target).nodeName !== 'INPUT')
+      .subscribe(() => {
+        const currentOperatorID = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOpeartorID();
+        if (currentOperatorID) {
+          this.saveOperatorInfo(currentOperatorID);
+          this.workflowActionService.deleteOperator(currentOperatorID);
+          this.pastedOperators = [];
+        }
+      });
+  }
+
+  /**
+   * Utility function to cache the operator and its position.
+   * @param operatorID
+   */
+  private saveOperatorInfo(operatorID: string) {
+    const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorID);
+    if (operator) {
+      this.copiedOperator = operator;
+      this.copiedOperatorPosition = this.workflowActionService.getJointGraphWrapper().getOperatorPosition(operatorID);
+    }
+  }
+
+  /**
+   * Pastes the cached operator onto the workflow graph and highlights it
+   * when user triggers the paste event (i.e. presses command/ctrl + v on
+   * keyboard or selects paste option from the browser menu).
+   */
+  private handleOperatorPaste() {
+    Observable.fromEvent<ClipboardEvent>(document, 'paste')
+      .filter(event => (<HTMLElement> event.target).nodeName !== 'INPUT')
+      .subscribe(() => {
+        if (this.copiedOperator && this.copiedOperatorPosition) {
+          const newOperator = this.copyOperator(this.copiedOperator);
+          const newOperatorPosition = this.calcOperatorPosition(newOperator.operatorID, this.copiedOperatorPosition);
+          this.workflowActionService.addOperator(newOperator, newOperatorPosition);
+          this.workflowActionService.getJointGraphWrapper().highlightOperator(newOperator.operatorID);
+        }
+      });
+  }
+
+  /**
+   * Utility function to create a new operator that contains same
+   * info as the copied operator.
+   * @param operator
+   */
+  private copyOperator(operator: OperatorPredicate): OperatorPredicate {
+    const operatorID = this.workflowUtilService.getRandomUUID();
+    const operatorType = operator.operatorType;
+    const operatorProperties = operator.operatorProperties;
+    const inputPorts = operator.inputPorts;
+    const outputPorts = operator.outputPorts;
+    const showAdvanced = operator.showAdvanced;
+    return {operatorID, operatorType, operatorProperties, inputPorts, outputPorts, showAdvanced};
+  }
+
+  /**
+   * Utility function to calculate the position to paste the operator.
+   * If a previously pasted operator is moved or deleted, the operator will be
+   * pasted to the emptied position. Otherwise, it will be pasted to a position
+   * that's non-overlapping and calculated according to the copy operator offset.
+   * @param operatorID
+   */
+  private calcOperatorPosition(operatorID: string, operatorPosition: Point): Point {
+    let i, position;
+    for (i = 0; i < this.pastedOperators.length; ++i) {
+      position = {x: operatorPosition.x + i * this.COPY_OPERATOR_OFFSET,
+                  y: operatorPosition.y + i * this.COPY_OPERATOR_OFFSET};
+      if (!this.workflowActionService.getTexeraGraph().hasOperator(this.pastedOperators[i]) ||
+          this.workflowActionService.getJointGraphWrapper().getOperatorPosition(this.pastedOperators[i]).x !== position.x ||
+          this.workflowActionService.getJointGraphWrapper().getOperatorPosition(this.pastedOperators[i]).y !== position.y) {
+        this.pastedOperators[i] = operatorID;
+        return this.getNonOverlappingPosition(position);
+      }
+    }
+    this.pastedOperators.push(operatorID);
+    position = {x: operatorPosition.x + i * this.COPY_OPERATOR_OFFSET,
+                y: operatorPosition.y + i * this.COPY_OPERATOR_OFFSET};
+    return this.getNonOverlappingPosition(position);
+  }
+
+  /**
+   * Utility function to find a non-overlapping position for the pasted operator.
+   * The function will check if the current position overlaps with an existing
+   * operator. If it does, the function will find a new non-overlapping position.
+   * @param position
+   */
+  private getNonOverlappingPosition(position: Point): Point {
+    let overlapped = false;
+    const allOperators = this.workflowActionService.getTexeraGraph().getAllOperators();
+    do {
+      for (const operator of allOperators) {
+        const operatorPosition = this.workflowActionService.getJointGraphWrapper().getOperatorPosition(operator.operatorID);
+        if (operatorPosition.x === position.x && operatorPosition.y === position.y) {
+          position = {x: position.x + this.COPY_OPERATOR_OFFSET, y: position.y + this.COPY_OPERATOR_OFFSET};
+          overlapped = true;
+          break;
+        }
+        overlapped = false;
+      }
+    } while (overlapped);
+    return position;
+  }
 }
-
-
-
-
-
