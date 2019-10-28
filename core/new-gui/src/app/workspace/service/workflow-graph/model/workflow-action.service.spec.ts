@@ -26,7 +26,8 @@ describe('WorkflowActionService', () => {
         JointUIService,
         UndoRedoService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
-      ]
+      ],
+      imports: [UndoRedoService]
     });
     service = TestBed.get(WorkflowActionService);
     texeraGraph = (service as any).texeraGraph;

@@ -149,17 +149,6 @@ export class PropertyEditorComponent {
     this.advancedClick = true;
     this.showAdvanced = !this.showAdvanced;
     this.workflowActionService.setOperatorAdvanceStatus(this.currentOperatorID, this.showAdvanced);
-    /*
-    this.currentOperatorSchema = this.showAdvanced ? this.advancedOperatorSchema :
-       this.hideAdvancedSchema(this.currentOperatorSchema);
-
-    if (this.cachedFormData !== undefined) {
-      this.currentOperatorInitialData = this.cachedFormData;
-    }
-    */
-
-    // Have a function that causes the observable to emit the event, and have something else
-    // listen to the observable and then call the function that hides/shows the schema
   }
 
   /**
