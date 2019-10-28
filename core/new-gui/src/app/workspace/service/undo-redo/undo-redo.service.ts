@@ -60,4 +60,12 @@ export class UndoRedoService {
   public setListenJointCommand(toggle: boolean): void {
     this.listenJointCommand = toggle;
   }
+
+  public getUndoLength(): number {
+    return this.undoStack.length;
+  }
+
+  public getRedoLength(): number {
+    return this.redoStack.length;
+  }
 }
