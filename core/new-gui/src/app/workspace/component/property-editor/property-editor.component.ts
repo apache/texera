@@ -441,23 +441,6 @@ export class PropertyEditorComponent {
   }
 
   /**
-   * This method handles the form change event and set the operator property
-   *  in the texera graph.
-   */
-  private handleOnFormChange(): void {
-    this.outputFormChangeEventStream
-      .subscribe(formData => {
-        // set the operator property to be the new form data
-      if (this.currentOperatorID) {
-
-        // need to use spread operator to keep the advanced options in the new operator properties do not contain them
-        this.cachedFormData = {...this.currentOperatorInitialData, ...formData};
-        this.workflowActionService.setOperatorProperty(this.currentOperatorID, formData);
-      }
-    });
-  }
-
-  /**
    * This method is serve as the second check to determine if the form data is equal to the
    *  cached form data that might be changed by system instead of user changing in property panel.
    *
@@ -533,6 +516,23 @@ export class PropertyEditorComponent {
       }
     });
     return isPropertiesEqual;
+  }
+
+  /**
+   * This method handles the form change event and set the operator property
+   *  in the texera graph.
+   */
+  private handleOnFormChange(): void {
+    this.outputFormChangeEventStream
+      .subscribe(formData => {
+        // set the operator property to be the new form data
+      if (this.currentOperatorID) {
+
+        // need to use spread operator to keep the advanced options in the new operator properties do not contain them
+        this.cachedFormData = {...this.currentOperatorInitialData, ...formData};
+        this.workflowActionService.setOperatorProperty(this.currentOperatorID, formData);
+      }
+    });
   }
 
   /**
