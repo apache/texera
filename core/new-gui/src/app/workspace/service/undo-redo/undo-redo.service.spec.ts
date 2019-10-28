@@ -40,11 +40,27 @@ describe('UndoRedoService', () => {
     expect(undoRedoService.getRedoLength).toEqual(0);
   });
 
-  it('redoing command should move from undo to redo stack', () => {
+  it('redoing command should move from undo to redo stack and vice versa', () => {
     workflowActionService.addOperator(mockScanPredicate, mockPoint);
 
     undoRedoService.undoAction();
     expect(undoRedoService.getUndoLength).toEqual(0);
     expect(undoRedoService.getRedoLength).toEqual(1);
+
+    undoRedoService.redoAction();
+    expect(undoRedoService.getUndoLength).toEqual(1);
+    expect(undoRedoService.getRedoLength).toEqual(0);
+  });
+
+  it('executing new action clears redo stack', () => {
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+
+    undoRedoService.undoAction();
+    expect(undoRedoService.getUndoLength).toEqual(0);
+    expect(undoRedoService.getRedoLength).toEqual(1);
+
+    workflowActionService.addOperator(mockResultPredicate, mockPoint);
+    expect(undoRedoService.getUndoLength).toEqual(1);
+    expect(undoRedoService.getRedoLength).toEqual(0);
   });
 });

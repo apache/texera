@@ -34,7 +34,7 @@ describe('WorkflowGraph', () => {
   });
 
   it('should return undefined when get an operator with a nonexist operator ID', () => {
-    expect(workflowGraph.getOperator('nonexist')).toBe(undefined);
+    expect(workflowGraph.getOperator('nonexist')).toBeUndefined();
   });
 
   it('should throw an error when trying to add an operator with an existing operator ID', () => {
@@ -106,14 +106,14 @@ describe('WorkflowGraph', () => {
   });
 
   it('should return undefined when tring to get a nonexist link by link ID', () => {
-    expect(workflowGraph.getLinkWithID('nonexist')).toBe(undefined);
+    expect(workflowGraph.getLinkWithID('nonexist')).toBeUndefined();
   });
 
   it('should throw an error when tring to get a nonexist link by link source and target', () => {
     expect(workflowGraph.getLink(
         { operatorID: 'source', portID: 'source port' },
         { operatorID: 'target', portID: 'taret port' }
-      )).toBe(undefined);
+      )).toBeUndefined();
   });
 
   it('should delete a link by ID properly', () => {
