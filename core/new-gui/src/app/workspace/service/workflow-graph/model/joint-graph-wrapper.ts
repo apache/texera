@@ -224,7 +224,7 @@ export class JointGraphWrapper {
   /**
    * Returns an Observable stream capturing the link cell delete event in JointJS graph.
    *
-   * Notice that a link deleted from JointJS graph doesn't mean the same event happens for Texera Workflow Grap
+   * Notice that a link deleted from JointJS graph doesn't mean the same event happens for Texera Workflow Graph
    *  because the link might not be valid and doesn't exist logically in the Workflow Graph.
    * This event only represents that a link cell visually disappears from the UI.
    *
@@ -348,6 +348,23 @@ export class JointGraphWrapper {
     const position = element.position();
     return { x: position.x, y: position.y };
     }
+
+  /**
+   * This method changes the operator's position to the specified point on JointJS.
+   * @param operatorID
+   * @param position
+   */
+  public setOperatorPosition(operatorID: string, position: Point): void {
+    const cell: joint.dia.Cell | undefined = this.jointGraph.getCell(operatorID);
+    if (! cell) {
+      throw new Error(`operator with ID ${operatorID} doesn't exist`);
+    }
+    if (! cell.isElement()) {
+      throw new Error(`${operatorID} is not an operator`);
+    }
+    const element = <joint.dia.Element> cell;
+    element.position(position.x, position.y);
+  }
 
   /**
    * Subscribes to operator cell delete event stream,
