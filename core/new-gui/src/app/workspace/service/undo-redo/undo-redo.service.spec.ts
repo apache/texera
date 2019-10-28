@@ -2,9 +2,7 @@ import { StubOperatorMetadataService } from './../operator-metadata/stub-operato
 import { OperatorMetadataService } from './../operator-metadata/operator-metadata.service';
 import { Command, WorkflowActionService } from './../workflow-graph/model/workflow-action.service';
 import {
-  mockScanPredicate, mockResultPredicate, mockSentimentPredicate, mockScanResultLink,
-  mockScanSentimentLink, mockSentimentResultLink, mockFalseResultSentimentLink, mockFalseSentimentScanLink,
-  mockPoint
+  mockScanPredicate, mockResultPredicate, mockPoint
 } from './../workflow-graph/model/mock-workflow-data';
 import { TestBed, inject } from '@angular/core/testing';
 

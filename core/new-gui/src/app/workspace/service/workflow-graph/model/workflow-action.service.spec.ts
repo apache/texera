@@ -2,6 +2,7 @@ import { StubOperatorMetadataService } from './../../operator-metadata/stub-oper
 import { OperatorMetadataService } from './../../operator-metadata/operator-metadata.service';
 import { JointUIService } from './../../joint-ui/joint-ui.service';
 import { WorkflowGraph } from './workflow-graph';
+import { UndoRedoService } from './../../undo-redo/undo-redo.service';
 import {
   mockScanPredicate, mockResultPredicate, mockSentimentPredicate, mockScanResultLink,
   mockScanSentimentLink, mockSentimentResultLink, mockFalseResultSentimentLink, mockFalseSentimentScanLink,
@@ -23,6 +24,7 @@ describe('WorkflowActionService', () => {
       providers: [
         WorkflowActionService,
         JointUIService,
+        UndoRedoService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
       ]
     });
