@@ -272,9 +272,10 @@ export class PropertyEditorComponent {
 
   /**
    * Handles the highlight / unhighlight events.
-   * On highlight -> display the form of the highlighted operator if multiselect mode is off
-   *              -> hides the form if multiselect mode is on
-   * On unhighlight -> hides the form
+   * On highlight   -> display the form of the highlighted operator if multiselect mode is off
+   *                -> hides the form if multiselect mode is on
+   * On unhighlight -> display the form of the highlighted operator if only one operator is highlighted
+   *                -> hides the form otherwise
    */
   public handleHighlightEvents() {
     this.workflowActionService.getJointGraphWrapper().getJointCellHighlightStream()
@@ -289,8 +290,16 @@ export class PropertyEditorComponent {
       });
 
     this.workflowActionService.getJointGraphWrapper().getJointCellUnhighlightStream()
-      .filter(value => value.operatorID === this.currentOperatorID)
-      .subscribe(() => this.clearPropertyEditor());
+      // .filter(value => value.operatorID === this.currentOperatorID)
+      .subscribe(() => {
+        const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOpeartorIDs();
+        if (highlightedOperators.length === 1) {
+          const operator = this.workflowActionService.getTexeraGraph().getOperator(highlightedOperators[0]);
+          this.changePropertyEditor(operator);
+        } else {
+          this.clearPropertyEditor();
+        }
+      });
   }
 
   /**

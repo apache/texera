@@ -277,6 +277,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
   /**
    * Handles user mouse down events to trigger logically highlight and unhighlight an operator.
    * If user clicks the operator while pressing the shift key, multiselect mode is turned on.
+   * When pressing the shift key, user can unhighlight a highlighted operator by clicking on it.
    */
   private handleHighlightMouseInput(): void {
     // on user mouse clicks a operator cell, highlight that operator
@@ -285,7 +286,13 @@ export class WorkflowEditorComponent implements AfterViewInit {
       .subscribe(event => {
         // event[0] is the JointJS CellView; event[1] is the original JQuery Event
         this.workflowActionService.getJointGraphWrapper().setMultiSelectMode(<boolean> event[1].shiftKey);
-        this.workflowActionService.getJointGraphWrapper().highlightOperator(event[0].model.id.toString());
+        const operatorID = event[0].model.id.toString();
+        const currentOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOpeartorIDs();
+        if (event[1].shiftKey && currentOperatorIDs.includes(operatorID)) {
+          this.workflowActionService.getJointGraphWrapper().unhighlightOperator(operatorID);
+        } else {
+          this.workflowActionService.getJointGraphWrapper().highlightOperator(operatorID);
+        }
       });
 
     /**
@@ -530,7 +537,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
     Observable.fromEvent<KeyboardEvent>(document, 'keydown')
       .filter(event => (<HTMLElement> event.target).nodeName !== 'INPUT')
       .filter(event => (event.metaKey || event.ctrlKey) && event.key === 'a')
-      .subscribe(() => {
+      .subscribe(event => {
+        event.preventDefault();
         const allOperators = this.workflowActionService.getTexeraGraph().getAllOperators();
         this.workflowActionService.getJointGraphWrapper().setMultiSelectMode(allOperators.length > 1);
         allOperators.forEach(operator => {
