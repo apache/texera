@@ -68,8 +68,8 @@ export class JointGraphWrapper {
 
   // flag that indicates whether multiselect mode is on
   private multiSelect: boolean = false;
-  // the current highlighted operators' ID
-  private currentHighlightedOperators: string[] = [];
+  // the current highlighted operators' ID and position
+  private currentHighlightedOperators: Record<string, Point> = {};
   // event stream of highlighting an operator
   private jointCellHighlightStream = new Subject<operatorIDType>();
   // event stream of un-highlighting an operator
@@ -131,7 +131,7 @@ export class JointGraphWrapper {
    * Returns an empty list if there is no highlighted operator.
    */
   public getCurrentHighlightedOpeartorIDs(): string[] {
-    return this.currentHighlightedOperators;
+    return Object.keys(this.currentHighlightedOperators);
   }
 
   /**
@@ -152,17 +152,18 @@ export class JointGraphWrapper {
       throw new Error(`opeartor with ID ${operatorID} doesn't exist`);
     }
     // if the current highlighted operator is already highlighted, don't do anything
-    if (this.currentHighlightedOperators.includes(operatorID)) {
+    if (operatorID in this.currentHighlightedOperators) {
       return;
     }
     // if the multiselect mode is off and there are other highlighted operators,
     // unhighlight them first
-    if (!this.multiSelect && this.currentHighlightedOperators.length > 0) {
-      const highlightedOperators = Object.assign([], this.currentHighlightedOperators);
-      highlightedOperators.forEach(highlightedOperator => this.unhighlightOperator(highlightedOperator));
+    if (!this.multiSelect && Object.keys(this.currentHighlightedOperators).length > 0) {
+      Object.keys(this.currentHighlightedOperators).forEach(
+        highlightedOperator => this.unhighlightOperator(highlightedOperator)
+      );
     }
-    // highlight the operator and emit the event
-    this.currentHighlightedOperators.push(operatorID);
+    // highlight the operator, remember its position, and emit the event
+    this.currentHighlightedOperators[operatorID] = this.getOperatorPosition(operatorID);
     this.jointCellHighlightStream.next({ operatorID });
   }
 
@@ -172,11 +173,10 @@ export class JointGraphWrapper {
    * @param unhighlightedOperatorID
    */
   public unhighlightOperator(unhighlightedOperatorID: string): void {
-    if (!this.currentHighlightedOperators.includes(unhighlightedOperatorID)) {
+    if (!(unhighlightedOperatorID in this.currentHighlightedOperators)) {
       return;
     }
-    const unhighlightedOperatorIndex = this.currentHighlightedOperators.indexOf(unhighlightedOperatorID);
-    this.currentHighlightedOperators.splice(unhighlightedOperatorIndex, 1);
+    delete this.currentHighlightedOperators[unhighlightedOperatorID];
     this.jointCellUnhighlightStream.next({ operatorID: unhighlightedOperatorID });
   }
 
@@ -374,7 +374,7 @@ export class JointGraphWrapper {
   private handleOperatorDeleteUnhighlight(): void {
     this.getJointOperatorCellDeleteStream().subscribe(deletedOperatorCell => {
       const deletedOperatorID = deletedOperatorCell.id.toString();
-      if (this.currentHighlightedOperators.includes(deletedOperatorID)) {
+      if (deletedOperatorID in this.currentHighlightedOperators) {
         this.unhighlightOperator(deletedOperatorID);
       }
     });

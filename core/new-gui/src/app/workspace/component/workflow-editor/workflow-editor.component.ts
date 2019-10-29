@@ -23,16 +23,16 @@ type JointPaperEvent = [joint.dia.CellView, JQuery.Event, number, number];
 // argument type of callback event on a JointJS Paper only for blank:pointerdown event
 type JointPointerDownEvent = [JQuery.Event, number, number];
 
-// This interface stores information for copied operators:
+// This type represents the copied operator and its information:
 // - operator: the copied operator itself, and its properties, etc.
 // - position: the position of the copied operator on the workflow graph
 // - pastedOperators: a list of operators that are created out of the original operator,
 //   including the operator itself.
-interface CopiedOperator {
+type CopiedOperator = {
   operator: OperatorPredicate;
   position: Point;
   pastedOperators: string[];
-}
+};
 
 /**
  * WorkflowEditorComponent is the componenet for the main workflow editor part of the UI.
@@ -106,6 +106,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.handlePaperPan();
     this.handlePaperMouseZoom();
     this.handleOperatorSuggestionHighlightEvent();
+    this.handleOperatorPositionChangeEvent();
     this.dragDropService.registerWorkflowEditorDrop(this.WORKFLOW_EDITOR_JOINTJS_ID);
 
     this.handleOperatorDelete();
@@ -361,6 +362,16 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.getJointPaper().translate(-elementOffset.x + this.panOffset.x, -elementOffset.y + this.panOffset.y);
   }
 
+  private handleOperatorPositionChangeEvent(): void {
+    this.workflowActionService.getJointGraphWrapper().getOperatorPositionChangeEvent()
+      .subscribe(event => {
+        console.log(event.newPosition);
+        this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOpeartorIDs().forEach(operatorID => {
+          this.workflowActionService.getJointGraphWrapper().setOperatorPosition(operatorID, event.newPosition);
+        });
+      });
+  }
+
   /**
    * Sets the size of the JointJS paper to be the exact size of its wrapper element.
    */
@@ -518,8 +529,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
       .filter(event => (<HTMLElement> event.target).nodeName !== 'INPUT')
       .filter(event => event.key === 'Backspace' || event.key === 'Delete')
       .subscribe(() => {
-        const currentOperatorIDs = Object.assign([], this.workflowActionService.getJointGraphWrapper()
-                                                         .getCurrentHighlightedOpeartorIDs());
+        const currentOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOpeartorIDs();
         currentOperatorIDs.forEach(operatorID => this.workflowActionService.deleteOperator(operatorID));
       });
   }
@@ -549,8 +559,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     Observable.fromEvent<ClipboardEvent>(document, 'copy')
       .filter(event => (<HTMLElement> event.target).nodeName !== 'INPUT')
       .subscribe(() => {
-        const currentOperatorIDs = this.workflowActionService.getJointGraphWrapper()
-                                        .getCurrentHighlightedOpeartorIDs();
+        const currentOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOpeartorIDs();
         if (currentOperatorIDs.length > 0) {
           this.copiedOperators = {};
           currentOperatorIDs.forEach(opeartorID => this.saveOperatorInfo(opeartorID));
@@ -567,8 +576,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     Observable.fromEvent<ClipboardEvent>(document, 'cut')
       .filter(event => (<HTMLElement> event.target).nodeName !== 'INPUT')
       .subscribe(() => {
-        const currentOperatorIDs = Object.assign([], this.workflowActionService.getJointGraphWrapper()
-                                                         .getCurrentHighlightedOpeartorIDs());
+        const currentOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOpeartorIDs();
         if (currentOperatorIDs.length > 0) {
           this.copiedOperators = {};
           currentOperatorIDs.forEach(operatorID => {
