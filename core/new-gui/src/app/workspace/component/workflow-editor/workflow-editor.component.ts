@@ -106,7 +106,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.handlePaperPan();
     this.handlePaperMouseZoom();
     this.handleOperatorSuggestionHighlightEvent();
-    this.handleOperatorPositionChangeEvent();
     this.dragDropService.registerWorkflowEditorDrop(this.WORKFLOW_EDITOR_JOINTJS_ID);
 
     this.handleOperatorDelete();
@@ -362,16 +361,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.getJointPaper().translate(-elementOffset.x + this.panOffset.x, -elementOffset.y + this.panOffset.y);
   }
 
-  private handleOperatorPositionChangeEvent(): void {
-    this.workflowActionService.getJointGraphWrapper().getOperatorPositionChangeEvent()
-      .subscribe(event => {
-        console.log(event.newPosition);
-        this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOpeartorIDs().forEach(operatorID => {
-          this.workflowActionService.getJointGraphWrapper().setOperatorPosition(operatorID, event.newPosition);
-        });
-      });
-  }
-
   /**
    * Sets the size of the JointJS paper to be the exact size of its wrapper element.
    */
@@ -611,8 +600,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
       .filter(event => (<HTMLElement> event.target).nodeName !== 'INPUT')
       .subscribe(() => {
         if (Object.keys(this.copiedOperators).length > 0) {
-          const currentOperatorIDs = Object.assign([], this.workflowActionService.getJointGraphWrapper()
-                                                          .getCurrentHighlightedOpeartorIDs());
+          const currentOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOpeartorIDs();
           currentOperatorIDs.forEach(operatorID => {
             this.workflowActionService.getJointGraphWrapper().unhighlightOperator(operatorID);
           });
