@@ -1,4 +1,5 @@
 import { WorkflowActionService } from './workflow-action.service';
+import { UndoRedoService } from './../../undo-redo/undo-redo.service';
 import { OperatorMetadataService } from '../../operator-metadata/operator-metadata.service';
 import { JointUIService } from '../../joint-ui/joint-ui.service';
 import { JointGraphWrapper } from './joint-graph-wrapper';
@@ -25,6 +26,7 @@ describe('JointGraphWrapperService', () => {
       providers: [
         JointUIService,
         WorkflowActionService,
+        UndoRedoService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
       ]
     });

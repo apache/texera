@@ -1,5 +1,6 @@
 import { OperatorSchema } from './../../types/operator-schema.interface';
 import { WorkflowActionService } from './../workflow-graph/model/workflow-action.service';
+import { UndoRedoService } from './../undo-redo/undo-redo.service';
 import { JointUIService } from './../joint-ui/joint-ui.service';
 import { TestBed, inject } from '@angular/core/testing';
 import { marbles } from 'rxjs-marbles';
@@ -19,6 +20,7 @@ describe('DynamicSchemaService', () => {
         {provide: OperatorMetadataService, useClass: StubOperatorMetadataService},
         JointUIService,
         WorkflowActionService,
+        UndoRedoService,
         DynamicSchemaService
       ]
     });

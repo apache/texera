@@ -34,7 +34,9 @@ describe('WorkflowGraph', () => {
   });
 
   it('should return undefined when get an operator with a nonexist operator ID', () => {
-    expect(workflowGraph.getOperator('nonexist')).toBeUndefined();
+    expect(() => {
+      workflowGraph.getOperator('nonexist');
+    }).toThrowError(new RegExp(`does not exist`));
   });
 
   it('should throw an error when trying to add an operator with an existing operator ID', () => {
@@ -53,7 +55,7 @@ describe('WorkflowGraph', () => {
   it('should throw an error when tring to delete an operator that doesn\'t exist', () => {
     expect(() => {
       workflowGraph.deleteOperator('nonexist');
-    }).toThrowError(new RegExp(`doesn't exist`));
+    }).toThrowError(new RegExp(`does not exist`));
   });
 
   it('should add and get a link properly', () => {
@@ -106,14 +108,18 @@ describe('WorkflowGraph', () => {
   });
 
   it('should return undefined when tring to get a nonexist link by link ID', () => {
-    expect(workflowGraph.getLinkWithID('nonexist')).toBeUndefined();
+    expect(() => {
+      workflowGraph.getLinkWithID('nonexist');
+    }).toThrowError(new RegExp(`does not exist`));
   });
 
   it('should throw an error when tring to get a nonexist link by link source and target', () => {
-    expect(workflowGraph.getLink(
+    expect(() => {
+        workflowGraph.getLink(
         { operatorID: 'source', portID: 'source port' },
         { operatorID: 'target', portID: 'taret port' }
-      )).toBeUndefined();
+      );
+      }).toThrowError(new RegExp(`does not exist`));
   });
 
   it('should delete a link by ID properly', () => {
@@ -137,7 +143,7 @@ describe('WorkflowGraph', () => {
   it('should throw an error when trying to delete a link (by ID) that doesn\'t exist', () => {
     expect(() => {
       workflowGraph.deleteLinkWithID(mockScanResultLink.linkID);
-    }).toThrowError(new RegExp(`doesn't exist`));
+    }).toThrowError(new RegExp(`does not exist`));
   });
 
   it('should throw an error when trying to delete a link (by source and target) that doesn\'t exist', () => {
@@ -146,7 +152,7 @@ describe('WorkflowGraph', () => {
         { operatorID: 'source', portID: 'source port' },
         { operatorID: 'target', portID: 'taret port' }
       );
-    }).toThrowError(new RegExp(`doesn't exist`));
+    }).toThrowError(new RegExp(`does not exist`));
   });
 
   it('should set the operator property(attributes) properly', () => {

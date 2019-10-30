@@ -5,6 +5,7 @@ import { ExecuteWorkflowService } from './../../service/execute-workflow/execute
 import { CustomNgMaterialModule } from './../../../common/custom-ng-material.module';
 
 import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
+import { UndoRedoService } from './../../service/undo-redo/undo-redo.service';
 import { JointUIService } from './../../service/joint-ui/joint-ui.service';
 import { OperatorMetadataService } from './../../service/operator-metadata/operator-metadata.service';
 import { StubOperatorMetadataService } from './../../service/operator-metadata/stub-operator-metadata.service';
@@ -60,6 +61,7 @@ describe('ResultPanelComponent', () => {
       ],
       providers: [
         WorkflowActionService,
+        UndoRedoService,
         JointUIService,
         ExecuteWorkflowService,
         ResultPanelToggleService,

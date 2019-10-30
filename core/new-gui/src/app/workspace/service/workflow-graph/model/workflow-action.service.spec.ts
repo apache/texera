@@ -76,7 +76,7 @@ describe('WorkflowActionService', () => {
   it('should throw an error when trying to delete an non-existing operator', () => {
     expect(() => {
       service.deleteOperator(mockScanPredicate.operatorID);
-    }).toThrowError(new RegExp(`doesn't exist`));
+    }).toThrowError(new RegExp(`does not exist`));
   });
 
 
@@ -114,12 +114,12 @@ describe('WorkflowActionService', () => {
     // link's target operator or port doesn't exist
     expect(() => {
       service.addLink(mockScanSentimentLink);
-    }).toThrowError(new RegExp(`target .* doesn't exist`));
+    }).toThrowError(new RegExp(`does not exist`));
 
     // link's source operator or port doesn't exist
     expect(() => {
       service.addLink(mockSentimentResultLink);
-    }).toThrowError(new RegExp(`source .* doesn't exist`));
+    }).toThrowError(new RegExp(`does not exist`));
 
     // add another operator for tests below
     texeraGraph.addOperator(mockSentimentPredicate);
@@ -169,11 +169,11 @@ describe('WorkflowActionService', () => {
 
     expect(() => {
       service.deleteLinkWithID(mockScanResultLink.linkID);
-    }).toThrowError(new RegExp(`doesn't exist`));
+    }).toThrowError(new RegExp(`does not exist`));
 
     expect(() => {
       service.deleteLinkWithID(mockScanResultLink.linkID);
-    }).toThrowError(new RegExp(`doesn't exist`));
+    }).toThrowError(new RegExp(`does not exist`));
   });
 
   it('should set operator property to texera graph correctly', () => {
@@ -193,7 +193,7 @@ describe('WorkflowActionService', () => {
     expect(() => {
       const newProperty = { table: 'test-table' };
       service.setOperatorProperty(mockScanPredicate.operatorID, newProperty);
-    }).toThrowError(new RegExp(`doesn't exist`));
+    }).toThrowError(new RegExp(`does not exist`));
   });
 
   it('should handle delete an operator causing connected links to be deleted correctly', () => {
