@@ -15,6 +15,7 @@ import { SuccessProcessStatus } from '../../types/execute-workflow.interface';
 import { OperatorStates } from '../../types/execute-workflow.interface';
 import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-util.service';
 
+
 // argument type of callback event on a JointJS Paper
 // which is a 4-element tuple:
 // 1. the JointJS View (CellView) of the event
