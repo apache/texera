@@ -525,7 +525,7 @@ export class PropertyEditorComponent {
   private handleOnFormChange(): void {
     this.outputFormChangeEventStream
       .subscribe(formData => {
-        // set the operator property to be the new form data
+      // set the operator property to be the new form data
       if (this.currentOperatorID) {
 
         // need to use spread operator to keep the advanced options in the new operator properties do not contain them

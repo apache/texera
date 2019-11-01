@@ -127,12 +127,6 @@ export class WorkflowActionService {
     return paperOptions;
   }
 
-  public executeAndStoreCommand(command: Command): void {
-    this.undoRedoService.setListenJointCommand(false);
-    command.execute();
-    this.undoRedoService.addCommand(command);
-    this.undoRedoService.setListenJointCommand(true);
-  }
   /**
    * Adds an opreator to the workflow graph at a point.
    * Throws an Error if the operator ID already existed in the Workflow Graph.
@@ -174,7 +168,6 @@ export class WorkflowActionService {
     const position = this.getJointGraphWrapper().getOperatorPosition(operatorID);
     const linksToDelete = this.getTexeraGraph().getAllLinks()
       .filter(link => link.source.operatorID === operatorID || link.target.operatorID === operatorID);
-    const currentHighlighted = this.getJointGraphWrapper().getCurrentHighlightedOpeartorID();
 
     const command: Command = {
       execute: () => {
@@ -184,7 +177,7 @@ export class WorkflowActionService {
       undo: () => {
         this.addOperatorInternal(operator, position);
         linksToDelete.forEach(link => this.addLinkInternal(link));
-        this.getJointGraphWrapper().highlightOperator(currentHighlighted);
+        this.getJointGraphWrapper().highlightOperator(operator.operatorID);
       }
     };
     this.executeAndStoreCommand(command);
@@ -253,16 +246,6 @@ export class WorkflowActionService {
     this.executeAndStoreCommand(command);
   }
 
-  // is this currently used for anything?
-  public setOperatorPosition(operatorID: string, newPosition: Point): void {
-    const currentPosition = this.getJointGraphWrapper().getOperatorPosition(operatorID);
-    const command: Command = {
-      execute: () => this.setOperatorPositionInternal(operatorID, newPosition),
-      undo: () => this.setOperatorPositionInternal(operatorID, currentPosition)
-    };
-    this.executeAndStoreCommand(command);
-  }
-
   private addOperatorInternal(operator: OperatorPredicate, point: Point): void {
     // get the JointJS UI element
     const operatorJointElement = this.jointUIService.getJointOperatorElement(operator, point);
@@ -306,6 +289,13 @@ export class WorkflowActionService {
 
   private setOperatorAdvanceStatusInternal(operatorID: string, newShowAdvancedStatus: boolean) {
     this.texeraGraph.setOperatorAdvanceStatus(operatorID, newShowAdvancedStatus);
+  }
+
+  private executeAndStoreCommand(command: Command): void {
+    this.undoRedoService.setListenJointCommand(false);
+    command.execute();
+    this.undoRedoService.addCommand(command);
+    this.undoRedoService.setListenJointCommand(true);
   }
 
 }

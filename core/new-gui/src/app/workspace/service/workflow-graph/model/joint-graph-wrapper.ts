@@ -227,10 +227,6 @@ export class JointGraphWrapper {
     return jointOperatorDeleteStream;
   }
 
-  // Returns observable for the drag stream
-
-
-
   /**
    * Returns an Observable stream capturing the link cell add event in JointJS graph.
    *
