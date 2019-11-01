@@ -3,7 +3,7 @@ import { Observable, Subject } from 'rxjs';
 import { WebsocketService } from '../websocket/websocket.service';
 import { ProcessStatus, SuccessProcessStatus } from '../../types/execute-workflow.interface';
 
-const Engine_URL = 'ws://128.195.52.129:7070/api/websocket';
+const Engine_URL = 'ws://localhost:7070/api/websocket';
 
 @Injectable()
 export class WorkflowStatusService {
@@ -20,10 +20,11 @@ export class WorkflowStatusService {
     this.connectionChannel.subscribe({
       next(response) {
         console.log('received status from backend: ');
-        console.log(response);
         const json = JSON.parse((response as any).data) as SuccessProcessStatus;
-        console.log(json);
-        // current.status.next(json);
+        // console.log(json.message);
+        // console.log(json.operatorStatistics);
+        // console.log(json.operatorStatus);
+        current.status.next(json);
       },
       error(err) {console.log('websocket error occured: ' + err); },
       complete() {console.log('websocket finished and disconected'); }
@@ -36,7 +37,7 @@ export class WorkflowStatusService {
 
     //     const json = JSON.parse((response as any).data)['Result'] as SuccessProcessStatus;
     //     console.log(json.code);
-    //     console.log((json as SuccessProcessStatus).OperatorStatus);
+    //     console.log((json as SuccessProcessStatus).OperatorStates);
     //     console.log((json as SuccessProcessStatus).OperatorStatistics);
 
     //     // this.status.next(json);

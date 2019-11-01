@@ -58,8 +58,13 @@ export type ExecutionResult = SuccessExecutionResult | ErrorExecutionResult;
 
 export interface SuccessProcessStatus extends Readonly< {
   code: 0
-  OperatorStatus: ReadonlyMap<string, OperatorStatus>
-  OperatorStatistics: ReadonlyMap<string, Statistics>
+  message: string
+  operatorStatus: Readonly< {
+    [key: string]: OperatorStates
+  }>
+  operatorStatistics: Readonly< {
+    [key: string]: Statistics
+  }>
 }> {}
 
  export interface ErrorProcessStatus extends Readonly< {
@@ -69,7 +74,7 @@ export interface SuccessProcessStatus extends Readonly< {
 
  export type ProcessStatus = SuccessProcessStatus | ErrorProcessStatus;
 
- enum OperatorStatus {
+ export enum OperatorStates {
   Initializing,
   Ready,
   Running,
@@ -78,8 +83,8 @@ export interface SuccessProcessStatus extends Readonly< {
   Completed
 }
 
- interface Statistics {
+ export interface Statistics {
   inputCount: 0;
   outputCount: 0;
-  speed: 0;
+  speed: 0.0;
 }

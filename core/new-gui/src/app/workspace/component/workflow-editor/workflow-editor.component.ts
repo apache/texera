@@ -13,6 +13,9 @@ import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-grap
 import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
 import { ToolTipService } from '../../service/tool-tip/tool-tip.service';
 import { NavigationComponent } from '../navigation/navigation.component';
+import { SuccessProcessStatus } from '../../types/execute-workflow.interface';
+import { OperatorStates } from '../../types/execute-workflow.interface';
+import { Statistics } from '../../types/execute-workflow.interface';
 
 // argument type of callback event on a JointJS Paper
 // which is a 4-element tuple:
@@ -132,22 +135,35 @@ export class WorkflowEditorComponent implements AfterViewInit {
     );
 
     this.workflowStatusService.getStatusInformationStream().subscribe(
-      (status) => {
+      (status: SuccessProcessStatus) => {
       console.log('status: ', status);
       this.workflowStarted = true;
       this.workflowActionService.getTexeraGraph().getAllOperators().forEach(
         operator => {
             const tooltipID = 'tooltip-' + operator.operatorID;
+            // const statistics_map = new Map<string, Statistics>(Object.entries(status.operatorStatistics));
+
+            // m is also a Map but m.get is not a function?????
+            // console.log(m);
+            // const key_list = Object.keys(m);
+            // console.log(m[key_list[0]]);
+            // console.log(key_list);
+            // console.log(m[operator.operatorID]);
+
+            const opStatus = status.operatorStatistics[operator.operatorID.slice(9)];
+            if (! opStatus) {
+              throw Error('operator statistics do not exist for operator ' + operator);
+            }
             this.jointUIService.changeOperatorCountWindow(
               this.getJointPaper(),
-              tooltipID, JSON.stringify((status as any)['ProcessedCount'][operator.operatorID]));
+              tooltipID, JSON.stringify(opStatus.outputCount));
 
               if (NavigationComponent.testPause === -1) {
                 this.jointUIService.changeOperatorSpeed(
-                  this.getJointPaper(), tooltipID, (status as any)['ProcessedSpeed'][operator.operatorID]);
+                  this.getJointPaper(), tooltipID, opStatus.speed.toString());
             } else {
               this.jointUIService.changeOperatorSpeed(
-                this.getJointPaper(), tooltipID, 0.0 as DoubleRange);
+                this.getJointPaper(), tooltipID, '0.0');
             }
         });
     });
@@ -169,19 +185,24 @@ export class WorkflowEditorComponent implements AfterViewInit {
       this.workflowStatusService.getStatusInformationStream()
       .filter(status => status !== undefined)
       .subscribe(status => {
-        if (status.hasOwnProperty('message') && (status as any)['message'] === 'ProcessCompleted') {
+        if (status.message === 'Process Completed') {
           this.workflowActionService.getTexeraGraph().getAllOperators().forEach(operator => {
             // if the operator is not completed the whole process
-            this.jointUIService.changeOperatorStatus(
-              this.getJointPaper(), operator.operatorID, '"ProcessCompleted"'
+            this.jointUIService.changeOperatorStates(
+              this.getJointPaper(), operator.operatorID, OperatorStates.Completed
             );
           });
         } else {
+          // const status_map = new Map<string, OperatorStates>(Object.entries(status.operatorStatus));
           this.workflowActionService.getTexeraGraph().getAllOperators().forEach(operator => {
             // if the operator is not completed the whole process
-            this.jointUIService.changeOperatorStatus(
-              this.getJointPaper(), operator.operatorID,
-              JSON.stringify((status as any)['OperatorState'][operator.operatorID])
+            const statusIndex = status.operatorStatus[operator.operatorID.slice(9)];
+            if (!statusIndex) {
+              throw Error('operator status do not exist for operator ' + operator);
+            }
+            console.log(statusIndex);
+            this.jointUIService.changeOperatorStates(
+              this.getJointPaper(), operator.operatorID, statusIndex
             );
           });
         }

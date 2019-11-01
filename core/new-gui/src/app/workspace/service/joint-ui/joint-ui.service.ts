@@ -6,6 +6,8 @@ import * as joint from 'jointjs';
 
 import { Point, OperatorPredicate, OperatorLink, TooltipPredicate } from '../../types/workflow-common.interface';
 import { Subject, Observable } from 'rxjs';
+import { OperatorStates } from '../../types/execute-workflow.interface';
+
 
 /**
  * Defines the SVG path for the delete button
@@ -86,7 +88,7 @@ export class JointUIService {
   public static DEFAULT_TOOLTIP_HEIGHT = 120;
 
   private operatorSpeed: string;
-  private operatorStates: string;
+  private operatorStates: OperatorStates;
   private operatorStatesSubject: Subject<string> = new Subject<string>();
   private operators: ReadonlyArray<OperatorSchema> = [];
   private operatorCount: string;
@@ -94,7 +96,7 @@ export class JointUIService {
     private operatorMetadataService: OperatorMetadataService,
   ) {
     // initialize the operator information
-    this.operatorStates = 'Ready';
+    this.operatorStates = OperatorStates.Ready;
     this.operatorCount = '';
     this.operatorSpeed = '';
     // subscribe to operator metadata observable
@@ -105,7 +107,7 @@ export class JointUIService {
   }
 
   public initializeOperatorState(): void {
-    this.operatorStates = 'Ready';
+    this.operatorStates = OperatorStates.Ready;
     this.operatorCount = '';
   }
 
@@ -172,7 +174,7 @@ export class JointUIService {
       position: point,
       size: { width: JointUIService.DEFAULT_OPERATOR_WIDTH, height: JointUIService.DEFAULT_OPERATOR_HEIGHT },
       attrs: JointUIService.getCustomOperatorStyleAttrs( this.operatorCount,
-        this.operatorStates, operatorSchema.additionalMetadata.userFriendlyName, operatorSchema.operatorType),
+        OperatorStates[this.operatorStates], operatorSchema.additionalMetadata.userFriendlyName, operatorSchema.operatorType),
       ports: {
         groups: {
           'in': { attrs: JointUIService.getCustomPortStyleAttrs() },
@@ -216,32 +218,30 @@ export class JointUIService {
 
 
   public changeOperatorCountWindow(jointPaper: joint.dia.Paper, tooltipID: string, count: string) {
-      jointPaper.getModelById(tooltipID).attr('#operatorCount/text', 'Input:' + count + ' tuples');
+      jointPaper.getModelById(tooltipID).attr('#operatorCount/text', 'Output:' + count + ' tuples');
   }
 
-  public changeOperatorStatus(jointPaper: joint.dia.Paper, operatorID: string, status: string): void {
+  public changeOperatorStates(jointPaper: joint.dia.Paper, operatorID: string, status: OperatorStates): void {
       this.operatorStates = status;
-      if (status === '"Processing"') {
-        jointPaper.getModelById(operatorID).attr('#operatorStatus/text', 'Process...');
+      jointPaper.getModelById(operatorID).attr('#operatorStatus/text', OperatorStates[status]);
+      if (status === OperatorStates.Running) {
         jointPaper.getModelById(operatorID).attr('#operatorStatus/fill', 'orange');
-      } else if (status === '"Finished"') {
-        jointPaper.getModelById(operatorID).attr('#operatorStatus/text', 'Finished');
+      } else if (status === OperatorStates.Completed) {
         jointPaper.getModelById(operatorID).attr('#operatorStatus/fill', 'green');
-      } else if (status === '"Paused"') {
-        jointPaper.getModelById(operatorID).attr('#operatorStatus/text', 'Pause');
+      } else if (status === OperatorStates.Paused) {
         jointPaper.getModelById(operatorID).attr('#operatorStatus/fill', 'orange');
-      } else if (status === '"ProcessCompleted"') {
-        jointPaper.getModelById(operatorID).attr('#operatorStatus/text', 'Finished');
-        jointPaper.getModelById(operatorID).attr('#operatorStatus/fill', 'green');
-      } else if (status === '"Pending"') {
-        jointPaper.getModelById(operatorID).attr('#operatorStatus/text', 'Pending');
+      } else if (status === OperatorStates.Pausing) {
+        jointPaper.getModelById(operatorID).attr('#operatorStatus/fill', 'red');
+      } else if (status === OperatorStates.Ready) {
+        jointPaper.getModelById(operatorID).attr('#operatorStatus/fill', 'orange');
+      } else if (status === OperatorStates.Initializing) {
         jointPaper.getModelById(operatorID).attr('#operatorStatus/fill', 'orange');
       }
   }
 
 
-  public changeOperatorSpeed(jointPaper: joint.dia.Paper, tooltipID: string, speed: DoubleRange): void {
-      jointPaper.getModelById(tooltipID).attr('#operatorSpeed/text', 'Speed:' + speed.toString() + ' tuples/ms');
+  public changeOperatorSpeed(jointPaper: joint.dia.Paper, tooltipID: string, speed: string): void {
+      jointPaper.getModelById(tooltipID).attr('#operatorSpeed/text', 'Speed:' + speed + ' tuples/ms');
   }
   /**
    * This method will change the operator's color based on the validation status
@@ -365,20 +365,23 @@ export class JointUIService {
     const tooltipStyleAttrs = {
       'polygon': {
         fill: '#FFFFFF', 'follow-scale': true, stroke: 'purple', 'stroke-width': '2',
-        rx: '5px', ry: '5px', refPoints: '0,30 150,30 150,120 85,120 75,150 65,120 0,120'
+        rx: '5px', ry: '5px', refPoints: '0,30 150,30 150,120 85,120 75,150 65,120 0,120',
+        display: 'none'
       },
       '#operatorCount': {
         fill: '#595959', 'font-size': '12px', ref: 'polygon',
         'y-alignment': 'middle',
         'x-alignment': 'left',
         'ref-x': .05, 'ref-y': .2,
+        display: 'none'
       },
       '#operatorSpeed': {
         fill: '#595959',
         ref: 'polygon',
         'x-alignment': 'left',
         'font-size': '12px',
-        'ref-x': .05, 'ref-y': .5
+        'ref-x': .05, 'ref-y': .5,
+        display: 'none'
       },
     };
     return tooltipStyleAttrs;
