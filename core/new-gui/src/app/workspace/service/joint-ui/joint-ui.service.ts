@@ -45,7 +45,7 @@ export const targetOperatorHandle = 'M 12 0 L 0 6 L 12 12 z';
 class TexeraCustomJointElement extends joint.shapes.devs.Model {
   markup =
     `<g class="element-node">
-      <text id="operatorStatus"></text>
+      <text id="operatorStates"></text>
       <rect class="body"></rect>
       ${deleteButtonSVG}
       <image></image>
@@ -224,19 +224,19 @@ export class JointUIService {
 
   public changeOperatorStates(jointPaper: joint.dia.Paper, operatorID: string, status: OperatorStates): void {
       this.operatorStates = status;
-      jointPaper.getModelById(operatorID).attr('#operatorStatus/text', OperatorStates[status]);
+      jointPaper.getModelById(operatorID).attr('#operatorStates/text', OperatorStates[status]);
       if (status === OperatorStates.Running) {
-        jointPaper.getModelById(operatorID).attr('#operatorStatus/fill', 'orange');
+        jointPaper.getModelById(operatorID).attr('#operatorStates/fill', 'orange');
       } else if (status === OperatorStates.Completed) {
-        jointPaper.getModelById(operatorID).attr('#operatorStatus/fill', 'green');
+        jointPaper.getModelById(operatorID).attr('#operatorStates/fill', 'green');
       } else if (status === OperatorStates.Paused) {
-        jointPaper.getModelById(operatorID).attr('#operatorStatus/fill', 'orange');
+        jointPaper.getModelById(operatorID).attr('#operatorStates/fill', 'orange');
       } else if (status === OperatorStates.Pausing) {
-        jointPaper.getModelById(operatorID).attr('#operatorStatus/fill', 'red');
+        jointPaper.getModelById(operatorID).attr('#operatorStates/fill', 'red');
       } else if (status === OperatorStates.Ready) {
-        jointPaper.getModelById(operatorID).attr('#operatorStatus/fill', 'orange');
+        jointPaper.getModelById(operatorID).attr('#operatorStates/fill', 'orange');
       } else if (status === OperatorStates.Initializing) {
-        jointPaper.getModelById(operatorID).attr('#operatorStatus/fill', 'orange');
+        jointPaper.getModelById(operatorID).attr('#operatorStates/fill', 'orange');
       }
   }
 
@@ -396,7 +396,7 @@ export class JointUIService {
   public static getCustomOperatorStyleAttrs( operatorCount: string,
     operatorStates: string, operatorDisplayName: string, operatorType: string): joint.shapes.devs.ModelSelectors {
     const operatorStyleAttrs = {
-      '#operatorStatus': {
+      '#operatorStates': {
         text:  operatorStates , fill: 'red', 'font-size': '14px', 'visible' : false,
         'ref-x': 0.5, 'ref-y': -10, ref: 'rect', 'y-alignment': 'middle', 'x-alignment': 'middle'
       },

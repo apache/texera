@@ -59,7 +59,7 @@ export type ExecutionResult = SuccessExecutionResult | ErrorExecutionResult;
 export interface SuccessProcessStatus extends Readonly< {
   code: 0
   message: string
-  operatorStatus: Readonly< {
+  operatorStates: Readonly< {
     [key: string]: OperatorStates
   }>
   operatorStatistics: Readonly< {

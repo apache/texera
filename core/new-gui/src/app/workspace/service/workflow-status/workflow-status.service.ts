@@ -27,7 +27,7 @@ export class WorkflowStatusService {
         const json = JSON.parse((response as any).data) as SuccessProcessStatus;
         // console.log(json.message);
         // console.log(json.operatorStatistics);
-        // console.log(json.operatorStatus);
+        // console.log(json.operatorStates);
         current.status.next(json);
       },
       error(err) {console.log('websocket error occured: ' + err); },
