@@ -107,12 +107,12 @@ export class JointGraphWrapper {
   }
 
   public getOperatorPositionChangeEvent(): Observable<{operatorID: string, newPosition: Point}> {
-    return     Observable
-    .fromEvent<JointPositionChangeEvent>(this.jointGraph, 'change:position').map(e => {
+    return  Observable.fromEvent<JointPositionChangeEvent>(this.jointGraph, 'change:position').map(e => {
       return {
-      operatorID: e[0].id.toString(),
-      newPosition:  e[1]
-    }; });
+        operatorID: e[0].id.toString(),
+        newPosition:  e[1]
+      };
+    });
   }
 
 

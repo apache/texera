@@ -8,6 +8,8 @@ import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.ImmutableMap;
 
 import edu.uci.ics.texera.api.constants.SchemaConstants;
@@ -307,10 +309,20 @@ public class JoinDistancePredicate extends PredicateBase implements IJoinPredica
     }
     
     public static Map<String, Object> getOperatorMetadata() {
+    
+    	// 
+    	ObjectNode samplePropertyDescription = new ObjectMapper().createObjectNode();
+		samplePropertyDescription.put(PropertyNameConstants.INNER_ATTRIBUTE_NAME, "Attribute that is used to join 2 tables. The"
+				+ "join results will contain only the pairs that found matches based on the inner attribute on 2 different tables");
+		samplePropertyDescription.put(PropertyNameConstants.OUTER_ATTRIBUTE_NAME, "Attribute that is used to join 2 tables. The"
+				+ "join results will contain the pairs that matched and the table entities that do not found match from another table");
+		samplePropertyDescription.put(PropertyNameConstants.SPAN_DISTANCE, "Span distance sample description");
+    	
         return ImmutableMap.<String, Object>builder()
             .put(PropertyNameConstants.USER_FRIENDLY_NAME, "Join: Character Distance")
             .put(PropertyNameConstants.OPERATOR_DESCRIPTION, "Join two tables based on the character distance of two attributes")
             .put(PropertyNameConstants.OPERATOR_GROUP_NAME, OperatorGroupConstants.JOIN_GROUP)
+            .put(PropertyNameConstants.PROPERTIES_DESCRIPTION, samplePropertyDescription)
             .build();
     }
 

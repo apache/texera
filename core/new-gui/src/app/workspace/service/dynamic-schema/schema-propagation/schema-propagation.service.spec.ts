@@ -238,7 +238,8 @@ describe('SchemaPropagationService', () => {
       operatorType: mockKeywordSearchSchema.operatorType,
       operatorProperties: {},
       inputPorts: [],
-      outputPorts: []
+      outputPorts: [],
+      showAdvanced: true
     };
 
     workflowActionService.addOperator(mockKeywordSearchOperator, mockPoint);
@@ -283,7 +284,8 @@ describe('SchemaPropagationService', () => {
       operatorType: mockAggregationSchema.operatorType,
       operatorProperties: {},
       inputPorts: [],
-      outputPorts: []
+      outputPorts: [],
+      showAdvanced: true
     };
 
     workflowActionService.addOperator(mockAggregationPredicate, mockPoint);

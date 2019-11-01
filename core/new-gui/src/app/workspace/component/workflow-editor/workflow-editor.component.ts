@@ -1,3 +1,4 @@
+import { ValidationWorkflowService } from './../../service/validation/validation-workflow.service';
 import { DragDropService } from './../../service/drag-drop/drag-drop.service';
 import { JointUIService } from './../../service/joint-ui/joint-ui.service';
 import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
@@ -9,7 +10,6 @@ import * as joint from 'jointjs';
 import { ResultPanelToggleService } from '../../service/result-panel-toggle/result-panel-toggle.service';
 import { Point } from '../../types/workflow-common.interface';
 import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-graph-wrapper';
-
 import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-util.service';
 
 
@@ -60,6 +60,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
     private elementRef: ElementRef,
     private workflowUtilService: WorkflowUtilService,
     private resultPanelToggleService: ResultPanelToggleService,
+    private validationWorkflowService: ValidationWorkflowService,
+    private jointUIService: JointUIService
   ) {
 
     // bind validation functions to the same scope as component
@@ -79,6 +81,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
   ngAfterViewInit() {
 
     this.initializeJointPaper();
+    this.handleOperatorValidation();
     this.handlePaperRestoreDefaultOffset();
     this.handlePaperZoom();
     this.handleWindowResize();
@@ -103,10 +106,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
     this.setJointPaperOriginOffset();
     this.setJointPaperDimensions();
-
-    // console.log(this.getJointPaper().translate());
-    // this.getJointPaper().translate(0, 0);
-    // this.workflowActionService.getJointGraphWrapper().setPanningOffset(this.panOffset);
   }
 
   /**
@@ -308,7 +307,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
     };
 
     this.dragDropService.getOperatorSuggestionHighlightStream()
-      .do(value => console.log(`getOperatorSuggestion hihglith stream call with id = ${value}`))
       .subscribe( value => this.getJointPaper().findViewByModel(value).highlight('rect',
         { highlighter: highlightOptions}
       ));
@@ -369,6 +367,15 @@ export class WorkflowEditorComponent implements AfterViewInit {
   }
 
   /**
+   * if the operator is valid , the border of the box will be default
+   */
+  private handleOperatorValidation(): void {
+
+    this.validationWorkflowService.getOperatorValidationStream()
+      .subscribe(value =>
+        this.jointUIService.changeOperatorColor(this.getJointPaper(), value.operatorID, value.status));
+  }
+  /**
    * Gets the width and height of the parent wrapper element
    */
   private getWrapperElementSize(): { width: number, height: number } {
@@ -428,7 +435,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
     return jointPaperOptions;
   }
-
 
   /**
   * This function is provided to JointJS to disable some invalid connections on the UI.

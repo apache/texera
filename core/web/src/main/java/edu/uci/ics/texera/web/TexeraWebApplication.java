@@ -7,20 +7,11 @@ import com.github.dirkraft.dropwizard.fileassets.FileAssetsBundle;
 import edu.uci.ics.texera.perftest.sample.SampleExtraction;
 import edu.uci.ics.texera.perftest.twitter.TwitterSample;
 import edu.uci.ics.texera.web.healthcheck.SampleHealthCheck;
-import edu.uci.ics.texera.web.resource.DownloadFileResource;
-import edu.uci.ics.texera.web.resource.FileUploadResource;
-import edu.uci.ics.texera.web.resource.QueryPlanResource;
-import edu.uci.ics.texera.web.resource.PlanStoreResource;
-import edu.uci.ics.texera.web.resource.SystemResource;
+import edu.uci.ics.texera.web.resource.*;
 import io.dropwizard.Application;
 import io.dropwizard.setup.Bootstrap;
 import io.dropwizard.setup.Environment;
-import org.eclipse.jetty.servlets.CrossOriginFilter;
 import org.glassfish.jersey.media.multipart.MultiPartFeature;
-
-import javax.servlet.DispatcherType;
-import javax.servlet.FilterRegistration;
-import java.util.EnumSet;
 
 /**
  * This is the main application class from where the Texera application
@@ -61,10 +52,8 @@ public class TexeraWebApplication extends Application<TexeraWebConfiguration> {
         // Registers the systemResource with Jersey
         environment.jersey().register(systemResource);
 
-        // Creates an instance of the FileUploadResource class to register with Jersey
-        final FileUploadResource fileUploadResource = new FileUploadResource();
-        // Registers the fileUploadResource with Jersey
-        environment.jersey().register(fileUploadResource);
+        final UserDictionaryResource userDictionaryResource = new UserDictionaryResource();
+        environment.jersey().register(userDictionaryResource);
 
         // Registers MultiPartFeature to support file upload
         environment.jersey().register(MultiPartFeature.class);

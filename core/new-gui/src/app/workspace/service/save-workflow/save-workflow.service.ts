@@ -4,7 +4,6 @@ import { Observable } from '../../../../../node_modules/rxjs';
 import { OperatorLink, OperatorPredicate, Point } from '../../types/workflow-common.interface';
 import { OperatorMetadataService } from '../operator-metadata/operator-metadata.service';
 
-
 /**
  * SavedWorkflow is used to store the information of the workflow
  *  1. all existing operators and their properties
@@ -74,7 +73,6 @@ export class SaveWorkflowService {
     }
 
     const savedWorkflow: SavedWorkflow = JSON.parse(savedWorkflowJson);
-
     savedWorkflow.operators.forEach(op => {
       const opPosition = savedWorkflow.operatorPositions[op.operatorID];
       if (! opPosition) {
@@ -99,6 +97,7 @@ export class SaveWorkflowService {
       this.workflowActionService.getTexeraGraph().getLinkAddStream(),
       this.workflowActionService.getTexeraGraph().getLinkDeleteStream(),
       this.workflowActionService.getTexeraGraph().getOperatorPropertyChangeStream(),
+      this.workflowActionService.getTexeraGraph().getOperatorAdvancedOptionChangeSteam(),
       this.workflowActionService.getJointGraphWrapper().getOperatorPositionChangeEvent()
     ).debounceTime(100).subscribe(() => {
       const workflow = this.workflowActionService.getTexeraGraph();

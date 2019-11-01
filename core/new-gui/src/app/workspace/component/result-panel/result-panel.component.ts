@@ -76,6 +76,7 @@ export class ResultPanelComponent {
     // the row index will include the previous pages, therefore we need to minus the current page index
     //  multiply by the page size previously.
     const selectedRowIndex = this.currentResult.findIndex(eachRow => isEqual(eachRow, rowData));
+
     const rowPageIndex = selectedRowIndex - this.currentPageIndex * this.currentMaxPageSize;
 
     // generate a new row data that shortens the column text to limit rendering time for pretty json

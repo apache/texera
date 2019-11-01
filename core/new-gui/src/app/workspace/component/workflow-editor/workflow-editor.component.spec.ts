@@ -3,6 +3,7 @@ import { JointGraphWrapper } from './../../service/workflow-graph/model/joint-gr
 import { DragDropService } from './../../service/drag-drop/drag-drop.service';
 import { WorkflowUtilService } from './../../service/workflow-graph/util/workflow-util.service';
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import { ValidationWorkflowService } from './../../service/validation/validation-workflow.service';
 
 import { WorkflowEditorComponent } from './workflow-editor.component';
 
@@ -12,11 +13,13 @@ import { JointUIService } from '../../service/joint-ui/joint-ui.service';
 import { WorkflowGraph, WorkflowGraphReadonly } from '../../service/workflow-graph/model/workflow-graph';
 
 import * as joint from 'jointjs';
-import { mockScanPredicate, mockPoint } from '../../service/workflow-graph/model/mock-workflow-data';
 
 import { ResultPanelToggleService } from '../../service/result-panel-toggle/result-panel-toggle.service';
 import { marbles } from 'rxjs-marbles';
 
+import {
+  mockScanPredicate, mockPoint, mockScanResultLink, mockResultPredicate
+} from '../../service/workflow-graph/model/mock-workflow-data';
 
 class StubWorkflowActionService {
 
@@ -58,6 +61,7 @@ describe('WorkflowEditorComponent', () => {
           WorkflowUtilService,
           DragDropService,
           ResultPanelToggleService,
+          ValidationWorkflowService,
           { provide: WorkflowActionService, useClass: StubWorkflowActionService },
           { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
         ]
@@ -137,6 +141,7 @@ describe('WorkflowEditorComponent', () => {
     let component: WorkflowEditorComponent;
     let fixture: ComponentFixture<WorkflowEditorComponent>;
     let workflowActionService: WorkflowActionService;
+    let validationWorkflowService: ValidationWorkflowService;
     let dragDropService: DragDropService;
 
     beforeEach(async(() => {
@@ -147,8 +152,9 @@ describe('WorkflowEditorComponent', () => {
           WorkflowUtilService,
           WorkflowActionService,
           ResultPanelToggleService,
+          ValidationWorkflowService,
           DragDropService,
-          { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+          { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
         ]
       })
         .compileComponents();
@@ -158,6 +164,7 @@ describe('WorkflowEditorComponent', () => {
       fixture = TestBed.createComponent(WorkflowEditorComponent);
       component = fixture.componentInstance;
       workflowActionService = TestBed.get(WorkflowActionService);
+      validationWorkflowService = TestBed.get(ValidationWorkflowService);
       dragDropService = TestBed.get(DragDropService);
       // detect changes to run ngAfterViewInit and bind Model
       fixture.detectChanges();
@@ -230,6 +237,19 @@ describe('WorkflowEditorComponent', () => {
       expect(jointHighlighterElementAfterUnhighlight.length).toEqual(0);
     });
 
+    it('should react to operator validation and change the color of operator box if the operator is valid ',
+         () => {
+    const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    workflowActionService.addOperator(mockResultPredicate, mockPoint);
+    workflowActionService.addLink(mockScanResultLink);
+    const newProperty = { 'tableName': 'test-table' };
+    workflowActionService.setOperatorProperty(mockScanPredicate.operatorID, newProperty);
+    const operator1 = component.getJointPaper().getModelById(mockScanPredicate.operatorID);
+    const operator2 = component.getJointPaper().getModelById(mockResultPredicate.operatorID);
+    expect(operator1.attr('rect/stroke')).toEqual('#CFCFCF');
+    expect(operator2.attr('rect/stroke')).toEqual('#CFCFCF');
+
     it('should react to jointJS paper zoom event', marbles((m) => {
       const mockScaleRatio = 0.5;
       m.hot('-e-').do(() => workflowActionService.getJointGraphWrapper().setZoomProperty(mockScaleRatio)).subscribe(
@@ -256,5 +276,10 @@ describe('WorkflowEditorComponent', () => {
     }));
 
   });
+
+
+
+  });
+
 
 });

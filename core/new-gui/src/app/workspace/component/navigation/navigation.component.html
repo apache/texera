@@ -1,6 +1,6 @@
 <nav class="texera-navigation-body navbar navbar-expand-sm bg-dark navbar-dark">
   <a class="navbar-brand texera-navigation-title" href="#">
-    Texera <span class="version-number">0.3.0</span>
+    Texera <span class="version-number">0.5.0</span>
   </a>
   <div class="collapse navbar-collapse texera-navigation-utilities">
     <i class="navbar-brand utility-button fa fa-search-minus" (click)="onClickZoomOut()" title="zoom in"></i>
@@ -11,9 +11,11 @@
       title="download execution result"></i> -->
 
       <div ngbDropdown class="d-inline-block">
-        <i class="navbar-brand fa fa-cloud-download"  [ngClass]="{'utility-button-disabled' : !executionResultID,
-        'utility-button': executionResultID}" id="downloadExcelOptions" ngbDropdownToggle
-          title="download execution result"></i>
+        <button class="drop-down-button" ngbDropdownToggle [disabled]="!executionResultID">
+          <i class="navbar-brand fa fa-cloud-download drop-down-icon"  [ngClass]="{'utility-button-disabled' : !executionResultID,
+          'utility-button': executionResultID}" id="downloadExcelOptions"
+            title="download execution result"></i>
+        </button>
         <div class="drop-down-menu" ngbDropdownMenu aria-labelledby="downloadExcelOptions">
           <button class="drop-down-item" ngbDropdownItem (click)="onClickDownloadExecutionResult('json')">Json File (*.json)</button>
           <button class="drop-down-item" ngbDropdownItem (click)="onClickDownloadExecutionResult('csv')"> CSV File (*.csv)</button>

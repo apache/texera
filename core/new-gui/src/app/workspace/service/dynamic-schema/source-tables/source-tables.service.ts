@@ -69,9 +69,7 @@ export class SourceTablesService {
 
   private invokeSourceTableAPI(): Observable<Map<string, TableSchema>> {
     return this.httpClient
-      .get<SourceTableResponse>(`${AppSettings.getApiEndpoint()}/${SOURCE_TABLE_NAMES_ENDPOINT}`)
-      .filter(response => response.code === 0)
-      .map(response => JSON.parse(response.message) as ReadonlyArray<SourceTableDetail>)
+      .get<TableMetadata[]>(`${AppSettings.getApiEndpoint()}/${SOURCE_TABLE_NAMES_ENDPOINT}`)
       .map(tableDetails => new Map(tableDetails.map(i => [i.tableName, i.schema] as [string, TableSchema])));
   }
 
@@ -111,16 +109,7 @@ export class SourceTablesService {
 
 }
 
-/**
- * The type decalaration of the response sent by **backend** when
- * asking for source table names.
- */
-export interface SourceTableResponse extends Readonly < {
-  code: number,
-  message: string
-} > { }
-
-export interface SourceTableDetail extends Readonly <{
+export interface TableMetadata extends Readonly <{
   tableName: string,
   schema: TableSchema
 }> { }
