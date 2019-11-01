@@ -8,7 +8,7 @@ import { Injectable } from '@angular/core';
 import { Point, OperatorPredicate, OperatorLink, OperatorPort } from '../../../types/workflow-common.interface';
 
 import * as joint from 'jointjs';
-import { Observable } from 'rxjs';
+import { Observable, Operator } from 'rxjs';
 
 
 export interface Command {
@@ -180,6 +180,64 @@ export class WorkflowActionService {
         this.getJointGraphWrapper().highlightOperator(operator.operatorID);
       }
     };
+    this.executeAndStoreCommand(command);
+  }
+
+  public addOperatorsAndLinks(operatorsAndPositions: {op: OperatorPredicate, pos: Point}[], links: OperatorLink[]): void {
+    // // check that the operator type exists
+    // if (!this.operatorMetadataService.operatorTypeExists(operator.operatorType)) {
+    //   throw new Error(`operator type ${operator.operatorType} is invalid`);
+    // }
+    // remember currently highlighted operator
+    // const currentHighlighted = this.jointGraphWrapper.getCurrentHighlightedOpeartorID();
+
+    const command: Command = {
+      execute: () => {
+        operatorsAndPositions.forEach(o => this.addOperatorInternal(o.op, o.pos));
+        links.forEach(l => this.addLinkInternal(l));
+      },
+      undo: () => {
+        // remove links
+        links.forEach(l => this.deleteLinkWithIDInternal(l.linkID));
+        // remove the operators from JointJS
+        operatorsAndPositions.forEach(o => this.deleteOperatorInternal(o.op.operatorID));
+      }
+    };
+    this.executeAndStoreCommand(command);
+  }
+
+  public deleteOperatorsAndLinks(operatorIDs: string[], linkIDs: string[]): void {
+    // save operators to be deleted and their current positions
+    const operatorsAndPositions = new Map<OperatorPredicate, Point>();
+    operatorIDs.forEach(operatorID => {
+      operatorsAndPositions.set(this.getTexeraGraph().getOperator(operatorID),
+      this.getJointGraphWrapper().getOperatorPosition(operatorID)
+      );
+    });
+    // save links to be deleted, including links needs to be deleted and links affected by deleted operators
+    const linksToDelete = new Set<OperatorLink>();
+        // delete links required by this command
+        linkIDs.map(linkID => this.getTexeraGraph().getLinkWithID(linkID))
+        .forEach(link => linksToDelete.add(link));
+    // delete links related to the deleted operator
+    this.getTexeraGraph().getAllLinks()
+      .filter(link => operatorIDs.includes(link.source.operatorID) || operatorIDs.includes(link.target.operatorID))
+      .forEach(link => linksToDelete.add(link));
+
+
+    const command: Command = {
+      execute: () => {
+        linksToDelete.forEach(link => this.deleteLinkWithIDInternal(link.linkID));
+        operatorIDs.forEach(operatorID => this.deleteOperatorInternal(operatorID));
+      },
+      undo: () => {
+        operatorsAndPositions.forEach((position, operator) => {
+          this.addOperatorInternal(operator, position);
+        });
+        linksToDelete.forEach(link => this.addLinkInternal(link));
+      }
+    };
+
     this.executeAndStoreCommand(command);
   }
 

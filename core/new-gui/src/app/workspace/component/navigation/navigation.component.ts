@@ -203,9 +203,8 @@ export class NavigationComponent implements OnInit {
    * Delete all operators on the graph
    */
   public onClickDeleteAllOperators(): void {
-    this.workflowActionService.getTexeraGraph().getAllOperators().forEach((operator) => {
-      this.workflowActionService.deleteOperator(operator.operatorID);
-    });
+    const allOperatorIDs = this.workflowActionService.getTexeraGraph().getAllOperators().map(op => op.operatorID);
+    this.workflowActionService.deleteOperatorsAndLinks(allOperatorIDs, []);
   }
 
   /**
