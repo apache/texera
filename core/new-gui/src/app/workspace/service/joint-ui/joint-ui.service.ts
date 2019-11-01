@@ -7,6 +7,7 @@ import * as joint from 'jointjs';
 import { Point, OperatorPredicate, OperatorLink, TooltipPredicate } from '../../types/workflow-common.interface';
 import { Subject, Observable } from 'rxjs';
 import { OperatorStates } from '../../types/execute-workflow.interface';
+import { Statistics } from '../../types/execute-workflow.interface';
 
 
 /**
@@ -216,9 +217,9 @@ export class JointUIService {
     jointPaper.getModelById(tooltipID).attr('#operatorSpeed/display', 'none');
   }
 
-
-  public changeOperatorCountWindow(jointPaper: joint.dia.Paper, tooltipID: string, count: string) {
-      jointPaper.getModelById(tooltipID).attr('#operatorCount/text', 'Output:' + count + ' tuples');
+  public changeOperatorTooltipInfo(jointPaper: joint.dia.Paper, tooltipID: string, stats: Statistics) {
+    jointPaper.getModelById(tooltipID).attr('#operatorCount/text', 'Output:' + stats.outputCount + ' tuples');
+    jointPaper.getModelById(tooltipID).attr('#operatorSpeed/text', 'Speed:' + stats.speed + ' tuples/ms');
   }
 
   public changeOperatorStates(jointPaper: joint.dia.Paper, operatorID: string, status: OperatorStates): void {
@@ -240,9 +241,7 @@ export class JointUIService {
   }
 
 
-  public changeOperatorSpeed(jointPaper: joint.dia.Paper, tooltipID: string, speed: string): void {
-      jointPaper.getModelById(tooltipID).attr('#operatorSpeed/text', 'Speed:' + speed + ' tuples/ms');
-  }
+
   /**
    * This method will change the operator's color based on the validation status
    *  valid  : default color

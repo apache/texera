@@ -141,30 +141,13 @@ export class WorkflowEditorComponent implements AfterViewInit {
       this.workflowActionService.getTexeraGraph().getAllOperators().forEach(
         operator => {
             const tooltipID = 'tooltip-' + operator.operatorID;
-            // const statistics_map = new Map<string, Statistics>(Object.entries(status.operatorStatistics));
-
-            // m is also a Map but m.get is not a function?????
-            // console.log(m);
-            // const key_list = Object.keys(m);
-            // console.log(m[key_list[0]]);
-            // console.log(key_list);
-            // console.log(m[operator.operatorID]);
-
             const opStatus = status.operatorStatistics[operator.operatorID.slice(9)];
             if (! opStatus) {
               throw Error('operator statistics do not exist for operator ' + operator);
             }
-            this.jointUIService.changeOperatorCountWindow(
-              this.getJointPaper(),
-              tooltipID, JSON.stringify(opStatus.outputCount));
-
-              if (NavigationComponent.testPause === -1) {
-                this.jointUIService.changeOperatorSpeed(
-                  this.getJointPaper(), tooltipID, opStatus.speed.toString());
-            } else {
-              this.jointUIService.changeOperatorSpeed(
-                this.getJointPaper(), tooltipID, '0.0');
-            }
+            this.jointUIService.changeOperatorTooltipInfo(
+              this.getJointPaper(), tooltipID, opStatus
+            );
         });
     });
   }

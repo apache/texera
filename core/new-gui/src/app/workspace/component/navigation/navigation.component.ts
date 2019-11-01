@@ -33,7 +33,6 @@ import { WorkflowStatusService } from '../../service/workflow-status/workflow-st
 
 export class NavigationComponent implements OnInit {
   public static autoSaveState = 'Saved';
-  public static testPause = -1;
   public isWorkflowRunning: boolean = false; // set this to true when the workflow is started
   public isWorkflowPaused: boolean = false; // this will be modified by clicking pause/resume while the workflow is running
 
@@ -90,16 +89,15 @@ export class NavigationComponent implements OnInit {
         this.executionResultID = undefined;
         this.showDataResultID = true;
         this.isWorkflowRunning = true;
+        // get the workflowId and pass it to workflowStatusService.
         const workflowId = this.executeWorkflowService.executeWorkflow();
         console.log('checking status of workflow: ', workflowId);
         this.workflowStatusService.checkStatus(workflowId);
         // click on button, send the signal to the JointUIService to tell system that user clicks on button.
         this.jointUIService.sendOperatorStateMessage();
       } else if (this.isWorkflowRunning && this.isWorkflowPaused) {
-        NavigationComponent.testPause = -1;
         this.executeWorkflowService.resumeWorkflow();
       } else if (this.isWorkflowRunning && !this.isWorkflowPaused) {
-        NavigationComponent.testPause = 0;
         this.executeWorkflowService.pauseWorkflow();
       } else {
         throw new Error('internal error: workflow cannot be both running and paused');

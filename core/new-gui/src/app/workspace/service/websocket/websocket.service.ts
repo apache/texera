@@ -7,6 +7,7 @@ export class WebsocketService {
 
   constructor() {}
 
+  // establish a websocket connection to the given url
   public connect(url: string): Rx.Subject<string> {
     // if (!this.subject) {
     console.log('Trying to connect to ', url);
@@ -16,6 +17,9 @@ export class WebsocketService {
     return this.subject;
   }
 
+  // send out websocket connection request
+  // bind the websocket object with a subject
+  // return this subject to be used by other components/services
   private create(url: string): Rx.Subject<string> {
     const ws = new WebSocket(url);
 

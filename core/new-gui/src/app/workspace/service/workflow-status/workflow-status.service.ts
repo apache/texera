@@ -9,13 +9,17 @@ const Engine_URL = 'ws://localhost:7070/api/websocket';
 export class WorkflowStatusService {
   // connectionChannel is dedicated to communication with backend via websocket
   private connectionChannel: Subject<string> = new Subject<string>();
-  // status is responsible for communication to other components
+  // status is responsible for passing websocket responses to other components
   private status: Subject<SuccessProcessStatus> = new Subject<SuccessProcessStatus>();
 
   constructor(wsService: WebsocketService) {
     console.log('creating websocket to ', Engine_URL);
 
     this.connectionChannel = <Subject<string>>wsService.connect(Engine_URL);
+    // within this.connectionChannel.subscribe function
+    // the scope will no longer be websocketService
+    // so this.status will be an error
+    // solution: give "this" a differenct name
     const current = this;
     this.connectionChannel.subscribe({
       next(response) {
@@ -29,42 +33,16 @@ export class WorkflowStatusService {
       error(err) {console.log('websocket error occured: ' + err); },
       complete() {console.log('websocket finished and disconected'); }
     });
-
-    // this.connectionChannel = <Subject<string>>wsService.connect(Engine_URL).map(
-    //   (response: string): string => {
-    //     console.log('received status from backend: ');
-    //     console.log(response);
-
-    //     const json = JSON.parse((response as any).data)['Result'] as SuccessProcessStatus;
-    //     console.log(json.code);
-    //     console.log((json as SuccessProcessStatus).OperatorStates);
-    //     console.log((json as SuccessProcessStatus).OperatorStatistics);
-
-    //     // this.status.next(json);
-
-    //     return response;
-    //   }
-    // );
-
-    // this.connectionChannel.subscribe({
-    //   next(response) {
-    //     console.log('received status from backend: ');
-    //     const json = JSON.parse((response as any).data)['Result'] as SuccessProcessStatus;
-    //     return json;
-    //   },
-    //   error(err) {console.log('websocket error occured: ' + err); },
-    //   complete() {console.log('websocket finished and disconected'); }
-    // });
   }
 
-  // send a request via websocket to receive
-  // real-time updates on the status of the engine
+  // send workflowId via websocket to backend
+  // the backend will response with real-time
+  // updates on the status of the engine
   public checkStatus(workflowId: string) {
     this.connectionChannel.next(workflowId);
   }
 
-  // usage is shown below, need to do (status as any)
-  // to access the fields of the JSON object
+  //
   public getStatusInformationStream(): Observable<SuccessProcessStatus> {
     return this.status;
   }
