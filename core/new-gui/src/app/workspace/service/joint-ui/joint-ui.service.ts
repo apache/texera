@@ -9,7 +9,6 @@ import { Subject, Observable } from 'rxjs';
 import { OperatorStates } from '../../types/execute-workflow.interface';
 import { Statistics } from '../../types/execute-workflow.interface';
 
-
 /**
  * Defines the SVG path for the delete button
  */

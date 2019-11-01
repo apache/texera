@@ -11,11 +11,8 @@ import { ResultPanelToggleService } from '../../service/result-panel-toggle/resu
 import { Point } from '../../types/workflow-common.interface';
 import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-graph-wrapper';
 import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
-import { ToolTipService } from '../../service/tool-tip/tool-tip.service';
-import { NavigationComponent } from '../navigation/navigation.component';
 import { SuccessProcessStatus } from '../../types/execute-workflow.interface';
 import { OperatorStates } from '../../types/execute-workflow.interface';
-import { Statistics } from '../../types/execute-workflow.interface';
 import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-util.service';
 
 // argument type of callback event on a JointJS Paper
