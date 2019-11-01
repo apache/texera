@@ -39,7 +39,11 @@ export class NavigationComponent implements OnInit {
   // variable binded with HTML to decide if the running spinner should show
   public showSpinner = false;
   public executionResultID: string | undefined;
+<<<<<<< HEAD
   public showDataResultID: boolean = false;
+=======
+
+>>>>>>> henry-orleans-demo
   constructor(private executeWorkflowService: ExecuteWorkflowService,
     public tourService: TourService, private modalService: NgbModal,
     private workflowActionService: WorkflowActionService,
@@ -212,6 +216,10 @@ export class NavigationComponent implements OnInit {
    * Handler for the execution result to extract successful execution ID
    */
   private handleResultData(response: ExecutionResult): void {
+    if (!environment.downloadExecutionResultEnabled) {
+      return;
+    }
+
     // backend returns error, display error message
     if (response.code === 1) {
       this.executionResultID = undefined;

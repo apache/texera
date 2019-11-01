@@ -16,6 +16,7 @@ import { NavigationComponent } from '../navigation/navigation.component';
 import { SuccessProcessStatus } from '../../types/execute-workflow.interface';
 import { OperatorStates } from '../../types/execute-workflow.interface';
 import { Statistics } from '../../types/execute-workflow.interface';
+import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-util.service';
 
 // argument type of callback event on a JointJS Paper
 // which is a 4-element tuple:
@@ -67,6 +68,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     private validationWorkflowService: ValidationWorkflowService,
     private jointUIService: JointUIService,
     private workflowStatusService: WorkflowStatusService,
+    private workflowUtilService: WorkflowUtilService,
   ) {
 
     // bind validation functions to the same scope as component
@@ -566,6 +568,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     }
     return false;
   }
+
 }
 
 
