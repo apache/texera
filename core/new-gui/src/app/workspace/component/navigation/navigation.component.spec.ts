@@ -21,8 +21,8 @@ import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-grap
 import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-util.service';
 import { environment } from '../../../../environments/environment';
 
-import { WebsocketService } from '../../service/websocket/websocket.service';
 import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
+import { WebsocketService } from '../../service/websocket/websocket.service';
 class StubHttpClient {
 
   public post<T>(): Observable<string> { return Observable.of('a'); }
@@ -51,6 +51,8 @@ describe('NavigationComponent', () => {
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         { provide: HttpClient, useClass: StubHttpClient },
         TourService,
+        WebsocketService,
+        WorkflowStatusService
       ]
     }).compileComponents();
   }));
@@ -60,7 +62,7 @@ describe('NavigationComponent', () => {
     component = fixture.componentInstance;
     executeWorkFlowService = TestBed.get(ExecuteWorkflowService);
     workflowActionService = TestBed.get(WorkflowActionService);
-    workflowStatusService = TestBed.get(workflowStatusService);
+    workflowStatusService = TestBed.get(WorkflowStatusService);
     fixture.detectChanges();
     environment.pauseResumeEnabled = true;
   });
@@ -86,6 +88,13 @@ describe('NavigationComponent', () => {
     m.expect(executionEndStream).toBeObservable(expectedStream);
 
   }));
+
+  fit('should send workflowId to websocket when run button is clicked', () => {
+    const checkWorkflowSpy = spyOn(workflowStatusService, 'checkStatus');
+    component.onButtonClick();
+    expect(checkWorkflowSpy).toHaveBeenCalled();
+
+  });
 
   it('should show pause/resume button when the workflow execution begins and hide the button when execution ends', marbles((m) => {
 

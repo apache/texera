@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { Observable, Subject } from 'rxjs';
 import { WebsocketService } from '../websocket/websocket.service';
-import { ProcessStatus, SuccessProcessStatus } from '../../types/execute-workflow.interface';
+import { SuccessProcessStatus } from '../../types/execute-workflow.interface';
 
 const Engine_URL = 'ws://localhost:7070/api/websocket';
 
@@ -23,12 +23,13 @@ export class WorkflowStatusService {
     const current = this;
     this.connectionChannel.subscribe({
       next(response) {
-        console.log('received status from backend: ');
-        const json = JSON.parse((response as any).data) as SuccessProcessStatus;
+        console.log('received status from backend: ', response);
+        console.log((response as any).data);
+        const status = JSON.parse((response as any).data) as SuccessProcessStatus;
         // console.log(json.message);
         // console.log(json.operatorStatistics);
         // console.log(json.operatorStates);
-        current.status.next(json);
+        current.status.next(status);
       },
       error(err) {console.log('websocket error occured: ' + err); },
       complete() {console.log('websocket finished and disconected'); }

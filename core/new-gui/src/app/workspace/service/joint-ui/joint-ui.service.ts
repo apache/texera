@@ -89,7 +89,6 @@ export class JointUIService {
 
   private operatorSpeed: string;
   private operatorStates: OperatorStates;
-  private operatorStatesSubject: Subject<string> = new Subject<string>();
   private operators: ReadonlyArray<OperatorSchema> = [];
   private operatorCount: string;
   constructor(
@@ -194,14 +193,6 @@ export class JointUIService {
     );
 
     return operatorElement;
-  }
-
-  public sendOperatorStateMessage(): void {
-    this.operatorStatesSubject.next();
-  }
-
-  public getOperatorStateStream(): Observable<string> {
-    return this.operatorStatesSubject.asObservable();
   }
 
   public showToolTip(jointPaper: joint.dia.Paper, tooltipID: string): void {

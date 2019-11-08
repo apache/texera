@@ -5,10 +5,9 @@ import { environment } from '../../../../environments/environment';
 import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
 import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-graph-wrapper';
 
-import {NgbModal, NgbActiveModal} from '@ng-bootstrap/ng-bootstrap';
-import { JointUIService } from '../../service/joint-ui/joint-ui.service';
 import { ExecutionResult } from './../../types/execute-workflow.interface';
 import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
+import { WebsocketService } from '../../service/websocket/websocket.service';
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -42,10 +41,9 @@ export class NavigationComponent implements OnInit {
   public showDataResultID: boolean = false;
 
   constructor(private executeWorkflowService: ExecuteWorkflowService,
-    public tourService: TourService, private modalService: NgbModal,
+    public tourService: TourService,
     private workflowActionService: WorkflowActionService,
     private workflowStatusService: WorkflowStatusService,
-    private jointUIService: JointUIService,
     ) {
     // return the run button after the execution is finished, either
     //  when the value is valid or invalid
@@ -94,8 +92,6 @@ export class NavigationComponent implements OnInit {
         const workflowId = this.executeWorkflowService.executeWorkflow();
         console.log('checking status of workflow: ', workflowId);
         this.workflowStatusService.checkStatus(workflowId);
-        // click on button, send the signal to the JointUIService to tell system that user clicks on button.
-        this.jointUIService.sendOperatorStateMessage();
       } else if (this.isWorkflowRunning && this.isWorkflowPaused) {
         this.executeWorkflowService.resumeWorkflow();
       } else if (this.isWorkflowRunning && !this.isWorkflowPaused) {

@@ -163,34 +163,30 @@ export class WorkflowEditorComponent implements AfterViewInit {
     );
   }
   private handleOperatorStatesChange(): void {
-    // when users click on button, we can subscribe the signal and change the states of the
-    this.jointUIService.getOperatorStateStream().subscribe(() => {
-      this.workflowStatusService.getStatusInformationStream()
-      .filter(status => status !== undefined)
-      .subscribe(status => {
-        if (status.message === 'Process Completed') {
-          this.workflowActionService.getTexeraGraph().getAllOperators().forEach(operator => {
-            // if the operator is not completed the whole process
-            this.jointUIService.changeOperatorStates(
-              this.getJointPaper(), operator.operatorID, OperatorStates.Completed
-            );
-          });
-        } else {
-          // const status_map = new Map<string, OperatorStates>(Object.entries(status.operatorStates));
-          this.workflowActionService.getTexeraGraph().getAllOperators().forEach(operator => {
-            // if the operator is not completed the whole process
-            const statusIndex = status.operatorStates[operator.operatorID.slice(9)];
-            if (!statusIndex) {
-              throw Error('operator status do not exist for operator ' + operator);
-            }
-            console.log(statusIndex);
-            this.jointUIService.changeOperatorStates(
-              this.getJointPaper(), operator.operatorID, statusIndex
-            );
-          });
-        }
-      });
-
+    this.workflowStatusService.getStatusInformationStream()
+    .filter(status => status !== undefined)
+    .subscribe(status => {
+      if (status.message === 'Process Completed') {
+        this.workflowActionService.getTexeraGraph().getAllOperators().forEach(operator => {
+          // if the operator is not completed the whole process
+          this.jointUIService.changeOperatorStates(
+            this.getJointPaper(), operator.operatorID, OperatorStates.Completed
+          );
+        });
+      } else {
+        // const status_map = new Map<string, OperatorStates>(Object.entries(status.operatorStates));
+        this.workflowActionService.getTexeraGraph().getAllOperators().forEach(operator => {
+          // if the operator is not completed the whole process
+          const statusIndex = status.operatorStates[operator.operatorID.slice(9)];
+          if (!statusIndex) {
+            throw Error('operator status do not exist for operator ' + operator);
+          }
+          console.log(statusIndex);
+          this.jointUIService.changeOperatorStates(
+            this.getJointPaper(), operator.operatorID, statusIndex
+          );
+        });
+      }
     });
   }
   /**

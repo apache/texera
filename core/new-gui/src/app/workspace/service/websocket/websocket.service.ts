@@ -3,17 +3,16 @@ import * as Rx from 'rxjs';
 
 @Injectable()
 export class WebsocketService {
-  private subject = new Rx.Subject<string>();
+  private subject: Rx.Subject<string> | undefined;
 
   constructor() {}
 
   // establish a websocket connection to the given url
   public connect(url: string): Rx.Subject<string> {
-    // if (!this.subject) {
-    console.log('Trying to connect to ', url);
-    this.subject = this.create(url);
-    console.log('Successfully connected: ' + url);
-    // }
+    if (!this.subject) {
+      console.log('Trying to connect to ', url);
+      this.subject = this.create(url);
+    }
     return this.subject;
   }
 
