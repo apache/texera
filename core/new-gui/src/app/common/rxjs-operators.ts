@@ -33,3 +33,6 @@ import 'rxjs/add/operator/delay';
 import 'rxjs/add/operator/do';
 import 'rxjs/add/operator/merge';
 import 'rxjs/add/operator/combineLatest';
+import 'rxjs/add/operator/pairwise';
+import 'rxjs/add/operator/throttle';
+import 'rxjs/add/operator/throttleTime';

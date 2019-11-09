@@ -1,5 +1,6 @@
 import { Subject } from 'rxjs/Subject';
 import { Observable } from 'rxjs/Observable';
+import { debounceTime } from 'rxjs/operators';
 import { Point } from '../../../types/workflow-common.interface';
 
 type operatorIDType = { operatorID: string };
@@ -21,7 +22,7 @@ type JointModelEventInfo = {
 // 2 and 3. additional information of the event
 type JointModelEvent = [
   joint.dia.Cell,
-  {graph: joint.dia.Graph, models: joint.dia.Cell[]},
+  { graph: joint.dia.Graph, models: joint.dia.Cell[] },
   JointModelEventInfo
 ];
 
@@ -65,6 +66,8 @@ export class JointGraphWrapper {
 
   public static readonly ZOOM_MINIMUM: number = 0.70;
   public static readonly ZOOM_MAXIMUM: number = 1.30;
+  private operatorPositions: Map<string, Point> = new Map<string, Point>();
+
 
   // dictionary of currently highlighted operators' {operatorID, position} pairs:
   //  operators' positions are stored here for handling highlighted operator's position
@@ -99,6 +102,14 @@ export class JointGraphWrapper {
 
   /**
    * This will capture all events in JointJS
+   *  involving the 'change position' operation
+   */
+  private jointCellDragStream = Observable
+    .fromEvent<JointModelEvent>(this.jointGraph, 'change:position')
+    .map(value => value[0]);
+
+  /**
+   * This will capture all events in JointJS
    *  involving the 'remove' operation
    */
   private jointCellDeleteStream = Observable
@@ -109,27 +120,14 @@ export class JointGraphWrapper {
   constructor(private jointGraph: joint.dia.Graph) {
     // handle if the current highlighted operator is deleted, it should be unhighlighted
     this.handleOperatorDeleteUnhighlight();
+    this.jointCellAddStream.filter(cell => cell.isElement()).subscribe(element => {
+      const initPosition = (element as joint.dia.Element).position();
+      this.operatorPositions.set(element.id.toString(), { x: initPosition.x, y: initPosition.y });
+    });
+
     // handle if the current highlighted operator's position is changed,
     // other highlighted operators should move with it.
     this.handleOperatorPositionChange();
-  }
-
-  /**
-   * Returns an Observable stream capturing the operator position change event in JointJS graph.
-   *
-   * - operatorID: the moved operator's ID
-   * - newPosition: where the operator is moved to
-   * - manually: whether the position change is manually initiated (i.e. by calling set position function),
-   *             or triggered by the user (i.e. by user dragging the operator on the JointJS graph)
-   */
-  public getOperatorPositionChangeEvent(): Observable<{operatorID: string, newPosition: Point, manually: boolean}> {
-    return  Observable.fromEvent<JointPositionChangeEvent>(this.jointGraph, 'change:position').map(e => {
-      return {
-        operatorID: e[0].id.toString(),
-        newPosition:  e[1],
-        manually: e[2].manually
-      };
-    });
   }
 
 
@@ -149,6 +147,23 @@ export class JointGraphWrapper {
     return Object.keys(this.currentHighlightedOperators);
   }
 
+  public getOperatorPositionChangeEvent(): Observable<{ operatorID: string, oldPosition: Point, newPosition: Point }> {
+    return Observable
+      .fromEvent<JointPositionChangeEvent>(this.jointGraph, 'change:position').map(e => {
+        const operatorID = e[0].id.toString();
+        const oldPosition = this.operatorPositions.get(operatorID);
+        if (!oldPosition) {
+          throw new Error(`internal error: cannot find operator position for ${operatorID}`);
+        }
+        this.operatorPositions.set(operatorID, {x: e[1].x, y: e[1].y});
+        return {
+          operatorID: operatorID,
+          oldPosition: oldPosition,
+          newPosition: {x: e[1].x, y: e[1].y}
+        };
+      });
+  }
+
   /**
    * Highlights the operator with given operatorID.
    * Emits an event to the operator highlight stream.
@@ -161,7 +176,10 @@ export class JointGraphWrapper {
    *
    * @param operatorID
    */
-  public highlightOperator(operatorID: string): void {
+  public highlightOperator(operatorID: string | undefined): void {
+    if (!operatorID) {
+      return;
+    }
     // try to get the operator using operator ID
     if (!this.jointGraph.getCell(operatorID)) {
       throw new Error(`opeartor with ID ${operatorID} doesn't exist`);
@@ -211,6 +229,16 @@ export class JointGraphWrapper {
   }
 
   /**
+   * Gets the event stream of an operator being dragged.
+   */
+  public getJointOperatorCellDragStream(): Observable<joint.dia.Element> {
+    const jointOperatorDragStream = this.jointCellDragStream
+      .filter(cell => cell.isElement())
+      .map(cell => <joint.dia.Element>cell);
+    return jointOperatorDragStream;
+  }
+
+  /**
    * Returns an Observable stream capturing the operator cell delete event in JointJS graph.
    */
   public getJointOperatorCellDeleteStream(): Observable<joint.dia.Element> {
@@ -235,6 +263,7 @@ export class JointGraphWrapper {
 
     return jointLinkAddStream;
   }
+
 
   /**
    * Returns an Observable stream capturing the link cell delete event in JointJS graph.
@@ -403,7 +432,7 @@ export class JointGraphWrapper {
    */
   private handleOperatorPositionChange(): void {
     this.getOperatorPositionChangeEvent()
-      .filter(movedOperator => !movedOperator.manually)
+      // .filter(movedOperator => !movedOperator.manually)
       .filter(movedOperator => movedOperator.operatorID in this.currentHighlightedOperators)
       .subscribe(movedOperator => {
         const oldPosition = this.currentHighlightedOperators[movedOperator.operatorID];

@@ -7,6 +7,7 @@ import { WorkflowActionService } from './../../service/workflow-graph/model/work
 import { OperatorMetadataService } from './../../service/operator-metadata/operator-metadata.service';
 import { StubOperatorMetadataService } from './../../service/operator-metadata/stub-operator-metadata.service';
 import { JointUIService } from './../../service/joint-ui/joint-ui.service';
+import { UndoRedoService } from './../../service/undo-redo/undo-redo.service';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs/Observable';
 
@@ -30,6 +31,7 @@ describe('MiniMapComponent', () => {
       providers: [
         WorkflowActionService,
         JointUIService,
+        UndoRedoService,
         {provide: OperatorMetadataService, useClass: StubOperatorMetadataService},
         {provide: HttpClient, useClass: StubHttpClient}
       ]

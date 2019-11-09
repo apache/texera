@@ -100,21 +100,28 @@ export class DragDropService {
               / this.workflowActionService.getJointGraphWrapper().getZoomRatio()
         };
 
-        // add the operator
-        this.workflowActionService.addOperator(operator, newOperatorOffset);
+        const operatorsAndPositions: {op: OperatorPredicate, pos: Point}[] = [];
+        const links: OperatorLink[] = [];
+
+        operatorsAndPositions.push({op: operator, pos: newOperatorOffset});
 
         // has suggestion and must auto-create the operator link between 2 operators.
         if (this.suggestionOperator !== undefined) {
           if (this.isSuggestionOnLeft) {
-            this.workflowActionService.addLink(this.getNewOperatorLink(this.suggestionOperator, operator));
+            links.push(this.getNewOperatorLink(this.suggestionOperator, operator));
           } else {
-            this.workflowActionService.addLink(this.getNewOperatorLink(operator, this.suggestionOperator));
+            links.push(this.getNewOperatorLink(operator, this.suggestionOperator));
           }
+        }
 
+        this.workflowActionService.addOperatorsAndLinks(operatorsAndPositions, links);
+
+        if (this.suggestionOperator !== undefined) {
           // after the link is created, unhightlight the suggestion and reset suggestionOperator
           this.operatorSuggestionUnhighlightStream.next(this.suggestionOperator.operatorID);
           this.suggestionOperator = undefined;
         }
+
         // turn off the multiselect mode
         this.workflowActionService.getJointGraphWrapper().setMultiSelectMode(false);
         // highlight the operator after adding the operator

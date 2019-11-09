@@ -103,6 +103,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.handleWindowResize();
     this.handleViewDeleteOperator();
     this.handleCellHighlight();
+    this.handleViewDeleteLink();
     this.handlePaperPan();
     this.handlePaperMouseZoom();
     this.handleOperatorSuggestionHighlightEvent();
@@ -397,6 +398,25 @@ export class WorkflowEditorComponent implements AfterViewInit {
           this.workflowActionService.deleteOperator(elementView.model.id.toString());
         }
       );
+  }
+
+
+  /**
+   * Handles the event where the Delete button is clicked for a Link,
+   *  and call workflowAction to delete the corresponding link.
+   *
+   * We handle link deletion on our own by defining a custom markup.
+   * Therefore JointJS doesn't come with default handler for delete an operator,
+   *  we need to handle the callback event `tool:remove`.
+   */
+  private handleViewDeleteLink(): void {
+    Observable
+      .fromEvent<JointPaperEvent>(this.getJointPaper(), 'tool:remove')
+      .map(value => value[0])
+      .subscribe(elementView => {
+        this.workflowActionService.deleteLinkWithID(elementView.model.id.toString());
+      }
+    );
   }
 
   /**
