@@ -117,7 +117,7 @@ export class JointUIService {
    * @param tooltipType the type of the tool tip for further use (i.e to show the flow chart to represent the speed of * the data handling)
    */
   public getJointTooltipElement(
-    operator: OperatorPredicate, tooltip: TooltipPredicate, point: Point
+    operator: OperatorPredicate, point: Point
   ): joint.dia.Element {
       // check if the operatorType exists in the operator metadata
     const operatorSchema = this.operators.find(op => op.operatorType === operator.operatorType);
@@ -172,8 +172,8 @@ export class JointUIService {
     const operatorElement = new TexeraCustomJointElement({
       position: point,
       size: { width: JointUIService.DEFAULT_OPERATOR_WIDTH, height: JointUIService.DEFAULT_OPERATOR_HEIGHT },
-      attrs: JointUIService.getCustomOperatorStyleAttrs( this.operatorCount,
-        OperatorStates[this.operatorStates], operatorSchema.additionalMetadata.userFriendlyName, operatorSchema.operatorType),
+      attrs: JointUIService.getCustomOperatorStyleAttrs(OperatorStates[this.operatorStates],
+        operatorSchema.additionalMetadata.userFriendlyName, operatorSchema.operatorType),
       ports: {
         groups: {
           'in': { attrs: JointUIService.getCustomPortStyleAttrs() },
@@ -383,8 +383,8 @@ export class JointUIService {
    * @param operatorDisplayName the name of the operator that will display on the UI
    * @returns the custom attributes of the operator
    */
-  public static getCustomOperatorStyleAttrs( operatorCount: string,
-    operatorStates: string, operatorDisplayName: string, operatorType: string): joint.shapes.devs.ModelSelectors {
+  public static getCustomOperatorStyleAttrs(operatorStates: string,
+    operatorDisplayName: string, operatorType: string): joint.shapes.devs.ModelSelectors {
     const operatorStyleAttrs = {
       '#operatorStates': {
         text:  operatorStates , fill: 'red', 'font-size': '14px', 'visible' : false,

@@ -38,7 +38,6 @@ export class NavigationComponent implements OnInit {
   // variable binded with HTML to decide if the running spinner should show
   public showSpinner = false;
   public executionResultID: string | undefined;
-  public showDataResultID: boolean = false;
 
   constructor(private executeWorkflowService: ExecuteWorkflowService,
     public tourService: TourService,
@@ -56,7 +55,6 @@ export class NavigationComponent implements OnInit {
       },
       () => {
         this.executionResultID = undefined;
-        this.showDataResultID = false;
         this.isWorkflowRunning = false;
         this.isWorkflowPaused = false;
       }
@@ -86,7 +84,6 @@ export class NavigationComponent implements OnInit {
       if (!this.isWorkflowRunning && !this.isWorkflowPaused) {
         // when a new workflow begins, reset the execution result ID.
         this.executionResultID = undefined;
-        this.showDataResultID = true;
         this.isWorkflowRunning = true;
         // get the workflowId and pass it to workflowStatusService.
         const workflowId = this.executeWorkflowService.executeWorkflow();

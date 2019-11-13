@@ -76,50 +76,38 @@ export class WorkflowActionService {
   }
 
   /**
-   * Adds an tooltip to the workflow graph at a point.
-   * This is HIERARCHICAL diagrams, the parent is operator and the child is tooltip
-   * @param operator
-   * @param point
-   */
-
-   public addTooltip(operatorElement: joint.dia.Element,
-    operator: OperatorPredicate, tooltip: TooltipPredicate,  point: Point) {
-    // initialize the position of the tool tip;
-
-     const tooltipPosition = {x: point.x, y: point.y - 20};
-
-     const tooltipJointElement = this.jointUIService.getJointTooltipElement(operator, tooltip, tooltipPosition);
-
-     operatorElement.embed(tooltipJointElement);
-
-    //  console.log('add elements: ', operatorElement);
-     // add tool tip to a joint graph
-     this.jointGraph.addCell([operatorElement, tooltipJointElement]);
-
-     this.texeraGraph.addOperator(operator);
-   }
-  /**
    * Adds an opreator to the workflow graph at a point.
    * Throws an Error if the operator ID already existed in the Workflow Graph.
    *
    * @param operator
    * @param point
    */
-  public addOperator(operator: OperatorPredicate, point: Point): joint.dia.Element {
+  public addOperator(operator: OperatorPredicate, point: Point): void {
+    console.log('works!');
     // check that the operator doesn't exist
     this.texeraGraph.assertOperatorNotExists(operator.operatorID);
     // check that the operator type exists
     if (! this.operatorMetadataService.operatorTypeExists(operator.operatorType)) {
       throw new Error(`operator type ${operator.operatorType} is invalid`);
     }
-    // get the JointJS UI element
+    // get the JointJS UI element for operator
     const operatorJointElement = this.jointUIService.getJointOperatorElement(operator, point);
+
+    // calculate the position for its popup window
+    const tooltipPosition = {x: point.x, y: point.y - 20};
+
+    // get the jointJS UI element for the popup window
+    const tooltipJointElement = this.jointUIService.getJointTooltipElement(operator, tooltipPosition);
+
+    // bind the two elements together
+    operatorJointElement.embed(tooltipJointElement);
+
     // add operator to joint graph first
     // if jointJS throws an error, it won't cause the inconsistency in texera graph
-    // this.jointGraph.addCell(operatorJointElement);
-    // add operator to texera graph
+    this.jointGraph.addCell([operatorJointElement, tooltipJointElement]);
 
-    return operatorJointElement;
+    // add operator to texera graph
+    this.texeraGraph.addOperator(operator);
   }
 
   /**

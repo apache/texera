@@ -51,7 +51,6 @@ export class DragDropService {
 
   private readonly operatorSuggestionHighlightStream =  new Subject <string>();
   private readonly operatorSuggestionUnhighlightStream =  new Subject <string>();
-  private tooltipMap: Map<string, TooltipPredicate> = new Map<string, TooltipPredicate>();
   // currently suggested operator to link with
   private suggestionOperator: OperatorPredicate | undefined;
 
@@ -79,10 +78,6 @@ export class DragDropService {
     this.handleOperatorDropEvent();
   }
 
-
-  public gettooltipMap(): Map<string, TooltipPredicate> {
-    return this.tooltipMap;
-  }
   /**
    * Handles the event of operator being dropped.
    * Adds the operator to the workflow graph at the same position of it being dropped.
@@ -105,16 +100,7 @@ export class DragDropService {
         };
 
         // add the operator
-        const parentOperator = this.workflowActionService.addOperator(operator, newOperatorOffset);
-
-        // construct the tooltip from the drop stream value
-        const tooltip = this.workflowUtilService.getNewTooltipPredicate(operator);
-
-        // add the tooltip the bind the tooltip to the operator element, HIERARCHICAL structure
-        this.workflowActionService.addTooltip(parentOperator, operator, tooltip, newOperatorOffset);
-
-        // set the process count number
-        this.tooltipMap.set(tooltip.tooltipID, tooltip);
+        this.workflowActionService.addOperator(operator, newOperatorOffset);
 
         // has suggestion and must auto-create the operator link between 2 operators.
         if (this.suggestionOperator !== undefined) {

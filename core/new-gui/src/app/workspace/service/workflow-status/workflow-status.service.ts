@@ -24,11 +24,7 @@ export class WorkflowStatusService {
     this.connectionChannel.subscribe({
       next(response) {
         console.log('received status from backend: ', response);
-        console.log((response as any).data);
         const status = JSON.parse((response as any).data) as SuccessProcessStatus;
-        // console.log(json.message);
-        // console.log(json.operatorStatistics);
-        // console.log(json.operatorStates);
         current.status.next(status);
       },
       error(err) {console.log('websocket error occured: ' + err); },

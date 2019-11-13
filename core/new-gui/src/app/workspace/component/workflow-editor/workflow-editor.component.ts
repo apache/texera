@@ -136,7 +136,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
     this.workflowStatusService.getStatusInformationStream().subscribe(
       (status: SuccessProcessStatus) => {
-      console.log('status: ', status);
       this.workflowStarted = true;
       this.workflowActionService.getTexeraGraph().getAllOperators().forEach(
         operator => {
@@ -181,7 +180,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
           if (!statusIndex) {
             throw Error('operator status do not exist for operator ' + operator);
           }
-          console.log(statusIndex);
           this.jointUIService.changeOperatorStates(
             this.getJointPaper(), operator.operatorID, statusIndex
           );

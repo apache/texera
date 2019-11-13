@@ -72,15 +72,6 @@ export class WorkflowUtilService {
 
   }
 
-  public getNewTooltipPredicate(operator: OperatorPredicate): TooltipPredicate {
-    const processedCount = 0;
-
-    const tooltipID = operator.operatorID;
-
-    const tooltipType = operator.operatorType;
-
-    return {tooltipID, tooltipType, processedCount};
-  }
   /**
    * Generates a new UUID for operator or link
    */
