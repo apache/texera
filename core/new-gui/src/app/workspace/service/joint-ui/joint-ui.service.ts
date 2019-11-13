@@ -4,8 +4,7 @@ import { OperatorSchema } from '../../types/operator-schema.interface';
 
 import * as joint from 'jointjs';
 
-import { Point, OperatorPredicate, OperatorLink, TooltipPredicate } from '../../types/workflow-common.interface';
-import { Subject, Observable } from 'rxjs';
+import { Point, OperatorPredicate, OperatorLink } from '../../types/workflow-common.interface';
 import { OperatorStates } from '../../types/execute-workflow.interface';
 import { Statistics } from '../../types/execute-workflow.interface';
 
@@ -87,27 +86,16 @@ export class JointUIService {
   public static DEFAULT_TOOLTIP_WIDTH = 140;
   public static DEFAULT_TOOLTIP_HEIGHT = 120;
 
-  private operatorSpeed: string;
-  private operatorStates: OperatorStates;
   private operators: ReadonlyArray<OperatorSchema> = [];
-  private operatorCount: string;
   constructor(
     private operatorMetadataService: OperatorMetadataService,
   ) {
     // initialize the operator information
-    this.operatorStates = OperatorStates.Ready;
-    this.operatorCount = '';
-    this.operatorSpeed = '';
     // subscribe to operator metadata observable
     this.operatorMetadataService.getOperatorMetadata().subscribe(
       value => this.operators = value.operators
     );
 
-  }
-
-  public initializeOperatorState(): void {
-    this.operatorStates = OperatorStates.Ready;
-    this.operatorCount = '';
   }
 
   /**
@@ -172,8 +160,8 @@ export class JointUIService {
     const operatorElement = new TexeraCustomJointElement({
       position: point,
       size: { width: JointUIService.DEFAULT_OPERATOR_WIDTH, height: JointUIService.DEFAULT_OPERATOR_HEIGHT },
-      attrs: JointUIService.getCustomOperatorStyleAttrs(OperatorStates[this.operatorStates],
-        operatorSchema.additionalMetadata.userFriendlyName, operatorSchema.operatorType),
+      attrs: JointUIService.getCustomOperatorStyleAttrs(operatorSchema.additionalMetadata.userFriendlyName,
+        operatorSchema.operatorType),
       ports: {
         groups: {
           'in': { attrs: JointUIService.getCustomPortStyleAttrs() },
@@ -213,7 +201,6 @@ export class JointUIService {
   }
 
   public changeOperatorStates(jointPaper: joint.dia.Paper, operatorID: string, status: OperatorStates): void {
-      this.operatorStates = status;
       jointPaper.getModelById(operatorID).attr('#operatorStates/text', OperatorStates[status]);
       if (status === OperatorStates.Running) {
         jointPaper.getModelById(operatorID).attr('#operatorStates/fill', 'orange');
@@ -383,11 +370,11 @@ export class JointUIService {
    * @param operatorDisplayName the name of the operator that will display on the UI
    * @returns the custom attributes of the operator
    */
-  public static getCustomOperatorStyleAttrs(operatorStates: string,
-    operatorDisplayName: string, operatorType: string): joint.shapes.devs.ModelSelectors {
+  public static getCustomOperatorStyleAttrs(operatorDisplayName: string,
+    operatorType: string): joint.shapes.devs.ModelSelectors {
     const operatorStyleAttrs = {
       '#operatorStates': {
-        text:  operatorStates , fill: 'red', 'font-size': '14px', 'visible' : false,
+        text:  'Ready' , fill: 'green', 'font-size': '14px', 'visible' : false,
         'ref-x': 0.5, 'ref-y': -10, ref: 'rect', 'y-alignment': 'middle', 'x-alignment': 'middle'
       },
       'rect': {

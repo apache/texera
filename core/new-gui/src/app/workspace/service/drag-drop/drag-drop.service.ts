@@ -1,4 +1,4 @@
-import { Point, OperatorPredicate, OperatorLink, TooltipPredicate } from './../../types/workflow-common.interface';
+import { Point, OperatorPredicate, OperatorLink } from './../../types/workflow-common.interface';
 import { WorkflowActionService } from './../workflow-graph/model/workflow-action.service';
 import { Observable } from 'rxjs/Observable';
 import { WorkflowUtilService } from './../workflow-graph/util/workflow-util.service';
@@ -282,8 +282,6 @@ export class DragDropService {
    * @param ui
    */
   private handleOperatorDrop(event: JQuery.Event, ui: JQueryUI.DraggableEventUIParams): void {
-    // when operator drops, initialize the operator states
-    this.jointUIService.initializeOperatorState();
     // notify the subject of the event
     // use ui.offset instead of ui.position because offset is relative to document root, where position is relative to parent element
     this.operatorDroppedSubject.next({
