@@ -3,7 +3,6 @@ import { OperatorMetadataService } from '../operator-metadata/operator-metadata.
 import { OperatorSchema } from '../../types/operator-schema.interface';
 
 import * as joint from 'jointjs';
-
 import { Point, OperatorPredicate, OperatorLink } from '../../types/workflow-common.interface';
 import { OperatorStates } from '../../types/execute-workflow.interface';
 import { Statistics } from '../../types/execute-workflow.interface';
@@ -33,7 +32,6 @@ export const sourceOperatorHandle = 'M 0 0 L 0 8 L 8 8 L 8 0 z';
  * Defines the handle (the arrow at the end) of the target operator for a link
  */
 export const targetOperatorHandle = 'M 12 0 L 0 6 L 12 12 z';
-
 
 /**
  * Extends a basic Joint operator element and adds our own HTML markup.
@@ -83,8 +81,8 @@ export class JointUIService {
   public static readonly DEFAULT_OPERATOR_WIDTH = 60;
   public static readonly DEFAULT_OPERATOR_HEIGHT = 60;
 
-  public static DEFAULT_TOOLTIP_WIDTH = 140;
-  public static DEFAULT_TOOLTIP_HEIGHT = 120;
+  public static readonly DEFAULT_TOOLTIP_WIDTH = 140;
+  public static readonly DEFAULT_TOOLTIP_HEIGHT = 60;
 
   private operators: ReadonlyArray<OperatorSchema> = [];
   constructor(
@@ -120,7 +118,7 @@ export class JointUIService {
 
     const toolTipElement = new TexeraCustomTooltipElement({
       position: tooltipPoint,
-      size: {width: JointUIService.DEFAULT_TOOLTIP_WIDTH, height: JointUIService.DEFAULT_OPERATOR_HEIGHT},
+      size: {width: JointUIService.DEFAULT_TOOLTIP_WIDTH, height: JointUIService.DEFAULT_TOOLTIP_HEIGHT},
       attrs: JointUIService.getCustomTooltipStyleAttrs()
     });
     toolTipElement.set('id', 'tooltip-' + operator.operatorID);
@@ -160,8 +158,7 @@ export class JointUIService {
     const operatorElement = new TexeraCustomJointElement({
       position: point,
       size: { width: JointUIService.DEFAULT_OPERATOR_WIDTH, height: JointUIService.DEFAULT_OPERATOR_HEIGHT },
-      attrs: JointUIService.getCustomOperatorStyleAttrs(operatorSchema.additionalMetadata.userFriendlyName,
-        operatorSchema.operatorType),
+      attrs: JointUIService.getCustomOperatorStyleAttrs(operatorSchema.additionalMetadata.userFriendlyName, operatorSchema.operatorType),
       ports: {
         groups: {
           'in': { attrs: JointUIService.getCustomPortStyleAttrs() },
@@ -169,6 +166,7 @@ export class JointUIService {
         }
       }
     });
+
     // set operator element ID to be operator ID
     operatorElement.set('id', operator.operatorID);
 

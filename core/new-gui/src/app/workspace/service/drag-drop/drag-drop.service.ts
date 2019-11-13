@@ -51,6 +51,7 @@ export class DragDropService {
 
   private readonly operatorSuggestionHighlightStream =  new Subject <string>();
   private readonly operatorSuggestionUnhighlightStream =  new Subject <string>();
+
   // currently suggested operator to link with
   private suggestionOperator: OperatorPredicate | undefined;
 
@@ -184,7 +185,6 @@ export class DragDropService {
         left: JointUIService.DEFAULT_OPERATOR_WIDTH / 2,
         top: JointUIService.DEFAULT_OPERATOR_HEIGHT / 2
       },
-
       stop: (event: any, ui) => {
         // this is to unhighlight the suggested operator when the user release mouse at other
         //  components than the workflow editor

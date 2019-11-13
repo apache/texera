@@ -46,7 +46,6 @@ export class WorkflowUtilService {
    */
   public getNewOperatorPredicate(operatorType: string): OperatorPredicate {
     const operatorID = this.getRandomUUID();
-
     const operatorProperties = {};
 
     const operatorSchema = this.operatorSchemaList.find(schema => schema.operatorType === operatorType);
