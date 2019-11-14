@@ -233,6 +233,8 @@ export class JointUIService {
       jointPaper.getModelById(operatorID).attr('rect/stroke', 'red');
     }
   }
+
+
   /**
    * This function converts a Texera source and target OperatorPort to
    *   a JointJS link cell <joint.dia.Link> that could be added to the JointJS.

@@ -13,7 +13,6 @@ import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-grap
 import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
 import { SuccessProcessStatus } from '../../types/execute-workflow.interface';
 import { OperatorStates } from '../../types/execute-workflow.interface';
-import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-util.service';
 
 
 // argument type of callback event on a JointJS Paper
@@ -66,7 +65,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
     private validationWorkflowService: ValidationWorkflowService,
     private jointUIService: JointUIService,
     private workflowStatusService: WorkflowStatusService,
-    private workflowUtilService: WorkflowUtilService,
   ) {
 
     // bind validation functions to the same scope as component
@@ -94,13 +92,14 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.handleCellHighlight();
     this.handlePaperPan();
     this.handleOperatorStatesChange();
+    this.handleOperatorStatisticsUpdate();
     this.handlePopupMessageShow();
     this.handlePopupMesseageHidden();
     this.handlePaperMouseZoom();
     this.handleOperatorSuggestionHighlightEvent();
-
     this.dragDropService.registerWorkflowEditorDrop(this.WORKFLOW_EDITOR_JOINTJS_ID);
   }
+
 
   private initializeJointPaper(): void {
     // get the custom paper options
@@ -133,7 +132,20 @@ export class WorkflowEditorComponent implements AfterViewInit {
         }
       }
     );
+  }
 
+  private handlePopupMesseageHidden(): void {
+    Observable.fromEvent<MouseEvent>(this.getJointPaper(), 'element:mouseleave').subscribe(
+      event => {
+        const operatorID = (event as any)[0]['model']['id'];
+        if (this.workflowActionService.getTexeraGraph().getOperator(operatorID) !== undefined) {
+          this.jointUIService.hideToolTip(this.getJointPaper(), 'tooltip-' + operatorID);
+        }
+      }
+    );
+  }
+
+  private handleOperatorStatisticsUpdate(): void {
     this.workflowStatusService.getStatusInformationStream().subscribe(
       (status: SuccessProcessStatus) => {
       this.workflowStarted = true;
@@ -151,16 +163,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
     });
   }
 
-  private handlePopupMesseageHidden(): void {
-    Observable.fromEvent<MouseEvent>(this.getJointPaper(), 'element:mouseleave').subscribe(
-      event => {
-        const operatorID = (event as any)[0]['model']['id'];
-        if (this.workflowActionService.getTexeraGraph().getOperator(operatorID) !== undefined) {
-          this.jointUIService.hideToolTip(this.getJointPaper(), 'tooltip-' + operatorID);
-        }
-      }
-    );
-  }
   private handleOperatorStatesChange(): void {
     this.workflowStatusService.getStatusInformationStream()
     .filter(status => status !== undefined)

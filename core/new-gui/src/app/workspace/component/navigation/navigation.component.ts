@@ -161,6 +161,7 @@ export class NavigationComponent implements OnInit {
 
     // if zoom is already at minimum, don't zoom out again.
     if (this.isZoomRatioMin()) { return; }
+
     // make the ratio small.
     this.workflowActionService.getJointGraphWrapper()
       .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() - JointGraphWrapper.ZOOM_CLICK_DIFF);
@@ -177,6 +178,7 @@ export class NavigationComponent implements OnInit {
 
     // if zoom is already reach maximum, don't zoom in again.
     if (this.isZoomRatioMax()) { return; }
+
     // make the ratio big.
     this.workflowActionService.getJointGraphWrapper()
       .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() + JointGraphWrapper.ZOOM_CLICK_DIFF);
@@ -202,6 +204,7 @@ export class NavigationComponent implements OnInit {
   public onClickRestoreZoomOffsetDefaullt(): void {
     this.workflowActionService.getJointGraphWrapper().restoreDefaultZoomAndOffset();
   }
+
   /**
    * Handler for the execution result to extract successful execution ID
    */
