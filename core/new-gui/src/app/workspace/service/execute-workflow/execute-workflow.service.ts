@@ -55,7 +55,7 @@ export class ExecuteWorkflowService {
   /**
    * Sends the current workflow data to the backend
    *  to execute the workflow and gets the results.
-   *
+   *  return workflow id to be used by workflowStatusService
    */
   public executeWorkflow(): string {
 

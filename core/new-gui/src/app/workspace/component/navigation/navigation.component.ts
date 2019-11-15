@@ -87,7 +87,6 @@ export class NavigationComponent implements OnInit {
         this.isWorkflowRunning = true;
         // get the workflowId and pass it to workflowStatusService.
         const workflowId = this.executeWorkflowService.executeWorkflow();
-        console.log('checking status of workflow: ', workflowId);
         this.workflowStatusService.checkStatus(workflowId);
       } else if (this.isWorkflowRunning && this.isWorkflowPaused) {
         this.executeWorkflowService.resumeWorkflow();

@@ -1,27 +1,3 @@
-// import { TestBed, inject } from '@angular/core/testing';
-
-// import { WebsocketService } from './websocket.service';
-
-// describe('WebsocketService', () => {
-//   let wsService: WebsocketService;
-//   beforeEach(() => {
-//     TestBed.configureTestingModule({
-//       providers: [WebsocketService]
-//     });
-
-//     wsService = TestBed.get(WebsocketService);
-//   });
-
-//   fit('should be created', inject([WebsocketService], (service: WebsocketService) => {
-//     expect(service).toBeTruthy();
-//   }));
-
-//   fit('should create a websocket connection', () => {
-//     const test_url = 'wss://echo.websocket.org';
-//     expect(wsService.connect(test_url)).toBeTruthy();
-//   });
-// });
-
 import * as Rx from 'rxjs';
 import { TestBed, inject} from '@angular/core/testing';
 import 'rxjs/add/operator/zip';
@@ -109,25 +85,24 @@ describe('WebSocketService', () => {
     it('should send the message on the websocket.send', () => {
       const message = 'hello';
 
+      // socket is not in Open state so nothing should be received
       wsSubject.next(message);
-
       expect(socketMock.send.calls.count()).toEqual(0);
-
+      // socket should recieve message
       socketMock.readyState = WebSocket.OPEN;
       wsSubject.next(message);
-
       expect(socketMock.send.calls.count()).toEqual(1);
       expect(socketMock.send.calls.argsFor(0).values().next().value).toContain(message);
     });
   });
 
   describe('web socket onmessage()', () => {
+    // would fail the test if done() is not reached
     it('should call subscribe next callback', (done: DoneFn) => {
       const message = 'hello';
-
       wsSubject.subscribe(
         (s: any) => {
-          expect(s).toEqual('hello');
+          expect(s).toEqual(message);
           done();
         },
         () => {},
@@ -142,7 +117,6 @@ describe('WebSocketService', () => {
   describe('web socket on onerror()', () => {
     it('should call subscribe error callback', (done: DoneFn) => {
       const err = 'hello';
-
       wsSubject.subscribe(
         () => {},
         (s: any) => {
@@ -158,19 +132,16 @@ describe('WebSocketService', () => {
 
   describe('web socket onclose()', () => {
     it('should call subscribe complete callback', (done: DoneFn) => {
-      let a = 0;
       wsSubject.subscribe(
         () => {},
         () => {},
         () => {
-          a = 1;
           done();
         }
       );
       if (socketMock.onclose) {
         socketMock.onclose();
       }
-      expect(a).toBe(1);
     });
   });
 

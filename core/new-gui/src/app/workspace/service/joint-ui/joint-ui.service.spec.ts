@@ -82,7 +82,11 @@ describe('JointUIService', () => {
     }).toThrowError(new RegExp(`doesn't exist`));
   });
 
+  /**
+   * Check if showTooltip/hideTooltip works properly
+   */
   it('should reveal/hide tooltip and its content when showToolTip/hideTooltip is called', () => {
+    // creating a JointJS graph with one operator and its tooltip
     const jointGraph = new joint.dia.Graph();
     const jointPaperOptions: joint.dia.Paper.Options = {model: jointGraph};
     const paper = new joint.dia.Paper(jointPaperOptions);
@@ -97,23 +101,29 @@ describe('JointUIService', () => {
         mockPoint
       )
     ]);
+    // tooltip should not be shown when operator is just created
+    // disply attr should be none
     const graph_tooltip1 = jointGraph.getCell('tooltip-' + mockScanPredicate.operatorID);
     expect(graph_tooltip1.attr('polygon')['display']).toEqual('none');
     expect(graph_tooltip1.attr('#operatorCount')['display']).toEqual('none');
     expect(graph_tooltip1.attr('#operatorSpeed')['display']).toEqual('none');
-
+    // showTooltip removes display == none attr to show tooltip
     service.showToolTip(paper, 'tooltip-' + mockScanPredicate.operatorID);
     expect(graph_tooltip1.attr('polygon')['display']).toBeUndefined();
     expect(graph_tooltip1.attr('#operatorCount')['display']).toBeUndefined();
     expect(graph_tooltip1.attr('#operatorSpeed')['display']).toBeUndefined();
-
+    // hideTooltip adds display == none attr to hide tooltip
     service.hideToolTip(paper, 'tooltip-' + mockScanPredicate.operatorID);
     expect(graph_tooltip1.attr('polygon')['display']).toEqual('none');
     expect(graph_tooltip1.attr('#operatorCount')['display']).toEqual('none');
     expect(graph_tooltip1.attr('#operatorSpeed')['display']).toEqual('none');
   });
 
+  /**
+   * check if tooltip content can be updated properly
+   */
   it('should update the content in the tooltip when changeOperatorTooltipInfo is called', () => {
+    // creating a JointJS graph with one operator and its tooltip
     const jointGraph = new joint.dia.Graph();
     const jointPaperOptions: joint.dia.Paper.Options = {model: jointGraph};
     const paper = new joint.dia.Paper(jointPaperOptions);
@@ -130,17 +140,21 @@ describe('JointUIService', () => {
     ]);
     const tooltipId = 'tooltip-' + mockScanPredicate.operatorID;
     const graph_tooltip = jointGraph.getCell(tooltipId);
+    // tooltip should not contain any content when created
     expect(graph_tooltip.attr('#operatorCount')['text']).toBeUndefined();
     expect(graph_tooltip.attr('#operatorSpeed')['text']).toBeUndefined();
+    // updating it with mock statistics
     service.changeOperatorTooltipInfo(paper, tooltipId, mockScanStatistic1);
     expect(graph_tooltip.attr('#operatorCount')['text']).toEqual('Output:' + mockScanStatistic1.outputCount + ' tuples');
     expect(graph_tooltip.attr('#operatorSpeed')['text']).toEqual('Speed:' + mockScanStatistic1.speed + ' tuples/ms');
+    // updating it with another mock statistics
     service.changeOperatorTooltipInfo(paper, tooltipId, mockScanStatistic2);
     expect(graph_tooltip.attr('#operatorCount')['text']).toEqual('Output:' + mockScanStatistic2.outputCount + ' tuples');
     expect(graph_tooltip.attr('#operatorSpeed')['text']).toEqual('Speed:' + mockScanStatistic2.speed + ' tuples/ms');
   });
 
   it('should change the operator state name and color when changeOperatorStates is called', () => {
+    // creating a JointJS graph with one operator and its tooltip
     const jointGraph = new joint.dia.Graph();
     const jointPaperOptions: joint.dia.Paper.Options = {model: jointGraph};
     const paper = new joint.dia.Paper(jointPaperOptions);
@@ -151,6 +165,7 @@ describe('JointUIService', () => {
         mockPoint
     ));
 
+    // operator state name and color should be changed correctly
     const graph_operator = jointGraph.getCell(mockScanPredicate.operatorID);
     expect(graph_operator.attr('#operatorStates')['text']).toEqual('Ready');
     expect(graph_operator.attr('#operatorStates')['fill']).toEqual('green');
@@ -203,7 +218,7 @@ describe('JointUIService', () => {
   it('should apply the custom SVG styling to the JointJS element', () => {
 
     const graph = new joint.dia.Graph();
-
+    // operator and its tooltip element should be added together
     graph.addCell([
       service.getJointOperatorElement(
         mockScanPredicate,
@@ -214,13 +229,12 @@ describe('JointUIService', () => {
         mockPoint
       )
     ]);
-
     graph.addCell([
       service.getJointOperatorElement(
         mockResultPredicate,
         { x: 500, y: 100 }
       ),
-      service.getJointOperatorElement(
+      service.getJointTooltipElement(
         mockResultPredicate,
         { x: 500, y: 100 }
       )
@@ -239,7 +253,7 @@ describe('JointUIService', () => {
     const graph_link = graph.getLinks()[0];
     const graph_tooltip1 = graph.getCell('tooltip-' + mockScanPredicate.operatorID);
 
-    // testing getCustomOperatorStyleAttrs()
+    // testing getCustomTooltipStyleAttrs()
     expect(graph_tooltip1.attr('polygon')).toEqual({
       fill: '#FFFFFF', 'follow-scale': true, stroke: 'purple', 'stroke-width': '2',
         rx: '5px', ry: '5px', refPoints: '0,30 150,30 150,120 85,120 75,150 65,120 0,120',
@@ -260,6 +274,8 @@ describe('JointUIService', () => {
       'ref-x': .05, 'ref-y': .5,
       display: 'none'
     });
+
+    // testing getCustomOperatorStyleAttrs()
     expect(graph_operator1.attr('#operatorStates')).toEqual({
       text:  'Ready' , fill: 'green', 'font-size': '14px', 'visible' : false,
       'ref-x': 0.5, 'ref-y': -10, ref: 'rect', 'y-alignment': 'middle', 'x-alignment': 'middle'

@@ -165,9 +165,7 @@ export class JointUIService {
     if (operatorSchema === undefined) {
       throw new Error(`operator type ${operator.operatorType} doesn't exist`);
     }
-
     // set the tooltip point to set the default position relative to the operator
-
     const tooltipPoint = {x: point.x - JointUIService.DEFAULT_OPERATOR_WIDTH / 2 - 10,
        y: point.y - JointUIService.DEFAULT_OPERATOR_HEIGHT};
 
@@ -180,23 +178,24 @@ export class JointUIService {
     return toolTipElement;
   }
 
+  // remove attr 'display: none' to show a tooltip
   public showToolTip(jointPaper: joint.dia.Paper, tooltipID: string): void {
     jointPaper.getModelById(tooltipID).removeAttr('polygon/display');
     jointPaper.getModelById(tooltipID).removeAttr('#operatorCount/display');
     jointPaper.getModelById(tooltipID).removeAttr('#operatorSpeed/display');
   }
-
+  // add attr 'display: none' to hide a tooltip
   public hideToolTip(jointPaper: joint.dia.Paper, tooltipID: string): void {
     jointPaper.getModelById(tooltipID).attr('polygon/display', 'none');
     jointPaper.getModelById(tooltipID).attr('#operatorCount/display', 'none');
     jointPaper.getModelById(tooltipID).attr('#operatorSpeed/display', 'none');
   }
-
+  // change content of tooltip
   public changeOperatorTooltipInfo(jointPaper: joint.dia.Paper, tooltipID: string, stats: Statistics) {
     jointPaper.getModelById(tooltipID).attr('#operatorCount/text', 'Output:' + stats.outputCount + ' tuples');
     jointPaper.getModelById(tooltipID).attr('#operatorSpeed/text', 'Speed:' + stats.speed + ' tuples/ms');
   }
-
+  // change operator state name and color
   public changeOperatorStates(jointPaper: joint.dia.Paper, operatorID: string, status: OperatorStates): void {
       jointPaper.getModelById(operatorID).attr('#operatorStates/text', OperatorStates[status]);
       switch (status) {
@@ -214,8 +213,6 @@ export class JointUIService {
         }
       }
   }
-
-
 
   /**
    * This method will change the operator's color based on the validation status
@@ -381,7 +378,6 @@ export class JointUIService {
         fill: '#FFFFFF', 'follow-scale': true, stroke: 'red', 'stroke-width': '2',
         rx: '5px', ry: '5px'
       },
-
       '#operatorName': {
         text: operatorDisplayName, fill: '#595959', 'font-size': '14px',
         'ref-x': 0.5, 'ref-y': 80, ref: 'rect', 'y-alignment': 'middle', 'x-alignment': 'middle'

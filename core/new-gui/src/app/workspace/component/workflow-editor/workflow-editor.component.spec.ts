@@ -219,12 +219,15 @@ describe('WorkflowEditorComponent', () => {
     });
 
     it('should update tooltip content when workflow-status.service emits processState', () => {
+      // spy on key function, create simple workflow
       const changeOperatorTooltipInfoSpy = spyOn(jointUIService, 'changeOperatorTooltipInfo').and.callThrough();
       workflowActionService.addOperator(mockScanPredicateForStatus, mockPoint);
       const tooltipView = component.getJointPaper().findViewByModel('tooltip-' + mockScanPredicateForStatus.operatorID);
 
+      // workflowStatusService emits a mock status
       workflowStatusService['status'].next(mockStatus1 as SuccessProcessStatus);
       fixture.detectChanges();
+      // function should be called and content should be updated properly
       expect(component['tooltipDisplayEnabled']).toBeTruthy();
       expect(changeOperatorTooltipInfoSpy).toHaveBeenCalledTimes(1);
       expect(tooltipView.model.attr('#operatorCount/text'))
@@ -232,8 +235,10 @@ describe('WorkflowEditorComponent', () => {
       expect(tooltipView.model.attr('#operatorSpeed/text'))
         .toBe('Speed:' + (mockStatus1 as SuccessProcessStatus).operatorStatistics[mockScanOperatorID].speed + ' tuples/ms');
 
+      // workflowStatusService emits another mock status
       workflowStatusService['status'].next(mockStatus2 as SuccessProcessStatus);
       fixture.detectChanges();
+      // function should be called again and content should be updated properly
       expect(changeOperatorTooltipInfoSpy).toHaveBeenCalledTimes(2);
       expect(tooltipView.model.attr('#operatorCount/text'))
         .toBe('Output:' + (mockStatus2 as SuccessProcessStatus).operatorStatistics[mockScanOperatorID].outputCount + ' tuples');
@@ -242,24 +247,32 @@ describe('WorkflowEditorComponent', () => {
     });
 
     it('should change operator state when workflow-status.service emits processState', () => {
+      // spy on key function, create simple workflow
       const changeOperatorStatesSpy = spyOn(jointUIService, 'changeOperatorStates').and.callThrough();
       workflowActionService.addOperator(mockScanPredicateForStatus, mockPoint);
       const jointCellView = component.getJointPaper().findViewByModel(mockScanPredicateForStatus.operatorID);
 
+      // workflowStatusService emits a mock status
       workflowStatusService['status'].next(mockStatus1 as SuccessProcessStatus);
       fixture.detectChanges();
+      // function should be called and state name should be updated properly
       expect(changeOperatorStatesSpy).toHaveBeenCalledTimes(1);
       expect(jointCellView.model.attr('#operatorStates')['text'])
       .toEqual(OperatorStates[(mockStatus1 as SuccessProcessStatus).operatorStates[mockScanOperatorID]]);
 
+      // workflowStatusService emits another mock status
       workflowStatusService['status'].next(mockStatus2 as SuccessProcessStatus);
       fixture.detectChanges();
+      // function should be called again and state name should be updated properly
       expect(changeOperatorStatesSpy).toHaveBeenCalledTimes(2);
       expect(jointCellView.model.attr('#operatorStates')['text'])
       .toEqual(OperatorStates[OperatorStates.Completed]);
     });
 
     it('should throw error when processState contains non-existing operatorID', () => {
+      // workflowStatusService emits a processStatus with info for a scan operator
+      // however there is no scan operator on the joinGraph/texeraGraph
+      // an error should be thrown
       workflowStatusService['status'].next(mockStatus1 as SuccessProcessStatus);
       fixture.detectChanges();
       expect(component['handleOperatorStatisticsUpdate']).toThrowError();

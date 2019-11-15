@@ -10,6 +10,8 @@ describe('WorkflowStatusService', () => {
   let mockBackend: Rx.Subject<string>;
   let backendTester: Rx.Subject<string>;
   beforeEach(() => {
+    // this function creates a mock websocket connection
+    // to a fake backend that we can monitor on
     function mockConnect(url: string) {
       mockBackend = new Rx.Subject<string>();
       backendTester = new Rx.Subject<string>();
@@ -30,6 +32,8 @@ describe('WorkflowStatusService', () => {
       providers: [
         WorkflowStatusService,
         {
+          // replace the original implementation of WebsocketService.connect
+          // with our mockConnect function
           provide: WebsocketService,
           useValue: {connect: mockConnect}
         }
@@ -66,7 +70,7 @@ describe('WorkflowStatusService', () => {
     });
 
     // unable to access data field of the JSON object
-    xit('should emit responses from the backend', (done: DoneFn) => {
+    xit('should preprocess responses from the backend and emits processStatus', (done: DoneFn) => {
       const stream = workflowStatusService.getStatusInformationStream();
       const mockStatus = {
         code: 0,

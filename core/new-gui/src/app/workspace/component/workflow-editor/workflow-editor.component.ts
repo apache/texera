@@ -116,8 +116,10 @@ export class WorkflowEditorComponent implements AfterViewInit {
   }
 
   /**
-   * handle the event when mouse hover in the operator.
-   * The popup window will be shown.
+   * this method listens to user move cursor into an element
+   * if tooltipDisplayEnabled is true and
+   * if the element is an operator in texeraGraph
+   * its popup window will be shown.
    */
   private handlePopupMessageShow(): void {
     Observable.fromEvent<MouseEvent>(this.getJointPaper(), 'element:mouseenter')
@@ -134,6 +136,11 @@ export class WorkflowEditorComponent implements AfterViewInit {
     );
   }
 
+  /**
+   * this method listens to user move cursor out of an element
+   * if the element is an operator in texeraGraph
+   * its popup window(tooltip) will be hiden.
+   */
   private handlePopupMesseageHidden(): void {
     Observable.fromEvent<MouseEvent>(this.getJointPaper(), 'element:mouseleave').subscribe(
       event => {
@@ -145,6 +152,16 @@ export class WorkflowEditorComponent implements AfterViewInit {
     );
   }
 
+  /**
+   * This method subscribe to workflowStatusService's status stream
+   * for Each processStatus that has been emited
+   *    1. enable tooltipDisplay because tooltip will not be empty
+   *    2. for each operator in current texeraGraph:
+   *        - find its Statistics in processStatus, thrown an error if not found
+   *        - generate its corresponding tooltip's id
+   *        - pass the tooltip id and Statistics to jointUIService
+   *          the specific tooltip content will be updated
+   */
   private handleOperatorStatisticsUpdate(): void {
     this.workflowStatusService.getStatusInformationStream().subscribe(
       status => {
@@ -163,6 +180,16 @@ export class WorkflowEditorComponent implements AfterViewInit {
     });
   }
 
+  /**
+   * This method subscribe to workflowStatusService's status stream
+   * for Each processStatus that has been emited
+   * if it is the final status of a series of statuses, indicated by a message "Process Completed"
+   *    - change all operator's states to completed
+   * if otherwise:
+   *    for each operator in texeraGraph:
+   *      find its states in processStatus, throw an error if not found
+   *      pass state and id to jointUIService
+   */
   private handleOperatorStatesChange(): void {
     this.workflowStatusService.getStatusInformationStream().subscribe(
       status => {
