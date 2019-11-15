@@ -140,7 +140,7 @@ export class WorkflowActionService {
       throw new Error(`operator type ${operator.operatorType} is invalid`);
     }
     // remember currently highlighted operator
-    const currentHighlighted = this.jointGraphWrapper.getCurrentHighlightedOpeartorID();
+    const currentHighlighted = this.jointGraphWrapper.getCurrentHighlightedOpeartorIDs();
 
     const command: Command = {
       execute: () => {
@@ -152,7 +152,7 @@ export class WorkflowActionService {
         // remove the operator from JointJS
         this.deleteOperatorInternal(operator.operatorID);
         // JointJS operator delete event will propagate and trigger Texera operator delete
-        this.jointGraphWrapper.highlightOperator(currentHighlighted);
+        this.jointGraphWrapper.highlightOperator(currentHighlighted[0]);
       }
     };
     this.executeAndStoreCommand(command);

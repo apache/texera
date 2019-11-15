@@ -34,8 +34,7 @@ type JointLinkChangeEvent = [
 
 type JointPositionChangeEvent = [
   joint.dia.Element,
-  { x: number, y: number },
-  { manually: boolean }
+  { x: number, y: number }
 ];
 
 /**
@@ -66,16 +65,14 @@ export class JointGraphWrapper {
 
   public static readonly ZOOM_MINIMUM: number = 0.70;
   public static readonly ZOOM_MAXIMUM: number = 1.30;
+
   private operatorPositions: Map<string, Point> = new Map<string, Point>();
-
-
-  // dictionary of currently highlighted operators' {operatorID, position} pairs:
-  //  operators' positions are stored here for handling highlighted operator's position
-  //  change events (to provide original positions for calculating position offset).
-  private currentHighlightedOperators: Record<string, Point> = {};
+  private listenPositionChange: boolean = true;
 
   // flag that indicates whether multiselect mode is on
   private multiSelect: boolean = false;
+  // the current highlighted operators' ID
+  private currentHighlightedOperators: string[] = [];
   // event stream of highlighting an operator
   private jointCellHighlightStream = new Subject<operatorIDType>();
   // event stream of un-highlighting an operator
@@ -127,7 +124,7 @@ export class JointGraphWrapper {
 
     // handle if the current highlighted operator's position is changed,
     // other highlighted operators should move with it.
-    this.handleOperatorPositionChange();
+    this.handleHighlightedOperatorPositionChange();
   }
 
 
@@ -142,11 +139,21 @@ export class JointGraphWrapper {
   /**
    * Gets the operator ID of the current highlighted operators.
    * Returns an empty list if there is no highlighted operator.
+   *
+   * The returned array is not the original one so that other
+   * services/components can't modify it directly.
    */
   public getCurrentHighlightedOpeartorIDs(): string[] {
-    return Object.keys(this.currentHighlightedOperators);
+    return Object.assign([], this.currentHighlightedOperators);
   }
 
+  /**
+   * Returns an Observable stream capturing the operator position change event in JointJS graph.
+   *
+   * - operatorID: the moved operator's ID
+   * - oldPosition: the operator's position before moving
+   * - newPosition: where the operator is moved to
+   */
   public getOperatorPositionChangeEvent(): Observable<{ operatorID: string, oldPosition: Point, newPosition: Point }> {
     return Observable
       .fromEvent<JointPositionChangeEvent>(this.jointGraph, 'change:position').map(e => {
@@ -176,27 +183,23 @@ export class JointGraphWrapper {
    *
    * @param operatorID
    */
-  public highlightOperator(operatorID: string | undefined): void {
-    if (!operatorID) {
-      return;
-    }
+  public highlightOperator(operatorID: string): void {
     // try to get the operator using operator ID
     if (!this.jointGraph.getCell(operatorID)) {
       throw new Error(`opeartor with ID ${operatorID} doesn't exist`);
     }
     // if the current highlighted operator is already highlighted, don't do anything
-    if (operatorID in this.currentHighlightedOperators) {
+    if (this.currentHighlightedOperators.includes(operatorID)) {
       return;
     }
     // if the multiselect mode is off and there are other highlighted operators,
     // unhighlight them first
-    if (!this.multiSelect && Object.keys(this.currentHighlightedOperators).length > 0) {
-      Object.keys(this.currentHighlightedOperators).forEach(
-        highlightedOperator => this.unhighlightOperator(highlightedOperator)
-      );
+    if (!this.multiSelect && this.currentHighlightedOperators.length > 0) {
+      const highlightedOperators = Object.assign([], this.currentHighlightedOperators);
+      highlightedOperators.forEach(highlightedOperator => this.unhighlightOperator(highlightedOperator));
     }
-    // highlight the operator, remember its position, and emit the event
-    this.currentHighlightedOperators[operatorID] = this.getOperatorPosition(operatorID);
+    // highlight the operator and emit the event
+    this.currentHighlightedOperators.push(operatorID);
     this.jointCellHighlightStream.next({ operatorID });
   }
 
@@ -206,10 +209,11 @@ export class JointGraphWrapper {
    * @param unhighlightedOperatorID
    */
   public unhighlightOperator(unhighlightedOperatorID: string): void {
-    if (!(unhighlightedOperatorID in this.currentHighlightedOperators)) {
+    if (!this.currentHighlightedOperators.includes(unhighlightedOperatorID)) {
       return;
     }
-    delete this.currentHighlightedOperators[unhighlightedOperatorID];
+    const unhighlightedOperatorIndex = this.currentHighlightedOperators.indexOf(unhighlightedOperatorID);
+    this.currentHighlightedOperators.splice(unhighlightedOperatorIndex, 1);
     this.jointCellUnhighlightStream.next({ operatorID: unhighlightedOperatorID });
   }
 
@@ -394,11 +398,9 @@ export class JointGraphWrapper {
     }
 
   /**
-   * This method changes the operator's position to the specified point on JointJS.
-   * @param operatorID
-   * @param position
+   * This method repositions the operator according to given offsets.
    */
-  public setOperatorPosition(operatorID: string, position: Point): void {
+  public setOperatorPosition(operatorID: string, offsetX: number, offsetY: number): void {
     const cell: joint.dia.Cell | undefined = this.jointGraph.getCell(operatorID);
     if (! cell) {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
@@ -407,8 +409,7 @@ export class JointGraphWrapper {
       throw new Error(`${operatorID} is not an operator`);
     }
     const element = <joint.dia.Element> cell;
-    // sets manually to true to indicate that this position change is manually initiated
-    element.position(position.x, position.y, {'manually': true});
+    element.translate(offsetX, offsetY);
   }
 
   /**
@@ -419,7 +420,7 @@ export class JointGraphWrapper {
   private handleOperatorDeleteUnhighlight(): void {
     this.getJointOperatorCellDeleteStream().subscribe(deletedOperatorCell => {
       const deletedOperatorID = deletedOperatorCell.id.toString();
-      if (deletedOperatorID in this.currentHighlightedOperators) {
+      if (this.currentHighlightedOperators.includes(deletedOperatorID)) {
         this.unhighlightOperator(deletedOperatorID);
       }
     });
@@ -430,20 +431,18 @@ export class JointGraphWrapper {
    *  checks if the operator is moved by user and if the moved operator is currently highlighted,
    *  if it is, move other highlighted operators along with it.
    */
-  private handleOperatorPositionChange(): void {
+  private handleHighlightedOperatorPositionChange(): void {
     this.getOperatorPositionChangeEvent()
-      // .filter(movedOperator => !movedOperator.manually)
-      .filter(movedOperator => movedOperator.operatorID in this.currentHighlightedOperators)
+      .filter(() => this.listenPositionChange)
+      .filter(movedOperator => this.currentHighlightedOperators.includes(movedOperator.operatorID))
       .subscribe(movedOperator => {
-        const oldPosition = this.currentHighlightedOperators[movedOperator.operatorID];
-        const offsetX = movedOperator.newPosition.x - oldPosition.x;
-        const offsetY = movedOperator.newPosition.y - oldPosition.y;
-        for (const operatorID of Object.keys(this.currentHighlightedOperators)) {
-          const position = this.currentHighlightedOperators[operatorID];
-          const newPosition = {x: position.x + offsetX, y: position.y + offsetY};
-          this.setOperatorPosition(operatorID, newPosition);
-          this.currentHighlightedOperators[operatorID] = newPosition;
-        }
+        const offsetX = movedOperator.newPosition.x - movedOperator.oldPosition.x;
+        const offsetY = movedOperator.newPosition.y - movedOperator.oldPosition.y;
+        this.listenPositionChange = false;
+        this.currentHighlightedOperators
+          .filter(operatorID => operatorID !== movedOperator.operatorID)
+          .forEach(operatorID => this.setOperatorPosition(operatorID, offsetX, offsetY));
+        this.listenPositionChange = true;
       });
   }
 
