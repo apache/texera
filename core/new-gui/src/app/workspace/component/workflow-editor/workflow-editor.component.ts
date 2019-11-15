@@ -54,7 +54,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
   private ifMouseDown: boolean = false;
   private mouseDown: Point | undefined;
   private panOffset: Point = { x : 0 , y : 0};
-  private workflowStarted: boolean = false;
+  private tooltipDisplayEnabled: boolean = false;
 
 
   constructor(
@@ -124,7 +124,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     .subscribe(
       event => {
         const operatorID = (event as any)[0]['model']['id'];
-        if (this.workflowStarted) {
+        if (this.tooltipDisplayEnabled) {
           if (this.workflowActionService.getTexeraGraph().getOperator(operatorID) !== undefined) {
             const tooltipID = 'tooltip-' + operatorID;
             this.jointUIService.showToolTip(this.getJointPaper(), tooltipID);
@@ -147,8 +147,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
   private handleOperatorStatisticsUpdate(): void {
     this.workflowStatusService.getStatusInformationStream().subscribe(
-      (status: SuccessProcessStatus) => {
-      this.workflowStarted = true;
+      status => {
+      this.tooltipDisplayEnabled = true;
       this.workflowActionService.getTexeraGraph().getAllOperators().forEach(
         operator => {
             const tooltipID = 'tooltip-' + operator.operatorID;
@@ -164,9 +164,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
   }
 
   private handleOperatorStatesChange(): void {
-    this.workflowStatusService.getStatusInformationStream()
-    .filter(status => status !== undefined)
-    .subscribe(status => {
+    this.workflowStatusService.getStatusInformationStream().subscribe(
+      status => {
       if (status.message === 'Process Completed') {
         this.workflowActionService.getTexeraGraph().getAllOperators().forEach(operator => {
           // if the operator is not completed the whole process

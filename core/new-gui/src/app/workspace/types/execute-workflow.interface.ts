@@ -84,7 +84,7 @@ export interface SuccessProcessStatus extends Readonly< {
 }
 
  export interface Statistics {
-  inputCount: 0;
-  outputCount: 0;
-  speed: 0.0;
+  inputCount: number;
+  outputCount: number;
+  speed: number;
 }

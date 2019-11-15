@@ -89,7 +89,7 @@ describe('NavigationComponent', () => {
 
   }));
 
-  fit('should send workflowId to websocket when run button is clicked', () => {
+  it('should send workflowId to websocket when run button is clicked', () => {
     const checkWorkflowSpy = spyOn(workflowStatusService, 'checkStatus');
     component.onButtonClick();
     expect(checkWorkflowSpy).toHaveBeenCalled();

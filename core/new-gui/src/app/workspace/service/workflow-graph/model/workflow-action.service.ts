@@ -116,7 +116,9 @@ export class WorkflowActionService {
    */
   public deleteOperator(operatorID: string): void {
     this.texeraGraph.assertOperatorExists(operatorID);
-    // remove the operator from JointJS
+    // remove the corresponding tooltip from JointJS first first first!
+    this.jointGraph.getCell('tooltip-' + operatorID).remove();
+    // then remove the operator from JointJS
     this.jointGraph.getCell(operatorID).remove();
     // JointJS operator delete event will propagate and trigger Texera operator delete
   }

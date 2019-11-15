@@ -97,35 +97,6 @@ export class JointUIService {
   }
 
   /**
-   * Gets the JointJS UI element object based on the tooltip predicate
-   * @param tooltipID the id of the tool tip, in this case we set the id the same as the corresponding operator id
-   * @param processedCount the number of the data that operator handle
-   * @param tooltipType the type of the tool tip for further use (i.e to show the flow chart to represent the speed of * the data handling)
-   */
-  public getJointTooltipElement(
-    operator: OperatorPredicate, point: Point
-  ): joint.dia.Element {
-      // check if the operatorType exists in the operator metadata
-    const operatorSchema = this.operators.find(op => op.operatorType === operator.operatorType);
-    if (operatorSchema === undefined) {
-      throw new Error(`operator type ${operator.operatorType} doesn't exist`);
-    }
-
-    // set the tooltip point to set the default position relative to the operator
-
-    const tooltipPoint = {x: point.x - JointUIService.DEFAULT_OPERATOR_WIDTH / 2 - 10,
-       y: point.y - JointUIService.DEFAULT_OPERATOR_HEIGHT};
-
-    const toolTipElement = new TexeraCustomTooltipElement({
-      position: tooltipPoint,
-      size: {width: JointUIService.DEFAULT_TOOLTIP_WIDTH, height: JointUIService.DEFAULT_TOOLTIP_HEIGHT},
-      attrs: JointUIService.getCustomTooltipStyleAttrs()
-    });
-    toolTipElement.set('id', 'tooltip-' + operator.operatorID);
-    return toolTipElement;
-  }
-
-  /**
    * Gets the JointJS UI Element object based on the operator predicate.
    * A JointJS Element could be added to the JointJS graph to let JointJS display the operator accordingly.
    *
@@ -181,6 +152,34 @@ export class JointUIService {
     return operatorElement;
   }
 
+  /**
+   * Gets the JointJS UI element object for a operator statistics popup window
+   * @param operator the predicate of the base operator
+   * @param point the position of the tooltip
+   */
+  public getJointTooltipElement(
+    operator: OperatorPredicate, point: Point
+  ): joint.dia.Element {
+      // check if the operatorType exists in the operator metadata
+    const operatorSchema = this.operators.find(op => op.operatorType === operator.operatorType);
+    if (operatorSchema === undefined) {
+      throw new Error(`operator type ${operator.operatorType} doesn't exist`);
+    }
+
+    // set the tooltip point to set the default position relative to the operator
+
+    const tooltipPoint = {x: point.x - JointUIService.DEFAULT_OPERATOR_WIDTH / 2 - 10,
+       y: point.y - JointUIService.DEFAULT_OPERATOR_HEIGHT};
+
+    const toolTipElement = new TexeraCustomTooltipElement({
+      position: tooltipPoint,
+      size: {width: JointUIService.DEFAULT_TOOLTIP_WIDTH, height: JointUIService.DEFAULT_TOOLTIP_HEIGHT},
+      attrs: JointUIService.getCustomTooltipStyleAttrs()
+    });
+    toolTipElement.set('id', 'tooltip-' + operator.operatorID);
+    return toolTipElement;
+  }
+
   public showToolTip(jointPaper: joint.dia.Paper, tooltipID: string): void {
     jointPaper.getModelById(tooltipID).removeAttr('polygon/display');
     jointPaper.getModelById(tooltipID).removeAttr('#operatorCount/display');
@@ -200,18 +199,19 @@ export class JointUIService {
 
   public changeOperatorStates(jointPaper: joint.dia.Paper, operatorID: string, status: OperatorStates): void {
       jointPaper.getModelById(operatorID).attr('#operatorStates/text', OperatorStates[status]);
-      if (status === OperatorStates.Running) {
-        jointPaper.getModelById(operatorID).attr('#operatorStates/fill', 'orange');
-      } else if (status === OperatorStates.Completed) {
-        jointPaper.getModelById(operatorID).attr('#operatorStates/fill', 'green');
-      } else if (status === OperatorStates.Paused) {
-        jointPaper.getModelById(operatorID).attr('#operatorStates/fill', 'orange');
-      } else if (status === OperatorStates.Pausing) {
-        jointPaper.getModelById(operatorID).attr('#operatorStates/fill', 'red');
-      } else if (status === OperatorStates.Ready) {
-        jointPaper.getModelById(operatorID).attr('#operatorStates/fill', 'orange');
-      } else if (status === OperatorStates.Initializing) {
-        jointPaper.getModelById(operatorID).attr('#operatorStates/fill', 'orange');
+      switch (status) {
+        case OperatorStates.Completed: {
+          jointPaper.getModelById(operatorID).attr('#operatorStates/fill', 'green');
+          break;
+        }
+        case OperatorStates.Pausing:
+        case OperatorStates.Paused: {
+          jointPaper.getModelById(operatorID).attr('#operatorStates/fill', 'red');
+          break;
+        }
+        default: {
+          jointPaper.getModelById(operatorID).attr('#operatorStates/fill', 'orange');
+        }
       }
   }
 
@@ -379,7 +379,7 @@ export class JointUIService {
       },
       'rect': {
         fill: '#FFFFFF', 'follow-scale': true, stroke: 'red', 'stroke-width': '2',
-        rx: '5px', ry: '5px', width: 10, height: 10,
+        rx: '5px', ry: '5px'
       },
 
       '#operatorName': {

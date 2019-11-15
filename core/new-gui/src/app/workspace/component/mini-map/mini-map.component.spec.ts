@@ -57,8 +57,13 @@ describe('MiniMapComponent', () => {
     workflowActionService.addOperator(mockResultPredicate, mockPoint);
     workflowActionService.addOperator(mockSentimentPredicate, mockPoint);
 
+    // ! each time a operator is added as an element
+    // its corresponding tooltip is also added as an element,
+    // though invisible most of the time
+    // so number of elements should *2
+
     // check if add operator is compatible
-    expect(component.getMiniMapPaper().model.getElements().length).toEqual(3);
+    expect(component.getMiniMapPaper().model.getElements().length).toEqual(6);
 
     // add operator link operation
     workflowActionService.addLink(mockScanResultLink);
@@ -77,7 +82,7 @@ describe('MiniMapComponent', () => {
     workflowActionService.deleteOperator(mockScanPredicate.operatorID);
 
     // check if delete operator is compatible
-    expect(component.getMiniMapPaper().model.getElements().length).toEqual(2);
+    expect(component.getMiniMapPaper().model.getElements().length).toEqual(4);
   });
 
 });
