@@ -73,17 +73,26 @@ export class SaveWorkflowService {
     }
 
     const savedWorkflow: SavedWorkflow = JSON.parse(savedWorkflowJson);
+
+    const operatorsAndPositions: {op: OperatorPredicate, pos: Point}[] = [];
     savedWorkflow.operators.forEach(op => {
       const opPosition = savedWorkflow.operatorPositions[op.operatorID];
       if (! opPosition) {
         throw new Error('position error');
       }
-      this.workflowActionService.addOperator(op, opPosition);
+      operatorsAndPositions.push({op: op, pos: opPosition});
     });
 
+    const links: OperatorLink[] = [];
     savedWorkflow.links.forEach(link => {
-      this.workflowActionService.addLink(link);
+      links.push(link);
     });
+
+    this.workflowActionService.addOperatorsAndLinks(operatorsAndPositions, links);
+
+    // operators shouldn't be highlighted during page reload
+    this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOpeartorIDs()
+      .forEach(operatorID => this.workflowActionService.getJointGraphWrapper().unhighlightOperator(operatorID));
   }
 
   /**
