@@ -135,15 +135,16 @@ export class WorkflowActionService {
    * @param point
    */
   public addOperator(operator: OperatorPredicate, point: Point): void {
-    // check that the operator type exists
-    if (!this.operatorMetadataService.operatorTypeExists(operator.operatorType)) {
-      throw new Error(`operator type ${operator.operatorType} is invalid`);
-    }
-    // remember currently highlighted operator
+    // remember whether multiselect is on
+    const multiSelect = this.jointGraphWrapper.getMultiSelectMode();
+    // remember currently highlighted operators
     const currentHighlighted = this.jointGraphWrapper.getCurrentHighlightedOpeartorIDs();
 
     const command: Command = {
       execute: () => {
+        // turn off multiselect since there's only one operator added
+        this.jointGraphWrapper.setMultiSelectMode(false);
+        // add operator
         this.addOperatorInternal(operator, point);
         // highlight the newly added operator
         this.jointGraphWrapper.highlightOperator(operator.operatorID);
@@ -151,8 +152,11 @@ export class WorkflowActionService {
       undo: () => {
         // remove the operator from JointJS
         this.deleteOperatorInternal(operator.operatorID);
-        // JointJS operator delete event will propagate and trigger Texera operator delete
-        this.jointGraphWrapper.highlightOperator(currentHighlighted[0]);
+        // restore previous highlights
+        this.jointGraphWrapper.getCurrentHighlightedOpeartorIDs()
+          .forEach(operatorID => this.jointGraphWrapper.unhighlightOperator(operatorID));
+        this.jointGraphWrapper.setMultiSelectMode(multiSelect);
+        currentHighlighted.forEach(operatorID => this.jointGraphWrapper.highlightOperator(operatorID));
       }
     };
     this.executeAndStoreCommand(command);
@@ -184,16 +188,21 @@ export class WorkflowActionService {
   }
 
   public addOperatorsAndLinks(operatorsAndPositions: {op: OperatorPredicate, pos: Point}[], links: OperatorLink[]): void {
-    // // check that the operator type exists
-    // if (!this.operatorMetadataService.operatorTypeExists(operator.operatorType)) {
-    //   throw new Error(`operator type ${operator.operatorType} is invalid`);
-    // }
-    // remember currently highlighted operator
-    // const currentHighlighted = this.jointGraphWrapper.getCurrentHighlightedOpeartorID();
+    // remember whether multiselect is on
+    const multiSelect = this.jointGraphWrapper.getMultiSelectMode();
+    // remember currently highlighted operators
+    const currentHighlighted = this.jointGraphWrapper.getCurrentHighlightedOpeartorIDs();
 
     const command: Command = {
       execute: () => {
-        operatorsAndPositions.forEach(o => this.addOperatorInternal(o.op, o.pos));
+        // unhighlight previous highlights
+        this.jointGraphWrapper.getCurrentHighlightedOpeartorIDs()
+          .forEach(operatorID => this.jointGraphWrapper.unhighlightOperator(operatorID));
+        this.jointGraphWrapper.setMultiSelectMode(operatorsAndPositions.length > 1);
+        operatorsAndPositions.forEach(o => {
+          this.addOperatorInternal(o.op, o.pos);
+          this.jointGraphWrapper.highlightOperator(o.op.operatorID);
+        });
         links.forEach(l => this.addLinkInternal(l));
       },
       undo: () => {
@@ -201,6 +210,11 @@ export class WorkflowActionService {
         links.forEach(l => this.deleteLinkWithIDInternal(l.linkID));
         // remove the operators from JointJS
         operatorsAndPositions.forEach(o => this.deleteOperatorInternal(o.op.operatorID));
+        // restore previous highlights
+        this.jointGraphWrapper.getCurrentHighlightedOpeartorIDs()
+          .forEach(operatorID => this.jointGraphWrapper.unhighlightOperator(operatorID));
+        this.jointGraphWrapper.setMultiSelectMode(multiSelect);
+        currentHighlighted.forEach(operatorID => this.jointGraphWrapper.highlightOperator(operatorID));
       }
     };
     this.executeAndStoreCommand(command);
@@ -305,6 +319,13 @@ export class WorkflowActionService {
   }
 
   private addOperatorInternal(operator: OperatorPredicate, point: Point): void {
+    // check that the operator doesn't exist
+    this.texeraGraph.assertOperatorNotExists(operator.operatorID);
+    // check that the operator type exists
+    if (! this.operatorMetadataService.operatorTypeExists(operator.operatorType)) {
+      throw new Error(`operator type ${operator.operatorType} is invalid`);
+    }
+
     // get the JointJS UI element
     const operatorJointElement = this.jointUIService.getJointOperatorElement(operator, point);
     // add operator to joint graph first

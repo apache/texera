@@ -568,8 +568,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
   }
 
   /**
-   * Caches the currently highlighted operator's info (type and position)
-   * when user triggers the copy event (i.e. presses command/ctrl + c on
+   * Caches the currently highlighted operators' info when user
+   * triggers the copy event (i.e. presses command/ctrl + c on
    * keyboard or selects copy option from the browser menu).
    */
   private handleOperatorCopy() {
@@ -585,8 +585,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
   }
 
   /**
-   * Caches the currently highlighted operator's info (type and position) and
-   * deletes it when user triggers the cut event (i.e. presses command/ctrl + x
+   * Caches the currently highlighted operators' info and deletes it
+   * when user triggers the cut event (i.e. presses command/ctrl + x
    * on keyboard or selects cut option from the browser menu).
    */
   private handleOperatorCut() {
@@ -619,7 +619,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
   }
 
   /**
-   * Pastes the cached operator onto the workflow graph and highlights it
+   * Pastes the cached operators onto the workflow graph and highlights them
    * when user triggers the paste event (i.e. presses command/ctrl + v on
    * keyboard or selects paste option from the browser menu).
    */
@@ -628,17 +628,15 @@ export class WorkflowEditorComponent implements AfterViewInit {
       .filter(event => (<HTMLElement> event.target).nodeName !== 'INPUT')
       .subscribe(() => {
         if (Object.keys(this.copiedOperators).length > 0) {
-          const currentOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOpeartorIDs();
-          currentOperatorIDs.forEach(operatorID => {
-            this.workflowActionService.getJointGraphWrapper().unhighlightOperator(operatorID);
-          });
-          this.workflowActionService.getJointGraphWrapper().setMultiSelectMode(Object.keys(this.copiedOperators).length > 1);
+          const operatorsAndPositions = [];
+          const positions = [];
           for (const operatorID of Object.keys(this.copiedOperators)) {
             const newOperator = this.copyOperator(this.copiedOperators[operatorID].operator);
-            const newOperatorPosition = this.calcOperatorPosition(newOperator.operatorID, operatorID);
-            this.workflowActionService.addOperator(newOperator, newOperatorPosition);
-            this.workflowActionService.getJointGraphWrapper().highlightOperator(newOperator.operatorID);
+            const newOperatorPosition = this.calcOperatorPosition(newOperator.operatorID, operatorID, positions);
+            operatorsAndPositions.push({op: newOperator, pos: newOperatorPosition});
+            positions.push(newOperatorPosition);
           }
+          this.workflowActionService.addOperatorsAndLinks(operatorsAndPositions, []);
         }
       });
   }
@@ -665,25 +663,26 @@ export class WorkflowEditorComponent implements AfterViewInit {
    * that's non-overlapping and calculated according to the copy operator offset.
    * @param newOperatorID
    * @param copiedOperatorID
+   * @param positions
    */
-  private calcOperatorPosition(newOperatorID: string, copiedOperatorID: string): Point {
+  private calcOperatorPosition(newOperatorID: string, copiedOperatorID: string, positions: Point[]): Point {
     let i, position;
     const operatorPosition = this.copiedOperators[copiedOperatorID].position;
     const pastedOperators = this.copiedOperators[copiedOperatorID].pastedOperators;
     for (i = 0; i < pastedOperators.length; ++i) {
       position = {x: operatorPosition.x + i * this.COPY_OPERATOR_OFFSET,
                   y: operatorPosition.y + i * this.COPY_OPERATOR_OFFSET};
-      if (!this.workflowActionService.getTexeraGraph().hasOperator(pastedOperators[i]) ||
+      if (!positions.includes(position) && (!this.workflowActionService.getTexeraGraph().hasOperator(pastedOperators[i]) ||
           this.workflowActionService.getJointGraphWrapper().getOperatorPosition(pastedOperators[i]).x !== position.x ||
-          this.workflowActionService.getJointGraphWrapper().getOperatorPosition(pastedOperators[i]).y !== position.y) {
+          this.workflowActionService.getJointGraphWrapper().getOperatorPosition(pastedOperators[i]).y !== position.y)) {
         this.copiedOperators[copiedOperatorID].pastedOperators[i] = newOperatorID;
-        return this.getNonOverlappingPosition(position);
+        return this.getNonOverlappingPosition(position, positions);
       }
     }
     this.copiedOperators[copiedOperatorID].pastedOperators.push(newOperatorID);
     position = {x: operatorPosition.x + i * this.COPY_OPERATOR_OFFSET,
                 y: operatorPosition.y + i * this.COPY_OPERATOR_OFFSET};
-    return this.getNonOverlappingPosition(position);
+    return this.getNonOverlappingPosition(position, positions);
   }
 
   /**
@@ -691,13 +690,14 @@ export class WorkflowEditorComponent implements AfterViewInit {
    * The function will check if the current position overlaps with an existing
    * operator. If it does, the function will find a new non-overlapping position.
    * @param position
+   * @param positions
    */
-  private getNonOverlappingPosition(position: Point): Point {
+  private getNonOverlappingPosition(position: Point, positions: Point[]): Point {
     let overlapped = false;
-    const allOperators = this.workflowActionService.getTexeraGraph().getAllOperators();
+    const operatorPositions = positions.concat(this.workflowActionService.getTexeraGraph().getAllOperators()
+      .map(operator => this.workflowActionService.getJointGraphWrapper().getOperatorPosition(operator.operatorID)));
     do {
-      for (const operator of allOperators) {
-        const operatorPosition = this.workflowActionService.getJointGraphWrapper().getOperatorPosition(operator.operatorID);
+      for (const operatorPosition of operatorPositions) {
         if (operatorPosition.x === position.x && operatorPosition.y === position.y) {
           position = {x: position.x + this.COPY_OPERATOR_OFFSET, y: position.y + this.COPY_OPERATOR_OFFSET};
           overlapped = true;

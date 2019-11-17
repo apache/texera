@@ -129,11 +129,18 @@ export class JointGraphWrapper {
 
 
   /**
-   * This method is used to toggle the multiselect mode
+   * This method is used to toggle the multiselect mode.
    * @param multiSelect
    */
   public setMultiSelectMode(multiSelect: boolean): void {
     this.multiSelect = multiSelect;
+  }
+
+  /**
+   * This method is used to get the current status of the multiselect mode.
+   */
+  public getMultiSelectMode(): boolean {
+    return this.multiSelect;
   }
 
   /**
