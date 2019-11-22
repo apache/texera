@@ -546,7 +546,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
       .filter(event => event.key === 'Backspace' || event.key === 'Delete')
       .subscribe(() => {
         const currentOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOpeartorIDs();
-        currentOperatorIDs.forEach(operatorID => this.workflowActionService.deleteOperator(operatorID));
+        this.workflowActionService.deleteOperatorsAndLinks(currentOperatorIDs, []);
       });
   }
 
@@ -598,9 +598,9 @@ export class WorkflowEditorComponent implements AfterViewInit {
           this.copiedOperators = {};
           currentOperatorIDs.forEach(operatorID => {
             this.saveOperatorInfo(operatorID);
-            this.workflowActionService.deleteOperator(operatorID);
             this.copiedOperators[operatorID].pastedOperators = [];
           });
+          this.workflowActionService.deleteOperatorsAndLinks(currentOperatorIDs, []);
         }
       });
   }

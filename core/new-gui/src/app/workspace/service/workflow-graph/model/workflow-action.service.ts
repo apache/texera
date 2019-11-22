@@ -181,6 +181,8 @@ export class WorkflowActionService {
       undo: () => {
         this.addOperatorInternal(operator, position);
         linksToDelete.forEach(link => this.addLinkInternal(link));
+        // turn off multiselect since only the deleted operator will be added
+        this.getJointGraphWrapper().setMultiSelectMode(false);
         this.getJointGraphWrapper().highlightOperator(operator.operatorID);
       }
     };
@@ -225,18 +227,23 @@ export class WorkflowActionService {
     const operatorsAndPositions = new Map<OperatorPredicate, Point>();
     operatorIDs.forEach(operatorID => {
       operatorsAndPositions.set(this.getTexeraGraph().getOperator(operatorID),
-      this.getJointGraphWrapper().getOperatorPosition(operatorID)
-      );
+        this.getJointGraphWrapper().getOperatorPosition(operatorID));
     });
+
     // save links to be deleted, including links needs to be deleted and links affected by deleted operators
     const linksToDelete = new Set<OperatorLink>();
-        // delete links required by this command
-        linkIDs.map(linkID => this.getTexeraGraph().getLinkWithID(linkID))
-        .forEach(link => linksToDelete.add(link));
+    // delete links required by this command
+    linkIDs.map(linkID => this.getTexeraGraph().getLinkWithID(linkID))
+      .forEach(link => linksToDelete.add(link));
     // delete links related to the deleted operator
     this.getTexeraGraph().getAllLinks()
       .filter(link => operatorIDs.includes(link.source.operatorID) || operatorIDs.includes(link.target.operatorID))
       .forEach(link => linksToDelete.add(link));
+
+    // remember whether multiselect is on
+    const multiSelect = this.jointGraphWrapper.getMultiSelectMode();
+    // remember currently highlighted operators
+    const currentHighlighted = this.jointGraphWrapper.getCurrentHighlightedOpeartorIDs();
 
 
     const command: Command = {
@@ -249,6 +256,11 @@ export class WorkflowActionService {
           this.addOperatorInternal(operator, position);
         });
         linksToDelete.forEach(link => this.addLinkInternal(link));
+        // restore previous highlights
+        this.jointGraphWrapper.getCurrentHighlightedOpeartorIDs()
+          .forEach(operatorID => this.jointGraphWrapper.unhighlightOperator(operatorID));
+        this.jointGraphWrapper.setMultiSelectMode(multiSelect);
+        currentHighlighted.forEach(operatorID => this.jointGraphWrapper.highlightOperator(operatorID));
       }
     };
 
