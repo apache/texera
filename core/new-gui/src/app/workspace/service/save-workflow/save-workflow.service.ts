@@ -62,9 +62,8 @@ export class SaveWorkflowService {
    */
   public loadWorkflow(): void {
     // remove the existing operators on the paper currently
-    this.workflowActionService.getTexeraGraph().getAllOperators().forEach(op => {
-      this.workflowActionService.deleteOperator(op.operatorID);
-    });
+    this.workflowActionService.deleteOperatorsAndLinks(
+      this.workflowActionService.getTexeraGraph().getAllOperators().map(op => op.operatorID), []);
 
     // get items in the storage
     const savedWorkflowJson = localStorage.getItem(SaveWorkflowService.LOCAL_STORAGE_KEY);
