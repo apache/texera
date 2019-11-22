@@ -58,7 +58,7 @@ describe('JointUIService', () => {
    * Check if the getJointTooltipElement() can successfully creates a JointJS Element
    */
   it('should create an JointJS Element successfully when the function is called', () => {
-    const result = service.getJointTooltipElement(
+    const result = service.getJointOperatorStatusTooltipElement(
       mockScanPredicate, mockPoint);
     expect(result).toBeTruthy();
   });
@@ -68,7 +68,7 @@ describe('JointUIService', () => {
    */
   it('should throw an error with an non existing operator', () => {
     expect(() => {
-      service.getJointTooltipElement(
+      service.getJointOperatorStatusTooltipElement(
         {
           operatorID: 'nonexistOperator',
           operatorType: 'nonexistOperatorType',
@@ -96,24 +96,25 @@ describe('JointUIService', () => {
         mockScanPredicate,
         mockPoint
       ),
-      service.getJointTooltipElement(
+      service.getJointOperatorStatusTooltipElement(
         mockScanPredicate,
         mockPoint
       )
     ]);
     // tooltip should not be shown when operator is just created
     // disply attr should be none
-    const graph_tooltip1 = jointGraph.getCell('tooltip-' + mockScanPredicate.operatorID);
+    const tooltipId = JointUIService.getOperatorStatusTooltipElementID(mockScanPredicate.operatorID);
+    const graph_tooltip1 = jointGraph.getCell(tooltipId);
     expect(graph_tooltip1.attr('polygon')['display']).toEqual('none');
     expect(graph_tooltip1.attr('#operatorCount')['display']).toEqual('none');
     expect(graph_tooltip1.attr('#operatorSpeed')['display']).toEqual('none');
     // showTooltip removes display == none attr to show tooltip
-    service.showToolTip(paper, 'tooltip-' + mockScanPredicate.operatorID);
+    service.showOperatorStatusToolTip(paper, tooltipId);
     expect(graph_tooltip1.attr('polygon')['display']).toBeUndefined();
     expect(graph_tooltip1.attr('#operatorCount')['display']).toBeUndefined();
     expect(graph_tooltip1.attr('#operatorSpeed')['display']).toBeUndefined();
     // hideTooltip adds display == none attr to hide tooltip
-    service.hideToolTip(paper, 'tooltip-' + mockScanPredicate.operatorID);
+    service.hideOperatorStatusToolTip(paper, tooltipId);
     expect(graph_tooltip1.attr('polygon')['display']).toEqual('none');
     expect(graph_tooltip1.attr('#operatorCount')['display']).toEqual('none');
     expect(graph_tooltip1.attr('#operatorSpeed')['display']).toEqual('none');
@@ -133,22 +134,22 @@ describe('JointUIService', () => {
         mockScanPredicate,
         mockPoint
       ),
-      service.getJointTooltipElement(
+      service.getJointOperatorStatusTooltipElement(
         mockScanPredicate,
         mockPoint
       )
     ]);
-    const tooltipId = 'tooltip-' + mockScanPredicate.operatorID;
+    const tooltipId = JointUIService.getOperatorStatusTooltipElementID(mockScanPredicate.operatorID);
     const graph_tooltip = jointGraph.getCell(tooltipId);
     // tooltip should not contain any content when created
     expect(graph_tooltip.attr('#operatorCount')['text']).toBeUndefined();
     expect(graph_tooltip.attr('#operatorSpeed')['text']).toBeUndefined();
     // updating it with mock statistics
-    service.changeOperatorTooltipInfo(paper, tooltipId, mockScanStatistic1);
+    service.changeOperatorStatusTooltipInfo(paper, tooltipId, mockScanStatistic1);
     expect(graph_tooltip.attr('#operatorCount')['text']).toEqual('Output:' + mockScanStatistic1.outputCount + ' tuples');
     expect(graph_tooltip.attr('#operatorSpeed')['text']).toEqual('Speed:' + mockScanStatistic1.speed + ' tuples/ms');
     // updating it with another mock statistics
-    service.changeOperatorTooltipInfo(paper, tooltipId, mockScanStatistic2);
+    service.changeOperatorStatusTooltipInfo(paper, tooltipId, mockScanStatistic2);
     expect(graph_tooltip.attr('#operatorCount')['text']).toEqual('Output:' + mockScanStatistic2.outputCount + ' tuples');
     expect(graph_tooltip.attr('#operatorSpeed')['text']).toEqual('Speed:' + mockScanStatistic2.speed + ' tuples/ms');
   });
@@ -224,7 +225,7 @@ describe('JointUIService', () => {
         mockScanPredicate,
         mockPoint
       ),
-      service.getJointTooltipElement(
+      service.getJointOperatorStatusTooltipElement(
         mockScanPredicate,
         mockPoint
       )
@@ -234,7 +235,7 @@ describe('JointUIService', () => {
         mockResultPredicate,
         { x: 500, y: 100 }
       ),
-      service.getJointTooltipElement(
+      service.getJointOperatorStatusTooltipElement(
         mockResultPredicate,
         { x: 500, y: 100 }
       )
@@ -251,20 +252,20 @@ describe('JointUIService', () => {
     const graph_operator1 = graph.getCell(mockScanPredicate.operatorID);
     const graph_operator2 = graph.getCell(mockResultPredicate.operatorID);
     const graph_link = graph.getLinks()[0];
-    const graph_tooltip1 = graph.getCell('tooltip-' + mockScanPredicate.operatorID);
+    const graph_tooltip1 = graph.getCell(JointUIService.getOperatorStatusTooltipElementID(mockScanPredicate.operatorID));
 
     // testing getCustomTooltipStyleAttrs()
     expect(graph_tooltip1.attr('polygon')).toEqual({
       fill: '#FFFFFF', 'follow-scale': true, stroke: 'purple', 'stroke-width': '2',
         rx: '5px', ry: '5px', refPoints: '0,30 150,30 150,120 85,120 75,150 65,120 0,120',
-        display: 'none'
+        display: 'none', style: {'pointer-events': 'none'}
     });
     expect(graph_tooltip1.attr('#operatorCount')).toEqual({
       fill: '#595959', 'font-size': '12px', ref: 'polygon',
       'y-alignment': 'middle',
       'x-alignment': 'left',
       'ref-x': .05, 'ref-y': .2,
-      display: 'none'
+      display: 'none', style: {'pointer-events': 'none'}
     });
     expect(graph_tooltip1.attr('#operatorSpeed')).toEqual({
       fill: '#595959',
@@ -272,7 +273,7 @@ describe('JointUIService', () => {
       'x-alignment': 'left',
       'font-size': '12px',
       'ref-x': .05, 'ref-y': .5,
-      display: 'none'
+      display: 'none', style: {'pointer-events': 'none'}
     });
 
     // testing getCustomOperatorStyleAttrs()

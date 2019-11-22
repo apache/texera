@@ -8,6 +8,7 @@ import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-grap
 import { ExecutionResult } from './../../types/execute-workflow.interface';
 import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
 import { WebsocketService } from '../../service/websocket/websocket.service';
+import { defaultEnvironment } from '../../../../environments/environment.default';
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -87,7 +88,9 @@ export class NavigationComponent implements OnInit {
         this.isWorkflowRunning = true;
         // get the workflowId and pass it to workflowStatusService.
         const workflowId = this.executeWorkflowService.executeWorkflow();
-        this.workflowStatusService.checkStatus(workflowId);
+        if (defaultEnvironment.executionStatusEnabled) {
+          this.workflowStatusService.checkStatus(workflowId);
+        }
       } else if (this.isWorkflowRunning && this.isWorkflowPaused) {
         this.executeWorkflowService.resumeWorkflow();
       } else if (this.isWorkflowRunning && !this.isWorkflowPaused) {

@@ -13,8 +13,6 @@ export class WorkflowStatusService {
   private status: Subject<SuccessProcessStatus> = new Subject<SuccessProcessStatus>();
 
   constructor(wsService: WebsocketService) {
-    console.log('creating websocket to ', Engine_URL);
-
     this.connectionChannel = <Subject<string>>wsService.connect(Engine_URL);
     // within this.connectionChannel.subscribe function
     // the scope will no longer be websocketService
@@ -23,11 +21,10 @@ export class WorkflowStatusService {
     const current = this;
     this.connectionChannel.subscribe({
       next(response) {
-        console.log('received status from backend: ', response);
-        const status = JSON.parse((response as any).data) as SuccessProcessStatus;
+        const status = JSON.parse(JSON.stringify(response)) as SuccessProcessStatus;
         current.status.next(status);
       },
-      error(err) {console.log('websocket error occured: ' + err); },
+      error(err) { throw new Error(err); },
       complete() {console.log('websocket finished and disconected'); }
     });
   }

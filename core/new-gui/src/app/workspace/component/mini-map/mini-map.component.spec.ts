@@ -12,6 +12,7 @@ import { Observable } from 'rxjs/Observable';
 
 import { mockScanPredicate, mockPoint,
   mockResultPredicate, mockSentimentPredicate, mockScanResultLink } from '../../service/workflow-graph/model/mock-workflow-data';
+import { defaultEnvironment } from './../../../../environments/environment.default';
 
 class StubHttpClient {
   constructor() { }
@@ -49,9 +50,7 @@ describe('MiniMapComponent', () => {
     expect(component).toBeTruthy();
   });
 
-
   it('should have a mini-map paper that is compatible to the main workflow paper', () => {
-
     // add operator operations
     workflowActionService.addOperator(mockScanPredicate, mockPoint);
     workflowActionService.addOperator(mockResultPredicate, mockPoint);
@@ -63,7 +62,11 @@ describe('MiniMapComponent', () => {
     // so number of elements should *2
 
     // check if add operator is compatible
-    expect(component.getMiniMapPaper().model.getElements().length).toEqual(6);
+    if (defaultEnvironment.executionStatusEnabled) {
+      expect(component.getMiniMapPaper().model.getElements().length).toEqual(6);
+    } else {
+      expect(component.getMiniMapPaper().model.getElements().length).toEqual(3);
+    }
 
     // add operator link operation
     workflowActionService.addLink(mockScanResultLink);
@@ -77,12 +80,14 @@ describe('MiniMapComponent', () => {
     // check if delete link is compatible
     expect(component.getMiniMapPaper().model.getLinks().length).toEqual(0);
 
-
     // delete operator operation
     workflowActionService.deleteOperator(mockScanPredicate.operatorID);
 
     // check if delete operator is compatible
-    expect(component.getMiniMapPaper().model.getElements().length).toEqual(4);
+    if (defaultEnvironment.executionStatusEnabled) {
+      expect(component.getMiniMapPaper().model.getElements().length).toEqual(4);
+    } else {
+      expect(component.getMiniMapPaper().model.getElements().length).toEqual(2);
+    }
   });
-
 });

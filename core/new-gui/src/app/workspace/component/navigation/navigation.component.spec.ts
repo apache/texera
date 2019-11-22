@@ -23,6 +23,7 @@ import { environment } from '../../../../environments/environment';
 
 import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
 import { WebsocketService } from '../../service/websocket/websocket.service';
+import { defaultEnvironment } from '../../../../environments/environment.default';
 class StubHttpClient {
 
   public post<T>(): Observable<string> { return Observable.of('a'); }
@@ -88,13 +89,6 @@ describe('NavigationComponent', () => {
     m.expect(executionEndStream).toBeObservable(expectedStream);
 
   }));
-
-  it('should send workflowId to websocket when run button is clicked', () => {
-    const checkWorkflowSpy = spyOn(workflowStatusService, 'checkStatus');
-    component.onButtonClick();
-    expect(checkWorkflowSpy).toHaveBeenCalled();
-
-  });
 
   it('should show pause/resume button when the workflow execution begins and hide the button when execution ends', marbles((m) => {
 
@@ -284,5 +278,16 @@ describe('NavigationComponent', () => {
     const expectStream = '-e-';
     m.expect(restoreEndStream).toBeObservable(expectStream);
   }));
+
+  describe('when executionStatus is enabled', () => {
+    beforeEach(() => {
+      defaultEnvironment.executionStatusEnabled = true;
+    });
+    it('should send workflowId to websocket when run button is clicked', () => {
+      const checkWorkflowSpy = spyOn(workflowStatusService, 'checkStatus');
+      component.onButtonClick();
+      expect(checkWorkflowSpy).toHaveBeenCalled();
+    });
+  });
 
 });

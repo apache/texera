@@ -4,6 +4,7 @@ import { WorkflowStatusService } from './workflow-status.service';
 import { WebsocketService } from '../websocket/websocket.service';
 import * as Rx from 'rxjs';
 import { SuccessProcessStatus, OperatorStates } from '../../types/execute-workflow.interface';
+import { mockStatus1 } from './mock-workflow-status';
 
 describe('WorkflowStatusService', () => {
   let workflowStatusService: WorkflowStatusService;
@@ -70,25 +71,19 @@ describe('WorkflowStatusService', () => {
     });
 
     // unable to access data field of the JSON object
-    xit('should preprocess responses from the backend and emits processStatus', (done: DoneFn) => {
+    it('should preprocess responses from the backend and emits processStatus', (done: DoneFn) => {
       const stream = workflowStatusService.getStatusInformationStream();
-      const mockStatus = {
-        code: 0,
-        message: 'mock message',
-        data: 'mock data'
-      };
+
       stream.subscribe(
         (status: SuccessProcessStatus) => {
-          expect(true).toBeFalsy();
-          // expect(status).toBe(mockStatus);
+          expect(status.toString()).toEqual(expectedResponse);
           done();
         },
         () => {},
         () => {}
       );
-
-      console.log('data is', mockStatus.data);
-      // mockBackend.next(JSON.stringify(mockStatus));
+      const expectedResponse = JSON.stringify(mockStatus1);
+      mockBackend.next(expectedResponse);
     });
   });
 });

@@ -7,6 +7,7 @@ import { Injectable } from '@angular/core';
 import { Point, OperatorPredicate, OperatorLink, OperatorPort } from '../../../types/workflow-common.interface';
 
 import * as joint from 'jointjs';
+import { defaultEnvironment } from './../../../../../environments/environment.default';
 
 
 /**
@@ -91,20 +92,19 @@ export class WorkflowActionService {
     }
     // get the JointJS UI element for operator
     const operatorJointElement = this.jointUIService.getJointOperatorElement(operator, point);
-
-    // calculate the position for its popup window
-    const tooltipPosition = {x: point.x, y: point.y - 20};
-
-    // get the jointJS UI element for the popup window
-    const tooltipJointElement = this.jointUIService.getJointTooltipElement(operator, tooltipPosition);
-
-    // bind the two elements together
-    operatorJointElement.embed(tooltipJointElement);
-
-    // add operator to joint graph first
-    // if jointJS throws an error, it won't cause the inconsistency in texera graph
-    this.jointGraph.addCell([operatorJointElement, tooltipJointElement]);
-
+    if (defaultEnvironment.executionStatusEnabled) {
+      // calculate the position for its popup window
+      const tooltipPosition = {x: point.x, y: point.y - 20};
+      // get the jointJS UI element for the popup window
+      const operatorStatusTooltipJointElement = this.jointUIService.getJointOperatorStatusTooltipElement(operator, tooltipPosition);
+      // bind the two elements together
+      operatorJointElement.embed(operatorStatusTooltipJointElement);
+      // add operator to joint graph first
+      // if jointJS throws an error, it won't cause the inconsistency in texera graph
+      this.jointGraph.addCell([operatorJointElement, operatorStatusTooltipJointElement]);
+    } else {
+      this.jointGraph.addCell(operatorJointElement);
+    }
     // add operator to texera graph
     this.texeraGraph.addOperator(operator);
   }
@@ -117,7 +117,9 @@ export class WorkflowActionService {
   public deleteOperator(operatorID: string): void {
     this.texeraGraph.assertOperatorExists(operatorID);
     // remove the corresponding tooltip from JointJS first first first!
-    this.jointGraph.getCell('tooltip-' + operatorID).remove();
+    if (defaultEnvironment.executionStatusEnabled) {
+      this.jointGraph.getCell(JointUIService.getOperatorStatusTooltipElementID(operatorID)).remove();
+    }
     // then remove the operator from JointJS
     this.jointGraph.getCell(operatorID).remove();
     // JointJS operator delete event will propagate and trigger Texera operator delete

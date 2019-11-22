@@ -13,6 +13,7 @@ import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-grap
 import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
 import { SuccessProcessStatus } from '../../types/execute-workflow.interface';
 import { OperatorStates } from '../../types/execute-workflow.interface';
+import { defaultEnvironment } from './../../../../environments/environment.default';
 
 
 // argument type of callback event on a JointJS Paper
@@ -54,7 +55,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
   private ifMouseDown: boolean = false;
   private mouseDown: Point | undefined;
   private panOffset: Point = { x : 0 , y : 0};
-  private tooltipDisplayEnabled: boolean = false;
+  private operatorStatusTooltipDisplayEnabled: boolean = false;
 
 
   constructor(
@@ -91,10 +92,12 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.handleViewDeleteOperator();
     this.handleCellHighlight();
     this.handlePaperPan();
-    this.handleOperatorStatesChange();
-    this.handleOperatorStatisticsUpdate();
-    this.handlePopupMessageShow();
-    this.handlePopupMesseageHidden();
+    if (defaultEnvironment.executionStatusEnabled) {
+      this.handleOperatorStatesChange();
+      this.handleOperatorStatisticsUpdate();
+      this.handleOperatorStatusTooltipShow();
+      this.handleOperatorStatusTooltipHidden();
+    }
     this.handlePaperMouseZoom();
     this.handleOperatorSuggestionHighlightEvent();
     this.dragDropService.registerWorkflowEditorDrop(this.WORKFLOW_EDITOR_JOINTJS_ID);
@@ -117,19 +120,19 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
   /**
    * this method listens to user move cursor into an element
-   * if tooltipDisplayEnabled is true and
+   * if operatorStatusTooltipDisplayEnabled is true and
    * if the element is an operator in texeraGraph
    * its popup window will be shown.
    */
-  private handlePopupMessageShow(): void {
+  private handleOperatorStatusTooltipShow(): void {
     Observable.fromEvent<MouseEvent>(this.getJointPaper(), 'element:mouseenter')
     .subscribe(
       event => {
         const operatorID = (event as any)[0]['model']['id'];
-        if (this.tooltipDisplayEnabled) {
+        if (this.operatorStatusTooltipDisplayEnabled) {
           if (this.workflowActionService.getTexeraGraph().getOperator(operatorID) !== undefined) {
-            const tooltipID = 'tooltip-' + operatorID;
-            this.jointUIService.showToolTip(this.getJointPaper(), tooltipID);
+            const operatorStatusTooltipID = JointUIService.getOperatorStatusTooltipElementID(operatorID);
+            this.jointUIService.showOperatorStatusToolTip(this.getJointPaper(), operatorStatusTooltipID);
           }
         }
       }
@@ -139,14 +142,14 @@ export class WorkflowEditorComponent implements AfterViewInit {
   /**
    * this method listens to user move cursor out of an element
    * if the element is an operator in texeraGraph
-   * its popup window(tooltip) will be hiden.
+   * its tooltip will be hiden.
    */
-  private handlePopupMesseageHidden(): void {
+  private handleOperatorStatusTooltipHidden(): void {
     Observable.fromEvent<MouseEvent>(this.getJointPaper(), 'element:mouseleave').subscribe(
       event => {
         const operatorID = (event as any)[0]['model']['id'];
         if (this.workflowActionService.getTexeraGraph().getOperator(operatorID) !== undefined) {
-          this.jointUIService.hideToolTip(this.getJointPaper(), 'tooltip-' + operatorID);
+          this.jointUIService.hideOperatorStatusToolTip(this.getJointPaper(), JointUIService.getOperatorStatusTooltipElementID(operatorID));
         }
       }
     );
@@ -155,7 +158,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
   /**
    * This method subscribe to workflowStatusService's status stream
    * for Each processStatus that has been emited
-   *    1. enable tooltipDisplay because tooltip will not be empty
+   *    1. enable operatorStatusTooltipDisplay because tooltip will not be empty
    *    2. for each operator in current texeraGraph:
    *        - find its Statistics in processStatus, thrown an error if not found
    *        - generate its corresponding tooltip's id
@@ -165,16 +168,16 @@ export class WorkflowEditorComponent implements AfterViewInit {
   private handleOperatorStatisticsUpdate(): void {
     this.workflowStatusService.getStatusInformationStream().subscribe(
       status => {
-      this.tooltipDisplayEnabled = true;
+      this.operatorStatusTooltipDisplayEnabled = true;
       this.workflowActionService.getTexeraGraph().getAllOperators().forEach(
         operator => {
-            const tooltipID = 'tooltip-' + operator.operatorID;
+            const operatorStatusTooltipID = JointUIService.getOperatorStatusTooltipElementID(operator.operatorID);
             const opStatus = status.operatorStatistics[operator.operatorID.slice(9)];
             if (! opStatus) {
               throw Error('operator statistics do not exist for operator ' + operator);
             }
-            this.jointUIService.changeOperatorTooltipInfo(
-              this.getJointPaper(), tooltipID, opStatus
+            this.jointUIService.changeOperatorStatusTooltipInfo(
+              this.getJointPaper(), operatorStatusTooltipID, opStatus
             );
         });
     });
@@ -364,9 +367,11 @@ export class WorkflowEditorComponent implements AfterViewInit {
    */
   private handleHighlightMouseInput(): void {
     // on user mouse clicks a operator cell, highlight that operator
+    // operator status tooltips should never be highlighted
     Observable.fromEvent<JointPaperEvent>(this.getJointPaper(), 'cell:pointerdown')
       .map(value => value[0])
       .filter(cellView => cellView.model.isElement())
+      .filter(cellView => this.workflowActionService.getTexeraGraph().hasOperator(cellView.model.id.toString()))
       .subscribe(cellView => this.workflowActionService.getJointGraphWrapper().highlightOperator(cellView.model.id.toString()));
 
     /**

@@ -52,7 +52,7 @@ class TexeraCustomJointElement extends joint.shapes.devs.Model {
 // /**
 //  * Extends a basic Joint operator element and adds our own HTML markup.
 //  */
-class TexeraCustomTooltipElement extends joint.shapes.devs.Model {
+class TexeraCustomOperatorStatusTooltipElement extends joint.shapes.devs.Model {
   markup =
   `<g class="element-node">
     <polygon class="body"></polygon>
@@ -157,7 +157,7 @@ export class JointUIService {
    * @param operator the predicate of the base operator
    * @param point the position of the tooltip
    */
-  public getJointTooltipElement(
+  public getJointOperatorStatusTooltipElement(
     operator: OperatorPredicate, point: Point
   ): joint.dia.Element {
       // check if the operatorType exists in the operator metadata
@@ -169,29 +169,30 @@ export class JointUIService {
     const tooltipPoint = {x: point.x - JointUIService.DEFAULT_OPERATOR_WIDTH / 2 - 10,
        y: point.y - JointUIService.DEFAULT_OPERATOR_HEIGHT};
 
-    const toolTipElement = new TexeraCustomTooltipElement({
+    const toolTipElement = new TexeraCustomOperatorStatusTooltipElement({
       position: tooltipPoint,
       size: {width: JointUIService.DEFAULT_TOOLTIP_WIDTH, height: JointUIService.DEFAULT_TOOLTIP_HEIGHT},
-      attrs: JointUIService.getCustomTooltipStyleAttrs()
+      attrs: JointUIService.getCustomOperatorStatusTooltipStyleAttrs()
     });
-    toolTipElement.set('id', 'tooltip-' + operator.operatorID);
+
+    toolTipElement.set('id', JointUIService.getOperatorStatusTooltipElementID(operator.operatorID));
     return toolTipElement;
   }
 
   // remove attr 'display: none' to show a tooltip
-  public showToolTip(jointPaper: joint.dia.Paper, tooltipID: string): void {
+  public showOperatorStatusToolTip(jointPaper: joint.dia.Paper, tooltipID: string): void {
     jointPaper.getModelById(tooltipID).removeAttr('polygon/display');
     jointPaper.getModelById(tooltipID).removeAttr('#operatorCount/display');
     jointPaper.getModelById(tooltipID).removeAttr('#operatorSpeed/display');
   }
   // add attr 'display: none' to hide a tooltip
-  public hideToolTip(jointPaper: joint.dia.Paper, tooltipID: string): void {
+  public hideOperatorStatusToolTip(jointPaper: joint.dia.Paper, tooltipID: string): void {
     jointPaper.getModelById(tooltipID).attr('polygon/display', 'none');
     jointPaper.getModelById(tooltipID).attr('#operatorCount/display', 'none');
     jointPaper.getModelById(tooltipID).attr('#operatorSpeed/display', 'none');
   }
   // change content of tooltip
-  public changeOperatorTooltipInfo(jointPaper: joint.dia.Paper, tooltipID: string, stats: Statistics) {
+  public changeOperatorStatusTooltipInfo(jointPaper: joint.dia.Paper, tooltipID: string, stats: Statistics) {
     jointPaper.getModelById(tooltipID).attr('#operatorCount/text', 'Output:' + stats.outputCount + ' tuples');
     jointPaper.getModelById(tooltipID).attr('#operatorSpeed/text', 'Speed:' + stats.speed + ' tuples/ms');
   }
@@ -231,6 +232,12 @@ export class JointUIService {
     }
   }
 
+  /**
+   * Gets the ID of the JointJS operator status tooltip element corresponding to an operator.
+   */
+  public static getOperatorStatusTooltipElementID(operatorID: string): string {
+    return 'tooltip-' + operatorID;
+  }
 
   /**
    * This function converts a Texera source and target OperatorPort to
@@ -334,19 +341,24 @@ export class JointUIService {
    * This function create a custom svg style for the operator
    * @returns the custom attributes of the tooltip.
    */
-  public static getCustomTooltipStyleAttrs(): joint.shapes.devs.ModelSelectors {
+  public static getCustomOperatorStatusTooltipStyleAttrs(): joint.shapes.devs.ModelSelectors {
     const tooltipStyleAttrs = {
+      'element-node': {
+        style: {'pointer-events': 'none'}
+      },
       'polygon': {
         fill: '#FFFFFF', 'follow-scale': true, stroke: 'purple', 'stroke-width': '2',
         rx: '5px', ry: '5px', refPoints: '0,30 150,30 150,120 85,120 75,150 65,120 0,120',
-        display: 'none'
+        display: 'none',
+        style: {'pointer-events': 'none'}
       },
       '#operatorCount': {
         fill: '#595959', 'font-size': '12px', ref: 'polygon',
         'y-alignment': 'middle',
         'x-alignment': 'left',
         'ref-x': .05, 'ref-y': .2,
-        display: 'none'
+        display: 'none',
+        style: {'pointer-events': 'none'}
       },
       '#operatorSpeed': {
         fill: '#595959',
@@ -354,7 +366,8 @@ export class JointUIService {
         'x-alignment': 'left',
         'font-size': '12px',
         'ref-x': .05, 'ref-y': .5,
-        display: 'none'
+        display: 'none',
+        style: {'pointer-events': 'none'}
       },
     };
     return tooltipStyleAttrs;

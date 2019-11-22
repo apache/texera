@@ -187,8 +187,6 @@ export class JointGraphWrapper {
   public getJointOperatorCellDeleteStream(): Observable<joint.dia.Element> {
     const jointOperatorDeleteStream = this.jointCellDeleteStream
       .filter(cell => cell.isElement())
-      // tooltips only exist in JointJS so should be filtered out
-      .filter(cell => !cell.id.toString().startsWith('tooltip-'))
       .map(cell => <joint.dia.Element>cell);
     return jointOperatorDeleteStream;
   }
