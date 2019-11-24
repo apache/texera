@@ -29,7 +29,7 @@ export const defaultEnvironment = {
   /**
    * whether the backend supports checking execution status
    */
-  executionStatusEnabled: true,
+  executionStatusEnabled: false,
 
   /**
    * whether download execution result is supported

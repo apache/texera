@@ -20,7 +20,6 @@ import { marbles } from 'rxjs-marbles';
 import {
   mockScanPredicate, mockPoint, mockScanResultLink, mockResultPredicate
 } from '../../service/workflow-graph/model/mock-workflow-data';
-import { WebsocketService } from '../../service/websocket/websocket.service';
 import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
 import {
    mockStatus1, mockStatus2, mockScanPredicateForStatus, mockScanOperatorID
@@ -72,7 +71,6 @@ describe('WorkflowEditorComponent', () => {
           { provide: WorkflowActionService, useClass: StubWorkflowActionService },
           { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
           WorkflowStatusService,
-          WebsocketService
         ]
       })
         .compileComponents();
@@ -167,7 +165,6 @@ describe('WorkflowEditorComponent', () => {
           DragDropService,
           { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
           WorkflowStatusService,
-          WebsocketService
         ]
       })
         .compileComponents();

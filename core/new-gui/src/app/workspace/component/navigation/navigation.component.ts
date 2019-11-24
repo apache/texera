@@ -7,7 +7,6 @@ import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-grap
 
 import { ExecutionResult } from './../../types/execute-workflow.interface';
 import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
-import { WebsocketService } from '../../service/websocket/websocket.service';
 import { defaultEnvironment } from '../../../../environments/environment.default';
 
 /**

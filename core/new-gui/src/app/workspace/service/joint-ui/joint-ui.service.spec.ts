@@ -147,11 +147,11 @@ describe('JointUIService', () => {
     // updating it with mock statistics
     service.changeOperatorStatusTooltipInfo(paper, tooltipId, mockScanStatistic1);
     expect(graph_tooltip.attr('#operatorCount')['text']).toEqual('Output:' + mockScanStatistic1.outputCount + ' tuples');
-    expect(graph_tooltip.attr('#operatorSpeed')['text']).toEqual('Speed:' + mockScanStatistic1.speed + ' tuples/ms');
+    expect(graph_tooltip.attr('#operatorSpeed')['text']).toEqual('Speed:' + mockScanStatistic1.speed + ' tuples/s');
     // updating it with another mock statistics
     service.changeOperatorStatusTooltipInfo(paper, tooltipId, mockScanStatistic2);
     expect(graph_tooltip.attr('#operatorCount')['text']).toEqual('Output:' + mockScanStatistic2.outputCount + ' tuples');
-    expect(graph_tooltip.attr('#operatorSpeed')['text']).toEqual('Speed:' + mockScanStatistic2.speed + ' tuples/ms');
+    expect(graph_tooltip.attr('#operatorSpeed')['text']).toEqual('Speed:' + mockScanStatistic2.speed + ' tuples/s');
   });
 
   it('should change the operator state name and color when changeOperatorStates is called', () => {
@@ -255,6 +255,7 @@ describe('JointUIService', () => {
     const graph_tooltip1 = graph.getCell(JointUIService.getOperatorStatusTooltipElementID(mockScanPredicate.operatorID));
 
     // testing getCustomTooltipStyleAttrs()
+    // style: {'pointer-events': 'none'} makes tooltip unselectable thus not draggable
     expect(graph_tooltip1.attr('polygon')).toEqual({
       fill: '#FFFFFF', 'follow-scale': true, stroke: 'purple', 'stroke-width': '2',
         rx: '5px', ry: '5px', refPoints: '0,30 150,30 150,120 85,120 75,150 65,120 0,120',

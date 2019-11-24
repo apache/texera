@@ -1,10 +1,11 @@
 import { TestBed, inject } from '@angular/core/testing';
 
 import { WorkflowStatusService } from './workflow-status.service';
-import { WebsocketService } from '../websocket/websocket.service';
 import * as Rx from 'rxjs';
 import { SuccessProcessStatus, OperatorStates } from '../../types/execute-workflow.interface';
 import { mockStatus1 } from './mock-workflow-status';
+import * as RxJSWebSocket from 'rxjs/webSocket';
+
 
 describe('WorkflowStatusService', () => {
   let workflowStatusService: WorkflowStatusService;
@@ -32,14 +33,13 @@ describe('WorkflowStatusService', () => {
     TestBed.configureTestingModule({
       providers: [
         WorkflowStatusService,
-        {
-          // replace the original implementation of WebsocketService.connect
-          // with our mockConnect function
-          provide: WebsocketService,
-          useValue: {connect: mockConnect}
-        }
       ]
     });
+
+    // since webSocket is a function in rxjs/webSocket, it is very hard to spy on
+    // I found the following way of replacing it with mockBackend online.
+    const funcSpy = jasmine.createSpy('webSocket').and.returnValue(mockConnect('abc'));
+    spyOnProperty(RxJSWebSocket, 'webSocket', 'get').and.returnValue(funcSpy);
     workflowStatusService = TestBed.get(WorkflowStatusService);
   });
 
@@ -47,43 +47,36 @@ describe('WorkflowStatusService', () => {
     expect(service).toBeTruthy();
   }));
 
-  describe('WorkflowStatusService.checkStatus()', () => {
-    it('should send workflow ID to websocket', (done: DoneFn) => {
-      const mockId = '123456';
-      backendTester.subscribe(
-        (s: string) => {
-          expect(s.toString()).toEqual(JSON.stringify(mockId));
-          done();
-        },
-        () => {},
-        () => {}
-      );
-      workflowStatusService.checkStatus(mockId);
-    });
+  it('should send workflow ID to websocket', (done: DoneFn) => {
+    const mockId = '123456';
+    backendTester.subscribe(
+      (s: string) => {
+        expect(s.toString()).toEqual(JSON.stringify(mockId));
+        done();
+      },
+      () => {},
+      () => {}
+    );
+    workflowStatusService.checkStatus(mockId);
   });
 
-  describe('WorkflowStatusService.getStatusInformationStream()', () => {
-    it('should return a observable', () => {
-      let test;
-      expect(test).toBeUndefined();
-      test = workflowStatusService.getStatusInformationStream();
-      expect(test).toBeDefined();
-    });
+  it('should return a observable of operator status', () => {
+    const test = workflowStatusService.getStatusInformationStream();
+    expect(test).toBeDefined();
+  });
 
-    // unable to access data field of the JSON object
-    it('should preprocess responses from the backend and emits processStatus', (done: DoneFn) => {
-      const stream = workflowStatusService.getStatusInformationStream();
+  it('should receive responses from the backend and emits processStatus', (done: DoneFn) => {
+    const stream = workflowStatusService.getStatusInformationStream();
 
-      stream.subscribe(
-        (status: SuccessProcessStatus) => {
-          expect(status.toString()).toEqual(expectedResponse);
-          done();
-        },
-        () => {},
-        () => {}
-      );
-      const expectedResponse = JSON.stringify(mockStatus1);
-      mockBackend.next(expectedResponse);
-    });
+    stream.subscribe(
+      (status: SuccessProcessStatus) => {
+        expect(status.toString()).toEqual(expectedResponse);
+        done();
+      },
+      () => {},
+      () => {}
+    );
+    const expectedResponse = JSON.stringify(mockStatus1);
+    mockBackend.next(expectedResponse);
   });
 });

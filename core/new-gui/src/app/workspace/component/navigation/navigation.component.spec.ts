@@ -22,7 +22,6 @@ import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-
 import { environment } from '../../../../environments/environment';
 
 import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
-import { WebsocketService } from '../../service/websocket/websocket.service';
 import { defaultEnvironment } from '../../../../environments/environment.default';
 class StubHttpClient {
 
@@ -52,7 +51,6 @@ describe('NavigationComponent', () => {
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         { provide: HttpClient, useClass: StubHttpClient },
         TourService,
-        WebsocketService,
         WorkflowStatusService
       ]
     }).compileComponents();

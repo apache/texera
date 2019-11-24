@@ -608,7 +608,7 @@ describe('SyncTexeraModel', () => {
    * Texera Link Delete Stream should emit event twice when the operator is deleted
    *
    */
-  xit('should remove an operator and its connected links when that operator is deleted from jointJS',
+  it('should remove an operator and its connected links when that operator is deleted from jointJS',
     marbles((m) => {
       // add operators
       texeraGraph.addOperator(mockScanPredicate);

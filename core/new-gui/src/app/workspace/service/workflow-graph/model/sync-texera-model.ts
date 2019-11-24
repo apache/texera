@@ -113,8 +113,8 @@ export class SyncTexeraModel {
       jointLink.attributes.source && jointLink.attributes.target &&
       jointLink.attributes.source.id && jointLink.attributes.source.port &&
       jointLink.attributes.target.id && jointLink.attributes.target.port &&
-      this.texeraGraph.hasOperator(jointLink.attributes.source.id.toString()) &&
-      this.texeraGraph.hasOperator(jointLink.attributes.target.id.toString());
+      (this.texeraGraph.hasOperator(jointLink.attributes.source.id.toString()) ||
+      this.texeraGraph.hasOperator(jointLink.attributes.target.id.toString()));
       // the above two lines are causing unit test fail in sync-texera-model.spec.ts
       // since if operator is deleted first the link will become invalid and thus undeletable.
   }

@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { Observable, Subject } from 'rxjs';
-import { WebsocketService } from '../websocket/websocket.service';
 import { SuccessProcessStatus } from '../../types/execute-workflow.interface';
+import { webSocket } from 'rxjs/webSocket';
 
 const Engine_URL = 'ws://localhost:7070/api/websocket';
 
@@ -12,8 +12,8 @@ export class WorkflowStatusService {
   // status is responsible for passing websocket responses to other components
   private status: Subject<SuccessProcessStatus> = new Subject<SuccessProcessStatus>();
 
-  constructor(wsService: WebsocketService) {
-    this.connectionChannel = <Subject<string>>wsService.connect(Engine_URL);
+  constructor() {
+    this.connectionChannel = this.connect(Engine_URL);
     // within this.connectionChannel.subscribe function
     // the scope will no longer be websocketService
     // so this.status will be an error
@@ -39,5 +39,9 @@ export class WorkflowStatusService {
   //
   public getStatusInformationStream(): Observable<SuccessProcessStatus> {
     return this.status;
+  }
+
+  private connect(URL: string) {
+    return webSocket<string>(URL);
   }
 }
