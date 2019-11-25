@@ -1,15 +1,16 @@
 @import '../workspace.component.scss';
 
-.example-form {
-    min-width: 150px;
-    max-width: 500px;
-    width: 100%;
-  }
-
-.example-full-width {
-    width: 100%;
-  }
-
 .texera-workspance-search-box {
   padding: 10px;
 }
+
+.texera-workspace-operator-search-form {
+  min-width: 150px;
+  max-width: 500px;
+  width: 100%;
+}
+
+.texera-workspace-operator-search-form-field {
+  width: 100%;
+}
+
