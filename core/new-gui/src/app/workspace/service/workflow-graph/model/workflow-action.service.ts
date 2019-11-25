@@ -39,6 +39,9 @@ export class WorkflowActionService {
   private readonly jointGraphWrapper: JointGraphWrapper;
   private readonly syncTexeraModel: SyncTexeraModel;
 
+  // makes operations slow down; maybe have a better solution?
+  private addedOperators: Record<string, number> = {};
+
   constructor(
     private operatorMetadataService: OperatorMetadataService,
     private jointUIService: JointUIService,
@@ -154,6 +157,7 @@ export class WorkflowActionService {
   public addOperator(operator: OperatorPredicate, point: Point): void {
     // remember currently highlighted operators
     const currentHighlighted = this.jointGraphWrapper.getCurrentHighlightedOpeartorIDs();
+    this.addedOperators[operator.operatorID] = Object.keys(this.addedOperators).length;
 
     const command: Command = {
       execute: () => {
@@ -207,6 +211,7 @@ export class WorkflowActionService {
   public addOperatorsAndLinks(operatorsAndPositions: {op: OperatorPredicate, pos: Point}[], links: OperatorLink[]): void {
     // remember currently highlighted operators
     const currentHighlighted = this.jointGraphWrapper.getCurrentHighlightedOpeartorIDs();
+    operatorsAndPositions.forEach(o => this.addedOperators[o.op.operatorID] = Object.keys(this.addedOperators).length);
 
     const command: Command = {
       execute: () => {
@@ -238,7 +243,7 @@ export class WorkflowActionService {
   public deleteOperatorsAndLinks(operatorIDs: string[], linkIDs: string[]): void {
     // save operators to be deleted and their current positions
     const operatorsAndPositions = new Map<OperatorPredicate, Point>();
-    operatorIDs.forEach(operatorID => {
+    operatorIDs.sort((left, right) => this.addedOperators[left] - this.addedOperators[right]).forEach(operatorID => {
       operatorsAndPositions.set(this.getTexeraGraph().getOperator(operatorID),
         this.getJointGraphWrapper().getOperatorPosition(operatorID));
     });
