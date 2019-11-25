@@ -111,18 +111,10 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
     TourNgBootstrapModule.forRoot(),
 
     MaterialDesignFrameworkModule,
-<<<<<<< HEAD
     FileUploadModule,
     FormsModule,
     ReactiveFormsModule,
     LoggerModule.forRoot({level: environment.production ? NgxLoggerLevel.ERROR : NgxLoggerLevel.DEBUG, serverLogLevel: NgxLoggerLevel.OFF}),
-    MaterialDesignFrameworkModule,
-    FormsModule
-=======
-    FormsModule,
-    ReactiveFormsModule,
-
->>>>>>> search box
 
   ],
   entryComponents: [
