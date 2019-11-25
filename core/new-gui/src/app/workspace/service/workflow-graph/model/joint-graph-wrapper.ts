@@ -2,6 +2,7 @@ import { Subject } from 'rxjs/Subject';
 import { Observable } from 'rxjs/Observable';
 import { debounceTime } from 'rxjs/operators';
 import { Point } from '../../../types/workflow-common.interface';
+import { UndoRedoService } from './../../undo-redo/undo-redo.service';
 
 type operatorIDType = { operatorID: string };
 
@@ -37,6 +38,11 @@ type JointPositionChangeEvent = [
   { x: number, y: number }
 ];
 
+type OperatorPosition = {
+  currPos: Point,
+  lastPos: Point | undefined
+};
+
 /**
  * JointGraphWrapper wraps jointGraph to provide:
  *  - getters of the properties (to hide the methods that could alther the jointGraph directly)
@@ -66,7 +72,7 @@ export class JointGraphWrapper {
   public static readonly ZOOM_MINIMUM: number = 0.70;
   public static readonly ZOOM_MAXIMUM: number = 1.30;
 
-  private operatorPositions: Map<string, Point> = new Map<string, Point>();
+  private operatorPositions: Map<string, OperatorPosition> = new Map<string, OperatorPosition>();
   private listenPositionChange: boolean = true;
 
   // flag that indicates whether multiselect mode is on
@@ -114,12 +120,12 @@ export class JointGraphWrapper {
     .map(value => value[0]);
 
 
-  constructor(private jointGraph: joint.dia.Graph) {
+  constructor(private jointGraph: joint.dia.Graph, private undoRedoService: UndoRedoService) {
     // handle if the current highlighted operator is deleted, it should be unhighlighted
     this.handleOperatorDeleteUnhighlight();
     this.jointCellAddStream.filter(cell => cell.isElement()).subscribe(element => {
-      const initPosition = (element as joint.dia.Element).position();
-      this.operatorPositions.set(element.id.toString(), { x: initPosition.x, y: initPosition.y });
+      const initPosition = {currPos: (element as joint.dia.Element).position(), lastPos: undefined};
+      this.operatorPositions.set(element.id.toString(), initPosition);
     });
 
     // handle if the current highlighted operator's position is changed,
@@ -166,14 +172,18 @@ export class JointGraphWrapper {
       .fromEvent<JointPositionChangeEvent>(this.jointGraph, 'change:position').map(e => {
         const operatorID = e[0].id.toString();
         const oldPosition = this.operatorPositions.get(operatorID);
+        const newPosition = {x: e[1].x, y: e[1].y};
         if (!oldPosition) {
           throw new Error(`internal error: cannot find operator position for ${operatorID}`);
         }
-        this.operatorPositions.set(operatorID, {x: e[1].x, y: e[1].y});
+        if (!oldPosition.lastPos || oldPosition.currPos.x !== newPosition.x || oldPosition.currPos.y !== newPosition.y) {
+          oldPosition.lastPos = oldPosition.currPos;
+        }
+        this.operatorPositions.set(operatorID, {currPos: newPosition, lastPos: oldPosition.lastPos});
         return {
           operatorID: operatorID,
-          oldPosition: oldPosition,
-          newPosition: {x: e[1].x, y: e[1].y}
+          oldPosition: oldPosition.lastPos,
+          newPosition: newPosition
         };
       });
   }
@@ -441,15 +451,18 @@ export class JointGraphWrapper {
   private handleHighlightedOperatorPositionChange(): void {
     this.getOperatorPositionChangeEvent()
       .filter(() => this.listenPositionChange)
+      .filter(() => this.undoRedoService.listenJointCommand)
       .filter(movedOperator => this.currentHighlightedOperators.includes(movedOperator.operatorID))
       .subscribe(movedOperator => {
         const offsetX = movedOperator.newPosition.x - movedOperator.oldPosition.x;
         const offsetY = movedOperator.newPosition.y - movedOperator.oldPosition.y;
         this.listenPositionChange = false;
+        this.undoRedoService.setListenJointCommand(false);
         this.currentHighlightedOperators
           .filter(operatorID => operatorID !== movedOperator.operatorID)
           .forEach(operatorID => this.setOperatorPosition(operatorID, offsetX, offsetY));
         this.listenPositionChange = true;
+        this.undoRedoService.setListenJointCommand(true);
       });
   }
 

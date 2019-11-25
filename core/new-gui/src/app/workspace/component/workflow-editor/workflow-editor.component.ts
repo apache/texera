@@ -29,9 +29,9 @@ type JointPointerDownEvent = [JQuery.Event, number, number];
 // - pastedOperators: a list of operators that are created out of the original operator,
 //   including the operator itself.
 type CopiedOperator = {
-  operator: OperatorPredicate;
-  position: Point;
-  pastedOperators: string[];
+  operator: OperatorPredicate,
+  position: Point,
+  pastedOperators: string[]
 };
 
 /**
@@ -313,7 +313,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
       options: {
         attrs: {
           'stroke-width': 2,
-          stroke: '#afafaf'
+          stroke: '#4A95FF'
         }
       }
     };

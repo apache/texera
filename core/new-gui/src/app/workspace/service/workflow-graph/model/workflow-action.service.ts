@@ -8,7 +8,6 @@ import { Injectable } from '@angular/core';
 import { Point, OperatorPredicate, OperatorLink, OperatorPort } from '../../../types/workflow-common.interface';
 
 import * as joint from 'jointjs';
-import { Observable, Operator } from 'rxjs';
 
 
 export interface Command {
@@ -47,7 +46,7 @@ export class WorkflowActionService {
   ) {
     this.texeraGraph = new WorkflowGraph();
     this.jointGraph = new joint.dia.Graph();
-    this.jointGraphWrapper = new JointGraphWrapper(this.jointGraph);
+    this.jointGraphWrapper = new JointGraphWrapper(this.jointGraph, this.undoRedoService);
     this.syncTexeraModel = new SyncTexeraModel(this.texeraGraph, this.jointGraphWrapper);
 
     this.handleJointLinkAdd();
@@ -81,12 +80,30 @@ export class WorkflowActionService {
       .debounceTime(100)
       .subscribe(event => {
         gotOldPosition = false;
-        const currentOldPos = oldPosition;
-        const currentPos = event.newPosition;
+        const offsetX = event.newPosition.x - oldPosition.x;
+        const offsetY = event.newPosition.y - oldPosition.y;
+        // remember currently highlighted operators
+        const currentHighlighted = this.jointGraphWrapper.getCurrentHighlightedOpeartorIDs();
         const command: Command = {
           execute: () => { },
-          undo: () => this.setOperatorPositionInternal(event.operatorID, currentOldPos),
-          redo: () => this.setOperatorPositionInternal(event.operatorID, currentPos) // work here
+          undo: () => {
+            this.jointGraphWrapper.getCurrentHighlightedOpeartorIDs()
+              .forEach(operatorID => this.jointGraphWrapper.unhighlightOperator(operatorID));
+            this.jointGraphWrapper.setMultiSelectMode(currentHighlighted.length > 1);
+            currentHighlighted.forEach(operatorID => {
+              this.jointGraphWrapper.highlightOperator(operatorID);
+              this.jointGraphWrapper.setOperatorPosition(operatorID, -offsetX, -offsetY);
+            });
+          },
+          redo: () => {
+            this.jointGraphWrapper.getCurrentHighlightedOpeartorIDs()
+              .forEach(operatorID => this.jointGraphWrapper.unhighlightOperator(operatorID));
+            this.jointGraphWrapper.setMultiSelectMode(currentHighlighted.length > 1);
+            currentHighlighted.forEach(operatorID => {
+              this.jointGraphWrapper.highlightOperator(operatorID);
+              this.jointGraphWrapper.setOperatorPosition(operatorID, offsetX, offsetY);
+            });
+          }
         };
         this.executeAndStoreCommand(command);
       });
@@ -135,8 +152,6 @@ export class WorkflowActionService {
    * @param point
    */
   public addOperator(operator: OperatorPredicate, point: Point): void {
-    // remember whether multiselect is on
-    const multiSelect = this.jointGraphWrapper.getMultiSelectMode();
     // remember currently highlighted operators
     const currentHighlighted = this.jointGraphWrapper.getCurrentHighlightedOpeartorIDs();
 
@@ -155,7 +170,7 @@ export class WorkflowActionService {
         // restore previous highlights
         this.jointGraphWrapper.getCurrentHighlightedOpeartorIDs()
           .forEach(operatorID => this.jointGraphWrapper.unhighlightOperator(operatorID));
-        this.jointGraphWrapper.setMultiSelectMode(multiSelect);
+        this.jointGraphWrapper.setMultiSelectMode(currentHighlighted.length > 1);
         currentHighlighted.forEach(operatorID => this.jointGraphWrapper.highlightOperator(operatorID));
       }
     };
@@ -190,8 +205,6 @@ export class WorkflowActionService {
   }
 
   public addOperatorsAndLinks(operatorsAndPositions: {op: OperatorPredicate, pos: Point}[], links: OperatorLink[]): void {
-    // remember whether multiselect is on
-    const multiSelect = this.jointGraphWrapper.getMultiSelectMode();
     // remember currently highlighted operators
     const currentHighlighted = this.jointGraphWrapper.getCurrentHighlightedOpeartorIDs();
 
@@ -215,7 +228,7 @@ export class WorkflowActionService {
         // restore previous highlights
         this.jointGraphWrapper.getCurrentHighlightedOpeartorIDs()
           .forEach(operatorID => this.jointGraphWrapper.unhighlightOperator(operatorID));
-        this.jointGraphWrapper.setMultiSelectMode(multiSelect);
+        this.jointGraphWrapper.setMultiSelectMode(currentHighlighted.length > 1);
         currentHighlighted.forEach(operatorID => this.jointGraphWrapper.highlightOperator(operatorID));
       }
     };
@@ -240,11 +253,8 @@ export class WorkflowActionService {
       .filter(link => operatorIDs.includes(link.source.operatorID) || operatorIDs.includes(link.target.operatorID))
       .forEach(link => linksToDelete.add(link));
 
-    // remember whether multiselect is on
-    const multiSelect = this.jointGraphWrapper.getMultiSelectMode();
     // remember currently highlighted operators
     const currentHighlighted = this.jointGraphWrapper.getCurrentHighlightedOpeartorIDs();
-
 
     const command: Command = {
       execute: () => {
@@ -259,7 +269,7 @@ export class WorkflowActionService {
         // restore previous highlights
         this.jointGraphWrapper.getCurrentHighlightedOpeartorIDs()
           .forEach(operatorID => this.jointGraphWrapper.unhighlightOperator(operatorID));
-        this.jointGraphWrapper.setMultiSelectMode(multiSelect);
+        this.jointGraphWrapper.setMultiSelectMode(currentHighlighted.length > 1);
         currentHighlighted.forEach(operatorID => this.jointGraphWrapper.highlightOperator(operatorID));
       }
     };
@@ -372,10 +382,6 @@ export class WorkflowActionService {
   // use this to modify properties
   private setOperatorPropertyInternal(operatorID: string, newProperty: object) {
     this.texeraGraph.setOperatorProperty(operatorID, newProperty);
-  }
-
-  private setOperatorPositionInternal(operatorID: string, newPosition: Point) {
-    (this.jointGraph.getCell(operatorID) as joint.dia.Element).position(newPosition.x, newPosition.y);
   }
 
   private setOperatorAdvanceStatusInternal(operatorID: string, newShowAdvancedStatus: boolean) {
