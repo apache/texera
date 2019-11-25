@@ -650,8 +650,8 @@ describe('SyncTexeraModel', () => {
           expect(texeraGraph.hasOperator(mockScanPredicate.operatorID)).toBeTruthy();
           expect(texeraGraph.hasOperator(mockResultPredicate.operatorID)).toBeTruthy();
           expect(texeraGraph.getAllOperators().length).toEqual(2);
-          expect(texeraGraph.getLinkWithID(mockScanSentimentLink.linkID)).toBeUndefined();
-          expect(texeraGraph.getLinkWithID(mockSentimentResultLink.linkID)).toBeUndefined();
+          expect(texeraGraph.hasLinkWithID(mockScanSentimentLink.linkID)).toBeFalsy();
+          expect(texeraGraph.hasLinkWithID(mockSentimentResultLink.linkID)).toBeFalsy();
           expect(texeraGraph.getAllLinks().length).toEqual(0);
         }
       });
