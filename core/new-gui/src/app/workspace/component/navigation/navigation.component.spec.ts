@@ -6,6 +6,7 @@ import { NavigationComponent } from './navigation.component';
 import { ExecuteWorkflowService } from './../../service/execute-workflow/execute-workflow.service';
 import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
 import { TourService } from 'ngx-tour-ng-bootstrap';
+import { UndoRedoService } from './../../service/undo-redo/undo-redo.service';
 
 import { CustomNgMaterialModule } from '../../../common/custom-ng-material.module';
 
@@ -34,6 +35,7 @@ describe('NavigationComponent', () => {
   let fixture: ComponentFixture<NavigationComponent>;
   let executeWorkFlowService: ExecuteWorkflowService;
   let workflowActionService: WorkflowActionService;
+  let undoRedoService: UndoRedoService;
   beforeEach(async(() => {
     TestBed.configureTestingModule({
       declarations: [NavigationComponent],
@@ -46,6 +48,7 @@ describe('NavigationComponent', () => {
         WorkflowUtilService,
         JointUIService,
         ExecuteWorkflowService,
+        UndoRedoService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         { provide: HttpClient, useClass: StubHttpClient },
         TourService,
@@ -58,6 +61,7 @@ describe('NavigationComponent', () => {
     component = fixture.componentInstance;
     executeWorkFlowService = TestBed.get(ExecuteWorkflowService);
     workflowActionService = TestBed.get(WorkflowActionService);
+    undoRedoService = TestBed.get(UndoRedoService);
     fixture.detectChanges();
     environment.pauseResumeEnabled = true;
   });
@@ -173,7 +177,7 @@ describe('NavigationComponent', () => {
       m.hot(endMarbleString, endMarblevalues)
     );
 
-    const mockComponent = new NavigationComponent(executeWorkFlowService, TestBed.get(TourService), workflowActionService);
+    const mockComponent = new NavigationComponent(executeWorkFlowService, workflowActionService, TestBed.get(TourService), undoRedoService);
 
     executeWorkFlowService.getExecutionPauseResumeStream()
       .subscribe({
@@ -194,7 +198,7 @@ describe('NavigationComponent', () => {
       m.hot(endMarbleString, endMarblevalues)
     );
 
-    const mockComponent = new NavigationComponent(executeWorkFlowService, TestBed.get(TourService), workflowActionService);
+    const mockComponent = new NavigationComponent(executeWorkFlowService, workflowActionService, TestBed.get(TourService), undoRedoService);
 
     executeWorkFlowService.getExecutionPauseResumeStream()
       .subscribe({

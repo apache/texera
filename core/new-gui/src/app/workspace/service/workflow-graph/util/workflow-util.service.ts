@@ -3,6 +3,7 @@ import { OperatorMetadataService } from './../../operator-metadata/operator-meta
 import { OperatorSchema } from './../../../types/operator-schema.interface';
 import { Injectable } from '@angular/core';
 import { v4 as uuid } from 'uuid';
+import * as Ajv from 'ajv';
 
 import { Subject } from 'rxjs/Subject';
 import { Observable } from 'rxjs/Observable';
@@ -14,6 +15,9 @@ import { Observable } from 'rxjs/Observable';
 export class WorkflowUtilService {
 
   private operatorSchemaList: ReadonlyArray<OperatorSchema> = [];
+
+  // used to fetch default values in json schema to initialize new operator
+  private ajv = new Ajv({ useDefaults: true });
 
   private operatorSchemaListCreatedSubject: Subject<boolean> = new Subject<boolean>();
 
@@ -53,6 +57,13 @@ export class WorkflowUtilService {
     if (operatorSchema === undefined) {
       throw new Error(`operatorType ${operatorType} doesn't exist in operator metadata`);
     }
+
+    // Remove the ID field for the schema to prevent warning messages from Ajv
+    const {id: temp, ...schemaWithoutID} = operatorSchema.jsonSchema;
+
+    // value inserted in the data will be the deep clone of the default in the schema
+    const validate = this.ajv.compile(schemaWithoutID);
+    validate(operatorProperties);
 
     const inputPorts: string[] = [];
     const outputPorts: string[] = [];

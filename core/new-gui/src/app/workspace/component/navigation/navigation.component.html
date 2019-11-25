@@ -29,21 +29,34 @@
   </div>
   <div class="collapse navbar-collapse texera-navigation-execute">
     <div class="button" tourAnchor="texera-workspace-navigation-run">
-      <button class="btn btn-secondary texera-workspace-tour-run" (click)="tourService.toggle()" tourAnchor="start.tour">
+      <button class="btn btn-secondary texera-workspace-tour-run" (click)="undoRedo.undoAction()">
           <span>
-            <i id="texera-tour-icon" class="fa fa-question-circle-o" aria-hidden="true"></i>
+            <i id="texera-undo-icon" class="fa fa-arrow-left" aria-hidden="true"></i>
+          </span>
+      </button>
+      <button class="btn btn-secondary texera-workspace-tour-run" (click)="undoRedo.redoAction()">
+          <span>
+            <i id="texera-undo-icon" class="fa fa-arrow-right" aria-hidden="true"></i>
           </span>
       </button>
 
-      <button mat-raised-button class="texera-navigation-run-button texera-navigation-run-text" (click)="onButtonClick()">
-        <span>
-          <i *ngIf="!runSpinner()" id="texera-run-icon" class="fa fa-play" aria-hidden="true"></i>
-          <i *ngIf="runSpinner()" id="texera-pause-icon" class="fa fa-spinner fa-spin" aria-hidden="true"></i>
-        </span>
-        <span>
-            {{ getRunButtonText()}}
-        </span>
-      </button>
+      <div class="button">
+          <button class="btn btn-secondary texera-workspace-tour-run" (click)="tourService.toggle()" tourAnchor="start.tour">
+              <span>
+                <i id="texera-tour-icon" class="fa fa-question-circle-o" aria-hidden="true"></i>
+              </span>
+          </button>
+
+          <button mat-raised-button class="texera-navigation-run-button texera-navigation-run-text" (click)="onButtonClick()">
+              <span>
+                <i *ngIf="!runSpinner()" id="texera-run-icon" class="fa fa-play" aria-hidden="true"></i>
+                <i *ngIf="runSpinner()" id="texera-pause-icon" class="fa fa-spinner fa-spin" aria-hidden="true"></i>
+              </span>
+              <span>
+                  {{ getRunButtonText()}}
+              </span>
+            </button>
+      </div>
     </div>
   </div>
 </nav>

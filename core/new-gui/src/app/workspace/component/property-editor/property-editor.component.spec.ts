@@ -6,6 +6,7 @@ import { async, ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core
 import { PropertyEditorComponent } from './property-editor.component';
 
 import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
+import { UndoRedoService } from './../../service/undo-redo/undo-redo.service';
 import { OperatorMetadataService } from './../../service/operator-metadata/operator-metadata.service';
 import { StubOperatorMetadataService } from './../../service/operator-metadata/stub-operator-metadata.service';
 import { JointUIService } from './../../service/joint-ui/joint-ui.service';
@@ -35,6 +36,7 @@ describe('PropertyEditorComponent', () => {
       providers: [
         JointUIService,
         WorkflowActionService,
+        UndoRedoService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         DynamicSchemaService,
         // { provide: HttpClient, useClass: StubHttpClient }

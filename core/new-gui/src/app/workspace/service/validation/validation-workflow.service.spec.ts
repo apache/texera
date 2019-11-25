@@ -4,6 +4,7 @@ import {
   mockScanPredicate, mockResultPredicate, mockScanResultLink, mockPoint
 } from '../workflow-graph/model/mock-workflow-data';
 import { WorkflowActionService } from '../workflow-graph/model/workflow-action.service';
+import { UndoRedoService } from './../../service/undo-redo/undo-redo.service';
 import { OperatorMetadataService } from '../operator-metadata/operator-metadata.service';
 import { StubOperatorMetadataService } from '../operator-metadata/stub-operator-metadata.service';
 import { JointUIService } from '.././joint-ui/joint-ui.service';
@@ -16,6 +17,7 @@ describe('ValidationWorkflowService', () => {
     TestBed.configureTestingModule({
       providers: [
         WorkflowActionService,
+        UndoRedoService,
         ValidationWorkflowService,
         JointUIService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }]

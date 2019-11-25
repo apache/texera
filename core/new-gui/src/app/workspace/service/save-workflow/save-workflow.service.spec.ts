@@ -3,6 +3,7 @@ import { TestBed, inject } from '@angular/core/testing';
 import { SaveWorkflowService, SavedWorkflow } from './save-workflow.service';
 import { mockResultPredicate, mockScanResultLink, mockScanPredicate, mockPoint } from '../workflow-graph/model/mock-workflow-data';
 import { WorkflowActionService } from '../workflow-graph/model/workflow-action.service';
+import { UndoRedoService } from './../../service/undo-redo/undo-redo.service';
 import { marbles } from '../../../../../node_modules/rxjs-marbles';
 import { OperatorLink, OperatorPredicate, Point } from '../../types/workflow-common.interface';
 import { OperatorMetadataService } from '../operator-metadata/operator-metadata.service';
@@ -19,6 +20,7 @@ describe('SaveWorkflowService', () => {
       providers: [
         SaveWorkflowService,
         WorkflowActionService,
+        UndoRedoService,
         JointUIService,
         WorkflowUtilService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService  },
