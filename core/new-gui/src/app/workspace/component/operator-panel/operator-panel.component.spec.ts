@@ -1,7 +1,7 @@
 import { mockScanSourceSchema } from './../../service/operator-metadata/mock-operator-metadata.data';
 import { UndoRedoService } from './../../service/undo-redo/undo-redo.service';
 import { DragDropService } from './../../service/drag-drop/drag-drop.service';
-import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import { async, ComponentFixture, TestBed, tick, fakeAsync } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import '../../../common/rxjs-operators';
 import { CustomNgMaterialModule } from '../../../common/custom-ng-material.module';
@@ -143,27 +143,29 @@ fdescribe('OperatorPanelComponent', () => {
   });
 
   it('should search an operator by its user friendly name', () => {
-    const inputElement = fixture.debugElement.query(By.css('#texera-workspace-operator-search-form-input'));
     let searchResults: OperatorSchema[] = [];
     component.operatorSearchResults.subscribe(res => searchResults = res);
-    (inputElement.nativeElement as HTMLInputElement).value = 'Source: Scan';
+
+    component.operatorSearchFormControl.setValue('Source: Scan');
+
     expect(searchResults.length === 1);
     expect(searchResults[0] === mockScanSourceSchema);
     fixture.detectChanges();
   });
 
   it('should support fuzzy search on operator user friendly name', () => {
-    const inputElement = fixture.debugElement.query(By.css('#texera-workspace-operator-search-form-input'));
     let searchResults: OperatorSchema[] = [];
     component.operatorSearchResults.subscribe(res => searchResults = res);
-    (inputElement.nativeElement as HTMLInputElement).value = 'scan';
+
+    component.operatorSearchFormControl.setValue('scan');
+
     expect(searchResults.length === 1);
     expect(searchResults[0] === mockScanSourceSchema);
   });
 
   it('should clear the search box when an operator from search box is dropped', () => {
-    const inputElement = fixture.debugElement.query(By.css('#texera-workspace-operator-search-form-input'));
-    (inputElement.nativeElement as HTMLInputElement).value = 'scan';
+    component.operatorSearchFormControl.setValue('scan');
+    expect(component.operatorSearchFormControl.value).toEqual('scan');
 
     const dragDropService = TestBed.get(DragDropService);
     dragDropService.operatorDroppedSubject.next({
@@ -171,8 +173,8 @@ fdescribe('OperatorPanelComponent', () => {
       offset: {x: 1, y: 1},
       dragElementID: OperatorLabelComponent.operatorLabelSearchBoxPrefix + 'ScanSource'
     });
-    fixture.detectChanges();
-    expect((inputElement.nativeElement as HTMLInputElement).value).toBeFalsy();
+
+    expect(component.operatorSearchFormControl.value).toBeFalsy();
   });
 
 });
