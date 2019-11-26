@@ -1,10 +1,12 @@
+import { OperatorLabelComponent } from './operator-label/operator-label.component';
+import { DragDropService } from './../../service/drag-drop/drag-drop.service';
 import { WorkflowUtilService } from './../../service/workflow-graph/util/workflow-util.service';
 import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
 import { Component, OnInit } from '@angular/core';
 import { FormControl } from '@angular/forms';
 import { OperatorMetadataService } from '../../service/operator-metadata/operator-metadata.service';
 import { Observable } from 'rxjs';
-import { map, filter } from 'rxjs/operators';
+import { map } from 'rxjs/operators';
 import * as Fuse from 'fuse.js';
 import {MatAutocompleteSelectedEvent} from '@angular/material/autocomplete';
 
@@ -41,16 +43,16 @@ export class OperatorPanelComponent implements OnInit {
   public groupNamesOrdered: ReadonlyArray<string> = [];
   // a map of group name to a list of operator schema of this group
   public operatorGroupMap = new Map<string, ReadonlyArray<OperatorSchema>>();
-
+  // form control of the operator search box
   public operatorSearchFormControl = new FormControl();
-
-  public operatorSearchResults: Observable<string[]>;
-
+  // observable emitting the operator search results to MatAutocomplete
+  public operatorSearchResults: Observable<OperatorSchema[]>;
+  // fuzzy search using fuse.js. See parameters in options at https://fusejs.io/
   private fuse = new Fuse([] as ReadonlyArray<OperatorSchema>, {
     shouldSort: true,
-    threshold: 0.6,
+    threshold: 0.4,
     location: 0,
-    distance: 100,
+    distance: 20,
     maxPatternLength: 32,
     minMatchCharLength: 1,
     keys: ['additionalMetadata.userFriendlyName']
@@ -59,17 +61,26 @@ export class OperatorPanelComponent implements OnInit {
   constructor(
     private operatorMetadataService: OperatorMetadataService,
     private workflowActionService: WorkflowActionService,
-    private workflowUtilService: WorkflowUtilService
+    private workflowUtilService: WorkflowUtilService,
+    private dragDropService: DragDropService,
   ) {
+    // create the search results observable
+    // whenever the search box text is changed, perform the search using fuse.js
     this.operatorSearchResults = (this.operatorSearchFormControl.valueChanges as Observable<string>).pipe(
-      filter(v => v !== null && v.trim().length > 0),
       map(v => {
-        console.log('searching: ');
-        console.log(v);
+        if (v === null || v.trim().length === 0) {
+          return [];
+        }
         const results = this.fuse.search(v) as OperatorSchema[];
-        return results.map(op => op.additionalMetadata.userFriendlyName);
+        return results;
       })
     );
+    // clear the search box if an operator is dropped from operator search box
+    this.dragDropService.getOperatorDropStream().subscribe(event => {
+      if (OperatorLabelComponent.isOperatorLabelElementFromSearchBox(event.dragElementID)) {
+        this.operatorSearchFormControl.setValue('');
+      }
+    });
   }
 
   ngOnInit() {
@@ -81,12 +92,16 @@ export class OperatorPanelComponent implements OnInit {
     );
   }
 
+  /**
+   * handles the event when an operator search option is selected.
+   * adds the operator to the canvas and clears the text in the search box
+   */
   onSearchOperatorSelected(event: MatAutocompleteSelectedEvent): void  {
     const userFriendlyName = event.option.value as string;
     const operator = this.operatorSchemaList.filter(
       op => op.additionalMetadata.userFriendlyName === userFriendlyName)[0];
     this.workflowActionService.addOperator(
-      this.workflowUtilService.getNewOperatorPredicate(operator.operatorType), {x: 600, y: 200});
+      this.workflowUtilService.getNewOperatorPredicate(operator.operatorType), {x: 800, y: 400});
     this.operatorSearchFormControl.setValue('');
   }
 

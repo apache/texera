@@ -4,10 +4,11 @@
       <mat-form-field class="texera-workspace-operator-search-form-field"
           appearance="outline" [floatLabel]="'never'">
         <input type="text" placeholder="Search Operator..." aria-label="Operator-Search"
-            matInput [formControl]="operatorSearchFormControl" [matAutocomplete]="auto">
+            matInput [formControl]="operatorSearchFormControl" [matAutocomplete]="auto" autocomplete="off">
         <mat-autocomplete #auto="matAutocomplete" (optionSelected)="onSearchOperatorSelected($event)">
-          <mat-option *ngFor="let option of operatorSearchResults | async" [value]="option">
-            {{option}}
+          <mat-option *ngFor="let operatorSchema of operatorSearchResults | async"
+              [value]="operatorSchema.additionalMetadata.userFriendlyName">
+            <texera-operator-label class="texerea-operator-name-wrapper" [operator]="operatorSchema" [fromSearchBox]="true"></texera-operator-label>
           </mat-option>
         </mat-autocomplete>
       </mat-form-field>

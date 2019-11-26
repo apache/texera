@@ -20,9 +20,13 @@ import { NgbTooltip } from '../../../../../../node_modules/@ng-bootstrap/ng-boot
 })
 export class OperatorLabelComponent implements OnInit, AfterViewInit {
 
+  private static operatorLabelPrefix = 'texera-operator-label-';
+  private static operatorLabelSearchBoxPrefix = 'texera-operator-label-search-result-';
+
   // tooltipWindow is an instance of ngbTooltip (popup box)
   @ViewChild('ngbTooltip') tooltipWindow: NgbTooltip | undefined;
   @Input() operator?: OperatorSchema;
+  @Input() fromSearchBox?: boolean;
   public operatorLabelID?: string;
 
   // values from mouseEnterEventStream correspond to cursor entering operator label
@@ -41,7 +45,11 @@ export class OperatorLabelComponent implements OnInit, AfterViewInit {
     if (! this.operator) {
       throw new Error('operator label component: operator is not specified');
     }
-    this.operatorLabelID = 'texera-operator-label-' + this.operator.operatorType;
+    if (this.fromSearchBox) {
+      this.operatorLabelID = OperatorLabelComponent.operatorLabelSearchBoxPrefix + this.operator.operatorType;
+    } else {
+      this.operatorLabelID = OperatorLabelComponent.operatorLabelPrefix + this.operator.operatorType;
+    }
   }
 
   ngAfterViewInit() {
@@ -85,5 +93,9 @@ export class OperatorLabelComponent implements OnInit, AfterViewInit {
   // mouseLeaveEventStream sends out a value
   public mouseLeave(): void {
     this.mouseLeaveEventStream.next();
+  }
+
+  public static isOperatorLabelElementFromSearchBox(elementID: string) {
+    return elementID.startsWith(OperatorLabelComponent.operatorLabelSearchBoxPrefix);
   }
 }
