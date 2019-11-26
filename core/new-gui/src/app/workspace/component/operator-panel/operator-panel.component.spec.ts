@@ -16,7 +16,7 @@ import { TourService } from 'ngx-tour-ng-bootstrap';
 import { GroupInfo, OperatorSchema } from '../../types/operator-schema.interface';
 import { RouterTestingModule } from '@angular/router/testing';
 import { TourNgBootstrapModule } from 'ngx-tour-ng-bootstrap';
-import {FormControl, FormsModule, ReactiveFormsModule} from '@angular/forms';
+import { FormsModule, ReactiveFormsModule} from '@angular/forms';
 
 import {
   mockOperatorMetaData, mockOperatorGroup, mockOperatorSchemaList
