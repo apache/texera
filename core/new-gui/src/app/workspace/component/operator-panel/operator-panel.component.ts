@@ -13,7 +13,7 @@ import {MatAutocompleteSelectedEvent} from '@angular/material/autocomplete';
 import { OperatorSchema, OperatorMetadata, GroupInfo } from '../../types/operator-schema.interface';
 
 /**
- * OperatorViewComponent is the left-side panel that shows the operators.
+ * OperatorPanelComponent is the left-side panel that shows the operators.
  *
  * This component gets all the operator metadata from OperatorMetaDataService,
  *  and then displays the operators, which are grouped using their group name from the metadata.
@@ -21,6 +21,7 @@ import { OperatorSchema, OperatorMetadata, GroupInfo } from '../../types/operato
  * Clicking a group name reveals the operators in the group, each operator is a sub-component: OperatorLabelComponent,
  *  this is implemented using Angular Material's expansion panel component: https://material.angular.io/components/expansion/overview
  *
+ * OperatorPanelComponent also includes a search box, which uses fuse.js to support fuzzy search on operator names.
  *
  * @author Bolin Chen
  * @author Zuozhi Wang
@@ -48,7 +49,7 @@ export class OperatorPanelComponent implements OnInit {
   // observable emitting the operator search results to MatAutocomplete
   public operatorSearchResults: Observable<OperatorSchema[]>;
   // fuzzy search using fuse.js. See parameters in options at https://fusejs.io/
-  private fuse = new Fuse([] as ReadonlyArray<OperatorSchema>, {
+  public fuse = new Fuse([] as ReadonlyArray<OperatorSchema>, {
     shouldSort: true,
     threshold: 0.4,
     location: 0,
@@ -71,6 +72,7 @@ export class OperatorPanelComponent implements OnInit {
         if (v === null || v.trim().length === 0) {
           return [];
         }
+        // TODO: remove this cast after we upgrade to Typescript 3
         const results = this.fuse.search(v) as OperatorSchema[];
         return results;
       })

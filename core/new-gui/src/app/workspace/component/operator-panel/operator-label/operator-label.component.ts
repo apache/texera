@@ -20,12 +20,13 @@ import { NgbTooltip } from '../../../../../../node_modules/@ng-bootstrap/ng-boot
 })
 export class OperatorLabelComponent implements OnInit, AfterViewInit {
 
-  private static operatorLabelPrefix = 'texera-operator-label-';
-  private static operatorLabelSearchBoxPrefix = 'texera-operator-label-search-result-';
+  public static operatorLabelPrefix = 'texera-operator-label-';
+  public static operatorLabelSearchBoxPrefix = 'texera-operator-label-search-result-';
 
   // tooltipWindow is an instance of ngbTooltip (popup box)
   @ViewChild('ngbTooltip') tooltipWindow: NgbTooltip | undefined;
   @Input() operator?: OperatorSchema;
+  // whether the operator label is from the operator panel or the search box
   @Input() fromSearchBox?: boolean;
   public operatorLabelID?: string;
 

@@ -3,9 +3,9 @@
     <form class="texera-workspace-operator-search-form">
       <mat-form-field class="texera-workspace-operator-search-form-field"
           appearance="outline" [floatLabel]="'never'">
-        <input type="text" placeholder="Search Operator..." aria-label="Operator-Search"
+        <input id="texera-workspace-operator-search-form-input" type="text" placeholder="Search Operator..." aria-label="Operator-Search"
             matInput [formControl]="operatorSearchFormControl" [matAutocomplete]="auto" autocomplete="off">
-        <mat-autocomplete #auto="matAutocomplete" (optionSelected)="onSearchOperatorSelected($event)">
+        <mat-autocomplete id = "texera-workspace-operator-search-form-autocomplete" #auto="matAutocomplete" (optionSelected)="onSearchOperatorSelected($event)">
           <mat-option *ngFor="let operatorSchema of operatorSearchResults | async"
               [value]="operatorSchema.additionalMetadata.userFriendlyName">
             <texera-operator-label class="texerea-operator-name-wrapper" [operator]="operatorSchema" [fromSearchBox]="true"></texera-operator-label>
@@ -20,7 +20,7 @@
         {{groupName}}
       </mat-expansion-panel-header>
       <div  *ngFor="let operatorSchema of operatorGroupMap.get(groupName)">
-        <texera-operator-label class="texerea-operator-name-wrapper" [operator]="operatorSchema"></texera-operator-label>
+        <texera-operator-label class="texerea-operator-name-wrapper" [operator]="operatorSchema" [fromSearchBox]="false"></texera-operator-label>
       </div>
     </mat-expansion-panel>
   </mat-accordion>
