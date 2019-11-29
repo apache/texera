@@ -16,6 +16,11 @@ export interface Command {
   redo?(): void;
 }
 
+type OperatorPosition = {
+  position: Point,
+  layer: number
+};
+
 /**
  *
  * WorkflowActionService exposes functions (actions) to modify the workflow graph model of both JointJS and Texera,
@@ -38,9 +43,6 @@ export class WorkflowActionService {
   private readonly jointGraph: joint.dia.Graph;
   private readonly jointGraphWrapper: JointGraphWrapper;
   private readonly syncTexeraModel: SyncTexeraModel;
-
-  // makes operations slow down; maybe have a better solution?
-  private addedOperators: Record<string, number> = {};
 
   constructor(
     private operatorMetadataService: OperatorMetadataService,
@@ -157,7 +159,6 @@ export class WorkflowActionService {
   public addOperator(operator: OperatorPredicate, point: Point): void {
     // remember currently highlighted operators
     const currentHighlighted = this.jointGraphWrapper.getCurrentHighlightedOpeartorIDs();
-    this.addedOperators[operator.operatorID] = Object.keys(this.addedOperators).length;
 
     const command: Command = {
       execute: () => {
@@ -189,6 +190,7 @@ export class WorkflowActionService {
   public deleteOperator(operatorID: string): void {
     const operator = this.getTexeraGraph().getOperator(operatorID);
     const position = this.getJointGraphWrapper().getOperatorPosition(operatorID);
+    const layer = this.jointGraph.getCell(operatorID).attributes.z;
     const linksToDelete = this.getTexeraGraph().getAllLinks()
       .filter(link => link.source.operatorID === operatorID || link.target.operatorID === operatorID);
 
@@ -199,6 +201,7 @@ export class WorkflowActionService {
       },
       undo: () => {
         this.addOperatorInternal(operator, position);
+        this.jointGraph.getCell(operatorID).set('z', layer);
         linksToDelete.forEach(link => this.addLinkInternal(link));
         // turn off multiselect since only the deleted operator will be added
         this.getJointGraphWrapper().setMultiSelectMode(false);
@@ -211,7 +214,6 @@ export class WorkflowActionService {
   public addOperatorsAndLinks(operatorsAndPositions: {op: OperatorPredicate, pos: Point}[], links: OperatorLink[]): void {
     // remember currently highlighted operators
     const currentHighlighted = this.jointGraphWrapper.getCurrentHighlightedOpeartorIDs();
-    operatorsAndPositions.forEach(o => this.addedOperators[o.op.operatorID] = Object.keys(this.addedOperators).length);
 
     const command: Command = {
       execute: () => {
@@ -242,10 +244,11 @@ export class WorkflowActionService {
 
   public deleteOperatorsAndLinks(operatorIDs: string[], linkIDs: string[]): void {
     // save operators to be deleted and their current positions
-    const operatorsAndPositions = new Map<OperatorPredicate, Point>();
-    operatorIDs.sort((left, right) => this.addedOperators[left] - this.addedOperators[right]).forEach(operatorID => {
+    const operatorsAndPositions = new Map<OperatorPredicate, OperatorPosition>();
+    operatorIDs.forEach(operatorID => {
       operatorsAndPositions.set(this.getTexeraGraph().getOperator(operatorID),
-        this.getJointGraphWrapper().getOperatorPosition(operatorID));
+        {position: this.getJointGraphWrapper().getOperatorPosition(operatorID),
+         layer: this.jointGraph.getCell(operatorID).attributes.z});
     });
 
     // save links to be deleted, including links needs to be deleted and links affected by deleted operators
@@ -267,8 +270,9 @@ export class WorkflowActionService {
         operatorIDs.forEach(operatorID => this.deleteOperatorInternal(operatorID));
       },
       undo: () => {
-        operatorsAndPositions.forEach((position, operator) => {
-          this.addOperatorInternal(operator, position);
+        operatorsAndPositions.forEach((pos, operator) => {
+          this.addOperatorInternal(operator, pos.position);
+          this.jointGraph.getCell(operator.operatorID).set('z', pos.layer);
         });
         linksToDelete.forEach(link => this.addLinkInternal(link));
         // restore previous highlights

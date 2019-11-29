@@ -38,7 +38,7 @@ type JointPositionChangeEvent = [
   { x: number, y: number }
 ];
 
-type OperatorPosition = {
+type PositionInfo = {
   currPos: Point,
   lastPos: Point | undefined
 };
@@ -72,7 +72,7 @@ export class JointGraphWrapper {
   public static readonly ZOOM_MINIMUM: number = 0.70;
   public static readonly ZOOM_MAXIMUM: number = 1.30;
 
-  private operatorPositions: Map<string, OperatorPosition> = new Map<string, OperatorPosition>();
+  private operatorPositions: Map<string, PositionInfo> = new Map<string, PositionInfo>();
   private listenPositionChange: boolean = true;
 
   // flag that indicates whether multiselect mode is on
