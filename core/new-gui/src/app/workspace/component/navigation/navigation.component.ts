@@ -1,5 +1,6 @@
 import { Component, OnInit, NgModule } from '@angular/core';
 import { ExecuteWorkflowService } from './../../service/execute-workflow/execute-workflow.service';
+import { UndoRedoService } from './../../service/undo-redo/undo-redo.service';
 import { TourService } from 'ngx-tour-ng-bootstrap';
 import { environment } from '../../../../environments/environment';
 import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
@@ -38,9 +39,8 @@ export class NavigationComponent implements OnInit {
   public showSpinner = false;
   public executionResultID: string | undefined;
 
-  constructor(private executeWorkflowService: ExecuteWorkflowService,
-    public tourService: TourService, private workflowActionService: WorkflowActionService,
-    ) {
+  constructor(private executeWorkflowService: ExecuteWorkflowService, private workflowActionService: WorkflowActionService,
+    public tourService: TourService, public undoRedo: UndoRedoService) {
     // return the run button after the execution is finished, either
     //  when the value is valid or invalid
     executeWorkflowService.getExecuteEndedStream().subscribe(
@@ -203,9 +203,8 @@ export class NavigationComponent implements OnInit {
    * Delete all operators on the graph
    */
   public onClickDeleteAllOperators(): void {
-    this.workflowActionService.getTexeraGraph().getAllOperators().forEach((operator) => {
-      this.workflowActionService.deleteOperator(operator.operatorID);
-    });
+    const allOperatorIDs = this.workflowActionService.getTexeraGraph().getAllOperators().map(op => op.operatorID);
+    this.workflowActionService.deleteOperatorsAndLinks(allOperatorIDs, []);
   }
 
   /**
