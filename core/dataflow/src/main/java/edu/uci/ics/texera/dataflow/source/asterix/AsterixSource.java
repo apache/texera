@@ -35,8 +35,8 @@ public class AsterixSource implements ISourceOperator {
     public AsterixSource(AsterixSourcePredicate predicate) {
         this.predicate = predicate;
         this.outputSchema = new Schema(
-                SchemaConstants._ID_ATTRIBUTE, 
-                new Attribute(this.predicate.getResultAttribute(), AttributeType.STRING));
+               SchemaConstants._ID_ATTRIBUTE, 
+               new Attribute(this.predicate.getResultAttribute(), AttributeType.STRING));
     }
 
     @Override

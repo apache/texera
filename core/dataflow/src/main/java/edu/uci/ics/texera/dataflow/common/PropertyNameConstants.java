@@ -117,6 +117,10 @@ public class PropertyNameConstants {
     public static final String MYSQL_LIMIT = "limit";
     public static final String MYSQL_OFFSET = "offset";
     
+    //related to MysqlSource
+    public static final String MYSQL_KEYWORD = "keyword";
+    public static final String MYSQL_COLUMN = "column";
+    
     // related to Twitter converter
     public static final String TWITTER_CONVERTER_RAW_JSON = "rawJsonStringAttributeName";
 
