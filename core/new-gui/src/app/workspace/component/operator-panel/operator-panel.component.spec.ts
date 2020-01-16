@@ -1,5 +1,7 @@
+import { mockScanSourceSchema } from './../../service/operator-metadata/mock-operator-metadata.data';
+import { UndoRedoService } from './../../service/undo-redo/undo-redo.service';
 import { DragDropService } from './../../service/drag-drop/drag-drop.service';
-import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import { async, ComponentFixture, TestBed, tick, fakeAsync } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import '../../../common/rxjs-operators';
 import { CustomNgMaterialModule } from '../../../common/custom-ng-material.module';
@@ -14,21 +16,19 @@ import { TourService } from 'ngx-tour-ng-bootstrap';
 import { GroupInfo, OperatorSchema } from '../../types/operator-schema.interface';
 import { RouterTestingModule } from '@angular/router/testing';
 import { TourNgBootstrapModule } from 'ngx-tour-ng-bootstrap';
+import { FormsModule, ReactiveFormsModule} from '@angular/forms';
 
 import {
   mockOperatorMetaData, mockOperatorGroup, mockOperatorSchemaList
 } from '../../service/operator-metadata/mock-operator-metadata.data';
 
 import * as c from './operator-panel.component';
-
-class StubDragDropService {
-
-  public registerOperatorLabelDrag(input: any) {}
-
-}
+import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
+import { JointUIService } from '../../service/joint-ui/joint-ui.service';
+import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-util.service';
 
 
-describe('OperatorPanelComponent', () => {
+fdescribe('OperatorPanelComponent', () => {
   let component: OperatorPanelComponent;
   let fixture: ComponentFixture<OperatorPanelComponent>;
 
@@ -37,11 +37,16 @@ describe('OperatorPanelComponent', () => {
       declarations: [OperatorPanelComponent, OperatorLabelComponent],
       providers: [
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
-        { provide: DragDropService, useClass: StubDragDropService},
+        DragDropService,
+        WorkflowActionService,
+        UndoRedoService,
+        WorkflowUtilService,
+        JointUIService,
         TourService
       ],
-      imports: [CustomNgMaterialModule, BrowserAnimationsModule,
-                RouterTestingModule.withRoutes([]), TourNgBootstrapModule.forRoot(), NgbModule.forRoot()]
+      imports: [CustomNgMaterialModule, BrowserAnimationsModule, FormsModule,
+        ReactiveFormsModule, RouterTestingModule.withRoutes([]), TourNgBootstrapModule.forRoot(),
+        NgbModule.forRoot()]
     })
       .compileComponents();
   }));
@@ -135,6 +140,41 @@ describe('OperatorPanelComponent', () => {
       .map(operatorLabel => operatorLabel.operator);
 
     expect(operatorLabels.length).toEqual(mockOperatorMetaData.operators.length);
+  });
+
+  it('should search an operator by its user friendly name', () => {
+    let searchResults: OperatorSchema[] = [];
+    component.operatorSearchResults.subscribe(res => searchResults = res);
+
+    component.operatorSearchFormControl.setValue('Source: Scan');
+
+    expect(searchResults.length === 1);
+    expect(searchResults[0] === mockScanSourceSchema);
+    fixture.detectChanges();
+  });
+
+  it('should support fuzzy search on operator user friendly name', () => {
+    let searchResults: OperatorSchema[] = [];
+    component.operatorSearchResults.subscribe(res => searchResults = res);
+
+    component.operatorSearchFormControl.setValue('scan');
+
+    expect(searchResults.length === 1);
+    expect(searchResults[0] === mockScanSourceSchema);
+  });
+
+  it('should clear the search box when an operator from search box is dropped', () => {
+    component.operatorSearchFormControl.setValue('scan');
+    expect(component.operatorSearchFormControl.value).toEqual('scan');
+
+    const dragDropService = TestBed.get(DragDropService);
+    dragDropService.operatorDroppedSubject.next({
+      operatorType: 'ScanSource',
+      offset: {x: 1, y: 1},
+      dragElementID: OperatorLabelComponent.operatorLabelSearchBoxPrefix + 'ScanSource'
+    });
+
+    expect(component.operatorSearchFormControl.value).toBeFalsy();
   });
 
 });

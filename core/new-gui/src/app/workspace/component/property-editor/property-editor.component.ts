@@ -14,6 +14,9 @@ import '../../../common/rxjs-operators';
 import cloneDeep from 'lodash-es/cloneDeep';
 import isEqual from 'lodash-es/isEqual';
 
+export interface IndexableObject extends Readonly<{
+  [key: string]: object | string | boolean | symbol | number | Array<object>;
+}> { }
 import { JSONSchema4 } from 'json-schema';
 import { IndexableObject } from '../../types/result-table.interface';
 
@@ -90,7 +93,7 @@ export class PropertyEditorComponent {
   public hasPropertyDescription: boolean = false;
 
   // the operator data need to be stored if the Json Schema changes, else the currently modified changes will be lost
-  public cachedFormData: object | undefined;
+  public cachedFormData: object = {};
 
   constructor(
     private workflowActionService: WorkflowActionService,
@@ -100,6 +103,20 @@ export class PropertyEditorComponent {
     // this.autocompleteService.getSourceTableAddedOperatorMetadataObservable().subscribe(
     //   metadata => { this.operatorSchemaList = metadata.operators; }
     // );
+
+
+    // this observable toggles the advanced options for an operator when the
+    // status is changed
+    this.workflowActionService.getTexeraGraph().getOperatorAdvancedOptionChangeSteam()
+      .subscribe((event) => {
+        this.showAdvanced = event.showAdvanced;
+
+        this.currentOperatorSchema = this.showAdvanced ? this.advancedOperatorSchema :
+          this.hideAdvancedSchema(this.currentOperatorSchema);
+        if (this.cachedFormData !== undefined) {
+          this.currentOperatorInitialData = this.cachedFormData;
+        }
+      });
 
     // listen to the autocomplete event, remove invalid properties, and update the schema displayed on the form
     this.handleOperatorSchemaChange();
@@ -132,12 +149,6 @@ export class PropertyEditorComponent {
     this.advancedClick = true;
     this.showAdvanced = !this.showAdvanced;
     this.workflowActionService.setOperatorAdvanceStatus(this.currentOperatorID, this.showAdvanced);
-    this.currentOperatorSchema = this.showAdvanced ? this.advancedOperatorSchema :
-       this.hideAdvancedSchema(this.currentOperatorSchema);
-
-    if (this.cachedFormData !== undefined) {
-      this.currentOperatorInitialData = this.cachedFormData;
-    }
   }
 
   /**
@@ -162,7 +173,7 @@ export class PropertyEditorComponent {
     this.currentOperatorInitialData = undefined;
     this.currentOperatorSchema = undefined;
     this.advancedOperatorSchema = undefined;
-    this.cachedFormData = undefined;
+    this.cachedFormData = {};
   }
 
   /**
@@ -333,12 +344,10 @@ export class PropertyEditorComponent {
         if (isEqual(formData, operator.operatorProperties)) {
           return false;
         }
-
         // this checks whether formData and cachedFormData will have the same appearance when rendered in the form
         if (this.secondCheckPropertyEqual(formData as IndexableObject, this.cachedFormData as IndexableObject)) {
           return false;
         }
-
         return true;
       })
       // share() because the original observable is a hot observable
@@ -431,7 +440,6 @@ export class PropertyEditorComponent {
       });
   }
 
-
   /**
    * This method is serve as the second check to determine if the form data is equal to the
    *  cached form data that might be changed by system instead of user changing in property panel.
@@ -452,7 +460,6 @@ export class PropertyEditorComponent {
    */
   private secondCheckPropertyEqual(property1: IndexableObject, property2: IndexableObject): boolean {
     let isPropertiesEqual = true;
-
     const propertyOneKeys = Object.keys(property1);
     const propertyTwoKeys = Object.keys(property2);
 
@@ -467,7 +474,6 @@ export class PropertyEditorComponent {
     });
 
     if (!isPropertiesEqual) { return isPropertiesEqual; }
-
     // difference between properties
     const keysDifference = propertyOneKeys
       .filter(key => !propertyTwoKeys.includes(key))
@@ -485,21 +491,30 @@ export class PropertyEditorComponent {
     keysDifference.forEach(key => {
       const value1 = property1[key];
       const value2 = property2[key];
-      if (value1) {
+      if (value1 !== undefined) {
         if (Array.isArray(value1)) {
           if (value1.length !== 0) { isPropertiesEqual = false; }
         } else if (typeof value1 === 'object') {
           if (Object.keys(value1).length !== 0) { isPropertiesEqual = false; }
+        } else if (typeof value1 === 'boolean') {
+          if (value1 === true) { isPropertiesEqual = false; }
         } else { isPropertiesEqual = false; }
       } else {
         if (Array.isArray(value2)) {
           if (value2.length !== 0) { isPropertiesEqual = false; }
         } else if (typeof value2 === 'object') {
+          console.log('IS OBJECT');
           if (Object.keys(value2).length !== 0) { isPropertiesEqual = false; }
-        } else { isPropertiesEqual = false; }
+        } else if (typeof value2 !== 'boolean'
+        && typeof value2 !== 'string'
+        && typeof value2 !== 'number') {
+          // Sometimes the cached form defines some
+          // boolean, string, or number values that don't appear in property editor.
+          // We want to ignore those.
+          isPropertiesEqual = false;
+        }
       }
     });
-
     return isPropertiesEqual;
   }
 

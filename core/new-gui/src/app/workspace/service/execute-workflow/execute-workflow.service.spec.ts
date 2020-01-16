@@ -4,6 +4,7 @@ import { TestBed, inject } from '@angular/core/testing';
 import { ExecuteWorkflowService } from './execute-workflow.service';
 
 import { WorkflowActionService } from './../workflow-graph/model/workflow-action.service';
+import { UndoRedoService } from './../../service/undo-redo/undo-redo.service';
 import { OperatorMetadataService } from '../operator-metadata/operator-metadata.service';
 import { StubOperatorMetadataService } from '../operator-metadata/stub-operator-metadata.service';
 import { JointUIService } from '../joint-ui/joint-ui.service';
@@ -36,6 +37,7 @@ describe('ExecuteWorkflowService', () => {
       providers: [
         ExecuteWorkflowService,
         WorkflowActionService,
+        UndoRedoService,
         JointUIService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         { provide: HttpClient, useClass: StubHttpClient},

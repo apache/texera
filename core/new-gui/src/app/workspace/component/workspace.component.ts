@@ -3,6 +3,7 @@ import { ExecuteWorkflowService } from './../service/execute-workflow/execute-wo
 import { DragDropService } from './../service/drag-drop/drag-drop.service';
 import { WorkflowUtilService } from './../service/workflow-graph/util/workflow-util.service';
 import { WorkflowActionService } from './../service/workflow-graph/model/workflow-action.service';
+import { UndoRedoService } from './../service/undo-redo/undo-redo.service';
 import { Component, OnInit } from '@angular/core';
 
 import { OperatorMetadataService } from '../service/operator-metadata/operator-metadata.service';
@@ -30,6 +31,7 @@ import { SaveWorkflowService } from '../service/save-workflow/save-workflow.serv
     WorkflowUtilService,
     DragDropService,
     ExecuteWorkflowService,
+    UndoRedoService,
     ResultPanelToggleService,
     SaveWorkflowService,
     ValidationWorkflowService
