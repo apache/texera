@@ -1,11 +1,26 @@
 <div class="texera-workspace-operator-panel-body">
+  <div class="texera-workspance-search-box">
+    <form class="texera-workspace-operator-search-form">
+      <mat-form-field class="texera-workspace-operator-search-form-field"
+          appearance="outline" [floatLabel]="'never'">
+        <input id="texera-workspace-operator-search-form-input" type="text" placeholder="Search Operator..." aria-label="Operator-Search"
+            matInput [formControl]="operatorSearchFormControl" [matAutocomplete]="auto" autocomplete="off">
+        <mat-autocomplete id = "texera-workspace-operator-search-form-autocomplete" #auto="matAutocomplete" (optionSelected)="onSearchOperatorSelected($event)">
+          <mat-option *ngFor="let operatorSchema of operatorSearchResults | async"
+              [value]="operatorSchema.additionalMetadata.userFriendlyName">
+            <texera-operator-label class="texerea-operator-name-wrapper" [operator]="operatorSchema" [fromSearchBox]="true"></texera-operator-label>
+          </mat-option>
+        </mat-autocomplete>
+      </mat-form-field>
+    </form>
+  </div>
   <mat-accordion multi="false">
     <mat-expansion-panel class="mat-elevation-z3 texera-operator-group-panel" *ngFor="let groupName of groupNamesOrdered">
       <mat-expansion-panel-header class="texera-operator-group-name" [tourAnchor]='groupName'>
         {{groupName}}
       </mat-expansion-panel-header>
       <div  *ngFor="let operatorSchema of operatorGroupMap.get(groupName)">
-        <texera-operator-label class="texerea-operator-name-wrapper" [operator]="operatorSchema"></texera-operator-label>
+        <texera-operator-label class="texerea-operator-name-wrapper" [operator]="operatorSchema" [fromSearchBox]="false"></texera-operator-label>
       </div>
     </mat-expansion-panel>
   </mat-accordion>

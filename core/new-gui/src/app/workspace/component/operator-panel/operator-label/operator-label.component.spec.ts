@@ -11,6 +11,7 @@ import { CustomNgMaterialModule } from '../../../../common/custom-ng-material.mo
 import { mockScanSourceSchema } from '../../../service/operator-metadata/mock-operator-metadata.data';
 import { By } from '@angular/platform-browser';
 import { WorkflowActionService } from '../../../service/workflow-graph/model/workflow-action.service';
+import { UndoRedoService } from '../../../service/undo-redo/undo-redo.service';
 import { TourService } from 'ngx-tour-ng-bootstrap';
 import { RouterTestingModule } from '@angular/router/testing';
 import { TourNgBootstrapModule } from 'ngx-tour-ng-bootstrap';
@@ -36,6 +37,7 @@ describe('OperatorLabelComponent', () => {
         JointUIService,
         WorkflowUtilService,
         WorkflowActionService,
+        UndoRedoService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         TourService
       ]

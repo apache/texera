@@ -1,4 +1,5 @@
 import { WorkflowActionService } from './workflow-action.service';
+import { UndoRedoService } from './../../undo-redo/undo-redo.service';
 import { OperatorMetadataService } from '../../operator-metadata/operator-metadata.service';
 import { JointUIService } from '../../joint-ui/joint-ui.service';
 import { JointGraphWrapper } from './joint-graph-wrapper';
@@ -25,6 +26,7 @@ describe('JointGraphWrapperService', () => {
       providers: [
         JointUIService,
         WorkflowActionService,
+        UndoRedoService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
       ]
     });
@@ -90,7 +92,7 @@ describe('JointGraphWrapperService', () => {
    * It should emit one operator delete event and one link delete event at the same time.
    */
   it(`should emit operator delete event and link delete event correctly
-          when an operator along with one connected link are deleted by JonitJS`
+          when an operator along with one connected link are deleted by JointJS`
     , marbles((m) => {
 
       jointGraph.addCell(jointUIService.getJointOperatorElement(mockScanPredicate, mockPoint));
@@ -146,8 +148,12 @@ describe('JointGraphWrapperService', () => {
     const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
     const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
-    // add one operator
+    // add one operator, it should be automatically highlighted
     workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    expect(workflowActionService.getJointGraphWrapper().getCurrentHighlightedOpeartorID()).toEqual(mockScanPredicate.operatorID);
+    // unhighlight the current operator
+    workflowActionService.getJointGraphWrapper().unhighlightCurrent();
+    expect(workflowActionService.getJointGraphWrapper().getCurrentHighlightedOpeartorID()).toBeFalsy();
 
     // prepare marble operation for highlighting an operator
     const highlightActionMarbleEvent = m.hot(
@@ -252,7 +258,10 @@ describe('JointGraphWrapperService', () => {
     const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
     const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
+    // add an operator, it should be automatically highlighted
     workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    // unhighlight it
+    workflowActionService.getJointGraphWrapper().unhighlightCurrent();
 
     // prepare marble operation for highlighting the same operator twice
     const highlightActionMarbleEvent = m.hot(
