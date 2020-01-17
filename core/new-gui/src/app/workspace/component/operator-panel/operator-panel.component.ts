@@ -1,10 +1,19 @@
+import { OperatorLabelComponent } from './operator-label/operator-label.component';
+import { DragDropService } from './../../service/drag-drop/drag-drop.service';
+import { WorkflowUtilService } from './../../service/workflow-graph/util/workflow-util.service';
+import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
 import { Component, OnInit } from '@angular/core';
+import { FormControl } from '@angular/forms';
 import { OperatorMetadataService } from '../../service/operator-metadata/operator-metadata.service';
+import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
+import * as Fuse from 'fuse.js';
+import {MatAutocompleteSelectedEvent} from '@angular/material/autocomplete';
 
 import { OperatorSchema, OperatorMetadata, GroupInfo } from '../../types/operator-schema.interface';
 
 /**
- * OperatorViewComponent is the left-side panel that shows the operators.
+ * OperatorPanelComponent is the left-side panel that shows the operators.
  *
  * This component gets all the operator metadata from OperatorMetaDataService,
  *  and then displays the operators, which are grouped using their group name from the metadata.
@@ -12,6 +21,7 @@ import { OperatorSchema, OperatorMetadata, GroupInfo } from '../../types/operato
  * Clicking a group name reveals the operators in the group, each operator is a sub-component: OperatorLabelComponent,
  *  this is implemented using Angular Material's expansion panel component: https://material.angular.io/components/expansion/overview
  *
+ * OperatorPanelComponent also includes a search box, which uses fuse.js to support fuzzy search on operator names.
  *
  * @author Bolin Chen
  * @author Zuozhi Wang
@@ -34,11 +44,45 @@ export class OperatorPanelComponent implements OnInit {
   public groupNamesOrdered: ReadonlyArray<string> = [];
   // a map of group name to a list of operator schema of this group
   public operatorGroupMap = new Map<string, ReadonlyArray<OperatorSchema>>();
-
+  // form control of the operator search box
+  public operatorSearchFormControl = new FormControl();
+  // observable emitting the operator search results to MatAutocomplete
+  public operatorSearchResults: Observable<OperatorSchema[]>;
+  // fuzzy search using fuse.js. See parameters in options at https://fusejs.io/
+  public fuse = new Fuse([] as ReadonlyArray<OperatorSchema>, {
+    shouldSort: true,
+    threshold: 0.3,
+    location: 0,
+    distance: 100,
+    maxPatternLength: 32,
+    minMatchCharLength: 1,
+    keys: ['additionalMetadata.userFriendlyName']
+  });
 
   constructor(
-    private operatorMetadataService: OperatorMetadataService
+    private operatorMetadataService: OperatorMetadataService,
+    private workflowActionService: WorkflowActionService,
+    private workflowUtilService: WorkflowUtilService,
+    private dragDropService: DragDropService,
   ) {
+    // create the search results observable
+    // whenever the search box text is changed, perform the search using fuse.js
+    this.operatorSearchResults = (this.operatorSearchFormControl.valueChanges as Observable<string>).pipe(
+      map(v => {
+        if (v === null || v.trim().length === 0) {
+          return [];
+        }
+        // TODO: remove this cast after we upgrade to Typescript 3
+        const results = this.fuse.search(v) as OperatorSchema[];
+        return results;
+      })
+    );
+    // clear the search box if an operator is dropped from operator search box
+    this.dragDropService.getOperatorDropStream().subscribe(event => {
+      if (OperatorLabelComponent.isOperatorLabelElementFromSearchBox(event.dragElementID)) {
+        this.operatorSearchFormControl.setValue('');
+      }
+    });
   }
 
   ngOnInit() {
@@ -48,6 +92,19 @@ export class OperatorPanelComponent implements OnInit {
     this.operatorMetadataService.getOperatorMetadata().subscribe(
       value => this.processOperatorMetadata(value)
     );
+  }
+
+  /**
+   * handles the event when an operator search option is selected.
+   * adds the operator to the canvas and clears the text in the search box
+   */
+  onSearchOperatorSelected(event: MatAutocompleteSelectedEvent): void  {
+    const userFriendlyName = event.option.value as string;
+    const operator = this.operatorSchemaList.filter(
+      op => op.additionalMetadata.userFriendlyName === userFriendlyName)[0];
+    this.workflowActionService.addOperator(
+      this.workflowUtilService.getNewOperatorPredicate(operator.operatorType), {x: 800, y: 400});
+    this.operatorSearchFormControl.setValue('');
   }
 
   /**
@@ -61,6 +118,7 @@ export class OperatorPanelComponent implements OnInit {
     this.operatorSchemaList = operatorMetadata.operators;
     this.groupNamesOrdered = getGroupNamesSorted(operatorMetadata.groups);
     this.operatorGroupMap = getOperatorGroupMap(operatorMetadata);
+    this.fuse.setCollection(this.operatorSchemaList);
   }
 
 }
@@ -68,7 +126,6 @@ export class OperatorPanelComponent implements OnInit {
 // generates a list of group names sorted by the orde
 // slice() will make a copy of the list, because we don't want to sort the orignal list
 export function getGroupNamesSorted(groupInfoList: ReadonlyArray<GroupInfo>): string[] {
-
   return groupInfoList.slice()
     .sort((a, b) => (a.groupOrder - b.groupOrder))
     .map(groupInfo => groupInfo.groupName);

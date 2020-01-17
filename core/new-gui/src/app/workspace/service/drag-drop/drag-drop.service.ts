@@ -47,6 +47,7 @@ export class DragDropService {
   // distance threshold for suggesting operators before user dropped an operator
   public static readonly SUGGESTION_DISTANCE_THRESHOLD = 300;
 
+  private static readonly DRAG_DROP_TEMP_ELEMENT_ID = 'drag-drop-temp-element-id';
   private static readonly DRAG_DROP_TEMP_OPERATOR_TYPE = 'drag-drop-temp-operator-type';
 
   private readonly operatorSuggestionHighlightStream =  new Subject <string>();
@@ -60,6 +61,8 @@ export class DragDropService {
 
   /** mapping of DOM Element ID to operatorType */
   private elementOperatorTypeMap = new Map<string, string>();
+  /** the current element ID of the operator being dragged */
+  private currentDragElementID = DragDropService.DRAG_DROP_TEMP_ELEMENT_ID;
   /** the current operatorType of the operator being dragged */
   private currentOperatorType = DragDropService.DRAG_DROP_TEMP_OPERATOR_TYPE;
   /** Subject for operator dragging is started */
@@ -68,7 +71,8 @@ export class DragDropService {
   /** Subject for operator is dropped on the main workflow editor (equivalent to dragging is stopped) */
   private operatorDroppedSubject = new Subject<{
     operatorType: string,
-    offset: Point
+    offset: Point,
+    dragElementID: string
   }>();
 
   constructor(
@@ -123,6 +127,7 @@ export class DragDropService {
         }
 
         // reset the current operator type to an non-exist type
+        this.currentDragElementID = DragDropService.DRAG_DROP_TEMP_ELEMENT_ID;
         this.currentOperatorType = DragDropService.DRAG_DROP_TEMP_OPERATOR_TYPE;
       }
     );
@@ -143,7 +148,7 @@ export class DragDropService {
    *  - operatorType - the type of the operator dropped
    *  - offset - the x and y point where the operator is dropped (relative to document root)
    */
-  public getOperatorDropStream(): Observable<{ operatorType: string, offset: Point }> {
+  public getOperatorDropStream(): Observable<{ operatorType: string, offset: Point, dragElementID: string }> {
     return this.operatorDroppedSubject.asObservable();
   }
 
@@ -181,7 +186,7 @@ export class DragDropService {
 
     // register callback functions for jquery UI
     jQuery('#' + dragElementID).draggable({
-      helper: () => this.createFlyingOperatorElement(operatorType),
+      helper: () => this.createFlyingOperatorElement(dragElementID, operatorType),
       // declare event as type any because the jQueryUI type declaration is wrong
       // it should be of type JQuery.Event, which is incompatible with the the declared type Event
       start: (event: any, ui) => this.handleOperatorStartDrag(event, ui),
@@ -221,9 +226,10 @@ export class DragDropService {
    *
    * @param operatorType - the type of the operator
    */
-  private createFlyingOperatorElement(operatorType: string): JQuery<HTMLElement> {
+  private createFlyingOperatorElement(dragElementID: string, operatorType: string): JQuery<HTMLElement> {
     // set the current operator type from an nonexist placeholder operator type
     //  to the operator type being dragged
+    this.currentDragElementID = dragElementID;
     this.currentOperatorType = operatorType;
 
     // create a temporary ghost element
@@ -294,7 +300,8 @@ export class DragDropService {
       offset: {
         x: ui.offset.left,
         y: ui.offset.top
-      }
+      },
+      dragElementID: this.currentDragElementID
     });
   }
 
