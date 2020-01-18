@@ -1,3 +1,4 @@
+import { UndoRedoService } from './../../undo-redo/undo-redo.service';
 import { SyncTexeraModel } from './sync-texera-model';
 import { JointGraphWrapper } from './joint-graph-wrapper';
 import { WorkflowGraph } from './workflow-graph';
@@ -91,11 +92,12 @@ describe('SyncTexeraModel', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [
+        UndoRedoService
       ]
     });
 
     texeraGraph = new WorkflowGraph();
-    jointGraphWrapper = new JointGraphWrapper(new joint.dia.Graph());
+    jointGraphWrapper = new JointGraphWrapper(new joint.dia.Graph(), TestBed.get(UndoRedoService));
   });
 
   /**

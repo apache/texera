@@ -28,7 +28,7 @@ import { JointUIService } from '../../service/joint-ui/joint-ui.service';
 import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-util.service';
 
 
-fdescribe('OperatorPanelComponent', () => {
+describe('OperatorPanelComponent', () => {
   let component: OperatorPanelComponent;
   let fixture: ComponentFixture<OperatorPanelComponent>;
 

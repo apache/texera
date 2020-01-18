@@ -31,7 +31,7 @@ describe('JointGraphWrapperService', () => {
       ]
     });
     jointGraph = new joint.dia.Graph();
-    jointGraphWrapper = new JointGraphWrapper(jointGraph);
+    jointGraphWrapper = new JointGraphWrapper(jointGraph, TestBed.get(UndoRedoService));
     jointUIService = TestBed.get(JointUIService);
   });
 
@@ -150,10 +150,10 @@ describe('JointGraphWrapperService', () => {
 
     // add one operator, it should be automatically highlighted
     workflowActionService.addOperator(mockScanPredicate, mockPoint);
-    expect(workflowActionService.getJointGraphWrapper().getCurrentHighlightedOpeartorID()).toEqual(mockScanPredicate.operatorID);
+    expect(workflowActionService.getJointGraphWrapper().getCurrentHighlightedOpeartorIDs()).toEqual([mockScanPredicate.operatorID]);
     // unhighlight the current operator
-    workflowActionService.getJointGraphWrapper().unhighlightCurrent();
-    expect(workflowActionService.getJointGraphWrapper().getCurrentHighlightedOpeartorID()).toBeFalsy();
+    workflowActionService.getJointGraphWrapper().unhighlightOperator(mockScanPredicate.operatorID);
+    expect(workflowActionService.getJointGraphWrapper().getCurrentHighlightedOpeartorIDs()).toEqual([]);
 
     // prepare marble operation for highlighting an operator
     const highlightActionMarbleEvent = m.hot(
@@ -177,7 +177,7 @@ describe('JointGraphWrapperService', () => {
     // expect the current highlighted operator is correct
     highlightActionMarbleEvent.subscribe({
       complete: () => {
-        expect(localJointGraphWrapper.getCurrentHighlightedOpeartorID()).toEqual(mockScanPredicate.operatorID);
+        expect(localJointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toEqual([mockScanPredicate.operatorID]);
       }
     });
 
@@ -197,7 +197,7 @@ describe('JointGraphWrapperService', () => {
 
     // unhighlight that operator at events
     unhighlightActionMarbleEvent.subscribe(
-      () => localJointGraphWrapper.unhighlightCurrent()
+      () => localJointGraphWrapper.unhighlightOperator(mockScanPredicate.operatorID)
     );
 
     // prepare expected output highlight event stream
@@ -211,7 +211,7 @@ describe('JointGraphWrapperService', () => {
     // expect the current highlighted operator is correct
     unhighlightActionMarbleEvent.subscribe({
       complete: () => {
-        expect(localJointGraphWrapper.getCurrentHighlightedOpeartorID()).toBeFalsy();
+        expect(localJointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toEqual([]);
       }
     });
 
@@ -248,7 +248,7 @@ describe('JointGraphWrapperService', () => {
     // expect the current highlighted operator is correct
     highlightActionMarbleEvent.subscribe({
       complete: () => {
-        expect(localJointGraphWrapper.getCurrentHighlightedOpeartorID()).toEqual(mockResultPredicate.operatorID);
+        expect(localJointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toEqual([mockResultPredicate.operatorID]);
       }
     });
 
@@ -261,7 +261,7 @@ describe('JointGraphWrapperService', () => {
     // add an operator, it should be automatically highlighted
     workflowActionService.addOperator(mockScanPredicate, mockPoint);
     // unhighlight it
-    workflowActionService.getJointGraphWrapper().unhighlightCurrent();
+    workflowActionService.getJointGraphWrapper().unhighlightOperator(mockScanPredicate.operatorID);
 
     // prepare marble operation for highlighting the same operator twice
     const highlightActionMarbleEvent = m.hot(
@@ -293,7 +293,7 @@ describe('JointGraphWrapperService', () => {
     workflowActionService.addOperator(mockScanPredicate, mockPoint);
     localJointGraphWrapper.highlightOperator(mockScanPredicate.operatorID);
 
-    expect(localJointGraphWrapper.getCurrentHighlightedOpeartorID()).toEqual(mockScanPredicate.operatorID);
+    expect(localJointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toEqual([mockScanPredicate.operatorID]);
 
     // prepare the delete operator action marble test
     const deleteOperatorActionMarble = m.hot('-a-').share();
@@ -307,7 +307,7 @@ describe('JointGraphWrapperService', () => {
 
     // expect that the current highlighted operator is undefined
     deleteOperatorActionMarble.subscribe({
-      complete: () => expect(localJointGraphWrapper.getCurrentHighlightedOpeartorID()).toBeFalsy()
+      complete: () => expect(localJointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toEqual([])
     });
 
   }));
