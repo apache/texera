@@ -41,6 +41,8 @@ export class ResultPanelComponent {
   public currentDisplayColumns: string[] | undefined;
   public currentDataSource: MatTableDataSource<object> | undefined;
   public showResultPanel: boolean | undefined;
+  public split_errMessage: string[] | undefined;
+
 
   @ViewChild(MatPaginator) paginator: MatPaginator | null = null;
 
@@ -173,7 +175,24 @@ export class ResultPanelComponent {
 
     // display message
     this.showMessage = true;
-    this.message = errorMessage;
+
+    //split the errMessage
+    this.split_errMessage= errorMessage.split(" ", 5);
+
+    //use first element of splited errMessage to check what error it is and print proper errMessage
+    if (this.split_errMessage[0] === 'Missing'){
+      this.message = 'There is something missing in the right Panel need to be fill';
+    } else if (this.split_errMessage[0] === 'Operator' ){
+      this.message = 'Missing operator to complete the workflow';
+    }else if(this.split_errMessage[0] === 'Operators:'){
+      this.message = 'The operator graph is not completed'
+    }else{
+      this.message = errorMessage;
+    }
+
+
+
+    
   }
 
   /**
