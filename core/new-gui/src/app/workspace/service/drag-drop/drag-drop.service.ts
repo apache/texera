@@ -126,8 +126,6 @@ export class DragDropService {
           this.suggestionOperator = undefined;
         }
 
-        // highlight the operator after adding the operator
-        this.workflowActionService.getJointGraphWrapper().highlightOperator(operator.operatorID);
         // reset the current operator type to an non-exist type
         this.currentDragElementID = DragDropService.DRAG_DROP_TEMP_ELEMENT_ID;
         this.currentOperatorType = DragDropService.DRAG_DROP_TEMP_OPERATOR_TYPE;

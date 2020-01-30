@@ -22,26 +22,6 @@ import {
   mockScanPredicate, mockPoint, mockScanResultLink, mockResultPredicate
 } from '../../service/workflow-graph/model/mock-workflow-data';
 
-class StubWorkflowActionService {
-
-  private jointGraph = new joint.dia.Graph();
-  private jointGraphWrapper = new JointGraphWrapper(this.jointGraph);
-  private readonly texeraGraph = new WorkflowGraph();
-
-  public attachJointPaper(paperOptions: joint.dia.Paper.Options): joint.dia.Paper.Options {
-    paperOptions.model = this.jointGraph;
-    return paperOptions;
-  }
-
-  public getJointGraphWrapper(): JointGraphWrapper {
-    return this.jointGraphWrapper;
-  }
-
-  public getTexeraGraph(): WorkflowGraphReadonly {
-    return this.texeraGraph;
-  }
-}
-
 describe('WorkflowEditorComponent', () => {
 
   /**
@@ -64,7 +44,7 @@ describe('WorkflowEditorComponent', () => {
           DragDropService,
           ResultPanelToggleService,
           ValidationWorkflowService,
-          { provide: WorkflowActionService, useClass: StubWorkflowActionService },
+          WorkflowActionService,
           { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
         ]
       })
@@ -196,7 +176,7 @@ describe('WorkflowEditorComponent', () => {
       // assert the function is called once
      // expect(highlightOperatorFunctionSpy.calls.count()).toEqual(1);
       // assert the highlighted operator is correct
-      expect(jointGraphWrapper.getCurrentHighlightedOpeartorID()).toEqual(mockScanPredicate.operatorID);
+      expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toEqual([mockScanPredicate.operatorID]);
     });
 
     it('should react to operator highlight event and change the appearance of the operator to be highlighted', () => {
@@ -233,7 +213,7 @@ describe('WorkflowEditorComponent', () => {
       expect(jointHighlighterElements.length).toEqual(1);
 
       // then unhighlight the operator
-      jointGraphWrapper.unhighlightCurrent();
+      jointGraphWrapper.unhighlightOperator(mockScanPredicate.operatorID);
 
       // the highlighter element should not exist
       const jointHighlighterElementAfterUnhighlight = jointCellView.$el.children('.joint-highlight-stroke');
@@ -283,7 +263,6 @@ describe('WorkflowEditorComponent', () => {
     it('should delete the highlighted operator when user presses the backspace key', () => {
       const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
       const texeraGraph = workflowActionService.getTexeraGraph();
-      const deleteOperatorFunctionSpy = spyOn(workflowActionService, 'deleteOperator').and.callThrough();
 
       workflowActionService.addOperator(mockScanPredicate, mockPoint);
       jointGraphWrapper.highlightOperator(mockScanPredicate.operatorID);
@@ -294,18 +273,13 @@ describe('WorkflowEditorComponent', () => {
 
       fixture.detectChanges();
 
-      // assert the function is called once
-      expect(deleteOperatorFunctionSpy.calls.count()).toEqual(1);
       // assert the highlighted operator is deleted
-      expect(() => {
-        texeraGraph.getOperator(mockScanPredicate.operatorID);
-      }).toThrowError(new RegExp(`does not exist`));
+      expect(texeraGraph.hasOperator(mockScanPredicate.operatorID)).toBeFalsy();
     });
 
     it('should delete the highlighted operator when user presses the delete key', () => {
       const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
       const texeraGraph = workflowActionService.getTexeraGraph();
-      const deleteOperatorFunctionSpy = spyOn(workflowActionService, 'deleteOperator').and.callThrough();
 
       workflowActionService.addOperator(mockScanPredicate, mockPoint);
       jointGraphWrapper.highlightOperator(mockScanPredicate.operatorID);
@@ -316,12 +290,8 @@ describe('WorkflowEditorComponent', () => {
 
       fixture.detectChanges();
 
-      // assert the function is called once
-      expect(deleteOperatorFunctionSpy.calls.count()).toEqual(1);
       // assert the highlighted operator is deleted
-      expect(() => {
-        texeraGraph.getOperator(mockScanPredicate.operatorID);
-      }).toThrowError(new RegExp(`does not exist`));
+      expect(texeraGraph.hasOperator(mockScanPredicate.operatorID)).toBeFalsy();
     });
 
     it(`should create and highlight a new operator with the same metadata when user
@@ -339,7 +309,7 @@ describe('WorkflowEditorComponent', () => {
       document.dispatchEvent(pasteEvent);
 
       // the pasted operator should be highlighted
-      const pastedOperatorID = jointGraphWrapper.getCurrentHighlightedOpeartorID();
+      const pastedOperatorID = jointGraphWrapper.getCurrentHighlightedOpeartorIDs()[0];
       expect(pastedOperatorID).toBeDefined();
 
       // get the pasted operator
@@ -380,7 +350,7 @@ describe('WorkflowEditorComponent', () => {
       }).toThrowError(new RegExp(`does not exist`));
 
       // the pasted operator should be highlighted
-      const pastedOperatorID = jointGraphWrapper.getCurrentHighlightedOpeartorID();
+      const pastedOperatorID = jointGraphWrapper.getCurrentHighlightedOpeartorIDs()[0];
       expect(pastedOperatorID).toBeDefined();
 
       // get the pasted operator
@@ -414,7 +384,7 @@ describe('WorkflowEditorComponent', () => {
       document.dispatchEvent(pasteEvent);
 
       // get the pasted operator
-      const pastedOperatorID = jointGraphWrapper.getCurrentHighlightedOpeartorID();
+      const pastedOperatorID = jointGraphWrapper.getCurrentHighlightedOpeartorIDs()[0];
       if (pastedOperatorID) {
         const pastedOperatorPosition = jointGraphWrapper.getOperatorPosition(pastedOperatorID);
         expect(pastedOperatorPosition).not.toEqual(mockPoint);
