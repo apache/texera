@@ -283,11 +283,16 @@ describe('NavigationComponent', () => {
   }));
 
   describe('when executionStatus is enabled', () => {
-    beforeEach(() => {
+    beforeAll(() => {
       environment.executionStatusEnabled = true;
     });
+
+    afterAll(() => {
+      environment.executionStatusEnabled = false;
+    });
+
     it('should send workflowId to websocket when run button is clicked', () => {
-      const checkWorkflowSpy = spyOn(workflowStatusService, 'checkStatus');
+      const checkWorkflowSpy = spyOn(workflowStatusService, 'checkStatus').and.stub();
       component.onButtonClick();
       expect(checkWorkflowSpy).toHaveBeenCalled();
     });

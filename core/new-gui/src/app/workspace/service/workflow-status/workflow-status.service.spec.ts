@@ -7,7 +7,7 @@ import { mockStatus1 } from './mock-workflow-status';
 import * as RxJSWebSocket from 'rxjs/webSocket';
 
 
-xdescribe('WorkflowStatusService', () => {
+describe('WorkflowStatusService', () => {
   let workflowStatusService: WorkflowStatusService;
   let mockBackend: Rx.Subject<string>;
   let backendTester: Rx.Subject<string>;

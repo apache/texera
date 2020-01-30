@@ -272,9 +272,13 @@ describe('WorkflowEditorComponent', () => {
     }));
 
     describe('when executionStatus is enabled', () => {
-      beforeEach(() => {
+      beforeAll(() => {
         environment.executionStatusEnabled = true;
         workflowStatusService = TestBed.get(WorkflowStatusService);
+      });
+
+      afterAll(() => {
+        environment.executionStatusEnabled = false;
       });
 
       it('should display/hide operator status tooltip when cursor hovers/leaves an operator', () => {
