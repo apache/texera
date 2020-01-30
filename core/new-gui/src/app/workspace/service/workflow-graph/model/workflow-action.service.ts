@@ -8,6 +8,7 @@ import { Injectable } from '@angular/core';
 import { Point, OperatorPredicate, OperatorLink, OperatorPort } from '../../../types/workflow-common.interface';
 
 import * as joint from 'jointjs';
+import { environment } from './../../../../../environments/environment';
 
 
 export interface Command {
@@ -356,19 +357,36 @@ export class WorkflowActionService {
     if (! this.operatorMetadataService.operatorTypeExists(operator.operatorType)) {
       throw new Error(`operator type ${operator.operatorType} is invalid`);
     }
-
-    // get the JointJS UI element
+    // get the JointJS UI element for operator
     const operatorJointElement = this.jointUIService.getJointOperatorElement(operator, point);
+
     // add operator to joint graph first
     // if jointJS throws an error, it won't cause the inconsistency in texera graph
     this.jointGraph.addCell(operatorJointElement);
+
+    // if display status feature is enabled, add the execution status tooltip for this operator
+    if (environment.executionStatusEnabled) {
+      // calculate the position for its popup window
+      const tooltipPosition = {x: point.x, y: point.y - 20};
+      // get the jointJS UI element for the popup window
+      const operatorStatusTooltipJointElement = this.jointUIService.getJointOperatorStatusTooltipElement(operator, tooltipPosition);
+      // bind the two elements together
+      operatorJointElement.embed(operatorStatusTooltipJointElement);
+      // add the status toolip to the JointJS graph
+      this.jointGraph.addCell(operatorStatusTooltipJointElement);
+    }
+
     // add operator to texera graph
     this.texeraGraph.addOperator(operator);
   }
 
   private deleteOperatorInternal(operatorID: string): void {
     this.texeraGraph.assertOperatorExists(operatorID);
-    // remove the operator from JointJS
+    // remove the corresponding tooltip from JointJS first
+    if (environment.executionStatusEnabled) {
+      this.jointGraph.getCell(JointUIService.getOperatorStatusTooltipElementID(operatorID)).remove();
+    }
+    // then remove the operator from JointJS
     this.jointGraph.getCell(operatorID).remove();
     // JointJS operator delete event will propagate and trigger Texera operator delete
   }

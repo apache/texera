@@ -21,6 +21,12 @@ import { marbles } from 'rxjs-marbles';
 import {
   mockScanPredicate, mockPoint, mockScanResultLink, mockResultPredicate
 } from '../../service/workflow-graph/model/mock-workflow-data';
+import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
+import {
+   mockStatus1, mockStatus2, mockScanPredicateForStatus, mockScanOperatorID
+} from '../../service/workflow-status/mock-workflow-status';
+import { SuccessProcessStatus, OperatorStates } from '../../types/execute-workflow.interface';
+import { environment } from './../../../../environments/environment';
 
 describe('WorkflowEditorComponent', () => {
 
@@ -45,7 +51,8 @@ describe('WorkflowEditorComponent', () => {
           ResultPanelToggleService,
           ValidationWorkflowService,
           WorkflowActionService,
-          { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
+          { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+          WorkflowStatusService
         ]
       })
         .compileComponents();
@@ -125,6 +132,8 @@ describe('WorkflowEditorComponent', () => {
     let workflowActionService: WorkflowActionService;
     let validationWorkflowService: ValidationWorkflowService;
     let dragDropService: DragDropService;
+    let jointUIService: JointUIService;
+    let workflowStatusService: WorkflowStatusService;
 
     beforeEach(async(() => {
       TestBed.configureTestingModule({
@@ -137,7 +146,8 @@ describe('WorkflowEditorComponent', () => {
           ResultPanelToggleService,
           ValidationWorkflowService,
           DragDropService,
-          { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
+          { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+          WorkflowStatusService,
         ]
       })
         .compileComponents();
@@ -150,6 +160,7 @@ describe('WorkflowEditorComponent', () => {
       validationWorkflowService = TestBed.get(ValidationWorkflowService);
       dragDropService = TestBed.get(DragDropService);
       // detect changes to run ngAfterViewInit and bind Model
+      jointUIService = TestBed.get(JointUIService);
       fixture.detectChanges();
     });
 
@@ -258,6 +269,109 @@ describe('WorkflowEditorComponent', () => {
       );
     }));
 
+    describe('when executionStatus is enabled', () => {
+      beforeEach(() => {
+        environment.executionStatusEnabled = true;
+        workflowStatusService = TestBed.get(WorkflowStatusService);
+      });
+
+      it('should display/hide operator status tooltip when cursor hovers/leaves an operator', () => {
+        // install a spy on the highlight operator function and pass the call through
+        const showTooltipFunctionSpy = spyOn(jointUIService, 'showOperatorStatusToolTip').and.callThrough();
+        const hideTooltipFunctionSpy = spyOn(jointUIService, 'hideOperatorStatusToolTip').and.callThrough();
+
+        workflowActionService.addOperator(mockScanPredicate, mockPoint);
+        // find the joint Cell View object of the operator element
+        const jointCellView = component.getJointPaper().findViewByModel(mockScanPredicate.operatorID);
+        const tooltipView = component.getJointPaper().findViewByModel(
+          JointUIService.getOperatorStatusTooltipElementID(mockScanPredicate.operatorID));
+
+        // workflow has not started yet
+        // tirgger a mouseenter on the cell view using its jQuery element
+        jointCellView.$el.trigger('mouseenter');
+        fixture.detectChanges();
+        // assert the function is not called yet
+        expect(showTooltipFunctionSpy).not.toHaveBeenCalled();
+        expect(tooltipView.model.attr('polygon')['display']).toBe('none');
+
+        // mock start the workflow
+        component['operatorStatusTooltipDisplayEnabled'] = true;
+        // trigger event mouse enter
+        jointCellView.$el.trigger('mouseenter');
+        fixture.detectChanges();
+        // assert the function is called
+        expect(showTooltipFunctionSpy).toHaveBeenCalled();
+        expect(tooltipView.model.attr('polygon')['display']).toBeUndefined();
+
+        // trigger event mouse leave
+        jointCellView.$el.trigger('mouseleave');
+        // assert the function is called
+        expect(hideTooltipFunctionSpy).toHaveBeenCalled();
+        expect(tooltipView.model.attr('polygon')['display']).toBe('none');
+      });
+
+      it('should update operator status tooltip content when workflow-status.service emits processState', () => {
+        // spy on key function, create simple workflow
+        const changeOperatorTooltipInfoSpy = spyOn(jointUIService, 'changeOperatorStatusTooltipInfo').and.callThrough();
+        workflowActionService.addOperator(mockScanPredicateForStatus, mockPoint);
+        const tooltipView = component.getJointPaper().findViewByModel(
+          JointUIService.getOperatorStatusTooltipElementID(mockScanPredicateForStatus.operatorID));
+
+        // workflowStatusService emits a mock status
+        workflowStatusService['status'].next(mockStatus1 as SuccessProcessStatus);
+        fixture.detectChanges();
+        // function should be called and content should be updated properly
+        expect(component['operatorStatusTooltipDisplayEnabled']).toBeTruthy();
+        expect(changeOperatorTooltipInfoSpy).toHaveBeenCalledTimes(1);
+        expect(tooltipView.model.attr('#operatorCount/text'))
+          .toBe('Output:' + (mockStatus1 as SuccessProcessStatus).operatorStatistics[mockScanOperatorID].outputCount + ' tuples');
+        expect(tooltipView.model.attr('#operatorSpeed/text'))
+          .toBe('Speed:' + (mockStatus1 as SuccessProcessStatus).operatorStatistics[mockScanOperatorID].speed + ' tuples/ms');
+
+        // workflowStatusService emits another mock status
+        workflowStatusService['status'].next(mockStatus2 as SuccessProcessStatus);
+        fixture.detectChanges();
+        // function should be called again and content should be updated properly
+        expect(changeOperatorTooltipInfoSpy).toHaveBeenCalledTimes(2);
+        expect(tooltipView.model.attr('#operatorCount/text'))
+          .toBe('Output:' + (mockStatus2 as SuccessProcessStatus).operatorStatistics[mockScanOperatorID].outputCount + ' tuples');
+        expect(tooltipView.model.attr('#operatorSpeed/text'))
+          .toBe('Speed:' + (mockStatus2 as SuccessProcessStatus).operatorStatistics[mockScanOperatorID].speed + ' tuples/ms');
+      });
+
+      it('should change operator state when workflow-status.service emits processState', () => {
+        // spy on key function, create simple workflow
+        const changeOperatorStatesSpy = spyOn(jointUIService, 'changeOperatorStates').and.callThrough();
+        workflowActionService.addOperator(mockScanPredicateForStatus, mockPoint);
+        const jointCellView = component.getJointPaper().findViewByModel(mockScanPredicateForStatus.operatorID);
+
+        // workflowStatusService emits a mock status
+        workflowStatusService['status'].next(mockStatus1 as SuccessProcessStatus);
+        fixture.detectChanges();
+        // function should be called and state name should be updated properly
+        expect(changeOperatorStatesSpy).toHaveBeenCalledTimes(1);
+        expect(jointCellView.model.attr('#operatorStates')['text'])
+        .toEqual(OperatorStates[(mockStatus1 as SuccessProcessStatus).operatorStates[mockScanOperatorID]]);
+
+        // workflowStatusService emits another mock status
+        workflowStatusService['status'].next(mockStatus2 as SuccessProcessStatus);
+        fixture.detectChanges();
+        // function should be called again and state name should be updated properly
+        expect(changeOperatorStatesSpy).toHaveBeenCalledTimes(2);
+        expect(jointCellView.model.attr('#operatorStates')['text'])
+        .toEqual(OperatorStates[OperatorStates.Completed]);
+      });
+
+      it('should throw error when processState contains non-existing operatorID', () => {
+        // workflowStatusService emits a processStatus with info for a scan operator
+        // however there is no scan operator on the joinGraph/texeraGraph
+        // an error should be thrown
+        workflowStatusService['status'].next(mockStatus1 as SuccessProcessStatus);
+        fixture.detectChanges();
+        expect(component['handleOperatorStatisticsUpdate']).toThrowError();
+        expect(component['handleOperatorStatesChange']).toThrowError();
+      });
+    });
   });
 
     it('should delete the highlighted operator when user presses the backspace key', () => {

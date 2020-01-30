@@ -18,6 +18,7 @@ import {
 } from './mock-schema-propagation.data';
 import { mockAggregationSchema } from '../../operator-metadata/mock-operator-metadata.data';
 import { OperatorPredicate } from '../../../types/workflow-common.interface';
+import { environment } from '../../../../../environments/environment';
 
 /* tslint:disable: no-non-null-assertion */
 describe('SchemaPropagationService', () => {
@@ -43,6 +44,7 @@ describe('SchemaPropagationService', () => {
 
     httpClient = TestBed.get(HttpClient);
     httpTestingController = TestBed.get(HttpTestingController);
+    environment.schemaPropagationEnabled = true;
   });
 
   it('should be created', inject([SchemaPropagationService], (service: SchemaPropagationService) => {

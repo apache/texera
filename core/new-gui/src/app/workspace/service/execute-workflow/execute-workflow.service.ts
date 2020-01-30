@@ -55,9 +55,9 @@ export class ExecuteWorkflowService {
   /**
    * Sends the current workflow data to the backend
    *  to execute the workflow and gets the results.
-   *
+   *  return workflow id to be used by workflowStatusService
    */
-  public executeWorkflow(): void {
+  public executeWorkflow(): string {
 
     // set the UUID for the current workflow
     this.workflowExecutionID = this.getRandomUUID();
@@ -96,6 +96,8 @@ export class ExecuteWorkflowService {
           this.workflowExecutionID = undefined;
         }
       );
+
+    return this.workflowExecutionID;
   }
 
   /**

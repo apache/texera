@@ -412,7 +412,9 @@ export class JointGraphWrapper {
     const element = <joint.dia.Element> cell;
     const position = element.position();
     return { x: position.x, y: position.y };
-    }
+  }
+
+
 
   /**
    * This method repositions the operator according to given offsets.

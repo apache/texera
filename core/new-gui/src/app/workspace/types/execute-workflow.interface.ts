@@ -55,3 +55,48 @@ export interface ErrorExecutionResult extends Readonly< {
  *  if the code value is 1, then the object type must be ErrorExecutionResult
  */
 export type ExecutionResult = SuccessExecutionResult | ErrorExecutionResult;
+
+/**
+ * interface for processStatus recieved from the backend via websocket
+ *    code: 0 for success and 1 for error
+ *    message: special message 'Process Complete' to indicate the last status of a series
+ *    operatorStates: a dictionary with operator id as key and operator current state as value
+ *    operatorStatistics: a dictionary with operator id as key and operator current statistics as value
+ */
+export interface SuccessProcessStatus extends Readonly< {
+  code: 0
+  message: string
+  operatorStates: Readonly< {
+    [key: string]: OperatorStates
+  }>
+  operatorStatistics: Readonly< {
+    [key: string]: Statistics
+  }>
+}> {}
+
+ export interface ErrorProcessStatus extends Readonly< {
+  code: 1
+  message: string
+}> {}
+
+ export type ProcessStatus = SuccessProcessStatus | ErrorProcessStatus;
+
+ export enum OperatorStates {
+  Initializing,
+  Ready,
+  Running,
+  Pausing,
+  Paused,
+  Completed
+}
+
+/**
+ * inputCount: the number of tuples received by a operator
+ * outputCount: the number of tuples outputed by a operator
+ * speed: number of tuples outputed by a operator per millisecond
+ */
+export interface Statistics {
+  inputCount: number;
+  outputCount: number;
+  speed: number;
+}

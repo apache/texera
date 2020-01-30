@@ -324,7 +324,6 @@ export class DragDropService {
       .filter(() => !isOperatorDropped)
       .subscribe(mouseCoordinates => {
           const currentMouseCoordinates = {x: mouseCoordinates[0], y: mouseCoordinates[1]};
-
           // scale the current mouse coordinate according to the current offset and zoom ratio
           const scaledMouseCoordinates = {
             x: (currentMouseCoordinates.x - this.workflowActionService.getJointGraphWrapper().getPanningOffset().x)

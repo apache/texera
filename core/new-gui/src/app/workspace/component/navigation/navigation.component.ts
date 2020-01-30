@@ -7,7 +7,7 @@ import { WorkflowActionService } from '../../service/workflow-graph/model/workfl
 import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-graph-wrapper';
 
 import { ExecutionResult } from './../../types/execute-workflow.interface';
-
+import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -29,7 +29,6 @@ import { ExecutionResult } from './../../types/execute-workflow.interface';
   templateUrl: './navigation.component.html',
   styleUrls: ['./navigation.component.scss']
 })
-
 export class NavigationComponent implements OnInit {
   public static autoSaveState = 'Saved';
   public isWorkflowRunning: boolean = false; // set this to true when the workflow is started
@@ -39,8 +38,13 @@ export class NavigationComponent implements OnInit {
   public showSpinner = false;
   public executionResultID: string | undefined;
 
-  constructor(private executeWorkflowService: ExecuteWorkflowService, private workflowActionService: WorkflowActionService,
-    public tourService: TourService, public undoRedo: UndoRedoService) {
+  constructor(
+    private executeWorkflowService: ExecuteWorkflowService,
+    public tourService: TourService,
+    private workflowActionService: WorkflowActionService,
+    private workflowStatusService: WorkflowStatusService,
+    public undoRedo: UndoRedoService
+    ) {
     // return the run button after the execution is finished, either
     //  when the value is valid or invalid
     executeWorkflowService.getExecuteEndedStream().subscribe(
@@ -82,7 +86,11 @@ export class NavigationComponent implements OnInit {
         // when a new workflow begins, reset the execution result ID.
         this.executionResultID = undefined;
         this.isWorkflowRunning = true;
-        this.executeWorkflowService.executeWorkflow();
+        // get the workflowId and pass it to workflowStatusService.
+        const workflowId = this.executeWorkflowService.executeWorkflow();
+        if (environment.executionStatusEnabled) {
+          this.workflowStatusService.checkStatus(workflowId);
+        }
       } else if (this.isWorkflowRunning && this.isWorkflowPaused) {
         this.executeWorkflowService.resumeWorkflow();
       } else if (this.isWorkflowRunning && !this.isWorkflowPaused) {
@@ -218,6 +226,10 @@ export class NavigationComponent implements OnInit {
    * Handler for the execution result to extract successful execution ID
    */
   private handleResultData(response: ExecutionResult): void {
+    if (!environment.downloadExecutionResultEnabled) {
+      return;
+    }
+
     // backend returns error, display error message
     if (response.code === 1) {
       this.executionResultID = undefined;

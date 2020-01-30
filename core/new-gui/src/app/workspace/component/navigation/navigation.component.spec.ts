@@ -20,8 +20,9 @@ import { HttpClient } from '@angular/common/http';
 import { mockExecutionResult } from '../../service/execute-workflow/mock-result-data';
 import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-graph-wrapper';
 import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-util.service';
-import { environment } from '../../../../environments/environment';
 import { mockScanPredicate, mockPoint } from '../../service/workflow-graph/model/mock-workflow-data';
+import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
+import { environment } from '../../../../environments/environment';
 
 class StubHttpClient {
 
@@ -35,7 +36,9 @@ describe('NavigationComponent', () => {
   let fixture: ComponentFixture<NavigationComponent>;
   let executeWorkFlowService: ExecuteWorkflowService;
   let workflowActionService: WorkflowActionService;
+  let workflowStatusService: WorkflowStatusService;
   let undoRedoService: UndoRedoService;
+
   beforeEach(async(() => {
     TestBed.configureTestingModule({
       declarations: [NavigationComponent],
@@ -52,6 +55,7 @@ describe('NavigationComponent', () => {
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         { provide: HttpClient, useClass: StubHttpClient },
         TourService,
+        WorkflowStatusService
       ]
     }).compileComponents();
   }));
@@ -61,6 +65,7 @@ describe('NavigationComponent', () => {
     component = fixture.componentInstance;
     executeWorkFlowService = TestBed.get(ExecuteWorkflowService);
     workflowActionService = TestBed.get(WorkflowActionService);
+    workflowStatusService = TestBed.get(WorkflowStatusService);
     undoRedoService = TestBed.get(UndoRedoService);
     fixture.detectChanges();
     environment.pauseResumeEnabled = true;
@@ -177,7 +182,8 @@ describe('NavigationComponent', () => {
       m.hot(endMarbleString, endMarblevalues)
     );
 
-    const mockComponent = new NavigationComponent(executeWorkFlowService, workflowActionService, TestBed.get(TourService), undoRedoService);
+    const mockComponent = new NavigationComponent(executeWorkFlowService, TestBed.get(TourService),
+      workflowActionService, workflowStatusService, undoRedoService);
 
     executeWorkFlowService.getExecutionPauseResumeStream()
       .subscribe({
@@ -198,7 +204,8 @@ describe('NavigationComponent', () => {
       m.hot(endMarbleString, endMarblevalues)
     );
 
-    const mockComponent = new NavigationComponent(executeWorkFlowService, workflowActionService, TestBed.get(TourService), undoRedoService);
+    const mockComponent = new NavigationComponent(executeWorkFlowService, TestBed.get(TourService),
+      workflowActionService, workflowStatusService, undoRedoService);
 
     executeWorkFlowService.getExecutionPauseResumeStream()
       .subscribe({
@@ -274,6 +281,17 @@ describe('NavigationComponent', () => {
     const expectStream = '-e-';
     m.expect(restoreEndStream).toBeObservable(expectStream);
   }));
+
+  describe('when executionStatus is enabled', () => {
+    beforeEach(() => {
+      environment.executionStatusEnabled = true;
+    });
+    it('should send workflowId to websocket when run button is clicked', () => {
+      const checkWorkflowSpy = spyOn(workflowStatusService, 'checkStatus');
+      component.onButtonClick();
+      expect(checkWorkflowSpy).toHaveBeenCalled();
+    });
+  });
 
   it('should delete all operators on the graph when user clicks on the delete all button', marbles((m) => {
     m.hot('-e-').do(() => {
