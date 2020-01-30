@@ -5,10 +5,10 @@ import java.util.List;
 import java.io.Reader;
 import java.io.StringReader;
 
+import edu.stanford.nlp.ling.SentenceUtils;
 import edu.stanford.nlp.process.DocumentPreprocessor;
 import edu.stanford.nlp.process.PTBTokenizer;
 import edu.stanford.nlp.ling.HasWord;
-import edu.stanford.nlp.ling.Sentence;
 import edu.uci.ics.texera.api.constants.ErrorMessages;
 import edu.uci.ics.texera.api.constants.SchemaConstants;
 import edu.uci.ics.texera.api.dataflow.IOperator;
@@ -140,7 +140,7 @@ public class NlpSplitOperator implements IOperator {
         String key=PropertyNameConstants.NLP_SPLIT_KEY;
         String attributeName = predicate.getInputAttributeName();
         for (List<HasWord> sentence : documentPreprocessor) {
-            String sentenceText = Sentence.listToString(sentence);
+            String sentenceText = SentenceUtils.listToString(sentence);
             //Make span
             end = start + sentenceText.length(); 
             Span span = new Span(attributeName, start, end, key, sentenceText);

@@ -10,6 +10,7 @@ import { mockOperatorMetaData, mockKeywordSourceSchema } from '../../operator-me
 import { DynamicSchemaService } from './../dynamic-schema.service';
 import { JointUIService } from './../../joint-ui/joint-ui.service';
 import { WorkflowActionService } from './../../workflow-graph/model/workflow-action.service';
+import { UndoRedoService } from './../../undo-redo/undo-redo.service';
 
 import { SourceTablesService, SOURCE_TABLE_NAMES_ENDPOINT } from './source-tables.service';
 import { mockSourceTableAPIResponse, mockTableTwitter, mockTablePromed } from './mock-source-tables.data';
@@ -30,6 +31,7 @@ describe('SourceTablesService', () => {
         {provide: OperatorMetadataService, useClass: StubOperatorMetadataService},
         JointUIService,
         WorkflowActionService,
+        UndoRedoService,
         DynamicSchemaService,
         SourceTablesService
       ]

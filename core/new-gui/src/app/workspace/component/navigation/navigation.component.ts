@@ -1,5 +1,6 @@
-import { Component, OnInit, NgModule, Input } from '@angular/core';
-import { ExecuteWorkflowService } from '../../service/execute-workflow/execute-workflow.service';
+import { Component, OnInit, NgModule } from '@angular/core';
+import { ExecuteWorkflowService } from './../../service/execute-workflow/execute-workflow.service';
+import { UndoRedoService } from './../../service/undo-redo/undo-redo.service';
 import { TourService } from 'ngx-tour-ng-bootstrap';
 import { environment } from '../../../../environments/environment';
 import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
@@ -7,7 +8,6 @@ import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-grap
 
 import { ExecutionResult } from './../../types/execute-workflow.interface';
 import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
-import { defaultEnvironment } from '../../../../environments/environment.default';
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -29,7 +29,6 @@ import { defaultEnvironment } from '../../../../environments/environment.default
   templateUrl: './navigation.component.html',
   styleUrls: ['./navigation.component.scss']
 })
-
 export class NavigationComponent implements OnInit {
   public static autoSaveState = 'Saved';
   public isWorkflowRunning: boolean = false; // set this to true when the workflow is started
@@ -39,10 +38,12 @@ export class NavigationComponent implements OnInit {
   public showSpinner = false;
   public executionResultID: string | undefined;
 
-  constructor(private executeWorkflowService: ExecuteWorkflowService,
+  constructor(
+    private executeWorkflowService: ExecuteWorkflowService,
     public tourService: TourService,
     private workflowActionService: WorkflowActionService,
     private workflowStatusService: WorkflowStatusService,
+    public undoRedo: UndoRedoService
     ) {
     // return the run button after the execution is finished, either
     //  when the value is valid or invalid
@@ -87,7 +88,7 @@ export class NavigationComponent implements OnInit {
         this.isWorkflowRunning = true;
         // get the workflowId and pass it to workflowStatusService.
         const workflowId = this.executeWorkflowService.executeWorkflow();
-        if (defaultEnvironment.executionStatusEnabled) {
+        if (environment.executionStatusEnabled) {
           this.workflowStatusService.checkStatus(workflowId);
         }
       } else if (this.isWorkflowRunning && this.isWorkflowPaused) {
@@ -204,6 +205,21 @@ export class NavigationComponent implements OnInit {
    */
   public onClickRestoreZoomOffsetDefaullt(): void {
     this.workflowActionService.getJointGraphWrapper().restoreDefaultZoomAndOffset();
+  }
+
+  /**
+   * Delete all operators on the graph
+   */
+  public onClickDeleteAllOperators(): void {
+    const allOperatorIDs = this.workflowActionService.getTexeraGraph().getAllOperators().map(op => op.operatorID);
+    this.workflowActionService.deleteOperatorsAndLinks(allOperatorIDs, []);
+  }
+
+  /**
+   * Returns true if there's any operator on the graph; false otherwise
+   */
+  public hasOperators(): boolean {
+    return this.workflowActionService.getTexeraGraph().getAllOperators().length > 0;
   }
 
   /**

@@ -14,27 +14,23 @@ export const defaultEnvironment = {
    * whether fetching available source tables is enabled
    * see SourceTablesService for details
    */
-  sourceTableEnabled: false,
+  sourceTableEnabled: true,
   /**
    * whether operator schema propagation and autocomplete feature is enabled,
    * see SchemaPropgationService for details
    */
-  schemaPropagationEnabled: false,
-
+  schemaPropagationEnabled: true,
   /**
    * whether the backend support pause/resume functionaility
    */
-  pauseResumeEnabled: true,
-
+  pauseResumeEnabled: false,
   /**
    * whether the backend supports checking execution status
    */
-  executionStatusEnabled: true,
-
+  executionStatusEnabled: false,
   /**
    * whether download execution result is supported
    */
-
    downloadExecutionResultEnabled: false,
 };
 

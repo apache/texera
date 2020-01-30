@@ -1,3 +1,4 @@
+import { UndoRedoService } from './../../undo-redo/undo-redo.service';
 import { SyncTexeraModel } from './sync-texera-model';
 import { JointGraphWrapper } from './joint-graph-wrapper';
 import { WorkflowGraph } from './workflow-graph';
@@ -91,11 +92,12 @@ describe('SyncTexeraModel', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [
+        UndoRedoService
       ]
     });
 
     texeraGraph = new WorkflowGraph();
-    jointGraphWrapper = new JointGraphWrapper(new joint.dia.Graph());
+    jointGraphWrapper = new JointGraphWrapper(new joint.dia.Graph(), TestBed.get(UndoRedoService));
   });
 
   /**
@@ -650,8 +652,8 @@ describe('SyncTexeraModel', () => {
           expect(texeraGraph.hasOperator(mockScanPredicate.operatorID)).toBeTruthy();
           expect(texeraGraph.hasOperator(mockResultPredicate.operatorID)).toBeTruthy();
           expect(texeraGraph.getAllOperators().length).toEqual(2);
-          expect(texeraGraph.getLinkWithID(mockScanSentimentLink.linkID)).toBe(undefined);
-          expect(texeraGraph.getLinkWithID(mockSentimentResultLink.linkID)).toBe(undefined);
+          expect(texeraGraph.hasLinkWithID(mockScanSentimentLink.linkID)).toBeFalsy();
+          expect(texeraGraph.hasLinkWithID(mockSentimentResultLink.linkID)).toBeFalsy();
           expect(texeraGraph.getAllLinks().length).toEqual(0);
         }
       });

@@ -3,6 +3,7 @@ import { TestBed, inject } from '@angular/core/testing';
 
 import { DragDropService } from './drag-drop.service';
 import { WorkflowActionService } from '../workflow-graph/model/workflow-action.service';
+import { UndoRedoService } from '../undo-redo/undo-redo.service';
 import { WorkflowUtilService } from '../workflow-graph/util/workflow-util.service';
 import { OperatorMetadataService } from '../operator-metadata/operator-metadata.service';
 import { StubOperatorMetadataService } from '../operator-metadata/stub-operator-metadata.service';
@@ -21,6 +22,7 @@ describe('DragDropService', () => {
       providers: [
         JointUIService,
         WorkflowActionService,
+        UndoRedoService,
         WorkflowUtilService,
         DragDropService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },

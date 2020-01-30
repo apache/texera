@@ -6,6 +6,7 @@ import { NavigationComponent } from './navigation.component';
 import { ExecuteWorkflowService } from './../../service/execute-workflow/execute-workflow.service';
 import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
 import { TourService } from 'ngx-tour-ng-bootstrap';
+import { UndoRedoService } from './../../service/undo-redo/undo-redo.service';
 
 import { CustomNgMaterialModule } from '../../../common/custom-ng-material.module';
 
@@ -19,10 +20,10 @@ import { HttpClient } from '@angular/common/http';
 import { mockExecutionResult } from '../../service/execute-workflow/mock-result-data';
 import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-graph-wrapper';
 import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-util.service';
+import { mockScanPredicate, mockPoint } from '../../service/workflow-graph/model/mock-workflow-data';
+import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
 import { environment } from '../../../../environments/environment';
 
-import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
-import { defaultEnvironment } from '../../../../environments/environment.default';
 class StubHttpClient {
 
   public post<T>(): Observable<string> { return Observable.of('a'); }
@@ -36,6 +37,8 @@ describe('NavigationComponent', () => {
   let executeWorkFlowService: ExecuteWorkflowService;
   let workflowActionService: WorkflowActionService;
   let workflowStatusService: WorkflowStatusService;
+  let undoRedoService: UndoRedoService;
+
   beforeEach(async(() => {
     TestBed.configureTestingModule({
       declarations: [NavigationComponent],
@@ -48,6 +51,7 @@ describe('NavigationComponent', () => {
         WorkflowUtilService,
         JointUIService,
         ExecuteWorkflowService,
+        UndoRedoService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         { provide: HttpClient, useClass: StubHttpClient },
         TourService,
@@ -62,6 +66,7 @@ describe('NavigationComponent', () => {
     executeWorkFlowService = TestBed.get(ExecuteWorkflowService);
     workflowActionService = TestBed.get(WorkflowActionService);
     workflowStatusService = TestBed.get(WorkflowStatusService);
+    undoRedoService = TestBed.get(UndoRedoService);
     fixture.detectChanges();
     environment.pauseResumeEnabled = true;
   });
@@ -178,7 +183,7 @@ describe('NavigationComponent', () => {
     );
 
     const mockComponent = new NavigationComponent(executeWorkFlowService, TestBed.get(TourService),
-      workflowActionService, workflowStatusService);
+      workflowActionService, workflowStatusService, undoRedoService);
 
     executeWorkFlowService.getExecutionPauseResumeStream()
       .subscribe({
@@ -200,7 +205,7 @@ describe('NavigationComponent', () => {
     );
 
     const mockComponent = new NavigationComponent(executeWorkFlowService, TestBed.get(TourService),
-      workflowActionService, workflowStatusService);
+      workflowActionService, workflowStatusService, undoRedoService);
 
     executeWorkFlowService.getExecutionPauseResumeStream()
       .subscribe({
@@ -279,7 +284,7 @@ describe('NavigationComponent', () => {
 
   describe('when executionStatus is enabled', () => {
     beforeEach(() => {
-      defaultEnvironment.executionStatusEnabled = true;
+      environment.executionStatusEnabled = true;
     });
     it('should send workflowId to websocket when run button is clicked', () => {
       const checkWorkflowSpy = spyOn(workflowStatusService, 'checkStatus');
@@ -287,5 +292,13 @@ describe('NavigationComponent', () => {
       expect(checkWorkflowSpy).toHaveBeenCalled();
     });
   });
+
+  it('should delete all operators on the graph when user clicks on the delete all button', marbles((m) => {
+    m.hot('-e-').do(() => {
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      component.onClickDeleteAllOperators();
+    }).subscribe();
+    expect(workflowActionService.getTexeraGraph().getAllOperators().length).toBe(0);
+  }));
 
 });

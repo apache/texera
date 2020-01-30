@@ -2,6 +2,7 @@ import { StubOperatorMetadataService } from './../../operator-metadata/stub-oper
 import { OperatorMetadataService } from './../../operator-metadata/operator-metadata.service';
 import { JointUIService } from './../../joint-ui/joint-ui.service';
 import { WorkflowGraph } from './workflow-graph';
+import { UndoRedoService } from './../../undo-redo/undo-redo.service';
 import {
   mockScanPredicate, mockResultPredicate, mockSentimentPredicate, mockScanResultLink,
   mockScanSentimentLink, mockSentimentResultLink, mockFalseResultSentimentLink, mockFalseSentimentScanLink,
@@ -12,7 +13,7 @@ import { TestBed, inject } from '@angular/core/testing';
 import { WorkflowActionService } from './workflow-action.service';
 import { OperatorPredicate, Point } from '../../../types/workflow-common.interface';
 import { g } from 'jointjs';
-import { defaultEnvironment } from './../../../../../environments/environment.default';
+import { environment } from './../../../../../environments/environment';
 
 describe('WorkflowActionService', () => {
 
@@ -25,8 +26,10 @@ describe('WorkflowActionService', () => {
       providers: [
         WorkflowActionService,
         JointUIService,
+        UndoRedoService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
-      ]
+      ],
+      imports: []
     });
     service = TestBed.get(WorkflowActionService);
     texeraGraph = (service as any).texeraGraph;
@@ -75,7 +78,7 @@ describe('WorkflowActionService', () => {
   it('should throw an error when trying to delete an non-existing operator', () => {
     expect(() => {
       service.deleteOperator(mockScanPredicate.operatorID);
-    }).toThrowError(new RegExp(`doesn't exist`));
+    }).toThrowError(new RegExp(`does not exist`));
   });
 
 
@@ -113,12 +116,12 @@ describe('WorkflowActionService', () => {
     // link's target operator or port doesn't exist
     expect(() => {
       service.addLink(mockScanSentimentLink);
-    }).toThrowError(new RegExp(`target .* doesn't exist`));
+    }).toThrowError(new RegExp(`does not exist`));
 
     // link's source operator or port doesn't exist
     expect(() => {
       service.addLink(mockSentimentResultLink);
-    }).toThrowError(new RegExp(`source .* doesn't exist`));
+    }).toThrowError(new RegExp(`does not exist`));
 
     // add another operator for tests below
     texeraGraph.addOperator(mockSentimentPredicate);
@@ -168,11 +171,11 @@ describe('WorkflowActionService', () => {
 
     expect(() => {
       service.deleteLinkWithID(mockScanResultLink.linkID);
-    }).toThrowError(new RegExp(`doesn't exist`));
+    }).toThrowError(new RegExp(`does not exist`));
 
     expect(() => {
       service.deleteLinkWithID(mockScanResultLink.linkID);
-    }).toThrowError(new RegExp(`doesn't exist`));
+    }).toThrowError(new RegExp(`does not exist`));
   });
 
   it('should set operator property to texera graph correctly', () => {
@@ -192,7 +195,7 @@ describe('WorkflowActionService', () => {
     expect(() => {
       const newProperty = { table: 'test-table' };
       service.setOperatorProperty(mockScanPredicate.operatorID, newProperty);
-    }).toThrowError(new RegExp(`doesn't exist`));
+    }).toThrowError(new RegExp(`does not exist`));
   });
 
   it('should handle delete an operator causing connected links to be deleted correctly', () => {
@@ -216,7 +219,7 @@ describe('WorkflowActionService', () => {
 
   describe('when executionStatus is enabled', () => {
     beforeEach(() => {
-      defaultEnvironment.executionStatusEnabled = true;
+      environment.executionStatusEnabled = true;
     });
 
     it('should handle delete an operator causeing corresponding operator status tooltip element to be deleted correctly', () => {

@@ -7,12 +7,13 @@ import { WorkflowActionService } from './../../service/workflow-graph/model/work
 import { OperatorMetadataService } from './../../service/operator-metadata/operator-metadata.service';
 import { StubOperatorMetadataService } from './../../service/operator-metadata/stub-operator-metadata.service';
 import { JointUIService } from './../../service/joint-ui/joint-ui.service';
+import { UndoRedoService } from './../../service/undo-redo/undo-redo.service';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs/Observable';
 
 import { mockScanPredicate, mockPoint,
   mockResultPredicate, mockSentimentPredicate, mockScanResultLink } from '../../service/workflow-graph/model/mock-workflow-data';
-import { defaultEnvironment } from './../../../../environments/environment.default';
+import { environment } from './../../../../environments/environment';
 
 class StubHttpClient {
   constructor() { }
@@ -31,6 +32,7 @@ describe('MiniMapComponent', () => {
       providers: [
         WorkflowActionService,
         JointUIService,
+        UndoRedoService,
         {provide: OperatorMetadataService, useClass: StubOperatorMetadataService},
         {provide: HttpClient, useClass: StubHttpClient}
       ]
@@ -56,13 +58,13 @@ describe('MiniMapComponent', () => {
     workflowActionService.addOperator(mockResultPredicate, mockPoint);
     workflowActionService.addOperator(mockSentimentPredicate, mockPoint);
 
-    // ! each time a operator is added as an element
+    // when execution status is enabled, each time a operator is added as an element
     // its corresponding tooltip is also added as an element,
     // though invisible most of the time
     // so number of elements should *2
 
     // check if add operator is compatible
-    if (defaultEnvironment.executionStatusEnabled) {
+    if (environment.executionStatusEnabled) {
       expect(component.getMiniMapPaper().model.getElements().length).toEqual(6);
     } else {
       expect(component.getMiniMapPaper().model.getElements().length).toEqual(3);
@@ -84,7 +86,7 @@ describe('MiniMapComponent', () => {
     workflowActionService.deleteOperator(mockScanPredicate.operatorID);
 
     // check if delete operator is compatible
-    if (defaultEnvironment.executionStatusEnabled) {
+    if (environment.executionStatusEnabled) {
       expect(component.getMiniMapPaper().model.getElements().length).toEqual(4);
     } else {
       expect(component.getMiniMapPaper().model.getElements().length).toEqual(2);

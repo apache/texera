@@ -10,6 +10,7 @@ import { OperatorMetadataService } from '../../operator-metadata/operator-metada
 import { DynamicSchemaService } from './../dynamic-schema.service';
 import { JointUIService } from './../../joint-ui/joint-ui.service';
 import { WorkflowActionService } from './../../workflow-graph/model/workflow-action.service';
+import { UndoRedoService } from './../../undo-redo/undo-redo.service';
 import { SchemaPropagationService, SCHEMA_PROPAGATION_ENDPOINT } from './schema-propagation.service';
 import { mockScanPredicate, mockPoint, mockSentimentPredicate, mockScanSentimentLink } from '../../workflow-graph/model/mock-workflow-data';
 import {
@@ -35,6 +36,7 @@ describe('SchemaPropagationService', () => {
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         JointUIService,
         WorkflowActionService,
+        UndoRedoService,
         DynamicSchemaService,
         SchemaPropagationService
       ]
