@@ -231,7 +231,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
           );
         });
       } else {
-        // const status_map = new Map<string, OperatorStates>(Object.entries(status.operatorStates));
         this.workflowActionService.getTexeraGraph().getAllOperators().forEach(operator => {
           // if the operator is not completed the whole process
           const statusIndex = status.operatorStates[operator.operatorID.slice(9)];
