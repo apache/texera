@@ -10,7 +10,7 @@ import { OperatorSchema } from '../../types/operator-schema.interface';
 
 import { OperatorMetadataService } from '../operator-metadata/operator-metadata.service';
 import { WorkflowActionService } from '../workflow-graph/model/workflow-action.service';
-import { isEqual, remove, cloneDeep, get, set } from 'lodash-es';
+import { isEqual, cloneDeep} from 'lodash';
 
 export type SchemaTransformer = (operator: OperatorPredicate, schema: OperatorSchema) => OperatorSchema;
 

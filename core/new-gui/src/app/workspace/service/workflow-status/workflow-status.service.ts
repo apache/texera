@@ -1,3 +1,4 @@
+import { environment } from './../../../../environments/environment';
 import { Injectable } from '@angular/core';
 import { Observable, Subject } from 'rxjs';
 import { SuccessProcessStatus } from '../../types/execute-workflow.interface';
@@ -13,6 +14,9 @@ export class WorkflowStatusService {
   private status: Subject<SuccessProcessStatus> = new Subject<SuccessProcessStatus>();
 
   constructor() {
+    if (! environment.executionStatusEnabled) {
+      return;
+    }
     this.connectionChannel = this.connect(Engine_URL);
     // within this.connectionChannel.subscribe function
     // the scope will no longer be websocketService

@@ -7,7 +7,11 @@ import { Component, AfterViewInit, ElementRef } from '@angular/core';
 import { Observable } from 'rxjs/Observable';
 
 import '../../../common/rxjs-operators';
+// if jQuery needs to be used: 1) use jQuery instead of `$`, and
+// 2) always add this import statement even if TypeScript doesn't show an error https://github.com/Microsoft/TypeScript/issues/22016
+import * as jQuery from 'jquery';
 import * as joint from 'jointjs';
+
 import { ResultPanelToggleService } from '../../service/result-panel-toggle/result-panel-toggle.service';
 import { Point, OperatorPredicate } from '../../types/workflow-common.interface';
 import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-graph-wrapper';
@@ -137,7 +141,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     // attach the JointJS graph (model) to the paper (view)
     jointPaperOptions = this.workflowActionService.attachJointPaper(jointPaperOptions);
     // attach the DOM element to the paper
-    jointPaperOptions.el = $(`#${this.WORKFLOW_EDITOR_JOINTJS_ID}`);
+    jointPaperOptions.el = jQuery(`#${this.WORKFLOW_EDITOR_JOINTJS_ID}`);
     // create the JointJS paper
     this.paper = new joint.dia.Paper(jointPaperOptions);
 
@@ -548,8 +552,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
    * Gets the width and height of the parent wrapper element
    */
   private getWrapperElementSize(): { width: number, height: number } {
-    const width = $('#' + this.WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID).width();
-    const height = $('#' + this.WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID).height();
+    const width = jQuery('#' + this.WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID).width();
+    const height = jQuery('#' + this.WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID).height();
 
     if (width === undefined || height === undefined) {
       throw new Error('fail to get Workflow Editor wrapper element size');
@@ -562,7 +566,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
    * Gets the document offset coordinates of the wrapper element's top-left corner.
    */
   private getWrapperElementOffset(): { x: number, y: number } {
-    const offset = $('#' + this.WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID).offset();
+    const offset = jQuery('#' + this.WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID).offset();
     if (offset === undefined) {
       throw new Error('fail to get Workflow Editor wrapper element offset');
     }

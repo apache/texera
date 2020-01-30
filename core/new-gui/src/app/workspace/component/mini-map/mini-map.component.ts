@@ -1,6 +1,11 @@
 import { Component, AfterViewInit } from '@angular/core';
 import { Observable } from 'rxjs/Observable';
+
+// if jQuery needs to be used: 1) use jQuery instead of `$`, and
+// 2) always add this import statement even if TypeScript doesn't show an error https://github.com/Microsoft/TypeScript/issues/22016
+import * as jQuery from 'jquery';
 import * as joint from 'jointjs';
+
 import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
 import { Point } from '../../types/workflow-common.interface';
 
@@ -60,7 +65,7 @@ export class MiniMapComponent implements AfterViewInit {
   private initializeMapPaper(): void {
 
     const miniMapPaperOptions: joint.dia.Paper.Options = {
-      el: $(`#${this.MINI_MAP_JOINTJS_MAP_ID}`),
+      el: jQuery(`#${this.MINI_MAP_JOINTJS_MAP_ID}`),
       gridSize: this.MINI_MAP_GRID_SIZE,
       background: { color:  '#F7F6F6' },
       interactive: false
@@ -150,13 +155,13 @@ export class MiniMapComponent implements AfterViewInit {
 
     // set navigator dimension size, mainPaperDimension * this.MINI_MAP_ZOOM_SCALE is the
     //  main paper's size in the mini-map
-    $('#' + this.MINI_MAP_NAVIGATOR_ID).width(mainPaperWidth * this.MINI_MAP_ZOOM_SCALE);
-    $('#' + this.MINI_MAP_NAVIGATOR_ID).height(mainPaperHeight * this.MINI_MAP_ZOOM_SCALE);
+    jQuery('#' + this.MINI_MAP_NAVIGATOR_ID).width(mainPaperWidth * this.MINI_MAP_ZOOM_SCALE);
+    jQuery('#' + this.MINI_MAP_NAVIGATOR_ID).height(mainPaperHeight * this.MINI_MAP_ZOOM_SCALE);
 
     // set navigator position in the component
     const marginTop = (miniMapHeight - mainPaperHeight * this.MINI_MAP_ZOOM_SCALE) / 2;
     const marginLeft = (miniMapWidth - mainPaperWidth * this.MINI_MAP_ZOOM_SCALE) / 2;
-    $('#' + this.MINI_MAP_NAVIGATOR_ID).css({top: marginTop + 'px', left: marginLeft + 'px'});
+    jQuery('#' + this.MINI_MAP_NAVIGATOR_ID).css({top: marginTop + 'px', left: marginLeft + 'px'});
   }
 
   /**
@@ -164,7 +169,7 @@ export class MiniMapComponent implements AfterViewInit {
    */
   private getNavigatorElementOffset(): { x: number, y: number } {
     // Gets the document offset coordinates of the original wrapper element's top-left corner.
-    const offset = $('#' + this.WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID).offset();
+    const offset = jQuery('#' + this.WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID).offset();
 
     // when testing, offset will be undefined, this gives default value
     //  according to css grids
@@ -186,8 +191,8 @@ export class MiniMapComponent implements AfterViewInit {
    * This method gets the original paper wrapper size.
    */
   private getOriginalWrapperElementSize(): { width: number, height: number } {
-    let width = $('#' + this.WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID).width();
-    let height = $('#' + this.WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID).height();
+    let width = jQuery('#' + this.WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID).width();
+    let height = jQuery('#' + this.WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID).height();
 
     // when testing, width and height will be undefined, this gives default value
     //  according to css grids
@@ -201,7 +206,7 @@ export class MiniMapComponent implements AfterViewInit {
    * This method gets the mini-map paper wrapper dimensions.
    */
   private getWrapperElementSize(): { width: number, height: number } {
-    const e = $('#' + this.MINI_MAP_JOINTJS_MAP_WRAPPER_ID);
+    const e = jQuery('#' + this.MINI_MAP_JOINTJS_MAP_WRAPPER_ID);
     const width = e.width();
     const height = e.height();
 

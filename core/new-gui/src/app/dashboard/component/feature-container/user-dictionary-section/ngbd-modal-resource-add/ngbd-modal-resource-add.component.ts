@@ -6,7 +6,7 @@ import { UserDictionary } from '../../../../service/user-dictionary/user-diction
 import { v4 as uuid } from 'uuid';
 
 import { FileUploader, FileItem } from 'ng2-file-upload';
-import isEqual from 'lodash-es/isEqual';
+import { isEqual } from 'lodash';
 import { MatTabChangeEvent } from '@angular/material';
 
 import { ErrorStateMatcher } from '@angular/material';

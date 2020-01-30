@@ -9,6 +9,9 @@ import { OperatorMetadataService } from '../operator-metadata/operator-metadata.
 import { StubOperatorMetadataService } from '../operator-metadata/stub-operator-metadata.service';
 import { mockOperatorMetaData } from '../operator-metadata/mock-operator-metadata.data';
 
+import * as jQuery from 'jquery';
+import '../../../../../node_modules/jquery-ui-dist/jquery-ui';
+
 import { marbles } from 'rxjs-marbles';
 import { mockScanPredicate, mockResultPredicate, mockScanResultLink } from '../workflow-graph/model/mock-workflow-data';
 import { OperatorLink } from '../../types/workflow-common.interface';
