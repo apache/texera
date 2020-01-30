@@ -19,7 +19,7 @@ import { ResultPanelToggleService } from '../../service/result-panel-toggle/resu
 import { marbles } from 'rxjs-marbles';
 
 import {
-  mockScanPredicate, mockPoint, mockScanResultLink, mockResultPredicate
+  mockScanPredicate, mockPoint, mockScanResultLink, mockResultPredicate, mockSentimentPredicate
 } from '../../service/workflow-graph/model/mock-workflow-data';
 import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
 import {
@@ -375,11 +375,9 @@ describe('WorkflowEditorComponent', () => {
   });
 
     it('should delete the highlighted operator when user presses the backspace key', () => {
-      const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
       const texeraGraph = workflowActionService.getTexeraGraph();
 
       workflowActionService.addOperator(mockScanPredicate, mockPoint);
-      jointGraphWrapper.highlightOperator(mockScanPredicate.operatorID);
 
       // dispatch a keydown event on the backspace key
       const event = new KeyboardEvent('keydown', {key: 'Backspace'});
@@ -392,11 +390,9 @@ describe('WorkflowEditorComponent', () => {
     });
 
     it('should delete the highlighted operator when user presses the delete key', () => {
-      const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
       const texeraGraph = workflowActionService.getTexeraGraph();
 
       workflowActionService.addOperator(mockScanPredicate, mockPoint);
-      jointGraphWrapper.highlightOperator(mockScanPredicate.operatorID);
 
       // dispatch a keydown event on the backspace key
       const event = new KeyboardEvent('keydown', {key: 'Delete'});
@@ -414,7 +410,6 @@ describe('WorkflowEditorComponent', () => {
       const texeraGraph = workflowActionService.getTexeraGraph();
 
       workflowActionService.addOperator(mockScanPredicate, mockPoint);
-      jointGraphWrapper.highlightOperator(mockScanPredicate.operatorID);
 
       // dispatch clipboard events for copy and paste
       const copyEvent = new ClipboardEvent('copy');
@@ -450,7 +445,6 @@ describe('WorkflowEditorComponent', () => {
       const texeraGraph = workflowActionService.getTexeraGraph();
 
       workflowActionService.addOperator(mockScanPredicate, mockPoint);
-      jointGraphWrapper.highlightOperator(mockScanPredicate.operatorID);
 
       // dispatch clipboard events for cut and paste
       const cutEvent = new ClipboardEvent('cut');
@@ -489,7 +483,6 @@ describe('WorkflowEditorComponent', () => {
       const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
       workflowActionService.addOperator(mockScanPredicate, mockPoint);
-      jointGraphWrapper.highlightOperator(mockScanPredicate.operatorID);
 
       // dispatch clipboard events for copy and paste
       const cutEvent = new ClipboardEvent('copy');
