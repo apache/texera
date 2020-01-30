@@ -22,26 +22,6 @@ import {
   mockScanPredicate, mockPoint, mockScanResultLink, mockResultPredicate
 } from '../../service/workflow-graph/model/mock-workflow-data';
 
-// class StubWorkflowActionService {
-
-//   private jointGraph = new joint.dia.Graph();
-//   private jointGraphWrapper = new JointGraphWrapper(this.jointGraph, new UndoRedoService());
-//   private readonly texeraGraph = new WorkflowGraph();
-
-//   public attachJointPaper(paperOptions: joint.dia.Paper.Options): joint.dia.Paper.Options {
-//     paperOptions.model = this.jointGraph;
-//     return paperOptions;
-//   }
-
-//   public getJointGraphWrapper(): JointGraphWrapper {
-//     return this.jointGraphWrapper;
-//   }
-
-//   public getTexeraGraph(): WorkflowGraphReadonly {
-//     return this.texeraGraph;
-//   }
-// }
-
 describe('WorkflowEditorComponent', () => {
 
   /**
@@ -65,7 +45,6 @@ describe('WorkflowEditorComponent', () => {
           ResultPanelToggleService,
           ValidationWorkflowService,
           WorkflowActionService,
-          // { provide: WorkflowActionService, useClass: StubWorkflowActionService },
           { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
         ]
       })
