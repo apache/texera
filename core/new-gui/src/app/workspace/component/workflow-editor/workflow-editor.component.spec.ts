@@ -185,7 +185,7 @@ describe('WorkflowEditorComponent', () => {
       fixture.detectChanges();
 
       // assert the function is called once
-     // expect(highlightOperatorFunctionSpy.calls.count()).toEqual(1);
+      // expect(highlightOperatorFunctionSpy.calls.count()).toEqual(1);
       // assert the highlighted operator is correct
       expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toEqual([mockScanPredicate.operatorID]);
     });
@@ -404,6 +404,28 @@ describe('WorkflowEditorComponent', () => {
       expect(texeraGraph.hasOperator(mockScanPredicate.operatorID)).toBeFalsy();
     });
 
+    it('should delete all highlighted operators when user presses the backspace key', () => {
+      const texeraGraph = workflowActionService.getTexeraGraph();
+      const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
+
+      workflowActionService.addOperatorsAndLinks([{op: mockScanPredicate, pos: mockPoint},
+        {op: mockSentimentPredicate, pos: mockPoint}], []);
+
+      // assert that all operators are highlighted
+      expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toContain(mockScanPredicate.operatorID);
+      expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toContain(mockSentimentPredicate.operatorID);
+
+      // dispatch a keydown event on the backspace key
+      const event = new KeyboardEvent('keydown', {key: 'Backspace'});
+      document.dispatchEvent(event);
+
+      fixture.detectChanges();
+
+      // assert that all highlighted operators are deleted
+      expect(texeraGraph.hasOperator(mockScanPredicate.operatorID)).toBeFalsy();
+      expect(texeraGraph.hasOperator(mockSentimentPredicate.operatorID)).toBeFalsy();
+    });
+
     it(`should create and highlight a new operator with the same metadata when user
         copies and pastes the highlighted operator`, () => {
       const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
@@ -496,6 +518,72 @@ describe('WorkflowEditorComponent', () => {
         const pastedOperatorPosition = jointGraphWrapper.getOperatorPosition(pastedOperatorID);
         expect(pastedOperatorPosition).not.toEqual(mockPoint);
       }
+    });
+
+    it('should highlight multiple operators when user clicks on them with shift key pressed', () => {
+      const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
+
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      workflowActionService.addOperator(mockSentimentPredicate, mockPoint);
+
+      // assert that only the last operator is highlighted
+      expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toContain(mockSentimentPredicate.operatorID);
+      expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).not.toContain(mockScanPredicate.operatorID);
+
+      // find the joint Cell View object of the operator element
+      const jointCellView = component.getJointPaper().findViewByModel(mockScanPredicate.operatorID);
+
+      // tirgger a shift click on the cell view using its jQuery element
+      const event = jQuery.Event('mousedown', {shiftKey: true});
+      jointCellView.$el.trigger(event);
+
+      fixture.detectChanges();
+
+      // assert that both operators are highlighted
+      expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toContain(mockScanPredicate.operatorID);
+      expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toContain(mockSentimentPredicate.operatorID);
+    });
+
+    it('should unhighlight the highlighted operator when user clicks on it with shift key pressed', () => {
+      const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
+
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+
+      // assert that the operator is highlighted
+      expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toContain(mockScanPredicate.operatorID);
+
+      // find the joint Cell View object of the operator element
+      const jointCellView = component.getJointPaper().findViewByModel(mockScanPredicate.operatorID);
+
+      // tirgger a shift click on the cell view using its jQuery element
+      const event = jQuery.Event('mousedown', {shiftKey: true});
+      jointCellView.$el.trigger(event);
+
+      fixture.detectChanges();
+
+      // assert that the operator is unhighlighted
+      expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).not.toContain(mockScanPredicate.operatorID);
+    });
+
+    it('should highlight all operators when user presses command + A', () => {
+      const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
+
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      workflowActionService.addOperator(mockSentimentPredicate, mockPoint);
+
+      // assert that only the last operator is highlighted
+      expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toContain(mockSentimentPredicate.operatorID);
+      expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).not.toContain(mockScanPredicate.operatorID);
+
+      // dispatch a keydown event on the command + A key comb
+      const event = new KeyboardEvent('keydown', {key: 'a', metaKey: true});
+      document.dispatchEvent(event);
+
+      fixture.detectChanges();
+
+      // assert that all operators are highlighted
+      expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toContain(mockScanPredicate.operatorID);
+      expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toContain(mockSentimentPredicate.operatorID);
     });
   });
 
