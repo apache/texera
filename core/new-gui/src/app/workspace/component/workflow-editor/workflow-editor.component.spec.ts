@@ -19,7 +19,7 @@ import { ResultPanelToggleService } from '../../service/result-panel-toggle/resu
 import { marbles } from 'rxjs-marbles';
 
 import {
-  mockScanPredicate, mockPoint, mockScanResultLink, mockResultPredicate, mockSentimentPredicate
+  mockScanPredicate, mockPoint, mockScanResultLink, mockResultPredicate
 } from '../../service/workflow-graph/model/mock-workflow-data';
 import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
 import {
@@ -409,11 +409,11 @@ describe('WorkflowEditorComponent', () => {
       const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
       workflowActionService.addOperatorsAndLinks([{op: mockScanPredicate, pos: mockPoint},
-        {op: mockSentimentPredicate, pos: mockPoint}], []);
+        {op: mockResultPredicate, pos: mockPoint}], []);
 
       // assert that all operators are highlighted
       expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toContain(mockScanPredicate.operatorID);
-      expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toContain(mockSentimentPredicate.operatorID);
+      expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toContain(mockResultPredicate.operatorID);
 
       // dispatch a keydown event on the backspace key
       const event = new KeyboardEvent('keydown', {key: 'Backspace'});
@@ -423,7 +423,7 @@ describe('WorkflowEditorComponent', () => {
 
       // assert that all highlighted operators are deleted
       expect(texeraGraph.hasOperator(mockScanPredicate.operatorID)).toBeFalsy();
-      expect(texeraGraph.hasOperator(mockSentimentPredicate.operatorID)).toBeFalsy();
+      expect(texeraGraph.hasOperator(mockResultPredicate.operatorID)).toBeFalsy();
     });
 
     it(`should create and highlight a new operator with the same metadata when user
@@ -524,10 +524,10 @@ describe('WorkflowEditorComponent', () => {
       const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
       workflowActionService.addOperator(mockScanPredicate, mockPoint);
-      workflowActionService.addOperator(mockSentimentPredicate, mockPoint);
+      workflowActionService.addOperator(mockResultPredicate, mockPoint);
 
       // assert that only the last operator is highlighted
-      expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toContain(mockSentimentPredicate.operatorID);
+      expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toContain(mockResultPredicate.operatorID);
       expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).not.toContain(mockScanPredicate.operatorID);
 
       // find the joint Cell View object of the operator element
@@ -541,7 +541,7 @@ describe('WorkflowEditorComponent', () => {
 
       // assert that both operators are highlighted
       expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toContain(mockScanPredicate.operatorID);
-      expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toContain(mockSentimentPredicate.operatorID);
+      expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toContain(mockResultPredicate.operatorID);
     });
 
     it('should unhighlight the highlighted operator when user clicks on it with shift key pressed', () => {
@@ -569,10 +569,10 @@ describe('WorkflowEditorComponent', () => {
       const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
       workflowActionService.addOperator(mockScanPredicate, mockPoint);
-      workflowActionService.addOperator(mockSentimentPredicate, mockPoint);
+      workflowActionService.addOperator(mockResultPredicate, mockPoint);
 
       // assert that only the last operator is highlighted
-      expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toContain(mockSentimentPredicate.operatorID);
+      expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toContain(mockResultPredicate.operatorID);
       expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).not.toContain(mockScanPredicate.operatorID);
 
       // dispatch a keydown event on the command + A key comb
@@ -583,7 +583,7 @@ describe('WorkflowEditorComponent', () => {
 
       // assert that all operators are highlighted
       expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toContain(mockScanPredicate.operatorID);
-      expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toContain(mockSentimentPredicate.operatorID);
+      expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toContain(mockResultPredicate.operatorID);
     });
   });
 
