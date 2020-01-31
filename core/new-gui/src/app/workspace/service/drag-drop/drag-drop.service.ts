@@ -200,13 +200,13 @@ export class DragDropService {
       helper: () => this.createFlyingOperatorElement(dragElementID, operatorType),
       // declare event as type any because the jQueryUI type declaration is wrong
       // it should be of type JQuery.Event, which is incompatible with the the declared type Event
-      start: (event: any, ui) => this.handleOperatorStartDrag(event, ui),
+      start: (event: JQueryEventObject, ui: JQueryUI.DraggableEventUIParams) => this.handleOperatorStartDrag(event, ui),
       // The draggable element will be created with the mouse starting point at the center
       cursorAt : {
         left: JointUIService.DEFAULT_OPERATOR_WIDTH / 2,
         top: JointUIService.DEFAULT_OPERATOR_HEIGHT / 2
       },
-      stop: (event: any, ui) => {
+      stop: (event: JQueryEventObject, ui: JQueryUI.DraggableEventUIParams) => {
         // this is to unhighlight the suggested operator when the user release mouse at other
         //  components than the workflow editor
         if (this.suggestionOperator !== undefined) {

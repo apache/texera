@@ -32,7 +32,7 @@ describe('OperatorLabelComponent', () => {
         CustomNgMaterialModule,
         RouterTestingModule.withRoutes([]),
         TourNgBootstrapModule.forRoot(),
-        NgbModule.forRoot()
+        NgbModule
       ],
       providers: [
         DragDropService,

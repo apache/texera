@@ -46,7 +46,7 @@ describe('UserDictionarySectionComponent', () => {
       ],
       imports: [
         CustomNgMaterialModule,
-        NgbModule.forRoot(),
+        NgbModule,
         FormsModule,
         HttpClientModule
       ]

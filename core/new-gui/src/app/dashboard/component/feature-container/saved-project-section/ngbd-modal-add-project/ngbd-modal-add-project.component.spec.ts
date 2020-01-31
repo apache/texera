@@ -23,7 +23,7 @@ describe('NgbdModalAddProjectComponent', () => {
       ],
       imports: [
         MatDialogModule,
-        NgbModule.forRoot(),
+        NgbModule,
         FormsModule,
         HttpClientModule]
     })

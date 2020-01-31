@@ -45,7 +45,7 @@ describe('PropertyEditorComponent', () => {
         CustomNgMaterialModule,
         BrowserAnimationsModule,
         MaterialDesignFrameworkModule,
-        NgbModule.forRoot()
+        NgbModule
       ]
     })
       .compileComponents();
