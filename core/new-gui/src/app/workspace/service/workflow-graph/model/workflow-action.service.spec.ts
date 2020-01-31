@@ -218,8 +218,12 @@ describe('WorkflowActionService', () => {
 
 
   describe('when executionStatus is enabled', () => {
-    beforeEach(() => {
+    beforeAll(() => {
       environment.executionStatusEnabled = true;
+    });
+
+    afterAll(() => {
+      environment.executionStatusEnabled = false;
     });
 
     it('should handle delete an operator causeing corresponding operator status tooltip element to be deleted correctly', () => {
