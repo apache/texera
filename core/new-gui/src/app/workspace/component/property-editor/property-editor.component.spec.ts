@@ -174,6 +174,29 @@ describe('PropertyEditorComponent', () => {
     expect(jsonSchemaFormElement).toBeFalsy();
   });
 
+  it('should clear and hide the property editor panel correctly when multiple operators are highlighted', () => {
+    const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
+
+    workflowActionService.addOperatorsAndLinks([{op: mockScanPredicate, pos: mockPoint},
+      {op: mockResultPredicate, pos: mockPoint}], []);
+
+    // assert that multiple operators are highlighted
+    expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toContain(mockResultPredicate.operatorID);
+    expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toContain(mockScanPredicate.operatorID);
+
+    expect(component.currentOperatorID).toBeFalsy();
+    expect(component.currentOperatorSchema).toBeFalsy();
+    expect(component.currentOperatorInitialData).toBeFalsy();
+    expect(component.displayForm).toBeFalsy();
+
+    // check HTML form are not displayed
+    const formTitleElement = fixture.debugElement.query(By.css('.texera-workspace-property-editor-title'));
+    const jsonSchemaFormElement = fixture.debugElement.query(By.css('.texera-workspace-property-editor-form'));
+
+    expect(formTitleElement).toBeFalsy();
+    expect(jsonSchemaFormElement).toBeFalsy();
+  });
+
   it('should change Texera graph property when the form is edited by the user', fakeAsync(() => {
     const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
