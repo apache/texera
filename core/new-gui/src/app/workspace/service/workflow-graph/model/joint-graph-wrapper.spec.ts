@@ -168,7 +168,7 @@ describe('JointGraphWrapperService', () => {
 
     // prepare expected output highlight event stream
     const expectedHighlightEventStream = m.hot('-a-', {
-      a: { operatorID: mockScanPredicate.operatorID }
+      a: { operatorIDs: [mockScanPredicate.operatorID] }
     });
 
     // expect the output event stream is correct
@@ -202,7 +202,7 @@ describe('JointGraphWrapperService', () => {
 
     // prepare expected output highlight event stream
     const expectedUnhighlightEventStream = m.hot('-a-', {
-      a: { operatorID: mockScanPredicate.operatorID }
+      a: { operatorIDs: [mockScanPredicate.operatorID] }
     });
 
     // expect the output event stream is correct
@@ -238,8 +238,8 @@ describe('JointGraphWrapperService', () => {
 
     // prepare expected output highlight event stream
     const expectedHighlightEventStream = m.hot('-a-b-', {
-      a: { operatorID: mockScanPredicate.operatorID },
-      b: { operatorID: mockResultPredicate.operatorID },
+      a: { operatorIDs: [mockScanPredicate.operatorID] },
+      b: { operatorIDs: [mockResultPredicate.operatorID] },
     });
 
     // expect the output event stream is correct
@@ -254,7 +254,7 @@ describe('JointGraphWrapperService', () => {
 
   }));
 
-  it('should ignore the action if tring to highlight the same currently highlighted operator', marbles((m) => {
+  it('should ignore the action if trying to highlight the same currently highlighted operator', marbles((m) => {
     const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
     const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
@@ -277,7 +277,7 @@ describe('JointGraphWrapperService', () => {
 
     // prepare expected output highlight event stream: the second highlight is ignored
     const expectedHighlightEventStream = m.hot('-a---', {
-      a: { operatorID: mockScanPredicate.operatorID },
+      a: { operatorIDs: [mockScanPredicate.operatorID] },
     });
 
     // expect the output event stream is correct
@@ -302,7 +302,7 @@ describe('JointGraphWrapperService', () => {
     );
 
     // expect that the unhighlight event stream is triggered
-    const expectedEventStream = m.hot('-a-', { a: { operatorID: mockScanPredicate.operatorID }});
+    const expectedEventStream = m.hot('-a-', { a: { operatorIDs: [mockScanPredicate.operatorID] }});
     m.expect(localJointGraphWrapper.getJointCellUnhighlightStream()).toBeObservable(expectedEventStream);
 
     // expect that the current highlighted operator is undefined
