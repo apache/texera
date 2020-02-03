@@ -7,6 +7,8 @@ import { OperatorLabelComponent } from './operator-label.component';
 import { OperatorMetadataService } from '../../../service/operator-metadata/operator-metadata.service';
 import { StubOperatorMetadataService } from '../../../service/operator-metadata/stub-operator-metadata.service';
 
+import * as jQuery from 'jquery';
+
 import { CustomNgMaterialModule } from '../../../../common/custom-ng-material.module';
 import { mockScanSourceSchema } from '../../../service/operator-metadata/mock-operator-metadata.data';
 import { By } from '@angular/platform-browser';

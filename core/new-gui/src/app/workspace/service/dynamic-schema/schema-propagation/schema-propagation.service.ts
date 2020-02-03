@@ -9,7 +9,7 @@ import { ExecuteWorkflowService } from './../../execute-workflow/execute-workflo
 import { WorkflowActionService } from './../../workflow-graph/model/workflow-action.service';
 import { NGXLogger } from 'ngx-logger';
 
-import { isEqual, remove, cloneDeep, get, set } from 'lodash-es';
+import { isEqual } from 'lodash';
 
 // endpoint for schema propagation
 export const SCHEMA_PROPAGATION_ENDPOINT = 'queryplan/autocomplete';

@@ -8,11 +8,7 @@ import { Subject } from 'rxjs/Subject';
 import { Observable } from 'rxjs/Observable';
 import '../../../common/rxjs-operators';
 
-// all lodash import should follow this parttern
-// import `functionName` from `lodash-es/functionName`
-// to import only the function that we use
-import cloneDeep from 'lodash-es/cloneDeep';
-import isEqual from 'lodash-es/isEqual';
+import { cloneDeep, isEqual} from 'lodash';
 
 export interface IndexableObject extends Readonly<{
   [key: string]: object | string | boolean | symbol | number | Array<object>;

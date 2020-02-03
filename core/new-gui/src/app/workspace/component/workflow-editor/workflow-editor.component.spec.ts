@@ -13,7 +13,9 @@ import { StubOperatorMetadataService } from '../../service/operator-metadata/stu
 import { JointUIService } from '../../service/joint-ui/joint-ui.service';
 import { WorkflowGraph, WorkflowGraphReadonly } from '../../service/workflow-graph/model/workflow-graph';
 
+import * as jQuery from 'jquery';
 import * as joint from 'jointjs';
+
 
 import { ResultPanelToggleService } from '../../service/result-panel-toggle/result-panel-toggle.service';
 import { marbles } from 'rxjs-marbles';
@@ -270,9 +272,13 @@ describe('WorkflowEditorComponent', () => {
     }));
 
     describe('when executionStatus is enabled', () => {
-      beforeEach(() => {
+      beforeAll(() => {
         environment.executionStatusEnabled = true;
         workflowStatusService = TestBed.get(WorkflowStatusService);
+      });
+
+      afterAll(() => {
+        environment.executionStatusEnabled = false;
       });
 
       it('should display/hide operator status tooltip when cursor hovers/leaves an operator', () => {
