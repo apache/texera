@@ -93,8 +93,7 @@ export class WorkflowActionService {
         const command: Command = {
           execute: () => { },
           undo: () => {
-            this.jointGraphWrapper.getCurrentHighlightedOpeartorIDs()
-              .forEach(operatorID => this.jointGraphWrapper.unhighlightOperator(operatorID));
+            this.jointGraphWrapper.unhighlightOperators(this.jointGraphWrapper.getCurrentHighlightedOpeartorIDs());
             this.jointGraphWrapper.setMultiSelectMode(currentHighlighted.length > 1);
             currentHighlighted.forEach(operatorID => {
               this.jointGraphWrapper.highlightOperator(operatorID);
@@ -102,8 +101,7 @@ export class WorkflowActionService {
             });
           },
           redo: () => {
-            this.jointGraphWrapper.getCurrentHighlightedOpeartorIDs()
-              .forEach(operatorID => this.jointGraphWrapper.unhighlightOperator(operatorID));
+            this.jointGraphWrapper.unhighlightOperators(this.jointGraphWrapper.getCurrentHighlightedOpeartorIDs());
             this.jointGraphWrapper.setMultiSelectMode(currentHighlighted.length > 1);
             currentHighlighted.forEach(operatorID => {
               this.jointGraphWrapper.highlightOperator(operatorID);
@@ -174,10 +172,9 @@ export class WorkflowActionService {
         // remove the operator from JointJS
         this.deleteOperatorInternal(operator.operatorID);
         // restore previous highlights
-        this.jointGraphWrapper.getCurrentHighlightedOpeartorIDs()
-          .forEach(operatorID => this.jointGraphWrapper.unhighlightOperator(operatorID));
+        this.jointGraphWrapper.unhighlightOperators(this.jointGraphWrapper.getCurrentHighlightedOpeartorIDs());
         this.jointGraphWrapper.setMultiSelectMode(currentHighlighted.length > 1);
-        currentHighlighted.forEach(operatorID => this.jointGraphWrapper.highlightOperator(operatorID));
+        this.jointGraphWrapper.highlightOperators(currentHighlighted);
       }
     };
     this.executeAndStoreCommand(command);
@@ -219,8 +216,7 @@ export class WorkflowActionService {
     const command: Command = {
       execute: () => {
         // unhighlight previous highlights
-        this.jointGraphWrapper.getCurrentHighlightedOpeartorIDs()
-          .forEach(operatorID => this.jointGraphWrapper.unhighlightOperator(operatorID));
+        this.jointGraphWrapper.unhighlightOperators(this.jointGraphWrapper.getCurrentHighlightedOpeartorIDs());
         this.jointGraphWrapper.setMultiSelectMode(operatorsAndPositions.length > 1);
         operatorsAndPositions.forEach(o => {
           this.addOperatorInternal(o.op, o.pos);
@@ -234,10 +230,9 @@ export class WorkflowActionService {
         // remove the operators from JointJS
         operatorsAndPositions.forEach(o => this.deleteOperatorInternal(o.op.operatorID));
         // restore previous highlights
-        this.jointGraphWrapper.getCurrentHighlightedOpeartorIDs()
-          .forEach(operatorID => this.jointGraphWrapper.unhighlightOperator(operatorID));
+        this.jointGraphWrapper.unhighlightOperators(this.jointGraphWrapper.getCurrentHighlightedOpeartorIDs());
         this.jointGraphWrapper.setMultiSelectMode(currentHighlighted.length > 1);
-        currentHighlighted.forEach(operatorID => this.jointGraphWrapper.highlightOperator(operatorID));
+        this.jointGraphWrapper.highlightOperators(currentHighlighted);
       }
     };
     this.executeAndStoreCommand(command);
@@ -277,10 +272,9 @@ export class WorkflowActionService {
         });
         linksToDelete.forEach(link => this.addLinkInternal(link));
         // restore previous highlights
-        this.jointGraphWrapper.getCurrentHighlightedOpeartorIDs()
-          .forEach(operatorID => this.jointGraphWrapper.unhighlightOperator(operatorID));
+        this.jointGraphWrapper.unhighlightOperators(this.jointGraphWrapper.getCurrentHighlightedOpeartorIDs());
         this.jointGraphWrapper.setMultiSelectMode(currentHighlighted.length > 1);
-        currentHighlighted.forEach(operatorID => this.jointGraphWrapper.highlightOperator(operatorID));
+        this.jointGraphWrapper.highlightOperators(currentHighlighted);
       }
     };
 

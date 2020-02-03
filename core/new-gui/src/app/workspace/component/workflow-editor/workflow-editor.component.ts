@@ -434,13 +434,15 @@ export class WorkflowEditorComponent implements AfterViewInit {
     };
 
     this.workflowActionService.getJointGraphWrapper().getJointCellHighlightStream()
-      .subscribe(value => this.getJointPaper().findViewByModel(value.operatorID).highlight(
-        'rect', { highlighter: highlightOptions }
+      .subscribe(value => value.operatorIDs.forEach(operatorID =>
+        this.getJointPaper().findViewByModel(operatorID).highlight(
+          'rect', { highlighter: highlightOptions })
       ));
 
     this.workflowActionService.getJointGraphWrapper().getJointCellUnhighlightStream()
-      .subscribe(value => this.getJointPaper().findViewByModel(value.operatorID).unhighlight(
-        'rect', { highlighter: highlightOptions }
+      .subscribe(value => value.operatorIDs.forEach(operatorID =>
+        this.getJointPaper().findViewByModel(operatorID).unhighlight(
+          'rect', { highlighter: highlightOptions })
       ));
   }
 
@@ -456,13 +458,13 @@ export class WorkflowEditorComponent implements AfterViewInit {
     };
 
     this.dragDropService.getOperatorSuggestionHighlightStream()
-      .subscribe( value => this.getJointPaper().findViewByModel(value).highlight('rect',
-        { highlighter: highlightOptions}
+      .subscribe(value => this.getJointPaper().findViewByModel(value).highlight('rect',
+        { highlighter: highlightOptions }
       ));
 
     this.dragDropService.getOperatorSuggestionUnhighlightStream()
       .subscribe(value => this.getJointPaper().findViewByModel(value).unhighlight('rect',
-        { highlighter: highlightOptions}
+        { highlighter: highlightOptions }
       ));
   }
 
