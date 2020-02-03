@@ -282,20 +282,6 @@ export class PropertyEditorComponent {
   }
 
   /**
-   * Handles the operator highlight / unhighlight events.
-   *
-   * When operators are highlighted / unhighlighted,
-   *   -> displays the form of the highlighted operator if only one operator is highlighted
-   *   -> hides the form otherwise
-   */
-  public handleHighlightEvents() {
-    this.workflowActionService.getJointGraphWrapper().getJointCellHighlightStream()
-      .subscribe(() => this.changePropertyEditorOnHighlightEvents());
-    this.workflowActionService.getJointGraphWrapper().getJointCellUnhighlightStream()
-      .subscribe(() => this.changePropertyEditorOnHighlightEvents());
-  }
-
-  /**
    * Handles the form change event stream observable,
    *  which corresponds to every event the json schema form library emits.
    *
@@ -529,6 +515,20 @@ export class PropertyEditorComponent {
         this.workflowActionService.setOperatorProperty(this.currentOperatorID, formData);
       }
     });
+  }
+
+  /**
+   * Handles the operator highlight / unhighlight events.
+   *
+   * When operators are highlighted / unhighlighted,
+   *   -> displays the form of the highlighted operator if only one operator is highlighted
+   *   -> hides the form otherwise
+   */
+  private handleHighlightEvents() {
+    this.workflowActionService.getJointGraphWrapper().getJointCellHighlightStream()
+      .subscribe(() => this.changePropertyEditorOnHighlightEvents());
+    this.workflowActionService.getJointGraphWrapper().getJointCellUnhighlightStream()
+      .subscribe(() => this.changePropertyEditorOnHighlightEvents());
   }
 
   /**
