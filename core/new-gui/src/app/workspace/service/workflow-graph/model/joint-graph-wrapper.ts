@@ -416,7 +416,7 @@ export class JointGraphWrapper {
   public getOperatorPosition(operatorID: string): Point {
     const cell: joint.dia.Cell | undefined = this.jointGraph.getCell(operatorID);
     if (! cell) {
-      throw new Error(`opeartor with ID ${operatorID} doesn't exist`);
+      throw new Error(`operator with ID ${operatorID} doesn't exist`);
     }
     if (! cell.isElement()) {
       throw new Error(`${operatorID} is not an operator`);
@@ -439,6 +439,34 @@ export class JointGraphWrapper {
     }
     const element = <joint.dia.Element> cell;
     element.translate(offsetX, offsetY);
+  }
+
+  /**
+   * This method gets the operator's layer (z attribute) on the JointJS paper.
+   */
+  public getOperatorLayer(operatorID: string): number {
+    const cell: joint.dia.Cell | undefined = this.jointGraph.getCell(operatorID);
+    if (! cell) {
+      throw new Error(`operator with ID ${operatorID} doesn't exist`);
+    }
+    if (! cell.isElement()) {
+      throw new Error(`${operatorID} is not an operator`);
+    }
+    return cell.attributes.z;
+  }
+
+  /**
+   * This method sets the operator's layer (z attribute) to the given layer.
+   */
+  public setOperatorLayer(operatorID: string, layer: number): void {
+    const cell: joint.dia.Cell | undefined = this.jointGraph.getCell(operatorID);
+    if (! cell) {
+      throw new Error(`operator with ID ${operatorID} doesn't exist`);
+    }
+    if (! cell.isElement()) {
+      throw new Error(`${operatorID} is not an operator`);
+    }
+    cell.set('z', layer);
   }
 
   /**

@@ -188,7 +188,7 @@ export class WorkflowActionService {
   public deleteOperator(operatorID: string): void {
     const operator = this.getTexeraGraph().getOperator(operatorID);
     const position = this.getJointGraphWrapper().getOperatorPosition(operatorID);
-    const layer = this.jointGraph.getCell(operatorID).attributes.z;
+    const layer = this.getJointGraphWrapper().getOperatorLayer(operatorID);
     const linksToDelete = this.getTexeraGraph().getAllLinks()
       .filter(link => link.source.operatorID === operatorID || link.target.operatorID === operatorID);
 
@@ -199,7 +199,7 @@ export class WorkflowActionService {
       },
       undo: () => {
         this.addOperatorInternal(operator, position);
-        this.jointGraph.getCell(operatorID).set('z', layer);
+        this.getJointGraphWrapper().setOperatorLayer(operatorID, layer);
         linksToDelete.forEach(link => this.addLinkInternal(link));
         // turn off multiselect since only the deleted operator will be added
         this.getJointGraphWrapper().setMultiSelectMode(false);
@@ -244,7 +244,7 @@ export class WorkflowActionService {
     operatorIDs.forEach(operatorID => {
       operatorsAndPositions.set(this.getTexeraGraph().getOperator(operatorID),
         {position: this.getJointGraphWrapper().getOperatorPosition(operatorID),
-         layer: this.jointGraph.getCell(operatorID).attributes.z});
+         layer: this.getJointGraphWrapper().getOperatorLayer(operatorID)});
     });
 
     // save links to be deleted, including links needs to be deleted and links affected by deleted operators
@@ -268,7 +268,7 @@ export class WorkflowActionService {
       undo: () => {
         operatorsAndPositions.forEach((pos, operator) => {
           this.addOperatorInternal(operator, pos.position);
-          this.jointGraph.getCell(operator.operatorID).set('z', pos.layer);
+          this.getJointGraphWrapper().setOperatorLayer(operator.operatorID, pos.layer);
         });
         linksToDelete.forEach(link => this.addLinkInternal(link));
         // restore previous highlights
