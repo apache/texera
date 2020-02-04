@@ -497,5 +497,24 @@ describe('JointGraphWrapperService', () => {
     m.expect(restoreStream).toBeObservable(expectedStream);
   }));
 
-});
+  it('should move all highlighted operators together when any one of them is moved', () => {
+    const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
+    const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
+    // add two operators, they should be automatically highlighted
+    workflowActionService.addOperatorsAndLinks([{op: mockScanPredicate, pos: mockPoint},
+      {op: mockResultPredicate, pos: mockPoint}], []);
+    expect(localJointGraphWrapper.getCurrentHighlightedOpeartorIDs())
+      .toEqual([mockScanPredicate.operatorID, mockResultPredicate.operatorID]);
+
+    // change one operator's position
+    localJointGraphWrapper.setOperatorPosition(mockScanPredicate.operatorID, 10, 10);
+
+    const expectedPosition = {x: mockPoint.x + 10, y: mockPoint.y + 10};
+
+    // expect both operators to be in the new position
+    expect(localJointGraphWrapper.getOperatorPosition(mockScanPredicate.operatorID)).toEqual(expectedPosition);
+    expect(localJointGraphWrapper.getOperatorPosition(mockResultPredicate.operatorID)).toEqual(expectedPosition);
+  });
+
+});
