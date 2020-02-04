@@ -73,10 +73,12 @@ describe('PropertyEditorComponent', () => {
     const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
     // check if the changePropertyEditor called after the operator
-    //  is highlighted has correctly update the variables
+    //  is highlighted has correctly updated the variables
     const predicate = mockScanPredicate;
+
+    // add an operator, it should be automatically highlighted
     workflowActionService.addOperator(predicate, mockPoint);
-    jointGraphWrapper.highlightOperator(predicate.operatorID);
+    expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toEqual([predicate.operatorID]);
 
     fixture.detectChanges();
 
@@ -147,20 +149,64 @@ describe('PropertyEditorComponent', () => {
 
   /**
    * test if the property editor correctly receives the operator unhighlight stream
-   *  and clears all the operator data, and hide the form.
+   *  and displays the operator's data when it's the only highlighted operator.
    */
-  it('should clear and hide the property editor panel correctly on unhighlighting an operator', () => {
+  it('should switch the content of property editor to the highlighted operator correctly when only one operator is highlighted', () => {
     const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
-    const predicate = mockScanPredicate;
-    workflowActionService.addOperator(predicate, mockPoint);
-    jointGraphWrapper.highlightOperator(predicate.operatorID);
+    // add and (automatically) highlight two operators, then unhighlight one of them
+    workflowActionService.addOperatorsAndLinks([{op: mockScanPredicate, pos: mockPoint},
+      {op: mockResultPredicate, pos: mockPoint}], []);
+    jointGraphWrapper.unhighlightOperator(mockResultPredicate.operatorID);
 
-    // check if the clearPropertyEditor called after the operator
-    //  is unhighlighted has correctly update the variables
-    component.clearPropertyEditor();
+    // assert that only one operator is highlighted on the graph
+    const predicate = mockScanPredicate;
+    expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toEqual([predicate.operatorID]);
+
     fixture.detectChanges();
 
+    // check if the changePropertyEditor called after the operator
+    //  is unhighlighted has correctly updated the variables
+
+    // check variables are set correctly
+    expect(component.currentOperatorID).toEqual(predicate.operatorID);
+    expect(component.currentOperatorSchema).toEqual(mockScanSourceSchema);
+    expect(component.currentOperatorInitialData).toEqual(predicate.operatorProperties);
+    expect(component.displayForm).toBeTruthy();
+
+    // check HTML form are displayed
+    const formTitleElement = fixture.debugElement.query(By.css('.texera-workspace-property-editor-title'));
+    const jsonSchemaFormElement = fixture.debugElement.query(By.css('.texera-workspace-property-editor-form'));
+
+    // check the panel title
+    expect((formTitleElement.nativeElement as HTMLElement).innerText).toEqual(
+      mockScanSourceSchema.additionalMetadata.userFriendlyName);
+
+    // check if the form has the all the json schema property names
+    Object.keys(mockScanSourceSchema.jsonSchema.properties!).forEach((propertyName) => {
+      expect((jsonSchemaFormElement.nativeElement as HTMLElement).innerHTML).toContain(propertyName);
+    });
+  });
+
+  /**
+   * test if the property editor correctly receives the operator unhighlight stream
+   *  and clears all the operator data, and hide the form.
+   */
+  it('should clear and hide the property editor panel correctly when no operator is highlighted', () => {
+    const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
+
+    // add an operator, it should be automatically highlighted
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toEqual([mockScanPredicate.operatorID]);
+
+    // unhighlight the operator
+    jointGraphWrapper.unhighlightOperator(mockScanPredicate.operatorID);
+    expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toEqual([]);
+
+    fixture.detectChanges();
+
+    // check if the clearPropertyEditor called after the operator
+    //  is unhighlighted has correctly updated the variables
     expect(component.currentOperatorID).toBeFalsy();
     expect(component.currentOperatorSchema).toBeFalsy();
     expect(component.currentOperatorInitialData).toBeFalsy();
@@ -184,6 +230,7 @@ describe('PropertyEditorComponent', () => {
     expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toContain(mockResultPredicate.operatorID);
     expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toContain(mockScanPredicate.operatorID);
 
+    // expect that the property editor is cleared
     expect(component.currentOperatorID).toBeFalsy();
     expect(component.currentOperatorSchema).toBeFalsy();
     expect(component.currentOperatorInitialData).toBeFalsy();
