@@ -39,6 +39,7 @@ type JointPointerDownEvent = [JQuery.Event, number, number];
 type CopiedOperator = {
   operator: OperatorPredicate,
   position: Point,
+  layer: number,
   pastedOperators: string[]
 };
 
@@ -733,8 +734,9 @@ export class WorkflowEditorComponent implements AfterViewInit {
     const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorID);
     if (operator) {
       const position = this.workflowActionService.getJointGraphWrapper().getOperatorPosition(operatorID);
+      const layer = this.workflowActionService.getJointGraphWrapper().getOperatorLayer(operatorID);
       const pastedOperators = [operatorID];
-      this.copiedOperators[operatorID] = {operator, position, pastedOperators};
+      this.copiedOperators[operatorID] = {operator, position, layer, pastedOperators};
     }
   }
 
@@ -750,7 +752,9 @@ export class WorkflowEditorComponent implements AfterViewInit {
         if (Object.keys(this.copiedOperators).length > 0) {
           const operatorsAndPositions = [];
           const positions = [];
-          for (const operatorID of Object.keys(this.copiedOperators)) {
+          const copiedOperatorIDs = Object.keys(this.copiedOperators).sort((first, second) =>
+            this.copiedOperators[first].layer - this.copiedOperators[second].layer);
+          for (const operatorID of copiedOperatorIDs) {
             const newOperator = this.copyOperator(this.copiedOperators[operatorID].operator);
             const newOperatorPosition = this.calcOperatorPosition(newOperator.operatorID, operatorID, positions);
             operatorsAndPositions.push({op: newOperator, pos: newOperatorPosition});
