@@ -28,7 +28,7 @@ public class AsterixSourcePredicate extends PredicateBase {
     
     @JsonCreator
     public AsterixSourcePredicate(
-    		@JsonProperty(value = PropertyNameConstants.RESULT_ATTRIBUTE_NAME, required = true)
+            @JsonProperty(value = PropertyNameConstants.RESULT_ATTRIBUTE_NAME, required = true)
             String resultAttribute,
             @JsonProperty(value = PropertyNameConstants.ASTERIX_HOST, required = true)
             String host,

@@ -38,14 +38,6 @@ public class MysqlSource implements ISourceOperator{
     
     public MysqlSource(MysqlSourcePredicate predicate){
     	this.predicate = predicate;
-    	//outputSchema = new Schema(inputSchema.getAttributes().stream()
-          //      .filter(attr -> !attr.getName().equalsIgnoreCase(SchemaConstants._ID))
-            //    .filter(attr -> !attr.getName().equalsIgnoreCase(SchemaConstants.PAYLOAD))
-             //   .filter(attr -> !attr.getType().equals(AttributeType.LIST)).toArray(Attribute[]::new));
-    	/*this.outputSchema = new Schema(
-                SchemaConstants._ID_ATTRIBUTE, 
-                new Attribute(this.predicate.getResultAttribute(), AttributeType.STRING));
-    */
     	this.outputSchema = new Schema.Builder().add(SchemaConstants._ID_ATTRIBUTE)
                 .add(TwitterUtils.TwitterSchema.TWITTER_SCHEMA).build();
     }
