@@ -21,7 +21,7 @@ import { TourService, IStepOption } from 'ngx-tour-ng-bootstrap';
  *
  * @author Bolin Chen
  */
-
+// tslint:disable:max-line-length
 @Component({
   selector: 'texera-product-tour',
   templateUrl: './product-tour.component.html',
@@ -81,7 +81,7 @@ export class ProductTourComponent implements OnInit {
     anchorId: 'texera-property-editor-grid-container',
     content: `
     <p>This is the <b>property editor</b> panel where users can set the properties of an operator. </p>
-    <p>Now, we want to edit the <i>input table</i> property of <b>Source: Scan</b> operator and set it to <b>twitter_sample</b> table. 
+    <p>Now, we want to edit the <i>input table</i> property of <b>Source: Scan</b> operator and set it to <b>twitter_sample</b> table.
     Please type <b>twitter_sample</b> in the space for the <i>input table</i> property.</p>
     <center><img src="../../../assets/Tutor_Property_Sample.gif" height="260" width="500"></center>
     <br><br>

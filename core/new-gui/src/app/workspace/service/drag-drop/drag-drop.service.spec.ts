@@ -70,7 +70,7 @@ describe('DragDropService', () => {
 
     const marbleString = '-a-|';
     const marbleValues = {
-      a : {operatorType: operatorType, offset: {x: 100, y: 100}}
+      a : {operatorType: operatorType, offset: {x: 100, y: 100}, dragElementID: 'mockID'}
     };
 
     spyOn(dragDropService, 'getOperatorDropStream').and.returnValue(
@@ -98,7 +98,7 @@ describe('DragDropService', () => {
     const operatorType = mockOperatorMetaData.operators[0].operatorType;
     const marbleString = '-e-|';
     const marbleValues = {
-      e : {operatorType: operatorType, offset: {x: 200, y: 200}}
+      e : {operatorType: operatorType, offset: {x: 200, y: 200}, dragElementID: 'mockID'}
     };
 
     spyOn(dragDropService, 'getOperatorDropStream').and.returnValue(

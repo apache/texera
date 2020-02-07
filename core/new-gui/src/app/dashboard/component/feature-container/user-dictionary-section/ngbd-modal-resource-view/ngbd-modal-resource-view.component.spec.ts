@@ -19,7 +19,7 @@ describe('NgbdModalResourceViewComponent', () => {
       ],
       imports: [
         CustomNgMaterialModule,
-        NgbModule.forRoot(),
+        NgbModule,
         FormsModule,
         HttpClientModule
       ]

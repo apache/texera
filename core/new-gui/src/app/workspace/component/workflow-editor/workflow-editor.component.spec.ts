@@ -233,18 +233,18 @@ describe('WorkflowEditorComponent', () => {
       expect(jointHighlighterElementAfterUnhighlight.length).toEqual(0);
     });
 
-    it('should react to operator validation and change the color of operator box if the operator is valid ',
-         () => {
-    const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
-    workflowActionService.addOperator(mockScanPredicate, mockPoint);
-    workflowActionService.addOperator(mockResultPredicate, mockPoint);
-    workflowActionService.addLink(mockScanResultLink);
-    const newProperty = { 'tableName': 'test-table' };
-    workflowActionService.setOperatorProperty(mockScanPredicate.operatorID, newProperty);
-    const operator1 = component.getJointPaper().getModelById(mockScanPredicate.operatorID);
-    const operator2 = component.getJointPaper().getModelById(mockResultPredicate.operatorID);
-    expect(operator1.attr('rect/stroke')).toEqual('#CFCFCF');
-    expect(operator2.attr('rect/stroke')).toEqual('#CFCFCF');
+    it('should react to operator validation and change the color of operator box if the operator is valid ', () => {
+      const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      workflowActionService.addOperator(mockResultPredicate, mockPoint);
+      workflowActionService.addLink(mockScanResultLink);
+      const newProperty = { 'tableName': 'test-table' };
+      workflowActionService.setOperatorProperty(mockScanPredicate.operatorID, newProperty);
+      const operator1 = component.getJointPaper().getModelById(mockScanPredicate.operatorID);
+      const operator2 = component.getJointPaper().getModelById(mockResultPredicate.operatorID);
+      expect(operator1.attr('rect/stroke')).toEqual('#CFCFCF');
+      expect(operator2.attr('rect/stroke')).toEqual('#CFCFCF');
+    });
 
     it('should react to jointJS paper zoom event', marbles((m) => {
       const mockScaleRatio = 0.5;
@@ -271,7 +271,8 @@ describe('WorkflowEditorComponent', () => {
       );
     }));
 
-    describe('when executionStatus is enabled', () => {
+      // TODO: this test case related to websocket is not stable, find out why and fix it
+    xdescribe('when executionStatus is enabled', () => {
       beforeAll(() => {
         environment.executionStatusEnabled = true;
         workflowStatusService = TestBed.get(WorkflowStatusService);
@@ -378,7 +379,6 @@ describe('WorkflowEditorComponent', () => {
         expect(component['handleOperatorStatesChange']).toThrowError();
       });
     });
-  });
 
     it('should delete the highlighted operator when user presses the backspace key', () => {
       const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
@@ -511,6 +511,5 @@ describe('WorkflowEditorComponent', () => {
       }
     });
   });
-
 
 });

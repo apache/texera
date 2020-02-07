@@ -23,7 +23,7 @@ describe('NgbdModalResourceDeleteComponent', () => {
       ],
       imports: [
         CustomNgMaterialModule,
-        NgbModule.forRoot(),
+        NgbModule,
         FormsModule,
         HttpClientModule]
     })

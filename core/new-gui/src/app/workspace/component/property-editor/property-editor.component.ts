@@ -1,3 +1,4 @@
+import { attributeListInJsonSchema } from './../../service/dynamic-schema/schema-propagation/schema-propagation.service';
 import { OperatorSchema } from './../../types/operator-schema.interface';
 import { OperatorPredicate } from '../../types/workflow-common.interface';
 import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
@@ -199,7 +200,7 @@ export class PropertyEditorComponent {
     advancedOptionsList.forEach(
       advancedOption => {
         if (currentSchemaProperties && advancedOption in currentSchemaProperties) {
-          const { [advancedOption] : [], ...newProperties} = currentSchemaProperties;
+          const { [advancedOption]: a, ...newProperties} = currentSchemaProperties;
           currentSchemaProperties = newProperties;
         }
 

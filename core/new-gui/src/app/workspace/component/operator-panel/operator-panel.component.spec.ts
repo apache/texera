@@ -46,7 +46,7 @@ describe('OperatorPanelComponent', () => {
       ],
       imports: [CustomNgMaterialModule, BrowserAnimationsModule, FormsModule,
         ReactiveFormsModule, RouterTestingModule.withRoutes([]), TourNgBootstrapModule.forRoot(),
-        NgbModule.forRoot()]
+        NgbModule]
     })
       .compileComponents();
   }));
