@@ -77,6 +77,7 @@ public class MysqlSource implements ISourceOperator{
                     ps.setString(2, predicate.getKeywords());
                 }
                 this.rs = ps.executeQuery();
+                start = false;
             }
 			while (rs.next()) {
 				String follower = rs.getString("user.followers_count");
