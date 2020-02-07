@@ -1,11 +1,6 @@
 package edu.uci.ics.texera.dataflow.source.mysql;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -39,6 +34,7 @@ public class MysqlSource implements ISourceOperator{
     private Statement statement;
     private PreparedStatement prepStatement;
     private ResultSet rs;
+    private boolean start = true;
     
     public MysqlSource(MysqlSourcePredicate predicate){
     	this.predicate = predicate;
@@ -66,8 +62,10 @@ public class MysqlSource implements ISourceOperator{
                     + predicate.getDatabase() + "?autoReconnect=true&useSSL=true";
             this.connection = DriverManager.getConnection(url, predicate.getUsername(), predicate.getPassword());
             
-            statement = connection.createStatement();
-            rs = statement.executeQuery(generateSqlQuery(predicate));
+            //statement = connection.createStatement();
+            //ResultSetMetaData rs = statement.executeQuery(generateSqlQuery(predicate));
+            //rsmd = rs.getMetadata();
+            DatabaseMetaData metadata = connection.getMetaData();
             cursor = OPENED;
         } catch (SQLException | InstantiationException | IllegalAccessException | ClassNotFoundException e) {
             throw new DataflowException("MysqlSink failed to connect to mysql database." + e.getMessage());
@@ -80,6 +78,14 @@ public class MysqlSource implements ISourceOperator{
             throw new DataflowException(ErrorMessages.OPERATOR_NOT_OPENED);
         }
         try {
+            if(start){
+                PreparedStatement ps = this.connection.prepareStatement(generateSqlQuery(predicate));
+                if(!predicate.getColumn().equals("") && !predicate.getKeywords().equals("")){
+                    ps.setString(1, predicate.getColumn());
+                    ps.setString(2, predicate.getKeywords());
+                }
+                this.rs = ps.executeQuery();
+            }
 			while (rs.next()) {
 				String follower = rs.getString("user.followers_count");
 	    		String friend = rs.getString("user.friends_count");
@@ -119,16 +125,28 @@ public class MysqlSource implements ISourceOperator{
     }
     
     public static String generateSqlQuery(MysqlSourcePredicate predicate) {
-    	StringBuilder sb = new StringBuilder();
-    	sb.append("select * from `"+predicate.getTable());
-    	if (predicate.getColumn()!="" && predicate.getKeywords()!="") {
-    		sb.append("` where  MATCH(`"+predicate.getColumn()+"`) AGAINST ('"+ predicate.getKeywords()+"')");
-    	}
-    	if (predicate.getLimit()!=Integer.MAX_VALUE)
-    		sb.append(" limit "+ predicate.getLimit());
-    	sb.append(";");
-    	System.out.print(sb.toString());
-    	return sb.toString();
+        String query =  "\n" +
+                "select * from "+predicate.getTable()+ "where 1 = 1 ";
+        if(!predicate.getColumn().equals("") && !predicate.getKeywords().equals("")) {
+            query += " AND  ? = ?";
+        }
+        query+=";";
+        return query;
+//
+//        PreparedStatement ps = this.connection.prepareStatement(query);
+//
+//        ps.setObject(count++, param.getParam(), param.getType());
+        //}
+//    	StringBuilder sb = new StringBuilder();
+//    	sb.append("select * from `"+predicate.getTable());
+//    	if (predicate.getColumn()!="" && predicate.getKeywords()!="") {
+//    		sb.append("` where  MATCH(`"+predicate.getColumn()+"`) AGAINST ('"+ predicate.getKeywords()+"')");
+//    	}
+//    	if (predicate.getLimit()!=Integer.MAX_VALUE)
+//    		sb.append(" limit "+ predicate.getLimit());
+//    	sb.append(";");
+//    	System.out.print(sb.toString());
+//    	return sb.toString();
     }
     
     
