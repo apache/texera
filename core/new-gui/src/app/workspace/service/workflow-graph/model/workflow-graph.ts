@@ -7,9 +7,6 @@ import { isEqual } from 'lodash';
 type restrictedMethods =
   'addOperator' | 'deleteOperator' | 'addLink' | 'deleteLink' | 'deleteLinkWithID' | 'setOperatorProperty';
 
-// define a type Omit that creates a type with certain methods/properties omitted from it
-type Omit<T, K extends keyof T> = Pick<T, Exclude<keyof T, K>>;
-
 /**
  * WorkflowGraphReadonly is a type that only contains the readonly methods of WorkflowGraph.
  *
