@@ -91,7 +91,7 @@ export class SaveWorkflowService {
 
     // operators shouldn't be highlighted during page reload
     this.workflowActionService.getJointGraphWrapper().unhighlightOperators(
-      this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOpeartorIDs());
+      this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs());
   }
 
   /**

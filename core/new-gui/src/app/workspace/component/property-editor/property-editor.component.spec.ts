@@ -162,7 +162,7 @@ describe('PropertyEditorComponent', () => {
 
     // assert that only one operator is highlighted on the graph
     const predicate = mockScanPredicate;
-    expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toEqual([predicate.operatorID]);
+    expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toEqual([predicate.operatorID]);
 
     fixture.detectChanges();
 
@@ -202,7 +202,7 @@ describe('PropertyEditorComponent', () => {
 
     // unhighlight the operator
     jointGraphWrapper.unhighlightOperator(mockScanPredicate.operatorID);
-    expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toEqual([]);
+    expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toEqual([]);
 
     fixture.detectChanges();
 
@@ -230,8 +230,8 @@ describe('PropertyEditorComponent', () => {
     jointGraphWrapper.highlightOperators([mockScanPredicate.operatorID, mockResultPredicate.operatorID]);
 
     // assert that multiple operators are highlighted
-    expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toContain(mockResultPredicate.operatorID);
-    expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toContain(mockScanPredicate.operatorID);
+    expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(mockResultPredicate.operatorID);
+    expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(mockScanPredicate.operatorID);
 
     // expect that the property editor is cleared
     expect(component.currentOperatorID).toBeFalsy();

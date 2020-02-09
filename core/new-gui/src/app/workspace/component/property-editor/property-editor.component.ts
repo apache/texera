@@ -535,7 +535,7 @@ export class PropertyEditorComponent {
    * hides the form if no operator is highlighted or multiple operators are highlighted.
    */
   private changePropertyEditorOnHighlightEvents() {
-    const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOpeartorIDs();
+    const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
     if (highlightedOperators.length === 1) {
       const operator = this.workflowActionService.getTexeraGraph().getOperator(highlightedOperators[0]);
       this.changePropertyEditor(operator);

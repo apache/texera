@@ -156,7 +156,7 @@ export class JointGraphWrapper {
    * The returned array is not the original one so that other
    * services/components can't modify it directly.
    */
-  public getCurrentHighlightedOpeartorIDs(): string[] {
+  public getCurrentHighlightedOperatorIDs(): string[] {
     return Object.assign([], this.currentHighlightedOperators);
   }
 
@@ -481,7 +481,7 @@ export class JointGraphWrapper {
   private highlightOperatorInternal(operatorID: string, highlightedOperatorIDs: string[]): void {
     // try to get the operator using operator ID
     if (!this.jointGraph.getCell(operatorID)) {
-      throw new Error(`opeartor with ID ${operatorID} doesn't exist`);
+      throw new Error(`operator with ID ${operatorID} doesn't exist`);
     }
     // if the current highlighted operator is already highlighted, don't do anything
     if (this.currentHighlightedOperators.includes(operatorID)) {

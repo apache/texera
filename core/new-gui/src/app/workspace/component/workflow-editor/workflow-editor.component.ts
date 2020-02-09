@@ -409,7 +409,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
       .subscribe(event => {
         this.workflowActionService.getJointGraphWrapper().setMultiSelectMode(<boolean> event[1].shiftKey);
         const operatorID = event[0].model.id.toString();
-        const currentOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOpeartorIDs();
+        const currentOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
         if (event[1].shiftKey && currentOperatorIDs.includes(operatorID)) {
           this.workflowActionService.getJointGraphWrapper().unhighlightOperator(operatorID);
         } else {
@@ -419,7 +419,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
     Observable.fromEvent<JointPaperEvent>(this.getJointPaper(), 'blank:pointerdown')
       .subscribe(() => {
-        const currentOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOpeartorIDs();
+        const currentOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
         this.workflowActionService.getJointGraphWrapper().unhighlightOperators(currentOperatorIDs);
       });
   }
@@ -665,7 +665,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
       .filter(event => (<HTMLElement> event.target).nodeName !== 'INPUT')
       .filter(event => event.key === 'Backspace' || event.key === 'Delete')
       .subscribe(() => {
-        const currentOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOpeartorIDs();
+        const currentOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
         this.workflowActionService.deleteOperatorsAndLinks(currentOperatorIDs, []);
       });
   }
@@ -696,10 +696,10 @@ export class WorkflowEditorComponent implements AfterViewInit {
     Observable.fromEvent<ClipboardEvent>(document, 'copy')
       .filter(event => (<HTMLElement> event.target).nodeName !== 'INPUT')
       .subscribe(() => {
-        const currentOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOpeartorIDs();
+        const currentOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
         if (currentOperatorIDs.length > 0) {
           this.copiedOperators = {};
-          currentOperatorIDs.forEach(opeartorID => this.saveOperatorInfo(opeartorID));
+          currentOperatorIDs.forEach(operatorID => this.saveOperatorInfo(operatorID));
         }
       });
   }
@@ -713,7 +713,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     Observable.fromEvent<ClipboardEvent>(document, 'cut')
       .filter(event => (<HTMLElement> event.target).nodeName !== 'INPUT')
       .subscribe(() => {
-        const currentOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOpeartorIDs();
+        const currentOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
         if (currentOperatorIDs.length > 0) {
           this.copiedOperators = {};
           currentOperatorIDs.forEach(operatorID => {

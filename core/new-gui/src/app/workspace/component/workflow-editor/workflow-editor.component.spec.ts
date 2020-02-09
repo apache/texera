@@ -192,7 +192,7 @@ describe('WorkflowEditorComponent', () => {
       // assert the function is called once
       // expect(highlightOperatorFunctionSpy.calls.count()).toEqual(1);
       // assert the highlighted operator is correct
-      expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toEqual([mockScanPredicate.operatorID]);
+      expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toEqual([mockScanPredicate.operatorID]);
     });
 
     it('should react to operator highlight event and change the appearance of the operator to be highlighted', () => {
@@ -426,8 +426,8 @@ describe('WorkflowEditorComponent', () => {
       jointGraphWrapper.highlightOperators([mockScanPredicate.operatorID, mockResultPredicate.operatorID]);
 
       // assert that all operators are highlighted
-      expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toContain(mockScanPredicate.operatorID);
-      expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toContain(mockResultPredicate.operatorID);
+      expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(mockScanPredicate.operatorID);
+      expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(mockResultPredicate.operatorID);
 
       // dispatch a keydown event on the backspace key
       const event = new KeyboardEvent('keydown', {key: 'Backspace'});
@@ -455,7 +455,7 @@ describe('WorkflowEditorComponent', () => {
       document.dispatchEvent(pasteEvent);
 
       // the pasted operator should be highlighted
-      const pastedOperatorID = jointGraphWrapper.getCurrentHighlightedOpeartorIDs()[0];
+      const pastedOperatorID = jointGraphWrapper.getCurrentHighlightedOperatorIDs()[0];
       expect(pastedOperatorID).toBeDefined();
 
       // get the pasted operator
@@ -496,7 +496,7 @@ describe('WorkflowEditorComponent', () => {
       }).toThrowError(new RegExp(`does not exist`));
 
       // the pasted operator should be highlighted
-      const pastedOperatorID = jointGraphWrapper.getCurrentHighlightedOpeartorIDs()[0];
+      const pastedOperatorID = jointGraphWrapper.getCurrentHighlightedOperatorIDs()[0];
       expect(pastedOperatorID).toBeDefined();
 
       // get the pasted operator
@@ -530,7 +530,7 @@ describe('WorkflowEditorComponent', () => {
       document.dispatchEvent(pasteEvent);
 
       // get the pasted operator
-      const pastedOperatorID = jointGraphWrapper.getCurrentHighlightedOpeartorIDs()[0];
+      const pastedOperatorID = jointGraphWrapper.getCurrentHighlightedOperatorIDs()[0];
       if (pastedOperatorID) {
         const pastedOperatorPosition = jointGraphWrapper.getOperatorPosition(pastedOperatorID);
         expect(pastedOperatorPosition).not.toEqual(mockPoint);
@@ -545,8 +545,8 @@ describe('WorkflowEditorComponent', () => {
       jointGraphWrapper.highlightOperator(mockResultPredicate.operatorID);
 
       // assert that only the last operator is highlighted
-      expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toContain(mockResultPredicate.operatorID);
-      expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).not.toContain(mockScanPredicate.operatorID);
+      expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(mockResultPredicate.operatorID);
+      expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).not.toContain(mockScanPredicate.operatorID);
 
       // find the joint Cell View object of the first operator element
       const jointCellView = component.getJointPaper().findViewByModel(mockScanPredicate.operatorID);
@@ -558,8 +558,8 @@ describe('WorkflowEditorComponent', () => {
       fixture.detectChanges();
 
       // assert that both operators are highlighted
-      expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toContain(mockScanPredicate.operatorID);
-      expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toContain(mockResultPredicate.operatorID);
+      expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(mockScanPredicate.operatorID);
+      expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(mockResultPredicate.operatorID);
     });
 
     it('should unhighlight the highlighted operator when user clicks on it with shift key pressed', () => {
@@ -569,7 +569,7 @@ describe('WorkflowEditorComponent', () => {
       jointGraphWrapper.highlightOperator(mockScanPredicate.operatorID);
 
       // assert that the operator is highlighted
-      expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toContain(mockScanPredicate.operatorID);
+      expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(mockScanPredicate.operatorID);
 
       // find the joint Cell View object of the operator element
       const jointCellView = component.getJointPaper().findViewByModel(mockScanPredicate.operatorID);
@@ -581,7 +581,7 @@ describe('WorkflowEditorComponent', () => {
       fixture.detectChanges();
 
       // assert that the operator is unhighlighted
-      expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).not.toContain(mockScanPredicate.operatorID);
+      expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).not.toContain(mockScanPredicate.operatorID);
     });
 
     it('should highlight all operators when user presses command + A', () => {
@@ -600,8 +600,8 @@ describe('WorkflowEditorComponent', () => {
       fixture.detectChanges();
 
       // assert that all operators are highlighted
-      expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toContain(mockScanPredicate.operatorID);
-      expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toContain(mockResultPredicate.operatorID);
+      expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(mockScanPredicate.operatorID);
+      expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(mockResultPredicate.operatorID);
     });
   });
 
