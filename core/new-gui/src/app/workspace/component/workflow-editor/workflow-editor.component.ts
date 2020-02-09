@@ -417,6 +417,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
         }
       });
 
+    // on user mouse clicks on blank area, unhighlight all operators
     Observable.fromEvent<JointPaperEvent>(this.getJointPaper(), 'blank:pointerdown')
       .subscribe(() => {
         const currentOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();

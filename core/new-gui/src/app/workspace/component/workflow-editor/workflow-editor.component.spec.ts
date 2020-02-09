@@ -184,7 +184,7 @@ describe('WorkflowEditorComponent', () => {
       // find the joint Cell View object of the operator element
       const jointCellView = component.getJointPaper().findViewByModel(mockScanPredicate.operatorID);
 
-      // tirgger a click on the cell view using its jQuery element
+      // trigger a click on the cell view using its jQuery element
       jointCellView.$el.trigger('mousedown');
 
       fixture.detectChanges();
@@ -193,6 +193,33 @@ describe('WorkflowEditorComponent', () => {
       // expect(highlightOperatorFunctionSpy.calls.count()).toEqual(1);
       // assert the highlighted operator is correct
       expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toEqual([mockScanPredicate.operatorID]);
+    });
+
+    it('should unhighlight all highlighted operators when user mouse clicks on the blank space', () => {
+      const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
+
+      // add and highlight two operators
+      workflowActionService.addOperatorsAndLinks([{op: mockScanPredicate, pos: mockPoint},
+        {op: mockResultPredicate, pos: mockPoint}], []);
+      jointGraphWrapper.highlightOperators([mockScanPredicate.operatorID, mockResultPredicate.operatorID]);
+
+      // assert that both operators are highlighted
+      expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(mockScanPredicate.operatorID);
+      expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(mockResultPredicate.operatorID);
+
+      // find a blank area on the JointJS paper
+      const blankPoint = {x: mockPoint.x + 100, y: mockPoint.y + 100};
+      expect(component.getJointPaper().findViewsFromPoint(blankPoint)).toEqual([]);
+
+      // trigger a click on the blank area using JointJS paper's jQuery element
+      const point = component.getJointPaper().localToClientPoint(blankPoint);
+      const event = jQuery.Event('mousedown', {clientX: point.x, clientY: point.y});
+      component.getJointPaper().$el.trigger(event);
+
+      fixture.detectChanges();
+
+      // assert that all operators are unhighlighted
+      expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toEqual([]);
     });
 
     it('should react to operator highlight event and change the appearance of the operator to be highlighted', () => {
@@ -297,7 +324,7 @@ describe('WorkflowEditorComponent', () => {
           JointUIService.getOperatorStatusTooltipElementID(mockScanPredicate.operatorID));
 
         // workflow has not started yet
-        // tirgger a mouseenter on the cell view using its jQuery element
+        // trigger a mouseenter on the cell view using its jQuery element
         jointCellView.$el.trigger('mouseenter');
         fixture.detectChanges();
         // assert the function is not called yet
@@ -551,7 +578,7 @@ describe('WorkflowEditorComponent', () => {
       // find the joint Cell View object of the first operator element
       const jointCellView = component.getJointPaper().findViewByModel(mockScanPredicate.operatorID);
 
-      // tirgger a shift click on the cell view using its jQuery element
+      // trigger a shift click on the cell view using its jQuery element
       const event = jQuery.Event('mousedown', {shiftKey: true});
       jointCellView.$el.trigger(event);
 
@@ -574,7 +601,7 @@ describe('WorkflowEditorComponent', () => {
       // find the joint Cell View object of the operator element
       const jointCellView = component.getJointPaper().findViewByModel(mockScanPredicate.operatorID);
 
-      // tirgger a shift click on the cell view using its jQuery element
+      // trigger a shift click on the cell view using its jQuery element
       const event = jQuery.Event('mousedown', {shiftKey: true});
       jointCellView.$el.trigger(event);
 
