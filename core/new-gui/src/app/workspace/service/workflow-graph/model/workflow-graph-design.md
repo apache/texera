@@ -62,7 +62,7 @@ Internally, the workflow graph module manages the sync of `JointModelService` an
   - For  `addOperator` and `setOperatorProperty`
     - call both `jointGraph` methods and `texeraGrpah` methods, `syncTexeraModel` won't handle them
     - `addOperator` could be only triggered inside the code, and we need to pass additional operator data
-    - `setOperatorProperty` jointJS doesn't have the notion of changing the property of an opeartor
+    - `setOperatorProperty` jointJS doesn't have the notion of changing the property of an operator
 
 `WorkflowActionServie` ---(calls)--->  `JointGraph`:  `addOperator`, `deleteOperator`, `addLink`, `deleteLink`
 `WorkflowActionServie` ---(calls)---> `TexeraGraph`: `addOperator`, `setOperatorProperty`

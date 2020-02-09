@@ -39,6 +39,7 @@ type JointPointerDownEvent = [JQuery.Event, number, number];
 type CopiedOperator = {
   operator: OperatorPredicate,
   position: Point,
+  layer: number,
   pastedOperators: string[]
 };
 
@@ -396,6 +397,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
    * Handles user mouse down events to trigger logically highlight and unhighlight an operator.
    * If user clicks the operator while pressing the shift key, multiselect mode is turned on.
    * When pressing the shift key, user can unhighlight a highlighted operator by clicking on it.
+   * User can also unhighlight all operators by clicking on the blank area of the graph.
    */
   private handleHighlightMouseInput(): void {
     // on user mouse clicks a operator cell, highlight that operator
@@ -407,7 +409,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
       .subscribe(event => {
         this.workflowActionService.getJointGraphWrapper().setMultiSelectMode(<boolean> event[1].shiftKey);
         const operatorID = event[0].model.id.toString();
-        const currentOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOpeartorIDs();
+        const currentOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
         if (event[1].shiftKey && currentOperatorIDs.includes(operatorID)) {
           this.workflowActionService.getJointGraphWrapper().unhighlightOperator(operatorID);
         } else {
@@ -415,13 +417,12 @@ export class WorkflowEditorComponent implements AfterViewInit {
         }
       });
 
-    /**
-     * One possible way to unhighlight an operator when user clicks on the blank area,
-     *  and bind `blank:pointerdown` event to unhighlight the operator.
-     * However, in real life, randomly clicking the blank area happens a lot,
-     *  and users are forced to click the operator again to highlight it,
-     *  which would make the UI not user-friendly
-     */
+    // on user mouse clicks on blank area, unhighlight all operators
+    Observable.fromEvent<JointPaperEvent>(this.getJointPaper(), 'blank:pointerdown')
+      .subscribe(() => {
+        const currentOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+        this.workflowActionService.getJointGraphWrapper().unhighlightOperators(currentOperatorIDs);
+      });
   }
 
   private handleOperatorHightlightEvent(): void {
@@ -438,13 +439,15 @@ export class WorkflowEditorComponent implements AfterViewInit {
     };
 
     this.workflowActionService.getJointGraphWrapper().getJointCellHighlightStream()
-      .subscribe(value => this.getJointPaper().findViewByModel(value.operatorID).highlight(
-        'rect', { highlighter: highlightOptions }
+      .subscribe(value => value.operatorIDs.forEach(operatorID =>
+        this.getJointPaper().findViewByModel(operatorID).highlight(
+          'rect', { highlighter: highlightOptions })
       ));
 
     this.workflowActionService.getJointGraphWrapper().getJointCellUnhighlightStream()
-      .subscribe(value => this.getJointPaper().findViewByModel(value.operatorID).unhighlight(
-        'rect', { highlighter: highlightOptions }
+      .subscribe(value => value.operatorIDs.forEach(operatorID =>
+        this.getJointPaper().findViewByModel(operatorID).unhighlight(
+          'rect', { highlighter: highlightOptions })
       ));
   }
 
@@ -460,13 +463,13 @@ export class WorkflowEditorComponent implements AfterViewInit {
     };
 
     this.dragDropService.getOperatorSuggestionHighlightStream()
-      .subscribe( value => this.getJointPaper().findViewByModel(value).highlight('rect',
-        { highlighter: highlightOptions}
+      .subscribe(value => this.getJointPaper().findViewByModel(value).highlight('rect',
+        { highlighter: highlightOptions }
       ));
 
     this.dragDropService.getOperatorSuggestionUnhighlightStream()
       .subscribe(value => this.getJointPaper().findViewByModel(value).unhighlight('rect',
-        { highlighter: highlightOptions}
+        { highlighter: highlightOptions }
       ));
   }
 
@@ -663,7 +666,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
       .filter(event => (<HTMLElement> event.target).nodeName !== 'INPUT')
       .filter(event => event.key === 'Backspace' || event.key === 'Delete')
       .subscribe(() => {
-        const currentOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOpeartorIDs();
+        const currentOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
         this.workflowActionService.deleteOperatorsAndLinks(currentOperatorIDs, []);
       });
   }
@@ -694,10 +697,10 @@ export class WorkflowEditorComponent implements AfterViewInit {
     Observable.fromEvent<ClipboardEvent>(document, 'copy')
       .filter(event => (<HTMLElement> event.target).nodeName !== 'INPUT')
       .subscribe(() => {
-        const currentOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOpeartorIDs();
+        const currentOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
         if (currentOperatorIDs.length > 0) {
           this.copiedOperators = {};
-          currentOperatorIDs.forEach(opeartorID => this.saveOperatorInfo(opeartorID));
+          currentOperatorIDs.forEach(operatorID => this.saveOperatorInfo(operatorID));
         }
       });
   }
@@ -711,7 +714,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     Observable.fromEvent<ClipboardEvent>(document, 'cut')
       .filter(event => (<HTMLElement> event.target).nodeName !== 'INPUT')
       .subscribe(() => {
-        const currentOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOpeartorIDs();
+        const currentOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
         if (currentOperatorIDs.length > 0) {
           this.copiedOperators = {};
           currentOperatorIDs.forEach(operatorID => {
@@ -731,8 +734,9 @@ export class WorkflowEditorComponent implements AfterViewInit {
     const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorID);
     if (operator) {
       const position = this.workflowActionService.getJointGraphWrapper().getOperatorPosition(operatorID);
+      const layer = this.workflowActionService.getJointGraphWrapper().getOperatorLayer(operatorID);
       const pastedOperators = [operatorID];
-      this.copiedOperators[operatorID] = {operator, position, pastedOperators};
+      this.copiedOperators[operatorID] = {operator, position, layer, pastedOperators};
     }
   }
 
@@ -748,7 +752,9 @@ export class WorkflowEditorComponent implements AfterViewInit {
         if (Object.keys(this.copiedOperators).length > 0) {
           const operatorsAndPositions = [];
           const positions = [];
-          for (const operatorID of Object.keys(this.copiedOperators)) {
+          const copiedOperatorIDs = Object.keys(this.copiedOperators).sort((first, second) =>
+            this.copiedOperators[first].layer - this.copiedOperators[second].layer);
+          for (const operatorID of copiedOperatorIDs) {
             const newOperator = this.copyOperator(this.copiedOperators[operatorID].operator);
             const newOperatorPosition = this.calcOperatorPosition(newOperator.operatorID, operatorID, positions);
             operatorsAndPositions.push({op: newOperator, pos: newOperatorPosition});

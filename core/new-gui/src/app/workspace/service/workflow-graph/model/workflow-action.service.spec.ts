@@ -226,7 +226,7 @@ describe('WorkflowActionService', () => {
       environment.executionStatusEnabled = false;
     });
 
-    it('should handle delete an operator causeing corresponding operator status tooltip element to be deleted correctly', () => {
+    it('should handle delete an operator causing corresponding operator status tooltip element to be deleted correctly', () => {
       service.addOperator(mockScanPredicate, mockPoint);
 
       const opStatusTooltipID = JointUIService.getOperatorStatusTooltipElementID(mockScanPredicate.operatorID);
