@@ -397,6 +397,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
    * Handles user mouse down events to trigger logically highlight and unhighlight an operator.
    * If user clicks the operator while pressing the shift key, multiselect mode is turned on.
    * When pressing the shift key, user can unhighlight a highlighted operator by clicking on it.
+   * User can also unhighlight all operators by clicking on the blank area of the graph.
    */
   private handleHighlightMouseInput(): void {
     // on user mouse clicks a operator cell, highlight that operator
@@ -416,13 +417,11 @@ export class WorkflowEditorComponent implements AfterViewInit {
         }
       });
 
-    /**
-     * One possible way to unhighlight an operator when user clicks on the blank area,
-     *  and bind `blank:pointerdown` event to unhighlight the operator.
-     * However, in real life, randomly clicking the blank area happens a lot,
-     *  and users are forced to click the operator again to highlight it,
-     *  which would make the UI not user-friendly
-     */
+    Observable.fromEvent<JointPaperEvent>(this.getJointPaper(), 'blank:pointerdown')
+      .subscribe(() => {
+        const currentOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOpeartorIDs();
+        this.workflowActionService.getJointGraphWrapper().unhighlightOperators(currentOperatorIDs);
+      });
   }
 
   private handleOperatorHightlightEvent(): void {
