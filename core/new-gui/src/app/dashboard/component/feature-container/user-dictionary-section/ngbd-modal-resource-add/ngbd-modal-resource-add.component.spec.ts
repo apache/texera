@@ -34,7 +34,7 @@ describe('NgbdModalResourceAddComponent', () => {
       ],
       imports: [
         CustomNgMaterialModule,
-        NgbModule.forRoot(),
+        NgbModule,
         FormsModule,
         FileUploadModule,
         ReactiveFormsModule,

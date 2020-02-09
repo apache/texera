@@ -42,7 +42,7 @@ export class ResultPanelComponent {
   public currentDataSource: MatTableDataSource<object> | undefined;
   public showResultPanel: boolean | undefined;
 
-  @ViewChild(MatPaginator) paginator: MatPaginator | null = null;
+  @ViewChild(MatPaginator, { static : false }) paginator: MatPaginator | null = null;
 
   private currentResult: object[] = [];
   private currentMaxPageSize: number = 0;
@@ -258,7 +258,7 @@ export class ResultPanelComponent {
    * @param rowData original row data returns from execution
    */
   private static trimDisplayJsonData(rowData: IndexableObject): object {
-    const rowDataTrimmed = deepMap(rowData, value => {
+    const rowDataTrimmed = deepMap<object>(rowData, value => {
       if (typeof value === 'string' && value.length > this.PRETTY_JSON_TEXT_LIMIT) {
         return value.substring(0, this.PRETTY_JSON_TEXT_LIMIT) + '...';
       } else {

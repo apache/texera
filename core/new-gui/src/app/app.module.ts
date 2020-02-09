@@ -6,7 +6,7 @@ import { environment } from './../environments/environment';
 
 import { CustomNgMaterialModule } from './common/custom-ng-material.module';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
-import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
+import { NgbModule, NgbPopoverModule } from '@ng-bootstrap/ng-bootstrap';
 import { RouterModule } from '@angular/router';
 import { TourNgBootstrapModule } from 'ngx-tour-ng-bootstrap';
 import { LoggerModule, NgxLoggerLevel } from 'ngx-logger';
@@ -110,7 +110,8 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
     NgxJsonViewerModule,
     CustomNgMaterialModule,
     BrowserAnimationsModule,
-    NgbModule.forRoot(),
+    NgbModule,
+    NgbPopoverModule,
     RouterModule.forRoot([]),
     TourNgBootstrapModule.forRoot(),
 

@@ -26,10 +26,10 @@ describe('SyncTexeraModel', () => {
    *
    * @param operatorID
    */
-  function getJointOperatorValue(operatorID: string) {
+  function getJointOperatorValue(operatorID: string): joint.dia.Element {
     return {
       id: operatorID
-    };
+    } as joint.dia.Element;
   }
 
   /**
@@ -38,7 +38,7 @@ describe('SyncTexeraModel', () => {
    *  and are used by the implementation code.
    * @param link
    */
-  function getJointLinkValue(link: OperatorLink) {
+  function getJointLinkValue(link: OperatorLink): joint.dia.Link {
     // getSourceElement, getTargetElement, and get all returns a function
     //  that returns the corresponding value
     return {
@@ -58,7 +58,7 @@ describe('SyncTexeraModel', () => {
       //     throw new Error('getJointLinkValue: mock is inconsistent with implementation');
       //   }
       // }
-    };
+    } as joint.dia.Link;
   }
 
   /**
@@ -70,7 +70,7 @@ describe('SyncTexeraModel', () => {
    *
    * @param link an operator link, but the target operator and target link is ignored
    */
-  function getIncompleteJointLink(link: OperatorLink) {
+  function getIncompleteJointLink(link: OperatorLink): joint.dia.Link {
     // getSourceElement, getTargetElement, and get all returns a function
     //  that returns the corresponding value
     return {
@@ -86,7 +86,7 @@ describe('SyncTexeraModel', () => {
           throw new Error('getJointLinkValue: mock is inconsistent with implementation');
         }
       }
-    };
+    } as joint.dia.Link;
   }
 
   beforeEach(() => {
