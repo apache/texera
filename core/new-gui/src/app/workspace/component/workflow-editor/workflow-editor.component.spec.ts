@@ -178,6 +178,9 @@ describe('WorkflowEditorComponent', () => {
 
       workflowActionService.addOperator(mockScanPredicate, mockPoint);
 
+      // unhighlight the operator in case it's automatically highlighted
+      jointGraphWrapper.unhighlightOperator(mockScanPredicate.operatorID);
+
       // find the joint Cell View object of the operator element
       const jointCellView = component.getJointPaper().findViewByModel(mockScanPredicate.operatorID);
 
@@ -382,8 +385,10 @@ describe('WorkflowEditorComponent', () => {
 
     it('should delete the highlighted operator when user presses the backspace key', () => {
       const texeraGraph = workflowActionService.getTexeraGraph();
+      const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
       workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      jointGraphWrapper.highlightOperator(mockScanPredicate.operatorID);
 
       // dispatch a keydown event on the backspace key
       const event = new KeyboardEvent('keydown', {key: 'Backspace'});
@@ -397,8 +402,10 @@ describe('WorkflowEditorComponent', () => {
 
     it('should delete the highlighted operator when user presses the delete key', () => {
       const texeraGraph = workflowActionService.getTexeraGraph();
+      const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
       workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      jointGraphWrapper.highlightOperator(mockScanPredicate.operatorID);
 
       // dispatch a keydown event on the backspace key
       const event = new KeyboardEvent('keydown', {key: 'Delete'});
@@ -416,6 +423,7 @@ describe('WorkflowEditorComponent', () => {
 
       workflowActionService.addOperatorsAndLinks([{op: mockScanPredicate, pos: mockPoint},
         {op: mockResultPredicate, pos: mockPoint}], []);
+      jointGraphWrapper.highlightOperators([mockScanPredicate.operatorID, mockResultPredicate.operatorID]);
 
       // assert that all operators are highlighted
       expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toContain(mockScanPredicate.operatorID);
@@ -438,6 +446,7 @@ describe('WorkflowEditorComponent', () => {
       const texeraGraph = workflowActionService.getTexeraGraph();
 
       workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      jointGraphWrapper.highlightOperator(mockScanPredicate.operatorID);
 
       // dispatch clipboard events for copy and paste
       const copyEvent = new ClipboardEvent('copy');
@@ -473,6 +482,7 @@ describe('WorkflowEditorComponent', () => {
       const texeraGraph = workflowActionService.getTexeraGraph();
 
       workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      jointGraphWrapper.highlightOperator(mockScanPredicate.operatorID);
 
       // dispatch clipboard events for cut and paste
       const cutEvent = new ClipboardEvent('cut');
@@ -511,10 +521,11 @@ describe('WorkflowEditorComponent', () => {
       const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
       workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      jointGraphWrapper.highlightOperator(mockScanPredicate.operatorID);
 
       // dispatch clipboard events for copy and paste
-      const cutEvent = new ClipboardEvent('copy');
-      document.dispatchEvent(cutEvent);
+      const copyEvent = new ClipboardEvent('copy');
+      document.dispatchEvent(copyEvent);
       const pasteEvent = new ClipboardEvent('paste');
       document.dispatchEvent(pasteEvent);
 
@@ -531,12 +542,13 @@ describe('WorkflowEditorComponent', () => {
 
       workflowActionService.addOperator(mockScanPredicate, mockPoint);
       workflowActionService.addOperator(mockResultPredicate, mockPoint);
+      jointGraphWrapper.highlightOperator(mockResultPredicate.operatorID);
 
       // assert that only the last operator is highlighted
       expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toContain(mockResultPredicate.operatorID);
       expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).not.toContain(mockScanPredicate.operatorID);
 
-      // find the joint Cell View object of the operator element
+      // find the joint Cell View object of the first operator element
       const jointCellView = component.getJointPaper().findViewByModel(mockScanPredicate.operatorID);
 
       // tirgger a shift click on the cell view using its jQuery element
@@ -554,6 +566,7 @@ describe('WorkflowEditorComponent', () => {
       const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
       workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      jointGraphWrapper.highlightOperator(mockScanPredicate.operatorID);
 
       // assert that the operator is highlighted
       expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toContain(mockScanPredicate.operatorID);
@@ -577,9 +590,8 @@ describe('WorkflowEditorComponent', () => {
       workflowActionService.addOperator(mockScanPredicate, mockPoint);
       workflowActionService.addOperator(mockResultPredicate, mockPoint);
 
-      // assert that only the last operator is highlighted
-      expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toContain(mockResultPredicate.operatorID);
-      expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).not.toContain(mockScanPredicate.operatorID);
+      // unhighlight operators in case of automatic highlight
+      jointGraphWrapper.unhighlightOperators([mockScanPredicate.operatorID, mockResultPredicate.operatorID]);
 
       // dispatch a keydown event on the command + A key comb
       const event = new KeyboardEvent('keydown', {key: 'a', metaKey: true});

@@ -231,9 +231,9 @@ describe('JointGraphWrapperService', () => {
     const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
     const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
-    // add one operator, it should be automatically highlighted
+    // add and highlight an operator
     workflowActionService.addOperator(mockScanPredicate, mockPoint);
-    expect(workflowActionService.getJointGraphWrapper().getCurrentHighlightedOpeartorIDs()).toEqual([mockScanPredicate.operatorID]);
+    workflowActionService.getJointGraphWrapper().highlightOperator(mockScanPredicate.operatorID);
 
     // prepare marble operation for unhighlighting an operator
     const unhighlightActionMarbleEvent = m.hot('-a-|').share();
@@ -264,11 +264,10 @@ describe('JointGraphWrapperService', () => {
     const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
     const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
-    // add two operators, they should be automatically highlighted
+    // add and highlight two operators
     workflowActionService.addOperatorsAndLinks([{op: mockScanPredicate, pos: mockPoint},
       {op: mockResultPredicate, pos: mockPoint}], []);
-    expect(workflowActionService.getJointGraphWrapper().getCurrentHighlightedOpeartorIDs())
-      .toEqual([mockScanPredicate.operatorID, mockResultPredicate.operatorID]);
+    workflowActionService.getJointGraphWrapper().highlightOperators([mockScanPredicate.operatorID, mockResultPredicate.operatorID]);
 
     // prepare marble operation for unhighlighting two operators
     const unhighlightActionMarbleEvent = m.hot('-a-|').share();
@@ -301,6 +300,9 @@ describe('JointGraphWrapperService', () => {
 
     workflowActionService.addOperator(mockScanPredicate, mockPoint);
     workflowActionService.addOperator(mockResultPredicate, mockPoint);
+
+    // unhighlight the last operator in case of automatic highlight
+    workflowActionService.getJointGraphWrapper().unhighlightOperator(mockResultPredicate.operatorID);
 
     // prepare marble operation for highlighting one operator, then highlight another
     const highlightActionMarbleEvent = m.hot(
@@ -501,11 +503,10 @@ describe('JointGraphWrapperService', () => {
     const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
     const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
-    // add two operators, they should be automatically highlighted
+    // add and highlight two operators
     workflowActionService.addOperatorsAndLinks([{op: mockScanPredicate, pos: mockPoint},
       {op: mockResultPredicate, pos: mockPoint}], []);
-    expect(localJointGraphWrapper.getCurrentHighlightedOpeartorIDs())
-      .toEqual([mockScanPredicate.operatorID, mockResultPredicate.operatorID]);
+    localJointGraphWrapper.highlightOperators([mockScanPredicate.operatorID, mockResultPredicate.operatorID]);
 
     // change one operator's position
     localJointGraphWrapper.setOperatorPosition(mockScanPredicate.operatorID, 10, 10);

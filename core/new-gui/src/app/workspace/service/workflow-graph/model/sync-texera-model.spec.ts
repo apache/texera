@@ -196,7 +196,7 @@ describe('SyncTexeraModel', () => {
    * Expected:
    * delete an nonexit operator, error is thrown
    */
-  it('should explicitly throw an error if the JointJS operator delete event deletes an nonexist operator', marbles((m) => {
+  it('should explicitly throw an error if the JointJS operator delete event deletes a nonexist operator', marbles((m) => {
 
     // add operators
     texeraGraph.addOperator(mockScanPredicate);
@@ -323,7 +323,7 @@ describe('SyncTexeraModel', () => {
    * Expected:
    * The link should be deleted
    */
-  it('should delete a link when link delete event happen from JointJS', marbles((m) => {
+  it('should delete a link when link delete event happens from JointJS', marbles((m) => {
 
     // add operators
     texeraGraph.addOperator(mockScanPredicate);

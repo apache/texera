@@ -76,9 +76,9 @@ describe('PropertyEditorComponent', () => {
     //  is highlighted has correctly updated the variables
     const predicate = mockScanPredicate;
 
-    // add an operator, it should be automatically highlighted
+    // add and highlight an operator
     workflowActionService.addOperator(predicate, mockPoint);
-    expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toEqual([predicate.operatorID]);
+    jointGraphWrapper.highlightOperator(predicate.operatorID);
 
     fixture.detectChanges();
 
@@ -154,9 +154,10 @@ describe('PropertyEditorComponent', () => {
   it('should switch the content of property editor to the highlighted operator correctly when only one operator is highlighted', () => {
     const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
-    // add and (automatically) highlight two operators, then unhighlight one of them
+    // add and highlight two operators, then unhighlight one of them
     workflowActionService.addOperatorsAndLinks([{op: mockScanPredicate, pos: mockPoint},
       {op: mockResultPredicate, pos: mockPoint}], []);
+    jointGraphWrapper.highlightOperators([mockScanPredicate.operatorID, mockResultPredicate.operatorID]);
     jointGraphWrapper.unhighlightOperator(mockResultPredicate.operatorID);
 
     // assert that only one operator is highlighted on the graph
@@ -195,9 +196,9 @@ describe('PropertyEditorComponent', () => {
   it('should clear and hide the property editor panel correctly when no operator is highlighted', () => {
     const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
-    // add an operator, it should be automatically highlighted
+    // add and highlight an operator
     workflowActionService.addOperator(mockScanPredicate, mockPoint);
-    expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toEqual([mockScanPredicate.operatorID]);
+    jointGraphWrapper.highlightOperator(mockScanPredicate.operatorID);
 
     // unhighlight the operator
     jointGraphWrapper.unhighlightOperator(mockScanPredicate.operatorID);
@@ -223,8 +224,10 @@ describe('PropertyEditorComponent', () => {
   it('should clear and hide the property editor panel correctly when multiple operators are highlighted', () => {
     const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
+    // add and highlight two operators
     workflowActionService.addOperatorsAndLinks([{op: mockScanPredicate, pos: mockPoint},
       {op: mockResultPredicate, pos: mockPoint}], []);
+    jointGraphWrapper.highlightOperators([mockScanPredicate.operatorID, mockResultPredicate.operatorID]);
 
     // assert that multiple operators are highlighted
     expect(jointGraphWrapper.getCurrentHighlightedOpeartorIDs()).toContain(mockResultPredicate.operatorID);
@@ -247,7 +250,7 @@ describe('PropertyEditorComponent', () => {
   it('should change Texera graph property when the form is edited by the user', fakeAsync(() => {
     const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
-    // add an operator and highligh the operator so that the
+    // add an operator and highlight the operator so that the
     //  variables in property editor component is set correctly
     workflowActionService.addOperator(mockScanPredicate, mockPoint);
     jointGraphWrapper.highlightOperator(mockScanPredicate.operatorID);
@@ -276,7 +279,7 @@ describe('PropertyEditorComponent', () => {
   it('should debounce the user form input to avoid emitting event too frequently', marbles(m => {
     const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
-    // add an operator and highligh the operator so that the
+    // add an operator and highlight the operator so that the
     //  variables in property editor component is set correctly
     workflowActionService.addOperator(mockScanPredicate, mockPoint);
     jointGraphWrapper.highlightOperator(mockScanPredicate.operatorID);
@@ -318,7 +321,7 @@ describe('PropertyEditorComponent', () => {
   it('should not emit operator property change event if the new property is the same as the old property', fakeAsync(() => {
     const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
-    // add an operator and highligh the operator so that the
+    // add an operator and highlight the operator so that the
     //  variables in property editor component is set correctly
     workflowActionService.addOperator(mockScanPredicate, mockPoint);
     const mockOperatorProperty = { tableName: 'table' };
