@@ -1,11 +1,6 @@
 package edu.uci.ics.texera.dataflow.source.mysql;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -50,11 +45,10 @@ public class MysqlSource implements ISourceOperator{
     private Statement statement;
     private PreparedStatement prepStatement;
     private ResultSet rs;
+    private boolean start = true;
     
     public MysqlSource(MysqlSourcePredicate predicate){
     	this.predicate = predicate;
-//    	this.outputSchema = new Schema.Builder().add(SchemaConstants._ID_ATTRIBUTE)
-//                .add(TwitterUtils.TwitterSchema.TWITTER_SCHEMA).build();
         this.schemaBuilder = new Schema.Builder();
     }
 
@@ -80,8 +74,6 @@ public class MysqlSource implements ISourceOperator{
                 String decimaldigits = columns.getString("DECIMAL_DIGITS");
                 String isNullable = columns.getString("IS_NULLABLE");
                 String is_autoIncrment = columns.getString("IS_AUTOINCREMENT");
-                //Printing results
-//                System.out.println(columnName + "---" + datatype + "---" + columnsize + "---" + decimaldigits + "---" + isNullable + "---" + is_autoIncrment);
 
                 AttributeType attributeType;
                 switch (datatype) {
@@ -129,17 +121,7 @@ public class MysqlSource implements ISourceOperator{
 
                 this.outputSchema = this.schemaBuilder.add(columnName, attributeType).build();
 
-
-
-//                this.outputSchema.add(columnName, da)
             }
-//            System.out.println(this.outputSchema.toString());
-
-
-            statement = connection.createStatement();
-//            System.out.println(generateSqlQuery(predicate));
-            rs = statement.executeQuery(generateSqlQuery(predicate));
-
             cursor = OPENED;
         } catch (SQLException | InstantiationException | IllegalAccessException | ClassNotFoundException e) {
             throw new DataflowException("MysqlSink failed to connect to mysql database." + e.getMessage());
@@ -152,6 +134,15 @@ public class MysqlSource implements ISourceOperator{
             throw new DataflowException(ErrorMessages.OPERATOR_NOT_OPENED);
         }
         try {
+            if(start){
+                PreparedStatement ps = this.connection.prepareStatement(generateSqlQuery(predicate));
+                if(!predicate.getColumn().equals("") && !predicate.getKeywords().equals("")){
+                    ps.setString(1, predicate.getColumn());
+                    ps.setString(2, predicate.getKeywords());
+                }
+                this.rs = ps.executeQuery();
+                start = false;
+            }
 			while (rs.next()) {
 			    List<IField> tb = new ArrayList();
 			    for(Attribute a: this.outputSchema.getAttributes()){
@@ -193,33 +184,6 @@ public class MysqlSource implements ISourceOperator{
                 }
                 IField[] iFieldArray = tb.toArray(new IField[tb.size()]);
                 Tuple tuple = new Tuple(this.outputSchema, iFieldArray);
-
-//				String follower = rs.getString("user.followers_count");
-//	    		String friend = rs.getString("user.friends_count");
-//	    		follower = follower == null ? "0" :follower;
-//	    		friend = friend == null ? "0" :friend;
-//	    		String coordinate = rs.getString("coordinate");
-//	    		coordinate = coordinate == null ? "" :coordinate;
-//	    		String language = rs.getString(TwitterUtils.TwitterSchema.LANGUAGE);
-//	    		coordinate = language == null ? "" :language;
-//			    Tuple tuple =  new Tuple(this.outputSchema,
-//			            IDField.newRandomID(), //IntegerField
-//			            new TextField(rs.getString("text")),
-//			            new StringField(""), new StringField(""), new StringField(""),
-//			            new TextField(rs.getString("user.screen_name")),
-//			            new TextField(rs.getString("user.name")),
-//			            new TextField(rs.getString("user.description")),
-//
-//			            new IntegerField(Integer.valueOf(follower)),
-//			            new IntegerField(Integer.valueOf(friend)),
-//			            new TextField(rs.getString("user.location")),
-//			            new StringField(rs.getString("user.create_at")),
-//			            new TextField(rs.getString("geo_tag.cityName")),
-//			            new StringField(coordinate),
-//			            new StringField(language)
-//			            );
-			    		
-			            //new StringField(resultJsonArray.getJSONObject(cursor).get("ds").toString()));
 			    cursor ++;
 			    
 			    return tuple;
@@ -232,16 +196,13 @@ public class MysqlSource implements ISourceOperator{
     }
     
     public static String generateSqlQuery(MysqlSourcePredicate predicate) {
-    	StringBuilder sb = new StringBuilder();
-    	sb.append("select * from `"+predicate.getTable());
-    	if (predicate.getColumn()!="" && predicate.getKeywords()!="") {
-    		sb.append("` where  MATCH(`"+predicate.getColumn()+"`) AGAINST ('"+ predicate.getKeywords()+"')");
-    	}
-    	if (predicate.getLimit()!=Integer.MAX_VALUE)
-    		sb.append(" limit "+ predicate.getLimit());
-    	sb.append(";");
-    	System.out.print(sb.toString());
-    	return sb.toString();
+        String query =  "\n" +
+                "select * from "+predicate.getTable()+ "where 1 = 1 ";
+        if(!predicate.getColumn().equals("") && !predicate.getKeywords().equals("")) {
+            query += " AND  ? = ?";
+        }
+        query+=";";
+        return query;
     }
     
     
