@@ -176,10 +176,10 @@ export class ResultPanelComponent {
     // display message
     this.showMessage = true;
 
-    //split the errMessage
+    //split the errorMessage
     this.split_errMessage= errorMessage.split(" ", 5);
 
-    //use first element of splited errMessage to check what error it is and print proper errMessage
+    //use first element of splited errorMessage to check what error it is and print proper errMessage
     if (this.split_errMessage[0] === 'Missing'){
       this.message = 'There is something missing in the right Panel need to be fill';
     } else if (this.split_errMessage[0] === 'Operator' ){
