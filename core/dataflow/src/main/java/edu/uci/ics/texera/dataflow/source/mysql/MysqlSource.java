@@ -135,14 +135,22 @@ public class MysqlSource implements ISourceOperator{
         }
         try {
             if(start){
+                System.out.print(generateSqlQuery(predicate));
                 PreparedStatement ps = this.connection.prepareStatement(generateSqlQuery(predicate));
-                if(!predicate.getColumn().equals("") && !predicate.getKeywords().equals("")){
-                    ps.setString(1, predicate.getColumn());
-                    ps.setString(2, predicate.getKeywords());
+                /*if(!predicate.getColumn().equals("") && !predicate.getKeywords().equals("")){
+                    ps.setObject(1, predicate.getColumn(), Types.VARCHAR);
+                    ps.setObject(2, predicate.getKeywords(), Types.VARCHAR);
+                    if(predicate.getLimit()!=Integer.MAX_VALUE){
+                        ps.setObject(3, predicate.getLimit(), Types.INTEGER);
+                    }
+                }
+                else{*/
+                if(predicate.getLimit()!=Integer.MAX_VALUE){
+                    ps.setObject(1, predicate.getLimit(), Types.INTEGER);
                 }
                 this.rs = ps.executeQuery();
-                start = false;
-            }
+                start = false;}
+            //}
 			while (rs.next()) {
 			    List<IField> tb = new ArrayList();
 			    for(Attribute a: this.outputSchema.getAttributes()){
@@ -197,9 +205,12 @@ public class MysqlSource implements ISourceOperator{
     
     public static String generateSqlQuery(MysqlSourcePredicate predicate) {
         String query =  "\n" +
-                "select * from "+predicate.getTable()+ "where 1 = 1 ";
+                "select * from `"+predicate.getTable()+ "` where 1 = 1 ";
         if(!predicate.getColumn().equals("") && !predicate.getKeywords().equals("")) {
-            query += " AND  ? = ?";
+            query += " AND  MATCH(`"+predicate.getColumn()+"`)  AGAINST ('"+predicate.getKeywords()+"')";
+        }
+        if(predicate.getLimit()!=Integer.MAX_VALUE){
+            query+="limit ?";
         }
         query+=";";
         return query;
