@@ -46,6 +46,7 @@ public class MysqlSource implements ISourceOperator{
     private PreparedStatement prepStatement;
     private ResultSet rs;
     private boolean start = true;
+
     
     public MysqlSource(MysqlSourcePredicate predicate){
     	this.predicate = predicate;
@@ -70,10 +71,6 @@ public class MysqlSource implements ISourceOperator{
             {
                 String columnName = columns.getString("COLUMN_NAME");
                 Integer datatype = columns.getInt("DATA_TYPE");
-                String columnsize = columns.getString("COLUMN_SIZE");
-                String decimaldigits = columns.getString("DECIMAL_DIGITS");
-                String isNullable = columns.getString("IS_NULLABLE");
-                String is_autoIncrment = columns.getString("IS_AUTOINCREMENT");
 
                 AttributeType attributeType;
                 switch (datatype) {
@@ -177,7 +174,7 @@ public class MysqlSource implements ISourceOperator{
                             try{
                                 value = fmt.parse("0000-00-00");
                             }catch (ParseException e){
-                                System.out.println("parse error");
+                                throw new DataflowException(e.getMessage());
                             }
                         }
                         tb.add(new DateField(value));
@@ -197,8 +194,7 @@ public class MysqlSource implements ISourceOperator{
 			    return tuple;
 			}
 		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+            throw new DataflowException(e.getMessage());
 		}
         return null;
     }
