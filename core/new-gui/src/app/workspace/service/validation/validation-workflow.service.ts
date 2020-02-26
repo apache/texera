@@ -25,7 +25,11 @@ export class ValidationWorkflowService {
 
   private operatorSchemaList: ReadonlyArray<OperatorSchema> = [];
   private readonly operatorValidationStream =  new Subject <{status: boolean, operatorID: string}>();
+  private readonly operatorValidationErrorMapStream = new Subject <{map: Map<string, [string, string]>}>();
   private ajv = new Ajv ({schemaId: 'auto', allErrors: true});
+
+  // this map record --> key operatorID, value [operatorType, error string]
+  private operatorErrorMap: Map<string, [string, string]> = new Map<string, [string, string]> ();
 
   /**
    * subcribe the add opertor event, delete operator event, add link event, delete link event
@@ -47,6 +51,10 @@ export class ValidationWorkflowService {
     });
   }
 
+  public getOpertorValidationErrorMapStream(): Observable<{map: Map<string, [string, string]>}> {
+    return this.operatorValidationErrorMapStream.asObservable();
+  }
+
   /**
    * Gets the observable for operator validation change event.
    * Contains a boolean variable and an operator ID:
@@ -62,7 +70,7 @@ export class ValidationWorkflowService {
    *  are connected and all required properties of this operator are completed.
    */
   public validateOperator(operatorID: string): boolean {
-    return  (!this.isOperatorIsolated(operatorID) && this.isJsonSchemaValid(operatorID));
+    return  (this.isJsonSchemaValid(operatorID) && !this.isOperatorIsolated(operatorID));
   }
 
   /**
@@ -74,13 +82,28 @@ export class ValidationWorkflowService {
     this.workflowActionService.getTexeraGraph().getAllOperators().forEach(operator => {
       this.operatorValidationStream.next({
         status: this.validateOperator(operator.operatorID), operatorID: operator.operatorID});
+      this.operatorValidationErrorMapStream.next({
+        map: this.operatorErrorMap});
     });
 
     // Capture the operator add event and validate the newly added operator
     this.workflowActionService.getTexeraGraph().getOperatorAddStream()
-      .subscribe(value =>
+      .subscribe(value => {
         this.operatorValidationStream.next({
-          status: this.validateOperator(value.operatorID), operatorID: value.operatorID})
+          status: this.validateOperator(value.operatorID), operatorID: value.operatorID});
+        this.operatorValidationErrorMapStream.next({
+          map: this.operatorErrorMap});
+        }
+      );
+    // Capture the operator delete event but not validate the deleted operator, the operatorID set to
+    // "DeleteButton" for joint-ui.service.ts.changeOperatorColor(jointPaper: joint.dia.Paper, operatorID: string, status: boolean)
+    // to capture
+    this.workflowActionService.getTexeraGraph().getOperatorDeleteStream()
+      .subscribe(value => {this.operatorValidationStream.next({
+          status: true, operatorID: 'DeleteButton'});
+          this.operatorValidationErrorMapStream.next({
+            map: this.operatorErrorMap});
+        }
       );
 
     // Capture the link add and delete event and validate the source and target operators for this link
@@ -92,12 +115,18 @@ export class ValidationWorkflowService {
         operatorID: value.source.operatorID});
       this.operatorValidationStream.next({status: this.validateOperator(value.target.operatorID),
         operatorID: value.target.operatorID});
+      this.operatorValidationErrorMapStream.next({
+          map: this.operatorErrorMap});
     });
 
     // Capture the operator property change event and validate the current operator being changed
     this.workflowActionService.getTexeraGraph().getOperatorPropertyChangeStream()
-      .subscribe(value => this.operatorValidationStream.next({
-        status: this.validateOperator(value.operator.operatorID), operatorID: value.operator.operatorID})
+      .subscribe(value => {
+        this.operatorValidationStream.next({
+        status: this.validateOperator(value.operator.operatorID), operatorID: value.operator.operatorID});
+        this.operatorValidationErrorMapStream.next({
+          map: this.operatorErrorMap});
+        }
       );
   }
 
@@ -114,9 +143,28 @@ export class ValidationWorkflowService {
     if (operatorSchema === undefined) {
       throw new Error(`operatorSchema doesn't exist`);
     }
-
+    // Debug
+    //  console.log('Schema', operatorSchema.jsonSchema);
+    //  console.log('Properties', operator.operatorProperties);
     const isValid = this.ajv.validate(operatorSchema.jsonSchema, operator.operatorProperties);
+    const errors = this.ajv.errors;
 
+    const allOperatorIDs = this.workflowActionService.getTexeraGraph().getAllOperators().map(op => op.operatorID);
+
+
+    const error_str: string = this.ajv.errorsText(errors);
+
+    this.operatorErrorMap.set(operatorID, [operator.operatorType, error_str]);
+
+
+    this.operatorErrorMap.forEach(( tuple: [string, string], operatorID: string) => {
+      if (allOperatorIDs.indexOf(operatorID) < 0) {
+        this.operatorErrorMap.delete(operatorID);
+      }
+    });
+    // console.log(this.operatorErrorMap);
+
+    // console.log(error_str);
     if (isValid) { return true; }
     return false;
   }
@@ -140,6 +188,9 @@ export class ValidationWorkflowService {
     );
   }
 
+  private upDateOperatorStatusMap(OperatorID: string, status: boolean): void {
+    return;
+  }
 
 
 

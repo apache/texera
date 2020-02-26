@@ -8,8 +8,10 @@ import { NgbModal, NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { ExecutionResult, SuccessExecutionResult } from './../../types/execute-workflow.interface';
 import { TableColumn, IndexableObject } from './../../types/result-table.interface';
 import { ResultPanelToggleService } from './../../service/result-panel-toggle/result-panel-toggle.service';
+import { ValidationWorkflowService } from '../../service/validation/validation-workflow.service';
 import deepMap from 'deep-map';
 import { isEqual } from 'lodash-es';
+
 
 /**
  * ResultPanelCompoent is the bottom level area that displays the
@@ -41,7 +43,7 @@ export class ResultPanelComponent {
   public currentDisplayColumns: string[] | undefined;
   public currentDataSource: MatTableDataSource<object> | undefined;
   public showResultPanel: boolean | undefined;
-  public split_errMessage: string[] | undefined;
+  public split_errMessages: string[] | undefined;
 
 
   @ViewChild(MatPaginator) paginator: MatPaginator | null = null;
@@ -50,9 +52,10 @@ export class ResultPanelComponent {
   private currentMaxPageSize: number = 0;
   private currentPageSize: number = 0;
   private currentPageIndex: number = 0;
+  private operatorErrorMap: Map<string, [string, string]> = new Map<string, [string, string]> ();
 
   constructor(private executeWorkflowService: ExecuteWorkflowService, private modalService: NgbModal,
-    private resultPanelToggleService: ResultPanelToggleService) {
+    private resultPanelToggleService: ResultPanelToggleService, private validationWorkflowService: ValidationWorkflowService) {
 
 
     // once an execution has ended, update the result panel to dispaly
@@ -63,6 +66,13 @@ export class ResultPanelComponent {
 
     this.resultPanelToggleService.getToggleChangeStream().subscribe(
       value => this.showResultPanel = value,
+    );
+
+    this.validationWorkflowService.getOpertorValidationErrorMapStream().subscribe(
+      value => {
+        this.operatorErrorMap = value.map;
+        this.showErrorMessage();
+      }
     );
   }
 
@@ -162,6 +172,7 @@ export class ResultPanelComponent {
     this.displayResultTable(response);
   }
 
+
   /**
    * Displays the error message instead of the result table,
    *  sets all the local properties correctly.
@@ -176,23 +187,44 @@ export class ResultPanelComponent {
     // display message
     this.showMessage = true;
 
-    //split the errorMessage
-    this.split_errMessage= errorMessage.split(" ", 5);
+    // split the errorMessage get a list of Message which is split by delimeter space " "
+    this.split_errMessages = errorMessage.split(' ', 10);
 
-    //use first element of splited errorMessage to check what error it is and print proper errMessage
-    if (this.split_errMessage[0] === 'Missing'){
-      this.message = 'There is something missing in the right Panel need to be fill';
-    } else if (this.split_errMessage[0] === 'Operator' ){
-      this.message = 'Missing operator to complete the workflow';
-    }else if(this.split_errMessage[0] === 'Operators:'){
-      this.message = 'The operator graph is not completed'
-    }else{
+    // use first element of splited errorMessage to check what error it is and print proper errMessage
+    if (this.split_errMessages[0] === 'Missing') {
+      this.message = '---------------Error------------------' + '<br/>-' + 'There is something missing in the right Panel need to be fill';
+    } else if (this.split_errMessages[0] === 'Operator' ) {
+      this.message = '---------------Error------------------' + '<br/>-' + 'Missing operators to complete the workflow';
+    } else if (this.split_errMessages[0] === 'Operators:') {
+      this.message = '---------------Error------------------' + '<br/>-'
+      + 'The operator graph is not completed. Please connect graph to complete workflow';
+    } else {
       this.message = errorMessage;
     }
 
+  }
+  /**
+   * This function show Error Message in result panel
+   */
+  private showErrorMessage(): void {
+    // show resultPanel
+    this.resultPanelToggleService.openResultPanel();
 
+    // clear data source and columns
+    this.currentDataSource = undefined;
+    this.currentColumns = undefined;
+    this.currentDisplayColumns = undefined;
 
-    
+    // display message
+    this.showMessage = true;
+
+    this.message = '';
+
+    this.operatorErrorMap.forEach((tuple: [string, string], operatorID: string) => {
+      if (tuple[1] !== 'No errors') {
+        this.message =  this.message + '<br/>' + tuple[0] + ':' + tuple[1];
+      }
+    });
   }
 
   /**

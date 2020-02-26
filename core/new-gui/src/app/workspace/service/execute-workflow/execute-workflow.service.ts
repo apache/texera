@@ -186,7 +186,7 @@ export class ExecuteWorkflowService {
    *    -  Code: the result code of 0
    *    -  result: the actual result data to be displayed
    *
-   * If execution succeeded, it contains an object with type
+   * If execution failed, it contains an object with type
    *  `ErrorExecutionResult`:
    *    -  Code: the result code 1
    *    -  message: error message
@@ -232,6 +232,7 @@ export class ExecuteWorkflowService {
     // error shown to the user in different error scenarios
     const displayedErrorMessage = ExecuteWorkflowService.processErrorResponse(errorResponse);
     this.executeEndedStream.next(displayedErrorMessage);
+    
   }
 
   /**

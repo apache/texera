@@ -146,7 +146,9 @@ export class JointUIService {
    * @param status
    */
   public changeOperatorColor(jointPaper: joint.dia.Paper, operatorID: string, status: boolean): void {
-    if (status) {
+    if (operatorID === 'DeleteButton') {
+      return;
+    } else if (status) {
       jointPaper.getModelById(operatorID).attr('rect/stroke', '#CFCFCF');
     } else {
       jointPaper.getModelById(operatorID).attr('rect/stroke', 'red');

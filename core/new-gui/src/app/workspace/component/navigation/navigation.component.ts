@@ -5,8 +5,10 @@ import { TourService } from 'ngx-tour-ng-bootstrap';
 import { environment } from '../../../../environments/environment';
 import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
 import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-graph-wrapper';
-
+import { ValidationWorkflowService } from '../../service/validation/validation-workflow.service';
 import { ExecutionResult } from './../../types/execute-workflow.interface';
+import { stat } from 'fs';
+import { map } from 'rxjs-compat/operator/map';
 
 
 /**
@@ -34,13 +36,17 @@ export class NavigationComponent implements OnInit {
   public static autoSaveState = 'Saved';
   public isWorkflowRunning: boolean = false; // set this to true when the workflow is started
   public isWorkflowPaused: boolean = false; // this will be modified by clicking pause/resume while the workflow is running
+  public isWorkflowFailed: boolean = false; // this will check whether the workflow error or not
 
   // variable binded with HTML to decide if the running spinner should show
   public showSpinner = false;
   public executionResultID: string | undefined;
 
+  private operator_status_map: Map<string, boolean> = new Map<string, boolean> (); // this map record --> key operator, value status
+  private failOperatorCheck: number = 0; // check if there is fail operator
+
   constructor(private executeWorkflowService: ExecuteWorkflowService, private workflowActionService: WorkflowActionService,
-    public tourService: TourService, public undoRedo: UndoRedoService) {
+    private validationWorkflowService: ValidationWorkflowService, public tourService: TourService, public undoRedo: UndoRedoService) {
     // return the run button after the execution is finished, either
     //  when the value is valid or invalid
     executeWorkflowService.getExecuteEndedStream().subscribe(
@@ -49,12 +55,14 @@ export class NavigationComponent implements OnInit {
         this.handleResultData(executionResult);
         this.isWorkflowRunning = false;
         this.isWorkflowPaused = false;
+
       },
       () => {
         this.executionResultID = undefined;
         this.isWorkflowRunning = false;
         this.isWorkflowPaused = false;
       }
+
     );
 
     // update the pause/resume button after a pause/resume request
@@ -62,9 +70,24 @@ export class NavigationComponent implements OnInit {
     // this will swap button between pause and resume
     executeWorkflowService.getExecutionPauseResumeStream()
       .subscribe(state => this.isWorkflowPaused = (state === 0));
+
+
+    validationWorkflowService.getOperatorValidationStream().
+      subscribe(value => {
+          this.setOperatorMap(value.operatorID, value.status);
+          this.checkFail(); });
   }
 
   ngOnInit() {
+  }
+
+
+
+  /**
+   * check whther the workflowfailed
+   */
+  public getDisabled(): boolean {
+    return this.isWorkflowFailed;
   }
   /**
    * Executes the current existing workflow on the JointJS paper. It will
@@ -72,6 +95,10 @@ export class NavigationComponent implements OnInit {
    *  is loading the workflow by displaying the pause/resume button.
    */
   public onButtonClick(): void {
+    // if the isWorkflowFailed make the button return finish
+    if (this.isWorkflowFailed) {
+      return;
+    }
     if (! environment.pauseResumeEnabled) {
       if (! this.isWorkflowRunning) {
         this.isWorkflowRunning = true;
@@ -220,6 +247,7 @@ export class NavigationComponent implements OnInit {
   private handleResultData(response: ExecutionResult): void {
     // backend returns error, display error message
     if (response.code === 1) {
+
       this.executionResultID = undefined;
       return;
     }
@@ -232,5 +260,43 @@ export class NavigationComponent implements OnInit {
 
     // set the current execution result ID to the result ID
     this.executionResultID = response.resultID;
+  }
+
+
+  /**
+   *
+   * @param operatorID operatorID
+   * @param status validation_status of corresponding operatorID
+   *
+   *
+   */
+  private setOperatorMap(operatorID: string, status: boolean): void {
+    const allOperatorIDs = this.workflowActionService.getTexeraGraph().getAllOperators().map(op => op.operatorID);
+    this.operator_status_map.set(operatorID, status);
+    this.operator_status_map.forEach(( status: boolean, operatorID: string) => {
+        if (allOperatorIDs.indexOf(operatorID) < 0) {
+          this.operator_status_map.delete(operatorID);
+        }
+      });
+
+
+  }
+
+
+  /**
+   * This function will check whether there are fails in operator_status_map
+   * if there is any fail, set this.isWorkflowFailed to true to disable the button
+   */
+  private checkFail(): void {
+    this.operator_status_map.forEach((status: boolean, operatorID: string) => {if (status === false) {
+        this.failOperatorCheck = -1;
+       }
+      });
+    if (this.failOperatorCheck === -1) {
+      this.isWorkflowFailed = true;
+      this.failOperatorCheck = 0;
+    } else {
+      this.isWorkflowFailed = false;
+    }
   }
 }
