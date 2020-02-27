@@ -82,6 +82,7 @@ export class ValidationWorkflowService {
     this.workflowActionService.getTexeraGraph().getAllOperators().forEach(operator => {
       this.operatorValidationStream.next({
         status: this.validateOperator(operator.operatorID), operatorID: operator.operatorID});
+      this.setOperatorValidationErrorMap(operator.operatorID);
       this.operatorValidationErrorMapStream.next({
         map: this.operatorErrorMap});
     });
@@ -91,6 +92,7 @@ export class ValidationWorkflowService {
       .subscribe(value => {
         this.operatorValidationStream.next({
           status: this.validateOperator(value.operatorID), operatorID: value.operatorID});
+        this.setOperatorValidationErrorMap(value.operatorID);
         this.operatorValidationErrorMapStream.next({
           map: this.operatorErrorMap});
         }
@@ -101,6 +103,7 @@ export class ValidationWorkflowService {
     this.workflowActionService.getTexeraGraph().getOperatorDeleteStream()
       .subscribe(value => {this.operatorValidationStream.next({
           status: true, operatorID: 'DeleteButton'});
+          this.setOperatorValidationErrorMap('DeleteButton');
           this.operatorValidationErrorMapStream.next({
             map: this.operatorErrorMap});
         }
@@ -113,8 +116,12 @@ export class ValidationWorkflowService {
     ).subscribe(value => {
       this.operatorValidationStream.next({status: this.validateOperator(value.source.operatorID),
         operatorID: value.source.operatorID});
+      this.setOperatorValidationErrorMap(value.source.operatorID);
+
       this.operatorValidationStream.next({status: this.validateOperator(value.target.operatorID),
         operatorID: value.target.operatorID});
+
+      this.setOperatorValidationErrorMap(value.target.operatorID);
       this.operatorValidationErrorMapStream.next({
           map: this.operatorErrorMap});
     });
@@ -124,6 +131,7 @@ export class ValidationWorkflowService {
       .subscribe(value => {
         this.operatorValidationStream.next({
         status: this.validateOperator(value.operator.operatorID), operatorID: value.operator.operatorID});
+        this.setOperatorValidationErrorMap(value.operator.operatorID);
         this.operatorValidationErrorMapStream.next({
           map: this.operatorErrorMap});
         }
@@ -143,18 +151,26 @@ export class ValidationWorkflowService {
     if (operatorSchema === undefined) {
       throw new Error(`operatorSchema doesn't exist`);
     }
-    // Debug
-    //  console.log('Schema', operatorSchema.jsonSchema);
-    //  console.log('Properties', operator.operatorProperties);
     const isValid = this.ajv.validate(operatorSchema.jsonSchema, operator.operatorProperties);
-    const errors = this.ajv.errors;
+
+    if (isValid) { return true; }
+    return false;
+  }
+
+  /**
+   * This function will take the operatorID and make map of operatorID and
+   * @param operatorID
+   */
+  private setOperatorValidationErrorMap(operatorID: string): void {
 
     const allOperatorIDs = this.workflowActionService.getTexeraGraph().getAllOperators().map(op => op.operatorID);
 
-
+    const errors = this.ajv.errors;
     const error_str: string = this.ajv.errorsText(errors);
-
-    this.operatorErrorMap.set(operatorID, [operator.operatorType, error_str]);
+    if (operatorID !== 'DeleteButton') {
+      const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorID);
+      this.operatorErrorMap.set(operatorID, [operator.operatorType, error_str]);
+    }
 
 
     this.operatorErrorMap.forEach(( tuple: [string, string], operatorID: string) => {
@@ -162,13 +178,7 @@ export class ValidationWorkflowService {
         this.operatorErrorMap.delete(operatorID);
       }
     });
-    // console.log(this.operatorErrorMap);
-
-    // console.log(error_str);
-    if (isValid) { return true; }
-    return false;
   }
-
   /**
    * This method is used to check whether all ports of the operator have been connected.
    *  if all ports of the operator are connected, the operator is valid.
