@@ -50,7 +50,11 @@ export class ValidationWorkflowService {
       this.initializeValidation();
     });
   }
-
+  /**
+   * Gets observable for operatorErrorMap change event
+   *
+   * map: a Map<operatorID, [operatorType, error_string]
+   */
   public getOpertorValidationErrorMapStream(): Observable<{map: Map<string, [string, string]>}> {
     return this.operatorValidationErrorMapStream.asObservable();
   }
@@ -158,21 +162,24 @@ export class ValidationWorkflowService {
   }
 
   /**
-   * This function will take the operatorID and make map of operatorID and
+   * This function will take the operatorID and make a Map<operatorID, [operatorType, error_string]>
+   * function must called after each this.validateOperator to get ajv instance contains error message for specific operator
    * @param operatorID
    */
   private setOperatorValidationErrorMap(operatorID: string): void {
-
+    // get all operatorID
     const allOperatorIDs = this.workflowActionService.getTexeraGraph().getAllOperators().map(op => op.operatorID);
 
+    // get error message and put it in str
     const errors = this.ajv.errors;
     const error_str: string = this.ajv.errorsText(errors);
+    // check if it is deleteButton stream, if not then update map
     if (operatorID !== 'DeleteButton') {
       const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorID);
       this.operatorErrorMap.set(operatorID, [operator.operatorType, error_str]);
     }
 
-
+    // delete deleted operatorID from the map
     this.operatorErrorMap.forEach(( tuple: [string, string], operatorID: string) => {
       if (allOperatorIDs.indexOf(operatorID) < 0) {
         this.operatorErrorMap.delete(operatorID);

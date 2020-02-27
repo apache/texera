@@ -220,6 +220,7 @@ export class ResultPanelComponent {
 
     this.message = '';
 
+    // print out every error operator in map
     this.operatorErrorMap.forEach((tuple: [string, string], operatorID: string) => {
       if (tuple[1] !== 'No errors') {
         this.message =  this.message + '<br/>' + tuple[0] + ':' + tuple[1];

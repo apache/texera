@@ -46,8 +46,8 @@
                 <i id="texera-tour-icon" class="fa fa-question-circle-o" aria-hidden="true"></i>
               </span>
           </button>
-                                                                                                                                    <!-- check condition when errorFlow -->
-          <button mat-raised-button class="texera-navigation-run-button texera-navigation-run-text" [ngStyle]="{'background-color': !getDisabled() ? 'blue':'grey','opacity' : !getDisabled() ? '' : '0.7'}" (click)="onButtonClick()" >
+          <button mat-raised-button class="texera-navigation-run-button texera-navigation-run-text"
+            [ngStyle]="{'background-color': !getDisabled() ? 'blue':'grey','opacity' : !getDisabled() ? '' : '0.7'}" (click)="onButtonClick()" >
               <span>
                 <i *ngIf="!runSpinner()" id="texera-run-icon" class="fa fa-play" aria-hidden="true"></i>
                 <i *ngIf="runSpinner()" id="texera-pause-icon" class="fa fa-spinner fa-spin" aria-hidden="true"></i>
@@ -55,8 +55,8 @@
               <span>
                   {{ getRunButtonText()}}
               </span>
-            </button>
-            
+          </button>
+
       </div>
     </div>
   </div>

@@ -42,7 +42,7 @@ export class NavigationComponent implements OnInit {
   public showSpinner = false;
   public executionResultID: string | undefined;
 
-  private operator_status_map: Map<string, boolean> = new Map<string, boolean> (); // this map record --> key operator, value status
+  private operatorStatusMap: Map<string, boolean> = new Map<string, boolean> (); // this map record --> key operator, value status
   private failOperatorCheck: number = 0; // check if there is fail operator
 
   constructor(private executeWorkflowService: ExecuteWorkflowService, private workflowActionService: WorkflowActionService,
@@ -71,7 +71,7 @@ export class NavigationComponent implements OnInit {
     executeWorkflowService.getExecutionPauseResumeStream()
       .subscribe(state => this.isWorkflowPaused = (state === 0));
 
-
+    // set the map of operatorStatusMap
     validationWorkflowService.getOperatorValidationStream().
       subscribe(value => {
           this.setOperatorMap(value.operatorID, value.status);
@@ -272,10 +272,10 @@ export class NavigationComponent implements OnInit {
    */
   private setOperatorMap(operatorID: string, status: boolean): void {
     const allOperatorIDs = this.workflowActionService.getTexeraGraph().getAllOperators().map(op => op.operatorID);
-    this.operator_status_map.set(operatorID, status);
-    this.operator_status_map.forEach(( status: boolean, operatorID: string) => {
+    this.operatorStatusMap.set(operatorID, status);
+    this.operatorStatusMap.forEach(( status: boolean, operatorID: string) => {
         if (allOperatorIDs.indexOf(operatorID) < 0) {
-          this.operator_status_map.delete(operatorID);
+          this.operatorStatusMap.delete(operatorID);
         }
       });
 
@@ -284,11 +284,11 @@ export class NavigationComponent implements OnInit {
 
 
   /**
-   * This function will check whether there are fails in operator_status_map
+   * This function will check whether there are fails in operatorStatusMap
    * if there is any fail, set this.isWorkflowFailed to true to disable the button
    */
   private checkFail(): void {
-    this.operator_status_map.forEach((status: boolean, operatorID: string) => {if (status === false) {
+    this.operatorStatusMap.forEach((status: boolean, operatorID: string) => {if (status === false) {
         this.failOperatorCheck = -1;
        }
       });
