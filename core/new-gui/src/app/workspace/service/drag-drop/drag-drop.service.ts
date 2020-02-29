@@ -113,22 +113,35 @@ export class DragDropService {
               / this.workflowActionService.getJointGraphWrapper().getZoomRatio()
         };
 
-        const operatorsAndPositions: {op: OperatorPredicate, pos: Point}[] = [];
-
-        operatorsAndPositions.push({op: operator, pos: newOperatorOffset});
-		this.workflowActionService.addOperatorsAndLinks(operatorsAndPositions, []);
+        const operatorsAndPositions: {op: OperatorPredicate, pos: Point}[] = [{op: operator, pos: newOperatorOffset}];
+        
+		const oldLinks: OperatorLink[] = this.workflowActionService.getTexeraGraph().getAllLinks();
+		const newLinks: OperatorLink[] = []
+		const graph = this.workflowActionService.getJointGraphWrapper()
+		
+		// sort ops by height, in order to pair them with ports closest to them
+		// assumes that for an op with multiple I/O ports, ports in op.inputPorts/outPutports are rendered
+		//              [first ... last] => [North ... South] 
+		// (e.g. Northmost input port is op.inputPorts[0], below that port is op.inputPorts[1], etc)
+		const heightSortedInputs: OperatorPredicate[] = this.suggestionInputs.slice(0).sort((op1,op2)=>
+			graph.getOperatorPosition(op1.operatorID).y - graph.getOperatorPosition(op2.operatorID).y
+		)
+		const heightSortedOutputs: OperatorPredicate[] = this.suggestionOutputs.slice(0).sort((op1,op2)=>
+			graph.getOperatorPosition(op1.operatorID).y - graph.getOperatorPosition(op2.operatorID).y
+		)
 		
         // if new operator has suggested links, create them
-		if (this.suggestionInputs !== undefined){
-			this.suggestionInputs.forEach(inputOperator => {
-				this.workflowActionService.addOperatorsAndLinks([], [this.getNewOperatorLink(inputOperator, operator)]);
+		if (heightSortedInputs !== undefined){
+			heightSortedInputs.forEach(inputOperator => {
+				newLinks.push(this.getNewOperatorLink(inputOperator,operator,oldLinks.concat(newLinks)))
 			})
 		}
-		if (this.suggestionInputs !== undefined){
-			this.suggestionOutputs!.forEach(outputOperator => {
-				this.workflowActionService.addOperatorsAndLinks([], [this.getNewOperatorLink(operator,outputOperator)]);
+		if (heightSortedOutputs !== undefined){
+			heightSortedOutputs.forEach(outputOperator => {
+				newLinks.push(this.getNewOperatorLink(operator,outputOperator,oldLinks.concat(newLinks)))
 			})
 		}
+		this.workflowActionService.addOperatorsAndLinks(operatorsAndPositions,newLinks);
         this.resetSuggestions()
 
         // reset the current operator type to an non-exist type
@@ -334,12 +347,12 @@ export class DragDropService {
           };
 
           // search for nearby operators as suggested I/O operators
-          let newInputs,newOutputs:OperatorPredicate[];
-          [newInputs, newOutputs] = this.findClosestOperators(scaledMouseCoordinates, currentOperator)
+          let newInputs, newOutputs: OperatorPredicate[];
+          [newInputs, newOutputs] = this.findClosestOperators(scaledMouseCoordinates, currentOperator);
           // update highlighting class vars to reflect new I/O operators
-          this.updateHighlighting(this.suggestionInputs!.concat(this.suggestionOutputs!),newInputs.concat(newOutputs))
-          this.suggestionInputs = newInputs
-          this.suggestionOutputs = newOutputs
+          this.updateHighlighting(this.suggestionInputs.concat(this.suggestionOutputs),newInputs.concat(newOutputs));
+          // assign new suggestions
+          [this.suggestionInputs,this.suggestionOutputs] = [newInputs,newOutputs];
       },
       error => console.error(error)
     );
@@ -451,9 +464,9 @@ export class DragDropService {
   }
 
  /**
-  * Highlights new operators and unhighlights old operators.
+  * Updates highlighted operators based on the diff between prev
   *
-  * @param prevHighlights currently highlighted Operators (some will be unhighlighted)
+  * @param prevHighLights are highlighted (some may be unhighlighted)
   * @param newHighLights will be highlighted after execution
   */
   private updateHighlighting (prevHighlights:OperatorPredicate[],newHighlights:OperatorPredicate[]){
@@ -470,21 +483,23 @@ export class DragDropService {
   
   /**  Unhighlights suggestions and clears suggestion lists */
   private resetSuggestions(): void{
-	this.updateHighlighting(this.suggestionInputs!.concat(this.suggestionOutputs!),[])
+	this.updateHighlighting(this.suggestionInputs.concat(this.suggestionOutputs),[])
     this.suggestionInputs = []
     this.suggestionOutputs = []
   }
 
     /**
    * This method will use an unique ID and 2 operator predicate to create and return
-   *  a new OperatorLink with initialized properties for the ports
-   *
+   *  a new OperatorLink with initialized properties for the ports.
+   *  Optionally, supply OperatorLink[] that shows occupied ports
    * @param sourceOperator
    * @param targetOperator
+   * @param OperatorLink
    */
-  private getNewOperatorLink(sourceOperator: OperatorPredicate, targetOperator: OperatorPredicate): OperatorLink {
-    const operatorLinks = this.workflowActionService.getTexeraGraph().getAllLinks();
-
+  private getNewOperatorLink(sourceOperator: OperatorPredicate, targetOperator: OperatorPredicate, operatorLinks?: OperatorLink[]): OperatorLink {
+	if(operatorLinks === undefined){
+		operatorLinks = this.workflowActionService.getTexeraGraph().getAllLinks();
+	}
     // find the port that has not being connected
     const allPortsFromSource = operatorLinks
       .filter(link => link.source.operatorID === sourceOperator.operatorID)
@@ -502,4 +517,5 @@ export class DragDropService {
     const target = { operatorID: targetOperator.operatorID, portID: validTargetPortsID[0]};
     return { linkID, source, target };
   }
+  
 }
