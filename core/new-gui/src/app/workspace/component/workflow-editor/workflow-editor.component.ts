@@ -13,7 +13,7 @@ import * as jQuery from 'jquery';
 import * as joint from 'jointjs';
 
 import { ResultPanelToggleService } from '../../service/result-panel-toggle/result-panel-toggle.service';
-import { Point, OperatorPredicate } from '../../types/workflow-common.interface';
+import { Point, OperatorPredicate, OperatorLink } from '../../types/workflow-common.interface';
 import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-graph-wrapper';
 import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
 import { SuccessProcessStatus } from '../../types/execute-workflow.interface';
@@ -132,6 +132,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.handleOperatorCopy();
     this.handleOperatorCut();
     this.handleOperatorPaste();
+    this.handleOperatorBreakpoint();
   }
 
 
@@ -144,6 +145,12 @@ export class WorkflowEditorComponent implements AfterViewInit {
     jointPaperOptions.el = jQuery(`#${this.WORKFLOW_EDITOR_JOINTJS_ID}`);
     // create the JointJS paper
     this.paper = new joint.dia.Paper(jointPaperOptions);
+    // this.workflowActionService.setPaper(this.paper);
+
+    // this.paper.on('tool:button:breakpoint', function(elementView: joint.dia.CellView, evt: JointPaperEvent) {
+    //   console.log(evt);
+    //   console.log(elementView);
+    // });
 
     this.setJointPaperOriginOffset();
     this.setJointPaperDimensions();
@@ -825,5 +832,25 @@ export class WorkflowEditorComponent implements AfterViewInit {
       }
     } while (overlapped);
     return position;
+  }
+
+  private handleOperatorBreakpoint(): void {
+    // bind the breakpoint button event to call the show breakpoint condition function in joint model action
+    Observable
+      .fromEvent<JointPaperEvent>(this.getJointPaper(), 'tool:breakpoint', {passive: true})
+      .map(value => value[0])
+      .subscribe(
+        elementView => {
+          this.workflowActionService.getJointGraphWrapper().setBreakpoint(elementView.model.id.toString());
+
+          // this.workflowActionService.getJointGraphWrapper().highlightOperator(operatorID);
+          // console.log('break', elementView.model.id.toString());
+        }
+    );
+
+    // console.log('there');
+    // this.workflowActionService.getJointGraphWrapper().getJointCellUnhighlightStream()
+    //   .subscribe(value => this.getJointPaper().getModelById(value.operatorID).removeAttr('.delete-button/display')
+    // );
   }
 }

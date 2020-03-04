@@ -5,6 +5,7 @@ import { Point } from '../../../types/workflow-common.interface';
 import { UndoRedoService } from './../../undo-redo/undo-redo.service';
 
 type operatorIDType = { operatorID: string };
+type linkIDType = { linkID: string };
 
 
 type JointModelEventInfo = {
@@ -89,6 +90,7 @@ export class JointGraphWrapper {
   private restorePaperOffsetSubject: Subject<Point> = new Subject<Point>();
   // event stream of panning to make mini-map and main workflow paper compatible in offset
   private panPaperOffsetSubject: Subject<Point> = new Subject<Point>();
+  private jointLinkCellAddBreakpointStream = new Subject<linkIDType>();
 
   // current zoom ratio
   private zoomRatio: number = JointGraphWrapper.INIT_ZOOM_VALUE;
@@ -247,6 +249,10 @@ export class JointGraphWrapper {
    */
   public getJointCellUnhighlightStream(): Observable<operatorIDType> {
     return this.jointCellUnhighlightStream.asObservable();
+  }
+
+  public getJointLinkCellAddBreakpointStream(): Observable<linkIDType> {
+    return this.jointLinkCellAddBreakpointStream.asObservable();
   }
 
   /**
@@ -429,6 +435,13 @@ export class JointGraphWrapper {
     }
     const element = <joint.dia.Element> cell;
     element.translate(offsetX, offsetY);
+  }
+
+  public setBreakpoint(linkID: string): void {
+    if (!this.jointGraph.getCell(linkID)) {
+      throw new Error(`opeartor with ID ${linkID} doesn't exist`);
+    }
+    this.jointLinkCellAddBreakpointStream.next({ linkID });
   }
 
   /**

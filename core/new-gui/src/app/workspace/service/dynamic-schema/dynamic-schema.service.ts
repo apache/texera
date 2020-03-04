@@ -5,7 +5,7 @@ import { Observable } from 'rxjs/Observable';
 import { Subject } from 'rxjs/Subject';
 import '../../../common/rxjs-operators';
 
-import { OperatorPredicate } from '../../types/workflow-common.interface';
+import { OperatorPredicate, BreakpointSchema } from '../../types/workflow-common.interface';
 import { OperatorSchema } from '../../types/operator-schema.interface';
 
 import { OperatorMetadataService } from '../operator-metadata/operator-metadata.service';
@@ -35,6 +35,7 @@ export class DynamicSchemaService {
   // dynamic schema of operators in the current workflow, specific to an operator and different from the static schema
   // directly calling `set()` is prohibited, it must go through `setDynamicSchema()`
   private dynamicSchemaMap = new Map<string, OperatorSchema>();
+  private dynamicBreakpointSchemaMap = new Map<string, BreakpointSchema>();
 
   private initialSchemaTransformers: SchemaTransformer[] = [];
 
@@ -90,6 +91,17 @@ export class DynamicSchemaService {
       throw new Error(`dynamic schema not found for ${operatorID}`);
     }
     return dynamicSchema;
+  }
+
+  public getDynamicBreakpointSchema(linkID: string): BreakpointSchema {
+    if (! this.dynamicBreakpointSchemaMap.has(linkID)) {
+      this.dynamicBreakpointSchemaMap.set(linkID, this.operatorMetadataService.getBreakpointSchema());
+    }
+    const dynamicBreakpointStatus = this.dynamicBreakpointSchemaMap.get(linkID);
+    if (!dynamicBreakpointStatus) {
+      throw new Error('dynamic breakpoint schema not found.');
+    }
+    return dynamicBreakpointStatus;
   }
 
   /**

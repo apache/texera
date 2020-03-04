@@ -5,6 +5,7 @@ import '../../../common/rxjs-operators';
 
 import { AppSettings } from '../../../common/app-setting';
 import { OperatorMetadata, OperatorSchema } from '../../types/operator-schema.interface';
+import { BreakpointSchema } from '../../types/workflow-common.interface';
 
 export const OPERATOR_METADATA_ENDPOINT = 'resources/operator-metadata';
 
@@ -18,6 +19,27 @@ const getDictionaryAPIAddress = '/api/upload/dictionary/';
 
 // interface only containing public methods
 export type IOperatorMetadataService = Pick<OperatorMetadataService, keyof OperatorMetadataService>;
+
+export const mockBreakpointSchema: BreakpointSchema = {
+  jsonSchema: {
+    type: 'object',
+    id: 'urn:jsonschema:edu:uci:ics:texera:dataflow:comparablematcher:ComparablePredicate',
+    properties: {
+      attribute: {
+        type: 'string'
+      },
+      comparisonType: {
+        type: 'string',
+        enum: ['=', '>', '>=', '<', '<=', '≠']
+      },
+      compareTo: {
+        type: 'any'
+      }
+    },
+    required: ['attribute', 'comparisonType', 'compareTo']
+  }
+};
+
 
 /**
  * OperatorMetadataService talks to the backend to fetch the operator metadata,
@@ -40,6 +62,7 @@ export class OperatorMetadataService {
 
   // holds the current version of operator metadata
   private currentOperatorMetadata: OperatorMetadata | undefined;
+  private currentBreakpointSchema: BreakpointSchema | undefined;
 
   private operatorMetadataObservable = this.httpClient
     .get<OperatorMetadata>(`${AppSettings.getApiEndpoint()}/${OPERATOR_METADATA_ENDPOINT}`)
@@ -50,6 +73,7 @@ export class OperatorMetadataService {
     this.getOperatorMetadata().subscribe(
       data => this.currentOperatorMetadata = data
     );
+    this.currentBreakpointSchema = mockBreakpointSchema;
   }
 
   /**
@@ -92,6 +116,14 @@ export class OperatorMetadataService {
       return false;
     }
     return true;
+  }
+
+
+  public getBreakpointSchema(): BreakpointSchema {
+    if (! this.currentBreakpointSchema) {
+      throw new Error('breakpoint schema is undefined');
+    }
+    return this.currentBreakpointSchema;
   }
 
 }

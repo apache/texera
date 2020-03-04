@@ -1,5 +1,5 @@
 import { OperatorSchema } from './../../types/operator-schema.interface';
-import { OperatorPredicate } from '../../types/workflow-common.interface';
+import { OperatorPredicate, BreakpointSchema } from '../../types/workflow-common.interface';
 import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
 import { DynamicSchemaService } from '../../service/dynamic-schema/dynamic-schema.service';
 import { Component } from '@angular/core';
@@ -15,6 +15,8 @@ export interface IndexableObject extends Readonly<{
 }> { }
 import { JSONSchema4 } from 'json-schema';
 import { IndexableObject } from '../../types/result-table.interface';
+
+type linkIDType = { linkID: string };
 
 
 /**
@@ -57,13 +59,18 @@ export class PropertyEditorComponent {
   // a *copy* of the operator property as the initial input to the json schema form
   // see details of why making a copy below at where the copy is made
   public currentOperatorInitialData: object | undefined;
+  public currentBreakpointInitialData: object | undefined;
 
   // the operator schemas of the current operator
   public currentOperatorSchema: OperatorSchema | undefined;
   public advancedOperatorSchema: OperatorSchema | undefined;
 
+  public currentLink: linkIDType | undefined;
+  public currentLinkBreakpointSchema: BreakpointSchema | undefined;
+
   // used in HTML template to control if the form is displayed
   public displayForm: boolean = false;
+  public displayBreakpointEditor: boolean = false;
 
   // the form layout passed to angular json schema library to hide *submit* button
   public formLayout: object = PropertyEditorComponent.generateFormLayout();
@@ -127,6 +134,8 @@ export class PropertyEditorComponent {
     // handle highlight / unhighlight event to show / hide the property editor form
     this.handleHighlightEvents();
 
+    this.handleLinkAddBreakpoint();
+
   }
 
   /**
@@ -164,6 +173,7 @@ export class PropertyEditorComponent {
     // set displayForm to false in the very beginning
     // hide the view first and then make everything null
     this.displayForm = false;
+    this.displayBreakpointEditor = false;
     this.showAdvanced = false;
     this.currentOperatorID = undefined;
     this.currentOperatorInitialData = undefined;
@@ -306,6 +316,52 @@ export class PropertyEditorComponent {
         } else {
           this.clearPropertyEditor();
         }
+      });
+  }
+
+  public showBreakpointPropertyEditor(linkID: linkIDType): void {
+    if (!this.workflowActionService.getTexeraGraph().hasLinkWithID(linkID.linkID)) {
+      throw new Error(`change property editor: link does not exist`);
+    }
+    // set displayForm to false first to hide the view while constructing data
+    this.displayForm = false;
+
+    // set the operator data needed
+    this.currentLink = linkID;
+    this.currentLinkBreakpointSchema = this.autocompleteService.getDynamicBreakpointSchema(this.currentLink.linkID);
+
+    // handle generating schemas for advanced / hidden options
+    // this.handleUpdateAdvancedSchema(operator);
+
+    // handler to show operator detail description button or not
+    // this.handleOperatorPropertyDescription(this.currentOperatorSchema);
+
+    /**
+     * Make a deep copy of the initial property data object.
+     * It's important to make a deep copy. If it's a reference to the operator's property object,
+     *  form change event -> property object change -> input to form change -> form change event
+     *  although the it falls into an infinite loop of tirggering events.
+     * Making a copy prevents that property object change triggers the input to the form changes.
+     *
+     * Although currently other methods also prevent this to happen, it's still good to explicitly make a copy.
+     *  - now the operator property object is immutable, meaning a new property object is construct to replace the old one,
+     *      instead of directly mutating the same object reference
+     *  - now the formChange event handler checks if the new formData is equal to the current operator data,
+     *      which prevents the
+     */
+    // when operator in the property editor changes, the cachedFormData should also be changed
+    // set displayForm to true in the end - first initialize all the data then show the view
+    this.displayBreakpointEditor = true;
+  }
+
+  public handleLinkAddBreakpoint() {
+    this.workflowActionService.getJointGraphWrapper().getJointLinkCellAddBreakpointStream()
+      .subscribe(value => {
+        console.log('clicked ' + value.linkID);
+        this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOpeartorIDs()
+              .forEach(operatorID => this.workflowActionService.getJointGraphWrapper().unhighlightOperator(operatorID));
+        this.clearPropertyEditor();
+        this.showBreakpointPropertyEditor(value);
       });
   }
 
