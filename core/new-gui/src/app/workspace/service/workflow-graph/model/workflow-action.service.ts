@@ -2,7 +2,7 @@ import { UndoRedoService } from './../../undo-redo/undo-redo.service';
 import { OperatorMetadataService } from './../../operator-metadata/operator-metadata.service';
 import { SyncTexeraModel } from './sync-texera-model';
 import { JointGraphWrapper } from './joint-graph-wrapper';
-import { JointUIService } from './../../joint-ui/joint-ui.service';
+import { JointUIService, breakpointButtonSVG } from './../../joint-ui/joint-ui.service';
 import { WorkflowGraph, WorkflowGraphReadonly } from './workflow-graph';
 import { Injectable } from '@angular/core';
 import { Point, OperatorPredicate, OperatorLink, OperatorPort } from '../../../types/workflow-common.interface';
@@ -10,6 +10,7 @@ import { Point, OperatorPredicate, OperatorLink, OperatorPort } from '../../../t
 import * as joint from 'jointjs';
 import { environment } from './../../../../../environments/environment';
 
+type JointPaperEvent = [joint.dia.CellView, JQuery.Event, number, number];
 
 export interface Command {
   execute(): void;
@@ -44,6 +45,7 @@ export class WorkflowActionService {
   private readonly jointGraph: joint.dia.Graph;
   private readonly jointGraphWrapper: JointGraphWrapper;
   private readonly syncTexeraModel: SyncTexeraModel;
+  // private paper: joint.dia.Paper | undefined;
 
   constructor(
     private operatorMetadataService: OperatorMetadataService,
@@ -147,6 +149,13 @@ export class WorkflowActionService {
     paperOptions.model = this.jointGraph;
     return paperOptions;
   }
+
+  /**
+   * setPaper
+   */
+  // public setPaper(paper: joint.dia.Paper) {
+  //   this.paper = paper;
+  // }
 
   /**
    * Adds an opreator to the workflow graph at a point.
@@ -391,6 +400,55 @@ export class WorkflowActionService {
     // add the link to JointJS
     const jointLinkCell = JointUIService.getJointLinkCell(link);
     this.jointGraph.addCell(jointLinkCell);
+
+    // const InfoButton = joint.linkTools.Button.extend({
+    //   name: 'info-button',
+    //   options: {
+    //       markup: [{
+    //           tagName: 'circle',
+    //           selector: 'button',
+    //           attributes: {
+    //               'r': 7,
+    //               'fill': '#001DFF',
+    //               'cursor': 'pointer',
+    //               'event': 'breakpoint',
+    //           },
+    //       }, {
+    //           tagName: 'path',
+    //           selector: 'icon',
+    //           attributes: {
+    //               'd': 'M -2 4 2 4 M 0 3 0 0 M -2 -1 1 -1 M -1 -4 1 -4',
+    //               'fill': 'none',
+    //               'stroke': '#FFFFFF',
+    //               'stroke-width': 2,
+    //               'pointer-events': 'none'
+    //           }
+    //       }],
+    //       event: 'breakpoint',
+    //       distance: 60,
+    //       offset: 0,
+    //       id: jointLinkCell.id
+    //       // action: function(evt: JQuery.Event) {
+    //       //   if (evt.toElement) {
+    //       //     console.log('what can I do?!!!!');
+    //       //     // evt.toElement.dispatchEvent(new Event('tool:remove'));
+    //       //   }
+    //       // }
+    //         // console.log(event);
+    //         // console.log(this.id);
+    //         // WorkflowActionService.deleteLinkWithID(this.id);
+    //   }
+    // });
+
+    // if (this.paper) {
+    //   const linkview = jointLinkCell.findView(this.paper);
+    //   const removeButton = new joint.linkTools.Remove();
+    //   const infoButton = new InfoButton();
+    //   const toolsView = new joint.dia.ToolsView({
+    //     tools: [removeButton, infoButton]
+    //   });
+    //   linkview.addTools(toolsView);
+    // }
     // JointJS link add event will propagate and trigger Texera link add
   }
 

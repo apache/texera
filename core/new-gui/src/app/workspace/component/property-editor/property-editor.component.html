@@ -37,4 +37,22 @@
     </button>
   </div>
 
+  <div *ngIf="displayBreakpointEditor">
+    <h3 class="texera-workspace-property-editor-title" mat-subheader>
+      "Link Breakpoint Editor"
+    </h3>
+
+    <json-schema-form
+      class="texera-workspace-property-editor-form"
+      framework="material-design"
+      loadExternalAssets="true"
+      [schema]="currentLinkBreakpointSchema?.jsonSchema"
+      [data]="currentBreakpointInitialData"
+      [layout]="formLayout"
+      (onChanges)="onFormChanges($event)"
+    >
+    </json-schema-form>
+
+  </div>
+
 </div>
