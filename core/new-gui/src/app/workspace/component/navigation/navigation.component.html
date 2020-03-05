@@ -47,7 +47,7 @@
               </span>
           </button>
           <button mat-raised-button class="texera-navigation-run-button texera-navigation-run-text"
-            [ngStyle]="{'background-color': !getDisabled() ? 'blue':'red','opacity' : !getDisabled() ? '' : '0.7'}" (click)="onButtonClick()" >
+            [ngStyle]="{'background-color': !getDisabled() ? '#5081f3':'#ff0000','opacity' : !getDisabled() ? '' : '0.7'}" (click)="onButtonClick()" >
               <span>
                 <i *ngIf="!runSpinner()" id="texera-run-icon" class="fa fa-play" aria-hidden="true"></i>
                 <i *ngIf="runSpinner()" id="texera-pause-icon" class="fa fa-spinner fa-spin" aria-hidden="true"></i>
