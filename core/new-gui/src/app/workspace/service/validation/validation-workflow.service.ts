@@ -106,7 +106,7 @@ export class ValidationWorkflowService {
     // to capture
     this.workflowActionService.getTexeraGraph().getOperatorDeleteStream()
       .subscribe(value => {this.operatorValidationStream.next({
-          status: true, operatorID: 'DeleteButton'});
+          status: false, operatorID: 'DeleteButton'});
           this.setOperatorValidationErrorMap('DeleteButton');
           this.operatorValidationErrorMapStream.next({
             map: this.operatorErrorMap});

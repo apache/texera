@@ -88,7 +88,7 @@ describe('ValidationWorkflowService', () => {
 
     testEvents.subscribe(action => action());
 
-    const expected = m.hot('-t-u-(vw)-x-(yz)-)', {
+    const expected = m.hot('-t-u-(vw)-x-(yzm)-)', {
       't': {operatorID: '1', status: false},
       'u': {operatorID: '3', status: false},
       'v': {operatorID: '1', status: false},
@@ -96,6 +96,7 @@ describe('ValidationWorkflowService', () => {
       'x': {operatorID: '1', status: true},
       'y': {operatorID: '1', status: false}, // If one of the oprator is deleted, the other one is invaild since it is isolated
       'z': {operatorID: '3', status: false},
+      'm': {operatorID: 'DeleteButton', status: false}
 
     });
 
