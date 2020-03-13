@@ -31,7 +31,7 @@ describe('NgbdModalDeleteProjectComponent', () => {
       ],
       imports: [
         MatDialogModule,
-        NgbModule.forRoot(),
+        NgbModule,
         FormsModule,
         HttpClientModule]
     })

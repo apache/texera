@@ -1,14 +1,11 @@
 import { Subject } from 'rxjs/Subject';
 import { Observable } from 'rxjs/Observable';
 import { OperatorPredicate, OperatorLink, OperatorPort } from '../../../types/workflow-common.interface';
-import { isEqual } from 'lodash-es';
+import { isEqual } from 'lodash';
 
 // define the restricted methods that could change the graph
 type restrictedMethods =
   'addOperator' | 'deleteOperator' | 'addLink' | 'deleteLink' | 'deleteLinkWithID' | 'setOperatorProperty';
-
-// define a type Omit that creates a type with certain methods/properties omitted from it
-type Omit<T, K extends keyof T> = Pick<T, Exclude<keyof T, K>>;
 
 /**
  * WorkflowGraphReadonly is a type that only contains the readonly methods of WorkflowGraph.

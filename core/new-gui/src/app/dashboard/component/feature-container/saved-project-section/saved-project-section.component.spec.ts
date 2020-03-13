@@ -65,7 +65,7 @@ describe('SavedProjectSectionComponent', () => {
         MatListModule,
         MatCardModule,
         MatDialogModule,
-        NgbModule.forRoot(),
+        NgbModule,
         FormsModule,
         HttpClientModule]
     })

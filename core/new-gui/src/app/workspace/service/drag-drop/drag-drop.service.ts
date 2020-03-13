@@ -7,7 +7,18 @@ import { Injectable } from '@angular/core';
 import { Subject } from 'rxjs/Subject';
 
 import * as joint from 'jointjs';
-import isEqual from 'lodash-es/isEqual';
+
+// if jQuery needs to be used: 1) use jQuery instead of `$`, and
+// 2) always add this import statement even if TypeScript doesn't show an error https://github.com/Microsoft/TypeScript/issues/22016
+import * as jQuery from 'jquery';
+// this is the property way to import jquery-ui to Angular, make sure to import it after import jQuery
+// https://stackoverflow.com/questions/43323515/error-when-using-jqueryui-with-typescript-and-definitelytyped-definition-file
+// this approach is better than including it in `scripts` in `angular.json` because it avoids loading jQuery overrides jQuery UI
+import '../../../../../node_modules/jquery-ui-dist/jquery-ui';
+
+import { isEqual } from 'lodash';
+
+
 
 /**
  * The OperatorDragDropService class implements the behavior of dragging an operator label from the side bar
@@ -126,8 +137,6 @@ export class DragDropService {
           this.suggestionOperator = undefined;
         }
 
-        // highlight the operator after adding the operator
-        this.workflowActionService.getJointGraphWrapper().highlightOperator(operator.operatorID);
         // reset the current operator type to an non-exist type
         this.currentDragElementID = DragDropService.DRAG_DROP_TEMP_ELEMENT_ID;
         this.currentOperatorType = DragDropService.DRAG_DROP_TEMP_OPERATOR_TYPE;
@@ -191,13 +200,13 @@ export class DragDropService {
       helper: () => this.createFlyingOperatorElement(dragElementID, operatorType),
       // declare event as type any because the jQueryUI type declaration is wrong
       // it should be of type JQuery.Event, which is incompatible with the the declared type Event
-      start: (event: any, ui) => this.handleOperatorStartDrag(event, ui),
+      start: (event: JQueryEventObject, ui: JQueryUI.DraggableEventUIParams) => this.handleOperatorStartDrag(event, ui),
       // The draggable element will be created with the mouse starting point at the center
       cursorAt : {
         left: JointUIService.DEFAULT_OPERATOR_WIDTH / 2,
         top: JointUIService.DEFAULT_OPERATOR_HEIGHT / 2
       },
-      stop: (event: any, ui) => {
+      stop: (event: JQueryEventObject, ui: JQueryUI.DraggableEventUIParams) => {
         // this is to unhighlight the suggested operator when the user release mouse at other
         //  components than the workflow editor
         if (this.suggestionOperator !== undefined) {
@@ -264,7 +273,7 @@ export class DragDropService {
    * @param event JQuery.Event type, although JQueryUI typing says the type is Event, the object's actual type is JQuery.Event
    * @param ui jQueryUI Draggable Event UI
    */
-  private handleOperatorStartDrag(event: JQuery.Event, ui: JQueryUI.DraggableEventUIParams): void {
+  private handleOperatorStartDrag(event: Event, ui: JQueryUI.DraggableEventUIParams): void {
     const eventElement = event.target;
     if (!(eventElement instanceof Element)) {
       throw new Error('Incorrect type: in most cases, this element is type Element');
@@ -326,7 +335,6 @@ export class DragDropService {
       .filter(() => !isOperatorDropped)
       .subscribe(mouseCoordinates => {
           const currentMouseCoordinates = {x: mouseCoordinates[0], y: mouseCoordinates[1]};
-
           // scale the current mouse coordinate according to the current offset and zoom ratio
           const scaledMouseCoordinates = {
             x: (currentMouseCoordinates.x - this.workflowActionService.getJointGraphWrapper().getPanningOffset().x)

@@ -1,3 +1,4 @@
+import { attributeListInJsonSchema } from './../../service/dynamic-schema/schema-propagation/schema-propagation.service';
 import { OperatorSchema } from './../../types/operator-schema.interface';
 import { OperatorPredicate } from '../../types/workflow-common.interface';
 import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
@@ -8,11 +9,7 @@ import { Subject } from 'rxjs/Subject';
 import { Observable } from 'rxjs/Observable';
 import '../../../common/rxjs-operators';
 
-// all lodash import should follow this parttern
-// import `functionName` from `lodash-es/functionName`
-// to import only the function that we use
-import cloneDeep from 'lodash-es/cloneDeep';
-import isEqual from 'lodash-es/isEqual';
+import { cloneDeep, isEqual} from 'lodash';
 
 export interface IndexableObject extends Readonly<{
   [key: string]: object | string | boolean | symbol | number | Array<object>;
@@ -203,7 +200,7 @@ export class PropertyEditorComponent {
     advancedOptionsList.forEach(
       advancedOption => {
         if (currentSchemaProperties && advancedOption in currentSchemaProperties) {
-          const { [advancedOption] : [], ...newProperties} = currentSchemaProperties;
+          const { [advancedOption]: a, ...newProperties} = currentSchemaProperties;
           currentSchemaProperties = newProperties;
         }
 
@@ -279,24 +276,6 @@ export class PropertyEditorComponent {
     this.cachedFormData = this.currentOperatorInitialData;
     // set displayForm to true in the end - first initialize all the data then show the view
     this.displayForm = true;
-  }
-
-  /**
-   * Handles the highlight / unhighlight events.
-   * On highlight -> display the form of the highlighted operator
-   * On unhighlight -> hides the form
-   */
-  public handleHighlightEvents() {
-    this.workflowActionService.getJointGraphWrapper().getJointCellHighlightStream()
-      .filter(value => value.operatorID !== this.currentOperatorID)
-      .map(value => this.workflowActionService.getTexeraGraph().getOperator(value.operatorID))
-      .subscribe(
-        operator => this.changePropertyEditor(operator)
-      );
-
-    this.workflowActionService.getJointGraphWrapper().getJointCellUnhighlightStream()
-      .filter(value => value.operatorID === this.currentOperatorID)
-      .subscribe(() => this.clearPropertyEditor());
   }
 
   /**
@@ -533,6 +512,36 @@ export class PropertyEditorComponent {
         this.workflowActionService.setOperatorProperty(this.currentOperatorID, formData);
       }
     });
+  }
+
+  /**
+   * Handles the operator highlight / unhighlight events.
+   *
+   * When operators are highlighted / unhighlighted,
+   *   -> displays the form of the highlighted operator if only one operator is highlighted
+   *   -> hides the form otherwise
+   */
+  private handleHighlightEvents() {
+    this.workflowActionService.getJointGraphWrapper().getJointCellHighlightStream()
+      .subscribe(() => this.changePropertyEditorOnHighlightEvents());
+    this.workflowActionService.getJointGraphWrapper().getJointCellUnhighlightStream()
+      .subscribe(() => this.changePropertyEditorOnHighlightEvents());
+  }
+
+  /**
+   * This method changes the property editor according to how operators are highlighted on the workflow editor.
+   *
+   * Displays the form of the highlighted operator if only one operator is highlighted;
+   * hides the form if no operator is highlighted or multiple operators are highlighted.
+   */
+  private changePropertyEditorOnHighlightEvents() {
+    const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+    if (highlightedOperators.length === 1) {
+      const operator = this.workflowActionService.getTexeraGraph().getOperator(highlightedOperators[0]);
+      this.changePropertyEditor(operator);
+    } else {
+      this.clearPropertyEditor();
+    }
   }
 
   /**

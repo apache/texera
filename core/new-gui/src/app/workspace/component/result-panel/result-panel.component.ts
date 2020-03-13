@@ -10,7 +10,7 @@ import { TableColumn, IndexableObject } from './../../types/result-table.interfa
 import { ResultPanelToggleService } from './../../service/result-panel-toggle/result-panel-toggle.service';
 import { ValidationWorkflowService } from '../../service/validation/validation-workflow.service';
 import deepMap from 'deep-map';
-import { isEqual } from 'lodash-es';
+import { isEqual } from 'lodash';
 
 
 /**
@@ -46,7 +46,7 @@ export class ResultPanelComponent {
   public split_errMessages: string[] | undefined;
 
 
-  @ViewChild(MatPaginator) paginator: MatPaginator | null = null;
+  @ViewChild(MatPaginator, { static : false }) paginator: MatPaginator | null = null;
 
   private currentResult: object[] = [];
   private currentMaxPageSize: number = 0;
@@ -310,7 +310,7 @@ export class ResultPanelComponent {
    * @param rowData original row data returns from execution
    */
   private static trimDisplayJsonData(rowData: IndexableObject): object {
-    const rowDataTrimmed = deepMap(rowData, value => {
+    const rowDataTrimmed = deepMap<object>(rowData, value => {
       if (typeof value === 'string' && value.length > this.PRETTY_JSON_TEXT_LIMIT) {
         return value.substring(0, this.PRETTY_JSON_TEXT_LIMIT) + '...';
       } else {

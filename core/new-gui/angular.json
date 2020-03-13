@@ -28,11 +28,7 @@
               "src/styles.scss"
             ],
             "scripts": [
-              "node_modules/jquery/dist/jquery.js",
-              "node_modules/lodash/index.js",
-              "node_modules/backbone/backbone.js",
-              "node_modules/jointjs/dist/joint.js",
-              "node_modules/jquery-ui-dist/jquery-ui.js"
+
             ]
           },
           "configurations": {
@@ -81,11 +77,6 @@
             "polyfills": "src/polyfills.ts",
             "tsConfig": "src/tsconfig.spec.json",
             "scripts": [
-              "node_modules/jquery/dist/jquery.js",
-              "node_modules/lodash/index.js",
-              "node_modules/backbone/backbone.js",
-              "node_modules/jointjs/dist/joint.js",
-              "node_modules/jquery-ui-dist/jquery-ui.js"
             ],
             "styles": [
               "node_modules/jointjs/css/layout.css",

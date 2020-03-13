@@ -1,3 +1,4 @@
+import { UndoRedoService } from './../../undo-redo/undo-redo.service';
 import { SyncTexeraModel } from './sync-texera-model';
 import { JointGraphWrapper } from './joint-graph-wrapper';
 import { WorkflowGraph } from './workflow-graph';
@@ -25,10 +26,10 @@ describe('SyncTexeraModel', () => {
    *
    * @param operatorID
    */
-  function getJointOperatorValue(operatorID: string) {
+  function getJointOperatorValue(operatorID: string): joint.dia.Element {
     return {
       id: operatorID
-    };
+    } as joint.dia.Element;
   }
 
   /**
@@ -37,7 +38,7 @@ describe('SyncTexeraModel', () => {
    *  and are used by the implementation code.
    * @param link
    */
-  function getJointLinkValue(link: OperatorLink) {
+  function getJointLinkValue(link: OperatorLink): joint.dia.Link {
     // getSourceElement, getTargetElement, and get all returns a function
     //  that returns the corresponding value
     return {
@@ -57,7 +58,7 @@ describe('SyncTexeraModel', () => {
       //     throw new Error('getJointLinkValue: mock is inconsistent with implementation');
       //   }
       // }
-    };
+    } as joint.dia.Link;
   }
 
   /**
@@ -69,7 +70,7 @@ describe('SyncTexeraModel', () => {
    *
    * @param link an operator link, but the target operator and target link is ignored
    */
-  function getIncompleteJointLink(link: OperatorLink) {
+  function getIncompleteJointLink(link: OperatorLink): joint.dia.Link {
     // getSourceElement, getTargetElement, and get all returns a function
     //  that returns the corresponding value
     return {
@@ -85,17 +86,18 @@ describe('SyncTexeraModel', () => {
           throw new Error('getJointLinkValue: mock is inconsistent with implementation');
         }
       }
-    };
+    } as joint.dia.Link;
   }
 
   beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [
+        UndoRedoService
       ]
     });
 
     texeraGraph = new WorkflowGraph();
-    jointGraphWrapper = new JointGraphWrapper(new joint.dia.Graph());
+    jointGraphWrapper = new JointGraphWrapper(new joint.dia.Graph(), TestBed.get(UndoRedoService));
   });
 
   /**
@@ -194,7 +196,7 @@ describe('SyncTexeraModel', () => {
    * Expected:
    * delete an nonexit operator, error is thrown
    */
-  it('should explicitly throw an error if the JointJS operator delete event deletes an nonexist operator', marbles((m) => {
+  it('should explicitly throw an error if the JointJS operator delete event deletes a nonexist operator', marbles((m) => {
 
     // add operators
     texeraGraph.addOperator(mockScanPredicate);
@@ -321,7 +323,7 @@ describe('SyncTexeraModel', () => {
    * Expected:
    * The link should be deleted
    */
-  it('should delete a link when link delete event happen from JointJS', marbles((m) => {
+  it('should delete a link when link delete event happens from JointJS', marbles((m) => {
 
     // add operators
     texeraGraph.addOperator(mockScanPredicate);

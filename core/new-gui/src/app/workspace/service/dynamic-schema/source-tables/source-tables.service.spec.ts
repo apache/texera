@@ -16,6 +16,7 @@ import { SourceTablesService, SOURCE_TABLE_NAMES_ENDPOINT } from './source-table
 import { mockSourceTableAPIResponse, mockTableTwitter, mockTablePromed } from './mock-source-tables.data';
 import { mockScanPredicate, mockPoint } from '../../workflow-graph/model/mock-workflow-data';
 import { OperatorPredicate } from '../../../types/workflow-common.interface';
+import { environment } from '../../../../../environments/environment';
 
 /* tslint:disable: no-non-null-assertion */
 describe('SourceTablesService', () => {
@@ -38,6 +39,7 @@ describe('SourceTablesService', () => {
 
     httpClient = TestBed.get(HttpClient);
     httpTestingController = TestBed.get(HttpTestingController);
+    environment.sourceTableEnabled = true;
   });
 
   it('should fetch source tables from backend API', () => {

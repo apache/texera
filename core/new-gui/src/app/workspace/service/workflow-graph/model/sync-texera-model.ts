@@ -40,6 +40,7 @@ export class SyncTexeraModel {
   private handleJointOperatorDelete(): void {
     this.jointGraphWrapper.getJointOperatorCellDeleteStream()
       .map(element => element.id.toString())
+      .filter(elementID => this.texeraGraph.hasOperator(elementID))
       .subscribe(elementID => this.texeraGraph.deleteOperator(elementID));
   }
 
@@ -69,7 +70,7 @@ export class SyncTexeraModel {
      *  and only add valid links to the graph
      */
     this.jointGraphWrapper.getJointLinkCellAddStream()
-      .filter(link => SyncTexeraModel.isValidJointLink(link))
+      .filter(link => this.isValidJointLink(link))
       .map(link => SyncTexeraModel.getOperatorLink(link))
       .subscribe(link => this.texeraGraph.addLink(link));
 
@@ -79,8 +80,9 @@ export class SyncTexeraModel {
      *  then delete the link by the link ID
      */
     this.jointGraphWrapper.getJointLinkCellDeleteStream()
-      .filter(link => SyncTexeraModel.isValidJointLink(link))
-      .subscribe(link => this.texeraGraph.deleteLinkWithID(link.id.toString()));
+      .filter(link => this.isValidJointLink(link))
+      .map(link => SyncTexeraModel.getOperatorLink(link))
+      .subscribe(link => this.texeraGraph.deleteLinkWithID(link.linkID));
 
 
     /**
@@ -94,11 +96,27 @@ export class SyncTexeraModel {
         const linkID = link.id.toString();
         if (this.texeraGraph.hasLinkWithID(linkID)) { this.texeraGraph.deleteLinkWithID(linkID); }
       })
-      .filter(link => SyncTexeraModel.isValidJointLink(link))
+      .filter(link => this.isValidJointLink(link))
       .map(link => SyncTexeraModel.getOperatorLink(link))
       .subscribe(link => {
         this.texeraGraph.addLink(link);
       });
+  }
+
+  /**
+   * Determines if a jointJS link is valid (both ends are connected to a port of  port).
+   * If a JointJS link's target is still a point (not connected), it's not considered a valid link.
+   * @param jointLink
+   */
+  private isValidJointLink(jointLink: joint.dia.Link): boolean {
+    return jointLink && jointLink.attributes &&
+      jointLink.attributes.source && jointLink.attributes.target &&
+      jointLink.attributes.source.id && jointLink.attributes.source.port &&
+      jointLink.attributes.target.id && jointLink.attributes.target.port &&
+      (this.texeraGraph.hasOperator(jointLink.attributes.source.id.toString()) ||
+      this.texeraGraph.hasOperator(jointLink.attributes.target.id.toString()));
+      // the above two lines are causing unit test fail in sync-texera-model.spec.ts
+      // since if operator is deleted first the link will become invalid and thus undeletable.
   }
 
   /**
@@ -107,7 +125,6 @@ export class SyncTexeraModel {
    * @param jointLink
    */
   static getOperatorLink(jointLink: joint.dia.Link): OperatorLink {
-
     type jointLinkEndpointType = {id: string, port: string} | null | undefined;
 
     // the link should be a valid link (both source and target are connected to an operator)
@@ -135,19 +152,6 @@ export class SyncTexeraModel {
       }
     };
   }
-
-  /**
-   * Determines if a jointJS link is valid (both ends are connected to a port of  port).
-   * If a JointJS link's target is still a point (not connected), it's not considered a valid link.
-   * @param jointLink
-   */
-  static isValidJointLink(jointLink: joint.dia.Link): boolean {
-    return jointLink && jointLink.attributes &&
-      jointLink.attributes.source && jointLink.attributes.target &&
-      jointLink.attributes.source.id && jointLink.attributes.source.port &&
-      jointLink.attributes.target.id && jointLink.attributes.target.port;
-  }
-
 
 }
 

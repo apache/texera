@@ -6,7 +6,7 @@ import { environment } from './../environments/environment';
 
 import { CustomNgMaterialModule } from './common/custom-ng-material.module';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
-import { NgbModule } from '@ng-bootstrap/ng-bootstrap';
+import { NgbModule, NgbPopoverModule } from '@ng-bootstrap/ng-bootstrap';
 import { RouterModule } from '@angular/router';
 import { TourNgBootstrapModule } from 'ngx-tour-ng-bootstrap';
 import { LoggerModule, NgxLoggerLevel } from 'ngx-logger';
@@ -14,9 +14,12 @@ import { LoggerModule, NgxLoggerLevel } from 'ngx-logger';
 import { MaterialDesignFrameworkModule } from 'angular6-json-schema-form';
 import { NgxJsonViewerModule } from 'ngx-json-viewer';
 
+import { MatTooltipModule } from '@angular/material';
+
 import { AppComponent } from './app.component';
 import { WorkspaceComponent } from './workspace/component/workspace.component';
-import { NavigationComponent } from './workspace/component/navigation/navigation.component';
+import { NavigationComponent} from './workspace/component/navigation/navigation.component';
+
 import { OperatorPanelComponent } from './workspace/component/operator-panel/operator-panel.component';
 import { PropertyEditorComponent } from './workspace/component/property-editor/property-editor.component';
 import { WorkflowEditorComponent } from './workspace/component/workflow-editor/workflow-editor.component';
@@ -96,17 +99,19 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
     OperatorLabelComponent,
     ProductTourComponent,
     MiniMapComponent,
-    ResultPanelToggleComponent
+    ResultPanelToggleComponent,
   ],
   imports: [
     BrowserModule,
     AppRoutingModule,
     HttpClientModule,
 
+    MatTooltipModule,
     NgxJsonViewerModule,
     CustomNgMaterialModule,
     BrowserAnimationsModule,
-    NgbModule.forRoot(),
+    NgbModule,
+    NgbPopoverModule,
     RouterModule.forRoot([]),
     TourNgBootstrapModule.forRoot(),
 

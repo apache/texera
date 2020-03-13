@@ -9,6 +9,9 @@ import { OperatorMetadataService } from '../operator-metadata/operator-metadata.
 import { StubOperatorMetadataService } from '../operator-metadata/stub-operator-metadata.service';
 import { mockOperatorMetaData } from '../operator-metadata/mock-operator-metadata.data';
 
+import * as jQuery from 'jquery';
+import '../../../../../node_modules/jquery-ui-dist/jquery-ui';
+
 import { marbles } from 'rxjs-marbles';
 import { mockScanPredicate, mockResultPredicate, mockScanResultLink } from '../workflow-graph/model/mock-workflow-data';
 import { OperatorLink } from '../../types/workflow-common.interface';
@@ -67,7 +70,7 @@ describe('DragDropService', () => {
 
     const marbleString = '-a-|';
     const marbleValues = {
-      a : {operatorType: operatorType, offset: {x: 100, y: 100}}
+      a : {operatorType: operatorType, offset: {x: 100, y: 100}, dragElementID: 'mockID'}
     };
 
     spyOn(dragDropService, 'getOperatorDropStream').and.returnValue(
@@ -95,7 +98,7 @@ describe('DragDropService', () => {
     const operatorType = mockOperatorMetaData.operators[0].operatorType;
     const marbleString = '-e-|';
     const marbleValues = {
-      e : {operatorType: operatorType, offset: {x: 200, y: 200}}
+      e : {operatorType: operatorType, offset: {x: 200, y: 200}, dragElementID: 'mockID'}
     };
 
     spyOn(dragDropService, 'getOperatorDropStream').and.returnValue(
