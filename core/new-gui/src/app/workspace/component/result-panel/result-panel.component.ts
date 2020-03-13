@@ -52,7 +52,7 @@ export class ResultPanelComponent {
   private currentMaxPageSize: number = 0;
   private currentPageSize: number = 0;
   private currentPageIndex: number = 0;
-  private operatorErrorMap: Map<string, [string, string]> = new Map<string, [string, string]> ();
+
 
   constructor(private executeWorkflowService: ExecuteWorkflowService, private modalService: NgbModal,
     private resultPanelToggleService: ResultPanelToggleService, private validationWorkflowService: ValidationWorkflowService) {
@@ -68,12 +68,7 @@ export class ResultPanelComponent {
       value => this.showResultPanel = value,
     );
 
-    this.validationWorkflowService.getOpertorValidationErrorMapStream().subscribe(
-      value => {
-        this.operatorErrorMap = value.map;
-        this.showErrorMessage();
-      }
-    );
+
   }
 
   /**
@@ -202,30 +197,6 @@ export class ResultPanelComponent {
       this.message = errorMessage;
     }
 
-  }
-  /**
-   * This function show Error Message in result panel
-   */
-  private showErrorMessage(): void {
-    // show resultPanel
-    this.resultPanelToggleService.openResultPanel();
-
-    // clear data source and columns
-    this.currentDataSource = undefined;
-    this.currentColumns = undefined;
-    this.currentDisplayColumns = undefined;
-
-    // display message
-    this.showMessage = true;
-
-    this.message = '';
-
-    // print out every error operator in map
-    this.operatorErrorMap.forEach((tuple: [string, string], operatorID: string) => {
-      if (tuple[1] !== 'No errors') {
-        this.message =  this.message + '<br/>' + tuple[0] + ':' + tuple[1];
-      }
-    });
   }
 
   /**

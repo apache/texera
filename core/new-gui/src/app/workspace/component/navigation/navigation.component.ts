@@ -42,6 +42,9 @@ export class NavigationComponent implements OnInit {
   public showSpinner = false;
   public executionResultID: string | undefined;
 
+  private operatorStatusMap: Map<string, boolean> = new Map<string, boolean> (); // this map record --> key operator, value status
+  private failOperatorCheck: number = 0; // check if there is fail operator
+
   constructor(
     private executeWorkflowService: ExecuteWorkflowService,
     public tourService: TourService,
@@ -127,6 +130,9 @@ export class NavigationComponent implements OnInit {
     }
   }
   public getRunButtonText(): string {
+    if (this.isWorkflowFailed) {
+      return 'Disabled';
+    }
     if (! environment.pauseResumeEnabled) {
       return 'Run';
     } else {
