@@ -27,6 +27,7 @@ export interface OperatorLink extends Readonly<{
   linkID: string;
   source: OperatorPort;
   target: OperatorPort;
+  breakpointProperties: Readonly<{[key: string]: any}>;
 }> { }
 
 export interface BreakpointSchema extends Readonly<{

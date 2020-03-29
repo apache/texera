@@ -841,11 +841,27 @@ export class WorkflowEditorComponent implements AfterViewInit {
       .map(value => value[0])
       .subscribe(
         elementView => {
-          this.workflowActionService.getJointGraphWrapper().setBreakpoint(elementView.model.id.toString());
+          // if (this.paper) {
+          //   this.jointUIService.highlightLink(this.paper, elementView.model.id.toString());
+          // }
+          this.workflowActionService.getJointGraphWrapper().selectLinkBreakpoint(elementView.model.id.toString());
 
           // this.workflowActionService.getJointGraphWrapper().highlightOperator(operatorID);
           // console.log('break', elementView.model.id.toString());
         }
+
+    );
+
+    this.workflowActionService.getJointGraphWrapper().getLinkBreakpointShowStream()
+      .subscribe(linkID => {
+        this.jointUIService.highlightLink(this.getJointPaper(), linkID.linkID);
+      }
+    );
+
+    this.workflowActionService.getJointGraphWrapper().getLinkBreakpointHideStream()
+      .subscribe(linkID => {
+        this.jointUIService.unhighlightLink(this.getJointPaper(), linkID.linkID);
+      }
     );
 
     // console.log('there');

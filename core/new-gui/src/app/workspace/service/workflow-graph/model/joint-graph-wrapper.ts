@@ -90,7 +90,9 @@ export class JointGraphWrapper {
   private restorePaperOffsetSubject: Subject<Point> = new Subject<Point>();
   // event stream of panning to make mini-map and main workflow paper compatible in offset
   private panPaperOffsetSubject: Subject<Point> = new Subject<Point>();
-  private jointLinkCellAddBreakpointStream = new Subject<linkIDType>();
+  private jointLinkBreakpointSelectStream = new Subject<linkIDType>();
+  private jointLinkBreakpointShowStream = new Subject<linkIDType>();
+  private jointLinkBreakpointHideStream = new Subject<linkIDType>();
 
   // current zoom ratio
   private zoomRatio: number = JointGraphWrapper.INIT_ZOOM_VALUE;
@@ -251,8 +253,16 @@ export class JointGraphWrapper {
     return this.jointCellUnhighlightStream.asObservable();
   }
 
-  public getJointLinkCellAddBreakpointStream(): Observable<linkIDType> {
-    return this.jointLinkCellAddBreakpointStream.asObservable();
+  public getLinkBreakpointSelectStream(): Observable<linkIDType> {
+    return this.jointLinkBreakpointSelectStream.asObservable();
+  }
+
+  public getLinkBreakpointShowStream(): Observable<linkIDType> {
+    return this.jointLinkBreakpointShowStream.asObservable();
+  }
+
+  public getLinkBreakpointHideStream(): Observable<linkIDType> {
+    return this.jointLinkBreakpointHideStream.asObservable();
   }
 
   /**
@@ -437,11 +447,19 @@ export class JointGraphWrapper {
     element.translate(offsetX, offsetY);
   }
 
-  public setBreakpoint(linkID: string): void {
+  public selectLinkBreakpoint(linkID: string): void {
     if (!this.jointGraph.getCell(linkID)) {
       throw new Error(`opeartor with ID ${linkID} doesn't exist`);
     }
-    this.jointLinkCellAddBreakpointStream.next({ linkID });
+    this.jointLinkBreakpointSelectStream.next({ linkID });
+  }
+
+  public showLinkBreakpoint(linkID: string): void {
+    this.jointLinkBreakpointShowStream.next({ linkID });
+  }
+
+  public hideLinkBreakpoint(linkID: string): void {
+    this.jointLinkBreakpointHideStream.next({ linkID });
   }
 
   /**

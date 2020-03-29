@@ -39,7 +39,7 @@
 
   <div *ngIf="displayBreakpointEditor">
     <h3 class="texera-workspace-property-editor-title" mat-subheader>
-      "Link Breakpoint Editor"
+      Link Breakpoint Editor
     </h3>
 
     <json-schema-form
@@ -52,6 +52,8 @@
       (onChanges)="onFormChanges($event)"
     >
     </json-schema-form>
+
+    <button *ngIf="true" type="button" class="btn btn-default" (click)="handleLinkBreakpointRemove()">Remove Breakpoint</button>
 
   </div>
 

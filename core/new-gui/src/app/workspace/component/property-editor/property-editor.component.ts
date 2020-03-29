@@ -65,7 +65,7 @@ export class PropertyEditorComponent {
   public currentOperatorSchema: OperatorSchema | undefined;
   public advancedOperatorSchema: OperatorSchema | undefined;
 
-  public currentLink: linkIDType | undefined;
+  public currentLinkID: linkIDType | undefined;
   public currentLinkBreakpointSchema: BreakpointSchema | undefined;
 
   // used in HTML template to control if the form is displayed
@@ -78,8 +78,12 @@ export class PropertyEditorComponent {
   // the source event stream of form change triggered by library at each user input
   public sourceFormChangeEventStream = new Subject<object>();
 
+  public breakpointChangeEventStream = new Subject<object>();
+
   // the output form change event stream after debouce time and filtering out values
   public outputFormChangeEventStream = this.createOutputFormChangeEventStream(this.sourceFormChangeEventStream);
+
+  public outputBreakpointChangeEventStream = this.createoutputBreakpointChangeEventStream(this.breakpointChangeEventStream);
 
   // the current operator schema list, used to find the operator schema of current operator
   public operatorSchemaList: ReadonlyArray<OperatorSchema> = [];
@@ -136,6 +140,8 @@ export class PropertyEditorComponent {
 
     this.handleLinkAddBreakpoint();
 
+    this.handleOnBreakpointPropertyChange();
+
   }
 
   /**
@@ -163,7 +169,12 @@ export class PropertyEditorComponent {
    * @param formData
    */
   public onFormChanges(formData: object): void {
-    this.sourceFormChangeEventStream.next(formData);
+    if (this.displayForm) {
+      this.sourceFormChangeEventStream.next(formData);
+    }
+    if (this.displayBreakpointEditor) {
+      this.breakpointChangeEventStream.next(formData);
+    }
   }
 
   /**
@@ -254,6 +265,7 @@ export class PropertyEditorComponent {
     if (!operator) {
       throw new Error(`change property editor: operator is undefined`);
     }
+    this.displayBreakpointEditor = false;
     // set displayForm to false first to hide the view while constructing data
     this.displayForm = false;
 
@@ -327,9 +339,9 @@ export class PropertyEditorComponent {
     this.displayForm = false;
 
     // set the operator data needed
-    this.currentLink = linkID;
-    this.currentLinkBreakpointSchema = this.autocompleteService.getDynamicBreakpointSchema(this.currentLink.linkID);
-
+    this.currentLinkID = linkID;
+    this.currentLinkBreakpointSchema = this.autocompleteService.getDynamicBreakpointSchema(this.currentLinkID.linkID);
+    this.currentBreakpointInitialData = this.workflowActionService.getTexeraGraph().getLinkWithID(linkID.linkID).breakpointProperties;
     // handle generating schemas for advanced / hidden options
     // this.handleUpdateAdvancedSchema(operator);
 
@@ -355,9 +367,8 @@ export class PropertyEditorComponent {
   }
 
   public handleLinkAddBreakpoint() {
-    this.workflowActionService.getJointGraphWrapper().getJointLinkCellAddBreakpointStream()
+    this.workflowActionService.getJointGraphWrapper().getLinkBreakpointSelectStream()
       .subscribe(value => {
-        console.log('clicked ' + value.linkID);
         this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOpeartorIDs()
               .forEach(operatorID => this.workflowActionService.getJointGraphWrapper().unhighlightOperator(operatorID));
         this.clearPropertyEditor();
@@ -419,6 +430,49 @@ export class PropertyEditorComponent {
       // share() because the original observable is a hot observable
       .share();
 
+  }
+
+  public createoutputBreakpointChangeEventStream(originalBreakpointChangeEvent: Observable<object>): Observable<object> {
+    return originalBreakpointChangeEvent
+      // set a debounce time to avoid events triggering too often
+      //  and to circumvent a bug of the library - each action triggers event twice
+      .debounceTime(PropertyEditorComponent.formInputDebounceTime)
+      // don't emit the event until the data is changed
+      .distinctUntilChanged()
+      // don't emit the event if form data is same with current actual data
+      // also check for other unlikely circumstances (see below)
+      .filter(formData => {
+        // check if the current operator ID still exists
+        // the user could un-select this operator during debounce time
+        if (!this.currentLinkID) {
+          return false;
+        }
+        // check if the link still exists
+        // the link could've been deleted during deboucne time
+        const link = this.workflowActionService.getTexeraGraph().getLinkWithID(this.currentLinkID.linkID);
+        if (!link) {
+          return false;
+        }
+        // don't emit event if the form data is equal to actual current property
+        // this is to circumvent the library's behavior
+        // when the form is initialized, the change event is triggered for the inital data
+        // however, the operator property is not changed and shouldn't emit this event
+        if (isEqual(formData, link.breakpointProperties)) {
+          return false;
+        }
+        return true;
+      })
+      // share() because the original observable is a hot observable
+      .share();
+  }
+
+  public handleLinkBreakpointRemove() {
+    if (this.currentLinkID) {
+      this.displayBreakpointEditor = false;
+      this.currentOperatorInitialData = {};
+
+      this.workflowActionService.removeLinkBreakpoint(this.currentLinkID.linkID);
+    }
   }
 
   /**
@@ -599,6 +653,15 @@ export class PropertyEditorComponent {
         this.workflowActionService.setOperatorProperty(this.currentOperatorID, formData);
       }
     });
+  }
+
+  private handleOnBreakpointPropertyChange(): void {
+    this.outputBreakpointChangeEventStream
+      .subscribe(formData => {
+        if (this.currentLinkID) {
+          this.workflowActionService.setLinkBreakpoint(this.currentLinkID.linkID, formData);
+        }
+      });
   }
 
   /**
