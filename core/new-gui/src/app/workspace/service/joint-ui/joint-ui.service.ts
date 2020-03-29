@@ -7,6 +7,16 @@ import { Point, OperatorPredicate, OperatorLink } from '../../types/workflow-com
 import { OperatorStates } from '../../types/execute-workflow.interface';
 import { Statistics } from '../../types/execute-workflow.interface';
 
+const linkHighlightOptions = {
+  name: 'stroke',
+  options: {
+    attrs: {
+      'stroke-width': 2,
+      stroke: '#4A95FF'
+    }
+  }
+};
+
 export const breakpointButtonSVG =
 `<svg class="breakpoint-button" height = "24" width = "24">
     <path d="M0 0h24v24H0z" fill="none" /> +
@@ -239,6 +249,16 @@ export class JointUIService {
     }
   }
 
+  public highlightLink(jointPaper: joint.dia.Paper, linkID: string): void {
+    jointPaper.findViewByModel(linkID).highlight('connection', linkHighlightOptions);
+  }
+
+
+  public unhighlightLink(jointPaper: joint.dia.Paper, linkID: string): void {
+    jointPaper.findViewByModel(linkID).unhighlight('connection', linkHighlightOptions);
+  }
+
+
   /**
    * Gets the ID of the JointJS operator status tooltip element corresponding to an operator.
    */
@@ -338,7 +358,10 @@ export class JointUIService {
         '.breakpoint-button': {
           x: 10, y: -10, cursor: 'pointer',
           event: 'tool:breakpoint',
-          display: 'block'
+          // display: 'block'
+        },
+        '.link-tools': {
+          display: 'block',
         }
       }
     });

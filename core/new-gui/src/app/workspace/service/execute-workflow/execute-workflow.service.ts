@@ -79,6 +79,8 @@ export class ExecuteWorkflowService {
 
     this.executeStartedStream.next('execution started');
 
+    console.log(body);
+
     // make a http post request to the API endpoint with the logical plan object
     this.http.post<SuccessExecutionResult>(
       requestURL,
@@ -261,7 +263,8 @@ export class ExecuteWorkflowService {
     const links: LogicalLink[] = workflowGraph
       .getAllLinks().map(link => ({
         origin: link.source.operatorID,
-        destination: link.target.operatorID
+        destination: link.target.operatorID,
+        breakpointinfo: link.breakpointProperties
       }));
 
     return { operators, links };

@@ -149,7 +149,8 @@ export class SyncTexeraModel {
       target: {
         operatorID: jointTargetElement.id,
         portID: jointTargetElement.port
-      }
+      },
+      breakpointProperties: {}
     };
   }
 

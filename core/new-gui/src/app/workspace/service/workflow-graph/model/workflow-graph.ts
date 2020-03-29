@@ -265,6 +265,21 @@ export class WorkflowGraph {
     this.operatorAdvancedChangeSubject.next({operator, showAdvanced});
   }
 
+  public setLinkBreakpoint(linkID: string, newBreakpoint: object): void {
+    const originalLink = this.operatorLinkMap.get(linkID);
+    if (originalLink === undefined) {
+      throw new Error(`link with ID ${linkID} doesn't exist`);
+    }
+
+    // constructor a new copy with new breakpoint and all other original attributes
+    const link = {
+      ...originalLink,
+      breakpointProperties: newBreakpoint,
+    };
+    // set the new copy back to the link ID map
+    this.operatorLinkMap.set(linkID, link);
+  }
+
   /**
    * Gets the observable event stream of an operator being added into the graph.
    */

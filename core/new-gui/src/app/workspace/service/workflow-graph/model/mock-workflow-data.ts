@@ -62,7 +62,8 @@ export const mockScanResultLink: OperatorLink = {
   target: {
     operatorID: mockResultPredicate.operatorID,
     portID: mockResultPredicate.inputPorts[0]
-  }
+  },
+  breakpointProperties: {}
 };
 
 export const mockScanSentimentLink: OperatorLink = {
@@ -74,7 +75,8 @@ export const mockScanSentimentLink: OperatorLink = {
   target: {
     operatorID: mockSentimentPredicate.operatorID,
     portID: mockSentimentPredicate.inputPorts[0]
-  }
+  },
+  breakpointProperties: {}
 };
 
 export const mockSentimentResultLink: OperatorLink = {
@@ -86,7 +88,8 @@ export const mockSentimentResultLink: OperatorLink = {
   target: {
     operatorID: mockResultPredicate.operatorID,
     portID: mockResultPredicate.inputPorts[0]
-  }
+  },
+  breakpointProperties: {}
 };
 
 
@@ -99,7 +102,8 @@ export const mockFalseResultSentimentLink: OperatorLink = {
   target: {
     operatorID: mockSentimentPredicate.operatorID,
     portID: mockSentimentPredicate.inputPorts[0]
-  }
+  },
+  breakpointProperties: {}
 };
 
 export const mockFalseSentimentScanLink: OperatorLink = {
@@ -111,5 +115,6 @@ export const mockFalseSentimentScanLink: OperatorLink = {
   target: {
     operatorID: mockScanPredicate.operatorID,
     portID: undefined as any
-  }
+  },
+  breakpointProperties: {}
 };

@@ -448,6 +448,7 @@ export class DragDropService {
     const linkID = this.workflowUtilService.getLinkRandomUUID();
     const source = { operatorID: sourceOperator.operatorID, portID: validSourcePortsID[0]};
     const target = { operatorID: targetOperator.operatorID, portID: validTargetPortsID[0]};
-    return { linkID, source, target };
+    const breakpointProperties =  {};
+    return { linkID, source, target, breakpointProperties};
   }
 }

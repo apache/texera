@@ -45,12 +45,13 @@
   fill-opacity: 0 !important;
 }
 
-// ::ng-deep .texera-workspace-workflow-editor-body .link-tools .breakpoint {
-//   left:10px !important;
-//   top:0px !important;
-//   position: relative !important;
-//   background-color: red !important;
-// }
+::ng-deep .texera-workspace-workflow-editor-body .link-tools {
+  display: block !important;
+}
+
+::ng-deep .texera-workspace-workflow-editor-body .link-tools .breakpoint {
+  display: block !important;
+}
 
 ::ng-deep .texera-workspace-workflow-editor-body .available-magnet{
   fill: #6F9D52 !important;
