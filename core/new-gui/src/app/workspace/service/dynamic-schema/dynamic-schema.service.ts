@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { JSONSchema4 } from 'json-schema';
+import { JSONSchema7 } from 'json-schema';
 
 import { Observable } from 'rxjs/Observable';
 import { Subject } from 'rxjs/Subject';
@@ -140,11 +140,11 @@ export class DynamicSchemaService {
    * Returns a new object containing the new json schema property.
    */
   public static mutateProperty(
-    jsonSchemaToChange: JSONSchema4, propertyName: string, mutationFunc: (arg: JSONSchema4) => JSONSchema4
-  ): JSONSchema4 {
+    jsonSchemaToChange: JSONSchema7, propertyName: string, mutationFunc: (arg: JSONSchema7) => JSONSchema7
+  ): JSONSchema7 {
 
     // recursively walks the JSON schema property tree to find the property name
-    const mutatePropertyRecurse = (jsonSchema: JSONSchema4) => {
+    const mutatePropertyRecurse = (jsonSchema: JSONSchema7) => {
       const schemaProperties = jsonSchema.properties;
       const schemaItems = jsonSchema.items;
       // nested JSON schema property can have 2 types: object or array

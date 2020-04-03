@@ -1,4 +1,4 @@
-import { JSONSchema4 } from 'json-schema';
+import { JSONSchema7 } from 'json-schema';
 import { OperatorSchema, OperatorMetadata, GroupInfo } from '../../types/operator-schema.interface';
 
 
@@ -173,7 +173,7 @@ export const mockOperatorMetaData: OperatorMetadata = {
 };
 
 
-export const testJsonSchema: JSONSchema4 = {
+export const testJsonSchema: JSONSchema7 = {
   id: 'urn:jsonschema:edu:uci:ics:texera:dataflow:nlp:sentiment:NlpSentimentPredicate',
   properties: {
     attribute: {

@@ -14,9 +14,14 @@ import { cloneDeep, isEqual} from 'lodash';
 export interface IndexableObject extends Readonly<{
   [key: string]: object | string | boolean | symbol | number | Array<object>;
 }> { }
-import { JSONSchema4 } from 'json-schema';
+import { JSONSchema7 } from 'json-schema';
 import { IndexableObject } from '../../types/result-table.interface';
 
+import { FormGroup } from '@angular/forms';
+import { FormlyFormOptions, FormlyFieldConfig } from '@ngx-formly/core';
+import { FormlyJsonschema } from '@ngx-formly/core/json-schema';
+import { HttpClient } from '@angular/common/http';
+import { tap } from 'rxjs/operators';
 
 /**
  * PropertyEditorComponent is the panel that allows user to edit operator properties.
@@ -214,7 +219,7 @@ export class PropertyEditorComponent {
     );
 
     // construct a new json schema that hides the advanced properties
-    let modifiedJsonSchema: JSONSchema4 = {
+    let modifiedJsonSchema: JSONSchema7 = {
       ...currentSchema,
       properties: currentSchemaProperties
     };
