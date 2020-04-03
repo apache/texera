@@ -7,7 +7,6 @@ import { ExecuteWorkflowService } from './../../service/execute-workflow/execute
 import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
 import { TourService } from 'ngx-tour-ng-bootstrap';
 import { UndoRedoService } from './../../service/undo-redo/undo-redo.service';
-import { ValidationWorkflowService } from '../../service/validation/validation-workflow.service';
 
 import { CustomNgMaterialModule } from '../../../common/custom-ng-material.module';
 
@@ -39,7 +38,7 @@ describe('NavigationComponent', () => {
   let workflowActionService: WorkflowActionService;
   let workflowStatusService: WorkflowStatusService;
   let undoRedoService: UndoRedoService;
-  let validationWorkflowService: ValidationWorkflowService;
+
   beforeEach(async(() => {
     TestBed.configureTestingModule({
       declarations: [NavigationComponent],
@@ -53,7 +52,6 @@ describe('NavigationComponent', () => {
         JointUIService,
         ExecuteWorkflowService,
         UndoRedoService,
-        ValidationWorkflowService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         { provide: HttpClient, useClass: StubHttpClient },
         TourService,
@@ -69,7 +67,6 @@ describe('NavigationComponent', () => {
     workflowActionService = TestBed.get(WorkflowActionService);
     workflowStatusService = TestBed.get(WorkflowStatusService);
     undoRedoService = TestBed.get(UndoRedoService);
-    validationWorkflowService = TestBed.get(ValidationWorkflowService);
     fixture.detectChanges();
     environment.pauseResumeEnabled = true;
   });
@@ -186,7 +183,7 @@ describe('NavigationComponent', () => {
     );
 
     const mockComponent = new NavigationComponent(executeWorkFlowService, TestBed.get(TourService),
-      workflowActionService, workflowStatusService, undoRedoService, validationWorkflowService);
+      workflowActionService, workflowStatusService, undoRedoService);
 
     executeWorkFlowService.getExecutionPauseResumeStream()
       .subscribe({
@@ -208,7 +205,7 @@ describe('NavigationComponent', () => {
     );
 
     const mockComponent = new NavigationComponent(executeWorkFlowService, TestBed.get(TourService),
-      workflowActionService, workflowStatusService, undoRedoService, validationWorkflowService);
+      workflowActionService, workflowStatusService, undoRedoService);
 
     executeWorkFlowService.getExecutionPauseResumeStream()
       .subscribe({

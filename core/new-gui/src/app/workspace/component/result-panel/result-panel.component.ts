@@ -55,7 +55,7 @@ export class ResultPanelComponent {
 
 
   constructor(private executeWorkflowService: ExecuteWorkflowService, private modalService: NgbModal,
-    private resultPanelToggleService: ResultPanelToggleService) {
+    private resultPanelToggleService: ResultPanelToggleService, private validationWorkflowService: ValidationWorkflowService) {
 
 
     // once an execution has ended, update the result panel to dispaly
