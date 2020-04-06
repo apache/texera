@@ -46,11 +46,7 @@
 }
 
 ::ng-deep .texera-workspace-workflow-editor-body .link-tools {
-  display: block !important;
-}
-
-::ng-deep .texera-workspace-workflow-editor-body .link-tools .breakpoint {
-  display: block !important;
+  display: contents !important;
 }
 
 ::ng-deep .texera-workspace-workflow-editor-body .available-magnet{
