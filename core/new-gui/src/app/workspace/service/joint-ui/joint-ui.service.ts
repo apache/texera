@@ -7,16 +7,6 @@ import { Point, OperatorPredicate, OperatorLink } from '../../types/workflow-com
 import { OperatorStates } from '../../types/execute-workflow.interface';
 import { Statistics } from '../../types/execute-workflow.interface';
 
-const linkHighlightOptions = {
-  name: 'stroke',
-  options: {
-    attrs: {
-      'stroke-width': 2,
-      stroke: '#4A95FF'
-    }
-  }
-};
-
 export const breakpointButtonSVG =
 `<svg class="breakpoint-button" height = "24" width = "24">
     <path d="M0 0h24v24H0z" fill="none" /> +
@@ -249,14 +239,6 @@ export class JointUIService {
     }
   }
 
-  public highlightLink(jointPaper: joint.dia.Paper, linkID: string): void {
-    jointPaper.findViewByModel(linkID).highlight('connection', linkHighlightOptions);
-  }
-
-
-  public unhighlightLink(jointPaper: joint.dia.Paper, linkID: string): void {
-    jointPaper.findViewByModel(linkID).unhighlight('connection', linkHighlightOptions);
-  }
 
 
   /**
@@ -321,14 +303,10 @@ export class JointUIService {
           </g>
           ${breakpointButtonSVG}
         </g>`,
-         //
-         // <g class="breakpoint" event="tool:breakpoint">
-          //   <path d="M0 0h24v24H0z" fill="none" pointer-events="visible" />
-          //   <polygon points="8,2 16,2 22,8 22,16 16,22 8,22 2,16 2,8" fill="red" />
-          // </g>
       attrs: {
         '.connection-wrap': {
-          'stroke-width': 0
+          'stroke-width': 0,
+          'display': 'inline'
         },
         '.marker-source': {
           d: sourceOperatorHandle,
@@ -348,7 +326,8 @@ export class JointUIService {
         },
         '.tool-remove': {
           fill: '#D8656A',
-          width: 24
+          width: 24,
+          display: 'none'
         },
         '.tool-remove path': {
           d: deleteButtonPath,
@@ -358,10 +337,10 @@ export class JointUIService {
         '.breakpoint-button': {
           x: 10, y: -10, cursor: 'pointer',
           event: 'tool:breakpoint',
-          // display: 'block'
+          display: 'none'
         },
         '.link-tools': {
-          display: 'block',
+          display: 'contents',
         }
       }
     });

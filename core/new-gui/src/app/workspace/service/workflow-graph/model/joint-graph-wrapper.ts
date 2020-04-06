@@ -91,9 +91,14 @@ export class JointGraphWrapper {
   private restorePaperOffsetSubject: Subject<Point> = new Subject<Point>();
   // event stream of panning to make mini-map and main workflow paper compatible in offset
   private panPaperOffsetSubject: Subject<Point> = new Subject<Point>();
-  private jointLinkBreakpointSelectStream = new Subject<linkIDType>();
+
+  private jointLinkHighlightStream = new Subject<linkIDType>();
+  private jointLinkUnhighlightStream = new Subject<linkIDType>();
   private jointLinkBreakpointShowStream = new Subject<linkIDType>();
   private jointLinkBreakpointHideStream = new Subject<linkIDType>();
+
+  private currentHighlightedLinks: string[] = [];
+  private linksWithBreakpoints: string[] = [];
 
   // current zoom ratio
   private zoomRatio: number = JointGraphWrapper.INIT_ZOOM_VALUE;
@@ -136,6 +141,7 @@ export class JointGraphWrapper {
     // handle if the current highlighted operator's position is changed,
     // other highlighted operators should move with it.
     this.handleHighlightedOperatorPositionChange();
+    this.handleLinkDeleteUnhighlight();
   }
 
 
@@ -220,6 +226,10 @@ export class JointGraphWrapper {
     if (highlightedOperatorIDs.length > 0) {
       this.jointCellHighlightStream.next({ operatorIDs: highlightedOperatorIDs });
     }
+    if (this.currentHighlightedLinks.length > 0) {
+      const highlightedLinks = Object.assign([], this.currentHighlightedLinks);
+      highlightedLinks.forEach(highlightedLink => this.unhighlightLink(highlightedLink));
+    }
   }
 
   /**
@@ -266,8 +276,21 @@ export class JointGraphWrapper {
     return this.jointCellUnhighlightStream.asObservable();
   }
 
-  public getLinkBreakpointSelectStream(): Observable<linkIDType> {
-    return this.jointLinkBreakpointSelectStream.asObservable();
+  public getCurrentHighlightedLinkIDs(): string[] {
+    return Object.assign([], this.currentHighlightedLinks);
+  }
+
+  public getLinkIDsWithBreakpoint(): string[] {
+    return Object.assign([], this.linksWithBreakpoints);
+  }
+
+
+  public getLinkHighlightStream(): Observable<linkIDType> {
+    return this.jointLinkHighlightStream.asObservable();
+  }
+
+  public getLinkUnhighlightStream(): Observable<linkIDType> {
+    return this.jointLinkUnhighlightStream.asObservable();
   }
 
   public getLinkBreakpointShowStream(): Observable<linkIDType> {
@@ -458,18 +481,46 @@ export class JointGraphWrapper {
     element.translate(offsetX, offsetY);
   }
 
-  public selectLinkBreakpoint(linkID: string): void {
+  public highlightLink(linkID: string): void {
     if (!this.jointGraph.getCell(linkID)) {
-      throw new Error(`opeartor with ID ${linkID} doesn't exist`);
+      throw new Error(`link with ID ${linkID} doesn't exist`);
     }
-    this.jointLinkBreakpointSelectStream.next({ linkID });
+    if (this.currentHighlightedLinks.includes(linkID)) {
+      return;
+    }
+    if (this.currentHighlightedLinks.length > 0) {
+      const highlightedLinks = Object.assign([], this.currentHighlightedLinks);
+      highlightedLinks.forEach(highlightedLink => this.unhighlightLink(highlightedLink));
+    }
+    this.getCurrentHighlightedOperatorIDs()
+        .forEach(operatorID => this.unhighlightOperator(operatorID));
+    this.currentHighlightedLinks.push(linkID);
+    this.jointLinkHighlightStream.next({ linkID });
+  }
+
+  public unhighlightLink(linkID: string): void {
+    if (!this.currentHighlightedLinks.includes(linkID)) {
+      return;
+    }
+
+    const unhighlightedLinkIndex = this.currentHighlightedLinks.indexOf(linkID);
+    this.currentHighlightedLinks.splice(unhighlightedLinkIndex, 1);
+    this.jointLinkUnhighlightStream.next({ linkID });
   }
 
   public showLinkBreakpoint(linkID: string): void {
+    if (!this.linksWithBreakpoints.includes(linkID)) {
+      this.linksWithBreakpoints.push(linkID);
+    }
     this.jointLinkBreakpointShowStream.next({ linkID });
   }
 
   public hideLinkBreakpoint(linkID: string): void {
+    if (!this.linksWithBreakpoints.includes(linkID)) {
+      return;
+    }
+    const LinkIndex = this.linksWithBreakpoints.indexOf(linkID);
+    this.linksWithBreakpoints.splice(LinkIndex, 1);
     this.jointLinkBreakpointHideStream.next({ linkID });
   }
 
@@ -577,6 +628,15 @@ export class JointGraphWrapper {
         this.listenPositionChange = true;
         this.undoRedoService.setListenJointCommand(true);
       });
+  }
+
+  private handleLinkDeleteUnhighlight(): void {
+    this.getJointLinkCellDeleteStream().subscribe(deletedLinkCell => {
+      const deletedLinkID = deletedLinkCell.id.toString();
+      if (this.currentHighlightedLinks.includes(deletedLinkID)) {
+        this.unhighlightLink(deletedLinkID);
+      }
+    });
   }
 
 }

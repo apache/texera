@@ -367,7 +367,7 @@ export class WorkflowActionService {
       },
       undo: () => {
         this.setOperatorPropertyInternal(linkID, prevBreakpoint);
-        if (Object.keys(newBreakpoint).length === 0) {
+        if (Object.keys(prevBreakpoint).length === 0) {
           this.getJointGraphWrapper().hideLinkBreakpoint(linkID);
         } else {
           this.getJointGraphWrapper().showLinkBreakpoint(linkID);
@@ -428,6 +428,7 @@ export class WorkflowActionService {
     // add the link to JointJS
     const jointLinkCell = JointUIService.getJointLinkCell(link);
     this.jointGraph.addCell(jointLinkCell);
+    // JointJS link add event will propagate and trigger Texera link add
 
     // const InfoButton = joint.linkTools.Button.extend({
     //   name: 'info-button',
@@ -468,7 +469,7 @@ export class WorkflowActionService {
     //   }
     // });
 
-    // if (this.paper) {
+    // if (this.jointGraph) {
     //   const linkview = jointLinkCell.findView(this.paper);
     //   const removeButton = new joint.linkTools.Remove();
     //   const infoButton = new InfoButton();
@@ -477,7 +478,6 @@ export class WorkflowActionService {
     //   });
     //   linkview.addTools(toolsView);
     // }
-    // JointJS link add event will propagate and trigger Texera link add
   }
 
   private deleteLinkWithIDInternal(linkID: string): void {

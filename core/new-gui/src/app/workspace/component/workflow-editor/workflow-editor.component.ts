@@ -847,32 +847,72 @@ export class WorkflowEditorComponent implements AfterViewInit {
       .map(value => value[0])
       .subscribe(
         elementView => {
-          // if (this.paper) {
-          //   this.jointUIService.highlightLink(this.paper, elementView.model.id.toString());
-          // }
-          this.workflowActionService.getJointGraphWrapper().selectLinkBreakpoint(elementView.model.id.toString());
-
-          // this.workflowActionService.getJointGraphWrapper().highlightOperator(operatorID);
-          // console.log('break', elementView.model.id.toString());
+          this.workflowActionService.getJointGraphWrapper().highlightLink(elementView.model.id.toString());
         }
+    );
 
+    Observable
+      .fromEvent<JointPaperEvent>(this.getJointPaper(), 'link:mouseenter')
+      .map(value => value[0])
+      .subscribe(
+        elementView => {
+          this.getJointPaper().getModelById(elementView.model.id).attr({
+            '.tool-remove': { display: 'block'},
+            '.breakpoint-button': { display: 'block'}
+          });
+        }
+    );
+    Observable
+      .fromEvent<JointPaperEvent>(this.getJointPaper(), 'link:mouseleave')
+      .map(value => value[0])
+      .subscribe(
+        elementView => {
+          const LinksWithBreakpoint = this.workflowActionService.getJointGraphWrapper().getLinkIDsWithBreakpoint();
+          if (!LinksWithBreakpoint.includes(elementView.model.id.toString())) {
+            this.getJointPaper().getModelById(elementView.model.id).attr({
+              '.breakpoint-button': { display: 'none'}
+            });
+          }
+          this.getJointPaper().getModelById(elementView.model.id).attr({
+            '.tool-remove': { display: 'none'},
+          });
+        }
+    );
+
+    this.workflowActionService.getJointGraphWrapper().getLinkHighlightStream()
+      .subscribe(linkID => {
+        this.getJointPaper().getModelById(linkID.linkID).attr({
+          '.marker-source': { fill: 'orange'},
+          '.marker-target': { fill: 'orange'}
+        });
+        const linkView = this.getJointPaper().findViewByModel(linkID.linkID);
+        linkView.highlight('connection');
+      }
+    );
+
+    this.workflowActionService.getJointGraphWrapper().getLinkUnhighlightStream()
+      .subscribe(linkID => {
+        this.getJointPaper().getModelById(linkID.linkID).attr({
+          '.marker-source': { fill: 'none'},
+          '.marker-target': { fill: 'none'}
+        });
+        const linkView = this.getJointPaper().findViewByModel(linkID.linkID);
+        linkView.unhighlight('connection');
+      }
     );
 
     this.workflowActionService.getJointGraphWrapper().getLinkBreakpointShowStream()
       .subscribe(linkID => {
-        this.jointUIService.highlightLink(this.getJointPaper(), linkID.linkID);
-      }
-    );
+        this.getJointPaper().getModelById(linkID.linkID).attr({
+          '.breakpoint-button': { display: 'block'}
+        });
+    });
 
     this.workflowActionService.getJointGraphWrapper().getLinkBreakpointHideStream()
       .subscribe(linkID => {
-        this.jointUIService.unhighlightLink(this.getJointPaper(), linkID.linkID);
-      }
-    );
-
-    // console.log('there');
-    // this.workflowActionService.getJointGraphWrapper().getJointCellUnhighlightStream()
-    //   .subscribe(value => this.getJointPaper().getModelById(value.operatorID).removeAttr('.delete-button/display')
-    // );
+        this.getJointPaper().getModelById(linkID.linkID).attr({
+          '.breakpoint-button': { display: 'none'}
+        });
+    });
   }
 }

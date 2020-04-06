@@ -139,7 +139,7 @@ export class PropertyEditorComponent {
     // handle highlight / unhighlight event to show / hide the property editor form
     this.handleHighlightEvents();
 
-    this.handleLinkAddBreakpoint();
+    this.handleLinkHighlight();
 
     this.handleOnBreakpointPropertyChange();
 
@@ -335,8 +335,8 @@ export class PropertyEditorComponent {
     this.displayBreakpointEditor = true;
   }
 
-  public handleLinkAddBreakpoint() {
-    this.workflowActionService.getJointGraphWrapper().getLinkBreakpointSelectStream()
+  public handleLinkHighlight() {
+    this.workflowActionService.getJointGraphWrapper().getLinkHighlightStream()
       .subscribe(value => {
         this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()
               .forEach(operatorID => this.workflowActionService.getJointGraphWrapper().unhighlightOperator(operatorID));
@@ -439,9 +439,10 @@ export class PropertyEditorComponent {
     if (this.currentLinkID) {
       this.displayBreakpointEditor = false;
       this.currentOperatorInitialData = {};
-
+      this.workflowActionService.getJointGraphWrapper().unhighlightLink(this.currentLinkID.linkID);
       this.workflowActionService.removeLinkBreakpoint(this.currentLinkID.linkID);
     }
+    this.currentLinkID = undefined;
   }
 
   /**
