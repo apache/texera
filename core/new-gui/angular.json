@@ -32,6 +32,7 @@
             ]
           },
           "configurations": {
+            
             "production": {
               "optimization": true,
               "outputHashing": "all",
@@ -91,6 +92,16 @@
             ]
           }
         },
+		    "e2e": {
+          "builder": "multi-target:multi-target",
+          "options": {
+            "targets":[
+              "texera-gui:build:production",
+              "texera-gui:cypress-headless-with-fullstack"
+            ],
+            "sequential": true
+          }
+        },
         "lint": {
           "builder": "@angular-devkit/build-angular:tslint",
           "options": {
@@ -102,30 +113,61 @@
               "**/node_modules/**"
             ]
           }
-        }
-      }
-    },
-    "texera-gui-e2e": {
-      "root": "e2e",
-      "sourceRoot": "e2e",
-      "projectType": "application",
-      "architect": {
-        "e2e": {
-          "builder": "@angular-devkit/build-angular:protractor",
+        },
+        "fullstack": {
+          "builder": "multi-target:cmd-target",
           "options": {
-            "protractorConfig": "./protractor.conf.js",
-            "devServerTarget": "texera-gui:serve"
+            "cmd": "cd .. && java -jar ./web/target/web-0.1.0.jar server ./new-gui/e2e/backend-config.yml",
+            "detached": true
+          },
+          "description":"requires a build in the dist folder"
+        },
+        "kill-fullstack": {
+          "builder": "multi-target:cmd-target",
+          "options": {
+            "cmd": "cd .. && java -jar ./web/target/web-0.1.0.jar server ./new-gui/e2e/backend-config.yml",
+            "kill": true
           }
         },
-        "lint": {
-          "builder": "@angular-devkit/build-angular:tslint",
+        "cypress-watch": {
+          "builder": "@nrwl/cypress:cypress",
           "options": {
-            "tsConfig": [
-              "e2e/tsconfig.e2e.json"
+            "cypressConfig": "./e2e/cypress.json",
+            "tsConfig": "./e2e/tsconfig.e2e.json",
+            "exit": false,
+            "headless":false,
+            "watch":true
+          }
+        },
+        "cypress-headless": {
+          "builder": "@nrwl/cypress:cypress",
+          "options": {
+            "cypressConfig": "./e2e/cypress.json",
+            "tsConfig": "./e2e/tsconfig.e2e.json",
+            "exit": true,
+            "headless":true
+          }
+        },
+        "cypress-headless-with-fullstack": {
+          "builder": "multi-target:multi-target",
+          "options": {
+            "targets":[
+              "texera-gui:fullstack",
+              "texera-gui:cypress-headless",
+              "texera-gui:kill-fullstack"
             ],
-            "exclude": [
-              "**/node_modules/**"
-            ]
+            "sequential": true
+          }
+        },
+        "cypress-watch-with-fullstack": {
+          "builder": "multi-target:multi-target",
+          "options": {
+            "targets":[
+              "texera-gui:fullstack",
+              "texera-gui:cypress-watch",
+              "texera-gui:kill-fullstack"
+            ],
+            "sequential": true
           }
         }
       }

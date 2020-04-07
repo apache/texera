@@ -26,11 +26,16 @@ install:
   - cd core 
   - cd new-gui
   - npm install
+  - cd multi-target
+  - npm install
+  - cd ..
+  - npm run multi-target-updater
   - cd ..
 
 script:
-  - mvn test --batch-mode
+  - mvn clean install
   - cd new-gui
   - ng build --prod --progress=false
   - ng test --browsers ChromeHeadless --watch=false
+  - ng e2e
   

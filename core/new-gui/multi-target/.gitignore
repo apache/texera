@@ -2,15 +2,11 @@
 
 # compiled output
 /dist
-/dist-server
-/tmp
-/out-tsc
-
-# cypress output
-/e2e/cypress
 
 # dependencies
 **/node_modules
+/node_modules.bak
+
 
 # IDEs and editors
 /.idea
