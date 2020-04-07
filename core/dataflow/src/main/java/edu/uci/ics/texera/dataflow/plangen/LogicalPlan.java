@@ -180,10 +180,6 @@ public class LogicalPlan {
             }
 
             for (String destination: adjacencyList.get(origin)) {
-                if(operatorObjectMap.get(destination) instanceof ISink) {
-                    continue;
-                }
-
                 if (inputSchemas.containsKey(destination)) {
                     inputSchemas.get(destination).add(currentOutputSchema.get());
                 } else {
