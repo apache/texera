@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs/Observable';
 
-import { mockOperatorMetaData } from './mock-operator-metadata.data';
+import { mockOperatorMetaData, mockBreakpointSchema } from './mock-operator-metadata.data';
 import { OperatorMetadata, OperatorSchema } from '../../types/operator-schema.interface';
 
 import '../../../common/rxjs-operators';
@@ -11,7 +11,7 @@ import { BreakpointSchema } from '../../types/workflow-common.interface';
 @Injectable()
 export class StubOperatorMetadataService implements IOperatorMetadataService {
 
-  private currentBreakpointSchema: BreakpointSchema | undefined;
+  private currentBreakpointSchema = mockBreakpointSchema;
   private operatorMetadataObservable = Observable
     .of(mockOperatorMetaData)
     .shareReplay(1);

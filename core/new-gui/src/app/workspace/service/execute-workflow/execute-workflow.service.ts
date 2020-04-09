@@ -79,8 +79,6 @@ export class ExecuteWorkflowService {
 
     this.executeStartedStream.next('execution started');
 
-    console.log(body);
-
     // make a http post request to the API endpoint with the logical plan object
     this.http.post<SuccessExecutionResult>(
       requestURL,

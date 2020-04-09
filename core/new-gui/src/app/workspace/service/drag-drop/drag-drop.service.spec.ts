@@ -124,7 +124,7 @@ describe('DragDropService', () => {
     expect(createdLink.target).toEqual(mockScanResultLink.target);
   });
 
-  fit('should trigger the highlight event if it found a closest operator', marbles((m) => {
+  it('should trigger the highlight event if it found a closest operator', marbles((m) => {
     const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
     workflowActionService.addOperator(mockScanPredicate, {x: 0, y: 0});
     workflowActionService.addOperator(mockResultPredicate, {x: 100, y: 100});

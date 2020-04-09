@@ -18,7 +18,6 @@ import { IndexableObject } from '../../types/result-table.interface';
 
 type linkIDType = { linkID: string };
 
-
 /**
  * PropertyEditorComponent is the panel that allows user to edit operator properties.
  *
@@ -59,17 +58,24 @@ export class PropertyEditorComponent {
   // a *copy* of the operator property as the initial input to the json schema form
   // see details of why making a copy below at where the copy is made
   public currentOperatorInitialData: object | undefined;
-  public currentBreakpointInitialData: object | undefined;
 
   // the operator schemas of the current operator
   public currentOperatorSchema: OperatorSchema | undefined;
   public advancedOperatorSchema: OperatorSchema | undefined;
 
+  // the linkID corresponds to the property editor's current link
   public currentLinkID: linkIDType | undefined;
+
+// the link breakpoint schemas of the current link
   public currentLinkBreakpointSchema: BreakpointSchema | undefined;
+
+  // a *copy* of the link breakpoint property as the initial input to the json schema form
+  public currentBreakpointInitialData: object | undefined;
 
   // used in HTML template to control if the form is displayed
   public displayForm: boolean = false;
+
+  // used in HTML template to control is the breakpoint form is displayed
   public displayBreakpointEditor: boolean = false;
 
   // the form layout passed to angular json schema library to hide *submit* button
@@ -78,11 +84,13 @@ export class PropertyEditorComponent {
   // the source event stream of form change triggered by library at each user input
   public sourceFormChangeEventStream = new Subject<object>();
 
-  public breakpointChangeEventStream = new Subject<object>();
-
   // the output form change event stream after debouce time and filtering out values
   public outputFormChangeEventStream = this.createOutputFormChangeEventStream(this.sourceFormChangeEventStream);
 
+  // the source event stream of breakpoint form change
+  public breakpointChangeEventStream = new Subject<object>();
+
+  // the output form change event stream after debouce time and filtering out values
   public outputBreakpointChangeEventStream = this.createoutputBreakpointChangeEventStream(this.breakpointChangeEventStream);
 
   // the current operator schema list, used to find the operator schema of current operator
@@ -138,8 +146,10 @@ export class PropertyEditorComponent {
     // handle highlight / unhighlight event to show / hide the property editor form
     this.handleHighlightEvents();
 
+    // handle link highlight / unhighlight event to show / hide the breakpoint property editor form
     this.handleLinkHighlight();
 
+    // handle the breakpoint form change event on the user interface to set breakpoint property
     this.handleOnBreakpointPropertyChange();
 
   }
@@ -170,9 +180,10 @@ export class PropertyEditorComponent {
    */
   public onFormChanges(formData: object): void {
     if (this.displayForm) {
+      // the form belongs to an operator
       this.sourceFormChangeEventStream.next(formData);
-    }
-    if (this.displayBreakpointEditor) {
+    } else if (this.displayBreakpointEditor) {
+      // the form belongs to a link breakpoint
       this.breakpointChangeEventStream.next(formData);
     }
   }
@@ -265,9 +276,11 @@ export class PropertyEditorComponent {
     if (!operator) {
       throw new Error(`change property editor: operator is undefined`);
     }
-    this.displayBreakpointEditor = false;
     // set displayForm to false first to hide the view while constructing data
     this.displayForm = false;
+
+    // hide breakpoint editor form
+    this.displayBreakpointEditor = false;
 
     // set the operator data needed
     this.currentOperatorID = operator.operatorID;
@@ -335,42 +348,27 @@ export class PropertyEditorComponent {
     if (!this.workflowActionService.getTexeraGraph().hasLinkWithID(linkID.linkID)) {
       throw new Error(`change property editor: link does not exist`);
     }
-    // set displayForm to false first to hide the view while constructing data
+    // set displayBreakpointEditor to false first to hide the view while constructing data
+    this.displayBreakpointEditor = false;
+    // hide operator proterty form
     this.displayForm = false;
 
     // set the operator data needed
     this.currentLinkID = linkID;
     this.currentLinkBreakpointSchema = this.autocompleteService.getDynamicBreakpointSchema(this.currentLinkID.linkID);
     this.currentBreakpointInitialData = this.workflowActionService.getTexeraGraph().getLinkWithID(linkID.linkID).breakpointProperties;
-    // handle generating schemas for advanced / hidden options
-    // this.handleUpdateAdvancedSchema(operator);
 
-    // handler to show operator detail description button or not
-    // this.handleOperatorPropertyDescription(this.currentOperatorSchema);
-
-    /**
-     * Make a deep copy of the initial property data object.
-     * It's important to make a deep copy. If it's a reference to the operator's property object,
-     *  form change event -> property object change -> input to form change -> form change event
-     *  although the it falls into an infinite loop of tirggering events.
-     * Making a copy prevents that property object change triggers the input to the form changes.
-     *
-     * Although currently other methods also prevent this to happen, it's still good to explicitly make a copy.
-     *  - now the operator property object is immutable, meaning a new property object is construct to replace the old one,
-     *      instead of directly mutating the same object reference
-     *  - now the formChange event handler checks if the new formData is equal to the current operator data,
-     *      which prevents the
-     */
-    // when operator in the property editor changes, the cachedFormData should also be changed
-    // set displayForm to true in the end - first initialize all the data then show the view
+    // show breakpoint editor
     this.displayBreakpointEditor = true;
   }
 
+  // Handle link highlight event
+  // On highlight -> clean up current Property editor and display breakpoint editor
   public handleLinkHighlight() {
     this.workflowActionService.getJointGraphWrapper().getLinkHighlightStream()
-      .subscribe(value => {
+      .subscribe(linkID => {
         this.clearPropertyEditor();
-        this.showBreakpointPropertyEditor(value);
+        this.showBreakpointPropertyEditor(linkID);
       });
   }
 
@@ -430,6 +428,15 @@ export class PropertyEditorComponent {
 
   }
 
+  /**
+   * Handles the link breakpoint form change event stream observable,
+   *  which corresponds to every event the json schema form library emits.
+   *
+   * Applies rules that transform the event stream to trigger resonably and less frequently ,
+   *  such as debounce time and distince condition.
+   *
+   * Then modifies the link breakpoint property to use the new form data.
+   */
   public createoutputBreakpointChangeEventStream(originalBreakpointChangeEvent: Observable<object>): Observable<object> {
     return originalBreakpointChangeEvent
       // set a debounce time to avoid events triggering too often
@@ -464,10 +471,15 @@ export class PropertyEditorComponent {
       .share();
   }
 
+  /**
+   * This method handles the link breakpoint remove button click event.
+   * It will hide the property editor, clean up currentBreakpointInitialData.
+   * Then unhighlight the link and remove it from the workflow.
+   */
   public handleLinkBreakpointRemove() {
     if (this.currentLinkID) {
       this.displayBreakpointEditor = false;
-      this.currentOperatorInitialData = {};
+      this.currentBreakpointInitialData = {};
       this.workflowActionService.getJointGraphWrapper().unhighlightLink(this.currentLinkID.linkID);
       this.workflowActionService.removeLinkBreakpoint(this.currentLinkID.linkID);
     }
@@ -654,6 +666,10 @@ export class PropertyEditorComponent {
     });
   }
 
+  /**
+   * This method handles the breakpoint editor form change event and set the
+   * link breakpoint property in the texera graph.
+   */
   private handleOnBreakpointPropertyChange(): void {
     this.outputBreakpointChangeEventStream
       .subscribe(formData => {
