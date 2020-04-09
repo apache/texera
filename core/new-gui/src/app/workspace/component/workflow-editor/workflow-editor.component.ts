@@ -133,7 +133,10 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.handleOperatorCopy();
     this.handleOperatorCut();
     this.handleOperatorPaste();
-    this.handleOperatorBreakpoint();
+
+    this.handleLinkCursorHover();
+
+    this.handleLinkBreakpoint();
   }
 
 
@@ -146,12 +149,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
     jointPaperOptions.el = jQuery(`#${this.WORKFLOW_EDITOR_JOINTJS_ID}`);
     // create the JointJS paper
     this.paper = new joint.dia.Paper(jointPaperOptions);
-    // this.workflowActionService.setPaper(this.paper);
-
-    // this.paper.on('tool:button:breakpoint', function(elementView: joint.dia.CellView, evt: JointPaperEvent) {
-    //   console.log(evt);
-    //   console.log(elementView);
-    // });
 
     this.setJointPaperOriginOffset();
     this.setJointPaperDimensions();
@@ -840,17 +837,16 @@ export class WorkflowEditorComponent implements AfterViewInit {
     return position;
   }
 
-  private handleOperatorBreakpoint(): void {
-    // bind the breakpoint button event to call the show breakpoint condition function in joint model action
-    Observable
-      .fromEvent<JointPaperEvent>(this.getJointPaper(), 'tool:breakpoint', {passive: true})
-      .map(value => value[0])
-      .subscribe(
-        elementView => {
-          this.workflowActionService.getJointGraphWrapper().highlightLink(elementView.model.id.toString());
-        }
-    );
-
+  /**
+   * handle the events of the cursor enter/leave a jointJS link cell
+   *
+   * Originally, such "hover -> appear" feature came as a default setting with JointJS library
+   * However, in order to achieve conditional disappearance for the breakpoint button,
+   * every interaction between the cursor and the link tools, including the delete button,
+   * need to be handled manually
+   */
+  private handleLinkCursorHover(): void {
+    // When the cursor hovers over a link, the delete button and the breakpoint button appear
     Observable
       .fromEvent<JointPaperEvent>(this.getJointPaper(), 'link:mouseenter')
       .map(value => value[0])
@@ -862,6 +858,12 @@ export class WorkflowEditorComponent implements AfterViewInit {
           });
         }
     );
+
+    /**
+    * When the cursor leaves a link, the delete button disappears.
+    * If there is no breakpoint present on that link, the breakpoint button also disappears,
+    * otherwise, the breakpoint button is not changed.
+    */
     Observable
       .fromEvent<JointPaperEvent>(this.getJointPaper(), 'link:mouseleave')
       .map(value => value[0])
@@ -878,29 +880,67 @@ export class WorkflowEditorComponent implements AfterViewInit {
           });
         }
     );
+  }
 
+
+
+  /**
+   * handles events/observables related to the breakpoint
+   */
+  private handleLinkBreakpoint(): void {
+    this.handleLinkBreakpointButtonClick();
+    this.handleLinkBreakpointHighlighEvents();
+    this.handleLinkBreakpointToggleEvents();
+  }
+
+  /**
+   * handles the events of the breakpoint button is clicked for a link
+   * and converts that event to a workflow action
+   */
+  private handleLinkBreakpointButtonClick(): void {
+    Observable
+      .fromEvent<JointPaperEvent>(this.getJointPaper(), 'tool:breakpoint', {passive: true})
+      .map(value => value[0])
+      .subscribe(
+        elementView => {
+          this.workflowActionService.getJointGraphWrapper().highlightLink(elementView.model.id.toString());
+        }
+    );
+  }
+
+  /**
+   * Highlight/unhighlight the link according to the observable value recieved.
+   */
+  private handleLinkBreakpointHighlighEvents(): void {
     this.workflowActionService.getJointGraphWrapper().getLinkHighlightStream()
       .subscribe(linkID => {
+        const linkView = this.getJointPaper().findViewByModel(linkID.linkID);
+        linkView.highlight('connection');
+        // linkView.highlight() function turns the link to orange
+        // thus also changing the markers on the two ends to match the color.
         this.getJointPaper().getModelById(linkID.linkID).attr({
           '.marker-source': { fill: 'orange'},
           '.marker-target': { fill: 'orange'}
         });
-        const linkView = this.getJointPaper().findViewByModel(linkID.linkID);
-        linkView.highlight('connection');
       }
     );
 
     this.workflowActionService.getJointGraphWrapper().getLinkUnhighlightStream()
       .subscribe(linkID => {
+        const linkView = this.getJointPaper().findViewByModel(linkID.linkID);
+        linkView.unhighlight('connection');
         this.getJointPaper().getModelById(linkID.linkID).attr({
           '.marker-source': { fill: 'none'},
           '.marker-target': { fill: 'none'}
         });
-        const linkView = this.getJointPaper().findViewByModel(linkID.linkID);
-        linkView.unhighlight('connection');
       }
     );
+  }
 
+  /**
+   * show/hide the breakpoint button according to the observable value received
+   */
+  private handleLinkBreakpointToggleEvents(): void {
     this.workflowActionService.getJointGraphWrapper().getLinkBreakpointShowStream()
       .subscribe(linkID => {
         this.getJointPaper().getModelById(linkID.linkID).attr({

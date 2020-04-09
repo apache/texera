@@ -35,6 +35,8 @@ export class DynamicSchemaService {
   // dynamic schema of operators in the current workflow, specific to an operator and different from the static schema
   // directly calling `set()` is prohibited, it must go through `setDynamicSchema()`
   private dynamicSchemaMap = new Map<string, OperatorSchema>();
+
+  // dynamic shcema of link breakpoints in the current workflow
   private dynamicBreakpointSchemaMap = new Map<string, BreakpointSchema>();
 
   private initialSchemaTransformers: SchemaTransformer[] = [];
@@ -93,15 +95,18 @@ export class DynamicSchemaService {
     return dynamicSchema;
   }
 
+  /**
+   * Based on the linkID, get the current link breakpoint schema
+   */
   public getDynamicBreakpointSchema(linkID: string): BreakpointSchema {
     if (! this.dynamicBreakpointSchemaMap.has(linkID)) {
       this.dynamicBreakpointSchemaMap.set(linkID, this.operatorMetadataService.getBreakpointSchema());
     }
-    const dynamicBreakpointStatus = this.dynamicBreakpointSchemaMap.get(linkID);
-    if (!dynamicBreakpointStatus) {
+    const dynamicBreakpointSchema = this.dynamicBreakpointSchemaMap.get(linkID);
+    if (!dynamicBreakpointSchema) {
       throw new Error('dynamic breakpoint schema not found.');
     }
-    return dynamicBreakpointStatus;
+    return dynamicBreakpointSchema;
   }
 
   /**

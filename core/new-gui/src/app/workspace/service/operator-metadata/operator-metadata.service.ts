@@ -6,6 +6,7 @@ import '../../../common/rxjs-operators';
 import { AppSettings } from '../../../common/app-setting';
 import { OperatorMetadata, OperatorSchema } from '../../types/operator-schema.interface';
 import { BreakpointSchema } from '../../types/workflow-common.interface';
+import { mockBreakpointSchema } from './mock-operator-metadata.data';
 
 export const OPERATOR_METADATA_ENDPOINT = 'resources/operator-metadata';
 
@@ -19,27 +20,6 @@ const getDictionaryAPIAddress = '/api/upload/dictionary/';
 
 // interface only containing public methods
 export type IOperatorMetadataService = Pick<OperatorMetadataService, keyof OperatorMetadataService>;
-
-export const mockBreakpointSchema: BreakpointSchema = {
-  jsonSchema: {
-    type: 'object',
-    id: 'urn:jsonschema:edu:uci:ics:texera:dataflow:comparablematcher:ComparablePredicate',
-    properties: {
-      attribute: {
-        type: 'string'
-      },
-      comparisonType: {
-        type: 'string',
-        enum: ['=', '>', '>=', '<', '<=', '≠']
-      },
-      compareTo: {
-        type: 'any'
-      }
-    },
-    required: ['attribute', 'comparisonType', 'compareTo']
-  }
-};
-
 
 /**
  * OperatorMetadataService talks to the backend to fetch the operator metadata,
@@ -73,6 +53,7 @@ export class OperatorMetadataService {
     this.getOperatorMetadata().subscribe(
       data => this.currentOperatorMetadata = data
     );
+    // At current design, all the links have one fixed breakpoint schema stored in the frontend
     this.currentBreakpointSchema = mockBreakpointSchema;
   }
 
@@ -118,7 +99,9 @@ export class OperatorMetadataService {
     return true;
   }
 
-
+  /**
+   * At current design, this function returns the fixed schema
+   */
   public getBreakpointSchema(): BreakpointSchema {
     if (! this.currentBreakpointSchema) {
       throw new Error('breakpoint schema is undefined');

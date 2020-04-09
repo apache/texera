@@ -265,6 +265,13 @@ export class WorkflowGraph {
     this.operatorAdvancedChangeSubject.next({operator, showAdvanced});
   }
 
+  /**
+   * set the breakpoint property of a link to be newBreakpoint
+   * Throws an error if link doesn't exist
+   *
+   * @param linkID linkID
+   * @param newBreakpoint new property to set
+   */
   public setLinkBreakpoint(linkID: string, newBreakpoint: object): void {
     const originalLink = this.operatorLinkMap.get(linkID);
     if (originalLink === undefined) {

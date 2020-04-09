@@ -7,13 +7,15 @@ import { Point, OperatorPredicate, OperatorLink } from '../../types/workflow-com
 import { OperatorStates } from '../../types/execute-workflow.interface';
 import { Statistics } from '../../types/execute-workflow.interface';
 
+/**
+ * Defines the SVG element for the breakpoint button
+ */
 export const breakpointButtonSVG =
 `<svg class="breakpoint-button" height = "24" width = "24">
     <path d="M0 0h24v24H0z" fill="none" /> +
     <polygon points="8,2 16,2 22,8 22,16 16,22 8,22 2,16 2,8" fill="red" />
   </svg>
   <title>Add Breakpoint.</title>`;
-
 /**
  * Defines the SVG path for the delete button
  */
@@ -239,8 +241,6 @@ export class JointUIService {
     }
   }
 
-
-
   /**
    * Gets the ID of the JointJS operator status tooltip element corresponding to an operator.
    */
@@ -295,18 +295,18 @@ export class JointUIService {
       toolMarkup:
         `<g class="link-tool">
           <g class="tool-remove" event="tool:remove">
-            <circle r="11" />
+          <circle r="11" />
             <path transform="scale(.8) translate(-16, -16)" d="M24.778,21.419 19.276,15.917 24.777
             10.415 21.949,7.585 16.447,13.087 10.945,7.585 8.117,10.415 13.618,15.917 8.116,21.419
             10.946,24.248 16.447,18.746 21.948,24.248z"/>
             <title>Remove link.</title>
-          </g>
-          ${breakpointButtonSVG}
-        </g>`,
+           </g>
+           ${breakpointButtonSVG}
+         </g>`,
       attrs: {
         '.connection-wrap': {
           'stroke-width': 0,
-          'display': 'inline'
+          // 'display': 'inline'
         },
         '.marker-source': {
           d: sourceOperatorHandle,
@@ -338,10 +338,10 @@ export class JointUIService {
           x: 10, y: -10, cursor: 'pointer',
           event: 'tool:breakpoint',
           display: 'none'
-        },
-        '.link-tools': {
-          display: 'contents',
         }
+        // '.link-tools': {
+        //   display: 'contents',
+        // }
       }
     });
     return link;

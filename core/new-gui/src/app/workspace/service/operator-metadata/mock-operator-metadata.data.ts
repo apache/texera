@@ -1,5 +1,6 @@
 import { JSONSchema4 } from 'json-schema';
 import { OperatorSchema, OperatorMetadata, GroupInfo } from '../../types/operator-schema.interface';
+import { BreakpointSchema } from '../../types/workflow-common.interface';
 
 
 // Exports constants related to operator schema and operator metadata for testing purposes.
@@ -188,5 +189,25 @@ export const testJsonSchema: JSONSchema4 = {
     'resultAttribute'
   ],
   type: 'object'
+};
+
+export const mockBreakpointSchema: BreakpointSchema = {
+  jsonSchema: {
+    type: 'object',
+    id: 'urn:jsonschema:edu:uci:ics:texera:dataflow:breakpoint',
+    properties: {
+      attribute: {
+        type: 'string'
+      },
+      comparisonType: {
+        type: 'string',
+        enum: ['=', '>', '>=', '<', '<=', '≠']
+      },
+      compareTo: {
+        type: 'any'
+      }
+    },
+    required: ['attribute', 'comparisonType', 'compareTo']
+  }
 };
 
