@@ -26,10 +26,6 @@ install:
   - cd core 
   - cd new-gui
   - npm install
-  - cd multi-target
-  - npm install
-  - cd ..
-  - npm run multi-target-updater
   - cd ..
 
 script:

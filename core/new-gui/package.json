@@ -9,6 +9,7 @@
     "test": "ng test",
     "lint": "ng lint",
     "e2e": "ng e2e",
+    "preinstall": "cd multi-target && npm install && npm run build",
     "multi-target-updater": "cd multi-target && npm run build && cd .. && npm install ./multi-target -D"
   },
   "private": true,
