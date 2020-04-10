@@ -20,8 +20,6 @@ import { IndexableObject } from '../../types/result-table.interface';
 import { FormGroup } from '@angular/forms';
 import { FormlyFormOptions, FormlyFieldConfig } from '@ngx-formly/core';
 import { FormlyJsonschema } from '@ngx-formly/core/json-schema';
-import { HttpClient } from '@angular/common/http';
-import { tap } from 'rxjs/operators';
 
 /**
  * PropertyEditorComponent is the panel that allows user to edit operator properties.
@@ -97,7 +95,25 @@ export class PropertyEditorComponent {
   // the operator data need to be stored if the Json Schema changes, else the currently modified changes will be lost
   public cachedFormData: object = {};
 
+  public form: FormGroup | undefined;
+  public model: any;
+  public options: FormlyFormOptions | undefined;
+  public fields: FormlyFieldConfig[] | undefined;
+  public type = '';
+  public test_field: FormlyFieldConfig[] = [
+    {
+      key: 'email',
+      type: 'input',
+      templateOptions: {
+        label: 'Email address',
+        placeholder: 'Enter email',
+        required: true,
+      }
+    }
+  ];
+
   constructor(
+    private formlyJsonschema: FormlyJsonschema,
     private workflowActionService: WorkflowActionService,
     private autocompleteService: DynamicSchemaService
   ) {
@@ -118,6 +134,11 @@ export class PropertyEditorComponent {
         if (this.cachedFormData !== undefined) {
           this.currentOperatorInitialData = this.cachedFormData;
         }
+        this.form = new FormGroup({});
+        this.options = {};
+        this.fields = this.test_field;
+        console.log(this.currentOperatorSchema.jsonSchema);
+        console.log('field', this.fields);
       });
 
     // listen to the autocomplete event, remove invalid properties, and update the schema displayed on the form
@@ -133,6 +154,10 @@ export class PropertyEditorComponent {
     // handle highlight / unhighlight event to show / hide the property editor form
     this.handleHighlightEvents();
 
+  }
+
+  public onSubmit() {
+    console.log(this.model);
   }
 
   /**
@@ -256,6 +281,11 @@ export class PropertyEditorComponent {
     // set the operator data needed
     this.currentOperatorID = operator.operatorID;
     this.currentOperatorSchema = this.autocompleteService.getDynamicSchema(this.currentOperatorID);
+        this.form = new FormGroup({});
+        this.options = {};
+        this.fields = [this.formlyJsonschema.toFieldConfig(this.currentOperatorSchema.jsonSchema)];
+        console.log(this.currentOperatorSchema.jsonSchema);
+        console.log('field', this.fields);
 
     // handle generating schemas for advanced / hidden options
     this.handleUpdateAdvancedSchema(operator);
@@ -358,7 +388,11 @@ export class PropertyEditorComponent {
           if (! operator) {
             throw new Error(`operator ${event.operatorID} does not exist`);
           }
-          this.handleUpdateAdvancedSchema(operator);
+          this.form = new FormGroup({});
+          this.options = {};
+          this.fields = [this.formlyJsonschema.toFieldConfig(this.currentOperatorSchema.jsonSchema)];
+          console.log(this.currentOperatorSchema.jsonSchema);
+          console.log('field', this.fields);
         }
       }
     );
@@ -421,6 +455,7 @@ export class PropertyEditorComponent {
         this.currentOperatorInitialData = cloneDeep(operatorChanged.operator.operatorProperties);
         // need to use spread operator to keep the advanced options in the new operator properties do not contain them
         this.cachedFormData = {...this.cachedFormData, ...this.currentOperatorInitialData};
+
       });
   }
 

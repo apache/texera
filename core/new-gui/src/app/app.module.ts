@@ -65,8 +65,15 @@ import { ResourceSectionComponent } from './dashboard/component/feature-containe
 
 import { FileUploadModule } from 'ng2-file-upload';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { FormlyModule } from '@ngx-formly/core';
 import { FormlyBootstrapModule } from '@ngx-formly/bootstrap';
+import { FormlyModule, FormlyFieldConfig } from '@ngx-formly/core';
+
+import { ArrayTypeComponent } from './common/array.type';
+import { ObjectTypeComponent } from './common/object.type';
+import { MultiSchemaTypeComponent } from './common/multischema.type';
+import { NullTypeComponent } from './common/null.type';
+
+
 
 @NgModule({
   declarations: [
@@ -102,6 +109,11 @@ import { FormlyBootstrapModule } from '@ngx-formly/bootstrap';
     ProductTourComponent,
     MiniMapComponent,
     ResultPanelToggleComponent,
+
+    ArrayTypeComponent,
+    ObjectTypeComponent,
+    MultiSchemaTypeComponent,
+    NullTypeComponent
   ],
   imports: [
     BrowserModule,
@@ -122,8 +134,52 @@ import { FormlyBootstrapModule } from '@ngx-formly/bootstrap';
     FormsModule,
     ReactiveFormsModule,
     LoggerModule.forRoot({level: environment.production ? NgxLoggerLevel.ERROR : NgxLoggerLevel.DEBUG, serverLogLevel: NgxLoggerLevel.OFF}),
-    FormlyModule.forRoot(),
+    FormlyModule.forRoot({
+      validationMessages: [
+        { name: 'required', message: 'This field is required' },
+        { name: 'null', message: 'should be null' },
+        { name: 'minlength', message: 'minlengthValidationMessage' },
+        { name: 'maxlength', message: 'maxlengthValidationMessage' },
+        { name: 'min', message: 'minValidationMessage' },
+        { name: 'max', message: 'maxValidationMessage' },
+        { name: 'multipleOf', message: 'multipleOfValidationMessage' },
+        { name: 'exclusiveMinimum', message: 'exclusiveMinimumValidationMessage' },
+        { name: 'exclusiveMaximum', message: 'exclusiveMaximumValidationMessage' },
+        { name: 'minItems', message: 'minItemsValidationMessage' },
+        { name: 'maxItems', message: 'maxItemsValidationMessage' },
+        { name: 'uniqueItems', message: 'should NOT have duplicate items' },
+        { name: 'const', message: 'constValidationMessage' },
+      ],
+      types: [
+        { name: 'string', extends: 'input' },
+        {
+          name: 'number',
+          extends: 'input',
+          defaultOptions: {
+            templateOptions: {
+              type: 'number',
+            },
+          },
+        },
+        {
+          name: 'integer',
+          extends: 'input',
+          defaultOptions: {
+            templateOptions: {
+              type: 'number',
+            },
+          },
+        },
+        { name: 'boolean', extends: 'checkbox' },
+        { name: 'enum', extends: 'select' },
+        { name: 'null', component: NullTypeComponent, wrappers: ['form-field'] },
+        { name: 'array', component: ArrayTypeComponent },
+        { name: 'object', component: ObjectTypeComponent },
+        { name: 'multischema', component: MultiSchemaTypeComponent },
+      ],
+    }),
     FormlyBootstrapModule,
+
 
   ],
   entryComponents: [

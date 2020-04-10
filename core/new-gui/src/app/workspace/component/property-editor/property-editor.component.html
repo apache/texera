@@ -4,22 +4,16 @@
       {{currentOperatorSchema?.additionalMetadata.userFriendlyName}}
     </h3>
 
-    <json-schema-form
-      class="texera-workspace-property-editor-form"
-      framework="material-design"
-      loadExternalAssets="true"
-      [schema]="currentOperatorSchema?.jsonSchema"
-      [data]="currentOperatorInitialData"
-      [layout]="formLayout"
-      (onChanges)="onFormChanges($event)"
-    >
-    </json-schema-form>
 
-    <form [formGroup]="form" (ngSubmit)="onSubmit(model)">
-      <formly-form [form]="form" [fields]="fields" [model]="model"></formly-form>
-      <button type="submit" class="btn btn-default">Submit</button>
+    <form [formGroup]="form" *ngIf="fields">
+      <formly-form [model]="model"
+      [fields]="fields"
+      [options]="options"
+      [form]="form">
+      </formly-form>
+
     </form>
-    
+
     <button *ngIf="!showAdvanced && hasAdvanced" type="button" class="btn btn-default" (click)="handlePropertyAdvancedToggle()">Advanced</button>
     <button *ngIf="showAdvanced && hasAdvanced" type="button" class="btn btn-default" (click)="handlePropertyAdvancedToggle()">Hide Advanced</button>
 
