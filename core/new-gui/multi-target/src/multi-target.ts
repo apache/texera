@@ -94,6 +94,7 @@ function multiBuilder( options: Options, context: BuilderContext): Promise<Build
 
 function scheduleTarget(targetStr: string, context: BuilderContext): Promise<BuilderRun>{
   let target = targetFromTargetString(targetStr);
+  //@ts-ignore logger is actually Logger but was interfaced (as part of BuilderContext) into a LoggerApi.
   let opt: ScheduleOptions = {logger: <logging.Logger> context.logger};
   let overrides: JsonObject|undefined = undefined;
   return context.scheduleTarget(target,overrides,opt);

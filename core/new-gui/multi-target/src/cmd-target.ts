@@ -62,11 +62,10 @@ function killDescendants(parentPID: number) {
       kill(pid);
     });
   } else if (platform == "linux"){
-    // todo implement
-    console.warn(`Warning: killing process descendants currently only supported on windows`)
+    execSync(`kill -TERM -${parentPID}`);
   } else {
     // other possibilities are AIX|Darwin|FreeBSD|OpenBSD|SunOS
-    console.warn(`Warning: killing process descendants currently only supported on windows`)
+    console.warn(`Warning: killing process descendants currently only supported on windows and linux. Please check manually if it worked.`)
   }
 }
 
@@ -84,10 +83,10 @@ function killCmdTask(cmd: string, killChildren: boolean): boolean {
   }
 }
 
-function execCmdTask(cmd: string, loggerPrefix: string, daemon: boolean, context: BuilderContext): CmdTask {
-  const child: ChildProcess = spawn(cmd, [], { stdio: daemon ? 'ignore' : 'pipe', shell: true });
+function execCmdTask(cmd: string, loggerPrefix: string, options: Options, context: BuilderContext): CmdTask {
+  const child: ChildProcess = spawn(cmd, [], { stdio: options.daemon ? 'ignore' : 'pipe', detached: options.detached, shell: true });
 
-  if (!daemon) {
+  if (!options.daemon) {
     // @ts-ignore: stdout won't be null since not running as daemon (childprocess's stdio = 'pipe')
     child.stdout.on('data', (data) => {
       context.logger.info(loggerPrefix + data.toString());
@@ -113,7 +112,7 @@ function execTarget(options: Options, context: BuilderContext, resolve: PromiseF
   context.logger.info(`Executing ${options.daemon ? "as daemon " : ""} '${options.cmd}'`);
 
   const prefix: string = `(${clampCmd(options.cmd, CMD_LENGTH)}):`
-  var task = execCmdTask(options.cmd, prefix, options.daemon, context);
+  var task = execCmdTask(options.cmd, prefix, options, context);
   liveTasks.push(task);
 
   if (options.detached) {

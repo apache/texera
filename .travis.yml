@@ -25,7 +25,7 @@ before_install:
 install:
   - cd core 
   - cd new-gui
-  - npm install
+  - npm install --unsafe-perm
   - cd ..
 
 script:
