@@ -71,11 +71,6 @@
             <artifactId>unirest-java</artifactId>
             <version>1.4.9</version>
         </dependency>
-		<dependency>
-    		  <groupId>mysql</groupId>
-    		  <artifactId>mysql-connector-java</artifactId>
-    		  <version>5.1.42</version>
-		</dependency>
         <dependency>
             <groupId>org.apache.pdfbox</groupId>
             <artifactId>pdfbox</artifactId>
@@ -118,8 +113,79 @@
             <artifactId>json-schema-validator</artifactId>
             <version>2.2.8</version>
         </dependency>
+        <dependency>
+            <groupId>org.jooq</groupId>
+            <artifactId>jooq</artifactId>
+            <version>3.12.4</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jooq</groupId>
+            <artifactId>jooq-meta</artifactId>
+            <version>3.12.4</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jooq</groupId>
+            <artifactId>jooq-codegen</artifactId>
+            <version>3.12.4</version>
+        </dependency>
+        <dependency>
+            <groupId>mysql</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+            <version>8.0.19</version>
+        </dependency>
+        <dependency>
+            <groupId>org.reactivestreams</groupId>
+            <artifactId>reactive-streams</artifactId>
+            <version>1.0.3</version>
+        </dependency>
+        <dependency>
+            <groupId>javax.xml.bind</groupId>
+            <artifactId>jaxb-api</artifactId>
+            <version>2.3.0</version>
+        </dependency>
     </dependencies>
 
     <build>
+    <plugins>
+	    <plugin>
+	  <groupId>org.jooq</groupId>
+	  <artifactId>jooq-codegen-maven</artifactId>
+	  <version>3.12.4</version>
+	  <executions>
+	    <execution>
+	      <goals>
+	        <goal>generate</goal>
+	      </goals>
+	    </execution>
+	  </executions>
+	  <dependencies>
+        <dependency>
+            <groupId>mysql</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+            <version>8.0.19</version>
+        </dependency>
+	  </dependencies>
+	  <configuration>
+	    <jdbc>
+		    <driver>com.mysql.cj.jdbc.Driver</driver>
+		    <url>jdbc:mysql://localhost:3306/texera</url>
+		    <user>texerauser</user>
+		    <password>112358</password>
+	    </jdbc>
+	    <generator>
+	      <database>
+	        <name>org.jooq.meta.mysql.MySQLDatabase</name>
+	        <includes>.*</includes>
+	        <excludes></excludes>
+	        <inputSchema>texera</inputSchema>
+	      </database>
+	      <target>
+	        <packageName>edu.uci.ics.texera.dataflow.jooqGenerated</packageName>
+	        <directory>src/main/java</directory>
+	      </target>
+	    </generator>
+	  </configuration>
+	</plugin>
+    </plugins>
     </build>
 </project>
