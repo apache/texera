@@ -13,7 +13,9 @@ import * as jQuery from 'jquery';
 import '../../../../../node_modules/jquery-ui-dist/jquery-ui';
 
 import { marbles } from 'rxjs-marbles';
-import { mockScanPredicate, mockResultPredicate, mockMultiInputOutputPredicate, mockScanResultLink } from '../workflow-graph/model/mock-workflow-data';
+import {
+  mockScanPredicate, mockResultPredicate, mockMultiInputOutputPredicate, mockScanResultLink
+} from '../workflow-graph/model/mock-workflow-data';
 import { OperatorPredicate, OperatorLink } from '../../types/workflow-common.interface';
 
 describe('DragDropService', () => {
@@ -37,13 +39,13 @@ describe('DragDropService', () => {
     // custom equality disregards link ID (since I use DragDropService.getNew)
     jasmine.addCustomEqualityTester((link1: OperatorLink, link2: OperatorLink) => {
       if (typeof link1 === 'object' && typeof link2 === 'object') {
-        if (link1.source == link2.source && link1.target == link2.target) {
-          return true
+        if (link1.source === link2.source && link1.target === link2.target) {
+          return true;
         } else {
-          return false
+          return false;
         }
       }
-    })
+    });
   });
 
 
@@ -108,18 +110,19 @@ describe('DragDropService', () => {
     expect(createdLink.target).toEqual(mockScanResultLink.target);
   });
 
-  it('should find 3 input operatorPredicates and 3 output operatorPredicates for an operatorPredicate with 3 input / 3 output ports', () => {
+  it('should find 3 input operatorPredicates and 3 output operatorPredicates for an operatorPredicate with 3 input / 3 output ports',
+  () => {
     const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
     const workflowUtilService: WorkflowUtilService = TestBed.get(WorkflowUtilService);
 
 
-    const input1 = workflowUtilService.getNewOperatorPredicate('ScanSource')
-    const input2 = workflowUtilService.getNewOperatorPredicate('ScanSource')
-    const input3 = workflowUtilService.getNewOperatorPredicate('ScanSource')
-    const output1 = workflowUtilService.getNewOperatorPredicate('ViewResults')
-    const output2 = workflowUtilService.getNewOperatorPredicate('ViewResults')
-    const output3 = workflowUtilService.getNewOperatorPredicate('ViewResults')
-    const [inputOps, outputOps] = (dragDropService as any).findClosestOperators({ x: 50, y: 0 }, mockMultiInputOutputPredicate)
+    const input1 = workflowUtilService.getNewOperatorPredicate('ScanSource');
+    const input2 = workflowUtilService.getNewOperatorPredicate('ScanSource');
+    const input3 = workflowUtilService.getNewOperatorPredicate('ScanSource');
+    const output1 = workflowUtilService.getNewOperatorPredicate('ViewResults');
+    const output2 = workflowUtilService.getNewOperatorPredicate('ViewResults');
+    const output3 = workflowUtilService.getNewOperatorPredicate('ViewResults');
+    const [inputOps, outputOps] = (dragDropService as any).findClosestOperators({ x: 50, y: 0 }, mockMultiInputOutputPredicate);
 
     workflowActionService.addOperator(input1, { x: 0, y: 0 });
     workflowActionService.addOperator(input2, { x: 0, y: 10 });
@@ -128,17 +131,19 @@ describe('DragDropService', () => {
     workflowActionService.addOperator(output2, { x: 100, y: 10 });
     workflowActionService.addOperator(output3, { x: 100, y: 20 });
 
-    expect(inputOps).toEqual([input1, input2, input3])
-    expect(outputOps).toEqual([output1, output2, output3])
+    expect(inputOps).toEqual([input1, input2, input3]);
+    expect(outputOps).toEqual([output1, output2, output3]);
   });
 
-  it('should publish operatorPredicates to highlight streams when calling "updateHighlighting(prevHightlights,newHighlights)"', async () => {
+  it('should publish operatorPredicates to highlight streams when calling "updateHighlighting(prevHightlights,newHighlights)"',
+  async () => {
     const workflowUtilService: WorkflowActionService = TestBed.get(WorkflowActionService);
     const highlights: string[] = [];
     const unhighlights: string[] = [];
     const expectedHighlights = [mockScanPredicate.operatorID, mockScanPredicate.operatorID];
     const expectedUnhighlights = [mockScanPredicate.operatorID, mockResultPredicate.operatorID];
-    const timeout = new Promise(resolve => setTimeout(resolve, 500)); // allow test to run for 500ms before checking, since observables are async
+        // allow test to run for 10ms before checking, since observables are async
+    const timeout = new Promise(resolve => setTimeout(resolve, 10));
 
     dragDropService.getOperatorSuggestionHighlightStream().subscribe(
       operatorID => {
@@ -170,9 +175,10 @@ describe('DragDropService', () => {
     workflowActionService.addOperator(mockScanPredicate, { x: 0, y: 0 });
 
     const [inputOps, outputOps] = (dragDropService as any).findClosestOperators(
-      { x: DragDropService.SUGGESTION_DISTANCE_THRESHOLD + 10, y: DragDropService.SUGGESTION_DISTANCE_THRESHOLD + 10 }, mockResultPredicate)
+      { x: DragDropService.SUGGESTION_DISTANCE_THRESHOLD + 10,
+        y: DragDropService.SUGGESTION_DISTANCE_THRESHOLD + 10 }, mockResultPredicate);
 
-    expect(inputOps).toEqual([])
+    expect(inputOps).toEqual([]);
   });
 
   it('should update highlighting, add operator, and add links when an operator is dropped', marbles(async (m) => {
@@ -188,14 +194,14 @@ describe('DragDropService', () => {
       e: { operatorType: operatorType, offset: { x: 1005, y: 1001 }, dragElementID: 'mockID' }
     };
 
-    const input1 = workflowUtilService.getNewOperatorPredicate('ScanSource')
-    const input2 = workflowUtilService.getNewOperatorPredicate('ScanSource')
-    const input3 = workflowUtilService.getNewOperatorPredicate('ScanSource')
-    const output1 = workflowUtilService.getNewOperatorPredicate('ViewResults')
-    const output2 = workflowUtilService.getNewOperatorPredicate('ViewResults')
-    const output3 = workflowUtilService.getNewOperatorPredicate('ViewResults')
-    const heightSortedInputs: OperatorPredicate[] = [input1, input2, input3]
-    const heightSortedOutputs: OperatorPredicate[] = [output1, output2, output3]
+    const input1 = workflowUtilService.getNewOperatorPredicate('ScanSource');
+    const input2 = workflowUtilService.getNewOperatorPredicate('ScanSource');
+    const input3 = workflowUtilService.getNewOperatorPredicate('ScanSource');
+    const output1 = workflowUtilService.getNewOperatorPredicate('ViewResults');
+    const output2 = workflowUtilService.getNewOperatorPredicate('ViewResults');
+    const output3 = workflowUtilService.getNewOperatorPredicate('ViewResults');
+    const heightSortedInputs: OperatorPredicate[] = [input1, input2, input3];
+    const heightSortedOutputs: OperatorPredicate[] = [output1, output2, output3];
 
     // lists to be populated by observables/streams
     const highlights: string[] = [];
@@ -203,16 +209,18 @@ describe('DragDropService', () => {
     const links: OperatorLink[] = [];
     // expected end results of above lists
     const expectedHighlights: OperatorPredicate[] = []; // expected empty
-    const expectedUnhighlights = [input1.operatorID, input2.operatorID, input3.operatorID, output1.operatorID, output2.operatorID, output3.operatorID];
-    const expectedLinks: OperatorLink[] = [] //NOT EXPECTED EMPTY: populated below
+    const expectedUnhighlights = [
+      input1.operatorID, input2.operatorID, input3.operatorID, output1.operatorID, output2.operatorID, output3.operatorID
+    ];
+    const expectedLinks: OperatorLink[] = []; // NOT EXPECTED EMPTY: populated below
 
     // populate expected links.
     heightSortedInputs.forEach(inputOperator => {
-      expectedLinks.push((dragDropService as any).getNewOperatorLink(inputOperator, operator, expectedLinks))
-    })
+      expectedLinks.push((dragDropService as any).getNewOperatorLink(inputOperator, operator, expectedLinks));
+    });
     heightSortedOutputs.forEach(outputOperator => {
-      expectedLinks.push((dragDropService as any).getNewOperatorLink(operator, outputOperator, expectedLinks))
-    })
+      expectedLinks.push((dragDropService as any).getNewOperatorLink(operator, outputOperator, expectedLinks));
+    });
 
     const timeout = new Promise(resolve => setTimeout(resolve, 500)); // await 500ms before checking expect(s), since observables are async
 
@@ -236,7 +244,7 @@ describe('DragDropService', () => {
       }
     );
     workflowActionService.getTexeraGraph().getLinkAddStream().subscribe(link => {
-      links.push(link)
+      links.push(link);
     });
 
     // dummy values to confirm operator drops @ correct position
@@ -263,7 +271,7 @@ describe('DragDropService', () => {
     await timeout;
     expect(highlights).toEqual(expectedHighlights as any);
     expect(unhighlights).toEqual(expectedUnhighlights as any);
-    expect(links).toEqual(expectedLinks) // depends on custom jasmine equality comparison function, defined at top in beforeEach{...}
+    expect(links).toEqual(expectedLinks); // depends on custom jasmine equality comparison function, defined at top in beforeEach{...}
   }));
 
 });
