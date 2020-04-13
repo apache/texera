@@ -9,6 +9,9 @@
   </jdbc>
 
   <generator>
+    <generate>
+      <generatedAnnotation>false</generatedAnnotation>
+    </generate>
     <!-- The default code generator. You can override this one, to generate your own code style.
          Supported generators:
          - org.jooq.codegen.JavaGenerator
