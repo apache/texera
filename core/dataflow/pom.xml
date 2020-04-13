@@ -166,24 +166,8 @@
         </dependency>
 	  </dependencies>
 	  <configuration>
-	    <jdbc>
-		    <driver>com.mysql.cj.jdbc.Driver</driver>
-		    <url>jdbc:mysql://localhost:3306/texera</url>
-		    <user>texerauser</user>
-		    <password>112358</password>
-	    </jdbc>
-	    <generator>
-	      <database>
-	        <name>org.jooq.meta.mysql.MySQLDatabase</name>
-	        <includes>.*</includes>
-	        <excludes></excludes>
-	        <inputSchema>texera</inputSchema>
-	      </database>
-	      <target>
-	        <packageName>edu.uci.ics.texera.dataflow.jooqGenerated</packageName>
-	        <directory>src/main/java</directory>
-	      </target>
-	    </generator>
+	    <skip>${jooq.codegen.skip}</skip>
+	    <configurationFile>${jooq.codegen.configurationFile}</configurationFile>
 	  </configuration>
 	</plugin>
     </plugins>
