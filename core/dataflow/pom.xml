@@ -16,6 +16,9 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <jdk.version>1.8</jdk.version>
+        <!-- By default we skip the jooq code generation
+            It could be overridden by passing maven command -Djooq.codegen.skip=false -->
+        <jooq.codgen.skip>true</jooq.codgen.skip>
     </properties>
 
     <dependencies>
@@ -51,11 +54,11 @@
             <version>1.1</version>
         </dependency>
         <dependency>
-    		      <groupId>org.apache.poi</groupId>
-    		      <artifactId>poi-ooxml</artifactId>
-    		      <version>3.16</version>
-		</dependency>
-		<dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+            <version>3.16</version>
+        </dependency>
+        <dependency>
             <groupId>org.apache.tika</groupId>
             <artifactId>tika-core</artifactId>
             <version>1.20</version>
@@ -66,7 +69,7 @@
             <version>1.17</version>
             <optional>true</optional>
         </dependency>
-		<dependency>
+        <dependency>
             <groupId>com.mashape.unirest</groupId>
             <artifactId>unirest-java</artifactId>
             <version>1.4.9</version>
@@ -86,7 +89,7 @@
             <artifactId>opencsv</artifactId>
             <version>2.3</version>
         </dependency>
-        
+
         <dependency>
             <groupId>com.twitter</groupId>
             <artifactId>hbc-core</artifactId> <!-- or hbc-twitter4j -->
@@ -143,33 +146,83 @@
             <artifactId>jaxb-api</artifactId>
             <version>2.3.0</version>
         </dependency>
+        <dependency>
+            <groupId>com.typesafe</groupId>
+            <artifactId>config</artifactId>
+            <version>1.4.0</version>
+        </dependency>
     </dependencies>
 
     <build>
-    <plugins>
-	    <plugin>
-	  <groupId>org.jooq</groupId>
-	  <artifactId>jooq-codegen-maven</artifactId>
-	  <version>3.12.4</version>
-	  <executions>
-	    <execution>
-	      <goals>
-	        <goal>generate</goal>
-	      </goals>
-	    </execution>
-	  </executions>
-	  <dependencies>
-        <dependency>
-            <groupId>mysql</groupId>
-            <artifactId>mysql-connector-java</artifactId>
-            <version>8.0.19</version>
-        </dependency>
-	  </dependencies>
-	  <configuration>
-	    <skip>${jooq.codegen.skip}</skip>
-	    <configurationFile>${jooq.codegen.configurationFile}</configurationFile>
-	  </configuration>
-	</plugin>
-    </plugins>
+        <plugins>
+            <plugin>
+                <groupId>org.jooq</groupId>
+                <artifactId>jooq-codegen-maven</artifactId>
+                <version>3.12.4</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <dependencies>
+                    <dependency>
+                        <groupId>mysql</groupId>
+                        <artifactId>mysql-connector-java</artifactId>
+                        <version>8.0.19</version>
+                    </dependency>
+                </dependencies>
+
+                <configuration>
+                    <!-- Configure the database connection here -->
+                    <jdbc>
+                        <driver>com.mysql.cj.jdbc.Driver</driver>
+                    </jdbc>
+
+                    <skip>${jooq.codgen.skip}</skip>
+
+                    <generator>
+                        <generate>
+                            <generatedAnnotation>false</generatedAnnotation>
+                        </generate>
+                        <!-- The default code generator. You can override this one, to generate your own code style.
+                             Supported generators:
+                             - org.jooq.codegen.JavaGenerator
+                             - org.jooq.codegen.ScalaGenerator
+                             Defaults to org.jooq.codegen.JavaGenerator -->
+                        <name>org.jooq.codegen.JavaGenerator</name>
+
+                        <database>
+                            <!-- The database type. The format here is:
+                                 org.jooq.meta.[database].[database]Database -->
+                            <name>org.jooq.meta.mysql.MySQLDatabase</name>
+
+                            <!-- The database schema (or in the absence of schema support, in your RDBMS this
+                                 can be the owner, user, database name) to be generated -->
+                            <inputSchema>texera</inputSchema>
+
+                            <!-- All elements that are generated from your schema
+                                 (A Java regular expression. Use the pipe to separate several expressions)
+                                 Watch out for case-sensitivity. Depending on your database, this might be important! -->
+                            <includes>.*</includes>
+
+                            <!-- All elements that are excluded from your schema
+                                 (A Java regular expression. Use the pipe to separate several expressions).
+                                 Excludes match before includes, i.e. excludes have a higher priority -->
+                            <excludes></excludes>
+                        </database>
+
+                        <target>
+                            <!-- The destination package of your generated classes (within the destination directory) -->
+                            <packageName>edu.uci.ics.texera.dataflow.jooqgenerated</packageName>
+
+                            <!-- The destination directory of your generated classes. Using Maven directory layout here -->
+                            <directory>src/main/java</directory>
+                        </target>
+                    </generator>
+                </configuration>
+            </plugin>
+        </plugins>
     </build>
 </project>

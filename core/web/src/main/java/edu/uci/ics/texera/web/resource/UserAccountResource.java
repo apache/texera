@@ -1,41 +1,23 @@
 package edu.uci.ics.texera.web.resource;
 
-import javax.ws.rs.Consumes;
-import javax.ws.rs.FormParam;
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.PUT;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.MediaType;
-
-import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
+import edu.uci.ics.texera.dataflow.jooqgenerated.tables.records.UseraccountRecord;
+import edu.uci.ics.texera.dataflow.sqlServerInfo.UserSqlServer;
+import edu.uci.ics.texera.web.TexeraWebException;
 import org.glassfish.jersey.media.multipart.FormDataParam;
 import org.jooq.Condition;
 import org.jooq.DSLContext;
-import org.jooq.Record;
 import org.jooq.Record1;
-import org.jooq.Result;
-import org.jooq.SQLDialect;
-import org.jooq.Select;
-import org.jooq.impl.DSL;
 import org.jooq.types.UInteger;
 
-import com.itextpdf.text.pdf.PdfStructTreeController.returnType;
-
-import edu.uci.ics.texera.web.TexeraWebException;
-import edu.uci.ics.texera.dataflow.jooqGenerated.tables.records.UseraccountRecord;
-import edu.uci.ics.texera.dataflow.sqlServerInfo.UserSqlServer;
-import edu.uci.ics.texera.web.response.GenericWebResponse;
-
-import static edu.uci.ics.texera.dataflow.jooqGenerated.Tables.*;
-import static org.jooq.impl.DSL.*;
-
+import javax.ws.rs.Consumes;
+import javax.ws.rs.POST;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
+import javax.ws.rs.core.MediaType;
 import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
-import java.util.List;
+
+import static edu.uci.ics.texera.dataflow.jooqgenerated.Tables.USERACCOUNT;
+import static org.jooq.impl.DSL.defaultValue;
 
 
 @Path("/users/accounts/")
