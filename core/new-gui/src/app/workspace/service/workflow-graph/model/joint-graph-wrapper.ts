@@ -210,6 +210,12 @@ export class JointGraphWrapper {
    * @param operatorID
    */
   public highlightOperator(operatorID: string): void {
+    // if there are highlighed links, unhighlight them
+    if (this.currentHighlightedLinks.length > 0) {
+      const highlightedLinks = Object.assign([], this.currentHighlightedLinks);
+      highlightedLinks.forEach(highlightedLink => this.unhighlightLink(highlightedLink));
+    }
+
     const highlightedOperatorIDs: string[] = [];
     this.highlightOperatorInternal(operatorID, highlightedOperatorIDs);
     if (highlightedOperatorIDs.length > 0) {
@@ -226,15 +232,17 @@ export class JointGraphWrapper {
    * @param operatorIDs
    */
   public highlightOperators(operatorIDs: string[]): void {
-    const highlightedOperatorIDs: string[] = [];
-    operatorIDs.forEach(operatorID => this.highlightOperatorInternal(operatorID, highlightedOperatorIDs));
-    if (highlightedOperatorIDs.length > 0) {
-      this.jointCellHighlightStream.next({ operatorIDs: highlightedOperatorIDs });
-    }
+
     // if there are highlighed links, unhighlight them
     if (this.currentHighlightedLinks.length > 0) {
       const highlightedLinks = Object.assign([], this.currentHighlightedLinks);
       highlightedLinks.forEach(highlightedLink => this.unhighlightLink(highlightedLink));
+    }
+    // then
+    const highlightedOperatorIDs: string[] = [];
+    operatorIDs.forEach(operatorID => this.highlightOperatorInternal(operatorID, highlightedOperatorIDs));
+    if (highlightedOperatorIDs.length > 0) {
+      this.jointCellHighlightStream.next({ operatorIDs: highlightedOperatorIDs });
     }
   }
 
