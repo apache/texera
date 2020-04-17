@@ -518,4 +518,276 @@ describe('JointGraphWrapperService', () => {
     expect(localJointGraphWrapper.getOperatorPosition(mockResultPredicate.operatorID)).toEqual(expectedPosition);
   });
 
+  it('should emit link highlight event correctly when a link is selected', marbles((m) => {
+    const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
+    const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
+
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    workflowActionService.addOperator(mockResultPredicate, mockPoint);
+    workflowActionService.addLink(mockScanResultLink);
+
+    // prepare marble operation for highlighting one link, then highlight an operator
+    const highlightActionMarbleEvent = m.hot(
+      '-a-|',
+      { a: mockScanResultLink.linkID }
+    ).share();
+
+    // highlight at events
+    highlightActionMarbleEvent.subscribe(value  => {
+        localJointGraphWrapper.highlightLink(value);
+    });
+
+    // prepare expected output highlight event stream
+    const expectedLinkHighlightEventStream = m.hot('-a-', {
+      a: { linkID: mockScanResultLink.linkID }
+    });
+    m.expect(localJointGraphWrapper.getLinkHighlightStream()).toBeObservable(expectedLinkHighlightEventStream);
+
+    // expect the current highlighted link to be correct
+    highlightActionMarbleEvent.subscribe({
+      complete: () => {
+        expect(localJointGraphWrapper.getCurrentHighlightedLinkIDs()).toEqual([mockScanResultLink.linkID]);
+      }
+    });
+  }));
+
+  it('should emit an unhighlight event correctly when an link is unhighlighted', marbles((m) => {
+    const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
+    const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
+
+    // add one operator
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    workflowActionService.addOperator(mockResultPredicate, mockPoint);
+    workflowActionService.addLink(mockScanResultLink);
+    // highlight the operator
+    localJointGraphWrapper.highlightLink(mockScanResultLink.linkID);
+
+    // prepare marble operation for unhighlighting an operator
+    const unhighlightActionMarbleEvent = m.hot('-a-|').share();
+
+    // unhighlight that operator at events
+    unhighlightActionMarbleEvent.subscribe(
+      () => localJointGraphWrapper.unhighlightLink(mockScanResultLink.linkID)
+    );
+
+    // prepare expected output highlight event stream
+    const expectedUnhighlightEventStream = m.hot('-a-', {
+      a: { linkID: mockScanResultLink.linkID }
+    });
+
+    // expect the output event stream is correct
+    m.expect(localJointGraphWrapper.getLinkUnhighlightStream()).toBeObservable(expectedUnhighlightEventStream);
+
+    // expect the current highlighted operator is correct
+    unhighlightActionMarbleEvent.subscribe({
+      complete: () => {
+        expect(localJointGraphWrapper.getCurrentHighlightedLinkIDs()).toEqual([]);
+      }
+    });
+  }));
+
+  it('should emit an unhighlight event correctly when an highlighted link is deleted', marbles((m) => {
+    const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
+    const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
+
+    // add one operator
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    workflowActionService.addOperator(mockResultPredicate, mockPoint);
+    workflowActionService.addLink(mockScanResultLink);
+    // highlight the operator
+    localJointGraphWrapper.highlightLink(mockScanResultLink.linkID);
+
+    // prepare marble operation for unhighlighting an operator
+    const deleteActionMarbleEvent = m.hot('-a-|').share();
+
+    // unhighlight that operator at events
+    deleteActionMarbleEvent.subscribe(
+      () => workflowActionService.deleteLinkWithID(mockScanResultLink.linkID)
+    );
+
+    // prepare expected output highlight event stream
+    const expectedUnhighlightEventStream = m.hot('-a-', {
+      a: { linkID: mockScanResultLink.linkID }
+    });
+
+    // expect the output event stream is correct
+    m.expect(localJointGraphWrapper.getLinkUnhighlightStream()).toBeObservable(expectedUnhighlightEventStream);
+
+    // expect the current highlighted operator is correct
+    deleteActionMarbleEvent.subscribe({
+      complete: () => {
+        expect(localJointGraphWrapper.getCurrentHighlightedLinkIDs()).toEqual([]);
+      }
+    });
+  }));
+
+  it('should unhighlight previous highlighted link if another link is selected/highlighted', marbles((m) => {
+    const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
+    const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
+
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    workflowActionService.addOperator(mockSentimentPredicate, mockPoint);
+    workflowActionService.addOperator(mockResultPredicate, mockPoint);
+    workflowActionService.addLink(mockScanSentimentLink);
+    workflowActionService.addLink(mockSentimentResultLink);
+
+    // prepare marble operation for highlighting one link, then highlight an operator
+    const highlightActionMarbleEvent = m.hot(
+      '-a-b-|',
+      { a: mockScanSentimentLink.linkID,
+        b: mockSentimentResultLink.linkID }
+    ).share();
+
+    // highlight at events
+    highlightActionMarbleEvent.subscribe(value  => {
+        localJointGraphWrapper.highlightLink(value);
+    });
+
+    // prepare expected output highlight event stream
+    const expectedLinkHighlightEventStream = m.hot('-a-b-', {
+      a: { linkID: mockScanSentimentLink.linkID },
+      b: { linkID: mockSentimentResultLink.linkID}
+    });
+    m.expect(localJointGraphWrapper.getLinkHighlightStream()).toBeObservable(expectedLinkHighlightEventStream);
+
+    // prepare expected output unhighlight event stream
+    const expectedLinUnhighlightEventStream = m.hot('---a-', {
+      a: { linkID: mockScanSentimentLink.linkID }
+    });
+    m.expect(localJointGraphWrapper.getLinkUnhighlightStream()).toBeObservable(expectedLinUnhighlightEventStream);
+
+
+    // expect the current highlighted link to be correct
+    highlightActionMarbleEvent.subscribe({
+      complete: () => {
+        expect(localJointGraphWrapper.getCurrentHighlightedLinkIDs()).toEqual([mockSentimentResultLink.linkID]);
+      }
+    });
+  }));
+
+  it('should unhighlight previous highlighted links if an operator is highlighted', marbles((m) => {
+    const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
+    const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
+
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    workflowActionService.addOperator(mockResultPredicate, mockPoint);
+    workflowActionService.addLink(mockScanResultLink);
+
+    // prepare marble operation for highlighting one link, then highlight an operator
+    const highlightActionMarbleEvent = m.hot(
+      '-a-b-|',
+      { a: mockScanResultLink.linkID,
+        b: mockResultPredicate.operatorID}
+    ).share();
+
+
+    // highlight at events
+    highlightActionMarbleEvent.subscribe(value  => {
+      if (value.length === 1) {
+        localJointGraphWrapper.highlightOperator(value);
+      } else {
+        localJointGraphWrapper.highlightLink(value);
+      }
+    });
+
+    // prepare expected output highlight event stream
+    const expectedLinkHighlightEventStream = m.hot('-a---', {
+      a: { linkID: mockScanResultLink.linkID }
+    });
+
+    const expectedOperatorHighlightEventStream = m.hot('---b-', {
+      b: { operatorIDs: [mockResultPredicate.operatorID] }
+    });
+
+    // prepare expected output highlight event stream
+    const expectedLinkUnhighlightEventStream = m.hot('---c-', {
+      c: { linkID: mockScanResultLink.linkID }
+    });
+
+    // expect the output event stream is correct
+    m.expect(localJointGraphWrapper.getLinkHighlightStream()).toBeObservable(expectedLinkHighlightEventStream);
+    m.expect(localJointGraphWrapper.getJointCellHighlightStream()).toBeObservable(expectedOperatorHighlightEventStream);
+    m.expect(localJointGraphWrapper.getLinkUnhighlightStream()).toBeObservable(expectedLinkUnhighlightEventStream);
+
+
+    // expect the current highlighted operator is correct
+    highlightActionMarbleEvent.subscribe({
+      complete: () => {
+        expect(localJointGraphWrapper.getCurrentHighlightedOperatorIDs()).toEqual([mockResultPredicate.operatorID]);
+      }
+    });
+  }));
+
+  it('should emit an show breakpoint event correctly when adding a breakpoint to a link', marbles((m) => {
+    const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
+    const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
+
+    // add one link
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    workflowActionService.addOperator(mockResultPredicate, mockPoint);
+    workflowActionService.addLink(mockScanResultLink);
+    // highlight the operator
+    localJointGraphWrapper.highlightLink(mockScanResultLink.linkID);
+
+    // prepare marble operation for adding a breakpoint to a link
+    const ActionMarbleEvent = m.hot('-a-|').share();
+
+    const mockBreakpoint = {age: '10'};
+    // add breakpoint to the link at events
+    ActionMarbleEvent.subscribe(
+      () => workflowActionService.setLinkBreakpoint(mockScanResultLink.linkID, mockBreakpoint)
+    );
+
+    // prepare expected output event stream
+    const expectedbreakpointShowEventStream = m.hot('-a-', {
+      a: { linkID: mockScanResultLink.linkID }
+    });
+
+    // expect the output event stream is correct
+    m.expect(localJointGraphWrapper.getLinkBreakpointShowStream()).toBeObservable(expectedbreakpointShowEventStream);
+
+    // expect the current highlighted operator is correct
+    ActionMarbleEvent.subscribe({
+      complete: () => {
+        expect(localJointGraphWrapper.getLinkIDsWithBreakpoint()).toEqual([mockScanResultLink.linkID]);
+      }
+    });
+  }));
+
+  it('should emit an hide breakpoint event correctly when removing a breakpoint', marbles((m) => {
+    const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
+    const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
+
+    // add one link
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    workflowActionService.addOperator(mockResultPredicate, mockPoint);
+    workflowActionService.addLink(mockScanResultLink);
+    // add breakpoint
+    const mockBreakpoint = {age: '10'};
+    localJointGraphWrapper.highlightLink(mockScanResultLink.linkID);
+    workflowActionService.setLinkBreakpoint(mockScanResultLink.linkID, mockBreakpoint);
+
+    // prepare marble operation for removing a breakpoint
+    const ActionMarbleEvent = m.hot('-a-|').share();
+
+    // remove breakpoint at events
+    ActionMarbleEvent.subscribe(
+      () => workflowActionService.removeLinkBreakpoint(mockScanResultLink.linkID)
+    );
+
+    // prepare expected output highlight event stream
+    const expectedbreakpointHideEventStream = m.hot('-a-', {
+      a: { linkID: mockScanResultLink.linkID }
+    });
+
+    // expect the output event stream is correct
+    m.expect(localJointGraphWrapper.getLinkBreakpointHideStream()).toBeObservable(expectedbreakpointHideEventStream);
+
+    // expect the current link with breakpoint to be correct
+    ActionMarbleEvent.subscribe({
+      complete: () => {
+        expect(localJointGraphWrapper.getLinkIDsWithBreakpoint()).toEqual([]);
+      }
+    });
+  }));
 });

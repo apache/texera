@@ -57,6 +57,10 @@ export class DynamicSchemaService {
     // when an operator is deleted, remove it from the dynamic schema map
     this.workflowActionService.getTexeraGraph().getOperatorDeleteStream()
       .subscribe(event => this.dynamicSchemaMap.delete(event.deletedOperator.operatorID));
+
+    // when a link is deleted, remove it from the dynamic schema map
+    this.workflowActionService.getTexeraGraph().getLinkDeleteStream()
+      .subscribe(event => this.dynamicBreakpointSchemaMap.delete(event.deletedLink.linkID));
   }
 
   /**
@@ -97,6 +101,8 @@ export class DynamicSchemaService {
 
   /**
    * Based on the linkID, get the current link breakpoint schema
+   * if there is no schema stored for a link, fetch the schema from
+   * operatorMetadataService and set it in the map
    */
   public getDynamicBreakpointSchema(linkID: string): BreakpointSchema {
     if (! this.dynamicBreakpointSchemaMap.has(linkID)) {
@@ -107,6 +113,13 @@ export class DynamicSchemaService {
       throw new Error('dynamic breakpoint schema not found.');
     }
     return dynamicBreakpointSchema;
+  }
+
+  /**
+   * Returns the current dynamic breakpoint schema of all links.
+   */
+  public getDynamicBreakpointSchemaMap(): ReadonlyMap<string, BreakpointSchema> {
+    return this.dynamicBreakpointSchemaMap;
   }
 
   /**

@@ -33,7 +33,8 @@ export const mockLogicalPlan_scan_result: LogicalPlan = {
   links : [
     {
       origin: mockScanPredicate.operatorID,
-      destination: mockResultPredicate.operatorID
+      destination: mockResultPredicate.operatorID,
+      breakpointProperties: {}
     }
   ]
 };
@@ -71,11 +72,13 @@ export const mockLogicalPlan_scan_sentiment_result: LogicalPlan = {
   links : [
     {
       origin: mockScanPredicate.operatorID,
-      destination: mockSentimentPredicate.operatorID
+      destination: mockSentimentPredicate.operatorID,
+      breakpointProperties: {}
     },
     {
       origin: mockSentimentPredicate.operatorID,
-      destination: mockResultPredicate.operatorID
+      destination: mockResultPredicate.operatorID,
+      breakpointProperties: {}
     }
   ]
 };

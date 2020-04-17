@@ -277,7 +277,6 @@ export class WorkflowGraph {
     if (originalLink === undefined) {
       throw new Error(`link with ID ${linkID} doesn't exist`);
     }
-
     // constructor a new copy with new breakpoint and all other original attributes
     const link = {
       ...originalLink,

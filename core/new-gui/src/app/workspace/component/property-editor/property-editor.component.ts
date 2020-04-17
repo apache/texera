@@ -149,6 +149,7 @@ export class PropertyEditorComponent {
 
     // handle link highlight / unhighlight event to show / hide the breakpoint property editor form
     this.handleLinkHighlight();
+    this.handleLinkUnhighlight();
 
     // handle the breakpoint form change event on the user interface to set breakpoint property
     this.handleOnBreakpointPropertyChange();
@@ -203,6 +204,9 @@ export class PropertyEditorComponent {
     this.currentOperatorSchema = undefined;
     this.advancedOperatorSchema = undefined;
     this.cachedFormData = {};
+    this.currentLinkID = undefined;
+    this.currentBreakpointInitialData = undefined;
+    this.currentLinkBreakpointSchema = undefined;
   }
 
   /**
@@ -343,6 +347,17 @@ export class PropertyEditorComponent {
       });
   }
 
+  // handle link unhighlight event
+  // On unhighlight -> clean up current Property editor
+  public handleLinkUnhighlight() {
+    this.workflowActionService.getJointGraphWrapper().getLinkUnhighlightStream()
+      .subscribe(linkID => {
+        if (this.currentLinkID && this.currentLinkID.linkID === linkID.linkID) {
+          this.clearPropertyEditor();
+        }
+      });
+  }
+
   /**
    * Handles the form change event stream observable,
    *  which corresponds to every event the json schema form library emits.
@@ -449,10 +464,9 @@ export class PropertyEditorComponent {
    */
   public handleLinkBreakpointRemove() {
     if (this.currentLinkID) {
-      this.displayBreakpointEditor = false;
-      this.currentBreakpointInitialData = {};
-      this.workflowActionService.getJointGraphWrapper().unhighlightLink(this.currentLinkID.linkID);
+      // remove breakpoint in texera workflow first, then unhighlight it
       this.workflowActionService.removeLinkBreakpoint(this.currentLinkID.linkID);
+      this.workflowActionService.getJointGraphWrapper().unhighlightLink(this.currentLinkID.linkID);
     }
     this.currentLinkID = undefined;
   }

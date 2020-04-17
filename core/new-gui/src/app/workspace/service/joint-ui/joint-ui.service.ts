@@ -339,9 +339,6 @@ export class JointUIService {
           event: 'tool:breakpoint',
           display: 'none'
         }
-        // '.link-tools': {
-        //   display: 'contents',
-        // }
       }
     });
     return link;

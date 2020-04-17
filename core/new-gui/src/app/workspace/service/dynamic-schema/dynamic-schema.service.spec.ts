@@ -8,7 +8,7 @@ import { marbles } from 'rxjs-marbles';
 import { DynamicSchemaService } from './dynamic-schema.service';
 import { OperatorMetadataService } from '../operator-metadata/operator-metadata.service';
 import { StubOperatorMetadataService } from '../operator-metadata/stub-operator-metadata.service';
-import { mockScanPredicate, mockPoint } from '../workflow-graph/model/mock-workflow-data';
+import { mockScanPredicate, mockPoint, mockResultPredicate, mockScanResultLink } from '../workflow-graph/model/mock-workflow-data';
 import { OperatorPredicate } from '../../types/workflow-common.interface';
 import { mockScanSourceSchema } from '../operator-metadata/mock-operator-metadata.data';
 
@@ -112,5 +112,18 @@ describe('DynamicSchemaService', () => {
     m.expect(dynamicSchemaService.getOperatorDynamicSchemaChangedStream()).toBeObservable(expected);
 
   }));
+
+  it('should update dynamic breakpoint schema map when link is added/deleted', () => {
+    const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
+    const dynamicSchemaService: DynamicSchemaService = TestBed.get(DynamicSchemaService);
+
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    workflowActionService.addOperator(mockResultPredicate, mockPoint);
+    workflowActionService.addLink(mockScanResultLink);
+    expect(dynamicSchemaService.getDynamicBreakpointSchemaMap().size === 1);
+
+    workflowActionService.deleteLinkWithID(mockScanResultLink.linkID);
+    expect(dynamicSchemaService.getDynamicBreakpointSchemaMap().size === 0);
+  });
 
 });
