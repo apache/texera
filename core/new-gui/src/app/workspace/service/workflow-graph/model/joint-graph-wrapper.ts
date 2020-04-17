@@ -511,6 +511,7 @@ export class JointGraphWrapper {
     if (this.currentHighlightedLinks.includes(linkID)) {
       return;
     }
+    // only allow one link highlighted at a time
     if (this.currentHighlightedLinks.length > 0) {
       const highlightedLinks = Object.assign([], this.currentHighlightedLinks);
       highlightedLinks.forEach(highlightedLink => this.unhighlightLink(highlightedLink));

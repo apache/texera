@@ -187,6 +187,15 @@ describe('WorkflowGraph', () => {
     workflowGraph.addOperator(mockResultPredicate);
     workflowGraph.addLink(mockScanResultLink);
     expect(workflowGraph.getOutputLinksByOperatorId('1').length).toEqual(1);
-});
+  });
+
+  it('should set/remove link breakpoint correctly', () => {
+    workflowGraph.addOperator(mockScanPredicate);
+    workflowGraph.addOperator(mockResultPredicate);
+    workflowGraph.addLink(mockScanResultLink);
+    const mockBreakpoint = {age: '10'};
+    workflowGraph.setLinkBreakpoint(mockScanResultLink.linkID, mockBreakpoint);
+    expect(workflowGraph.getLinkWithID(mockScanResultLink.linkID).breakpointProperties).toEqual(mockBreakpoint);
+  });
 
 });

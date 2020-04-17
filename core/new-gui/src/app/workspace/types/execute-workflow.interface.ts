@@ -6,7 +6,8 @@
 
 export interface LogicalLink extends Readonly<{
   origin: string,
-  destination: string
+  destination: string,
+  breakpointProperties: {}
 }> { }
 
 export interface LogicalOperator extends Readonly<{

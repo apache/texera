@@ -8,7 +8,6 @@ import { CustomNgMaterialModule } from '../../../common/custom-ng-material.modul
 
 describe('TopBarComponent', () => {
   let component: TopBarComponent;
-  let fixture: ComponentFixture<TopBarComponent>;
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
@@ -19,7 +18,7 @@ describe('TopBarComponent', () => {
   }));
 
   beforeEach(() => {
-    fixture = TestBed.createComponent(TopBarComponent);
+    const fixture = TestBed.createComponent(TopBarComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });

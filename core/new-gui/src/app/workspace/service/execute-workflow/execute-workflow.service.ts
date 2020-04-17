@@ -262,7 +262,7 @@ export class ExecuteWorkflowService {
       .getAllLinks().map(link => ({
         origin: link.source.operatorID,
         destination: link.target.operatorID,
-        breakpointinfo: link.breakpointProperties
+        breakpointProperties: link.breakpointProperties
       }));
 
     return { operators, links };
