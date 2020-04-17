@@ -665,7 +665,6 @@ export class PropertyEditorComponent {
   }
 
   /**
-<<<<<<< HEAD
    * Handles the operator highlight / unhighlight events.
    *
    * When operators are highlighted / unhighlighted,
@@ -696,8 +695,6 @@ export class PropertyEditorComponent {
   }
 
   /**
-=======
->>>>>>> ffbfb774b41b6c94a6c1c276703b7781862ec6c6
    * Generates a form layout used by the json schema form library
    *  to hide the *submit* button.
    * https://github.com/json-schema-form/angular-schema-form/blob/master/docs/index.md#form-definitions
