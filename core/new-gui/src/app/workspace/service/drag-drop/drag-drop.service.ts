@@ -364,31 +364,41 @@ export class DragDropService {
     };
     const inputOps: TinyQueue<{ op: OperatorPredicate, dist: number }> = new TinyQueue([], compare);
     const outputOps: TinyQueue<{ op: OperatorPredicate, dist: number }> = new TinyQueue([], compare);
+
+    const greatestDistance = (queue: TinyQueue<{ op: OperatorPredicate, dist: number }>): number => {
+      const greatest = queue.peek();
+      if (greatest) {
+        return greatest.dist;
+      } else {
+        return 0;
+      }
+    };
+
     // for each operator, check if in range/has free ports/is on the right side/is closer than prev closest ops/
     operatorList.forEach(operator => {
       const operatorPosition = this.workflowActionService.getJointGraphWrapper().getOperatorPosition(operator.operatorID);
       const distanceFromCurrentOperator = Math.sqrt((mouseCoordinate.x - operatorPosition.x) ** 2
         + (mouseCoordinate.y - operatorPosition.y) ** 2);
-
       if (distanceFromCurrentOperator < DragDropService.SUGGESTION_DISTANCE_THRESHOLD) {
-        if (operatorPosition.x < mouseCoordinate.x
-          // @ts-ignore inputOps.peek() is undefined if and only if inputOps.length < numInputOps. It's an Unreachable error.
-          && (inputOps.length < numInputOps || distanceFromCurrentOperator < inputOps.peek().dist)
+        if (numInputOps > 0
+          && operatorPosition.x < mouseCoordinate.x
+          && (inputOps.length < numInputOps || distanceFromCurrentOperator < greatestDistance(inputOps))
           && hasFreeOutputPorts(operator)) {
           inputOps.push({ op: operator, dist: distanceFromCurrentOperator });
           if (inputOps.length > numInputOps) {
             inputOps.pop();
           }
-        }
-      } else if (operatorPosition.x > mouseCoordinate.x
-        // @ts-ignore inputOps.peek() is undefined if and only if inputOps.length < numInputOps. It's an Unreachable error.
-        && (outputOps.length < numOutputOps || distanceFromCurrentOperator < outputOps.peek().dist)
-        && hasFreeInputPorts(operator)) {
-        outputOps.push({ op: operator, dist: distanceFromCurrentOperator });
-        if (inputOps.length > numInputOps) {
-          outputOps.pop();
+        } else if (numOutputOps > 0
+          && operatorPosition.x > mouseCoordinate.x
+          && (outputOps.length < numOutputOps || distanceFromCurrentOperator < greatestDistance(outputOps))
+          && hasFreeInputPorts(operator)) {
+          outputOps.push({ op: operator, dist: distanceFromCurrentOperator });
+          if (outputOps.length > numOutputOps) {
+            outputOps.pop();
+          }
         }
       }
+
     });
     return [<OperatorPredicate[]>inputOps.data.map(x => x.op), <OperatorPredicate[]>outputOps.data.map(x => x.op)];
   }
