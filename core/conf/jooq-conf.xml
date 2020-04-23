@@ -32,10 +32,10 @@
 
         <target>
             <!-- The destination package of your generated classes (within the destination directory) -->
-            <packageName>edu.uci.ics.texera.dataflow.jooqgenerated</packageName>
+            <packageName>edu.uci.ics.texera.dataflow.jooq.generated</packageName>
 
             <!-- The destination directory of your generated classes. Using Maven directory layout here -->
-            <directory>dataflow/src/main/java</directory>
+            <directory>src/main/java</directory>
         </target>
     </generator>
 </configuration>

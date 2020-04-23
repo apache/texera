@@ -11,6 +11,19 @@ import org.jooq.meta.jaxb.Jdbc;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+/**
+ * This class is used to generate java classes representing the sql table in Texera database
+ * These auto generated classes are essential for the connection between backend and database when using JOOQ library.
+ * 
+ * Every time the table in the Texera database changes, including creating, dropping and modifying the tables,
+ * this class must be run to update the corresponding java classes.
+ * 
+ * Remember to change the username and password to your owns before you run this class.
+ *
+ * The username, password and connection url is located in texera\core\conf\jdbc.conf
+ * The configuration file is located in texera\core\conf\jooq-conf.xml
+ * 
+ */
 public class RunCodegen {
 
     public static void main(String[] args) throws Exception {

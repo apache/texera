@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.web.resource;
 
-import edu.uci.ics.texera.dataflow.jooqgenerated.tables.records.UseraccountRecord;
+import edu.uci.ics.texera.dataflow.jooq.generated.tables.records.UseraccountRecord;
 import edu.uci.ics.texera.dataflow.sqlServerInfo.UserSqlServer;
 import edu.uci.ics.texera.web.TexeraWebException;
 import org.glassfish.jersey.media.multipart.FormDataParam;
@@ -16,7 +16,7 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import java.sql.Connection;
 
-import static edu.uci.ics.texera.dataflow.jooqgenerated.Tables.USERACCOUNT;
+import static edu.uci.ics.texera.dataflow.jooq.generated.Tables.USERACCOUNT;
 import static org.jooq.impl.DSL.defaultValue;
 
 
