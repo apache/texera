@@ -6,9 +6,9 @@
     "pluginsFile": "./src/plugins/index",
     "supportFile": false,
     "testFiles": "**/*.spec.ts",
-    "video": true,
-    "videosFolder": "./cypress/videos",
-    "screenshotsFolder": "./cypress/screenshots",
+    "video": false,
+    "videosFolder": "./cypress_log/videos",
+    "screenshotsFolder": "./cypress_log/screenshots",
     "chromeWebSecurity": false,
     "baseUrl": "http://localhost:4200"
 }
