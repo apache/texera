@@ -124,6 +124,7 @@ export class PropertyEditorComponent {
         if (this.cachedFormData !== undefined) {
           this.currentOperatorInitialData = this.cachedFormData;
         }
+        this.model = this.cachedFormData;
         this.convertJsonSchemaToNGXField(this.currentOperatorSchema.jsonSchema);
       });
 
@@ -142,9 +143,7 @@ export class PropertyEditorComponent {
 
   }
 
-  public onSubmit() {
-    console.log(this.model);
-  }
+
 
   /**
    *hide the advancedOptions field
@@ -267,7 +266,6 @@ export class PropertyEditorComponent {
     // set the operator data needed
     this.currentOperatorID = operator.operatorID;
     this.currentOperatorSchema = this.autocompleteService.getDynamicSchema(this.currentOperatorID);
-    this.convertJsonSchemaToNGXField(this.currentOperatorSchema.jsonSchema);
 
     // handle generating schemas for advanced / hidden options
     this.handleUpdateAdvancedSchema(operator);
@@ -291,7 +289,11 @@ export class PropertyEditorComponent {
     this.currentOperatorInitialData = cloneDeep(operator.operatorProperties);
     // when operator in the property editor changes, the cachedFormData should also be changed
     this.cachedFormData = this.currentOperatorInitialData;
-    console.log('data', this.currentOperatorInitialData);
+    this.model = this.cachedFormData;
+
+
+    this.convertJsonSchemaToNGXField(this.currentOperatorSchema.jsonSchema);
+
     // set displayForm to true in the end - first initialize all the data then show the view
     this.displayForm = true;
   }
@@ -434,6 +436,7 @@ export class PropertyEditorComponent {
         this.currentOperatorInitialData = cloneDeep(operatorChanged.operator.operatorProperties);
         // need to use spread operator to keep the advanced options in the new operator properties do not contain them
         this.cachedFormData = {...this.cachedFormData, ...this.currentOperatorInitialData};
+        this.model = this.cachedFormData;
 
       });
   }
@@ -528,6 +531,7 @@ export class PropertyEditorComponent {
 
         // need to use spread operator to keep the advanced options in the new operator properties do not contain them
         this.cachedFormData = {...this.currentOperatorInitialData, ...formData};
+        this.model = this.cachedFormData;
         this.workflowActionService.setOperatorProperty(this.currentOperatorID, formData);
       }
     });
@@ -572,12 +576,15 @@ export class PropertyEditorComponent {
       field.fieldGroup[i].templateOptions.label = Object.keys(schema.properties)[i];
 
     }
+
     this.fields = [field];
-    console.log('data', this.currentOperatorInitialData);
-    console.log('tofilds', this.formlyJsonschema.toFieldConfig(schema));
-    console.log('schema', schema);
-    console.log('proper', Object.keys(schema.properties));
-    console.log('field', this.fields);
+
+    console.log('model', this.model);
+    // console.log('data', this.currentOperatorInitialData);
+    // console.log('tofilds', this.formlyJsonschema.toFieldConfig(schema));
+    // console.log('schema', schema);
+    // console.log('proper', Object.keys(schema.properties));
+    // console.log('field', this.fields);
 
   }
 

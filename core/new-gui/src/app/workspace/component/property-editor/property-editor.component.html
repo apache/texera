@@ -6,7 +6,7 @@
 
 
     <form [formGroup]="form" *ngIf="fields">
-      <formly-form [model]="model"
+      <formly-form [model]="cachedFormData"
       [fields]="fields"
       [options]="options"
       [form]="form">
