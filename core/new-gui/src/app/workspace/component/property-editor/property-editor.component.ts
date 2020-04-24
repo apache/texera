@@ -100,17 +100,7 @@ export class PropertyEditorComponent {
   public options: FormlyFormOptions | undefined;
   public fields: FormlyFieldConfig[] | undefined;
   public type = '';
-  public test_field: FormlyFieldConfig[] = [
-    {
-      key: 'email',
-      type: 'input',
-      templateOptions: {
-        label: 'Email address',
-        placeholder: 'Enter email',
-        required: true,
-      }
-    }
-  ];
+
 
   constructor(
     private formlyJsonschema: FormlyJsonschema,
@@ -134,11 +124,7 @@ export class PropertyEditorComponent {
         if (this.cachedFormData !== undefined) {
           this.currentOperatorInitialData = this.cachedFormData;
         }
-        this.form = new FormGroup({});
-        this.options = {};
-        this.fields = this.test_field;
-        console.log(this.currentOperatorSchema.jsonSchema);
-        console.log('field', this.fields);
+        this.convertJsonSchemaToNGXField(this.currentOperatorSchema.jsonSchema);
       });
 
     // listen to the autocomplete event, remove invalid properties, and update the schema displayed on the form
@@ -281,11 +267,7 @@ export class PropertyEditorComponent {
     // set the operator data needed
     this.currentOperatorID = operator.operatorID;
     this.currentOperatorSchema = this.autocompleteService.getDynamicSchema(this.currentOperatorID);
-        this.form = new FormGroup({});
-        this.options = {};
-        this.fields = [this.formlyJsonschema.toFieldConfig(this.currentOperatorSchema.jsonSchema)];
-        console.log(this.currentOperatorSchema.jsonSchema);
-        console.log('field', this.fields);
+    this.convertJsonSchemaToNGXField(this.currentOperatorSchema.jsonSchema);
 
     // handle generating schemas for advanced / hidden options
     this.handleUpdateAdvancedSchema(operator);
@@ -309,6 +291,7 @@ export class PropertyEditorComponent {
     this.currentOperatorInitialData = cloneDeep(operator.operatorProperties);
     // when operator in the property editor changes, the cachedFormData should also be changed
     this.cachedFormData = this.currentOperatorInitialData;
+    console.log('data', this.currentOperatorInitialData);
     // set displayForm to true in the end - first initialize all the data then show the view
     this.displayForm = true;
   }
@@ -388,11 +371,7 @@ export class PropertyEditorComponent {
           if (! operator) {
             throw new Error(`operator ${event.operatorID} does not exist`);
           }
-          this.form = new FormGroup({});
-          this.options = {};
-          this.fields = [this.formlyJsonschema.toFieldConfig(this.currentOperatorSchema.jsonSchema)];
-          console.log(this.currentOperatorSchema.jsonSchema);
-          console.log('field', this.fields);
+          this.convertJsonSchemaToNGXField(this.currentOperatorSchema.jsonSchema);
         }
       }
     );
@@ -584,6 +563,24 @@ export class PropertyEditorComponent {
     }
   }
 
+  private convertJsonSchemaToNGXField(schema: JSONSchema7) {
+    this.form = new FormGroup({});
+    this.options = {};
+    const field = this.formlyJsonschema.toFieldConfig(schema);
+
+    for (let i = 0; i < Object.keys(schema.properties).length; i++) {
+      field.fieldGroup[i].templateOptions.label = Object.keys(schema.properties)[i];
+
+    }
+    this.fields = [field];
+    console.log('data', this.currentOperatorInitialData);
+    console.log('tofilds', this.formlyJsonschema.toFieldConfig(schema));
+    console.log('schema', schema);
+    console.log('proper', Object.keys(schema.properties));
+    console.log('field', this.fields);
+
+  }
+
   /**
    * Generates a form layout used by the json schema form library
    *  to hide the *submit* button.
@@ -595,4 +592,6 @@ export class PropertyEditorComponent {
       { type: 'submit', condition: 'false' }
     ];
   }
+
+
 }
