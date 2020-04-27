@@ -65,6 +65,8 @@ import { ResourceSectionComponent } from './dashboard/component/feature-containe
 
 import { FileUploadModule } from 'ng2-file-upload';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { UserAccountService } from './dashboard/service/user-account/user-account.service';
+import { NgbdModalUserAccountLoginComponent } from './dashboard/component/top-bar/user-account-icon/user-account-login/ngbdmodal-user-account-login.component';
 
 @NgModule({
   declarations: [
@@ -92,6 +94,7 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
     NgbdModalResourceViewComponent,
     NgbdModalResourceAddComponent,
     NgbdModalResourceDeleteComponent,
+    NgbdModalUserAccountLoginComponent,
 
     ResourceSectionComponent,
 
@@ -128,9 +131,13 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
     NgbdModalResourceViewComponent,
     NgbdModalResourceAddComponent,
     NgbdModalResourceDeleteComponent,
+    NgbdModalUserAccountLoginComponent,
     NgbModalComponent
   ],
-  providers: [HttpClientModule],
+  providers: [
+    HttpClientModule,
+    UserAccountService
+  ],
   bootstrap: [AppComponent],
   // dynamically created component must be placed in the entryComponents attribute
 })

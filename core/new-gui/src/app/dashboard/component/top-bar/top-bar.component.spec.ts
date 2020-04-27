@@ -5,6 +5,9 @@ import { UserAccountIconComponent } from './user-account-icon/user-account-icon.
 import { RouterTestingModule } from '@angular/router/testing';
 
 import { CustomNgMaterialModule } from '../../../common/custom-ng-material.module';
+import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
+import { UserAccountService } from '../../service/user-account/user-account.service';
+import { HttpClientTestingModule } from '@angular/common/http/testing';
 
 describe('TopBarComponent', () => {
   let component: TopBarComponent;
@@ -13,7 +16,15 @@ describe('TopBarComponent', () => {
   beforeEach(async(() => {
     TestBed.configureTestingModule({
       declarations: [ TopBarComponent, UserAccountIconComponent ],
-      imports: [ RouterTestingModule, CustomNgMaterialModule ]
+      providers: [
+        NgbModal,
+        UserAccountService
+      ],
+      imports: [
+        HttpClientTestingModule,
+        RouterTestingModule,
+        CustomNgMaterialModule
+      ]
     })
     .compileComponents();
   }));

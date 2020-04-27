@@ -1,6 +1,9 @@
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { UserAccountIconComponent } from './user-account-icon.component';
+import { UserAccountService } from '../../../service/user-account/user-account.service';
+import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
+import { HttpClientTestingModule } from '@angular/common/http/testing';
 
 describe('UserAccountIconComponent', () => {
   let component: UserAccountIconComponent;
@@ -8,7 +11,14 @@ describe('UserAccountIconComponent', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-      declarations: [ UserAccountIconComponent ]
+      declarations: [ UserAccountIconComponent ],
+      providers: [
+        NgbModal,
+        UserAccountService
+      ],
+      imports: [
+        HttpClientTestingModule
+      ]
     })
     .compileComponents();
   }));
