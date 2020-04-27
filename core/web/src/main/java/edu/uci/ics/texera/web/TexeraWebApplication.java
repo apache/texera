@@ -54,6 +54,9 @@ public class TexeraWebApplication extends Application<TexeraWebConfiguration> {
 
         final UserDictionaryResource userDictionaryResource = new UserDictionaryResource();
         environment.jersey().register(userDictionaryResource);
+        
+        final UserAccountResource userAccountResource = new UserAccountResource();
+        environment.jersey().register(userAccountResource);
 
         // Registers MultiPartFeature to support file upload
         environment.jersey().register(MultiPartFeature.class);
