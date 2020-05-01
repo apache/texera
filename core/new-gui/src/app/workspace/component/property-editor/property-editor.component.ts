@@ -64,7 +64,7 @@ export class PropertyEditorComponent {
 
   // the operator schemas of the current operator
   public currentOperatorSchema: OperatorSchema | undefined;
-  public advancedOperatorSchema: OperatorSchema | undefined;
+  // public advancedOperatorSchema: OperatorSchema | undefined;
 
   // used in HTML template to control if the form is displayed
   public displayForm: boolean = false;
@@ -81,16 +81,16 @@ export class PropertyEditorComponent {
   // the current operator schema list, used to find the operator schema of current operator
   public operatorSchemaList: ReadonlyArray<OperatorSchema> = [];
 
-  // the variables used for showing/hiding advanced options
-  public showAdvanced: boolean = false;
-  public hasAdvanced: boolean = false;
-  public advancedClick: boolean = false;
+  // // the variables used for showing/hiding advanced options
+  // public showAdvanced: boolean = false;
+  // public hasAdvanced: boolean = false;
+  // public advancedClick: boolean = false;
 
-   // the map of property description (key = property name, value = property description)
-  public propertyDescription: Map<String, String> = new Map();
+  //  // the map of property description (key = property name, value = property description)
+  // public propertyDescription: Map<String, String> = new Map();
 
-   // boolean to display the property description button
-  public hasPropertyDescription: boolean = false;
+  //  // boolean to display the property description button
+  // public hasPropertyDescription: boolean = false;
 
   // the operator data need to be stored if the Json Schema changes, else the currently modified changes will be lost
   public cachedFormData: object = {};
@@ -113,20 +113,20 @@ export class PropertyEditorComponent {
     // );
 
 
-    // this observable toggles the advanced options for an operator when the
-    // status is changed
-    this.workflowActionService.getTexeraGraph().getOperatorAdvancedOptionChangeSteam()
-      .subscribe((event) => {
-        this.showAdvanced = event.showAdvanced;
+    // // this observable toggles the advanced options for an operator when the
+    // // status is changed
+    // this.workflowActionService.getTexeraGraph().getOperatorAdvancedOptionChangeSteam()
+    //   .subscribe((event) => {
+    //     this.showAdvanced = event.showAdvanced;
 
-        this.currentOperatorSchema = this.showAdvanced ? this.advancedOperatorSchema :
-          this.hideAdvancedSchema(this.currentOperatorSchema);
-        if (this.cachedFormData !== undefined) {
-          this.currentOperatorInitialData = this.cachedFormData;
-        }
-        this.model = this.cachedFormData;
-        this.convertJsonSchemaToNGXField(this.currentOperatorSchema.jsonSchema);
-      });
+    //     this.currentOperatorSchema = this.showAdvanced ? this.advancedOperatorSchema :
+    //       this.hideAdvancedSchema(this.currentOperatorSchema);
+    //     if (this.cachedFormData !== undefined) {
+    //       this.currentOperatorInitialData = this.cachedFormData;
+    //     }
+    //     this.model = this.cachedFormData;
+    //     this.convertJsonSchemaToNGXField(this.currentOperatorSchema.jsonSchema);
+    //   });
 
     // listen to the autocomplete event, remove invalid properties, and update the schema displayed on the form
     this.handleOperatorSchemaChange();
@@ -153,15 +153,15 @@ export class PropertyEditorComponent {
    * This method handles the advanced button actions, including hiding the advanced properties
    *  and showing the advanced properties when they are originally hidden.
    */
-  public handlePropertyAdvancedToggle(): void {
-    if (this.currentOperatorID === undefined) {
-      throw new Error('operator undefined when hiding the advanced properties');
-    }
+  // public handlePropertyAdvancedToggle(): void {
+  //   if (this.currentOperatorID === undefined) {
+  //     throw new Error('operator undefined when hiding the advanced properties');
+  //   }
 
-    this.advancedClick = true;
-    this.showAdvanced = !this.showAdvanced;
-    this.workflowActionService.setOperatorAdvanceStatus(this.currentOperatorID, this.showAdvanced);
-  }
+  //   this.advancedClick = true;
+  //   this.showAdvanced = !this.showAdvanced;
+  //   this.workflowActionService.setOperatorAdvanceStatus(this.currentOperatorID, this.showAdvanced);
+  // }
 
   /**
    * Callback function provided to the Angular Json Schema Form library,
@@ -170,6 +170,7 @@ export class PropertyEditorComponent {
    * @param formData
    */
   public onFormChanges(formData: object): void {
+    console.log('test', formData);
     this.sourceFormChangeEventStream.next(formData);
   }
 
@@ -180,11 +181,11 @@ export class PropertyEditorComponent {
     // set displayForm to false in the very beginning
     // hide the view first and then make everything null
     this.displayForm = false;
-    this.showAdvanced = false;
+    // this.showAdvanced = false;
     this.currentOperatorID = undefined;
     this.currentOperatorInitialData = undefined;
     this.currentOperatorSchema = undefined;
-    this.advancedOperatorSchema = undefined;
+    // this.advancedOperatorSchema = undefined;
     this.cachedFormData = {};
   }
 
@@ -194,62 +195,62 @@ export class PropertyEditorComponent {
    *
    * @param operator
    */
-  public hideAdvancedSchema(operatorSchema: OperatorSchema | undefined): OperatorSchema {
-    if (! operatorSchema) {
-      throw new Error('Parameter operator schema is undefined');
-    }
-    if (! this.currentOperatorSchema) {
-      throw new Error('Current operator schema is undefined');
-    }
+  // public hideAdvancedSchema(operatorSchema: OperatorSchema | undefined): OperatorSchema {
+  //   if (! operatorSchema) {
+  //     throw new Error('Parameter operator schema is undefined');
+  //   }
+  //   if (! this.currentOperatorSchema) {
+  //     throw new Error('Current operator schema is undefined');
+  //   }
 
-    this.advancedOperatorSchema = cloneDeep(this.currentOperatorSchema);
-    const advancedOptionsList = this.currentOperatorSchema.additionalMetadata.advancedOptions;
+  //   this.advancedOperatorSchema = cloneDeep(this.currentOperatorSchema);
+  //   const advancedOptionsList = this.currentOperatorSchema.additionalMetadata.advancedOptions;
 
-    // if there is no advanced option, return the original schema
-    if (!advancedOptionsList) { return this.currentOperatorSchema; }
+  //   // if there is no advanced option, return the original schema
+  //   if (!advancedOptionsList) { return this.currentOperatorSchema; }
 
-    // make a deep clone of the operator schema and change its properties
-    const currentSchema = operatorSchema.jsonSchema;
-    let currentSchemaProperties = currentSchema.properties;
-    const currentSchemaRequired = cloneDeep(currentSchema.required);
-    advancedOptionsList.forEach(
-      advancedOption => {
-        if (currentSchemaProperties && advancedOption in currentSchemaProperties) {
-          const { [advancedOption]: a, ...newProperties} = currentSchemaProperties;
-          currentSchemaProperties = newProperties;
-        }
+  //   // make a deep clone of the operator schema and change its properties
+  //   const currentSchema = operatorSchema.jsonSchema;
+  //   let currentSchemaProperties = currentSchema.properties;
+  //   const currentSchemaRequired = cloneDeep(currentSchema.required);
+  //   advancedOptionsList.forEach(
+  //     advancedOption => {
+  //       if (currentSchemaProperties && advancedOption in currentSchemaProperties) {
+  //         const { [advancedOption]: a, ...newProperties} = currentSchemaProperties;
+  //         currentSchemaProperties = newProperties;
+  //       }
 
-        if (currentSchemaRequired && currentSchemaRequired.includes(advancedOption)) {
-          const index = currentSchemaRequired.indexOf(advancedOption);
-          if (index !== -1) {
-            currentSchemaRequired.splice(index, 1);
-          }
-        }
-      }
-    );
+  //       if (currentSchemaRequired && currentSchemaRequired.includes(advancedOption)) {
+  //         const index = currentSchemaRequired.indexOf(advancedOption);
+  //         if (index !== -1) {
+  //           currentSchemaRequired.splice(index, 1);
+  //         }
+  //       }
+  //     }
+  //   );
 
-    // construct a new json schema that hides the advanced properties
-    let modifiedJsonSchema: JSONSchema7 = {
-      ...currentSchema,
-      properties: currentSchemaProperties
-    };
+  //   // construct a new json schema that hides the advanced properties
+  //   let modifiedJsonSchema: JSONSchema7 = {
+  //     ...currentSchema,
+  //     properties: currentSchemaProperties
+  //   };
 
-    // add required field if it is not undefined
-    if (currentSchemaRequired !== undefined) {
-      modifiedJsonSchema = {
-        ...modifiedJsonSchema,
-        required: currentSchemaRequired
-      };
-    }
+  //   // add required field if it is not undefined
+  //   if (currentSchemaRequired !== undefined) {
+  //     modifiedJsonSchema = {
+  //       ...modifiedJsonSchema,
+  //       required: currentSchemaRequired
+  //     };
+  //   }
 
-    // construct a new operator schema based on the new json schema
-    const newOperatorSchema: OperatorSchema = {
-      ...operatorSchema,
-      jsonSchema: modifiedJsonSchema
-    };
+  //   // construct a new operator schema based on the new json schema
+  //   const newOperatorSchema: OperatorSchema = {
+  //     ...operatorSchema,
+  //     jsonSchema: modifiedJsonSchema
+  //   };
 
-    return newOperatorSchema;
-  }
+  //   return newOperatorSchema;
+  // }
 
   /**
    * Changes the property editor to use the new operator data.
@@ -266,12 +267,13 @@ export class PropertyEditorComponent {
     // set the operator data needed
     this.currentOperatorID = operator.operatorID;
     this.currentOperatorSchema = this.autocompleteService.getDynamicSchema(this.currentOperatorID);
-
+    console.log('ID', this.currentOperatorID);
+    console.log('schema', this.currentOperatorSchema);
     // handle generating schemas for advanced / hidden options
-    this.handleUpdateAdvancedSchema(operator);
+    // this.handleUpdateAdvancedSchema(operator);
 
-    // handler to show operator detail description button or not
-    this.handleOperatorPropertyDescription(this.currentOperatorSchema);
+    // // handler to show operator detail description button or not
+    // this.handleOperatorPropertyDescription(this.currentOperatorSchema);
 
     /**
      * Make a deep copy of the initial property data object.
@@ -323,12 +325,12 @@ export class PropertyEditorComponent {
         if (!this.currentOperatorID) {
           return false;
         }
-        // if the event is caused by toggling the advanced button, then dont trigger anything
-        if (this.advancedClick) {
-          // set the boolean toggle back to false
-          this.advancedClick = false;
-          return false;
-        }
+        // // if the event is caused by toggling the advanced button, then dont trigger anything
+        // if (this.advancedClick) {
+        //   // set the boolean toggle back to false
+        //   this.advancedClick = false;
+        //   return false;
+        // }
 
         // check if the operator still exists
         // the operator could've been deleted during deboucne time
@@ -369,6 +371,7 @@ export class PropertyEditorComponent {
       event => {
         if (event.operatorID === this.currentOperatorID) {
           this.currentOperatorSchema = this.autocompleteService.getDynamicSchema(this.currentOperatorID);
+
           const operator = this.workflowActionService.getTexeraGraph().getOperator(event.operatorID);
           if (! operator) {
             throw new Error(`operator ${event.operatorID} does not exist`);
@@ -386,15 +389,15 @@ export class PropertyEditorComponent {
    *
    * @param currentOperatorSchema
    */
-  private handleOperatorPropertyDescription(currentOperatorSchema: OperatorSchema): void {
-    if (currentOperatorSchema.additionalMetadata.propertyDescription !== undefined) {
-      this.propertyDescription = new Map(Object.entries(currentOperatorSchema.additionalMetadata.propertyDescription));
-      this.hasPropertyDescription = true;
-    } else {
-      this.propertyDescription = new Map();
-      this.hasPropertyDescription = false;
-    }
-  }
+  // private handleOperatorPropertyDescription(currentOperatorSchema: OperatorSchema): void {
+  //   if (currentOperatorSchema.additionalMetadata.propertyDescription !== undefined) {
+  //     this.propertyDescription = new Map(Object.entries(currentOperatorSchema.additionalMetadata.propertyDescription));
+  //     this.hasPropertyDescription = true;
+  //   } else {
+  //     this.propertyDescription = new Map();
+  //     this.hasPropertyDescription = false;
+  //   }
+  // }
 
   /**
    * This method will be responsible for getting the advanced option status from the current operator
@@ -404,22 +407,22 @@ export class PropertyEditorComponent {
    *
    * @param operator current operator predicate
    */
-  private handleUpdateAdvancedSchema(operator: OperatorPredicate): void {
-    if (!this.currentOperatorSchema) {
-      throw new Error(`operator schema for operator type ${operator.operatorType} doesn't exist`);
-    }
+  // private handleUpdateAdvancedSchema(operator: OperatorPredicate): void {
+  //   if (!this.currentOperatorSchema) {
+  //     throw new Error(`operator schema for operator type ${operator.operatorType} doesn't exist`);
+  //   }
 
-    this.showAdvanced = operator.showAdvanced;
+  //   this.showAdvanced = operator.showAdvanced;
 
-    // only show the button if the operator has advanced options
-    if (this.currentOperatorSchema.additionalMetadata.advancedOptions) {
-      this.hasAdvanced = this.currentOperatorSchema.additionalMetadata.advancedOptions.length === 0 ? false : true;
-    }
+  //   // only show the button if the operator has advanced options
+  //   if (this.currentOperatorSchema.additionalMetadata.advancedOptions) {
+  //     this.hasAdvanced = this.currentOperatorSchema.additionalMetadata.advancedOptions.length === 0 ? false : true;
+  //   }
 
-    if (!this.showAdvanced) {
-      this.currentOperatorSchema = this.hideAdvancedSchema(this.currentOperatorSchema);
-    }
-  }
+  //   if (!this.showAdvanced) {
+  //     this.currentOperatorSchema = this.hideAdvancedSchema(this.currentOperatorSchema);
+  //   }
+  // }
 
   /**
    * This method captures the change in operator's property via program instead of user updating the

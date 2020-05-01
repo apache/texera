@@ -9,15 +9,16 @@
       <formly-form [model]="cachedFormData"
       [fields]="fields"
       [options]="options"
-      [form]="form">
+      [form]="form"
+      (modelChange) = "onFormChanges($event)">
       </formly-form>
 
     </form>
 
-    <button *ngIf="!showAdvanced && hasAdvanced" type="button" class="btn btn-default" (click)="handlePropertyAdvancedToggle()">Advanced</button>
-    <button *ngIf="showAdvanced && hasAdvanced" type="button" class="btn btn-default" (click)="handlePropertyAdvancedToggle()">Hide Advanced</button>
+    <!-- <button *ngIf="!showAdvanced && hasAdvanced" type="button" class="btn btn-default" (click)="handlePropertyAdvancedToggle()">Advanced</button>
+    <button *ngIf="showAdvanced && hasAdvanced" type="button" class="btn btn-default" (click)="handlePropertyAdvancedToggle()">Hide Advanced</button> -->
 
-    <ng-template #htmlContent>
+    <!-- <ng-template #htmlContent>
       <div class="container" *ngFor="let attribute of propertyDescription | keyvalue">
         <div class="property-detail-title">
           <b>{{attribute.key}}</b>
@@ -36,4 +37,4 @@
     </button>
   </div>
 
-</div>
+</div> -->
