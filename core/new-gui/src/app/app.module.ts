@@ -65,13 +65,14 @@ import { ResourceSectionComponent } from './dashboard/component/feature-containe
 
 import { FileUploadModule } from 'ng2-file-upload';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { FormlyBootstrapModule } from '@ngx-formly/bootstrap';
+
 import { FormlyModule, FormlyFieldConfig } from '@ngx-formly/core';
 
 import { ArrayTypeComponent } from './common/array.type';
 import { ObjectTypeComponent } from './common/object.type';
 import { MultiSchemaTypeComponent } from './common/multischema.type';
 import { NullTypeComponent } from './common/null.type';
+import { FormlyMaterialModule } from '@ngx-formly/material';
 
 
 
@@ -178,7 +179,8 @@ import { NullTypeComponent } from './common/null.type';
         { name: 'multischema', component: MultiSchemaTypeComponent },
       ],
     }),
-    FormlyBootstrapModule,
+    FormlyModule.forRoot(),
+    FormlyMaterialModule,
 
 
   ],
