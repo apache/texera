@@ -267,7 +267,7 @@ export class PropertyEditorComponent {
     // set the operator data needed
     this.currentOperatorID = operator.operatorID;
     this.currentOperatorSchema = this.autocompleteService.getDynamicSchema(this.currentOperatorID);
-    console.log('test6', this.currentOperatorSchema );
+    console.log('test5', this.currentOperatorSchema );
     this.convertJsonSchemaToNGXField(this.currentOperatorSchema.jsonSchema);
 
     // handle generating schemas for advanced / hidden options
@@ -373,7 +373,7 @@ export class PropertyEditorComponent {
       event => {
         if (event.operatorID === this.currentOperatorID) {
           this.currentOperatorSchema = this.autocompleteService.getDynamicSchema(this.currentOperatorID);
-          console.log('test5', this.currentOperatorSchema);
+          console.log('test6', this.currentOperatorSchema);
           const operator = this.workflowActionService.getTexeraGraph().getOperator(event.operatorID);
           if (! operator) {
             throw new Error(`operator ${event.operatorID} does not exist`);
@@ -589,9 +589,9 @@ export class PropertyEditorComponent {
     console.log('model', this.model);
     // console.log('data', this.currentOperatorInitialData);
     // console.log('tofilds', this.formlyJsonschema.toFieldConfig(schema));
-    // console.log('schema', schema);
+    console.log('schema', schema);
     // console.log('proper', Object.keys(schema.properties));
-    // console.log('field', this.fields);
+    console.log('field', this.fields);
 
   }
 
