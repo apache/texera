@@ -16,6 +16,9 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <jdk.version>1.8</jdk.version>
+        <!-- By default we skip the jooq code generation
+            It could be overridden by passing maven command -Djooq.codegen.skip=false -->
+        <jooq.codgen.skip>true</jooq.codgen.skip>
     </properties>
 
     <dependencies>
@@ -51,11 +54,11 @@
             <version>1.1</version>
         </dependency>
         <dependency>
-    		      <groupId>org.apache.poi</groupId>
-    		      <artifactId>poi-ooxml</artifactId>
-    		      <version>3.16</version>
-		</dependency>
-		<dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+            <version>3.16</version>
+        </dependency>
+        <dependency>
             <groupId>org.apache.tika</groupId>
             <artifactId>tika-core</artifactId>
             <version>1.20</version>
@@ -66,16 +69,11 @@
             <version>1.17</version>
             <optional>true</optional>
         </dependency>
-		<dependency>
+        <dependency>
             <groupId>com.mashape.unirest</groupId>
             <artifactId>unirest-java</artifactId>
             <version>1.4.9</version>
         </dependency>
-		<dependency>
-    		  <groupId>mysql</groupId>
-    		  <artifactId>mysql-connector-java</artifactId>
-    		  <version>5.1.42</version>
-		</dependency>
         <dependency>
             <groupId>org.apache.pdfbox</groupId>
             <artifactId>pdfbox</artifactId>
@@ -91,7 +89,7 @@
             <artifactId>opencsv</artifactId>
             <version>2.3</version>
         </dependency>
-        
+
         <dependency>
             <groupId>com.twitter</groupId>
             <artifactId>hbc-core</artifactId> <!-- or hbc-twitter4j -->
@@ -117,6 +115,41 @@
             <groupId>com.github.java-json-tools</groupId>
             <artifactId>json-schema-validator</artifactId>
             <version>2.2.8</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jooq</groupId>
+            <artifactId>jooq</artifactId>
+            <version>3.12.4</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jooq</groupId>
+            <artifactId>jooq-meta</artifactId>
+            <version>3.12.4</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jooq</groupId>
+            <artifactId>jooq-codegen</artifactId>
+            <version>3.12.4</version>
+        </dependency>
+        <dependency>
+            <groupId>mysql</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+            <version>8.0.19</version>
+        </dependency>
+        <dependency>
+            <groupId>org.reactivestreams</groupId>
+            <artifactId>reactive-streams</artifactId>
+            <version>1.0.3</version>
+        </dependency>
+        <dependency>
+            <groupId>javax.xml.bind</groupId>
+            <artifactId>jaxb-api</artifactId>
+            <version>2.3.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.typesafe</groupId>
+            <artifactId>config</artifactId>
+            <version>1.4.0</version>
         </dependency>
     </dependencies>
 
