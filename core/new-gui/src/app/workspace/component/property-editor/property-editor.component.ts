@@ -267,8 +267,9 @@ export class PropertyEditorComponent {
     // set the operator data needed
     this.currentOperatorID = operator.operatorID;
     this.currentOperatorSchema = this.autocompleteService.getDynamicSchema(this.currentOperatorID);
-    console.log('ID', this.currentOperatorID);
-    console.log('schema', this.currentOperatorSchema);
+    console.log('test6', this.currentOperatorSchema );
+    this.convertJsonSchemaToNGXField(this.currentOperatorSchema.jsonSchema);
+
     // handle generating schemas for advanced / hidden options
     // this.handleUpdateAdvancedSchema(operator);
 
@@ -294,7 +295,7 @@ export class PropertyEditorComponent {
     this.model = this.cachedFormData;
 
 
-    this.convertJsonSchemaToNGXField(this.currentOperatorSchema.jsonSchema);
+
 
     // set displayForm to true in the end - first initialize all the data then show the view
     this.displayForm = true;
@@ -566,6 +567,7 @@ export class PropertyEditorComponent {
     const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
     if (highlightedOperators.length === 1) {
       const operator = this.workflowActionService.getTexeraGraph().getOperator(highlightedOperators[0]);
+
       this.changePropertyEditor(operator);
     } else {
       this.clearPropertyEditor();
