@@ -135,8 +135,9 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.handleOperatorPaste();
 
     this.handleLinkCursorHover();
-
-    this.handleLinkBreakpoint();
+    if (environment.linkBreakpointEnabled) {
+      this.handleLinkBreakpoint();
+    }
   }
 
 
@@ -852,10 +853,17 @@ export class WorkflowEditorComponent implements AfterViewInit {
       .map(value => value[0])
       .subscribe(
         elementView => {
-          this.getJointPaper().getModelById(elementView.model.id).attr({
-            '.tool-remove': { display: 'block'},
-            '.breakpoint-button': { display: 'block'}
-          });
+          if (environment.linkBreakpointEnabled) {
+            this.getJointPaper().getModelById(elementView.model.id).attr({
+              '.tool-remove': { display: 'block'},
+              '.breakpoint-button': { display: 'block'}
+            });
+          } else {
+            // only display the delete button
+            this.getJointPaper().getModelById(elementView.model.id).attr({
+              '.tool-remove': { display: 'block'},
+            });
+          }
         }
     );
 

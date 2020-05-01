@@ -32,6 +32,11 @@ export const defaultEnvironment = {
    * whether download execution result is supported
    */
    downloadExecutionResultEnabled: false,
+  /**
+   * whether linkBreakpoint is supported
+   */
+  linkBreakpointEnabled: false,
+
 };
 
 export type AppEnv = typeof defaultEnvironment;

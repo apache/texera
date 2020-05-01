@@ -4,6 +4,8 @@ import { OperatorPredicate, BreakpointSchema } from '../../types/workflow-common
 import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
 import { DynamicSchemaService } from '../../service/dynamic-schema/dynamic-schema.service';
 import { Component } from '@angular/core';
+import { environment } from './../../../../environments/environment';
+
 
 import { Subject } from 'rxjs/Subject';
 import { Observable } from 'rxjs/Observable';
@@ -147,13 +149,14 @@ export class PropertyEditorComponent {
     // handle highlight / unhighlight event to show / hide the property editor form
     this.handleHighlightEvents();
 
-    // handle link highlight / unhighlight event to show / hide the breakpoint property editor form
-    this.handleLinkHighlight();
-    this.handleLinkUnhighlight();
+    if (environment.linkBreakpointEnabled) {
+      // handle link highlight / unhighlight event to show / hide the breakpoint property editor form
+      this.handleLinkHighlight();
+      this.handleLinkUnhighlight();
 
-    // handle the breakpoint form change event on the user interface to set breakpoint property
-    this.handleOnBreakpointPropertyChange();
-
+      // handle the breakpoint form change event on the user interface to set breakpoint property
+      this.handleOnBreakpointPropertyChange();
+    }
   }
 
   /**

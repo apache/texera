@@ -3,6 +3,7 @@ import {
   mockScanSentimentLink, mockSentimentResultLink, mockScanResultLink
 } from './mock-workflow-data';
 import { WorkflowGraph } from './workflow-graph';
+import { environment } from './../../../../../environments/environment';
 
 describe('WorkflowGraph', () => {
 
@@ -189,13 +190,22 @@ describe('WorkflowGraph', () => {
     expect(workflowGraph.getOutputLinksByOperatorId('1').length).toEqual(1);
   });
 
-  it('should set/remove link breakpoint correctly', () => {
-    workflowGraph.addOperator(mockScanPredicate);
-    workflowGraph.addOperator(mockResultPredicate);
-    workflowGraph.addLink(mockScanResultLink);
-    const mockBreakpoint = {age: '10'};
-    workflowGraph.setLinkBreakpoint(mockScanResultLink.linkID, mockBreakpoint);
-    expect(workflowGraph.getLinkWithID(mockScanResultLink.linkID).breakpointProperties).toEqual(mockBreakpoint);
-  });
+  describe('when linkBreakpoint is enabled', () => {
+    beforeAll(() => {
+      environment.linkBreakpointEnabled = true;
+    });
 
+    afterAll(() => {
+      environment.linkBreakpointEnabled = false;
+    });
+
+    it('should set/remove link breakpoint correctly', () => {
+      workflowGraph.addOperator(mockScanPredicate);
+      workflowGraph.addOperator(mockResultPredicate);
+      workflowGraph.addLink(mockScanResultLink);
+      const mockBreakpoint = {age: '10'};
+      workflowGraph.setLinkBreakpoint(mockScanResultLink.linkID, mockBreakpoint);
+      expect(workflowGraph.getLinkWithID(mockScanResultLink.linkID).breakpointProperties).toEqual(mockBreakpoint);
+    });
+  });
 });

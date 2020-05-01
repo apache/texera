@@ -215,18 +215,27 @@ describe('WorkflowActionService', () => {
 
   });
 
-  it('should set/remove link breakpoint to texera graph correctly', () => {
-    service.addOperator(mockScanPredicate, mockPoint);
-    service.addOperator(mockResultPredicate, mockPoint);
-    service.addLink(mockScanResultLink);
-    const mockBreakpoint = {age: '100'};
-    service.setLinkBreakpoint(mockScanResultLink.linkID, mockBreakpoint);
-    expect(texeraGraph.getLinkWithID(mockScanResultLink.linkID).breakpointProperties).toEqual(mockBreakpoint);
+  describe('when linkBreakpoint is enabled', () => {
+    beforeAll(() => {
+      environment.linkBreakpointEnabled = true;
+    });
 
-    service.removeLinkBreakpoint(mockScanResultLink.linkID);
-    expect(texeraGraph.getLinkWithID(mockScanResultLink.linkID).breakpointProperties).toEqual({});
+    afterAll(() => {
+      environment.linkBreakpointEnabled = false;
+    });
+
+    it('should set/remove link breakpoint to texera graph correctly', () => {
+      service.addOperator(mockScanPredicate, mockPoint);
+      service.addOperator(mockResultPredicate, mockPoint);
+      service.addLink(mockScanResultLink);
+      const mockBreakpoint = {age: '100'};
+      service.setLinkBreakpoint(mockScanResultLink.linkID, mockBreakpoint);
+      expect(texeraGraph.getLinkWithID(mockScanResultLink.linkID).breakpointProperties).toEqual(mockBreakpoint);
+
+      service.removeLinkBreakpoint(mockScanResultLink.linkID);
+      expect(texeraGraph.getLinkWithID(mockScanResultLink.linkID).breakpointProperties).toEqual({});
+    });
   });
-
 
   describe('when executionStatus is enabled', () => {
     beforeAll(() => {

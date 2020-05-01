@@ -3,6 +3,7 @@ import { Observable } from 'rxjs/Observable';
 import { debounceTime } from 'rxjs/operators';
 import { Point } from '../../../types/workflow-common.interface';
 import { UndoRedoService } from './../../undo-redo/undo-redo.service';
+import { environment } from './../../../../../environments/environment';
 
 type operatorIDsType = { operatorIDs: string[] };
 type linkIDType = { linkID: string };
@@ -145,8 +146,10 @@ export class JointGraphWrapper {
     // handle if the current highlighted operator's position is changed,
     // other highlighted operators should move with it.
     this.handleHighlightedOperatorPositionChange();
-    // handle if a link is deleted, it should be unhighlighted
-    this.handleLinkDeleteUnhighlight();
+    if (environment.linkBreakpointEnabled) {
+      // handle if a link is deleted, it should be unhighlighted
+      this.handleLinkDeleteUnhighlight();
+    }
   }
 
 
@@ -210,12 +213,13 @@ export class JointGraphWrapper {
    * @param operatorID
    */
   public highlightOperator(operatorID: string): void {
-    // if there are highlighed links, unhighlight them
-    if (this.currentHighlightedLinks.length > 0) {
-      const highlightedLinks = Object.assign([], this.currentHighlightedLinks);
-      highlightedLinks.forEach(highlightedLink => this.unhighlightLink(highlightedLink));
+    if (environment.linkBreakpointEnabled) {
+      // if there are highlighed links, unhighlight them
+      if (this.currentHighlightedLinks.length > 0) {
+        const highlightedLinks = Object.assign([], this.currentHighlightedLinks);
+        highlightedLinks.forEach(highlightedLink => this.unhighlightLink(highlightedLink));
+      }
     }
-
     const highlightedOperatorIDs: string[] = [];
     this.highlightOperatorInternal(operatorID, highlightedOperatorIDs);
     if (highlightedOperatorIDs.length > 0) {
@@ -232,11 +236,12 @@ export class JointGraphWrapper {
    * @param operatorIDs
    */
   public highlightOperators(operatorIDs: string[]): void {
-
-    // if there are highlighed links, unhighlight them
-    if (this.currentHighlightedLinks.length > 0) {
-      const highlightedLinks = Object.assign([], this.currentHighlightedLinks);
-      highlightedLinks.forEach(highlightedLink => this.unhighlightLink(highlightedLink));
+    if (environment.linkBreakpointEnabled) {
+      // if there are highlighed links, unhighlight them
+      if (this.currentHighlightedLinks.length > 0) {
+        const highlightedLinks = Object.assign([], this.currentHighlightedLinks);
+        highlightedLinks.forEach(highlightedLink => this.unhighlightLink(highlightedLink));
+      }
     }
     // then
     const highlightedOperatorIDs: string[] = [];
