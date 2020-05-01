@@ -320,6 +320,7 @@ export class PropertyEditorComponent {
       // don't emit the event if form data is same with current actual data
       // also check for other unlikely circumstances (see below)
       .filter(formData => {
+        console.log('test2', formData);
         // check if the current operator ID still exists
         // the user could un-select this operator during debounce time
         if (!this.currentOperatorID) {
@@ -346,9 +347,9 @@ export class PropertyEditorComponent {
           return false;
         }
         // this checks whether formData and cachedFormData will have the same appearance when rendered in the form
-        if (this.secondCheckPropertyEqual(formData as IndexableObject, this.cachedFormData as IndexableObject)) {
-          return false;
-        }
+        // if (this.secondCheckPropertyEqual(formData as IndexableObject, this.cachedFormData as IndexableObject)) {
+        //   return false;
+        // }
         return true;
       })
       // share() because the original observable is a hot observable
@@ -529,6 +530,7 @@ export class PropertyEditorComponent {
   private handleOnFormChange(): void {
     this.outputFormChangeEventStream
       .subscribe(formData => {
+        console.log('test3', formData);
       // set the operator property to be the new form data
       if (this.currentOperatorID) {
 
