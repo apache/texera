@@ -372,7 +372,7 @@ export class PropertyEditorComponent {
       event => {
         if (event.operatorID === this.currentOperatorID) {
           this.currentOperatorSchema = this.autocompleteService.getDynamicSchema(this.currentOperatorID);
-
+          console.log('test5', this.currentOperatorSchema);
           const operator = this.workflowActionService.getTexeraGraph().getOperator(event.operatorID);
           if (! operator) {
             throw new Error(`operator ${event.operatorID} does not exist`);
