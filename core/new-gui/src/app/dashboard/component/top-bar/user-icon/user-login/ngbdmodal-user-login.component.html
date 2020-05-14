@@ -16,6 +16,7 @@
           </mat-form-field>
         </mat-dialog-content>
         <div><button class = "btn btn-info" (click) = "login()"> Sign In </button></div>
+        <p *ngIf="loginErrorMessage">{{ loginErrorMessage }}</p>
       </div>
     </mat-tab>
 
@@ -28,6 +29,7 @@
           </mat-form-field>
         </mat-dialog-content>
         <div><button class = "btn btn-info" (click) = "register()"> Sign Up </button></div>
+        <p *ngIf="registerErrorMessage">{{ registerErrorMessage }}</p>
       </div>
     </mat-tab>
   </mat-tab-group>

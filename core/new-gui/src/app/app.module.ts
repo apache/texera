@@ -32,7 +32,7 @@ import { ResultPanelToggleComponent } from './workspace/component/result-panel-t
 
 import { DashboardComponent } from './dashboard/component/dashboard.component';
 import { TopBarComponent } from './dashboard/component/top-bar/top-bar.component';
-import { UserAccountIconComponent } from './dashboard/component/top-bar/user-account-icon/user-account-icon.component';
+import { UserIconComponent } from './dashboard/component/top-bar/user-icon/user-icon.component';
 import { FeatureBarComponent } from './dashboard/component/feature-bar/feature-bar.component';
 import { FeatureContainerComponent } from './dashboard/component/feature-container/feature-container.component';
 import {
@@ -65,8 +65,8 @@ import { ResourceSectionComponent } from './dashboard/component/feature-containe
 
 import { FileUploadModule } from 'ng2-file-upload';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { UserAccountService } from './dashboard/service/user-account/user-account.service';
-import { NgbdModalUserAccountLoginComponent } from './dashboard/component/top-bar/user-account-icon/user-account-login/ngbdmodal-user-account-login.component';
+import { UserService } from './common/service/user/user.service';
+import { NgbdModalUserLoginComponent } from './dashboard/component/top-bar/user-icon/user-login/ngbdmodal-user-login.component';
 
 @NgModule({
   declarations: [
@@ -81,7 +81,7 @@ import { NgbdModalUserAccountLoginComponent } from './dashboard/component/top-ba
 
     DashboardComponent,
     TopBarComponent,
-    UserAccountIconComponent,
+    UserIconComponent,
     FeatureBarComponent,
     FeatureContainerComponent,
 
@@ -94,7 +94,7 @@ import { NgbdModalUserAccountLoginComponent } from './dashboard/component/top-ba
     NgbdModalResourceViewComponent,
     NgbdModalResourceAddComponent,
     NgbdModalResourceDeleteComponent,
-    NgbdModalUserAccountLoginComponent,
+    NgbdModalUserLoginComponent,
 
     ResourceSectionComponent,
 
@@ -131,12 +131,11 @@ import { NgbdModalUserAccountLoginComponent } from './dashboard/component/top-ba
     NgbdModalResourceViewComponent,
     NgbdModalResourceAddComponent,
     NgbdModalResourceDeleteComponent,
-    NgbdModalUserAccountLoginComponent,
+    NgbdModalUserLoginComponent,
     NgbModalComponent
   ],
   providers: [
-    HttpClientModule,
-    UserAccountService
+    HttpClientModule
   ],
   bootstrap: [AppComponent],
   // dynamically created component must be placed in the entryComponents attribute

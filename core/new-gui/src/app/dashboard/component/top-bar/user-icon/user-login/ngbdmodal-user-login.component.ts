@@ -1,27 +1,28 @@
 import { Component, OnInit } from '@angular/core';
 import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
-import { UserAccountService } from '../../../../service/user-account/user-account.service';
+import { UserService } from '../../../../../common/service/user/user.service';
 
 
 /**
- * NgbdModalUserAccountLoginComponent is the pop up for user login/registration
+ * NgbdModalUserLoginComponent is the pop up for user login/registration
  *
  * @author Adam
  */
 @Component({
-  selector: 'texera-ngbdmodal-user-account-login',
-  templateUrl: './ngbdmodal-user-account-login.component.html',
-  styleUrls: ['./ngbdmodal-user-account-login.component.scss']
+  selector: 'texera-ngbdmodal-user-login',
+  templateUrl: './ngbdmodal-user-login.component.html',
+  styleUrls: ['./ngbdmodal-user-login.component.scss']
 })
-export class NgbdModalUserAccountLoginComponent implements OnInit {
+export class NgbdModalUserLoginComponent implements OnInit {
   public loginUserName: string = '';
   public registerUserName: string = '';
   public selectedTab = 0;
-
+  public loginErrorMessage: string | undefined;
+  public registerErrorMessage: string | undefined;
 
   constructor(
     public activeModal: NgbActiveModal,
-    private userAccountService: UserAccountService) { }
+    private userService: UserService) { }
 
   ngOnInit() {
     this.detectUserChange();
@@ -35,16 +36,15 @@ export class NgbdModalUserAccountLoginComponent implements OnInit {
     if (this.loginUserName.length === 0) {
       return;
     }
-
-    this.userAccountService.loginUser(this.loginUserName)
+    this.loginErrorMessage = undefined;
+    this.userService.login(this.loginUserName)
       .subscribe(
         res => {
           if (res.code === 0) { // successfully login in
             // TODO show success
             this.activeModal.close();
           } else { // login error
-            // TODO show error
-            console.log(res.message);
+            this.loginErrorMessage = res.message;
           }
         }
       );
@@ -58,16 +58,16 @@ export class NgbdModalUserAccountLoginComponent implements OnInit {
     if (this.registerUserName.length === 0) {
       return;
     }
+    this.registerErrorMessage = undefined;
 
-    this.userAccountService.registerUser(this.registerUserName)
+    this.userService.register(this.registerUserName)
       .subscribe(
         res => {
           if (res.code === 0) { // successfully register
             // TODO show success
             this.activeModal.close();
           } else { // register error
-            // TODO show error
-            console.log(res.message);
+            this.registerErrorMessage = res.message;
           }
         }
       );
@@ -77,10 +77,10 @@ export class NgbdModalUserAccountLoginComponent implements OnInit {
    * this method will handle the pop up when user successfully login
    */
   private detectUserChange(): void {
-    this.userAccountService.getUserChangeEvent()
+    this.userService.getUserChangedEvent()
       .subscribe(
         () => {
-          if (this.userAccountService.isLogin()) {
+          if (this.userService.getUser) {
             // TODO temporary solution, need improvement
             this.activeModal.close();
           }

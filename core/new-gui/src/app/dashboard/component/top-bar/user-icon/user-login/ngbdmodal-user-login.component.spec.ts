@@ -1,23 +1,23 @@
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { NgbdModalUserAccountLoginComponent } from './ngbdmodal-user-account-login.component';
-import { UserAccountService } from '../../../../service/user-account/user-account.service';
+import { NgbdModalUserLoginComponent } from './ngbdmodal-user-login.component';
+import { UserService } from '../../../../../common/service/user/user.service';
 import { NgbActiveModal, NgbModule } from '@ng-bootstrap/ng-bootstrap';
 import { MatTabsModule, MatFormFieldModule, MatDialogModule, MatInputModule } from '@angular/material';
 import { FormsModule } from '@angular/forms';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 
-describe('UserAccountLoginComponent', () => {
-  let component: NgbdModalUserAccountLoginComponent;
-  let fixture: ComponentFixture<NgbdModalUserAccountLoginComponent>;
+describe('UserLoginComponent', () => {
+  let component: NgbdModalUserLoginComponent;
+  let fixture: ComponentFixture<NgbdModalUserLoginComponent>;
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-      declarations: [ NgbdModalUserAccountLoginComponent ],
+      declarations: [ NgbdModalUserLoginComponent ],
       providers: [
         NgbActiveModal,
-        UserAccountService
+        UserService
       ],
       imports: [
         BrowserAnimationsModule,
@@ -34,7 +34,7 @@ describe('UserAccountLoginComponent', () => {
   }));
 
   beforeEach(() => {
-    fixture = TestBed.createComponent(NgbdModalUserAccountLoginComponent);
+    fixture = TestBed.createComponent(NgbdModalUserLoginComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });
