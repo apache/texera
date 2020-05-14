@@ -9,12 +9,12 @@ export interface User extends Readonly<{
 }> {}
 
 
-interface UserWebResponseSuccess extends Readonly<{
+export interface UserWebResponseSuccess extends Readonly<{
   code: 0; // 0 represents success and 1 represents error
   user: User;
 }> {}
 
-interface UserWebResponseFailure extends Readonly<{
+export interface UserWebResponseFailure extends Readonly<{
   code: 1; // 0 represents success and 1 represents error
   message: string;
 }> {}

@@ -3,7 +3,7 @@ import { TestBed, inject } from '@angular/core/testing';
 
 import { UserService } from './user.service';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
-import { UserWebResponse } from '../../type/user';
+import { UserWebResponse, UserWebResponseSuccess } from '../../type/user';
 import { environment } from '../../../../environments/environment';
 
 const userID = 1;
@@ -16,16 +16,11 @@ const successUserResponse: UserWebResponse = {
   user: {
     userName: userName,
     userID: userID
-  },
-  message: ''
+  }
 };
 
 const failedUserResponse: UserWebResponse = {
   code : failedCode,
-  user: {
-    userName: '',
-    userID: -1
-  },
   message: 'invalid user name or password'
 };
 
@@ -61,8 +56,8 @@ describe('UserService', () => {
       service.register(userName).subscribe(
         userWebResponse => {
           expect(userWebResponse.code).toBe(successCode);
-          expect(userWebResponse.user.userID).toBe(userID);
-          expect(userWebResponse.user.userName).toBe(userName);
+          expect((userWebResponse as UserWebResponseSuccess).user.userID).toBe(userID);
+          expect((userWebResponse as UserWebResponseSuccess).user.userName).toBe(userName);
           expect(service.getUser()).toBeTruthy();
         }
       );
@@ -78,8 +73,8 @@ describe('UserService', () => {
       service.login(userName).subscribe(
         userWebResponse => {
           expect(userWebResponse.code).toBe(successCode);
-          expect(userWebResponse.user.userID).toBe(userID);
-          expect(userWebResponse.user.userName).toBe(userName);
+          expect((userWebResponse as UserWebResponseSuccess).user.userID).toBe(userID);
+          expect((userWebResponse as UserWebResponseSuccess).user.userName).toBe(userName);
           expect(service.getUser()).toBeTruthy();
         }
       );
