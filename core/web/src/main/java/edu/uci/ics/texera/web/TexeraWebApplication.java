@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.github.dirkraft.dropwizard.fileassets.FileAssetsBundle;
 
+import edu.uci.ics.texera.api.constants.DataConstants;
+import edu.uci.ics.texera.api.utils.Utils;
 import edu.uci.ics.texera.perftest.sample.SampleExtraction;
 import edu.uci.ics.texera.perftest.twitter.TwitterSample;
 import edu.uci.ics.texera.web.healthcheck.SampleHealthCheck;
@@ -54,6 +56,9 @@ public class TexeraWebApplication extends Application<TexeraWebConfiguration> {
 
         final UserDictionaryResource userDictionaryResource = new UserDictionaryResource();
         environment.jersey().register(userDictionaryResource);
+        
+        final UserResource userResource = new UserResource();
+        environment.jersey().register(userResource);
 
         // Registers MultiPartFeature to support file upload
         environment.jersey().register(MultiPartFeature.class);
@@ -71,6 +76,11 @@ public class TexeraWebApplication extends Application<TexeraWebConfiguration> {
         System.out.println("Writing twitter index");
         TwitterSample.writeTwitterIndex();
         System.out.println("Finished writing twitter index");
-        new TexeraWebApplication().run(args);
+
+        String server = args.length > 1 ? args[0] : "server";
+        String config = args.length > 2 ? args[1] :
+                Utils.getTexeraHomePath().resolve("conf").resolve("web-config.yml").toString();
+
+        new TexeraWebApplication().run(server, config);
     }
 }

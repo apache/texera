@@ -32,7 +32,7 @@ import { ResultPanelToggleComponent } from './workspace/component/result-panel-t
 
 import { DashboardComponent } from './dashboard/component/dashboard.component';
 import { TopBarComponent } from './dashboard/component/top-bar/top-bar.component';
-import { UserAccountIconComponent } from './dashboard/component/top-bar/user-account-icon/user-account-icon.component';
+import { UserIconComponent } from './dashboard/component/top-bar/user-icon/user-icon.component';
 import { FeatureBarComponent } from './dashboard/component/feature-bar/feature-bar.component';
 import { FeatureContainerComponent } from './dashboard/component/feature-container/feature-container.component';
 import {
@@ -65,6 +65,8 @@ import { ResourceSectionComponent } from './dashboard/component/feature-containe
 
 import { FileUploadModule } from 'ng2-file-upload';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { UserService } from './common/service/user/user.service';
+import { NgbdModalUserLoginComponent } from './dashboard/component/top-bar/user-icon/user-login/ngbdmodal-user-login.component';
 
 @NgModule({
   declarations: [
@@ -79,7 +81,7 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 
     DashboardComponent,
     TopBarComponent,
-    UserAccountIconComponent,
+    UserIconComponent,
     FeatureBarComponent,
     FeatureContainerComponent,
 
@@ -92,6 +94,7 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
     NgbdModalResourceViewComponent,
     NgbdModalResourceAddComponent,
     NgbdModalResourceDeleteComponent,
+    NgbdModalUserLoginComponent,
 
     ResourceSectionComponent,
 
@@ -128,9 +131,12 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
     NgbdModalResourceViewComponent,
     NgbdModalResourceAddComponent,
     NgbdModalResourceDeleteComponent,
+    NgbdModalUserLoginComponent,
     NgbModalComponent
   ],
-  providers: [HttpClientModule],
+  providers: [
+    HttpClientModule
+  ],
   bootstrap: [AppComponent],
   // dynamically created component must be placed in the entryComponents attribute
 })
