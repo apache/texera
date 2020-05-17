@@ -32,7 +32,7 @@ export class NgbdModalFileAddComponent implements OnInit {
   }
 
   public getFileArrayLength(): number {
-    return this.userFileUploadService.getFileArrayLength();
+    return this.userFileUploadService.getFileArray().length;
   }
 
   public deleteFile(fileUploadItem: FileUploadItem): void {

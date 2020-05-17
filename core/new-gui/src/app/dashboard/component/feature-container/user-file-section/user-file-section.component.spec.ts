@@ -1,9 +1,14 @@
-import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import { async, ComponentFixture, TestBed, inject } from '@angular/core/testing';
+
+import { NgbModal, NgbModule } from '@ng-bootstrap/ng-bootstrap';
+import { CustomNgMaterialModule } from '../../../../common/custom-ng-material.module';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { MatListModule } from '@angular/material/list';
 
 import { UserFileSectionComponent } from './user-file-section.component';
-import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { UserFileService } from '../../../service/user-file/user-file.service';
-import { UserAccountService } from '../../../service/user-account/user-account.service';
+import { UserService } from '../../../../common/service/user/user.service';
+import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 
 describe('UserFileSectionComponent', () => {
   let component: UserFileSectionComponent;
@@ -15,7 +20,15 @@ describe('UserFileSectionComponent', () => {
       providers: [
         NgbModal,
         UserFileService,
-        UserAccountService
+        UserService
+      ],
+      imports: [
+        CustomNgMaterialModule,
+        NgbModule,
+        FormsModule,
+        ReactiveFormsModule,
+        MatListModule,
+        HttpClientTestingModule
       ]
     })
     .compileComponents();
@@ -27,7 +40,8 @@ describe('UserFileSectionComponent', () => {
     fixture.detectChanges();
   });
 
-  // it('should create', () => {
-  //   expect(component).toBeTruthy();
-  // });
+  it('should create', inject([HttpTestingController],
+    (httpMock: HttpTestingController) => {
+    expect(component).toBeTruthy();
+  }));
 });

@@ -1,12 +1,12 @@
 import { Injectable, EventEmitter } from '@angular/core';
-import { UserFile } from '../../type/user-file';
-import { UserService } from '../../../common/service/user/user.service';
 import { Observable } from 'rxjs';
 import { HttpClient } from '@angular/common/http';
-
 import { environment } from '../../../../environments/environment';
+
 import { GenericWebResponse } from '../../type/generic-web-response';
 import { User } from '../../../common/type/user';
+import { UserFile } from '../../type/user-file';
+import { UserService } from '../../../common/service/user/user.service';
 
 export const getFilesUrl = 'users/files/get-files';
 export const deleteFilesUrl = 'users/files/delete-file';
@@ -14,7 +14,7 @@ export const deleteFilesUrl = 'users/files/delete-file';
 @Injectable()
 export class UserFileService {
   private fileArray: UserFile[] = [];
-  private fileChangeEvent: EventEmitter<string> = new EventEmitter(); // TODO: this hasn't been implemented
+  // TODO file changed event
 
   constructor(
     private userService: UserService,
@@ -27,45 +27,12 @@ export class UserFileService {
   }
 
   /**
-   * return the userFile at the index.
-   * check the array length by calling function {@link getFileArrayLength}.
-   * @param index
-   */
-  public getFile(index: number): UserFile {
-    return this.fileArray[index];
-  }
-
-  /**
    * this function will return the fileArray store in the service.
    * This is required for HTML page since HTML can only loop through collection instead of index number.
-   * Be carefully with the return array because it may cause unexpected error.
    * You can change the UserFile inside the array but do not change the array itself.
    */
   public getFileArray(): UserFile[] {
     return this.fileArray;
-  }
-
-  /**
-   * return the userFile field at the index.
-   * check the array length by calling function {@link getFileArrayLength}.
-   * @param index
-   */
-  public getFileField<Field extends keyof UserFile>(index: number, field: Field): UserFile[Field] {
-    if (index >= this.getFileArrayLength()) { throw new Error('index out of bound'); }
-    return this.getFile(index)[field];
-  }
-
-  public getFileArrayLength(): number {
-    return this.fileArray.length;
-  }
-
-  /**
-   * get the file change event so that you can subscribe to it.
-   * When the file changes in the service, the return value will emit new message.
-   * TODO: hasn't been implemented because it hasn't been used anywhere yet, not sure if it is needed
-   */
-  public getFileChangeEvent(): EventEmitter<string> {
-    return this.fileChangeEvent;
   }
 
   /**
@@ -80,7 +47,7 @@ export class UserFileService {
       ).subscribe(
       files => {
         this.fileArray = files;
-        this.fileChangeEvent.emit('');
+        // TODO emit file changed event
       }
     );
   }
@@ -138,6 +105,7 @@ export class UserFileService {
 
   private clearUserFile(): void {
     this.fileArray = [];
+    // TODO emit file changed event
   }
 
 }

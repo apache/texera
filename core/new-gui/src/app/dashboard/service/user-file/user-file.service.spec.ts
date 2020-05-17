@@ -1,11 +1,12 @@
 import { TestBed, inject } from '@angular/core/testing';
 
-import { UserFileService, getFilesUrl } from './user-file.service';
-import { UserAccountService } from '../user-account/user-account.service';
-import { StubUserAccountService } from '../user-account/stub-user-account.service';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { UserFile } from '../../type/user-file';
 import { environment } from '../../../../environments/environment';
+
+import { UserFileService } from './user-file.service';
+import { UserService } from '../../../common/service/user/user.service';
+import { StubUserService, STUB_USER_NAME } from '../../../common/service/user/stub-user.service';
 
 const id = 1;
 const name = 'testFile';
@@ -24,7 +25,7 @@ describe('UserFileService', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [UserFileService,
-      { provide: UserAccountService, useClass: StubUserAccountService }
+      { provide: UserService, useClass: StubUserService }
       ],
       imports: [
         HttpClientTestingModule
@@ -32,20 +33,21 @@ describe('UserFileService', () => {
     });
   });
 
-  afterEach(inject([HttpTestingController], (httpMock: HttpTestingController) => {
-    httpMock.verify();
-  }));
+  // afterEach(inject([HttpTestingController], (httpMock: HttpTestingController) => {
+  //   httpMock.verify();
+  // }));
 
-  it('should be created', inject([UserFileService, UserAccountService, HttpTestingController],
+  it('should be created', inject([UserFileService, UserService, HttpTestingController],
     (service: UserFileService) => {
     expect(service).toBeTruthy();
   }));
 
-  it('should contain no files by default', inject([UserFileService, UserAccountService, HttpTestingController],
+  it('should contain no files by default', inject([UserFileService, UserService, HttpTestingController],
     (service: UserFileService) => {
-    expect(service.getFileArrayLength()).toBe(0);
-    expect(() => service.getFileField(0, 'id')).toThrowError();
+    expect(service.getFileArray().length).toBe(0);
   }));
+
+  // TODO writes tests for this service
 
   // it('should refresh file after user login', inject([UserFileService, UserAccountService, HttpTestingController],
   //   (service: UserFileService, userAccountService: UserAccountService, httpMock: HttpTestingController) => {
@@ -53,7 +55,7 @@ describe('UserFileService', () => {
   //   spyOn(service, 'refreshFiles').and.callThrough();
   //   expect(service.refreshFiles).toHaveBeenCalled();
 
-  //   userAccountService.loginUser('').subscribe();
+  //   userAccountService.loginUser(STUB_USER_NAME).subscribe();
 
   //       // expect(service.getFileArrayLength()).toEqual(1);
   //       // expect(service.getFileArray()[0]).toEqual(testFile);
@@ -62,31 +64,6 @@ describe('UserFileService', () => {
   //       // expect(service.getFileField(0, 'path')).toEqual(path);
   //       // expect(service.getFileField(0, 'description')).toEqual(description);
   //       // expect(service.getFileField(0, 'size')).toEqual(size);
-
-  //   const req = httpMock.expectOne(`${environment.apiUrl}/${getFilesUrl}/${id}`);
-  //   expect(req.request.method).toEqual('GET');
-  //   req.flush([testFile]);
-  // }));
-
-  // it('should refresh file after user login', inject([UserFileService, UserAccountService, HttpTestingController],
-  //   (service: UserFileService, userAccountService: UserAccountService, httpMock: HttpTestingController) => {
-  //   expect(service.getFileArrayLength()).toBe(0);
-
-  //   spyOn(service, 'refreshFiles').and.callThrough();
-  //   expect(service.refreshFiles).toHaveBeenCalled();
-  //   // .then(
-  //     // () => {
-  //     //   expect(service.getFileArrayLength()).toEqual(1);
-  //     //   expect(service.getFileArray()[0]).toEqual(testFile);
-  //     //   expect(service.getFileField(0, 'id')).toEqual(id);
-  //     //   expect(service.getFileField(0, 'name')).toEqual(name);
-  //     //   expect(service.getFileField(0, 'path')).toEqual(path);
-  //     //   expect(service.getFileField(0, 'description')).toEqual(description);
-  //     //   expect(service.getFileField(0, 'size')).toEqual(size);
-  //     // }
-  //   // );
-
-  //   userAccountService.loginUser('').subscribe();
 
   //   const req = httpMock.expectOne(`${environment.apiUrl}/${getFilesUrl}/${id}`);
   //   expect(req.request.method).toEqual('GET');

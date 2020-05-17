@@ -32,7 +32,7 @@ export class UserFileSectionComponent implements OnInit {
   }
 
   public getFileArrayLength(): number {
-    return this.userFileService.getFileArrayLength();
+    return this.userFileService.getFileArray().length;
   }
 
   public deleteFile(userFile: UserFile): void {

@@ -1,12 +1,12 @@
 import { TestBed, inject } from '@angular/core/testing';
 
+import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
+import { environment } from '../../../../environments/environment';
+
+import { UserService } from '../../../common/service/user/user.service';
+import { StubUserService, STUB_USER_NAME } from '../../../common/service/user/stub-user.service';
 import { UserFileUploadService, postFileUrl } from './user-file-upload.service';
 import { UserFileService } from './user-file.service';
-import { StubUserFileService } from './stub-user-file.service';
-import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
-import { UserAccountService } from '../user-account/user-account.service';
-import { StubUserAccountService, stubUserID } from '../user-account/stub-user-account.service';
-import { environment } from '../../../../environments/environment';
 
 const arrayOfBlob: Blob[] = Array<Blob>(); // just for test,needed for creating File object.
 const testFileName = 'testTextFile';
@@ -16,8 +16,8 @@ describe('UserFileUploadService', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [
-        { provide: UserAccountService, useClass: StubUserAccountService },
-        { provide: UserFileService, useClass: StubUserFileService },
+        { provide: UserService, useClass: StubUserService },
+        UserFileService,
         UserFileUploadService
       ],
       imports: [
@@ -26,26 +26,24 @@ describe('UserFileUploadService', () => {
     });
   });
 
-  afterEach(inject([HttpTestingController], (httpMock: HttpTestingController) => {
-    httpMock.verify();
-  }));
+  // afterEach(inject([HttpTestingController], (httpMock: HttpTestingController) => {
+  //   httpMock.verify();
+  // }));
 
   it('should be created', inject([UserFileUploadService, UserFileService, HttpTestingController], (service: UserFileUploadService) => {
     expect(service).toBeTruthy();
   }));
 
-  it('should contain no file by default', inject([UserFileUploadService, UserAccountService, UserFileService, HttpTestingController],
-    (service: UserFileUploadService, userAccountService: UserAccountService) => {
-    userAccountService.loginUser('').subscribe();
-    expect(service.getFileArrayLength()).toBe(0);
+  it('should contain no file by default', inject([UserFileUploadService, UserService, UserFileService, HttpTestingController],
+    (service: UserFileUploadService, userService: UserService) => {
+    expect(service.getFileArray().length).toBe(0);
     expect(() => service.getFileUploadItem(0)).toThrowError();
   }));
 
-  it('should insert file successfully', inject([UserFileUploadService, UserAccountService, UserFileService, HttpTestingController],
-    (service: UserFileUploadService, userAccountService: UserAccountService) => {
-    userAccountService.loginUser('').subscribe();
+  it('should insert file successfully', inject([UserFileUploadService, UserService, UserFileService, HttpTestingController],
+    (service: UserFileUploadService, userService: UserService) => {
     service.insertNewFile(testFile);
-    expect(service.getFileArrayLength()).toBe(1);
+    expect(service.getFileArray().length).toBe(1);
     expect(service.getFileArray()[0]).toEqual(service.getFileUploadItem(0));
     expect(service.getFileUploadItem(0).file).toEqual(testFile);
     expect(service.getFileUploadItem(0).name).toEqual(testFileName);
@@ -53,19 +51,20 @@ describe('UserFileUploadService', () => {
     expect(() => service.getFileUploadItem(1)).toThrowError();
   }));
 
-  it('should delete file successfully', inject([UserFileUploadService, UserAccountService, UserFileService, HttpTestingController],
-    (service: UserFileUploadService, userAccountService: UserAccountService) => {
-    userAccountService.loginUser('').subscribe();
+  it('should delete file successfully', inject([UserFileUploadService, UserService, UserFileService, HttpTestingController],
+    (service: UserFileUploadService, userService: UserService) => {
     service.insertNewFile(testFile);
-    expect(service.getFileArrayLength()).toBe(1);
+    expect(service.getFileArray().length).toBe(1);
     const testFileUploadItem = service.getFileUploadItem(0);
     service.deleteFile(testFileUploadItem);
-    expect(service.getFileArrayLength()).toBe(0);
+    expect(service.getFileArray().length).toBe(0);
   }));
 
-  // it('should upload file successfully', inject([UserFileUploadService, UserAccountService, UserFileService, HttpTestingController],
-  //   (service: UserFileUploadService, userAccountService: UserAccountService, userFileService: UserFileService, httpMock: HttpTestingController) => {
-  //   userAccountService.loginUser('');
+  // TODO writes tests for this service
+
+  // it('should upload file successfully', inject([UserFileUploadService, userService, UserFileService, HttpTestingController],
+  //   (service: UserFileUploadService, userService: userService, userFileService: UserFileService, httpMock: HttpTestingController) => {
+  //   userService.login(STUB_USER_NAME);
   //   service.insertNewFile(testFile);
   //   expect(service.getFileArrayLength()).toBe(1);
   //   service.uploadAllFiles();

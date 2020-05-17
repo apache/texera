@@ -40,17 +40,13 @@ export class UserFileUploadService {
     return this.fileUploadItemArray;
   }
 
-  public getFileArrayLength(): number {
-    return this.fileUploadItemArray.length;
-  }
-
   /**
    * return the FileUploadItem field at the index.
    * check the array length by calling function {@link getFileArrayLength}.
    * @param index
    */
   public getFileUploadItem(index: number): FileUploadItem {
-    if (index >= this.getFileArrayLength()) { throw new Error('index out of bound'); }
+    if (index >= this.getFileArray().length) { throw new Error('index out of bound'); }
     return this.fileUploadItemArray[index];
   }
 
@@ -133,8 +129,8 @@ export class UserFileUploadService {
     return {
       file: file,
       name: file.name,
-      description: '',
-      uploadProgress: 0,
+      description: '', // TODO frontend UI hasn't implemented
+      uploadProgress: 0, // TODO
       isUploadingFlag: false
     };
   }
