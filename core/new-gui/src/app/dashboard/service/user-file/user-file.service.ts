@@ -6,7 +6,7 @@ import { HttpClient } from '@angular/common/http';
 
 import { environment } from '../../../../environments/environment';
 import { GenericWebResponse } from '../../type/generic-web-response';
-import { User } from 'src/app/common/type/user';
+import { User } from '../../../common/type/user';
 
 export const getFilesUrl = 'users/files/get-files';
 export const deleteFilesUrl = 'users/files/delete-file';

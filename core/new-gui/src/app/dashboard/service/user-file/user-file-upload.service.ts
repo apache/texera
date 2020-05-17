@@ -2,10 +2,11 @@ import { Injectable } from '@angular/core';
 import { FileUploadItem } from '../../type/user-file';
 import { GenericWebResponse } from '../../type/generic-web-response';
 import { Observable } from 'rxjs';
-import { UserAccountService } from '../user-account/user-account.service';
+import { UserService } from '../../../common/service/user/user.service';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../../../environments/environment';
 import { UserFileService } from './user-file.service';
+import { User } from '../../../common/type/user';
 
 export const postFileUrl = 'users/files/upload-file';
 
@@ -14,7 +15,7 @@ export class UserFileUploadService {
   private fileUploadItemArray: FileUploadItem[] = [];
 
   constructor(
-    private userAccountService: UserAccountService,
+    private userService: UserService,
     private userFileService: UserFileService,
     private http: HttpClient) {
       this.detectUserChanges();
@@ -93,7 +94,7 @@ export class UserFileUploadService {
    * @param fileUploadItem
    */
   private uploadFile(fileUploadItem: FileUploadItem): Observable<GenericWebResponse> {
-    if (!this.userAccountService.isLogin()) {
+    if (!this.userService.isLogin()) {
       throw new Error(`Can not upload files when not login`);
     }
     fileUploadItem.isUploadingFlag = true;
@@ -101,7 +102,7 @@ export class UserFileUploadService {
     formData.append('file', fileUploadItem.file, fileUploadItem.name);
     formData.append('size', fileUploadItem.file.size.toString());
     formData.append('description', fileUploadItem.description);
-    return this.postFileHttpRequest(formData, this.userAccountService.getUserID());
+    return this.postFileHttpRequest(formData, (this.userService.getUser() as User).userID);
   }
 
   private postFileHttpRequest(formData: FormData, userID: number): Observable<GenericWebResponse> {
@@ -115,9 +116,9 @@ export class UserFileUploadService {
    * clear the files in the service when user log out.
    */
   private detectUserChanges(): void {
-    this.userAccountService.getUserChangeEvent().subscribe(
+    this.userService.getUserChangedEvent().subscribe(
       () => {
-        if (!this.userAccountService.isLogin()) {
+        if (!this.userService.isLogin()) {
           this.clearUserFile();
         }
       }
