@@ -10,6 +10,7 @@ import {
 import {
   UserDictionarySectionComponent
 } from './dashboard/component/feature-container/user-dictionary-section/user-dictionary-section.component';
+import { UserFileSectionComponent } from './dashboard/component/feature-container/user-file-section/user-file-section.component';
 
 /*
 *  This file defines the url path
@@ -34,6 +35,10 @@ const routes: Routes = [
       {
         path : 'userdictionary',
         component : UserDictionarySectionComponent
+      },
+      {
+        path : 'userfile',
+        component : UserFileSectionComponent
       }
     ]
   },
