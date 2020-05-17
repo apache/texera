@@ -103,6 +103,10 @@ export class UserService {
     return this.currentUser;
   }
 
+  public isLogin(): boolean {
+    return this.currentUser !== undefined;
+  }
+
   /**
    * this method will return the userChangeEvent, which can be subscribe
    * userChangeEvent will be triggered when the current user changes (login or log out)
