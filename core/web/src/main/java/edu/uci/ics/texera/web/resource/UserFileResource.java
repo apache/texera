@@ -34,6 +34,8 @@ import static org.jooq.impl.DSL.*;
 
 import edu.uci.ics.texera.web.TexeraWebException;
 import edu.uci.ics.texera.dataflow.jooq.generated.tables.records.UseraccountRecord;
+import edu.uci.ics.texera.dataflow.resource.file.FileManager;
+import edu.uci.ics.texera.dataflow.sqlServerInfo.UserSqlServer;
 import edu.uci.ics.texera.web.response.GenericWebResponse;
 
 @Path("/users/files/")
@@ -123,8 +125,8 @@ public class UserFileResource {
     
     private Record1<String> deleteInDatabase(UInteger fileID) {
         // Connection is AutoCloseable so it will automatically close when it finishes.
-        try (Connection conn = UserMysqlServer.getConnection()) {
-            DSLContext create = UserMysqlServer.createDSLContext(conn);
+        try (Connection conn = UserSqlServer.getConnection()) {
+            DSLContext create = UserSqlServer.createDSLContext(conn);
             
             /**
              * Known problem for jooq 3.x
@@ -154,8 +156,8 @@ public class UserFileResource {
     
     private Result<Record5<UInteger, String, String, String, UInteger>> getUserFileRecord(UInteger userID) {
         // Connection is AutoCloseable so it will automatically close when it finishes.
-        try (Connection conn = UserMysqlServer.getConnection()) {
-            DSLContext create = UserMysqlServer.createDSLContext(conn);
+        try (Connection conn = UserSqlServer.getConnection()) {
+            DSLContext create = UserSqlServer.createDSLContext(conn);
             
             Result<Record5<UInteger, String, String, String, UInteger>> result = create
                     .select(USERFILE.FILEID, USERFILE.NAME, USERFILE.PATH, USERFILE.DESCRIPTION, USERFILE.SIZE)
@@ -172,7 +174,7 @@ public class UserFileResource {
     
     private void handleFileUpload(InputStream fileStream, String fileName, String description, UInteger size, String userID) {
         UInteger userIdUInteger = parseStringToUInteger(userID);
-        checkFileNameValid(fileName);
+        validateFileName(fileName);
         
         int count = insertFileToDataBase(
                 fileName, 
@@ -197,8 +199,8 @@ public class UserFileResource {
     
     private int insertFileToDataBase(String fileName, String path, UInteger size, String description, UInteger userID) {
         // Connection is AutoCloseable so it will automatically close when it finishes.
-        try (Connection conn = UserMysqlServer.getConnection()) {
-            DSLContext create = UserMysqlServer.createDSLContext(conn);
+        try (Connection conn = UserSqlServer.getConnection()) {
+            DSLContext create = UserSqlServer.createDSLContext(conn);
             
             int count = create.insertInto(USERFILE)
                     .set(USERFILE.USERID,userID)
@@ -216,7 +218,7 @@ public class UserFileResource {
         }
     }
     
-    private void checkFileNameValid(String fileName) throws TexeraWebException {
+    private void validateFileName(String fileName) throws TexeraWebException {
         if (fileName == null || fileName.length() == 0) {
             throw new TexeraWebException("File name invalid");
         }

@@ -1,0 +1,41 @@
+<div class="modal-header">
+  <h4 class="modal-title">Add Files</h4>
+  <button type="button" class="close" aria-label="Close" (click)="activeModal.dismiss('close')">
+    <span aria-hidden="true">&times;</span>
+  </button>
+</div>
+<div class="modal-body">
+  <div ng2FileDrop
+    [ngClass]="{'have-file-over': haveDropZoneOver}"
+    (fileOver)="haveFileOver($event)"
+    (onFileDrop)="getFileDropped($event)"
+    [uploader]="uploader"
+    class="drag-file-area"
+    (click)="clickUpload.click()">
+
+    Drop Files Here
+    <div id="hide">
+      <input #clickUpload type="file" accept=".txt"(change)="handleClickUploadFile($event)" multiple/>
+    </div>
+
+  </div>
+  <div *ngIf="getFileArrayLength()">
+    <li *ngFor="let fileUploadItem of getFileArray()" class="file-queue-item">
+      <span>
+        <label>{{ fileUploadItem.name }}</label>
+      </span>
+      <button class="queue-delete-button" (click)="deleteFile(fileUploadItem)">
+        <i class="fa fa-trash" aria-hidden="true"></i>
+      </button>
+    </li>
+  </div>
+
+</div>
+<div class="modal-footer">
+  <div *ngIf="getFileArrayLength()">
+    <button class="btn btn-primary btn-xs bottom-upload bottom-size"
+      (click)="uploadAllFiles()"> upload
+    </button>
+  </div>
+  <button class="btn btn-outline-dark bottom-size" (click)="activeModal.dismiss('close')">Close</button>
+</div>

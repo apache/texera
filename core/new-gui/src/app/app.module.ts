@@ -67,6 +67,10 @@ import { FileUploadModule } from 'ng2-file-upload';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { UserService } from './common/service/user/user.service';
 import { NgbdModalUserLoginComponent } from './dashboard/component/top-bar/user-icon/user-login/ngbdmodal-user-login.component';
+import { NgbdModalFileAddComponent } from './dashboard/component/feature-container/user-file-section/ngbd-modal-file-add/ngbd-modal-file-add.component';
+import { UserFileSectionComponent } from './dashboard/component/feature-container/user-file-section/user-file-section.component';
+import { UserFileService } from './dashboard/service/user-file/user-file.service';
+import { UserFileUploadService } from './dashboard/service/user-file/user-file-upload.service';
 
 @NgModule({
   declarations: [
@@ -95,6 +99,8 @@ import { NgbdModalUserLoginComponent } from './dashboard/component/top-bar/user-
     NgbdModalResourceAddComponent,
     NgbdModalResourceDeleteComponent,
     NgbdModalUserLoginComponent,
+    UserFileSectionComponent,
+    NgbdModalFileAddComponent,
 
     ResourceSectionComponent,
 
@@ -132,10 +138,14 @@ import { NgbdModalUserLoginComponent } from './dashboard/component/top-bar/user-
     NgbdModalResourceAddComponent,
     NgbdModalResourceDeleteComponent,
     NgbdModalUserLoginComponent,
-    NgbModalComponent
+    NgbModalComponent,
+    NgbdModalFileAddComponent
   ],
   providers: [
-    HttpClientModule
+    HttpClientModule,
+    UserService,
+    UserFileService,
+    UserFileUploadService
   ],
   bootstrap: [AppComponent],
   // dynamically created component must be placed in the entryComponents attribute

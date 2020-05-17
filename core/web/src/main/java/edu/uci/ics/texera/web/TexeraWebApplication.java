@@ -59,6 +59,9 @@ public class TexeraWebApplication extends Application<TexeraWebConfiguration> {
         
         final UserResource userResource = new UserResource();
         environment.jersey().register(userResource);
+        
+        final UserFileResource userFileResource = new UserFileResource();
+        environment.jersey().register(userFileResource);
 
         // Registers MultiPartFeature to support file upload
         environment.jersey().register(MultiPartFeature.class);
