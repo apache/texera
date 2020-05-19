@@ -3,10 +3,11 @@ import { FileUploadItem } from '../../type/user-file';
 import { GenericWebResponse } from '../../type/generic-web-response';
 import { Observable } from 'rxjs';
 import { UserService } from '../../../common/service/user/user.service';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpEventType, HttpResponse, HttpEvent } from '@angular/common/http';
 import { environment } from '../../../../environments/environment';
 import { UserFileService } from './user-file.service';
 import { User } from '../../../common/type/user';
+import { filter } from 'rxjs-compat/operator/filter';
 
 export const postFileUrl = 'users/files/upload-file';
 
@@ -103,14 +104,46 @@ export class UserFileUploadService {
     formData.append('file', fileUploadItem.file, fileUploadItem.name);
     formData.append('size', fileUploadItem.file.size.toString());
     formData.append('description', fileUploadItem.description);
-    return this.postFileHttpRequest(formData, (this.userService.getUser() as User).userID);
+
+    return this.retrieveFileUploadProgress(
+      this.postFileHttpRequest(formData, (this.userService.getUser() as User).userID),
+      fileUploadItem);
   }
 
-  private postFileHttpRequest(formData: FormData, userID: number): Observable<GenericWebResponse> {
+  private postFileHttpRequest(formData: FormData, userID: number): Observable<HttpEvent<GenericWebResponse>> {
     return this.http.post<GenericWebResponse>(
       `${environment.apiUrl}/${postFileUrl}/${userID}`,
-      formData
+      formData,
+      {reportProgress: true, observe: 'events'}
       );
+  }
+
+  /**
+   * retrieve the file upload progress and set it to the fileUploadItem.
+   * filter out the progress response and convert the result into GenericWebResponse
+   * @param responseObservable
+   * @param fileUploadItem
+   */
+  private retrieveFileUploadProgress(responseObservable: Observable<HttpEvent<GenericWebResponse>>, fileUploadItem: FileUploadItem) {
+    return responseObservable
+    .filter(event => { // retrieve and remove upload progress
+      if (event.type === HttpEventType.UploadProgress) {
+        fileUploadItem.uploadProgress = event.loaded;
+        const total = event.total ? event.total : fileUploadItem.file.size;
+        // TODO the upload progress does not fit the speed user feel, it seems faster
+        // TODO show progress in user friendly way
+        console.log(`File is ${(100 * event.loaded / total).toFixed(1)}% uploaded.`);
+        return false;
+      }
+      return event.type === HttpEventType.Response;
+    }).map(event => { // convert the type HttpEvent<GenericWebResponse> into GenericWebResponse
+      if (event.type === HttpEventType.Response) {
+        fileUploadItem.isUploadingFlag = false;
+        return (event.body as GenericWebResponse);
+      } else {
+        throw new Error(`Error Http Event type in uploading file ${fileUploadItem.name}, the event type is ${event.type}`);
+      }
+    });
   }
 
   /**
