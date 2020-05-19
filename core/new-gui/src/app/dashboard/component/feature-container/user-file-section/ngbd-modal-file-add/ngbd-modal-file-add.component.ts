@@ -39,8 +39,12 @@ export class NgbdModalFileAddComponent implements OnInit {
     this.userFileUploadService.deleteFile(fileUploadItem);
   }
 
-  public uploadAllFiles() {
+  public uploadAllFiles(): void {
     this.userFileUploadService.uploadAllFiles();
+  }
+
+  public isUploadAllButtonDisabled(): boolean {
+    return this.userFileUploadService.isAllFilesUploading();
   }
 
   public haveFileOver(fileOverEvent: boolean): void {

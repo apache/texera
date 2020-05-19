@@ -56,23 +56,28 @@ export class UserFileUploadService {
     );
   }
 
+  public isAllFilesUploading(): boolean {
+    return this.fileUploadItemArray.every(fileUploadItem => fileUploadItem.isUploadingFlag);
+  }
+
   /**
    * upload all the files in this service and then clear it.
    * This method will automatically refresh the user-file service when any files finish uploading.
    */
   public uploadAllFiles(): void {
-    this.fileUploadItemArray.forEach(
-      fileUploadItem => this.uploadFile(fileUploadItem).subscribe(
-        () => {
-          this.userFileService.refreshFiles();
-          this.deleteFile(fileUploadItem);
-        }, error => {
-          // TODO: provide user friendly error message
-          console.log(error);
-          alert(`Error encountered: ${error.status}\nMessage: ${error.message}`);
-        }
-      )
-    );
+    this.fileUploadItemArray.filter(fileUploadItem => !fileUploadItem.isUploadingFlag)
+      .forEach(
+        fileUploadItem => this.uploadFile(fileUploadItem).subscribe(
+          () => {
+            this.deleteFile(fileUploadItem);
+            this.userFileService.refreshFiles();
+          }, error => {
+            // TODO: provide user friendly error message
+            console.log(error);
+            alert(`Error encountered: ${error.status}\nMessage: ${error.message}`);
+          }
+        )
+      );
   }
 
   /**

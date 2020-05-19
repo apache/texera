@@ -24,7 +24,7 @@
       <span>
         <label>{{ fileUploadItem.name }}</label>
       </span>
-      <button class="queue-delete-button" (click)="deleteFile(fileUploadItem)">
+      <button class="queue-delete-button" (click)="deleteFile(fileUploadItem)" [disabled]="fileUploadItem.isUploadingFlag">
         <i class="fa fa-trash" aria-hidden="true"></i>
       </button>
     </li>
@@ -34,7 +34,7 @@
 <div class="modal-footer">
   <div *ngIf="getFileArrayLength()">
     <button class="btn btn-primary btn-xs bottom-upload bottom-size"
-      (click)="uploadAllFiles()"> upload
+      (click)="uploadAllFiles()" [disabled]="isUploadAllButtonDisabled()"> upload
     </button>
   </div>
   <button class="btn btn-outline-dark bottom-size" (click)="activeModal.dismiss('close')">Close</button>
