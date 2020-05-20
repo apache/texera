@@ -19,6 +19,7 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.glassfish.jersey.media.multipart.FormDataParam;
 import org.jooq.Condition;
@@ -33,6 +34,7 @@ import static edu.uci.ics.texera.dataflow.jooq.generated.Tables.*;
 import static org.jooq.impl.DSL.*;
 
 import edu.uci.ics.texera.web.TexeraWebException;
+import edu.uci.ics.texera.web.resource.UserResource.UserWebResponse;
 import edu.uci.ics.texera.dataflow.jooq.generated.tables.records.UseraccountRecord;
 import edu.uci.ics.texera.dataflow.resource.file.FileManager;
 import edu.uci.ics.texera.dataflow.sqlServerInfo.UserSqlServer;
@@ -72,7 +74,7 @@ public class UserFileResource {
     @POST
     @Path("/upload-file/{userID}")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
-    public GenericWebResponse uploadDictionaryFile(
+    public GenericWebResponse uploadFile(
             @FormDataParam("file") InputStream uploadedInputStream,
             @FormDataParam("file") FormDataContentDisposition fileDetail,
             @FormDataParam("size") String size,
@@ -81,6 +83,11 @@ public class UserFileResource {
 
         String fileName = fileDetail.getFileName();
         UInteger sizeUInteger = parseStringToUInteger(size);
+        
+        Pair<Boolean, String> validationResult = validateFileName(fileName, userID);
+        if (!validationResult.getLeft()) {
+            return new GenericWebResponse(1, validationResult.getRight());
+        }
         this.handleFileUpload(uploadedInputStream, fileName, description, sizeUInteger, userID);
         
         return new GenericWebResponse(0, "success");
@@ -174,7 +181,6 @@ public class UserFileResource {
     
     private void handleFileUpload(InputStream fileStream, String fileName, String description, UInteger size, String userID) {
         UInteger userIdUInteger = parseStringToUInteger(userID);
-        validateFileName(fileName);
         
         int count = insertFileToDataBase(
                 fileName, 
@@ -218,9 +224,31 @@ public class UserFileResource {
         }
     }
     
-    private void validateFileName(String fileName) throws TexeraWebException {
-        if (fileName == null || fileName.length() == 0) {
-            throw new TexeraWebException("File name invalid");
+    private Pair<Boolean, String> validateFileName(String fileName, String userID) {
+        if (fileName == null) {
+            return Pair.of(false, "file name cannot be null");
+        } else if (fileName.trim().isEmpty()) {
+            return Pair.of(false, "file name cannot be empty");
+        } else if (isFileNameExisted(fileName, userID)){
+            return Pair.of(false, "file name already exists");
+        } else {
+            return Pair.of(true, "filename validation success");
+        }
+    }
+    
+    private Boolean isFileNameExisted(String fileName, String userID) {
+        try (Connection conn = UserSqlServer.getConnection()) {
+            DSLContext create = UserSqlServer.createDSLContext(conn);
+            
+            boolean result = create
+                    .fetchExists(
+                            create.selectFrom(USERFILE)
+                            .where(USERFILE.USERID.equal(parseStringToUInteger(userID))
+                                    .and(USERFILE.NAME.equal(fileName)))
+                            );
+            return result;
+        } catch (Exception e) {
+            throw new TexeraWebException(e);
         }
     }
     

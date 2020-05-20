@@ -69,13 +69,17 @@ export class UserFileUploadService {
     this.fileUploadItemArray.filter(fileUploadItem => !fileUploadItem.isUploadingFlag)
       .forEach(
         fileUploadItem => this.uploadFile(fileUploadItem).subscribe(
-          () => {
-            this.deleteFile(fileUploadItem);
-            this.userFileService.refreshFiles();
+          (response) => {
+            if (response.code !== 0) {
+              // TODO: provide user friendly error message
+              console.log(response);
+              alert(`Uploading file ${fileUploadItem.name} failed\nMessage: ${response.message}`);
+            } else {
+              this.deleteFile(fileUploadItem);
+              this.userFileService.refreshFiles();
+            }
           }, error => {
-            // TODO: provide user friendly error message
             console.log(error);
-            alert(`Error encountered: ${error.status}\nMessage: ${error.message}`);
           }
         )
       );
@@ -96,9 +100,9 @@ export class UserFileUploadService {
    * @param fileUploadItem
    */
   private uploadFile(fileUploadItem: FileUploadItem): Observable<GenericWebResponse> {
-    if (!this.userService.isLogin()) {
-      throw new Error(`Can not upload files when not login`);
-    }
+    if (!this.userService.isLogin()) {throw new Error(`Can not upload files when not login`); }
+    if (fileUploadItem.isUploadingFlag) {throw new Error(`File ${fileUploadItem.file.name} is already uploading`); }
+
     fileUploadItem.isUploadingFlag = true;
     const formData: FormData = new FormData();
     formData.append('file', fileUploadItem.file, fileUploadItem.name);
@@ -132,7 +136,7 @@ export class UserFileUploadService {
         const total = event.total ? event.total : fileUploadItem.file.size;
         // TODO the upload progress does not fit the speed user feel, it seems faster
         // TODO show progress in user friendly way
-        console.log(`File is ${(100 * event.loaded / total).toFixed(1)}% uploaded.`);
+        console.log(`File ${fileUploadItem.name} is ${(100 * event.loaded / total).toFixed(1)}% uploaded.`);
         return false;
       }
       return event.type === HttpEventType.Response;
