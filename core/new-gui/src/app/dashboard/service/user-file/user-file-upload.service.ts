@@ -116,7 +116,7 @@ export class UserFileUploadService {
 
   private postFileHttpRequest(formData: FormData, userID: number): Observable<HttpEvent<GenericWebResponse>> {
     return this.http.post<GenericWebResponse>(
-      `${environment.apiUrl}/${postFileUrl}/${userID}`,
+      `${environment.apiUrl}/${postFileUrl}`,
       formData,
       {reportProgress: true, observe: 'events'}
       );

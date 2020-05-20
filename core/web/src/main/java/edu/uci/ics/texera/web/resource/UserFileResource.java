@@ -10,6 +10,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import javax.servlet.http.HttpSession;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
@@ -39,6 +40,7 @@ import edu.uci.ics.texera.dataflow.jooq.generated.tables.records.UseraccountReco
 import edu.uci.ics.texera.dataflow.resource.file.FileManager;
 import edu.uci.ics.texera.dataflow.sqlServerInfo.UserSqlServer;
 import edu.uci.ics.texera.web.response.GenericWebResponse;
+import io.dropwizard.jersey.sessions.Session;
 
 @Path("/users/files/")
 @Consumes(MediaType.APPLICATION_JSON)
@@ -72,15 +74,16 @@ public class UserFileResource {
      * @return
      */
     @POST
-    @Path("/upload-file/{userID}")
+    @Path("/upload-file")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     public GenericWebResponse uploadFile(
             @FormDataParam("file") InputStream uploadedInputStream,
             @FormDataParam("file") FormDataContentDisposition fileDetail,
             @FormDataParam("size") String size,
             @FormDataParam("description") String description,
-            @PathParam("userID") String userID) {
-
+            @Session HttpSession session
+            ) {
+        UInteger userID = UserResource.getUserFromSession(session).getUserID();
         String fileName = fileDetail.getFileName();
         UInteger sizeUInteger = parseStringToUInteger(size);
         
@@ -88,17 +91,17 @@ public class UserFileResource {
         if (!validationResult.getLeft()) {
             return new GenericWebResponse(1, validationResult.getRight());
         }
-        this.handleFileUpload(uploadedInputStream, fileName, description, sizeUInteger, userID);
         
+        this.handleFileUpload(uploadedInputStream, fileName, description, sizeUInteger, userID);
         return new GenericWebResponse(0, "success");
     }
     
     @GET
-    @Path("/get-files/{userID}")
-    public List<UserFile> getUserFiles(@PathParam("userID") String userID){
-        UInteger userIdUInteger = parseStringToUInteger(userID);
+    @Path("/get-files")
+    public List<UserFile> getUserFiles(@Session HttpSession session){
+        UInteger userID = UserResource.getUserFromSession(session).getUserID();
         
-        Result<Record5<UInteger, String, String, String, UInteger>> result = getUserFileRecord(userIdUInteger);
+        Result<Record5<UInteger, String, String, String, UInteger>> result = getUserFileRecord(userID);
         
         if (result == null) return new ArrayList<>();
         
@@ -118,11 +121,12 @@ public class UserFileResource {
     
     @DELETE
     @Path("/delete-file/{fileID}")
-    public GenericWebResponse deleteUserFiles(@PathParam("fileID") String fileID) {
+    public GenericWebResponse deleteUserFiles(@PathParam("fileID") String fileID, @Session HttpSession session) {
+        UInteger userID = UserResource.getUserFromSession(session).getUserID();
         UInteger fileIdUInteger = parseStringToUInteger(fileID);
-        Record1<String> result = deleteInDatabase(fileIdUInteger);
+        Record1<String> result = deleteInDatabase(fileIdUInteger, userID);
         
-        if (result == null) throw new TexeraWebException("The file does not exist");
+        if (result == null) return new GenericWebResponse(1, "The file does not exist");
         
         String filePath = result.get(USERFILE.PATH);
         FileManager.getInstance().deleteFile(Paths.get(filePath));
@@ -130,7 +134,7 @@ public class UserFileResource {
         return new GenericWebResponse(0, "success");
     }
     
-    private Record1<String> deleteInDatabase(UInteger fileID) {
+    private Record1<String> deleteInDatabase(UInteger fileID, UInteger userID) {
         // Connection is AutoCloseable so it will automatically close when it finishes.
         try (Connection conn = UserSqlServer.getConnection()) {
             DSLContext create = UserSqlServer.createDSLContext(conn);
@@ -143,12 +147,12 @@ public class UserFileResource {
             Record1<String> result = create
                     .select(USERFILE.PATH)
                     .from(USERFILE)
-                    .where(USERFILE.FILEID.eq(fileID))
+                    .where(USERFILE.FILEID.eq(fileID).and(USERFILE.USERID.equal(userID)))
                     .fetchOne();
             
             int count = create
                     .delete(USERFILE)
-                    .where(USERFILE.FILEID.eq(fileID))
+                    .where(USERFILE.FILEID.eq(fileID).and(USERFILE.USERID.equal(userID)))
                     //.returning(USERFILE.FILEPATH) does not work
                     .execute();
             
@@ -179,19 +183,17 @@ public class UserFileResource {
         }
     }
     
-    private void handleFileUpload(InputStream fileStream, String fileName, String description, UInteger size, String userID) {
-        UInteger userIdUInteger = parseStringToUInteger(userID);
-        
+    private void handleFileUpload(InputStream fileStream, String fileName, String description, UInteger size, UInteger userID) {
         int count = insertFileToDataBase(
                 fileName, 
-                FileManager.getFilePath(userID, fileName).toString(),
+                FileManager.getFilePath(userID.toString(), fileName).toString(),
                 size,
                 description,
-                userIdUInteger);
+                userID);
         
         throwErrorWhenNotOne("Error occurred while inserting file record to database", count);
         
-        FileManager.getInstance().storeFile(fileStream, fileName, userID);
+        FileManager.getInstance().storeFile(fileStream, fileName, userID.toString());
     }
     
     private UInteger parseStringToUInteger(String userID) throws TexeraWebException {
@@ -224,7 +226,7 @@ public class UserFileResource {
         }
     }
     
-    private Pair<Boolean, String> validateFileName(String fileName, String userID) {
+    private Pair<Boolean, String> validateFileName(String fileName, UInteger userID) {
         if (fileName == null) {
             return Pair.of(false, "file name cannot be null");
         } else if (fileName.trim().isEmpty()) {
@@ -236,14 +238,14 @@ public class UserFileResource {
         }
     }
     
-    private Boolean isFileNameExisted(String fileName, String userID) {
+    private Boolean isFileNameExisted(String fileName, UInteger userID) {
         try (Connection conn = UserSqlServer.getConnection()) {
             DSLContext create = UserSqlServer.createDSLContext(conn);
             
             boolean result = create
                     .fetchExists(
                             create.selectFrom(USERFILE)
-                            .where(USERFILE.USERID.equal(parseStringToUInteger(userID))
+                            .where(USERFILE.USERID.equal(userID)
                                     .and(USERFILE.NAME.equal(fileName)))
                             );
             return result;

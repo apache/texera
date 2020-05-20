@@ -3,6 +3,9 @@ package edu.uci.ics.texera.web.resource;
 import edu.uci.ics.texera.dataflow.jooq.generated.tables.records.UseraccountRecord;
 import edu.uci.ics.texera.dataflow.sqlServerInfo.UserSqlServer;
 import edu.uci.ics.texera.web.TexeraWebException;
+import edu.uci.ics.texera.web.response.GenericWebResponse;
+import io.dropwizard.jersey.sessions.Session;
+
 import org.apache.commons.lang3.tuple.Pair;
 import org.glassfish.jersey.media.multipart.FormDataParam;
 import org.jooq.Condition;
@@ -10,6 +13,7 @@ import org.jooq.DSLContext;
 import org.jooq.Record1;
 import org.jooq.types.UInteger;
 
+import javax.servlet.http.HttpSession;
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import java.sql.Connection;
@@ -22,6 +26,8 @@ import static org.jooq.impl.DSL.defaultValue;
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
 public class UserResource {
+    private static final String USER_SESSION_NAME = "texera-user";
+    
     /**
      * Corresponds to `src/app/common/type/user.ts`
      */
@@ -36,6 +42,14 @@ public class UserResource {
         public User(String userName, UInteger userID) {
             this.userName = userName;
             this.userID = userID;
+        }
+        
+        public String getUserName() {
+            return userName;
+        }
+
+        public UInteger getUserID() {
+            return userID;
         }
     }
 
@@ -69,10 +83,18 @@ public class UserResource {
             this.message = message;
         }
     }
+    
+    public static User getUserFromSession (HttpSession session) {
+        User user = null;
+        if ((user = (User) session.getAttribute(USER_SESSION_NAME)) == null) {
+            throw new TexeraWebException("User has not login yet");
+        }
+        return user;
+    }
 
     @POST
     @Path("/login")
-    public UserWebResponse login(UserLoginRequest request) {
+    public UserWebResponse login(@Session HttpSession session, UserLoginRequest request) {
         String userName = request.userName;
         Pair<Boolean, String> validationResult = validateUsername(userName);
         if (!validationResult.getLeft()) {
@@ -87,6 +109,7 @@ public class UserResource {
         } else {
             User account = new User(userName, result.get(USERACCOUNT.USERID));
             UserWebResponse response = UserWebResponse.generateSuccessResponse(account);
+            setUserSession(session, account);
             return response;
         }
 
@@ -94,7 +117,7 @@ public class UserResource {
 
     @POST
     @Path("/register")
-    public UserWebResponse register(UserRegistrationRequest request) {
+    public UserWebResponse register(@Session HttpSession session, UserRegistrationRequest request) {
         String userName = request.userName;
         Pair<Boolean, String> validationResult = validateUsername(userName);
         if (!validationResult.getLeft()) {
@@ -108,10 +131,18 @@ public class UserResource {
             UseraccountRecord returnID = insertUserAccount(userName);
             User account = new User(userName, returnID.get(USERACCOUNT.USERID));
             UserWebResponse response = UserWebResponse.generateSuccessResponse(account);
+            setUserSession(session, account);
             return response;
         } else {
             return UserWebResponse.generateErrorResponse("Username already exists");
         }
+    }
+    
+    @GET
+    @Path("/logout")
+    public GenericWebResponse logOut(@Session HttpSession session) {
+        session.setAttribute(USER_SESSION_NAME, null);
+        return new GenericWebResponse(0, "success");
     }
     
     private Record1<UInteger> getUserID(Condition condition) {
@@ -158,4 +189,7 @@ public class UserResource {
         }
     }
     
+    private void setUserSession(HttpSession session, User user) {
+        session.setAttribute(USER_SESSION_NAME, user);
+    }
 }

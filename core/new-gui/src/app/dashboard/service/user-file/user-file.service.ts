@@ -20,10 +20,10 @@ export class UserFileService {
     private userService: UserService,
     private http: HttpClient
     ) {
-      this.detectUserChanges();
       if (this.userService.isLogin()) {
         this.refreshFiles();
       }
+      this.detectUserChanges();
   }
 
   /**
@@ -37,14 +37,12 @@ export class UserFileService {
 
   /**
    * retrieve the files from the backend and store in the user-file service.
-   * these file can be accessed by function {@link getFileArray} or {@link getFileField}.
+   * these file can be accessed by function {@link getFileArray}
    */
   public refreshFiles(): void {
     if (!this.userService.isLogin()) {return; }
 
-    this.getFilesHttpRequest(
-      (this.userService.getUser() as User).userID
-      ).subscribe(
+    this.getFilesHttpRequest().subscribe(
       files => {
         this.fileArray = files;
         // TODO emit file changed event
@@ -84,8 +82,8 @@ export class UserFileService {
     return this.http.delete<GenericWebResponse>(`${environment.apiUrl}/${deleteFilesUrl}/${fileID}`);
   }
 
-  private getFilesHttpRequest(userID: number): Observable<UserFile[]> {
-    return this.http.get<UserFile[]>(`${environment.apiUrl}/${getFilesUrl}/${userID}`);
+  private getFilesHttpRequest(): Observable<UserFile[]> {
+    return this.http.get<UserFile[]>(`${environment.apiUrl}/${getFilesUrl}`);
   }
 
   /**

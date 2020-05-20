@@ -13,6 +13,8 @@ import edu.uci.ics.texera.web.resource.*;
 import io.dropwizard.Application;
 import io.dropwizard.setup.Bootstrap;
 import io.dropwizard.setup.Environment;
+
+import org.eclipse.jetty.server.session.SessionHandler;
 import org.glassfish.jersey.media.multipart.MultiPartFeature;
 
 /**
@@ -57,6 +59,8 @@ public class TexeraWebApplication extends Application<TexeraWebConfiguration> {
         final UserDictionaryResource userDictionaryResource = new UserDictionaryResource();
         environment.jersey().register(userDictionaryResource);
         
+        environment.jersey().register(SessionHandler.class);
+        environment.servlets().setSessionHandler(new SessionHandler());
         final UserResource userResource = new UserResource();
         environment.jersey().register(userResource);
         

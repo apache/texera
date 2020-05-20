@@ -23,6 +23,7 @@ export class UserService {
   public static readonly TEXERA_USER_LOCALSTORAGE_KEY = 'texera-user';
   public static readonly LOGIN_ENDPOINT = 'users/login';
   public static readonly REGISTER_ENDPOINT = 'users/register';
+  public static readonly LOG_OUT_ENDPOINT = 'users/logout';
 
   private userChangedSubject: Subject<User | undefined> = new Subject();
   private currentUser: User | undefined;
@@ -31,7 +32,13 @@ export class UserService {
     const userString: string | null = window.sessionStorage.getItem(UserService.TEXERA_USER_LOCALSTORAGE_KEY);
     if (userString) {
       const storedUser = JSON.parse(userString) as User;
-      this.changeUser(storedUser);
+      this.login(storedUser.userName).subscribe(
+        res => {
+          if (res.code !== 0) {
+            window.sessionStorage.removeItem(UserService.TEXERA_USER_LOCALSTORAGE_KEY);
+          }
+        }
+      );
     }
   }
 
@@ -81,7 +88,6 @@ export class UserService {
     return this.loginHttpRequest(userName).map(
       res => {
         if (res.code === 0) {
-          window.localStorage.setItem('currentUser', JSON.stringify(res.user));
           this.changeUser(res.user);
           return res;
         } else { // login failed
@@ -95,8 +101,7 @@ export class UserService {
    * this method will clear the saved user account and trigger userChangeEvent
    */
   public logOut(): void {
-    window.localStorage.removeItem(UserService.TEXERA_USER_LOCALSTORAGE_KEY);
-    this.changeUser(undefined);
+    this.logOutHttpRequest().subscribe(() => this.changeUser(undefined));
   }
 
   public getUser(): User | undefined {
@@ -135,15 +140,23 @@ export class UserService {
     return this.http.post<UserWebResponse>(`${AppSettings.getApiEndpoint()}/${UserService.LOGIN_ENDPOINT}`, body);
   }
 
+    /**
+   * construct the request body as formData and create http request
+   * @param userName
+   */
+  private logOutHttpRequest(): Observable<UserWebResponse> {
+    return this.http.get<UserWebResponse>(`${AppSettings.getApiEndpoint()}/${UserService.LOG_OUT_ENDPOINT}`);
+  }
+
   /**
    * changes the current user and triggers currentUserSubject
    * @param user
    */
   private changeUser(user: User | undefined): void {
     if (user) {
-      window.localStorage.setItem(UserService.TEXERA_USER_LOCALSTORAGE_KEY, JSON.stringify(user));
+      window.sessionStorage.setItem(UserService.TEXERA_USER_LOCALSTORAGE_KEY, JSON.stringify(user));
     } else {
-      window.localStorage.removeItem(UserService.TEXERA_USER_LOCALSTORAGE_KEY);
+      window.sessionStorage.removeItem(UserService.TEXERA_USER_LOCALSTORAGE_KEY);
     }
     this.currentUser = user;
     this.userChangedSubject.next(this.currentUser);
