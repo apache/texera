@@ -10,6 +10,7 @@ import { User } from '../../../common/type/user';
 import { filter } from 'rxjs-compat/operator/filter';
 
 export const postFileUrl = 'users/files/upload-file';
+export const validateFileUrl = 'users/files/validate-file';
 
 @Injectable()
 export class UserFileUploadService {
@@ -62,36 +63,56 @@ export class UserFileUploadService {
   }
 
   /**
+  * convert the input file size to the human readable size by adding the unit at the end.
+  * eg. 2048 -> 2 kb
+  * @param fileSize
+  */
+  public addFileSizeUnit(fileSize: number): string {
+    return this.userFileService.addFileSizeUnit(fileSize);
+  }
+
+  /**
    * upload all the files in this service and then clear it.
    * This method will automatically refresh the user-file service when any files finish uploading.
    */
   public uploadAllFiles(): void {
     this.fileUploadItemArray.filter(fileUploadItem => !fileUploadItem.isUploadingFlag)
       .forEach(
-        fileUploadItem => this.uploadFile(fileUploadItem).subscribe(
+        fileUploadItem => this.validateAndUploadFile(fileUploadItem).subscribe(
           (response) => {
-            if (response.code !== 0) {
+            if (response.code === 0) {
+              this.deleteFile(fileUploadItem);
+              this.userFileService.refreshFiles();
+            } else {
               // TODO: provide user friendly error message
               console.log(response);
               alert(`Uploading file ${fileUploadItem.name} failed\nMessage: ${response.message}`);
-            } else {
-              this.deleteFile(fileUploadItem);
-              this.userFileService.refreshFiles();
             }
-          }, error => {
-            console.log(error);
           }
         )
       );
   }
 
-  /**
-   * convert the input file size to the human readable size by adding the unit at the end.
-   * eg. 2048 -> 2 kb
-   * @param fileSize
-   */
-  public addFileSizeUnit(fileSize: number): string {
-    return this.userFileService.addFileSizeUnit(fileSize);
+  private validateAndUploadFile(fileUploadItem: FileUploadItem): Observable<GenericWebResponse> {
+    const formData: FormData = new FormData();
+    formData.append('name', fileUploadItem.name);
+
+    return this.postFileValidationHttpRequest(formData).flatMap(
+      res => {
+        if (res.code === 0) {
+          return this.uploadFile(fileUploadItem);
+        } else {
+          return Observable.of(res);
+        }
+      }
+    );
+  }
+
+  private postFileValidationHttpRequest(formData: FormData): Observable<GenericWebResponse> {
+    return this.http.post<GenericWebResponse>(
+      `${environment.apiUrl}/${validateFileUrl}`,
+      formData
+      );
   }
 
   /**
@@ -110,11 +131,11 @@ export class UserFileUploadService {
     formData.append('description', fileUploadItem.description);
 
     return this.retrieveFileUploadProgress(
-      this.postFileHttpRequest(formData, (this.userService.getUser() as User).userID),
+      this.postFileHttpRequest(formData),
       fileUploadItem);
   }
 
-  private postFileHttpRequest(formData: FormData, userID: number): Observable<HttpEvent<GenericWebResponse>> {
+  private postFileHttpRequest(formData: FormData): Observable<HttpEvent<GenericWebResponse>> {
     return this.http.post<GenericWebResponse>(
       `${environment.apiUrl}/${postFileUrl}`,
       formData,

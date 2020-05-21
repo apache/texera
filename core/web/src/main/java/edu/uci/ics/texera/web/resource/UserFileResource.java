@@ -121,7 +121,7 @@ public class UserFileResource {
     
     @DELETE
     @Path("/delete-file/{fileID}")
-    public GenericWebResponse deleteUserFiles(@PathParam("fileID") String fileID, @Session HttpSession session) {
+    public GenericWebResponse deleteUserFile(@PathParam("fileID") String fileID, @Session HttpSession session) {
         UInteger userID = UserResource.getUserFromSession(session).getUserID();
         UInteger fileIdUInteger = parseStringToUInteger(fileID);
         Record1<String> result = deleteInDatabase(fileIdUInteger, userID);
@@ -132,6 +132,15 @@ public class UserFileResource {
         FileManager.getInstance().deleteFile(Paths.get(filePath));
         
         return new GenericWebResponse(0, "success");
+    }
+    
+    @POST
+    @Path("/validate-file")
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    public GenericWebResponse validateUserFile(@Session HttpSession session, @FormDataParam("name") String fileName) {
+        UInteger userID = UserResource.getUserFromSession(session).getUserID();
+        Pair<Boolean, String> validationResult = validateFileName(fileName, userID);
+        return new GenericWebResponse(validationResult.getLeft() ? 0 : 1, validationResult.getRight());
     }
     
     private Record1<String> deleteInDatabase(UInteger fileID, UInteger userID) {
