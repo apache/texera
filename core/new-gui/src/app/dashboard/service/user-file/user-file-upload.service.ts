@@ -6,8 +6,6 @@ import { UserService } from '../../../common/service/user/user.service';
 import { HttpClient, HttpEventType, HttpResponse, HttpEvent } from '@angular/common/http';
 import { environment } from '../../../../environments/environment';
 import { UserFileService } from './user-file.service';
-import { User } from '../../../common/type/user';
-import { filter } from 'rxjs-compat/operator/filter';
 
 export const postFileUrl = 'users/files/upload-file';
 export const validateFileUrl = 'users/files/validate-file';
@@ -97,7 +95,7 @@ export class UserFileUploadService {
     const formData: FormData = new FormData();
     formData.append('name', fileUploadItem.name);
 
-    return this.postFileValidationHttpRequest(formData).flatMap(
+    return this.fileValidationHttpRequest(formData).flatMap(
       res => {
         if (res.code === 0) {
           return this.uploadFile(fileUploadItem);
@@ -108,7 +106,7 @@ export class UserFileUploadService {
     );
   }
 
-  private postFileValidationHttpRequest(formData: FormData): Observable<GenericWebResponse> {
+  private fileValidationHttpRequest(formData: FormData): Observable<GenericWebResponse> {
     return this.http.post<GenericWebResponse>(
       `${environment.apiUrl}/${validateFileUrl}`,
       formData
@@ -131,11 +129,11 @@ export class UserFileUploadService {
     formData.append('description', fileUploadItem.description);
 
     return this.retrieveFileUploadProgress(
-      this.postFileHttpRequest(formData),
+      this.uploadFileHttpRequest(formData),
       fileUploadItem);
   }
 
-  private postFileHttpRequest(formData: FormData): Observable<HttpEvent<GenericWebResponse>> {
+  private uploadFileHttpRequest(formData: FormData): Observable<HttpEvent<GenericWebResponse>> {
     return this.http.post<GenericWebResponse>(
       `${environment.apiUrl}/${postFileUrl}`,
       formData,
@@ -192,8 +190,8 @@ export class UserFileUploadService {
     return {
       file: file,
       name: file.name,
-      description: '', // TODO frontend UI hasn't implemented
-      uploadProgress: 0, // TODO
+      description: '',
+      uploadProgress: 0,
       isUploadingFlag: false
     };
   }
