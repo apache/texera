@@ -1,11 +1,10 @@
 import { TestBed, inject } from '@angular/core/testing';
 
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
-import { environment } from '../../../../environments/environment';
 
-import { UserService } from '../../../common/service/user/user.service';
-import { StubUserService, STUB_USER_NAME } from '../../../common/service/user/stub-user.service';
-import { UserFileUploadService, postFileUrl } from './user-file-upload.service';
+import { UserService } from '../user.service';
+import { StubUserService, STUB_USER_NAME } from '../stub-user.service';
+import { UserFileUploadService, USER_FILE_UPLOAD_URL } from './user-file-upload.service';
 import { UserFileService } from './user-file.service';
 
 const arrayOfBlob: Blob[] = Array<Blob>(); // just for test,needed for creating File object.
@@ -72,7 +71,7 @@ describe('UserFileUploadService', () => {
   //   spyOn(userFileService, 'refreshFiles');
   //   expect(userFileService.refreshFiles).toHaveBeenCalled();
 
-  //   const req = httpMock.expectOne(`${environment.apiUrl}/${postFileUrl}/${stubUserID}`);
+  //   const req = httpMock.expectOne(`${ppSettings.getApiEndpoint()}/${postFileUrl}/${stubUserID}`);
   //   expect(req.request.method).toEqual('POST');
   //   req.flush({code: 0, message: ''});
   // }));

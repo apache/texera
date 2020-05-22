@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { NgbdModalFileAddComponent } from './ngbd-modal-file-add/ngbd-modal-file-add.component';
-import { UserFileService } from '../../../service/user-file/user-file.service';
+import { UserFileService } from '../../../../common/service/user/user-file/user-file.service';
 import { UserFile } from '../../../type/user-file';
 import { UserService } from '../../.../../../../common/service/user/user.service';
 
@@ -27,12 +27,12 @@ export class UserFileSectionComponent implements OnInit {
     const modalRef = this.modalService.open(NgbdModalFileAddComponent);
   }
 
-  public getFileArray(): UserFile[] {
-    return this.userFileService.getFileArray();
-  }
-
-  public getFileArrayLength(): number {
-    return this.userFileService.getFileArray().length;
+  public getFileArray(): ReadonlyArray<UserFile> {
+    const fileArray = this.userFileService.getUserFiles();
+    if (! fileArray) {
+      return [];
+    }
+    return fileArray;
   }
 
   public deleteFile(userFile: UserFile): void {

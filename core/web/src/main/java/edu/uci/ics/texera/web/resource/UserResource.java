@@ -7,7 +7,6 @@ import edu.uci.ics.texera.web.response.GenericWebResponse;
 import io.dropwizard.jersey.sessions.Session;
 
 import org.apache.commons.lang3.tuple.Pair;
-import org.glassfish.jersey.media.multipart.FormDataParam;
 import org.jooq.Condition;
 import org.jooq.DSLContext;
 import org.jooq.Record1;
@@ -26,7 +25,7 @@ import static org.jooq.impl.DSL.defaultValue;
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
 public class UserResource {
-    private static final String USER_SESSION_NAME = "texera-user";
+    public static final String SESSION_USER = "texera-user";
     
     /**
      * Corresponds to `src/app/common/type/user.ts`
@@ -84,9 +83,9 @@ public class UserResource {
         }
     }
     
-    public static User getUserFromSession (HttpSession session) {
-        User user = null;
-        if ((user = (User) session.getAttribute(USER_SESSION_NAME)) == null) {
+    public static User getUserFromSession(HttpSession session) {
+        User user;
+        if ((user = (User) session.getAttribute(SESSION_USER)) == null) {
             throw new TexeraWebException("User has not login yet");
         }
         return user;
@@ -141,7 +140,7 @@ public class UserResource {
     @GET
     @Path("/logout")
     public GenericWebResponse logOut(@Session HttpSession session) {
-        session.setAttribute(USER_SESSION_NAME, null);
+        session.setAttribute(SESSION_USER, null);
         return new GenericWebResponse(0, "success");
     }
     
@@ -190,6 +189,6 @@ public class UserResource {
     }
     
     private void setUserSession(HttpSession session, User user) {
-        session.setAttribute(USER_SESSION_NAME, user);
+        session.setAttribute(SESSION_USER, user);
     }
 }

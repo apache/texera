@@ -69,8 +69,8 @@ import { UserService } from './common/service/user/user.service';
 import { NgbdModalUserLoginComponent } from './dashboard/component/top-bar/user-icon/user-login/ngbdmodal-user-login.component';
 import { NgbdModalFileAddComponent } from './dashboard/component/feature-container/user-file-section/ngbd-modal-file-add/ngbd-modal-file-add.component';
 import { UserFileSectionComponent } from './dashboard/component/feature-container/user-file-section/user-file-section.component';
-import { UserFileService } from './dashboard/service/user-file/user-file.service';
-import { UserFileUploadService } from './dashboard/service/user-file/user-file-upload.service';
+import { UserFileService } from './common/service/user/user-file/user-file.service';
+import { UserFileUploadService } from './common/service/user/user-file/user-file-upload.service';
 
 @NgModule({
   declarations: [

@@ -1,20 +1,21 @@
-import { Injectable, EventEmitter } from '@angular/core';
-import { Observable } from 'rxjs';
+import { UserFile } from '../../../../dashboard/type/user-file';
+import { AppSettings } from '../../../app-setting';
+import { Injectable } from '@angular/core';
+import { Observable, Subject } from 'rxjs';
 import { HttpClient } from '@angular/common/http';
-import { environment } from '../../../../environments/environment';
 
-import { GenericWebResponse } from '../../type/generic-web-response';
-import { User } from '../../../common/type/user';
-import { UserFile } from '../../type/user-file';
-import { UserService } from '../../../common/service/user/user.service';
+import { GenericWebResponse } from '../../../../dashboard/type/generic-web-response';
+import { UserService } from '../user.service';
 
-export const getFilesUrl = 'users/files/get-files';
-export const deleteFilesUrl = 'users/files/delete-file';
+export const USER_FILE_LIST_URL = 'user/file/list';
+export const USER_FILE_DELETE_URL = 'user/file/delete';
 
-@Injectable()
+@Injectable({
+  providedIn: 'root'
+})
 export class UserFileService {
-  private fileArray: UserFile[] = [];
-  // TODO file changed event
+  private userFiles: UserFile[] | undefined;
+  private userFilesChanged = new Subject<ReadonlyArray<UserFile> | undefined> ();
 
   constructor(
     private userService: UserService,
@@ -31,8 +32,12 @@ export class UserFileService {
    * This is required for HTML page since HTML can only loop through collection instead of index number.
    * You can change the UserFile inside the array but do not change the array itself.
    */
-  public getFileArray(): UserFile[] {
-    return this.fileArray;
+  public getUserFiles(): ReadonlyArray<UserFile> | undefined {
+    return this.userFiles;
+  }
+
+  public getUserFilesChangedEvent(): Observable<ReadonlyArray<UserFile> | undefined> {
+    return this.userFilesChanged.asObservable().distinctUntilChanged();
   }
 
   /**
@@ -44,8 +49,8 @@ export class UserFileService {
 
     this.getFilesHttpRequest().subscribe(
       files => {
-        this.fileArray = files;
-        // TODO emit file changed event
+        this.userFiles = files;
+        this.userFilesChanged.next(this.userFiles);
       }
     );
   }
@@ -79,11 +84,11 @@ export class UserFileService {
 }
 
   private deleteFileHttpRequest(fileID: number): Observable<GenericWebResponse> {
-    return this.http.delete<GenericWebResponse>(`${environment.apiUrl}/${deleteFilesUrl}/${fileID}`);
+    return this.http.delete<GenericWebResponse>(`${AppSettings.getApiEndpoint()}/${USER_FILE_DELETE_URL}/${fileID}`);
   }
 
   private getFilesHttpRequest(): Observable<UserFile[]> {
-    return this.http.get<UserFile[]>(`${environment.apiUrl}/${getFilesUrl}`);
+    return this.http.get<UserFile[]>(`${AppSettings.getApiEndpoint()}/${USER_FILE_LIST_URL}`);
   }
 
   /**
@@ -102,7 +107,7 @@ export class UserFileService {
   }
 
   private clearUserFile(): void {
-    this.fileArray = [];
+    this.userFiles = [];
     // TODO emit file changed event
   }
 

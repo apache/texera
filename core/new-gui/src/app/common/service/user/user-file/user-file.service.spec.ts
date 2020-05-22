@@ -1,12 +1,12 @@
 import { TestBed, inject } from '@angular/core/testing';
 
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
-import { UserFile } from '../../type/user-file';
-import { environment } from '../../../../environments/environment';
+import { UserFile } from '../../../../dashboard/type/user-file';
+import { environment } from '../../../../../environments/environment';
 
 import { UserFileService } from './user-file.service';
-import { UserService } from '../../../common/service/user/user.service';
-import { StubUserService, STUB_USER_NAME } from '../../../common/service/user/stub-user.service';
+import { UserService } from '../user.service';
+import { StubUserService, STUB_USER_NAME } from '../stub-user.service';
 
 const id = 1;
 const name = 'testFile';
@@ -44,7 +44,7 @@ describe('UserFileService', () => {
 
   it('should contain no files by default', inject([UserFileService, UserService, HttpTestingController],
     (service: UserFileService) => {
-    expect(service.getFileArray().length).toBe(0);
+    expect(service.getUserFiles()).toBeFalsy();
   }));
 
   // TODO writes tests for this service
@@ -65,7 +65,7 @@ describe('UserFileService', () => {
   //       // expect(service.getFileField(0, 'description')).toEqual(description);
   //       // expect(service.getFileField(0, 'size')).toEqual(size);
 
-  //   const req = httpMock.expectOne(`${environment.apiUrl}/${getFilesUrl}/${id}`);
+  //   const req = httpMock.expectOne(`${ppSettings.getApiEndpoint()}/${getFilesUrl}/${id}`);
   //   expect(req.request.method).toEqual('GET');
   //   req.flush([testFile]);
   // }));

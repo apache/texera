@@ -1,10 +1,9 @@
-import { AppSettings } from '../../app-setting';
 import { TestBed, inject } from '@angular/core/testing';
 
 import { UserService } from './user.service';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { UserWebResponse, UserWebResponseSuccess } from '../../type/user';
-import { environment } from '../../../../environments/environment';
+import { AppSettings } from '../../app-setting';
 
 const userID = 1;
 const userName = 'test';
@@ -156,7 +155,7 @@ describe('UserService', () => {
         }
       );
 
-      const req = httpMock.expectOne(`${environment.apiUrl}/${UserService.LOGIN_ENDPOINT}`);
+      const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.LOGIN_ENDPOINT}`);
       expect(req.request.method).toEqual('POST');
       req.flush(successUserResponse);
   }));
@@ -173,10 +172,10 @@ describe('UserService', () => {
         }
       );
 
-      const req = httpMock.expectOne(`${environment.apiUrl}/${UserService.LOGIN_ENDPOINT}`);
+      const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.LOGIN_ENDPOINT}`);
       expect(req.request.method).toEqual('POST');
       req.flush(successUserResponse);
-      const req2 = httpMock.expectOne(`${environment.apiUrl}/${UserService.LOG_OUT_ENDPOINT}`);
+      const req2 = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.LOG_OUT_ENDPOINT}`);
       expect(req2.request.method).toEqual('GET');
       req2.flush(successUserResponse);
   }));
@@ -190,7 +189,7 @@ describe('UserService', () => {
 
       service.login(userName).subscribe();
 
-      const req = httpMock.expectOne(`${environment.apiUrl}/${UserService.LOGIN_ENDPOINT}`);
+      const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.LOGIN_ENDPOINT}`);
       expect(req.request.method).toEqual('POST');
       req.flush(successUserResponse);
   }));
@@ -204,7 +203,7 @@ describe('UserService', () => {
 
       service.register(userName).subscribe();
 
-      const req = httpMock.expectOne(`${environment.apiUrl}/${UserService.REGISTER_ENDPOINT}`);
+      const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.REGISTER_ENDPOINT}`);
       expect(req.request.method).toEqual('POST');
       req.flush(successUserResponse);
   }));
@@ -222,10 +221,10 @@ describe('UserService', () => {
         }
       );
 
-      const req = httpMock.expectOne(`${environment.apiUrl}/${UserService.LOGIN_ENDPOINT}`);
+      const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.LOGIN_ENDPOINT}`);
       expect(req.request.method).toEqual('POST');
       req.flush(successUserResponse);
-      const req2 = httpMock.expectOne(`${environment.apiUrl}/${UserService.LOG_OUT_ENDPOINT}`);
+      const req2 = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.LOG_OUT_ENDPOINT}`);
       expect(req2.request.method).toEqual('GET');
       req2.flush(successUserResponse);
   }));

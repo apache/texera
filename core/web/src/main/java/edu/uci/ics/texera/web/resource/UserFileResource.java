@@ -6,7 +6,6 @@ import java.io.InputStream;
 import java.nio.file.Paths;
 import java.sql.Connection;
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -23,26 +22,21 @@ import javax.ws.rs.core.MediaType;
 import org.apache.commons.lang3.tuple.Pair;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.glassfish.jersey.media.multipart.FormDataParam;
-import org.jooq.Condition;
 import org.jooq.DSLContext;
 import org.jooq.Record1;
-import org.jooq.Record3;
 import org.jooq.Record5;
 import org.jooq.Result;
 import org.jooq.types.UInteger;
 
 import static edu.uci.ics.texera.dataflow.jooq.generated.Tables.*;
-import static org.jooq.impl.DSL.*;
 
 import edu.uci.ics.texera.web.TexeraWebException;
-import edu.uci.ics.texera.web.resource.UserResource.UserWebResponse;
-import edu.uci.ics.texera.dataflow.jooq.generated.tables.records.UseraccountRecord;
 import edu.uci.ics.texera.dataflow.resource.file.FileManager;
 import edu.uci.ics.texera.dataflow.sqlServerInfo.UserSqlServer;
 import edu.uci.ics.texera.web.response.GenericWebResponse;
 import io.dropwizard.jersey.sessions.Session;
 
-@Path("/users/files/")
+@Path("/user/file")
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
 public class UserFileResource {
@@ -74,7 +68,7 @@ public class UserFileResource {
      * @return
      */
     @POST
-    @Path("/upload-file")
+    @Path("/upload")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     public GenericWebResponse uploadFile(
             @FormDataParam("file") InputStream uploadedInputStream,
@@ -97,8 +91,8 @@ public class UserFileResource {
     }
     
     @GET
-    @Path("/get-files")
-    public List<UserFile> getUserFiles(@Session HttpSession session){
+    @Path("/list")
+    public List<UserFile> listUserFiles(@Session HttpSession session){
         UInteger userID = UserResource.getUserFromSession(session).getUserID();
         
         Result<Record5<UInteger, String, String, String, UInteger>> result = getUserFileRecord(userID);
@@ -120,7 +114,7 @@ public class UserFileResource {
     }
     
     @DELETE
-    @Path("/delete-file/{fileID}")
+    @Path("/delete/{fileID}")
     public GenericWebResponse deleteUserFile(@PathParam("fileID") String fileID, @Session HttpSession session) {
         UInteger userID = UserResource.getUserFromSession(session).getUserID();
         UInteger fileIdUInteger = parseStringToUInteger(fileID);
@@ -135,7 +129,7 @@ public class UserFileResource {
     }
     
     @POST
-    @Path("/validate-file")
+    @Path("/validate")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     public GenericWebResponse validateUserFile(@Session HttpSession session, @FormDataParam("name") String fileName) {
         UInteger userID = UserResource.getUserFromSession(session).getUserID();

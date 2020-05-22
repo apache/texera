@@ -1,3 +1,4 @@
+import { AppSettings } from './../../../../../common/app-setting';
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 import { NgbModule, NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
@@ -8,7 +9,6 @@ import { CustomNgMaterialModule } from '../../../../../common/custom-ng-material
 
 import { FileUploadModule } from 'ng2-file-upload';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
-import { environment } from '../../../../../../environments/environment';
 
 
 const dictionaryUrl = 'users/dictionaries';
@@ -155,11 +155,11 @@ describe('NgbdModalResourceAddComponent', () => {
   it(`should do nothing when addDictionary() or uploadFiles() is called when the content is uploading`, () => {
     component.isUploading = true;
     component.addDictionary();
-    const req = httpTestingController.expectNone(`${environment.apiUrl}/${dictionaryUrl}`);
+    const req = httpTestingController.expectNone(`${AppSettings.getApiEndpoint()}/${dictionaryUrl}`);
     httpTestingController.verify();
 
     component.uploadFiles();
-    const req2 = httpTestingController.expectNone(`${environment.apiUrl}/${uploadFilesURL}`);
+    const req2 = httpTestingController.expectNone(`${AppSettings.getApiEndpoint()}/${uploadFilesURL}`);
     httpTestingController.verify();
   });
 
@@ -170,7 +170,7 @@ describe('NgbdModalResourceAddComponent', () => {
     component.uploader.addToQueue(testFileList);
     component.uploadFiles();
 
-    const req = httpTestingController.expectOne(`${environment.apiUrl}/${uploadFilesURL}`);
+    const req = httpTestingController.expectOne(`${AppSettings.getApiEndpoint()}/${uploadFilesURL}`);
     httpTestingController.verify();
   });
 

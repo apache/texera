@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { FileUploader } from 'ng2-file-upload';
-import { UserFileUploadService } from '../../../../service/user-file/user-file-upload.service';
+import { UserFileUploadService } from '../../../../../common/service/user/user-file/user-file-upload.service';
 import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { FileUploadItem } from '../../../../type/user-file';
 

@@ -1,3 +1,5 @@
+import { UserService } from './../../../../common/service/user/user.service';
+import { UserFileService } from './../../../../common/service/user/user-file/user-file.service';
 import { AppSettings } from './../../../../common/app-setting';
 import { TestBed, inject } from '@angular/core/testing';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
@@ -33,7 +35,9 @@ describe('SourceTablesService', () => {
         WorkflowActionService,
         UndoRedoService,
         DynamicSchemaService,
-        SourceTablesService
+        SourceTablesService,
+        UserFileService,
+        UserService
       ]
     });
 

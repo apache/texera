@@ -11,17 +11,23 @@ import edu.uci.ics.texera.dataflow.common.PredicateBase;
 import edu.uci.ics.texera.dataflow.common.JsonSchemaHelper;
 import edu.uci.ics.texera.dataflow.common.OperatorGroupConstants;
 import edu.uci.ics.texera.dataflow.common.OperatorGroupConstants.GroupOrder;
+import edu.uci.ics.texera.dataflow.resource.file.FileManager;
 import edu.uci.ics.texera.storage.RelationManager;
 import edu.uci.ics.texera.storage.TableMetadata;
 import edu.uci.ics.texera.web.TexeraWebException;
 import edu.uci.ics.texera.web.response.GenericWebResponse;
+import io.dropwizard.jersey.sessions.Session;
 
+import javax.servlet.http.HttpSession;
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+
+import static edu.uci.ics.texera.web.resource.UserResource.SESSION_USER;
 
 @Path("/resources")
 @Produces(MediaType.APPLICATION_JSON)

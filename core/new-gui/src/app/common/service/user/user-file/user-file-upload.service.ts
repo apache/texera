@@ -1,16 +1,19 @@
+import { AppSettings } from '../../../app-setting';
 import { Injectable } from '@angular/core';
-import { FileUploadItem } from '../../type/user-file';
-import { GenericWebResponse } from '../../type/generic-web-response';
+import { FileUploadItem } from '../../../../dashboard/type/user-file';
+import { GenericWebResponse } from '../../../../dashboard/type/generic-web-response';
 import { Observable } from 'rxjs';
-import { UserService } from '../../../common/service/user/user.service';
+import { UserService } from '../user.service';
 import { HttpClient, HttpEventType, HttpResponse, HttpEvent } from '@angular/common/http';
-import { environment } from '../../../../environments/environment';
+import { environment } from '../../../../../environments/environment';
 import { UserFileService } from './user-file.service';
 
-export const postFileUrl = 'users/files/upload-file';
-export const validateFileUrl = 'users/files/validate-file';
+export const USER_FILE_UPLOAD_URL = 'user/file/upload';
+export const USER_FILE_VALIDATE_URL = 'user/file/validate';
 
-@Injectable()
+@Injectable({
+  providedIn: 'root'
+})
 export class UserFileUploadService {
   private fileUploadItemArray: FileUploadItem[] = [];
 
@@ -108,7 +111,7 @@ export class UserFileUploadService {
 
   private fileValidationHttpRequest(formData: FormData): Observable<GenericWebResponse> {
     return this.http.post<GenericWebResponse>(
-      `${environment.apiUrl}/${validateFileUrl}`,
+      `${AppSettings.getApiEndpoint()}/${USER_FILE_VALIDATE_URL}`,
       formData
       );
   }
@@ -135,7 +138,7 @@ export class UserFileUploadService {
 
   private uploadFileHttpRequest(formData: FormData): Observable<HttpEvent<GenericWebResponse>> {
     return this.http.post<GenericWebResponse>(
-      `${environment.apiUrl}/${postFileUrl}`,
+      `${AppSettings.getApiEndpoint()}/${USER_FILE_UPLOAD_URL}`,
       formData,
       {reportProgress: true, observe: 'events'}
       );

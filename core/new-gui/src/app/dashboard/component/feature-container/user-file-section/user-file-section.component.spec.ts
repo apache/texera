@@ -6,7 +6,7 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatListModule } from '@angular/material/list';
 
 import { UserFileSectionComponent } from './user-file-section.component';
-import { UserFileService } from '../../../service/user-file/user-file.service';
+import { UserFileService } from '../../../../common/service/user/user-file/user-file.service';
 import { UserService } from '../../../../common/service/user/user.service';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 

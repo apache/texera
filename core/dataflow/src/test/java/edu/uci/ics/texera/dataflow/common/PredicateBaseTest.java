@@ -244,8 +244,7 @@ public class PredicateBaseTest {
     @Test
     public void testFileSource() throws Exception {
         FileSourcePredicate fileSourcePredicate = new FileSourcePredicate(
-                "./file.txt",
-                "attr1");
+                "./file.txt");
         testPredicate(fileSourcePredicate);
     }
     
