@@ -10,5 +10,5 @@
     "videosFolder": "./cypress_log/videos",
     "screenshotsFolder": "./cypress_log/screenshots",
     "chromeWebSecurity": false,
-    "baseUrl": "http://localhost:4200"
+    "baseUrl": "http://localhost:8080"
 }

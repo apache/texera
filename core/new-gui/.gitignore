@@ -5,12 +5,14 @@
 /dist-server
 /tmp
 /out-tsc
+/multi-target/dist
 
 # cypress output
-/e2e/cypress
+/e2e/cypress_log
 
 # dependencies
-**/node_modules
+/node_modules
+/multi-target/node_modules
 
 # IDEs and editors
 /.idea

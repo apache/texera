@@ -9,7 +9,7 @@ describe('Cypress works!', () => {
 
 describe('Cypress Workflow', () => {
   it('Set up application state', () => {
-    cy.visit('localhost:4200');
+    cy.visit('localhost:8080');
   });
   it('watch mode', () => {
     expect(true).to.equal(true);

@@ -122,7 +122,7 @@
         "fullstack": {
           "builder": "multi-target:cmd-target",
           "options": {
-            "cmd": "cd .. && java -jar ./web/target/web-0.1.0.jar server ./new-gui/e2e/backend-config.yml",
+            "cmd": "cd .. && java -jar ./web/target/web-0.1.0.jar server ./conf/web-config.yml",
             "detached": true
           },
           "description": "requires a build in the dist folder"
@@ -130,7 +130,7 @@
         "kill-fullstack": {
           "builder": "multi-target:cmd-target",
           "options": {
-            "cmd": "cd .. && java -jar ./web/target/web-0.1.0.jar server ./new-gui/e2e/backend-config.yml",
+            "cmd": "cd .. && java -jar ./web/target/web-0.1.0.jar server ./conf/web-config.yml",
             "kill": true
           }
         },
