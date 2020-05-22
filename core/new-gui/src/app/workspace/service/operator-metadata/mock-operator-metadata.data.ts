@@ -9,11 +9,11 @@ export const mockScanSourceSchema: OperatorSchema = {
   operatorType: 'ScanSource',
   additionalMetadata: {
     advancedOptions: [],
+    userFriendlyName: 'Source: Scan',
     operatorDescription: 'Read records from a table one by one',
     operatorGroupName: 'Source',
     numInputPorts: 0,
     numOutputPorts: 1,
-    userFriendlyName: 'Source: Scan',
     propertyDescription: {
       tableName: 'The table name is the name of the source table, including twitter and promed'
     }
@@ -31,11 +31,11 @@ export const mockNlpSentimentSchema: OperatorSchema = {
   operatorType: 'NlpSentiment',
   additionalMetadata: {
     advancedOptions: [],
+    userFriendlyName: 'Sentiment Analysis',
     operatorDescription: 'Sentiment analysis based on Stanford NLP package',
     operatorGroupName: 'Analysis',
     numInputPorts: 1,
     numOutputPorts: 1,
-    userFriendlyName: 'Sentiment Analysis'
   },
   jsonSchema: {
     properties: {
@@ -145,11 +145,27 @@ export const mockViewResultsSchema: OperatorSchema = {
   },
   additionalMetadata: {
     advancedOptions: [],
+    userFriendlyName: 'View Results',
     operatorDescription: 'View the results of the workflow',
     operatorGroupName: 'View Results',
     numInputPorts: 1,
     numOutputPorts: 0,
-    userFriendlyName: 'View Results'
+  }
+};
+
+export const mockMultiInputOutputSchema: OperatorSchema = {
+    operatorType: 'MultiInputOutput',
+  jsonSchema: {
+    properties: {},
+    type: 'object'
+  },
+  additionalMetadata: {
+    advancedOptions: [],
+    userFriendlyName: '3-I/O Mock op',
+    operatorDescription: 'Mock operator with 3 inputs and 3 outputs',
+    operatorGroupName: 'Analysis',
+    numInputPorts: 3,
+    numOutputPorts: 3,
   }
 };
 
@@ -159,7 +175,8 @@ export const mockOperatorSchemaList: ReadonlyArray<OperatorSchema> = [
   mockKeywordSearchSchema,
   mockNlpSentimentSchema,
   mockAggregationSchema,
-  mockViewResultsSchema
+  mockViewResultsSchema,
+  mockMultiInputOutputSchema,
 ];
 
 export const mockOperatorGroup: ReadonlyArray<GroupInfo> = [
