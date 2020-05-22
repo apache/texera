@@ -3,16 +3,14 @@ package edu.uci.ics.texera.web.resource;
 import edu.uci.ics.texera.dataflow.jooq.generated.tables.records.UseraccountRecord;
 import edu.uci.ics.texera.dataflow.sqlServerInfo.UserSqlServer;
 import edu.uci.ics.texera.web.TexeraWebException;
+import org.apache.commons.lang3.tuple.Pair;
 import org.glassfish.jersey.media.multipart.FormDataParam;
 import org.jooq.Condition;
 import org.jooq.DSLContext;
 import org.jooq.Record1;
 import org.jooq.types.UInteger;
 
-import javax.ws.rs.Consumes;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
+import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import java.sql.Connection;
 
@@ -20,93 +18,99 @@ import static edu.uci.ics.texera.dataflow.jooq.generated.Tables.USERACCOUNT;
 import static org.jooq.impl.DSL.defaultValue;
 
 
-@Path("/users/accounts/")
+@Path("/users/")
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
-public class UserAccountResource {
+public class UserResource {
     /**
-     * Corresponds to `src/app/dashboard/type/user-account.ts`
+     * Corresponds to `src/app/common/type/user.ts`
      */
-    public static class UserAccount {
+    public static class User {
         public String userName;
         public UInteger userID; // the ID in MySQL database is unsigned int
         
-        public static UserAccount generateErrorAccount() {
-            return new UserAccount("", UInteger.valueOf(0));
+        public static User generateErrorAccount() {
+            return new User("", UInteger.valueOf(0));
         }
         
-        public UserAccount(String userName, UInteger userID) {
+        public User(String userName, UInteger userID) {
             this.userName = userName;
             this.userID = userID;
         }
     }
+
+    public static class UserRegistrationRequest {
+        public String userName;
+    }
+
+    public static class UserLoginRequest {
+        public String userName;
+    }
     
     /**
-     * Corresponds to `src/app/dashboard/type/user-account.ts`
+     * Corresponds to `src/app/common/type/user.ts`
      */
-    public static class UserAccountResponse {
+    public static class UserWebResponse {
         public int code; // 0 represents success and 1 represents error
-        public UserAccount userAccount;
+        public User user;
         public String message;
         
-        public static UserAccountResponse generateErrorResponse(String message) {
-            return new UserAccountResponse(1, UserAccount.generateErrorAccount(), message);
+        public static UserWebResponse generateErrorResponse(String message) {
+            return new UserWebResponse(1, User.generateErrorAccount(), message);
         }
         
-        public static UserAccountResponse generateSuccessResponse(UserAccount userAccount) {
-            return new UserAccountResponse(0, userAccount, "");
+        public static UserWebResponse generateSuccessResponse(User user) {
+            return new UserWebResponse(0, user, "");
         }
 
-        private UserAccountResponse(int code, UserAccount userAccount, String message) {
+        private UserWebResponse(int code, User user, String message) {
             this.code = code;
-            this.userAccount = userAccount;
+            this.user = user;
             this.message = message;
         }
     }
-    
+
     @POST
     @Path("/login")
-    @Consumes(MediaType.MULTIPART_FORM_DATA)
-    public UserAccountResponse login(@FormDataParam("userName") String userName) {
-        if (!checkUserInfoValid(userName)) {
-            return UserAccountResponse.generateErrorResponse("The username or password is incorrect");
+    public UserWebResponse login(UserLoginRequest request) {
+        String userName = request.userName;
+        Pair<Boolean, String> validationResult = validateUsername(userName);
+        if (!validationResult.getLeft()) {
+            return UserWebResponse.generateErrorResponse(validationResult.getRight());
         }
 
         Condition loginCondition = USERACCOUNT.USERNAME.equal(userName);
         Record1<UInteger> result = getUserID(loginCondition);
 
         if (result == null) { // not found
-            return UserAccountResponse.generateErrorResponse("The username or password is incorrect");
+            return UserWebResponse.generateErrorResponse("The username or password is incorrect");
         } else {
-            UserAccount account = new UserAccount(
-                        userName,
-                        result.get(USERACCOUNT.USERID));
-            UserAccountResponse response = UserAccountResponse.generateSuccessResponse(account);
+            User account = new User(userName, result.get(USERACCOUNT.USERID));
+            UserWebResponse response = UserWebResponse.generateSuccessResponse(account);
             return response;
         }
 
     }
-    
+
     @POST
     @Path("/register")
-    @Consumes(MediaType.MULTIPART_FORM_DATA)
-    public UserAccountResponse register(@FormDataParam("userName") String userName) {
-        if (!checkUserInfoValid(userName)) {
-            return UserAccountResponse.generateErrorResponse("The username or password is incorrect");
+    public UserWebResponse register(UserRegistrationRequest request) {
+        String userName = request.userName;
+        Pair<Boolean, String> validationResult = validateUsername(userName);
+        if (!validationResult.getLeft()) {
+            return UserWebResponse.generateErrorResponse(validationResult.getRight());
         }
-        
+
         Condition registerCondition = USERACCOUNT.USERNAME.equal(userName);
         Record1<UInteger> result = getUserID(registerCondition);
-        
+
         if (result == null) { // userName not found and register is allowed, potential problem for concurrency
             UseraccountRecord returnID = insertUserAccount(userName);
-            UserAccount account = new UserAccount(
-                    userName,
-                    returnID.get(USERACCOUNT.USERID));
-            UserAccountResponse response = UserAccountResponse.generateSuccessResponse(account);
+            User account = new User(userName, returnID.get(USERACCOUNT.USERID));
+            UserWebResponse response = UserWebResponse.generateSuccessResponse(account);
             return response;
         } else {
-            return UserAccountResponse.generateErrorResponse("Username already exists");
+            return UserWebResponse.generateErrorResponse("Username already exists");
         }
     }
     
@@ -144,9 +148,14 @@ public class UserAccountResource {
         }
     }
     
-    private boolean checkUserInfoValid(String userName) {
-        return userName != null && 
-                userName.length() > 0;
+    private Pair<Boolean, String> validateUsername(String userName) {
+        if (userName == null) {
+            return Pair.of(false, "username cannot be null");
+        } else if (userName.trim().isEmpty()) {
+            return Pair.of(false, "username cannot be empty");
+        } else {
+            return Pair.of(true, "username validation success");
+        }
     }
     
 }
