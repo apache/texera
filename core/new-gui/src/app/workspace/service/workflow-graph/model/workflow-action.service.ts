@@ -9,6 +9,7 @@ import { Point, OperatorPredicate, OperatorLink, OperatorPort } from '../../../t
 
 import * as joint from 'jointjs';
 import { environment } from './../../../../../environments/environment';
+import { WorkflowEditorComponent } from './../../../component/workflow-editor/workflow-editor.component';
 
 
 export interface Command {
@@ -348,7 +349,7 @@ export class WorkflowActionService {
    * set a given link's breakpoint properties to specific values
    */
   public setLinkBreakpoint(linkID: string, newBreakpoint: object): void {
-    const prevBreakpoint = this.getTexeraGraph().getLinkWithID(linkID).breakpointProperties;
+    const prevBreakpoint = this.getTexeraGraph().getLinkBreakpoint(linkID);
     const command: Command = {
       execute: () => {
         this.setLinkBreakpointInternal(linkID, newBreakpoint);
@@ -426,6 +427,7 @@ export class WorkflowActionService {
     // add the link to JointJS
     const jointLinkCell = JointUIService.getJointLinkCell(link);
     this.jointGraph.addCell(jointLinkCell);
+    console.log('should happen first');
     // JointJS link add event will propagate and trigger Texera link add
   }
 

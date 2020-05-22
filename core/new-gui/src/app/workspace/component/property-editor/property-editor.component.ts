@@ -332,7 +332,7 @@ export class PropertyEditorComponent {
     // set the operator data needed
     this.currentLinkID = linkID;
     this.currentLinkBreakpointSchema = this.autocompleteService.getDynamicBreakpointSchema(this.currentLinkID.linkID);
-    this.currentBreakpointInitialData = this.workflowActionService.getTexeraGraph().getLinkWithID(linkID.linkID).breakpointProperties;
+    this.currentBreakpointInitialData = this.workflowActionService.getTexeraGraph().getLinkBreakpoint(linkID.linkID);
 
     // show breakpoint editor
     this.displayBreakpointEditor = true;
@@ -444,6 +444,7 @@ export class PropertyEditorComponent {
         // check if the link still exists
         // the link could've been deleted during deboucne time
         const link = this.workflowActionService.getTexeraGraph().getLinkWithID(this.currentLinkID.linkID);
+        const currentBreakpoint = this.workflowActionService.getTexeraGraph().getLinkBreakpoint(this.currentLinkID.linkID);
         if (!link) {
           return false;
         }
@@ -451,7 +452,7 @@ export class PropertyEditorComponent {
         // this is to circumvent the library's behavior
         // when the form is initialized, the change event is triggered for the inital data
         // however, the operator property is not changed and shouldn't emit this event
-        if (isEqual(formData, link.breakpointProperties)) {
+        if (isEqual(formData, currentBreakpoint)) {
           return false;
         }
         return true;

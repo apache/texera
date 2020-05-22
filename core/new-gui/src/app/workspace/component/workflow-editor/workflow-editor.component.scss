@@ -45,6 +45,10 @@
   fill-opacity: 0 !important;
 }
 
+::ng-deep .texera-workspace-workflow-editor-body .info-button {
+  display: none 0 !important;
+}
+
 ::ng-deep .texera-workspace-workflow-editor-body .link-tools {
   display: contents !important;
 }

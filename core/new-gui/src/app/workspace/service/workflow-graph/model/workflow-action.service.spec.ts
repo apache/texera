@@ -230,10 +230,10 @@ describe('WorkflowActionService', () => {
       service.addLink(mockScanResultLink);
       const mockBreakpoint = {age: '100'};
       service.setLinkBreakpoint(mockScanResultLink.linkID, mockBreakpoint);
-      expect(texeraGraph.getLinkWithID(mockScanResultLink.linkID).breakpointProperties).toEqual(mockBreakpoint);
+      expect(texeraGraph.getLinkBreakpoint(mockScanResultLink.linkID)).toEqual(mockBreakpoint);
 
       service.removeLinkBreakpoint(mockScanResultLink.linkID);
-      expect(texeraGraph.getLinkWithID(mockScanResultLink.linkID).breakpointProperties).toEqual({});
+      expect(texeraGraph.getLinkBreakpoint(mockScanResultLink.linkID)).toEqual({});
     });
   });
 

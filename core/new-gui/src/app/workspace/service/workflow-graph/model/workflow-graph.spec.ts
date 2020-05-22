@@ -205,7 +205,7 @@ describe('WorkflowGraph', () => {
       workflowGraph.addLink(mockScanResultLink);
       const mockBreakpoint = {age: '10'};
       workflowGraph.setLinkBreakpoint(mockScanResultLink.linkID, mockBreakpoint);
-      expect(workflowGraph.getLinkWithID(mockScanResultLink.linkID).breakpointProperties).toEqual(mockBreakpoint);
+      expect(workflowGraph.getLinkBreakpoint(mockScanResultLink.linkID)).toEqual(mockBreakpoint);
     });
   });
 });

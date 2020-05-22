@@ -72,6 +72,7 @@ export class SyncTexeraModel {
     this.jointGraphWrapper.getJointLinkCellAddStream()
       .filter(link => this.isValidJointLink(link))
       .map(link => SyncTexeraModel.getOperatorLink(link))
+      .do(() => console.log('add operator make link'))
       .subscribe(link => this.texeraGraph.addLink(link));
 
     /**
@@ -99,6 +100,7 @@ export class SyncTexeraModel {
       .filter(link => this.isValidJointLink(link))
       .map(link => SyncTexeraModel.getOperatorLink(link))
       .subscribe(link => {
+        console.log('draging make link');
         this.texeraGraph.addLink(link);
       });
   }
@@ -149,8 +151,7 @@ export class SyncTexeraModel {
       target: {
         operatorID: jointTargetElement.id,
         portID: jointTargetElement.port
-      },
-      breakpointProperties: {}
+      }
     };
   }
 

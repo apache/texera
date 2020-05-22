@@ -1,4 +1,4 @@
-import { Point, OperatorPredicate, OperatorLink } from './../../../types/workflow-common.interface';
+import { Point, OperatorPredicate, OperatorLink, Breakpoint } from './../../../types/workflow-common.interface';
 
 /**
  * Provides mock data related operators and links:
@@ -62,8 +62,7 @@ export const mockScanResultLink: OperatorLink = {
   target: {
     operatorID: mockResultPredicate.operatorID,
     portID: mockResultPredicate.inputPorts[0]
-  },
-  breakpointProperties: {}
+  }
 };
 
 export const mockScanSentimentLink: OperatorLink = {
@@ -75,8 +74,7 @@ export const mockScanSentimentLink: OperatorLink = {
   target: {
     operatorID: mockSentimentPredicate.operatorID,
     portID: mockSentimentPredicate.inputPorts[0]
-  },
-  breakpointProperties: {}
+  }
 };
 
 export const mockSentimentResultLink: OperatorLink = {
@@ -88,8 +86,7 @@ export const mockSentimentResultLink: OperatorLink = {
   target: {
     operatorID: mockResultPredicate.operatorID,
     portID: mockResultPredicate.inputPorts[0]
-  },
-  breakpointProperties: {}
+  }
 };
 
 
@@ -102,8 +99,7 @@ export const mockFalseResultSentimentLink: OperatorLink = {
   target: {
     operatorID: mockSentimentPredicate.operatorID,
     portID: mockSentimentPredicate.inputPorts[0]
-  },
-  breakpointProperties: {}
+  }
 };
 
 export const mockFalseSentimentScanLink: OperatorLink = {
@@ -115,6 +111,15 @@ export const mockFalseSentimentScanLink: OperatorLink = {
   target: {
     operatorID: mockScanPredicate.operatorID,
     portID: undefined as any
-  },
-  breakpointProperties: {}
+  }
 };
+
+export const mockScanResultLinkBreakpoint: Breakpoint = {
+  breakpointProperties: {
+    attribute: 'age',
+  }
+};
+
+
+export const mockWorkflowBreakpoint: Map<string, Breakpoint> = new Map();
+mockWorkflowBreakpoint.set(mockScanResultLink.linkID, mockScanResultLinkBreakpoint);

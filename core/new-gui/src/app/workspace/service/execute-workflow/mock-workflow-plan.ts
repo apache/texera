@@ -1,7 +1,8 @@
 import { WorkflowGraph } from './../workflow-graph/model/workflow-graph';
 import { mockScanPredicate, mockSentimentPredicate,
   mockResultPredicate, mockScanResultLink,
-  mockScanSentimentLink, mockSentimentResultLink } from './../workflow-graph/model/mock-workflow-data';
+  mockScanSentimentLink, mockSentimentResultLink,
+  mockScanResultLinkBreakpoint, mockWorkflowBreakpoint } from './../workflow-graph/model/mock-workflow-data';
 import { LogicalPlan } from '../../types/execute-workflow.interface';
 
 
@@ -34,9 +35,9 @@ export const mockLogicalPlan_scan_result: LogicalPlan = {
     {
       origin: mockScanPredicate.operatorID,
       destination: mockResultPredicate.operatorID,
-      breakpointProperties: {}
     }
-  ]
+  ],
+  linkBreakpoints : mockWorkflowBreakpoint
 };
 
 export const mockWorkflowPlan_scan_sentiment_result: WorkflowGraph = new WorkflowGraph(
@@ -73,12 +74,11 @@ export const mockLogicalPlan_scan_sentiment_result: LogicalPlan = {
     {
       origin: mockScanPredicate.operatorID,
       destination: mockSentimentPredicate.operatorID,
-      breakpointProperties: {}
     },
     {
       origin: mockSentimentPredicate.operatorID,
       destination: mockResultPredicate.operatorID,
-      breakpointProperties: {}
     }
-  ]
+  ],
+  linkBreakpoints : new Map()
 };

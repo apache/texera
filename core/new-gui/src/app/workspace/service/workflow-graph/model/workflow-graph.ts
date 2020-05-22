@@ -1,6 +1,6 @@
 import { Subject } from 'rxjs/Subject';
 import { Observable } from 'rxjs/Observable';
-import { OperatorPredicate, OperatorLink, OperatorPort } from '../../../types/workflow-common.interface';
+import { OperatorPredicate, OperatorLink, OperatorPort, Breakpoint } from '../../../types/workflow-common.interface';
 import { isEqual } from 'lodash';
 
 // define the restricted methods that could change the graph
@@ -25,6 +25,7 @@ export class WorkflowGraph {
 
   private readonly operatorIDMap = new Map<string, OperatorPredicate>();
   private readonly operatorLinkMap = new Map<string, OperatorLink>();
+  private readonly linkBreakpointMap = new Map<string, Breakpoint>();
 
   private readonly operatorAddSubject = new Subject<OperatorPredicate>();
   private readonly operatorDeleteSubject = new Subject<{ deletedOperator: OperatorPredicate }>();
@@ -120,6 +121,8 @@ export class WorkflowGraph {
     }
     this.operatorLinkMap.delete(linkID);
     this.linkDeleteSubject.next({ deletedLink: link });
+    // delete its breakpoint
+    this.linkBreakpointMap.delete(linkID);
   }
 
   /**
@@ -136,6 +139,8 @@ export class WorkflowGraph {
     }
     this.operatorLinkMap.delete(link.linkID);
     this.linkDeleteSubject.next({ deletedLink: link });
+    // delete its breakpoint
+    this.linkBreakpointMap.delete(link.linkID);
   }
 
   /**
@@ -277,13 +282,31 @@ export class WorkflowGraph {
     if (originalLink === undefined) {
       throw new Error(`link with ID ${linkID} doesn't exist`);
     }
-    // constructor a new copy with new breakpoint and all other original attributes
-    const link = {
-      ...originalLink,
-      breakpointProperties: newBreakpoint,
-    };
-    // set the new copy back to the link ID map
-    this.operatorLinkMap.set(linkID, link);
+
+    if (Object.keys(newBreakpoint).length === 0) {
+      this.linkBreakpointMap.delete(linkID);
+    } else {
+      this.linkBreakpointMap.set(linkID, <Breakpoint>newBreakpoint);
+    }
+  }
+
+  /**
+   * get the breakpoint property of a link
+   * returns an empty object if the link has no property
+   *
+   * @param linkID
+   */
+  public getLinkBreakpoint(linkID: string): object {
+    const breakPoint = this.linkBreakpointMap.get(linkID);
+    if (breakPoint) {
+      return breakPoint;
+    } else {
+      return {};
+    }
+  }
+
+  public getAllLinkBreakpoint(): Map<string, Breakpoint> {
+    return new Map(this.linkBreakpointMap);
   }
 
   /**
