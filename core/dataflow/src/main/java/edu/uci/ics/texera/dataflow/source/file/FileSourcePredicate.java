@@ -81,9 +81,10 @@ public class FileSourcePredicate extends PredicateBase {
     }
 
     // for internal testing purpose only, directly specify file path
-    public FileSourcePredicate(String filePath) {
-        this(null, null, null, null);
-        this.filePath = filePath;
+    public static FileSourcePredicate createWithFilePath(String filePath) {
+        FileSourcePredicate predicate = new FileSourcePredicate(null, null, null, null);
+        predicate.filePath = filePath;
+        return predicate;
     }
 
     @JsonProperty(PropertyNameConstants.FILE_NAME)

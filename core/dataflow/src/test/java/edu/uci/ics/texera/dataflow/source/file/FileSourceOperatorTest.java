@@ -50,11 +50,6 @@ public class FileSourceOperatorTest {
      * tempfolder/
      *   test1.txt
      *   test2.txt
-     *   nested/
-     *     test4.txt
-     *     nested2/
-     *       test5.txt
-     *   empty/
      * 
      */
     @BeforeClass
@@ -70,16 +65,6 @@ public class FileSourceOperatorTest {
         
         Files.createFile(tempFile2Path);
         Files.write(tempFile2Path, tempFile2String.getBytes());
-        
-        Files.createDirectories(nestedFolderPath);
-        Files.createFile(tempFile4Path);
-        Files.write(tempFile4Path, tempFile4String.getBytes());
-        
-        Files.createDirectories(nested2FolderPath);
-        Files.createFile(tempFile5Path);
-        Files.write(tempFile5Path, tempFile5String.getBytes());
-        
-        Files.createDirectories(emptyFolderPath);
 
     }
     
@@ -100,7 +85,7 @@ public class FileSourceOperatorTest {
         String attrName = "c1";
         Schema schema = new Schema(new Attribute(attrName, AttributeType.TEXT));
         
-        FileSourcePredicate predicate = new FileSourcePredicate(
+        FileSourcePredicate predicate = FileSourcePredicate.createWithFilePath(
                 tempFile1Path.toString());
         FileSourceOperator fileSource = new FileSourceOperator(predicate, null);
         
@@ -123,11 +108,9 @@ public class FileSourceOperatorTest {
      */
     @Test(expected = TexeraException.class)
     public void test2() throws Exception {
-        FileSourcePredicate predicate = new FileSourcePredicate(
+        FileSourcePredicate predicate = FileSourcePredicate.createWithFilePath(
                 tempFolderPath.resolve("notexist.txt").toString());
         new FileSourceOperator(predicate, null);
     }
-
-
     
 }

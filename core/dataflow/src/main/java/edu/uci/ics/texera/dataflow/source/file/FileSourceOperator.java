@@ -179,7 +179,6 @@ public class FileSourceOperator implements ISourceOperator {
                         fields.add(IDField.newRandomID());
                         fields.add(new TextField(row));
                         IntStream.range(0, outputSchema.getAttributes().size() - 2).forEach(i -> fields.add(new TextField("")));
-                        results.add(new Tuple(outputSchema, fields));
                     }
                     results.add(new Tuple(outputSchema, fields));
                 }
