@@ -23,8 +23,16 @@ const failedUserResponse: UserWebResponse = {
   message: 'invalid user name or password'
 };
 
+const failedSessionLoginResponse: UserWebResponse = {
+  code : failedCode,
+  message: ''
+};
+
 // tslint:disable:no-non-null-assertion
 describe('UserService', () => {
+  let httpMock: HttpTestingController;
+  let service: UserService;
+
   beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [UserService],
@@ -32,25 +40,23 @@ describe('UserService', () => {
         HttpClientTestingModule
       ]
     });
-    window.sessionStorage.clear();
+    httpMock = TestBed.get(HttpTestingController);
+    service = TestBed.get(UserService);
+
+    // set default login from session response to a failure reponse
+    httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.AUTH_STATUS_ENDPINT}`)
+      .flush(failedSessionLoginResponse);
   });
 
-  afterEach(inject([HttpTestingController], (httpMock: HttpTestingController) => {
+  afterEach(() => {
     httpMock.verify();
-  }));
+  });
 
-  it('should be created', inject([HttpTestingController, UserService],
-    (httpMock: HttpTestingController, service: UserService) => {
+  it('should be created', () => {
     expect(service).toBeTruthy();
-  }));
+  });
 
-  it('should not login by default', inject([HttpTestingController, UserService],
-    (httpMock: HttpTestingController, service: UserService) => {
-    expect(service.getUser()).toBeFalsy();
-  }));
-
-  it('should login after register user', inject([HttpTestingController, UserService],
-    (httpMock: HttpTestingController, service: UserService) => {
+  it('should login after register user', () => {
       expect(service.getUser()).toBeFalsy();
       service.register(userName).subscribe(
         userWebResponse => {
@@ -64,10 +70,9 @@ describe('UserService', () => {
       const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.REGISTER_ENDPOINT}`);
       expect(req.request.method).toEqual('POST');
       req.flush(successUserResponse);
-  }));
+  });
 
-  it('should login after login user', inject([HttpTestingController, UserService],
-    (httpMock: HttpTestingController, service: UserService) => {
+  it('should login after login user', () => {
       expect(service.getUser()).toBeFalsy();
       service.login(userName).subscribe(
         userWebResponse => {
@@ -81,10 +86,9 @@ describe('UserService', () => {
       const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.LOGIN_ENDPOINT}`);
       expect(req.request.method).toEqual('POST');
       req.flush(successUserResponse);
-  }));
+  });
 
-  it('should get correct userID and userName after login', inject([HttpTestingController, UserService],
-    (httpMock: HttpTestingController, service: UserService) => {
+  it('should get correct userID and userName after login', () => {
       expect(service.getUser()).toBeFalsy();
       service.login(userName).subscribe(
         userWebResponse => {
@@ -97,10 +101,9 @@ describe('UserService', () => {
       const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.LOGIN_ENDPOINT}`);
       expect(req.request.method).toEqual('POST');
       req.flush(successUserResponse);
-  }));
+  });
 
-  it('should not login after register failed', inject([HttpTestingController, UserService],
-    (httpMock: HttpTestingController, service: UserService) => {
+  it('should not login after register failed', () => {
       expect(service.getUser()).toBeFalsy();
       service.register(userName).subscribe(
         userWebResponse => {
@@ -112,10 +115,9 @@ describe('UserService', () => {
       const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.REGISTER_ENDPOINT}`);
       expect(req.request.method).toEqual('POST');
       req.flush(failedUserResponse);
-  }));
+  });
 
-  it('should not login after login failed', inject([HttpTestingController, UserService],
-    (httpMock: HttpTestingController, service: UserService) => {
+  it('should not login after login failed', () => {
       expect(service.getUser()).toBeFalsy();
       service.login(userName).subscribe(
         userWebResponse => {
@@ -127,10 +129,9 @@ describe('UserService', () => {
       const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.LOGIN_ENDPOINT}`);
       expect(req.request.method).toEqual('POST');
       req.flush(failedUserResponse);
-  }));
+  });
 
-  it('should return undefiend when trying to get user field without not login', inject([HttpTestingController, UserService],
-    (httpMock: HttpTestingController, service: UserService) => {
+  it('should return undefiend when trying to get user field without not login', () => {
       expect(service.getUser()).toBeFalsy();
 
       service.login(userName).subscribe(
@@ -142,10 +143,9 @@ describe('UserService', () => {
       const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.LOGIN_ENDPOINT}`);
       expect(req.request.method).toEqual('POST');
       req.flush(failedUserResponse);
-  }));
+  });
 
-  it('should raise error when trying to login again after login success', inject([HttpTestingController, UserService],
-    (httpMock: HttpTestingController, service: UserService) => {
+  it('should raise error when trying to login again after login success', () => {
       expect(service.getUser()).toBeFalsy();
       service.login(userName).subscribe(
         userWebResponse => {
@@ -158,10 +158,9 @@ describe('UserService', () => {
       const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.LOGIN_ENDPOINT}`);
       expect(req.request.method).toEqual('POST');
       req.flush(successUserResponse);
-  }));
+  });
 
-  it('should log out when called log out function', inject([HttpTestingController, UserService],
-    (httpMock: HttpTestingController, service: UserService) => {
+  it('should log out when called log out function', () => {
       expect(service.getUser()).toBeFalsy();
       service.login(userName).subscribe(
         userWebResponse => {
@@ -178,10 +177,9 @@ describe('UserService', () => {
       const req2 = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.LOG_OUT_ENDPOINT}`);
       expect(req2.request.method).toEqual('GET');
       req2.flush(successUserResponse);
-  }));
+  });
 
-  it('should receive user change event when login', inject([HttpTestingController, UserService],
-    (httpMock: HttpTestingController, service: UserService) => {
+  it('should receive user change event when login', () => {
       expect(service.getUser()).toBeFalsy();
       service.getUserChangedEvent().subscribe(
         () => expect(service.getUser()).toBeTruthy()
@@ -192,10 +190,9 @@ describe('UserService', () => {
       const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.LOGIN_ENDPOINT}`);
       expect(req.request.method).toEqual('POST');
       req.flush(successUserResponse);
-  }));
+  });
 
-  it('should receive user change event when register', inject([HttpTestingController, UserService],
-    (httpMock: HttpTestingController, service: UserService) => {
+  it('should receive user change event when register', () => {
       expect(service.getUser()).toBeFalsy();
       service.getUserChangedEvent().subscribe(
         () => expect(service.getUser()).toBeTruthy()
@@ -206,10 +203,9 @@ describe('UserService', () => {
       const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.REGISTER_ENDPOINT}`);
       expect(req.request.method).toEqual('POST');
       req.flush(successUserResponse);
-  }));
+  });
 
-  it('should receive user change event when log out', inject([HttpTestingController, UserService],
-    (httpMock: HttpTestingController, service: UserService) => {
+  it('should receive user change event when log out', () => {
       expect(service.getUser()).toBeFalsy();
       service.login(userName).subscribe(
         () => {
@@ -227,7 +223,49 @@ describe('UserService', () => {
       const req2 = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.LOG_OUT_ENDPOINT}`);
       expect(req2.request.method).toEqual('GET');
       req2.flush(successUserResponse);
-  }));
+  });
+
+});
 
 
+describe('UserService Session Login', () => {
+  let httpMock: HttpTestingController;
+  let service: UserService;
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      providers: [UserService],
+      imports: [
+        HttpClientTestingModule
+      ]
+    });
+    httpMock = TestBed.get(HttpTestingController);
+    service = TestBed.get(UserService);
+
+    // test login from session: don't flush login from session
+  });
+
+  afterEach(() => {
+    httpMock.verify();
+  });
+
+  it('should try automatic login from session on start up', () => {
+    let user;
+    service.getUserChangedEvent().subscribe(evt => user = evt);
+
+    const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.AUTH_STATUS_ENDPINT}`);
+    req.flush(successUserResponse);
+    expect(service.getUser()).toBeTruthy();
+    expect(user).toBeTruthy();
+  });
+
+  it('should not emit user change event if login from session fails', () => {
+    let eventCount = 0;
+    service.getUserChangedEvent().subscribe(evt => eventCount++);
+
+    const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.AUTH_STATUS_ENDPINT}`);
+    req.flush(failedUserResponse);
+    expect(service.getUser()).toBeFalsy();
+    expect(eventCount).toEqual(0);
+  });
 });

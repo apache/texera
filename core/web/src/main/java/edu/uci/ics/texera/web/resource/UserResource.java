@@ -25,7 +25,7 @@ import static org.jooq.impl.DSL.defaultValue;
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
 public class UserResource {
-    public static final String SESSION_USER = "texera-user";
+    private static final String SESSION_USER = "texera-user";
     
     /**
      * Corresponds to `src/app/common/type/user.ts`
@@ -73,7 +73,7 @@ public class UserResource {
         }
         
         public static UserWebResponse generateSuccessResponse(User user) {
-            return new UserWebResponse(0, user, "");
+            return new UserWebResponse(0, user, null);
         }
 
         private UserWebResponse(int code, User user, String message) {
@@ -83,35 +83,40 @@ public class UserResource {
         }
     }
     
-    public static User getUserFromSession(HttpSession session) {
-        User user;
-        if ((user = (User) session.getAttribute(SESSION_USER)) == null) {
-            throw new TexeraWebException("User has not login yet");
+    public static User getUser(HttpSession session) {
+        return (User) session.getAttribute(SESSION_USER);
+    }
+
+    private static void setUser(HttpSession session, User user) {
+        session.setAttribute(SESSION_USER, user);
+    }
+
+    @GET
+    @Path("/auth/status")
+    public UserWebResponse authStatus(@Session HttpSession session) {
+        User user = getUser(session);
+        if (user == null) {
+            return UserWebResponse.generateErrorResponse("");
+        } else {
+            return UserWebResponse.generateSuccessResponse(user);
         }
-        return user;
     }
 
     @POST
     @Path("/login")
     public UserWebResponse login(@Session HttpSession session, UserLoginRequest request) {
         String userName = request.userName;
-        Pair<Boolean, String> validationResult = validateUsername(userName);
-        if (!validationResult.getLeft()) {
-            return UserWebResponse.generateErrorResponse(validationResult.getRight());
-        }
-
         Condition loginCondition = USERACCOUNT.USERNAME.equal(userName);
         Record1<UInteger> result = getUserID(loginCondition);
 
         if (result == null) { // not found
-            return UserWebResponse.generateErrorResponse("The username or password is incorrect");
-        } else {
-            User account = new User(userName, result.get(USERACCOUNT.USERID));
-            UserWebResponse response = UserWebResponse.generateSuccessResponse(account);
-            setUserSession(session, account);
-            return response;
+            return UserWebResponse.generateErrorResponse("username/password is incorrect");
         }
 
+        User user = new User(userName, result.get(USERACCOUNT.USERID));
+        setUserSession(session, user);
+
+        return UserWebResponse.generateSuccessResponse(user);
     }
 
     @POST
@@ -126,21 +131,21 @@ public class UserResource {
         Condition registerCondition = USERACCOUNT.USERNAME.equal(userName);
         Record1<UInteger> result = getUserID(registerCondition);
 
-        if (result == null) { // userName not found and register is allowed, potential problem for concurrency
-            UseraccountRecord returnID = insertUserAccount(userName);
-            User account = new User(userName, returnID.get(USERACCOUNT.USERID));
-            UserWebResponse response = UserWebResponse.generateSuccessResponse(account);
-            setUserSession(session, account);
-            return response;
-        } else {
+        if (result != null) {
             return UserWebResponse.generateErrorResponse("Username already exists");
         }
+
+        UseraccountRecord returnID = insertUserAccount(userName);
+        User user = new User(userName, returnID.get(USERACCOUNT.USERID));
+        setUserSession(session, user);
+
+        return UserWebResponse.generateSuccessResponse(user);
     }
     
     @GET
     @Path("/logout")
     public GenericWebResponse logOut(@Session HttpSession session) {
-        session.setAttribute(SESSION_USER, null);
+        setUserSession(session, null);
         return new GenericWebResponse(0, "success");
     }
     

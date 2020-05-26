@@ -1,21 +1,26 @@
-import { TestBed, inject } from '@angular/core/testing';
+import { TestBed, inject, fakeAsync, tick } from '@angular/core/testing';
 
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 
 import { UserService } from '../user.service';
-import { StubUserService, STUB_USER_NAME } from '../stub-user.service';
-import { UserFileUploadService, USER_FILE_UPLOAD_URL } from './user-file-upload.service';
+import { UserFileUploadService, USER_FILE_UPLOAD_URL, USER_FILE_VALIDATE_URL } from './user-file-upload.service';
 import { UserFileService } from './user-file.service';
+import { StubUserService, MOCK_USER_ID } from '../stub-user.service';
+import { AppSettings } from 'src/app/common/app-setting';
 
 const arrayOfBlob: Blob[] = Array<Blob>(); // just for test,needed for creating File object.
 const testFileName = 'testTextFile';
 const testFile: File = new File( arrayOfBlob, testFileName, {type: 'text/plain'});
 
 describe('UserFileUploadService', () => {
+
+  let service: UserFileUploadService;
+  let httpMock: HttpTestingController;
+
   beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [
-        { provide: UserService, useClass: StubUserService },
+        {provide: UserService, useClass: StubUserService},
         UserFileService,
         UserFileUploadService
       ],
@@ -23,56 +28,56 @@ describe('UserFileUploadService', () => {
         HttpClientTestingModule
       ]
     });
+    service = TestBed.get(UserFileUploadService);
+    httpMock = TestBed.get(HttpTestingController);
   });
 
-  // afterEach(inject([HttpTestingController], (httpMock: HttpTestingController) => {
-  //   httpMock.verify();
-  // }));
+  afterEach(() => {
+    httpMock.verify();
+  });
 
-  it('should be created', inject([UserFileUploadService, UserFileService, HttpTestingController], (service: UserFileUploadService) => {
+  it('should be created', () => {
     expect(service).toBeTruthy();
-  }));
+  });
 
-  it('should contain no file by default', inject([UserFileUploadService, UserService, UserFileService, HttpTestingController],
-    (service: UserFileUploadService, userService: UserService) => {
-    expect(service.getFileArray().length).toBe(0);
-    expect(() => service.getFileUploadItem(0)).toThrowError();
-  }));
+  it('should contain no file by default', () => {
+    expect(service.getFilesToBeUploaded().length).toBe(0);
+  });
 
-  it('should insert file successfully', inject([UserFileUploadService, UserService, UserFileService, HttpTestingController],
-    (service: UserFileUploadService, userService: UserService) => {
-    service.insertNewFile(testFile);
-    expect(service.getFileArray().length).toBe(1);
-    expect(service.getFileArray()[0]).toEqual(service.getFileUploadItem(0));
-    expect(service.getFileUploadItem(0).file).toEqual(testFile);
-    expect(service.getFileUploadItem(0).name).toEqual(testFileName);
-    expect(service.getFileUploadItem(0).isUploadingFlag).toBeFalsy();
-    expect(() => service.getFileUploadItem(1)).toThrowError();
-  }));
+  it('should insert file successfully', () => {
+    service.addFileToUploadArray(testFile);
+    expect(service.getFilesToBeUploaded().length).toBe(1);
+    expect(service.getFilesToBeUploaded()[0].file).toEqual(testFile);
+    expect(service.getFilesToBeUploaded()[0].name).toEqual(testFileName);
+    expect(service.getFilesToBeUploaded()[0].isUploadingFlag).toBeFalsy();
+  });
 
-  it('should delete file successfully', inject([UserFileUploadService, UserService, UserFileService, HttpTestingController],
-    (service: UserFileUploadService, userService: UserService) => {
-    service.insertNewFile(testFile);
-    expect(service.getFileArray().length).toBe(1);
-    const testFileUploadItem = service.getFileUploadItem(0);
-    service.deleteFile(testFileUploadItem);
-    expect(service.getFileArray().length).toBe(0);
-  }));
+  it('should delete file successfully', () => {
+    service.addFileToUploadArray(testFile);
+    expect(service.getFilesToBeUploaded().length).toBe(1);
+    const testFileUploadItem = service.getFilesToBeUploaded()[0];
+    service.removeFileFromUploadArray(testFileUploadItem);
+    expect(service.getFilesToBeUploaded().length).toBe(0);
+  });
 
-  // TODO writes tests for this service
+  it('should upload file successfully', () => {
+    service.addFileToUploadArray(testFile);
+    expect(service.getFilesToBeUploaded().length).toBe(1);
 
-  // it('should upload file successfully', inject([UserFileUploadService, userService, UserFileService, HttpTestingController],
-  //   (service: UserFileUploadService, userService: userService, userFileService: UserFileService, httpMock: HttpTestingController) => {
-  //   userService.login(STUB_USER_NAME);
-  //   service.insertNewFile(testFile);
-  //   expect(service.getFileArrayLength()).toBe(1);
-  //   service.uploadAllFiles();
+    const userFileService = TestBed.get(UserFileService);
+    const spy = spyOn(userFileService, 'refreshFiles');
 
-  //   spyOn(userFileService, 'refreshFiles');
-  //   expect(userFileService.refreshFiles).toHaveBeenCalled();
+    service.uploadAllFiles();
 
-  //   const req = httpMock.expectOne(`${ppSettings.getApiEndpoint()}/${postFileUrl}/${stubUserID}`);
-  //   expect(req.request.method).toEqual('POST');
-  //   req.flush({code: 0, message: ''});
-  // }));
+    const req1 = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${USER_FILE_VALIDATE_URL}`);
+    expect(req1.request.method).toEqual('POST');
+    req1.flush({code: 0, message: ''});
+
+    const req2 = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${USER_FILE_UPLOAD_URL}`);
+    expect(req2.request.method).toEqual('POST');
+    req2.flush({code: 0, message: ''});
+
+    expect(spy).toHaveBeenCalled();
+  });
+
 });

@@ -27,16 +27,16 @@ export class NgbdModalFileAddComponent implements OnInit {
   ngOnInit() {
   }
 
-  public getFileArray(): FileUploadItem[] {
-    return this.userFileUploadService.getFileArray();
+  public getFileArray(): ReadonlyArray<Readonly<FileUploadItem>> {
+    return this.userFileUploadService.getFilesToBeUploaded();
   }
 
   public getFileArrayLength(): number {
-    return this.userFileUploadService.getFileArray().length;
+    return this.userFileUploadService.getFilesToBeUploaded().length;
   }
 
   public deleteFile(fileUploadItem: FileUploadItem): void {
-    this.userFileUploadService.deleteFile(fileUploadItem);
+    this.userFileUploadService.removeFileFromUploadArray(fileUploadItem);
   }
 
   public uploadAllFiles(): void {
@@ -44,7 +44,7 @@ export class NgbdModalFileAddComponent implements OnInit {
   }
 
   public isUploadAllButtonDisabled(): boolean {
-    return this.userFileUploadService.isAllFilesUploading();
+    return this.userFileUploadService.getFilesToBeUploaded().every(fileUploadItem => fileUploadItem.isUploadingFlag);
   }
 
   public haveFileOver(fileOverEvent: boolean): void {
@@ -55,7 +55,7 @@ export class NgbdModalFileAddComponent implements OnInit {
     for (let i = 0; i < fileDropEvent.length; i++) {
       const fileOrNull: File | null = fileDropEvent.item(i);
       if (this.isFile(fileOrNull) ) {
-        this.userFileUploadService.insertNewFile(fileOrNull);
+        this.userFileUploadService.addFileToUploadArray(fileOrNull);
       }
     }
 
@@ -69,7 +69,7 @@ export class NgbdModalFileAddComponent implements OnInit {
     }
 
     for (let i = 0; i < fileList.length; i++) {
-      this.userFileUploadService.insertNewFile(fileList[i]);
+      this.userFileUploadService.addFileToUploadArray(fileList[i]);
     }
   }
 

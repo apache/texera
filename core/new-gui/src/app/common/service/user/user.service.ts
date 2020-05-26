@@ -2,12 +2,9 @@ import { User, UserWebResponse } from '../../type/user';
 import { AppSettings } from '../../app-setting';
 import { Subject } from 'rxjs/Subject';
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 
 import { Observable } from 'rxjs/Observable';
-import { environment } from '../../../../environments/environment';
-import { EventEmitter } from '@angular/core';
-import { observable, BehaviorSubject } from 'rxjs';
 
 /**
  * User Account Service contains the function of registering and logging the user.
@@ -20,7 +17,7 @@ import { observable, BehaviorSubject } from 'rxjs';
 })
 export class UserService {
 
-  public static readonly TEXERA_USER_LOCALSTORAGE_KEY = 'texera-user';
+  public static readonly AUTH_STATUS_ENDPINT = 'users/auth/status';
   public static readonly LOGIN_ENDPOINT = 'users/login';
   public static readonly REGISTER_ENDPOINT = 'users/register';
   public static readonly LOG_OUT_ENDPOINT = 'users/logout';
@@ -29,17 +26,7 @@ export class UserService {
   private currentUser: User | undefined;
 
   constructor(private http: HttpClient) {
-    const userString: string | null = window.sessionStorage.getItem(UserService.TEXERA_USER_LOCALSTORAGE_KEY);
-    if (userString) {
-      const storedUser = JSON.parse(userString) as User;
-      this.login(storedUser.userName).subscribe(
-        res => {
-          if (res.code !== 0) {
-            window.sessionStorage.removeItem(UserService.TEXERA_USER_LOCALSTORAGE_KEY);
-          }
-        }
-      );
-    }
+    this.loginFromSession();
   }
 
   /**
@@ -120,6 +107,14 @@ export class UserService {
     return this.userChangedSubject.asObservable();
   }
 
+  private loginFromSession(): void {
+    this.http.get<UserWebResponse>(`${AppSettings.getApiEndpoint()}/${UserService.AUTH_STATUS_ENDPINT}`).subscribe(res => {
+      if (res.code === 0) {
+        this.changeUser(res.user);
+      }
+    });
+  }
+
   /**
    * construct the request body as formData and create http request
    * @param userName
@@ -153,13 +148,10 @@ export class UserService {
    * @param user
    */
   private changeUser(user: User | undefined): void {
-    if (user) {
-      window.sessionStorage.setItem(UserService.TEXERA_USER_LOCALSTORAGE_KEY, JSON.stringify(user));
-    } else {
-      window.sessionStorage.removeItem(UserService.TEXERA_USER_LOCALSTORAGE_KEY);
+    if (this.currentUser !== user) {
+      this.currentUser = user;
+      this.userChangedSubject.next(this.currentUser);
     }
-    this.currentUser = user;
-    this.userChangedSubject.next(this.currentUser);
   }
 
   /**

@@ -1,12 +1,12 @@
-import { TestBed, inject } from '@angular/core/testing';
+import { TestBed } from '@angular/core/testing';
 
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { UserFile } from '../../../../dashboard/type/user-file';
-import { environment } from '../../../../../environments/environment';
 
-import { UserFileService } from './user-file.service';
+import { UserFileService, USER_FILE_LIST_URL } from './user-file.service';
 import { UserService } from '../user.service';
-import { StubUserService, STUB_USER_NAME } from '../stub-user.service';
+import { StubUserService, MOCK_USER } from '../stub-user.service';
+import { AppSettings } from 'src/app/common/app-setting';
 
 const id = 1;
 const name = 'testFile';
@@ -22,51 +22,47 @@ const testFile: UserFile = {
 };
 
 describe('UserFileService', () => {
+  let httpMock: HttpTestingController;
+  let service: UserFileService;
+
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [UserFileService,
-      { provide: UserService, useClass: StubUserService }
+      providers: [
+        UserFileService,
+        { provide: UserService, useClass: StubUserService }
       ],
       imports: [
         HttpClientTestingModule
       ]
     });
+    httpMock = TestBed.get(HttpTestingController);
+    service = TestBed.get(UserFileService);
   });
 
-  // afterEach(inject([HttpTestingController], (httpMock: HttpTestingController) => {
-  //   httpMock.verify();
-  // }));
+  afterEach(() => {
+    httpMock.verify();
+  });
 
-  it('should be created', inject([UserFileService, UserService, HttpTestingController],
-    (service: UserFileService) => {
+  it('should be created', () => {
     expect(service).toBeTruthy();
-  }));
+  });
 
-  it('should contain no files by default', inject([UserFileService, UserService, HttpTestingController],
-    (service: UserFileService) => {
+  it('should contain no files by default', () => {
     expect(service.getUserFiles()).toBeFalsy();
-  }));
+  });
 
-  // TODO writes tests for this service
 
-  // it('should refresh file after user login', inject([UserFileService, UserAccountService, HttpTestingController],
-  //   (service: UserFileService, userAccountService: UserAccountService, httpMock: HttpTestingController) => {
-  //   expect(service.getFileArrayLength()).toBe(0);
-  //   spyOn(service, 'refreshFiles').and.callThrough();
-  //   expect(service.refreshFiles).toHaveBeenCalled();
+  it('should refresh file after user login', () => {
+    const spy = spyOn(service, 'refreshFiles').and.callThrough();
 
-  //   userAccountService.loginUser(STUB_USER_NAME).subscribe();
+    const stubUserService: StubUserService = TestBed.get(UserService);
+    stubUserService.userChangedEvent.next(MOCK_USER);
 
-  //       // expect(service.getFileArrayLength()).toEqual(1);
-  //       // expect(service.getFileArray()[0]).toEqual(testFile);
-  //       // expect(service.getFileField(0, 'id')).toEqual(id);
-  //       // expect(service.getFileField(0, 'name')).toEqual(name);
-  //       // expect(service.getFileField(0, 'path')).toEqual(path);
-  //       // expect(service.getFileField(0, 'description')).toEqual(description);
-  //       // expect(service.getFileField(0, 'size')).toEqual(size);
+    expect(spy).toHaveBeenCalled();
 
-  //   const req = httpMock.expectOne(`${ppSettings.getApiEndpoint()}/${getFilesUrl}/${id}`);
-  //   expect(req.request.method).toEqual('GET');
-  //   req.flush([testFile]);
-  // }));
+    const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${USER_FILE_LIST_URL}`);
+    expect(req.request.method).toEqual('GET');
+    req.flush([testFile]);
+  });
+
 });

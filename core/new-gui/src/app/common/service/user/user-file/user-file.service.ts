@@ -21,9 +21,6 @@ export class UserFileService {
     private userService: UserService,
     private http: HttpClient
     ) {
-      if (this.userService.isLogin()) {
-        this.refreshFiles();
-      }
       this.detectUserChanges();
   }
 
@@ -37,7 +34,7 @@ export class UserFileService {
   }
 
   public getUserFilesChangedEvent(): Observable<ReadonlyArray<UserFile> | undefined> {
-    return this.userFilesChanged.asObservable().distinctUntilChanged();
+    return this.userFilesChanged.asObservable();
   }
 
   /**
@@ -108,7 +105,7 @@ export class UserFileService {
 
   private clearUserFile(): void {
     this.userFiles = [];
-    // TODO emit file changed event
+    this.userFilesChanged.next(this.userFiles);
   }
 
 }

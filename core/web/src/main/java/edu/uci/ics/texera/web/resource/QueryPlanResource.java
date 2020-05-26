@@ -36,8 +36,6 @@ import edu.uci.ics.texera.dataflow.sink.tuple.TupleSink;
 import edu.uci.ics.texera.web.TexeraWebException;
 import io.dropwizard.jersey.sessions.Session;
 
-import static edu.uci.ics.texera.web.resource.UserResource.SESSION_USER;
-
 /**
  * This class will be the resource class for accepting a query plan edu.uci.ics.texera.web.request and executing the
  * query plan to get the query response
@@ -63,7 +61,7 @@ public class QueryPlanResource {
     // TODO: investigate how to use LogicalPlan directly
     public JsonNode executeQueryPlan(@Session HttpSession session, String logicalPlanJson) {
         try {
-            UserResource.User user = (UserResource.User) session.getAttribute(SESSION_USER);
+            UserResource.User user = UserResource.getUser(session);
             QueryContext ctx = new QueryContext();
             if (user != null) {
                 ctx.setProjectOwnerID(user.userID.toString());
@@ -246,7 +244,7 @@ public class QueryPlanResource {
     @Path("/autocomplete")
     public JsonNode suggestAutocompleteSchema(@Session HttpSession session, String logicalPlanJson) {
         try {
-            UserResource.User user = (UserResource.User) session.getAttribute(SESSION_USER);
+            UserResource.User user = UserResource.getUser(session);
             QueryContext ctx = new QueryContext();
             if (user != null) {
                 ctx.setProjectOwnerID(user.userID.toString());

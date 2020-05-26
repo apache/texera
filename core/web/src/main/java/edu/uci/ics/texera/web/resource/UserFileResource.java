@@ -77,7 +77,7 @@ public class UserFileResource {
             @FormDataParam("description") String description,
             @Session HttpSession session
             ) {
-        UInteger userID = UserResource.getUserFromSession(session).getUserID();
+        UInteger userID = UserResource.getUser(session).getUserID();
         String fileName = fileDetail.getFileName();
         UInteger sizeUInteger = parseStringToUInteger(size);
         
@@ -93,7 +93,7 @@ public class UserFileResource {
     @GET
     @Path("/list")
     public List<UserFile> listUserFiles(@Session HttpSession session){
-        UInteger userID = UserResource.getUserFromSession(session).getUserID();
+        UInteger userID = UserResource.getUser(session).getUserID();
         
         Result<Record5<UInteger, String, String, String, UInteger>> result = getUserFileRecord(userID);
         
@@ -116,7 +116,7 @@ public class UserFileResource {
     @DELETE
     @Path("/delete/{fileID}")
     public GenericWebResponse deleteUserFile(@PathParam("fileID") String fileID, @Session HttpSession session) {
-        UInteger userID = UserResource.getUserFromSession(session).getUserID();
+        UInteger userID = UserResource.getUser(session).getUserID();
         UInteger fileIdUInteger = parseStringToUInteger(fileID);
         Record1<String> result = deleteInDatabase(fileIdUInteger, userID);
         
@@ -132,7 +132,7 @@ public class UserFileResource {
     @Path("/validate")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     public GenericWebResponse validateUserFile(@Session HttpSession session, @FormDataParam("name") String fileName) {
-        UInteger userID = UserResource.getUserFromSession(session).getUserID();
+        UInteger userID = UserResource.getUser(session).getUserID();
         Pair<Boolean, String> validationResult = validateFileName(fileName, userID);
         return new GenericWebResponse(validationResult.getLeft() ? 0 : 1, validationResult.getRight());
     }
