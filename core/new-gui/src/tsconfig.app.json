@@ -2,7 +2,6 @@
   "extends": "../tsconfig.json",
   "compilerOptions": {
     "outDir": "../out-tsc/app",
-    "baseUrl": "./",
     "module": "es2015",
     // include jqueryui type definition here because Angular does not include it if it's not imported
     "types": ["jqueryui"]

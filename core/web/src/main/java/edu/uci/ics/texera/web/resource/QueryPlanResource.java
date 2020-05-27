@@ -6,6 +6,7 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import javax.servlet.http.HttpSession;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -30,8 +31,10 @@ import edu.uci.ics.texera.api.utils.Utils;
 import edu.uci.ics.texera.dataflow.common.PredicateBase;
 import edu.uci.ics.texera.dataflow.common.PropertyNameConstants;
 import edu.uci.ics.texera.dataflow.plangen.LogicalPlan;
+import edu.uci.ics.texera.dataflow.plangen.QueryContext;
 import edu.uci.ics.texera.dataflow.sink.tuple.TupleSink;
 import edu.uci.ics.texera.web.TexeraWebException;
+import io.dropwizard.jersey.sessions.Session;
 
 /**
  * This class will be the resource class for accepting a query plan edu.uci.ics.texera.web.request and executing the
@@ -56,9 +59,16 @@ public class QueryPlanResource {
     @POST
     @Path("/execute")
     // TODO: investigate how to use LogicalPlan directly
-    public JsonNode executeQueryPlan(String logicalPlanJson) {
+    public JsonNode executeQueryPlan(@Session HttpSession session, String logicalPlanJson) {
         try {
+            UserResource.User user = UserResource.getUser(session);
+            QueryContext ctx = new QueryContext();
+            if (user != null) {
+                ctx.setProjectOwnerID(user.userID.toString());
+            }
+
             LogicalPlan logicalPlan = new ObjectMapper().readValue(logicalPlanJson, LogicalPlan.class);
+            logicalPlan.setContext(ctx);
             Plan plan = logicalPlan.buildQueryPlan();
             ISink sink = plan.getRoot();
             
@@ -232,8 +242,14 @@ public class QueryPlanResource {
     */
     @POST
     @Path("/autocomplete")
-    public JsonNode suggestAutocompleteSchema(String logicalPlanJson) {
+    public JsonNode suggestAutocompleteSchema(@Session HttpSession session, String logicalPlanJson) {
         try {
+            UserResource.User user = UserResource.getUser(session);
+            QueryContext ctx = new QueryContext();
+            if (user != null) {
+                ctx.setProjectOwnerID(user.userID.toString());
+            }
+
             JsonNode logicalPlanNode = new ObjectMapper().readTree(logicalPlanJson);
             ArrayNode operators = (ArrayNode) logicalPlanNode.get(PropertyNameConstants.OPERATOR_LIST);
             ArrayNode links = (ArrayNode) logicalPlanNode.get(PropertyNameConstants.OPERATOR_LINK_LIST);
@@ -251,6 +267,7 @@ public class QueryPlanResource {
             (validLogicalPlanNode).putArray(PropertyNameConstants.OPERATOR_LINK_LIST).addAll(validLinks);
 
             LogicalPlan logicalPlan = new ObjectMapper().treeToValue(validLogicalPlanNode, LogicalPlan.class);
+            logicalPlan.setContext(ctx);
 
             // Get all input schema for valid operator with valid links
             Map<String, List<Schema>> inputSchema = logicalPlan.retrieveAllOperatorInputSchema();
