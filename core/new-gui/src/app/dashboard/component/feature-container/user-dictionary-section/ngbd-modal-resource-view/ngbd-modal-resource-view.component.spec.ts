@@ -6,6 +6,8 @@ import { FormsModule } from '@angular/forms';
 import { HttpClientModule } from '@angular/common/http';
 import { NgbdModalResourceViewComponent } from './ngbd-modal-resource-view.component';
 import { CustomNgMaterialModule } from '../../../../../common/custom-ng-material.module';
+import { UserAccountService } from '../../../../service/user-account/user-account.service';
+import { UserDictionaryService } from '../../../../service/user-dictionary/user-dictionary.service';
 
 describe('NgbdModalResourceViewComponent', () => {
   let component: NgbdModalResourceViewComponent;
@@ -15,7 +17,9 @@ describe('NgbdModalResourceViewComponent', () => {
     TestBed.configureTestingModule({
       declarations: [ NgbdModalResourceViewComponent ],
       providers: [
-        NgbActiveModal
+        NgbActiveModal,
+        UserAccountService,
+        UserDictionaryService
       ],
       imports: [
         CustomNgMaterialModule,

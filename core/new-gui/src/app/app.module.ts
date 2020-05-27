@@ -71,6 +71,8 @@ import { NgbdModalFileAddComponent } from './dashboard/component/feature-contain
 import { UserFileSectionComponent } from './dashboard/component/feature-container/user-file-section/user-file-section.component';
 import { UserFileService } from './common/service/user/user-file/user-file.service';
 import { UserFileUploadService } from './common/service/user/user-file/user-file-upload.service';
+import { UserDictionaryUploadService } from './common/service/user/user-dictionary/user-dictionary-upload.service';
+import { UserDictionaryService } from './common/service/user/user-dictionary/user-dictionary.service';
 
 @NgModule({
   declarations: [
@@ -145,7 +147,9 @@ import { UserFileUploadService } from './common/service/user/user-file/user-file
     HttpClientModule,
     UserService,
     UserFileService,
-    UserFileUploadService
+    UserFileUploadService,
+    UserDictionaryService,
+    UserDictionaryUploadService
   ],
   bootstrap: [AppComponent],
   // dynamically created component must be placed in the entryComponents attribute

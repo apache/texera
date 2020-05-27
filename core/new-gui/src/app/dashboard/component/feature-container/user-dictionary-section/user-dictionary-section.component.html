@@ -13,7 +13,7 @@
           <mat-divider></mat-divider>
         </mat-list>
       </div>
-      <button type="button" class="btn btn-outline-dark add-button" (click)="openNgbdModalResourceAddComponent()">
+      <button type="button" class="btn btn-outline-dark add-button" (click)="openNgbdModalResourceAddComponent()" [disabled] = "disableAddbutton()">
         <i class="fa fa-cloud-upload"></i>
       </button>
     </div>
@@ -25,7 +25,7 @@
         <h2 class="page-title">Dictionaries</h2>
         <br />
         <div class="scroll">
-          <mat-list-item *ngFor="let dictionary of userDictionaries" class="user-dictionary-list-item">
+          <mat-list-item *ngFor="let dictionary of getDictArray()" class="user-dictionary-list-item">
             <ng-template #tipContent>Description: {{dictionary.description}}</ng-template>
             <div class="section-for-tip" placement="bottom" [ngbTooltip]="tipContent">
               <p font-size=10px><span class="dict-name">
@@ -33,7 +33,7 @@
               </p>
               <p>
                 Item Preview:
-                <mat-chip class="preview-item" *ngFor="let item of dictionary.items.slice(0,3)" [selectable]="true" >
+                <mat-chip class="preview-item" *ngFor="let item of dictionary.items.slice(0,6)" [selectable]="true" >
                   {{item}}
                 </mat-chip>
               </p>
