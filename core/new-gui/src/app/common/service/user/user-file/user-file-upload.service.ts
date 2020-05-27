@@ -1,6 +1,6 @@
 import { AppSettings } from '../../../app-setting';
 import { Injectable } from '@angular/core';
-import { FileUploadItem } from '../../../../dashboard/type/user-file';
+import { FileUploadItem } from '../../../type/user-file';
 import { GenericWebResponse } from '../../../../dashboard/type/generic-web-response';
 import { Observable } from 'rxjs';
 import { UserService } from '../user.service';

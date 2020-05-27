@@ -2,7 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { NgbdModalFileAddComponent } from './ngbd-modal-file-add/ngbd-modal-file-add.component';
 import { UserFileService } from '../../../../common/service/user/user-file/user-file.service';
-import { UserFile } from '../../../type/user-file';
+import { UserFile } from '../../../../common/type/user-file';
 import { UserService } from '../../.../../../../common/service/user/user.service';
 
 @Component({

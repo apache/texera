@@ -1,4 +1,4 @@
-import { UserFile } from '../../../../dashboard/type/user-file';
+import { UserFile } from '../../../type/user-file';
 import { AppSettings } from '../../../app-setting';
 import { Injectable } from '@angular/core';
 import { Observable, Subject } from 'rxjs';

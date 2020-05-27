@@ -1,190 +1,320 @@
 package edu.uci.ics.texera.web.resource;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import edu.uci.ics.texera.dataflow.resource.dictionary.DictionaryManager;
-import edu.uci.ics.texera.web.TexeraWebException;
-import edu.uci.ics.texera.web.response.GenericWebResponse;
+import static org.jooq.impl.DSL.defaultValue;
 
-import org.glassfish.jersey.media.multipart.BodyPartEntity;
-import org.glassfish.jersey.media.multipart.FormDataBodyPart;
-import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
-import org.glassfish.jersey.media.multipart.FormDataMultiPart;
-import org.glassfish.jersey.media.multipart.FormDataParam;
-
-import javax.ws.rs.*;
-import javax.ws.rs.core.MediaType;
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.sql.Connection;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
-import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-@Path("/users/dictionaries/")
+import javax.ws.rs.Consumes;
+import javax.ws.rs.DELETE;
+import javax.ws.rs.GET;
+import javax.ws.rs.POST;
+import javax.ws.rs.PUT;
+import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
+import javax.ws.rs.Produces;
+import javax.ws.rs.core.MediaType;
+
+import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
+import org.glassfish.jersey.media.multipart.FormDataParam;
+import org.jooq.DSLContext;
+import org.jooq.Record4;
+import org.jooq.Result;
+import org.jooq.types.UInteger;
+
+import static edu.uci.ics.texera.dataflow.jooq.generated.Tables.*;
+import static org.jooq.impl.DSL.*;
+
+import edu.uci.ics.texera.web.TexeraWebException;
+import edu.uci.ics.texera.web.response.GenericWebResponse;
+import edu.uci.ics.texera.dataflow.sqlServerInfo.UserSqlServer;
+
+
+@Path("/user/dictionary")
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
 public class UserDictionaryResource {
-
+    
     /**
-     * Corresponds to `app/dashboard/service/user-dictionary/user-dictionary.interface.ts`
+     * Corresponds to `src/app/dashboard/type/user-dictionary.ts`
      */
     public static class UserDictionary {
-        public String id;
+        public UInteger id; // the ID in MySQL database is unsigned int
         public String name;
         public List<String> items;
         public String description;
+        
+        public UserDictionary() {} // default constructor reserved for json
 
-        public UserDictionary() { }
-
-        public UserDictionary(String id, String name, List<String> items, String description) {
+        public UserDictionary(UInteger id, String name, List<String> items, String description) {
             this.id = id;
             this.name = name;
             this.items = items;
             this.description = description;
         }
     }
-
+    
     /**
-     * Get the list of dictionary IDs
+     * Corresponds to `src/app/dashboard/type/user-dictionary.ts`
      */
-    @GET
-    public List<UserDictionary> getDictionaries() {
-        DictionaryManager dictionaryManager = DictionaryManager.getInstance();
-        List<UserDictionary> dictionaries = dictionaryManager.getDictionaryIDs().stream()
-                .map(dictID -> new UserDictionary(dictID, dictionaryManager.getDictionaryName(dictID), 
-                		this.entriesFromJson(dictionaryManager.getDictionaryContent(dictID)), 
-                		dictionaryManager.getDictionaryDescription(dictID)))
-                .collect(Collectors.toList());
+    public static class UserManualDictionary {
+        public String name;
+        public String content;
+        public String separator;
+        public String description;
+
+        public UserManualDictionary() { } // default constructor reserved for json
         
-        return dictionaries;
+        public boolean isValid() {
+            return name != null && name.length() != 0 &&
+                    content != null && content.length() != 0 &&
+                    separator != null && description != null;
+        }
     }
-
-    /**
-     * Get the content of dictionary
-     */
+    
+    @PUT
+    @Path("/upload-manual-dict/{userID}")
+    public GenericWebResponse putManualDictionary(
+            @PathParam("userID") String userID,
+            UserManualDictionary userManualDictionary
+    ) {
+        if (userManualDictionary == null || !userManualDictionary.isValid()) {
+            throw new TexeraWebException("Error occurred in user manual dictionary");
+        }
+        UInteger userIdUInteger = parseStringToUInteger(userID);
+        
+        List<String> itemArray = convertStringToList(
+                userManualDictionary.content, 
+                userManualDictionary.separator
+                );
+        byte[] contentByteArray = convertListToByteArray(itemArray);
+        
+        int count = insertDictionaryToDataBase(
+                userManualDictionary.name, 
+                contentByteArray,
+                userManualDictionary.description,
+                userIdUInteger);
+        
+        throwErrorWhenNotOne("Error occurred while inserting dictionary to database", count);
+        
+        return new GenericWebResponse(0, "success");
+    }
+    
+    @POST
+    @Path("/upload/{userID}")
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    public GenericWebResponse putDictionary(
+            @PathParam("userID") String userID,
+            @FormDataParam("file") InputStream uploadedInputStream,
+            @FormDataParam("file") FormDataContentDisposition fileDetail,
+            @FormDataParam("description") String description
+    ) {
+        UInteger userIdUInteger = parseStringToUInteger(userID);
+        String fileName = fileDetail.getFileName();
+        String separator = ",";
+        
+        String content = readFileContent(uploadedInputStream);
+        List<String> itemList = convertStringToList(content, separator);
+        byte[] contentByteArray = convertListToByteArray(itemList);
+        
+        int count = insertDictionaryToDataBase(
+                fileName,
+                contentByteArray,
+                description,
+                userIdUInteger);
+        
+        throwErrorWhenNotOne("Error occurred while inserting dictionary to database", count);
+        
+        return new GenericWebResponse(0, "success");
+    }
+    
     @GET
-    @Path("/{dictionaryID}")
-    public UserDictionary getDictionary(@PathParam("dictionaryID") String dictID) {
-        try {
-            DictionaryManager dictionaryManager = DictionaryManager.getInstance();
-            String dictionaryContent = dictionaryManager.getDictionaryContent(dictID);
-
-            ObjectMapper objectMapper = new ObjectMapper();
-            List<String> dictEntries = objectMapper.readValue(dictionaryContent,
-                    objectMapper.getTypeFactory().constructCollectionType(List.class, String.class));
-
-            return new UserDictionary(dictID, dictionaryManager.getDictionaryName(dictID), dictEntries, 
-            		dictionaryManager.getDictionaryDescription(dictID));
+    @Path("/list/{userID}")
+    public List<UserDictionary> getDictionary(
+            @PathParam("userID") String userID
+    ) {
+        UInteger userIdUInteger = parseStringToUInteger(userID);
+        
+        Result<Record4<UInteger, String, byte[], String>> result = getUserDictionaryRecord(userIdUInteger);
+        
+        if (result == null) return new ArrayList<>();
+        
+        List<UserDictionary> dictionaryList = result.stream()
+                .map(
+                    record -> new UserDictionary(
+                            record.get(USERDICT.DICTID),
+                            record.get(USERDICT.NAME),
+                            convertContentToList(record.get(USERDICT.CONTENT)),
+                            record.get(USERDICT.DESCRIPTION)
+                            )
+                        ).collect(Collectors.toList());
+        
+        return dictionaryList;
+    }
+    
+    @DELETE
+    @Path("/delete/{dictID}")
+    public GenericWebResponse deleteDictionary(
+            @PathParam("dictID") String dictID
+    ) {
+        UInteger dictIdUInteger = parseStringToUInteger(dictID);
+        
+        int count = deleteInDatabase(dictIdUInteger);
+        throwErrorWhenNotOne("delete dictionary " + dictIdUInteger + " failed in database", count);
+        
+        return new GenericWebResponse(0, "success");
+    }
+    
+    @POST
+    @Path("/update")
+    public GenericWebResponse updateDictionary(
+            UserDictionary userDictionary
+    ) {
+        byte[] contentByteArray = convertListToByteArray(userDictionary.items);
+        
+        int count = updateInDatabase(
+                userDictionary.id,
+                userDictionary.name, 
+                contentByteArray,
+                userDictionary.description
+                );
+        
+        throwErrorWhenNotOne("Error occurred while inserting dictionary to database", count);
+        
+        return new GenericWebResponse(0, "success");
+    }
+    
+    private int updateInDatabase(UInteger dictID, String name, byte[] content, String description) {
+        // Connection is AutoCloseable so it will automatically close when it finishes.
+        try (Connection conn = UserSqlServer.getConnection()) {
+            DSLContext create = UserSqlServer.createDSLContext(conn);
+            
+            int count = create
+                    .update(USERDICT)
+                    .set(USERDICT.NAME, name)
+                    .set(USERDICT.CONTENT, content)
+                    .set(USERDICT.DESCRIPTION, description)
+                    .where(USERDICT.DICTID.eq((dictID)))
+                    .execute();
+            
+            return count;
+            
         } catch (Exception e) {
             throw new TexeraWebException(e);
         }
     }
-
-    /**
-     * This method will handle the request to add / update a
-     * 	dictionary in the Lucene database
-     * 
-     * @param dictID
-     * @param userDictionary
-     * @return
-     */
-    @PUT
-    @Path("/{dictionaryID}")
-    public GenericWebResponse putDictionary(
-            @PathParam("dictionaryID") String dictID,
-            UserDictionary userDictionary
-    ) {
-        DictionaryManager dictionaryManager = DictionaryManager.getInstance();
-        List<String> dictIDs = dictionaryManager.getDictionaryIDs();
-        if (dictIDs.contains(dictID)) {
-            dictionaryManager.deleteDictionary(dictID);
+    
+    private int deleteInDatabase(UInteger dictID) {
+        // Connection is AutoCloseable so it will automatically close when it finishes.
+        try (Connection conn = UserSqlServer.getConnection()) {
+            DSLContext create = UserSqlServer.createDSLContext(conn);
+            
+            int count = create
+                    .delete(USERDICT)
+                    .where(USERDICT.DICTID.eq(dictID))
+                    .execute();
+            
+            return count;
+            
+        } catch (Exception e) {
+            throw new TexeraWebException(e);
         }
-        
-        dictionaryManager.addDictionary(dictID, entriesToJson(userDictionary.items), userDictionary.name, userDictionary.description);
-
-        return new GenericWebResponse(0, "success");
     }
-
-    /**
-     * This method will handle the request to delete a
-     * 	dictionary instance in the Lucene database.
-     * 
-     * @param dictID
-     * @return
-     */
-    @DELETE
-    @Path("/{dictionaryID}")
-    public GenericWebResponse deleteDictionary(
-            @PathParam("dictionaryID") String dictID
-    ) {
-        DictionaryManager dictionaryManager = DictionaryManager.getInstance();
-        List<String> dictIDs = dictionaryManager.getDictionaryIDs();
-        if (dictIDs.contains(dictID)) {
-            dictionaryManager.deleteDictionary(dictID);
+    
+    private Result<Record4<UInteger, String, byte[], String>> getUserDictionaryRecord(UInteger userID) {
+        // Connection is AutoCloseable so it will automatically close when it finishes.
+        try (Connection conn = UserSqlServer.getConnection()) {
+            DSLContext create = UserSqlServer.createDSLContext(conn);
+            
+            Result<Record4<UInteger, String, byte[], String>> result = create
+                    .select(USERDICT.DICTID, USERDICT.NAME, USERDICT.CONTENT, USERDICT.DESCRIPTION)
+                    .from(USERDICT)
+                    .where(USERDICT.USERID.equal(userID))
+                    .fetch();
+            
+            return result;
+            
+        } catch (Exception e) {
+            throw new TexeraWebException(e);
         }
-        return new GenericWebResponse(0, "success");
     }
-
-
+    
+    private int insertDictionaryToDataBase(String name, byte[] content, String description, UInteger userID) {
+        // Connection is AutoCloseable so it will automatically close when it finishes.
+        try (Connection conn = UserSqlServer.getConnection()) {
+            DSLContext create = UserSqlServer.createDSLContext(conn);
+            
+            int count = create.insertInto(USERDICT)
+                    .set(USERDICT.USERID,userID)
+                    .set(USERDICT.DICTID, defaultValue(USERDICT.DICTID))
+                    .set(USERDICT.NAME, name)
+                    .set(USERDICT.CONTENT, content)
+                    .set(USERDICT.DESCRIPTION, description)
+                    .execute();
+            
+            return count;
+            
+        } catch (Exception e) {
+            throw new TexeraWebException(e);
+        }
+    }
+    
     /**
-     * This method will handle the request to upload a single file.
-     * 
-     * @param uploadedInputStream
-     * @param fileDetail
+     * write the whole list into the byte array.
+     * @param list
      * @return
      */
-    @POST
-    @Path("/upload-file")
-    @Consumes(MediaType.MULTIPART_FORM_DATA)
-    public GenericWebResponse uploadDictionaryFile(
-            @FormDataParam("file") InputStream uploadedInputStream,
-            @FormDataParam("file") FormDataContentDisposition fileDetail) {
-
-        String fileName = fileDetail.getFileName();
-        this.handleDictionaryUpload(uploadedInputStream, fileName);
-
-        return new GenericWebResponse(0, "success");
+    private byte[] convertListToByteArray(List<String> list) {
+            try(
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                ObjectOutputStream objOstream = new ObjectOutputStream(baos))
+            {
+                objOstream.writeObject(list);
+                return baos.toByteArray();
+            }
+            catch (Exception e){
+                throw new TexeraWebException("Error when converting list of dictionary items into byte array");
+            }
     }
     
-    
     /**
-     * This method will handle the request to upload multiple files
-     * 
-     * @param multiPart
+     * convert the input byte array to the list of string
+     * the result list is converted back from byte array so it is unchecked.
+     * @param content
      * @return
      */
-    @POST
-    @Path("upload-files")
-    @Consumes(MediaType.MULTIPART_FORM_DATA)
-    public GenericWebResponse uploadDictionaryFiles (
-    		FormDataMultiPart multiPart) {
-    	
-		List<FormDataBodyPart> formBodyParts = multiPart.getFields("files");
-
-		for (int i = 0; i < formBodyParts.size(); i++) {
-			BodyPartEntity bodyPartEntity = (BodyPartEntity) formBodyParts.get(i).getEntity();
-			String fileName = formBodyParts.get(i).getContentDisposition().getFileName();
-			InputStream fileStream = bodyPartEntity.getInputStream();
-			this.handleDictionaryUpload(fileStream, fileName);
-		}
-
-    	return new GenericWebResponse(0, "success");
+    @SuppressWarnings("unchecked")
+    private List<String> convertContentToList(byte[] content) {
+        try(
+                ByteArrayInputStream bais = new ByteArrayInputStream(content);
+                ObjectInputStream ois = new ObjectInputStream(bais)){
+            return (ArrayList<String>) ois.readObject();
+        } catch (Exception e) {
+            throw new TexeraWebException(e);
+        }
     }
     
-    /**
-     * This method will handle the single file upload to the Lucene database.
-     * 
-     * It will first read the dictionary contents from the input stream. Then,
-     * 	it will remove duplicate entries and store its contents inside the Lucene
-     * 	database based on the data we fetched from input stream.
-     * 
-     * @param fileStream
-     * @param fileName
-     */
-    private void handleDictionaryUpload(InputStream fileStream, String fileName) {
+    private UInteger parseStringToUInteger(String userID) throws TexeraWebException {
+        try {
+            return UInteger.valueOf(userID);
+        } catch (NumberFormatException e) {
+            throw new TexeraWebException("Incorrect String to long");
+        }
+    }
+    
+    private String readFileContent(InputStream fileStream) {
         StringBuilder fileContents = new StringBuilder();
         String line;
         try (BufferedReader br = new BufferedReader(new InputStreamReader(fileStream))) {
@@ -192,54 +322,30 @@ public class UserDictionaryResource {
                 fileContents.append(line);
             }
         } catch (IOException e) {
-            throw new TexeraWebException("Error occurred while uploading dictionary");
+            throw new TexeraWebException(e);
         }
-
-        
-        String contents = fileContents.toString();
-        List<String> dictEntriesWithDup = Arrays.asList(contents.split(",")).stream().map(s -> s.trim())
-        		.filter(s -> !s.isEmpty()).collect(Collectors.toList());
- 
-        Set<String> dictEntriesWithoutDup = new HashSet<String> (dictEntriesWithDup);
-        List<String> dictEntries = new ArrayList<String> (dictEntriesWithoutDup);
-
-        // save the dictionary
-        DictionaryManager dictionaryManager = DictionaryManager.getInstance();
-        String randomDictionaryID = "dictionary-" + UUID.randomUUID().toString();
-        dictionaryManager.addDictionary(randomDictionaryID, entriesToJson(dictEntries), fileName, "");
+        return fileContents.toString();
     }
-
-
-    /**
-     * This method serializes dictionary entries to JSON string.
-     * 
-     * @param dictEntries
-     * @return
-     */
-    private String entriesToJson(List<String> dictEntries) {
-        try {
-            return new ObjectMapper().writeValueAsString(dictEntries);
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
+    
+    private List<String> convertStringToList(String content, String separator) {
+        return Stream.of(
+                    content.trim().split(separator)
+                )
+                .filter(s -> !s.isEmpty())
+                .distinct()
+                .collect(Collectors.toList());
     }
     
     /**
-     * This method deserializes JSON strings to a list of
-     * 	dictionary entries.
-     * 
-     * @param entriesJson
-     * @return
+     * Most the sql operation should only be executed once. eg. insertion, deletion.
+     * this method will raise TexeraWebException when the input number is not one
+     * @param errorMessage
+     * @param count
+     * @throws TexeraWebException
      */
-    private List<String> entriesFromJson(String entriesJson) {
-        try {
-            ObjectMapper objectMapper = new ObjectMapper();
-            return objectMapper.readValue(entriesJson,
-                    objectMapper.getTypeFactory().constructCollectionType(List.class, String.class));
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
+    private void throwErrorWhenNotOne(String errorMessage, int count) throws TexeraWebException {
+        if (count != 1) {
+            throw new TexeraWebException(errorMessage);
         }
     }
-
-
 }

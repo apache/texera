@@ -5,6 +5,7 @@ package edu.uci.ics.texera.dataflow.jooq.generated;
 
 
 import edu.uci.ics.texera.dataflow.jooq.generated.tables.Useraccount;
+import edu.uci.ics.texera.dataflow.jooq.generated.tables.Userdict;
 import edu.uci.ics.texera.dataflow.jooq.generated.tables.Userfile;
 
 import java.util.ArrayList;
@@ -22,7 +23,7 @@ import org.jooq.impl.SchemaImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Texera extends SchemaImpl {
 
-    private static final long serialVersionUID = -1733863393;
+    private static final long serialVersionUID = -398729029;
 
     /**
      * The reference instance of <code>texera</code>
@@ -33,6 +34,11 @@ public class Texera extends SchemaImpl {
      * The table <code>texera.useraccount</code>.
      */
     public final Useraccount USERACCOUNT = edu.uci.ics.texera.dataflow.jooq.generated.tables.Useraccount.USERACCOUNT;
+
+    /**
+     * The table <code>texera.userdict</code>.
+     */
+    public final Userdict USERDICT = edu.uci.ics.texera.dataflow.jooq.generated.tables.Userdict.USERDICT;
 
     /**
      * The table <code>texera.userfile</code>.
@@ -62,6 +68,7 @@ public class Texera extends SchemaImpl {
     private final List<Table<?>> getTables0() {
         return Arrays.<Table<?>>asList(
             Useraccount.USERACCOUNT,
+            Userdict.USERDICT,
             Userfile.USERFILE);
     }
 }
