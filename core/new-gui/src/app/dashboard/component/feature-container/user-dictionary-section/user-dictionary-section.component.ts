@@ -30,7 +30,7 @@ export class UserDictionarySectionComponent {
     private userService: UserService,
     private modalService: NgbModal
   ) {
-    this.userDictionaryService.refreshDictionary();
+    this.userDictionaryService.refreshDictionaries();
   }
 
   /**
@@ -134,12 +134,11 @@ export class UserDictionarySectionComponent {
     return !this.userService.isLogin();
   }
 
-  public getDictArray(): UserDictionary[] {
-    return this.userDictionaryService.getDictionaryArray();
+  public getDictArray(): ReadonlyArray<UserDictionary> {
+    const dictionaryArray = this.userDictionaryService.getUserDictionaries();
+    if (!dictionaryArray) {
+      return [];
+    }
+    return dictionaryArray;
   }
-
-  public getDictArrayLength(): number {
-    return this.userDictionaryService.getDictionaryArrayLength();
-  }
-
 }

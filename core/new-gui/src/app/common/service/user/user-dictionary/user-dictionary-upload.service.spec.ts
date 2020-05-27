@@ -72,7 +72,7 @@ describe('UserDictionaryUploadService', () => {
       expect(service.getDictionaryUploadItem(0).file).toEqual(testTextDictionaryA);
       expect(service.getDictionaryUploadItem(0).name).toEqual(testDictionaryNameA);
       expect(service.getDictionaryUploadItem(0).description).toEqual('');
-      expect(service.getDictionaryArray()[0]).toEqual(service.getDictionaryUploadItem(0));
+      expect(service.getDictionariesToBeUploaded()[0]).toEqual(service.getDictionaryUploadItem(0));
   }));
 
   it('should insert multiple file successfully', inject([UserDictionaryUploadService, UserAccountService, UserDictionaryService, HttpTestingController],

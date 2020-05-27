@@ -61,16 +61,16 @@ export class NgbdModalResourceAddComponent {
     this.isInUploadFileTab = (event.tab.textLabel === 'Upload');
   }
 
-  public getDictionaryArray(): DictionaryUploadItem[] {
-    return this.userDictionaryUploadService.getDictionaryArray();
+  public getDictionaryArray(): ReadonlyArray<Readonly<DictionaryUploadItem>> {
+    return this.userDictionaryUploadService.getDictionariesToBeUploaded();
   }
 
   public getDictionaryArrayLength(): number {
-    return this.userDictionaryUploadService.getDictionaryArrayLength();
+    return this.userDictionaryUploadService.getDictionariesToBeUploaded().length;
   }
 
   public deleteDictionary(dictionaryUploadItem: DictionaryUploadItem): void {
-    this.userDictionaryUploadService.deleteDictionary(dictionaryUploadItem);
+    this.userDictionaryUploadService.removeFileFromUploadArray(dictionaryUploadItem);
   }
 
   /**
@@ -80,15 +80,15 @@ export class NgbdModalResourceAddComponent {
    *
    */
   public isManualDictionaryValid(): boolean {
-    return this.userDictionaryUploadService.isManualDictionaryValid();
+    return this.userDictionaryUploadService.validateManualDictionary();
   }
 
   public isItemValid(dictionaryUploadItem: DictionaryUploadItem): boolean {
-    return this.userDictionaryUploadService.isItemValid(dictionaryUploadItem);
+    return this.userDictionaryUploadService.validateDictionaryUploadItem(dictionaryUploadItem);
   }
 
   public isUploadEnable(): boolean {
-    return this.userDictionaryUploadService.isAllItemsValid();
+    return this.userDictionaryUploadService.validateAllDictionaryUploadItems();
   }
 
   /**
@@ -102,7 +102,7 @@ export class NgbdModalResourceAddComponent {
     }
 
     for (let i = 0; i < fileList.length; i++) {
-      this.userDictionaryUploadService.insertNewDictionary(fileList[i]);
+      this.userDictionaryUploadService.addDictionaryToUploadArray(fileList[i]);
     }
   }
 
@@ -110,7 +110,7 @@ export class NgbdModalResourceAddComponent {
    * this method handles the event when user click the upload button in the upload part.
    */
   public clickUploadDictionaryButton(): void {
-    this.userDictionaryUploadService.uploadAllDictionary();
+    this.userDictionaryUploadService.uploadAllDictionaries();
   }
 
   /**
@@ -140,7 +140,7 @@ export class NgbdModalResourceAddComponent {
     for (let i = 0; i < fileDropEvent.length; i++) {
       const fileOrNull: File | null = fileDropEvent.item(i);
       if (this.isFile(fileOrNull) ) {
-        this.userDictionaryUploadService.insertNewDictionary(fileOrNull);
+        this.userDictionaryUploadService.addDictionaryToUploadArray(fileOrNull);
       }
     }
 

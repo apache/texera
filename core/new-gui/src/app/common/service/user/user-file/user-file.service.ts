@@ -4,7 +4,7 @@ import { Injectable } from '@angular/core';
 import { Observable, Subject } from 'rxjs';
 import { HttpClient } from '@angular/common/http';
 
-import { GenericWebResponse } from '../../../../dashboard/type/generic-web-response';
+import { GenericWebResponse } from '../../../type/generic-web-response';
 import { UserService } from '../user.service';
 
 export const USER_FILE_LIST_URL = 'user/file/list';
@@ -18,8 +18,8 @@ export class UserFileService {
   private userFilesChanged = new Subject<ReadonlyArray<UserFile> | undefined> ();
 
   constructor(
-    private userService: UserService,
-    private http: HttpClient
+    private http: HttpClient,
+    private userService: UserService
     ) {
       this.detectUserChanges();
   }

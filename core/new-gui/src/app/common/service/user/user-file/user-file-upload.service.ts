@@ -1,7 +1,7 @@
 import { AppSettings } from '../../../app-setting';
 import { Injectable } from '@angular/core';
 import { FileUploadItem } from '../../../type/user-file';
-import { GenericWebResponse } from '../../../../dashboard/type/generic-web-response';
+import { GenericWebResponse, GenericWebResponseCode } from '../../../type/generic-web-response';
 import { Observable } from 'rxjs';
 import { UserService } from '../user.service';
 import { HttpClient, HttpEventType, HttpResponse, HttpEvent } from '@angular/common/http';
@@ -57,10 +57,11 @@ export class UserFileUploadService {
   public uploadAllFiles(): void {
     this.fileUploadItemArray.filter(fileUploadItem => !fileUploadItem.isUploadingFlag).forEach(
       fileUploadItem => this.validateAndUploadFile(fileUploadItem).subscribe((response) => {
-        if (response.code === 0) {
+        if (response.code === GenericWebResponseCode.SUCCESS) {
           this.removeFileFromUploadArray(fileUploadItem);
           this.userFileService.refreshFiles();
         } else {
+          // TODO: user friendly error message.
           alert(`Uploading file ${fileUploadItem.name} failed\nMessage: ${response.message}`);
         }
       })
@@ -74,7 +75,7 @@ export class UserFileUploadService {
     return this.http.post<GenericWebResponse>(
       `${AppSettings.getApiEndpoint()}/${USER_FILE_VALIDATE_URL}`, formData).flatMap(
         res => {
-          if (res.code === 0) {
+          if (res.code === GenericWebResponseCode.SUCCESS) {
             return this.uploadFile(fileUploadItem);
           } else {
             return Observable.of(res);
