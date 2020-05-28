@@ -5,10 +5,8 @@ import { Observable } from 'rxjs/Observable';
 import { AppSettings } from '../../../app-setting';
 
 import { UserDictionary } from '../../../type/user-dictionary';
-import { environment } from '../../../../../environments/environment';
 import { GenericWebResponse } from '../../../type/generic-web-response';
 import { UserService } from '../user.service';
-import { User } from '../../../type/user';
 
 export const USER_DICTIONARY_LIST_URL = 'user/dictionary/list';
 export const USER_DICTIONARY_DELETE_URL = 'user/dictionary/delete';
@@ -47,7 +45,7 @@ export class UserDictionaryService {
   public refreshDictionaries(): void {
     if (!this.userService.isLogin()) {return; }
 
-    this.getDictionaryHttpRequest().subscribe(
+    this.http.get<UserDictionary[]>(`${AppSettings.getApiEndpoint()}/${USER_DICTIONARY_LIST_URL}`).subscribe(
       dictionaries => {
         this.userDictionaries = dictionaries;
         this.userDictionariesChanged.next(this.userDictionaries);
@@ -56,7 +54,7 @@ export class UserDictionaryService {
   }
 
   public deleteDictionary(dictID: number) {
-    this.deleteDictionaryHttpRequest(dictID).subscribe(
+    this.http.delete<GenericWebResponse>(`${AppSettings.getApiEndpoint()}/${USER_DICTIONARY_DELETE_URL}/${dictID}`).subscribe(
       () => this.refreshDictionaries()
     );
   }
@@ -66,29 +64,14 @@ export class UserDictionaryService {
    * @param userDictionary
    */
   public updateDictionary(userDictionary: UserDictionary): void {
-    this.updateDictionaryHttpRequest(userDictionary)
-      .subscribe(
+    this.http.put<GenericWebResponse>(`${AppSettings.getApiEndpoint()}/${USER_DICTIONARY_UPDATE_URL}`,
+      JSON.stringify(userDictionary), {
+        headers: new HttpHeaders({
+          'Content-Type':  'application/json',
+        })
+      }).subscribe(
         () => this.refreshDictionaries()
       );
-  }
-
-  private getDictionaryHttpRequest(): Observable<UserDictionary[]> {
-    return this.http.get<UserDictionary[]>(`${AppSettings.getApiEndpoint()}/${USER_DICTIONARY_LIST_URL}`);
-  }
-
-  private deleteDictionaryHttpRequest(dictID: number): Observable<GenericWebResponse> {
-    return this.http.delete<GenericWebResponse>(`${AppSettings.getApiEndpoint()}/${USER_DICTIONARY_DELETE_URL}/${dictID}`);
-  }
-
-  private updateDictionaryHttpRequest(userDictionary: UserDictionary): Observable<GenericWebResponse> {
-    return this.http.post<GenericWebResponse>(`${AppSettings.getApiEndpoint()}/${USER_DICTIONARY_UPDATE_URL}`,
-    JSON.stringify(userDictionary),
-    {
-      headers: new HttpHeaders({
-        'Content-Type':  'application/json',
-      })
-    }
-    );
   }
 
   /**

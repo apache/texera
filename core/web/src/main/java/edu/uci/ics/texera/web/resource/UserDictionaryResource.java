@@ -28,6 +28,7 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.glassfish.jersey.media.multipart.FormDataParam;
 import org.jooq.DSLContext;
@@ -124,15 +125,20 @@ public class UserDictionaryResource {
             @FormDataParam("description") String description
     ) {
         UInteger userID = UserResource.getUser(session).getUserID();
-        String fileName = fileDetail.getFileName();
+        String dictName = fileDetail.getFileName();
         String separator = ",";
+        
+        Pair<Boolean, String> validationResult = validateDictionaryName(dictName, userID);
+        if (!validationResult.getLeft()) {
+            return new GenericWebResponse(1, validationResult.getRight());
+        }
         
         String content = readFileContent(uploadedInputStream);
         List<String> itemList = convertStringToList(content, separator);
         byte[] contentByteArray = convertListToByteArray(itemList);
         
         int count = insertDictionaryToDataBase(
-                fileName,
+                dictName,
                 contentByteArray,
                 description,
                 userID);
@@ -181,7 +187,7 @@ public class UserDictionaryResource {
         return GenericWebResponse.generateSuccessResponse();
     }
     
-    @POST
+    @PUT
     @Path("/update")
     public GenericWebResponse updateDictionary(
             @Session HttpSession session,
@@ -197,6 +203,34 @@ public class UserDictionaryResource {
         throwErrorWhenNotOne("Error occurred while inserting dictionary to database", count);
         
         return GenericWebResponse.generateSuccessResponse();
+    }
+    
+    private Pair<Boolean, String> validateDictionaryName(String dictName, UInteger userID) {
+        if (dictName == null) {
+            return Pair.of(false, "dictionary name cannot be null");
+        } else if (dictName.trim().isEmpty()) {
+            return Pair.of(false, "dictionary name cannot be empty");
+        } else if (isDictionaryNameExisted(dictName, userID)){
+            return Pair.of(false, "dictionary name already exists");
+        } else {
+            return Pair.of(true, "dictionary validation success");
+        }
+    }
+    
+    private Boolean isDictionaryNameExisted(String dictName, UInteger userID) {
+        try (Connection conn = UserSqlServer.getConnection()) {
+            DSLContext create = UserSqlServer.createDSLContext(conn);
+            
+            boolean result = create
+                    .fetchExists(
+                            create.selectFrom(USERDICT)
+                            .where(USERDICT.USERID.equal(userID)
+                                    .and(USERDICT.NAME.equal(dictName)))
+                            );
+            return result;
+        } catch (Exception e) {
+            throw new TexeraWebException(e);
+        }
     }
     
     private int updateInDatabase(UserDictionary userDictionary, UInteger userID) {

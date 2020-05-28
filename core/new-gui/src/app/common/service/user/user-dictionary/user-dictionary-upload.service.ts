@@ -4,8 +4,6 @@ import { Observable } from 'rxjs';
 import { AppSettings } from 'src/app/common/app-setting';
 
 import { GenericWebResponse, GenericWebResponseCode } from '../../../type/generic-web-response';
-import { environment } from '../../../../../environments/environment';
-import { User } from '../../../type/user';
 import { UserDictionaryService } from './user-dictionary.service';
 import { ManualDictionaryUploadItem, DictionaryUploadItem } from '../../../type/user-dictionary';
 import { UserService } from '../user.service';
@@ -165,7 +163,7 @@ export class UserDictionaryUploadService {
     formData.append('description', dictionaryUploadItem.description);
 
     return this.http.post<GenericWebResponse>(
-      `${environment.apiUrl}/${USER_DICTIONARY_UPLOAD_URL}`,
+      `${AppSettings.getApiEndpoint()}/${USER_DICTIONARY_UPLOAD_URL}`,
       formData
       );
   }
