@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import javax.servlet.http.HttpSession;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
@@ -39,6 +40,7 @@ import static org.jooq.impl.DSL.*;
 
 import edu.uci.ics.texera.web.TexeraWebException;
 import edu.uci.ics.texera.web.response.GenericWebResponse;
+import io.dropwizard.jersey.sessions.Session;
 import edu.uci.ics.texera.dataflow.sqlServerInfo.UserSqlServer;
 
 
@@ -85,15 +87,15 @@ public class UserDictionaryResource {
     }
     
     @PUT
-    @Path("/upload-manual-dict/{userID}")
+    @Path("/upload-manual-dict")
     public GenericWebResponse putManualDictionary(
-            @PathParam("userID") String userID,
+            @Session HttpSession session,
             UserManualDictionary userManualDictionary
     ) {
         if (userManualDictionary == null || !userManualDictionary.isValid()) {
             throw new TexeraWebException("Error occurred in user manual dictionary");
         }
-        UInteger userIdUInteger = parseStringToUInteger(userID);
+        UInteger userID = UserResource.getUser(session).getUserID();
         
         List<String> itemArray = convertStringToList(
                 userManualDictionary.content, 
@@ -105,7 +107,7 @@ public class UserDictionaryResource {
                 userManualDictionary.name, 
                 contentByteArray,
                 userManualDictionary.description,
-                userIdUInteger);
+                userID);
         
         throwErrorWhenNotOne("Error occurred while inserting dictionary to database", count);
         
@@ -113,15 +115,15 @@ public class UserDictionaryResource {
     }
     
     @POST
-    @Path("/upload/{userID}")
+    @Path("/upload")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     public GenericWebResponse putDictionary(
-            @PathParam("userID") String userID,
+            @Session HttpSession session,
             @FormDataParam("file") InputStream uploadedInputStream,
             @FormDataParam("file") FormDataContentDisposition fileDetail,
             @FormDataParam("description") String description
     ) {
-        UInteger userIdUInteger = parseStringToUInteger(userID);
+        UInteger userID = UserResource.getUser(session).getUserID();
         String fileName = fileDetail.getFileName();
         String separator = ",";
         
@@ -133,7 +135,7 @@ public class UserDictionaryResource {
                 fileName,
                 contentByteArray,
                 description,
-                userIdUInteger);
+                userID);
         
         throwErrorWhenNotOne("Error occurred while inserting dictionary to database", count);
         
@@ -141,13 +143,13 @@ public class UserDictionaryResource {
     }
     
     @GET
-    @Path("/list/{userID}")
+    @Path("/list")
     public List<UserDictionary> getDictionary(
-            @PathParam("userID") String userID
+            @Session HttpSession session
     ) {
-        UInteger userIdUInteger = parseStringToUInteger(userID);
+        UInteger userID = UserResource.getUser(session).getUserID();
         
-        Result<Record4<UInteger, String, byte[], String>> result = getUserDictionaryRecord(userIdUInteger);
+        Result<Record4<UInteger, String, byte[], String>> result = getUserDictionaryRecord(userID);
         
         if (result == null) return new ArrayList<>();
         
@@ -167,11 +169,13 @@ public class UserDictionaryResource {
     @DELETE
     @Path("/delete/{dictID}")
     public GenericWebResponse deleteDictionary(
+            @Session HttpSession session,
             @PathParam("dictID") String dictID
     ) {
         UInteger dictIdUInteger = parseStringToUInteger(dictID);
+        UInteger userID = UserResource.getUser(session).getUserID();
         
-        int count = deleteInDatabase(dictIdUInteger);
+        int count = deleteInDatabase(dictIdUInteger, userID);
         throwErrorWhenNotOne("delete dictionary " + dictIdUInteger + " failed in database", count);
         
         return new GenericWebResponse(0, "success");
@@ -180,15 +184,14 @@ public class UserDictionaryResource {
     @POST
     @Path("/update")
     public GenericWebResponse updateDictionary(
+            @Session HttpSession session,
             UserDictionary userDictionary
     ) {
-        byte[] contentByteArray = convertListToByteArray(userDictionary.items);
+        UInteger userID = UserResource.getUser(session).getUserID();
         
         int count = updateInDatabase(
-                userDictionary.id,
-                userDictionary.name, 
-                contentByteArray,
-                userDictionary.description
+                userDictionary,
+                userID
                 );
         
         throwErrorWhenNotOne("Error occurred while inserting dictionary to database", count);
@@ -196,17 +199,17 @@ public class UserDictionaryResource {
         return new GenericWebResponse(0, "success");
     }
     
-    private int updateInDatabase(UInteger dictID, String name, byte[] content, String description) {
+    private int updateInDatabase(UserDictionary userDictionary, UInteger userID) {
         // Connection is AutoCloseable so it will automatically close when it finishes.
         try (Connection conn = UserSqlServer.getConnection()) {
             DSLContext create = UserSqlServer.createDSLContext(conn);
             
             int count = create
                     .update(USERDICT)
-                    .set(USERDICT.NAME, name)
-                    .set(USERDICT.CONTENT, content)
-                    .set(USERDICT.DESCRIPTION, description)
-                    .where(USERDICT.DICTID.eq((dictID)))
+                    .set(USERDICT.NAME, userDictionary.name)
+                    .set(USERDICT.CONTENT, convertListToByteArray(userDictionary.items))
+                    .set(USERDICT.DESCRIPTION, userDictionary.description)
+                    .where(USERDICT.DICTID.eq(userDictionary.id).and(USERDICT.USERID.eq(userID)))
                     .execute();
             
             return count;
@@ -216,14 +219,14 @@ public class UserDictionaryResource {
         }
     }
     
-    private int deleteInDatabase(UInteger dictID) {
+    private int deleteInDatabase(UInteger dictID, UInteger userID) {
         // Connection is AutoCloseable so it will automatically close when it finishes.
         try (Connection conn = UserSqlServer.getConnection()) {
             DSLContext create = UserSqlServer.createDSLContext(conn);
             
             int count = create
                     .delete(USERDICT)
-                    .where(USERDICT.DICTID.eq(dictID))
+                    .where(USERDICT.DICTID.eq(dictID).and(USERDICT.USERID.eq(userID)))
                     .execute();
             
             return count;

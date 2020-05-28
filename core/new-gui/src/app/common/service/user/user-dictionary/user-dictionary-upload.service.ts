@@ -17,7 +17,7 @@ const USER_MANUAL_DICTIONARY_UPLOAD_URL = 'user/dictionary/upload-manual-dict';
   providedIn: 'root'
 })
 export class UserDictionaryUploadService {
-  public manualDictionary: ManualDictionaryUploadItem = UserDictionaryUploadService.createEmptyManualDictionary();
+  private manualDictionary: ManualDictionaryUploadItem = UserDictionaryUploadService.createEmptyManualDictionary();
   private dictionaryUploadItemArray: DictionaryUploadItem[] = [];
 
   constructor(
@@ -35,6 +35,10 @@ export class UserDictionaryUploadService {
    */
   public getDictionariesToBeUploaded(): ReadonlyArray<Readonly<DictionaryUploadItem>> {
     return this.dictionaryUploadItemArray;
+  }
+
+  public getManualDictionary(): ManualDictionaryUploadItem {
+    return this.manualDictionary;
   }
 
   /**
@@ -100,6 +104,9 @@ export class UserDictionaryUploadService {
             // TODO: user friendly error message.
             alert(`Uploading dictionary ${dictionaryUploadItem.name} failed\nMessage: ${res.message}`);
           }
+        }, error => {
+          console.log(error);
+          dictionaryUploadItem.isUploadingFlag = false;
         }
       )
     );

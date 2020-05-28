@@ -4,7 +4,7 @@ import { MatTabChangeEvent, ErrorStateMatcher } from '@angular/material';
 import { FormControl, FormGroupDirective, NgForm, Validators } from '@angular/forms';
 
 import { FileUploader} from 'ng2-file-upload';
-import { DictionaryUploadItem } from '../../../../../common/type/user-dictionary';
+import { DictionaryUploadItem, ManualDictionaryUploadItem } from '../../../../../common/type/user-dictionary';
 import { UserDictionaryUploadService } from '../../../../../common/service/user/user-dictionary/user-dictionary-upload.service';
 
 
@@ -83,14 +83,22 @@ export class NgbdModalResourceAddComponent {
     return this.userDictionaryUploadService.validateManualDictionary();
   }
 
+  public getManualDictionary(): ManualDictionaryUploadItem {
+    return this.userDictionaryUploadService.getManualDictionary();
+  }
+
   public isItemValid(dictionaryUploadItem: DictionaryUploadItem): boolean {
     return this.userDictionaryUploadService.validateDictionaryUploadItem(dictionaryUploadItem);
   }
 
-  public isUploadEnable(): boolean {
+  public validateAllDictionaryUploadItems(): boolean {
     return this.userDictionaryUploadService.validateAllDictionaryUploadItems();
   }
 
+  public isAllItemsUploading(): boolean {
+    return this.userDictionaryUploadService.getDictionariesToBeUploaded()
+      .every(dictionaryUploadItem => dictionaryUploadItem.isUploadingFlag);
+  }
   /**
    * this method handles the event when user click on the file dropping area.
    * @param clickUploadEvent
