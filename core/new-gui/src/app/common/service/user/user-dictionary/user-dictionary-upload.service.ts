@@ -10,8 +10,8 @@ import { UserDictionaryService } from './user-dictionary.service';
 import { ManualDictionaryUploadItem, DictionaryUploadItem } from '../../../type/user-dictionary';
 import { UserService } from '../user.service';
 
-const USER_DICTIONARY_UPLOAD_URL = 'user/dictionary/upload';
-const USER_MANUAL_DICTIONARY_UPLOAD_URL = 'user/dictionary/upload-manual-dict';
+export const USER_DICTIONARY_UPLOAD_URL = 'user/dictionary/upload';
+export const USER_MANUAL_DICTIONARY_UPLOAD_URL = 'user/dictionary/upload-manual-dict';
 
 @Injectable({
   providedIn: 'root'
@@ -139,7 +139,7 @@ export class UserDictionaryUploadService {
   }
 
   private manualDictionaryUploadHttpRequest(manualDictionary: ManualDictionaryUploadItem): Observable<GenericWebResponse> {
-    return this.http.put<GenericWebResponse>(
+    return this.http.post<GenericWebResponse>(
       `${AppSettings.getApiEndpoint()}/${USER_MANUAL_DICTIONARY_UPLOAD_URL}`,
       JSON.stringify(manualDictionary),
       {

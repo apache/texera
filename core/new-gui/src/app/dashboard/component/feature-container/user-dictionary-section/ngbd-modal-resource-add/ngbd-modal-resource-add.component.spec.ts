@@ -1,21 +1,16 @@
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 import { NgbModule, NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 
 import { HttpClient } from '@angular/common/http';
 import { NgbdModalResourceAddComponent } from './ngbd-modal-resource-add.component';
 import { CustomNgMaterialModule } from '../../../../../common/custom-ng-material.module';
 
 import { FileUploadModule } from 'ng2-file-upload';
-import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
-import { environment } from '../../../../../../environments/environment';
-import { UserAccountService } from '../../../../service/user-account/user-account.service';
-import { UserDictionaryUploadService } from '../../../../service/user-dictionary/user-dictionary-upload.service';
-import { UserDictionaryService } from '../../../../service/user-dictionary/user-dictionary.service';
-
-
-const dictionaryUrl = 'users/dictionaries';
-const uploadFilesURL = 'users/dictionaries/upload-files';
+import { UserService } from '../../../../../common/service/user/user.service';
+import { UserDictionaryUploadService } from '../../../../../common/service/user/user-dictionary/user-dictionary-upload.service';
+import { UserDictionaryService } from '../../../../../common/service/user/user-dictionary/user-dictionary.service';
 
 describe('NgbdModalResourceAddComponent', () => {
   let component: NgbdModalResourceAddComponent;
@@ -24,17 +19,12 @@ describe('NgbdModalResourceAddComponent', () => {
   let httpClient: HttpClient;
   let httpTestingController: HttpTestingController;
 
-  const arrayOfBlob: Blob[] = Array<Blob>(); // just for test,needed for creating File object.
-  const testTextFile: File = new File( arrayOfBlob, 'testTextFile', {type: 'text/plain'});
-  const testPicFile: File = new File( arrayOfBlob, 'testPicFile', {type: 'image/jpeg'});
-  const testDocFile: File = new File( arrayOfBlob, 'testDocFile', {type: 'application/msword'});
-
   beforeEach(async(() => {
     TestBed.configureTestingModule({
       declarations: [ NgbdModalResourceAddComponent ],
       providers: [
         NgbActiveModal,
-        UserAccountService,
+        UserService,
         UserDictionaryService,
         UserDictionaryUploadService
       ],

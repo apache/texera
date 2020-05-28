@@ -86,7 +86,7 @@ public class UserDictionaryResource {
         }
     }
     
-    @PUT
+    @POST
     @Path("/upload-manual-dict")
     public GenericWebResponse putManualDictionary(
             @Session HttpSession session,
@@ -111,7 +111,7 @@ public class UserDictionaryResource {
         
         throwErrorWhenNotOne("Error occurred while inserting dictionary to database", count);
         
-        return new GenericWebResponse(0, "success");
+        return GenericWebResponse.generateSuccessResponse();
     }
     
     @POST
@@ -139,7 +139,7 @@ public class UserDictionaryResource {
         
         throwErrorWhenNotOne("Error occurred while inserting dictionary to database", count);
         
-        return new GenericWebResponse(0, "success");
+        return GenericWebResponse.generateSuccessResponse();
     }
     
     @GET
@@ -178,7 +178,7 @@ public class UserDictionaryResource {
         int count = deleteInDatabase(dictIdUInteger, userID);
         throwErrorWhenNotOne("delete dictionary " + dictIdUInteger + " failed in database", count);
         
-        return new GenericWebResponse(0, "success");
+        return GenericWebResponse.generateSuccessResponse();
     }
     
     @POST
@@ -196,7 +196,7 @@ public class UserDictionaryResource {
         
         throwErrorWhenNotOne("Error occurred while inserting dictionary to database", count);
         
-        return new GenericWebResponse(0, "success");
+        return GenericWebResponse.generateSuccessResponse();
     }
     
     private int updateInDatabase(UserDictionary userDictionary, UInteger userID) {

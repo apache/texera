@@ -1,138 +1,108 @@
-import { TestBed, inject } from '@angular/core/testing';
-
-import { UserDictionaryUploadService } from './user-dictionary-upload.service';
-import { UserAccountService } from '../user-account/user-account.service';
+import { TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
+import { AppSettings } from '../../../app-setting';
+
+import { UserDictionaryUploadService, USER_DICTIONARY_UPLOAD_URL, USER_MANUAL_DICTIONARY_UPLOAD_URL } from './user-dictionary-upload.service';
+import { UserService } from '../user.service';
 import { UserDictionaryService } from './user-dictionary.service';
-import { StubUserAccountService } from '../user-account/stub-user-account.service';
-import { StubUserDictionaryService } from './stub-user-dictionary.service';
+import { StubUserService } from '../stub-user.service';
+import { ManualDictionaryUploadItem } from 'src/app/common/type/user-dictionary';
 
 const arrayOfBlob: Blob[] = Array<Blob>(); // just for test,needed for creating File object.
-const testDictionaryNameA = 'testTextDictionary';
-const testDictionaryNameC = 'testJPGFile';
-const testTextDictionaryA: File = new File( arrayOfBlob, testDictionaryNameA, {type: 'text/plain'});
-const testTextDictionaryB: File = new File( arrayOfBlob, testDictionaryNameA, {type: 'text/plain'});
-const testPictureDictionaryC: File = new File( arrayOfBlob, testDictionaryNameC, {type: 'jpg'});
+const testDictionaryName = 'testTextDictionary';
+const testTextDictionary: File = new File( arrayOfBlob, testDictionaryName, {type: 'text/plain'});
+
+
+const manual_dict_name = 'testDict';
+const content = 'this,is,a,test,dictionary';
+const separator = ',';
+const description = 'this is a test dictionary';
 
 describe('UserDictionaryUploadService', () => {
+
+  let service: UserDictionaryUploadService;
+  let httpMock: HttpTestingController;
+
   beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [
-        UserDictionaryUploadService,
-        { provide: UserAccountService, useClass: StubUserAccountService },
-        { provide: UserDictionaryService, useClass: StubUserDictionaryService },
+        {provide: UserService, useClass: StubUserService},
+        UserDictionaryService,
+        UserDictionaryUploadService
       ],
       imports: [
         HttpClientTestingModule
       ]
     });
+    service = TestBed.get(UserDictionaryUploadService);
+    httpMock = TestBed.get(HttpTestingController);
   });
 
-  afterEach(inject([HttpTestingController], (httpMock: HttpTestingController) => {
+  afterEach(() => {
     httpMock.verify();
-  }));
+  });
 
-  it('should be created', inject([UserDictionaryUploadService, UserAccountService, UserDictionaryService, HttpTestingController],
-    (service: UserDictionaryUploadService) => {
+  it('should be created', () => {
     expect(service).toBeTruthy();
-  }));
+  });
 
-  it('should contain no dictionary by default', inject([UserDictionaryUploadService, UserAccountService, UserDictionaryService, HttpTestingController],
-    (service: UserDictionaryUploadService, userAccountService: UserAccountService) => {
-      userAccountService.loginUser('').subscribe();
-      expect(service.getDictionaryArrayLength()).toBe(0);
-      expect(() => service.getDictionaryUploadItem(0)).toThrowError();
-      expect(service.manualDictionary).toEqual({
-        name : '',
-        content: '',
-        separator: '',
-        description: ''
-      });
-  }));
+  it('should contain no dictionary by default', () => {
+    expect(service.getDictionariesToBeUploaded().length).toBe(0);
+  });
 
-  it('should contain no dictionary by default', inject([UserDictionaryUploadService, UserAccountService, UserDictionaryService, HttpTestingController],
-    (service: UserDictionaryUploadService, userAccountService: UserAccountService) => {
-      userAccountService.loginUser('').subscribe();
-      expect(service.getDictionaryArrayLength()).toBe(0);
-      expect(() => service.getDictionaryUploadItem(0)).toThrowError();
-      expect(service.manualDictionary).toEqual({
-        name : '',
-        content: '',
-        separator: '',
-        description: ''
-      });
-  }));
+  it('should insert dictionary successfully', () => {
+    service.addDictionaryToUploadArray(testTextDictionary);
+    expect(service.getDictionariesToBeUploaded().length).toBe(1);
+    expect(service.getDictionariesToBeUploaded()[0].file).toEqual(testTextDictionary);
+    expect(service.getDictionariesToBeUploaded()[0].name).toEqual(testTextDictionary.name);
+    expect(service.getDictionariesToBeUploaded()[0].isUploadingFlag).toBeFalsy();
+  });
 
-  it('should insert file successfully', inject([UserDictionaryUploadService, UserAccountService, UserDictionaryService, HttpTestingController],
-    (service: UserDictionaryUploadService, userAccountService: UserAccountService) => {
-      userAccountService.loginUser('').subscribe();
-      expect(service.getDictionaryArrayLength()).toBe(0);
-      service.insertNewDictionary(testTextDictionaryA);
-      expect(service.getDictionaryArrayLength()).toEqual(1);
-      expect(service.getDictionaryUploadItem(0).file).toEqual(testTextDictionaryA);
-      expect(service.getDictionaryUploadItem(0).name).toEqual(testDictionaryNameA);
-      expect(service.getDictionaryUploadItem(0).description).toEqual('');
-      expect(service.getDictionariesToBeUploaded()[0]).toEqual(service.getDictionaryUploadItem(0));
-  }));
+  it('should delete dictionary successfully', () => {
+    service.addDictionaryToUploadArray(testTextDictionary);
+    expect(service.getDictionariesToBeUploaded().length).toBe(1);
+    const testTextDictionaryUploadItem = service.getDictionariesToBeUploaded()[0];
+    service.removeFileFromUploadArray(testTextDictionaryUploadItem);
+    expect(service.getDictionariesToBeUploaded().length).toBe(0);
+  });
 
-  it('should insert multiple file successfully', inject([UserDictionaryUploadService, UserAccountService, UserDictionaryService, HttpTestingController],
-    (service: UserDictionaryUploadService, userAccountService: UserAccountService) => {
-      userAccountService.loginUser('').subscribe();
-      expect(service.getDictionaryArrayLength()).toBe(0);
-      service.insertNewDictionary(testTextDictionaryA);
-      service.insertNewDictionary(testTextDictionaryB);
-      service.insertNewDictionary(testPictureDictionaryC);
-      expect(service.getDictionaryArrayLength()).toEqual(3);
-      expect(service.getDictionaryUploadItem(0).file).toEqual(testTextDictionaryA);
-      expect(service.getDictionaryUploadItem(1).file).toEqual(testTextDictionaryB);
-      expect(service.getDictionaryUploadItem(2).file).toEqual(testPictureDictionaryC);
-      expect(() => service.getDictionaryUploadItem(3)).toThrowError();
-  }));
+  it('should upload dictionary successfully', () => {
+    service.addDictionaryToUploadArray(testTextDictionary);
+    expect(service.getDictionariesToBeUploaded().length).toBe(1);
 
-  it('should valid for single text file', inject([UserDictionaryUploadService, UserAccountService, UserDictionaryService, HttpTestingController],
-    (service: UserDictionaryUploadService, userAccountService: UserAccountService) => {
-      userAccountService.loginUser('').subscribe();
-      expect(service.getDictionaryArrayLength()).toBe(0);
-      service.insertNewDictionary(testTextDictionaryA);
-      expect(service.getDictionaryArrayLength()).toEqual(1);
-      expect(service.isItemValid(service.getDictionaryUploadItem(0))).toBeTruthy();
-      expect(service.isAllItemsValid()).toBeTruthy();
-  }));
+    const userDictionaryService = TestBed.get(UserDictionaryService);
+    const spy = spyOn(userDictionaryService, 'refreshDictionaries');
 
-  it('should invalid for non text file', inject([UserDictionaryUploadService, UserAccountService, UserDictionaryService, HttpTestingController],
-    (service: UserDictionaryUploadService, userAccountService: UserAccountService) => {
-      userAccountService.loginUser('').subscribe();
-      expect(service.getDictionaryArrayLength()).toBe(0);
-      service.insertNewDictionary(testPictureDictionaryC);
-      expect(service.isItemValid(service.getDictionaryUploadItem(0))).toBeFalsy();
-      expect(service.isAllItemsValid()).toBeFalsy();
-  }));
+    service.uploadAllDictionaries();
 
-  it('should invalid for duplicate file name', inject([UserDictionaryUploadService, UserAccountService, UserDictionaryService, HttpTestingController],
-    (service: UserDictionaryUploadService, userAccountService: UserAccountService) => {
-      userAccountService.loginUser('').subscribe();
-      expect(service.getDictionaryArrayLength()).toBe(0);
-      service.insertNewDictionary(testTextDictionaryA);
-      expect(service.isItemValid(service.getDictionaryUploadItem(0))).toBeTruthy();
-      expect(service.isItemNameUnique(service.getDictionaryUploadItem(0))).toBeTruthy();
-      expect(service.isAllItemsValid()).toBeTruthy();
-      service.insertNewDictionary(testTextDictionaryB);
-      expect(service.isItemNameUnique(service.getDictionaryUploadItem(0))).toBeFalsy();
-      expect(service.isItemValid(service.getDictionaryUploadItem(0))).toBeFalsy();
-      expect(service.isAllItemsValid()).toBeFalsy();
-  }));
+    // const req1 = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${USER_DICTIONARY_VALIDATE_URL}`);
+    // expect(req1.request.method).toEqual('POST');
+    // req1.flush({code: 0, message: ''});
 
-  it('should delete file successfully', inject([UserDictionaryUploadService, UserAccountService, UserDictionaryService, HttpTestingController],
-    (service: UserDictionaryUploadService, userAccountService: UserAccountService) => {
-      userAccountService.loginUser('').subscribe();
-      expect(service.getDictionaryArrayLength()).toBe(0);
-      service.insertNewDictionary(testTextDictionaryA);
-      service.insertNewDictionary(testTextDictionaryB);
-      service.insertNewDictionary(testPictureDictionaryC);
-      expect(service.getDictionaryArrayLength()).toBe(3);
-      service.deleteDictionary(service.getDictionaryUploadItem(1));
-      expect(service.getDictionaryArrayLength()).toBe(2);
-      expect(service.getDictionaryUploadItem(0).file).toEqual(testTextDictionaryA);
-      expect(service.getDictionaryUploadItem(1).file).toEqual(testPictureDictionaryC);
-  }));
+    const req2 = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${USER_DICTIONARY_UPLOAD_URL}`);
+    expect(req2.request.method).toEqual('POST');
+    req2.flush({code: 0, message: ''});
+
+    expect(spy).toHaveBeenCalled();
+  });
+
+  it('should upload manual dictionary successfully', () => {
+    const userDictionaryService = TestBed.get(UserDictionaryService);
+    const spy = spyOn(userDictionaryService, 'refreshDictionaries');
+
+    const manualDictionary: ManualDictionaryUploadItem = service.getManualDictionary();
+    manualDictionary.name = manual_dict_name;
+    manualDictionary.content = content;
+    manualDictionary.separator = separator;
+    manualDictionary.description = description;
+
+    service.uploadManualDictionary();
+
+    const req1 = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${USER_MANUAL_DICTIONARY_UPLOAD_URL}`);
+    expect(req1.request.method).toEqual('POST');
+    req1.flush({code: 0, message: ''});
+
+    expect(spy).toHaveBeenCalled();
+  });
+
 });

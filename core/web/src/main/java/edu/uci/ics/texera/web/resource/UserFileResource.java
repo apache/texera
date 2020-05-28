@@ -87,7 +87,7 @@ public class UserFileResource {
         }
         
         this.handleFileUpload(uploadedInputStream, fileName, description, sizeUInteger, userID);
-        return new GenericWebResponse(0, "success");
+        return GenericWebResponse.generateSuccessResponse();
     }
     
     @GET
@@ -125,7 +125,7 @@ public class UserFileResource {
         String filePath = result.get(USERFILE.PATH);
         FileManager.getInstance().deleteFile(Paths.get(filePath));
         
-        return new GenericWebResponse(0, "success");
+        return GenericWebResponse.generateSuccessResponse();
     }
     
     @POST
