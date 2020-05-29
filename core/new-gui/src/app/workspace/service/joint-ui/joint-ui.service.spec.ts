@@ -307,12 +307,5 @@ describe('JointUIService', () => {
     expect(graph_link.attr('.marker-source/d')).toEqual(sourceOperatorHandle);
     expect(graph_link.attr('.marker-target/d')).toEqual(targetOperatorHandle);
     expect(graph_link.attr('.tool-remove path/d')).toEqual(deleteButtonPath);
-    expect(graph_link.attr('.breakpoint-button')).toEqual(
-      {
-        x: 10, y: -10, cursor: 'pointer',
-        event: 'tool:breakpoint',
-        display: 'none'
-      }
-    );
   });
 });

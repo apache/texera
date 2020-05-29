@@ -368,7 +368,6 @@ export class JointGraphWrapper {
   public getJointLinkCellAddStream(): Observable<joint.dia.Link> {
     const jointLinkAddStream = this.jointCellAddStream
       .filter(cell => cell.isLink())
-      .do(() => console.log('link cell add'))
       .map(cell => <joint.dia.Link>cell);
 
     return jointLinkAddStream;

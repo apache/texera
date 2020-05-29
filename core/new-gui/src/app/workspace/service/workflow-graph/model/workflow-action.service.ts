@@ -427,7 +427,6 @@ export class WorkflowActionService {
     // add the link to JointJS
     const jointLinkCell = JointUIService.getJointLinkCell(link);
     this.jointGraph.addCell(jointLinkCell);
-    console.log('should happen first');
     // JointJS link add event will propagate and trigger Texera link add
   }
 

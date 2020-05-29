@@ -134,8 +134,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.handleOperatorCut();
     this.handleOperatorPaste();
 
-    // potentially a new way to write link tools
-    // this.handleLinkCreation();
     this.handleLinkCursorHover();
     if (environment.linkBreakpointEnabled) {
       this.handleLinkBreakpoint();
@@ -840,59 +838,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
     return position;
   }
 
-  // when a link is added, append link tools to its LinkView
-  private handleLinkCreation(): void {
-    this.workflowActionService.getJointGraphWrapper().getJointLinkCellAddStream().subscribe(link => {
-
-      const linkView = link.findView(this.getJointPaper());
-
-      const InfoButton = joint.linkTools.Button.extend({
-        name: 'info-button',
-        options: {
-            markup: [{
-                tagName: 'circle',
-                selector: 'info-button',
-                attributes: {
-                    'r': 7,
-                    'fill': '#001DFF',
-                    'cursor': 'pointer',
-                    'event': 'tool:bp'
-                }
-            }, {
-                tagName: 'path',
-                selector: 'icon',
-                attributes: {
-                    'd': 'M -2 4 2 4 M 0 3 0 0 M -2 -1 1 -1 M -1 -4 1 -4',
-                    'fill': 'none',
-                    'stroke': '#FFFFFF',
-                    'stroke-width': 2,
-                    'pointer-events': 'none'
-                }
-            }],
-            distance: 60,
-            offset: 0,
-            event: 'tool:bp',
-            display: 'none',
-            action: function(env: JQuery.Event, lv: joint.dia.LinkView) {
-              console.log(env);
-              console.log(lv);
-              console.log('???');
-
-            }
-        }
-      });
-
-      const infoButton = new InfoButton();
-      const toolsView = new joint.dia.ToolsView({
-        name: 'basic-tools',
-        tools: [infoButton]
-      });
-
-      linkView.addTools(toolsView);
-    });
-  }
-
-
   /**
    * handle the events of the cursor enter/leave a jointJS link cell
    *
@@ -911,8 +856,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
           if (environment.linkBreakpointEnabled) {
             this.getJointPaper().getModelById(elementView.model.id).attr({
               '.tool-remove': { display: 'block'},
-              '.breakpoint-button': { display: 'block'}
             });
+            this.getJointPaper().getModelById(elementView.model.id).findView(this.getJointPaper()).showTools();
           } else {
             // only display the delete button
             this.getJointPaper().getModelById(elementView.model.id).attr({
@@ -936,9 +881,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
           if (this.getJointPaper().getModelById(elementView.model.id)) {
             const LinksWithBreakpoint = this.workflowActionService.getJointGraphWrapper().getLinkIDsWithBreakpoint();
             if (!LinksWithBreakpoint.includes(elementView.model.id.toString())) {
-              this.getJointPaper().getModelById(elementView.model.id).attr({
-                '.breakpoint-button': { display: 'none'}
-              });
+              this.getJointPaper().getModelById(elementView.model.id).findView(this.getJointPaper()).hideTools();
             }
             this.getJointPaper().getModelById(elementView.model.id).attr({
               '.tool-remove': { display: 'none'},
@@ -948,16 +891,31 @@ export class WorkflowEditorComponent implements AfterViewInit {
     );
   }
 
-
-
   /**
    * handles events/observables related to the breakpoint
    */
   private handleLinkBreakpoint(): void {
+    this.handleLinkBreakpointToolAttachment();
     this.handleLinkBreakpointButtonClick();
-    // this.handleLinkBPButtonClick();
     this.handleLinkBreakpointHighlighEvents();
     this.handleLinkBreakpointToggleEvents();
+  }
+
+  // when a link is added, append a breakpoint link-tool to its LinkView
+  private handleLinkBreakpointToolAttachment(): void {
+    this.workflowActionService.getJointGraphWrapper().getJointLinkCellAddStream().subscribe(link => {
+
+      const linkView = link.findView(this.getJointPaper());
+      const breakpointButtonTool = this.jointUIService.getBreakpointButton();
+      const breakpointButton = new breakpointButtonTool();
+      const toolsView = new joint.dia.ToolsView({
+        name: 'basic-tools',
+        tools: [breakpointButton]
+      });
+      linkView.addTools(toolsView);
+      // tools remain hidden until the cursor hovers over it or a break point is added
+      linkView.hideTools();
+    });
   }
 
   /**
@@ -971,18 +929,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
       .subscribe(
         elementView => {
           this.workflowActionService.getJointGraphWrapper().highlightLink(elementView.model.id.toString());
-        }
-    );
-  }
-
-  private handleLinkBPButtonClick(): void {
-    Observable
-      .fromEvent<JointPaperEvent>(this.getJointPaper(), 'tool:bp', {passive: true})
-      .map(value => value[0])
-      .subscribe(
-        elementView => {
-          console.log('success');
-          // this.workflowActionService.getJointGraphWrapper().highlightLink(elementView.model.id.toString());
         }
     );
   }
@@ -1025,16 +971,12 @@ export class WorkflowEditorComponent implements AfterViewInit {
   private handleLinkBreakpointToggleEvents(): void {
     this.workflowActionService.getJointGraphWrapper().getLinkBreakpointShowStream()
       .subscribe(linkID => {
-        this.getJointPaper().getModelById(linkID.linkID).attr({
-          '.breakpoint-button': { display: 'block'}
-        });
+        this.getJointPaper().getModelById(linkID.linkID).findView(this.getJointPaper()).showTools();
     });
 
     this.workflowActionService.getJointGraphWrapper().getLinkBreakpointHideStream()
       .subscribe(linkID => {
-        this.getJointPaper().getModelById(linkID.linkID).attr({
-          '.breakpoint-button': { display: 'none'}
-        });
+        this.getJointPaper().getModelById(linkID.linkID).findView(this.getJointPaper()).hideTools();
     });
   }
 }

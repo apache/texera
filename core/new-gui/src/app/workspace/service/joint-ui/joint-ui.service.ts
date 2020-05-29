@@ -241,6 +241,42 @@ export class JointUIService {
     }
   }
 
+  public getBreakpointButton(): (new () => joint.linkTools.Button) {
+    return joint.linkTools.Button.extend({
+      name: 'info-button',
+      options: {
+          markup: [{
+              tagName: 'circle',
+              selector: 'info-button',
+              attributes: {
+                  'r': 10,
+                  'fill': '#001DFF',
+                  'cursor': 'pointer',
+              }
+          }, {
+              tagName: 'path',
+              selector: 'icon',
+              attributes: {
+                  'd': 'M -2 4 2 4 M 0 3 0 0 M -2 -1 1 -1 M -1 -4 1 -4',
+                  'fill': 'none',
+                  'stroke': '#FFFFFF',
+                  'stroke-width': 2,
+                  'pointer-events': 'none'
+              }
+          },
+        ],
+          distance: 60,
+          offset: 0,
+          action: function(event: JQuery.Event, linkView: joint.dia.LinkView) {
+            // when this button is clicked, it triggers an joint paper event
+            if (linkView.paper) {
+              linkView.paper.trigger('tool:breakpoint', linkView, event);
+            }
+          }
+      }
+    });
+  }
+
   /**
    * Gets the ID of the JointJS operator status tooltip element corresponding to an operator.
    */
@@ -301,7 +337,6 @@ export class JointUIService {
             10.946,24.248 16.447,18.746 21.948,24.248z"/>
             <title>Remove link.</title>
            </g>
-           ${breakpointButtonSVG}
          </g>`,
       attrs: {
         '.connection-wrap': {
@@ -334,11 +369,6 @@ export class JointUIService {
         },
         '.tool-remove circle': {
         },
-        '.breakpoint-button': {
-          x: 10, y: -10, cursor: 'pointer',
-          event: 'tool:breakpoint',
-          display: 'none'
-        }
       }
     });
     return link;
@@ -438,7 +468,4 @@ export class JointUIService {
     };
     return operatorStyleAttrs;
   }
-
-
-
 }

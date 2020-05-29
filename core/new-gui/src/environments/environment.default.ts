@@ -35,7 +35,7 @@ export const defaultEnvironment = {
   /**
    * whether linkBreakpoint is supported
    */
-  linkBreakpointEnabled: false,
+  linkBreakpointEnabled: true,
 
 };
 
