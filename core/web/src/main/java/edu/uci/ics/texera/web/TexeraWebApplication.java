@@ -11,8 +11,13 @@ import edu.uci.ics.texera.perftest.twitter.TwitterSample;
 import edu.uci.ics.texera.web.healthcheck.SampleHealthCheck;
 import edu.uci.ics.texera.web.resource.*;
 import io.dropwizard.Application;
+import io.dropwizard.bundles.redirect.RedirectBundle;
+import io.dropwizard.bundles.redirect.UriRedirect;
 import io.dropwizard.setup.Bootstrap;
 import io.dropwizard.setup.Environment;
+
+import org.eclipse.jetty.server.session.SessionHandler;
+import org.eclipse.jetty.servlet.ErrorPageErrorHandler;
 import org.glassfish.jersey.media.multipart.MultiPartFeature;
 
 /**
@@ -32,7 +37,12 @@ public class TexeraWebApplication extends Application<TexeraWebConfiguration> {
     public void run(TexeraWebConfiguration texeraWebConfiguration, Environment environment) throws Exception {
         // serve backend at /api
         environment.jersey().setUrlPattern("/api/*");
-        
+
+        // redirect all 404 to index page, according to Angular routing requirements
+        ErrorPageErrorHandler eph = new ErrorPageErrorHandler();
+        eph.addErrorPage(404, "/");
+        environment.getApplicationContext().setErrorHandler(eph);
+
         final QueryPlanResource newQueryPlanResource = new QueryPlanResource();
         environment.jersey().register(newQueryPlanResource);
 
@@ -57,8 +67,13 @@ public class TexeraWebApplication extends Application<TexeraWebConfiguration> {
         final UserDictionaryResource userDictionaryResource = new UserDictionaryResource();
         environment.jersey().register(userDictionaryResource);
         
+        environment.jersey().register(SessionHandler.class);
+        environment.servlets().setSessionHandler(new SessionHandler());
         final UserResource userResource = new UserResource();
         environment.jersey().register(userResource);
+        
+        final UserFileResource userFileResource = new UserFileResource();
+        environment.jersey().register(userFileResource);
 
         // Registers MultiPartFeature to support file upload
         environment.jersey().register(MultiPartFeature.class);

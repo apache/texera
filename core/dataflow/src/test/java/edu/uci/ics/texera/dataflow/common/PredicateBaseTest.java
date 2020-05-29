@@ -244,8 +244,7 @@ public class PredicateBaseTest {
     @Test
     public void testFileSource() throws Exception {
         FileSourcePredicate fileSourcePredicate = new FileSourcePredicate(
-                "./file.txt",
-                "attr1");
+                "fileName", FileSourcePredicate.FileFormat.PLAIN_TEXT, null, null);
         testPredicate(fileSourcePredicate);
     }
     

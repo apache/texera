@@ -4,21 +4,20 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import edu.uci.ics.texera.api.constants.DataConstants;
 import edu.uci.ics.texera.api.exception.StorageException;
-import edu.uci.ics.texera.dataflow.common.PredicateBase;
 import edu.uci.ics.texera.dataflow.common.JsonSchemaHelper;
 import edu.uci.ics.texera.dataflow.common.OperatorGroupConstants;
 import edu.uci.ics.texera.dataflow.common.OperatorGroupConstants.GroupOrder;
+import edu.uci.ics.texera.dataflow.common.PredicateBase;
 import edu.uci.ics.texera.storage.RelationManager;
 import edu.uci.ics.texera.storage.TableMetadata;
 import edu.uci.ics.texera.web.TexeraWebException;
-import edu.uci.ics.texera.web.response.GenericWebResponse;
 
-import javax.ws.rs.*;
+import javax.ws.rs.GET;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
-
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.List;

@@ -2,12 +2,9 @@ import { User, UserWebResponse } from '../../type/user';
 import { AppSettings } from '../../app-setting';
 import { Subject } from 'rxjs/Subject';
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 
 import { Observable } from 'rxjs/Observable';
-import { environment } from '../../../../environments/environment';
-import { EventEmitter } from '@angular/core';
-import { observable, BehaviorSubject } from 'rxjs';
 
 /**
  * User Account Service contains the function of registering and logging the user.
@@ -20,19 +17,16 @@ import { observable, BehaviorSubject } from 'rxjs';
 })
 export class UserService {
 
-  public static readonly TEXERA_USER_LOCALSTORAGE_KEY = 'texera-user';
+  public static readonly AUTH_STATUS_ENDPINT = 'users/auth/status';
   public static readonly LOGIN_ENDPOINT = 'users/login';
   public static readonly REGISTER_ENDPOINT = 'users/register';
+  public static readonly LOG_OUT_ENDPOINT = 'users/logout';
 
   private userChangedSubject: Subject<User | undefined> = new Subject();
   private currentUser: User | undefined;
 
   constructor(private http: HttpClient) {
-    const userString: string | null = window.sessionStorage.getItem(UserService.TEXERA_USER_LOCALSTORAGE_KEY);
-    if (userString) {
-      const storedUser = JSON.parse(userString) as User;
-      this.changeUser(storedUser);
-    }
+    this.loginFromSession();
   }
 
   /**
@@ -81,7 +75,6 @@ export class UserService {
     return this.loginHttpRequest(userName).map(
       res => {
         if (res.code === 0) {
-          window.localStorage.setItem('currentUser', JSON.stringify(res.user));
           this.changeUser(res.user);
           return res;
         } else { // login failed
@@ -95,12 +88,15 @@ export class UserService {
    * this method will clear the saved user account and trigger userChangeEvent
    */
   public logOut(): void {
-    window.localStorage.removeItem(UserService.TEXERA_USER_LOCALSTORAGE_KEY);
-    this.changeUser(undefined);
+    this.logOutHttpRequest().subscribe(() => this.changeUser(undefined));
   }
 
   public getUser(): User | undefined {
     return this.currentUser;
+  }
+
+  public isLogin(): boolean {
+    return this.currentUser !== undefined;
   }
 
   /**
@@ -109,6 +105,14 @@ export class UserService {
    */
   public getUserChangedEvent(): Observable<User | undefined> {
     return this.userChangedSubject.asObservable();
+  }
+
+  private loginFromSession(): void {
+    this.http.get<UserWebResponse>(`${AppSettings.getApiEndpoint()}/${UserService.AUTH_STATUS_ENDPINT}`).subscribe(res => {
+      if (res.code === 0) {
+        this.changeUser(res.user);
+      }
+    });
   }
 
   /**
@@ -131,18 +135,23 @@ export class UserService {
     return this.http.post<UserWebResponse>(`${AppSettings.getApiEndpoint()}/${UserService.LOGIN_ENDPOINT}`, body);
   }
 
+    /**
+   * construct the request body as formData and create http request
+   * @param userName
+   */
+  private logOutHttpRequest(): Observable<UserWebResponse> {
+    return this.http.get<UserWebResponse>(`${AppSettings.getApiEndpoint()}/${UserService.LOG_OUT_ENDPOINT}`);
+  }
+
   /**
    * changes the current user and triggers currentUserSubject
    * @param user
    */
   private changeUser(user: User | undefined): void {
-    if (user) {
-      window.localStorage.setItem(UserService.TEXERA_USER_LOCALSTORAGE_KEY, JSON.stringify(user));
-    } else {
-      window.localStorage.removeItem(UserService.TEXERA_USER_LOCALSTORAGE_KEY);
+    if (this.currentUser !== user) {
+      this.currentUser = user;
+      this.userChangedSubject.next(this.currentUser);
     }
-    this.currentUser = user;
-    this.userChangedSubject.next(this.currentUser);
   }
 
   /**

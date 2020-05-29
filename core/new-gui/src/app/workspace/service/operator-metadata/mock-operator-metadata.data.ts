@@ -27,6 +27,25 @@ export const mockScanSourceSchema: OperatorSchema = {
   }
 };
 
+export const mockFileSourceSchema: OperatorSchema = {
+  operatorType: 'FileSource',
+  jsonSchema: {
+    type: 'object',
+    properties: {
+      fileName: {'type': 'string'},
+    },
+    required: ['fileName']
+  },
+  additionalMetadata: {
+    userFriendlyName: 'Source: File',
+    operatorDescription: 'Read the content of one file or multiple files',
+    operatorGroupName: 'Source',
+    numInputPorts: 0,
+    numOutputPorts: 1,
+    advancedOptions: []
+  }
+  };
+
 export const mockNlpSentimentSchema: OperatorSchema = {
   operatorType: 'NlpSentiment',
   additionalMetadata: {
@@ -171,6 +190,7 @@ export const mockMultiInputOutputSchema: OperatorSchema = {
 
 export const mockOperatorSchemaList: ReadonlyArray<OperatorSchema> = [
   mockScanSourceSchema,
+  mockFileSourceSchema,
   mockKeywordSourceSchema,
   mockKeywordSearchSchema,
   mockNlpSentimentSchema,
