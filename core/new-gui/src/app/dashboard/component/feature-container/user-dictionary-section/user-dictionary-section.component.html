@@ -34,7 +34,7 @@
               <p>
                 Item Preview:
                 <mat-chip class="preview-item" *ngFor="let item of dictionary.items.slice(0,6)" [selectable]="true" >
-                  {{item}}
+                  {{limitPreviewItemSize(item)}}
                 </mat-chip>
               </p>
             </div>

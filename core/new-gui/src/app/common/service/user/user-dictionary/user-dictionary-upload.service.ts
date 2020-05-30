@@ -10,6 +10,7 @@ import { UserService } from '../user.service';
 
 export const USER_DICTIONARY_UPLOAD_URL = 'user/dictionary/upload';
 export const USER_MANUAL_DICTIONARY_UPLOAD_URL = 'user/dictionary/upload-manual-dict';
+export const USER_DICTIONARY_VALIDATE_URL = 'user/dictionary/validate';
 
 @Injectable({
   providedIn: 'root'
@@ -25,12 +26,6 @@ export class UserDictionaryUploadService {
       this.detectUserChanges();
   }
 
-  /**
-   * this function will return the dictionaryArray store in the service.
-   * This is required for HTML page since HTML can only loop through collection instead of index number.
-   * Be carefully with the return array because it may cause unexpected error.
-   * You can change the DictionaryUploadItem inside the array but do not change the array itself.
-   */
   public getDictionariesToBeUploaded(): ReadonlyArray<Readonly<DictionaryUploadItem>> {
     return this.dictionaryUploadItemArray;
   }
@@ -92,7 +87,7 @@ export class UserDictionaryUploadService {
    */
   public uploadAllDictionaries() {
     this.dictionaryUploadItemArray.filter(dictionaryUploadItem => !dictionaryUploadItem.isUploadingFlag).forEach(
-      dictionaryUploadItem => this.uploadDictionary(dictionaryUploadItem).subscribe(
+      dictionaryUploadItem => this.validateAndUploadDictionary(dictionaryUploadItem).subscribe(
         (res) => {
           if (res.code === GenericWebResponseCode.SUCCESS) {
             this.removeFileFromUploadArray(dictionaryUploadItem);
@@ -102,15 +97,12 @@ export class UserDictionaryUploadService {
             // TODO: user friendly error message.
             alert(`Uploading dictionary ${dictionaryUploadItem.name} failed\nMessage: ${res.message}`);
           }
-        }, error => {
-          console.log(error);
-          dictionaryUploadItem.isUploadingFlag = false;
         }
       )
     );
   }
 
-  /**
+    /**
    * upload the manual dictionary to the backend.
    * This method will automatically refresh the user-dictionary service when succeed.
    */
@@ -148,18 +140,36 @@ export class UserDictionaryUploadService {
     );
   }
 
+  private validateAndUploadDictionary(dictionaryUploadItem: DictionaryUploadItem): Observable<GenericWebResponse> {
+    const formData: FormData = new FormData();
+    formData.append('name', dictionaryUploadItem.name);
+    formData.append('size', dictionaryUploadItem.file.size.toString());
+
+    return this.http.post<GenericWebResponse>(
+      `${AppSettings.getApiEndpoint()}/${USER_DICTIONARY_VALIDATE_URL}`, formData).flatMap(
+        res => {
+          if (res.code === GenericWebResponseCode.SUCCESS) {
+            return this.uploadDictionary(dictionaryUploadItem);
+          } else {
+            return Observable.of(res);
+          }
+        }
+      );
+  }
+
   /**
    * helper function for the {@link uploadAllDictionary}.
    * It will pack the dictionaryUploadItem into formData and upload it to the backend.
    * @param dictionaryUploadItem
    */
   private uploadDictionary(dictionaryUploadItem: DictionaryUploadItem): Observable<GenericWebResponse> {
-    if (!this.userService.isLogin()) { throw new Error(`Can not upload files when not login`); }
-    if (dictionaryUploadItem.isUploadingFlag) { throw new Error(`File ${dictionaryUploadItem.file.name} is already uploading`); }
+    if (!this.userService.isLogin()) { throw new Error(`Can not upload dictionary when not login`); }
+    if (dictionaryUploadItem.isUploadingFlag) { throw new Error(`Dictionary ${dictionaryUploadItem.file.name} is already uploading`); }
 
     dictionaryUploadItem.isUploadingFlag = true;
     const formData: FormData = new FormData();
     formData.append('file', dictionaryUploadItem.file, dictionaryUploadItem.name);
+    formData.append('size', dictionaryUploadItem.file.size.toString());
     formData.append('description', dictionaryUploadItem.description);
 
     return this.http.post<GenericWebResponse>(

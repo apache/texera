@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS `UserDict` (
 	`userID` INT UNSIGNED NOT NULL,
     `dictID` INT UNSIGNED AUTO_INCREMENT NOT NULL,
     `name` VARCHAR(128) NOT NULL,
-    `content` BLOB NOT NULL,
+    `content` MEDIUMBLOB NOT NULL,
     `description` VARCHAR(512) NOT NULL,
     UNIQUE (`userID`, `name`),
     PRIMARY KEY (`dictID`),

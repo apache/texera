@@ -50,8 +50,11 @@ import edu.uci.ics.texera.dataflow.sqlServerInfo.UserSqlServer;
 @Produces(MediaType.APPLICATION_JSON)
 public class UserDictionaryResource {
     
+    // limitation due to the default 'max_allowed_packet' variable is 4 mb in MySQL
+    private static final long MAXIMUM_DICTIONARY_SIZE = (2 * 1024 * 1024); // 2 mb
+    
     /**
-     * Corresponds to `src/app/dashboard/type/user-dictionary.ts`
+     * Corresponds to `src/app/common/type/user-dictionary.ts`
      */
     public static class UserDictionary {
         public UInteger id; // the ID in MySQL database is unsigned int
@@ -70,7 +73,7 @@ public class UserDictionaryResource {
     }
     
     /**
-     * Corresponds to `src/app/dashboard/type/user-dictionary.ts`
+     * Corresponds to `src/app/common/type/user-dictionary.ts`
      */
     public static class UserManualDictionary {
         public String name;
@@ -89,7 +92,7 @@ public class UserDictionaryResource {
     
     @POST
     @Path("/upload-manual-dict")
-    public GenericWebResponse putManualDictionary(
+    public GenericWebResponse uploadManualDictionary(
             @Session HttpSession session,
             UserManualDictionary userManualDictionary
     ) {
@@ -97,6 +100,7 @@ public class UserDictionaryResource {
             throw new TexeraWebException("Error occurred in user manual dictionary");
         }
         UInteger userID = UserResource.getUser(session).getUserID();
+        if (userManualDictionary.separator.isEmpty()) {userManualDictionary.separator = ",";}
         
         List<String> itemArray = convertStringToList(
                 userManualDictionary.content, 
@@ -118,19 +122,21 @@ public class UserDictionaryResource {
     @POST
     @Path("/upload")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
-    public GenericWebResponse putDictionary(
+    public GenericWebResponse uploadDictionary(
             @Session HttpSession session,
             @FormDataParam("file") InputStream uploadedInputStream,
             @FormDataParam("file") FormDataContentDisposition fileDetail,
+            @FormDataParam("size") String sizeString,
             @FormDataParam("description") String description
     ) {
         UInteger userID = UserResource.getUser(session).getUserID();
         String dictName = fileDetail.getFileName();
         String separator = ",";
+        long size = parseStringToUInteger(sizeString).longValue();
         
-        Pair<Boolean, String> validationResult = validateDictionaryName(dictName, userID);
-        if (!validationResult.getLeft()) {
-            return new GenericWebResponse(1, validationResult.getRight());
+        Pair<Integer, String> validationResult = validateDictionary(dictName, userID, size);
+        if (validationResult.getLeft() != 0) {
+            return new GenericWebResponse(validationResult.getLeft(), validationResult.getRight());
         }
         
         String content = readFileContent(uploadedInputStream);
@@ -150,7 +156,7 @@ public class UserDictionaryResource {
     
     @GET
     @Path("/list")
-    public List<UserDictionary> getDictionary(
+    public List<UserDictionary> listUserDictionaries(
             @Session HttpSession session
     ) {
         UInteger userID = UserResource.getUser(session).getUserID();
@@ -174,7 +180,7 @@ public class UserDictionaryResource {
     
     @DELETE
     @Path("/delete/{dictID}")
-    public GenericWebResponse deleteDictionary(
+    public GenericWebResponse deleteUserDictionary(
             @Session HttpSession session,
             @PathParam("dictID") String dictID
     ) {
@@ -189,7 +195,7 @@ public class UserDictionaryResource {
     
     @PUT
     @Path("/update")
-    public GenericWebResponse updateDictionary(
+    public GenericWebResponse updateUserDictionary(
             @Session HttpSession session,
             UserDictionary userDictionary
     ) {
@@ -205,19 +211,39 @@ public class UserDictionaryResource {
         return GenericWebResponse.generateSuccessResponse();
     }
     
-    private Pair<Boolean, String> validateDictionaryName(String dictName, UInteger userID) {
+    @POST
+    @Path("/validate")
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    public GenericWebResponse validateUserDictionary(
+            @Session HttpSession session, 
+            @FormDataParam("name") String fileName,
+            @FormDataParam("size") String sizeString) {
+        UInteger userID = UserResource.getUser(session).getUserID();
+        long size = parseStringToUInteger(sizeString).longValue();
+        
+        Pair<Integer, String> validationResult = validateDictionary(fileName, userID, size);
+        return new GenericWebResponse(validationResult.getLeft(), validationResult.getRight());
+    }
+    
+    private Pair<Integer, String> validateDictionary(String dictName, UInteger userID, long size) {
         if (dictName == null) {
-            return Pair.of(false, "dictionary name cannot be null");
+            return Pair.of(1, "dictionary name cannot be null");
         } else if (dictName.trim().isEmpty()) {
-            return Pair.of(false, "dictionary name cannot be empty");
+            return Pair.of(1, "dictionary name cannot be empty");
+        } else if (!validateDictionarySize(size)) {
+            return Pair.of(1, "dictionary is too large, maximun limit is " + MAXIMUM_DICTIONARY_SIZE/1024/1024 + " mb.");
         } else if (isDictionaryNameExisted(dictName, userID)){
-            return Pair.of(false, "dictionary name already exists");
+            return Pair.of(1, "dictionary name already exists");
         } else {
-            return Pair.of(true, "dictionary validation success");
+            return Pair.of(0, "dictionary validation success");
         }
     }
     
-    private Boolean isDictionaryNameExisted(String dictName, UInteger userID) {
+    private boolean validateDictionarySize(long size) {
+        return size < MAXIMUM_DICTIONARY_SIZE;
+    }
+    
+    private boolean isDictionaryNameExisted(String dictName, UInteger userID) {
         try (Connection conn = UserSqlServer.getConnection()) {
             DSLContext create = UserSqlServer.createDSLContext(conn);
             

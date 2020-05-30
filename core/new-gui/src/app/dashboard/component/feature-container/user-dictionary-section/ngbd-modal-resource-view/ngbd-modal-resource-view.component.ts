@@ -4,6 +4,8 @@ import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { UserDictionary } from '../../../../../common/type/user-dictionary';
 import { UserDictionaryService } from '../../../../../common/service/user/user-dictionary/user-dictionary.service';
 
+const DICTIONARY_ITEM_PREVIEW_SIZE = 20;
+
 /**
  * NgbdModalResourceViewComponent is the pop-up component to
  * let user view each dictionary. It allows user to add items
@@ -62,6 +64,10 @@ export class NgbdModalResourceViewComponent {
 
     this.dictionary.items = this.dictionary.items.filter(dictItems => dictItems !== item);
     this.userDictionaryService.updateDictionary(this.dictionary);
+  }
+
+  public limitPreviewItemSize(item: string): string {
+    return item.length <= DICTIONARY_ITEM_PREVIEW_SIZE ? item : item.substr(0, DICTIONARY_ITEM_PREVIEW_SIZE) + '...';
   }
 }
 

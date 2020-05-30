@@ -10,6 +10,8 @@ import { UserDictionary } from '../../../../common/type/user-dictionary';
 import { UserDictionaryService } from '../../../../common/service/user/user-dictionary/user-dictionary.service';
 import { UserService } from '../../../../common/service/user/user.service';
 
+
+const DICTIONARY_ITEM_PREVIEW_SIZE = 20;
 /**
  * UserDictionarySectionComponent is the main interface
  * for managing all the user dictionaries. On this interface,
@@ -140,5 +142,9 @@ export class UserDictionarySectionComponent {
       return [];
     }
     return dictionaryArray;
+  }
+
+  public limitPreviewItemSize(item: string): string {
+    return item.length <= DICTIONARY_ITEM_PREVIEW_SIZE ? item : item.substr(0, DICTIONARY_ITEM_PREVIEW_SIZE) + '...';
   }
 }
