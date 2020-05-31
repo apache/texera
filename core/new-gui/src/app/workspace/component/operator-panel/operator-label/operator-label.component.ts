@@ -24,7 +24,7 @@ export class OperatorLabelComponent implements OnInit, AfterViewInit {
   public static operatorLabelSearchBoxPrefix = 'texera-operator-label-search-result-';
 
   // tooltipWindow is an instance of ngbTooltip (popup box)
-  @ViewChild('ngbTooltip', { static : false }) tooltipWindow: NgbTooltip | undefined;
+  @ViewChild('ngbTooltip') tooltipWindow: NgbTooltip | undefined;
   @Input() operator?: OperatorSchema;
   // whether the operator label is from the operator panel or the search box
   @Input() fromSearchBox?: boolean;

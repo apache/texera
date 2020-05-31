@@ -42,7 +42,7 @@ export class ResultPanelComponent {
   public currentDataSource: MatTableDataSource<object> | undefined;
   public showResultPanel: boolean | undefined;
 
-  @ViewChild(MatPaginator, { static : false }) paginator: MatPaginator | null = null;
+  @ViewChild(MatPaginator) paginator: MatPaginator | null = null;
 
   private currentResult: object[] = [];
   private currentMaxPageSize: number = 0;
