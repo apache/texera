@@ -11,9 +11,6 @@ import '../../../common/rxjs-operators';
 
 import { cloneDeep, isEqual} from 'lodash';
 
-export interface IndexableObject extends Readonly<{
-  [key: string]: object | string | boolean | symbol | number | Array<object>;
-}> { }
 import { JSONSchema4 } from 'json-schema';
 import { IndexableObject } from '../../types/result-table.interface';
 

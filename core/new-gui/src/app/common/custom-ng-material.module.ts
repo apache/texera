@@ -8,7 +8,6 @@ import { ObserversModule } from '@angular/cdk/observers';
 import { OverlayModule } from '@angular/cdk/overlay';
 import { PlatformModule } from '@angular/cdk/platform';
 import { PortalModule } from '@angular/cdk/portal';
-import { ScrollDispatchModule } from '@angular/cdk/scrolling';
 import { CdkStepperModule } from '@angular/cdk/stepper';
 import { CdkTableModule } from '@angular/cdk/table';
 // import angular material modules
@@ -58,7 +57,6 @@ import { MatTooltipModule } from '@angular/material/tooltip';
     OverlayModule,
     PlatformModule,
     PortalModule,
-    ScrollDispatchModule,
     CdkStepperModule,
     CdkTableModule,
 

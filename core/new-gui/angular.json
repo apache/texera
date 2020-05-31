@@ -28,16 +28,14 @@
               "node_modules/bootstrap/dist/css/bootstrap.min.css",
               "src/styles.scss"
             ],
-            "scripts": [
-
-            ]
+            "scripts": []
           },
           "configurations": {
             "production": {
               "budgets": [
                 {
                   "type": "anyComponentStyle",
-                  "maximumWarning": "6kb"
+                  "maximumWarning": "256kb"
                 }
               ],
               "optimization": true,
@@ -83,8 +81,7 @@
             "karmaConfig": "./karma.conf.js",
             "polyfills": "src/polyfills.ts",
             "tsConfig": "src/tsconfig.spec.json",
-            "scripts": [
-            ],
+            "scripts": [],
             "styles": [
               "node_modules/jointjs/css/layout.css",
               "node_modules/jointjs/css/themes/material.css",
@@ -147,5 +144,8 @@
     "@schematics/angular:directive": {
       "prefix": "texera"
     }
+  },
+  "cli": {
+    "analytics": false
   }
 }

@@ -8,7 +8,8 @@
     "build": "ng build --prod",
     "test": "ng test",
     "lint": "ng lint",
-    "e2e": "ng e2e"
+    "e2e": "ng e2e",
+    "postinstall": "ngcc"
   },
   "private": true,
   "dependencies": {
@@ -17,7 +18,7 @@
     "@angular/common": "^9.1.9",
     "@angular/compiler": "^9.1.9",
     "@angular/core": "^9.1.9",
-    "@angular/flex-layout": "^8.0.0-beta.27",
+    "@angular/flex-layout": "^9.0.0-beta.31",
     "@angular/forms": "^9.1.9",
     "@angular/material": "^9.2.4",
     "@angular/platform-browser": "^9.1.9",
@@ -47,7 +48,7 @@
     "ngx-tour-core": "^4.1.1",
     "ngx-tour-ng-bootstrap": "^4.1.1",
     "popper.js": "^1.16.1",
-    "rxjs": "^6.5.4",
+    "rxjs": "^6.5.5",
     "rxjs-compat": "^6.5.4",
     "tinyqueue": "^2.0.3",
     "tslib": "^1.10.0",
