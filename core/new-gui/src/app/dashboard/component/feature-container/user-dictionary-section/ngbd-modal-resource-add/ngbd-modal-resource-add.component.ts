@@ -7,9 +7,9 @@ import { v4 as uuid } from 'uuid';
 
 import { FileUploader, FileItem } from 'ng2-file-upload';
 import { isEqual } from 'lodash';
-import { MatTabChangeEvent } from '@angular/material';
+import { MatTabChangeEvent } from '@angular/material/tabs';
 
-import { ErrorStateMatcher } from '@angular/material';
+import { ErrorStateMatcher } from '@angular/material/core';
 import { FormControl, FormGroupDirective, NgForm, Validators } from '@angular/forms';
 
 class MyErrorStateMatcher implements ErrorStateMatcher {
