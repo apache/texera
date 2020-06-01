@@ -1,9 +1,7 @@
 import { DragDropService } from './../../../service/drag-drop/drag-drop.service';
 import { Component, Input, AfterViewInit, ViewChild, OnInit } from '@angular/core';
-import { v4 as uuid } from 'uuid';
 import { Observable, of, Subject} from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
-
 
 import { OperatorSchema } from '../../../types/operator-schema.interface';
 import { NgbTooltip } from '../../../../../../node_modules/@ng-bootstrap/ng-bootstrap/tooltip/tooltip';
