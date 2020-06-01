@@ -80,7 +80,7 @@ export class NgbdModalUserLoginComponent implements OnInit {
     this.userService.getUserChangedEvent()
       .subscribe(
         () => {
-          if (this.userService.getUser) {
+          if (this.userService.getUser()) {
             // TODO temporary solution, need improvement
             this.activeModal.close();
           }
