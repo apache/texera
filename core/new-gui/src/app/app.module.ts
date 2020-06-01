@@ -14,7 +14,7 @@ import { LoggerModule, NgxLoggerLevel } from 'ngx-logger';
 import { MaterialDesignFrameworkModule } from 'angular6-json-schema-form';
 import { NgxJsonViewerModule } from 'ngx-json-viewer';
 
-import { MatTooltipModule } from '@angular/material';
+import { MatTooltipModule } from '@angular/material/tooltip';
 
 import { AppComponent } from './app.component';
 import { WorkspaceComponent } from './workspace/component/workspace.component';

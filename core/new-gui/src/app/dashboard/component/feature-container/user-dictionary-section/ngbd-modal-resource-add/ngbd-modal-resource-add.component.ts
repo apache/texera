@@ -1,12 +1,13 @@
 import { Component } from '@angular/core';
 import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
-import { MatTabChangeEvent, ErrorStateMatcher } from '@angular/material';
-import { FormControl, FormGroupDirective, NgForm, Validators } from '@angular/forms';
-
-import { FileUploader} from 'ng2-file-upload';
 import { DictionaryUploadItem, ManualDictionaryUploadItem } from '../../../../../common/type/user-dictionary';
 import { UserDictionaryUploadService } from '../../../../../common/service/user/user-dictionary/user-dictionary-upload.service';
 
+import { FileUploader } from 'ng2-file-upload';
+import { MatTabChangeEvent } from '@angular/material/tabs';
+
+import { ErrorStateMatcher } from '@angular/material/core';
+import { FormControl, FormGroupDirective, NgForm, Validators } from '@angular/forms';
 
 class DictionaryErrorStateMatcher implements ErrorStateMatcher {
   isErrorState(control: FormControl | null, form: FormGroupDirective | NgForm | null): boolean {
