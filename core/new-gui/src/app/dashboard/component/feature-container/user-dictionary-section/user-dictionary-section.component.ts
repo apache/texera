@@ -33,6 +33,7 @@ export class UserDictionarySectionComponent {
     private modalService: NgbModal
   ) {
     this.userDictionaryService.refreshDictionaries();
+    this.forceRefreshMatChip();
   }
 
   /**
@@ -146,5 +147,15 @@ export class UserDictionarySectionComponent {
 
   public limitPreviewItemSize(item: string): string {
     return item.length <= DICTIONARY_ITEM_PREVIEW_SIZE ? item : item.substr(0, DICTIONARY_ITEM_PREVIEW_SIZE) + '...';
+  }
+
+  /**
+   * Temporary solution to force the mat chip to refresh
+   * Unknown problem happens on mat chip after upgrading to Angular 9
+   * open any ngbd modal and close it will solve the problem
+   */
+  private forceRefreshMatChip(): void {
+    const modalRef = this.modalService.open(NgbdModalResourceViewComponent);
+    modalRef.close();
   }
 }

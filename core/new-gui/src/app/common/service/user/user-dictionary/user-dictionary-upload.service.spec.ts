@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { AppSettings } from '../../../app-setting';
 
-import { UserDictionaryUploadService, USER_DICTIONARY_UPLOAD_URL, USER_MANUAL_DICTIONARY_UPLOAD_URL } from './user-dictionary-upload.service';
+import { UserDictionaryUploadService, USER_DICTIONARY_UPLOAD_URL, USER_MANUAL_DICTIONARY_UPLOAD_URL, USER_DICTIONARY_VALIDATE_URL } from './user-dictionary-upload.service';
 import { UserService } from '../user.service';
 import { UserDictionaryService } from './user-dictionary.service';
 import { StubUserService } from '../stub-user.service';
@@ -75,9 +75,9 @@ describe('UserDictionaryUploadService', () => {
 
     service.uploadAllDictionaries();
 
-    // const req1 = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${USER_DICTIONARY_VALIDATE_URL}`);
-    // expect(req1.request.method).toEqual('POST');
-    // req1.flush({code: 0, message: ''});
+    const req1 = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${USER_DICTIONARY_VALIDATE_URL}`);
+    expect(req1.request.method).toEqual('POST');
+    req1.flush({code: 0, message: ''});
 
     const req2 = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${USER_DICTIONARY_UPLOAD_URL}`);
     expect(req2.request.method).toEqual('POST');

@@ -42,7 +42,7 @@ import io.dropwizard.jersey.sessions.Session;
 public class UserFileResource {
     
     /**
-     * Corresponds to `src/app/dashboard/type/user-file.ts`
+     * Corresponds to `src/app/common/type/user-file.ts`
      */
     public static class UserFile {
         public UInteger id; // the ID in MySQL database is unsigned int
