@@ -10,6 +10,7 @@ package edu.uci.ics.texera.dataflow.common;
 public class PropertyNameConstants {
     
     private PropertyNameConstants() {};
+
     
     // operator metadata names, used in generating operator json schema
     public static final String USER_FRIENDLY_NAME = "userFriendlyName";

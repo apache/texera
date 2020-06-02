@@ -7,7 +7,7 @@ import { WorkflowActionService } from '../../service/workflow-graph/model/workfl
 import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-graph-wrapper';
 import { ValidationWorkflowService } from '../../service/validation/validation-workflow.service';
 import { ExecutionResult } from './../../types/execute-workflow.interface';
-import { stat } from 'fs';
+
 import { map } from 'rxjs-compat/operator/map';
 
 import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';

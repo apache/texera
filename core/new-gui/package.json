@@ -54,7 +54,8 @@
     "rxjs": "^6.5.5",
     "rxjs-compat": "^6.5.5",
     "zone.js": "^0.9.1",
-    "@ngx-formly/material": "^5.0.0"
+    "@ngx-formly/material": "^5.0.0",
+    "@ngx-formly/ionic": "^5.0.0"
   },
   "devDependencies": {
     "@angular-devkit/build-angular": "^0.803.26",

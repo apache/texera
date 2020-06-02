@@ -164,7 +164,7 @@ export class SchemaPropagationService {
       () => ({ type: 'string', enum: inputAttributes.slice() }));
 
     newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, attributeListInJsonSchema,
-      () => ({ type: 'array', items: { type: 'string', enum: inputAttributes.slice() } }));
+      () => ({ type: 'array', items: { type: 'string', enum: inputAttributes.slice() }, uniqueItems: true}));
 
     return {
       ...operatorSchema,

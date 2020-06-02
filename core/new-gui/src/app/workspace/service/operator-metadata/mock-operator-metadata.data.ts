@@ -174,7 +174,6 @@ export const mockOperatorMetaData: OperatorMetadata = {
 
 
 export const testJsonSchema: JSONSchema7 = {
-  id: 'urn:jsonschema:edu:uci:ics:texera:dataflow:nlp:sentiment:NlpSentimentPredicate',
   properties: {
     attribute: {
       type: 'string'

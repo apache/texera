@@ -75,7 +75,7 @@ public class KeywordPredicate extends PredicateBase {
      * searched in String field we search for Exact string.
      */
     private final String query;
-    
+
     private final List<String> attributeNames;
     private final String luceneAnalyzerString;
     private final KeywordMatchingType matchingType;
@@ -91,8 +91,6 @@ public class KeywordPredicate extends PredicateBase {
      * @param matchingType, an Enum indicating the matching type (see KeywordMatchingType)
      * @param spanListName, optional, the name of the attribute where the results (a list of spans) will be in, 
      *          default value is the id of the predicate
-     * @param limit, optional, passing null will set it to default value Integer.MAX_VALUE
-     * @param offset, optional, passing null will set it to default value 0
      */
     @JsonCreator
     public KeywordPredicate(
@@ -110,7 +108,7 @@ public class KeywordPredicate extends PredicateBase {
         if (query.trim().isEmpty()) {
             throw new TexeraException(PropertyNameConstants.EMPTY_QUERY_EXCEPTION);
         }
-        
+
         this.query = query;
         this.attributeNames = Collections.unmodifiableList(attributeNames);
         if (luceneAnalyzerString == null) {
@@ -125,6 +123,7 @@ public class KeywordPredicate extends PredicateBase {
         } else {
             this.spanListName = spanListName.trim();
         }
+
         
     }
 
@@ -134,9 +133,7 @@ public class KeywordPredicate extends PredicateBase {
     }
 
     @JsonProperty(PropertyNameConstants.ATTRIBUTE_NAMES)
-    public List<String> getAttributeNames() {
-        return attributeNames;
-    }
+    public List<String> getAttributeNames() { return attributeNames; }
 
     @JsonProperty(PropertyNameConstants.LUCENE_ANALYZER_STRING)
     public String getLuceneAnalyzerString() {

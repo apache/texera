@@ -15,7 +15,6 @@ export interface IndexableObject extends Readonly<{
   [key: string]: object | string | boolean | symbol | number | Array<object>;
 }> { }
 import { JSONSchema7 } from 'json-schema';
-import { IndexableObject } from '../../types/result-table.interface';
 
 import { FormGroup } from '@angular/forms';
 import { FormlyFormOptions, FormlyFieldConfig } from '@ngx-formly/core';
@@ -170,7 +169,6 @@ export class PropertyEditorComponent {
    * @param formData
    */
   public onFormChanges(formData: object): void {
-    console.log('test', formData);
     this.sourceFormChangeEventStream.next(formData);
   }
 
@@ -267,7 +265,7 @@ export class PropertyEditorComponent {
     // set the operator data needed
     this.currentOperatorID = operator.operatorID;
     this.currentOperatorSchema = this.autocompleteService.getDynamicSchema(this.currentOperatorID);
-    console.log('test5', this.currentOperatorSchema );
+
     this.convertJsonSchemaToNGXField(this.currentOperatorSchema.jsonSchema);
 
     // handle generating schemas for advanced / hidden options
@@ -321,7 +319,7 @@ export class PropertyEditorComponent {
       // don't emit the event if form data is same with current actual data
       // also check for other unlikely circumstances (see below)
       .filter(formData => {
-        console.log('test2', formData);
+
         // check if the current operator ID still exists
         // the user could un-select this operator during debounce time
         if (!this.currentOperatorID) {
@@ -373,7 +371,7 @@ export class PropertyEditorComponent {
       event => {
         if (event.operatorID === this.currentOperatorID) {
           this.currentOperatorSchema = this.autocompleteService.getDynamicSchema(this.currentOperatorID);
-          console.log('test6', this.currentOperatorSchema);
+
           const operator = this.workflowActionService.getTexeraGraph().getOperator(event.operatorID);
           if (! operator) {
             throw new Error(`operator ${event.operatorID} does not exist`);
@@ -531,7 +529,6 @@ export class PropertyEditorComponent {
   private handleOnFormChange(): void {
     this.outputFormChangeEventStream
       .subscribe(formData => {
-        console.log('test3', formData);
       // set the operator property to be the new form data
       if (this.currentOperatorID) {
 
@@ -577,19 +574,30 @@ export class PropertyEditorComponent {
   private convertJsonSchemaToNGXField(schema: JSONSchema7) {
     this.form = new FormGroup({});
     this.options = {};
-    const field = this.formlyJsonschema.toFieldConfig(schema);
 
-    for (let i = 0; i < Object.keys(schema.properties).length; i++) {
-      field.fieldGroup[i].templateOptions.label = Object.keys(schema.properties)[i];
+    const copy_schema = cloneDeep(schema);
 
-    }
+    // for (let i = 0; i < Object.keys(copy_schema.properties).length; i++) {
+    //   if ( Object.keys(copy_schema.properties)[i] === 'attributes') {
+    //     copy_schema.properties.attributes['uniqueItems'] = true;
+    //   }
+    // }
+
+
+    const field = this.formlyJsonschema.toFieldConfig(copy_schema);
+
+    // get name
+    // for (let i = 0; i < Object.keys(copy_schema.properties).length; i++) {
+    //   field.fieldGroup[i].templateOptions.label = Object.keys(copy_schema.properties)[i];
+
+    // }
 
     this.fields = [field];
 
     console.log('model', this.model);
     // console.log('data', this.currentOperatorInitialData);
-    // console.log('tofilds', this.formlyJsonschema.toFieldConfig(schema));
-    console.log('schema', schema);
+    console.log('schema', copy_schema);
+    console.log('tofilds', this.formlyJsonschema.toFieldConfig(copy_schema));
     // console.log('proper', Object.keys(schema.properties));
     console.log('field', this.fields);
 

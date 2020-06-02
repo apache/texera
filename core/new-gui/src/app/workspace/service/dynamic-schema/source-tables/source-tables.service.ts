@@ -84,7 +84,7 @@ export class SourceTablesService {
       return {
         ...schema,
         jsonSchema: DynamicSchemaService.mutateProperty(
-          schema.jsonSchema, tableNameInJsonSchema, () => ({ type: 'string', enum: tableNames }))
+          schema.jsonSchema, tableNameInJsonSchema, () => ({ type: 'string', enum: tableNames}))
       };
     }
     return schema;
