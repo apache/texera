@@ -1,8 +1,6 @@
 <nz-modal [nzVisible]="isModalVisible" nzTitle = 'Add New Project' nzCancelText = 'Close' (nzOnCancel) = 'closeModal()' nzOkText = 'Add' (nzOnOk) = 'addProject()'  >
   <div class="modal-body">
-    <mat-dialog-content>
-      <input matInput [(ngModel)]="this.name" placeholder="Name of New Project">
-    </mat-dialog-content>
+      <input nz-input [(ngModel)]="this.name" placeholder="Name of New Project">
     <div id="warning" class="warning-note"></div>
   </div>
 </nz-modal>

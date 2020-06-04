@@ -85,7 +85,7 @@ export class UserDictionarySectionComponent {
     const modalRef = this.componentInserter.injectComponent<NgbdModalResourceViewComponent>(
       NgbdModalResourceViewComponent,
       this.viewContainerRef);
-    modalRef.instance.result.catch(() => {
+    modalRef.instance.result.then(() => {
       this.refreshUserDictionary();
     });
     modalRef.instance.dictionary = cloneDeep(dictionary);

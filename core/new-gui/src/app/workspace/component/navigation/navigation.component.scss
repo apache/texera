@@ -3,8 +3,18 @@
   height: 100%;
   width: 100%;
   display: grid;
-  grid-template-columns: 14% 64% 22%;
+  grid-template-columns:
+    130px
+    5fr
+    85fr
+    10fr
+    220px;
   grid-template-rows: 100%;
+  box-shadow: 1px 1px 5px #b7b7b7;
+  z-index: 1;
+  position: relative;
+  align-items: center;
+  padding: 0px 16px 0px 16px;
 }
 
 .button {
@@ -16,21 +26,21 @@
 
 .texera-navigation-title {
   grid-column-start: 1;
-  grid-column-end: 2;
+  grid-column-end: 3;
   grid-row-start: 1;
   grid-row-end: 1;
 }
 
 .texera-navigation-utilities {
-  grid-column-start: 2;
-  grid-column-end: 3;
+  grid-column-start: 3;
+  grid-column-end: 4;
   grid-row-start: 1;
   grid-row-end: 1;
 }
 
 .texera-navigation-execute {
   grid-column-start: 3;
-  grid-column-end: 4;
+  grid-column-end: 6;
   grid-row-start: 1;
   grid-row-end: 1;
   justify-self: end;
@@ -72,25 +82,3 @@
   font-size: 10px;
 }
 
-.drop-down-item {
-  display: block;
-  width: 100%;
-  text-align: left;
-  border: transparent;
-  background-color: transparent;
-}
-
-.drop-down-item:hover {
-  background-color: #C6C6C6;
-  cursor: pointer;
-}
-
-.drop-down-button{
-  padding: 0px;
-  border: 0px;
-  background-color: transparent;
-}
-
-.drop-down-icon{
-  margin-right: 0px;
-}

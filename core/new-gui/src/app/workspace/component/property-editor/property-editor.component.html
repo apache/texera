@@ -1,6 +1,6 @@
 <div class="texera-workspace-property-editor-body texera-workflow-component-body">
   <div *ngIf="displayForm">
-    <h3 class="texera-workspace-property-editor-title" mat-subheader>
+    <h3 class="texera-workspace-property-editor-title">
       {{currentOperatorSchema?.additionalMetadata.userFriendlyName}}
     </h3>
 
@@ -15,8 +15,8 @@
     >
     </json-schema-form>
 
-    <button *ngIf="!showAdvanced && hasAdvanced" type="button" class="btn btn-default" (click)="handlePropertyAdvancedToggle()">Advanced</button>
-    <button *ngIf="showAdvanced && hasAdvanced" type="button" class="btn btn-default" (click)="handlePropertyAdvancedToggle()">Hide Advanced</button>
+    <button nz-button *ngIf="!showAdvanced && hasAdvanced" type="button" (click)="handlePropertyAdvancedToggle()">Advanced</button>
+    <button nz-button *ngIf="showAdvanced && hasAdvanced" type="button" (click)="handlePropertyAdvancedToggle()">Hide Advanced</button>
 
     <ng-template #htmlContent>
       <div class="container" *ngFor="let attribute of propertyDescription | keyvalue">
@@ -29,10 +29,10 @@
       </div>
     </ng-template>
 
-    <button class="propertyDescriptionButton" *ngIf="hasPropertyDescription" mat-icon-button  mat-subheader
+    <button nz-button class="propertyDescriptionButton" *ngIf="hasPropertyDescription"
       triggers="click:blur" nz-tooltip [nzTooltipTitle]="htmlContent" nzTooltipPlacement="left">
       <span>
-        <i id="question-mark-icon" class="fa fa-info-circle" aria-hidden="true" ></i>
+        <i id="question-mark-icon" nz-icon nzType="info-circle" nzTheme="outline"></i>
       </span>
     </button>
   </div>

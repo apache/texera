@@ -1,5 +1,5 @@
-<div class="saved-project-container subsection-grid-container">
-  <mat-card class="project-section-title subsection-grid-container">
+<nz-card class="saved-project-container subsection-grid-container">
+  <div class="project-section-title subsection-grid-container">
     <div ngbDropdown class="d-inline-block">
       <button nz-button nz-dropdown [nzDropdownMenu]="menu" id="sortDropdown">Sort<i nz-icon nzType="down"></i></button>
       <nz-dropdown-menu #menu="nzDropdownMenu">
@@ -21,31 +21,25 @@
       <button nz-button (click)="openNgbdModalAddProjectComponent()"><i nz-icon nzType="plus"
           nzTheme="outline"></i></button>
     </div>
-  </mat-card>
+  </div>
 
-  <mat-card class="project-list subsection-grid-container">
-    <mat-card-content>
-      <mat-list>
-        <div>
-          <h2 class="page-title">Projects</h2>
-          <br />
+  <div class="project-list subsection-grid-container">
+    <nz-divider nzText="Projects"></nz-divider>
+    <div class="scroll">
+      <div *ngFor="let project of projects" class="project-list-item">
+        <div class='project-list-item-grid'>
+          <h3 class="project-title"><a href={{this.defaultWeb}}>{{project.name}}</a></h3>
+          <p class="project-time">
+            Last Access: {{project.lastModifiedTime | date:'yyyy-MM-dd HH:mm'}}
+            <span class="time-space"></span>
+            Created: {{project.creationTime | date:'yyyy-MM-dd HH:mm'}}
+          </p>
+          <button nz-button class="project-list-item-trash-button" nz-popover
+            nzPopoverContent="Delete {{project.name}}" (click)="openNgbdModalDeleteProjectComponent(project)"><i nz-icon
+              nzType="delete" nzTheme="outline"></i></button>
         </div>
-        <div class="scroll">
-          <mat-list-item *ngFor="let project of projects" class="project-list-item">
-            <h3 mat-line class="project-title"><a href={{this.defaultWeb}}>{{project.name}}</a></h3>
-            <p mat-line class="project-time"> <br>
-              Last Access: {{project.lastModifiedTime | date:'yyyy-MM-dd HH:mm'}}
-              <span class="time-space"></span>
-              Created: {{project.creationTime | date:'yyyy-MM-dd HH:mm'}}
-            </p>
-            <button nz-button placement="bottom" nz-popover nzPopoverContent="Delete the {{project.name}}"
-              (click)="openNgbdModalDeleteProjectComponent(project)"><i nz-icon nzType="delete"
-                nzTheme="outline"></i></button>
-          </mat-list-item>
 
-        </div>
-      </mat-list>
-
-    </mat-card-content>
-  </mat-card>
-</div>
+      </div>
+    </div>
+  </div>
+</nz-card>

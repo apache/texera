@@ -4,7 +4,7 @@
   </div>
   <div *nzModalFooter>
     <button nz-button [disabled]="currentDisplayRowIndex === 0" (click)="this.prev()">Previous</button>
-    <button nz-button [disabled]="currentDisplayRowIndex === (currentPageSize - 1)" (click)="this.next()">Next</button>
+    <button nz-button [disabled]="currentDisplayRowIndex === maxRowIndex" (click)="this.next()">Next</button>
     <button nz-button (click)="this.closeModal()">Close</button>
   </div>
 </nz-modal>

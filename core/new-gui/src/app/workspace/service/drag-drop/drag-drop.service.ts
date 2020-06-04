@@ -175,7 +175,6 @@ export class DragDropService {
    */
   public registerOperatorLabelDrag(dragElementID: string, operatorType: string): void {
     this.elementOperatorTypeMap.set(dragElementID, operatorType);
-
     // register callback functions for jquery UI
     jQuery('#' + dragElementID).draggable({
       helper: () => this.createFlyingOperatorElement(dragElementID, operatorType),

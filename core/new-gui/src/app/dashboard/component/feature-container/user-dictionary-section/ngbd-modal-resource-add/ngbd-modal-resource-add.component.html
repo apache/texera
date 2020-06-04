@@ -1,8 +1,8 @@
 <nz-modal [nzVisible]="isModalVisible" nzTitle='Add Dictionary' (nzOnCancel)='closeModal()'>
   <div class="modal-body">
-    <mat-tab-group mat-stretch-tabs (selectedTabChange)="onTabChangeEvent($event)">
+    <nz-tabset (nzSelectedIndexChange)="onTabChangeEvent($event)">
       <!-- upload files tab -->
-      <mat-tab label="Upload">
+      <nz-tab nzTitle="Upload">
         <div ng2FileDrop [ngClass]="{'have-file-over': haveDropZoneOver}" (fileOver)="haveFileOver($event)"
           (onFileDrop)="getFileDropped($event)" [uploader]="uploader" class="drag-file-area"
           (click)="clickUpload.click()">
@@ -34,45 +34,54 @@
             </label>
           </div>
         </div>
-      </mat-tab>
+      </nz-tab>
 
       <!-- tab for manual dictionary creation by the user -->
-      <mat-tab label="Add Manually">
+      <nz-tab nzTitle="Add Manually">
         <div class="add-dictionary-container">
-          <mat-dialog-content>
-            <mat-form-field>
-              <input matInput [(ngModel)]="dictName" placeholder="Name of Dictionary" [formControl]="nameValidator"
-                [errorStateMatcher]="matcher" required>
-              <mat-error *ngIf="nameValidator.invalid">*Name is <strong>required</strong></mat-error>
-            </mat-form-field>
-            <mat-form-field>
-              <textarea matInput style="resize: none;" [(ngModel)]="dictContent" placeholder="Content of Dictionary"
-                [formControl]="contentValidator" [errorStateMatcher]="matcher" required matTextareaAutosize
-                matAutosizeMaxRows="8">
-            </textarea>
-              <mat-error *ngIf="contentValidator.invalid">*Content is <strong>required</strong></mat-error>
-            </mat-form-field>
-            <mat-form-field>
-              <input matInput [(ngModel)]="dictSeparator" placeholder="Content Separator (' , '    ' \\t '    ' \\n ')">
-            </mat-form-field>
-            <mat-form-field class="description-area">
-              <input matInput [(ngModel)]="dictionaryDescription" placeholder="Dictionary Description"
-                [formControl]="descriptionValidator" [errorStateMatcher]="matcher" required>
-              <mat-error *ngIf="descriptionValidator.invalid">*Description is <strong>required</strong></mat-error>
-            </mat-form-field>
-          </mat-dialog-content>
+          <form nz-form [formGroup]="validateForm">
+            <nz-form-item>
+              <nz-form-label [nzSpan]="3" nzRequired = "true" nzNoColon = "true" ></nz-form-label>
+              <nz-form-control [nzSpan]="18" nzErrorTip="Name is Required">
+                <input nz-input [(ngModel)]="dictName" placeholder="Name of Dictionary"
+                name="name"
+                formControlName="name">
+              </nz-form-control>
+            </nz-form-item>
+            <nz-form-item>
+              <nz-form-label [nzSpan]="3" nzRequired = "true" nzNoColon = "true"></nz-form-label>
+              <nz-form-control [nzSpan]="18" nzErrorTip="Content is Required">
+                <textarea nz-input style="resize: none;" [(ngModel)]="dictContent" placeholder="Content of Dictionary"
+                  name="content" formControlName="content">
+              </textarea>
+              </nz-form-control>
+            </nz-form-item>
+            <nz-form-item>
+              <nz-form-label [nzSpan]="3" nzRequired = "false" nzNoColon = "true"></nz-form-label>
+              <nz-form-control [nzSpan]="18">
+                <input nz-input [(ngModel)]="dictSeparator"
+                  placeholder="Content Separator (' , '    ' \\t '    ' \\n ')" name = "separator" formControlName="separator">
+              </nz-form-control>
+            </nz-form-item>
+            <nz-form-item>
+              <nz-form-label [nzSpan]="3" nzRequired = "true" nzNoColon = "true"></nz-form-label>
+              <nz-form-control [nzSpan]="18" nzErrorTip="Description is Required">
+                <input nz-input [(ngModel)]="dictionaryDescription" placeholder="Dictionary Description"
+                  name = "description" formControlName="description">
+              </nz-form-control>
+            </nz-form-item>
+          </form>
         </div>
-      </mat-tab>
-    </mat-tab-group>
+      </nz-tab>
+    </nz-tabset>
 
   </div>
   <div *nzModalFooter>
     <div>
       <button nz-button nzType='default' (click)="closeModal()">Cancel</button>
-      <button nz-button nzType='primary' (click)="isInUploadFileTab ? uploadFiles(): addDictionary()"
-        [disabled]="isInUploadFileTab ? ( uploader.queue.length == 0 || invalidFileTypeCounter || duplicateFiles.length) : !checkDictionaryFormValid() "
-        [nzLoading]="isUploading"
-        style = 'min-width: 85px'>
+      <button nz-button nzType='primary' (click)="isInUploadFileTab ? uploadFiles(): submitDictionary()"
+        [disabled]="isInUploadFileTab ? ( uploader.queue.length == 0 || invalidFileTypeCounter || duplicateFiles.length) : false"
+        [nzLoading]="isUploading" style='min-width: 85px'>
         {{isInUploadFileTab ? 'Upload':'Add' }}
       </button>
     </div>

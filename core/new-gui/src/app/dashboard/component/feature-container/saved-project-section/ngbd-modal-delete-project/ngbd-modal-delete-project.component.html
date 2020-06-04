@@ -1,9 +1,8 @@
 <nz-modal [nzVisible]="isModalVisible" nzTitle='Delete the Project' (nzOnCancel)='closeModal()'
   (nzOnOk)='deleteSavedProject()'>
   <div class="modal-body">
-    <mat-dialog-actions>
-      <p class="modal-title">Confirm to Delete the Project {{this.project.name}}</p>
-    </mat-dialog-actions>
+      <p class="modal-title">Confirm to delete <b>{{project.name}}</b>.</p> <br>
+      <p class="modal-title">Deletion is permanent.</p>
   </div>
   <div *nzModalFooter>
     <button nz-button (click)="closeModal()">Cancel</button>

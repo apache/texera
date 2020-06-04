@@ -14,13 +14,12 @@ import { ZorroModalDialogueComponent } from '../../../../../abstract-component/z
   styleUrls: ['./ngbd-modal-delete-project.component.scss', '../../../dashboard.component.scss']
 })
 export class NgbdModalDeleteProjectComponent extends ZorroModalDialogueComponent<boolean> {
-  defaultSavedProject: SavedProject = {
+  project: SavedProject = {
     name: '',
     id: '',
     creationTime: '',
     lastModifiedTime: ''
   };
-  @Input() project: SavedProject = this.defaultSavedProject;
   constructor(@Optional() @Inject('ComponentRefPromise') ref: Promise<ComponentRef<NgbdModalDeleteProjectComponent>>) {
     super(ref);
   }

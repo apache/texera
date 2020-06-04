@@ -1,21 +1,17 @@
-<nz-modal [nzVisible]="isModalVisible" nzTitle = '{{dictionary.name}}' nzCancelText = 'close' (nzOnCancel) = 'closeModal()'>
+<nz-modal [nzVisible]="isModalVisible" nzTitle = '{{dictionary.name}}' nz (nzOnCancel) = 'closeModal()'>
     <div class="modal-body">
-      <mat-chip-list #chipList>
-        <mat-chip *ngFor="let item of dictionary.items" [selectable]="selectable" [removable]="removable"
-          (removed)="remove(item)">
+        <nz-tag nzMode="closeable" *ngFor="let item of dictionary.items"
+        (nzOnClose)="remove(item)">
           {{item}}
-          <mat-icon matChipRemove *ngIf="removable">
-            <i class="fa fa-times-circle"></i>
-          </mat-icon>
-        </mat-chip>
-      </mat-chip-list>
+        </nz-tag>
       <br>
-      <mat-divider></mat-divider>
+      <nz-divider></nz-divider>
       <br>
+        <button nz-button (click)="addDictionaryItem()" class = "addbtn">Add</button>
+        <input nz-input class = "addInput" *ngIf="ifAdd" [(ngModel)]="name" placeholder="Add into dictionary">
+    </div>
 
-      <mat-dialog-actions>
-        <input *ngIf="ifAdd" matInput [(ngModel)]="name" placeholder="Add into dictionary">
-        <button type="button" class="btn btn-outline-dark add-button" (click)="addDictionaryItem()">Add</button>
-      </mat-dialog-actions>
+    <div *nzModalFooter>
+      <button nz-button nzType="primary" (click)="closeModal()" >Ok</button>
     </div>
 </nz-modal>

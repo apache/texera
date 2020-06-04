@@ -2,9 +2,19 @@
 
 .texera-navigation-body {
     height: 100%;
+    box-shadow: 1px 1px 5px #b7b7b7;
+    z-index: 1;
+    position: relative;
+    align-items: center;
+    padding: 0px 16px 0px 16px;
+    display:flex;
     justify-content: space-between;
 }
 
 .texera-brand{
     font-size: 1.2rem;
+}
+
+.version-number {
+  font-size: 10px;
 }

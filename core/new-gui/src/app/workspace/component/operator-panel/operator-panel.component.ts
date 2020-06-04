@@ -8,7 +8,6 @@ import { OperatorMetadataService } from '../../service/operator-metadata/operato
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import * as Fuse from 'fuse.js';
-import {MatAutocompleteSelectedEvent} from '@angular/material/autocomplete';
 
 import { OperatorSchema, OperatorMetadata, GroupInfo } from '../../types/operator-schema.interface';
 
@@ -59,6 +58,8 @@ export class OperatorPanelComponent implements OnInit {
     keys: ['additionalMetadata.userFriendlyName']
   });
 
+  private isOperatorSearchResultVisible = false;
+
   constructor(
     private operatorMetadataService: OperatorMetadataService,
     private workflowActionService: WorkflowActionService,
@@ -70,10 +71,11 @@ export class OperatorPanelComponent implements OnInit {
     this.operatorSearchResults = (this.operatorSearchFormControl.valueChanges as Observable<string>).pipe(
       map(v => {
         if (v === null || v.trim().length === 0) {
+          this.isOperatorSearchResultVisible = false;
           return [];
         }
-        // TODO: remove this cast after we upgrade to Typescript 3
-        const results = this.fuse.search(v) as OperatorSchema[];
+        const results = this.fuse.search(v);
+        this.isOperatorSearchResultVisible = true;
         return results;
       })
     );
@@ -98,7 +100,7 @@ export class OperatorPanelComponent implements OnInit {
    * handles the event when an operator search option is selected.
    * adds the operator to the canvas and clears the text in the search box
    */
-  onSearchOperatorSelected(event: MatAutocompleteSelectedEvent): void  {
+  onSearchOperatorSelected(event: any): void  {
     const userFriendlyName = event.option.value as string;
     const operator = this.operatorSchemaList.filter(
       op => op.additionalMetadata.userFriendlyName === userFriendlyName)[0];
@@ -119,6 +121,12 @@ export class OperatorPanelComponent implements OnInit {
     this.groupNamesOrdered = getGroupNamesSorted(operatorMetadata.groups);
     this.operatorGroupMap = getOperatorGroupMap(operatorMetadata);
     this.fuse.setCollection(this.operatorSchemaList);
+  }
+
+  private isOperatorSearchResultsVisible(): Promise<boolean> {
+    return this.operatorSearchResults.last().toPromise().then((val) => {
+      return val.length !== 0;
+    });
   }
 
 }

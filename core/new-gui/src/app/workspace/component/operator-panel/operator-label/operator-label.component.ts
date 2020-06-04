@@ -54,27 +54,32 @@ export class OperatorLabelComponent  extends ZorroTooltipComponent implements On
   }
 
   ngAfterViewInit() {
-    if (! this.operatorLabelID || ! this.operator) {
-      throw new Error('operator label component: operator is not specified');
-    }
-    this.dragDropService.registerOperatorLabelDrag(this.operatorLabelID, this.operator.operatorType);
+    // set 0ms timeout to run function after ng-zorro loads in collapse panel
+    // setting a timeout puts function at end of the JS event queue.
+    setTimeout(() => {
+      if (! this.operatorLabelID || ! this.operator) {
+        throw new Error('operator label component: operator is not specified');
+      }
 
-    // openCommandsStream generate a value when 2 conditions are met:
-    //  1. an value from mouseEnterEventStream is observed
-    //  2. within the next 500ms, no value is observed from mouseLeaveEvenStream
-    this.openCommandsStream = this.mouseEnterEventStream.flatMap(v =>
-      of(v).delay(500).pipe(takeUntil(this.mouseLeaveEventStream))
-    );
+      // registration must run after the elements load (dragDropService uses DOM query selectors to find )
+      this.dragDropService.registerOperatorLabelDrag(this.operatorLabelID, this.operator.operatorType);
+      // openCommandsStream generate a value when 2 conditions are met:
+      //  1. an value from mouseEnterEventStream is observed
+      //  2. within the next 500ms, no value is observed from mouseLeaveEvenStream
+      this.openCommandsStream = this.mouseEnterEventStream.flatMap(v =>
+        of(v).delay(500).pipe(takeUntil(this.mouseLeaveEventStream))
+      );
 
-    // whenever an value from openCommandsStream is observed, open tooltipWindow
-    this.openCommandsStream.subscribe(v => {
-        this.showTooltip();
-    });
+      // whenever an value from openCommandsStream is observed, open tooltipWindow
+      this.openCommandsStream.subscribe(v => {
+          this.showTooltip();
+      });
 
-    // whenever an value from mouseLeaveEventStream is observed, close tooltipWindow
-    this.mouseLeaveEventStream.subscribe(v => {
-        this.hideTooltip();
-    });
+      // whenever an value from mouseLeaveEventStream is observed, close tooltipWindow
+      this.mouseLeaveEventStream.subscribe(v => {
+          this.hideTooltip();
+      });
+    }, 0);
   }
 
   // return openCommandStream to faciliate testing in spec.ts

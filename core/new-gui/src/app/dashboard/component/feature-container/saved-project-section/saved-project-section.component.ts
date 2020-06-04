@@ -143,6 +143,7 @@ export class SavedProjectSectionComponent implements OnInit {
       NgbdModalDeleteProjectComponent,
       this.viewContainerRef
     );
+    modalRef.instance.project = cloneDeep(project);
     Observable.from(modalRef.instance.result).subscribe(
       (value: boolean) => {
         if (value) {

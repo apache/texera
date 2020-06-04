@@ -50,6 +50,13 @@
   overflow-y: auto !important;
 }
 
+.table-row{
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+  max-width: 500px;
+}
+
 // force paginator to stick to the left since
 //  ususally we have results greater than 100%
 //  width of the result panel, which will create

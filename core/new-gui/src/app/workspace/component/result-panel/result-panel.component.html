@@ -1,23 +1,24 @@
-<div class="texera-workspace-result-panel-body texera-workflow-component-body" [hidden]="!showResultPanel">
-  <div class="texera-panel-message" *ngIf="showMessage">
-    <p>{{ message }}</p>
+<nz-drawer nzPlacement='bottom' [nzVisible]="showResultPanel" nzHeight="500" [nzBodyStyle]="{ overflow: 'auto'}"
+  (nzOnClose)="this.resultPanelToggleService.closeResultPanel()" nzTitle="Results">
+  <div class="texera-workspace-result-panel-body texera-workflow-component-body">
+    <div class="texera-panel-message" *ngIf="showMessage">
+      <p>{{ message }}</p>
+    </div>
+    <nz-table #basicTable [nzData]="currentResult"  [nzScroll]="{ x: '1100px' }" [(nzPageIndex)] = "currentPage" [(nzPageSize)] = "currentPageSize">
+      <thead>
+        <tr>
+          <th *ngFor="let column of currentDisplayColumns!">
+            {{column}}
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let data of basicTable.data; let i=index;">
+          <td class = "table-row" *ngFor="let column of currentDisplayColumns!" (click)="open(i)">
+            {{data[column]}}
+          </td>
+        </tr>
+      </tbody>
+    </nz-table>
   </div>
-  <!-- Use [hidden] instead of *ngIf because in *ngIf, when the predicate returns
-    false, the element inside the *ngIf clause will not exist, which @ViewChild(MatPaginator)
-    will not be able to get the paginator when the correct execution result is returned
-    for the first time, since <mat-paginator></mat-paginator> will still be undefined as
-    the elements in *ngIf is still loading. [hidden] attribute solves this issue by not
-    removing the elements, but rather modify their css to make these elements invisible
-    to the users-->
-  <div class="result-table" [hidden]="!currentColumns || showMessage">
-    <mat-table #table [dataSource]="currentDataSource!">
-      <ng-container *ngFor="let column of currentColumns!" matColumnDef={{column.columnDef}}>
-        <mat-header-cell *matHeaderCellDef>{{ column.header }}</mat-header-cell>
-        <mat-cell *matCellDef="let row">{{ column.getCell(row) }}</mat-cell>
-      </ng-container>
-      <mat-header-row *matHeaderRowDef="currentDisplayColumns"></mat-header-row>
-      <mat-row class="result-table-row" *matRowDef="let row; columns: currentDisplayColumns!;" (click)="open(row)"></mat-row>
-    </mat-table>
-    <mat-paginator [pageSize]="10" [showFirstLastButtons]="true" (page)="onPaginateChange($event)"></mat-paginator>
-  </div>
-</div>
+</nz-drawer>

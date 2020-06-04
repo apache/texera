@@ -1,6 +1,4 @@
 
-@import '~@angular/material/prebuilt-themes/deeppurple-amber.css';
-
 $bgColorBar: #0e5df0;
 $bthColor: #F5F5F5;
 
@@ -48,8 +46,12 @@ body {
 $header-height: 56px;
 .dashboard-grid-container{
   display: grid;
-  grid-template-columns: 14% 86%;
-  grid-template-rows : $header-height calc((100% - #{$header-height}))
+  grid-template-columns:
+    130px
+    5fr
+    95fr
+    220px;
+  grid-template-rows : $header-height 1fr
 }
 
 /**
@@ -58,7 +60,7 @@ $header-height: 56px;
 **/
 .dashboard-top-bar{
   grid-column-start: 1;
-  grid-column-end: 3;
+  grid-column-end: 5;
   grid-row-start: 1;
   grid-row-end: 2;
 }
@@ -70,7 +72,7 @@ $header-height: 56px;
 **/
 .dashboard-feature-bar{
   grid-column-start: 1;
-  grid-column-end: 2;
+  grid-column-end: 3;
   grid-row-start: 2;
   grid-row-end: 3;
   overflow: auto;
@@ -81,8 +83,8 @@ $header-height: 56px;
 * feature. The height of the top bar is flex, filling the browser
 **/
 .dashboard-feature-box{
-  grid-column-start: 2;
-  grid-column-end: 3;
+  grid-column-start: 3;
+  grid-column-end: 5;
   grid-row-start: 2;
   grid-row-end: 3;
   overflow: auto;

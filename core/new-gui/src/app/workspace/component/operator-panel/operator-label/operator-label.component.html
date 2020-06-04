@@ -1,4 +1,4 @@
-<mat-card class="texera-operator-label-body mat-elevation-z1" [attr.id]="operatorLabelID" nz-tooltip nzTooltipTitle="{{operator?.additionalMetadata.operatorDescription}}"
+<div class="texera-operator-label-body" [attr.id]="operatorLabelID" nz-tooltip nzTooltipTitle="{{operator?.additionalMetadata.operatorDescription}}"
   placement="right" triggers="manual" #ngbTooltip (mouseenter) = 'mouseEnter()' (mouseleave) = 'mouseLeave()' [nzVisible] = "isTooltipVisible">
   {{operator?.additionalMetadata.userFriendlyName}}
-</mat-card>
+</div>

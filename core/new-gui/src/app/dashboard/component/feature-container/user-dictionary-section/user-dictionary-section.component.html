@@ -1,5 +1,5 @@
-<div class="user-dictionary-container subsection-grid-container">
-  <mat-card class="button-area subsection-grid-container">
+<nz-card class="user-dictionary-container subsection-grid-container">
+  <div class="button-area subsection-grid-container">
     <div ngbDropdown class="d-inline-block">
       <button nz-button nz-dropdown [nzDropdownMenu]="menu" id="sortDropdown">Sort<i nz-icon nzType="down"></i></button>
       <nz-dropdown-menu #menu="nzDropdownMenu">
@@ -18,41 +18,35 @@
       <button nz-button (click)="openNgbdModalResourceAddComponent()"><i nz-icon nzType="cloud-upload"
           nzTheme="outline"></i></button>
     </div>
-  </mat-card>
+  </div>
 
-  <mat-card class="user-dictionary-list subsection-grid-container">
-    <mat-card-content>
-      <mat-list>
-        <h2 class="page-title">Dictionaries</h2>
-        <br />
-        <div class="scroll">
-          <mat-list-item *ngFor="let dictionary of userDictionaries" class="user-dictionary-list-item">
-            <ng-template #tipContent>Description: {{dictionary.description}}</ng-template>
-            <div class="section-for-tip" placement="bottom" nz-popover nzPopoverContent="{{tipContent}}">
-              <p><span class="dict-name">
-                  {{dictionary.name}}</span>
-              </p>
-              <p>
-                Item Preview:
-                <mat-chip class="preview-item" *ngFor="let item of dictionary.items.slice(0,3)" [selectable]="true">
-                  {{item}}
-                </mat-chip>
-              </p>
-            </div>
-            <span class="gap-filler"></span>
-            <nz-button-group>
-              <button nz-button (click)="openNgbdModalResourceViewComponent(dictionary)"><i nz-icon nzType="edit"
-                  nzTheme="outline"></i></button>
-              <button nz-button placement="bottom" (click)="openNgbdModalResourceDeleteComponent(dictionary)"><i nz-icon
-                  nzType="delete" nzTheme="outline"></i></button>
-            </nz-button-group>
-          </mat-list-item>
+  <div class="user-dictionary-list subsection-grid-container">
+    <nz-divider nzText="User Dictionaries"></nz-divider>
+    <div class="scroll">
+      <div *ngFor="let dictionary of userDictionaries" class="user-dictionary-list-item">
+        <div class='user-dictionary-item-grid'>
+          <h3 class="user-dictionary-name">
+            {{dictionary.name}}
+          </h3>
+          <p class="user-dictionary-preview" nz-popover nzPopoverPlacement="bottomLeft"
+            nzPopoverContent="Description: {{dictionary.description}}">
+            Item Preview:
+            <nz-tag class="preview-item" *ngFor="let item of dictionary.items.slice(0,3)">
+              {{item}}
+            </nz-tag>
+          </p>
+          <nz-button-group class="user-dictionary-item-buttons">
+            <button nz-button (click)="openNgbdModalResourceViewComponent(dictionary)"><i nz-icon nzType="edit"
+                nzTheme="outline"></i></button>
+            <button nz-button placement="bottom" (click)="openNgbdModalResourceDeleteComponent(dictionary)"><i nz-icon
+                nzType="delete" nzTheme="outline"></i></button>
+          </nz-button-group>
         </div>
-      </mat-list>
-    </mat-card-content>
-  </mat-card>
+      </div>
+    </div>
+  </div>
 
-</div>
+</nz-card>
 
 <ng-template texeraUserDictionarySectionModalRoot>
   <!-- modals dynamically loaded here-->

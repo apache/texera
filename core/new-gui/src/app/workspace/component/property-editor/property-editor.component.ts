@@ -16,6 +16,8 @@ import { JSONSchema4 } from 'json-schema';
 import { IndexableObject } from '../../types/result-table.interface';
 export { IndexableObject} from '../../types/result-table.interface';
 
+
+
 /**
  * PropertyEditorComponent is the panel that allows user to edit operator properties.
  *

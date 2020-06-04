@@ -33,7 +33,7 @@ export class MiniMapComponent implements AfterViewInit {
   public readonly WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID = 'texera-workflow-editor-jointjs-wrapper-id';
   public readonly MINI_MAP_NAVIGATOR_ID = 'mini-map-navigator-id';
 
-  private readonly MINI_MAP_ZOOM_SCALE = 0.15;
+  private readonly MINI_MAP_ZOOM_SCALE = 0.07;
   private readonly MINI_MAP_GRID_SIZE = 45;
   private miniMapPaper: joint.dia.Paper | undefined;
 

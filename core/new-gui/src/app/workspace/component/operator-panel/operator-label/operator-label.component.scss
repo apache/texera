@@ -1,14 +1,17 @@
-.texera-operator-label-body {
-    padding-left: 14px;
-    padding-top: 10px;
-    padding-bottom: 10px;
-    margin-bottom: 10px;
-    background: transparent;
 
-    &:hover {
-        background-color: #f4f5f6;
-        cursor: pointer;
-    }
+.texera-operator-label-body {
+  padding: 12px 5px 12px 5px;
+  margin: -12px 0px -12px 0px;
+  user-select: none;
+  color: #000;
+  border: 1px solid #fff;
+  border-radius: 4px;
+  transition: color 0.3s, border 0.4s 0.1s;
+  &:hover {
+      border: 1px solid #1890ff;
+      color: #1890ff;
+      cursor: pointer;
+  }
 }
 
 // sets the style for the popup tooltips,

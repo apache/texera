@@ -1,4 +1,4 @@
-import { Component, ComponentRef, Optional, Inject } from '@angular/core';
+import { Component, ComponentRef, Optional, Inject, OnInit } from '@angular/core';
 
 import { UserDictionaryService } from '../../../../service/user-dictionary/user-dictionary.service';
 import { UserDictionary } from '../../../../service/user-dictionary/user-dictionary.interface';
@@ -6,19 +6,10 @@ import { v4 as uuid } from 'uuid';
 
 import { FileUploader, FileItem } from 'ng2-file-upload';
 import { isEqual } from 'lodash';
-import { MatTabChangeEvent } from '@angular/material';
 
-import { ErrorStateMatcher } from '@angular/material';
-import { FormControl, FormGroupDirective, NgForm, Validators } from '@angular/forms';
+import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 
 import { ZorroModalDialogueComponent } from '../../../../../abstract-component/zorro-modal.component';
-
-class MyErrorStateMatcher implements ErrorStateMatcher {
-  isErrorState(control: FormControl | null, form: FormGroupDirective | NgForm | null): boolean {
-    return !!(control && control.invalid && (control.dirty || control.touched));
-  }
-}
-
 
 /**
  * NgbdModalResourceAddComponent is the pop-up component to let
@@ -38,9 +29,8 @@ class MyErrorStateMatcher implements ErrorStateMatcher {
     UserDictionaryService,
   ]
 })
-export class NgbdModalResourceAddComponent extends ZorroModalDialogueComponent<string> {
+export class NgbdModalResourceAddComponent extends ZorroModalDialogueComponent<string> implements OnInit {
 
-  // These are the form data that will be saved in cache if the user close the modal accidently
   public dictName: string = '';
   public dictContent: string = '';
   public dictSeparator: string = '';
@@ -57,22 +47,29 @@ export class NgbdModalResourceAddComponent extends ZorroModalDialogueComponent<s
 
   // uploader is a data type introduced in ng2-uploader library, which can be used to capture files and store them
   //  inside the uploader queue.
-  public uploader: FileUploader = new FileUploader({url: ''});
+  public uploader: FileUploader = new FileUploader({ url: '' });
 
   public isInUploadFileTab: boolean = true;
   public isUploading: boolean = false;
 
-  // These are used to create custom form control validators.
-  public matcher = new MyErrorStateMatcher();
-  public nameValidator: FormControl =  new FormControl('', [Validators.required]);
-  public contentValidator: FormControl =  new FormControl('', [Validators.required]);
-  public descriptionValidator: FormControl =  new FormControl('', [Validators.required]);
+  // formgroup that is used to validate the form
+  private validateForm!: FormGroup;
 
   constructor(
     public userDictionaryService: UserDictionaryService,
-    @Optional() @Inject('ComponentRefPromise') ref: Promise<ComponentRef<NgbdModalResourceAddComponent>>
+    @Optional() @Inject('ComponentRefPromise') ref: Promise<ComponentRef<NgbdModalResourceAddComponent>>,
+    private fb: FormBuilder
   ) {
     super(ref);
+  }
+
+  ngOnInit(): void {
+    this.validateForm = this.fb.group({
+      name: [null, [Validators.required]],
+      content: [null, [Validators.required]],
+      separator: [true],
+      description: [null, [Validators.required]],
+    });
   }
 
   /**
@@ -80,19 +77,33 @@ export class NgbdModalResourceAddComponent extends ZorroModalDialogueComponent<s
    *
    * @param event
    */
-  public onTabChangeEvent(event: MatTabChangeEvent) {
-    this.isInUploadFileTab = (event.tab.textLabel === 'Upload');
+  public onTabChangeEvent(tabIndex: number) {
+    this.isInUploadFileTab = (tabIndex === 0);
   }
 
   /**
    * This method will check if the current form is valid to submit to
-   *  the backend. This will be used to disable the submit button
-   *  on the upload dictionary panel.
+   *  the backend. If not, updateValueAndValidity() will reveal any errors in the form ui
    *
    */
   public checkDictionaryFormValid() {
-    return this.dictName !== '' && this.dictContent !== ''
-      && this.dictionaryDescription !== '';
+    let isValid = true;
+    for (const i in this.validateForm.controls) {
+      if (this.validateForm.controls.hasOwnProperty(i)) {
+        this.validateForm.controls[i].markAsDirty();
+        this.validateForm.controls[i].updateValueAndValidity();
+        if (!this.validateForm.controls[i].valid) {
+          isValid = false;
+        }
+      }
+    }
+    return isValid;
+  }
+
+  public submitDictionary() {
+    if (this.checkDictionaryFormValid()) {
+      this.addDictionary();
+    }
   }
 
   /**
@@ -138,7 +149,7 @@ export class NgbdModalResourceAddComponent extends ZorroModalDialogueComponent<s
         console.log(error);
         alert(`Error encountered: ${error.status}\nMessage: ${error.message}`);
       }
-    );
+      );
   }
 
   /**
@@ -171,7 +182,7 @@ export class NgbdModalResourceAddComponent extends ZorroModalDialogueComponent<s
         console.log(error);
         alert(`Error encountered: ${error.status}\nMessage: ${error.message}`);
       }
-    );
+      );
   }
 
   /**
@@ -180,7 +191,7 @@ export class NgbdModalResourceAddComponent extends ZorroModalDialogueComponent<s
    *
    * @param clickUploaEvent
    */
-  public saveUploadFile(clickUploadEvent: {target: HTMLInputElement}): void {
+  public saveUploadFile(clickUploadEvent: { target: HTMLInputElement }): void {
     const filelist: FileList | null = clickUploadEvent.target.files;
     if (filelist === null) {
       throw new Error(`browser upload does not work as intended`);
@@ -271,14 +282,14 @@ export class NgbdModalResourceAddComponent extends ZorroModalDialogueComponent<s
     const fileNameMap: Map<string, number> = new Map();
 
     this.uploader.queue.map(fileitem => fileitem._file.name)
-    .forEach(name => {
-      const count: number | undefined = fileNameMap.get(name);
-      if (count === undefined) {
-        fileNameMap.set(name, 1);
-      } else {
-        fileNameMap.set(name, count + 1);
-      }
-    });
+      .forEach(name => {
+        const count: number | undefined = fileNameMap.get(name);
+        if (count === undefined) {
+          fileNameMap.set(name, 1);
+        } else {
+          fileNameMap.set(name, count + 1);
+        }
+      });
 
     // remove all the file with one or more occurance.
     const noDupFiles = this.uploader.queue.filter(fileitem => {

@@ -1,8 +1,7 @@
 <nz-modal [nzVisible]="isModalVisible" nzTitle='Delete the Dictionary'  (nzOnCancel)='closeModal()'>
   <div class="modal-body">
-    <mat-dialog-actions>
-      <p class="modal-title">Confirm to Delete the Dictionary {{dictionary.name}}</p>
-    </mat-dialog-actions>
+      <p class="modal-title">Confirm to delete <b>{{dictionary.name}}</b>.</p> <br>
+      <p class="modal-title">Deletion is permanent.</p>
   </div>
   <div *nzModalFooter>
     <button nz-button (click)="closeModal()">Cancel</button>

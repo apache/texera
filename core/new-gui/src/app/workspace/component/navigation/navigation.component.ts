@@ -7,6 +7,7 @@ import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-grap
 
 import { ExecutionResult } from './../../types/execute-workflow.interface';
 import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
+import { ResultPanelToggleService } from './../../service/result-panel-toggle/result-panel-toggle.service';
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -36,11 +37,13 @@ export class NavigationComponent implements OnInit {
   // variable binded with HTML to decide if the running spinner should show
   public showSpinner = false;
   public executionResultID: string | undefined;
+  protected env = environment;
 
   constructor(
     private executeWorkflowService: ExecuteWorkflowService,
     private workflowActionService: WorkflowActionService,
     private workflowStatusService: WorkflowStatusService,
+    private resultPanelToggleService: ResultPanelToggleService,
     public undoRedo: UndoRedoService
     ) {
     // return the run button after the execution is finished, either
@@ -192,7 +195,7 @@ export class NavigationComponent implements OnInit {
    */
   public onClickDownloadExecutionResult(downloadType: string): void {
     // If there is no valid executionResultID to download from right now, exit immediately
-    if (this.executionResultID === undefined) {
+    if (this.executionResultID === undefined || environment.downloadExecutionResultEnabled) {
       return;
     }
     this.executeWorkflowService.downloadWorkflowExecutionResult(this.executionResultID, downloadType);
@@ -224,9 +227,6 @@ export class NavigationComponent implements OnInit {
    * Handler for the execution result to extract successful execution ID
    */
   private handleResultData(response: ExecutionResult): void {
-    if (!environment.downloadExecutionResultEnabled) {
-      return;
-    }
 
     // backend returns error, display error message
     if (response.code === 1) {

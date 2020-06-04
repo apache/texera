@@ -12,8 +12,6 @@ import { LoggerModule, NgxLoggerLevel } from 'ngx-logger';
 import { MaterialDesignFrameworkModule } from 'angular6-json-schema-form';
 import { NgxJsonViewerModule } from 'ngx-json-viewer';
 
-import { MatTooltipModule } from '@angular/material';
-
 import { AppComponent } from './app.component';
 import { WorkspaceComponent } from './workspace/component/workspace.component';
 import { NavigationComponent} from './workspace/component/navigation/navigation.component';
@@ -111,7 +109,6 @@ registerLocaleData(en);
     AppRoutingModule,
     HttpClientModule,
 
-    MatTooltipModule,
     NgxJsonViewerModule,
     CustomNgMaterialModule,
     BrowserAnimationsModule,

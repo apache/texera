@@ -31,34 +31,16 @@
   * with a fixed px (header-height) will crash.
   */
   $header-height: 56px;
-  $resultbar-height: 25px;
 .texera-workspace-grid-container {
   display: grid;
-  grid-template-columns: 14% 70% 16%;
+  grid-template-columns:
+    130px
+    5fr
+    85fr
+    10fr
+    220px;
   grid-template-rows: $header-height
-                      calc((100% - #{$header-height} - #{$resultbar-height}) * 0.75)
-                      0px
-                      $resultbar-height
-                      calc((100% - #{$header-height} - #{$resultbar-height}) * 0.25);
-  position: relative;
-}
-
-/**
- * this css is used for creating a 3x4 grid area for the 5 sub-components.
- * ResultPanelToggleComponent uses all three columns and the third row.
- * Resultpanel component uses all three columns and the fourth row,
- * and the height of fourth row is 0px.
- * this original css style is used before any operations
- */
-
-.texera-original-workspace-grid-container{
-  display: grid;
-  grid-template-columns: 14% 70% 16%;
-  grid-template-rows: $header-height
-                      calc((100% - #{$header-height} - #{$resultbar-height}) * 0.75)
-                      calc((100% - #{$header-height} - #{$resultbar-height}) * 0.25)
-                      $resultbar-height
-                      0px;
+                      1fr;
   position: relative;
 }
 
@@ -68,7 +50,7 @@
   */
 .texera-navigation-grid-container {
   grid-column-start: 1;
-  grid-column-end: 4;
+  grid-column-end: 6;
   grid-row-start: 1;
   grid-row-end: 2;
 }
@@ -82,7 +64,7 @@
 
 .texera-operator-panel-grid-container {
   grid-column-start: 1;
-  grid-column-end: 2;
+  grid-column-end: 3;
   grid-row-start: 2;
   grid-row-end: 6;
   overflow: auto;
@@ -95,10 +77,10 @@
   * of the grid
   */
 .texera-property-editor-grid-container {
-  grid-column-start: 3;
-  grid-column-end: 4;
+  grid-column-start: 4;
+  grid-column-end: 6;
   grid-row-start: 2;
-  grid-row-end: 3;
+  grid-row-end: 5;
   overflow: auto;
 }
 
@@ -108,24 +90,35 @@
 * will occupy the 2nd (middle) columm and use the second row (middle)
 **/
 .texera-workflow-editor-grid-container {
-  grid-column-start: 2;
-  grid-column-end: 3;
-  grid-row-start: 2;
-  grid-row-end: 4;
-}
-
-.texera-mini-map {
   grid-column-start: 3;
   grid-column-end: 4;
-  grid-row-start: 3;
+  grid-row-start: 2;
   grid-row-end: 5;
 }
 
-.texera-mini-map-with-result {
+$mini-map-size-percent: 16%;
+$mini-map-size-pixel: 100px;
+.texera-mini-map-grid{
   grid-column-start: 3;
   grid-column-end: 4;
-  grid-row-start: 4;
-  grid-row-end: 6;
+  grid-row-start: 2;
+  grid-row-end: 3;
+  display:grid;
+  grid-template-columns:  calc(100% - #{$mini-map-size-percent} - #{$mini-map-size-pixel})
+                          calc(#{$mini-map-size-percent} + #{$mini-map-size-pixel});
+  grid-template-rows: calc(#{$mini-map-size-percent} + #{$mini-map-size-pixel})
+                      calc(100% - #{$mini-map-size-percent} - #{$mini-map-size-pixel});
+}
+
+.texera-mini-map{
+  grid-area: 1 / 2;
+}
+
+.texera-mini-map-navigator {
+  border: 1px solid #797A79;
+  position: relative;
+  grid-area: 1 / 2; // inside grid in row 3 col 3
+  z-index: 1000;
 }
 
 /**
@@ -139,20 +132,6 @@
   grid-row-start: 5;
   grid-row-end: 6;
   overflow: auto;
-}
-
-.texera-result-panel-toggle-grid-container{
-  grid-column-start: 2;
-  grid-column-end: 3;
-  grid-row-start: 4;
-  grid-row-end: 5;
-}
-
-.texera-mini-map-navigator {
-  border: 1px solid #797A79;
-  position: absolute;
-  grid-area: 3 / 3; // inside grid in row 3 col 3
-  z-index: 1000;
 }
 
 #box {
