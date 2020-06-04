@@ -224,8 +224,8 @@ export class JointUIService {
    * @param operatorID
    * @param status
    */
-  public changeOperatorColor(jointPaper: joint.dia.Paper, operatorID: string, status: boolean): void {
-    if (status) {
+  public changeOperatorColor(jointPaper: joint.dia.Paper, operatorID: string, isOperatorValid: boolean): void {
+    if (isOperatorValid) {
       jointPaper.getModelById(operatorID).attr('rect/stroke', '#CFCFCF');
     } else {
       jointPaper.getModelById(operatorID).attr('rect/stroke', 'red');
