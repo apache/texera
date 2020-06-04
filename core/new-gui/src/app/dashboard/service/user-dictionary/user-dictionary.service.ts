@@ -1,3 +1,4 @@
+import { AppSettings } from './../../../common/app-setting';
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 
@@ -34,7 +35,7 @@ export class UserDictionaryService {
    *  backend.
    */
   public listUserDictionaries(): Observable<UserDictionary[]> {
-    return this.http.get<UserDictionary[]>(`${environment.apiUrl}/${dictionaryUrl}`);
+    return this.http.get<UserDictionary[]>(`${AppSettings.getApiEndpoint()}/${dictionaryUrl}`);
   }
 
   /**
@@ -50,7 +51,7 @@ export class UserDictionaryService {
    * @param dictID
    */
   public getUserDictionary(dictID: string): Observable<UserDictionary> {
-    return this.http.get<UserDictionary>(`${environment.apiUrl}/${dictionaryUrl}/${dictID}`);
+    return this.http.get<UserDictionary>(`${AppSettings.getApiEndpoint()}/${dictionaryUrl}/${dictID}`);
   }
 
   /**
@@ -61,7 +62,7 @@ export class UserDictionaryService {
    */
   public putUserDictionaryData(userDict: UserDictionary): Observable<GenericWebResponse> {
     return this.http.put<GenericWebResponse>(
-      `${environment.apiUrl}/${dictionaryUrl}/${userDict.id}`,
+      `${AppSettings.getApiEndpoint()}/${dictionaryUrl}/${userDict.id}`,
       JSON.stringify(userDict),
       {
         headers: new HttpHeaders({
@@ -82,7 +83,7 @@ export class UserDictionaryService {
       newFormData.append('files', file, file.name);
     });
 
-    return this.http.post<GenericWebResponse>(`${environment.apiUrl}/${uploadFilesURL}`, newFormData);
+    return this.http.post<GenericWebResponse>(`${AppSettings.getApiEndpoint()}/${uploadFilesURL}`, newFormData);
   }
 
   /**
@@ -95,7 +96,7 @@ export class UserDictionaryService {
     const formData: FormData = new FormData();
     formData.append('file', file, file.name);
 
-    return this.http.post<GenericWebResponse>(`${environment.apiUrl}/${uploadDictionaryUrl}`, formData);
+    return this.http.post<GenericWebResponse>(`${AppSettings.getApiEndpoint()}/${uploadDictionaryUrl}`, formData);
   }
 
   /**
@@ -106,7 +107,7 @@ export class UserDictionaryService {
    * @param dictID dictionary ID
    */
   public deleteUserDictionaryData(dictID: string): Observable<GenericWebResponse> {
-    return this.http.delete<GenericWebResponse>(`${environment.apiUrl}/${dictionaryUrl}/${dictID}`);
+    return this.http.delete<GenericWebResponse>(`${AppSettings.getApiEndpoint()}/${dictionaryUrl}/${dictID}`);
   }
 
 }

@@ -27,6 +27,7 @@ import edu.uci.ics.texera.api.exception.TexeraException;
 import edu.uci.ics.texera.api.utils.Utils;
 import edu.uci.ics.texera.dataflow.annotation.AdvancedOption;
 import edu.uci.ics.texera.dataflow.plangen.OperatorArityConstants;
+import edu.uci.ics.texera.dataflow.source.file.FileSourcePredicate;
 
 @SuppressWarnings("unchecked")
 public class JsonSchemaHelper {
