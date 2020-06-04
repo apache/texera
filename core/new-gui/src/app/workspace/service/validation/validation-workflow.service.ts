@@ -82,7 +82,6 @@ export class ValidationWorkflowService {
   public validateOperator(operatorID: string): Validation {
     const jsonSchemaValidation = this.validateJsonSchema(operatorID);
     const operatorConnectionValidation = this.validateOperatorConnection(operatorID);
-
     return ValidationWorkflowService.combineValidation(jsonSchemaValidation, operatorConnectionValidation);
   }
 
@@ -125,13 +124,13 @@ export class ValidationWorkflowService {
       this.workflowActionService.getTexeraGraph().getLinkAddStream(),
       this.workflowActionService.getTexeraGraph().getLinkDeleteStream().map(link => link.deletedLink)
     ).subscribe(link => {
-      this.updateValidationState(link.source.operatorID, this.validateOperatorConnection(link.source.operatorID));
-      this.updateValidationState(link.target.operatorID, this.validateOperatorConnection(link.target.operatorID));
+      this.updateValidationState(link.source.operatorID, this.validateOperator(link.source.operatorID));
+      this.updateValidationState(link.target.operatorID, this.validateOperator(link.target.operatorID));
     });
 
     // Capture the operator property change event and validate the current operator being changed
     this.workflowActionService.getTexeraGraph().getOperatorPropertyChangeStream()
-      .subscribe(value => this.updateValidationState(value.operator.operatorID, this.validateJsonSchema(value.operator.operatorID)));
+      .subscribe(value => this.updateValidationState(value.operator.operatorID, this.validateOperator(value.operator.operatorID)));
   }
 
   /**
@@ -148,14 +147,16 @@ export class ValidationWorkflowService {
       throw new Error(`operatorSchema doesn't exist`);
     }
 
-    this.ajv.validate(operatorSchema.jsonSchema, operator.operatorProperties);
-    const errors = this.ajv.errors;
-
-    if (!errors) {
-      return { isValid: true };
+    const isValid = this.ajv.validate(operatorSchema.jsonSchema, operator.operatorProperties);
+    if (isValid) {
+      return {isValid: true};
     }
+
+    const errors = this.ajv.errors;
     const validationError: Record<string, string> = {};
-    errors.forEach(error => validationError[error.keyword] = error.message ? error.message : '');
+    if (errors) {
+      errors.forEach(error => validationError[error.keyword] = error.message ? error.message : '');
+    }
     return { isValid: false, messages: validationError };
   }
 
