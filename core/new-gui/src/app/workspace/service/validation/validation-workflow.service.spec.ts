@@ -39,8 +39,8 @@ describe('ValidationWorkflowService', () => {
     workflowActionservice.addLink(mockScanResultLink);
     const newProperty = { 'tableName': 'test-table' };
     workflowActionservice.setOperatorProperty(mockScanPredicate.operatorID, newProperty);
-    expect(validationWorkflowService.validateOperator(mockResultPredicate.operatorID)).toBeTruthy();
-    expect(validationWorkflowService.validateOperator(mockScanPredicate.operatorID)).toBeTruthy();
+    expect(validationWorkflowService.validateOperator(mockResultPredicate.operatorID).isValid).toBeTruthy();
+    expect(validationWorkflowService.validateOperator(mockScanPredicate.operatorID).isValid).toBeTruthy();
   }
   );
 
@@ -72,8 +72,8 @@ describe('ValidationWorkflowService', () => {
     workflowActionservice.addOperator(mockScanPredicate, mockPoint);
     workflowActionservice.addOperator(mockResultPredicate, mockPoint);
     workflowActionservice.addLink(mockScanResultLink);
-    expect(validationWorkflowService.validateOperator(mockResultPredicate.operatorID)).toBeTruthy();
-    expect(validationWorkflowService.validateOperator(mockScanPredicate.operatorID)).toBeFalsy();
+    expect(validationWorkflowService.validateOperator(mockResultPredicate.operatorID).isValid).toBeTruthy();
+    expect(validationWorkflowService.validateOperator(mockScanPredicate.operatorID).isValid).toBeFalsy();
   });
 
   it('should subscribe the changes of validateOperatorStream when one operator box is deleted after valid status ',

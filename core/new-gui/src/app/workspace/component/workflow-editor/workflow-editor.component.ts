@@ -545,10 +545,9 @@ export class WorkflowEditorComponent implements AfterViewInit {
    * if the operator is valid , the border of the box will be default
    */
   private handleOperatorValidation(): void {
-
     this.validationWorkflowService.getOperatorValidationStream()
       .subscribe(value =>
-        this.jointUIService.changeOperatorColor(this.getJointPaper(), value.operatorID, value.status));
+        this.jointUIService.changeOperatorColor(this.getJointPaper(), value.operatorID, value.validation.isValid));
   }
 
   /**

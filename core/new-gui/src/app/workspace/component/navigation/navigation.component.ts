@@ -1,4 +1,4 @@
-import { Component, OnInit, NgModule } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { ExecuteWorkflowService } from './../../service/execute-workflow/execute-workflow.service';
 import { UndoRedoService } from './../../service/undo-redo/undo-redo.service';
 import { TourService } from 'ngx-tour-ng-bootstrap';
@@ -7,9 +7,6 @@ import { WorkflowActionService } from '../../service/workflow-graph/model/workfl
 import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-graph-wrapper';
 import { ValidationWorkflowService } from '../../service/validation/validation-workflow.service';
 import { ExecutionResult } from './../../types/execute-workflow.interface';
-import { stat } from 'fs';
-import { map } from 'rxjs-compat/operator/map';
-
 import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
 
 /**
@@ -36,23 +33,20 @@ export class NavigationComponent implements OnInit {
   public static autoSaveState = 'Saved';
   public isWorkflowRunning: boolean = false; // set this to true when the workflow is started
   public isWorkflowPaused: boolean = false; // this will be modified by clicking pause/resume while the workflow is running
-  public isWorkflowFailed: boolean = false; // this will check whether the workflow error or not
+  public isWorkflowValid: boolean = true; // this will check whether the workflow error or not
 
   // variable binded with HTML to decide if the running spinner should show
   public showSpinner = false;
   public executionResultID: string | undefined;
 
-  private operatorStatusMap: Map<string, boolean> = new Map<string, boolean> (); // this map record --> key operator, value status
-  private failOperatorCheck: number = 0; // check if there is fail operator
-
   constructor(
-    private executeWorkflowService: ExecuteWorkflowService,
+    public executeWorkflowService: ExecuteWorkflowService,
     public tourService: TourService,
-    private workflowActionService: WorkflowActionService,
-    private workflowStatusService: WorkflowStatusService,
+    public workflowActionService: WorkflowActionService,
+    public workflowStatusService: WorkflowStatusService,
     public undoRedo: UndoRedoService,
-    private validationWorkflowService: ValidationWorkflowService
-    ) {
+    public validationWorkflowService: ValidationWorkflowService
+  ) {
     // return the run button after the execution is finished, either
     //  when the value is valid or invalid
     executeWorkflowService.getExecuteEndedStream().subscribe(
@@ -78,23 +72,15 @@ export class NavigationComponent implements OnInit {
       .subscribe(state => this.isWorkflowPaused = (state === 0));
 
     // set the map of operatorStatusMap
-    validationWorkflowService.getOperatorValidationStream().
-      subscribe(value => {
-          this.setOperatorMap(value.operatorID, value.status);
-          this.checkFail(); });
+    validationWorkflowService.getWorkflowValidationErrorStream()
+      .do(value => console.log(value))
+      .subscribe(value => this.isWorkflowValid = Object.keys(value.errors).length === 0);
+
   }
 
   ngOnInit() {
   }
 
-
-
-  /**
-   * check whther the workflowfailed
-   */
-  public getDisabled(): boolean {
-    return this.isWorkflowFailed;
-  }
   /**
    * Executes the current existing workflow on the JointJS paper. It will
    *  also set the `isWorkflowRunning` variable to true to show that the backend
@@ -102,7 +88,7 @@ export class NavigationComponent implements OnInit {
    */
   public onButtonClick(): void {
     // if the isWorkflowFailed make the button return finish
-    if (this.isWorkflowFailed) {
+    if (! this.isWorkflowValid) {
       return;
     }
     if (! environment.pauseResumeEnabled) {
@@ -130,9 +116,6 @@ export class NavigationComponent implements OnInit {
     }
   }
   public getRunButtonText(): string {
-    if (this.isWorkflowFailed) {
-      return 'Disabled';
-    }
     if (! environment.pauseResumeEnabled) {
       return 'Run';
     } else {
@@ -279,41 +262,4 @@ export class NavigationComponent implements OnInit {
     this.executionResultID = response.resultID;
   }
 
-
-  /**
-   *
-   * @param operatorID operatorID
-   * @param status validation_status of corresponding operatorID
-   *
-   *
-   */
-  private setOperatorMap(operatorID: string, status: boolean): void {
-    const allOperatorIDs = this.workflowActionService.getTexeraGraph().getAllOperators().map(op => op.operatorID);
-    this.operatorStatusMap.set(operatorID, status);
-    this.operatorStatusMap.forEach(( status: boolean, operatorID: string) => {
-        if (allOperatorIDs.indexOf(operatorID) < 0) {
-          this.operatorStatusMap.delete(operatorID);
-        }
-      });
-
-
-  }
-
-
-  /**
-   * This function will check whether there are fails in operatorStatusMap
-   * if there is any fail, set this.isWorkflowFailed to true to disable the button
-   */
-  private checkFail(): void {
-    this.operatorStatusMap.forEach((status: boolean, operatorID: string) => {if (status === false) {
-        this.failOperatorCheck = -1;
-       }
-      });
-    if (this.failOperatorCheck === -1) {
-      this.isWorkflowFailed = true;
-      this.failOperatorCheck = 0;
-    } else {
-      this.isWorkflowFailed = false;
-    }
-  }
 }
