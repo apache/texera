@@ -7,6 +7,7 @@ import { Point, OperatorPredicate, OperatorLink } from './../../../types/workflo
  *  - 1: ScanSource
  *  - 2: NlpSentiment
  *  - 3: ViewResults
+ *  - 4: MultiInputOutputOperator
  *
  * Links:
  *  - link-1: ScanSource -> ViewResults
@@ -50,6 +51,16 @@ export const mockResultPredicate: OperatorPredicate = {
   },
   inputPorts: ['input-0'],
   outputPorts: [],
+  showAdvanced: true
+};
+
+export const mockMultiInputOutputPredicate: OperatorPredicate = {
+  operatorID: '4',
+  operatorType: 'MultiInputOutput',
+  operatorProperties: {
+  },
+  inputPorts: ['input-0','input-1','input-2'],
+  outputPorts: ['output-0','output-1','output-2'],
   showAdvanced: true
 };
 

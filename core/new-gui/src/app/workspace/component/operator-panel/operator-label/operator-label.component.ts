@@ -1,9 +1,7 @@
 import { DragDropService } from './../../../service/drag-drop/drag-drop.service';
 import { Component, Input, AfterViewInit, ViewChild, OnInit } from '@angular/core';
-import { v4 as uuid } from 'uuid';
 import { Observable, of, Subject} from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
-
 
 import { OperatorSchema } from '../../../types/operator-schema.interface';
 import { NgbTooltip } from '../../../../../../node_modules/@ng-bootstrap/ng-bootstrap/tooltip/tooltip';
@@ -24,7 +22,7 @@ export class OperatorLabelComponent implements OnInit, AfterViewInit {
   public static operatorLabelSearchBoxPrefix = 'texera-operator-label-search-result-';
 
   // tooltipWindow is an instance of ngbTooltip (popup box)
-  @ViewChild('ngbTooltip', { static : false }) tooltipWindow: NgbTooltip | undefined;
+  @ViewChild('ngbTooltip') tooltipWindow: NgbTooltip | undefined;
   @Input() operator?: OperatorSchema;
   // whether the operator label is from the operator panel or the search box
   @Input() fromSearchBox?: boolean;
