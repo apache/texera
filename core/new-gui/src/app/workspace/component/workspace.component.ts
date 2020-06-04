@@ -42,7 +42,6 @@ import { WorkflowStatusService } from '../service/workflow-status/workflow-statu
 export class WorkspaceComponent {
 
   public showResultPanel: boolean = false;
-
   constructor(
     private resultPanelToggleService: ResultPanelToggleService,
 
@@ -55,5 +54,4 @@ export class WorkspaceComponent {
       value => this.showResultPanel = value,
     );
   }
-
 }

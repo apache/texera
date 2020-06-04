@@ -1,7 +1,12 @@
-<div class="dashboard-grid-container grid-container">
-	<texera-top-bar class="dashboard-top-bar grid-container"></texera-top-bar>
-	<texera-feature-bar class="dashboard-feature-bar grid-container"></texera-feature-bar>
-	<div class="dashboard-feature-box grid-container">
-			<texera-feature-container></texera-feature-container>
-	</div>
+<div id='texera-flex-container'>
+    <texera-top-bar class="dashboard-top-bar grid-container"></texera-top-bar>
+  <div nz-row id='texera-dashboard-container'>
+    <div nz-col nzSpan='4'>
+      <texera-feature-bar class="dashboard-feature-bar grid-container"></texera-feature-bar>
+    </div>
+    <div nz-col nzSpan='20' class="dashboard-feature-box grid-container">
+      <texera-feature-container></texera-feature-container>
+    </div>
+  </div>
 </div>
+
