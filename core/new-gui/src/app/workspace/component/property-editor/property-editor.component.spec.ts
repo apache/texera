@@ -29,7 +29,7 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 
 /* tslint:disable:no-non-null-assertion */
 
-fdescribe('PropertyEditorComponent', () => {
+describe('PropertyEditorComponent', () => {
   let component: PropertyEditorComponent;
   let fixture: ComponentFixture<PropertyEditorComponent>;
   let workflowActionService: WorkflowActionService;
@@ -110,7 +110,7 @@ fdescribe('PropertyEditorComponent', () => {
   });
 
 
-  fit('should switch the content of property editor to another operator from the former operator correctly', fakeAsync(() => {
+  it('should switch the content of property editor to another operator from the former operator correctly', fakeAsync(() => {
     const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
     // add two operators
@@ -134,13 +134,10 @@ fdescribe('PropertyEditorComponent', () => {
 
     expect(component.currentOperatorID).toEqual(mockResultPredicate.operatorID);
     expect(component.currentOperatorSchema).toEqual(mockViewResultsSchema);
-    console.log(component.formData);
-    console.log(mockResultPredicate.operatorProperties);
     // special case: the mock result predicate has an default value, which causes the form data to be changed
     expect(component.formData).toEqual(
       workflowActionService.getTexeraGraph().getOperator(mockResultPredicate.operatorID).operatorProperties);
     expect(component.displayForm).toBeTruthy();
-
 
     // check HTML form are displayed
     const formTitleElementAfterChange = fixture.debugElement.query(By.css('.texera-workspace-property-editor-title'));
@@ -158,7 +155,7 @@ fdescribe('PropertyEditorComponent', () => {
    *  and displays the operator's data when it's the only highlighted operator.
    */
   it('should switch the content of property editor to the highlighted operator correctly when only one operator is highlighted',
-  fakeAsync(() => {
+  () => {
     const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
     // add and highlight two operators, then unhighlight one of them
@@ -191,7 +188,7 @@ fdescribe('PropertyEditorComponent', () => {
       mockScanSourceSchema.additionalMetadata.userFriendlyName);
     expect(jsonSchemaFormElement).toBeTruthy();
 
-  }));
+  });
 
   /**
    * test if the property editor correctly receives the operator unhighlight stream
@@ -236,6 +233,8 @@ fdescribe('PropertyEditorComponent', () => {
     // assert that multiple operators are highlighted
     expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(mockResultPredicate.operatorID);
     expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(mockScanPredicate.operatorID);
+
+    fixture.detectChanges();
 
     // expect that the property editor is cleared
     expect(component.currentOperatorID).toBeFalsy();

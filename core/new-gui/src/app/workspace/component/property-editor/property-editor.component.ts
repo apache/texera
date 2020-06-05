@@ -156,9 +156,6 @@ export class PropertyEditorComponent {
     // this is because formly does not emit an onChanges event for filling default values
     // and this might cause an inconsistency between the operator property in componenet and the service
     this.ref.detectChanges();
-    console.log('after change detect');
-    console.log(this.formData);
-
     this.sourceFormChangeEventStream.next(this.formData);
   }
 
