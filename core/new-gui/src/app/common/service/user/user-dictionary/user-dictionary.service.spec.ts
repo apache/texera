@@ -1,42 +1,40 @@
-import { TestBed } from '@angular/core/testing';
-
+import { TestBed, inject } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
-import { UserFile } from '../../../type/user-file';
 
-import { UserFileService, USER_FILE_LIST_URL } from './user-file.service';
+import { UserDictionaryService, USER_DICTIONARY_LIST_URL } from './user-dictionary.service';
 import { UserService } from '../user.service';
 import { StubUserService, MOCK_USER } from '../stub-user.service';
 import { AppSettings } from 'src/app/common/app-setting';
+import { UserDictionary } from 'src/app/common/type/user-dictionary';
 
 const id = 1;
 const name = 'testFile';
-const path = 'test/path';
+const items = ['this', 'is', 'a', 'test', 'file'];
 const description = 'this is a test file';
-const size = 1024;
-const testFile: UserFile = {
+const testDictionary: UserDictionary = {
   id: id,
   name: name,
-  path: path,
-  size: size,
+  items: items,
   description: description
 };
 
-describe('UserFileService', () => {
+describe('UserDictionaryService', () => {
+
   let httpMock: HttpTestingController;
-  let service: UserFileService;
+  let service: UserDictionaryService;
 
   beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [
-        UserFileService,
-        { provide: UserService, useClass: StubUserService }
+        { provide: UserService, useClass: StubUserService },
+        UserDictionaryService
       ],
       imports: [
         HttpClientTestingModule
       ]
     });
     httpMock = TestBed.get(HttpTestingController);
-    service = TestBed.get(UserFileService);
+    service = TestBed.get(UserDictionaryService);
   });
 
   afterEach(() => {
@@ -48,21 +46,21 @@ describe('UserFileService', () => {
   });
 
   it('should contain no files by default', () => {
-    expect(service.getUserFiles()).toBeFalsy();
+    expect(service.getUserDictionaries()).toBeFalsy();
   });
 
 
   it('should refresh file after user login', () => {
-    const spy = spyOn(service, 'refreshFiles').and.callThrough();
+    const spy = spyOn(service, 'refreshDictionaries').and.callThrough();
 
     const stubUserService: StubUserService = TestBed.get(UserService);
     stubUserService.userChangedEvent.next(MOCK_USER);
 
     expect(spy).toHaveBeenCalled();
 
-    const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${USER_FILE_LIST_URL}`);
+    const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${USER_DICTIONARY_LIST_URL}`);
     expect(req.request.method).toEqual('GET');
-    req.flush([testFile]);
+    req.flush([testDictionary]);
   });
 
 });

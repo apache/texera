@@ -5,6 +5,7 @@ package edu.uci.ics.texera.dataflow.jooq.generated;
 
 
 import edu.uci.ics.texera.dataflow.jooq.generated.tables.Useraccount;
+import edu.uci.ics.texera.dataflow.jooq.generated.tables.Userdict;
 import edu.uci.ics.texera.dataflow.jooq.generated.tables.Userfile;
 
 
@@ -18,6 +19,11 @@ public class Tables {
      * The table <code>texera.useraccount</code>.
      */
     public static final Useraccount USERACCOUNT = Useraccount.USERACCOUNT;
+
+    /**
+     * The table <code>texera.userdict</code>.
+     */
+    public static final Userdict USERDICT = Userdict.USERDICT;
 
     /**
      * The table <code>texera.userfile</code>.

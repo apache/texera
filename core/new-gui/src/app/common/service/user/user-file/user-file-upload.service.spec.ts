@@ -1,12 +1,12 @@
-import { TestBed, inject, fakeAsync, tick } from '@angular/core/testing';
+import { TestBed } from '@angular/core/testing';
 
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 
 import { UserService } from '../user.service';
 import { UserFileUploadService, USER_FILE_UPLOAD_URL, USER_FILE_VALIDATE_URL } from './user-file-upload.service';
 import { UserFileService } from './user-file.service';
-import { StubUserService, MOCK_USER_ID } from '../stub-user.service';
-import { AppSettings } from 'src/app/common/app-setting';
+import { StubUserService } from '../stub-user.service';
+import { AppSettings } from '../../../app-setting';
 
 const arrayOfBlob: Blob[] = Array<Blob>(); // just for test,needed for creating File object.
 const testFileName = 'testTextFile';

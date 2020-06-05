@@ -146,7 +146,7 @@ public class UserResource {
     @Path("/logout")
     public GenericWebResponse logOut(@Session HttpSession session) {
         setUserSession(session, null);
-        return new GenericWebResponse(0, "success");
+        return GenericWebResponse.generateSuccessResponse();
     }
     
     private Record1<UInteger> getUserID(Condition condition) {

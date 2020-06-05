@@ -20,7 +20,7 @@ import { mockScanPredicate, mockPoint } from '../../workflow-graph/model/mock-wo
 import { OperatorPredicate } from '../../../types/workflow-common.interface';
 import { environment } from '../../../../../environments/environment';
 import { Subject } from 'rxjs';
-import { UserFile } from 'src/app/dashboard/type/user-file';
+import { UserFile } from 'src/app/common/type/user-file';
 import { StubUserService } from 'src/app/common/service/user/stub-user.service';
 
 /* tslint:disable: no-non-null-assertion */
