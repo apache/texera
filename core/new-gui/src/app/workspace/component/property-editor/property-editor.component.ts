@@ -11,10 +11,15 @@ import '../../../common/rxjs-operators';
 
 import { cloneDeep, isEqual} from 'lodash';
 
+<<<<<<< HEAD
 export interface IndexableObject extends Readonly<{
   [key: string]: object | string | boolean | symbol | number | Array<object>;
 }> { }
 import { JSONSchema7 } from 'json-schema';
+=======
+import { JSONSchema4 } from 'json-schema';
+import { IndexableObject } from '../../types/result-table.interface';
+>>>>>>> 6e88cc48925b3a521beea8af50744e674989cc3a
 
 import { FormGroup } from '@angular/forms';
 import { FormlyFormOptions, FormlyFieldConfig } from '@ngx-formly/core';

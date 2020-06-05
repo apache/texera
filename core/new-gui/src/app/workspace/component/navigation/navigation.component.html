@@ -8,9 +8,6 @@
     <i class="navbar-brand utility-button fa fa-arrows-alt" (click)="onClickRestoreZoomOffsetDefaullt()" title="reset zoom"></i>
     <i class="navbar-brand fa fa-trash" [ngClass]="{'utility-button-disabled': !hasOperators(), 'utility-button': hasOperators()}"
       (click)="onClickDeleteAllOperators()" title="delete all"></i>
-    <!-- <i class="navbar-brand fa fa-cloud-download" [ngClass]="{'utility-button-disabled' : !executionResultID,
-      'utility-button': executionResultID}" (click)="onClickDownloadExecutionResult()"
-      title="download execution result"></i> -->
 
       <div ngbDropdown class="d-inline-block">
         <button class="drop-down-button" ngbDropdownToggle [disabled]="!executionResultID">
@@ -47,7 +44,9 @@
               </span>
           </button>
           <button mat-raised-button class="texera-navigation-run-button texera-navigation-run-text"
-            [ngStyle]="{'background-color': !getDisabled() ? '#5081f3':'#ff0000','opacity' : !getDisabled() ? '' : '0.7'}" (click)="onButtonClick()" >
+            [disabled]="!isWorkflowValid"
+            [ngStyle]="{'background-color': '#5081f3','opacity' : !isWorkflowValid ? '' : '0.7'}"
+            (click)="onButtonClick()" >
               <span>
                 <i *ngIf="!runSpinner()" id="texera-run-icon" class="fa fa-play" aria-hidden="true"></i>
                 <i *ngIf="runSpinner()" id="texera-pause-icon" class="fa fa-spinner fa-spin" aria-hidden="true"></i>

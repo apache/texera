@@ -3,6 +3,7 @@ package edu.uci.ics.texera.dataflow.common;
 import java.util.UUID;
 
 import edu.uci.ics.texera.dataflow.aggregator.AggregatorPredicate;
+import edu.uci.ics.texera.dataflow.plangen.QueryContext;
 import edu.uci.ics.texera.dataflow.twitterfeed.TwitterFeedSourcePredicate;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
@@ -116,7 +117,14 @@ public abstract class PredicateBase implements IPredicate {
     }
     
     @JsonIgnore
-    public abstract IOperator newOperator();
+    public IOperator newOperator() {
+        throw new UnsupportedOperationException("not implemented");
+    }
+
+    @JsonIgnore
+    public IOperator newOperator(QueryContext ctx) {
+        return newOperator();
+    }
     
     @Override
     public int hashCode() {

@@ -50,11 +50,6 @@ public class FileSourceOperatorTest {
      * tempfolder/
      *   test1.txt
      *   test2.txt
-     *   nested/
-     *     test4.txt
-     *     nested2/
-     *       test5.txt
-     *   empty/
      * 
      */
     @BeforeClass
@@ -70,16 +65,6 @@ public class FileSourceOperatorTest {
         
         Files.createFile(tempFile2Path);
         Files.write(tempFile2Path, tempFile2String.getBytes());
-        
-        Files.createDirectories(nestedFolderPath);
-        Files.createFile(tempFile4Path);
-        Files.write(tempFile4Path, tempFile4String.getBytes());
-        
-        Files.createDirectories(nested2FolderPath);
-        Files.createFile(tempFile5Path);
-        Files.write(tempFile5Path, tempFile5String.getBytes());
-        
-        Files.createDirectories(emptyFolderPath);
 
     }
     
@@ -97,12 +82,12 @@ public class FileSourceOperatorTest {
      */
     @Test
     public void test1() throws Exception {
-        String attrName = "content";
+        String attrName = "c1";
         Schema schema = new Schema(new Attribute(attrName, AttributeType.TEXT));
         
-        FileSourcePredicate predicate = new FileSourcePredicate(
-                tempFile1Path.toString(), attrName);
-        FileSourceOperator fileSource = new FileSourceOperator(predicate);
+        FileSourcePredicate predicate = FileSourcePredicate.createWithFilePath(
+                tempFile1Path.toString());
+        FileSourceOperator fileSource = new FileSourceOperator(predicate, null);
         
         Tuple tuple;
         ArrayList<Tuple> exactResults = new ArrayList<>();
@@ -119,161 +104,13 @@ public class FileSourceOperatorTest {
     }
     
     /*
-     * Test FileSourceOperator with a Directory.
-     * Optional parameters are all set to default. (only list files directly in this folder)
-     * 
-     * Only the files directly under this directory will be used.
-     *     
-     * expected results: test1.txt and test2.txt will be included.
-     */
-    @Test
-    public void test2() throws Exception {
-        String attrName = "content";
-        Schema schema = new Schema(new Attribute(attrName, AttributeType.TEXT));
-        
-        FileSourcePredicate predicate = new FileSourcePredicate(
-                tempFolderPath.toString(), attrName);
-        FileSourceOperator fileSource = new FileSourceOperator(predicate);
-        
-        Tuple tuple;
-        ArrayList<Tuple> exactResults = new ArrayList<>();
-        fileSource.open();
-        while ((tuple = fileSource.getNextTuple()) != null) {
-            exactResults.add(tuple);
-        }
-        fileSource.close();
-                
-        List<Tuple> expectedResults = Arrays.asList(
-                new Tuple(schema, new TextField(tempFile1String)), 
-                new Tuple(schema, new TextField(tempFile2String)));
-        
-        Assert.assertTrue(TestUtils.equals(expectedResults, exactResults));
-    }
-    
-    /*
-     * Test FileSourceOperator with a Directory with recursive = true and maxDepth = null.
-     * 
-     * All the files under the recursive sub-directories will be read.
-     *     
-     * expected results: test1.txt, test2.txt, test4.txt and test5.txt will be included
-     */
-    @Test
-    public void test3() throws Exception {
-        String attrName = "content";
-        Schema schema = new Schema(new Attribute(attrName, AttributeType.TEXT));
-        
-        FileSourcePredicate predicate = new FileSourcePredicate(
-                tempFolderPath.toString(), attrName, true, null);
-        FileSourceOperator fileSource = new FileSourceOperator(predicate);
-        
-        Tuple tuple;
-        ArrayList<Tuple> exactResults = new ArrayList<>();
-        fileSource.open();
-        while ((tuple = fileSource.getNextTuple()) != null) {
-            exactResults.add(tuple);
-        }
-        fileSource.close();
-                
-        List<Tuple> expectedResults = Arrays.asList(
-                new Tuple(schema, new TextField(tempFile1String)), 
-                new Tuple(schema, new TextField(tempFile2String)),
-                new Tuple(schema, new TextField(tempFile4String)),
-                new Tuple(schema, new TextField(tempFile5String)));
-                
-        Assert.assertTrue(TestUtils.equals(expectedResults, exactResults));
-    }
-    
-    /*
-     * Test FileSourceOperator with a Directory with recursive = true and maxDepth = 2.
-     * 
-     * The files under the recursive sub-directories with recursive depth 2 will be read.
-     *     
-     * expected results: test1.txt, test2.txt and test4.txt will be included
-     */
-    @Test
-    public void test4() throws Exception {
-        String attrName = "content";
-        Schema schema = new Schema(new Attribute(attrName, AttributeType.TEXT));
-        
-        FileSourcePredicate predicate = new FileSourcePredicate(
-                tempFolderPath.toString(), attrName, true, 2);
-        FileSourceOperator fileSource = new FileSourceOperator(predicate);
-        
-        Tuple tuple;
-        ArrayList<Tuple> exactResults = new ArrayList<>();
-        fileSource.open();
-        while ((tuple = fileSource.getNextTuple()) != null) {
-            exactResults.add(tuple);
-        }
-        fileSource.close();
-                
-        List<Tuple> expectedResults = Arrays.asList(
-                new Tuple(schema, new TextField(tempFile1String)), 
-                new Tuple(schema, new TextField(tempFile2String)),
-                new Tuple(schema, new TextField(tempFile4String)));
-                
-        Assert.assertTrue(TestUtils.equals(expectedResults, exactResults));
-    }
-    
-    
-    /*
-     * Test FileSourceOperator with a single directory that does not contain any valid files
-     */
-    @Test(expected = TexeraException.class)
-    public void test8() throws Exception {
-        String attrName = "content";
-        
-        FileSourcePredicate predicate = new FileSourcePredicate(
-                emptyFolderPath.toString(), attrName);
-        new FileSourceOperator(predicate);     
-    }
-    
-    /*
      * Test FileSourceOperator with a file that does not exist
      */
     @Test(expected = TexeraException.class)
-    public void test9() throws Exception {
-        String attrName = "content";
-        
-        FileSourcePredicate predicate = new FileSourcePredicate(
-                tempFolderPath.resolve("notexist.txt").toString(), attrName);
-        new FileSourceOperator(predicate);
-    }
-    
-    /*
-     * Test FileSourceOperator with a directory that does not exist
-     */
-    @Test(expected = TexeraException.class)
-    public void test10() throws Exception {
-        String attrName = "content";
-        
-        FileSourcePredicate predicate = new FileSourcePredicate(
-                tempFolderPath.resolve("notexist").toString(), attrName);
-        new FileSourceOperator(predicate);
-    }
-    
-    /*
-     * Test FileSourceOperator with a directory, 
-     * recursive set to true, depth set to 10, using default extensions.
-     * 
-     * expected result: 4 tuples should be returned.
-     */
-    @Test
-    public void test11() throws Exception {
-        String attrName = "content";
-
-        FileSourcePredicate predicate = new FileSourcePredicate(tempFolderPath.toString(), attrName, true, 10);
-        FileSourceOperator fileSource = new FileSourceOperator(predicate);
-
-        Tuple tuple;
-        ArrayList<Tuple> exactResults = new ArrayList<>();
-        fileSource.open();
-        while ((tuple = fileSource.getNextTuple()) != null) {
-            exactResults.add(tuple);
-        }
-        fileSource.close();
-
-        Assert.assertEquals(exactResults.size(), 4);
+    public void test2() throws Exception {
+        FileSourcePredicate predicate = FileSourcePredicate.createWithFilePath(
+                tempFolderPath.resolve("notexist.txt").toString());
+        new FileSourceOperator(predicate, null);
     }
     
 }

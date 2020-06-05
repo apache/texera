@@ -1,3 +1,5 @@
+import { isEqual } from 'lodash';
+import { UserFileService } from '../../../../common/service/user/user-file/user-file.service';
 import { AppSettings } from './../../../../common/app-setting';
 import { environment } from '../../../../../environments/environment';
 import { HttpClient } from '@angular/common/http';
@@ -15,6 +17,7 @@ import { DynamicSchemaService } from './../dynamic-schema.service';
 export const SOURCE_TABLE_NAMES_ENDPOINT = 'resources/table-metadata';
 // By contract, property name name for texera table name autocomplete
 export const tableNameInJsonSchema = 'tableName';
+export const fileNameInJsonSchema = 'fileName';
 
 
 /**
@@ -39,11 +42,13 @@ export class SourceTablesService {
   // example:
   // "table1": {attributes: [{attrributeName: "attr1", attributeType: "string"}, {attrributeName: "attr2", attributeType: "int"}] }
   private tableSchemaMap: Map<string, TableSchema> | undefined;
+  private userFiles: string[] | undefined;
 
   constructor(
     private httpClient: HttpClient,
     private workflowActionService: WorkflowActionService,
-    private dynamicSchemaService: DynamicSchemaService
+    private dynamicSchemaService: DynamicSchemaService,
+    private userFileService: UserFileService
   ) {
     // do nothing if source tables are not enabled
     if (!environment.sourceTableEnabled) {
@@ -52,8 +57,20 @@ export class SourceTablesService {
 
     // when GUI starts up, fetch the source table information frmo the backend
     this.invokeSourceTableAPI().subscribe(
-      response => { this.tableSchemaMap = response; }
+      response => this.tableSchemaMap = response
     );
+
+    this.userFileService.getUserFilesChangedEvent().subscribe(
+      event => {
+        if (event) {
+          this.userFiles = event.map(file => file.name);
+        } else {
+          this.userFiles = undefined;
+        }
+        this.handleUserFileChange();
+      }
+    );
+
     this.workflowActionService.getTexeraGraph().getOperatorPropertyChangeStream().subscribe(
       event => this.handlePropertyChange(event.operator)
     );
@@ -87,7 +104,48 @@ export class SourceTablesService {
           schema.jsonSchema, tableNameInJsonSchema, () => ({ type: 'string', enum: tableNames}))
       };
     }
+    // change the filename to a dropdown enum of available files of the user in the system
+    if (this.userFiles && schema.jsonSchema.properties && fileNameInJsonSchema in schema.jsonSchema.properties) {
+      const fileNames = this.userFiles.slice();
+      return {
+        ...schema,
+        jsonSchema: DynamicSchemaService.mutateProperty(
+          schema.jsonSchema, fileNameInJsonSchema, () => ({ type: 'string', enum: fileNames }))
+      };
+    }
     return schema;
+  }
+
+  private handleUserFileChange() {
+    Array.from(this.dynamicSchemaService.getDynamicSchemaMap().keys())
+    .filter(operator => {
+      const schema = this.dynamicSchemaService.getDynamicSchema(operator);
+      return schema.jsonSchema.properties && fileNameInJsonSchema in schema.jsonSchema.properties;
+    }).forEach(operatorID => {
+      const schema = this.dynamicSchemaService.getDynamicSchema(operatorID);
+      // if operator input attributes are in the result, set them in dynamic schema
+      const fileNames = this.userFiles;
+      let newDynamicSchema: OperatorSchema;
+      if (fileNames) {
+        newDynamicSchema = {
+          ...schema,
+          jsonSchema: DynamicSchemaService.mutateProperty(
+            schema.jsonSchema, fileNameInJsonSchema, () => ({ type: 'string', enum: fileNames }))
+        };
+      } else {
+        newDynamicSchema = {
+          ...schema,
+          jsonSchema: DynamicSchemaService.mutateProperty(
+            schema.jsonSchema, fileNameInJsonSchema, () => ({ type: 'string'}))
+        };
+      }
+
+      if (! isEqual(schema, newDynamicSchema)) {
+        SchemaPropagationService.resetAttributeOfOperator(this.workflowActionService, operatorID);
+        this.dynamicSchemaService.setDynamicSchema(operatorID, newDynamicSchema);
+      }
+
+    });
   }
 
   /**

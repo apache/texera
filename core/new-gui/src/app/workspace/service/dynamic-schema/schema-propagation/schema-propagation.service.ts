@@ -86,7 +86,7 @@ export class SchemaPropagationService {
       }
 
       if (! isEqual(currentDynamicSchema, newDynamicSchema)) {
-        this.resetAttributeOfOperator(operatorID);
+        SchemaPropagationService.resetAttributeOfOperator(this.workflowActionService, operatorID);
         this.dynamicSchemaService.setDynamicSchema(operatorID, newDynamicSchema);
       }
 
@@ -125,8 +125,8 @@ export class SchemaPropagationService {
     *
     * @param operatorID operator that has the changed schema
     */
-  private resetAttributeOfOperator(operatorID: string): void {
-    const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorID);
+  public static resetAttributeOfOperator(workflowActionService: WorkflowActionService, operatorID: string): void {
+    const operator = workflowActionService.getTexeraGraph().getOperator(operatorID);
     if (! operator) {
       throw new Error(`${operatorID} not found`);
     }
@@ -146,7 +146,7 @@ export class SchemaPropagationService {
     };
 
     const propertyClone = walkPropertiesRecurse(operator.operatorProperties);
-    this.workflowActionService.setOperatorProperty(operatorID, propertyClone);
+    workflowActionService.setOperatorProperty(operatorID, propertyClone);
   }
 
   public static setOperatorInputAttrs(operatorSchema: OperatorSchema, inputAttributes: ReadonlyArray<string> | undefined): OperatorSchema {

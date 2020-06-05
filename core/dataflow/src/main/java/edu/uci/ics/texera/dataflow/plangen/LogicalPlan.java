@@ -4,6 +4,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.*;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import edu.uci.ics.texera.api.dataflow.IOperator;
@@ -26,6 +27,8 @@ import edu.uci.ics.texera.api.schema.Schema;
  * @author Zuozhi Wang
  */
 public class LogicalPlan {
+
+    private QueryContext context;
 
     // a map from operatorID to its operator
     private HashMap<String, IOperator> operatorObjectMap;
@@ -68,7 +71,17 @@ public class LogicalPlan {
             addLink(link);
         }
     }
-    
+
+    @JsonIgnore
+    public QueryContext getContext() {
+        return context;
+    }
+
+    @JsonIgnore
+    public void setContext(QueryContext context) {
+        this.context = context;
+    }
+
     /**
      * Gets the list of operator predicates.
      * Order is NOT guaranteed to be the same as insertion order.
@@ -180,10 +193,6 @@ public class LogicalPlan {
             }
 
             for (String destination: adjacencyList.get(origin)) {
-                if(operatorObjectMap.get(destination) instanceof ISink) {
-                    continue;
-                }
-
                 if (inputSchemas.containsKey(destination)) {
                     inputSchemas.get(destination).add(currentOutputSchema.get());
                 } else {
@@ -263,7 +272,7 @@ public class LogicalPlan {
     private void buildOperators() throws PlanGenException {
         operatorObjectMap = new HashMap<>();
         for (String operatorID : operatorPredicateMap.keySet()) {
-            IOperator operator = operatorPredicateMap.get(operatorID).newOperator();
+            IOperator operator = operatorPredicateMap.get(operatorID).newOperator(context);
             operatorObjectMap.put(operatorID, operator);
         }
     }
