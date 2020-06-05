@@ -1,4 +1,4 @@
-import { JSONSchema4 } from 'json-schema';
+import { JSONSchema7 } from 'json-schema';
 
 /**
  * This file contains multiple type declarations related to operator schema.
@@ -23,7 +23,7 @@ export interface OperatorAdditionalMetadata extends Readonly<{
 
 export interface OperatorSchema extends Readonly<{
   operatorType: string;
-  jsonSchema: Readonly<JSONSchema4>;
+  jsonSchema: Readonly<JSONSchema7>;
   additionalMetadata: OperatorAdditionalMetadata;
 }> { }
 

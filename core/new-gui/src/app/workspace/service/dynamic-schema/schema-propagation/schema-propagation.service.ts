@@ -161,10 +161,10 @@ export class SchemaPropagationService {
 
     let newJsonSchema = operatorSchema.jsonSchema;
     newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, attributeInJsonSchema,
-      () => ({ type: 'string', enum: inputAttributes.slice() }));
+      () => ({ type: 'string', enum: inputAttributes.slice(), uniqueItems: true }));
 
     newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, attributeListInJsonSchema,
-      () => ({ type: 'array', items: { type: 'string', enum: inputAttributes.slice() } }));
+      () => ({ type: 'array', items: { type: 'string', enum: inputAttributes.slice(), uniqueItems: true }}));
 
     return {
       ...operatorSchema,
