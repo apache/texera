@@ -73,7 +73,6 @@ export class NavigationComponent implements OnInit {
 
     // set the map of operatorStatusMap
     validationWorkflowService.getWorkflowValidationErrorStream()
-      .do(value => console.log(value))
       .subscribe(value => this.isWorkflowValid = Object.keys(value.errors).length === 0);
 
   }

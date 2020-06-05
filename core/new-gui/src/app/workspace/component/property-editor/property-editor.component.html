@@ -4,7 +4,6 @@
       {{currentOperatorSchema?.additionalMetadata.userFriendlyName}}
     </h3>
 
-
     <form [formGroup]="form" *ngIf="fields">
       <formly-form [model]="cachedFormData"
       [fields]="fields"
@@ -14,27 +13,5 @@
       </formly-form>
 
     </form>
-
-    <!-- <button *ngIf="!showAdvanced && hasAdvanced" type="button" class="btn btn-default" (click)="handlePropertyAdvancedToggle()">Advanced</button>
-    <button *ngIf="showAdvanced && hasAdvanced" type="button" class="btn btn-default" (click)="handlePropertyAdvancedToggle()">Hide Advanced</button> -->
-
-    <!-- <ng-template #htmlContent>
-      <div class="container" *ngFor="let attribute of propertyDescription | keyvalue">
-        <div class="property-detail-title">
-          <b>{{attribute.key}}</b>
-        </div>
-        <div class="property-detail-description">
-          {{attribute.value}}
-        </div>
-      </div>
-    </ng-template>
-
-    <button class="propertyDescriptionButton" *ngIf="hasPropertyDescription" mat-icon-button  mat-subheader
-      triggers="click:blur" [ngbTooltip]="htmlContent" placement="left">
-      <span>
-        <i id="question-mark-icon" class="fa fa-info-circle" aria-hidden="true" ></i>
-      </span>
-    </button>
   </div>
-
-</div> -->
+</div>

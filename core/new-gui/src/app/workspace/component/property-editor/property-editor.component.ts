@@ -1,4 +1,3 @@
-import { attributeListInJsonSchema } from './../../service/dynamic-schema/schema-propagation/schema-propagation.service';
 import { OperatorSchema } from './../../types/operator-schema.interface';
 import { OperatorPredicate } from '../../types/workflow-common.interface';
 import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
@@ -11,15 +10,7 @@ import '../../../common/rxjs-operators';
 
 import { cloneDeep, isEqual} from 'lodash';
 
-<<<<<<< HEAD
-export interface IndexableObject extends Readonly<{
-  [key: string]: object | string | boolean | symbol | number | Array<object>;
-}> { }
 import { JSONSchema7 } from 'json-schema';
-=======
-import { JSONSchema4 } from 'json-schema';
-import { IndexableObject } from '../../types/result-table.interface';
->>>>>>> 6e88cc48925b3a521beea8af50744e674989cc3a
 
 import { FormGroup } from '@angular/forms';
 import { FormlyFormOptions, FormlyFieldConfig } from '@ngx-formly/core';
@@ -68,13 +59,9 @@ export class PropertyEditorComponent {
 
   // the operator schemas of the current operator
   public currentOperatorSchema: OperatorSchema | undefined;
-  // public advancedOperatorSchema: OperatorSchema | undefined;
 
   // used in HTML template to control if the form is displayed
   public displayForm: boolean = false;
-
-  // the form layout passed to angular json schema library to hide *submit* button
-  public formLayout: object = PropertyEditorComponent.generateFormLayout();
 
   // the source event stream of form change triggered by library at each user input
   public sourceFormChangeEventStream = new Subject<object>();
@@ -84,18 +71,6 @@ export class PropertyEditorComponent {
 
   // the current operator schema list, used to find the operator schema of current operator
   public operatorSchemaList: ReadonlyArray<OperatorSchema> = [];
-
-  // // the variables used for showing/hiding advanced options
-  // public showAdvanced: boolean = false;
-  // public hasAdvanced: boolean = false;
-  // public advancedClick: boolean = false;
-
-  //  // the map of property description (key = property name, value = property description)
-  // public propertyDescription: Map<String, String> = new Map();
-
-  //  // boolean to display the property description button
-  // public hasPropertyDescription: boolean = false;
-
   // the operator data need to be stored if the Json Schema changes, else the currently modified changes will be lost
   public cachedFormData: object = {};
 
@@ -103,35 +78,12 @@ export class PropertyEditorComponent {
   public model: any;
   public options: FormlyFormOptions | undefined;
   public fields: FormlyFieldConfig[] | undefined;
-  public type = '';
-
 
   constructor(
     private formlyJsonschema: FormlyJsonschema,
     private workflowActionService: WorkflowActionService,
     private autocompleteService: DynamicSchemaService
   ) {
-    // subscribe to operator schema information (with source tables names added to source operators' table name properties)
-    // this.autocompleteService.getSourceTableAddedOperatorMetadataObservable().subscribe(
-    //   metadata => { this.operatorSchemaList = metadata.operators; }
-    // );
-
-
-    // // this observable toggles the advanced options for an operator when the
-    // // status is changed
-    // this.workflowActionService.getTexeraGraph().getOperatorAdvancedOptionChangeSteam()
-    //   .subscribe((event) => {
-    //     this.showAdvanced = event.showAdvanced;
-
-    //     this.currentOperatorSchema = this.showAdvanced ? this.advancedOperatorSchema :
-    //       this.hideAdvancedSchema(this.currentOperatorSchema);
-    //     if (this.cachedFormData !== undefined) {
-    //       this.currentOperatorInitialData = this.cachedFormData;
-    //     }
-    //     this.model = this.cachedFormData;
-    //     this.convertJsonSchemaToNGXField(this.currentOperatorSchema.jsonSchema);
-    //   });
-
     // listen to the autocomplete event, remove invalid properties, and update the schema displayed on the form
     this.handleOperatorSchemaChange();
 
@@ -146,26 +98,6 @@ export class PropertyEditorComponent {
     this.handleHighlightEvents();
 
   }
-
-
-
-  /**
-   *hide the advancedOptions field
-  */
-
-  /**
-   * This method handles the advanced button actions, including hiding the advanced properties
-   *  and showing the advanced properties when they are originally hidden.
-   */
-  // public handlePropertyAdvancedToggle(): void {
-  //   if (this.currentOperatorID === undefined) {
-  //     throw new Error('operator undefined when hiding the advanced properties');
-  //   }
-
-  //   this.advancedClick = true;
-  //   this.showAdvanced = !this.showAdvanced;
-  //   this.workflowActionService.setOperatorAdvanceStatus(this.currentOperatorID, this.showAdvanced);
-  // }
 
   /**
    * Callback function provided to the Angular Json Schema Form library,
@@ -193,69 +125,6 @@ export class PropertyEditorComponent {
   }
 
   /**
-   * This method is responsible for hiding the advanced properties of the json schema
-   *  by generating a new schmea with advanced options hidden by default.
-   *
-   * @param operator
-   */
-  // public hideAdvancedSchema(operatorSchema: OperatorSchema | undefined): OperatorSchema {
-  //   if (! operatorSchema) {
-  //     throw new Error('Parameter operator schema is undefined');
-  //   }
-  //   if (! this.currentOperatorSchema) {
-  //     throw new Error('Current operator schema is undefined');
-  //   }
-
-  //   this.advancedOperatorSchema = cloneDeep(this.currentOperatorSchema);
-  //   const advancedOptionsList = this.currentOperatorSchema.additionalMetadata.advancedOptions;
-
-  //   // if there is no advanced option, return the original schema
-  //   if (!advancedOptionsList) { return this.currentOperatorSchema; }
-
-  //   // make a deep clone of the operator schema and change its properties
-  //   const currentSchema = operatorSchema.jsonSchema;
-  //   let currentSchemaProperties = currentSchema.properties;
-  //   const currentSchemaRequired = cloneDeep(currentSchema.required);
-  //   advancedOptionsList.forEach(
-  //     advancedOption => {
-  //       if (currentSchemaProperties && advancedOption in currentSchemaProperties) {
-  //         const { [advancedOption]: a, ...newProperties} = currentSchemaProperties;
-  //         currentSchemaProperties = newProperties;
-  //       }
-
-  //       if (currentSchemaRequired && currentSchemaRequired.includes(advancedOption)) {
-  //         const index = currentSchemaRequired.indexOf(advancedOption);
-  //         if (index !== -1) {
-  //           currentSchemaRequired.splice(index, 1);
-  //         }
-  //       }
-  //     }
-  //   );
-
-  //   // construct a new json schema that hides the advanced properties
-  //   let modifiedJsonSchema: JSONSchema7 = {
-  //     ...currentSchema,
-  //     properties: currentSchemaProperties
-  //   };
-
-  //   // add required field if it is not undefined
-  //   if (currentSchemaRequired !== undefined) {
-  //     modifiedJsonSchema = {
-  //       ...modifiedJsonSchema,
-  //       required: currentSchemaRequired
-  //     };
-  //   }
-
-  //   // construct a new operator schema based on the new json schema
-  //   const newOperatorSchema: OperatorSchema = {
-  //     ...operatorSchema,
-  //     jsonSchema: modifiedJsonSchema
-  //   };
-
-  //   return newOperatorSchema;
-  // }
-
-  /**
    * Changes the property editor to use the new operator data.
    * Sets all the data needed by the json schema form and displays the form.
    * @param operator
@@ -270,14 +139,9 @@ export class PropertyEditorComponent {
     // set the operator data needed
     this.currentOperatorID = operator.operatorID;
     this.currentOperatorSchema = this.autocompleteService.getDynamicSchema(this.currentOperatorID);
+    console.log(this.currentOperatorSchema);
 
     this.convertJsonSchemaToNGXField(this.currentOperatorSchema.jsonSchema);
-
-    // handle generating schemas for advanced / hidden options
-    // this.handleUpdateAdvancedSchema(operator);
-
-    // // handler to show operator detail description button or not
-    // this.handleOperatorPropertyDescription(this.currentOperatorSchema);
 
     /**
      * Make a deep copy of the initial property data object.
@@ -296,9 +160,6 @@ export class PropertyEditorComponent {
     // when operator in the property editor changes, the cachedFormData should also be changed
     this.cachedFormData = this.currentOperatorInitialData;
     this.model = this.cachedFormData;
-
-
-
 
     // set displayForm to true in the end - first initialize all the data then show the view
     this.displayForm = true;
@@ -330,12 +191,6 @@ export class PropertyEditorComponent {
         if (!this.currentOperatorID) {
           return false;
         }
-        // // if the event is caused by toggling the advanced button, then dont trigger anything
-        // if (this.advancedClick) {
-        //   // set the boolean toggle back to false
-        //   this.advancedClick = false;
-        //   return false;
-        // }
 
         // check if the operator still exists
         // the operator could've been deleted during deboucne time
@@ -350,10 +205,6 @@ export class PropertyEditorComponent {
         if (isEqual(formData, operator.operatorProperties)) {
           return false;
         }
-        // this checks whether formData and cachedFormData will have the same appearance when rendered in the form
-        // if (this.secondCheckPropertyEqual(formData as IndexableObject, this.cachedFormData as IndexableObject)) {
-        //   return false;
-        // }
         return true;
       })
       // share() because the original observable is a hot observable
@@ -381,53 +232,13 @@ export class PropertyEditorComponent {
           if (! operator) {
             throw new Error(`operator ${event.operatorID} does not exist`);
           }
+          console.log('dynamic schema change');
+          console.log(this.currentOperatorSchema.jsonSchema);
           this.convertJsonSchemaToNGXField(this.currentOperatorSchema.jsonSchema);
         }
       }
     );
   }
-
-  /**
-   * This function is a handler for displaying property description option on the property panel
-   *
-   * The if-else block will prevent undeclared property description to be displayed on the UI
-   *
-   * @param currentOperatorSchema
-   */
-  // private handleOperatorPropertyDescription(currentOperatorSchema: OperatorSchema): void {
-  //   if (currentOperatorSchema.additionalMetadata.propertyDescription !== undefined) {
-  //     this.propertyDescription = new Map(Object.entries(currentOperatorSchema.additionalMetadata.propertyDescription));
-  //     this.hasPropertyDescription = true;
-  //   } else {
-  //     this.propertyDescription = new Map();
-  //     this.hasPropertyDescription = false;
-  //   }
-  // }
-
-  /**
-   * This method will be responsible for getting the advanced option status from the current operator
-   *  showing on property panel.
-   *
-   * In addition, this will generate regular / advanced json schema for the current operator.
-   *
-   * @param operator current operator predicate
-   */
-  // private handleUpdateAdvancedSchema(operator: OperatorPredicate): void {
-  //   if (!this.currentOperatorSchema) {
-  //     throw new Error(`operator schema for operator type ${operator.operatorType} doesn't exist`);
-  //   }
-
-  //   this.showAdvanced = operator.showAdvanced;
-
-  //   // only show the button if the operator has advanced options
-  //   if (this.currentOperatorSchema.additionalMetadata.advancedOptions) {
-  //     this.hasAdvanced = this.currentOperatorSchema.additionalMetadata.advancedOptions.length === 0 ? false : true;
-  //   }
-
-  //   if (!this.showAdvanced) {
-  //     this.currentOperatorSchema = this.hideAdvancedSchema(this.currentOperatorSchema);
-  //   }
-  // }
 
   /**
    * This method captures the change in operator's property via program instead of user updating the
@@ -447,84 +258,6 @@ export class PropertyEditorComponent {
         this.model = this.cachedFormData;
 
       });
-  }
-
-  /**
-   * This method is serve as the second check to determine if the form data is equal to the
-   *  cached form data that might be changed by system instead of user changing in property panel.
-   *
-   * This method handles the edge case where isEqual() thinks an empty array does not equal to undefined
-   *  in the form properties. For instance, in isEqual(), if
-   *
-   *  formData = {attributes: Array(0) or []}
-   *  cachedFormData = {}
-   *
-   * isEqual() will return false, while both of these look the same when it is rendered in the property panel.
-   *
-   * This method is mainly for checking whether 2 properties will have the same appearance when it is rendered
-   *  in the JsonSchemaForm.
-   *
-   * @param property1 property from the current form
-   * @param property2 property from the current cached form
-   */
-  private secondCheckPropertyEqual(property1: IndexableObject, property2: IndexableObject): boolean {
-    let isPropertiesEqual = true;
-    const propertyOneKeys = Object.keys(property1);
-    const propertyTwoKeys = Object.keys(property2);
-
-    // keys exist in both properties
-    const keyIntersections = propertyOneKeys.filter(key => propertyTwoKeys.includes(key));
-
-    // check whether the values with these keys are equal
-    keyIntersections.forEach(key => {
-      if (!isEqual(property1[key], property2[key])) {
-        isPropertiesEqual = false;
-      }
-    });
-
-    if (!isPropertiesEqual) { return isPropertiesEqual; }
-    // difference between properties
-    const keysDifference = propertyOneKeys
-      .filter(key => !propertyTwoKeys.includes(key))
-      .concat(propertyTwoKeys.filter(key => !propertyOneKeys.includes(key)));
-
-    /**
-     * This part will check all the key-value pairs existing only in one
-     *  of the 2 properties. If the value is list and the length is not 0,
-     *  it means 2 properties are different. If length = 0 for an Array,
-     *  it will be the same as having undefined. This property holds same
-     *  for object type. If the key-value pair is not an object or array,
-     *  it means it is a regular data type and set isPropertiesEqual to false
-     *  immediately.
-     */
-    keysDifference.forEach(key => {
-      const value1 = property1[key];
-      const value2 = property2[key];
-      if (value1 !== undefined) {
-        if (Array.isArray(value1)) {
-          if (value1.length !== 0) { isPropertiesEqual = false; }
-        } else if (typeof value1 === 'object') {
-          if (Object.keys(value1).length !== 0) { isPropertiesEqual = false; }
-        } else if (typeof value1 === 'boolean') {
-          if (value1 === true) { isPropertiesEqual = false; }
-        } else { isPropertiesEqual = false; }
-      } else {
-        if (Array.isArray(value2)) {
-          if (value2.length !== 0) { isPropertiesEqual = false; }
-        } else if (typeof value2 === 'object') {
-          console.log('IS OBJECT');
-          if (Object.keys(value2).length !== 0) { isPropertiesEqual = false; }
-        } else if (typeof value2 !== 'boolean'
-        && typeof value2 !== 'string'
-        && typeof value2 !== 'number') {
-          // Sometimes the cached form defines some
-          // boolean, string, or number values that don't appear in property editor.
-          // We want to ignore those.
-          isPropertiesEqual = false;
-        }
-      }
-    });
-    return isPropertiesEqual;
   }
 
   /**
@@ -576,49 +309,12 @@ export class PropertyEditorComponent {
     }
   }
 
+
   private convertJsonSchemaToNGXField(schema: JSONSchema7) {
     this.form = new FormGroup({});
     this.options = {};
-
-    const copy_schema = cloneDeep(schema);
-
-    // for (let i = 0; i < Object.keys(copy_schema.properties).length; i++) {
-    //   if ( Object.keys(copy_schema.properties)[i] === 'attributes') {
-    //     copy_schema.properties.attributes['uniqueItems'] = true;
-    //   }
-    // }
-
-
-    const field = this.formlyJsonschema.toFieldConfig(copy_schema);
-
-    // get name
-    // for (let i = 0; i < Object.keys(copy_schema.properties).length; i++) {
-    //   field.fieldGroup[i].templateOptions.label = Object.keys(copy_schema.properties)[i];
-
-    // }
-
+    const field = this.formlyJsonschema.toFieldConfig(schema);
     this.fields = [field];
-
-    console.log('model', this.model);
-    // console.log('data', this.currentOperatorInitialData);
-    console.log('schema', copy_schema);
-    console.log('tofilds', this.formlyJsonschema.toFieldConfig(copy_schema));
-    // console.log('proper', Object.keys(schema.properties));
-    console.log('field', this.fields);
-
   }
-
-  /**
-   * Generates a form layout used by the json schema form library
-   *  to hide the *submit* button.
-   * https://github.com/json-schema-form/angular-schema-form/blob/master/docs/index.md#form-definitions
-   */
-  private static generateFormLayout(): object {
-    return [
-      '*',
-      { type: 'submit', condition: 'false' }
-    ];
-  }
-
 
 }

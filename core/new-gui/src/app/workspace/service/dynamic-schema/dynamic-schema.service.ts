@@ -107,6 +107,10 @@ export class DynamicSchemaService {
       return;
     }
 
+    console.log('set dynamic schema for operatorID');
+    console.log(operatorID);
+    console.log(dynamicSchema);
+
     // set the new dynamic schema
     this.dynamicSchemaMap.set(operatorID, dynamicSchema);
     // only emit event if the old dynamic schema is not present

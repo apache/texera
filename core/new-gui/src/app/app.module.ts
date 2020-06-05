@@ -63,16 +63,16 @@ import {
 
 import { ResourceSectionComponent } from './dashboard/component/feature-container/resource-section/resource-section.component';
 
+import { ArrayTypeComponent } from './common/formly/array.type';
+import { MultiSchemaTypeComponent } from './common/formly/multischema.type';
+import { NullTypeComponent } from './common/formly/null.type';
+import { ObjectTypeComponent } from './common/formly/object.type';
+
 import { FileUploadModule } from 'ng2-file-upload';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { FormlyBootstrapModule } from '@ngx-formly/bootstrap';
-import { FormlyModule, FormlyFieldConfig } from '@ngx-formly/core';
-
-import { ArrayTypeComponent } from './common/array.type';
-import { ObjectTypeComponent } from './common/object.type';
-import { MultiSchemaTypeComponent } from './common/multischema.type';
-import { NullTypeComponent } from './common/null.type';
+import { FormlyModule } from '@ngx-formly/core';
 import { FormlyMaterialModule } from '@ngx-formly/material';
+
 
 
 import { UserService } from './common/service/user/user.service';
@@ -83,6 +83,7 @@ import {
 import { UserFileSectionComponent } from './dashboard/component/feature-container/user-file-section/user-file-section.component';
 import { UserFileService } from './common/service/user/user-file/user-file.service';
 import { UserFileUploadService } from './common/service/user/user-file/user-file-upload.service';
+import { TEXERA_FORMLY_CONFIG } from './common/formly/formly-config';
 
 @NgModule({
   declarations: [
@@ -125,7 +126,7 @@ import { UserFileUploadService } from './common/service/user/user-file/user-file
     ArrayTypeComponent,
     ObjectTypeComponent,
     MultiSchemaTypeComponent,
-    NullTypeComponent
+    NullTypeComponent,
   ],
   imports: [
     BrowserModule,
@@ -146,56 +147,8 @@ import { UserFileUploadService } from './common/service/user/user-file/user-file
     FormsModule,
     ReactiveFormsModule,
     LoggerModule.forRoot({level: environment.production ? NgxLoggerLevel.ERROR : NgxLoggerLevel.DEBUG, serverLogLevel: NgxLoggerLevel.OFF}),
-    FormlyModule.forRoot({
-      validationMessages: [
-        { name: 'required', message: 'This field is required' },
-        { name: 'null', message: 'should be null' },
-        { name: 'minlength', message: 'minlengthValidationMessage' },
-        { name: 'maxlength', message: 'maxlengthValidationMessage' },
-        { name: 'min', message: 'minValidationMessage' },
-        { name: 'max', message: 'maxValidationMessage' },
-        { name: 'multipleOf', message: 'multipleOfValidationMessage' },
-        { name: 'exclusiveMinimum', message: 'exclusiveMinimumValidationMessage' },
-        { name: 'exclusiveMaximum', message: 'exclusiveMaximumValidationMessage' },
-        { name: 'minItems', message: 'minItemsValidationMessage' },
-        { name: 'maxItems', message: 'maxItemsValidationMessage' },
-        { name: 'uniqueItems', message: 'should NOT have duplicate items' },
-        { name: 'const', message: 'constValidationMessage' },
-      ],
-      types: [
-        { name: 'string', extends: 'input' },
-        {
-          name: 'number',
-          extends: 'input',
-          defaultOptions: {
-            templateOptions: {
-              type: 'number',
-            },
-          },
-        },
-        {
-          name: 'integer',
-          extends: 'input',
-          defaultOptions: {
-            templateOptions: {
-              type: 'number',
-            },
-          },
-        },
-        { name: 'boolean', extends: 'checkbox' },
-        { name: 'enum', extends: 'select' },
-        { name: 'null', component: NullTypeComponent, wrappers: ['form-field'] },
-        { name: 'array', component: ArrayTypeComponent },
-        { name: 'object', component: ObjectTypeComponent },
-        { name: 'multischema', component: MultiSchemaTypeComponent },
-      ],
-    }),
+    FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
     FormlyMaterialModule,
-    FormlyModule.forRoot(),
-
-
-
-
   ],
   entryComponents: [
     NgbdModalAddProjectComponent,
