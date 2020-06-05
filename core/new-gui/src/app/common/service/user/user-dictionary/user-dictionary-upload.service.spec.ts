@@ -2,7 +2,9 @@ import { TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { AppSettings } from '../../../app-setting';
 
-import { UserDictionaryUploadService, USER_DICTIONARY_UPLOAD_URL, USER_MANUAL_DICTIONARY_UPLOAD_URL, USER_DICTIONARY_VALIDATE_URL } from './user-dictionary-upload.service';
+import {
+  UserDictionaryUploadService, USER_DICTIONARY_UPLOAD_URL, USER_MANUAL_DICTIONARY_UPLOAD_URL, USER_DICTIONARY_VALIDATE_URL
+} from './user-dictionary-upload.service';
 import { UserService } from '../user.service';
 import { UserDictionaryService } from './user-dictionary.service';
 import { StubUserService } from '../stub-user.service';

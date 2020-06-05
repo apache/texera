@@ -7,8 +7,8 @@ import { UserDictionaryService } from '../../../../common/service/user/user-dict
 import { NgbModule, NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { FormsModule } from '@angular/forms';
 
-import { HttpClientModule, HttpClient } from '@angular/common/http';
 import { CustomNgMaterialModule } from '../../../../common/custom-ng-material.module';
+import { HttpClientTestingModule } from '@angular/common/http/testing';
 
 describe('UserDictionarySectionComponent', () => {
   let component: UserDictionarySectionComponent;
@@ -25,7 +25,7 @@ describe('UserDictionarySectionComponent', () => {
         CustomNgMaterialModule,
         NgbModule,
         FormsModule,
-        HttpClientModule
+        HttpClientTestingModule
       ]
     })
     .compileComponents();
