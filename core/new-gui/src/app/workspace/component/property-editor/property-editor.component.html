@@ -4,11 +4,11 @@
       {{currentOperatorSchema?.additionalMetadata.userFriendlyName}}
     </h3>
 
-    <form [formGroup]="form" *ngIf="fields">
-      <formly-form [model]="cachedFormData"
-      [fields]="fields"
-      [options]="options"
-      [form]="form"
+    <form [formGroup]="formlyFormGroup" *ngIf="formlyFields">
+      <formly-form [model]="formData"
+      [fields]="formlyFields"
+      [options]="formlyOptions"
+      [form]="formlyFormGroup"
       (modelChange) = "onFormChanges($event)">
       </formly-form>
 

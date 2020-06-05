@@ -48,14 +48,10 @@ export class PropertyEditorComponent {
 
   // debounce time for form input in miliseconds
   //  please set this to multiples of 10 to make writing tests easy
-  public static formInputDebounceTime: number = 150;
+  public static readonly formInputDebounceTime: number = 150;
 
   // the operatorID corresponds to the property editor's current operator
   public currentOperatorID: string | undefined;
-
-  // a *copy* of the operator property as the initial input to the json schema form
-  // see details of why making a copy below at where the copy is made
-  public currentOperatorInitialData: object | undefined;
 
   // the operator schemas of the current operator
   public currentOperatorSchema: OperatorSchema | undefined;
@@ -69,15 +65,11 @@ export class PropertyEditorComponent {
   // the output form change event stream after debouce time and filtering out values
   public outputFormChangeEventStream = this.createOutputFormChangeEventStream(this.sourceFormChangeEventStream);
 
-  // the current operator schema list, used to find the operator schema of current operator
-  public operatorSchemaList: ReadonlyArray<OperatorSchema> = [];
-  // the operator data need to be stored if the Json Schema changes, else the currently modified changes will be lost
-  public cachedFormData: object = {};
-
-  public form: FormGroup | undefined;
-  public model: any;
-  public options: FormlyFormOptions | undefined;
-  public fields: FormlyFieldConfig[] | undefined;
+  // inputs and two-way bindings to formly component
+  public formlyFormGroup: FormGroup | undefined;
+  public formData: any;
+  public formlyOptions: FormlyFormOptions | undefined;
+  public formlyFields: FormlyFieldConfig[] | undefined;
 
   constructor(
     private formlyJsonschema: FormlyJsonschema,
@@ -116,12 +108,11 @@ export class PropertyEditorComponent {
     // set displayForm to false in the very beginning
     // hide the view first and then make everything null
     this.displayForm = false;
-    // this.showAdvanced = false;
     this.currentOperatorID = undefined;
-    this.currentOperatorInitialData = undefined;
     this.currentOperatorSchema = undefined;
-    // this.advancedOperatorSchema = undefined;
-    this.cachedFormData = {};
+    this.formlyFormGroup = undefined;
+    this.formData = undefined;
+    this.formlyFields = undefined;
   }
 
   /**
@@ -139,7 +130,6 @@ export class PropertyEditorComponent {
     // set the operator data needed
     this.currentOperatorID = operator.operatorID;
     this.currentOperatorSchema = this.autocompleteService.getDynamicSchema(this.currentOperatorID);
-    console.log(this.currentOperatorSchema);
 
     this.convertJsonSchemaToNGXField(this.currentOperatorSchema.jsonSchema);
 
@@ -156,10 +146,7 @@ export class PropertyEditorComponent {
      *  - now the formChange event handler checks if the new formData is equal to the current operator data,
      *      which prevents the
      */
-    this.currentOperatorInitialData = cloneDeep(operator.operatorProperties);
-    // when operator in the property editor changes, the cachedFormData should also be changed
-    this.cachedFormData = this.currentOperatorInitialData;
-    this.model = this.cachedFormData;
+    this.formData = cloneDeep(operator.operatorProperties);
 
     // set displayForm to true in the end - first initialize all the data then show the view
     this.displayForm = true;
@@ -227,13 +214,10 @@ export class PropertyEditorComponent {
       event => {
         if (event.operatorID === this.currentOperatorID) {
           this.currentOperatorSchema = this.autocompleteService.getDynamicSchema(this.currentOperatorID);
-
           const operator = this.workflowActionService.getTexeraGraph().getOperator(event.operatorID);
           if (! operator) {
             throw new Error(`operator ${event.operatorID} does not exist`);
           }
-          console.log('dynamic schema change');
-          console.log(this.currentOperatorSchema.jsonSchema);
           this.convertJsonSchemaToNGXField(this.currentOperatorSchema.jsonSchema);
         }
       }
@@ -250,13 +234,9 @@ export class PropertyEditorComponent {
   private handleOperatorPropertyChange(): void {
     this.workflowActionService.getTexeraGraph().getOperatorPropertyChangeStream()
       .filter(operatorChanged => operatorChanged.operator.operatorID === this.currentOperatorID)
-      .filter(operatorChanged => !isEqual(this.cachedFormData, operatorChanged.operator.operatorProperties))
+      .filter(operatorChanged => !isEqual(this.formData, operatorChanged.operator.operatorProperties))
       .subscribe(operatorChanged => {
-        this.currentOperatorInitialData = cloneDeep(operatorChanged.operator.operatorProperties);
-        // need to use spread operator to keep the advanced options in the new operator properties do not contain them
-        this.cachedFormData = {...this.cachedFormData, ...this.currentOperatorInitialData};
-        this.model = this.cachedFormData;
-
+        this.formData = cloneDeep(operatorChanged.operator.operatorProperties);
       });
   }
 
@@ -269,10 +249,6 @@ export class PropertyEditorComponent {
       .subscribe(formData => {
       // set the operator property to be the new form data
       if (this.currentOperatorID) {
-
-        // need to use spread operator to keep the advanced options in the new operator properties do not contain them
-        this.cachedFormData = {...this.currentOperatorInitialData, ...formData};
-        this.model = this.cachedFormData;
         this.workflowActionService.setOperatorProperty(this.currentOperatorID, formData);
       }
     });
@@ -302,7 +278,6 @@ export class PropertyEditorComponent {
     const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
     if (highlightedOperators.length === 1) {
       const operator = this.workflowActionService.getTexeraGraph().getOperator(highlightedOperators[0]);
-
       this.changePropertyEditor(operator);
     } else {
       this.clearPropertyEditor();
@@ -311,10 +286,10 @@ export class PropertyEditorComponent {
 
 
   private convertJsonSchemaToNGXField(schema: JSONSchema7) {
-    this.form = new FormGroup({});
-    this.options = {};
+    this.formlyFormGroup = new FormGroup({});
+    this.formlyOptions = {};
     const field = this.formlyJsonschema.toFieldConfig(schema);
-    this.fields = [field];
+    this.formlyFields = [field];
   }
 
 }
