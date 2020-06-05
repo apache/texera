@@ -162,7 +162,8 @@ describe('SchemaPropagationService', () => {
     const attributeInSchema = schema.jsonSchema!.properties!['attribute'];
     expect(attributeInSchema).toEqual({
       type: 'string',
-      enum: mockSchemaPropagationResponse.result[mockOperator.operatorID]
+      enum: mockSchemaPropagationResponse.result[mockOperator.operatorID],
+      uniqueItems: true
     });
 
   });
@@ -200,7 +201,8 @@ describe('SchemaPropagationService', () => {
     const attributeInSchema = schema.jsonSchema!.properties!['attribute'];
     expect(attributeInSchema).toEqual({
       type: 'string',
-      enum: mockSchemaPropagationResponse.result[mockOperator.operatorID]
+      enum: mockSchemaPropagationResponse.result[mockOperator.operatorID],
+      uniqueItems: true
     });
 
     // change operator property to trigger invoking schema propagation API
@@ -269,7 +271,8 @@ describe('SchemaPropagationService', () => {
       type: 'array',
       items: {
         type: 'string',
-        enum: mockSchemaPropagationResponse.result[mockKeywordSearchOperator.operatorID]
+        enum: mockSchemaPropagationResponse.result[mockKeywordSearchOperator.operatorID],
+        uniqueItems: true
       }
     });
   });
@@ -319,11 +322,13 @@ describe('SchemaPropagationService', () => {
           properties: {
             attribute: {
               type: 'string',
-              enum: mockSchemaPropagationResponse.result[mockAggregationPredicate.operatorID]
+              enum: mockSchemaPropagationResponse.result[mockAggregationPredicate.operatorID],
+              uniqueItems: true
             },
             aggregator: {
               type: 'string',
-              enum: ['min', 'max', 'average', 'sum', 'count']
+              enum: ['min', 'max', 'average', 'sum', 'count'],
+              uniqueItems: true
             },
             resultAttribute: { type: 'string' }
           }

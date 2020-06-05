@@ -4,7 +4,7 @@
       {{currentOperatorSchema?.additionalMetadata.userFriendlyName}}
     </h3>
 
-    <form [formGroup]="formlyFormGroup" *ngIf="formlyFields">
+    <form class="texera-workspace-property-editor-form" [formGroup]="formlyFormGroup" *ngIf="formlyFields">
       <formly-form [model]="formData"
       [fields]="formlyFields"
       [options]="formlyOptions"

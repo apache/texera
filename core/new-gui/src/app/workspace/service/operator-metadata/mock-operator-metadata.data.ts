@@ -127,7 +127,8 @@ export const mockAggregationSchema: OperatorSchema = {
             attribute: { type: 'string' },
             aggregator: {
               type: 'string',
-              enum: ['min', 'max', 'average', 'sum', 'count']
+              enum: ['min', 'max', 'average', 'sum', 'count'],
+              uniqueItems: true
             },
             resultAttribute: { type: 'string' }
           }

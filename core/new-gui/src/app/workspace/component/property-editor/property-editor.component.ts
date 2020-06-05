@@ -2,7 +2,7 @@ import { OperatorSchema } from './../../types/operator-schema.interface';
 import { OperatorPredicate } from '../../types/workflow-common.interface';
 import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
 import { DynamicSchemaService } from '../../service/dynamic-schema/dynamic-schema.service';
-import { Component } from '@angular/core';
+import { Component, ChangeDetectorRef } from '@angular/core';
 
 import { Subject } from 'rxjs/Subject';
 import { Observable } from 'rxjs/Observable';
@@ -48,7 +48,7 @@ export class PropertyEditorComponent {
 
   // debounce time for form input in miliseconds
   //  please set this to multiples of 10 to make writing tests easy
-  public static readonly formInputDebounceTime: number = 150;
+  public static formInputDebounceTime: number = 150;
 
   // the operatorID corresponds to the property editor's current operator
   public currentOperatorID: string | undefined;
@@ -74,7 +74,8 @@ export class PropertyEditorComponent {
   constructor(
     private formlyJsonschema: FormlyJsonschema,
     private workflowActionService: WorkflowActionService,
-    private autocompleteService: DynamicSchemaService
+    private autocompleteService: DynamicSchemaService,
+    private ref: ChangeDetectorRef
   ) {
     // listen to the autocomplete event, remove invalid properties, and update the schema displayed on the form
     this.handleOperatorSchemaChange();
@@ -150,6 +151,15 @@ export class PropertyEditorComponent {
 
     // set displayForm to true in the end - first initialize all the data then show the view
     this.displayForm = true;
+
+    // manually trigger a change detection to force formly to process the form
+    // this is because formly does not emit an onChanges event for filling default values
+    // and this might cause an inconsistency between the operator property in componenet and the service
+    this.ref.detectChanges();
+    console.log('after change detect');
+    console.log(this.formData);
+
+    this.sourceFormChangeEventStream.next(this.formData);
   }
 
   /**
