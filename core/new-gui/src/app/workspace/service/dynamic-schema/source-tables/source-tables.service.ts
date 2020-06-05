@@ -101,7 +101,7 @@ export class SourceTablesService {
       return {
         ...schema,
         jsonSchema: DynamicSchemaService.mutateProperty(
-          schema.jsonSchema, tableNameInJsonSchema, () => ({ type: 'string', enum: tableNames}))
+          schema.jsonSchema, tableNameInJsonSchema, () => ({ type: 'string', enum: tableNames, uniqueItems: true}))
       };
     }
     // change the filename to a dropdown enum of available files of the user in the system
@@ -110,7 +110,7 @@ export class SourceTablesService {
       return {
         ...schema,
         jsonSchema: DynamicSchemaService.mutateProperty(
-          schema.jsonSchema, fileNameInJsonSchema, () => ({ type: 'string', enum: fileNames }))
+          schema.jsonSchema, fileNameInJsonSchema, () => ({ type: 'string', enum: fileNames, uniqueItems: true}))
       };
     }
     return schema;
@@ -130,7 +130,7 @@ export class SourceTablesService {
         newDynamicSchema = {
           ...schema,
           jsonSchema: DynamicSchemaService.mutateProperty(
-            schema.jsonSchema, fileNameInJsonSchema, () => ({ type: 'string', enum: fileNames }))
+            schema.jsonSchema, fileNameInJsonSchema, () => ({ type: 'string', enum: fileNames, uniqueItems: true }))
         };
       } else {
         newDynamicSchema = {

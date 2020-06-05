@@ -81,32 +81,32 @@ public class JsonSchemaHelper {
         JsonSchemaGenerator jsonSchemaGenerator = new JsonSchemaGenerator(DataConstants.defaultObjectMapper);
         JsonSchema schema = jsonSchemaGenerator.generateSchema(predicateClass);
 
-
-
-        
         ObjectNode schemaNode = objectMapper.readValue(objectMapper.writeValueAsBytes(schema), ObjectNode.class);
+        ObjectNode propertiesNode = ((ObjectNode) schemaNode.get("properties"));
+
         // remove the operatorID from the json schema
-        ((ObjectNode) schemaNode.get("properties")).remove("operatorID");
+        propertiesNode.remove("operatorID");
 
+        // process each property due to frontend form generator requirements
+        propertiesNode.fields().forEachRemaining(e -> {
+            String propertyName = e.getKey();
+            ObjectNode propertyNode = (ObjectNode) e.getValue();
 
-        ArrayList<String> properties = getProperty(predicateClass);
-        for (String property : properties) {
-            ObjectNode propertyNode = (ObjectNode) schemaNode.get("properties").get(property);
-            propertyNode.set("title", objectMapper.convertValue(property, JsonNode.class));
-            if (property.equals("attributes")) {
-                System.out.println(property);
-                propertyNode.set("uniqueItems",objectMapper.convertValue(true, JsonNode.class));
+            // add a "title" field to each property
+            propertyNode.put("title", propertyName);
+            // if property is an enum, set unique items to true
+            if (propertiesNode.has("enum")) {
+                propertyNode.put("uniqueItems", true);
             }
-
-        }
+        });
 
         // add required/optional properties to the schema
-        List<String> requriedProperties = getRequiredProperties(predicateClass);
+        List<String> requiredProperties = getRequiredProperties(predicateClass);
         
         // don't add the required properties if it's empty 
         // because draft v4 doesn't allow it
-        if (! requriedProperties.isEmpty()) {
-            schemaNode.set("required", objectMapper.valueToTree(requriedProperties));
+        if (! requiredProperties.isEmpty()) {
+            schemaNode.set("required", objectMapper.valueToTree(requiredProperties));
         }
         
         // add property default values to the schema
@@ -222,11 +222,9 @@ public class JsonSchemaHelper {
         
         // get all parameter types
         Class<?>[] parameterTypes = constructor.getParameterTypes();
-
         for (int i = 0; i < parameterTypes.length; i++) {
             // find the @JsonProperty annotation for each parameter
             Annotation[] annotations = constructor.getParameterAnnotations()[i];
-
             Optional<Annotation> findJsonProperty = Arrays.asList(annotations).stream()
                     .filter(annotation -> annotation.annotationType().equals(JsonProperty.class)).findAny();
             if (! findJsonProperty.isPresent()) {
@@ -241,31 +239,6 @@ public class JsonSchemaHelper {
         }
         
         return defaultValueMap;
-    }
-
-    public static ArrayList<String> getProperty (Class<? extends PredicateBase> predicateClass) {
-        ArrayList<String> result = new ArrayList<>();
-        HashMap<String, Object> defaultValueMap = new HashMap<>();
-
-        Constructor<?> constructor = getJsonCreatorConstructor(predicateClass);
-
-        // get all parameter types
-        Class<?>[] parameterTypes = constructor.getParameterTypes();
-
-        for (int i = 0; i < parameterTypes.length; i++) {
-            // find the @JsonProperty annotation for each parameter
-            Annotation[] annotations = constructor.getParameterAnnotations()[i];
-
-            Optional<Annotation> findJsonProperty = Arrays.asList(annotations).stream()
-                    .filter(annotation -> annotation.annotationType().equals(JsonProperty.class)).findAny();
-            if (!findJsonProperty.isPresent()) {
-                continue;
-            }
-            // convert the defaultValue from the string to the parameter's type
-            JsonProperty jsonProperty = (JsonProperty) findJsonProperty.get();
-            result.add(jsonProperty.value());
-        }
-        return result;
     }
     
     public static Constructor<?> getJsonCreatorConstructor(Class<? extends PredicateBase> predicateClass) {
