@@ -1,4 +1,4 @@
-import { JSONSchema4 } from 'json-schema';
+import { JSONSchema7 } from 'json-schema';
 import { OperatorSchema, OperatorMetadata, GroupInfo } from '../../types/operator-schema.interface';
 
 
@@ -127,7 +127,8 @@ export const mockAggregationSchema: OperatorSchema = {
             attribute: { type: 'string' },
             aggregator: {
               type: 'string',
-              enum: ['min', 'max', 'average', 'sum', 'count']
+              enum: ['min', 'max', 'average', 'sum', 'count'],
+              uniqueItems: true
             },
             resultAttribute: { type: 'string' }
           }
@@ -210,8 +211,7 @@ export const mockOperatorMetaData: OperatorMetadata = {
 };
 
 
-export const testJsonSchema: JSONSchema4 = {
-  id: 'urn:jsonschema:edu:uci:ics:texera:dataflow:nlp:sentiment:NlpSentimentPredicate',
+export const testJsonSchema: JSONSchema7 = {
   properties: {
     attribute: {
       type: 'string'

@@ -48,7 +48,6 @@ export class ValidationWorkflowService {
   constructor(private operatorMetadataService: OperatorMetadataService,
     private workflowActionService: WorkflowActionService) {
 
-    this.ajv.addMetaSchema(require('ajv/lib/refs/json-schema-draft-04.json'));
 
     // fetch operator schema list
     this.operatorMetadataService.getOperatorMetadata()

@@ -63,14 +63,27 @@ import {
 
 import { ResourceSectionComponent } from './dashboard/component/feature-container/resource-section/resource-section.component';
 
+import { ArrayTypeComponent } from './common/formly/array.type';
+import { MultiSchemaTypeComponent } from './common/formly/multischema.type';
+import { NullTypeComponent } from './common/formly/null.type';
+import { ObjectTypeComponent } from './common/formly/object.type';
+
 import { FileUploadModule } from 'ng2-file-upload';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { FormlyModule } from '@ngx-formly/core';
+import { FormlyMaterialModule } from '@ngx-formly/material';
+
+
+
 import { UserService } from './common/service/user/user.service';
 import { NgbdModalUserLoginComponent } from './dashboard/component/top-bar/user-icon/user-login/ngbdmodal-user-login.component';
-import { NgbdModalFileAddComponent } from './dashboard/component/feature-container/user-file-section/ngbd-modal-file-add/ngbd-modal-file-add.component';
+import {
+  NgbdModalFileAddComponent
+} from './dashboard/component/feature-container/user-file-section/ngbd-modal-file-add/ngbd-modal-file-add.component';
 import { UserFileSectionComponent } from './dashboard/component/feature-container/user-file-section/user-file-section.component';
 import { UserFileService } from './common/service/user/user-file/user-file.service';
 import { UserFileUploadService } from './common/service/user/user-file/user-file-upload.service';
+import { TEXERA_FORMLY_CONFIG } from './common/formly/formly-config';
 
 @NgModule({
   declarations: [
@@ -109,6 +122,11 @@ import { UserFileUploadService } from './common/service/user/user-file/user-file
     ProductTourComponent,
     MiniMapComponent,
     ResultPanelToggleComponent,
+
+    ArrayTypeComponent,
+    ObjectTypeComponent,
+    MultiSchemaTypeComponent,
+    NullTypeComponent,
   ],
   imports: [
     BrowserModule,
@@ -129,7 +147,8 @@ import { UserFileUploadService } from './common/service/user/user-file/user-file
     FormsModule,
     ReactiveFormsModule,
     LoggerModule.forRoot({level: environment.production ? NgxLoggerLevel.ERROR : NgxLoggerLevel.DEBUG, serverLogLevel: NgxLoggerLevel.OFF}),
-
+    FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
+    FormlyMaterialModule,
   ],
   entryComponents: [
     NgbdModalAddProjectComponent,

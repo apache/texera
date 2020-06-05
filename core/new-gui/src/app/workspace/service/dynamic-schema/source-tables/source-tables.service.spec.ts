@@ -81,7 +81,8 @@ describe('SourceTablesService', () => {
       type: 'string',
       enum: [
         mockTablePromed.tableName, mockTableTwitter.tableName
-      ]
+      ],
+      uniqueItems: true
     });
 
   });
@@ -122,7 +123,8 @@ describe('SourceTablesService', () => {
       type: 'string',
       enum: [
         'file1', 'file2'
-      ]
+      ],
+      uniqueItems: true
     });
 
   });
@@ -156,7 +158,8 @@ describe('SourceTablesService', () => {
       type: 'array',
       items: {
         type: 'string',
-        enum: mockTableTwitter.schema.attributes.map(attr => attr.attributeName)
+        enum: mockTableTwitter.schema.attributes.map(attr => attr.attributeName),
+        uniqueItems: true
       }
     });
 
