@@ -1,14 +1,9 @@
 {
   "extends": "../tsconfig.json",
   "compilerOptions": {
+    "sourceMap": false,
     "module": "commonjs",
-    "target": "es5",
-    "types": [
-      "cypress",
-      "node"
-    ],
-  "sourceMap": false,
-  "outDir": "../out-tsc/e2e"
+    "outDir": "./dist"
   },
   "include": [
     "src/**/*.ts"
