@@ -4,14 +4,13 @@
       {{currentOperatorSchema?.additionalMetadata.userFriendlyName}}
     </h3>
 
-    <form class="texera-workspace-property-editor-form" [formGroup]="formlyFormGroup" *ngIf="formlyFields">
+    <form class="texera-workspace-property-editor-form" [formGroup]="formlyFormGroup" *ngIf="jsonSchema">
       <formly-form [model]="formData"
-      [fields]="formlyFields"
+      [fields]="[formlyJsonschema.toFieldConfig(jsonSchema)]"
       [options]="formlyOptions"
       [form]="formlyFormGroup"
       (modelChange) = "this.formChanged.next($event)">
       </formly-form>
-
     </form>
   </div>
 

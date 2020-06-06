@@ -455,8 +455,8 @@ export class DragDropService {
     const validTargetPortsID = targetOperator.inputPorts.filter(portID => !allPortsFromTarget.includes(portID));
 
     const linkID = this.workflowUtilService.getLinkRandomUUID();
-    const source = { operatorID: sourceOperator.operatorID, portID: validSourcePortsID[0]};
-    const target = { operatorID: targetOperator.operatorID, portID: validTargetPortsID[0]};
+    const source = { operatorID: sourceOperator.operatorID, portID: validSourcePortsID[0] };
+    const target = { operatorID: targetOperator.operatorID, portID: validTargetPortsID[0] };
     return { linkID, source, target };
   }
 

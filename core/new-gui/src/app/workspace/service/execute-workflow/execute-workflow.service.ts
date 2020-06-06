@@ -264,7 +264,7 @@ export class ExecuteWorkflowService {
         destination: link.target.operatorID,
       }));
 
-    const linkBreakpoints = workflowGraph.getAllLinkBreakpoint();
+    const linkBreakpoints = workflowGraph.getAllLinkBreakpoints();
 
     return { operators, links, linkBreakpoints};
   }

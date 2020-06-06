@@ -98,7 +98,9 @@ export class SyncTexeraModel {
       })
       .filter(link => this.isValidJointLink(link))
       .map(link => SyncTexeraModel.getOperatorLink(link))
-      .subscribe(link => this.texeraGraph.addLink(link));
+      .subscribe(link => {
+        this.texeraGraph.addLink(link);
+      });
   }
 
   /**

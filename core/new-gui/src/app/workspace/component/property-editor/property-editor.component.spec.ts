@@ -315,7 +315,7 @@ describe('PropertyEditorComponent', () => {
 
     m.bind();
 
-    const actualFormChangeEventStream = component.createOutputFormChangeEventStream(formUserInputEventStream);
+    const actualFormChangeEventStream = component.updateOperatorPropertyOnFormChange(formUserInputEventStream);
     formUserInputEventStream.subscribe();
 
     m.expect(actualFormChangeEventStream).toBeObservable(expectedFormChangeEventStream);

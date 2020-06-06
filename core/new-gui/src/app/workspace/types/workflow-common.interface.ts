@@ -33,6 +33,4 @@ export interface BreakpointSchema extends Readonly<{
   jsonSchema: Readonly<JSONSchema7>;
 }> {}
 
-export interface Breakpoint extends Readonly<{
-  breakpointProperties: Readonly<{[key: string]: any}>;
-}> {}
+export interface Breakpoint extends Readonly<Record<string, any>> {}
