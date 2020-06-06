@@ -1,25 +1,20 @@
-import { attributeListInJsonSchema } from './../../service/dynamic-schema/schema-propagation/schema-propagation.service';
-import { OperatorSchema } from './../../types/operator-schema.interface';
-import { OperatorPredicate, BreakpointSchema } from '../../types/workflow-common.interface';
+import { OperatorPredicate } from '../../types/workflow-common.interface';
 import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
 import { DynamicSchemaService } from '../../service/dynamic-schema/dynamic-schema.service';
-import { Component } from '@angular/core';
-import { environment } from './../../../../environments/environment';
-
+import { Component, ChangeDetectorRef } from '@angular/core';
 
 import { Subject } from 'rxjs/Subject';
 import { Observable } from 'rxjs/Observable';
 import '../../../common/rxjs-operators';
 
-import { cloneDeep, isEqual} from 'lodash';
+import { cloneDeep, isEqual } from 'lodash';
 
-export interface IndexableObject extends Readonly<{
-  [key: string]: object | string | boolean | symbol | number | Array<object>;
-}> { }
-import { JSONSchema4 } from 'json-schema';
-import { IndexableObject } from '../../types/result-table.interface';
+import { JSONSchema7 } from 'json-schema';
 
-type linkIDType = { linkID: string };
+import { FormGroup } from '@angular/forms';
+import { FormlyFormOptions } from '@ngx-formly/core';
+import { FormlyJsonschema } from '@ngx-formly/core/json-schema';
+import { environment } from 'src/environments/environment';
 
 /**
  * PropertyEditorComponent is the panel that allows user to edit operator properties.
@@ -55,87 +50,37 @@ export class PropertyEditorComponent {
   //  please set this to multiples of 10 to make writing tests easy
   public static formInputDebounceTime: number = 150;
 
-  // the operatorID corresponds to the property editor's current operator
-  public currentOperatorID: string | undefined;
-
-  // a *copy* of the operator property as the initial input to the json schema form
-  // see details of why making a copy below at where the copy is made
-  public currentOperatorInitialData: object | undefined;
-
-  // the operator schemas of the current operator
-  public currentOperatorSchema: OperatorSchema | undefined;
-  public advancedOperatorSchema: OperatorSchema | undefined;
-
-  // the linkID corresponds to the property editor's current link
-  public currentLinkID: linkIDType | undefined;
-
-// the link breakpoint schemas of the current link
-  public currentLinkBreakpointSchema: BreakpointSchema | undefined;
-
-  // a *copy* of the link breakpoint property as the initial input to the json schema form
-  public currentBreakpointInitialData: object | undefined;
-
   // used in HTML template to control if the form is displayed
   public displayForm: boolean = false;
 
-  // used in HTML template to control is the breakpoint form is displayed
-  public displayBreakpointEditor: boolean = false;
+  // inputs and two-way bindings to formly component
+  public formlyFormGroup: FormGroup = new FormGroup({});
+  public formlyOptions: FormlyFormOptions = {};
 
-  // the form layout passed to angular json schema library to hide *submit* button
-  public formLayout: object = PropertyEditorComponent.generateFormLayout();
+  public formData: any;
+  public jsonSchema: JSONSchema7 | undefined;
 
   // the source event stream of form change triggered by library at each user input
-  public sourceFormChangeEventStream = new Subject<object>();
+  public formChanged = new Subject<any>();
+  // // the output form change event stream after debouce time
+  // public outputFormChangeEventStream = this.createOutputFormChangeEventStream(this.formChanged);
+  // whether listen to the model change and update the form
+  public listenModelChange: boolean = true;
 
-  // the output form change event stream after debouce time and filtering out values
-  public outputFormChangeEventStream = this.createOutputFormChangeEventStream(this.sourceFormChangeEventStream);
 
-  // the source event stream of breakpoint form change
-  public breakpointChangeEventStream = new Subject<object>();
+  // the operatorID corresponds to the operator property editor
+  public currentOperatorID: string | undefined;
 
-  // the output form change event stream after debouce time and filtering out values
-  public outputBreakpointChangeEventStream = this.createoutputBreakpointChangeEventStream(this.breakpointChangeEventStream);
+  // the linkID corresponds to the breakpoint editor
+  public currentLinkID: string | undefined;
 
-  // the current operator schema list, used to find the operator schema of current operator
-  public operatorSchemaList: ReadonlyArray<OperatorSchema> = [];
-
-  // the variables used for showing/hiding advanced options
-  public showAdvanced: boolean = false;
-  public hasAdvanced: boolean = false;
-  public advancedClick: boolean = false;
-
-   // the map of property description (key = property name, value = property description)
-  public propertyDescription: Map<String, String> = new Map();
-
-   // boolean to display the property description button
-  public hasPropertyDescription: boolean = false;
-
-  // the operator data need to be stored if the Json Schema changes, else the currently modified changes will be lost
-  public cachedFormData: object = {};
 
   constructor(
-    private workflowActionService: WorkflowActionService,
-    private autocompleteService: DynamicSchemaService
+    public formlyJsonschema: FormlyJsonschema,
+    public workflowActionService: WorkflowActionService,
+    public autocompleteService: DynamicSchemaService,
+    public ref: ChangeDetectorRef
   ) {
-    // subscribe to operator schema information (with source tables names added to source operators' table name properties)
-    // this.autocompleteService.getSourceTableAddedOperatorMetadataObservable().subscribe(
-    //   metadata => { this.operatorSchemaList = metadata.operators; }
-    // );
-
-
-    // this observable toggles the advanced options for an operator when the
-    // status is changed
-    this.workflowActionService.getTexeraGraph().getOperatorAdvancedOptionChangeSteam()
-      .subscribe((event) => {
-        this.showAdvanced = event.showAdvanced;
-
-        this.currentOperatorSchema = this.showAdvanced ? this.advancedOperatorSchema :
-          this.hideAdvancedSchema(this.currentOperatorSchema);
-        if (this.cachedFormData !== undefined) {
-          this.currentOperatorInitialData = this.cachedFormData;
-        }
-      });
-
     // listen to the autocomplete event, remove invalid properties, and update the schema displayed on the form
     this.handleOperatorSchemaChange();
 
@@ -143,53 +88,19 @@ export class PropertyEditorComponent {
     //  this observable will be responsible in handling these events.
     this.handleOperatorPropertyChange();
 
-    // handle the form change event on the user interface to actually set the operator property
-    this.handleOnFormChange();
-
     // handle highlight / unhighlight event to show / hide the property editor form
-    this.handleHighlightEvents();
+    this.handleOperatorHighlightEvents();
+
+    this.updateOperatorPropertyOnFormChange();
 
     if (environment.linkBreakpointEnabled) {
       // handle link highlight / unhighlight event to show / hide the breakpoint property editor form
       this.handleLinkHighlight();
-      this.handleLinkUnhighlight();
 
-      // handle the breakpoint form change event on the user interface to set breakpoint property
-      this.handleOnBreakpointPropertyChange();
-    }
-  }
+      this.updateBreakpointPropertyOnFormChange();
 
-  /**
-   *hide the advancedOptions field
-  */
-
-  /**
-   * This method handles the advanced button actions, including hiding the advanced properties
-   *  and showing the advanced properties when they are originally hidden.
-   */
-  public handlePropertyAdvancedToggle(): void {
-    if (this.currentOperatorID === undefined) {
-      throw new Error('operator undefined when hiding the advanced properties');
-    }
-
-    this.advancedClick = true;
-    this.showAdvanced = !this.showAdvanced;
-    this.workflowActionService.setOperatorAdvanceStatus(this.currentOperatorID, this.showAdvanced);
-  }
-
-  /**
-   * Callback function provided to the Angular Json Schema Form library,
-   *  whenever the form data is changed, this function is called.
-   * It only serves as a bridge from a callback function to RxJS Observable
-   * @param formData
-   */
-  public onFormChanges(formData: object): void {
-    if (this.displayForm) {
-      // the form belongs to an operator
-      this.sourceFormChangeEventStream.next(formData);
-    } else if (this.displayBreakpointEditor) {
-      // the form belongs to a link breakpoint
-      this.breakpointChangeEventStream.next(formData);
+      // // handle the breakpoint form change event on the user interface to set breakpoint property
+      // this.handleOnBreakpointPropertyChange();
     }
   }
 
@@ -200,79 +111,35 @@ export class PropertyEditorComponent {
     // set displayForm to false in the very beginning
     // hide the view first and then make everything null
     this.displayForm = false;
-    this.displayBreakpointEditor = false;
-    this.showAdvanced = false;
     this.currentOperatorID = undefined;
-    this.currentOperatorInitialData = undefined;
-    this.currentOperatorSchema = undefined;
-    this.advancedOperatorSchema = undefined;
-    this.cachedFormData = {};
     this.currentLinkID = undefined;
-    this.currentBreakpointInitialData = undefined;
-    this.currentLinkBreakpointSchema = undefined;
+    this.formData = undefined;
+    this.jsonSchema = undefined;
   }
 
   /**
-   * This method is responsible for hiding the advanced properties of the json schema
-   *  by generating a new schmea with advanced options hidden by default.
+   * Handles the operator highlight / unhighlight events.
    *
-   * @param operator
+   * When operators are highlighted / unhighlighted,
+   *   -> displays the form of the highlighted operator if only one operator is highlighted
+   *   -> hides the form otherwise
    */
-  public hideAdvancedSchema(operatorSchema: OperatorSchema | undefined): OperatorSchema {
-    if (! operatorSchema) {
-      throw new Error('Parameter operator schema is undefined');
-    }
-    if (! this.currentOperatorSchema) {
-      throw new Error('Current operator schema is undefined');
-    }
-
-    this.advancedOperatorSchema = cloneDeep(this.currentOperatorSchema);
-    const advancedOptionsList = this.currentOperatorSchema.additionalMetadata.advancedOptions;
-
-    // if there is no advanced option, return the original schema
-    if (!advancedOptionsList) { return this.currentOperatorSchema; }
-
-    // make a deep clone of the operator schema and change its properties
-    const currentSchema = operatorSchema.jsonSchema;
-    let currentSchemaProperties = currentSchema.properties;
-    const currentSchemaRequired = cloneDeep(currentSchema.required);
-    advancedOptionsList.forEach(
-      advancedOption => {
-        if (currentSchemaProperties && advancedOption in currentSchemaProperties) {
-          const { [advancedOption]: a, ...newProperties} = currentSchemaProperties;
-          currentSchemaProperties = newProperties;
-        }
-
-        if (currentSchemaRequired && currentSchemaRequired.includes(advancedOption)) {
-          const index = currentSchemaRequired.indexOf(advancedOption);
-          if (index !== -1) {
-            currentSchemaRequired.splice(index, 1);
-          }
-        }
+  public handleOperatorHighlightEvents() {
+    Observable.merge(
+      this.workflowActionService.getJointGraphWrapper().getJointCellHighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getJointCellUnhighlightStream()
+    ).subscribe(() => {
+      // Displays the form of the highlighted operator if only one operator is highlighted;
+      // hides the form if no operator is highlighted or multiple operators are highlighted.
+      const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+      if (highlightedOperators.length === 1) {
+        const operator = this.workflowActionService.getTexeraGraph().getOperator(highlightedOperators[0]);
+        this.clearPropertyEditor();
+        this.showOperatorPropertyEditor(operator);
+      } else {
+        this.clearPropertyEditor();
       }
-    );
-
-    // construct a new json schema that hides the advanced properties
-    let modifiedJsonSchema: JSONSchema4 = {
-      ...currentSchema,
-      properties: currentSchemaProperties
-    };
-
-    // add required field if it is not undefined
-    if (currentSchemaRequired !== undefined) {
-      modifiedJsonSchema = {
-        ...modifiedJsonSchema,
-        required: currentSchemaRequired
-      };
-    }
-
-    // construct a new operator schema based on the new json schema
-    const newOperatorSchema: OperatorSchema = {
-      ...operatorSchema,
-      jsonSchema: modifiedJsonSchema
-    };
-
-    return newOperatorSchema;
+    });
   }
 
   /**
@@ -280,62 +147,37 @@ export class PropertyEditorComponent {
    * Sets all the data needed by the json schema form and displays the form.
    * @param operator
    */
-  public changePropertyEditor(operator: OperatorPredicate | undefined): void {
-    if (!operator) {
-      throw new Error(`change property editor: operator is undefined`);
-    }
-    // set displayForm to false first to hide the view while constructing data
-    this.displayForm = false;
-
-    // hide breakpoint editor form
-    this.displayBreakpointEditor = false;
-
+  public showOperatorPropertyEditor(operator: OperatorPredicate): void {
     // set the operator data needed
     this.currentOperatorID = operator.operatorID;
-    this.currentOperatorSchema = this.autocompleteService.getDynamicSchema(this.currentOperatorID);
-
-    // handle generating schemas for advanced / hidden options
-    this.handleUpdateAdvancedSchema(operator);
-
-    // handler to show operator detail description button or not
-    this.handleOperatorPropertyDescription(this.currentOperatorSchema);
+    this.jsonSchema = this.autocompleteService.getDynamicSchema(this.currentOperatorID).jsonSchema;
 
     /**
-     * Make a deep copy of the initial property data object.
-     * It's important to make a deep copy. If it's a reference to the operator's property object,
-     *  form change event -> property object change -> input to form change -> form change event
-     *  although the it falls into an infinite loop of tirggering events.
-     * Making a copy prevents that property object change triggers the input to the form changes.
-     *
-     * Although currently other methods also prevent this to happen, it's still good to explicitly make a copy.
-     *  - now the operator property object is immutable, meaning a new property object is construct to replace the old one,
-     *      instead of directly mutating the same object reference
-     *  - now the formChange event handler checks if the new formData is equal to the current operator data,
-     *      which prevents the
+     * Important: make a deep copy of the initial property data object.
+     * this is to avoid angular two-way binding directly reference the object in service
      */
-    this.currentOperatorInitialData = cloneDeep(operator.operatorProperties);
-    // when operator in the property editor changes, the cachedFormData should also be changed
-    this.cachedFormData = this.currentOperatorInitialData;
-    // set displayForm to true in the end - first initialize all the data then show the view
+    this.formData = cloneDeep(operator.operatorProperties);
+
+    // set displayForm to true in the end to show the view
     this.displayForm = true;
+
+    // manually trigger a change detection - formly does not emit formChanged when it fills default value
+    // and this can cause an inconsistency between the model in component and service
+    this.ref.detectChanges();
+    this.formChanged.next(this.formData);
   }
 
-  public showBreakpointPropertyEditor(linkID: linkIDType): void {
-    if (!this.workflowActionService.getTexeraGraph().hasLinkWithID(linkID.linkID)) {
+  public showBreakpointPropertyEditor(linkID: string): void {
+    if (!this.workflowActionService.getTexeraGraph().hasLinkWithID(linkID)) {
       throw new Error(`change property editor: link does not exist`);
     }
-    // set displayBreakpointEditor to false first to hide the view while constructing data
-    this.displayBreakpointEditor = false;
-    // hide operator proterty form
-    this.displayForm = false;
-
     // set the operator data needed
     this.currentLinkID = linkID;
-    this.currentLinkBreakpointSchema = this.autocompleteService.getDynamicBreakpointSchema(this.currentLinkID.linkID);
-    this.currentBreakpointInitialData = this.workflowActionService.getTexeraGraph().getLinkBreakpoint(linkID.linkID);
+    this.jsonSchema = this.autocompleteService.getDynamicBreakpointSchema(linkID).jsonSchema;
+    this.formData = this.workflowActionService.getTexeraGraph().getLinkBreakpoint(linkID);
 
     // show breakpoint editor
-    this.displayBreakpointEditor = true;
+    this.displayForm = true;
   }
 
   // Handle link highlight event
@@ -343,137 +185,72 @@ export class PropertyEditorComponent {
   public handleLinkHighlight() {
     this.workflowActionService.getJointGraphWrapper().getLinkHighlightStream()
       .subscribe(linkID => {
-        this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()
-              .forEach(operatorID => this.workflowActionService.getJointGraphWrapper().unhighlightOperator(operatorID));
+        // TODO: fix this, this should not be handled here
+        // this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()
+        //       .forEach(operatorID => this.workflowActionService.getJointGraphWrapper().unhighlightOperator(operatorID));
         this.clearPropertyEditor();
-        this.showBreakpointPropertyEditor(linkID);
+        this.showBreakpointPropertyEditor(linkID.linkID);
       });
-  }
-
-  // handle link unhighlight event
-  // On unhighlight -> clean up current Property editor
-  public handleLinkUnhighlight() {
     this.workflowActionService.getJointGraphWrapper().getLinkUnhighlightStream()
-      .subscribe(linkID => {
-        if (this.currentLinkID && this.currentLinkID.linkID === linkID.linkID) {
-          this.clearPropertyEditor();
+      .filter(linkID => this.currentLinkID !== undefined && this.currentLinkID === linkID.linkID)
+      .subscribe(linkID => this.clearPropertyEditor());
+  }
+
+  public updateOperatorPropertyOnFormChange() {
+    this.formChanged
+      .filter(formData => this.currentOperatorID !== undefined)
+      .map(formData => ({operatorID: this.currentOperatorID as string, formData}))
+      // set a debounce time to avoid events triggering too often
+      //  and to circumvent a bug of the library - each action triggers event twice
+      .debounceTime(PropertyEditorComponent.formInputDebounceTime)
+      // don't emit the event until the data is changed
+      .distinctUntilChanged()
+      .subscribe(event => {
+        // check if the operator still exists, as it can be deleted during deboucne time
+        if (!this.workflowActionService.getTexeraGraph().hasOperator(event.operatorID)) {
+          return;
         }
+        // set the operator property to be the new form data
+        this.listenModelChange = false;
+        this.workflowActionService.setOperatorProperty(event.operatorID, event.formData);
+        this.listenModelChange = true;
       });
   }
 
-  /**
-   * Handles the form change event stream observable,
-   *  which corresponds to every event the json schema form library emits.
-   *
-   * Applies rules that transform the event stream to trigger resonably and less frequently ,
-   *  such as debounce time and distince condition.
-   *
-   * Then modifies the operator property to use the new form data.
-   */
-  public createOutputFormChangeEventStream(originalSourceFormChangeEvent: Observable<object>): Observable<object> {
-
-    return originalSourceFormChangeEvent
+  public updateBreakpointPropertyOnFormChange() {
+    this.formChanged
+      .filter(formData => this.currentLinkID !== undefined)
+      .map(formData => ({linkID: this.currentLinkID as string, formData}))
       // set a debounce time to avoid events triggering too often
       //  and to circumvent a bug of the library - each action triggers event twice
       .debounceTime(PropertyEditorComponent.formInputDebounceTime)
       // don't emit the event until the data is changed
       .distinctUntilChanged()
-      // don't emit the event if form data is same with current actual data
-      // also check for other unlikely circumstances (see below)
-      .filter(formData => {
-        // check if the current operator ID still exists
-        // the user could un-select this operator during debounce time
-        if (!this.currentOperatorID) {
-          return false;
+      .subscribe(event => {
+        // check if the operator still exists, as it can be deleted during deboucne time
+        if (!this.workflowActionService.getTexeraGraph().getLinkBreakpoint(event.linkID)) {
+          return;
         }
-        // if the event is caused by toggling the advanced button, then dont trigger anything
-        if (this.advancedClick) {
-          // set the boolean toggle back to false
-          this.advancedClick = false;
-          return false;
-        }
-
-        // check if the operator still exists
-        // the operator could've been deleted during deboucne time
-        const operator = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorID);
-        if (!operator) {
-          return false;
-        }
-        // don't emit event if the form data is equal to actual current property
-        // this is to circumvent the library's behavior
-        // when the form is initialized, the change event is triggered for the inital data
-        // however, the operator property is not changed and shouldn't emit this event
-        if (isEqual(formData, operator.operatorProperties)) {
-          return false;
-        }
-        // this checks whether formData and cachedFormData will have the same appearance when rendered in the form
-        if (this.secondCheckPropertyEqual(formData as IndexableObject, this.cachedFormData as IndexableObject)) {
-          return false;
-        }
-        return true;
-      })
-      // share() because the original observable is a hot observable
-      .share();
-
+        // set the operator property to be the new form data
+        this.listenModelChange = false;
+        this.workflowActionService.setLinkBreakpoint(event.linkID, event.formData);
+        this.listenModelChange = true;
+      });
   }
 
-  /**
-   * Handles the link breakpoint form change event stream observable,
-   *  which corresponds to every event the json schema form library emits.
-   *
-   * Applies rules that transform the event stream to trigger resonably and less frequently ,
-   *  such as debounce time and distince condition.
-   *
-   * Then modifies the link breakpoint property to use the new form data.
-   */
-  public createoutputBreakpointChangeEventStream(originalBreakpointChangeEvent: Observable<object>): Observable<object> {
-    return originalBreakpointChangeEvent
-      // set a debounce time to avoid events triggering too often
-      //  and to circumvent a bug of the library - each action triggers event twice
-      .debounceTime(PropertyEditorComponent.formInputDebounceTime)
-      // don't emit the event until the data is changed
-      .distinctUntilChanged()
-      // don't emit the event if form data is same with current actual data
-      // also check for other unlikely circumstances (see below)
-      .filter(formData => {
-        // check if the current operator ID still exists
-        // the user could un-select this operator during debounce time
-        if (!this.currentLinkID) {
-          return false;
-        }
-        // check if the link still exists
-        // the link could've been deleted during deboucne time
-        const link = this.workflowActionService.getTexeraGraph().getLinkWithID(this.currentLinkID.linkID);
-        const currentBreakpoint = this.workflowActionService.getTexeraGraph().getLinkBreakpoint(this.currentLinkID.linkID);
-        if (!link) {
-          return false;
-        }
-        // don't emit event if the form data is equal to actual current property
-        // this is to circumvent the library's behavior
-        // when the form is initialized, the change event is triggered for the inital data
-        // however, the operator property is not changed and shouldn't emit this event
-        if (isEqual(formData, currentBreakpoint)) {
-          return false;
-        }
-        return true;
-      })
-      // share() because the original observable is a hot observable
-      .share();
-  }
-
-  /**
-   * This method handles the link breakpoint remove button click event.
-   * It will hide the property editor, clean up currentBreakpointInitialData.
-   * Then unhighlight the link and remove it from the workflow.
-   */
-  public handleLinkBreakpointRemove() {
-    if (this.currentLinkID) {
-      // remove breakpoint in texera workflow first, then unhighlight it
-      this.workflowActionService.removeLinkBreakpoint(this.currentLinkID.linkID);
-      this.workflowActionService.getJointGraphWrapper().unhighlightLink(this.currentLinkID.linkID);
-    }
-    this.currentLinkID = undefined;
-  }
+  // /**
+  //  * This method handles the link breakpoint remove button click event.
+  //  * It will hide the property editor, clean up currentBreakpointInitialData.
+  //  * Then unhighlight the link and remove it from the workflow.
+  //  */
+  // public handleLinkBreakpointRemove() {
+  //   if (this.currentLinkID) {
+  //     // remove breakpoint in texera workflow first, then unhighlight it
+  //     this.workflowActionService.removeLinkBreakpoint(this.currentLinkID);
+  //     this.workflowActionService.getJointGraphWrapper().unhighlightLink(this.currentLinkID);
+  //   }
+  //   this.currentLinkID = undefined;
+  // }
 
   /**
    * This method handles the schema change event from autocomplete. It will get the new schema
@@ -486,60 +263,12 @@ export class PropertyEditorComponent {
    *  to the new schema.
    */
   private handleOperatorSchemaChange(): void {
-    this.autocompleteService.getOperatorDynamicSchemaChangedStream().subscribe(
-      event => {
-        if (event.operatorID === this.currentOperatorID) {
-          this.currentOperatorSchema = this.autocompleteService.getDynamicSchema(this.currentOperatorID);
-          const operator = this.workflowActionService.getTexeraGraph().getOperator(event.operatorID);
-          if (! operator) {
-            throw new Error(`operator ${event.operatorID} does not exist`);
-          }
-          this.handleUpdateAdvancedSchema(operator);
-        }
-      }
-    );
-  }
-
-  /**
-   * This function is a handler for displaying property description option on the property panel
-   *
-   * The if-else block will prevent undeclared property description to be displayed on the UI
-   *
-   * @param currentOperatorSchema
-   */
-  private handleOperatorPropertyDescription(currentOperatorSchema: OperatorSchema): void {
-    if (currentOperatorSchema.additionalMetadata.propertyDescription !== undefined) {
-      this.propertyDescription = new Map(Object.entries(currentOperatorSchema.additionalMetadata.propertyDescription));
-      this.hasPropertyDescription = true;
-    } else {
-      this.propertyDescription = new Map();
-      this.hasPropertyDescription = false;
-    }
-  }
-
-  /**
-   * This method will be responsible for getting the advanced option status from the current operator
-   *  showing on property panel.
-   *
-   * In addition, this will generate regular / advanced json schema for the current operator.
-   *
-   * @param operator current operator predicate
-   */
-  private handleUpdateAdvancedSchema(operator: OperatorPredicate): void {
-    if (!this.currentOperatorSchema) {
-      throw new Error(`operator schema for operator type ${operator.operatorType} doesn't exist`);
-    }
-
-    this.showAdvanced = operator.showAdvanced;
-
-    // only show the button if the operator has advanced options
-    if (this.currentOperatorSchema.additionalMetadata.advancedOptions) {
-      this.hasAdvanced = this.currentOperatorSchema.additionalMetadata.advancedOptions.length === 0 ? false : true;
-    }
-
-    if (!this.showAdvanced) {
-      this.currentOperatorSchema = this.hideAdvancedSchema(this.currentOperatorSchema);
-    }
+    this.autocompleteService.getOperatorDynamicSchemaChangedStream()
+      .filter(event => event.operatorID === this.currentOperatorID)
+      .subscribe(
+        event => this.jsonSchema = this.currentOperatorID ?
+          this.autocompleteService.getDynamicSchema(this.currentOperatorID).jsonSchema : undefined
+      );
   }
 
   /**
@@ -551,162 +280,12 @@ export class PropertyEditorComponent {
    */
   private handleOperatorPropertyChange(): void {
     this.workflowActionService.getTexeraGraph().getOperatorPropertyChangeStream()
+      .filter(event => this.listenModelChange)
       .filter(operatorChanged => operatorChanged.operator.operatorID === this.currentOperatorID)
-      .filter(operatorChanged => !isEqual(this.cachedFormData, operatorChanged.operator.operatorProperties))
+      .filter(operatorChanged => !isEqual(this.formData, operatorChanged.operator.operatorProperties))
       .subscribe(operatorChanged => {
-        this.currentOperatorInitialData = cloneDeep(operatorChanged.operator.operatorProperties);
-        // need to use spread operator to keep the advanced options in the new operator properties do not contain them
-        this.cachedFormData = {...this.cachedFormData, ...this.currentOperatorInitialData};
+        this.formData = cloneDeep(operatorChanged.operator.operatorProperties);
       });
   }
 
-  /**
-   * This method is serve as the second check to determine if the form data is equal to the
-   *  cached form data that might be changed by system instead of user changing in property panel.
-   *
-   * This method handles the edge case where isEqual() thinks an empty array does not equal to undefined
-   *  in the form properties. For instance, in isEqual(), if
-   *
-   *  formData = {attributes: Array(0) or []}
-   *  cachedFormData = {}
-   *
-   * isEqual() will return false, while both of these look the same when it is rendered in the property panel.
-   *
-   * This method is mainly for checking whether 2 properties will have the same appearance when it is rendered
-   *  in the JsonSchemaForm.
-   *
-   * @param property1 property from the current form
-   * @param property2 property from the current cached form
-   */
-  private secondCheckPropertyEqual(property1: IndexableObject, property2: IndexableObject): boolean {
-    let isPropertiesEqual = true;
-    const propertyOneKeys = Object.keys(property1);
-    const propertyTwoKeys = Object.keys(property2);
-
-    // keys exist in both properties
-    const keyIntersections = propertyOneKeys.filter(key => propertyTwoKeys.includes(key));
-
-    // check whether the values with these keys are equal
-    keyIntersections.forEach(key => {
-      if (!isEqual(property1[key], property2[key])) {
-        isPropertiesEqual = false;
-      }
-    });
-
-    if (!isPropertiesEqual) { return isPropertiesEqual; }
-    // difference between properties
-    const keysDifference = propertyOneKeys
-      .filter(key => !propertyTwoKeys.includes(key))
-      .concat(propertyTwoKeys.filter(key => !propertyOneKeys.includes(key)));
-
-    /**
-     * This part will check all the key-value pairs existing only in one
-     *  of the 2 properties. If the value is list and the length is not 0,
-     *  it means 2 properties are different. If length = 0 for an Array,
-     *  it will be the same as having undefined. This property holds same
-     *  for object type. If the key-value pair is not an object or array,
-     *  it means it is a regular data type and set isPropertiesEqual to false
-     *  immediately.
-     */
-    keysDifference.forEach(key => {
-      const value1 = property1[key];
-      const value2 = property2[key];
-      if (value1 !== undefined) {
-        if (Array.isArray(value1)) {
-          if (value1.length !== 0) { isPropertiesEqual = false; }
-        } else if (typeof value1 === 'object') {
-          if (Object.keys(value1).length !== 0) { isPropertiesEqual = false; }
-        } else if (typeof value1 === 'boolean') {
-          if (value1 === true) { isPropertiesEqual = false; }
-        } else { isPropertiesEqual = false; }
-      } else {
-        if (Array.isArray(value2)) {
-          if (value2.length !== 0) { isPropertiesEqual = false; }
-        } else if (typeof value2 === 'object') {
-          console.log('IS OBJECT');
-          if (Object.keys(value2).length !== 0) { isPropertiesEqual = false; }
-        } else if (typeof value2 !== 'boolean'
-        && typeof value2 !== 'string'
-        && typeof value2 !== 'number') {
-          // Sometimes the cached form defines some
-          // boolean, string, or number values that don't appear in property editor.
-          // We want to ignore those.
-          isPropertiesEqual = false;
-        }
-      }
-    });
-    return isPropertiesEqual;
-  }
-
-  /**
-   * This method handles the form change event and set the operator property
-   *  in the texera graph.
-   */
-  private handleOnFormChange(): void {
-    this.outputFormChangeEventStream
-      .subscribe(formData => {
-      // set the operator property to be the new form data
-      if (this.currentOperatorID) {
-
-        // need to use spread operator to keep the advanced options in the new operator properties do not contain them
-        this.cachedFormData = {...this.currentOperatorInitialData, ...formData};
-        this.workflowActionService.setOperatorProperty(this.currentOperatorID, formData);
-      }
-    });
-  }
-
-  /**
-   * This method handles the breakpoint editor form change event and set the
-   * link breakpoint property in the texera graph.
-   */
-  private handleOnBreakpointPropertyChange(): void {
-    this.outputBreakpointChangeEventStream
-      .subscribe(formData => {
-        if (this.currentLinkID) {
-          this.workflowActionService.setLinkBreakpoint(this.currentLinkID.linkID, formData);
-        }
-      });
-  }
-
-  /**
-   * Handles the operator highlight / unhighlight events.
-   *
-   * When operators are highlighted / unhighlighted,
-   *   -> displays the form of the highlighted operator if only one operator is highlighted
-   *   -> hides the form otherwise
-   */
-  private handleHighlightEvents() {
-    this.workflowActionService.getJointGraphWrapper().getJointCellHighlightStream()
-      .subscribe(() => this.changePropertyEditorOnHighlightEvents());
-    this.workflowActionService.getJointGraphWrapper().getJointCellUnhighlightStream()
-      .subscribe(() => this.changePropertyEditorOnHighlightEvents());
-  }
-
-  /**
-   * This method changes the property editor according to how operators are highlighted on the workflow editor.
-   *
-   * Displays the form of the highlighted operator if only one operator is highlighted;
-   * hides the form if no operator is highlighted or multiple operators are highlighted.
-   */
-  private changePropertyEditorOnHighlightEvents() {
-    const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
-    if (highlightedOperators.length === 1) {
-      const operator = this.workflowActionService.getTexeraGraph().getOperator(highlightedOperators[0]);
-      this.changePropertyEditor(operator);
-    } else {
-      this.clearPropertyEditor();
-    }
-  }
-
-  /**
-   * Generates a form layout used by the json schema form library
-   *  to hide the *submit* button.
-   * https://github.com/json-schema-form/angular-schema-form/blob/master/docs/index.md#form-definitions
-   */
-  private static generateFormLayout(): object {
-    return [
-      '*',
-      { type: 'submit', condition: 'false' }
-    ];
-  }
 }

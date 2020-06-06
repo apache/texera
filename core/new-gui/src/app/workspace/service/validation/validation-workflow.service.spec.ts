@@ -39,8 +39,8 @@ describe('ValidationWorkflowService', () => {
     workflowActionservice.addLink(mockScanResultLink);
     const newProperty = { 'tableName': 'test-table' };
     workflowActionservice.setOperatorProperty(mockScanPredicate.operatorID, newProperty);
-    expect(validationWorkflowService.validateOperator(mockResultPredicate.operatorID)).toBeTruthy();
-    expect(validationWorkflowService.validateOperator(mockScanPredicate.operatorID)).toBeTruthy();
+    expect(validationWorkflowService.validateOperator(mockResultPredicate.operatorID).isValid).toBeTruthy();
+    expect(validationWorkflowService.validateOperator(mockScanPredicate.operatorID).isValid).toBeTruthy();
   }
   );
 
@@ -56,14 +56,16 @@ describe('ValidationWorkflowService', () => {
     testEvents.subscribe(action => action());
 
     const expected = m.hot('-u-v-(yz)-m-', {
-      'u': {operatorID: '1', status: false},
-      'v': {operatorID: '3', status: false},
-      'y': {operatorID: '1', status: false},
-      'z': {operatorID: '3', status: true},
-      'm': {operatorID: '1', status: true}
+      'u': {operatorID: '1', isValid: false},
+      'v': {operatorID: '3', isValid: false},
+      'y': {operatorID: '1', isValid: false},
+      'z': {operatorID: '3', isValid: true},
+      'm': {operatorID: '1', isValid: true}
     });
 
-    m.expect(validationWorkflowService.getOperatorValidationStream()).toBeObservable(expected);
+    m.expect(validationWorkflowService.getOperatorValidationStream()
+    .map(value => ({operatorID: value.operatorID, isValid: value.validation.isValid}))
+    ).toBeObservable(expected);
   }
   ));
 
@@ -72,8 +74,8 @@ describe('ValidationWorkflowService', () => {
     workflowActionservice.addOperator(mockScanPredicate, mockPoint);
     workflowActionservice.addOperator(mockResultPredicate, mockPoint);
     workflowActionservice.addLink(mockScanResultLink);
-    expect(validationWorkflowService.validateOperator(mockResultPredicate.operatorID)).toBeTruthy();
-    expect(validationWorkflowService.validateOperator(mockScanPredicate.operatorID)).toBeFalsy();
+    expect(validationWorkflowService.validateOperator(mockResultPredicate.operatorID).isValid).toBeTruthy();
+    expect(validationWorkflowService.validateOperator(mockScanPredicate.operatorID).isValid).toBeFalsy();
   });
 
   it('should subscribe the changes of validateOperatorStream when one operator box is deleted after valid status ',
@@ -89,17 +91,18 @@ describe('ValidationWorkflowService', () => {
     testEvents.subscribe(action => action());
 
     const expected = m.hot('-t-u-(vw)-x-(yz)-)', {
-      't': {operatorID: '1', status: false},
-      'u': {operatorID: '3', status: false},
-      'v': {operatorID: '1', status: false},
-      'w': {operatorID: '3', status: true},
-      'x': {operatorID: '1', status: true},
-      'y': {operatorID: '1', status: false}, // If one of the oprator is deleted, the other one is invaild since it is isolated
-      'z': {operatorID: '3', status: false},
-
+      't': {operatorID: '1', isValid: false},
+      'u': {operatorID: '3', isValid: false},
+      'v': {operatorID: '1', isValid: false},
+      'w': {operatorID: '3', isValid: true},
+      'x': {operatorID: '1', isValid: true},
+      'y': {operatorID: '1', isValid: false}, // If one of the oprator is deleted, the other one is invaild since it is isolated
+      'z': {operatorID: '3', isValid: false}
     });
 
-    m.expect(validationWorkflowService.getOperatorValidationStream()).toBeObservable(expected);
+    m.expect(validationWorkflowService.getOperatorValidationStream()
+    .map(value => ({operatorID: value.operatorID, isValid: value.validation.isValid})))
+    .toBeObservable(expected);
   }
   ));
 
@@ -116,17 +119,19 @@ describe('ValidationWorkflowService', () => {
     testEvents.subscribe(action => action());
 
     const expected = m.hot('-t-u-(vw)-x-(yz)-', {
-      't': {operatorID: '1', status: false},
-      'u': {operatorID: '3', status: false},
-      'v': {operatorID: '1', status: false},
-      'w': {operatorID: '3', status: true},
-      'x': {operatorID: '1', status: true},
-      'y': {operatorID: '1', status: false}, // If the link is deleted, two operators are isolated and are invalid
-      'z': {operatorID: '3', status: false}
+      't': {operatorID: '1', isValid: false},
+      'u': {operatorID: '3', isValid: false},
+      'v': {operatorID: '1', isValid: false},
+      'w': {operatorID: '3', isValid: true},
+      'x': {operatorID: '1', isValid: true},
+      'y': {operatorID: '1', isValid: false}, // If the link is deleted, two operators are isolated and are invalid
+      'z': {operatorID: '3', isValid: false}
 
     });
 
-    m.expect(validationWorkflowService.getOperatorValidationStream()).toBeObservable(expected);
+    m.expect(validationWorkflowService.getOperatorValidationStream()
+    .map(value => ({operatorID: value.operatorID, isValid: value.validation.isValid}))
+    ).toBeObservable(expected);
   }
   ));
 

@@ -421,8 +421,7 @@ describe('PropertyEditorComponent', () => {
       // check variables are set correctly
       expect(component.currentLinkID!.linkID).toEqual(mockScanResultLink.linkID);
       expect(component.currentLinkBreakpointSchema).toEqual(mockBreakpointSchema);
-      expect(component.currentBreakpointInitialData).toEqual({});
-
+      expect(component.currentBreakpointInitialData).toEqual(mockScanResultLink.breakpointProperties);
       expect(component.displayBreakpointEditor).toBeTruthy();
 
       // check HTML form are displayed
@@ -450,7 +449,7 @@ describe('PropertyEditorComponent', () => {
       // check the variables
       expect(component.currentLinkID!.linkID).toEqual(mockScanSentimentLink.linkID);
       expect(component.currentLinkBreakpointSchema).toEqual(mockBreakpointSchema);
-      expect(component.currentBreakpointInitialData).toEqual({});
+      expect(component.currentBreakpointInitialData).toEqual(mockScanSentimentLink.breakpointProperties);
       expect(component.displayBreakpointEditor).toBeTruthy();
 
       // highlight the second link
@@ -459,7 +458,7 @@ describe('PropertyEditorComponent', () => {
 
       expect(component.currentLinkID!.linkID).toEqual(mockSentimentResultLink.linkID);
       expect(component.currentLinkBreakpointSchema).toEqual(mockBreakpointSchema);
-      expect(component.currentBreakpointInitialData).toEqual({});
+      expect(component.currentBreakpointInitialData).toEqual(mockSentimentResultLink.breakpointProperties);
       expect(component.displayBreakpointEditor).toBeTruthy();
 
       // check HTML form are displayed
@@ -496,8 +495,7 @@ describe('PropertyEditorComponent', () => {
       // check the variables
       expect(component.currentLinkID!.linkID).toEqual(mockScanResultLink.linkID);
       expect(component.currentLinkBreakpointSchema).toEqual(mockBreakpointSchema);
-      expect(component.currentBreakpointInitialData).toEqual({});
-
+      expect(component.currentBreakpointInitialData).toEqual(mockScanResultLink.breakpointProperties);
       expect(component.displayBreakpointEditor).toBeTruthy();
 
       expect(component.currentOperatorID).toBeUndefined();
@@ -533,7 +531,7 @@ describe('PropertyEditorComponent', () => {
 
       expect(component.currentLinkID!.linkID).toEqual(mockScanResultLink.linkID);
       expect(component.currentLinkBreakpointSchema).toEqual(mockBreakpointSchema);
-      expect(component.currentBreakpointInitialData).toEqual({});
+      expect(component.currentBreakpointInitialData).toEqual(mockScanResultLink.breakpointProperties);
       expect(component.displayBreakpointEditor).toBeTruthy();
 
       // unhighlight the highlighted link
@@ -613,7 +611,7 @@ describe('PropertyEditorComponent', () => {
       if (!link) {
         throw new Error(`link ${mockScanResultLink.linkID} is undefined`);
       }
-      expect(workflowActionService.getTexeraGraph().getLinkBreakpoint(mockScanResultLink.linkID)).toEqual(formChangeValue);
+      expect(link.breakpointProperties).toEqual(formChangeValue);
       expect(emitEventCounter).toEqual(1);
     }));
 
@@ -641,7 +639,7 @@ describe('PropertyEditorComponent', () => {
       if (!link) {
         throw new Error(`link ${mockScanResultLink.linkID} is undefined`);
       }
-      expect(workflowActionService.getTexeraGraph().getLinkBreakpoint(mockScanResultLink.linkID)).toEqual(formChangeValue);
+      expect(link.breakpointProperties).toEqual(formChangeValue);
 
       // simulate button click
       const buttonState = fixture.debugElement.query(By.css('.breakpointRemoveButton'));
@@ -655,7 +653,7 @@ describe('PropertyEditorComponent', () => {
         throw new Error(`link ${mockScanResultLink.linkID} is undefined`);
       }
       const emptyProperty = {};
-      expect(workflowActionService.getTexeraGraph().getLinkBreakpoint(mockScanResultLink.linkID)).toEqual(emptyProperty);
+      expect(link.breakpointProperties).toEqual(emptyProperty);
     }));
 
     it('should debounce the user breakpoint form input to avoid emitting event too frequently', marbles(m => {

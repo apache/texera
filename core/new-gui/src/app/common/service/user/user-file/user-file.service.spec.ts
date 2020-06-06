@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
-import { UserFile } from '../../../../dashboard/type/user-file';
+import { UserFile } from '../../../type/user-file';
 
 import { UserFileService, USER_FILE_LIST_URL } from './user-file.service';
 import { UserService } from '../user.service';

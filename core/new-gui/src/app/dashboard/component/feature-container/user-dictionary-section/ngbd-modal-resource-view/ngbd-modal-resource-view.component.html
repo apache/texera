@@ -9,7 +9,7 @@
 
   <mat-chip-list #chipList>
     <mat-chip *ngFor="let item of dictionary.items" [selectable]="selectable" [removable]="removable" (removed) = "remove(item)">
-      {{item}}
+      {{limitPreviewItemSize(item)}}
       <mat-icon matChipRemove  *ngIf="removable">
         <i class="fa fa-times-circle"></i>
       </mat-icon>

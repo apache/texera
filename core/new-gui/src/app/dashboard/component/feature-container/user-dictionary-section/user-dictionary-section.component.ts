@@ -1,26 +1,17 @@
 import { Component, OnInit, Input, Output } from '@angular/core';
 import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
-
 import { Observable } from 'rxjs/Observable';
-import { UserDictionary } from '../../../service/user-dictionary/user-dictionary.interface';
-
-import { UserDictionaryService } from '../../../service/user-dictionary/user-dictionary.service';
+import { cloneDeep } from 'lodash';
 
 import { NgbdModalResourceAddComponent } from './ngbd-modal-resource-add/ngbd-modal-resource-add.component';
 import { NgbdModalResourceDeleteComponent } from './ngbd-modal-resource-delete/ngbd-modal-resource-delete.component';
 import { NgbdModalResourceViewComponent } from './ngbd-modal-resource-view/ngbd-modal-resource-view.component';
+import { UserDictionary } from '../../../../common/type/user-dictionary';
+import { UserDictionaryService } from '../../../../common/service/user/user-dictionary/user-dictionary.service';
+import { UserService } from '../../../../common/service/user/user.service';
 
-import { cloneDeep } from 'lodash';
-import { FileItem } from 'ng2-file-upload';
 
-export interface SavedAddDictionaryState extends Readonly<{
-  name: string;
-  content: string;
-  separator: string;
-  description: string;
-  savedQueue: FileItem[];
-}> { }
-
+const DICTIONARY_ITEM_PREVIEW_SIZE = 20;
 /**
  * UserDictionarySectionComponent is the main interface
  * for managing all the user dictionaries. On this interface,
@@ -36,27 +27,13 @@ export interface SavedAddDictionaryState extends Readonly<{
 })
 export class UserDictionarySectionComponent {
 
-  public userDictionaries: UserDictionary[] = [];
-
-  public savedState: SavedAddDictionaryState = {
-    name: '',
-    content: '',
-    separator: '',
-    description: '',
-    savedQueue: [],
-  };
-
   constructor(
     private userDictionaryService: UserDictionaryService,
+    private userService: UserService,
     private modalService: NgbModal
   ) {
-    this.refreshUserDictionary();
-  }
-
-  public refreshUserDictionary(): void {
-    this.userDictionaryService.listUserDictionaries().subscribe(
-      value => this.userDictionaries = value,
-    );
+    this.userDictionaryService.refreshDictionaries();
+    this.forceRefreshMatChip();
   }
 
   /**
@@ -71,13 +48,8 @@ export class UserDictionarySectionComponent {
   * @param dictionary: the dictionary that user wants to view
   */
   public openNgbdModalResourceViewComponent(dictionary: UserDictionary): void {
-    const modalRef = this.modalService.open(NgbdModalResourceViewComponent, {
-      beforeDismiss: () => {
-        this.refreshUserDictionary();
-        return true;
-      }
-    });
-    modalRef.componentInstance.dictionary = cloneDeep(dictionary);
+    const modalRef = this.modalService.open(NgbdModalResourceViewComponent);
+    modalRef.componentInstance.dictionary = dictionary;
   }
 
   /**
@@ -91,32 +63,7 @@ export class UserDictionarySectionComponent {
   * @param
   */
   public openNgbdModalResourceAddComponent(): void {
-    const modalRef = this.modalService.open(NgbdModalResourceAddComponent, {
-      // before the modal closes, save the state and refresh the dictionaries on the feature container
-      beforeDismiss: (): boolean => {
-        this.savedState = {
-          name: modalRef.componentInstance.dictName,
-          content: modalRef.componentInstance.dictContent,
-          separator: modalRef.componentInstance.dictSeparator,
-          description: modalRef.componentInstance.dictionaryDescription,
-          savedQueue: modalRef.componentInstance.uploader.queue
-        };
-
-        // refresh the dictionaries in the panel to show the new updates done by users
-        this.refreshUserDictionary();
-        return true;
-      }
-    });
-
-    // initialize the value from saving, used when user close the popup and then temporarily save dictionary.
-    modalRef.componentInstance.uploader.queue = this.savedState.savedQueue;
-    modalRef.componentInstance.dictName = this.savedState.name;
-    modalRef.componentInstance.dictContent = this.savedState.content;
-    modalRef.componentInstance.dictSeparator = this.savedState.separator;
-    modalRef.componentInstance.dictionaryDescription = this.savedState.description;
-
-    // checks if the files saved in the state are valid.
-    modalRef.componentInstance.checkCurrentFilesValid();
+    const modalRef = this.modalService.open(NgbdModalResourceAddComponent);
   }
 
   /**
@@ -135,13 +82,17 @@ export class UserDictionarySectionComponent {
     Observable.from(modalRef.result).subscribe(
       (confirmDelete: boolean) => {
         if (confirmDelete) {
-          this.userDictionaryService.deleteUserDictionaryData(dictionary.id).subscribe(res => {
-            this.refreshUserDictionary();
-          });
+          this.userDictionaryService.deleteDictionary(dictionary.id);
         }
       }
     );
   }
+
+  /**
+   * TODO: the sorting function below is disabled due to the huge structural change in the dashboard
+   * These methods haven't been changed after that, and thus they won't work.
+   * The buttons are kept for future recovery.
+   */
 
   /**
   * sort the dictionary by name in ascending order
@@ -149,11 +100,11 @@ export class UserDictionarySectionComponent {
   * @param
   */
   public ascSort(): void {
-    this.userDictionaries.sort((t1, t2) => {
-      if (t1.name.toLowerCase() > t2.name.toLowerCase()) { return 1; }
-      if (t1.name.toLowerCase() < t2.name.toLowerCase()) { return -1; }
-      return 0;
-    });
+    // this.userDictionaries.sort((t1, t2) => {
+    //   if (t1.name.toLowerCase() > t2.name.toLowerCase()) { return 1; }
+    //   if (t1.name.toLowerCase() < t2.name.toLowerCase()) { return -1; }
+    //   return 0;
+    // });
   }
 
   /**
@@ -162,11 +113,11 @@ export class UserDictionarySectionComponent {
   * @param
   */
   public dscSort(): void {
-    this.userDictionaries.sort((t1, t2) => {
-      if (t1.name.toLowerCase() > t2.name.toLowerCase()) { return -1; }
-      if (t1.name.toLowerCase() < t2.name.toLowerCase()) { return 1; }
-      return 0;
-    });
+    // this.userDictionaries.sort((t1, t2) => {
+    //   if (t1.name.toLowerCase() > t2.name.toLowerCase()) { return -1; }
+    //   if (t1.name.toLowerCase() < t2.name.toLowerCase()) { return 1; }
+    //   return 0;
+    // });
   }
 
   /**
@@ -175,11 +126,36 @@ export class UserDictionarySectionComponent {
   * @param
   */
   public sizeSort(): void {
-    this.userDictionaries.sort((t1, t2) => {
-      if (t1.items.length > t2.items.length) { return -1; }
-      if (t1.items.length < t2.items.length) { return 1; }
-      return 0;
-    });
+    // this.userDictionaries.sort((t1, t2) => {
+    //   if (t1.items.length > t2.items.length) { return -1; }
+    //   if (t1.items.length < t2.items.length) { return 1; }
+    //   return 0;
+    // });
   }
 
+  public disableAddbutton(): boolean {
+    return !this.userService.isLogin();
+  }
+
+  public getDictArray(): ReadonlyArray<UserDictionary> {
+    const dictionaryArray = this.userDictionaryService.getUserDictionaries();
+    if (!dictionaryArray) {
+      return [];
+    }
+    return dictionaryArray;
+  }
+
+  public limitPreviewItemSize(item: string): string {
+    return item.length <= DICTIONARY_ITEM_PREVIEW_SIZE ? item : item.substr(0, DICTIONARY_ITEM_PREVIEW_SIZE) + '...';
+  }
+
+  /**
+   * Temporary solution to force the mat chip to refresh
+   * Unknown problem happens on mat chip after upgrading to Angular 9
+   * open any ngbd modal and close it will solve the problem
+   */
+  private forceRefreshMatChip(): void {
+    const modalRef = this.modalService.open(NgbdModalResourceViewComponent);
+    modalRef.close();
+  }
 }

@@ -5,9 +5,14 @@
 /dist-server
 /tmp
 /out-tsc
+/multi-target/dist
+
+# cypress output
+/e2e/cypress_log
 
 # dependencies
 /node_modules
+/multi-target/node_modules
 
 # IDEs and editors
 /.idea
@@ -34,10 +39,6 @@ npm-debug.log
 yarn-error.log
 testem.log
 /typings
-
-# e2e
-/e2e/*.js
-/e2e/*.map
 
 # System Files
 .DS_Store

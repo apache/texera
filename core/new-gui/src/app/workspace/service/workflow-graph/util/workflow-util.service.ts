@@ -58,7 +58,7 @@ export class WorkflowUtilService {
     }
 
     // Remove the ID field for the schema to prevent warning messages from Ajv
-    const {id: temp, ...schemaWithoutID} = operatorSchema.jsonSchema;
+    const { ...schemaWithoutID} = operatorSchema.jsonSchema;
 
     // value inserted in the data will be the deep clone of the default in the schema
     const validate = this.ajv.compile(schemaWithoutID);

@@ -63,9 +63,6 @@ public class TexeraWebApplication extends Application<TexeraWebConfiguration> {
         final SystemResource systemResource = new SystemResource();
         // Registers the systemResource with Jersey
         environment.jersey().register(systemResource);
-
-        final UserDictionaryResource userDictionaryResource = new UserDictionaryResource();
-        environment.jersey().register(userDictionaryResource);
         
         environment.jersey().register(SessionHandler.class);
         environment.servlets().setSessionHandler(new SessionHandler());
@@ -74,6 +71,9 @@ public class TexeraWebApplication extends Application<TexeraWebConfiguration> {
         
         final UserFileResource userFileResource = new UserFileResource();
         environment.jersey().register(userFileResource);
+        
+        final UserDictionaryResource userDictionaryResource = new UserDictionaryResource();
+        environment.jersey().register(userDictionaryResource);
 
         // Registers MultiPartFeature to support file upload
         environment.jersey().register(MultiPartFeature.class);

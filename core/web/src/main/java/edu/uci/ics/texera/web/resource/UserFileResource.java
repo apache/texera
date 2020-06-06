@@ -42,7 +42,7 @@ import io.dropwizard.jersey.sessions.Session;
 public class UserFileResource {
     
     /**
-     * Corresponds to `src/app/dashboard/type/user-file.ts`
+     * Corresponds to `src/app/common/type/user-file.ts`
      */
     public static class UserFile {
         public UInteger id; // the ID in MySQL database is unsigned int
@@ -87,7 +87,7 @@ public class UserFileResource {
         }
         
         this.handleFileUpload(uploadedInputStream, fileName, description, sizeUInteger, userID);
-        return new GenericWebResponse(0, "success");
+        return GenericWebResponse.generateSuccessResponse();
     }
     
     @GET
@@ -125,7 +125,7 @@ public class UserFileResource {
         String filePath = result.get(USERFILE.PATH);
         FileManager.getInstance().deleteFile(Paths.get(filePath));
         
-        return new GenericWebResponse(0, "success");
+        return GenericWebResponse.generateSuccessResponse();
     }
     
     @POST

@@ -42,6 +42,7 @@ export class SourceTablesService {
   // example:
   // "table1": {attributes: [{attrributeName: "attr1", attributeType: "string"}, {attrributeName: "attr2", attributeType: "int"}] }
   private tableSchemaMap: Map<string, TableSchema> | undefined;
+  private tableNames: string[] | undefined;
   private userFiles: string[] | undefined;
 
   constructor(
@@ -55,9 +56,13 @@ export class SourceTablesService {
       return;
     }
 
-    // when GUI starts up, fetch the source table information frmo the backend
+    // when GUI starts up, fetch the source table information from the backend
     this.invokeSourceTableAPI().subscribe(
-      response => this.tableSchemaMap = response
+      response => {
+        this.tableSchemaMap = response;
+        this.tableNames = Array.from(this.tableSchemaMap.keys());
+        this.handleSourceTableChange();
+      }
     );
 
     this.userFileService.getUserFilesChangedEvent().subscribe(
@@ -90,62 +95,77 @@ export class SourceTablesService {
       .map(tableDetails => new Map(tableDetails.map(i => [i.tableName, i.schema] as [string, TableSchema])));
   }
 
+  private changeInputToEnumInJsonSchema(
+    schema: OperatorSchema, key: string, enumArray: string[] | undefined
+  ): OperatorSchema | undefined {
+    if (!(schema.jsonSchema.properties && key in schema.jsonSchema.properties)) {
+      return undefined;
+    }
+    let newDynamicSchema: OperatorSchema;
+    if (enumArray) {
+      newDynamicSchema = {
+        ...schema,
+        jsonSchema: DynamicSchemaService.mutateProperty(
+          schema.jsonSchema, key, () => ({ type: 'string', enum: enumArray, uniqueItems: true }))
+      };
+    } else {
+      newDynamicSchema = {
+        ...schema,
+        jsonSchema: DynamicSchemaService.mutateProperty(
+          schema.jsonSchema, key, () => ({ type: 'string' }))
+      };
+    }
+    return newDynamicSchema;
+  }
+
   /**
    * transform the initial schema to modify the `tableName` property from an input box to be a drop down menu.
    * This function will be registered as to DynamicSchemaService that triggers when a dynamic schema is first constructed.
    */
   private transformInitialSchema(operator: OperatorPredicate, schema: OperatorSchema): OperatorSchema {
     // change the tableName to a dropdown enum of available tables in the system
-    if (this.tableSchemaMap && schema.jsonSchema.properties && tableNameInJsonSchema in schema.jsonSchema.properties) {
-      const tableNames = Array.from(this.tableSchemaMap.keys());
-      return {
-        ...schema,
-        jsonSchema: DynamicSchemaService.mutateProperty(
-          schema.jsonSchema, tableNameInJsonSchema, () => ({ type: 'string', enum: tableNames }))
-      };
+    const tableScanSchema = this.changeInputToEnumInJsonSchema(schema, tableNameInJsonSchema, this.tableNames);
+    if (tableScanSchema) {
+      return tableScanSchema;
     }
-    // change the filename to a dropdown enum of available files of the user in the system
-    if (this.userFiles && schema.jsonSchema.properties && fileNameInJsonSchema in schema.jsonSchema.properties) {
-      const fileNames = this.userFiles.slice();
-      return {
-        ...schema,
-        jsonSchema: DynamicSchemaService.mutateProperty(
-          schema.jsonSchema, fileNameInJsonSchema, () => ({ type: 'string', enum: fileNames }))
-      };
+    const fileSchema = this.changeInputToEnumInJsonSchema(schema, fileNameInJsonSchema, this.userFiles);
+    if (fileSchema) {
+      return fileSchema;
     }
     return schema;
   }
 
+  private handleSourceTableChange() {
+    Array.from(this.dynamicSchemaService.getDynamicSchemaMap().keys())
+      .forEach(operatorID => {
+        const schema = this.dynamicSchemaService.getDynamicSchema(operatorID);
+        // if operator input attributes are in the result, set them in dynamic schema
+        const tableScanSchema = this.changeInputToEnumInJsonSchema(schema, tableNameInJsonSchema, this.tableNames);
+        if (!tableScanSchema) {
+          return;
+        }
+        if (!isEqual(schema, tableScanSchema)) {
+          SchemaPropagationService.resetAttributeOfOperator(this.workflowActionService, operatorID);
+          this.dynamicSchemaService.setDynamicSchema(operatorID, tableScanSchema);
+        }
+      });
+  }
+
   private handleUserFileChange() {
     Array.from(this.dynamicSchemaService.getDynamicSchemaMap().keys())
-    .filter(operator => {
-      const schema = this.dynamicSchemaService.getDynamicSchema(operator);
-      return schema.jsonSchema.properties && fileNameInJsonSchema in schema.jsonSchema.properties;
-    }).forEach(operatorID => {
-      const schema = this.dynamicSchemaService.getDynamicSchema(operatorID);
-      // if operator input attributes are in the result, set them in dynamic schema
-      const fileNames = this.userFiles;
-      let newDynamicSchema: OperatorSchema;
-      if (fileNames) {
-        newDynamicSchema = {
-          ...schema,
-          jsonSchema: DynamicSchemaService.mutateProperty(
-            schema.jsonSchema, fileNameInJsonSchema, () => ({ type: 'string', enum: fileNames }))
-        };
-      } else {
-        newDynamicSchema = {
-          ...schema,
-          jsonSchema: DynamicSchemaService.mutateProperty(
-            schema.jsonSchema, fileNameInJsonSchema, () => ({ type: 'string'}))
-        };
-      }
+      .forEach(operatorID => {
+        const schema = this.dynamicSchemaService.getDynamicSchema(operatorID);
+        // if operator input attributes are in the result, set them in dynamic schema
+        const fileSchema = this.changeInputToEnumInJsonSchema(schema, fileNameInJsonSchema, this.userFiles);
+        if (!fileSchema) {
+          return;
+        }
+        if (!isEqual(schema, fileSchema)) {
+          SchemaPropagationService.resetAttributeOfOperator(this.workflowActionService, operatorID);
+          this.dynamicSchemaService.setDynamicSchema(operatorID, fileSchema);
+        }
 
-      if (! isEqual(schema, newDynamicSchema)) {
-        SchemaPropagationService.resetAttributeOfOperator(this.workflowActionService, operatorID);
-        this.dynamicSchemaService.setDynamicSchema(operatorID, newDynamicSchema);
-      }
-
-    });
+      });
   }
 
   /**
@@ -167,7 +187,7 @@ export class SourceTablesService {
 
 }
 
-export interface TableMetadata extends Readonly <{
+export interface TableMetadata extends Readonly<{
   tableName: string,
   schema: TableSchema
 }> { }

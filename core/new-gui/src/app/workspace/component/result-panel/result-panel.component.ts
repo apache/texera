@@ -1,5 +1,6 @@
 import { Component, ViewChild, Input } from '@angular/core';
-import { MatPaginator, MatTableDataSource, PageEvent } from '@angular/material';
+import { MatPaginator, PageEvent } from '@angular/material/paginator';
+import { MatTableDataSource } from '@angular/material/table';
 
 import { ExecuteWorkflowService } from './../../service/execute-workflow/execute-workflow.service';
 import { Observable } from 'rxjs/Observable';
@@ -42,7 +43,7 @@ export class ResultPanelComponent {
   public currentDataSource: MatTableDataSource<object> | undefined;
   public showResultPanel: boolean | undefined;
 
-  @ViewChild(MatPaginator, { static : false }) paginator: MatPaginator | null = null;
+  @ViewChild(MatPaginator) paginator: MatPaginator | null = null;
 
   private currentResult: object[] = [];
   private currentMaxPageSize: number = 0;
