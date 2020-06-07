@@ -244,94 +244,49 @@ public class UserDictionaryResource {
     }
     
     private boolean isDictionaryNameExisted(String dictName, UInteger userID) {
-        try (Connection conn = UserSqlServer.getConnection()) {
-            DSLContext create = UserSqlServer.createDSLContext(conn);
-            
-            boolean result = create
+           return UserSqlServer.createDSLContext()
                     .fetchExists(
-                            create.selectFrom(USERDICT)
+                            UserSqlServer.createDSLContext()
+                            .selectFrom(USERDICT)
                             .where(USERDICT.USERID.equal(userID)
                                     .and(USERDICT.NAME.equal(dictName)))
                             );
-            return result;
-        } catch (Exception e) {
-            throw new TexeraWebException(e);
-        }
     }
     
     private int updateInDatabase(UserDictionary userDictionary, UInteger userID) {
-        // Connection is AutoCloseable so it will automatically close when it finishes.
-        try (Connection conn = UserSqlServer.getConnection()) {
-            DSLContext create = UserSqlServer.createDSLContext(conn);
-            
-            int count = create
+            return UserSqlServer.createDSLContext()
                     .update(USERDICT)
                     .set(USERDICT.NAME, userDictionary.name)
                     .set(USERDICT.CONTENT, convertListToByteArray(userDictionary.items))
                     .set(USERDICT.DESCRIPTION, userDictionary.description)
                     .where(USERDICT.DICTID.eq(userDictionary.id).and(USERDICT.USERID.eq(userID)))
                     .execute();
-            
-            return count;
-            
-        } catch (Exception e) {
-            throw new TexeraWebException(e);
-        }
     }
     
     private int deleteInDatabase(UInteger dictID, UInteger userID) {
-        // Connection is AutoCloseable so it will automatically close when it finishes.
-        try (Connection conn = UserSqlServer.getConnection()) {
-            DSLContext create = UserSqlServer.createDSLContext(conn);
-            
-            int count = create
+            return UserSqlServer.createDSLContext()
                     .delete(USERDICT)
                     .where(USERDICT.DICTID.eq(dictID).and(USERDICT.USERID.eq(userID)))
                     .execute();
-            
-            return count;
-            
-        } catch (Exception e) {
-            throw new TexeraWebException(e);
-        }
     }
     
     private Result<Record4<UInteger, String, byte[], String>> getUserDictionaryRecord(UInteger userID) {
-        // Connection is AutoCloseable so it will automatically close when it finishes.
-        try (Connection conn = UserSqlServer.getConnection()) {
-            DSLContext create = UserSqlServer.createDSLContext(conn);
-            
-            Result<Record4<UInteger, String, byte[], String>> result = create
+            return UserSqlServer.createDSLContext()
                     .select(USERDICT.DICTID, USERDICT.NAME, USERDICT.CONTENT, USERDICT.DESCRIPTION)
                     .from(USERDICT)
                     .where(USERDICT.USERID.equal(userID))
                     .fetch();
-            
-            return result;
-            
-        } catch (Exception e) {
-            throw new TexeraWebException(e);
-        }
     }
     
     private int insertDictionaryToDataBase(String name, byte[] content, String description, UInteger userID) {
-        // Connection is AutoCloseable so it will automatically close when it finishes.
-        try (Connection conn = UserSqlServer.getConnection()) {
-            DSLContext create = UserSqlServer.createDSLContext(conn);
-            
-            int count = create.insertInto(USERDICT)
+            return UserSqlServer.createDSLContext()
+                    .insertInto(USERDICT)
                     .set(USERDICT.USERID,userID)
                     .set(USERDICT.DICTID, defaultValue(USERDICT.DICTID))
                     .set(USERDICT.NAME, name)
                     .set(USERDICT.CONTENT, content)
                     .set(USERDICT.DESCRIPTION, description)
                     .execute();
-            
-            return count;
-            
-        } catch (Exception e) {
-            throw new TexeraWebException(e);
-        }
     }
     
     /**
