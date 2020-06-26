@@ -35,7 +35,9 @@ public class PropertyNameConstants {
     public static final String LUCENE_ANALYZER_STRING = "luceneAnalyzer";
     public static final String SPAN_LIST_NAME = "spanListName";
     public static final String TABLE_NAME = "tableName";
+    public static final String FILE_NAME = "fileName";
     public static final String FILE_PATH = "filePath";
+    public static final String FILE_FORMAT = "fileFormat";
     public static final String LIMIT = "limit";
     public static final String OFFSET = "offset";
     public static final String ADD_SPANS = "addSpans";

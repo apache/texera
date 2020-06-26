@@ -1,3 +1,5 @@
+import { isEqual } from 'lodash';
+import { UserFileService } from '../../../../common/service/user/user-file/user-file.service';
 import { AppSettings } from './../../../../common/app-setting';
 import { environment } from '../../../../../environments/environment';
 import { HttpClient } from '@angular/common/http';
@@ -15,6 +17,7 @@ import { DynamicSchemaService } from './../dynamic-schema.service';
 export const SOURCE_TABLE_NAMES_ENDPOINT = 'resources/table-metadata';
 // By contract, property name name for texera table name autocomplete
 export const tableNameInJsonSchema = 'tableName';
+export const fileNameInJsonSchema = 'fileName';
 
 
 /**
@@ -39,21 +42,40 @@ export class SourceTablesService {
   // example:
   // "table1": {attributes: [{attrributeName: "attr1", attributeType: "string"}, {attrributeName: "attr2", attributeType: "int"}] }
   private tableSchemaMap: Map<string, TableSchema> | undefined;
+  private tableNames: string[] | undefined;
+  private userFiles: string[] | undefined;
 
   constructor(
     private httpClient: HttpClient,
     private workflowActionService: WorkflowActionService,
-    private dynamicSchemaService: DynamicSchemaService
+    private dynamicSchemaService: DynamicSchemaService,
+    private userFileService: UserFileService
   ) {
     // do nothing if source tables are not enabled
     if (!environment.sourceTableEnabled) {
       return;
     }
 
-    // when GUI starts up, fetch the source table information frmo the backend
+    // when GUI starts up, fetch the source table information from the backend
     this.invokeSourceTableAPI().subscribe(
-      response => { this.tableSchemaMap = response; }
+      response => {
+        this.tableSchemaMap = response;
+        this.tableNames = Array.from(this.tableSchemaMap.keys());
+        this.handleSourceTableChange();
+      }
     );
+
+    this.userFileService.getUserFilesChangedEvent().subscribe(
+      event => {
+        if (event) {
+          this.userFiles = event.map(file => file.name);
+        } else {
+          this.userFiles = undefined;
+        }
+        this.handleUserFileChange();
+      }
+    );
+
     this.workflowActionService.getTexeraGraph().getOperatorPropertyChangeStream().subscribe(
       event => this.handlePropertyChange(event.operator)
     );
@@ -73,21 +95,77 @@ export class SourceTablesService {
       .map(tableDetails => new Map(tableDetails.map(i => [i.tableName, i.schema] as [string, TableSchema])));
   }
 
+  private changeInputToEnumInJsonSchema(
+    schema: OperatorSchema, key: string, enumArray: string[] | undefined
+  ): OperatorSchema | undefined {
+    if (!(schema.jsonSchema.properties && key in schema.jsonSchema.properties)) {
+      return undefined;
+    }
+    let newDynamicSchema: OperatorSchema;
+    if (enumArray) {
+      newDynamicSchema = {
+        ...schema,
+        jsonSchema: DynamicSchemaService.mutateProperty(
+          schema.jsonSchema, key, () => ({ type: 'string', enum: enumArray, uniqueItems: true }))
+      };
+    } else {
+      newDynamicSchema = {
+        ...schema,
+        jsonSchema: DynamicSchemaService.mutateProperty(
+          schema.jsonSchema, key, () => ({ type: 'string' }))
+      };
+    }
+    return newDynamicSchema;
+  }
+
   /**
    * transform the initial schema to modify the `tableName` property from an input box to be a drop down menu.
    * This function will be registered as to DynamicSchemaService that triggers when a dynamic schema is first constructed.
    */
   private transformInitialSchema(operator: OperatorPredicate, schema: OperatorSchema): OperatorSchema {
     // change the tableName to a dropdown enum of available tables in the system
-    if (this.tableSchemaMap && schema.jsonSchema.properties && tableNameInJsonSchema in schema.jsonSchema.properties) {
-      const tableNames = Array.from(this.tableSchemaMap.keys());
-      return {
-        ...schema,
-        jsonSchema: DynamicSchemaService.mutateProperty(
-          schema.jsonSchema, tableNameInJsonSchema, () => ({ type: 'string', enum: tableNames }))
-      };
+    const tableScanSchema = this.changeInputToEnumInJsonSchema(schema, tableNameInJsonSchema, this.tableNames);
+    if (tableScanSchema) {
+      return tableScanSchema;
+    }
+    const fileSchema = this.changeInputToEnumInJsonSchema(schema, fileNameInJsonSchema, this.userFiles);
+    if (fileSchema) {
+      return fileSchema;
     }
     return schema;
+  }
+
+  private handleSourceTableChange() {
+    Array.from(this.dynamicSchemaService.getDynamicSchemaMap().keys())
+      .forEach(operatorID => {
+        const schema = this.dynamicSchemaService.getDynamicSchema(operatorID);
+        // if operator input attributes are in the result, set them in dynamic schema
+        const tableScanSchema = this.changeInputToEnumInJsonSchema(schema, tableNameInJsonSchema, this.tableNames);
+        if (!tableScanSchema) {
+          return;
+        }
+        if (!isEqual(schema, tableScanSchema)) {
+          SchemaPropagationService.resetAttributeOfOperator(this.workflowActionService, operatorID);
+          this.dynamicSchemaService.setDynamicSchema(operatorID, tableScanSchema);
+        }
+      });
+  }
+
+  private handleUserFileChange() {
+    Array.from(this.dynamicSchemaService.getDynamicSchemaMap().keys())
+      .forEach(operatorID => {
+        const schema = this.dynamicSchemaService.getDynamicSchema(operatorID);
+        // if operator input attributes are in the result, set them in dynamic schema
+        const fileSchema = this.changeInputToEnumInJsonSchema(schema, fileNameInJsonSchema, this.userFiles);
+        if (!fileSchema) {
+          return;
+        }
+        if (!isEqual(schema, fileSchema)) {
+          SchemaPropagationService.resetAttributeOfOperator(this.workflowActionService, operatorID);
+          this.dynamicSchemaService.setDynamicSchema(operatorID, fileSchema);
+        }
+
+      });
   }
 
   /**
@@ -109,7 +187,7 @@ export class SourceTablesService {
 
 }
 
-export interface TableMetadata extends Readonly <{
+export interface TableMetadata extends Readonly<{
   tableName: string,
   schema: TableSchema
 }> { }

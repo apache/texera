@@ -1,5 +1,6 @@
 import { Component, ViewChild, Input } from '@angular/core';
-import { MatPaginator, MatTableDataSource, PageEvent } from '@angular/material';
+import { MatPaginator, PageEvent } from '@angular/material/paginator';
+import { MatTableDataSource } from '@angular/material/table';
 
 import { ExecuteWorkflowService } from './../../service/execute-workflow/execute-workflow.service';
 import { Observable } from 'rxjs/Observable';
@@ -9,7 +10,7 @@ import { ExecutionResult, SuccessExecutionResult } from './../../types/execute-w
 import { TableColumn, IndexableObject } from './../../types/result-table.interface';
 import { ResultPanelToggleService } from './../../service/result-panel-toggle/result-panel-toggle.service';
 import deepMap from 'deep-map';
-import { isEqual } from 'lodash-es';
+import { isEqual } from 'lodash';
 
 /**
  * ResultPanelCompoent is the bottom level area that displays the
@@ -258,7 +259,7 @@ export class ResultPanelComponent {
    * @param rowData original row data returns from execution
    */
   private static trimDisplayJsonData(rowData: IndexableObject): object {
-    const rowDataTrimmed = deepMap(rowData, value => {
+    const rowDataTrimmed = deepMap<object>(rowData, value => {
       if (typeof value === 'string' && value.length > this.PRETTY_JSON_TEXT_LIMIT) {
         return value.substring(0, this.PRETTY_JSON_TEXT_LIMIT) + '...';
       } else {

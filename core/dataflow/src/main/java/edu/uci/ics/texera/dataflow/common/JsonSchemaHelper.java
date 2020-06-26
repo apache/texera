@@ -80,18 +80,33 @@ public class JsonSchemaHelper {
         // generate the json schema
         JsonSchemaGenerator jsonSchemaGenerator = new JsonSchemaGenerator(DataConstants.defaultObjectMapper);
         JsonSchema schema = jsonSchemaGenerator.generateSchema(predicateClass);
-        
+
         ObjectNode schemaNode = objectMapper.readValue(objectMapper.writeValueAsBytes(schema), ObjectNode.class);
+        ObjectNode propertiesNode = ((ObjectNode) schemaNode.get("properties"));
+
         // remove the operatorID from the json schema
-        ((ObjectNode) schemaNode.get("properties")).remove("operatorID");
-        
+        propertiesNode.remove("operatorID");
+
+        // process each property due to frontend form generator requirements
+        propertiesNode.fields().forEachRemaining(e -> {
+            String propertyName = e.getKey();
+            ObjectNode propertyNode = (ObjectNode) e.getValue();
+
+            // add a "title" field to each property
+            propertyNode.put("title", propertyName);
+            // if property is an enum, set unique items to true
+            if (propertiesNode.has("enum")) {
+                propertyNode.put("uniqueItems", true);
+            }
+        });
+
         // add required/optional properties to the schema
-        List<String> requriedProperties = getRequiredProperties(predicateClass);
+        List<String> requiredProperties = getRequiredProperties(predicateClass);
         
         // don't add the required properties if it's empty 
         // because draft v4 doesn't allow it
-        if (! requriedProperties.isEmpty()) {
-            schemaNode.set("required", objectMapper.valueToTree(requriedProperties));
+        if (! requiredProperties.isEmpty()) {
+            schemaNode.set("required", objectMapper.valueToTree(requiredProperties));
         }
         
         // add property default values to the schema

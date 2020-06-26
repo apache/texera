@@ -5,8 +5,7 @@
 @import '../node_modules/font-awesome/scss/font-awesome';
 @import '../node_modules/bootstrap/scss/bootstrap';
 // a theme is required by angular material
-@import "~@angular/material/prebuilt-themes/indigo-pink.css";
-
+@import "material-custom-theme.scss";
 
 // make the UI takes full screen
 html, body, .viewport {

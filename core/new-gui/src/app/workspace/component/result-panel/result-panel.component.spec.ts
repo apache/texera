@@ -55,7 +55,7 @@ describe('ResultPanelComponent', () => {
     TestBed.configureTestingModule({
       declarations: [ResultPanelComponent],
       imports: [
-        NgbModule.forRoot(),
+        NgbModule,
         CustomNgMaterialModule,
         CustomNgBModalModule
       ],

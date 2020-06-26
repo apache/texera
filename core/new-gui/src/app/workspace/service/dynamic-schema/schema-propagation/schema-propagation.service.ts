@@ -9,7 +9,7 @@ import { ExecuteWorkflowService } from './../../execute-workflow/execute-workflo
 import { WorkflowActionService } from './../../workflow-graph/model/workflow-action.service';
 import { NGXLogger } from 'ngx-logger';
 
-import { isEqual, remove, cloneDeep, get, set } from 'lodash-es';
+import { isEqual } from 'lodash';
 
 // endpoint for schema propagation
 export const SCHEMA_PROPAGATION_ENDPOINT = 'queryplan/autocomplete';
@@ -86,7 +86,7 @@ export class SchemaPropagationService {
       }
 
       if (! isEqual(currentDynamicSchema, newDynamicSchema)) {
-        this.resetAttributeOfOperator(operatorID);
+        SchemaPropagationService.resetAttributeOfOperator(this.workflowActionService, operatorID);
         this.dynamicSchemaService.setDynamicSchema(operatorID, newDynamicSchema);
       }
 
@@ -125,8 +125,8 @@ export class SchemaPropagationService {
     *
     * @param operatorID operator that has the changed schema
     */
-  private resetAttributeOfOperator(operatorID: string): void {
-    const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorID);
+  public static resetAttributeOfOperator(workflowActionService: WorkflowActionService, operatorID: string): void {
+    const operator = workflowActionService.getTexeraGraph().getOperator(operatorID);
     if (! operator) {
       throw new Error(`${operatorID} not found`);
     }
@@ -146,7 +146,7 @@ export class SchemaPropagationService {
     };
 
     const propertyClone = walkPropertiesRecurse(operator.operatorProperties);
-    this.workflowActionService.setOperatorProperty(operatorID, propertyClone);
+    workflowActionService.setOperatorProperty(operatorID, propertyClone);
   }
 
   public static setOperatorInputAttrs(operatorSchema: OperatorSchema, inputAttributes: ReadonlyArray<string> | undefined): OperatorSchema {
@@ -161,10 +161,10 @@ export class SchemaPropagationService {
 
     let newJsonSchema = operatorSchema.jsonSchema;
     newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, attributeInJsonSchema,
-      () => ({ type: 'string', enum: inputAttributes.slice() }));
+      () => ({ type: 'string', enum: inputAttributes.slice(), uniqueItems: true }));
 
     newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, attributeListInJsonSchema,
-      () => ({ type: 'array', items: { type: 'string', enum: inputAttributes.slice() } }));
+      () => ({ type: 'array', items: { type: 'string', enum: inputAttributes.slice(), uniqueItems: true }}));
 
     return {
       ...operatorSchema,

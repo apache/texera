@@ -5,22 +5,31 @@ import { WorkflowUtilService } from './../workflow-graph/util/workflow-util.serv
 import { JointUIService } from './../joint-ui/joint-ui.service';
 import { Injectable } from '@angular/core';
 import { Subject } from 'rxjs/Subject';
+import TinyQueue from 'tinyqueue';
 
 import * as joint from 'jointjs';
-import isEqual from 'lodash-es/isEqual';
+
+// if jQuery needs to be used: 1) use jQuery instead of `$`, and
+// 2) always add this import statement even if TypeScript doesn't show an error https://github.com/Microsoft/TypeScript/issues/22016
+import * as jQuery from 'jquery';
+// this is the property way to import jquery-ui to Angular, make sure to import it after import jQuery
+// https://stackoverflow.com/questions/43323515/error-when-using-jqueryui-with-typescript-and-definitelytyped-definition-file
+// this approach is better than including it in `scripts` in `angular.json` because it avoids loading jQuery overrides jQuery UI
+import '../../../../../node_modules/jquery-ui-dist/jquery-ui';
+
 
 /**
  * The OperatorDragDropService class implements the behavior of dragging an operator label from the side bar
  *  and drop it as an operator box on to the main workflow editor.
  *
- * This behavoir is implemented using jQueryUI draggable and droppable.
+ * This behavior is implemented using jQueryUI draggable and droppable.
  *  1. jQueryUI draggable allows providing a custom DOM element that is displayed when dragging around.
  *  2. the custom DOM element (called "flyPaper") is a JointJS paper that only contains one operator box and has the exact same size of it.
- *  3. when dragging ends, the temporary DOM element ("flyPaper") is destoryed by jQueryUI
+ *  3. when dragging ends, the temporary DOM element ("flyPaper") is destroyed by jQueryUI
  *  4. when dragging ends (operator is dropped), it will notify the observer of the event,
- *    the Operator UI Serivce is responsible for creating an operator at the place dropped.
+ *    the Operator UI Service is responsible for creating an operator at the place dropped.
  *
- * The method mentioned above is the best working way to implement this functionailtiy as of 02/2018.
+ * The method mentioned above is the best working way to implement this functionality as of 02/2018.
  * Here are some other methods that have been tried but didn't work.
  *
  *  1. Using HTML5 native drag and drop API.
@@ -50,14 +59,12 @@ export class DragDropService {
   private static readonly DRAG_DROP_TEMP_ELEMENT_ID = 'drag-drop-temp-element-id';
   private static readonly DRAG_DROP_TEMP_OPERATOR_TYPE = 'drag-drop-temp-operator-type';
 
-  private readonly operatorSuggestionHighlightStream =  new Subject <string>();
-  private readonly operatorSuggestionUnhighlightStream =  new Subject <string>();
+  private readonly operatorSuggestionHighlightStream = new Subject<string>();
+  private readonly operatorSuggestionUnhighlightStream = new Subject<string>();
 
-  // currently suggested operator to link with
-  private suggestionOperator: OperatorPredicate | undefined;
-
-  // check whether the suggested operator is on the left or on the right.
-  private isSuggestionOnLeft: boolean = false;
+  // current suggested operators to link with
+  private suggestionInputs: OperatorPredicate[] = [];
+  private suggestionOutputs: OperatorPredicate[] = [];
 
   /** mapping of DOM Element ID to operatorType */
   private elementOperatorTypeMap = new Map<string, string>();
@@ -86,6 +93,7 @@ export class DragDropService {
   /**
    * Handles the event of operator being dropped.
    * Adds the operator to the workflow graph at the same position of it being dropped.
+   * **Proposal**: currently doesn't support multiple links to/from same suggested input/output
    */
   public handleOperatorDropEvent(): void {
     this.getOperatorDropStream().subscribe(
@@ -96,38 +104,20 @@ export class DragDropService {
          * get the new drop coordinate of operator, when users drag or zoom the panel, to make sure the operator will
          drop on the right location.
          */
-
         const newOperatorOffset: Point = {
-          x:  (value.offset.x - this.workflowActionService.getJointGraphWrapper().getPanningOffset().x)
-              / this.workflowActionService.getJointGraphWrapper().getZoomRatio(),
+          x: (value.offset.x - this.workflowActionService.getJointGraphWrapper().getPanningOffset().x)
+            / this.workflowActionService.getJointGraphWrapper().getZoomRatio(),
           y: (value.offset.y - this.workflowActionService.getJointGraphWrapper().getPanningOffset().y)
-              / this.workflowActionService.getJointGraphWrapper().getZoomRatio()
+            / this.workflowActionService.getJointGraphWrapper().getZoomRatio()
         };
 
-        const operatorsAndPositions: {op: OperatorPredicate, pos: Point}[] = [];
-        const links: OperatorLink[] = [];
+        const operatorsAndPositions: { op: OperatorPredicate, pos: Point }[] = [{ op: operator, pos: newOperatorOffset }];
+        // create new links from suggestions
+        const newLinks: OperatorLink[] = this.getNewOperatorLinks(operator, this.suggestionInputs, this.suggestionOutputs);
 
-        operatorsAndPositions.push({op: operator, pos: newOperatorOffset});
+        this.workflowActionService.addOperatorsAndLinks(operatorsAndPositions, newLinks);
+        this.resetSuggestions();
 
-        // has suggestion and must auto-create the operator link between 2 operators.
-        if (this.suggestionOperator !== undefined) {
-          if (this.isSuggestionOnLeft) {
-            links.push(this.getNewOperatorLink(this.suggestionOperator, operator));
-          } else {
-            links.push(this.getNewOperatorLink(operator, this.suggestionOperator));
-          }
-        }
-
-        this.workflowActionService.addOperatorsAndLinks(operatorsAndPositions, links);
-
-        if (this.suggestionOperator !== undefined) {
-          // after the link is created, unhightlight the suggestion and reset suggestionOperator
-          this.operatorSuggestionUnhighlightStream.next(this.suggestionOperator.operatorID);
-          this.suggestionOperator = undefined;
-        }
-
-        // highlight the operator after adding the operator
-        this.workflowActionService.getJointGraphWrapper().highlightOperator(operator.operatorID);
         // reset the current operator type to an non-exist type
         this.currentDragElementID = DragDropService.DRAG_DROP_TEMP_ELEMENT_ID;
         this.currentOperatorType = DragDropService.DRAG_DROP_TEMP_OPERATOR_TYPE;
@@ -163,18 +153,18 @@ export class DragDropService {
     return this.operatorSuggestionHighlightStream.asObservable();
   }
 
-    /**
-   * Gets an observable for removing suggestion event to unhighlight an operator
-   *
-   * Contains the operator ID to unhighlight to remove previous suggestion
-   */
+  /**
+ * Gets an observable for removing suggestion event to unhighlight an operator
+ *
+ * Contains the operator ID to unhighlight to remove previous suggestion
+ */
   public getOperatorSuggestionUnhighlightStream(): Observable<string> {
     return this.operatorSuggestionUnhighlightStream.asObservable();
   }
 
   /**
    * This function is intended by be used by the operator labels to make the element draggable.
-   * It also binds hanlder functions the following property or events:
+   * It also binds handler functions the following property or events:
    *  - helper: a function the DOM element to display when dragging to make it look like an operator
    *  - start: triggers when dragging starts
    *
@@ -191,19 +181,14 @@ export class DragDropService {
       helper: () => this.createFlyingOperatorElement(dragElementID, operatorType),
       // declare event as type any because the jQueryUI type declaration is wrong
       // it should be of type JQuery.Event, which is incompatible with the the declared type Event
-      start: (event: any, ui) => this.handleOperatorStartDrag(event, ui),
+      start: (event: JQueryEventObject, ui: JQueryUI.DraggableEventUIParams) => this.handleOperatorStartDrag(event, ui),
       // The draggable element will be created with the mouse starting point at the center
-      cursorAt : {
+      cursorAt: {
         left: JointUIService.DEFAULT_OPERATOR_WIDTH / 2,
         top: JointUIService.DEFAULT_OPERATOR_HEIGHT / 2
       },
-      stop: (event: any, ui) => {
-        // this is to unhighlight the suggested operator when the user release mouse at other
-        //  components than the workflow editor
-        if (this.suggestionOperator !== undefined) {
-          this.operatorSuggestionUnhighlightStream.next(this.suggestionOperator.operatorID);
-          this.suggestionOperator = undefined;
-        }
+      stop: (event: JQueryEventObject, ui: JQueryUI.DraggableEventUIParams) => {
+        this.resetSuggestions();
       }
     });
   }
@@ -258,13 +243,13 @@ export class DragDropService {
   }
 
   /**
-   * Hanlder function for jQueryUI's drag started event.
+   * Handler function for jQueryUI's drag started event.
    * It converts the event to the drag started Subject.
    *
    * @param event JQuery.Event type, although JQueryUI typing says the type is Event, the object's actual type is JQuery.Event
    * @param ui jQueryUI Draggable Event UI
    */
-  private handleOperatorStartDrag(event: JQuery.Event, ui: JQueryUI.DraggableEventUIParams): void {
+  private handleOperatorStartDrag(event: Event, ui: JQueryUI.DraggableEventUIParams): void {
     const eventElement = event.target;
     if (!(eventElement instanceof Element)) {
       throw new Error('Incorrect type: in most cases, this element is type Element');
@@ -287,7 +272,7 @@ export class DragDropService {
   }
 
   /**
-   * Hanlder function for jQueryUI's drag stopped event.
+   * Handler function for jQueryUI's drag stopped event.
    * It converts the event to the drag stopped Subject.
    * Notice that we view Drag Stopped is equivalent to the operator being Dropped
    *
@@ -313,6 +298,7 @@ export class DragDropService {
    *
    */
   private handleOperatorRecommendationOnDrag(): void {
+    const currentOperator = this.workflowUtilService.getNewOperatorPredicate(this.currentOperatorType);
     let isOperatorDropped = false;
 
     Observable.fromEvent<MouseEvent>(window, 'mouseup').first()
@@ -325,106 +311,137 @@ export class DragDropService {
       .map(value => [value.clientX, value.clientY])
       .filter(() => !isOperatorDropped)
       .subscribe(mouseCoordinates => {
-          const currentMouseCoordinates = {x: mouseCoordinates[0], y: mouseCoordinates[1]};
+        const currentMouseCoordinates = { x: mouseCoordinates[0], y: mouseCoordinates[1] };
+        // scale the current mouse coordinate according to the current offset and zoom ratio
+        const scaledMouseCoordinates = {
+          x: (currentMouseCoordinates.x - this.workflowActionService.getJointGraphWrapper().getPanningOffset().x)
+            / this.workflowActionService.getJointGraphWrapper().getZoomRatio(),
+          y: (currentMouseCoordinates.y - this.workflowActionService.getJointGraphWrapper().getPanningOffset().y)
+            / this.workflowActionService.getJointGraphWrapper().getZoomRatio()
+        };
 
-          // scale the current mouse coordinate according to the current offset and zoom ratio
-          const scaledMouseCoordinates = {
-            x: (currentMouseCoordinates.x - this.workflowActionService.getJointGraphWrapper().getPanningOffset().x)
-                / this.workflowActionService.getJointGraphWrapper().getZoomRatio(),
-            y: (currentMouseCoordinates.y - this.workflowActionService.getJointGraphWrapper().getPanningOffset().y)
-                / this.workflowActionService.getJointGraphWrapper().getZoomRatio()
-          };
-          this.findClosestOperator(scaledMouseCoordinates);
+        // search for nearby operators as suggested input/output operators
+        let newInputs, newOutputs: OperatorPredicate[];
+        [newInputs, newOutputs] = this.findClosestOperators(scaledMouseCoordinates, currentOperator);
+        // update highlighting class vars to reflect new input/output operators
+        this.updateHighlighting(this.suggestionInputs.concat(this.suggestionOutputs), newInputs.concat(newOutputs));
+        // assign new suggestions
+        [this.suggestionInputs, this.suggestionOutputs] = [newInputs, newOutputs];
       },
-      error => console.error(error)
-    );
+        error => console.error(error)
+      );
   }
 
   /**
-   * This method go through all the existing operators and find the operator that has
-   *  the closest distance from the cursor when dragging new operator and has distance that
-   *  does not exceed the threshold defined.
+   * Finds nearby operators that can input to currentOperator and accept it's outputs.
    *
-   * When the cursor is on right of other operators, it will check
-   *  1. whether the distance between the cursor and a operator is smaller than the min-distance found
-   *  2. whether the operator user is currently is dragging has input port available for other operator
-   *      to add a link from its output port to the input port
-   *  3. whether other operators have at least one output port available to add
-   *
-   * When the cursor is on left of other operators, it will check
-   *  1. whether the distance between the cursor and a operator is smaller than the min-distance found
-   *  2. whether the operator user is currently is dragging has output port available for the current operator
-   *      to add a link from this output port to the input port of other operators
-   *  3. whether other operators have at least one input port available to add
-   *
-   * When an operator is selected among all the operators, this method will unhighlight the previously
-   *  highlighted operator if they are different and highlight the newly selected operator.
-   *
-   * If there is no suggestion found (means no operator satisfied the suggestion constraints), remove
-   *  the highlighted operator if there exist.
-   *
-   * @param mouseCoordinate current cursor position when dragging ghost operator
-   */
-  private findClosestOperator(mouseCoordinate: Point): void {
-    const curruntOperator = this.workflowUtilService.getNewOperatorPredicate(this.currentOperatorType);
+   * Only looks for inputs left of mouseCoordinate/ outputs right of mouseCoordinate.
+   * Only looks for operators within distance DragDropService.SUGGESTION_DISTANCE_THRESHOLD.
+   * **Warning**: assumes operators only output one port each (IE always grabs 3 operators for 3 input ports
+   * even if first operator has 3 free outputs to match 3 inputs)
+   * @mouseCoordinate is the location of the currentOperator on the JointGraph when dragging ghost operator
+   * @currentOperator is the current operator, used to determine how many inputs and outputs to search for
+   * @returns [[inputting-ops ...], [output-accepting-ops ...]]
+  */
+  private findClosestOperators(mouseCoordinate: Point, currentOperator: OperatorPredicate): [OperatorPredicate[], OperatorPredicate[]] {
     const operatorList = this.workflowActionService.getTexeraGraph().getAllOperators();
     const operatorLinks = this.workflowActionService.getTexeraGraph().getAllLinks();
 
-    let minDistance = Number.MAX_VALUE; // keep tracking the closest operator
-    let newSuggestionOperator: OperatorPredicate | undefined;
+    const numInputOps: number = currentOperator.inputPorts.length;
+    const numOutputOps: number = currentOperator.outputPorts.length;
 
+    // These two functions are a performance concern
+    const hasFreeOutputPorts = (operator: OperatorPredicate): boolean => {
+      return operatorLinks.filter(link => link.source.operatorID === operator.operatorID).length < operator.outputPorts.length;
+    };
+    const hasFreeInputPorts = (operator: OperatorPredicate): boolean => {
+      return operatorLinks.filter(link => link.target.operatorID === operator.operatorID).length < operator.inputPorts.length;
+    };
+
+    // closest operators sorted least to greatest by distance using priority queue
+    const compare = (a: { op: OperatorPredicate, dist: number }, b: { op: OperatorPredicate, dist: number }): number => {
+      return b.dist - a.dist;
+    };
+    const inputOps: TinyQueue<{ op: OperatorPredicate, dist: number }> = new TinyQueue([], compare);
+    const outputOps: TinyQueue<{ op: OperatorPredicate, dist: number }> = new TinyQueue([], compare);
+
+    const greatestDistance = (queue: TinyQueue<{ op: OperatorPredicate, dist: number }>): number => {
+      const greatest = queue.peek();
+      if (greatest) {
+        return greatest.dist;
+      } else {
+        return 0;
+      }
+    };
+
+    // for each operator, check if in range/has free ports/is on the right side/is closer than prev closest ops/
     operatorList.forEach(operator => {
       const operatorPosition = this.workflowActionService.getJointGraphWrapper().getOperatorPosition(operator.operatorID);
       const distanceFromCurrentOperator = Math.sqrt((mouseCoordinate.x - operatorPosition.x) ** 2
-      + (mouseCoordinate.y - operatorPosition.y) ** 2);
-
-      if (distanceFromCurrentOperator < minDistance && distanceFromCurrentOperator < DragDropService.SUGGESTION_DISTANCE_THRESHOLD) {
-
-        const existPortCountFromSource = operatorLinks
-          .filter(link => link.source.operatorID === operator.operatorID).length;
-        const existPortCountFromTarget = operatorLinks
-          .filter(link => link.target.operatorID === operator.operatorID).length;
-
-        // check left or right, if current operator can add input or output ports, and the operator
-        //  we are checking to suggest has output/input ports available to add
-        if ((operatorPosition.x < mouseCoordinate.x && curruntOperator.inputPorts.length > 0 &&
-          existPortCountFromSource !== operator.outputPorts.length) ||
-            (operatorPosition.x >= mouseCoordinate.x && curruntOperator.outputPorts.length > 0 &&
-              existPortCountFromTarget !== operator.inputPorts.length)) {
-
-            // check if the dragging operator is on the left or right of the selected operator
-            this.isSuggestionOnLeft = operatorPosition.x < mouseCoordinate.x ? true : false;
-
-            newSuggestionOperator = operator;
-            minDistance = distanceFromCurrentOperator;
+        + (mouseCoordinate.y - operatorPosition.y) ** 2);
+      if (distanceFromCurrentOperator < DragDropService.SUGGESTION_DISTANCE_THRESHOLD) {
+        if (numInputOps > 0
+          && operatorPosition.x < mouseCoordinate.x
+          && (inputOps.length < numInputOps || distanceFromCurrentOperator < greatestDistance(inputOps))
+          && hasFreeOutputPorts(operator)) {
+          inputOps.push({ op: operator, dist: distanceFromCurrentOperator });
+          if (inputOps.length > numInputOps) {
+            inputOps.pop();
           }
+        } else if (numOutputOps > 0
+          && operatorPosition.x > mouseCoordinate.x
+          && (outputOps.length < numOutputOps || distanceFromCurrentOperator < greatestDistance(outputOps))
+          && hasFreeInputPorts(operator)) {
+          outputOps.push({ op: operator, dist: distanceFromCurrentOperator });
+          if (outputOps.length > numOutputOps) {
+            outputOps.pop();
+          }
+        }
       }
-    });
 
-    // if no suggestion operator is found and there is currently a suggestion, remove that suggestion
-    if (newSuggestionOperator === undefined && this.suggestionOperator !== undefined) {
-      this.operatorSuggestionUnhighlightStream.next(this.suggestionOperator.operatorID);
-      this.suggestionOperator = undefined;
-    } else if (newSuggestionOperator !== undefined && !isEqual(newSuggestionOperator, this.suggestionOperator)) {
-      // if there is a new suggested operator, unhighlight the previously suggested and highlight the new operator
-      if (this.suggestionOperator !== undefined) {
-        this.operatorSuggestionUnhighlightStream.next(this.suggestionOperator.operatorID);
-      }
-      this.suggestionOperator = newSuggestionOperator;
-      this.operatorSuggestionHighlightStream.next(newSuggestionOperator.operatorID);
-    }
+    });
+    return [<OperatorPredicate[]>inputOps.data.map(x => x.op), <OperatorPredicate[]>outputOps.data.map(x => x.op)];
   }
 
-    /**
-   * This method will use an unique ID and 2 operator predicate to create and return
-   *  a new OperatorLink with initialized properties for the ports
+  /**
+   * Updates highlighted operators based on the diff between prev
    *
-   * @param sourceOperator
-   * @param targetOperator
+   * @param prevHighLights are highlighted (some may be unhighlighted)
+   * @param newHighLights will be highlighted after execution
    */
-  private getNewOperatorLink(sourceOperator: OperatorPredicate, targetOperator: OperatorPredicate): OperatorLink {
-    const operatorLinks = this.workflowActionService.getTexeraGraph().getAllLinks();
+  private updateHighlighting(prevHighlights: OperatorPredicate[], newHighlights: OperatorPredicate[]) {
+    // unhighlight ops in prevHighlights but not in newHighlights
+    prevHighlights.filter(operator => !newHighlights.includes(operator)).forEach(operator => {
+      this.operatorSuggestionUnhighlightStream.next(operator.operatorID);
+    });
 
+    // highlight ops in newHghlights but not in prevHighlights
+    newHighlights.filter(operator => !prevHighlights.includes(operator)).forEach(operator => {
+      this.operatorSuggestionHighlightStream.next(operator.operatorID);
+    });
+  }
+
+  /**  Unhighlights suggestions and clears suggestion lists */
+  private resetSuggestions(): void {
+    this.updateHighlighting(this.suggestionInputs.concat(this.suggestionOutputs), []);
+    this.suggestionInputs = [];
+    this.suggestionOutputs = [];
+  }
+
+  /**
+ * This method will use an unique ID and 2 operator predicate to create and return
+ *  a new OperatorLink with initialized properties for the ports.
+ * **Warning** links created w/o spacial awareness. May connect two distant ports when it makes more sense to connect closer ones'
+ * @param sourceOperator gives output
+ * @param targetOperator accepts input
+ * @param OperatorLinks optionally specify extant links (used to find which ports are occupied), defaults to all links.
+ */
+  private getNewOperatorLink(
+    sourceOperator: OperatorPredicate, targetOperator: OperatorPredicate, operatorLinks?: OperatorLink[]
+  ): OperatorLink {
+    if (operatorLinks === undefined) {
+      operatorLinks = this.workflowActionService.getTexeraGraph().getAllLinks();
+    }
     // find the port that has not being connected
     const allPortsFromSource = operatorLinks
       .filter(link => link.source.operatorID === sourceOperator.operatorID)
@@ -438,8 +455,54 @@ export class DragDropService {
     const validTargetPortsID = targetOperator.inputPorts.filter(portID => !allPortsFromTarget.includes(portID));
 
     const linkID = this.workflowUtilService.getLinkRandomUUID();
-    const source = { operatorID: sourceOperator.operatorID, portID: validSourcePortsID[0]};
-    const target = { operatorID: targetOperator.operatorID, portID: validTargetPortsID[0]};
+    const source = { operatorID: sourceOperator.operatorID, portID: validSourcePortsID[0] };
+    const target = { operatorID: targetOperator.operatorID, portID: validTargetPortsID[0] };
     return { linkID, source, target };
   }
+
+  /**
+   *Get many links to one central "hub" operator
+   * @param hubOperator
+   * @param inputOperators
+   * @param receiverOperators
+   */
+  private getNewOperatorLinks(
+    hubOperator: OperatorPredicate,
+    inputOperators: OperatorPredicate[],
+    receiverOperators: OperatorPredicate[]
+  ): OperatorLink[] {
+    // remember newly created links to prevent multiple link assignment to same port
+    const occupiedLinks: OperatorLink[] = this.workflowActionService.getTexeraGraph().getAllLinks();
+    const newLinks: OperatorLink[] = [];
+    const graph = this.workflowActionService.getJointGraphWrapper();
+
+    // sort ops by height, in order to pair them with ports closest to them
+    // assumes that for an op with multiple input/output ports, ports in op.inputPorts/outPutports are rendered
+    //              [first ... last] => [North ... South]
+    const heightSortedInputs: OperatorPredicate[] = inputOperators.slice(0).sort((op1, op2) =>
+      graph.getOperatorPosition(op1.operatorID).y - graph.getOperatorPosition(op2.operatorID).y
+    );
+    const heightSortedOutputs: OperatorPredicate[] = receiverOperators.slice(0).sort((op1, op2) =>
+      graph.getOperatorPosition(op1.operatorID).y - graph.getOperatorPosition(op2.operatorID).y
+    );
+
+    // if new operator has suggested links, create them
+    if (heightSortedInputs !== undefined) {
+      heightSortedInputs.forEach(inputOperator => {
+        const newLink = this.getNewOperatorLink(inputOperator, hubOperator, occupiedLinks);
+        newLinks.push(newLink);
+        occupiedLinks.push(newLink);
+      });
+    }
+    if (heightSortedOutputs !== undefined) {
+      heightSortedOutputs.forEach(outputOperator => {
+        const newLink = this.getNewOperatorLink(hubOperator, outputOperator, occupiedLinks);
+        newLinks.push(newLink);
+        occupiedLinks.push(newLink);
+      });
+    }
+
+    return newLinks;
+  }
+
 }

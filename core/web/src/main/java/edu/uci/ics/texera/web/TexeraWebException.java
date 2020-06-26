@@ -20,12 +20,12 @@ public class TexeraWebException extends WebApplicationException {
     }
     
     public TexeraWebException(Exception e) {
-        super(Response.status(400).entity(new GenericWebResponse(1, e.getMessage()))
+        super(e, Response.status(400).entity(new GenericWebResponse(1, e.getMessage()))
                 .type(MediaType.APPLICATION_JSON_TYPE).build());
     }
 
     public TexeraWebException(String message) {
-        super(Response.status(400).entity(new GenericWebResponse(1, message))
+        super(message, Response.status(400).entity(new GenericWebResponse(1, message))
                 .type(MediaType.APPLICATION_JSON_TYPE).build());
     }
 }

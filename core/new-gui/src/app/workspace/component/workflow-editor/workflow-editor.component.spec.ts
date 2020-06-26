@@ -13,7 +13,9 @@ import { StubOperatorMetadataService } from '../../service/operator-metadata/stu
 import { JointUIService } from '../../service/joint-ui/joint-ui.service';
 import { WorkflowGraph, WorkflowGraphReadonly } from '../../service/workflow-graph/model/workflow-graph';
 
+import * as jQuery from 'jquery';
 import * as joint from 'jointjs';
+
 
 import { ResultPanelToggleService } from '../../service/result-panel-toggle/result-panel-toggle.service';
 import { marbles } from 'rxjs-marbles';
@@ -21,26 +23,12 @@ import { marbles } from 'rxjs-marbles';
 import {
   mockScanPredicate, mockPoint, mockScanResultLink, mockResultPredicate
 } from '../../service/workflow-graph/model/mock-workflow-data';
-
-class StubWorkflowActionService {
-
-  private jointGraph = new joint.dia.Graph();
-  private jointGraphWrapper = new JointGraphWrapper(this.jointGraph);
-  private readonly texeraGraph = new WorkflowGraph();
-
-  public attachJointPaper(paperOptions: joint.dia.Paper.Options): joint.dia.Paper.Options {
-    paperOptions.model = this.jointGraph;
-    return paperOptions;
-  }
-
-  public getJointGraphWrapper(): JointGraphWrapper {
-    return this.jointGraphWrapper;
-  }
-
-  public getTexeraGraph(): WorkflowGraphReadonly {
-    return this.texeraGraph;
-  }
-}
+import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
+import {
+   mockStatus1, mockStatus2, mockScanPredicateForStatus, mockScanOperatorID
+} from '../../service/workflow-status/mock-workflow-status';
+import { SuccessProcessStatus, OperatorStates } from '../../types/execute-workflow.interface';
+import { environment } from './../../../../environments/environment';
 
 describe('WorkflowEditorComponent', () => {
 
@@ -64,8 +52,9 @@ describe('WorkflowEditorComponent', () => {
           DragDropService,
           ResultPanelToggleService,
           ValidationWorkflowService,
-          { provide: WorkflowActionService, useClass: StubWorkflowActionService },
-          { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
+          WorkflowActionService,
+          { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+          WorkflowStatusService
         ]
       })
         .compileComponents();
@@ -145,6 +134,8 @@ describe('WorkflowEditorComponent', () => {
     let workflowActionService: WorkflowActionService;
     let validationWorkflowService: ValidationWorkflowService;
     let dragDropService: DragDropService;
+    let jointUIService: JointUIService;
+    let workflowStatusService: WorkflowStatusService;
 
     beforeEach(async(() => {
       TestBed.configureTestingModule({
@@ -157,7 +148,8 @@ describe('WorkflowEditorComponent', () => {
           ResultPanelToggleService,
           ValidationWorkflowService,
           DragDropService,
-          { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
+          { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+          WorkflowStatusService,
         ]
       })
         .compileComponents();
@@ -170,6 +162,7 @@ describe('WorkflowEditorComponent', () => {
       validationWorkflowService = TestBed.get(ValidationWorkflowService);
       dragDropService = TestBed.get(DragDropService);
       // detect changes to run ngAfterViewInit and bind Model
+      jointUIService = TestBed.get(JointUIService);
       fixture.detectChanges();
     });
 
@@ -185,18 +178,48 @@ describe('WorkflowEditorComponent', () => {
 
       workflowActionService.addOperator(mockScanPredicate, mockPoint);
 
+      // unhighlight the operator in case it's automatically highlighted
+      jointGraphWrapper.unhighlightOperator(mockScanPredicate.operatorID);
+
       // find the joint Cell View object of the operator element
       const jointCellView = component.getJointPaper().findViewByModel(mockScanPredicate.operatorID);
 
-      // tirgger a click on the cell view using its jQuery element
+      // trigger a click on the cell view using its jQuery element
       jointCellView.$el.trigger('mousedown');
 
       fixture.detectChanges();
 
       // assert the function is called once
-     // expect(highlightOperatorFunctionSpy.calls.count()).toEqual(1);
+      // expect(highlightOperatorFunctionSpy.calls.count()).toEqual(1);
       // assert the highlighted operator is correct
-      expect(jointGraphWrapper.getCurrentHighlightedOpeartorID()).toEqual(mockScanPredicate.operatorID);
+      expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toEqual([mockScanPredicate.operatorID]);
+    });
+
+    it('should unhighlight all highlighted operators when user mouse clicks on the blank space', () => {
+      const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
+
+      // add and highlight two operators
+      workflowActionService.addOperatorsAndLinks([{op: mockScanPredicate, pos: mockPoint},
+        {op: mockResultPredicate, pos: mockPoint}], []);
+      jointGraphWrapper.highlightOperators([mockScanPredicate.operatorID, mockResultPredicate.operatorID]);
+
+      // assert that both operators are highlighted
+      expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(mockScanPredicate.operatorID);
+      expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(mockResultPredicate.operatorID);
+
+      // find a blank area on the JointJS paper
+      const blankPoint = {x: mockPoint.x + 100, y: mockPoint.y + 100};
+      expect(component.getJointPaper().findViewsFromPoint(blankPoint)).toEqual([]);
+
+      // trigger a click on the blank area using JointJS paper's jQuery element
+      const point = component.getJointPaper().localToClientPoint(blankPoint);
+      const event = jQuery.Event('mousedown', {clientX: point.x, clientY: point.y});
+      component.getJointPaper().$el.trigger(event);
+
+      fixture.detectChanges();
+
+      // assert that all operators are unhighlighted
+      expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toEqual([]);
     });
 
     it('should react to operator highlight event and change the appearance of the operator to be highlighted', () => {
@@ -233,25 +256,25 @@ describe('WorkflowEditorComponent', () => {
       expect(jointHighlighterElements.length).toEqual(1);
 
       // then unhighlight the operator
-      jointGraphWrapper.unhighlightCurrent();
+      jointGraphWrapper.unhighlightOperator(mockScanPredicate.operatorID);
 
       // the highlighter element should not exist
       const jointHighlighterElementAfterUnhighlight = jointCellView.$el.children('.joint-highlight-stroke');
       expect(jointHighlighterElementAfterUnhighlight.length).toEqual(0);
     });
 
-    it('should react to operator validation and change the color of operator box if the operator is valid ',
-         () => {
-    const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
-    workflowActionService.addOperator(mockScanPredicate, mockPoint);
-    workflowActionService.addOperator(mockResultPredicate, mockPoint);
-    workflowActionService.addLink(mockScanResultLink);
-    const newProperty = { 'tableName': 'test-table' };
-    workflowActionService.setOperatorProperty(mockScanPredicate.operatorID, newProperty);
-    const operator1 = component.getJointPaper().getModelById(mockScanPredicate.operatorID);
-    const operator2 = component.getJointPaper().getModelById(mockResultPredicate.operatorID);
-    expect(operator1.attr('rect/stroke')).toEqual('#CFCFCF');
-    expect(operator2.attr('rect/stroke')).toEqual('#CFCFCF');
+    it('should react to operator validation and change the color of operator box if the operator is valid ', () => {
+      const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      workflowActionService.addOperator(mockResultPredicate, mockPoint);
+      workflowActionService.addLink(mockScanResultLink);
+      const newProperty = { 'tableName': 'test-table' };
+      workflowActionService.setOperatorProperty(mockScanPredicate.operatorID, newProperty);
+      const operator1 = component.getJointPaper().getModelById(mockScanPredicate.operatorID);
+      const operator2 = component.getJointPaper().getModelById(mockResultPredicate.operatorID);
+      expect(operator1.attr('rect/stroke')).toEqual('#CFCFCF');
+      expect(operator2.attr('rect/stroke')).toEqual('#CFCFCF');
+    });
 
     it('should react to jointJS paper zoom event', marbles((m) => {
       const mockScaleRatio = 0.5;
@@ -278,12 +301,118 @@ describe('WorkflowEditorComponent', () => {
       );
     }));
 
-  });
+      // TODO: this test case related to websocket is not stable, find out why and fix it
+    xdescribe('when executionStatus is enabled', () => {
+      beforeAll(() => {
+        environment.executionStatusEnabled = true;
+        workflowStatusService = TestBed.get(WorkflowStatusService);
+      });
+
+      afterAll(() => {
+        environment.executionStatusEnabled = false;
+      });
+
+      it('should display/hide operator status tooltip when cursor hovers/leaves an operator', () => {
+        // install a spy on the highlight operator function and pass the call through
+        const showTooltipFunctionSpy = spyOn(jointUIService, 'showOperatorStatusToolTip').and.callThrough();
+        const hideTooltipFunctionSpy = spyOn(jointUIService, 'hideOperatorStatusToolTip').and.callThrough();
+
+        workflowActionService.addOperator(mockScanPredicate, mockPoint);
+        // find the joint Cell View object of the operator element
+        const jointCellView = component.getJointPaper().findViewByModel(mockScanPredicate.operatorID);
+        const tooltipView = component.getJointPaper().findViewByModel(
+          JointUIService.getOperatorStatusTooltipElementID(mockScanPredicate.operatorID));
+
+        // workflow has not started yet
+        // trigger a mouseenter on the cell view using its jQuery element
+        jointCellView.$el.trigger('mouseenter');
+        fixture.detectChanges();
+        // assert the function is not called yet
+        expect(showTooltipFunctionSpy).not.toHaveBeenCalled();
+        expect(tooltipView.model.attr('polygon')['display']).toBe('none');
+
+        // mock start the workflow
+        component['operatorStatusTooltipDisplayEnabled'] = true;
+        // trigger event mouse enter
+        jointCellView.$el.trigger('mouseenter');
+        fixture.detectChanges();
+        // assert the function is called
+        expect(showTooltipFunctionSpy).toHaveBeenCalled();
+        expect(tooltipView.model.attr('polygon')['display']).toBeUndefined();
+
+        // trigger event mouse leave
+        jointCellView.$el.trigger('mouseleave');
+        // assert the function is called
+        expect(hideTooltipFunctionSpy).toHaveBeenCalled();
+        expect(tooltipView.model.attr('polygon')['display']).toBe('none');
+      });
+
+      it('should update operator status tooltip content when workflow-status.service emits processState', () => {
+        // spy on key function, create simple workflow
+        const changeOperatorTooltipInfoSpy = spyOn(jointUIService, 'changeOperatorStatusTooltipInfo').and.callThrough();
+        workflowActionService.addOperator(mockScanPredicateForStatus, mockPoint);
+        const tooltipView = component.getJointPaper().findViewByModel(
+          JointUIService.getOperatorStatusTooltipElementID(mockScanPredicateForStatus.operatorID));
+
+        // workflowStatusService emits a mock status
+        workflowStatusService['status'].next(mockStatus1 as SuccessProcessStatus);
+        fixture.detectChanges();
+        // function should be called and content should be updated properly
+        expect(component['operatorStatusTooltipDisplayEnabled']).toBeTruthy();
+        expect(changeOperatorTooltipInfoSpy).toHaveBeenCalledTimes(1);
+        expect(tooltipView.model.attr('#operatorCount/text'))
+          .toBe('Output:' + (mockStatus1 as SuccessProcessStatus).operatorStatistics[mockScanOperatorID].outputCount + ' tuples');
+        expect(tooltipView.model.attr('#operatorSpeed/text'))
+          .toBe('Speed:' + (mockStatus1 as SuccessProcessStatus).operatorStatistics[mockScanOperatorID].speed + ' tuples/ms');
+
+        // workflowStatusService emits another mock status
+        workflowStatusService['status'].next(mockStatus2 as SuccessProcessStatus);
+        fixture.detectChanges();
+        // function should be called again and content should be updated properly
+        expect(changeOperatorTooltipInfoSpy).toHaveBeenCalledTimes(2);
+        expect(tooltipView.model.attr('#operatorCount/text'))
+          .toBe('Output:' + (mockStatus2 as SuccessProcessStatus).operatorStatistics[mockScanOperatorID].outputCount + ' tuples');
+        expect(tooltipView.model.attr('#operatorSpeed/text'))
+          .toBe('Speed:' + (mockStatus2 as SuccessProcessStatus).operatorStatistics[mockScanOperatorID].speed + ' tuples/ms');
+      });
+
+      it('should change operator state when workflow-status.service emits processState', () => {
+        // spy on key function, create simple workflow
+        const changeOperatorStatesSpy = spyOn(jointUIService, 'changeOperatorStates').and.callThrough();
+        workflowActionService.addOperator(mockScanPredicateForStatus, mockPoint);
+        const jointCellView = component.getJointPaper().findViewByModel(mockScanPredicateForStatus.operatorID);
+
+        // workflowStatusService emits a mock status
+        workflowStatusService['status'].next(mockStatus1 as SuccessProcessStatus);
+        fixture.detectChanges();
+        // function should be called and state name should be updated properly
+        expect(changeOperatorStatesSpy).toHaveBeenCalledTimes(1);
+        expect(jointCellView.model.attr('#operatorStates')['text'])
+        .toEqual(OperatorStates[(mockStatus1 as SuccessProcessStatus).operatorStates[mockScanOperatorID]]);
+
+        // workflowStatusService emits another mock status
+        workflowStatusService['status'].next(mockStatus2 as SuccessProcessStatus);
+        fixture.detectChanges();
+        // function should be called again and state name should be updated properly
+        expect(changeOperatorStatesSpy).toHaveBeenCalledTimes(2);
+        expect(jointCellView.model.attr('#operatorStates')['text'])
+        .toEqual(OperatorStates[OperatorStates.Completed]);
+      });
+
+      it('should throw error when processState contains non-existing operatorID', () => {
+        // workflowStatusService emits a processStatus with info for a scan operator
+        // however there is no scan operator on the joinGraph/texeraGraph
+        // an error should be thrown
+        workflowStatusService['status'].next(mockStatus1 as SuccessProcessStatus);
+        fixture.detectChanges();
+        expect(component['handleOperatorStatisticsUpdate']).toThrowError();
+        expect(component['handleOperatorStatesChange']).toThrowError();
+      });
+    });
 
     it('should delete the highlighted operator when user presses the backspace key', () => {
-      const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
       const texeraGraph = workflowActionService.getTexeraGraph();
-      const deleteOperatorFunctionSpy = spyOn(workflowActionService, 'deleteOperator').and.callThrough();
+      const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
       workflowActionService.addOperator(mockScanPredicate, mockPoint);
       jointGraphWrapper.highlightOperator(mockScanPredicate.operatorID);
@@ -294,18 +423,13 @@ describe('WorkflowEditorComponent', () => {
 
       fixture.detectChanges();
 
-      // assert the function is called once
-      expect(deleteOperatorFunctionSpy.calls.count()).toEqual(1);
       // assert the highlighted operator is deleted
-      expect(() => {
-        texeraGraph.getOperator(mockScanPredicate.operatorID);
-      }).toThrowError(new RegExp(`does not exist`));
+      expect(texeraGraph.hasOperator(mockScanPredicate.operatorID)).toBeFalsy();
     });
 
     it('should delete the highlighted operator when user presses the delete key', () => {
-      const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
       const texeraGraph = workflowActionService.getTexeraGraph();
-      const deleteOperatorFunctionSpy = spyOn(workflowActionService, 'deleteOperator').and.callThrough();
+      const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
       workflowActionService.addOperator(mockScanPredicate, mockPoint);
       jointGraphWrapper.highlightOperator(mockScanPredicate.operatorID);
@@ -316,12 +440,31 @@ describe('WorkflowEditorComponent', () => {
 
       fixture.detectChanges();
 
-      // assert the function is called once
-      expect(deleteOperatorFunctionSpy.calls.count()).toEqual(1);
       // assert the highlighted operator is deleted
-      expect(() => {
-        texeraGraph.getOperator(mockScanPredicate.operatorID);
-      }).toThrowError(new RegExp(`does not exist`));
+      expect(texeraGraph.hasOperator(mockScanPredicate.operatorID)).toBeFalsy();
+    });
+
+    it('should delete all highlighted operators when user presses the backspace key', () => {
+      const texeraGraph = workflowActionService.getTexeraGraph();
+      const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
+
+      workflowActionService.addOperatorsAndLinks([{op: mockScanPredicate, pos: mockPoint},
+        {op: mockResultPredicate, pos: mockPoint}], []);
+      jointGraphWrapper.highlightOperators([mockScanPredicate.operatorID, mockResultPredicate.operatorID]);
+
+      // assert that all operators are highlighted
+      expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(mockScanPredicate.operatorID);
+      expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(mockResultPredicate.operatorID);
+
+      // dispatch a keydown event on the backspace key
+      const event = new KeyboardEvent('keydown', {key: 'Backspace'});
+      document.dispatchEvent(event);
+
+      fixture.detectChanges();
+
+      // assert that all highlighted operators are deleted
+      expect(texeraGraph.hasOperator(mockScanPredicate.operatorID)).toBeFalsy();
+      expect(texeraGraph.hasOperator(mockResultPredicate.operatorID)).toBeFalsy();
     });
 
     it(`should create and highlight a new operator with the same metadata when user
@@ -339,7 +482,7 @@ describe('WorkflowEditorComponent', () => {
       document.dispatchEvent(pasteEvent);
 
       // the pasted operator should be highlighted
-      const pastedOperatorID = jointGraphWrapper.getCurrentHighlightedOpeartorID();
+      const pastedOperatorID = jointGraphWrapper.getCurrentHighlightedOperatorIDs()[0];
       expect(pastedOperatorID).toBeDefined();
 
       // get the pasted operator
@@ -380,7 +523,7 @@ describe('WorkflowEditorComponent', () => {
       }).toThrowError(new RegExp(`does not exist`));
 
       // the pasted operator should be highlighted
-      const pastedOperatorID = jointGraphWrapper.getCurrentHighlightedOpeartorID();
+      const pastedOperatorID = jointGraphWrapper.getCurrentHighlightedOperatorIDs()[0];
       expect(pastedOperatorID).toBeDefined();
 
       // get the pasted operator
@@ -408,19 +551,85 @@ describe('WorkflowEditorComponent', () => {
       jointGraphWrapper.highlightOperator(mockScanPredicate.operatorID);
 
       // dispatch clipboard events for copy and paste
-      const cutEvent = new ClipboardEvent('copy');
-      document.dispatchEvent(cutEvent);
+      const copyEvent = new ClipboardEvent('copy');
+      document.dispatchEvent(copyEvent);
       const pasteEvent = new ClipboardEvent('paste');
       document.dispatchEvent(pasteEvent);
 
       // get the pasted operator
-      const pastedOperatorID = jointGraphWrapper.getCurrentHighlightedOpeartorID();
+      const pastedOperatorID = jointGraphWrapper.getCurrentHighlightedOperatorIDs()[0];
       if (pastedOperatorID) {
         const pastedOperatorPosition = jointGraphWrapper.getOperatorPosition(pastedOperatorID);
         expect(pastedOperatorPosition).not.toEqual(mockPoint);
       }
     });
-  });
 
+    it('should highlight multiple operators when user clicks on them with shift key pressed', () => {
+      const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
+
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      workflowActionService.addOperator(mockResultPredicate, mockPoint);
+      jointGraphWrapper.highlightOperator(mockResultPredicate.operatorID);
+
+      // assert that only the last operator is highlighted
+      expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(mockResultPredicate.operatorID);
+      expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).not.toContain(mockScanPredicate.operatorID);
+
+      // find the joint Cell View object of the first operator element
+      const jointCellView = component.getJointPaper().findViewByModel(mockScanPredicate.operatorID);
+
+      // trigger a shift click on the cell view using its jQuery element
+      const event = jQuery.Event('mousedown', {shiftKey: true});
+      jointCellView.$el.trigger(event);
+
+      fixture.detectChanges();
+
+      // assert that both operators are highlighted
+      expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(mockScanPredicate.operatorID);
+      expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(mockResultPredicate.operatorID);
+    });
+
+    it('should unhighlight the highlighted operator when user clicks on it with shift key pressed', () => {
+      const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
+
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      jointGraphWrapper.highlightOperator(mockScanPredicate.operatorID);
+
+      // assert that the operator is highlighted
+      expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(mockScanPredicate.operatorID);
+
+      // find the joint Cell View object of the operator element
+      const jointCellView = component.getJointPaper().findViewByModel(mockScanPredicate.operatorID);
+
+      // trigger a shift click on the cell view using its jQuery element
+      const event = jQuery.Event('mousedown', {shiftKey: true});
+      jointCellView.$el.trigger(event);
+
+      fixture.detectChanges();
+
+      // assert that the operator is unhighlighted
+      expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).not.toContain(mockScanPredicate.operatorID);
+    });
+
+    it('should highlight all operators when user presses command + A', () => {
+      const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
+
+      workflowActionService.addOperator(mockScanPredicate, mockPoint);
+      workflowActionService.addOperator(mockResultPredicate, mockPoint);
+
+      // unhighlight operators in case of automatic highlight
+      jointGraphWrapper.unhighlightOperators([mockScanPredicate.operatorID, mockResultPredicate.operatorID]);
+
+      // dispatch a keydown event on the command + A key comb
+      const event = new KeyboardEvent('keydown', {key: 'a', metaKey: true});
+      document.dispatchEvent(event);
+
+      fixture.detectChanges();
+
+      // assert that all operators are highlighted
+      expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(mockScanPredicate.operatorID);
+      expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(mockResultPredicate.operatorID);
+    });
+  });
 
 });

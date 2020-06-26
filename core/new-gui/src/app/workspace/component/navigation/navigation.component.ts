@@ -1,13 +1,13 @@
-import { Component, OnInit, NgModule } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { ExecuteWorkflowService } from './../../service/execute-workflow/execute-workflow.service';
 import { UndoRedoService } from './../../service/undo-redo/undo-redo.service';
 import { TourService } from 'ngx-tour-ng-bootstrap';
 import { environment } from '../../../../environments/environment';
 import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
 import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-graph-wrapper';
-
+import { ValidationWorkflowService } from '../../service/validation/validation-workflow.service';
 import { ExecutionResult } from './../../types/execute-workflow.interface';
-
+import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -29,18 +29,24 @@ import { ExecutionResult } from './../../types/execute-workflow.interface';
   templateUrl: './navigation.component.html',
   styleUrls: ['./navigation.component.scss']
 })
-
 export class NavigationComponent implements OnInit {
   public static autoSaveState = 'Saved';
   public isWorkflowRunning: boolean = false; // set this to true when the workflow is started
   public isWorkflowPaused: boolean = false; // this will be modified by clicking pause/resume while the workflow is running
+  public isWorkflowValid: boolean = true; // this will check whether the workflow error or not
 
   // variable binded with HTML to decide if the running spinner should show
   public showSpinner = false;
   public executionResultID: string | undefined;
 
-  constructor(private executeWorkflowService: ExecuteWorkflowService, private workflowActionService: WorkflowActionService,
-    public tourService: TourService, public undoRedo: UndoRedoService) {
+  constructor(
+    public executeWorkflowService: ExecuteWorkflowService,
+    public tourService: TourService,
+    public workflowActionService: WorkflowActionService,
+    public workflowStatusService: WorkflowStatusService,
+    public undoRedo: UndoRedoService,
+    public validationWorkflowService: ValidationWorkflowService
+  ) {
     // return the run button after the execution is finished, either
     //  when the value is valid or invalid
     executeWorkflowService.getExecuteEndedStream().subscribe(
@@ -49,12 +55,14 @@ export class NavigationComponent implements OnInit {
         this.handleResultData(executionResult);
         this.isWorkflowRunning = false;
         this.isWorkflowPaused = false;
+
       },
       () => {
         this.executionResultID = undefined;
         this.isWorkflowRunning = false;
         this.isWorkflowPaused = false;
       }
+
     );
 
     // update the pause/resume button after a pause/resume request
@@ -62,16 +70,26 @@ export class NavigationComponent implements OnInit {
     // this will swap button between pause and resume
     executeWorkflowService.getExecutionPauseResumeStream()
       .subscribe(state => this.isWorkflowPaused = (state === 0));
+
+    // set the map of operatorStatusMap
+    validationWorkflowService.getWorkflowValidationErrorStream()
+      .subscribe(value => this.isWorkflowValid = Object.keys(value.errors).length === 0);
+
   }
 
   ngOnInit() {
   }
+
   /**
    * Executes the current existing workflow on the JointJS paper. It will
    *  also set the `isWorkflowRunning` variable to true to show that the backend
    *  is loading the workflow by displaying the pause/resume button.
    */
   public onButtonClick(): void {
+    // if the isWorkflowFailed make the button return finish
+    if (! this.isWorkflowValid) {
+      return;
+    }
     if (! environment.pauseResumeEnabled) {
       if (! this.isWorkflowRunning) {
         this.isWorkflowRunning = true;
@@ -82,7 +100,11 @@ export class NavigationComponent implements OnInit {
         // when a new workflow begins, reset the execution result ID.
         this.executionResultID = undefined;
         this.isWorkflowRunning = true;
-        this.executeWorkflowService.executeWorkflow();
+        // get the workflowId and pass it to workflowStatusService.
+        const workflowId = this.executeWorkflowService.executeWorkflow();
+        if (environment.executionStatusEnabled) {
+          this.workflowStatusService.checkStatus(workflowId);
+        }
       } else if (this.isWorkflowRunning && this.isWorkflowPaused) {
         this.executeWorkflowService.resumeWorkflow();
       } else if (this.isWorkflowRunning && !this.isWorkflowPaused) {
@@ -218,8 +240,13 @@ export class NavigationComponent implements OnInit {
    * Handler for the execution result to extract successful execution ID
    */
   private handleResultData(response: ExecutionResult): void {
+    if (!environment.downloadExecutionResultEnabled) {
+      return;
+    }
+
     // backend returns error, display error message
     if (response.code === 1) {
+
       this.executionResultID = undefined;
       return;
     }
@@ -233,4 +260,5 @@ export class NavigationComponent implements OnInit {
     // set the current execution result ID to the result ID
     this.executionResultID = response.resultID;
   }
+
 }

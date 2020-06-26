@@ -7,6 +7,7 @@ import { ExecuteWorkflowService } from './../../service/execute-workflow/execute
 import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
 import { TourService } from 'ngx-tour-ng-bootstrap';
 import { UndoRedoService } from './../../service/undo-redo/undo-redo.service';
+import { ValidationWorkflowService } from '../../service/validation/validation-workflow.service';
 
 import { CustomNgMaterialModule } from '../../../common/custom-ng-material.module';
 
@@ -20,8 +21,9 @@ import { HttpClient } from '@angular/common/http';
 import { mockExecutionResult } from '../../service/execute-workflow/mock-result-data';
 import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-graph-wrapper';
 import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-util.service';
-import { environment } from '../../../../environments/environment';
 import { mockScanPredicate, mockPoint } from '../../service/workflow-graph/model/mock-workflow-data';
+import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
+import { environment } from '../../../../environments/environment';
 
 class StubHttpClient {
 
@@ -35,7 +37,9 @@ describe('NavigationComponent', () => {
   let fixture: ComponentFixture<NavigationComponent>;
   let executeWorkFlowService: ExecuteWorkflowService;
   let workflowActionService: WorkflowActionService;
+  let workflowStatusService: WorkflowStatusService;
   let undoRedoService: UndoRedoService;
+  let validationWorkflowService: ValidationWorkflowService;
   beforeEach(async(() => {
     TestBed.configureTestingModule({
       declarations: [NavigationComponent],
@@ -49,9 +53,11 @@ describe('NavigationComponent', () => {
         JointUIService,
         ExecuteWorkflowService,
         UndoRedoService,
+        ValidationWorkflowService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         { provide: HttpClient, useClass: StubHttpClient },
         TourService,
+        WorkflowStatusService
       ]
     }).compileComponents();
   }));
@@ -61,7 +67,9 @@ describe('NavigationComponent', () => {
     component = fixture.componentInstance;
     executeWorkFlowService = TestBed.get(ExecuteWorkflowService);
     workflowActionService = TestBed.get(WorkflowActionService);
+    workflowStatusService = TestBed.get(WorkflowStatusService);
     undoRedoService = TestBed.get(UndoRedoService);
+    validationWorkflowService = TestBed.get(ValidationWorkflowService);
     fixture.detectChanges();
     environment.pauseResumeEnabled = true;
   });
@@ -177,7 +185,8 @@ describe('NavigationComponent', () => {
       m.hot(endMarbleString, endMarblevalues)
     );
 
-    const mockComponent = new NavigationComponent(executeWorkFlowService, workflowActionService, TestBed.get(TourService), undoRedoService);
+    const mockComponent = new NavigationComponent(executeWorkFlowService, TestBed.get(TourService),
+      workflowActionService, workflowStatusService, undoRedoService, validationWorkflowService);
 
     executeWorkFlowService.getExecutionPauseResumeStream()
       .subscribe({
@@ -198,7 +207,8 @@ describe('NavigationComponent', () => {
       m.hot(endMarbleString, endMarblevalues)
     );
 
-    const mockComponent = new NavigationComponent(executeWorkFlowService, workflowActionService, TestBed.get(TourService), undoRedoService);
+    const mockComponent = new NavigationComponent(executeWorkFlowService, TestBed.get(TourService),
+      workflowActionService, workflowStatusService, undoRedoService, validationWorkflowService);
 
     executeWorkFlowService.getExecutionPauseResumeStream()
       .subscribe({
@@ -282,5 +292,22 @@ describe('NavigationComponent', () => {
     }).subscribe();
     expect(workflowActionService.getTexeraGraph().getAllOperators().length).toBe(0);
   }));
+
+  // TODO: this test case related to websocket is not stable, find out why and fix it
+  xdescribe('when executionStatus is enabled', () => {
+    beforeAll(() => {
+      environment.executionStatusEnabled = true;
+    });
+
+    afterAll(() => {
+      environment.executionStatusEnabled = false;
+    });
+
+    it('should send workflowId to websocket when run button is clicked', () => {
+      const checkWorkflowSpy = spyOn(workflowStatusService, 'checkStatus').and.stub();
+      component.onButtonClick();
+      expect(checkWorkflowSpy).toHaveBeenCalled();
+    });
+  });
 
 });

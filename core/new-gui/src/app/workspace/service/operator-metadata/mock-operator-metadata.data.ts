@@ -1,4 +1,4 @@
-import { JSONSchema4 } from 'json-schema';
+import { JSONSchema7 } from 'json-schema';
 import { OperatorSchema, OperatorMetadata, GroupInfo } from '../../types/operator-schema.interface';
 
 
@@ -8,11 +8,11 @@ export const mockScanSourceSchema: OperatorSchema = {
   operatorType: 'ScanSource',
   additionalMetadata: {
     advancedOptions: [],
+    userFriendlyName: 'Source: Scan',
     operatorDescription: 'Read records from a table one by one',
     operatorGroupName: 'Source',
     numInputPorts: 0,
     numOutputPorts: 1,
-    userFriendlyName: 'Source: Scan',
     propertyDescription: {
       tableName: 'The table name is the name of the source table, including twitter and promed'
     }
@@ -26,15 +26,34 @@ export const mockScanSourceSchema: OperatorSchema = {
   }
 };
 
+export const mockFileSourceSchema: OperatorSchema = {
+  operatorType: 'FileSource',
+  jsonSchema: {
+    type: 'object',
+    properties: {
+      fileName: {'type': 'string'},
+    },
+    required: ['fileName']
+  },
+  additionalMetadata: {
+    userFriendlyName: 'Source: File',
+    operatorDescription: 'Read the content of one file or multiple files',
+    operatorGroupName: 'Source',
+    numInputPorts: 0,
+    numOutputPorts: 1,
+    advancedOptions: []
+  }
+  };
+
 export const mockNlpSentimentSchema: OperatorSchema = {
   operatorType: 'NlpSentiment',
   additionalMetadata: {
     advancedOptions: [],
+    userFriendlyName: 'Sentiment Analysis',
     operatorDescription: 'Sentiment analysis based on Stanford NLP package',
     operatorGroupName: 'Analysis',
     numInputPorts: 1,
     numOutputPorts: 1,
-    userFriendlyName: 'Sentiment Analysis'
   },
   jsonSchema: {
     properties: {
@@ -108,7 +127,8 @@ export const mockAggregationSchema: OperatorSchema = {
             attribute: { type: 'string' },
             aggregator: {
               type: 'string',
-              enum: ['min', 'max', 'average', 'sum', 'count']
+              enum: ['min', 'max', 'average', 'sum', 'count'],
+              uniqueItems: true
             },
             resultAttribute: { type: 'string' }
           }
@@ -144,21 +164,39 @@ export const mockViewResultsSchema: OperatorSchema = {
   },
   additionalMetadata: {
     advancedOptions: [],
+    userFriendlyName: 'View Results',
     operatorDescription: 'View the results of the workflow',
     operatorGroupName: 'View Results',
     numInputPorts: 1,
     numOutputPorts: 0,
-    userFriendlyName: 'View Results'
+  }
+};
+
+export const mockMultiInputOutputSchema: OperatorSchema = {
+    operatorType: 'MultiInputOutput',
+  jsonSchema: {
+    properties: {},
+    type: 'object'
+  },
+  additionalMetadata: {
+    advancedOptions: [],
+    userFriendlyName: '3-I/O Mock op',
+    operatorDescription: 'Mock operator with 3 inputs and 3 outputs',
+    operatorGroupName: 'Analysis',
+    numInputPorts: 3,
+    numOutputPorts: 3,
   }
 };
 
 export const mockOperatorSchemaList: ReadonlyArray<OperatorSchema> = [
   mockScanSourceSchema,
+  mockFileSourceSchema,
   mockKeywordSourceSchema,
   mockKeywordSearchSchema,
   mockNlpSentimentSchema,
   mockAggregationSchema,
-  mockViewResultsSchema
+  mockViewResultsSchema,
+  mockMultiInputOutputSchema,
 ];
 
 export const mockOperatorGroup: ReadonlyArray<GroupInfo> = [
@@ -173,8 +211,7 @@ export const mockOperatorMetaData: OperatorMetadata = {
 };
 
 
-export const testJsonSchema: JSONSchema4 = {
-  id: 'urn:jsonschema:edu:uci:ics:texera:dataflow:nlp:sentiment:NlpSentimentPredicate',
+export const testJsonSchema: JSONSchema7 = {
   properties: {
     attribute: {
       type: 'string'

@@ -20,11 +20,18 @@ export const defaultEnvironment = {
    * see SchemaPropgationService for details
    */
   schemaPropagationEnabled: true,
-
   /**
    * whether the backend support pause/resume functionaility
    */
-  pauseResumeEnabled: false
+  pauseResumeEnabled: false,
+  /**
+   * whether the backend supports checking execution status
+   */
+  executionStatusEnabled: false,
+  /**
+   * whether download execution result is supported
+   */
+   downloadExecutionResultEnabled: false,
 };
 
 export type AppEnv = typeof defaultEnvironment;

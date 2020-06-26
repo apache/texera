@@ -1,3 +1,5 @@
+import { UserService } from './../../../../common/service/user/user.service';
+import { UserFileService } from './../../../../common/service/user/user-file/user-file.service';
 import { AppSettings } from './../../../../common/app-setting';
 import { TestBed, inject } from '@angular/core/testing';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
@@ -16,6 +18,10 @@ import { SourceTablesService, SOURCE_TABLE_NAMES_ENDPOINT } from './source-table
 import { mockSourceTableAPIResponse, mockTableTwitter, mockTablePromed } from './mock-source-tables.data';
 import { mockScanPredicate, mockPoint } from '../../workflow-graph/model/mock-workflow-data';
 import { OperatorPredicate } from '../../../types/workflow-common.interface';
+import { environment } from '../../../../../environments/environment';
+import { Subject } from 'rxjs';
+import { UserFile } from 'src/app/common/type/user-file';
+import { StubUserService } from 'src/app/common/service/user/stub-user.service';
 
 /* tslint:disable: no-non-null-assertion */
 describe('SourceTablesService', () => {
@@ -28,16 +34,19 @@ describe('SourceTablesService', () => {
       imports: [ HttpClientTestingModule ],
       providers: [
         {provide: OperatorMetadataService, useClass: StubOperatorMetadataService},
+        {provide: UserService, useClass: StubUserService},
         JointUIService,
         WorkflowActionService,
         UndoRedoService,
         DynamicSchemaService,
-        SourceTablesService
+        SourceTablesService,
+        UserFileService,
       ]
     });
 
     httpClient = TestBed.get(HttpClient);
     httpTestingController = TestBed.get(HttpTestingController);
+    environment.sourceTableEnabled = true;
   });
 
   it('should fetch source tables from backend API', () => {
@@ -72,7 +81,50 @@ describe('SourceTablesService', () => {
       type: 'string',
       enum: [
         mockTablePromed.tableName, mockTableTwitter.tableName
-      ]
+      ],
+      uniqueItems: true
+    });
+
+  });
+
+  it('should modify fileName of the file source operator schema', () => {
+    const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
+    const dynamicSchemaService: DynamicSchemaService = TestBed.get(DynamicSchemaService);
+
+    const userFileService: UserFileService = TestBed.get(UserFileService);
+    const userFilesChanged = new Subject<ReadonlyArray<UserFile> | undefined> ();
+    spyOn(userFileService, 'getUserFilesChangedEvent').and.returnValue(userFilesChanged.asObservable());
+
+    const sourceTablesService: SourceTablesService = TestBed.get(SourceTablesService);
+
+    const mockFileSourcePredicate: OperatorPredicate = {
+      operatorID: '1',
+      operatorType: 'FileSource',
+      operatorProperties: {
+      },
+      inputPorts: [],
+      outputPorts: ['output-0'],
+      showAdvanced: true
+    };
+
+    workflowActionService.addOperator(mockFileSourcePredicate, mockPoint);
+
+    const dynamicSchema = dynamicSchemaService.getDynamicSchema(mockScanPredicate.operatorID);
+    expect(dynamicSchema.jsonSchema.properties!['fileName']).toEqual({
+      type: 'string'
+    });
+
+    userFilesChanged.next([
+      {id: 1, name: 'file1', path: 'path', description: '', size: 100},
+      {id: 2, name: 'file2', path: 'pat2', description: '', size: 200}
+    ]);
+    const dynamicSchemaAfter = dynamicSchemaService.getDynamicSchema(mockScanPredicate.operatorID);
+    expect(dynamicSchemaAfter.jsonSchema.properties!['fileName']).toEqual({
+      type: 'string',
+      enum: [
+        'file1', 'file2'
+      ],
+      uniqueItems: true
     });
 
   });
@@ -106,7 +158,8 @@ describe('SourceTablesService', () => {
       type: 'array',
       items: {
         type: 'string',
-        enum: mockTableTwitter.schema.attributes.map(attr => attr.attributeName)
+        enum: mockTableTwitter.schema.attributes.map(attr => attr.attributeName),
+        uniqueItems: true
       }
     });
 

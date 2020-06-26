@@ -10,6 +10,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public class GenericWebResponse {
     private int code;
     private String message;
+    
+    public static GenericWebResponse generateSuccessResponse() {
+        return new GenericWebResponse(0, "success");
+    }
 
     public GenericWebResponse() {
         // Default constructor is required for Jackson JSON serialization

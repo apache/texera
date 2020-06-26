@@ -272,10 +272,10 @@ public class Tuple {
          * Adds a list of new attributes and fields to the tuple builder.
          * Each attribute in the list corresponds to the field with the same index.
          * 
-         * @param attribute
+         * @param attributes
          * @param fields
          * @return this builder object
-         * @throws TexeraException. if one of the attributes already exists, or attributes and fields don't match
+         * @throws TexeraException if one of the attributes already exists, or attributes and fields don't match
          */
         public Builder add(Iterable<Attribute> attributes, Iterable<IField> fields) throws TexeraException {
             checkNotNull(attributes);
