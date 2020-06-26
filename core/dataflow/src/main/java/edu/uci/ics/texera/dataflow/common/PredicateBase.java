@@ -1,5 +1,7 @@
 package edu.uci.ics.texera.dataflow.common;
 
+import edu.uci.ics.texera.dataflow.nlp.preprocessing.ToLowerCasePredicate;
+
 import java.util.UUID;
 
 import edu.uci.ics.texera.dataflow.aggregator.AggregatorPredicate;
@@ -83,6 +85,7 @@ import edu.uci.ics.texera.dataflow.wordcount.WordCountOperatorPredicate;
         @Type(value = RegexSplitPredicate.class, name = "RegexSplit"),
         @Type(value = NlpSplitPredicate.class, name = "NlpSplit"),
         @Type(value = SamplerPredicate.class, name = "Sampler"),
+        @Type(value = ToLowerCasePredicate.class, name = "ToLowerCase"),
 
         // remove comparable matcher because of the json schema "any" issue
         // TODO: fix the problem and add Comparable matcher back later

@@ -70,7 +70,7 @@ public class PropertyNameConstants {
     public static final String NLP_LANGUAGE = "nlpLanguage";
     public static final String NLP_OUTPUT_TYPE = "splitOption";
     public static final String NLP_SPLIT_KEY = "nlpSplit";
-    
+
     // related to regex splitter
     public static final String SPLIT_TYPE = "splitType";
     public static final String SPLIT_REGEX = "splitRegex";
@@ -140,4 +140,6 @@ public class PropertyNameConstants {
     public static final String INVALID_SAMPLE_SIZE_EXCEPTION = "Sample size should be greater than 0.";
     public static final String INVALID_LIMIT_EXCEPTION = "limit must be greater than or equal to 0";
     public static final String INVALID_OFFSET_EXCEPTION = "offset must be greater than or equal to 0";
+
+
 }

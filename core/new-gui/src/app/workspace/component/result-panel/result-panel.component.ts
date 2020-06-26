@@ -1,7 +1,6 @@
 import { Component, ViewChild, Input } from '@angular/core';
 import { MatPaginator, PageEvent } from '@angular/material/paginator';
 import { MatTableDataSource } from '@angular/material/table';
-
 import { ExecuteWorkflowService } from './../../service/execute-workflow/execute-workflow.service';
 import { Observable } from 'rxjs/Observable';
 
@@ -109,6 +108,13 @@ export class ResultPanelComponent {
     modalComponentInstance.currentPageSize = this.currentPageSize;
   }
 
+  public getResult(): Object[] {
+    return this.currentResult
+  }
+
+  public getColumn(): TableColumn[] | undefined {
+    return this.currentColumns
+  }
   /**
    * This function will listen to the page change event in the paginator
    *  to update current page index and current page size for

@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.dataflow.plangen;
 
+import edu.uci.ics.texera.dataflow.nlp.preprocessing.ToLowerCasePredicate;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -61,6 +62,7 @@ public class OperatorArityConstants {
         fixedInputArityMap.put(NlpEntityPredicate.class, 1);
         fixedInputArityMap.put(NlpSentimentPredicate.class, 1);
         fixedInputArityMap.put(NltkSentimentOperatorPredicate.class, 1);
+        fixedInputArityMap.put(ToLowerCasePredicate.class, 1);
         fixedInputArityMap.put(EmojiSentimentPredicate.class, 1);
         fixedInputArityMap.put(ProjectionPredicate.class, 1);
         fixedInputArityMap.put(RegexSplitPredicate.class, 1);
@@ -94,14 +96,14 @@ public class OperatorArityConstants {
         fixedOutputArityMap.put(KeywordPredicate.class, 1); 
         fixedOutputArityMap.put(KeywordSourcePredicate.class, 1); 
         fixedOutputArityMap.put(RegexPredicate.class, 1); 
-        fixedOutputArityMap.put(RegexSourcePredicate.class, 1); 
-
+        fixedOutputArityMap.put(RegexSourcePredicate.class, 1);
         fixedOutputArityMap.put(JoinDistancePredicate.class, 1);
         fixedOutputArityMap.put(SimilarityJoinPredicate.class, 1);
 
         fixedOutputArityMap.put(NlpEntityPredicate.class, 1);
         fixedOutputArityMap.put(NlpSentimentPredicate.class, 1);
         fixedOutputArityMap.put(NltkSentimentOperatorPredicate.class, 1);
+        fixedOutputArityMap.put(ToLowerCasePredicate.class, 1);
         fixedOutputArityMap.put(EmojiSentimentPredicate.class, 1);
         fixedOutputArityMap.put(ProjectionPredicate.class, 1);
         fixedOutputArityMap.put(RegexSplitPredicate.class, 1);
