@@ -66,64 +66,58 @@ public class MysqlSource implements ISourceOperator{
             this.connection = DriverManager.getConnection(url, predicate.getUsername(), predicate.getPassword());
             connection.setReadOnly(true);
             DatabaseMetaData databaseMetaData = connection.getMetaData();
-            // why not specify tableNamePattern to narrow the returned resultSet
-            // to only about the table we are interested in
             ResultSet columns = databaseMetaData.getColumns(null,null, predicate.getTable(), null);
             while(columns.next())
             {
                 String columnName = columns.getString("COLUMN_NAME");
-                System.out.println("processing tuple");
-                System.out.println(columnName);
                 Integer datatype = columns.getInt("DATA_TYPE");
 
                 AttributeType attributeType;
                 switch (datatype) {
-                    // case Types.BIT?
-                    case -7:  attributeType = AttributeType.INTEGER; //-7 Types.BIT
+                    case Types.BIT:  attributeType = AttributeType.INTEGER; //-7 Types.BIT
                         break;
-                    case -6:  attributeType = AttributeType.INTEGER; //-6 Types.TINYINT
+                    case Types.TINYINT:  attributeType = AttributeType.INTEGER; //-6 Types.TINYINT
                         break;
-                    case 5:  attributeType = AttributeType.INTEGER; //5 Types.SMALLINT
+                    case Types.SMALLINT:  attributeType = AttributeType.INTEGER; //5 Types.SMALLINT
                         break;
-                    case 4:  attributeType = AttributeType.INTEGER; //4 Types.INTEGER
+                    case Types.INTEGER:  attributeType = AttributeType.INTEGER; //4 Types.INTEGER
                         break;
-                    case -5:  attributeType = AttributeType.STRING; //-5 Types.BIGINT
+                    case Types.BIGINT:  attributeType = AttributeType.STRING; //-5 Types.BIGINT
                         break;
-                    case 6:  attributeType = AttributeType.DOUBLE; //6 Types.FLOAT
+                    case Types.FLOAT:  attributeType = AttributeType.DOUBLE; //6 Types.FLOAT
                         break;
-                    case 7:  attributeType = AttributeType.DOUBLE; //7 Types.REAL
+                    case Types.REAL:  attributeType = AttributeType.DOUBLE; //7 Types.REAL
                         break;
-                    case 8:  attributeType = AttributeType.DOUBLE; //8 Types.DOUBLE
+                    case Types.DOUBLE:  attributeType = AttributeType.DOUBLE; //8 Types.DOUBLE
                         break;
-                    case 3:  attributeType = AttributeType.DOUBLE; //3 Types.NUMERIC
+                    case Types.NUMERIC:  attributeType = AttributeType.DOUBLE; //3 Types.NUMERIC
                         break;
-                    case 1: attributeType = AttributeType.STRING; //1 Types.CHAR
+                    case Types.CHAR: attributeType = AttributeType.STRING; //1 Types.CHAR
                         break;
-                    case 12: attributeType = AttributeType.STRING; //12 Types.VARCHAR
+                    case Types.VARCHAR: attributeType = AttributeType.STRING; //12 Types.VARCHAR
                         break;
-                    case -1: attributeType = AttributeType.STRING; //-1 Types.LONGVARCHAR
+                    case Types.LONGVARCHAR: attributeType = AttributeType.STRING; //-1 Types.LONGVARCHAR
                         break;
-                    case 91: attributeType = AttributeType.DATE; //91 Types.DATE
+                    case Types.DATE: attributeType = AttributeType.DATE; //91 Types.DATE
                         break;
-                    case 92: attributeType = AttributeType.DATETIME; //92 Types.TIME
+                    case Types.TIME: attributeType = AttributeType.DATETIME; //92 Types.TIME
                         break;
-                    case 93: attributeType = AttributeType.DATETIME; //93 Types.TIMESTAMP
+                    case Types.TIMESTAMP: attributeType = AttributeType.DATETIME; //93 Types.TIMESTAMP
                         break;
-                    case -2: attributeType = AttributeType.INTEGER; //-2 Types.BINARY
+                    case Types.BINARY: attributeType = AttributeType.INTEGER; //-2 Types.BINARY
                         break;
-                    case 0: attributeType = AttributeType.STRING; //0 Types.NULL
+                    case Types.NULL: attributeType = AttributeType.STRING; //0 Types.NULL
                         break;
-                    case 1111: attributeType = AttributeType.STRING; //1111 Types.OTHER
+                    case Types.OTHER: attributeType = AttributeType.STRING; //1111 Types.OTHER
                         break;
-                    case 16: attributeType = AttributeType.STRING; //16 Types.BOOLEAN
+                    case Types.BOOLEAN: attributeType = AttributeType.STRING; //16 Types.BOOLEAN
                         break;
                     default: attributeType = AttributeType.STRING;
                         break;
                 }
-                // why not this.schemaBuilder.add(columnName, attributeType)
-                // then this.schemaBuilder.build() outside of the while loop?
-                this.outputSchema = this.schemaBuilder.add(columnName, attributeType).build();
+                this.schemaBuilder.add(columnName, attributeType);
             }
+            this.outputSchema = this.schemaBuilder.build();
             cursor = OPENED;
         } catch (SQLException | InstantiationException | IllegalAccessException | ClassNotFoundException e) {
             throw new DataflowException("MysqlSink failed to connect to mysql database." + e.getMessage());
@@ -137,12 +131,10 @@ public class MysqlSource implements ISourceOperator{
         }
         try {
             if (start) {
-                System.out.println(generateSqlQuery(predicate));
+//                System.out.println(generateSqlQuery(predicate));
                 PreparedStatement ps = this.connection.prepareStatement(generateSqlQuery(predicate));
                 int nextIndex = 1;
-                // select * from ? where 1 = 1 ...
                 if (!predicate.getColumn().equals("") && !predicate.getKeywords().equals("")) {
-                    // select * from ? where 1 = 1 AND MATCH (?) AGAINST ('?') ...
                     ps.setObject(nextIndex, predicate.getKeywords(), Types.VARCHAR);
                     nextIndex += 1;
                 }
@@ -160,7 +152,6 @@ public class MysqlSource implements ISourceOperator{
 
 			while (rs.next()) {
 			    List<IField> tb = new ArrayList();
-			    // can we move this for loop outside since the schema is static across rows?
 			    for(Attribute a: this.outputSchema.getAttributes()){
 			        if (a.getType() == AttributeType.STRING){
 			            String value = rs.getString(a.getName());
@@ -220,7 +211,7 @@ public class MysqlSource implements ISourceOperator{
             if(predicate.getLimit() == Integer.MAX_VALUE) {
                 // if there is no limit, for OFFSET to work, a arbitrary LARGE number
                 // need to be manually provided
-                query += "limit 99999999999";
+                query += "limit 999999999999999";
             }
             query += " OFFSET ?";
         }
