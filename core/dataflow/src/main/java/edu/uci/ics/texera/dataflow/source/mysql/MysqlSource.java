@@ -60,20 +60,25 @@ public class MysqlSource implements ISourceOperator{
         }
         // JDBC connection
         try {
-            Class.forName("com.mysql.jdbc.Driver").newInstance();
+            Class.forName("com.mysql.cj.jdbc.Driver").newInstance();
             String url = "jdbc:mysql://" + predicate.getHost() + ":" + predicate.getPort() + "/"
                     + predicate.getDatabase() + "?autoReconnect=true&useSSL=true";
             this.connection = DriverManager.getConnection(url, predicate.getUsername(), predicate.getPassword());
-
+            connection.setReadOnly(true);
             DatabaseMetaData databaseMetaData = connection.getMetaData();
-            ResultSet columns = databaseMetaData.getColumns(null,null, null, null);
+            // why not specify tableNamePattern to narrow the returned resultSet
+            // to only about the table we are interested in
+            ResultSet columns = databaseMetaData.getColumns(null,null, predicate.getTable(), null);
             while(columns.next())
             {
                 String columnName = columns.getString("COLUMN_NAME");
+                System.out.println("processing tuple");
+                System.out.println(columnName);
                 Integer datatype = columns.getInt("DATA_TYPE");
 
                 AttributeType attributeType;
                 switch (datatype) {
+                    // case Types.BIT?
                     case -7:  attributeType = AttributeType.INTEGER; //-7 Types.BIT
                         break;
                     case -6:  attributeType = AttributeType.INTEGER; //-6 Types.TINYINT
@@ -115,9 +120,9 @@ public class MysqlSource implements ISourceOperator{
                     default: attributeType = AttributeType.STRING;
                         break;
                 }
-
+                // why not this.schemaBuilder.add(columnName, attributeType)
+                // then this.schemaBuilder.build() outside of the while loop?
                 this.outputSchema = this.schemaBuilder.add(columnName, attributeType).build();
-
             }
             cursor = OPENED;
         } catch (SQLException | InstantiationException | IllegalAccessException | ClassNotFoundException e) {
@@ -131,25 +136,31 @@ public class MysqlSource implements ISourceOperator{
             throw new DataflowException(ErrorMessages.OPERATOR_NOT_OPENED);
         }
         try {
-            if(start){
-                System.out.print(generateSqlQuery(predicate));
+            if (start) {
+                System.out.println(generateSqlQuery(predicate));
                 PreparedStatement ps = this.connection.prepareStatement(generateSqlQuery(predicate));
-                /*if(!predicate.getColumn().equals("") && !predicate.getKeywords().equals("")){
-                    ps.setObject(1, predicate.getColumn(), Types.VARCHAR);
-                    ps.setObject(2, predicate.getKeywords(), Types.VARCHAR);
-                    if(predicate.getLimit()!=Integer.MAX_VALUE){
-                        ps.setObject(3, predicate.getLimit(), Types.INTEGER);
-                    }
+                int nextIndex = 1;
+                // select * from ? where 1 = 1 ...
+                if (!predicate.getColumn().equals("") && !predicate.getKeywords().equals("")) {
+                    // select * from ? where 1 = 1 AND MATCH (?) AGAINST ('?') ...
+                    ps.setObject(nextIndex, predicate.getKeywords(), Types.VARCHAR);
+                    nextIndex += 1;
                 }
-                else{*/
-                if(predicate.getLimit()!=Integer.MAX_VALUE){
-                    ps.setObject(1, predicate.getLimit(), Types.INTEGER);
+                if (predicate.getLimit() != Integer.MAX_VALUE) {
+                    ps.setObject(nextIndex, predicate.getLimit(), Types.INTEGER);
+                    nextIndex += 1;
                 }
+                if (predicate.getOffset() != 0) {
+                    ps.setObject(nextIndex, predicate.getOffset(), Types.INTEGER);
+                }
+                System.out.println(ps);
                 this.rs = ps.executeQuery();
-                start = false;}
-            //}
+                start = false;
+            }
+
 			while (rs.next()) {
 			    List<IField> tb = new ArrayList();
+			    // can we move this for loop outside since the schema is static across rows?
 			    for(Attribute a: this.outputSchema.getAttributes()){
 			        if (a.getType() == AttributeType.STRING){
 			            String value = rs.getString(a.getName());
@@ -163,10 +174,6 @@ public class MysqlSource implements ISourceOperator{
                         String value = rs.getString(a.getName());
                         value = value ==null? "0.0":value;
                         tb.add(new DoubleField(Double.valueOf(value)));
-                    }else if (a.getType() == AttributeType.INTEGER){
-                        String value = rs.getString(a.getName());
-                        value = value ==null? "0":value;
-                        tb.add(new IntegerField(Integer.valueOf(value)));
                     }else if (a.getType() == AttributeType.DATE){
                         Date value = rs.getDate(a.getName());
                         if (value == null) {
@@ -200,13 +207,22 @@ public class MysqlSource implements ISourceOperator{
     }
     
     public static String generateSqlQuery(MysqlSourcePredicate predicate) {
+        //
         String query =  "\n" +
-                "select * from `"+predicate.getTable()+ "` where 1 = 1 ";
+                "select * from "+ predicate.getTable() +" where 1 = 1 ";
         if(!predicate.getColumn().equals("") && !predicate.getKeywords().equals("")) {
-            query += " AND  MATCH(`"+predicate.getColumn()+"`)  AGAINST ('"+predicate.getKeywords()+"')";
+            query += " AND  MATCH( " + predicate.getColumn() + " )  AGAINST ( ? IN NATURAL LANGUAGE MODE)";
         }
-        if(predicate.getLimit()!=Integer.MAX_VALUE){
-            query+="limit ?";
+        if(predicate.getLimit() != Integer.MAX_VALUE){
+            query += " LIMIT ?";
+        }
+        if(predicate.getOffset() != 0) {
+            if(predicate.getLimit() == Integer.MAX_VALUE) {
+                // if there is no limit, for OFFSET to work, a arbitrary LARGE number
+                // need to be manually provided
+                query += "limit 99999999999";
+            }
+            query += " OFFSET ?";
         }
         query+=";";
         return query;
