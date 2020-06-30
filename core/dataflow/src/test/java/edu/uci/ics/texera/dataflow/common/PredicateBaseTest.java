@@ -55,7 +55,7 @@ import edu.uci.ics.texera.dataflow.wordcount.WordCountIndexSourcePredicate;
 import edu.uci.ics.texera.dataflow.wordcount.WordCountOperatorPredicate;
 import junit.framework.Assert;
 
-public class PredicateBaseTest {
+public class  PredicateBaseTest {
     
     /*
      * A helper test function to assert if a predicate is 
