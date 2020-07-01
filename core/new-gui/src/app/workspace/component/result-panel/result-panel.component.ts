@@ -35,6 +35,8 @@ export class ResultPanelComponent {
   private static readonly PRETTY_JSON_TEXT_LIMIT: number = 50000;
   private static readonly TABLE_COLUMN_TEXT_LIMIT: number = 1000;
 
+  public chartType: string = "";
+  public showTable: boolean = true;
   public showMessage: boolean = false;
   public message: string = '';
   public currentColumns: TableColumn[] | undefined;
@@ -161,6 +163,11 @@ export class ResultPanelComponent {
     if (response.result.length === 0) {
       this.displayErrorMessage(`execution doesn't have any results`);
       return;
+    }
+
+    if (typeof response.chartType !== 'undefined') {
+      this.showTable = false;
+      this.chartType = response.chartType;
     }
 
     // execution success, display result table

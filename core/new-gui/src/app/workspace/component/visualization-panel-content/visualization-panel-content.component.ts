@@ -16,53 +16,67 @@ export class VisualizationPanelContentComponent implements OnInit {
   map: Map<string, string[]>;
   selectedBarChartNameColumn: string;
   selectedBarChartDataColumn: string;
-  selectedPieChartNameColumn: string;
-  selectedPieChartDataColumn: string;
-  constructor(@Inject(MAT_DIALOG_DATA) public data: ValueObject) {
+
+  constructor(@Inject(MAT_DIALOG_DATA) public data: any) {
     this.table = data.table;
     this.map = new Map<string, string[]>();
     this.selectedBarChartDataColumn = "";
     this.selectedBarChartNameColumn = "";
-    this.selectedPieChartDataColumn = "";
-    this.selectedPieChartNameColumn = "";
+   
+    
   }
 
   getKeys(map: Map<string, string[]>): string[] {
     return Array.from(map.keys());
 }
   ngOnInit() {
+ 
     this.columns = Object.keys(this.table[0]).filter(x => x !== '_id');
    
     for (let column of this.columns) {
       
-      let rows: string[] = []
-      
+      let rows: string[] = [];
+     
       for (let row of this.table) {
         rows.push(String((row as any)[column]));
       }
      
       this.map.set(column, rows);
+      
     }
+
+   
   }
 
-  async onClickGenerateChart(selectedChartNameColumn: string, selectedChartDataColumn: string, chartType : c3.ChartType, bindTo: string) {
+  ngAfterViewInit() {
+    this.onClickGenerateChart().then(res => {
+      alert("Render successfully!");
+    })
+  }
+
+  async onClickGenerateChart() {
 
     let dataToDisplay: Array<[string, ...PrimitiveArray]> = [];
     let count: number = 0;
-    for (let name of this.map.get(selectedChartNameColumn)!) {
+  
+    for (let name of this.map.get(this.columns![0])!) {
      
       let items:[string, ...PrimitiveArray] = [String(name)];
-      items.push(Number(this.map.get(selectedChartDataColumn)![count++]));
-      dataToDisplay.push(items)
+      items.push(Number(this.map.get(this.columns![1])![count++]));
+      dataToDisplay.push(items);
      
     }
-    console.log(dataToDisplay)
+   
     c3.generate({
+      size: {
+        height: 1080,
+        width: 2040
+    },
       data: {
           columns: dataToDisplay,
-          type: chartType
+          type: this.data.chartType
       },
-      bindto: bindTo
+      bindto: "#Chart"
     });
   }
 

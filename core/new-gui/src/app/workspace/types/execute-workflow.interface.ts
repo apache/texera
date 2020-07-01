@@ -33,6 +33,7 @@ export interface LogicalPlan extends Readonly<{
 export interface SuccessExecutionResult extends Readonly<{
   code: 0,
   result: ReadonlyArray<object>,
+  chartType: string | undefined
   resultID: string
 }> { }
 

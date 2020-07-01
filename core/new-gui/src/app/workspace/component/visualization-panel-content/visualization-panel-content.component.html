@@ -4,81 +4,15 @@
 <mat-tab-group mat-align-tabs="start">
   <mat-tab label="Bar Chart">
     <mat-grid-list cols="3" rowHeight="3:1">
-      <mat-grid-tile>
-        <mat-form-field appearance="fill">
-          <mat-label>Name column</mat-label>
-            <mat-select [(value)]="selectedBarChartNameColumn">
-              <mat-option *ngFor="let key of getKeys(map)" [value]="key">
-                {{key}}
-              </mat-option>        
-            </mat-select>
-        </mat-form-field>
-      </mat-grid-tile>
-      
-      <mat-grid-tile>
-        <mat-form-field appearance="fill">
-          <mat-label>Data column</mat-label>
-            <mat-select [(value)]="selectedBarChartDataColumn">
-              <mat-option *ngFor="let key of getKeys(map)" [value]="key">
-                {{key}}
-              </mat-option> 
-            </mat-select>
-        </mat-form-field>
-      </mat-grid-tile>
-
-      <mat-grid-tile>
-        <button mat-raised-button color="primary" (click)="onClickGenerateChart(selectedBarChartNameColumn, selectedBarChartDataColumn, 'bar', '#barChart')">
-          Generate
-        </button>
-      </mat-grid-tile>
+     
 
     </mat-grid-list>
-    
-    <div id="barChart">
+   <!-- <button mat-raised-button color="primary" (click)="onClickGenerateChart()">Generate</button>
+    -->
+    <div id="Chart">
 
     </div>
   
   </mat-tab>
 
-  <mat-tab label="Pie Chart">
-    <mat-grid-list cols="3" rowHeight="3:1">
-      <mat-grid-tile>
-        <mat-form-field appearance="fill">
-          <mat-label>Name column</mat-label>
-            <mat-select [(value)]="selectedPieChartNameColumn">
-              <mat-option *ngFor="let key of getKeys(map)" [value]="key">
-                {{key}}
-              </mat-option>        
-            </mat-select>
-        </mat-form-field>
-      </mat-grid-tile>
-      
-      <mat-grid-tile>
-        <mat-form-field appearance="fill">
-          <mat-label>Data column</mat-label>
-            <mat-select [(value)]="selectedPieChartDataColumn">
-              <mat-option *ngFor="let key of getKeys(map)" [value]="key">
-                {{key}}
-              </mat-option> 
-            </mat-select>
-        </mat-form-field>
-      </mat-grid-tile>
-
-      <mat-grid-tile>
-        <button mat-raised-button color="primary" (click)="onClickGenerateChart(selectedPieChartNameColumn, selectedPieChartDataColumn, 'pie', '#pieChart')">
-          Generate
-        </button>
-      </mat-grid-tile>
-
-    </mat-grid-list>
-  
-    <div id="pieChart">
-
-    </div>
-
-  </mat-tab>
-
-  <mat-tab label="Line Chart"></mat-tab>
-
-  <mat-tab label="Area Chart"></mat-tab>
 </mat-tab-group>

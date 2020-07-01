@@ -10,22 +10,35 @@ import { TableColumn } from '../../types/result-table.interface';
 })
 export class VisualizationPanelComponent {
   @Input() data: Object[];
+  @Input() chartType: string;
+  @Input() nameColumn: string;
+  @Input() dataColumn: string;
 
   constructor(public dialog: MatDialog) {
-    this.data = []
-
+    this.data = [];
+    this.chartType = "";
+    this.nameColumn = "";
+    this.dataColumn = "";
+   
   }
+  
 
   onClickVisualize(): void {
     const dialogRef = this.dialog.open(VisualizationPanelContentComponent, {
       data: {
         table: this.data,
-      }
+        chartType: this.chartType,
+      
+      },
+      height: '2000px',
+      width: '2000px',
     });
 
     dialogRef.afterClosed().subscribe(result => {
       console.log(`Dialog result: ${result}`);
     });
   }
+
+
   
 }
