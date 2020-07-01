@@ -1,5 +1,7 @@
 package edu.uci.ics.texera.web.resource;
 
+import edu.uci.ics.texera.dataflow.sink.VisualizationOperator;
+import edu.uci.ics.texera.dataflow.sink.barchart.BarChartSink;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.attribute.BasicFileAttributes;
@@ -18,7 +20,6 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import edu.uci.ics.texera.api.dataflow.ISink;
@@ -107,7 +108,42 @@ public class QueryPlanResource {
                 response.set("result",resultNode);
                 response.put("resultID", resultID);
                 return response;
-            } else {
+            } else if (sink instanceof VisualizationOperator) {
+                VisualizationOperator tupleSink = (VisualizationOperator) sink;
+                tupleSink.open();
+                List<Tuple> results = tupleSink.collectAllTuples();
+                tupleSink.close();
+
+                // make sure result directory is created
+                if (Files.notExists(resultDirectory)) {
+                    Files.createDirectories(resultDirectory);
+                }
+
+                // clean up old result files
+                cleanupOldResults();
+
+                // generate new UUID as the result id
+                String resultID = UUID.randomUUID().toString();
+
+                // write original json of the result into a file
+                java.nio.file.Path resultFile = resultDirectory.resolve(resultID + ".json");
+
+                Files.createFile(resultFile);
+                Files.write(resultFile, new ObjectMapper().writeValueAsBytes(results));
+
+                // put readable json of the result into response
+                ArrayNode resultNode = new ObjectMapper().createArrayNode();
+                for (Tuple tuple : results) {
+                    resultNode.add(tuple.getReadableJson());
+                }
+
+                ObjectNode response = new ObjectMapper().createObjectNode();
+                response.put("code", 0);
+                 response.put("chartType", ((VisualizationOperator) sink).getChartType());
+                response.set("result",resultNode);
+                response.put("resultID", resultID);
+                return response;
+            }  else {
                 // execute the plan and return success message
                 Engine.getEngine().evaluate(plan);
                 ObjectNode response = new ObjectMapper().createObjectNode();
