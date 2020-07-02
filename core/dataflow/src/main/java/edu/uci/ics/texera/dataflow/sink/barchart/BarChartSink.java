@@ -75,10 +75,11 @@ public class BarChartSink extends VisualizationOperator {
 
         result = list.stream()
                      .map(e -> {
-                        List<IField> fields = new ArrayList<>();
-                        for (Attribute attribute: attributes) {
-                            fields.add(e.getField(attribute.getName()));
-                        }
+                         IField[] fields = attributes.stream()
+                                        .map(a -> {
+                                            return e.getField(a.getName());
+                                        }).toArray(IField[]::new);
+                         
                         return new Tuple(outputSchema, fields);
                      })
                      .collect(Collectors.toList());
