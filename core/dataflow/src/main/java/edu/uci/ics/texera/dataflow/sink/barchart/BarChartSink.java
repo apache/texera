@@ -6,6 +6,7 @@ import edu.uci.ics.texera.api.dataflow.IOperator;
 import edu.uci.ics.texera.api.dataflow.ISink;
 import edu.uci.ics.texera.api.exception.DataflowException;
 import edu.uci.ics.texera.api.exception.TexeraException;
+import edu.uci.ics.texera.api.field.IField;
 import edu.uci.ics.texera.api.schema.Attribute;
 import edu.uci.ics.texera.api.schema.AttributeType;
 import edu.uci.ics.texera.api.schema.Schema;
@@ -20,7 +21,7 @@ import java.util.stream.Collectors;
 public class BarChartSink extends VisualizationOperator {
 
     private BarChartSinkPredicate predicate;
-
+    private List<Attribute> attributes = new ArrayList<>();
     public BarChartSink(BarChartSinkPredicate predicate) {
         super(VisualizationConstants.BAR);
         this.predicate = predicate;
@@ -40,17 +41,25 @@ public class BarChartSink extends VisualizationOperator {
 
         Attribute nameColumn =  schema.getAttribute(predicate.getNameColumn());
         AttributeType nameColumnType = nameColumn.getType();
+
         if (!nameColumnType.equals(AttributeType.STRING) && !nameColumnType.equals(AttributeType.TEXT)) {
             throw new DataflowException("Type of name column should be string or text.");
         }
 
-        Attribute dataColumn =  schema.getAttribute(predicate.getDataColumn());
-        AttributeType dataColumnType = dataColumn.getType();
-        if (!dataColumnType.equals(AttributeType.DOUBLE) && !dataColumnType.equals(AttributeType.INTEGER)) {
-            throw new DataflowException(("Type of data column should be integer or double."));
+        attributes.add(nameColumn);
+
+        List<String> dataColumns = predicate.getDataColumn();
+        for (String name: dataColumns) {
+            Attribute dataColumn =  schema.getAttribute(name);
+            AttributeType dataColumnType = dataColumn.getType();
+            if (!dataColumnType.equals(AttributeType.DOUBLE) && !dataColumnType.equals(AttributeType.INTEGER)) {
+                throw new DataflowException(("Type of data column should be integer or double."));
+            }
+            attributes.add(dataColumn);
         }
 
-        outputSchema = new Schema.Builder().add(nameColumn, dataColumn).build();
+
+        outputSchema = new Schema.Builder().add(attributes).build();
         cursor = OPENED;
     }
 
@@ -63,9 +72,16 @@ public class BarChartSink extends VisualizationOperator {
         while ( (tuple = inputOperator.getNextTuple()) != null) {
             list.add(tuple);
         }
+
         result = list.stream()
-            .map(e -> new Tuple(outputSchema, e.getField(predicate.getNameColumn()), e.getField(predicate.getDataColumn())))
-            .collect(Collectors.toList());
+                     .map(e -> {
+                        List<IField> fields = new ArrayList<>();
+                        for (Attribute attribute: attributes) {
+                            fields.add(e.getField(attribute.getName()));
+                        }
+                        return new Tuple(outputSchema, fields);
+                     })
+                     .collect(Collectors.toList());
     }
 
 

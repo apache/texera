@@ -7,19 +7,20 @@ import edu.uci.ics.texera.api.dataflow.IOperator;
 import edu.uci.ics.texera.dataflow.common.OperatorGroupConstants;
 import edu.uci.ics.texera.dataflow.common.PredicateBase;
 import edu.uci.ics.texera.dataflow.common.PropertyNameConstants;
+import java.util.List;
 import java.util.Map;
 
 public class BarChartSinkPredicate extends PredicateBase {
 
     private String nameColumn;
-    private String dataColumn;
+    private  List<String> dataColumn;
 
     @JsonCreator
     public BarChartSinkPredicate(
         @JsonProperty(value = PropertyNameConstants.NAME_COLUMN, required = true)
         String nameColumn,
-        @JsonProperty(value = PropertyNameConstants.DATA_COLUMN, required =  true)
-        String dataColumn) {
+        @JsonProperty(value = PropertyNameConstants.DATA_COLUMN, required = true)
+            List<String> dataColumn) {
         this.nameColumn = nameColumn;
         this.dataColumn = dataColumn;
     }
@@ -30,7 +31,7 @@ public class BarChartSinkPredicate extends PredicateBase {
     }
 
     @JsonProperty(value = PropertyNameConstants.DATA_COLUMN)
-    public String getDataColumn() {
+    public List<String> getDataColumn() {
         return this.dataColumn;
     }
 
