@@ -77,6 +77,8 @@ public class QueryPlanResource {
                 tupleSink.close();
                 executionResult.put(sinkEntry.getKey(), result);
 
+            } else {
+                Engine.getEngine().evaluate(plan);
             }
         }
 
@@ -142,7 +144,7 @@ public class QueryPlanResource {
             ArrayNode arrayNode = new ObjectMapper().createArrayNode();
             ObjectNode map = new ObjectMapper().createObjectNode();
             map.set("table", resultNode);
-
+            map.put("operator", plan.getOperatorID());
             arrayNode.add(map);
             ObjectNode response = new ObjectMapper().createObjectNode();
             response.put("code", 0);
@@ -184,6 +186,7 @@ public class QueryPlanResource {
 
             map.set("table", resultNode);
             map.put("chartType", ((VisualizationOperator) sink).getChartType());
+            map.put("operator", plan.getOperatorID());
 
             response.put("code", 0);
 

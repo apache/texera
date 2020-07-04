@@ -267,10 +267,12 @@ public class LogicalPlan {
         ISink sink = null;//= findSinkOperator(operatorObjectMap);
         HashMap<String, ISink> sinkMap = findSinkOperators(operatorObjectMap);
         if (sinkMap.size() == 1) {
+            String operatorID = null;
             for (HashMap.Entry<String, ISink> entry: sinkMap.entrySet()) {
+                operatorID = entry.getKey();
                 sink = entry.getValue();
             }
-            return new Plan(sink);
+            return new Plan(sink, operatorID);
         }
 
         return new MutipleSinkPlan(sinkMap);

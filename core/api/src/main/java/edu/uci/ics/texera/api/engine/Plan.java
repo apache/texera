@@ -11,6 +11,7 @@ import edu.uci.ics.texera.api.dataflow.ISink;
 public class Plan {
 
     private final ISink root;
+    private String operatorID = null;
     public Plan() {
         this.root = null;
     }
@@ -18,7 +19,16 @@ public class Plan {
         this.root = root;
     }
 
+    public Plan(ISink root, String operatorID) {
+        this.root = root;
+        this.operatorID = operatorID;
+    }
+
     public ISink getRoot() {
         return root;
+    }
+
+    public String getOperatorID() {
+        return operatorID;
     }
 }
