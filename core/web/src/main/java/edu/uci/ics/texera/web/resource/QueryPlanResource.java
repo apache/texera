@@ -54,27 +54,28 @@ public class QueryPlanResource {
     
     public static java.nio.file.Path resultDirectory = Utils.getTexeraHomePath().resolve("query-results");
 
-    private JsonNode executeMutipleSinkPan(MutipleSinkPlan plan) throws IOException {
+    private JsonNode executeMutipleSinkPlan(MutipleSinkPlan plan) throws IOException {
         HashMap<String, ISink> sinkMap = plan.getSinkMap();
         ObjectNode response = new ObjectMapper().createObjectNode();
         HashMap<String, List<Tuple>> executionResult = new HashMap<>();
+        System.out.println(sinkMap.size());
+        for (HashMap.Entry<String, ISink> sinkEntry: sinkMap.entrySet()) {
 
-        for (HashMap.Entry<String, ISink> sink: sinkMap.entrySet()) {
-            if (sink instanceof TupleSink) {
-                TupleSink tupleSink = (TupleSink) sink;
+            ISink sinkOperator = sinkEntry.getValue();
+
+            if (sinkOperator instanceof TupleSink) {
+                TupleSink tupleSink = (TupleSink) sinkOperator;
                 tupleSink.open();
                 List<Tuple> result = tupleSink.collectAllTuples();
                 tupleSink.close();
-                executionResult.put(sink.getKey(), result);
+                executionResult.put(sinkEntry.getKey(), result);
 
-            } else if (sink instanceof VisualizationOperator) {
-                VisualizationOperator tupleSink = (VisualizationOperator) sink;
+            } else if (sinkOperator instanceof VisualizationOperator) {
+                VisualizationOperator tupleSink = (VisualizationOperator) sinkOperator;
                 tupleSink.open();
                 List<Tuple> result = tupleSink.collectAllTuples();
                 tupleSink.close();
-                executionResult.put(sink.getKey(), result);
-            } else {
-                Engine.getEngine().evaluate(plan);
+                executionResult.put(sinkEntry.getKey(), result);
 
             }
         }
@@ -82,23 +83,27 @@ public class QueryPlanResource {
         String resultID = UUID.randomUUID().toString();
         response.put("code", 0);
         response.put("resultID", resultID);
-        ObjectNode map = new ObjectMapper().createObjectNode();
+        ArrayNode arrayNode = new ObjectMapper().createArrayNode();
 
         for (HashMap.Entry<String, List<Tuple>> result: executionResult.entrySet()) {
             ObjectNode operatorMap = new ObjectMapper().createObjectNode();
+
+            operatorMap.put("operator", result.getKey());
+
             ArrayNode resultNode = new ObjectMapper().createArrayNode();
             for (Tuple tuple : result.getValue()) {
                 resultNode.add(tuple.getReadableJson());
             }
             operatorMap.set("table", resultNode);
+
             String operatorID = result.getKey();
             ISink operator = sinkMap.get(operatorID);
             if (operator instanceof VisualizationOperator) {
-                map.put("chartType", ((VisualizationOperator) operator).getChartType());
+                operatorMap.put("chartType", ((VisualizationOperator) operator).getChartType());
             }
-            map.set(operatorID, operatorMap);
+            arrayNode.add(operatorMap);
         }
-        response.set("result", map);
+        response.set("result", arrayNode);
         return response;
     }
 
@@ -106,6 +111,7 @@ public class QueryPlanResource {
         // send response back to frontend
         ISink sink = plan.getRoot();
         if (sink instanceof TupleSink) {
+            System.out.println("here");
             TupleSink tupleSink = (TupleSink) sink;
             tupleSink.open();
             List<Tuple> results = tupleSink.collectAllTuples();
@@ -133,10 +139,14 @@ public class QueryPlanResource {
             for (Tuple tuple : results) {
                 resultNode.add(tuple.getReadableJson());
             }
+            ArrayNode arrayNode = new ObjectMapper().createArrayNode();
+            ObjectNode map = new ObjectMapper().createObjectNode();
+            map.set("table", resultNode);
 
+            arrayNode.add(map);
             ObjectNode response = new ObjectMapper().createObjectNode();
             response.put("code", 0);
-            response.set("result",resultNode);
+            response.set("result",arrayNode);
             response.put("resultID", resultID);
             return response;
         } else if (sink instanceof VisualizationOperator) {
@@ -169,9 +179,15 @@ public class QueryPlanResource {
             }
 
             ObjectNode response = new ObjectMapper().createObjectNode();
+
+            ObjectNode map = new ObjectMapper().createObjectNode();
+
+            map.set("table", resultNode);
+            map.put("chartType", ((VisualizationOperator) sink).getChartType());
+
             response.put("code", 0);
-            response.put("chartType", ((VisualizationOperator) sink).getChartType());
-            response.set("result",resultNode);
+
+            response.set("result", map);
             response.put("resultID", resultID);
             return response;
         }  else {
@@ -182,11 +198,10 @@ public class QueryPlanResource {
             response.put("message", "plan sucessfully executed");
             return response;
         }
+
     }
 
-    private JsonNode executeMutipleSinkPlan(Plan plan) {
-        return null;
-    }
+
     /**
      * This is the edu.uci.ics.texera.web.request handler for the execution of a Query Plan.
      * @param logicalPlanJson, the json representation of the logical plan
@@ -207,10 +222,13 @@ public class QueryPlanResource {
             logicalPlan.setContext(ctx);
             Plan plan = logicalPlan.buildQueryPlan();
             if (plan instanceof MutipleSinkPlan) {
-                return executeMutipleSinkPan((MutipleSinkPlan)plan);
+                JsonNode response = executeMutipleSinkPlan((MutipleSinkPlan)plan);
+                System.out.println(response);
+                return response;
             } else {
-
-                return executeSingleSinkPlan(plan);
+                JsonNode response = executeSingleSinkPlan(plan);
+                System.out.println(response);
+                return response;
             }
 
 
