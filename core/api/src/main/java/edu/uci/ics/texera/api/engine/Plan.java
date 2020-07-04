@@ -11,7 +11,9 @@ import edu.uci.ics.texera.api.dataflow.ISink;
 public class Plan {
 
     private final ISink root;
-
+    public Plan() {
+        this.root = null;
+    }
     public Plan(ISink root) {
         this.root = root;
     }
