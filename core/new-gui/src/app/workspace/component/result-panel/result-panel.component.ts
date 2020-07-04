@@ -84,7 +84,7 @@ export class ResultPanelComponent {
       this.selectedOperatorID = highlightedOperators[0];
       if (this.resultMap.has(this.selectedOperatorID)) {
        
-        let result: Result | undefined = this.resultMap.get(this.selectedOperatorID);
+        let result: Result | undefined = this.resultMap.get(this.selectedOperatorID);   
         this.displayResultTable(result!.table);
         if (typeof result?.chartType === 'undefined') {
           this.showTable = true;
@@ -233,7 +233,7 @@ export class ResultPanelComponent {
    *
    * @param response
    */
-  private displayResultTable(resultData: ReadonlyArray<object>): void {
+  private displayResultTable(resultData: ReadonlyArray<object>) {
    /* if (response.result.length < 1) {
       throw new Error(`display result table inconsistency: result data should not be empty`);
     }

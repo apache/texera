@@ -14,7 +14,7 @@
     the elements in *ngIf is still loading. [hidden] attribute solves this issue by not
     removing the elements, but rather modify their css to make these elements invisible
     to the users-->
-  <div *ngIf="showTable">
+  <div [hidden]="!showTable">
     <div class="result-table" [hidden]="!currentColumns || showMessage">
       <mat-table #table [dataSource]="currentDataSource!">
         <ng-container *ngFor="let column of currentColumns!" matColumnDef={{column.columnDef}}>
