@@ -1,5 +1,8 @@
 
 <div class="texera-workspace-result-panel-body texera-workflow-component-body" [hidden]="!showResultPanel">
+  <div >
+    <p>Selected Operator: {{ selectedOperatorID }} </p>
+  </div>
   
   <div class="texera-panel-message" *ngIf="showMessage">
     <p>{{ message }}</p>

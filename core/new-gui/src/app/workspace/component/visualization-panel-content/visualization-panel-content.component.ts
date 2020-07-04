@@ -12,7 +12,7 @@ interface ValueObject {
 })
 export class VisualizationPanelContentComponent implements OnInit {
   table: object[];
-  columns: string[] | undefined;
+  columns: string[] = [];
   map: Map<string, string[]>;
   selectedBarChartNameColumn: string;
   selectedBarChartDataColumn: string;
@@ -49,32 +49,41 @@ export class VisualizationPanelContentComponent implements OnInit {
   }
 
   ngAfterViewInit() {
-    this.onClickGenerateChart().then(res => {
-      alert("Render successfully!");
-    })
+    this.onClickGenerateChart();
   }
 
   async onClickGenerateChart() {
 
     let dataToDisplay: Array<[string, ...PrimitiveArray]> = [];
     let count: number = 0;
-  
+    let category: string[] = [];
+    for (let i = 1; i < this.columns?.length; i++) {
+      category.push(this.columns![i]);
+    }
+
     for (let name of this.map.get(this.columns![0])!) {
      
       let items:[string, ...PrimitiveArray] = [String(name)];
-      items.push(Number(this.map.get(this.columns![1])![count++]));
+      for (let i = 1; i < this.columns?.length; i++)
+        items.push(Number(this.map.get(this.columns![1])![count++]));
       dataToDisplay.push(items);
      
     }
    
     c3.generate({
       size: {
-        height: 1080,
-        width: 2040
+        height: 720,
+        width: 1080
     },
       data: {
           columns: dataToDisplay,
           type: this.data.chartType
+      },
+      axis: {
+        x: {
+          type: 'category',
+          categories: category
+        }
       },
       bindto: "#Chart"
     });

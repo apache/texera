@@ -12,7 +12,7 @@ import {
   LogicalLink, LogicalPlan, LogicalOperator,
   ExecutionResult, ErrorExecutionResult, SuccessExecutionResult
 } from '../../types/execute-workflow.interface';
-
+import { ResultObject } from '../../types/execute-workflow.interface'
 import { v4 as uuid } from 'uuid';
 import { environment } from '../../../../environments/environment';
 
@@ -88,6 +88,7 @@ export class ExecuteWorkflowService {
         // backend will either respond an execution result or an error will occur
         // handle both cases
         response => {
+          console.log(response);
           this.handleExecuteResult(response);
           this.workflowExecutionID = undefined;
         },
