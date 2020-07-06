@@ -295,7 +295,34 @@ export class PropertyEditorComponent {
   private convertJsonSchemaToNGXField(schema: JSONSchema7) {
     this.formlyFormGroup = new FormGroup({});
     this.formlyOptions = {};
+
+    // manueally find out if any field has writeOnly attribute
+    let writeOnlyFieldName: string | undefined;
+    if (schema.properties) {
+      Object.keys(schema.properties).forEach(key => {
+        if (schema.properties && schema.properties[key]) {
+          if ((schema.properties[key] as (JSONSchema7)).writeOnly) {
+            writeOnlyFieldName = key;
+          }
+        }
+      });
+    }
+
+    // this toFieldConfig function does not detect/convert password type
     const field = this.formlyJsonschema.toFieldConfig(schema);
+
+    // if there is a writeOnly field, set its templateOptions.type to 'password'
+    if (writeOnlyFieldName) {
+      if (field.fieldGroup) {
+        field.fieldGroup.forEach(f => {
+          if (f.key === writeOnlyFieldName) {
+            if (f.templateOptions) {
+              f.templateOptions.type = 'password';
+            }
+          }
+        });
+      }
+    }
     this.formlyFields = [field];
   }
 

@@ -82,7 +82,7 @@ public class MysqlSource implements ISourceOperator{
                         break;
                     case Types.INTEGER:  attributeType = AttributeType.INTEGER; //4 Types.INTEGER
                         break;
-                    case Types.BIGINT:  attributeType = AttributeType.STRING; //-5 Types.BIGINT
+                    case Types.BINARY: attributeType = AttributeType.INTEGER; //-2 Types.BINARY
                         break;
                     case Types.FLOAT:  attributeType = AttributeType.DOUBLE; //6 Types.FLOAT
                         break;
@@ -91,6 +91,8 @@ public class MysqlSource implements ISourceOperator{
                     case Types.DOUBLE:  attributeType = AttributeType.DOUBLE; //8 Types.DOUBLE
                         break;
                     case Types.NUMERIC:  attributeType = AttributeType.DOUBLE; //3 Types.NUMERIC
+                        break;
+                    case Types.BIGINT:  attributeType = AttributeType.STRING; //-5 Types.BIGINT
                         break;
                     case Types.CHAR: attributeType = AttributeType.STRING; //1 Types.CHAR
                         break;
@@ -103,8 +105,6 @@ public class MysqlSource implements ISourceOperator{
                     case Types.TIME: attributeType = AttributeType.DATETIME; //92 Types.TIME
                         break;
                     case Types.TIMESTAMP: attributeType = AttributeType.DATETIME; //93 Types.TIMESTAMP
-                        break;
-                    case Types.BINARY: attributeType = AttributeType.INTEGER; //-2 Types.BINARY
                         break;
                     case Types.NULL: attributeType = AttributeType.STRING; //0 Types.NULL
                         break;
@@ -131,7 +131,6 @@ public class MysqlSource implements ISourceOperator{
         }
         try {
             if (start) {
-//                System.out.println(generateSqlQuery(predicate));
                 PreparedStatement ps = this.connection.prepareStatement(generateSqlQuery(predicate));
                 int nextIndex = 1;
                 if (!predicate.getColumn().equals("") && !predicate.getKeywords().equals("")) {
