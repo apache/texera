@@ -120,7 +120,7 @@ public class PropertyNameConstants {
     public static final String MYSQL_OFFSET = "offset";
     
     //related to MysqlSource
-    public static final String MYSQL_KEYWORD = "keyword";
+    public static final String MYSQL_KEYWORDS = "keywords";
     public static final String MYSQL_COLUMN = "column";
     
     // related to Twitter converter

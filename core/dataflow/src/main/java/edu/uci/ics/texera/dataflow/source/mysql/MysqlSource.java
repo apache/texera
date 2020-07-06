@@ -1,52 +1,26 @@
 package edu.uci.ics.texera.dataflow.source.mysql;
 
-import java.sql.*;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-import java.sql.DatabaseMetaData;
-import java.sql.Types;
-import java.text.SimpleDateFormat;
-import java.util.List;
-import java.util.ArrayList;
-import java.util.Date;
-import java.sql.Timestamp;
-import java.text.ParseException;
-
-
 import edu.uci.ics.texera.api.constants.ErrorMessages;
-import edu.uci.ics.texera.api.constants.SchemaConstants;
-import edu.uci.ics.texera.api.dataflow.IOperator;
-import edu.uci.ics.texera.api.dataflow.ISink;
 import edu.uci.ics.texera.api.dataflow.ISourceOperator;
 import edu.uci.ics.texera.api.exception.DataflowException;
 import edu.uci.ics.texera.api.exception.TexeraException;
-import edu.uci.ics.texera.api.field.DoubleField;
-import edu.uci.ics.texera.api.field.IDField;
-import edu.uci.ics.texera.api.field.IField;
-import edu.uci.ics.texera.api.field.IntegerField;
-import edu.uci.ics.texera.api.field.StringField;
-import edu.uci.ics.texera.api.field.TextField;
-import edu.uci.ics.texera.api.field.DateField;
-import edu.uci.ics.texera.api.field.DateTimeField;
+import edu.uci.ics.texera.api.field.*;
 import edu.uci.ics.texera.api.schema.Attribute;
 import edu.uci.ics.texera.api.schema.AttributeType;
 import edu.uci.ics.texera.api.schema.Schema;
 import edu.uci.ics.texera.api.tuple.Tuple;
-import edu.uci.ics.texera.dataflow.twitterfeed.TwitterUtils;
-import org.apache.commons.lang.math.NumberUtils;
-import org.mockito.cglib.core.Local;
+
+import java.sql.*;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
 
 public class MysqlSource implements ISourceOperator{
 	private final MysqlSourcePredicate predicate;
     private int cursor = CLOSED;
     private Schema outputSchema;
-    private Schema.Builder schemaBuilder;
+    private final Schema.Builder schemaBuilder;
     private Connection connection;
-    private Statement statement;
-    private PreparedStatement prepStatement;
     private ResultSet rs;
     private boolean start = true;
 
@@ -73,49 +47,39 @@ public class MysqlSource implements ISourceOperator{
             while(columns.next())
             {
                 String columnName = columns.getString("COLUMN_NAME");
-                Integer datatype = columns.getInt("DATA_TYPE");
+                int datatype = columns.getInt("DATA_TYPE");
 
                 AttributeType attributeType;
                 switch (datatype) {
-                    case Types.BIT:  attributeType = AttributeType.INTEGER; //-7 Types.BIT
+                    case Types.BIT: //-7 Types.BIT
+                    case Types.TINYINT: //-6 Types.TINYINT
+                    case Types.SMALLINT: //5 Types.SMALLINT
+                    case Types.INTEGER: //4 Types.INTEGER
+                    case Types.BINARY: //-2 Types.BINARY
+                        attributeType = AttributeType.INTEGER;
                         break;
-                    case Types.TINYINT:  attributeType = AttributeType.INTEGER; //-6 Types.TINYINT
+                    case Types.FLOAT: //6 Types.FLOAT
+                    case Types.REAL: //7 Types.REAL
+                    case Types.DOUBLE: //8 Types.DOUBLE
+                    case Types.NUMERIC: //3 Types.NUMERIC
+                        attributeType = AttributeType.DOUBLE;
                         break;
-                    case Types.SMALLINT:  attributeType = AttributeType.INTEGER; //5 Types.SMALLINT
+                    case Types.DATE: //91 Types.DATE
+                        attributeType = AttributeType.DATE;
                         break;
-                    case Types.INTEGER:  attributeType = AttributeType.INTEGER; //4 Types.INTEGER
+                    case Types.TIME: //92 Types.TIME
+                    case Types.TIMESTAMP:  //93 Types.TIMESTAMP
+                        attributeType = AttributeType.DATETIME;
                         break;
-                    case Types.BINARY: attributeType = AttributeType.INTEGER; //-2 Types.BINARY
-                        break;
-                    case Types.FLOAT:  attributeType = AttributeType.DOUBLE; //6 Types.FLOAT
-                        break;
-                    case Types.REAL:  attributeType = AttributeType.DOUBLE; //7 Types.REAL
-                        break;
-                    case Types.DOUBLE:  attributeType = AttributeType.DOUBLE; //8 Types.DOUBLE
-                        break;
-                    case Types.NUMERIC:  attributeType = AttributeType.DOUBLE; //3 Types.NUMERIC
-                        break;
-                    case Types.BIGINT:  attributeType = AttributeType.STRING; //-5 Types.BIGINT
-                        break;
-                    case Types.CHAR: attributeType = AttributeType.STRING; //1 Types.CHAR
-                        break;
-                    case Types.VARCHAR: attributeType = AttributeType.STRING; //12 Types.VARCHAR
-                        break;
-                    case Types.LONGVARCHAR: attributeType = AttributeType.STRING; //-1 Types.LONGVARCHAR
-                        break;
-                    case Types.DATE: attributeType = AttributeType.DATE; //91 Types.DATE
-                        break;
-                    case Types.TIME: attributeType = AttributeType.DATETIME; //92 Types.TIME
-                        break;
-                    case Types.TIMESTAMP: attributeType = AttributeType.DATETIME; //93 Types.TIMESTAMP
-                        break;
-                    case Types.NULL: attributeType = AttributeType.STRING; //0 Types.NULL
-                        break;
-                    case Types.OTHER: attributeType = AttributeType.STRING; //1111 Types.OTHER
-                        break;
-                    case Types.BOOLEAN: attributeType = AttributeType.STRING; //16 Types.BOOLEAN
-                        break;
-                    default: attributeType = AttributeType.STRING;
+                    case Types.BIGINT: //-5 Types.BIGINT
+                    case Types.CHAR: //1 Types.CHAR
+                    case Types.VARCHAR: //12 Types.VARCHAR
+                    case Types.LONGVARCHAR: //-1 Types.LONGVARCHAR
+                    case Types.NULL: //0 Types.NULL
+                    case Types.OTHER: //1111 Types.OTHER
+                    case Types.BOOLEAN: //16 Types.BOOLEAN
+                    default:
+                        attributeType = AttributeType.STRING;
                         break;
                 }
                 this.schemaBuilder.add(columnName, attributeType);
@@ -136,8 +100,13 @@ public class MysqlSource implements ISourceOperator{
             if (start) {
                 PreparedStatement ps = this.connection.prepareStatement(generateSqlQuery(predicate));
                 int nextIndex = 1;
-                if (!predicate.getColumn().equals("") && !predicate.getKeywords().equals("")) {
-                    ps.setObject(nextIndex, predicate.getKeywords(), Types.VARCHAR);
+                if (!predicate.getColumn().equals("") && !predicate.getKeywords().isEmpty()) {
+                    String keywords = "";
+                    for (int i = 0; i < predicate.getKeywords().size(); i++) {
+                        keywords += " +" + predicate.getKeywords().get(i);
+                    }
+//                    ps.setObject(nextIndex, predicate.getKeywords().get(i), Types.VARCHAR);
+                    ps.setString(nextIndex, keywords);
                     nextIndex += 1;
                 }
                 if (predicate.getLimit() != Integer.MAX_VALUE) {
@@ -147,9 +116,9 @@ public class MysqlSource implements ISourceOperator{
                 if (predicate.getOffset() != 0) {
                     ps.setObject(nextIndex, predicate.getOffset(), Types.INTEGER);
                 }
-                System.out.println(ps);
                 this.rs = ps.executeQuery();
                 start = false;
+//                ps.close();
             }
 
 			while (rs.next()) {
@@ -162,11 +131,19 @@ public class MysqlSource implements ISourceOperator{
                     }else if (a.getType() == AttributeType.INTEGER){
                         String value = rs.getString(a.getName());
                         // allowing null value Integer to be in the workflow
-                        tb.add(new IntegerField(NumberUtils.createInteger(value)));
+                        if (value != null) {
+                            tb.add(new IntegerField(new Integer(value)));
+                        } else {
+                            tb.add(new IntegerField(null));
+                        }
                     }else if (a.getType() == AttributeType.DOUBLE){
                         String value = rs.getString(a.getName());
                         // allowing null value Double to be in the workflow
-                        tb.add(new DoubleField(NumberUtils.createDouble(value)));
+                        if (value != null) {
+                            tb.add(new DoubleField(new Double(value)));
+                        } else {
+                            tb.add(new DoubleField(null));
+                        }
                     }else if (a.getType() == AttributeType.DATE){
                         Date value = rs.getDate(a.getName());
                         // allowing null value DateField to be in the workflow
@@ -176,10 +153,9 @@ public class MysqlSource implements ISourceOperator{
                         tb.add(new DateTimeField((value)));
                     }
                 }
-                IField[] iFieldArray = tb.toArray(new IField[tb.size()]);
+			    IField[] iFieldArray = tb.toArray(new IField[tb.size()]);
                 Tuple tuple = new Tuple(this.outputSchema, iFieldArray);
-			    cursor ++;
-			    
+                cursor ++;
 			    return tuple;
 			}
 		} catch (SQLException e) {
@@ -192,8 +168,8 @@ public class MysqlSource implements ISourceOperator{
         //
         String query =  "\n" +
                 "select * from "+ predicate.getTable() +" where 1 = 1 ";
-        if(!predicate.getColumn().equals("") && !predicate.getKeywords().equals("")) {
-            query += " AND  MATCH( " + predicate.getColumn() + " )  AGAINST ( ? IN NATURAL LANGUAGE MODE)";
+        if(!predicate.getColumn().equals("") && !predicate.getKeywords().isEmpty()) {
+            query += " AND  MATCH( " + predicate.getColumn() + " )  AGAINST ( ? IN BOOLEAN MODE)";
         }
         if(predicate.getLimit() != Integer.MAX_VALUE){
             query += " LIMIT ?";
@@ -207,6 +183,7 @@ public class MysqlSource implements ISourceOperator{
             query += " OFFSET ?";
         }
         query+=";";
+        System.out.println(query);
         return query;
     }
     
@@ -217,8 +194,6 @@ public class MysqlSource implements ISourceOperator{
             return;
         }
         try {
-        	if(statement!=null)
-        		statement.close();
         	connection.close();
         	cursor = CLOSED;
         }catch (SQLException e) {

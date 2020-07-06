@@ -1,6 +1,8 @@
 package edu.uci.ics.texera.dataflow.source.mysql;
 
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -20,7 +22,7 @@ public class MysqlSourcePredicate extends PredicateBase{
     private final String password;
     private final Integer limit;
     private final Integer offset;
-    private final String keywords;
+    private final List<String> keywords;
     private final String column;
     
     @JsonCreator
@@ -43,8 +45,8 @@ public class MysqlSourcePredicate extends PredicateBase{
             Integer offset,
             @JsonProperty(value = PropertyNameConstants.MYSQL_COLUMN, required = false)
             String column,
-            @JsonProperty(value = PropertyNameConstants.MYSQL_KEYWORD, required = false)
-            String keywords
+            @JsonProperty(value = PropertyNameConstants.MYSQL_KEYWORDS, required = false)
+            List<String> keywords
             ) {
         this.host = host.trim();
         this.port = port;
@@ -52,7 +54,7 @@ public class MysqlSourcePredicate extends PredicateBase{
         this.table = table.trim();
         this.username = username.trim();	
         this.password = password;	// Space should be legitimate password
-        this.keywords = keywords == null ? "":keywords;
+        this.keywords = keywords;
         this.limit = limit == null ? Integer.MAX_VALUE : limit;
         this.offset = offset == null ? 0 : offset;
         this.column = column ==null? "": column;
@@ -103,9 +105,9 @@ public class MysqlSourcePredicate extends PredicateBase{
         return offset;
     }
     
-    @JsonProperty(value = PropertyNameConstants.MYSQL_KEYWORD)
-    public String getKeywords() {
-    	return keywords;
+    @JsonProperty(value = PropertyNameConstants.MYSQL_KEYWORDS)
+    public List<String> getKeywords() {
+        return new ArrayList<>(keywords);
     }
     
     @Override
