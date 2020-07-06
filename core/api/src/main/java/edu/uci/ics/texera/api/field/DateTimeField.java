@@ -15,7 +15,8 @@ public class DateTimeField implements IField {
     private LocalDateTime localDateTime;
 
     public DateTimeField(LocalDateTime localDateTime) {
-        checkNotNull(localDateTime);
+        // checkNotNull(localDateTime);
+        // allow null value
         this.localDateTime = localDateTime;
     }
 
@@ -23,8 +24,13 @@ public class DateTimeField implements IField {
     public DateTimeField(
             @JsonProperty(value = JsonConstants.FIELD_VALUE, required = true) 
             String localDateTimeString) {
-        checkNotNull(localDateTimeString);
-        this.localDateTime = LocalDateTime.parse(localDateTimeString);
+        // checkNotNull(localDateTimeString);
+        // allow null value
+        if (localDateTimeString != null) {
+            this.localDateTime = LocalDateTime.parse(localDateTimeString);
+        } else {
+            this.localDateTime = null;
+        }
     }
 
     @JsonProperty(value = JsonConstants.FIELD_VALUE)

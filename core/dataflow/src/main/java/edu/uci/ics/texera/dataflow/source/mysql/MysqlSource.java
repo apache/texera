@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.dataflow.source.mysql;
 
 import java.sql.*;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -35,6 +36,8 @@ import edu.uci.ics.texera.api.schema.AttributeType;
 import edu.uci.ics.texera.api.schema.Schema;
 import edu.uci.ics.texera.api.tuple.Tuple;
 import edu.uci.ics.texera.dataflow.twitterfeed.TwitterUtils;
+import org.apache.commons.lang.math.NumberUtils;
+import org.mockito.cglib.core.Local;
 
 public class MysqlSource implements ISourceOperator{
 	private final MysqlSourcePredicate predicate;
@@ -158,30 +161,19 @@ public class MysqlSource implements ISourceOperator{
 			            tb.add(new StringField(value));
                     }else if (a.getType() == AttributeType.INTEGER){
                         String value = rs.getString(a.getName());
-                        value = value ==null? "0":value;
-                        tb.add(new IntegerField(Integer.valueOf(value)));
+                        // allowing null value Integer to be in the workflow
+                        tb.add(new IntegerField(NumberUtils.createInteger(value)));
                     }else if (a.getType() == AttributeType.DOUBLE){
                         String value = rs.getString(a.getName());
-                        value = value ==null? "0.0":value;
-                        tb.add(new DoubleField(Double.valueOf(value)));
+                        // allowing null value Double to be in the workflow
+                        tb.add(new DoubleField(NumberUtils.createDouble(value)));
                     }else if (a.getType() == AttributeType.DATE){
                         Date value = rs.getDate(a.getName());
-                        if (value == null) {
-                            SimpleDateFormat fmt = new SimpleDateFormat("yyyy-MM-dd");
-                            try{
-                                value = fmt.parse("0000-00-00");
-                            }catch (ParseException e){
-                                throw new DataflowException(e.getMessage());
-                            }
-                        }
+                        // allowing null value DateField to be in the workflow
                         tb.add(new DateField(value));
                     }else if (a.getType() == AttributeType.DATETIME){
-                        Timestamp value = rs.getTimestamp(a.getName());
-
-                        if (value == null) {
-                            value = Timestamp.valueOf("0000-00-00 00:00:00.0");
-                        }
-                        tb.add(new DateTimeField(value.toLocalDateTime()));
+                        String value = rs.getString(a.getName());
+                        tb.add(new DateTimeField((value)));
                     }
                 }
                 IField[] iFieldArray = tb.toArray(new IField[tb.size()]);

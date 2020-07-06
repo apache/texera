@@ -15,7 +15,8 @@ public class DoubleField implements IField {
     public DoubleField(
             @JsonProperty(value = JsonConstants.FIELD_VALUE, required = true)
             Double value) {
-        checkNotNull(value);
+        // checkNotNull(value);
+        // allowing null value in the workflow
         this.value = value;
     }
 

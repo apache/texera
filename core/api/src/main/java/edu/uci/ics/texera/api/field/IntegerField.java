@@ -15,7 +15,8 @@ public class IntegerField implements IField {
     public IntegerField(
             @JsonProperty(value = JsonConstants.FIELD_VALUE, required = true)
             Integer value) {
-        checkNotNull(value);
+        // checkNotNull(value);
+        // allowing null value in the workflow
         this.value = value;
     }
 
