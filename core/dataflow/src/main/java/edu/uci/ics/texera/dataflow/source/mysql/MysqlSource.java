@@ -103,7 +103,11 @@ public class MysqlSource implements ISourceOperator{
                 if (!predicate.getColumn().equals("") && !predicate.getKeywords().isEmpty()) {
                     String keywords = "";
                     for (int i = 0; i < predicate.getKeywords().size(); i++) {
-                        keywords += " +" + predicate.getKeywords().get(i);
+                        keywords += " (";
+                        for (int j = 0; j < predicate.getKeywords().get(i).size(); j++) {
+                            keywords += " +" + predicate.getKeywords().get(i).get(j);
+                        }
+                        keywords += " )";
                     }
 //                    ps.setObject(nextIndex, predicate.getKeywords().get(i), Types.VARCHAR);
                     ps.setString(nextIndex, keywords);
@@ -116,6 +120,7 @@ public class MysqlSource implements ISourceOperator{
                 if (predicate.getOffset() != 0) {
                     ps.setObject(nextIndex, predicate.getOffset(), Types.INTEGER);
                 }
+                System.out.println(ps.toString());
                 this.rs = ps.executeQuery();
                 start = false;
 //                ps.close();
@@ -153,7 +158,7 @@ public class MysqlSource implements ISourceOperator{
                         tb.add(new DateTimeField((value)));
                     }
                 }
-			    IField[] iFieldArray = tb.toArray(new IField[tb.size()]);
+			    IField[] iFieldArray = tb.toArray(new IField[0]);
                 Tuple tuple = new Tuple(this.outputSchema, iFieldArray);
                 cursor ++;
 			    return tuple;

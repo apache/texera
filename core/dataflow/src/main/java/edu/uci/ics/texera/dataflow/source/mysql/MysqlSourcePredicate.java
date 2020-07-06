@@ -22,7 +22,7 @@ public class MysqlSourcePredicate extends PredicateBase{
     private final String password;
     private final Integer limit;
     private final Integer offset;
-    private final List<String> keywords;
+    private final List<List<String>> keywords;
     private final String column;
     
     @JsonCreator
@@ -46,7 +46,7 @@ public class MysqlSourcePredicate extends PredicateBase{
             @JsonProperty(value = PropertyNameConstants.MYSQL_COLUMN, required = false)
             String column,
             @JsonProperty(value = PropertyNameConstants.MYSQL_KEYWORDS, required = false)
-            List<String> keywords
+            List<List<String>> keywords
             ) {
         this.host = host.trim();
         this.port = port;
@@ -54,7 +54,13 @@ public class MysqlSourcePredicate extends PredicateBase{
         this.table = table.trim();
         this.username = username.trim();	
         this.password = password;	// Space should be legitimate password
-        this.keywords = keywords;
+        // remove empty conjunctions
+        for (List<String> conjunction: keywords) {
+            if (conjunction.isEmpty()) {
+                keywords.remove(conjunction);
+            }
+        }
+        this.keywords = keywords;  //keywords represent a disjunction of conjunctions
         this.limit = limit == null ? Integer.MAX_VALUE : limit;
         this.offset = offset == null ? 0 : offset;
         this.column = column ==null? "": column;
@@ -106,7 +112,7 @@ public class MysqlSourcePredicate extends PredicateBase{
     }
     
     @JsonProperty(value = PropertyNameConstants.MYSQL_KEYWORDS)
-    public List<String> getKeywords() {
+    public List<List<String>> getKeywords() {
         return new ArrayList<>(keywords);
     }
     
