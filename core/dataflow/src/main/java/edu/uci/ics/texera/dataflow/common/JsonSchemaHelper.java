@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.dataflow.common;
 
+import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
 import java.nio.file.Files;
@@ -14,19 +15,25 @@ import java.util.Optional;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.*;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.introspect.AnnotatedClass;
 import com.fasterxml.jackson.databind.jsontype.NamedType;
+import com.fasterxml.jackson.databind.jsontype.TypeSerializer;
+import com.fasterxml.jackson.databind.node.JsonNodeType;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.module.jsonSchema.JsonSchema;
 import com.fasterxml.jackson.module.jsonSchema.JsonSchemaGenerator;
+import edu.uci.ics.texera.dataflow.comparablematcher.ComparablePredicate;
 import edu.uci.ics.texera.dataflow.source.mysql.MysqlSourcePredicate;
 import edu.uci.ics.texera.api.constants.DataConstants;
 import edu.uci.ics.texera.api.exception.TexeraException;
 import edu.uci.ics.texera.api.utils.Utils;
 import edu.uci.ics.texera.dataflow.annotation.AdvancedOption;
 import edu.uci.ics.texera.dataflow.plangen.OperatorArityConstants;
+import org.jooq.meta.derby.sys.Sys;
 
 @SuppressWarnings("unchecked")
 public class JsonSchemaHelper {
@@ -51,8 +58,8 @@ public class JsonSchemaHelper {
     }
     
     public static void main(String[] args) throws Exception {
-        generateAllOperatorSchema();
-//        generateJsonSchema(ComparablePredicate.class);
+//        generateAllOperatorSchema();
+        generateJsonSchema(MysqlSourcePredicate.class);
     }
     
     public static void generateAllOperatorSchema() throws Exception {
@@ -99,6 +106,13 @@ public class JsonSchemaHelper {
                 propertyNode.put("uniqueItems", true);
             }
         });
+
+        if (operatorType.equals("MysqlSource")) {
+            ObjectNode keywords = (ObjectNode) propertiesNode.get("keywords");
+            keywords.put("description", "return records that meet any conditions below");
+            ObjectNode conjunctionGroups = (ObjectNode) propertiesNode.get("keywords").get("items");
+            conjunctionGroups.put("description","Condition: contains all words below");
+        }
 
         // add required/optional properties to the schema
         List<String> requiredProperties = getRequiredProperties(predicateClass);
