@@ -1,6 +1,8 @@
 package edu.uci.ics.texera.dataflow.plangen;
 
+import edu.uci.ics.texera.api.engine.MultipleSinkPlan;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 
 import org.junit.AfterClass;
@@ -201,7 +203,16 @@ public class LogicalPlanTest {
 
         Plan queryPlan = logicalPlan.buildQueryPlan();
 
-        ISink tupleSink = queryPlan.getRoot();
+        Assert.assertTrue(queryPlan instanceof MultipleSinkPlan);
+        MultipleSinkPlan multipleSinkPlan = (MultipleSinkPlan)queryPlan;
+
+        HashMap<String, ISink> sinkHashMap = multipleSinkPlan.getSinkMap();
+        Assert.assertEquals(1, sinkHashMap.size());
+
+        ISink tupleSink = null;
+        for (HashMap.Entry<String, ISink> entry: sinkHashMap.entrySet()) {
+            tupleSink = entry.getValue();
+        }
         Assert.assertTrue(tupleSink instanceof TupleSink);
 
         IOperator regexMatcher = ((TupleSink) tupleSink).getInputOperator();
@@ -224,7 +235,16 @@ public class LogicalPlanTest {
 
         Plan queryPlan = logicalPlan.buildQueryPlan();
 
-        ISink tupleSink = queryPlan.getRoot();
+        Assert.assertTrue(queryPlan instanceof MultipleSinkPlan);
+        MultipleSinkPlan multipleSinkPlan = (MultipleSinkPlan)queryPlan;
+
+        HashMap<String, ISink> sinkHashMap = multipleSinkPlan.getSinkMap();
+        Assert.assertEquals(1, sinkHashMap.size());
+
+        ISink tupleSink = null;
+        for (HashMap.Entry<String, ISink> entry: sinkHashMap.entrySet()) {
+            tupleSink = entry.getValue();
+        }
         Assert.assertTrue(tupleSink instanceof TupleSink);
 
         IOperator join = ((TupleSink) tupleSink).getInputOperator();
@@ -272,7 +292,16 @@ public class LogicalPlanTest {
 
         Plan queryPlan = logicalPlan.buildQueryPlan();
 
-        ISink tupleSink = queryPlan.getRoot();
+        Assert.assertTrue(queryPlan instanceof MultipleSinkPlan);
+        MultipleSinkPlan multipleSinkPlan = (MultipleSinkPlan)queryPlan;
+
+        HashMap<String, ISink> sinkHashMap = multipleSinkPlan.getSinkMap();
+        Assert.assertEquals(1, sinkHashMap.size());
+
+        ISink tupleSink = null;
+        for (HashMap.Entry<String, ISink> entry: sinkHashMap.entrySet()) {
+            tupleSink = entry.getValue();
+        }
         Assert.assertTrue(tupleSink instanceof TupleSink);
 
         IOperator join2 = ((TupleSink) tupleSink).getInputOperator();
@@ -356,7 +385,7 @@ public class LogicalPlanTest {
      * KeywordSource --> RegexMatcher --<
      *                                   -> TupleSink2
      */
-    @Test(expected = TexeraException.class)
+    @Test
     public void testInvalidLogicalPlan3() throws Exception {
         LogicalPlan logicalPlan = new LogicalPlan();
         
@@ -372,7 +401,14 @@ public class LogicalPlanTest {
         logicalPlan.addLink(new OperatorLink(REGEX_ID, TUPLE_SINK_ID));
         logicalPlan.addLink(new OperatorLink(REGEX_ID, TUPLE_SINK_ID_2));
 
-        logicalPlan.buildQueryPlan();
+        Plan queryPlan = logicalPlan.buildQueryPlan();
+
+        Assert.assertTrue(queryPlan instanceof MultipleSinkPlan);
+        MultipleSinkPlan multipleSinkPlan = (MultipleSinkPlan)queryPlan;
+
+        HashMap<String, ISink> sinkHashMap = multipleSinkPlan.getSinkMap();
+        Assert.assertEquals(2, sinkHashMap.size());
+
     }
 
     /*
@@ -534,7 +570,18 @@ public class LogicalPlanTest {
         LogicalPlan logicalPlan = getLogicalPlan1();
         Plan queryPlan = logicalPlan.buildQueryPlan();
 
-        ISink tupleSink = queryPlan.getRoot();
+        Assert.assertTrue(queryPlan instanceof MultipleSinkPlan);
+        MultipleSinkPlan multipleSinkPlan = (MultipleSinkPlan)queryPlan;
+
+        HashMap<String, ISink> sinkHashMap = multipleSinkPlan.getSinkMap();
+        Assert.assertEquals(1, sinkHashMap.size());
+
+        ISink tupleSink = null;
+        for (HashMap.Entry<String, ISink> entry: sinkHashMap.entrySet()) {
+            tupleSink = entry.getValue();
+        }
+        Assert.assertNotNull(tupleSink);
+
         IOperator regexMatcher = ((TupleSink) tupleSink).getInputOperator();
         IOperator keywordSource = ((RegexMatcher) regexMatcher).getInputOperator();
 
@@ -564,7 +611,18 @@ public class LogicalPlanTest {
 
         Plan queryPlan = logicalPlan.buildQueryPlan();
 
-        ISink tupleSink = queryPlan.getRoot();
+        Assert.assertTrue(queryPlan instanceof MultipleSinkPlan);
+        MultipleSinkPlan multipleSinkPlan = (MultipleSinkPlan)queryPlan;
+
+        HashMap<String, ISink> sinkHashMap = multipleSinkPlan.getSinkMap();
+        Assert.assertEquals(1, sinkHashMap.size());
+
+        ISink tupleSink = null;
+        for (HashMap.Entry<String, ISink> entry: sinkHashMap.entrySet()) {
+            tupleSink = entry.getValue();
+        }
+        Assert.assertNotNull(tupleSink);
+
         IOperator join = ((TupleSink) tupleSink).getInputOperator();
         IOperator joinInput1 = ((Join) join).getInnerInputOperator();
         IOperator joinInput2 = ((Join) join).getOuterInputOperator();
@@ -621,7 +679,17 @@ public class LogicalPlanTest {
         LogicalPlan validLogicalPlan = getLogicalPlan1();
         Plan queryPlan = validLogicalPlan.buildQueryPlan();
 
-        ISink tupleSink = queryPlan.getRoot();
+        Assert.assertTrue(queryPlan instanceof MultipleSinkPlan);
+        MultipleSinkPlan multipleSinkPlan = (MultipleSinkPlan)queryPlan;
+
+        HashMap<String, ISink> sinkHashMap = multipleSinkPlan.getSinkMap();
+        Assert.assertEquals(1, sinkHashMap.size());
+
+        ISink tupleSink = null;
+        for (HashMap.Entry<String, ISink> entry: sinkHashMap.entrySet()) {
+            tupleSink = entry.getValue();
+        }
+        Assert.assertNotNull(tupleSink);
         IOperator regexMatcher = ((TupleSink) tupleSink).getInputOperator();
         IOperator keywordSource = ((RegexMatcher) regexMatcher).getInputOperator();
 
@@ -657,8 +725,18 @@ public class LogicalPlanTest {
 
         LogicalPlan validLogicalPlan = getLogicalPlan1();
         Plan queryPlan = validLogicalPlan.buildQueryPlan();
+        Assert.assertTrue(queryPlan instanceof MultipleSinkPlan);
+        MultipleSinkPlan multipleSinkPlan = (MultipleSinkPlan)queryPlan;
 
-        ISink tupleSink = queryPlan.getRoot();
+        HashMap<String, ISink> sinkHashMap = multipleSinkPlan.getSinkMap();
+        Assert.assertEquals(1, sinkHashMap.size());
+
+        ISink tupleSink = null;
+        for (HashMap.Entry<String, ISink> entry: sinkHashMap.entrySet()) {
+            tupleSink = entry.getValue();
+        }
+        Assert.assertNotNull(tupleSink);
+
         IOperator regexMatcher = ((TupleSink) tupleSink).getInputOperator();
         IOperator keywordSource = ((RegexMatcher) regexMatcher).getInputOperator();
 

@@ -1,9 +1,7 @@
 package edu.uci.ics.texera.web.resource;
 
-import afu.org.checkerframework.checker.oigj.qual.O;
-import edu.uci.ics.texera.api.engine.MutipleSinkPlan;
+import edu.uci.ics.texera.api.engine.MultipleSinkPlan;
 import edu.uci.ics.texera.dataflow.sink.VisualizationOperator;
-import edu.uci.ics.texera.dataflow.sink.barchart.BarChartSink;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.attribute.BasicFileAttributes;
@@ -58,7 +56,7 @@ public class QueryPlanResource {
      * @param plan Logical plan to be executed
      * @return Generic GenericWebResponse object
      */
-    private JsonNode executeMutipleSinkPlan(MutipleSinkPlan plan)  {
+    private JsonNode executeMutipleSinkPlan(MultipleSinkPlan plan)  {
         HashMap<String, ISink> sinkMap = plan.getSinkMap();
         ObjectNode response = new ObjectMapper().createObjectNode();
         HashMap<String, List<Tuple>> executionResult = new HashMap<>();
@@ -133,8 +131,8 @@ public class QueryPlanResource {
             LogicalPlan logicalPlan = new ObjectMapper().readValue(logicalPlanJson, LogicalPlan.class);
             logicalPlan.setContext(ctx);
             Plan plan = logicalPlan.buildQueryPlan();
-            if (plan instanceof MutipleSinkPlan) {
-                return executeMutipleSinkPlan((MutipleSinkPlan)plan);
+            if (plan instanceof MultipleSinkPlan) {
+                return executeMutipleSinkPlan((MultipleSinkPlan)plan);
             }
         } catch (IOException | TexeraException e) {
             throw new TexeraWebException(e.getMessage());

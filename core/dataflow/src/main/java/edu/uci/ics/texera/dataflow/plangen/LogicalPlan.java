@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.dataflow.plangen;
 
-import edu.uci.ics.texera.api.engine.MutipleSinkPlan;
+import edu.uci.ics.texera.api.engine.MultipleSinkPlan;
 import java.lang.reflect.InvocationTargetException;
 import java.util.*;
 
@@ -20,7 +20,6 @@ import edu.uci.ics.texera.dataflow.common.PropertyNameConstants;
 import edu.uci.ics.texera.dataflow.connector.OneToNBroadcastConnector;
 import edu.uci.ics.texera.dataflow.join.Join;
 import edu.uci.ics.texera.api.schema.Schema;
-import java.util.stream.Collectors;
 
 
 /**
@@ -265,7 +264,7 @@ public class LogicalPlan {
         connectOperators(operatorObjectMap);
         HashMap<String, ISink> sinkMap = findSinkOperators(operatorObjectMap);
 
-        return new MutipleSinkPlan(sinkMap);
+        return new MultipleSinkPlan(sinkMap);
     }
     
     /*
