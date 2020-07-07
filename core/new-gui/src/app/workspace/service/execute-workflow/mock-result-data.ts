@@ -1,6 +1,8 @@
-import { SuccessExecutionResult, ErrorExecutionResult } from '../../types/execute-workflow.interface';
-
-export const mockResultData: object[] = [
+import { SuccessExecutionResult, ErrorExecutionResult, ResultObject } from '../../types/execute-workflow.interface';
+export const mockResultData: ResultObject[] = [ {
+  chartType: undefined,
+  operator: 'operator-1234',
+  table: [
   {
       'id': 1,
       'layer': 'Disk Space and I/O Managers',
@@ -37,6 +39,8 @@ export const mockResultData: object[] = [
       'duty': 'Rewrite query logically. Perform cost-based optimization',
       'slides': 'Cost estimation: slide 14. SystemR Optimizer: slide 15'
   }
+]
+}
 ];
 
 export const mockExecutionResult: SuccessExecutionResult = {
