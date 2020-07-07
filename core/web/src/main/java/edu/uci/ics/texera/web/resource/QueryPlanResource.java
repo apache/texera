@@ -54,11 +54,15 @@ public class QueryPlanResource {
     
     public static java.nio.file.Path resultDirectory = Utils.getTexeraHomePath().resolve("query-results");
 
-    private JsonNode executeMutipleSinkPlan(MutipleSinkPlan plan) throws IOException {
+    /**
+     * @param plan Logical plan to be executed
+     * @return Generic GenericWebResponse object
+     */
+    private JsonNode executeMutipleSinkPlan(MutipleSinkPlan plan)  {
         HashMap<String, ISink> sinkMap = plan.getSinkMap();
         ObjectNode response = new ObjectMapper().createObjectNode();
         HashMap<String, List<Tuple>> executionResult = new HashMap<>();
-        System.out.println(sinkMap.size());
+
         for (HashMap.Entry<String, ISink> sinkEntry: sinkMap.entrySet()) {
 
             ISink sinkOperator = sinkEntry.getValue();
@@ -82,14 +86,11 @@ public class QueryPlanResource {
             }
         }
 
-        String resultID = UUID.randomUUID().toString();
-        response.put("code", 0);
-        response.put("resultID", resultID);
+
         ArrayNode arrayNode = new ObjectMapper().createArrayNode();
 
         for (HashMap.Entry<String, List<Tuple>> result: executionResult.entrySet()) {
             ObjectNode operatorMap = new ObjectMapper().createObjectNode();
-
             operatorMap.put("operator", result.getKey());
 
             ArrayNode resultNode = new ObjectMapper().createArrayNode();
@@ -105,105 +106,13 @@ public class QueryPlanResource {
             }
             arrayNode.add(operatorMap);
         }
+
+        String resultID = UUID.randomUUID().toString();
+        response.put("code", executionResult.isEmpty() ? 1 : 0);
+        response.put("resultID", resultID);
         response.set("result", arrayNode);
         return response;
     }
-
-    private JsonNode executeSingleSinkPlan(Plan plan) throws IOException {
-        // send response back to frontend
-        ISink sink = plan.getRoot();
-        if (sink instanceof TupleSink) {
-            System.out.println("here");
-            TupleSink tupleSink = (TupleSink) sink;
-            tupleSink.open();
-            List<Tuple> results = tupleSink.collectAllTuples();
-            tupleSink.close();
-
-            // make sure result directory is created
-            if (Files.notExists(resultDirectory)) {
-                Files.createDirectories(resultDirectory);
-            }
-
-            // clean up old result files
-            cleanupOldResults();
-
-            // generate new UUID as the result id
-            String resultID = UUID.randomUUID().toString();
-
-            // write original json of the result into a file
-            java.nio.file.Path resultFile = resultDirectory.resolve(resultID + ".json");
-
-            Files.createFile(resultFile);
-            Files.write(resultFile, new ObjectMapper().writeValueAsBytes(results));
-
-            // put readable json of the result into response
-            ArrayNode resultNode = new ObjectMapper().createArrayNode();
-            for (Tuple tuple : results) {
-                resultNode.add(tuple.getReadableJson());
-            }
-            ArrayNode arrayNode = new ObjectMapper().createArrayNode();
-            ObjectNode map = new ObjectMapper().createObjectNode();
-            map.set("table", resultNode);
-            map.put("operator", plan.getOperatorID());
-            arrayNode.add(map);
-            ObjectNode response = new ObjectMapper().createObjectNode();
-            response.put("code", 0);
-            response.set("result",arrayNode);
-            response.put("resultID", resultID);
-            return response;
-        } else if (sink instanceof VisualizationOperator) {
-            VisualizationOperator tupleSink = (VisualizationOperator) sink;
-            tupleSink.open();
-            List<Tuple> results = tupleSink.collectAllTuples();
-            tupleSink.close();
-
-            // make sure result directory is created
-            if (Files.notExists(resultDirectory)) {
-                Files.createDirectories(resultDirectory);
-            }
-
-            // clean up old result files
-            cleanupOldResults();
-
-            // generate new UUID as the result id
-            String resultID = UUID.randomUUID().toString();
-
-            // write original json of the result into a file
-            java.nio.file.Path resultFile = resultDirectory.resolve(resultID + ".json");
-
-            Files.createFile(resultFile);
-            Files.write(resultFile, new ObjectMapper().writeValueAsBytes(results));
-
-            // put readable json of the result into response
-            ArrayNode resultNode = new ObjectMapper().createArrayNode();
-            for (Tuple tuple : results) {
-                resultNode.add(tuple.getReadableJson());
-            }
-
-            ObjectNode response = new ObjectMapper().createObjectNode();
-
-            ObjectNode map = new ObjectMapper().createObjectNode();
-
-            map.set("table", resultNode);
-            map.put("chartType", ((VisualizationOperator) sink).getChartType());
-            map.put("operator", plan.getOperatorID());
-
-            response.put("code", 0);
-
-            response.set("result", map);
-            response.put("resultID", resultID);
-            return response;
-        }  else {
-            // execute the plan and return success message
-            Engine.getEngine().evaluate(plan);
-            ObjectNode response = new ObjectMapper().createObjectNode();
-            response.put("code", 1);
-            response.put("message", "plan sucessfully executed");
-            return response;
-        }
-
-    }
-
 
     /**
      * This is the edu.uci.ics.texera.web.request handler for the execution of a Query Plan.
@@ -225,20 +134,12 @@ public class QueryPlanResource {
             logicalPlan.setContext(ctx);
             Plan plan = logicalPlan.buildQueryPlan();
             if (plan instanceof MutipleSinkPlan) {
-                JsonNode response = executeMutipleSinkPlan((MutipleSinkPlan)plan);
-                System.out.println(response);
-                return response;
-            } else {
-                JsonNode response = executeSingleSinkPlan(plan);
-                System.out.println(response);
-                return response;
+                return executeMutipleSinkPlan((MutipleSinkPlan)plan);
             }
-
-
-            
         } catch (IOException | TexeraException e) {
             throw new TexeraWebException(e.getMessage());
         }
+        return null;
     }
 
     /**
