@@ -142,4 +142,9 @@ public class PropertyNameConstants {
     public static final String INVALID_OFFSET_EXCEPTION = "offset must be greater than or equal to 0";
 
 
+    // related to Visualization Operator
+    public static final String NAME_COLUMN = "nameColumn";
+    public static final String DATA_COLUMN = "dataColumn";
+    public static final String PRUNE_RATIO = "pruneRatio";
+
 }
