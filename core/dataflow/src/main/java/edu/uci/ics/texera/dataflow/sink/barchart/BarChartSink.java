@@ -79,7 +79,7 @@ public class BarChartSink extends VisualizationOperator {
                                         .map(a -> {
                                             return e.getField(a.getName());
                                         }).toArray(IField[]::new);
-                         
+
                         return new Tuple(outputSchema, fields);
                      })
                      .collect(Collectors.toList());

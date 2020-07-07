@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.dataflow.plangen;
 
+import edu.uci.ics.texera.api.engine.MutipleSinkPlan;
 import java.lang.reflect.InvocationTargetException;
 import java.util.*;
 
@@ -19,6 +20,7 @@ import edu.uci.ics.texera.dataflow.common.PropertyNameConstants;
 import edu.uci.ics.texera.dataflow.connector.OneToNBroadcastConnector;
 import edu.uci.ics.texera.dataflow.join.Join;
 import edu.uci.ics.texera.api.schema.Schema;
+import java.util.stream.Collectors;
 
 
 /**
@@ -38,6 +40,7 @@ public class LogicalPlan {
     // a map of an operator ID to operator's outputs (a set of operator IDs)
     private LinkedHashMap<String, LinkedHashSet<String>> adjacencyList;
 
+    private HashMap<String, ISink> sinkOperatorMap;
     /**
      * Create an empty logical plan.
      * 
@@ -46,6 +49,7 @@ public class LogicalPlan {
     public LogicalPlan() {
         operatorPredicateMap = new LinkedHashMap<>();
         adjacencyList = new LinkedHashMap<>();
+        sinkOperatorMap = new HashMap<>();
     }
     
     /**
@@ -259,11 +263,9 @@ public class LogicalPlan {
         buildOperators();
         validateOperatorGraph();
         connectOperators(operatorObjectMap);
+        HashMap<String, ISink> sinkMap = findSinkOperators(operatorObjectMap);
 
-        ISink sink = findSinkOperator(operatorObjectMap);
-        
-        Plan queryPlan = new Plan(sink);
-        return queryPlan;
+        return new MutipleSinkPlan(sinkMap);
     }
     
     /*
@@ -286,7 +288,7 @@ public class LogicalPlan {
      *     there's no cycles in this DAG.
      *   each operator must meet its input and output arity constraints.
      *   the operator graph has at least one source operator.
-     *   the operator graph has exactly one sink.
+     *   the operator graph has at least one sink.
      * 
      * Throws PlanGenException if the operator graph is invalid.
      */
@@ -294,7 +296,6 @@ public class LogicalPlan {
         checkGraphConnectivity();
         checkGraphCyclicity();
         checkOperatorInputArity();
-        checkOperatorOutputArity();
         checkSourceOperator();
         checkSinkOperator();
     }
@@ -457,8 +458,10 @@ public class LogicalPlan {
                 .filter(predicateClass -> predicateClass.toLowerCase().contains("sink"))
                 .count();
         
-        PlanGenUtils.planGenAssert(sinkOperatorNumber == 1, 
-                String.format("There must be exaxtly one sink operator, got %d.", sinkOperatorNumber));
+        PlanGenUtils.planGenAssert(sinkOperatorNumber > 0,
+                String.format("There must be at least one sink operator, got %d.", sinkOperatorNumber));
+
+
     }
     
     /*
@@ -517,7 +520,7 @@ public class LogicalPlan {
      
     /*
      * Finds the sink operator in the operator graph.
-     * 
+     *
      * This function assumes that the graph is valid and there is only one sink in the graph.
      */
     private ISink findSinkOperator(HashMap<String, IOperator> operatorObjectMap) throws PlanGenException {
@@ -526,12 +529,36 @@ public class LogicalPlan {
                         .getClass().toString().toLowerCase().contains("sink"))
                 .map(operator -> operatorObjectMap.get(operator))
                 .findFirst().orElse(null);
-        
+
         PlanGenUtils.planGenAssert(sinkOperator != null, "Error: sink operator doesn't exist.");
         PlanGenUtils.planGenAssert(sinkOperator instanceof ISink, "Error: sink operator's type doesn't match.");
-        
+
         return (ISink) sinkOperator;
     }
+
+    /*
+     * Finds all sink operators in the operator graph.
+     *
+     */
+    private HashMap<String, ISink> findSinkOperators(HashMap<String, IOperator> operatorObjectMap) throws PlanGenException {
+
+        HashMap<String, IOperator> operatorMap = new HashMap<>();
+        for (HashMap.Entry<String, IOperator> entry: operatorObjectMap.entrySet()) {
+            if (entry.getValue().getClass().toString().toLowerCase().contains("sink")) {
+                operatorMap.put(entry.getKey(), entry.getValue());
+            }
+        }
+
+        PlanGenUtils.planGenAssert(operatorMap.size() > 0, "Error: sink operator doesn't exist.");
+        HashMap<String, ISink> sinkMap = new HashMap<>();
+        for (HashMap.Entry<String, IOperator> entry: operatorMap.entrySet()) {
+            PlanGenUtils.planGenAssert(entry.getValue() instanceof ISink, "Error: sink operator's type doesn't match.");
+            sinkMap.put(entry.getKey(), (ISink)entry.getValue());
+
+        }
+        return sinkMap;
+    }
+
 
     @Override
     public boolean equals(Object o) {
