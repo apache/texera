@@ -19,5 +19,6 @@
       <mat-row class="result-table-row" *matRowDef="let row; columns: currentDisplayColumns!;" (click)="open(row)"></mat-row>
     </mat-table>
     <mat-paginator [pageSize]="10" [showFirstLastButtons]="true" (page)="onPaginateChange($event)"></mat-paginator>
+    <texera-visualization-panel [data]="getResult()"></texera-visualization-panel>
   </div>
 </div>
