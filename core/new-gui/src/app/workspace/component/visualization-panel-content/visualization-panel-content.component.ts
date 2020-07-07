@@ -2,9 +2,7 @@ import { Component, Inject, OnInit } from '@angular/core';
 import { MAT_DIALOG_DATA} from '@angular/material/dialog';
 import * as c3 from 'c3';
 import {PrimitiveArray} from 'c3';
-interface ValueObject {
-  table: object[]
-}
+
 @Component({
   selector: 'texera-visualization-panel-content',
   templateUrl: './visualization-panel-content.component.html',
@@ -14,16 +12,11 @@ export class VisualizationPanelContentComponent implements OnInit {
   table: object[];
   columns: string[] = [];
   map: Map<string, string[]>;
-  selectedBarChartNameColumn: string;
-  selectedBarChartDataColumn: string;
+ 
 
   constructor(@Inject(MAT_DIALOG_DATA) public data: any) {
     this.table = data.table;
-    this.map = new Map<string, string[]>();
-    this.selectedBarChartDataColumn = "";
-    this.selectedBarChartNameColumn = "";
-   
-    
+    this.map = new Map<string, string[]>();  
   }
 
   getKeys(map: Map<string, string[]>): string[] {
@@ -72,8 +65,8 @@ export class VisualizationPanelContentComponent implements OnInit {
    
     c3.generate({
       size: {
-        height: 720,
-        width: 1080
+        height: 1080,
+        width: 1920
     },
       data: {
           columns: dataToDisplay,

@@ -1,9 +1,6 @@
 
 <div class="texera-workspace-result-panel-body texera-workflow-component-body" [hidden]="!showResultPanel">
-  <div >
-    <p>Selected Operator: {{ selectedOperatorID }} </p>
-  </div>
-  
+ 
   <div class="texera-panel-message" *ngIf="showMessage">
     <p>{{ message }}</p>
   </div>
@@ -31,7 +28,7 @@
   </div>
   
   <div *ngIf="!showTable">
-    <texera-visualization-panel [data]="getResult()" [chartType]="chartType" [nameColumn]="currentDisplayColumns![0]" [dataColumn]="currentDisplayColumns![1]"></texera-visualization-panel>
+    <texera-visualization-panel [data]="getResult()" [chartType]="chartType"></texera-visualization-panel>
   </div>
 
 </div>

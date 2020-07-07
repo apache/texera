@@ -11,15 +11,12 @@ import { TableColumn } from '../../types/result-table.interface';
 export class VisualizationPanelComponent {
   @Input() data: Object[];
   @Input() chartType: string;
-  @Input() nameColumn: string;
-  @Input() dataColumn: string;
+
 
   constructor(public dialog: MatDialog) {
     this.data = [];
     this.chartType = "";
-    this.nameColumn = "";
-    this.dataColumn = "";
-   
+
   }
   
 
@@ -34,9 +31,6 @@ export class VisualizationPanelComponent {
       width: '2000px',
     });
 
-    dialogRef.afterClosed().subscribe(result => {
-      console.log(`Dialog result: ${result}`);
-    });
   }
 
 
