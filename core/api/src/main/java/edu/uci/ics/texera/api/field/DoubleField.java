@@ -15,7 +15,6 @@ public class DoubleField implements IField {
     public DoubleField(
             @JsonProperty(value = JsonConstants.FIELD_VALUE, required = true)
             Double value) {
-        checkNotNull(value);
         this.value = value;
     }
 
