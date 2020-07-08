@@ -65,7 +65,7 @@ public class ComparableMatcherTest {
     public List<Tuple> getQueryResults(String attributeName, ComparisonType matchingType, Object compareToValue)
             throws TexeraException {
         // Perform the query
-        ComparablePredicate comparablePredicate = new ComparablePredicate(attributeName, matchingType, compareToValue);
+        ComparablePredicate comparablePredicate = new ComparablePredicate(attributeName, matchingType, compareToValue.toString());
         ComparableMatcher comparableMatcher = new ComparableMatcher(comparablePredicate);
         setDefaultMatcherConfig(comparableMatcher);
         comparableMatcher.open();

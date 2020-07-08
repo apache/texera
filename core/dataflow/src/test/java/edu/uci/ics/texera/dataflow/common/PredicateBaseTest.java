@@ -287,7 +287,7 @@ public class PredicateBaseTest {
     
     @Test
     public void testComparable() throws Exception {
-        testPredicate(new ComparablePredicate("attr", ComparisonType.EQUAL_TO, 1));
+        testPredicate(new ComparablePredicate("attr", ComparisonType.EQUAL_TO, "1"));
     }
     
     @Test

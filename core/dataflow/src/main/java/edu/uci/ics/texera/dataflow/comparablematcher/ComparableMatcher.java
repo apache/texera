@@ -86,7 +86,7 @@ public class ComparableMatcher extends AbstractSingleInputOperator {
 
     private boolean compareDate(Tuple inputTuple) throws DataflowException {     
         LocalDate date = inputTuple.getField(predicate.getAttributeName(), DateField.class).getValue();
-        String compareToString = predicate.getCompareToValue().toString();
+        String compareToString = predicate.getCompareToValue();
         
         // try to parse the input as date string first
         try {
@@ -105,7 +105,7 @@ public class ComparableMatcher extends AbstractSingleInputOperator {
     
     private boolean compareDateTime(Tuple inputTuple) throws DataflowException {
         LocalDateTime dateTime = inputTuple.getField(predicate.getAttributeName(), DateTimeField.class).getValue();
-        String compareToString = predicate.getCompareToValue().toString();
+        String compareToString = predicate.getCompareToValue();
         
         // try to parse the input as date time string first
         try {
@@ -123,51 +123,29 @@ public class ComparableMatcher extends AbstractSingleInputOperator {
     }
 
     private boolean compareDouble(Tuple inputTuple) {
-        Object compareToObject = predicate.getCompareToValue();
-        Class<?> compareToType = compareToObject.getClass();
         Double value = inputTuple.getField(predicate.getAttributeName(), DoubleField.class).getValue();
-        
-        if (compareToType.equals(Integer.class)) {
-            return compareValues(value, (double) (int) compareToObject, predicate.getComparisonType()); 
-        } else if (compareToType.equals(Double.class)) {
-            return compareValues(value, (double) compareToObject, predicate.getComparisonType());
-        } else if (compareToType.equals(String.class)) {
-            try {
-                Double compareToValue = Double.parseDouble((String) predicate.getCompareToValue());
-                return compareValues(value, compareToValue, predicate.getComparisonType());
-            } catch (NumberFormatException e) {
-                throw new DataflowException("Unable to parse to number " + e.getMessage());
-            }
-        } else {
-            throw new DataflowException("Value " + predicate.getCompareToValue() + " is not a valid number type");
+        try {
+            Double compareToValue = Double.parseDouble( predicate.getCompareToValue());
+            return compareValues(value, compareToValue, predicate.getComparisonType());
+        } catch (NumberFormatException e) {
+            throw new DataflowException("Unable to parse to number " + e.getMessage());
         }
     }
 
     private boolean compareInt(Tuple inputTuple) {
-        Object compareToObject = predicate.getCompareToValue();
-        Class<?> compareToType = compareToObject.getClass();
         Integer value = inputTuple.getField(predicate.getAttributeName(), IntegerField.class).getValue();
-        
-        if (compareToType.equals(Integer.class)) {
-            return compareValues(value, (int) compareToObject, predicate.getComparisonType()); 
-        } else if (compareToType.equals(Double.class)) {
-            return compareValues((double) value, (double) compareToObject, predicate.getComparisonType());
-        } else if (compareToType.equals(String.class)) {
-            try {
-                Double compareToValue = Double.parseDouble((String) predicate.getCompareToValue());
-                return compareValues((double) value, compareToValue, predicate.getComparisonType());
-            } catch (NumberFormatException e) {
-                throw new DataflowException("Unable to parse to number " + e.getMessage());
-            }
-        } else {
-            throw new DataflowException("Value " + predicate.getCompareToValue() + " is not a valid number type");
+        try {
+            Integer compareToValue = Integer.parseInt(predicate.getCompareToValue());
+            return compareValues(value, compareToValue, predicate.getComparisonType());
+        } catch (NumberFormatException e) {
+            throw new DataflowException("Unable to parse to number " + e.getMessage());
         }
     }
 
     private boolean compareString(Tuple inputTuple) {
         return compareValues(
                 inputTuple.getField(predicate.getAttributeName(), StringField.class).getValue(),
-                predicate.getCompareToValue().toString(), predicate.getComparisonType());
+                predicate.getCompareToValue(), predicate.getComparisonType());
     }
 
     private static <T extends Comparable<T>> boolean compareValues(T value, T compareToValue, ComparisonType comparisonType) {
