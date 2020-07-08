@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import org.jooq.meta.derby.sys.Sys;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -35,6 +36,7 @@ public class NltkSentimentOperatorTest {
         tupleSink.close();
         
         Tuple tuple = results.get(0);
+        System.out.println(tuple);
         Assert.assertEquals(tuple.getField("sentiment").getValue(), SentimentConstants.POSITIVE);
     }
     

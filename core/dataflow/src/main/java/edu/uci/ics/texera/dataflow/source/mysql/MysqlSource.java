@@ -101,16 +101,15 @@ public class MysqlSource implements ISourceOperator{
                 PreparedStatement ps = this.connection.prepareStatement(generateSqlQuery(predicate));
                 int nextIndex = 1;
                 if (!predicate.getColumn().equals("") && !predicate.getKeywords().isEmpty()) {
-                    String keywords = "";
+                    StringBuilder keywords = new StringBuilder();
                     for (int i = 0; i < predicate.getKeywords().size(); i++) {
-                        keywords += " (";
+                        keywords.append(" (");
                         for (int j = 0; j < predicate.getKeywords().get(i).size(); j++) {
-                            keywords += " +" + predicate.getKeywords().get(i).get(j);
+                            keywords.append(" +").append(predicate.getKeywords().get(i).get(j));
                         }
-                        keywords += " )";
+                        keywords.append(" )");
                     }
-//                    ps.setObject(nextIndex, predicate.getKeywords().get(i), Types.VARCHAR);
-                    ps.setString(nextIndex, keywords);
+                    ps.setString(nextIndex, keywords.toString());
                     nextIndex += 1;
                 }
                 if (predicate.getLimit() != Integer.MAX_VALUE) {
