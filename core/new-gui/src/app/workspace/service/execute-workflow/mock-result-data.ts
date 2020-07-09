@@ -1,7 +1,7 @@
 import { SuccessExecutionResult, ErrorExecutionResult, ResultObject } from '../../types/execute-workflow.interface';
 export const mockResultData: ResultObject[] = [ {
   chartType: undefined,
-  operator: 'operator-1234',
+  operatorID: 'operator-1234',
   table: [
   {
       'id': 1,
