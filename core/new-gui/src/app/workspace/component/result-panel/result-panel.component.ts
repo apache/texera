@@ -239,7 +239,7 @@ export class ResultPanelComponent {
       columnDef: col,
       header: col,
       getCell: (row: IndexableObject) => {
-        if (row[col] !== null) {
+        if (row[col]) {
           return this.trimTableCell(row[col].toString());
         } else {
           // allowing null value from backend
