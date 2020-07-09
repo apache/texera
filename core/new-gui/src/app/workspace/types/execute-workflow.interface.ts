@@ -30,11 +30,8 @@ export interface LogicalPlan extends Readonly<{
 /**
  * The backend interface of the return object of a successful execution
  */
-
- 
-
 export interface ResultObject extends Readonly<{
-  operator: string,
+  operatorID: string,
   table: ReadonlyArray<object>,
   chartType: string | undefined
 }> {
@@ -43,15 +40,13 @@ export interface ResultObject extends Readonly<{
 export interface SuccessExecutionResult extends Readonly<{
   code: 0,
   result: ReadonlyArray<ResultObject>,
- // result: ReadonlyArray<object>,
- // chartType: string | undefined
   resultID: string
 }> { }
 
 /**
  * The backend interface of the return object of a failed execution
  */
-export interface ErrorExecutionResult extends Readonly< {
+export interface ErrorExecutionResult extends Readonly<{
   code: 1,
   message: string
 }> { }
@@ -75,25 +70,25 @@ export type ExecutionResult = SuccessExecutionResult | ErrorExecutionResult;
  *    operatorStates: a dictionary with operator id as key and operator current state as value
  *    operatorStatistics: a dictionary with operator id as key and operator current statistics as value
  */
-export interface SuccessProcessStatus extends Readonly< {
+export interface SuccessProcessStatus extends Readonly<{
   code: 0
   message: string
-  operatorStates: Readonly< {
+  operatorStates: Readonly<{
     [key: string]: OperatorStates
   }>
-  operatorStatistics: Readonly< {
+  operatorStatistics: Readonly<{
     [key: string]: Statistics
   }>
-}> {}
+}> { }
 
- export interface ErrorProcessStatus extends Readonly< {
+export interface ErrorProcessStatus extends Readonly<{
   code: 1
   message: string
-}> {}
+}> { }
 
- export type ProcessStatus = SuccessProcessStatus | ErrorProcessStatus;
+export type ProcessStatus = SuccessProcessStatus | ErrorProcessStatus;
 
- export enum OperatorStates {
+export enum OperatorStates {
   Initializing,
   Ready,
   Running,

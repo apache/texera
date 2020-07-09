@@ -89,7 +89,7 @@ public class QueryPlanResource {
 
         for (HashMap.Entry<String, List<Tuple>> result: executionResult.entrySet()) {
             ObjectNode operatorMap = new ObjectMapper().createObjectNode();
-            operatorMap.put("operator", result.getKey());
+            operatorMap.put("operatorID", result.getKey());
 
             ArrayNode resultNode = new ObjectMapper().createArrayNode();
             for (Tuple tuple : result.getValue()) {
