@@ -8,8 +8,11 @@ import edu.uci.ics.texera.api.schema.Schema;
 import edu.uci.ics.texera.api.tuple.Tuple;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
+/**
+ * Base class for visualization operators
+ * Author: Mingji Han
+ */
 public abstract class VisualizationOperator implements ISink, IVisualization {
 
     protected IOperator inputOperator;
