@@ -17,7 +17,12 @@ import edu.uci.ics.texera.dataflow.sink.VisualizationOperator;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
-
+/**
+ * BarChartSink is a sink that can be used by to get tuples for bar chart.
+ *
+ * @author Mingji Han
+ *
+ */
 public class BarChartSink extends VisualizationOperator {
 
     private BarChartSinkPredicate predicate;

@@ -1,8 +1,6 @@
 package edu.uci.ics.texera.dataflow.sink.piechart;
 
 import edu.uci.ics.texera.api.constants.ErrorMessages;
-import edu.uci.ics.texera.api.dataflow.IOperator;
-import edu.uci.ics.texera.api.dataflow.ISink;
 import edu.uci.ics.texera.api.exception.DataflowException;
 import edu.uci.ics.texera.api.exception.TexeraException;
 import edu.uci.ics.texera.api.field.DoubleField;
@@ -14,14 +12,17 @@ import edu.uci.ics.texera.api.schema.Attribute;
 import edu.uci.ics.texera.api.schema.AttributeType;
 import edu.uci.ics.texera.api.schema.Schema;
 import edu.uci.ics.texera.api.tuple.Tuple;
-import edu.uci.ics.texera.dataflow.sink.IVisualization;
 import edu.uci.ics.texera.dataflow.sink.VisualizationConstants;
 import edu.uci.ics.texera.dataflow.sink.VisualizationOperator;
-import edu.uci.ics.texera.dataflow.sink.barchart.BarChartSinkPredicate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
-
+/**
+ * PieChartSink is a sink that can be used by to get tuples for pie chart.
+ *
+ * @author Mingji Han
+ *
+ */
 public class PieChartSink extends VisualizationOperator {
     private PieChartSinkPredicate predicate;
 
@@ -30,6 +31,7 @@ public class PieChartSink extends VisualizationOperator {
         super(VisualizationConstants.PIE);
         this.predicate = predicate;
     }
+
     @Override
     public void open() throws TexeraException {
         if (cursor != CLOSED) {
@@ -75,7 +77,7 @@ public class PieChartSink extends VisualizationOperator {
         list = list.stream()
             .map(e -> new Tuple(outputSchema, e.getField(predicate.getNameColumn()), e.getField(predicate.getDataColumn())))
             .collect(Collectors.toList());
-
+        // sort all tuples in the descending order
         list.sort((left, right) -> {
             double leftValue =  extractNumber(left.getField(predicate.getDataColumn()));
             double rightValue = extractNumber(right.getField(predicate.getDataColumn())) ;
@@ -87,11 +89,14 @@ public class PieChartSink extends VisualizationOperator {
                 return -1;
             }
         });
-
+        // calculate sum of data column
         double sum = 0.0;
         for (Tuple t: list) {
             sum += extractNumber(t.getField(predicate.getDataColumn()));
         }
+
+        // process the sorted rows, if the cumulative sum is greater than ratio * sum.
+        // stop adding tuples, add new row called "Other" instead.
         double total = 0.0;
         for (Tuple t: list) {
             total += extractNumber(t.getField(predicate.getDataColumn()));

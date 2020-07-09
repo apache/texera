@@ -1,9 +1,7 @@
 package edu.uci.ics.texera.web.resource;
 
-import afu.org.checkerframework.checker.oigj.qual.O;
-import edu.uci.ics.texera.api.engine.MutipleSinkPlan;
+import edu.uci.ics.texera.api.engine.MultipleSinkPlan;
 import edu.uci.ics.texera.dataflow.sink.VisualizationOperator;
-import edu.uci.ics.texera.dataflow.sink.barchart.BarChartSink;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.attribute.BasicFileAttributes;
@@ -58,11 +56,11 @@ public class QueryPlanResource {
      * @param plan Logical plan to be executed
      * @return Generic GenericWebResponse object
      */
-    private JsonNode executeMutipleSinkPlan(MutipleSinkPlan plan)  {
+    private JsonNode executeMutipleSinkPlan(MultipleSinkPlan plan)  {
         HashMap<String, ISink> sinkMap = plan.getSinkMap();
         ObjectNode response = new ObjectMapper().createObjectNode();
         HashMap<String, List<Tuple>> executionResult = new HashMap<>();
-
+        // execute the query plan from all sink operators and collect result
         for (HashMap.Entry<String, ISink> sinkEntry: sinkMap.entrySet()) {
 
             ISink sinkOperator = sinkEntry.getValue();
@@ -86,12 +84,13 @@ public class QueryPlanResource {
             }
         }
 
-
+        // put all results in the array node.
+        // each result has three fields : table, operatorID, chartType (if the sink operator is a visualization operator).
         ArrayNode arrayNode = new ObjectMapper().createArrayNode();
 
         for (HashMap.Entry<String, List<Tuple>> result: executionResult.entrySet()) {
             ObjectNode operatorMap = new ObjectMapper().createObjectNode();
-            operatorMap.put("operator", result.getKey());
+            operatorMap.put("operatorID", result.getKey());
 
             ArrayNode resultNode = new ObjectMapper().createArrayNode();
             for (Tuple tuple : result.getValue()) {
@@ -133,13 +132,11 @@ public class QueryPlanResource {
             LogicalPlan logicalPlan = new ObjectMapper().readValue(logicalPlanJson, LogicalPlan.class);
             logicalPlan.setContext(ctx);
             Plan plan = logicalPlan.buildQueryPlan();
-            if (plan instanceof MutipleSinkPlan) {
-                return executeMutipleSinkPlan((MutipleSinkPlan)plan);
-            }
+
+            return executeMutipleSinkPlan((MultipleSinkPlan)plan);
         } catch (IOException | TexeraException e) {
             throw new TexeraWebException(e.getMessage());
         }
-        return null;
     }
 
     /**
