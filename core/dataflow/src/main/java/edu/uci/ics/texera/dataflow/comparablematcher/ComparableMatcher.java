@@ -16,6 +16,7 @@ import edu.uci.ics.texera.api.schema.AttributeType;
 import edu.uci.ics.texera.api.schema.Schema;
 import edu.uci.ics.texera.api.tuple.*;
 import edu.uci.ics.texera.dataflow.common.AbstractSingleInputOperator;
+import org.jooq.meta.derby.sys.Sys;
 
 /**
  * ComparableMatcher is matcher for comparison query on any field which deals
@@ -135,14 +136,16 @@ public class ComparableMatcher extends AbstractSingleInputOperator {
     private boolean compareInt(Tuple inputTuple) {
         Integer value = inputTuple.getField(predicate.getAttributeName(), IntegerField.class).getValue();
         try {
-            Integer compareToValue = Integer.parseInt(predicate.getCompareToValue());
-            return compareValues(value, compareToValue, predicate.getComparisonType());
+            Double compareToValue = Double.parseDouble(predicate.getCompareToValue());
+            return compareValues((double) value, compareToValue, predicate.getComparisonType());
         } catch (NumberFormatException e) {
             throw new DataflowException("Unable to parse to number " + e.getMessage());
         }
     }
 
     private boolean compareString(Tuple inputTuple) {
+        System.out.println("here");
+        System.out.println(inputTuple.getField(predicate.getAttributeName(), StringField.class).getValue());
         return compareValues(
                 inputTuple.getField(predicate.getAttributeName(), StringField.class).getValue(),
                 predicate.getCompareToValue(), predicate.getComparisonType());
