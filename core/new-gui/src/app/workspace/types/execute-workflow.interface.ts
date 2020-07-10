@@ -30,11 +30,8 @@ export interface LogicalPlan extends Readonly<{
 /**
  * The backend interface of the return object of a successful execution
  */
-
- 
-
 export interface ResultObject extends Readonly<{
-  operator: string,
+  operatorID: string,
   table: ReadonlyArray<object>,
   chartType: string | undefined
 }> {
@@ -43,8 +40,6 @@ export interface ResultObject extends Readonly<{
 export interface SuccessExecutionResult extends Readonly<{
   code: 0,
   result: ReadonlyArray<ResultObject>,
- // result: ReadonlyArray<object>,
- // chartType: string | undefined
   resultID: string
 }> { }
 

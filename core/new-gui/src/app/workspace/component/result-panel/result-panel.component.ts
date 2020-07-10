@@ -27,8 +27,8 @@ import { WorkflowActionService } from '../../service/workflow-graph/model/workfl
  * @author Zuozhi Wang
  */
 interface Result {
-  table: ReadonlyArray<object>,
-  chartType: string | undefined
+  table: ReadonlyArray<object>;
+  chartType: string | undefined;
 }
 @Component({
   selector: 'texera-result-panel',
@@ -39,9 +39,9 @@ export class ResultPanelComponent {
 
   private static readonly PRETTY_JSON_TEXT_LIMIT: number = 50000;
   private static readonly TABLE_COLUMN_TEXT_LIMIT: number = 1000;
-  public result :ReadonlyArray<ResultObject> | undefined;
+  public result: ReadonlyArray<ResultObject> | undefined;
   public resultMap: Map<string, Result> = new Map<string, Result>();
-  public selectedOperatorID: string = "";
+  public selectedOperatorID: string = '';
   public chartType: string | undefined;
   public showTable: boolean = true;
   public showMessage: boolean = false;
@@ -61,9 +61,8 @@ export class ResultPanelComponent {
   constructor(private executeWorkflowService: ExecuteWorkflowService, private modalService: NgbModal,
     private resultPanelToggleService: ResultPanelToggleService,
     private workflowActionService: WorkflowActionService) {
-    
     this.workflowActionService.getJointGraphWrapper().getJointCellHighlightStream()
-    .subscribe(() => this.handleHighLightOperator());
+      .subscribe(() => this.handleHighLightOperator());
     this.workflowActionService.getJointGraphWrapper().getJointCellUnhighlightStream()
       .subscribe(() => this.handleHighLightOperator());
 
@@ -76,27 +75,6 @@ export class ResultPanelComponent {
     this.resultPanelToggleService.getToggleChangeStream().subscribe(
       value => this.showResultPanel = value,
     );
-  }
-  handleHighLightOperator() : void {
-    const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
-    
-    if (highlightedOperators.length === 1) {
-      this.selectedOperatorID = highlightedOperators[0];
-      if (this.resultMap.has(this.selectedOperatorID)) {
-       
-        let result: Result | undefined = this.resultMap.get(this.selectedOperatorID);   
-        this.displayResultTable(result!.table);
-        if (typeof result?.chartType === 'undefined') {
-          this.showTable = true;
-          
-        }
-        else {
-          this.chartType = result?.chartType;
-          this.showTable = false;
-        }
-      }
-    }
-    console.log(this.showTable);
   }
   /**
    * Opens the ng-bootstrap model to display the row details in
@@ -117,7 +95,7 @@ export class ResultPanelComponent {
     const rowDataCopy = ResultPanelComponent.trimDisplayJsonData(rowData as IndexableObject);
 
     // open the modal component
-    const modalRef = this.modalService.open(NgbModalComponent, {size: 'lg'});
+    const modalRef = this.modalService.open(NgbModalComponent, { size: 'lg' });
 
     // subscribe the modal close event for modal navigations (go to previous or next row detail)
     Observable.from(modalRef.result)
@@ -143,12 +121,9 @@ export class ResultPanelComponent {
   }
 
   public getResult(): Object[] {
-    return this.currentResult
+    return this.currentResult;
   }
 
-  public getColumn(): TableColumn[] | undefined {
-    return this.currentColumns
-  }
   /**
    * This function will listen to the page change event in the paginator
    *  to update current page index and current page size for
@@ -197,18 +172,13 @@ export class ResultPanelComponent {
       return;
     }
     this.result = response.result;
- 
-    for (let item of this.result) {
-      let result : Result = {
+    for (const item of this.result) {
+      const result: Result = {
         table: item.table,
         chartType: item.chartType
-      }
-      this.resultMap.set(item.operator, result);
+      };
+      this.resultMap.set(item.operatorID, result);
     }
-
-    console.log(this.resultMap);
-    // execution success, display result table
-   // this.displayResultTable(response);
   }
 
   /**
@@ -226,6 +196,27 @@ export class ResultPanelComponent {
     this.showMessage = true;
     this.message = errorMessage;
   }
+  /**
+   * Handler for high lighted operator.
+   * When use click on an operator, check whether it is a sink operator and display result.
+   */
+  private handleHighLightOperator(): void {
+    const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+
+    if (highlightedOperators.length === 1) {
+      this.selectedOperatorID = highlightedOperators[0];
+      if (this.resultMap.has(this.selectedOperatorID)) {
+        let result: Result | undefined = this.resultMap.get!(this.selectedOperatorID);
+        this.displayResultTable(result!.table);
+        if (typeof result?.chartType === 'undefined') {
+          this.showTable = true;
+        } else {
+          this.chartType = result?.chartType;
+          this.showTable = false;
+        }
+      }
+    }
+  }
 
   /**
    * Updates all the result table properties based on the execution result,
@@ -234,16 +225,15 @@ export class ResultPanelComponent {
    * @param response
    */
   private displayResultTable(resultData: ReadonlyArray<object>) {
-   /* if (response.result.length < 1) {
-      throw new Error(`display result table inconsistency: result data should not be empty`);
-    }
-
-    // don't display message, display result table instead
-    this.showMessage = false;
-    */
+    /* if (response.result.length < 1) {
+       throw new Error(`display result table inconsistency: result data should not be empty`);
+     }
+     // don't display message, display result table instead
+     this.showMessage = false;
+     */
     // creates a shallow copy of the readonly response.result,
     //  this copy will be has type object[] because MatTableDataSource's input needs to be object[]
-  //  const resultData = response.result.slice();
+    //  const resultData = response.result.slice();
 
     // save a copy of current result
     this.currentResult = resultData.slice();

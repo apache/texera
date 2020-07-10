@@ -27,7 +27,7 @@
     </div>
   </div>
   
-  <div *ngIf="!showTable">
+  <div [hidden]="showTable">
     <texera-visualization-panel [data]="getResult()" [chartType]="chartType"></texera-visualization-panel>
   </div>
 

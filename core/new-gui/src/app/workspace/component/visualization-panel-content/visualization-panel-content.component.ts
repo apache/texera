@@ -1,44 +1,28 @@
-import { Component, Inject, OnInit } from '@angular/core';
-import { MAT_DIALOG_DATA} from '@angular/material/dialog';
+import { Component, Inject, OnInit, AfterViewInit } from '@angular/core';
+import { MAT_DIALOG_DATA } from '@angular/material/dialog';
 import * as c3 from 'c3';
-import {PrimitiveArray} from 'c3';
+import { PrimitiveArray } from 'c3';
 
+interface DialogData {
+  table: object[];
+  chartType: c3.ChartType;
+}
 @Component({
   selector: 'texera-visualization-panel-content',
   templateUrl: './visualization-panel-content.component.html',
   styleUrls: ['./visualization-panel-content.component.scss']
 })
-export class VisualizationPanelContentComponent implements OnInit {
+export class VisualizationPanelContentComponent implements OnInit, AfterViewInit {
   table: object[];
   columns: string[] = [];
-  map: Map<string, string[]>;
- 
 
-  constructor(@Inject(MAT_DIALOG_DATA) public data: any) {
+
+  constructor(@Inject(MAT_DIALOG_DATA) public data: DialogData) {
     this.table = data.table;
-    this.map = new Map<string, string[]>();  
   }
 
-  getKeys(map: Map<string, string[]>): string[] {
-    return Array.from(map.keys());
-}
   ngOnInit() {
- 
     this.columns = Object.keys(this.table[0]).filter(x => x !== '_id');
-   
-    for (let column of this.columns) {
-      
-      let rows: string[] = [];
-     
-      for (let row of this.table) {
-        rows.push(String((row as any)[column]));
-      }
-     
-      this.map.set(column, rows);
-      
-    }
-
-   
   }
 
   ngAfterViewInit() {
@@ -47,30 +31,36 @@ export class VisualizationPanelContentComponent implements OnInit {
 
   async onClickGenerateChart() {
 
-    let dataToDisplay: Array<[string, ...PrimitiveArray]> = [];
-    let count: number = 0;
-    let category: string[] = [];
+    const dataToDisplay: Array<[string, ...PrimitiveArray]> = [];
+  //  let count = 1;
+    const category: string[] = [];
     for (let i = 1; i < this.columns?.length; i++) {
-      category.push(this.columns![i]);
+      category.push(this.columns[i]);
     }
 
-    for (let name of this.map.get(this.columns![0])!) {
-     
-      let items:[string, ...PrimitiveArray] = [String(name)];
-      for (let i = 1; i < this.columns?.length; i++)
-        items.push(Number(this.map.get(this.columns![1])![count++]));
+    // c3.js requires the first element in the data array is the data name.
+    // the remaining items are data.
+    let firstRow = true;
+    for (const row of this.table) {
+      if (firstRow) {
+        firstRow = false;
+        continue;
+      }
+      const items: [string, ...PrimitiveArray] = [(row as any)[this.columns[0]]];
+      for (let i = 1; i < this.columns.length; i++) {
+        items.push(Number((row as any)[this.columns[i]]));
+      }
       dataToDisplay.push(items);
-     
     }
-   
+
     c3.generate({
       size: {
-        height: 1080,
-        width: 1920
-    },
+        height: 600,
+        width: 800
+      },
       data: {
-          columns: dataToDisplay,
-          type: this.data.chartType
+        columns: dataToDisplay,
+        type: this.data.chartType
       },
       axis: {
         x: {
@@ -78,10 +68,8 @@ export class VisualizationPanelContentComponent implements OnInit {
           categories: category
         }
       },
-      bindto: "#Chart"
+      bindto: '#Chart'
     });
   }
 
- 
- 
 }

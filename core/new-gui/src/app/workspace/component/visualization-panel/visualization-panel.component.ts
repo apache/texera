@@ -1,7 +1,6 @@
-import { Component, Input,  } from '@angular/core';
-import {MatDialog} from '@angular/material/dialog';
-import { VisualizationPanelContentComponent } from '../visualization-panel-content/visualization-panel-content.component'
-import { TableColumn } from '../../types/result-table.interface';
+import { Component, Input, } from '@angular/core';
+import { MatDialog } from '@angular/material/dialog';
+import { VisualizationPanelContentComponent } from '../visualization-panel-content/visualization-panel-content.component';
 
 @Component({
   selector: 'texera-visualization-panel',
@@ -15,24 +14,19 @@ export class VisualizationPanelComponent {
 
   constructor(public dialog: MatDialog) {
     this.data = [];
-    this.chartType = "";
+    this.chartType = '';
 
   }
-  
 
   onClickVisualize(): void {
     const dialogRef = this.dialog.open(VisualizationPanelContentComponent, {
       data: {
         table: this.data,
         chartType: this.chartType,
-      
-      },
-      height: '2000px',
-      width: '2000px',
+      }
     });
 
   }
 
 
-  
 }

@@ -88,7 +88,6 @@ export class ExecuteWorkflowService {
         // backend will either respond an execution result or an error will occur
         // handle both cases
         response => {
-          console.log(response);
           this.handleExecuteResult(response);
           this.workflowExecutionID = undefined;
         },
