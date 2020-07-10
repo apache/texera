@@ -2,8 +2,6 @@ package edu.uci.ics.texera.dataflow.sink.barchart;
 
 
 import edu.uci.ics.texera.api.constants.ErrorMessages;
-import edu.uci.ics.texera.api.dataflow.IOperator;
-import edu.uci.ics.texera.api.dataflow.ISink;
 import edu.uci.ics.texera.api.exception.DataflowException;
 import edu.uci.ics.texera.api.exception.TexeraException;
 import edu.uci.ics.texera.api.field.IField;
@@ -11,7 +9,6 @@ import edu.uci.ics.texera.api.schema.Attribute;
 import edu.uci.ics.texera.api.schema.AttributeType;
 import edu.uci.ics.texera.api.schema.Schema;
 import edu.uci.ics.texera.api.tuple.Tuple;
-import edu.uci.ics.texera.dataflow.sink.IVisualization;
 import edu.uci.ics.texera.dataflow.sink.VisualizationConstants;
 import edu.uci.ics.texera.dataflow.sink.VisualizationOperator;
 import java.util.ArrayList;
@@ -79,16 +76,10 @@ public class BarChartSink extends VisualizationOperator {
         }
 
         result = list.stream()
-                     .map(e -> {
-                         IField[] fields = attributes.stream()
-                                        .map(a -> {
-                                            return e.getField(a.getName());
-                                        }).toArray(IField[]::new);
-
-                        return new Tuple(outputSchema, fields);
+                     .map(e -> { IField[] fields = attributes.stream()
+                                                             .map(a -> e.getField(a.getName())).toArray(IField[]::new);
+                          return new Tuple(outputSchema, fields);
                      })
                      .collect(Collectors.toList());
     }
-
-
 }

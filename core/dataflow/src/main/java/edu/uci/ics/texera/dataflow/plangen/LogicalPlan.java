@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.dataflow.plangen;
 
-import edu.uci.ics.texera.api.engine.MultipleSinkPlan;
+
 import java.lang.reflect.InvocationTargetException;
 import java.util.*;
 
@@ -12,6 +12,7 @@ import edu.uci.ics.texera.api.dataflow.IOperator;
 import edu.uci.ics.texera.api.dataflow.ISink;
 import edu.uci.ics.texera.api.dataflow.ISourceOperator;
 import edu.uci.ics.texera.api.engine.Plan;
+import edu.uci.ics.texera.api.engine.MultipleSinkPlan;
 import edu.uci.ics.texera.api.exception.DataflowException;
 import edu.uci.ics.texera.api.exception.PlanGenException;
 import edu.uci.ics.texera.api.exception.TexeraException;
@@ -38,8 +39,6 @@ public class LogicalPlan {
     private LinkedHashMap<String, PredicateBase> operatorPredicateMap;
     // a map of an operator ID to operator's outputs (a set of operator IDs)
     private LinkedHashMap<String, LinkedHashSet<String>> adjacencyList;
-
-    private HashMap<String, ISink> sinkOperatorMap;
     /**
      * Create an empty logical plan.
      * 
@@ -48,7 +47,7 @@ public class LogicalPlan {
     public LogicalPlan() {
         operatorPredicateMap = new LinkedHashMap<>();
         adjacencyList = new LinkedHashMap<>();
-        sinkOperatorMap = new HashMap<>();
+
     }
     
     /**
@@ -295,6 +294,7 @@ public class LogicalPlan {
         checkGraphConnectivity();
         checkGraphCyclicity();
         checkOperatorInputArity();
+        checkOperatorOutputArity();
         checkSourceOperator();
         checkSinkOperator();
     }
@@ -516,28 +516,10 @@ public class LogicalPlan {
             }  
         }
     }
-     
-    /*
-     * Finds the sink operator in the operator graph.
-     *
-     * This function assumes that the graph is valid and there is only one sink in the graph.
-     */
-    private ISink findSinkOperator(HashMap<String, IOperator> operatorObjectMap) throws PlanGenException {
-        IOperator sinkOperator = adjacencyList.keySet().stream()
-                .filter(operator -> operatorPredicateMap.get(operator)
-                        .getClass().toString().toLowerCase().contains("sink"))
-                .map(operator -> operatorObjectMap.get(operator))
-                .findFirst().orElse(null);
-
-        PlanGenUtils.planGenAssert(sinkOperator != null, "Error: sink operator doesn't exist.");
-        PlanGenUtils.planGenAssert(sinkOperator instanceof ISink, "Error: sink operator's type doesn't match.");
-
-        return (ISink) sinkOperator;
-    }
 
     /*
      * Finds all sink operators in the operator graph.
-     *
+     * his function assumes that the graph is valid and there is at least one sink in the graph.
      */
     private HashMap<String, ISink> findSinkOperators(HashMap<String, IOperator> operatorObjectMap) throws PlanGenException {
 

@@ -1,7 +1,6 @@
 package edu.uci.ics.texera.web.resource;
 
-import edu.uci.ics.texera.api.engine.MultipleSinkPlan;
-import edu.uci.ics.texera.dataflow.sink.VisualizationOperator;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.attribute.BasicFileAttributes;
@@ -35,6 +34,9 @@ import edu.uci.ics.texera.dataflow.plangen.LogicalPlan;
 import edu.uci.ics.texera.dataflow.plangen.QueryContext;
 import edu.uci.ics.texera.dataflow.sink.tuple.TupleSink;
 import edu.uci.ics.texera.web.TexeraWebException;
+import edu.uci.ics.texera.api.engine.MultipleSinkPlan;
+import edu.uci.ics.texera.dataflow.sink.VisualizationOperator;
+
 import io.dropwizard.jersey.sessions.Session;
 
 /**

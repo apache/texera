@@ -13,7 +13,7 @@ import java.util.List;
  * Base class for visualization operators
  * Author: Mingji Han
  */
-public abstract class VisualizationOperator implements ISink, IVisualization {
+public abstract class VisualizationOperator implements ISink {
 
     protected IOperator inputOperator;
     protected int cursor = CLOSED;
