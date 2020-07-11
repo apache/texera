@@ -346,6 +346,38 @@ public class LogicalPlanTest {
     }
 
     /*
+     * Test a operator graph with more than one sink operators
+     *                                   -> TupleSink1
+     * KeywordSource --> RegexMatcher --<
+     *                                   -> TupleSink2
+     */
+    @Test
+    public void testLogicalPla4() throws Exception {
+        LogicalPlan logicalPlan = new LogicalPlan();
+
+        String TUPLE_SINK_ID_2 = "tuple sink 2";
+
+        logicalPlan.addOperator(keywordSourcePredicate);
+        logicalPlan.addOperator(regexPredicate);
+        logicalPlan.addOperator(tupleSinkPredicate);
+        tupleSinkPredicate.setID(TUPLE_SINK_ID_2);
+        logicalPlan.addOperator(tupleSinkPredicate);
+
+        logicalPlan.addLink(new OperatorLink(KEYWORD_SOURCE_ID, REGEX_ID));
+        logicalPlan.addLink(new OperatorLink(REGEX_ID, TUPLE_SINK_ID));
+        logicalPlan.addLink(new OperatorLink(REGEX_ID, TUPLE_SINK_ID_2));
+
+        Plan queryPlan = logicalPlan.buildQueryPlan();
+
+        Assert.assertTrue(queryPlan instanceof MultipleSinkPlan);
+        MultipleSinkPlan multipleSinkPlan = (MultipleSinkPlan)queryPlan;
+
+        HashMap<String, ISink> sinkHashMap = multipleSinkPlan.getSinkMap();
+        Assert.assertEquals(2, sinkHashMap.size());
+
+    }
+
+    /*
      * Test a operator graph without a source operator
      *
      * RegexMatcher --> TupleSink
@@ -379,37 +411,7 @@ public class LogicalPlanTest {
         logicalPlan.buildQueryPlan();
     }
 
-    /*
-     * Test a operator graph with more than one sink operators
-     *                                   -> TupleSink1
-     * KeywordSource --> RegexMatcher --<
-     *                                   -> TupleSink2
-     */
-    @Test
-    public void testInvalidLogicalPlan3() throws Exception {
-        LogicalPlan logicalPlan = new LogicalPlan();
 
-        String TUPLE_SINK_ID_2 = "tuple sink 2";
-
-        logicalPlan.addOperator(keywordSourcePredicate);
-        logicalPlan.addOperator(regexPredicate);
-        logicalPlan.addOperator(tupleSinkPredicate);
-        tupleSinkPredicate.setID(TUPLE_SINK_ID_2);
-        logicalPlan.addOperator(tupleSinkPredicate);
-
-        logicalPlan.addLink(new OperatorLink(KEYWORD_SOURCE_ID, REGEX_ID));
-        logicalPlan.addLink(new OperatorLink(REGEX_ID, TUPLE_SINK_ID));
-        logicalPlan.addLink(new OperatorLink(REGEX_ID, TUPLE_SINK_ID_2));
-
-        Plan queryPlan = logicalPlan.buildQueryPlan();
-
-        Assert.assertTrue(queryPlan instanceof MultipleSinkPlan);
-        MultipleSinkPlan multipleSinkPlan = (MultipleSinkPlan)queryPlan;
-
-        HashMap<String, ISink> sinkHashMap = multipleSinkPlan.getSinkMap();
-        Assert.assertEquals(2, sinkHashMap.size());
-
-    }
 
     /*
      * Test a operator graph with a disconnected component
@@ -420,7 +422,7 @@ public class LogicalPlanTest {
      *
      */
     @Test(expected = TexeraException.class)
-    public void testInvalidLogicalPlan4() throws Exception {
+    public void testInvalidLogicalPlan3() throws Exception {
         LogicalPlan logicalPlan = new LogicalPlan();
         String REGEX_ID_2 = "regex 2";
         RegexPredicate regexPredicate2 = new RegexPredicate("ca(lifornia)?",
@@ -451,7 +453,7 @@ public class LogicalPlanTest {
      *                                 --> (back to the same) RegexMatcher2
      */
     @Test(expected = TexeraException.class)
-    public void testInvalidLogicalPlan5() throws Exception {
+    public void testInvalidLogicalPlan4() throws Exception {
         LogicalPlan logicalPlan = new LogicalPlan();
 
         String REGEX_ID_2 = "regex 2";
@@ -485,7 +487,7 @@ public class LogicalPlanTest {
      *
      */
     @Test(expected = TexeraException.class)
-    public void testInvalidLogicalPlan6() throws Exception {
+    public void testInvalidLogicalPlan5() throws Exception {
         LogicalPlan logicalPlan = new LogicalPlan();
 
         String KEYWORD_SOURCE_ID_2 = "keyword source 2";
@@ -520,7 +522,7 @@ public class LogicalPlanTest {
      *
      */
     @Test(expected = TexeraException.class)
-    public void testInvalidLogicalPlan7() throws Exception {
+    public void testInvalidLogicalPlan6() throws Exception {
         LogicalPlan logicalPlan = new LogicalPlan();
 
         String REGEX_ID_2 = "regex 2";
@@ -547,7 +549,7 @@ public class LogicalPlanTest {
      *
      */
     @Test(expected = TexeraException.class)
-    public void testInvalidLogicalPlan8() throws Exception {
+    public void testInvalidLogicalPlan7() throws Exception {
         LogicalPlan logicalPlan = new LogicalPlan();
 
         logicalPlan.addOperator(keywordSourcePredicate);
