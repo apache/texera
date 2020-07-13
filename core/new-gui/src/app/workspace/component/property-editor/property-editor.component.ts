@@ -298,16 +298,43 @@ export class PropertyEditorComponent {
     // this toFieldConfig function does not detect/convert password type
     const field = this.formlyJsonschema.toFieldConfig(schema);
     if (field.fieldGroup) {
-      field.fieldGroup = field.fieldGroup.map(f => {
-        if (f.key === 'password') {
-          if (f.templateOptions) {
-            f.templateOptions.type = 'password';
-          }
-        }
-        return f;
-      });
+      field.fieldGroup = setPasswordField(field.fieldGroup);
+      // field.fieldGroup = field.fieldGroup.map(f => {
+      //   console.log(f);
+      //   if (f.key === 'password') {
+      //     if (f.templateOptions) {
+      //       f.templateOptions.type = 'password';
+      //     }
+      //   }
+      //   return f;
+      // });
     }
     this.formlyFields = [field];
+
+    function setPasswordField(fieldgroup: FormlyFieldConfig[]): FormlyFieldConfig[] {
+      console.log('calling setPasswordField on    : ');
+      console.log(fieldgroup);
+      console.log(fieldgroup[0].fieldGroup);
+
+      // fieldgroup.forEach(f => {
+      //   console.log(f);
+      //   console.log(f.key);
+      //   console.log(f.fieldGroup);
+      //   if (f.key === 'password') {
+      //     if (f.templateOptions) {
+      //       f.templateOptions.type = 'password';
+      //     }
+      //   }
+      //   if (f.fieldGroup) {
+      //     console.log('has field group');
+      //     f = setPasswordField(f.fieldGroup)[0];
+      //   }
+      //   console.log(f);
+      // });
+
+      // console.log(fieldgroup);
+      return fieldgroup;
+    }
   }
 
 }
