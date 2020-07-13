@@ -20,7 +20,7 @@ public class DateTimeField implements IField {
 
     @JsonCreator
     public DateTimeField(
-            @JsonProperty(value = JsonConstants.FIELD_VALUE, required = true) 
+            @JsonProperty(value = JsonConstants.FIELD_VALUE)
             String localDateTimeString) {
         if (localDateTimeString != null) {
             this.localDateTime = LocalDateTime.parse(localDateTimeString);

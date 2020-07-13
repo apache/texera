@@ -31,7 +31,7 @@ public class DateField implements IField {
 
     @JsonCreator
     public DateField(
-            @JsonProperty(value = JsonConstants.FIELD_VALUE, required = true) 
+            @JsonProperty(value = JsonConstants.FIELD_VALUE)
             String localDateString) {
         if (localDateString != null) {
             this.localDate = LocalDate.parse(localDateString);
