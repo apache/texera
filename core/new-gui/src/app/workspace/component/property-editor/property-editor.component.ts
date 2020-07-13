@@ -169,7 +169,6 @@ export class PropertyEditorComponent {
    * Then modifies the operator property to use the new form data.
    */
   public createOutputFormChangeEventStream(originalSourceFormChangeEvent: Observable<object>): Observable<object> {
-
     return originalSourceFormChangeEvent
       // set a debounce time to avoid events triggering too often
       //  and to circumvent a bug of the library - each action triggers event twice
@@ -258,6 +257,10 @@ export class PropertyEditorComponent {
       if (this.currentOperatorID) {
         this.workflowActionService.setOperatorProperty(this.currentOperatorID, formData);
       }
+      // if new sections are added in nested JsonSchema, find the password fields and change them
+      if (this.formlyFields) {
+        this.setPasswordField(this.formlyFields);
+      }
     });
   }
 
@@ -298,43 +301,23 @@ export class PropertyEditorComponent {
     // this toFieldConfig function does not detect/convert password type
     const field = this.formlyJsonschema.toFieldConfig(schema);
     if (field.fieldGroup) {
-      field.fieldGroup = setPasswordField(field.fieldGroup);
-      // field.fieldGroup = field.fieldGroup.map(f => {
-      //   console.log(f);
-      //   if (f.key === 'password') {
-      //     if (f.templateOptions) {
-      //       f.templateOptions.type = 'password';
-      //     }
-      //   }
-      //   return f;
-      // });
+      this.setPasswordField(field.fieldGroup);
     }
     this.formlyFields = [field];
+  }
 
-    function setPasswordField(fieldgroup: FormlyFieldConfig[]): FormlyFieldConfig[] {
-      console.log('calling setPasswordField on    : ');
-      console.log(fieldgroup);
-      console.log(fieldgroup[0].fieldGroup);
-
-      // fieldgroup.forEach(f => {
-      //   console.log(f);
-      //   console.log(f.key);
-      //   console.log(f.fieldGroup);
-      //   if (f.key === 'password') {
-      //     if (f.templateOptions) {
-      //       f.templateOptions.type = 'password';
-      //     }
-      //   }
-      //   if (f.fieldGroup) {
-      //     console.log('has field group');
-      //     f = setPasswordField(f.fieldGroup)[0];
-      //   }
-      //   console.log(f);
-      // });
-
-      // console.log(fieldgroup);
-      return fieldgroup;
-    }
+  private setPasswordField(fieldgroup: FormlyFieldConfig[]): FormlyFieldConfig[] {
+    fieldgroup.forEach(f => {
+      if (f.key === 'password') {
+        if (f.templateOptions) {
+          f.templateOptions.type = 'password';
+        }
+      }
+      if (f.fieldGroup) {
+        f = this.setPasswordField(f.fieldGroup)[0];
+      }
+    });
+    return fieldgroup;
   }
 
 }
