@@ -138,22 +138,18 @@ public class UserFileResource {
     }
     
     private Record1<String> deleteInDatabase(UInteger fileID, UInteger userID) {
-        // Connection is AutoCloseable so it will automatically close when it finishes.
-        try (Connection conn = UserSqlServer.getConnection()) {
-            DSLContext create = UserSqlServer.createDSLContext(conn);
-            
             /**
              * Known problem for jooq 3.x
              * delete...returning clause does not work properly
              * retrieve the filepath first, then delete it.
              */
-            Record1<String> result = create
+            Record1<String> result = UserSqlServer.createDSLContext()
                     .select(USERFILE.PATH)
                     .from(USERFILE)
                     .where(USERFILE.FILEID.eq(fileID).and(USERFILE.USERID.equal(userID)))
                     .fetchOne();
             
-            int count = create
+            int count = UserSqlServer.createDSLContext()
                     .delete(USERFILE)
                     .where(USERFILE.FILEID.eq(fileID).and(USERFILE.USERID.equal(userID)))
                     //.returning(USERFILE.FILEPATH) does not work
@@ -162,28 +158,14 @@ public class UserFileResource {
             throwErrorWhenNotOne("delete file " + fileID + " failed in database", count);
             
             return result;
-            
-        } catch (Exception e) {
-            throw new TexeraWebException(e);
-        }
     }
     
     private Result<Record5<UInteger, String, String, String, UInteger>> getUserFileRecord(UInteger userID) {
-        // Connection is AutoCloseable so it will automatically close when it finishes.
-        try (Connection conn = UserSqlServer.getConnection()) {
-            DSLContext create = UserSqlServer.createDSLContext(conn);
-            
-            Result<Record5<UInteger, String, String, String, UInteger>> result = create
+            return UserSqlServer.createDSLContext()
                     .select(USERFILE.FILEID, USERFILE.NAME, USERFILE.PATH, USERFILE.DESCRIPTION, USERFILE.SIZE)
                     .from(USERFILE)
                     .where(USERFILE.USERID.equal(userID))
                     .fetch();
-            
-            return result;
-            
-        } catch (Exception e) {
-            throw new TexeraWebException(e);
-        }
     }
     
     private void handleFileUpload(InputStream fileStream, String fileName, String description, UInteger size, UInteger userID) {
@@ -209,11 +191,7 @@ public class UserFileResource {
     
     
     private int insertFileToDataBase(String fileName, String path, UInteger size, String description, UInteger userID) {
-        // Connection is AutoCloseable so it will automatically close when it finishes.
-        try (Connection conn = UserSqlServer.getConnection()) {
-            DSLContext create = UserSqlServer.createDSLContext(conn);
-            
-            int count = create.insertInto(USERFILE)
+            return UserSqlServer.createDSLContext().insertInto(USERFILE)
                     .set(USERFILE.USERID,userID)
                     .set(USERFILE.FILEID, defaultValue(USERFILE.FILEID))
                     .set(USERFILE.NAME, fileName)
@@ -221,12 +199,6 @@ public class UserFileResource {
                     .set(USERFILE.DESCRIPTION, description)
                     .set(USERFILE.SIZE, size)
                     .execute();
-            
-            return count;
-            
-        } catch (Exception e) {
-            throw new TexeraWebException(e);
-        }
     }
     
     private Pair<Boolean, String> validateFileName(String fileName, UInteger userID) {
@@ -242,19 +214,13 @@ public class UserFileResource {
     }
     
     private Boolean isFileNameExisted(String fileName, UInteger userID) {
-        try (Connection conn = UserSqlServer.getConnection()) {
-            DSLContext create = UserSqlServer.createDSLContext(conn);
-            
-            boolean result = create
+            return UserSqlServer.createDSLContext()
                     .fetchExists(
-                            create.selectFrom(USERFILE)
+                            UserSqlServer.createDSLContext()
+                            .selectFrom(USERFILE)
                             .where(USERFILE.USERID.equal(userID)
                                     .and(USERFILE.NAME.equal(fileName)))
                             );
-            return result;
-        } catch (Exception e) {
-            throw new TexeraWebException(e);
-        }
     }
     
     /**

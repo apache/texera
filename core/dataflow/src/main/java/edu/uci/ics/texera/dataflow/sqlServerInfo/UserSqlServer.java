@@ -5,6 +5,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 
+import com.mysql.cj.jdbc.MysqlDataSource;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import edu.uci.ics.texera.api.utils.Utils;
@@ -15,20 +16,20 @@ import org.jooq.impl.DSL;
 public final class UserSqlServer {
 
     public static Config jdbcConfig;
+    private static MysqlDataSource dataSource;
+
     static {
         Path jdbcConfPath = Utils.getTexeraHomePath().resolve("conf").resolve("jdbc.conf");
         jdbcConfig = ConfigFactory.parseFile(jdbcConfPath.toFile());
+        
+        dataSource = new MysqlDataSource();
+        dataSource.setUrl(jdbcConfig.getString("jdbc.url"));
+        dataSource.setUser(jdbcConfig.getString("jdbc.username"));
+        dataSource.setPassword(jdbcConfig.getString("jdbc.password"));
     }
     public static final SQLDialect SQL_DIALECT = SQLDialect.MYSQL;
 
-    public static Connection getConnection() throws SQLException {
-        return DriverManager.getConnection(
-                jdbcConfig.getString("jdbc.url"),
-                jdbcConfig.getString("jdbc.username"),
-                jdbcConfig.getString("jdbc.password"));
-    }
-
-    public static DSLContext createDSLContext(Connection conn) {
-        return DSL.using(conn, SQL_DIALECT);
+    public static DSLContext createDSLContext() {
+        return DSL.using(dataSource, SQL_DIALECT);
     }
 }

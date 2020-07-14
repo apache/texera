@@ -150,37 +150,20 @@ public class UserResource {
     }
     
     private Record1<UInteger> getUserID(Condition condition) {
-        // Connection is AutoCloseable so it will automatically close when it finishes.
-        try (Connection conn = UserSqlServer.getConnection()) {
-            DSLContext create = UserSqlServer.createDSLContext(conn);
-            
-            Record1<UInteger> result = create
+            return UserSqlServer.createDSLContext()
                     .select(USERACCOUNT.USERID)
                     .from(USERACCOUNT)
                     .where(condition)
                     .fetchOne();
-            return result;
-        } catch (Exception e) {
-            throw new TexeraWebException(e);
-        }
     }
     
     private UseraccountRecord insertUserAccount(String userName) {
-        // Connection is AutoCloseable so it will automatically close when it finishes.
-        try (Connection conn = UserSqlServer.getConnection()) {
-            DSLContext create = UserSqlServer.createDSLContext(conn);
-            
-            UseraccountRecord result = create.insertInto(USERACCOUNT)
+            return UserSqlServer.createDSLContext()
+                    .insertInto(USERACCOUNT)
                     .set(USERACCOUNT.USERNAME, userName)
                     .set(USERACCOUNT.USERID, defaultValue(USERACCOUNT.USERID))
                     .returning(USERACCOUNT.USERID)
                     .fetchOne();
-            
-            return result;
-            
-        } catch (Exception e) {
-            throw new TexeraWebException(e);
-        }
     }
     
     private Pair<Boolean, String> validateUsername(String userName) {

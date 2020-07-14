@@ -19,7 +19,7 @@ import edu.uci.ics.texera.dataflow.common.PropertyNameConstants;
 public class ComparablePredicate extends PredicateBase {
 
     private String attributeName;
-    private Object compareToValue;
+    private String compareToValue;
     private ComparisonType matchingType;
 
     @JsonCreator
@@ -29,7 +29,7 @@ public class ComparablePredicate extends PredicateBase {
             @JsonProperty(value = PropertyNameConstants.COMPARISON_TYPE, required = true)
             ComparisonType matchingType,
             @JsonProperty(value = PropertyNameConstants.COMPARE_TO_VALUE, required = true)
-            Object compareToValue) {
+            String compareToValue) {
         if (attributeName == null || attributeName.trim().isEmpty()) {
             throw new TexeraException("attribute cannot be empty");
         }
@@ -49,7 +49,7 @@ public class ComparablePredicate extends PredicateBase {
     }
 
     @JsonProperty(value = PropertyNameConstants.COMPARE_TO_VALUE)
-    public Object getCompareToValue() {
+    public String getCompareToValue() {
         return compareToValue;
     }
 
