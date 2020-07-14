@@ -27,10 +27,10 @@ public class ArrowNltkSentimentPredicate extends PredicateBase {
                     String resultAttributeName,
 
             @AdvancedOption
-            @JsonProperty(value = PropertyNameConstants.NLP_NLTK_BATCH_SIZE, required = true,
+            @JsonProperty(value = PropertyNameConstants.ARROW_NLTK_BATCH_SIZE, required = true,
                     defaultValue = "10")
                     int batchSize,
-            @JsonProperty(value = PropertyNameConstants.NLP_NLTK_MODEL, required = true)
+            @JsonProperty(value = PropertyNameConstants.ARROW_NLTK_MODEL, required = true)
                     String inputAttributeModel) {
         if (inputAttributeName.trim().isEmpty()) {
             throw new TexeraException("Input Attribute Name Cannot Be Empty");
@@ -54,12 +54,12 @@ public class ArrowNltkSentimentPredicate extends PredicateBase {
         return this.resultAttributeName;
     }
 
-    @JsonProperty(PropertyNameConstants.NLP_NLTK_MODEL)
+    @JsonProperty(PropertyNameConstants.ARROW_NLTK_MODEL)
     public String getInputAttributeModel() {
         return this.inputAttributeModel;
     }
 
-    @JsonProperty(PropertyNameConstants.NLP_NLTK_BATCH_SIZE)
+    @JsonProperty(PropertyNameConstants.ARROW_NLTK_BATCH_SIZE)
     public int getBatchSize() {
         return this.batchSize;
     }
@@ -71,8 +71,9 @@ public class ArrowNltkSentimentPredicate extends PredicateBase {
 
     public static Map<String, Object> getOperatorMetadata() {
         return ImmutableMap.<String, Object>builder()
-                .put(PropertyNameConstants.USER_FRIENDLY_NAME, "Nltk Sentiment Analysis")
-                .put(PropertyNameConstants.OPERATOR_DESCRIPTION, "Sentiment analysis based on Python's NLTK package")
+                .put(PropertyNameConstants.USER_FRIENDLY_NAME, "Nltk Sentiment Analysis using Arrow")
+                .put(PropertyNameConstants.OPERATOR_DESCRIPTION, "Sentiment analysis based on Python's NLTK package, " +
+                        "using Apache Arrow to pass files")
                 .put(PropertyNameConstants.OPERATOR_GROUP_NAME, OperatorGroupConstants.ANALYTICS_GROUP)
                 .build();
     }
