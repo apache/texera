@@ -7,11 +7,7 @@ import java.time.format.DateTimeParseException;
 import edu.uci.ics.texera.api.constants.ErrorMessages;
 import edu.uci.ics.texera.api.exception.DataflowException;
 import edu.uci.ics.texera.api.exception.TexeraException;
-import edu.uci.ics.texera.api.field.DateField;
-import edu.uci.ics.texera.api.field.DateTimeField;
-import edu.uci.ics.texera.api.field.DoubleField;
-import edu.uci.ics.texera.api.field.IntegerField;
-import edu.uci.ics.texera.api.field.StringField;
+import edu.uci.ics.texera.api.field.*;
 import edu.uci.ics.texera.api.schema.AttributeType;
 import edu.uci.ics.texera.api.schema.Schema;
 import edu.uci.ics.texera.api.tuple.*;
@@ -59,27 +55,29 @@ public class ComparableMatcher extends AbstractSingleInputOperator {
     public Tuple processOneInputTuple(Tuple inputTuple) throws TexeraException {
         boolean conditionSatisfied = false;
         switch (this.inputAttrType) {
-        case DATE:
-            conditionSatisfied = compareDate(inputTuple);
-            break;
-        case DATETIME:
-            conditionSatisfied = compareDateTime(inputTuple);
-            break;            
-        case DOUBLE:
-            conditionSatisfied = compareDouble(inputTuple);
-            break;
-        case INTEGER:
-            conditionSatisfied = compareInt(inputTuple);
-            break;
-        case STRING:
-        case TEXT:
-        case _ID_TYPE:
-            conditionSatisfied = compareString(inputTuple);
-            break;
-        case LIST:
-            throw new DataflowException("Unable to do comparison: LIST type is not supported");
-        default:
-            throw new DataflowException("Unable to do comparison: unknown type " + inputAttrType.getName());
+            case DATE:
+                conditionSatisfied = compareDate(inputTuple);
+                break;
+            case DATETIME:
+                conditionSatisfied = compareDateTime(inputTuple);
+                break;
+            case DOUBLE:
+                conditionSatisfied = compareDouble(inputTuple);
+                break;
+            case INTEGER:
+                conditionSatisfied = compareInt(inputTuple);
+                break;
+            case STRING:
+            case _ID_TYPE:
+                conditionSatisfied = compareString(inputTuple);
+                break;
+            case TEXT:
+                conditionSatisfied = compareText(inputTuple);
+                break;
+            case LIST:
+                throw new DataflowException("Unable to do comparison: LIST type is not supported");
+            default:
+                throw new DataflowException("Unable to do comparison: unknown type " + inputAttrType.getName());
         }
         return conditionSatisfied ? inputTuple : null;
     }
@@ -125,9 +123,8 @@ public class ComparableMatcher extends AbstractSingleInputOperator {
     private boolean compareDouble(Tuple inputTuple) {
         Double value = inputTuple.getField(predicate.getAttributeName(), DoubleField.class).getValue();
         try {
-            Double compareToValue = Double.parseDouble(predicate.getCompareToValue());
+            Double compareToValue = Double.parseDouble( predicate.getCompareToValue());
             return compareValues(value, compareToValue, predicate.getComparisonType());
-
         } catch (NumberFormatException e) {
             throw new DataflowException("Unable to parse to number " + e.getMessage());
         }
@@ -136,8 +133,8 @@ public class ComparableMatcher extends AbstractSingleInputOperator {
     private boolean compareInt(Tuple inputTuple) {
         Integer value = inputTuple.getField(predicate.getAttributeName(), IntegerField.class).getValue();
         try {
-            Integer compareToValue = Integer.parseInt(predicate.getCompareToValue());
-            return compareValues(value, compareToValue, predicate.getComparisonType());
+            Double compareToValue = Double.parseDouble(predicate.getCompareToValue());
+            return compareValues((double) value, compareToValue, predicate.getComparisonType());
         } catch (NumberFormatException e) {
             throw new DataflowException("Unable to parse to number " + e.getMessage());
         }
@@ -146,6 +143,12 @@ public class ComparableMatcher extends AbstractSingleInputOperator {
     private boolean compareString(Tuple inputTuple) {
         return compareValues(
                 inputTuple.getField(predicate.getAttributeName(), StringField.class).getValue(),
+                predicate.getCompareToValue(), predicate.getComparisonType());
+    }
+
+    private boolean compareText(Tuple inputTuple) {
+        return compareValues(
+                inputTuple.getField(predicate.getAttributeName(), TextField.class).getValue(),
                 predicate.getCompareToValue(), predicate.getComparisonType());
     }
 
