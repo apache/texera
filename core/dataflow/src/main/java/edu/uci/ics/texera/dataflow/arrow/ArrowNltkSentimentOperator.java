@@ -35,7 +35,7 @@ public class ArrowNltkSentimentOperator implements IOperator {
     private int cursor = CLOSED;
 
     private final static String PYTHON = "python3";
-    private final static String PYTHONSCRIPT = Utils.getResourcePath("nltk_sentiment_classify.py", TexeraProject.TEXERA_DATAFLOW).toString();
+    private final static String PYTHONSCRIPT = Utils.getResourcePath("arrow_for_nltk_sentiment.py", TexeraProject.TEXERA_DATAFLOW).toString();
     private final static String BatchedFiles = Utils.getResourcePath("id-text.csv", TexeraProject.TEXERA_DATAFLOW).toString();
     private final static String resultPath = Utils.getResourcePath("result-id-class.csv", TexeraProject.TEXERA_DATAFLOW).toString();
 
