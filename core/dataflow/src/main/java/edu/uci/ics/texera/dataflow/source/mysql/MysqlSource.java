@@ -100,16 +100,21 @@ public class MysqlSource implements ISourceOperator{
             if (start) {
                 PreparedStatement ps = this.connection.prepareStatement(generateSqlQuery(predicate));
                 int nextIndex = 1;
+                // uncomment below if want to do nesed boolean expression construction
+//                if (!predicate.getColumn().equals("") && !predicate.getKeywords().isEmpty()) {
+//                    StringBuilder keywords = new StringBuilder();
+//                    for (int i = 0; i < predicate.getKeywords().size(); i++) {
+//                        keywords.append(" (");
+//                        for (int j = 0; j < predicate.getKeywords().get(i).size(); j++) {
+//                            keywords.append(" +").append(predicate.getKeywords().get(i).get(j));
+//                        }
+//                        keywords.append(" )");
+//                    }
+//                    ps.setString(nextIndex, keywords.toString());
+//                    nextIndex += 1;
+//                }
                 if (!predicate.getColumn().equals("") && !predicate.getKeywords().isEmpty()) {
-                    StringBuilder keywords = new StringBuilder();
-                    for (int i = 0; i < predicate.getKeywords().size(); i++) {
-                        keywords.append(" (");
-                        for (int j = 0; j < predicate.getKeywords().get(i).size(); j++) {
-                            keywords.append(" +").append(predicate.getKeywords().get(i).get(j));
-                        }
-                        keywords.append(" )");
-                    }
-                    ps.setString(nextIndex, keywords.toString());
+                    ps.setString(nextIndex, predicate.getKeywords());
                     nextIndex += 1;
                 }
                 if (predicate.getLimit() != Integer.MAX_VALUE) {

@@ -107,12 +107,12 @@ public class JsonSchemaHelper {
             }
         });
 
-        if (operatorType.equals("MysqlSource")) {
-            ObjectNode keywords = (ObjectNode) propertiesNode.get("keywords");
-            keywords.put("description", "return records that meet any conditions below");
-            ObjectNode conjunctionGroups = (ObjectNode) propertiesNode.get("keywords").get("items");
-            conjunctionGroups.put("description","Condition: contains all words below");
-        }
+//        if (operatorType.equals("MysqlSource")) {
+//            ObjectNode keywords = (ObjectNode) propertiesNode.get("keywords");
+//            keywords.put("description", "return records that meet any conditions below");
+//            ObjectNode conjunctionGroups = (ObjectNode) propertiesNode.get("keywords").get("items");
+//            conjunctionGroups.put("description","Condition: contains all words below");
+//        }
 
         // add required/optional properties to the schema
         List<String> requiredProperties = getRequiredProperties(predicateClass);
