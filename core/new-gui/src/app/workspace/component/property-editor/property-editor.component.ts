@@ -298,23 +298,6 @@ export class PropertyEditorComponent {
 
     // this toFieldConfig function does not detect/convert password type
     const field = this.formlyJsonschema.toFieldConfig(schema);
-
-    if (field.fieldGroup) {
-      field.fieldGroup = field.fieldGroup.map(f => {
-        if (f.key === 'password') {
-          if (f.templateOptions) {
-            f.templateOptions.type = 'password';
-          }
-        }
-        if (f.key === 'keywords') {
-          f.type = 'textarea';
-          if (f.templateOptions) {
-            f.templateOptions.rows = 5;
-          }
-        }
-        return f;
-      });
-    }
     this.formlyFields = [field];
   }
 

@@ -9,6 +9,7 @@ import edu.uci.ics.texera.api.schema.Attribute;
 import edu.uci.ics.texera.api.schema.AttributeType;
 import edu.uci.ics.texera.api.schema.Schema;
 import edu.uci.ics.texera.api.tuple.Tuple;
+import org.jooq.True;
 
 import java.sql.*;
 import java.util.ArrayList;
@@ -17,12 +18,12 @@ import java.util.List;
 
 public class MysqlSource implements ISourceOperator{
 	private final MysqlSourcePredicate predicate;
-    private int cursor = CLOSED;
+    private int status = CLOSED;
     private Schema outputSchema;
     private final Schema.Builder schemaBuilder;
     private Connection connection;
     private ResultSet rs;
-    private boolean start = true;
+    private boolean querySent = false;
 
     
     public MysqlSource(MysqlSourcePredicate predicate){
@@ -32,7 +33,7 @@ public class MysqlSource implements ISourceOperator{
 
     @Override
     public void open() throws TexeraException {
-        if (cursor == OPENED) {
+        if (status == OPENED) {
             return;
         }
         // JDBC connection
@@ -41,6 +42,7 @@ public class MysqlSource implements ISourceOperator{
             String url = "jdbc:mysql://" + predicate.getHost() + ":" + predicate.getPort() + "/"
                     + predicate.getDatabase() + "?autoReconnect=true&useSSL=true";
             this.connection = DriverManager.getConnection(url, predicate.getUsername(), predicate.getPassword());
+            // set to readonly to improve efficiency
             connection.setReadOnly(true);
             DatabaseMetaData databaseMetaData = connection.getMetaData();
             ResultSet columns = databaseMetaData.getColumns(null,null, predicate.getTable(), null);
@@ -85,7 +87,7 @@ public class MysqlSource implements ISourceOperator{
                 this.schemaBuilder.add(columnName, attributeType);
             }
             this.outputSchema = this.schemaBuilder.build();
-            cursor = OPENED;
+            status = OPENED;
         } catch (SQLException | InstantiationException | IllegalAccessException | ClassNotFoundException e) {
             throw new DataflowException("MysqlSink failed to connect to mysql database." + e.getMessage());
         }
@@ -93,27 +95,14 @@ public class MysqlSource implements ISourceOperator{
     
     @Override
     public Tuple getNextTuple() throws TexeraException {
-        if (cursor == CLOSED) {
+        if (status == CLOSED) {
             throw new DataflowException(ErrorMessages.OPERATOR_NOT_OPENED);
         }
         try {
-            if (start) {
+            if (!querySent) {
                 PreparedStatement ps = this.connection.prepareStatement(generateSqlQuery(predicate));
                 int nextIndex = 1;
-                // uncomment below if want to do nesed boolean expression construction
-//                if (!predicate.getColumn().equals("") && !predicate.getKeywords().isEmpty()) {
-//                    StringBuilder keywords = new StringBuilder();
-//                    for (int i = 0; i < predicate.getKeywords().size(); i++) {
-//                        keywords.append(" (");
-//                        for (int j = 0; j < predicate.getKeywords().get(i).size(); j++) {
-//                            keywords.append(" +").append(predicate.getKeywords().get(i).get(j));
-//                        }
-//                        keywords.append(" )");
-//                    }
-//                    ps.setString(nextIndex, keywords.toString());
-//                    nextIndex += 1;
-//                }
-                if (!predicate.getColumn().equals("") && !predicate.getKeywords().isEmpty()) {
+                if (!predicate.getColumn().isEmpty() && !predicate.getKeywords().isEmpty()) {
                     ps.setString(nextIndex, predicate.getKeywords());
                     nextIndex += 1;
                 }
@@ -124,10 +113,8 @@ public class MysqlSource implements ISourceOperator{
                 if (predicate.getOffset() != 0) {
                     ps.setObject(nextIndex, predicate.getOffset(), Types.INTEGER);
                 }
-                System.out.println(ps.toString());
                 this.rs = ps.executeQuery();
-                start = false;
-//                ps.close();
+                querySent = true;
             }
 
 			while (rs.next()) {
@@ -155,7 +142,6 @@ public class MysqlSource implements ISourceOperator{
                         }
                     }else if (a.getType() == AttributeType.DATE){
                         Date value = rs.getDate(a.getName());
-                        // allowing null value DateField to be in the workflow
                         tb.add(new DateField(value));
                     }else if (a.getType() == AttributeType.DATETIME){
                         String value = rs.getString(a.getName());
@@ -163,9 +149,7 @@ public class MysqlSource implements ISourceOperator{
                     }
                 }
 			    IField[] iFieldArray = tb.toArray(new IField[0]);
-                Tuple tuple = new Tuple(this.outputSchema, iFieldArray);
-                cursor ++;
-			    return tuple;
+                return new Tuple(this.outputSchema, iFieldArray);
 			}
 		} catch (SQLException e) {
             throw new DataflowException(e.getMessage());
@@ -177,8 +161,8 @@ public class MysqlSource implements ISourceOperator{
         //
         String query =  "\n" +
                 "select * from "+ predicate.getTable() +" where 1 = 1 ";
-        if(!predicate.getColumn().equals("") && !predicate.getKeywords().isEmpty()) {
-            query += " AND  MATCH( " + predicate.getColumn() + " )  AGAINST ( ? IN BOOLEAN MODE)";
+        if(!predicate.getColumn().isEmpty() && !predicate.getKeywords().isEmpty()) {
+            query += " AND  MATCH( " + predicate.getColumn() + " )  AGAINST ( ? IN NATURAL LANGUAGE MODE)";
         }
         if(predicate.getLimit() != Integer.MAX_VALUE){
             query += " LIMIT ?";
@@ -192,23 +176,21 @@ public class MysqlSource implements ISourceOperator{
             query += " OFFSET ?";
         }
         query+=";";
-        System.out.println(query);
         return query;
     }
     
     
     @Override
     public void close() throws TexeraException {
-        if (cursor == CLOSED) {
+        if (status == CLOSED) {
             return;
         }
         try {
         	connection.close();
-        	cursor = CLOSED;
+            status = CLOSED;
         }catch (SQLException e) {
-            throw new DataflowException("MysqlSink fail to close. " + e.getMessage());
+            throw new DataflowException("Mysql source fail to close. " + e.getMessage());
         }
-        
     }
 
     @Override

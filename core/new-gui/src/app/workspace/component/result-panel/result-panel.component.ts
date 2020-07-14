@@ -243,7 +243,7 @@ export class ResultPanelComponent {
           return this.trimTableCell(row[col].toString());
         } else {
           // allowing null value from backend
-          return 'null';
+          return '';
         }
       }
     }));

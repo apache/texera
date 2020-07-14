@@ -1,8 +1,5 @@
 package edu.uci.ics.texera.dataflow.source.mysql;
 
-
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -22,11 +19,10 @@ public class MysqlSourcePredicate extends PredicateBase{
     private final String password;
     private final Integer limit;
     private final Integer offset;
-//    private final List<List<String>> keywords;
-    private final String keywords;
     private final String column;
+    private final String keywords;
 
-    
+
     @JsonCreator
     public MysqlSourcePredicate(
             @JsonProperty(value = PropertyNameConstants.MYSQL_HOST, required = true)
@@ -48,7 +44,6 @@ public class MysqlSourcePredicate extends PredicateBase{
             @JsonProperty(value = PropertyNameConstants.MYSQL_COLUMN, required = false)
             String column,
             @JsonProperty(value = PropertyNameConstants.MYSQL_KEYWORDS, required = false)
-            // List<List<String>> keywords
             String keywords
             ) {
         this.host = host.trim();
@@ -57,16 +52,10 @@ public class MysqlSourcePredicate extends PredicateBase{
         this.table = table.trim();
         this.username = username.trim();	
         this.password = password;	// Space should be legitimate password
-        // remove empty conjunctions
-//        for (List<String> conjunction: keywords) {
-//            if (conjunction.isEmpty()) {
-//                keywords.remove(conjunction);
-//            }
-//        }
-        this.keywords = keywords;  //keywords represent a disjunction of conjunctions
         this.limit = limit == null ? Integer.MAX_VALUE : limit;
         this.offset = offset == null ? 0 : offset;
-        this.column = column ==null? "": column;
+        this.column = column == null ? "" : column;
+        this.keywords = keywords == null ? "" : keywords;
     }
     
     @JsonProperty(value = PropertyNameConstants.MYSQL_HOST)
@@ -118,10 +107,6 @@ public class MysqlSourcePredicate extends PredicateBase{
     public String getKeywords() {
         return keywords;
     }
-//    public List<List<String>> getKeywords() {
-//        return new ArrayList<>(keywords);
-//    }
-
     
     @Override
     public MysqlSource newOperator() {
