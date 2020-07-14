@@ -8,7 +8,7 @@ package edu.uci.ics.texera.dataflow.common;
  *
  */
 public class PropertyNameConstants {
-    
+
     private PropertyNameConstants() {};
     
     // operator metadata names, used in generating operator json schema
@@ -140,4 +140,6 @@ public class PropertyNameConstants {
     public static final String INVALID_SAMPLE_SIZE_EXCEPTION = "Sample size should be greater than 0.";
     public static final String INVALID_LIMIT_EXCEPTION = "limit must be greater than or equal to 0";
     public static final String INVALID_OFFSET_EXCEPTION = "offset must be greater than or equal to 0";
+
+    public static final String ARROW_BATCH_SIZE = "arrowBatchSize";
 }
