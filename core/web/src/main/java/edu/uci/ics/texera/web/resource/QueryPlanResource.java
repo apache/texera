@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.web.resource;
 
 
+import edu.uci.ics.texera.dataflow.sink.AbstractTupleSink;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.attribute.BasicFileAttributes;
@@ -34,7 +35,6 @@ import edu.uci.ics.texera.dataflow.plangen.LogicalPlan;
 import edu.uci.ics.texera.dataflow.plangen.QueryContext;
 import edu.uci.ics.texera.dataflow.sink.tuple.TupleSink;
 import edu.uci.ics.texera.web.TexeraWebException;
-import edu.uci.ics.texera.api.engine.MultipleSinkPlan;
 import edu.uci.ics.texera.dataflow.sink.VisualizationOperator;
 
 import io.dropwizard.jersey.sessions.Session;
@@ -58,7 +58,7 @@ public class QueryPlanResource {
      * @param plan Logical plan to be executed
      * @return Generic GenericWebResponse object
      */
-    private JsonNode executeMutipleSinkPlan(MultipleSinkPlan plan)  {
+    private JsonNode executeMutipleSinkPlan(Plan plan)  {
         HashMap<String, ISink> sinkMap = plan.getSinkMap();
         ObjectNode response = new ObjectMapper().createObjectNode();
         HashMap<String, List<Tuple>> executionResult = new HashMap<>();
@@ -67,22 +67,17 @@ public class QueryPlanResource {
 
             ISink sinkOperator = sinkEntry.getValue();
 
-            if (sinkOperator instanceof TupleSink) {
-                TupleSink tupleSink = (TupleSink) sinkOperator;
-                tupleSink.open();
-                List<Tuple> result = tupleSink.collectAllTuples();
-                tupleSink.close();
-                executionResult.put(sinkEntry.getKey(), result);
-
-            } else if (sinkOperator instanceof VisualizationOperator) {
-                VisualizationOperator tupleSink = (VisualizationOperator) sinkOperator;
+            if (sinkOperator instanceof AbstractTupleSink) {
+                AbstractTupleSink tupleSink = (AbstractTupleSink) sinkOperator;
                 tupleSink.open();
                 List<Tuple> result = tupleSink.collectAllTuples();
                 tupleSink.close();
                 executionResult.put(sinkEntry.getKey(), result);
 
             } else {
-                Engine.getEngine().evaluate(plan);
+                sinkOperator.open();
+                sinkOperator.processTuples();
+                sinkOperator.close();
             }
         }
 
@@ -135,7 +130,7 @@ public class QueryPlanResource {
             logicalPlan.setContext(ctx);
             Plan plan = logicalPlan.buildQueryPlan();
 
-            return executeMutipleSinkPlan((MultipleSinkPlan)plan);
+            return executeMutipleSinkPlan(plan);
         } catch (IOException | TexeraException e) {
             throw new TexeraWebException(e.getMessage());
         }

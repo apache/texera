@@ -12,7 +12,6 @@ import edu.uci.ics.texera.api.dataflow.IOperator;
 import edu.uci.ics.texera.api.dataflow.ISink;
 import edu.uci.ics.texera.api.dataflow.ISourceOperator;
 import edu.uci.ics.texera.api.engine.Plan;
-import edu.uci.ics.texera.api.engine.MultipleSinkPlan;
 import edu.uci.ics.texera.api.exception.DataflowException;
 import edu.uci.ics.texera.api.exception.PlanGenException;
 import edu.uci.ics.texera.api.exception.TexeraException;
@@ -263,7 +262,7 @@ public class LogicalPlan {
         connectOperators(operatorObjectMap);
         HashMap<String, ISink> sinkMap = findSinkOperators(operatorObjectMap);
 
-        return new MultipleSinkPlan(sinkMap);
+        return new Plan(sinkMap);
     }
     
     /*
@@ -525,7 +524,7 @@ public class LogicalPlan {
 
         HashMap<String, IOperator> operatorMap = new HashMap<>();
         for (HashMap.Entry<String, IOperator> entry: operatorObjectMap.entrySet()) {
-            if (entry.getValue().getClass().toString().toLowerCase().contains("sink")) {
+            if (entry.getValue() instanceof ISink) {
                 operatorMap.put(entry.getKey(), entry.getValue());
             }
         }

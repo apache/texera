@@ -1,6 +1,5 @@
 package edu.uci.ics.texera.dataflow.plangen;
 
-import edu.uci.ics.texera.api.engine.MultipleSinkPlan;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -203,10 +202,7 @@ public class LogicalPlanTest {
 
         Plan queryPlan = logicalPlan.buildQueryPlan();
 
-        Assert.assertTrue(queryPlan instanceof MultipleSinkPlan);
-        MultipleSinkPlan multipleSinkPlan = (MultipleSinkPlan)queryPlan;
-
-        HashMap<String, ISink> sinkHashMap = multipleSinkPlan.getSinkMap();
+        HashMap<String, ISink> sinkHashMap = queryPlan.getSinkMap();
         Assert.assertEquals(1, sinkHashMap.size());
 
         ISink tupleSink = null;
@@ -235,10 +231,7 @@ public class LogicalPlanTest {
 
         Plan queryPlan = logicalPlan.buildQueryPlan();
 
-        Assert.assertTrue(queryPlan instanceof MultipleSinkPlan);
-        MultipleSinkPlan multipleSinkPlan = (MultipleSinkPlan)queryPlan;
-
-        HashMap<String, ISink> sinkHashMap = multipleSinkPlan.getSinkMap();
+        HashMap<String, ISink> sinkHashMap = queryPlan.getSinkMap();
         Assert.assertEquals(1, sinkHashMap.size());
 
         ISink tupleSink = null;
@@ -292,10 +285,8 @@ public class LogicalPlanTest {
 
         Plan queryPlan = logicalPlan.buildQueryPlan();
 
-        Assert.assertTrue(queryPlan instanceof MultipleSinkPlan);
-        MultipleSinkPlan multipleSinkPlan = (MultipleSinkPlan)queryPlan;
+        HashMap<String, ISink> sinkHashMap = queryPlan.getSinkMap();
 
-        HashMap<String, ISink> sinkHashMap = multipleSinkPlan.getSinkMap();
         Assert.assertEquals(1, sinkHashMap.size());
 
         ISink tupleSink = null;
@@ -369,10 +360,8 @@ public class LogicalPlanTest {
 
         Plan queryPlan = logicalPlan.buildQueryPlan();
 
-        Assert.assertTrue(queryPlan instanceof MultipleSinkPlan);
-        MultipleSinkPlan multipleSinkPlan = (MultipleSinkPlan)queryPlan;
+        HashMap<String, ISink> sinkHashMap = queryPlan.getSinkMap();
 
-        HashMap<String, ISink> sinkHashMap = multipleSinkPlan.getSinkMap();
         Assert.assertEquals(2, sinkHashMap.size());
 
     }
@@ -572,10 +561,7 @@ public class LogicalPlanTest {
         LogicalPlan logicalPlan = getLogicalPlan1();
         Plan queryPlan = logicalPlan.buildQueryPlan();
 
-        Assert.assertTrue(queryPlan instanceof MultipleSinkPlan);
-        MultipleSinkPlan multipleSinkPlan = (MultipleSinkPlan)queryPlan;
-
-        HashMap<String, ISink> sinkHashMap = multipleSinkPlan.getSinkMap();
+        HashMap<String, ISink> sinkHashMap = queryPlan.getSinkMap();
         Assert.assertEquals(1, sinkHashMap.size());
 
         ISink tupleSink = null;
@@ -613,10 +599,7 @@ public class LogicalPlanTest {
 
         Plan queryPlan = logicalPlan.buildQueryPlan();
 
-        Assert.assertTrue(queryPlan instanceof MultipleSinkPlan);
-        MultipleSinkPlan multipleSinkPlan = (MultipleSinkPlan)queryPlan;
-
-        HashMap<String, ISink> sinkHashMap = multipleSinkPlan.getSinkMap();
+        HashMap<String, ISink> sinkHashMap = queryPlan.getSinkMap();
         Assert.assertEquals(1, sinkHashMap.size());
 
         ISink tupleSink = null;
@@ -681,10 +664,7 @@ public class LogicalPlanTest {
         LogicalPlan validLogicalPlan = getLogicalPlan1();
         Plan queryPlan = validLogicalPlan.buildQueryPlan();
 
-        Assert.assertTrue(queryPlan instanceof MultipleSinkPlan);
-        MultipleSinkPlan multipleSinkPlan = (MultipleSinkPlan)queryPlan;
-
-        HashMap<String, ISink> sinkHashMap = multipleSinkPlan.getSinkMap();
+        HashMap<String, ISink> sinkHashMap = queryPlan.getSinkMap();
         Assert.assertEquals(1, sinkHashMap.size());
 
         ISink tupleSink = null;
@@ -727,10 +707,9 @@ public class LogicalPlanTest {
 
         LogicalPlan validLogicalPlan = getLogicalPlan1();
         Plan queryPlan = validLogicalPlan.buildQueryPlan();
-        Assert.assertTrue(queryPlan instanceof MultipleSinkPlan);
-        MultipleSinkPlan multipleSinkPlan = (MultipleSinkPlan)queryPlan;
 
-        HashMap<String, ISink> sinkHashMap = multipleSinkPlan.getSinkMap();
+
+        HashMap<String, ISink> sinkHashMap = queryPlan.getSinkMap();
         Assert.assertEquals(1, sinkHashMap.size());
 
         ISink tupleSink = null;

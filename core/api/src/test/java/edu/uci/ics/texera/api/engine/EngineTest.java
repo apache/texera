@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.api.engine;
 
+import java.util.HashMap;
 import junit.framework.Assert;
 
 import org.junit.Before;
@@ -13,7 +14,7 @@ public class EngineTest {
     private Engine engine;
     private Plan plan;
     private ISink sink;
-
+    private HashMap<String, ISink> sinkMap;
     @Before
     public void setUp() {
         engine = Engine.getEngine();
@@ -26,13 +27,15 @@ public class EngineTest {
     @Test
     public void testEvaluate() throws Exception {
         // set behavior for Plan Object.
-        Mockito.when(plan.getRoot()).thenReturn(sink);
+
+        Mockito.when(plan.getSinkMap()).thenReturn(sinkMap);
+        sinkMap = new HashMap<>();
+
         engine.evaluate(plan);
         // Verify that open(), processTuples() and close() methods are called on
         // the Sink object
-        Mockito.verify(sink).open();
-        Mockito.verify(sink).processTuples();
-        Mockito.verify(sink).close();
+        Mockito.verify(plan).getSinkMap();
+
     }
 
     @Test

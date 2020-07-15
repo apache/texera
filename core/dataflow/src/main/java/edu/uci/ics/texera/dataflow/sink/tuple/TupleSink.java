@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.dataflow.sink.tuple;
 
+import edu.uci.ics.texera.dataflow.sink.AbstractTupleSink;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -18,17 +19,11 @@ import edu.uci.ics.texera.api.tuple.Tuple;
  * @author Zuozhi Wang
  *
  */
-public class TupleSink implements ISink {
+public class TupleSink extends AbstractTupleSink {
     
     private TupleSinkPredicate predicate;
-    
-    private IOperator inputOperator;
-    
-    private Schema inputSchema;
-    private Schema outputSchema;
-    
-    private int cursor = CLOSED;
 
+    private Schema inputSchema;
     /**
      * TupleStreamSink is a sink that can be used to
      *   collect tuples to an in-memory list.
@@ -105,16 +100,6 @@ public class TupleSink implements ISink {
 
     }
 
-    @Override
-    public void close() throws TexeraException {
-        if (cursor == CLOSED) {
-        }
-        if (inputOperator != null) {
-            inputOperator.close();
-        }
-        cursor = CLOSED;
-    }
-
     /**
      * Collects ALL the tuples to an in-memory list.
      *
@@ -132,7 +117,4 @@ public class TupleSink implements ISink {
         return results;
     }
 
-    public Schema transformToOutputSchema(Schema... inputSchema) throws DataflowException {
-        throw new TexeraException(ErrorMessages.INVALID_OUTPUT_SCHEMA_FOR_SINK);
-    }
 }
