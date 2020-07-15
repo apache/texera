@@ -1,6 +1,7 @@
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
-
+import * as c3 from 'c3';
 import { VisualizationPanelContentComponent } from './visualization-panel-content.component';
+import { MatDialogModule,  MAT_DIALOG_DATA } from '@angular/material/dialog';
 
 describe('VisualizationPanelContentComponent', () => {
   let component: VisualizationPanelContentComponent;
@@ -8,7 +9,12 @@ describe('VisualizationPanelContentComponent', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-      declarations: [ VisualizationPanelContentComponent ]
+      imports: [MatDialogModule],
+      declarations: [ VisualizationPanelContentComponent ],
+      providers: [
+        {
+          provide: MAT_DIALOG_DATA, useValue: {table: [['id', 'data'], [1, 2]], chartType: 'pie'}
+        }]
     })
     .compileComponents();
   }));
@@ -20,5 +26,11 @@ describe('VisualizationPanelContentComponent', () => {
   });
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  it('should draw the figure', () => {
+    spyOn(c3, 'generate');
+    component.onClickGenerateChart();
+    expect(c3.generate).toHaveBeenCalled();
   });
 });

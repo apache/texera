@@ -111,7 +111,7 @@ describe('ResultPanelComponent', () => {
       m.hot(endMarbleString, endMarblevalues)
     );
 
-    const testComponent = new ResultPanelComponent(executeWorkflowService, ngbModel, resultPanelToggleService,workflowActionService);
+    const testComponent = new ResultPanelComponent(executeWorkflowService, ngbModel, resultPanelToggleService, workflowActionService);
 
     executeWorkflowService.getExecuteEndedStream().subscribe({
       complete: () => {
@@ -134,7 +134,7 @@ describe('ResultPanelComponent', () => {
       m.hot(endMarbleString, endMarbleValues)
     );
 
-    const testComponent = new ResultPanelComponent(executeWorkflowService, ngbModel, resultPanelToggleService,workflowActionService);
+    const testComponent = new ResultPanelComponent(executeWorkflowService, ngbModel, resultPanelToggleService, workflowActionService);
     executeWorkflowService.getExecuteEndedStream().subscribe({
       complete: () => {
         expect(testComponent.message).toEqual(`execution doesn't have any results`);
@@ -167,7 +167,7 @@ describe('ResultPanelComponent', () => {
       m.hot(endMarbleString, endMarbleValues)
     );
 
-    const testComponent = new ResultPanelComponent(executeWorkflowService, ngbModel, resultPanelToggleService,workflowActionService);
+    const testComponent = new ResultPanelComponent(executeWorkflowService, ngbModel, resultPanelToggleService, workflowActionService);
 
     executeWorkflowService.getExecuteEndedStream().subscribe({
       complete: () => {
@@ -189,7 +189,7 @@ describe('ResultPanelComponent', () => {
       m.hot(endMarbleString, endMarblevalues)
     );
 
-    const testComponent = new ResultPanelComponent(executeWorkflowService, ngbModel, resultPanelToggleService,workflowActionService);
+    const testComponent = new ResultPanelComponent(executeWorkflowService, ngbModel, resultPanelToggleService, workflowActionService);
 
     executeWorkflowService.getExecuteEndedStream().subscribe({
       complete: () => {
