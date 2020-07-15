@@ -1,16 +1,12 @@
 package edu.uci.ics.texera.dataflow.arrow;
 
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
-import au.com.bytecode.opencsv.CSVReader;
-import au.com.bytecode.opencsv.CSVWriter;
 import edu.uci.ics.texera.api.constants.ErrorMessages;
 import edu.uci.ics.texera.api.constants.SchemaConstants;
 import edu.uci.ics.texera.api.constants.DataConstants.TexeraProject;
@@ -23,27 +19,44 @@ import edu.uci.ics.texera.api.schema.AttributeType;
 import edu.uci.ics.texera.api.schema.Schema;
 import edu.uci.ics.texera.api.tuple.Tuple;
 import edu.uci.ics.texera.api.utils.Utils;
+import org.apache.arrow.memory.RootAllocator;
+import org.apache.arrow.vector.*;
+import org.apache.arrow.vector.ipc.ArrowFileReader;
+import org.apache.arrow.vector.ipc.SeekableReadChannel;
+import org.apache.arrow.vector.ipc.message.ArrowBlock;
+import org.apache.arrow.vector.types.pojo.ArrowType;
+import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.arrow.vector.types.pojo.FieldType;
+
+import static java.util.Arrays.asList;
 
 public class ArrowNltkSentimentOperator implements IOperator {
     private final ArrowNltkSentimentPredicate predicate;
     private IOperator inputOperator;
     private Schema outputSchema;
-
-    private List<Tuple> tupleBuffer;
+    private List<Tuple> batchedTupleBuffer;
     HashMap<String, Integer> idClassMap;
-
     private int cursor = CLOSED;
+    private final String picklePath;
+    private final int batchSize;
+    private final int chunkSize;
+    private final String inputAttributeName;
+    private final String outputAttributeName;
 
     private final static String PYTHON = "python3";
-    private final static String PYTHONSCRIPT = Utils.getResourcePath("arrow_for_nltk_sentiment.py", TexeraProject.TEXERA_DATAFLOW).toString();
-    private final static String BatchedFiles = Utils.getResourcePath("id-text.csv", TexeraProject.TEXERA_DATAFLOW).toString();
-    private final static String resultPath = Utils.getResourcePath("result-id-class.csv", TexeraProject.TEXERA_DATAFLOW).toString();
+    private final static String PYTHON_SCRIPT = Utils.getResourcePath(
+            "arrow_for_nltk_sentiment.py", TexeraProject.TEXERA_DATAFLOW).toString();
+    private final static String TO_PYTHON_FILE = Utils.getResourcePath(
+            "temp-to-python.arrow", TexeraProject.TEXERA_DATAFLOW).toString();
+    private final static String FROM_PYTHON_FILE = Utils.getResourcePath(
+            "temp-from-python.arrow", TexeraProject.TEXERA_DATAFLOW).toString();
 
-    private final static char SEPARATOR = ',';
-    private final static char QUOTECHAR = '"';
-
-    //Default nltk training model set to be "Senti.pickle"
-    private String PicklePath = null;
+    // For now it is fixed, but in the future should deal with arbitrary tuple and schema.
+    private final static org.apache.arrow.vector.types.pojo.Schema tupleToPythonSchema =
+            new org.apache.arrow.vector.types.pojo.Schema( asList (new Field("ID",
+                            FieldType.nullable(new ArrowType.Utf8()), null),
+                    new Field("text", FieldType.nullable(new ArrowType.Utf8()), null))
+            );
 
     public ArrowNltkSentimentOperator(ArrowNltkSentimentPredicate predicate){
         this.predicate = predicate;
@@ -52,8 +65,12 @@ public class ArrowNltkSentimentOperator implements IOperator {
         if (modelFileName == null) {
             modelFileName = "NltkSentiment.pickle";
         }
-        this.PicklePath = Utils.getResourcePath(modelFileName, TexeraProject.TEXERA_DATAFLOW).toString();
 
+        this.picklePath = Utils.getResourcePath(modelFileName, TexeraProject.TEXERA_DATAFLOW).toString();
+        this.inputAttributeName = predicate.getInputAttributeName();
+        this.outputAttributeName = predicate.getResultAttributeName();
+        this.batchSize = predicate.getBatchSize();
+        this.chunkSize = predicate.getChunkSize();
     }
 
     public void setInputOperator(IOperator operator) {
@@ -67,9 +84,9 @@ public class ArrowNltkSentimentOperator implements IOperator {
      * add a new field to the schema, with name resultAttributeName and type String
      */
     private Schema transformSchema(Schema inputSchema){
-        Schema.checkAttributeExists(inputSchema, predicate.getInputAttributeName());
-        Schema.checkAttributeNotExists(inputSchema, predicate.getResultAttributeName());
-        return new Schema.Builder().add(inputSchema).add(predicate.getResultAttributeName(), AttributeType.INTEGER).build();
+        Schema.checkAttributeExists(inputSchema, inputAttributeName);
+        Schema.checkAttributeNotExists(inputSchema,outputAttributeName);
+        return new Schema.Builder().add(inputSchema).add(outputAttributeName, AttributeType.INTEGER).build();
     }
 
     @Override
@@ -89,34 +106,29 @@ public class ArrowNltkSentimentOperator implements IOperator {
         cursor = OPENED;
     }
 
-    private boolean computeTupleBuffer() {
-        tupleBuffer = new ArrayList<Tuple>();
-        //write [ID,text] to a CSV file.
-        List<String[]> csvData = new ArrayList<>();
+    private boolean computeBatchedTupleBuffer() {
+        batchedTupleBuffer = new ArrayList<>();
         int i = 0;
-        while (i < predicate.getBatchSize()){
+        while (i < batchSize){
             Tuple inputTuple;
             if ((inputTuple = inputOperator.getNextTuple()) != null) {
-                tupleBuffer.add(inputTuple);
-                String[] idTextPair = new String[2];
-                idTextPair[0] = inputTuple.getField(SchemaConstants._ID).getValue().toString();
-                idTextPair[1] = inputTuple.<IField>getField(predicate.getInputAttributeName()).getValue().toString();
-                csvData.add(idTextPair);
+                batchedTupleBuffer.add(inputTuple);
                 i++;
             } else {
                 break;
             }
         }
-        if (tupleBuffer.isEmpty()) {
+
+        if (batchedTupleBuffer.isEmpty()) {
             return false;
         }
+
         try {
-            if (Files.notExists(Paths.get(BatchedFiles))) {
-                Files.createFile(Paths.get(BatchedFiles));
+            if (Files.notExists(Paths.get(TO_PYTHON_FILE))) {
+                Files.createFile(Paths.get(TO_PYTHON_FILE));
             }
-            CSVWriter writer = new CSVWriter(new FileWriter(BatchedFiles));
-            writer.writeAll(csvData);
-            writer.close();
+            new ChunkedArrowWriter<>(chunkSize, this::vectorizeTupleToPython).write(
+                    new File(TO_PYTHON_FILE), batchedTupleBuffer, tupleToPythonSchema);
         } catch (IOException e) {
             throw new DataflowException(e.getMessage(), e);
         }
@@ -128,9 +140,9 @@ public class ArrowNltkSentimentOperator implements IOperator {
         if (cursor == CLOSED) {
             return null;
         }
-        if (tupleBuffer == null){
-            if (computeTupleBuffer()) {
-                computeClassLabel(BatchedFiles);
+        if (batchedTupleBuffer == null){
+            if (computeBatchedTupleBuffer()) {
+                computeClassLabel();
             } else {
                 return null;
             }
@@ -139,51 +151,61 @@ public class ArrowNltkSentimentOperator implements IOperator {
     }
 
     // Process the data file using NLTK
-    private String computeClassLabel(String filePath) {
+    private void computeClassLabel() {
+        /*
+         *  In order to use the NLTK package to do classification, we start a
+         *  new process to run the package, and wait for the result of running
+         *  the process as the class label of this text field.
+         *  Python call format:
+         *      #python3 nltk_sentiment_classify picklePath dataPath resultPath
+         * */
         try{
-            /*
-             *  In order to use the NLTK package to do classification, we start a
-             *  new process to run the package, and wait for the result of running
-             *  the process as the class label of this text field.
-             *  Python call format:
-             *      #python3 nltk_sentiment_classify picklePath dataPath resultPath
-             * */
-            List<String> args = new ArrayList<String>(
-                    Arrays.asList(PYTHON, PYTHONSCRIPT, PicklePath, filePath, resultPath));
+            List<String> args = new ArrayList<>(
+                    asList(PYTHON, PYTHON_SCRIPT, picklePath, ArrowNltkSentimentOperator.TO_PYTHON_FILE, FROM_PYTHON_FILE));
             ProcessBuilder processBuilder = new ProcessBuilder(args);
 
             Process p = processBuilder.start();
             p.waitFor();
 
-            //Read label result from file generated by Python.
-            CSVReader csvReader = new CSVReader(new FileReader(resultPath), SEPARATOR, QUOTECHAR, 1);
-            List<String[]> allRows = csvReader.readAll();
+            //Read label result from arrow file generated by Python.
+            idClassMap = new HashMap<>();
 
-            idClassMap = new HashMap<String, Integer>();
-            //Read CSV line by line
-            for(String[] row : allRows){
-                try {
-                    idClassMap.put(row[0], Integer.parseInt(row[1]));
-                } catch (NumberFormatException e) {
-                    idClassMap.put(row[0], 0);
+            //Prepare for read
+            File arrowFile = new File(FROM_PYTHON_FILE);
+            FileInputStream fileInputStream = new FileInputStream(arrowFile);
+            SeekableReadChannel seekableReadChannel = new SeekableReadChannel(fileInputStream.getChannel());
+            ArrowFileReader arrowFileReader = new ArrowFileReader(seekableReadChannel,
+                    new RootAllocator(Integer.MAX_VALUE));
+            VectorSchemaRoot root  = arrowFileReader.getVectorSchemaRoot(); // get root
+            List<ArrowBlock> arrowBlocks = arrowFileReader.getRecordBlocks();
+
+            //For every block(arrow batch / or called 'chunk' here)
+            for (ArrowBlock rbBlock : arrowBlocks) {
+                if (!arrowFileReader.loadRecordBatch(rbBlock)) { // load the batch
+                    throw new IOException("Expected to read record batch");
+                }
+                List<FieldVector> fieldVector = root.getFieldVectors();
+                VarCharVector idVector = ((VarCharVector) fieldVector.get(0));
+                BigIntVector predVector = ((BigIntVector) fieldVector.get(1));
+                for (int j = 0; j < idVector.getValueCount(); j++) {
+                    String id = new String(idVector.get(j), StandardCharsets.UTF_8);
+                    int label = (int) predVector.get(j);
+                    idClassMap.put(id, label);
                 }
             }
-            csvReader.close();
         }catch(Exception e){
             throw new DataflowException(e.getMessage(), e);
         }
-        return null;
     }
 
     private Tuple popupOneTuple() {
-        Tuple outputTuple = tupleBuffer.get(0);
-        tupleBuffer.remove(0);
-        if (tupleBuffer.isEmpty()) {
-            tupleBuffer = null;
+        Tuple outputTuple = batchedTupleBuffer.get(0);
+        batchedTupleBuffer.remove(0);
+        if (batchedTupleBuffer.isEmpty()) {
+            batchedTupleBuffer = null;
         }
 
-        List<IField> outputFields = new ArrayList<>();
-        outputFields.addAll(outputTuple.getFields());
+        List<IField> outputFields = new ArrayList<>(outputTuple.getFields());
 
         Integer className = idClassMap.get(outputTuple.getField(SchemaConstants._ID).getValue().toString());
         outputFields.add(new IntegerField( className ));
@@ -233,4 +255,14 @@ public class ArrowNltkSentimentOperator implements IOperator {
 
         return transformSchema(inputSchema[0]);
     }
+
+    private void vectorizeTupleToPython(Tuple tuple, int index, VectorSchemaRoot schemaRoot) {
+        ((VarCharVector) schemaRoot.getVector("ID")).setSafe(
+                index, tuple.getField(SchemaConstants._ID).getValue().toString().getBytes(StandardCharsets.UTF_8)
+        );
+        ((VarCharVector) schemaRoot.getVector("text")).setSafe(
+                index, tuple.getField(inputAttributeName).getValue().toString().getBytes(StandardCharsets.UTF_8)
+        );
+    }
 }
+

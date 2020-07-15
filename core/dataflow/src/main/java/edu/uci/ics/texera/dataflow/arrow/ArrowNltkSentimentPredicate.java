@@ -18,6 +18,7 @@ public class ArrowNltkSentimentPredicate extends PredicateBase {
     private final String resultAttributeName;
     private final String inputAttributeModel;
     private final int batchSize;
+    private final int chunkSize;
 
     @JsonCreator
     public ArrowNltkSentimentPredicate(
@@ -28,10 +29,11 @@ public class ArrowNltkSentimentPredicate extends PredicateBase {
 
             @AdvancedOption
             @JsonProperty(value = PropertyNameConstants.ARROW_NLTK_BATCH_SIZE, required = true,
-                    defaultValue = "10")
-                    int batchSize,
+                    defaultValue = "10") int batchSize,
             @JsonProperty(value = PropertyNameConstants.ARROW_NLTK_MODEL, required = true)
-                    String inputAttributeModel) {
+                    String inputAttributeModel,
+            @JsonProperty(value = PropertyNameConstants.ARROW_CHUNK_SIZE, required = true,
+            defaultValue = "10") int chunkSize) {
         if (inputAttributeName.trim().isEmpty()) {
             throw new TexeraException("Input Attribute Name Cannot Be Empty");
         }
@@ -41,6 +43,7 @@ public class ArrowNltkSentimentPredicate extends PredicateBase {
         this.inputAttributeName = inputAttributeName;
         this.resultAttributeName = resultAttributeName;
         this.batchSize = batchSize;
+        this.chunkSize = chunkSize;
         this.inputAttributeModel = inputAttributeModel;
     };
 
@@ -62,6 +65,11 @@ public class ArrowNltkSentimentPredicate extends PredicateBase {
     @JsonProperty(PropertyNameConstants.ARROW_NLTK_BATCH_SIZE)
     public int getBatchSize() {
         return this.batchSize;
+    }
+
+    @JsonProperty(PropertyNameConstants.ARROW_CHUNK_SIZE)
+    public int getChunkSize() {
+        return this.chunkSize;
     }
 
     @Override
