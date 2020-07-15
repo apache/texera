@@ -29,7 +29,7 @@ export class VisualizationPanelContentComponent implements OnInit, AfterViewInit
     this.onClickGenerateChart();
   }
 
-  async onClickGenerateChart() {
+  onClickGenerateChart() {
 
     const dataToDisplay: Array<[string, ...PrimitiveArray]> = [];
   //  let count = 1;
@@ -68,7 +68,7 @@ export class VisualizationPanelContentComponent implements OnInit, AfterViewInit
           categories: category
         }
       },
-      bindto: '#Chart'
+      bindto: '#texera-result-chart-content'
     });
   }
 

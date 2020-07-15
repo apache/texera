@@ -12,7 +12,7 @@ import {
   LogicalLink, LogicalPlan, LogicalOperator,
   ExecutionResult, ErrorExecutionResult, SuccessExecutionResult
 } from '../../types/execute-workflow.interface';
-import { ResultObject } from '../../types/execute-workflow.interface'
+import { ResultObject } from '../../types/execute-workflow.interface';
 import { v4 as uuid } from 'uuid';
 import { environment } from '../../../../environments/environment';
 
@@ -43,6 +43,7 @@ export const RESUME_WORKFLOW_ENDPOINT = 'resume';
 @Injectable()
 export class ExecuteWorkflowService {
 
+  private resultMap: Map<string, ResultObject> = new Map<string, ResultObject>();
   private executeStartedStream = new Subject<string>();
   private executeEndedStream = new Subject<ExecutionResult>();
 
@@ -51,7 +52,12 @@ export class ExecuteWorkflowService {
   private executionPauseResumeStream = new Subject <number> ();
 
   constructor(private workflowActionService: WorkflowActionService, private http: HttpClient) { }
-
+  /**
+   * Return map which contains all sink operators execution result
+   */
+  public getResultMap(): Map<string, ResultObject> {
+    return this.resultMap;
+  }
   /**
    * Sends the current workflow data to the backend
    *  to execute the workflow and gets the results.
@@ -218,6 +224,10 @@ export class ExecuteWorkflowService {
    */
   private handleExecuteResult(response: SuccessExecutionResult): void {
     this.executeEndedStream.next(response);
+
+    for (const item of response.result) {
+      this.resultMap.set(item.operatorID, item);
+    }
   }
 
   /**

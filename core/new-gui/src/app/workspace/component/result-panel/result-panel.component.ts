@@ -26,10 +26,7 @@ import { WorkflowActionService } from '../../service/workflow-graph/model/workfl
  * @author Henry Chen
  * @author Zuozhi Wang
  */
-interface Result {
-  table: ReadonlyArray<object>;
-  chartType: string | undefined;
-}
+
 @Component({
   selector: 'texera-result-panel',
   templateUrl: './result-panel.component.html',
@@ -39,21 +36,21 @@ export class ResultPanelComponent {
 
   private static readonly PRETTY_JSON_TEXT_LIMIT: number = 50000;
   private static readonly TABLE_COLUMN_TEXT_LIMIT: number = 1000;
-  public result: ReadonlyArray<ResultObject> | undefined;
-  public resultMap: Map<string, Result> = new Map<string, Result>();
-  public selectedOperatorID: string = '';
+
+  //  show table when chartType is undefined, instead show visualization button
   public chartType: string | undefined;
-  public showTable: boolean = true;
+  // record which operator is selected
+  public selectedOperatorID: string = '';
   public showMessage: boolean = false;
   public message: string = '';
   public currentColumns: TableColumn[] | undefined;
   public currentDisplayColumns: string[] | undefined;
   public currentDataSource: MatTableDataSource<object> | undefined;
   public showResultPanel: boolean | undefined;
+  public currentResult: object[] = [];
 
   @ViewChild(MatPaginator) paginator: MatPaginator | null = null;
 
-  private currentResult: object[] = [];
   private currentMaxPageSize: number = 0;
   private currentPageSize: number = 0;
   private currentPageIndex: number = 0;
@@ -120,8 +117,29 @@ export class ResultPanelComponent {
     modalComponentInstance.currentPageSize = this.currentPageSize;
   }
 
-  public getResult(): Object[] {
-    return this.currentResult;
+  /**
+   * Handler for high lighted operator.
+   * When use click on an operator, check whether it is a sink operator and display result.
+   */
+  public handleHighLightOperator(): void {
+    const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+
+    if (highlightedOperators.length === 1) {
+      this.showResultPanel = true;
+      this.selectedOperatorID = highlightedOperators[0];
+      const resultMap = this.executeWorkflowService.getResultMap();
+      if (resultMap.has(this.selectedOperatorID)) {
+        const result: ResultObject | undefined = resultMap.get!(this.selectedOperatorID);
+        this.displayResultTable(result!.table);
+        if (result?.chartType) {
+          this.chartType = result?.chartType;
+        } else {
+          this.chartType = undefined;
+        }
+      }
+    } else {
+      this.showResultPanel = false;
+    }
   }
 
   /**
@@ -171,14 +189,7 @@ export class ResultPanelComponent {
       this.displayErrorMessage(`execution doesn't have any results`);
       return;
     }
-    this.result = response.result;
-    for (const item of this.result) {
-      const result: Result = {
-        table: item.table,
-        chartType: item.chartType
-      };
-      this.resultMap.set(item.operatorID, result);
-    }
+
   }
 
   /**
@@ -195,27 +206,6 @@ export class ResultPanelComponent {
     // display message
     this.showMessage = true;
     this.message = errorMessage;
-  }
-  /**
-   * Handler for high lighted operator.
-   * When use click on an operator, check whether it is a sink operator and display result.
-   */
-  private handleHighLightOperator(): void {
-    const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
-
-    if (highlightedOperators.length === 1) {
-      this.selectedOperatorID = highlightedOperators[0];
-      if (this.resultMap.has(this.selectedOperatorID)) {
-        let result: Result | undefined = this.resultMap.get!(this.selectedOperatorID);
-        this.displayResultTable(result!.table);
-        if (typeof result?.chartType === 'undefined') {
-          this.showTable = true;
-        } else {
-          this.chartType = result?.chartType;
-          this.showTable = false;
-        }
-      }
-    }
   }
 
   /**
