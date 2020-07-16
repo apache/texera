@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.dataflow.sink.piechart;
 
 import edu.uci.ics.texera.api.constants.ErrorMessages;
+import edu.uci.ics.texera.api.dataflow.IOperator;
 import edu.uci.ics.texera.api.exception.DataflowException;
 import edu.uci.ics.texera.api.exception.TexeraException;
 import edu.uci.ics.texera.api.field.DoubleField;
@@ -24,6 +25,7 @@ import java.util.stream.Collectors;
  *
  */
 public class PieChartSink extends VisualizationOperator {
+
     private PieChartSinkPredicate predicate;
 
 
@@ -63,6 +65,19 @@ public class PieChartSink extends VisualizationOperator {
 
         outputSchema = new Schema.Builder().add(nameColumn, dataColumn).build();
         cursor = OPENED;
+    }
+
+    public void setInputOperator(IOperator inputOperator) {
+        if (cursor != CLOSED) {
+            throw new TexeraException(ErrorMessages.INPUT_OPERATOR_CHANGED_AFTER_OPEN);
+        }
+        this.inputOperator = inputOperator;
+    }
+
+
+    @Override
+    public Schema transformToOutputSchema(Schema... inputSchema) {
+        throw new TexeraException(ErrorMessages.INVALID_OUTPUT_SCHEMA_FOR_SINK);
     }
 
     @Override

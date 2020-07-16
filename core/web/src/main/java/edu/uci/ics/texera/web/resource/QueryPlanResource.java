@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.web.resource;
 
 
-import edu.uci.ics.texera.dataflow.sink.AbstractTupleSink;
+import edu.uci.ics.texera.dataflow.sink.ITupleSink;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.attribute.BasicFileAttributes;
@@ -23,7 +23,6 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import edu.uci.ics.texera.api.dataflow.ISink;
-import edu.uci.ics.texera.api.engine.Engine;
 import edu.uci.ics.texera.api.engine.Plan;
 import edu.uci.ics.texera.api.exception.TexeraException;
 import edu.uci.ics.texera.api.schema.Schema;
@@ -33,7 +32,6 @@ import edu.uci.ics.texera.dataflow.common.PredicateBase;
 import edu.uci.ics.texera.dataflow.common.PropertyNameConstants;
 import edu.uci.ics.texera.dataflow.plangen.LogicalPlan;
 import edu.uci.ics.texera.dataflow.plangen.QueryContext;
-import edu.uci.ics.texera.dataflow.sink.tuple.TupleSink;
 import edu.uci.ics.texera.web.TexeraWebException;
 import edu.uci.ics.texera.dataflow.sink.VisualizationOperator;
 
@@ -67,8 +65,8 @@ public class QueryPlanResource {
 
             ISink sinkOperator = sinkEntry.getValue();
 
-            if (sinkOperator instanceof AbstractTupleSink) {
-                AbstractTupleSink tupleSink = (AbstractTupleSink) sinkOperator;
+            if (sinkOperator instanceof ITupleSink) {
+                ITupleSink tupleSink = (ITupleSink) sinkOperator;
                 tupleSink.open();
                 List<Tuple> result = tupleSink.collectAllTuples();
                 tupleSink.close();

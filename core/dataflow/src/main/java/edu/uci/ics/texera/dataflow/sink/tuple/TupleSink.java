@@ -1,14 +1,12 @@
 package edu.uci.ics.texera.dataflow.sink.tuple;
 
-import edu.uci.ics.texera.dataflow.sink.AbstractTupleSink;
+import edu.uci.ics.texera.dataflow.sink.ITupleSink;
 import java.util.ArrayList;
 import java.util.List;
 
 import edu.uci.ics.texera.api.constants.ErrorMessages;
 import edu.uci.ics.texera.api.constants.SchemaConstants;
 import edu.uci.ics.texera.api.dataflow.IOperator;
-import edu.uci.ics.texera.api.dataflow.ISink;
-import edu.uci.ics.texera.api.exception.DataflowException;
 import edu.uci.ics.texera.api.exception.TexeraException;
 import edu.uci.ics.texera.api.schema.Schema;
 import edu.uci.ics.texera.api.tuple.Tuple;
@@ -19,8 +17,10 @@ import edu.uci.ics.texera.api.tuple.Tuple;
  * @author Zuozhi Wang
  *
  */
-public class TupleSink extends AbstractTupleSink {
-    
+public class TupleSink implements ITupleSink {
+    private IOperator inputOperator;
+    private int cursor = CLOSED;
+    private Schema outputSchema;
     private TupleSinkPredicate predicate;
 
     private Schema inputSchema;
@@ -72,6 +72,18 @@ public class TupleSink extends AbstractTupleSink {
     }
 
     @Override
+    public void close() throws TexeraException {
+        if (cursor == CLOSED) {
+            return ;
+        }
+
+        if (inputOperator != null)
+            inputOperator.close();
+
+        cursor = CLOSED;
+    }
+
+    @Override
     public void processTuples() throws TexeraException {
         return;
     }
@@ -115,6 +127,13 @@ public class TupleSink extends AbstractTupleSink {
         }
         this.close();
         return results;
+    }
+
+
+
+    @Override
+    public Schema transformToOutputSchema(Schema... inputSchema) {
+        throw new TexeraException(ErrorMessages.INVALID_OUTPUT_SCHEMA_FOR_SINK);
     }
 
 }
