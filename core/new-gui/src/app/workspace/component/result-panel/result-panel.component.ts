@@ -238,7 +238,14 @@ export class ResultPanelComponent {
     return columnNames.map(col => ({
       columnDef: col,
       header: col,
-      getCell: (row: IndexableObject) => this.trimTableCell(row[col].toString())
+      getCell: (row: IndexableObject) => {
+        if (row[col]) {
+          return this.trimTableCell(row[col].toString());
+        } else {
+          // allowing null value from backend
+          return '';
+        }
+      }
     }));
   }
 
