@@ -18,10 +18,8 @@ public class ListField<T> implements IField {
 
     @JsonCreator
     public ListField(
-            @JsonProperty(value = JsonConstants.FIELD_VALUE, required = true)
+            @JsonProperty(value = JsonConstants.FIELD_VALUE)
             List<T> list) {
-        checkNotNull(list);
-        
         this.list = ImmutableList.copyOf(list);
     }
 
