@@ -1,14 +1,14 @@
 package edu.uci.ics.texera.api.field;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import edu.uci.ics.texera.api.constants.JsonConstants;
+import org.mockito.internal.matchers.Null;
 
 public class DateTimeField implements IField {
     
@@ -28,6 +28,18 @@ public class DateTimeField implements IField {
         // allow null value
         if (localDateTimeString != null) {
             this.localDateTime = LocalDateTime.parse(localDateTimeString);
+        } else {
+            this.localDateTime = null;
+        }
+    }
+
+    @JsonCreator
+    public DateTimeField(
+            @JsonProperty(value = JsonConstants.FIELD_VALUE, required = true)
+            String localDateTimeString,
+            DateTimeFormatter formatter) {
+        if (localDateTimeString != null) {
+            this.localDateTime = LocalDateTime.parse(localDateTimeString,formatter);
         } else {
             this.localDateTime = null;
         }
