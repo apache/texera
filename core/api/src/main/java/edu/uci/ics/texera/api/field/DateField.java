@@ -42,6 +42,9 @@ public class DateField implements IField {
 
     @JsonProperty(value = JsonConstants.FIELD_VALUE)
     public String getDateString() {
+        if (localDate == null) {
+            return "";
+        }
         return this.localDate.toString();
     }
 
@@ -78,6 +81,9 @@ public class DateField implements IField {
 
     @Override
     public String toString() {
+        if (localDate == null) {
+            return "DateField [value= ]";
+        }
         return "DateField [value=" + localDate.toString() + "]";
     }
 
