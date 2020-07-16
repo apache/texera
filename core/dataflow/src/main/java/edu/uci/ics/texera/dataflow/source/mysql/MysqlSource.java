@@ -9,6 +9,7 @@ import edu.uci.ics.texera.api.schema.Attribute;
 import edu.uci.ics.texera.api.schema.AttributeType;
 import edu.uci.ics.texera.api.schema.Schema;
 import edu.uci.ics.texera.api.tuple.Tuple;
+import org.jooq.meta.derby.sys.Sys;
 
 import java.sql.*;
 import java.time.format.DateTimeFormatter;
@@ -141,10 +142,13 @@ public class MysqlSource implements ISourceOperator{
                             tb.add(new DoubleField(null));
                         }
                     }else if (a.getType() == AttributeType.DATE){
-                        Date value = rs.getDate(a.getName());
+                        String value = rs.getString(a.getName());
                         tb.add(new DateField(value));
                     }else if (a.getType() == AttributeType.DATETIME){
                         String value = rs.getString(a.getName());
+                        // a formatter is needed because
+                        // mysql format is    yyyy-MM-dd HH:mm:ss
+                        // but java format is yyyy-MM-ddTHH:mm:ss by default
                         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
                         tb.add(new DateTimeField(value,formatter));
                     }
