@@ -13,10 +13,8 @@ public class DoubleField implements IField {
 
     @JsonCreator
     public DoubleField(
-            @JsonProperty(value = JsonConstants.FIELD_VALUE, required = true)
+            @JsonProperty(value = JsonConstants.FIELD_VALUE)
             Double value) {
-        // checkNotNull(value);
-        // allowing null value in the workflow
         this.value = value;
     }
 

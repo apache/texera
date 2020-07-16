@@ -17,7 +17,7 @@ public class StringField implements IField {
 
     @JsonCreator
     public StringField(
-            @JsonProperty(value = JsonConstants.FIELD_VALUE, required = true)
+            @JsonProperty(value = JsonConstants.FIELD_VALUE)
             String value) {
         this.value = value;
     }

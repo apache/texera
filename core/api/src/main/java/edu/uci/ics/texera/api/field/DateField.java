@@ -18,27 +18,22 @@ public class DateField implements IField {
 
 
     public DateField(Date date) {
-        // checkNotNull(date);
-        // allow null value
         if (date != null) {
             this.localDate = date.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
         } else {
             this.localDate = null;
         }
-
-    }
-
-    public DateField(LocalDate localDate) {
-        checkNotNull(localDate);
-        this.localDate = localDate;
     }
 
     @JsonCreator
     public DateField(
-            @JsonProperty(value = JsonConstants.FIELD_VALUE, required = true) 
+            @JsonProperty(value = JsonConstants.FIELD_VALUE)
             String localDateString) {
-         checkNotNull(localDateString);
-        this.localDate = LocalDate.parse(localDateString);
+        if (localDateString != null) {
+            this.localDate = LocalDate.parse(localDateString);
+        } else {
+            this.localDate = null;
+        }
     }
 
     @JsonProperty(value = JsonConstants.FIELD_VALUE)

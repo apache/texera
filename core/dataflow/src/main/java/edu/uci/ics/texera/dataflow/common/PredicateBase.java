@@ -45,7 +45,7 @@ import edu.uci.ics.texera.dataflow.source.scan.ScanSourcePredicate;
 import edu.uci.ics.texera.dataflow.twitter.TwitterJsonConverterPredicate;
 import edu.uci.ics.texera.dataflow.wordcount.WordCountIndexSourcePredicate;
 import edu.uci.ics.texera.dataflow.wordcount.WordCountOperatorPredicate;
-
+import edu.uci.ics.texera.dataflow.arrow.ArrowNltkSentimentPredicate;
 
 /**
  * PredicateBase is the base for all predicates which follow the 
@@ -102,6 +102,8 @@ import edu.uci.ics.texera.dataflow.wordcount.WordCountOperatorPredicate;
         @Type(value = WordCountIndexSourcePredicate.class, name = "WordCountIndexSource"),
         @Type(value = WordCountOperatorPredicate.class, name = "WordCount"),
         @Type(value = AggregatorPredicate.class, name = "Aggregation"),
+
+        @Type(value = ArrowNltkSentimentPredicate.class, name = "ArrowNltkSentiment")
 })
 public abstract class PredicateBase implements IPredicate {
     

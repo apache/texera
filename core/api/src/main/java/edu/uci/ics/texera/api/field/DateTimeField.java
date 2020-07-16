@@ -15,17 +15,13 @@ public class DateTimeField implements IField {
     private LocalDateTime localDateTime;
 
     public DateTimeField(LocalDateTime localDateTime) {
-        // checkNotNull(localDateTime);
-        // allow null value
         this.localDateTime = localDateTime;
     }
 
     @JsonCreator
     public DateTimeField(
-            @JsonProperty(value = JsonConstants.FIELD_VALUE, required = true) 
+            @JsonProperty(value = JsonConstants.FIELD_VALUE)
             String localDateTimeString) {
-        // checkNotNull(localDateTimeString);
-        // allow null value
         if (localDateTimeString != null) {
             this.localDateTime = LocalDateTime.parse(localDateTimeString);
         } else {

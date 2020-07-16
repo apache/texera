@@ -13,10 +13,8 @@ public class IntegerField implements IField {
 
     @JsonCreator
     public IntegerField(
-            @JsonProperty(value = JsonConstants.FIELD_VALUE, required = true)
+            @JsonProperty(value = JsonConstants.FIELD_VALUE)
             Integer value) {
-        // checkNotNull(value);
-        // allowing null value in the workflow
         this.value = value;
     }
 
