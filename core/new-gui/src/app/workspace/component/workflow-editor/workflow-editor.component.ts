@@ -773,10 +773,11 @@ export class WorkflowEditorComponent implements AfterViewInit {
     const operatorID = this.workflowUtilService.getRandomUUID();
     const operatorType = operator.operatorType;
     const operatorProperties = operator.operatorProperties;
+    const operatorGroupName = operator.operatorGroupName;
     const inputPorts = operator.inputPorts;
     const outputPorts = operator.outputPorts;
     const showAdvanced = operator.showAdvanced;
-    return {operatorID, operatorType, operatorProperties, inputPorts, outputPorts, showAdvanced};
+    return {operatorID, operatorType, operatorProperties, operatorGroupName, inputPorts, outputPorts, showAdvanced};
   }
 
   /**

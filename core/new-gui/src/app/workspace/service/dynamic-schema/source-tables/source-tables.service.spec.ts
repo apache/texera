@@ -102,6 +102,7 @@ describe('SourceTablesService', () => {
       operatorType: 'FileSource',
       operatorProperties: {
       },
+      operatorGroupName: 'Source',
       inputPorts: [],
       outputPorts: ['output-0'],
       showAdvanced: true
@@ -142,6 +143,7 @@ describe('SourceTablesService', () => {
     const mockKeywordSourcePredicate: OperatorPredicate = {
       operatorID: '1',
       operatorType: mockKeywordSourceSchema.operatorType,
+      operatorGroupName: 'Source',
       operatorProperties: {},
       inputPorts: [],
       outputPorts: ['output-0'],

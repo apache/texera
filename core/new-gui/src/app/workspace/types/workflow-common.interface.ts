@@ -17,6 +17,7 @@ export interface OperatorPredicate extends Readonly<{
   operatorID: string;
   operatorType: string;
   operatorProperties: Readonly<{[key: string]: any}>;
+  operatorGroupName: string;
   inputPorts: string[];
   outputPorts: string[];
   showAdvanced: boolean;

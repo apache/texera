@@ -44,6 +44,7 @@ describe('JointUIService', () => {
         {
           operatorID: 'nonexistOperator',
           operatorType: 'nonexistOperatorType',
+          operatorGroupName: 'nonexistOperatorGroup',
           operatorProperties: {},
           inputPorts: [],
           outputPorts: [],
@@ -73,6 +74,7 @@ describe('JointUIService', () => {
           operatorID: 'nonexistOperator',
           operatorType: 'nonexistOperatorType',
           operatorProperties: {},
+          operatorGroupName: 'nonexistOperatorGroup',
           inputPorts: [],
           outputPorts: [],
           showAdvanced: true
