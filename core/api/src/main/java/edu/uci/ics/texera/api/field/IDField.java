@@ -15,7 +15,7 @@ public class IDField implements IField {
     
     @JsonCreator
     public IDField(
-            @JsonProperty(value = JsonConstants.FIELD_VALUE, required = true)
+            @JsonProperty(value = JsonConstants.FIELD_VALUE)
             String idValue) {
         checkNotNull(idValue);
         this._id = idValue;
