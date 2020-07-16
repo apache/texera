@@ -128,10 +128,10 @@ export class ResultPanelComponent {
       this.showResultPanel = true;
       this.selectedOperatorID = highlightedOperators[0];
       const resultMap = this.executeWorkflowService.getResultMap();
-      if (resultMap.has(this.selectedOperatorID)) {
-        const result: ResultObject | undefined = resultMap.get!(this.selectedOperatorID);
-        this.displayResultTable(result!.table);
-        if (result?.chartType) {
+      const result: ResultObject | undefined = resultMap.get(this.selectedOperatorID);
+      if (result) {
+        this.displayResultTable(result.table);
+        if (result.chartType) {
           this.chartType = result?.chartType;
         } else {
           this.chartType = undefined;
@@ -189,7 +189,20 @@ export class ResultPanelComponent {
       this.displayErrorMessage(`execution doesn't have any results`);
       return;
     }
-
+    this.executeWorkflowService.updateResultMap(response);
+    // If the selected operator is a sink operator, the result panel should display result when response is coming.
+    if (this.selectedOperatorID !== '') {
+      const resultMap = this.executeWorkflowService.getResultMap();
+      const result: ResultObject | undefined = resultMap.get(this.selectedOperatorID);
+        if (result) {
+          this.displayResultTable(result.table);
+          if (result.chartType) {
+            this.chartType = result?.chartType;
+          } else {
+            this.chartType = undefined;
+          }
+        }
+    }
   }
 
   /**
@@ -215,12 +228,12 @@ export class ResultPanelComponent {
    * @param response
    */
   private displayResultTable(resultData: ReadonlyArray<object>) {
-    /* if (response.result.length < 1) {
+     if (resultData.length < 1) {
        throw new Error(`display result table inconsistency: result data should not be empty`);
      }
      // don't display message, display result table instead
      this.showMessage = false;
-     */
+
     // creates a shallow copy of the readonly response.result,
     //  this copy will be has type object[] because MatTableDataSource's input needs to be object[]
     //  const resultData = response.result.slice();

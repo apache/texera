@@ -58,6 +58,13 @@ export class ExecuteWorkflowService {
   public getResultMap(): Map<string, ResultObject> {
     return this.resultMap;
   }
+
+  public updateResultMap(response: SuccessExecutionResult): void {
+    this.resultMap.clear();
+    for (const item of response.result) {
+      this.resultMap.set(item.operatorID, item);
+    }
+  }
   /**
    * Sends the current workflow data to the backend
    *  to execute the workflow and gets the results.
@@ -94,6 +101,7 @@ export class ExecuteWorkflowService {
         // backend will either respond an execution result or an error will occur
         // handle both cases
         response => {
+
           this.handleExecuteResult(response);
           this.workflowExecutionID = undefined;
         },
@@ -224,10 +232,6 @@ export class ExecuteWorkflowService {
    */
   private handleExecuteResult(response: SuccessExecutionResult): void {
     this.executeEndedStream.next(response);
-
-    for (const item of response.result) {
-      this.resultMap.set(item.operatorID, item);
-    }
   }
 
   /**

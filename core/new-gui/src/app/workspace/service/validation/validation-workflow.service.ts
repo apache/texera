@@ -178,7 +178,7 @@ export class ValidationWorkflowService {
     const actualOutputNum = texeraGraph.getOutputLinksByOperatorId(operatorID).length;
 
     const satisfyInput = requiredInputNum === actualInputNum;
-    const satisyOutput = true;
+    const satisyOutput = requiredOutputNum <= actualOutputNum;
 
     if (satisfyInput && satisyOutput) {
       return { isValid: true };

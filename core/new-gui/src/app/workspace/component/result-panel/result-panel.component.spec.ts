@@ -100,7 +100,7 @@ describe('ResultPanelComponent', () => {
   });
 
 
-  it('should change the content of result panel correctly', marbles((m) => {
+  it('should change the content of result panel correctly when selected operator is a sink operator with result', marbles((m) => {
 
     const endMarbleString = '-e-|';
     const endMarblevalues = {
@@ -111,11 +111,13 @@ describe('ResultPanelComponent', () => {
       m.hot(endMarbleString, endMarblevalues)
     );
 
+
     const testComponent = new ResultPanelComponent(executeWorkflowService, ngbModel, resultPanelToggleService, workflowActionService);
+    testComponent.selectedOperatorID = mockExecutionResult.result[0].operatorID;
 
     executeWorkflowService.getExecuteEndedStream().subscribe({
       complete: () => {
-        const mockColumns = Object.keys(mockResultData[0]);
+        const mockColumns = Object.keys(mockResultData[0].table[0]);
         expect(testComponent.currentDisplayColumns).toEqual(mockColumns);
         expect(testComponent.currentColumns).toBeTruthy();
         expect(testComponent.currentDataSource).toBeTruthy();
@@ -152,7 +154,7 @@ describe('ResultPanelComponent', () => {
     //  never be reached in the public method, this architecture is required.
 
     expect(() =>
-      (component as any).displayResultTable(mockExecutionEmptyResult)
+      (component as any).displayResultTable(mockExecutionEmptyResult.result)
     ).toThrowError(new RegExp(`result data should not be empty`));
 
   });
@@ -178,7 +180,7 @@ describe('ResultPanelComponent', () => {
 
   }));
 
-  it('should update the result panel when new execution result arrives', marbles((m) => {
+  it('should update the result panel when new execution result arrives and a sink operator is selected', marbles((m) => {
     const endMarbleString = '-a-b-|';
     const endMarblevalues = {
       a: mockExecutionErrorResult,
@@ -190,10 +192,11 @@ describe('ResultPanelComponent', () => {
     );
 
     const testComponent = new ResultPanelComponent(executeWorkflowService, ngbModel, resultPanelToggleService, workflowActionService);
+    testComponent.selectedOperatorID = mockExecutionResult.result[0].operatorID;
 
     executeWorkflowService.getExecuteEndedStream().subscribe({
       complete: () => {
-        const mockColumns = Object.keys(mockResultData[0]);
+        const mockColumns = Object.keys(mockResultData[0].table[0]);
         expect(testComponent.currentDisplayColumns).toEqual(mockColumns);
         expect(testComponent.currentColumns).toBeTruthy();
         expect(testComponent.currentDataSource).toBeTruthy();
