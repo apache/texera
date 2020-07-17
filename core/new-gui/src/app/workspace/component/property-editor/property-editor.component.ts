@@ -306,12 +306,13 @@ export class PropertyEditorComponent {
             f.templateOptions.type = 'password';
           }
         }
-        if (f.key === 'keywords') {
-          f.type = 'textarea';
-          if (f.templateOptions) {
-            f.templateOptions.rows = 5;
-          }
-        }
+        console.log(field);
+        // if (f.key === 'keywords') {
+        //   f.type = 'textarea';
+        //   if (f.templateOptions) {
+        //     f.templateOptions.rows = 5;
+        //   }
+        // }
         return f;
       });
     }
