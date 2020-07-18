@@ -72,9 +72,8 @@ export class NavigationComponent implements OnInit {
       .subscribe(state => this.isWorkflowPaused = (state === 0));
 
     // set the map of operatorStatusMap
-    // temporarily disable workflow validation because it seems to have bug
-    // validationWorkflowService.getWorkflowValidationErrorStream()
-    //   .subscribe(value => this.isWorkflowValid = Object.keys(value.errors).length === 0);
+    validationWorkflowService.getWorkflowValidationErrorStream()
+      .subscribe(value => this.isWorkflowValid = Object.keys(value.errors).length === 0);
 
   }
 

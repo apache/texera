@@ -102,17 +102,17 @@ public class MysqlSource implements ISourceOperator{
         try {
             if (!querySent) {
                 PreparedStatement ps = this.connection.prepareStatement(generateSqlQuery(predicate));
-                int nextIndex = 1;
+                int curIndex = 1;
                 if (!predicate.getColumn().isEmpty() && !predicate.getKeywords().isEmpty()) {
-                    ps.setString(nextIndex, predicate.getKeywords());
-                    nextIndex += 1;
+                    ps.setString(curIndex, predicate.getKeywords());
+                    curIndex += 1;
                 }
                 if (predicate.getLimit() != Integer.MAX_VALUE) {
-                    ps.setObject(nextIndex, predicate.getLimit(), Types.INTEGER);
-                    nextIndex += 1;
+                    ps.setObject(curIndex, predicate.getLimit(), Types.INTEGER);
+                    curIndex += 1;
                 }
                 if (predicate.getOffset() != 0) {
-                    ps.setObject(nextIndex, predicate.getOffset(), Types.INTEGER);
+                    ps.setObject(curIndex, predicate.getOffset(), Types.INTEGER);
                 }
                 this.rs = ps.executeQuery();
                 querySent = true;
@@ -120,12 +120,12 @@ public class MysqlSource implements ISourceOperator{
 
 			while (rs.next()) {
 			    List<IField> tb = new ArrayList();
-			    for(Attribute a: this.outputSchema.getAttributes()){
+			    for(Attribute a: this.outputSchema.getAttributes()) {
 			        if (a.getType() == AttributeType.STRING){
 			            String value = rs.getString(a.getName());
 			            value = value ==null? "":value;
 			            tb.add(new StringField(value));
-                    }else if (a.getType() == AttributeType.INTEGER){
+                    } else if (a.getType() == AttributeType.INTEGER){
                         String value = rs.getString(a.getName());
                         // allowing null value Integer to be in the workflow
                         if (value != null) {
@@ -133,7 +133,7 @@ public class MysqlSource implements ISourceOperator{
                         } else {
                             tb.add(new IntegerField(null));
                         }
-                    }else if (a.getType() == AttributeType.DOUBLE){
+                    } else if (a.getType() == AttributeType.DOUBLE){
                         String value = rs.getString(a.getName());
                         // allowing null value Double to be in the workflow
                         if (value != null) {
@@ -141,10 +141,10 @@ public class MysqlSource implements ISourceOperator{
                         } else {
                             tb.add(new DoubleField(null));
                         }
-                    }else if (a.getType() == AttributeType.DATE){
+                    } else if (a.getType() == AttributeType.DATE){
                         String value = rs.getString(a.getName());
                         tb.add(new DateField(value));
-                    }else if (a.getType() == AttributeType.DATETIME){
+                    } else if (a.getType() == AttributeType.DATETIME){
                         String value = rs.getString(a.getName());
                         // a formatter is needed because
                         // mysql format is    yyyy-MM-dd HH:mm:ss
