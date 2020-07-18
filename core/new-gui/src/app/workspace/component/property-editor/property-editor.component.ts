@@ -169,6 +169,7 @@ export class PropertyEditorComponent {
    * Then modifies the operator property to use the new form data.
    */
   public createOutputFormChangeEventStream(originalSourceFormChangeEvent: Observable<object>): Observable<object> {
+
     return originalSourceFormChangeEvent
       // set a debounce time to avoid events triggering too often
       //  and to circumvent a bug of the library - each action triggers event twice
@@ -256,10 +257,6 @@ export class PropertyEditorComponent {
       // set the operator property to be the new form data
       if (this.currentOperatorID) {
         this.workflowActionService.setOperatorProperty(this.currentOperatorID, formData);
-      }
-      // if new sections are added in nested JsonSchema, find the password fields and change them
-      if (this.formlyFields) {
-        this.setPasswordField(this.formlyFields);
       }
     });
   }
