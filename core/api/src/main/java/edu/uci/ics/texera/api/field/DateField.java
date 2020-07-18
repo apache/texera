@@ -81,10 +81,7 @@ public class DateField implements IField {
 
     @Override
     public String toString() {
-        if (localDate == null) {
-            return "DateField [value= ]";
-        }
-        return "DateField [value=" + localDate.toString() + "]";
+        return "DateField [value=" + String.valueOf(localDate) + "]";
     }
 
 }

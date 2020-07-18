@@ -71,10 +71,7 @@ public class DateTimeField implements IField {
 
     @Override
     public String toString() {
-        if (localDateTime == null) {
-            return "DateTimeField [value= ]";
-        }
-        return "DateTimeField [value=" + localDateTime.toString() + "]";
+        return "DateTimeField [value=" + String.valueOf(localDateTime) + "]";
     }
 
 }
