@@ -298,26 +298,20 @@ export class PropertyEditorComponent {
   private convertJsonSchemaToNGXField(schema: JSONSchema7) {
     this.formlyFormGroup = new FormGroup({});
     this.formlyOptions = {};
-    // this toFieldConfig function does not detect/convert password type
-    const field = this.formlyJsonschema.toFieldConfig(schema);
-    if (field.fieldGroup) {
-      this.setPasswordField(field.fieldGroup);
-    }
-    this.formlyFields = [field];
-  }
 
-  private setPasswordField(fieldgroup: FormlyFieldConfig[]): FormlyFieldConfig[] {
-    fieldgroup.forEach(f => {
-      if (f.key === 'password') {
-        if (f.templateOptions) {
-          f.templateOptions.type = 'password';
+    // intercept JsonSchema -> FormlySchema process, adding custom options
+    const jsonSchemaMapIntercept = (mappedField: FormlyFieldConfig, mapSource: JSONSchema7): FormlyFieldConfig => {
+      // if the title contains "password", then make the field type also to be password
+      if (mapSource?.title?.toLowerCase()?.includes('password')) {
+        if (mappedField.templateOptions) {
+          mappedField.templateOptions.type = 'password';
         }
       }
-      if (f.fieldGroup) {
-        f = this.setPasswordField(f.fieldGroup)[0];
-      }
-    });
-    return fieldgroup;
+      return mappedField;
+    };
+
+    const field = this.formlyJsonschema.toFieldConfig(schema, {map: jsonSchemaMapIntercept});
+    this.formlyFields = [field];
   }
 
 }
