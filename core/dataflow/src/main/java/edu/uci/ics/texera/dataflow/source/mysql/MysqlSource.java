@@ -17,7 +17,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
-public class MysqlSource implements ISourceOperator{
+public class MysqlSource implements ISourceOperator {
 	private final MysqlSourcePredicate predicate;
     private int status = CLOSED;
     private Schema outputSchema;
@@ -27,7 +27,7 @@ public class MysqlSource implements ISourceOperator{
     private boolean querySent = false;
 
     
-    public MysqlSource(MysqlSourcePredicate predicate){
+    public MysqlSource(MysqlSourcePredicate predicate) {
     	this.predicate = predicate;
         this.schemaBuilder = new Schema.Builder();
     }
@@ -47,8 +47,7 @@ public class MysqlSource implements ISourceOperator{
             connection.setReadOnly(true);
             DatabaseMetaData databaseMetaData = connection.getMetaData();
             ResultSet columns = databaseMetaData.getColumns(null,null, predicate.getTable(), null);
-            while(columns.next())
-            {
+            while(columns.next()) {
                 String columnName = columns.getString("COLUMN_NAME");
                 int datatype = columns.getInt("DATA_TYPE");
                 AttributeType attributeType;
@@ -155,10 +154,10 @@ public class MysqlSource implements ISourceOperator{
                             row.add(new DateTimeField(value,formatter));
                             break;
                         case BOOLEAN:
-                            if (value.equals("1")) {
-                                row.add(new StringField("true"));
-                            } else {
+                            if (value.equals("0")) {
                                 row.add(new StringField("false"));
+                            } else {
+                                row.add(new StringField("true"));
                             }
                     }
                 }
