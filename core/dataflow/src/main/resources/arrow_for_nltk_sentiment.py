@@ -1,12 +1,12 @@
 import sys
 import pickle
-import csv
+import pyarrow as pa
+import pandas
 
 pickleFullPathFileName = sys.argv[1]
 dataFullPathFileName = sys.argv[2]
 resultFullPathFileName = sys.argv[3]
-inputDataMap = {}
-recordLabelMap = {}
+global inputDataFrame, outputDataFrame
 
 # call format:
 # python3 nltk_sentiment_classify pickleFullPathFileName dataFullPathFileName resultFullPathFileName
@@ -21,25 +21,27 @@ def main():
 	writeResults()
 
 def writeResults():
-	with open(resultFullPathFileName, 'w', newline='') as csvfile:
-		resultWriter = csv.writer(csvfile, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-		resultWriter.writerow(["TupleID", "ClassLabel"])
-		for id, classLabel in recordLabelMap.items():
-			resultWriter.writerow([id, classLabel])
+	with open(resultFullPathFileName, 'wb') as sink:
+		table = pa.Table.from_pandas(outputDataFrame)
+		writer = pa.ipc.new_file(sink, table.schema)
+		writer.write_table(table, max_chunksize=1000)
+		writer.close()
 
 def classifyData():
+	global inputDataFrame, outputDataFrame
 	pickleFile = open(pickleFullPathFileName, 'rb')
 	sentimentModel = pickle.load(pickleFile)#	for text in sys.argv[2:]:
-	for key, value in inputDataMap.items():
-		recordLabelMap[key] = 1 if sentimentModel.classify(value) == "pos" else -1
+	outputDataFrame = pandas.DataFrame(inputDataFrame['ID'])
+	preds = []
+	for index, row in inputDataFrame.iterrows():
+		p = 1 if sentimentModel.classify(row['text']) == "pos" else -1
+		preds.append(p)
+	outputDataFrame['pred'] = preds
 	pickleFile.close()
-		
+
 def readData():
-	with open(dataFullPathFileName, newline='') as csvfile:
-		dataReader = csv.reader(csvfile, delimiter=',', quotechar='"')
-		for record in dataReader:
-			inputDataMap[record[0]] = record[1]
-			
+	global inputDataFrame
+	inputDataFrame = pa.ipc.open_file(open(dataFullPathFileName, 'rb')).read_pandas()
+
 if __name__ == "__main__":
 	main()
-	
