@@ -29,7 +29,6 @@ export const mockScanPredicate: OperatorPredicate = {
   operatorType: 'ScanSource',
   operatorProperties: {
   },
-  operatorGroupName: 'Source',
   inputPorts: [],
   outputPorts: ['output-0'],
   showAdvanced: true
@@ -40,7 +39,6 @@ export const mockSentimentPredicate: OperatorPredicate = {
   operatorType: 'NlpSentiment',
   operatorProperties: {
   },
-  operatorGroupName: 'Analytics',
   inputPorts: ['input-0'],
   outputPorts: ['output-0'],
   showAdvanced: true
@@ -51,7 +49,6 @@ export const mockResultPredicate: OperatorPredicate = {
   operatorType: 'ViewResults',
   operatorProperties: {
   },
-  operatorGroupName: 'View Results',
   inputPorts: ['input-0'],
   outputPorts: [],
   showAdvanced: true
@@ -60,7 +57,6 @@ export const mockResultPredicate: OperatorPredicate = {
 export const mockMultiInputOutputPredicate: OperatorPredicate = {
   operatorID: '4',
   operatorType: 'MultiInputOutput',
-  operatorGroupName: 'Source',
   operatorProperties: {
   },
   inputPorts: ['input-0', 'input-1', 'input-2'],

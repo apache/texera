@@ -179,8 +179,11 @@ export class ValidationWorkflowService {
 
     const satisfyInput = requiredInputNum === actualInputNum;
     // If the operator is the sink operator, the actual output number must be equal to required number.
-    const satisyOutput = operator.operatorGroupName === 'View Results' ?
-                         requiredOutputNum === actualOutputNum : requiredOutputNum <= actualOutputNum;
+    const satisyOutput = this.operatorMetadataService.
+                              getOperatorSchema(operator.operatorType).
+                              additionalMetadata.
+                              operatorGroupName === 'View Results' ?
+                              requiredOutputNum === actualOutputNum : requiredOutputNum <= actualOutputNum;
 
     if (satisfyInput && satisyOutput) {
       return { isValid: true };

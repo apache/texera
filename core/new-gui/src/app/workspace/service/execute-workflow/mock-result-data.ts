@@ -1,4 +1,6 @@
 import { SuccessExecutionResult, ErrorExecutionResult, ResultObject } from '../../types/execute-workflow.interface';
+import { Point, OperatorPredicate } from '../../types/workflow-common.interface';
+
 export const mockResultData: ResultObject[] = [ {
   chartType: undefined,
   operatorID: 'operator-1234',
@@ -59,4 +61,18 @@ export const mockExecutionEmptyResult: SuccessExecutionResult = {
 export const mockExecutionErrorResult: ErrorExecutionResult = {
   code: 1,
   message: 'custom error happening'
+};
+
+export const mockResultOperator: OperatorPredicate = {
+  operatorID : mockResultData[0].operatorID,
+  operatorType: 'ViewResults',
+  operatorProperties: {},
+  inputPorts : [],
+  outputPorts : [],
+  showAdvanced : false
+};
+
+export const mockResultPoint: Point = {
+  x : 1,
+  y : 1
 };

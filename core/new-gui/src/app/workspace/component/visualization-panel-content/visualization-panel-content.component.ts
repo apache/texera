@@ -7,15 +7,25 @@ interface DialogData {
   table: object[];
   chartType: c3.ChartType;
 }
+/**
+ * VisualizationPanelContentComponent displays the chart based on the chart type and data in table.
+ *
+ * This component use c3.js to generate figure.
+ * It will convert the table into data format supported by c3.js.
+ * Then it call c3.js to render the figure.
+ */
 @Component({
   selector: 'texera-visualization-panel-content',
   templateUrl: './visualization-panel-content.component.html',
   styleUrls: ['./visualization-panel-content.component.scss']
 })
 export class VisualizationPanelContentComponent implements OnInit, AfterViewInit {
+  // this readonly variable must be the same as HTML element ID for visualization
+  public static readonly CHART_ID = '#texera-result-chart-content';
+  public static readonly WIDTH = 800;
+  public static readonly HEIGHT = 600;
   table: object[];
   columns: string[] = [];
-
 
   constructor(@Inject(MAT_DIALOG_DATA) public data: DialogData) {
     this.table = data.table;
@@ -32,7 +42,6 @@ export class VisualizationPanelContentComponent implements OnInit, AfterViewInit
   onClickGenerateChart() {
 
     const dataToDisplay: Array<[string, ...PrimitiveArray]> = [];
-  //  let count = 1;
     const category: string[] = [];
     for (let i = 1; i < this.columns?.length; i++) {
       category.push(this.columns[i]);
@@ -55,8 +64,8 @@ export class VisualizationPanelContentComponent implements OnInit, AfterViewInit
 
     c3.generate({
       size: {
-        height: 600,
-        width: 800
+        height: VisualizationPanelContentComponent.HEIGHT,
+        width: VisualizationPanelContentComponent.WIDTH
       },
       data: {
         columns: dataToDisplay,
@@ -68,7 +77,7 @@ export class VisualizationPanelContentComponent implements OnInit, AfterViewInit
           categories: category
         }
       },
-      bindto: '#texera-result-chart-content'
+      bindto: VisualizationPanelContentComponent.CHART_ID
     });
   }
 

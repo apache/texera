@@ -13,7 +13,7 @@ import { NgbModule, NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { marbles } from 'rxjs-marbles';
 import {
   mockExecutionResult, mockResultData,
-  mockExecutionErrorResult, mockExecutionEmptyResult
+  mockExecutionErrorResult, mockExecutionEmptyResult, mockResultOperator, mockResultPoint
 } from '../../service/execute-workflow/mock-result-data';
 import { By } from '@angular/platform-browser';
 import { Observable } from 'rxjs/Observable';
@@ -111,9 +111,10 @@ describe('ResultPanelComponent', () => {
       m.hot(endMarbleString, endMarblevalues)
     );
 
+    workflowActionService.addOperator(mockResultOperator, mockResultPoint);
+    workflowActionService.getJointGraphWrapper().highlightOperator(mockResultData[0].operatorID);
 
     const testComponent = new ResultPanelComponent(executeWorkflowService, ngbModel, resultPanelToggleService, workflowActionService);
-    testComponent.selectedOperatorID = mockExecutionResult.result[0].operatorID;
 
     executeWorkflowService.getExecuteEndedStream().subscribe({
       complete: () => {
@@ -191,8 +192,10 @@ describe('ResultPanelComponent', () => {
       m.hot(endMarbleString, endMarblevalues)
     );
 
+    workflowActionService.addOperator(mockResultOperator, mockResultPoint);
+    workflowActionService.getJointGraphWrapper().highlightOperator(mockResultData[0].operatorID);
+
     const testComponent = new ResultPanelComponent(executeWorkflowService, ngbModel, resultPanelToggleService, workflowActionService);
-    testComponent.selectedOperatorID = mockExecutionResult.result[0].operatorID;
 
     executeWorkflowService.getExecuteEndedStream().subscribe({
       complete: () => {

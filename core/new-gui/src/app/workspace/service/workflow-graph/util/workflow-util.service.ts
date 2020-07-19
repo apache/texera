@@ -78,9 +78,7 @@ export class WorkflowUtilService {
       outputPorts.push('output-' + i.toString());
     }
 
-    const operatorGroupName = operatorSchema.additionalMetadata.operatorGroupName;
-
-    return { operatorID, operatorType, operatorProperties, operatorGroupName, inputPorts, outputPorts, showAdvanced};
+    return { operatorID, operatorType, operatorProperties,  inputPorts, outputPorts, showAdvanced};
 
   }
 

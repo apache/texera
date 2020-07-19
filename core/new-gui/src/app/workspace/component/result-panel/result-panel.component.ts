@@ -40,7 +40,6 @@ export class ResultPanelComponent {
   //  show table when chartType is undefined, instead show visualization button
   public chartType: string | undefined;
   // record which operator is selected
-  public selectedOperatorID: string = '';
   public showMessage: boolean = false;
   public message: string = '';
   public currentColumns: TableColumn[] | undefined;
@@ -126,9 +125,8 @@ export class ResultPanelComponent {
 
     if (highlightedOperators.length === 1) {
       this.showResultPanel = true;
-      this.selectedOperatorID = highlightedOperators[0];
       const resultMap = this.executeWorkflowService.getResultMap();
-      const result: ResultObject | undefined = resultMap.get(this.selectedOperatorID);
+      const result: ResultObject | undefined = resultMap.get(highlightedOperators[0]);
       if (result) {
         this.displayResultTable(result.table);
         if (result.chartType) {
@@ -190,19 +188,24 @@ export class ResultPanelComponent {
       return;
     }
     this.executeWorkflowService.updateResultMap(response);
+    const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+
     // If the selected operator is a sink operator, the result panel should display result when response is coming.
-    if (this.selectedOperatorID !== '') {
-      const resultMap = this.executeWorkflowService.getResultMap();
-      const result: ResultObject | undefined = resultMap.get(this.selectedOperatorID);
-        if (result) {
-          this.displayResultTable(result.table);
-          if (result.chartType) {
-            this.chartType = result?.chartType;
-          } else {
-            this.chartType = undefined;
+    if (highlightedOperators.length === 1) {
+
+        const resultMap = this.executeWorkflowService.getResultMap();
+        const result: ResultObject | undefined = resultMap.get(highlightedOperators[0]);
+          if (result) {
+            this.displayResultTable(result.table);
+            if (result.chartType) {
+              this.chartType = result.chartType;
+            } else {
+              this.chartType = undefined;
+            }
           }
-        }
+
     }
+
   }
 
   /**
@@ -236,7 +239,6 @@ export class ResultPanelComponent {
 
     // creates a shallow copy of the readonly response.result,
     //  this copy will be has type object[] because MatTableDataSource's input needs to be object[]
-    //  const resultData = response.result.slice();
 
     // save a copy of current result
     this.currentResult = resultData.slice();

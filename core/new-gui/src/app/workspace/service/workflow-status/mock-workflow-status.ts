@@ -9,7 +9,6 @@ export const mockScanPredicateForStatus: OperatorPredicate = {
 
   operatorProperties: {
   },
-  operatorGroupName: 'Source',
   inputPorts: [],
   outputPorts: ['output-0'],
   showAdvanced: true
