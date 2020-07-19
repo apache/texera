@@ -51,11 +51,8 @@ public class MysqlSource implements ISourceOperator{
             {
                 String columnName = columns.getString("COLUMN_NAME");
                 int datatype = columns.getInt("DATA_TYPE");
-
                 AttributeType attributeType;
                 switch (datatype) {
-                    case Types.BIT: //-7 Types.BIT
-                    case Types.TINYINT: //-6 Types.TINYINT
                     case Types.SMALLINT: //5 Types.SMALLINT
                     case Types.INTEGER: //4 Types.INTEGER
                     case Types.BINARY: //-2 Types.BINARY
@@ -74,13 +71,17 @@ public class MysqlSource implements ISourceOperator{
                     case Types.TIMESTAMP:  //93 Types.TIMESTAMP
                         attributeType = AttributeType.DATETIME;
                         break;
+                    case Types.TINYINT: //-6 Types.TINYINT
+                    case Types.BOOLEAN: //16 Types.BOOLEAN
+                    case Types.BIT: //-7 Types.BIT
+                        attributeType = AttributeType.BOOLEAN;
+                        break;
                     case Types.BIGINT: //-5 Types.BIGINT
                     case Types.CHAR: //1 Types.CHAR
                     case Types.VARCHAR: //12 Types.VARCHAR
                     case Types.LONGVARCHAR: //-1 Types.LONGVARCHAR
                     case Types.NULL: //0 Types.NULL
                     case Types.OTHER: //1111 Types.OTHER
-                    case Types.BOOLEAN: //16 Types.BOOLEAN
                     default:
                         attributeType = AttributeType.STRING;
                         break;
@@ -118,42 +119,50 @@ public class MysqlSource implements ISourceOperator{
                 querySent = true;
             }
 
-			while (rs.next()) {
-			    List<IField> tb = new ArrayList();
+            while (rs.next()) {
+			    List<IField> row = new ArrayList();
 			    for(Attribute a: this.outputSchema.getAttributes()) {
-			        if (a.getType() == AttributeType.STRING){
-			            String value = rs.getString(a.getName());
-			            value = value ==null? "":value;
-			            tb.add(new StringField(value));
-                    } else if (a.getType() == AttributeType.INTEGER){
-                        String value = rs.getString(a.getName());
-                        // allowing null value Integer to be in the workflow
-                        if (value != null) {
-                            tb.add(new IntegerField(new Integer(value)));
-                        } else {
-                            tb.add(new IntegerField(null));
-                        }
-                    } else if (a.getType() == AttributeType.DOUBLE){
-                        String value = rs.getString(a.getName());
-                        // allowing null value Double to be in the workflow
-                        if (value != null) {
-                            tb.add(new DoubleField(new Double(value)));
-                        } else {
-                            tb.add(new DoubleField(null));
-                        }
-                    } else if (a.getType() == AttributeType.DATE){
-                        String value = rs.getString(a.getName());
-                        tb.add(new DateField(value));
-                    } else if (a.getType() == AttributeType.DATETIME){
-                        String value = rs.getString(a.getName());
-                        // a formatter is needed because
-                        // mysql format is    yyyy-MM-dd HH:mm:ss
-                        // but java format is yyyy-MM-ddTHH:mm:ss by default
-                        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-                        tb.add(new DateTimeField(value,formatter));
+			        AttributeType attrType = a.getType();
+                    String value = rs.getString(a.getName());
+                    switch (attrType) {
+                        case STRING:
+                            value = value ==null? "":value;
+                            row.add(new StringField(value));
+                            break;
+                        case INTEGER:
+                            // allowing null value Integer to be in the workflow
+                            if (value != null) {
+                                row.add(new IntegerField(new Integer(value)));
+                            } else {
+                                row.add(new IntegerField(null));
+                            }
+                            break;
+                        case DOUBLE:
+                            if (value != null) {
+                                row.add(new DoubleField(new Double(value)));
+                            } else {
+                                row.add(new DoubleField(null));
+                            }
+                            break;
+                        case DATE:
+                            row.add(new DateField(value));
+                            break;
+                        case DATETIME:
+                            // a formatter is needed because
+                            // mysql format is    yyyy-MM-dd HH:mm:ss
+                            // but java format is yyyy-MM-ddTHH:mm:ss by default
+                            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+                            row.add(new DateTimeField(value,formatter));
+                            break;
+                        case BOOLEAN:
+                            if (value.equals("1")) {
+                                row.add(new StringField("true"));
+                            } else {
+                                row.add(new StringField("false"));
+                            }
                     }
                 }
-			    IField[] iFieldArray = tb.toArray(new IField[0]);
+			    IField[] iFieldArray = row.toArray(new IField[0]);
                 return new Tuple(this.outputSchema, iFieldArray);
 			}
 		} catch (SQLException e) {
@@ -163,9 +172,10 @@ public class MysqlSource implements ISourceOperator{
     }
     
     public static String generateSqlQuery(MysqlSourcePredicate predicate) {
-        //
-        String query =  "\n" +
-                "select * from "+ predicate.getTable() +" where 1 = 1 ";
+        // in sql prepared statement, table name cannot be inserted using preparedstatement.setString
+        // so it has to be inserted here during sql query generation
+        String query =  "\n" + "select * from "+ predicate.getTable() +" where 1 = 1 ";
+        // in sql prepared statement, column name cannot be inserted using preparedstatement.setString either
         if(!predicate.getColumn().isEmpty() && !predicate.getKeywords().isEmpty()) {
             query += " AND  MATCH( " + predicate.getColumn() + " )  AGAINST ( ? IN NATURAL LANGUAGE MODE)";
         }
@@ -183,8 +193,7 @@ public class MysqlSource implements ISourceOperator{
         query+=";";
         return query;
     }
-    
-    
+
     @Override
     public void close() throws TexeraException {
         if (status == CLOSED) {
