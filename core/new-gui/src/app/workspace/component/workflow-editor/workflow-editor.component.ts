@@ -663,6 +663,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
   private handleOperatorDelete() {
     Observable.fromEvent<KeyboardEvent>(document, 'keydown')
       .filter(event => (<HTMLElement> event.target).nodeName !== 'INPUT')
+      .filter(event => (<HTMLElement> event.target).nodeName !== 'TEXTAREA')
       .filter(event => event.key === 'Backspace' || event.key === 'Delete')
       .subscribe(() => {
         const currentOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
