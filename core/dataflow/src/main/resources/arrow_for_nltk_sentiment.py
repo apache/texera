@@ -6,7 +6,7 @@ import pandas
 pickleFullPathFileName = sys.argv[1]
 dataFullPathFileName = sys.argv[2]
 resultFullPathFileName = sys.argv[3]
-global inputPb, outputPb
+global inputDataFrame, outputDataFrame
 
 # call format:
 # python3 nltk_sentiment_classify pickleFullPathFileName dataFullPathFileName resultFullPathFileName
@@ -22,26 +22,26 @@ def main():
 
 def writeResults():
 	with open(resultFullPathFileName, 'wb') as sink:
-		table = pa.Table.from_pandas(outputPb)
+		table = pa.Table.from_pandas(outputDataFrame)
 		writer = pa.ipc.new_file(sink, table.schema)
 		writer.write_table(table, max_chunksize=1000)
 		writer.close()
 
 def classifyData():
-	global inputPb, outputPb
+	global inputDataFrame, outputDataFrame
 	pickleFile = open(pickleFullPathFileName, 'rb')
 	sentimentModel = pickle.load(pickleFile)#	for text in sys.argv[2:]:
-	outputPb = pandas.DataFrame(inputPb['ID'])
+	outputDataFrame = pandas.DataFrame(inputDataFrame['ID'])
 	preds = []
-	for index, row in inputPb.iterrows():
+	for index, row in inputDataFrame.iterrows():
 		p = 1 if sentimentModel.classify(row['text']) == "pos" else -1
 		preds.append(p)
-	outputPb['pred'] = preds
+	outputDataFrame['pred'] = preds
 	pickleFile.close()
 
 def readData():
-	global inputPb
-	inputPb = pa.ipc.open_file(open(dataFullPathFileName, 'rb')).read_pandas()
+	global inputDataFrame
+	inputDataFrame = pa.ipc.open_file(open(dataFullPathFileName, 'rb')).read_pandas()
 
 if __name__ == "__main__":
 	main()
