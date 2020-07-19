@@ -15,20 +15,26 @@ public class DateTimeField implements IField {
     private LocalDateTime localDateTime;
 
     public DateTimeField(LocalDateTime localDateTime) {
-        checkNotNull(localDateTime);
         this.localDateTime = localDateTime;
     }
 
     @JsonCreator
     public DateTimeField(
-            @JsonProperty(value = JsonConstants.FIELD_VALUE, required = true) 
+            @JsonProperty(value = JsonConstants.FIELD_VALUE)
             String localDateTimeString) {
-        checkNotNull(localDateTimeString);
-        this.localDateTime = LocalDateTime.parse(localDateTimeString);
+        if (localDateTimeString != null) {
+            this.localDateTime = LocalDateTime.parse(localDateTimeString);
+        } else {
+            this.localDateTime = null;
+        }
+
     }
 
     @JsonProperty(value = JsonConstants.FIELD_VALUE)
     public String getDateTimeString() {
+        if (localDateTime == null) {
+            return "";
+        }
         return this.localDateTime.toString();
     }
 
@@ -65,7 +71,7 @@ public class DateTimeField implements IField {
 
     @Override
     public String toString() {
-        return "DateTimeField [value=" + localDateTime.toString() + "]";
+        return "DateTimeField [value=" + String.valueOf(localDateTime) + "]";
     }
 
 }
