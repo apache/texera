@@ -104,7 +104,7 @@ import edu.uci.ics.texera.dataflow.arrow.ArrowNltkSentimentPredicate;
         @Type(value = AggregatorPredicate.class, name = "Aggregation"),
 
         @Type(value = BarChartSinkPredicate.class, name = "BarChart"),
-        @Type(value = PieChartSinkPredicate.class, name = "PieChart")
+        @Type(value = PieChartSinkPredicate.class, name = "PieChart"),
         @Type(value = ArrowNltkSentimentPredicate.class, name = "ArrowNltkSentiment")
 
 })

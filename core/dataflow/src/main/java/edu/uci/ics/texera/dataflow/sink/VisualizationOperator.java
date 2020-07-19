@@ -26,7 +26,7 @@ public abstract class VisualizationOperator implements ITupleSink {
         this.type = type;
     }
 
-    @Override
+    
     public void setInputOperator(IOperator inputOperator) {
         if (cursor != CLOSED) {
             throw new TexeraException(ErrorMessages.INPUT_OPERATOR_CHANGED_AFTER_OPEN);
