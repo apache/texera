@@ -5,6 +5,7 @@ import java.util.Map;
 
 import edu.uci.ics.texera.api.exception.PlanGenException;
 import edu.uci.ics.texera.dataflow.aggregator.AggregatorPredicate;
+import edu.uci.ics.texera.dataflow.arrow.ArrowNltkSentimentPredicate;
 import edu.uci.ics.texera.dataflow.common.PredicateBase;
 import edu.uci.ics.texera.dataflow.comparablematcher.ComparablePredicate;
 import edu.uci.ics.texera.dataflow.dictionarymatcher.DictionaryPredicate;
@@ -82,6 +83,8 @@ public class OperatorArityConstants {
         fixedInputArityMap.put(TupleSinkPredicate.class, 1);
         fixedInputArityMap.put(ExcelSinkPredicate.class, 1);
         fixedInputArityMap.put(MysqlSinkPredicate.class, 1);
+
+        fixedInputArityMap.put(ArrowNltkSentimentPredicate.class, 1);
         
     }
     
@@ -122,7 +125,8 @@ public class OperatorArityConstants {
         fixedOutputArityMap.put(TupleSinkPredicate.class, 0);
         fixedOutputArityMap.put(ExcelSinkPredicate.class, 0);
         fixedOutputArityMap.put(MysqlSinkPredicate.class, 0);
-        
+
+        fixedOutputArityMap.put(ArrowNltkSentimentPredicate.class, 1);
     }
     
     /**
