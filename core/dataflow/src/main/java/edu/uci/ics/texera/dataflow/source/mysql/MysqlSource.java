@@ -9,30 +9,32 @@ import edu.uci.ics.texera.api.schema.Attribute;
 import edu.uci.ics.texera.api.schema.AttributeType;
 import edu.uci.ics.texera.api.schema.Schema;
 import edu.uci.ics.texera.api.tuple.Tuple;
+import org.jooq.meta.derby.sys.Sys;
 
 import java.sql.*;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
-public class MysqlSource implements ISourceOperator{
+public class MysqlSource implements ISourceOperator {
 	private final MysqlSourcePredicate predicate;
-    private int cursor = CLOSED;
+    private int status = CLOSED;
     private Schema outputSchema;
     private final Schema.Builder schemaBuilder;
     private Connection connection;
     private ResultSet rs;
-    private boolean start = true;
+    private boolean querySent = false;
 
     
-    public MysqlSource(MysqlSourcePredicate predicate){
+    public MysqlSource(MysqlSourcePredicate predicate) {
     	this.predicate = predicate;
         this.schemaBuilder = new Schema.Builder();
     }
 
     @Override
     public void open() throws TexeraException {
-        if (cursor == OPENED) {
+        if (status == OPENED) {
             return;
         }
         // JDBC connection
@@ -41,18 +43,15 @@ public class MysqlSource implements ISourceOperator{
             String url = "jdbc:mysql://" + predicate.getHost() + ":" + predicate.getPort() + "/"
                     + predicate.getDatabase() + "?autoReconnect=true&useSSL=true";
             this.connection = DriverManager.getConnection(url, predicate.getUsername(), predicate.getPassword());
+            // set to readonly to improve efficiency
             connection.setReadOnly(true);
             DatabaseMetaData databaseMetaData = connection.getMetaData();
             ResultSet columns = databaseMetaData.getColumns(null,null, predicate.getTable(), null);
-            while(columns.next())
-            {
+            while(columns.next()) {
                 String columnName = columns.getString("COLUMN_NAME");
                 int datatype = columns.getInt("DATA_TYPE");
-
                 AttributeType attributeType;
                 switch (datatype) {
-                    case Types.BIT: //-7 Types.BIT
-                    case Types.TINYINT: //-6 Types.TINYINT
                     case Types.SMALLINT: //5 Types.SMALLINT
                     case Types.INTEGER: //4 Types.INTEGER
                     case Types.BINARY: //-2 Types.BINARY
@@ -71,13 +70,17 @@ public class MysqlSource implements ISourceOperator{
                     case Types.TIMESTAMP:  //93 Types.TIMESTAMP
                         attributeType = AttributeType.DATETIME;
                         break;
+                    case Types.TINYINT: //-6 Types.TINYINT
+                    case Types.BOOLEAN: //16 Types.BOOLEAN
+                    case Types.BIT: //-7 Types.BIT
+                        attributeType = AttributeType.BOOLEAN;
+                        break;
                     case Types.BIGINT: //-5 Types.BIGINT
                     case Types.CHAR: //1 Types.CHAR
                     case Types.VARCHAR: //12 Types.VARCHAR
                     case Types.LONGVARCHAR: //-1 Types.LONGVARCHAR
                     case Types.NULL: //0 Types.NULL
                     case Types.OTHER: //1111 Types.OTHER
-                    case Types.BOOLEAN: //16 Types.BOOLEAN
                     default:
                         attributeType = AttributeType.STRING;
                         break;
@@ -85,7 +88,7 @@ public class MysqlSource implements ISourceOperator{
                 this.schemaBuilder.add(columnName, attributeType);
             }
             this.outputSchema = this.schemaBuilder.build();
-            cursor = OPENED;
+            status = OPENED;
         } catch (SQLException | InstantiationException | IllegalAccessException | ClassNotFoundException e) {
             throw new DataflowException("MysqlSink failed to connect to mysql database." + e.getMessage());
         }
@@ -93,79 +96,73 @@ public class MysqlSource implements ISourceOperator{
     
     @Override
     public Tuple getNextTuple() throws TexeraException {
-        if (cursor == CLOSED) {
+        if (status == CLOSED) {
             throw new DataflowException(ErrorMessages.OPERATOR_NOT_OPENED);
         }
         try {
-            if (start) {
+            if (!querySent) {
                 PreparedStatement ps = this.connection.prepareStatement(generateSqlQuery(predicate));
-                int nextIndex = 1;
-                // uncomment below if want to do nesed boolean expression construction
-//                if (!predicate.getColumn().equals("") && !predicate.getKeywords().isEmpty()) {
-//                    StringBuilder keywords = new StringBuilder();
-//                    for (int i = 0; i < predicate.getKeywords().size(); i++) {
-//                        keywords.append(" (");
-//                        for (int j = 0; j < predicate.getKeywords().get(i).size(); j++) {
-//                            keywords.append(" +").append(predicate.getKeywords().get(i).get(j));
-//                        }
-//                        keywords.append(" )");
-//                    }
-//                    ps.setString(nextIndex, keywords.toString());
-//                    nextIndex += 1;
-//                }
-                if (!predicate.getColumn().equals("") && !predicate.getKeywords().isEmpty()) {
-                    ps.setString(nextIndex, predicate.getKeywords());
-                    nextIndex += 1;
+                int curIndex = 1;
+                if (!predicate.getColumn().isEmpty() && !predicate.getKeywords().isEmpty()) {
+                    ps.setString(curIndex, predicate.getKeywords());
+                    curIndex += 1;
                 }
                 if (predicate.getLimit() != Integer.MAX_VALUE) {
-                    ps.setObject(nextIndex, predicate.getLimit(), Types.INTEGER);
-                    nextIndex += 1;
+                    ps.setObject(curIndex, predicate.getLimit(), Types.INTEGER);
+                    curIndex += 1;
                 }
                 if (predicate.getOffset() != 0) {
-                    ps.setObject(nextIndex, predicate.getOffset(), Types.INTEGER);
+                    ps.setObject(curIndex, predicate.getOffset(), Types.INTEGER);
                 }
-                System.out.println(ps.toString());
                 this.rs = ps.executeQuery();
-                start = false;
-//                ps.close();
+                querySent = true;
             }
 
-			while (rs.next()) {
-			    List<IField> tb = new ArrayList();
-			    for(Attribute a: this.outputSchema.getAttributes()){
-			        if (a.getType() == AttributeType.STRING){
-			            String value = rs.getString(a.getName());
-			            value = value ==null? "":value;
-			            tb.add(new StringField(value));
-                    }else if (a.getType() == AttributeType.INTEGER){
-                        String value = rs.getString(a.getName());
-                        // allowing null value Integer to be in the workflow
-                        if (value != null) {
-                            tb.add(new IntegerField(new Integer(value)));
-                        } else {
-                            tb.add(new IntegerField(null));
-                        }
-                    }else if (a.getType() == AttributeType.DOUBLE){
-                        String value = rs.getString(a.getName());
-                        // allowing null value Double to be in the workflow
-                        if (value != null) {
-                            tb.add(new DoubleField(new Double(value)));
-                        } else {
-                            tb.add(new DoubleField(null));
-                        }
-                    }else if (a.getType() == AttributeType.DATE){
-                        Date value = rs.getDate(a.getName());
-                        // allowing null value DateField to be in the workflow
-                        tb.add(new DateField(value));
-                    }else if (a.getType() == AttributeType.DATETIME){
-                        String value = rs.getString(a.getName());
-                        tb.add(new DateTimeField((value)));
+            while (rs.next()) {
+			    List<IField> row = new ArrayList();
+			    for(Attribute a: this.outputSchema.getAttributes()) {
+			        AttributeType attrType = a.getType();
+                    String value = rs.getString(a.getName());
+                    switch (attrType) {
+                        case STRING:
+                            value = value ==null? "":value;
+                            row.add(new StringField(value));
+                            break;
+                        case INTEGER:
+                            // allowing null value Integer to be in the workflow
+                            if (value != null) {
+                                row.add(new IntegerField(new Integer(value)));
+                            } else {
+                                row.add(new IntegerField(null));
+                            }
+                            break;
+                        case DOUBLE:
+                            if (value != null) {
+                                row.add(new DoubleField(new Double(value)));
+                            } else {
+                                row.add(new DoubleField(null));
+                            }
+                            break;
+                        case DATE:
+                            row.add(new DateField(value));
+                            break;
+                        case DATETIME:
+                            // a formatter is needed because
+                            // mysql format is    yyyy-MM-dd HH:mm:ss
+                            // but java format is yyyy-MM-ddTHH:mm:ss by default
+                            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+                            row.add(new DateTimeField(value,formatter));
+                            break;
+                        case BOOLEAN:
+                            if (value.equals("0")) {
+                                row.add(new StringField("false"));
+                            } else {
+                                row.add(new StringField("true"));
+                            }
                     }
                 }
-			    IField[] iFieldArray = tb.toArray(new IField[0]);
-                Tuple tuple = new Tuple(this.outputSchema, iFieldArray);
-                cursor ++;
-			    return tuple;
+			    IField[] iFieldArray = row.toArray(new IField[0]);
+                return new Tuple(this.outputSchema, iFieldArray);
 			}
 		} catch (SQLException e) {
             throw new DataflowException(e.getMessage());
@@ -174,11 +171,12 @@ public class MysqlSource implements ISourceOperator{
     }
     
     public static String generateSqlQuery(MysqlSourcePredicate predicate) {
-        //
-        String query =  "\n" +
-                "select * from "+ predicate.getTable() +" where 1 = 1 ";
-        if(!predicate.getColumn().equals("") && !predicate.getKeywords().isEmpty()) {
-            query += " AND  MATCH( " + predicate.getColumn() + " )  AGAINST ( ? IN BOOLEAN MODE)";
+        // in sql prepared statement, table name cannot be inserted using preparedstatement.setString
+        // so it has to be inserted here during sql query generation
+        String query =  "\n" + "select * from "+ predicate.getTable() +" where 1 = 1 ";
+        // in sql prepared statement, column name cannot be inserted using preparedstatement.setString either
+        if(!predicate.getColumn().isEmpty() && !predicate.getKeywords().isEmpty()) {
+            query += " AND  MATCH( " + predicate.getColumn() + " )  AGAINST ( ? IN NATURAL LANGUAGE MODE)";
         }
         if(predicate.getLimit() != Integer.MAX_VALUE){
             query += " LIMIT ?";
@@ -192,23 +190,20 @@ public class MysqlSource implements ISourceOperator{
             query += " OFFSET ?";
         }
         query+=";";
-        System.out.println(query);
         return query;
     }
-    
-    
+
     @Override
     public void close() throws TexeraException {
-        if (cursor == CLOSED) {
+        if (status == CLOSED) {
             return;
         }
         try {
         	connection.close();
-        	cursor = CLOSED;
+            status = CLOSED;
         }catch (SQLException e) {
-            throw new DataflowException("MysqlSink fail to close. " + e.getMessage());
+            throw new DataflowException("Mysql source fail to close. " + e.getMessage());
         }
-        
     }
 
     @Override

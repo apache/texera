@@ -1,17 +1,10 @@
 package edu.uci.ics.texera.dataflow.common;
 
-import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -22,7 +15,7 @@ import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.module.jsonSchema.JsonSchema;
 import com.fasterxml.jackson.module.jsonSchema.JsonSchemaGenerator;
-import edu.uci.ics.texera.dataflow.source.mysql.MysqlSourcePredicate;
+
 import edu.uci.ics.texera.api.constants.DataConstants;
 import edu.uci.ics.texera.api.exception.TexeraException;
 import edu.uci.ics.texera.api.utils.Utils;
@@ -53,7 +46,7 @@ public class JsonSchemaHelper {
     
     public static void main(String[] args) throws Exception {
         generateAllOperatorSchema();
-//        generateJsonSchema(MysqlSourcePredicate.class);
+//        generateJsonSchema(ComparablePredicate.class);
     }
     
     public static void generateAllOperatorSchema() throws Exception {
@@ -83,30 +76,27 @@ public class JsonSchemaHelper {
         JsonSchema schema = jsonSchemaGenerator.generateSchema(predicateClass);
 
         ObjectNode schemaNode = objectMapper.readValue(objectMapper.writeValueAsBytes(schema), ObjectNode.class);
-        ObjectNode propertiesNode = ((ObjectNode) schemaNode.get("properties"));
 
-        // remove the operatorID from the json schema
-        propertiesNode.remove("operatorID");
+        LinkedHashSet<JsonNode> propertiesNodes = new LinkedHashSet<>();
+        searchForEntity(schemaNode, "properties", propertiesNodes);
+        for (JsonNode propertiesJsonNode: propertiesNodes) {
+            ObjectNode propertiesNode = (ObjectNode) propertiesJsonNode;
+            // remove the operatorID from the json schema
+            propertiesNode.remove("operatorID");
 
-        // process each property due to frontend form generator requirements
-        propertiesNode.fields().forEachRemaining(e -> {
-            String propertyName = e.getKey();
-            ObjectNode propertyNode = (ObjectNode) e.getValue();
+            // process each property due to frontend form generator requirements
+            propertiesNode.fields().forEachRemaining(e -> {
+                String propertyName = e.getKey();
+                ObjectNode propertyNode = (ObjectNode) e.getValue();
 
-            // add a "title" field to each property
-            propertyNode.put("title", propertyName);
-            // if property is an enum, set unique items to true
-            if (propertiesNode.has("enum")) {
-                propertyNode.put("uniqueItems", true);
-            }
-        });
-
-//        if (operatorType.equals("MysqlSource")) {
-//            ObjectNode keywords = (ObjectNode) propertiesNode.get("keywords");
-//            keywords.put("description", "return records that meet any conditions below");
-//            ObjectNode conjunctionGroups = (ObjectNode) propertiesNode.get("keywords").get("items");
-//            conjunctionGroups.put("description","Condition: contains all words below");
-//        }
+                // add a "title" field to each property
+                propertyNode.put("title", propertyName);
+                // if property is an enum, set unique items to true
+                if (propertiesNode.has("enum")) {
+                    propertyNode.put("uniqueItems", true);
+                }
+            });
+        }
 
         // add required/optional properties to the schema
         List<String> requiredProperties = getRequiredProperties(predicateClass);
@@ -257,6 +247,28 @@ public class JsonSchemaHelper {
             throw new TexeraException(predicateClass + ": json creator constructor is not present");
         }
         return findJsonCreator.get();
+    }
+
+    // implementation adapted from https://gist.github.com/tedpennings/6253541
+    public static void searchForEntity(JsonNode node, String entityName, Set<JsonNode> results) {
+        // A naive depth-first search implementation using recursion. Useful
+        // **only** for small object graphs. This will be inefficient
+        // (stack overflow) for finding deeply-nested needles or needles
+        // toward the end of a forest with deeply-nested branches.
+        if (node == null) {
+            return;
+        }
+        if (node.has(entityName)) {
+            results.add(node.get(entityName));
+        }
+        if (!node.isContainerNode()) {
+            return;
+        }
+        for (JsonNode child : node) {
+            if (child.isContainerNode()) {
+                searchForEntity(child, entityName, results);
+            }
+        }
     }
 
 }
