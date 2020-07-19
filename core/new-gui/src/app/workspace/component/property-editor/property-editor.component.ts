@@ -295,7 +295,19 @@ export class PropertyEditorComponent {
   private convertJsonSchemaToNGXField(schema: JSONSchema7) {
     this.formlyFormGroup = new FormGroup({});
     this.formlyOptions = {};
-    const field = this.formlyJsonschema.toFieldConfig(schema);
+
+    // intercept JsonSchema -> FormlySchema process, adding custom options
+    const jsonSchemaMapIntercept = (mappedField: FormlyFieldConfig, mapSource: JSONSchema7): FormlyFieldConfig => {
+      // if the title contains "password", then make the field type also to be password
+      if (mapSource?.title?.toLowerCase()?.includes('password')) {
+        if (mappedField.templateOptions) {
+          mappedField.templateOptions.type = 'password';
+        }
+      }
+      return mappedField;
+    };
+
+    const field = this.formlyJsonschema.toFieldConfig(schema, {map: jsonSchemaMapIntercept});
     this.formlyFields = [field];
   }
 
