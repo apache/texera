@@ -144,4 +144,5 @@ public class PropertyNameConstants {
     // related to duplicated NltkSentiment
     public static final String ARROW_NLTK_BATCH_SIZE = "batchSize";
     public static final String ARROW_NLTK_MODEL = "inputAttributeModel";
+    public static final String ARROW_CHUNK_SIZE = "arrowBatchSize";
 }
