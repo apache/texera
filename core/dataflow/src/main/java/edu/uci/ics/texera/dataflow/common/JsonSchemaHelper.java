@@ -46,7 +46,6 @@ public class JsonSchemaHelper {
     
     public static void main(String[] args) throws Exception {
         generateAllOperatorSchema();
-//        generateJsonSchema(ComparablePredicate.class);
     }
     
     public static void generateAllOperatorSchema() throws Exception {
