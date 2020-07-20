@@ -107,6 +107,11 @@ describe('ResultPanelComponent', () => {
       e: mockExecutionResult
     };
 
+    const httpClient: HttpClient = TestBed.get(HttpClient);
+    spyOn(httpClient, 'post').and.returnValue(
+      Observable.of(mockExecutionResult)
+    );
+
     spyOn(executeWorkflowService, 'getExecuteEndedStream').and.returnValue(
       m.hot(endMarbleString, endMarblevalues)
     );
@@ -115,6 +120,8 @@ describe('ResultPanelComponent', () => {
     workflowActionService.getJointGraphWrapper().highlightOperator(mockResultData[0].operatorID);
 
     const testComponent = new ResultPanelComponent(executeWorkflowService, ngbModel, resultPanelToggleService, workflowActionService);
+
+    executeWorkflowService.executeWorkflow();
 
     executeWorkflowService.getExecuteEndedStream().subscribe({
       complete: () => {
@@ -187,6 +194,10 @@ describe('ResultPanelComponent', () => {
       a: mockExecutionErrorResult,
       b: mockExecutionResult
     };
+    const httpClient: HttpClient = TestBed.get(HttpClient);
+    spyOn(httpClient, 'post').and.returnValue(
+      Observable.of(mockExecutionResult)
+    );
 
     spyOn(executeWorkflowService, 'getExecuteEndedStream').and.returnValue(
       m.hot(endMarbleString, endMarblevalues)
@@ -196,6 +207,8 @@ describe('ResultPanelComponent', () => {
     workflowActionService.getJointGraphWrapper().highlightOperator(mockResultData[0].operatorID);
 
     const testComponent = new ResultPanelComponent(executeWorkflowService, ngbModel, resultPanelToggleService, workflowActionService);
+
+    executeWorkflowService.executeWorkflow();
 
     executeWorkflowService.getExecuteEndedStream().subscribe({
       complete: () => {

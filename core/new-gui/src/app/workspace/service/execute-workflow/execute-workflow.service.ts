@@ -59,12 +59,6 @@ export class ExecuteWorkflowService {
     return this.resultMap;
   }
 
-  public updateResultMap(response: SuccessExecutionResult): void {
-    this.resultMap.clear();
-    for (const item of response.result) {
-      this.resultMap.set(item.operatorID, item);
-    }
-  }
   /**
    * Sends the current workflow data to the backend
    *  to execute the workflow and gets the results.
@@ -101,7 +95,7 @@ export class ExecuteWorkflowService {
         // backend will either respond an execution result or an error will occur
         // handle both cases
         response => {
-
+          this.updateResultMap(response);
           this.handleExecuteResult(response);
           this.workflowExecutionID = undefined;
         },
@@ -222,6 +216,21 @@ export class ExecuteWorkflowService {
 
   private getRandomUUID(): string {
     return 'texera-workflow-' + uuid();
+  }
+  /**
+   * Update result map when new execution is returned.
+   * @param response
+   */
+  private updateResultMap(response: SuccessExecutionResult): void {
+    this.resultMap.clear();
+    try {
+      for (const item of response.result) {
+        this.resultMap.set(item.operatorID, item);
+      }
+    } catch (error) {
+      this.resultMap.clear();
+      return ;
+    }
   }
 
   /**

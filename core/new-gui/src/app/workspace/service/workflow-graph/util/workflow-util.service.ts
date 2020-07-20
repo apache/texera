@@ -78,7 +78,7 @@ export class WorkflowUtilService {
       outputPorts.push('output-' + i.toString());
     }
 
-    return { operatorID, operatorType, operatorProperties,  inputPorts, outputPorts, showAdvanced};
+    return { operatorID, operatorType, operatorProperties, inputPorts, outputPorts, showAdvanced};
 
   }
 

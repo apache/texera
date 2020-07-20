@@ -187,7 +187,7 @@ export class ResultPanelComponent {
       this.displayErrorMessage(`execution doesn't have any results`);
       return;
     }
-    this.executeWorkflowService.updateResultMap(response);
+
     const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
 
     // If the selected operator is a sink operator, the result panel should display result when response is coming.
