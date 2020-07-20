@@ -70,7 +70,7 @@ public class PropertyNameConstants {
     public static final String NLP_LANGUAGE = "nlpLanguage";
     public static final String NLP_OUTPUT_TYPE = "splitOption";
     public static final String NLP_SPLIT_KEY = "nlpSplit";
-    
+
     // related to regex splitter
     public static final String SPLIT_TYPE = "splitType";
     public static final String SPLIT_REGEX = "splitRegex";
@@ -145,8 +145,16 @@ public class PropertyNameConstants {
     public static final String INVALID_LIMIT_EXCEPTION = "limit must be greater than or equal to 0";
     public static final String INVALID_OFFSET_EXCEPTION = "offset must be greater than or equal to 0";
 
+
+    // related to Visualization Operator
+    public static final String NAME_COLUMN = "nameColumn";
+    public static final String DATA_COLUMN = "dataColumn";
+    public static final String PRUNE_RATIO = "pruneRatio";
+
     // related to duplicated NltkSentiment
     public static final String ARROW_NLTK_BATCH_SIZE = "batchSize";
     public static final String ARROW_NLTK_MODEL = "inputAttributeModel";
+
     public static final String ARROW_CHUNK_SIZE = "arrowBatchSize";
+
 }

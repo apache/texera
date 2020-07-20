@@ -178,7 +178,12 @@ export class ValidationWorkflowService {
     const actualOutputNum = texeraGraph.getOutputLinksByOperatorId(operatorID).length;
 
     const satisfyInput = requiredInputNum === actualInputNum;
-    const satisyOutput = requiredOutputNum === actualOutputNum;
+    // If the operator is the sink operator, the actual output number must be equal to required number.
+    const satisyOutput = this.operatorMetadataService.
+                              getOperatorSchema(operator.operatorType).
+                              additionalMetadata.
+                              operatorGroupName === 'View Results' ?
+                              requiredOutputNum === actualOutputNum : requiredOutputNum <= actualOutputNum;
 
     if (satisfyInput && satisyOutput) {
       return { isValid: true };
