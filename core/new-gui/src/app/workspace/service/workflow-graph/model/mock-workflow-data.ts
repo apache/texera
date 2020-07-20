@@ -59,8 +59,8 @@ export const mockMultiInputOutputPredicate: OperatorPredicate = {
   operatorType: 'MultiInputOutput',
   operatorProperties: {
   },
-  inputPorts: ['input-0','input-1','input-2'],
-  outputPorts: ['output-0','output-1','output-2'],
+  inputPorts: ['input-0', 'input-1', 'input-2'],
+  outputPorts: ['output-0', 'output-1', 'output-2'],
   showAdvanced: true
 };
 

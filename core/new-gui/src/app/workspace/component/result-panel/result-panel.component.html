@@ -1,4 +1,6 @@
+
 <div class="texera-workspace-result-panel-body texera-workflow-component-body" [hidden]="!showResultPanel">
+
   <div class="texera-panel-message" *ngIf="showMessage">
     <p>{{ message }}</p>
   </div>
@@ -9,15 +11,24 @@
     the elements in *ngIf is still loading. [hidden] attribute solves this issue by not
     removing the elements, but rather modify their css to make these elements invisible
     to the users-->
-  <div class="result-table" [hidden]="!currentColumns || showMessage">
-    <mat-table #table [dataSource]="currentDataSource!">
-      <ng-container *ngFor="let column of currentColumns!" matColumnDef={{column.columnDef}}>
-        <mat-header-cell *matHeaderCellDef>{{ column.header }}</mat-header-cell>
-        <mat-cell *matCellDef="let row">{{ column.getCell(row) }}</mat-cell>
-      </ng-container>
-      <mat-header-row *matHeaderRowDef="currentDisplayColumns"></mat-header-row>
-      <mat-row class="result-table-row" *matRowDef="let row; columns: currentDisplayColumns!;" (click)="open(row)"></mat-row>
-    </mat-table>
-    <mat-paginator [pageSize]="10" [showFirstLastButtons]="true" (page)="onPaginateChange($event)"></mat-paginator>
+  <div [hidden]="chartType">
+    <div class="result-table" [hidden]="!currentColumns || showMessage">
+      <mat-table #table [dataSource]="currentDataSource!">
+        <ng-container *ngFor="let column of currentColumns!" matColumnDef={{column.columnDef}}>
+          <mat-header-cell *matHeaderCellDef>{{ column.header }}</mat-header-cell>
+          <mat-cell *matCellDef="let row">{{ column.getCell(row) }}</mat-cell>
+        </ng-container>
+        <mat-header-row *matHeaderRowDef="currentDisplayColumns"></mat-header-row>
+        <mat-row class="result-table-row" *matRowDef="let row; columns: currentDisplayColumns!;" (click)="open(row)"></mat-row>
+      </mat-table>
+      <mat-paginator [pageSize]="10" [showFirstLastButtons]="true" (page)="onPaginateChange($event)"></mat-paginator>
+      <mat-label></mat-label>
+
+    </div>
   </div>
+
+  <div [hidden]="!chartType">
+    <texera-visualization-panel [data]="currentResult" [chartType]="chartType"></texera-visualization-panel>
+  </div>
+
 </div>

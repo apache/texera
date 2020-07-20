@@ -1,6 +1,10 @@
-import { SuccessExecutionResult, ErrorExecutionResult } from '../../types/execute-workflow.interface';
+import { SuccessExecutionResult, ErrorExecutionResult, ResultObject } from '../../types/execute-workflow.interface';
+import { Point, OperatorPredicate } from '../../types/workflow-common.interface';
 
-export const mockResultData: object[] = [
+export const mockResultData: ResultObject[] = [ {
+  chartType: undefined,
+  operatorID: 'operator-1234',
+  table: [
   {
       'id': 1,
       'layer': 'Disk Space and I/O Managers',
@@ -37,6 +41,8 @@ export const mockResultData: object[] = [
       'duty': 'Rewrite query logically. Perform cost-based optimization',
       'slides': 'Cost estimation: slide 14. SystemR Optimizer: slide 15'
   }
+]
+}
 ];
 
 export const mockExecutionResult: SuccessExecutionResult = {
@@ -55,4 +61,18 @@ export const mockExecutionEmptyResult: SuccessExecutionResult = {
 export const mockExecutionErrorResult: ErrorExecutionResult = {
   code: 1,
   message: 'custom error happening'
+};
+
+export const mockResultOperator: OperatorPredicate = {
+  operatorID : mockResultData[0].operatorID,
+  operatorType: 'ViewResults',
+  operatorProperties: {},
+  inputPorts : [],
+  outputPorts : [],
+  showAdvanced : false
+};
+
+export const mockResultPoint: Point = {
+  x : 1,
+  y : 1
 };
