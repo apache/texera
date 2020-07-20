@@ -33,6 +33,7 @@ import edu.uci.ics.texera.dataflow.sink.mysql.MysqlSinkPredicate;
 import edu.uci.ics.texera.dataflow.sink.tuple.TupleSinkPredicate;
 import edu.uci.ics.texera.dataflow.source.asterix.AsterixSourcePredicate;
 import edu.uci.ics.texera.dataflow.source.file.FileSourcePredicate;
+import edu.uci.ics.texera.dataflow.source.mysql.MysqlSourcePredicate;
 import edu.uci.ics.texera.dataflow.source.scan.ScanSourcePredicate;
 import edu.uci.ics.texera.dataflow.twitter.TwitterJsonConverterPredicate;
 import edu.uci.ics.texera.dataflow.twitterfeed.TwitterFeedSourcePredicate;
@@ -49,6 +50,8 @@ public class OperatorArityConstants {
     
     public static Map<Class<? extends PredicateBase>, Integer> fixedInputArityMap = new HashMap<>();
     static {
+
+        fixedInputArityMap.put(MysqlSourcePredicate.class, 0);
         fixedInputArityMap.put(DictionaryPredicate.class, 1); 
         fixedInputArityMap.put(DictionarySourcePredicate.class, 0); 
         fixedInputArityMap.put(FuzzyTokenPredicate.class, 1); 
@@ -96,6 +99,8 @@ public class OperatorArityConstants {
     
     public static Map<Class<? extends PredicateBase>, Integer> fixedOutputArityMap = new HashMap<>();
     static {
+
+        fixedOutputArityMap.put(MysqlSourcePredicate.class, 1);
         fixedOutputArityMap.put(DictionaryPredicate.class, 1); 
         fixedOutputArityMap.put(DictionarySourcePredicate.class, 1); 
         fixedOutputArityMap.put(FuzzyTokenPredicate.class, 1); 
