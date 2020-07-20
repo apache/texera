@@ -1,5 +1,7 @@
 package edu.uci.ics.texera.web.resource;
 
+
+import edu.uci.ics.texera.dataflow.sink.ITupleSink;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.attribute.BasicFileAttributes;
@@ -18,11 +20,9 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import edu.uci.ics.texera.api.dataflow.ISink;
-import edu.uci.ics.texera.api.engine.Engine;
 import edu.uci.ics.texera.api.engine.Plan;
 import edu.uci.ics.texera.api.exception.TexeraException;
 import edu.uci.ics.texera.api.schema.Schema;
@@ -32,8 +32,9 @@ import edu.uci.ics.texera.dataflow.common.PredicateBase;
 import edu.uci.ics.texera.dataflow.common.PropertyNameConstants;
 import edu.uci.ics.texera.dataflow.plangen.LogicalPlan;
 import edu.uci.ics.texera.dataflow.plangen.QueryContext;
-import edu.uci.ics.texera.dataflow.sink.tuple.TupleSink;
 import edu.uci.ics.texera.web.TexeraWebException;
+import edu.uci.ics.texera.dataflow.sink.VisualizationOperator;
+
 import io.dropwizard.jersey.sessions.Session;
 
 /**
@@ -50,7 +51,63 @@ import io.dropwizard.jersey.sessions.Session;
 public class QueryPlanResource {
     
     public static java.nio.file.Path resultDirectory = Utils.getTexeraHomePath().resolve("query-results");
-    
+
+    /**
+     * @param plan Logical plan to be executed
+     * @return Generic GenericWebResponse object
+     */
+    private JsonNode executeMutipleSinkPlan(Plan plan)  {
+        HashMap<String, ISink> sinkMap = plan.getSinkMap();
+        ObjectNode response = new ObjectMapper().createObjectNode();
+        HashMap<String, List<Tuple>> executionResult = new HashMap<>();
+        // execute the query plan from all sink operators and collect result
+        for (HashMap.Entry<String, ISink> sinkEntry: sinkMap.entrySet()) {
+
+            ISink sinkOperator = sinkEntry.getValue();
+
+            if (sinkOperator instanceof ITupleSink) {
+                ITupleSink tupleSink = (ITupleSink) sinkOperator;
+                tupleSink.open();
+                List<Tuple> result = tupleSink.collectAllTuples();
+                tupleSink.close();
+                executionResult.put(sinkEntry.getKey(), result);
+
+            } else {
+                sinkOperator.open();
+                sinkOperator.processTuples();
+                sinkOperator.close();
+            }
+        }
+
+        // put all results in the array node.
+        // each result has three fields : table, operatorID, chartType (if the sink operator is a visualization operator).
+        ArrayNode arrayNode = new ObjectMapper().createArrayNode();
+
+        for (HashMap.Entry<String, List<Tuple>> result: executionResult.entrySet()) {
+            ObjectNode operatorMap = new ObjectMapper().createObjectNode();
+            operatorMap.put("operatorID", result.getKey());
+
+            ArrayNode resultNode = new ObjectMapper().createArrayNode();
+            for (Tuple tuple : result.getValue()) {
+                resultNode.add(tuple.getReadableJson());
+            }
+            operatorMap.set("table", resultNode);
+
+            String operatorID = result.getKey();
+            ISink operator = sinkMap.get(operatorID);
+            if (operator instanceof VisualizationOperator) {
+                operatorMap.put("chartType", ((VisualizationOperator) operator).getChartType());
+            }
+            arrayNode.add(operatorMap);
+        }
+
+        String resultID = UUID.randomUUID().toString();
+        response.put("code", executionResult.isEmpty() ? 1 : 0);
+        response.put("resultID", resultID);
+        response.set("result", arrayNode);
+        return response;
+    }
+
     /**
      * This is the edu.uci.ics.texera.web.request handler for the execution of a Query Plan.
      * @param logicalPlanJson, the json representation of the logical plan
@@ -70,55 +127,11 @@ public class QueryPlanResource {
             LogicalPlan logicalPlan = new ObjectMapper().readValue(logicalPlanJson, LogicalPlan.class);
             logicalPlan.setContext(ctx);
             Plan plan = logicalPlan.buildQueryPlan();
-            ISink sink = plan.getRoot();
-            
-            // send response back to frontend
-            if (sink instanceof TupleSink) {
-                TupleSink tupleSink = (TupleSink) sink;
-                tupleSink.open();
-                List<Tuple> results = tupleSink.collectAllTuples();
-                tupleSink.close();
-                
-                // make sure result directory is created
-                if (Files.notExists(resultDirectory)) {
-                    Files.createDirectories(resultDirectory);
-                }
-                
-                // clean up old result files
-                cleanupOldResults();
-                
-                // generate new UUID as the result id
-                String resultID = UUID.randomUUID().toString();
-                
-                // write original json of the result into a file                
-                java.nio.file.Path resultFile = resultDirectory.resolve(resultID + ".json");
 
-                Files.createFile(resultFile);
-                Files.write(resultFile, new ObjectMapper().writeValueAsBytes(results));
-                
-                // put readable json of the result into response
-                ArrayNode resultNode = new ObjectMapper().createArrayNode();
-                for (Tuple tuple : results) {
-                    resultNode.add(tuple.getReadableJson());
-                }
-                
-                ObjectNode response = new ObjectMapper().createObjectNode();
-                response.put("code", 0);
-                response.set("result",resultNode);
-                response.put("resultID", resultID);
-                return response;
-            } else {
-                // execute the plan and return success message
-                Engine.getEngine().evaluate(plan);
-                ObjectNode response = new ObjectMapper().createObjectNode();
-                response.put("code", 1);
-                response.put("message", "plan sucessfully executed");
-                return response;
-            }
-            
+            return executeMutipleSinkPlan(plan);
         } catch (IOException | TexeraException e) {
             throw new TexeraWebException(e.getMessage());
-        }   
+        }
     }
 
     /**

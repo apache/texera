@@ -1,5 +1,7 @@
 package edu.uci.ics.texera.dataflow.common;
 
+import edu.uci.ics.texera.dataflow.sink.barchart.BarChartSinkPredicate;
+import edu.uci.ics.texera.dataflow.sink.piechart.PieChartSinkPredicate;
 import java.util.UUID;
 
 import edu.uci.ics.texera.dataflow.aggregator.AggregatorPredicate;
@@ -103,7 +105,10 @@ import edu.uci.ics.texera.dataflow.arrow.ArrowNltkSentimentPredicate;
         @Type(value = WordCountOperatorPredicate.class, name = "WordCount"),
         @Type(value = AggregatorPredicate.class, name = "Aggregation"),
 
+        @Type(value = BarChartSinkPredicate.class, name = "BarChart"),
+        @Type(value = PieChartSinkPredicate.class, name = "PieChart"),
         @Type(value = ArrowNltkSentimentPredicate.class, name = "ArrowNltkSentiment")
+
 })
 public abstract class PredicateBase implements IPredicate {
     

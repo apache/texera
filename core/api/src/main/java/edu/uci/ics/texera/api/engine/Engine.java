@@ -1,7 +1,9 @@
 package edu.uci.ics.texera.api.engine;
 
+import edu.uci.ics.texera.api.dataflow.IOperator;
 import edu.uci.ics.texera.api.dataflow.ISink;
 import edu.uci.ics.texera.api.exception.TexeraException;
+import java.util.HashMap;
 
 /**
  * Created by chenli on 5/11/16.
@@ -25,10 +27,18 @@ public class Engine {
     }
 
     public void evaluate(Plan plan) throws TexeraException {
-        ISink root = plan.getRoot();
-        root.open();
-        root.processTuples();
-        root.close();
+        HashMap<String, ISink> sinkMap = plan.getSinkMap();
+        if (sinkMap != null) {
+            ISink root;
+            for (HashMap.Entry<String, ISink> entry : sinkMap.entrySet()) {
+                root = entry.getValue();
+                root.open();
+                root.processTuples();
+                root.close();
+            }
+
+        }
+
     }
 
     ;
