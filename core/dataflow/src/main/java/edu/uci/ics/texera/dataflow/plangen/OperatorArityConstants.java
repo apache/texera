@@ -108,8 +108,7 @@ public class OperatorArityConstants {
         fixedOutputArityMap.put(KeywordPredicate.class, 1); 
         fixedOutputArityMap.put(KeywordSourcePredicate.class, 1); 
         fixedOutputArityMap.put(RegexPredicate.class, 1); 
-        fixedOutputArityMap.put(RegexSourcePredicate.class, 1); 
-
+        fixedOutputArityMap.put(RegexSourcePredicate.class, 1);
         fixedOutputArityMap.put(JoinDistancePredicate.class, 1);
         fixedOutputArityMap.put(SimilarityJoinPredicate.class, 1);
 

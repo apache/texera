@@ -1,7 +1,6 @@
 import { Component, ViewChild, Input } from '@angular/core';
 import { MatPaginator, PageEvent } from '@angular/material/paginator';
 import { MatTableDataSource } from '@angular/material/table';
-
 import { ExecuteWorkflowService } from './../../service/execute-workflow/execute-workflow.service';
 import { Observable } from 'rxjs/Observable';
 
@@ -11,7 +10,8 @@ import { TableColumn, IndexableObject } from './../../types/result-table.interfa
 import { ResultPanelToggleService } from './../../service/result-panel-toggle/result-panel-toggle.service';
 import deepMap from 'deep-map';
 import { isEqual } from 'lodash';
-
+import { ResultObject } from '../../types/execute-workflow.interface';
+import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
 /**
  * ResultPanelCompoent is the bottom level area that displays the
  *  execution result of a workflow after the execution finishes.
@@ -26,6 +26,7 @@ import { isEqual } from 'lodash';
  * @author Henry Chen
  * @author Zuozhi Wang
  */
+
 @Component({
   selector: 'texera-result-panel',
   templateUrl: './result-panel.component.html',
@@ -36,23 +37,30 @@ export class ResultPanelComponent {
   private static readonly PRETTY_JSON_TEXT_LIMIT: number = 50000;
   private static readonly TABLE_COLUMN_TEXT_LIMIT: number = 1000;
 
+  //  show table when chartType is undefined, instead show visualization button
+  public chartType: string | undefined;
+  // record which operator is selected
   public showMessage: boolean = false;
   public message: string = '';
   public currentColumns: TableColumn[] | undefined;
   public currentDisplayColumns: string[] | undefined;
   public currentDataSource: MatTableDataSource<object> | undefined;
   public showResultPanel: boolean | undefined;
+  public currentResult: object[] = [];
 
   @ViewChild(MatPaginator) paginator: MatPaginator | null = null;
 
-  private currentResult: object[] = [];
   private currentMaxPageSize: number = 0;
   private currentPageSize: number = 0;
   private currentPageIndex: number = 0;
 
   constructor(private executeWorkflowService: ExecuteWorkflowService, private modalService: NgbModal,
-    private resultPanelToggleService: ResultPanelToggleService) {
-
+    private resultPanelToggleService: ResultPanelToggleService,
+    private workflowActionService: WorkflowActionService) {
+    this.workflowActionService.getJointGraphWrapper().getJointCellHighlightStream()
+      .subscribe(() => this.handleHighLightOperator());
+    this.workflowActionService.getJointGraphWrapper().getJointCellUnhighlightStream()
+      .subscribe(() => this.handleHighLightOperator());
 
     // once an execution has ended, update the result panel to dispaly
     //  execution result or error
@@ -64,7 +72,6 @@ export class ResultPanelComponent {
       value => this.showResultPanel = value,
     );
   }
-
   /**
    * Opens the ng-bootstrap model to display the row details in
    *  pretty json format when clicked. User can view the details
@@ -84,7 +91,7 @@ export class ResultPanelComponent {
     const rowDataCopy = ResultPanelComponent.trimDisplayJsonData(rowData as IndexableObject);
 
     // open the modal component
-    const modalRef = this.modalService.open(NgbModalComponent, {size: 'lg'});
+    const modalRef = this.modalService.open(NgbModalComponent, { size: 'lg' });
 
     // subscribe the modal close event for modal navigations (go to previous or next row detail)
     Observable.from(modalRef.result)
@@ -107,6 +114,30 @@ export class ResultPanelComponent {
     // set the index value and page size to the modal for navigation
     modalComponentInstance.currentDisplayRowIndex = rowPageIndex;
     modalComponentInstance.currentPageSize = this.currentPageSize;
+  }
+
+  /**
+   * Handler for high lighted operator.
+   * When use click on an operator, check whether it is a sink operator and display result.
+   */
+  public handleHighLightOperator(): void {
+    const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+
+    if (highlightedOperators.length === 1) {
+      this.showResultPanel = true;
+      const resultMap = this.executeWorkflowService.getResultMap();
+      const result: ResultObject | undefined = resultMap.get(highlightedOperators[0]);
+      if (result) {
+        this.displayResultTable(result.table);
+        if (result.chartType) {
+          this.chartType = result?.chartType;
+        } else {
+          this.chartType = undefined;
+        }
+      }
+    } else {
+      this.showResultPanel = false;
+    }
   }
 
   /**
@@ -157,8 +188,24 @@ export class ResultPanelComponent {
       return;
     }
 
-    // execution success, display result table
-    this.displayResultTable(response);
+    const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+
+    // If the selected operator is a sink operator, the result panel should display result when response is coming.
+    if (highlightedOperators.length === 1) {
+
+        const resultMap = this.executeWorkflowService.getResultMap();
+        const result: ResultObject | undefined = resultMap.get(highlightedOperators[0]);
+          if (result) {
+            this.displayResultTable(result.table);
+            if (result.chartType) {
+              this.chartType = result.chartType;
+            } else {
+              this.chartType = undefined;
+            }
+          }
+
+    }
+
   }
 
   /**
@@ -183,20 +230,18 @@ export class ResultPanelComponent {
    *
    * @param response
    */
-  private displayResultTable(response: SuccessExecutionResult): void {
-    if (response.result.length < 1) {
-      throw new Error(`display result table inconsistency: result data should not be empty`);
-    }
-
-    // don't display message, display result table instead
-    this.showMessage = false;
+  private displayResultTable(resultData: ReadonlyArray<object>) {
+     if (resultData.length < 1) {
+       throw new Error(`display result table inconsistency: result data should not be empty`);
+     }
+     // don't display message, display result table instead
+     this.showMessage = false;
 
     // creates a shallow copy of the readonly response.result,
     //  this copy will be has type object[] because MatTableDataSource's input needs to be object[]
-    const resultData = response.result.slice();
 
     // save a copy of current result
-    this.currentResult = resultData;
+    this.currentResult = resultData.slice();
 
     // When there is a result data from the backend,
     //  1. Get all the column names except '_id', using the first instance of
@@ -213,7 +258,7 @@ export class ResultPanelComponent {
     this.currentColumns = ResultPanelComponent.generateColumns(this.currentDisplayColumns);
 
     // create a new DataSource object based on the new result data
-    this.currentDataSource = new MatTableDataSource<object>(resultData);
+    this.currentDataSource = new MatTableDataSource<object>(this.currentResult);
 
     // move paginator back to page one whenever new results come in. This prevents the error when
     //  previously paginator is at page 10 while the new result only have 2 pages.

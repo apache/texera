@@ -70,7 +70,7 @@ public class PropertyNameConstants {
     public static final String NLP_LANGUAGE = "nlpLanguage";
     public static final String NLP_OUTPUT_TYPE = "splitOption";
     public static final String NLP_SPLIT_KEY = "nlpSplit";
-    
+
     // related to regex splitter
     public static final String SPLIT_TYPE = "splitType";
     public static final String SPLIT_REGEX = "splitRegex";

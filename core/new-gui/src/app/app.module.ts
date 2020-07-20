@@ -86,6 +86,8 @@ import { UserFileUploadService } from './common/service/user/user-file/user-file
 import { UserDictionaryUploadService } from './common/service/user/user-dictionary/user-dictionary-upload.service';
 import { UserDictionaryService } from './common/service/user/user-dictionary/user-dictionary.service';
 import { TEXERA_FORMLY_CONFIG } from './common/formly/formly-config';
+import { VisualizationPanelComponent } from './workspace/component/visualization-panel/visualization-panel.component';
+import { VisualizationPanelContentComponent } from './workspace/component/visualization-panel-content/visualization-panel-content.component';
 
 @NgModule({
   declarations: [
@@ -129,6 +131,8 @@ import { TEXERA_FORMLY_CONFIG } from './common/formly/formly-config';
     ObjectTypeComponent,
     MultiSchemaTypeComponent,
     NullTypeComponent,
+    VisualizationPanelComponent,
+    VisualizationPanelContentComponent,
   ],
   imports: [
     BrowserModule,
