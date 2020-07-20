@@ -12,7 +12,7 @@ import {
   LogicalLink, LogicalPlan, LogicalOperator,
   ExecutionResult, ErrorExecutionResult, SuccessExecutionResult
 } from '../../types/execute-workflow.interface';
-
+import { ResultObject } from '../../types/execute-workflow.interface';
 import { v4 as uuid } from 'uuid';
 import { environment } from '../../../../environments/environment';
 
@@ -43,6 +43,7 @@ export const RESUME_WORKFLOW_ENDPOINT = 'resume';
 @Injectable()
 export class ExecuteWorkflowService {
 
+  private resultMap: Map<string, ResultObject> = new Map<string, ResultObject>();
   private executeStartedStream = new Subject<string>();
   private executeEndedStream = new Subject<ExecutionResult>();
 
@@ -51,6 +52,12 @@ export class ExecuteWorkflowService {
   private executionPauseResumeStream = new Subject <number> ();
 
   constructor(private workflowActionService: WorkflowActionService, private http: HttpClient) { }
+  /**
+   * Return map which contains all sink operators execution result
+   */
+  public getResultMap(): Map<string, ResultObject> {
+    return this.resultMap;
+  }
 
   /**
    * Sends the current workflow data to the backend
@@ -88,6 +95,7 @@ export class ExecuteWorkflowService {
         // backend will either respond an execution result or an error will occur
         // handle both cases
         response => {
+          this.updateResultMap(response);
           this.handleExecuteResult(response);
           this.workflowExecutionID = undefined;
         },
@@ -208,6 +216,21 @@ export class ExecuteWorkflowService {
 
   private getRandomUUID(): string {
     return 'texera-workflow-' + uuid();
+  }
+  /**
+   * Update result map when new execution is returned.
+   * @param response
+   */
+  private updateResultMap(response: SuccessExecutionResult): void {
+    this.resultMap.clear();
+    try {
+      for (const item of response.result) {
+        this.resultMap.set(item.operatorID, item);
+      }
+    } catch (error) {
+      this.resultMap.clear();
+      return ;
+    }
   }
 
   /**

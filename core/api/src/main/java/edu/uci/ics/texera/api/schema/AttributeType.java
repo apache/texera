@@ -23,6 +23,7 @@ public enum AttributeType {
     DOUBLE("double", DoubleField.class), 
     DATE("date", DateField.class),
     DATETIME("datetime", DateTimeField.class),
+    BOOLEAN("boolean", StringField.class),
 
     _ID_TYPE("_id", IDField.class),
     // A field that is the list of values
