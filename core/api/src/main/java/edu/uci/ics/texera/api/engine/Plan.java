@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.api.engine;
 
 import edu.uci.ics.texera.api.dataflow.ISink;
+import java.util.HashMap;
 
 /**
  * Created by chenli on 5/11/16.
@@ -10,13 +11,16 @@ import edu.uci.ics.texera.api.dataflow.ISink;
  */
 public class Plan {
 
-    private final ISink root;
 
-    public Plan(ISink root) {
-        this.root = root;
+    private final HashMap<String, ISink> sinkMap;
+
+    public Plan(HashMap<String, ISink> sinkMap) {
+        this.sinkMap = sinkMap;
     }
 
-    public ISink getRoot() {
-        return root;
+    public HashMap<String, ISink> getSinkMap() {
+        return sinkMap;
     }
+
+
 }
