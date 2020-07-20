@@ -40,6 +40,7 @@ import edu.uci.ics.texera.dataflow.sink.mysql.MysqlSinkPredicate;
 import edu.uci.ics.texera.dataflow.sink.tuple.TupleSinkPredicate;
 import edu.uci.ics.texera.dataflow.source.asterix.AsterixSourcePredicate;
 import edu.uci.ics.texera.dataflow.source.file.FileSourcePredicate;
+import edu.uci.ics.texera.dataflow.source.mysql.MysqlSourcePredicate;
 import edu.uci.ics.texera.dataflow.source.scan.ScanSourcePredicate;
 import edu.uci.ics.texera.dataflow.twitter.TwitterJsonConverterPredicate;
 import edu.uci.ics.texera.dataflow.wordcount.WordCountIndexSourcePredicate;
@@ -88,7 +89,8 @@ import edu.uci.ics.texera.dataflow.arrow.ArrowNltkSentimentPredicate;
         // TODO: fix the problem and add Comparable matcher back later
          @Type(value = ComparablePredicate.class, name = "Comparison"),
         
-        @Type(value = AsterixSourcePredicate.class, name = "AsterixSource"),        
+        @Type(value = AsterixSourcePredicate.class, name = "AsterixSource"),
+        @Type(value = MysqlSourcePredicate.class, name = "MysqlSource"),
         @Type(value = TwitterJsonConverterPredicate.class, name = "TwitterJsonConverter"),
         
         @Type(value = ScanSourcePredicate.class, name = "ScanSource"),
