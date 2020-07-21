@@ -2,10 +2,11 @@ import { Component, Inject, OnInit, AfterViewInit } from '@angular/core';
 import { MAT_DIALOG_DATA } from '@angular/material/dialog';
 import * as c3 from 'c3';
 import { PrimitiveArray } from 'c3';
-
+// @ts-ignore
+import WordCloud from 'wordcloud';
 interface DialogData {
   table: object[];
-  chartType: c3.ChartType;
+  chartType: string;
 }
 /**
  * VisualizationPanelContentComponent displays the chart based on the chart type and data in table.
@@ -22,8 +23,9 @@ interface DialogData {
 export class VisualizationPanelContentComponent implements OnInit, AfterViewInit {
   // this readonly variable must be the same as HTML element ID for visualization
   public static readonly CHART_ID = '#texera-result-chart-content';
-  public static readonly WIDTH = 800;
-  public static readonly HEIGHT = 600;
+  public static readonly WORD_CLOUD_ID = 'texera-word-cloud';
+  public static readonly WIDTH = 1000;
+  public static readonly HEIGHT = 800;
   table: object[];
   columns: string[] = [];
 
@@ -36,7 +38,32 @@ export class VisualizationPanelContentComponent implements OnInit, AfterViewInit
   }
 
   ngAfterViewInit() {
-    this.onClickGenerateChart();
+    if (this.data.chartType !== 'word cloud') {
+      this.onClickGenerateChart();
+    } else {
+      this.onClickGenerateWordCloud();
+    }
+
+  }
+
+  onClickGenerateWordCloud() {
+    const dataToDisplay: object[] = [];
+    let firstRow = true;
+
+    for (const row of this.table) {
+      if (firstRow) {
+        firstRow = false;
+        continue;
+      }
+      const items: [string, ...PrimitiveArray] = [(row as any)[this.columns[0]]];
+      for (let i = 1; i < this.columns.length; i++) {
+        items.push(Number((row as any)[this.columns[i]]));
+      }
+      dataToDisplay.push(items);
+    }
+
+    WordCloud(document.getElementById(VisualizationPanelContentComponent.WORD_CLOUD_ID),
+           { list: dataToDisplay} );
   }
 
   onClickGenerateChart() {
@@ -49,6 +76,7 @@ export class VisualizationPanelContentComponent implements OnInit, AfterViewInit
 
     // c3.js requires the first element in the data array is the data name.
     // the remaining items are data.
+
     let firstRow = true;
     for (const row of this.table) {
       if (firstRow) {
@@ -69,7 +97,7 @@ export class VisualizationPanelContentComponent implements OnInit, AfterViewInit
       },
       data: {
         columns: dataToDisplay,
-        type: this.data.chartType
+        type: this.data.chartType as c3.ChartType
       },
       axis: {
         x: {
