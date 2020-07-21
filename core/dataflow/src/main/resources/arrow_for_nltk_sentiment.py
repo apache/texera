@@ -73,16 +73,16 @@ class FlightServer(pyarrow.flight.FlightServerBase):
 	def do_action(self, context, action):
 		if action.type == "compute":
 			input_descriptor = pyarrow.flight.FlightDescriptor.for_path(b'ToPython')
-			print("Flight Server:\tComputing sentiment...")
+			# print("Flight Server:\tComputing sentiment...")
 			key = FlightServer.descriptor_to_key(input_descriptor)
 			pickle_file = open(pickleFullPathFileName,'rb')
-			print("Flight Server:\t\tReading model file...", end =" ")
+			# print("Flight Server:\t\tReading model file...", end =" ")
 			sentiment_model = pickle.load(pickle_file)
-			print("Done.")
-			print("Flight Server:\t\tConverting Arrow data to pandas.Dataframe...", end =" ")
+			# print("Done.")
+			# print("Flight Server:\t\tConverting Arrow data to pandas.Dataframe...", end =" ")
 			input_dataframe = pandas.DataFrame(self.flights[key].to_pandas())
-			print("Done.")
-			print("Flight Server:\t\tExecuting computation...", end=" ")
+			# print("Done.")
+			# print("Flight Server:\t\tExecuting computation...", end=" ")
 			output_dataframe = input_dataframe[['ID']]
 			predictions = []
 			for index, row in input_dataframe.iterrows():
@@ -90,12 +90,12 @@ class FlightServer(pyarrow.flight.FlightServerBase):
 				predictions.append(p)
 			output_dataframe['pred'] = predictions
 			pickle_file.close()
-			print("Done.")
-			print("Flight Server:\t\tConverting back to Arrow data...", end =" ")
+			# print("Done.")
+			# print("Flight Server:\t\tConverting back to Arrow data...", end =" ")
 			output_descriptor = pyarrow.flight.FlightDescriptor.for_path(b'FromPython')
 			self.flights[FlightServer.descriptor_to_key(output_descriptor)] = pyarrow.Table.from_pandas(output_dataframe)
-			print("Done.")
-			print("Flight Server:\tDone.")
+			# print("Done.")
+			# print("Flight Server:\tDone.")
 			yield pyarrow.flight.Result(pyarrow.py_buffer(b'Success!'))
 		elif action.type == "healthcheck":
 			yield pyarrow.flight.Result(pyarrow.py_buffer(b'Flight Server is up and running!'))
@@ -109,7 +109,7 @@ class FlightServer(pyarrow.flight.FlightServerBase):
 
 	def _shutdown(self):
 		"""Shut down after a delay."""
-		print("Flight Server:\tServer is shutting down...")
+		# print("Flight Server:\tServer is shutting down...")
 
 		self.shutdown()
 
@@ -117,7 +117,7 @@ class FlightServer(pyarrow.flight.FlightServerBase):
 def main():
 	location = "grpc+tcp://localhost:5005"
 	server = FlightServer("localhost", location)
-	print("Flight Server:\tServing on", location)
+	# print("Flight Server:\tServing on", location)
 	server.serve()
 
 
