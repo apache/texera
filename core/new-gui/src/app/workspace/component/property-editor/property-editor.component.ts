@@ -304,6 +304,15 @@ export class PropertyEditorComponent {
           mappedField.templateOptions.type = 'password';
         }
       }
+      // if the title is boolean expression (for Mysql source), then make the field to textarea with 5 rows
+      if (mapSource?.title?.toLowerCase() === 'boolean expression') {
+        if (mappedField.type) {
+          mappedField.type = 'textarea';
+        }
+        if (mappedField.templateOptions) {
+          mappedField.templateOptions.rows = 5;
+        }
+      }
       return mappedField;
     };
 
