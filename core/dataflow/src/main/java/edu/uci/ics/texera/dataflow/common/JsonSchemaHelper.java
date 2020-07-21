@@ -51,6 +51,7 @@ public class JsonSchemaHelper {
     public static void generateAllOperatorSchema() throws Exception {
         for (Class<? extends PredicateBase> predicateClass : operatorTypeMap.keySet()) {
             generateJsonSchema(predicateClass);
+//            generateJsonSchema(ComparablePredicate.class);
         }
     }
     
