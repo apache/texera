@@ -659,10 +659,12 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
   /**
    * Deletes the currently highlighted operators when user presses the delete key.
+   * When the delete key is clicked to INPUT or TEXTAREA fields, operator should not be deleted
    */
   private handleOperatorDelete() {
     Observable.fromEvent<KeyboardEvent>(document, 'keydown')
       .filter(event => (<HTMLElement> event.target).nodeName !== 'INPUT')
+      .filter(event => (<HTMLElement> event.target).nodeName !== 'TEXTAREA')
       .filter(event => event.key === 'Backspace' || event.key === 'Delete')
       .subscribe(() => {
         const currentOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();

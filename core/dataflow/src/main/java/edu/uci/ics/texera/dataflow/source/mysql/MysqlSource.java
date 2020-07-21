@@ -176,7 +176,7 @@ public class MysqlSource implements ISourceOperator {
         String query =  "\n" + "select * from "+ predicate.getTable() +" where 1 = 1 ";
         // in sql prepared statement, column name cannot be inserted using preparedstatement.setString either
         if(!predicate.getColumn().isEmpty() && !predicate.getKeywords().isEmpty()) {
-            query += " AND  MATCH( " + predicate.getColumn() + " )  AGAINST ( ? IN NATURAL LANGUAGE MODE)";
+            query += " AND  MATCH( " + predicate.getColumn() + " )  AGAINST ( ? IN BOOLEAN MODE)";
         }
         if(predicate.getLimit() != Integer.MAX_VALUE){
             query += " LIMIT ?";
