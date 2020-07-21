@@ -49,7 +49,7 @@ public class ArrowNltkSentimentOperator implements IOperator {
             );
 
     // Flight related
-    private final static Location lc = new Location(URI.create("grpc+tcp://localhost:5005"));
+    private final static Location location = new Location(URI.create("grpc+tcp://localhost:5005"));
     private final static RootAllocator rootAllocator = new RootAllocator();
     private FlightClient flightClient = null;
 
@@ -101,8 +101,10 @@ public class ArrowNltkSentimentOperator implements IOperator {
             // Start Flight server (Python process)
             processBuilder.start();
             // Connect to server
-            flightClient = FlightClient.builder(rootAllocator, lc).build();
-            System.out.println("Flight Client:\t" + new String(flightClient.doAction(new Action("healthcheck")).next().getBody(), StandardCharsets.UTF_8));
+            flightClient = FlightClient.builder(rootAllocator, location).build();
+//            System.out.println("Flight Client:\t" + new String(
+                    flightClient.doAction(new Action("healthcheck")).next().getBody();
+//                    , StandardCharsets.UTF_8));
         } catch (Exception e) {
             throw new DataflowException(e.getMessage(), e);
         }
@@ -145,7 +147,9 @@ public class ArrowNltkSentimentOperator implements IOperator {
     // Process the data file using NLTK
     private void computeClassLabel() {
         try{
-            System.out.println("Flight Client:\t" + new String(flightClient.doAction(new Action("compute")).next().getBody(), StandardCharsets.UTF_8));
+//            System.out.println("Flight Client:\t" + new String(
+            flightClient.doAction(new Action("compute")).next().getBody();
+//                    , StandardCharsets.UTF_8));
             idClassMap = new HashMap<>();
             readArrowStream();
         }catch(Exception e){
@@ -228,7 +232,7 @@ public class ArrowNltkSentimentOperator implements IOperator {
     }
 
     private void writeArrowStream(List<Tuple> values) {
-        System.out.print("Flight Client:\tSending data to Python...");
+//        System.out.print("Flight Client:\tSending data to Python...");
         SyncPutListener flightListener = new SyncPutListener();
         VectorSchemaRoot schemaRoot = VectorSchemaRoot.create(tupleToPythonSchema, rootAllocator);
         FlightClient.ClientStreamListener streamWriter = flightClient.startPut(
@@ -247,11 +251,11 @@ public class ArrowNltkSentimentOperator implements IOperator {
             schemaRoot.clear();
         }
         streamWriter.completed();
-        System.out.println(" Done.");
+//        System.out.println(" Done.");
     }
 
     private void readArrowStream() {
-        System.out.print("Flight Client:\tReading data from Python...");
+//        System.out.print("Flight Client:\tReading data from Python...");
         FlightInfo info = flightClient.getInfo(FlightDescriptor.path(Collections.singletonList("FromPython")));
         Ticket ticket = info.getEndpoints().get(0).getTicket();
         FlightStream stream = flightClient.getStream(ticket);
@@ -266,7 +270,7 @@ public class ArrowNltkSentimentOperator implements IOperator {
                 idClassMap.put(id, label);
             }
         }
-        System.out.println(" Done.");
+//        System.out.println(" Done.");
     }
 }
 
