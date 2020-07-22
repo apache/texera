@@ -2,8 +2,7 @@ import { Component, Inject, OnInit, AfterViewInit } from '@angular/core';
 import { MAT_DIALOG_DATA } from '@angular/material/dialog';
 import * as c3 from 'c3';
 import { PrimitiveArray } from 'c3';
-// @ts-ignore
-import WordCloud from 'wordcloud';
+import * as WordCloud from 'wordcloud';
 interface DialogData {
   table: object[];
   chartType: string;
@@ -26,8 +25,8 @@ export class VisualizationPanelContentComponent implements OnInit, AfterViewInit
   public static readonly WORD_CLOUD_ID = 'texera-word-cloud';
   public static readonly WIDTH = 1000;
   public static readonly HEIGHT = 800;
-  table: object[];
-  columns: string[] = [];
+  private table: object[];
+  private columns: string[] = [];
 
   constructor(@Inject(MAT_DIALOG_DATA) public data: DialogData) {
     this.table = data.table;
@@ -55,15 +54,14 @@ export class VisualizationPanelContentComponent implements OnInit, AfterViewInit
         firstRow = false;
         continue;
       }
-      const items: [string, ...PrimitiveArray] = [(row as any)[this.columns[0]]];
-      for (let i = 1; i < this.columns.length; i++) {
-        items.push(Number((row as any)[this.columns[i]]));
-      }
+      const items = [];
+      items.push(String((row as any)['word']));
+      items.push(Number((row as any)['count']));
       dataToDisplay.push(items);
     }
 
-    WordCloud(document.getElementById(VisualizationPanelContentComponent.WORD_CLOUD_ID),
-           { list: dataToDisplay} );
+    WordCloud(document.getElementById(VisualizationPanelContentComponent.WORD_CLOUD_ID) as HTMLElement,
+           { list: dataToDisplay } );
   }
 
   onClickGenerateChart() {
