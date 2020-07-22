@@ -80,6 +80,13 @@ public class ArrowNltkSentimentOperator implements IOperator {
         return new Schema.Builder().add(inputSchema).add(predicate.getResultAttributeName(), AttributeType.INTEGER).build();
     }
 
+    /**
+     * When this operator is opened, it executes the python script, which constructs a {@code FlightServer}
+     * object which is then up and running in the specified address. The operator calls
+     * {@code flightClient.doAction(new Action("healthcheck"))} to check the status of the server, and then proceeds if
+     * successful (otherwise there will be an exception).
+     * @throws TexeraException
+     */
     @Override
     public void open() throws TexeraException {
         if (cursor != CLOSED) {
@@ -110,6 +117,12 @@ public class ArrowNltkSentimentOperator implements IOperator {
         }
     }
 
+    /**
+     * For every batch, the operator calls {@code flightClient.doAction(new Action("compute"))} to tell the server to
+     * compute sentiments of the specific table that was sent earlier. The server executes computation,
+     * and returns back a success message when computation is finished.
+     * @return Whether the buffer is empty
+     */
     private boolean computeTupleBuffer() {
         tupleBuffer = new ArrayList<Tuple>();
         int i = 0;
@@ -172,6 +185,11 @@ public class ArrowNltkSentimentOperator implements IOperator {
         return new Tuple(outputSchema, outputFields);
     }
 
+    /**
+     * When all the batches are finished and the operator closes, it issues a
+     * {@code flightClient.doAction(new Action("shutdown"))} call to shut down the server, and also closes the client.
+     * @throws TexeraException
+     */
     @Override
     public void close() throws TexeraException {
         if (cursor == CLOSED) {
@@ -231,6 +249,15 @@ public class ArrowNltkSentimentOperator implements IOperator {
         );
     }
 
+    /**
+     * For every batch, the operator converts list of {@code Tuple}s into Arrow stream data in almost the exact same
+     * way as it would when using Arrow file, except now it sends stream to the server with
+     * {@link FlightClient#startPut(org.apache.arrow.flight.FlightDescriptor, org.apache.arrow.vector.VectorSchemaRoot,
+     * org.apache.arrow.flight.FlightClient.PutListener, org.apache.arrow.flight.CallOption...)} and {@link
+     * FlightClient.ClientStreamListener#putNext()}. The server uses {@code do_put()} to receive data stream
+     * and convert it into a {@code pyarrow.Table} and store it in the server.
+     * @param values The buffer of tuples to write.
+     */
     private void writeArrowStream(List<Tuple> values) {
 //        System.out.print("Flight Client:\tSending data to Python...");
         SyncPutListener flightListener = new SyncPutListener();
@@ -254,6 +281,12 @@ public class ArrowNltkSentimentOperator implements IOperator {
 //        System.out.println(" Done.");
     }
 
+
+    /**
+     * For every batch, the operator gets the computed sentiment result by calling
+     * {@link FlightClient#getStream(org.apache.arrow.flight.Ticket, org.apache.arrow.flight.CallOption...)}.
+     * The reading and conversion process is the same as what it does when using Arrow file.
+     */
     private void readArrowStream() {
 //        System.out.print("Flight Client:\tReading data from Python...");
         FlightInfo info = flightClient.getInfo(FlightDescriptor.path(Collections.singletonList("FromPython")));
