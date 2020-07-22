@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.dataflow.sink.wordcloud;
 
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -13,9 +14,28 @@ import edu.uci.ics.texera.dataflow.common.PropertyNameConstants;
 
 public class WordCloudSinkPredicate extends PredicateBase {
 
-    @JsonCreator
-    public WordCloudSinkPredicate() {
+    private String wordColumn;
+    private String countColumn;
 
+
+    @JsonCreator
+    public WordCloudSinkPredicate(@JsonProperty(required = true, value = PropertyNameConstants.WORD_COLUMN)
+                                  String wordColumn,
+                                  @JsonProperty(required = true, value = PropertyNameConstants.COUNT_COLUMN)
+                                  String countColumn
+    ) {
+        this.wordColumn = wordColumn;
+        this.countColumn = countColumn;
+    }
+
+    @JsonProperty(value = PropertyNameConstants.WORD_COLUMN)
+    public String getWordColumn() {
+        return wordColumn;
+    }
+
+    @JsonProperty(value = PropertyNameConstants.COUNT_COLUMN)
+    public String getCountColumn() {
+        return countColumn;
     }
 
     @Override

@@ -150,6 +150,8 @@ public class PropertyNameConstants {
     public static final String NAME_COLUMN = "nameColumn";
     public static final String DATA_COLUMN = "dataColumn";
     public static final String PRUNE_RATIO = "pruneRatio";
+    public static final String WORD_COLUMN = "wordColumn";
+    public static final String COUNT_COLUMN = "countColumn";
 
     // related to duplicated NltkSentiment
     public static final String ARROW_NLTK_BATCH_SIZE = "batchSize";

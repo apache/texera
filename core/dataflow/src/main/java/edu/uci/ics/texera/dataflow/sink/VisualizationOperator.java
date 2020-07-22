@@ -84,7 +84,7 @@ public abstract class VisualizationOperator implements ITupleSink {
             IntegerField integerField = (IntegerField)field;
             return integerField.getValue().doubleValue();
         }
-        return 0.0;
+        throw new TexeraException("Invalid field type for extracting a number.");
     }
 
 }

@@ -37,12 +37,14 @@ export class VisualizationPanelContentComponent implements OnInit, AfterViewInit
   }
 
   ngAfterViewInit() {
-    if (this.data.chartType !== 'word cloud') {
-      this.onClickGenerateChart();
-    } else {
-      this.onClickGenerateWordCloud();
+    switch (this.data.chartType) {
+      // correspond to WordCloudSink.java
+      case 'word cloud': this.onClickGenerateWordCloud(); break;
+      // correspond to BarChartSink.java
+      case 'bar': this.onClickGenerateChart(); break;
+      // correspond to PieChartSink.java
+      case 'pie': this.onClickGenerateChart(); break;
     }
-
   }
 
   onClickGenerateWordCloud() {

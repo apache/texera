@@ -17,7 +17,7 @@ import edu.uci.ics.texera.dataflow.sink.VisualizationOperator;
 
 /**
  * WordCloudSink is a sink that can be used by the caller to generate data for wordcloud.js in frontend.
- *
+ * WordCloudSink returns tuple with word (String) and its font size (Integer or Double) for frontend.
  * @author Mingji Han
  *
  */
@@ -25,8 +25,7 @@ public class WordCloudSink extends VisualizationOperator {
     private final int MAX_FONT_SIZE = 200;
     private final int MIN_FONT_SIZE = 50;
     private WordCloudSinkPredicate predicate;
-    private String WORD = "word";
-    private String COUNT = "count";
+
     public WordCloudSink(WordCloudSinkPredicate predicate) {
         super(VisualizationConstants.WORD_CLOUD);
         this.predicate = predicate;
@@ -45,13 +44,13 @@ public class WordCloudSink extends VisualizationOperator {
 
         Schema schema = inputOperator.getOutputSchema();
 
-        Attribute wordColumn =  schema.getAttribute(this.WORD);
+        Attribute wordColumn =  schema.getAttribute(predicate.getWordColumn());
         AttributeType nameColumnType = wordColumn.getType();
         if (!nameColumnType.equals(AttributeType.STRING) && !nameColumnType.equals(AttributeType.TEXT)) {
             throw new DataflowException("Type of name column should be string or text.");
         }
 
-        Attribute countColumn =  schema.getAttribute(this.COUNT);
+        Attribute countColumn =  schema.getAttribute(predicate.getCountColumn());
         AttributeType dataColumnType = countColumn.getType();
         if (!dataColumnType.equals(AttributeType.DOUBLE) && !dataColumnType.equals(AttributeType.INTEGER)) {
             throw new DataflowException(("Type of data column should be integer or double."));
@@ -75,7 +74,7 @@ public class WordCloudSink extends VisualizationOperator {
         double maxValue = Double.MIN_VALUE;
         List<Tuple> tempList = new ArrayList<>();
         for (Tuple t: list) {
-            double value = VisualizationOperator.extractNumber(t.getField(this.COUNT));
+            double value = VisualizationOperator.extractNumber(t.getField(predicate.getCountColumn()));
             minValue = Math.min(minValue, value);
             maxValue = Math.max(maxValue, value);
 
@@ -83,8 +82,8 @@ public class WordCloudSink extends VisualizationOperator {
         // normalize the font size for wordcloud js
         // https://github.com/timdream/wordcloud2.js/issues/53
         for (Tuple t: list) {
-            double value = VisualizationOperator.extractNumber(t.getField(this.COUNT));
-            tempList.add(new Tuple(outputSchema, t.getField(this.WORD), new IntegerField(
+            double value = VisualizationOperator.extractNumber(t.getField(predicate.getCountColumn()));
+            tempList.add(new Tuple(outputSchema, t.getField(predicate.getWordColumn()), new IntegerField(
                 (int) ((value - minValue) / (maxValue - minValue) * (this.MAX_FONT_SIZE - this.MIN_FONT_SIZE) + this.MIN_FONT_SIZE)) ));
         }
 
