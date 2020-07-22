@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.dataflow.sink.wordcloud;
 
-import static org.junit.Assert.assertEquals;
+import java.util.Arrays;
+import java.util.List;
 
 import edu.uci.ics.texera.api.field.IField;
 import edu.uci.ics.texera.api.field.IntegerField;
@@ -9,8 +10,7 @@ import edu.uci.ics.texera.api.schema.Attribute;
 import edu.uci.ics.texera.api.schema.AttributeType;
 import edu.uci.ics.texera.api.schema.Schema;
 import edu.uci.ics.texera.api.tuple.Tuple;
-import java.util.Arrays;
-import java.util.List;
+
 
 public class WordCloudSinkTestConstants {
     public static final String ATTRIBUTE_NAME_ONE = "word";

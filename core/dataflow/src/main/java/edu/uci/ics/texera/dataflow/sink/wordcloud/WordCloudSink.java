@@ -1,10 +1,12 @@
 package edu.uci.ics.texera.dataflow.sink.wordcloud;
 
+
+import java.util.ArrayList;
+import java.util.List;
+
 import edu.uci.ics.texera.api.constants.ErrorMessages;
 import edu.uci.ics.texera.api.exception.DataflowException;
 import edu.uci.ics.texera.api.exception.TexeraException;
-import edu.uci.ics.texera.api.field.DoubleField;
-import edu.uci.ics.texera.api.field.IField;
 import edu.uci.ics.texera.api.field.IntegerField;
 import edu.uci.ics.texera.api.schema.Attribute;
 import edu.uci.ics.texera.api.schema.AttributeType;
@@ -12,10 +14,13 @@ import edu.uci.ics.texera.api.schema.Schema;
 import edu.uci.ics.texera.api.tuple.Tuple;
 import edu.uci.ics.texera.dataflow.sink.VisualizationConstants;
 import edu.uci.ics.texera.dataflow.sink.VisualizationOperator;
-import java.util.ArrayList;
-import java.util.List;
 
-
+/**
+ * WordCloudSink is a sink that can be used by the caller to generate data for wordcloud.js in frontend.
+ *
+ * @author Mingji Han
+ *
+ */
 public class WordCloudSink extends VisualizationOperator {
     private final int MAX_FONT_SIZE = 200;
     private final int MIN_FONT_SIZE = 50;
