@@ -39,3 +39,12 @@ CREATE TABLE IF NOT EXISTS `UserDict` (
     FOREIGN KEY (`userID`) REFERENCES `UserAccount`(`userID`) ON DELETE CASCADE
 )ENGINE=INNODB;
 
+CREATE TABLE IF NOT EXISTS `UserWorkflow` (
+    `userID` INT UNSIGNED NOT NULL,
+    `name` VARCHAR(128) NOT NULL,
+    `workflowID` INT UNSIGNED NOT NULL,
+    `workflowBODY` TEXT NOT NULL,
+    UNIQUE (`userID`, `name`),
+    PRIMARY KEY (`workflowID`),
+    FOREIGN KEY (`userID`) REFERENCES `UserAccount`(`userID`) ON DELETE CASCADE
+)ENGINE=INNODB
