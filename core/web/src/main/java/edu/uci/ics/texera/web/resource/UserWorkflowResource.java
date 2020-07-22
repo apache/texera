@@ -1,42 +1,35 @@
 package edu.uci.ics.texera.web.resource;
 
-import edu.uci.ics.texera.api.exception.TexeraException;
-import edu.uci.ics.texera.dataflow.resource.file.FileManager;
 import edu.uci.ics.texera.dataflow.sqlServerInfo.UserSqlServer;
 import edu.uci.ics.texera.web.TexeraWebException;
-import edu.uci.ics.texera.web.response.GenericWebResponse;
 import io.dropwizard.jersey.sessions.Session;
 import org.jooq.Record1;
-import org.jooq.Record5;
-import org.jooq.Result;
-import org.jooq.types.UInteger;
+import org.jooq.Record3;
 
 import javax.servlet.http.HttpSession;
 import javax.ws.rs.GET;
-import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.Collectors;
+import javax.ws.rs.Produces;
+import javax.ws.rs.core.MediaType;
 
-import static edu.uci.ics.texera.dataflow.jooq.generated.Tables.USERFILE;
 import static edu.uci.ics.texera.dataflow.jooq.generated.Tables.USERWORKFLOW;
-import static org.jooq.impl.DSL.defaultValue;
 
-@Path("/user/workflow")
+// uncomment and use below to give workflows the concept of ownership
+// @Path("/user/workflow")
+@Path("/workflow")
+@Produces(MediaType.APPLICATION_JSON)
 public class UserWorkflowResource {
 
     /**
      * Corresponds to `src/app/common/type/user-file.ts`
      */
     public static class UserWorkflow {
-        public UInteger id; // the ID in MySQL database is unsigned int
+        public String id; // the ID in MySQL database is unsigned int
         public String name;
         public String body;
 
-        public UserWorkflow(UInteger id, String name, String body) {
+        public UserWorkflow(String id, String name, String body) {
             this.id = id;
             this.name = name;
             this.body = body;
@@ -47,9 +40,8 @@ public class UserWorkflowResource {
     @Path("/get/{workflowID}")
     public UserWorkflow getUserWorkflow(@PathParam("workflowID") String workflowID, @Session HttpSession session) {
         System.out.println("with in getUserWorkflow for " + workflowID);
-        UInteger userID = UserResource.getUser(session).getUserID();
-        UInteger workflowIDUInteger = parseStringToUInteger(workflowID);
-        Record1<String> result = getWorkflowFromDatabase(workflowIDUInteger, userID);
+//        UInteger userID = UserResource.getUser(session).getUserID();
+        Record3<String, String, String> result = getWorkflowFromDatabase(workflowID);
 
         if (result == null) {
             throw new TexeraWebException("Workflow with id: " + workflowID + " does not exit.");
@@ -62,28 +54,21 @@ public class UserWorkflowResource {
         );
     }
 
-    private Record1<String> getWorkflowFromDatabase(UInteger workflowID, UInteger userID) {
+    private Record3<String, String, String> getWorkflowFromDatabase(String workflowID) {
         return UserSqlServer.createDSLContext()
-                .select(USERWORKFLOW.WORKFLOWBODY)
+                .select(USERWORKFLOW.WORKFLOWID, USERWORKFLOW.NAME, USERWORKFLOW.WORKFLOWBODY)
                 .from(USERWORKFLOW)
-                .where(USERWORKFLOW.WORKFLOWID.eq(workflowID).and(USERWORKFLOW.USERID.equal(userID)))
+                .where(USERWORKFLOW.WORKFLOWID.eq(workflowID))
                 .fetchOne();
     }
 
-    private int insertWorkflowToDataBase(UInteger userID, UInteger workflowID, String workflowName, String workflowBody) {
+    private int insertWorkflowToDataBase(String userID, String workflowID, String workflowName, String workflowBody) {
         return UserSqlServer.createDSLContext().insertInto(USERWORKFLOW)
-                .set(USERWORKFLOW.USERID,userID)
+                 // uncomment below to give workflows the concept of ownership
+//                .set(USERWORKFLOW.USERID,userID)
                 .set(USERWORKFLOW.WORKFLOWID, workflowID)
                 .set(USERWORKFLOW.NAME, workflowName)
                 .set(USERWORKFLOW.WORKFLOWBODY, workflowBody)
                 .execute();
-    }
-
-    private UInteger parseStringToUInteger(String workflowID) throws TexeraWebException {
-        try {
-            return UInteger.valueOf(workflowID);
-        } catch (NumberFormatException e) {
-            throw new TexeraWebException("Incorrect String to Double");
-        }
     }
 }

@@ -31,7 +31,6 @@ public class Indexes {
     public static final Index USERFILE_PRIMARY = Indexes0.USERFILE_PRIMARY;
     public static final Index USERFILE_USERID = Indexes0.USERFILE_USERID;
     public static final Index USERWORKFLOW_PRIMARY = Indexes0.USERWORKFLOW_PRIMARY;
-    public static final Index USERWORKFLOW_USERID = Indexes0.USERWORKFLOW_USERID;
 
     // -------------------------------------------------------------------------
     // [#1459] distribute members to avoid static initialisers > 64kb
@@ -45,6 +44,5 @@ public class Indexes {
         public static Index USERFILE_PRIMARY = Internal.createIndex("PRIMARY", Userfile.USERFILE, new OrderField[] { Userfile.USERFILE.FILEID }, true);
         public static Index USERFILE_USERID = Internal.createIndex("userID", Userfile.USERFILE, new OrderField[] { Userfile.USERFILE.USERID, Userfile.USERFILE.NAME }, true);
         public static Index USERWORKFLOW_PRIMARY = Internal.createIndex("PRIMARY", Userworkflow.USERWORKFLOW, new OrderField[] { Userworkflow.USERWORKFLOW.WORKFLOWID }, true);
-        public static Index USERWORKFLOW_USERID = Internal.createIndex("userID", Userworkflow.USERWORKFLOW, new OrderField[] { Userworkflow.USERWORKFLOW.USERID, Userworkflow.USERWORKFLOW.NAME }, true);
     }
 }
