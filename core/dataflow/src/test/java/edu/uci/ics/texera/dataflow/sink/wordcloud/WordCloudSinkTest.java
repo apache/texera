@@ -6,6 +6,8 @@ import static org.junit.Assert.assertTrue;
 import edu.uci.ics.texera.api.exception.TexeraException;
 import java.util.List;
 
+import edu.uci.ics.texera.dataflow.sink.wordcloud.WordCloudSink;
+import edu.uci.ics.texera.dataflow.sink.wordcloud.WordCloudSinkPredicate;
 import org.junit.Test;
 
 import edu.uci.ics.texera.api.tuple.Tuple;
@@ -18,17 +20,18 @@ public class WordCloudSinkTest {
     @Test
     public void test1() {
         TupleSourceOperator tupleSource = new TupleSourceOperator(WordCloudSinkTestConstants.getTuples(), WordCloudSinkTestConstants.WORD_CLOUD_SCHEMA);
-        WordCloudSink wordCloudSink = new WordCloudSink(new WordCloudSinkPredicate(WordCloudSinkTestConstants.ATTRIBUTE_NAME_ONE, WordCloudSinkTestConstants.ATTRIBUTE_NAME_TWO));
+        WordCloudSink wordCloudSink = new WordCloudSink(new WordCloudSinkPredicate(WordCloudSinkTestConstants.ATTRIBUTE_NAME_ONE, WordCloudSinkTestConstants.ANALYZER_TYPE));
         wordCloudSink.setInputOperator(tupleSource);
         wordCloudSink.open();
         List<Tuple> resultTuples = wordCloudSink.collectAllTuples();
+
         assertTrue(TestUtils.equals(WordCloudSinkTestConstants.getResultTuples(), resultTuples));
     }
 
     @Test(expected = TexeraException.class)
     public void test2() {
         TupleSourceOperator tupleSource = new TupleSourceOperator(WordCloudSinkTestConstants.getTuples(), WordCloudSinkTestConstants.WORD_CLOUD_SCHEMA);
-        WordCloudSink wordCloudSink = new WordCloudSink(new WordCloudSinkPredicate("word", "c"));
+        WordCloudSink wordCloudSink = new WordCloudSink(new WordCloudSinkPredicate("w", WordCloudSinkTestConstants.ANALYZER_TYPE));
         wordCloudSink.setInputOperator(tupleSource);
         wordCloudSink.open();
         List<Tuple> resultTuples = wordCloudSink.collectAllTuples();
@@ -37,8 +40,8 @@ public class WordCloudSinkTest {
 
     @Test(expected = TexeraException.class)
     public void test3() {
-        TupleSourceOperator tupleSource = new TupleSourceOperator(WordCloudSinkTestConstants.getTuplesWithInvaildDataType(), WordCloudSinkTestConstants.INVALID_DATA_TYPE_WORD_CLOUD_SCHEMA);
-        WordCloudSink wordCloudSink = new WordCloudSink(new WordCloudSinkPredicate("word", "count"));
+        TupleSourceOperator tupleSource = new TupleSourceOperator(WordCloudSinkTestConstants.getTuples(), WordCloudSinkTestConstants.WORD_CLOUD_SCHEMA);
+        WordCloudSink wordCloudSink = new WordCloudSink(new WordCloudSinkPredicate("count", WordCloudSinkTestConstants.ANALYZER_TYPE));
         wordCloudSink.setInputOperator(tupleSource);
         wordCloudSink.open();
         List<Tuple> resultTuples = wordCloudSink.collectAllTuples();

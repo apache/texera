@@ -1,19 +1,25 @@
 package edu.uci.ics.texera.dataflow.sink.wordcloud;
 
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 import edu.uci.ics.texera.api.constants.ErrorMessages;
+import edu.uci.ics.texera.api.constants.SchemaConstants;
 import edu.uci.ics.texera.api.exception.DataflowException;
 import edu.uci.ics.texera.api.exception.TexeraException;
+
 import edu.uci.ics.texera.api.field.IntegerField;
+import edu.uci.ics.texera.api.field.ListField;
+import edu.uci.ics.texera.api.field.StringField;
 import edu.uci.ics.texera.api.schema.Attribute;
 import edu.uci.ics.texera.api.schema.AttributeType;
 import edu.uci.ics.texera.api.schema.Schema;
+import edu.uci.ics.texera.api.span.Span;
 import edu.uci.ics.texera.api.tuple.Tuple;
 import edu.uci.ics.texera.dataflow.sink.VisualizationConstants;
 import edu.uci.ics.texera.dataflow.sink.VisualizationOperator;
+import edu.uci.ics.texera.dataflow.utils.DataflowUtils;
 
 /**
  * WordCloudSink is a sink that can be used by the caller to generate data for wordcloud.js in frontend.
@@ -26,6 +32,7 @@ public class WordCloudSink extends VisualizationOperator {
     private final int MIN_FONT_SIZE = 50;
     private WordCloudSinkPredicate predicate;
 
+    private boolean addPayload = false;
     public WordCloudSink(WordCloudSinkPredicate predicate) {
         super(VisualizationConstants.WORD_CLOUD);
         this.predicate = predicate;
@@ -42,22 +49,48 @@ public class WordCloudSink extends VisualizationOperator {
         }
         inputOperator.open();
 
+        this.addPayload = ! inputOperator.getOutputSchema().containsAttribute(SchemaConstants.PAYLOAD);
+
         Schema schema = inputOperator.getOutputSchema();
 
-        Attribute wordColumn =  schema.getAttribute(predicate.getWordColumn());
-        AttributeType nameColumnType = wordColumn.getType();
-        if (!nameColumnType.equals(AttributeType.STRING) && !nameColumnType.equals(AttributeType.TEXT)) {
-            throw new DataflowException("Type of name column should be string or text.");
+        Attribute textColumn =  schema.getAttribute(predicate.getAttribute());
+        AttributeType nameColumnType = textColumn.getType();
+        if (!nameColumnType.equals(AttributeType.TEXT)) {
+            throw new DataflowException("Type of name column should be text.");
         }
 
-        Attribute countColumn =  schema.getAttribute(predicate.getCountColumn());
-        AttributeType dataColumnType = countColumn.getType();
-        if (!dataColumnType.equals(AttributeType.DOUBLE) && !dataColumnType.equals(AttributeType.INTEGER)) {
-            throw new DataflowException(("Type of data column should be integer or double."));
-        }
-
-        outputSchema = new Schema.Builder().add(wordColumn, countColumn).build();
+        outputSchema = new Schema.Builder().add(new Attribute("word", AttributeType.STRING),
+                                                new Attribute("count", AttributeType.INTEGER))
+                                           .build();
         cursor = OPENED;
+    }
+
+
+    public List<Map.Entry<String, Integer>> wordCount(List<Tuple> list) {
+        Tuple tuple;
+        HashMap<String, Integer> wordCountMap = new HashMap<>();
+        for (Tuple t: list) {
+            if (addPayload) {
+                tuple = new Tuple.Builder(t).add(SchemaConstants.PAYLOAD_ATTRIBUTE,new ListField<Span>(
+                        DataflowUtils.generatePayloadFromTuple(t, predicate.getLuceneAnalyzerString()))).build();
+            }
+            else {
+                tuple = t;
+            }
+            ListField<Span> payloadField = tuple.getField("payload");
+            List<Span> payloadSpanList = payloadField.getValue();
+
+            for (Span span : payloadSpanList) {
+                if (span.getAttributeName().equals(predicate.getAttribute())) {
+                    String key = span.getValue().toLowerCase();
+                    wordCountMap.put(key, wordCountMap.get(key)==null ? 1 : wordCountMap.get(key) + 1);
+                }
+            }
+        }
+
+        return wordCountMap.entrySet().stream()
+                .sorted((e1, e2) -> e2.getValue().compareTo(e1.getValue()))
+                .collect(Collectors.toList());
     }
 
     @Override
@@ -70,26 +103,30 @@ public class WordCloudSink extends VisualizationOperator {
             list.add(tuple);
         }
 
+        // calculate word frequencies
+        List<Map.Entry<String, Integer>> wordCountList = wordCount(list);
+
         double minValue = Double.MAX_VALUE;
         double maxValue = Double.MIN_VALUE;
-        List<Tuple> tempList = new ArrayList<>();
-        for (Tuple t: list) {
-            double value = VisualizationOperator.extractNumber(t.getField(predicate.getCountColumn()));
-            minValue = Math.min(minValue, value);
-            maxValue = Math.max(maxValue, value);
+
+        for (Map.Entry<String, Integer> e: wordCountList) {
+            int frequency = e.getValue();
+            minValue = Math.min(minValue, frequency);
+            maxValue = Math.max(maxValue, frequency);
 
         }
         // normalize the font size for wordcloud js
         // https://github.com/timdream/wordcloud2.js/issues/53
-        for (Tuple t: list) {
-            double value = VisualizationOperator.extractNumber(t.getField(predicate.getCountColumn()));
-            tempList.add(new Tuple(outputSchema, t.getField(predicate.getWordColumn()), new IntegerField(
-                (int) ((value - minValue) / (maxValue - minValue) * (this.MAX_FONT_SIZE - this.MIN_FONT_SIZE) + this.MIN_FONT_SIZE)) ));
+        List<Tuple> tempList = new ArrayList<>();
+        for (Map.Entry<String, Integer> e: wordCountList) {
+            int frequency = e.getValue();
+            tempList.add(new Tuple(outputSchema, new StringField(e.getKey()), new IntegerField(
+                (int) ((frequency - minValue) / (maxValue - minValue) * (this.MAX_FONT_SIZE - this.MIN_FONT_SIZE) + this.MIN_FONT_SIZE)) ));
+
         }
 
         this.result = tempList;
 
     }
-
 
 }
