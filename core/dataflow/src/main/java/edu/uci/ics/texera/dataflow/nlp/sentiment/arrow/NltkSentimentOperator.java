@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.dataflow.arrow;
+package edu.uci.ics.texera.dataflow.nlp.sentiment.arrow;
 
 import java.nio.charset.StandardCharsets;
 import java.net.URI;
@@ -24,8 +24,8 @@ import org.apache.arrow.vector.types.pojo.FieldType;
 
 import static java.util.Arrays.asList;
 
-public class ArrowNltkSentimentOperator implements IOperator {
-    private final ArrowNltkSentimentPredicate predicate;
+public class NltkSentimentOperator implements IOperator {
+    private final NltkSentimentPredicate predicate;
     private IOperator inputOperator;
     private Schema outputSchema;
 
@@ -35,7 +35,7 @@ public class ArrowNltkSentimentOperator implements IOperator {
     private int cursor = CLOSED;
 
     private final static String PYTHON = "python3";
-    private final static String PYTHONSCRIPT = Utils.getResourcePath("arrow_for_nltk_sentiment.py", TexeraProject.TEXERA_DATAFLOW).toString();
+    private final static String PYTHONSCRIPT = Utils.getResourcePath("nltk_sentiment_classify.py", TexeraProject.TEXERA_DATAFLOW).toString();
 
     //Default nltk training model set to be "Senti.pickle"
     private String PicklePath = null;
@@ -53,7 +53,7 @@ public class ArrowNltkSentimentOperator implements IOperator {
     private final static RootAllocator rootAllocator = new RootAllocator();
     private FlightClient flightClient = null;
 
-    public ArrowNltkSentimentOperator(ArrowNltkSentimentPredicate predicate){
+    public NltkSentimentOperator(NltkSentimentPredicate predicate){
         this.predicate = predicate;
 
         String modelFileName = predicate.getInputAttributeModel();
