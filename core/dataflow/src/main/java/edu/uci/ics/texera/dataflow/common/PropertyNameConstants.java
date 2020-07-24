@@ -146,7 +146,7 @@ public class PropertyNameConstants {
     public static final String NAME_COLUMN = "nameColumn";
     public static final String DATA_COLUMN = "dataColumn";
     public static final String PRUNE_RATIO = "pruneRatio";
-
+    public static final String CHART_STYLE = "chartStyle";
     // related to duplicated NltkSentiment
     public static final String NLTK_BATCH_SIZE = "batchSize";
     public static final String NLTK_MODEL = "inputAttributeModel";

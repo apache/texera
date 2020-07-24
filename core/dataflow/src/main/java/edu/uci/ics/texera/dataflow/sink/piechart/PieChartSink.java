@@ -30,8 +30,9 @@ public class PieChartSink extends VisualizationOperator {
 
 
     public PieChartSink(PieChartSinkPredicate predicate) {
-        super(VisualizationConstants.PIE);
+        super(predicate.getStyle().getChartStyle());
         this.predicate = predicate;
+
     }
 
     @Override

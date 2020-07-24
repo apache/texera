@@ -6,13 +6,17 @@ import com.google.common.collect.ImmutableMap;
 import edu.uci.ics.texera.dataflow.common.OperatorGroupConstants;
 import edu.uci.ics.texera.dataflow.common.PredicateBase;
 import edu.uci.ics.texera.dataflow.common.PropertyNameConstants;
+import edu.uci.ics.texera.dataflow.sink.VisualizationConstants;
+import edu.uci.ics.texera.dataflow.sink.visualization.PieChartEnum;
+
+import javax.json.Json;
 import java.util.Map;
 
 public class PieChartSinkPredicate extends PredicateBase {
     private String nameColumn;
     private String dataColumn;
     private Double ratio;
-
+    private PieChartEnum style;
     @JsonCreator
     public PieChartSinkPredicate(
         @JsonProperty(value = PropertyNameConstants.NAME_COLUMN, required = true)
@@ -20,11 +24,14 @@ public class PieChartSinkPredicate extends PredicateBase {
         @JsonProperty(value = PropertyNameConstants.DATA_COLUMN, required =  true)
             String dataColumn,
         @JsonProperty(value = PropertyNameConstants.PRUNE_RATIO, required = true, defaultValue = "0.9")
-            Double ratio) {
+            Double ratio,
+        @JsonProperty(value = PropertyNameConstants.CHART_STYLE, required = true, defaultValue = VisualizationConstants.PIE)
+        PieChartEnum style) {
 
         this.nameColumn = nameColumn;
         this.dataColumn = dataColumn;
         this.ratio = ratio;
+        this.style = style;
 
     }
 
@@ -40,6 +47,9 @@ public class PieChartSinkPredicate extends PredicateBase {
 
     @JsonProperty(value = PropertyNameConstants.PRUNE_RATIO)
     public Double getPruneRatio() { return this.ratio; }
+
+    @JsonProperty(value = PropertyNameConstants.CHART_STYLE)
+    public PieChartEnum getStyle() { return style; }
 
     @Override
     public PieChartSink newOperator() {
