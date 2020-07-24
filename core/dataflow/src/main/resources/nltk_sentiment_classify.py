@@ -107,12 +107,12 @@ class FlightServer(pyarrow.flight.FlightServerBase):
 			input_dataframe = pandas.DataFrame(self.flights[key].to_pandas())
 			# print("Done.")
 			# print("Flight Server:\t\tExecuting computation...", end=" ")
-			output_dataframe = input_dataframe[['ID']]
 			predictions = []
 			for index, row in input_dataframe.iterrows():
 				p = 1 if sentiment_model.classify(row['text']) == "pos" else -1
 				predictions.append(p)
-			output_dataframe['pred'] = predictions
+			output_data = {'pred': predictions}
+			output_dataframe = pandas.DataFrame(data=output_data)
 			pickle_file.close()
 			# print("Done.")
 			# print("Flight Server:\t\tConverting back to Arrow data...", end =" ")
@@ -120,6 +120,7 @@ class FlightServer(pyarrow.flight.FlightServerBase):
 			self.flights[FlightServer.descriptor_to_key(output_descriptor)] = pyarrow.Table.from_pandas(output_dataframe)
 			# print("Done.")
 			# print("Flight Server:\tDone.")
+			self.flights.pop(key)
 			yield pyarrow.flight.Result(pyarrow.py_buffer(b'Success!'))
 		elif action.type == "healthcheck":
 			# to check the status of the server to see if it is running.
@@ -138,6 +139,7 @@ class FlightServer(pyarrow.flight.FlightServerBase):
 		# print("Flight Server:\tServer is shutting down...")
 
 		self.shutdown()
+		self.wait()
 
 
 def main():

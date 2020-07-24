@@ -4,7 +4,6 @@ import java.nio.charset.StandardCharsets;
 import java.net.URI;
 import java.util.*;
 import edu.uci.ics.texera.api.constants.ErrorMessages;
-import edu.uci.ics.texera.api.constants.SchemaConstants;
 import edu.uci.ics.texera.api.constants.DataConstants.TexeraProject;
 import edu.uci.ics.texera.api.dataflow.IOperator;
 import edu.uci.ics.texera.api.exception.DataflowException;
@@ -22,15 +21,13 @@ import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 
-import static java.util.Arrays.asList;
-
 public class NltkSentimentOperator implements IOperator {
     private final NltkSentimentPredicate predicate;
     private IOperator inputOperator;
     private Schema outputSchema;
 
     private List<Tuple> tupleBuffer;
-    HashMap<String, Integer> idClassMap;
+    Queue<Integer> resultQueue;
 
     private int cursor = CLOSED;
 
@@ -43,10 +40,8 @@ public class NltkSentimentOperator implements IOperator {
     // For now it is fixed, but in the future should deal with arbitrary tuple and schema.
     // Related to Apache Arrow.
     private final static org.apache.arrow.vector.types.pojo.Schema tupleToPythonSchema =
-            new org.apache.arrow.vector.types.pojo.Schema( asList (new Field("ID",
-                            FieldType.nullable(new ArrowType.Utf8()), null),
-                    new Field("text", FieldType.nullable(new ArrowType.Utf8()), null))
-            );
+            new org.apache.arrow.vector.types.pojo.Schema(Collections.singletonList(
+                    new Field("text", FieldType.nullable(new ArrowType.Utf8()), null)));
 
     // Flight related
     private final static Location location = new Location(URI.create("grpc+tcp://localhost:5005"));
@@ -95,6 +90,32 @@ public class NltkSentimentOperator implements IOperator {
         if (inputOperator == null) {
             throw new DataflowException(ErrorMessages.INPUT_OPERATOR_NOT_SPECIFIED);
         }
+
+        List<String> args = new ArrayList<>(Arrays.asList(PYTHON, PYTHONSCRIPT, PicklePath));
+        ProcessBuilder processBuilder = new ProcessBuilder(args).inheritIO();
+        try {
+            // Start Flight server (Python process)
+            Process process = processBuilder.start();
+            // wait for it to be alive.
+            while (!process.isAlive()) ;
+            // Connect to server
+            boolean connected = false;
+            while (!connected) {
+                try {
+
+                    flightClient = FlightClient.builder(rootAllocator, location).build();
+                    String message = new String(
+                            flightClient.doAction(new Action("healthcheck")).next().getBody(), StandardCharsets.UTF_8);
+                    connected = message.equals("Flight Server is up and running!");
+                } catch (Exception e) {
+                    System.out.println("Flight Client:\tNot connected to the server in this try.");
+                    flightClient.close();
+                }
+            }
+        } catch (Exception e) {
+            throw new DataflowException(e.getMessage(), e);
+        }
+
         inputOperator.open();
         Schema inputSchema = inputOperator.getOutputSchema();
 
@@ -102,19 +123,6 @@ public class NltkSentimentOperator implements IOperator {
         outputSchema = transformToOutputSchema(inputSchema);
 
         cursor = OPENED;
-        List<String> args = new ArrayList<>(Arrays.asList(PYTHON, PYTHONSCRIPT, PicklePath));
-        ProcessBuilder processBuilder = new ProcessBuilder(args).inheritIO();
-        try {
-            // Start Flight server (Python process)
-            processBuilder.start();
-            // Connect to server
-            flightClient = FlightClient.builder(rootAllocator, location).build();
-//            System.out.println("Flight Client:\t" + new String(
-                    flightClient.doAction(new Action("healthcheck")).next().getBody();
-//                    , StandardCharsets.UTF_8));
-        } catch (Exception e) {
-            throw new DataflowException(e.getMessage(), e);
-        }
     }
 
     /**
@@ -163,7 +171,7 @@ public class NltkSentimentOperator implements IOperator {
 //            System.out.println("Flight Client:\t" + new String(
             flightClient.doAction(new Action("compute")).next().getBody();
 //                    , StandardCharsets.UTF_8));
-            idClassMap = new HashMap<>();
+            resultQueue = new LinkedList<>();
             readArrowStream();
         }catch(Exception e){
             throw new DataflowException(e.getMessage(), e);
@@ -180,7 +188,7 @@ public class NltkSentimentOperator implements IOperator {
         List<IField> outputFields = new ArrayList<>();
         outputFields.addAll(outputTuple.getFields());
 
-        Integer className = idClassMap.get(outputTuple.getField(SchemaConstants._ID).getValue().toString());
+        Integer className = resultQueue.remove();
         outputFields.add(new IntegerField( className ));
         return new Tuple(outputSchema, outputFields);
     }
@@ -192,6 +200,12 @@ public class NltkSentimentOperator implements IOperator {
      */
     @Override
     public void close() throws TexeraException {
+        try {
+            flightClient.doAction(new Action("shutdown")).next();
+            flightClient.close();
+        } catch (InterruptedException e) {
+            throw new DataflowException(e.getMessage(), e);
+        }
         if (cursor == CLOSED) {
             return;
         }
@@ -199,12 +213,6 @@ public class NltkSentimentOperator implements IOperator {
             inputOperator.close();
         }
         cursor = CLOSED;
-        try {
-            flightClient.doAction(new Action("shutdown"));
-            flightClient.close();
-        } catch (InterruptedException e) {
-            throw new DataflowException(e.getMessage(), e);
-        }
     }
 
     @Override
@@ -241,9 +249,6 @@ public class NltkSentimentOperator implements IOperator {
     }
 
     private void vectorizeTupleToPython(Tuple tuple, int index, VectorSchemaRoot schemaRoot) {
-        ((VarCharVector) schemaRoot.getVector("ID")).setSafe(
-                index, tuple.getField(SchemaConstants._ID).getValue().toString().getBytes(StandardCharsets.UTF_8)
-        );
         ((VarCharVector) schemaRoot.getVector("text")).setSafe(
                 index, tuple.getField(predicate.getInputAttributeName()).getValue().toString().getBytes(StandardCharsets.UTF_8)
         );
@@ -278,6 +283,8 @@ public class NltkSentimentOperator implements IOperator {
             schemaRoot.clear();
         }
         streamWriter.completed();
+        flightListener.getResult();
+        flightListener.close();
 //        System.out.println(" Done.");
     }
 
@@ -295,12 +302,10 @@ public class NltkSentimentOperator implements IOperator {
         while (stream.next()) {
             VectorSchemaRoot root  = stream.getRoot(); // get root
             List<FieldVector> fieldVector = root.getFieldVectors();
-            VarCharVector idVector = ((VarCharVector) fieldVector.get(0));
-            BigIntVector predVector = ((BigIntVector) fieldVector.get(1));
-            for (int j = 0; j < idVector.getValueCount(); j++) {
-                String id = new String(idVector.get(j), StandardCharsets.UTF_8);
-                int label = (int) predVector.get(j);
-                idClassMap.put(id, label);
+            BigIntVector predVector = ((BigIntVector) fieldVector.get(0));
+            for (int j = 0; j < predVector.getValueCount(); j++) {
+                Integer label = (int) predVector.get(j);
+                resultQueue.add(label);
             }
         }
 //        System.out.println(" Done.");
