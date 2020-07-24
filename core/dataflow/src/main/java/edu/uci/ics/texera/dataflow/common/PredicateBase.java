@@ -108,7 +108,6 @@ import edu.uci.ics.texera.dataflow.nlp.sentiment.arrow.NltkSentimentPredicate;
         @Type(value = PieChartSinkPredicate.class, name = "PieChart"),
         @Type(value = WordCloudSinkPredicate.class, name = "WordCloud"),
   
-        @Type(value = ArrowNltkSentimentPredicate.class, name = "ArrowNltkSentiment"),
         @Type(value = NltkSentimentPredicate.class, name = "NltkSentiment")
 })
 public abstract class PredicateBase implements IPredicate {
