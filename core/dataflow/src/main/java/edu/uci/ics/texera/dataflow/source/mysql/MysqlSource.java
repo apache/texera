@@ -75,10 +75,12 @@ public class MysqlSource implements ISourceOperator {
                     case Types.BIT: //-7 Types.BIT
                         attributeType = AttributeType.BOOLEAN;
                         break;
+                    case Types.LONGVARCHAR: //-1 Types.LONGVARCHAR
+                        attributeType = AttributeType.TEXT;
+                        break;
                     case Types.BIGINT: //-5 Types.BIGINT
                     case Types.CHAR: //1 Types.CHAR
                     case Types.VARCHAR: //12 Types.VARCHAR
-                    case Types.LONGVARCHAR: //-1 Types.LONGVARCHAR
                     case Types.NULL: //0 Types.NULL
                     case Types.OTHER: //1111 Types.OTHER
                     default:
@@ -127,6 +129,10 @@ public class MysqlSource implements ISourceOperator {
                         case STRING:
                             value = value ==null? "":value;
                             row.add(new StringField(value));
+                            break;
+                        case TEXT:
+                            value = value ==null? "":value;
+                            row.add(new TextField(value));
                             break;
                         case INTEGER:
                             // allowing null value Integer to be in the workflow

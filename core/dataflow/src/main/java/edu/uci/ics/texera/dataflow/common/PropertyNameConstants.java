@@ -150,8 +150,8 @@ public class PropertyNameConstants {
     public static final String COUNT_COLUMN = "countColumn";
 
     // related to duplicated NltkSentiment
-    public static final String ARROW_NLTK_BATCH_SIZE = "batchSize";
-    public static final String ARROW_NLTK_MODEL = "inputAttributeModel";
+    public static final String NLTK_BATCH_SIZE = "batchSize";
+    public static final String NLTK_MODEL = "inputAttributeModel";
 
     public static final String ARROW_CHUNK_SIZE = "arrowBatchSize";
 
