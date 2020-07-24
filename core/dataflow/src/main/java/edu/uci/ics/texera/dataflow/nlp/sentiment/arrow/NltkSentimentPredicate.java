@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.dataflow.arrow;
+package edu.uci.ics.texera.dataflow.nlp.sentiment.arrow;
 
 import java.util.Map;
 
@@ -12,7 +12,7 @@ import edu.uci.ics.texera.dataflow.common.OperatorGroupConstants;
 import edu.uci.ics.texera.dataflow.common.PredicateBase;
 import edu.uci.ics.texera.dataflow.common.PropertyNameConstants;
 
-public class ArrowNltkSentimentPredicate extends PredicateBase {
+public class NltkSentimentPredicate extends PredicateBase {
 
     private final String inputAttributeName;
     private final String resultAttributeName;
@@ -21,17 +21,17 @@ public class ArrowNltkSentimentPredicate extends PredicateBase {
     private final int chunkSize;
 
     @JsonCreator
-    public ArrowNltkSentimentPredicate(
+    public NltkSentimentPredicate(
             @JsonProperty(value = PropertyNameConstants.ATTRIBUTE_NAME, required = true)
                     String inputAttributeName,
             @JsonProperty(value = PropertyNameConstants.RESULT_ATTRIBUTE_NAME, required = true)
                     String resultAttributeName,
 
             @AdvancedOption
-            @JsonProperty(value = PropertyNameConstants.ARROW_NLTK_BATCH_SIZE, required = true,
+            @JsonProperty(value = PropertyNameConstants.NLTK_BATCH_SIZE, required = true,
                     defaultValue = "10")
                     int batchSize,
-            @JsonProperty(value = PropertyNameConstants.ARROW_NLTK_MODEL, required = true)
+            @JsonProperty(value = PropertyNameConstants.NLTK_MODEL, required = true)
                     String inputAttributeModel,
             @JsonProperty(value = PropertyNameConstants.ARROW_CHUNK_SIZE, required = true,
             defaultValue = "10") int chunkSize) {
@@ -58,12 +58,12 @@ public class ArrowNltkSentimentPredicate extends PredicateBase {
         return this.resultAttributeName;
     }
 
-    @JsonProperty(PropertyNameConstants.ARROW_NLTK_MODEL)
+    @JsonProperty(PropertyNameConstants.NLTK_MODEL)
     public String getInputAttributeModel() {
         return this.inputAttributeModel;
     }
 
-    @JsonProperty(PropertyNameConstants.ARROW_NLTK_BATCH_SIZE)
+    @JsonProperty(PropertyNameConstants.NLTK_BATCH_SIZE)
     public int getBatchSize() {
         return this.batchSize;
     }
@@ -74,15 +74,14 @@ public class ArrowNltkSentimentPredicate extends PredicateBase {
     }
 
     @Override
-    public ArrowNltkSentimentOperator newOperator() {
-        return new ArrowNltkSentimentOperator(this);
+    public NltkSentimentOperator newOperator() {
+        return new NltkSentimentOperator(this);
     }
 
     public static Map<String, Object> getOperatorMetadata() {
         return ImmutableMap.<String, Object>builder()
-                .put(PropertyNameConstants.USER_FRIENDLY_NAME, "Nltk Sentiment Analysis using Arrow")
-                .put(PropertyNameConstants.OPERATOR_DESCRIPTION, "Sentiment analysis based on Python's NLTK package, " +
-                        "using Apache Arrow to pass files")
+                .put(PropertyNameConstants.USER_FRIENDLY_NAME, "Nltk Sentiment Analysis")
+                .put(PropertyNameConstants.OPERATOR_DESCRIPTION, "Sentiment analysis based on Python's NLTK package")
                 .put(PropertyNameConstants.OPERATOR_GROUP_NAME, OperatorGroupConstants.ANALYTICS_GROUP)
                 .build();
     }
