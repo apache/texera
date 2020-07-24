@@ -15,6 +15,9 @@ export interface WordCloudTuple extends Readonly<{
   count: number
 }> {}
 
+/**
+ * DialogData defines the data format which passed to VisualizationPanelContent component
+ */
 export interface DialogData {
   table: object[];
   chartType: ChartType;
