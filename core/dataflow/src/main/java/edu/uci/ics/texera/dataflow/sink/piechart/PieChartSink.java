@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 /**
  * PieChartSink is a sink that can be used by to get tuples for pie chart.
- * PieChartSink returns tuple with name of data (String) and a number (Integer or Double).
+ * PieChartSink returns tuples with name of data (String) and a number (Integer or Double).
  * @author Mingji Han
  *
  */

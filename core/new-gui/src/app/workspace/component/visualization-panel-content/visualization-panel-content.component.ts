@@ -3,10 +3,8 @@ import { MAT_DIALOG_DATA } from '@angular/material/dialog';
 import * as c3 from 'c3';
 import { PrimitiveArray } from 'c3';
 import * as WordCloud from 'wordcloud';
-interface DialogData {
-  table: object[];
-  chartType: string;
-}
+import { WordCloudTuple, DialogData } from '../../types/visualization.interface';
+
 /**
  * VisualizationPanelContentComponent displays the chart based on the chart type and data in table.
  *
@@ -49,17 +47,11 @@ export class VisualizationPanelContentComponent implements OnInit, AfterViewInit
 
   onClickGenerateWordCloud() {
     const dataToDisplay: object[] = [];
-    let firstRow = true;
+    this.table.shift();
+    const wordCloudTuples = this.table as ReadonlyArray<WordCloudTuple>;
 
-    for (const row of this.table) {
-      if (firstRow) {
-        firstRow = false;
-        continue;
-      }
-      const items = [];
-      items.push(String((row as any)['word']));
-      items.push(Number((row as any)['count']));
-      dataToDisplay.push(items);
+    for (const tuple of wordCloudTuples) {
+      dataToDisplay.push([tuple.word, tuple.count]);
     }
 
     WordCloud(document.getElementById(VisualizationPanelContentComponent.WORD_CLOUD_ID) as HTMLElement,

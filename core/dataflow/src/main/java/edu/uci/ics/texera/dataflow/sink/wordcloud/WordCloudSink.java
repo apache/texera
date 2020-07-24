@@ -23,7 +23,7 @@ import edu.uci.ics.texera.dataflow.utils.DataflowUtils;
 
 /**
  * WordCloudSink is a sink that can be used by the caller to generate data for wordcloud.js in frontend.
- * WordCloudSink returns tuple with word (String) and its font size (Integer or Double) for frontend.
+ * WordCloudSink returns tuples with word (String) and its font size (Integer or Double) for frontend.
  * @author Mingji Han
  *
  */
@@ -66,17 +66,15 @@ public class WordCloudSink extends VisualizationOperator {
     }
 
 
-    public List<Map.Entry<String, Integer>> wordCount(List<Tuple> list) {
+    public List<Map.Entry<String, Integer>> wordCount() {
         Tuple tuple;
         HashMap<String, Integer> wordCountMap = new HashMap<>();
-        for (Tuple t: list) {
+        while ( (tuple = inputOperator.getNextTuple()) != null) {
             if (addPayload) {
-                tuple = new Tuple.Builder(t).add(SchemaConstants.PAYLOAD_ATTRIBUTE,new ListField<Span>(
-                        DataflowUtils.generatePayloadFromTuple(t, predicate.getLuceneAnalyzerString()))).build();
+                tuple = new Tuple.Builder(tuple).add(SchemaConstants.PAYLOAD_ATTRIBUTE,new ListField<Span>(
+                        DataflowUtils.generatePayloadFromTuple(tuple, predicate.getLuceneAnalyzerString()))).build();
             }
-            else {
-                tuple = t;
-            }
+
             ListField<Span> payloadField = tuple.getField("payload");
             List<Span> payloadSpanList = payloadField.getValue();
 
@@ -95,16 +93,9 @@ public class WordCloudSink extends VisualizationOperator {
 
     @Override
     public void processTuples() throws TexeraException {
-        List<Tuple> list = new ArrayList<>();
-
-        Tuple tuple;
-
-        while ( (tuple = inputOperator.getNextTuple()) != null) {
-            list.add(tuple);
-        }
 
         // calculate word frequencies
-        List<Map.Entry<String, Integer>> wordCountList = wordCount(list);
+        List<Map.Entry<String, Integer>> wordCountList = wordCount();
 
         double minValue = Double.MAX_VALUE;
         double maxValue = Double.MIN_VALUE;
