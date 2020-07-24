@@ -1,13 +1,8 @@
-package edu.uci.ics.texera.dataflow.arrow;
+package edu.uci.ics.texera.dataflow.nlp.sentiment.arrow;
 
-import java.io.*;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
+import java.net.URI;
+import java.util.*;
 import edu.uci.ics.texera.api.constants.ErrorMessages;
 import edu.uci.ics.texera.api.constants.SchemaConstants;
 import edu.uci.ics.texera.api.constants.DataConstants.TexeraProject;
@@ -20,21 +15,17 @@ import edu.uci.ics.texera.api.schema.AttributeType;
 import edu.uci.ics.texera.api.schema.Schema;
 import edu.uci.ics.texera.api.tuple.Tuple;
 import edu.uci.ics.texera.api.utils.Utils;
+import org.apache.arrow.flight.*;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.*;
-import org.apache.arrow.vector.dictionary.DictionaryProvider;
-import org.apache.arrow.vector.ipc.ArrowFileReader;
-import org.apache.arrow.vector.ipc.ArrowFileWriter;
-import org.apache.arrow.vector.ipc.SeekableReadChannel;
-import org.apache.arrow.vector.ipc.message.ArrowBlock;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
 
 import static java.util.Arrays.asList;
 
-public class ArrowNltkSentimentOperator implements IOperator {
-    private final ArrowNltkSentimentPredicate predicate;
+public class NltkSentimentOperator implements IOperator {
+    private final NltkSentimentPredicate predicate;
     private IOperator inputOperator;
     private Schema outputSchema;
 
@@ -44,9 +35,7 @@ public class ArrowNltkSentimentOperator implements IOperator {
     private int cursor = CLOSED;
 
     private final static String PYTHON = "python3";
-    private final static String PYTHONSCRIPT = Utils.getResourcePath("arrow_for_nltk_sentiment.py", TexeraProject.TEXERA_DATAFLOW).toString();
-    private final static String BatchedFiles = Utils.getResourcePath("temp-to-python.arrow", TexeraProject.TEXERA_DATAFLOW).toString();
-    private final static String resultPath = Utils.getResourcePath("temp-from-python.arrow", TexeraProject.TEXERA_DATAFLOW).toString();
+    private final static String PYTHONSCRIPT = Utils.getResourcePath("nltk_sentiment_classify.py", TexeraProject.TEXERA_DATAFLOW).toString();
 
     //Default nltk training model set to be "Senti.pickle"
     private String PicklePath = null;
@@ -59,7 +48,12 @@ public class ArrowNltkSentimentOperator implements IOperator {
                     new Field("text", FieldType.nullable(new ArrowType.Utf8()), null))
             );
 
-    public ArrowNltkSentimentOperator(ArrowNltkSentimentPredicate predicate){
+    // Flight related
+    private final static Location location = new Location(URI.create("grpc+tcp://localhost:5005"));
+    private final static RootAllocator rootAllocator = new RootAllocator();
+    private FlightClient flightClient = null;
+
+    public NltkSentimentOperator(NltkSentimentPredicate predicate){
         this.predicate = predicate;
 
         String modelFileName = predicate.getInputAttributeModel();
@@ -86,6 +80,13 @@ public class ArrowNltkSentimentOperator implements IOperator {
         return new Schema.Builder().add(inputSchema).add(predicate.getResultAttributeName(), AttributeType.INTEGER).build();
     }
 
+    /**
+     * When this operator is opened, it executes the python script, which constructs a {@code FlightServer}
+     * object which is then up and running in the specified address. The operator calls
+     * {@code flightClient.doAction(new Action("healthcheck"))} to check the status of the server, and then proceeds if
+     * successful (otherwise there will be an exception).
+     * @throws TexeraException
+     */
     @Override
     public void open() throws TexeraException {
         if (cursor != CLOSED) {
@@ -101,8 +102,27 @@ public class ArrowNltkSentimentOperator implements IOperator {
         outputSchema = transformToOutputSchema(inputSchema);
 
         cursor = OPENED;
+        List<String> args = new ArrayList<>(Arrays.asList(PYTHON, PYTHONSCRIPT, PicklePath));
+        ProcessBuilder processBuilder = new ProcessBuilder(args).inheritIO();
+        try {
+            // Start Flight server (Python process)
+            processBuilder.start();
+            // Connect to server
+            flightClient = FlightClient.builder(rootAllocator, location).build();
+//            System.out.println("Flight Client:\t" + new String(
+                    flightClient.doAction(new Action("healthcheck")).next().getBody();
+//                    , StandardCharsets.UTF_8));
+        } catch (Exception e) {
+            throw new DataflowException(e.getMessage(), e);
+        }
     }
 
+    /**
+     * For every batch, the operator calls {@code flightClient.doAction(new Action("compute"))} to tell the server to
+     * compute sentiments of the specific table that was sent earlier. The server executes computation,
+     * and returns back a success message when computation is finished.
+     * @return Whether the buffer is empty
+     */
     private boolean computeTupleBuffer() {
         tupleBuffer = new ArrayList<Tuple>();
         int i = 0;
@@ -118,14 +138,7 @@ public class ArrowNltkSentimentOperator implements IOperator {
         if (tupleBuffer.isEmpty()) {
             return false;
         }
-        try {
-            if (Files.notExists(Paths.get(BatchedFiles))) {
-                Files.createFile(Paths.get(BatchedFiles));
-            }
-           writeArrowFile(new File(BatchedFiles), tupleBuffer);
-        } catch (IOException e) {
-            throw new DataflowException(e.getMessage(), e);
-        }
+        writeArrowStream(tupleBuffer);
         return true;
     }
 
@@ -136,7 +149,7 @@ public class ArrowNltkSentimentOperator implements IOperator {
         }
         if (tupleBuffer == null){
             if (computeTupleBuffer()) {
-                computeClassLabel(BatchedFiles);
+                computeClassLabel();
             } else {
                 return null;
             }
@@ -145,30 +158,16 @@ public class ArrowNltkSentimentOperator implements IOperator {
     }
 
     // Process the data file using NLTK
-    private String computeClassLabel(String filePath) {
+    private void computeClassLabel() {
         try{
-            /*
-             *  In order to use the NLTK package to do classification, we start a
-             *  new process to run the package, and wait for the result of running
-             *  the process as the class label of this text field.
-             *  Python call format:
-             *      #python3 nltk_sentiment_classify picklePath dataPath resultPath
-             * */
-            List<String> args = new ArrayList<String>(
-                    Arrays.asList(PYTHON, PYTHONSCRIPT, PicklePath, filePath, resultPath));
-            ProcessBuilder processBuilder = new ProcessBuilder(args);
-
-            Process p = processBuilder.start();
-            p.waitFor();
-
-            //Read label result from file generated by Python.
-
-            idClassMap = new HashMap<String, Integer>();
-            readArrowFile(new File(resultPath));
+//            System.out.println("Flight Client:\t" + new String(
+            flightClient.doAction(new Action("compute")).next().getBody();
+//                    , StandardCharsets.UTF_8));
+            idClassMap = new HashMap<>();
+            readArrowStream();
         }catch(Exception e){
             throw new DataflowException(e.getMessage(), e);
         }
-        return null;
     }
 
     private Tuple popupOneTuple() {
@@ -186,6 +185,11 @@ public class ArrowNltkSentimentOperator implements IOperator {
         return new Tuple(outputSchema, outputFields);
     }
 
+    /**
+     * When all the batches are finished and the operator closes, it issues a
+     * {@code flightClient.doAction(new Action("shutdown"))} call to shut down the server, and also closes the client.
+     * @throws TexeraException
+     */
     @Override
     public void close() throws TexeraException {
         if (cursor == CLOSED) {
@@ -195,6 +199,12 @@ public class ArrowNltkSentimentOperator implements IOperator {
             inputOperator.close();
         }
         cursor = CLOSED;
+        try {
+            flightClient.doAction(new Action("shutdown"));
+            flightClient.close();
+        } catch (InterruptedException e) {
+            throw new DataflowException(e.getMessage(), e);
+        }
     }
 
     @Override
@@ -239,46 +249,51 @@ public class ArrowNltkSentimentOperator implements IOperator {
         );
     }
 
-    private void writeArrowFile(File file, List<Tuple> values) throws IOException {
-        DictionaryProvider.MapDictionaryProvider dictProvider = new DictionaryProvider.MapDictionaryProvider();
-
-        try (RootAllocator allocator = new RootAllocator();
-             VectorSchemaRoot schemaRoot = VectorSchemaRoot.create(ArrowNltkSentimentOperator.tupleToPythonSchema, allocator);
-             FileOutputStream fd = new FileOutputStream(file);
-             ArrowFileWriter fileWriter = new ArrowFileWriter(schemaRoot, dictProvider, fd.getChannel())) {
-
-            fileWriter.start();
-
-            int index = 0;
-            while (index < values.size()) {
-                schemaRoot.allocateNew();
-                int chunkIndex = 0;
-                while (chunkIndex < predicate.getChunkSize() && index + chunkIndex < values.size()) {
-                    vectorizeTupleToPython(values.get(index + chunkIndex), chunkIndex, schemaRoot);
-                    chunkIndex++;
-                }
-                schemaRoot.setRowCount(chunkIndex);
-                fileWriter.writeBatch();
-
-                index += chunkIndex;
-                schemaRoot.clear();
+    /**
+     * For every batch, the operator converts list of {@code Tuple}s into Arrow stream data in almost the exact same
+     * way as it would when using Arrow file, except now it sends stream to the server with
+     * {@link FlightClient#startPut(org.apache.arrow.flight.FlightDescriptor, org.apache.arrow.vector.VectorSchemaRoot,
+     * org.apache.arrow.flight.FlightClient.PutListener, org.apache.arrow.flight.CallOption...)} and {@link
+     * FlightClient.ClientStreamListener#putNext()}. The server uses {@code do_put()} to receive data stream
+     * and convert it into a {@code pyarrow.Table} and store it in the server.
+     * @param values The buffer of tuples to write.
+     */
+    private void writeArrowStream(List<Tuple> values) {
+//        System.out.print("Flight Client:\tSending data to Python...");
+        SyncPutListener flightListener = new SyncPutListener();
+        VectorSchemaRoot schemaRoot = VectorSchemaRoot.create(tupleToPythonSchema, rootAllocator);
+        FlightClient.ClientStreamListener streamWriter = flightClient.startPut(
+                FlightDescriptor.path(Collections.singletonList("ToPython")), schemaRoot, flightListener);
+        int index = 0;
+        while (index < values.size()) {
+            schemaRoot.allocateNew();
+            int chunkIndex = 0;
+            while (chunkIndex < predicate.getChunkSize() && index + chunkIndex < values.size()) {
+                vectorizeTupleToPython(values.get(index + chunkIndex), chunkIndex, schemaRoot);
+                chunkIndex++;
             }
-
-            fileWriter.end();
+            schemaRoot.setRowCount(chunkIndex);
+            streamWriter.putNext();
+            index += chunkIndex;
+            schemaRoot.clear();
         }
+        streamWriter.completed();
+//        System.out.println(" Done.");
     }
 
-    private void readArrowFile(File arrowFile) throws IOException {
-        FileInputStream fileInputStream = new FileInputStream(arrowFile);
-        SeekableReadChannel seekableReadChannel = new SeekableReadChannel(fileInputStream.getChannel());
-        ArrowFileReader arrowFileReader = new ArrowFileReader(seekableReadChannel, new RootAllocator(Integer.MAX_VALUE));
-        VectorSchemaRoot root  = arrowFileReader.getVectorSchemaRoot(); // get root
-        List<ArrowBlock> arrowBlocks = arrowFileReader.getRecordBlocks();
-        //For every block(arrow batch / or called 'chunk' here)
-        for (ArrowBlock rbBlock : arrowBlocks) {
-            if (!arrowFileReader.loadRecordBatch(rbBlock)) { // load the batch
-                throw new IOException("Expected to read record batch, but found none.");
-            }
+
+    /**
+     * For every batch, the operator gets the computed sentiment result by calling
+     * {@link FlightClient#getStream(org.apache.arrow.flight.Ticket, org.apache.arrow.flight.CallOption...)}.
+     * The reading and conversion process is the same as what it does when using Arrow file.
+     */
+    private void readArrowStream() {
+//        System.out.print("Flight Client:\tReading data from Python...");
+        FlightInfo info = flightClient.getInfo(FlightDescriptor.path(Collections.singletonList("FromPython")));
+        Ticket ticket = info.getEndpoints().get(0).getTicket();
+        FlightStream stream = flightClient.getStream(ticket);
+        while (stream.next()) {
+            VectorSchemaRoot root  = stream.getRoot(); // get root
             List<FieldVector> fieldVector = root.getFieldVectors();
             VarCharVector idVector = ((VarCharVector) fieldVector.get(0));
             BigIntVector predVector = ((BigIntVector) fieldVector.get(1));
@@ -288,5 +303,7 @@ public class ArrowNltkSentimentOperator implements IOperator {
                 idClassMap.put(id, label);
             }
         }
+//        System.out.println(" Done.");
     }
 }
+

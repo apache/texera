@@ -7,7 +7,7 @@ import java.util.Map;
 
 import edu.uci.ics.texera.api.exception.PlanGenException;
 import edu.uci.ics.texera.dataflow.aggregator.AggregatorPredicate;
-import edu.uci.ics.texera.dataflow.arrow.ArrowNltkSentimentPredicate;
+import edu.uci.ics.texera.dataflow.nlp.sentiment.arrow.NltkSentimentPredicate;
 import edu.uci.ics.texera.dataflow.common.PredicateBase;
 import edu.uci.ics.texera.dataflow.comparablematcher.ComparablePredicate;
 import edu.uci.ics.texera.dataflow.dictionarymatcher.DictionaryPredicate;
@@ -21,7 +21,6 @@ import edu.uci.ics.texera.dataflow.keywordmatcher.KeywordSourcePredicate;
 import edu.uci.ics.texera.dataflow.nlp.entity.NlpEntityPredicate;
 import edu.uci.ics.texera.dataflow.nlp.sentiment.EmojiSentimentPredicate;
 import edu.uci.ics.texera.dataflow.nlp.sentiment.NlpSentimentPredicate;
-import edu.uci.ics.texera.dataflow.nlp.sentiment.NltkSentimentOperatorPredicate;
 import edu.uci.ics.texera.dataflow.nlp.splitter.NlpSplitPredicate;
 import edu.uci.ics.texera.dataflow.projection.ProjectionPredicate;
 import edu.uci.ics.texera.dataflow.regexmatcher.RegexPredicate;
@@ -66,7 +65,6 @@ public class OperatorArityConstants {
 
         fixedInputArityMap.put(NlpEntityPredicate.class, 1);
         fixedInputArityMap.put(NlpSentimentPredicate.class, 1);
-        fixedInputArityMap.put(NltkSentimentOperatorPredicate.class, 1);
         fixedInputArityMap.put(EmojiSentimentPredicate.class, 1);
         fixedInputArityMap.put(ProjectionPredicate.class, 1);
         fixedInputArityMap.put(RegexSplitPredicate.class, 1);
@@ -92,7 +90,7 @@ public class OperatorArityConstants {
         fixedInputArityMap.put(BarChartSinkPredicate.class, 1);
         fixedInputArityMap.put(PieChartSinkPredicate.class, 1);
 
-        fixedInputArityMap.put(ArrowNltkSentimentPredicate.class, 1);
+        fixedInputArityMap.put(NltkSentimentPredicate.class, 1);
 
         
     }
@@ -114,7 +112,6 @@ public class OperatorArityConstants {
 
         fixedOutputArityMap.put(NlpEntityPredicate.class, 1);
         fixedOutputArityMap.put(NlpSentimentPredicate.class, 1);
-        fixedOutputArityMap.put(NltkSentimentOperatorPredicate.class, 1);
         fixedOutputArityMap.put(EmojiSentimentPredicate.class, 1);
         fixedOutputArityMap.put(ProjectionPredicate.class, 1);
         fixedOutputArityMap.put(RegexSplitPredicate.class, 1);
@@ -141,7 +138,7 @@ public class OperatorArityConstants {
         fixedOutputArityMap.put(BarChartSinkPredicate.class, 0);
         fixedOutputArityMap.put(PieChartSinkPredicate.class, 0);
         
-        fixedOutputArityMap.put(ArrowNltkSentimentPredicate.class, 1);
+        fixedOutputArityMap.put(NltkSentimentPredicate.class, 1);
 
     }
     

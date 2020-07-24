@@ -76,10 +76,6 @@ public class PropertyNameConstants {
     public static final String SPLIT_REGEX = "splitRegex";
     public static final String REGEX_OUTPUT_TYPE = "splitOption";
     public static final String REGEX_SPLIT_KEY = "regexSplit";
-    
-    //related to nltk operator
-    public static final String NLP_NLTK_BATCH_SIZE = "batchSize";
-    public static final String NLP_NLTK_MODEL = "inputAttributeModel";
 
     // related to sampler
     public static final String SAMPLE_SIZE = "sampleSize";
@@ -152,8 +148,8 @@ public class PropertyNameConstants {
     public static final String PRUNE_RATIO = "pruneRatio";
 
     // related to duplicated NltkSentiment
-    public static final String ARROW_NLTK_BATCH_SIZE = "batchSize";
-    public static final String ARROW_NLTK_MODEL = "inputAttributeModel";
+    public static final String NLTK_BATCH_SIZE = "batchSize";
+    public static final String NLTK_MODEL = "inputAttributeModel";
 
     public static final String ARROW_CHUNK_SIZE = "arrowBatchSize";
 

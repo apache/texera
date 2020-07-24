@@ -31,7 +31,6 @@ import edu.uci.ics.texera.dataflow.keywordmatcher.KeywordSourcePredicate;
 import edu.uci.ics.texera.dataflow.nlp.entity.NlpEntityPredicate;
 import edu.uci.ics.texera.dataflow.nlp.sentiment.EmojiSentimentPredicate;
 import edu.uci.ics.texera.dataflow.nlp.sentiment.NlpSentimentPredicate;
-import edu.uci.ics.texera.dataflow.nlp.sentiment.NltkSentimentOperatorPredicate;
 import edu.uci.ics.texera.dataflow.nlp.splitter.NlpSplitPredicate;
 import edu.uci.ics.texera.dataflow.projection.ProjectionPredicate;
 import edu.uci.ics.texera.dataflow.regexmatcher.RegexPredicate;
@@ -47,7 +46,7 @@ import edu.uci.ics.texera.dataflow.source.scan.ScanSourcePredicate;
 import edu.uci.ics.texera.dataflow.twitter.TwitterJsonConverterPredicate;
 import edu.uci.ics.texera.dataflow.wordcount.WordCountIndexSourcePredicate;
 import edu.uci.ics.texera.dataflow.wordcount.WordCountOperatorPredicate;
-import edu.uci.ics.texera.dataflow.arrow.ArrowNltkSentimentPredicate;
+import edu.uci.ics.texera.dataflow.nlp.sentiment.arrow.NltkSentimentPredicate;
 
 /**
  * PredicateBase is the base for all predicates which follow the 
@@ -80,7 +79,6 @@ import edu.uci.ics.texera.dataflow.arrow.ArrowNltkSentimentPredicate;
         @Type(value = NlpEntityPredicate.class, name = "NlpEntity"),
         @Type(value = NlpSentimentPredicate.class, name = "NlpSentiment"),
         @Type(value = EmojiSentimentPredicate.class, name = "EmojiSentiment"),
-        @Type(value = NltkSentimentOperatorPredicate.class, name = "NltkSentiment"),
 
         @Type(value = ProjectionPredicate.class, name = "Projection"),
         @Type(value = RegexSplitPredicate.class, name = "RegexSplit"),
@@ -107,7 +105,7 @@ import edu.uci.ics.texera.dataflow.arrow.ArrowNltkSentimentPredicate;
 
         @Type(value = BarChartSinkPredicate.class, name = "BarChart"),
         @Type(value = PieChartSinkPredicate.class, name = "PieChart"),
-        @Type(value = ArrowNltkSentimentPredicate.class, name = "ArrowNltkSentiment")
+        @Type(value = NltkSentimentPredicate.class, name = "NltkSentiment")
 
 })
 public abstract class PredicateBase implements IPredicate {
