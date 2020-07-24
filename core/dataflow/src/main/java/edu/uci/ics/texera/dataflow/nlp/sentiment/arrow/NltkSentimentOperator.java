@@ -1,5 +1,7 @@
 package edu.uci.ics.texera.dataflow.nlp.sentiment.arrow;
 
+import java.io.IOException;
+import java.net.ServerSocket;
 import java.nio.charset.StandardCharsets;
 import java.net.URI;
 import java.util.*;
@@ -43,8 +45,6 @@ public class NltkSentimentOperator implements IOperator {
             new org.apache.arrow.vector.types.pojo.Schema(Collections.singletonList(
                     new Field("text", FieldType.nullable(new ArrowType.Utf8()), null)));
 
-    // Flight related
-    private final static Location location = new Location(URI.create("grpc+tcp://localhost:5005"));
     private final static RootAllocator rootAllocator = new RootAllocator();
     private FlightClient flightClient = null;
 
@@ -91,7 +91,11 @@ public class NltkSentimentOperator implements IOperator {
             throw new DataflowException(ErrorMessages.INPUT_OPERATOR_NOT_SPECIFIED);
         }
 
-        List<String> args = new ArrayList<>(Arrays.asList(PYTHON, PYTHONSCRIPT, PicklePath));
+        // Flight related
+        int portNumber = getFreeLocalPort();
+        Location location = new Location(URI.create("grpc+tcp://localhost:" + portNumber));
+        List<String> args = new ArrayList<>(Arrays.asList(PYTHON, PYTHONSCRIPT, Integer.toString(portNumber), PicklePath));
+
         ProcessBuilder processBuilder = new ProcessBuilder(args).inheritIO();
         try {
             // Start Flight server (Python process)
@@ -102,7 +106,6 @@ public class NltkSentimentOperator implements IOperator {
             boolean connected = false;
             while (!connected) {
                 try {
-
                     flightClient = FlightClient.builder(rootAllocator, location).build();
                     String message = new String(
                             flightClient.doAction(new Action("healthcheck")).next().getBody(), StandardCharsets.UTF_8);
@@ -309,6 +312,24 @@ public class NltkSentimentOperator implements IOperator {
             }
         }
 //        System.out.println(" Done.");
+    }
+
+    private int getFreeLocalPort() {
+        ServerSocket s = null;
+        try {
+            // ServerSocket(0) results in availability of a free random port
+            s = new ServerSocket(0);
+            return s.getLocalPort();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        } finally {
+            assert s != null;
+            try {
+                s.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
 }
 

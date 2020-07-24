@@ -6,7 +6,8 @@ import ast
 import threading
 import pyarrow.flight
 
-pickleFullPathFileName = sys.argv[1]
+portNumber = sys.argv[1]
+pickleFullPathFileName = sys.argv[2]
 
 
 class FlightServer(pyarrow.flight.FlightServerBase):
@@ -143,7 +144,7 @@ class FlightServer(pyarrow.flight.FlightServerBase):
 
 
 def main():
-	location = "grpc+tcp://localhost:5005"
+	location = "grpc+tcp://localhost:"+portNumber
 	server = FlightServer("localhost", location)
 	# print("Flight Server:\tServing on", location)
 	server.serve()
