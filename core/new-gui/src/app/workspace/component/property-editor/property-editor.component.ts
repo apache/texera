@@ -15,6 +15,7 @@ import { JSONSchema7 } from 'json-schema';
 import { FormGroup } from '@angular/forms';
 import { FormlyFormOptions, FormlyFieldConfig } from '@ngx-formly/core';
 import { FormlyJsonschema } from '@ngx-formly/core/json-schema';
+import { FormlyJsonschemaOptions } from '@ngx-formly/core/json-schema/formly-json-schema.service';
 
 /**
  * PropertyEditorComponent is the panel that allows user to edit operator properties.
@@ -98,8 +99,8 @@ export class PropertyEditorComponent {
    * It only serves as a bridge from a callback function to RxJS Observable
    * @param formData
    */
-  public onFormChanges(formData: object): void {
-    this.sourceFormChangeEventStream.next(formData);
+  public onFormChanges(event: object): void {
+    this.sourceFormChangeEventStream.next(event);
   }
 
   /**
@@ -155,8 +156,8 @@ export class PropertyEditorComponent {
     // manually trigger a change detection to force formly to process the form
     // this is because formly does not emit an onChanges event for filling default values
     // and this might cause an inconsistency between the operator property in componenet and the service
-    this.ref.detectChanges();
-    this.sourceFormChangeEventStream.next(this.formData);
+    // this.ref.detectChanges();
+    // this.sourceFormChangeEventStream.next(this.formData);
   }
 
   /**
@@ -171,11 +172,14 @@ export class PropertyEditorComponent {
   public createOutputFormChangeEventStream(originalSourceFormChangeEvent: Observable<object>): Observable<object> {
 
     return originalSourceFormChangeEvent
+    .do(evt => console.log(evt))
       // set a debounce time to avoid events triggering too often
       //  and to circumvent a bug of the library - each action triggers event twice
       .debounceTime(PropertyEditorComponent.formInputDebounceTime)
+      // .do(evt => console.log(evt))
       // don't emit the event until the data is changed
       .distinctUntilChanged()
+      // .do(evt => console.log(evt))
       // don't emit the event if form data is same with current actual data
       // also check for other unlikely circumstances (see below)
       .filter(formData => {
@@ -201,6 +205,7 @@ export class PropertyEditorComponent {
         }
         return true;
       })
+      .do(evt => console.log(evt))
       // share() because the original observable is a hot observable
       .share();
 

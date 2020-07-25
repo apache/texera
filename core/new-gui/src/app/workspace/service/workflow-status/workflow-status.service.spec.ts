@@ -2,7 +2,7 @@ import { TestBed, inject } from '@angular/core/testing';
 
 import { WorkflowStatusService } from './workflow-status.service';
 import * as Rx from 'rxjs';
-import { SuccessProcessStatus, OperatorStates } from '../../types/execute-workflow.interface';
+import { ProcessStatus } from '../../types/execute-workflow.interface';
 import { mockStatus1 } from './mock-workflow-status';
 import * as RxJSWebSocket from 'rxjs/webSocket';
 
@@ -69,7 +69,7 @@ xdescribe('WorkflowStatusService', () => {
     const stream = workflowStatusService.getStatusInformationStream();
 
     stream.subscribe(
-      (status: SuccessProcessStatus) => {
+      (status: ProcessStatus) => {
         expect(status.toString()).toEqual(expectedResponse);
         done();
       },

@@ -26,13 +26,31 @@ export class VisualizationPanelContentComponent implements OnInit, AfterViewInit
   public static readonly HEIGHT = 600;
   table: object[];
   columns: string[] = [];
+  map: Map<string, string[]>;
+
 
   constructor(@Inject(MAT_DIALOG_DATA) public data: DialogData) {
     this.table = data.table;
+    this.map = new Map<string, string[]>();
   }
 
   ngOnInit() {
+
     this.columns = Object.keys(this.table[0]).filter(x => x !== '_id');
+
+    for (const column of this.columns) {
+
+      const rows: string[] = [];
+
+      for (const row of this.table) {
+        rows.push(String((row as any)[column]));
+      }
+
+      this.map.set(column, rows);
+
+    }
+
+
   }
 
   ngAfterViewInit() {
@@ -42,24 +60,20 @@ export class VisualizationPanelContentComponent implements OnInit, AfterViewInit
   onClickGenerateChart() {
 
     const dataToDisplay: Array<[string, ...PrimitiveArray]> = [];
+    let count = 0;
     const category: string[] = [];
     for (let i = 1; i < this.columns?.length; i++) {
       category.push(this.columns[i]);
     }
 
-    // c3.js requires the first element in the data array is the data name.
-    // the remaining items are data.
-    let firstRow = true;
-    for (const row of this.table) {
-      if (firstRow) {
-        firstRow = false;
-        continue;
-      }
-      const items: [string, ...PrimitiveArray] = [(row as any)[this.columns[0]]];
-      for (let i = 1; i < this.columns.length; i++) {
-        items.push(Number((row as any)[this.columns[i]]));
+    for (const name of this.map.get(this.columns![0])!) {
+
+      const items: [string, ...PrimitiveArray] = [String(name)];
+      for (let i = 1; i < this.columns?.length; i++) {
+        items.push(Number(this.map.get(this.columns![1])![count++]));
       }
       dataToDisplay.push(items);
+
     }
 
     c3.generate({
@@ -77,8 +91,10 @@ export class VisualizationPanelContentComponent implements OnInit, AfterViewInit
           categories: category
         }
       },
-      bindto: VisualizationPanelContentComponent.CHART_ID
+      bindto: '#Chart'
     });
   }
+
+
 
 }

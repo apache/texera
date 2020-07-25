@@ -16,7 +16,6 @@ import { ResultPanelToggleService } from '../../service/result-panel-toggle/resu
 import { Point, OperatorPredicate } from '../../types/workflow-common.interface';
 import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-graph-wrapper';
 import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
-import { SuccessProcessStatus } from '../../types/execute-workflow.interface';
 import { OperatorStates } from '../../types/execute-workflow.interface';
 import { environment } from './../../../../environments/environment';
 
@@ -218,24 +217,13 @@ export class WorkflowEditorComponent implements AfterViewInit {
   /**
    * This method subscribe to workflowStatusService's status stream
    * for Each processStatus that has been emited
-   * if it is the final status of a series of statuses, indicated by a message "Process Completed"
-   *    - change all operator's states to completed
-   * if otherwise:
-   *    for each operator in texeraGraph:
-   *      find its states in processStatus, throw an error if not found
-   *      pass state and id to jointUIService
+   *   for each operator in texeraGraph:
+   *     find its states in processStatus, throw an error if not found
+   *     pass state and id to jointUIService
    */
   private handleOperatorStatesChange(): void {
     this.workflowStatusService.getStatusInformationStream().subscribe(
       status => {
-      if (status.message === 'Process Completed') {
-        this.workflowActionService.getTexeraGraph().getAllOperators().forEach(operator => {
-          // if the operator is not completed the whole process
-          this.jointUIService.changeOperatorStates(
-            this.getJointPaper(), operator.operatorID, OperatorStates.Completed
-          );
-        });
-      } else {
         this.workflowActionService.getTexeraGraph().getAllOperators().forEach(operator => {
           // if the operator is not completed the whole process
           const statusIndex = status.operatorStates[operator.operatorID.slice(9)];
@@ -246,7 +234,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
             this.getJointPaper(), operator.operatorID, statusIndex
           );
         });
-      }
     });
   }
   /**

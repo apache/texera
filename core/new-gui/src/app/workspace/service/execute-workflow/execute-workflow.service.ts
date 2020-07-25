@@ -15,6 +15,7 @@ import {
 import { ResultObject } from '../../types/execute-workflow.interface';
 import { v4 as uuid } from 'uuid';
 import { environment } from '../../../../environments/environment';
+import { WorkflowWebsocketService } from '../workflow-websocket/workflow-websocket.service';
 
 export const EXECUTE_WORKFLOW_ENDPOINT = 'queryplan/execute';
 
@@ -51,20 +52,42 @@ export class ExecuteWorkflowService {
 
   private executionPauseResumeStream = new Subject <number> ();
 
-  constructor(private workflowActionService: WorkflowActionService, private http: HttpClient) { }
-  /**
+  constructor(private workflowActionService: WorkflowActionService,
+    private workflowWebsocketService: WorkflowWebsocketService,
+    private http: HttpClient) { }
+
+    /**
    * Return map which contains all sink operators execution result
    */
   public getResultMap(): Map<string, ResultObject> {
     return this.resultMap;
   }
 
+
+
+  public executeWorkflow(): void {
+    if (environment.amberEngineEnabled) {
+      this.executeWorkflowAmberTexera();
+    } else {
+      this.executeWorkflowOldTexera();
+    }
+  }
+
+  public executeWorkflowAmberTexera(): void {
+    // get the current workflow graph
+    const workflowPlan = this.workflowActionService.getTexeraGraph();
+    const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(workflowPlan);
+    this.workflowWebsocketService.send('ExecuteWorkflowRequest', logicalPlan);
+
+  }
+
+
   /**
    * Sends the current workflow data to the backend
    *  to execute the workflow and gets the results.
    *  return workflow id to be used by workflowStatusService
    */
-  public executeWorkflow(): string {
+  public executeWorkflowOldTexera(): void {
 
     // set the UUID for the current workflow
     this.workflowExecutionID = this.getRandomUUID();
@@ -105,7 +128,6 @@ export class ExecuteWorkflowService {
         }
       );
 
-    return this.workflowExecutionID;
   }
 
   /**

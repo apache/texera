@@ -1,7 +1,7 @@
 import { environment } from './../../../../environments/environment';
 import { Injectable } from '@angular/core';
 import { Observable, Subject } from 'rxjs';
-import { SuccessProcessStatus } from '../../types/execute-workflow.interface';
+import { ProcessStatus } from '../../types/execute-workflow.interface';
 import { webSocket } from 'rxjs/webSocket';
 
 const Engine_URL = 'ws://localhost:7070/api/websocket';
@@ -11,7 +11,7 @@ export class WorkflowStatusService {
   // connectionChannel is dedicated to communication with backend via websocket
   private connectionChannel: Subject<string> = new Subject<string>();
   // status is responsible for passing websocket responses to other components
-  private status: Subject<SuccessProcessStatus> = new Subject<SuccessProcessStatus>();
+  private status: Subject<ProcessStatus> = new Subject<ProcessStatus>();
 
   constructor() {
     if (! environment.executionStatusEnabled) {
@@ -25,8 +25,8 @@ export class WorkflowStatusService {
     const current = this;
     this.connectionChannel.subscribe({
       next(response) {
-        const status = JSON.parse(JSON.stringify(response)) as SuccessProcessStatus;
-        current.status.next(status);
+        const event = JSON.parse(JSON.stringify(response));
+
       },
       error(err) { throw new Error(err); },
       complete() {console.log('websocket finished and disconected'); }
@@ -41,7 +41,7 @@ export class WorkflowStatusService {
   }
 
   //
-  public getStatusInformationStream(): Observable<SuccessProcessStatus> {
+  public getStatusInformationStream(): Observable<ProcessStatus> {
     return this.status;
   }
 

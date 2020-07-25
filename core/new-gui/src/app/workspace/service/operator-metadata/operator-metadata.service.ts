@@ -48,7 +48,7 @@ export class OperatorMetadataService {
 
   constructor(private httpClient: HttpClient) {
     this.getOperatorMetadata().subscribe(
-      data => this.currentOperatorMetadata = data
+      data => {this.currentOperatorMetadata = data; console.log(this.currentOperatorMetadata); }
     );
   }
 

@@ -5,6 +5,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 
 import { Observable } from 'rxjs/Observable';
+import { environment } from 'src/environments/environment';
 
 /**
  * User Account Service contains the function of registering and logging the user.
@@ -26,7 +27,9 @@ export class UserService {
   private currentUser: User | undefined;
 
   constructor(private http: HttpClient) {
-    this.loginFromSession();
+    if (environment.userSystemEnabled) {
+      this.loginFromSession();
+    }
   }
 
   /**

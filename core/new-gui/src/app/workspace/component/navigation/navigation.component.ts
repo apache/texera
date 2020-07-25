@@ -100,11 +100,8 @@ export class NavigationComponent implements OnInit {
         // when a new workflow begins, reset the execution result ID.
         this.executionResultID = undefined;
         this.isWorkflowRunning = true;
-        // get the workflowId and pass it to workflowStatusService.
-        const workflowId = this.executeWorkflowService.executeWorkflow();
-        if (environment.executionStatusEnabled) {
-          this.workflowStatusService.checkStatus(workflowId);
-        }
+        this.executeWorkflowService.executeWorkflow();
+
       } else if (this.isWorkflowRunning && this.isWorkflowPaused) {
         this.executeWorkflowService.resumeWorkflow();
       } else if (this.isWorkflowRunning && !this.isWorkflowPaused) {

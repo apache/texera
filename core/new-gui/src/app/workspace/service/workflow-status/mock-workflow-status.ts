@@ -28,8 +28,6 @@ export const mockScanStatistic2: Statistics = {
 // mockStatus1 for a workflow with only one mockScanOperator
 // this mockScanOperator can be found in ./../../workflow-graph/model/mock-workflow-data.ts
 export const mockStatus1: ProcessStatus = {
-  code: 0,
-  message: 'Processing',
   operatorStates: {
     'c5207d7d-e94f-4796-b9c5-aa7e63f81e0a': OperatorStates.Running,
   },
@@ -40,8 +38,6 @@ export const mockStatus1: ProcessStatus = {
 
 // this mockStatus is the last status received from backend
 export const mockStatus2: ProcessStatus = {
-  code: 0,
-  message: 'Process Completed',
   operatorStates: {
     'c5207d7d-e94f-4796-b9c5-aa7e63f81e0a': OperatorStates.Completed,
   },

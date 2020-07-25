@@ -27,7 +27,7 @@ import { WorkflowStatusService } from '../../service/workflow-status/workflow-st
 import {
    mockStatus1, mockStatus2, mockScanPredicateForStatus, mockScanOperatorID
 } from '../../service/workflow-status/mock-workflow-status';
-import { SuccessProcessStatus, OperatorStates } from '../../types/execute-workflow.interface';
+import { ProcessStatus, OperatorStates } from '../../types/execute-workflow.interface';
 import { environment } from './../../../../environments/environment';
 
 describe('WorkflowEditorComponent', () => {
@@ -355,25 +355,25 @@ describe('WorkflowEditorComponent', () => {
           JointUIService.getOperatorStatusTooltipElementID(mockScanPredicateForStatus.operatorID));
 
         // workflowStatusService emits a mock status
-        workflowStatusService['status'].next(mockStatus1 as SuccessProcessStatus);
+        workflowStatusService['status'].next(mockStatus1 as ProcessStatus);
         fixture.detectChanges();
         // function should be called and content should be updated properly
         expect(component['operatorStatusTooltipDisplayEnabled']).toBeTruthy();
         expect(changeOperatorTooltipInfoSpy).toHaveBeenCalledTimes(1);
         expect(tooltipView.model.attr('#operatorCount/text'))
-          .toBe('Output:' + (mockStatus1 as SuccessProcessStatus).operatorStatistics[mockScanOperatorID].outputCount + ' tuples');
+          .toBe('Output:' + (mockStatus1 as ProcessStatus).operatorStatistics[mockScanOperatorID].outputCount + ' tuples');
         expect(tooltipView.model.attr('#operatorSpeed/text'))
-          .toBe('Speed:' + (mockStatus1 as SuccessProcessStatus).operatorStatistics[mockScanOperatorID].speed + ' tuples/ms');
+          .toBe('Speed:' + (mockStatus1 as ProcessStatus).operatorStatistics[mockScanOperatorID].speed + ' tuples/ms');
 
         // workflowStatusService emits another mock status
-        workflowStatusService['status'].next(mockStatus2 as SuccessProcessStatus);
+        workflowStatusService['status'].next(mockStatus2 as ProcessStatus);
         fixture.detectChanges();
         // function should be called again and content should be updated properly
         expect(changeOperatorTooltipInfoSpy).toHaveBeenCalledTimes(2);
         expect(tooltipView.model.attr('#operatorCount/text'))
-          .toBe('Output:' + (mockStatus2 as SuccessProcessStatus).operatorStatistics[mockScanOperatorID].outputCount + ' tuples');
+          .toBe('Output:' + (mockStatus2 as ProcessStatus).operatorStatistics[mockScanOperatorID].outputCount + ' tuples');
         expect(tooltipView.model.attr('#operatorSpeed/text'))
-          .toBe('Speed:' + (mockStatus2 as SuccessProcessStatus).operatorStatistics[mockScanOperatorID].speed + ' tuples/ms');
+          .toBe('Speed:' + (mockStatus2 as ProcessStatus).operatorStatistics[mockScanOperatorID].speed + ' tuples/ms');
       });
 
       it('should change operator state when workflow-status.service emits processState', () => {
@@ -383,15 +383,15 @@ describe('WorkflowEditorComponent', () => {
         const jointCellView = component.getJointPaper().findViewByModel(mockScanPredicateForStatus.operatorID);
 
         // workflowStatusService emits a mock status
-        workflowStatusService['status'].next(mockStatus1 as SuccessProcessStatus);
+        workflowStatusService['status'].next(mockStatus1 as ProcessStatus);
         fixture.detectChanges();
         // function should be called and state name should be updated properly
         expect(changeOperatorStatesSpy).toHaveBeenCalledTimes(1);
         expect(jointCellView.model.attr('#operatorStates')['text'])
-        .toEqual(OperatorStates[(mockStatus1 as SuccessProcessStatus).operatorStates[mockScanOperatorID]]);
+        .toEqual(OperatorStates[(mockStatus1 as ProcessStatus).operatorStates[mockScanOperatorID]]);
 
         // workflowStatusService emits another mock status
-        workflowStatusService['status'].next(mockStatus2 as SuccessProcessStatus);
+        workflowStatusService['status'].next(mockStatus2 as ProcessStatus);
         fixture.detectChanges();
         // function should be called again and state name should be updated properly
         expect(changeOperatorStatesSpy).toHaveBeenCalledTimes(2);
@@ -403,7 +403,7 @@ describe('WorkflowEditorComponent', () => {
         // workflowStatusService emits a processStatus with info for a scan operator
         // however there is no scan operator on the joinGraph/texeraGraph
         // an error should be thrown
-        workflowStatusService['status'].next(mockStatus1 as SuccessProcessStatus);
+        workflowStatusService['status'].next(mockStatus1 as ProcessStatus);
         fixture.detectChanges();
         expect(component['handleOperatorStatisticsUpdate']).toThrowError();
         expect(component['handleOperatorStatesChange']).toThrowError();

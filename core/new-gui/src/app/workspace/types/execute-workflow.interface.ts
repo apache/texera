@@ -63,16 +63,13 @@ export interface ErrorExecutionResult extends Readonly< {
  */
 export type ExecutionResult = SuccessExecutionResult | ErrorExecutionResult;
 
+
 /**
  * interface for processStatus recieved from the backend via websocket
- *    code: 0 for success and 1 for error
- *    message: special message 'Process Complete' to indicate the last status of a series
  *    operatorStates: a dictionary with operator id as key and operator current state as value
  *    operatorStatistics: a dictionary with operator id as key and operator current statistics as value
  */
-export interface SuccessProcessStatus extends Readonly< {
-  code: 0
-  message: string
+export interface ProcessStatus extends Readonly< {
   operatorStates: Readonly< {
     [key: string]: OperatorStates
   }>
@@ -81,14 +78,7 @@ export interface SuccessProcessStatus extends Readonly< {
   }>
 }> {}
 
- export interface ErrorProcessStatus extends Readonly< {
-  code: 1
-  message: string
-}> {}
-
- export type ProcessStatus = SuccessProcessStatus | ErrorProcessStatus;
-
- export enum OperatorStates {
+export enum OperatorStates {
   Initializing,
   Ready,
   Running,
