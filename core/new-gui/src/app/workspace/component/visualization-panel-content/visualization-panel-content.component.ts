@@ -22,8 +22,8 @@ interface DialogData {
 export class VisualizationPanelContentComponent implements OnInit, AfterViewInit {
   // this readonly variable must be the same as HTML element ID for visualization
   public static readonly CHART_ID = '#texera-result-chart-content';
-  public static readonly WIDTH = 800;
-  public static readonly HEIGHT = 600;
+  public static readonly WIDTH = 1000;
+  public static readonly HEIGHT = 800;
   table: object[];
   columns: string[] = [];
 

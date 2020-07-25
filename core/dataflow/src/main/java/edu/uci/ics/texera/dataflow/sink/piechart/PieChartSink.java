@@ -13,7 +13,6 @@ import edu.uci.ics.texera.api.schema.Attribute;
 import edu.uci.ics.texera.api.schema.AttributeType;
 import edu.uci.ics.texera.api.schema.Schema;
 import edu.uci.ics.texera.api.tuple.Tuple;
-import edu.uci.ics.texera.dataflow.sink.VisualizationConstants;
 import edu.uci.ics.texera.dataflow.sink.VisualizationOperator;
 import java.util.ArrayList;
 import java.util.List;
@@ -30,7 +29,7 @@ public class PieChartSink extends VisualizationOperator {
 
 
     public PieChartSink(PieChartSinkPredicate predicate) {
-        super(predicate.getStyle().getChartStyle());
+        super(predicate.getPieChartEnum().getChartStyle());
         this.predicate = predicate;
 
     }

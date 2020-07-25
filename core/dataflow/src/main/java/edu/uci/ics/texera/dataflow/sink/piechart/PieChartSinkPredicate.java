@@ -9,14 +9,13 @@ import edu.uci.ics.texera.dataflow.common.PropertyNameConstants;
 import edu.uci.ics.texera.dataflow.sink.VisualizationConstants;
 import edu.uci.ics.texera.dataflow.sink.visualization.PieChartEnum;
 
-import javax.json.Json;
 import java.util.Map;
 
 public class PieChartSinkPredicate extends PredicateBase {
     private String nameColumn;
     private String dataColumn;
     private Double ratio;
-    private PieChartEnum style;
+    private PieChartEnum pieChartEnum;
     @JsonCreator
     public PieChartSinkPredicate(
         @JsonProperty(value = PropertyNameConstants.NAME_COLUMN, required = true)
@@ -26,12 +25,12 @@ public class PieChartSinkPredicate extends PredicateBase {
         @JsonProperty(value = PropertyNameConstants.PRUNE_RATIO, required = true, defaultValue = "0.9")
             Double ratio,
         @JsonProperty(value = PropertyNameConstants.CHART_STYLE, required = true, defaultValue = VisualizationConstants.PIE)
-        PieChartEnum style) {
+        PieChartEnum pieChartEnum) {
 
         this.nameColumn = nameColumn;
         this.dataColumn = dataColumn;
         this.ratio = ratio;
-        this.style = style;
+        this.pieChartEnum = pieChartEnum;
 
     }
 
@@ -49,7 +48,7 @@ public class PieChartSinkPredicate extends PredicateBase {
     public Double getPruneRatio() { return this.ratio; }
 
     @JsonProperty(value = PropertyNameConstants.CHART_STYLE)
-    public PieChartEnum getStyle() { return style; }
+    public PieChartEnum getPieChartEnum() { return this.pieChartEnum; }
 
     @Override
     public PieChartSink newOperator() {
