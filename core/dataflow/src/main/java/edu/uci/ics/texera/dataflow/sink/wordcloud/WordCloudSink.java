@@ -20,6 +20,7 @@ import edu.uci.ics.texera.api.tuple.Tuple;
 import edu.uci.ics.texera.dataflow.sink.VisualizationConstants;
 import edu.uci.ics.texera.dataflow.sink.VisualizationOperator;
 import edu.uci.ics.texera.dataflow.utils.DataflowUtils;
+import org.apache.lucene.analysis.core.StopAnalyzer;
 
 /**
  * WordCloudSink is a sink that can be used by the caller to generate data for wordcloud.js in frontend.
@@ -81,7 +82,8 @@ public class WordCloudSink extends VisualizationOperator {
             for (Span span : payloadSpanList) {
                 if (span.getAttributeName().equals(predicate.getAttribute())) {
                     String key = span.getValue().toLowerCase();
-                    wordCountMap.put(key, wordCountMap.get(key)==null ? 1 : wordCountMap.get(key) + 1);
+                    if (!StopAnalyzer.ENGLISH_STOP_WORDS_SET.contains(key))
+                        wordCountMap.put(key, wordCountMap.get(key)==null ? 1 : wordCountMap.get(key) + 1);
                 }
             }
         }

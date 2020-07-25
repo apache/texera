@@ -28,7 +28,7 @@ public class WordCloudSinkTestConstants {
         IField[] fields1 = { new TextField("foo foo"), new IntegerField(2000) };
         IField[] fields2 = { new TextField("foo foo"), new IntegerField(1200) };
         IField[] fields3 = { new TextField("amy amy"), new IntegerField(1000) };
-        IField[] fields4 = { new TextField("bob"), new IntegerField(500) };
+        IField[] fields4 = { new TextField("bob the a in into this"), new IntegerField(500) };
 
 
         Tuple tuple1 = new Tuple(WORD_CLOUD_SCHEMA, fields1);

@@ -3,7 +3,7 @@ import { MAT_DIALOG_DATA } from '@angular/material/dialog';
 import * as c3 from 'c3';
 import { PrimitiveArray } from 'c3';
 import * as WordCloud from 'wordcloud';
-import { WordCloudTuple, DialogData } from '../../types/visualization.interface';
+import { ChartType, WordCloudTuple, DialogData } from '../../types/visualization.interface';
 
 /**
  * VisualizationPanelContentComponent displays the chart based on the chart type and data in table.
@@ -37,11 +37,11 @@ export class VisualizationPanelContentComponent implements OnInit, AfterViewInit
   ngAfterViewInit() {
     switch (this.data.chartType) {
       // correspond to WordCloudSink.java
-      case 'word cloud': this.onClickGenerateWordCloud(); break;
+      case ChartType.WORD_CLOUD: this.onClickGenerateWordCloud(); break;
       // correspond to BarChartSink.java
-      case 'bar': this.onClickGenerateChart(); break;
+      case ChartType.BAR || ChartType.STACKED_BAR: this.onClickGenerateChart(); break;
       // correspond to PieChartSink.java
-      case 'pie': this.onClickGenerateChart(); break;
+      case ChartType.PIE || ChartType.DOUNT: this.onClickGenerateChart(); break;
     }
   }
 

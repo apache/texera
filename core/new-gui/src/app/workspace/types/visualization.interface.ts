@@ -5,7 +5,15 @@
 /**
  * ChartType records all supported chart type in the frontend.
  */
-export type ChartType = 'pie' | 'donut' | 'bar' | 'stacked bar' | 'word cloud'  | 'line' | 'spline';
+export enum ChartType {
+  PIE = 'pie',
+  DOUNT = 'dount',
+  BAR = 'bar',
+  STACKED_BAR =  'stacked bar',
+  WORD_CLOUD = 'word cloud',
+  LINE = 'line',
+  SPLINE = 'spline'
+}
 
 /**
  * WordCloudTuple defines the data format for word cloud visualization.
