@@ -3,6 +3,7 @@ import {
   TexeraWebsocketRequest, TexeraWebsocketEvent, TexeraWebsocketRequestTypeMap, TexeraWebsocketRequestTypes
 } from '../../types/workflow-ws.interface';
 import { webSocket, WebSocketSubject } from 'rxjs/webSocket';
+import { Observable } from 'rxjs';
 
 @Injectable({
   providedIn: 'root'
@@ -23,6 +24,10 @@ export class WorkflowWebsocketService {
       }
     });
     this.send('HelloWorldRequest', {message: 'Texera on Amber'});
+  }
+
+  public websocketEvent(): Observable<TexeraWebsocketEvent> {
+    return this.websocket.asObservable() as Observable<TexeraWebsocketEvent>;
   }
 
   public send<T extends TexeraWebsocketRequestTypes>(type: T, payload: TexeraWebsocketRequestTypeMap[T]): void {

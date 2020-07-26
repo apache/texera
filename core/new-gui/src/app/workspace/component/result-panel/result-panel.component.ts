@@ -26,14 +26,6 @@ import { WorkflowActionService } from '../../service/workflow-graph/model/workfl
  * @author Henry Chen
  * @author Zuozhi Wang
  */
-<<<<<<< Updated upstream
-
-=======
-interface Result {
-  table: ReadonlyArray<object>;
-  chartType: string | undefined;
-}
->>>>>>> Stashed changes
 @Component({
   selector: 'texera-result-panel',
   templateUrl: './result-panel.component.html',
@@ -43,14 +35,8 @@ export class ResultPanelComponent {
 
   private static readonly PRETTY_JSON_TEXT_LIMIT: number = 50000;
   private static readonly TABLE_COLUMN_TEXT_LIMIT: number = 1000;
-<<<<<<< Updated upstream
 
   //  show table when chartType is undefined, instead show visualization button
-=======
-  public result: ReadonlyArray<ResultObject> | undefined;
-  public resultMap: Map<string, Result> = new Map<string, Result>();
-  public selectedOperatorID: string = '';
->>>>>>> Stashed changes
   public chartType: string | undefined;
   // record which operator is selected
   public showMessage: boolean = false;
@@ -70,10 +56,6 @@ export class ResultPanelComponent {
   constructor(private executeWorkflowService: ExecuteWorkflowService, private modalService: NgbModal,
     private resultPanelToggleService: ResultPanelToggleService,
     private workflowActionService: WorkflowActionService) {
-<<<<<<< Updated upstream
-=======
-
->>>>>>> Stashed changes
     this.workflowActionService.getJointGraphWrapper().getJointCellHighlightStream()
       .subscribe(() => this.handleHighLightOperator());
     this.workflowActionService.getJointGraphWrapper().getJointCellUnhighlightStream()
@@ -89,29 +71,6 @@ export class ResultPanelComponent {
       value => this.showResultPanel = value,
     );
   }
-<<<<<<< Updated upstream
-=======
-  handleHighLightOperator(): void {
-    const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
-
-    if (highlightedOperators.length === 1) {
-      this.selectedOperatorID = highlightedOperators[0];
-      if (this.resultMap.has(this.selectedOperatorID)) {
-
-        const result: Result | undefined = this.resultMap.get(this.selectedOperatorID);
-        this.displayResultTable(result!.table);
-        if (typeof result?.chartType === 'undefined') {
-          this.showTable = true;
-
-        } else {
-          this.chartType = result?.chartType;
-          this.showTable = false;
-        }
-      }
-    }
-    console.log(this.showTable);
-  }
->>>>>>> Stashed changes
   /**
    * Opens the ng-bootstrap model to display the row details in
    *  pretty json format when clicked. User can view the details
@@ -156,7 +115,6 @@ export class ResultPanelComponent {
     modalComponentInstance.currentPageSize = this.currentPageSize;
   }
 
-<<<<<<< Updated upstream
   /**
    * Handler for high lighted operator.
    * When use click on an operator, check whether it is a sink operator and display result.
@@ -179,14 +137,6 @@ export class ResultPanelComponent {
     } else {
       this.showResultPanel = false;
     }
-=======
-  public getResult(): Object[] {
-    return this.currentResult;
-  }
-
-  public getColumn(): TableColumn[] | undefined {
-    return this.currentColumns;
->>>>>>> Stashed changes
   }
 
   /**
@@ -236,7 +186,6 @@ export class ResultPanelComponent {
       this.displayErrorMessage(`execution doesn't have any results`);
       return;
     }
-<<<<<<< Updated upstream
 
     const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
 
@@ -254,16 +203,6 @@ export class ResultPanelComponent {
             }
           }
 
-=======
-    this.result = response.result;
-
-    for (const item of this.result) {
-      const result: Result = {
-        table: item.table,
-        chartType: item.chartType
-      };
-      this.resultMap.set(item.operator, result);
->>>>>>> Stashed changes
     }
 
   }

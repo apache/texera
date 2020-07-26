@@ -54,7 +54,21 @@ export class ExecuteWorkflowService {
 
   constructor(private workflowActionService: WorkflowActionService,
     private workflowWebsocketService: WorkflowWebsocketService,
-    private http: HttpClient) { }
+    private http: HttpClient) {
+      if (environment.amberEngineEnabled) {
+        workflowWebsocketService.websocketEvent().subscribe(event => {
+          console.log(event);
+          if (event.type === 'WorkflowCompletedEvent') {
+            this.executeEndedStream.next({
+              code: 0,
+              result: event.result,
+              resultID: '0'
+            });
+          }
+        });
+      }
+
+    }
 
     /**
    * Return map which contains all sink operators execution result
@@ -62,8 +76,6 @@ export class ExecuteWorkflowService {
   public getResultMap(): Map<string, ResultObject> {
     return this.resultMap;
   }
-
-
 
   public executeWorkflow(): void {
     if (environment.amberEngineEnabled) {
