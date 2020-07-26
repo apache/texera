@@ -52,18 +52,25 @@ export class ExecuteWorkflowService {
 
   private executionPauseResumeStream = new Subject <number> ();
 
-  constructor(private workflowActionService: WorkflowActionService,
+  constructor(
+    private workflowActionService: WorkflowActionService,
     private workflowWebsocketService: WorkflowWebsocketService,
-    private http: HttpClient) {
+    private http: HttpClient
+    ) {
+      this.executeEndedStream.subscribe(event => {
+        if (event.code === 0) {
+          this.updateResultMap(event);
+        }
+      });
       if (environment.amberEngineEnabled) {
         workflowWebsocketService.websocketEvent().subscribe(event => {
-          console.log(event);
           if (event.type === 'WorkflowCompletedEvent') {
-            this.executeEndedStream.next({
+            const successResult: ExecutionResult = {
               code: 0,
               result: event.result,
               resultID: '0'
-            });
+            };
+            this.executeEndedStream.next(successResult);
           }
         });
       }
@@ -130,12 +137,12 @@ export class ExecuteWorkflowService {
         // backend will either respond an execution result or an error will occur
         // handle both cases
         response => {
-          this.updateResultMap(response);
-          this.handleExecuteResult(response);
+          this.executeEndedStream.next(response);
           this.workflowExecutionID = undefined;
         },
         errorResponse => {
-          this.handleExecuteError(errorResponse);
+          const displayedErrorMessage = ExecuteWorkflowService.processErrorResponse(errorResponse);
+          this.executeEndedStream.next(displayedErrorMessage);
           this.workflowExecutionID = undefined;
         }
       );
@@ -257,40 +264,9 @@ export class ExecuteWorkflowService {
    */
   private updateResultMap(response: SuccessExecutionResult): void {
     this.resultMap.clear();
-    try {
-      for (const item of response.result) {
-        this.resultMap.set(item.operatorID, item);
-      }
-    } catch (error) {
-      this.resultMap.clear();
-      return ;
+    for (const item of response.result) {
+      this.resultMap.set(item.operatorID, item);
     }
-  }
-
-  /**
-   * Handles valid execution result from the backend.
-   * Sends the execution result to the execution end event stream.
-   *
-   * @param response
-   */
-  private handleExecuteResult(response: SuccessExecutionResult): void {
-    this.executeEndedStream.next(response);
-  }
-
-  /**
-   * Handler function for invalid execution.
-   *
-   * Send the error messages generated from
-   *  backend (if workflow is invalid or server error)
-   *  or frontend (if there's no network connection)
-   *  to the execution end event stream.
-   *
-   * @param errorResponse
-   */
-  private handleExecuteError(errorResponse: HttpErrorResponse): void {
-    // error shown to the user in different error scenarios
-    const displayedErrorMessage = ExecuteWorkflowService.processErrorResponse(errorResponse);
-    this.executeEndedStream.next(displayedErrorMessage);
   }
 
   /**
