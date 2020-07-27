@@ -92,19 +92,17 @@ public class NltkSentimentOperator implements IOperator {
         }
 
         // Flight related
-        int portNumber = getFreeLocalPort();
-        Location location = new Location(URI.create("grpc+tcp://localhost:" + portNumber));
-        List<String> args = new ArrayList<>(Arrays.asList(PYTHON, PYTHONSCRIPT, Integer.toString(portNumber), PicklePath));
-
-        ProcessBuilder processBuilder = new ProcessBuilder(args).inheritIO();
         try {
+            int portNumber = getFreeLocalPort();
+            Location location = new Location(URI.create("grpc+tcp://localhost:" + portNumber));
+            List<String> args = new ArrayList<>(Arrays.asList(PYTHON, PYTHONSCRIPT, Integer.toString(portNumber), PicklePath));
+            ProcessBuilder processBuilder = new ProcessBuilder(args).inheritIO();
             // Start Flight server (Python process)
-            Process process = processBuilder.start();
-            // wait for it to be alive.
-            while (!process.isAlive()) ;
+            processBuilder.start();
             // Connect to server
             boolean connected = false;
-            while (!connected) {
+            int tryCount = 0;
+            while (!connected && tryCount < 5) {
                 try {
                     flightClient = FlightClient.builder(rootAllocator, location).build();
                     String message = new String(
@@ -113,8 +111,10 @@ public class NltkSentimentOperator implements IOperator {
                 } catch (Exception e) {
                     System.out.println("Flight Client:\tNot connected to the server in this try.");
                     flightClient.close();
+                    tryCount++;
                 }
             }
+            if (tryCount == 5) throw new DataflowException("Exceeded try limit of 5 when connecting to Flight Server!");
         } catch (Exception e) {
             throw new DataflowException(e.getMessage(), e);
         }
@@ -314,7 +314,7 @@ public class NltkSentimentOperator implements IOperator {
 //        System.out.println(" Done.");
     }
 
-    private int getFreeLocalPort() {
+    private int getFreeLocalPort() throws IOException {
         ServerSocket s = null;
         try {
             // ServerSocket(0) results in availability of a free random port
@@ -324,11 +324,7 @@ public class NltkSentimentOperator implements IOperator {
             throw new RuntimeException(e);
         } finally {
             assert s != null;
-            try {
-                s.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            s.close();
         }
     }
 }
