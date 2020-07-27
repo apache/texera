@@ -2,7 +2,7 @@ import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 import * as c3 from 'c3';
 import { VisualizationPanelContentComponent } from './visualization-panel-content.component';
 import { MatDialogModule,  MAT_DIALOG_DATA } from '@angular/material/dialog';
-
+import { ChartType, WordCloudTuple, DialogData } from '../../types/visualization.interface';
 describe('VisualizationPanelContentComponent', () => {
   let component: VisualizationPanelContentComponent;
   let fixture: ComponentFixture<VisualizationPanelContentComponent>;
@@ -38,7 +38,7 @@ describe('VisualizationPanelContentComponent', () => {
   it('should draw the wordcloud', () => {
      const testComponent = new VisualizationPanelContentComponent(
           { table: [['word', 'count'], ['foo', 120], ['bar', 100]],
-            chartType: 'word cloud'});
+            chartType: ChartType.WORD_CLOUD });
     spyOn(testComponent, 'onClickGenerateWordCloud');
     testComponent.ngAfterViewInit();
     expect(testComponent.onClickGenerateWordCloud).toHaveBeenCalled();
