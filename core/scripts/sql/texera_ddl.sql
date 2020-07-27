@@ -43,7 +43,6 @@ CREATE TABLE IF NOT EXISTS `UserDict` (
 CREATE TABLE IF NOT EXISTS `UserWorkflow` (
     -- uncomment below to give workflows the concept of ownership
     -- `userID` INT UNSIGNED NOT NULL,
-    -- 65535 is the max mysql VARCHAR size
     `name` VARCHAR(128) NOT NULL,
     `workflowID` VARCHAR (128) NOT NULL,
     `workflowBODY` TEXT NOT NULL,
