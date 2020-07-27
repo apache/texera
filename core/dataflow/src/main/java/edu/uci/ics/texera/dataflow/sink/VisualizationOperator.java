@@ -1,6 +1,9 @@
 package edu.uci.ics.texera.dataflow.sink;
 
 import edu.uci.ics.texera.api.dataflow.IOperator;
+import edu.uci.ics.texera.api.field.DoubleField;
+import edu.uci.ics.texera.api.field.IField;
+import edu.uci.ics.texera.api.field.IntegerField;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -70,6 +73,18 @@ public abstract class VisualizationOperator implements ITupleSink {
 
     public String getChartType() {
         return type;
+    }
+
+    public static double extractNumber(IField field) {
+        if (field instanceof DoubleField) {
+            DoubleField doubleField = (DoubleField)field;
+            return doubleField.getValue();
+        }
+        else if (field instanceof IntegerField) {
+            IntegerField integerField = (IntegerField)field;
+            return integerField.getValue().doubleValue();
+        }
+        throw new TexeraException("Invalid field type for extracting a number.");
     }
 
 }
