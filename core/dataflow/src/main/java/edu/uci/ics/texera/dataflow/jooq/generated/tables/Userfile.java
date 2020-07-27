@@ -34,10 +34,10 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Userfile extends TableImpl<UserfileRecord> {
 
-    private static final long serialVersionUID = 127375140;
+    private static final long serialVersionUID = 1666268644;
 
     /**
-     * The reference instance of <code>texera.userfile</code>
+     * The reference instance of <code>texera.UserFile</code>
      */
     public static final Userfile USERFILE = new Userfile();
 
@@ -50,51 +50,51 @@ public class Userfile extends TableImpl<UserfileRecord> {
     }
 
     /**
-     * The column <code>texera.userfile.userID</code>.
+     * The column <code>texera.UserFile.userID</code>.
      */
     public final TableField<UserfileRecord, UInteger> USERID = createField(DSL.name("userID"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
 
     /**
-     * The column <code>texera.userfile.fileID</code>.
+     * The column <code>texera.UserFile.fileID</code>.
      */
     public final TableField<UserfileRecord, UInteger> FILEID = createField(DSL.name("fileID"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false).identity(true), this, "");
 
     /**
-     * The column <code>texera.userfile.size</code>.
+     * The column <code>texera.UserFile.size</code>.
      */
     public final TableField<UserfileRecord, UInteger> SIZE = createField(DSL.name("size"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
 
     /**
-     * The column <code>texera.userfile.name</code>.
+     * The column <code>texera.UserFile.name</code>.
      */
     public final TableField<UserfileRecord, String> NAME = createField(DSL.name("name"), org.jooq.impl.SQLDataType.VARCHAR(128).nullable(false), this, "");
 
     /**
-     * The column <code>texera.userfile.path</code>.
+     * The column <code>texera.UserFile.path</code>.
      */
     public final TableField<UserfileRecord, String> PATH = createField(DSL.name("path"), org.jooq.impl.SQLDataType.VARCHAR(512).nullable(false), this, "");
 
     /**
-     * The column <code>texera.userfile.description</code>.
+     * The column <code>texera.UserFile.description</code>.
      */
     public final TableField<UserfileRecord, String> DESCRIPTION = createField(DSL.name("description"), org.jooq.impl.SQLDataType.VARCHAR(512).nullable(false), this, "");
 
     /**
-     * Create a <code>texera.userfile</code> table reference
+     * Create a <code>texera.UserFile</code> table reference
      */
     public Userfile() {
-        this(DSL.name("userfile"), null);
+        this(DSL.name("UserFile"), null);
     }
 
     /**
-     * Create an aliased <code>texera.userfile</code> table reference
+     * Create an aliased <code>texera.UserFile</code> table reference
      */
     public Userfile(String alias) {
         this(DSL.name(alias), USERFILE);
     }
 
     /**
-     * Create an aliased <code>texera.userfile</code> table reference
+     * Create an aliased <code>texera.UserFile</code> table reference
      */
     public Userfile(Name alias) {
         this(alias, USERFILE);

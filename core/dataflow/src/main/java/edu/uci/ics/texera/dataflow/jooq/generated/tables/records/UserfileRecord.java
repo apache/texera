@@ -20,87 +20,87 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class UserfileRecord extends UpdatableRecordImpl<UserfileRecord> implements Record6<UInteger, UInteger, UInteger, String, String, String> {
 
-    private static final long serialVersionUID = -1236330310;
+    private static final long serialVersionUID = 1623095482;
 
     /**
-     * Setter for <code>texera.userfile.userID</code>.
+     * Setter for <code>texera.UserFile.userID</code>.
      */
     public void setUserid(UInteger value) {
         set(0, value);
     }
 
     /**
-     * Getter for <code>texera.userfile.userID</code>.
+     * Getter for <code>texera.UserFile.userID</code>.
      */
     public UInteger getUserid() {
         return (UInteger) get(0);
     }
 
     /**
-     * Setter for <code>texera.userfile.fileID</code>.
+     * Setter for <code>texera.UserFile.fileID</code>.
      */
     public void setFileid(UInteger value) {
         set(1, value);
     }
 
     /**
-     * Getter for <code>texera.userfile.fileID</code>.
+     * Getter for <code>texera.UserFile.fileID</code>.
      */
     public UInteger getFileid() {
         return (UInteger) get(1);
     }
 
     /**
-     * Setter for <code>texera.userfile.size</code>.
+     * Setter for <code>texera.UserFile.size</code>.
      */
     public void setSize(UInteger value) {
         set(2, value);
     }
 
     /**
-     * Getter for <code>texera.userfile.size</code>.
+     * Getter for <code>texera.UserFile.size</code>.
      */
     public UInteger getSize() {
         return (UInteger) get(2);
     }
 
     /**
-     * Setter for <code>texera.userfile.name</code>.
+     * Setter for <code>texera.UserFile.name</code>.
      */
     public void setName(String value) {
         set(3, value);
     }
 
     /**
-     * Getter for <code>texera.userfile.name</code>.
+     * Getter for <code>texera.UserFile.name</code>.
      */
     public String getName() {
         return (String) get(3);
     }
 
     /**
-     * Setter for <code>texera.userfile.path</code>.
+     * Setter for <code>texera.UserFile.path</code>.
      */
     public void setPath(String value) {
         set(4, value);
     }
 
     /**
-     * Getter for <code>texera.userfile.path</code>.
+     * Getter for <code>texera.UserFile.path</code>.
      */
     public String getPath() {
         return (String) get(4);
     }
 
     /**
-     * Setter for <code>texera.userfile.description</code>.
+     * Setter for <code>texera.UserFile.description</code>.
      */
     public void setDescription(String value) {
         set(5, value);
     }
 
     /**
-     * Getter for <code>texera.userfile.description</code>.
+     * Getter for <code>texera.UserFile.description</code>.
      */
     public String getDescription() {
         return (String) get(5);

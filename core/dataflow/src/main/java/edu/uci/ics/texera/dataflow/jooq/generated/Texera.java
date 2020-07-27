@@ -7,6 +7,7 @@ package edu.uci.ics.texera.dataflow.jooq.generated;
 import edu.uci.ics.texera.dataflow.jooq.generated.tables.Useraccount;
 import edu.uci.ics.texera.dataflow.jooq.generated.tables.Userdict;
 import edu.uci.ics.texera.dataflow.jooq.generated.tables.Userfile;
+import edu.uci.ics.texera.dataflow.jooq.generated.tables.Userworkflow;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -23,7 +24,7 @@ import org.jooq.impl.SchemaImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Texera extends SchemaImpl {
 
-    private static final long serialVersionUID = -398729029;
+    private static final long serialVersionUID = 94238243;
 
     /**
      * The reference instance of <code>texera</code>
@@ -31,19 +32,24 @@ public class Texera extends SchemaImpl {
     public static final Texera TEXERA = new Texera();
 
     /**
-     * The table <code>texera.useraccount</code>.
+     * The table <code>texera.UserAccount</code>.
      */
     public final Useraccount USERACCOUNT = edu.uci.ics.texera.dataflow.jooq.generated.tables.Useraccount.USERACCOUNT;
 
     /**
-     * The table <code>texera.userdict</code>.
+     * The table <code>texera.UserDict</code>.
      */
     public final Userdict USERDICT = edu.uci.ics.texera.dataflow.jooq.generated.tables.Userdict.USERDICT;
 
     /**
-     * The table <code>texera.userfile</code>.
+     * The table <code>texera.UserFile</code>.
      */
     public final Userfile USERFILE = edu.uci.ics.texera.dataflow.jooq.generated.tables.Userfile.USERFILE;
+
+    /**
+     * The table <code>texera.UserWorkflow</code>.
+     */
+    public final Userworkflow USERWORKFLOW = edu.uci.ics.texera.dataflow.jooq.generated.tables.Userworkflow.USERWORKFLOW;
 
     /**
      * No further instances allowed
@@ -69,6 +75,7 @@ public class Texera extends SchemaImpl {
         return Arrays.<Table<?>>asList(
             Useraccount.USERACCOUNT,
             Userdict.USERDICT,
-            Userfile.USERFILE);
+            Userfile.USERFILE,
+            Userworkflow.USERWORKFLOW);
     }
 }
