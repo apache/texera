@@ -11,6 +11,7 @@ import '../../../common/rxjs-operators';
 import { cloneDeep, isEqual} from 'lodash';
 
 import { JSONSchema7 } from 'json-schema';
+import * as Ajv from 'ajv';
 
 import { FormGroup } from '@angular/forms';
 import { FormlyFormOptions, FormlyFieldConfig } from '@ngx-formly/core';
@@ -70,6 +71,9 @@ export class PropertyEditorComponent {
   public formData: any;
   public formlyOptions: FormlyFormOptions | undefined;
   public formlyFields: FormlyFieldConfig[] | undefined;
+
+  // used to fill in default values in json schema to initialize new operator
+  private ajv = new Ajv({ useDefaults: true });
 
   constructor(
     private formlyJsonschema: FormlyJsonschema,
@@ -147,6 +151,18 @@ export class PropertyEditorComponent {
      *      which prevents the
      */
     this.formData = cloneDeep(operator.operatorProperties);
+
+    // use ajv to initialize the default value to data according to schema, see https://ajv.js.org/#assigning-defaults
+    // WorkflowUtil service also makes sure that the default values are filled in when operator is added from the UI
+    // However, we perform an addition check for the following reasons:
+    // 1. the operator might be added not directly from the UI, which violates the precondition
+    // 2. the schema might change, which specifies a new default value
+    // 3. formly doesn't emit change event when it fills in default value, causing an inconsistency between component and service
+
+    this.ajv.validate(this.currentOperatorSchema, this.formData);
+
+    // manually trigger a form change event because default value might be filled in
+    this.onFormChanges(this.formData);
 
     // set displayForm to true in the end - first initialize all the data then show the view
     this.displayForm = true;
