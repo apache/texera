@@ -8,6 +8,7 @@ import pyarrow.flight
 
 portNumber = sys.argv[1]
 pickleFullPathFileName = sys.argv[2]
+resultAttributeName = sys.argv[3]
 
 
 class FlightServer(pyarrow.flight.FlightServerBase):
@@ -105,20 +106,21 @@ class FlightServer(pyarrow.flight.FlightServerBase):
 			sentiment_model = pickle.load(pickle_file)
 			# print("Done.")
 			# print("Flight Server:\t\tConverting Arrow data to pandas.Dataframe...", end =" ")
-			input_dataframe = pandas.DataFrame(self.flights[key].to_pandas())
+			input_dataframe = pandas.DataFrame(self.flights[key].column('text').to_pandas())
 			# print("Done.")
 			# print("Flight Server:\t\tExecuting computation...", end=" ")
 			predictions = []
 			for index, row in input_dataframe.iterrows():
 				p = 1 if sentiment_model.classify(row['text']) == "pos" else -1
 				predictions.append(p)
-			output_data = {'pred': predictions}
-			output_dataframe = pandas.DataFrame(data=output_data)
 			pickle_file.close()
 			# print("Done.")
 			# print("Flight Server:\t\tConverting back to Arrow data...", end =" ")
 			output_descriptor = pyarrow.flight.FlightDescriptor.for_path(b'FromPython')
-			self.flights[FlightServer.descriptor_to_key(output_descriptor)] = pyarrow.Table.from_pandas(output_dataframe)
+			output_data = self.flights[key]
+			predictions = pyarrow.array(predictions)
+			output_data = output_data.append_column(resultAttributeName, predictions)
+			self.flights[FlightServer.descriptor_to_key(output_descriptor)] = output_data
 			# print("Done.")
 			# print("Flight Server:\tDone.")
 			self.flights.pop(key)

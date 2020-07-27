@@ -4,24 +4,38 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.nio.charset.StandardCharsets;
 import java.net.URI;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.*;
+
+import com.google.common.collect.ImmutableList;
 import edu.uci.ics.texera.api.constants.ErrorMessages;
 import edu.uci.ics.texera.api.constants.DataConstants.TexeraProject;
 import edu.uci.ics.texera.api.dataflow.IOperator;
 import edu.uci.ics.texera.api.exception.DataflowException;
 import edu.uci.ics.texera.api.exception.TexeraException;
-import edu.uci.ics.texera.api.field.IField;
-import edu.uci.ics.texera.api.field.IntegerField;
+import edu.uci.ics.texera.api.field.*;
+import edu.uci.ics.texera.api.schema.Attribute;
 import edu.uci.ics.texera.api.schema.AttributeType;
 import edu.uci.ics.texera.api.schema.Schema;
+import edu.uci.ics.texera.api.span.Span;
 import edu.uci.ics.texera.api.tuple.Tuple;
 import edu.uci.ics.texera.api.utils.Utils;
 import org.apache.arrow.flight.*;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.*;
+import org.apache.arrow.vector.complex.ListVector;
+import org.apache.arrow.vector.complex.StructVector;
+import org.apache.arrow.vector.types.DateUnit;
+import org.apache.arrow.vector.types.FloatingPointPrecision;
+import org.apache.arrow.vector.types.TimeUnit;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
+import org.apache.arrow.vector.util.JsonStringHashMap;
+
+import static edu.uci.ics.texera.api.schema.AttributeType.*;
 
 public class NltkSentimentOperator implements IOperator {
     private final NltkSentimentPredicate predicate;
@@ -29,7 +43,7 @@ public class NltkSentimentOperator implements IOperator {
     private Schema outputSchema;
 
     private List<Tuple> tupleBuffer;
-    Queue<Integer> resultQueue;
+    Queue<Tuple> resultQueue;
 
     private int cursor = CLOSED;
 
@@ -41,12 +55,13 @@ public class NltkSentimentOperator implements IOperator {
 
     // For now it is fixed, but in the future should deal with arbitrary tuple and schema.
     // Related to Apache Arrow.
-    private final static org.apache.arrow.vector.types.pojo.Schema tupleToPythonSchema =
-            new org.apache.arrow.vector.types.pojo.Schema(Collections.singletonList(
-                    new Field("text", FieldType.nullable(new ArrowType.Utf8()), null)));
+    private org.apache.arrow.vector.types.pojo.Schema tupleToPythonSchema;
 
     private final static RootAllocator rootAllocator = new RootAllocator();
     private FlightClient flightClient = null;
+
+    // This is temporary, used to vectorize LIST type data.
+    private Map<String, Integer> innerIndexMap;
 
     public NltkSentimentOperator(NltkSentimentPredicate predicate){
         this.predicate = predicate;
@@ -95,7 +110,8 @@ public class NltkSentimentOperator implements IOperator {
         try {
             int portNumber = getFreeLocalPort();
             Location location = new Location(URI.create("grpc+tcp://localhost:" + portNumber));
-            List<String> args = new ArrayList<>(Arrays.asList(PYTHON, PYTHONSCRIPT, Integer.toString(portNumber), PicklePath));
+            List<String> args = new ArrayList<>(Arrays.asList(PYTHON, PYTHONSCRIPT,
+                Integer.toString(portNumber), PicklePath, predicate.getResultAttributeName()));
             ProcessBuilder processBuilder = new ProcessBuilder(args).inheritIO();
             // Start Flight server (Python process)
             processBuilder.start();
@@ -126,6 +142,9 @@ public class NltkSentimentOperator implements IOperator {
         outputSchema = transformToOutputSchema(inputSchema);
 
         cursor = OPENED;
+
+        tupleToPythonSchema = convertToArrowSchema(inputSchema);
+        innerIndexMap = new HashMap<>();
     }
 
     /**
@@ -182,18 +201,11 @@ public class NltkSentimentOperator implements IOperator {
     }
 
     private Tuple popupOneTuple() {
-        Tuple outputTuple = tupleBuffer.get(0);
         tupleBuffer.remove(0);
         if (tupleBuffer.isEmpty()) {
             tupleBuffer = null;
         }
-
-        List<IField> outputFields = new ArrayList<>();
-        outputFields.addAll(outputTuple.getFields());
-
-        Integer className = resultQueue.remove();
-        outputFields.add(new IntegerField( className ));
-        return new Tuple(outputSchema, outputFields);
+        return resultQueue.remove();
     }
 
     /**
@@ -252,9 +264,57 @@ public class NltkSentimentOperator implements IOperator {
     }
 
     private void vectorizeTupleToPython(Tuple tuple, int index, VectorSchemaRoot schemaRoot) {
-        ((VarCharVector) schemaRoot.getVector("text")).setSafe(
-                index, tuple.getField(predicate.getInputAttributeName()).getValue().toString().getBytes(StandardCharsets.UTF_8)
-        );
+        for (Attribute a : tuple.getSchema().getAttributes()) {
+            String name = a.getName();
+            // When it is null, skip it.
+            if (tuple.getField(name).getValue() == null) continue;
+            switch (a.getType()) {
+                case INTEGER:
+                    ((IntVector) schemaRoot.getVector(name)).setSafe(index, (int) tuple.getField(name).getValue());
+                    break;
+                case DOUBLE:
+                    ((Float8Vector) schemaRoot.getVector(name)).setSafe(index, (double) tuple.getField(name).getValue());
+                    break;
+                case BOOLEAN:
+//                    ((BitVector) schemaRoot.getVector(name)).setSafe(index, ((Integer) tuple.getField(name).getValue()));
+//                    break;
+                case TEXT:
+                case STRING:
+                case _ID_TYPE:
+                    ((VarCharVector) schemaRoot.getVector(name)).setSafe(
+                            index, tuple.getField(name).getValue().toString().getBytes(StandardCharsets.UTF_8));
+                    break;
+                case DATE:
+                    ((DateDayVector) schemaRoot.getVector(name)).setSafe(index,
+                            (int)((LocalDate) tuple.getField(name).getValue()).toEpochDay());
+                    break;
+                case DATETIME:
+                    StructVector dateTimeStructs = ((StructVector) schemaRoot.getVector(name));
+                    if (tuple.getField(name).getValue() != null) {
+                        dateTimeStructs.setIndexDefined(index);
+                        DateDayVector subVectorDay = (DateDayVector) dateTimeStructs.getVectorById(0);
+                        TimeSecVector subVectorTime = (TimeSecVector) dateTimeStructs.getVectorById(1);
+                        LocalDateTime value = (LocalDateTime) tuple.getField(name).getValue();
+                        subVectorDay.setSafe(index, (int) value.toLocalDate().toEpochDay());
+                        subVectorTime.setSafe(index, value.toLocalTime().toSecondOfDay());
+                    }
+                    else dateTimeStructs.setNull(index);
+                    break;
+                case LIST:
+                    // For now only supporting span.
+                    if (((ImmutableList) tuple.getField(name).getValue()).get(0).getClass() != Span.class) {
+                        throw (new DataflowException("Unsupported Element Type for List Field!"));
+                    }
+                    else {
+                        ListVector listVector = (ListVector) schemaRoot.getVector(name);
+                        ImmutableList<Span> spansList = (ImmutableList<Span>) tuple.getField(name).getValue();
+                        convertListOfSpans(spansList, listVector, index, name);
+                    }
+
+                    break;
+                default: break;
+            }
+        }
     }
 
     /**
@@ -304,12 +364,7 @@ public class NltkSentimentOperator implements IOperator {
         FlightStream stream = flightClient.getStream(ticket);
         while (stream.next()) {
             VectorSchemaRoot root  = stream.getRoot(); // get root
-            List<FieldVector> fieldVector = root.getFieldVectors();
-            BigIntVector predVector = ((BigIntVector) fieldVector.get(0));
-            for (int j = 0; j < predVector.getValueCount(); j++) {
-                Integer label = (int) predVector.get(j);
-                resultQueue.add(label);
-            }
+            convertArrowVectorsToResults(root);
         }
 //        System.out.println(" Done.");
     }
@@ -326,6 +381,215 @@ public class NltkSentimentOperator implements IOperator {
             assert s != null;
             s.close();
         }
+    }
+
+    private org.apache.arrow.vector.types.pojo.Schema convertToArrowSchema(Schema texeraSchema) {
+        List<Field> arrowFields = new ArrayList<>();
+        for (Attribute a : texeraSchema.getAttributes()) {
+            String name = a.getName();
+            Field field = null;
+            switch (a.getType()) {
+                case INTEGER:
+                    field = Field.nullablePrimitive(name, new ArrowType.Int(32, true));
+                    break;
+                case DOUBLE:
+                    field = Field.nullablePrimitive(name, new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE));
+                    break;
+                case BOOLEAN:
+//                    field = Field.nullablePrimitive(name, new ArrowType.Bool());
+//                    break;
+                case TEXT:
+                case STRING:
+                case _ID_TYPE:
+                    field = Field.nullablePrimitive(name, ArrowType.Utf8.INSTANCE);
+                    break;
+                case DATE:
+                    field = Field.nullablePrimitive(name, new ArrowType.Date(DateUnit.DAY));
+                    break;
+                case DATETIME:
+                    field = new Field(
+                            name,
+                            FieldType.nullable(ArrowType.Struct.INSTANCE),
+                            Arrays.asList(
+                                    Field.nullablePrimitive("date", new ArrowType.Date(DateUnit.DAY)),
+                                    Field.nullablePrimitive("time", new ArrowType.Time(TimeUnit.SECOND, 32))
+                            )
+                    );
+                    break;
+                case LIST:
+                    List<Field> children = Arrays.asList(
+                            Field.nullablePrimitive("attributeName", ArrowType.Utf8.INSTANCE),
+                            Field.nullablePrimitive("start", new ArrowType.Int(32, true)),
+                            Field.nullablePrimitive("end", new ArrowType.Int(32, true)),
+                            Field.nullablePrimitive("key", ArrowType.Utf8.INSTANCE),
+                            Field.nullablePrimitive("value", ArrowType.Utf8.INSTANCE),
+                            Field.nullablePrimitive("tokenOffset", new ArrowType.Int(32, true))
+                    );
+                    field = new Field(
+                            name,
+                            FieldType.nullable(new ArrowType.List()),
+                            Collections.singletonList(
+                                    new Field("Span", FieldType.nullable(ArrowType.Struct.INSTANCE), children))
+                    );
+                    break;
+                default: break;
+            }
+            arrowFields.add(field);
+        }
+        return new org.apache.arrow.vector.types.pojo.Schema(arrowFields);
+    }
+
+    private void convertArrowVectorsToResults(VectorSchemaRoot schemaRoot) {
+        List<FieldVector> fieldVectors = schemaRoot.getFieldVectors();
+        Schema texeraSchema = convertToTexeraSchema(schemaRoot.getSchema());
+        for (int i = 0; i < schemaRoot.getRowCount(); i++) {
+            Tuple tuple;
+            List<IField> texeraFields = new ArrayList<>();
+
+            for (FieldVector vector : fieldVectors) {
+                IField texeraField = null;
+                switch (vector.getField().getFieldType().getType().getTypeID()) {
+                    case Int:
+                        // It's either IntVector or BigIntVector, but can't know because it depends on Pandas conversion.
+                        try {
+                            texeraField = new IntegerField(((IntVector) vector).get(i));
+                        } catch (ClassCastException e) {
+                            texeraField = new IntegerField((int)((BigIntVector) vector).get(i));
+                        }
+                        break;
+                    case FloatingPoint:
+                        texeraField = new DoubleField((((Float8Vector) vector).get(i)));
+                        break;
+//                    case Bool:
+//                        // FIXME: No BooleanField Class available.
+//                        texeraField = new IntegerField(((IntVector) vector).get(i));
+//                        break;
+                    case Utf8:
+                        texeraField = new TextField(new String(((VarCharVector) vector).get(i), StandardCharsets.UTF_8));
+                        break;
+                    case Date:
+                        texeraField = new DateField(new Date(((DateDayVector) vector).get(i)));
+                        break;
+                    case Struct:
+                        // For now, struct is only for DateTime
+                        DateDayVector subVectorDay = (DateDayVector) ((StructVector) vector).getChildByOrdinal(0);
+                        TimeSecVector subVectorTime = (TimeSecVector) ((StructVector) vector).getChildByOrdinal(1);
+                        texeraField = new DateTimeField(
+                                LocalDateTime.of(
+                                        LocalDate.ofEpochDay(subVectorDay.get(i)),
+                                        LocalTime.ofSecondOfDay(subVectorTime.get(i))
+                                )
+                        );
+                        break;
+                    case List:
+                        texeraField = getSpanFromListVector((ListVector) vector, i);
+                        break;
+                    default:
+                        throw (new DataflowException("Unsupported data type "+
+                                vector.getField().toString() +
+                                " when converting back to Texera table."));
+                }
+                texeraFields.add(texeraField);
+            }
+            tuple = new Tuple(texeraSchema, texeraFields);
+            resultQueue.add(tuple);
+        }
+    }
+
+    private Schema convertToTexeraSchema(org.apache.arrow.vector.types.pojo.Schema arrowSchema) {
+        List<Attribute> texeraAttributes = new ArrayList<>();
+        for (Field f : arrowSchema.getFields()) {
+            String attributeName = f.getName();
+            AttributeType attributeType;
+            ArrowType arrowType = f.getFieldType().getType();
+            switch (arrowType.getTypeID()) {
+                case Int:
+                    attributeType = INTEGER;
+                    break;
+                case FloatingPoint:
+                    attributeType = DOUBLE;
+                    break;
+                case Bool:
+                    attributeType = BOOLEAN;
+                    break;
+                case Utf8:
+                case Null:
+                    attributeType = TEXT;
+                    break;
+                case Date:
+                    attributeType = DATE;
+                    break;
+                case Struct:
+                    // For now only Struct of DateTime
+                    attributeType = DATETIME;
+                    break;
+                case List:
+                    attributeType = LIST;
+                    break;
+                default:
+                    throw (new DataflowException("Unsupported data type "+
+                            arrowType.getTypeID() +
+                            " when converting back to Texera table."));
+            }
+            texeraAttributes.add(new Attribute(attributeName, attributeType));
+        }
+        return new Schema(texeraAttributes);
+    }
+
+    // For now we're only allowing List<Span>. This can (and should) be generalized in the future.
+    private void convertListOfSpans(ImmutableList<Span> spansList, ListVector listVector, int index, String name) {
+        if (index == 0) {
+            if (innerIndexMap.containsKey(name)) innerIndexMap.replace(name, 0);
+            else innerIndexMap.put(name, 0);
+        }
+        int innerIndex = innerIndexMap.get(name);
+        int size = spansList.size();
+        StructVector subElementsVector = (StructVector) listVector.getDataVector();
+        listVector.startNewValue(index);
+        VarCharVector attributeNameVector = (VarCharVector) subElementsVector.getVectorById(0);
+        IntVector startVector = (IntVector) subElementsVector.getVectorById(1);
+        IntVector endVector = (IntVector) subElementsVector.getVectorById(2);
+        VarCharVector keyVector = (VarCharVector) subElementsVector.getVectorById(3);
+        VarCharVector valueVector = (VarCharVector) subElementsVector.getVectorById(4);
+        IntVector tokenOffsetVector = (IntVector) subElementsVector.getVectorById(5);
+
+        for (int i = 0; i < size; i++) {
+            if (spansList.get(i) == null) {
+                subElementsVector.setNull(innerIndex);
+            }
+            else {
+                subElementsVector.setIndexDefined(innerIndex);
+                Span span = spansList.get(i);
+                // For all the fields of the struct
+                if (span.getAttributeName() != null) attributeNameVector.setSafe(innerIndex, span.getAttributeName().getBytes());
+                startVector.setSafe(innerIndex, span.getStart());
+                endVector.setSafe(innerIndex, span.getEnd());
+                if (span.getKey() != null) keyVector.setSafe(innerIndex, span.getKey().getBytes());
+                if (span.getValue() != null) valueVector.setSafe(innerIndex, span.getValue().getBytes());
+                tokenOffsetVector.setSafe(innerIndex, span.getTokenOffset());
+            }
+            innerIndex++;
+        }
+        innerIndexMap.replace(name, innerIndex);
+        listVector.endValue(index, size);
+    }
+
+    private ListField<Span> getSpanFromListVector(ListVector listVector, int index) {
+       List<Span> resultList = new ArrayList<>();
+       List<JsonStringHashMap> vals = (List<JsonStringHashMap>) listVector.getObject(index);
+       for (JsonStringHashMap spanMap : vals) {
+           resultList.add(
+                   new Span(
+                           spanMap.get("attributeName").toString(),
+                           (int) spanMap.get("start"),
+                           (int) spanMap.get("end"),
+                           spanMap.get("key").toString(),
+                           spanMap.get("value").toString(),
+                           (int) spanMap.get("tokenOffset")
+                   )
+           );
+       }
+       return new ListField<>(resultList);
     }
 }
 
