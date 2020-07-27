@@ -61,7 +61,7 @@ export class OperatorLabelComponent implements OnInit, AfterViewInit {
     //  1. an value from mouseEnterEventStream is observed
     //  2. within the next 500ms, no value is observed from mouseLeaveEvenStream
     this.openCommandsStream = this.mouseEnterEventStream.flatMap(v =>
-      of(v).delay(500).pipe(takeUntil(this.mouseLeaveEventStream))
+      of(v).delay(800).pipe(takeUntil(this.mouseLeaveEventStream))
     );
 
     // whenever an value from openCommandsStream is observed, open tooltipWindow

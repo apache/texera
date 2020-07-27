@@ -116,7 +116,7 @@ public class MysqlSourcePredicate extends PredicateBase{
     public static Map<String, Object> getOperatorMetadata() {
         return ImmutableMap.<String, Object>builder()
             .put(PropertyNameConstants.USER_FRIENDLY_NAME, "Source: Mysql")
-            .put(PropertyNameConstants.OPERATOR_DESCRIPTION, "Connect to an Mysql instance")
+            .put(PropertyNameConstants.OPERATOR_DESCRIPTION, "Read data from an Mysql instance")
             .put(PropertyNameConstants.OPERATOR_GROUP_NAME, OperatorGroupConstants.SOURCE_GROUP)
             .build();
     }
