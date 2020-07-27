@@ -2,7 +2,7 @@ import { OperatorSchema } from './../../types/operator-schema.interface';
 import { OperatorPredicate } from '../../types/workflow-common.interface';
 import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
 import { DynamicSchemaService } from '../../service/dynamic-schema/dynamic-schema.service';
-import { Component, ChangeDetectorRef } from '@angular/core';
+import { Component } from '@angular/core';
 
 import { Subject } from 'rxjs/Subject';
 import { Observable } from 'rxjs/Observable';
@@ -75,7 +75,6 @@ export class PropertyEditorComponent {
     private formlyJsonschema: FormlyJsonschema,
     private workflowActionService: WorkflowActionService,
     private autocompleteService: DynamicSchemaService,
-    private ref: ChangeDetectorRef
   ) {
     // listen to the autocomplete event, remove invalid properties, and update the schema displayed on the form
     this.handleOperatorSchemaChange();
@@ -152,11 +151,6 @@ export class PropertyEditorComponent {
     // set displayForm to true in the end - first initialize all the data then show the view
     this.displayForm = true;
 
-    // manually trigger a change detection to force formly to process the form
-    // this is because formly does not emit an onChanges event for filling default values
-    // and this might cause an inconsistency between the operator property in componenet and the service
-    this.ref.detectChanges();
-    this.sourceFormChangeEventStream.next(this.formData);
   }
 
   /**
