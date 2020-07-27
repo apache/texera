@@ -32,7 +32,7 @@ import org.jooq.impl.TableImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Userworkflow extends TableImpl<UserworkflowRecord> {
 
-    private static final long serialVersionUID = -947624423;
+    private static final long serialVersionUID = -2044844509;
 
     /**
      * The reference instance of <code>texera.UserWorkflow</code>
@@ -55,7 +55,7 @@ public class Userworkflow extends TableImpl<UserworkflowRecord> {
     /**
      * The column <code>texera.UserWorkflow.workflowID</code>.
      */
-    public final TableField<UserworkflowRecord, String> WORKFLOWID = createField(DSL.name("workflowID"), org.jooq.impl.SQLDataType.VARCHAR(32).nullable(false), this, "");
+    public final TableField<UserworkflowRecord, String> WORKFLOWID = createField(DSL.name("workflowID"), org.jooq.impl.SQLDataType.VARCHAR(128).nullable(false), this, "");
 
     /**
      * The column <code>texera.UserWorkflow.workflowBODY</code>.
