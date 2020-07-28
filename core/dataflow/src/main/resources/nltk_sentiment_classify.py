@@ -107,7 +107,7 @@ class FlightServer(pyarrow.flight.FlightServerBase):
 			sentiment_model = pickle.load(pickle_file)
 			# print("Done.")
 			# print("Flight Server:\t\tConverting Arrow data to pandas.Dataframe...", end =" ")
-			input_dataframe = pandas.DataFrame(self.flights[key].column('text').to_pandas())
+			input_dataframe = pandas.DataFrame(self.flights[key].column(inputAttributeName).to_pandas())
 			# print("Done.")
 			# print("Flight Server:\t\tExecuting computation...", end=" ")
 			predictions = []
