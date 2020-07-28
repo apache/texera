@@ -401,6 +401,8 @@ public class NltkSentimentOperator implements IOperator {
                     field = Field.nullablePrimitive(name, new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE));
                     break;
                 case BOOLEAN:
+                    // Current BOOLEAN type is internally a string, so it will fall-through to the string case.
+                    // We might change this in the future.
 //                    field = Field.nullablePrimitive(name, new ArrowType.Bool());
 //                    break;
                 case TEXT:
