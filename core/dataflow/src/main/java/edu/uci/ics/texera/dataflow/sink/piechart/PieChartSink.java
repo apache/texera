@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 /**
  * PieChartSink is a sink that can be used by to get tuples for pie chart.
- *
+ * PieChartSink returns tuples with name of data (String) and a number (Integer or Double).
  * @author Mingji Han
  *
  */
@@ -94,8 +94,8 @@ public class PieChartSink extends VisualizationOperator {
             .collect(Collectors.toList());
         // sort all tuples in the descending order
         list.sort((left, right) -> {
-            double leftValue =  extractNumber(left.getField(predicate.getDataColumn()));
-            double rightValue = extractNumber(right.getField(predicate.getDataColumn())) ;
+            double leftValue =   VisualizationOperator.extractNumber(left.getField(predicate.getDataColumn()));
+            double rightValue =  VisualizationOperator.extractNumber(right.getField(predicate.getDataColumn())) ;
             if ( leftValue < rightValue ) {
                 return 1;
             } else if (leftValue == rightValue) {
@@ -107,14 +107,14 @@ public class PieChartSink extends VisualizationOperator {
         // calculate sum of data column
         double sum = 0.0;
         for (Tuple t: list) {
-            sum += extractNumber(t.getField(predicate.getDataColumn()));
+            sum += VisualizationOperator.extractNumber(t.getField(predicate.getDataColumn()));
         }
 
         // process the sorted rows, if the cumulative sum is greater than ratio * sum.
         // stop adding tuples, add new row called "Other" instead.
         double total = 0.0;
         for (Tuple t: list) {
-            total += extractNumber(t.getField(predicate.getDataColumn()));
+            total += VisualizationOperator.extractNumber(t.getField(predicate.getDataColumn()));
             result.add(t);
             if (total / sum > predicate.getPruneRatio()) {
 
@@ -150,16 +150,5 @@ public class PieChartSink extends VisualizationOperator {
 
     }
 
-    private double extractNumber(IField field) {
-        if (field instanceof DoubleField) {
-            DoubleField doubleField = (DoubleField)field;
-            return doubleField.getValue();
-        }
-        else if (field instanceof IntegerField) {
-            IntegerField integerField = (IntegerField)field;
-            return integerField.getValue().doubleValue();
-        }
-        return 0.0;
-    }
 
 }

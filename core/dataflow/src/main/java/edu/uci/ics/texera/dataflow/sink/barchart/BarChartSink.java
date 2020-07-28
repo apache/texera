@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 /**
  * BarChartSink is a sink that can be used by to get tuples for bar chart.
- *
+ * BarChartSink returns tuples with name of data (String) and at least one number (Integer or Double).
  * @author Mingji Han
  *
  */
