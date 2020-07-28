@@ -88,8 +88,8 @@ describe('OperatorLabelComponent', () => {
     expect(spy).toHaveBeenCalled();
   });
 
-  it('should emits a command to open an tooltip instance after 500ms delay', marbles((m) => {
-    const expectedStream = m.hot('500ms -a-');
+  it('should emits a command to open an tooltip instance after 800ms delay', marbles((m) => {
+    const expectedStream = m.hot('800ms -a-');
     const actualStream = component.getopenCommandsStream().map(() => 'a');
     m.hot('-a-').do(() => component.mouseEnter()).subscribe();
     m.expect(actualStream).toBeObservable(expectedStream);
@@ -100,7 +100,7 @@ describe('OperatorLabelComponent', () => {
     component.getopenCommandsStream().subscribe(x => {
       const parent = operatorLabelElement.parent;
       if (!parent) { expect(true).toBeFalsy(); return; }
-      const tooltipInstance = parent.childNodes[1].nativeNode;
+      const tooltipInstance = parent.nativeElement.nextElementSibling;
       expect(tooltipInstance.innerText).toBe(mockOperatorData.additionalMetadata.operatorDescription);
     });
     m.hot('-a-').do(() => component.mouseEnter()).subscribe();
