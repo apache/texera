@@ -20,7 +20,6 @@ import { ChartType, WordCloudTuple, DialogData } from '../../types/visualization
 export class VisualizationPanelContentComponent implements OnInit, AfterViewInit {
   // this readonly variable must be the same as HTML element ID for visualization
   public static readonly CHART_ID = '#texera-result-chart-content';
-
   public static readonly WORD_CLOUD_ID = 'texera-word-cloud';
   public static readonly WIDTH = 1000;
   public static readonly HEIGHT = 800;
