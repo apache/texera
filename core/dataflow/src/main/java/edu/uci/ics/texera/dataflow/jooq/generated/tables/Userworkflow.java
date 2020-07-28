@@ -32,10 +32,10 @@ import org.jooq.impl.TableImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Userworkflow extends TableImpl<UserworkflowRecord> {
 
-    private static final long serialVersionUID = -2044844509;
+    private static final long serialVersionUID = 1905667491;
 
     /**
-     * The reference instance of <code>texera.UserWorkflow</code>
+     * The reference instance of <code>texera.userworkflow</code>
      */
     public static final Userworkflow USERWORKFLOW = new Userworkflow();
 
@@ -48,36 +48,36 @@ public class Userworkflow extends TableImpl<UserworkflowRecord> {
     }
 
     /**
-     * The column <code>texera.UserWorkflow.name</code>.
+     * The column <code>texera.userworkflow.name</code>.
      */
     public final TableField<UserworkflowRecord, String> NAME = createField(DSL.name("name"), org.jooq.impl.SQLDataType.VARCHAR(128).nullable(false), this, "");
 
     /**
-     * The column <code>texera.UserWorkflow.workflowID</code>.
+     * The column <code>texera.userworkflow.workflowID</code>.
      */
     public final TableField<UserworkflowRecord, String> WORKFLOWID = createField(DSL.name("workflowID"), org.jooq.impl.SQLDataType.VARCHAR(128).nullable(false), this, "");
 
     /**
-     * The column <code>texera.UserWorkflow.workflowBODY</code>.
+     * The column <code>texera.userworkflow.workflowBODY</code>.
      */
     public final TableField<UserworkflowRecord, String> WORKFLOWBODY = createField(DSL.name("workflowBODY"), org.jooq.impl.SQLDataType.CLOB.nullable(false), this, "");
 
     /**
-     * Create a <code>texera.UserWorkflow</code> table reference
+     * Create a <code>texera.userworkflow</code> table reference
      */
     public Userworkflow() {
-        this(DSL.name("UserWorkflow"), null);
+        this(DSL.name("userworkflow"), null);
     }
 
     /**
-     * Create an aliased <code>texera.UserWorkflow</code> table reference
+     * Create an aliased <code>texera.userworkflow</code> table reference
      */
     public Userworkflow(String alias) {
         this(DSL.name(alias), USERWORKFLOW);
     }
 
     /**
-     * Create an aliased <code>texera.UserWorkflow</code> table reference
+     * Create an aliased <code>texera.userworkflow</code> table reference
      */
     public Userworkflow(Name alias) {
         this(alias, USERWORKFLOW);

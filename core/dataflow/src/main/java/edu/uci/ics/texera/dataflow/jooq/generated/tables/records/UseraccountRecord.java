@@ -20,31 +20,31 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class UseraccountRecord extends UpdatableRecordImpl<UseraccountRecord> implements Record2<String, UInteger> {
 
-    private static final long serialVersionUID = 953389998;
+    private static final long serialVersionUID = -2040794194;
 
     /**
-     * Setter for <code>texera.UserAccount.userName</code>.
+     * Setter for <code>texera.useraccount.userName</code>.
      */
     public void setUsername(String value) {
         set(0, value);
     }
 
     /**
-     * Getter for <code>texera.UserAccount.userName</code>.
+     * Getter for <code>texera.useraccount.userName</code>.
      */
     public String getUsername() {
         return (String) get(0);
     }
 
     /**
-     * Setter for <code>texera.UserAccount.userID</code>.
+     * Setter for <code>texera.useraccount.userID</code>.
      */
     public void setUserid(UInteger value) {
         set(1, value);
     }
 
     /**
-     * Getter for <code>texera.UserAccount.userID</code>.
+     * Getter for <code>texera.useraccount.userID</code>.
      */
     public UInteger getUserid() {
         return (UInteger) get(1);

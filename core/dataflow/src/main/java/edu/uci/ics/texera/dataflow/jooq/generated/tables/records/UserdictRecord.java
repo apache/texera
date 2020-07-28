@@ -20,73 +20,73 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class UserdictRecord extends UpdatableRecordImpl<UserdictRecord> implements Record5<UInteger, UInteger, String, byte[], String> {
 
-    private static final long serialVersionUID = -876240500;
+    private static final long serialVersionUID = -458743284;
 
     /**
-     * Setter for <code>texera.UserDict.userID</code>.
+     * Setter for <code>texera.userdict.userID</code>.
      */
     public void setUserid(UInteger value) {
         set(0, value);
     }
 
     /**
-     * Getter for <code>texera.UserDict.userID</code>.
+     * Getter for <code>texera.userdict.userID</code>.
      */
     public UInteger getUserid() {
         return (UInteger) get(0);
     }
 
     /**
-     * Setter for <code>texera.UserDict.dictID</code>.
+     * Setter for <code>texera.userdict.dictID</code>.
      */
     public void setDictid(UInteger value) {
         set(1, value);
     }
 
     /**
-     * Getter for <code>texera.UserDict.dictID</code>.
+     * Getter for <code>texera.userdict.dictID</code>.
      */
     public UInteger getDictid() {
         return (UInteger) get(1);
     }
 
     /**
-     * Setter for <code>texera.UserDict.name</code>.
+     * Setter for <code>texera.userdict.name</code>.
      */
     public void setName(String value) {
         set(2, value);
     }
 
     /**
-     * Getter for <code>texera.UserDict.name</code>.
+     * Getter for <code>texera.userdict.name</code>.
      */
     public String getName() {
         return (String) get(2);
     }
 
     /**
-     * Setter for <code>texera.UserDict.content</code>.
+     * Setter for <code>texera.userdict.content</code>.
      */
     public void setContent(byte... value) {
         set(3, value);
     }
 
     /**
-     * Getter for <code>texera.UserDict.content</code>.
+     * Getter for <code>texera.userdict.content</code>.
      */
     public byte[] getContent() {
         return (byte[]) get(3);
     }
 
     /**
-     * Setter for <code>texera.UserDict.description</code>.
+     * Setter for <code>texera.userdict.description</code>.
      */
     public void setDescription(String value) {
         set(4, value);
     }
 
     /**
-     * Getter for <code>texera.UserDict.description</code>.
+     * Getter for <code>texera.userdict.description</code>.
      */
     public String getDescription() {
         return (String) get(4);
