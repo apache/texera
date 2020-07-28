@@ -11,7 +11,6 @@ import { RouterModule } from '@angular/router';
 import { TourNgBootstrapModule } from 'ngx-tour-ng-bootstrap';
 import { LoggerModule, NgxLoggerLevel } from 'ngx-logger';
 
-import { MaterialDesignFrameworkModule } from 'angular6-json-schema-form';
 import { NgxJsonViewerModule } from 'ngx-json-viewer';
 
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -148,7 +147,6 @@ import { VisualizationPanelContentComponent } from './workspace/component/visual
     RouterModule.forRoot([]),
     TourNgBootstrapModule.forRoot(),
 
-    MaterialDesignFrameworkModule,
     FileUploadModule,
     FormsModule,
     ReactiveFormsModule,
