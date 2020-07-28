@@ -26,6 +26,7 @@ export class VisualizationPanelContentComponent implements OnInit, AfterViewInit
   private table: object[];
   private columns: string[] = [];
 
+
   constructor(@Inject(MAT_DIALOG_DATA) public data: DialogData) {
     this.table = data.table;
   }

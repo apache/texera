@@ -1,6 +1,5 @@
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { By } from '@angular/platform-browser';
-import { MaterialDesignFrameworkModule } from 'angular6-json-schema-form';
 import { async, ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 
 import { PropertyEditorComponent } from './property-editor.component';
@@ -49,7 +48,6 @@ describe('PropertyEditorComponent', () => {
       imports: [
         CustomNgMaterialModule,
         BrowserAnimationsModule,
-        MaterialDesignFrameworkModule,
         NgbModule,
         FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
         FormlyMaterialModule,
