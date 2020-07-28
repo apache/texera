@@ -35,6 +35,7 @@
             <packageName>edu.uci.ics.texera.dataflow.jooq.generated</packageName>
 
             <!-- The destination directory of your generated classes. Using Maven directory layout here -->
+            <!-- might need to be changed to dataflow/src/main/java if the auto generated files are in wrong directory-->
             <directory>src/main/java</directory>
         </target>
     </generator>
