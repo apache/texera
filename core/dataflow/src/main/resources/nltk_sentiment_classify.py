@@ -8,7 +8,8 @@ import pyarrow.flight
 
 portNumber = sys.argv[1]
 pickleFullPathFileName = sys.argv[2]
-resultAttributeName = sys.argv[3]
+inputAttributeName = sys.argv[3]
+resultAttributeName = sys.argv[4]
 
 
 class FlightServer(pyarrow.flight.FlightServerBase):
@@ -111,7 +112,7 @@ class FlightServer(pyarrow.flight.FlightServerBase):
 			# print("Flight Server:\t\tExecuting computation...", end=" ")
 			predictions = []
 			for index, row in input_dataframe.iterrows():
-				p = 1 if sentiment_model.classify(row['text']) == "pos" else -1
+				p = 1 if sentiment_model.classify(row[inputAttributeName]) == "pos" else -1
 				predictions.append(p)
 			pickle_file.close()
 			# print("Done.")

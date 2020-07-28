@@ -110,8 +110,13 @@ public class NltkSentimentOperator implements IOperator {
         try {
             int portNumber = getFreeLocalPort();
             Location location = new Location(URI.create("grpc+tcp://localhost:" + portNumber));
-            List<String> args = new ArrayList<>(Arrays.asList(PYTHON, PYTHONSCRIPT,
-                Integer.toString(portNumber), PicklePath, predicate.getResultAttributeName()));
+            List<String> args = new ArrayList<>(
+                    Arrays.asList(
+                            PYTHON, PYTHONSCRIPT,
+                            Integer.toString(portNumber), PicklePath,
+                            predicate.getInputAttributeName(), predicate.getResultAttributeName()
+                    )
+            );
             ProcessBuilder processBuilder = new ProcessBuilder(args).inheritIO();
             // Start Flight server (Python process)
             processBuilder.start();
@@ -448,46 +453,61 @@ public class NltkSentimentOperator implements IOperator {
 
             for (FieldVector vector : fieldVectors) {
                 IField texeraField = null;
-                switch (vector.getField().getFieldType().getType().getTypeID()) {
-                    case Int:
-                        // It's either IntVector or BigIntVector, but can't know because it depends on Pandas conversion.
-                        try {
-                            texeraField = new IntegerField(((IntVector) vector).get(i));
-                        } catch (ClassCastException e) {
-                            texeraField = new IntegerField((int)((BigIntVector) vector).get(i));
-                        }
-                        break;
-                    case FloatingPoint:
-                        texeraField = new DoubleField((((Float8Vector) vector).get(i)));
-                        break;
+                try {
+                    switch (vector.getField().getFieldType().getType().getTypeID()) {
+                        case Int:
+                            // It's either IntVector or BigIntVector, but can't know because it depends on Python.
+                            try {
+                                texeraField = new IntegerField(((IntVector) vector).get(i));
+                            } catch (ClassCastException e) {
+                                texeraField = new IntegerField((int)((BigIntVector) vector).get(i));
+                            }
+                            break;
+                        case FloatingPoint:
+                            texeraField = new DoubleField((((Float8Vector) vector).get(i)));
+                            break;
 //                    case Bool:
 //                        // FIXME: No BooleanField Class available.
 //                        texeraField = new IntegerField(((IntVector) vector).get(i));
 //                        break;
-                    case Utf8:
-                        texeraField = new TextField(new String(((VarCharVector) vector).get(i), StandardCharsets.UTF_8));
-                        break;
-                    case Date:
-                        texeraField = new DateField(new Date(((DateDayVector) vector).get(i)));
-                        break;
-                    case Struct:
-                        // For now, struct is only for DateTime
-                        DateDayVector subVectorDay = (DateDayVector) ((StructVector) vector).getChildByOrdinal(0);
-                        TimeSecVector subVectorTime = (TimeSecVector) ((StructVector) vector).getChildByOrdinal(1);
-                        texeraField = new DateTimeField(
-                                LocalDateTime.of(
-                                        LocalDate.ofEpochDay(subVectorDay.get(i)),
-                                        LocalTime.ofSecondOfDay(subVectorTime.get(i))
-                                )
-                        );
-                        break;
-                    case List:
-                        texeraField = getSpanFromListVector((ListVector) vector, i);
-                        break;
-                    default:
-                        throw (new DataflowException("Unsupported data type "+
-                                vector.getField().toString() +
-                                " when converting back to Texera table."));
+                        case Utf8:
+                            texeraField = new TextField(new String(((VarCharVector) vector).get(i), StandardCharsets.UTF_8));
+                            break;
+                        case Date:
+                            texeraField = new DateField(new Date(((DateDayVector) vector).get(i)));
+                            break;
+                        case Struct:
+                            // For now, struct is only for DateTime
+                            DateDayVector subVectorDay = (DateDayVector) ((StructVector) vector).getChildByOrdinal(0);
+                            TimeSecVector subVectorTime = (TimeSecVector) ((StructVector) vector).getChildByOrdinal(1);
+                            texeraField = new DateTimeField(
+                                    LocalDateTime.of(
+                                            LocalDate.ofEpochDay(subVectorDay.get(i)),
+                                            LocalTime.ofSecondOfDay(subVectorTime.get(i))
+                                    )
+                            );
+                            break;
+                        case List:
+                            texeraField = getSpanFromListVector((ListVector) vector, i);
+                            break;
+                        default:
+                            throw (new DataflowException("Unsupported data type "+
+                                    vector.getField().toString() +
+                                    " when converting back to Texera table."));
+                    }
+                } catch (IllegalStateException e) {
+                    if (!e.getMessage().contains("Value at index is null")) {
+                        throw new DataflowException(e);
+                    } else {
+                        switch (vector.getField().getFieldType().getType().getTypeID()) {
+                            case Int: texeraField = new IntegerField(null); break;
+                            case FloatingPoint: texeraField = new DoubleField(null); break;
+                            case Date: texeraField = new DateField((String) null); break;
+                            case Struct: texeraField = new DateTimeField((String) null); break;
+                            case List: texeraField = new ListField<Span>(null);
+                            default: break;
+                        }
+                    }
                 }
                 texeraFields.add(texeraField);
             }
@@ -561,11 +581,11 @@ public class NltkSentimentOperator implements IOperator {
                 subElementsVector.setIndexDefined(innerIndex);
                 Span span = spansList.get(i);
                 // For all the fields of the struct
-                if (span.getAttributeName() != null) attributeNameVector.setSafe(innerIndex, span.getAttributeName().getBytes());
+                if (span.getAttributeName() != null) attributeNameVector.setSafe(innerIndex, span.getAttributeName().getBytes(StandardCharsets.UTF_8));
                 startVector.setSafe(innerIndex, span.getStart());
                 endVector.setSafe(innerIndex, span.getEnd());
-                if (span.getKey() != null) keyVector.setSafe(innerIndex, span.getKey().getBytes());
-                if (span.getValue() != null) valueVector.setSafe(innerIndex, span.getValue().getBytes());
+                if (span.getKey() != null) keyVector.setSafe(innerIndex, span.getKey().getBytes(StandardCharsets.UTF_8));
+                if (span.getValue() != null) valueVector.setSafe(innerIndex, span.getValue().getBytes(StandardCharsets.UTF_8));
                 tokenOffsetVector.setSafe(innerIndex, span.getTokenOffset());
             }
             innerIndex++;
