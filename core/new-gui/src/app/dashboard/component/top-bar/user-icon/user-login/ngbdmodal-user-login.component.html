@@ -14,6 +14,10 @@
           <mat-form-field>
             <input matInput [(ngModel)]="loginUserName" placeholder="Username">
           </mat-form-field>
+          <mat-form-field>
+            <input matInput  [type]="hide ? 'password' : 'text'" [(ngModel)]="loginPassword" placeholder="Password">
+
+          </mat-form-field>
         </mat-dialog-content>
         <div><button class = "btn btn-info" (click) = "login()"> Sign In </button></div>
         <p *ngIf="loginErrorMessage">{{ loginErrorMessage }}</p>
@@ -26,6 +30,9 @@
         <mat-dialog-content>
           <mat-form-field>
             <input matInput [(ngModel)]="registerUserName" placeholder="Username">
+          </mat-form-field>
+          <mat-form-field>
+            <input matInput [type]="hide ? 'password' : 'text'" [(ngModel)]="registerPassword" placeholder="Password">
           </mat-form-field>
         </mat-dialog-content>
         <div><button class = "btn btn-info" (click) = "register()"> Sign Up </button></div>

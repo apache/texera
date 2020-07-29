@@ -25,6 +25,9 @@
 
   </div>
   <div class="collapse navbar-collapse texera-navigation-execute">
+    <div class="button">
+      <button   class="btn btn-secondary texera-workspace-tour-run"  color="accent" [routerLink]="['/dashboard']">Dashbaord</button>
+    </div>
     <div class="button" tourAnchor="texera-workspace-navigation-run">
       <button class="btn btn-secondary texera-workspace-tour-run" (click)="undoRedo.undoAction()">
           <span>
