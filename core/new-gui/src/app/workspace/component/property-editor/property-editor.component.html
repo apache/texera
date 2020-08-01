@@ -4,7 +4,22 @@
       {{currentOperatorSchema?.additionalMetadata.userFriendlyName}}
     </h3>
 
-    <form class="texera-workspace-property-editor-form" [formGroup]="formlyFormGroup" *ngIf="formlyFields">
+    <form class="texera-workspace-property-editor-form" [formGroup]="formlyFormGroup" *ngIf="jsonSchema">
+      <formly-form [model]="formData"
+      [fields]="[formlyJsonschema.toFieldConfig(jsonSchema)]"
+      [options]="formlyOptions"
+      [form]="formlyFormGroup"
+      (modelChange) = "this.formChanged.next($event)">
+      </formly-form>
+    </form>
+  </div>
+
+  <div *ngIf="displayBreakpointEditor">
+    <h3 class="texera-workspace-property-editor-title" mat-subheader>
+      Link Breakpoint Editor
+    </h3>
+
+    <!-- <form class="texera-workspace-property-editor-form" [formGroup]="formlyFormGroup" *ngIf="formlyFields">
       <formly-form [model]="formData"
       [fields]="formlyFields"
       [options]="formlyOptions"
@@ -12,6 +27,21 @@
       (modelChange) = "onFormChanges($event)">
       </formly-form>
 
-    </form>
+    </form> -->
+
+    <!-- <json-schema-form
+      class="texera-workspace-property-editor-form"
+      framework="material-design"
+      loadExternalAssets="true"
+      [schema]="currentLinkBreakpointSchema?.jsonSchema"
+      [data]="currentBreakpointInitialData"
+      [layout]="formLayout"
+      (onChanges)="onFormChanges($event)"
+    >
+    </json-schema-form> -->
+
+    <button *ngIf="true" type="button" class="breakpointRemoveButton" (click)="handleLinkBreakpointRemove()">Remove Breakpoint</button>
+
   </div>
+
 </div>

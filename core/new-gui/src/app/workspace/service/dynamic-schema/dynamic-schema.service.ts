@@ -5,7 +5,7 @@ import { Observable } from 'rxjs/Observable';
 import { Subject } from 'rxjs/Subject';
 import '../../../common/rxjs-operators';
 
-import { OperatorPredicate } from '../../types/workflow-common.interface';
+import { OperatorPredicate, BreakpointSchema } from '../../types/workflow-common.interface';
 import { OperatorSchema } from '../../types/operator-schema.interface';
 
 import { OperatorMetadataService } from '../operator-metadata/operator-metadata.service';
@@ -36,6 +36,9 @@ export class DynamicSchemaService {
   // directly calling `set()` is prohibited, it must go through `setDynamicSchema()`
   private dynamicSchemaMap = new Map<string, OperatorSchema>();
 
+  // dynamic shcema of link breakpoints in the current workflow
+  private dynamicBreakpointSchemaMap = new Map<string, BreakpointSchema>();
+
   private initialSchemaTransformers: SchemaTransformer[] = [];
 
   // this stream is used to capture the event when the dynamic schema of an existing operator is changed
@@ -54,6 +57,10 @@ export class DynamicSchemaService {
     // when an operator is deleted, remove it from the dynamic schema map
     this.workflowActionService.getTexeraGraph().getOperatorDeleteStream()
       .subscribe(event => this.dynamicSchemaMap.delete(event.deletedOperator.operatorID));
+
+    // when a link is deleted, remove it from the dynamic schema map
+    this.workflowActionService.getTexeraGraph().getLinkDeleteStream()
+      .subscribe(event => this.dynamicBreakpointSchemaMap.delete(event.deletedLink.linkID));
   }
 
   /**
@@ -90,6 +97,29 @@ export class DynamicSchemaService {
       throw new Error(`dynamic schema not found for ${operatorID}`);
     }
     return dynamicSchema;
+  }
+
+  /**
+   * Based on the linkID, get the current link breakpoint schema
+   * if there is no schema stored for a link, fetch the schema from
+   * operatorMetadataService and set it in the map
+   */
+  public getDynamicBreakpointSchema(linkID: string): BreakpointSchema {
+    if (! this.dynamicBreakpointSchemaMap.has(linkID)) {
+      this.dynamicBreakpointSchemaMap.set(linkID, this.operatorMetadataService.getBreakpointSchema());
+    }
+    const dynamicBreakpointSchema = this.dynamicBreakpointSchemaMap.get(linkID);
+    if (!dynamicBreakpointSchema) {
+      throw new Error('dynamic breakpoint schema not found.');
+    }
+    return dynamicBreakpointSchema;
+  }
+
+  /**
+   * Returns the current dynamic breakpoint schema of all links.
+   */
+  public getDynamicBreakpointSchemaMap(): ReadonlyMap<string, BreakpointSchema> {
+    return this.dynamicBreakpointSchemaMap;
   }
 
   /**

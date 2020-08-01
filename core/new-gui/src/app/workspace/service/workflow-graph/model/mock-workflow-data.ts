@@ -1,4 +1,4 @@
-import { Point, OperatorPredicate, OperatorLink } from './../../../types/workflow-common.interface';
+import { Point, OperatorPredicate, OperatorLink, Breakpoint } from './../../../types/workflow-common.interface';
 
 /**
  * Provides mock data related operators and links:
@@ -124,3 +124,13 @@ export const mockFalseSentimentScanLink: OperatorLink = {
     portID: undefined as any
   }
 };
+
+export const mockScanResultLinkBreakpoint: Breakpoint = {
+  breakpointProperties: {
+    attribute: 'age',
+  }
+};
+
+
+export const mockWorkflowBreakpoint: Map<string, Breakpoint> = new Map();
+mockWorkflowBreakpoint.set(mockScanResultLink.linkID, mockScanResultLinkBreakpoint);

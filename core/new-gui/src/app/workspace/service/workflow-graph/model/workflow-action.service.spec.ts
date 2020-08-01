@@ -215,7 +215,27 @@ describe('WorkflowActionService', () => {
 
   });
 
+  describe('when linkBreakpoint is enabled', () => {
+    beforeAll(() => {
+      environment.linkBreakpointEnabled = true;
+    });
 
+    afterAll(() => {
+      environment.linkBreakpointEnabled = false;
+    });
+
+    it('should set/remove link breakpoint to texera graph correctly', () => {
+      service.addOperator(mockScanPredicate, mockPoint);
+      service.addOperator(mockResultPredicate, mockPoint);
+      service.addLink(mockScanResultLink);
+      const mockBreakpoint = {age: '100'};
+      service.setLinkBreakpoint(mockScanResultLink.linkID, mockBreakpoint);
+      expect(texeraGraph.getLinkBreakpoint(mockScanResultLink.linkID)).toEqual(mockBreakpoint);
+
+      service.removeLinkBreakpoint(mockScanResultLink.linkID);
+      expect(texeraGraph.getLinkBreakpoint(mockScanResultLink.linkID)).toEqual({});
+    });
+  });
 
   describe('when executionStatus is enabled', () => {
     beforeAll(() => {
@@ -268,5 +288,4 @@ describe('WorkflowActionService', () => {
     });
 
   });
-
 });

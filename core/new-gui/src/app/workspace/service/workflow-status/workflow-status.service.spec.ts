@@ -5,6 +5,7 @@ import * as Rx from 'rxjs';
 import { ProcessStatus } from '../../types/execute-workflow.interface';
 import { mockStatus1 } from './mock-workflow-status';
 import * as RxJSWebSocket from 'rxjs/webSocket';
+import { environment } from './../../../../environments/environment';
 
 // TODO: this test case related to websocket is not stable, find out why and fix it
 xdescribe('WorkflowStatusService', () => {
@@ -41,6 +42,14 @@ xdescribe('WorkflowStatusService', () => {
     const funcSpy = jasmine.createSpy('webSocket').and.returnValue(mockConnect('abc'));
     spyOnProperty(RxJSWebSocket, 'webSocket', 'get').and.returnValue(funcSpy);
     workflowStatusService = TestBed.get(WorkflowStatusService);
+  });
+
+  beforeAll(() => {
+    environment.executionStatusEnabled = true;
+  });
+
+  afterAll(() => {
+    environment.executionStatusEnabled = false;
   });
 
   it('should be created', inject([WorkflowStatusService], (service: WorkflowStatusService) => {

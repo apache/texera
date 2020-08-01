@@ -11,7 +11,6 @@ import { HttpClientTestingModule } from '@angular/common/http/testing';
 
 describe('TopBarComponent', () => {
   let component: TopBarComponent;
-  let fixture: ComponentFixture<TopBarComponent>;
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
@@ -30,7 +29,7 @@ describe('TopBarComponent', () => {
   }));
 
   beforeEach(() => {
-    fixture = TestBed.createComponent(TopBarComponent);
+    const fixture = TestBed.createComponent(TopBarComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });

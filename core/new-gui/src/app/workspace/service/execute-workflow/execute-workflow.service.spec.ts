@@ -17,6 +17,7 @@ import { marbles } from 'rxjs-marbles';
 import { WorkflowGraph } from '../workflow-graph/model/workflow-graph';
 import { LogicalPlan } from '../../types/execute-workflow.interface';
 import { environment } from '../../../../environments/environment';
+import { mockScanResultLink, mockScanResultLinkBreakpoint } from '../workflow-graph/model/mock-workflow-data';
 
 class StubHttpClient {
 
@@ -54,6 +55,7 @@ describe('ExecuteWorkflowService', () => {
 
   it('should generate a logical plan request based on the workflow graph that is passed to the function', () => {
     const workflowGraph: WorkflowGraph = mockWorkflowPlan_scan_result;
+    workflowGraph.setLinkBreakpoint(mockScanResultLink.linkID, mockScanResultLinkBreakpoint);
     const newLogicalPlan: LogicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(workflowGraph);
     expect(newLogicalPlan).toEqual(mockLogicalPlan_scan_result);
   });

@@ -36,6 +36,12 @@ export const defaultEnvironment = {
   userSystemEnabled: false,
 
   amberEngineEnabled: true,
+
+  /**
+   * whether linkBreakpoint is supported
+   */
+  linkBreakpointEnabled: true,
+
 };
 
 export type AppEnv = typeof defaultEnvironment;

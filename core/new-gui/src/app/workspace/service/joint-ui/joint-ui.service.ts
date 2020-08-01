@@ -7,6 +7,15 @@ import { Point, OperatorPredicate, OperatorLink } from '../../types/workflow-com
 import { OperatorState, OperatorStatistics } from '../../types/execute-workflow.interface';
 
 /**
+ * Defines the SVG element for the breakpoint button
+ */
+export const breakpointButtonSVG =
+`<svg class="breakpoint-button" height = "24" width = "24">
+    <path d="M0 0h24v24H0z" fill="none" /> +
+    <polygon points="8,2 16,2 22,8 22,16 16,22 8,22 2,16 2,8" fill="red" />
+  </svg>
+  <title>Add Breakpoint.</title>`;
+/**
  * Defines the SVG path for the delete button
  */
 export const deleteButtonPath =
@@ -200,6 +209,42 @@ export class JointUIService {
     }
   }
 
+  public getBreakpointButton(): (new () => joint.linkTools.Button) {
+    return joint.linkTools.Button.extend({
+      name: 'info-button',
+      options: {
+          markup: [{
+              tagName: 'circle',
+              selector: 'info-button',
+              attributes: {
+                  'r': 10,
+                  'fill': '#001DFF',
+                  'cursor': 'pointer',
+              }
+          }, {
+              tagName: 'path',
+              selector: 'icon',
+              attributes: {
+                  'd': 'M -2 4 2 4 M 0 3 0 0 M -2 -1 1 -1 M -1 -4 1 -4',
+                  'fill': 'none',
+                  'stroke': '#FFFFFF',
+                  'stroke-width': 2,
+                  'pointer-events': 'none'
+              }
+          },
+        ],
+          distance: 60,
+          offset: 0,
+          action: function(event: JQuery.Event, linkView: joint.dia.LinkView) {
+            // when this button is clicked, it triggers an joint paper event
+            if (linkView.paper) {
+              linkView.paper.trigger('tool:breakpoint', linkView, event);
+            }
+          }
+      }
+    });
+  }
+
   /**
    * This function converts a Texera source and target OperatorPort to
    *   a JointJS link cell <joint.dia.Link> that could be added to the JointJS.
@@ -252,11 +297,12 @@ export class JointUIService {
             10.415 21.949,7.585 16.447,13.087 10.945,7.585 8.117,10.415 13.618,15.917 8.116,21.419
             10.946,24.248 16.447,18.746 21.948,24.248z"/>
             <title>Remove link.</title>
-            </g>
-          </g>`,
+           </g>
+         </g>`,
       attrs: {
         '.connection-wrap': {
-          'stroke-width': 0
+          'stroke-width': 0,
+          // 'display': 'inline'
         },
         '.marker-source': {
           d: sourceOperatorHandle,
@@ -276,13 +322,14 @@ export class JointUIService {
         },
         '.tool-remove': {
           fill: '#D8656A',
-          width: 24
+          width: 24,
+          display: 'none'
         },
         '.tool-remove path': {
           d: deleteButtonPath,
         },
         '.tool-remove circle': {
-        }
+        },
       }
     });
     return link;
@@ -377,7 +424,4 @@ export class JointUIService {
     };
     return operatorStyleAttrs;
   }
-
-
-
 }

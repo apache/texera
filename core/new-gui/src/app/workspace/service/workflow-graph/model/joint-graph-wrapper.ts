@@ -3,8 +3,11 @@ import { Observable } from 'rxjs/Observable';
 import { debounceTime } from 'rxjs/operators';
 import { Point } from '../../../types/workflow-common.interface';
 import { UndoRedoService } from './../../undo-redo/undo-redo.service';
+import { environment } from './../../../../../environments/environment';
 
 type operatorIDsType = { operatorIDs: string[] };
+type linkIDType = { linkID: string };
+
 
 type JointModelEventInfo = {
   add: boolean,
@@ -89,6 +92,18 @@ export class JointGraphWrapper {
   private restorePaperOffsetSubject: Subject<Point> = new Subject<Point>();
   // event stream of panning to make mini-map and main workflow paper compatible in offset
   private panPaperOffsetSubject: Subject<Point> = new Subject<Point>();
+  // event stream of highlighing a link
+  private jointLinkHighlightStream = new Subject<linkIDType>();
+  // event stream of unhighlighing a link
+  private jointLinkUnhighlightStream = new Subject<linkIDType>();
+  // event stream of showing the breakpoint button of a link
+  private jointLinkBreakpointShowStream = new Subject<linkIDType>();
+  // event stream of hiding the breakpoint button of a link
+  private jointLinkBreakpointHideStream = new Subject<linkIDType>();
+  // the currently highlighted links' ids
+  private currentHighlightedLinks: string[] = [];
+  // the linkIDs of those links with a breakpoint
+  private linksWithBreakpoints: string[] = [];
 
   // current zoom ratio
   private zoomRatio: number = JointGraphWrapper.INIT_ZOOM_VALUE;
@@ -131,6 +146,10 @@ export class JointGraphWrapper {
     // handle if the current highlighted operator's position is changed,
     // other highlighted operators should move with it.
     this.handleHighlightedOperatorPositionChange();
+    if (environment.linkBreakpointEnabled) {
+      // handle if a link is deleted, it should be unhighlighted
+      this.handleLinkDeleteUnhighlight();
+    }
   }
 
 
@@ -194,6 +213,13 @@ export class JointGraphWrapper {
    * @param operatorID
    */
   public highlightOperator(operatorID: string): void {
+    if (environment.linkBreakpointEnabled) {
+      // if there are highlighed links, unhighlight them
+      if (this.currentHighlightedLinks.length > 0) {
+        const highlightedLinks = Object.assign([], this.currentHighlightedLinks);
+        highlightedLinks.forEach(highlightedLink => this.unhighlightLink(highlightedLink));
+      }
+    }
     const highlightedOperatorIDs: string[] = [];
     this.highlightOperatorInternal(operatorID, highlightedOperatorIDs);
     if (highlightedOperatorIDs.length > 0) {
@@ -210,6 +236,14 @@ export class JointGraphWrapper {
    * @param operatorIDs
    */
   public highlightOperators(operatorIDs: string[]): void {
+    if (environment.linkBreakpointEnabled) {
+      // if there are highlighed links, unhighlight them
+      if (this.currentHighlightedLinks.length > 0) {
+        const highlightedLinks = Object.assign([], this.currentHighlightedLinks);
+        highlightedLinks.forEach(highlightedLink => this.unhighlightLink(highlightedLink));
+      }
+    }
+    // then
     const highlightedOperatorIDs: string[] = [];
     operatorIDs.forEach(operatorID => this.highlightOperatorInternal(operatorID, highlightedOperatorIDs));
     if (highlightedOperatorIDs.length > 0) {
@@ -259,6 +293,48 @@ export class JointGraphWrapper {
    */
   public getJointCellUnhighlightStream(): Observable<operatorIDsType> {
     return this.jointCellUnhighlightStream.asObservable();
+  }
+
+  /**
+   * get the ids of all the links that are currently highlighted
+   */
+  public getCurrentHighlightedLinkIDs(): string[] {
+    return Object.assign([], this.currentHighlightedLinks);
+  }
+
+  /**
+   * get the ids of all the links that have a breakpoint
+   */
+  public getLinkIDsWithBreakpoint(): string[] {
+    return Object.assign([], this.linksWithBreakpoints);
+  }
+
+  /**
+   * get the event stream of a link being highlighted.
+   */
+  public getLinkHighlightStream(): Observable<linkIDType> {
+    return this.jointLinkHighlightStream.asObservable();
+  }
+
+  /**
+   * get the event stream of a link being unhighlighted.
+   */
+  public getLinkUnhighlightStream(): Observable<linkIDType> {
+    return this.jointLinkUnhighlightStream.asObservable();
+  }
+
+  /**
+   * get the event stream of showing the breakpoint button of a link
+   */
+  public getLinkBreakpointShowStream(): Observable<linkIDType> {
+    return this.jointLinkBreakpointShowStream.asObservable();
+  }
+
+  /**
+   * get the event stream of hiding the breakpoint button of a link
+   */
+  public getLinkBreakpointHideStream(): Observable<linkIDType> {
+    return this.jointLinkBreakpointHideStream.asObservable();
   }
 
   /**
@@ -442,6 +518,75 @@ export class JointGraphWrapper {
   }
 
   /**
+   * Highlights the link with given linkID.
+   * Emits an event to the link highlight stream.
+   * If the target link is already highlighted, the action will be ignored.
+   * At current design, there can only be one link highlighted at a time,
+   *  no mutiselect mode for links.
+   * Before a link is highlighted, all the currently highlighted operators will
+   *  be unhighlighted.
+   *
+   * @param linkID
+   */
+  public highlightLink(linkID: string): void {
+    if (!this.jointGraph.getCell(linkID)) {
+      throw new Error(`link with ID ${linkID} doesn't exist`);
+    }
+    if (this.currentHighlightedLinks.includes(linkID)) {
+      return;
+    }
+    // only allow one link highlighted at a time
+    if (this.currentHighlightedLinks.length > 0) {
+      const highlightedLinks = Object.assign([], this.currentHighlightedLinks);
+      highlightedLinks.forEach(highlightedLink => this.unhighlightLink(highlightedLink));
+    }
+    this.getCurrentHighlightedOperatorIDs()
+        .forEach(operatorID => this.unhighlightOperator(operatorID));
+    this.currentHighlightedLinks.push(linkID);
+    this.jointLinkHighlightStream.next({ linkID });
+  }
+
+  /**
+   * Unhighlights the given highlighted link.
+   * Emits an event to the link unhighlight stream.
+   * @param unhighlightedLinkID
+   */
+  public unhighlightLink(linkID: string): void {
+    if (!this.currentHighlightedLinks.includes(linkID)) {
+      return;
+    }
+    const unhighlightedLinkIndex = this.currentHighlightedLinks.indexOf(linkID);
+    this.currentHighlightedLinks.splice(unhighlightedLinkIndex, 1);
+    this.jointLinkUnhighlightStream.next({ linkID });
+  }
+
+  /**
+   * Show the breakpoint button of a given link
+   * emits an event to the link breakpoint show stream.
+   * @param linkID
+   */
+  public showLinkBreakpoint(linkID: string): void {
+    if (!this.linksWithBreakpoints.includes(linkID)) {
+      this.linksWithBreakpoints.push(linkID);
+    }
+    this.jointLinkBreakpointShowStream.next({ linkID });
+  }
+
+  /**
+   * Hide the breakpoint button of a given link
+   * emits an event to the link breakpoint hide stream.
+   * @param linkID
+   */
+  public hideLinkBreakpoint(linkID: string): void {
+    if (!this.linksWithBreakpoints.includes(linkID)) {
+      return;
+    }
+    const LinkIndex = this.linksWithBreakpoints.indexOf(linkID);
+    this.linksWithBreakpoints.splice(LinkIndex, 1);
+    this.jointLinkBreakpointHideStream.next({ linkID });
+  }
+
+  /**
    * This method gets the operator's layer (z attribute) on the JointJS paper.
    */
   public getOperatorLayer(operatorID: string): number {
@@ -545,6 +690,19 @@ export class JointGraphWrapper {
         this.listenPositionChange = true;
         this.undoRedoService.setListenJointCommand(true);
       });
+  }
+
+  /**
+   * Subscribes to link delete event stream,
+   *  unhighlight the removed link if it is currently highlighted
+   */
+  private handleLinkDeleteUnhighlight(): void {
+    this.getJointLinkCellDeleteStream().subscribe(deletedLinkCell => {
+      const deletedLinkID = deletedLinkCell.id.toString();
+      if (this.currentHighlightedLinks.includes(deletedLinkID)) {
+        this.unhighlightLink(deletedLinkID);
+      }
+    });
   }
 
 }

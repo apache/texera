@@ -1,3 +1,4 @@
+import { JSONSchema4, JSONSchema7 } from 'json-schema';
 /**
  * This file contains multiple type declarations related to workflow-graph.
  * These type declarations should be identical to the backend API.
@@ -27,3 +28,9 @@ export interface OperatorLink extends Readonly<{
   source: OperatorPort;
   target: OperatorPort;
 }> { }
+
+export interface BreakpointSchema extends Readonly<{
+  jsonSchema: Readonly<JSONSchema7>;
+}> {}
+
+export interface Breakpoint extends Readonly<Record<string, any>> {}

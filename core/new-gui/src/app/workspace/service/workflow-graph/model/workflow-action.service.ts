@@ -9,6 +9,7 @@ import { Point, OperatorPredicate, OperatorLink, OperatorPort } from '../../../t
 
 import * as joint from 'jointjs';
 import { environment } from './../../../../../environments/environment';
+import { WorkflowEditorComponent } from './../../../component/workflow-editor/workflow-editor.component';
 
 
 export interface Command {
@@ -344,6 +345,41 @@ export class WorkflowActionService {
     this.executeAndStoreCommand(command);
   }
 
+  /**
+   * set a given link's breakpoint properties to specific values
+   */
+  public setLinkBreakpoint(linkID: string, newBreakpoint: object): void {
+    const prevBreakpoint = this.getTexeraGraph().getLinkBreakpoint(linkID);
+    const command: Command = {
+      execute: () => {
+        this.setLinkBreakpointInternal(linkID, newBreakpoint);
+        if (Object.keys(newBreakpoint).length === 0) {
+          this.getJointGraphWrapper().hideLinkBreakpoint(linkID);
+        } else {
+          this.getJointGraphWrapper().showLinkBreakpoint(linkID);
+        }
+      },
+      undo: () => {
+        this.setOperatorPropertyInternal(linkID, prevBreakpoint);
+        if (Object.keys(prevBreakpoint).length === 0) {
+          this.getJointGraphWrapper().hideLinkBreakpoint(linkID);
+        } else {
+          this.getJointGraphWrapper().showLinkBreakpoint(linkID);
+        }
+      }
+    };
+    this.executeAndStoreCommand(command);
+  }
+
+  /**
+   * Set the link's breakpoint property to empty to remove the breakpoint
+   *
+   * @param linkID
+   */
+  public removeLinkBreakpoint(linkID: string): void {
+    this.setLinkBreakpoint(linkID, {});
+  }
+
   private addOperatorInternal(operator: OperatorPredicate, point: Point): void {
     // check that the operator doesn't exist
     this.texeraGraph.assertOperatorNotExists(operator.operatorID);
@@ -391,6 +427,11 @@ export class WorkflowActionService {
 
   private setOperatorAdvanceStatusInternal(operatorID: string, newShowAdvancedStatus: boolean) {
     this.texeraGraph.setOperatorAdvanceStatus(operatorID, newShowAdvancedStatus);
+  }
+
+  // modifies the link breakpoint property
+  private setLinkBreakpointInternal(linkID: string, breakpoint: object) {
+    this.texeraGraph.setLinkBreakpoint(linkID, breakpoint);
   }
 
   private executeAndStoreCommand(command: Command): void {

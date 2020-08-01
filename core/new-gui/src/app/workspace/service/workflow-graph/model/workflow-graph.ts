@@ -1,11 +1,11 @@
 import { Subject } from 'rxjs/Subject';
 import { Observable } from 'rxjs/Observable';
-import { OperatorPredicate, OperatorLink, OperatorPort } from '../../../types/workflow-common.interface';
+import { OperatorPredicate, OperatorLink, OperatorPort, Breakpoint } from '../../../types/workflow-common.interface';
 import { isEqual } from 'lodash';
 
 // define the restricted methods that could change the graph
 type restrictedMethods =
-  'addOperator' | 'deleteOperator' | 'addLink' | 'deleteLink' | 'deleteLinkWithID' | 'setOperatorProperty';
+  'addOperator' | 'deleteOperator' | 'addLink' | 'deleteLink' | 'deleteLinkWithID' | 'setOperatorProperty' | 'setLinkBreakpoint';
 
 /**
  * WorkflowGraphReadonly is a type that only contains the readonly methods of WorkflowGraph.
@@ -25,13 +25,13 @@ export class WorkflowGraph {
 
   private readonly operatorIDMap = new Map<string, OperatorPredicate>();
   private readonly operatorLinkMap = new Map<string, OperatorLink>();
+  private readonly linkBreakpointMap = new Map<string, Breakpoint>();
 
   private readonly operatorAddSubject = new Subject<OperatorPredicate>();
   private readonly operatorDeleteSubject = new Subject<{ deletedOperator: OperatorPredicate }>();
   private readonly linkAddSubject = new Subject<OperatorLink>();
   private readonly linkDeleteSubject = new Subject<{ deletedLink: OperatorLink }>();
   private readonly operatorPropertyChangeSubject = new Subject<{ oldProperty: object, operator: OperatorPredicate }>();
-  private readonly operatorAdvancedChangeSubject = new Subject<{ operator: OperatorPredicate, showAdvanced: boolean }>();
 
   constructor(
     operatorPredicates: OperatorPredicate[] = [],
@@ -120,6 +120,8 @@ export class WorkflowGraph {
     }
     this.operatorLinkMap.delete(linkID);
     this.linkDeleteSubject.next({ deletedLink: link });
+    // delete its breakpoint
+    this.linkBreakpointMap.delete(linkID);
   }
 
   /**
@@ -136,6 +138,8 @@ export class WorkflowGraph {
     }
     this.operatorLinkMap.delete(link.linkID);
     this.linkDeleteSubject.next({ deletedLink: link });
+    // delete its breakpoint
+    this.linkBreakpointMap.delete(link.linkID);
   }
 
   /**
@@ -204,9 +208,7 @@ export class WorkflowGraph {
    * @param operatorID
    */
   public getInputLinksByOperatorId(operatorID: string): OperatorLink[] {
-
     return this.getAllLinks().filter(link => link.target.operatorID === operatorID);
-
   }
 
   /**
@@ -243,26 +245,33 @@ export class WorkflowGraph {
   }
 
   /**
-   * Sets the show advancedoption status of the operator.
+   * set the breakpoint property of a link to be newBreakpoint
+   * Throws an error if link doesn't exist
    *
-   * Throws an error if the operator doesn't exist.
-   * @param operatorID operator ID
-   * @param showAdvanced indicates if necessary to show advancedOption
+   * @param linkID linkID
+   * @param newBreakpoint new property to set
    */
-  public setOperatorAdvanceStatus(operatorID: string, showAdvanced: boolean): void {
-    const originalOperatorData = this.operatorIDMap.get(operatorID);
-    if (originalOperatorData === undefined) {
-      throw new Error(`operator with ID ${operatorID} doesn't exist`);
+  public setLinkBreakpoint(linkID: string, breakpoint: Breakpoint): void {
+    this.assertLinkWithIDExists(linkID);
+    if (Object.keys(breakpoint).length === 0) {
+      this.linkBreakpointMap.delete(linkID);
+    } else {
+      this.linkBreakpointMap.set(linkID, breakpoint);
     }
+  }
 
-    // constructor a new copy with new newShowAdvancedStatus and all other original attributes
-    const operator = {
-      ...originalOperatorData,
-      showAdvanced: showAdvanced,
-    };
-    // set the new copy back to the operator ID map
-    this.operatorIDMap.set(operatorID, operator);
-    this.operatorAdvancedChangeSubject.next({operator, showAdvanced});
+  /**
+   * get the breakpoint property of a link
+   * returns an empty object if the link has no property
+   *
+   * @param linkID
+   */
+  public getLinkBreakpoint(linkID: string): Breakpoint | undefined {
+    return this.linkBreakpointMap.get(linkID);
+  }
+
+  public getAllLinkBreakpoints(): ReadonlyMap<string, Breakpoint> {
+    return this.linkBreakpointMap;
   }
 
   /**
@@ -301,14 +310,6 @@ export class WorkflowGraph {
    */
   public getOperatorPropertyChangeStream(): Observable<{ oldProperty: object, operator: OperatorPredicate }> {
     return this.operatorPropertyChangeSubject.asObservable();
-  }
-
-  /**
-   * Gets the observable event stream of a change in operator's show advanced status.
-   * The observable value includes the operator with new property and the new advanced status.
-   */
-  public getOperatorAdvancedOptionChangeSteam(): Observable<{operator: OperatorPredicate, showAdvanced: boolean}> {
-    return this.operatorAdvancedChangeSubject.asObservable();
   }
 
   /**

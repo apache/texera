@@ -243,7 +243,7 @@ describe('JointUIService', () => {
     const link = JointUIService.getJointLinkCell({
       linkID: 'link-1',
       source: { operatorID: 'operator1', portID: 'out0' },
-      target: { operatorID: 'operator2', portID: 'in0' }
+      target: { operatorID: 'operator2', portID: 'in0' },
     });
 
     graph.addCell(link);

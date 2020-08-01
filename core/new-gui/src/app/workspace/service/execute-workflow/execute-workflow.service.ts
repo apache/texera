@@ -294,10 +294,12 @@ export class ExecuteWorkflowService {
     const links: LogicalLink[] = workflowGraph
       .getAllLinks().map(link => ({
         origin: link.source.operatorID,
-        destination: link.target.operatorID
+        destination: link.target.operatorID,
       }));
 
-    return { operators, links };
+    const linkBreakpoints = workflowGraph.getAllLinkBreakpoints();
+
+    return { operators, links, linkBreakpoints};
   }
 
   public static isExecutionSuccessful(result: ExecutionResult | undefined): result is SuccessExecutionResult {

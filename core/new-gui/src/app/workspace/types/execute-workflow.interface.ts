@@ -6,7 +6,7 @@
 
 export interface LogicalLink extends Readonly<{
   origin: string,
-  destination: string
+  destination: string,
 }> { }
 
 export interface LogicalOperator extends Readonly<{
@@ -24,7 +24,8 @@ export interface LogicalOperator extends Readonly<{
  */
 export interface LogicalPlan extends Readonly<{
   operators: LogicalOperator[],
-  links: LogicalLink[]
+  links: LogicalLink[],
+  linkBreakpoints: Map<string, object>
 }> { }
 
 /**
