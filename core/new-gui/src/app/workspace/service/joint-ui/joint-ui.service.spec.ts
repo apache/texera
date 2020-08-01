@@ -7,7 +7,6 @@ import { OperatorMetadataService } from '../operator-metadata/operator-metadata.
 import { StubOperatorMetadataService } from '../operator-metadata/stub-operator-metadata.service';
 import { mockScanPredicate, mockSentimentPredicate } from '../workflow-graph/model/mock-workflow-data';
 import { mockScanStatistic1, mockScanStatistic2 } from '../workflow-status/mock-workflow-status';
-import { OperatorStates } from '../../types/execute-workflow.interface';
 
 describe('JointUIService', () => {
   let service: JointUIService;

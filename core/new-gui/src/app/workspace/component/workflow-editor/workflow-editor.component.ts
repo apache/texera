@@ -16,7 +16,6 @@ import { ResultPanelToggleService } from '../../service/result-panel-toggle/resu
 import { Point, OperatorPredicate } from '../../types/workflow-common.interface';
 import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-graph-wrapper';
 import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
-import { OperatorStates } from '../../types/execute-workflow.interface';
 import { environment } from './../../../../environments/environment';
 
 
@@ -73,7 +72,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
   private ifMouseDown: boolean = false;
   private mouseDown: Point | undefined;
   private panOffset: Point = { x : 0 , y : 0};
-  private operatorStatusTooltipDisplayEnabled: boolean = false;
 
   // dictionary of {operatorID, CopiedOperator} pairs
   private copiedOperators: Record<string, CopiedOperator> = {};
@@ -117,10 +115,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.handlePaperPan();
 
     if (environment.executionStatusEnabled) {
-      this.handleOperatorStatesChange();
       this.handleOperatorStatisticsUpdate();
-      this.handleOperatorStatusTooltipShow();
-      this.handleOperatorStatusTooltipHidden();
     }
 
     this.handlePaperMouseZoom();
@@ -150,43 +145,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
   }
 
   /**
-   * this method listens to user move cursor into an element
-   * if operatorStatusTooltipDisplayEnabled is true and
-   * if the element is an operator in texeraGraph
-   * its popup window will be shown.
-   */
-  private handleOperatorStatusTooltipShow(): void {
-    Observable.fromEvent<MouseEvent>(this.getJointPaper(), 'element:mouseenter')
-    .subscribe(
-      event => {
-        const operatorID = (event as any)[0]['model']['id'];
-        if (this.operatorStatusTooltipDisplayEnabled) {
-          if (this.workflowActionService.getTexeraGraph().getOperator(operatorID) !== undefined) {
-            const operatorStatusTooltipID = JointUIService.getOperatorStatusTooltipElementID(operatorID);
-            this.jointUIService.showOperatorStatusToolTip(this.getJointPaper(), operatorStatusTooltipID);
-          }
-        }
-      }
-    );
-  }
-
-  /**
-   * this method listens to user move cursor out of an element
-   * if the element is an operator in texeraGraph
-   * its tooltip will be hiden.
-   */
-  private handleOperatorStatusTooltipHidden(): void {
-    Observable.fromEvent<MouseEvent>(this.getJointPaper(), 'element:mouseleave').subscribe(
-      event => {
-        const operatorID = (event as any)[0]['model']['id'];
-        if (this.workflowActionService.getTexeraGraph().getOperator(operatorID) !== undefined) {
-          this.jointUIService.hideOperatorStatusToolTip(this.getJointPaper(), JointUIService.getOperatorStatusTooltipElementID(operatorID));
-        }
-      }
-    );
-  }
-
-  /**
    * This method subscribe to workflowStatusService's status stream
    * for Each processStatus that has been emited
    *    1. enable operatorStatusTooltipDisplay because tooltip will not be empty
@@ -197,45 +155,17 @@ export class WorkflowEditorComponent implements AfterViewInit {
    *          the specific tooltip content will be updated
    */
   private handleOperatorStatisticsUpdate(): void {
-    this.workflowStatusService.getStatusInformationStream().subscribe(
-      status => {
-      this.operatorStatusTooltipDisplayEnabled = true;
-      this.workflowActionService.getTexeraGraph().getAllOperators().forEach(
-        operator => {
-            const operatorStatusTooltipID = JointUIService.getOperatorStatusTooltipElementID(operator.operatorID);
-            const opStatus = status.operatorStatistics[operator.operatorID.slice(9)];
-            if (! opStatus) {
-              throw Error('operator statistics do not exist for operator ' + operator);
-            }
-            this.jointUIService.changeOperatorStatusTooltipInfo(
-              this.getJointPaper(), operatorStatusTooltipID, opStatus
-            );
-        });
+    this.workflowStatusService.getStatusUpdateStream().subscribe(status => {
+      console.log(status);
+      Object.keys(status).forEach(operatorID => {
+        if (! this.workflowActionService.getTexeraGraph().hasOperator(operatorID)) {
+          throw new Error(`operator ${operatorID} does not exist`);
+        }
+        this.jointUIService.changeOperatorStatistics(this.getJointPaper(), operatorID, status[operatorID]);
+      });
     });
   }
 
-  /**
-   * This method subscribe to workflowStatusService's status stream
-   * for Each processStatus that has been emited
-   *   for each operator in texeraGraph:
-   *     find its states in processStatus, throw an error if not found
-   *     pass state and id to jointUIService
-   */
-  private handleOperatorStatesChange(): void {
-    this.workflowStatusService.getStatusInformationStream().subscribe(
-      status => {
-        this.workflowActionService.getTexeraGraph().getAllOperators().forEach(operator => {
-          // if the operator is not completed the whole process
-          const statusIndex = status.operatorStates[operator.operatorID.slice(9)];
-          if (!statusIndex) {
-            throw Error('operator status do not exist for operator ' + operator);
-          }
-          this.jointUIService.changeOperatorStates(
-            this.getJointPaper(), operator.operatorID, statusIndex
-          );
-        });
-    });
-  }
   /**
    * Handles restore offset default event by translating jointJS paper
    *  back to original position

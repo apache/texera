@@ -1,4 +1,4 @@
-import { LogicalPlan, ProcessStatus, ResultObject } from './execute-workflow.interface';
+import { LogicalPlan, WorkflowStatuxUpdate, ResultObject } from './execute-workflow.interface';
 
 
 /**
@@ -43,7 +43,7 @@ export type TexeraWebsocketEventTypeMap = {
   'WorkflowCompilationErrorEvent': WorkflowCompilationError,
   'WorkflowStartedEvent': {},
   'WorkflowCompletedEvent': {result: ReadonlyArray<ResultObject>},
-  'WorkflowStatusUpdateEvent': ProcessStatus,
+  'WorkflowStatusUpdateEvent': WorkflowStatuxUpdate,
   'WorkflowPausedEvent': {},
 };
 

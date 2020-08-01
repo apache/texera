@@ -63,37 +63,24 @@ export interface ErrorExecutionResult extends Readonly< {
  */
 export type ExecutionResult = SuccessExecutionResult | ErrorExecutionResult;
 
-
-/**
- * interface for processStatus recieved from the backend via websocket
- *    operatorStates: a dictionary with operator id as key and operator current state as value
- *    operatorStatistics: a dictionary with operator id as key and operator current statistics as value
- */
-export interface ProcessStatus extends Readonly< {
-  operatorStates: Readonly< {
-    [key: string]: OperatorStates
-  }>
-  operatorStatistics: Readonly< {
-    [key: string]: Statistics
-  }>
-}> {}
-
-export enum OperatorStates {
+export enum OperatorState {
+  Uninitialized,
   Initializing,
   Ready,
   Running,
   Pausing,
+  CollectingBreakpoints,
   Paused,
+  Resuming,
   Completed
 }
 
-/**
- * inputCount: the number of tuples received by a operator
- * outputCount: the number of tuples outputed by a operator
- * speed: number of tuples outputed by a operator per millisecond
- */
-export interface Statistics {
-  inputCount: number;
-  outputCount: number;
-  speed: number;
-}
+export interface OperatorStatistics extends Readonly<{
+  operatorState: OperatorState,
+  aggregatedOutputRowCount: number
+}> {}
+
+export interface WorkflowStatuxUpdate extends Readonly<{
+  operatorStatistics: Record<string, OperatorStatistics>
+}> {}
+
