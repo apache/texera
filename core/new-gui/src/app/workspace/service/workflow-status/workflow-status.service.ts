@@ -21,7 +21,6 @@ export class WorkflowStatusService {
       if (event.type !== 'WorkflowStatusUpdateEvent') {
         return;
       }
-      console.log(event.operatorStatistics);
       this.status.next(event.operatorStatistics);
     });
   }

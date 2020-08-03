@@ -5,13 +5,21 @@ import { ExecuteWorkflowService } from './../../service/execute-workflow/execute
 import { Observable } from 'rxjs/Observable';
 
 import { NgbModal, NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
-import { ExecutionResult, SuccessExecutionResult } from './../../types/execute-workflow.interface';
+import { ExecutionResult, SuccessExecutionResult, ExecutionState } from './../../types/execute-workflow.interface';
 import { TableColumn, IndexableObject } from './../../types/result-table.interface';
 import { ResultPanelToggleService } from './../../service/result-panel-toggle/result-panel-toggle.service';
 import deepMap from 'deep-map';
 import { isEqual, repeat } from 'lodash';
 import { ResultObject } from '../../types/execute-workflow.interface';
 import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
+import { BreakpointTriggerInfo } from '../../types/workflow-common.interface';
+import { OperatorMetadata } from '../../types/operator-schema.interface';
+import { OperatorMetadataService } from '../../service/operator-metadata/operator-metadata.service';
+import { DynamicSchemaService } from '../../service/dynamic-schema/dynamic-schema.service';
+
+
+export type DisplayType = 'errorMessage' | 'result' | 'breakpoint';
+
 /**
  * ResultPanelCompoent is the bottom level area that displays the
  *  execution result of a workflow after the execution finishes.
@@ -36,41 +44,106 @@ export class ResultPanelComponent {
   private static readonly PRETTY_JSON_TEXT_LIMIT: number = 50000;
   private static readonly TABLE_COLUMN_TEXT_LIMIT: number = 1000;
 
-  //  show table when chartType is undefined, instead show visualization button
-  public chartType: string | undefined;
-  // record which operator is selected
-  public showMessage: boolean = false;
-  public message: string = '';
+  public showResultPanel: boolean = false;
+  public displayType: DisplayType | undefined;
+
+  // display error message:
+  public errorMessages: Readonly<Record<string, string>> | undefined;
+
+  // display result table
   public currentColumns: TableColumn[] | undefined;
   public currentDisplayColumns: string[] | undefined;
   public currentDataSource: MatTableDataSource<object> | undefined;
-  public showResultPanel: boolean | undefined;
   public currentResult: object[] = [];
 
-  @ViewChild(MatPaginator) paginator: MatPaginator | null = null;
+  // display visualization
+  public chartType: string | undefined;
 
+  // display breakpoint
+  public breakpointTriggerInfo: BreakpointTriggerInfo | undefined;
+
+  // paginator, used when displaying rows
+  @ViewChild(MatPaginator) paginator: MatPaginator | null = null;
   private currentMaxPageSize: number = 0;
   private currentPageSize: number = 0;
   private currentPageIndex: number = 0;
 
-  constructor(private executeWorkflowService: ExecuteWorkflowService, private modalService: NgbModal,
+
+  constructor(
+    private executeWorkflowService: ExecuteWorkflowService, private modalService: NgbModal,
     private resultPanelToggleService: ResultPanelToggleService,
-    private workflowActionService: WorkflowActionService) {
-    this.workflowActionService.getJointGraphWrapper().getJointCellHighlightStream()
-      .subscribe(() => this.handleHighLightOperator());
-    this.workflowActionService.getJointGraphWrapper().getJointCellUnhighlightStream()
-      .subscribe(() => this.handleHighLightOperator());
+    private workflowActionService: WorkflowActionService
+  ) {
+    const activeStates: ExecutionState[] = [ExecutionState.Completed, ExecutionState.Failed, ExecutionState.BreakpointTriggered];
+    Observable.merge(
+      this.executeWorkflowService.getExecutionStateStream().filter(event => event.state in activeStates),
+      this.workflowActionService.getJointGraphWrapper().getJointCellHighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getJointCellUnhighlightStream(),
+      this.resultPanelToggleService.getToggleChangeStream().filter(isOpen => isOpen)
+    ).subscribe(event => this.displayResultPanel());
 
-    // once an execution has ended, update the result panel to dispaly
-    //  execution result or error
-    this.executeWorkflowService.getExecuteEndedStream().subscribe(
-      executionResult => this.handleResultData(executionResult),
-    );
-
-    this.resultPanelToggleService.getToggleChangeStream().subscribe(
-      value => this.showResultPanel = value,
-    );
+    this.executeWorkflowService.getExecutionStateStream().filter(event => event.state in activeStates).subscribe(event => {
+    if (event.state === ExecutionState.BreakpointTriggered) {
+        const breakpointOperator = this.executeWorkflowService.getBreakpointTriggerInfo()?.operatorID;
+        if (breakpointOperator) {
+          this.workflowActionService.getJointGraphWrapper().highlightOperator(breakpointOperator);
+        }
+      }
+    });
   }
+
+  public displayResultPanel(): void {
+    this.clearResultPanel();
+    this.showResultPanel = this.resultPanelToggleService.isResultPanelOpen();
+    if (! this.showResultPanel) {
+      return;
+    }
+
+    const executionState = this.executeWorkflowService.getExecutionState();
+    const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+
+    if (executionState === ExecutionState.Failed) {
+      this.displayType = 'errorMessage';
+      this.errorMessages = this.executeWorkflowService.getErrorMessages();
+    } else if (executionState === ExecutionState.BreakpointTriggered) {
+      const breakpointTriggerInfo = this.executeWorkflowService.getBreakpointTriggerInfo();
+      if (highlightedOperators.length === 1 && highlightedOperators[0] === breakpointTriggerInfo?.operatorID) {
+        this.displayType = 'breakpoint';
+        this.breakpointTriggerInfo = breakpointTriggerInfo;
+        this.setupResultTable(breakpointTriggerInfo.report.map(r => r.faultedTuple.tuple).filter(t => t !== undefined));
+      }
+    } else if (executionState === ExecutionState.Completed) {
+      const resultMap = this.executeWorkflowService.getResultMap();
+      if (highlightedOperators.length === 1) {
+        const result = resultMap.get(highlightedOperators[0]);
+        if (result) {
+          this.displayType = 'result';
+          this.chartType = result.chartType;
+          this.setupResultTable(result.table);
+        }
+      }
+    }
+  }
+
+  public clearResultPanel(): void {
+    this.displayType = undefined;
+    this.errorMessages = undefined;
+
+    this.currentColumns = undefined;
+    this.currentDisplayColumns = undefined;
+    this.currentDataSource = undefined;
+    this.currentResult = [];
+
+    this.chartType = undefined;
+    this.breakpointTriggerInfo = undefined;
+
+    this.paginator = null;
+    this.currentMaxPageSize = 0;
+    this.currentPageIndex = 0;
+    this.currentPageSize = 0;
+  }
+
+
   /**
    * Opens the ng-bootstrap model to display the row details in
    *  pretty json format when clicked. User can view the details
@@ -116,30 +189,6 @@ export class ResultPanelComponent {
   }
 
   /**
-   * Handler for high lighted operator.
-   * When use click on an operator, check whether it is a sink operator and display result.
-   */
-  public handleHighLightOperator(): void {
-    const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
-
-    if (highlightedOperators.length === 1) {
-      this.showResultPanel = true;
-      const resultMap = this.executeWorkflowService.getResultMap();
-      const result: ResultObject | undefined = resultMap.get(highlightedOperators[0]);
-      if (result) {
-        this.displayResultTable(result.table);
-        if (result.chartType) {
-          this.chartType = result?.chartType;
-        } else {
-          this.chartType = undefined;
-        }
-      }
-    } else {
-      this.showResultPanel = false;
-    }
-  }
-
-  /**
    * This function will listen to the page change event in the paginator
    *  to update current page index and current page size for
    *  modal navigations
@@ -158,83 +207,15 @@ export class ResultPanelComponent {
   }
 
   /**
-   * Handler for the execution result.
-   *
-   * Response code == 0:
-   *  - Execution had run correctly
-   *  - Don't show any error message
-   *  - Update data table's property to display new result
-   * Response code == 1:
-   *  - Execution had encountered an error
-   *  - Update and show the error message on the panel
-   *
-   * @param response
-   */
-  private handleResultData(response: ExecutionResult): void {
-
-    // show resultPanel
-    this.resultPanelToggleService.openResultPanel();
-
-    // backend returns error, display error message
-    if (response.code === 1) {
-      this.displayErrorMessage(response.message);
-      return;
-    }
-
-    // execution success, but result is empty, also display message
-    if (response.result.length === 0) {
-      this.displayErrorMessage(`execution doesn't have any results`);
-      return;
-    }
-
-    const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
-
-    // If the selected operator is a sink operator, the result panel should display result when response is coming.
-    if (highlightedOperators.length === 1) {
-
-        const resultMap = this.executeWorkflowService.getResultMap();
-        const result: ResultObject | undefined = resultMap.get(highlightedOperators[0]);
-          if (result) {
-            this.displayResultTable(result.table);
-            if (result.chartType) {
-              this.chartType = result.chartType;
-            } else {
-              this.chartType = undefined;
-            }
-          }
-
-    }
-
-  }
-
-  /**
-   * Displays the error message instead of the result table,
-   *  sets all the local properties correctly.
-   * @param errorMessage
-   */
-  private displayErrorMessage(errorMessage: string): void {
-    // clear data source and columns
-    this.currentDataSource = undefined;
-    this.currentColumns = undefined;
-    this.currentDisplayColumns = undefined;
-
-    // display message
-    this.showMessage = true;
-    this.message = errorMessage;
-  }
-
-  /**
    * Updates all the result table properties based on the execution result,
    *  displays a new data table with a new paginator on the result panel.
    *
    * @param response
    */
-  private displayResultTable(resultData: ReadonlyArray<object>) {
-     if (resultData.length < 1) {
-       throw new Error(`display result table inconsistency: result data should not be empty`);
-     }
-     // don't display message, display result table instead
-     this.showMessage = false;
+  private setupResultTable(resultData: ReadonlyArray<object>) {
+    if (resultData.length < 1) {
+      return;
+    }
 
     // creates a shallow copy of the readonly response.result,
     //  this copy will be has type object[] because MatTableDataSource's input needs to be object[]

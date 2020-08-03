@@ -105,7 +105,6 @@ export class SaveWorkflowService {
       this.workflowActionService.getTexeraGraph().getLinkAddStream(),
       this.workflowActionService.getTexeraGraph().getLinkDeleteStream(),
       this.workflowActionService.getTexeraGraph().getOperatorPropertyChangeStream(),
-      this.workflowActionService.getTexeraGraph().getOperatorAdvancedOptionChangeSteam(),
       this.workflowActionService.getJointGraphWrapper().getOperatorPositionChangeEvent()
     ).debounceTime(100).subscribe(() => {
       const workflow = this.workflowActionService.getTexeraGraph();

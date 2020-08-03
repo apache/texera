@@ -265,7 +265,7 @@ describe('PropertyEditorComponent', () => {
 
     // maintain a counter of how many times the event is emitted
     let emitEventCounter = 0;
-    component.outputFormChangeEventStream.subscribe(() => emitEventCounter++);
+    component.operatorPropertyChangeStream.subscribe(() => emitEventCounter++);
 
     // fakeAsync enables tick, which waits for the set property debounce time to finish
     tick(PropertyEditorComponent.formInputDebounceTime + 10);
@@ -339,7 +339,7 @@ describe('PropertyEditorComponent', () => {
 
     // maintain a counter of how many times the event is emitted
     let emitEventCounter = 0;
-    component.outputFormChangeEventStream.subscribe(() => emitEventCounter++);
+    component.operatorPropertyChangeStream.subscribe(() => emitEventCounter++);
 
     // fakeAsync enables tick, which waits for the set property debounce time to finish
     tick(PropertyEditorComponent.formInputDebounceTime + 10);

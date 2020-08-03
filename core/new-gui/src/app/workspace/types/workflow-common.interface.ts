@@ -1,4 +1,5 @@
 import { JSONSchema4, JSONSchema7 } from 'json-schema';
+import { ResultObject } from './execute-workflow.interface';
 /**
  * This file contains multiple type declarations related to workflow-graph.
  * These type declarations should be identical to the backend API.
@@ -33,4 +34,32 @@ export interface BreakpointSchema extends Readonly<{
   jsonSchema: Readonly<JSONSchema7>;
 }> {}
 
-export interface Breakpoint extends Readonly<Record<string, any>> {}
+type ConditionBreakpoint = Readonly<{
+  column: number;
+  condition: '=' | '>' | '>=' | '<' | '<=' | '!=' | 'contains';
+  value: string;
+}>;
+
+type CountBreakpoint = Readonly<{
+  count: number;
+}>;
+
+export type Breakpoint = ConditionBreakpoint | CountBreakpoint;
+
+export type BreakpointRequest =
+  Readonly<{type: 'ConditionBreakpoint'} & ConditionBreakpoint>
+  | Readonly<{type: 'CountBreakpoint'} & CountBreakpoint>;
+
+export type BreakpointFault = Readonly<{
+  faultedTuple: {
+    tuple: ResultObject,
+    id: number,
+    isInput: boolean
+  };
+  messages: ReadonlyArray<string>;
+}>;
+
+export type BreakpointTriggerInfo = Readonly<{
+  report: ReadonlyArray<BreakpointFault>,
+  operatorID: string;
+}>;

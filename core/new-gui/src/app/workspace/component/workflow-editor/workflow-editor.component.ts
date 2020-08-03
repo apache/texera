@@ -17,6 +17,8 @@ import { Point, OperatorPredicate, OperatorLink } from '../../types/workflow-com
 import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-graph-wrapper';
 import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
 import { environment } from './../../../../environments/environment';
+import { ExecuteWorkflowService } from '../../service/execute-workflow/execute-workflow.service';
+import { ExecutionState } from '../../types/execute-workflow.interface';
 
 
 // argument type of callback event on a JointJS Paper
@@ -40,6 +42,12 @@ type CopiedOperator = {
   layer: number,
   pastedOperators: string[]
 };
+
+// jointjs interactive options for enabling and disabling interactivity
+// https://resources.jointjs.com/docs/jointjs/v3.2/joint.html#dia.Paper.prototype.options.interactive
+const defaultInteractiveOption = { vertexAdd: false, labelMove: false };
+const disableInteractiveOption = {
+  linkMove: false, labelMove: false, arrowheadMove: false, vertexMove: false, vertexAdd: false, vertexRemove: false };
 
 /**
  * WorkflowEditorComponent is the componenet for the main workflow editor part of the UI.
@@ -68,6 +76,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
   public readonly COPY_OPERATOR_OFFSET = 20;
 
   private paper: joint.dia.Paper | undefined;
+  private interactive: boolean = true;
 
   private ifMouseDown: boolean = false;
   private mouseDown: Point | undefined;
@@ -85,7 +94,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
     private validationWorkflowService: ValidationWorkflowService,
     private jointUIService: JointUIService,
     private workflowStatusService: WorkflowStatusService,
-    private workflowUtilService: WorkflowUtilService
+    private workflowUtilService: WorkflowUtilService,
+    private executeWorkflowService: ExecuteWorkflowService
   ) {
 
     // bind validation functions to the same scope as component
@@ -105,6 +115,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
   ngAfterViewInit() {
 
     this.initializeJointPaper();
+    this.handleDisableJointPaperInteractiveness();
     this.handleOperatorValidation();
     this.handlePaperRestoreDefaultOffset();
     this.handlePaperZoom();
@@ -149,6 +160,18 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.setJointPaperDimensions();
   }
 
+  private handleDisableJointPaperInteractiveness(): void {
+    this.executeWorkflowService.getExecutionStateStream().subscribe(event => {
+      if (event.state === ExecutionState.Completed || event.state === ExecutionState.Failed) {
+        this.interactive = true;
+        this.getJointPaper().setInteractivity(defaultInteractiveOption);
+      } else {
+        this.interactive = false;
+        this.getJointPaper().setInteractivity(disableInteractiveOption);
+      }
+    });
+  }
+
   /**
    * This method subscribe to workflowStatusService's status stream
    * for Each processStatus that has been emited
@@ -161,7 +184,6 @@ export class WorkflowEditorComponent implements AfterViewInit {
    */
   private handleOperatorStatisticsUpdate(): void {
     this.workflowStatusService.getStatusUpdateStream().subscribe(status => {
-      console.log(status);
       Object.keys(status).forEach(operatorID => {
         if (! this.workflowActionService.getTexeraGraph().hasOperator(operatorID)) {
           throw new Error(`operator ${operatorID} does not exist`);
@@ -436,6 +458,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     // bind the delete button event to call the delete operator function in joint model action
     Observable
       .fromEvent<JointPaperEvent>(this.getJointPaper(), 'element:delete')
+      .filter(value => this.interactive)
       .map(value => value[0])
       .subscribe(
         elementView => {
@@ -456,6 +479,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
   private handleViewDeleteLink(): void {
     Observable
       .fromEvent<JointPaperEvent>(this.getJointPaper(), 'tool:remove')
+      .filter(value => this.interactive)
       .map(value => value[0])
       .subscribe(elementView => {
         this.workflowActionService.deleteLinkWithID(elementView.model.id.toString());
@@ -517,7 +541,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
       // marks all the available magnets or elements when a link is dragged
       markAvailable: true,
       // disable jointjs default action of adding vertexes to the link
-      interactive: { vertexAdd: false },
+      interactive: defaultInteractiveOption,
       // set a default link element used by jointjs when user creates a link on UI
       defaultLink: JointUIService.getDefaultLinkCell(),
       // disable jointjs default action that stops propagate click events on jointjs paper
@@ -585,6 +609,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
    */
   private handleOperatorDelete() {
     Observable.fromEvent<KeyboardEvent>(document, 'keydown')
+      .filter(event => this.interactive)
       .filter(event => (<HTMLElement> event.target).nodeName !== 'INPUT')
       .filter(event => (<HTMLElement> event.target).nodeName !== 'TEXTAREA')
       .filter(event => event.key === 'Backspace' || event.key === 'Delete')
@@ -635,6 +660,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
    */
   private handleOperatorCut() {
     Observable.fromEvent<ClipboardEvent>(document, 'cut')
+      .filter(event => this.interactive)
       .filter(event => (<HTMLElement> event.target).nodeName !== 'INPUT')
       .subscribe(() => {
         const currentOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
@@ -670,6 +696,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
    */
   private handleOperatorPaste() {
     Observable.fromEvent<ClipboardEvent>(document, 'paste')
+      .filter(event => this.interactive)
       .filter(event => (<HTMLElement> event.target).nodeName !== 'INPUT')
       .subscribe(() => {
         if (Object.keys(this.copiedOperators).length > 0) {

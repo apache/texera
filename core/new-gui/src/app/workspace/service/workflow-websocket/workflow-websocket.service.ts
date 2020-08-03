@@ -17,7 +17,7 @@ export class WorkflowWebsocketService {
 
   constructor() {
     this.websocket = webSocket<TexeraWebsocketEvent | TexeraWebsocketRequest>(WorkflowWebsocketService.TEXERA_WEBSOCKET_ENDPOINT);
-    this.webSocketObservable = this.websocket as Observable<TexeraWebsocketEvent>;
+    this.webSocketObservable = this.websocket.share() as Observable<TexeraWebsocketEvent>;
     this.webSocketObservable.subscribe(data => {
       if (data.type === 'HelloWorldResponse') {
         console.log('hello world works: ' + data.message);

@@ -1,4 +1,5 @@
-import { LogicalPlan, WorkflowStatuxUpdate, ResultObject } from './execute-workflow.interface';
+import { LogicalPlan, WorkflowStatusUpdate, ResultObject, LogicalOperator } from './execute-workflow.interface';
+import { BreakpointTriggerInfo } from './workflow-common.interface';
 
 
 /**
@@ -32,10 +33,16 @@ export interface WorkflowRuntimeErrorEvent extends Readonly<{
   type: 'WorkflowRuntimeErrorEvent'
 } & WorkflowRuntimeError> { }
 
+export type ModifyOperatorLogic = Readonly<{
+  operator: LogicalOperator
+}>;
+
 export type TexeraWebsocketRequestTypeMap = {
   'HelloWorldRequest': WebSocketHelloWorld,
   'ExecuteWorkflowRequest': LogicalPlan,
   'PauseWorkflowRequest': {},
+  'ResumeWorkflowRequest': {},
+  'ModifyLogicRequest': ModifyOperatorLogic
 };
 
 export type TexeraWebsocketEventTypeMap = {
@@ -43,8 +50,10 @@ export type TexeraWebsocketEventTypeMap = {
   'WorkflowCompilationErrorEvent': WorkflowCompilationError,
   'WorkflowStartedEvent': {},
   'WorkflowCompletedEvent': {result: ReadonlyArray<ResultObject>},
-  'WorkflowStatusUpdateEvent': WorkflowStatuxUpdate,
+  'WorkflowStatusUpdateEvent': WorkflowStatusUpdate,
   'WorkflowPausedEvent': {},
+  'BreakpointTriggeredEvent': BreakpointTriggerInfo,
+  'ModifyLogicCompletedEvent': {}
 };
 
 // helper type definitions to generate the request and event types

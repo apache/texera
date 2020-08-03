@@ -231,20 +231,33 @@ export const testJsonSchema: JSONSchema7 = {
 export const mockBreakpointSchema: BreakpointSchema = {
   jsonSchema: {
     type: 'object',
-    id: 'urn:jsonschema:edu:uci:ics:texera:dataflow:breakpoint',
-    properties: {
-      attribute: {
-        type: 'string'
+    oneOf: [
+      {
+        title: 'condition',
+        properties: {
+          column: {
+            type: 'integer'
+          },
+          condition: {
+            type: 'string',
+            enum: ['=', '>', '>=', '<', '<=', '!=', 'contains']
+          },
+          value: {
+            type: 'string'
+          },
+        },
+        required: ['column', 'condition', 'value']
       },
-      comparisonType: {
-        type: 'string',
-        enum: ['=', '>', '>=', '<', '<=', '≠']
+      {
+        title: 'count',
+        properties: {
+          count: {
+            type: 'integer'
+          },
+        },
+        required: ['count']
       },
-      compareTo: {
-        type: 'any'
-      }
-    },
-    required: ['attribute', 'comparisonType', 'compareTo']
+    ]
   }
 };
 

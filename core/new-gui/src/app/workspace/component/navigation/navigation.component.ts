@@ -6,7 +6,7 @@ import { environment } from '../../../../environments/environment';
 import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
 import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-graph-wrapper';
 import { ValidationWorkflowService } from '../../service/validation/validation-workflow.service';
-import { ExecutionResult } from './../../types/execute-workflow.interface';
+import { ExecutionState } from './../../types/execute-workflow.interface';
 import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
 
 /**
@@ -31,11 +31,11 @@ import { WorkflowStatusService } from '../../service/workflow-status/workflow-st
 })
 export class NavigationComponent implements OnInit {
   public static autoSaveState = 'Saved';
-  public isWorkflowRunning: boolean = false; // set this to true when the workflow is started
-  public isWorkflowPaused: boolean = false; // this will be modified by clicking pause/resume while the workflow is running
+  public executionState: ExecutionState | undefined; // set this to true when the workflow is started
   public isWorkflowValid: boolean = true; // this will check whether the workflow error or not
 
   // variable binded with HTML to decide if the running spinner should show
+  public buttonText = 'Run';
   public showSpinner = false;
   public executionResultID: string | undefined;
 
@@ -49,32 +49,20 @@ export class NavigationComponent implements OnInit {
   ) {
     // return the run button after the execution is finished, either
     //  when the value is valid or invalid
-    executeWorkflowService.getExecuteEndedStream().subscribe(
-      executionResult => {
-        // update execution result ID for downloading if execution is valid
-        this.handleResultData(executionResult);
-        this.isWorkflowRunning = false;
-        this.isWorkflowPaused = false;
-
-      },
-      () => {
-        this.executionResultID = undefined;
-        this.isWorkflowRunning = false;
-        this.isWorkflowPaused = false;
+    executeWorkflowService.getExecutionStateStream().subscribe(
+      event => {
+        this.executionState = event.state;
+        if (event.state === ExecutionState.Completed) {
+          this.executionResultID = event.resultID;
+        }
+        this.buttonText = this.getRunButtonText();
+        this.showSpinner = this.runSpinner();
       }
-
     );
-
-    // update the pause/resume button after a pause/resume request
-    //  is returned from the backend.
-    // this will swap button between pause and resume
-    executeWorkflowService.getExecutionPauseResumeStream()
-      .subscribe(state => this.isWorkflowPaused = (state === 0));
 
     // set the map of operatorStatusMap
     validationWorkflowService.getWorkflowValidationErrorStream()
       .subscribe(value => this.isWorkflowValid = Object.keys(value.errors).length === 0);
-
   }
 
   ngOnInit() {
@@ -90,60 +78,53 @@ export class NavigationComponent implements OnInit {
     if (! this.isWorkflowValid) {
       return;
     }
-    if (! environment.pauseResumeEnabled) {
-      if (! this.isWorkflowRunning) {
-        this.isWorkflowRunning = true;
+    switch (this.executionState) {
+      case undefined:
+      case ExecutionState.Completed:
+      case ExecutionState.Failed:
         this.executeWorkflowService.executeWorkflow();
-      }
-    } else {
-      if (!this.isWorkflowRunning && !this.isWorkflowPaused) {
-        // when a new workflow begins, reset the execution result ID.
-        this.executionResultID = undefined;
-        this.isWorkflowRunning = true;
-        this.executeWorkflowService.executeWorkflow();
-
-      } else if (this.isWorkflowRunning && this.isWorkflowPaused) {
+        return;
+      case ExecutionState.Paused:
+      case ExecutionState.BreakpointTriggered:
         this.executeWorkflowService.resumeWorkflow();
-      } else if (this.isWorkflowRunning && !this.isWorkflowPaused) {
-        this.executeWorkflowService.pauseWorkflow();
-      } else {
-        throw new Error('internal error: workflow cannot be both running and paused');
-      }
+        return;
+      case ExecutionState.Pausing:
+        return;
+      case ExecutionState.Running:
+        if (environment.pauseResumeEnabled) {
+          this.executeWorkflowService.pauseWorkflow();
+        }
+        return;
     }
   }
+
   public getRunButtonText(): string {
-    if (! environment.pauseResumeEnabled) {
-      return 'Run';
-    } else {
-      if (!this.isWorkflowRunning && !this.isWorkflowPaused) {
+    switch (this.executionState) {
+      case undefined:
+      case ExecutionState.Completed:
+      case ExecutionState.Failed:
         return 'Run';
-      } else if (this.isWorkflowRunning && this.isWorkflowPaused) {
+      case ExecutionState.Paused:
+      case ExecutionState.BreakpointTriggered:
         return 'Resume';
-      } else if (this.isWorkflowRunning && !this.isWorkflowPaused) {
-        return 'Pause';
-      } else {
-        throw new Error('internal error: workflow cannot be both running and paused');
-      }
+      case ExecutionState.Pausing:
+        return 'Pausing';
+      case ExecutionState.Running:
+        return environment.pauseResumeEnabled ? 'Pause' : 'Run';
     }
   }
 
   public runSpinner(): boolean {
-    if (! environment.pauseResumeEnabled) {
-      if (this.isWorkflowRunning && !this.isWorkflowPaused) {
+    switch (this.executionState) {
+      case undefined:
+      case ExecutionState.Completed:
+      case ExecutionState.Failed:
+      case ExecutionState.Paused:
+      case ExecutionState.BreakpointTriggered:
+        return false;
+      case ExecutionState.Pausing:
+      case ExecutionState.Running:
         return true;
-      } else {
-        return false;
-      }
-    } else {
-      if (!this.isWorkflowRunning && !this.isWorkflowPaused) {
-        return false;
-      } else if (this.isWorkflowRunning && this.isWorkflowPaused) {
-        return false;
-      } else if (this.isWorkflowRunning && !this.isWorkflowPaused) {
-        return true;
-      } else {
-        throw new Error('internal error: workflow cannot be both running and paused');
-      }
     }
   }
 
@@ -231,31 +212,6 @@ export class NavigationComponent implements OnInit {
    */
   public hasOperators(): boolean {
     return this.workflowActionService.getTexeraGraph().getAllOperators().length > 0;
-  }
-
-  /**
-   * Handler for the execution result to extract successful execution ID
-   */
-  private handleResultData(response: ExecutionResult): void {
-    if (!environment.downloadExecutionResultEnabled) {
-      return;
-    }
-
-    // backend returns error, display error message
-    if (response.code === 1) {
-
-      this.executionResultID = undefined;
-      return;
-    }
-
-    // execution success, but result is empty, also display message
-    if (response.result.length === 0) {
-      this.executionResultID = undefined;
-      return;
-    }
-
-    // set the current execution result ID to the result ID
-    this.executionResultID = response.resultID;
   }
 
 }

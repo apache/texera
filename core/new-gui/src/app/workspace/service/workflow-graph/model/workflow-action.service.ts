@@ -5,7 +5,7 @@ import { JointGraphWrapper } from './joint-graph-wrapper';
 import { JointUIService } from './../../joint-ui/joint-ui.service';
 import { WorkflowGraph, WorkflowGraphReadonly } from './workflow-graph';
 import { Injectable } from '@angular/core';
-import { Point, OperatorPredicate, OperatorLink, OperatorPort } from '../../../types/workflow-common.interface';
+import { Point, OperatorPredicate, OperatorLink, OperatorPort, Breakpoint } from '../../../types/workflow-common.interface';
 
 import * as joint from 'jointjs';
 import { environment } from './../../../../../environments/environment';
@@ -331,37 +331,23 @@ export class WorkflowActionService {
     this.executeAndStoreCommand(command);
   }
 
-  public setOperatorAdvanceStatus(operatorID: string, newShowAdvancedStatus: boolean) {
-    const command: Command = {
-      execute: () => {
-        this.jointGraphWrapper.highlightOperator(operatorID);
-        this.setOperatorAdvanceStatusInternal(operatorID, newShowAdvancedStatus);
-      },
-      undo: () => {
-        this.jointGraphWrapper.highlightOperator(operatorID);
-        this.setOperatorAdvanceStatusInternal(operatorID, !newShowAdvancedStatus);
-      }
-    };
-    this.executeAndStoreCommand(command);
-  }
-
   /**
    * set a given link's breakpoint properties to specific values
    */
-  public setLinkBreakpoint(linkID: string, newBreakpoint: object): void {
+  public setLinkBreakpoint(linkID: string, newBreakpoint: Breakpoint | undefined): void {
     const prevBreakpoint = this.getTexeraGraph().getLinkBreakpoint(linkID);
     const command: Command = {
       execute: () => {
-        this.setLinkBreakpointInternal(linkID, newBreakpoint);
-        if (Object.keys(newBreakpoint).length === 0) {
+        this.texeraGraph.setLinkBreakpoint(linkID, newBreakpoint);
+        if (newBreakpoint === undefined || Object.keys(newBreakpoint).length === 0) {
           this.getJointGraphWrapper().hideLinkBreakpoint(linkID);
         } else {
           this.getJointGraphWrapper().showLinkBreakpoint(linkID);
         }
       },
       undo: () => {
-        this.setOperatorPropertyInternal(linkID, prevBreakpoint);
-        if (Object.keys(prevBreakpoint).length === 0) {
+        this.texeraGraph.setLinkBreakpoint(linkID, prevBreakpoint);
+        if (prevBreakpoint === undefined || Object.keys(prevBreakpoint).length === 0) {
           this.getJointGraphWrapper().hideLinkBreakpoint(linkID);
         } else {
           this.getJointGraphWrapper().showLinkBreakpoint(linkID);
@@ -377,7 +363,7 @@ export class WorkflowActionService {
    * @param linkID
    */
   public removeLinkBreakpoint(linkID: string): void {
-    this.setLinkBreakpoint(linkID, {});
+    this.setLinkBreakpoint(linkID, undefined);
   }
 
   private addOperatorInternal(operator: OperatorPredicate, point: Point): void {
@@ -423,15 +409,6 @@ export class WorkflowActionService {
   // use this to modify properties
   private setOperatorPropertyInternal(operatorID: string, newProperty: object) {
     this.texeraGraph.setOperatorProperty(operatorID, newProperty);
-  }
-
-  private setOperatorAdvanceStatusInternal(operatorID: string, newShowAdvancedStatus: boolean) {
-    this.texeraGraph.setOperatorAdvanceStatus(operatorID, newShowAdvancedStatus);
-  }
-
-  // modifies the link breakpoint property
-  private setLinkBreakpointInternal(linkID: string, breakpoint: object) {
-    this.texeraGraph.setLinkBreakpoint(linkID, breakpoint);
   }
 
   private executeAndStoreCommand(command: Command): void {

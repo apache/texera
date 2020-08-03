@@ -10,7 +10,7 @@ import { OperatorState, OperatorStatistics } from '../../types/execute-workflow.
  * Defines the SVG element for the breakpoint button
  */
 export const breakpointButtonSVG =
-`<svg class="breakpoint-button" height = "24" width = "24">
+  `<svg class="breakpoint-button" height = "24" width = "24">
     <path d="M0 0h24v24H0z" fill="none" /> +
     <polygon points="8,2 16,2 22,8 22,16 16,22 8,22 2,16 2,8" fill="red" />
   </svg>
@@ -55,12 +55,12 @@ export const operatorNameClass = 'texera-operator-name';
 class TexeraCustomJointElement extends joint.shapes.devs.Model {
   markup =
     `<g class="element-node">
-      <text class="${operatorStateClass}"></text>
       <rect class="body"></rect>
       ${deleteButtonSVG}
       <image></image>
       <text class="${operatorNameClass}"></text>
       <text class="${operatorStatisticsClass}"></text>
+      <text class="${operatorStateClass}"></text>
     </g>`;
 }
 
@@ -168,25 +168,21 @@ export class JointUIService {
   }
 
   public changeOperatorStatistics(jointPaper: joint.dia.Paper, operatorID: string, statistics: OperatorStatistics): void {
-    console.log(operatorID);
-    console.log(statistics);
-    const fillColor: string = (() => {
-      switch (statistics.operatorState) {
-        case OperatorState.Completed: {
-          return 'green';
-        }
-        case OperatorState.Pausing:
-        case OperatorState.Paused: {
-          return 'red';
-        }
-        default: {
-          return 'orange';
-        }
-      }
-    })();
+    let fillColor: string;
+    switch (statistics.operatorState) {
+      case OperatorState.Completed:
+        fillColor = 'green';
+        break;
+      case OperatorState.Pausing:
+      case OperatorState.Paused:
+        fillColor = 'red';
+        break;
+      default:
+        fillColor = 'orange';
+        break;
+    }
 
-    jointPaper.getModelById(operatorID).attr(`.${operatorStateClass}/visible`, true);
-    jointPaper.getModelById(operatorID).attr(`.${operatorStateClass}/text`, status);
+    jointPaper.getModelById(operatorID).attr(`.${operatorStateClass}/text`, statistics.operatorState.toString());
     jointPaper.getModelById(operatorID).attr(`.${operatorStateClass}/fill`, fillColor);
 
     jointPaper.getModelById(operatorID).attr(`.${operatorStatisticsClass}/text`, statistics.aggregatedOutputRowCount);
@@ -213,34 +209,34 @@ export class JointUIService {
     return joint.linkTools.Button.extend({
       name: 'info-button',
       options: {
-          markup: [{
-              tagName: 'circle',
-              selector: 'info-button',
-              attributes: {
-                  'r': 10,
-                  'fill': '#001DFF',
-                  'cursor': 'pointer',
-              }
-          }, {
-              tagName: 'path',
-              selector: 'icon',
-              attributes: {
-                  'd': 'M -2 4 2 4 M 0 3 0 0 M -2 -1 1 -1 M -1 -4 1 -4',
-                  'fill': 'none',
-                  'stroke': '#FFFFFF',
-                  'stroke-width': 2,
-                  'pointer-events': 'none'
-              }
-          },
-        ],
-          distance: 60,
-          offset: 0,
-          action: function(event: JQuery.Event, linkView: joint.dia.LinkView) {
-            // when this button is clicked, it triggers an joint paper event
-            if (linkView.paper) {
-              linkView.paper.trigger('tool:breakpoint', linkView, event);
-            }
+        markup: [{
+          tagName: 'circle',
+          selector: 'info-button',
+          attributes: {
+            'r': 10,
+            'fill': '#001DFF',
+            'cursor': 'pointer',
           }
+        }, {
+          tagName: 'path',
+          selector: 'icon',
+          attributes: {
+            'd': 'M -2 4 2 4 M 0 3 0 0 M -2 -1 1 -1 M -1 -4 1 -4',
+            'fill': 'none',
+            'stroke': '#FFFFFF',
+            'stroke-width': 2,
+            'pointer-events': 'none'
+          }
+        },
+        ],
+        distance: 60,
+        offset: 0,
+        action: function (event: JQuery.Event, linkView: joint.dia.LinkView) {
+          // when this button is clicked, it triggers an joint paper event
+          if (linkView.paper) {
+            linkView.paper.trigger('tool:breakpoint', linkView, event);
+          }
+        }
       }
     });
   }
@@ -362,13 +358,13 @@ export class JointUIService {
   public static getCustomOperatorStatusTooltipStyleAttrs(): joint.shapes.devs.ModelSelectors {
     const tooltipStyleAttrs = {
       'element-node': {
-        style: {'pointer-events': 'none'}
+        style: { 'pointer-events': 'none' }
       },
       'polygon': {
         fill: '#FFFFFF', 'follow-scale': true, stroke: 'purple', 'stroke-width': '2',
         rx: '5px', ry: '5px', refPoints: '0,30 150,30 150,120 85,120 75,150 65,120 0,120',
         display: 'none',
-        style: {'pointer-events': 'none'}
+        style: { 'pointer-events': 'none' }
       },
       '#operatorCount': {
         fill: '#595959', 'font-size': '12px', ref: 'polygon',
@@ -376,7 +372,7 @@ export class JointUIService {
         'x-alignment': 'left',
         'ref-x': .05, 'ref-y': .2,
         display: 'none',
-        style: {'pointer-events': 'none'}
+        style: { 'pointer-events': 'none' }
       },
     };
     return tooltipStyleAttrs;
@@ -393,12 +389,12 @@ export class JointUIService {
     operatorType: string): joint.shapes.devs.ModelSelectors {
     const operatorStyleAttrs = {
       '.texera-operator-state': {
-        text:  '' , 'font-size': '14px', 'visible' : true,
-        'ref-x': 0.5, 'ref-y': -10, ref: 'rect', 'y-alignment': 'middle', 'x-alignment': 'middle'
+        text: '', 'font-size': '14px', 'visible': true,
+        'ref-x': 0.5, 'ref-y': 100, ref: 'rect', 'y-alignment': 'middle', 'x-alignment': 'middle'
       },
       '.texera-operator-statistics': {
-        text:  '' , fill: 'green', 'font-size': '14px', 'visible' : true,
-        'ref-x': 0.5, 'ref-y': -30, ref: 'rect', 'y-alignment': 'middle', 'x-alignment': 'middle'
+        text: '', fill: 'green', 'font-size': '14px', 'visible': true,
+        'ref-x': 0.5, 'ref-y': -20, ref: 'rect', 'y-alignment': 'middle', 'x-alignment': 'middle'
       },
       'rect': {
         fill: '#FFFFFF', 'follow-scale': true, stroke: 'red', 'stroke-width': '2',

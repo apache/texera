@@ -4,6 +4,8 @@
  * These interfaces confronts to the backend API.
 */
 
+import { Breakpoint, BreakpointTriggerInfo, BreakpointRequest } from './workflow-common.interface';
+
 export interface LogicalLink extends Readonly<{
   origin: string,
   destination: string,
@@ -17,6 +19,11 @@ export interface LogicalOperator extends Readonly<{
   [uniqueAttributes: string]: string | number | boolean | object
 }> { }
 
+export interface BreakpointInfo extends Readonly<{
+  operatorID: string,
+  breakpoint: BreakpointRequest
+}> {}
+
 /**
  * LogicalPlan is the backend interface equivalent of frontend interface WorkflowGraph,
  *  they represent the same thing - the backend term currently used is LogicalPlan.
@@ -25,7 +32,7 @@ export interface LogicalOperator extends Readonly<{
 export interface LogicalPlan extends Readonly<{
   operators: LogicalOperator[],
   links: LogicalLink[],
-  linkBreakpoints: Map<string, object>
+  breakpoints: BreakpointInfo[]
 }> { }
 
 /**
@@ -81,7 +88,23 @@ export interface OperatorStatistics extends Readonly<{
   aggregatedOutputRowCount: number
 }> {}
 
-export interface WorkflowStatuxUpdate extends Readonly<{
+export interface WorkflowStatusUpdate extends Readonly<{
   operatorStatistics: Record<string, OperatorStatistics>
 }> {}
 
+export enum ExecutionState {
+  Running = 1,
+  Pausing,
+  Paused,
+  BreakpointTriggered,
+  Completed,
+  Failed
+}
+
+export type ExecutionStateInfo = {
+  state: ExecutionState.Running | ExecutionState.Paused | ExecutionState.Pausing | ExecutionState.BreakpointTriggered
+} | {
+  state: ExecutionState.Completed, resultID: string | undefined, resultMap: ReadonlyMap<string, ResultObject>
+} | {
+  state: ExecutionState.Failed, errorMessages: Record<string, string>
+};
