@@ -55,6 +55,9 @@ class MapOperator(UDFOperator, ABC):
 	"""
 	Base class for one-input-tuple to one-output-tuple mapping operator. Either inherit this class (in case you want to
 	override open() and close(), e.g., open and close a model file.) or init this class object with a map function.
+	The map function should return the result tuple. If use inherit, then script should have an attribute named
+	`operator_instance` that is an instance of the inherited class; If only use filter function, simply define a
+	`map_function` in the script.
 	"""
 
 	def __init__(self, map_function=None):
@@ -65,6 +68,37 @@ class MapOperator(UDFOperator, ABC):
 	def accept(self, row: pandas.Series, nth_child=0):
 		if self._map_function is not None:
 			self._result_tuples.append(self._map_function(row, self._args))  # must take args
+		else:
+			raise NotImplementedError
+
+	def has_next(self):
+		return len(self._result_tuples) != 0
+
+	def next(self):
+		return self._result_tuples.pop()
+
+	def close(self):
+		pass
+
+
+class FilterOperator(UDFOperator, ABC):
+	"""
+		Base class for filter operators. Either inherit this class (in case you want to
+		override open() and close(), e.g., open and close a model file.) or init this class object with a filter function.
+		The filter function should return a boolean value indicating whether the input tuple meets the filter criteria.
+		If use inherit, then script should have an attribute named `operator_instance` that is an instance of the
+		inherited class; If only use filter function, simply define a `filter_function` in the script.
+		"""
+
+	def __init__(self, filter_function=None):
+		super().__init__()
+		self._filter_function = filter_function
+		self._result_tuples = []
+
+	def accept(self, row: pandas.Series, nth_child=0):
+		if self._filter_function is not None:
+			if self._filter_function(row, self._args):
+				self._result_tuples.append(row)
 		else:
 			raise NotImplementedError
 
