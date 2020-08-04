@@ -10,7 +10,6 @@ import java.time.LocalTime;
 import java.util.*;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.io.JsonStringEncoder;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import edu.uci.ics.texera.api.constants.ErrorMessages;
@@ -36,8 +35,7 @@ import org.apache.arrow.vector.types.TimeUnit;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
-import org.apache.arrow.vector.util.JsonStringArrayList;
-import org.apache.arrow.vector.util.JsonStringHashMap;
+import org.apache.arrow.vector.util.Text;
 
 import static edu.uci.ics.texera.api.schema.AttributeType.*;
 
@@ -61,7 +59,7 @@ public class PythonUDFOperator implements IOperator {
     // Related to Apache Arrow.
     private org.apache.arrow.vector.types.pojo.Schema tupleToPythonSchema;
 
-    private final static RootAllocator rootAllocator = new RootAllocator();
+    private final static RootAllocator globalRootAllocator = new RootAllocator();
     private FlightClient flightClient = null;
 
     // This is temporary, used to vectorize LIST type data.
@@ -134,11 +132,6 @@ public class PythonUDFOperator implements IOperator {
                     Arrays.asList(PYTHON, PYTHONSCRIPT, Integer.toString(portNumber), userScriptPath)
             );
 
-            // TODO: replace this with messages
-            if (outerFilePaths != null) args.addAll(outerFilePaths);
-            if (predicate.getInputAttributeNames() != null) args.addAll(predicate.getInputAttributeNames());
-            if (predicate.getResultAttributeNames() != null) args.addAll(predicate.getResultAttributeNames());
-
             ProcessBuilder processBuilder = new ProcessBuilder(args).inheritIO();
             // Start Flight server (Python process)
             processBuilder.start();
@@ -147,7 +140,8 @@ public class PythonUDFOperator implements IOperator {
             int tryCount = 0;
             while (!connected && tryCount < 5) {
                 try {
-                    flightClient = FlightClient.builder(rootAllocator, location).build();
+                    Thread.sleep(2000);
+                    flightClient = FlightClient.builder(globalRootAllocator, location).build();
                     String message = new String(
                             flightClient.doAction(new Action("healthcheck")).next().getBody(), StandardCharsets.UTF_8);
                     connected = message.equals("Flight Server is up and running!");
@@ -159,6 +153,26 @@ public class PythonUDFOperator implements IOperator {
             }
             if (tryCount == 5) throw new DataflowException("Exceeded try limit of 5 when connecting to Flight Server!");
         } catch (Exception e) {
+            throw new DataflowException(e.getMessage(), e);
+        }
+
+        // Send user args to Server.
+        List<String> userArgs = new ArrayList<>();
+        if (predicate.getInputAttributeNames() != null) userArgs.addAll(predicate.getInputAttributeNames());
+        if (predicate.getResultAttributeNames() != null) userArgs.addAll(predicate.getResultAttributeNames());
+        if (outerFilePaths != null) userArgs.addAll(outerFilePaths);
+
+        Schema argsSchema = new Schema(new Attribute("args", TEXT));
+        List<Tuple> argsTuples = new ArrayList<>();
+        for (String arg : userArgs) {
+            argsTuples.add(new Tuple(argsSchema, new TextField(arg)));
+        }
+        writeArrowStream(argsTuples, globalRootAllocator, convertToArrowSchema(argsSchema), "args");
+        // Let server open Python UDF
+        try{
+            flightClient.doAction(new Action("open")).next().getBody();
+        }catch(Exception e){
+            closeClientAndServer();
             throw new DataflowException(e.getMessage(), e);
         }
 
@@ -195,7 +209,7 @@ public class PythonUDFOperator implements IOperator {
         if (tupleBuffer.isEmpty()) {
             return false;
         }
-        writeArrowStream(tupleBuffer);
+        writeArrowStream(tupleBuffer, globalRootAllocator, tupleToPythonSchema, "toPython");
         return true;
     }
 
@@ -204,18 +218,39 @@ public class PythonUDFOperator implements IOperator {
         if (cursor == CLOSED) {
             return null;
         }
-        if (tupleBuffer == null){
-            if (computeTupleBuffer()) {
-                computeClassLabel();
-            } else {
-                return null;
+
+        // Not necessarily one input to one output mapping now.
+
+        if (resultQueue != null) {
+            // UDF execution has been made, retrieve results.
+            if (resultQueue.isEmpty()) {
+                // Try to make one more batch execution
+                if (computeTupleBuffer()) {
+                    executeUDF();
+                }
+                // All the tuples have been sent to Python and no result remain.
+                if (resultQueue.isEmpty()) return null;
+                else return resultQueue.remove();
+            } else return resultQueue.remove();
+        } else {
+            // No execution of UDF has been made yet.
+            if (tupleBuffer == null){
+                if (computeTupleBuffer()) {
+                    executeUDF();
+                } else {
+                    // No data at all
+                    tupleBuffer = null;
+                    return null;
+                }
             }
+            if (resultQueue == null || resultQueue.isEmpty()) return null;
+            else return resultQueue.remove();
         }
-        return popupOneTuple();
+
     }
 
     // Process the data file using NLTK
-    private void computeClassLabel() {
+    private void executeUDF() {
         try{
 //            System.out.println("Flight Client:\t" + new String(
             flightClient.doAction(new Action("compute")).next().getBody();
@@ -223,21 +258,10 @@ public class PythonUDFOperator implements IOperator {
             resultQueue = new LinkedList<>();
             readArrowStream();
         }catch(Exception e){
-            throw new DataflowException(e.getMessage(), e);
+            closeClientAndServer();
+            e.printStackTrace();
+            throw new DataflowException(e);
         }
-    }
-
-    private Tuple popupOneTuple() {
-        if (tupleBuffer.isEmpty()) {
-            tupleBuffer = null;
-            return null;
-        }
-
-        tupleBuffer.remove(0);
-        if (tupleBuffer.isEmpty()) {
-            tupleBuffer = null;
-        }
-        return resultQueue.remove();
     }
 
     /**
@@ -247,12 +271,6 @@ public class PythonUDFOperator implements IOperator {
      */
     @Override
     public void close() throws TexeraException {
-        try {
-            flightClient.doAction(new Action("shutdown")).next();
-            flightClient.close();
-        } catch (InterruptedException e) {
-            throw new DataflowException(e.getMessage(), e);
-        }
         if (cursor == CLOSED) {
             return;
         }
@@ -325,12 +343,20 @@ public class PythonUDFOperator implements IOperator {
                 case LIST:
                     // For now only supporting span.
                     if (((ImmutableList) tuple.getField(name).getValue()).get(0).getClass() != Span.class) {
+                        schemaRoot.clear();
+                        closeClientAndServer();
                         throw (new DataflowException("Unsupported Element Type for List Field!"));
                     }
                     else {
                         ListVector listVector = (ListVector) schemaRoot.getVector(name);
                         ImmutableList<Span> spansList = (ImmutableList<Span>) tuple.getField(name).getValue();
-                        convertListOfSpans(spansList, listVector, index, name);
+                        try {
+                            convertListOfSpans(spansList, listVector, index, name);
+                        } catch (JsonProcessingException e) {
+                            schemaRoot.clear();
+                            closeClientAndServer();
+                            throw new DataflowException(e.getMessage(), e);
+                        }
                     }
 
                     break;
@@ -348,12 +374,16 @@ public class PythonUDFOperator implements IOperator {
      * and convert it into a {@code pyarrow.Table} and store it in the server.
      * @param values The buffer of tuples to write.
      */
-    private void writeArrowStream(List<Tuple> values) {
+    private void writeArrowStream(
+            List<Tuple> values,
+            RootAllocator root,
+            org.apache.arrow.vector.types.pojo.Schema arrowSchema,
+            String descriptorPath) {
 //        System.out.print("Flight Client:\tSending data to Python...");
         SyncPutListener flightListener = new SyncPutListener();
-        VectorSchemaRoot schemaRoot = VectorSchemaRoot.create(tupleToPythonSchema, rootAllocator);
+        VectorSchemaRoot schemaRoot = VectorSchemaRoot.create(arrowSchema, root);
         FlightClient.ClientStreamListener streamWriter = flightClient.startPut(
-                FlightDescriptor.path(Collections.singletonList("ToPython")), schemaRoot, flightListener);
+                FlightDescriptor.path(Collections.singletonList(descriptorPath)), schemaRoot, flightListener);
         int index = 0;
         while (index < values.size()) {
             schemaRoot.allocateNew();
@@ -370,6 +400,7 @@ public class PythonUDFOperator implements IOperator {
         streamWriter.completed();
         flightListener.getResult();
         flightListener.close();
+        schemaRoot.clear();
 //        System.out.println(" Done.");
     }
 
@@ -387,6 +418,7 @@ public class PythonUDFOperator implements IOperator {
         while (stream.next()) {
             VectorSchemaRoot root  = stream.getRoot(); // get root
             convertArrowVectorsToResults(root);
+            root.clear();
         }
 //        System.out.println(" Done.");
     }
@@ -500,25 +532,39 @@ public class PythonUDFOperator implements IOperator {
                         case Struct:
                             // For now, struct is only for DateTime
                             DateDayVector subVectorDay = (DateDayVector) ((StructVector) vector).getChildByOrdinal(0);
-                            TimeSecVector subVectorTime = (TimeSecVector) ((StructVector) vector).getChildByOrdinal(1);
-                            texeraField = new DateTimeField(
-                                    LocalDateTime.of(
-                                            LocalDate.ofEpochDay(subVectorDay.get(i)),
-                                            LocalTime.ofSecondOfDay(subVectorTime.get(i))
-                                    )
-                            );
+                            try{
+                                TimeSecVector subVectorTime = (TimeSecVector) ((StructVector) vector).getChildByOrdinal(1);
+                                texeraField = new DateTimeField(
+                                        LocalDateTime.of(
+                                                LocalDate.ofEpochDay(subVectorDay.get(i)),
+                                                LocalTime.ofSecondOfDay(subVectorTime.get(i))
+                                        )
+                                );
+                            } catch (ClassCastException e) {
+                                TimeMicroVector subVectorTime = (TimeMicroVector) ((StructVector) vector).getChildByOrdinal(1);
+                                texeraField = new DateTimeField(
+                                        LocalDateTime.of(
+                                                LocalDate.ofEpochDay(subVectorDay.get(i)),
+                                                LocalTime.ofSecondOfDay(subVectorTime.get(i)/1000000)
+                                        )
+                                );
+                            }
                             break;
                         case List:
                             texeraField = getSpanFromListVector((ListVector) vector, i);
                             break;
                         default:
+                            schemaRoot.clear();
+                            closeClientAndServer();
                             throw (new DataflowException("Unsupported data type "+
                                     vector.getField().toString() +
                                     " when converting back to Texera table."));
                     }
-                } catch (IllegalStateException e) {
+                } catch (IllegalStateException | IOException e) {
                     if (!e.getMessage().contains("Value at index is null")) {
-                        throw new DataflowException(e);
+                        schemaRoot.clear();
+                        closeClientAndServer();
+                        throw new DataflowException(e.getMessage(), e);
                     } else {
                         switch (vector.getField().getFieldType().getType().getTypeID()) {
                             case Int: texeraField = new IntegerField(null); break;
@@ -568,6 +614,7 @@ public class PythonUDFOperator implements IOperator {
                     attributeType = LIST;
                     break;
                 default:
+                    closeClientAndServer();
                     throw (new DataflowException("Unsupported data type "+
                             arrowType.getTypeID() +
                             " when converting back to Texera table."));
@@ -578,7 +625,7 @@ public class PythonUDFOperator implements IOperator {
     }
 
     // For now we're only allowing List<Span>. This can (and should) be generalized in the future.
-    private void convertListOfSpans(ImmutableList<Span> spansList, ListVector listVector, int index, String name) {
+    private void convertListOfSpans(ImmutableList<Span> spansList, ListVector listVector, int index, String name) throws JsonProcessingException {
         if (index == 0) {
             if (innerIndexMap.containsKey(name)) innerIndexMap.replace(name, 0);
             else innerIndexMap.put(name, 0);
@@ -608,13 +655,7 @@ public class PythonUDFOperator implements IOperator {
 //                if (span.getKey() != null) keyVector.setSafe(innerIndex, span.getKey().getBytes(StandardCharsets.UTF_8));
 //                if (span.getValue() != null) valueVector.setSafe(innerIndex, span.getValue().getBytes(StandardCharsets.UTF_8));
 //                tokenOffsetVector.setSafe(innerIndex, span.getTokenOffset());
-                try {
-                    subElementsVector.setSafe(innerIndex, mapper.writeValueAsBytes(span));
-                } catch (JsonProcessingException e) {
-                    close();
-                    e.printStackTrace();
-                    throw new DataflowException(e);
-                }
+                subElementsVector.setSafe(innerIndex, mapper.writeValueAsBytes(span));
 
             }
             innerIndex++;
@@ -623,29 +664,36 @@ public class PythonUDFOperator implements IOperator {
         listVector.endValue(index, size);
     }
 
-    private ListField<Span> getSpanFromListVector(ListVector listVector, int index) {
+    private ListField<Span> getSpanFromListVector(ListVector listVector, int index) throws IOException {
        List<Span> resultList = new ArrayList<>();
-       List<JsonStringHashMap> vals = (List<JsonStringHashMap>) listVector.getObject(index);
-       for (JsonStringHashMap spanMap : vals) {
-           try {
-               resultList.add(
-    //                   new Span(
-    //                           spanMap.get("attributeName").toString(),
-    //                           (int) spanMap.get("start"),
-    //                           (int) spanMap.get("end"),
-    //                           spanMap.get("key").toString(),
-    //                           spanMap.get("value").toString(),
-    //                           (int) spanMap.get("tokenOffset")
-    //                   )
-                       mapper.readValue(spanMap.get("Span").toString(), Span.class)
-               );
-           } catch (IOException e) {
-               close();
-               e.printStackTrace();
-               throw new DataflowException(e);
-           }
+       List<Text> vals = (List<Text>) listVector.getObject(index);
+       for (Text spanJsonText : vals) {
+           resultList.add(
+//                   new Span(
+//                           spanMap.get("attributeName").toString(),
+//                           (int) spanMap.get("start"),
+//                           (int) spanMap.get("end"),
+//                           spanMap.get("key").toString(),
+//                           spanMap.get("value").toString(),
+//                           (int) spanMap.get("tokenOffset")
+//                   )
+                   mapper.readValue(spanJsonText.getBytes(), Span.class)
+           );
+
        }
        return new ListField<>(resultList);
+    }
+
+    void closeClientAndServer() {
+        try {
+            flightClient.doAction(new Action("close")).next().getBody();
+            flightClient.doAction(new Action("shutdown")).next();
+            globalRootAllocator.close();
+            flightClient.close();
+        } catch (Exception e) {
+            closeClientAndServer();
+            throw new DataflowException(e.getMessage(), e);
+        }
     }
 }
 
