@@ -21,13 +21,17 @@ user_module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(user_module)
 FinalUDF = None
 map_func = None
+filter_func = None
 try:
 	FinalUDF = user_module.operator_instance
 except AttributeError:
 	try:
 		map_func = user_module.map_function
 	except AttributeError:
-		raise Exception("Unsupported UDF definition!")
+		try:
+			filter_func = user_module.filter_function
+		except AttributeError:
+			raise Exception("Unsupported UDF definition!")
 
 
 class UDFServer(pyarrow.flight.FlightServerBase):
@@ -174,5 +178,8 @@ class UDFServer(pyarrow.flight.FlightServerBase):
 if __name__ == '__main__':
 	location = "grpc+tcp://localhost:" + portNumber
 	if FinalUDF is None:
-		FinalUDF = udf_operator.MapOperator(map_func)
+		if map_func is not None:
+			FinalUDF = udf_operator.MapOperator(map_func)
+		else:
+			FinalUDF = udf_operator.FilterOperator(filter_func)
 	UDFServer(FinalUDF, "localhost", location).serve()
