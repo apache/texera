@@ -55,6 +55,7 @@ public class OperatorGroupConstants {
         OperatorGroupOrderList.add(new GroupOrder(UTILITY_GROUP, 5));
         OperatorGroupOrderList.add(new GroupOrder(DATABASE_GROUP, 6));
         OperatorGroupOrderList.add(new GroupOrder(RESULT_GROUP, 7));
+        OperatorGroupOrderList.add(new GroupOrder(PYTHON_UDF_GROUP, 8));
     }
     
 

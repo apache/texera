@@ -271,6 +271,7 @@ public class PythonUDFOperator implements IOperator {
      */
     @Override
     public void close() throws TexeraException {
+        closeClientAndServer();
         if (cursor == CLOSED) {
             return;
         }
