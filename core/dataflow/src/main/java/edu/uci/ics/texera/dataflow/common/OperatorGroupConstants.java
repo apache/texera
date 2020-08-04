@@ -22,7 +22,9 @@ public class OperatorGroupConstants {
     public static final String DATABASE_GROUP = "Database";
     
     public static final String RESULT_GROUP = "View Results";
-    
+
+    public static final String PYTHON_UDF_GROUP = "Python Script UDFs";
+
     
     public static class GroupOrder {
         @JsonProperty("groupName")

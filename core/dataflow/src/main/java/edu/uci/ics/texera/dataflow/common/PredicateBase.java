@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.dataflow.common;
 
+import edu.uci.ics.texera.dataflow.udf.PythonUDFPredicate;
 import edu.uci.ics.texera.dataflow.sink.barchart.BarChartSinkPredicate;
 import edu.uci.ics.texera.dataflow.sink.linechart.LineChartSinkPredicate;
 import edu.uci.ics.texera.dataflow.sink.piechart.PieChartSinkPredicate;
@@ -112,7 +113,10 @@ import edu.uci.ics.texera.dataflow.nlp.sentiment.arrow.NltkSentimentPredicate;
 
         @Type(value = WordCloudSinkPredicate.class, name = "WordCloud"),
 
-        @Type(value = NltkSentimentPredicate.class, name = "NltkSentiment")
+        @Type(value = NltkSentimentPredicate.class, name = "NltkSentiment"),
+        @Type(value = PythonUDFPredicate.class, name = "PythonUDF"),
+
+
 })
 public abstract class PredicateBase implements IPredicate {
     

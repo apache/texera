@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.dataflow.plangen;
 
+import edu.uci.ics.texera.dataflow.udf.PythonUDFPredicate;
 import edu.uci.ics.texera.dataflow.sink.barchart.BarChartSinkPredicate;
 import edu.uci.ics.texera.dataflow.sink.linechart.LineChartSinkPredicate;
 import edu.uci.ics.texera.dataflow.sink.piechart.PieChartSinkPredicate;
@@ -96,7 +97,7 @@ public class OperatorArityConstants {
         fixedInputArityMap.put(LineChartSinkPredicate.class, 1);
 
         fixedInputArityMap.put(NltkSentimentPredicate.class, 1);
-
+        fixedInputArityMap.put(PythonUDFPredicate.class, 1);
         
     }
     
@@ -145,6 +146,7 @@ public class OperatorArityConstants {
         fixedOutputArityMap.put(LineChartSinkPredicate.class, 0);
 
         fixedOutputArityMap.put(NltkSentimentPredicate.class, 1);
+        fixedOutputArityMap.put(PythonUDFPredicate.class, 1);
 
     }
     
