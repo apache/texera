@@ -9,6 +9,9 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.*;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.io.JsonStringEncoder;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import edu.uci.ics.texera.api.constants.ErrorMessages;
 import edu.uci.ics.texera.api.constants.DataConstants.TexeraProject;
@@ -33,6 +36,7 @@ import org.apache.arrow.vector.types.TimeUnit;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.FieldType;
+import org.apache.arrow.vector.util.JsonStringArrayList;
 import org.apache.arrow.vector.util.JsonStringHashMap;
 
 import static edu.uci.ics.texera.api.schema.AttributeType.*;
@@ -62,6 +66,7 @@ public class PythonUDFOperator implements IOperator {
 
     // This is temporary, used to vectorize LIST type data.
     private Map<String, Integer> innerIndexMap;
+    private ObjectMapper mapper;
 
     public PythonUDFOperator(PythonUDFPredicate predicate){
         this.predicate = predicate;
@@ -75,6 +80,7 @@ public class PythonUDFOperator implements IOperator {
                 outerFilePaths.add(Utils.getResourcePath(s, TexeraProject.TEXERA_DATAFLOW).toString());
             }
         } else outerFilePaths = null;
+        mapper = new ObjectMapper();
     }
 
     public void setInputOperator(IOperator operator) {
@@ -435,20 +441,22 @@ public class PythonUDFOperator implements IOperator {
                     );
                     break;
                 case LIST:
-                    List<Field> children = Arrays.asList(
-                            Field.nullablePrimitive("attributeName", ArrowType.Utf8.INSTANCE),
-                            Field.nullablePrimitive("start", new ArrowType.Int(32, true)),
-                            Field.nullablePrimitive("end", new ArrowType.Int(32, true)),
-                            Field.nullablePrimitive("key", ArrowType.Utf8.INSTANCE),
-                            Field.nullablePrimitive("value", ArrowType.Utf8.INSTANCE),
-                            Field.nullablePrimitive("tokenOffset", new ArrowType.Int(32, true))
-                    );
+                    // Because of the bug of Apache Arrow that it cannot convert List of Structs from pandas to Arrow,
+                    // We're now temporarily converting Span to Json String.
+//                    List<Field> children = Arrays.asList(
+//                            Field.nullablePrimitive("attributeName", ArrowType.Utf8.INSTANCE),
+//                            Field.nullablePrimitive("start", new ArrowType.Int(32, true)),
+//                            Field.nullablePrimitive("end", new ArrowType.Int(32, true)),
+//                            Field.nullablePrimitive("key", ArrowType.Utf8.INSTANCE),
+//                            Field.nullablePrimitive("value", ArrowType.Utf8.INSTANCE),
+//                            Field.nullablePrimitive("tokenOffset", new ArrowType.Int(32, true))
+//                    );
                     field = new Field(
                             name,
                             FieldType.nullable(new ArrowType.List()),
-                            Collections.singletonList(
-                                    new Field("Span", FieldType.nullable(ArrowType.Struct.INSTANCE), children))
-                    );
+                            Collections.singletonList(Field.nullablePrimitive("Span", ArrowType.Utf8.INSTANCE))
+                            );
+//                                    new Field("Span", FieldType.nullable(ArrowType.Struct.INSTANCE), children))
                     break;
                 default: break;
             }
@@ -577,15 +585,15 @@ public class PythonUDFOperator implements IOperator {
         }
         int innerIndex = innerIndexMap.get(name);
         int size = spansList.size();
-        StructVector subElementsVector = (StructVector) listVector.getDataVector();
+        VarCharVector subElementsVector = (VarCharVector) listVector.getDataVector();
+//        StructVector subElementsVector = (StructVector) listVector.getDataVector();
         listVector.startNewValue(index);
-        VarCharVector attributeNameVector = (VarCharVector) subElementsVector.getVectorById(0);
-        IntVector startVector = (IntVector) subElementsVector.getVectorById(1);
-        IntVector endVector = (IntVector) subElementsVector.getVectorById(2);
-        VarCharVector keyVector = (VarCharVector) subElementsVector.getVectorById(3);
-        VarCharVector valueVector = (VarCharVector) subElementsVector.getVectorById(4);
-        IntVector tokenOffsetVector = (IntVector) subElementsVector.getVectorById(5);
-
+//        VarCharVector attributeNameVector = (VarCharVector) subElementsVector.getVectorById(0);
+//        IntVector startVector = (IntVector) subElementsVector.getVectorById(1);
+//        IntVector endVector = (IntVector) subElementsVector.getVectorById(2);
+//        VarCharVector keyVector = (VarCharVector) subElementsVector.getVectorById(3);
+//        VarCharVector valueVector = (VarCharVector) subElementsVector.getVectorById(4);
+//        IntVector tokenOffsetVector = (IntVector) subElementsVector.getVectorById(5);
         for (int i = 0; i < size; i++) {
             if (spansList.get(i) == null) {
                 subElementsVector.setNull(innerIndex);
@@ -593,13 +601,21 @@ public class PythonUDFOperator implements IOperator {
             else {
                 subElementsVector.setIndexDefined(innerIndex);
                 Span span = spansList.get(i);
-                // For all the fields of the struct
-                if (span.getAttributeName() != null) attributeNameVector.setSafe(innerIndex, span.getAttributeName().getBytes(StandardCharsets.UTF_8));
-                startVector.setSafe(innerIndex, span.getStart());
-                endVector.setSafe(innerIndex, span.getEnd());
-                if (span.getKey() != null) keyVector.setSafe(innerIndex, span.getKey().getBytes(StandardCharsets.UTF_8));
-                if (span.getValue() != null) valueVector.setSafe(innerIndex, span.getValue().getBytes(StandardCharsets.UTF_8));
-                tokenOffsetVector.setSafe(innerIndex, span.getTokenOffset());
+//                // For all the fields of the struct
+//                if (span.getAttributeName() != null) attributeNameVector.setSafe(innerIndex, span.getAttributeName().getBytes(StandardCharsets.UTF_8));
+//                startVector.setSafe(innerIndex, span.getStart());
+//                endVector.setSafe(innerIndex, span.getEnd());
+//                if (span.getKey() != null) keyVector.setSafe(innerIndex, span.getKey().getBytes(StandardCharsets.UTF_8));
+//                if (span.getValue() != null) valueVector.setSafe(innerIndex, span.getValue().getBytes(StandardCharsets.UTF_8));
+//                tokenOffsetVector.setSafe(innerIndex, span.getTokenOffset());
+                try {
+                    subElementsVector.setSafe(innerIndex, mapper.writeValueAsBytes(span));
+                } catch (JsonProcessingException e) {
+                    close();
+                    e.printStackTrace();
+                    throw new DataflowException(e);
+                }
+
             }
             innerIndex++;
         }
@@ -611,16 +627,23 @@ public class PythonUDFOperator implements IOperator {
        List<Span> resultList = new ArrayList<>();
        List<JsonStringHashMap> vals = (List<JsonStringHashMap>) listVector.getObject(index);
        for (JsonStringHashMap spanMap : vals) {
-           resultList.add(
-                   new Span(
-                           spanMap.get("attributeName").toString(),
-                           (int) spanMap.get("start"),
-                           (int) spanMap.get("end"),
-                           spanMap.get("key").toString(),
-                           spanMap.get("value").toString(),
-                           (int) spanMap.get("tokenOffset")
-                   )
-           );
+           try {
+               resultList.add(
+    //                   new Span(
+    //                           spanMap.get("attributeName").toString(),
+    //                           (int) spanMap.get("start"),
+    //                           (int) spanMap.get("end"),
+    //                           spanMap.get("key").toString(),
+    //                           spanMap.get("value").toString(),
+    //                           (int) spanMap.get("tokenOffset")
+    //                   )
+                       mapper.readValue(spanMap.get("Span").toString(), Span.class)
+               );
+           } catch (IOException e) {
+               close();
+               e.printStackTrace();
+               throw new DataflowException(e);
+           }
        }
        return new ListField<>(resultList);
     }
