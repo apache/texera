@@ -46,7 +46,7 @@
           <button mat-raised-button class="texera-navigation-run-button texera-navigation-run-text"
             [disabled]="!isWorkflowValid"
             [ngStyle]="{'background-color': '#5081f3','opacity' : isWorkflowValid ? '' : '0.7'}"
-            (click)="onButtonClick()" >
+            (click)="this.onClickHandler()" >
               <span>
                 <i *ngIf="!showSpinner" id="texera-run-icon" class="fa fa-play" aria-hidden="true"></i>
                 <i *ngIf="showSpinner" id="texera-pause-icon" class="fa fa-spinner fa-spin" aria-hidden="true"></i>

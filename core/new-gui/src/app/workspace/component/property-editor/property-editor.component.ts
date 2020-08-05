@@ -251,7 +251,7 @@ export class PropertyEditorComponent {
 
   private handleDisableEditorInteractivity(): void {
     this.executeWorkflowService.getExecutionStateStream().subscribe(event => {
-      if (event.state === ExecutionState.Completed || event.state === ExecutionState.Failed) {
+      if (event.current.state === ExecutionState.Completed || event.current.state === ExecutionState.Failed) {
         this.interactive = true;
         if (this.formlyFormGroup !== undefined) {
           this.formlyFormGroup.enable();

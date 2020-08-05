@@ -93,16 +93,22 @@ export interface WorkflowStatusUpdate extends Readonly<{
 }> {}
 
 export enum ExecutionState {
-  Running = 1,
-  Pausing,
-  Paused,
-  BreakpointTriggered,
-  Completed,
-  Failed
+  Uninitialized = 'Uninitialized',
+  WaitingToRun = 'WaitingToRun',
+  Running = 'Running',
+  Pausing = 'Pausing',
+  Paused = 'Paused',
+  Resuming = 'Resuming',
+  BreakpointTriggered = 'BreakpointTriggered',
+  Completed = 'Completed',
+  Failed = 'Failed'
 }
 
 export type ExecutionStateInfo = {
-  state: ExecutionState.Running | ExecutionState.Paused | ExecutionState.Pausing | ExecutionState.BreakpointTriggered
+  state: ExecutionState.Uninitialized | ExecutionState.WaitingToRun | ExecutionState.Running
+  | ExecutionState.Paused | ExecutionState.Pausing | ExecutionState.Resuming
+} | {
+  state: ExecutionState.BreakpointTriggered, breakpoint: BreakpointTriggerInfo
 } | {
   state: ExecutionState.Completed, resultID: string | undefined, resultMap: ReadonlyMap<string, ResultObject>
 } | {

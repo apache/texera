@@ -210,7 +210,10 @@ export class WorkflowActionService {
     this.executeAndStoreCommand(command);
   }
 
-  public addOperatorsAndLinks(operatorsAndPositions: {op: OperatorPredicate, pos: Point}[], links: OperatorLink[]): void {
+  public addOperatorsAndLinks(
+    operatorsAndPositions: {op: OperatorPredicate, pos: Point}[], links: OperatorLink[],
+    breakpoints?: ReadonlyMap<string, Breakpoint>
+  ): void {
     // remember currently highlighted operators
     const currentHighlighted = this.jointGraphWrapper.getCurrentHighlightedOperatorIDs();
 
@@ -224,12 +227,18 @@ export class WorkflowActionService {
           this.jointGraphWrapper.highlightOperator(o.op.operatorID);
         });
         links.forEach(l => this.addLinkInternal(l));
+        if (breakpoints !== undefined) {
+          breakpoints.forEach((breakpoint, linkID) => this.setLinkBreakpointInternal(linkID, breakpoint));
+        }
       },
       undo: () => {
         // remove links
         links.forEach(l => this.deleteLinkWithIDInternal(l.linkID));
         // remove the operators from JointJS
         operatorsAndPositions.forEach(o => this.deleteOperatorInternal(o.op.operatorID));
+        if (breakpoints !== undefined) {
+          breakpoints.forEach((breakpoint, linkID) => this.setLinkBreakpointInternal(linkID, undefined));
+        }
         // restore previous highlights
         this.jointGraphWrapper.unhighlightOperators(this.jointGraphWrapper.getCurrentHighlightedOperatorIDs());
         this.jointGraphWrapper.setMultiSelectMode(currentHighlighted.length > 1);
@@ -338,20 +347,10 @@ export class WorkflowActionService {
     const prevBreakpoint = this.getTexeraGraph().getLinkBreakpoint(linkID);
     const command: Command = {
       execute: () => {
-        this.texeraGraph.setLinkBreakpoint(linkID, newBreakpoint);
-        if (newBreakpoint === undefined || Object.keys(newBreakpoint).length === 0) {
-          this.getJointGraphWrapper().hideLinkBreakpoint(linkID);
-        } else {
-          this.getJointGraphWrapper().showLinkBreakpoint(linkID);
-        }
+        this.setLinkBreakpointInternal(linkID, newBreakpoint);
       },
       undo: () => {
-        this.texeraGraph.setLinkBreakpoint(linkID, prevBreakpoint);
-        if (prevBreakpoint === undefined || Object.keys(prevBreakpoint).length === 0) {
-          this.getJointGraphWrapper().hideLinkBreakpoint(linkID);
-        } else {
-          this.getJointGraphWrapper().showLinkBreakpoint(linkID);
-        }
+        this.setLinkBreakpointInternal(linkID, prevBreakpoint);
       }
     };
     this.executeAndStoreCommand(command);
@@ -416,6 +415,15 @@ export class WorkflowActionService {
     command.execute();
     this.undoRedoService.addCommand(command);
     this.undoRedoService.setListenJointCommand(true);
+  }
+
+  private setLinkBreakpointInternal(linkID: string, newBreakpoint: Breakpoint | undefined): void {
+    this.texeraGraph.setLinkBreakpoint(linkID, newBreakpoint);
+    if (newBreakpoint === undefined || Object.keys(newBreakpoint).length === 0) {
+      this.getJointGraphWrapper().hideLinkBreakpoint(linkID);
+    } else {
+      this.getJointGraphWrapper().showLinkBreakpoint(linkID);
+    }
   }
 
 }

@@ -5,7 +5,7 @@ import { ExecuteWorkflowService } from './../../service/execute-workflow/execute
 import { Observable } from 'rxjs/Observable';
 
 import { NgbModal, NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
-import { ExecutionResult, SuccessExecutionResult, ExecutionState } from './../../types/execute-workflow.interface';
+import { ExecutionResult, SuccessExecutionResult, ExecutionState, ExecutionStateInfo } from './../../types/execute-workflow.interface';
 import { TableColumn, IndexableObject } from './../../types/result-table.interface';
 import { ResultPanelToggleService } from './../../service/result-panel-toggle/result-panel-toggle.service';
 import deepMap from 'deep-map';
@@ -76,46 +76,54 @@ export class ResultPanelComponent {
   ) {
     const activeStates: ExecutionState[] = [ExecutionState.Completed, ExecutionState.Failed, ExecutionState.BreakpointTriggered];
     Observable.merge(
-      this.executeWorkflowService.getExecutionStateStream().filter(event => event.state in activeStates),
+      this.executeWorkflowService.getExecutionStateStream(),
       this.workflowActionService.getJointGraphWrapper().getJointCellHighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getJointCellUnhighlightStream(),
-      this.resultPanelToggleService.getToggleChangeStream().filter(isOpen => isOpen)
+      this.resultPanelToggleService.getToggleChangeStream()
     ).subscribe(event => this.displayResultPanel());
 
-    this.executeWorkflowService.getExecutionStateStream().filter(event => event.state in activeStates).subscribe(event => {
-    if (event.state === ExecutionState.BreakpointTriggered) {
+    this.executeWorkflowService.getExecutionStateStream().subscribe(event => {
+      if (event.current.state === ExecutionState.BreakpointTriggered) {
         const breakpointOperator = this.executeWorkflowService.getBreakpointTriggerInfo()?.operatorID;
         if (breakpointOperator) {
           this.workflowActionService.getJointGraphWrapper().highlightOperator(breakpointOperator);
         }
+        this.resultPanelToggleService.openResultPanel();
+      }
+      if (event.current.state === ExecutionState.Completed || event.current.state === ExecutionState.Failed) {
+        this.resultPanelToggleService.openResultPanel();
       }
     });
   }
 
   public displayResultPanel(): void {
-    this.clearResultPanel();
+    // current result panel is closed, do nothing
     this.showResultPanel = this.resultPanelToggleService.isResultPanelOpen();
-    if (! this.showResultPanel) {
+    if (!this.showResultPanel) {
       return;
     }
 
+    // clear everything, prepare for state change
+    this.clearResultPanel();
+
     const executionState = this.executeWorkflowService.getExecutionState();
     const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+    console.log(executionState);
 
-    if (executionState === ExecutionState.Failed) {
+    if (executionState.state === ExecutionState.Failed) {
       this.displayType = 'errorMessage';
       this.errorMessages = this.executeWorkflowService.getErrorMessages();
-    } else if (executionState === ExecutionState.BreakpointTriggered) {
+    } else if (executionState.state === ExecutionState.BreakpointTriggered) {
       const breakpointTriggerInfo = this.executeWorkflowService.getBreakpointTriggerInfo();
       if (highlightedOperators.length === 1 && highlightedOperators[0] === breakpointTriggerInfo?.operatorID) {
         this.displayType = 'breakpoint';
         this.breakpointTriggerInfo = breakpointTriggerInfo;
         this.setupResultTable(breakpointTriggerInfo.report.map(r => r.faultedTuple.tuple).filter(t => t !== undefined));
       }
-    } else if (executionState === ExecutionState.Completed) {
-      const resultMap = this.executeWorkflowService.getResultMap();
+    } else if (executionState.state === ExecutionState.Completed) {
+      const resultMap = executionState.resultMap;
       if (highlightedOperators.length === 1) {
-        const result = resultMap.get(highlightedOperators[0]);
+        const result = executionState.resultMap.get(highlightedOperators[0]);
         if (result) {
           this.displayType = 'result';
           this.chartType = result.chartType;

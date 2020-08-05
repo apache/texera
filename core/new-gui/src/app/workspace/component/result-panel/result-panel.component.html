@@ -1,11 +1,11 @@
 
 <div class="texera-workspace-result-panel-body texera-workflow-component-body" [hidden]="!showResultPanel">
 
-  <div class="texera-panel-message" *ngIf="errorMessages !== undefined">
+  <!-- <div class="texera-panel-message" *ngIf="errorMessages !== undefined">
     <div *ngFor="let item of errorMessages | keyvalue">
       {{item.key}}:{{item.value}}
     </div>
-  </div>
+  </div> -->
   <!-- Use [hidden] instead of *ngIf because in *ngIf, when the predicate returns
     false, the element inside the *ngIf clause will not exist, which @ViewChild(MatPaginator)
     will not be able to get the paginator when the correct execution result is returned
