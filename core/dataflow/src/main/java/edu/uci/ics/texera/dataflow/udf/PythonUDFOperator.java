@@ -693,7 +693,6 @@ public class PythonUDFOperator implements IOperator {
             globalRootAllocator.close();
             flightClient.close();
         } catch (Exception e) {
-            closeClientAndServer();
             throw new DataflowException(e.getMessage(), e);
         }
     }
