@@ -124,6 +124,8 @@ public class PythonUDFOperator implements IOperator {
             throw new DataflowException(ErrorMessages.INPUT_OPERATOR_NOT_SPECIFIED);
         }
 
+        inputOperator.open();
+
         // Flight related
         try {
             int portNumber = getFreeLocalPort();
@@ -176,7 +178,6 @@ public class PythonUDFOperator implements IOperator {
             throw new DataflowException(e.getMessage(), e);
         }
 
-        inputOperator.open();
         Schema inputSchema = inputOperator.getOutputSchema();
 
         // generate output schema by transforming the input schema
