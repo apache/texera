@@ -1,15 +1,12 @@
+import json
 import sys
-from traceback import print_exc
-
+import traceback
 import pandas
 import pyarrow
 import ast
 import threading
 import pyarrow.flight
 import importlib.util
-
-from pyarrow.lib import ArrowTypeError
-
 import texera_udf_operator_base
 
 portNumber = sys.argv[1]
@@ -147,27 +144,25 @@ class UDFServer(pyarrow.flight.FlightServerBase):
 			# execute UDF
 			# prepare input data
 			input_key = self.descriptor_to_key(pyarrow.flight.FlightDescriptor.for_path(b'toPython'))
-			input_table = self.flights[input_key]  # type: pyarrow.Table
-			input_dataframe = input_table.to_pandas()  # type: pandas.DataFrame
-			output_data_list = []
-			# execute and get output data
-			for index, row in input_dataframe.iterrows():
-				# FIXME: not sure what nth_child should behave here
-				try:
-					self.udf_op.accept(row)
-				except:
-					print_exc()
-				while self.udf_op.has_next():
-					output_data_list.append(self.udf_op.next())
-			output_dataframe = pandas.DataFrame.from_records(output_data_list)
-			# send output data to Java
-			output_key = self.descriptor_to_key(pyarrow.flight.FlightDescriptor.for_path(b'FromPython'))
 			try:
+				input_table = self.flights[input_key]  # type: pyarrow.Table
+				input_dataframe = input_table.to_pandas()  # type: pandas.DataFrame
+				output_data_list = []
+				# execute and get output data
+				for index, row in input_dataframe.iterrows():
+					self.udf_op.accept(row)
+					while self.udf_op.has_next():
+						output_data_list.append(self.udf_op.next())
+				output_dataframe = pandas.DataFrame.from_records(output_data_list)
+				# send output data to Java
+				output_key = self.descriptor_to_key(pyarrow.flight.FlightDescriptor.for_path(b'FromPython'))
 				self.flights[output_key] = pyarrow.Table.from_pandas(output_dataframe)
-			except ArrowTypeError:
-				print_exc()
+			except:
+				result_buffer = json.dumps({'status': 'Fail', 'errorMessage': traceback.format_exc()})
+				yield pyarrow.flight.Result(pyarrow.py_buffer(result_buffer.encode(encoding='utf-8')))
 			self.flights.pop(input_key)
-			yield pyarrow.flight.Result(pyarrow.py_buffer(b'Success!'))
+			result_buffer = json.dumps({'status': 'Success'})
+			yield pyarrow.flight.Result(pyarrow.py_buffer(result_buffer.encode(encoding='utf-8')))
 		elif action.type == "close":
 			# close UDF
 			self.udf_op.close()

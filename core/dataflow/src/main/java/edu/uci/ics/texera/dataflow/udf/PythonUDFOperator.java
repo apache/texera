@@ -260,12 +260,16 @@ public class PythonUDFOperator implements IOperator {
     // Process the data file using NLTK
     private void executeUDF() {
         try{
-            flightClient.doAction(new Action("compute")).next().getBody();
+            byte[] resultBytes = flightClient.doAction(new Action("compute")).next().getBody();
+            Map<String, String> result = mapper.readValue(resultBytes, Map.class);
+            if (result.get("status").equals("Fail")) {
+                String errorMessage = result.get("errorMessage");
+                throw new Exception(errorMessage);
+            }
             resultQueue = new LinkedList<>();
             readArrowStream();
         }catch(Exception e){
             closeClientAndServer(flightClient);
-            e.printStackTrace();
             throw new DataflowException(e);
         }
     }
