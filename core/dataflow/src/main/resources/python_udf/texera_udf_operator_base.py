@@ -1,9 +1,7 @@
-from abc import ABC
-
 import pandas
 
 
-class UDFOperator(object):
+class TexeraUDFOperator(object):
 	"""
 	Base class for row-oriented one-table input, one-table output user-defined operators. This must be implemented
 	before using.
@@ -51,7 +49,7 @@ class UDFOperator(object):
 		raise NotImplementedError
 
 
-class MapOperator(UDFOperator, ABC):
+class TexeraMapOperator(TexeraUDFOperator):
 	"""
 	Base class for one-input-tuple to one-output-tuple mapping operator. Either inherit this class (in case you want to
 	override open() and close(), e.g., open and close a model file.) or init this class object with a map function.
@@ -81,7 +79,7 @@ class MapOperator(UDFOperator, ABC):
 		pass
 
 
-class FilterOperator(UDFOperator, ABC):
+class TexeraFilterOperator(TexeraUDFOperator):
 	"""
 		Base class for filter operators. Either inherit this class (in case you want to
 		override open() and close(), e.g., open and close a model file.) or init this class object with a filter function.

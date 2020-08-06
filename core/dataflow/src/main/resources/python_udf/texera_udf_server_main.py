@@ -10,17 +10,26 @@ import importlib.util
 
 from pyarrow.lib import ArrowTypeError
 
-import udf_operator
+import texera_udf_operator_base
 
 portNumber = sys.argv[1]
 UDFOperatorScript = sys.argv[2]
 
 # Dynamically import operator from user-defined script.
+
+# Spec is used to load a spec based on a file location (the UDF script)
 spec = importlib.util.spec_from_file_location('user_module', UDFOperatorScript)
+# Dynamically load the user script as module
 user_module = importlib.util.module_from_spec(spec)
+# Execute the module so that its attributes can be loaded.
 spec.loader.exec_module(user_module)
+
+# The UDF that will be used in the server. It will be either an inherited operator instance, or created by passing
+# map_func(filter_func) to a TexeraMapOperator(TexeraFilterOperator) instance.
 FinalUDF = None
+# to store the possible map function
 map_func = None
+# to store the possible filter function
 filter_func = None
 try:
 	FinalUDF = user_module.operator_instance
@@ -35,8 +44,7 @@ except AttributeError:
 
 
 class UDFServer(pyarrow.flight.FlightServerBase):
-	def __init__(self, udf_op: udf_operator.UDFOperator, host="localhost", location=None, tls_certificates=None,
-	             auth_handler=None):
+	def __init__(self, udf_op, host="localhost", location=None, tls_certificates=None, auth_handler=None):
 		super(UDFServer, self).__init__(location, auth_handler, tls_certificates)
 		self.flights = {}
 		self.host = host
@@ -179,7 +187,7 @@ if __name__ == '__main__':
 	location = "grpc+tcp://localhost:" + portNumber
 	if FinalUDF is None:
 		if map_func is not None:
-			FinalUDF = udf_operator.MapOperator(map_func)
+			FinalUDF = texera_udf_operator_base.TexeraMapOperator(map_func)
 		else:
-			FinalUDF = udf_operator.FilterOperator(filter_func)
+			FinalUDF = texera_udf_operator_base.TexeraFilterOperator(filter_func)
 	UDFServer(FinalUDF, "localhost", location).serve()
