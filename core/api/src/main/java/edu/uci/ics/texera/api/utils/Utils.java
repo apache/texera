@@ -13,7 +13,7 @@ import edu.uci.ics.texera.api.constants.DataConstants.TexeraProject;
 import edu.uci.ics.texera.api.exception.StorageException;
 
 public class Utils {
-
+    
     // cache the texera home path once it's found
     private static Path TEXERA_HOME_PATH = null;
 	
