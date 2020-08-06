@@ -52,7 +52,7 @@ export type BreakpointRequest =
 
 export type BreakpointFault = Readonly<{
   faultedTuple: {
-    tuple: ResultObject,
+    tuple: ReadonlyArray<string>,
     id: number,
     isInput: boolean
   };

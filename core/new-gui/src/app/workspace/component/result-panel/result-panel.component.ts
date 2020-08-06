@@ -9,7 +9,7 @@ import { ExecutionResult, SuccessExecutionResult, ExecutionState, ExecutionState
 import { TableColumn, IndexableObject } from './../../types/result-table.interface';
 import { ResultPanelToggleService } from './../../service/result-panel-toggle/result-panel-toggle.service';
 import deepMap from 'deep-map';
-import { isEqual, repeat } from 'lodash';
+import { isEqual, repeat, range } from 'lodash';
 import { ResultObject } from '../../types/execute-workflow.interface';
 import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
 import { BreakpointTriggerInfo } from '../../types/workflow-common.interface';
@@ -121,7 +121,6 @@ export class ResultPanelComponent {
         this.setupResultTable(breakpointTriggerInfo.report.map(r => r.faultedTuple.tuple).filter(t => t !== undefined));
       }
     } else if (executionState.state === ExecutionState.Completed) {
-      const resultMap = executionState.resultMap;
       if (highlightedOperators.length === 1) {
         const result = executionState.resultMap.get(highlightedOperators[0]);
         if (result) {
@@ -220,7 +219,7 @@ export class ResultPanelComponent {
    *
    * @param response
    */
-  private setupResultTable(resultData: ReadonlyArray<object>) {
+  private setupResultTable(resultData: ReadonlyArray<object | string[]>) {
     if (resultData.length < 1) {
       return;
     }
@@ -240,10 +239,21 @@ export class ResultPanelComponent {
     //      data table.
     //  4. Set the newly created data table to our own paginator.
 
+    let columns: {columnKey: any, columnText: string}[];
+
+    const firstRow = resultData[0];
+    if (Array.isArray(firstRow)) {
+      const columnKeys = range(firstRow.length);
+      this.currentDisplayColumns = columnKeys.map(i => i.toString());
+      columns = columnKeys.map(v => ({columnKey: v, columnText: '_c' + v}));
+    } else {
+      const columnKeys = Object.keys(resultData[0]).filter(x => x !== '_id');
+      this.currentDisplayColumns = columnKeys;
+      columns = columnKeys.map(v => ({columnKey: v, columnText: v}));
+    }
 
     // generate columnDef from first row, column definition is in order
-    this.currentDisplayColumns = Object.keys(resultData[0]).filter(x => x !== '_id');
-    this.currentColumns = ResultPanelComponent.generateColumns(this.currentDisplayColumns);
+    this.currentColumns = ResultPanelComponent.generateColumns(columns);
 
     // create a new DataSource object based on the new result data
     this.currentDataSource = new MatTableDataSource<object>(this.currentResult);
@@ -267,13 +277,13 @@ export class ResultPanelComponent {
    *
    * @param columnNames
    */
-  private static generateColumns(columnNames: string[]): TableColumn[] {
-    return columnNames.map(col => ({
-      columnDef: col,
-      header: col,
+  private static generateColumns(columns: {columnKey: any, columnText: string}[]): TableColumn[] {
+    return columns.map(col => ({
+      columnDef: col.columnKey,
+      header: col.columnText,
       getCell: (row: IndexableObject) => {
-        if (row[col] !== null && row[col] !== undefined) {
-          return this.trimTableCell(row[col].toString());
+        if (row[col.columnKey] !== null && row[col.columnKey] !== undefined) {
+          return this.trimTableCell(row[col.columnKey].toString());
         } else {
           // allowing null value from backend
           return '';

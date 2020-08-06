@@ -236,7 +236,7 @@ export const mockBreakpointSchema: BreakpointSchema = {
         title: 'condition',
         properties: {
           column: {
-            type: 'integer'
+            type: 'string'
           },
           condition: {
             type: 'string',
