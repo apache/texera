@@ -17,7 +17,7 @@ import { v4 as uuid } from 'uuid';
 import { environment } from '../../../../environments/environment';
 import { WorkflowWebsocketService } from '../workflow-websocket/workflow-websocket.service';
 import { OperatorPredicate, BreakpointTriggerInfo, BreakpointRequest } from '../../types/workflow-common.interface';
-import { TexeraWebsocketEvent } from '../../types/workflow-websocket.interface';
+import { TexeraWebsocketEvent, WorkerTuples, OperatorCurrentTuples } from '../../types/workflow-websocket.interface';
 import { isEqual } from 'lodash';
 
 export const FORM_DEBOUNCE_TIME_MS = 150;
@@ -84,20 +84,39 @@ export class ExecuteWorkflowService {
         const resultMap = new Map(event.result.map(r => [r.operatorID, r]));
         return { state: ExecutionState.Completed, resultID: undefined, resultMap: resultMap };
       case 'WorkflowPausedEvent':
-        if (this.currentState.state !== ExecutionState.BreakpointTriggered) {
-          return { state: ExecutionState.Paused };
-        } else {
+        if (this.currentState.state === ExecutionState.BreakpointTriggered ||
+          this.currentState.state === ExecutionState.Paused) {
           return this.currentState;
+        } else {
+          return { state: ExecutionState.Paused, currentTuples: {} };
         }
+      case 'OperatorCurrentTuplesUpdateEvent':
+        console.log(event);
+        let pausedCurrentTuples: Readonly<Record<string, OperatorCurrentTuples>>;
+        if (this.currentState.state === ExecutionState.Paused) {
+          pausedCurrentTuples = this.currentState.currentTuples;
+        } else {
+          pausedCurrentTuples = {};
+        }
+        const currentTupleUpdate: Record<string, OperatorCurrentTuples> = {};
+        currentTupleUpdate[event.operatorID] = event;
+        const newCurrentTuples: Record<string, OperatorCurrentTuples> = {
+          ...currentTupleUpdate,
+          ...pausedCurrentTuples
+        };
+        return { state: ExecutionState.Paused, currentTuples: newCurrentTuples };
       case 'WorkflowResumedEvent':
         return { state: ExecutionState.Running };
       case 'BreakpointTriggeredEvent':
         console.log(event);
         return { state: ExecutionState.BreakpointTriggered, breakpoint: event };
-      case 'WorkflowCompilationErrorEvent':
+      case 'WorkflowErrorEvent':
         const errorMessages: Record<string, string> = {};
-        Object.entries(event.violations).forEach(entry => {
+        Object.entries(event.operatorErrors).forEach(entry => {
           errorMessages[entry[0]] = `${entry[1].propertyPath}: ${entry[1].message}`;
+        });
+        Object.entries(event.generalErrors).forEach(entry => {
+          errorMessages[entry[0]] = entry[1];
         });
         return { state: ExecutionState.Failed, errorMessages: errorMessages };
       default:
@@ -303,8 +322,10 @@ export class ExecuteWorkflowService {
     if (isEqual(this.currentState, stateInfo)) {
       return;
     }
-    if (this.clearTimeoutState !== undefined
-      && this.clearTimeoutState.includes(stateInfo.state)) {
+    console.log(stateInfo);
+    console.log(this.clearTimeoutState);
+    console.log(this.clearTimeoutState?.includes(stateInfo.state));
+    if (this.clearTimeoutState?.includes(stateInfo.state)) {
       this.clearExecutionTimeout();
     }
     const previousState = this.currentState;

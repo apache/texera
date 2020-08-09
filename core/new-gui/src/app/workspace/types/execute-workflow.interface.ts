@@ -5,6 +5,7 @@
 */
 
 import { Breakpoint, BreakpointTriggerInfo, BreakpointRequest } from './workflow-common.interface';
+import { OperatorCurrentTuples } from './workflow-websocket.interface';
 
 export interface LogicalLink extends Readonly<{
   origin: string,
@@ -104,13 +105,15 @@ export enum ExecutionState {
   Failed = 'Failed'
 }
 
-export type ExecutionStateInfo = {
+export type ExecutionStateInfo = Readonly<{
   state: ExecutionState.Uninitialized | ExecutionState.WaitingToRun | ExecutionState.Running
-  | ExecutionState.Paused | ExecutionState.Pausing | ExecutionState.Resuming
+  | ExecutionState.Pausing | ExecutionState.Resuming
+} | {
+  state: ExecutionState.Paused, currentTuples: Readonly<Record<string, OperatorCurrentTuples>>
 } | {
   state: ExecutionState.BreakpointTriggered, breakpoint: BreakpointTriggerInfo
 } | {
   state: ExecutionState.Completed, resultID: string | undefined, resultMap: ReadonlyMap<string, ResultObject>
 } | {
-  state: ExecutionState.Failed, errorMessages: Record<string, string>
-};
+  state: ExecutionState.Failed, errorMessages: Readonly<Record<string, string>>
+}>;

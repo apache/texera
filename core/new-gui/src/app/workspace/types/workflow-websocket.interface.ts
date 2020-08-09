@@ -22,16 +22,10 @@ export interface TexeraConstraintViolation extends Readonly<{
   propertyPath: string;
 }> {}
 
-export interface WorkflowCompilationError extends Readonly<{
-  violations: Record<string, TexeraConstraintViolation>
+export interface WorkflowError extends Readonly<{
+  operatorErrors: Record<string, TexeraConstraintViolation>,
+  generalErrors: Record<string, string>
 }> { }
-
-
-export interface WorkflowRuntimeError extends Readonly<{
-}> { }
-export interface WorkflowRuntimeErrorEvent extends Readonly<{
-  type: 'WorkflowRuntimeErrorEvent'
-} & WorkflowRuntimeError> { }
 
 export type ModifyOperatorLogic = Readonly<{
   operator: LogicalOperator
@@ -40,6 +34,16 @@ export type ModifyOperatorLogic = Readonly<{
 export type SkipTuple = Readonly<{
   actorPath: string;
   faultedTuple: BreakpointFaultedTuple
+}>;
+
+export type WorkerTuples = Readonly<{
+  workerID: string,
+  tuple: ReadonlyArray<string>
+}>;
+
+export type OperatorCurrentTuples = Readonly<{
+  operatorID: string,
+  tuples: ReadonlyArray<WorkerTuples>
 }>;
 
 export type TexeraWebsocketRequestTypeMap = {
@@ -53,14 +57,15 @@ export type TexeraWebsocketRequestTypeMap = {
 
 export type TexeraWebsocketEventTypeMap = {
   'HelloWorldResponse': WebSocketHelloWorld,
-  'WorkflowCompilationErrorEvent': WorkflowCompilationError,
+  'WorkflowErrorEvent': WorkflowError,
   'WorkflowStartedEvent': {},
   'WorkflowCompletedEvent': {result: ReadonlyArray<ResultObject>},
   'WorkflowStatusUpdateEvent': WorkflowStatusUpdate,
   'WorkflowPausedEvent': {},
   'WorkflowResumedEvent': {},
   'BreakpointTriggeredEvent': BreakpointTriggerInfo,
-  'ModifyLogicCompletedEvent': {}
+  'ModifyLogicCompletedEvent': {},
+  'OperatorCurrentTuplesUpdateEvent': OperatorCurrentTuples
 };
 
 // helper type definitions to generate the request and event types

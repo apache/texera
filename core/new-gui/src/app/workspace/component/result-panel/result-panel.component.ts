@@ -19,8 +19,6 @@ import { DynamicSchemaService } from '../../service/dynamic-schema/dynamic-schem
 import { environment } from 'src/environments/environment';
 
 
-export type DisplayType = 'errorMessage' | 'result' | 'breakpoint';
-
 /**
  * ResultPanelCompoent is the bottom level area that displays the
  *  execution result of a workflow after the execution finishes.
@@ -45,13 +43,17 @@ export class ResultPanelComponent {
   private static readonly PRETTY_JSON_TEXT_LIMIT: number = 50000;
   private static readonly TABLE_COLUMN_TEXT_LIMIT: number = 1000;
 
-  public customFieldMappingInverse: Record<number, string> = {
+  public twitterFieldMappingInverse: Record<number, string> = {
     0: 'create_at', 1: 'id', 2: 'text', 3: 'in_reply_to_status', 4: 'in_reply_to_user',
     5: 'favorite_count', 6: 'coordinate', 7: 'retweet_count', 8: 'lang', 9: 'is_retweet'
   };
 
+  public pausedTwitterFieldMappingInverse: Record<number, string> = {
+    0: 'worker_id', 1: 'create_at', 2: 'id', 3: 'text', 4: 'in_reply_to_status', 5: 'in_reply_to_user',
+    6: 'favorite_count', 7: 'coordinate', 8: 'retweet_count', 9: 'lang', 10: 'is_retweet'
+  };
+
   public showResultPanel: boolean = false;
-  public displayType: DisplayType | undefined;
 
   // display error message:
   public errorMessages: Readonly<Record<string, string>> | undefined;
@@ -86,9 +88,11 @@ export class ResultPanelComponent {
       this.workflowActionService.getJointGraphWrapper().getJointCellHighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getJointCellUnhighlightStream(),
       this.resultPanelToggleService.getToggleChangeStream()
-    ).subscribe(event => this.displayResultPanel());
+    ).subscribe(trigger => this.displayResultPanel());
 
     this.executeWorkflowService.getExecutionStateStream().subscribe(event => {
+      console.log(event.current.state);
+      console.log(event.current);
       if (event.current.state === ExecutionState.BreakpointTriggered) {
         const breakpointOperator = this.executeWorkflowService.getBreakpointTriggerInfo()?.operatorID;
         if (breakpointOperator) {
@@ -124,12 +128,10 @@ export class ResultPanelComponent {
     const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
 
     if (executionState.state === ExecutionState.Failed) {
-      this.displayType = 'errorMessage';
       this.errorMessages = this.executeWorkflowService.getErrorMessages();
     } else if (executionState.state === ExecutionState.BreakpointTriggered) {
       const breakpointTriggerInfo = this.executeWorkflowService.getBreakpointTriggerInfo();
       if (highlightedOperators.length === 1 && highlightedOperators[0] === breakpointTriggerInfo?.operatorID) {
-        this.displayType = 'breakpoint';
         this.breakpointTriggerInfo = breakpointTriggerInfo;
         this.breakpointAction = true;
         this.setupResultTable(breakpointTriggerInfo.report.map(r => r.faultedTuple.tuple).filter(t => t !== undefined));
@@ -138,16 +140,28 @@ export class ResultPanelComponent {
       if (highlightedOperators.length === 1) {
         const result = executionState.resultMap.get(highlightedOperators[0]);
         if (result) {
-          this.displayType = 'result';
           this.chartType = result.chartType;
           this.setupResultTable(result.table);
+        }
+      }
+    } else if (executionState.state === ExecutionState.Paused) {
+      if (highlightedOperators.length === 1) {
+        const result = executionState.currentTuples[(highlightedOperators[0])]?.tuples;
+        if (result) {
+          const resultTable: string[][] = [];
+          result.forEach(workerTuple => {
+            const updatedTuple: string[] = [];
+            updatedTuple.push(workerTuple.workerID);
+            updatedTuple.push(...workerTuple.tuple);
+            resultTable.push(updatedTuple);
+          });
+          this.setupResultTable(resultTable);
         }
       }
     }
   }
 
   public clearResultPanel(): void {
-    this.displayType = undefined;
     this.errorMessages = undefined;
 
     this.currentColumns = undefined;
@@ -265,11 +279,16 @@ export class ResultPanelComponent {
     if (Array.isArray(firstRow)) {
       const columnKeys = range(firstRow.length);
       this.currentDisplayColumns = columnKeys.map(i => i.toString());
-      if (environment.amberEngineEnabled) {
+      if (! environment.amberEngineEnabled) {
         columns = columnKeys.map(v => ({columnKey: v, columnText: 'c' + v}));
       } else {
         columns = columnKeys.map(columnKey => {
-          let columnText = this.customFieldMappingInverse[columnKey];
+          let columnText;
+          if (this.executeWorkflowService.getExecutionState().state === ExecutionState.Paused) {
+            columnText = this.pausedTwitterFieldMappingInverse[columnKey];
+          } else {
+            columnText = this.twitterFieldMappingInverse[columnKey];
+          }
           if (columnText === undefined) {
             columnText = 'c' + columnKey;
           }
