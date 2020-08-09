@@ -326,6 +326,9 @@ export class WorkflowActionService {
 
   // problem here
   public setOperatorProperty(operatorID: string, newProperty: object): void {
+    console.log('set operator property');
+    console.log(operatorID);
+    console.log(newProperty);
     const prevProperty = this.getTexeraGraph().getOperator(operatorID).operatorProperties;
     const command: Command = {
       execute: () => {

@@ -50,16 +50,19 @@ export type BreakpointRequest =
   Readonly<{type: 'ConditionBreakpoint'} & ConditionBreakpoint>
   | Readonly<{type: 'CountBreakpoint'} & CountBreakpoint>;
 
+export type BreakpointFaultedTuple = Readonly<{
+  tuple: ReadonlyArray<string>;
+  id: number;
+  isInput: boolean;
+}>;
+
 export type BreakpointFault = Readonly<{
-  faultedTuple: {
-    tuple: ReadonlyArray<string>,
-    id: number,
-    isInput: boolean
-  };
+  actorPath: string;
+  faultedTuple: BreakpointFaultedTuple;
   messages: ReadonlyArray<string>;
 }>;
 
 export type BreakpointTriggerInfo = Readonly<{
-  report: ReadonlyArray<BreakpointFault>,
+  report: ReadonlyArray<BreakpointFault>;
   operatorID: string;
 }>;

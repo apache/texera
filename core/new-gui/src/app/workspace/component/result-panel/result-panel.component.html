@@ -14,6 +14,10 @@
     removing the elements, but rather modify their css to make these elements invisible
     to the users-->
   <div [hidden]="chartType">
+    <button class="btn btn-secondary" *ngIf="breakpointTriggerInfo !== undefined"
+    [disabled]="!breakpointAction" (click)="onClickSkipTuples()">
+      Skip Tuples
+    </button>
     <div class="result-table" [hidden]="!currentColumns">
       <mat-table #table [dataSource]="currentDataSource!">
         <ng-container *ngFor="let column of currentColumns!" matColumnDef={{column.columnDef}}>

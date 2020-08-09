@@ -15,8 +15,9 @@ import { JSONSchema7 } from 'json-schema';
 import { FormGroup } from '@angular/forms';
 import { FormlyFormOptions, FormlyFieldConfig } from '@ngx-formly/core';
 import { FormlyJsonschema } from '@ngx-formly/core/json-schema';
-import { ExecuteWorkflowService } from '../../service/execute-workflow/execute-workflow.service';
-import { ExecutionState } from '../../types/execute-workflow.interface';
+import { ExecuteWorkflowService, FORM_DEBOUNCE_TIME_MS } from '../../service/execute-workflow/execute-workflow.service';
+import { ExecutionState, OperatorState } from '../../types/execute-workflow.interface';
+
 
 /**
  * PropertyEditorComponent is the panel that allows user to edit operator properties.
@@ -50,7 +51,10 @@ export class PropertyEditorComponent {
 
   // debounce time for form input in miliseconds
   //  please set this to multiples of 10 to make writing tests easy
-  public static formInputDebounceTime: number = 150;
+  public static formInputDebounceTime: number = FORM_DEBOUNCE_TIME_MS;
+
+  // re-delcare enum for angular template to access it
+  public readonly ExecutionState = ExecutionState;
 
   // operatorID if the component is displaying operator property editor
   public currentOperatorID: string | undefined;
@@ -82,10 +86,10 @@ export class PropertyEditorComponent {
   public formTitle: string | undefined;
 
   constructor(
-    private formlyJsonschema: FormlyJsonschema,
-    private workflowActionService: WorkflowActionService,
-    private autocompleteService: DynamicSchemaService,
-    private executeWorkflowService: ExecuteWorkflowService,
+    public formlyJsonschema: FormlyJsonschema,
+    public workflowActionService: WorkflowActionService,
+    public autocompleteService: DynamicSchemaService,
+    public executeWorkflowService: ExecuteWorkflowService,
     private ref: ChangeDetectorRef
   ) {
     // listen to the autocomplete event, remove invalid properties, and update the schema displayed on the form
@@ -129,6 +133,27 @@ export class PropertyEditorComponent {
     this.clearPropertyEditor();
   }
 
+  public allowChangeOperatorLogic() {
+    this.setInteractivity(true);
+  }
+
+  public confirmChangeOperatorLogic() {
+    this.setInteractivity(false);
+    if (this.currentOperatorID) {
+      this.executeWorkflowService.changeOperatorLogic(this.currentOperatorID);
+    }
+  }
+
+  public setInteractivity(interactive: boolean) {
+    this.interactive = interactive;
+    if (this.formlyFormGroup !== undefined) {
+      if (this.interactive) {
+        this.formlyFormGroup.enable();
+      } else {
+        this.formlyFormGroup.disable();
+      }
+    }
+  }
 
   /**
    * Hides the form and clears all the data of the current the property editor
@@ -252,15 +277,9 @@ export class PropertyEditorComponent {
   private handleDisableEditorInteractivity(): void {
     this.executeWorkflowService.getExecutionStateStream().subscribe(event => {
       if (event.current.state === ExecutionState.Completed || event.current.state === ExecutionState.Failed) {
-        this.interactive = true;
-        if (this.formlyFormGroup !== undefined) {
-          this.formlyFormGroup.enable();
-        }
+        this.setInteractivity(true);
       } else {
-        this.interactive = false;
-        if (this.formlyFormGroup !== undefined) {
-          this.formlyFormGroup.disable();
-        }
+        this.setInteractivity(false);
       }
     });
   }

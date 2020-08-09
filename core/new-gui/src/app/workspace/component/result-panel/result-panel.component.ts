@@ -16,6 +16,7 @@ import { BreakpointTriggerInfo } from '../../types/workflow-common.interface';
 import { OperatorMetadata } from '../../types/operator-schema.interface';
 import { OperatorMetadataService } from '../../service/operator-metadata/operator-metadata.service';
 import { DynamicSchemaService } from '../../service/dynamic-schema/dynamic-schema.service';
+import { environment } from 'src/environments/environment';
 
 
 export type DisplayType = 'errorMessage' | 'result' | 'breakpoint';
@@ -44,6 +45,11 @@ export class ResultPanelComponent {
   private static readonly PRETTY_JSON_TEXT_LIMIT: number = 50000;
   private static readonly TABLE_COLUMN_TEXT_LIMIT: number = 1000;
 
+  public customFieldMappingInverse: Record<number, string> = {
+    0: 'create_at', 1: 'id', 2: 'text', 3: 'in_reply_to_status', 4: 'in_reply_to_user',
+    5: 'favorite_count', 6: 'coordinate', 7: 'retweet_count', 8: 'lang', 9: 'is_retweet'
+  };
+
   public showResultPanel: boolean = false;
   public displayType: DisplayType | undefined;
 
@@ -61,13 +67,13 @@ export class ResultPanelComponent {
 
   // display breakpoint
   public breakpointTriggerInfo: BreakpointTriggerInfo | undefined;
+  public breakpointAction: boolean = false;
 
   // paginator, used when displaying rows
   @ViewChild(MatPaginator) paginator: MatPaginator | null = null;
   private currentMaxPageSize: number = 0;
   private currentPageSize: number = 0;
   private currentPageIndex: number = 0;
-
 
   constructor(
     private executeWorkflowService: ExecuteWorkflowService, private modalService: NgbModal,
@@ -90,7 +96,15 @@ export class ResultPanelComponent {
         }
         this.resultPanelToggleService.openResultPanel();
       }
-      if (event.current.state === ExecutionState.Completed || event.current.state === ExecutionState.Failed) {
+      if (event.current.state === ExecutionState.Failed) {
+        this.resultPanelToggleService.openResultPanel();
+      }
+      if (event.current.state === ExecutionState.Completed) {
+        const sinkOperators = this.workflowActionService.getTexeraGraph().getAllOperators()
+          .filter(op => op.operatorType.toLowerCase().includes('sink'));
+        if (sinkOperators.length > 0) {
+          this.workflowActionService.getJointGraphWrapper().highlightOperator(sinkOperators[0].operatorID);
+        }
         this.resultPanelToggleService.openResultPanel();
       }
     });
@@ -108,7 +122,6 @@ export class ResultPanelComponent {
 
     const executionState = this.executeWorkflowService.getExecutionState();
     const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
-    console.log(executionState);
 
     if (executionState.state === ExecutionState.Failed) {
       this.displayType = 'errorMessage';
@@ -118,6 +131,7 @@ export class ResultPanelComponent {
       if (highlightedOperators.length === 1 && highlightedOperators[0] === breakpointTriggerInfo?.operatorID) {
         this.displayType = 'breakpoint';
         this.breakpointTriggerInfo = breakpointTriggerInfo;
+        this.breakpointAction = true;
         this.setupResultTable(breakpointTriggerInfo.report.map(r => r.faultedTuple.tuple).filter(t => t !== undefined));
       }
     } else if (executionState.state === ExecutionState.Completed) {
@@ -143,6 +157,7 @@ export class ResultPanelComponent {
 
     this.chartType = undefined;
     this.breakpointTriggerInfo = undefined;
+    this.breakpointAction = false;
 
     this.paginator = null;
     this.currentMaxPageSize = 0;
@@ -213,6 +228,11 @@ export class ResultPanelComponent {
     }
   }
 
+  public onClickSkipTuples(): void {
+    this.executeWorkflowService.skipTuples();
+    this.breakpointAction = false;
+  }
+
   /**
    * Updates all the result table properties based on the execution result,
    *  displays a new data table with a new paginator on the result panel.
@@ -245,7 +265,17 @@ export class ResultPanelComponent {
     if (Array.isArray(firstRow)) {
       const columnKeys = range(firstRow.length);
       this.currentDisplayColumns = columnKeys.map(i => i.toString());
-      columns = columnKeys.map(v => ({columnKey: v, columnText: '_c' + v}));
+      if (environment.amberEngineEnabled) {
+        columns = columnKeys.map(v => ({columnKey: v, columnText: 'c' + v}));
+      } else {
+        columns = columnKeys.map(columnKey => {
+          let columnText = this.customFieldMappingInverse[columnKey];
+          if (columnText === undefined) {
+            columnText = 'c' + columnKey;
+          }
+          return {columnKey, columnText};
+        });
+      }
     } else {
       const columnKeys = Object.keys(resultData[0]).filter(x => x !== '_id');
       this.currentDisplayColumns = columnKeys;
