@@ -14,12 +14,12 @@ import { UserService } from '../../../../../common/service/user/user.service';
   styleUrls: ['./ngbdmodal-user-login.component.scss']
 })
 export class NgbdModalUserLoginComponent implements OnInit {
+  public static readonly EMPTY_FIELD_ERROR_MESSAGE = 'Username or password should not be null.';
   public loginUserName: string = '';
   public loginPassword: string = '';
   public registerUserName: string = '';
   public registerPassword: string = '';
   public selectedTab = 0;
-  public hide = true;
   public loginErrorMessage: string | undefined;
   public registerErrorMessage: string | undefined;
 
@@ -37,7 +37,7 @@ export class NgbdModalUserLoginComponent implements OnInit {
    */
   public login(): void {
     if (this.loginUserName.length === 0 || this.loginPassword.length === 0) {
-      return;
+      this.loginErrorMessage =  NgbdModalUserLoginComponent.EMPTY_FIELD_ERROR_MESSAGE;
     }
     this.loginErrorMessage = undefined;
     this.userService.login(this.loginUserName, this.loginPassword)
@@ -59,7 +59,7 @@ export class NgbdModalUserLoginComponent implements OnInit {
    */
   public register(): void {
     if (this.registerUserName.length === 0 || this.registerPassword.length === 0) {
-      return;
+      this.registerErrorMessage =  NgbdModalUserLoginComponent.EMPTY_FIELD_ERROR_MESSAGE;
     }
     this.registerErrorMessage = undefined;
 

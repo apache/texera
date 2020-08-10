@@ -3,7 +3,7 @@
   height: 100%;
   width: 100%;
   display: grid;
-  grid-template-columns: 14% 64% 22%;
+  grid-template-columns: 14% 70% 1% 15%;
   grid-template-rows: 100%;
 }
 
@@ -28,9 +28,16 @@
   grid-row-end: 1;
 }
 
-.texera-navigation-execute {
+.texera-navigation-dashboard {
   grid-column-start: 3;
   grid-column-end: 4;
+  grid-row-start: 1;
+  grid-row-end: 1;
+}
+
+.texera-navigation-execute {
+  grid-column-start: 4;
+  grid-column-end: 5;
   grid-row-start: 1;
   grid-row-end: 1;
   justify-self: end;

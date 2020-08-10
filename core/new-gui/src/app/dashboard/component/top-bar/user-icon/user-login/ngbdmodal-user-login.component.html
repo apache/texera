@@ -15,7 +15,7 @@
             <input matInput [(ngModel)]="loginUserName" placeholder="Username">
           </mat-form-field>
           <mat-form-field>
-            <input matInput  [type]="hide ? 'password' : 'text'" [(ngModel)]="loginPassword" placeholder="Password">
+            <input matInput  [type]="'password'" [(ngModel)]="loginPassword" placeholder="Password">
 
           </mat-form-field>
         </mat-dialog-content>
@@ -32,7 +32,7 @@
             <input matInput [(ngModel)]="registerUserName" placeholder="Username">
           </mat-form-field>
           <mat-form-field>
-            <input matInput [type]="hide ? 'password' : 'text'" [(ngModel)]="registerPassword" placeholder="Password">
+            <input matInput [type]="'password'"  [(ngModel)]="registerPassword" placeholder="Password">
           </mat-form-field>
         </mat-dialog-content>
         <div><button class = "btn btn-info" (click) = "register()"> Sign Up </button></div>

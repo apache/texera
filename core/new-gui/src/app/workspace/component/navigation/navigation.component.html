@@ -24,10 +24,14 @@
 
 
   </div>
-  <div class="collapse navbar-collapse texera-navigation-execute">
+
+  <div class="collapse navbar-collapse texera-navigation-dashboard">
     <div class="button">
-      <button   class="btn btn-secondary texera-workspace-tour-run"  color="accent" [routerLink]="['/dashboard']">Dashbaord</button>
+      <button  class="btn btn-secondary texera-workspace-tour-run"  color="accent" [routerLink]="['/dashboard']">Dashbaord</button>
     </div>
+  </div>
+
+  <div class="collapse navbar-collapse texera-navigation-execute">
     <div class="button" tourAnchor="texera-workspace-navigation-run">
       <button class="btn btn-secondary texera-workspace-tour-run" (click)="undoRedo.undoAction()">
           <span>
