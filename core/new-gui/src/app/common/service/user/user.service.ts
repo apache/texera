@@ -34,7 +34,7 @@ export class UserService {
    * It will automatically login, save the user account inside and trigger userChangeEvent when success
    * @param userName
    */
-  public register(userName: string): Observable<UserWebResponse> {
+  public register(userName: string, password: string): Observable<UserWebResponse> {
     // assume the text passed in should be correct
     if (this.currentUser) {throw new Error('Already logged in when register.'); }
     const validation = this.validateUsername(userName);
@@ -45,7 +45,7 @@ export class UserService {
       });
     }
 
-    return this.registerHttpRequest(userName).map(
+    return this.registerHttpRequest(userName, password).map(
       res => {
         if (res.code === 0) {
           this.changeUser(res.user);
@@ -61,8 +61,9 @@ export class UserService {
    * This method will handle the request for user login.
    * It will automatically login, save the user account inside and trigger userChangeEvent when success
    * @param userName
+   * @param password
    */
-  public login(userName: string):  Observable<UserWebResponse> {
+  public login(userName: string, password: string):  Observable<UserWebResponse> {
     if (this.currentUser) {throw new Error('Already logged in when login in.'); }
     const validation = this.validateUsername(userName);
     if (! validation.result) {
@@ -72,7 +73,7 @@ export class UserService {
       });
     }
 
-    return this.loginHttpRequest(userName).map(
+    return this.loginHttpRequest(userName, password).map(
       res => {
         if (res.code === 0) {
           this.changeUser(res.user);
@@ -118,26 +119,29 @@ export class UserService {
   /**
    * construct the request body as formData and create http request
    * @param userName
+   *  @param password
    */
-  private registerHttpRequest(userName: string): Observable<UserWebResponse> {
-    type UserRegistrationRequest = {userName: string};
-    const body: UserRegistrationRequest = {userName: userName};
+  private registerHttpRequest(userName: string, password: string): Observable<UserWebResponse> {
+    type UserRegistrationRequest = {userName: string, password: string};
+    const body: UserRegistrationRequest = {userName: userName, password: password};
     return this.http.post<UserWebResponse>(`${AppSettings.getApiEndpoint()}/${UserService.REGISTER_ENDPOINT}`, body);
   }
 
   /**
    * construct the request body as formData and create http request
    * @param userName
+   * @param password
    */
-  private loginHttpRequest(userName: string): Observable<UserWebResponse> {
-    type UserLoginRequest = {userName: string};
-    const body: UserLoginRequest = {userName: userName};
+  private loginHttpRequest(userName: string, password: string): Observable<UserWebResponse> {
+    type UserLoginRequest = {userName: string, password: string};
+    const body: UserLoginRequest = {userName: userName, password: password};
     return this.http.post<UserWebResponse>(`${AppSettings.getApiEndpoint()}/${UserService.LOGIN_ENDPOINT}`, body);
   }
 
     /**
    * construct the request body as formData and create http request
    * @param userName
+   *  @param password
    */
   private logOutHttpRequest(): Observable<UserWebResponse> {
     return this.http.get<UserWebResponse>(`${AppSettings.getApiEndpoint()}/${UserService.LOG_OUT_ENDPOINT}`);
@@ -163,6 +167,17 @@ export class UserService {
       return { result: false, message: 'userName should not be empty'};
     }
     return { result: true, message: 'userName frontend validation success' };
+  }
+
+  /**
+   * check the given parameter is legal for login/registration
+   * @param password
+   */
+  private validatePassword(password: string): {result: boolean, message: string} {
+    if (password.trim().length === 0) {
+      return { result: false, message: 'password should not be empty'};
+    }
+    return { result: true, message: 'password frontend validation success' };
   }
 
 }

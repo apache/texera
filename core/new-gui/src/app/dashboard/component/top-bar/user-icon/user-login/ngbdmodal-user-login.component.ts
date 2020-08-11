@@ -14,8 +14,11 @@ import { UserService } from '../../../../../common/service/user/user.service';
   styleUrls: ['./ngbdmodal-user-login.component.scss']
 })
 export class NgbdModalUserLoginComponent implements OnInit {
+  public static readonly EMPTY_FIELD_ERROR_MESSAGE = 'Username or password should not be null.';
   public loginUserName: string = '';
+  public loginPassword: string = '';
   public registerUserName: string = '';
+  public registerPassword: string = '';
   public selectedTab = 0;
   public loginErrorMessage: string | undefined;
   public registerErrorMessage: string | undefined;
@@ -33,11 +36,11 @@ export class NgbdModalUserLoginComponent implements OnInit {
    * It will send data inside the text entry to the user service to login
    */
   public login(): void {
-    if (this.loginUserName.length === 0) {
-      return;
+    if (this.loginUserName.length === 0 || this.loginPassword.length === 0) {
+      this.loginErrorMessage =  NgbdModalUserLoginComponent.EMPTY_FIELD_ERROR_MESSAGE;
     }
     this.loginErrorMessage = undefined;
-    this.userService.login(this.loginUserName)
+    this.userService.login(this.loginUserName, this.loginPassword)
       .subscribe(
         res => {
           if (res.code === 0) { // successfully login in
@@ -55,12 +58,12 @@ export class NgbdModalUserLoginComponent implements OnInit {
    * It will send data inside the text entry to the user service to register
    */
   public register(): void {
-    if (this.registerUserName.length === 0) {
-      return;
+    if (this.registerUserName.length === 0 || this.registerPassword.length === 0) {
+      this.registerErrorMessage =  NgbdModalUserLoginComponent.EMPTY_FIELD_ERROR_MESSAGE;
     }
     this.registerErrorMessage = undefined;
 
-    this.userService.register(this.registerUserName)
+    this.userService.register(this.registerUserName, this.registerPassword)
       .subscribe(
         res => {
           if (res.code === 0) { // successfully register

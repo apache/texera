@@ -7,6 +7,7 @@ import { AppSettings } from '../../app-setting';
 
 const userID = 1;
 const userName = 'test';
+const password = '123456';
 const successCode = 0;
 const failedCode = 1;
 
@@ -58,7 +59,7 @@ describe('UserService', () => {
 
   it('should login after register user', () => {
       expect(service.getUser()).toBeFalsy();
-      service.register(userName).subscribe(
+      service.register(userName, password).subscribe(
         userWebResponse => {
           expect(userWebResponse.code).toBe(successCode);
           expect((userWebResponse as UserWebResponseSuccess).user.userID).toBe(userID);
@@ -74,7 +75,7 @@ describe('UserService', () => {
 
   it('should login after login user', () => {
       expect(service.getUser()).toBeFalsy();
-      service.login(userName).subscribe(
+      service.login(userName, password).subscribe(
         userWebResponse => {
           expect(userWebResponse.code).toBe(successCode);
           expect((userWebResponse as UserWebResponseSuccess).user.userID).toBe(userID);
@@ -90,7 +91,7 @@ describe('UserService', () => {
 
   it('should get correct userID and userName after login', () => {
       expect(service.getUser()).toBeFalsy();
-      service.login(userName).subscribe(
+      service.login(userName, password).subscribe(
         userWebResponse => {
           expect(service.getUser()).toBeTruthy();
           expect(service.getUser()!.userID).toBe(userID);
@@ -105,7 +106,7 @@ describe('UserService', () => {
 
   it('should not login after register failed', () => {
       expect(service.getUser()).toBeFalsy();
-      service.register(userName).subscribe(
+      service.register(userName, password).subscribe(
         userWebResponse => {
           expect(userWebResponse.code).toBe(failedCode);
           expect(service.getUser()).toBeFalsy();
@@ -119,7 +120,7 @@ describe('UserService', () => {
 
   it('should not login after login failed', () => {
       expect(service.getUser()).toBeFalsy();
-      service.login(userName).subscribe(
+      service.login(userName, password).subscribe(
         userWebResponse => {
           expect(userWebResponse.code).toBe(failedCode);
           expect(service.getUser()).toBeFalsy();
@@ -134,7 +135,7 @@ describe('UserService', () => {
   it('should return undefiend when trying to get user field without not login', () => {
       expect(service.getUser()).toBeFalsy();
 
-      service.login(userName).subscribe(
+      service.login(userName, password).subscribe(
         userWebResponse => {
           expect(service.getUser()).toBeFalsy();
         }
@@ -147,11 +148,11 @@ describe('UserService', () => {
 
   it('should raise error when trying to login again after login success', () => {
       expect(service.getUser()).toBeFalsy();
-      service.login(userName).subscribe(
+      service.login(userName, password).subscribe(
         userWebResponse => {
           expect(service.getUser()).toBeTruthy();
-          expect(() => service.login(userName)).toThrowError();
-          expect(() => service.register(userName)).toThrowError();
+          expect(() => service.login(userName, password)).toThrowError();
+          expect(() => service.register(userName, password)).toThrowError();
         }
       );
 
@@ -162,7 +163,7 @@ describe('UserService', () => {
 
   it('should log out when called log out function', () => {
       expect(service.getUser()).toBeFalsy();
-      service.login(userName).subscribe(
+      service.login(userName, password).subscribe(
         userWebResponse => {
           expect(service.getUser()).toBeTruthy();
           service.logOut();
@@ -185,7 +186,7 @@ describe('UserService', () => {
         () => expect(service.getUser()).toBeTruthy()
       );
 
-      service.login(userName).subscribe();
+      service.login(userName, password).subscribe();
 
       const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.LOGIN_ENDPOINT}`);
       expect(req.request.method).toEqual('POST');
@@ -198,7 +199,7 @@ describe('UserService', () => {
         () => expect(service.getUser()).toBeTruthy()
       );
 
-      service.register(userName).subscribe();
+      service.register(userName, password).subscribe();
 
       const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.REGISTER_ENDPOINT}`);
       expect(req.request.method).toEqual('POST');
@@ -207,7 +208,7 @@ describe('UserService', () => {
 
   it('should receive user change event when log out', () => {
       expect(service.getUser()).toBeFalsy();
-      service.login(userName).subscribe(
+      service.login(userName, password).subscribe(
         () => {
           expect(service.getUser()).toBeTruthy();
           service.getUserChangedEvent().subscribe(
