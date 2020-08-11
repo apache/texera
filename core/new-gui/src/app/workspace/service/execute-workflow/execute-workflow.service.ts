@@ -92,6 +92,9 @@ export class ExecuteWorkflowService {
         }
       case 'OperatorCurrentTuplesUpdateEvent':
         console.log(event);
+        if (this.currentState.state === ExecutionState.BreakpointTriggered) {
+          return this.currentState;
+        }
         let pausedCurrentTuples: Readonly<Record<string, OperatorCurrentTuples>>;
         if (this.currentState.state === ExecutionState.Paused) {
           pausedCurrentTuples = this.currentState.currentTuples;

@@ -10,7 +10,7 @@ import { Observable } from 'rxjs';
 })
 export class WorkflowWebsocketService {
 
-  public static readonly TEXERA_WEBSOCKET_ENDPOINT = 'ws://cherry01.ics.uci.edu:8080/wsapi/workflow-websocket';
+  public static readonly TEXERA_WEBSOCKET_ENDPOINT = 'ws://localhost:8080/wsapi/workflow-websocket';
 
   private readonly websocket: WebSocketSubject<TexeraWebsocketEvent | TexeraWebsocketRequest>;
   private readonly webSocketObservable: Observable<TexeraWebsocketEvent>;

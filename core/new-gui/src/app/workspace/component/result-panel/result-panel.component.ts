@@ -44,13 +44,13 @@ export class ResultPanelComponent {
   private static readonly TABLE_COLUMN_TEXT_LIMIT: number = 1000;
 
   public twitterFieldMappingInverse: Record<number, string> = {
-    0: 'create_at', 1: 'id', 2: 'text', 3: 'in_reply_to_status', 4: 'in_reply_to_user',
-    5: 'favorite_count', 6: 'coordinate', 7: 'retweet_count', 8: 'lang', 9: 'is_retweet'
+    0: 'create_at', 1: 'id', 2: 'text',
+    3: 'favorite_count', 4: 'retweet_count', 5: 'lang', 6: 'is_retweet', 7: 'sentiment'
   };
 
   public pausedTwitterFieldMappingInverse: Record<number, string> = {
-    0: 'worker_id', 1: 'create_at', 2: 'id', 3: 'text', 4: 'in_reply_to_status', 5: 'in_reply_to_user',
-    6: 'favorite_count', 7: 'coordinate', 8: 'retweet_count', 9: 'lang', 10: 'is_retweet'
+    0: 'worker_id', 1: 'create_at', 2: 'id', 3: 'text',
+    4: 'favorite_count', 5: 'retweet_count', 6: 'lang', 7: 'is_retweet', 8: 'sentiment'
   };
 
   public showResultPanel: boolean = false;
