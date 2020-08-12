@@ -6,7 +6,6 @@ import edu.uci.ics.texera.web.TexeraWebException;
 import edu.uci.ics.texera.web.response.GenericWebResponse;
 import io.dropwizard.jersey.sessions.Session;
 
-import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.jooq.Condition;
 import org.jooq.DSLContext;
@@ -55,12 +54,10 @@ public class UserResource {
 
     public static class UserRegistrationRequest {
         public String userName;
-        public String password;
     }
 
     public static class UserLoginRequest {
         public String userName;
-        public String password;
     }
     
     /**
@@ -109,8 +106,7 @@ public class UserResource {
     @Path("/login")
     public UserWebResponse login(@Session HttpSession session, UserLoginRequest request) {
         String userName = request.userName;
-        String password = request.password;
-        Condition loginCondition = USERACCOUNT.USERNAME.equal(userName).and(USERACCOUNT.PASSWORD.equal(DigestUtils.sha1Hex(password)));
+        Condition loginCondition = USERACCOUNT.USERNAME.equal(userName);
         Record1<UInteger> result = getUserID(loginCondition);
 
         if (result == null) { // not found
@@ -127,7 +123,6 @@ public class UserResource {
     @Path("/register")
     public UserWebResponse register(@Session HttpSession session, UserRegistrationRequest request) {
         String userName = request.userName;
-        String password = request.password;
         Pair<Boolean, String> validationResult = validateUsername(userName);
         if (!validationResult.getLeft()) {
             return UserWebResponse.generateErrorResponse(validationResult.getRight());
@@ -140,7 +135,7 @@ public class UserResource {
             return UserWebResponse.generateErrorResponse("Username already exists");
         }
 
-        UseraccountRecord returnID = insertUserAccount(userName, DigestUtils.sha1Hex(password));
+        UseraccountRecord returnID = insertUserAccount(userName);
         User user = new User(userName, returnID.get(USERACCOUNT.USERID));
         setUserSession(session, user);
 
@@ -162,11 +157,10 @@ public class UserResource {
                     .fetchOne();
     }
     
-    private UseraccountRecord insertUserAccount(String userName, String password) {
+    private UseraccountRecord insertUserAccount(String userName) {
             return UserSqlServer.createDSLContext()
                     .insertInto(USERACCOUNT)
                     .set(USERACCOUNT.USERNAME, userName)
-                    .set(USERACCOUNT.PASSWORD, password)
                     .set(USERACCOUNT.USERID, defaultValue(USERACCOUNT.USERID))
                     .returning(USERACCOUNT.USERID)
                     .fetchOne();

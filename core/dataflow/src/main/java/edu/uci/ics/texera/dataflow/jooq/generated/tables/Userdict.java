@@ -34,10 +34,10 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Userdict extends TableImpl<UserdictRecord> {
 
-    private static final long serialVersionUID = 1305469516;
+    private static final long serialVersionUID = 810480076;
 
     /**
-     * The reference instance of <code>texera.userdict</code>
+     * The reference instance of <code>texera.UserDict</code>
      */
     public static final Userdict USERDICT = new Userdict();
 
@@ -50,46 +50,46 @@ public class Userdict extends TableImpl<UserdictRecord> {
     }
 
     /**
-     * The column <code>texera.userdict.userID</code>.
+     * The column <code>texera.UserDict.userID</code>.
      */
     public final TableField<UserdictRecord, UInteger> USERID = createField(DSL.name("userID"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
 
     /**
-     * The column <code>texera.userdict.dictID</code>.
+     * The column <code>texera.UserDict.dictID</code>.
      */
     public final TableField<UserdictRecord, UInteger> DICTID = createField(DSL.name("dictID"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false).identity(true), this, "");
 
     /**
-     * The column <code>texera.userdict.name</code>.
+     * The column <code>texera.UserDict.name</code>.
      */
     public final TableField<UserdictRecord, String> NAME = createField(DSL.name("name"), org.jooq.impl.SQLDataType.VARCHAR(128).nullable(false), this, "");
 
     /**
-     * The column <code>texera.userdict.content</code>.
+     * The column <code>texera.UserDict.content</code>.
      */
     public final TableField<UserdictRecord, byte[]> CONTENT = createField(DSL.name("content"), org.jooq.impl.SQLDataType.BLOB.nullable(false), this, "");
 
     /**
-     * The column <code>texera.userdict.description</code>.
+     * The column <code>texera.UserDict.description</code>.
      */
     public final TableField<UserdictRecord, String> DESCRIPTION = createField(DSL.name("description"), org.jooq.impl.SQLDataType.VARCHAR(512).nullable(false), this, "");
 
     /**
-     * Create a <code>texera.userdict</code> table reference
+     * Create a <code>texera.UserDict</code> table reference
      */
     public Userdict() {
-        this(DSL.name("userdict"), null);
+        this(DSL.name("UserDict"), null);
     }
 
     /**
-     * Create an aliased <code>texera.userdict</code> table reference
+     * Create an aliased <code>texera.UserDict</code> table reference
      */
     public Userdict(String alias) {
         this(DSL.name(alias), USERDICT);
     }
 
     /**
-     * Create an aliased <code>texera.userdict</code> table reference
+     * Create an aliased <code>texera.UserDict</code> table reference
      */
     public Userdict(Name alias) {
         this(alias, USERDICT);

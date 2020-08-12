@@ -24,7 +24,7 @@ import org.jooq.impl.SchemaImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Texera extends SchemaImpl {
 
-    private static final long serialVersionUID = 451120803;
+    private static final long serialVersionUID = 94238243;
 
     /**
      * The reference instance of <code>texera</code>
@@ -32,22 +32,22 @@ public class Texera extends SchemaImpl {
     public static final Texera TEXERA = new Texera();
 
     /**
-     * The table <code>texera.useraccount</code>.
+     * The table <code>texera.UserAccount</code>.
      */
     public final Useraccount USERACCOUNT = edu.uci.ics.texera.dataflow.jooq.generated.tables.Useraccount.USERACCOUNT;
 
     /**
-     * The table <code>texera.userdict</code>.
+     * The table <code>texera.UserDict</code>.
      */
     public final Userdict USERDICT = edu.uci.ics.texera.dataflow.jooq.generated.tables.Userdict.USERDICT;
 
     /**
-     * The table <code>texera.userfile</code>.
+     * The table <code>texera.UserFile</code>.
      */
     public final Userfile USERFILE = edu.uci.ics.texera.dataflow.jooq.generated.tables.Userfile.USERFILE;
 
     /**
-     * The table <code>texera.userworkflow</code>.
+     * The table <code>texera.UserWorkflow</code>.
      */
     public final Userworkflow USERWORKFLOW = edu.uci.ics.texera.dataflow.jooq.generated.tables.Userworkflow.USERWORKFLOW;
 
