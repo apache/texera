@@ -10,7 +10,6 @@ SET GLOBAL time_zone = '-8:00'; # this line is mandatory
 
 CREATE TABLE IF NOT EXISTS `UserAccount` (
     `userName` VARCHAR(32) NOT NULL,
-    `password` VARCHAR(64) NOT NULL,
     `userID` INT UNSIGNED AUTO_INCREMENT NOT NULL,
     UNIQUE (`userName`),
     PRIMARY KEY (`userID`)

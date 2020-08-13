@@ -17,22 +17,22 @@ import edu.uci.ics.texera.dataflow.jooq.generated.tables.Userworkflow;
 public class Tables {
 
     /**
-     * The table <code>texera.useraccount</code>.
+     * The table <code>texera.UserAccount</code>.
      */
     public static final Useraccount USERACCOUNT = Useraccount.USERACCOUNT;
 
     /**
-     * The table <code>texera.userdict</code>.
+     * The table <code>texera.UserDict</code>.
      */
     public static final Userdict USERDICT = Userdict.USERDICT;
 
     /**
-     * The table <code>texera.userfile</code>.
+     * The table <code>texera.UserFile</code>.
      */
     public static final Userfile USERFILE = Userfile.USERFILE;
 
     /**
-     * The table <code>texera.userworkflow</code>.
+     * The table <code>texera.UserWorkflow</code>.
      */
     public static final Userworkflow USERWORKFLOW = Userworkflow.USERWORKFLOW;
 }

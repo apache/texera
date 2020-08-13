@@ -65,13 +65,13 @@ public class Keys {
     }
 
     private static class UniqueKeys0 {
-        public static final UniqueKey<UseraccountRecord> KEY_USERACCOUNT_USERNAME = Internal.createUniqueKey(Useraccount.USERACCOUNT, "KEY_useraccount_userName", Useraccount.USERACCOUNT.USERNAME);
-        public static final UniqueKey<UseraccountRecord> KEY_USERACCOUNT_PRIMARY = Internal.createUniqueKey(Useraccount.USERACCOUNT, "KEY_useraccount_PRIMARY", Useraccount.USERACCOUNT.USERID);
-        public static final UniqueKey<UserdictRecord> KEY_USERDICT_USERID = Internal.createUniqueKey(Userdict.USERDICT, "KEY_userdict_userID", Userdict.USERDICT.USERID, Userdict.USERDICT.NAME);
-        public static final UniqueKey<UserdictRecord> KEY_USERDICT_PRIMARY = Internal.createUniqueKey(Userdict.USERDICT, "KEY_userdict_PRIMARY", Userdict.USERDICT.DICTID);
-        public static final UniqueKey<UserfileRecord> KEY_USERFILE_USERID = Internal.createUniqueKey(Userfile.USERFILE, "KEY_userfile_userID", Userfile.USERFILE.USERID, Userfile.USERFILE.NAME);
-        public static final UniqueKey<UserfileRecord> KEY_USERFILE_PRIMARY = Internal.createUniqueKey(Userfile.USERFILE, "KEY_userfile_PRIMARY", Userfile.USERFILE.FILEID);
-        public static final UniqueKey<UserworkflowRecord> KEY_USERWORKFLOW_PRIMARY = Internal.createUniqueKey(Userworkflow.USERWORKFLOW, "KEY_userworkflow_PRIMARY", Userworkflow.USERWORKFLOW.WORKFLOWID);
+        public static final UniqueKey<UseraccountRecord> KEY_USERACCOUNT_USERNAME = Internal.createUniqueKey(Useraccount.USERACCOUNT, "KEY_UserAccount_userName", Useraccount.USERACCOUNT.USERNAME);
+        public static final UniqueKey<UseraccountRecord> KEY_USERACCOUNT_PRIMARY = Internal.createUniqueKey(Useraccount.USERACCOUNT, "KEY_UserAccount_PRIMARY", Useraccount.USERACCOUNT.USERID);
+        public static final UniqueKey<UserdictRecord> KEY_USERDICT_USERID = Internal.createUniqueKey(Userdict.USERDICT, "KEY_UserDict_userID", Userdict.USERDICT.USERID, Userdict.USERDICT.NAME);
+        public static final UniqueKey<UserdictRecord> KEY_USERDICT_PRIMARY = Internal.createUniqueKey(Userdict.USERDICT, "KEY_UserDict_PRIMARY", Userdict.USERDICT.DICTID);
+        public static final UniqueKey<UserfileRecord> KEY_USERFILE_USERID = Internal.createUniqueKey(Userfile.USERFILE, "KEY_UserFile_userID", Userfile.USERFILE.USERID, Userfile.USERFILE.NAME);
+        public static final UniqueKey<UserfileRecord> KEY_USERFILE_PRIMARY = Internal.createUniqueKey(Userfile.USERFILE, "KEY_UserFile_PRIMARY", Userfile.USERFILE.FILEID);
+        public static final UniqueKey<UserworkflowRecord> KEY_USERWORKFLOW_PRIMARY = Internal.createUniqueKey(Userworkflow.USERWORKFLOW, "KEY_UserWorkflow_PRIMARY", Userworkflow.USERWORKFLOW.WORKFLOWID);
     }
 
     private static class ForeignKeys0 {

@@ -19,45 +19,45 @@ import org.jooq.impl.UpdatableRecordImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class UserworkflowRecord extends UpdatableRecordImpl<UserworkflowRecord> implements Record3<String, String, String> {
 
-    private static final long serialVersionUID = -244611136;
+    private static final long serialVersionUID = -1218121792;
 
     /**
-     * Setter for <code>texera.userworkflow.name</code>.
+     * Setter for <code>texera.UserWorkflow.name</code>.
      */
     public void setName(String value) {
         set(0, value);
     }
 
     /**
-     * Getter for <code>texera.userworkflow.name</code>.
+     * Getter for <code>texera.UserWorkflow.name</code>.
      */
     public String getName() {
         return (String) get(0);
     }
 
     /**
-     * Setter for <code>texera.userworkflow.workflowID</code>.
+     * Setter for <code>texera.UserWorkflow.workflowID</code>.
      */
     public void setWorkflowid(String value) {
         set(1, value);
     }
 
     /**
-     * Getter for <code>texera.userworkflow.workflowID</code>.
+     * Getter for <code>texera.UserWorkflow.workflowID</code>.
      */
     public String getWorkflowid() {
         return (String) get(1);
     }
 
     /**
-     * Setter for <code>texera.userworkflow.workflowBODY</code>.
+     * Setter for <code>texera.UserWorkflow.workflowBODY</code>.
      */
     public void setWorkflowbody(String value) {
         set(2, value);
     }
 
     /**
-     * Getter for <code>texera.userworkflow.workflowBODY</code>.
+     * Getter for <code>texera.UserWorkflow.workflowBODY</code>.
      */
     public String getWorkflowbody() {
         return (String) get(2);
