@@ -36,7 +36,7 @@ export interface BreakpointSchema extends Readonly<{
 
 type ConditionBreakpoint = Readonly<{
   column: number;
-  condition: '=' | '>' | '>=' | '<' | '<=' | '!=' | 'contains';
+  condition: '=' | '>' | '>=' | '<' | '<=' | '!=' | 'contains' | 'does not contain';
   value: string;
 }>;
 

@@ -73,19 +73,20 @@ export interface ErrorExecutionResult extends Readonly< {
 export type ExecutionResult = SuccessExecutionResult | ErrorExecutionResult;
 
 export enum OperatorState {
-  Uninitialized,
-  Initializing,
-  Ready,
-  Running,
-  Pausing,
-  CollectingBreakpoints,
-  Paused,
-  Resuming,
-  Completed
+  Uninitialized = 'Uninitialized',
+  Initializing = 'Initializing',
+  Ready = 'Ready',
+  Running = 'Running',
+  Pausing = 'Pausing',
+  CollectingBreakpoints = 'CollectingBreakpoints',
+  Paused = 'Paused',
+  Resuming = 'Resuming',
+  Completed = 'Completed'
 }
 
 export interface OperatorStatistics extends Readonly<{
   operatorState: OperatorState,
+  aggregatedInputRowCount: number,
   aggregatedOutputRowCount: number
 }> {}
 

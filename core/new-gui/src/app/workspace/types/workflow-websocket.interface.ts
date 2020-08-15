@@ -1,4 +1,4 @@
-import { LogicalPlan, WorkflowStatusUpdate, ResultObject, LogicalOperator } from './execute-workflow.interface';
+import { LogicalPlan, WorkflowStatusUpdate, ResultObject, LogicalOperator, BreakpointInfo } from './execute-workflow.interface';
 import { BreakpointTriggerInfo, BreakpointFault, BreakpointFaultedTuple } from './workflow-common.interface';
 
 
@@ -51,8 +51,10 @@ export type TexeraWebsocketRequestTypeMap = {
   'ExecuteWorkflowRequest': LogicalPlan,
   'PauseWorkflowRequest': {},
   'ResumeWorkflowRequest': {},
+  'KillWorkflowRequest': {},
   'ModifyLogicRequest': ModifyOperatorLogic,
   'SkipTupleRequest': SkipTuple,
+  'AddBreakpointRequest': BreakpointInfo
 };
 
 export type TexeraWebsocketEventTypeMap = {

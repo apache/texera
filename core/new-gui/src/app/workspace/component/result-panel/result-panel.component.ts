@@ -135,6 +135,12 @@ export class ResultPanelComponent {
         this.breakpointTriggerInfo = breakpointTriggerInfo;
         this.breakpointAction = true;
         this.setupResultTable(breakpointTriggerInfo.report.map(r => r.faultedTuple.tuple).filter(t => t !== undefined));
+        const errorsMessages: Record<string, string> = {};
+        breakpointTriggerInfo.report.forEach(r => {
+          const pathsplitted = r.actorPath.split('/');
+          errorsMessages[pathsplitted[pathsplitted.length - 1]] = r.messages.toString();
+        });
+        this.errorMessages = errorsMessages;
       }
     } else if (executionState.state === ExecutionState.Completed) {
       if (highlightedOperators.length === 1) {

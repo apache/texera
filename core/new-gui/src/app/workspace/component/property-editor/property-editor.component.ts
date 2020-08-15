@@ -119,6 +119,23 @@ export class PropertyEditorComponent {
     this.sourceFormChangeEventStream.next(event);
   }
 
+  public hasBreakpoint(): boolean {
+    if (! this.currentLinkID) {
+      return false;
+    }
+    return this.workflowActionService.getTexeraGraph().getLinkBreakpoint(this.currentLinkID) !== undefined;
+  }
+
+  public handleAddBreakpoint() {
+    if (this.currentLinkID && this.workflowActionService.getTexeraGraph().hasLinkWithID(this.currentLinkID)) {
+      this.workflowActionService.setLinkBreakpoint(this.currentLinkID, this.formData);
+      if (this.executeWorkflowService.getExecutionState().state === ExecutionState.Paused ||
+      this.executeWorkflowService.getExecutionState().state === ExecutionState.BreakpointTriggered) {
+        this.executeWorkflowService.addBreakpointRuntime(this.currentLinkID, this.formData);
+      }
+    }
+  }
+
   /**
    * This method handles the link breakpoint remove button click event.
    * It will hide the property editor, clean up currentBreakpointInitialData.
@@ -344,11 +361,11 @@ export class PropertyEditorComponent {
         this.workflowActionService.setOperatorProperty(this.currentOperatorID, formData);
       }
     });
-    this.breakpointChangeStream.subscribe(formData => {
-      if (this.currentLinkID) {
-        this.workflowActionService.setLinkBreakpoint(this.currentLinkID, formData as Breakpoint);
-      }
-    });
+    // this.breakpointChangeStream.subscribe(formData => {
+    //   if (this.currentLinkID) {
+    //     this.workflowActionService.setLinkBreakpoint(this.currentLinkID, formData as Breakpoint);
+    //   }
+    // });
   }
 
   /**

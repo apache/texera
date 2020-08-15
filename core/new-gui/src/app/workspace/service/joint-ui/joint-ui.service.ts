@@ -185,7 +185,8 @@ export class JointUIService {
     jointPaper.getModelById(operatorID).attr(`.${operatorStateClass}/text`, statistics.operatorState.toString());
     jointPaper.getModelById(operatorID).attr(`.${operatorStateClass}/fill`, fillColor);
 
-    jointPaper.getModelById(operatorID).attr(`.${operatorStatisticsClass}/text`, statistics.aggregatedOutputRowCount);
+    const statisticsText = statistics.aggregatedOutputRowCount.toString() + ' / ' + statistics.aggregatedInputRowCount.toString();
+    jointPaper.getModelById(operatorID).attr(`.${operatorStatisticsClass}/text`, statisticsText);
   }
 
   /**

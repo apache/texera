@@ -7,7 +7,7 @@ import './../../../common/rxjs-operators';
 import { AppSettings } from './../../../common/app-setting';
 
 import { WorkflowActionService } from './../workflow-graph/model/workflow-action.service';
-import { WorkflowGraphReadonly } from './../workflow-graph/model/workflow-graph';
+import { WorkflowGraphReadonly, WorkflowGraph } from './../workflow-graph/model/workflow-graph';
 import {
   LogicalLink, LogicalPlan, LogicalOperator,
   ExecutionResult, ErrorExecutionResult, SuccessExecutionResult, BreakpointInfo, ExecutionState, ExecutionStateInfo
@@ -16,7 +16,7 @@ import { ResultObject } from '../../types/execute-workflow.interface';
 import { v4 as uuid } from 'uuid';
 import { environment } from '../../../../environments/environment';
 import { WorkflowWebsocketService } from '../workflow-websocket/workflow-websocket.service';
-import { OperatorPredicate, BreakpointTriggerInfo, BreakpointRequest } from '../../types/workflow-common.interface';
+import { OperatorPredicate, BreakpointTriggerInfo, BreakpointRequest, Breakpoint } from '../../types/workflow-common.interface';
 import { TexeraWebsocketEvent, WorkerTuples, OperatorCurrentTuples } from '../../types/workflow-websocket.interface';
 import { isEqual } from 'lodash';
 
@@ -165,8 +165,7 @@ export class ExecuteWorkflowService {
 
   public executeWorkflowAmberTexera(): void {
     // get the current workflow graph
-    const workflowPlan = this.workflowActionService.getTexeraGraph();
-    const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(workflowPlan);
+    const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
     console.log(logicalPlan);
     // wait for the form debounce to complete, then send
     window.setTimeout(() => {
@@ -198,6 +197,18 @@ export class ExecuteWorkflowService {
     this.workflowWebsocketService.send('ResumeWorkflowRequest', {});
     this.updateExecutionState({ state: ExecutionState.Resuming });
     this.setExecutionTimeout('resume operation timeout', ExecutionState.Running, ExecutionState.Failed);
+  }
+
+  public addBreakpointRuntime(linkID: string, breakpointData: Breakpoint): void {
+    if (!environment.amberEngineEnabled) {
+      return;
+    }
+    if (this.currentState.state !== ExecutionState.BreakpointTriggered &&
+      this.currentState.state !== ExecutionState.Paused) {
+      throw new Error('cannot add breakpoint at runtime, current execution state is ' + this.currentState.state);
+    }
+    this.workflowWebsocketService.send('AddBreakpointRequest',
+      ExecuteWorkflowService.transformBreakpoint(this.workflowActionService.getTexeraGraph(), linkID, breakpointData));
   }
 
   public skipTuples(): void {
@@ -366,21 +377,23 @@ export class ExecuteWorkflowService {
       }));
 
     const breakpoints: BreakpointInfo[] = Array.from(workflowGraph.getAllLinkBreakpoints().entries())
-      .map(e => {
-        const operatorID = workflowGraph.getLinkWithID(e[0]).source.operatorID;
-        const breakpointData = e[1];
-        let breakpoint: BreakpointRequest;
-        if ('condition' in breakpointData) {
-          breakpoint = { ...breakpointData, type: 'ConditionBreakpoint' };
-        } else if ('count' in breakpointData) {
-          breakpoint = { ...breakpointData, type: 'CountBreakpoint' };
-        } else {
-          throw new Error('unhandled breakpoint data ' + breakpointData);
-        }
-        return { operatorID, breakpoint };
-      });
+      .map(e => ExecuteWorkflowService.transformBreakpoint(workflowGraph, e[0], e[1]));
 
     return { operators, links, breakpoints };
+  }
+
+  public static transformBreakpoint(
+    workflowGraph: WorkflowGraphReadonly, linkID: string, breakpointData: Breakpoint): BreakpointInfo {
+    const operatorID = workflowGraph.getLinkWithID(linkID).source.operatorID;
+    let breakpoint: BreakpointRequest;
+    if ('condition' in breakpointData) {
+      breakpoint = { ...breakpointData, type: 'ConditionBreakpoint' };
+    } else if ('count' in breakpointData) {
+      breakpoint = { ...breakpointData, type: 'CountBreakpoint' };
+    } else {
+      throw new Error('unhandled breakpoint data ' + breakpointData);
+    }
+    return { operatorID, breakpoint };
   }
 
   public static isExecutionSuccessful(result: ExecutionResult | undefined): result is SuccessExecutionResult {

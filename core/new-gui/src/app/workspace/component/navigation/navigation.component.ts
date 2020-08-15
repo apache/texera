@@ -31,7 +31,8 @@ import { WorkflowStatusService } from '../../service/workflow-status/workflow-st
 })
 export class NavigationComponent implements OnInit {
   public static autoSaveState = 'Saved';
-  public executionState: ExecutionState; // set this to true when the workflow is started
+  public executionState: ExecutionState;  // set this to true when the workflow is started
+  public ExecutionState = ExecutionState; // make Angular HTML access enum definition
   public isWorkflowValid: boolean = true; // this will check whether the workflow error or not
 
   // variable binded with HTML to decide if the running spinner should show

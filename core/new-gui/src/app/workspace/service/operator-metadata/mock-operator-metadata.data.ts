@@ -240,7 +240,7 @@ export const mockBreakpointSchema: BreakpointSchema = {
           },
           condition: {
             type: 'string',
-            enum: ['=', '>', '>=', '<', '<=', '!=', 'contains']
+            enum: ['contains', 'does not contain', '=', '>', '>=', '<', '<=', '!=', ]
           },
           value: {
             type: 'string'

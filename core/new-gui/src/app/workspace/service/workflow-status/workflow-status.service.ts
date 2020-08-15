@@ -1,8 +1,10 @@
 import { environment } from './../../../../environments/environment';
 import { Injectable } from '@angular/core';
 import { Observable, Subject } from 'rxjs';
-import { OperatorStatistics } from '../../types/execute-workflow.interface';
+import { OperatorStatistics, ExecutionState, OperatorState } from '../../types/execute-workflow.interface';
 import { WorkflowWebsocketService } from '../workflow-websocket/workflow-websocket.service';
+import { ExecuteWorkflowService } from '../execute-workflow/execute-workflow.service';
+import { WorkflowActionService } from '../workflow-graph/model/workflow-action.service';
 
 const Engine_URL = 'ws://localhost:7070/api/websocket';
 
@@ -12,9 +14,11 @@ export class WorkflowStatusService {
   private status = new Subject<Record<string, OperatorStatistics>>();
 
   constructor(
-    private workflowWebsocketService: WorkflowWebsocketService
+    private workflowActionService: WorkflowActionService,
+    private workflowWebsocketService: WorkflowWebsocketService,
+    private executeWorkflowService: ExecuteWorkflowService
   ) {
-    if (! environment.executionStatusEnabled) {
+    if (!environment.executionStatusEnabled) {
       return;
     }
     this.workflowWebsocketService.websocketEvent().subscribe(event => {
@@ -22,6 +26,19 @@ export class WorkflowStatusService {
         return;
       }
       this.status.next(event.operatorStatistics);
+    });
+    this.executeWorkflowService.getExecutionStateStream().subscribe(event => {
+      if (event.current.state === ExecutionState.WaitingToRun) {
+        const initialStatistics: Record<string, OperatorStatistics> = {};
+        this.workflowActionService.getTexeraGraph().getAllOperators().forEach(op => {
+          initialStatistics[op.operatorID] = {
+            operatorState: OperatorState.Initializing,
+            aggregatedInputRowCount: 0,
+            aggregatedOutputRowCount: 0
+          };
+        });
+        this.status.next(initialStatistics);
+      }
     });
   }
 

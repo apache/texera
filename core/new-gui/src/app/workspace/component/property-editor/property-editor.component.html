@@ -13,7 +13,10 @@
       </formly-form>
     </form>
 
-    <button *ngIf="currentLinkID !== undefined" type="button" class="breakpointRemoveButton"
+    <button *ngIf="currentLinkID !== undefined && !hasBreakpoint()" type="button" class="breakpointRemoveButton"
+    (click)="handleAddBreakpoint()">Add Breakpoint</button>
+
+    <button *ngIf="currentLinkID !== undefined && hasBreakpoint()" type="button" class="breakpointRemoveButton"
     (click)="handleRemoveBreakpoint()">Remove Breakpoint</button>
 
     <button *ngIf="currentOperatorID !== undefined &&
