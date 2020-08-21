@@ -2,7 +2,7 @@ import { OperatorSchema } from './../../types/operator-schema.interface';
 import { OperatorPredicate, Breakpoint } from '../../types/workflow-common.interface';
 import { WorkflowActionService } from './../../service/workflow-graph/model/workflow-action.service';
 import { DynamicSchemaService } from '../../service/dynamic-schema/dynamic-schema.service';
-import { Component, ChangeDetectorRef } from '@angular/core';
+import { Component } from '@angular/core';
 
 import { Subject } from 'rxjs/Subject';
 import { Observable } from 'rxjs/Observable';
@@ -11,6 +11,7 @@ import '../../../common/rxjs-operators';
 import { cloneDeep, isEqual } from 'lodash';
 
 import { JSONSchema7 } from 'json-schema';
+import * as Ajv from 'ajv';
 
 import { FormGroup } from '@angular/forms';
 import { FormlyFormOptions, FormlyFieldConfig } from '@ngx-formly/core';
@@ -85,12 +86,14 @@ export class PropertyEditorComponent {
   public formlyFields: FormlyFieldConfig[] | undefined;
   public formTitle: string | undefined;
 
+  // used to fill in default values in json schema to initialize new operator
+  private ajv = new Ajv({ useDefaults: true });
+
   constructor(
     public formlyJsonschema: FormlyJsonschema,
     public workflowActionService: WorkflowActionService,
     public autocompleteService: DynamicSchemaService,
     public executeWorkflowService: ExecuteWorkflowService,
-    private ref: ChangeDetectorRef
   ) {
     // listen to the autocomplete event, remove invalid properties, and update the schema displayed on the form
     this.handleOperatorSchemaChange();
@@ -228,6 +231,18 @@ export class PropertyEditorComponent {
      * Prevent the form directly changes the value in the texera graph without going through workflow action service.
      */
     this.formData = cloneDeep(operator.operatorProperties);
+
+    // use ajv to initialize the default value to data according to schema, see https://ajv.js.org/#assigning-defaults
+    // WorkflowUtil service also makes sure that the default values are filled in when operator is added from the UI
+    // However, we perform an addition check for the following reasons:
+    // 1. the operator might be added not directly from the UI, which violates the precondition
+    // 2. the schema might change, which specifies a new default value
+    // 3. formly doesn't emit change event when it fills in default value, causing an inconsistency between component and service
+
+    this.ajv.validate(currentOperatorSchema, this.formData);
+
+    // manually trigger a form change event because default value might be filled in
+    this.onFormChanges(this.formData);
 
     // set displayForm to true in the end - first initialize all the data then show the view
     this.displayForm = true;
@@ -373,11 +388,6 @@ export class PropertyEditorComponent {
         this.workflowActionService.setOperatorProperty(this.currentOperatorID, formData);
       }
     });
-    // this.breakpointChangeStream.subscribe(formData => {
-    //   if (this.currentLinkID) {
-    //     this.workflowActionService.setLinkBreakpoint(this.currentLinkID, formData as Breakpoint);
-    //   }
-    // });
   }
 
   /**

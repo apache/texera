@@ -2,11 +2,9 @@ import { Component, Inject, OnInit, AfterViewInit } from '@angular/core';
 import { MAT_DIALOG_DATA } from '@angular/material/dialog';
 import * as c3 from 'c3';
 import { PrimitiveArray } from 'c3';
+import * as WordCloud from 'wordcloud';
+import { ChartType, WordCloudTuple, DialogData } from '../../types/visualization.interface';
 
-interface DialogData {
-  table: object[];
-  chartType: c3.ChartType;
-}
 /**
  * VisualizationPanelContentComponent displays the chart based on the chart type and data in table.
  *
@@ -22,58 +20,67 @@ interface DialogData {
 export class VisualizationPanelContentComponent implements OnInit, AfterViewInit {
   // this readonly variable must be the same as HTML element ID for visualization
   public static readonly CHART_ID = '#texera-result-chart-content';
-  public static readonly WIDTH = 800;
-  public static readonly HEIGHT = 600;
-  table: object[];
-  columns: string[] = [];
-  map: Map<string, string[]>;
+  public static readonly WORD_CLOUD_ID = 'texera-word-cloud';
+  public static readonly WIDTH = 1000;
+  public static readonly HEIGHT = 800;
+  private table: object[];
+  private columns: string[] = [];
 
 
   constructor(@Inject(MAT_DIALOG_DATA) public data: DialogData) {
     this.table = data.table;
-    this.map = new Map<string, string[]>();
   }
 
   ngOnInit() {
-
     this.columns = Object.keys(this.table[0]).filter(x => x !== '_id');
-
-    for (const column of this.columns) {
-
-      const rows: string[] = [];
-
-      for (const row of this.table) {
-        rows.push(String((row as any)[column]));
-      }
-
-      this.map.set(column, rows);
-
-    }
-
-
   }
 
   ngAfterViewInit() {
-    this.onClickGenerateChart();
+    switch (this.data.chartType) {
+      // correspond to WordCloudSink.java
+      case ChartType.WORD_CLOUD: this.onClickGenerateWordCloud(); break;
+      // correspond to BarChartSink.java
+      case ChartType.BAR || ChartType.STACKED_BAR: this.onClickGenerateChart(); break;
+      // correspond to PieChartSink.java
+      case ChartType.PIE || ChartType.DOUNT: this.onClickGenerateChart(); break;
+    }
+  }
+
+  onClickGenerateWordCloud() {
+    const dataToDisplay: object[] = [];
+    this.table.shift();
+    const wordCloudTuples = this.table as ReadonlyArray<WordCloudTuple>;
+
+    for (const tuple of wordCloudTuples) {
+      dataToDisplay.push([tuple.word, tuple.count]);
+    }
+
+    WordCloud(document.getElementById(VisualizationPanelContentComponent.WORD_CLOUD_ID) as HTMLElement,
+           { list: dataToDisplay } );
   }
 
   onClickGenerateChart() {
 
     const dataToDisplay: Array<[string, ...PrimitiveArray]> = [];
-    let count = 0;
     const category: string[] = [];
     for (let i = 1; i < this.columns?.length; i++) {
       category.push(this.columns[i]);
     }
 
-    for (const name of this.map.get(this.columns![0])!) {
+    // c3.js requires the first element in the data array is the data name.
+    // the remaining items are data.
 
-      const items: [string, ...PrimitiveArray] = [String(name)];
-      for (let i = 1; i < this.columns?.length; i++) {
-        items.push(Number(this.map.get(this.columns![1])![count++]));
+    let firstRow = true;
+    for (const row of this.table) {
+      if (firstRow) {
+        firstRow = false;
+        continue;
+      }
+      const items: [string, ...PrimitiveArray] = [(row as any)[this.columns[0]]];
+      for (let i = 1; i < this.columns.length; i++) {
+        items.push(Number((row as any)[this.columns[i]]));
       }
       dataToDisplay.push(items);
-
     }
 
     c3.generate({
@@ -83,7 +90,7 @@ export class VisualizationPanelContentComponent implements OnInit, AfterViewInit
       },
       data: {
         columns: dataToDisplay,
-        type: this.data.chartType
+        type: this.data.chartType as c3.ChartType
       },
       axis: {
         x: {
@@ -91,10 +98,8 @@ export class VisualizationPanelContentComponent implements OnInit, AfterViewInit
           categories: category
         }
       },
-      bindto: '#Chart'
+      bindto: VisualizationPanelContentComponent.CHART_ID
     });
   }
-
-
 
 }

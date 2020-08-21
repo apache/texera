@@ -1,5 +1,4 @@
-package edu.uci.ics.texera.dataflow.sink.barchart;
-
+package edu.uci.ics.texera.dataflow.sink.linechart;
 
 import edu.uci.ics.texera.api.constants.ErrorMessages;
 import edu.uci.ics.texera.api.exception.DataflowException;
@@ -9,23 +8,24 @@ import edu.uci.ics.texera.api.schema.Attribute;
 import edu.uci.ics.texera.api.schema.AttributeType;
 import edu.uci.ics.texera.api.schema.Schema;
 import edu.uci.ics.texera.api.tuple.Tuple;
-import edu.uci.ics.texera.dataflow.sink.VisualizationConstants;
 import edu.uci.ics.texera.dataflow.sink.VisualizationOperator;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
+
 /**
- * BarChartSink is a sink that can be used by to get tuples for bar chart.
- * BarChartSink returns tuples with name of data (String) and at least one number (Integer or Double).
+ * LineChartSink is a sink that can be used by to get tuples for line chart.
+ * It returns tuples with data name (String) and at least one number (Integer or Double).
  * @author Mingji Han
  *
  */
-public class BarChartSink extends VisualizationOperator {
+public class LineChartSink extends VisualizationOperator {
 
-    private BarChartSinkPredicate predicate;
+    LineChartSinkPredicate predicate;
     private List<Attribute> attributes = new ArrayList<>();
-    public BarChartSink(BarChartSinkPredicate predicate) {
-        super(VisualizationConstants.BAR);
+    public LineChartSink(LineChartSinkPredicate predicate) {
+        super(predicate.getLineChartEnum().getChartStyle());
         this.predicate = predicate;
     }
 
@@ -76,10 +76,10 @@ public class BarChartSink extends VisualizationOperator {
         }
 
         result = list.stream()
-                     .map(e -> { IField[] fields = attributes.stream()
-                                                             .map(a -> e.getField(a.getName())).toArray(IField[]::new);
-                          return new Tuple(outputSchema, fields);
-                     })
-                     .collect(Collectors.toList());
+                .map(e -> { IField[] fields = attributes.stream()
+                        .map(a -> e.getField(a.getName())).toArray(IField[]::new);
+                    return new Tuple(outputSchema, fields);
+                })
+                .collect(Collectors.toList());
     }
 }

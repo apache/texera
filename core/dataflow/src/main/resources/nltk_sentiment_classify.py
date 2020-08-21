@@ -6,7 +6,10 @@ import ast
 import threading
 import pyarrow.flight
 
-pickleFullPathFileName = sys.argv[1]
+portNumber = sys.argv[1]
+pickleFullPathFileName = sys.argv[2]
+inputAttributeName = sys.argv[3]
+resultAttributeName = sys.argv[4]
 
 
 class FlightServer(pyarrow.flight.FlightServerBase):
@@ -104,22 +107,24 @@ class FlightServer(pyarrow.flight.FlightServerBase):
 			sentiment_model = pickle.load(pickle_file)
 			# print("Done.")
 			# print("Flight Server:\t\tConverting Arrow data to pandas.Dataframe...", end =" ")
-			input_dataframe = pandas.DataFrame(self.flights[key].to_pandas())
+			input_dataframe = pandas.DataFrame(self.flights[key].column(inputAttributeName).to_pandas())
 			# print("Done.")
 			# print("Flight Server:\t\tExecuting computation...", end=" ")
-			output_dataframe = input_dataframe[['ID']]
 			predictions = []
 			for index, row in input_dataframe.iterrows():
-				p = 1 if sentiment_model.classify(row['text']) == "pos" else -1
+				p = 1 if sentiment_model.classify(row[inputAttributeName]) == "pos" else -1
 				predictions.append(p)
-			output_dataframe['pred'] = predictions
 			pickle_file.close()
 			# print("Done.")
 			# print("Flight Server:\t\tConverting back to Arrow data...", end =" ")
 			output_descriptor = pyarrow.flight.FlightDescriptor.for_path(b'FromPython')
-			self.flights[FlightServer.descriptor_to_key(output_descriptor)] = pyarrow.Table.from_pandas(output_dataframe)
+			output_data = self.flights[key]
+			predictions = pyarrow.array(predictions)
+			output_data = output_data.append_column(resultAttributeName, predictions)
+			self.flights[FlightServer.descriptor_to_key(output_descriptor)] = output_data
 			# print("Done.")
 			# print("Flight Server:\tDone.")
+			self.flights.pop(key)
 			yield pyarrow.flight.Result(pyarrow.py_buffer(b'Success!'))
 		elif action.type == "healthcheck":
 			# to check the status of the server to see if it is running.
@@ -138,10 +143,11 @@ class FlightServer(pyarrow.flight.FlightServerBase):
 		# print("Flight Server:\tServer is shutting down...")
 
 		self.shutdown()
+		self.wait()
 
 
 def main():
-	location = "grpc+tcp://localhost:5005"
+	location = "grpc+tcp://localhost:"+portNumber
 	server = FlightServer("localhost", location)
 	# print("Flight Server:\tServing on", location)
 	server.serve()

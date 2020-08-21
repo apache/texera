@@ -1,7 +1,10 @@
 package edu.uci.ics.texera.dataflow.plangen;
 
 import edu.uci.ics.texera.dataflow.sink.barchart.BarChartSinkPredicate;
+import edu.uci.ics.texera.dataflow.sink.linechart.LineChartSinkPredicate;
 import edu.uci.ics.texera.dataflow.sink.piechart.PieChartSinkPredicate;
+import edu.uci.ics.texera.dataflow.sink.wordcloud.WordCloudSink;
+import edu.uci.ics.texera.dataflow.sink.wordcloud.WordCloudSinkPredicate;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -87,8 +90,10 @@ public class OperatorArityConstants {
         fixedInputArityMap.put(ExcelSinkPredicate.class, 1);
         fixedInputArityMap.put(MysqlSinkPredicate.class, 1);
 
+        fixedInputArityMap.put(WordCloudSinkPredicate.class , 1);
         fixedInputArityMap.put(BarChartSinkPredicate.class, 1);
         fixedInputArityMap.put(PieChartSinkPredicate.class, 1);
+        fixedInputArityMap.put(LineChartSinkPredicate.class, 1);
 
         fixedInputArityMap.put(NltkSentimentPredicate.class, 1);
 
@@ -134,10 +139,11 @@ public class OperatorArityConstants {
         fixedOutputArityMap.put(ExcelSinkPredicate.class, 0);
         fixedOutputArityMap.put(MysqlSinkPredicate.class, 0);
 
-
+        fixedOutputArityMap.put(WordCloudSinkPredicate.class , 0);
         fixedOutputArityMap.put(BarChartSinkPredicate.class, 0);
         fixedOutputArityMap.put(PieChartSinkPredicate.class, 0);
-        
+        fixedOutputArityMap.put(LineChartSinkPredicate.class, 0);
+
         fixedOutputArityMap.put(NltkSentimentPredicate.class, 1);
 
     }

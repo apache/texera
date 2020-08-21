@@ -34,7 +34,6 @@
     "@ngx-formly/material": "^5.0.0",
     "@ngx-formly/schematics": "^5.5.15",
     "ajv": "^6.12.0",
-    "angular6-json-schema-form": "^8.0.0",
     "backbone": "~1.4.0",
     "bootstrap": "^4.4.1",
     "c3": "^0.7.17",
@@ -62,6 +61,7 @@
     "rxjs-compat": "^6.5.5",
     "tinyqueue": "^2.0.3",
     "tslib": "^1.10.0",
+    "wordcloud": "^1.1.1",
     "zone.js": "~0.10.2"
   },
   "devDependencies": {
@@ -81,6 +81,7 @@
     "@types/lodash": "~4.14.149",
     "@types/uuid": "^3.4.8",
     "@types/c3": "^0.7.4",
+    "@types/wordcloud": "^1.1.2",
     "codelyzer": "^5.2.2",
     "cypress": "^4.3.0",
     "jasmine-core": "^3.5.0",
