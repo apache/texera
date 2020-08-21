@@ -1,0 +1,1 @@
+{"operatorType":"Count","jsonSchema":{"type":"object","id":"urn:jsonschema:texera:operators:count:TexeraCount","properties":{}},"additionalMetadata":{"userFriendlyName":"Count","operatorDescription":"Count the number of rows","operatorGroupName":"Utilities","numInputPorts":1,"numOutputPorts":1}}

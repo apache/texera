@@ -1,0 +1,1 @@
+{"operatorType":"AdhocSink","jsonSchema":{"type":"object","id":"urn:jsonschema:texera:operators:sink:TexeraAdhocSink","properties":{}},"additionalMetadata":{"userFriendlyName":"View Results","operatorDescription":"View the workflow results","operatorGroupName":"View Results","numInputPorts":1,"numOutputPorts":0}}
