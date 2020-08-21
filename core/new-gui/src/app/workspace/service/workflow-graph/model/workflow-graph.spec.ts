@@ -203,7 +203,7 @@ describe('WorkflowGraph', () => {
       workflowGraph.addOperator(mockScanPredicate);
       workflowGraph.addOperator(mockResultPredicate);
       workflowGraph.addLink(mockScanResultLink);
-      const mockBreakpoint = {age: '10'};
+      const mockBreakpoint = { count: 100 };
       workflowGraph.setLinkBreakpoint(mockScanResultLink.linkID, mockBreakpoint);
       expect(workflowGraph.getLinkBreakpoint(mockScanResultLink.linkID)).toEqual(mockBreakpoint);
     });

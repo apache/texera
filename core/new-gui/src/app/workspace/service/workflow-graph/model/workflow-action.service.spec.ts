@@ -228,12 +228,12 @@ describe('WorkflowActionService', () => {
       service.addOperator(mockScanPredicate, mockPoint);
       service.addOperator(mockResultPredicate, mockPoint);
       service.addLink(mockScanResultLink);
-      const mockBreakpoint = {age: '100'};
+      const mockBreakpoint = { count: 100 };
       service.setLinkBreakpoint(mockScanResultLink.linkID, mockBreakpoint);
       expect(texeraGraph.getLinkBreakpoint(mockScanResultLink.linkID)).toEqual(mockBreakpoint);
 
       service.removeLinkBreakpoint(mockScanResultLink.linkID);
-      expect(texeraGraph.getLinkBreakpoint(mockScanResultLink.linkID)).toEqual({});
+      expect(texeraGraph.getLinkBreakpoint(mockScanResultLink.linkID)).toBeUndefined();
     });
   });
 
@@ -244,47 +244,6 @@ describe('WorkflowActionService', () => {
 
     afterAll(() => {
       environment.executionStatusEnabled = false;
-    });
-
-    it('should handle delete an operator causing corresponding operator status tooltip element to be deleted correctly', () => {
-      service.addOperator(mockScanPredicate, mockPoint);
-
-      const opStatusTooltipID = JointUIService.getOperatorStatusTooltipElementID(mockScanPredicate.operatorID);
-      expect(jointGraph.getCell(mockScanPredicate.operatorID)).toBeTruthy();
-      expect(jointGraph.getCell(opStatusTooltipID)).toBeTruthy();
-
-      expect(jointGraph.getElements().length).toEqual(2);
-      service.deleteOperator(mockScanPredicate.operatorID);
-      expect(jointGraph.getElements().length).toEqual(0);
-
-      expect(jointGraph.getCell(mockScanPredicate.operatorID)).toBeFalsy();
-      expect(jointGraph.getCell(opStatusTooltipID)).toBeFalsy();
-    });
-
-    it('should add a corresponding operator status tooltip element when adding a operator', () => {
-      service.addOperator(mockScanPredicate, mockPoint);
-
-      const opStatusTooltipID = JointUIService.getOperatorStatusTooltipElementID(mockScanPredicate.operatorID);
-      expect(jointGraph.getCell(mockScanPredicate.operatorID)).toBeTruthy();
-      expect(jointGraph.getCell(opStatusTooltipID)).toBeTruthy();
-    });
-
-    it('should move opStatusTootip when operator is moved', () => {
-      service.addOperator(mockScanPredicate, mockPoint);
-      const operatorElement = jointGraph.getElements()[0];
-      const tooltipElement = jointGraph.getElements()[1];
-      expect(operatorElement).toBeTruthy();
-      expect(tooltipElement).toBeTruthy();
-
-      const originalTooltipPosition = tooltipElement.position().toJSON();
-      const expectedOperatorPosition = new g.Point(mockPoint.x + 50, mockPoint.y - 50);
-      const expectedTooltipPosition = new g.Point(originalTooltipPosition['x'] + 50, originalTooltipPosition['y'] - 50);
-
-      // only move operatorElement
-      operatorElement.translate(50, -50);
-      // tooltip should move with it
-      expect(operatorElement.position()).toEqual(expectedOperatorPosition);
-      expect(tooltipElement.position()).toEqual(expectedTooltipPosition);
     });
 
   });

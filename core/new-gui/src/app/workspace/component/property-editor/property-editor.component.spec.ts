@@ -548,7 +548,7 @@ describe('PropertyEditorComponent', () => {
       fixture.detectChanges();
 
       // stimulate a form change by the user
-      const formChangeValue = { attribute: 'age' };
+      const formChangeValue = { count: 100 };
       component.onFormChanges(formChangeValue);
 
       // fakeAsync enables tick, which waits for the set property debounce time to finish
@@ -573,8 +573,7 @@ describe('PropertyEditorComponent', () => {
       if (!linkBreakpoint) {
         throw new Error(`link ${mockScanResultLink.linkID} is undefined`);
       }
-      const emptyProperty = {};
-      expect(linkBreakpoint).toEqual(emptyProperty);
+      expect(linkBreakpoint).toBeUndefined();
     }));
 
     // xit('should debounce the user breakpoint form input to avoid emitting event too frequently', marbles(m => {

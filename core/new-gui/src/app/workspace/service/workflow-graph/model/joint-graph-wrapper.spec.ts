@@ -742,7 +742,7 @@ describe('JointGraphWrapperService', () => {
       // prepare marble operation for adding a breakpoint to a link
       const ActionMarbleEvent = m.hot('-a-|').share();
 
-      const mockBreakpoint = {age: '10'};
+      const mockBreakpoint = {count: 100};
       // add breakpoint to the link at events
       ActionMarbleEvent.subscribe(
         () => workflowActionService.setLinkBreakpoint(mockScanResultLink.linkID, mockBreakpoint)
@@ -773,7 +773,7 @@ describe('JointGraphWrapperService', () => {
       workflowActionService.addOperator(mockResultPredicate, mockPoint);
       workflowActionService.addLink(mockScanResultLink);
       // add breakpoint
-      const mockBreakpoint = {age: '10'};
+      const mockBreakpoint = {count: 100};
       localJointGraphWrapper.highlightLink(mockScanResultLink.linkID);
       workflowActionService.setLinkBreakpoint(mockScanResultLink.linkID, mockBreakpoint);
 

@@ -33,7 +33,7 @@ describe('ResultPanelToggleService', () => {
     const hiddenStatus = false;
 
     const toggleStream = resultPanelToggleService.getToggleChangeStream().map(value => 'a');
-    m.hot('-a-').do(event => resultPanelToggleService.toggleResultPanel(hiddenStatus)).subscribe();
+    m.hot('-a-').do(event => resultPanelToggleService.toggleResultPanel()).subscribe();
     m.expect(toggleStream).toBeObservable(expectedStream);
 
   }));
@@ -51,7 +51,7 @@ describe('ResultPanelToggleService', () => {
     const openStatus = true;
 
     const toggleStream = resultPanelToggleService.getToggleChangeStream().map(value => 'a');
-    m.hot('-a-').do(event => resultPanelToggleService.toggleResultPanel(openStatus)).subscribe();
+    m.hot('-a-').do(event => resultPanelToggleService.toggleResultPanel()).subscribe();
     m.expect(toggleStream).toBeObservable(expectedStream);
 
   }));

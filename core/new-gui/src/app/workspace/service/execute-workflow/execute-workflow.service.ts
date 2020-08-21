@@ -52,9 +52,6 @@ export const EXECUTION_TIMEOUT = 3000;
 export class ExecuteWorkflowService {
 
   private currentState: ExecutionStateInfo = { state: ExecutionState.Uninitialized };
-  // private resultMap: Map<string, ResultObject> = new Map<string, ResultObject>();
-  // private breakpoint: BreakpointTriggerInfo | undefined;
-  // private errorMessages: Record<string, string> | undefined;
   private executionStateStream = new Subject<{ previous: ExecutionStateInfo, current: ExecutionStateInfo }>();
 
   private executionTimeoutID: number | undefined;
