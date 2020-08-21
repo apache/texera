@@ -203,6 +203,12 @@ export class PropertyEditorComponent {
 
     // show breakpoint editor
     this.displayForm = true;
+
+    const interactive = this.executeWorkflowService.getExecutionState().state === ExecutionState.Uninitialized ||
+      this.executeWorkflowService.getExecutionState().state === ExecutionState.Paused ||
+      this.executeWorkflowService.getExecutionState().state === ExecutionState.BreakpointTriggered ||
+      this.executeWorkflowService.getExecutionState().state === ExecutionState.Completed;
+    this.setInteractivity(interactive);
   }
 
   /**
@@ -225,6 +231,10 @@ export class PropertyEditorComponent {
 
     // set displayForm to true in the end - first initialize all the data then show the view
     this.displayForm = true;
+
+    const interactive = this.executeWorkflowService.getExecutionState().state === ExecutionState.Uninitialized ||
+      this.executeWorkflowService.getExecutionState().state === ExecutionState.Completed;
+    this.setInteractivity(interactive);
   }
 
   /**
@@ -293,10 +303,12 @@ export class PropertyEditorComponent {
 
   private handleDisableEditorInteractivity(): void {
     this.executeWorkflowService.getExecutionStateStream().subscribe(event => {
-      if (event.current.state === ExecutionState.Completed || event.current.state === ExecutionState.Failed) {
-        this.setInteractivity(true);
-      } else {
-        this.setInteractivity(false);
+      if (this.currentOperatorID) {
+        if (event.current.state === ExecutionState.Completed || event.current.state === ExecutionState.Failed) {
+          this.setInteractivity(true);
+        } else {
+          this.setInteractivity(false);
+        }
       }
     });
   }

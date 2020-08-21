@@ -36,10 +36,10 @@
   display: grid;
   grid-template-columns: 14% 70% 16%;
   grid-template-rows: $header-height
-                      calc((100% - #{$header-height} - #{$resultbar-height}) * 0.55)
+                      calc((100% - #{$header-height} - #{$resultbar-height}) * 0.65)
                       0px
                       $resultbar-height
-                      calc((100% - #{$header-height} - #{$resultbar-height}) * 0.45);
+                      calc((100% - #{$header-height} - #{$resultbar-height}) * 0.35);
   position: relative;
 }
 
@@ -55,8 +55,8 @@
   display: grid;
   grid-template-columns: 14% 70% 16%;
   grid-template-rows: $header-height
-                      calc((100% - #{$header-height} - #{$resultbar-height}) * 0.55)
-                      calc((100% - #{$header-height} - #{$resultbar-height}) * 0.45)
+                      calc((100% - #{$header-height} - #{$resultbar-height}) * 0.65)
+                      calc((100% - #{$header-height} - #{$resultbar-height}) * 0.35)
                       $resultbar-height
                       0px;
   position: relative;

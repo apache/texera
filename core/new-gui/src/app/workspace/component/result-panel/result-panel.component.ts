@@ -138,7 +138,11 @@ export class ResultPanelComponent {
         const errorsMessages: Record<string, string> = {};
         breakpointTriggerInfo.report.forEach(r => {
           const pathsplitted = r.actorPath.split('/');
-          errorsMessages[pathsplitted[pathsplitted.length - 1]] = r.messages.toString();
+          const workerName = pathsplitted[pathsplitted.length - 1];
+          const workerText = 'Worker ' + workerName + ':                ';
+          if (r.messages.toString().toLowerCase().includes('exception')) {
+            errorsMessages[workerText] = r.messages.toString();
+          }
         });
         this.errorMessages = errorsMessages;
       }

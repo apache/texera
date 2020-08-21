@@ -20,13 +20,15 @@
     (click)="handleRemoveBreakpoint()">Remove Breakpoint</button>
 
     <button *ngIf="currentOperatorID !== undefined &&
-    this.executeWorkflowService.getExecutionState().state === ExecutionState.BreakpointTriggered &&
+    (this.executeWorkflowService.getExecutionState().state === ExecutionState.Paused ||
+      this.executeWorkflowService.getExecutionState().state === ExecutionState.BreakpointTriggered) &&
     this.interactive === false"
     type="button" class="breakpointRemoveButton"
     (click)="allowChangeOperatorLogic()">Change Logic</button>
 
     <button *ngIf="currentOperatorID !== undefined &&
-    this.executeWorkflowService.getExecutionState().state === ExecutionState.BreakpointTriggered &&
+    (this.executeWorkflowService.getExecutionState().state === ExecutionState.Paused ||
+      this.executeWorkflowService.getExecutionState().state === ExecutionState.BreakpointTriggered) &&
     this.interactive === true"
     type="button" class="breakpointRemoveButton"
     (click)="confirmChangeOperatorLogic()">Confirm Change</button>

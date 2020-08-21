@@ -45,8 +45,8 @@
           </button>
           <button mat-raised-button class="texera-navigation-run-button texera-navigation-run-text"
           *ngIf="executionState != ExecutionState.Uninitialized && executionState != ExecutionState.Completed"
-          [ngStyle]="{'background-color': '#cc3300', 'opacity' : '0.7'}"
-          (click)="this.onClickHandler()" >
+          [ngStyle]="{'background-color': '#cc3300'}"
+          (click)="this.handleKill()" >
             <span>
                 {{ 'kill' }}
             </span>

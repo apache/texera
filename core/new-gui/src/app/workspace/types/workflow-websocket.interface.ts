@@ -65,6 +65,7 @@ export type TexeraWebsocketEventTypeMap = {
   'WorkflowStatusUpdateEvent': WorkflowStatusUpdate,
   'WorkflowPausedEvent': {},
   'WorkflowResumedEvent': {},
+  'RecoveryStartedEvent': {},
   'BreakpointTriggeredEvent': BreakpointTriggerInfo,
   'ModifyLogicCompletedEvent': {},
   'OperatorCurrentTuplesUpdateEvent': OperatorCurrentTuples

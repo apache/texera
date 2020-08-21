@@ -90,8 +90,9 @@ export class ExecuteWorkflowService {
         } else {
           return { state: ExecutionState.Paused, currentTuples: {} };
         }
+      case 'RecoveryStartedEvent':
+        return { state: ExecutionState.Recovering };
       case 'OperatorCurrentTuplesUpdateEvent':
-        console.log(event);
         if (this.currentState.state === ExecutionState.BreakpointTriggered) {
           return this.currentState;
         }
@@ -111,7 +112,6 @@ export class ExecuteWorkflowService {
       case 'WorkflowResumedEvent':
         return { state: ExecutionState.Running };
       case 'BreakpointTriggeredEvent':
-        console.log(event);
         return { state: ExecutionState.BreakpointTriggered, breakpoint: event };
       case 'WorkflowErrorEvent':
         const errorMessages: Record<string, string> = {};
@@ -187,6 +187,17 @@ export class ExecuteWorkflowService {
     this.setExecutionTimeout('pause operation timeout', ExecutionState.Paused, ExecutionState.Failed);
   }
 
+  public killWorkflow(): void {
+    if (!environment.pauseResumeEnabled || !environment.amberEngineEnabled) {
+      return;
+    }
+    if (this.currentState.state === ExecutionState.Uninitialized || this.currentState.state === ExecutionState.Completed) {
+      throw new Error('cannot kill workflow, current execution state is ' + this.currentState.state);
+    }
+    this.workflowWebsocketService.send('KillWorkflowRequest', {});
+    this.updateExecutionState({ state: ExecutionState.Completed, resultID: undefined, resultMap: new Map() });
+  }
+
   public resumeWorkflow(): void {
     if (!environment.pauseResumeEnabled || !environment.amberEngineEnabled) {
       return;
@@ -207,6 +218,7 @@ export class ExecuteWorkflowService {
       this.currentState.state !== ExecutionState.Paused) {
       throw new Error('cannot add breakpoint at runtime, current execution state is ' + this.currentState.state);
     }
+    console.log('sending add breakpoint request');
     this.workflowWebsocketService.send('AddBreakpointRequest',
       ExecuteWorkflowService.transformBreakpoint(this.workflowActionService.getTexeraGraph(), linkID, breakpointData));
   }
@@ -227,8 +239,8 @@ export class ExecuteWorkflowService {
     if (!environment.amberEngineEnabled) {
       return;
     }
-    if (this.currentState.state !== ExecutionState.BreakpointTriggered) {
-      throw new Error('cannot update tuples, current execution state is ' + this.currentState.state);
+    if (this.currentState.state !== ExecutionState.BreakpointTriggered && this.currentState.state !== ExecutionState.Paused) {
+      throw new Error('cannot modify logic, current execution state is ' + this.currentState.state);
     }
     const op = this.workflowActionService.getTexeraGraph().getOperator(operatorID);
     const operator: LogicalOperator = {
@@ -238,23 +250,6 @@ export class ExecuteWorkflowService {
     };
     this.workflowWebsocketService.send('ModifyLogicRequest', { operator });
   }
-
-  public modifyOperatorLogic(op: OperatorPredicate): void {
-    if (!environment.pauseResumeEnabled || !environment.amberEngineEnabled) {
-      return;
-    }
-    if (this.currentState !== undefined
-      || !(this.currentState === ExecutionState.Paused)) {
-      throw new Error('cannot resume workflow, current execution state is ' + this.currentState);
-    }
-    const logicalOperator: LogicalOperator = {
-      ...op.operatorProperties,
-      operatorID: op.operatorID,
-      operatorType: op.operatorType
-    };
-    this.workflowWebsocketService.send('ModifyLogicRequest', { operator: logicalOperator });
-  }
-
 
   /**
    * Sends the current workflow data to the backend

@@ -81,7 +81,8 @@ export enum OperatorState {
   CollectingBreakpoints = 'CollectingBreakpoints',
   Paused = 'Paused',
   Resuming = 'Resuming',
-  Completed = 'Completed'
+  Completed = 'Completed',
+  Recovering = 'Recovering',
 }
 
 export interface OperatorStatistics extends Readonly<{
@@ -101,6 +102,7 @@ export enum ExecutionState {
   Pausing = 'Pausing',
   Paused = 'Paused',
   Resuming = 'Resuming',
+  Recovering = 'Recovering',
   BreakpointTriggered = 'BreakpointTriggered',
   Completed = 'Completed',
   Failed = 'Failed'
@@ -108,7 +110,7 @@ export enum ExecutionState {
 
 export type ExecutionStateInfo = Readonly<{
   state: ExecutionState.Uninitialized | ExecutionState.WaitingToRun | ExecutionState.Running
-  | ExecutionState.Pausing | ExecutionState.Resuming
+  | ExecutionState.Pausing | ExecutionState.Resuming | ExecutionState.Recovering
 } | {
   state: ExecutionState.Paused, currentTuples: Readonly<Record<string, OperatorCurrentTuples>>
 } | {

@@ -43,7 +43,8 @@ export const targetOperatorHandle = 'M 12 0 L 0 6 L 12 12 z';
 
 export const operatorStateClass = 'texera-operator-state';
 
-export const operatorStatisticsClass = 'texera-operator-statistics';
+export const operatorProcessedCountClass = 'texera-operator-processed-count';
+export const operatorOutputCountClass = 'texera-operator-output-count';
 
 export const operatorNameClass = 'texera-operator-name';
 
@@ -59,7 +60,8 @@ class TexeraCustomJointElement extends joint.shapes.devs.Model {
       ${deleteButtonSVG}
       <image></image>
       <text class="${operatorNameClass}"></text>
-      <text class="${operatorStatisticsClass}"></text>
+      <text class="${operatorProcessedCountClass}"></text>
+      <text class="${operatorOutputCountClass}"></text>
       <text class="${operatorStateClass}"></text>
     </g>`;
 }
@@ -168,8 +170,18 @@ export class JointUIService {
   }
 
   public changeOperatorStatistics(jointPaper: joint.dia.Paper, operatorID: string, statistics: OperatorStatistics): void {
+    this.changeOperatorState(jointPaper, operatorID, statistics.operatorState);
+
+    const processedText = 'Processed: ' + statistics.aggregatedInputRowCount.toLocaleString();
+    const outputText =    'Output:    ' + statistics.aggregatedOutputRowCount.toLocaleString();
+    jointPaper.getModelById(operatorID).attr(`.${operatorProcessedCountClass}/text`, processedText);
+    jointPaper.getModelById(operatorID).attr(`.${operatorOutputCountClass}/text`, outputText);
+
+  }
+
+  public changeOperatorState(jointPaper: joint.dia.Paper, operatorID: string, operatorState: OperatorState): void {
     let fillColor: string;
-    switch (statistics.operatorState) {
+    switch (operatorState) {
       case OperatorState.Completed:
         fillColor = 'green';
         break;
@@ -182,11 +194,8 @@ export class JointUIService {
         break;
     }
 
-    jointPaper.getModelById(operatorID).attr(`.${operatorStateClass}/text`, statistics.operatorState.toString());
+    jointPaper.getModelById(operatorID).attr(`.${operatorStateClass}/text`, operatorState.toString());
     jointPaper.getModelById(operatorID).attr(`.${operatorStateClass}/fill`, fillColor);
-
-    const statisticsText = statistics.aggregatedOutputRowCount.toString() + ' / ' + statistics.aggregatedInputRowCount.toString();
-    jointPaper.getModelById(operatorID).attr(`.${operatorStatisticsClass}/text`, statisticsText);
   }
 
   /**
@@ -393,7 +402,11 @@ export class JointUIService {
         text: '', 'font-size': '14px', 'visible': true,
         'ref-x': 0.5, 'ref-y': 100, ref: 'rect', 'y-alignment': 'middle', 'x-alignment': 'middle'
       },
-      '.texera-operator-statistics': {
+      '.texera-operator-processed-count': {
+        text: '', fill: 'green', 'font-size': '14px', 'visible': true,
+        'ref-x': 0.5, 'ref-y': -40, ref: 'rect', 'y-alignment': 'middle', 'x-alignment': 'middle'
+      },
+      '.texera-operator-output-count': {
         text: '', fill: 'green', 'font-size': '14px', 'visible': true,
         'ref-x': 0.5, 'ref-y': -20, ref: 'rect', 'y-alignment': 'middle', 'x-alignment': 'middle'
       },

@@ -125,7 +125,16 @@ export class NavigationComponent implements OnInit {
           text: 'Resuming', spinner: true, disable: true,
           onClick: () => {}
         };
+      case ExecutionState.Recovering:
+        return {
+          text: 'Recovering', spinner: true, disable: true,
+          onClick: () => {}
+        };
     }
+  }
+
+  public handleKill(): void {
+    this.executeWorkflowService.killWorkflow();
   }
 
   /**

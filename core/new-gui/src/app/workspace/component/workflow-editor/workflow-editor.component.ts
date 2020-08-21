@@ -18,7 +18,7 @@ import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-grap
 import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
 import { environment } from './../../../../environments/environment';
 import { ExecuteWorkflowService } from '../../service/execute-workflow/execute-workflow.service';
-import { ExecutionState } from '../../types/execute-workflow.interface';
+import { ExecutionState, OperatorStatistics, OperatorState } from '../../types/execute-workflow.interface';
 
 
 // argument type of callback event on a JointJS Paper
@@ -188,8 +188,31 @@ export class WorkflowEditorComponent implements AfterViewInit {
         if (! this.workflowActionService.getTexeraGraph().hasOperator(operatorID)) {
           throw new Error(`operator ${operatorID} does not exist`);
         }
+        if (this.executeWorkflowService.getExecutionState().state === ExecutionState.Recovering) {
+          status[operatorID] = {
+            ... status[operatorID],
+            operatorState: OperatorState.Recovering,
+          };
+        }
         this.jointUIService.changeOperatorStatistics(this.getJointPaper(), operatorID, status[operatorID]);
       });
+    });
+    this.executeWorkflowService.getExecutionStateStream().subscribe(event => {
+      if (event.previous.state === ExecutionState.Recovering) {
+        let operatorState: OperatorState;
+        if (event.current.state === ExecutionState.Paused) {
+          operatorState = OperatorState.Paused;
+        } else if (event.current.state === ExecutionState.Completed) {
+          operatorState = OperatorState.Completed;
+        } else if (event.current.state === ExecutionState.Running) {
+          operatorState = OperatorState.Running;
+        } else {
+          throw new Error('unknown state transition from recovering state: ' + event.current.state);
+        }
+        this.workflowActionService.getTexeraGraph().getAllOperators().forEach(op => {
+          this.jointUIService.changeOperatorState(this.getJointPaper(), op.operatorID, operatorState);
+        });
+      }
     });
   }
 

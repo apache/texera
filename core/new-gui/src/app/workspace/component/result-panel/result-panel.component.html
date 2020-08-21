@@ -16,7 +16,7 @@
   <div [hidden]="chartType">
     <button class="btn btn-secondary" *ngIf="breakpointTriggerInfo !== undefined"
     [disabled]="!breakpointAction" (click)="onClickSkipTuples()">
-      Skip Tuples
+      Skip Records
     </button>
     <div class="result-table" [hidden]="!currentColumns">
       <mat-table #table [dataSource]="currentDataSource!">
