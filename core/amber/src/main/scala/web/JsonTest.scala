@@ -1,7 +1,11 @@
 package web
 
 import texera.common.TexeraUtils
-import texera.common.workflow.{TexeraBreakpoint, TexeraBreakpointCondition, TexeraConditionBreakpoint}
+import texera.common.workflow.{
+  TexeraBreakpoint,
+  TexeraBreakpointCondition,
+  TexeraConditionBreakpoint
+}
 import web.model.request.{ExecuteWorkflowRequest, HelloWorldRequest}
 
 object JsonTest {
@@ -19,6 +23,4 @@ object JsonTest {
   }
 }
 
-class JsonTest {
-
-}
+class JsonTest {}

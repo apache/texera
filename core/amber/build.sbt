@@ -1,4 +1,3 @@
-
 name := "Amber"
 
 version := "0.1"
@@ -23,16 +22,17 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka" %% "akka-testkit" % akkaVersion,
   "com.typesafe.akka" %% "akka-persistence" % akkaVersion,
   "io.kamon" % "sigar-loader" % "1.6.6-rev002",
-  "com.chuusai" %% "shapeless" % "2.3.3")
+  "com.chuusai" %% "shapeless" % "2.3.3"
+)
 
 val excludeHadoopJersey = ExclusionRule(organization = "com.sun.jersey")
 val excludeHadoopSlf4j = ExclusionRule(organization = "org.slf4j")
 val excludeHadoopJsp = ExclusionRule(organization = "javax.servlet.jsp")
 
 libraryDependencies ++= Seq(
-  "org.apache.hadoop" % "hadoop-common" % hadoopVersion excludeAll(excludeHadoopJersey, excludeHadoopSlf4j, excludeHadoopJsp),
-  "org.apache.hadoop" % "hadoop-hdfs" % hadoopVersion excludeAll(excludeHadoopJersey, excludeHadoopSlf4j, excludeHadoopJsp),
-  "org.apache.hadoop" % "hadoop-client" % hadoopVersion excludeAll(excludeHadoopJersey, excludeHadoopSlf4j, excludeHadoopJsp),
+  "org.apache.hadoop" % "hadoop-common" % hadoopVersion excludeAll (excludeHadoopJersey, excludeHadoopSlf4j, excludeHadoopJsp),
+  "org.apache.hadoop" % "hadoop-hdfs" % hadoopVersion excludeAll (excludeHadoopJersey, excludeHadoopSlf4j, excludeHadoopJsp),
+  "org.apache.hadoop" % "hadoop-client" % hadoopVersion excludeAll (excludeHadoopJersey, excludeHadoopSlf4j, excludeHadoopJsp)
 )
 
 // dropwizard webframework
@@ -44,13 +44,12 @@ val jacksonVersion = "2.9.10"
 libraryDependencies ++= Seq(
   "io.dropwizard" % "dropwizard-core" % dropwizardVersion,
   "io.dropwizard" % "dropwizard-client" % dropwizardVersion,
-
   "com.github.dirkraft.dropwizard" % "dropwizard-file-assets" % "0.0.2",
   "io.dropwizard-bundles" % "dropwizard-redirect-bundle" % "1.0.5",
   "com.liveperson" % "dropwizard-websockets" % "1.3.14",
   "org.glassfish.jersey.media" % "jersey-media-multipart" % jerseyMultipartVersion,
   "com.fasterxml.jackson.module" % "jackson-module-jsonSchema" % jacksonVersion,
-  "com.fasterxml.jackson.module" % "jackson-module-scala_2.12" % jacksonVersion,
+  "com.fasterxml.jackson.module" % "jackson-module-scala_2.12" % jacksonVersion
 )
 
 libraryDependencies += "edu.stanford.nlp" % "stanford-corenlp" % "3.9.2"
@@ -68,4 +67,3 @@ libraryDependencies += "com.google.guava" % "guava" % "29.0-jre"
 libraryDependencies += "org.tukaani" % "xz" % "1.5"
 
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.8" % Test
-

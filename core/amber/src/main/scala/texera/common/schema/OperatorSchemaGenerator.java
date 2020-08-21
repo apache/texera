@@ -128,7 +128,7 @@ public class OperatorSchemaGenerator {
         String operatorType = operatorTypeMap.get(predicateClass);
 
         // find the operator directory by its predicate class
-        Path classDirectory = TexeraUtils.texeraHomePath()
+        Path classDirectory = TexeraUtils.amberHomePath()
                 .resolve("src/main/scala")
                 .resolve(predicateClass.getPackage().getName().replace('.', '/'));
 

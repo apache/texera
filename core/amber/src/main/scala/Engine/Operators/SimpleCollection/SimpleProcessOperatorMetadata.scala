@@ -15,14 +15,29 @@ import akka.util.Timeout
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
-class SimpleProcessOperatorMetadata(tag:OperatorTag, numWorkers:Int) extends OperatorMetadata(tag)  {
+class SimpleProcessOperatorMetadata(tag: OperatorTag, numWorkers: Int)
+    extends OperatorMetadata(tag) {
   override lazy val topology: Topology = {
-    new Topology(Array(
-      new ProcessorWorkerLayer(LayerTag(tag,"main"),_ => new SimpleTupleProcessor(),numWorkers,FollowPrevious(),RandomDeployment())
-    ),Array(),Map())
+    new Topology(
+      Array(
+        new ProcessorWorkerLayer(
+          LayerTag(tag, "main"),
+          _ => new SimpleTupleProcessor(),
+          numWorkers,
+          FollowPrevious(),
+          RandomDeployment()
+        )
+      ),
+      Array(),
+      Map()
+    )
   }
 
-  override def assignBreakpoint(topology: Array[ActorLayer], states: mutable.AnyRefMap[ActorRef, WorkerState.Value], breakpoint: GlobalBreakpoint)(implicit timeout:Timeout, ec:ExecutionContext, log:LoggingAdapter): Unit = {
-    breakpoint.partition(topology(0).layer.filter(states(_)!= WorkerState.Completed))
+  override def assignBreakpoint(
+      topology: Array[ActorLayer],
+      states: mutable.AnyRefMap[ActorRef, WorkerState.Value],
+      breakpoint: GlobalBreakpoint
+  )(implicit timeout: Timeout, ec: ExecutionContext, log: LoggingAdapter): Unit = {
+    breakpoint.partition(topology(0).layer.filter(states(_) != WorkerState.Completed))
   }
 }

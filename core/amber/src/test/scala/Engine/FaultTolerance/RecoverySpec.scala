@@ -14,16 +14,16 @@ import scala.concurrent.{Await, ExecutionContextExecutor}
 import scala.concurrent.duration._
 
 class RecoverySpec
-  extends TestKit(ActorSystem("RecoverySpec"))
-with ImplicitSender
-with FlatSpecLike
-with BeforeAndAfterAll {
+    extends TestKit(ActorSystem("RecoverySpec"))
+    with ImplicitSender
+    with FlatSpecLike
+    with BeforeAndAfterAll {
 
   implicit val timeout: Timeout = Timeout(5.seconds)
   implicit val executionContext: ExecutionContextExecutor = system.dispatcher
 
-  override def beforeAll:Unit = {
-    system.actorOf(Props[SingleNodeListener],"cluster-info")
+  override def beforeAll: Unit = {
+    system.actorOf(Props[SingleNodeListener], "cluster-info")
   }
   override def afterAll: Unit = {
     TestKit.shutdownActorSystem(system)
@@ -59,12 +59,11 @@ with BeforeAndAfterAll {
       |{"origin":"GroupBy2","destination":"Sink"}]
       |}""".stripMargin
 
-
   "A controller" should "pause, stop and restart, then pause the execution of the workflow1" in {
     val parent = TestProbe()
     val controller = parent.childActorOf(Controller.props(logicalPlan1))
     controller ! AckedControllerInitialization
-    parent.expectMsg(30.seconds,ReportState(ControllerState.Ready))
+    parent.expectMsg(30.seconds, ReportState(ControllerState.Ready))
     controller ! Start
     parent.expectMsg(ReportState(ControllerState.Running))
     Thread.sleep(100)
@@ -79,7 +78,5 @@ with BeforeAndAfterAll {
     parent.expectMsg(5.minutes, ReportState(ControllerState.Completed))
     parent.ref ! PoisonPill
   }
-
-
 
 }

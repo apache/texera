@@ -2,35 +2,32 @@ package Engine.Common.AmberTuple
 
 import Engine.Common.AmberField.FieldType
 
-
-class AmberTuple(val data:Array[Any])extends Tuple {
-  def this(fields:Array[String], fieldTypes:Array[FieldType.Value]){
+class AmberTuple(val data: Array[Any]) extends Tuple {
+  def this(fields: Array[String], fieldTypes: Array[FieldType.Value]) {
     this({
       var i = 0
-      val limit = Math.min(fields.length,fieldTypes.length)
+      val limit = Math.min(fields.length, fieldTypes.length)
       val result = new Array[Any](limit)
       while (i < limit) {
         result(i) = fieldTypes(i) match {
-          case FieldType.Short => fields(i).toShort
-          case FieldType.Int => fields(i).toInt
-          case FieldType.Boolean => fields(i).toBoolean
-          case FieldType.Char => fields(i)(0)
-          case FieldType.Double => fields(i).toDouble
-          case FieldType.Byte => fields(i).toByte
-          case FieldType.Float => fields(i).toFloat
-          case FieldType.Long => fields(i).toLong
-          case FieldType.String => fields(i)
-          case FieldType.BigInt => BigInt(fields(i))
+          case FieldType.Short      => fields(i).toShort
+          case FieldType.Int        => fields(i).toInt
+          case FieldType.Boolean    => fields(i).toBoolean
+          case FieldType.Char       => fields(i)(0)
+          case FieldType.Double     => fields(i).toDouble
+          case FieldType.Byte       => fields(i).toByte
+          case FieldType.Float      => fields(i).toFloat
+          case FieldType.Long       => fields(i).toLong
+          case FieldType.String     => fields(i)
+          case FieldType.BigInt     => BigInt(fields(i))
           case FieldType.BigDecimal => BigDecimal(fields(i))
-          case FieldType.Other => fields(i)
+          case FieldType.Other      => fields(i)
         }
-        i+=1
+        i += 1
       }
       result
     })
   }
-
-
 
   override def length: Int = data.length
 
@@ -38,5 +35,3 @@ class AmberTuple(val data:Array[Any])extends Tuple {
 
   override def toArray(): Array[Any] = data
 }
-
-

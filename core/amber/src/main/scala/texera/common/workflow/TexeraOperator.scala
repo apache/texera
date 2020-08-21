@@ -26,17 +26,19 @@ import scala.collection.{JavaConverters, mutable}
   include = JsonTypeInfo.As.PROPERTY,
   property = "operatorType"
 )
-@JsonSubTypes(Array(
-  new Type(value = classOf[TexeraLocalFileScan], name = "LocalFileScan"),
+@JsonSubTypes(
+  Array(
+    new Type(value = classOf[TexeraLocalFileScan], name = "LocalFileScan"),
 //  new Type(value = classOf[TexeraHdfsFileScan], name = "HdfsFileScan"),
-  new Type(value = classOf[TexeraAdhocSink], name = "AdhocSink"),
-  new Type(value = classOf[TexeraSleepOperator], name = "Sleep"),
-  new Type(value = classOf[TexeraKeywordSearch], name = "KeywordSearch"),
-  new Type(value = classOf[TexeraRegex], name = "Regex"),
-  new Type(value = classOf[TexeraFilter], name = "Filter"),
-  new Type(value = classOf[TexeraCount], name = "Count"),
-  new Type(value = classOf[TexeraSentimentAnalysis], name = "SentimentAnalysis"),
-))
+    new Type(value = classOf[TexeraAdhocSink], name = "AdhocSink"),
+    new Type(value = classOf[TexeraSleepOperator], name = "Sleep"),
+    new Type(value = classOf[TexeraKeywordSearch], name = "KeywordSearch"),
+    new Type(value = classOf[TexeraRegex], name = "Regex"),
+    new Type(value = classOf[TexeraFilter], name = "Filter"),
+    new Type(value = classOf[TexeraCount], name = "Count"),
+    new Type(value = classOf[TexeraSentimentAnalysis], name = "SentimentAnalysis")
+  )
+)
 abstract class TexeraOperator {
 
   @JsonIgnore var context: TexeraContext = _
@@ -58,6 +60,5 @@ abstract class TexeraOperator {
   override def equals(that: Any): Boolean = EqualsBuilder.reflectionEquals(this, that)
 
   override def toString: String = ToStringBuilder.reflectionToString(this)
-
 
 }

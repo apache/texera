@@ -6,9 +6,9 @@ import Engine.Common.{TableMetadata, TupleProcessor}
 
 import scala.collection.mutable.ArrayBuffer
 
-class SortTupleProcessor[T:Ordering](val targetField:Int) extends TupleProcessor {
+class SortTupleProcessor[T: Ordering](val targetField: Int) extends TupleProcessor {
   var results: ArrayBuffer[Tuple] = _
-  var iter:Iterator[Tuple] = _
+  var iter: Iterator[Tuple] = _
 
   override def accept(tuple: Tuple): Unit = {
     results.append(tuple)
@@ -33,13 +33,7 @@ class SortTupleProcessor[T:Ordering](val targetField:Int) extends TupleProcessor
     results = new ArrayBuffer[Tuple]()
   }
 
-  override def onUpstreamChanged(from: LayerTag): Unit = {
+  override def onUpstreamChanged(from: LayerTag): Unit = {}
 
-  }
-
-  override def onUpstreamExhausted(from: LayerTag): Unit = {
-
-  }
+  override def onUpstreamExhausted(from: LayerTag): Unit = {}
 }
-
-

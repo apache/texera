@@ -8,7 +8,7 @@ object Constants {
   val remoteHDFSIP = "10.138.0.2"
   var defaultNumWorkers = 0
   var dataset = 0
-  var masterNodeAddr:String = null
+  var masterNodeAddr: String = null
 
   var numWorkerPerNode = 2
   var dataVolumePerNode = 10

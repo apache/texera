@@ -1,6 +1,13 @@
 package Engine.Architecture.Controller
 
-import Engine.Architecture.Controller.ControllerEvent.{BreakpointTriggered, ModifyLogicCompleted, SkipTupleResponse, WorkflowCompleted, WorkflowPaused, WorkflowStatusUpdate}
+import Engine.Architecture.Controller.ControllerEvent.{
+  BreakpointTriggered,
+  ModifyLogicCompleted,
+  SkipTupleResponse,
+  WorkflowCompleted,
+  WorkflowPaused,
+  WorkflowStatusUpdate
+}
 import Engine.Common.AmberMessage.PrincipalMessage.ReportCurrentProcessingTuple
 
 case class ControllerEventListener(
@@ -11,5 +18,5 @@ case class ControllerEventListener(
     workflowPausedListener: WorkflowPaused => Unit = null,
     skipTupleResponseListener: SkipTupleResponse => Unit = null,
     reportCurrentTuplesListener: ReportCurrentProcessingTuple => Unit = null,
-    recoveryStartedListener: Unit => Unit = null,
+    recoveryStartedListener: Unit => Unit = null
 )

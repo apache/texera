@@ -1,6 +1,5 @@
 package Engine.Common.AmberTuple
 
-
 import java.util
 
 import Engine.Common.AmberField.FieldType
@@ -8,19 +7,22 @@ import Engine.Common.AmberField.FieldType
 import collection.JavaConverters._
 import scala.util.hashing.MurmurHash3
 
-object Tuple{
+object Tuple {
   def apply(values: Any*): Tuple = new AmberTuple(values.toArray)
   def fromSeq(values: Seq[Any]): Tuple = new AmberTuple(values.toArray)
   def fromIterable(values: Iterable[Any]): Tuple = new AmberTuple(values.toArray)
-  def fromJavaStringIterable(values: java.lang.Iterable[String]):Tuple = new AmberTuple(values.asScala.toArray)
+  def fromJavaStringIterable(values: java.lang.Iterable[String]): Tuple =
+    new AmberTuple(values.asScala.toArray)
   def fromJavaArray(values: Array[Any]) = new AmberTuple(values)
-  def fromJavaStringArray(values: Array[String],types:Array[FieldType.Value]) = new AmberTuple(values,types)
-  def fromJavaStringIterable(values: java.lang.Iterable[String],types:Array[FieldType.Value]) = new AmberTuple(values.asScala.toArray,types)
-  def fromJavaList(values: java.util.List[Any]):Tuple = new AmberTuple(values.asScala.toArray)
+  def fromJavaStringArray(values: Array[String], types: Array[FieldType.Value]) =
+    new AmberTuple(values, types)
+  def fromJavaStringIterable(values: java.lang.Iterable[String], types: Array[FieldType.Value]) =
+    new AmberTuple(values.asScala.toArray, types)
+  def fromJavaList(values: java.util.List[Any]): Tuple = new AmberTuple(values.asScala.toArray)
   val empty = apply()
 }
 
-trait Tuple extends Serializable{
+trait Tuple extends Serializable {
   def size: Int = length
   def length: Int
   def apply(i: Int): Any = get(i)
@@ -43,7 +45,7 @@ trait Tuple extends Serializable{
   def getByte(i: Int): Byte = getAnyValAs[Byte](i)
   def getBoolean(i: Int): Boolean = getAnyValAs[Boolean](i)
 
-  def toArray():Array[Any]
+  def toArray(): Array[Any]
 
   override def hashCode: Int = {
     var n = 0
@@ -67,7 +69,6 @@ trait Tuple extends Serializable{
     values.toSeq
   }
 
-
   override def equals(o: Any): Boolean = {
     if (!o.isInstanceOf[Tuple]) return false
     val other = o.asInstanceOf[Tuple]
@@ -88,25 +89,28 @@ trait Tuple extends Serializable{
         val o2 = other.get(i)
         o1 match {
           case b1: Array[Byte] =>
-            if (!o2.isInstanceOf[Array[Byte]] ||
-              !java.util.Arrays.equals(b1, o2.asInstanceOf[Array[Byte]])) {
+            if (
+              !o2.isInstanceOf[Array[Byte]] ||
+              !java.util.Arrays.equals(b1, o2.asInstanceOf[Array[Byte]])
+            ) {
               return false
             }
           case f1: Float if java.lang.Float.isNaN(f1) =>
-            if (!o2.isInstanceOf[Float] || ! java.lang.Float.isNaN(o2.asInstanceOf[Float])) {
+            if (!o2.isInstanceOf[Float] || !java.lang.Float.isNaN(o2.asInstanceOf[Float])) {
               return false
             }
           case d1: Double if java.lang.Double.isNaN(d1) =>
-            if (!o2.isInstanceOf[Double] || ! java.lang.Double.isNaN(o2.asInstanceOf[Double])) {
+            if (!o2.isInstanceOf[Double] || !java.lang.Double.isNaN(o2.asInstanceOf[Double])) {
               return false
             }
           case d1: java.math.BigDecimal if o2.isInstanceOf[java.math.BigDecimal] =>
             if (d1.compareTo(o2.asInstanceOf[java.math.BigDecimal]) != 0) {
               return false
             }
-          case _ => if (o1 != o2) {
-            return false
-          }
+          case _ =>
+            if (o1 != o2) {
+              return false
+            }
         }
       }
       i += 1
@@ -114,7 +118,7 @@ trait Tuple extends Serializable{
     true
   }
 
-  def mkString:String = mkString(",")
+  def mkString: String = mkString(",")
 
   def mkString(sep: String): String = mkString("Tuple[", sep, "]")
 

@@ -1,6 +1,5 @@
 package Engine.Common
 
-
 object ThreadState extends Enumeration {
   val Idle = Value("Idle")
   val Running = Value("Running")

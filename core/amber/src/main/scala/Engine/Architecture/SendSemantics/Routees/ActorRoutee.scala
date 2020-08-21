@@ -8,7 +8,7 @@ import scala.collection.mutable.ArrayBuffer
 
 abstract class ActorRoutee(receiver: ActorRef) extends BaseRoutee(receiver) {
 
-  var senderActor:ActorRef = _
+  var senderActor: ActorRef = _
   val stash = new ArrayBuffer[Any]
   var isPaused = false
 
@@ -20,27 +20,27 @@ abstract class ActorRoutee(receiver: ActorRef) extends BaseRoutee(receiver) {
   override def resume()(implicit sender: ActorRef): Unit = {
     senderActor ! Resume
     isPaused = false
-    for(i <- stash){
-      i match{
-        case d:DataMessage => senderActor ! d
-        case e:EndSending => senderActor ! e
+    for (i <- stash) {
+      i match {
+        case d: DataMessage => senderActor ! d
+        case e: EndSending  => senderActor ! e
       }
     }
     stash.clear()
   }
 
   override def schedule(msg: DataMessage)(implicit sender: ActorRef): Unit = {
-    if(isPaused){
+    if (isPaused) {
       stash.append(msg)
-    }else {
+    } else {
       senderActor ! msg
     }
   }
 
   override def schedule(msg: EndSending)(implicit sender: ActorRef): Unit = {
-    if(isPaused){
+    if (isPaused) {
       stash.append(msg)
-    }else {
+    } else {
       senderActor ! msg
     }
   }

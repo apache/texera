@@ -18,7 +18,7 @@ class TexeraContext {
         Integer.parseInt(field.trim())
       } catch {
         case n: NumberFormatException => null
-        case e: Throwable => throw(e)
+        case e: Throwable             => throw (e)
       }
     }
   }

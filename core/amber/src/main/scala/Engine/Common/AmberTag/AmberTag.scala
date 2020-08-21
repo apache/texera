@@ -1,5 +1,5 @@
 package Engine.Common.AmberTag
 
-trait AmberTag{
+trait AmberTag {
   def getGlobalIdentity: String
 }

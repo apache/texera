@@ -16,21 +16,31 @@ import scala.concurrent.ExecutionContext
 
 abstract class OperatorMetadata(val tag: OperatorTag) extends Serializable {
 
-  class Topology(var layers:Array[ActorLayer],var links: Array[LinkStrategy],var dependencies:Map[LayerTag,Set[LayerTag]]) extends Serializable {
+  class Topology(
+      var layers: Array[ActorLayer],
+      var links: Array[LinkStrategy],
+      var dependencies: Map[LayerTag, Set[LayerTag]]
+  ) extends Serializable {
     assert(!dependencies.exists(x => x._2.contains(x._1)))
   }
 
-  lazy val topology:Topology = null
+  lazy val topology: Topology = null
 
-  def runtimeCheck(workflow:Workflow): Option[mutable.HashMap[AmberTag, mutable.HashMap[AmberTag,mutable.HashSet[LayerTag]]]] = {
+  def runtimeCheck(
+      workflow: Workflow
+  ): Option[mutable.HashMap[AmberTag, mutable.HashMap[AmberTag, mutable.HashSet[LayerTag]]]] = {
     //do nothing by default
     None
   }
 
-  def requiredShuffle:Boolean = false
+  def requiredShuffle: Boolean = false
 
-  def getShuffleHashFunction(layerTag: LayerTag):Tuple => Int = ???
+  def getShuffleHashFunction(layerTag: LayerTag): Tuple => Int = ???
 
-  def assignBreakpoint(topology:Array[ActorLayer], states:mutable.AnyRefMap[ActorRef,WorkerState.Value], breakpoint:GlobalBreakpoint)(implicit timeout:Timeout, ec:ExecutionContext, log:LoggingAdapter)
+  def assignBreakpoint(
+      topology: Array[ActorLayer],
+      states: mutable.AnyRefMap[ActorRef, WorkerState.Value],
+      breakpoint: GlobalBreakpoint
+  )(implicit timeout: Timeout, ec: ExecutionContext, log: LoggingAdapter)
 
 }

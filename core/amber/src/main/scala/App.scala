@@ -1,4 +1,3 @@
-
 import java.io.{BufferedReader, InputStreamReader}
 
 import Clustering.ClusterListener
@@ -7,10 +6,16 @@ import akka.pattern.ask
 import com.typesafe.config.{Config, ConfigFactory}
 import java.net._
 
-import Engine.Architecture.Breakpoint.GlobalBreakpoint.{ConditionalGlobalBreakpoint, CountGlobalBreakpoint}
+import Engine.Architecture.Breakpoint.GlobalBreakpoint.{
+  ConditionalGlobalBreakpoint,
+  CountGlobalBreakpoint
+}
 import Engine.Architecture.Controller.Controller
 import Engine.Common.AmberMessage.ControlMessage.{ModifyLogic, Pause, Resume, Start}
-import Engine.Common.AmberMessage.ControllerMessage.{AckedControllerInitialization, PassBreakpointTo}
+import Engine.Common.AmberMessage.ControllerMessage.{
+  AckedControllerInitialization,
+  PassBreakpointTo
+}
 import Engine.Common.Constants
 import akka.util.Timeout
 import play.api.libs.json.Json
@@ -18,7 +23,6 @@ import play.api.libs.json.Json
 import scala.annotation.tailrec
 import scala.concurrent.Await
 import scala.concurrent.duration._
-
 
 object App {
   val usage = """
@@ -28,22 +32,21 @@ object App {
   implicit val timeout: Timeout = Timeout(5.seconds)
 
   @tailrec
-  def argsToOptionMap(map : OptionMap, list: List[String]) : OptionMap = {
+  def argsToOptionMap(map: OptionMap, list: List[String]): OptionMap = {
     list match {
       case Nil => map
       case "--main-node-addr" :: value :: tail =>
         argsToOptionMap(map ++ Map('mainNodeAddr -> value), tail)
       case option :: tail =>
-        println("Unknown option "+option)
+        println("Unknown option " + option)
         println(usage)
         sys.exit(1)
     }
   }
 
-
   def main(args: Array[String]): Unit = {
-    val options = argsToOptionMap(Map(),args.toList)
-    var config:Config = null
+    val options = argsToOptionMap(Map(), args.toList)
+    var config: Config = null
     var localIpAddress = "0.0.0.0"
 //    try{
 //      val query = new URL("http://checkip.amazonaws.com")
@@ -58,30 +61,34 @@ object App {
     val localhost: InetAddress = InetAddress.getLocalHost
     localIpAddress = localhost.getHostAddress
 
-    if(!options.contains('mainNodeAddr)){
+    if (!options.contains('mainNodeAddr)) {
       //activate main node
-       config = ConfigFactory.parseString(s"""
+      config = ConfigFactory
+        .parseString(s"""
         akka.remote.netty.tcp.hostname = $localIpAddress
         akka.remote.netty.tcp.port = 2552
         akka.remote.artery.canonical.port = 2552
         akka.remote.artery.canonical.hostname = $localIpAddress
         akka.cluster.seed-nodes = [ "akka.tcp://Amber@$localIpAddress:2552" ]
-        """).withFallback(ConfigFactory.load("clustered"))
-    }else{
+        """)
+        .withFallback(ConfigFactory.load("clustered"))
+    } else {
       //activate any node
       val addr = options('mainNodeAddr)
-      config = ConfigFactory.parseString(s"""
+      config = ConfigFactory
+        .parseString(s"""
         akka.remote.netty.tcp.hostname = $localIpAddress
         akka.remote.artery.canonical.hostname = $localIpAddress
         akka.cluster.seed-nodes = [ "akka.tcp://Amber@$addr:2552" ]
-        """).withFallback(ConfigFactory.load("clustered"))
+        """)
+        .withFallback(ConfigFactory.load("clustered"))
       Constants.masterNodeAddr = addr.toString
     }
-    val system: ActorSystem = ActorSystem("Amber",config)
-    val info = system.actorOf(Props[ClusterListener],"cluster-info")
+    val system: ActorSystem = ActorSystem("Amber", config)
+    val info = system.actorOf(Props[ClusterListener], "cluster-info")
 
-    var controller:ActorRef = null
-    val workflows=Array(
+    var controller: ActorRef = null
+    val workflows = Array(
       """{
         |"operators":[
         |{"limit":<arg1>,"delay":<arg2>,"operatorID":"Gen","operatorType":"Generate"},
@@ -91,7 +98,6 @@ object App {
         |{"origin":"Gen","destination":"Count"},
         |{"origin":"Count","destination":"Sink"}]
         |}""".stripMargin,
-
       s"""{
         |"operators":[
         |{"host":"${Constants.remoteHDFSPath}","tableName":"/datasets/<arg3>G/orders.tbl","operatorID":"Scan","operatorType":"HDFSScanSource","delimiter":"|","indicesToKeep":[4,8,10]},
@@ -152,9 +158,8 @@ object App {
          |{"origin":"GroupBy2","destination":"Sort"},
          |{"origin":"Sort","destination":"Sink"}]
          |}""".stripMargin
-
     )
-    if(!options.contains('mainNodeAddr)) {
+    if (!options.contains('mainNodeAddr)) {
 
       val demoUsage =
         """demo usage =
@@ -224,7 +229,9 @@ object App {
               println("conditional breakpoint not supported for this workflow")
             } else {
               try {
-                print("please enter break condition (lambda function = (x) => x.contains(condition)):")
+                print(
+                  "please enter break condition (lambda function = (x) => x.contains(condition)):"
+                )
                 conditionalbp = Some(scala.io.StdIn.readLine().trim)
                 println("count breakpoint set!")
               } catch {
@@ -233,20 +240,33 @@ object App {
               }
             }
           case "show" =>
-            val json = Json.parse(workflows(current).replace("<arg1>", limit).replace("<arg2>", delay))
+            val json =
+              Json.parse(workflows(current).replace("<arg1>", limit).replace("<arg2>", delay))
             println(Json.prettyPrint(json))
           case "run" =>
             if (current == 0) {
-              controller = system.actorOf(Controller.props(workflows(current).replace("<arg1>", limit).replace("<arg2>", delay)))
+              controller = system.actorOf(
+                Controller.props(
+                  workflows(current).replace("<arg1>", limit).replace("<arg2>", delay)
+                )
+              )
             } else {
-              controller = system.actorOf(Controller.props(workflows(current).replace("<arg3>", Constants.dataset.toString)))
+              controller = system.actorOf(
+                Controller.props(workflows(current).replace("<arg3>", Constants.dataset.toString))
+              )
             }
             controller ! AckedControllerInitialization
             //if (countbp.isDefined && current == 2) {
             //  controller ! PassBreakpointTo("Filter", new CountGlobalBreakpoint("CountBreakpoint", countbp.get))
             //}
             if (conditionalbp.isDefined) {
-              controller ! PassBreakpointTo("KeywordSearch", new ConditionalGlobalBreakpoint("ConditionalBreakpoint", x => x.getString(15).contains(conditionalbp)))
+              controller ! PassBreakpointTo(
+                "KeywordSearch",
+                new ConditionalGlobalBreakpoint(
+                  "ConditionalBreakpoint",
+                  x => x.getString(15).contains(conditionalbp)
+                )
+              )
             }
             controller ! Start
             println("workflow started!")

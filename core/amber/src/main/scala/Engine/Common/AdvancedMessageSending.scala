@@ -14,21 +14,34 @@ import scala.concurrent.duration._
 
 object AdvancedMessageSending {
 
-  def nonBlockingAskWithRetry(receiver: ActorRef, message: Any, maxAttempts: Int, attempt: Int)(implicit timeout:Timeout, ec:ExecutionContext, log:LoggingAdapter): Future[Any] = {
+  def nonBlockingAskWithRetry(
+      receiver: ActorRef,
+      message: Any,
+      maxAttempts: Int,
+      attempt: Int
+  )(implicit timeout: Timeout, ec: ExecutionContext, log: LoggingAdapter): Future[Any] = {
     val future = (receiver ? message) recover {
       case e: AskTimeoutException =>
-        if (attempt > maxAttempts) log.error("failed to send message "+message+" to "+receiver)
+        if (attempt > maxAttempts)
+          log.error("failed to send message " + message + " to " + receiver)
         else nonBlockingAskWithRetry(receiver, message, maxAttempts, attempt + 1)
     }
     future
   }
 
-  def nonBlockingAskWithRetry(receiver: ActorRef, message: Any, maxAttempts: Int, attempt: Int, callback: Any => Unit)(implicit timeout:Timeout, ec:ExecutionContext, log:LoggingAdapter): Unit = {
+  def nonBlockingAskWithRetry(
+      receiver: ActorRef,
+      message: Any,
+      maxAttempts: Int,
+      attempt: Int,
+      callback: Any => Unit
+  )(implicit timeout: Timeout, ec: ExecutionContext, log: LoggingAdapter): Unit = {
     (receiver ? message) onComplete {
       case Success(value) => callback(value)
       case Failure(exception) =>
-        if (attempt > maxAttempts) log.error("failed to send message "+message+" to "+receiver)
-        else nonBlockingAskWithRetry(receiver, message, maxAttempts, attempt + 1,callback)
+        if (attempt > maxAttempts)
+          log.error("failed to send message " + message + " to " + receiver)
+        else nonBlockingAskWithRetry(receiver, message, maxAttempts, attempt + 1, callback)
     }
   }
 
@@ -48,35 +61,44 @@ object AdvancedMessageSending {
 //  }
 
   //this is blocking the actor, be careful!
-  def blockingAskWithRetry(receiver: ActorRef, message: Any, maxAttempts: Int)(implicit timeout:Timeout, ec:ExecutionContext, log:LoggingAdapter):Any ={
-    var res:Any = null
-    Breaks.breakable{
+  def blockingAskWithRetry(receiver: ActorRef, message: Any, maxAttempts: Int)(implicit
+      timeout: Timeout,
+      ec: ExecutionContext,
+      log: LoggingAdapter
+  ): Any = {
+    var res: Any = null
+    Breaks.breakable {
       var i = 0
-      while(i < maxAttempts){
-        Try{
-          res = Await.result(receiver ? message,timeout.duration)
+      while (i < maxAttempts) {
+        Try {
+          res = Await.result(receiver ? message, timeout.duration)
           Breaks.break()
         }
         i += 1
       }
-      log.error("failed to send message "+message+" to "+receiver)
+      log.error("failed to send message " + message + " to " + receiver)
     }
     res
   }
 
   //this is blocking the actor, be careful!
-  def blockingAskWithRetry(receiver: ActorRef, message: Any, maxAttempts: Int, callback: Any => Unit)(implicit timeout:Timeout, ec:ExecutionContext, log:LoggingAdapter):Unit ={
-    var res:Any = null
-    Breaks.breakable{
+  def blockingAskWithRetry(
+      receiver: ActorRef,
+      message: Any,
+      maxAttempts: Int,
+      callback: Any => Unit
+  )(implicit timeout: Timeout, ec: ExecutionContext, log: LoggingAdapter): Unit = {
+    var res: Any = null
+    Breaks.breakable {
       var i = 0
-      while(i < maxAttempts){
-        Try{
-          res = Await.result(receiver ? message,timeout.duration)
+      while (i < maxAttempts) {
+        Try {
+          res = Await.result(receiver ? message, timeout.duration)
           Breaks.break()
         }
         i += 1
       }
-      log.error("failed to send message "+message+" to "+receiver)
+      log.error("failed to send message " + message + " to " + receiver)
     }
     callback(res)
   }

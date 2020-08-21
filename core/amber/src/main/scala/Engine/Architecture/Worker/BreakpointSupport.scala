@@ -10,10 +10,9 @@ import scala.util.control.Breaks
 
 trait BreakpointSupport {
   var breakpoints = new Array[LocalBreakpoint](0)
-  var unhandledFaultedTuples = new mutable.HashMap[Long,FaultedTuple]()
+  var unhandledFaultedTuples = new mutable.HashMap[Long, FaultedTuple]()
 
-
-  def registerBreakpoint(breakpoint: LocalBreakpoint): Unit ={
+  def registerBreakpoint(breakpoint: LocalBreakpoint): Unit = {
     var i = 0
     Breaks.breakable {
       while (i < breakpoints.length) {
@@ -27,15 +26,14 @@ trait BreakpointSupport {
     }
   }
 
-
-  def removeBreakpoint(breakpointID:String): Unit ={
+  def removeBreakpoint(breakpointID: String): Unit = {
     val idx = breakpoints.indexWhere(_.id == breakpointID)
-    if(idx != -1){
+    if (idx != -1) {
       breakpoints = breakpoints.take(idx)
     }
   }
 
-  def resetBreakpoints(): Unit ={
+  def resetBreakpoints(): Unit = {
 //    breakpoints.foreach{
 //      _.reset()
 //    }

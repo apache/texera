@@ -11,10 +11,23 @@ import Engine.Common.AmberMessage.StateMessage._
 import Engine.Common.AmberMessage.ControlMessage.{QueryState, _}
 import Engine.Common.AmberTag.{LayerTag, WorkerTag}
 import Engine.Common.AmberTuple.{AmberTuple, Tuple}
-import Engine.Common.{AdvancedMessageSending, Constants, ElidableStatement, TableMetadata, ThreadState, TupleProcessor}
+import Engine.Common.{
+  AdvancedMessageSending,
+  Constants,
+  ElidableStatement,
+  TableMetadata,
+  ThreadState,
+  TupleProcessor
+}
 import Engine.Operators.Filter.{FilterMetadata, FilterSpecializedTupleProcessor, FilterType}
 import Engine.Operators.KeywordSearch.{KeywordSearchMetadata, KeywordSearchTupleProcessor}
-import Engine.Common.{AdvancedMessageSending, ElidableStatement, TableMetadata, ThreadState, TupleProcessor}
+import Engine.Common.{
+  AdvancedMessageSending,
+  ElidableStatement,
+  TableMetadata,
+  ThreadState,
+  TupleProcessor
+}
 import Engine.Operators.Sink.SimpleSinkProcessor
 import Engine.FaultTolerance.Recovery.RecoveryPacket
 import Engine.Operators.Common.Filter.{FilterGeneralMetadata, FilterGeneralTupleProcessor}
@@ -34,27 +47,28 @@ import scala.annotation.elidable._
 import scala.concurrent.duration._
 
 object Processor {
-  def props(processor:TupleProcessor,tag:WorkerTag): Props = Props(new Processor(processor,tag))
+  def props(processor: TupleProcessor, tag: WorkerTag): Props = Props(new Processor(processor, tag))
 }
 
-class Processor(var dataProcessor: TupleProcessor,val tag:WorkerTag) extends WorkerBase  {
+class Processor(var dataProcessor: TupleProcessor, val tag: WorkerTag) extends WorkerBase {
 
-  val dataProcessExecutor: ExecutionContextExecutor = ExecutionContext.fromExecutor(Executors.newSingleThreadExecutor)
-  val processingQueue = new mutable.Queue[(LayerTag,Array[Tuple])]
+  val dataProcessExecutor: ExecutionContextExecutor =
+    ExecutionContext.fromExecutor(Executors.newSingleThreadExecutor)
+  val processingQueue = new mutable.Queue[(LayerTag, Array[Tuple])]
   val input = new FIFOAccessPort()
   val aliveUpstreams = new mutable.HashSet[LayerTag]
   @volatile var dPThreadState: ThreadState.Value = ThreadState.Idle
   var processingIndex = 0
-  var processedCount:Long = 0L
-  var generatedCount:Long = 0L
-  var currentInputTuple:Tuple = _
-  var savedModifyLogic:mutable.Queue[(Long,Long,OperatorMetadata)] = new mutable.Queue[(Long, Long, OperatorMetadata)]()
+  var processedCount: Long = 0L
+  var generatedCount: Long = 0L
+  var currentInputTuple: Tuple = _
+  var savedModifyLogic: mutable.Queue[(Long, Long, OperatorMetadata)] =
+    new mutable.Queue[(Long, Long, OperatorMetadata)]()
 
   @elidable(INFO) var processTime = 0L
   @elidable(INFO) var processStart = 0L
 
-
-  override def onReset(value: Any, recoveryInformation:Seq[(Long,Long)]): Unit = {
+  override def onReset(value: Any, recoveryInformation: Seq[(Long, Long)]): Unit = {
     super.onReset(value, recoveryInformation)
     processingIndex = 0
     processedCount = 0L
@@ -63,15 +77,18 @@ class Processor(var dataProcessor: TupleProcessor,val tag:WorkerTag) extends Wor
     dPThreadState = ThreadState.Idle
     dataProcessor = value.asInstanceOf[TupleProcessor]
     dataProcessor.initialize()
-    while(savedModifyLogic.nonEmpty && savedModifyLogic.head._1 == 0 && savedModifyLogic.head._2 == 0){
-      savedModifyLogic.head._3 match{
+    while (
+      savedModifyLogic.nonEmpty && savedModifyLogic.head._1 == 0 && savedModifyLogic.head._2 == 0
+    ) {
+      savedModifyLogic.head._3 match {
         case keywordSeachOpMetadata: KeywordSearchMetadata =>
-          val dp: KeywordSearchTupleProcessor = dataProcessor.asInstanceOf[KeywordSearchTupleProcessor]
+          val dp: KeywordSearchTupleProcessor =
+            dataProcessor.asInstanceOf[KeywordSearchTupleProcessor]
           dp.setPredicate(keywordSeachOpMetadata.targetField, keywordSeachOpMetadata.keyword)
         case filterOpMetadata: FilterGeneralMetadata =>
           val dp = dataProcessor.asInstanceOf[FilterGeneralTupleProcessor]
           dp.filterFunc = filterOpMetadata.filterFunc
-        case t => throw new NotImplementedError("Unknown operator type: "+ t)
+        case t => throw new NotImplementedError("Unknown operator type: " + t)
       }
       savedModifyLogic.dequeue()
     }
@@ -80,11 +97,10 @@ class Processor(var dataProcessor: TupleProcessor,val tag:WorkerTag) extends Wor
     resetBreakpoints()
     resetOutput()
     context.become(ready)
-    if(receivedRecoveryInformation.contains((0,0))){
+    if (receivedRecoveryInformation.contains((0, 0))) {
       self ! Pause
     }
   }
-
 
   override def onResuming(): Unit = {
     super.onResuming()
@@ -93,9 +109,9 @@ class Processor(var dataProcessor: TupleProcessor,val tag:WorkerTag) extends Wor
       Future {
         processBatch()
       }(dataProcessExecutor)
-    }else if(aliveUpstreams.isEmpty && dPThreadState != ThreadState.Completed){
+    } else if (aliveUpstreams.isEmpty && dPThreadState != ThreadState.Completed) {
       dPThreadState = ThreadState.Running
-      Future{
+      Future {
         afterFinishProcessing()
       }(dataProcessExecutor)
     }
@@ -103,37 +119,43 @@ class Processor(var dataProcessor: TupleProcessor,val tag:WorkerTag) extends Wor
 
   override def onSkipTuple(faultedTuple: FaultedTuple): Unit = {
     super.onSkipTuple(faultedTuple)
-    if(faultedTuple.isInput){
-      processingIndex+=1
-      processedCount+=1
-    }else{
+    if (faultedTuple.isInput) {
+      processingIndex += 1
+      processedCount += 1
+    } else {
       //if it's output tuple, it will be ignored
     }
   }
 
   override def onResumeTuple(faultedTuple: FaultedTuple): Unit = {
-    if(!faultedTuple.isInput){
+    if (!faultedTuple.isInput) {
       var i = 0
       while (i < output.length) {
         output(i).accept(faultedTuple.tuple)
         i += 1
       }
-    }else{
+    } else {
       //if its input tuple, the same breakpoint will be triggered again
     }
   }
 
   override def onModifyTuple(faultedTuple: FaultedTuple): Unit = {
-    if(!faultedTuple.isInput){
+    if (!faultedTuple.isInput) {
       userFixedTuple = faultedTuple.tuple
-    }else{
+    } else {
       processingQueue.front._2(processingIndex) = faultedTuple.tuple
     }
   }
 
   override def onCompleted(): Unit = {
     super.onCompleted()
-    ElidableStatement.info{log.info("completed its job. total: {} ms, processing: {} ms",(System.nanoTime()-startTime)/1000000,processTime/1000000)}
+    ElidableStatement.info {
+      log.info(
+        "completed its job. total: {} ms, processing: {} ms",
+        (System.nanoTime() - startTime) / 1000000,
+        processTime / 1000000
+      )
+    }
   }
 
   override def getResultTuples(): mutable.MutableList[Tuple] = {
@@ -145,7 +167,7 @@ class Processor(var dataProcessor: TupleProcessor,val tag:WorkerTag) extends Wor
     }
   }
 
-  private[this] def waitProcessing:Receive={
+  private[this] def waitProcessing: Receive = {
     case ExecutionPaused =>
       context.become(paused)
       onPaused()
@@ -160,14 +182,14 @@ class Processor(var dataProcessor: TupleProcessor,val tag:WorkerTag) extends Wor
     case LocalBreakpointTriggered =>
       onBreakpointTriggered()
       context.become(paused)
-      context.become(breakpointTriggered,discardOld = false)
+      context.become(breakpointTriggered, discardOld = false)
       unstashAll()
     case QueryState => sender ! ReportState(WorkerState.Pausing)
-    case msg => stash()
+    case msg        => stash()
   }
 
   def onSaveDataMessage(seq: Long, payload: Array[Tuple]): Unit = {
-    input.preCheck(seq,payload,sender) match {
+    input.preCheck(seq, payload, sender) match {
       case Some(batches) =>
         val currentEdge = input.actorToEdge(sender)
         synchronized {
@@ -179,10 +201,10 @@ class Processor(var dataProcessor: TupleProcessor,val tag:WorkerTag) extends Wor
   }
 
   def onSaveEndSending(seq: Long): Unit = {
-    if(input.registerEnd(sender,seq)){
+    if (input.registerEnd(sender, seq)) {
       synchronized {
         val currentEdge: LayerTag = input.actorToEdge(sender)
-        processingQueue += ((currentEdge,null))
+        processingQueue += ((currentEdge, null))
         if (dPThreadState == ThreadState.Idle) {
           dPThreadState = ThreadState.Running
           Future {
@@ -193,20 +215,17 @@ class Processor(var dataProcessor: TupleProcessor,val tag:WorkerTag) extends Wor
     }
   }
 
-
-
-
   def onReceiveEndSending(seq: Long): Unit = {
     onSaveEndSending(seq)
   }
 
   def onReceiveDataMessage(seq: Long, payload: Array[Tuple]): Unit = {
-    input.preCheck(seq,payload,sender) match{
+    input.preCheck(seq, payload, sender) match {
       case Some(batches) =>
         val currentEdge = input.actorToEdge(sender)
         synchronized {
           for (i <- batches)
-            processingQueue += ((currentEdge,i))
+            processingQueue += ((currentEdge, i))
           if (dPThreadState == ThreadState.Idle) {
             dPThreadState = ThreadState.Running
             Future {
@@ -218,7 +237,7 @@ class Processor(var dataProcessor: TupleProcessor,val tag:WorkerTag) extends Wor
     }
   }
 
-  override def onPaused(): Unit ={
+  override def onPaused(): Unit = {
     log.info(s"paused at $generatedCount , $processedCount")
     context.parent ! ReportCurrentProcessingTuple(self.path, currentInputTuple)
     context.parent ! RecoveryPacket(tag, generatedCount, processedCount)
@@ -229,11 +248,11 @@ class Processor(var dataProcessor: TupleProcessor,val tag:WorkerTag) extends Wor
     super.onPausing()
     synchronized {
       //log.info("current state:" + dPThreadState)
-      dPThreadState match{
+      dPThreadState match {
         case ThreadState.Running =>
           context.become(waitProcessing)
           unstashAll()
-        case ThreadState.Paused | ThreadState.Idle=>
+        case ThreadState.Paused | ThreadState.Idle =>
           context.become(paused)
           unstashAll()
           onPaused()
@@ -242,7 +261,7 @@ class Processor(var dataProcessor: TupleProcessor,val tag:WorkerTag) extends Wor
     }
   }
 
-  override def onInitialization(recoveryInformation:Seq[(Long,Long)]): Unit = {
+  override def onInitialization(recoveryInformation: Seq[(Long, Long)]): Unit = {
     super.onInitialization(recoveryInformation)
     dataProcessor.initialize()
   }
@@ -255,25 +274,29 @@ class Processor(var dataProcessor: TupleProcessor,val tag:WorkerTag) extends Wor
     this.generatedCount
   }
 
-  final def activateWhenReceiveDataMessages:Receive = {
-    case EndSending(_) | DataMessage(_,_) | RequireAck(_:EndSending) | RequireAck(_:DataMessage) =>
+  final def activateWhenReceiveDataMessages: Receive = {
+    case EndSending(_) | DataMessage(_, _) | RequireAck(_: EndSending) | RequireAck(
+          _: DataMessage
+        ) =>
       stash()
       onStart()
       context.become(running)
       unstashAll()
   }
 
-  final def disallowDataMessages:Receive = {
-    case EndSending(_) | DataMessage(_,_) | RequireAck(_:EndSending) | RequireAck(_:DataMessage) =>
+  final def disallowDataMessages: Receive = {
+    case EndSending(_) | DataMessage(_, _) | RequireAck(_: EndSending) | RequireAck(
+          _: DataMessage
+        ) =>
       throw new AmberException("not supposed to receive data messages at this time")
   }
 
-  final def saveDataMessages:Receive = {
-    case DataMessage(seq,payload) =>
-      onSaveDataMessage(seq,payload)
+  final def saveDataMessages: Receive = {
+    case DataMessage(seq, payload) =>
+      onSaveDataMessage(seq, payload)
     case RequireAck(msg: DataMessage) =>
       sender ! AckWithSequenceNumber(msg.sequenceNumber)
-      onSaveDataMessage(msg.sequenceNumber,msg.payload)
+      onSaveDataMessage(msg.sequenceNumber, msg.payload)
     case EndSending(seq) =>
       onSaveEndSending(seq)
     case RequireAck(msg: EndSending) =>
@@ -281,56 +304,63 @@ class Processor(var dataProcessor: TupleProcessor,val tag:WorkerTag) extends Wor
       onSaveEndSending(msg.sequenceNumber)
   }
 
-  final def receiveDataMessages:Receive = {
+  final def receiveDataMessages: Receive = {
     case EndSending(seq) =>
       onReceiveEndSending(seq)
-    case DataMessage(seq,payload) =>
-      onReceiveDataMessage(seq,payload)
+    case DataMessage(seq, payload) =>
+      onReceiveDataMessage(seq, payload)
     case RequireAck(msg: EndSending) =>
       sender ! AckOfEndSending
       onReceiveEndSending(msg.sequenceNumber)
     case RequireAck(msg: DataMessage) =>
       sender ! AckWithSequenceNumber(msg.sequenceNumber)
-      onReceiveDataMessage(msg.sequenceNumber,msg.payload)
+      onReceiveDataMessage(msg.sequenceNumber, msg.payload)
   }
 
-  final def allowUpdateInputLinking:Receive = {
-    case UpdateInputLinking(inputActor,edgeID) =>
+  final def allowUpdateInputLinking: Receive = {
+    case UpdateInputLinking(inputActor, edgeID) =>
       sender ! Ack
       aliveUpstreams.add(edgeID)
-      input.addSender(inputActor,edgeID)
+      input.addSender(inputActor, edgeID)
   }
 
-  final def disallowUpdateInputLinking:Receive = {
-    case UpdateInputLinking(inputActor,edgeID) =>
+  final def disallowUpdateInputLinking: Receive = {
+    case UpdateInputLinking(inputActor, edgeID) =>
       sender ! Ack
       throw new AmberException(s"update input linking of $edgeID is not allowed at this time")
   }
 
-  final def reactOnUpstreamExhausted:Receive = {
+  final def reactOnUpstreamExhausted: Receive = {
     case ReportUpstreamExhausted(from) =>
-      AdvancedMessageSending.nonBlockingAskWithRetry(context.parent,ReportWorkerPartialCompleted(tag,from),10,0)
+      AdvancedMessageSending.nonBlockingAskWithRetry(
+        context.parent,
+        ReportWorkerPartialCompleted(tag, from),
+        10,
+        0
+      )
   }
 
-  final def allowOperatorLogicUpdate:Receive = {
+  final def allowOperatorLogicUpdate: Receive = {
     case ModifyLogic(newMetadata) =>
       sender ! Ack
       //val json: JsValue = Json.parse(newLogic)
       // val operatorType = json("operatorID").as[String]
-      savedModifyLogic.enqueue((generatedCount,processedCount,newMetadata))
+      savedModifyLogic.enqueue((generatedCount, processedCount, newMetadata))
       log.info("modify logic received by worker " + this.self.path.name + ", updating logic")
-      newMetadata match{
+      newMetadata match {
         case keywordSeachOpMetadata: KeywordSearchMetadata =>
-          val dp: KeywordSearchTupleProcessor = dataProcessor.asInstanceOf[KeywordSearchTupleProcessor]
+          val dp: KeywordSearchTupleProcessor =
+            dataProcessor.asInstanceOf[KeywordSearchTupleProcessor]
           dp.setPredicate(keywordSeachOpMetadata.targetField, keywordSeachOpMetadata.keyword)
         case filterOpMetadata: FilterGeneralMetadata =>
           val dp = dataProcessor.asInstanceOf[FilterGeneralTupleProcessor]
           dp.filterFunc = filterOpMetadata.filterFunc
-        case t => throw new NotImplementedError("Unknown operator type: "+ t)
+        case t => throw new NotImplementedError("Unknown operator type: " + t)
       }
-      log.info("modify logic received by worker " + this.self.path.name + ", updating logic completed")
+      log.info(
+        "modify logic received by worker " + this.self.path.name + ", updating logic completed"
+      )
   }
-
 
   override def postStop(): Unit = {
     processingQueue.clear()
@@ -341,23 +371,26 @@ class Processor(var dataProcessor: TupleProcessor,val tag:WorkerTag) extends Wor
     aliveUpstreams.clear()
   }
 
+  override def ready: Receive =
+    activateWhenReceiveDataMessages orElse allowUpdateInputLinking orElse super.ready
 
+  override def pausedBeforeStart: Receive =
+    saveDataMessages orElse allowUpdateInputLinking orElse allowOperatorLogicUpdate orElse super.pausedBeforeStart
 
-  override def ready: Receive = activateWhenReceiveDataMessages orElse allowUpdateInputLinking orElse super.ready
+  override def running: Receive =
+    receiveDataMessages orElse disallowUpdateInputLinking orElse reactOnUpstreamExhausted orElse super.running
 
-  override def pausedBeforeStart: Receive = saveDataMessages orElse allowUpdateInputLinking orElse allowOperatorLogicUpdate orElse super.pausedBeforeStart
+  override def paused: Receive =
+    saveDataMessages orElse allowUpdateInputLinking orElse allowOperatorLogicUpdate orElse super.paused
 
-  override def running: Receive = receiveDataMessages orElse disallowUpdateInputLinking orElse reactOnUpstreamExhausted orElse super.running
+  override def breakpointTriggered: Receive =
+    saveDataMessages orElse allowUpdateInputLinking orElse allowOperatorLogicUpdate orElse super.breakpointTriggered
 
-  override def paused: Receive = saveDataMessages orElse allowUpdateInputLinking orElse allowOperatorLogicUpdate orElse super.paused
+  override def completed: Receive =
+    disallowDataMessages orElse disallowUpdateInputLinking orElse super.completed
 
-  override def breakpointTriggered: Receive = saveDataMessages orElse allowUpdateInputLinking orElse allowOperatorLogicUpdate orElse  super.breakpointTriggered
-
-  override def completed: Receive = disallowDataMessages orElse disallowUpdateInputLinking orElse super.completed
-
-
-  private[this] def beforeProcessingBatch(): Unit ={
-    if(userFixedTuple != null) {
+  private[this] def beforeProcessingBatch(): Unit = {
+    if (userFixedTuple != null) {
       try {
         transferTuple(userFixedTuple, generatedCount)
         userFixedTuple = null
@@ -377,22 +410,22 @@ class Processor(var dataProcessor: TupleProcessor,val tag:WorkerTag) extends Wor
     }
   }
 
-  private[this] def afterProcessingBatch(): Unit ={
+  private[this] def afterProcessingBatch(): Unit = {
     processingIndex = 0
-    synchronized{
+    synchronized {
       processingQueue.dequeue()
-      if(pausedFlag){
+      if (pausedFlag) {
         dPThreadState = ThreadState.Paused
         self ! ExecutionPaused
-      }else if(processingQueue.nonEmpty){
+      } else if (processingQueue.nonEmpty) {
         Future {
           processBatch()
         }(dataProcessExecutor)
-      }else if(aliveUpstreams.isEmpty){
-        Future{
+      } else if (aliveUpstreams.isEmpty) {
+        Future {
           afterFinishProcessing()
         }(dataProcessExecutor)
-      }else{
+      } else {
         dPThreadState = ThreadState.Idle
       }
     }
@@ -403,55 +436,58 @@ class Processor(var dataProcessor: TupleProcessor,val tag:WorkerTag) extends Wor
 //      log.info(s"onInterrupted: generated $generatedCount , processed $processedCount, " +
 //        s"savedModify: _1: ${savedModifyLogic.head._1}, :2 ${savedModifyLogic.head._2}")
 //    }
-    while(receivedRecoveryInformation.nonEmpty && savedModifyLogic.nonEmpty &&
+    while (
+      receivedRecoveryInformation.nonEmpty && savedModifyLogic.nonEmpty &&
       savedModifyLogic.head._1 == this.generatedCount &&
-      savedModifyLogic.head._2 == this.processedCount){
-      log.info(s"!!!!!!triggered change logic at generated: " +
-        s"$generatedCount, processed: $processedCount, " +
-        s"savedModify: _1: ${savedModifyLogic.head._1}, :2 ${savedModifyLogic.head._2}, " +
-        s"id: ${this.tag}")
-      savedModifyLogic.head._3 match{
+      savedModifyLogic.head._2 == this.processedCount
+    ) {
+      log.info(
+        s"!!!!!!triggered change logic at generated: " +
+          s"$generatedCount, processed: $processedCount, " +
+          s"savedModify: _1: ${savedModifyLogic.head._1}, :2 ${savedModifyLogic.head._2}, " +
+          s"id: ${this.tag}"
+      )
+      savedModifyLogic.head._3 match {
         case keywordSeachOpMetadata: KeywordSearchMetadata =>
-          val dp: KeywordSearchTupleProcessor = dataProcessor.asInstanceOf[KeywordSearchTupleProcessor]
+          val dp: KeywordSearchTupleProcessor =
+            dataProcessor.asInstanceOf[KeywordSearchTupleProcessor]
           dp.setPredicate(keywordSeachOpMetadata.targetField, keywordSeachOpMetadata.keyword)
         case filterOpMetadata: FilterGeneralMetadata =>
           val dp = dataProcessor.asInstanceOf[FilterGeneralTupleProcessor]
           dp.filterFunc = filterOpMetadata.filterFunc
-        case t => throw new NotImplementedError("Unknown operator type: "+ t)
+        case t => throw new NotImplementedError("Unknown operator type: " + t)
       }
       savedModifyLogic.dequeue()
       println(s"!!!!!!triggered change logic done")
     }
-    if(receivedRecoveryInformation.contains((generatedCount,processedCount))){
+    if (receivedRecoveryInformation.contains((generatedCount, processedCount))) {
       pausedFlag = true
       log.info(s"interrupted at ($generatedCount,$processedCount)")
-      receivedRecoveryInformation.remove((generatedCount,processedCount))
+      receivedRecoveryInformation.remove((generatedCount, processedCount))
     }
     super.onInterrupted(operations)
   }
 
-
-  private[this] def exitIfPaused(): Unit ={
+  private[this] def exitIfPaused(): Unit = {
     onInterrupted {
       dPThreadState = ThreadState.Paused
       self ! ExecutionPaused
-      processTime += System.nanoTime()-processStart
+      processTime += System.nanoTime() - processStart
     }
   }
 
-
-  private[this] def afterFinishProcessing(): Unit ={
+  private[this] def afterFinishProcessing(): Unit = {
     Breaks.breakable {
-      processStart=System.nanoTime()
+      processStart = System.nanoTime()
       dataProcessor.noMore()
       while (dataProcessor.hasNext) {
         exitIfPaused()
-        var nextTuple:Tuple = null
-        try{
+        var nextTuple: Tuple = null
+        try {
           nextTuple = dataProcessor.next()
-        }catch{
-          case e:Exception =>
-            if(breakpoints.nonEmpty) {
+        } catch {
+          case e: Exception =>
+            if (breakpoints.nonEmpty) {
               synchronized {
                 dPThreadState = ThreadState.LocalBreakpointTriggered
               }
@@ -467,52 +503,51 @@ class Processor(var dataProcessor: TupleProcessor,val tag:WorkerTag) extends Wor
         try {
           generatedCount += 1
           transferTuple(nextTuple, generatedCount)
-        }catch{
-          case e:BreakpointException =>
+        } catch {
+          case e: BreakpointException =>
             synchronized {
               dPThreadState = ThreadState.LocalBreakpointTriggered
             }
             self ! LocalBreakpointTriggered
-            processTime += System.nanoTime()-processStart
+            processTime += System.nanoTime() - processStart
             Breaks.break()
-          case e:Exception =>
+          case e: Exception =>
             self ! ReportFailure(e)
-            processTime += System.nanoTime()-processStart
+            processTime += System.nanoTime() - processStart
             Breaks.break()
         }
       }
       onCompleting()
-      try{
+      try {
         dataProcessor.dispose()
-      }catch{
-        case e:Exception =>
+      } catch {
+        case e: Exception =>
           self ! ReportFailure(e)
-          processTime += System.nanoTime()-processStart
+          processTime += System.nanoTime() - processStart
           Breaks.break()
       }
       synchronized {
         dPThreadState = ThreadState.Completed
       }
       self ! ExecutionCompleted
-      processTime += System.nanoTime()-processStart
+      processTime += System.nanoTime() - processStart
     }
   }
 
-
-  private[this] def processBatch(): Unit ={
+  private[this] def processBatch(): Unit = {
     Breaks.breakable {
       beforeProcessingBatch()
-      processStart=System.nanoTime()
-      val (from, batch) = synchronized{processingQueue.front}
+      processStart = System.nanoTime()
+      val (from, batch) = synchronized { processingQueue.front }
       //check if there is tuple left to be outputted
-      while(dataProcessor.hasNext){
+      while (dataProcessor.hasNext) {
         exitIfPaused()
-        var nextTuple:Tuple = null
-        try{
+        var nextTuple: Tuple = null
+        try {
           nextTuple = dataProcessor.next()
-        }catch{
-          case e:Exception =>
-            if(breakpoints.nonEmpty) {
+        } catch {
+          case e: Exception =>
+            if (breakpoints.nonEmpty) {
               synchronized {
                 dPThreadState = ThreadState.LocalBreakpointTriggered
               }
@@ -527,39 +562,39 @@ class Processor(var dataProcessor: TupleProcessor,val tag:WorkerTag) extends Wor
         }
         try {
           generatedCount += 1
-          transferTuple(nextTuple,generatedCount)
-        }catch{
-          case e:BreakpointException =>
+          transferTuple(nextTuple, generatedCount)
+        } catch {
+          case e: BreakpointException =>
             synchronized {
               dPThreadState = ThreadState.LocalBreakpointTriggered
             }
             self ! LocalBreakpointTriggered
-            processTime += System.nanoTime()-processStart
+            processTime += System.nanoTime() - processStart
             Breaks.break()
-          case e:Exception =>
+          case e: Exception =>
             self ! ReportFailure(e)
-            processTime += System.nanoTime()-processStart
+            processTime += System.nanoTime() - processStart
             Breaks.break()
         }
       }
-      if(batch == null){
+      if (batch == null) {
         dataProcessor.onUpstreamExhausted(from)
         self ! ReportUpstreamExhausted(from)
         aliveUpstreams.remove(from)
-      }else{
+      } else {
         dataProcessor.onUpstreamChanged(from)
         //no tuple remains, we continue
         while (processingIndex < batch.length) {
           exitIfPaused()
           try {
             currentInputTuple = batch(processingIndex)
-            if(!skippedInputTuples.contains(currentInputTuple)){
+            if (!skippedInputTuples.contains(currentInputTuple)) {
               dataProcessor.accept(currentInputTuple)
             }
             processedCount += 1
-          }catch{
-            case e:Exception =>
-              if(breakpoints.nonEmpty) {
+          } catch {
+            case e: Exception =>
+              if (breakpoints.nonEmpty) {
                 synchronized {
                   dPThreadState = ThreadState.LocalBreakpointTriggered
                 }
@@ -572,20 +607,20 @@ class Processor(var dataProcessor: TupleProcessor,val tag:WorkerTag) extends Wor
                 processTime += System.nanoTime() - processStart
                 Breaks.break()
               }
-            case other:Any =>
+            case other: Any =>
               println(other)
               println(batch(processingIndex))
           }
           processingIndex += 1
           exitIfPaused()
-          while(dataProcessor.hasNext){
+          while (dataProcessor.hasNext) {
             exitIfPaused()
-            var nextTuple:Tuple = null
-            try{
+            var nextTuple: Tuple = null
+            try {
               nextTuple = dataProcessor.next()
-            }catch{
-              case e:Exception =>
-                if(breakpoints.nonEmpty) {
+            } catch {
+              case e: Exception =>
+                if (breakpoints.nonEmpty) {
                   synchronized {
                     dPThreadState = ThreadState.LocalBreakpointTriggered
                   }
@@ -603,27 +638,27 @@ class Processor(var dataProcessor: TupleProcessor,val tag:WorkerTag) extends Wor
 //                log.info("break point triggered but it is not stopped")
 //              }
               generatedCount += 1
-              transferTuple(nextTuple,generatedCount)
+              transferTuple(nextTuple, generatedCount)
               exitIfPaused()
-            }catch{
-              case e:BreakpointException =>
+            } catch {
+              case e: BreakpointException =>
                 synchronized {
                   dPThreadState = ThreadState.LocalBreakpointTriggered
                 }
                 self ! LocalBreakpointTriggered
-                processTime += System.nanoTime()-processStart
+                processTime += System.nanoTime() - processStart
                 Breaks.break()
-              case e:Exception =>
+              case e: Exception =>
                 log.info(e.toString)
                 self ! ReportFailure(e)
-                processTime += System.nanoTime()-processStart
+                processTime += System.nanoTime() - processStart
                 Breaks.break()
             }
           }
         }
       }
       afterProcessingBatch()
-      processTime += System.nanoTime()-processStart
+      processTime += System.nanoTime() - processStart
     }
   }
 }

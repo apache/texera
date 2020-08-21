@@ -4,9 +4,8 @@ import texera.common.workflow.{TexeraBreakpointInfo, TexeraOperator, TexeraOpera
 
 import scala.collection.mutable
 
-case class ExecuteWorkflowRequest
-(
-  operators: mutable.MutableList[TexeraOperator],
-  links: mutable.MutableList[TexeraOperatorLink],
-  breakpoints: mutable.MutableList[TexeraBreakpointInfo]
+case class ExecuteWorkflowRequest(
+    operators: mutable.MutableList[TexeraOperator],
+    links: mutable.MutableList[TexeraOperatorLink],
+    breakpoints: mutable.MutableList[TexeraBreakpointInfo]
 ) extends TexeraWsRequest

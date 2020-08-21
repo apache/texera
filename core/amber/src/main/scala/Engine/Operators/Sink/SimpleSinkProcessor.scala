@@ -6,12 +6,12 @@ import Engine.Common.TupleProcessor
 
 import scala.collection.mutable
 
-class SimpleSinkProcessor extends TupleProcessor{
+class SimpleSinkProcessor extends TupleProcessor {
 
   val results: mutable.MutableList[Tuple] = mutable.MutableList()
 
   override def accept(tuple: Tuple): Unit = {
-    println("Sink: "+ tuple.toString)
+    println("Sink: " + tuple.toString)
     results += tuple
   }
 
@@ -19,13 +19,9 @@ class SimpleSinkProcessor extends TupleProcessor{
     results
   }
 
-  override def noMore(): Unit = {
+  override def noMore(): Unit = {}
 
-  }
-
-  override def initialize(): Unit = {
-
-  }
+  override def initialize(): Unit = {}
 
   override def hasNext: Boolean = false
 
@@ -33,15 +29,9 @@ class SimpleSinkProcessor extends TupleProcessor{
     throw new NotImplementedError()
   }
 
-  override def dispose(): Unit = {
+  override def dispose(): Unit = {}
 
-  }
+  override def onUpstreamChanged(from: LayerTag): Unit = {}
 
-  override def onUpstreamChanged(from: LayerTag): Unit = {
-
-  }
-
-  override def onUpstreamExhausted(from: LayerTag): Unit = {
-
-  }
+  override def onUpstreamExhausted(from: LayerTag): Unit = {}
 }

@@ -2,13 +2,12 @@ package Engine.Architecture.DeploySemantics.DeployStrategy
 
 import akka.actor.Address
 
-object OneOnEach{
+object OneOnEach {
   def apply() = new OneOnEach()
 }
 
-
 class OneOnEach extends DeployStrategy {
-  var available:Array[Address] = _
+  var available: Array[Address] = _
   var index = 0
   override def initialize(available: Array[Address]): Unit = {
     this.available = available
@@ -16,7 +15,7 @@ class OneOnEach extends DeployStrategy {
 
   override def next(): Address = {
     val i = index
-    if(i>=available.length){
+    if (i >= available.length) {
       throw new IndexOutOfBoundsException()
     }
     index += 1

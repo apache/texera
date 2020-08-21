@@ -1,6 +1,3 @@
 package Engine.Common.AmberException
 
-
-class BreakpointException extends AmberException("breakpoint triggered") {
-
-}
+class BreakpointException extends AmberException("breakpoint triggered") {}

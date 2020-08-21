@@ -11,8 +11,8 @@ import akka.actor.{ActorPath, ActorRef}
 
 import scala.collection.mutable
 
-object PrincipalMessage{
-  final case class AckedPrincipalInitialization(prev:Array[(OperatorMetadata,ActorLayer)])
+object PrincipalMessage {
+  final case class AckedPrincipalInitialization(prev: Array[(OperatorMetadata, ActorLayer)])
 
   final case class GetInputLayer()
 
@@ -20,9 +20,12 @@ object PrincipalMessage{
 
   final case class AppendLayer(linkStrategy: LinkStrategy)
 
-  final case class PrependLayer(prev:Array[(OperatorMetadata,ActorLayer)], linkStrategy: LinkStrategy)
+  final case class PrependLayer(
+      prev: Array[(OperatorMetadata, ActorLayer)],
+      linkStrategy: LinkStrategy
+  )
 
-  final case class AssignBreakpoint(breakpoint:GlobalBreakpoint)
+  final case class AssignBreakpoint(breakpoint: GlobalBreakpoint)
 
   final case class ReportState(principalState: PrincipalState.Value)
 
@@ -30,11 +33,11 @@ object PrincipalMessage{
 
   final case class ReportOutputResult(results: List[Tuple])
 
-  final case class ReportPrincipalPartialCompleted(from:AmberTag,layer:LayerTag)
+  final case class ReportPrincipalPartialCompleted(from: AmberTag, layer: LayerTag)
 
-  final case class ReportCurrentProcessingTuple(operatorID: String, tuple:Array[(Tuple,ActorPath)])
-
-
+  final case class ReportCurrentProcessingTuple(
+      operatorID: String,
+      tuple: Array[(Tuple, ActorPath)]
+  )
 
 }
-

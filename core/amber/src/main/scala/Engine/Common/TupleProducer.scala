@@ -5,15 +5,15 @@ import Engine.Common.AmberTuple.Tuple
 trait TupleProducer {
 
   @throws(classOf[Exception])
-  def initialize():Unit
+  def initialize(): Unit
 
   @throws(classOf[Exception])
-  def hasNext:Boolean
+  def hasNext: Boolean
 
   @throws(classOf[Exception])
-  def next():Tuple
+  def next(): Tuple
 
   @throws(classOf[Exception])
-  def dispose():Unit
+  def dispose(): Unit
 
 }

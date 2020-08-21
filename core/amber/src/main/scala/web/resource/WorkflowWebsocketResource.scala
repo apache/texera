@@ -4,8 +4,18 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import Engine.Architecture.Controller.{Controller, ControllerEventListener}
 import Engine.Architecture.Principal.PrincipalStatistics
-import Engine.Common.AmberMessage.ControlMessage.{ModifyLogic, Pause, Resume, SkipTuple, SkipTupleGivenWorkerRef, Start}
-import Engine.Common.AmberMessage.ControllerMessage.{AckedControllerInitialization, PassBreakpointTo}
+import Engine.Common.AmberMessage.ControlMessage.{
+  ModifyLogic,
+  Pause,
+  Resume,
+  SkipTuple,
+  SkipTupleGivenWorkerRef,
+  Start
+}
+import Engine.Common.AmberMessage.ControllerMessage.{
+  AckedControllerInitialization,
+  PassBreakpointTo
+}
 import Engine.Common.AmberTag.WorkflowTag
 import akka.actor.{ActorRef, PoisonPill}
 import javax.websocket.server.ServerEndpoint
@@ -67,7 +77,7 @@ class WorkflowWebsocketResource {
       }
     } catch {
       case e: Throwable => {
-        send(session, WorkflowErrorEvent(generalErrors = Map("exception" ->e.getMessage)))
+        send(session, WorkflowErrorEvent(generalErrors = Map("exception" -> e.getMessage)))
         throw e
       }
     }
@@ -140,7 +150,7 @@ class WorkflowWebsocketResource {
       "retweet_count" -> 4,
       "lang" -> 5,
       "is_retweet" -> 6,
-      "sentiment" -> 7,
+      "sentiment" -> 7
     )
 
     val scan = request.operators
@@ -161,8 +171,6 @@ class WorkflowWebsocketResource {
       return
     }
 
-
-
     val workflow = texeraWorkflowCompiler.amberWorkflow
     val workflowTag = WorkflowTag.apply(workflowID)
 
@@ -174,13 +182,20 @@ class WorkflowWebsocketResource {
       workflowStatusUpdateListener = statusUpdate => {
         val updateMutable = mutable.HashMap(statusUpdate.operatorStatistics.toSeq: _*)
         val sinkID = texeraWorkflowCompiler.texeraWorkflow.operators
-          .find(p => p.isInstanceOf[TexeraAdhocSink]).get.operatorID
+          .find(p => p.isInstanceOf[TexeraAdhocSink])
+          .get
+          .operatorID
         val sinkInputID = texeraWorkflowCompiler.texeraWorkflow.links
-          .find(link => link.destination == sinkID).get.origin
+          .find(link => link.destination == sinkID)
+          .get
+          .origin
         if (updateMutable.contains(sinkInputID)) {
           val inputStatistics = updateMutable(sinkInputID)
-          val sinkStatistics = PrincipalStatistics(inputStatistics.operatorState,
-            inputStatistics.aggregatedOutputRowCount, inputStatistics.aggregatedOutputRowCount)
+          val sinkStatistics = PrincipalStatistics(
+            inputStatistics.operatorState,
+            inputStatistics.aggregatedOutputRowCount,
+            inputStatistics.aggregatedOutputRowCount
+          )
           updateMutable(sinkID) = sinkStatistics
         }
         send(session, WorkflowStatusUpdateEvent(updateMutable.toMap))

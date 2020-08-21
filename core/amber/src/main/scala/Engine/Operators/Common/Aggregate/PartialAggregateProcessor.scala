@@ -6,7 +6,8 @@ import Engine.Common.TupleProcessor
 
 import scala.collection.mutable
 
-class PartialAggregateProcessor(val aggFunc: DistributedAggregation, val groupByKeys: Seq[Int]) extends TupleProcessor {
+class PartialAggregateProcessor(val aggFunc: DistributedAggregation, val groupByKeys: Seq[Int])
+    extends TupleProcessor {
   var partialObjectPerKey = new mutable.HashMap[Seq[Any], Tuple]()
   var outputIterator: Iterator[Tuple] = _
 
@@ -26,7 +27,7 @@ class PartialAggregateProcessor(val aggFunc: DistributedAggregation, val groupBy
 
   override def initialize(): Unit = {}
 
-  override def hasNext: Boolean = outputIterator!= null && outputIterator.hasNext
+  override def hasNext: Boolean = outputIterator != null && outputIterator.hasNext
 
   override def next(): Tuple = outputIterator.next
 

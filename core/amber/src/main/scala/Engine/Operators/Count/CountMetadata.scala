@@ -16,18 +16,38 @@ import akka.util.Timeout
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
-class CountMetadata(tag:OperatorTag, val numWorkers:Int) extends OperatorMetadata(tag){
+class CountMetadata(tag: OperatorTag, val numWorkers: Int) extends OperatorMetadata(tag) {
   override lazy val topology: Topology = {
-    val partialLayer = new ProcessorWorkerLayer(LayerTag(tag,"localAgg"),_ => new CountLocalTupleProcessor(), numWorkers, UseAll(),RoundRobinDeployment())
-    val finalLayer = new ProcessorWorkerLayer(LayerTag(tag,"globalAgg"),_ => new CountGlobalTupleProcessor(),1, FollowPrevious(),RandomDeployment())
-    new Topology(Array(
-       partialLayer,
-       finalLayer
-     ),Array(
-      new AllToOne(partialLayer,finalLayer,Constants.defaultBatchSize)
-    ),Map())
+    val partialLayer = new ProcessorWorkerLayer(
+      LayerTag(tag, "localAgg"),
+      _ => new CountLocalTupleProcessor(),
+      numWorkers,
+      UseAll(),
+      RoundRobinDeployment()
+    )
+    val finalLayer = new ProcessorWorkerLayer(
+      LayerTag(tag, "globalAgg"),
+      _ => new CountGlobalTupleProcessor(),
+      1,
+      FollowPrevious(),
+      RandomDeployment()
+    )
+    new Topology(
+      Array(
+        partialLayer,
+        finalLayer
+      ),
+      Array(
+        new AllToOne(partialLayer, finalLayer, Constants.defaultBatchSize)
+      ),
+      Map()
+    )
   }
-  override def assignBreakpoint(topology: Array[ActorLayer], states: mutable.AnyRefMap[ActorRef, WorkerState.Value], breakpoint: GlobalBreakpoint)(implicit timeout:Timeout, ec:ExecutionContext, log:LoggingAdapter): Unit = {
-    breakpoint.partition(topology(0).layer.filter(states(_)!= WorkerState.Completed))
+  override def assignBreakpoint(
+      topology: Array[ActorLayer],
+      states: mutable.AnyRefMap[ActorRef, WorkerState.Value],
+      breakpoint: GlobalBreakpoint
+  )(implicit timeout: Timeout, ec: ExecutionContext, log: LoggingAdapter): Unit = {
+    breakpoint.partition(topology(0).layer.filter(states(_) != WorkerState.Completed))
   }
 }

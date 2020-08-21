@@ -17,10 +17,9 @@ import scala.collection.JavaConverters
 @Produces(Array(MediaType.APPLICATION_JSON))
 class MockKillWorkerResource() {
 
-  case class OperatorMetadata
-  (
-    @BeanProperty operators: List[JsonNode],
-    @BeanProperty groups: List[GroupOrder]
+  case class OperatorMetadata(
+      @BeanProperty operators: List[JsonNode],
+      @BeanProperty groups: List[GroupOrder]
   )
 
   @POST

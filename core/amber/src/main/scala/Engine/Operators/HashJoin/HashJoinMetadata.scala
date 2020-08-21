@@ -19,34 +19,47 @@ import akka.util.Timeout
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
-
-class HashJoinMetadata[K](tag:OperatorTag, val numWorkers:Int, val innerTableIndex:Int, val outerTableIndex:Int) extends OperatorMetadata(tag){
-  var innerTableTag:LayerTag = _
+class HashJoinMetadata[K](
+    tag: OperatorTag,
+    val numWorkers: Int,
+    val innerTableIndex: Int,
+    val outerTableIndex: Int
+) extends OperatorMetadata(tag) {
+  var innerTableTag: LayerTag = _
 
   override lazy val topology: Topology = {
-    new Topology(Array(
-      new ProcessorWorkerLayer(LayerTag(tag,"main"),_ => new HashJoinTupleProcessor[K](innerTableTag,innerTableIndex,outerTableIndex),
-        numWorkers,
-        UseAll(),
-        RoundRobinDeployment())
-    ),Array(),Map())
+    new Topology(
+      Array(
+        new ProcessorWorkerLayer(
+          LayerTag(tag, "main"),
+          _ => new HashJoinTupleProcessor[K](innerTableTag, innerTableIndex, outerTableIndex),
+          numWorkers,
+          UseAll(),
+          RoundRobinDeployment()
+        )
+      ),
+      Array(),
+      Map()
+    )
   }
 
   override def requiredShuffle: Boolean = true
 
   override def getShuffleHashFunction(layerTag: LayerTag): Tuple => Int = {
-    if(layerTag == innerTableTag){
-      t:Tuple => t.get(innerTableIndex).hashCode()
-    }else{
-      t:Tuple => t.get(outerTableIndex).hashCode()
+    if (layerTag == innerTableTag) { t: Tuple =>
+      t.get(innerTableIndex).hashCode()
+    } else { t: Tuple =>
+      t.get(outerTableIndex).hashCode()
     }
   }
 
-  override def runtimeCheck(workflow:Workflow): Option[mutable.HashMap[AmberTag, mutable.HashMap[AmberTag,mutable.HashSet[LayerTag]]]] = {
+  override def runtimeCheck(
+      workflow: Workflow
+  ): Option[mutable.HashMap[AmberTag, mutable.HashMap[AmberTag, mutable.HashSet[LayerTag]]]] = {
     assert(workflow.inLinks(tag).nonEmpty)
     var tmp = workflow.inLinks(tag).head
     var tableSize = Long.MaxValue
-    for(tag <- workflow.inLinks(tag)) {
+    for (tag <- workflow.inLinks(tag)) {
       workflow.operators(tag) match {
         case metadata: FileScanMetadata =>
           if (tableSize > metadata.totalBytes) {
@@ -57,10 +70,26 @@ class HashJoinMetadata[K](tag:OperatorTag, val numWorkers:Int, val innerTableInd
       }
     }
     innerTableTag = workflow.operators(tmp).topology.layers.last.tag
-    Some(mutable.HashMap[AmberTag, mutable.HashMap[AmberTag,mutable.HashSet[LayerTag]]](workflow.inLinks(tag).filter(_!=tmp).flatMap(x => workflow.getSources(x)).map(x => x -> mutable.HashMap[AmberTag,mutable.HashSet[LayerTag]](tag -> mutable.HashSet(innerTableTag))).toSeq:_*))
+    Some(
+      mutable.HashMap[AmberTag, mutable.HashMap[AmberTag, mutable.HashSet[LayerTag]]](
+        workflow
+          .inLinks(tag)
+          .filter(_ != tmp)
+          .flatMap(x => workflow.getSources(x))
+          .map(x =>
+            x -> mutable
+              .HashMap[AmberTag, mutable.HashSet[LayerTag]](tag -> mutable.HashSet(innerTableTag))
+          )
+          .toSeq: _*
+      )
+    )
   }
 
-  override def assignBreakpoint(topology: Array[ActorLayer], states: mutable.AnyRefMap[ActorRef, WorkerState.Value], breakpoint: GlobalBreakpoint)(implicit timeout:Timeout, ec:ExecutionContext, log:LoggingAdapter): Unit = {
-    breakpoint.partition(topology(0).layer.filter(states(_)!= WorkerState.Completed))
+  override def assignBreakpoint(
+      topology: Array[ActorLayer],
+      states: mutable.AnyRefMap[ActorRef, WorkerState.Value],
+      breakpoint: GlobalBreakpoint
+  )(implicit timeout: Timeout, ec: ExecutionContext, log: LoggingAdapter): Unit = {
+    breakpoint.partition(topology(0).layer.filter(states(_) != WorkerState.Completed))
   }
 }

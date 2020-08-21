@@ -1,6 +1,9 @@
 package texera.common.workflow
 
-import Engine.Architecture.Breakpoint.GlobalBreakpoint.{ConditionalGlobalBreakpoint, CountGlobalBreakpoint}
+import Engine.Architecture.Breakpoint.GlobalBreakpoint.{
+  ConditionalGlobalBreakpoint,
+  CountGlobalBreakpoint
+}
 import Engine.Architecture.Controller.Workflow
 import Engine.Common.AmberMessage.ControllerMessage.PassBreakpointTo
 import Engine.Common.AmberTag.OperatorTag
@@ -22,11 +25,14 @@ class TexeraWorkflowCompiler(val texeraWorkflow: TexeraWorkflow, val context: Te
   }
 
   def validate: Map[String, Set[TexeraConstraintViolation]] =
-    this.texeraWorkflow.operators.map(o => {
-      o.operatorID -> {
-        o.validate()
-      }
-    }).toMap.filter(pair => pair._2.nonEmpty)
+    this.texeraWorkflow.operators
+      .map(o => {
+        o.operatorID -> {
+          o.validate()
+        }
+      })
+      .toMap
+      .filter(pair => pair._2.nonEmpty)
 
   def amberWorkflow: Workflow = {
     val amberOperators: mutable.Map[OperatorTag, OperatorMetadata] = mutable.Map()
@@ -53,7 +59,11 @@ class TexeraWorkflowCompiler(val texeraWorkflow: TexeraWorkflow, val context: Te
     new Workflow(amberOperators, outLinksImmutable)
   }
 
-  def addBreakpoint(controller: ActorRef, operatorID: String, breakpoint: TexeraBreakpoint): Unit = {
+  def addBreakpoint(
+      controller: ActorRef,
+      operatorID: String,
+      breakpoint: TexeraBreakpoint
+  ): Unit = {
     val breakpointID = "breakpoint-" + operatorID
     breakpoint match {
       case conditionBp: TexeraConditionBreakpoint =>
@@ -76,11 +86,17 @@ class TexeraWorkflowCompiler(val texeraWorkflow: TexeraWorkflow, val context: Te
           case TexeraBreakpointCondition.CONTAINS =>
             tuple => tuple.get(column).toString.trim.contains(conditionBp.value)
           case TexeraBreakpointCondition.NOT_CONTAINS =>
-            tuple => ! tuple.get(column).toString.trim.contains(conditionBp.value)
+            tuple => !tuple.get(column).toString.trim.contains(conditionBp.value)
         }
-        controller ! PassBreakpointTo(operatorID, new ConditionalGlobalBreakpoint(breakpointID, predicate))
+        controller ! PassBreakpointTo(
+          operatorID,
+          new ConditionalGlobalBreakpoint(breakpointID, predicate)
+        )
       case countBp: TexeraCountBreakpoint =>
-        controller ! PassBreakpointTo(operatorID, new CountGlobalBreakpoint("breakpointID", countBp.count))
+        controller ! PassBreakpointTo(
+          operatorID,
+          new CountGlobalBreakpoint("breakpointID", countBp.count)
+        )
     }
   }
 

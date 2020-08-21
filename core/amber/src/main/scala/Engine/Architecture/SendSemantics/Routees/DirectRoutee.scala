@@ -11,14 +11,13 @@ import akka.pattern.ask
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext
 
-
-class DirectRoutee(receiver:ActorRef) extends BaseRoutee(receiver) {
+class DirectRoutee(receiver: ActorRef) extends BaseRoutee(receiver) {
   val stash = new ArrayBuffer[Any]
   var isPaused = false
   override def schedule(msg: DataMessage)(implicit sender: ActorRef): Unit = {
-    if(isPaused){
+    if (isPaused) {
       stash.append(msg)
-    }else{
+    } else {
       receiver ! msg
     }
   }
@@ -29,30 +28,34 @@ class DirectRoutee(receiver:ActorRef) extends BaseRoutee(receiver) {
 
   override def resume()(implicit sender: ActorRef): Unit = {
     isPaused = false
-    for(i <- stash){
-      i match{
-        case d:DataMessage => receiver ! d
-        case e:EndSending => receiver ! e
+    for (i <- stash) {
+      i match {
+        case d: DataMessage => receiver ! d
+        case e: EndSending  => receiver ! e
       }
     }
     stash.clear()
   }
 
   override def schedule(msg: EndSending)(implicit sender: ActorRef): Unit = {
-    if(isPaused){
+    if (isPaused) {
       stash.append(msg)
-    }else{
+    } else {
       receiver ! msg
     }
   }
 
-  override def initialize(tag:LinkTag)(implicit ac:ActorContext, sender: ActorRef, timeout:Timeout, ec:ExecutionContext, log:LoggingAdapter): Unit = {
-    receiver ? UpdateInputLinking(sender,tag.from)
+  override def initialize(tag: LinkTag)(implicit
+      ac: ActorContext,
+      sender: ActorRef,
+      timeout: Timeout,
+      ec: ExecutionContext,
+      log: LoggingAdapter
+  ): Unit = {
+    receiver ? UpdateInputLinking(sender, tag.from)
   }
 
-  override def dispose(): Unit = {
-
-  }
+  override def dispose(): Unit = {}
 
   override def toString: String = s"DirectRoutee($receiver)"
 

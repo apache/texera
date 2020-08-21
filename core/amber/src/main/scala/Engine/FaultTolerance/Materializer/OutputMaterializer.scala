@@ -7,28 +7,27 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.FileSystem
 import org.apache.hadoop.fs.Path
 
-import java.io.{FileWriter,BufferedWriter}
+import java.io.{FileWriter, BufferedWriter}
 import java.net.URI
 
-class OutputMaterializer(val outputPath:String, val remoteHDFS:String = null) extends TupleProcessor {
+class OutputMaterializer(val outputPath: String, val remoteHDFS: String = null)
+    extends TupleProcessor {
 
-  var writer:BufferedWriter = _
+  var writer: BufferedWriter = _
 
   override def accept(tuple: Tuple): Unit = {
     writer.write(tuple.mkString("|"))
   }
 
-  override def onUpstreamChanged(from: LayerTag): Unit = {
-
-  }
+  override def onUpstreamChanged(from: LayerTag): Unit = {}
 
   override def noMore(): Unit = {
     writer.close()
-    if(remoteHDFS != null){
-        val fs = FileSystem.get(new URI(remoteHDFS),new Configuration())
-        fs.copyFromLocalFile(new Path(outputPath),new Path(outputPath))
-        fs.close()
-      }
+    if (remoteHDFS != null) {
+      val fs = FileSystem.get(new URI(remoteHDFS), new Configuration())
+      fs.copyFromLocalFile(new Path(outputPath), new Path(outputPath))
+      fs.close()
+    }
   }
 
   override def initialize(): Unit = {
@@ -43,7 +42,5 @@ class OutputMaterializer(val outputPath:String, val remoteHDFS:String = null) ex
     writer.close()
   }
 
-  override def onUpstreamExhausted(from: LayerTag): Unit = {
-
-  }
+  override def onUpstreamExhausted(from: LayerTag): Unit = {}
 }

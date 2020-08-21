@@ -1,11 +1,25 @@
 package Engine.Architecture.Breakpoint
 
 import Clustering.SingleNodeListener
-import Engine.Architecture.Breakpoint.GlobalBreakpoint.{ConditionalGlobalBreakpoint, CountGlobalBreakpoint}
+import Engine.Architecture.Breakpoint.GlobalBreakpoint.{
+  ConditionalGlobalBreakpoint,
+  CountGlobalBreakpoint
+}
 import Engine.Architecture.Controller.{Controller, ControllerState}
 import Engine.Common.AdvancedMessageSending
-import Engine.Common.AmberMessage.ControlMessage.{ModifyTuple, Resume, ResumeTuple, SkipTuple, Start}
-import Engine.Common.AmberMessage.ControllerMessage.{AckedControllerInitialization, PassBreakpointTo, ReportGlobalBreakpointTriggered, ReportState}
+import Engine.Common.AmberMessage.ControlMessage.{
+  ModifyTuple,
+  Resume,
+  ResumeTuple,
+  SkipTuple,
+  Start
+}
+import Engine.Common.AmberMessage.ControllerMessage.{
+  AckedControllerInitialization,
+  PassBreakpointTo,
+  ReportGlobalBreakpointTriggered,
+  ReportState
+}
 import Engine.Common.AmberMessage.WorkerMessage.{DataMessage, EndSending}
 import Engine.Common.AmberTag.{LayerTag, LinkTag, OperatorTag, WorkerTag, WorkflowTag}
 import Engine.Common.AmberTuple.Tuple
@@ -20,14 +34,15 @@ import scala.concurrent.{Await, ExecutionContextExecutor}
 import scala.concurrent.duration._
 import scala.util.Random
 
-class ExceptionBreakpointSpec  extends TestKit(ActorSystem("PrincipalSpec"))
-  with ImplicitSender
-  with FlatSpecLike
-  with BeforeAndAfterAll {
+class ExceptionBreakpointSpec
+    extends TestKit(ActorSystem("PrincipalSpec"))
+    with ImplicitSender
+    with FlatSpecLike
+    with BeforeAndAfterAll {
 
   implicit val timeout: Timeout = Timeout(5.seconds)
   implicit val executionContext: ExecutionContextExecutor = system.dispatcher
-  implicit val log:LoggingAdapter = system.log
+  implicit val log: LoggingAdapter = system.log
 
   private val logicalPlan1 =
     """{
@@ -51,28 +66,27 @@ class ExceptionBreakpointSpec  extends TestKit(ActorSystem("PrincipalSpec"))
       |{"origin":"Count","destination":"Sink"}]
       |}""".stripMargin
 
-
   val workflowTag = WorkflowTag("sample")
-  var index=0
-  val opTag: () => OperatorTag = ()=>{index+=1; OperatorTag(workflowTag,index.toString)}
-  val layerTag: () => LayerTag = ()=>{index+=1; LayerTag(opTag(),index.toString)}
-  val workerTag: () => WorkerTag = ()=>{index+=1; WorkerTag(layerTag(),index)}
-  val linkTag: () => LinkTag = ()=>{LinkTag(layerTag(),layerTag())}
+  var index = 0
+  val opTag: () => OperatorTag = () => { index += 1; OperatorTag(workflowTag, index.toString) }
+  val layerTag: () => LayerTag = () => { index += 1; LayerTag(opTag(), index.toString) }
+  val workerTag: () => WorkerTag = () => { index += 1; WorkerTag(layerTag(), index) }
+  val linkTag: () => LinkTag = () => { LinkTag(layerTag(), layerTag()) }
 
-  def resultValidation(expectedTupleCount:Int,idleTime:Duration = 2.seconds): Unit ={
+  def resultValidation(expectedTupleCount: Int, idleTime: Duration = 2.seconds): Unit = {
     var counter = 0
     var receivedEnd = false
-    receiveWhile(5.minutes,idleTime){
-      case DataMessage(seq,payload) => counter += payload.length
-      case EndSending(seq) => receivedEnd = true
-      case msg =>
+    receiveWhile(5.minutes, idleTime) {
+      case DataMessage(seq, payload) => counter += payload.length
+      case EndSending(seq)           => receivedEnd = true
+      case msg                       =>
     }
     assert(counter == expectedTupleCount)
     assert(receivedEnd)
   }
 
-  override def beforeAll:Unit = {
-    system.actorOf(Props[SingleNodeListener],"cluster-info")
+  override def beforeAll: Unit = {
+    system.actorOf(Props[SingleNodeListener], "cluster-info")
   }
 
   override def afterAll: Unit = {
@@ -83,15 +97,18 @@ class ExceptionBreakpointSpec  extends TestKit(ActorSystem("PrincipalSpec"))
     val parent = TestProbe()
     val controller = parent.childActorOf(Controller.props(logicalPlan1))
     controller ! AckedControllerInitialization
-    parent.expectMsg(30.seconds,ReportState(ControllerState.Ready))
+    parent.expectMsg(30.seconds, ReportState(ControllerState.Ready))
     controller ! Start
     parent.expectMsg(ReportState(ControllerState.Running))
     var isCompleted = false
-    parent.receiveWhile(30.seconds,10.seconds){
+    parent.receiveWhile(30.seconds, 10.seconds) {
       case ReportGlobalBreakpointTriggered(bp, opID) =>
-        for(i <- bp){
-          log.info((if(i._1._2.isInput)"[IN]" else "[OUT]")+i._1._2.tuple+" ERRORS: ["+i._2.mkString(",")+"]")
-          AdvancedMessageSending.blockingAskWithRetry(i._1._1, SkipTuple(i._1._2),5)
+        for (i <- bp) {
+          log.info(
+            (if (i._1._2.isInput) "[IN]" else "[OUT]") + i._1._2.tuple + " ERRORS: [" + i._2
+              .mkString(",") + "]"
+          )
+          AdvancedMessageSending.blockingAskWithRetry(i._1._1, SkipTuple(i._1._2), 5)
         }
         controller ! Resume
       case ReportState(ControllerState.Paused) =>
@@ -107,16 +124,23 @@ class ExceptionBreakpointSpec  extends TestKit(ActorSystem("PrincipalSpec"))
     val parent = TestProbe()
     val controller = parent.childActorOf(Controller.props(logicalPlan1))
     controller ! AckedControllerInitialization
-    parent.expectMsg(30.seconds,ReportState(ControllerState.Ready))
+    parent.expectMsg(30.seconds, ReportState(ControllerState.Ready))
     controller ! Start
     parent.expectMsg(ReportState(ControllerState.Running))
     var isCompleted = false
-    parent.receiveWhile(30.seconds,10.seconds){
+    parent.receiveWhile(30.seconds, 10.seconds) {
       case ReportGlobalBreakpointTriggered(bp, opID) =>
-        for(i <- bp){
-          log.info((if(i._1._2.isInput)"[IN]" else "[OUT]")+i._1._2.tuple+" ERRORS: ["+i._2.mkString(",")+"]")
-          val fixed = new FaultedTuple(Tuple("Asia","Rwanda","1","0","0","0","0","0","0","12","12","120","12"),i._1._2.id,i._1._2.isInput)
-          AdvancedMessageSending.blockingAskWithRetry(i._1._1, ModifyTuple(fixed),5)
+        for (i <- bp) {
+          log.info(
+            (if (i._1._2.isInput) "[IN]" else "[OUT]") + i._1._2.tuple + " ERRORS: [" + i._2
+              .mkString(",") + "]"
+          )
+          val fixed = new FaultedTuple(
+            Tuple("Asia", "Rwanda", "1", "0", "0", "0", "0", "0", "0", "12", "12", "120", "12"),
+            i._1._2.id,
+            i._1._2.isInput
+          )
+          AdvancedMessageSending.blockingAskWithRetry(i._1._1, ModifyTuple(fixed), 5)
         }
         controller ! Resume
       case ReportState(ControllerState.Paused) =>
@@ -132,16 +156,22 @@ class ExceptionBreakpointSpec  extends TestKit(ActorSystem("PrincipalSpec"))
     val parent = TestProbe()
     val controller = parent.childActorOf(Controller.props(logicalPlan2))
     controller ! AckedControllerInitialization
-    parent.expectMsg(30.seconds,ReportState(ControllerState.Ready))
-    controller ! PassBreakpointTo("Gen", new ConditionalGlobalBreakpoint("ConditionalBreakpoint", x => x.getInt(0)%1000 == 0))
+    parent.expectMsg(30.seconds, ReportState(ControllerState.Ready))
+    controller ! PassBreakpointTo(
+      "Gen",
+      new ConditionalGlobalBreakpoint("ConditionalBreakpoint", x => x.getInt(0) % 1000 == 0)
+    )
     controller ! Start
     parent.expectMsg(ReportState(ControllerState.Running))
     var isCompleted = false
-    parent.receiveWhile(30.seconds,10.seconds){
+    parent.receiveWhile(30.seconds, 10.seconds) {
       case ReportGlobalBreakpointTriggered(bp, opID) =>
-        for(i <- bp){
-          log.info((if(i._1._2.isInput)"[IN]" else "[OUT]")+i._1._2.tuple+" ERRORS: ["+i._2.mkString(",")+"]")
-          AdvancedMessageSending.blockingAskWithRetry(i._1._1, ResumeTuple(i._1._2),5)
+        for (i <- bp) {
+          log.info(
+            (if (i._1._2.isInput) "[IN]" else "[OUT]") + i._1._2.tuple + " ERRORS: [" + i._2
+              .mkString(",") + "]"
+          )
+          AdvancedMessageSending.blockingAskWithRetry(i._1._1, ResumeTuple(i._1._2), 5)
         }
         controller ! Resume
       case ReportState(ControllerState.Paused) =>
@@ -157,16 +187,22 @@ class ExceptionBreakpointSpec  extends TestKit(ActorSystem("PrincipalSpec"))
     val parent = TestProbe()
     val controller = parent.childActorOf(Controller.props(logicalPlan2))
     controller ! AckedControllerInitialization
-    parent.expectMsg(30.seconds,ReportState(ControllerState.Ready))
-    controller ! PassBreakpointTo("Gen", new ConditionalGlobalBreakpoint("ConditionalBreakpoint", x => x.getInt(0)%1000 == 0))
+    parent.expectMsg(30.seconds, ReportState(ControllerState.Ready))
+    controller ! PassBreakpointTo(
+      "Gen",
+      new ConditionalGlobalBreakpoint("ConditionalBreakpoint", x => x.getInt(0) % 1000 == 0)
+    )
     controller ! Start
     parent.expectMsg(ReportState(ControllerState.Running))
     var isCompleted = false
-    parent.receiveWhile(30.seconds,10.seconds){
+    parent.receiveWhile(30.seconds, 10.seconds) {
       case ReportGlobalBreakpointTriggered(bp, opID) =>
-        for(i <- bp){
-          log.info((if(i._1._2.isInput)"[IN]" else "[OUT]")+i._1._2.tuple+" ERRORS: ["+i._2.mkString(",")+"]")
-          AdvancedMessageSending.blockingAskWithRetry(i._1._1, SkipTuple(i._1._2),5)
+        for (i <- bp) {
+          log.info(
+            (if (i._1._2.isInput) "[IN]" else "[OUT]") + i._1._2.tuple + " ERRORS: [" + i._2
+              .mkString(",") + "]"
+          )
+          AdvancedMessageSending.blockingAskWithRetry(i._1._1, SkipTuple(i._1._2), 5)
         }
         controller ! Resume
       case ReportState(ControllerState.Paused) =>
@@ -177,22 +213,23 @@ class ExceptionBreakpointSpec  extends TestKit(ActorSystem("PrincipalSpec"))
     assert(isCompleted)
     parent.ref ! PoisonPill
   }
-
-
 
   "A workflow" should "be able to trigger count breakpoint in the workflow2, then resume it" in {
     val parent = TestProbe()
     val controller = parent.childActorOf(Controller.props(logicalPlan2))
     controller ! AckedControllerInitialization
-    parent.expectMsg(30.seconds,ReportState(ControllerState.Ready))
+    parent.expectMsg(30.seconds, ReportState(ControllerState.Ready))
     controller ! PassBreakpointTo("Gen", new CountGlobalBreakpoint("CountBreakpoint", 500))
     controller ! Start
     parent.expectMsg(ReportState(ControllerState.Running))
     var isCompleted = false
-    parent.receiveWhile(30.seconds,10.seconds){
+    parent.receiveWhile(30.seconds, 10.seconds) {
       case ReportGlobalBreakpointTriggered(bp, opID) =>
-        for(i <- bp){
-          log.info((if(i._1._2.isInput)"[IN]" else "[OUT]")+i._1._2.tuple+" ERRORS: ["+i._2.mkString(",")+"]")
+        for (i <- bp) {
+          log.info(
+            (if (i._1._2.isInput) "[IN]" else "[OUT]") + i._1._2.tuple + " ERRORS: [" + i._2
+              .mkString(",") + "]"
+          )
         }
         controller ! Resume
       case ReportState(ControllerState.Paused) =>
@@ -203,21 +240,26 @@ class ExceptionBreakpointSpec  extends TestKit(ActorSystem("PrincipalSpec"))
     assert(isCompleted)
     parent.ref ! PoisonPill
   }
-
 
   "A workflow" should "be able to trigger conditional breakpoint in the workflow2, then resume it" in {
     val parent = TestProbe()
     val controller = parent.childActorOf(Controller.props(logicalPlan2))
     controller ! AckedControllerInitialization
-    parent.expectMsg(30.seconds,ReportState(ControllerState.Ready))
-    controller ! PassBreakpointTo("Gen", new ConditionalGlobalBreakpoint("ConditionalBreakpoint", x => x.getInt(0)%1000 == 0))
+    parent.expectMsg(30.seconds, ReportState(ControllerState.Ready))
+    controller ! PassBreakpointTo(
+      "Gen",
+      new ConditionalGlobalBreakpoint("ConditionalBreakpoint", x => x.getInt(0) % 1000 == 0)
+    )
     controller ! Start
     parent.expectMsg(ReportState(ControllerState.Running))
     var isCompleted = false
-    parent.receiveWhile(30.seconds,10.seconds){
+    parent.receiveWhile(30.seconds, 10.seconds) {
       case ReportGlobalBreakpointTriggered(bp, opID) =>
-        for(i <- bp){
-          log.info((if(i._1._2.isInput)"[IN]" else "[OUT]")+i._1._2.tuple+" ERRORS: ["+i._2.mkString(",")+"]")
+        for (i <- bp) {
+          log.info(
+            (if (i._1._2.isInput) "[IN]" else "[OUT]") + i._1._2.tuple + " ERRORS: [" + i._2
+              .mkString(",") + "]"
+          )
         }
         controller ! Resume
       case ReportState(ControllerState.Paused) =>
@@ -228,23 +270,23 @@ class ExceptionBreakpointSpec  extends TestKit(ActorSystem("PrincipalSpec"))
     assert(isCompleted)
     parent.ref ! PoisonPill
   }
-
-
-
 
   "A workflow" should "be able to trigger count breakpoint in the workflow1, then resume it" in {
     val parent = TestProbe()
     val controller = parent.childActorOf(Controller.props(logicalPlan1))
     controller ! AckedControllerInitialization
-    parent.expectMsg(30.seconds,ReportState(ControllerState.Ready))
+    parent.expectMsg(30.seconds, ReportState(ControllerState.Ready))
     controller ! PassBreakpointTo("KeywordSearch1", new CountGlobalBreakpoint("CountBreakpoint", 3))
     controller ! Start
     parent.expectMsg(ReportState(ControllerState.Running))
     var isCompleted = false
-    parent.receiveWhile(3000.seconds,1000.seconds){
+    parent.receiveWhile(3000.seconds, 1000.seconds) {
       case ReportGlobalBreakpointTriggered(bp, opID) =>
-        for(i <- bp){
-          log.info((if(i._1._2.isInput)"[IN]" else "[OUT]")+i._1._2.tuple+" ERRORS: ["+i._2.mkString(",")+"]")
+        for (i <- bp) {
+          log.info(
+            (if (i._1._2.isInput) "[IN]" else "[OUT]") + i._1._2.tuple + " ERRORS: [" + i._2
+              .mkString(",") + "]"
+          )
         }
         controller ! Resume
       case ReportState(ControllerState.Paused) =>
@@ -255,8 +297,5 @@ class ExceptionBreakpointSpec  extends TestKit(ActorSystem("PrincipalSpec"))
     assert(isCompleted)
     parent.ref ! PoisonPill
   }
-
-
-
 
 }

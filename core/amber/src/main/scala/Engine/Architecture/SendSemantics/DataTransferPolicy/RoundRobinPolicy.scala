@@ -10,42 +10,43 @@ import akka.util.Timeout
 
 import scala.concurrent.ExecutionContext
 
-class RoundRobinPolicy(batchSize:Int) extends DataTransferPolicy(batchSize) {
-  var routees:Array[BaseRoutee] = _
-  var sequenceNum:Array[Long] = _
+class RoundRobinPolicy(batchSize: Int) extends DataTransferPolicy(batchSize) {
+  var routees: Array[BaseRoutee] = _
+  var sequenceNum: Array[Long] = _
   var roundRobinIndex = 0
-  var batch:Array[Tuple] = _
+  var batch: Array[Tuple] = _
   var currentSize = 0
 
-
   override def noMore()(implicit sender: ActorRef): Unit = {
-    if(currentSize > 0) {
-      routees(roundRobinIndex).schedule(DataMessage(sequenceNum(roundRobinIndex),batch.slice(0,currentSize)))
+    if (currentSize > 0) {
+      routees(roundRobinIndex).schedule(
+        DataMessage(sequenceNum(roundRobinIndex), batch.slice(0, currentSize))
+      )
       sequenceNum(roundRobinIndex) += 1
     }
     var i = 0
-    while(i < routees.length){
+    while (i < routees.length) {
       routees(i).schedule(EndSending(sequenceNum(i)))
       i += 1
     }
   }
 
   override def pause(): Unit = {
-    for(i <- routees){
+    for (i <- routees) {
       i.pause()
     }
   }
 
-  override def resume()(implicit sender:ActorRef): Unit = {
-    for(i <- routees){
+  override def resume()(implicit sender: ActorRef): Unit = {
+    for (i <- routees) {
       i.resume()
     }
   }
 
-  override def accept(tuple:Tuple)(implicit sender: ActorRef): Unit = {
+  override def accept(tuple: Tuple)(implicit sender: ActorRef): Unit = {
     batch(currentSize) = tuple
     currentSize += 1
-    if(currentSize == batchSize) {
+    if (currentSize == batchSize) {
       currentSize = 0
       routees(roundRobinIndex).schedule(DataMessage(sequenceNum(roundRobinIndex), batch))
       sequenceNum(roundRobinIndex) += 1
@@ -54,7 +55,13 @@ class RoundRobinPolicy(batchSize:Int) extends DataTransferPolicy(batchSize) {
     }
   }
 
-  override def initialize(tag:LinkTag, next: Array[BaseRoutee])(implicit ac:ActorContext, sender: ActorRef, timeout:Timeout, ec:ExecutionContext, log:LoggingAdapter): Unit = {
+  override def initialize(tag: LinkTag, next: Array[BaseRoutee])(implicit
+      ac: ActorContext,
+      sender: ActorRef,
+      timeout: Timeout,
+      ec: ExecutionContext,
+      log: LoggingAdapter
+  ): Unit = {
     super.initialize(tag, next)
     assert(next != null)
     routees = next

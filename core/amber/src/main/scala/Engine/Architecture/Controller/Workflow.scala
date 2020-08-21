@@ -16,7 +16,10 @@ import scala.collection.{JavaConverters, mutable}
 //
 //}
 
-class Workflow(val operators:mutable.Map[OperatorTag,OperatorMetadata],val outLinks:Map[OperatorTag,Set[OperatorTag]]) {
+class Workflow(
+    val operators: mutable.Map[OperatorTag, OperatorMetadata],
+    val outLinks: Map[OperatorTag, Set[OperatorTag]]
+) {
   val inLinks: Map[OperatorTag, Set[OperatorTag]] = AmberUtils.reverseMultimap(outLinks)
   val startOperators: Iterable[OperatorTag] = operators.keys.filter(!inLinks.contains(_))
   val endOperators: Iterable[OperatorTag] = operators.keys.filter(!outLinks.contains(_))
@@ -24,12 +27,12 @@ class Workflow(val operators:mutable.Map[OperatorTag,OperatorMetadata],val outLi
   def getSources(operator: OperatorTag): Set[OperatorTag] = {
     var result = Set[OperatorTag]()
     var current = Set[OperatorTag](operator)
-    while(current.nonEmpty){
+    while (current.nonEmpty) {
       var next = Set[OperatorTag]()
-      for(i <- current){
-        if(inLinks.contains(i) && inLinks(i).nonEmpty){
+      for (i <- current) {
+        if (inLinks.contains(i) && inLinks(i).nonEmpty) {
           next ++= inLinks(i)
-        }else{
+        } else {
           result += i
         }
         current = next

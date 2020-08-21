@@ -1,9 +1,16 @@
 package Engine.Architecture.Controller
 
 import Clustering.SingleNodeListener
-import Engine.Architecture.Breakpoint.GlobalBreakpoint.{ConditionalGlobalBreakpoint, CountGlobalBreakpoint}
+import Engine.Architecture.Breakpoint.GlobalBreakpoint.{
+  ConditionalGlobalBreakpoint,
+  CountGlobalBreakpoint
+}
 import Engine.Common.AmberMessage.ControlMessage.{Ack, ModifyLogic, Pause, Resume, Start}
-import Engine.Common.AmberMessage.ControllerMessage.{AckedControllerInitialization, PassBreakpointTo, ReportState}
+import Engine.Common.AmberMessage.ControllerMessage.{
+  AckedControllerInitialization,
+  PassBreakpointTo,
+  ReportState
+}
 import Engine.Common.AmberMessage.WorkerMessage.DataMessage
 import Engine.Common.AmberTag.OperatorTag
 import Engine.Common.AmberTuple.Tuple
@@ -19,16 +26,16 @@ import scala.concurrent.duration._
 import scala.util.Random
 
 class ControllerSpec
-  extends TestKit(ActorSystem("ControllerSpec"))
-  with ImplicitSender
-  with FlatSpecLike
-  with BeforeAndAfterAll  {
+    extends TestKit(ActorSystem("ControllerSpec"))
+    with ImplicitSender
+    with FlatSpecLike
+    with BeforeAndAfterAll {
 
   implicit val timeout: Timeout = Timeout(5.seconds)
   implicit val executionContext: ExecutionContextExecutor = system.dispatcher
 
-  override def beforeAll:Unit = {
-    system.actorOf(Props[SingleNodeListener],"cluster-info")
+  override def beforeAll: Unit = {
+    system.actorOf(Props[SingleNodeListener], "cluster-info")
   }
   override def afterAll: Unit = {
     TestKit.shutdownActorSystem(system)
@@ -58,7 +65,6 @@ class ControllerSpec
       |{"origin":"Count","destination":"Sink"}]
       |}""".stripMargin
 
-
   private val logicalPlan3 =
     """{
       |"operators":[
@@ -71,7 +77,6 @@ class ControllerSpec
       |{"origin":"KeywordSearch","destination":"Count"},
       |{"origin":"Count","destination":"Sink"}]
       |}""".stripMargin
-
 
   private val logicalPlan4 =
     """{
@@ -94,12 +99,12 @@ class ControllerSpec
     val parent = TestProbe()
     val controller = parent.childActorOf(Controller.props(logicalPlan1))
     controller ! AckedControllerInitialization
-    parent.expectMsg(30.seconds,ReportState(ControllerState.Ready))
-    controller ! PassBreakpointTo("KeywordSearch",new CountGlobalBreakpoint("break1",100000))
+    parent.expectMsg(30.seconds, ReportState(ControllerState.Ready))
+    controller ! PassBreakpointTo("KeywordSearch", new CountGlobalBreakpoint("break1", 100000))
     controller ! Start
     parent.expectMsg(ReportState(ControllerState.Running))
     var isCompleted = false
-    parent.receiveWhile(30.seconds,10.seconds){
+    parent.receiveWhile(30.seconds, 10.seconds) {
       case ReportState(ControllerState.Paused) =>
         controller ! Resume
       case ReportState(ControllerState.Completed) =>
@@ -110,13 +115,11 @@ class ControllerSpec
     parent.ref ! PoisonPill
   }
 
-
-
   "A controller" should "execute the workflow1 normally" in {
     val parent = TestProbe()
     val controller = parent.childActorOf(Controller.props(logicalPlan1))
     controller ! AckedControllerInitialization
-    parent.expectMsg(30.seconds,ReportState(ControllerState.Ready))
+    parent.expectMsg(30.seconds, ReportState(ControllerState.Ready))
     controller ! Start
     parent.expectMsg(ReportState(ControllerState.Running))
     parent.expectMsg(1.minute, ReportState(ControllerState.Completed))
@@ -127,13 +130,12 @@ class ControllerSpec
     val parent = TestProbe()
     val controller = parent.childActorOf(Controller.props(logicalPlan3))
     controller ! AckedControllerInitialization
-    parent.expectMsg(30.seconds,ReportState(ControllerState.Ready))
+    parent.expectMsg(30.seconds, ReportState(ControllerState.Ready))
     controller ! Start
     parent.expectMsg(ReportState(ControllerState.Running))
     parent.expectMsg(1.minute, ReportState(ControllerState.Completed))
     parent.ref ! PoisonPill
   }
-
 
   "A controller" should "execute the workflow2 normally" in {
     val parent = TestProbe()
@@ -145,7 +147,6 @@ class ControllerSpec
     parent.expectMsg(1.minute, ReportState(ControllerState.Completed))
     parent.ref ! PoisonPill
   }
-
 
   "A controller" should "be able to pause/resume the workflow1" in {
     val parent = TestProbe()
@@ -186,14 +187,21 @@ class ControllerSpec
     val parent = TestProbe()
     val controller = parent.childActorOf(Controller.props(logicalPlan1))
     controller ! AckedControllerInitialization
-    parent.expectMsg(30.seconds,ReportState(ControllerState.Ready))
+    parent.expectMsg(30.seconds, ReportState(ControllerState.Ready))
     controller ! Start
     parent.expectMsg(ReportState(ControllerState.Running))
     Thread.sleep(300)
     controller ! Pause
     parent.expectMsg(ReportState(ControllerState.Pausing))
     parent.expectMsg(ReportState(ControllerState.Paused))
-    controller ! ModifyLogic(new KeywordSearchMetadata(OperatorTag("sample","KeywordSearch"),Constants.defaultNumWorkers,0,"asia"))
+    controller ! ModifyLogic(
+      new KeywordSearchMetadata(
+        OperatorTag("sample", "KeywordSearch"),
+        Constants.defaultNumWorkers,
+        0,
+        "asia"
+      )
+    )
     parent.expectMsg(Ack)
     Thread.sleep(10000)
     controller ! Resume
@@ -203,17 +211,19 @@ class ControllerSpec
     parent.ref ! PoisonPill
   }
 
-
   "A controller" should "be able to set and trigger conditional breakpoint in the workflow1" in {
     val parent = TestProbe()
     val controller = parent.childActorOf(Controller.props(logicalPlan1))
     controller ! AckedControllerInitialization
-    parent.expectMsg(30.seconds,ReportState(ControllerState.Ready))
-    controller ! PassBreakpointTo("KeywordSearch",new ConditionalGlobalBreakpoint("break2",x => x.getString(8).toInt == 9884))
+    parent.expectMsg(30.seconds, ReportState(ControllerState.Ready))
+    controller ! PassBreakpointTo(
+      "KeywordSearch",
+      new ConditionalGlobalBreakpoint("break2", x => x.getString(8).toInt == 9884)
+    )
     controller ! Start
     parent.expectMsg(ReportState(ControllerState.Running))
     var isCompleted = false
-    parent.receiveWhile(30.seconds,10.seconds){
+    parent.receiveWhile(30.seconds, 10.seconds) {
       case ReportState(ControllerState.Paused) =>
         controller ! Resume
       case ReportState(ControllerState.Completed) =>
@@ -228,12 +238,12 @@ class ControllerSpec
     val parent = TestProbe()
     val controller = parent.childActorOf(Controller.props(logicalPlan1))
     controller ! AckedControllerInitialization
-    parent.expectMsg(30.seconds,ReportState(ControllerState.Ready))
-    controller ! PassBreakpointTo("KeywordSearch",new CountGlobalBreakpoint("break1",146017))
+    parent.expectMsg(30.seconds, ReportState(ControllerState.Ready))
+    controller ! PassBreakpointTo("KeywordSearch", new CountGlobalBreakpoint("break1", 146017))
     controller ! Start
     parent.expectMsg(ReportState(ControllerState.Running))
     var isCompleted = false
-    parent.receiveWhile(30.seconds,10.seconds){
+    parent.receiveWhile(30.seconds, 10.seconds) {
       case ReportState(ControllerState.Paused) =>
         controller ! Resume
       case ReportState(ControllerState.Completed) =>
@@ -243,27 +253,29 @@ class ControllerSpec
     assert(isCompleted)
     parent.ref ! PoisonPill
   }
-
 
   "A controller" should "be able to pause/resume with conditional breakpoint in the workflow1" in {
     val parent = TestProbe()
     val controller = parent.childActorOf(Controller.props(logicalPlan1))
     controller ! AckedControllerInitialization
-    parent.expectMsg(30.seconds,ReportState(ControllerState.Ready))
-    controller ! PassBreakpointTo("KeywordSearch",new ConditionalGlobalBreakpoint("break2",x => x.getString(8).toInt == 9884))
+    parent.expectMsg(30.seconds, ReportState(ControllerState.Ready))
+    controller ! PassBreakpointTo(
+      "KeywordSearch",
+      new ConditionalGlobalBreakpoint("break2", x => x.getString(8).toInt == 9884)
+    )
     controller ! Start
     parent.expectMsg(ReportState(ControllerState.Running))
     val random = new Random()
-    for(i <- 0 until 100){
-      if(random.nextBoolean()) {
+    for (i <- 0 until 100) {
+      if (random.nextBoolean()) {
         controller ! Pause
-      }else{
+      } else {
         controller ! Resume
       }
     }
     controller ! Resume
     var isCompleted = false
-    parent.receiveWhile(30.seconds,10.seconds){
+    parent.receiveWhile(30.seconds, 10.seconds) {
       case ReportState(ControllerState.Paused) =>
         controller ! Resume
       case ReportState(ControllerState.Completed) =>
@@ -274,27 +286,25 @@ class ControllerSpec
     parent.ref ! PoisonPill
   }
 
-
-
   "A controller" should "be able to pause/resume with count breakpoint in the workflow1" in {
     val parent = TestProbe()
     val controller = parent.childActorOf(Controller.props(logicalPlan1))
     controller ! AckedControllerInitialization
-    parent.expectMsg(30.seconds,ReportState(ControllerState.Ready))
-    controller ! PassBreakpointTo("KeywordSearch",new CountGlobalBreakpoint("break1",100000))
+    parent.expectMsg(30.seconds, ReportState(ControllerState.Ready))
+    controller ! PassBreakpointTo("KeywordSearch", new CountGlobalBreakpoint("break1", 100000))
     controller ! Start
     parent.expectMsg(ReportState(ControllerState.Running))
     val random = new Random()
-    for(i <- 0 until 100){
-      if(random.nextBoolean()) {
+    for (i <- 0 until 100) {
+      if (random.nextBoolean()) {
         controller ! Pause
-      }else{
+      } else {
         controller ! Resume
       }
     }
     controller ! Resume
     var isCompleted = false
-    parent.receiveWhile(30.seconds,10.seconds){
+    parent.receiveWhile(30.seconds, 10.seconds) {
       case ReportState(ControllerState.Paused) =>
         controller ! Resume
       case ReportState(ControllerState.Completed) =>
@@ -315,9 +325,5 @@ class ControllerSpec
     parent.expectMsg(1.minute, ReportState(ControllerState.Completed))
     parent.ref ! PoisonPill
   }
-
-
-
-
 
 }

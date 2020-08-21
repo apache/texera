@@ -13,27 +13,19 @@ Completed -> ()                  =>   ()
  */
 
 object WorkerState extends Enumeration {
-  val Uninitialized,
-  Ready,
-  Running,
-  Pausing,
-  Paused,
-  LocalBreakpointTriggered,
-  Completed = Value
+  val Uninitialized, Ready, Running, Pausing, Paused, LocalBreakpointTriggered, Completed = Value
 
-  val ValidTransitions: Map[WorkerState.Value, Set[WorkerState.Value]]
-  = Map(
+  val ValidTransitions: Map[WorkerState.Value, Set[WorkerState.Value]] = Map(
     Uninitialized -> Set(Ready),
-    Ready -> Set(Running,Paused),
-    Running -> Set(Completed,Pausing,Paused,LocalBreakpointTriggered),
+    Ready -> Set(Running, Paused),
+    Running -> Set(Completed, Pausing, Paused, LocalBreakpointTriggered),
     LocalBreakpointTriggered -> Set(Paused),
     Pausing -> Set(Paused),
-    Paused -> Set(LocalBreakpointTriggered,Running,Ready),
+    Paused -> Set(LocalBreakpointTriggered, Running, Ready),
     Completed -> Set()
   )
 
-  val SkippedTransitions: Map[WorkerState.Value, Set[WorkerState.Value]]
-  = Map(
+  val SkippedTransitions: Map[WorkerState.Value, Set[WorkerState.Value]] = Map(
     Uninitialized -> Set(),
     Ready -> Set(Completed),
     Running -> Set(),

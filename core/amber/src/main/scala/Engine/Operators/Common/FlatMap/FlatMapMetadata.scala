@@ -25,7 +25,10 @@ class FlatMapMetadata(
       Array(
         new ProcessorWorkerLayer(
           LayerTag(tag, "main"),
-          _ => new FlatMapTupleProcessor(flatMapFunc.asInstanceOf[(Tuple => TraversableOnce[Tuple]) with java.io.Serializable]),
+          _ =>
+            new FlatMapTupleProcessor(
+              flatMapFunc.asInstanceOf[(Tuple => TraversableOnce[Tuple]) with java.io.Serializable]
+            ),
           numWorkers,
           FollowPrevious(),
           RoundRobinDeployment()

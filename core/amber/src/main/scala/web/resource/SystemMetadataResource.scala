@@ -15,17 +15,21 @@ import scala.collection.JavaConverters
 @Produces(Array(MediaType.APPLICATION_JSON))
 class SystemMetadataResource {
 
-  case class OperatorMetadata
-  (
-    @BeanProperty operators: List[JsonNode],
-    @BeanProperty groups: List[GroupOrder]
+  case class OperatorMetadata(
+      @BeanProperty operators: List[JsonNode],
+      @BeanProperty groups: List[GroupOrder]
   )
 
   @GET
   @Path("/operator-metadata") def getOperatorMetadata: OperatorMetadata = {
     val objectMapper = TexeraUtils.objectMapper;
-    val operators = JavaConverters.asScalaSet(OperatorSchemaGenerator.operatorTypeMap.keySet())
-      .map(operatorClass => objectMapper.readTree(Files.readAllBytes(OperatorSchemaGenerator.getJsonSchemaPath(operatorClass))))
+    val operators = JavaConverters
+      .asScalaSet(OperatorSchemaGenerator.operatorTypeMap.keySet())
+      .map(operatorClass =>
+        objectMapper.readTree(
+          Files.readAllBytes(OperatorSchemaGenerator.getJsonSchemaPath(operatorClass))
+        )
+      )
       .toList
     val groups = JavaConverters.asScalaBuffer(OperatorGroupConstants.OperatorGroupOrderList).toList
     OperatorMetadata(operators, groups)

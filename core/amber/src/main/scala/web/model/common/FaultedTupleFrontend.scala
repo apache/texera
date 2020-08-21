@@ -3,8 +3,7 @@ package web.model.common
 import Engine.Architecture.Breakpoint.FaultedTuple
 import Engine.Common.AmberTuple.AmberTuple
 
-
-object FaultedTupleFrontend{
+object FaultedTupleFrontend {
   def apply(faultedTuple: FaultedTuple): FaultedTupleFrontend = {
     val tuple = faultedTuple.tuple
     val tupleList = faultedTuple.tuple.toArray().filter(v => v != null).map(v => v.toString).toList

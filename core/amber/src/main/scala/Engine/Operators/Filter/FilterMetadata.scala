@@ -17,22 +17,44 @@ import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 import reflect.{ClassTag, classTag}
 
-
-class FilterMetadata[T : Ordering](tag:OperatorTag, val numWorkers:Int, val targetField:Int, val filterType: FilterType.Val[T], val threshold:T) extends OperatorMetadata(tag){
+class FilterMetadata[T: Ordering](
+    tag: OperatorTag,
+    val numWorkers: Int,
+    val targetField: Int,
+    val filterType: FilterType.Val[T],
+    val threshold: T
+) extends OperatorMetadata(tag) {
   override lazy val topology: Topology = {
-    new Topology(Array(
-      new ProcessorWorkerLayer(LayerTag(tag,"main"),_ => {
-        threshold match {
-          case d:DateTime => new FilterSpecializedTupleProcessor(targetField, filterType.asInstanceOf[FilterType.Val[DateTime]], threshold.asInstanceOf[DateTime])
-          case others => new FilterTupleProcessor[T](targetField, filterType, threshold.asInstanceOf[T])
-        }
-      },
-        numWorkers,
-        FollowPrevious(),
-        RoundRobinDeployment())
-    ),Array(),Map())
+    new Topology(
+      Array(
+        new ProcessorWorkerLayer(
+          LayerTag(tag, "main"),
+          _ => {
+            threshold match {
+              case d: DateTime =>
+                new FilterSpecializedTupleProcessor(
+                  targetField,
+                  filterType.asInstanceOf[FilterType.Val[DateTime]],
+                  threshold.asInstanceOf[DateTime]
+                )
+              case others =>
+                new FilterTupleProcessor[T](targetField, filterType, threshold.asInstanceOf[T])
+            }
+          },
+          numWorkers,
+          FollowPrevious(),
+          RoundRobinDeployment()
+        )
+      ),
+      Array(),
+      Map()
+    )
   }
-  override def assignBreakpoint(topology: Array[ActorLayer], states: mutable.AnyRefMap[ActorRef, WorkerState.Value], breakpoint: GlobalBreakpoint)(implicit timeout:Timeout, ec:ExecutionContext, log:LoggingAdapter): Unit = {
-    breakpoint.partition(topology(0).layer.filter(states(_)!= WorkerState.Completed))
+  override def assignBreakpoint(
+      topology: Array[ActorLayer],
+      states: mutable.AnyRefMap[ActorRef, WorkerState.Value],
+      breakpoint: GlobalBreakpoint
+  )(implicit timeout: Timeout, ec: ExecutionContext, log: LoggingAdapter): Unit = {
+    breakpoint.partition(topology(0).layer.filter(states(_) != WorkerState.Completed))
   }
 }

@@ -5,17 +5,11 @@ import Engine.Common.AmberTuple.Tuple
 
 trait TupleProcessor extends TupleProducer {
   @throws(classOf[Exception])
-  def accept(tuple:Tuple): Unit
+  def accept(tuple: Tuple): Unit
 
-  def onUpstreamChanged(from:LayerTag):Unit
+  def onUpstreamChanged(from: LayerTag): Unit
 
-  def onUpstreamExhausted(from:LayerTag):Unit
+  def onUpstreamExhausted(from: LayerTag): Unit
 
-  def noMore():Unit
+  def noMore(): Unit
 }
-
-
-
-
-
-

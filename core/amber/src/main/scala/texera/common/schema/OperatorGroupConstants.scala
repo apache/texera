@@ -11,11 +11,11 @@ object OperatorGroupConstants {
   final val UTILITY_GROUP = "Utilities"
   final val DATABASE_GROUP = "Database"
   final val RESULT_GROUP = "View Results"
-  
+
   /**
-   * The order of the groups to show up in the frontend operator panel.
-   * The order numbers are relative.
-   */
+    * The order of the groups to show up in the frontend operator panel.
+    * The order numbers are relative.
+    */
   final val OperatorGroupOrderList = new util.ArrayList[GroupOrder]
   OperatorGroupOrderList.add(GroupOrder(SOURCE_GROUP, 0))
   OperatorGroupOrderList.add(GroupOrder(SEARCH_GROUP, 1))
