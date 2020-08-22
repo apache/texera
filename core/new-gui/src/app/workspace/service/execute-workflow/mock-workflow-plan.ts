@@ -33,9 +33,10 @@ export const mockLogicalPlan_scan_result: LogicalPlan = {
   links : [
     {
       origin: mockScanPredicate.operatorID,
-      destination: mockResultPredicate.operatorID
+      destination: mockResultPredicate.operatorID,
     }
-  ]
+  ],
+  breakpoints : []
 };
 
 export const mockWorkflowPlan_scan_sentiment_result: WorkflowGraph = new WorkflowGraph(
@@ -71,11 +72,12 @@ export const mockLogicalPlan_scan_sentiment_result: LogicalPlan = {
   links : [
     {
       origin: mockScanPredicate.operatorID,
-      destination: mockSentimentPredicate.operatorID
+      destination: mockSentimentPredicate.operatorID,
     },
     {
       origin: mockSentimentPredicate.operatorID,
-      destination: mockResultPredicate.operatorID
+      destination: mockResultPredicate.operatorID,
     }
-  ]
+  ],
+  breakpoints : []
 };

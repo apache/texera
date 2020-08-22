@@ -33,7 +33,7 @@ export class ResultPanelToggleComponent implements OnInit {
    *  to switch the status of the result panel.
    */
   public onClickResultBar(): void {
-    this.resultPanelToggleService.toggleResultPanel(this.showResultPanel);
+    this.resultPanelToggleService.toggleResultPanel();
   }
 }
 

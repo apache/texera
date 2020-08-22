@@ -7,20 +7,28 @@ import './../../../common/rxjs-operators';
 import { AppSettings } from './../../../common/app-setting';
 
 import { WorkflowActionService } from './../workflow-graph/model/workflow-action.service';
-import { WorkflowGraphReadonly } from './../workflow-graph/model/workflow-graph';
+import { WorkflowGraphReadonly, WorkflowGraph } from './../workflow-graph/model/workflow-graph';
 import {
   LogicalLink, LogicalPlan, LogicalOperator,
-  ExecutionResult, ErrorExecutionResult, SuccessExecutionResult
+  ExecutionResult, ErrorExecutionResult, SuccessExecutionResult, BreakpointInfo, ExecutionState, ExecutionStateInfo
 } from '../../types/execute-workflow.interface';
 import { ResultObject } from '../../types/execute-workflow.interface';
 import { v4 as uuid } from 'uuid';
 import { environment } from '../../../../environments/environment';
+import { WorkflowWebsocketService } from '../workflow-websocket/workflow-websocket.service';
+import { OperatorPredicate, BreakpointTriggerInfo, BreakpointRequest, Breakpoint } from '../../types/workflow-common.interface';
+import { TexeraWebsocketEvent, WorkerTuples, OperatorCurrentTuples } from '../../types/workflow-websocket.interface';
+import { isEqual } from 'lodash';
+
+export const FORM_DEBOUNCE_TIME_MS = 150;
 
 export const EXECUTE_WORKFLOW_ENDPOINT = 'queryplan/execute';
 
 export const DOWNLOAD_WORKFLOW_ENDPOINT = 'download/result';
 export const PAUSE_WORKFLOW_ENDPOINT = 'pause';
 export const RESUME_WORKFLOW_ENDPOINT = 'resume';
+
+export const EXECUTION_TIMEOUT = 3000;
 
 /**
  * ExecuteWorkflowService sends the current workflow data to the backend
@@ -43,20 +51,201 @@ export const RESUME_WORKFLOW_ENDPOINT = 'resume';
 @Injectable()
 export class ExecuteWorkflowService {
 
-  private resultMap: Map<string, ResultObject> = new Map<string, ResultObject>();
-  private executeStartedStream = new Subject<string>();
-  private executeEndedStream = new Subject<ExecutionResult>();
+  private currentState: ExecutionStateInfo = { state: ExecutionState.Uninitialized };
+  private executionStateStream = new Subject<{ previous: ExecutionStateInfo, current: ExecutionStateInfo }>();
 
-  private workflowExecutionID: string | undefined;
+  private executionTimeoutID: number | undefined;
+  private clearTimeoutState: ExecutionState[] | undefined;
 
-  private executionPauseResumeStream = new Subject <number> ();
+  constructor(
+    private workflowActionService: WorkflowActionService,
+    private workflowWebsocketService: WorkflowWebsocketService,
+    private http: HttpClient
+  ) {
+    if (environment.amberEngineEnabled) {
+      workflowWebsocketService.websocketEvent().subscribe(event => {
+        if (event.type !== 'WorkflowStatusUpdateEvent') {
+          console.log(event);
+        }
+        const newState = this.handleExecutionEvent(event);
+        this.updateExecutionState(newState);
+      });
+    }
+  }
 
-  constructor(private workflowActionService: WorkflowActionService, private http: HttpClient) { }
+  public handleExecutionEvent(event: TexeraWebsocketEvent): ExecutionStateInfo {
+    switch (event.type) {
+      case 'WorkflowStartedEvent':
+        return { state: ExecutionState.Running };
+      case 'WorkflowCompletedEvent':
+        const resultMap = new Map(event.result.map(r => [r.operatorID, r]));
+        return { state: ExecutionState.Completed, resultID: undefined, resultMap: resultMap };
+      case 'WorkflowPausedEvent':
+        if (this.currentState.state === ExecutionState.BreakpointTriggered ||
+          this.currentState.state === ExecutionState.Paused) {
+          return this.currentState;
+        } else {
+          return { state: ExecutionState.Paused, currentTuples: {} };
+        }
+      case 'RecoveryStartedEvent':
+        return { state: ExecutionState.Recovering };
+      case 'OperatorCurrentTuplesUpdateEvent':
+        if (this.currentState.state === ExecutionState.BreakpointTriggered) {
+          return this.currentState;
+        }
+        let pausedCurrentTuples: Readonly<Record<string, OperatorCurrentTuples>>;
+        if (this.currentState.state === ExecutionState.Paused) {
+          pausedCurrentTuples = this.currentState.currentTuples;
+        } else {
+          pausedCurrentTuples = {};
+        }
+        const currentTupleUpdate: Record<string, OperatorCurrentTuples> = {};
+        currentTupleUpdate[event.operatorID] = event;
+        const newCurrentTuples: Record<string, OperatorCurrentTuples> = {
+          ...currentTupleUpdate,
+          ...pausedCurrentTuples
+        };
+        return { state: ExecutionState.Paused, currentTuples: newCurrentTuples };
+      case 'WorkflowResumedEvent':
+        return { state: ExecutionState.Running };
+      case 'BreakpointTriggeredEvent':
+        return { state: ExecutionState.BreakpointTriggered, breakpoint: event };
+      case 'WorkflowErrorEvent':
+        const errorMessages: Record<string, string> = {};
+        Object.entries(event.operatorErrors).forEach(entry => {
+          errorMessages[entry[0]] = `${entry[1].propertyPath}: ${entry[1].message}`;
+        });
+        Object.entries(event.generalErrors).forEach(entry => {
+          errorMessages[entry[0]] = entry[1];
+        });
+        return { state: ExecutionState.Failed, errorMessages: errorMessages };
+      default:
+        return this.currentState;
+    }
+  }
+
+  public getExecutionState(): ExecutionStateInfo {
+    return this.currentState;
+  }
+
+  public getErrorMessages(): Readonly<Record<string, string>> | undefined {
+    if (this.currentState?.state === ExecutionState.Failed) {
+      return this.currentState.errorMessages;
+    }
+    return undefined;
+  }
+
   /**
    * Return map which contains all sink operators execution result
    */
-  public getResultMap(): Map<string, ResultObject> {
-    return this.resultMap;
+  public getResultMap(): ReadonlyMap<string, ResultObject> | undefined {
+    if (this.currentState?.state === ExecutionState.Completed) {
+      return this.currentState.resultMap;
+    }
+    return undefined;
+  }
+
+  public getBreakpointTriggerInfo(): BreakpointTriggerInfo | undefined {
+    if (this.currentState?.state === ExecutionState.BreakpointTriggered) {
+      return this.currentState.breakpoint;
+    }
+    return undefined;
+  }
+
+  public executeWorkflow(): void {
+    if (environment.amberEngineEnabled) {
+      this.executeWorkflowAmberTexera();
+    } else {
+      this.executeWorkflowOldTexera();
+    }
+  }
+
+  public executeWorkflowAmberTexera(): void {
+    // get the current workflow graph
+    const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
+    console.log(logicalPlan);
+    // wait for the form debounce to complete, then send
+    window.setTimeout(() => {
+      this.workflowWebsocketService.send('ExecuteWorkflowRequest', logicalPlan);
+    }, FORM_DEBOUNCE_TIME_MS);
+    this.updateExecutionState({ state: ExecutionState.WaitingToRun });
+    this.setExecutionTimeout('submit workflow timeout', ExecutionState.Running, ExecutionState.Failed);
+  }
+
+  public pauseWorkflow(): void {
+    if (!environment.pauseResumeEnabled || !environment.amberEngineEnabled) {
+      return;
+    }
+    if (this.currentState === undefined || this.currentState.state !== ExecutionState.Running) {
+      throw new Error('cannot pause workflow, current execution state is ' + this.currentState.state);
+    }
+    this.workflowWebsocketService.send('PauseWorkflowRequest', {});
+    this.updateExecutionState({ state: ExecutionState.Pausing });
+    this.setExecutionTimeout('pause operation timeout', ExecutionState.Paused, ExecutionState.Failed);
+  }
+
+  public killWorkflow(): void {
+    if (!environment.pauseResumeEnabled || !environment.amberEngineEnabled) {
+      return;
+    }
+    if (this.currentState.state === ExecutionState.Uninitialized || this.currentState.state === ExecutionState.Completed) {
+      throw new Error('cannot kill workflow, current execution state is ' + this.currentState.state);
+    }
+    this.workflowWebsocketService.send('KillWorkflowRequest', {});
+    this.updateExecutionState({ state: ExecutionState.Completed, resultID: undefined, resultMap: new Map() });
+  }
+
+  public resumeWorkflow(): void {
+    if (!environment.pauseResumeEnabled || !environment.amberEngineEnabled) {
+      return;
+    }
+    if (!(this.currentState.state === ExecutionState.Paused || this.currentState.state === ExecutionState.BreakpointTriggered)) {
+      throw new Error('cannot resume workflow, current execution state is ' + this.currentState.state);
+    }
+    this.workflowWebsocketService.send('ResumeWorkflowRequest', {});
+    this.updateExecutionState({ state: ExecutionState.Resuming });
+    this.setExecutionTimeout('resume operation timeout', ExecutionState.Running, ExecutionState.Failed);
+  }
+
+  public addBreakpointRuntime(linkID: string, breakpointData: Breakpoint): void {
+    if (!environment.amberEngineEnabled) {
+      return;
+    }
+    if (this.currentState.state !== ExecutionState.BreakpointTriggered &&
+      this.currentState.state !== ExecutionState.Paused) {
+      throw new Error('cannot add breakpoint at runtime, current execution state is ' + this.currentState.state);
+    }
+    console.log('sending add breakpoint request');
+    this.workflowWebsocketService.send('AddBreakpointRequest',
+      ExecuteWorkflowService.transformBreakpoint(this.workflowActionService.getTexeraGraph(), linkID, breakpointData));
+  }
+
+  public skipTuples(): void {
+    if (!environment.amberEngineEnabled) {
+      return;
+    }
+    if (this.currentState.state !== ExecutionState.BreakpointTriggered) {
+      throw new Error('cannot skip tuples, current execution state is ' + this.currentState.state);
+    }
+    this.currentState.breakpoint.report.forEach(fault => {
+      this.workflowWebsocketService.send('SkipTupleRequest', { faultedTuple: fault.faultedTuple, actorPath: fault.actorPath });
+    });
+  }
+
+  public changeOperatorLogic(operatorID: string): void {
+    if (!environment.amberEngineEnabled) {
+      return;
+    }
+    if (this.currentState.state !== ExecutionState.BreakpointTriggered && this.currentState.state !== ExecutionState.Paused) {
+      throw new Error('cannot modify logic, current execution state is ' + this.currentState.state);
+    }
+    const op = this.workflowActionService.getTexeraGraph().getOperator(operatorID);
+    const operator: LogicalOperator = {
+      ...op.operatorProperties,
+      operatorID: op.operatorID,
+      operatorType: op.operatorType
+    };
+    this.workflowWebsocketService.send('ModifyLogicRequest', { operator });
   }
 
   /**
@@ -64,27 +253,16 @@ export class ExecuteWorkflowService {
    *  to execute the workflow and gets the results.
    *  return workflow id to be used by workflowStatusService
    */
-  public executeWorkflow(): string {
-
-    // set the UUID for the current workflow
-    this.workflowExecutionID = this.getRandomUUID();
-
+  public executeWorkflowOldTexera(): void {
     // get the current workflow graph
     const workflowPlan = this.workflowActionService.getTexeraGraph();
 
     // create a Logical Plan based on the workflow graph
-    let body;
-    if (! environment.pauseResumeEnabled) {
-      body = ExecuteWorkflowService.getLogicalPlanRequest(workflowPlan);
-    } else {
-      body = {
-        logicalPlan: ExecuteWorkflowService.getLogicalPlanRequest(workflowPlan),
-        workflowID: this.workflowExecutionID
-      };
-    }
+    const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(workflowPlan);
+    const body = { operators: logicalPlan.operators, links: logicalPlan.links };
     const requestURL = `${AppSettings.getApiEndpoint()}/${EXECUTE_WORKFLOW_ENDPOINT}`;
 
-    this.executeStartedStream.next('execution started');
+    this.updateExecutionState({ state: ExecutionState.Running });
 
     // make a http post request to the API endpoint with the logical plan object
     this.http.post<SuccessExecutionResult>(
@@ -95,70 +273,15 @@ export class ExecuteWorkflowService {
         // backend will either respond an execution result or an error will occur
         // handle both cases
         response => {
-          this.updateResultMap(response);
-          this.handleExecuteResult(response);
-          this.workflowExecutionID = undefined;
+          const resultMap = new Map<string, ResultObject>(response.result.map(r => [r.operatorID, r]));
+          this.updateExecutionState({ state: ExecutionState.Completed, resultID: undefined, resultMap: resultMap });
         },
         errorResponse => {
-          this.handleExecuteError(errorResponse);
-          this.workflowExecutionID = undefined;
+          const errorMessages = ExecuteWorkflowService.processErrorResponse(errorResponse);
+          this.updateExecutionState({ state: ExecutionState.Failed, errorMessages: errorMessages });
         }
       );
 
-    return this.workflowExecutionID;
-  }
-
-  /**
-   * Sends the current worfklow ID to the server to
-   *  pause current workflow in the backend
-   */
-  public pauseWorkflow(): void {
-    if (! environment.pauseResumeEnabled) {
-      return;
-    }
-    if (this.workflowExecutionID === undefined) {
-      throw new Error('Workflow ID undefined when attempting to pause workflow');
-    }
-
-    const requestURL = `${AppSettings.getApiEndpoint()}/${PAUSE_WORKFLOW_ENDPOINT}`;
-    const body = {'workflowID' : this.workflowExecutionID};
-
-    // The endpoint will be 'api/pause?action=pause', and workflowExecutionID will be the body
-    this.http.post(
-      requestURL,
-      JSON.stringify(body),
-      { headers: {'Content-Type' : 'application/json'}})
-      .subscribe(
-        response => this.executionPauseResumeStream.next(0),
-        error => console.log(error)
-    );
-
-  }
-
-  /**
-   * Sends the current workflow ID to the server to
-   *  resume current workflow in the backend
-   */
-  public resumeWorkflow(): void {
-    if (! environment.pauseResumeEnabled) {
-      return;
-    }
-    if (this.workflowExecutionID === undefined) {
-      throw new Error('Workflow ID undefined when attempting to resume workflow');
-    }
-
-    const requestURL = `${AppSettings.getApiEndpoint()}/${RESUME_WORKFLOW_ENDPOINT}`;
-    const body = {'workflowID' : this.workflowExecutionID};
-
-    // The endpoint will be 'api/pause?action=resume', and workflowExecutionID will be the body
-    this.http.post(
-      requestURL,
-      JSON.stringify(body),
-      { headers: {'Content-Type' : 'application/json'}})
-      .subscribe(
-        response => this.executionPauseResumeStream.next(1),
-        error => console.log(error)
-    );
   }
 
   /**
@@ -171,7 +294,7 @@ export class ExecuteWorkflowService {
 
     this.http.get(
       requestURL,
-      {responseType: 'blob'}
+      { responseType: 'blob' }
     ).subscribe(
       // response => saveAs(response, downloadName),
       () => window.location.href = requestURL,
@@ -179,84 +302,43 @@ export class ExecuteWorkflowService {
     );
   }
 
-  /**
-   * Gets the observable for execution started event
-   * Contains a string that says:
-   *  - execution process has begun
-   */
-  public getExecuteStartedStream(): Observable<string> {
-    return this.executeStartedStream.asObservable();
+  public getExecutionStateStream(): Observable<{ previous: ExecutionStateInfo, current: ExecutionStateInfo }> {
+    return this.executionStateStream.asObservable();
   }
 
-  /**
-   * Gets the observable for execution ended event
-   * If execution succeeded, it contains an object with type
-   *  `SuccessExecutionResult`:
-   *    -  resultID: the result ID of this execution
-   *    -  Code: the result code of 0
-   *    -  result: the actual result data to be displayed
-   *
-   * If execution succeeded, it contains an object with type
-   *  `ErrorExecutionResult`:
-   *    -  Code: the result code 1
-   *    -  message: error message
-   */
-  public getExecuteEndedStream(): Observable<ExecutionResult> {
-    return this.executeEndedStream.asObservable();
+  private setExecutionTimeout(message: string, ...clearTimeoutState: ExecutionState[]) {
+    if (this.executionTimeoutID !== undefined) {
+      this.clearExecutionTimeout();
+    }
+    this.executionTimeoutID = window.setTimeout(() => {
+      this.updateExecutionState({ state: ExecutionState.Failed, errorMessages: { 'timeout': message } });
+    }, EXECUTION_TIMEOUT);
+    this.clearTimeoutState = clearTimeoutState;
   }
 
-  /**
-   * Gets the observable for pause and resume event
-   *  If pause succeeds, it will contain a number = 0
-   *  If resume succeeds, it will contain a number = 1
-   */
-  public getExecutionPauseResumeStream(): Observable<number> {
-    return this.executionPauseResumeStream.asObservable();
-  }
-
-  private getRandomUUID(): string {
-    return 'texera-workflow-' + uuid();
-  }
-  /**
-   * Update result map when new execution is returned.
-   * @param response
-   */
-  private updateResultMap(response: SuccessExecutionResult): void {
-    this.resultMap.clear();
-    try {
-      for (const item of response.result) {
-        this.resultMap.set(item.operatorID, item);
-      }
-    } catch (error) {
-      this.resultMap.clear();
-      return ;
+  private clearExecutionTimeout() {
+    if (this.executionTimeoutID !== undefined) {
+      window.clearTimeout(this.executionTimeoutID);
+      this.executionTimeoutID = undefined;
+      this.clearTimeoutState = undefined;
     }
   }
 
-  /**
-   * Handles valid execution result from the backend.
-   * Sends the execution result to the execution end event stream.
-   *
-   * @param response
-   */
-  private handleExecuteResult(response: SuccessExecutionResult): void {
-    this.executeEndedStream.next(response);
-  }
-
-  /**
-   * Handler function for invalid execution.
-   *
-   * Send the error messages generated from
-   *  backend (if workflow is invalid or server error)
-   *  or frontend (if there's no network connection)
-   *  to the execution end event stream.
-   *
-   * @param errorResponse
-   */
-  private handleExecuteError(errorResponse: HttpErrorResponse): void {
-    // error shown to the user in different error scenarios
-    const displayedErrorMessage = ExecuteWorkflowService.processErrorResponse(errorResponse);
-    this.executeEndedStream.next(displayedErrorMessage);
+  private updateExecutionState(stateInfo: ExecutionStateInfo): void {
+    if (isEqual(this.currentState, stateInfo)) {
+      return;
+    }
+    console.log(stateInfo);
+    console.log(this.clearTimeoutState);
+    console.log(this.clearTimeoutState?.includes(stateInfo.state));
+    if (this.clearTimeoutState?.includes(stateInfo.state)) {
+      this.clearExecutionTimeout();
+    }
+    const previousState = this.currentState;
+    // update current state
+    this.currentState = stateInfo;
+    // emit event
+    this.executionStateStream.next({ previous: previousState, current: this.currentState });
   }
 
   /**
@@ -265,7 +347,6 @@ export class ExecuteWorkflowService {
    * All the operators in the workflowGraph will be transformed to LogicalOperator objects,
    *  where each operator has an operatorID and operatorType along with
    *  the properties of the operator.
-   *
    *
    * All the links in the workflowGraph will be tranformed to LogicalLink objects,
    *  where each link will store its source id as its origin and target id as its destination.
@@ -284,10 +365,27 @@ export class ExecuteWorkflowService {
     const links: LogicalLink[] = workflowGraph
       .getAllLinks().map(link => ({
         origin: link.source.operatorID,
-        destination: link.target.operatorID
+        destination: link.target.operatorID,
       }));
 
-    return { operators, links };
+    const breakpoints: BreakpointInfo[] = Array.from(workflowGraph.getAllLinkBreakpoints().entries())
+      .map(e => ExecuteWorkflowService.transformBreakpoint(workflowGraph, e[0], e[1]));
+
+    return { operators, links, breakpoints };
+  }
+
+  public static transformBreakpoint(
+    workflowGraph: WorkflowGraphReadonly, linkID: string, breakpointData: Breakpoint): BreakpointInfo {
+    const operatorID = workflowGraph.getLinkWithID(linkID).source.operatorID;
+    let breakpoint: BreakpointRequest;
+    if ('condition' in breakpointData) {
+      breakpoint = { ...breakpointData, type: 'ConditionBreakpoint' };
+    } else if ('count' in breakpointData) {
+      breakpoint = { ...breakpointData, type: 'CountBreakpoint' };
+    } else {
+      throw new Error('unhandled breakpoint data ' + breakpointData);
+    }
+    return { operatorID, breakpoint };
   }
 
   public static isExecutionSuccessful(result: ExecutionResult | undefined): result is SuccessExecutionResult {
@@ -299,24 +397,19 @@ export class ExecuteWorkflowService {
    *  and converts to an ErrorExecutionResult object.
    * @param errorResponse
    */
-  private static processErrorResponse(errorResponse: HttpErrorResponse): ErrorExecutionResult {
+  private static processErrorResponse(errorResponse: HttpErrorResponse): Record<string, string> {
     // client side error, such as no internet connection
     if (errorResponse.error instanceof ProgressEvent) {
-      return {
-        code: 1,
-        message: 'Could not reach Texera server'
-      };
+      return { 'network error': 'Could not reach Texera server' };
     }
     // the workflow graph is invalid
     // error message from backend will be included in the error property
     if (errorResponse.status === 400) {
-      return <ErrorExecutionResult>(errorResponse.error);
+      const result = <ErrorExecutionResult>(errorResponse.error);
+      return { 'workflow error': result.message };
     }
     // other kinds of server error
-    return {
-      code: 1,
-      message: `Texera server error: ${errorResponse.error.message}`
-    };
+    return { 'server error': `Texera server error: ${errorResponse.error.message}` };
   }
 
 

@@ -3,6 +3,7 @@ import {
   mockScanSentimentLink, mockSentimentResultLink, mockScanResultLink
 } from './mock-workflow-data';
 import { WorkflowGraph } from './workflow-graph';
+import { environment } from './../../../../../environments/environment';
 
 describe('WorkflowGraph', () => {
 
@@ -187,6 +188,24 @@ describe('WorkflowGraph', () => {
     workflowGraph.addOperator(mockResultPredicate);
     workflowGraph.addLink(mockScanResultLink);
     expect(workflowGraph.getOutputLinksByOperatorId('1').length).toEqual(1);
-});
+  });
 
+  describe('when linkBreakpoint is enabled', () => {
+    beforeAll(() => {
+      environment.linkBreakpointEnabled = true;
+    });
+
+    afterAll(() => {
+      environment.linkBreakpointEnabled = false;
+    });
+
+    it('should set/remove link breakpoint correctly', () => {
+      workflowGraph.addOperator(mockScanPredicate);
+      workflowGraph.addOperator(mockResultPredicate);
+      workflowGraph.addLink(mockScanResultLink);
+      const mockBreakpoint = { count: 100 };
+      workflowGraph.setLinkBreakpoint(mockScanResultLink.linkID, mockBreakpoint);
+      expect(workflowGraph.getLinkBreakpoint(mockScanResultLink.linkID)).toEqual(mockBreakpoint);
+    });
+  });
 });

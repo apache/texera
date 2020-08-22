@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { WorkflowActionService } from '../workflow-graph/model/workflow-action.service';
 import { Observable } from '../../../../../node_modules/rxjs';
-import { OperatorLink, OperatorPredicate, Point } from '../../types/workflow-common.interface';
+import { OperatorLink, OperatorPredicate, Point, Breakpoint } from '../../types/workflow-common.interface';
 import { OperatorMetadataService } from '../operator-metadata/operator-metadata.service';
 
 /**
@@ -19,6 +19,7 @@ export interface SavedWorkflow {
   operators: OperatorPredicate[];
   operatorPositions: {[key: string]: Point | undefined};
   links: OperatorLink[];
+  breakpoints: Record<string, Breakpoint>;
 }
 
 
@@ -87,7 +88,9 @@ export class SaveWorkflowService {
       links.push(link);
     });
 
-    this.workflowActionService.addOperatorsAndLinks(operatorsAndPositions, links);
+    const breakpoints = new Map(Object.entries(savedWorkflow.breakpoints));
+
+    this.workflowActionService.addOperatorsAndLinks(operatorsAndPositions, links, breakpoints);
 
     // operators shouldn't be highlighted during page reload
     this.workflowActionService.getJointGraphWrapper().unhighlightOperators(
@@ -105,7 +108,7 @@ export class SaveWorkflowService {
       this.workflowActionService.getTexeraGraph().getLinkAddStream(),
       this.workflowActionService.getTexeraGraph().getLinkDeleteStream(),
       this.workflowActionService.getTexeraGraph().getOperatorPropertyChangeStream(),
-      this.workflowActionService.getTexeraGraph().getOperatorAdvancedOptionChangeSteam(),
+      this.workflowActionService.getTexeraGraph().getBreakpointChangeStream(),
       this.workflowActionService.getJointGraphWrapper().getOperatorPositionChangeEvent()
     ).debounceTime(100).subscribe(() => {
       const workflow = this.workflowActionService.getTexeraGraph();
@@ -113,11 +116,14 @@ export class SaveWorkflowService {
       const operators = workflow.getAllOperators();
       const links = workflow.getAllLinks();
       const operatorPositions: {[key: string]: Point} = {};
+      const breakpointsMap = workflow.getAllLinkBreakpoints();
+      const breakpoints: Record<string, Breakpoint> = {};
+      breakpointsMap.forEach((value, key) => (breakpoints[key] = value));
       workflow.getAllOperators().forEach(op => operatorPositions[op.operatorID] =
         this.workflowActionService.getJointGraphWrapper().getOperatorPosition(op.operatorID));
 
       const savedWorkflow: SavedWorkflow = {
-        operators, operatorPositions, links
+        operators, operatorPositions, links, breakpoints
       };
 
       localStorage.setItem(SaveWorkflowService.LOCAL_STORAGE_KEY, JSON.stringify(savedWorkflow));

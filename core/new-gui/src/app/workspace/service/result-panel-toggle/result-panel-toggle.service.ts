@@ -12,8 +12,13 @@ import { Subject } from 'rxjs/Subject';
 @Injectable()
 export class ResultPanelToggleService {
 
+  private currentResultPanelStatus: boolean = false;
   private toggleDisplayChangeStream = new Subject<boolean>();
   constructor() { }
+
+  public isResultPanelOpen() {
+    return this.currentResultPanelStatus;
+  }
 
   /**
    * Gets the observable for result panel toggle change event.
@@ -34,6 +39,7 @@ export class ResultPanelToggleService {
    *
    */
   public openResultPanel(): void {
+    this.currentResultPanelStatus = true;
     this.toggleDisplayChangeStream.next(true);
   }
 
@@ -46,6 +52,7 @@ export class ResultPanelToggleService {
    *
    */
   public closeResultPanel(): void {
+    this.currentResultPanelStatus = false;
     this.toggleDisplayChangeStream.next(false);
   }
 
@@ -56,10 +63,9 @@ export class ResultPanelToggleService {
    * When current status = open  : close the result panel
    * When current status = close : open the result panel
    *
-   * @param currentResultPanelStatus current status of the result panel
    */
-  public toggleResultPanel(currentResultPanelStatus: boolean): void {
-    if (currentResultPanelStatus) {
+  public toggleResultPanel(): void {
+    if (this.currentResultPanelStatus) {
       this.closeResultPanel();
     } else {
       this.openResultPanel();

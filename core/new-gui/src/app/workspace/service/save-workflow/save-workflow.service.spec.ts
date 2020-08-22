@@ -186,7 +186,7 @@ describe('SaveWorkflowService', () => {
     const links: OperatorLink[] = [];
 
     const mockWorkflow: SavedWorkflow = {
-      operators, operatorPositions, links
+      operators, operatorPositions, links, breakpoints: {}
     };
 
     localStorage.setItem('workflow', JSON.stringify(mockWorkflow));

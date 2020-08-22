@@ -1,7 +1,7 @@
 <div class="texera-workspace-property-editor-body texera-workflow-component-body">
   <div *ngIf="displayForm">
-    <h3 class="texera-workspace-property-editor-title" mat-subheader>
-      {{currentOperatorSchema?.additionalMetadata.userFriendlyName}}
+    <h3 *ngIf="formTitle" class="texera-workspace-property-editor-title" mat-subheader>
+      {{formTitle}}
     </h3>
 
     <form class="texera-workspace-property-editor-form" [formGroup]="formlyFormGroup" *ngIf="formlyFields">
@@ -11,7 +11,26 @@
       [form]="formlyFormGroup"
       (modelChange) = "onFormChanges($event)">
       </formly-form>
-
     </form>
+
+    <button *ngIf="currentLinkID !== undefined && !hasBreakpoint()" type="button" class="breakpointRemoveButton"
+    (click)="handleAddBreakpoint()">Add Breakpoint</button>
+
+    <button *ngIf="currentLinkID !== undefined && hasBreakpoint()" type="button" class="breakpointRemoveButton"
+    (click)="handleRemoveBreakpoint()">Remove Breakpoint</button>
+
+    <button *ngIf="currentOperatorID !== undefined &&
+    (this.executeWorkflowService.getExecutionState().state === ExecutionState.Paused ||
+      this.executeWorkflowService.getExecutionState().state === ExecutionState.BreakpointTriggered) &&
+    this.interactive === false"
+    type="button" class="breakpointRemoveButton"
+    (click)="allowChangeOperatorLogic()">Change Logic</button>
+
+    <button *ngIf="currentOperatorID !== undefined &&
+    (this.executeWorkflowService.getExecutionState().state === ExecutionState.Paused ||
+      this.executeWorkflowService.getExecutionState().state === ExecutionState.BreakpointTriggered) &&
+    this.interactive === true"
+    type="button" class="breakpointRemoveButton"
+    (click)="confirmChangeOperatorLogic()">Confirm Change</button>
   </div>
 </div>

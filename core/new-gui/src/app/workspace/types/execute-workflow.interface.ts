@@ -4,9 +4,12 @@
  * These interfaces confronts to the backend API.
 */
 
+import { Breakpoint, BreakpointTriggerInfo, BreakpointRequest } from './workflow-common.interface';
+import { OperatorCurrentTuples } from './workflow-websocket.interface';
+
 export interface LogicalLink extends Readonly<{
   origin: string,
-  destination: string
+  destination: string,
 }> { }
 
 export interface LogicalOperator extends Readonly<{
@@ -17,6 +20,11 @@ export interface LogicalOperator extends Readonly<{
   [uniqueAttributes: string]: string | number | boolean | object
 }> { }
 
+export interface BreakpointInfo extends Readonly<{
+  operatorID: string,
+  breakpoint: BreakpointRequest
+}> {}
+
 /**
  * LogicalPlan is the backend interface equivalent of frontend interface WorkflowGraph,
  *  they represent the same thing - the backend term currently used is LogicalPlan.
@@ -24,7 +32,8 @@ export interface LogicalOperator extends Readonly<{
  */
 export interface LogicalPlan extends Readonly<{
   operators: LogicalOperator[],
-  links: LogicalLink[]
+  links: LogicalLink[],
+  breakpoints: BreakpointInfo[]
 }> { }
 
 /**
@@ -32,7 +41,7 @@ export interface LogicalPlan extends Readonly<{
  */
 export interface ResultObject extends Readonly<{
   operatorID: string,
-  table: ReadonlyArray<object>,
+  table: ReadonlyArray<object | string[]>,
   chartType: string | undefined
 }> {
 
@@ -63,47 +72,51 @@ export interface ErrorExecutionResult extends Readonly< {
  */
 export type ExecutionResult = SuccessExecutionResult | ErrorExecutionResult;
 
-/**
- * interface for processStatus recieved from the backend via websocket
- *    code: 0 for success and 1 for error
- *    message: special message 'Process Complete' to indicate the last status of a series
- *    operatorStates: a dictionary with operator id as key and operator current state as value
- *    operatorStatistics: a dictionary with operator id as key and operator current statistics as value
- */
-export interface SuccessProcessStatus extends Readonly< {
-  code: 0
-  message: string
-  operatorStates: Readonly< {
-    [key: string]: OperatorStates
-  }>
-  operatorStatistics: Readonly< {
-    [key: string]: Statistics
-  }>
-}> {}
-
- export interface ErrorProcessStatus extends Readonly< {
-  code: 1
-  message: string
-}> {}
-
- export type ProcessStatus = SuccessProcessStatus | ErrorProcessStatus;
-
- export enum OperatorStates {
-  Initializing,
-  Ready,
-  Running,
-  Pausing,
-  Paused,
-  Completed
+export enum OperatorState {
+  Uninitialized = 'Uninitialized',
+  Initializing = 'Initializing',
+  Ready = 'Ready',
+  Running = 'Running',
+  Pausing = 'Pausing',
+  CollectingBreakpoints = 'CollectingBreakpoints',
+  Paused = 'Paused',
+  Resuming = 'Resuming',
+  Completed = 'Completed',
+  Recovering = 'Recovering',
 }
 
-/**
- * inputCount: the number of tuples received by a operator
- * outputCount: the number of tuples outputed by a operator
- * speed: number of tuples outputed by a operator per millisecond
- */
-export interface Statistics {
-  inputCount: number;
-  outputCount: number;
-  speed: number;
+export interface OperatorStatistics extends Readonly<{
+  operatorState: OperatorState,
+  aggregatedInputRowCount: number,
+  aggregatedOutputRowCount: number
+}> {}
+
+export interface WorkflowStatusUpdate extends Readonly<{
+  operatorStatistics: Record<string, OperatorStatistics>
+}> {}
+
+export enum ExecutionState {
+  Uninitialized = 'Uninitialized',
+  WaitingToRun = 'WaitingToRun',
+  Running = 'Running',
+  Pausing = 'Pausing',
+  Paused = 'Paused',
+  Resuming = 'Resuming',
+  Recovering = 'Recovering',
+  BreakpointTriggered = 'BreakpointTriggered',
+  Completed = 'Completed',
+  Failed = 'Failed'
 }
+
+export type ExecutionStateInfo = Readonly<{
+  state: ExecutionState.Uninitialized | ExecutionState.WaitingToRun | ExecutionState.Running
+  | ExecutionState.Pausing | ExecutionState.Resuming | ExecutionState.Recovering
+} | {
+  state: ExecutionState.Paused, currentTuples: Readonly<Record<string, OperatorCurrentTuples>>
+} | {
+  state: ExecutionState.BreakpointTriggered, breakpoint: BreakpointTriggerInfo
+} | {
+  state: ExecutionState.Completed, resultID: string | undefined, resultMap: ReadonlyMap<string, ResultObject>
+} | {
+  state: ExecutionState.Failed, errorMessages: Readonly<Record<string, string>>
+}>;

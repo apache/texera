@@ -44,15 +44,23 @@
               </span>
           </button>
           <button mat-raised-button class="texera-navigation-run-button texera-navigation-run-text"
+          *ngIf="executionState != ExecutionState.Uninitialized && executionState != ExecutionState.Completed"
+          [ngStyle]="{'background-color': '#cc3300'}"
+          (click)="this.handleKill()" >
+            <span>
+                {{ 'kill' }}
+            </span>
+          </button>
+          <button mat-raised-button class="texera-navigation-run-button texera-navigation-run-text"
             [disabled]="!isWorkflowValid"
-            [ngStyle]="{'background-color': '#5081f3','opacity' : !isWorkflowValid ? '' : '0.7'}"
-            (click)="onButtonClick()" >
+            [ngStyle]="{'background-color': '#5081f3','opacity' : isWorkflowValid ? '' : '0.7'}"
+            (click)="this.onClickHandler()" >
               <span>
-                <i *ngIf="!runSpinner()" id="texera-run-icon" class="fa fa-play" aria-hidden="true"></i>
-                <i *ngIf="runSpinner()" id="texera-pause-icon" class="fa fa-spinner fa-spin" aria-hidden="true"></i>
+                <i *ngIf="!showSpinner" id="texera-run-icon" class="fa fa-play" aria-hidden="true"></i>
+                <i *ngIf="showSpinner" id="texera-pause-icon" class="fa fa-spinner fa-spin" aria-hidden="true"></i>
               </span>
               <span>
-                  {{ getRunButtonText()}}
+                  {{ buttonText }}
               </span>
           </button>
 

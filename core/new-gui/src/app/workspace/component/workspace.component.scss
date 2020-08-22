@@ -36,10 +36,10 @@
   display: grid;
   grid-template-columns: 14% 70% 16%;
   grid-template-rows: $header-height
-                      calc((100% - #{$header-height} - #{$resultbar-height}) * 0.75)
+                      calc((100% - #{$header-height} - #{$resultbar-height}) * 0.65)
                       0px
                       $resultbar-height
-                      calc((100% - #{$header-height} - #{$resultbar-height}) * 0.25);
+                      calc((100% - #{$header-height} - #{$resultbar-height}) * 0.35);
   position: relative;
 }
 
@@ -55,8 +55,8 @@
   display: grid;
   grid-template-columns: 14% 70% 16%;
   grid-template-rows: $header-height
-                      calc((100% - #{$header-height} - #{$resultbar-height}) * 0.75)
-                      calc((100% - #{$header-height} - #{$resultbar-height}) * 0.25)
+                      calc((100% - #{$header-height} - #{$resultbar-height}) * 0.65)
+                      calc((100% - #{$header-height} - #{$resultbar-height}) * 0.35)
                       $resultbar-height
                       0px;
   position: relative;
@@ -98,7 +98,7 @@
   grid-column-start: 3;
   grid-column-end: 4;
   grid-row-start: 2;
-  grid-row-end: 3;
+  grid-row-end: 5;
   overflow: auto;
 }
 

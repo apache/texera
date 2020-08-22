@@ -49,13 +49,13 @@ export class WorkflowUtilService {
    * @returns a new OperatorPredicate of the operatorType
    */
   public getNewOperatorPredicate(operatorType: string): OperatorPredicate {
-    const operatorID = this.getRandomUUID();
-    const operatorProperties = {};
-
     const operatorSchema = this.operatorSchemaList.find(schema => schema.operatorType === operatorType);
     if (operatorSchema === undefined) {
       throw new Error(`operatorType ${operatorType} doesn't exist in operator metadata`);
     }
+
+    const operatorID = operatorSchema.operatorType + '-' + this.getRandomUUID();
+    const operatorProperties = {};
 
     // Remove the ID field for the schema to prevent warning messages from Ajv
     const { ...schemaWithoutID} = operatorSchema.jsonSchema;

@@ -32,6 +32,6 @@ script:
   - mvn clean install --batch-mode
   - cd new-gui
   - ng build --prod --progress=false
-  - ng test --browsers ChromeHeadless --watch=false
-  - ng e2e
+  # - ng test --browsers ChromeHeadless --watch=false
+  # - ng e2e
   

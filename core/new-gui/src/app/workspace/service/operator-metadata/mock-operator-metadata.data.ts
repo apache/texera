@@ -1,5 +1,6 @@
 import { JSONSchema7 } from 'json-schema';
 import { OperatorSchema, OperatorMetadata, GroupInfo } from '../../types/operator-schema.interface';
+import { BreakpointSchema } from '../../types/workflow-common.interface';
 
 
 // Exports constants related to operator schema and operator metadata for testing purposes.
@@ -225,5 +226,38 @@ export const testJsonSchema: JSONSchema7 = {
     'resultAttribute'
   ],
   type: 'object'
+};
+
+export const mockBreakpointSchema: BreakpointSchema = {
+  jsonSchema: {
+    type: 'object',
+    oneOf: [
+      {
+        title: 'condition',
+        properties: {
+          column: {
+            type: 'string'
+          },
+          condition: {
+            type: 'string',
+            enum: ['contains', 'does not contain', '=', '>', '>=', '<', '<=', '!=', ]
+          },
+          value: {
+            type: 'string'
+          },
+        },
+        required: ['column', 'condition', 'value']
+      },
+      {
+        title: 'count',
+        properties: {
+          count: {
+            type: 'integer'
+          },
+        },
+        required: ['count']
+      },
+    ]
+  }
 };
 

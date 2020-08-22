@@ -1,4 +1,4 @@
-import { Point, OperatorPredicate, OperatorLink } from './../../../types/workflow-common.interface';
+import { Point, OperatorPredicate, OperatorLink, Breakpoint } from './../../../types/workflow-common.interface';
 
 /**
  * Provides mock data related operators and links:

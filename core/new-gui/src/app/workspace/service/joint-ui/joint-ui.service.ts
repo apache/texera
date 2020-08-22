@@ -4,9 +4,17 @@ import { OperatorSchema } from '../../types/operator-schema.interface';
 
 import * as joint from 'jointjs';
 import { Point, OperatorPredicate, OperatorLink } from '../../types/workflow-common.interface';
-import { OperatorStates } from '../../types/execute-workflow.interface';
-import { Statistics } from '../../types/execute-workflow.interface';
+import { OperatorState, OperatorStatistics } from '../../types/execute-workflow.interface';
 
+/**
+ * Defines the SVG element for the breakpoint button
+ */
+export const breakpointButtonSVG =
+  `<svg class="breakpoint-button" height = "24" width = "24">
+    <path d="M0 0h24v24H0z" fill="none" /> +
+    <polygon points="8,2 16,2 22,8 22,16 16,22 8,22 2,16 2,8" fill="red" />
+  </svg>
+  <title>Add Breakpoint.</title>`;
 /**
  * Defines the SVG path for the delete button
  */
@@ -33,6 +41,13 @@ export const sourceOperatorHandle = 'M 0 0 L 0 8 L 8 8 L 8 0 z';
  */
 export const targetOperatorHandle = 'M 12 0 L 0 6 L 12 12 z';
 
+export const operatorStateClass = 'texera-operator-state';
+
+export const operatorProcessedCountClass = 'texera-operator-processed-count';
+export const operatorOutputCountClass = 'texera-operator-output-count';
+
+export const operatorNameClass = 'texera-operator-name';
+
 /**
  * Extends a basic Joint operator element and adds our own HTML markup.
  * Our own HTML markup includes the SVG element for the delete button,
@@ -41,25 +56,27 @@ export const targetOperatorHandle = 'M 12 0 L 0 6 L 12 12 z';
 class TexeraCustomJointElement extends joint.shapes.devs.Model {
   markup =
     `<g class="element-node">
-      <text id="operatorStates"></text>
       <rect class="body"></rect>
       ${deleteButtonSVG}
       <image></image>
-      <text id="operatorName"></text>
+      <text class="${operatorNameClass}"></text>
+      <text class="${operatorProcessedCountClass}"></text>
+      <text class="${operatorOutputCountClass}"></text>
+      <text class="${operatorStateClass}"></text>
     </g>`;
 }
 
-// /**
-//  * Extends a basic Joint operator element and adds our own HTML markup.
-//  */
-class TexeraCustomOperatorStatusTooltipElement extends joint.shapes.devs.Model {
-  markup =
-  `<g class="element-node">
-    <polygon class="body"></polygon>
-    <text id = "operatorCount"></text>
-    <text id = "operatorSpeed"></text>
-  </g>`;
-}
+// // /**
+// //  * Extends a basic Joint operator element and adds our own HTML markup.
+// //  */
+// class TexeraCustomOperatorStatusTooltipElement extends joint.shapes.devs.Model {
+//   markup =
+//   `<g class="element-node">
+//     <polygon class="body"></polygon>
+//     <text class = "operatorCount"></text>
+//   </g>`;
+// }
+
 /**
  * JointUIService controls the shape of an operator and a link
  *  when they is displayed by JointJS.
@@ -152,67 +169,33 @@ export class JointUIService {
     return operatorElement;
   }
 
-  /**
-   * Gets the JointJS UI element object for a operator statistics popup window
-   * @param operator the predicate of the base operator
-   * @param point the position of the tooltip
-   */
-  public getJointOperatorStatusTooltipElement(
-    operator: OperatorPredicate, point: Point
-  ): joint.dia.Element {
-      // check if the operatorType exists in the operator metadata
-    const operatorSchema = this.operators.find(op => op.operatorType === operator.operatorType);
-    if (operatorSchema === undefined) {
-      throw new Error(`operator type ${operator.operatorType} doesn't exist`);
+  public changeOperatorStatistics(jointPaper: joint.dia.Paper, operatorID: string, statistics: OperatorStatistics): void {
+    this.changeOperatorState(jointPaper, operatorID, statistics.operatorState);
+
+    const processedText = 'Processed: ' + statistics.aggregatedInputRowCount.toLocaleString();
+    const outputText =    'Output:    ' + statistics.aggregatedOutputRowCount.toLocaleString();
+    jointPaper.getModelById(operatorID).attr(`.${operatorProcessedCountClass}/text`, processedText);
+    jointPaper.getModelById(operatorID).attr(`.${operatorOutputCountClass}/text`, outputText);
+
+  }
+
+  public changeOperatorState(jointPaper: joint.dia.Paper, operatorID: string, operatorState: OperatorState): void {
+    let fillColor: string;
+    switch (operatorState) {
+      case OperatorState.Completed:
+        fillColor = 'green';
+        break;
+      case OperatorState.Pausing:
+      case OperatorState.Paused:
+        fillColor = 'red';
+        break;
+      default:
+        fillColor = 'orange';
+        break;
     }
-    // set the tooltip point to set the default position relative to the operator
-    const tooltipPoint = {x: point.x - JointUIService.DEFAULT_OPERATOR_WIDTH / 2 - 10,
-       y: point.y - JointUIService.DEFAULT_OPERATOR_HEIGHT};
 
-    const toolTipElement = new TexeraCustomOperatorStatusTooltipElement({
-      position: tooltipPoint,
-      size: {width: JointUIService.DEFAULT_TOOLTIP_WIDTH, height: JointUIService.DEFAULT_TOOLTIP_HEIGHT},
-      attrs: JointUIService.getCustomOperatorStatusTooltipStyleAttrs()
-    });
-
-    toolTipElement.set('id', JointUIService.getOperatorStatusTooltipElementID(operator.operatorID));
-    return toolTipElement;
-  }
-
-  // remove attr 'display: none' to show a tooltip
-  public showOperatorStatusToolTip(jointPaper: joint.dia.Paper, tooltipID: string): void {
-    jointPaper.getModelById(tooltipID).removeAttr('polygon/display');
-    jointPaper.getModelById(tooltipID).removeAttr('#operatorCount/display');
-    jointPaper.getModelById(tooltipID).removeAttr('#operatorSpeed/display');
-  }
-  // add attr 'display: none' to hide a tooltip
-  public hideOperatorStatusToolTip(jointPaper: joint.dia.Paper, tooltipID: string): void {
-    jointPaper.getModelById(tooltipID).attr('polygon/display', 'none');
-    jointPaper.getModelById(tooltipID).attr('#operatorCount/display', 'none');
-    jointPaper.getModelById(tooltipID).attr('#operatorSpeed/display', 'none');
-  }
-  // change content of tooltip
-  public changeOperatorStatusTooltipInfo(jointPaper: joint.dia.Paper, tooltipID: string, stats: Statistics) {
-    jointPaper.getModelById(tooltipID).attr('#operatorCount/text', 'Output:' + stats.outputCount + ' tuples');
-    jointPaper.getModelById(tooltipID).attr('#operatorSpeed/text', 'Speed:' + stats.speed + ' tuples/s');
-  }
-  // change operator state name and color
-  public changeOperatorStates(jointPaper: joint.dia.Paper, operatorID: string, status: OperatorStates): void {
-      jointPaper.getModelById(operatorID).attr('#operatorStates/text', OperatorStates[status]);
-      switch (status) {
-        case OperatorStates.Completed: {
-          jointPaper.getModelById(operatorID).attr('#operatorStates/fill', 'green');
-          break;
-        }
-        case OperatorStates.Pausing:
-        case OperatorStates.Paused: {
-          jointPaper.getModelById(operatorID).attr('#operatorStates/fill', 'red');
-          break;
-        }
-        default: {
-          jointPaper.getModelById(operatorID).attr('#operatorStates/fill', 'orange');
-        }
-      }
+    jointPaper.getModelById(operatorID).attr(`.${operatorStateClass}/text`, operatorState.toString());
+    jointPaper.getModelById(operatorID).attr(`.${operatorStateClass}/fill`, fillColor);
   }
 
   /**
@@ -232,11 +215,40 @@ export class JointUIService {
     }
   }
 
-  /**
-   * Gets the ID of the JointJS operator status tooltip element corresponding to an operator.
-   */
-  public static getOperatorStatusTooltipElementID(operatorID: string): string {
-    return 'tooltip-' + operatorID;
+  public getBreakpointButton(): (new () => joint.linkTools.Button) {
+    return joint.linkTools.Button.extend({
+      name: 'info-button',
+      options: {
+        markup: [{
+          tagName: 'circle',
+          selector: 'info-button',
+          attributes: {
+            'r': 10,
+            'fill': '#001DFF',
+            'cursor': 'pointer',
+          }
+        }, {
+          tagName: 'path',
+          selector: 'icon',
+          attributes: {
+            'd': 'M -2 4 2 4 M 0 3 0 0 M -2 -1 1 -1 M -1 -4 1 -4',
+            'fill': 'none',
+            'stroke': '#FFFFFF',
+            'stroke-width': 2,
+            'pointer-events': 'none'
+          }
+        },
+        ],
+        distance: 60,
+        offset: 0,
+        action: function (event: JQuery.Event, linkView: joint.dia.LinkView) {
+          // when this button is clicked, it triggers an joint paper event
+          if (linkView.paper) {
+            linkView.paper.trigger('tool:breakpoint', linkView, event);
+          }
+        }
+      }
+    });
   }
 
   /**
@@ -291,11 +303,12 @@ export class JointUIService {
             10.415 21.949,7.585 16.447,13.087 10.945,7.585 8.117,10.415 13.618,15.917 8.116,21.419
             10.946,24.248 16.447,18.746 21.948,24.248z"/>
             <title>Remove link.</title>
-            </g>
-          </g>`,
+           </g>
+         </g>`,
       attrs: {
         '.connection-wrap': {
-          'stroke-width': 0
+          'stroke-width': 0,
+          // 'display': 'inline'
         },
         '.marker-source': {
           d: sourceOperatorHandle,
@@ -315,13 +328,14 @@ export class JointUIService {
         },
         '.tool-remove': {
           fill: '#D8656A',
-          width: 24
+          width: 24,
+          display: 'none'
         },
         '.tool-remove path': {
           d: deleteButtonPath,
         },
         '.tool-remove circle': {
-        }
+        },
       }
     });
     return link;
@@ -354,13 +368,13 @@ export class JointUIService {
   public static getCustomOperatorStatusTooltipStyleAttrs(): joint.shapes.devs.ModelSelectors {
     const tooltipStyleAttrs = {
       'element-node': {
-        style: {'pointer-events': 'none'}
+        style: { 'pointer-events': 'none' }
       },
       'polygon': {
         fill: '#FFFFFF', 'follow-scale': true, stroke: 'purple', 'stroke-width': '2',
         rx: '5px', ry: '5px', refPoints: '0,30 150,30 150,120 85,120 75,150 65,120 0,120',
         display: 'none',
-        style: {'pointer-events': 'none'}
+        style: { 'pointer-events': 'none' }
       },
       '#operatorCount': {
         fill: '#595959', 'font-size': '12px', ref: 'polygon',
@@ -368,16 +382,7 @@ export class JointUIService {
         'x-alignment': 'left',
         'ref-x': .05, 'ref-y': .2,
         display: 'none',
-        style: {'pointer-events': 'none'}
-      },
-      '#operatorSpeed': {
-        fill: '#595959',
-        ref: 'polygon',
-        'x-alignment': 'left',
-        'font-size': '12px',
-        'ref-x': .05, 'ref-y': .5,
-        display: 'none',
-        style: {'pointer-events': 'none'}
+        style: { 'pointer-events': 'none' }
       },
     };
     return tooltipStyleAttrs;
@@ -393,15 +398,23 @@ export class JointUIService {
   public static getCustomOperatorStyleAttrs(operatorDisplayName: string,
     operatorType: string): joint.shapes.devs.ModelSelectors {
     const operatorStyleAttrs = {
-      '#operatorStates': {
-        text:  'Ready' , fill: 'green', 'font-size': '14px', 'visible' : false,
-        'ref-x': 0.5, 'ref-y': -10, ref: 'rect', 'y-alignment': 'middle', 'x-alignment': 'middle'
+      '.texera-operator-state': {
+        text: '', 'font-size': '14px', 'visible': true,
+        'ref-x': 0.5, 'ref-y': 100, ref: 'rect', 'y-alignment': 'middle', 'x-alignment': 'middle'
+      },
+      '.texera-operator-processed-count': {
+        text: '', fill: 'green', 'font-size': '14px', 'visible': true,
+        'ref-x': 0.5, 'ref-y': -40, ref: 'rect', 'y-alignment': 'middle', 'x-alignment': 'middle'
+      },
+      '.texera-operator-output-count': {
+        text: '', fill: 'green', 'font-size': '14px', 'visible': true,
+        'ref-x': 0.5, 'ref-y': -20, ref: 'rect', 'y-alignment': 'middle', 'x-alignment': 'middle'
       },
       'rect': {
         fill: '#FFFFFF', 'follow-scale': true, stroke: 'red', 'stroke-width': '2',
         rx: '5px', ry: '5px'
       },
-      '#operatorName': {
+      '.texera-operator-name': {
         text: operatorDisplayName, fill: '#595959', 'font-size': '14px',
         'ref-x': 0.5, 'ref-y': 80, ref: 'rect', 'y-alignment': 'middle', 'x-alignment': 'middle'
       },
@@ -421,7 +434,4 @@ export class JointUIService {
     };
     return operatorStyleAttrs;
   }
-
-
-
 }

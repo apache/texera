@@ -13,12 +13,12 @@ import * as jQuery from 'jquery';
 import * as joint from 'jointjs';
 
 import { ResultPanelToggleService } from '../../service/result-panel-toggle/result-panel-toggle.service';
-import { Point, OperatorPredicate } from '../../types/workflow-common.interface';
+import { Point, OperatorPredicate, OperatorLink } from '../../types/workflow-common.interface';
 import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-graph-wrapper';
 import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
-import { SuccessProcessStatus } from '../../types/execute-workflow.interface';
-import { OperatorStates } from '../../types/execute-workflow.interface';
 import { environment } from './../../../../environments/environment';
+import { ExecuteWorkflowService } from '../../service/execute-workflow/execute-workflow.service';
+import { ExecutionState, OperatorStatistics, OperatorState } from '../../types/execute-workflow.interface';
 
 
 // argument type of callback event on a JointJS Paper
@@ -42,6 +42,12 @@ type CopiedOperator = {
   layer: number,
   pastedOperators: string[]
 };
+
+// jointjs interactive options for enabling and disabling interactivity
+// https://resources.jointjs.com/docs/jointjs/v3.2/joint.html#dia.Paper.prototype.options.interactive
+const defaultInteractiveOption = { vertexAdd: false, labelMove: false };
+const disableInteractiveOption = {
+  linkMove: false, labelMove: false, arrowheadMove: false, vertexMove: false, vertexAdd: false, vertexRemove: false };
 
 /**
  * WorkflowEditorComponent is the componenet for the main workflow editor part of the UI.
@@ -70,11 +76,11 @@ export class WorkflowEditorComponent implements AfterViewInit {
   public readonly COPY_OPERATOR_OFFSET = 20;
 
   private paper: joint.dia.Paper | undefined;
+  private interactive: boolean = true;
 
   private ifMouseDown: boolean = false;
   private mouseDown: Point | undefined;
   private panOffset: Point = { x : 0 , y : 0};
-  private operatorStatusTooltipDisplayEnabled: boolean = false;
 
   // dictionary of {operatorID, CopiedOperator} pairs
   private copiedOperators: Record<string, CopiedOperator> = {};
@@ -88,7 +94,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
     private validationWorkflowService: ValidationWorkflowService,
     private jointUIService: JointUIService,
     private workflowStatusService: WorkflowStatusService,
-    private workflowUtilService: WorkflowUtilService
+    private workflowUtilService: WorkflowUtilService,
+    private executeWorkflowService: ExecuteWorkflowService
   ) {
 
     // bind validation functions to the same scope as component
@@ -108,6 +115,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
   ngAfterViewInit() {
 
     this.initializeJointPaper();
+    this.handleDisableJointPaperInteractiveness();
     this.handleOperatorValidation();
     this.handlePaperRestoreDefaultOffset();
     this.handlePaperZoom();
@@ -118,10 +126,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.handlePaperPan();
 
     if (environment.executionStatusEnabled) {
-      this.handleOperatorStatesChange();
       this.handleOperatorStatisticsUpdate();
-      this.handleOperatorStatusTooltipShow();
-      this.handleOperatorStatusTooltipHidden();
     }
 
     this.handlePaperMouseZoom();
@@ -133,6 +138,11 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.handleOperatorCopy();
     this.handleOperatorCut();
     this.handleOperatorPaste();
+
+    this.handleLinkCursorHover();
+    if (environment.linkBreakpointEnabled) {
+      this.handleLinkBreakpoint();
+    }
   }
 
 
@@ -150,41 +160,16 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.setJointPaperDimensions();
   }
 
-  /**
-   * this method listens to user move cursor into an element
-   * if operatorStatusTooltipDisplayEnabled is true and
-   * if the element is an operator in texeraGraph
-   * its popup window will be shown.
-   */
-  private handleOperatorStatusTooltipShow(): void {
-    Observable.fromEvent<MouseEvent>(this.getJointPaper(), 'element:mouseenter')
-    .subscribe(
-      event => {
-        const operatorID = (event as any)[0]['model']['id'];
-        if (this.operatorStatusTooltipDisplayEnabled) {
-          if (this.workflowActionService.getTexeraGraph().getOperator(operatorID) !== undefined) {
-            const operatorStatusTooltipID = JointUIService.getOperatorStatusTooltipElementID(operatorID);
-            this.jointUIService.showOperatorStatusToolTip(this.getJointPaper(), operatorStatusTooltipID);
-          }
-        }
+  private handleDisableJointPaperInteractiveness(): void {
+    this.executeWorkflowService.getExecutionStateStream().subscribe(event => {
+      if (event.current.state === ExecutionState.Completed || event.current.state === ExecutionState.Failed) {
+        this.interactive = true;
+        this.getJointPaper().setInteractivity(defaultInteractiveOption);
+      } else {
+        this.interactive = false;
+        this.getJointPaper().setInteractivity(disableInteractiveOption);
       }
-    );
-  }
-
-  /**
-   * this method listens to user move cursor out of an element
-   * if the element is an operator in texeraGraph
-   * its tooltip will be hiden.
-   */
-  private handleOperatorStatusTooltipHidden(): void {
-    Observable.fromEvent<MouseEvent>(this.getJointPaper(), 'element:mouseleave').subscribe(
-      event => {
-        const operatorID = (event as any)[0]['model']['id'];
-        if (this.workflowActionService.getTexeraGraph().getOperator(operatorID) !== undefined) {
-          this.jointUIService.hideOperatorStatusToolTip(this.getJointPaper(), JointUIService.getOperatorStatusTooltipElementID(operatorID));
-        }
-      }
-    );
+    });
   }
 
   /**
@@ -198,57 +183,39 @@ export class WorkflowEditorComponent implements AfterViewInit {
    *          the specific tooltip content will be updated
    */
   private handleOperatorStatisticsUpdate(): void {
-    this.workflowStatusService.getStatusInformationStream().subscribe(
-      status => {
-      this.operatorStatusTooltipDisplayEnabled = true;
-      this.workflowActionService.getTexeraGraph().getAllOperators().forEach(
-        operator => {
-            const operatorStatusTooltipID = JointUIService.getOperatorStatusTooltipElementID(operator.operatorID);
-            const opStatus = status.operatorStatistics[operator.operatorID.slice(9)];
-            if (! opStatus) {
-              throw Error('operator statistics do not exist for operator ' + operator);
-            }
-            this.jointUIService.changeOperatorStatusTooltipInfo(
-              this.getJointPaper(), operatorStatusTooltipID, opStatus
-            );
-        });
+    this.workflowStatusService.getStatusUpdateStream().subscribe(status => {
+      Object.keys(status).forEach(operatorID => {
+        if (! this.workflowActionService.getTexeraGraph().hasOperator(operatorID)) {
+          throw new Error(`operator ${operatorID} does not exist`);
+        }
+        if (this.executeWorkflowService.getExecutionState().state === ExecutionState.Recovering) {
+          status[operatorID] = {
+            ... status[operatorID],
+            operatorState: OperatorState.Recovering,
+          };
+        }
+        this.jointUIService.changeOperatorStatistics(this.getJointPaper(), operatorID, status[operatorID]);
+      });
     });
-  }
-
-  /**
-   * This method subscribe to workflowStatusService's status stream
-   * for Each processStatus that has been emited
-   * if it is the final status of a series of statuses, indicated by a message "Process Completed"
-   *    - change all operator's states to completed
-   * if otherwise:
-   *    for each operator in texeraGraph:
-   *      find its states in processStatus, throw an error if not found
-   *      pass state and id to jointUIService
-   */
-  private handleOperatorStatesChange(): void {
-    this.workflowStatusService.getStatusInformationStream().subscribe(
-      status => {
-      if (status.message === 'Process Completed') {
-        this.workflowActionService.getTexeraGraph().getAllOperators().forEach(operator => {
-          // if the operator is not completed the whole process
-          this.jointUIService.changeOperatorStates(
-            this.getJointPaper(), operator.operatorID, OperatorStates.Completed
-          );
-        });
-      } else {
-        this.workflowActionService.getTexeraGraph().getAllOperators().forEach(operator => {
-          // if the operator is not completed the whole process
-          const statusIndex = status.operatorStates[operator.operatorID.slice(9)];
-          if (!statusIndex) {
-            throw Error('operator status do not exist for operator ' + operator);
-          }
-          this.jointUIService.changeOperatorStates(
-            this.getJointPaper(), operator.operatorID, statusIndex
-          );
+    this.executeWorkflowService.getExecutionStateStream().subscribe(event => {
+      if (event.previous.state === ExecutionState.Recovering) {
+        let operatorState: OperatorState;
+        if (event.current.state === ExecutionState.Paused) {
+          operatorState = OperatorState.Paused;
+        } else if (event.current.state === ExecutionState.Completed) {
+          operatorState = OperatorState.Completed;
+        } else if (event.current.state === ExecutionState.Running) {
+          operatorState = OperatorState.Running;
+        } else {
+          throw new Error('unknown state transition from recovering state: ' + event.current.state);
+        }
+        this.workflowActionService.getTexeraGraph().getAllOperators().forEach(op => {
+          this.jointUIService.changeOperatorState(this.getJointPaper(), op.operatorID, operatorState);
         });
       }
     });
   }
+
   /**
    * Handles restore offset default event by translating jointJS paper
    *  back to original position
@@ -514,6 +481,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
     // bind the delete button event to call the delete operator function in joint model action
     Observable
       .fromEvent<JointPaperEvent>(this.getJointPaper(), 'element:delete')
+      .filter(value => this.interactive)
       .map(value => value[0])
       .subscribe(
         elementView => {
@@ -534,6 +502,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
   private handleViewDeleteLink(): void {
     Observable
       .fromEvent<JointPaperEvent>(this.getJointPaper(), 'tool:remove')
+      .filter(value => this.interactive)
       .map(value => value[0])
       .subscribe(elementView => {
         this.workflowActionService.deleteLinkWithID(elementView.model.id.toString());
@@ -595,7 +564,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
       // marks all the available magnets or elements when a link is dragged
       markAvailable: true,
       // disable jointjs default action of adding vertexes to the link
-      interactive: { vertexAdd: false },
+      interactive: defaultInteractiveOption,
       // set a default link element used by jointjs when user creates a link on UI
       defaultLink: JointUIService.getDefaultLinkCell(),
       // disable jointjs default action that stops propagate click events on jointjs paper
@@ -663,6 +632,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
    */
   private handleOperatorDelete() {
     Observable.fromEvent<KeyboardEvent>(document, 'keydown')
+      .filter(event => this.interactive)
       .filter(event => (<HTMLElement> event.target).nodeName !== 'INPUT')
       .filter(event => (<HTMLElement> event.target).nodeName !== 'TEXTAREA')
       .filter(event => event.key === 'Backspace' || event.key === 'Delete')
@@ -713,6 +683,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
    */
   private handleOperatorCut() {
     Observable.fromEvent<ClipboardEvent>(document, 'cut')
+      .filter(event => this.interactive)
       .filter(event => (<HTMLElement> event.target).nodeName !== 'INPUT')
       .subscribe(() => {
         const currentOperatorIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
@@ -748,6 +719,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
    */
   private handleOperatorPaste() {
     Observable.fromEvent<ClipboardEvent>(document, 'paste')
+      .filter(event => this.interactive)
       .filter(event => (<HTMLElement> event.target).nodeName !== 'INPUT')
       .subscribe(() => {
         if (Object.keys(this.copiedOperators).length > 0) {
@@ -832,5 +804,147 @@ export class WorkflowEditorComponent implements AfterViewInit {
       }
     } while (overlapped);
     return position;
+  }
+
+  /**
+   * handle the events of the cursor enter/leave a jointJS link cell
+   *
+   * Originally, such "hover -> appear" feature came as a default setting with JointJS library
+   * However, in order to achieve conditional disappearance for the breakpoint button,
+   * every interaction between the cursor and the link tools, including the delete button,
+   * need to be handled manually
+   */
+  private handleLinkCursorHover(): void {
+    // When the cursor hovers over a link, the delete button and the breakpoint button appear
+    Observable
+      .fromEvent<JointPaperEvent>(this.getJointPaper(), 'link:mouseenter')
+      .map(value => value[0])
+      .subscribe(
+        elementView => {
+          if (environment.linkBreakpointEnabled) {
+            this.getJointPaper().getModelById(elementView.model.id).attr({
+              '.tool-remove': { display: 'block'},
+            });
+            this.getJointPaper().getModelById(elementView.model.id).findView(this.getJointPaper()).showTools();
+          } else {
+            // only display the delete button
+            this.getJointPaper().getModelById(elementView.model.id).attr({
+              '.tool-remove': { display: 'block'},
+            });
+          }
+        }
+    );
+
+    /**
+    * When the cursor leaves a link, the delete button disappears.
+    * If there is no breakpoint present on that link, the breakpoint button also disappears,
+    * otherwise, the breakpoint button is not changed.
+    */
+    Observable
+      .fromEvent<JointPaperEvent>(this.getJointPaper(), 'link:mouseleave')
+      .map(value => value[0])
+      .subscribe(
+        elementView => {
+          // ensure that the link element exists
+          if (this.getJointPaper().getModelById(elementView.model.id)) {
+            const LinksWithBreakpoint = this.workflowActionService.getJointGraphWrapper().getLinkIDsWithBreakpoint();
+            if (!LinksWithBreakpoint.includes(elementView.model.id.toString())) {
+              this.getJointPaper().getModelById(elementView.model.id).findView(this.getJointPaper()).hideTools();
+            }
+            this.getJointPaper().getModelById(elementView.model.id).attr({
+              '.tool-remove': { display: 'none'},
+            });
+            }
+        }
+    );
+  }
+
+  /**
+   * handles events/observables related to the breakpoint
+   */
+  private handleLinkBreakpoint(): void {
+    this.handleLinkBreakpointToolAttachment();
+    this.handleLinkBreakpointButtonClick();
+    this.handleLinkBreakpointHighlighEvents();
+    this.handleLinkBreakpointToggleEvents();
+  }
+
+  // when a link is added, append a breakpoint link-tool to its LinkView
+  private handleLinkBreakpointToolAttachment(): void {
+    this.workflowActionService.getJointGraphWrapper().getJointLinkCellAddStream().subscribe(link => {
+
+      const linkView = link.findView(this.getJointPaper());
+      const breakpointButtonTool = this.jointUIService.getBreakpointButton();
+      const breakpointButton = new breakpointButtonTool();
+      const toolsView = new joint.dia.ToolsView({
+        name: 'basic-tools',
+        tools: [breakpointButton]
+      });
+      linkView.addTools(toolsView);
+      // tools remain hidden until the cursor hovers over it or a break point is added
+      linkView.hideTools();
+    });
+  }
+
+  /**
+   * handles the events of the breakpoint button is clicked for a link
+   * and converts that event to a workflow action
+   */
+  private handleLinkBreakpointButtonClick(): void {
+    Observable
+      .fromEvent<JointPaperEvent>(this.getJointPaper(), 'tool:breakpoint', {passive: true})
+      .map(value => value[0])
+      .subscribe(
+        elementView => {
+          this.workflowActionService.getJointGraphWrapper().highlightLink(elementView.model.id.toString());
+        }
+    );
+  }
+
+  /**
+   * Highlight/unhighlight the link according to the observable value recieved.
+   */
+  private handleLinkBreakpointHighlighEvents(): void {
+    this.workflowActionService.getJointGraphWrapper().getLinkHighlightStream()
+      .subscribe(linkID => {
+        const linkView = this.getJointPaper().findViewByModel(linkID.linkID);
+        linkView.highlight('connection');
+        // linkView.highlight() function turns the link to orange
+        // thus also changing the markers on the two ends to match the color.
+        this.getJointPaper().getModelById(linkID.linkID).attr({
+          '.marker-source': { fill: 'orange'},
+          '.marker-target': { fill: 'orange'}
+        });
+      }
+    );
+
+    this.workflowActionService.getJointGraphWrapper().getLinkUnhighlightStream()
+      .subscribe(linkID => {
+        const linkView = this.getJointPaper().findViewByModel(linkID.linkID);
+        linkView.unhighlight('connection');
+        // ensure that the link still exist
+        if (this.getJointPaper().getModelById(linkID.linkID)) {
+          this.getJointPaper().getModelById(linkID.linkID).attr({
+            '.marker-source': { fill: 'none'},
+            '.marker-target': { fill: 'none'}
+          });
+        }
+      }
+    );
+  }
+
+  /**
+   * show/hide the breakpoint button according to the observable value received
+   */
+  private handleLinkBreakpointToggleEvents(): void {
+    this.workflowActionService.getJointGraphWrapper().getLinkBreakpointShowStream()
+      .subscribe(linkID => {
+        this.getJointPaper().getModelById(linkID.linkID).findView(this.getJointPaper()).showTools();
+    });
+
+    this.workflowActionService.getJointGraphWrapper().getLinkBreakpointHideStream()
+      .subscribe(linkID => {
+        this.getJointPaper().getModelById(linkID.linkID).findView(this.getJointPaper()).hideTools();
+    });
   }
 }
