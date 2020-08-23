@@ -39,6 +39,17 @@ public class Utils {
                 .resolve("src/main/resources")
                 .resolve(resourcePath);
     }
+
+    public static Path getPythonResourcePath(String resourcePath) throws StorageException {
+        resourcePath = resourcePath.trim();
+        if (resourcePath.startsWith("/")) {
+            resourcePath = resourcePath.substring(1);
+        }
+        return getTexeraHomePath()
+                .resolve(TexeraProject.TEXERA_DATAFLOW.getProjectName())
+                .resolve("src/main/resources/python_udf")
+                .resolve(resourcePath);
+    }
     
     /**
      * Gets the real path of the texera home directory by:

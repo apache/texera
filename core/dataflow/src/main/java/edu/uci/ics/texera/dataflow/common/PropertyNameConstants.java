@@ -157,6 +157,14 @@ public class PropertyNameConstants {
     public static final String NLTK_BATCH_SIZE = "batchSize";
     public static final String NLTK_MODEL = "inputAttributeModel";
 
+    // related to Apache Arrow
     public static final String ARROW_CHUNK_SIZE = "arrowBatchSize";
 
+    // related to Python UDF
+    public static final String PYTHON_UDF_SCRIPT_NAME = "File name of the Python script";
+    public static final String PYTHON_UDF_BATCH_SIZE = "Batch Size for buffers";
+    public static final String PYTHON_UDF_FILE_NAMES = "Possible Outer File(s)";
+    public static final String PYTHON_UDF_INPUT_COLUMN_NAMES = "Input Column(s)";
+    public static final String PYTHON_UDF_OUTPUT_COLUMN_NAMES = "Possible Output Column(s)";
+    public static final String PYTHON_UDF_OUTPUT_COLUMN_TYPES = "Types Of Output Column(s)";
 }
