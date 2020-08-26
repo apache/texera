@@ -67,3 +67,7 @@ libraryDependencies += "com.google.guava" % "guava" % "29.0-jre"
 libraryDependencies += "org.tukaani" % "xz" % "1.5"
 
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.8" % Test
+
+libraryDependencies += "org.apache.arrow" % "flight-core" % "1.0.1"
+libraryDependencies += "org.apache.arrow" % "flight-grpc" % "1.0.1"
+libraryDependencies += "io.netty" % "netty-all" % "4.1.48.Final"
