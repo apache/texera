@@ -50,7 +50,7 @@ public class TexeraPythonUDF extends TexeraOperator {
         return new TexeraOperatorDescription(
                 "Python UDF",
                 "User-defined function operator in Python script",
-                OperatorGroupConstants.ANALYTICS_GROUP(),
+                OperatorGroupConstants.UDF_GROUP(),
                 1, 1);
     }
 }

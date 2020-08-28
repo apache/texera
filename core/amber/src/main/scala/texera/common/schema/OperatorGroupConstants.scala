@@ -11,6 +11,7 @@ object OperatorGroupConstants {
   final val UTILITY_GROUP = "Utilities"
   final val DATABASE_GROUP = "Database"
   final val RESULT_GROUP = "View Results"
+  final val UDF_GROUP = "User-defined Functions"
 
   /**
     * The order of the groups to show up in the frontend operator panel.
@@ -25,4 +26,5 @@ object OperatorGroupConstants {
   OperatorGroupOrderList.add(GroupOrder(UTILITY_GROUP, 5))
   OperatorGroupOrderList.add(GroupOrder(DATABASE_GROUP, 6))
   OperatorGroupOrderList.add(GroupOrder(RESULT_GROUP, 7))
+  OperatorGroupOrderList.add(GroupOrder(UDF_GROUP, 8))
 }
