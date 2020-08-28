@@ -14,7 +14,7 @@ import texera.operators.filter.TexeraFilter
 import texera.operators.hdfsscan.TexeraHdfsFileScan
 import texera.operators.keyword.TexeraKeywordSearch
 import texera.operators.localscan.TexeraLocalFileScan
-import texera.operators.pythonudf.TexeraPythonUDF
+import texera.operators.pythonUDF.TexeraPythonUDF
 import texera.operators.regex.TexeraRegex
 import texera.operators.sentiment.TexeraSentimentAnalysis
 import texera.operators.sink.TexeraAdhocSink

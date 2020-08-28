@@ -3,7 +3,7 @@ package Engine.Operators.PythonUDF
 import Engine.Common.AmberField.FieldType
 
 object FieldTypeConverter {
-  def convertOne(javaField: FieldTypeInJava): FieldType.Value = javaField match {
+  def convertType(javaField: FieldTypeInJava): FieldType.Value = javaField match {
       case FieldTypeInJava.SHORT      => FieldType.Short
       case FieldTypeInJava.INT        => FieldType.Int
       case FieldTypeInJava.BOOLEAN    => FieldType.Boolean
@@ -18,11 +18,11 @@ object FieldTypeConverter {
       case FieldTypeInJava.OTHER      => FieldType.Other
   }
 
-  def convertList(javaFields: Array[FieldTypeInJava]): Array[FieldType.Value] = {
+  def convertType(javaFields: Array[FieldTypeInJava]): Array[FieldType.Value] = {
     val result = new Array[FieldType.Value](javaFields.length)
     var i = 0
     while (i < javaFields.length) {
-      result(i) = convertOne(javaFields(i))
+      result(i) = convertType(javaFields(i))
       i += 1
     }
     result

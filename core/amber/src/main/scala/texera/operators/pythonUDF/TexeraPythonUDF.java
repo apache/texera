@@ -1,4 +1,4 @@
-package texera.operators.pythonudf;
+package texera.operators.pythonUDF;
 
 import Engine.Common.Constants;
 import Engine.Operators.OperatorMetadata;
