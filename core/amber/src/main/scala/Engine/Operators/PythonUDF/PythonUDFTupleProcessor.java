@@ -331,7 +331,7 @@ public class PythonUDFTupleProcessor implements TupleProcessor {
             }
             tuple = new AmberTuple(
                     amberFields.toArray(new String[0]),
-                    FieldTypeConverter.convertList(amberSchema.toArray(new FieldTypeInJava[0]))
+                    FieldTypeConverter.convertType(amberSchema.toArray(new FieldTypeInJava[0]))
             );
             resultQueue.add(tuple);
         }
@@ -351,19 +351,20 @@ public class PythonUDFTupleProcessor implements TupleProcessor {
             String name = names.get(i);
             Object fieldData = exampleTuple.get(i);
             Field field;
-            if (fieldData.getClass() == Short.class) {
+            if (fieldData.getClass() == Short.class || fieldData.getClass() == scala.Short.class) {
                 field = Field.nullablePrimitive(name, new ArrowType.Int(16, true));
-            } else if (fieldData.getClass() == Integer.class) {
+            } else if (fieldData.getClass() == Integer.class || fieldData.getClass() == scala.Int.class) {
                 field = Field.nullablePrimitive(name, new ArrowType.Int(32, true));
-            } else if (fieldData.getClass() == Boolean.class) {
+            } else if (fieldData.getClass() == Boolean.class || fieldData.getClass() == scala.Boolean.class) {
                 field = Field.nullablePrimitive(name, ArrowType.Bool.INSTANCE);
-            } else if (fieldData.getClass() == Character.class || fieldData.getClass() == Byte.class) {
+            } else if (fieldData.getClass() == Character.class || fieldData.getClass() == Byte.class ||
+                    fieldData.getClass() == scala.Char.class || fieldData.getClass() == scala.Byte.class) {
                 field = Field.nullablePrimitive(name, new ArrowType.Binary());
-            } else if (fieldData.getClass() == Double.class) {
+            } else if (fieldData.getClass() == Double.class || fieldData.getClass() == scala.Double.class) {
                 field = Field.nullablePrimitive(name, new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE));
-            } else if (fieldData.getClass() == Float.class) {
+            } else if (fieldData.getClass() == Float.class || fieldData.getClass() == scala.Float.class) {
                 field = Field.nullablePrimitive(name, new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE));
-            } else if (fieldData.getClass() == Long.class) {
+            } else if (fieldData.getClass() == Long.class || fieldData.getClass() == scala.Long.class) {
                 field = Field.nullablePrimitive(name, new ArrowType.Int(64, true));
             } else {
                 // All treat as String
@@ -426,6 +427,8 @@ public class PythonUDFTupleProcessor implements TupleProcessor {
      * {@link FlightClient#startPut(FlightDescriptor, VectorSchemaRoot, FlightClient.PutListener, CallOption...)} and
      * {@link FlightClient.ClientStreamListener#putNext()}. The server uses {@code do_put()} to receive data stream
      * and convert it into a {@code pyarrow.Table} and store it in the server.
+     * {@code startPut} is a non-blocking call, but this method in general is a blocking call, it waits until all the
+     * data are sent.
      * @param client The FlightClient that manages this.
      * @param values The input queue that holds tuples.
      * @param root Root allocator that manages memory issues in Arrow.
@@ -466,6 +469,8 @@ public class PythonUDFTupleProcessor implements TupleProcessor {
      * For every batch, the operator gets the computed sentiment result by calling
      * {@link FlightClient#getStream(Ticket, CallOption...)}.
      * The reading and conversion process is the same as what it does when using Arrow file.
+     * {@code getStream} is a non-blocking call, but this method is a blocking call because it waits until the stream
+     * is finished.
      * @param client The FlightClient that manages this.
      * @param descriptorPath The predefined path that specifies where to read the data in Flight Serve.
      * @param resultQueue resultQueue To store the results. Must be empty when it is passed here.
@@ -487,7 +492,7 @@ public class PythonUDFTupleProcessor implements TupleProcessor {
 
     /**
      * Make the execution of the UDF in Python and read the results that are passed back. This should only be called
-     * after input data is passed to Python.
+     * after input data is passed to Python. This is a blocking call.
      * @param client The FlightClient that manages this.
      * @param mapper Used to decode the result status message (Json).
      * @param resultQueue To store the results. Must be empty when it is passed here.
@@ -509,7 +514,8 @@ public class PythonUDFTupleProcessor implements TupleProcessor {
     /**
      * Manages the disposal of this operator. When all the batches are finished and the operator disposes, it issues a
      * {@code flightClient.doAction(new Action("shutdown"))} call to shut down the server, and also closes the root
-     * allocator and the client.
+     * allocator and the client. Since all the Flight RPC methods used here are intrinsically blocking calls, this is
+     * also a blocking call.
      * @param client The client to close that is still connected to the Arrow Flight server.
      */
     private static void closeClientAndServer(FlightClient client) {
