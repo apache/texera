@@ -155,7 +155,7 @@ class UDFServer(pyarrow.flight.FlightServerBase):
 						output_data_list.append(self.udf_op.next())
 				output_dataframe = pandas.DataFrame.from_records(output_data_list)
 				# send output data to Java
-				output_key = self.descriptor_to_key(pyarrow.flight.FlightDescriptor.for_path(b'FromPython'))
+				output_key = self.descriptor_to_key(pyarrow.flight.FlightDescriptor.for_path(b'fromPython'))
 				self.flights[output_key] = pyarrow.Table.from_pandas(output_dataframe)
 			except:
 				result_buffer = json.dumps({'status': 'Fail', 'errorMessage': traceback.format_exc()})
