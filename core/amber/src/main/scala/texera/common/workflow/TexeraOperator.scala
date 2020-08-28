@@ -14,7 +14,7 @@ import texera.operators.filter.TexeraFilter
 import texera.operators.hdfsscan.TexeraHdfsFileScan
 import texera.operators.keyword.TexeraKeywordSearch
 import texera.operators.localscan.TexeraLocalFileScan
-import texera.operators.pythonudf.TexeraPythonUDFOperator
+import texera.operators.pythonudf.TexeraPythonUDF
 import texera.operators.regex.TexeraRegex
 import texera.operators.sentiment.TexeraSentimentAnalysis
 import texera.operators.sink.TexeraAdhocSink
@@ -38,7 +38,7 @@ import scala.collection.{JavaConverters, mutable}
     new Type(value = classOf[TexeraFilter], name = "Filter"),
     new Type(value = classOf[TexeraCount], name = "Count"),
     new Type(value = classOf[TexeraSentimentAnalysis], name = "SentimentAnalysis"),
-    new Type(value = classOf[TexeraPythonUDFOperator], name = "PythonUDF"),
+    new Type(value = classOf[TexeraPythonUDF], name = "PythonUDF"),
   )
 )
 abstract class TexeraOperator {
