@@ -23,10 +23,12 @@ import java.util.*;
 
 public class PythonUDFTupleProcessor implements TupleProcessor {
     private String pythonScriptPath;
+    private String pythonScriptText;
     private ArrayList<String> inputColumns;
     private ArrayList<String> outputColumns;
     private ArrayList<String> outerFilePaths;
     private int batchSize;
+    private boolean isDynamic;
 
     private static final int MAX_TRY_COUNT = 20;
     private static final long WAIT_TIME_MS = 500;
@@ -41,19 +43,21 @@ public class PythonUDFTupleProcessor implements TupleProcessor {
     private Queue<Tuple> inputTupleBuffer;
     private Queue<Tuple> outputTupleBuffer;
 
-    PythonUDFTupleProcessor(String pythonScriptFile, ArrayList<String> inputColumns, ArrayList<String> outputColumns,
-                            ArrayList<String> outerFiles, int batchSize){
-        setPredicate(pythonScriptFile, inputColumns, outputColumns, outerFiles, batchSize);
+    PythonUDFTupleProcessor(String pythonScriptText, String pythonScriptFile, ArrayList<String> inputColumns,
+                            ArrayList<String> outputColumns, ArrayList<String> outerFiles, int batchSize) {
+        setPredicate(pythonScriptText, pythonScriptFile, inputColumns, outputColumns, outerFiles, batchSize);
     }
 
-    public void setPredicate(String pythonScriptFile, ArrayList<String> inputColumns, ArrayList<String> outputColumns,
-                             ArrayList<String> outerFiles, int batchSize) {
+    public void setPredicate(String pythonScriptText, String pythonScriptFile, ArrayList<String> inputColumns,
+                             ArrayList<String> outputColumns, ArrayList<String> outerFiles, int batchSize) {
+        this.pythonScriptText = pythonScriptText;
         this.pythonScriptPath = pythonScriptFile;
         this.inputColumns = inputColumns;
         this.outputColumns = outputColumns;
         this.outerFilePaths = new ArrayList<>();
         for (String s : outerFiles) outerFilePaths.add(getPythonResourcePath(s));
         this.batchSize = batchSize;
+        isDynamic = !pythonScriptFile.isEmpty();
     }
 
     @Override
@@ -110,8 +114,10 @@ public class PythonUDFTupleProcessor implements TupleProcessor {
             int portNumber = getFreeLocalPort();
             Location location = new Location(URI.create("grpc+tcp://localhost:" + portNumber));
             List<String> args = new ArrayList<>(
-                    Arrays.asList(PYTHON, DAEMON_SCRIPT_PATH, Integer.toString(portNumber), getPythonResourcePath(pythonScriptPath))
+                    Arrays.asList(PYTHON, DAEMON_SCRIPT_PATH, Integer.toString(portNumber), String.valueOf(isDynamic))
             );
+
+            if(!isDynamic) args.add(getPythonResourcePath(pythonScriptPath));
 
             ProcessBuilder processBuilder = new ProcessBuilder(args).inheritIO();
             // Start Flight server (Python process)
@@ -136,6 +142,23 @@ public class PythonUDFTupleProcessor implements TupleProcessor {
                 throw new AmberException("Exceeded try limit of 5 when connecting to Flight Server!");
         } catch (Exception e) {
             throw new AmberException(e.getMessage());
+        }
+
+
+        // send user script as a string to Server.
+        if(isDynamic) {
+            Schema scriptTextSchema = new Schema(
+                    Collections.singletonList(Field.nullablePrimitive("code", ArrowType.Utf8.INSTANCE))
+            );
+            Queue<Tuple> scriptTextTuple = new LinkedList<>();
+            scriptTextTuple.add(new AmberTuple(new String[]{pythonScriptText}));
+            try{
+                writeArrowStream(flightClient, scriptTextTuple, globalRootAllocator, scriptTextSchema,
+                        "args", batchSize);
+                flightClient.doAction(new Action("loadCode")).next().getBody();
+            }catch(Exception e){
+                closeAndThrow(flightClient, e);
+            }
         }
 
         // Send user args to Server.

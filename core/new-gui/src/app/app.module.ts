@@ -87,6 +87,8 @@ import { UserDictionaryService } from './common/service/user/user-dictionary/use
 import { TEXERA_FORMLY_CONFIG } from './common/formly/formly-config';
 import { VisualizationPanelComponent } from './workspace/component/visualization-panel/visualization-panel.component';
 import { VisualizationPanelContentComponent } from './workspace/component/visualization-panel-content/visualization-panel-content.component';
+import { AceEditorModule } from 'ng2-ace-editor';
+import { CodeEditPanelComponent } from './workspace/component/code-edit-panel/code-edit-panel.component';
 
 @NgModule({
   declarations: [
@@ -132,6 +134,7 @@ import { VisualizationPanelContentComponent } from './workspace/component/visual
     NullTypeComponent,
     VisualizationPanelComponent,
     VisualizationPanelContentComponent,
+    CodeEditPanelComponent,
   ],
   imports: [
     BrowserModule,
@@ -153,6 +156,7 @@ import { VisualizationPanelContentComponent } from './workspace/component/visual
     LoggerModule.forRoot({level: environment.production ? NgxLoggerLevel.ERROR : NgxLoggerLevel.DEBUG, serverLogLevel: NgxLoggerLevel.OFF}),
     FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
     FormlyMaterialModule,
+    AceEditorModule,
   ],
   entryComponents: [
     NgbdModalAddProjectComponent,

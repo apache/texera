@@ -15,6 +15,10 @@ import java.util.List;
 
 public class TexeraPythonUDF extends TexeraOperator {
 
+    @JsonProperty("Python script")
+    @JsonPropertyDescription("input your code here")
+    public String pythonScriptText;
+
     @JsonProperty("Python script file")
     @JsonPropertyDescription("name of the UDF script file")
     public String pythonScriptFile;
@@ -38,6 +42,7 @@ public class TexeraPythonUDF extends TexeraOperator {
     @Override
     public OperatorMetadata amberOperator() {
         return new PythonUDFMetadata(this.amberOperatorTag(), Constants.defaultNumWorkers(),
+                this.pythonScriptText,
                 this.pythonScriptFile,
                 JavaConverters.asScalaIteratorConverter(this.inputColumns.iterator()).asScala().toBuffer(),
                 JavaConverters.asScalaIteratorConverter(this.outputColumns.iterator()).asScala().toBuffer(),

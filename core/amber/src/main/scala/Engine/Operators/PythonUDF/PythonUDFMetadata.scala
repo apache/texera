@@ -20,6 +20,7 @@ import scala.concurrent.ExecutionContext
 class PythonUDFMetadata(
                          tag: OperatorTag,
                          val numWorkers: Int,
+                         val pythonScriptText: String,
                          val pythonScriptFile: String,
                          val inputColumns: mutable.Buffer[String],
                          val outputColumns: mutable.Buffer[String],
@@ -31,6 +32,7 @@ class PythonUDFMetadata(
         new ProcessorWorkerLayer(
           LayerTag(tag, "main"),
           _ => new PythonUDFTupleProcessor(
+            pythonScriptText,
             pythonScriptFile,
             new util.ArrayList[String](inputColumns.asJava),
             new util.ArrayList[String](outputColumns.asJava),

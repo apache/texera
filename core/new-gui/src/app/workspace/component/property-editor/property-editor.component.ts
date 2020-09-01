@@ -444,6 +444,12 @@ export class PropertyEditorComponent {
           mappedField.templateOptions.rows = 5;
         }
       }
+
+      if (mapSource?.title?.toLowerCase() === 'python script') {
+        if (mappedField.type) {
+          mappedField.type = 'codearea';
+        }
+      }
       return mappedField;
     };
 

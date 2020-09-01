@@ -28,7 +28,10 @@
               "node_modules/bootstrap/dist/css/bootstrap.min.css",
               "src/styles.scss"
             ],
-            "scripts": []
+            "scripts": [
+              "./node_modules/ace-builds/src-min/ace.js",
+              "./node_modules/ace-builds/src-min/mode-python.js"
+            ]
           },
           "configurations": {
             "production": {
@@ -91,7 +94,10 @@
             ],
             "assets": [
               "src/assets",
-              "src/favicon.ico"
+              "src/favicon.ico",
+              { "glob": "worker-javascript.js", "input": "./d /ace-builds/src-min/", "output": "/" },
+              { "glob": "worker-css.js", "input": "./node_modules/ace-builds/src-min/", "output": "/" },
+              { "glob": "worker-json.js", "input": "./node_modules/ace-builds/src-min/", "output": "/" }
             ]
           }
         },
