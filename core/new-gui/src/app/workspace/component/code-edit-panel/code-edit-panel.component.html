@@ -1,15 +1,8 @@
-<div>Python script</div>
-<input type="hidden" style="display: none;" [(ngModel)]="text"
-[formControl]="formControl"
-[formlyAttributes]="field"
->
+<div class='attribute-title'>Python script</div>
 
-<div ace-editor
-       [(text)]="text"
-       [mode]="'python'"
-       [options]="options"
-       [theme]="'ambiance'"
-       [readOnly]="false"
-       [autoUpdateContent]="true"
-       [durationBeforeCallback]="1000"
-       #editor style="min-height: 200px; width:100%; overflow: auto;">
+<div class="button-area">
+  <button mat-raised-button  color="primary" (click)="onClickEditor()">
+  Edit code content
+  </button>
+</div>
+

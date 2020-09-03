@@ -15,6 +15,7 @@ import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
 import texera.common.TexeraUtils;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.URI;
@@ -57,7 +58,7 @@ public class PythonUDFTupleProcessor implements TupleProcessor {
         this.outerFilePaths = new ArrayList<>();
         for (String s : outerFiles) outerFilePaths.add(getPythonResourcePath(s));
         this.batchSize = batchSize;
-        isDynamic = !pythonScriptFile.isEmpty();
+        isDynamic = pythonScriptFile == null || pythonScriptFile.isEmpty();
     }
 
     @Override
@@ -147,15 +148,20 @@ public class PythonUDFTupleProcessor implements TupleProcessor {
 
         // send user script as a string to Server.
         if(isDynamic) {
+            System.out.println("Detected dynamic UDF.");
+            System.out.println(pythonScriptText);
             Schema scriptTextSchema = new Schema(
                     Collections.singletonList(Field.nullablePrimitive("code", ArrowType.Utf8.INSTANCE))
             );
             Queue<Tuple> scriptTextTuple = new LinkedList<>();
             scriptTextTuple.add(new AmberTuple(new String[]{pythonScriptText}));
             try{
+                System.out.print("Sending data....");
                 writeArrowStream(flightClient, scriptTextTuple, globalRootAllocator, scriptTextSchema,
-                        "args", batchSize);
+                        "code", batchSize);
+                System.out.print("Doing action.");
                 flightClient.doAction(new Action("loadCode")).next().getBody();
+                System.out.print("Done.");
             }catch(Exception e){
                 closeAndThrow(flightClient, e);
             }
@@ -195,7 +201,7 @@ public class PythonUDFTupleProcessor implements TupleProcessor {
 
     @Override
     public void dispose() {
-        closeClientAndServer(flightClient);
+        closeClientAndServer(flightClient, true);
     }
 
     private void processOneBatch() {
@@ -541,14 +547,15 @@ public class PythonUDFTupleProcessor implements TupleProcessor {
      * also a blocking call.
      * @param client The client to close that is still connected to the Arrow Flight server.
      */
-    private static void closeClientAndServer(FlightClient client) {
+    private static void closeClientAndServer(FlightClient client, boolean closeUDF) {
         try {
-            client.doAction(new Action("close")).next().getBody();
+            if (closeUDF) client.doAction(new Action("close")).next().getBody();
             client.doAction(new Action("shutdown")).next();
             globalRootAllocator.close();
             client.close();
         } catch (Exception e) {
-            throw new AmberException(e.getMessage());
+            e.printStackTrace();
+//            throw new AmberException(e.getMessage());
         }
     }
 
@@ -559,8 +566,8 @@ public class PythonUDFTupleProcessor implements TupleProcessor {
      * @param e the exception to be wrapped into Amber Exception.
      */
     private static void closeAndThrow(FlightClient client, Exception e) {
-        closeClientAndServer(client);
         e.printStackTrace();
-        throw new AmberException(e.getMessage());
+        closeClientAndServer(client, false);
+//        throw new AmberException(e.getMessage());
     }
 }

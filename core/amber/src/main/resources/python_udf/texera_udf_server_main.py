@@ -9,9 +9,14 @@ import threading
 import pyarrow.flight
 import importlib.util
 import texera_udf_operator_base
-from traceback import print_exc
+from traceback import format_exc
 from io import StringIO
 import contextlib
+import pandas
+import pickle
+
+from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize
 
 
 @contextlib.contextmanager
@@ -35,7 +40,7 @@ def errorIO(stderr=None):
 
 
 portNumber = sys.argv[1]
-isDynamic = sys.argv[2]
+isDynamic = sys.argv[2] == "true"
 if not isDynamic:
 	UDFOperatorScript = sys.argv[3]
 	# Dynamically import operator from user-defined script.
@@ -148,27 +153,25 @@ class UDFServer(pyarrow.flight.FlightServerBase):
 			return None
 		return pyarrow.flight.RecordBatchStream(self.flights[key])
 
-	def set_udf(self, code):
-		operator_instance = None
-		map_function = None
-		filter_function = None
+	def set_udf(self, code: str):
+		local_dict = {'texera_udf_operator_base': texera_udf_operator_base}
+		trace_back = "No error"
 
 		try:
-			exec(code, {'udf_operator': texera_udf_operator_base.TexeraUDFOperator,
-			            'operator_instance': operator_instance,
-			            'map_function': map_function,
-			            'filter_function': filter_function})
+			print(code)
+			exec(code, globals(), local_dict)
+			print(local_dict)
 		except:
 			print("Something wrong with the code")
-			print_exc()
-		if operator_instance is not None:
-			final_udf = operator_instance
-		elif map_function is not None:
-			final_udf = texera_udf_operator_base.TexeraMapOperator(map_function)
-		elif filter_function is not None:
-			final_udf = texera_udf_operator_base.TexeraFilterOperator(filter_function)
+			trace_back = format_exc()
+		if 'operator_instance' in local_dict.keys():
+			final_udf = local_dict['operator_instance']
+		elif 'map_function' in local_dict.keys():
+			final_udf = texera_udf_operator_base.TexeraMapOperator(local_dict['map_function'])
+		elif 'filter_function' in local_dict.keys():
+			final_udf = texera_udf_operator_base.TexeraFilterOperator(local_dict['filter_function'])
 		else:
-			raise Exception("Unsupported UDF definition inside custom script!")
+			raise Exception("Unsupported UDF definition inside custom script! Error: " + trace_back)
 		self.udf_op = final_udf
 
 	def do_action(self, context, action):
@@ -188,9 +191,11 @@ class UDFServer(pyarrow.flight.FlightServerBase):
 			threading.Thread(target=self._shutdown).start()
 		elif action.type == "loadCode":
 			# dynamically set the udf, must be executed before open.
-			code_table = self.flights[self.descriptor_to_key(pyarrow.flight.FlightDescriptor.for_path(b'code'))]
-			code = code_table.to_pydict()['code'][0]
+			code_table = self.flights[self.descriptor_to_key(pyarrow.flight.FlightDescriptor.for_path(b'code'))]  # type: pyarrow.Table
+			print(code_table.to_pydict())
+			code = str(code_table.to_pydict()['code'][0])
 			self.set_udf(code)
+			yield pyarrow.flight.Result(pyarrow.py_buffer(b'Success!'))
 		elif action.type == "open":
 			# open UDF
 			user_args_table = self.flights[self.descriptor_to_key(pyarrow.flight.FlightDescriptor.for_path(b'args'))]

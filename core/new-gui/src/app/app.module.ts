@@ -89,6 +89,9 @@ import { VisualizationPanelComponent } from './workspace/component/visualization
 import { VisualizationPanelContentComponent } from './workspace/component/visualization-panel-content/visualization-panel-content.component';
 import { AceEditorModule } from 'ng2-ace-editor';
 import { CodeEditPanelComponent } from './workspace/component/code-edit-panel/code-edit-panel.component';
+import { CodeEditorDialogComponent } from './workspace/component/code-editor-dialog/code-editor-dialog.component';
+import { MatDialogModule } from '@angular/material/dialog';
+import { DragDropModule } from '@angular/cdk/drag-drop';
 
 @NgModule({
   declarations: [
@@ -135,6 +138,7 @@ import { CodeEditPanelComponent } from './workspace/component/code-edit-panel/co
     VisualizationPanelComponent,
     VisualizationPanelContentComponent,
     CodeEditPanelComponent,
+    CodeEditorDialogComponent,
   ],
   imports: [
     BrowserModule,
@@ -157,6 +161,8 @@ import { CodeEditPanelComponent } from './workspace/component/code-edit-panel/co
     FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
     FormlyMaterialModule,
     AceEditorModule,
+    MatDialogModule,
+    DragDropModule,
   ],
   entryComponents: [
     NgbdModalAddProjectComponent,

@@ -1,0 +1,15 @@
+<h1 mat-dialog-title>
+  Python Script
+</h1>
+
+<mat-dialog-content>
+  <ace-editor
+       [(text)]="text"
+       [mode]="'python'"
+       [theme]="'ambiance'"
+       [readOnly]="false"
+       [autoUpdateContent]="true"
+       [durationBeforeCallback]="10"
+       #editor style="min-height:500px; width:100%; overflow: auto;">
+  </ace-editor>
+</mat-dialog-content>
