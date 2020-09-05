@@ -1,6 +1,5 @@
 package Engine.Operators.PythonUDF;
 
-import Engine.Common.AmberException.AmberException;
 import Engine.Common.AmberTag.LayerTag;
 import Engine.Common.AmberTuple.AmberTuple;
 import Engine.Common.AmberTuple.Tuple;
@@ -16,6 +15,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import texera.common.TexeraUtils;
 
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.URI;
@@ -112,13 +112,29 @@ public class PythonUDFTupleProcessor implements TupleProcessor {
     @Override
     public void initialize() {
         try {
+            pythonScriptPath = isDynamic ?
+                    getPythonResourcePath(String.valueOf(new Random().nextLong())) + ".py"
+                    : getPythonResourcePath(pythonScriptPath);
+            if (isDynamic) {
+                // dynamic -> create a temp file and write the code into the file
+                File tempScriptFile = new File(pythonScriptPath);
+
+                if (tempScriptFile.createNewFile()) {
+                    FileWriter fileWriter = new FileWriter(pythonScriptPath);
+                    fileWriter.write(pythonScriptText);
+                    fileWriter.close();
+                }
+            } else {
+                // static -> check if the script file exists
+                File scriptFile = new File(pythonScriptPath);
+                if (!scriptFile.exists()) throw new Exception("Script file doest not exist!");
+            }
+
             int portNumber = getFreeLocalPort();
             Location location = new Location(URI.create("grpc+tcp://localhost:" + portNumber));
             List<String> args = new ArrayList<>(
-                    Arrays.asList(PYTHON, DAEMON_SCRIPT_PATH, Integer.toString(portNumber), String.valueOf(isDynamic))
+                    Arrays.asList(PYTHON, DAEMON_SCRIPT_PATH, Integer.toString(portNumber), pythonScriptPath)
             );
-
-            if(!isDynamic) args.add(getPythonResourcePath(pythonScriptPath));
 
             ProcessBuilder processBuilder = new ProcessBuilder(args).inheritIO();
             // Start Flight server (Python process)
@@ -140,30 +156,13 @@ public class PythonUDFTupleProcessor implements TupleProcessor {
                 }
             }
             if (tryCount == MAX_TRY_COUNT)
-                throw new AmberException("Exceeded try limit of 5 when connecting to Flight Server!");
+                throw new Exception("Exceeded try limit of " + MAX_TRY_COUNT +" when connecting to Flight Server!");
         } catch (Exception e) {
-            throw new AmberException(e.getMessage());
-        }
-
-
-        // send user script as a string to Server.
-        if(isDynamic) {
-            System.out.println("Detected dynamic UDF.");
-            System.out.println(pythonScriptText);
-            Schema scriptTextSchema = new Schema(
-                    Collections.singletonList(Field.nullablePrimitive("code", ArrowType.Utf8.INSTANCE))
-            );
-            Queue<Tuple> scriptTextTuple = new LinkedList<>();
-            scriptTextTuple.add(new AmberTuple(new String[]{pythonScriptText}));
-            try{
-                System.out.print("Sending data....");
-                writeArrowStream(flightClient, scriptTextTuple, globalRootAllocator, scriptTextSchema,
-                        "code", batchSize);
-                System.out.print("Doing action.");
-                flightClient.doAction(new Action("loadCode")).next().getBody();
-                System.out.print("Done.");
-            }catch(Exception e){
-                closeAndThrow(flightClient, e);
+            e.printStackTrace();
+            try {
+                if (isDynamic) deleteTempFile(pythonScriptPath);
+            } catch (Exception innerException) {
+                innerException.printStackTrace();
             }
         }
 
@@ -185,6 +184,18 @@ public class PythonUDFTupleProcessor implements TupleProcessor {
             writeArrowStream(flightClient, argsTuples, globalRootAllocator, argsSchema, "args", batchSize);
             flightClient.doAction(new Action("open")).next().getBody();
         }catch(Exception e){
+            e.printStackTrace();
+            try {
+                if (isDynamic) deleteTempFile(pythonScriptPath);
+            } catch (Exception innerException) {
+                innerException.printStackTrace();
+            }
+            closeAndThrow(flightClient, e);
+        }
+        // Finally, delete the temp file because it has been loaded in Python.
+        try {
+            if (isDynamic) deleteTempFile(pythonScriptPath);
+        } catch (Exception e) {
             closeAndThrow(flightClient, e);
         }
     }
@@ -256,7 +267,7 @@ public class PythonUDFTupleProcessor implements TupleProcessor {
      */
     private static void convertAmber2ArrowTuple(Tuple tuple, int index, VectorSchemaRoot vectorSchemaRoot) throws Exception {
         List<Field> preDefinedFields = vectorSchemaRoot.getSchema().getFields();
-        if (tuple.length() != preDefinedFields.size()) throw new AmberException("Tuple does not match schema!");
+        if (tuple.length() != preDefinedFields.size()) throw new Exception("Tuple does not match schema!");
         else {
             for (int i = 0; i < preDefinedFields.size(); i++) {
                 FieldVector vector = vectorSchemaRoot.getVector(i);
@@ -555,7 +566,6 @@ public class PythonUDFTupleProcessor implements TupleProcessor {
             client.close();
         } catch (Exception e) {
             e.printStackTrace();
-//            throw new AmberException(e.getMessage());
         }
     }
 
@@ -568,6 +578,12 @@ public class PythonUDFTupleProcessor implements TupleProcessor {
     private static void closeAndThrow(FlightClient client, Exception e) {
         e.printStackTrace();
         closeClientAndServer(client, false);
-//        throw new AmberException(e.getMessage());
+    }
+
+    private static void deleteTempFile(String filePath) throws Exception {
+        File tempFile = new File(filePath);
+        if (tempFile.exists()) {
+            if (!tempFile.delete()) throw new Exception("Could not delete temp file");
+        }
     }
 }

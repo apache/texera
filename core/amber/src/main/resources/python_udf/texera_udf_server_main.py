@@ -1,4 +1,3 @@
-import os
 import json
 import sys
 import traceback
@@ -9,66 +8,36 @@ import threading
 import pyarrow.flight
 import importlib.util
 import texera_udf_operator_base
-from traceback import format_exc
-from io import StringIO
-import contextlib
-import pandas
-import pickle
-
-from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
-
-
-@contextlib.contextmanager
-def stdoutIO(stdout=None):
-	old = sys.stdout
-	if stdout is None:
-		stdout = StringIO()
-	sys.stdout = stdout
-	yield stdout
-	sys.stdout = old
-
-
-@contextlib.contextmanager
-def errorIO(stderr=None):
-	old = sys.stderr
-	if stderr is None:
-		stderr = StringIO()
-	sys.stderr = stderr
-	yield stderr
-	sys.stderr = old
-
 
 portNumber = sys.argv[1]
-isDynamic = sys.argv[2] == "true"
-if not isDynamic:
-	UDFOperatorScript = sys.argv[3]
-	# Dynamically import operator from user-defined script.
+UDFOperatorScript = sys.argv[2]
 
-	# Spec is used to load a spec based on a file location (the UDF script)
-	spec = importlib.util.spec_from_file_location('user_module', UDFOperatorScript)
-	# Dynamically load the user script as module
-	user_module = importlib.util.module_from_spec(spec)
-	# Execute the module so that its attributes can be loaded.
-	spec.loader.exec_module(user_module)
+# Dynamically import operator from user-defined script.
 
-	# The UDF that will be used in the server. It will be either an inherited operator instance, or created by passing
-	# map_func(filter_func) to a TexeraMapOperator(TexeraFilterOperator) instance.
-	FinalUDF = None
-	# to store the possible map function
-	map_func = None
-	# to store the possible filter function
-	filter_func = None
+# Spec is used to load a spec based on a file location (the UDF script)
+spec = importlib.util.spec_from_file_location('user_module', UDFOperatorScript)
+# Dynamically load the user script as module
+user_module = importlib.util.module_from_spec(spec)
+# Execute the module so that its attributes can be loaded.
+spec.loader.exec_module(user_module)
+
+# The UDF that will be used in the server. It will be either an inherited operator instance, or created by passing
+# map_func(filter_func) to a TexeraMapOperator(TexeraFilterOperator) instance.
+FinalUDF = None
+# to store the possible map function
+map_func = None
+# to store the possible filter function
+filter_func = None
+try:
+	FinalUDF = user_module.operator_instance
+except AttributeError:
 	try:
-		FinalUDF = user_module.operator_instance
+		map_func = user_module.map_function
 	except AttributeError:
 		try:
-			map_func = user_module.map_function
+			filter_func = user_module.filter_function
 		except AttributeError:
-			try:
-				filter_func = user_module.filter_function
-			except AttributeError:
-				raise Exception("Unsupported UDF definition inside {}!".format(os.path.basename(sys.argv[2])))
+			raise Exception("Unsupported UDF definition!")
 
 
 class UDFServer(pyarrow.flight.FlightServerBase):
@@ -77,10 +46,7 @@ class UDFServer(pyarrow.flight.FlightServerBase):
 		self.flights = {}
 		self.host = host
 		self.tls_certificates = tls_certificates
-		if isDynamic:
-			self.udf_op = None
-		else:
-			self.udf_op = udf_op
+		self.udf_op = udf_op
 
 	@classmethod
 	def descriptor_to_key(self, descriptor):
@@ -153,27 +119,6 @@ class UDFServer(pyarrow.flight.FlightServerBase):
 			return None
 		return pyarrow.flight.RecordBatchStream(self.flights[key])
 
-	def set_udf(self, code: str):
-		local_dict = {'texera_udf_operator_base': texera_udf_operator_base}
-		trace_back = "No error"
-
-		try:
-			print(code)
-			exec(code, globals(), local_dict)
-			print(local_dict)
-		except:
-			print("Something wrong with the code")
-			trace_back = format_exc()
-		if 'operator_instance' in local_dict.keys():
-			final_udf = local_dict['operator_instance']
-		elif 'map_function' in local_dict.keys():
-			final_udf = texera_udf_operator_base.TexeraMapOperator(local_dict['map_function'])
-		elif 'filter_function' in local_dict.keys():
-			final_udf = texera_udf_operator_base.TexeraFilterOperator(local_dict['filter_function'])
-		else:
-			raise Exception("Unsupported UDF definition inside custom script! Error: " + trace_back)
-		self.udf_op = final_udf
-
 	def do_action(self, context, action):
 		"""
 		Each (implementation-specific) action is a string (defined in the script). The client is expected to know
@@ -189,13 +134,6 @@ class UDFServer(pyarrow.flight.FlightServerBase):
 			# Shut down on background thread to avoid blocking current
 			# request
 			threading.Thread(target=self._shutdown).start()
-		elif action.type == "loadCode":
-			# dynamically set the udf, must be executed before open.
-			code_table = self.flights[self.descriptor_to_key(pyarrow.flight.FlightDescriptor.for_path(b'code'))]  # type: pyarrow.Table
-			print(code_table.to_pydict())
-			code = str(code_table.to_pydict()['code'][0])
-			self.set_udf(code)
-			yield pyarrow.flight.Result(pyarrow.py_buffer(b'Success!'))
 		elif action.type == "open":
 			# open UDF
 			user_args_table = self.flights[self.descriptor_to_key(pyarrow.flight.FlightDescriptor.for_path(b'args'))]
@@ -242,12 +180,9 @@ class UDFServer(pyarrow.flight.FlightServerBase):
 
 if __name__ == '__main__':
 	location = "grpc+tcp://localhost:" + portNumber
-	if isDynamic:
-		FinalUDF = None
-	else:
-		if FinalUDF is None:
-			if map_func is not None:
-				FinalUDF = texera_udf_operator_base.TexeraMapOperator(map_func)
-			else:
-				FinalUDF = texera_udf_operator_base.TexeraFilterOperator(filter_func)
+	if FinalUDF is None:
+		if map_func is not None:
+			FinalUDF = texera_udf_operator_base.TexeraMapOperator(map_func)
+		else:
+			FinalUDF = texera_udf_operator_base.TexeraFilterOperator(filter_func)
 	UDFServer(FinalUDF, "localhost", location).serve()
