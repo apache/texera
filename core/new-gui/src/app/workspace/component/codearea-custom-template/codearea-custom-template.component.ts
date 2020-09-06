@@ -3,12 +3,17 @@ import { FieldType } from '@ngx-formly/core';
 import { MatDialog, MatDialogConfig } from '@angular/material/dialog';
 import { CodeEditorDialogComponent } from '../code-editor-dialog/code-editor-dialog.component';
 
+/**
+ * CodeareaCustomTemplateComponent is the custom template for 'codearea' type of formly field.
+ * @author Xiaozhen Liu
+ */
 @Component({
-  selector: 'texera-code-edit-panel',
-  templateUrl: './code-edit-panel.component.html',
-  styleUrls: ['./code-edit-panel.component.scss']
+  selector: 'texera-codearea-custom-template',
+  templateUrl: './codearea-custom-template.component.html',
+  styleUrls: ['./codearea-custom-template.component.scss']
 })
-export class CodeEditPanelComponent extends FieldType {
+export class CodeareaCustomTemplateComponent extends FieldType {
+
   constructor(public dialog: MatDialog) {
     super();
   }
@@ -27,4 +32,5 @@ export class CodeEditPanelComponent extends FieldType {
        }
     );
   }
+
 }

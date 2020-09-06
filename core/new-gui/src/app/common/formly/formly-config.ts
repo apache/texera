@@ -3,7 +3,7 @@ import { ArrayTypeComponent } from './array.type';
 import { ObjectTypeComponent } from './object.type';
 import { MultiSchemaTypeComponent } from './multischema.type';
 import { FormlyFieldConfig } from '@ngx-formly/core';
-import { CodeEditPanelComponent } from '../../workspace/component/code-edit-panel/code-edit-panel.component';
+import { CodeareaCustomTemplateComponent } from '../../workspace/component/codearea-custom-template/codearea-custom-template.component';
 
 /**
  * Configuration for using Json Schema with Formly.
@@ -52,7 +52,7 @@ export const TEXERA_FORMLY_CONFIG = {
     { name: 'array', component: ArrayTypeComponent },
     { name: 'object', component: ObjectTypeComponent },
     { name: 'multischema', component: MultiSchemaTypeComponent },
-    { name: 'codearea', component: CodeEditPanelComponent},
+    { name: 'codearea', component: CodeareaCustomTemplateComponent},
   ],
 };
 

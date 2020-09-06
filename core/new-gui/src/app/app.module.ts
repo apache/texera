@@ -88,10 +88,9 @@ import { TEXERA_FORMLY_CONFIG } from './common/formly/formly-config';
 import { VisualizationPanelComponent } from './workspace/component/visualization-panel/visualization-panel.component';
 import { VisualizationPanelContentComponent } from './workspace/component/visualization-panel-content/visualization-panel-content.component';
 import { AceEditorModule } from 'ng2-ace-editor';
-import { CodeEditPanelComponent } from './workspace/component/code-edit-panel/code-edit-panel.component';
+import { CodeareaCustomTemplateComponent } from './workspace/component/codearea-custom-template/codearea-custom-template.component';
 import { CodeEditorDialogComponent } from './workspace/component/code-editor-dialog/code-editor-dialog.component';
 import { MatDialogModule } from '@angular/material/dialog';
-import { DragDropModule } from '@angular/cdk/drag-drop';
 
 @NgModule({
   declarations: [
@@ -137,7 +136,7 @@ import { DragDropModule } from '@angular/cdk/drag-drop';
     NullTypeComponent,
     VisualizationPanelComponent,
     VisualizationPanelContentComponent,
-    CodeEditPanelComponent,
+    CodeareaCustomTemplateComponent,
     CodeEditorDialogComponent,
   ],
   imports: [
@@ -162,7 +161,6 @@ import { DragDropModule } from '@angular/cdk/drag-drop';
     FormlyMaterialModule,
     AceEditorModule,
     MatDialogModule,
-    DragDropModule,
   ],
   entryComponents: [
     NgbdModalAddProjectComponent,

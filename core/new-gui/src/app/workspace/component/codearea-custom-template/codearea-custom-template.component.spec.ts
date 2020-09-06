@@ -3,21 +3,21 @@ import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { DebugElement } from '@angular/core';
 
-import { CodeEditPanelComponent } from './code-edit-panel.component';
+import { CodeareaCustomTemplateComponent } from './codearea-custom-template.component';
 
-describe('CodeEditPanelComponent', () => {
-  let component: CodeEditPanelComponent;
-  let fixture: ComponentFixture<CodeEditPanelComponent>;
+describe('CodeareaCustomTemplateComponent', () => {
+  let component: CodeareaCustomTemplateComponent;
+  let fixture: ComponentFixture<CodeareaCustomTemplateComponent>;
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-      declarations: [ CodeEditPanelComponent ]
+      declarations: [ CodeareaCustomTemplateComponent ]
     })
     .compileComponents();
   }));
 
   beforeEach(() => {
-    fixture = TestBed.createComponent(CodeEditPanelComponent);
+    fixture = TestBed.createComponent(CodeareaCustomTemplateComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });
