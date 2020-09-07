@@ -50,7 +50,7 @@
     "lodash": "~4.17.14",
     "lodash-es": "~4.17.14",
     "ng2-file-upload": "^1.4.0",
-    "ngx-ace-editor-wrapper": "^9.0.1",
+    "ngx-ace-icy": "^1.0.0",
     "ngx-bootstrap": "^5.5.0",
     "ngx-json-viewer": "^2.4.0",
     "ngx-logger": "^4.1.3",

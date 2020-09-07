@@ -17,6 +17,16 @@ import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 })
 export class CodeEditorDialogComponent implements OnInit {
 
+  aclOptions = {
+    enableBasicAutocompletion: true,
+    enableSnippets: true,
+    enableLiveAutocompletion: true,
+    showGutter: false,
+    maxLines: 80,
+    minLines: 4,
+    autoScrollEditorIntoView: false,
+  };
+
   text: string;
 
   constructor(
