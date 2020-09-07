@@ -87,7 +87,7 @@ import { UserDictionaryService } from './common/service/user/user-dictionary/use
 import { TEXERA_FORMLY_CONFIG } from './common/formly/formly-config';
 import { VisualizationPanelComponent } from './workspace/component/visualization-panel/visualization-panel.component';
 import { VisualizationPanelContentComponent } from './workspace/component/visualization-panel-content/visualization-panel-content.component';
-import { AceEditorModule } from 'ng2-ace-editor';
+import { AceEditorModule } from 'ngx-ace-editor-wrapper';
 import { CodeareaCustomTemplateComponent } from './workspace/component/codearea-custom-template/codearea-custom-template.component';
 import { CodeEditorDialogComponent } from './workspace/component/code-editor-dialog/code-editor-dialog.component';
 import { MatDialogModule } from '@angular/material/dialog';
