@@ -94,10 +94,7 @@
             ],
             "assets": [
               "src/assets",
-              "src/favicon.ico",
-              { "glob": "worker-javascript.js", "input": "./d /ace-builds/src-min/", "output": "/" },
-              { "glob": "worker-css.js", "input": "./node_modules/ace-builds/src-min/", "output": "/" },
-              { "glob": "worker-json.js", "input": "./node_modules/ace-builds/src-min/", "output": "/" }
+              "src/favicon.ico"
             ]
           }
         },

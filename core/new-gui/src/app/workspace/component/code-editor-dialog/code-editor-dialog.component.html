@@ -2,11 +2,11 @@
   Python Script
 </h1>
 
-<mat-dialog-content>
-  <c-ngx-ace
-       [(text)]="text"
-       [mode]="'python'"
-       [options]="aclOptions"
-       >
-  </c-ngx-ace>
-</mat-dialog-content>
+<c-ngx-ace
+      [(text)]="text"
+      [mode]="'python'"
+      [options]="aclOptions"
+      [theme]="'textmate'"
+      [placeholder]="'import texera_udf_operator_base'"
+      >
+</c-ngx-ace>

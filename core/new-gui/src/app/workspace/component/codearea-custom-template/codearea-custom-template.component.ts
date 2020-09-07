@@ -28,7 +28,6 @@ export class CodeareaCustomTemplateComponent extends FieldType {
 
   onClickEditor(): void {
     const dialogConfig = new MatDialogConfig();
-    dialogConfig.minHeight = '600px';
     dialogConfig.minWidth = '1000px';
     dialogConfig.data = this?.formControl?.value || '';
 

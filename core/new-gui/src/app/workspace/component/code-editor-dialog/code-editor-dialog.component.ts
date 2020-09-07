@@ -21,10 +21,13 @@ export class CodeEditorDialogComponent implements OnInit {
     enableBasicAutocompletion: true,
     enableSnippets: true,
     enableLiveAutocompletion: true,
-    showGutter: false,
     maxLines: 80,
-    minLines: 4,
+    minLines: 20,
     autoScrollEditorIntoView: false,
+    highlightActiveLine: true,
+    highlightSelectedWord: true,
+    highlightGutterLine: true,
+    animatedScroll: true
   };
 
   text: string;
