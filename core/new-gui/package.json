@@ -49,6 +49,7 @@
     "jquery-ui-dist": "^1.12.1",
     "lodash": "~4.17.14",
     "lodash-es": "~4.17.14",
+    "ng2-ace-editor": "^0.3.9",
     "ng2-file-upload": "^1.4.0",
     "ngx-bootstrap": "^5.5.0",
     "ngx-json-viewer": "^2.4.0",
@@ -62,8 +63,7 @@
     "tinyqueue": "^2.0.3",
     "tslib": "^1.10.0",
     "wordcloud": "^1.1.1",
-    "zone.js": "~0.10.2",
-    "ng2-ace-editor": "0.3.9"
+    "zone.js": "~0.10.2"
   },
   "devDependencies": {
     "@angular-devkit/build-angular": "~0.901.7",
