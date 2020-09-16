@@ -7,7 +7,7 @@
  */
 export enum ChartType {
   PIE = 'pie',
-  DOUNT = 'dount',
+  DONUT = 'donut',
   BAR = 'bar',
   STACKED_BAR =  'stacked bar',
   WORD_CLOUD = 'word cloud',
