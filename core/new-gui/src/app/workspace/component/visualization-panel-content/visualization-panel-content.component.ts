@@ -44,7 +44,7 @@ export class VisualizationPanelContentComponent implements OnInit, AfterViewInit
       case ChartType.STACKED_BAR:
       // correspond to PieChartSink.java
       case ChartType.PIE:
-      case ChartType.DOUNT:
+      case ChartType.DONUT:
       // correspond to LineChartSink.java
       case ChartType.LINE:
       case ChartType.SPLINE: this.onClickGenerateChart(); break;
