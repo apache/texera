@@ -21,6 +21,7 @@ import texera.operators.sink.TexeraAdhocSink
 import texera.operators.sleep.TexeraSleepOperator
 import texera.operators.visualization.barChart.TexeraBarChart
 import texera.operators.visualization.lineChart.TexeraLineChart
+import texera.operators.visualization.pieChart.TexeraPieChart
 
 import scala.collection.{JavaConverters, mutable}
 
@@ -43,6 +44,7 @@ import scala.collection.{JavaConverters, mutable}
     new Type(value = classOf[TexeraPythonUDF], name = "PythonUDF"),
     new Type(value = classOf[TexeraBarChart], name = "BarChart"),
     new Type(value = classOf[TexeraLineChart], name = "LineChart"),
+    new Type(value = classOf[TexeraPieChart], name = "PieChart"),
   )
 )
 abstract class TexeraOperator {
