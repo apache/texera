@@ -40,11 +40,14 @@ export class VisualizationPanelContentComponent implements OnInit, AfterViewInit
       // correspond to WordCloudSink.java
       case ChartType.WORD_CLOUD: this.onClickGenerateWordCloud(); break;
       // correspond to BarChartSink.java
-      case ChartType.BAR || ChartType.STACKED_BAR: this.onClickGenerateChart(); break;
+      case ChartType.BAR:
+      case ChartType.STACKED_BAR:
       // correspond to PieChartSink.java
-      case ChartType.PIE || ChartType.DOUNT: this.onClickGenerateChart(); break;
+      case ChartType.PIE:
+      case ChartType.DOUNT:
       // correspond to LineChartSink.java
-      case ChartType.LINE || ChartType.SPLINE: this.onClickGenerateChart(); break;
+      case ChartType.LINE:
+      case ChartType.SPLINE: this.onClickGenerateChart(); break;
     }
   }
 
