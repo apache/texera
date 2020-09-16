@@ -19,6 +19,8 @@ import texera.operators.regex.TexeraRegex
 import texera.operators.sentiment.TexeraSentimentAnalysis
 import texera.operators.sink.TexeraAdhocSink
 import texera.operators.sleep.TexeraSleepOperator
+import texera.operators.visualization.barChart.TexeraBarChart
+import texera.operators.visualization.lineChart.TexeraLineChart
 
 import scala.collection.{JavaConverters, mutable}
 
@@ -39,6 +41,8 @@ import scala.collection.{JavaConverters, mutable}
     new Type(value = classOf[TexeraCount], name = "Count"),
     new Type(value = classOf[TexeraSentimentAnalysis], name = "SentimentAnalysis"),
     new Type(value = classOf[TexeraPythonUDF], name = "PythonUDF"),
+    new Type(value = classOf[TexeraBarChart], name = "BarChart"),
+    new Type(value = classOf[TexeraLineChart], name = "LineChart"),
   )
 )
 abstract class TexeraOperator {

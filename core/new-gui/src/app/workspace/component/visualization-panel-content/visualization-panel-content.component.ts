@@ -2,6 +2,7 @@ import { Component, Inject, OnInit, AfterViewInit } from '@angular/core';
 import { MAT_DIALOG_DATA } from '@angular/material/dialog';
 import * as c3 from 'c3';
 import { PrimitiveArray } from 'c3';
+import { List } from 'lodash';
 import * as WordCloud from 'wordcloud';
 import { ChartType, WordCloudTuple, DialogData } from '../../types/visualization.interface';
 
@@ -10,7 +11,7 @@ import { ChartType, WordCloudTuple, DialogData } from '../../types/visualization
  *
  * It will convert the table into data format required by c3.js.
  * Then it passes the data and figure type to c3.js for rendering the figure.
- * @author Mingji Han
+ * @author Mingji Han, Xiaozhen Liu
  */
 @Component({
   selector: 'texera-visualization-panel-content',
@@ -24,7 +25,7 @@ export class VisualizationPanelContentComponent implements OnInit, AfterViewInit
   public static readonly WIDTH = 1000;
   public static readonly HEIGHT = 800;
   private table: object[];
-  private columns: string[] = [];
+  // private columns: string[] = [];
 
 
   constructor(@Inject(MAT_DIALOG_DATA) public data: DialogData) {
@@ -32,18 +33,18 @@ export class VisualizationPanelContentComponent implements OnInit, AfterViewInit
   }
 
   ngOnInit() {
-    this.columns = Object.keys(this.table[0]).filter(x => x !== '_id');
+    // this.columns = Object.keys(this.table[0]).filter(x => x !== '_id');
   }
 
   ngAfterViewInit() {
     switch (this.data.chartType) {
       // correspond to WordCloudSink.java
       case ChartType.WORD_CLOUD: this.onClickGenerateWordCloud(); break;
-      // correspond to BarChartSink.java
+      // correspond to TexeraBarChart.java
       case ChartType.BAR || ChartType.STACKED_BAR: this.onClickGenerateChart(); break;
       // correspond to PieChartSink.java
       case ChartType.PIE || ChartType.DOUNT: this.onClickGenerateChart(); break;
-      // correspond to LineChartSink.java
+      // correspond to TexeraLineChart.java
       case ChartType.LINE || ChartType.SPLINE: this.onClickGenerateChart(); break;
     }
   }
@@ -64,27 +65,27 @@ export class VisualizationPanelContentComponent implements OnInit, AfterViewInit
   onClickGenerateChart() {
 
     const dataToDisplay: Array<[string, ...PrimitiveArray]> = [];
-    const category: string[] = [];
-    for (let i = 1; i < this.columns?.length; i++) {
-      category.push(this.columns[i]);
-    }
+    // const category: string[] = [];
+    // for (let i = 1; i < this.columns?.length; i++) {
+    //   category.push(this.columns[i]);
+    // }
 
     // c3.js requires the first element in the data array is the data name.
     // the remaining items are data.
 
-    let firstRow = true;
+    // let firstRow = true;
+    const columnCount = (this.table[0] as any as Array<object>).length;
     for (const row of this.table) {
-      if (firstRow) {
-        firstRow = false;
-        continue;
-      }
-      const items: [string, ...PrimitiveArray] = [(row as any)[this.columns[0]]];
-      for (let i = 1; i < this.columns.length; i++) {
-        items.push(Number((row as any)[this.columns[i]]));
+      // if (firstRow) {
+      //   firstRow = false;
+      //   continue;
+      // }
+      const items: [string, ...PrimitiveArray] = [(row as any)[0]];
+      for (let i = 1; i < columnCount; i++) {
+        items.push(Number((row as any)[i]));
       }
       dataToDisplay.push(items);
     }
-
     c3.generate({
       size: {
         height: VisualizationPanelContentComponent.HEIGHT,
@@ -94,12 +95,12 @@ export class VisualizationPanelContentComponent implements OnInit, AfterViewInit
         columns: dataToDisplay,
         type: this.data.chartType as c3.ChartType
       },
-      axis: {
-        x: {
-          type: 'category',
-          categories: category
-        }
-      },
+      // axis: {
+      //   x: {
+      //     type: 'category',
+      //     categories: category
+      //   }
+      // },
       bindto: VisualizationPanelContentComponent.CHART_ID
     });
   }
