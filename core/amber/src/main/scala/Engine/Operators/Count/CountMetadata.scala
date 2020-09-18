@@ -9,6 +9,7 @@ import Engine.Architecture.Worker.WorkerState
 import Engine.Common.AmberTag.{AmberTag, LayerTag, OperatorTag}
 import Engine.Common.Constants
 import Engine.Operators.OperatorMetadata
+import Engine.SchemaSupport.schema.{Attribute, AttributeType, Schema}
 import akka.actor.ActorRef
 import akka.event.LoggingAdapter
 import akka.util.Timeout
@@ -50,4 +51,13 @@ class CountMetadata(tag: OperatorTag, val numWorkers: Int) extends OperatorMetad
   )(implicit timeout: Timeout, ec: ExecutionContext, log: LoggingAdapter): Unit = {
     breakpoint.partition(topology(0).layer.filter(states(_) != WorkerState.Completed))
   }
+
+  override def setInputSchema(tag: AmberTag, schema: Schema): Unit = {
+  }
+
+  override def getOutputSchema: Schema = {
+    new Schema(new Attribute("count",AttributeType.INTEGER))
+  }
+
+
 }

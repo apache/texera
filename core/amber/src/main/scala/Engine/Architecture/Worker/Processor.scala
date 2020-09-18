@@ -5,33 +5,21 @@ import java.util.concurrent.Executors
 import Engine.Architecture.Breakpoint.FaultedTuple
 import Engine.Architecture.Breakpoint.LocalBreakpoint.{ExceptionBreakpoint, LocalBreakpoint}
 import Engine.Architecture.ReceiveSemantics.FIFOAccessPort
-import Engine.Common.AmberException.{AmberException, BreakpointException}
+import Engine.Common.AmberException.BreakpointException
 import Engine.Common.AmberMessage.WorkerMessage._
 import Engine.Common.AmberMessage.StateMessage._
 import Engine.Common.AmberMessage.ControlMessage.{QueryState, _}
 import Engine.Common.AmberTag.{LayerTag, WorkerTag}
 import Engine.Common.AmberTuple.{AmberTuple, Tuple}
-import Engine.Common.{
-  AdvancedMessageSending,
-  Constants,
-  ElidableStatement,
-  TableMetadata,
-  ThreadState,
-  TupleProcessor
-}
+import Engine.Common.{AdvancedMessageSending, Constants, ElidableStatement, TableMetadata, ThreadState, TupleProcessor}
 import Engine.Operators.Filter.{FilterMetadata, FilterSpecializedTupleProcessor, FilterType}
 import Engine.Operators.KeywordSearch.{KeywordSearchMetadata, KeywordSearchTupleProcessor}
-import Engine.Common.{
-  AdvancedMessageSending,
-  ElidableStatement,
-  TableMetadata,
-  ThreadState,
-  TupleProcessor
-}
+import Engine.Common.{AdvancedMessageSending, ElidableStatement, TableMetadata, ThreadState, TupleProcessor}
 import Engine.Operators.Sink.SimpleSinkProcessor
 import Engine.FaultTolerance.Recovery.RecoveryPacket
 import Engine.Operators.Common.Filter.{FilterGeneralMetadata, FilterGeneralTupleProcessor}
 import Engine.Operators.OperatorMetadata
+import Engine.SchemaSupport.exception.AmberException
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Stash}
 import akka.event.LoggingAdapter
 import akka.pattern.ask

@@ -1,6 +1,6 @@
 package Engine.Operators.Filter
 
-import Engine.Common.AmberException.AmberException
+import Engine.SchemaSupport.exception.AmberException
 
 import scala.language.postfixOps
 import Ordering.Implicits._

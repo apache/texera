@@ -5,9 +5,10 @@ import Engine.Architecture.DeploySemantics.DeployStrategy.RoundRobinDeployment
 import Engine.Architecture.DeploySemantics.DeploymentFilter.FollowPrevious
 import Engine.Architecture.DeploySemantics.Layer.{ActorLayer, ProcessorWorkerLayer}
 import Engine.Architecture.Worker.WorkerState
-import Engine.Common.AmberTag.{LayerTag, OperatorTag}
+import Engine.Common.AmberTag.{AmberTag, LayerTag, OperatorTag}
 import Engine.Common.AmberTuple.Tuple
 import Engine.Operators.OperatorMetadata
+import Engine.SchemaSupport.schema.Schema
 import akka.actor.ActorRef
 import akka.event.LoggingAdapter
 import akka.util.Timeout
@@ -46,5 +47,15 @@ class FilterGeneralMetadata(
     breakpoint.partition(
       topology(0).layer.filter(states(_) != WorkerState.Completed)
     )
+  }
+
+  var outputSchema:Schema = _
+
+  override def setInputSchema(tag: AmberTag, schema: Schema): Unit = {
+    outputSchema = schema
+  }
+
+  override def getOutputSchema: Schema = {
+    outputSchema
   }
 }

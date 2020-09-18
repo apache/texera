@@ -13,6 +13,7 @@ import Engine.Common.AmberTag.{AmberTag, LayerTag, OperatorTag}
 import Engine.Common.TableMetadata
 import Engine.Operators.OperatorMetadata
 import Engine.Operators.Scan.FileScanMetadata
+import Engine.SchemaSupport.schema.{Attribute, AttributeType, Schema}
 import akka.actor.ActorRef
 import akka.event.LoggingAdapter
 import akka.util.Timeout
@@ -21,6 +22,8 @@ import org.apache.hadoop.conf.Configuration
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 import org.apache.hadoop.fs.{FileSystem, Path}
+
+import scala.io.Source
 
 class HDFSFileScanMetadata(
     tag: OperatorTag,
@@ -68,4 +71,20 @@ class HDFSFileScanMetadata(
   )(implicit timeout: Timeout, ec: ExecutionContext, log: LoggingAdapter): Unit = {
     breakpoint.partition(topology(0).layer.filter(states(_) != WorkerState.Completed))
   }
+
+  override def setInputSchema(tag: AmberTag, schema: Schema): Unit = {
+  }
+
+  override def getOutputSchema: Schema = {
+    if(indicesToKeep == null){
+      val fs = FileSystem.get(new URI(host),new Configuration());
+      val stream = fs.open(new Path(filePath));
+      val firstLine = stream.readLine();
+      val l:Int = firstLine.split(delimiter).length
+      new Schema((0 until l).map(x => new Attribute(s"_c$x", AttributeType.STRING)):_*)
+    }else{
+      new Schema(indicesToKeep.indices.map(x => new Attribute(s"_c$x", AttributeType.STRING)):_*)
+    }
+  }
+
 }

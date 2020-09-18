@@ -3,42 +3,18 @@ package Engine.Architecture.Controller
 import Clustering.ClusterListener.GetAvailableNodeAddresses
 import Engine.Architecture.Breakpoint.GlobalBreakpoint.{ExceptionGlobalBreakpoint, GlobalBreakpoint}
 import Engine.Architecture.Breakpoint.GlobalBreakpoint.GlobalBreakpoint
-import Engine.Architecture.Controller.ControllerEvent.{
-  BreakpointTriggered,
-  ModifyLogicCompleted,
-  SkipTupleResponse,
-  WorkflowCompleted,
-  WorkflowPaused,
-  WorkflowStatusUpdate
-}
+import Engine.Architecture.Controller.ControllerEvent.{BreakpointTriggered, ModifyLogicCompleted, SkipTupleResponse, WorkflowCompleted, WorkflowPaused, WorkflowStatusUpdate}
 import Engine.Architecture.DeploySemantics.DeployStrategy.OneOnEach
 import Engine.Architecture.DeploySemantics.DeploymentFilter.FollowPrevious
-import Engine.Architecture.DeploySemantics.Layer.{
-  ActorLayer,
-  GeneratorWorkerLayer,
-  ProcessorWorkerLayer
-}
+import Engine.Architecture.DeploySemantics.Layer.{ActorLayer, GeneratorWorkerLayer, ProcessorWorkerLayer}
 import Engine.FaultTolerance.Materializer.{HashBasedMaterializer, OutputMaterializer}
 import Engine.FaultTolerance.Scanner.HDFSFolderScanTupleProducer
-import Engine.Architecture.LinkSemantics.{
-  FullRoundRobin,
-  HashBasedShuffle,
-  LocalPartialToOne,
-  OperatorLink
-}
+import Engine.Architecture.LinkSemantics.{FullRoundRobin, HashBasedShuffle, LocalPartialToOne, OperatorLink}
 import Engine.Architecture.Principal.{Principal, PrincipalState, PrincipalStatistics}
-import Engine.Common.AmberException.AmberException
 import Engine.Common.AmberMessage.ControllerMessage._
 import Engine.Common.AmberMessage.ControlMessage._
 import Engine.Common.AmberMessage.PrincipalMessage
-import Engine.Common.AmberMessage.PrincipalMessage.{
-  AckedPrincipalInitialization,
-  AssignBreakpoint,
-  GetOutputLayer,
-  ReportCurrentProcessingTuple,
-  ReportOutputResult,
-  ReportPrincipalPartialCompleted
-}
+import Engine.Common.AmberMessage.PrincipalMessage.{AckedPrincipalInitialization, AssignBreakpoint, GetOutputLayer, ReportCurrentProcessingTuple, ReportOutputResult, ReportPrincipalPartialCompleted}
 import Engine.Common.AmberMessage.StateMessage.EnforceStateCheck
 import Engine.Common.AmberTag.{AmberTag, LayerTag, LinkTag, OperatorTag, WorkflowTag}
 import Engine.Common.AmberTuple.Tuple
@@ -55,18 +31,8 @@ import Engine.Operators.Scan.HDFSFileScan.{HDFSFileScanMetadata, HDFSFileScanTup
 import Engine.Operators.Scan.LocalFileScan.LocalFileScanMetadata
 import Engine.Operators.Sink.SimpleSinkOperatorMetadata
 import Engine.Operators.Sort.SortMetadata
-import akka.actor.{
-  Actor,
-  ActorLogging,
-  ActorRef,
-  ActorSelection,
-  Address,
-  Cancellable,
-  Deploy,
-  PoisonPill,
-  Props,
-  Stash
-}
+import Engine.SchemaSupport.exception.AmberException
+import akka.actor.{Actor, ActorLogging, ActorRef, ActorSelection, Address, Cancellable, Deploy, PoisonPill, Props, Stash}
 import akka.dispatch.Futures
 import akka.event.LoggingAdapter
 import akka.pattern.ask
@@ -499,6 +465,7 @@ class Controller(
             }
           }
           val v = workflow.operators(k)
+          workflow.inLinks(k).foreach(x => v.setInputSchema(x, workflow.operators(x).getOutputSchema))
           v.runtimeCheck(workflow) match {
             case Some(dependencies) =>
               dependencies.foreach { x =>

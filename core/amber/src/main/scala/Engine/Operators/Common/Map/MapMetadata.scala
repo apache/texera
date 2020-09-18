@@ -8,6 +8,7 @@ import Engine.Architecture.Worker.WorkerState
 import Engine.Common.AmberTag.{LayerTag, OperatorTag}
 import Engine.Common.AmberTuple.{AmberTuple, Tuple}
 import Engine.Operators.OperatorMetadata
+import Engine.SchemaSupport.schema.Schema
 import akka.actor.ActorRef
 import akka.event.LoggingAdapter
 import akka.util.Timeout
@@ -15,7 +16,7 @@ import akka.util.Timeout
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
-class MapMetadata(
+abstract class MapMetadata(
     override val tag: OperatorTag,
     val numWorkers: Int,
     val mapFunc: Tuple => Tuple

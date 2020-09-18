@@ -7,6 +7,7 @@ import Engine.Architecture.LinkSemantics.LinkStrategy
 import Engine.Architecture.Worker.WorkerState
 import Engine.Common.AmberTag.{AmberTag, LayerTag, OperatorTag}
 import Engine.Common.AmberTuple.Tuple
+import Engine.SchemaSupport.schema.Schema
 import akka.actor.ActorRef
 import akka.event.LoggingAdapter
 import akka.util.Timeout
@@ -42,5 +43,10 @@ abstract class OperatorMetadata(val tag: OperatorTag) extends Serializable {
       states: mutable.AnyRefMap[ActorRef, WorkerState.Value],
       breakpoint: GlobalBreakpoint
   )(implicit timeout: Timeout, ec: ExecutionContext, log: LoggingAdapter)
+
+
+  def setInputSchema(tag: AmberTag, schema: Schema):Unit
+
+  def getOutputSchema:Schema
 
 }

@@ -8,6 +8,7 @@ import Engine.Architecture.LinkSemantics.LinkStrategy
 import Engine.Architecture.Worker.WorkerState
 import Engine.Common.AmberTag.{AmberTag, LayerTag, OperatorTag}
 import Engine.Operators.OperatorMetadata
+import Engine.SchemaSupport.schema.{Attribute, AttributeType, Schema}
 import akka.actor.ActorRef
 import akka.event.LoggingAdapter
 import akka.util.Timeout
@@ -45,4 +46,12 @@ class SimpleSourceOperatorMetadata(tag: OperatorTag, numWorkers: Int, limit: Int
   )(implicit timeout: Timeout, ec: ExecutionContext, log: LoggingAdapter): Unit = {
     breakpoint.partition(topology(0).layer.filter(states(_) != WorkerState.Completed))
   }
+
+  override def setInputSchema(tag: AmberTag, schema: Schema): Unit = {
+  }
+
+  override def getOutputSchema: Schema = {
+    new Schema(new Attribute("simpleInt",AttributeType.INTEGER))
+  }
+
 }

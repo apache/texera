@@ -12,12 +12,14 @@ import Engine.Common.AmberTuple.Tuple
 import Engine.Operators.OperatorMetadata
 import Engine.Operators.Scan.FileScanMetadata
 import Engine.Operators.Scan.HDFSFileScan.HDFSFileScanMetadata
+import Engine.SchemaSupport.schema.{Attribute, AttributeType, Schema}
 import akka.actor.ActorRef
 import akka.event.LoggingAdapter
 import akka.util.Timeout
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
+import scala.collection.JavaConverters._
 
 class HashJoinMetadata[K](
     tag: OperatorTag,
@@ -92,4 +94,20 @@ class HashJoinMetadata[K](
   )(implicit timeout: Timeout, ec: ExecutionContext, log: LoggingAdapter): Unit = {
     breakpoint.partition(topology(0).layer.filter(states(_) != WorkerState.Completed))
   }
+
+  var innerTableSchema:Schema = _
+  var outerTableSchema:Schema = _
+
+  override def setInputSchema(tag:AmberTag, schema: Schema): Unit = {
+    if(innerTableTag == tag){
+      innerTableSchema = schema
+    }else{
+      outerTableSchema = schema
+    }
+  }
+
+  override def getOutputSchema: Schema = {
+    new Schema(outerTableSchema.getAttributes.asScala ++ innerTableSchema.getAttributes.asScala:_*)
+  }
+
 }

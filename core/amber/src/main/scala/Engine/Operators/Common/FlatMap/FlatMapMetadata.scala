@@ -8,6 +8,7 @@ import Engine.Architecture.Worker.WorkerState
 import Engine.Common.AmberTag.{LayerTag, OperatorTag}
 import Engine.Common.AmberTuple.Tuple
 import Engine.Operators.OperatorMetadata
+import Engine.SchemaSupport.schema.Schema
 import akka.actor.ActorRef
 import akka.event.LoggingAdapter
 import akka.util.Timeout
@@ -15,7 +16,7 @@ import akka.util.Timeout
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
-class FlatMapMetadata(
+abstract class FlatMapMetadata(
     override val tag: OperatorTag,
     val numWorkers: Int,
     val flatMapFunc: Tuple => TraversableOnce[Tuple]
@@ -45,4 +46,6 @@ class FlatMapMetadata(
   )(implicit timeout: Timeout, ec: ExecutionContext, log: LoggingAdapter): Unit = {
     breakpoint.partition(topology(0).layer.filter(states(_) != WorkerState.Completed))
   }
+
+
 }

@@ -1,10 +1,14 @@
 package texera.operators.sentiment;
 
+import Engine.Common.AmberTag.AmberTag;
 import Engine.Common.AmberTuple.AmberTuple;
 import Engine.Common.AmberTuple.Tuple;
 import Engine.Common.Constants;
 import Engine.Operators.Common.Map.MapMetadata;
 import Engine.Operators.OperatorMetadata;
+import Engine.SchemaSupport.schema.Attribute;
+import Engine.SchemaSupport.schema.AttributeType;
+import Engine.SchemaSupport.schema.Schema;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import edu.stanford.nlp.ling.CoreAnnotations;
@@ -20,6 +24,7 @@ import texera.common.schema.OperatorGroupConstants;
 import texera.common.schema.TexeraOperatorDescription;
 import texera.common.workflow.TexeraOperator;
 
+import java.util.List;
 import java.util.Properties;
 
 public class TexeraSentimentAnalysis extends TexeraOperator {
@@ -38,33 +43,48 @@ public class TexeraSentimentAnalysis extends TexeraOperator {
         StanfordCoreNLPWrapper coreNlp = new StanfordCoreNLPWrapper(props);
         int column = this.context().fieldIndexMapping(attribute);
         return new MapMetadata(this.amberOperatorTag(), Constants.defaultNumWorkers(),
-            (Function1<Tuple, Tuple> & Serializable) t -> {
-                String text = t.get(column).toString();
-                Annotation documentAnnotation = new Annotation(text);
-                coreNlp.get().annotate(documentAnnotation);
-                // mainSentiment is calculated by the sentiment class of the longest sentence
-                Integer mainSentiment = 0;
-                Integer longestSentenceLength = 0;
-                for (CoreMap sentence : documentAnnotation.get(CoreAnnotations.SentencesAnnotation.class)) {
-                    Tree tree = sentence.get(SentimentCoreAnnotations.SentimentAnnotatedTree.class);
-                    int sentiment = RNNCoreAnnotations.getPredictedClass(tree);
-                    String sentenceText = sentence.toString();
-                    if (sentenceText.length() > longestSentenceLength) {
-                        mainSentiment = sentiment;
-                        longestSentenceLength = sentenceText.length();
+                (Function1<Tuple, Tuple> & Serializable) t -> {
+                    String text = t.get(column).toString();
+                    Annotation documentAnnotation = new Annotation(text);
+                    coreNlp.get().annotate(documentAnnotation);
+                    // mainSentiment is calculated by the sentiment class of the longest sentence
+                    Integer mainSentiment = 0;
+                    Integer longestSentenceLength = 0;
+                    for (CoreMap sentence : documentAnnotation.get(CoreAnnotations.SentencesAnnotation.class)) {
+                        Tree tree = sentence.get(SentimentCoreAnnotations.SentimentAnnotatedTree.class);
+                        int sentiment = RNNCoreAnnotations.getPredictedClass(tree);
+                        String sentenceText = sentence.toString();
+                        if (sentenceText.length() > longestSentenceLength) {
+                            mainSentiment = sentiment;
+                            longestSentenceLength = sentenceText.length();
+                        }
                     }
-                }
-                String sentiment = "";
-                if (mainSentiment > 2) {
-                    sentiment = "positive";
-                } else if (mainSentiment == 2) {
-                    sentiment = "neutral";
-                } else {
-                    sentiment = "negative";
-                }
+                    String sentiment = "";
+                    if (mainSentiment > 2) {
+                        sentiment = "positive";
+                    } else if (mainSentiment == 2) {
+                        sentiment = "neutral";
+                    } else {
+                        sentiment = "negative";
+                    }
 
-                return new AmberTuple(ArrayUtils.add(t.toArray(), sentiment));
-            });
+                    return new AmberTuple(ArrayUtils.add(t.toArray(), sentiment));
+                }) {
+
+            Schema outputSchema = null;
+
+            @Override
+            public void setInputSchema(AmberTag tag, Schema schema) {
+                List<Attribute> list = schema.getAttributes();
+                list.add(new Attribute("sentiment", AttributeType.STRING));
+                outputSchema = new Schema(list);
+            }
+
+            @Override
+            public Schema getOutputSchema() {
+                return outputSchema;
+            }
+        };
     }
 
     @Override

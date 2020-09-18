@@ -10,6 +10,7 @@ import Engine.Common.AmberTag.{AmberTag, LayerTag, OperatorTag}
 import Engine.Common.AmberTuple.Tuple
 import Engine.Common.Constants
 import Engine.Operators.OperatorMetadata
+import Engine.SchemaSupport.schema.{Attribute, AttributeType, Schema}
 import akka.actor.ActorRef
 import akka.event.LoggingAdapter
 import akka.util.Timeout
@@ -62,5 +63,13 @@ class GroupByMetadata[T](
   )(implicit timeout: Timeout, ec: ExecutionContext, log: LoggingAdapter): Unit = {
     breakpoint.partition(topology(0).layer.filter(states(_) != WorkerState.Completed))
   }
+
+  override def setInputSchema(tag: AmberTag, schema: Schema): Unit = {
+  }
+
+  override def getOutputSchema: Schema = {
+    new Schema(new Attribute(aggregationType.toString,AttributeType.DOUBLE))
+  }
+
 
 }

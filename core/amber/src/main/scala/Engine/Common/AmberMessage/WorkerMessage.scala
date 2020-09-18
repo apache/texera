@@ -4,7 +4,6 @@ import Engine.Architecture.Breakpoint.LocalBreakpoint.LocalBreakpoint
 import Engine.Architecture.SendSemantics.DataTransferPolicy.DataTransferPolicy
 import Engine.Architecture.SendSemantics.Routees.BaseRoutee
 import Engine.Architecture.Worker.{WorkerState, WorkerStatistics}
-import Engine.Common.AmberException.AmberException
 import Engine.Common.AmberTag.{LayerTag, LinkTag, WorkerTag}
 import Engine.Common.AmberTuple.Tuple
 import akka.actor.{ActorPath, ActorRef}

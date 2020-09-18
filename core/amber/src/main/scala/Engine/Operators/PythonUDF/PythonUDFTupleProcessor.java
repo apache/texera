@@ -1,6 +1,6 @@
 package Engine.Operators.PythonUDF;
 
-import Engine.Common.AmberException.AmberException;
+import Engine.SchemaSupport.exception.AmberException;
 import Engine.Common.AmberTag.LayerTag;
 import Engine.Common.AmberTuple.AmberTuple;
 import Engine.Common.AmberTuple.Tuple;

@@ -12,6 +12,7 @@ import Engine.Common.AmberTag.{AmberTag, LayerTag, OperatorTag}
 import Engine.Common.TableMetadata
 import Engine.Operators.OperatorMetadata
 import Engine.Operators.Scan.FileScanMetadata
+import Engine.SchemaSupport.schema.{Attribute, AttributeType, Schema}
 import akka.actor.ActorRef
 import akka.event.LoggingAdapter
 import akka.util.Timeout
@@ -19,6 +20,7 @@ import akka.util.Timeout
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext
+import scala.io.Source
 
 class LocalFileScanMetadata(
     tag: OperatorTag,
@@ -63,4 +65,22 @@ class LocalFileScanMetadata(
   )(implicit timeout: Timeout, ec: ExecutionContext, log: LoggingAdapter): Unit = {
     breakpoint.partition(topology(0).layer.filter(states(_) != WorkerState.Completed))
   }
+
+
+  override def setInputSchema(tag: AmberTag, schema: Schema): Unit = {
+  }
+
+  override def getOutputSchema: Schema = {
+    if(indicesToKeep == null){
+      val file = Source.fromFile(filePath)
+      val firstLine = file.getLines.next()
+      file.close()
+      val l:Int = firstLine.split(delimiter).length
+      new Schema((0 until l).map(x => new Attribute(s"_c$x", AttributeType.STRING)):_*)
+    }else{
+      new Schema(indicesToKeep.indices.map(x => new Attribute(s"_c$x", AttributeType.STRING)):_*)
+    }
+  }
+
+
 }

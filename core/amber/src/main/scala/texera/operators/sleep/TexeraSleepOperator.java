@@ -1,9 +1,11 @@
 package texera.operators.sleep;
 
+import Engine.Common.AmberTag.AmberTag;
 import Engine.Common.AmberTuple.Tuple;
 import Engine.Common.Constants;
 import Engine.Operators.Common.Map.MapMetadata;
 import Engine.Operators.OperatorMetadata;
+import Engine.SchemaSupport.schema.Schema;
 import scala.Function1;
 import scala.Serializable;
 import texera.common.workflow.TexeraOperator;
@@ -31,7 +33,20 @@ public class TexeraSleepOperator extends TexeraOperator {
                         throw new RuntimeException(e);
                     }
                     return t;
-        });
+                }) {
+
+            Schema outputSchema = null;
+
+            @Override
+            public void setInputSchema(AmberTag tag, Schema schema) {
+                outputSchema = schema;
+            }
+
+            @Override
+            public Schema getOutputSchema() {
+                return outputSchema;
+            }
+        };
     }
 
     @Override

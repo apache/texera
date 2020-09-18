@@ -3,11 +3,11 @@ package Engine.Architecture.Worker
 import Engine.Common.AmberMessage.WorkerMessage
 import Engine.Architecture.Breakpoint.FaultedTuple
 import Engine.Architecture.Breakpoint.LocalBreakpoint.LocalBreakpoint
-import Engine.Common.AmberException.AmberException
 import Engine.Common.AmberMessage.ControlMessage._
 import Engine.Common.AmberMessage.WorkerMessage._
 import Engine.Common.AmberTuple.Tuple
 import Engine.Common.ElidableStatement
+import Engine.SchemaSupport.exception.AmberException
 import akka.actor.{Actor, ActorLogging, Stash}
 import akka.event.LoggingAdapter
 import akka.util.Timeout
