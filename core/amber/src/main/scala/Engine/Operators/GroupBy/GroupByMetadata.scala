@@ -64,11 +64,13 @@ class GroupByMetadata[T](
     breakpoint.partition(topology(0).layer.filter(states(_) != WorkerState.Completed))
   }
 
+  val outputSchema = new Schema(new Attribute(aggregationType.toString,AttributeType.DOUBLE))
+
   override def setInputSchema(schema: Schema): Unit = {
   }
 
   override def getOutputSchema: Schema = {
-    new Schema(new Attribute(aggregationType.toString,AttributeType.DOUBLE))
+    outputSchema
   }
 
 
