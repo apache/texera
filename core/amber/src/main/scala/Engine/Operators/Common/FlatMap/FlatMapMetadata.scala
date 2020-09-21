@@ -46,6 +46,4 @@ abstract class FlatMapMetadata(
   )(implicit timeout: Timeout, ec: ExecutionContext, log: LoggingAdapter): Unit = {
     breakpoint.partition(topology(0).layer.filter(states(_) != WorkerState.Completed))
   }
-
-
 }

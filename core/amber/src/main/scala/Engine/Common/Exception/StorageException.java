@@ -1,4 +1,4 @@
-package Engine.SchemaSupport.exception;
+package Engine.Common.Exception;
 
 /*
  * Thrown to indicate that an exception occurs when writing/reading data.

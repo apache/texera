@@ -45,7 +45,7 @@ abstract class OperatorMetadata(val tag: OperatorTag) extends Serializable {
   )(implicit timeout: Timeout, ec: ExecutionContext, log: LoggingAdapter)
 
 
-  def setInputSchema(tag: AmberTag, schema: Schema):Unit
+  def setInputSchema(schema: Schema):Unit
 
   def getOutputSchema:Schema
 

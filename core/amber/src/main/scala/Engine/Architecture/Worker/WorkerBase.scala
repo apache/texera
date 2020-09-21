@@ -7,7 +7,7 @@ import Engine.Common.AmberMessage.ControlMessage._
 import Engine.Common.AmberMessage.WorkerMessage._
 import Engine.Common.AmberTuple.Tuple
 import Engine.Common.ElidableStatement
-import Engine.SchemaSupport.exception.AmberException
+import Engine.Common.Exception.AmberException
 import akka.actor.{Actor, ActorLogging, Stash}
 import akka.event.LoggingAdapter
 import akka.util.Timeout

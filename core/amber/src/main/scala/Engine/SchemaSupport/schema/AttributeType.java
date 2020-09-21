@@ -1,7 +1,7 @@
 package Engine.SchemaSupport.schema;
 
 import com.fasterxml.jackson.annotation.JsonValue;
-import Engine.SchemaSupport.exception.AmberException;
+import Engine.Common.Exception.AmberException;
 import Engine.SchemaSupport.field.*;
 
 

@@ -1,6 +1,5 @@
 package texera.operators.sleep;
 
-import Engine.Common.AmberTag.AmberTag;
 import Engine.Common.AmberTuple.Tuple;
 import Engine.Common.Constants;
 import Engine.Operators.Common.Map.MapMetadata;
@@ -38,7 +37,7 @@ public class TexeraSleepOperator extends TexeraOperator {
             Schema outputSchema = null;
 
             @Override
-            public void setInputSchema(AmberTag tag, Schema schema) {
+            public void setInputSchema(Schema schema) {
                 outputSchema = schema;
             }
 

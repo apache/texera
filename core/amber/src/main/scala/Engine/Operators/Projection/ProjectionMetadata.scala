@@ -44,7 +44,7 @@ class ProjectionMetadata(tag: OperatorTag, val numWorkers: Int, val targetFields
 
   var outputSchema:Schema = _
 
-  override def setInputSchema(tag: AmberTag, schema: Schema): Unit = {
+  override def setInputSchema(schema: Schema): Unit = {
     val attrs = schema.getAttributes
     outputSchema = new Schema(targetFields.map(attrs.get):_*)
   }

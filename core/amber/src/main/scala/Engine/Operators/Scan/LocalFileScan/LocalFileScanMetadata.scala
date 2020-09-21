@@ -67,7 +67,7 @@ class LocalFileScanMetadata(
   }
 
 
-  override def setInputSchema(tag: AmberTag, schema: Schema): Unit = {
+  override def setInputSchema(schema: Schema): Unit = {
   }
 
   override def getOutputSchema: Schema = {

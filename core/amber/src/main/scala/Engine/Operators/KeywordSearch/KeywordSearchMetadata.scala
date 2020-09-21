@@ -48,7 +48,7 @@ class KeywordSearchMetadata(
 
   var outputSchema:Schema = _
 
-  override def setInputSchema(tag: AmberTag, schema: Schema): Unit = {
+  override def setInputSchema(schema: Schema): Unit = {
     outputSchema = schema
   }
 

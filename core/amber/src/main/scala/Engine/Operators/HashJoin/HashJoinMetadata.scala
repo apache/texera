@@ -98,11 +98,19 @@ class HashJoinMetadata[K](
   var innerTableSchema:Schema = _
   var outerTableSchema:Schema = _
 
-  override def setInputSchema(tag:AmberTag, schema: Schema): Unit = {
+  //this should not be called for hash join
+  override def setInputSchema(schema: Schema): Unit = ???
+
+  def setInputSchema(tag:AmberTag, schema: Schema): Unit = {
+    val inputSchema =
+      if(schema == null)
+        new Schema()
+      else
+        schema
     if(innerTableTag == tag){
-      innerTableSchema = schema
+      innerTableSchema = inputSchema
     }else{
-      outerTableSchema = schema
+      outerTableSchema = inputSchema
     }
   }
 

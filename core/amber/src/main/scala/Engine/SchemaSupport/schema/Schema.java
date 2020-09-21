@@ -4,7 +4,7 @@ import Engine.Common.AmberTuple.AmberTuple;
 import Engine.SchemaSupport.constants.ErrorMessages;
 import Engine.SchemaSupport.constants.JsonConstants;
 import Engine.SchemaSupport.constants.SchemaConstants;
-import Engine.SchemaSupport.exception.AmberException;
+import Engine.Common.Exception.AmberException;
 import Engine.SchemaSupport.field.IField;
 import Engine.SchemaSupport.field.ParseUtils;
 import com.fasterxml.jackson.annotation.JsonCreator;

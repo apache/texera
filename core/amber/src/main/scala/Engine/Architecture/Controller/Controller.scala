@@ -18,6 +18,7 @@ import Engine.Common.AmberMessage.PrincipalMessage.{AckedPrincipalInitialization
 import Engine.Common.AmberMessage.StateMessage.EnforceStateCheck
 import Engine.Common.AmberTag.{AmberTag, LayerTag, LinkTag, OperatorTag, WorkflowTag}
 import Engine.Common.AmberTuple.Tuple
+import Engine.Common.Exception.AmberException
 import Engine.Common.{AdvancedMessageSending, AmberUtils, Constants, TupleProducer}
 import Engine.Operators.SimpleCollection.SimpleSourceOperatorMetadata
 import Engine.Operators.Count.CountMetadata
@@ -31,7 +32,6 @@ import Engine.Operators.Scan.HDFSFileScan.{HDFSFileScanMetadata, HDFSFileScanTup
 import Engine.Operators.Scan.LocalFileScan.LocalFileScanMetadata
 import Engine.Operators.Sink.SimpleSinkOperatorMetadata
 import Engine.Operators.Sort.SortMetadata
-import Engine.SchemaSupport.exception.AmberException
 import akka.actor.{Actor, ActorLogging, ActorRef, ActorSelection, Address, Cancellable, Deploy, PoisonPill, Props, Stash}
 import akka.dispatch.Futures
 import akka.event.LoggingAdapter
@@ -465,7 +465,7 @@ class Controller(
             }
           }
           val v = workflow.operators(k)
-          workflow.inLinks(k).foreach(x => v.setInputSchema(x, workflow.operators(x).getOutputSchema))
+          workflow.inLinks(k).foreach(x => linkSchema(workflow.operators(x),v))
           v.runtimeCheck(workflow) match {
             case Some(dependencies) =>
               dependencies.foreach { x =>
@@ -904,6 +904,15 @@ class Controller(
       self ! PoisonPill;
     }
 
+  }
+
+  private[this] def linkSchema(from:OperatorMetadata, to:OperatorMetadata): Unit ={
+    to match {
+      case metadata: HashJoinMetadata[_] =>
+        metadata.setInputSchema(from.tag,from.getOutputSchema)
+      case _ =>
+        to.setInputSchema(from.getOutputSchema)
+    }
   }
 
 }

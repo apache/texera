@@ -64,7 +64,7 @@ class GroupByMetadata[T](
     breakpoint.partition(topology(0).layer.filter(states(_) != WorkerState.Completed))
   }
 
-  override def setInputSchema(tag: AmberTag, schema: Schema): Unit = {
+  override def setInputSchema(schema: Schema): Unit = {
   }
 
   override def getOutputSchema: Schema = {

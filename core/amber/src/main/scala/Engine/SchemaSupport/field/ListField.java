@@ -9,7 +9,7 @@ import Engine.SchemaSupport.constants.JsonConstants;
 
 import java.util.List;
 
-@JsonDeserialize(using = ListFieldJsonDeserializer.class)
+
 public class ListField<T> implements IField {
 
     private ImmutableList<T> list;

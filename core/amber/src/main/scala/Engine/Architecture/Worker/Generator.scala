@@ -4,7 +4,7 @@ import java.util.concurrent.Executors
 
 import Engine.Architecture.Breakpoint.FaultedTuple
 import Engine.Architecture.Breakpoint.LocalBreakpoint.{ExceptionBreakpoint, LocalBreakpoint}
-import Engine.Common.AmberException.BreakpointException
+import Engine.Common.Exception.BreakpointException
 import Engine.Common.{
   AdvancedMessageSending,
   ElidableStatement,

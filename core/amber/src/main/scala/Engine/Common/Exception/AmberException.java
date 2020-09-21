@@ -1,4 +1,4 @@
-package Engine.SchemaSupport.exception;
+package Engine.Common.Exception;
 
 /**
  * Superclass of all exceptions inside Amber Engine.

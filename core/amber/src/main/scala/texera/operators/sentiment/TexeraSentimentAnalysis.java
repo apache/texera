@@ -1,6 +1,5 @@
 package texera.operators.sentiment;
 
-import Engine.Common.AmberTag.AmberTag;
 import Engine.Common.AmberTuple.AmberTuple;
 import Engine.Common.AmberTuple.Tuple;
 import Engine.Common.Constants;
@@ -74,7 +73,7 @@ public class TexeraSentimentAnalysis extends TexeraOperator {
             Schema outputSchema = null;
 
             @Override
-            public void setInputSchema(AmberTag tag, Schema schema) {
+            public void setInputSchema(Schema schema) {
                 List<Attribute> list = schema.getAttributes();
                 list.add(new Attribute("sentiment", AttributeType.STRING));
                 outputSchema = new Schema(list);
