@@ -4,7 +4,7 @@ import Engine.Common.AmberTag.LayerTag;
 import Engine.Common.AmberTuple.Tuple;
 import Engine.Common.TupleProcessor;
 
-public class KeywordSearchTupleProcessor extends TupleProcessor {
+public class KeywordSearchTupleProcessor implements TupleProcessor {
 
     private Tuple tuple = null;
     private boolean nextFlag = false;
@@ -45,13 +45,9 @@ public class KeywordSearchTupleProcessor extends TupleProcessor {
     }
 
     @Override
-    public void updateParamMap() {
-        super.params().put("targetField", Integer.toString(targetField));
-        super.params().put("keyword", keyword);
-    }
+    public void initialize() {
 
-    @Override
-    public void initializeWorker() {}
+    }
 
     @Override
     public boolean hasNext() {

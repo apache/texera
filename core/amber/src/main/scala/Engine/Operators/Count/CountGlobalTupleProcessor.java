@@ -3,12 +3,10 @@ package Engine.Operators.Count;
 import Engine.Common.AmberTag.LayerTag;
 import Engine.Common.AmberTuple.Tuple;
 import Engine.Common.TupleProcessor;
-import scala.collection.immutable.Map;
-import scala.collection.mutable.HashMap;
 
 import java.util.Collections;
 
-public class CountGlobalTupleProcessor extends TupleProcessor {
+public class CountGlobalTupleProcessor implements TupleProcessor {
 
     private boolean nextFlag = false;
     private int counter = 0;
@@ -29,17 +27,14 @@ public class CountGlobalTupleProcessor extends TupleProcessor {
     }
 
     @Override
-    public void updateParamMap() {
-        super.params().put("counter", Integer.toString(counter));
-    }
-
-    @Override
     public void noMore() {
         nextFlag = true;
     }
 
     @Override
-    public void initializeWorker() {}
+    public void initialize() {
+
+    }
 
     @Override
     public boolean hasNext() {

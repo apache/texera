@@ -22,11 +22,9 @@ class SimpleTupleProcessor extends TupleProcessor {
     _tuple
   }
 
-  override def updateParamMap(): Unit = {}
-
   override def dispose(): Unit = {}
 
-  override def initializeWorker(): Unit = {}
+  override def initialize(): Unit = {}
 
   override def onUpstreamChanged(from: LayerTag): Unit = {}
 

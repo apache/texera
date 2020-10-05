@@ -18,7 +18,5 @@ class SimpleTupleProducer(val limit: Int, val delay: Int = 0) extends TupleProdu
 
   override def dispose(): Unit = {}
 
-  override def updateParamMap(): Unit = {}
-
-  override def initializeWorker(): Unit = {}
+  override def initialize(): Unit = {}
 }

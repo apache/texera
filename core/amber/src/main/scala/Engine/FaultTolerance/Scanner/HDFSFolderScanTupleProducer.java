@@ -14,9 +14,8 @@ import org.apache.hadoop.fs.RemoteIterator;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
-import java.util.Arrays;
 
-public class HDFSFolderScanTupleProducer extends TupleProducer{
+public class HDFSFolderScanTupleProducer implements TupleProducer{
 
     private String host;
     private String hdfsPath;
@@ -43,17 +42,10 @@ public class HDFSFolderScanTupleProducer extends TupleProducer{
     }
 
     @Override
-    public void initializeWorker() throws Exception {
+    public void initialize() throws Exception {
         fs = FileSystem.get(new URI(host),new Configuration());
         files = fs.listFiles(new Path(hdfsPath),true);
         ReadNextFileIfExists();
-    }
-
-    @Override
-    public void updateParamMap() throws Exception {
-        super.params().put("host", host);
-        super.params().put("hdfsPath", hdfsPath);
-        super.params().put("separator", Character.toString(separator));
     }
 
     @Override

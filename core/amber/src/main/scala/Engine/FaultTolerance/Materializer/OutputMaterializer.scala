@@ -30,11 +30,9 @@ class OutputMaterializer(val outputPath: String, val remoteHDFS: String = null)
     }
   }
 
-  override def initializeWorker(): Unit = {
+  override def initialize(): Unit = {
     writer = new BufferedWriter(new FileWriter(outputPath))
   }
-
-  override def updateParamMap(): Unit = {}
 
   override def hasNext: Boolean = false
 

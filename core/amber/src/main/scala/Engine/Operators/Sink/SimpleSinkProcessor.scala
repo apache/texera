@@ -21,9 +21,7 @@ class SimpleSinkProcessor extends TupleProcessor {
 
   override def noMore(): Unit = {}
 
-  override def updateParamMap(): Unit = {}
-
-  override def initializeWorker(): Unit = {}
+  override def initialize(): Unit = {}
 
   override def hasNext: Boolean = false
 
