@@ -43,12 +43,14 @@ class HashBasedMaterializer(
     }
   }
 
-  override def initialize(): Unit = {
+  override def initializeWorker(): Unit = {
     writer = new Array[BufferedWriter](numBuckets)
     for (i <- 0 until numBuckets) {
       writer(i) = new BufferedWriter(new FileWriter(outputPath + "/" + index + "/" + i + ".tmp"))
     }
   }
+
+  override def updateParamMap(): Unit = {}
 
   override def hasNext: Boolean = false
 

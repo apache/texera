@@ -10,7 +10,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 
-public class HashJoinTupleProcessor<K> implements TupleProcessor {
+public class HashJoinTupleProcessor<K> extends TupleProcessor {
 
     private LayerTag innerTableIdentifier;
     private int innerTableIndex;
@@ -66,7 +66,16 @@ public class HashJoinTupleProcessor<K> implements TupleProcessor {
     }
 
     @Override
-    public void initialize() {
+    public void updateParamMap(){
+        super.params().put("innerTableIdentifier",innerTableIdentifier.getGlobalIdentity());
+        super.params().put("innerTableIndex",Integer.toString(innerTableIndex));
+        super.params().put("outerTableIndex",Integer.toString(outerTableIndex));
+        super.params().put("isCurrentTableInner", Boolean.toString(isCurrentTableInner));
+        super.params().put("isInnerTableFinished",Boolean.toString(isInnerTableFinished));
+    }
+
+    @Override
+    public void initializeWorker() {
         innerTableHashMap = new HashMap<>();
     }
 

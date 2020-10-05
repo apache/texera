@@ -18,6 +18,8 @@ class SortTupleProcessor[T: Ordering](val targetField: Int) extends TupleProcess
     iter = results.sortBy(x => x.getAs[T](targetField)).iterator
   }
 
+  override def updateParamMap(): Unit = {}
+
   override def hasNext: Boolean = iter != null && iter.hasNext
 
   override def next(): Tuple = {
@@ -29,7 +31,7 @@ class SortTupleProcessor[T: Ordering](val targetField: Int) extends TupleProcess
     iter = null
   }
 
-  override def initialize(): Unit = {
+  override def initializeWorker(): Unit = {
     results = new ArrayBuffer[Tuple]()
   }
 

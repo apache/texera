@@ -9,9 +9,10 @@ import com.google.common.base.Splitter;
 import org.tukaani.xz.SeekableFileInputStream;
 
 import java.io.IOException;
+import java.util.Arrays;
 
 
-public class LocalFileScanTupleProducer implements TupleProducer {
+public class LocalFileScanTupleProducer extends TupleProducer {
 
     private String localPath;
     private int[] indicesToKeep;
@@ -39,12 +40,21 @@ public class LocalFileScanTupleProducer implements TupleProducer {
     }
 
     @Override
-    public void initialize() throws Exception {
+    public void initializeWorker() throws Exception {
         SeekableFileInputStream stream = new SeekableFileInputStream(localPath);
         stream.seek(startOffset);
         reader= new BufferedBlockReader(stream,endOffset-startOffset,separator,indicesToKeep);
         if(startOffset > 0)
             reader.readLine();
+    }
+
+    @Override
+    public void updateParamMap() {
+        super.params().put("localPath", localPath);
+        super.params().put("indicesToKeep", Arrays.toString(indicesToKeep));
+        super.params().put("separator", Character.toString(separator));
+        super.params().put("startOffset", Long.toString(startOffset));
+        super.params().put("endOffset", Long.toString(endOffset));
     }
 
     @Override
