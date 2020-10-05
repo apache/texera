@@ -4,8 +4,10 @@ import Engine.Common.AmberTag.LayerTag;
 import Engine.Common.AmberTuple.Tuple;
 import Engine.Common.TupleProcessor;
 
+import java.util.Arrays;
 
-public class ProjectionTupleProcessor implements TupleProcessor {
+
+public class ProjectionTupleProcessor extends TupleProcessor {
 
     private Tuple tuple = null;
     private boolean nextFlag = false;
@@ -48,9 +50,12 @@ public class ProjectionTupleProcessor implements TupleProcessor {
     }
 
     @Override
-    public void initialize() throws Exception {
-
+    public void updateParamMap() {
+        super.params().put("targetFields", Arrays.toString(targetFields));
     }
+
+    @Override
+    public void initializeWorker() throws Exception {}
 
     @Override
     public boolean hasNext() throws Exception {

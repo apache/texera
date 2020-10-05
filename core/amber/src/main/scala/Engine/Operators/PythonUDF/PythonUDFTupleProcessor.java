@@ -21,7 +21,7 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
-public class PythonUDFTupleProcessor implements TupleProcessor {
+public class PythonUDFTupleProcessor extends TupleProcessor {
     private String pythonScriptPath;
     private ArrayList<String> inputColumns;
     private ArrayList<String> outputColumns;
@@ -105,7 +105,14 @@ public class PythonUDFTupleProcessor implements TupleProcessor {
     }
 
     @Override
-    public void initialize() {
+    public void updateParamMap() {
+        super.params().put("batchSize", Integer.toString(batchSize));
+        super.params().put("MAX_TRY_COUNT", Integer.toString(MAX_TRY_COUNT));
+        super.params().put("WAIT_TIME_MS", Long.toString(WAIT_TIME_MS));
+    }
+
+    @Override
+    public void initializeWorker() {
         try {
             int portNumber = getFreeLocalPort();
             Location location = new Location(URI.create("grpc+tcp://localhost:" + portNumber));
