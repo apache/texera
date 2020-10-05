@@ -8,7 +8,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
-public class GroupByLocalTupleProcessor<T> implements TupleProcessor {
+public class GroupByLocalTupleProcessor<T> extends TupleProcessor {
 
 
     private int groupByField;
@@ -74,10 +74,16 @@ public class GroupByLocalTupleProcessor<T> implements TupleProcessor {
     }
 
     @Override
-    public void initialize() throws Exception {
+    public void updateParamMap(){
+        super.params().put("aggregationType",aggregationType.name());
+        super.params().put("results",results.toString());
+        super.params().put("counts",counts.toString());
+    }
+
+    @Override
+    public void initializeWorker() throws Exception {
         results = new HashMap<>();
         counts = new HashMap<>();
-
     }
 
     @Override

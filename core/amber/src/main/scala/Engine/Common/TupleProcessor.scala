@@ -3,7 +3,7 @@ package Engine.Common
 import Engine.Common.AmberTag.LayerTag
 import Engine.Common.AmberTuple.Tuple
 
-trait TupleProcessor extends TupleProducer {
+abstract class TupleProcessor extends TupleProducer {
   @throws(classOf[Exception])
   def accept(tuple: Tuple): Unit
 

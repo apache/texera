@@ -8,9 +8,10 @@ import Engine.Operators.Scan.BufferedBlockReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
+import java.util.Arrays;
 
 
-public class HDFSFileScanTupleProducer implements TupleProducer {
+public class HDFSFileScanTupleProducer extends TupleProducer {
 
     private String host;
     private String hdfsPath;
@@ -32,7 +33,7 @@ public class HDFSFileScanTupleProducer implements TupleProducer {
     }
 
     @Override
-    public void initialize() throws Exception {
+    public void initializeWorker() throws Exception {
         System.out.println(startOffset + " " + endOffset);
         //FileSystem fs = FileSystem.get(new URI(host),new Configuration());
         //FSDataInputStream stream = fs.open(new Path(hdfsPath));
@@ -42,6 +43,16 @@ public class HDFSFileScanTupleProducer implements TupleProducer {
         reader = new BufferedBlockReader(stream, endOffset - startOffset, separator, indicesToKeep);
         if (startOffset > 0)
             reader.readLine();
+    }
+
+    @Override
+    public void updateParamMap(){
+        super.params().put("host", host);
+        super.params().put("hdfsPath", hdfsPath);
+        super.params().put("indicesToKeep", Arrays.toString(indicesToKeep));
+        super.params().put("separator", Character.toString(separator));
+        super.params().put("startOffset", Long.toString(startOffset));
+        super.params().put("endOffset", Long.toString(endOffset));
     }
 
     @Override

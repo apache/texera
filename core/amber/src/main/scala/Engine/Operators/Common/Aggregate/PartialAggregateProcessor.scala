@@ -25,7 +25,9 @@ class PartialAggregateProcessor(val aggFunc: DistributedAggregation, val groupBy
     outputIterator = partialObjectPerKey.iterator.map(o => Tuple.fromIterable(o._1 ++ o._2.toSeq))
   }
 
-  override def initialize(): Unit = {}
+  override def updateParamMap(): Unit = {}
+
+  override def initializeWorker(): Unit = {}
 
   override def hasNext: Boolean = outputIterator != null && outputIterator.hasNext
 

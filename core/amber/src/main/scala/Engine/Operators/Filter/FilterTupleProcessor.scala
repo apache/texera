@@ -30,7 +30,11 @@ class FilterTupleProcessor[T: Ordering](
 
   override def dispose(): Unit = {}
 
-  override def initialize(): Unit = {}
+  override def updateParamMap(): Unit = {
+    params += ("targetField"->Integer.toString(targetField), "filterType"->filterType.getClass().getName(), "threshold"->threshold.toString())
+  }
+
+  override def initializeWorker(): Unit = {}
 
   override def onUpstreamChanged(from: LayerTag): Unit = {}
 

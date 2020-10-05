@@ -6,7 +6,7 @@ import Engine.Common.TupleProcessor;
 
 import java.util.Collections;
 
-public class CountLocalTupleProcessor implements TupleProcessor {
+public class CountLocalTupleProcessor extends TupleProcessor {
 
     private boolean nextFlag = false;
     private int counter = 0;
@@ -32,9 +32,12 @@ public class CountLocalTupleProcessor implements TupleProcessor {
     }
 
     @Override
-    public void initialize() {
-
+    public void updateParamMap() {
+        super.params().put("counter", Integer.toString(counter));
     }
+
+    @Override
+    public void initializeWorker() {}
 
     @Override
     public boolean hasNext() {
