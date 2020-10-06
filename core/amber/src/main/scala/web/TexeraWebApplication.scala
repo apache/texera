@@ -1,5 +1,6 @@
 package web
 
+import Engine.Common.AmberUtils
 import akka.actor.ActorSystem
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.github.dirkraft.dropwizard.fileassets.FileAssetsBundle
@@ -15,7 +16,7 @@ object TexeraWebApplication {
 
   def main(args: Array[String]): Unit = {
     // start actor system master node
-    actorSystem = WebUtils.startActorMaster(true)
+    actorSystem = AmberUtils.startActorMaster(true)
 
     // start web server
     val server = "server"
@@ -29,8 +30,7 @@ class TexeraWebApplication extends io.dropwizard.Application[TexeraWebConfigurat
 
   override def initialize(bootstrap: Bootstrap[TexeraWebConfiguration]): Unit = {
     // serve static frontend GUI files
-    val frontendPath = TexeraUtils.amberHomePath.resolve("../new-gui/dist").toString
-    bootstrap.addBundle(new FileAssetsBundle(frontendPath, "/", "index.html"))
+    bootstrap.addBundle(new FileAssetsBundle("../new-gui/dist", "/", "index.html"))
     // add websocket bundle
     bootstrap.addBundle(new WebsocketBundle(classOf[WorkflowWebsocketResource]))
     // register scala module to dropwizard default object mapper

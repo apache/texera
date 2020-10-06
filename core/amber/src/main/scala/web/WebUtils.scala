@@ -10,7 +10,7 @@ import com.typesafe.config.ConfigFactory
 object WebUtils {
 
   def startActorMaster(localhost: Boolean): ActorSystem = {
-    var localIpAddress = InetAddress.getLocalHost.getHostAddress
+    var localIpAddress = "localhost"
     if (!localhost) {
       try {
         val query = new URL("http://checkip.amazonaws.com")
