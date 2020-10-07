@@ -4,15 +4,8 @@
 package edu.uci.ics.texera.dataflow.jooq.generated;
 
 
-import edu.uci.ics.texera.dataflow.jooq.generated.tables.Useraccount;
-import edu.uci.ics.texera.dataflow.jooq.generated.tables.Userdict;
-import edu.uci.ics.texera.dataflow.jooq.generated.tables.Userfile;
-import edu.uci.ics.texera.dataflow.jooq.generated.tables.Userworkflow;
-import edu.uci.ics.texera.dataflow.jooq.generated.tables.records.UseraccountRecord;
-import edu.uci.ics.texera.dataflow.jooq.generated.tables.records.UserdictRecord;
-import edu.uci.ics.texera.dataflow.jooq.generated.tables.records.UserfileRecord;
-import edu.uci.ics.texera.dataflow.jooq.generated.tables.records.UserworkflowRecord;
-
+import edu.uci.ics.texera.dataflow.jooq.generated.tables.*;
+import edu.uci.ics.texera.dataflow.jooq.generated.tables.records.*;
 import org.jooq.ForeignKey;
 import org.jooq.Identity;
 import org.jooq.UniqueKey;
@@ -21,61 +14,69 @@ import org.jooq.types.UInteger;
 
 
 /**
- * A class modelling foreign key relationships and constraints of tables of 
- * the <code>texera</code> schema.
+ * A class modelling foreign key relationships and constraints of tables of
+ * the <code>texera_db</code> schema.
  */
-@SuppressWarnings({ "all", "unchecked", "rawtypes" })
+@SuppressWarnings({"all", "unchecked", "rawtypes"})
 public class Keys {
 
     // -------------------------------------------------------------------------
     // IDENTITY definitions
     // -------------------------------------------------------------------------
 
-    public static final Identity<UseraccountRecord, UInteger> IDENTITY_USERACCOUNT = Identities0.IDENTITY_USERACCOUNT;
-    public static final Identity<UserdictRecord, UInteger> IDENTITY_USERDICT = Identities0.IDENTITY_USERDICT;
-    public static final Identity<UserfileRecord, UInteger> IDENTITY_USERFILE = Identities0.IDENTITY_USERFILE;
+    public static final Identity<KeySearchDictRecord, UInteger> IDENTITY_KEY_SEARCH_DICT = Identities0.IDENTITY_KEY_SEARCH_DICT;
+    public static final Identity<UploadedFileRecord, UInteger> IDENTITY_UPLOADED_FILE = Identities0.IDENTITY_UPLOADED_FILE;
+    public static final Identity<UserAccountRecord, UInteger> IDENTITY_USER_ACCOUNT = Identities0.IDENTITY_USER_ACCOUNT;
+    public static final Identity<WorkflowRecord, UInteger> IDENTITY_WORKFLOW = Identities0.IDENTITY_WORKFLOW;
 
     // -------------------------------------------------------------------------
     // UNIQUE and PRIMARY KEY definitions
     // -------------------------------------------------------------------------
 
-    public static final UniqueKey<UseraccountRecord> KEY_USERACCOUNT_USERNAME = UniqueKeys0.KEY_USERACCOUNT_USERNAME;
-    public static final UniqueKey<UseraccountRecord> KEY_USERACCOUNT_PRIMARY = UniqueKeys0.KEY_USERACCOUNT_PRIMARY;
-    public static final UniqueKey<UserdictRecord> KEY_USERDICT_USERID = UniqueKeys0.KEY_USERDICT_USERID;
-    public static final UniqueKey<UserdictRecord> KEY_USERDICT_PRIMARY = UniqueKeys0.KEY_USERDICT_PRIMARY;
-    public static final UniqueKey<UserfileRecord> KEY_USERFILE_USERID = UniqueKeys0.KEY_USERFILE_USERID;
-    public static final UniqueKey<UserfileRecord> KEY_USERFILE_PRIMARY = UniqueKeys0.KEY_USERFILE_PRIMARY;
-    public static final UniqueKey<UserworkflowRecord> KEY_USERWORKFLOW_PRIMARY = UniqueKeys0.KEY_USERWORKFLOW_PRIMARY;
+    public static final UniqueKey<KeySearchDictRecord> KEY_KEY_SEARCH_DICT_UID = UniqueKeys0.KEY_KEY_SEARCH_DICT_UID;
+    public static final UniqueKey<KeySearchDictRecord> KEY_KEY_SEARCH_DICT_PRIMARY = UniqueKeys0.KEY_KEY_SEARCH_DICT_PRIMARY;
+    public static final UniqueKey<UploadedFileRecord> KEY_UPLOADED_FILE_UID = UniqueKeys0.KEY_UPLOADED_FILE_UID;
+    public static final UniqueKey<UploadedFileRecord> KEY_UPLOADED_FILE_PRIMARY = UniqueKeys0.KEY_UPLOADED_FILE_PRIMARY;
+    public static final UniqueKey<UserAccountRecord> KEY_USER_ACCOUNT_NAME = UniqueKeys0.KEY_USER_ACCOUNT_NAME;
+    public static final UniqueKey<UserAccountRecord> KEY_USER_ACCOUNT_PRIMARY = UniqueKeys0.KEY_USER_ACCOUNT_PRIMARY;
+    public static final UniqueKey<WorkflowRecord> KEY_WORKFLOW_PRIMARY = UniqueKeys0.KEY_WORKFLOW_PRIMARY;
+    public static final UniqueKey<WorkflowOfUserRecord> KEY_WORKFLOW_OF_USER_PRIMARY = UniqueKeys0.KEY_WORKFLOW_OF_USER_PRIMARY;
 
     // -------------------------------------------------------------------------
     // FOREIGN KEY definitions
     // -------------------------------------------------------------------------
 
-    public static final ForeignKey<UserdictRecord, UseraccountRecord> USERDICT_IBFK_1 = ForeignKeys0.USERDICT_IBFK_1;
-    public static final ForeignKey<UserfileRecord, UseraccountRecord> USERFILE_IBFK_1 = ForeignKeys0.USERFILE_IBFK_1;
+    public static final ForeignKey<KeySearchDictRecord, UserAccountRecord> KEY_SEARCH_DICT_IBFK_1 = ForeignKeys0.KEY_SEARCH_DICT_IBFK_1;
+    public static final ForeignKey<UploadedFileRecord, UserAccountRecord> UPLOADED_FILE_IBFK_1 = ForeignKeys0.UPLOADED_FILE_IBFK_1;
+    public static final ForeignKey<WorkflowOfUserRecord, UserAccountRecord> WORKFLOW_OF_USER_IBFK_1 = ForeignKeys0.WORKFLOW_OF_USER_IBFK_1;
+    public static final ForeignKey<WorkflowOfUserRecord, WorkflowRecord> WORKFLOW_OF_USER_IBFK_2 = ForeignKeys0.WORKFLOW_OF_USER_IBFK_2;
 
     // -------------------------------------------------------------------------
     // [#1459] distribute members to avoid static initialisers > 64kb
     // -------------------------------------------------------------------------
 
     private static class Identities0 {
-        public static Identity<UseraccountRecord, UInteger> IDENTITY_USERACCOUNT = Internal.createIdentity(Useraccount.USERACCOUNT, Useraccount.USERACCOUNT.USERID);
-        public static Identity<UserdictRecord, UInteger> IDENTITY_USERDICT = Internal.createIdentity(Userdict.USERDICT, Userdict.USERDICT.DICTID);
-        public static Identity<UserfileRecord, UInteger> IDENTITY_USERFILE = Internal.createIdentity(Userfile.USERFILE, Userfile.USERFILE.FILEID);
+        public static Identity<KeySearchDictRecord, UInteger> IDENTITY_KEY_SEARCH_DICT = Internal.createIdentity(KeySearchDict.KEY_SEARCH_DICT, KeySearchDict.KEY_SEARCH_DICT.KSD_ID);
+        public static Identity<UploadedFileRecord, UInteger> IDENTITY_UPLOADED_FILE = Internal.createIdentity(UploadedFile.UPLOADED_FILE, UploadedFile.UPLOADED_FILE.FID);
+        public static Identity<UserAccountRecord, UInteger> IDENTITY_USER_ACCOUNT = Internal.createIdentity(UserAccount.USER_ACCOUNT, UserAccount.USER_ACCOUNT.UID);
+        public static Identity<WorkflowRecord, UInteger> IDENTITY_WORKFLOW = Internal.createIdentity(Workflow.WORKFLOW, Workflow.WORKFLOW.WF_ID);
     }
 
     private static class UniqueKeys0 {
-        public static final UniqueKey<UseraccountRecord> KEY_USERACCOUNT_USERNAME = Internal.createUniqueKey(Useraccount.USERACCOUNT, "KEY_UserAccount_userName", Useraccount.USERACCOUNT.USERNAME);
-        public static final UniqueKey<UseraccountRecord> KEY_USERACCOUNT_PRIMARY = Internal.createUniqueKey(Useraccount.USERACCOUNT, "KEY_UserAccount_PRIMARY", Useraccount.USERACCOUNT.USERID);
-        public static final UniqueKey<UserdictRecord> KEY_USERDICT_USERID = Internal.createUniqueKey(Userdict.USERDICT, "KEY_UserDict_userID", Userdict.USERDICT.USERID, Userdict.USERDICT.NAME);
-        public static final UniqueKey<UserdictRecord> KEY_USERDICT_PRIMARY = Internal.createUniqueKey(Userdict.USERDICT, "KEY_UserDict_PRIMARY", Userdict.USERDICT.DICTID);
-        public static final UniqueKey<UserfileRecord> KEY_USERFILE_USERID = Internal.createUniqueKey(Userfile.USERFILE, "KEY_UserFile_userID", Userfile.USERFILE.USERID, Userfile.USERFILE.NAME);
-        public static final UniqueKey<UserfileRecord> KEY_USERFILE_PRIMARY = Internal.createUniqueKey(Userfile.USERFILE, "KEY_UserFile_PRIMARY", Userfile.USERFILE.FILEID);
-        public static final UniqueKey<UserworkflowRecord> KEY_USERWORKFLOW_PRIMARY = Internal.createUniqueKey(Userworkflow.USERWORKFLOW, "KEY_UserWorkflow_PRIMARY", Userworkflow.USERWORKFLOW.WORKFLOWID);
+        public static final UniqueKey<KeySearchDictRecord> KEY_KEY_SEARCH_DICT_UID = Internal.createUniqueKey(KeySearchDict.KEY_SEARCH_DICT, "KEY_key_search_dict_uid", KeySearchDict.KEY_SEARCH_DICT.UID, KeySearchDict.KEY_SEARCH_DICT.NAME);
+        public static final UniqueKey<KeySearchDictRecord> KEY_KEY_SEARCH_DICT_PRIMARY = Internal.createUniqueKey(KeySearchDict.KEY_SEARCH_DICT, "KEY_key_search_dict_PRIMARY", KeySearchDict.KEY_SEARCH_DICT.KSD_ID);
+        public static final UniqueKey<UploadedFileRecord> KEY_UPLOADED_FILE_UID = Internal.createUniqueKey(UploadedFile.UPLOADED_FILE, "KEY_uploaded_file_uid", UploadedFile.UPLOADED_FILE.UID, UploadedFile.UPLOADED_FILE.NAME);
+        public static final UniqueKey<UploadedFileRecord> KEY_UPLOADED_FILE_PRIMARY = Internal.createUniqueKey(UploadedFile.UPLOADED_FILE, "KEY_uploaded_file_PRIMARY", UploadedFile.UPLOADED_FILE.FID);
+        public static final UniqueKey<UserAccountRecord> KEY_USER_ACCOUNT_NAME = Internal.createUniqueKey(UserAccount.USER_ACCOUNT, "KEY_user_account_name", UserAccount.USER_ACCOUNT.NAME);
+        public static final UniqueKey<UserAccountRecord> KEY_USER_ACCOUNT_PRIMARY = Internal.createUniqueKey(UserAccount.USER_ACCOUNT, "KEY_user_account_PRIMARY", UserAccount.USER_ACCOUNT.UID);
+        public static final UniqueKey<WorkflowRecord> KEY_WORKFLOW_PRIMARY = Internal.createUniqueKey(Workflow.WORKFLOW, "KEY_workflow_PRIMARY", Workflow.WORKFLOW.WF_ID);
+        public static final UniqueKey<WorkflowOfUserRecord> KEY_WORKFLOW_OF_USER_PRIMARY = Internal.createUniqueKey(WorkflowOfUser.WORKFLOW_OF_USER, "KEY_workflow_of_user_PRIMARY", WorkflowOfUser.WORKFLOW_OF_USER.UID, WorkflowOfUser.WORKFLOW_OF_USER.WF_ID);
     }
 
     private static class ForeignKeys0 {
-        public static final ForeignKey<UserdictRecord, UseraccountRecord> USERDICT_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.dataflow.jooq.generated.Keys.KEY_USERACCOUNT_PRIMARY, Userdict.USERDICT, "userdict_ibfk_1", Userdict.USERDICT.USERID);
-        public static final ForeignKey<UserfileRecord, UseraccountRecord> USERFILE_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.dataflow.jooq.generated.Keys.KEY_USERACCOUNT_PRIMARY, Userfile.USERFILE, "userfile_ibfk_1", Userfile.USERFILE.USERID);
+        public static final ForeignKey<KeySearchDictRecord, UserAccountRecord> KEY_SEARCH_DICT_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.dataflow.jooq.generated.Keys.KEY_USER_ACCOUNT_PRIMARY, KeySearchDict.KEY_SEARCH_DICT, "key_search_dict_ibfk_1", KeySearchDict.KEY_SEARCH_DICT.UID);
+        public static final ForeignKey<UploadedFileRecord, UserAccountRecord> UPLOADED_FILE_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.dataflow.jooq.generated.Keys.KEY_USER_ACCOUNT_PRIMARY, UploadedFile.UPLOADED_FILE, "uploaded_file_ibfk_1", UploadedFile.UPLOADED_FILE.UID);
+        public static final ForeignKey<WorkflowOfUserRecord, UserAccountRecord> WORKFLOW_OF_USER_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.dataflow.jooq.generated.Keys.KEY_USER_ACCOUNT_PRIMARY, WorkflowOfUser.WORKFLOW_OF_USER, "workflow_of_user_ibfk_1", WorkflowOfUser.WORKFLOW_OF_USER.UID);
+        public static final ForeignKey<WorkflowOfUserRecord, WorkflowRecord> WORKFLOW_OF_USER_IBFK_2 = Internal.createForeignKey(edu.uci.ics.texera.dataflow.jooq.generated.Keys.KEY_WORKFLOW_PRIMARY, WorkflowOfUser.WORKFLOW_OF_USER, "workflow_of_user_ibfk_2", WorkflowOfUser.WORKFLOW_OF_USER.WF_ID);
     }
 }

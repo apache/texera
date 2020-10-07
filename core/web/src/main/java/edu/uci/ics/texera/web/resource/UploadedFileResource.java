@@ -1,46 +1,35 @@
 package edu.uci.ics.texera.web.resource;
 
-import static org.jooq.impl.DSL.defaultValue;
-
-import java.io.InputStream;
-import java.nio.file.Paths;
-import java.sql.Connection;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import javax.servlet.http.HttpSession;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.DELETE;
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
-
+import edu.uci.ics.texera.dataflow.resource.file.FileManager;
+import edu.uci.ics.texera.dataflow.sqlServerInfo.UserSqlServer;
+import edu.uci.ics.texera.web.TexeraWebException;
+import edu.uci.ics.texera.web.response.GenericWebResponse;
+import io.dropwizard.jersey.sessions.Session;
 import org.apache.commons.lang3.tuple.Pair;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.glassfish.jersey.media.multipart.FormDataParam;
-import org.jooq.DSLContext;
 import org.jooq.Record1;
 import org.jooq.Record5;
 import org.jooq.Result;
 import org.jooq.types.UInteger;
 
-import static edu.uci.ics.texera.dataflow.jooq.generated.Tables.*;
+import javax.servlet.http.HttpSession;
+import javax.ws.rs.*;
+import javax.ws.rs.core.MediaType;
+import java.io.InputStream;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
 
-import edu.uci.ics.texera.web.TexeraWebException;
-import edu.uci.ics.texera.dataflow.resource.file.FileManager;
-import edu.uci.ics.texera.dataflow.sqlServerInfo.UserSqlServer;
-import edu.uci.ics.texera.web.response.GenericWebResponse;
-import io.dropwizard.jersey.sessions.Session;
+import static edu.uci.ics.texera.dataflow.jooq.generated.Tables.UPLOADED_FILE;
+import static org.jooq.impl.DSL.defaultValue;
 
 @Path("/user/file")
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
-public class UserFileResource {
-    
+public class UploadedFileResource {
+
     /**
      * Corresponds to `src/app/common/type/user-file.ts`
      */
@@ -102,12 +91,12 @@ public class UserFileResource {
         List<UserFile> fileList = result.stream()
                 .map(
                     record -> new UserFile(
-                            record.get(USERFILE.FILEID),
-                            record.get(USERFILE.NAME),
-                            record.get(USERFILE.PATH),
-                            record.get(USERFILE.DESCRIPTION),
-                            record.get(USERFILE.SIZE)
-                            )
+                            record.get(UPLOADED_FILE.FID),
+                            record.get(UPLOADED_FILE.NAME),
+                            record.get(UPLOADED_FILE.PATH),
+                            record.get(UPLOADED_FILE.DESCRIPTION),
+                            record.get(UPLOADED_FILE.SIZE)
+                    )
                         ).collect(Collectors.toList());
         
         return fileList;
@@ -121,8 +110,8 @@ public class UserFileResource {
         Record1<String> result = deleteInDatabase(fileIdUInteger, userID);
         
         if (result == null) return new GenericWebResponse(1, "The file does not exist");
-        
-        String filePath = result.get(USERFILE.PATH);
+
+        String filePath = result.get(UPLOADED_FILE.PATH);
         FileManager.getInstance().deleteFile(Paths.get(filePath));
         
         return GenericWebResponse.generateSuccessResponse();
@@ -144,14 +133,14 @@ public class UserFileResource {
              * retrieve the filepath first, then delete it.
              */
             Record1<String> result = UserSqlServer.createDSLContext()
-                    .select(USERFILE.PATH)
-                    .from(USERFILE)
-                    .where(USERFILE.FILEID.eq(fileID).and(USERFILE.USERID.equal(userID)))
+                    .select(UPLOADED_FILE.PATH)
+                    .from(UPLOADED_FILE)
+                    .where(UPLOADED_FILE.FID.eq(fileID).and(UPLOADED_FILE.UID.equal(userID)))
                     .fetchOne();
             
             int count = UserSqlServer.createDSLContext()
-                    .delete(USERFILE)
-                    .where(USERFILE.FILEID.eq(fileID).and(USERFILE.USERID.equal(userID)))
+                    .delete(UPLOADED_FILE)
+                    .where(UPLOADED_FILE.FID.eq(fileID).and(UPLOADED_FILE.UID.equal(userID)))
                     //.returning(USERFILE.FILEPATH) does not work
                     .execute();
             
@@ -162,9 +151,9 @@ public class UserFileResource {
     
     private Result<Record5<UInteger, String, String, String, UInteger>> getUserFileRecord(UInteger userID) {
             return UserSqlServer.createDSLContext()
-                    .select(USERFILE.FILEID, USERFILE.NAME, USERFILE.PATH, USERFILE.DESCRIPTION, USERFILE.SIZE)
-                    .from(USERFILE)
-                    .where(USERFILE.USERID.equal(userID))
+                    .select(UPLOADED_FILE.FID, UPLOADED_FILE.NAME, UPLOADED_FILE.PATH, UPLOADED_FILE.DESCRIPTION, UPLOADED_FILE.SIZE)
+                    .from(UPLOADED_FILE)
+                    .where(UPLOADED_FILE.UID.equal(userID))
                     .fetch();
     }
     
@@ -191,14 +180,14 @@ public class UserFileResource {
     
     
     private int insertFileToDataBase(String fileName, String path, UInteger size, String description, UInteger userID) {
-            return UserSqlServer.createDSLContext().insertInto(USERFILE)
-                    .set(USERFILE.USERID,userID)
-                    .set(USERFILE.FILEID, defaultValue(USERFILE.FILEID))
-                    .set(USERFILE.NAME, fileName)
-                    .set(USERFILE.PATH, path)
-                    .set(USERFILE.DESCRIPTION, description)
-                    .set(USERFILE.SIZE, size)
-                    .execute();
+        return UserSqlServer.createDSLContext().insertInto(UPLOADED_FILE)
+                .set(UPLOADED_FILE.UID, userID)
+                .set(UPLOADED_FILE.FID, defaultValue(UPLOADED_FILE.FID))
+                .set(UPLOADED_FILE.NAME, fileName)
+                .set(UPLOADED_FILE.PATH, path)
+                .set(UPLOADED_FILE.DESCRIPTION, description)
+                .set(UPLOADED_FILE.SIZE, size)
+                .execute();
     }
     
     private Pair<Boolean, String> validateFileName(String fileName, UInteger userID) {
@@ -217,9 +206,9 @@ public class UserFileResource {
             return UserSqlServer.createDSLContext()
                     .fetchExists(
                             UserSqlServer.createDSLContext()
-                            .selectFrom(USERFILE)
-                            .where(USERFILE.USERID.equal(userID)
-                                    .and(USERFILE.NAME.equal(fileName)))
+                                    .selectFrom(UPLOADED_FILE)
+                                    .where(UPLOADED_FILE.UID.equal(userID)
+                                            .and(UPLOADED_FILE.NAME.equal(fileName)))
                             );
     }
     

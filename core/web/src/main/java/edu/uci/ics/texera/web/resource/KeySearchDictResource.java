@@ -1,58 +1,37 @@
 package edu.uci.ics.texera.web.resource;
 
-import static org.jooq.impl.DSL.defaultValue;
-
-import java.io.BufferedReader;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.sql.Connection;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import javax.servlet.http.HttpSession;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.DELETE;
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.PUT;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
-
+import edu.uci.ics.texera.dataflow.sqlServerInfo.UserSqlServer;
+import edu.uci.ics.texera.web.TexeraWebException;
+import edu.uci.ics.texera.web.response.GenericWebResponse;
+import io.dropwizard.jersey.sessions.Session;
 import org.apache.commons.lang3.tuple.Pair;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.glassfish.jersey.media.multipart.FormDataParam;
-import org.jooq.DSLContext;
 import org.jooq.Record4;
 import org.jooq.Result;
 import org.jooq.types.UInteger;
 
-import static edu.uci.ics.texera.dataflow.jooq.generated.Tables.*;
-import static org.jooq.impl.DSL.*;
+import javax.servlet.http.HttpSession;
+import javax.ws.rs.*;
+import javax.ws.rs.core.MediaType;
+import java.io.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-import edu.uci.ics.texera.web.TexeraWebException;
-import edu.uci.ics.texera.web.response.GenericWebResponse;
-import io.dropwizard.jersey.sessions.Session;
-import edu.uci.ics.texera.dataflow.sqlServerInfo.UserSqlServer;
+import static edu.uci.ics.texera.dataflow.jooq.generated.Tables.KEY_SEARCH_DICT;
+import static org.jooq.impl.DSL.defaultValue;
 
 
 @Path("/user/dictionary")
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
-public class UserDictionaryResource {
-    
+public class KeySearchDictResource {
+
     // limitation due to the default 'max_allowed_packet' variable is 4 mb in MySQL
     private static final long MAXIMUM_DICTIONARY_SIZE = (2 * 1024 * 1024); // 2 mb
-    
+
     /**
      * Corresponds to `src/app/common/type/user-dictionary.ts`
      */
@@ -168,11 +147,11 @@ public class UserDictionaryResource {
         List<UserDictionary> dictionaryList = result.stream()
                 .map(
                     record -> new UserDictionary(
-                            record.get(USERDICT.DICTID),
-                            record.get(USERDICT.NAME),
-                            convertContentToList(record.get(USERDICT.CONTENT)),
-                            record.get(USERDICT.DESCRIPTION)
-                            )
+                            record.get(KEY_SEARCH_DICT.KSD_ID),
+                            record.get(KEY_SEARCH_DICT.NAME),
+                            convertContentToList(record.get(KEY_SEARCH_DICT.CONTENT)),
+                            record.get(KEY_SEARCH_DICT.DESCRIPTION)
+                    )
                         ).collect(Collectors.toList());
         
         return dictionaryList;
@@ -247,45 +226,45 @@ public class UserDictionaryResource {
            return UserSqlServer.createDSLContext()
                     .fetchExists(
                             UserSqlServer.createDSLContext()
-                            .selectFrom(USERDICT)
-                            .where(USERDICT.USERID.equal(userID)
-                                    .and(USERDICT.NAME.equal(dictName)))
+                                    .selectFrom(KEY_SEARCH_DICT)
+                                    .where(KEY_SEARCH_DICT.UID.equal(userID)
+                                            .and(KEY_SEARCH_DICT.NAME.equal(dictName)))
                             );
     }
     
     private int updateInDatabase(UserDictionary userDictionary, UInteger userID) {
             return UserSqlServer.createDSLContext()
-                    .update(USERDICT)
-                    .set(USERDICT.NAME, userDictionary.name)
-                    .set(USERDICT.CONTENT, convertListToByteArray(userDictionary.items))
-                    .set(USERDICT.DESCRIPTION, userDictionary.description)
-                    .where(USERDICT.DICTID.eq(userDictionary.id).and(USERDICT.USERID.eq(userID)))
+                    .update(KEY_SEARCH_DICT)
+                    .set(KEY_SEARCH_DICT.NAME, userDictionary.name)
+                    .set(KEY_SEARCH_DICT.CONTENT, convertListToByteArray(userDictionary.items))
+                    .set(KEY_SEARCH_DICT.DESCRIPTION, userDictionary.description)
+                    .where(KEY_SEARCH_DICT.KSD_ID.eq(userDictionary.id).and(KEY_SEARCH_DICT.UID.eq(userID)))
                     .execute();
     }
     
     private int deleteInDatabase(UInteger dictID, UInteger userID) {
             return UserSqlServer.createDSLContext()
-                    .delete(USERDICT)
-                    .where(USERDICT.DICTID.eq(dictID).and(USERDICT.USERID.eq(userID)))
+                    .delete(KEY_SEARCH_DICT)
+                    .where(KEY_SEARCH_DICT.KSD_ID.eq(dictID).and(KEY_SEARCH_DICT.UID.eq(userID)))
                     .execute();
     }
     
     private Result<Record4<UInteger, String, byte[], String>> getUserDictionaryRecord(UInteger userID) {
             return UserSqlServer.createDSLContext()
-                    .select(USERDICT.DICTID, USERDICT.NAME, USERDICT.CONTENT, USERDICT.DESCRIPTION)
-                    .from(USERDICT)
-                    .where(USERDICT.USERID.equal(userID))
+                    .select(KEY_SEARCH_DICT.KSD_ID, KEY_SEARCH_DICT.NAME, KEY_SEARCH_DICT.CONTENT, KEY_SEARCH_DICT.DESCRIPTION)
+                    .from(KEY_SEARCH_DICT)
+                    .where(KEY_SEARCH_DICT.UID.equal(userID))
                     .fetch();
     }
     
     private int insertDictionaryToDataBase(String name, byte[] content, String description, UInteger userID) {
             return UserSqlServer.createDSLContext()
-                    .insertInto(USERDICT)
-                    .set(USERDICT.USERID,userID)
-                    .set(USERDICT.DICTID, defaultValue(USERDICT.DICTID))
-                    .set(USERDICT.NAME, name)
-                    .set(USERDICT.CONTENT, content)
-                    .set(USERDICT.DESCRIPTION, description)
+                    .insertInto(KEY_SEARCH_DICT)
+                    .set(KEY_SEARCH_DICT.UID, userID)
+                    .set(KEY_SEARCH_DICT.KSD_ID, defaultValue(KEY_SEARCH_DICT.KSD_ID))
+                    .set(KEY_SEARCH_DICT.NAME, name)
+                    .set(KEY_SEARCH_DICT.CONTENT, content)
+                    .set(KEY_SEARCH_DICT.DESCRIPTION, description)
                     .execute();
     }
     

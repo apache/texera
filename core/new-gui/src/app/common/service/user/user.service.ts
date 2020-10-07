@@ -1,11 +1,11 @@
-import { User, UserWebResponse } from '../../type/user';
-import { AppSettings } from '../../app-setting';
-import { Subject } from 'rxjs/Subject';
-import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import {User, UserWebResponse} from '../../type/user';
+import {AppSettings} from '../../app-setting';
+import {Subject} from 'rxjs/Subject';
+import {Injectable} from '@angular/core';
+import {HttpClient} from '@angular/common/http';
 
-import { Observable } from 'rxjs/Observable';
-import { environment } from 'src/environments/environment';
+import {Observable} from 'rxjs/Observable';
+import {environment} from 'src/environments/environment';
 
 /**
  * User Account Service contains the function of registering and logging the user.
@@ -18,7 +18,7 @@ import { environment } from 'src/environments/environment';
 })
 export class UserService {
 
-  public static readonly AUTH_STATUS_ENDPINT = 'users/auth/status';
+  public static readonly AUTH_STATUS_ENDPOINT = 'users/auth/status';
   public static readonly LOGIN_ENDPOINT = 'users/login';
   public static readonly REGISTER_ENDPOINT = 'users/register';
   public static readonly LOG_OUT_ENDPOINT = 'users/logout';
@@ -39,9 +39,11 @@ export class UserService {
    */
   public register(userName: string): Observable<UserWebResponse> {
     // assume the text passed in should be correct
-    if (this.currentUser) {throw new Error('Already logged in when register.'); }
+    if (this.currentUser) {
+      throw new Error('Already logged in when register.');
+    }
     const validation = this.validateUsername(userName);
-    if (! validation.result) {
+    if (!validation.result) {
       return Observable.of({
         code: 1,
         message: validation.message
@@ -65,10 +67,12 @@ export class UserService {
    * It will automatically login, save the user account inside and trigger userChangeEvent when success
    * @param userName
    */
-  public login(userName: string):  Observable<UserWebResponse> {
-    if (this.currentUser) {throw new Error('Already logged in when login in.'); }
+  public login(userName: string): Observable<UserWebResponse> {
+    if (this.currentUser) {
+      throw new Error('Already logged in when login in.');
+    }
     const validation = this.validateUsername(userName);
-    if (! validation.result) {
+    if (!validation.result) {
       return Observable.of({
         code: 1,
         message: validation.message
@@ -111,7 +115,7 @@ export class UserService {
   }
 
   private loginFromSession(): void {
-    this.http.get<UserWebResponse>(`${AppSettings.getApiEndpoint()}/${UserService.AUTH_STATUS_ENDPINT}`).subscribe(res => {
+    this.http.get<UserWebResponse>(`${AppSettings.getApiEndpoint()}/${UserService.AUTH_STATUS_ENDPOINT}`).subscribe(res => {
       if (res.code === 0) {
         this.changeUser(res.user);
       }
@@ -123,7 +127,7 @@ export class UserService {
    * @param userName
    */
   private registerHttpRequest(userName: string): Observable<UserWebResponse> {
-    type UserRegistrationRequest = {userName: string};
+    type UserRegistrationRequest = { userName: string };
     const body: UserRegistrationRequest = {userName: userName};
     return this.http.post<UserWebResponse>(`${AppSettings.getApiEndpoint()}/${UserService.REGISTER_ENDPOINT}`, body);
   }
@@ -133,12 +137,12 @@ export class UserService {
    * @param userName
    */
   private loginHttpRequest(userName: string): Observable<UserWebResponse> {
-    type UserLoginRequest = {userName: string};
+    type UserLoginRequest = { userName: string };
     const body: UserLoginRequest = {userName: userName};
     return this.http.post<UserWebResponse>(`${AppSettings.getApiEndpoint()}/${UserService.LOGIN_ENDPOINT}`, body);
   }
 
-    /**
+  /**
    * construct the request body as formData and create http request
    * @param userName
    */
@@ -161,11 +165,11 @@ export class UserService {
    * check the given parameter is legal for login/registration
    * @param userName
    */
-  private validateUsername(userName: string): {result: boolean, message: string} {
+  private validateUsername(userName: string): { result: boolean, message: string } {
     if (userName.trim().length === 0) {
-      return { result: false, message: 'userName should not be empty'};
+      return {result: false, message: 'userName should not be empty'};
     }
-    return { result: true, message: 'userName frontend validation success' };
+    return {result: true, message: 'userName frontend validation success'};
   }
 
 }

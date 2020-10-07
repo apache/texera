@@ -4,12 +4,12 @@
 package edu.uci.ics.texera.dataflow.jooq.generated;
 
 
+import org.jooq.Schema;
+import org.jooq.impl.CatalogImpl;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-
-import org.jooq.Schema;
-import org.jooq.impl.CatalogImpl;
 
 
 /**
@@ -18,7 +18,7 @@ import org.jooq.impl.CatalogImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class DefaultCatalog extends CatalogImpl {
 
-    private static final long serialVersionUID = 1951834858;
+    private static final long serialVersionUID = -497220594;
 
     /**
      * The reference instance of <code></code>
@@ -26,9 +26,9 @@ public class DefaultCatalog extends CatalogImpl {
     public static final DefaultCatalog DEFAULT_CATALOG = new DefaultCatalog();
 
     /**
-     * The schema <code>texera</code>.
+     * The schema <code>texera_db</code>.
      */
-    public final Texera TEXERA = edu.uci.ics.texera.dataflow.jooq.generated.Texera.TEXERA;
+    public final TexeraDb TEXERA_DB = edu.uci.ics.texera.dataflow.jooq.generated.TexeraDb.TEXERA_DB;
 
     /**
      * No further instances allowed
@@ -46,6 +46,6 @@ public class DefaultCatalog extends CatalogImpl {
 
     private final List<Schema> getSchemas0() {
         return Arrays.<Schema>asList(
-            Texera.TEXERA);
+                TexeraDb.TEXERA_DB);
     }
 }

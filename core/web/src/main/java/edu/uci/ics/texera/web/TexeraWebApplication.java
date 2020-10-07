@@ -3,19 +3,14 @@ package edu.uci.ics.texera.web;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.MapperFeature;
 import com.github.dirkraft.dropwizard.fileassets.FileAssetsBundle;
-
-import edu.uci.ics.texera.api.constants.DataConstants;
 import edu.uci.ics.texera.api.utils.Utils;
 import edu.uci.ics.texera.perftest.sample.SampleExtraction;
 import edu.uci.ics.texera.perftest.twitter.TwitterSample;
 import edu.uci.ics.texera.web.healthcheck.SampleHealthCheck;
 import edu.uci.ics.texera.web.resource.*;
 import io.dropwizard.Application;
-import io.dropwizard.bundles.redirect.RedirectBundle;
-import io.dropwizard.bundles.redirect.UriRedirect;
 import io.dropwizard.setup.Bootstrap;
 import io.dropwizard.setup.Environment;
-
 import org.eclipse.jetty.server.session.SessionHandler;
 import org.eclipse.jetty.servlet.ErrorPageErrorHandler;
 import org.glassfish.jersey.media.multipart.MultiPartFeature;
@@ -31,6 +26,21 @@ public class TexeraWebApplication extends Application<TexeraWebConfiguration> {
     public void initialize(Bootstrap<TexeraWebConfiguration> bootstrap) {
         // serve static frontend GUI files
         bootstrap.addBundle(new FileAssetsBundle("./new-gui/dist/", "/", "index.html"));
+    }
+
+    public static void main(String[] args) throws Exception {
+        System.out.println("Writing promed Index");
+        SampleExtraction.writeSampleIndex();
+        System.out.println("Finished Writing promed Index");
+        System.out.println("Writing twitter index");
+        TwitterSample.writeTwitterIndex();
+        System.out.println("Finished writing twitter index");
+
+        String server = args.length > 1 ? args[0] : "server";
+        String config = args.length > 2 ? args[1] :
+                Utils.getTexeraHomePath().resolve("conf").resolve("web-config.yml").toString();
+
+        new TexeraWebApplication().run(server, config);
     }
 
     @Override
@@ -50,7 +60,7 @@ public class TexeraWebApplication extends Application<TexeraWebConfiguration> {
         final PlanStoreResource planStoreResource = new PlanStoreResource();
         // Registers the PlanStoreResource with Jersey
         environment.jersey().register(planStoreResource);
-        
+
         final DownloadFileResource downloadFileResource = new DownloadFileResource();
         environment.jersey().register(downloadFileResource);
 
@@ -63,20 +73,20 @@ public class TexeraWebApplication extends Application<TexeraWebConfiguration> {
         final SystemResource systemResource = new SystemResource();
         // Registers the systemResource with Jersey
         environment.jersey().register(systemResource);
-        
+
         environment.jersey().register(SessionHandler.class);
         environment.servlets().setSessionHandler(new SessionHandler());
         final UserResource userResource = new UserResource();
         environment.jersey().register(userResource);
-        
-        final UserFileResource userFileResource = new UserFileResource();
-        environment.jersey().register(userFileResource);
-        
-        final UserDictionaryResource userDictionaryResource = new UserDictionaryResource();
-        environment.jersey().register(userDictionaryResource);
 
-        final UserWorkflowResource userWorkflowResource = new UserWorkflowResource();
-        environment.jersey().register(userWorkflowResource);
+        final UploadedFileResource uploadedFileResource = new UploadedFileResource();
+        environment.jersey().register(uploadedFileResource);
+
+        final KeySearchDictResource keySearchDictResource = new KeySearchDictResource();
+        environment.jersey().register(keySearchDictResource);
+
+        final WorkflowResource workflowResource = new WorkflowResource();
+        environment.jersey().register(workflowResource);
 
         // Registers MultiPartFeature to support file upload
         environment.jersey().register(MultiPartFeature.class);
@@ -84,21 +94,6 @@ public class TexeraWebApplication extends Application<TexeraWebConfiguration> {
         // Configuring the object mapper used by Dropwizard
         environment.getObjectMapper().configure(MapperFeature.USE_GETTERS_AS_SETTERS, false);
         environment.getObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-        
-    }
 
-    public static void main(String args[]) throws Exception {
-        System.out.println("Writing promed Index");
-        SampleExtraction.writeSampleIndex();
-        System.out.println("Finished Writing promed Index");
-        System.out.println("Writing twitter index");
-        TwitterSample.writeTwitterIndex();
-        System.out.println("Finished writing twitter index");
-
-        String server = args.length > 1 ? args[0] : "server";
-        String config = args.length > 2 ? args[1] :
-                Utils.getTexeraHomePath().resolve("conf").resolve("web-config.yml").toString();
-
-        new TexeraWebApplication().run(server, config);
     }
 }

@@ -1,23 +1,19 @@
 package edu.uci.ics.texera.web.resource;
 
-import edu.uci.ics.texera.dataflow.jooq.generated.tables.records.UseraccountRecord;
+import edu.uci.ics.texera.dataflow.jooq.generated.tables.records.UserAccountRecord;
 import edu.uci.ics.texera.dataflow.sqlServerInfo.UserSqlServer;
-import edu.uci.ics.texera.web.TexeraWebException;
 import edu.uci.ics.texera.web.response.GenericWebResponse;
 import io.dropwizard.jersey.sessions.Session;
-
 import org.apache.commons.lang3.tuple.Pair;
 import org.jooq.Condition;
-import org.jooq.DSLContext;
 import org.jooq.Record1;
 import org.jooq.types.UInteger;
 
 import javax.servlet.http.HttpSession;
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
-import java.sql.Connection;
 
-import static edu.uci.ics.texera.dataflow.jooq.generated.Tables.USERACCOUNT;
+import static edu.uci.ics.texera.dataflow.jooq.generated.Tables.USER_ACCOUNT;
 import static org.jooq.impl.DSL.defaultValue;
 
 
@@ -106,14 +102,14 @@ public class UserResource {
     @Path("/login")
     public UserWebResponse login(@Session HttpSession session, UserLoginRequest request) {
         String userName = request.userName;
-        Condition loginCondition = USERACCOUNT.USERNAME.equal(userName);
+        Condition loginCondition = USER_ACCOUNT.NAME.equal(userName);
         Record1<UInteger> result = getUserID(loginCondition);
 
         if (result == null) { // not found
             return UserWebResponse.generateErrorResponse("username/password is incorrect");
         }
 
-        User user = new User(userName, result.get(USERACCOUNT.USERID));
+        User user = new User(userName, result.get(USER_ACCOUNT.UID));
         setUserSession(session, user);
 
         return UserWebResponse.generateSuccessResponse(user);
@@ -128,15 +124,15 @@ public class UserResource {
             return UserWebResponse.generateErrorResponse(validationResult.getRight());
         }
 
-        Condition registerCondition = USERACCOUNT.USERNAME.equal(userName);
+        Condition registerCondition = USER_ACCOUNT.NAME.equal(userName);
         Record1<UInteger> result = getUserID(registerCondition);
 
         if (result != null) {
             return UserWebResponse.generateErrorResponse("Username already exists");
         }
 
-        UseraccountRecord returnID = insertUserAccount(userName);
-        User user = new User(userName, returnID.get(USERACCOUNT.USERID));
+        UserAccountRecord returnID = insertUserAccount(userName);
+        User user = new User(userName, returnID.get(USER_ACCOUNT.UID));
         setUserSession(session, user);
 
         return UserWebResponse.generateSuccessResponse(user);
@@ -151,19 +147,19 @@ public class UserResource {
     
     private Record1<UInteger> getUserID(Condition condition) {
             return UserSqlServer.createDSLContext()
-                    .select(USERACCOUNT.USERID)
-                    .from(USERACCOUNT)
+                    .select(USER_ACCOUNT.UID)
+                    .from(USER_ACCOUNT)
                     .where(condition)
                     .fetchOne();
     }
-    
-    private UseraccountRecord insertUserAccount(String userName) {
-            return UserSqlServer.createDSLContext()
-                    .insertInto(USERACCOUNT)
-                    .set(USERACCOUNT.USERNAME, userName)
-                    .set(USERACCOUNT.USERID, defaultValue(USERACCOUNT.USERID))
-                    .returning(USERACCOUNT.USERID)
-                    .fetchOne();
+
+    private UserAccountRecord insertUserAccount(String userName) {
+        return UserSqlServer.createDSLContext()
+                .insertInto(USER_ACCOUNT)
+                .set(USER_ACCOUNT.NAME, userName)
+                .set(USER_ACCOUNT.UID, defaultValue(USER_ACCOUNT.UID))
+                .returning(USER_ACCOUNT.UID)
+                .fetchOne();
     }
     
     private Pair<Boolean, String> validateUsername(String userName) {

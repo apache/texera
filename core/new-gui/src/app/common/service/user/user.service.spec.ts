@@ -1,9 +1,9 @@
-import { TestBed, inject } from '@angular/core/testing';
+import {TestBed} from '@angular/core/testing';
 
-import { UserService } from './user.service';
-import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
-import { UserWebResponse, UserWebResponseSuccess } from '../../type/user';
-import { AppSettings } from '../../app-setting';
+import {UserService} from './user.service';
+import {HttpClientTestingModule, HttpTestingController} from '@angular/common/http/testing';
+import {UserWebResponse, UserWebResponseSuccess} from '../../type/user';
+import {AppSettings} from '../../app-setting';
 
 const userID = 1;
 const userName = 'test';
@@ -11,7 +11,7 @@ const successCode = 0;
 const failedCode = 1;
 
 const successUserResponse: UserWebResponse = {
-  code : successCode,
+  code: successCode,
   user: {
     userName: userName,
     userID: userID
@@ -44,7 +44,7 @@ describe('UserService', () => {
     service = TestBed.get(UserService);
 
     // set default login from session response to a failure reponse
-    httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.AUTH_STATUS_ENDPINT}`)
+    httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.AUTH_STATUS_ENDPOINT}`)
       .flush(failedSessionLoginResponse);
   });
 
@@ -131,17 +131,17 @@ describe('UserService', () => {
       req.flush(failedUserResponse);
   });
 
-  it('should return undefiend when trying to get user field without not login', () => {
-      expect(service.getUser()).toBeFalsy();
+  it('should return undefined when trying to get user field without not login', () => {
+    expect(service.getUser()).toBeFalsy();
 
-      service.login(userName).subscribe(
-        userWebResponse => {
-          expect(service.getUser()).toBeFalsy();
-        }
-      );
+    service.login(userName).subscribe(
+      userWebResponse => {
+        expect(service.getUser()).toBeFalsy();
+      }
+    );
 
-      const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.LOGIN_ENDPOINT}`);
-      expect(req.request.method).toEqual('POST');
+    const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.LOGIN_ENDPOINT}`);
+    expect(req.request.method).toEqual('POST');
       req.flush(failedUserResponse);
   });
 
@@ -253,7 +253,7 @@ describe('UserService Session Login', () => {
     let user;
     service.getUserChangedEvent().subscribe(evt => user = evt);
 
-    const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.AUTH_STATUS_ENDPINT}`);
+    const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.AUTH_STATUS_ENDPOINT}`);
     req.flush(successUserResponse);
     expect(service.getUser()).toBeTruthy();
     expect(user).toBeTruthy();
@@ -263,7 +263,7 @@ describe('UserService Session Login', () => {
     let eventCount = 0;
     service.getUserChangedEvent().subscribe(evt => eventCount++);
 
-    const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.AUTH_STATUS_ENDPINT}`);
+    const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.AUTH_STATUS_ENDPOINT}`);
     req.flush(failedUserResponse);
     expect(service.getUser()).toBeFalsy();
     expect(eventCount).toEqual(0);

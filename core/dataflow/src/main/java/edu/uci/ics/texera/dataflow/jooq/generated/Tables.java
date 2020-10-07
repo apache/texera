@@ -4,35 +4,37 @@
 package edu.uci.ics.texera.dataflow.jooq.generated;
 
 
-import edu.uci.ics.texera.dataflow.jooq.generated.tables.Useraccount;
-import edu.uci.ics.texera.dataflow.jooq.generated.tables.Userdict;
-import edu.uci.ics.texera.dataflow.jooq.generated.tables.Userfile;
-import edu.uci.ics.texera.dataflow.jooq.generated.tables.Userworkflow;
+import edu.uci.ics.texera.dataflow.jooq.generated.tables.*;
 
 
 /**
- * Convenience access to all tables in texera
+ * Convenience access to all tables in texera_db
  */
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Tables {
 
     /**
-     * The table <code>texera.UserAccount</code>.
+     * The table <code>texera_db.key_search_dict</code>.
      */
-    public static final Useraccount USERACCOUNT = Useraccount.USERACCOUNT;
+    public static final KeySearchDict KEY_SEARCH_DICT = KeySearchDict.KEY_SEARCH_DICT;
 
     /**
-     * The table <code>texera.UserDict</code>.
+     * The table <code>texera_db.uploaded_file</code>.
      */
-    public static final Userdict USERDICT = Userdict.USERDICT;
+    public static final UploadedFile UPLOADED_FILE = UploadedFile.UPLOADED_FILE;
 
     /**
-     * The table <code>texera.UserFile</code>.
+     * The table <code>texera_db.user_account</code>.
      */
-    public static final Userfile USERFILE = Userfile.USERFILE;
+    public static final UserAccount USER_ACCOUNT = UserAccount.USER_ACCOUNT;
 
     /**
-     * The table <code>texera.UserWorkflow</code>.
+     * The table <code>texera_db.workflow</code>.
      */
-    public static final Userworkflow USERWORKFLOW = Userworkflow.USERWORKFLOW;
+    public static final Workflow WORKFLOW = Workflow.WORKFLOW;
+
+    /**
+     * The table <code>texera_db.workflow_of_user</code>.
+     */
+    public static final WorkflowOfUser WORKFLOW_OF_USER = WorkflowOfUser.WORKFLOW_OF_USER;
 }
