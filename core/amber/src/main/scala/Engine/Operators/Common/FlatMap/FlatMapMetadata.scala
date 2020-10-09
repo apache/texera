@@ -26,7 +26,7 @@ class FlatMapMetadata(
         new ProcessorWorkerLayer(
           LayerTag(tag, "main"),
           _ =>
-            new FlatMapTupleProcessor(
+            new FlatMapOperatorExecutor(
               flatMapFunc.asInstanceOf[(Tuple => TraversableOnce[Tuple]) with java.io.Serializable]
             ),
           numWorkers,

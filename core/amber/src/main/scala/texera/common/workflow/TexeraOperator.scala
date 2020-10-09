@@ -11,8 +11,6 @@ import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStrin
 import texera.common.schema.{PropertyNameConstants, TexeraOperatorDescription}
 import texera.common.{TexeraConstraintViolation, TexeraContext}
 import texera.operators.filter.TexeraFilter
-import texera.operators.hdfsscan.TexeraHdfsFileScan
-import texera.operators.keyword.TexeraKeywordSearch
 import texera.operators.localscan.TexeraLocalFileScan
 import texera.operators.pythonUDF.TexeraPythonUDF
 import texera.operators.regex.TexeraRegex
@@ -30,10 +28,8 @@ import scala.collection.{JavaConverters, mutable}
 @JsonSubTypes(
   Array(
     new Type(value = classOf[TexeraLocalFileScan], name = "LocalFileScan"),
-//  new Type(value = classOf[TexeraHdfsFileScan], name = "HdfsFileScan"),
     new Type(value = classOf[TexeraAdhocSink], name = "AdhocSink"),
     new Type(value = classOf[TexeraSleepOperator], name = "Sleep"),
-    new Type(value = classOf[TexeraKeywordSearch], name = "KeywordSearch"),
     new Type(value = classOf[TexeraRegex], name = "Regex"),
     new Type(value = classOf[TexeraFilter], name = "Filter"),
     new Type(value = classOf[TexeraSentimentAnalysis], name = "SentimentAnalysis"),

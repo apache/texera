@@ -3,7 +3,6 @@ package texera.operators.pythonUDF;
 import Engine.Common.Constants;
 import Engine.Common.tuple.texera.schema.Schema;
 import Engine.Operators.OperatorMetadata;
-import Engine.Operators.PythonUDF.PythonUDFMetadata;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import scala.collection.JavaConverters;

@@ -2,7 +2,6 @@ package texera.operators.sink;
 
 import Engine.Common.tuple.texera.schema.Schema;
 import Engine.Operators.OperatorMetadata;
-import Engine.Operators.Sink.SimpleSinkOperatorMetadata;
 import com.google.common.base.Preconditions;
 import scala.collection.Seq;
 import texera.common.schema.OperatorGroupConstants;

@@ -27,7 +27,7 @@ class MapMetadata(
         new ProcessorWorkerLayer(
           LayerTag(tag, "main"),
           _ =>
-            new MapTupleProcessor(mapFunc.asInstanceOf[(Tuple => Tuple) with java.io.Serializable]),
+            new MapOperatorExecutor(mapFunc.asInstanceOf[(Tuple => Tuple) with java.io.Serializable]),
           numWorkers,
           FollowPrevious(),
           RoundRobinDeployment()

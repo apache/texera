@@ -4,20 +4,20 @@ import Engine.Architecture.DeploySemantics.DeployStrategy.DeployStrategy
 import Engine.Architecture.DeploySemantics.DeploymentFilter.DeploymentFilter
 import Engine.Architecture.Worker.{Generator, Processor}
 import Engine.Common.AmberTag.{LayerTag, WorkerTag}
-import Engine.Common.TupleProcessor
+import Engine.Common.OperatorExecutor
 import Engine.Operators.OperatorMetadata
 import akka.actor.{ActorContext, ActorRef, Address, Deploy}
 import akka.remote.RemoteScope
 
 class ProcessorWorkerLayer(
-    tag: LayerTag,
-    val metadata: Int => TupleProcessor,
-    _numWorkers: Int,
-    df: DeploymentFilter,
-    ds: DeployStrategy
+                            tag: LayerTag,
+                            val metadata: Int => OperatorExecutor,
+                            _numWorkers: Int,
+                            df: DeploymentFilter,
+                            ds: DeployStrategy
 ) extends ActorLayer(tag, _numWorkers, df, ds) {
 
-  var metadataForFirst: TupleProcessor = _
+  var metadataForFirst: OperatorExecutor = _
   var deployForFirst: Address = _
 
   override def clone(): AnyRef = {

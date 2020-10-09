@@ -9,7 +9,6 @@ import Engine.Architecture.DeploySemantics.Layer.{ActorLayer, GeneratorWorkerLay
 import Engine.Architecture.Worker.WorkerState
 import Engine.Common.AmberTag.{LayerTag, OperatorTag}
 import Engine.Common.TableMetadata
-import Engine.Operators.Scan.FileScanMetadata
 import akka.actor.ActorRef
 import akka.event.LoggingAdapter
 import akka.util.Timeout
@@ -34,7 +33,7 @@ class TexeraLocalFileScanMetadata(
           i => {
             val endOffset =
               if (i != numWorkers - 1) totalBytes / numWorkers * (i + 1) else totalBytes
-            new TexeraLocalFileScanTupleProducer(
+            new TexeraLocalFileScanSourceOperatorExecutor(
               filePath,
               totalBytes / numWorkers * i,
               endOffset,

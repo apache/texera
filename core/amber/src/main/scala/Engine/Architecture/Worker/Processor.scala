@@ -11,12 +11,9 @@ import Engine.Common.AmberMessage.StateMessage._
 import Engine.Common.AmberMessage.ControlMessage.{QueryState, _}
 import Engine.Common.AmberTag.{LayerTag, WorkerTag}
 import Engine.Common.tuple.Tuple
-import Engine.Common.{AdvancedMessageSending, Constants, ElidableStatement, TupleSink, TableMetadata, ThreadState, TupleProcessor}
-import Engine.Operators.Filter.{FilterMetadata, FilterSpecializedTupleProcessor, FilterType}
-import Engine.Operators.KeywordSearch.{KeywordSearchMetadata, KeywordSearchTupleProcessor}
-import Engine.Operators.Sink.SimpleTupleSinkProcessor
+import Engine.Common.{AdvancedMessageSending, Constants, ElidableStatement, TupleSink, TableMetadata, ThreadState, OperatorExecutor}
 import Engine.FaultTolerance.Recovery.RecoveryPacket
-import Engine.Operators.Common.Filter.{FilterGeneralMetadata, FilterGeneralTupleProcessor}
+import Engine.Operators.Common.Filter.{FilterGeneralMetadata, FilterGeneralOperatorExecutor}
 import Engine.Operators.OperatorMetadata
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Stash}
 import akka.event.LoggingAdapter
@@ -33,10 +30,10 @@ import scala.annotation.elidable._
 import scala.concurrent.duration._
 
 object Processor {
-  def props(processor: TupleProcessor, tag: WorkerTag): Props = Props(new Processor(processor, tag))
+  def props(processor: OperatorExecutor, tag: WorkerTag): Props = Props(new Processor(processor, tag))
 }
 
-class Processor(var dataProcessor: TupleProcessor, val tag: WorkerTag) extends WorkerBase {
+class Processor(var dataProcessor: OperatorExecutor, val tag: WorkerTag) extends WorkerBase {
 
   val dataProcessExecutor: ExecutionContextExecutor =
     ExecutionContext.fromExecutor(Executors.newSingleThreadExecutor)
@@ -61,18 +58,14 @@ class Processor(var dataProcessor: TupleProcessor, val tag: WorkerTag) extends W
     generatedCount = 0L
     currentInputTuple = null
     dPThreadState = ThreadState.Idle
-    dataProcessor = value.asInstanceOf[TupleProcessor]
+    dataProcessor = value.asInstanceOf[OperatorExecutor]
     dataProcessor.initialize()
     while (
       savedModifyLogic.nonEmpty && savedModifyLogic.head._1 == 0 && savedModifyLogic.head._2 == 0
     ) {
       savedModifyLogic.head._3 match {
-        case keywordSeachOpMetadata: KeywordSearchMetadata =>
-          val dp: KeywordSearchTupleProcessor =
-            dataProcessor.asInstanceOf[KeywordSearchTupleProcessor]
-          dp.setPredicate(keywordSeachOpMetadata.targetField, keywordSeachOpMetadata.keyword)
         case filterOpMetadata: FilterGeneralMetadata =>
-          val dp = dataProcessor.asInstanceOf[FilterGeneralTupleProcessor]
+          val dp = dataProcessor.asInstanceOf[FilterGeneralOperatorExecutor]
           dp.filterFunc = filterOpMetadata.filterFunc
         case t => throw new NotImplementedError("Unknown operator type: " + t)
       }
@@ -334,12 +327,8 @@ class Processor(var dataProcessor: TupleProcessor, val tag: WorkerTag) extends W
       savedModifyLogic.enqueue((generatedCount, processedCount, newMetadata))
       log.info("modify logic received by worker " + this.self.path.name + ", updating logic")
       newMetadata match {
-        case keywordSeachOpMetadata: KeywordSearchMetadata =>
-          val dp: KeywordSearchTupleProcessor =
-            dataProcessor.asInstanceOf[KeywordSearchTupleProcessor]
-          dp.setPredicate(keywordSeachOpMetadata.targetField, keywordSeachOpMetadata.keyword)
         case filterOpMetadata: FilterGeneralMetadata =>
-          val dp = dataProcessor.asInstanceOf[FilterGeneralTupleProcessor]
+          val dp = dataProcessor.asInstanceOf[FilterGeneralOperatorExecutor]
           dp.filterFunc = filterOpMetadata.filterFunc
         case t => throw new NotImplementedError("Unknown operator type: " + t)
       }
@@ -434,12 +423,8 @@ class Processor(var dataProcessor: TupleProcessor, val tag: WorkerTag) extends W
           s"id: ${this.tag}"
       )
       savedModifyLogic.head._3 match {
-        case keywordSeachOpMetadata: KeywordSearchMetadata =>
-          val dp: KeywordSearchTupleProcessor =
-            dataProcessor.asInstanceOf[KeywordSearchTupleProcessor]
-          dp.setPredicate(keywordSeachOpMetadata.targetField, keywordSeachOpMetadata.keyword)
         case filterOpMetadata: FilterGeneralMetadata =>
-          val dp = dataProcessor.asInstanceOf[FilterGeneralTupleProcessor]
+          val dp = dataProcessor.asInstanceOf[FilterGeneralOperatorExecutor]
           dp.filterFunc = filterOpMetadata.filterFunc
         case t => throw new NotImplementedError("Unknown operator type: " + t)
       }

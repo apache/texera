@@ -2,7 +2,7 @@ package Engine.FaultTolerance.Materializer
 
 import Engine.Common.AmberTag.LayerTag
 import Engine.Common.tuple.Tuple
-import Engine.Common.TupleProcessor
+import Engine.Common.OperatorExecutor
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.FileSystem
 import org.apache.hadoop.fs.Path
@@ -16,7 +16,7 @@ class HashBasedMaterializer(
     val hashFunc: Tuple => Int,
     val numBuckets: Int,
     val remoteHDFS: String = null
-) extends TupleProcessor {
+) extends OperatorExecutor {
 
   var writer: Array[BufferedWriter] = _
 

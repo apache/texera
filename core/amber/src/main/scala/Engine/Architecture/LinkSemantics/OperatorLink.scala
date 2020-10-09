@@ -6,10 +6,8 @@ import Engine.Architecture.SendSemantics.Routees.DirectRoutee
 import Engine.Common.AmberMessage.PrincipalMessage.{GetInputLayer, GetOutputLayer}
 import Engine.Common.AmberMessage.WorkerMessage.UpdateOutputLinking
 import Engine.Common.AmberTag.LinkTag
-import Engine.Common.{AdvancedMessageSending, Constants}
+import Engine.Common.{AdvancedMessageSending, Constants, TupleSink}
 import Engine.Operators.OperatorMetadata
-import Engine.Operators.Sink.SimpleSinkOperatorMetadata
-import Engine.Operators.Sort.SortMetadata
 import akka.actor.ActorRef
 import akka.event.LoggingAdapter
 import akka.pattern.ask
@@ -37,7 +35,7 @@ class OperatorLink(val from: (OperatorMetadata, ActorRef), val to: (OperatorMeta
           to._1.getShuffleHashFunction(sender.tag)
         )
       } else if (
-        to._1.isInstanceOf[SimpleSinkOperatorMetadata] || to._1.isInstanceOf[SortMetadata[_]]
+        to._1.isInstanceOf[TupleSink]
       ) {
         linkStrategy = new AllToOne(sender, receiver, Constants.defaultBatchSize)
       } else if (sender.layer.length == receiver.layer.length) {

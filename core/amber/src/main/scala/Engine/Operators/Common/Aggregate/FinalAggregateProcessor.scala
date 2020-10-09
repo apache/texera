@@ -2,12 +2,12 @@ package Engine.Operators.Common.Aggregate
 
 import Engine.Common.AmberTag.LayerTag
 import Engine.Common.tuple.Tuple
-import Engine.Common.TupleProcessor
+import Engine.Common.OperatorExecutor
 
 import scala.collection.mutable
 
 class FinalAggregateProcessor(val aggFunc: DistributedAggregation, val groupByKeys: Seq[Int])
-    extends TupleProcessor {
+    extends OperatorExecutor {
 
   var partialObjectPerKey = new mutable.HashMap[Seq[Any], Tuple]()
   var outputIterator: Iterator[Tuple] = _

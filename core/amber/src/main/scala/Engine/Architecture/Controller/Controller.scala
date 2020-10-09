@@ -3,70 +3,25 @@ package Engine.Architecture.Controller
 import Clustering.ClusterListener.GetAvailableNodeAddresses
 import Engine.Architecture.Breakpoint.GlobalBreakpoint.{ExceptionGlobalBreakpoint, GlobalBreakpoint}
 import Engine.Architecture.Breakpoint.GlobalBreakpoint.GlobalBreakpoint
-import Engine.Architecture.Controller.ControllerEvent.{
-  BreakpointTriggered,
-  ModifyLogicCompleted,
-  SkipTupleResponse,
-  WorkflowCompleted,
-  WorkflowPaused,
-  WorkflowStatusUpdate
-}
+import Engine.Architecture.Controller.ControllerEvent.{BreakpointTriggered, ModifyLogicCompleted, SkipTupleResponse, WorkflowCompleted, WorkflowPaused, WorkflowStatusUpdate}
 import Engine.Architecture.DeploySemantics.DeployStrategy.OneOnEach
 import Engine.Architecture.DeploySemantics.DeploymentFilter.FollowPrevious
-import Engine.Architecture.DeploySemantics.Layer.{
-  ActorLayer,
-  GeneratorWorkerLayer,
-  ProcessorWorkerLayer
-}
+import Engine.Architecture.DeploySemantics.Layer.{ActorLayer, GeneratorWorkerLayer, ProcessorWorkerLayer}
 import Engine.FaultTolerance.Materializer.{HashBasedMaterializer, OutputMaterializer}
-import Engine.FaultTolerance.Scanner.HDFSFolderScanTupleProducer
-import Engine.Architecture.LinkSemantics.{
-  FullRoundRobin,
-  HashBasedShuffle,
-  LocalPartialToOne,
-  OperatorLink
-}
+import Engine.Architecture.LinkSemantics.{FullRoundRobin, HashBasedShuffle, LocalPartialToOne, OperatorLink}
 import Engine.Architecture.Principal.{Principal, PrincipalState, PrincipalStatistics}
 import Engine.Common.AmberException.AmberException
 import Engine.Common.AmberMessage.ControllerMessage._
 import Engine.Common.AmberMessage.ControlMessage._
 import Engine.Common.AmberMessage.PrincipalMessage
-import Engine.Common.AmberMessage.PrincipalMessage.{
-  AckedPrincipalInitialization,
-  AssignBreakpoint,
-  GetOutputLayer,
-  ReportCurrentProcessingTuple,
-  ReportOutputResult,
-  ReportPrincipalPartialCompleted
-}
+import Engine.Common.AmberMessage.PrincipalMessage.{AckedPrincipalInitialization, AssignBreakpoint, GetOutputLayer, ReportCurrentProcessingTuple, ReportOutputResult, ReportPrincipalPartialCompleted}
 import Engine.Common.AmberMessage.StateMessage.EnforceStateCheck
 import Engine.Common.AmberTag.{AmberTag, LayerTag, LinkTag, OperatorTag, WorkflowTag}
 import Engine.Common.tuple.Tuple
-import Engine.Common.{AdvancedMessageSending, AmberUtils, Constants, TupleProducer}
-import Engine.Operators.SimpleCollection.SimpleSourceOperatorMetadata
-import Engine.Operators.Count.CountMetadata
-import Engine.Operators.Filter.{FilterMetadata, FilterType}
-import Engine.Operators.GroupBy.{AggregationType, GroupByMetadata}
-import Engine.Operators.HashJoin.HashJoinMetadata
-import Engine.Operators.KeywordSearch.KeywordSearchMetadata
+import Engine.Common.{AdvancedMessageSending, AmberUtils, Constants, SourceOperatorExecutor}
+import Engine.FaultTolerance.Scanner.HDFSFolderScanSourceOperatorExecutor
 import Engine.Operators.OperatorMetadata
-import Engine.Operators.Projection.ProjectionMetadata
-import Engine.Operators.Scan.HDFSFileScan.{HDFSFileScanMetadata, HDFSFileScanTupleProducer}
-import Engine.Operators.Scan.LocalFileScan.LocalFileScanMetadata
-import Engine.Operators.Sink.SimpleSinkOperatorMetadata
-import Engine.Operators.Sort.SortMetadata
-import akka.actor.{
-  Actor,
-  ActorLogging,
-  ActorRef,
-  ActorSelection,
-  Address,
-  Cancellable,
-  Deploy,
-  PoisonPill,
-  Props,
-  Stash
-}
+import akka.actor.{Actor, ActorLogging, ActorRef, ActorSelection, Address, Cancellable, Deploy, PoisonPill, Props, Stash}
 import akka.dispatch.Futures
 import akka.event.LoggingAdapter
 import akka.pattern.ask
@@ -138,74 +93,75 @@ object Controller {
   private def jsonToOperatorMetadata(workflowTag: WorkflowTag, json: JsValue): OperatorMetadata = {
     val id = json("operatorID").as[String]
     val tag = OperatorTag(workflowTag.workflow, id)
-    json("operatorType").as[String] match {
-      case "LocalScanSource" =>
-        new LocalFileScanMetadata(
-          tag,
-          Constants.defaultNumWorkers,
-          json("tableName").as[String],
-          json("delimiter").as[String].charAt(0),
-          (json \ "indicesToKeep").asOpt[Array[Int]].orNull,
-          null
-        )
-      case "HDFSScanSource" =>
-        new HDFSFileScanMetadata(
-          tag,
-          Constants.defaultNumWorkers,
-          json("host").as[String],
-          json("tableName").as[String],
-          json("delimiter").as[String].charAt(0),
-          json("indicesToKeep").asOpt[Array[Int]].orNull,
-          null
-        )
-      case "KeywordMatcher" =>
-        new KeywordSearchMetadata(
-          tag,
-          Constants.defaultNumWorkers,
-          json("attributeName").as[Int],
-          json("keyword").as[String]
-        )
-      case "Aggregation" => new CountMetadata(tag, Constants.defaultNumWorkers)
-      case "Filter" =>
-        new FilterMetadata[DateTime](
-          tag,
-          Constants.defaultNumWorkers,
-          json("targetField").as[Int],
-          FilterType.getType(json("filterType").as[String]),
-          DateTime.parse(json("threshold").as[String])
-        )
-      case "Sink" => new SimpleSinkOperatorMetadata(tag)
-      case "Generate" =>
-        new SimpleSourceOperatorMetadata(
-          tag,
-          Constants.defaultNumWorkers,
-          json("limit").as[Int],
-          json("delay").as[Int]
-        )
-      case "HashJoin" =>
-        new HashJoinMetadata[String](
-          tag,
-          Constants.defaultNumWorkers,
-          json("innerTableIndex").as[Int],
-          json("outerTableIndex").as[Int]
-        )
-      case "GroupBy" =>
-        new GroupByMetadata[String](
-          tag,
-          Constants.defaultNumWorkers,
-          json("groupByField").as[Int],
-          json("aggregateField").as[Int],
-          AggregationType.valueOf(json("aggregationType").as[String])
-        )
-      case "Projection" =>
-        new ProjectionMetadata(
-          tag,
-          Constants.defaultNumWorkers,
-          json("targetFields").as[Array[Int]]
-        )
-      case "Sort" => new SortMetadata[String](tag, json("targetField").as[Int])
-      case t      => throw new NotImplementedError("Unknown operator type: " + t)
-    }
+//    json("operatorType").as[String] match {
+//      case "LocalScanSource" =>
+//        new LocalFileScanMetadata(
+//          tag,
+//          Constants.defaultNumWorkers,
+//          json("tableName").as[String],
+//          json("delimiter").as[String].charAt(0),
+//          (json \ "indicesToKeep").asOpt[Array[Int]].orNull,
+//          null
+//        )
+//      case "HDFSScanSource" =>
+//        new HDFSFileScanMetadata(
+//          tag,
+//          Constants.defaultNumWorkers,
+//          json("host").as[String],
+//          json("tableName").as[String],
+//          json("delimiter").as[String].charAt(0),
+//          json("indicesToKeep").asOpt[Array[Int]].orNull,
+//          null
+//        )
+//      case "KeywordMatcher" =>
+//        new KeywordSearchMetadata(
+//          tag,
+//          Constants.defaultNumWorkers,
+//          json("attributeName").as[Int],
+//          json("keyword").as[String]
+//        )
+//      case "Aggregation" => new CountMetadata(tag, Constants.defaultNumWorkers)
+//      case "Filter" =>
+//        new FilterMetadata[DateTime](
+//          tag,
+//          Constants.defaultNumWorkers,
+//          json("targetField").as[Int],
+//          FilterType.getType(json("filterType").as[String]),
+//          DateTime.parse(json("threshold").as[String])
+//        )
+//      case "Sink" => new SimpleSinkOperatorMetadata(tag)
+//      case "Generate" =>
+//        new SimpleSourceOperatorMetadata(
+//          tag,
+//          Constants.defaultNumWorkers,
+//          json("limit").as[Int],
+//          json("delay").as[Int]
+//        )
+//      case "HashJoin" =>
+//        new HashJoinMetadata[String](
+//          tag,
+//          Constants.defaultNumWorkers,
+//          json("innerTableIndex").as[Int],
+//          json("outerTableIndex").as[Int]
+//        )
+//      case "GroupBy" =>
+//        new GroupByMetadata[String](
+//          tag,
+//          Constants.defaultNumWorkers,
+//          json("groupByField").as[Int],
+//          json("aggregateField").as[Int],
+//          AggregationType.valueOf(json("aggregationType").as[String])
+//        )
+//      case "Projection" =>
+//        new ProjectionMetadata(
+//          tag,
+//          Constants.defaultNumWorkers,
+//          json("targetFields").as[Array[Int]]
+//        )
+//      case "Sort" => new SortMetadata[String](tag, json("targetField").as[Int])
+//      case t      => throw new NotImplementedError("Unknown operator type: " + t)
+//    }
+    throw new UnsupportedOperationException()
   }
 }
 
@@ -263,8 +219,8 @@ class Controller(
     val layerTag = LayerTag(from.tag, "checkpoint")
     val path: String = layerTag.getGlobalIdentity
     val numWorkers = topology.layers.last.numWorkers
-    val scanGen: Int => TupleProducer = i =>
-      new HDFSFolderScanTupleProducer(Constants.remoteHDFSPath, path + "/" + i, '|', null)
+    val scanGen: Int => SourceOperatorExecutor = i =>
+      new HDFSFolderScanSourceOperatorExecutor(Constants.remoteHDFSPath, path + "/" + i, '|', null)
     val lastLayer = topology.layers.last
     val materializerLayer = new ProcessorWorkerLayer(
       layerTag,

@@ -26,7 +26,7 @@ class FilterGeneralMetadata(
         new ProcessorWorkerLayer(
           LayerTag(tag, "main"),
           _ =>
-            new FilterGeneralTupleProcessor(
+            new FilterGeneralOperatorExecutor(
               filterFunc
             ),
           numWorkers,

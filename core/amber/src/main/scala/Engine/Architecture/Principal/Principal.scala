@@ -9,61 +9,16 @@ import Engine.Architecture.Worker.{WorkerState, WorkerStatistics}
 import Engine.Common.AmberException.AmberException
 import Engine.Common.AmberMessage.PrincipalMessage.{AssignBreakpoint, _}
 import Engine.Common.AmberMessage.StateMessage._
-import Engine.Common.AmberMessage.ControlMessage.{
-  Ack,
-  AckWithInformation,
-  CollectSinkResults,
-  KillAndRecover,
-  LocalBreakpointTriggered,
-  ModifyLogic,
-  ModifyTuple,
-  Pause,
-  QueryState,
-  QueryStatistics,
-  ReleaseOutput,
-  RequireAck,
-  Resume,
-  ResumeTuple,
-  SkipTuple,
-  Start,
-  StashOutput
-}
+import Engine.Common.AmberMessage.ControlMessage.{Ack, AckWithInformation, CollectSinkResults, KillAndRecover, LocalBreakpointTriggered, ModifyLogic, ModifyTuple, Pause, QueryState, QueryStatistics, ReleaseOutput, RequireAck, Resume, ResumeTuple, SkipTuple, Start, StashOutput}
 import Engine.Common.AmberMessage.ControllerMessage.ReportGlobalBreakpointTriggered
 import Engine.Common.AmberMessage.{PrincipalMessage, WorkerMessage}
-import Engine.Common.AmberMessage.WorkerMessage.{
-  AckedWorkerInitialization,
-  CheckRecovery,
-  DataMessage,
-  EndSending,
-  ExecutionCompleted,
-  ExecutionPaused,
-  QueryBreakpoint,
-  QueryTriggeredBreakpoints,
-  RemoveBreakpoint,
-  ReportFailure,
-  ReportWorkerPartialCompleted,
-  ReportedQueriedBreakpoint,
-  ReportedTriggeredBreakpoints,
-  Reset,
-  UpdateOutputLinking
-}
+import Engine.Common.AmberMessage.WorkerMessage.{AckedWorkerInitialization, CheckRecovery, DataMessage, EndSending, ExecutionCompleted, ExecutionPaused, QueryBreakpoint, QueryTriggeredBreakpoints, RemoveBreakpoint, ReportFailure, ReportWorkerPartialCompleted, ReportedQueriedBreakpoint, ReportedTriggeredBreakpoints, Reset, UpdateOutputLinking}
 import Engine.Common.tuple.Tuple
 import Engine.Common.AmberTag.{AmberTag, LayerTag, OperatorTag, WorkerTag}
-import Engine.Common.{AdvancedMessageSending, AmberUtils, Constants, TableMetadata}
+import Engine.Common.{AdvancedMessageSending, AmberUtils, Constants, TableMetadata, TupleSink}
 import Engine.FaultTolerance.Recovery.RecoveryPacket
 import Engine.Operators.OperatorMetadata
-import Engine.Operators.Sink.SimpleSinkOperatorMetadata
-import akka.actor.{
-  Actor,
-  ActorLogging,
-  ActorPath,
-  ActorRef,
-  Address,
-  Cancellable,
-  PoisonPill,
-  Props,
-  Stash
-}
+import akka.actor.{Actor, ActorLogging, ActorPath, ActorRef, Address, Cancellable, PoisonPill, Props, Stash}
 import akka.event.LoggingAdapter
 import akka.util.Timeout
 import akka.pattern.after
@@ -675,7 +630,7 @@ class Principal(val metadata: OperatorMetadata) extends Actor with ActorLogging 
       )
     case CollectSinkResults =>
       this.metadata match {
-        case sink: SimpleSinkOperatorMetadata =>
+        case sink: TupleSink =>
           allWorkers.foreach(worker => worker ! CollectSinkResults)
         case _ => // ignore collect result if self is not sink
       }
