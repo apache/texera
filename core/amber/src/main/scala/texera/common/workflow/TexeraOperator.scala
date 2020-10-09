@@ -3,6 +3,7 @@ package texera.common.workflow
 import java.util.UUID
 
 import Engine.Common.AmberTag.OperatorTag
+import Engine.Common.tuple.texera.schema.Schema
 import Engine.Operators.OperatorMetadata
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonSubTypes, JsonTypeInfo}
@@ -52,6 +53,8 @@ abstract class TexeraOperator {
   def amberOperator: OperatorMetadata
 
   def texeraOperatorDescription: TexeraOperatorDescription
+
+  def transformSchema(schemas: Schema*): Schema
 
   def validate(): Set[TexeraConstraintViolation] = {
     Set.empty

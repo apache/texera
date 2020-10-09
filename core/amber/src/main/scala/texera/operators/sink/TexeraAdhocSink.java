@@ -1,10 +1,13 @@
 package texera.operators.sink;
 
+import Engine.Common.tuple.texera.schema.Schema;
 import Engine.Operators.OperatorMetadata;
 import Engine.Operators.Sink.SimpleSinkOperatorMetadata;
+import com.google.common.base.Preconditions;
+import scala.collection.Seq;
 import texera.common.schema.OperatorGroupConstants;
-import texera.common.workflow.TexeraOperator;
 import texera.common.schema.TexeraOperatorDescription;
+import texera.common.workflow.TexeraOperator;
 
 public class TexeraAdhocSink extends TexeraOperator {
 
@@ -20,6 +23,12 @@ public class TexeraAdhocSink extends TexeraOperator {
                 "View the workflow results",
                 OperatorGroupConstants.RESULT_GROUP(),
                 1, 0);
+    }
+
+    @Override
+    public Schema transformSchema(Seq<Schema> schemas) {
+        Preconditions.checkArgument(schemas.length() == 1);
+       return schemas.apply(0);
     }
 
 }

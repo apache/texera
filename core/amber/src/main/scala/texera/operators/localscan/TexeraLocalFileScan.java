@@ -1,9 +1,11 @@
 package texera.operators.localscan;
 
 import Engine.Common.Constants;
+import Engine.Common.tuple.texera.schema.Schema;
 import Engine.Operators.OperatorMetadata;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
+import scala.collection.Seq;
 import texera.common.schema.OperatorGroupConstants;
 import texera.common.schema.TexeraOperatorDescription;
 import texera.common.workflow.TexeraOperator;
@@ -32,6 +34,11 @@ public class TexeraLocalFileScan extends TexeraOperator {
                 "Scan data from a local file",
                 OperatorGroupConstants.SOURCE_GROUP(),
                 0, 1);
+    }
+
+    @Override
+    public Schema transformSchema(Seq<Schema> schemas) {
+        return null;
     }
 
 }

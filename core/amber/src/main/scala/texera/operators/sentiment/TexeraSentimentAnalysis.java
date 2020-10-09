@@ -3,10 +3,13 @@ package texera.operators.sentiment;
 import Engine.Common.tuple.amber.AmberTuple;
 import Engine.Common.tuple.Tuple;
 import Engine.Common.Constants;
+import Engine.Common.tuple.texera.schema.AttributeType;
+import Engine.Common.tuple.texera.schema.Schema;
 import Engine.Operators.Common.Map.MapMetadata;
 import Engine.Operators.OperatorMetadata;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
+import com.google.common.base.Preconditions;
 import edu.stanford.nlp.ling.CoreAnnotations;
 import edu.stanford.nlp.neural.rnn.RNNCoreAnnotations;
 import edu.stanford.nlp.pipeline.Annotation;
@@ -16,13 +19,16 @@ import edu.stanford.nlp.util.CoreMap;
 import org.apache.commons.lang3.ArrayUtils;
 import scala.Function1;
 import scala.Serializable;
+import scala.collection.Seq;
 import texera.common.schema.OperatorGroupConstants;
 import texera.common.schema.TexeraOperatorDescription;
 import texera.common.workflow.TexeraOperator;
+import texera.common.workflow.common.FilterOpDesc;
+import texera.common.workflow.common.MapOpDesc;
 
 import java.util.Properties;
 
-public class TexeraSentimentAnalysis extends TexeraOperator {
+public class TexeraSentimentAnalysis extends MapOpDesc {
 
     @JsonProperty("attribute")
     @JsonPropertyDescription("column to perform sentiment analysis on")
@@ -75,5 +81,11 @@ public class TexeraSentimentAnalysis extends TexeraOperator {
                 OperatorGroupConstants.ANALYTICS_GROUP(),
                 1, 1
         );
+    }
+
+    @Override
+    public Schema transformSchema(Seq<Schema> schemas) {
+        Preconditions.checkArgument(schemas.length() == 1);
+        return Schema.newBuilder().add(schemas.apply(0)).add("sentiment", AttributeType.STRING).build();
     }
 }

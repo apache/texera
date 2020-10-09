@@ -13,10 +13,11 @@ import texera.common.TexeraConstraintViolation;
 import texera.common.schema.OperatorGroupConstants;
 import texera.common.schema.TexeraOperatorDescription;
 import texera.common.workflow.TexeraOperator;
+import texera.common.workflow.common.FilterOpDesc;
 
 import java.util.List;
 
-public class TexeraFilter extends TexeraOperator {
+public class TexeraFilter extends FilterOpDesc {
 
     @JsonProperty("predicates")
     @JsonPropertyDescription("multiple predicates in OR")

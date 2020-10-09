@@ -10,8 +10,9 @@ import texera.common.TexeraConstraintViolation;
 import texera.common.schema.OperatorGroupConstants;
 import texera.common.schema.TexeraOperatorDescription;
 import texera.common.workflow.TexeraOperator;
+import texera.common.workflow.common.FilterOpDesc;
 
-public class TexeraKeywordSearch extends TexeraOperator {
+public class TexeraKeywordSearch extends FilterOpDesc {
 
     @JsonProperty("attribute")
     @JsonPropertyDescription("column to search keyword")
