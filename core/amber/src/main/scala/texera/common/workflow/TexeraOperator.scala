@@ -37,7 +37,6 @@ import scala.collection.{JavaConverters, mutable}
     new Type(value = classOf[TexeraKeywordSearch], name = "KeywordSearch"),
     new Type(value = classOf[TexeraRegex], name = "Regex"),
     new Type(value = classOf[TexeraFilter], name = "Filter"),
-    new Type(value = classOf[TexeraCount], name = "Count"),
     new Type(value = classOf[TexeraSentimentAnalysis], name = "SentimentAnalysis"),
     new Type(value = classOf[TexeraPythonUDF], name = "PythonUDF"),
   )
