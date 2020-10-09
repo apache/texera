@@ -10,7 +10,6 @@ import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonSubTypes,
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
 import texera.common.schema.{PropertyNameConstants, TexeraOperatorDescription}
 import texera.common.{TexeraConstraintViolation, TexeraContext}
-import texera.operators.count.TexeraCount
 import texera.operators.filter.TexeraFilter
 import texera.operators.hdfsscan.TexeraHdfsFileScan
 import texera.operators.keyword.TexeraKeywordSearch
