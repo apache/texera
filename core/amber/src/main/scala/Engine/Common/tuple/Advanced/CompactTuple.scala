@@ -1,9 +1,9 @@
-package Engine.Common.AmberTuple.Advanced
+package Engine.Common.tuple.Advanced
 
 import java.nio.ByteBuffer
 
 import Engine.Common.AmberField.FieldType
-import Engine.Common.AmberTuple.AmberTuple
+import Engine.Common.tuple.amber.AmberTuple
 
 //WARN: only use it when you really need save space for large & complex(mixed data types) tuples (~70% compression ratio)
 

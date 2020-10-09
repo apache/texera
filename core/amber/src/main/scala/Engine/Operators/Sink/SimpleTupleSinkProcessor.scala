@@ -1,12 +1,12 @@
 package Engine.Operators.Sink
 
 import Engine.Common.AmberTag.LayerTag
-import Engine.Common.AmberTuple.Tuple
-import Engine.Common.TupleProcessor
+import Engine.Common.tuple.Tuple
+import Engine.Common.{TupleSink, TupleProcessor}
 
 import scala.collection.mutable
 
-class SimpleSinkProcessor extends TupleProcessor {
+class SimpleTupleSinkProcessor extends TupleSink {
 
   val results: mutable.MutableList[Tuple] = mutable.MutableList()
 
@@ -15,8 +15,8 @@ class SimpleSinkProcessor extends TupleProcessor {
     results += tuple
   }
 
-  def getResultTuples(): mutable.MutableList[Tuple] = {
-    results
+  def getResultTuples(): Array[Tuple] = {
+    results.toArray
   }
 
   override def noMore(): Unit = {}

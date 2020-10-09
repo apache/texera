@@ -1,29 +1,14 @@
 package Engine.Architecture.Worker
 
-import Engine.Architecture.Breakpoint.LocalBreakpoint.{
-  ConditionalBreakpoint,
-  CountBreakpoint,
-  ExceptionBreakpoint
-}
+import Engine.Architecture.Breakpoint.LocalBreakpoint.{ConditionalBreakpoint, CountBreakpoint, ExceptionBreakpoint}
 import Engine.Architecture.SendSemantics.DataTransferPolicy.OneToOnePolicy
 import Engine.Architecture.SendSemantics.Routees.DirectRoutee
 import Engine.Common.AmberMessage.ControlMessage.{Pause, QueryState, Resume}
 import Engine.Common.AmberMessage.PrincipalMessage.ReportPrincipalPartialCompleted
-import Engine.Common.AmberMessage.WorkerMessage.{
-  AckedWorkerInitialization,
-  AssignBreakpoint,
-  DataMessage,
-  EndSending,
-  QueryTriggeredBreakpoints,
-  RemoveBreakpoint,
-  ReportState,
-  ReportWorkerPartialCompleted,
-  ReportedTriggeredBreakpoints,
-  UpdateInputLinking,
-  UpdateOutputLinking
-}
+import Engine.Common.AmberMessage.WorkerMessage.{AckedWorkerInitialization, AssignBreakpoint, DataMessage, EndSending, QueryTriggeredBreakpoints, RemoveBreakpoint, ReportState, ReportWorkerPartialCompleted, ReportedTriggeredBreakpoints, UpdateInputLinking, UpdateOutputLinking}
 import Engine.Common.AmberTag.{LayerTag, LinkTag, OperatorTag, WorkerTag, WorkflowTag}
-import Engine.Common.AmberTuple.{AmberTuple, Tuple}
+import Engine.Common.tuple.Tuple
+import Engine.Common.tuple.amber.AmberTuple
 import Engine.Operators.SimpleCollection.SimpleTupleProcessor
 import akka.actor.{ActorSystem, PoisonPill}
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}

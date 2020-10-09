@@ -1,7 +1,7 @@
 package Engine.Operators.Filter
 
 import Engine.Common.AmberTag.LayerTag
-import Engine.Common.AmberTuple.Tuple
+import Engine.Common.tuple.Tuple
 import Engine.Common.{TableMetadata, TupleProcessor}
 
 class FilterTupleProcessor[T: Ordering](

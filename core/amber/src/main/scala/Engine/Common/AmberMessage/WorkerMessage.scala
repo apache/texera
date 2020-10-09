@@ -6,7 +6,7 @@ import Engine.Architecture.SendSemantics.Routees.BaseRoutee
 import Engine.Architecture.Worker.{WorkerState, WorkerStatistics}
 import Engine.Common.AmberException.AmberException
 import Engine.Common.AmberTag.{LayerTag, LinkTag, WorkerTag}
-import Engine.Common.AmberTuple.Tuple
+import Engine.Common.tuple.Tuple
 import akka.actor.{ActorPath, ActorRef}
 
 import scala.collection.mutable

@@ -5,7 +5,7 @@ import Engine.Architecture.DeploySemantics.Layer.ActorLayer
 import Engine.Architecture.LinkSemantics.LinkStrategy
 import Engine.Architecture.Principal.{PrincipalState, PrincipalStatistics}
 import Engine.Common.AmberTag.{AmberTag, LayerTag, WorkerTag}
-import Engine.Common.AmberTuple.Tuple
+import Engine.Common.tuple.Tuple
 import Engine.Operators.OperatorMetadata
 import akka.actor.{ActorPath, ActorRef}
 

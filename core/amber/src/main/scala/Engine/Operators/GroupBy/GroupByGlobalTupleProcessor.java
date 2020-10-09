@@ -1,7 +1,7 @@
 package Engine.Operators.GroupBy;
 
 import Engine.Common.AmberTag.LayerTag;
-import Engine.Common.AmberTuple.Tuple;
+import Engine.Common.tuple.Tuple;
 import Engine.Common.TupleProcessor;
 
 import java.util.HashMap;

@@ -41,7 +41,7 @@ import Engine.Common.AmberMessage.PrincipalMessage.{
 }
 import Engine.Common.AmberMessage.StateMessage.EnforceStateCheck
 import Engine.Common.AmberTag.{AmberTag, LayerTag, LinkTag, OperatorTag, WorkflowTag}
-import Engine.Common.AmberTuple.Tuple
+import Engine.Common.tuple.Tuple
 import Engine.Common.{AdvancedMessageSending, AmberUtils, Constants, TupleProducer}
 import Engine.Operators.SimpleCollection.SimpleSourceOperatorMetadata
 import Engine.Operators.Count.CountMetadata

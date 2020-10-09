@@ -1,6 +1,6 @@
 package texera.operators.filter;
 
-import Engine.Common.AmberTuple.Tuple;
+import Engine.Common.tuple.Tuple;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import texera.common.TexeraContext;

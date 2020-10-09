@@ -1,6 +1,6 @@
 package Engine.Architecture.Breakpoint.LocalBreakpoint
 
-import Engine.Common.AmberTuple.Tuple
+import Engine.Common.tuple.Tuple
 
 abstract class LocalBreakpoint(val id: String, val version: Long) extends Serializable {
 

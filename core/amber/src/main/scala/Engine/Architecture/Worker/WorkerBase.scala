@@ -6,7 +6,7 @@ import Engine.Architecture.Breakpoint.LocalBreakpoint.LocalBreakpoint
 import Engine.Common.AmberException.AmberException
 import Engine.Common.AmberMessage.ControlMessage._
 import Engine.Common.AmberMessage.WorkerMessage._
-import Engine.Common.AmberTuple.Tuple
+import Engine.Common.tuple.Tuple
 import Engine.Common.ElidableStatement
 import akka.actor.{Actor, ActorLogging, Stash}
 import akka.event.LoggingAdapter

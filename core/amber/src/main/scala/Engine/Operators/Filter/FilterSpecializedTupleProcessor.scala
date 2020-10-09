@@ -1,6 +1,6 @@
 package Engine.Operators.Filter
 
-import Engine.Common.AmberTuple.Tuple
+import Engine.Common.tuple.Tuple
 import Engine.Operators.Filter.FilterType.AmberDateTime
 import com.github.nscala_time.time.Imports._
 

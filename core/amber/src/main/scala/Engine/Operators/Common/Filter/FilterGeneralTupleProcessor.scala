@@ -1,7 +1,7 @@
 package Engine.Operators.Common.Filter
 
 import Engine.Common.AmberTag.LayerTag
-import Engine.Common.AmberTuple.Tuple
+import Engine.Common.tuple.Tuple
 import Engine.Common.TupleProcessor
 
 import scala.Function1

@@ -1,7 +1,7 @@
 package texera.operators.sentiment;
 
-import Engine.Common.AmberTuple.AmberTuple;
-import Engine.Common.AmberTuple.Tuple;
+import Engine.Common.tuple.amber.AmberTuple;
+import Engine.Common.tuple.Tuple;
 import Engine.Common.Constants;
 import Engine.Operators.Common.Map.MapMetadata;
 import Engine.Operators.OperatorMetadata;

@@ -1,6 +1,6 @@
 package Engine.Architecture.ReceiveSemantics
 import Engine.Common.AmberTag.LayerTag
-import Engine.Common.AmberTuple.{AmberTuple, Tuple}
+import Engine.Common.tuple.Tuple
 import Engine.Common.TableMetadata
 import akka.actor.ActorRef
 

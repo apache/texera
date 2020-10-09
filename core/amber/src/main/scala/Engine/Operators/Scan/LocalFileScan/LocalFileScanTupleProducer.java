@@ -1,11 +1,9 @@
 package Engine.Operators.Scan.LocalFileScan;
 
-import Engine.Common.AmberTuple.AmberTuple;
-import Engine.Common.AmberTuple.Tuple;
+import Engine.Common.tuple.Tuple;
 import Engine.Common.TableMetadata;
 import Engine.Common.TupleProducer;
 import Engine.Operators.Scan.BufferedBlockReader;
-import com.google.common.base.Splitter;
 import org.tukaani.xz.SeekableFileInputStream;
 
 import java.io.IOException;

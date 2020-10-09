@@ -16,7 +16,7 @@ import Engine.Common.AmberMessage.WorkerMessage.{
   AckedWorkerInitialization
 }
 import Engine.Common.AmberTag.{LayerTag, LinkTag, OperatorTag, WorkerTag, WorkflowTag}
-import Engine.Common.AmberTuple.Tuple
+import Engine.Common.tuple.Tuple
 import Engine.Common.{TableMetadata, TupleMetadata}
 import akka.actor.{ActorRef, ActorSystem, PoisonPill, Props}
 import akka.testkit.{ImplicitSender, TestKit}

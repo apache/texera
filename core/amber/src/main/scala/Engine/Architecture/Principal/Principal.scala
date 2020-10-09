@@ -47,7 +47,7 @@ import Engine.Common.AmberMessage.WorkerMessage.{
   Reset,
   UpdateOutputLinking
 }
-import Engine.Common.AmberTuple.Tuple
+import Engine.Common.tuple.Tuple
 import Engine.Common.AmberTag.{AmberTag, LayerTag, OperatorTag, WorkerTag}
 import Engine.Common.{AdvancedMessageSending, AmberUtils, Constants, TableMetadata}
 import Engine.FaultTolerance.Recovery.RecoveryPacket

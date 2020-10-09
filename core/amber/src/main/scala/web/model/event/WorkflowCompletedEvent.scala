@@ -13,7 +13,7 @@ object WorkflowCompletedEvent {
     val resultList = new mutable.MutableList[OperatorResult]
     workflowCompleted.result.foreach(pair => {
       val operatorID = pair._1
-      val table = pair._2.map(tuple => tuple.toArray().map(v => v.toString).toList)
+      val table = pair._2.map(tuple => tuple.toArray().map(v => if(v == null) "" else v.toString).toList)
       resultList += OperatorResult(operatorID, table)
     })
     WorkflowCompletedEvent(resultList.toList)

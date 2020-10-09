@@ -54,7 +54,7 @@ abstract class TexeraOperator {
   def texeraOperatorDescription: TexeraOperatorDescription
 
   def validate(): Set[TexeraConstraintViolation] = {
-    Set()
+    Set.empty
   }
 
   override def hashCode: Int = HashCodeBuilder.reflectionHashCode(this)

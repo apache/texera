@@ -1,6 +1,7 @@
-package Engine.Common.AmberTuple
+package Engine.Common.tuple.amber
 
 import Engine.Common.AmberField.FieldType
+import Engine.Common.tuple.Tuple
 
 class AmberTuple(val data: Array[Any]) extends Tuple {
   def this(fields: Array[String], fieldTypes: Array[FieldType.Value]) {

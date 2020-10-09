@@ -1,7 +1,7 @@
 package web.model.common
 
 import Engine.Architecture.Breakpoint.FaultedTuple
-import Engine.Common.AmberTuple.AmberTuple
+import Engine.Common.tuple.amber.AmberTuple
 
 object FaultedTupleFrontend {
   def apply(faultedTuple: FaultedTuple): FaultedTupleFrontend = {

@@ -22,7 +22,7 @@ import Engine.Common.AmberMessage.WorkerMessage.{
   UpdateOutputLinking
 }
 import Engine.Common.AmberTag.{LayerTag, LinkTag, OperatorTag, WorkerTag, WorkflowTag}
-import Engine.Common.AmberTuple.Tuple
+import Engine.Common.tuple.Tuple
 import Engine.Operators.SimpleCollection.{
   SimpleProcessOperatorMetadata,
   SimpleSourceOperatorMetadata,

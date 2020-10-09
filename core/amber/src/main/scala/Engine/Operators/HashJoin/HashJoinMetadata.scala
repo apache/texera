@@ -8,7 +8,7 @@ import Engine.Architecture.DeploySemantics.Layer.{ActorLayer, ProcessorWorkerLay
 import Engine.Architecture.LinkSemantics.LinkStrategy
 import Engine.Architecture.Worker.WorkerState
 import Engine.Common.AmberTag.{AmberTag, LayerTag, OperatorTag}
-import Engine.Common.AmberTuple.Tuple
+import Engine.Common.tuple.Tuple
 import Engine.Operators.OperatorMetadata
 import Engine.Operators.Scan.FileScanMetadata
 import Engine.Operators.Scan.HDFSFileScan.HDFSFileScanMetadata

@@ -20,7 +20,7 @@ class SimpleSinkOperatorMetadata(tag: OperatorTag) extends OperatorMetadata(tag)
       Array(
         new ProcessorWorkerLayer(
           LayerTag(tag, "main"),
-          _ => new SimpleSinkProcessor(),
+          _ => new SimpleTupleSinkProcessor(),
           1,
           ForceLocal(),
           RandomDeployment()

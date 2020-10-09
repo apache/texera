@@ -16,7 +16,7 @@ import Engine.Common.AmberMessage.WorkerMessage._
 import Engine.Common.AmberMessage.StateMessage._
 import Engine.Common.AmberMessage.ControlMessage._
 import Engine.Common.AmberTag.WorkerTag
-import Engine.Common.AmberTuple.Tuple
+import Engine.Common.tuple.Tuple
 import Engine.FaultTolerance.Recovery.RecoveryPacket
 import akka.actor.{ActorLogging, Props, Stash}
 import akka.event.LoggingAdapter

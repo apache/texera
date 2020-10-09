@@ -1,5 +1,5 @@
 package Engine.Architecture.Breakpoint.LocalBreakpoint
-import Engine.Common.AmberTuple.Tuple
+import Engine.Common.tuple.Tuple
 
 class ExceptionBreakpoint()(implicit id: String, version: Long)
     extends LocalBreakpoint(id, version) {

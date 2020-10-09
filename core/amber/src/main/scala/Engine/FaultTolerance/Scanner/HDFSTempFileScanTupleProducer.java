@@ -1,10 +1,9 @@
 package Engine.FaultTolerance.Scanner;
 
-import Engine.Common.AmberTuple.Tuple;
+import Engine.Common.tuple.Tuple;
 import Engine.Common.TableMetadata;
 import Engine.Common.TupleProducer;
 import Engine.Operators.Scan.BufferedBlockReader;
-import com.google.common.base.Splitter;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
