@@ -36,11 +36,12 @@ export class NavigationComponent implements OnInit {
   public isWorkflowValid: boolean = true; // this will check whether the workflow error or not
 
   // variable binded with HTML to decide if the running spinner should show
-  public buttonText = 'Run';
-  public showSpinner = false;
-  public disable = false;
+  public runButtonText = 'Run';
+  public runIcon = 'play-circle';
+  public runDisable = false;
+  public runForceStopTimer: { promise: Promise<boolean>, resolve: (timeIsUp: boolean) => void };
   public executionResultID: string | undefined;
-  public onClickHandler = () => {};
+  public onClickRunHandler = () => {};
 
     // tslint:disable-next-line:member-ordering
   constructor(
@@ -55,22 +56,27 @@ export class NavigationComponent implements OnInit {
     // return the run button after the execution is finished, either
     //  when the value is valid or invalid
     const initBehavior = this.getBehavior();
-    this.buttonText = initBehavior.text;
-    this.showSpinner = initBehavior.spinner;
-    this.disable = initBehavior.disable;
-    this.onClickHandler = initBehavior.onClick;
+    this.runButtonText = initBehavior.text;
+    this.runIcon = initBehavior.icon;
+    this.runDisable = initBehavior.disable;
+    this.runForceStopTimer = {promise: Promise.resolve(false), resolve: (timeIsUp: boolean) => {}};
+    this.onClickRunHandler = initBehavior.onClick;
 
     executeWorkflowService.getExecutionStateStream().subscribe(
       event => {
         this.executionState = event.current.state;
-        if (event.current.state === ExecutionState.Completed) {
-          this.executionResultID = event.current.resultID;
+        switch (event.current.state) {
+          case ExecutionState.Completed:
+            this.executionResultID = event.current.resultID;
+            break;
+          case ExecutionState.Pausing:
+            this.runForceStopTimer = this.createRunForceStopTimer(1500);
+            break;
+          case ExecutionState.Paused:
+            this.runForceStopTimer.resolve(false);
+            break;
         }
-        const behavior = this.getBehavior();
-        this.buttonText = behavior.text;
-        this.showSpinner = behavior.spinner;
-        this.disable = behavior.disable;
-        this.onClickHandler = behavior.onClick;
+        this.applyBehavior(this.getBehavior());
       }
     );
 
@@ -82,52 +88,66 @@ export class NavigationComponent implements OnInit {
   ngOnInit() {
   }
 
+  public applyBehavior(
+    behavior: {
+      text: string,
+      icon: string,
+      disable: boolean,
+      onClick: () => void
+    }
+  ) {
+    this.runButtonText = behavior.text;
+    this.runIcon = behavior.icon;
+    this.runDisable = behavior.disable;
+    this.onClickRunHandler = behavior.onClick;
+  }
+
   public getBehavior(): {
     text: string,
-    spinner: boolean,
+    icon: string,
     disable: boolean,
     onClick: () => void
   } {
     if (! this.isWorkflowValid) {
-      return { text: 'Run', spinner: false, disable: true, onClick: () => {} };
+      return { text: 'Error', icon: 'exclamation-circle', disable: true, onClick: () => {} };
     }
     switch (this.executionState) {
       case ExecutionState.Uninitialized:
       case ExecutionState.Completed:
       case ExecutionState.Failed:
         return {
-          text: 'Run', spinner: false, disable: false,
+          text: 'Run', icon: 'play-circle', disable: false,
           onClick: () => this.executeWorkflowService.executeWorkflow()
         };
       case ExecutionState.WaitingToRun:
         return {
-          text: 'Submitting', spinner: true, disable: true,
+          text: 'Submitting', icon: 'loading', disable: true,
           onClick: () => {}
         };
       case ExecutionState.Running:
         return {
-          text: 'Pause', spinner: true, disable: false,
+          text: 'Pause', icon: 'loading', disable: false,
           onClick: () => this.executeWorkflowService.pauseWorkflow()
         };
       case ExecutionState.Paused:
       case ExecutionState.BreakpointTriggered:
         return {
-          text: 'Resume', spinner: false, disable: false,
+          text: 'Resume', icon: 'pause-circle', disable: false,
           onClick: () => this.executeWorkflowService.resumeWorkflow()
         };
       case ExecutionState.Pausing:
         return {
-          text: 'Pausing', spinner: true, disable: true,
+          text: 'Pausing', icon: 'loading', disable: true,
           onClick: () => {}
         };
       case ExecutionState.Resuming:
         return {
-          text: 'Resuming', spinner: true, disable: true,
+          text: 'Resuming', icon: 'loading', disable: true,
           onClick: () => {}
         };
       case ExecutionState.Recovering:
         return {
-          text: 'Recovering', spinner: true, disable: true,
+          text: 'Recovering', icon: 'loading', disable: true,
           onClick: () => {}
         };
     }
@@ -221,6 +241,25 @@ export class NavigationComponent implements OnInit {
    */
   public hasOperators(): boolean {
     return this.workflowActionService.getTexeraGraph().getAllOperators().length > 0;
+  }
+
+  private createRunForceStopTimer(milliseconds: number) {
+    let promiseFunc = (timeIsUp: boolean) => {};
+    let timeOutID: number;
+    const timerPromise = new Promise<boolean>((resolve) => {
+      promiseFunc = resolve;
+      timeOutID = window.setTimeout(() => {resolve(true); }, milliseconds);
+    });
+
+    const resolveFunc = (timeIsUp: boolean) => { window.clearTimeout(timeOutID); promiseFunc(timeIsUp); };
+
+    timerPromise.then((timeIsUp: boolean) => {
+      if (timeIsUp) {
+        this.applyBehavior({text: 'Force Stop', icon: 'spinning', disable: false, onClick: () => {this.handleKill(); }});
+      }
+    });
+
+    return {promise: timerPromise, resolve: resolveFunc };
   }
 
 }

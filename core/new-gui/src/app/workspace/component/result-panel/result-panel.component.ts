@@ -1,10 +1,8 @@
 import { Component, ViewChild, Input } from '@angular/core';
-import { MatPaginator, PageEvent } from '@angular/material/paginator';
-import { MatTableDataSource } from '@angular/material/table';
 import { ExecuteWorkflowService } from './../../service/execute-workflow/execute-workflow.service';
 import { Observable } from 'rxjs/Observable';
 
-import { NgbModal, NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
+import { NzModalRef, NzModalService } from 'ng-zorro-antd/modal';
 import { ExecutionResult, SuccessExecutionResult, ExecutionState, ExecutionStateInfo } from './../../types/execute-workflow.interface';
 import { TableColumn, IndexableObject } from './../../types/result-table.interface';
 import { ResultPanelToggleService } from './../../service/result-panel-toggle/result-panel-toggle.service';
@@ -61,7 +59,6 @@ export class ResultPanelComponent {
   // display result table
   public currentColumns: TableColumn[] | undefined;
   public currentDisplayColumns: string[] | undefined;
-  public currentDataSource: MatTableDataSource<object> | undefined;
   public currentResult: object[] = [];
 
   // display visualization
@@ -72,13 +69,13 @@ export class ResultPanelComponent {
   public breakpointAction: boolean = false;
 
   // paginator, used when displaying rows
-  @ViewChild(MatPaginator) paginator: MatPaginator | null = null;
   private currentMaxPageSize: number = 0;
   private currentPageSize: number = 0;
   private currentPageIndex: number = 0;
 
   constructor(
-    private executeWorkflowService: ExecuteWorkflowService, private modalService: NgbModal,
+    private executeWorkflowService: ExecuteWorkflowService,
+    private modalService: NzModalService,
     private resultPanelToggleService: ResultPanelToggleService,
     private workflowActionService: WorkflowActionService
   ) {
@@ -176,14 +173,12 @@ export class ResultPanelComponent {
 
     this.currentColumns = undefined;
     this.currentDisplayColumns = undefined;
-    this.currentDataSource = undefined;
     this.currentResult = [];
 
     this.chartType = undefined;
     this.breakpointTriggerInfo = undefined;
     this.breakpointAction = false;
 
-    this.paginator = null;
     this.currentMaxPageSize = 0;
     this.currentPageIndex = 0;
     this.currentPageSize = 0;
@@ -209,47 +204,40 @@ export class ResultPanelComponent {
     const rowDataCopy = ResultPanelComponent.trimDisplayJsonData(rowData as IndexableObject);
 
     // open the modal component
-    const modalRef = this.modalService.open(NgbModalComponent, { size: 'lg' });
+    const modalRef = this.modalService.create({
+      // modal title
+      nzTitle: 'Row Details',
+      nzContent: RowModalComponent,
+      // set component @Input attributes
+      nzComponentParams: {
+        // set the currentDisplayRowData of the modal to be the data of clicked row
+        currentDisplayRowData: rowDataCopy,
+        // set the index value and page size to the modal for navigation
+        currentDisplayRowIndex: rowPageIndex,
+        currentPageSize: this.currentPageSize,
+      },
+      // prevent browser focusing close button (ugly square highlight)
+      nzAutofocus: null,
+      // modal footer buttons
+      nzFooter: [
+        {label: '<', onClick: () => {modalRef.destroy(1); }, disabled: rowPageIndex === 0},
+        {label: '>', onClick: () => {modalRef.destroy(2); }, disabled: rowPageIndex === this.currentPageSize},
+        {label: 'OK', onClick: () => {modalRef.destroy(0); }, type: 'primary'},
+      ],
+    });
 
     // subscribe the modal close event for modal navigations (go to previous or next row detail)
-    Observable.from(modalRef.result)
-      .subscribe((modalResult: number) => {
-        if (modalResult === 1) {
+    Observable.from(modalRef.afterClose)
+      .subscribe((modalResult: unknown) => {
+        const choice = modalResult as number;
+        if (choice === 1) {
           // navigate to previous detail modal
           this.open(this.currentResult[selectedRowIndex - 1]);
-        } else if (modalResult === 2) {
+        } else if (choice === 2) {
           // navigate to next detail modal
           this.open(this.currentResult[selectedRowIndex + 1]);
         }
       });
-
-    // cast the instance type from `any` to NgbModalComponent
-    const modalComponentInstance = modalRef.componentInstance as NgbModalComponent;
-
-    // set the currentDisplayRowData of the modal to be the data of clicked row
-    modalComponentInstance.currentDisplayRowData = rowDataCopy;
-
-    // set the index value and page size to the modal for navigation
-    modalComponentInstance.currentDisplayRowIndex = rowPageIndex;
-    modalComponentInstance.currentPageSize = this.currentPageSize;
-  }
-
-  /**
-   * This function will listen to the page change event in the paginator
-   *  to update current page index and current page size for
-   *  modal navigations
-   *
-   * @param event paginator event
-   */
-  public onPaginateChange(event: PageEvent): void {
-    this.currentPageIndex = event.pageIndex;
-    const currentPageOffset = event.pageIndex * event.pageSize;
-    const remainingItemCounts = event.length - currentPageOffset;
-    if (remainingItemCounts < 10) {
-      this.currentPageSize = remainingItemCounts;
-    } else {
-      this.currentPageSize = event.length;
-    }
   }
 
   public onClickSkipTuples(): void {
@@ -313,18 +301,7 @@ export class ResultPanelComponent {
 
     // generate columnDef from first row, column definition is in order
     this.currentColumns = ResultPanelComponent.generateColumns(columns);
-
-    // create a new DataSource object based on the new result data
-    this.currentDataSource = new MatTableDataSource<object>(this.currentResult);
-
-    // move paginator back to page one whenever new results come in. This prevents the error when
-    //  previously paginator is at page 10 while the new result only have 2 pages.
-    if (this.paginator !== null) {
-      this.paginator.firstPage();
-    }
-
-    // set the paginator to be the new DataSource's paginator
-    this.currentDataSource.paginator = this.paginator;
+    console.log(this.currentResult);
 
     // get the current page size, if the result length is less than 10, then the maximum number of items
     //   each page will be the length of the result, otherwise 10.
@@ -395,11 +372,11 @@ export class ResultPanelComponent {
  *  4. Pressing `Esc` button on the keyboard
  */
 @Component({
-  selector: 'texera-ngbd-modal-content',
+  selector: 'texera-row-modal-content',
   templateUrl: './result-panel-modal.component.html',
   styleUrls: ['./result-panel.component.scss']
 })
-export class NgbModalComponent {
+export class RowModalComponent {
   // when modal is opened, currentDisplayRow will be passed as
   //  componentInstance to this NgbModalComponent to display
   //  as data table.
@@ -419,7 +396,7 @@ export class NgbModalComponent {
   //  the pop-up modal.
   // it is used in the HTML template
 
-  constructor(public activeModal: NgbActiveModal) { }
+  constructor(public modal: NzModalRef<any, number>) { }
 
 }
 
