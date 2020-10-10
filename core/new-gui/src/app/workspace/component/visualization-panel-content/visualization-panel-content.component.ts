@@ -1,9 +1,10 @@
-import { Component, Inject, OnInit, AfterViewInit } from '@angular/core';
-import { MAT_DIALOG_DATA } from '@angular/material/dialog';
+import { Component, Inject, Input, OnInit, AfterViewInit } from '@angular/core';
 import * as c3 from 'c3';
 import { PrimitiveArray } from 'c3';
 import * as WordCloud from 'wordcloud';
 import { ChartType, WordCloudTuple, DialogData } from '../../types/visualization.interface';
+import { assertType } from '../../../common/util/assert';
+
 
 /**
  * VisualizationPanelContentComponent displays the chart based on the chart type and data in table.
@@ -23,12 +24,12 @@ export class VisualizationPanelContentComponent implements OnInit, AfterViewInit
   public static readonly WORD_CLOUD_ID = 'texera-word-cloud';
   public static readonly WIDTH = 1000;
   public static readonly HEIGHT = 800;
-  private table: object[];
+  @Input() data: DialogData | null = null;
+  private table: object[] = [];
   private columns: string[] = [];
 
 
-  constructor(@Inject(MAT_DIALOG_DATA) public data: DialogData) {
-    this.table = data.table;
+  constructor() {
   }
 
   ngOnInit() {
@@ -36,6 +37,7 @@ export class VisualizationPanelContentComponent implements OnInit, AfterViewInit
   }
 
   ngAfterViewInit() {
+    assertType<DialogData>(this.data);
     switch (this.data.chartType) {
       // correspond to WordCloudSink.java
       case ChartType.WORD_CLOUD: this.onClickGenerateWordCloud(); break;
@@ -60,7 +62,7 @@ export class VisualizationPanelContentComponent implements OnInit, AfterViewInit
   }
 
   onClickGenerateChart() {
-
+    assertType<DialogData>(this.data);
     const dataToDisplay: Array<[string, ...PrimitiveArray]> = [];
     const category: string[] = [];
     for (let i = 1; i < this.columns?.length; i++) {
