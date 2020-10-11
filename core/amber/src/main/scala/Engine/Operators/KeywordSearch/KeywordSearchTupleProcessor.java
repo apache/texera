@@ -4,12 +4,16 @@ import Engine.Common.AmberTag.LayerTag;
 import Engine.Common.AmberTuple.Tuple;
 import Engine.Common.TupleProcessor;
 
+import java.util.HashMap;
+
 public class KeywordSearchTupleProcessor extends TupleProcessor {
 
     private Tuple tuple = null;
     private boolean nextFlag = false;
     private int targetField;
     private String keyword;
+
+    private HashMap<String,String> params = new HashMap<>();
 
     KeywordSearchTupleProcessor(int targetField, String keyword){
         this.targetField = targetField;
@@ -44,14 +48,18 @@ public class KeywordSearchTupleProcessor extends TupleProcessor {
 
     }
 
-    @Override
     public void updateParamMap() {
-        super.params().put("targetField", Integer.toString(targetField));
-        super.params().put("keyword", keyword);
+        params.put("targetField", Integer.toString(targetField));
+        params.put("keyword", keyword);
     }
 
     @Override
-    public void initializeWorker() {}
+    public void initialize() {updateParamMap();}
+
+    @Override
+    public String getParam(String query) throws Exception {
+        return params.getOrDefault(query,null);
+    }
 
     @Override
     public boolean hasNext() {

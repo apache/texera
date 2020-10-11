@@ -10,6 +10,7 @@ import org.tukaani.xz.SeekableFileInputStream;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.HashMap;
 
 
 public class LocalFileScanTupleProducer extends TupleProducer {
@@ -21,6 +22,8 @@ public class LocalFileScanTupleProducer extends TupleProducer {
     private BufferedBlockReader reader = null;
     private long startOffset;
     private long endOffset;
+
+    private HashMap<String,String> params = new HashMap<>();
 
 
     private String[] shrinkStringArray(String[] array, int[] indicesToKeep){
@@ -40,21 +43,27 @@ public class LocalFileScanTupleProducer extends TupleProducer {
     }
 
     @Override
-    public void initializeWorker() throws Exception {
+    public void initialize() throws Exception {
         SeekableFileInputStream stream = new SeekableFileInputStream(localPath);
         stream.seek(startOffset);
         reader= new BufferedBlockReader(stream,endOffset-startOffset,separator,indicesToKeep);
         if(startOffset > 0)
             reader.readLine();
+
+        updateParamMap();
+    }
+
+    public void updateParamMap() {
+        params.put("localPath", localPath);
+        params.put("indicesToKeep", Arrays.toString(indicesToKeep));
+        params.put("separator", Character.toString(separator));
+        params.put("startOffset", Long.toString(startOffset));
+        params.put("endOffset", Long.toString(endOffset));
     }
 
     @Override
-    public void updateParamMap() {
-        super.params().put("localPath", localPath);
-        super.params().put("indicesToKeep", Arrays.toString(indicesToKeep));
-        super.params().put("separator", Character.toString(separator));
-        super.params().put("startOffset", Long.toString(startOffset));
-        super.params().put("endOffset", Long.toString(endOffset));
+    public String getParam(String query) throws Exception {
+        return params.getOrDefault(query,null);
     }
 
     @Override

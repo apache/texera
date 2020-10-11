@@ -28,6 +28,8 @@ public class PythonUDFTupleProcessor extends TupleProcessor {
     private ArrayList<String> outerFilePaths;
     private int batchSize;
 
+    private HashMap<String,String> params = new HashMap<>();
+
     private static final int MAX_TRY_COUNT = 20;
     private static final long WAIT_TIME_MS = 500;
     private static final String PYTHON = "python3";
@@ -104,15 +106,14 @@ public class PythonUDFTupleProcessor extends TupleProcessor {
         }
     }
 
-    @Override
     public void updateParamMap() {
-        super.params().put("batchSize", Integer.toString(batchSize));
-        super.params().put("MAX_TRY_COUNT", Integer.toString(MAX_TRY_COUNT));
-        super.params().put("WAIT_TIME_MS", Long.toString(WAIT_TIME_MS));
+        params.put("batchSize", Integer.toString(batchSize));
+        params.put("MAX_TRY_COUNT", Integer.toString(MAX_TRY_COUNT));
+        params.put("WAIT_TIME_MS", Long.toString(WAIT_TIME_MS));
     }
 
     @Override
-    public void initializeWorker() {
+    public void initialize() {
         try {
             int portNumber = getFreeLocalPort();
             Location location = new Location(URI.create("grpc+tcp://localhost:" + portNumber));
@@ -165,6 +166,13 @@ public class PythonUDFTupleProcessor extends TupleProcessor {
         }catch(Exception e){
             closeAndThrow(flightClient, e);
         }
+
+        updateParamMap();
+    }
+
+    @Override
+    public String getParam(String query) throws Exception {
+        return params.getOrDefault(query,null);
     }
 
     @Override

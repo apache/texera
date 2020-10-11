@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
 import java.util.Arrays;
+import java.util.HashMap;
 
 
 public class HDFSFileScanTupleProducer extends TupleProducer {
@@ -22,6 +23,8 @@ public class HDFSFileScanTupleProducer extends TupleProducer {
     private long startOffset;
     private long endOffset;
 
+    private HashMap<String,String> params = new HashMap<>();
+
     HDFSFileScanTupleProducer(String host, String hdfsPath, long startOffset, long endOffset, char delimiter, int[] indicesToKeep, TableMetadata metadata) {
         this.host = host;
         this.hdfsPath = hdfsPath;
@@ -33,7 +36,7 @@ public class HDFSFileScanTupleProducer extends TupleProducer {
     }
 
     @Override
-    public void initializeWorker() throws Exception {
+    public void initialize() throws Exception {
         System.out.println(startOffset + " " + endOffset);
         //FileSystem fs = FileSystem.get(new URI(host),new Configuration());
         //FSDataInputStream stream = fs.open(new Path(hdfsPath));
@@ -43,16 +46,22 @@ public class HDFSFileScanTupleProducer extends TupleProducer {
         reader = new BufferedBlockReader(stream, endOffset - startOffset, separator, indicesToKeep);
         if (startOffset > 0)
             reader.readLine();
+
+        updateParamMap();
     }
 
     @Override
+    public String getParam(String query) throws Exception {
+        return params.getOrDefault(query,null);
+    }
+
     public void updateParamMap(){
-        super.params().put("host", host);
-        super.params().put("hdfsPath", hdfsPath);
-        super.params().put("indicesToKeep", Arrays.toString(indicesToKeep));
-        super.params().put("separator", Character.toString(separator));
-        super.params().put("startOffset", Long.toString(startOffset));
-        super.params().put("endOffset", Long.toString(endOffset));
+        params.put("host", host);
+        params.put("hdfsPath", hdfsPath);
+        params.put("indicesToKeep", Arrays.toString(indicesToKeep));
+        params.put("separator", Character.toString(separator));
+        params.put("startOffset", Long.toString(startOffset));
+        params.put("endOffset", Long.toString(endOffset));
     }
 
     @Override

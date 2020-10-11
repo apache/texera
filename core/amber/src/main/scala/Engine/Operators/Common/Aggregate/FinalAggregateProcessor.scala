@@ -20,13 +20,13 @@ class FinalAggregateProcessor(val aggFunc: DistributedAggregation, val groupByKe
 
   override def noMore(): Unit = ???
 
-  override def initializeWorker(): Unit = ???
+  override def initialize(): Unit = ???
+
+  override def getParam(query: String): String = ???
 
   override def hasNext: Boolean = ???
 
   override def next(): Tuple = ???
 
   override def dispose(): Unit = ???
-
-  override def updateParamMap(): Unit = {}
 }

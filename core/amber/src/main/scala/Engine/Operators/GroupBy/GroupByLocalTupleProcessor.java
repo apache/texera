@@ -15,6 +15,7 @@ public class GroupByLocalTupleProcessor<T> extends TupleProcessor {
     private int aggregateField;
     private AggregationType aggregationType;
 
+    private HashMap<String,String> params = new HashMap<>();
     private HashMap<T,Double> results;
     private HashMap<T,Integer> counts;
 
@@ -73,17 +74,22 @@ public class GroupByLocalTupleProcessor<T> extends TupleProcessor {
         iterator = results.entrySet().iterator();
     }
 
-    @Override
     public void updateParamMap(){
-        super.params().put("aggregationType",aggregationType.name());
-        super.params().put("results",results.toString());
-        super.params().put("counts",counts.toString());
+        params.put("aggregationType",aggregationType.name());
+        params.put("results",results.toString());
+        params.put("counts",counts.toString());
     }
 
     @Override
-    public void initializeWorker() throws Exception {
+    public void initialize() throws Exception {
         results = new HashMap<>();
         counts = new HashMap<>();
+        updateParamMap();
+    }
+
+    @Override
+    public String getParam(String query) throws Exception {
+        return params.getOrDefault(query,null);
     }
 
     @Override

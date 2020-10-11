@@ -5,11 +5,13 @@ import Engine.Common.AmberTuple.Tuple;
 import Engine.Common.TupleProcessor;
 
 import java.util.Collections;
+import java.util.HashMap;
 
 public class CountLocalTupleProcessor extends TupleProcessor {
 
     private boolean nextFlag = false;
     private int counter = 0;
+    private HashMap<String,String> params = new HashMap<>();
 
     @Override
     public void accept(Tuple tuple){
@@ -31,13 +33,17 @@ public class CountLocalTupleProcessor extends TupleProcessor {
         nextFlag = true;
     }
 
-    @Override
     public void updateParamMap() {
-        super.params().put("counter", Integer.toString(counter));
+        params.put("counter", Integer.toString(counter));
     }
 
     @Override
-    public void initializeWorker() {}
+    public void initialize() {updateParamMap();}
+
+    @Override
+    public String getParam(String query) throws Exception {
+        return params.getOrDefault(query,null);
+    }
 
     @Override
     public boolean hasNext() {
