@@ -8,7 +8,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 
 
-public class ProjectionTupleProcessor extends TupleProcessor {
+public class ProjectionTupleProcessor implements TupleProcessor {
 
     private Tuple tuple = null;
     private boolean nextFlag = false;

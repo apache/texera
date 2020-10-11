@@ -8,7 +8,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
-public class GroupByGlobalTupleProcessor<T> extends TupleProcessor {
+public class GroupByGlobalTupleProcessor<T> implements TupleProcessor {
 
     private AggregationType aggregationType;
 

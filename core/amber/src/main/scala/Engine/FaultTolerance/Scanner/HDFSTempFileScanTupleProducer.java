@@ -15,7 +15,7 @@ import java.net.URI;
 import java.util.Arrays;
 import java.util.HashMap;
 
-public class HDFSTempFileScanTupleProducer extends TupleProducer{
+public class HDFSTempFileScanTupleProducer implements TupleProducer{
 
     private String host;
     private String hdfsPath;

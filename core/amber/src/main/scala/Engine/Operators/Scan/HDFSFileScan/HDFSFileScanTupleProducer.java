@@ -12,7 +12,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 
 
-public class HDFSFileScanTupleProducer extends TupleProducer {
+public class HDFSFileScanTupleProducer implements TupleProducer {
 
     private String host;
     private String hdfsPath;

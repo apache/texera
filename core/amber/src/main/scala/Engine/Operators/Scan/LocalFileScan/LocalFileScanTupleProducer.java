@@ -13,7 +13,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 
 
-public class LocalFileScanTupleProducer extends TupleProducer {
+public class LocalFileScanTupleProducer implements TupleProducer {
 
     private String localPath;
     private int[] indicesToKeep;
