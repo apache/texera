@@ -21,6 +21,8 @@ public class HashJoinTupleProcessor<K> extends TupleProcessor {
     private Iterator<Object[]> currentEntry = null;
     private Object[] currentTuple = null;
 
+    private HashMap<String,String> params = new HashMap<>();
+
     HashJoinTupleProcessor(LayerTag innerTableIdentifier, int innerTableIndex, int outerTableIndex){
         this.innerTableIdentifier = innerTableIdentifier;
         this.innerTableIndex = innerTableIndex;
@@ -65,18 +67,23 @@ public class HashJoinTupleProcessor<K> extends TupleProcessor {
 
     }
 
-    @Override
     public void updateParamMap(){
-        super.params().put("innerTableIdentifier",innerTableIdentifier.getGlobalIdentity());
-        super.params().put("innerTableIndex",Integer.toString(innerTableIndex));
-        super.params().put("outerTableIndex",Integer.toString(outerTableIndex));
-        super.params().put("isCurrentTableInner", Boolean.toString(isCurrentTableInner));
-        super.params().put("isInnerTableFinished",Boolean.toString(isInnerTableFinished));
+        params.put("innerTableIdentifier",innerTableIdentifier.getGlobalIdentity());
+        params.put("innerTableIndex",Integer.toString(innerTableIndex));
+        params.put("outerTableIndex",Integer.toString(outerTableIndex));
+        params.put("isCurrentTableInner", Boolean.toString(isCurrentTableInner));
+        params.put("isInnerTableFinished",Boolean.toString(isInnerTableFinished));
     }
 
     @Override
-    public void initializeWorker() {
+    public void initialize() {
         innerTableHashMap = new HashMap<>();
+        updateParamMap();
+    }
+
+    @Override
+    public String getParam(String query) throws Exception {
+        return params.getOrDefault(query,null);
     }
 
     @Override

@@ -4,9 +4,13 @@ import Engine.Common.AmberTag.LayerTag
 import Engine.Common.AmberTuple.Tuple
 import Engine.Common.{TableMetadata, TupleProcessor}
 
+import scala.collection.mutable
+
 class SimpleTupleProcessor extends TupleProcessor {
   var _tuple: Tuple = _
   var nextFlag = false
+
+  var params: mutable.HashMap[String,String] = new mutable.HashMap[String,String]
 
   override def accept(tuple: Tuple): Unit = {
     _tuple = tuple
@@ -22,11 +26,13 @@ class SimpleTupleProcessor extends TupleProcessor {
     _tuple
   }
 
-  override def updateParamMap(): Unit = {}
+  def updateParamMap(): Unit = {}
 
   override def dispose(): Unit = {}
 
-  override def initializeWorker(): Unit = {}
+  override def initialize(): Unit = {updateParamMap()}
+
+  override def getParam(query: String): String = {return params.getOrElse(query,null)}
 
   override def onUpstreamChanged(from: LayerTag): Unit = {}
 

@@ -5,6 +5,7 @@ import Engine.Common.AmberTuple.Tuple;
 import Engine.Common.TupleProcessor;
 
 import java.util.Arrays;
+import java.util.HashMap;
 
 
 public class ProjectionTupleProcessor extends TupleProcessor {
@@ -12,6 +13,8 @@ public class ProjectionTupleProcessor extends TupleProcessor {
     private Tuple tuple = null;
     private boolean nextFlag = false;
     private int[] targetFields;
+
+    private HashMap<String,String> params = new HashMap<>();
 
     ProjectionTupleProcessor(int[] targetFields){
         this.targetFields = targetFields;
@@ -49,13 +52,17 @@ public class ProjectionTupleProcessor extends TupleProcessor {
 
     }
 
-    @Override
     public void updateParamMap() {
-        super.params().put("targetFields", Arrays.toString(targetFields));
+        params.put("targetFields", Arrays.toString(targetFields));
     }
 
     @Override
-    public void initializeWorker() throws Exception {}
+    public void initialize() throws Exception {updateParamMap();}
+
+    @Override
+    public String getParam(String query) throws Exception {
+        return params.getOrDefault(query,null);
+    }
 
     @Override
     public boolean hasNext() throws Exception {

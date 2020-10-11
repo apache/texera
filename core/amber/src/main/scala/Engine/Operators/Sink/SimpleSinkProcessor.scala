@@ -9,6 +9,7 @@ import scala.collection.mutable
 class SimpleSinkProcessor extends TupleProcessor {
 
   val results: mutable.MutableList[Tuple] = mutable.MutableList()
+  var params: mutable.HashMap[String,String] = new mutable.HashMap[String,String]
 
   override def accept(tuple: Tuple): Unit = {
     println("Sink: " + tuple.toString)
@@ -21,9 +22,11 @@ class SimpleSinkProcessor extends TupleProcessor {
 
   override def noMore(): Unit = {}
 
-  override def updateParamMap(): Unit = {}
+  def updateParamMap(): Unit = {}
 
-  override def initializeWorker(): Unit = {}
+  override def initialize(): Unit = {updateParamMap()}
+
+  override def getParam(query: String): String = {return params.getOrElse(query,null)}
 
   override def hasNext: Boolean = false
 

@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.util.Arrays;
+import java.util.HashMap;
 
 public class HDFSFolderScanTupleProducer extends TupleProducer{
 
@@ -25,6 +26,8 @@ public class HDFSFolderScanTupleProducer extends TupleProducer{
     private BufferedBlockReader reader = null;
     private RemoteIterator<LocatedFileStatus> files = null;
     private FileSystem fs = null;
+
+    private HashMap<String,String> params = new HashMap<>();
 
     public HDFSFolderScanTupleProducer(String host, String hdfsPath, char delimiter, TableMetadata metadata){
         this.host = host;
@@ -43,17 +46,17 @@ public class HDFSFolderScanTupleProducer extends TupleProducer{
     }
 
     @Override
-    public void initializeWorker() throws Exception {
+    public void initialize() throws Exception {
         fs = FileSystem.get(new URI(host),new Configuration());
         files = fs.listFiles(new Path(hdfsPath),true);
         ReadNextFileIfExists();
+        updateParamMap();
     }
 
-    @Override
     public void updateParamMap() throws Exception {
-        super.params().put("host", host);
-        super.params().put("hdfsPath", hdfsPath);
-        super.params().put("separator", Character.toString(separator));
+        params.put("host", host);
+        params.put("hdfsPath", hdfsPath);
+        params.put("separator", Character.toString(separator));
     }
 
     @Override
@@ -71,6 +74,11 @@ public class HDFSFolderScanTupleProducer extends TupleProducer{
         }else{
             return Tuple.fromJavaArray(reader.readLine());
         }
+    }
+
+    @Override
+    public String getParam(String query) throws Exception {
+        return params.getOrDefault(query,null);
     }
 
     @Override

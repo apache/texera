@@ -6,14 +6,16 @@ import Engine.Common.TupleProcessor
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.FileSystem
 import org.apache.hadoop.fs.Path
-
-import java.io.{FileWriter, BufferedWriter}
+import java.io.{BufferedWriter, FileWriter}
 import java.net.URI
+
+import scala.collection.mutable
 
 class OutputMaterializer(val outputPath: String, val remoteHDFS: String = null)
     extends TupleProcessor {
 
   var writer: BufferedWriter = _
+  var params: mutable.HashMap[String,String] = new mutable.HashMap[String,String]
 
   override def accept(tuple: Tuple): Unit = {
     writer.write(tuple.mkString("|"))
@@ -30,11 +32,14 @@ class OutputMaterializer(val outputPath: String, val remoteHDFS: String = null)
     }
   }
 
-  override def initializeWorker(): Unit = {
+  override def initialize(): Unit = {
     writer = new BufferedWriter(new FileWriter(outputPath))
+    updateParamMap()
   }
 
-  override def updateParamMap(): Unit = {}
+  def updateParamMap(): Unit = {}
+
+  override def getParam(query: String): String = {return params.getOrElse(query,null)}
 
   override def hasNext: Boolean = false
 
