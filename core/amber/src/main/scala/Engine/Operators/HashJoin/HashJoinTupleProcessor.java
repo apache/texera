@@ -10,7 +10,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 
-public class HashJoinTupleProcessor<K> extends TupleProcessor {
+public class HashJoinTupleProcessor<K> implements TupleProcessor {
 
     private LayerTag innerTableIdentifier;
     private int innerTableIndex;

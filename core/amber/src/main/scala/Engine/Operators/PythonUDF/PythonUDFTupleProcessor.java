@@ -21,7 +21,7 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
-public class PythonUDFTupleProcessor extends TupleProcessor {
+public class PythonUDFTupleProcessor implements TupleProcessor {
     private String pythonScriptPath;
     private ArrayList<String> inputColumns;
     private ArrayList<String> outputColumns;

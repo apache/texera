@@ -8,7 +8,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
-public class GroupByLocalTupleProcessor<T> extends TupleProcessor {
+public class GroupByLocalTupleProcessor<T> implements TupleProcessor {
 
 
     private int groupByField;

@@ -7,7 +7,7 @@ import Engine.Common.TupleProcessor;
 import java.util.Collections;
 import java.util.HashMap;
 
-public class CountGlobalTupleProcessor extends TupleProcessor {
+public class CountGlobalTupleProcessor implements TupleProcessor {
 
     private boolean nextFlag = false;
     private int counter = 0;

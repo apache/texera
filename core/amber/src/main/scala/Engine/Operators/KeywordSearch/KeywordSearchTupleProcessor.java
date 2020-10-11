@@ -6,7 +6,7 @@ import Engine.Common.TupleProcessor;
 
 import java.util.HashMap;
 
-public class KeywordSearchTupleProcessor extends TupleProcessor {
+public class KeywordSearchTupleProcessor implements TupleProcessor {
 
     private Tuple tuple = null;
     private boolean nextFlag = false;

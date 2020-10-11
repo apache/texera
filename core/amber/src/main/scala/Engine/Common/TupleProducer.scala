@@ -5,7 +5,7 @@ import Engine.Common.AmberTuple.Tuple
 import scala.collection.mutable
 import scala.collection.mutable.HashMap
 
-abstract class TupleProducer {
+trait TupleProducer {
 
   @throws(classOf[Exception])
   def initialize(): Unit
