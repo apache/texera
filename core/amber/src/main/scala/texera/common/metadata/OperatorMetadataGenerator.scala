@@ -10,6 +10,7 @@ import com.kjetland.jackson.jsonSchema.JsonSchemaConfig.html5EnabledSchema
 import com.kjetland.jackson.jsonSchema.{JsonSchemaDraft, JsonSchemaGenerator}
 import texera.common.TexeraUtils.objectMapper
 import texera.common.workflow.TexeraOperatorDescriptor
+import texera.operators.aggregate.AverageOpDesc
 import texera.operators.sentiment.SentimentAnalysisOpDescTexera
 
 import scala.collection.JavaConverters
@@ -48,11 +49,15 @@ object OperatorMetadataGenerator {
   def main(args: Array[String]): Unit = {
     // run this if you want to check the json schema generated for an operator descriptor
     // replace the argument with the class of your operator descriptor
-    println(generateOperatorJsonSchema(classOf[SentimentAnalysisOpDescTexera]).toPrettyString)
+    println(generateOperatorJsonSchema(classOf[AverageOpDesc]).toPrettyString)
   }
 
-  val jsonSchemaGenerator = new JsonSchemaGenerator(
-    objectMapper, html5EnabledSchema.withJsonSchemaDraft(JsonSchemaDraft.DRAFT_07))
+  val texeraSchemaGeneratorConfig = html5EnabledSchema.copy(
+    defaultArrayFormat = None,
+    jsonSchemaDraft = JsonSchemaDraft.DRAFT_07
+  )
+
+  val jsonSchemaGenerator = new JsonSchemaGenerator(objectMapper, texeraSchemaGeneratorConfig)
 
   // a map from a Texera Operator Descriptor's class to its operatorType string value
   val operatorTypeMap: Map[Class[_ <: TexeraOperatorDescriptor], String] = {

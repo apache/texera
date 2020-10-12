@@ -27,7 +27,7 @@ import texera.operators.sink.SimpleSinkOpDesc
 @JsonSubTypes(
   Array(
     new Type(value = classOf[LocalCsvFileScanOpDesc], name = "LocalFileScan"),
-    new Type(value = classOf[SimpleSinkOpDesc], name = "SimpleSink"),
+    new Type(value = classOf[SimpleSinkOpDesc], name = "AdhocSink"),
     new Type(value = classOf[RegexOpDescTexera], name = "Regex"),
     new Type(value = classOf[SpecializedFilterOpDesc], name = "Filter"),
     new Type(value = classOf[SentimentAnalysisOpDescTexera], name = "SentimentAnalysis"),
