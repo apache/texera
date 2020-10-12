@@ -1,4 +1,4 @@
-package Engine.Common.tuple.texera.schema;
+package texera.common.tuple.schema;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;

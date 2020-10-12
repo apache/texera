@@ -28,6 +28,8 @@ public class PythonUDFTupleProcessor implements TupleProcessor {
     private ArrayList<String> outerFilePaths;
     private int batchSize;
 
+    private HashMap<String,String> params = new HashMap<>();
+
     private static final int MAX_TRY_COUNT = 20;
     private static final long WAIT_TIME_MS = 500;
     private static final String PYTHON = "python3";
@@ -104,6 +106,12 @@ public class PythonUDFTupleProcessor implements TupleProcessor {
         }
     }
 
+    public void updateParamMap() {
+        params.put("batchSize", Integer.toString(batchSize));
+        params.put("MAX_TRY_COUNT", Integer.toString(MAX_TRY_COUNT));
+        params.put("WAIT_TIME_MS", Long.toString(WAIT_TIME_MS));
+    }
+
     @Override
     public void initialize() {
         try {
@@ -158,6 +166,13 @@ public class PythonUDFTupleProcessor implements TupleProcessor {
         }catch(Exception e){
             closeAndThrow(flightClient, e);
         }
+
+        updateParamMap();
+    }
+
+    @Override
+    public String getParam(String query) throws Exception {
+        return params.getOrDefault(query,null);
     }
 
     @Override

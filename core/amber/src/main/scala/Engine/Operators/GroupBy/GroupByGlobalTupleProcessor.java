@@ -15,6 +15,7 @@ public class GroupByGlobalTupleProcessor<T> implements TupleProcessor {
     private HashMap<T,Double> results;
     private HashMap<T,Integer> counts;
 
+    private HashMap<String,String> params = new HashMap<>();
     private Iterator<Map.Entry<T,Double>> iterator = null;
 
     public GroupByGlobalTupleProcessor(AggregationType aggregationType){
@@ -62,11 +63,22 @@ public class GroupByGlobalTupleProcessor<T> implements TupleProcessor {
         iterator = results.entrySet().iterator();
     }
 
+    public void updateParamMap(){
+        params.put("aggregationType",aggregationType.name());
+        params.put("results",results.toString());
+        params.put("counts",counts.toString());
+    }
+
     @Override
     public void initialize() throws Exception {
         results = new HashMap<>();
         counts = new HashMap<>();
+        updateParamMap();
+    }
 
+    @Override
+    public String getParam(String query) throws Exception {
+        return params.getOrDefault(query,null);
     }
 
     @Override
