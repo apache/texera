@@ -1,4 +1,4 @@
-package texera.common.workflow
+package texera.common.operators
 
 import java.util.UUID
 
@@ -13,7 +13,6 @@ import texera.common.{TexeraConstraintViolation, TexeraContext}
 import texera.operators.aggregate.AverageOpDesc
 import texera.operators.filter.SpecializedFilterOpDesc
 import texera.operators.localscan.LocalCsvFileScanOpDesc
-import texera.operators.pythonUDF.PythonUDFOpDesc
 import texera.operators.regex.RegexOpDescTexera
 import texera.operators.sentiment.SentimentAnalysisOpDescTexera
 import texera.operators.sink.SimpleSinkOpDesc

@@ -4,7 +4,7 @@ import Engine.Common.{InputExhausted, OperatorExecutor}
 import Engine.Common.tuple.Tuple
 import Engine.Common.tuple.texera.TexeraTuple
 import Engine.Common.tuple.texera.schema.{Attribute, AttributeType, Schema}
-import texera.common.workflow.TexeraOperatorExecutor
+import texera.common.operators.TexeraOperatorExecutor
 import texera.common.operators.aggregate.TexeraPartialAggregateOpExec.INTERNAL_AGGREGATE_PARTIAL_OBJECT
 
 import scala.collection.{JavaConverters, mutable}
@@ -14,8 +14,7 @@ object TexeraPartialAggregateOpExec {
 }
 
 class TexeraPartialAggregateOpExec[Partial <: AnyRef](
-    val aggFunc: TexeraDistributedAggregation[Partial],
-    val groupByKeys: Seq[String]
+    val aggFunc: TexeraDistributedAggregation[Partial]
 ) extends TexeraOperatorExecutor {
 
   var groupByKeyAttributes: Array[Attribute] = _
@@ -33,7 +32,7 @@ class TexeraPartialAggregateOpExec[Partial <: AnyRef](
     tuple match {
       case Left(t) =>
         if (schema == null) {
-          groupByKeyAttributes = groupByKeys
+          groupByKeyAttributes = aggFunc.groupByKeys
             .map(key =>
               JavaConverters
                 .asScalaBuffer(t.getSchema.getAttributes)
@@ -47,7 +46,7 @@ class TexeraPartialAggregateOpExec[Partial <: AnyRef](
             .add(INTERNAL_AGGREGATE_PARTIAL_OBJECT, AttributeType.ANY)
             .build()
         }
-        val key = groupByKeys.map(t.getField[AnyRef]).toList
+        val key = aggFunc.groupByKeys.map(t.getField[AnyRef]).toList
         val partialObject = aggFunc.iterate(partialObjectPerKey.getOrElse(key, aggFunc.init()), t)
         partialObjectPerKey.put(key, partialObject)
         Iterator()

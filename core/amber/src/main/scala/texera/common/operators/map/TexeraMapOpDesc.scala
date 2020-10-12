@@ -1,6 +1,6 @@
 package texera.common.operators.map
 
-import texera.common.workflow.TexeraOperatorDescriptor
+import texera.common.operators.TexeraOperatorDescriptor
 
 abstract class TexeraMapOpDesc extends TexeraOperatorDescriptor {
 

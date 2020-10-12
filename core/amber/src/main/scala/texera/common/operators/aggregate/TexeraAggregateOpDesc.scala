@@ -1,7 +1,9 @@
 package texera.common.operators.aggregate
 
-import texera.common.workflow.TexeraOperatorDescriptor
+import texera.common.operators.TexeraOperatorDescriptor
 
 abstract class TexeraAggregateOpDesc extends TexeraOperatorDescriptor {
+
+  override def texeraOpExec: TexeraAggregateOpExecConfig[_]
 
 }

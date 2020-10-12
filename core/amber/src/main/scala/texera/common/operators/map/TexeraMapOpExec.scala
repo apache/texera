@@ -2,7 +2,7 @@ package texera.common.operators.map
 
 import Engine.Common.InputExhausted
 import Engine.Common.tuple.texera.TexeraTuple
-import texera.common.workflow.TexeraOperatorExecutor
+import texera.common.operators.TexeraOperatorExecutor
 
 class TexeraMapOpExec(var mapFunc: (TexeraTuple => TexeraTuple) with Serializable)
     extends TexeraOperatorExecutor

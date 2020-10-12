@@ -1,6 +1,7 @@
 package web.model.request
 
-import texera.common.workflow.{TexeraBreakpointInfo, TexeraOperatorDescriptor, TexeraOperatorLink}
+import texera.common.operators.TexeraOperatorDescriptor
+import texera.common.workflow.{TexeraBreakpointInfo, TexeraOperatorLink}
 
 import scala.collection.mutable
 

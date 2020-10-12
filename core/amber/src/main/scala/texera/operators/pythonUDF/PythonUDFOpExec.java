@@ -5,7 +5,6 @@ import Engine.Common.AmberTag.LayerTag;
 import Engine.Common.InputExhausted;
 import Engine.Common.tuple.amber.AmberTuple;
 import Engine.Common.tuple.Tuple;
-import Engine.Common.OperatorExecutor;
 import Engine.Common.tuple.texera.TexeraTuple;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.arrow.flight.*;
@@ -18,7 +17,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import scala.collection.Iterator;
 import scala.util.Either;
 import texera.common.TexeraUtils;
-import texera.common.workflow.TexeraOperatorExecutor;
+import texera.common.operators.TexeraOperatorExecutor;
 
 import java.io.IOException;
 import java.net.ServerSocket;

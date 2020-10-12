@@ -9,7 +9,7 @@ import scala.collection.JavaConverters;
 import scala.collection.Seq;
 import texera.common.metadata.OperatorGroupConstants;
 import texera.common.metadata.TexeraOperatorInfo;
-import texera.common.workflow.TexeraOperatorDescriptor;
+import texera.common.operators.TexeraOperatorDescriptor;
 
 import java.util.List;
 

@@ -1,4 +1,4 @@
-package texera.common.workflow
+package texera.common.operators
 
 import Engine.Common.tuple.Tuple
 import Engine.Common.tuple.texera.TexeraTuple

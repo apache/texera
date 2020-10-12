@@ -6,12 +6,12 @@ import Engine.Common.tuple.texera.TexeraTuple
 import Engine.Common.tuple.texera.schema.{AttributeType, Schema}
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import texera.common.metadata.{OperatorGroupConstants, TexeraOperatorInfo}
-import texera.common.workflow.TexeraOperatorDescriptor
-import texera.common.operators.aggregate.{TexeraAggregateOpExecConfig, TexeraDistributedAggregation}
+import texera.common.operators.TexeraOperatorDescriptor
+import texera.common.operators.aggregate.{TexeraAggregateOpDesc, TexeraAggregateOpExecConfig, TexeraDistributedAggregation}
 
 case class AveragePartialObj(sum: Double, count: Double) extends Serializable {}
 
-class AverageOpDesc extends TexeraOperatorDescriptor {
+class AverageOpDesc extends TexeraAggregateOpDesc {
 
   @JsonProperty("attribute")
   @JsonPropertyDescription("column to calculate average value")
@@ -26,6 +26,7 @@ class AverageOpDesc extends TexeraOperatorDescriptor {
   var groupByKeys: List[String] = _
 
   override def texeraOpExec: TexeraAggregateOpExecConfig[AveragePartialObj] = {
+    val groupByKeyList = if (this.groupByKeys == null) List() else this.groupByKeys
     val aggregation = new TexeraDistributedAggregation[AveragePartialObj](
       () => AveragePartialObj(0, 0),
       (partial, tuple) => {
@@ -37,13 +38,12 @@ class AverageOpDesc extends TexeraOperatorDescriptor {
       partial => {
         val value = if (partial.count == 0) null else partial.sum / partial.count
         TexeraTuple.newBuilder.add(resultAttribute, AttributeType.DOUBLE, value).build
-      }
+      },
+      groupByKeyList
     )
-    val groupByKeyList = if (this.groupByKeys == null) List() else this.groupByKeys
     new TexeraAggregateOpExecConfig[AveragePartialObj](
       amberOperatorTag,
-      aggregation,
-      groupByKeyList
+      aggregation
     )
   }
 

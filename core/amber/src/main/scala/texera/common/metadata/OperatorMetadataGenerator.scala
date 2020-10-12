@@ -9,7 +9,7 @@ import com.fasterxml.jackson.databind.node.{ArrayNode, ObjectNode}
 import com.kjetland.jackson.jsonSchema.JsonSchemaConfig.html5EnabledSchema
 import com.kjetland.jackson.jsonSchema.{JsonSchemaConfig, JsonSchemaDraft, JsonSchemaGenerator}
 import texera.common.TexeraUtils.objectMapper
-import texera.common.workflow.TexeraOperatorDescriptor
+import texera.common.operators.TexeraOperatorDescriptor
 import texera.operators.aggregate.AverageOpDesc
 import texera.operators.sentiment.SentimentAnalysisOpDescTexera
 

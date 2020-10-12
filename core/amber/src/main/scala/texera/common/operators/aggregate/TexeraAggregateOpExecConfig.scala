@@ -20,23 +20,22 @@ import scala.concurrent.ExecutionContext
 
 class TexeraAggregateOpExecConfig[P <: AnyRef](
     tag: OperatorTag,
-    val aggFunc: TexeraDistributedAggregation[P],
-    val groupByKeys: Seq[String]
+    val aggFunc: TexeraDistributedAggregation[P]
 ) extends OpExecConfig(tag) {
 
   override lazy val topology: Topology = {
 
-    if (groupByKeys == null || groupByKeys.isEmpty) {
+    if (aggFunc.groupByKeys.isEmpty) {
       val partialLayer = new ProcessorWorkerLayer(
         LayerTag(tag, "localAgg"),
-        _ => new TexeraPartialAggregateOpExec(aggFunc, groupByKeys),
+        _ => new TexeraPartialAggregateOpExec(aggFunc),
         Constants.defaultNumWorkers,
         UseAll(),
         RoundRobinDeployment()
       )
       val finalLayer = new ProcessorWorkerLayer(
         LayerTag(tag, "globalAgg"),
-        _ => new TexeraFinalAggregateOpExec(aggFunc, groupByKeys),
+        _ => new TexeraFinalAggregateOpExec(aggFunc),
         1,
         ForceLocal(),
         RandomDeployment()
@@ -54,14 +53,14 @@ class TexeraAggregateOpExecConfig[P <: AnyRef](
     } else {
       val partialLayer = new ProcessorWorkerLayer(
         LayerTag(tag, "localAgg"),
-        _ => new TexeraPartialAggregateOpExec(aggFunc, groupByKeys),
+        _ => new TexeraPartialAggregateOpExec(aggFunc),
         Constants.defaultNumWorkers,
         UseAll(),
         RoundRobinDeployment()
       )
       val finalLayer = new ProcessorWorkerLayer(
         LayerTag(tag, "globalAgg"),
-        _ => new TexeraFinalAggregateOpExec(aggFunc, groupByKeys),
+        _ => new TexeraFinalAggregateOpExec(aggFunc),
         Constants.defaultNumWorkers,
         FollowPrevious(),
         RoundRobinDeployment()

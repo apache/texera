@@ -1,7 +1,5 @@
 package texera.operators.localscan;
 
-import Engine.Common.SourceOperatorExecutor;
-import Engine.Common.tuple.Tuple;
 import Engine.Common.tuple.texera.TexeraTuple;
 import Engine.Common.tuple.texera.schema.Attribute;
 import Engine.Common.tuple.texera.schema.AttributeType;
@@ -9,6 +7,7 @@ import Engine.Common.tuple.texera.schema.Schema;
 import Engine.FaultTolerance.Scanner.BufferedBlockReader;
 import org.tukaani.xz.SeekableFileInputStream;
 import scala.collection.Iterator;
+import texera.common.operators.TexeraSourceOperatorExecutor;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -18,7 +17,7 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 
-public class LocalCsvScanSourceOpExec implements SourceOperatorExecutor {
+public class LocalCsvScanSourceOpExec implements TexeraSourceOperatorExecutor {
 
     private final String localPath;
     private final char separator;
@@ -46,8 +45,8 @@ public class LocalCsvScanSourceOpExec implements SourceOperatorExecutor {
     }
 
     @Override
-    public Iterator<Tuple> produce() {
-        return new Iterator<Tuple>() {
+    public Iterator<TexeraTuple> produceTexeraTuple() {
+        return new Iterator<TexeraTuple>() {
 
             @Override
             public boolean hasNext() {
@@ -59,7 +58,7 @@ public class LocalCsvScanSourceOpExec implements SourceOperatorExecutor {
             }
 
             @Override
-            public Tuple next() {
+            public TexeraTuple next() {
                 try {
                     String[] res = reader.readLine();
                     if (res == null) {
