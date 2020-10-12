@@ -1,4 +1,4 @@
-package Engine.Common.tuple.texera.schema;
+package texera.common.tuple.schema;
 
 import java.io.Serializable;
 import java.util.ArrayList;

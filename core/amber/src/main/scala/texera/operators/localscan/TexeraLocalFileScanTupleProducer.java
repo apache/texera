@@ -2,10 +2,10 @@ package texera.operators.localscan;
 
 import Engine.Common.TupleProducer;
 import Engine.Common.tuple.Tuple;
-import Engine.Common.tuple.texera.TexeraTuple;
-import Engine.Common.tuple.texera.schema.Attribute;
-import Engine.Common.tuple.texera.schema.AttributeType;
-import Engine.Common.tuple.texera.schema.Schema;
+import texera.common.tuple.TexeraTuple;
+import texera.common.tuple.schema.Attribute;
+import texera.common.tuple.schema.AttributeType;
+import texera.common.tuple.schema.Schema;
 import Engine.Operators.Scan.BufferedBlockReader;
 import org.tukaani.xz.SeekableFileInputStream;
 
