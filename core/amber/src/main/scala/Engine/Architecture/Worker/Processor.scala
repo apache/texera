@@ -13,7 +13,7 @@ import Engine.Common.AmberTag.{LayerTag, WorkerTag}
 import Engine.Common.tuple.Tuple
 import Engine.Common.{AdvancedMessageSending, Constants, ElidableStatement, InputExhausted, OperatorExecutor, TableMetadata, ThreadState, TupleSink}
 import Engine.FaultTolerance.Recovery.RecoveryPacket
-import Engine.Operators.Common.Filter.{FilterOpExec, FilterOpExecConfig}
+import texera.operators.Common.Filter.{FilterOpExec, FilterOpExecConfig}
 import Engine.Operators.OpExecConfig
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Stash}
 import akka.event.LoggingAdapter

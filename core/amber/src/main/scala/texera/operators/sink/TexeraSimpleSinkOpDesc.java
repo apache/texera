@@ -6,9 +6,9 @@ import com.google.common.base.Preconditions;
 import scala.collection.Seq;
 import texera.common.schema.OperatorGroupConstants;
 import texera.common.schema.TexeraOperatorDescription;
-import texera.common.workflow.OperatorDescriptor;
+import texera.common.workflow.TexeraOperatorDescriptor;
 
-public class TexeraSimpleSinkOpDesc extends OperatorDescriptor {
+public class TexeraSimpleSinkOpDesc extends TexeraOperatorDescriptor {
 
     @Override
     public OpExecConfig amberOperator() {

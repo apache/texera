@@ -9,12 +9,12 @@ import scala.collection.JavaConverters;
 import scala.collection.Seq;
 import texera.common.schema.OperatorGroupConstants;
 import texera.common.schema.TexeraOperatorDescription;
-import texera.common.workflow.OperatorDescriptor;
+import texera.common.workflow.TexeraOperatorDescriptor;
 
 import java.util.List;
 
 
-public class TexeraPythonUDFOpDesc extends OperatorDescriptor {
+public class TexeraPythonUDFOpDesc extends TexeraOperatorDescriptor {
 
     @JsonProperty("Python script file")
     @JsonPropertyDescription("name of the UDF script file")

@@ -1,4 +1,4 @@
-package Engine.Operators.Common.FlatMap
+package texera.operators.Common.Filter
 
 import Engine.Architecture.Breakpoint.GlobalBreakpoint.GlobalBreakpoint
 import Engine.Architecture.DeploySemantics.DeployStrategy.RoundRobinDeployment
@@ -17,16 +17,16 @@ import akka.util.Timeout
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
-class FlatMapOpExecConfig(
+class FilterOpExecConfig(
     override val tag: OperatorTag,
-    val flatMapFunc: (TexeraTuple => TraversableOnce[TexeraTuple]) with Serializable
+    val filterFunc: (TexeraTuple => Boolean) with Serializable
 ) extends OpExecConfig(tag) {
   override lazy val topology: Topology = {
     new Topology(
       Array(
         new ProcessorWorkerLayer(
           LayerTag(tag, "main"),
-          _ => new FlatMapOpExec(flatMapFunc),
+          _ => new FilterOpExec(filterFunc),
           Constants.defaultNumWorkers,
           FollowPrevious(),
           RoundRobinDeployment()
@@ -41,6 +41,8 @@ class FlatMapOpExecConfig(
       states: mutable.AnyRefMap[ActorRef, WorkerState.Value],
       breakpoint: GlobalBreakpoint
   )(implicit timeout: Timeout, ec: ExecutionContext, log: LoggingAdapter): Unit = {
-    breakpoint.partition(topology(0).layer.filter(states(_) != WorkerState.Completed))
+    breakpoint.partition(
+      topology(0).layer.filter(states(_) != WorkerState.Completed)
+    )
   }
 }

@@ -33,7 +33,7 @@ import texera.operators.sink.TexeraSimpleSinkOpDesc
 //    new Type(value = classOf[TexeraPythonUDFOpDesc], name = "PythonUDF"),
   )
 )
-abstract class OperatorDescriptor {
+abstract class TexeraOperatorDescriptor {
 
   @JsonIgnore var context: TexeraContext = _
 

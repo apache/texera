@@ -1,4 +1,4 @@
-package Engine.Operators.Common.Map
+package texera.operators.Common.Map
 
 import Engine.Architecture.Breakpoint.GlobalBreakpoint.GlobalBreakpoint
 import Engine.Architecture.DeploySemantics.DeployStrategy.RoundRobinDeployment

@@ -1,4 +1,4 @@
-package Engine.Operators.Common.Aggregate
+package texera.operators.Common.Aggregate
 
 import Engine.Architecture.Breakpoint.GlobalBreakpoint.GlobalBreakpoint
 import Engine.Architecture.DeploySemantics.DeployStrategy.{RandomDeployment, RoundRobinDeployment}

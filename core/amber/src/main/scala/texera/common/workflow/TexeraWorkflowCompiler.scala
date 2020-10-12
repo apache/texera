@@ -20,7 +20,7 @@ class TexeraWorkflowCompiler(val texeraWorkflow: TexeraWorkflow, val context: Te
     this.texeraWorkflow.operators.foreach(initOperator)
   }
 
-  def initOperator(operator: OperatorDescriptor): Unit = {
+  def initOperator(operator: TexeraOperatorDescriptor): Unit = {
     operator.context = context
   }
 

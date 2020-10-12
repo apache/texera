@@ -166,10 +166,14 @@ public class TexeraTuple implements Tuple, Serializable {
      * Checks if the attribute's type matches the field object's type
      */
     private static void checkAttributeMatchesField(Attribute attribute, Object field) {
+        // null value is always acceptable
         if (field == null) {
             return;
         }
-
+        // ANY attribute type allow arbitrary type
+        if (attribute.getType() == AttributeType.ANY) {
+            return;
+        }
         if (! field.getClass().equals(attribute.getType().getFieldClass())) {
             throw new RuntimeException(String.format(
                     "Attribute %s's type (%s) is different from field's type (%s)",

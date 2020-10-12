@@ -1,7 +1,7 @@
 package texera.common.workflow.common
 
-import texera.common.workflow.OperatorDescriptor
+import texera.common.workflow.TexeraOperatorDescriptor
 
-abstract class AggregateOpDesc extends OperatorDescriptor {
+abstract class AggregateOpDesc extends TexeraOperatorDescriptor {
 
 }

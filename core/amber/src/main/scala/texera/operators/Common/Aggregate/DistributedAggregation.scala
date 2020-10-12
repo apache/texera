@@ -1,14 +1,14 @@
-package Engine.Operators.Common.Aggregate
+package texera.operators.Common.Aggregate
 
-import Engine.Common.tuple.Tuple
+import Engine.Common.tuple.texera.TexeraTuple
 
-case class DistributedAggregation[T <: Tuple, P <: AnyRef](
+case class DistributedAggregation[P <: AnyRef](
     // () => PartialObject
     init: () => P,
     // PartialObject + Tuple => PartialObject
-    iterate: (P, T) => P,
+    iterate: (P, TexeraTuple) => P,
     // PartialObject + PartialObject => PartialObject
     merge: (P, P) => P,
     // PartialObject => FinalObject
-    finalAgg: P => T
+    finalAgg: P => TexeraTuple
 )

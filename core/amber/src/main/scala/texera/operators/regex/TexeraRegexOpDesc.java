@@ -1,7 +1,7 @@
 package texera.operators.regex;
 
 import Engine.Common.tuple.Tuple;
-import Engine.Operators.Common.Filter.FilterOpExecConfig;
+import texera.operators.Common.Filter.FilterOpExecConfig;
 import Engine.Operators.OpExecConfig;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;

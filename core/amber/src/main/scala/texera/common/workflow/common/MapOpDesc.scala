@@ -1,9 +1,9 @@
 package texera.common.workflow.common
 
-import Engine.Operators.Common.Map.MapOpExecConfig
-import texera.common.workflow.OperatorDescriptor
+import texera.operators.Common.Map.MapOpExecConfig
+import texera.common.workflow.TexeraOperatorDescriptor
 
-abstract class MapOpDesc extends OperatorDescriptor {
+abstract class MapOpDesc extends TexeraOperatorDescriptor {
 
   override def amberOperator: MapOpExecConfig
 

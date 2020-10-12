@@ -8,10 +8,10 @@ import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import scala.collection.Seq;
 import texera.common.schema.OperatorGroupConstants;
 import texera.common.schema.TexeraOperatorDescription;
-import texera.common.workflow.OperatorDescriptor;
+import texera.common.workflow.TexeraOperatorDescriptor;
 
 
-public class TexeraLocalCsvFileScanOpDesc extends OperatorDescriptor {
+public class TexeraLocalCsvFileScanOpDesc extends TexeraOperatorDescriptor {
 
     @JsonProperty("file path")
     @JsonPropertyDescription("local file path")
