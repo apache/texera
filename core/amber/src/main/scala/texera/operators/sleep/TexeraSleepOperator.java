@@ -11,8 +11,9 @@ import texera.common.schema.TexeraOperatorDescription;
 import texera.common.schema.OperatorGroupConstants;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
+import texera.common.workflow.common.FilterOpDesc;
 
-public class TexeraSleepOperator extends TexeraOperator {
+public class TexeraSleepOperator extends FilterOpDesc {
 
     @JsonProperty("sleep")
     @JsonPropertyDescription("time to sleep for each tuple in milliseconds")

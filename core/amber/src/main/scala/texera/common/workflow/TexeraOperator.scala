@@ -3,13 +3,13 @@ package texera.common.workflow
 import java.util.UUID
 
 import Engine.Common.AmberTag.OperatorTag
+import Engine.Common.tuple.texera.schema.Schema
 import Engine.Operators.OperatorMetadata
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonSubTypes, JsonTypeInfo}
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
 import texera.common.schema.{PropertyNameConstants, TexeraOperatorDescription}
 import texera.common.{TexeraConstraintViolation, TexeraContext}
-import texera.operators.count.TexeraCount
 import texera.operators.filter.TexeraFilter
 import texera.operators.hdfsscan.TexeraHdfsFileScan
 import texera.operators.keyword.TexeraKeywordSearch
@@ -36,7 +36,6 @@ import scala.collection.{JavaConverters, mutable}
     new Type(value = classOf[TexeraKeywordSearch], name = "KeywordSearch"),
     new Type(value = classOf[TexeraRegex], name = "Regex"),
     new Type(value = classOf[TexeraFilter], name = "Filter"),
-    new Type(value = classOf[TexeraCount], name = "Count"),
     new Type(value = classOf[TexeraSentimentAnalysis], name = "SentimentAnalysis"),
     new Type(value = classOf[TexeraPythonUDF], name = "PythonUDF"),
   )
@@ -52,6 +51,8 @@ abstract class TexeraOperator {
   def amberOperator: OperatorMetadata
 
   def texeraOperatorDescription: TexeraOperatorDescription
+
+  def transformSchema(schemas: Schema*): Schema
 
   def validate(): Set[TexeraConstraintViolation] = {
     Set.empty
