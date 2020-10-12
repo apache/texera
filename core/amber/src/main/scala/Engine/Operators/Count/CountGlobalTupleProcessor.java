@@ -5,11 +5,13 @@ import Engine.Common.AmberTuple.Tuple;
 import Engine.Common.TupleProcessor;
 
 import java.util.Collections;
+import java.util.HashMap;
 
 public class CountGlobalTupleProcessor implements TupleProcessor {
 
     private boolean nextFlag = false;
     private int counter = 0;
+    private HashMap<String,String> params = new HashMap<>();
 
     @Override
     public void accept(Tuple tuple){
@@ -26,15 +28,22 @@ public class CountGlobalTupleProcessor implements TupleProcessor {
 
     }
 
+    public void updateParamMap() {
+        params.put("counter", Integer.toString(counter));
+    }
+
+    @Override
+    public String getParam(String query) throws Exception {
+        return params.getOrDefault(query,null);
+    }
+
     @Override
     public void noMore() {
         nextFlag = true;
     }
 
     @Override
-    public void initialize() {
-
-    }
+    public void initialize() {updateParamMap();}
 
     @Override
     public boolean hasNext() {

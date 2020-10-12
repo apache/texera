@@ -12,6 +12,8 @@ import org.apache.hadoop.fs.Path;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.util.Arrays;
+import java.util.HashMap;
 
 public class HDFSTempFileScanTupleProducer implements TupleProducer{
 
@@ -20,6 +22,8 @@ public class HDFSTempFileScanTupleProducer implements TupleProducer{
     private char separator;
     private TableMetadata metadata;
     private BufferedBlockReader reader = null;
+
+    private HashMap<String,String> params = new HashMap<>();
 
     public HDFSTempFileScanTupleProducer(String host, String hdfsPath, char delimiter, TableMetadata metadata){
         this.host = host;
@@ -34,11 +38,23 @@ public class HDFSTempFileScanTupleProducer implements TupleProducer{
         long endOffset =fs.getFileStatus(new Path(hdfsPath)).getLen();
         InputStream stream = fs.open(new Path(hdfsPath));
         reader = new BufferedBlockReader(stream,endOffset,separator,null);
+        updateParamMap();
+    }
+
+    public void updateParamMap() throws Exception {
+        params.put("host", host);
+        params.put("hdfsPath", hdfsPath);
+        params.put("separator", Character.toString(separator));
     }
 
     @Override
     public boolean hasNext() throws IOException {
         return reader.hasNext();
+    }
+
+    @Override
+    public String getParam(String query) throws Exception {
+        return params.getOrDefault(query,null);
     }
 
     @Override

@@ -21,6 +21,8 @@ public class HashJoinTupleProcessor<K> implements TupleProcessor {
     private Iterator<Object[]> currentEntry = null;
     private Object[] currentTuple = null;
 
+    private HashMap<String,String> params = new HashMap<>();
+
     HashJoinTupleProcessor(LayerTag innerTableIdentifier, int innerTableIndex, int outerTableIndex){
         this.innerTableIdentifier = innerTableIdentifier;
         this.innerTableIndex = innerTableIndex;
@@ -65,9 +67,23 @@ public class HashJoinTupleProcessor<K> implements TupleProcessor {
 
     }
 
+    public void updateParamMap(){
+        params.put("innerTableIdentifier",innerTableIdentifier.getGlobalIdentity());
+        params.put("innerTableIndex",Integer.toString(innerTableIndex));
+        params.put("outerTableIndex",Integer.toString(outerTableIndex));
+        params.put("isCurrentTableInner", Boolean.toString(isCurrentTableInner));
+        params.put("isInnerTableFinished",Boolean.toString(isInnerTableFinished));
+    }
+
     @Override
     public void initialize() {
         innerTableHashMap = new HashMap<>();
+        updateParamMap();
+    }
+
+    @Override
+    public String getParam(String query) throws Exception {
+        return params.getOrDefault(query,null);
     }
 
     @Override

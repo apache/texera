@@ -9,6 +9,8 @@ import com.google.common.base.Splitter;
 import org.tukaani.xz.SeekableFileInputStream;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.HashMap;
 
 
 public class LocalFileScanTupleProducer implements TupleProducer {
@@ -20,6 +22,8 @@ public class LocalFileScanTupleProducer implements TupleProducer {
     private BufferedBlockReader reader = null;
     private long startOffset;
     private long endOffset;
+
+    private HashMap<String,String> params = new HashMap<>();
 
 
     private String[] shrinkStringArray(String[] array, int[] indicesToKeep){
@@ -45,6 +49,21 @@ public class LocalFileScanTupleProducer implements TupleProducer {
         reader= new BufferedBlockReader(stream,endOffset-startOffset,separator,indicesToKeep);
         if(startOffset > 0)
             reader.readLine();
+
+        updateParamMap();
+    }
+
+    public void updateParamMap() {
+        params.put("localPath", localPath);
+        params.put("indicesToKeep", Arrays.toString(indicesToKeep));
+        params.put("separator", Character.toString(separator));
+        params.put("startOffset", Long.toString(startOffset));
+        params.put("endOffset", Long.toString(endOffset));
+    }
+
+    @Override
+    public String getParam(String query) throws Exception {
+        return params.getOrDefault(query,null);
     }
 
     @Override
