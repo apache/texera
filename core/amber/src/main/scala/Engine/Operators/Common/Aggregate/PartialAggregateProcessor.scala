@@ -31,6 +31,8 @@ class PartialAggregateProcessor(val aggFunc: DistributedAggregation, val groupBy
 
   override def next(): Tuple = outputIterator.next
 
+  override def getParam(query: String): String = {return null}
+
   override def dispose(): Unit = {
     partialObjectPerKey = null;
     outputIterator = null;

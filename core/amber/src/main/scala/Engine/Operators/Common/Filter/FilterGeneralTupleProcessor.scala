@@ -27,6 +27,8 @@ class FilterGeneralTupleProcessor(
 
   override def initialize(): Unit = {}
 
+  override def getParam(query: String): String = {return null}
+
   override def hasNext: Boolean = nextFlag
 
   override def next(): Tuple = {

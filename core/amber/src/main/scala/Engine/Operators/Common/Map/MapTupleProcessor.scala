@@ -24,6 +24,8 @@ class MapTupleProcessor(
 
   override def noMore(): Unit = {}
 
+  override def getParam(query: String): String = {return null}
+
   override def initialize(): Unit = {}
 
   override def hasNext: Boolean = nextFlag
