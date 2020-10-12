@@ -6,11 +6,14 @@ import Engine.Common.AmberMessage.ControllerMessage.PassBreakpointTo
 import Engine.Common.AmberTag.OperatorTag
 import Engine.Operators.OpExecConfig
 import akka.actor.ActorRef
+import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import texera.common.operators.TexeraOperatorDescriptor
+import texera.common.operators.source.TexeraSourceOpDesc
 import texera.common.tuple.TexeraTuple
+import texera.common.tuple.schema.Schema
 import texera.common.{TexeraConstraintViolation, TexeraContext}
 
-import scala.collection.mutable
+import scala.collection.{JavaConverters, mutable}
 
 class TexeraWorkflowCompiler(val texeraWorkflow: TexeraWorkflow, val context: TexeraContext) {
 
@@ -109,4 +112,51 @@ class TexeraWorkflowCompiler(val texeraWorkflow: TexeraWorkflow, val context: Te
       addBreakpoint(controller, pair.operatorID, pair.breakpoint)
     }
   }
+
+  def propagateWorkflowSchema(): Map[TexeraOperatorDescriptor, Schema] = {
+    // construct the workflow DAG object using jGraphT
+    val workflowDag = new DirectedAcyclicGraph[TexeraOperatorDescriptor, DefaultEdge](classOf[DefaultEdge])
+    this.texeraWorkflow.operators.foreach(op => workflowDag.addVertex(op))
+    this.texeraWorkflow.links.foreach(link => {
+      val origin = this.texeraWorkflow.operators.filter(op => op.operatorID == link.origin).head
+      val destination = this.texeraWorkflow.operators.filter(op => op.operatorID == link.destination).head
+      workflowDag.addEdge(origin, destination)
+    })
+
+    // a map from an operator to its output schema
+    val outputSchemaMap = new mutable.HashMap[TexeraOperatorDescriptor, Option[Schema]]()
+    // a map from an operator to the list of its input schema
+    val inputSchemaMap = new mutable.HashMap[TexeraOperatorDescriptor, List[Option[Schema]]]()
+
+    // propagate output schema following topological order
+    // TODO: introduce the concept of port in TexeraOperatorDescriptor and propagate schema according to port
+    val topologicalOrderIterator = workflowDag.iterator()
+    topologicalOrderIterator.forEachRemaining(op => {
+      val outputSchema: Option[Schema] =
+        if (op.isInstanceOf[TexeraSourceOpDesc]) {
+          Option.apply(op.transformSchema())
+        } else if (inputSchemaMap(op).exists(s => s.isEmpty)) {
+          Option.empty
+        } else {
+          try {
+            Option.apply(op.transformSchema(inputSchemaMap(op).map(s => s.get).toArray: _*))
+          } catch {
+            case e: Throwable =>
+              e.printStackTrace()
+              Option.empty
+          }
+        }
+      outputSchemaMap(op) = outputSchema
+      JavaConverters.asScalaSet(workflowDag.outgoingEdgesOf(op))
+        .map(e => workflowDag.getEdgeTarget(e)).foreach(downstream => {
+          inputSchemaMap.put(downstream, inputSchemaMap.getOrElse(downstream, List()) :+ outputSchema)
+      })
+    })
+
+    inputSchemaMap
+      .filter(e => ! (e._2.exists(s => s.isEmpty) || e._2.isEmpty))
+      .map(e => (e._1, e._2.head.get))
+      .toMap
+  }
+
 }

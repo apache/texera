@@ -1,14 +1,13 @@
 package texera.operators.localscan;
 
 import Engine.Common.Constants;
-import Engine.Operators.OpExecConfig;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
-import org.apache.curator.shaded.com.google.common.io.Files;
-import scala.collection.Seq;
+import com.google.common.io.Files;
 import texera.common.metadata.OperatorGroupConstants;
 import texera.common.metadata.TexeraOperatorInfo;
-import texera.common.operators.TexeraOperatorDescriptor;
+import texera.common.operators.source.TexeraSourceOpDesc;
+import texera.common.operators.source.TexeraSourceOpExecConfig;
 import texera.common.tuple.schema.Attribute;
 import texera.common.tuple.schema.AttributeType;
 import texera.common.tuple.schema.Schema;
@@ -19,9 +18,10 @@ import java.io.UncheckedIOException;
 import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 
-public class LocalCsvFileScanOpDesc extends TexeraOperatorDescriptor {
+public class LocalCsvFileScanOpDesc extends TexeraSourceOpDesc {
 
     @JsonProperty("file path")
     @JsonPropertyDescription("local file path")
@@ -36,18 +36,11 @@ public class LocalCsvFileScanOpDesc extends TexeraOperatorDescriptor {
     public Boolean header;
 
     @Override
-    public OpExecConfig texeraOpExec() {
+    public TexeraSourceOpExecConfig texeraOpExec() {
         try {
-            Schema schema = null;
-            if (header != null && header) {
-                String header = Files.readFirstLine(new File(filePath), Charset.defaultCharset());
-                schema = Schema.newBuilder().add(
-                        Arrays.stream(header.split(delimiter)).map(c -> c.trim())
-                        .map(c -> new Attribute(c, AttributeType.STRING)).collect(Collectors.toList())
-                ).build();
-            }
+            String headerLine = Files.asCharSource(new File(filePath), Charset.defaultCharset()).readFirstLine();
             return new LocalCsvFileScanOpExecConfig(this.amberOperatorTag(), Constants.defaultNumWorkers(),
-                    filePath, delimiter.charAt(0), schema, header != null && header);
+                    filePath, delimiter.charAt(0), this.inferSchema(headerLine), header != null && header);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
@@ -63,8 +56,33 @@ public class LocalCsvFileScanOpDesc extends TexeraOperatorDescriptor {
     }
 
     @Override
-    public Schema transformSchema(Seq<Schema> schemas) {
-        return null;
+    public Schema sourceSchema() {
+        if (this.filePath == null) {
+            return null;
+        }
+        try {
+            String headerLine = Files.asCharSource(new File(filePath), Charset.defaultCharset()).readFirstLine();
+            if (header == null) {
+                return null;
+            }
+            return inferSchema(headerLine);
+        } catch (IOException e) {
+            return null;
+        }
+    }
+
+    private Schema inferSchema(String headerLine) {
+        if (delimiter == null) {
+            return null;
+        }
+        if (header != null && header) {
+            return Schema.newBuilder().add(Arrays.stream(headerLine.split(delimiter)).map(c -> c.trim())
+                    .map(c -> new Attribute(c, AttributeType.STRING)).collect(Collectors.toList())).build();
+        } else {
+            return Schema.newBuilder().add(IntStream.range(0, headerLine.split(delimiter).length).
+                    mapToObj(i -> new Attribute("column" + i, AttributeType.STRING))
+                    .collect(Collectors.toList())).build();
+        }
     }
 
 }

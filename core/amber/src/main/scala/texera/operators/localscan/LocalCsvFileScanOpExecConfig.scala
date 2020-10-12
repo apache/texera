@@ -8,10 +8,10 @@ import Engine.Architecture.DeploySemantics.DeploymentFilter.UseAll
 import Engine.Architecture.DeploySemantics.Layer.{ActorLayer, GeneratorWorkerLayer}
 import Engine.Architecture.Worker.WorkerState
 import Engine.Common.AmberTag.{LayerTag, OperatorTag}
-import Engine.Operators.OpExecConfig
 import akka.actor.ActorRef
 import akka.event.LoggingAdapter
 import akka.util.Timeout
+import texera.common.operators.source.TexeraSourceOpExecConfig
 import texera.common.tuple.schema.Schema
 
 import scala.collection.mutable
@@ -24,7 +24,7 @@ class LocalCsvFileScanOpExecConfig(
     delimiter: Char,
     schema: Schema,
     header: Boolean
-) extends OpExecConfig(tag) {
+) extends TexeraSourceOpExecConfig(tag) {
   val totalBytes: Long = new File(filePath).length()
 
   override lazy val topology: Topology = {

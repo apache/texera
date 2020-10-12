@@ -89,6 +89,9 @@ public class SentimentAnalysisOpDescTexera extends TexeraMapOpDesc {
     @Override
     public Schema transformSchema(Seq<Schema> schemas) {
         Preconditions.checkArgument(schemas.length() == 1);
+        if (resultAttribute == null) {
+            return null;
+        }
         return Schema.newBuilder().add(schemas.apply(0)).add(resultAttribute, AttributeType.STRING).build();
     }
 }

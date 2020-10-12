@@ -2,23 +2,21 @@ package texera.operators.localscan;
 
 
 import Engine.FaultTolerance.Scanner.BufferedBlockReader;
+import com.google.common.base.Verify;
 import org.tukaani.xz.SeekableFileInputStream;
 import scala.collection.Iterator;
-import texera.common.operators.TexeraSourceOperatorExecutor;
+import texera.common.operators.source.TexeraSourceOpExec;
 import texera.common.tuple.TexeraTuple;
-import texera.common.tuple.schema.Attribute;
-import texera.common.tuple.schema.AttributeType;
 import texera.common.tuple.schema.Schema;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.Arrays;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 
-public class LocalCsvScanSourceOpExec implements TexeraSourceOperatorExecutor {
+public class LocalCsvScanSourceOpExec implements TexeraSourceOpExec {
 
     private final String localPath;
     private final char separator;
@@ -68,11 +66,7 @@ public class LocalCsvScanSourceOpExec implements TexeraSourceOperatorExecutor {
                     if (res.length == 1 && res[0].isEmpty()) {
                         return null;
                     }
-                    if (schema == null) {
-                        schema = Schema.newBuilder().add(IntStream.range(0, res.length).
-                                mapToObj(i -> new Attribute("c" + i, AttributeType.STRING))
-                                .collect(Collectors.toList())).build();
-                    }
+                    Verify.verify(schema != null);
                     if (res.length != schema.getAttributes().size()) {
                         res = Stream.concat(Arrays.stream(res),
                                 IntStream.range(0, schema.getAttributes().size() - res.length).mapToObj(i -> null))

@@ -35,6 +35,8 @@ libraryDependencies ++= Seq(
   "org.apache.hadoop" % "hadoop-client" % hadoopVersion excludeAll (excludeHadoopJersey, excludeHadoopSlf4j, excludeHadoopJsp)
 )
 
+libraryDependencies += "org.jgrapht" % "jgrapht-core" % "1.4.0"
+
 // dropwizard webframework
 val dropwizardVersion = "1.3.23"
 // jersey version should be the same as jersey-server that is contained in dropwizard
