@@ -12,4 +12,6 @@ trait OperatorExecutor {
 
   def processTuple(tuple: Either[Tuple, InputExhausted], input: Int): Iterator[Tuple]
 
+  def getParam(query:String): String = { null }
+
 }

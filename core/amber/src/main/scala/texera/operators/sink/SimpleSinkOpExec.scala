@@ -1,7 +1,7 @@
 package texera.operators.sink
 
-import Engine.Common.{InputExhausted, TupleSink}
 import Engine.Common.tuple.Tuple
+import Engine.Common.{InputExhausted, TupleSink}
 
 import scala.collection.mutable
 

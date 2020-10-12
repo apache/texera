@@ -1,7 +1,5 @@
 package texera.operators.filter;
 
-import Engine.Common.tuple.texera.TexeraTuple;
-import Engine.Operators.OpExecConfig;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import scala.Function1;
@@ -12,6 +10,7 @@ import texera.common.metadata.OperatorGroupConstants;
 import texera.common.metadata.TexeraOperatorInfo;
 import texera.common.operators.filter.TexeraFilterOpDesc;
 import texera.common.operators.filter.TexeraFilterOpExecConfig;
+import texera.common.tuple.TexeraTuple;
 
 import java.util.List;
 

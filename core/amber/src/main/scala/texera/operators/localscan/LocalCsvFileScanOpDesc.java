@@ -1,9 +1,6 @@
 package texera.operators.localscan;
 
 import Engine.Common.Constants;
-import Engine.Common.tuple.texera.schema.Attribute;
-import Engine.Common.tuple.texera.schema.AttributeType;
-import Engine.Common.tuple.texera.schema.Schema;
 import Engine.Operators.OpExecConfig;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
@@ -12,6 +9,9 @@ import scala.collection.Seq;
 import texera.common.metadata.OperatorGroupConstants;
 import texera.common.metadata.TexeraOperatorInfo;
 import texera.common.operators.TexeraOperatorDescriptor;
+import texera.common.tuple.schema.Attribute;
+import texera.common.tuple.schema.AttributeType;
+import texera.common.tuple.schema.Schema;
 
 import java.io.File;
 import java.io.IOException;

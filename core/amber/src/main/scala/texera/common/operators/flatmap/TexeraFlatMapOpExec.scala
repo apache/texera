@@ -1,9 +1,8 @@
 package texera.common.operators.flatmap
 
-import Engine.Common.{InputExhausted, OperatorExecutor}
-import Engine.Common.tuple.Tuple
-import Engine.Common.tuple.texera.TexeraTuple
+import Engine.Common.InputExhausted
 import texera.common.operators.TexeraOperatorExecutor
+import texera.common.tuple.TexeraTuple
 
 class TexeraFlatMapOpExec(
     var flatMapFunc: (TexeraTuple => TraversableOnce[TexeraTuple]) with Serializable

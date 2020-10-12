@@ -2,7 +2,7 @@ package texera.common.operators
 
 import Engine.Common.SourceOperatorExecutor
 import Engine.Common.tuple.Tuple
-import Engine.Common.tuple.texera.TexeraTuple
+import texera.common.tuple.TexeraTuple
 
 trait TexeraSourceOperatorExecutor extends SourceOperatorExecutor {
 

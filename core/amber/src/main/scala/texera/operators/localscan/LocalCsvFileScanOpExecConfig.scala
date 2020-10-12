@@ -8,12 +8,11 @@ import Engine.Architecture.DeploySemantics.DeploymentFilter.UseAll
 import Engine.Architecture.DeploySemantics.Layer.{ActorLayer, GeneratorWorkerLayer}
 import Engine.Architecture.Worker.WorkerState
 import Engine.Common.AmberTag.{LayerTag, OperatorTag}
-import Engine.Common.TableMetadata
-import Engine.Common.tuple.texera.schema.Schema
 import Engine.Operators.OpExecConfig
 import akka.actor.ActorRef
 import akka.event.LoggingAdapter
 import akka.util.Timeout
+import texera.common.tuple.schema.Schema
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext

@@ -2,12 +2,11 @@ package texera.operators.aggregate
 
 import java.io.Serializable
 
-import Engine.Common.tuple.texera.TexeraTuple
-import Engine.Common.tuple.texera.schema.{AttributeType, Schema}
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import texera.common.metadata.{OperatorGroupConstants, TexeraOperatorInfo}
-import texera.common.operators.TexeraOperatorDescriptor
 import texera.common.operators.aggregate.{TexeraAggregateOpDesc, TexeraAggregateOpExecConfig, TexeraDistributedAggregation}
+import texera.common.tuple.TexeraTuple
+import texera.common.tuple.schema.{AttributeType, Schema}
 
 case class AveragePartialObj(sum: Double, count: Double) extends Serializable {}
 

@@ -11,7 +11,6 @@ import com.kjetland.jackson.jsonSchema.{JsonSchemaConfig, JsonSchemaDraft, JsonS
 import texera.common.TexeraUtils.objectMapper
 import texera.common.operators.TexeraOperatorDescriptor
 import texera.operators.aggregate.AverageOpDesc
-import texera.operators.sentiment.SentimentAnalysisOpDescTexera
 
 import scala.collection.JavaConverters
 import scala.collection.JavaConverters.asScalaIterator

@@ -1,13 +1,12 @@
 package Engine.FaultTolerance.Materializer
 
-import Engine.Common.AmberTag.LayerTag
+import java.io.{BufferedWriter, FileWriter}
+import java.net.URI
+
 import Engine.Common.tuple.Tuple
 import Engine.Common.{InputExhausted, OperatorExecutor}
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.FileSystem
-import org.apache.hadoop.fs.Path
-import java.io.{BufferedWriter, FileWriter}
-import java.net.URI
+import org.apache.hadoop.fs.{FileSystem, Path}
 
 class HashBasedMaterializer(
     val outputPath: String,

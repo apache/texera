@@ -1,8 +1,8 @@
 package texera.common.operators
 
 import Engine.Common.tuple.Tuple
-import Engine.Common.tuple.texera.TexeraTuple
 import Engine.Common.{InputExhausted, OperatorExecutor}
+import texera.common.tuple.TexeraTuple
 
 trait TexeraOperatorExecutor extends OperatorExecutor {
 

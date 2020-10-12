@@ -4,10 +4,10 @@ import Engine.Architecture.Breakpoint.GlobalBreakpoint.{ConditionalGlobalBreakpo
 import Engine.Architecture.Controller.Workflow
 import Engine.Common.AmberMessage.ControllerMessage.PassBreakpointTo
 import Engine.Common.AmberTag.OperatorTag
-import Engine.Common.tuple.texera.TexeraTuple
 import Engine.Operators.OpExecConfig
 import akka.actor.ActorRef
 import texera.common.operators.TexeraOperatorDescriptor
+import texera.common.tuple.TexeraTuple
 import texera.common.{TexeraConstraintViolation, TexeraContext}
 
 import scala.collection.mutable

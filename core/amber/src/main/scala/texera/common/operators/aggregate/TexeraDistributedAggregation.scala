@@ -1,6 +1,7 @@
 package texera.common.operators.aggregate
 
-import Engine.Common.tuple.texera.TexeraTuple
+import texera.common.tuple.TexeraTuple
+
 
 /**
   * This class defines the necessary functions required by a distributed aggregation.

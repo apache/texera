@@ -1,7 +1,5 @@
 package texera.common.metadata
 
-import java.util
-
 object OperatorGroupConstants {
   final val SOURCE_GROUP = "Source"
   final val SEARCH_GROUP = "Search"

@@ -1,13 +1,14 @@
 package texera.operators.localscan;
 
-import Engine.Common.tuple.texera.TexeraTuple;
-import Engine.Common.tuple.texera.schema.Attribute;
-import Engine.Common.tuple.texera.schema.AttributeType;
-import Engine.Common.tuple.texera.schema.Schema;
+
 import Engine.FaultTolerance.Scanner.BufferedBlockReader;
 import org.tukaani.xz.SeekableFileInputStream;
 import scala.collection.Iterator;
 import texera.common.operators.TexeraSourceOperatorExecutor;
+import texera.common.tuple.TexeraTuple;
+import texera.common.tuple.schema.Attribute;
+import texera.common.tuple.schema.AttributeType;
+import texera.common.tuple.schema.Schema;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;

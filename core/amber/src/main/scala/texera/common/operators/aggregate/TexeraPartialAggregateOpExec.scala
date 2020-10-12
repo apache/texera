@@ -1,11 +1,11 @@
 package texera.common.operators.aggregate
 
-import Engine.Common.{InputExhausted, OperatorExecutor}
+import Engine.Common.InputExhausted
 import Engine.Common.tuple.Tuple
-import Engine.Common.tuple.texera.TexeraTuple
-import Engine.Common.tuple.texera.schema.{Attribute, AttributeType, Schema}
 import texera.common.operators.TexeraOperatorExecutor
 import texera.common.operators.aggregate.TexeraPartialAggregateOpExec.INTERNAL_AGGREGATE_PARTIAL_OBJECT
+import texera.common.tuple.TexeraTuple
+import texera.common.tuple.schema.{Attribute, AttributeType, Schema}
 
 import scala.collection.{JavaConverters, mutable}
 

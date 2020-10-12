@@ -7,13 +7,12 @@ import Engine.Architecture.DeploySemantics.Layer.{ActorLayer, ProcessorWorkerLay
 import Engine.Architecture.LinkSemantics.{AllToOne, HashBasedShuffle}
 import Engine.Architecture.Worker.WorkerState
 import Engine.Common.AmberTag.{LayerTag, OperatorTag}
-import Engine.Common.tuple.Tuple
 import Engine.Common.Constants
-import Engine.Common.tuple.texera.TexeraTuple
 import Engine.Operators.OpExecConfig
 import akka.actor.ActorRef
 import akka.event.LoggingAdapter
 import akka.util.Timeout
+import texera.common.tuple.TexeraTuple
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
@@ -77,7 +76,7 @@ class TexeraAggregateOpExecConfig[P <: AnyRef](
             Constants.defaultBatchSize,
             x => {
               val tuple = x.asInstanceOf[TexeraTuple]
-              groupByKeys.map(tuple.getField[Any]).hashCode()
+              aggFunc.groupByKeys.map(tuple.getField[Any]).hashCode()
             }
           )
         ),

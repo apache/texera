@@ -1,10 +1,9 @@
 package texera.operators.filter;
 
-import Engine.Common.tuple.Tuple;
-import Engine.Common.tuple.texera.TexeraTuple;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import texera.common.TexeraContext;
+import texera.common.tuple.TexeraTuple;
 
 public class FilterPredicate {
 

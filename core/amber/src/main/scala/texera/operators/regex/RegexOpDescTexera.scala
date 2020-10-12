@@ -1,17 +1,11 @@
 package texera.operators.regex
 
-import Engine.Common.tuple.texera.TexeraTuple
-import Engine.Operators.OpExecConfig
-import com.fasterxml.jackson.annotation.JsonIgnore
-import com.fasterxml.jackson.annotation.JsonProperty
-import com.fasterxml.jackson.annotation.JsonPropertyDescription
-
-import scala.collection.immutable.Set
-import texera.common.TexeraConstraintViolation
-import texera.common.metadata.OperatorGroupConstants
-import texera.common.metadata.TexeraOperatorInfo
-import texera.common.operators.filter.{TexeraFilterOpDesc, TexeraFilterOpExecConfig}
 import java.util.regex.Pattern
+
+import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
+import texera.common.metadata.{OperatorGroupConstants, TexeraOperatorInfo}
+import texera.common.operators.filter.{TexeraFilterOpDesc, TexeraFilterOpExecConfig}
+import texera.common.tuple.TexeraTuple
 
 class RegexOpDescTexera extends TexeraFilterOpDesc {
 

@@ -3,12 +3,12 @@ package texera.common.operators
 import java.util.UUID
 
 import Engine.Common.AmberTag.OperatorTag
-import Engine.Common.tuple.texera.schema.Schema
 import Engine.Operators.OpExecConfig
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonSubTypes, JsonTypeInfo}
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
 import texera.common.metadata.{PropertyNameConstants, TexeraOperatorInfo}
+import texera.common.tuple.schema.Schema
 import texera.common.{TexeraConstraintViolation, TexeraContext}
 import texera.operators.aggregate.AverageOpDesc
 import texera.operators.filter.SpecializedFilterOpDesc

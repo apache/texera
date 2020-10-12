@@ -1,8 +1,8 @@
 package texera.common.operators.filter
 
 import Engine.Common.InputExhausted
-import Engine.Common.tuple.texera.TexeraTuple
 import texera.common.operators.TexeraOperatorExecutor
+import texera.common.tuple.TexeraTuple
 
 class TexeraFilterOpExec(var filterFunc: TexeraTuple => java.lang.Boolean)
     extends TexeraOperatorExecutor

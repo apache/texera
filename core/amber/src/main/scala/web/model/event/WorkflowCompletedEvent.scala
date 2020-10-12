@@ -1,8 +1,8 @@
 package web.model.event
 
 import Engine.Architecture.Controller.ControllerEvent.WorkflowCompleted
-import Engine.Common.tuple.texera.TexeraTuple
 import com.fasterxml.jackson.databind.node.ObjectNode
+import texera.common.tuple.TexeraTuple
 
 import scala.collection.mutable
 

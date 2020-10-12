@@ -1,8 +1,8 @@
 package texera.common.operators.filter
 
-import Engine.Common.tuple.texera.schema.Schema
 import com.google.common.base.Preconditions
 import texera.common.operators.TexeraOperatorDescriptor
+import texera.common.tuple.schema.Schema
 
 abstract class TexeraFilterOpDesc extends TexeraOperatorDescriptor {
 

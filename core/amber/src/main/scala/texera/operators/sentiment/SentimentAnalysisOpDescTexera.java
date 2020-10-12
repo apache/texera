@@ -1,11 +1,6 @@
 package texera.operators.sentiment;
 
-import Engine.Common.tuple.texera.TexeraTuple;
-import Engine.Common.tuple.texera.schema.AttributeType;
-import Engine.Common.tuple.texera.schema.Schema;
-import scala.Function1;
-import scala.Serializable;
-import texera.common.operators.map.TexeraMapOpExecConfig;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.google.common.base.Preconditions;
@@ -15,10 +10,16 @@ import edu.stanford.nlp.pipeline.Annotation;
 import edu.stanford.nlp.sentiment.SentimentCoreAnnotations;
 import edu.stanford.nlp.trees.Tree;
 import edu.stanford.nlp.util.CoreMap;
+import scala.Function1;
+import scala.Serializable;
 import scala.collection.Seq;
 import texera.common.metadata.OperatorGroupConstants;
 import texera.common.metadata.TexeraOperatorInfo;
 import texera.common.operators.map.TexeraMapOpDesc;
+import texera.common.operators.map.TexeraMapOpExecConfig;
+import texera.common.tuple.TexeraTuple;
+import texera.common.tuple.schema.AttributeType;
+import texera.common.tuple.schema.Schema;
 
 import java.util.Properties;
 

@@ -1,12 +1,12 @@
 package texera.operators.sink;
 
-import Engine.Common.tuple.texera.schema.Schema;
 import Engine.Operators.OpExecConfig;
 import com.google.common.base.Preconditions;
 import scala.collection.Seq;
 import texera.common.metadata.OperatorGroupConstants;
 import texera.common.metadata.TexeraOperatorInfo;
 import texera.common.operators.TexeraOperatorDescriptor;
+import texera.common.tuple.schema.Schema;
 
 public class SimpleSinkOpDesc extends TexeraOperatorDescriptor {
 

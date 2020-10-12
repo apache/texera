@@ -3,9 +3,8 @@ package texera.operators.pythonUDF;
 import Engine.Common.AmberException.AmberException;
 import Engine.Common.AmberTag.LayerTag;
 import Engine.Common.InputExhausted;
-import Engine.Common.tuple.amber.AmberTuple;
 import Engine.Common.tuple.Tuple;
-import Engine.Common.tuple.texera.TexeraTuple;
+import Engine.Common.tuple.amber.AmberTuple;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.arrow.flight.*;
 import org.apache.arrow.memory.RootAllocator;
@@ -18,6 +17,7 @@ import scala.collection.Iterator;
 import scala.util.Either;
 import texera.common.TexeraUtils;
 import texera.common.operators.TexeraOperatorExecutor;
+import texera.common.tuple.TexeraTuple;
 
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -31,6 +31,8 @@ public class PythonUDFOpExec implements TexeraOperatorExecutor {
     private ArrayList<String> outputColumns;
     private ArrayList<String> outerFilePaths;
     private int batchSize;
+
+    private HashMap<String,String> params = new HashMap<>();
 
     private static final int MAX_TRY_COUNT = 20;
     private static final long WAIT_TIME_MS = 500;
@@ -104,6 +106,14 @@ public class PythonUDFOpExec implements TexeraOperatorExecutor {
         }
     }
 
+
+    public void updateParamMap() {
+        params.put("batchSize", Integer.toString(batchSize));
+        params.put("MAX_TRY_COUNT", Integer.toString(MAX_TRY_COUNT));
+        params.put("WAIT_TIME_MS", Long.toString(WAIT_TIME_MS));
+    }
+
+
     public void initialize() {
         try {
             int portNumber = getFreeLocalPort();
@@ -157,6 +167,13 @@ public class PythonUDFOpExec implements TexeraOperatorExecutor {
         }catch(Exception e){
             closeAndThrow(flightClient, e);
         }
+
+        updateParamMap();
+    }
+
+    @Override
+    public String getParam(String query) {
+        return params.getOrDefault(query,null);
     }
 
     public boolean hasNext() {

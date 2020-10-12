@@ -1,9 +1,6 @@
-package Engine.Common.tuple.texera;
+package texera.common.tuple;
 
 import Engine.Common.tuple.Tuple;
-import Engine.Common.tuple.texera.schema.Attribute;
-import Engine.Common.tuple.texera.schema.AttributeType;
-import Engine.Common.tuple.texera.schema.Schema;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -13,6 +10,9 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Streams;
 import texera.common.TexeraUtils;
+import texera.common.tuple.schema.Attribute;
+import texera.common.tuple.schema.AttributeType;
+import texera.common.tuple.schema.Schema;
 
 import java.io.Serializable;
 import java.util.*;

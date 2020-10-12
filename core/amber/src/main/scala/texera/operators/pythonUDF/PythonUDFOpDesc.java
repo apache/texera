@@ -1,7 +1,6 @@
 package texera.operators.pythonUDF;
 
 import Engine.Common.Constants;
-import Engine.Common.tuple.texera.schema.Schema;
 import Engine.Operators.OpExecConfig;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
@@ -10,6 +9,7 @@ import scala.collection.Seq;
 import texera.common.metadata.OperatorGroupConstants;
 import texera.common.metadata.TexeraOperatorInfo;
 import texera.common.operators.TexeraOperatorDescriptor;
+import texera.common.tuple.schema.Schema;
 
 import java.util.List;
 
