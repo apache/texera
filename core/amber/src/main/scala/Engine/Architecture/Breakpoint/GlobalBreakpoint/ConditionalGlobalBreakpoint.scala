@@ -12,7 +12,7 @@ import Engine.Common.AmberMessage.WorkerMessage.{
   QueryBreakpoint,
   RemoveBreakpoint
 }
-import Engine.Common.AmberTuple.Tuple
+import Engine.Common.tuple.Tuple
 import akka.actor.ActorRef
 import akka.event.LoggingAdapter
 import akka.util.Timeout

@@ -1,6 +1,6 @@
 package Engine.Operators.SimpleCollection
 
-import Engine.Common.AmberTuple.{AmberTuple, Tuple}
+import Engine.Common.tuple.Tuple
 import Engine.Common.TupleProducer
 
 import scala.collection.mutable

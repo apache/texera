@@ -7,7 +7,7 @@ import Engine.Architecture.Breakpoint.GlobalBreakpoint.{
 import Engine.Architecture.Controller.Workflow
 import Engine.Common.AmberMessage.ControllerMessage.PassBreakpointTo
 import Engine.Common.AmberTag.OperatorTag
-import Engine.Common.AmberTuple.Tuple
+import Engine.Common.tuple.Tuple
 import Engine.Operators.OperatorMetadata
 import akka.actor.ActorRef
 import texera.common.{TexeraConstraintViolation, TexeraContext}

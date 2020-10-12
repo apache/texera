@@ -2,7 +2,7 @@ package Engine.Architecture.SendSemantics.DataTransferPolicy
 
 import Engine.Architecture.SendSemantics.Routees.BaseRoutee
 import Engine.Common.AmberTag.LinkTag
-import Engine.Common.AmberTuple.Tuple
+import Engine.Common.tuple.Tuple
 import akka.actor.{Actor, ActorContext, ActorRef}
 import akka.event.LoggingAdapter
 import akka.util.Timeout

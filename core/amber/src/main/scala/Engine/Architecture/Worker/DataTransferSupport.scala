@@ -4,7 +4,7 @@ import Engine.Architecture.SendSemantics.DataTransferPolicy.DataTransferPolicy
 import Engine.Architecture.SendSemantics.Routees.BaseRoutee
 import Engine.Common.AmberException.BreakpointException
 import Engine.Common.AmberTag.{LayerTag, LinkTag}
-import Engine.Common.AmberTuple.Tuple
+import Engine.Common.tuple.Tuple
 import akka.actor.{ActorContext, ActorRef}
 import akka.event.LoggingAdapter
 import akka.util.Timeout

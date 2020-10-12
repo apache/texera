@@ -1,7 +1,7 @@
 package Engine.Common
 
 import Engine.Common.AmberTag.LayerTag
-import Engine.Common.AmberTuple.Tuple
+import Engine.Common.tuple.Tuple
 
 trait GenericTupleProcessor[T] extends GenericTupleProducer[T] {
 

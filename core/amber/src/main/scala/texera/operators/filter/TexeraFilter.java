@@ -1,21 +1,11 @@
 package texera.operators.filter;
 
-import Engine.Common.AmberTuple.AmberTuple;
-import Engine.Common.AmberTuple.Tuple;
+import Engine.Common.tuple.Tuple;
 import Engine.Common.Constants;
 import Engine.Operators.Common.Filter.FilterGeneralMetadata;
-import Engine.Operators.Common.Map.MapMetadata;
-import Engine.Operators.Filter.FilterMetadata;
 import Engine.Operators.OperatorMetadata;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
-import edu.stanford.nlp.ling.CoreAnnotations;
-import edu.stanford.nlp.neural.rnn.RNNCoreAnnotations;
-import edu.stanford.nlp.pipeline.Annotation;
-import edu.stanford.nlp.sentiment.SentimentCoreAnnotations;
-import edu.stanford.nlp.trees.Tree;
-import edu.stanford.nlp.util.CoreMap;
-import org.apache.commons.lang3.ArrayUtils;
 import scala.Function1;
 import scala.Serializable;
 import scala.collection.immutable.Set;

@@ -1,8 +1,9 @@
-package Engine.Common.AmberTuple
+package Engine.Common.tuple
 
 import java.util
 
 import Engine.Common.AmberField.FieldType
+import Engine.Common.tuple.amber.AmberTuple
 
 import collection.JavaConverters._
 import scala.util.hashing.MurmurHash3

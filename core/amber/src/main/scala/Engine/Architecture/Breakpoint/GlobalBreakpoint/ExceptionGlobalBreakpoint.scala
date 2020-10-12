@@ -8,7 +8,7 @@ import Engine.Architecture.Breakpoint.LocalBreakpoint.{
 }
 import Engine.Common.AdvancedMessageSending
 import Engine.Common.AmberMessage.WorkerMessage.AssignBreakpoint
-import Engine.Common.AmberTuple.Tuple
+import Engine.Common.tuple.Tuple
 import akka.actor.ActorRef
 import akka.event.LoggingAdapter
 import akka.util.Timeout

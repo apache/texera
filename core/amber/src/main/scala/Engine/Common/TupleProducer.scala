@@ -1,6 +1,6 @@
 package Engine.Common
 
-import Engine.Common.AmberTuple.Tuple
+import Engine.Common.tuple.Tuple
 
 import scala.collection.mutable
 import scala.collection.mutable.HashMap

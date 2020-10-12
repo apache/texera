@@ -2,8 +2,8 @@ package Engine.Operators.PythonUDF;
 
 import Engine.Common.AmberException.AmberException;
 import Engine.Common.AmberTag.LayerTag;
-import Engine.Common.AmberTuple.AmberTuple;
-import Engine.Common.AmberTuple.Tuple;
+import Engine.Common.tuple.amber.AmberTuple;
+import Engine.Common.tuple.Tuple;
 import Engine.Common.TupleProcessor;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.arrow.flight.*;

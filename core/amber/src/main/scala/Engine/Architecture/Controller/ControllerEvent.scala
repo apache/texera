@@ -2,7 +2,7 @@ package Engine.Architecture.Controller
 
 import Engine.Architecture.Breakpoint.FaultedTuple
 import Engine.Architecture.Principal.{PrincipalState, PrincipalStatistics}
-import Engine.Common.AmberTuple.Tuple
+import Engine.Common.tuple.Tuple
 import akka.actor.ActorRef
 
 import scala.collection.mutable

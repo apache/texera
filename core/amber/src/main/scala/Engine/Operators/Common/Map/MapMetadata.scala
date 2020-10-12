@@ -6,7 +6,7 @@ import Engine.Architecture.DeploySemantics.DeploymentFilter.FollowPrevious
 import Engine.Architecture.DeploySemantics.Layer.{ActorLayer, ProcessorWorkerLayer}
 import Engine.Architecture.Worker.WorkerState
 import Engine.Common.AmberTag.{LayerTag, OperatorTag}
-import Engine.Common.AmberTuple.{AmberTuple, Tuple}
+import Engine.Common.tuple.Tuple
 import Engine.Operators.OperatorMetadata
 import akka.actor.ActorRef
 import akka.event.LoggingAdapter

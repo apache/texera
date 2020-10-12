@@ -2,7 +2,6 @@ package texera.operators.localscan;
 
 import Engine.Common.Constants;
 import Engine.Operators.OperatorMetadata;
-import Engine.Operators.Scan.LocalFileScan.LocalFileScanMetadata;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import texera.common.schema.OperatorGroupConstants;
@@ -22,7 +21,7 @@ public class TexeraLocalFileScan extends TexeraOperator {
 
     @Override
     public OperatorMetadata amberOperator() {
-        return new LocalFileScanMetadata(this.amberOperatorTag(), Constants.defaultNumWorkers(),
+        return new TexeraLocalFileScanMetadata(this.amberOperatorTag(), Constants.defaultNumWorkers(),
                 filePath, delimiter.charAt(0), null, null);
     }
 

@@ -1,8 +1,8 @@
 package Engine.Operators.HashJoin;
 
 import Engine.Common.AmberTag.LayerTag;
-import Engine.Common.AmberTuple.AmberTuple;
-import Engine.Common.AmberTuple.Tuple;
+import Engine.Common.tuple.amber.AmberTuple;
+import Engine.Common.tuple.Tuple;
 import Engine.Common.TupleProcessor;
 import org.apache.commons.lang3.ArrayUtils;
 

@@ -16,7 +16,7 @@ import Engine.Common.AmberMessage.PrincipalMessage.{
 }
 import Engine.Common.AmberMessage.WorkerMessage.{DataMessage, UpdateOutputLinking}
 import Engine.Common.AmberTag.{LayerTag, LinkTag, OperatorTag, WorkerTag, WorkflowTag}
-import Engine.Common.AmberTuple.Tuple
+import Engine.Common.tuple.Tuple
 import Engine.Common.{TableMetadata, TupleMetadata}
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}

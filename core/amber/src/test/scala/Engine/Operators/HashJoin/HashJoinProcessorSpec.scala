@@ -15,7 +15,7 @@ import Engine.Common.AmberMessage.WorkerMessage.{
   UpdateOutputLinking
 }
 import Engine.Common.AmberTag.{LayerTag, LinkTag, OperatorTag, WorkerTag, WorkflowTag}
-import Engine.Common.AmberTuple.Tuple
+import Engine.Common.tuple.Tuple
 import Engine.Common.{TableMetadata, TupleMetadata}
 import akka.actor.{ActorSystem, PoisonPill}
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}

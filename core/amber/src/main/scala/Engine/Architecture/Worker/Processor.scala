@@ -10,25 +10,11 @@ import Engine.Common.AmberMessage.WorkerMessage._
 import Engine.Common.AmberMessage.StateMessage._
 import Engine.Common.AmberMessage.ControlMessage.{QueryState, _}
 import Engine.Common.AmberTag.{LayerTag, WorkerTag}
-import Engine.Common.AmberTuple.{AmberTuple, Tuple}
-import Engine.Common.{
-  AdvancedMessageSending,
-  Constants,
-  ElidableStatement,
-  TableMetadata,
-  ThreadState,
-  TupleProcessor
-}
+import Engine.Common.tuple.Tuple
+import Engine.Common.{AdvancedMessageSending, Constants, ElidableStatement, TupleSink, TableMetadata, ThreadState, TupleProcessor}
 import Engine.Operators.Filter.{FilterMetadata, FilterSpecializedTupleProcessor, FilterType}
 import Engine.Operators.KeywordSearch.{KeywordSearchMetadata, KeywordSearchTupleProcessor}
-import Engine.Common.{
-  AdvancedMessageSending,
-  ElidableStatement,
-  TableMetadata,
-  ThreadState,
-  TupleProcessor
-}
-import Engine.Operators.Sink.SimpleSinkProcessor
+import Engine.Operators.Sink.SimpleTupleSinkProcessor
 import Engine.FaultTolerance.Recovery.RecoveryPacket
 import Engine.Operators.Common.Filter.{FilterGeneralMetadata, FilterGeneralTupleProcessor}
 import Engine.Operators.OperatorMetadata
@@ -160,8 +146,8 @@ class Processor(var dataProcessor: TupleProcessor, val tag: WorkerTag) extends W
 
   override def getResultTuples(): mutable.MutableList[Tuple] = {
     this.dataProcessor match {
-      case processor: SimpleSinkProcessor =>
-        processor.getResultTuples()
+      case processor: TupleSink =>
+        mutable.MutableList(processor.getResultTuples():_*)
       case _ =>
         mutable.MutableList()
     }

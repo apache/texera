@@ -1,6 +1,6 @@
 package texera.operators.sleep;
 
-import Engine.Common.AmberTuple.Tuple;
+import Engine.Common.tuple.Tuple;
 import Engine.Common.Constants;
 import Engine.Operators.Common.Map.MapMetadata;
 import Engine.Operators.OperatorMetadata;

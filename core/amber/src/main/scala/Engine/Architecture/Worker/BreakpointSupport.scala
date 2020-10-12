@@ -2,7 +2,7 @@ package Engine.Architecture.Worker
 
 import Engine.Architecture.Breakpoint.FaultedTuple
 import Engine.Architecture.Breakpoint.LocalBreakpoint.LocalBreakpoint
-import Engine.Common.AmberTuple.Tuple
+import Engine.Common.tuple.Tuple
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer

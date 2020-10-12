@@ -1,6 +1,6 @@
 package Engine.Operators.Scan.HDFSFileScan;
 
-import Engine.Common.AmberTuple.Tuple;
+import Engine.Common.tuple.Tuple;
 import Engine.Common.TableMetadata;
 import Engine.Common.TupleProducer;
 import Engine.Operators.Scan.BufferedBlockReader;

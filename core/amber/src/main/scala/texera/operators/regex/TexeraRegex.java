@@ -1,10 +1,8 @@
 package texera.operators.regex;
 
-import Engine.Common.AmberTuple.Tuple;
+import Engine.Common.tuple.Tuple;
 import Engine.Common.Constants;
 import Engine.Operators.Common.Filter.FilterGeneralMetadata;
-import Engine.Operators.Common.Map.MapMetadata;
-import Engine.Operators.KeywordSearch.KeywordSearchMetadata;
 import Engine.Operators.OperatorMetadata;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
@@ -15,7 +13,6 @@ import texera.common.TexeraConstraintViolation;
 import texera.common.schema.OperatorGroupConstants;
 import texera.common.schema.TexeraOperatorDescription;
 import texera.common.workflow.TexeraOperator;
-import texera.operators.filter.FilterPredicate;
 
 import java.util.regex.Pattern;
 

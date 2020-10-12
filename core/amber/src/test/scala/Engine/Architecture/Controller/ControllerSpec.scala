@@ -13,7 +13,7 @@ import Engine.Common.AmberMessage.ControllerMessage.{
 }
 import Engine.Common.AmberMessage.WorkerMessage.DataMessage
 import Engine.Common.AmberTag.OperatorTag
-import Engine.Common.AmberTuple.Tuple
+import Engine.Common.tuple.Tuple
 import Engine.Common.Constants
 import Engine.Operators.KeywordSearch.KeywordSearchMetadata
 import akka.actor.{ActorSystem, PoisonPill, Props}

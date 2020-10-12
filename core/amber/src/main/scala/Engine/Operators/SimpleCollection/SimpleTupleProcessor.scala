@@ -1,7 +1,7 @@
 package Engine.Operators.SimpleCollection
 
 import Engine.Common.AmberTag.LayerTag
-import Engine.Common.AmberTuple.Tuple
+import Engine.Common.tuple.Tuple
 import Engine.Common.{TableMetadata, TupleProcessor}
 
 import scala.collection.mutable

@@ -22,7 +22,7 @@ import Engine.Common.AmberMessage.ControllerMessage.{
 }
 import Engine.Common.AmberMessage.WorkerMessage.{DataMessage, EndSending}
 import Engine.Common.AmberTag.{LayerTag, LinkTag, OperatorTag, WorkerTag, WorkflowTag}
-import Engine.Common.AmberTuple.Tuple
+import Engine.Common.tuple.Tuple
 import akka.actor.{ActorSystem, PoisonPill, Props}
 import akka.event.LoggingAdapter
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}

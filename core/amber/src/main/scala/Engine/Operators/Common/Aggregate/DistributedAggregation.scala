@@ -1,6 +1,6 @@
 package Engine.Operators.Common.Aggregate
 
-import Engine.Common.AmberTuple.Tuple
+import Engine.Common.tuple.Tuple
 
 case class DistributedAggregation(
     // () => PartialObject
