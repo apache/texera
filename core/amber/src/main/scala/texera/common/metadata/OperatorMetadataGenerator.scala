@@ -7,7 +7,7 @@ import com.fasterxml.jackson.databind.introspect.AnnotatedClass
 import com.fasterxml.jackson.databind.jsontype.NamedType
 import com.fasterxml.jackson.databind.node.{ArrayNode, ObjectNode}
 import com.kjetland.jackson.jsonSchema.JsonSchemaConfig.html5EnabledSchema
-import com.kjetland.jackson.jsonSchema.{JsonSchemaDraft, JsonSchemaGenerator}
+import com.kjetland.jackson.jsonSchema.{JsonSchemaConfig, JsonSchemaDraft, JsonSchemaGenerator}
 import texera.common.TexeraUtils.objectMapper
 import texera.common.workflow.TexeraOperatorDescriptor
 import texera.operators.aggregate.AverageOpDesc
@@ -52,7 +52,7 @@ object OperatorMetadataGenerator {
     println(generateOperatorJsonSchema(classOf[AverageOpDesc]).toPrettyString)
   }
 
-  val texeraSchemaGeneratorConfig = html5EnabledSchema.copy(
+  val texeraSchemaGeneratorConfig: JsonSchemaConfig = html5EnabledSchema.copy(
     defaultArrayFormat = None,
     jsonSchemaDraft = JsonSchemaDraft.DRAFT_07
   )

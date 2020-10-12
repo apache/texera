@@ -8,11 +8,11 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Streams;
+import texera.common.TexeraUtils;
 
 import java.io.Serializable;
 import java.util.*;
@@ -133,10 +133,10 @@ public class TexeraTuple implements Tuple, Serializable {
      * Therefore it cannot be converted back to a tuple object again.
      * @return
      */
-    public ObjectNode getReadableJson() {
-        ObjectNode objectNode = new ObjectMapper().createObjectNode();
+    public ObjectNode asKeyValuePairJson() {
+        ObjectNode objectNode = TexeraUtils.objectMapper().createObjectNode();
         for (String attrName : this.schema.getAttributeNames()) {
-            JsonNode valueNode = new ObjectMapper().convertValue(this.getField(attrName), JsonNode.class).get("value");
+            JsonNode valueNode = TexeraUtils.objectMapper().convertValue(this.getField(attrName), JsonNode.class);
             objectNode.set(attrName, valueNode);
         }
         return objectNode;

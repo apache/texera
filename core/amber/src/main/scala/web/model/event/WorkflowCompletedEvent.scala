@@ -1,10 +1,12 @@
 package web.model.event
 
 import Engine.Architecture.Controller.ControllerEvent.WorkflowCompleted
+import Engine.Common.tuple.texera.TexeraTuple
+import com.fasterxml.jackson.databind.node.ObjectNode
 
 import scala.collection.mutable
 
-case class OperatorResult(operatorID: String, table: List[List[String]])
+case class OperatorResult(operatorID: String, table: List[ObjectNode])
 
 object WorkflowCompletedEvent {
 
@@ -13,7 +15,7 @@ object WorkflowCompletedEvent {
     val resultList = new mutable.MutableList[OperatorResult]
     workflowCompleted.result.foreach(pair => {
       val operatorID = pair._1
-      val table = pair._2.map(tuple => tuple.toArray().map(v => if(v == null) "" else v.toString).toList)
+      val table = pair._2.map(tuple => tuple.asInstanceOf[TexeraTuple].asKeyValuePairJson())
       resultList += OperatorResult(operatorID, table)
     })
     WorkflowCompletedEvent(resultList.toList)
