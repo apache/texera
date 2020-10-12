@@ -16,24 +16,24 @@ import scala.concurrent.ExecutionContext
 
 class SimpleSinkOpExecConfig(tag: OperatorTag) extends OpExecConfig(tag) {
   override lazy val topology = new Topology(
-      Array(
-        new ProcessorWorkerLayer(
-          LayerTag(tag, "main"),
-          _ => new SimpleSinkOpExec(),
-          1,
-          ForceLocal(),
-          RandomDeployment()
-        )
-      ),
-      Array(),
-      Map()
-    )
+    Array(
+      new ProcessorWorkerLayer(
+        LayerTag(tag, "main"),
+        _ => new SimpleSinkOpExec(),
+        1,
+        ForceLocal(),
+        RandomDeployment()
+      )
+    ),
+    Array(),
+    Map()
+  )
 
   override def assignBreakpoint(
-                                 topology: Array[ActorLayer],
-                                 states: mutable.AnyRefMap[ActorRef, WorkerState.Value],
-                                 breakpoint: GlobalBreakpoint
-                               )(implicit timeout: Timeout, ec: ExecutionContext, log: LoggingAdapter): Unit = {
+      topology: Array[ActorLayer],
+      states: mutable.AnyRefMap[ActorRef, WorkerState.Value],
+      breakpoint: GlobalBreakpoint
+  )(implicit timeout: Timeout, ec: ExecutionContext, log: LoggingAdapter): Unit = {
     breakpoint.partition(topology(0).layer.filter(states(_) != WorkerState.Completed))
   }
 }

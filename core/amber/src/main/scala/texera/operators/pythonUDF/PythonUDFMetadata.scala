@@ -30,7 +30,7 @@ class PythonUDFMetadata(
       Array(
         new ProcessorWorkerLayer(
           LayerTag(tag, "main"),
-          _ => new PythonUDFOperatorExecutor(
+          _ => new PythonUDFOpExec(
             pythonScriptFile,
             new util.ArrayList[String](inputColumns.asJava),
             new util.ArrayList[String](outputColumns.asJava),

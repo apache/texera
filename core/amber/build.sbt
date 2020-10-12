@@ -39,7 +39,7 @@ libraryDependencies ++= Seq(
 val dropwizardVersion = "1.3.23"
 // jersey version should be the same as jersey-server that is contained in dropwizard
 val jerseyMultipartVersion = "2.25.1"
-val jacksonVersion = "2.9.10"
+val jacksonVersion = "2.11.3"
 
 libraryDependencies ++= Seq(
   "io.dropwizard" % "dropwizard-core" % dropwizardVersion,
@@ -51,6 +51,8 @@ libraryDependencies ++= Seq(
   "com.fasterxml.jackson.module" % "jackson-module-jsonSchema" % jacksonVersion,
   "com.fasterxml.jackson.module" % "jackson-module-scala_2.12" % jacksonVersion
 )
+
+libraryDependencies += "com.kjetland" % "mbknor-jackson-jsonschema_2.12" % "1.0.39"
 
 libraryDependencies += "edu.stanford.nlp" % "stanford-corenlp" % "3.9.2"
 libraryDependencies += "edu.stanford.nlp" % "stanford-corenlp" % "3.9.2" classifier "models"

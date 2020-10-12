@@ -13,7 +13,7 @@ import Engine.Common.AmberTag.{LayerTag, WorkerTag}
 import Engine.Common.tuple.Tuple
 import Engine.Common.{AdvancedMessageSending, Constants, ElidableStatement, InputExhausted, OperatorExecutor, TableMetadata, ThreadState, TupleSink}
 import Engine.FaultTolerance.Recovery.RecoveryPacket
-import texera.operators.Common.Filter.{FilterOpExec, FilterOpExecConfig}
+import texera.common.operators.filter.{TexeraFilterOpExec, TexeraFilterOpExecConfig}
 import Engine.Operators.OpExecConfig
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Stash}
 import akka.event.LoggingAdapter
@@ -65,8 +65,8 @@ class Processor(var dataProcessor: OperatorExecutor, val tag: WorkerTag) extends
       savedModifyLogic.nonEmpty && savedModifyLogic.head._1 == 0 && savedModifyLogic.head._2 == 0
     ) {
       savedModifyLogic.head._3 match {
-        case filterOpExecConfig: FilterOpExecConfig =>
-          val dp = dataProcessor.asInstanceOf[FilterOpExec]
+        case filterOpExecConfig: TexeraFilterOpExecConfig =>
+          val dp = dataProcessor.asInstanceOf[TexeraFilterOpExec]
           dp.filterFunc = filterOpExecConfig.filterFunc
         case t => throw new NotImplementedError("Unknown operator type: " + t)
       }
@@ -328,8 +328,8 @@ class Processor(var dataProcessor: OperatorExecutor, val tag: WorkerTag) extends
       savedModifyLogic.enqueue((generatedCount, processedCount, newMetadata))
       log.info("modify logic received by worker " + this.self.path.name + ", updating logic")
       newMetadata match {
-        case filterOpMetadata: FilterOpExecConfig =>
-          val dp = dataProcessor.asInstanceOf[FilterOpExec]
+        case filterOpMetadata: TexeraFilterOpExecConfig =>
+          val dp = dataProcessor.asInstanceOf[TexeraFilterOpExec]
           dp.filterFunc = filterOpMetadata.filterFunc
         case t => throw new NotImplementedError("Unknown operator type: " + t)
       }
@@ -424,8 +424,8 @@ class Processor(var dataProcessor: OperatorExecutor, val tag: WorkerTag) extends
           s"id: ${this.tag}"
       )
       savedModifyLogic.head._3 match {
-        case filterOpMetadata: FilterOpExecConfig =>
-          val dp = dataProcessor.asInstanceOf[FilterOpExec]
+        case filterOpMetadata: TexeraFilterOpExecConfig =>
+          val dp = dataProcessor.asInstanceOf[TexeraFilterOpExec]
           dp.filterFunc = filterOpMetadata.filterFunc
         case t => throw new NotImplementedError("Unknown operator type: " + t)
       }

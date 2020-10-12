@@ -8,14 +8,15 @@ import Engine.Operators.OpExecConfig
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonSubTypes, JsonTypeInfo}
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
-import texera.common.schema.{PropertyNameConstants, TexeraOperatorDescription}
+import texera.common.metadata.{PropertyNameConstants, TexeraOperatorInfo}
 import texera.common.{TexeraConstraintViolation, TexeraContext}
-import texera.operators.filter.TexeraFilterOpDesc
-import texera.operators.localscan.TexeraLocalCsvFileScanOpDesc
-import texera.operators.pythonUDF.TexeraPythonUDFOpDesc
-import texera.operators.regex.TexeraRegexOpDesc
-import texera.operators.sentiment.TexeraSentimentAnalysisOpDesc
-import texera.operators.sink.TexeraSimpleSinkOpDesc
+import texera.operators.aggregate.AverageOpDesc
+import texera.operators.filter.SpecializedFilterOpDesc
+import texera.operators.localscan.LocalCsvFileScanOpDesc
+import texera.operators.pythonUDF.PythonUDFOpDesc
+import texera.operators.regex.RegexOpDescTexera
+import texera.operators.sentiment.SentimentAnalysisOpDescTexera
+import texera.operators.sink.SimpleSinkOpDesc
 
 
 @JsonTypeInfo(
@@ -25,15 +26,16 @@ import texera.operators.sink.TexeraSimpleSinkOpDesc
 )
 @JsonSubTypes(
   Array(
-    new Type(value = classOf[TexeraLocalCsvFileScanOpDesc], name = "LocalFileScan"),
-    new Type(value = classOf[TexeraSimpleSinkOpDesc], name = "AdhocSink"),
-    new Type(value = classOf[TexeraRegexOpDesc], name = "Regex"),
-    new Type(value = classOf[TexeraFilterOpDesc], name = "Filter"),
-    new Type(value = classOf[TexeraSentimentAnalysisOpDesc], name = "SentimentAnalysis"),
+    new Type(value = classOf[LocalCsvFileScanOpDesc], name = "LocalFileScan"),
+    new Type(value = classOf[SimpleSinkOpDesc], name = "SimpleSink"),
+    new Type(value = classOf[RegexOpDescTexera], name = "Regex"),
+    new Type(value = classOf[SpecializedFilterOpDesc], name = "Filter"),
+    new Type(value = classOf[SentimentAnalysisOpDescTexera], name = "SentimentAnalysis"),
+    new Type(value = classOf[AverageOpDesc], name = "Average"),
 //    new Type(value = classOf[TexeraPythonUDFOpDesc], name = "PythonUDF"),
   )
 )
-abstract class TexeraOperatorDescriptor {
+abstract class TexeraOperatorDescriptor extends Serializable {
 
   @JsonIgnore var context: TexeraContext = _
 
@@ -41,9 +43,9 @@ abstract class TexeraOperatorDescriptor {
 
   def amberOperatorTag: OperatorTag = OperatorTag.apply(this.context.workflowID, this.operatorID)
 
-  def amberOperator: OpExecConfig
+  def texeraOpExec: OpExecConfig
 
-  def texeraOperatorDescription: TexeraOperatorDescription
+  def texeraOperatorInfo: TexeraOperatorInfo
 
   def transformSchema(schemas: Schema*): Schema
 

@@ -1,6 +1,6 @@
 package texera.operators.sink
 
-import Engine.Common.TupleSink
+import Engine.Common.{InputExhausted, TupleSink}
 import Engine.Common.tuple.Tuple
 
 import scala.collection.mutable
@@ -17,11 +17,14 @@ class SimpleSinkOpExec extends TupleSink {
 
   override def close(): Unit = {}
 
-  override def processTuple(tuple: Tuple, input: Int): scala.Iterator[Tuple] = {
-    System.out.println(tuple)
-    this.results += tuple
-    Iterator()
+  override def processTuple(tuple: Either[Tuple, InputExhausted], input: Int): scala.Iterator[Tuple] = {
+    tuple match {
+      case Left(t) =>
+        this.results += t
+        Iterator()
+      case Right(_) =>
+        Iterator()
+    }
   }
-  override def inputExhausted(input: Int): Iterator[Tuple] = { Iterator() }
 
 }

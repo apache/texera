@@ -12,8 +12,8 @@ import javax.websocket.server.ServerEndpoint
 import javax.websocket._
 import texera.common.workflow.{TexeraWorkflow, TexeraWorkflowCompiler}
 import texera.common.{TexeraContext, TexeraUtils}
-import texera.operators.localscan.TexeraLocalCsvFileScanOpDesc
-import texera.operators.sink.TexeraSimpleSinkOpDesc
+import texera.operators.localscan.LocalCsvFileScanOpDesc
+import texera.operators.sink.SimpleSinkOpDesc
 import web.TexeraWebApplication
 import web.model.event._
 import web.model.request._
@@ -107,7 +107,7 @@ class WorkflowWebsocketResource {
     val texeraOperator = newLogic.operator
     val (compiler, controller) = WorkflowWebsocketResource.sessionJobs(session.getId)
     compiler.initOperator(texeraOperator)
-    controller ! ModifyLogic(texeraOperator.amberOperator)
+    controller ! ModifyLogic(texeraOperator.texeraOpExec)
   }
 
   def pauseWorkflow(session: Session): Unit = {
@@ -132,22 +132,6 @@ class WorkflowWebsocketResource {
     val context = new TexeraContext
     val workflowID = Integer.toString(WorkflowWebsocketResource.nextWorkflowID.incrementAndGet)
     context.workflowID = workflowID
-    context.customFieldIndexMapping = Map(
-      "create_at" -> 0,
-      "id" -> 1,
-      "text" -> 2,
-      "favorite_count" -> 3,
-      "retweet_count" -> 4,
-      "lang" -> 5,
-      "is_retweet" -> 6,
-      "sentiment" -> 7
-    )
-
-    val scan = request.operators
-      .find(p => p.isInstanceOf[TexeraLocalCsvFileScanOpDesc])
-    if (scan.nonEmpty && scan.get.asInstanceOf[TexeraLocalCsvFileScanOpDesc].filePath.contains("tweet_1K")) {
-      context.isOneK = true
-    }
 
     val texeraWorkflowCompiler = new TexeraWorkflowCompiler(
       TexeraWorkflow(request.operators, request.links, request.breakpoints),
@@ -172,7 +156,7 @@ class WorkflowWebsocketResource {
       workflowStatusUpdateListener = statusUpdate => {
         val updateMutable = mutable.HashMap(statusUpdate.operatorStatistics.toSeq: _*)
         val sinkID = texeraWorkflowCompiler.texeraWorkflow.operators
-          .find(p => p.isInstanceOf[TexeraSimpleSinkOpDesc])
+          .find(p => p.isInstanceOf[SimpleSinkOpDesc])
           .get
           .operatorID
         val sinkInputID = texeraWorkflowCompiler.texeraWorkflow.links
