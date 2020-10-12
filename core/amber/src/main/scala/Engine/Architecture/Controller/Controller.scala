@@ -20,7 +20,7 @@ import Engine.Common.AmberTag.{AmberTag, LayerTag, LinkTag, OperatorTag, Workflo
 import Engine.Common.tuple.Tuple
 import Engine.Common.{AdvancedMessageSending, AmberUtils, Constants, SourceOperatorExecutor}
 import Engine.FaultTolerance.Scanner.HDFSFolderScanSourceOperatorExecutor
-import Engine.Operators.OperatorMetadata
+import Engine.Operators.OpExecConfig
 import akka.actor.{Actor, ActorLogging, ActorRef, ActorSelection, Address, Cancellable, Deploy, PoisonPill, Props, Stash}
 import akka.dispatch.Futures
 import akka.event.LoggingAdapter
@@ -75,7 +75,7 @@ object Controller {
         .groupBy(_._1)
         .map { case (k, v) => (k, v.map(_._2).toSet) }
     val operatorArray: JsArray = (json \ "operators").as[JsArray]
-    val operators: mutable.Map[OperatorTag, OperatorMetadata] = mutable.Map(
+    val operators: mutable.Map[OperatorTag, OpExecConfig] = mutable.Map(
       operatorArray.value.map(x =>
         (OperatorTag(tag, x("operatorID").as[String]), jsonToOperatorMetadata(tag, x))
       ): _*
@@ -90,7 +90,7 @@ object Controller {
 
   }
 
-  private def jsonToOperatorMetadata(workflowTag: WorkflowTag, json: JsValue): OperatorMetadata = {
+  private def jsonToOperatorMetadata(workflowTag: WorkflowTag, json: JsValue): OpExecConfig = {
     val id = json("operatorID").as[String]
     val tag = OperatorTag(workflowTag.workflow, id)
 //    json("operatorType").as[String] match {
@@ -212,7 +212,7 @@ class Controller(
   private def queryExecuteStatistics(): Unit = {}
 
   //if checkpoint activated:
-  private def insertCheckpoint(from: OperatorMetadata, to: OperatorMetadata): Unit = {
+  private def insertCheckpoint(from: OpExecConfig, to: OpExecConfig): Unit = {
     //insert checkpoint barrier between 2 operators and delete the link between them
     val topology = from.topology
     val hashFunc = to.getShuffleHashFunction(topology.layers.last.tag)
@@ -330,7 +330,7 @@ class Controller(
           y =>
             y match {
               case AckWithInformation(z) =>
-                workflow.operators(x) = z.asInstanceOf[OperatorMetadata]
+                workflow.operators(x) = z.asInstanceOf[OpExecConfig]
                 //assign exception breakpoint before all breakpoints
                 if (!recoveryMode) {
                   AdvancedMessageSending.blockingAskWithRetry(
@@ -373,7 +373,7 @@ class Controller(
           y =>
             y match {
               case AckWithInformation(z) =>
-                workflow.operators(x) = z.asInstanceOf[OperatorMetadata]
+                workflow.operators(x) = z.asInstanceOf[OpExecConfig]
                 //assign exception breakpoint before all breakpoints
                 if (!recoveryMode) {
                   AdvancedMessageSending.blockingAskWithRetry(
@@ -483,7 +483,7 @@ class Controller(
             y =>
               y match {
                 case AckWithInformation(z) =>
-                  workflow.operators(k) = z.asInstanceOf[OperatorMetadata]
+                  workflow.operators(k) = z.asInstanceOf[OpExecConfig]
                   //assign exception breakpoint before all breakpoints
                   if (!recoveryMode) {
                     AdvancedMessageSending.blockingAskWithRetry(

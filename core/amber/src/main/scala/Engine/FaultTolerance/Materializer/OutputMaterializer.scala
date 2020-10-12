@@ -1,6 +1,5 @@
 package Engine.FaultTolerance.Materializer
 
-import Engine.Common.AmberTag.LayerTag
 import Engine.Common.tuple.Tuple
 import Engine.Common.OperatorExecutor
 import org.apache.hadoop.conf.Configuration
@@ -15,32 +14,26 @@ class OutputMaterializer(val outputPath: String, val remoteHDFS: String = null)
 
   var writer: BufferedWriter = _
 
-  override def accept(tuple: Tuple): Unit = {
-    writer.write(tuple.mkString("|"))
+  override def open(): Unit = {
+    writer = new BufferedWriter(new FileWriter(outputPath))
   }
 
-  override def onUpstreamChanged(from: LayerTag): Unit = {}
+  override def close(): Unit = {
+    writer.close()
+  }
 
-  override def noMore(): Unit = {
+  override def processTuple(tuple: Tuple, input: Int): scala.Iterator[Tuple] = {
+    writer.write(tuple.mkString("|"))
+    Iterator()
+  }
+
+  override def inputExhausted(input: Int): Iterator[Tuple] = {
     writer.close()
     if (remoteHDFS != null) {
       val fs = FileSystem.get(new URI(remoteHDFS), new Configuration())
       fs.copyFromLocalFile(new Path(outputPath), new Path(outputPath))
       fs.close()
     }
+    Iterator()
   }
-
-  override def initialize(): Unit = {
-    writer = new BufferedWriter(new FileWriter(outputPath))
-  }
-
-  override def hasNext: Boolean = false
-
-  override def next(): Tuple = ???
-
-  override def dispose(): Unit = {
-    writer.close()
-  }
-
-  override def onUpstreamExhausted(from: LayerTag): Unit = {}
 }

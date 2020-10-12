@@ -14,7 +14,7 @@ import akka.util.Timeout
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
-abstract class OperatorMetadata(val tag: OperatorTag) extends Serializable {
+abstract class OpExecConfig(val tag: OperatorTag) extends Serializable {
 
   class Topology(
       var layers: Array[ActorLayer],

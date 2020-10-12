@@ -20,14 +20,24 @@ class HashBasedMaterializer(
 
   var writer: Array[BufferedWriter] = _
 
-  override def accept(tuple: Tuple): Unit = {
-    val index = (hashFunc(tuple) % numBuckets + numBuckets) % numBuckets
-    writer(index).write(tuple.mkString("|"))
+  override def open(): Unit = {
+    writer = new Array[BufferedWriter](numBuckets)
+    for (i <- 0 until numBuckets) {
+      writer(i) = new BufferedWriter(new FileWriter(outputPath + "/" + index + "/" + i + ".tmp"))
+    }
   }
 
-  override def onUpstreamChanged(from: LayerTag): Unit = {}
+  override def close(): Unit = {
+    writer.foreach(_.close())
+  }
 
-  override def noMore(): Unit = {
+  override def processTuple(tuple: Tuple, input: Int): scala.Iterator[Tuple] = {
+    val index = (hashFunc(tuple) % numBuckets + numBuckets) % numBuckets
+    writer(index).write(tuple.mkString("|"))
+    Iterator()
+  }
+
+  override def inputExhausted(input: Int): Iterator[Tuple] = {
     for (i <- 0 until numBuckets) {
       writer(i).close()
     }
@@ -41,22 +51,7 @@ class HashBasedMaterializer(
       }
       fs.close()
     }
+    Iterator()
   }
 
-  override def initialize(): Unit = {
-    writer = new Array[BufferedWriter](numBuckets)
-    for (i <- 0 until numBuckets) {
-      writer(i) = new BufferedWriter(new FileWriter(outputPath + "/" + index + "/" + i + ".tmp"))
-    }
-  }
-
-  override def hasNext: Boolean = false
-
-  override def next(): Tuple = ???
-
-  override def dispose(): Unit = {
-    writer.foreach(_.close())
-  }
-
-  override def onUpstreamExhausted(from: LayerTag): Unit = {}
 }

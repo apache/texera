@@ -7,7 +7,7 @@ import Engine.Common.AmberMessage.PrincipalMessage.{GetInputLayer, GetOutputLaye
 import Engine.Common.AmberMessage.WorkerMessage.UpdateOutputLinking
 import Engine.Common.AmberTag.LinkTag
 import Engine.Common.{AdvancedMessageSending, Constants, TupleSink}
-import Engine.Operators.OperatorMetadata
+import Engine.Operators.OpExecConfig
 import akka.actor.ActorRef
 import akka.event.LoggingAdapter
 import akka.pattern.ask
@@ -17,7 +17,7 @@ import scala.concurrent.{Await, ExecutionContext}
 import scala.concurrent.duration._
 
 //ugly design, but I don't know how to make it better
-class OperatorLink(val from: (OperatorMetadata, ActorRef), val to: (OperatorMetadata, ActorRef))
+class OperatorLink(val from: (OpExecConfig, ActorRef), val to: (OpExecConfig, ActorRef))
     extends Serializable {
   implicit val timeout: Timeout = 5.seconds
   var linkStrategy: LinkStrategy = _

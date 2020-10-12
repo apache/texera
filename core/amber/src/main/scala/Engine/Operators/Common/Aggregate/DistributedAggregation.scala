@@ -2,13 +2,13 @@ package Engine.Operators.Common.Aggregate
 
 import Engine.Common.tuple.Tuple
 
-case class DistributedAggregation(
+case class DistributedAggregation[T <: Tuple, P <: AnyRef](
     // () => PartialObject
-    init: () => Tuple,
+    init: () => P,
     // PartialObject + Tuple => PartialObject
-    iterate: (Tuple, Tuple) => Tuple,
+    iterate: (P, T) => P,
     // PartialObject + PartialObject => PartialObject
-    merge: (Tuple, Tuple) => Tuple,
+    merge: (P, P) => P,
     // PartialObject => FinalObject
-    finalAgg: Tuple => Tuple
+    finalAgg: P => T
 )

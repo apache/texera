@@ -2,7 +2,7 @@ package Engine.Architecture.Controller
 
 import Engine.Common.AmberTag.OperatorTag
 import Engine.Common.AmberUtils
-import Engine.Operators.OperatorMetadata
+import Engine.Operators.OpExecConfig
 
 import scala.collection.{JavaConverters, mutable}
 
@@ -17,8 +17,8 @@ import scala.collection.{JavaConverters, mutable}
 //}
 
 class Workflow(
-    val operators: mutable.Map[OperatorTag, OperatorMetadata],
-    val outLinks: Map[OperatorTag, Set[OperatorTag]]
+                val operators: mutable.Map[OperatorTag, OpExecConfig],
+                val outLinks: Map[OperatorTag, Set[OperatorTag]]
 ) {
   val inLinks: Map[OperatorTag, Set[OperatorTag]] = AmberUtils.reverseMultimap(outLinks)
   val startOperators: Iterable[OperatorTag] = operators.keys.filter(!inLinks.contains(_))

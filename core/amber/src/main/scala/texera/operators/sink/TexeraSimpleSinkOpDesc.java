@@ -1,18 +1,18 @@
 package texera.operators.sink;
 
 import Engine.Common.tuple.texera.schema.Schema;
-import Engine.Operators.OperatorMetadata;
+import Engine.Operators.OpExecConfig;
 import com.google.common.base.Preconditions;
 import scala.collection.Seq;
 import texera.common.schema.OperatorGroupConstants;
 import texera.common.schema.TexeraOperatorDescription;
-import texera.common.workflow.TexeraOperator;
+import texera.common.workflow.OperatorDescriptor;
 
-public class TexeraAdhocSink extends TexeraOperator {
+public class TexeraSimpleSinkOpDesc extends OperatorDescriptor {
 
     @Override
-    public OperatorMetadata amberOperator() {
-        return new SimpleSinkOperatorMetadata(this.amberOperatorTag());
+    public OpExecConfig amberOperator() {
+        return new SimpleSinkOpExecConfig(this.amberOperatorTag());
     }
 
     @Override

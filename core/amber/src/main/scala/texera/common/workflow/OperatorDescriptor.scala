@@ -4,21 +4,19 @@ import java.util.UUID
 
 import Engine.Common.AmberTag.OperatorTag
 import Engine.Common.tuple.texera.schema.Schema
-import Engine.Operators.OperatorMetadata
+import Engine.Operators.OpExecConfig
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonSubTypes, JsonTypeInfo}
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
 import texera.common.schema.{PropertyNameConstants, TexeraOperatorDescription}
 import texera.common.{TexeraConstraintViolation, TexeraContext}
-import texera.operators.filter.TexeraFilter
-import texera.operators.localscan.TexeraLocalFileScan
-import texera.operators.pythonUDF.TexeraPythonUDF
-import texera.operators.regex.TexeraRegex
-import texera.operators.sentiment.TexeraSentimentAnalysis
-import texera.operators.sink.TexeraAdhocSink
-import texera.operators.sleep.TexeraSleepOperator
+import texera.operators.filter.TexeraFilterOpDesc
+import texera.operators.localscan.TexeraLocalCsvFileScanOpDesc
+import texera.operators.pythonUDF.TexeraPythonUDFOpDesc
+import texera.operators.regex.TexeraRegexOpDesc
+import texera.operators.sentiment.TexeraSentimentAnalysisOpDesc
+import texera.operators.sink.TexeraSimpleSinkOpDesc
 
-import scala.collection.{JavaConverters, mutable}
 
 @JsonTypeInfo(
   use = JsonTypeInfo.Id.NAME,
@@ -27,16 +25,15 @@ import scala.collection.{JavaConverters, mutable}
 )
 @JsonSubTypes(
   Array(
-    new Type(value = classOf[TexeraLocalFileScan], name = "LocalFileScan"),
-    new Type(value = classOf[TexeraAdhocSink], name = "AdhocSink"),
-    new Type(value = classOf[TexeraSleepOperator], name = "Sleep"),
-    new Type(value = classOf[TexeraRegex], name = "Regex"),
-    new Type(value = classOf[TexeraFilter], name = "Filter"),
-    new Type(value = classOf[TexeraSentimentAnalysis], name = "SentimentAnalysis"),
-    new Type(value = classOf[TexeraPythonUDF], name = "PythonUDF"),
+    new Type(value = classOf[TexeraLocalCsvFileScanOpDesc], name = "LocalFileScan"),
+    new Type(value = classOf[TexeraSimpleSinkOpDesc], name = "AdhocSink"),
+    new Type(value = classOf[TexeraRegexOpDesc], name = "Regex"),
+    new Type(value = classOf[TexeraFilterOpDesc], name = "Filter"),
+    new Type(value = classOf[TexeraSentimentAnalysisOpDesc], name = "SentimentAnalysis"),
+//    new Type(value = classOf[TexeraPythonUDFOpDesc], name = "PythonUDF"),
   )
 )
-abstract class TexeraOperator {
+abstract class OperatorDescriptor {
 
   @JsonIgnore var context: TexeraContext = _
 
@@ -44,7 +41,7 @@ abstract class TexeraOperator {
 
   def amberOperatorTag: OperatorTag = OperatorTag.apply(this.context.workflowID, this.operatorID)
 
-  def amberOperator: OperatorMetadata
+  def amberOperator: OpExecConfig
 
   def texeraOperatorDescription: TexeraOperatorDescription
 

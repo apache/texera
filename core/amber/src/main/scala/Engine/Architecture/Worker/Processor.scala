@@ -11,10 +11,10 @@ import Engine.Common.AmberMessage.StateMessage._
 import Engine.Common.AmberMessage.ControlMessage.{QueryState, _}
 import Engine.Common.AmberTag.{LayerTag, WorkerTag}
 import Engine.Common.tuple.Tuple
-import Engine.Common.{AdvancedMessageSending, Constants, ElidableStatement, TupleSink, TableMetadata, ThreadState, OperatorExecutor}
+import Engine.Common.{AdvancedMessageSending, Constants, ElidableStatement, InputExhausted, OperatorExecutor, TableMetadata, ThreadState, TupleSink}
 import Engine.FaultTolerance.Recovery.RecoveryPacket
-import Engine.Operators.Common.Filter.{FilterGeneralMetadata, FilterGeneralOperatorExecutor}
-import Engine.Operators.OperatorMetadata
+import Engine.Operators.Common.Filter.{FilterOpExec, FilterOpExecConfig}
+import Engine.Operators.OpExecConfig
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Stash}
 import akka.event.LoggingAdapter
 import akka.pattern.ask
@@ -45,8 +45,9 @@ class Processor(var dataProcessor: OperatorExecutor, val tag: WorkerTag) extends
   var processedCount: Long = 0L
   var generatedCount: Long = 0L
   var currentInputTuple: Tuple = _
-  var savedModifyLogic: mutable.Queue[(Long, Long, OperatorMetadata)] =
-    new mutable.Queue[(Long, Long, OperatorMetadata)]()
+  var savedModifyLogic: mutable.Queue[(Long, Long, OpExecConfig)] =
+    new mutable.Queue[(Long, Long, OpExecConfig)]()
+  var outputIterator: Iterator[Tuple] = _
 
   @elidable(INFO) var processTime = 0L
   @elidable(INFO) var processStart = 0L
@@ -59,14 +60,14 @@ class Processor(var dataProcessor: OperatorExecutor, val tag: WorkerTag) extends
     currentInputTuple = null
     dPThreadState = ThreadState.Idle
     dataProcessor = value.asInstanceOf[OperatorExecutor]
-    dataProcessor.initialize()
+    dataProcessor.open()
     while (
       savedModifyLogic.nonEmpty && savedModifyLogic.head._1 == 0 && savedModifyLogic.head._2 == 0
     ) {
       savedModifyLogic.head._3 match {
-        case filterOpMetadata: FilterGeneralMetadata =>
-          val dp = dataProcessor.asInstanceOf[FilterGeneralOperatorExecutor]
-          dp.filterFunc = filterOpMetadata.filterFunc
+        case filterOpExecConfig: FilterOpExecConfig =>
+          val dp = dataProcessor.asInstanceOf[FilterOpExec]
+          dp.filterFunc = filterOpExecConfig.filterFunc
         case t => throw new NotImplementedError("Unknown operator type: " + t)
       }
       savedModifyLogic.dequeue()
@@ -242,7 +243,7 @@ class Processor(var dataProcessor: OperatorExecutor, val tag: WorkerTag) extends
 
   override def onInitialization(recoveryInformation: Seq[(Long, Long)]): Unit = {
     super.onInitialization(recoveryInformation)
-    dataProcessor.initialize()
+    dataProcessor.open()
   }
 
   override def getInputRowCount(): Long = {
@@ -327,8 +328,8 @@ class Processor(var dataProcessor: OperatorExecutor, val tag: WorkerTag) extends
       savedModifyLogic.enqueue((generatedCount, processedCount, newMetadata))
       log.info("modify logic received by worker " + this.self.path.name + ", updating logic")
       newMetadata match {
-        case filterOpMetadata: FilterGeneralMetadata =>
-          val dp = dataProcessor.asInstanceOf[FilterGeneralOperatorExecutor]
+        case filterOpMetadata: FilterOpExecConfig =>
+          val dp = dataProcessor.asInstanceOf[FilterOpExec]
           dp.filterFunc = filterOpMetadata.filterFunc
         case t => throw new NotImplementedError("Unknown operator type: " + t)
       }
@@ -423,8 +424,8 @@ class Processor(var dataProcessor: OperatorExecutor, val tag: WorkerTag) extends
           s"id: ${this.tag}"
       )
       savedModifyLogic.head._3 match {
-        case filterOpMetadata: FilterGeneralMetadata =>
-          val dp = dataProcessor.asInstanceOf[FilterGeneralOperatorExecutor]
+        case filterOpMetadata: FilterOpExecConfig =>
+          val dp = dataProcessor.asInstanceOf[FilterOpExec]
           dp.filterFunc = filterOpMetadata.filterFunc
         case t => throw new NotImplementedError("Unknown operator type: " + t)
       }
@@ -450,12 +451,11 @@ class Processor(var dataProcessor: OperatorExecutor, val tag: WorkerTag) extends
   private[this] def afterFinishProcessing(): Unit = {
     Breaks.breakable {
       processStart = System.nanoTime()
-      dataProcessor.noMore()
-      while (dataProcessor.hasNext) {
+      while (outputIterator != null && outputIterator.hasNext) {
         exitIfPaused()
         var nextTuple: Tuple = null
         try {
-          nextTuple = dataProcessor.next()
+          nextTuple = outputIterator.next()
         } catch {
           case e: Exception =>
             if (breakpoints.nonEmpty) {
@@ -490,7 +490,7 @@ class Processor(var dataProcessor: OperatorExecutor, val tag: WorkerTag) extends
       }
       onCompleting()
       try {
-        dataProcessor.dispose()
+        dataProcessor.close()
       } catch {
         case e: Exception =>
           self ! ReportFailure(e)
@@ -511,11 +511,11 @@ class Processor(var dataProcessor: OperatorExecutor, val tag: WorkerTag) extends
       processStart = System.nanoTime()
       val (from, batch) = synchronized { processingQueue.front }
       //check if there is tuple left to be outputted
-      while (dataProcessor.hasNext) {
+      while (outputIterator != null && outputIterator.hasNext) {
         exitIfPaused()
         var nextTuple: Tuple = null
         try {
-          nextTuple = dataProcessor.next()
+          nextTuple = outputIterator.next()
         } catch {
           case e: Exception =>
             if (breakpoints.nonEmpty) {
@@ -549,18 +549,19 @@ class Processor(var dataProcessor: OperatorExecutor, val tag: WorkerTag) extends
         }
       }
       if (batch == null) {
-        dataProcessor.onUpstreamExhausted(from)
+//        dataProcessor.onUpstreamExhausted(from)
+        this.outputIterator = dataProcessor.processTuple(Right(InputExhausted()), 0)
         self ! ReportUpstreamExhausted(from)
         aliveUpstreams.remove(from)
       } else {
-        dataProcessor.onUpstreamChanged(from)
+//        dataProcessor.onUpstreamChanged(from)
         //no tuple remains, we continue
         while (processingIndex < batch.length) {
           exitIfPaused()
           try {
             currentInputTuple = batch(processingIndex)
             if (!skippedInputTuples.contains(currentInputTuple)) {
-              dataProcessor.accept(currentInputTuple)
+              outputIterator = dataProcessor.processTuple(Left(currentInputTuple), 0)
             }
             processedCount += 1
           } catch {
@@ -584,11 +585,11 @@ class Processor(var dataProcessor: OperatorExecutor, val tag: WorkerTag) extends
           }
           processingIndex += 1
           exitIfPaused()
-          while (dataProcessor.hasNext) {
+          while (outputIterator != null && outputIterator.hasNext) {
             exitIfPaused()
             var nextTuple: Tuple = null
             try {
-              nextTuple = dataProcessor.next()
+              nextTuple = outputIterator.next()
             } catch {
               case e: Exception =>
                 if (breakpoints.nonEmpty) {

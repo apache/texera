@@ -8,7 +8,7 @@ import Engine.Architecture.Controller.Workflow
 import Engine.Common.AmberMessage.ControllerMessage.PassBreakpointTo
 import Engine.Common.AmberTag.OperatorTag
 import Engine.Common.tuple.Tuple
-import Engine.Operators.OperatorMetadata
+import Engine.Operators.OpExecConfig
 import akka.actor.ActorRef
 import texera.common.{TexeraConstraintViolation, TexeraContext}
 
@@ -20,7 +20,7 @@ class TexeraWorkflowCompiler(val texeraWorkflow: TexeraWorkflow, val context: Te
     this.texeraWorkflow.operators.foreach(initOperator)
   }
 
-  def initOperator(operator: TexeraOperator): Unit = {
+  def initOperator(operator: OperatorDescriptor): Unit = {
     operator.context = context
   }
 
@@ -35,7 +35,7 @@ class TexeraWorkflowCompiler(val texeraWorkflow: TexeraWorkflow, val context: Te
       .filter(pair => pair._2.nonEmpty)
 
   def amberWorkflow: Workflow = {
-    val amberOperators: mutable.Map[OperatorTag, OperatorMetadata] = mutable.Map()
+    val amberOperators: mutable.Map[OperatorTag, OpExecConfig] = mutable.Map()
     texeraWorkflow.operators.foreach(o => {
       val amberOperator = o.amberOperator
       amberOperators.put(amberOperator.tag, amberOperator)

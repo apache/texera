@@ -8,7 +8,7 @@ import Engine.Architecture.DeploySemantics.DeploymentFilter.FollowPrevious
 import Engine.Architecture.DeploySemantics.Layer.{ActorLayer, ProcessorWorkerLayer}
 import Engine.Architecture.Worker.WorkerState
 import Engine.Common.AmberTag.{LayerTag, OperatorTag}
-import Engine.Operators.OperatorMetadata
+import Engine.Operators.OpExecConfig
 import akka.actor.ActorRef
 import akka.event.LoggingAdapter
 import akka.util.Timeout
@@ -24,7 +24,7 @@ class PythonUDFMetadata(
                          val inputColumns: mutable.Buffer[String],
                          val outputColumns: mutable.Buffer[String],
                          val outerFiles: mutable.Buffer[String],
-                         val batchSize: Int) extends OperatorMetadata(tag) {
+                         val batchSize: Int) extends OpExecConfig(tag) {
   override lazy val topology: Topology = {
     new Topology(
       Array(

@@ -5,8 +5,6 @@ import java.nio.file.Path;
 import java.util.Collection;
 import java.util.HashMap;
 
-import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
-import com.fasterxml.jackson.annotation.PropertyAccessor;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.introspect.AnnotatedClass;
@@ -14,9 +12,8 @@ import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.module.jsonSchema.JsonSchema;
 import com.fasterxml.jackson.module.jsonSchema.JsonSchemaGenerator;
-import com.fasterxml.jackson.module.scala.DefaultScalaModule;
 import texera.common.TexeraUtils;
-import texera.common.workflow.TexeraOperator;
+import texera.common.workflow.OperatorDescriptor;
 
 @SuppressWarnings("unchecked")
 public class OperatorSchemaGenerator {
@@ -24,18 +21,18 @@ public class OperatorSchemaGenerator {
     public static final ObjectMapper objectMapper = TexeraUtils.objectMapper();
 
     // a map of all predicate classes (declared in PredicateBase) and their operatorType string
-    public static final HashMap<Class<? extends TexeraOperator>, String> operatorTypeMap = new HashMap<>();
+    public static final HashMap<Class<? extends OperatorDescriptor>, String> operatorTypeMap = new HashMap<>();
     static {
         // find all the operator type declarations in PredicateBase annotation
         Collection<NamedType> types = objectMapper.getSubtypeResolver().collectAndResolveSubtypesByClass(
                 objectMapper.getDeserializationConfig(),
-                AnnotatedClass.construct(objectMapper.constructType(TexeraOperator.class),
+                AnnotatedClass.construct(objectMapper.constructType(OperatorDescriptor.class),
                         objectMapper.getDeserializationConfig()));
 
         // populate the operatorType map
         for (NamedType type : types) {
             if (type.getType() != null && type.getName() != null) {
-                operatorTypeMap.put((Class<? extends TexeraOperator>) type.getType(), type.getName());
+                operatorTypeMap.put((Class<? extends OperatorDescriptor>) type.getType(), type.getName());
             }
         }
     }
@@ -46,12 +43,12 @@ public class OperatorSchemaGenerator {
     }
 
     public static void generateAllOperatorSchema() throws Exception {
-        for (Class<? extends TexeraOperator> predicateClass : operatorTypeMap.keySet()) {
+        for (Class<? extends OperatorDescriptor> predicateClass : operatorTypeMap.keySet()) {
             generateOperatorSchema(predicateClass);
         }
     }
 
-    public static void generateOperatorSchema(Class<? extends TexeraOperator> predicateClass) throws Exception {
+    public static void generateOperatorSchema(Class<? extends OperatorDescriptor> predicateClass) throws Exception {
 
         if (! operatorTypeMap.containsKey(predicateClass)) {
             throw new RuntimeException("predicate class " + predicateClass.toString() + " is not registerd in TexeraOperatorDescription class");
@@ -123,7 +120,7 @@ public class OperatorSchemaGenerator {
         System.out.println(fullMetadataNode);
     }
 
-    public static Path getJsonSchemaPath(Class<? extends TexeraOperator> predicateClass) {
+    public static Path getJsonSchemaPath(Class<? extends OperatorDescriptor> predicateClass) {
         // find the operatorType of the predicate class
         String operatorType = operatorTypeMap.get(predicateClass);
 

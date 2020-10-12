@@ -166,7 +166,11 @@ public class TexeraTuple implements Tuple, Serializable {
      * Checks if the attribute's type matches the field object's type
      */
     private static void checkAttributeMatchesField(Attribute attribute, Object field) {
-        if (field != null && ! field.getClass().equals(attribute.getType().getFieldClass())) {
+        if (field == null) {
+            return;
+        }
+
+        if (! field.getClass().equals(attribute.getType().getFieldClass())) {
             throw new RuntimeException(String.format(
                     "Attribute %s's type (%s) is different from field's type (%s)",
                     attribute.getName(), attribute.getType(),
@@ -233,6 +237,13 @@ public class TexeraTuple implements Tuple, Serializable {
         }
 
         /**
+         * Adds an existing tuple to the tuple builder.
+         */
+        public Builder add(TexeraTuple tuple) {
+            return add(tuple.schema.getAttributes(), tuple.fields);
+        }
+
+        /**
          * Adds a new attribute and field to the tuple builder.
          *
          * @param attribute
@@ -240,7 +251,7 @@ public class TexeraTuple implements Tuple, Serializable {
          * @return this builder object
          * @throws RuntimeException, if attribute already exists, or the attribute and field type don't match.
          */
-        public Builder add(Attribute attribute, Object field) throws RuntimeException {
+        public Builder add(Attribute attribute, Object field) {
             checkNotNull(attribute);
             checkAttributeMatchesField(attribute, field);
 

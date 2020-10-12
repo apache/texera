@@ -1,11 +1,11 @@
 package web.model.request
 
-import texera.common.workflow.{TexeraBreakpointInfo, TexeraOperator, TexeraOperatorLink}
+import texera.common.workflow.{TexeraBreakpointInfo, OperatorDescriptor, TexeraOperatorLink}
 
 import scala.collection.mutable
 
 case class ExecuteWorkflowRequest(
-    operators: mutable.MutableList[TexeraOperator],
-    links: mutable.MutableList[TexeraOperatorLink],
-    breakpoints: mutable.MutableList[TexeraBreakpointInfo]
+                                   operators: mutable.MutableList[OperatorDescriptor],
+                                   links: mutable.MutableList[TexeraOperatorLink],
+                                   breakpoints: mutable.MutableList[TexeraBreakpointInfo]
 ) extends TexeraWsRequest

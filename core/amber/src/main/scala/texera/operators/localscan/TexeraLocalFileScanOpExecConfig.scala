@@ -16,14 +16,14 @@ import akka.util.Timeout
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
-class TexeraLocalFileScanMetadata(
+class TexeraLocalFileScanOpExecConfig(
     tag: OperatorTag,
     numWorkers: Int,
     filePath: String,
     delimiter: Char,
     indicesToKeep: Array[Int],
-    tableMetadata: TableMetadata
-) extends FileScanMetadata(tag, numWorkers, filePath, delimiter, indicesToKeep, tableMetadata) {
+    header: Boolean
+) extends FileScanOpExecConfig(tag, numWorkers, filePath, delimiter, indicesToKeep, null) {
   override val totalBytes: Long = new File(filePath).length()
   override lazy val topology: Topology = {
     new Topology(
@@ -33,12 +33,13 @@ class TexeraLocalFileScanMetadata(
           i => {
             val endOffset =
               if (i != numWorkers - 1) totalBytes / numWorkers * (i + 1) else totalBytes
-            new TexeraLocalFileScanSourceOperatorExecutor(
+            new TexeraLocalFileScanSourceOpExec(
               filePath,
               totalBytes / numWorkers * i,
               endOffset,
               delimiter,
-              indicesToKeep
+              indicesToKeep,
+              header
             )
           },
           numWorkers,

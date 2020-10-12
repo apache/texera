@@ -5,16 +5,16 @@ import Engine.Architecture.DeploySemantics.DeploymentFilter.DeploymentFilter
 import Engine.Architecture.Worker.Generator
 import Engine.Common.AmberTag.{LayerTag, WorkerTag}
 import Engine.Common.SourceOperatorExecutor
-import Engine.Operators.OperatorMetadata
+import Engine.Operators.OpExecConfig
 import akka.actor.{ActorContext, ActorRef, Address, Deploy}
 import akka.remote.RemoteScope
 
 class GeneratorWorkerLayer(
-                            tag: LayerTag,
-                            val metadata: Int => SourceOperatorExecutor,
-                            _numWorkers: Int,
-                            df: DeploymentFilter,
-                            ds: DeployStrategy
+    tag: LayerTag,
+    val metadata: Int => SourceOperatorExecutor,
+    _numWorkers: Int,
+    df: DeploymentFilter,
+    ds: DeployStrategy
 ) extends ActorLayer(tag, _numWorkers, df, ds) {
 
   var metadataForFirst: SourceOperatorExecutor = _
@@ -26,7 +26,7 @@ class GeneratorWorkerLayer(
     res
   }
 
-  def build(prev: Array[(OperatorMetadata, ActorLayer)], all: Array[Address])(implicit
+  def build(prev: Array[(OpExecConfig, ActorLayer)], all: Array[Address])(implicit
       context: ActorContext
   ): Unit = {
     deployStrategy.initialize(deploymentFilter.filter(prev, all, context.self.path.address))

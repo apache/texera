@@ -6,25 +6,19 @@ import Engine.Common.OperatorExecutor
 
 import scala.collection.mutable
 
-class FinalAggregateProcessor(val aggFunc: DistributedAggregation, val groupByKeys: Seq[Int])
+class FinalAggregateProcessor[Partial <: AnyRef, Final <: AnyRef](val aggFunc: DistributedAggregation[Partial, Final], val groupByKeys: Seq[String])
     extends OperatorExecutor {
 
   var partialObjectPerKey = new mutable.HashMap[Seq[Any], Tuple]()
   var outputIterator: Iterator[Tuple] = _
 
-  override def accept(tuple: Tuple): Unit = ???
-
-  override def onUpstreamChanged(from: LayerTag): Unit = ???
-
-  override def onUpstreamExhausted(from: LayerTag): Unit = ???
-
-  override def noMore(): Unit = ???
-
-  override def initialize(): Unit = ???
-
-  override def hasNext: Boolean = ???
-
-  override def next(): Tuple = ???
-
-  override def dispose(): Unit = ???
+override def open(): Unit = {}
+override def close(): Unit = {
 }
+override def processTuple(tuple: Tuple, input:  Int): scala.Iterator[Tuple] = {
+null
+}
+override def inputExhausted(input:  Int): Iterator[Tuple] = { null }
+
+}
+

@@ -8,10 +8,11 @@ public enum AttributeType implements Serializable {
     // A field that is indexed but not tokenized: the entire String
     // value is indexed as a single token
     STRING("string", String.class),
-
     INTEGER("integer", Integer.class),
     DOUBLE("double", Double.class),
-    BOOLEAN("boolean", Boolean.class);
+    BOOLEAN("boolean", Boolean.class),
+    ANY("ANY", Object.class)
+    ;
     
     private final String name;
     private final Class<?> fieldClass;
@@ -40,7 +41,7 @@ public enum AttributeType implements Serializable {
         } else if (fieldClass.equals(Boolean.class)) {
             return BOOLEAN;
         } else {
-            throw new RuntimeException("Unknown attribute class: " + fieldClass.getName());
+            return ANY;
         }
     }
     

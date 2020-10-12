@@ -4,26 +4,16 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import Engine.Architecture.Controller.{Controller, ControllerEventListener}
 import Engine.Architecture.Principal.PrincipalStatistics
-import Engine.Common.AmberMessage.ControlMessage.{
-  ModifyLogic,
-  Pause,
-  Resume,
-  SkipTuple,
-  SkipTupleGivenWorkerRef,
-  Start
-}
-import Engine.Common.AmberMessage.ControllerMessage.{
-  AckedControllerInitialization,
-  PassBreakpointTo
-}
+import Engine.Common.AmberMessage.ControlMessage.{ModifyLogic, Pause, Resume, SkipTuple, SkipTupleGivenWorkerRef, Start}
+import Engine.Common.AmberMessage.ControllerMessage.{AckedControllerInitialization, PassBreakpointTo}
 import Engine.Common.AmberTag.WorkflowTag
 import akka.actor.{ActorRef, PoisonPill}
 import javax.websocket.server.ServerEndpoint
 import javax.websocket._
 import texera.common.workflow.{TexeraWorkflow, TexeraWorkflowCompiler}
 import texera.common.{TexeraContext, TexeraUtils}
-import texera.operators.localscan.TexeraLocalFileScan
-import texera.operators.sink.TexeraAdhocSink
+import texera.operators.localscan.TexeraLocalCsvFileScanOpDesc
+import texera.operators.sink.TexeraSimpleSinkOpDesc
 import web.TexeraWebApplication
 import web.model.event._
 import web.model.request._
@@ -154,8 +144,8 @@ class WorkflowWebsocketResource {
     )
 
     val scan = request.operators
-      .find(p => p.isInstanceOf[TexeraLocalFileScan])
-    if (scan.nonEmpty && scan.get.asInstanceOf[TexeraLocalFileScan].filePath.contains("tweet_1K")) {
+      .find(p => p.isInstanceOf[TexeraLocalCsvFileScanOpDesc])
+    if (scan.nonEmpty && scan.get.asInstanceOf[TexeraLocalCsvFileScanOpDesc].filePath.contains("tweet_1K")) {
       context.isOneK = true
     }
 
@@ -182,7 +172,7 @@ class WorkflowWebsocketResource {
       workflowStatusUpdateListener = statusUpdate => {
         val updateMutable = mutable.HashMap(statusUpdate.operatorStatistics.toSeq: _*)
         val sinkID = texeraWorkflowCompiler.texeraWorkflow.operators
-          .find(p => p.isInstanceOf[TexeraAdhocSink])
+          .find(p => p.isInstanceOf[TexeraSimpleSinkOpDesc])
           .get
           .operatorID
         val sinkInputID = texeraWorkflowCompiler.texeraWorkflow.links

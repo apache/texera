@@ -17,7 +17,7 @@ import Engine.Common.tuple.Tuple
 import Engine.Common.AmberTag.{AmberTag, LayerTag, OperatorTag, WorkerTag}
 import Engine.Common.{AdvancedMessageSending, AmberUtils, Constants, TableMetadata, TupleSink}
 import Engine.FaultTolerance.Recovery.RecoveryPacket
-import Engine.Operators.OperatorMetadata
+import Engine.Operators.OpExecConfig
 import akka.actor.{Actor, ActorLogging, ActorPath, ActorRef, Address, Cancellable, PoisonPill, Props, Stash}
 import akka.event.LoggingAdapter
 import akka.util.Timeout
@@ -32,10 +32,10 @@ import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
 object Principal {
-  def props(metadata: OperatorMetadata): Props = Props(new Principal(metadata))
+  def props(metadata: OpExecConfig): Props = Props(new Principal(metadata))
 }
 
-class Principal(val metadata: OperatorMetadata) extends Actor with ActorLogging with Stash {
+class Principal(val metadata: OpExecConfig) extends Actor with ActorLogging with Stash {
   implicit val ec: ExecutionContext = context.dispatcher
   implicit val timeout: Timeout = 5.seconds
   implicit val logAdapter: LoggingAdapter = log
@@ -629,11 +629,7 @@ class Principal(val metadata: OperatorMetadata) extends Actor with ActorLogging 
         )
       )
     case CollectSinkResults =>
-      this.metadata match {
-        case sink: TupleSink =>
-          allWorkers.foreach(worker => worker ! CollectSinkResults)
-        case _ => // ignore collect result if self is not sink
-      }
+      allWorkers.foreach(worker => worker ! CollectSinkResults)
     case WorkerMessage.ReportOutputResult(sinkResult) =>
       workerSinkResultMap(sender) = sinkResult
       if (workerSinkResultMap.size == allWorkers.size) {
@@ -651,7 +647,7 @@ class Principal(val metadata: OperatorMetadata) extends Actor with ActorLogging 
   }
 
   final override def receive: Receive = {
-    case AckedPrincipalInitialization(prev: Array[(OperatorMetadata, ActorLayer)]) =>
+    case AckedPrincipalInitialization(prev: Array[(OpExecConfig, ActorLayer)]) =>
       workerLayers = metadata.topology.layers
       workerEdges = metadata.topology.links
       val all = availableNodes

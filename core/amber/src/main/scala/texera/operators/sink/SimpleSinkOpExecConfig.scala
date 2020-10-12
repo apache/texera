@@ -6,7 +6,7 @@ import Engine.Architecture.DeploySemantics.DeploymentFilter.ForceLocal
 import Engine.Architecture.DeploySemantics.Layer.{ActorLayer, ProcessorWorkerLayer}
 import Engine.Architecture.Worker.WorkerState
 import Engine.Common.AmberTag.{LayerTag, OperatorTag}
-import Engine.Operators.OperatorMetadata
+import Engine.Operators.OpExecConfig
 import akka.actor.ActorRef
 import akka.event.LoggingAdapter
 import akka.util.Timeout
@@ -14,12 +14,12 @@ import akka.util.Timeout
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
-class SimpleSinkOperatorMetadata(tag: OperatorTag) extends OperatorMetadata(tag) {
+class SimpleSinkOpExecConfig(tag: OperatorTag) extends OpExecConfig(tag) {
   override lazy val topology = new Topology(
       Array(
         new ProcessorWorkerLayer(
           LayerTag(tag, "main"),
-          _ => new SimpleSinkProcessor(),
+          _ => new SimpleSinkOpExec(),
           1,
           ForceLocal(),
           RandomDeployment()

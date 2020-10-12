@@ -13,6 +13,7 @@ import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
 import org.apache.arrow.vector.types.pojo.Schema;
+import scala.collection.Iterator;
 import texera.common.TexeraUtils;
 
 import java.io.IOException;
@@ -56,7 +57,6 @@ public class PythonUDFOperatorExecutor implements OperatorExecutor {
         this.batchSize = batchSize;
     }
 
-    @Override
     public void accept(Tuple tuple) {
         if (inputTupleBuffer == null) {
             // The first time, initialize this buffer.
@@ -86,17 +86,14 @@ public class PythonUDFOperatorExecutor implements OperatorExecutor {
         }
     }
 
-    @Override
     public void onUpstreamChanged(LayerTag from) {
 
     }
 
-    @Override
     public void onUpstreamExhausted(LayerTag from) {
 
     }
 
-    @Override
     public void noMore() {
         if (inputTupleBuffer != null && !inputTupleBuffer.isEmpty()) {
             // There are some unprocessed tuples, finish them.
@@ -104,7 +101,6 @@ public class PythonUDFOperatorExecutor implements OperatorExecutor {
         }
     }
 
-    @Override
     public void initialize() {
         try {
             int portNumber = getFreeLocalPort();
@@ -160,17 +156,14 @@ public class PythonUDFOperatorExecutor implements OperatorExecutor {
         }
     }
 
-    @Override
     public boolean hasNext() {
         return !(outputTupleBuffer == null || outputTupleBuffer.isEmpty());
     }
 
-    @Override
     public Tuple next() {
         return outputTupleBuffer.remove();
     }
 
-    @Override
     public void dispose() {
         closeClientAndServer(flightClient);
     }
@@ -539,5 +532,25 @@ public class PythonUDFOperatorExecutor implements OperatorExecutor {
         closeClientAndServer(client);
         e.printStackTrace();
         throw new AmberException(e.getMessage());
+    }
+
+    @Override
+    public void open() {
+
+    }
+
+    @Override
+    public void close() {
+
+    }
+
+    @Override
+    public Iterator<Tuple> processTuple(Tuple tuple, int input) {
+        return null;
+    }
+
+    @Override
+    public Iterator<Tuple> inputExhausted(int input) {
+        return null;
     }
 }

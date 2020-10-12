@@ -2,19 +2,19 @@ package texera.operators.pythonUDF;
 
 import Engine.Common.Constants;
 import Engine.Common.tuple.texera.schema.Schema;
-import Engine.Operators.OperatorMetadata;
+import Engine.Operators.OpExecConfig;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import scala.collection.JavaConverters;
 import scala.collection.Seq;
 import texera.common.schema.OperatorGroupConstants;
 import texera.common.schema.TexeraOperatorDescription;
-import texera.common.workflow.TexeraOperator;
+import texera.common.workflow.OperatorDescriptor;
 
 import java.util.List;
 
 
-public class TexeraPythonUDF extends TexeraOperator {
+public class TexeraPythonUDFOpDesc extends OperatorDescriptor {
 
     @JsonProperty("Python script file")
     @JsonPropertyDescription("name of the UDF script file")
@@ -37,7 +37,7 @@ public class TexeraPythonUDF extends TexeraOperator {
     public int batchSize;
 
     @Override
-    public OperatorMetadata amberOperator() {
+    public OpExecConfig amberOperator() {
         return new PythonUDFMetadata(this.amberOperatorTag(), Constants.defaultNumWorkers(),
                 this.pythonScriptFile,
                 JavaConverters.asScalaIteratorConverter(this.inputColumns.iterator()).asScala().toBuffer(),

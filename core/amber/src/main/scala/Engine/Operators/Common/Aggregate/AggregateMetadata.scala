@@ -9,7 +9,7 @@ import Engine.Architecture.Worker.WorkerState
 import Engine.Common.AmberTag.{LayerTag, OperatorTag}
 import Engine.Common.tuple.Tuple
 import Engine.Common.Constants
-import Engine.Operators.OperatorMetadata
+import Engine.Operators.OpExecConfig
 import akka.actor.ActorRef
 import akka.event.LoggingAdapter
 import akka.util.Timeout
@@ -17,12 +17,12 @@ import akka.util.Timeout
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
-class AggregateMetadata(
+class AggregateMetadata[T <: Tuple, P <: AnyRef](
     tag: OperatorTag,
     val numWorkers: Int,
-    val aggFunc: DistributedAggregation,
-    val groupByKeys: Seq[Int]
-) extends OperatorMetadata(tag) {
+    val aggFunc: DistributedAggregation[T, P],
+    val groupByKeys: Seq[String]
+) extends OpExecConfig(tag) {
 
   override lazy val topology: Topology = {
 

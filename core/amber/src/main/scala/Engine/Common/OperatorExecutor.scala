@@ -1,15 +1,15 @@
 package Engine.Common
 
-import Engine.Common.AmberTag.LayerTag
 import Engine.Common.tuple.Tuple
 
-trait OperatorExecutor extends SourceOperatorExecutor {
-  @throws(classOf[Exception])
-  def accept(tuple: Tuple): Unit
+case class InputExhausted()
 
-  def onUpstreamChanged(from: LayerTag): Unit
+trait OperatorExecutor {
 
-  def onUpstreamExhausted(from: LayerTag): Unit
+  def open(): Unit
 
-  def noMore(): Unit
+  def close(): Unit
+
+  def processTuple(tuple: Either[Tuple, InputExhausted], input: Int): Iterator[Tuple]
+
 }

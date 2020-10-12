@@ -2,16 +2,16 @@ package texera.operators.localscan;
 
 import Engine.Common.Constants;
 import Engine.Common.tuple.texera.schema.Schema;
-import Engine.Operators.OperatorMetadata;
+import Engine.Operators.OpExecConfig;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import scala.collection.Seq;
 import texera.common.schema.OperatorGroupConstants;
 import texera.common.schema.TexeraOperatorDescription;
-import texera.common.workflow.TexeraOperator;
+import texera.common.workflow.OperatorDescriptor;
 
 
-public class TexeraLocalFileScan extends TexeraOperator {
+public class TexeraLocalCsvFileScanOpDesc extends OperatorDescriptor {
 
     @JsonProperty("file path")
     @JsonPropertyDescription("local file path")
@@ -21,10 +21,14 @@ public class TexeraLocalFileScan extends TexeraOperator {
     @JsonPropertyDescription("delimiter to separate each line into fields")
     public String delimiter;
 
+    @JsonProperty("header")
+    @JsonPropertyDescription("whether the CSV file contains a header line")
+    public Boolean header;
+
     @Override
-    public OperatorMetadata amberOperator() {
-        return new TexeraLocalFileScanMetadata(this.amberOperatorTag(), Constants.defaultNumWorkers(),
-                filePath, delimiter.charAt(0), null, null);
+    public OpExecConfig amberOperator() {
+        return new TexeraLocalFileScanOpExecConfig(this.amberOperatorTag(), Constants.defaultNumWorkers(),
+                filePath, delimiter.charAt(0), null, header != null && header);
     }
 
     @Override
