@@ -5,11 +5,11 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Streams;
+import texera.common.TexeraUtils;
 import texera.common.tuple.schema.Attribute;
 import texera.common.tuple.schema.AttributeType;
 import texera.common.tuple.schema.Schema;
@@ -133,10 +133,10 @@ public class TexeraTuple implements Tuple, Serializable {
      * Therefore it cannot be converted back to a tuple object again.
      * @return
      */
-    public ObjectNode getReadableJson() {
-        ObjectNode objectNode = new ObjectMapper().createObjectNode();
+    public ObjectNode asKeyValuePairJson() {
+        ObjectNode objectNode = TexeraUtils.objectMapper().createObjectNode();
         for (String attrName : this.schema.getAttributeNames()) {
-            JsonNode valueNode = new ObjectMapper().convertValue(this.getField(attrName), JsonNode.class).get("value");
+            JsonNode valueNode = TexeraUtils.objectMapper().convertValue(this.getField(attrName), JsonNode.class);
             objectNode.set(attrName, valueNode);
         }
         return objectNode;
@@ -166,7 +166,15 @@ public class TexeraTuple implements Tuple, Serializable {
      * Checks if the attribute's type matches the field object's type
      */
     private static void checkAttributeMatchesField(Attribute attribute, Object field) {
-        if (field != null && ! field.getClass().equals(attribute.getType().getFieldClass())) {
+        // null value is always acceptable
+        if (field == null) {
+            return;
+        }
+        // ANY attribute type allow arbitrary type
+        if (attribute.getType() == AttributeType.ANY) {
+            return;
+        }
+        if (! field.getClass().equals(attribute.getType().getFieldClass())) {
             throw new RuntimeException(String.format(
                     "Attribute %s's type (%s) is different from field's type (%s)",
                     attribute.getName(), attribute.getType(),
@@ -233,6 +241,13 @@ public class TexeraTuple implements Tuple, Serializable {
         }
 
         /**
+         * Adds an existing tuple to the tuple builder.
+         */
+        public Builder add(TexeraTuple tuple) {
+            return add(tuple.schema.getAttributes(), tuple.fields);
+        }
+
+        /**
          * Adds a new attribute and field to the tuple builder.
          *
          * @param attribute
@@ -240,7 +255,7 @@ public class TexeraTuple implements Tuple, Serializable {
          * @return this builder object
          * @throws RuntimeException, if attribute already exists, or the attribute and field type don't match.
          */
-        public Builder add(Attribute attribute, Object field) throws RuntimeException {
+        public Builder add(Attribute attribute, Object field) {
             checkNotNull(attribute);
             checkAttributeMatchesField(attribute, field);
 

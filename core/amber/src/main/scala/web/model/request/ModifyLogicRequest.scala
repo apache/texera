@@ -1,7 +1,7 @@
 package web.model.request
 
-import texera.common.workflow.TexeraOperator
+import texera.common.operators.TexeraOperatorDescriptor
 
 case class ModifyLogicRequest(
-    operator: TexeraOperator
+    operator: TexeraOperatorDescriptor
 ) extends TexeraWsRequest

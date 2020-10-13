@@ -6,10 +6,8 @@ import Engine.Architecture.SendSemantics.Routees.DirectRoutee
 import Engine.Common.AmberMessage.PrincipalMessage.{GetInputLayer, GetOutputLayer}
 import Engine.Common.AmberMessage.WorkerMessage.UpdateOutputLinking
 import Engine.Common.AmberTag.LinkTag
-import Engine.Common.{AdvancedMessageSending, Constants}
-import Engine.Operators.OperatorMetadata
-import Engine.Operators.Sink.SimpleSinkOperatorMetadata
-import Engine.Operators.Sort.SortMetadata
+import Engine.Common.{AdvancedMessageSending, Constants, TupleSink}
+import Engine.Operators.OpExecConfig
 import akka.actor.ActorRef
 import akka.event.LoggingAdapter
 import akka.pattern.ask
@@ -19,7 +17,7 @@ import scala.concurrent.{Await, ExecutionContext}
 import scala.concurrent.duration._
 
 //ugly design, but I don't know how to make it better
-class OperatorLink(val from: (OperatorMetadata, ActorRef), val to: (OperatorMetadata, ActorRef))
+class OperatorLink(val from: (OpExecConfig, ActorRef), val to: (OpExecConfig, ActorRef))
     extends Serializable {
   implicit val timeout: Timeout = 5.seconds
   var linkStrategy: LinkStrategy = _
@@ -37,7 +35,7 @@ class OperatorLink(val from: (OperatorMetadata, ActorRef), val to: (OperatorMeta
           to._1.getShuffleHashFunction(sender.tag)
         )
       } else if (
-        to._1.isInstanceOf[SimpleSinkOperatorMetadata] || to._1.isInstanceOf[SortMetadata[_]]
+        to._1.isInstanceOf[TupleSink]
       ) {
         linkStrategy = new AllToOne(sender, receiver, Constants.defaultBatchSize)
       } else if (sender.layer.length == receiver.layer.length) {

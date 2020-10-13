@@ -8,7 +8,7 @@ import io.dropwizard.setup.{Bootstrap, Environment}
 import io.dropwizard.websockets.WebsocketBundle
 import org.eclipse.jetty.servlet.ErrorPageErrorHandler
 import texera.common.TexeraUtils
-import web.resource.{MockKillWorkerResource, SystemMetadataResource, WorkflowWebsocketResource}
+import web.resource.{MockKillWorkerResource, SchemaPropagationResource, SystemMetadataResource, WorkflowWebsocketResource}
 
 object TexeraWebApplication {
 
@@ -48,6 +48,7 @@ class TexeraWebApplication extends io.dropwizard.Application[TexeraWebConfigurat
 
     environment.jersey().register(classOf[SystemMetadataResource])
     environment.jersey().register(classOf[MockKillWorkerResource])
+    environment.jersey().register(classOf[SchemaPropagationResource])
   }
 
 }

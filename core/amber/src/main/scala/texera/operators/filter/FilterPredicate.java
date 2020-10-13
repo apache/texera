@@ -1,9 +1,9 @@
 package texera.operators.filter;
 
-import Engine.Common.tuple.Tuple;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import texera.common.TexeraContext;
+import texera.common.tuple.TexeraTuple;
 
 public class FilterPredicate {
 
@@ -18,9 +18,8 @@ public class FilterPredicate {
 
 
     @JsonIgnore
-    public boolean evaluate(Tuple tuple, TexeraContext context) {
-        Integer field = context.fieldIndexMapping(attribute);
-        String tupleValue = tuple.get(field).toString().trim();
+    public boolean evaluate(TexeraTuple tuple, TexeraContext context) {
+        String tupleValue = tuple.getField(attribute).toString().trim();
         switch (condition) {
             case EQUAL_TO:
                 return tupleValue.equalsIgnoreCase(value);

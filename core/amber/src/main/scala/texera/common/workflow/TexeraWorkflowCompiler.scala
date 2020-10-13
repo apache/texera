@@ -1,18 +1,19 @@
 package texera.common.workflow
 
-import Engine.Architecture.Breakpoint.GlobalBreakpoint.{
-  ConditionalGlobalBreakpoint,
-  CountGlobalBreakpoint
-}
+import Engine.Architecture.Breakpoint.GlobalBreakpoint.{ConditionalGlobalBreakpoint, CountGlobalBreakpoint}
 import Engine.Architecture.Controller.Workflow
 import Engine.Common.AmberMessage.ControllerMessage.PassBreakpointTo
-import Engine.Common.AmberTag.OperatorTag
-import Engine.Common.tuple.Tuple
-import Engine.Operators.OperatorMetadata
+import Engine.Common.AmberTag.OperatorIdentifier
+import Engine.Operators.OpExecConfig
 import akka.actor.ActorRef
+import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
+import texera.common.operators.TexeraOperatorDescriptor
+import texera.common.operators.source.TexeraSourceOperatorDescriptor
+import texera.common.tuple.TexeraTuple
+import texera.common.tuple.schema.Schema
 import texera.common.{TexeraConstraintViolation, TexeraContext}
 
-import scala.collection.mutable
+import scala.collection.{JavaConverters, mutable}
 
 class TexeraWorkflowCompiler(val texeraWorkflow: TexeraWorkflow, val context: TexeraContext) {
 
@@ -20,7 +21,7 @@ class TexeraWorkflowCompiler(val texeraWorkflow: TexeraWorkflow, val context: Te
     this.texeraWorkflow.operators.foreach(initOperator)
   }
 
-  def initOperator(operator: TexeraOperator): Unit = {
+  def initOperator(operator: TexeraOperatorDescriptor): Unit = {
     operator.context = context
   }
 
@@ -28,33 +29,33 @@ class TexeraWorkflowCompiler(val texeraWorkflow: TexeraWorkflow, val context: Te
     this.texeraWorkflow.operators
       .map(o => {
         o.operatorID -> {
-          o.validate()
+          o.validate().toSet
         }
       })
       .toMap
       .filter(pair => pair._2.nonEmpty)
 
   def amberWorkflow: Workflow = {
-    val amberOperators: mutable.Map[OperatorTag, OperatorMetadata] = mutable.Map()
+    val amberOperators: mutable.Map[OperatorIdentifier, OpExecConfig] = mutable.Map()
     texeraWorkflow.operators.foreach(o => {
-      val amberOperator = o.amberOperator
+      val amberOperator = o.texeraOperatorExecutor
       amberOperators.put(amberOperator.tag, amberOperator)
     })
 
-    val outLinks: mutable.Map[OperatorTag, mutable.Set[OperatorTag]] = mutable.Map()
+    val outLinks: mutable.Map[OperatorIdentifier, mutable.Set[OperatorIdentifier]] = mutable.Map()
     texeraWorkflow.links.foreach(link => {
-      val origin = OperatorTag(this.context.workflowID, link.origin)
-      val dest = OperatorTag(this.context.workflowID, link.destination)
+      val origin = OperatorIdentifier(this.context.workflowID, link.origin)
+      val dest = OperatorIdentifier(this.context.workflowID, link.destination)
       val destSet = outLinks.getOrElse(origin, mutable.Set())
       destSet.add(dest)
       outLinks.update(origin, destSet)
     })
 
-    val outLinksImmutableValue: mutable.Map[OperatorTag, Set[OperatorTag]] = mutable.Map()
+    val outLinksImmutableValue: mutable.Map[OperatorIdentifier, Set[OperatorIdentifier]] = mutable.Map()
     outLinks.foreach(entry => {
       outLinksImmutableValue.update(entry._1, entry._2.toSet)
     })
-    val outLinksImmutable: Map[OperatorTag, Set[OperatorTag]] = outLinksImmutableValue.toMap
+    val outLinksImmutable: Map[OperatorIdentifier, Set[OperatorIdentifier]] = outLinksImmutableValue.toMap
 
     new Workflow(amberOperators, outLinksImmutable)
   }
@@ -67,30 +68,36 @@ class TexeraWorkflowCompiler(val texeraWorkflow: TexeraWorkflow, val context: Te
     val breakpointID = "breakpoint-" + operatorID
     breakpoint match {
       case conditionBp: TexeraConditionBreakpoint =>
-        val column = this.context.fieldIndexMapping(conditionBp.column);
-        val predicate: Tuple => Boolean = conditionBp.condition match {
+        val column = conditionBp.column
+        val predicate: TexeraTuple => Boolean = conditionBp.condition match {
           case TexeraBreakpointCondition.EQ =>
             tuple => {
-              tuple.get(column).toString.trim == conditionBp.value
+              tuple.getField(column).toString.trim == conditionBp.value
             }
           case TexeraBreakpointCondition.LT =>
-            tuple => tuple.get(column).toString.trim < conditionBp.value
+            tuple => tuple.getField(column).toString.trim < conditionBp.value
           case TexeraBreakpointCondition.LE =>
-            tuple => tuple.get(column).toString.trim <= conditionBp.value
+            tuple => tuple.getField(column).toString.trim <= conditionBp.value
           case TexeraBreakpointCondition.GT =>
-            tuple => tuple.get(column).toString.trim > conditionBp.value
+            tuple => tuple.getField(column).toString.trim > conditionBp.value
           case TexeraBreakpointCondition.GE =>
-            tuple => tuple.get(column).toString.trim >= conditionBp.value
+            tuple => tuple.getField(column).toString.trim >= conditionBp.value
           case TexeraBreakpointCondition.NE =>
-            tuple => tuple.get(column).toString.trim != conditionBp.value
+            tuple => tuple.getField(column).toString.trim != conditionBp.value
           case TexeraBreakpointCondition.CONTAINS =>
-            tuple => tuple.get(column).toString.trim.contains(conditionBp.value)
+            tuple => tuple.getField(column).toString.trim.contains(conditionBp.value)
           case TexeraBreakpointCondition.NOT_CONTAINS =>
-            tuple => !tuple.get(column).toString.trim.contains(conditionBp.value)
+            tuple => !tuple.getField(column).toString.trim.contains(conditionBp.value)
         }
         controller ! PassBreakpointTo(
           operatorID,
-          new ConditionalGlobalBreakpoint(breakpointID, predicate)
+          new ConditionalGlobalBreakpoint(
+            breakpointID,
+            tuple => {
+              val texeraTuple = tuple.asInstanceOf[TexeraTuple]
+              predicate.apply(texeraTuple)
+            }
+          )
         )
       case countBp: TexeraCountBreakpoint =>
         controller ! PassBreakpointTo(
@@ -105,4 +112,51 @@ class TexeraWorkflowCompiler(val texeraWorkflow: TexeraWorkflow, val context: Te
       addBreakpoint(controller, pair.operatorID, pair.breakpoint)
     }
   }
+
+  def propagateWorkflowSchema(): Map[TexeraOperatorDescriptor, Schema] = {
+    // construct the workflow DAG object using jGraphT
+    val workflowDag = new DirectedAcyclicGraph[TexeraOperatorDescriptor, DefaultEdge](classOf[DefaultEdge])
+    this.texeraWorkflow.operators.foreach(op => workflowDag.addVertex(op))
+    this.texeraWorkflow.links.foreach(link => {
+      val origin = this.texeraWorkflow.operators.filter(op => op.operatorID == link.origin).head
+      val destination = this.texeraWorkflow.operators.filter(op => op.operatorID == link.destination).head
+      workflowDag.addEdge(origin, destination)
+    })
+
+    // a map from an operator to its output schema
+    val outputSchemaMap = new mutable.HashMap[TexeraOperatorDescriptor, Option[Schema]]()
+    // a map from an operator to the list of its input schema
+    val inputSchemaMap = new mutable.HashMap[TexeraOperatorDescriptor, List[Option[Schema]]]()
+
+    // propagate output schema following topological order
+    // TODO: introduce the concept of port in TexeraOperatorDescriptor and propagate schema according to port
+    val topologicalOrderIterator = workflowDag.iterator()
+    topologicalOrderIterator.forEachRemaining(op => {
+      val outputSchema: Option[Schema] =
+        if (op.isInstanceOf[TexeraSourceOperatorDescriptor]) {
+          Option.apply(op.transformSchema())
+        } else if (inputSchemaMap(op).exists(s => s.isEmpty)) {
+          Option.empty
+        } else {
+          try {
+            Option.apply(op.transformSchema(inputSchemaMap(op).map(s => s.get).toArray: _*))
+          } catch {
+            case e: Throwable =>
+              e.printStackTrace()
+              Option.empty
+          }
+        }
+      outputSchemaMap(op) = outputSchema
+      JavaConverters.asScalaSet(workflowDag.outgoingEdgesOf(op))
+        .map(e => workflowDag.getEdgeTarget(e)).foreach(downstream => {
+          inputSchemaMap.put(downstream, inputSchemaMap.getOrElse(downstream, List()) :+ outputSchema)
+      })
+    })
+
+    inputSchemaMap
+      .filter(e => ! (e._2.exists(s => s.isEmpty) || e._2.isEmpty))
+      .map(e => (e._1, e._2.head.get))
+      .toMap
+  }
+
 }

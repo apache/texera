@@ -3,70 +3,25 @@ package Engine.Architecture.Controller
 import Clustering.ClusterListener.GetAvailableNodeAddresses
 import Engine.Architecture.Breakpoint.GlobalBreakpoint.{ExceptionGlobalBreakpoint, GlobalBreakpoint}
 import Engine.Architecture.Breakpoint.GlobalBreakpoint.GlobalBreakpoint
-import Engine.Architecture.Controller.ControllerEvent.{
-  BreakpointTriggered,
-  ModifyLogicCompleted,
-  SkipTupleResponse,
-  WorkflowCompleted,
-  WorkflowPaused,
-  WorkflowStatusUpdate
-}
+import Engine.Architecture.Controller.ControllerEvent.{BreakpointTriggered, ModifyLogicCompleted, SkipTupleResponse, WorkflowCompleted, WorkflowPaused, WorkflowStatusUpdate}
 import Engine.Architecture.DeploySemantics.DeployStrategy.OneOnEach
 import Engine.Architecture.DeploySemantics.DeploymentFilter.FollowPrevious
-import Engine.Architecture.DeploySemantics.Layer.{
-  ActorLayer,
-  GeneratorWorkerLayer,
-  ProcessorWorkerLayer
-}
+import Engine.Architecture.DeploySemantics.Layer.{ActorLayer, GeneratorWorkerLayer, ProcessorWorkerLayer}
 import Engine.FaultTolerance.Materializer.{HashBasedMaterializer, OutputMaterializer}
-import Engine.FaultTolerance.Scanner.HDFSFolderScanTupleProducer
-import Engine.Architecture.LinkSemantics.{
-  FullRoundRobin,
-  HashBasedShuffle,
-  LocalPartialToOne,
-  OperatorLink
-}
+import Engine.Architecture.LinkSemantics.{FullRoundRobin, HashBasedShuffle, LocalPartialToOne, OperatorLink}
 import Engine.Architecture.Principal.{Principal, PrincipalState, PrincipalStatistics}
 import Engine.Common.AmberException.AmberException
 import Engine.Common.AmberMessage.ControllerMessage._
 import Engine.Common.AmberMessage.ControlMessage._
 import Engine.Common.AmberMessage.PrincipalMessage
-import Engine.Common.AmberMessage.PrincipalMessage.{
-  AckedPrincipalInitialization,
-  AssignBreakpoint,
-  GetOutputLayer,
-  ReportCurrentProcessingTuple,
-  ReportOutputResult,
-  ReportPrincipalPartialCompleted
-}
+import Engine.Common.AmberMessage.PrincipalMessage.{AckedPrincipalInitialization, AssignBreakpoint, GetOutputLayer, ReportCurrentProcessingTuple, ReportOutputResult, ReportPrincipalPartialCompleted}
 import Engine.Common.AmberMessage.StateMessage.EnforceStateCheck
-import Engine.Common.AmberTag.{AmberTag, LayerTag, LinkTag, OperatorTag, WorkflowTag}
+import Engine.Common.AmberTag.{AmberTag, LayerTag, LinkTag, OperatorIdentifier, WorkflowTag}
 import Engine.Common.tuple.Tuple
-import Engine.Common.{AdvancedMessageSending, AmberUtils, Constants, TupleProducer}
-import Engine.Operators.SimpleCollection.SimpleSourceOperatorMetadata
-import Engine.Operators.Count.CountMetadata
-import Engine.Operators.Filter.{FilterMetadata, FilterType}
-import Engine.Operators.GroupBy.{AggregationType, GroupByMetadata}
-import Engine.Operators.HashJoin.HashJoinMetadata
-import Engine.Operators.KeywordSearch.KeywordSearchMetadata
-import Engine.Operators.OperatorMetadata
-import Engine.Operators.Projection.ProjectionMetadata
-import Engine.Operators.Scan.HDFSFileScan.{HDFSFileScanMetadata, HDFSFileScanTupleProducer}
-import Engine.Operators.Scan.LocalFileScan.LocalFileScanMetadata
-import Engine.Operators.Sink.SimpleSinkOperatorMetadata
-import Engine.Operators.Sort.SortMetadata
-import akka.actor.{
-  Actor,
-  ActorLogging,
-  ActorRef,
-  ActorSelection,
-  Address,
-  Cancellable,
-  Deploy,
-  PoisonPill,
-  Props,
-  Stash
-}
+import Engine.Common.{AdvancedMessageSending, AmberUtils, Constants, SourceOperatorExecutor}
+import Engine.FaultTolerance.Scanner.HDFSFolderScanSourceOperatorExecutor
+import Engine.Operators.OpExecConfig
+import akka.actor.{Actor, ActorLogging, ActorRef, ActorSelection, Address, Cancellable, Deploy, PoisonPill, Props, Stash}
 import akka.dispatch.Futures
 import akka.event.LoggingAdapter
 import akka.pattern.ask
@@ -112,17 +67,17 @@ object Controller {
     val json: JsValue = Json.parse(jsonString)
     val tag: WorkflowTag = WorkflowTag("sample")
     val linkArray: JsArray = (json \ "links").as[JsArray]
-    val links: Map[OperatorTag, Set[OperatorTag]] =
+    val links: Map[OperatorIdentifier, Set[OperatorIdentifier]] =
       linkArray.value
         .map(x =>
-          (OperatorTag(tag, x("origin").as[String]), OperatorTag(tag, x("destination").as[String]))
+          (OperatorIdentifier(tag, x("origin").as[String]), OperatorIdentifier(tag, x("destination").as[String]))
         )
         .groupBy(_._1)
         .map { case (k, v) => (k, v.map(_._2).toSet) }
     val operatorArray: JsArray = (json \ "operators").as[JsArray]
-    val operators: mutable.Map[OperatorTag, OperatorMetadata] = mutable.Map(
+    val operators: mutable.Map[OperatorIdentifier, OpExecConfig] = mutable.Map(
       operatorArray.value.map(x =>
-        (OperatorTag(tag, x("operatorID").as[String]), jsonToOperatorMetadata(tag, x))
+        (OperatorIdentifier(tag, x("operatorID").as[String]), jsonToOperatorMetadata(tag, x))
       ): _*
     )
     new Controller(
@@ -135,77 +90,78 @@ object Controller {
 
   }
 
-  private def jsonToOperatorMetadata(workflowTag: WorkflowTag, json: JsValue): OperatorMetadata = {
+  private def jsonToOperatorMetadata(workflowTag: WorkflowTag, json: JsValue): OpExecConfig = {
     val id = json("operatorID").as[String]
-    val tag = OperatorTag(workflowTag.workflow, id)
-    json("operatorType").as[String] match {
-      case "LocalScanSource" =>
-        new LocalFileScanMetadata(
-          tag,
-          Constants.defaultNumWorkers,
-          json("tableName").as[String],
-          json("delimiter").as[String].charAt(0),
-          (json \ "indicesToKeep").asOpt[Array[Int]].orNull,
-          null
-        )
-      case "HDFSScanSource" =>
-        new HDFSFileScanMetadata(
-          tag,
-          Constants.defaultNumWorkers,
-          json("host").as[String],
-          json("tableName").as[String],
-          json("delimiter").as[String].charAt(0),
-          json("indicesToKeep").asOpt[Array[Int]].orNull,
-          null
-        )
-      case "KeywordMatcher" =>
-        new KeywordSearchMetadata(
-          tag,
-          Constants.defaultNumWorkers,
-          json("attributeName").as[Int],
-          json("keyword").as[String]
-        )
-      case "Aggregation" => new CountMetadata(tag, Constants.defaultNumWorkers)
-      case "Filter" =>
-        new FilterMetadata[DateTime](
-          tag,
-          Constants.defaultNumWorkers,
-          json("targetField").as[Int],
-          FilterType.getType(json("filterType").as[String]),
-          DateTime.parse(json("threshold").as[String])
-        )
-      case "Sink" => new SimpleSinkOperatorMetadata(tag)
-      case "Generate" =>
-        new SimpleSourceOperatorMetadata(
-          tag,
-          Constants.defaultNumWorkers,
-          json("limit").as[Int],
-          json("delay").as[Int]
-        )
-      case "HashJoin" =>
-        new HashJoinMetadata[String](
-          tag,
-          Constants.defaultNumWorkers,
-          json("innerTableIndex").as[Int],
-          json("outerTableIndex").as[Int]
-        )
-      case "GroupBy" =>
-        new GroupByMetadata[String](
-          tag,
-          Constants.defaultNumWorkers,
-          json("groupByField").as[Int],
-          json("aggregateField").as[Int],
-          AggregationType.valueOf(json("aggregationType").as[String])
-        )
-      case "Projection" =>
-        new ProjectionMetadata(
-          tag,
-          Constants.defaultNumWorkers,
-          json("targetFields").as[Array[Int]]
-        )
-      case "Sort" => new SortMetadata[String](tag, json("targetField").as[Int])
-      case t      => throw new NotImplementedError("Unknown operator type: " + t)
-    }
+    val tag = OperatorIdentifier(workflowTag.workflow, id)
+//    json("operatorType").as[String] match {
+//      case "LocalScanSource" =>
+//        new LocalFileScanMetadata(
+//          tag,
+//          Constants.defaultNumWorkers,
+//          json("tableName").as[String],
+//          json("delimiter").as[String].charAt(0),
+//          (json \ "indicesToKeep").asOpt[Array[Int]].orNull,
+//          null
+//        )
+//      case "HDFSScanSource" =>
+//        new HDFSFileScanMetadata(
+//          tag,
+//          Constants.defaultNumWorkers,
+//          json("host").as[String],
+//          json("tableName").as[String],
+//          json("delimiter").as[String].charAt(0),
+//          json("indicesToKeep").asOpt[Array[Int]].orNull,
+//          null
+//        )
+//      case "KeywordMatcher" =>
+//        new KeywordSearchMetadata(
+//          tag,
+//          Constants.defaultNumWorkers,
+//          json("attributeName").as[Int],
+//          json("keyword").as[String]
+//        )
+//      case "Aggregation" => new CountMetadata(tag, Constants.defaultNumWorkers)
+//      case "Filter" =>
+//        new FilterMetadata[DateTime](
+//          tag,
+//          Constants.defaultNumWorkers,
+//          json("targetField").as[Int],
+//          FilterType.getType(json("filterType").as[String]),
+//          DateTime.parse(json("threshold").as[String])
+//        )
+//      case "Sink" => new SimpleSinkOperatorMetadata(tag)
+//      case "Generate" =>
+//        new SimpleSourceOperatorMetadata(
+//          tag,
+//          Constants.defaultNumWorkers,
+//          json("limit").as[Int],
+//          json("delay").as[Int]
+//        )
+//      case "HashJoin" =>
+//        new HashJoinMetadata[String](
+//          tag,
+//          Constants.defaultNumWorkers,
+//          json("innerTableIndex").as[Int],
+//          json("outerTableIndex").as[Int]
+//        )
+//      case "GroupBy" =>
+//        new GroupByMetadata[String](
+//          tag,
+//          Constants.defaultNumWorkers,
+//          json("groupByField").as[Int],
+//          json("aggregateField").as[Int],
+//          AggregationType.valueOf(json("aggregationType").as[String])
+//        )
+//      case "Projection" =>
+//        new ProjectionMetadata(
+//          tag,
+//          Constants.defaultNumWorkers,
+//          json("targetFields").as[Array[Int]]
+//        )
+//      case "Sort" => new SortMetadata[String](tag, json("targetField").as[Int])
+//      case t      => throw new NotImplementedError("Unknown operator type: " + t)
+//    }
+    throw new UnsupportedOperationException()
   }
 }
 
@@ -222,17 +178,17 @@ class Controller(
   implicit val timeout: Timeout = 5.seconds
   implicit val logAdapter: LoggingAdapter = log
 
-  val principalBiMap: BiMap[OperatorTag, ActorRef] = HashBiMap.create[OperatorTag, ActorRef]()
+  val principalBiMap: BiMap[OperatorIdentifier, ActorRef] = HashBiMap.create[OperatorIdentifier, ActorRef]()
   val principalInCurrentStage = new mutable.HashSet[ActorRef]()
   val principalStates = new mutable.AnyRefMap[ActorRef, PrincipalState.Value]
   val principalStatisticsMap = new mutable.AnyRefMap[ActorRef, PrincipalStatistics]
   val principalSinkResultMap = new mutable.HashMap[String, List[Tuple]]
   val edges = new mutable.AnyRefMap[LinkTag, OperatorLink]
-  val frontier = new mutable.HashSet[OperatorTag]
-  var prevFrontier: mutable.HashSet[OperatorTag] = _
-  val stashedFrontier = new mutable.HashSet[OperatorTag]
+  val frontier = new mutable.HashSet[OperatorIdentifier]
+  var prevFrontier: mutable.HashSet[OperatorIdentifier] = _
+  val stashedFrontier = new mutable.HashSet[OperatorIdentifier]
   val stashedNodes = new mutable.HashSet[ActorRef]()
-  val linksToIgnore = new mutable.HashSet[(OperatorTag, OperatorTag)]
+  val linksToIgnore = new mutable.HashSet[(OperatorIdentifier, OperatorIdentifier)]
   var periodicallyAskHandle: Cancellable = _
   var statusUpdateAskHandle: Cancellable = _
   var startDependencies =
@@ -256,15 +212,15 @@ class Controller(
   private def queryExecuteStatistics(): Unit = {}
 
   //if checkpoint activated:
-  private def insertCheckpoint(from: OperatorMetadata, to: OperatorMetadata): Unit = {
+  private def insertCheckpoint(from: OpExecConfig, to: OpExecConfig): Unit = {
     //insert checkpoint barrier between 2 operators and delete the link between them
     val topology = from.topology
     val hashFunc = to.getShuffleHashFunction(topology.layers.last.tag)
     val layerTag = LayerTag(from.tag, "checkpoint")
     val path: String = layerTag.getGlobalIdentity
     val numWorkers = topology.layers.last.numWorkers
-    val scanGen: Int => TupleProducer = i =>
-      new HDFSFolderScanTupleProducer(Constants.remoteHDFSPath, path + "/" + i, '|', null)
+    val scanGen: Int => SourceOperatorExecutor = i =>
+      new HDFSFolderScanSourceOperatorExecutor(Constants.remoteHDFSPath, path + "/" + i, '|', null)
     val lastLayer = topology.layers.last
     val materializerLayer = new ProcessorWorkerLayer(
       layerTag,
@@ -374,7 +330,7 @@ class Controller(
           y =>
             y match {
               case AckWithInformation(z) =>
-                workflow.operators(x) = z.asInstanceOf[OperatorMetadata]
+                workflow.operators(x) = z.asInstanceOf[OpExecConfig]
                 //assign exception breakpoint before all breakpoints
                 if (!recoveryMode) {
                   AdvancedMessageSending.blockingAskWithRetry(
@@ -417,7 +373,7 @@ class Controller(
           y =>
             y match {
               case AckWithInformation(z) =>
-                workflow.operators(x) = z.asInstanceOf[OperatorMetadata]
+                workflow.operators(x) = z.asInstanceOf[OpExecConfig]
                 //assign exception breakpoint before all breakpoints
                 if (!recoveryMode) {
                   AdvancedMessageSending.blockingAskWithRetry(
@@ -487,7 +443,7 @@ class Controller(
           )
           .toArray
         val nodes = availableNodes
-        val operatorsToWait = new ArrayBuffer[OperatorTag]
+        val operatorsToWait = new ArrayBuffer[OperatorIdentifier]
         for (k <- next) {
           if (withCheckpoint) {
             for (n <- workflow.outLinks(k)) {
@@ -527,7 +483,7 @@ class Controller(
             y =>
               y match {
                 case AckWithInformation(z) =>
-                  workflow.operators(k) = z.asInstanceOf[OperatorMetadata]
+                  workflow.operators(k) = z.asInstanceOf[OpExecConfig]
                   //assign exception breakpoint before all breakpoints
                   if (!recoveryMode) {
                     AdvancedMessageSending.blockingAskWithRetry(
@@ -608,7 +564,7 @@ class Controller(
           }
       }
     case PassBreakpointTo(id: String, breakpoint: GlobalBreakpoint) =>
-      val opTag = OperatorTag(tag, id)
+      val opTag = OperatorIdentifier(tag, id)
       if (principalBiMap.containsKey(opTag)) {
         AdvancedMessageSending.blockingAskWithRetry(
           principalBiMap.get(opTag),
@@ -841,7 +797,7 @@ class Controller(
           throw t
       }
     case PassBreakpointTo(id: String, breakpoint: GlobalBreakpoint) =>
-      val opTag = OperatorTag(tag, id)
+      val opTag = OperatorIdentifier(tag, id)
       if (principalBiMap.containsKey(opTag)) {
         AdvancedMessageSending.blockingAskWithRetry(
           principalBiMap.get(opTag),

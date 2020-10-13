@@ -9,8 +9,8 @@ import Engine.Common.{
   AdvancedMessageSending,
   ElidableStatement,
   ThreadState,
-  TupleProcessor,
-  TupleProducer
+  OperatorExecutor,
+  SourceOperatorExecutor
 }
 import Engine.Common.AmberMessage.WorkerMessage._
 import Engine.Common.AmberMessage.StateMessage._
@@ -29,10 +29,10 @@ import scala.util.control.Breaks
 import scala.concurrent.duration._
 
 object Generator {
-  def props(producer: TupleProducer, tag: WorkerTag): Props = Props(new Generator(producer, tag))
+  def props(producer: SourceOperatorExecutor, tag: WorkerTag): Props = Props(new Generator(producer, tag))
 }
 
-class Generator(var dataProducer: TupleProducer, val tag: WorkerTag)
+class Generator(var dataProducer: SourceOperatorExecutor, val tag: WorkerTag)
     extends WorkerBase
     with ActorLogging
     with Stash {
@@ -40,6 +40,7 @@ class Generator(var dataProducer: TupleProducer, val tag: WorkerTag)
   val dataGenerateExecutor: ExecutionContextExecutor =
     ExecutionContext.fromExecutor(Executors.newSingleThreadExecutor)
   var isGeneratingFinished = false
+  var outputIterator: Iterator[Tuple] = _
 
   var generatedCount = 0L
   @elidable(INFO) var generateTime = 0L
@@ -48,8 +49,8 @@ class Generator(var dataProducer: TupleProducer, val tag: WorkerTag)
   override def onReset(value: Any, recoveryInformation: Seq[(Long, Long)]): Unit = {
     super.onReset(value, recoveryInformation)
     generatedCount = 0L
-    dataProducer = value.asInstanceOf[TupleProducer]
-    dataProducer.initialize()
+    dataProducer = value.asInstanceOf[SourceOperatorExecutor]
+    dataProducer.open()
     resetBreakpoints()
     resetOutput()
     context.become(ready)
@@ -142,7 +143,7 @@ class Generator(var dataProducer: TupleProducer, val tag: WorkerTag)
 
   override def onInitialization(recoveryInformation: Seq[(Long, Long)]): Unit = {
     super.onInitialization(recoveryInformation)
-    dataProducer.initialize()
+    dataProducer.open()
   }
 
   override def onInterrupted(operations: => Unit): Unit = {
@@ -191,11 +192,12 @@ class Generator(var dataProducer: TupleProducer, val tag: WorkerTag)
     Breaks.breakable {
       generateStart = System.nanoTime()
       beforeGenerating()
-      while (dataProducer.hasNext) {
+      this.outputIterator = dataProducer.produce()
+      while (outputIterator.hasNext) {
         exitIfPaused()
         var nextTuple: Tuple = null
         try {
-          nextTuple = dataProducer.next()
+          nextTuple = outputIterator.next()
         } catch {
           case e: Exception =>
             self ! LocalBreakpointTriggered
@@ -221,7 +223,7 @@ class Generator(var dataProducer: TupleProducer, val tag: WorkerTag)
       }
       onCompleting()
       try {
-        dataProducer.dispose()
+        dataProducer.close()
       } catch {
         case e: Exception =>
           self ! ReportFailure(e)

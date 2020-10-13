@@ -1,23 +1,18 @@
 package texera.common.tuple.schema;
 
-import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.stream.Collectors;
-
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+
+import java.io.Serializable;
+import java.util.*;
+import java.util.stream.Collectors;
+
 import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * A schema is a list of attributes that describe all the columns of a table.
- * 
- * @author zuozhiw
  *
  */
 public class Schema implements Serializable {

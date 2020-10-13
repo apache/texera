@@ -3,7 +3,7 @@ package Engine.Architecture.DeploySemantics.Layer
 import Engine.Architecture.DeploySemantics.DeployStrategy.DeployStrategy
 import Engine.Architecture.DeploySemantics.DeploymentFilter.DeploymentFilter
 import Engine.Common.AmberTag.{LayerTag, WorkerTag}
-import Engine.Operators.OperatorMetadata
+import Engine.Operators.OpExecConfig
 import akka.actor.{ActorContext, ActorRef, Address}
 
 abstract class ActorLayer(
@@ -21,8 +21,8 @@ abstract class ActorLayer(
 
   def isBuilt: Boolean = layer != null
 
-  def build(prev: Array[(OperatorMetadata, ActorLayer)], all: Array[Address])(implicit
-      context: ActorContext
+  def build(prev: Array[(OpExecConfig, ActorLayer)], all: Array[Address])(implicit
+                                                                          context: ActorContext
   ): Unit
 
   def getFirstMetadata: Any

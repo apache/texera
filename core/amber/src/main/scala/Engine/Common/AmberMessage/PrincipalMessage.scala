@@ -6,13 +6,13 @@ import Engine.Architecture.LinkSemantics.LinkStrategy
 import Engine.Architecture.Principal.{PrincipalState, PrincipalStatistics}
 import Engine.Common.AmberTag.{AmberTag, LayerTag, WorkerTag}
 import Engine.Common.tuple.Tuple
-import Engine.Operators.OperatorMetadata
+import Engine.Operators.OpExecConfig
 import akka.actor.{ActorPath, ActorRef}
 
 import scala.collection.mutable
 
 object PrincipalMessage {
-  final case class AckedPrincipalInitialization(prev: Array[(OperatorMetadata, ActorLayer)])
+  final case class AckedPrincipalInitialization(prev: Array[(OpExecConfig, ActorLayer)])
 
   final case class GetInputLayer()
 
@@ -21,8 +21,8 @@ object PrincipalMessage {
   final case class AppendLayer(linkStrategy: LinkStrategy)
 
   final case class PrependLayer(
-      prev: Array[(OperatorMetadata, ActorLayer)],
-      linkStrategy: LinkStrategy
+                                 prev: Array[(OpExecConfig, ActorLayer)],
+                                 linkStrategy: LinkStrategy
   )
 
   final case class AssignBreakpoint(breakpoint: GlobalBreakpoint)

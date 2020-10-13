@@ -9,8 +9,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * An attribute describes the name and the type of a column.
- * 
- * @author zuozhiw
  *
  */
 public class Attribute implements Serializable {

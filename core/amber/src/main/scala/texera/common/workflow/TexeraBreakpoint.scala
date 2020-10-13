@@ -4,10 +4,6 @@ import com.fasterxml.jackson.annotation.JsonSubTypes.Type
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 import com.fasterxml.jackson.core.`type`.TypeReference
 import com.fasterxml.jackson.module.scala.JsonScalaEnumeration
-import texera.common.workflow.TexeraBreakpointCondition.Condition
-import texera.operators.localscan.TexeraLocalFileScan
-import texera.operators.sink.TexeraAdhocSink
-import texera.operators.sleep.TexeraSleepOperator
 
 @JsonTypeInfo(
   use = JsonTypeInfo.Id.NAME,
