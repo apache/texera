@@ -11,7 +11,7 @@ import Engine.Common.AmberMessage.StateMessage._
 import Engine.Common.AmberMessage.ControlMessage.{QueryState, _}
 import Engine.Common.AmberTag.{LayerTag, WorkerTag}
 import Engine.Common.tuple.Tuple
-import Engine.Common.{AdvancedMessageSending, Constants, ElidableStatement, InputExhausted, OperatorExecutor, TableMetadata, ThreadState, TupleSink}
+import Engine.Common.{AdvancedMessageSending, Constants, ElidableStatement, InputExhausted, OperatorExecutor, TableMetadata, ThreadState, TupleSinkOperatorExecutor}
 import Engine.FaultTolerance.Recovery.RecoveryPacket
 import texera.common.operators.filter.{TexeraFilterOpExec, TexeraFilterOpExecConfig}
 import Engine.Operators.OpExecConfig
@@ -140,7 +140,7 @@ class Processor(var dataProcessor: OperatorExecutor, val tag: WorkerTag) extends
 
   override def getResultTuples(): mutable.MutableList[Tuple] = {
     this.dataProcessor match {
-      case processor: TupleSink =>
+      case processor: TupleSinkOperatorExecutor =>
         mutable.MutableList(processor.getResultTuples():_*)
       case _ =>
         mutable.MutableList()

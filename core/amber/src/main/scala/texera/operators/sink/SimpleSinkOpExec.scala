@@ -1,11 +1,11 @@
 package texera.operators.sink
 
 import Engine.Common.tuple.Tuple
-import Engine.Common.{InputExhausted, TupleSink}
+import Engine.Common.{InputExhausted, TupleSinkOperatorExecutor}
 
 import scala.collection.mutable
 
-class SimpleSinkOpExec extends TupleSink {
+class SimpleSinkOpExec extends TupleSinkOperatorExecutor {
 
   val results: mutable.MutableList[Tuple] = mutable.MutableList()
 

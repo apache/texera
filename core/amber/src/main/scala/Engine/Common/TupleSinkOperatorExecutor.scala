@@ -3,7 +3,7 @@ package Engine.Common
 import Engine.Common.tuple.Tuple
 
 
-trait TupleSink extends OperatorExecutor {
+trait TupleSinkOperatorExecutor extends OperatorExecutor {
 
   def getResultTuples(): Array[Tuple]
 

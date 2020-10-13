@@ -15,7 +15,7 @@ import Engine.Common.AmberMessage.{PrincipalMessage, WorkerMessage}
 import Engine.Common.AmberMessage.WorkerMessage.{AckedWorkerInitialization, CheckRecovery, DataMessage, EndSending, ExecutionCompleted, ExecutionPaused, QueryBreakpoint, QueryTriggeredBreakpoints, RemoveBreakpoint, ReportFailure, ReportWorkerPartialCompleted, ReportedQueriedBreakpoint, ReportedTriggeredBreakpoints, Reset, UpdateOutputLinking}
 import Engine.Common.tuple.Tuple
 import Engine.Common.AmberTag.{AmberTag, LayerTag, OperatorIdentifier, WorkerTag}
-import Engine.Common.{AdvancedMessageSending, AmberUtils, Constants, TableMetadata, TupleSink}
+import Engine.Common.{AdvancedMessageSending, AmberUtils, Constants, TableMetadata, TupleSinkOperatorExecutor}
 import Engine.FaultTolerance.Recovery.RecoveryPacket
 import Engine.Operators.OpExecConfig
 import akka.actor.{Actor, ActorLogging, ActorPath, ActorRef, Address, Cancellable, PoisonPill, Props, Stash}

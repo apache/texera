@@ -6,7 +6,7 @@ import Engine.Architecture.SendSemantics.Routees.DirectRoutee
 import Engine.Common.AmberMessage.PrincipalMessage.{GetInputLayer, GetOutputLayer}
 import Engine.Common.AmberMessage.WorkerMessage.UpdateOutputLinking
 import Engine.Common.AmberTag.LinkTag
-import Engine.Common.{AdvancedMessageSending, Constants, TupleSink}
+import Engine.Common.{AdvancedMessageSending, Constants, TupleSinkOperatorExecutor}
 import Engine.Operators.OpExecConfig
 import akka.actor.ActorRef
 import akka.event.LoggingAdapter
@@ -35,7 +35,7 @@ class OperatorLink(val from: (OpExecConfig, ActorRef), val to: (OpExecConfig, Ac
           to._1.getShuffleHashFunction(sender.tag)
         )
       } else if (
-        to._1.isInstanceOf[TupleSink]
+        to._1.isInstanceOf[TupleSinkOperatorExecutor]
       ) {
         linkStrategy = new AllToOne(sender, receiver, Constants.defaultBatchSize)
       } else if (sender.layer.length == receiver.layer.length) {
