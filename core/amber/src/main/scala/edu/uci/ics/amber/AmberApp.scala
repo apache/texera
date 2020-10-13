@@ -178,16 +178,16 @@ object AmberApp {
         input match {
           case "choose" =>
             try {
-              print("please choose which edu.uci.ics.texera.workflow you want to execute (0 or 1):")
+              print("please choose which workflow you want to execute (0 or 1):")
               val res = scala.io.StdIn.readInt()
               if (res < 0 || res > workflows.size) {
                 throw new Exception()
               }
               current = res
-              println("current edu.uci.ics.texera.workflow: " + current)
+              println("current workflow: " + current)
             } catch {
               case _: Throwable =>
-                println("failed to choose edu.uci.ics.texera.workflow!")
+                println("failed to choose workflow!")
             }
           case "configure" =>
             if (current == 0) {
@@ -196,17 +196,17 @@ object AmberApp {
                 limit = scala.io.StdIn.readInt().toString
                 print("please enter the artificial delay of generating one tuple(ms):")
                 delay = scala.io.StdIn.readInt().toString
-                println("edu.uci.ics.texera.workflow is correctly configured!")
+                println("workflow is correctly configured!")
               } catch {
                 case _: Throwable =>
-                  println("edu.uci.ics.texera.workflow is not correctly configured!")
+                  println("workflow is not correctly configured!")
               }
             } else {
-              println("edu.uci.ics.texera.workflow is correctly configured!")
+              println("workflow is correctly configured!")
             }
           case "set count breakpoint" =>
             if (current != 1) {
-              println("count breakpoint not supported for this edu.uci.ics.texera.workflow")
+              println("count breakpoint not supported for this workflow")
             } else {
               try {
                 print("please enter target number of tuples:")
@@ -219,7 +219,7 @@ object AmberApp {
             }
           case "set conditional breakpoint" =>
             if (current != 1) {
-              println("conditional breakpoint not supported for this edu.uci.ics.texera.workflow")
+              println("conditional breakpoint not supported for this workflow")
             } else {
               try {
                 print(
@@ -262,16 +262,16 @@ object AmberApp {
               )
             }
             controller ! Start
-            println("edu.uci.ics.texera.workflow started!")
+            println("workflow started!")
           case "pause" =>
             if (controller == null) {
-              println("edu.uci.ics.texera.workflow is not initialized")
+              println("workflow is not initialized")
             } else {
               controller ! Pause
             }
           case "resume" =>
             if (controller == null) {
-              println("edu.uci.ics.texera.workflow is not initialized")
+              println("workflow is not initialized")
             } else {
               controller ! Resume
             }

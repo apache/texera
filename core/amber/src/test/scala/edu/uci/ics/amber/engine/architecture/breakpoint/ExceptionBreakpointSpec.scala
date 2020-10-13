@@ -93,7 +93,7 @@ class ExceptionBreakpointSpec
     TestKit.shutdownActorSystem(system)
   }
 
-  "A edu.uci.ics.texera.workflow" should "be able to detect faulted tuples and trigger exception breakpoint in the workflow1, then skip them" in {
+  "A workflow" should "be able to detect faulted tuples and trigger exception breakpoint in the workflow1, then skip them" in {
     val parent = TestProbe()
     val controller = parent.childActorOf(Controller.props(logicalPlan1))
     controller ! AckedControllerInitialization
@@ -120,7 +120,7 @@ class ExceptionBreakpointSpec
     parent.ref ! PoisonPill
   }
 
-  "A edu.uci.ics.texera.workflow" should "be able to detect faulted tuples and trigger exception breakpoint in the workflow1, then modify them" in {
+  "A workflow" should "be able to detect faulted tuples and trigger exception breakpoint in the workflow1, then modify them" in {
     val parent = TestProbe()
     val controller = parent.childActorOf(Controller.props(logicalPlan1))
     controller ! AckedControllerInitialization
@@ -152,7 +152,7 @@ class ExceptionBreakpointSpec
     parent.ref ! PoisonPill
   }
 
-  "A edu.uci.ics.texera.workflow" should "be able to trigger conditional breakpoint in the workflow2, then resume them" in {
+  "A workflow" should "be able to trigger conditional breakpoint in the workflow2, then resume them" in {
     val parent = TestProbe()
     val controller = parent.childActorOf(Controller.props(logicalPlan2))
     controller ! AckedControllerInitialization
@@ -183,7 +183,7 @@ class ExceptionBreakpointSpec
     parent.ref ! PoisonPill
   }
 
-  "A edu.uci.ics.texera.workflow" should "be able to trigger conditional breakpoint in the workflow2, then skip them" in {
+  "A workflow" should "be able to trigger conditional breakpoint in the workflow2, then skip them" in {
     val parent = TestProbe()
     val controller = parent.childActorOf(Controller.props(logicalPlan2))
     controller ! AckedControllerInitialization
@@ -214,7 +214,7 @@ class ExceptionBreakpointSpec
     parent.ref ! PoisonPill
   }
 
-  "A edu.uci.ics.texera.workflow" should "be able to trigger count breakpoint in the workflow2, then resume it" in {
+  "A workflow" should "be able to trigger count breakpoint in the workflow2, then resume it" in {
     val parent = TestProbe()
     val controller = parent.childActorOf(Controller.props(logicalPlan2))
     controller ! AckedControllerInitialization
@@ -241,7 +241,7 @@ class ExceptionBreakpointSpec
     parent.ref ! PoisonPill
   }
 
-  "A edu.uci.ics.texera.workflow" should "be able to trigger conditional breakpoint in the workflow2, then resume it" in {
+  "A workflow" should "be able to trigger conditional breakpoint in the workflow2, then resume it" in {
     val parent = TestProbe()
     val controller = parent.childActorOf(Controller.props(logicalPlan2))
     controller ! AckedControllerInitialization
@@ -271,7 +271,7 @@ class ExceptionBreakpointSpec
     parent.ref ! PoisonPill
   }
 
-  "A edu.uci.ics.texera.workflow" should "be able to trigger count breakpoint in the workflow1, then resume it" in {
+  "A workflow" should "be able to trigger count breakpoint in the workflow1, then resume it" in {
     val parent = TestProbe()
     val controller = parent.childActorOf(Controller.props(logicalPlan1))
     controller ! AckedControllerInitialization

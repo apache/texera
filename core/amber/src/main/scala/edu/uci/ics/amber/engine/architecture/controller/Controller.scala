@@ -537,14 +537,14 @@ class Controller(
       principalStates(sender) = state
       state match {
         case PrincipalState.Running =>
-          log.info("edu.uci.ics.texera.workflow started!")
+          log.info("workflow started!")
           context.parent ! ReportState(ControllerState.Running)
           context.become(running)
           unstashAll()
         case PrincipalState.Paused =>
           if (principalStates.values.forall(_ == PrincipalState.Completed)) {
             timer.stop()
-            log.info("edu.uci.ics.texera.workflow completed! Time Elapsed: " + timer.toString())
+            log.info("workflow completed! Time Elapsed: " + timer.toString())
             timer.reset()
             safeRemoveAskHandle()
             context.parent ! ReportState(ControllerState.Completed)
@@ -552,7 +552,7 @@ class Controller(
             unstashAll()
           } else if (allUnCompletedPrincipalStates.forall(_ == PrincipalState.Paused)) {
             pauseTimer.stop()
-            log.info("edu.uci.ics.texera.workflow paused! Time Elapsed: " + pauseTimer.toString())
+            log.info("workflow paused! Time Elapsed: " + pauseTimer.toString())
             pauseTimer.reset()
             safeRemoveAskHandle()
             context.parent ! ReportState(ControllerState.Paused)
@@ -598,7 +598,7 @@ class Controller(
           }
           if (principalStates.values.forall(_ == PrincipalState.Completed)) {
             timer.stop()
-            log.info("edu.uci.ics.texera.workflow completed! Time Elapsed: " + timer.toString())
+            log.info("workflow completed! Time Elapsed: " + timer.toString())
             timer.reset()
             safeRemoveAskHandle()
             if (frontier.isEmpty) {
@@ -629,7 +629,7 @@ class Controller(
             if (timer.isRunning) {
               timer.stop()
             }
-            log.info("edu.uci.ics.texera.workflow completed! Time Elapsed: " + timer.toString())
+            log.info("workflow completed! Time Elapsed: " + timer.toString())
             timer.reset()
             safeRemoveAskHandle()
             context.parent ! ReportState(ControllerState.Completed)
@@ -639,7 +639,7 @@ class Controller(
             if (pauseTimer.isRunning) {
               pauseTimer.stop()
             }
-            log.info("edu.uci.ics.texera.workflow paused! Time Elapsed: " + pauseTimer.toString())
+            log.info("workflow paused! Time Elapsed: " + pauseTimer.toString())
             pauseTimer.reset()
             safeRemoveAskHandle()
             context.parent ! ReportState(ControllerState.Paused)
@@ -661,8 +661,8 @@ class Controller(
     case Pause =>
       pauseTimer.start()
       workflow.operators.foreach(x => principalBiMap.get(x._1) ! Pause)
-      //edu.uci.ics.texera.workflow.startOperators.foreach(principalBiMap.get(_) ! Pause)
-      //frontier ++= edu.uci.ics.texera.workflow.startOperators.flatMap(edu.uci.ics.texera.workflow.outLinks(_))
+      //workflow.startOperators.foreach(principalBiMap.get(_) ! Pause)
+      //frontier ++= workflow.startOperators.flatMap(workflow.outLinks(_))
       log.info("received pause signal")
       safeRemoveAskHandle()
       periodicallyAskHandle =
@@ -710,7 +710,7 @@ class Controller(
         if (principalStates.values.forall(_ == PrincipalState.Completed)) {
           timer.stop()
           frontier.clear()
-          log.info("edu.uci.ics.texera.workflow completed! Time Elapsed: " + timer.toString())
+          log.info("workflow completed! Time Elapsed: " + timer.toString())
           timer.reset()
           safeRemoveAskHandle()
           if (frontier.isEmpty) {
@@ -726,7 +726,7 @@ class Controller(
             pauseTimer.stop()
           }
           frontier.clear()
-          log.info("edu.uci.ics.texera.workflow paused! Time Elapsed: " + pauseTimer.toString())
+          log.info("workflow paused! Time Elapsed: " + pauseTimer.toString())
           pauseTimer.reset()
           safeRemoveAskHandle()
           context.parent ! ReportState(ControllerState.Paused)
@@ -828,13 +828,13 @@ class Controller(
         if (principalStates.values.forall(_ != PrincipalState.Paused)) {
           frontier.clear()
           if (principalStates.values.exists(_ != PrincipalState.Ready)) {
-            log.info("edu.uci.ics.texera.workflow resumed!")
+            log.info("workflow resumed!")
             safeRemoveAskHandle()
             context.parent ! ReportState(ControllerState.Running)
             context.become(running)
             unstashAll()
           } else {
-            log.info("edu.uci.ics.texera.workflow ready!")
+            log.info("workflow ready!")
             safeRemoveAskHandle()
             context.parent ! ReportState(ControllerState.Ready)
             context.become(ready)
@@ -873,7 +873,7 @@ class Controller(
       }
       this.exitIfCompleted
     case msg =>
-      log.info("received: {} after edu.uci.ics.texera.workflow completed!", msg)
+      log.info("received: {} after workflow completed!", msg)
       if (sender != self && !principalStates.keySet.contains(sender)) {
         sender ! ReportState(ControllerState.Completed)
       }
