@@ -1,5 +1,5 @@
-# Texera
-Cloud-based big data analytics using declarative and GUI-based workflows
+# Synopsis
+Collaborative big data analytics for cloud services using GUI-based workflows.
 
 travis-ci
 [![Build Status](https://travis-ci.org/Texera/texera.svg?branch=master)](https://travis-ci.org/Texera/texera)
@@ -11,7 +11,7 @@ travis-ci
 * (7/2020) Demonstration of Interactive Runtime Debugging of
 Distributed Dataflows in Texera, Zuozhi Wang, Avinash Kumar, Shengquan Ni, Chen Li, VLDB 2020 [PDF](http://www.vldb.org/pvldb/vol13/p2953-wang.pdf), [Video](https://www.youtube.com/watch?v=SP-XiDADbw0), [Slides](https://docs.google.com/presentation/d/14U6RPZfeb8Ho0aO2HsCSc8lRs6ul6AxEIm5gpjeVUYA/edit?usp=sharing)
 
-## Texera videos
+## Videos
 
 * [Texera demo in VLDB 2020](https://www.youtube.com/watch?v=SP-XiDADbw0)
 * [Amber engine presentation in VLDB 2020](https://www.youtube.com/watch?v=T5ShFRfHmgI)
