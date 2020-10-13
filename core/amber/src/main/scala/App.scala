@@ -1,22 +1,22 @@
 import java.io.{BufferedReader, InputStreamReader}
 
-import Clustering.ClusterListener
+import clustering.ClusterListener
 import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Props, Stash}
 import akka.pattern.ask
 import com.typesafe.config.{Config, ConfigFactory}
 import java.net._
 
-import Engine.Architecture.Breakpoint.GlobalBreakpoint.{
+import engine.architecture.breakpoint.globalbreakpoint.{
   ConditionalGlobalBreakpoint,
   CountGlobalBreakpoint
 }
-import Engine.Architecture.Controller.Controller
-import Engine.Common.AmberMessage.ControlMessage.{ModifyLogic, Pause, Resume, Start}
-import Engine.Common.AmberMessage.ControllerMessage.{
+import engine.architecture.controller.Controller
+import engine.common.ambermessage.ControlMessage.{ModifyLogic, Pause, Resume, Start}
+import engine.common.ambermessage.ControllerMessage.{
   AckedControllerInitialization,
   PassBreakpointTo
 }
-import Engine.Common.Constants
+import engine.common.Constants
 import akka.util.Timeout
 import play.api.libs.json.Json
 

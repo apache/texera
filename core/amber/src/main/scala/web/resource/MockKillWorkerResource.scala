@@ -1,6 +1,6 @@
 package web.resource
 
-import Engine.Common.AmberMessage.ControlMessage.KillAndRecover
+import engine.common.ambermessage.ControlMessage.KillAndRecover
 import javax.ws.rs.core.MediaType
 import javax.ws.rs.{POST, Path, Produces}
 

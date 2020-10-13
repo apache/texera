@@ -3,7 +3,7 @@ package web
 import java.io.{BufferedReader, InputStreamReader}
 import java.net.{InetAddress, URL}
 
-import Clustering.ClusterListener
+import clustering.ClusterListener
 import akka.actor.{ActorSystem, Props}
 import com.typesafe.config.ConfigFactory
 

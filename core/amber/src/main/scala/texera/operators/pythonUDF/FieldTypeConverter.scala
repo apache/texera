@@ -1,6 +1,6 @@
 package texera.operators.pythonUDF
 
-import Engine.Common.AmberField.FieldType
+import engine.common.amberfield.FieldType
 
 object FieldTypeConverter {
   def convertType(javaField: FieldTypeInJava): FieldType.Value = javaField match {

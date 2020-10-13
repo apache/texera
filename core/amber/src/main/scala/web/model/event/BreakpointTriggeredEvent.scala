@@ -1,6 +1,6 @@
 package web.model.event
 
-import Engine.Architecture.Controller.ControllerEvent
+import engine.architecture.controller.ControllerEvent
 import web.model.common.FaultedTupleFrontend
 
 import scala.collection.mutable

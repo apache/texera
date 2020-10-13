@@ -2,12 +2,12 @@ package texera.operators.localscan
 
 import java.io.File
 
-import Engine.Architecture.Breakpoint.GlobalBreakpoint.GlobalBreakpoint
-import Engine.Architecture.DeploySemantics.DeployStrategy.RoundRobinDeployment
-import Engine.Architecture.DeploySemantics.DeploymentFilter.UseAll
-import Engine.Architecture.DeploySemantics.Layer.{ActorLayer, GeneratorWorkerLayer}
-import Engine.Architecture.Worker.WorkerState
-import Engine.Common.AmberTag.{LayerTag, OperatorIdentifier}
+import engine.architecture.breakpoint.globalbreakpoint.GlobalBreakpoint
+import engine.architecture.deploysemantics.deploystrategy.RoundRobinDeployment
+import engine.architecture.deploysemantics.deploymentfilter.UseAll
+import engine.architecture.deploysemantics.layer.{ActorLayer, GeneratorWorkerLayer}
+import engine.architecture.worker.WorkerState
+import engine.common.ambertag.{LayerTag, OperatorIdentifier}
 import akka.actor.ActorRef
 import akka.event.LoggingAdapter
 import akka.util.Timeout

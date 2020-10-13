@@ -1,6 +1,6 @@
 package texera.common.operators.map
 
-import Engine.Common.InputExhausted
+import engine.common.InputExhausted
 import texera.common.operators.TexeraOperatorExecutor
 import texera.common.tuple.TexeraTuple
 

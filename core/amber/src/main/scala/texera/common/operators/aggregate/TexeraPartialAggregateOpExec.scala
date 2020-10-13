@@ -1,7 +1,7 @@
 package texera.common.operators.aggregate
 
-import Engine.Common.InputExhausted
-import Engine.Common.tuple.Tuple
+import engine.common.InputExhausted
+import engine.common.tuple.Tuple
 import texera.common.operators.TexeraOperatorExecutor
 import texera.common.operators.aggregate.TexeraPartialAggregateOpExec.INTERNAL_AGGREGATE_PARTIAL_OBJECT
 import texera.common.tuple.TexeraTuple

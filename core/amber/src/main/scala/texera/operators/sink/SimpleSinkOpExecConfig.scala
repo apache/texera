@@ -1,12 +1,12 @@
 package texera.operators.sink
 
-import Engine.Architecture.Breakpoint.GlobalBreakpoint.GlobalBreakpoint
-import Engine.Architecture.DeploySemantics.DeployStrategy.RandomDeployment
-import Engine.Architecture.DeploySemantics.DeploymentFilter.ForceLocal
-import Engine.Architecture.DeploySemantics.Layer.{ActorLayer, ProcessorWorkerLayer}
-import Engine.Architecture.Worker.WorkerState
-import Engine.Common.AmberTag.{LayerTag, OperatorIdentifier}
-import Engine.Operators.OpExecConfig
+import engine.architecture.breakpoint.globalbreakpoint.GlobalBreakpoint
+import engine.architecture.deploysemantics.deploystrategy.RandomDeployment
+import engine.architecture.deploysemantics.deploymentfilter.ForceLocal
+import engine.architecture.deploysemantics.layer.{ActorLayer, ProcessorWorkerLayer}
+import engine.architecture.worker.WorkerState
+import engine.common.ambertag.{LayerTag, OperatorIdentifier}
+import engine.operators.OpExecConfig
 import akka.actor.ActorRef
 import akka.event.LoggingAdapter
 import akka.util.Timeout

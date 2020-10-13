@@ -1,7 +1,7 @@
 package texera.operators.pythonUDF;
 
-import Engine.Common.Constants;
-import Engine.Operators.OpExecConfig;
+import engine.common.Constants;
+import engine.operators.OpExecConfig;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import scala.collection.JavaConverters;

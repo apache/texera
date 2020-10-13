@@ -2,8 +2,8 @@ package texera.common.operators
 
 import java.util.UUID
 
-import Engine.Common.AmberTag.OperatorIdentifier
-import Engine.Operators.OpExecConfig
+import engine.common.ambertag.OperatorIdentifier
+import engine.operators.OpExecConfig
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonSubTypes, JsonTypeInfo}
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}

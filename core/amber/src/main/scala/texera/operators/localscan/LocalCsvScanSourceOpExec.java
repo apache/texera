@@ -1,7 +1,7 @@
 package texera.operators.localscan;
 
 
-import Engine.FaultTolerance.Scanner.BufferedBlockReader;
+import engine.faulttolerance.scanner.BufferedBlockReader;
 import com.google.common.base.Verify;
 import org.tukaani.xz.SeekableFileInputStream;
 import scala.collection.Iterator;

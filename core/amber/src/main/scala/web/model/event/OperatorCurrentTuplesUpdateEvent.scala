@@ -1,6 +1,6 @@
 package web.model.event
 
-import Engine.Common.AmberMessage.PrincipalMessage.ReportCurrentProcessingTuple
+import engine.common.ambermessage.PrincipalMessage.ReportCurrentProcessingTuple
 
 object OperatorCurrentTuplesUpdateEvent {
   def apply(report: ReportCurrentProcessingTuple): OperatorCurrentTuplesUpdateEvent = {

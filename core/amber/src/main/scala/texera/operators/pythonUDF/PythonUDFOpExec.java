@@ -1,10 +1,10 @@
 package texera.operators.pythonUDF;
 
-import Engine.Common.AmberException.AmberException;
-import Engine.Common.AmberTag.LayerTag;
-import Engine.Common.InputExhausted;
-import Engine.Common.tuple.Tuple;
-import Engine.Common.tuple.amber.AmberTuple;
+import engine.common.amberexception.AmberException;
+import engine.common.ambertag.LayerTag;
+import engine.common.InputExhausted;
+import engine.common.tuple.Tuple;
+import engine.common.tuple.amber.AmberTuple;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.arrow.flight.*;
 import org.apache.arrow.memory.RootAllocator;

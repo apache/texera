@@ -1,6 +1,6 @@
 package texera.operators.sink;
 
-import Engine.Operators.OpExecConfig;
+import engine.operators.OpExecConfig;
 import com.google.common.base.Preconditions;
 import scala.collection.Seq;
 import texera.common.metadata.OperatorGroupConstants;

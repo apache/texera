@@ -1,6 +1,6 @@
 package texera.common.tuple;
 
-import Engine.Common.tuple.Tuple;
+import engine.common.tuple.Tuple;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;

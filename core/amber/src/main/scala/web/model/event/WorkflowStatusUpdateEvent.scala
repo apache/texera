@@ -1,6 +1,6 @@
 package web.model.event
 
-import Engine.Architecture.Principal.PrincipalStatistics
+import engine.architecture.principal.PrincipalStatistics
 
 case class WorkflowStatusUpdateEvent(operatorStatistics: Map[String, PrincipalStatistics])
     extends TexeraWsEvent

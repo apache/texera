@@ -2,11 +2,11 @@ package web.resource
 
 import java.util.concurrent.atomic.AtomicInteger
 
-import Engine.Architecture.Controller.{Controller, ControllerEventListener}
-import Engine.Architecture.Principal.PrincipalStatistics
-import Engine.Common.AmberMessage.ControlMessage.{ModifyLogic, Pause, Resume, SkipTuple, SkipTupleGivenWorkerRef, Start}
-import Engine.Common.AmberMessage.ControllerMessage.{AckedControllerInitialization, PassBreakpointTo}
-import Engine.Common.AmberTag.WorkflowTag
+import engine.architecture.controller.{Controller, ControllerEventListener}
+import engine.architecture.principal.PrincipalStatistics
+import engine.common.ambermessage.ControlMessage.{ModifyLogic, Pause, Resume, SkipTuple, SkipTupleGivenWorkerRef, Start}
+import engine.common.ambermessage.ControllerMessage.{AckedControllerInitialization, PassBreakpointTo}
+import engine.common.ambertag.WorkflowTag
 import akka.actor.{ActorRef, PoisonPill}
 import javax.websocket.server.ServerEndpoint
 import javax.websocket._

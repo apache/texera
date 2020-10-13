@@ -1,6 +1,6 @@
 package web.model.event
 
-import Engine.Architecture.Controller.ControllerEvent.WorkflowCompleted
+import engine.architecture.controller.ControllerEvent.WorkflowCompleted
 import com.fasterxml.jackson.databind.node.ObjectNode
 import texera.common.tuple.TexeraTuple
 

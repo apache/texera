@@ -1,6 +1,6 @@
 package texera.operators.localscan;
 
-import Engine.Common.Constants;
+import engine.common.Constants;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.google.common.io.Files;
