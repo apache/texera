@@ -5,7 +5,7 @@ import Engine.Architecture.Controller.Workflow
 import Engine.Architecture.DeploySemantics.Layer.ActorLayer
 import Engine.Architecture.LinkSemantics.LinkStrategy
 import Engine.Architecture.Worker.WorkerState
-import Engine.Common.AmberTag.{AmberTag, LayerTag, OperatorTag}
+import Engine.Common.AmberTag.{AmberTag, LayerTag, OperatorIdentifier}
 import Engine.Common.tuple.Tuple
 import akka.actor.ActorRef
 import akka.event.LoggingAdapter
@@ -14,7 +14,12 @@ import akka.util.Timeout
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
-abstract class OpExecConfig(val tag: OperatorTag) extends Serializable {
+
+/**
+  *
+  * @param tag
+  */
+abstract class OpExecConfig(val tag: OperatorIdentifier) extends Serializable {
 
   class Topology(
       var layers: Array[ActorLayer],

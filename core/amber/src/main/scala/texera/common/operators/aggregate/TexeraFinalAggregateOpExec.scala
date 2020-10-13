@@ -27,17 +27,16 @@ class TexeraFinalAggregateOpExec[Partial <: AnyRef](
   ): Iterator[TexeraTuple] = {
     tuple match {
       case Left(t) =>
+        val groupByKey = if (aggFunc == null) null else aggFunc.groupByFunc(t)
         if (groupByKeyAttributes == null) {
-          groupByKeyAttributes = aggFunc.groupByKeys
-            .map(key =>
-              JavaConverters
-                .asScalaBuffer(t.getSchema.getAttributes)
-                .find(a => a.getName.equals(key))
-                .get
-            )
-            .toArray
+          groupByKeyAttributes =
+            if (aggFunc == null) Array()
+            else groupByKey.getSchema.getAttributes.toArray(new Array[Attribute](0))
         }
-        val key = aggFunc.groupByKeys.map(t.getField[AnyRef]).toList
+        val key =
+          if (groupByKey == null) List()
+          else JavaConverters.asScalaBuffer(groupByKey.getFields).toList
+
         val partialObject = t.getField[Partial](INTERNAL_AGGREGATE_PARTIAL_OBJECT)
         if (!partialObjectPerKey.contains(key)) {
           partialObjectPerKey.put(key, partialObject)

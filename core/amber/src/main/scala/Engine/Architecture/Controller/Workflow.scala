@@ -1,6 +1,6 @@
 package Engine.Architecture.Controller
 
-import Engine.Common.AmberTag.OperatorTag
+import Engine.Common.AmberTag.OperatorIdentifier
 import Engine.Common.AmberUtils
 import Engine.Operators.OpExecConfig
 
@@ -17,18 +17,18 @@ import scala.collection.{JavaConverters, mutable}
 //}
 
 class Workflow(
-                val operators: mutable.Map[OperatorTag, OpExecConfig],
-                val outLinks: Map[OperatorTag, Set[OperatorTag]]
+                val operators: mutable.Map[OperatorIdentifier, OpExecConfig],
+                val outLinks: Map[OperatorIdentifier, Set[OperatorIdentifier]]
 ) {
-  val inLinks: Map[OperatorTag, Set[OperatorTag]] = AmberUtils.reverseMultimap(outLinks)
-  val startOperators: Iterable[OperatorTag] = operators.keys.filter(!inLinks.contains(_))
-  val endOperators: Iterable[OperatorTag] = operators.keys.filter(!outLinks.contains(_))
+  val inLinks: Map[OperatorIdentifier, Set[OperatorIdentifier]] = AmberUtils.reverseMultimap(outLinks)
+  val startOperators: Iterable[OperatorIdentifier] = operators.keys.filter(!inLinks.contains(_))
+  val endOperators: Iterable[OperatorIdentifier] = operators.keys.filter(!outLinks.contains(_))
 
-  def getSources(operator: OperatorTag): Set[OperatorTag] = {
-    var result = Set[OperatorTag]()
-    var current = Set[OperatorTag](operator)
+  def getSources(operator: OperatorIdentifier): Set[OperatorIdentifier] = {
+    var result = Set[OperatorIdentifier]()
+    var current = Set[OperatorIdentifier](operator)
     while (current.nonEmpty) {
-      var next = Set[OperatorTag]()
+      var next = Set[OperatorIdentifier]()
       for (i <- current) {
         if (inLinks.contains(i) && inLinks(i).nonEmpty) {
           next ++= inLinks(i)

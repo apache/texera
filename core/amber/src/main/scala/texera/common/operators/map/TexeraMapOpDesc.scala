@@ -4,6 +4,6 @@ import texera.common.operators.TexeraOperatorDescriptor
 
 abstract class TexeraMapOpDesc extends TexeraOperatorDescriptor {
 
-  override def texeraOpExec: TexeraMapOpExecConfig
+  override def texeraOperatorExecutor: TexeraMapOpExecConfig
 
 }

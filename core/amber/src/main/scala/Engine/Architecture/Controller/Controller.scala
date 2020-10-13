@@ -16,7 +16,7 @@ import Engine.Common.AmberMessage.ControlMessage._
 import Engine.Common.AmberMessage.PrincipalMessage
 import Engine.Common.AmberMessage.PrincipalMessage.{AckedPrincipalInitialization, AssignBreakpoint, GetOutputLayer, ReportCurrentProcessingTuple, ReportOutputResult, ReportPrincipalPartialCompleted}
 import Engine.Common.AmberMessage.StateMessage.EnforceStateCheck
-import Engine.Common.AmberTag.{AmberTag, LayerTag, LinkTag, OperatorTag, WorkflowTag}
+import Engine.Common.AmberTag.{AmberTag, LayerTag, LinkTag, OperatorIdentifier, WorkflowTag}
 import Engine.Common.tuple.Tuple
 import Engine.Common.{AdvancedMessageSending, AmberUtils, Constants, SourceOperatorExecutor}
 import Engine.FaultTolerance.Scanner.HDFSFolderScanSourceOperatorExecutor
@@ -67,17 +67,17 @@ object Controller {
     val json: JsValue = Json.parse(jsonString)
     val tag: WorkflowTag = WorkflowTag("sample")
     val linkArray: JsArray = (json \ "links").as[JsArray]
-    val links: Map[OperatorTag, Set[OperatorTag]] =
+    val links: Map[OperatorIdentifier, Set[OperatorIdentifier]] =
       linkArray.value
         .map(x =>
-          (OperatorTag(tag, x("origin").as[String]), OperatorTag(tag, x("destination").as[String]))
+          (OperatorIdentifier(tag, x("origin").as[String]), OperatorIdentifier(tag, x("destination").as[String]))
         )
         .groupBy(_._1)
         .map { case (k, v) => (k, v.map(_._2).toSet) }
     val operatorArray: JsArray = (json \ "operators").as[JsArray]
-    val operators: mutable.Map[OperatorTag, OpExecConfig] = mutable.Map(
+    val operators: mutable.Map[OperatorIdentifier, OpExecConfig] = mutable.Map(
       operatorArray.value.map(x =>
-        (OperatorTag(tag, x("operatorID").as[String]), jsonToOperatorMetadata(tag, x))
+        (OperatorIdentifier(tag, x("operatorID").as[String]), jsonToOperatorMetadata(tag, x))
       ): _*
     )
     new Controller(
@@ -92,7 +92,7 @@ object Controller {
 
   private def jsonToOperatorMetadata(workflowTag: WorkflowTag, json: JsValue): OpExecConfig = {
     val id = json("operatorID").as[String]
-    val tag = OperatorTag(workflowTag.workflow, id)
+    val tag = OperatorIdentifier(workflowTag.workflow, id)
 //    json("operatorType").as[String] match {
 //      case "LocalScanSource" =>
 //        new LocalFileScanMetadata(
@@ -178,17 +178,17 @@ class Controller(
   implicit val timeout: Timeout = 5.seconds
   implicit val logAdapter: LoggingAdapter = log
 
-  val principalBiMap: BiMap[OperatorTag, ActorRef] = HashBiMap.create[OperatorTag, ActorRef]()
+  val principalBiMap: BiMap[OperatorIdentifier, ActorRef] = HashBiMap.create[OperatorIdentifier, ActorRef]()
   val principalInCurrentStage = new mutable.HashSet[ActorRef]()
   val principalStates = new mutable.AnyRefMap[ActorRef, PrincipalState.Value]
   val principalStatisticsMap = new mutable.AnyRefMap[ActorRef, PrincipalStatistics]
   val principalSinkResultMap = new mutable.HashMap[String, List[Tuple]]
   val edges = new mutable.AnyRefMap[LinkTag, OperatorLink]
-  val frontier = new mutable.HashSet[OperatorTag]
-  var prevFrontier: mutable.HashSet[OperatorTag] = _
-  val stashedFrontier = new mutable.HashSet[OperatorTag]
+  val frontier = new mutable.HashSet[OperatorIdentifier]
+  var prevFrontier: mutable.HashSet[OperatorIdentifier] = _
+  val stashedFrontier = new mutable.HashSet[OperatorIdentifier]
   val stashedNodes = new mutable.HashSet[ActorRef]()
-  val linksToIgnore = new mutable.HashSet[(OperatorTag, OperatorTag)]
+  val linksToIgnore = new mutable.HashSet[(OperatorIdentifier, OperatorIdentifier)]
   var periodicallyAskHandle: Cancellable = _
   var statusUpdateAskHandle: Cancellable = _
   var startDependencies =
@@ -443,7 +443,7 @@ class Controller(
           )
           .toArray
         val nodes = availableNodes
-        val operatorsToWait = new ArrayBuffer[OperatorTag]
+        val operatorsToWait = new ArrayBuffer[OperatorIdentifier]
         for (k <- next) {
           if (withCheckpoint) {
             for (n <- workflow.outLinks(k)) {
@@ -564,7 +564,7 @@ class Controller(
           }
       }
     case PassBreakpointTo(id: String, breakpoint: GlobalBreakpoint) =>
-      val opTag = OperatorTag(tag, id)
+      val opTag = OperatorIdentifier(tag, id)
       if (principalBiMap.containsKey(opTag)) {
         AdvancedMessageSending.blockingAskWithRetry(
           principalBiMap.get(opTag),
@@ -797,7 +797,7 @@ class Controller(
           throw t
       }
     case PassBreakpointTo(id: String, breakpoint: GlobalBreakpoint) =>
-      val opTag = OperatorTag(tag, id)
+      val opTag = OperatorIdentifier(tag, id)
       if (principalBiMap.containsKey(opTag)) {
         AdvancedMessageSending.blockingAskWithRetry(
           principalBiMap.get(opTag),

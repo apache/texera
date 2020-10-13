@@ -4,6 +4,6 @@ import texera.common.operators.TexeraOperatorDescriptor
 
 abstract class TexeraAggregateOpDesc extends TexeraOperatorDescriptor {
 
-  override def texeraOpExec: TexeraAggregateOpExecConfig[_]
+  override def texeraOperatorExecutor: TexeraAggregateOpExecConfig[_]
 
 }

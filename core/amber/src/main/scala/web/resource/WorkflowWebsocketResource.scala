@@ -107,7 +107,7 @@ class WorkflowWebsocketResource {
     val texeraOperator = newLogic.operator
     val (compiler, controller) = WorkflowWebsocketResource.sessionJobs(session.getId)
     compiler.initOperator(texeraOperator)
-    controller ! ModifyLogic(texeraOperator.texeraOpExec)
+    controller ! ModifyLogic(texeraOperator.texeraOperatorExecutor)
   }
 
   def pauseWorkflow(session: Session): Unit = {

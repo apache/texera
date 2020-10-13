@@ -7,7 +7,7 @@ import Engine.Architecture.DeploySemantics.DeployStrategy.RoundRobinDeployment
 import Engine.Architecture.DeploySemantics.DeploymentFilter.FollowPrevious
 import Engine.Architecture.DeploySemantics.Layer.{ActorLayer, ProcessorWorkerLayer}
 import Engine.Architecture.Worker.WorkerState
-import Engine.Common.AmberTag.{LayerTag, OperatorTag}
+import Engine.Common.AmberTag.{LayerTag, OperatorIdentifier}
 import Engine.Operators.OpExecConfig
 import akka.actor.ActorRef
 import akka.event.LoggingAdapter
@@ -18,7 +18,7 @@ import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
 class PythonUDFMetadata(
-                         tag: OperatorTag,
+                         tag: OperatorIdentifier,
                          val numWorkers: Int,
                          val pythonScriptFile: String,
                          val inputColumns: mutable.Buffer[String],

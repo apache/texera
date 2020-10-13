@@ -11,8 +11,8 @@ import texera.common.tuple.schema.Schema;
 public class SimpleSinkOpDesc extends TexeraOperatorDescriptor {
 
     @Override
-    public OpExecConfig texeraOpExec() {
-        return new SimpleSinkOpExecConfig(this.amberOperatorTag());
+    public OpExecConfig texeraOperatorExecutor() {
+        return new SimpleSinkOpExecConfig(this.operatorIdentifier());
     }
 
     @Override

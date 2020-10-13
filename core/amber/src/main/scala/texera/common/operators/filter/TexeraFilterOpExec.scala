@@ -4,9 +4,15 @@ import Engine.Common.InputExhausted
 import texera.common.operators.TexeraOperatorExecutor
 import texera.common.tuple.TexeraTuple
 
-class TexeraFilterOpExec(var filterFunc: TexeraTuple => java.lang.Boolean)
+abstract class TexeraFilterOpExec()
     extends TexeraOperatorExecutor
     with Serializable {
+
+  var filterFunc: TexeraTuple => java.lang.Boolean = _
+
+  def setFilterFunc(func: TexeraTuple => java.lang.Boolean): Unit = {
+    this.filterFunc = func
+  }
 
   override def open(): Unit = {}
 

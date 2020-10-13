@@ -1,7 +1,7 @@
 package texera.common.operators.source
 
-import Engine.Common.AmberTag.OperatorTag
+import Engine.Common.AmberTag.OperatorIdentifier
 import Engine.Operators.OpExecConfig
 
-abstract class TexeraSourceOpExecConfig(override val tag: OperatorTag) extends OpExecConfig(tag) {
+abstract class TexeraSourceOpExecConfig(override val tag: OperatorIdentifier) extends OpExecConfig(tag) {
 }

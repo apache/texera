@@ -24,8 +24,7 @@ class AverageOpDesc extends TexeraAggregateOpDesc {
   @JsonPropertyDescription("group by columns")
   var groupByKeys: List[String] = _
 
-  override def texeraOpExec: TexeraAggregateOpExecConfig[AveragePartialObj] = {
-    val groupByKeyList = if (this.groupByKeys == null) List() else this.groupByKeys
+  override def texeraOperatorExecutor: TexeraAggregateOpExecConfig[AveragePartialObj] = {
     val aggregation = new TexeraDistributedAggregation[AveragePartialObj](
       () => AveragePartialObj(0, 0),
       (partial, tuple) => {
@@ -38,10 +37,14 @@ class AverageOpDesc extends TexeraAggregateOpDesc {
         val value = if (partial.count == 0) null else partial.sum / partial.count
         TexeraTuple.newBuilder.add(resultAttribute, AttributeType.DOUBLE, value).build
       },
-      groupByKeyList
+      if (this.groupByKeys == null) null else tuple => {
+        val builder = TexeraTuple.newBuilder()
+        groupByKeys.foreach(key => builder.add(tuple.getSchema.getAttribute(key), tuple.getField(key)))
+        builder.build()
+      }
     )
     new TexeraAggregateOpExecConfig[AveragePartialObj](
-      amberOperatorTag,
+      operatorIdentifier,
       aggregation
     )
   }

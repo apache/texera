@@ -4,9 +4,9 @@ import com.google.common.base.Preconditions
 import texera.common.operators.TexeraOperatorDescriptor
 import texera.common.tuple.schema.Schema
 
-abstract class TexeraSourceOpDesc extends TexeraOperatorDescriptor {
+abstract class TexeraSourceOperatorDescriptor extends TexeraOperatorDescriptor {
 
-  override def texeraOpExec: TexeraSourceOpExecConfig
+  override def texeraOperatorExecutor: TexeraSourceOpExecConfig
 
   override def transformSchema(schemas: Schema*): Schema = {
     Preconditions.checkArgument(schemas.isEmpty)

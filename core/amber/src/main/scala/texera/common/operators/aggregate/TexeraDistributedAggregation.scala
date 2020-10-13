@@ -18,7 +18,7 @@ import texera.common.tuple.TexeraTuple
   * merge:    adds up all partial results:  sum += partialSum, count += partialCount
   * finalAgg: calculates final result:      average = sum / count
   *
-  * Optionally, a list of group by keys can be specified,
+  * Optionally, a group by function can be specified,
   * which will cause the aggregation to be calculated per group
   *
   * These function definitions are from
@@ -34,6 +34,6 @@ case class TexeraDistributedAggregation[P <: AnyRef](
     merge: (P, P) => P,
     // PartialObject => FinalObject
     finalAgg: P => TexeraTuple,
-    // optional: group by keys
-    groupByKeys: Seq[String] = List(),
+    // optional: group by function, calculate a group by key for a tuple
+    groupByFunc: TexeraTuple => TexeraTuple = null,
 )

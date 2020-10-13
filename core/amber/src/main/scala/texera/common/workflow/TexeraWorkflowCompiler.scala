@@ -3,12 +3,12 @@ package texera.common.workflow
 import Engine.Architecture.Breakpoint.GlobalBreakpoint.{ConditionalGlobalBreakpoint, CountGlobalBreakpoint}
 import Engine.Architecture.Controller.Workflow
 import Engine.Common.AmberMessage.ControllerMessage.PassBreakpointTo
-import Engine.Common.AmberTag.OperatorTag
+import Engine.Common.AmberTag.OperatorIdentifier
 import Engine.Operators.OpExecConfig
 import akka.actor.ActorRef
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import texera.common.operators.TexeraOperatorDescriptor
-import texera.common.operators.source.TexeraSourceOpDesc
+import texera.common.operators.source.TexeraSourceOperatorDescriptor
 import texera.common.tuple.TexeraTuple
 import texera.common.tuple.schema.Schema
 import texera.common.{TexeraConstraintViolation, TexeraContext}
@@ -29,33 +29,33 @@ class TexeraWorkflowCompiler(val texeraWorkflow: TexeraWorkflow, val context: Te
     this.texeraWorkflow.operators
       .map(o => {
         o.operatorID -> {
-          o.validate()
+          o.validate().toSet
         }
       })
       .toMap
       .filter(pair => pair._2.nonEmpty)
 
   def amberWorkflow: Workflow = {
-    val amberOperators: mutable.Map[OperatorTag, OpExecConfig] = mutable.Map()
+    val amberOperators: mutable.Map[OperatorIdentifier, OpExecConfig] = mutable.Map()
     texeraWorkflow.operators.foreach(o => {
-      val amberOperator = o.texeraOpExec
+      val amberOperator = o.texeraOperatorExecutor
       amberOperators.put(amberOperator.tag, amberOperator)
     })
 
-    val outLinks: mutable.Map[OperatorTag, mutable.Set[OperatorTag]] = mutable.Map()
+    val outLinks: mutable.Map[OperatorIdentifier, mutable.Set[OperatorIdentifier]] = mutable.Map()
     texeraWorkflow.links.foreach(link => {
-      val origin = OperatorTag(this.context.workflowID, link.origin)
-      val dest = OperatorTag(this.context.workflowID, link.destination)
+      val origin = OperatorIdentifier(this.context.workflowID, link.origin)
+      val dest = OperatorIdentifier(this.context.workflowID, link.destination)
       val destSet = outLinks.getOrElse(origin, mutable.Set())
       destSet.add(dest)
       outLinks.update(origin, destSet)
     })
 
-    val outLinksImmutableValue: mutable.Map[OperatorTag, Set[OperatorTag]] = mutable.Map()
+    val outLinksImmutableValue: mutable.Map[OperatorIdentifier, Set[OperatorIdentifier]] = mutable.Map()
     outLinks.foreach(entry => {
       outLinksImmutableValue.update(entry._1, entry._2.toSet)
     })
-    val outLinksImmutable: Map[OperatorTag, Set[OperatorTag]] = outLinksImmutableValue.toMap
+    val outLinksImmutable: Map[OperatorIdentifier, Set[OperatorIdentifier]] = outLinksImmutableValue.toMap
 
     new Workflow(amberOperators, outLinksImmutable)
   }
@@ -133,7 +133,7 @@ class TexeraWorkflowCompiler(val texeraWorkflow: TexeraWorkflow, val context: Te
     val topologicalOrderIterator = workflowDag.iterator()
     topologicalOrderIterator.forEachRemaining(op => {
       val outputSchema: Option[Schema] =
-        if (op.isInstanceOf[TexeraSourceOpDesc]) {
+        if (op.isInstanceOf[TexeraSourceOperatorDescriptor]) {
           Option.apply(op.transformSchema())
         } else if (inputSchemaMap(op).exists(s => s.isEmpty)) {
           Option.empty

@@ -7,7 +7,7 @@ import Engine.Architecture.DeploySemantics.DeployStrategy.RoundRobinDeployment
 import Engine.Architecture.DeploySemantics.DeploymentFilter.UseAll
 import Engine.Architecture.DeploySemantics.Layer.{ActorLayer, GeneratorWorkerLayer}
 import Engine.Architecture.Worker.WorkerState
-import Engine.Common.AmberTag.{LayerTag, OperatorTag}
+import Engine.Common.AmberTag.{LayerTag, OperatorIdentifier}
 import akka.actor.ActorRef
 import akka.event.LoggingAdapter
 import akka.util.Timeout
@@ -18,12 +18,12 @@ import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
 class LocalCsvFileScanOpExecConfig(
-    tag: OperatorTag,
-    numWorkers: Int,
-    filePath: String,
-    delimiter: Char,
-    schema: Schema,
-    header: Boolean
+                                    tag: OperatorIdentifier,
+                                    numWorkers: Int,
+                                    filePath: String,
+                                    delimiter: Char,
+                                    schema: Schema,
+                                    header: Boolean
 ) extends TexeraSourceOpExecConfig(tag) {
   val totalBytes: Long = new File(filePath).length()
 

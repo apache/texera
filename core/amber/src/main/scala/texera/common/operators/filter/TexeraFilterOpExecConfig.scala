@@ -5,7 +5,7 @@ import Engine.Architecture.DeploySemantics.DeployStrategy.RoundRobinDeployment
 import Engine.Architecture.DeploySemantics.DeploymentFilter.FollowPrevious
 import Engine.Architecture.DeploySemantics.Layer.{ActorLayer, ProcessorWorkerLayer}
 import Engine.Architecture.Worker.WorkerState
-import Engine.Common.AmberTag.{LayerTag, OperatorTag}
+import Engine.Common.AmberTag.{LayerTag, OperatorIdentifier}
 import Engine.Common.Constants
 import Engine.Operators.OpExecConfig
 import akka.actor.ActorRef
@@ -17,15 +17,15 @@ import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
 class TexeraFilterOpExecConfig(
-    override val tag: OperatorTag,
-    val filterFunc: TexeraTuple => java.lang.Boolean
+                                override val tag: OperatorIdentifier,
+                                val filterOpExec: () => TexeraFilterOpExec
 ) extends OpExecConfig(tag) {
   override lazy val topology: Topology = {
     new Topology(
       Array(
         new ProcessorWorkerLayer(
           LayerTag(tag, "main"),
-          _ => new TexeraFilterOpExec(filterFunc),
+          _ => filterOpExec.apply(),
           Constants.defaultNumWorkers,
           FollowPrevious(),
           RoundRobinDeployment()

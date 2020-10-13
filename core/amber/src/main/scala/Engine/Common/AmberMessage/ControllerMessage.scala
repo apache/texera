@@ -4,7 +4,7 @@ import Engine.Architecture.Breakpoint.FaultedTuple
 import Engine.Architecture.Breakpoint.GlobalBreakpoint.GlobalBreakpoint
 import Engine.Architecture.Breakpoint.LocalBreakpoint.LocalBreakpoint
 import Engine.Architecture.Controller.ControllerState
-import Engine.Common.AmberTag.OperatorTag
+import Engine.Common.AmberTag.OperatorIdentifier
 import akka.actor.ActorRef
 
 import scala.collection.mutable

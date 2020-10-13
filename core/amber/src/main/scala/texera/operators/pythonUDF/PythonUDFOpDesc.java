@@ -37,8 +37,8 @@ public class PythonUDFOpDesc extends TexeraOperatorDescriptor {
     public int batchSize;
 
     @Override
-    public OpExecConfig texeraOpExec() {
-        return new PythonUDFMetadata(this.amberOperatorTag(), Constants.defaultNumWorkers(),
+    public OpExecConfig texeraOperatorExecutor() {
+        return new PythonUDFMetadata(this.operatorIdentifier(), Constants.defaultNumWorkers(),
                 this.pythonScriptFile,
                 JavaConverters.asScalaIteratorConverter(this.inputColumns.iterator()).asScala().toBuffer(),
                 JavaConverters.asScalaIteratorConverter(this.outputColumns.iterator()).asScala().toBuffer(),

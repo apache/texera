@@ -4,9 +4,24 @@ import Engine.Common.InputExhausted
 import texera.common.operators.TexeraOperatorExecutor
 import texera.common.tuple.TexeraTuple
 
-class TexeraMapOpExec(var mapFunc: (TexeraTuple => TexeraTuple) with Serializable)
+/**
+  * Common operator executor of a map() function
+  * A map() function transforms one input tuple to exactly one output tuple.
+  */
+abstract class TexeraMapOpExec()
     extends TexeraOperatorExecutor
     with Serializable {
+
+  var mapFunc: TexeraTuple => TexeraTuple = _
+
+  /**
+    * Provides the flatMap function of this executor, it should be called in the constructor
+    * If the operator executor is implemented in Java, it should be called with:
+    * setMapFunc((Function1<TexeraTuple, TexeraTuple> & Serializable) func)
+    */
+  def setMapFunc(func: TexeraTuple => TexeraTuple): Unit = {
+    mapFunc = func
+  }
 
   override def open(): Unit = {}
 

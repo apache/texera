@@ -21,7 +21,7 @@ import Engine.Common.AmberMessage.ControllerMessage.{
   ReportState
 }
 import Engine.Common.AmberMessage.WorkerMessage.{DataMessage, EndSending}
-import Engine.Common.AmberTag.{LayerTag, LinkTag, OperatorTag, WorkerTag, WorkflowTag}
+import Engine.Common.AmberTag.{LayerTag, LinkTag, OperatorIdentifier, WorkerTag, WorkflowTag}
 import Engine.Common.tuple.Tuple
 import akka.actor.{ActorSystem, PoisonPill, Props}
 import akka.event.LoggingAdapter
@@ -68,7 +68,7 @@ class ExceptionBreakpointSpec
 
   val workflowTag = WorkflowTag("sample")
   var index = 0
-  val opTag: () => OperatorTag = () => { index += 1; OperatorTag(workflowTag, index.toString) }
+  val opTag: () => OperatorIdentifier = () => { index += 1; OperatorIdentifier(workflowTag, index.toString) }
   val layerTag: () => LayerTag = () => { index += 1; LayerTag(opTag(), index.toString) }
   val workerTag: () => WorkerTag = () => { index += 1; WorkerTag(layerTag(), index) }
   val linkTag: () => LinkTag = () => { LinkTag(layerTag(), layerTag()) }

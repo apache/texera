@@ -6,7 +6,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.google.common.io.Files;
 import texera.common.metadata.OperatorGroupConstants;
 import texera.common.metadata.TexeraOperatorInfo;
-import texera.common.operators.source.TexeraSourceOpDesc;
+import texera.common.operators.source.TexeraSourceOperatorDescriptor;
 import texera.common.operators.source.TexeraSourceOpExecConfig;
 import texera.common.tuple.schema.Attribute;
 import texera.common.tuple.schema.AttributeType;
@@ -21,7 +21,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 
-public class LocalCsvFileScanOpDesc extends TexeraSourceOpDesc {
+public class LocalCsvFileScanOpDesc extends TexeraSourceOperatorDescriptor {
 
     @JsonProperty("file path")
     @JsonPropertyDescription("local file path")
@@ -36,10 +36,10 @@ public class LocalCsvFileScanOpDesc extends TexeraSourceOpDesc {
     public Boolean header;
 
     @Override
-    public TexeraSourceOpExecConfig texeraOpExec() {
+    public TexeraSourceOpExecConfig texeraOperatorExecutor() {
         try {
             String headerLine = Files.asCharSource(new File(filePath), Charset.defaultCharset()).readFirstLine();
-            return new LocalCsvFileScanOpExecConfig(this.amberOperatorTag(), Constants.defaultNumWorkers(),
+            return new LocalCsvFileScanOpExecConfig(this.operatorIdentifier(), Constants.defaultNumWorkers(),
                     filePath, delimiter.charAt(0), this.inferSchema(headerLine), header != null && header);
         } catch (IOException e) {
             throw new UncheckedIOException(e);

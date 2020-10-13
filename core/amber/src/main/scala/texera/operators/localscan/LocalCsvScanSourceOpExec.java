@@ -5,7 +5,7 @@ import Engine.FaultTolerance.Scanner.BufferedBlockReader;
 import com.google.common.base.Verify;
 import org.tukaani.xz.SeekableFileInputStream;
 import scala.collection.Iterator;
-import texera.common.operators.source.TexeraSourceOpExec;
+import texera.common.operators.source.TexeraSourceOperatorExecutor;
 import texera.common.tuple.TexeraTuple;
 import texera.common.tuple.schema.Schema;
 
@@ -16,7 +16,7 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 
-public class LocalCsvScanSourceOpExec implements TexeraSourceOpExec {
+public class LocalCsvScanSourceOpExec implements TexeraSourceOperatorExecutor {
 
     private final String localPath;
     private final char separator;

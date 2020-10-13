@@ -6,7 +6,7 @@ import Engine.Architecture.DeploySemantics.DeploymentFilter.{FollowPrevious, For
 import Engine.Architecture.DeploySemantics.Layer.{ActorLayer, ProcessorWorkerLayer}
 import Engine.Architecture.LinkSemantics.{AllToOne, HashBasedShuffle}
 import Engine.Architecture.Worker.WorkerState
-import Engine.Common.AmberTag.{LayerTag, OperatorTag}
+import Engine.Common.AmberTag.{LayerTag, OperatorIdentifier}
 import Engine.Common.Constants
 import Engine.Operators.OpExecConfig
 import akka.actor.ActorRef
@@ -18,13 +18,13 @@ import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
 class TexeraAggregateOpExecConfig[P <: AnyRef](
-    tag: OperatorTag,
+    tag: OperatorIdentifier,
     val aggFunc: TexeraDistributedAggregation[P]
 ) extends OpExecConfig(tag) {
 
   override lazy val topology: Topology = {
 
-    if (aggFunc.groupByKeys.isEmpty) {
+    if (aggFunc.groupByFunc == null) {
       val partialLayer = new ProcessorWorkerLayer(
         LayerTag(tag, "localAgg"),
         _ => new TexeraPartialAggregateOpExec(aggFunc),
@@ -76,7 +76,7 @@ class TexeraAggregateOpExecConfig[P <: AnyRef](
             Constants.defaultBatchSize,
             x => {
               val tuple = x.asInstanceOf[TexeraTuple]
-              aggFunc.groupByKeys.map(tuple.getField[Any]).hashCode()
+              aggFunc.groupByFunc(tuple).hashCode()
             }
           )
         ),

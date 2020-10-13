@@ -10,7 +10,7 @@ object LayerTag {
     LayerTag(workflowTag.workflow, operator, layer)
   }
 
-  def apply(operatorTag: OperatorTag, layer: String): LayerTag = {
+  def apply(operatorTag: OperatorIdentifier, layer: String): LayerTag = {
     LayerTag(operatorTag.workflow, operatorTag.operator, layer)
   }
 }

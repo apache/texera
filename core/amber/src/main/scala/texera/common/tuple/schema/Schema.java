@@ -13,8 +13,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * A schema is a list of attributes that describe all the columns of a table.
- * 
- * @author zuozhiw
  *
  */
 public class Schema implements Serializable {

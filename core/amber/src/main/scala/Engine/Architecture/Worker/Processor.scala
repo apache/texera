@@ -67,7 +67,7 @@ class Processor(var dataProcessor: OperatorExecutor, val tag: WorkerTag) extends
       savedModifyLogic.head._3 match {
         case filterOpExecConfig: TexeraFilterOpExecConfig =>
           val dp = dataProcessor.asInstanceOf[TexeraFilterOpExec]
-          dp.filterFunc = filterOpExecConfig.filterFunc
+          dp.filterFunc = filterOpExecConfig.filterOpExec().filterFunc
         case t => throw new NotImplementedError("Unknown operator type: " + t)
       }
       savedModifyLogic.dequeue()
@@ -330,7 +330,7 @@ class Processor(var dataProcessor: OperatorExecutor, val tag: WorkerTag) extends
       newMetadata match {
         case filterOpMetadata: TexeraFilterOpExecConfig =>
           val dp = dataProcessor.asInstanceOf[TexeraFilterOpExec]
-          dp.filterFunc = filterOpMetadata.filterFunc
+          dp.filterFunc = filterOpMetadata.filterOpExec().filterFunc
         case t => throw new NotImplementedError("Unknown operator type: " + t)
       }
       log.info(
@@ -426,7 +426,7 @@ class Processor(var dataProcessor: OperatorExecutor, val tag: WorkerTag) extends
       savedModifyLogic.head._3 match {
         case filterOpMetadata: TexeraFilterOpExecConfig =>
           val dp = dataProcessor.asInstanceOf[TexeraFilterOpExec]
-          dp.filterFunc = filterOpMetadata.filterFunc
+          dp.filterFunc = filterOpMetadata.filterOpExec().filterFunc
         case t => throw new NotImplementedError("Unknown operator type: " + t)
       }
       savedModifyLogic.dequeue()

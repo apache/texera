@@ -2,7 +2,7 @@ package texera.common.operators
 
 import java.util.UUID
 
-import Engine.Common.AmberTag.OperatorTag
+import Engine.Common.AmberTag.OperatorIdentifier
 import Engine.Operators.OpExecConfig
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonSubTypes, JsonTypeInfo}
@@ -13,8 +13,8 @@ import texera.common.{TexeraConstraintViolation, TexeraContext}
 import texera.operators.aggregate.AverageOpDesc
 import texera.operators.filter.SpecializedFilterOpDesc
 import texera.operators.localscan.LocalCsvFileScanOpDesc
-import texera.operators.regex.RegexOpDescTexera
-import texera.operators.sentiment.SentimentAnalysisOpDescTexera
+import texera.operators.regex.RegexOpDesc
+import texera.operators.sentiment.SentimentAnalysisOpDesc
 import texera.operators.sink.SimpleSinkOpDesc
 
 
@@ -27,9 +27,9 @@ import texera.operators.sink.SimpleSinkOpDesc
   Array(
     new Type(value = classOf[LocalCsvFileScanOpDesc], name = "LocalFileScan"),
     new Type(value = classOf[SimpleSinkOpDesc], name = "AdhocSink"),
-    new Type(value = classOf[RegexOpDescTexera], name = "Regex"),
+    new Type(value = classOf[RegexOpDesc], name = "Regex"),
     new Type(value = classOf[SpecializedFilterOpDesc], name = "Filter"),
-    new Type(value = classOf[SentimentAnalysisOpDescTexera], name = "SentimentAnalysis"),
+    new Type(value = classOf[SentimentAnalysisOpDesc], name = "SentimentAnalysis"),
     new Type(value = classOf[AverageOpDesc], name = "Average"),
 //    new Type(value = classOf[TexeraPythonUDFOpDesc], name = "PythonUDF"),
   )
@@ -38,18 +38,20 @@ abstract class TexeraOperatorDescriptor extends Serializable {
 
   @JsonIgnore var context: TexeraContext = _
 
-  @JsonProperty(PropertyNameConstants.OPERATOR_ID) var operatorID: String = UUID.randomUUID.toString
 
-  def amberOperatorTag: OperatorTag = OperatorTag.apply(this.context.workflowID, this.operatorID)
+  @JsonProperty(PropertyNameConstants.OPERATOR_ID)
+  var operatorID: String = UUID.randomUUID.toString
 
-  def texeraOpExec: OpExecConfig
+  def operatorIdentifier: OperatorIdentifier = OperatorIdentifier.apply(this.context.workflowID, this.operatorID)
+
+  def texeraOperatorExecutor: OpExecConfig
 
   def texeraOperatorInfo: TexeraOperatorInfo
 
   def transformSchema(schemas: Schema*): Schema
 
-  def validate(): Set[TexeraConstraintViolation] = {
-    Set.empty
+  def validate(): Array[TexeraConstraintViolation] = {
+    Array()
   }
 
   override def hashCode: Int = HashCodeBuilder.reflectionHashCode(this)

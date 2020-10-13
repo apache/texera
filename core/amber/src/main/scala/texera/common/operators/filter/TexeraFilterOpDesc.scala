@@ -11,6 +11,6 @@ abstract class TexeraFilterOpDesc extends TexeraOperatorDescriptor {
     schemas(0)
   }
 
-  override def texeraOpExec: TexeraFilterOpExecConfig
+  override def texeraOperatorExecutor: TexeraFilterOpExecConfig
 
 }

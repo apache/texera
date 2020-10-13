@@ -12,7 +12,7 @@ import Engine.Common.AmberMessage.ControllerMessage.{
   ReportState
 }
 import Engine.Common.AmberMessage.WorkerMessage.DataMessage
-import Engine.Common.AmberTag.OperatorTag
+import Engine.Common.AmberTag.OperatorIdentifier
 import Engine.Common.tuple.Tuple
 import Engine.Common.Constants
 import akka.actor.{ActorSystem, PoisonPill, Props}
