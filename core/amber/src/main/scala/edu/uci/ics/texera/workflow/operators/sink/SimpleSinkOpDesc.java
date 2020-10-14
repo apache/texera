@@ -25,9 +25,9 @@ public class SimpleSinkOpDesc extends OperatorDescriptor {
     }
 
     @Override
-    public Schema getOutputSchema(Seq<Schema> schemas) {
-        Preconditions.checkArgument(schemas.length() == 1);
-        return schemas.apply(0);
+    public Schema getOutputSchema(Schema[] schemas) {
+        Preconditions.checkArgument(schemas.length == 1);
+        return schemas[0];
     }
 
 }

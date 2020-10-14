@@ -4,32 +4,29 @@ package edu.uci.ics.texera.workflow.operators.sentiment;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.google.common.base.Preconditions;
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaDefault;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
+import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig;
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc;
-import edu.uci.ics.texera.workflow.common.operators.map.MapOpExecConfig;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
-import scala.collection.Seq;
 
 public class SentimentAnalysisOpDesc extends MapOpDesc {
 
-    @JsonProperty("attribute")
+    @JsonProperty(value = "attribute", required = true)
     @JsonPropertyDescription("column to perform sentiment analysis on")
     public String attribute;
 
-    @JsonProperty("result attribute")
+    @JsonProperty(value = "result attribute", required = true, defaultValue = "sentiment")
     @JsonPropertyDescription("column name of the sentiment analysis result")
-    @JsonSchemaDefault("sentiment")
     public String resultAttribute;
 
     @Override
-    public MapOpExecConfig operatorExecutor() {
+    public OneToOneOpExecConfig operatorExecutor() {
         if (attribute == null) {
             throw new RuntimeException("sentiment analysis: attribute is null");
         }
-        return new MapOpExecConfig(operatorIdentifier(), () -> new SentimentAnalysisOpExec(this));
+        return new OneToOneOpExecConfig(operatorIdentifier(), () -> new SentimentAnalysisOpExec(this));
     }
 
     @Override
@@ -43,11 +40,11 @@ public class SentimentAnalysisOpDesc extends MapOpDesc {
     }
 
     @Override
-    public Schema getOutputSchema(Seq<Schema> schemas) {
-        Preconditions.checkArgument(schemas.length() == 1);
-        if (resultAttribute == null) {
+    public Schema getOutputSchema(Schema[] schemas) {
+        Preconditions.checkArgument(schemas.length == 1);
+        if (resultAttribute == null || resultAttribute.trim().isEmpty()) {
             return null;
         }
-        return Schema.newBuilder().add(schemas.apply(0)).add(resultAttribute, AttributeType.STRING).build();
+        return Schema.newBuilder().add(schemas[0]).add(resultAttribute, AttributeType.STRING).build();
     }
 }

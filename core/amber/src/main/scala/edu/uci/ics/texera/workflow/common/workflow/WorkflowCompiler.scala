@@ -138,12 +138,12 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
     topologicalOrderIterator.forEachRemaining(op => {
       val outputSchema: Option[Schema] =
         if (op.isInstanceOf[SourceOperatorDescriptor]) {
-          Option.apply(op.getOutputSchema())
+          Option.apply(op.getOutputSchema(Array()))
         } else if (inputSchemaMap(op).exists(s => s.isEmpty)) {
           Option.empty
         } else {
           try {
-            Option.apply(op.getOutputSchema(inputSchemaMap(op).map(s => s.get).toArray: _*))
+            Option.apply(op.getOutputSchema(inputSchemaMap(op).map(s => s.get).toArray))
           } catch {
             case e: Throwable =>
               e.printStackTrace()

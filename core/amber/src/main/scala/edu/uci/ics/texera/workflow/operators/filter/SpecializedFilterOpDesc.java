@@ -4,20 +4,20 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
+import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig;
 import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpDesc;
-import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpExecConfig;
 
 import java.util.List;
 
 public class SpecializedFilterOpDesc extends FilterOpDesc {
 
-    @JsonProperty("predicates")
+    @JsonProperty(value = "predicates", required = true)
     @JsonPropertyDescription("multiple predicates in OR")
     public List<FilterPredicate> predicates;
 
     @Override
-    public FilterOpExecConfig operatorExecutor() {
-        return new FilterOpExecConfig(this.operatorIdentifier(),
+    public OneToOneOpExecConfig operatorExecutor() {
+        return new OneToOneOpExecConfig(this.operatorIdentifier(),
                 () -> new SpecializedFilterOpExec(this));
     }
 

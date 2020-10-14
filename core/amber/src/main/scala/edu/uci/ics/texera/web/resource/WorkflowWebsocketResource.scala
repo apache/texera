@@ -103,10 +103,11 @@ class WorkflowWebsocketResource {
   }
 
   def modifyLogic(session: Session, newLogic: ModifyLogicRequest): Unit = {
-    val texeraOperator = newLogic.operator
-    val (compiler, controller) = WorkflowWebsocketResource.sessionJobs(session.getId)
-    compiler.initOperator(texeraOperator)
-    controller ! ModifyLogic(texeraOperator.operatorExecutor)
+//    val texeraOperator = newLogic.operator
+//    val (compiler, controller) = WorkflowWebsocketResource.sessionJobs(session.getId)
+//    compiler.initOperator(texeraOperator)
+//    controller ! ModifyLogic(texeraOperator.operatorExecutor)
+    throw new RuntimeException("modify logic is temporarily disabled")
   }
 
   def pauseWorkflow(session: Session): Unit = {

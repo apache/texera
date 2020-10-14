@@ -24,8 +24,8 @@ import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStrin
 )
 @JsonSubTypes(
   Array(
-    new Type(value = classOf[LocalCsvFileScanOpDesc], name = "LocalFileScan"),
-    new Type(value = classOf[SimpleSinkOpDesc], name = "AdhocSink"),
+    new Type(value = classOf[LocalCsvFileScanOpDesc], name = "LocalCsvFileScan"),
+    new Type(value = classOf[SimpleSinkOpDesc], name = "SimpleSink"),
     new Type(value = classOf[RegexOpDesc], name = "Regex"),
     new Type(value = classOf[SpecializedFilterOpDesc], name = "Filter"),
     new Type(value = classOf[SentimentAnalysisOpDesc], name = "SentimentAnalysis"),
@@ -47,7 +47,7 @@ abstract class OperatorDescriptor extends Serializable {
 
   def operatorInfo: OperatorInfo
 
-  def getOutputSchema(schemas: Schema*): Schema
+  def getOutputSchema(schemas: Array[Schema]): Schema
 
   def validate(): Array[ConstraintViolation] = {
     Array()

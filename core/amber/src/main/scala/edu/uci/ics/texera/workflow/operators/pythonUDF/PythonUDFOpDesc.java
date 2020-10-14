@@ -56,7 +56,7 @@ public class PythonUDFOpDesc extends OperatorDescriptor {
     }
 
     @Override
-    public Schema getOutputSchema(Seq<Schema> schemas) {
+    public Schema getOutputSchema(Schema[] schemas) {
         return null;
     }
 

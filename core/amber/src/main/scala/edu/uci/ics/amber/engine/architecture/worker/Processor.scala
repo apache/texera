@@ -13,7 +13,7 @@ import edu.uci.ics.amber.engine.common.ambertag.{LayerTag, WorkerTag}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.{AdvancedMessageSending, Constants, ElidableStatement, InputExhausted, IOperatorExecutor, TableMetadata, ThreadState, ITupleSinkOperatorExecutor}
 import edu.uci.ics.amber.engine.faulttolerance.recovery.RecoveryPacket
-import edu.uci.ics.texera.workflow.common.operators.filter.{FilterOpExec, FilterOpExecConfig}
+import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpExec
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Stash}
 import akka.event.LoggingAdapter
@@ -64,12 +64,12 @@ class Processor(var dataProcessor: IOperatorExecutor, val tag: WorkerTag) extend
     while (
       savedModifyLogic.nonEmpty && savedModifyLogic.head._1 == 0 && savedModifyLogic.head._2 == 0
     ) {
-      savedModifyLogic.head._3 match {
-        case filterOpExecConfig: FilterOpExecConfig =>
-          val dp = dataProcessor.asInstanceOf[FilterOpExec]
-          dp.filterFunc = filterOpExecConfig.filterOpExec().filterFunc
-        case t => throw new NotImplementedError("Unknown operator type: " + t)
-      }
+//      savedModifyLogic.head._3 match {
+//        case filterOpExecConfig: FilterOpExecConfig =>
+//          val dp = dataProcessor.asInstanceOf[FilterOpExec]
+//          dp.filterFunc = filterOpExecConfig.filterOpExec().filterFunc
+//        case t => throw new NotImplementedError("Unknown operator type: " + t)
+//      }
       savedModifyLogic.dequeue()
     }
     input.reset()
@@ -327,15 +327,16 @@ class Processor(var dataProcessor: IOperatorExecutor, val tag: WorkerTag) extend
       // val operatorType = json("operatorID").as[String]
       savedModifyLogic.enqueue((generatedCount, processedCount, newMetadata))
       log.info("modify logic received by worker " + this.self.path.name + ", updating logic")
-      newMetadata match {
-        case filterOpMetadata: FilterOpExecConfig =>
-          val dp = dataProcessor.asInstanceOf[FilterOpExec]
-          dp.filterFunc = filterOpMetadata.filterOpExec().filterFunc
-        case t => throw new NotImplementedError("Unknown operator type: " + t)
-      }
+//      newMetadata match {
+//        case filterOpMetadata: FilterOpExecConfig =>
+//          val dp = dataProcessor.asInstanceOf[FilterOpExec]
+//          dp.filterFunc = filterOpMetadata.filterOpExec().filterFunc
+//        case t => throw new NotImplementedError("Unknown operator type: " + t)
+//      }
       log.info(
         "modify logic received by worker " + this.self.path.name + ", updating logic completed"
       )
+      throw new UnsupportedOperationException("this functionality is temporarily disabled")
   }
 
   override def postStop(): Unit = {
@@ -423,12 +424,12 @@ class Processor(var dataProcessor: IOperatorExecutor, val tag: WorkerTag) extend
           s"savedModify: _1: ${savedModifyLogic.head._1}, :2 ${savedModifyLogic.head._2}, " +
           s"id: ${this.tag}"
       )
-      savedModifyLogic.head._3 match {
-        case filterOpMetadata: FilterOpExecConfig =>
-          val dp = dataProcessor.asInstanceOf[FilterOpExec]
-          dp.filterFunc = filterOpMetadata.filterOpExec().filterFunc
-        case t => throw new NotImplementedError("Unknown operator type: " + t)
-      }
+//      savedModifyLogic.head._3 match {
+//        case filterOpMetadata: FilterOpExecConfig =>
+//          val dp = dataProcessor.asInstanceOf[FilterOpExec]
+//          dp.filterFunc = filterOpMetadata.filterOpExec().filterFunc
+//        case t => throw new NotImplementedError("Unknown operator type: " + t)
+//      }
       savedModifyLogic.dequeue()
       println(s"!!!!!!triggered change logic done")
     }

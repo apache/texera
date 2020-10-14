@@ -7,13 +7,13 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple;
 
 public class FilterPredicate {
 
-    @JsonProperty("attribute")
+    @JsonProperty(value = "attribute", required = true)
     public String attribute;
 
-    @JsonProperty("condition")
+    @JsonProperty(value = "condition", required = true)
     public ComparisonType condition;
 
-    @JsonProperty("value")
+    @JsonProperty(value = "value", required = true)
     public String value;
 
 

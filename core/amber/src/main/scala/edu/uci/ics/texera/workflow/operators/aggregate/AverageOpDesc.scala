@@ -8,15 +8,17 @@ import edu.uci.ics.texera.workflow.common.operators.aggregate.{AggregateOpDesc, 
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 
+import scala.collection.JavaConverters
+
 case class AveragePartialObj(sum: Double, count: Double) extends Serializable {}
 
 class AverageOpDesc extends AggregateOpDesc {
 
-  @JsonProperty("attribute")
+  @JsonProperty(value = "attribute", required = true)
   @JsonPropertyDescription("column to calculate average value")
   var attribute: String = _
 
-  @JsonProperty("result attribute")
+  @JsonProperty(value = "result attribute", required = true)
   @JsonPropertyDescription("column name of average result")
   var resultAttribute: String = _
 
@@ -62,6 +64,16 @@ class AverageOpDesc extends AggregateOpDesc {
       1
     )
 
-  override def getOutputSchema(schemas: Schema*): Schema = { null }
+  override def getOutputSchema(schemas: Array[Schema]): Schema = {
+    if (resultAttribute == null || resultAttribute.trim.isEmpty) {
+      return null
+    }
+    if (groupByKeys == null) {
+      groupByKeys = List()
+    }
+    Schema.newBuilder().add(
+      groupByKeys.map(key => schemas(0).getAttribute(key)).toArray: _*
+    ).add(resultAttribute, AttributeType.DOUBLE).build()
+  }
 
 }
