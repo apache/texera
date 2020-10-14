@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.web.resource
 
-import edu.uci.ics.texera.workflow.common.workflow.{WorkflowInfo, WorkflowCompiler}
+import edu.uci.ics.texera.workflow.common.workflow.{WorkflowCompiler, WorkflowInfo}
 import edu.uci.ics.texera.workflow.common.{Utils, WorkflowContext}
 import javax.ws.rs.core.MediaType
 import javax.ws.rs.{Consumes, POST, Path, Produces}

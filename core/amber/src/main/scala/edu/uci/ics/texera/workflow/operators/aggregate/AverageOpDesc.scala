@@ -8,8 +8,6 @@ import edu.uci.ics.texera.workflow.common.operators.aggregate.{AggregateOpDesc, 
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 
-import scala.collection.JavaConverters
-
 case class AveragePartialObj(sum: Double, count: Double) extends Serializable {}
 
 class AverageOpDesc extends AggregateOpDesc {
@@ -71,9 +69,13 @@ class AverageOpDesc extends AggregateOpDesc {
     if (groupByKeys == null) {
       groupByKeys = List()
     }
-    Schema.newBuilder().add(
-      groupByKeys.map(key => schemas(0).getAttribute(key)).toArray: _*
-    ).add(resultAttribute, AttributeType.DOUBLE).build()
+    Schema
+      .newBuilder()
+      .add(
+        groupByKeys.map(key => schemas(0).getAttribute(key)).toArray: _*
+      )
+      .add(resultAttribute, AttributeType.DOUBLE)
+      .build()
   }
 
 }

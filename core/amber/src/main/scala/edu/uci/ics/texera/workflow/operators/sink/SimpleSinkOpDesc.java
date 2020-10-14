@@ -6,7 +6,6 @@ import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
-import scala.collection.Seq;
 
 public class SimpleSinkOpDesc extends OperatorDescriptor {
 
