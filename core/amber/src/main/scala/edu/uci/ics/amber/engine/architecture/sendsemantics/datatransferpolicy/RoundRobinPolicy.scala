@@ -3,7 +3,7 @@ package edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy
 import edu.uci.ics.amber.engine.architecture.sendsemantics.routees.BaseRoutee
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{DataMessage, EndSending}
 import edu.uci.ics.amber.engine.common.ambertag.LinkTag
-import edu.uci.ics.amber.engine.common.tuple.Tuple
+import edu.uci.ics.amber.engine.common.tuple.ITuple
 import akka.actor.{Actor, ActorContext, ActorRef}
 import akka.event.LoggingAdapter
 import akka.util.Timeout
@@ -14,7 +14,7 @@ class RoundRobinPolicy(batchSize: Int) extends DataTransferPolicy(batchSize) {
   var routees: Array[BaseRoutee] = _
   var sequenceNum: Array[Long] = _
   var roundRobinIndex = 0
-  var batch: Array[Tuple] = _
+  var batch: Array[ITuple] = _
   var currentSize = 0
 
   override def noMore()(implicit sender: ActorRef): Unit = {
@@ -43,7 +43,7 @@ class RoundRobinPolicy(batchSize: Int) extends DataTransferPolicy(batchSize) {
     }
   }
 
-  override def accept(tuple: Tuple)(implicit sender: ActorRef): Unit = {
+  override def accept(tuple: ITuple)(implicit sender: ActorRef): Unit = {
     batch(currentSize) = tuple
     currentSize += 1
     if (currentSize == batchSize) {
@@ -51,7 +51,7 @@ class RoundRobinPolicy(batchSize: Int) extends DataTransferPolicy(batchSize) {
       routees(roundRobinIndex).schedule(DataMessage(sequenceNum(roundRobinIndex), batch))
       sequenceNum(roundRobinIndex) += 1
       roundRobinIndex = (roundRobinIndex + 1) % routees.length
-      batch = new Array[Tuple](batchSize)
+      batch = new Array[ITuple](batchSize)
     }
   }
 
@@ -66,7 +66,7 @@ class RoundRobinPolicy(batchSize: Int) extends DataTransferPolicy(batchSize) {
     assert(next != null)
     routees = next
     routees.foreach(_.initialize(tag))
-    batch = new Array[Tuple](batchSize)
+    batch = new Array[ITuple](batchSize)
     sequenceNum = new Array[Long](routees.length)
   }
 
@@ -76,7 +76,7 @@ class RoundRobinPolicy(batchSize: Int) extends DataTransferPolicy(batchSize) {
 
   override def reset(): Unit = {
     routees.foreach(_.reset())
-    batch = new Array[Tuple](batchSize)
+    batch = new Array[ITuple](batchSize)
     sequenceNum = new Array[Long](routees.length)
     roundRobinIndex = 0
     currentSize = 0

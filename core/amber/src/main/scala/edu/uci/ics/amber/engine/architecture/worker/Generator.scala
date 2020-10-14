@@ -9,14 +9,14 @@ import edu.uci.ics.amber.engine.common.{
   AdvancedMessageSending,
   ElidableStatement,
   ThreadState,
-  OperatorExecutor,
-  SourceOperatorExecutor
+  IOperatorExecutor,
+  ISourceOperatorExecutor
 }
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage._
 import edu.uci.ics.amber.engine.common.ambermessage.StateMessage._
 import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage._
 import edu.uci.ics.amber.engine.common.ambertag.WorkerTag
-import edu.uci.ics.amber.engine.common.tuple.Tuple
+import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.faulttolerance.recovery.RecoveryPacket
 import akka.actor.{ActorLogging, Props, Stash}
 import akka.event.LoggingAdapter
@@ -29,10 +29,10 @@ import scala.util.control.Breaks
 import scala.concurrent.duration._
 
 object Generator {
-  def props(producer: SourceOperatorExecutor, tag: WorkerTag): Props = Props(new Generator(producer, tag))
+  def props(producer: ISourceOperatorExecutor, tag: WorkerTag): Props = Props(new Generator(producer, tag))
 }
 
-class Generator(var dataProducer: SourceOperatorExecutor, val tag: WorkerTag)
+class Generator(var dataProducer: ISourceOperatorExecutor, val tag: WorkerTag)
     extends WorkerBase
     with ActorLogging
     with Stash {
@@ -40,7 +40,7 @@ class Generator(var dataProducer: SourceOperatorExecutor, val tag: WorkerTag)
   val dataGenerateExecutor: ExecutionContextExecutor =
     ExecutionContext.fromExecutor(Executors.newSingleThreadExecutor)
   var isGeneratingFinished = false
-  var outputIterator: Iterator[Tuple] = _
+  var outputIterator: Iterator[ITuple] = _
 
   var generatedCount = 0L
   @elidable(INFO) var generateTime = 0L
@@ -49,7 +49,7 @@ class Generator(var dataProducer: SourceOperatorExecutor, val tag: WorkerTag)
   override def onReset(value: Any, recoveryInformation: Seq[(Long, Long)]): Unit = {
     super.onReset(value, recoveryInformation)
     generatedCount = 0L
-    dataProducer = value.asInstanceOf[SourceOperatorExecutor]
+    dataProducer = value.asInstanceOf[ISourceOperatorExecutor]
     dataProducer.open()
     resetBreakpoints()
     resetOutput()
@@ -195,7 +195,7 @@ class Generator(var dataProducer: SourceOperatorExecutor, val tag: WorkerTag)
       this.outputIterator = dataProducer.produce()
       while (outputIterator.hasNext) {
         exitIfPaused()
-        var nextTuple: Tuple = null
+        var nextTuple: ITuple = null
         try {
           nextTuple = outputIterator.next()
         } catch {

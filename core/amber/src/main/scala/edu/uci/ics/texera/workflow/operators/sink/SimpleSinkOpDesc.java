@@ -1,23 +1,23 @@
 package edu.uci.ics.texera.workflow.operators.sink;
 
-import edu.uci.ics.amber.engine.operators.OpExecConfig;
 import com.google.common.base.Preconditions;
-import scala.collection.Seq;
+import edu.uci.ics.amber.engine.operators.OpExecConfig;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
-import edu.uci.ics.texera.workflow.common.metadata.TexeraOperatorInfo;
-import edu.uci.ics.texera.workflow.common.operators.TexeraOperatorDescriptor;
+import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
+import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
+import scala.collection.Seq;
 
-public class SimpleSinkOpDesc extends TexeraOperatorDescriptor {
+public class SimpleSinkOpDesc extends OperatorDescriptor {
 
     @Override
-    public OpExecConfig texeraOperatorExecutor() {
+    public OpExecConfig operatorExecutor() {
         return new SimpleSinkOpExecConfig(this.operatorIdentifier());
     }
 
     @Override
-    public TexeraOperatorInfo texeraOperatorInfo() {
-        return new TexeraOperatorInfo(
+    public OperatorInfo operatorInfo() {
+        return new OperatorInfo(
                 "View Results",
                 "View the edu.uci.ics.texera.workflow results",
                 OperatorGroupConstants.RESULT_GROUP(),
@@ -25,9 +25,9 @@ public class SimpleSinkOpDesc extends TexeraOperatorDescriptor {
     }
 
     @Override
-    public Schema transformSchema(Seq<Schema> schemas) {
+    public Schema getOutputSchema(Seq<Schema> schemas) {
         Preconditions.checkArgument(schemas.length() == 1);
-       return schemas.apply(0);
+        return schemas.apply(0);
     }
 
 }

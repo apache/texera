@@ -29,4 +29,4 @@ object BreakpointTriggeredEvent {
 case class BreakpointTriggeredEvent(
     report: mutable.MutableList[BreakpointFault],
     operatorID: String
-) extends TexeraWsEvent
+) extends TexeraWebSocketEvent

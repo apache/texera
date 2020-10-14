@@ -1,11 +1,11 @@
 package edu.uci.ics.texera.web
 
 import java.io.{BufferedReader, InputStreamReader}
-import java.net.{InetAddress, URL}
+import java.net.URL
 
-import edu.uci.ics.amber.clustering.ClusterListener
 import akka.actor.{ActorSystem, Props}
 import com.typesafe.config.ConfigFactory
+import edu.uci.ics.amber.clustering.ClusterListener
 
 object WebUtils {
 

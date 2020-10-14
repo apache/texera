@@ -3,18 +3,18 @@ package edu.uci.ics.amber.engine.faulttolerance.materializer
 import java.io.{BufferedWriter, FileWriter}
 import java.net.URI
 
-import edu.uci.ics.amber.engine.common.tuple.Tuple
-import edu.uci.ics.amber.engine.common.{InputExhausted, OperatorExecutor}
+import edu.uci.ics.amber.engine.common.tuple.ITuple
+import edu.uci.ics.amber.engine.common.{InputExhausted, IOperatorExecutor}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
 
 class HashBasedMaterializer(
-    val outputPath: String,
-    val index: Int,
-    val hashFunc: Tuple => Int,
-    val numBuckets: Int,
-    val remoteHDFS: String = null
-) extends OperatorExecutor {
+                             val outputPath: String,
+                             val index: Int,
+                             val hashFunc: ITuple => Int,
+                             val numBuckets: Int,
+                             val remoteHDFS: String = null
+) extends IOperatorExecutor {
 
   var writer: Array[BufferedWriter] = _
 
@@ -29,7 +29,7 @@ class HashBasedMaterializer(
     writer.foreach(_.close())
   }
 
-  override def processTuple(tuple: Either[Tuple, InputExhausted], input: Int): scala.Iterator[Tuple] = {
+  override def processTuple(tuple: Either[ITuple, InputExhausted], input: Int): scala.Iterator[ITuple] = {
     tuple match {
       case Left(t) =>
         val index = (hashFunc(t) % numBuckets + numBuckets) % numBuckets

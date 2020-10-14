@@ -2,8 +2,8 @@ package edu.uci.ics.texera.workflow.operators.filter;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import edu.uci.ics.texera.workflow.common.TexeraContext;
-import edu.uci.ics.texera.workflow.common.tuple.TexeraTuple;
+import edu.uci.ics.texera.workflow.common.WorkflowContext;
+import edu.uci.ics.texera.workflow.common.tuple.Tuple;
 
 public class FilterPredicate {
 
@@ -18,7 +18,7 @@ public class FilterPredicate {
 
 
     @JsonIgnore
-    public boolean evaluate(TexeraTuple tuple, TexeraContext context) {
+    public boolean evaluate(Tuple tuple, WorkflowContext context) {
         String tupleValue = tuple.getField(attribute).toString().trim();
         switch (condition) {
             case EQUAL_TO:
@@ -32,7 +32,7 @@ public class FilterPredicate {
             case LESS_THAN_OR_EQUAL_TO:
                 return tupleValue.compareToIgnoreCase(value) <= 0;
             case NOT_EQUAL_TO:
-                return ! tupleValue.equalsIgnoreCase(value);
+                return !tupleValue.equalsIgnoreCase(value);
         }
         return false;
     }

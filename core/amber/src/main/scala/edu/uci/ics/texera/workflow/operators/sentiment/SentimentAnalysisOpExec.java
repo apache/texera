@@ -7,15 +7,15 @@ import edu.stanford.nlp.pipeline.Annotation;
 import edu.stanford.nlp.sentiment.SentimentCoreAnnotations;
 import edu.stanford.nlp.trees.Tree;
 import edu.stanford.nlp.util.CoreMap;
+import edu.uci.ics.texera.workflow.common.operators.map.MapOpExec;
+import edu.uci.ics.texera.workflow.common.tuple.Tuple;
+import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 import scala.Function1;
 import scala.Serializable;
-import edu.uci.ics.texera.workflow.common.operators.map.TexeraMapOpExec;
-import edu.uci.ics.texera.workflow.common.tuple.TexeraTuple;
-import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 
 import java.util.Properties;
 
-public class SentimentAnalysisOpExec extends TexeraMapOpExec {
+public class SentimentAnalysisOpExec extends MapOpExec {
 
     private final SentimentAnalysisOpDesc opDesc;
     private final StanfordCoreNLPWrapper coreNlp;
@@ -27,10 +27,10 @@ public class SentimentAnalysisOpExec extends TexeraMapOpExec {
         coreNlp = new StanfordCoreNLPWrapper(props);
         this.setMapFunc(
                 // must cast the lambda function to "(Function & Serializable)" in Java
-                (Function1<TexeraTuple, TexeraTuple> & Serializable) this::processTuple);
+                (Function1<Tuple, Tuple> & Serializable) this::processTuple);
     }
 
-    public TexeraTuple processTuple(TexeraTuple t) {
+    public Tuple processTuple(Tuple t) {
         String text = t.getField(opDesc.attribute).toString();
         Annotation documentAnnotation = new Annotation(text);
         coreNlp.get().annotate(documentAnnotation);
@@ -55,7 +55,7 @@ public class SentimentAnalysisOpExec extends TexeraMapOpExec {
             sentiment = "negative";
         }
 
-        return TexeraTuple.newBuilder().add(t).add(opDesc.resultAttribute, AttributeType.STRING, sentiment).build();
+        return Tuple.newBuilder().add(t).add(opDesc.resultAttribute, AttributeType.STRING, sentiment).build();
     }
 
 

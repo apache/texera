@@ -13,9 +13,9 @@ import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage.{Ack, AckWith
 import edu.uci.ics.amber.engine.common.ambermessage.ControllerMessage.ReportGlobalBreakpointTriggered
 import edu.uci.ics.amber.engine.common.ambermessage.{PrincipalMessage, WorkerMessage}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{AckedWorkerInitialization, CheckRecovery, DataMessage, EndSending, ExecutionCompleted, ExecutionPaused, QueryBreakpoint, QueryTriggeredBreakpoints, RemoveBreakpoint, ReportFailure, ReportWorkerPartialCompleted, ReportedQueriedBreakpoint, ReportedTriggeredBreakpoints, Reset, UpdateOutputLinking}
-import edu.uci.ics.amber.engine.common.tuple.Tuple
+import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.ambertag.{AmberTag, LayerTag, OperatorIdentifier, WorkerTag}
-import edu.uci.ics.amber.engine.common.{AdvancedMessageSending, AmberUtils, Constants, TableMetadata, TupleSinkOperatorExecutor}
+import edu.uci.ics.amber.engine.common.{AdvancedMessageSending, AmberUtils, Constants, TableMetadata, ITupleSinkOperatorExecutor}
 import edu.uci.ics.amber.engine.faulttolerance.recovery.RecoveryPacket
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import akka.actor.{Actor, ActorLogging, ActorPath, ActorRef, Address, Cancellable, PoisonPill, Props, Stash}
@@ -46,7 +46,7 @@ class Principal(val metadata: OpExecConfig) extends Actor with ActorLogging with
   var layerDependencies: mutable.HashMap[String, mutable.HashSet[String]] = _
   var workerStateMap: mutable.AnyRefMap[ActorRef, WorkerState.Value] = _
   var workerStatisticsMap: mutable.AnyRefMap[ActorRef, WorkerStatistics] = _
-  var workerSinkResultMap = new mutable.AnyRefMap[ActorRef, List[Tuple]]
+  var workerSinkResultMap = new mutable.AnyRefMap[ActorRef, List[ITuple]]
   var layerMetadata: Array[TableMetadata] = _
   var isUserPaused = false
   var globalBreakpoints = new mutable.AnyRefMap[String, GlobalBreakpoint]
@@ -57,7 +57,7 @@ class Principal(val metadata: OpExecConfig) extends Actor with ActorLogging with
   val stage1Timer = Stopwatch.createUnstarted();
   val stage2Timer = Stopwatch.createUnstarted();
   var receivedRecoveryInformation = new mutable.HashMap[AmberTag, (Long, Long)]()
-  val receivedTuples = new mutable.ArrayBuffer[(Tuple, ActorPath)]()
+  val receivedTuples = new mutable.ArrayBuffer[(ITuple, ActorPath)]()
 
   def allWorkerStates: Iterable[WorkerState.Value] = workerStateMap.values
   def allWorkers: Iterable[ActorRef] = workerStateMap.keys
@@ -633,7 +633,7 @@ class Principal(val metadata: OpExecConfig) extends Actor with ActorLogging with
     case WorkerMessage.ReportOutputResult(sinkResult) =>
       workerSinkResultMap(sender) = sinkResult
       if (workerSinkResultMap.size == allWorkers.size) {
-        val collectedResults = mutable.MutableList[Tuple]()
+        val collectedResults = mutable.MutableList[ITuple]()
         this.workerSinkResultMap.values.foreach(v => collectedResults ++= v)
         context.parent ! PrincipalMessage.ReportOutputResult(collectedResults.toList)
       }

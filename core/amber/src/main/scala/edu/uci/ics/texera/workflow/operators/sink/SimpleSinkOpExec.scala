@@ -1,15 +1,15 @@
 package edu.uci.ics.texera.workflow.operators.sink
 
-import edu.uci.ics.amber.engine.common.tuple.Tuple
-import edu.uci.ics.amber.engine.common.{InputExhausted, TupleSinkOperatorExecutor}
+import edu.uci.ics.amber.engine.common.tuple.ITuple
+import edu.uci.ics.amber.engine.common.{ITupleSinkOperatorExecutor, InputExhausted}
 
 import scala.collection.mutable
 
-class SimpleSinkOpExec extends TupleSinkOperatorExecutor {
+class SimpleSinkOpExec extends ITupleSinkOperatorExecutor {
 
-  val results: mutable.MutableList[Tuple] = mutable.MutableList()
+  val results: mutable.MutableList[ITuple] = mutable.MutableList()
 
-  def getResultTuples(): Array[Tuple] = {
+  def getResultTuples(): Array[ITuple] = {
     results.toArray
   }
 
@@ -17,7 +17,10 @@ class SimpleSinkOpExec extends TupleSinkOperatorExecutor {
 
   override def close(): Unit = {}
 
-  override def processTuple(tuple: Either[Tuple, InputExhausted], input: Int): scala.Iterator[Tuple] = {
+  override def processTuple(
+      tuple: Either[ITuple, InputExhausted],
+      input: Int
+  ): scala.Iterator[ITuple] = {
     tuple match {
       case Left(t) =>
         this.results += t

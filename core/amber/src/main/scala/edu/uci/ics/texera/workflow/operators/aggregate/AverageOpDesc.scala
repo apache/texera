@@ -3,14 +3,14 @@ package edu.uci.ics.texera.workflow.operators.aggregate
 import java.io.Serializable
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, TexeraOperatorInfo}
-import edu.uci.ics.texera.workflow.common.operators.aggregate.{TexeraAggregateOpDesc, TexeraAggregateOpExecConfig, TexeraDistributedAggregation}
-import edu.uci.ics.texera.workflow.common.tuple.TexeraTuple
+import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.texera.workflow.common.operators.aggregate.{AggregateOpDesc, AggregateOpExecConfig, DistributedAggregation}
+import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 
 case class AveragePartialObj(sum: Double, count: Double) extends Serializable {}
 
-class AverageOpDesc extends TexeraAggregateOpDesc {
+class AverageOpDesc extends AggregateOpDesc {
 
   @JsonProperty("attribute")
   @JsonPropertyDescription("column to calculate average value")
@@ -24,8 +24,8 @@ class AverageOpDesc extends TexeraAggregateOpDesc {
   @JsonPropertyDescription("group by columns")
   var groupByKeys: List[String] = _
 
-  override def texeraOperatorExecutor: TexeraAggregateOpExecConfig[AveragePartialObj] = {
-    val aggregation = new TexeraDistributedAggregation[AveragePartialObj](
+  override def operatorExecutor: AggregateOpExecConfig[AveragePartialObj] = {
+    val aggregation = new DistributedAggregation[AveragePartialObj](
       () => AveragePartialObj(0, 0),
       (partial, tuple) => {
         val value = tuple.getField(attribute).toString.toDouble
@@ -35,28 +35,33 @@ class AverageOpDesc extends TexeraAggregateOpDesc {
         AveragePartialObj(partial1.sum + partial2.sum, partial1.count + partial2.count),
       partial => {
         val value = if (partial.count == 0) null else partial.sum / partial.count
-        TexeraTuple.newBuilder.add(resultAttribute, AttributeType.DOUBLE, value).build
+        Tuple.newBuilder.add(resultAttribute, AttributeType.DOUBLE, value).build
       },
-      if (this.groupByKeys == null) null else tuple => {
-        val builder = TexeraTuple.newBuilder()
-        groupByKeys.foreach(key => builder.add(tuple.getSchema.getAttribute(key), tuple.getField(key)))
-        builder.build()
-      }
+      if (this.groupByKeys == null) null
+      else
+        tuple => {
+          val builder = Tuple.newBuilder()
+          groupByKeys.foreach(key =>
+            builder.add(tuple.getSchema.getAttribute(key), tuple.getField(key))
+          )
+          builder.build()
+        }
     )
-    new TexeraAggregateOpExecConfig[AveragePartialObj](
+    new AggregateOpExecConfig[AveragePartialObj](
       operatorIdentifier,
       aggregation
     )
   }
 
-  override def texeraOperatorInfo: TexeraOperatorInfo =
-    TexeraOperatorInfo(
+  override def operatorInfo: OperatorInfo =
+    OperatorInfo(
       "Average",
       "calculate the average value of a column",
       OperatorGroupConstants.UTILITY_GROUP,
-      1, 1
+      1,
+      1
     )
 
-  override def transformSchema(schemas: Schema*): Schema = { null }
+  override def getOutputSchema(schemas: Schema*): Schema = { null }
 
 }

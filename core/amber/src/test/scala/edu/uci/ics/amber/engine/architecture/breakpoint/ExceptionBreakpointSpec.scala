@@ -22,7 +22,7 @@ import edu.uci.ics.amber.engine.common.ambermessage.ControllerMessage.{
 }
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{DataMessage, EndSending}
 import edu.uci.ics.amber.engine.common.ambertag.{LayerTag, LinkTag, OperatorIdentifier, WorkerTag, WorkflowTag}
-import edu.uci.ics.amber.engine.common.tuple.Tuple
+import edu.uci.ics.amber.engine.common.tuple.ITuple
 import akka.actor.{ActorSystem, PoisonPill, Props}
 import akka.event.LoggingAdapter
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}
@@ -136,7 +136,7 @@ class ExceptionBreakpointSpec
               .mkString(",") + "]"
           )
           val fixed = new FaultedTuple(
-            Tuple("Asia", "Rwanda", "1", "0", "0", "0", "0", "0", "0", "12", "12", "120", "12"),
+            ITuple("Asia", "Rwanda", "1", "0", "0", "0", "0", "0", "0", "12", "12", "120", "12"),
             i._1._2.id,
             i._1._2.isInput
           )

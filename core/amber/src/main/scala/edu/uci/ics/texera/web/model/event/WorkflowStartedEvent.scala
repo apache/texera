@@ -1,3 +1,3 @@
 package edu.uci.ics.texera.web.model.event
 
-case class WorkflowStartedEvent() extends TexeraWsEvent
+case class WorkflowStartedEvent() extends TexeraWebSocketEvent

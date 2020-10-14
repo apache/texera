@@ -13,7 +13,7 @@ import edu.uci.ics.amber.engine.common.ambermessage.ControllerMessage.{
 }
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.DataMessage
 import edu.uci.ics.amber.engine.common.ambertag.OperatorIdentifier
-import edu.uci.ics.amber.engine.common.tuple.Tuple
+import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.Constants
 import akka.actor.{ActorSystem, PoisonPill, Props}
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}

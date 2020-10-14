@@ -2,14 +2,14 @@ package edu.uci.ics.texera.workflow.operators.regex
 
 import java.util.regex.Pattern
 
-import edu.uci.ics.texera.workflow.common.operators.filter.TexeraFilterOpExec
-import edu.uci.ics.texera.workflow.common.tuple.TexeraTuple
+import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpExec
+import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
-class RegexOpExec(val opDesc: RegexOpDesc) extends TexeraFilterOpExec {
+class RegexOpExec(val opDesc: RegexOpDesc) extends FilterOpExec {
   val pattern = Pattern.compile(opDesc.regex)
   this.setFilterFunc(this.matchRegex)
 
-  def matchRegex(tuple: TexeraTuple): Boolean = {
+  def matchRegex(tuple: Tuple): Boolean = {
     val tupleValue = tuple.getField(opDesc.attribute).toString.trim
     pattern.matcher(tupleValue).find
   }

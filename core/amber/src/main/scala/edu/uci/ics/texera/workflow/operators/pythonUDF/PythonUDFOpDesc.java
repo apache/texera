@@ -1,20 +1,20 @@
 package edu.uci.ics.texera.workflow.operators.pythonUDF;
 
-import edu.uci.ics.amber.engine.common.Constants;
-import edu.uci.ics.amber.engine.operators.OpExecConfig;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
+import edu.uci.ics.amber.engine.common.Constants;
+import edu.uci.ics.amber.engine.operators.OpExecConfig;
+import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
+import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
+import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor;
+import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import scala.collection.JavaConverters;
 import scala.collection.Seq;
-import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
-import edu.uci.ics.texera.workflow.common.metadata.TexeraOperatorInfo;
-import edu.uci.ics.texera.workflow.common.operators.TexeraOperatorDescriptor;
-import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 
 import java.util.List;
 
 
-public class PythonUDFOpDesc extends TexeraOperatorDescriptor {
+public class PythonUDFOpDesc extends OperatorDescriptor {
 
     @JsonProperty("Python script file")
     @JsonPropertyDescription("name of the UDF script file")
@@ -37,7 +37,7 @@ public class PythonUDFOpDesc extends TexeraOperatorDescriptor {
     public int batchSize;
 
     @Override
-    public OpExecConfig texeraOperatorExecutor() {
+    public OpExecConfig operatorExecutor() {
         return new PythonUDFMetadata(this.operatorIdentifier(), Constants.defaultNumWorkers(),
                 this.pythonScriptFile,
                 JavaConverters.asScalaIteratorConverter(this.inputColumns.iterator()).asScala().toBuffer(),
@@ -47,8 +47,8 @@ public class PythonUDFOpDesc extends TexeraOperatorDescriptor {
     }
 
     @Override
-    public TexeraOperatorInfo texeraOperatorInfo() {
-        return new TexeraOperatorInfo(
+    public OperatorInfo operatorInfo() {
+        return new OperatorInfo(
                 "Python UDF",
                 "User-defined function operator in Python script",
                 OperatorGroupConstants.UDF_GROUP(),
@@ -56,7 +56,8 @@ public class PythonUDFOpDesc extends TexeraOperatorDescriptor {
     }
 
     @Override
-    public Schema transformSchema(Seq<Schema> schemas) {
+    public Schema getOutputSchema(Seq<Schema> schemas) {
         return null;
     }
+
 }

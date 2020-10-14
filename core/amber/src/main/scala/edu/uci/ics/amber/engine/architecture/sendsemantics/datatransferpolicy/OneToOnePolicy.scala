@@ -3,7 +3,7 @@ package edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy
 import edu.uci.ics.amber.engine.architecture.sendsemantics.routees.BaseRoutee
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{DataMessage, EndSending}
 import edu.uci.ics.amber.engine.common.ambertag.LinkTag
-import edu.uci.ics.amber.engine.common.tuple.Tuple
+import edu.uci.ics.amber.engine.common.tuple.ITuple
 import akka.actor.{Actor, ActorContext, ActorRef}
 import akka.event.LoggingAdapter
 import akka.util.Timeout
@@ -13,16 +13,16 @@ import scala.concurrent.ExecutionContext
 class OneToOnePolicy(batchSize: Int) extends DataTransferPolicy(batchSize) {
   var sequenceNum: Long = 0
   var routee: BaseRoutee = _
-  var batch: Array[Tuple] = _
+  var batch: Array[ITuple] = _
   var currentSize = 0
-  override def accept(tuple: Tuple)(implicit sender: ActorRef): Unit = {
+  override def accept(tuple: ITuple)(implicit sender: ActorRef): Unit = {
     batch(currentSize) = tuple
     currentSize += 1
     if (currentSize == batchSize) {
       currentSize = 0
       routee.schedule(DataMessage(sequenceNum, batch))
       sequenceNum += 1
-      batch = new Array[Tuple](batchSize)
+      batch = new Array[ITuple](batchSize)
     }
   }
 
@@ -53,7 +53,7 @@ class OneToOnePolicy(batchSize: Int) extends DataTransferPolicy(batchSize) {
     assert(next != null && next.length == 1)
     routee = next(0)
     routee.initialize(tag)
-    batch = new Array[Tuple](batchSize)
+    batch = new Array[ITuple](batchSize)
   }
 
   override def dispose(): Unit = {
@@ -62,7 +62,7 @@ class OneToOnePolicy(batchSize: Int) extends DataTransferPolicy(batchSize) {
 
   override def reset(): Unit = {
     routee.reset()
-    batch = new Array[Tuple](batchSize)
+    batch = new Array[ITuple](batchSize)
     currentSize = 0
     sequenceNum = 0L
   }

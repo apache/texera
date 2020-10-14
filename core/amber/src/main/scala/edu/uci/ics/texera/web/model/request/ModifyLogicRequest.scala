@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.web.model.request
 
-import edu.uci.ics.texera.workflow.common.operators.TexeraOperatorDescriptor
+import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 
 case class ModifyLogicRequest(
-    operator: TexeraOperatorDescriptor
-) extends TexeraWsRequest
+    operator: OperatorDescriptor
+) extends TexeraWebSocketRequest

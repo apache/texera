@@ -4,20 +4,20 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.Depl
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.DeploymentFilter
 import edu.uci.ics.amber.engine.architecture.worker.{Generator, Processor}
 import edu.uci.ics.amber.engine.common.ambertag.{LayerTag, WorkerTag}
-import edu.uci.ics.amber.engine.common.OperatorExecutor
+import edu.uci.ics.amber.engine.common.IOperatorExecutor
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import akka.actor.{ActorContext, ActorRef, Address, Deploy}
 import akka.remote.RemoteScope
 
 class ProcessorWorkerLayer(
-    tag: LayerTag,
-    val metadata: Int => OperatorExecutor,
-    _numWorkers: Int,
-    df: DeploymentFilter,
-    ds: DeployStrategy
+                            tag: LayerTag,
+                            val metadata: Int => IOperatorExecutor,
+                            _numWorkers: Int,
+                            df: DeploymentFilter,
+                            ds: DeployStrategy
 ) extends ActorLayer(tag, _numWorkers, df, ds) {
 
-  var metadataForFirst: OperatorExecutor = _
+  var metadataForFirst: IOperatorExecutor = _
   var deployForFirst: Address = _
 
   override def clone(): AnyRef = {

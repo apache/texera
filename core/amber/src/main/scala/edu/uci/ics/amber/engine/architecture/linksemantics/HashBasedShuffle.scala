@@ -8,13 +8,13 @@ import edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy.{
 import edu.uci.ics.amber.engine.architecture.sendsemantics.routees.{DirectRoutee, FlowControlRoutee}
 import edu.uci.ics.amber.engine.common.AdvancedMessageSending
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{UpdateInputLinking, UpdateOutputLinking}
-import edu.uci.ics.amber.engine.common.tuple.Tuple
+import edu.uci.ics.amber.engine.common.tuple.ITuple
 import akka.event.LoggingAdapter
 import akka.util.Timeout
 
 import scala.concurrent.ExecutionContext
 
-class HashBasedShuffle(from: ActorLayer, to: ActorLayer, batchSize: Int, hashFunc: Tuple => Int)
+class HashBasedShuffle(from: ActorLayer, to: ActorLayer, batchSize: Int, hashFunc: ITuple => Int)
     extends LinkStrategy(from, to, batchSize) {
   override def link()(implicit
       timeout: Timeout,

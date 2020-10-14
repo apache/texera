@@ -6,7 +6,7 @@ import edu.uci.ics.amber.engine.architecture.sendsemantics.routees.BaseRoutee
 import edu.uci.ics.amber.engine.architecture.worker.{WorkerState, WorkerStatistics}
 import edu.uci.ics.amber.engine.common.amberexception.AmberException
 import edu.uci.ics.amber.engine.common.ambertag.{LayerTag, LinkTag, WorkerTag}
-import edu.uci.ics.amber.engine.common.tuple.Tuple
+import edu.uci.ics.amber.engine.common.tuple.ITuple
 import akka.actor.{ActorPath, ActorRef}
 
 import scala.collection.mutable
@@ -39,7 +39,7 @@ object WorkerMessage {
 
   final case class ReportStatistics(workerStatistics: WorkerStatistics)
 
-  final case class ReportOutputResult(results: List[Tuple])
+  final case class ReportOutputResult(results: List[ITuple])
 
   final case class RemoveBreakpoint(id: String)
 
@@ -55,11 +55,11 @@ object WorkerMessage {
 
   final case class CheckRecovery()
 
-  final case class ReportCurrentProcessingTuple(workerID: ActorPath, tuple: Tuple)
+  final case class ReportCurrentProcessingTuple(workerID: ActorPath, tuple: ITuple)
 
   final case class Reset(core: Any, recoveryInformation: Seq[(Long, Long)])
 
-  final case class DataMessage(sequenceNumber: Long, payload: Array[Tuple]) {
+  final case class DataMessage(sequenceNumber: Long, payload: Array[ITuple]) {
     override def equals(obj: Any): Boolean = {
       if (!obj.isInstanceOf[DataMessage]) return false
       val other = obj.asInstanceOf[DataMessage]

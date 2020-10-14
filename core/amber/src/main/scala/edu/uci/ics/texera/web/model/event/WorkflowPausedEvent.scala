@@ -1,3 +1,3 @@
 package edu.uci.ics.texera.web.model.event
 
-case class WorkflowPausedEvent() extends TexeraWsEvent
+case class WorkflowPausedEvent() extends TexeraWebSocketEvent

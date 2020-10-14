@@ -1,10 +1,11 @@
 package edu.uci.ics.texera.workflow.operators.regex
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, TexeraOperatorInfo}
-import edu.uci.ics.texera.workflow.common.operators.filter.{TexeraFilterOpDesc, TexeraFilterOpExecConfig}
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaFormat
+import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.texera.workflow.common.operators.filter.{FilterOpDesc, FilterOpExecConfig}
 
-class RegexOpDesc extends TexeraFilterOpDesc {
+class RegexOpDesc extends FilterOpDesc {
 
   @JsonProperty("attribute")
   @JsonPropertyDescription("column to search regex")
@@ -12,17 +13,19 @@ class RegexOpDesc extends TexeraFilterOpDesc {
 
   @JsonProperty("regex")
   @JsonPropertyDescription("regular expression")
+  @JsonSchemaFormat("regex")
   var regex: String = _
 
-  override def texeraOperatorExecutor: TexeraFilterOpExecConfig = {
-    new TexeraFilterOpExecConfig(this.operatorIdentifier, () => new RegexOpExec(this))
+  override def operatorExecutor: FilterOpExecConfig = {
+    new FilterOpExecConfig(this.operatorIdentifier, () => new RegexOpExec(this))
   }
 
-  override def texeraOperatorInfo: TexeraOperatorInfo =
-    TexeraOperatorInfo(
+  override def operatorInfo: OperatorInfo =
+    OperatorInfo(
       "Regular Expression",
       "Search a regular expression in a string column",
       OperatorGroupConstants.SEARCH_GROUP,
-      1, 1
+      1,
+      1
     )
 }

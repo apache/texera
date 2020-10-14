@@ -8,7 +8,7 @@ import edu.uci.ics.amber.engine.architecture.breakpoint.localbreakpoint.{
 }
 import edu.uci.ics.amber.engine.common.AdvancedMessageSending
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.AssignBreakpoint
-import edu.uci.ics.amber.engine.common.tuple.Tuple
+import edu.uci.ics.amber.engine.common.tuple.ITuple
 import akka.actor.ActorRef
 import akka.event.LoggingAdapter
 import akka.util.Timeout

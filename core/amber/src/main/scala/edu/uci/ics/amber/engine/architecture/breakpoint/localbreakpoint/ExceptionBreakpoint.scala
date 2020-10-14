@@ -1,10 +1,10 @@
 package edu.uci.ics.amber.engine.architecture.breakpoint.localbreakpoint
-import edu.uci.ics.amber.engine.common.tuple.Tuple
+import edu.uci.ics.amber.engine.common.tuple.ITuple
 
 class ExceptionBreakpoint()(implicit id: String, version: Long)
     extends LocalBreakpoint(id, version) {
   var error: Exception = _
-  override def accept(tuple: Tuple): Unit = {
+  override def accept(tuple: ITuple): Unit = {
     //empty
   }
 

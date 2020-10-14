@@ -12,7 +12,7 @@ import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{
   QueryBreakpoint,
   RemoveBreakpoint
 }
-import edu.uci.ics.amber.engine.common.tuple.Tuple
+import edu.uci.ics.amber.engine.common.tuple.ITuple
 import akka.actor.ActorRef
 import akka.event.LoggingAdapter
 import akka.util.Timeout
@@ -21,7 +21,7 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext
 
-class ConditionalGlobalBreakpoint(id: String, val predicate: Tuple => Boolean)
+class ConditionalGlobalBreakpoint(id: String, val predicate: ITuple => Boolean)
     extends GlobalBreakpoint(id) {
 
   var localbreakpoints: ArrayBuffer[(ActorRef, LocalBreakpoint)] =

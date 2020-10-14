@@ -6,7 +6,7 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.ActorLayer
 import edu.uci.ics.amber.engine.architecture.linksemantics.LinkStrategy
 import edu.uci.ics.amber.engine.architecture.worker.WorkerState
 import edu.uci.ics.amber.engine.common.ambertag.{AmberTag, LayerTag, OperatorIdentifier}
-import edu.uci.ics.amber.engine.common.tuple.Tuple
+import edu.uci.ics.amber.engine.common.tuple.ITuple
 import akka.actor.ActorRef
 import akka.event.LoggingAdapter
 import akka.util.Timeout
@@ -40,7 +40,7 @@ abstract class OpExecConfig(val tag: OperatorIdentifier) extends Serializable {
 
   def requiredShuffle: Boolean = false
 
-  def getShuffleHashFunction(layerTag: LayerTag): Tuple => Int = ???
+  def getShuffleHashFunction(layerTag: LayerTag): ITuple => Int = ???
 
   def assignBreakpoint(
       topology: Array[ActorLayer],

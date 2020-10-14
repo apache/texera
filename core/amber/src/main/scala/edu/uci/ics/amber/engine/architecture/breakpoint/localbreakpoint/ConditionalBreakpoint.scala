@@ -1,13 +1,13 @@
 package edu.uci.ics.amber.engine.architecture.breakpoint.localbreakpoint
 
-import edu.uci.ics.amber.engine.common.tuple.Tuple
+import edu.uci.ics.amber.engine.common.tuple.ITuple
 
-class ConditionalBreakpoint(val predicate: Tuple => Boolean)(implicit id: String, version: Long)
+class ConditionalBreakpoint(val predicate: ITuple => Boolean)(implicit id: String, version: Long)
     extends LocalBreakpoint(id, version) {
 
   var _isTriggered = false
 
-  override def accept(tuple: Tuple): Unit = {
+  override def accept(tuple: ITuple): Unit = {
     _isTriggered = predicate(tuple)
   }
 

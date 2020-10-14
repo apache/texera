@@ -10,10 +10,10 @@ import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage._
 import edu.uci.ics.amber.engine.common.ambermessage.StateMessage._
 import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage.{QueryState, _}
 import edu.uci.ics.amber.engine.common.ambertag.{LayerTag, WorkerTag}
-import edu.uci.ics.amber.engine.common.tuple.Tuple
-import edu.uci.ics.amber.engine.common.{AdvancedMessageSending, Constants, ElidableStatement, InputExhausted, OperatorExecutor, TableMetadata, ThreadState, TupleSinkOperatorExecutor}
+import edu.uci.ics.amber.engine.common.tuple.ITuple
+import edu.uci.ics.amber.engine.common.{AdvancedMessageSending, Constants, ElidableStatement, InputExhausted, IOperatorExecutor, TableMetadata, ThreadState, ITupleSinkOperatorExecutor}
 import edu.uci.ics.amber.engine.faulttolerance.recovery.RecoveryPacket
-import edu.uci.ics.texera.workflow.common.operators.filter.{TexeraFilterOpExec, TexeraFilterOpExecConfig}
+import edu.uci.ics.texera.workflow.common.operators.filter.{FilterOpExec, FilterOpExecConfig}
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Stash}
 import akka.event.LoggingAdapter
@@ -30,24 +30,24 @@ import scala.annotation.elidable._
 import scala.concurrent.duration._
 
 object Processor {
-  def props(processor: OperatorExecutor, tag: WorkerTag): Props = Props(new Processor(processor, tag))
+  def props(processor: IOperatorExecutor, tag: WorkerTag): Props = Props(new Processor(processor, tag))
 }
 
-class Processor(var dataProcessor: OperatorExecutor, val tag: WorkerTag) extends WorkerBase {
+class Processor(var dataProcessor: IOperatorExecutor, val tag: WorkerTag) extends WorkerBase {
 
   val dataProcessExecutor: ExecutionContextExecutor =
     ExecutionContext.fromExecutor(Executors.newSingleThreadExecutor)
-  val processingQueue = new mutable.Queue[(LayerTag, Array[Tuple])]
+  val processingQueue = new mutable.Queue[(LayerTag, Array[ITuple])]
   val input = new FIFOAccessPort()
   val aliveUpstreams = new mutable.HashSet[LayerTag]
   @volatile var dPThreadState: ThreadState.Value = ThreadState.Idle
   var processingIndex = 0
   var processedCount: Long = 0L
   var generatedCount: Long = 0L
-  var currentInputTuple: Tuple = _
+  var currentInputTuple: ITuple = _
   var savedModifyLogic: mutable.Queue[(Long, Long, OpExecConfig)] =
     new mutable.Queue[(Long, Long, OpExecConfig)]()
-  var outputIterator: Iterator[Tuple] = _
+  var outputIterator: Iterator[ITuple] = _
 
   @elidable(INFO) var processTime = 0L
   @elidable(INFO) var processStart = 0L
@@ -59,14 +59,14 @@ class Processor(var dataProcessor: OperatorExecutor, val tag: WorkerTag) extends
     generatedCount = 0L
     currentInputTuple = null
     dPThreadState = ThreadState.Idle
-    dataProcessor = value.asInstanceOf[OperatorExecutor]
+    dataProcessor = value.asInstanceOf[IOperatorExecutor]
     dataProcessor.open()
     while (
       savedModifyLogic.nonEmpty && savedModifyLogic.head._1 == 0 && savedModifyLogic.head._2 == 0
     ) {
       savedModifyLogic.head._3 match {
-        case filterOpExecConfig: TexeraFilterOpExecConfig =>
-          val dp = dataProcessor.asInstanceOf[TexeraFilterOpExec]
+        case filterOpExecConfig: FilterOpExecConfig =>
+          val dp = dataProcessor.asInstanceOf[FilterOpExec]
           dp.filterFunc = filterOpExecConfig.filterOpExec().filterFunc
         case t => throw new NotImplementedError("Unknown operator type: " + t)
       }
@@ -138,9 +138,9 @@ class Processor(var dataProcessor: OperatorExecutor, val tag: WorkerTag) extends
     }
   }
 
-  override def getResultTuples(): mutable.MutableList[Tuple] = {
+  override def getResultTuples(): mutable.MutableList[ITuple] = {
     this.dataProcessor match {
-      case processor: TupleSinkOperatorExecutor =>
+      case processor: ITupleSinkOperatorExecutor =>
         mutable.MutableList(processor.getResultTuples():_*)
       case _ =>
         mutable.MutableList()
@@ -168,7 +168,7 @@ class Processor(var dataProcessor: OperatorExecutor, val tag: WorkerTag) extends
     case msg        => stash()
   }
 
-  def onSaveDataMessage(seq: Long, payload: Array[Tuple]): Unit = {
+  def onSaveDataMessage(seq: Long, payload: Array[ITuple]): Unit = {
     input.preCheck(seq, payload, sender) match {
       case Some(batches) =>
         val currentEdge = input.actorToEdge(sender)
@@ -199,7 +199,7 @@ class Processor(var dataProcessor: OperatorExecutor, val tag: WorkerTag) extends
     onSaveEndSending(seq)
   }
 
-  def onReceiveDataMessage(seq: Long, payload: Array[Tuple]): Unit = {
+  def onReceiveDataMessage(seq: Long, payload: Array[ITuple]): Unit = {
     input.preCheck(seq, payload, sender) match {
       case Some(batches) =>
         val currentEdge = input.actorToEdge(sender)
@@ -328,8 +328,8 @@ class Processor(var dataProcessor: OperatorExecutor, val tag: WorkerTag) extends
       savedModifyLogic.enqueue((generatedCount, processedCount, newMetadata))
       log.info("modify logic received by worker " + this.self.path.name + ", updating logic")
       newMetadata match {
-        case filterOpMetadata: TexeraFilterOpExecConfig =>
-          val dp = dataProcessor.asInstanceOf[TexeraFilterOpExec]
+        case filterOpMetadata: FilterOpExecConfig =>
+          val dp = dataProcessor.asInstanceOf[FilterOpExec]
           dp.filterFunc = filterOpMetadata.filterOpExec().filterFunc
         case t => throw new NotImplementedError("Unknown operator type: " + t)
       }
@@ -424,8 +424,8 @@ class Processor(var dataProcessor: OperatorExecutor, val tag: WorkerTag) extends
           s"id: ${this.tag}"
       )
       savedModifyLogic.head._3 match {
-        case filterOpMetadata: TexeraFilterOpExecConfig =>
-          val dp = dataProcessor.asInstanceOf[TexeraFilterOpExec]
+        case filterOpMetadata: FilterOpExecConfig =>
+          val dp = dataProcessor.asInstanceOf[FilterOpExec]
           dp.filterFunc = filterOpMetadata.filterOpExec().filterFunc
         case t => throw new NotImplementedError("Unknown operator type: " + t)
       }
@@ -453,7 +453,7 @@ class Processor(var dataProcessor: OperatorExecutor, val tag: WorkerTag) extends
       processStart = System.nanoTime()
       while (outputIterator != null && outputIterator.hasNext) {
         exitIfPaused()
-        var nextTuple: Tuple = null
+        var nextTuple: ITuple = null
         try {
           nextTuple = outputIterator.next()
         } catch {
@@ -513,7 +513,7 @@ class Processor(var dataProcessor: OperatorExecutor, val tag: WorkerTag) extends
       //check if there is tuple left to be outputted
       while (outputIterator != null && outputIterator.hasNext) {
         exitIfPaused()
-        var nextTuple: Tuple = null
+        var nextTuple: ITuple = null
         try {
           nextTuple = outputIterator.next()
         } catch {
@@ -587,7 +587,7 @@ class Processor(var dataProcessor: OperatorExecutor, val tag: WorkerTag) extends
           exitIfPaused()
           while (outputIterator != null && outputIterator.hasNext) {
             exitIfPaused()
-            var nextTuple: Tuple = null
+            var nextTuple: ITuple = null
             try {
               nextTuple = outputIterator.next()
             } catch {

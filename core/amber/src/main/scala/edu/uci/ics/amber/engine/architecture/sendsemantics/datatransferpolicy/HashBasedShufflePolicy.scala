@@ -3,18 +3,18 @@ package edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy
 import edu.uci.ics.amber.engine.architecture.sendsemantics.routees.BaseRoutee
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{DataMessage, EndSending}
 import edu.uci.ics.amber.engine.common.ambertag.LinkTag
-import edu.uci.ics.amber.engine.common.tuple.Tuple
+import edu.uci.ics.amber.engine.common.tuple.ITuple
 import akka.actor.{Actor, ActorContext, ActorRef}
 import akka.event.LoggingAdapter
 import akka.util.Timeout
 
 import scala.concurrent.ExecutionContext
 
-class HashBasedShufflePolicy(batchSize: Int, val hashFunc: Tuple => Int)
+class HashBasedShufflePolicy(batchSize: Int, val hashFunc: ITuple => Int)
     extends DataTransferPolicy(batchSize) {
   var routees: Array[BaseRoutee] = _
   var sequenceNum: Array[Long] = _
-  var batches: Array[Array[Tuple]] = _
+  var batches: Array[Array[ITuple]] = _
   var currentSizes: Array[Int] = _
 
   override def noMore()(implicit sender: ActorRef): Unit = {
@@ -43,7 +43,7 @@ class HashBasedShufflePolicy(batchSize: Int, val hashFunc: Tuple => Int)
     }
   }
 
-  override def accept(tuple: Tuple)(implicit sender: ActorRef): Unit = {
+  override def accept(tuple: ITuple)(implicit sender: ActorRef): Unit = {
     val numBuckets = routees.length
     val index = (hashFunc(tuple) % numBuckets + numBuckets) % numBuckets
     batches(index)(currentSizes(index)) = tuple
@@ -52,7 +52,7 @@ class HashBasedShufflePolicy(batchSize: Int, val hashFunc: Tuple => Int)
       currentSizes(index) = 0
       routees(index).schedule(DataMessage(sequenceNum(index), batches(index)))
       sequenceNum(index) += 1
-      batches(index) = new Array[Tuple](batchSize)
+      batches(index) = new Array[ITuple](batchSize)
     }
   }
 
@@ -67,9 +67,9 @@ class HashBasedShufflePolicy(batchSize: Int, val hashFunc: Tuple => Int)
     assert(next != null)
     routees = next
     routees.foreach(_.initialize(tag))
-    batches = new Array[Array[Tuple]](next.length)
+    batches = new Array[Array[ITuple]](next.length)
     for (i <- next.indices) {
-      batches(i) = new Array[Tuple](batchSize)
+      batches(i) = new Array[ITuple](batchSize)
     }
     currentSizes = new Array[Int](routees.length)
     sequenceNum = new Array[Long](routees.length)
@@ -81,9 +81,9 @@ class HashBasedShufflePolicy(batchSize: Int, val hashFunc: Tuple => Int)
 
   override def reset(): Unit = {
     routees.foreach(_.reset())
-    batches = new Array[Array[Tuple]](routees.length)
+    batches = new Array[Array[ITuple]](routees.length)
     for (i <- routees.indices) {
-      batches(i) = new Array[Tuple](batchSize)
+      batches(i) = new Array[ITuple](batchSize)
     }
     currentSizes = new Array[Int](routees.length)
     sequenceNum = new Array[Long](routees.length)

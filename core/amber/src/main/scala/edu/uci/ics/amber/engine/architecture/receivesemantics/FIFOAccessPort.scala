@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.receivesemantics
 import edu.uci.ics.amber.engine.common.ambertag.LayerTag
-import edu.uci.ics.amber.engine.common.tuple.Tuple
+import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.TableMetadata
 import akka.actor.ActorRef
 
@@ -9,7 +9,7 @@ import scala.collection.mutable
 class FIFOAccessPort {
   val seqNumMap = new mutable.AnyRefMap[ActorRef, Long]
   val stashedMessage =
-    new mutable.AnyRefMap[ActorRef, mutable.LongMap[Array[Tuple]]] //can we optimize this?
+    new mutable.AnyRefMap[ActorRef, mutable.LongMap[Array[ITuple]]] //can we optimize this?
 
   val endMap = new mutable.AnyRefMap[ActorRef, Long]
   var endToBeReceived = new mutable.HashMap[LayerTag, mutable.HashSet[ActorRef]]
@@ -21,7 +21,7 @@ class FIFOAccessPort {
   def reset(): Unit = {
     seqNumMap.keys.foreach { sender =>
       seqNumMap(sender) = 0
-      stashedMessage(sender) = new mutable.LongMap[Array[Tuple]]
+      stashedMessage(sender) = new mutable.LongMap[Array[ITuple]]
     }
     endMap.clear()
     endToBeReceived.clear()
@@ -38,7 +38,7 @@ class FIFOAccessPort {
   def addSender(sender: ActorRef, from: LayerTag): Unit = {
     val edge = actorToEdge.values.find(m => m == from)
     seqNumMap(sender) = 0
-    stashedMessage(sender) = new mutable.LongMap[Array[Tuple]]
+    stashedMessage(sender) = new mutable.LongMap[Array[ITuple]]
     if (endToBeReceived.contains(from)) {
       endToBeReceived(from).add(sender)
     } else {
@@ -68,7 +68,7 @@ class FIFOAccessPort {
     }
   }
 
-  def preCheck(seq: Long, payload: Array[Tuple], sender: ActorRef): Option[Array[Array[Tuple]]] = {
+  def preCheck(seq: Long, payload: Array[ITuple], sender: ActorRef): Option[Array[Array[ITuple]]] = {
     if (!seqNumMap.contains(sender)) {
       None
     } else {
@@ -76,7 +76,7 @@ class FIFOAccessPort {
       if (cur == seq) {
         //valid, but need to check stashed
         val stashed = stashedMessage(sender)
-        val buf = mutable.ArrayBuffer[Array[Tuple]](payload)
+        val buf = mutable.ArrayBuffer[Array[ITuple]](payload)
         cur += 1
         while (stashed.contains(cur)) {
           buf += stashed(cur)

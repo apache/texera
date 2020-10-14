@@ -4,7 +4,7 @@ import edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy.Da
 import edu.uci.ics.amber.engine.architecture.sendsemantics.routees.BaseRoutee
 import edu.uci.ics.amber.engine.common.amberexception.BreakpointException
 import edu.uci.ics.amber.engine.common.ambertag.{LayerTag, LinkTag}
-import edu.uci.ics.amber.engine.common.tuple.Tuple
+import edu.uci.ics.amber.engine.common.tuple.ITuple
 import akka.actor.{ActorContext, ActorRef}
 import akka.event.LoggingAdapter
 import akka.util.Timeout
@@ -15,8 +15,8 @@ import scala.util.control.Breaks
 
 trait DataTransferSupport extends BreakpointSupport {
   var output = new Array[DataTransferPolicy](0)
-  var skippedInputTuples = new mutable.HashSet[Tuple]
-  var skippedOutputTuples = new mutable.HashSet[Tuple]
+  var skippedInputTuples = new mutable.HashSet[ITuple]
+  var skippedOutputTuples = new mutable.HashSet[ITuple]
 
   def pauseDataTransfer(): Unit = {
     var i = 0
@@ -52,7 +52,7 @@ trait DataTransferSupport extends BreakpointSupport {
     output = Array()
   }
 
-  def transferTuple(tuple: Tuple, tupleId: Long)(implicit sender: ActorRef): Unit = {
+  def transferTuple(tuple: ITuple, tupleId: Long)(implicit sender: ActorRef): Unit = {
     if (tuple != null && !skippedOutputTuples.contains(tuple)) {
       var i = 1
       var breakpointTriggered = false

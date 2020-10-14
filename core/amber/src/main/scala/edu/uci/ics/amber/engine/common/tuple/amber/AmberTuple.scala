@@ -1,10 +1,10 @@
 package edu.uci.ics.amber.engine.common.tuple.amber
 
 import edu.uci.ics.amber.engine.common.amberfield.FieldType
-import edu.uci.ics.amber.engine.common.tuple.Tuple
+import edu.uci.ics.amber.engine.common.tuple.ITuple
 
 @Deprecated
-class AmberTuple(val data: Array[Any]) extends Tuple {
+class AmberTuple(val data: Array[Any]) extends ITuple {
   def this(fields: Array[String], fieldTypes: Array[FieldType.Value]) {
     this({
       var i = 0

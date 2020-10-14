@@ -1,10 +1,10 @@
 package edu.uci.ics.amber.engine.architecture.breakpoint.localbreakpoint
 
-import edu.uci.ics.amber.engine.common.tuple.Tuple
+import edu.uci.ics.amber.engine.common.tuple.ITuple
 
 abstract class LocalBreakpoint(val id: String, val version: Long) extends Serializable {
 
-  def accept(tuple: Tuple)
+  def accept(tuple: ITuple)
 
   def isTriggered: Boolean
 
@@ -12,7 +12,7 @@ abstract class LocalBreakpoint(val id: String, val version: Long) extends Serial
 
   var isReported = false
 
-  var triggeredTuple: Tuple = _
+  var triggeredTuple: ITuple = _
 
   def isDirty: Boolean
 

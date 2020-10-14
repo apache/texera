@@ -23,4 +23,4 @@ object OperatorCurrentTuplesUpdateEvent {
 case class WorkerTuples(workerID: String, tuple: List[String])
 
 case class OperatorCurrentTuplesUpdateEvent(operatorID: String, tuples: List[WorkerTuples])
-    extends TexeraWsEvent
+    extends TexeraWebSocketEvent

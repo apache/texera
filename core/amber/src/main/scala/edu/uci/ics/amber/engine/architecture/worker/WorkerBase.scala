@@ -6,7 +6,7 @@ import edu.uci.ics.amber.engine.architecture.breakpoint.localbreakpoint.LocalBre
 import edu.uci.ics.amber.engine.common.amberexception.AmberException
 import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage._
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage._
-import edu.uci.ics.amber.engine.common.tuple.Tuple
+import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.ElidableStatement
 import akka.actor.{Actor, ActorLogging, Stash}
 import akka.event.LoggingAdapter
@@ -29,7 +29,7 @@ abstract class WorkerBase extends Actor with ActorLogging with Stash with DataTr
     new mutable.HashSet[(Long, Long)]()
 
   var pausedFlag = false
-  var userFixedTuple: Tuple = _
+  var userFixedTuple: ITuple = _
   @elidable(INFO) var startTime = 0L
 
   def onInitialization(recoveryInformation: Seq[(Long, Long)]): Unit = {
@@ -110,7 +110,7 @@ abstract class WorkerBase extends Actor with ActorLogging with Stash with DataTr
     pausedFlag = false
   }
 
-  def getResultTuples(): mutable.MutableList[Tuple] = {
+  def getResultTuples(): mutable.MutableList[ITuple] = {
     mutable.MutableList()
   }
 

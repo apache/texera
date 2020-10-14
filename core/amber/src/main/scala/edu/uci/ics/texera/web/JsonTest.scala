@@ -1,23 +1,18 @@
 package edu.uci.ics.texera.web
 
-import edu.uci.ics.texera.workflow.common.TexeraUtils
-import edu.uci.ics.texera.workflow.common.workflow.{
-  TexeraBreakpoint,
-  TexeraBreakpointCondition,
-  TexeraConditionBreakpoint
-}
-import edu.uci.ics.texera.web.model.request.{ExecuteWorkflowRequest, HelloWorldRequest}
+import edu.uci.ics.texera.workflow.common.Utils
+import edu.uci.ics.texera.workflow.common.workflow.{Breakpoint, BreakpointCondition, ConditionBreakpoint}
 
 object JsonTest {
 
   def main(args: Array[String]): Unit = {
-    val a = TexeraConditionBreakpoint("0", TexeraBreakpointCondition.EQ, "100")
-    val om = TexeraUtils.objectMapper
+    val a = ConditionBreakpoint("0", BreakpointCondition.EQ, "100")
+    val om = Utils.objectMapper
 
     val str = om.writeValueAsString(a)
     println(str)
 
-    val des = om.readValue(str, classOf[TexeraBreakpoint])
+    val des = om.readValue(str, classOf[Breakpoint])
     println(des)
 
   }

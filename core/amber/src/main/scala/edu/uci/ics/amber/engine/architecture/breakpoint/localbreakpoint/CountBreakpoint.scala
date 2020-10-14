@@ -1,13 +1,13 @@
 package edu.uci.ics.amber.engine.architecture.breakpoint.localbreakpoint
 
-import edu.uci.ics.amber.engine.common.tuple.Tuple
+import edu.uci.ics.amber.engine.common.tuple.ITuple
 
 class CountBreakpoint(val target: Long)(implicit id: String, version: Long)
     extends LocalBreakpoint(id, version) {
 
   var current: Long = 0
 
-  override def accept(tuple: Tuple): Unit = {
+  override def accept(tuple: ITuple): Unit = {
     current += 1
   }
 

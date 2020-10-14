@@ -1,13 +1,14 @@
 package edu.uci.ics.texera.workflow.operators.localscan;
 
-import edu.uci.ics.amber.engine.common.Constants;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.google.common.io.Files;
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaDefault;
+import edu.uci.ics.amber.engine.common.Constants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
-import edu.uci.ics.texera.workflow.common.metadata.TexeraOperatorInfo;
-import edu.uci.ics.texera.workflow.common.operators.source.TexeraSourceOperatorDescriptor;
-import edu.uci.ics.texera.workflow.common.operators.source.TexeraSourceOpExecConfig;
+import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
+import edu.uci.ics.texera.workflow.common.operators.source.SourceOpExecConfig;
+import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
@@ -21,7 +22,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 
-public class LocalCsvFileScanOpDesc extends TexeraSourceOperatorDescriptor {
+public class LocalCsvFileScanOpDesc extends SourceOperatorDescriptor {
 
     @JsonProperty("file path")
     @JsonPropertyDescription("local file path")
@@ -29,14 +30,16 @@ public class LocalCsvFileScanOpDesc extends TexeraSourceOperatorDescriptor {
 
     @JsonProperty("delimiter")
     @JsonPropertyDescription("delimiter to separate each line into fields")
+    @JsonSchemaDefault(",")
     public String delimiter;
 
     @JsonProperty("header")
     @JsonPropertyDescription("whether the CSV file contains a header line")
+    @JsonSchemaDefault("true")
     public Boolean header;
 
     @Override
-    public TexeraSourceOpExecConfig texeraOperatorExecutor() {
+    public SourceOpExecConfig operatorExecutor() {
         try {
             String headerLine = Files.asCharSource(new File(filePath), Charset.defaultCharset()).readFirstLine();
             return new LocalCsvFileScanOpExecConfig(this.operatorIdentifier(), Constants.defaultNumWorkers(),
@@ -47,10 +50,10 @@ public class LocalCsvFileScanOpDesc extends TexeraSourceOperatorDescriptor {
     }
 
     @Override
-    public TexeraOperatorInfo texeraOperatorInfo() {
-        return new TexeraOperatorInfo(
-                "File Scan",
-                "Scan data from a local file",
+    public OperatorInfo operatorInfo() {
+        return new OperatorInfo(
+                "CSV File Scan",
+                "Scan data from a local CSV file",
                 OperatorGroupConstants.SOURCE_GROUP(),
                 0, 1);
     }

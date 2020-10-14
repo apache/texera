@@ -1,12 +1,9 @@
 package edu.uci.ics.texera.web.resource
 
-import io.dropwizard.jersey.sessions.Session
-import javax.servlet.http.HttpSession
+import edu.uci.ics.texera.workflow.common.workflow.{WorkflowInfo, WorkflowCompiler}
+import edu.uci.ics.texera.workflow.common.{Utils, WorkflowContext}
 import javax.ws.rs.core.MediaType
 import javax.ws.rs.{Consumes, POST, Path, Produces}
-import edu.uci.ics.texera.workflow.common.{TexeraContext, TexeraUtils}
-import edu.uci.ics.texera.workflow.common.workflow.{TexeraWorkflow, TexeraWorkflowCompiler}
-import edu.uci.ics.texera.web.model.request.ExecuteWorkflowRequest
 
 import scala.collection.JavaConverters
 
@@ -23,10 +20,10 @@ class SchemaPropagationResource {
       workflowStr: String
   ): SchemaPropagationResponse = {
     println(workflowStr)
-    val workflow = TexeraUtils.objectMapper.readValue(workflowStr, classOf[TexeraWorkflow])
-    val context = new TexeraContext
-    val texeraWorkflowCompiler = new TexeraWorkflowCompiler(
-      TexeraWorkflow(workflow.operators, workflow.links, workflow.breakpoints),
+    val workflow = Utils.objectMapper.readValue(workflowStr, classOf[WorkflowInfo])
+    val context = new WorkflowContext
+    val texeraWorkflowCompiler = new WorkflowCompiler(
+      WorkflowInfo(workflow.operators, workflow.links, workflow.breakpoints),
       context
     )
     try {

@@ -9,25 +9,24 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * An attribute describes the name and the type of a column.
- *
  */
 public class Attribute implements Serializable {
-    
+
     private final String attributeName;
     private final AttributeType attributeType;
 
     @JsonCreator
     public Attribute(
             @JsonProperty(value = "attributeName", required = true)
-            String attributeName, 
+                    String attributeName,
             @JsonProperty(value = "attributeType", required = true)
-            AttributeType attributeType) {
+                    AttributeType attributeType) {
         checkNotNull(attributeName);
         checkNotNull(attributeType);
         this.attributeName = attributeName;
         this.attributeType = attributeType;
     }
-    
+
     @JsonProperty(value = "attributeName")
     public String getName() {
         return attributeName;
@@ -42,7 +41,7 @@ public class Attribute implements Serializable {
     public String toString() {
         return "Attribute[name=" + attributeName + ", type=" + attributeType + "]";
     }
-    
+
     @Override
     public boolean equals(Object toCompare) {
         if (this == toCompare) {
@@ -54,19 +53,19 @@ public class Attribute implements Serializable {
         if (this.getClass() != toCompare.getClass()) {
             return false;
         }
-        
+
         Attribute that = (Attribute) toCompare;
-        
+
         if (this.attributeName == null) {
             return that.attributeName == null;
         }
         if (this.attributeType == null) {
             return that.attributeType == null;
         }
-        
+
         return this.attributeName.equalsIgnoreCase(that.attributeName) && this.attributeType.equals(that.attributeType);
     }
-    
+
     @Override
     public int hashCode() {
         return this.attributeName.hashCode() + this.attributeType.toString().hashCode();

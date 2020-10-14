@@ -5,7 +5,7 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.ActorLayer
 import edu.uci.ics.amber.engine.architecture.linksemantics.LinkStrategy
 import edu.uci.ics.amber.engine.architecture.principal.{PrincipalState, PrincipalStatistics}
 import edu.uci.ics.amber.engine.common.ambertag.{AmberTag, LayerTag, WorkerTag}
-import edu.uci.ics.amber.engine.common.tuple.Tuple
+import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import akka.actor.{ActorPath, ActorRef}
 
@@ -31,13 +31,13 @@ object PrincipalMessage {
 
   final case class ReportStatistics(principalStatistics: PrincipalStatistics)
 
-  final case class ReportOutputResult(results: List[Tuple])
+  final case class ReportOutputResult(results: List[ITuple])
 
   final case class ReportPrincipalPartialCompleted(from: AmberTag, layer: LayerTag)
 
   final case class ReportCurrentProcessingTuple(
       operatorID: String,
-      tuple: Array[(Tuple, ActorPath)]
+      tuple: Array[(ITuple, ActorPath)]
   )
 
 }

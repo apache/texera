@@ -1,13 +1,13 @@
 package edu.uci.ics.texera.workflow.operators.localscan;
 
 
-import edu.uci.ics.amber.engine.faulttolerance.scanner.BufferedBlockReader;
 import com.google.common.base.Verify;
+import edu.uci.ics.amber.engine.faulttolerance.scanner.BufferedBlockReader;
+import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecutor;
+import edu.uci.ics.texera.workflow.common.tuple.Tuple;
+import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import org.tukaani.xz.SeekableFileInputStream;
 import scala.collection.Iterator;
-import edu.uci.ics.texera.workflow.common.operators.source.TexeraSourceOperatorExecutor;
-import edu.uci.ics.texera.workflow.common.tuple.TexeraTuple;
-import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -16,7 +16,7 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 
-public class LocalCsvScanSourceOpExec implements TexeraSourceOperatorExecutor {
+public class LocalCsvScanSourceOpExec implements SourceOperatorExecutor {
 
     private final String localPath;
     private final char separator;
@@ -44,8 +44,8 @@ public class LocalCsvScanSourceOpExec implements TexeraSourceOperatorExecutor {
     }
 
     @Override
-    public Iterator<TexeraTuple> produceTexeraTuple() {
-        return new Iterator<TexeraTuple>() {
+    public Iterator<Tuple> produceTexeraTuple() {
+        return new Iterator<Tuple>() {
 
             @Override
             public boolean hasNext() {
@@ -57,7 +57,7 @@ public class LocalCsvScanSourceOpExec implements TexeraSourceOperatorExecutor {
             }
 
             @Override
-            public TexeraTuple next() {
+            public Tuple next() {
                 try {
                     String[] res = reader.readLine();
                     if (res == null) {
@@ -73,7 +73,7 @@ public class LocalCsvScanSourceOpExec implements TexeraSourceOperatorExecutor {
                                 .toArray(String[]::new);
                     }
 
-                    return TexeraTuple.newBuilder().add(schema, res).build();
+                    return Tuple.newBuilder().add(schema, res).build();
                 } catch (IOException e) {
                     throw new UncheckedIOException(e);
                 }

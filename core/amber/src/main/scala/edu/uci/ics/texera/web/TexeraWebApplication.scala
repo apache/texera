@@ -5,7 +5,7 @@ import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.github.dirkraft.dropwizard.fileassets.FileAssetsBundle
 import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.texera.web.resource.{MockKillWorkerResource, SchemaPropagationResource, SystemMetadataResource, WorkflowWebsocketResource}
-import edu.uci.ics.texera.workflow.common.TexeraUtils
+import edu.uci.ics.texera.workflow.common.Utils
 import io.dropwizard.setup.{Bootstrap, Environment}
 import io.dropwizard.websockets.WebsocketBundle
 import org.eclipse.jetty.servlet.ErrorPageErrorHandler
@@ -21,7 +21,7 @@ object TexeraWebApplication {
     // start web server
     val server = "server"
     val serverConfig =
-      TexeraUtils.amberHomePath.resolve("../conf").resolve("web-config.yml").toString
+      Utils.amberHomePath.resolve("../conf").resolve("web-config.yml").toString
     new TexeraWebApplication().run(server, serverConfig)
   }
 }

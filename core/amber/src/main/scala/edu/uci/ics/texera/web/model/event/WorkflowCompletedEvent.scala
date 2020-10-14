@@ -1,8 +1,8 @@
 package edu.uci.ics.texera.web.model.event
 
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowCompleted
 import com.fasterxml.jackson.databind.node.ObjectNode
-import edu.uci.ics.texera.workflow.common.tuple.TexeraTuple
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowCompleted
+import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
 import scala.collection.mutable
 
@@ -15,11 +15,11 @@ object WorkflowCompletedEvent {
     val resultList = new mutable.MutableList[OperatorResult]
     workflowCompleted.result.foreach(pair => {
       val operatorID = pair._1
-      val table = pair._2.map(tuple => tuple.asInstanceOf[TexeraTuple].asKeyValuePairJson())
+      val table = pair._2.map(tuple => tuple.asInstanceOf[Tuple].asKeyValuePairJson())
       resultList += OperatorResult(operatorID, table)
     })
     WorkflowCompletedEvent(resultList.toList)
   }
 }
 
-case class WorkflowCompletedEvent(result: List[OperatorResult]) extends TexeraWsEvent
+case class WorkflowCompletedEvent(result: List[OperatorResult]) extends TexeraWebSocketEvent

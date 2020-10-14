@@ -1,3 +1,3 @@
 package edu.uci.ics.texera.web.model.request
 
-case class RemoveBreakpointRequest(operatorID: String) extends TexeraWsRequest
+case class RemoveBreakpointRequest(operatorID: String) extends TexeraWebSocketRequest

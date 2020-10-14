@@ -13,7 +13,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * A schema is a list of attributes that describe all the columns of a table.
- *
  */
 public class Schema implements Serializable {
     private final ArrayList<Attribute> attributes;
@@ -22,37 +21,37 @@ public class Schema implements Serializable {
     public Schema(Attribute... attributes) {
         this(Arrays.asList(attributes));
     }
-    
+
     @JsonCreator
     public Schema(
             @JsonProperty(value = "attributes", required = true)
-            List<Attribute> attributes) {
+                    List<Attribute> attributes) {
         checkNotNull(attributes);
         this.attributes = new ArrayList<>(attributes);
         HashMap<String, Integer> attributeIndexTemp = new HashMap<String, Integer>();
         for (int i = 0; i < attributes.size(); i++) {
             attributeIndexTemp.put(attributes.get(i).getName().toLowerCase(), i);
         }
-        this.attributeIndex =new HashMap<>(attributeIndexTemp);
+        this.attributeIndex = new HashMap<>(attributeIndexTemp);
     }
 
     @JsonProperty(value = "attributes")
     public List<Attribute> getAttributes() {
         return attributes;
     }
-    
+
     @JsonIgnore
     public List<String> getAttributeNames() {
         return attributes.stream().map(attr -> attr.getName()).collect(Collectors.toList());
     }
 
     public Integer getIndex(String attributeName) {
-	    	if (! containsAttribute(attributeName)) {
-	    		throw new RuntimeException(attributeName + " is not contained in the schema");
-	    	}
-	    return attributeIndex.get(attributeName.toLowerCase());
+        if (!containsAttribute(attributeName)) {
+            throw new RuntimeException(attributeName + " is not contained in the schema");
+        }
+        return attributeIndex.get(attributeName.toLowerCase());
     }
-    
+
     public Attribute getAttribute(String attributeName) {
         return attributes.get(getIndex(attributeName));
     }
@@ -61,7 +60,7 @@ public class Schema implements Serializable {
     public boolean containsAttribute(String attributeName) {
         return attributeIndex.containsKey(attributeName.toLowerCase());
     }
-    
+
     @Override
     public int hashCode() {
         final int prime = 31;
@@ -92,59 +91,59 @@ public class Schema implements Serializable {
             return false;
         return true;
     }
-    
+
     @Override
     public String toString() {
         return "Schema[" + this.attributes.toString() + "]";
     }
-    
+
     public static void checkAttributeNotExists(Schema schema, String attributeName) {
         checkNotNull(schema);
         checkNotNull(attributeName);
-        
+
         if (schema.containsAttribute(attributeName)) {
             throw new RuntimeException(DUPLICATE_ATTRIBUTE(
                     schema.getAttributeNames(), attributeName));
         }
     }
-    
+
     public static void checkAttributeNotExists(Schema schema, String... attributeNames) {
         checkNotNull(schema);
         checkNotNull(attributeNames);
-        
+
         checkAttributeNotExists(schema, Arrays.asList(attributeNames));
     }
-    
+
     public static void checkAttributeNotExists(Schema schema, Iterable<String> attributeNames) {
         checkNotNull(schema);
         checkNotNull(attributeNames);
         attributeNames.forEach(attrName -> checkNotNull(attrName));
-        
+
         attributeNames.forEach(attrName -> checkAttributeNotExists(schema, attrName));
     }
-    
+
     public static void checkAttributeExists(Schema schema, String attributeName) {
         checkNotNull(schema);
         checkNotNull(attributeName);
-        
-        if (! schema.containsAttribute(attributeName)) {
+
+        if (!schema.containsAttribute(attributeName)) {
             throw new RuntimeException(ATTRIBUTE_NOT_EXISTS(
                     schema.getAttributeNames(), attributeName));
         }
     }
-    
+
     public static void checkAttributeExists(Schema schema, String... attributeNames) {
         checkNotNull(schema);
         checkNotNull(attributeNames);
-        
+
         checkAttributeExists(schema, Arrays.asList(attributeNames));
     }
-    
+
     public static void checkAttributeExists(Schema schema, Iterable<String> attributeNames) {
         checkNotNull(schema);
         checkNotNull(attributeNames);
         attributeNames.forEach(attrName -> checkNotNull(attrName));
-        
+
         attributeNames.forEach(attrName -> checkAttributeExists(schema, attrName));
     }
 
@@ -161,12 +160,12 @@ public class Schema implements Serializable {
     public static Schema.Builder newBuilder() {
         return new Schema.Builder();
     }
-    
+
     public static class Builder {
-        
+
         private final ArrayList<Attribute> attributeList;
         private final LinkedHashSet<String> attributeNames;
-        
+
         /**
          * Creates a new builder.
          */
@@ -174,9 +173,10 @@ public class Schema implements Serializable {
             this.attributeList = new ArrayList<>();
             this.attributeNames = new LinkedHashSet<>();
         }
-        
+
         /**
          * Creates a new builder with an existing schema.
+         *
          * @param schema
          */
         public Builder(Schema schema) {
@@ -186,38 +186,38 @@ public class Schema implements Serializable {
                     .map(attr -> attr.getName().toLowerCase())
                     .collect(Collectors.toSet()));
         }
-        
+
         /**
          * Returns a newly created schema based on the builder.
          */
         public Schema build() {
             return new Schema(this.attributeList);
         }
-        
+
         /********************
          * builder helper functions related to adding attributes to the builder
          ********************/
-        
+
         /**
          * Adds an attribute to the builder.
          * Fails if an attribute with same name (case insensitive) already exists.
-         * 
+         *
          * @param attribute
          * @return this Builder object
          */
         public Builder add(Attribute attribute) {
             checkNotNull(attribute);
             checkAttributeNotExists(attribute.getName());
-            
+
             this.attributeList.add(attribute);
             this.attributeNames.add(attribute.getName().toLowerCase());
             return this;
         }
-        
+
         /**
          * Adds an attribute to the builder.
          * Fails if an attribute with same name (case insensitive) already exists.
-         * 
+         *
          * @param attributeName
          * @param attributeType
          * @return this Builder object
@@ -225,166 +225,165 @@ public class Schema implements Serializable {
         public Builder add(String attributeName, AttributeType attributeType) {
             checkNotNull(attributeName);
             checkNotNull(attributeType);
-            
+
             this.add(new Attribute(attributeName, attributeType));
             return this;
         }
-        
+
         /**
          * Adds the attributes to the builder.
          * Fails if an attribute with the same name (case insensitive) already exists.
-         * 
+         *
          * @param attributes
          * @return this Builder object
          */
         public Builder add(Iterable<Attribute> attributes) {
             checkNotNull(attributes);
             attributes.forEach(attr -> checkAttributeNotExists(attr.getName()));
-            
+
             attributes.forEach(this::add);
             return this;
         }
-        
+
         /**
          * Adds the attributes to the builder.
          * Fails if an attribute with the same name (case insensitive) already exists.
-         * 
+         *
          * @param attributes
          * @return this Builder object
          */
         public Builder add(Attribute... attributes) {
             checkNotNull(attributes);
-            
+
             this.add(Arrays.asList(attributes));
             return this;
         }
-        
+
         /**
          * Adds all the attributes from an existing schema to the builder.
          * Fails if an attribute with the same name (case insensitive) already exists.
-         * 
+         *
          * @param schema
          * @return this Builder object
          */
         public Builder add(Schema schema) {
             checkNotNull(schema);
-            
+
             this.add(schema.getAttributes());
             return this;
         }
-        
-        
+
+
         /********************
          * builder helper functions related to removing attributes to the builder
          ********************/
-        
+
         /**
          * Removes an attribute from the schema builder if it exists.
-         * 
+         *
          * @param attribute, the name of the attribute
          * @return this Builder object
          */
         public Builder removeIfExists(String attribute) {
             checkNotNull(attribute);
-            
+
             attributeList.removeIf((Attribute attr) -> attr.getName().equalsIgnoreCase(attribute));
             attributeNames.remove(attribute.toLowerCase());
             return this;
         }
-        
+
         /**
          * Removes the attributes from the schema builder if they exist.
-         * 
+         *
          * @param attributes, the names of the attributes
          * @return this Builder object
          */
         public Builder removeIfExists(Iterable<String> attributes) {
             checkNotNull(attributes);
             attributes.forEach(attr -> checkNotNull(attr));
-            
+
             attributes.forEach(attr -> this.removeIfExists(attr));
             return this;
         }
-        
+
         /**
          * Removes the attributes from the schema builder if they exist.
-         * 
+         *
          * @param attributes, the names of the attributes
          * @return this Builder object
          */
         public Builder removeIfExists(String... attributes) {
             checkNotNull(attributes);
-            
+
             this.removeIfExists(Arrays.asList(attributes));
             return this;
         }
-        
+
         /**
-         * Removes an attribute from the schema builder. 
+         * Removes an attribute from the schema builder.
          * Fails if the attribute does not exist.
-         * 
+         *
          * @param attribute, the name of the attribute
          * @return this Builder object
          */
         public Builder remove(String attribute) {
             checkNotNull(attribute);
             checkAttributeExists(attribute);
-            
+
             removeIfExists(attribute);
             return this;
         }
-        
+
         /**
-         * Removes the attributes from the schema builder. 
+         * Removes the attributes from the schema builder.
          * Fails if an attributes does not exist.
-         *
          */
         public Builder remove(Iterable<String> attributes) {
             checkNotNull(attributes);
             attributes.forEach(Preconditions::checkNotNull);
             attributes.forEach(this::checkAttributeExists);
-            
+
             this.removeIfExists(attributes);
             return this;
         }
-        
+
         /**
-         * Removes the attributes from the schema builder. 
+         * Removes the attributes from the schema builder.
          * Fails if an attributes does not exist.
-         * 
+         *
          * @param attributes
          * @return the builder itself
          */
         public Builder remove(String... attributes) {
             checkNotNull(attributes);
-            
+
             this.remove(Arrays.asList(attributes));
             return this;
         }
-        
+
         /********************
          * commonly used public helper functions
          ********************/
 
-        
+
         /********************
          * private helper functions related to adding/removing attributes to the builder
          ********************/
-        
+
         private void checkAttributeNotExists(String attributeName) {
             if (this.attributeNames.contains(attributeName.toLowerCase())) {
                 throw new RuntimeException(DUPLICATE_ATTRIBUTE(
                         this.attributeNames, attributeName));
             }
         }
-        
+
         private void checkAttributeExists(String attributeName) {
-            if (! this.attributeNames.contains(attributeName.toLowerCase())) {
+            if (!this.attributeNames.contains(attributeName.toLowerCase())) {
                 throw new RuntimeException(ATTRIBUTE_NOT_EXISTS(
                         this.attributeNames, attributeName));
             }
         }
-        
+
     }
 
 }

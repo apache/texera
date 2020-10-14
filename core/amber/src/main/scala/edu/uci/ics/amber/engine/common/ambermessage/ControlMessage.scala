@@ -3,7 +3,7 @@ package edu.uci.ics.amber.engine.common.ambermessage
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.amber.engine.architecture.breakpoint.FaultedTuple
 import edu.uci.ics.amber.engine.architecture.breakpoint.localbreakpoint.LocalBreakpoint
-import edu.uci.ics.amber.engine.common.tuple.Tuple
+import edu.uci.ics.amber.engine.common.tuple.ITuple
 import akka.actor.ActorRef
 
 object ControlMessage {

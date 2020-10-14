@@ -15,7 +15,7 @@ object OperatorGroupConstants {
     * The order of the groups to show up in the frontend operator panel.
     * The order numbers are relative.
     */
-  final val OperatorGroupOrderList:List[GroupInfo] = List(
+  final val OperatorGroupOrderList: List[GroupInfo] = List(
     GroupInfo(SOURCE_GROUP, 0),
     GroupInfo(SEARCH_GROUP, 1),
     GroupInfo(ANALYTICS_GROUP, 2),
@@ -24,7 +24,7 @@ object OperatorGroupConstants {
     GroupInfo(UTILITY_GROUP, 5),
     GroupInfo(DATABASE_GROUP, 6),
     GroupInfo(UDF_GROUP, 7),
-    GroupInfo(RESULT_GROUP, 8),
+    GroupInfo(RESULT_GROUP, 8)
   )
 
 }

@@ -3,7 +3,8 @@ package edu.uci.ics.texera.workflow.operators.pythonUDF
 import edu.uci.ics.amber.engine.common.amberfield.FieldType
 
 object FieldTypeConverter {
-  def convertType(javaField: FieldTypeInJava): FieldType.Value = javaField match {
+  def convertType(javaField: FieldTypeInJava): FieldType.Value =
+    javaField match {
       case FieldTypeInJava.SHORT      => FieldType.Short
       case FieldTypeInJava.INT        => FieldType.Int
       case FieldTypeInJava.BOOLEAN    => FieldType.Boolean
@@ -16,7 +17,7 @@ object FieldTypeConverter {
       case FieldTypeInJava.BIGINT     => FieldType.BigInt
       case FieldTypeInJava.BIGDECIMAL => FieldType.BigDecimal
       case FieldTypeInJava.OTHER      => FieldType.Other
-  }
+    }
 
   def convertType(javaFields: Array[FieldTypeInJava]): Array[FieldType.Value] = {
     val result = new Array[FieldType.Value](javaFields.length)

@@ -1,10 +1,10 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
-import edu.uci.ics.amber.engine.common.ambertag.OperatorIdentifier
 import edu.uci.ics.amber.engine.common.AmberUtils
+import edu.uci.ics.amber.engine.common.ambertag.OperatorIdentifier
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.mutable
 
 //object Workflow {
 //  def apply(operators: java.util.Map[OperatorTag,OperatorMetadata],
@@ -17,10 +17,11 @@ import scala.collection.{JavaConverters, mutable}
 //}
 
 class Workflow(
-                val operators: mutable.Map[OperatorIdentifier, OpExecConfig],
-                val outLinks: Map[OperatorIdentifier, Set[OperatorIdentifier]]
+    val operators: mutable.Map[OperatorIdentifier, OpExecConfig],
+    val outLinks: Map[OperatorIdentifier, Set[OperatorIdentifier]]
 ) {
-  val inLinks: Map[OperatorIdentifier, Set[OperatorIdentifier]] = AmberUtils.reverseMultimap(outLinks)
+  val inLinks: Map[OperatorIdentifier, Set[OperatorIdentifier]] =
+    AmberUtils.reverseMultimap(outLinks)
   val startOperators: Iterable[OperatorIdentifier] = operators.keys.filter(!inLinks.contains(_))
   val endOperators: Iterable[OperatorIdentifier] = operators.keys.filter(!outLinks.contains(_))
 

@@ -17,8 +17,8 @@ import edu.uci.ics.amber.engine.common.ambermessage.PrincipalMessage
 import edu.uci.ics.amber.engine.common.ambermessage.PrincipalMessage.{AckedPrincipalInitialization, AssignBreakpoint, GetOutputLayer, ReportCurrentProcessingTuple, ReportOutputResult, ReportPrincipalPartialCompleted}
 import edu.uci.ics.amber.engine.common.ambermessage.StateMessage.EnforceStateCheck
 import edu.uci.ics.amber.engine.common.ambertag.{AmberTag, LayerTag, LinkTag, OperatorIdentifier, WorkflowTag}
-import edu.uci.ics.amber.engine.common.tuple.Tuple
-import edu.uci.ics.amber.engine.common.{AdvancedMessageSending, AmberUtils, Constants, SourceOperatorExecutor}
+import edu.uci.ics.amber.engine.common.tuple.ITuple
+import edu.uci.ics.amber.engine.common.{AdvancedMessageSending, AmberUtils, Constants, ISourceOperatorExecutor}
 import edu.uci.ics.amber.engine.faulttolerance.scanner.HDFSFolderScanSourceOperatorExecutor
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import akka.actor.{Actor, ActorLogging, ActorRef, ActorSelection, Address, Cancellable, Deploy, PoisonPill, Props, Stash}
@@ -182,7 +182,7 @@ class Controller(
   val principalInCurrentStage = new mutable.HashSet[ActorRef]()
   val principalStates = new mutable.AnyRefMap[ActorRef, PrincipalState.Value]
   val principalStatisticsMap = new mutable.AnyRefMap[ActorRef, PrincipalStatistics]
-  val principalSinkResultMap = new mutable.HashMap[String, List[Tuple]]
+  val principalSinkResultMap = new mutable.HashMap[String, List[ITuple]]
   val edges = new mutable.AnyRefMap[LinkTag, OperatorLink]
   val frontier = new mutable.HashSet[OperatorIdentifier]
   var prevFrontier: mutable.HashSet[OperatorIdentifier] = _
@@ -219,7 +219,7 @@ class Controller(
     val layerTag = LayerTag(from.tag, "checkpoint")
     val path: String = layerTag.getGlobalIdentity
     val numWorkers = topology.layers.last.numWorkers
-    val scanGen: Int => SourceOperatorExecutor = i =>
+    val scanGen: Int => ISourceOperatorExecutor = i =>
       new HDFSFolderScanSourceOperatorExecutor(Constants.remoteHDFSPath, path + "/" + i, '|', null)
     val lastLayer = topology.layers.last
     val materializerLayer = new ProcessorWorkerLayer(

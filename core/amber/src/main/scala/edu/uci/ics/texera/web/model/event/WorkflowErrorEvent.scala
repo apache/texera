@@ -1,13 +1,11 @@
 package edu.uci.ics.texera.web.model.event
 
-import edu.uci.ics.texera.workflow.common.TexeraConstraintViolation
+import edu.uci.ics.texera.workflow.common.ConstraintViolation
 
-import scala.beans.BeanProperty
-import scala.collection.immutable.{HashMap, HashSet}
-import scala.collection.mutable
+import scala.collection.immutable.HashMap
 
 case class WorkflowErrorEvent(
-    operatorErrors: Map[String, Set[TexeraConstraintViolation]] =
-      new HashMap[String, Set[TexeraConstraintViolation]](),
+    operatorErrors: Map[String, Set[ConstraintViolation]] =
+      new HashMap[String, Set[ConstraintViolation]](),
     generalErrors: Map[String, String] = new HashMap[String, String]()
-) extends TexeraWsEvent
+) extends TexeraWebSocketEvent

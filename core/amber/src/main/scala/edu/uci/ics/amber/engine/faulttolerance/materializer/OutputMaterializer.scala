@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.faulttolerance.materializer
 
-import edu.uci.ics.amber.engine.common.tuple.Tuple
-import edu.uci.ics.amber.engine.common.{InputExhausted, OperatorExecutor}
+import edu.uci.ics.amber.engine.common.tuple.ITuple
+import edu.uci.ics.amber.engine.common.{InputExhausted, IOperatorExecutor}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.FileSystem
 import org.apache.hadoop.fs.Path
@@ -9,7 +9,7 @@ import java.io.{BufferedWriter, FileWriter}
 import java.net.URI
 
 class OutputMaterializer(val outputPath: String, val remoteHDFS: String = null)
-    extends OperatorExecutor {
+    extends IOperatorExecutor {
 
   var writer: BufferedWriter = _
 
@@ -21,7 +21,7 @@ class OutputMaterializer(val outputPath: String, val remoteHDFS: String = null)
     writer.close()
   }
 
-  override def processTuple(tuple: Either[Tuple, InputExhausted], input: Int): scala.Iterator[Tuple] = {
+  override def processTuple(tuple: Either[ITuple, InputExhausted], input: Int): scala.Iterator[ITuple] = {
     tuple match {
       case Left(t) =>
         writer.write(t.mkString("|"))

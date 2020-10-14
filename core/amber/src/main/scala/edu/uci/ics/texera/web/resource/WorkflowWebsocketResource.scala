@@ -2,21 +2,20 @@ package edu.uci.ics.texera.web.resource
 
 import java.util.concurrent.atomic.AtomicInteger
 
+import akka.actor.{ActorRef, PoisonPill}
 import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerEventListener}
 import edu.uci.ics.amber.engine.architecture.principal.PrincipalStatistics
-import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage.{ModifyLogic, Pause, Resume, SkipTuple, SkipTupleGivenWorkerRef, Start}
-import edu.uci.ics.amber.engine.common.ambermessage.ControllerMessage.{AckedControllerInitialization, PassBreakpointTo}
+import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage._
+import edu.uci.ics.amber.engine.common.ambermessage.ControllerMessage.AckedControllerInitialization
 import edu.uci.ics.amber.engine.common.ambertag.WorkflowTag
-import akka.actor.{ActorRef, PoisonPill}
-import javax.websocket.server.ServerEndpoint
-import javax.websocket._
-import edu.uci.ics.texera.workflow.common.workflow.{TexeraWorkflow, TexeraWorkflowCompiler}
-import edu.uci.ics.texera.workflow.common.{TexeraContext, TexeraUtils}
-import edu.uci.ics.texera.workflow.operators.localscan.LocalCsvFileScanOpDesc
-import edu.uci.ics.texera.workflow.operators.sink.SimpleSinkOpDesc
 import edu.uci.ics.texera.web.TexeraWebApplication
 import edu.uci.ics.texera.web.model.event._
 import edu.uci.ics.texera.web.model.request._
+import edu.uci.ics.texera.workflow.common.workflow.{WorkflowInfo, WorkflowCompiler}
+import edu.uci.ics.texera.workflow.common.{Utils, WorkflowContext}
+import edu.uci.ics.texera.workflow.operators.sink.SimpleSinkOpDesc
+import javax.websocket._
+import javax.websocket.server.ServerEndpoint
 
 import scala.collection.mutable
 
@@ -25,14 +24,14 @@ object WorkflowWebsocketResource {
   val nextWorkflowID = new AtomicInteger(0)
 
   val sessionMap = new mutable.HashMap[String, Session]
-  val sessionJobs = new mutable.HashMap[String, (TexeraWorkflowCompiler, ActorRef)]
+  val sessionJobs = new mutable.HashMap[String, (WorkflowCompiler, ActorRef)]
 
 }
 
 @ServerEndpoint("/wsapi/workflow-websocket")
 class WorkflowWebsocketResource {
 
-  final val objectMapper = TexeraUtils.objectMapper
+  final val objectMapper = Utils.objectMapper
 
   @OnOpen
   def myOnOpen(session: Session): Unit = {
@@ -42,7 +41,7 @@ class WorkflowWebsocketResource {
 
   @OnMessage
   def myOnMsg(session: Session, message: String): Unit = {
-    val request = objectMapper.readValue(message, classOf[TexeraWsRequest])
+    val request = objectMapper.readValue(message, classOf[TexeraWebSocketRequest])
     println(request)
     try {
       request match {
@@ -82,7 +81,7 @@ class WorkflowWebsocketResource {
     }
   }
 
-  def send(session: Session, event: TexeraWsEvent): Unit = {
+  def send(session: Session, event: TexeraWebSocketEvent): Unit = {
     session.getAsyncRemote.sendText(objectMapper.writeValueAsString(event))
   }
 
@@ -107,7 +106,7 @@ class WorkflowWebsocketResource {
     val texeraOperator = newLogic.operator
     val (compiler, controller) = WorkflowWebsocketResource.sessionJobs(session.getId)
     compiler.initOperator(texeraOperator)
-    controller ! ModifyLogic(texeraOperator.texeraOperatorExecutor)
+    controller ! ModifyLogic(texeraOperator.operatorExecutor)
   }
 
   def pauseWorkflow(session: Session): Unit = {
@@ -129,12 +128,12 @@ class WorkflowWebsocketResource {
   }
 
   def executeWorkflow(session: Session, request: ExecuteWorkflowRequest): Unit = {
-    val context = new TexeraContext
+    val context = new WorkflowContext
     val workflowID = Integer.toString(WorkflowWebsocketResource.nextWorkflowID.incrementAndGet)
     context.workflowID = workflowID
 
-    val texeraWorkflowCompiler = new TexeraWorkflowCompiler(
-      TexeraWorkflow(request.operators, request.links, request.breakpoints),
+    val texeraWorkflowCompiler = new WorkflowCompiler(
+      WorkflowInfo(request.operators, request.links, request.breakpoints),
       context
     )
 
@@ -155,11 +154,11 @@ class WorkflowWebsocketResource {
       },
       workflowStatusUpdateListener = statusUpdate => {
         val updateMutable = mutable.HashMap(statusUpdate.operatorStatistics.toSeq: _*)
-        val sinkID = texeraWorkflowCompiler.texeraWorkflow.operators
+        val sinkID = texeraWorkflowCompiler.workflowInfo.operators
           .find(p => p.isInstanceOf[SimpleSinkOpDesc])
           .get
           .operatorID
-        val sinkInputID = texeraWorkflowCompiler.texeraWorkflow.links
+        val sinkInputID = texeraWorkflowCompiler.workflowInfo.links
           .find(link => link.destination == sinkID)
           .get
           .origin

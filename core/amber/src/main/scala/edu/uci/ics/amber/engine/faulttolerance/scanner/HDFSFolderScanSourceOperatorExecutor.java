@@ -1,8 +1,8 @@
 package edu.uci.ics.amber.engine.faulttolerance.scanner;
 
-import edu.uci.ics.amber.engine.common.tuple.Tuple;
+import edu.uci.ics.amber.engine.common.tuple.ITuple;
 import edu.uci.ics.amber.engine.common.TableMetadata;
-import edu.uci.ics.amber.engine.common.SourceOperatorExecutor;
+import edu.uci.ics.amber.engine.common.ISourceOperatorExecutor;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocatedFileStatus;
@@ -16,7 +16,7 @@ import java.io.UncheckedIOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 
-public class HDFSFolderScanSourceOperatorExecutor implements SourceOperatorExecutor {
+public class HDFSFolderScanSourceOperatorExecutor implements ISourceOperatorExecutor {
 
     private String host;
     private String hdfsPath;
@@ -66,8 +66,8 @@ public class HDFSFolderScanSourceOperatorExecutor implements SourceOperatorExecu
     }
 
     @Override
-    public Iterator<Tuple> produce() {
-        return new Iterator<Tuple>() {
+    public Iterator<ITuple> produce() {
+        return new Iterator<ITuple>() {
             @Override
             public boolean hasNext() {
                 try {
@@ -81,12 +81,12 @@ public class HDFSFolderScanSourceOperatorExecutor implements SourceOperatorExecu
             }
 
             @Override
-            public Tuple next() {
+            public ITuple next() {
                 try {
                     if (metadata != null) {
-                        return Tuple.fromJavaStringArray(reader.readLine(), metadata.tupleMetadata().fieldTypes());
+                        return ITuple.fromJavaStringArray(reader.readLine(), metadata.tupleMetadata().fieldTypes());
                     } else {
-                        return Tuple.fromJavaArray(reader.readLine());
+                        return ITuple.fromJavaArray(reader.readLine());
                     }
                 } catch (IOException e) {
                     throw new UncheckedIOException(e);
