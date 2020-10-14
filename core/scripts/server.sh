@@ -1,2 +1,2 @@
 cd amber
-sbt "runMain web.TexeraWebApplication" --no-colors
+sbt "runMain edu.uci.ics.texera.web.TexeraWebApplication" 
