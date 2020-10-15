@@ -1,4 +1,4 @@
-import { Component, ViewChild, Input } from '@angular/core';
+import { Component, Input } from '@angular/core';
 import { ExecuteWorkflowService } from './../../service/execute-workflow/execute-workflow.service';
 import { Observable } from 'rxjs/Observable';
 
@@ -15,7 +15,6 @@ import { OperatorMetadata } from '../../types/operator-schema.interface';
 import { OperatorMetadataService } from '../../service/operator-metadata/operator-metadata.service';
 import { DynamicSchemaService } from '../../service/dynamic-schema/dynamic-schema.service';
 import { environment } from 'src/environments/environment';
-
 
 /**
  * ResultPanelCompoent is the bottom level area that displays the
@@ -37,19 +36,8 @@ import { environment } from 'src/environments/environment';
   styleUrls: ['./result-panel.component.scss']
 })
 export class ResultPanelComponent {
-
   private static readonly PRETTY_JSON_TEXT_LIMIT: number = 50000;
   private static readonly TABLE_COLUMN_TEXT_LIMIT: number = 1000;
-
-  public twitterFieldMappingInverse: Record<number, string> = {
-    0: 'create_at', 1: 'id', 2: 'text',
-    3: 'favorite_count', 4: 'retweet_count', 5: 'lang', 6: 'is_retweet', 7: 'sentiment'
-  };
-
-  public pausedTwitterFieldMappingInverse: Record<number, string> = {
-    0: 'worker_id', 1: 'create_at', 2: 'id', 3: 'text',
-    4: 'favorite_count', 5: 'retweet_count', 6: 'lang', 7: 'is_retweet', 8: 'sentiment'
-  };
 
   public showResultPanel: boolean = false;
 
@@ -251,7 +239,8 @@ export class ResultPanelComponent {
    *
    * @param response
    */
-  private setupResultTable(resultData: ReadonlyArray<object | string[]>) {
+  private setupResultTable(resultData: ReadonlyArray<object>) {
+
     if (resultData.length < 1) {
       return;
     }
@@ -274,34 +263,13 @@ export class ResultPanelComponent {
     let columns: {columnKey: any, columnText: string}[];
 
     const firstRow = resultData[0];
-    if (Array.isArray(firstRow)) {
-      const columnKeys = range(firstRow.length);
-      this.currentDisplayColumns = columnKeys.map(i => i.toString());
-      if (! environment.amberEngineEnabled) {
-        columns = columnKeys.map(v => ({columnKey: v, columnText: 'c' + v}));
-      } else {
-        columns = columnKeys.map(columnKey => {
-          let columnText;
-          if (this.executeWorkflowService.getExecutionState().state === ExecutionState.Paused) {
-            columnText = this.pausedTwitterFieldMappingInverse[columnKey];
-          } else {
-            columnText = this.twitterFieldMappingInverse[columnKey];
-          }
-          if (columnText === undefined) {
-            columnText = 'c' + columnKey;
-          }
-          return {columnKey, columnText};
-        });
-      }
-    } else {
-      const columnKeys = Object.keys(resultData[0]).filter(x => x !== '_id');
-      this.currentDisplayColumns = columnKeys;
-      columns = columnKeys.map(v => ({columnKey: v, columnText: v}));
-    }
+
+    const columnKeys = Object.keys(resultData[0]).filter(x => x !== '_id');
+    this.currentDisplayColumns = columnKeys;
+    columns = columnKeys.map(v => ({columnKey: v, columnText: v}));
 
     // generate columnDef from first row, column definition is in order
     this.currentColumns = ResultPanelComponent.generateColumns(columns);
-    console.log(this.currentResult);
 
     // get the current page size, if the result length is less than 10, then the maximum number of items
     //   each page will be the length of the result, otherwise 10.
