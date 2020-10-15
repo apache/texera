@@ -18,8 +18,8 @@
     [disabled]="!breakpointAction" (click)="onClickSkipTuples()">
       Skip Records
     </button>
-    <div class="result-table-container" [hidden]="!currentColumns">
-      <nz-table class="result-table" #basicTable [nzData]="currentResult" nzBordered="true" >
+    <div class="result-table" [hidden]="!currentColumns">
+      <nz-table #basicTable [nzData]="currentResult" nzBordered="true" >
         <thead>
           <tr>
             <th *ngFor="let column of currentColumns">
