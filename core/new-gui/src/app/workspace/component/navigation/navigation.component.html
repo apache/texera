@@ -2,7 +2,7 @@
   <div class='texera-navigation-padded'>
     <div class='texera-navigation-title'>
       <a href="#">
-        Texera <span class="version-number">0.5.0</span>
+        Texera <span class="version-number">0.5.1</span>
       </a>
     </div>
     <div class='texera-navigation-utilities'>
@@ -40,26 +40,36 @@
       </nz-button-group>
     </div>
 
-    <div class='texera-navigation-execute'>
+    <div
+    [ngClass] = "{'texera-navigation-execute': true, 'reveal-stop-button' : executionState != ExecutionState.Uninitialized && executionState != ExecutionState.Completed && executionState != ExecutionState.Failed}">
       <nz-button-group nzSize = "large">
-        <button nz-button nzType="default" [disabled]="undoRedo.getUndoLength() == 0" (click)="undoRedo.undoAction()">
+        <button class="animate-to-reveal-stop-button" nz-button nzType="default" [disabled]="undoRedo.getUndoLength() == 0" (click)="undoRedo.undoAction()">
           <i nz-icon nzType="undo" nzTheme="outline"></i>
         </button>
-        <button nz-button nzType="default" [disabled]="undoRedo.getRedoLength() == 0" (click)="undoRedo.redoAction()">
+        <button class="animate-to-reveal-stop-button"  nz-button nzType="default" [disabled]="undoRedo.getRedoLength() == 0" (click)="undoRedo.redoAction()">
           <i nz-icon nzType="redo" nzTheme="outline"></i>
         </button>
-        <button nz-button nzType="default" (click)="tourService.toggle()">
+        <button class="animate-to-reveal-stop-button"  nz-button nzType="default" (click)="tourService.toggle()">
           <i nz-icon nzType="question-circle" nzTheme="outline"></i>
         </button>
         <button nz-button
         nzType='primary'
-        class="texera-navigation-run-button"
+        class="texera-navigation-run-button animate-to-reveal-stop-button"
         [disabled]="runDisable"
         (click)="this.onClickRunHandler()">
           <i class="texera-navigation-run-button-icon" nz-icon nzType="{{runIcon}}" nzTheme="outline"></i>
           <span>
             {{ runButtonText }}
           </span>
+        </button>
+        <button nz-button
+        #runStopButton
+        nzType='primary'
+        nzDanger
+        [disabled] = "executionState == ExecutionState.Uninitialized || executionState == ExecutionState.Completed || executionState == ExecutionState.Failed"
+        class = "texera-navigation-stop-button"
+        (click)="this.handleKill()">
+        <i nz-icon nzType="exclamation-circle" nzTheme="outline"></i>
         </button>
       </nz-button-group>
     </div>
