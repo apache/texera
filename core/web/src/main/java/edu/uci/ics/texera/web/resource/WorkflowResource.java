@@ -139,7 +139,7 @@ public class WorkflowResource {
      * @param userID
      * @param workflowID
      * @param workflowName
-     * @param workflowBody
+     * @param content
      * @return
      */
     private int insertWorkflowToDataBase(String userID, UInteger workflowID, String workflowName, String content) {

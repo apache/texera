@@ -1,13 +1,13 @@
-import { Component, OnInit } from '@angular/core';
-import { ExecuteWorkflowService } from './../../service/execute-workflow/execute-workflow.service';
-import { UndoRedoService } from './../../service/undo-redo/undo-redo.service';
-import { TourService } from 'ngx-tour-ng-bootstrap';
-import { environment } from '../../../../environments/environment';
-import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
-import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-graph-wrapper';
-import { ValidationWorkflowService } from '../../service/validation/validation-workflow.service';
-import { ExecutionState } from './../../types/execute-workflow.interface';
-import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
+import {Component, OnInit} from '@angular/core';
+import {ExecuteWorkflowService} from './../../service/execute-workflow/execute-workflow.service';
+import {UndoRedoService} from './../../service/undo-redo/undo-redo.service';
+import {TourService} from 'ngx-tour-ng-bootstrap';
+import {WorkflowActionService} from '../../service/workflow-graph/model/workflow-action.service';
+import {JointGraphWrapper} from '../../service/workflow-graph/model/joint-graph-wrapper';
+import {ValidationWorkflowService} from '../../service/validation/validation-workflow.service';
+import {ExecutionState} from './../../types/execute-workflow.interface';
+import {WorkflowStatusService} from '../../service/workflow-status/workflow-status.service';
+import {SaveWorkflowService} from '../../service/save-workflow/save-workflow.service';
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -49,7 +49,8 @@ export class NavigationComponent implements OnInit {
     public workflowActionService: WorkflowActionService,
     public workflowStatusService: WorkflowStatusService,
     public undoRedo: UndoRedoService,
-    public validationWorkflowService: ValidationWorkflowService
+    public validationWorkflowService: ValidationWorkflowService,
+    public saveWorkflowService: SaveWorkflowService
   ) {
     this.executionState = executeWorkflowService.getExecutionState().state;
     // return the run button after the execution is finished, either
@@ -204,7 +205,7 @@ export class NavigationComponent implements OnInit {
   /**
    * Restore paper default zoom ratio and paper offset
    */
-  public onClickRestoreZoomOffsetDefaullt(): void {
+  public onClickRestoreZoomOffsetDefault(): void {
     this.workflowActionService.getJointGraphWrapper().restoreDefaultZoomAndOffset();
   }
 

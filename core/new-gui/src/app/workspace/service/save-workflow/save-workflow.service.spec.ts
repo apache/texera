@@ -1,16 +1,16 @@
-import { TestBed, inject } from '@angular/core/testing';
+import {inject, TestBed} from '@angular/core/testing';
 
-import { SaveWorkflowService, SavedWorkflow } from './save-workflow.service';
-import { mockResultPredicate, mockScanResultLink, mockScanPredicate, mockPoint } from '../workflow-graph/model/mock-workflow-data';
-import { WorkflowActionService } from '../workflow-graph/model/workflow-action.service';
-import { UndoRedoService } from './../../service/undo-redo/undo-redo.service';
-import { marbles } from '../../../../../node_modules/rxjs-marbles';
-import { OperatorLink, OperatorPredicate, Point } from '../../types/workflow-common.interface';
-import { OperatorMetadataService } from '../operator-metadata/operator-metadata.service';
-import { HttpClient } from '@angular/common/http';
-import { JointUIService } from '../joint-ui/joint-ui.service';
-import { StubOperatorMetadataService } from '../operator-metadata/stub-operator-metadata.service';
-import { WorkflowUtilService } from '../workflow-graph/util/workflow-util.service';
+import {SavedWorkflow, SaveWorkflowService} from './save-workflow.service';
+import {mockPoint, mockResultPredicate, mockScanPredicate, mockScanResultLink} from '../workflow-graph/model/mock-workflow-data';
+import {WorkflowActionService} from '../workflow-graph/model/workflow-action.service';
+import {UndoRedoService} from '../undo-redo/undo-redo.service';
+import {marbles} from 'rxjs-marbles';
+import {OperatorLink, OperatorPredicate, Point} from '../../types/workflow-common.interface';
+import {OperatorMetadataService} from '../operator-metadata/operator-metadata.service';
+import {HttpClient} from '@angular/common/http';
+import {JointUIService} from '../joint-ui/joint-ui.service';
+import {StubOperatorMetadataService} from '../operator-metadata/stub-operator-metadata.service';
+import {WorkflowUtilService} from '../workflow-graph/util/workflow-util.service';
 
 describe('SaveWorkflowService', () => {
   let autoSaveWorkflowService: SaveWorkflowService;
@@ -23,8 +23,8 @@ describe('SaveWorkflowService', () => {
         UndoRedoService,
         JointUIService,
         WorkflowUtilService,
-        { provide: OperatorMetadataService, useClass: StubOperatorMetadataService  },
-        { provide: HttpClient}
+        {provide: OperatorMetadataService, useClass: StubOperatorMetadataService},
+        {provide: HttpClient}
       ]
     });
 
@@ -45,7 +45,7 @@ describe('SaveWorkflowService', () => {
       () => {
         // get items in the storage
         const savedWorkflowJson = localStorage.getItem('workflow');
-        if (! savedWorkflowJson) {
+        if (!savedWorkflowJson) {
           expect(false).toBeTruthy();
           return;
         }
@@ -69,7 +69,7 @@ describe('SaveWorkflowService', () => {
       () => {
         // get items in the storage
         const savedWorkflowJson = localStorage.getItem('workflow');
-        if (! savedWorkflowJson) {
+        if (!savedWorkflowJson) {
           expect(false).toBeTruthy();
           return;
         }
@@ -91,7 +91,7 @@ describe('SaveWorkflowService', () => {
       () => {
         // get items in the storage
         const savedWorkflowJson = localStorage.getItem('workflow');
-        if (! savedWorkflowJson) {
+        if (!savedWorkflowJson) {
           expect(false).toBeTruthy();
           return;
         }
@@ -116,7 +116,7 @@ describe('SaveWorkflowService', () => {
       () => {
         // get items in the storage
         const savedWorkflowJson = localStorage.getItem('workflow');
-        if (! savedWorkflowJson) {
+        if (!savedWorkflowJson) {
           expect(false).toBeTruthy();
           return;
         }
@@ -141,7 +141,7 @@ describe('SaveWorkflowService', () => {
       () => {
         // get items in the storage
         const savedWorkflowJson = localStorage.getItem('workflow');
-        if (! savedWorkflowJson) {
+        if (!savedWorkflowJson) {
           expect(false).toBeTruthy();
           return;
         }
@@ -166,7 +166,7 @@ describe('SaveWorkflowService', () => {
       () => {
         // get items in the storage
         const savedWorkflowJson = localStorage.getItem('workflow');
-        if (! savedWorkflowJson) {
+        if (!savedWorkflowJson) {
           expect(false).toBeTruthy();
           return;
         }
@@ -179,7 +179,7 @@ describe('SaveWorkflowService', () => {
   }));
 
   it('should successfully loaded what is stored inside local storage when "loadWorkflow()" is called ', marbles((m) => {
-    const operatorPositions: {[key: string]: Point} = {};
+    const operatorPositions: { [key: string]: Point } = {};
     operatorPositions[mockScanPredicate.operatorID] = mockPoint;
     const operators: OperatorPredicate[] = [];
     operators.push(mockScanPredicate);
@@ -194,7 +194,7 @@ describe('SaveWorkflowService', () => {
     autoSaveWorkflowService.loadWorkflow();
 
     const savedWorkflowJson = localStorage.getItem('workflow');
-    if (! savedWorkflowJson) {
+    if (!savedWorkflowJson) {
       expect(false).toBeTruthy();
       return;
     }

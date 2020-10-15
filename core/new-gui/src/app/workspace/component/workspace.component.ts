@@ -1,21 +1,20 @@
-import { ValidationWorkflowService } from './../service/validation/validation-workflow.service';
-import { ExecuteWorkflowService } from './../service/execute-workflow/execute-workflow.service';
-import { DragDropService } from './../service/drag-drop/drag-drop.service';
-import { WorkflowUtilService } from './../service/workflow-graph/util/workflow-util.service';
-import { WorkflowActionService } from './../service/workflow-graph/model/workflow-action.service';
-import { UndoRedoService } from './../service/undo-redo/undo-redo.service';
-import { Component, OnInit } from '@angular/core';
+import {ValidationWorkflowService} from '../service/validation/validation-workflow.service';
+import {ExecuteWorkflowService} from '../service/execute-workflow/execute-workflow.service';
+import {DragDropService} from '../service/drag-drop/drag-drop.service';
+import {WorkflowUtilService} from '../service/workflow-graph/util/workflow-util.service';
+import {WorkflowActionService} from '../service/workflow-graph/model/workflow-action.service';
+import {UndoRedoService} from '../service/undo-redo/undo-redo.service';
+import {Component} from '@angular/core';
 
-import { OperatorMetadataService } from '../service/operator-metadata/operator-metadata.service';
-import { JointUIService } from '../service/joint-ui/joint-ui.service';
-import { StubOperatorMetadataService } from '../service/operator-metadata/stub-operator-metadata.service';
-import { DynamicSchemaService } from '../service/dynamic-schema/dynamic-schema.service';
-import { SourceTablesService } from '../service/dynamic-schema/source-tables/source-tables.service';
-import { SchemaPropagationService } from '../service/dynamic-schema/schema-propagation/schema-propagation.service';
-import { ResultPanelToggleService } from '../service/result-panel-toggle/result-panel-toggle.service';
-import { SaveWorkflowService } from '../service/save-workflow/save-workflow.service';
-import { WorkflowStatusService } from '../service/workflow-status/workflow-status.service';
-import { WorkflowWebsocketService } from '../service/workflow-websocket/workflow-websocket.service';
+import {OperatorMetadataService} from '../service/operator-metadata/operator-metadata.service';
+import {JointUIService} from '../service/joint-ui/joint-ui.service';
+import {DynamicSchemaService} from '../service/dynamic-schema/dynamic-schema.service';
+import {SourceTablesService} from '../service/dynamic-schema/source-tables/source-tables.service';
+import {SchemaPropagationService} from '../service/dynamic-schema/schema-propagation/schema-propagation.service';
+import {ResultPanelToggleService} from '../service/result-panel-toggle/result-panel-toggle.service';
+import {SaveWorkflowService} from '../service/save-workflow/save-workflow.service';
+import {WorkflowStatusService} from '../service/workflow-status/workflow-status.service';
+import {WorkflowWebsocketService} from '../service/workflow-websocket/workflow-websocket.service';
 
 @Component({
   selector: 'texera-workspace',
@@ -47,7 +46,6 @@ export class WorkspaceComponent {
 
   constructor(
     private resultPanelToggleService: ResultPanelToggleService,
-
     // list additional services in constructor so they are initialized even if no one use them directly
     private sourceTablesService: SourceTablesService,
     private schemaPropagationService: SchemaPropagationService,

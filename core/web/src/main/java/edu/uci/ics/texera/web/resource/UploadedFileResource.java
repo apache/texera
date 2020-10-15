@@ -48,10 +48,10 @@ public class UploadedFileResource {
             this.size = size;
         }
     }
-        
+
     /**
      * This method will handle the request to upload a single file.
-     * 
+     *
      * @param uploadedInputStream
      * @param fileDetail
      * @return
@@ -65,58 +65,58 @@ public class UploadedFileResource {
             @FormDataParam("size") String size,
             @FormDataParam("description") String description,
             @Session HttpSession session
-            ) {
+    ) {
         UInteger userID = UserResource.getUser(session).getUserID();
         String fileName = fileDetail.getFileName();
         UInteger sizeUInteger = parseStringToUInteger(size);
-        
+
         Pair<Boolean, String> validationResult = validateFileName(fileName, userID);
         if (!validationResult.getLeft()) {
             return new GenericWebResponse(1, validationResult.getRight());
         }
-        
+
         this.handleFileUpload(uploadedInputStream, fileName, description, sizeUInteger, userID);
         return GenericWebResponse.generateSuccessResponse();
     }
-    
+
     @GET
     @Path("/list")
-    public List<UserFile> listUserFiles(@Session HttpSession session){
+    public List<UserFile> listUserFiles(@Session HttpSession session) {
         UInteger userID = UserResource.getUser(session).getUserID();
-        
+
         Result<Record5<UInteger, String, String, String, UInteger>> result = getUserFileRecord(userID);
-        
+
         if (result == null) return new ArrayList<>();
-        
+
         List<UserFile> fileList = result.stream()
                 .map(
-                    record -> new UserFile(
-                            record.get(UPLOADED_FILE.FID),
-                            record.get(UPLOADED_FILE.NAME),
-                            record.get(UPLOADED_FILE.PATH),
-                            record.get(UPLOADED_FILE.DESCRIPTION),
-                            record.get(UPLOADED_FILE.SIZE)
-                    )
-                        ).collect(Collectors.toList());
-        
+                        record -> new UserFile(
+                                record.get(UPLOADED_FILE.FID),
+                                record.get(UPLOADED_FILE.NAME),
+                                record.get(UPLOADED_FILE.PATH),
+                                record.get(UPLOADED_FILE.DESCRIPTION),
+                                record.get(UPLOADED_FILE.SIZE)
+                        )
+                ).collect(Collectors.toList());
+
         return fileList;
     }
-    
+
     @DELETE
     @Path("/delete/{fileID}")
     public GenericWebResponse deleteUserFile(@PathParam("fileID") String fileID, @Session HttpSession session) {
         UInteger userID = UserResource.getUser(session).getUserID();
         UInteger fileIdUInteger = parseStringToUInteger(fileID);
         Record1<String> result = deleteInDatabase(fileIdUInteger, userID);
-        
+
         if (result == null) return new GenericWebResponse(1, "The file does not exist");
 
         String filePath = result.get(UPLOADED_FILE.PATH);
         FileManager.getInstance().deleteFile(Paths.get(filePath));
-        
+
         return GenericWebResponse.generateSuccessResponse();
     }
-    
+
     @POST
     @Path("/validate")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
@@ -125,51 +125,51 @@ public class UploadedFileResource {
         Pair<Boolean, String> validationResult = validateFileName(fileName, userID);
         return new GenericWebResponse(validationResult.getLeft() ? 0 : 1, validationResult.getRight());
     }
-    
+
     private Record1<String> deleteInDatabase(UInteger fileID, UInteger userID) {
-            /**
-             * Known problem for jooq 3.x
-             * delete...returning clause does not work properly
-             * retrieve the filepath first, then delete it.
-             */
-            Record1<String> result = UserSqlServer.createDSLContext()
-                    .select(UPLOADED_FILE.PATH)
-                    .from(UPLOADED_FILE)
-                    .where(UPLOADED_FILE.FID.eq(fileID).and(UPLOADED_FILE.UID.equal(userID)))
-                    .fetchOne();
-            
-            int count = UserSqlServer.createDSLContext()
-                    .delete(UPLOADED_FILE)
-                    .where(UPLOADED_FILE.FID.eq(fileID).and(UPLOADED_FILE.UID.equal(userID)))
-                    //.returning(USERFILE.FILEPATH) does not work
-                    .execute();
-            
-            throwErrorWhenNotOne("delete file " + fileID + " failed in database", count);
-            
-            return result;
+        /**
+         * Known problem for jooq 3.x
+         * delete...returning clause does not work properly
+         * retrieve the filepath first, then delete it.
+         */
+        Record1<String> result = UserSqlServer.createDSLContext()
+                .select(UPLOADED_FILE.PATH)
+                .from(UPLOADED_FILE)
+                .where(UPLOADED_FILE.FID.eq(fileID).and(UPLOADED_FILE.UID.equal(userID)))
+                .fetchOne();
+
+        int count = UserSqlServer.createDSLContext()
+                .delete(UPLOADED_FILE)
+                .where(UPLOADED_FILE.FID.eq(fileID).and(UPLOADED_FILE.UID.equal(userID)))
+                //.returning(USERFILE.FILEPATH) does not work
+                .execute();
+
+        throwErrorWhenNotOne("delete file " + fileID + " failed in database", count);
+
+        return result;
     }
-    
+
     private Result<Record5<UInteger, String, String, String, UInteger>> getUserFileRecord(UInteger userID) {
-            return UserSqlServer.createDSLContext()
-                    .select(UPLOADED_FILE.FID, UPLOADED_FILE.NAME, UPLOADED_FILE.PATH, UPLOADED_FILE.DESCRIPTION, UPLOADED_FILE.SIZE)
-                    .from(UPLOADED_FILE)
-                    .where(UPLOADED_FILE.UID.equal(userID))
-                    .fetch();
+        return UserSqlServer.createDSLContext()
+                .select(UPLOADED_FILE.FID, UPLOADED_FILE.NAME, UPLOADED_FILE.PATH, UPLOADED_FILE.DESCRIPTION, UPLOADED_FILE.SIZE)
+                .from(UPLOADED_FILE)
+                .where(UPLOADED_FILE.UID.equal(userID))
+                .fetch();
     }
-    
+
     private void handleFileUpload(InputStream fileStream, String fileName, String description, UInteger size, UInteger userID) {
         int count = insertFileToDataBase(
-                fileName, 
+                fileName,
                 FileManager.getFilePath(userID.toString(), fileName).toString(),
                 size,
                 description,
                 userID);
-        
+
         throwErrorWhenNotOne("Error occurred while inserting file record to database", count);
-        
+
         FileManager.getInstance().storeFile(fileStream, fileName, userID.toString());
     }
-    
+
     private UInteger parseStringToUInteger(String userID) throws TexeraWebException {
         try {
             return UInteger.valueOf(userID);
@@ -177,8 +177,8 @@ public class UploadedFileResource {
             throw new TexeraWebException("Incorrect String to Double");
         }
     }
-    
-    
+
+
     private int insertFileToDataBase(String fileName, String path, UInteger size, String description, UInteger userID) {
         return UserSqlServer.createDSLContext().insertInto(UPLOADED_FILE)
                 .set(UPLOADED_FILE.UID, userID)
@@ -189,34 +189,35 @@ public class UploadedFileResource {
                 .set(UPLOADED_FILE.SIZE, size)
                 .execute();
     }
-    
+
     private Pair<Boolean, String> validateFileName(String fileName, UInteger userID) {
         if (fileName == null) {
             return Pair.of(false, "file name cannot be null");
         } else if (fileName.trim().isEmpty()) {
             return Pair.of(false, "file name cannot be empty");
-        } else if (isFileNameExisted(fileName, userID)){
+        } else if (isFileNameExisted(fileName, userID)) {
             return Pair.of(false, "file name already exists");
         } else {
             return Pair.of(true, "filename validation success");
         }
     }
-    
+
     private Boolean isFileNameExisted(String fileName, UInteger userID) {
-            return UserSqlServer.createDSLContext()
-                    .fetchExists(
-                            UserSqlServer.createDSLContext()
-                                    .selectFrom(UPLOADED_FILE)
-                                    .where(UPLOADED_FILE.UID.equal(userID)
-                                            .and(UPLOADED_FILE.NAME.equal(fileName)))
-                            );
+        return UserSqlServer.createDSLContext()
+                .fetchExists(
+                        UserSqlServer.createDSLContext()
+                                .selectFrom(UPLOADED_FILE)
+                                .where(UPLOADED_FILE.UID.equal(userID)
+                                        .and(UPLOADED_FILE.NAME.equal(fileName)))
+                );
     }
-    
+
     /**
      * Most the sql operation should only be executed once. eg. insertion, deletion.
      * this method will raise TexeraWebException when the input number is not one
+     *
      * @param errorMessage the message displaying when raising the error
-     * @param number the number to be checked with one
+     * @param number       the number to be checked with one
      * @throws TexeraWebException
      */
     private void throwErrorWhenNotOne(String errorMessage, int number) throws TexeraWebException {

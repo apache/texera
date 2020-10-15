@@ -1,5 +1,4 @@
-import { UserService } from './common/service/user/user.service';
-import { Component } from '@angular/core';
+import {Component} from '@angular/core';
 
 @Component({
   selector: 'texera-root',

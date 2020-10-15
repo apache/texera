@@ -1,8 +1,8 @@
-import { Injectable } from '@angular/core';
-import { WorkflowActionService } from '../workflow-graph/model/workflow-action.service';
-import { Observable } from '../../../../../node_modules/rxjs';
-import { OperatorLink, OperatorPredicate, Point, Breakpoint } from '../../types/workflow-common.interface';
-import { OperatorMetadataService } from '../operator-metadata/operator-metadata.service';
+import {Injectable} from '@angular/core';
+import {WorkflowActionService} from '../workflow-graph/model/workflow-action.service';
+import {Observable} from '../../../../../node_modules/rxjs';
+import {Breakpoint, OperatorLink, OperatorPredicate, Point} from '../../types/workflow-common.interface';
+import {OperatorMetadataService} from '../operator-metadata/operator-metadata.service';
 
 /**
  * SavedWorkflow is used to store the information of the workflow
@@ -17,7 +17,7 @@ import { OperatorMetadataService } from '../operator-metadata/operator-metadata.
  */
 export interface SavedWorkflow {
   operators: OperatorPredicate[];
-  operatorPositions: {[key: string]: Point | undefined};
+  operatorPositions: { [key: string]: Point | undefined };
   links: OperatorLink[];
   breakpoints: Record<string, Breakpoint>;
 }
@@ -68,16 +68,16 @@ export class SaveWorkflowService {
 
     // get items in the storage
     const savedWorkflowJson = localStorage.getItem(SaveWorkflowService.LOCAL_STORAGE_KEY);
-    if (! savedWorkflowJson) {
+    if (!savedWorkflowJson) {
       return;
     }
 
     const savedWorkflow: SavedWorkflow = JSON.parse(savedWorkflowJson);
 
-    const operatorsAndPositions: {op: OperatorPredicate, pos: Point}[] = [];
+    const operatorsAndPositions: { op: OperatorPredicate, pos: Point }[] = [];
     savedWorkflow.operators.forEach(op => {
       const opPosition = savedWorkflow.operatorPositions[op.operatorID];
-      if (! opPosition) {
+      if (!opPosition) {
         throw new Error('position error');
       }
       operatorsAndPositions.push({op: op, pos: opPosition});
@@ -99,7 +99,7 @@ export class SaveWorkflowService {
 
   /**
    * This method will listen to all the workflow change event happening
-   *  on the property panel and the worfklow editor paper.
+   *  on the property panel and the workflow editor paper.
    */
   public handleAutoSaveWorkFlow(): void {
     Observable.merge(
@@ -115,7 +115,7 @@ export class SaveWorkflowService {
 
       const operators = workflow.getAllOperators();
       const links = workflow.getAllLinks();
-      const operatorPositions: {[key: string]: Point} = {};
+      const operatorPositions: { [key: string]: Point } = {};
       const breakpointsMap = workflow.getAllLinkBreakpoints();
       const breakpoints: Record<string, Breakpoint> = {};
       breakpointsMap.forEach((value, key) => (breakpoints[key] = value));
@@ -130,7 +130,10 @@ export class SaveWorkflowService {
     });
   }
 
+  public handleOnclickSaveWorkFlow(): void {
+    console.log('in handle onclick');
+    localStorage.getItem(SaveWorkflowService.LOCAL_STORAGE_KEY);
 
-
+  }
 
 }
