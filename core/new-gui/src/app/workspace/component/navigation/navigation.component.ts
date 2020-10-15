@@ -39,7 +39,7 @@ export class NavigationComponent implements OnInit {
   public runButtonText = 'Run';
   public runIcon = 'play-circle';
   public runDisable = false;
-  public runForceStopTimer: { promise: Promise<boolean>, resolve: (timeIsUp: boolean) => void };
+  public runForceStopTimer: { forceStop: Promise<boolean>, cancel: () => void };
   public executionResultID: string | undefined;
   public onClickRunHandler = () => {};
 
@@ -59,7 +59,7 @@ export class NavigationComponent implements OnInit {
     this.runButtonText = initBehavior.text;
     this.runIcon = initBehavior.icon;
     this.runDisable = initBehavior.disable;
-    this.runForceStopTimer = {promise: Promise.resolve(false), resolve: (timeIsUp: boolean) => {}};
+    this.runForceStopTimer = {forceStop: Promise.resolve(false), cancel: () => {}};
     this.onClickRunHandler = initBehavior.onClick;
 
     executeWorkflowService.getExecutionStateStream().subscribe(
@@ -68,12 +68,6 @@ export class NavigationComponent implements OnInit {
         switch (event.current.state) {
           case ExecutionState.Completed:
             this.executionResultID = event.current.resultID;
-            break;
-          case ExecutionState.Pausing:
-            this.runForceStopTimer = this.createRunForceStopTimer(1500);
-            break;
-          case ExecutionState.Paused:
-            this.runForceStopTimer.resolve(false);
             break;
         }
         this.applyBehavior(this.getBehavior());
@@ -242,24 +236,4 @@ export class NavigationComponent implements OnInit {
   public hasOperators(): boolean {
     return this.workflowActionService.getTexeraGraph().getAllOperators().length > 0;
   }
-
-  private createRunForceStopTimer(milliseconds: number) {
-    let promiseFunc = (timeIsUp: boolean) => {};
-    let timeOutID: number;
-    const timerPromise = new Promise<boolean>((resolve) => {
-      promiseFunc = resolve;
-      timeOutID = window.setTimeout(() => {resolve(true); }, milliseconds);
-    });
-
-    const resolveFunc = (timeIsUp: boolean) => { window.clearTimeout(timeOutID); promiseFunc(timeIsUp); };
-
-    timerPromise.then((timeIsUp: boolean) => {
-      if (timeIsUp) {
-        this.applyBehavior({text: 'Force Stop', icon: 'spinning', disable: false, onClick: () => {this.handleKill(); }});
-      }
-    });
-
-    return {promise: timerPromise, resolve: resolveFunc };
-  }
-
 }

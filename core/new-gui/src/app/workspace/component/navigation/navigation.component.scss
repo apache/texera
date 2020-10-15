@@ -9,42 +9,65 @@
 .texera-navigation-padded {
   height: 100%;
   width: 100%;
+  overflow: hidden;
   display: grid;
   grid-template-columns: calc(14% - 16px) 70% calc(16% - 16px);
   grid-template-rows: 100%;
   align-items: center;
   margin: 0px 16px 0px 16px;
+
   i {
     display: inline-flex;
     align-content: center;
     justify-content: center;
   }
-  .texera-navigation-run-button {
-    width: 15ch;
-    text-align: left;
-    .texera-navigation-run-button-icon {
-      width:max-content;
-      padding-right: 8px;
+
+  .texera-navigation-title {
+    grid-column: 1/1;
+    grid-row: 1/1;
+
+    .version-number {
+      font-size: 10px;
+    }
+  }
+
+  .texera-navigation-utilities {
+    grid-column: 2/2;
+    grid-row: 1/1;
+  }
+
+  .texera-navigation-execute {
+    grid-column: 2/4;
+    grid-row: 1/1;
+    text-align: right;
+
+    .texera-navigation-run-button {
+      width: 16ch;
+      text-align: left;
+      z-index: 1;
+      .texera-navigation-run-button-icon {
+        width:max-content;
+        padding-right: 8px;
+      }
+    }
+
+    .texera-navigation-stop-button {
+      width: 40px;
+      z-index: 0;
+    }
+
+    .animate-to-reveal-stop-button {
+      translate: 40px;
+      transition: translate 0.3s ease-out;
+      transition-delay: 0.1s;
+    }
+  }
+
+  .reveal-stop-button {
+    .animate-to-reveal-stop-button{
+      translate: 0px;
     }
   }
 }
 
-.texera-navigation-title {
-  grid-column: 1/1;
-  grid-row: 1/1;
-}
 
-.texera-navigation-utilities {
-  grid-column: 2/2;
-  grid-row: 1/1;
-}
-
-.texera-navigation-execute {
-  grid-column: 3/3;
-  grid-row: 1/1;
-  text-align: right;
-}
-
-.version-number {
-  font-size: 10px;
-}
