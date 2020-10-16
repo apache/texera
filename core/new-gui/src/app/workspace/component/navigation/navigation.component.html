@@ -64,6 +64,7 @@
         </button>
         <button nz-button
         #runStopButton
+        title="Force Stop"
         nzType='primary'
         nzDanger
         [disabled] = "executionState == ExecutionState.Uninitialized || executionState == ExecutionState.Completed || executionState == ExecutionState.Failed"

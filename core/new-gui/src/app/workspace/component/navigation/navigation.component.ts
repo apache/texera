@@ -39,7 +39,6 @@ export class NavigationComponent implements OnInit {
   public runButtonText = 'Run';
   public runIcon = 'play-circle';
   public runDisable = false;
-  public runForceStopTimer: { forceStop: Promise<boolean>, cancel: () => void };
   public executionResultID: string | undefined;
   public onClickRunHandler = () => {};
 
@@ -55,11 +54,10 @@ export class NavigationComponent implements OnInit {
     this.executionState = executeWorkflowService.getExecutionState().state;
     // return the run button after the execution is finished, either
     //  when the value is valid or invalid
-    const initBehavior = this.getBehavior();
+    const initBehavior = this.getRunButtonBehavior(this.executionState, this.isWorkflowValid);
     this.runButtonText = initBehavior.text;
     this.runIcon = initBehavior.icon;
     this.runDisable = initBehavior.disable;
-    this.runForceStopTimer = {forceStop: Promise.resolve(false), cancel: () => {}};
     this.onClickRunHandler = initBehavior.onClick;
 
     executeWorkflowService.getExecutionStateStream().subscribe(
@@ -70,7 +68,7 @@ export class NavigationComponent implements OnInit {
             this.executionResultID = event.current.resultID;
             break;
         }
-        this.applyBehavior(this.getBehavior());
+        this.applyRunButtonBehavior(this.getRunButtonBehavior(this.executionState, this.isWorkflowValid));
       }
     );
 
@@ -82,7 +80,8 @@ export class NavigationComponent implements OnInit {
   ngOnInit() {
   }
 
-  public applyBehavior(
+  // apply a behavior to the run button via bound variables
+  public applyRunButtonBehavior(
     behavior: {
       text: string,
       icon: string,
@@ -96,16 +95,16 @@ export class NavigationComponent implements OnInit {
     this.onClickRunHandler = behavior.onClick;
   }
 
-  public getBehavior(): {
+  public getRunButtonBehavior(executionState: ExecutionState, isWorkflowValid: boolean): {
     text: string,
     icon: string,
     disable: boolean,
     onClick: () => void
   } {
-    if (! this.isWorkflowValid) {
+    if (! isWorkflowValid) {
       return { text: 'Error', icon: 'exclamation-circle', disable: true, onClick: () => {} };
     }
-    switch (this.executionState) {
+    switch (executionState) {
       case ExecutionState.Uninitialized:
       case ExecutionState.Completed:
       case ExecutionState.Failed:
