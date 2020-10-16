@@ -9,12 +9,12 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.Rand
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{ActorLayer, ProcessorWorkerLayer}
 import edu.uci.ics.amber.engine.architecture.worker.WorkerState
 import edu.uci.ics.amber.engine.common.ambertag.{LayerTag, OperatorIdentifier}
-import edu.uci.ics.amber.engine.operators.OpExecConfig
+import edu.uci.ics.amber.engine.operators.SinkOpExecConfig
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
-class SimpleSinkOpExecConfig(tag: OperatorIdentifier) extends OpExecConfig(tag) {
+class SimpleSinkOpExecConfig(tag: OperatorIdentifier) extends SinkOpExecConfig(tag) {
   override lazy val topology = new Topology(
     Array(
       new ProcessorWorkerLayer(
