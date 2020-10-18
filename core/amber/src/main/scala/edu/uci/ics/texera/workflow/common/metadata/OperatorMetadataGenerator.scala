@@ -10,6 +10,7 @@ import com.kjetland.jackson.jsonSchema.JsonSchemaConfig.html5EnabledSchema
 import com.kjetland.jackson.jsonSchema.{JsonSchemaConfig, JsonSchemaDraft, JsonSchemaGenerator}
 import edu.uci.ics.texera.workflow.common.Utils.objectMapper
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
+import edu.uci.ics.texera.workflow.operators.linearregression.LinearRegressionOpDesc
 import edu.uci.ics.texera.workflow.operators.localscan.LocalCsvFileScanOpDesc
 
 import scala.collection.JavaConverters
@@ -48,7 +49,7 @@ object OperatorMetadataGenerator {
   def main(args: Array[String]): Unit = {
     // run this if you want to check the json schema generated for an operator descriptor
     // replace the argument with the class of your operator descriptor
-    println(generateOperatorJsonSchema(classOf[LocalCsvFileScanOpDesc]).toPrettyString)
+    println(generateOperatorJsonSchema(classOf[LinearRegressionOpDesc]).toPrettyString)
   }
 
   val texeraSchemaGeneratorConfig: JsonSchemaConfig = html5EnabledSchema.copy(
