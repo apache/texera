@@ -22,7 +22,11 @@ class MLModelOpExecConfig(override val tag: OperatorIdentifier, val numWorkers: 
   override lazy val topology: Topology = {
     new Topology(
       Array(
+<<<<<<< HEAD
         new ProcessorWorkerLayer(
+=======
+        new MLProcessorWorkerLayer(
+>>>>>>> 4025cb45d9318560b25851c7e18ad8a50c904a5e
           LayerTag(tag, "main"),
           _ => opExec(),
           numWorkers,
