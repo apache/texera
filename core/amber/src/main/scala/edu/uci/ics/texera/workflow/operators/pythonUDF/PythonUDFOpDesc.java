@@ -7,6 +7,7 @@ import edu.uci.ics.amber.engine.operators.OpExecConfig;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor;
+import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import scala.collection.JavaConverters;
 
@@ -19,7 +20,7 @@ public class PythonUDFOpDesc extends OperatorDescriptor {
     @JsonPropertyDescription("input your code here")
     public String pythonScriptText;
 
-    @JsonProperty("Python script file")
+    @JsonProperty(value = "Python script file", required = true)
     @JsonPropertyDescription("name of the UDF script file")
     public String pythonScriptFile;
 
@@ -29,19 +30,19 @@ public class PythonUDFOpDesc extends OperatorDescriptor {
 
     @JsonProperty("output column(s)")
     @JsonPropertyDescription("name of the newly added output columns that the UDF will produce, if any")
-    public List<String> outputColumns;
+    public List<Attribute> outputColumns;
 
     @JsonProperty("outer file(s)")
     @JsonPropertyDescription("name(s) of outer file(s) to be used, if any")
     public List<String> outerFiles;
 
-    @JsonProperty("batch size")
+    @JsonProperty(value = "batch size", required = true, defaultValue = "100")
     @JsonPropertyDescription("size of every batch of tuples to pass to python")
     public int batchSize;
 
     @Override
     public OpExecConfig operatorExecutor() {
-        return new PythonUDFMetadata(this.operatorIdentifier(), Constants.defaultNumWorkers(),
+        return new PythonUDFOpExecConfig(this.operatorIdentifier(), Constants.defaultNumWorkers(),
                 this.pythonScriptText,
                 this.pythonScriptFile,
                 JavaConverters.asScalaIteratorConverter(this.inputColumns.iterator()).asScala().toBuffer(),
@@ -61,7 +62,22 @@ public class PythonUDFOpDesc extends OperatorDescriptor {
 
     @Override
     public Schema getOutputSchema(Schema[] schemas) {
-        return null;
+        Schema inputSchema = schemas[0];
+        if (inputColumns != null && !inputColumns.isEmpty()) {
+            for (String s : inputColumns) {
+                if (!inputSchema.containsAttribute(s)) throw new RuntimeException("No such column:" + s);
+            }
+        }
+
+        Schema outputSchema = inputSchema;
+        if (outputColumns != null && !outputColumns.isEmpty()) {
+            for (Attribute a : outputColumns) {
+                if (inputSchema.containsAttribute(a.getName())) throw new RuntimeException("Column name " + a.getName()
+                + "already exists!");
+            }
+            outputSchema = Schema.newBuilder().add(inputSchema).add(outputColumns).build();
+        }
+        return outputSchema;
     }
 
 }
