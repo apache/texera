@@ -63,6 +63,8 @@ public class LocalCsvScanSourceOpExec implements SourceOperatorExecutor {
                 try {
                     String[] res = reader.readLine();
                     if (res == null || Arrays.stream(res).noneMatch(Objects::nonNull)) {
+                        // discard tuple if it's null or it only contains null
+                        // which means it will always discard Tuple(null) from readLine()
                         return null;
                     }
                     Verify.verify(schema != null);

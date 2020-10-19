@@ -53,6 +53,11 @@ public class BufferedBlockReader {
                     start = cursor+1;
                     index++;
                 }else if(buffer[cursor] == '\r' || buffer[cursor] == '\n'){
+                    // If line ended with '\r\n', all the fields will be outputted when buffer[cursor] == '\r'
+                    // And then the cursor will move to '\n' and output Tuple(null) in next readLine() call
+                    // The behavior above is the same for either
+                    // 1. the current buffer keeps '\r\n'
+                    // 2. '\n' comes from the next fillBuffer() call
                     addField(start,index);
                     cursor++;
                     return fields.toArray(new String[0]);
