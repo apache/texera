@@ -28,12 +28,12 @@ import java.util.*;
 
 public class PythonUDFOpExec implements OperatorExecutor {
     private String pythonScriptPath;
-    private String pythonScriptText;
-    private ArrayList<String> inputColumns;
-    private ArrayList<Attribute> outputColumns;
-    private ArrayList<String> outerFilePaths;
-    private int batchSize;
-    private boolean isDynamic;
+    private final String pythonScriptText;
+    private final ArrayList<String> inputColumns;
+    private final ArrayList<Attribute> outputColumns;
+    private final ArrayList<String> outerFilePaths;
+    private final int batchSize;
+    private final boolean isDynamic;
 
     private final HashMap<String, String> params = new HashMap<>();
 
@@ -158,7 +158,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
 
     @Override
     public void close() {
-        closeClientAndServer(flightClient);
+        closeClientAndServer(flightClient, true);
     }
 
     @Override
@@ -204,17 +204,6 @@ public class PythonUDFOpExec implements OperatorExecutor {
         return params.getOrDefault(query, null);
     }
 
-    public boolean hasNext() {
-        return !(outputTupleBuffer == null || outputTupleBuffer.isEmpty());
-    }
-
-    public ITuple next() {
-        return outputTupleBuffer.remove();
-    }
-
-    public void dispose() {
-        closeClientAndServer(flightClient, true);
-    }
 
     private void processOneBatch() {
         writeArrowStream(flightClient, inputTupleBuffer, globalRootAllocator, globalInputSchema, "toPython", batchSize);
