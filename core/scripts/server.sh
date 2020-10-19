@@ -1,1 +1,2 @@
-java -jar web/target/web-0.1.0.jar server conf/web-config.yml 
+cd amber
+sbt "runMain edu.uci.ics.texera.web.TexeraWebApplication" 
