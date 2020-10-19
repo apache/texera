@@ -366,7 +366,7 @@ class Processor(var dataProcessor: IOperatorExecutor, val tag: WorkerTag) extend
   override def completed: Receive =
     disallowDataMessages orElse disallowUpdateInputLinking orElse super.completed
 
-  protected[this] def beforeProcessingBatch(): Unit = {
+  private[this] def beforeProcessingBatch(): Unit = {
     if (userFixedTuple != null) {
       try {
         transferTuple(userFixedTuple, generatedCount)
@@ -387,7 +387,7 @@ class Processor(var dataProcessor: IOperatorExecutor, val tag: WorkerTag) extend
     }
   }
 
-  protected[this] def afterProcessingBatch(): Unit = {
+  private[this] def afterProcessingBatch(): Unit = {
     processingIndex = 0
     synchronized {
       processingQueue.dequeue()
@@ -441,7 +441,7 @@ class Processor(var dataProcessor: IOperatorExecutor, val tag: WorkerTag) extend
     super.onInterrupted(operations)
   }
 
-  protected[this] def exitIfPaused(): Unit = {
+  private[this] def exitIfPaused(): Unit = {
     onInterrupted {
       dPThreadState = ThreadState.Paused
       self ! ExecutionPaused
@@ -506,7 +506,7 @@ class Processor(var dataProcessor: IOperatorExecutor, val tag: WorkerTag) extend
     }
   }
 
-  protected[this] def processBatch(): Unit = {
+  private[this] def processBatch(): Unit = {
     Breaks.breakable {
       beforeProcessingBatch()
       processStart = System.nanoTime()

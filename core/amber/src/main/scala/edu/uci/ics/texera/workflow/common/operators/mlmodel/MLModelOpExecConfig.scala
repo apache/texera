@@ -6,7 +6,7 @@ import akka.util.Timeout
 import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalBreakpoint
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.FollowPrevious
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.RoundRobinDeployment
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{ActorLayer, MLProcessorWorkerLayer, ProcessorWorkerLayer}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{ActorLayer, ProcessorWorkerLayer}
 import edu.uci.ics.amber.engine.architecture.worker.WorkerState
 import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.amber.engine.common.ambertag.{LayerTag, OperatorIdentifier}
@@ -22,7 +22,7 @@ class MLModelOpExecConfig(override val tag: OperatorIdentifier, val numWorkers: 
   override lazy val topology: Topology = {
     new Topology(
       Array(
-        new MLProcessorWorkerLayer(
+        new ProcessorWorkerLayer(
           LayerTag(tag, "main"),
           _ => opExec(),
           numWorkers,

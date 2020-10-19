@@ -78,16 +78,6 @@ abstract class MLModelOpExec() extends OperatorExecutor with Serializable {
     }
   }
 
-//  def storeTexeraTupleBatch(inputBatch: Array[ITuple]): Unit = {
-//    var miniBatch: Array[Tuple] = new Array[Tuple](inputBatch.length)
-//    var i: Int = 0
-//    for(t <- inputBatch) {
-//      miniBatch(i) = t.asInstanceOf[Tuple]
-//      i += 1
-//    }
-//    miniBatches += miniBatch
-//  }
-
   def predict(minibatch: Array[Tuple]): Unit
   def calculateLossGradient(minibatch: Array[Tuple]): Unit
   def readjustWeight(): Unit
