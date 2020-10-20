@@ -47,8 +47,9 @@ abstract class MLModelOpExec() extends OperatorExecutor with Serializable {
             minibatch = allData.slice(nextMiniBatchStartIdx,nextMiniBatchStartIdx + MINIBATCH_SIZE).toArray
             nextMiniBatchStartIdx = nextMiniBatchStartIdx + MINIBATCH_SIZE
           } else if(nextMiniBatchStartIdx < allData.size) {
+            // remaining data is less than MINIBATCH_SIZE
             minibatch = allData.slice(nextMiniBatchStartIdx, allData.size).toArray
-            nextMiniBatchStartIdx = allData.size
+            nextMiniBatchStartIdx = 0
           } else {
             // will reach if no data present in allData
             hasMoreIterations = false
@@ -64,10 +65,9 @@ abstract class MLModelOpExec() extends OperatorExecutor with Serializable {
           readjustWeight()
           nextOperation = "predict"
 
-          if(nextMiniBatchStartIdx == allData.size) {
+          if(nextMiniBatchStartIdx == 0) {
             // current epoch is over
             currentEpoch += 1
-            nextMiniBatchStartIdx = 0
           }
           if(currentEpoch == getTotalEpochsCount) {
             hasMoreIterations = false
