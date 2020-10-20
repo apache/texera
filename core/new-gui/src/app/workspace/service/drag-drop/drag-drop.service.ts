@@ -15,7 +15,7 @@ import * as jQuery from 'jquery';
 // this is the property way to import jquery-ui to Angular, make sure to import it after import jQuery
 // https://stackoverflow.com/questions/43323515/error-when-using-jqueryui-with-typescript-and-definitelytyped-definition-file
 // this approach is better than including it in `scripts` in `angular.json` because it avoids loading jQuery overrides jQuery UI
-import '../../../../../node_modules/jquery-ui-dist/jquery-ui';
+import 'jquery-ui-dist/jquery-ui';
 
 
 /**
@@ -220,7 +220,7 @@ export class DragDropService {
     this.currentOperatorType = operatorType;
 
     // create a temporary ghost element
-    jQuery('body').append('<div id="flyingJointPaper" style="position:fixed;z-index:100;pointer-event:none;"></div>');
+    jQuery('body').append('<div id="flyingJointPaper" style="position:fixed;z-index:1001;pointer-event:none;"></div>');
 
     // create an operator and get the UI element from the operator type
     const operator = this.workflowUtilService.getNewOperatorPredicate(operatorType);
