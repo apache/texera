@@ -7,7 +7,7 @@ import edu.uci.ics.amber.engine.common.ambermessage.PrincipalMessage.{GetInputLa
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.UpdateOutputLinking
 import edu.uci.ics.amber.engine.common.ambertag.LinkTag
 import edu.uci.ics.amber.engine.common.{AdvancedMessageSending, Constants, ITupleSinkOperatorExecutor}
-import edu.uci.ics.amber.engine.operators.OpExecConfig
+import edu.uci.ics.amber.engine.operators.{OpExecConfig, SinkOpExecConfig}
 import akka.actor.ActorRef
 import akka.event.LoggingAdapter
 import akka.pattern.ask
@@ -35,7 +35,7 @@ class OperatorLink(val from: (OpExecConfig, ActorRef), val to: (OpExecConfig, Ac
           to._1.getShuffleHashFunction(sender.tag)
         )
       } else if (
-        to._1.isInstanceOf[ITupleSinkOperatorExecutor]
+        to._1.isInstanceOf[SinkOpExecConfig]
       ) {
         linkStrategy = new AllToOne(sender, receiver, Constants.defaultBatchSize)
       } else if (sender.layer.length == receiver.layer.length) {
