@@ -259,20 +259,22 @@ export class WorkflowEditorComponent implements AfterViewInit {
       .filter(event => event !== undefined)
       .filter(event => this.elementRef.nativeElement.contains(event.target))
       .forEach(event => {
-        if (event.deltaY < 0) {
-          // if zoom ratio already at minimum, do not zoom out.
-          if (this.workflowActionService.getJointGraphWrapper().isZoomRatioMin()) {
-            return;
+        if (event.metaKey || event.ctrlKey) {
+          if (event.deltaY < 0) {
+            // if zoom ratio already at minimum, do not zoom out.
+            if (this.workflowActionService.getJointGraphWrapper().isZoomRatioMin()) {
+              return;
+            }
+            this.workflowActionService.getJointGraphWrapper()
+              .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() - JointGraphWrapper.ZOOM_MOUSEWHEEL_DIFF);
+          } else {
+            // if zoom ratio already at maximum, do not zoom in.
+            if (this.workflowActionService.getJointGraphWrapper().isZoomRatioMax()) {
+              return;
+            }
+            this.workflowActionService.getJointGraphWrapper()
+              .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() + JointGraphWrapper.ZOOM_MOUSEWHEEL_DIFF);
           }
-          this.workflowActionService.getJointGraphWrapper()
-            .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() - JointGraphWrapper.ZOOM_MOUSEWHEEL_DIFF);
-        } else {
-          // if zoom ratio already at maximum, do not zoom in.
-          if (this.workflowActionService.getJointGraphWrapper().isZoomRatioMax()) {
-            return;
-          }
-          this.workflowActionService.getJointGraphWrapper()
-            .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() + JointGraphWrapper.ZOOM_MOUSEWHEEL_DIFF);
         }
       });
   }
