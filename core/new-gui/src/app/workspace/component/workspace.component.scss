@@ -9,6 +9,10 @@
   height: 100%;
 }
 
+.texera-workspace {
+  // transition: grid-template-rows 0.5s;
+}
+
 /**
   * this style is used by all the sub-components
   * to utilize the entire area specified to them by the css grids
@@ -67,10 +71,8 @@
   * use all three columns and the first row.
   */
 .texera-navigation-grid-container {
-  grid-column-start: 1;
-  grid-column-end: 4;
-  grid-row-start: 1;
-  grid-row-end: 2;
+  grid-column: 1/4;
+  grid-row: 1/2;
 }
 
 /**
@@ -81,11 +83,8 @@
   */
 
 .texera-operator-panel-grid-container {
-  grid-column-start: 1;
-  grid-column-end: 2;
-  grid-row-start: 2;
-  grid-row-end: 6;
-  overflow: auto;
+  grid-column: 1/2;
+  grid-row: 2/6;
 }
 
 /**
@@ -95,10 +94,8 @@
   * of the grid
   */
 .texera-property-editor-grid-container {
-  grid-column-start: 3;
-  grid-column-end: 4;
-  grid-row-start: 2;
-  grid-row-end: 5;
+  grid-column: 3/4;
+  grid-row: 2/5;
   overflow: auto;
 }
 
@@ -108,24 +105,26 @@
 * will occupy the 2nd (middle) columm and use the second row (middle)
 **/
 .texera-workflow-editor-grid-container {
-  grid-column-start: 2;
-  grid-column-end: 3;
-  grid-row-start: 2;
-  grid-row-end: 4;
+  grid-column: 2/3;
+  grid-row: 2/4;
 }
 
 .texera-mini-map {
-  grid-column-start: 3;
-  grid-column-end: 4;
-  grid-row-start: 3;
-  grid-row-end: 5;
+  grid-column: 3/4;
+  grid-row: 3/5;
 }
 
 .texera-mini-map-with-result {
-  grid-column-start: 3;
-  grid-column-end: 4;
-  grid-row-start: 4;
-  grid-row-end: 6;
+  grid-column: 3/4;
+  grid-row: 4/6;
+}
+
+.texera-mini-map-navigator {
+  border: 1px solid #797A79;
+  position: absolute;
+  grid-column: 3/4;
+  grid-row: 3/5;
+  z-index: 1000;
 }
 
 /**
@@ -134,25 +133,15 @@
   * be right under the workflow-editor
   */
 .texera-result-panel-grid-container {
-  grid-column-start: 2;
-  grid-column-end: 3;
-  grid-row-start: 5;
-  grid-row-end: 6;
+  grid-column: 2/3;
+  grid-row: 5/6;
   overflow: auto;
+  transition: height 1s;
 }
 
 .texera-result-panel-toggle-grid-container{
-  grid-column-start: 2;
-  grid-column-end: 3;
-  grid-row-start: 4;
-  grid-row-end: 5;
-}
-
-.texera-mini-map-navigator {
-  border: 1px solid #797A79;
-  position: absolute;
-  grid-area: 3 / 3; // inside grid in row 3 col 3
-  z-index: 1000;
+  grid-column: 2/3;
+  grid-row: 4/5;
 }
 
 #box {

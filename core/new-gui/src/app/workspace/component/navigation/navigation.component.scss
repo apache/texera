@@ -1,97 +1,73 @@
 @import '../workspace.component.scss';
 .texera-navigation-body {
   height: 100%;
+  box-shadow: 0px 1px 2px rgba(0,0,0,0.2);
+  position: relative;
+  z-index: 1;
+}
+
+.texera-navigation-padded {
+  height: 100%;
   width: 100%;
+  overflow: hidden;
   display: grid;
-  grid-template-columns: 14% 64% 22%;
+  grid-template-columns: calc(14% - 16px) 70% calc(16% - 16px);
   grid-template-rows: 100%;
-}
+  align-items: center;
+  margin: 0px 16px 0px 16px;
 
-.button {
-  display: inherit;
-  .btn.btn-secondary {
-    margin-right: 5px;
+  i {
+    display: inline-flex;
+    align-content: center;
+    justify-content: center;
+  }
+
+  .texera-navigation-title {
+    grid-column: 1/1;
+    grid-row: 1/1;
+
+    .version-number {
+      font-size: 10px;
+    }
+  }
+
+  .texera-navigation-utilities {
+    grid-column: 2/2;
+    grid-row: 1/1;
+  }
+
+  .texera-navigation-execute {
+    grid-column: 2/4;
+    grid-row: 1/1;
+    text-align: right;
+
+    .texera-navigation-run-button {
+      width: 16ch;
+      text-align: left;
+      z-index: 1;
+      .texera-navigation-run-button-icon {
+        width:max-content;
+        padding-right: 8px;
+      }
+    }
+
+    .texera-navigation-stop-button {
+      width: 40px;
+      z-index: 0;
+    }
+
+    .animate-to-reveal-stop-button {
+      translate: 40px;
+      transition: translate 0.3s ease-out;
+      transition-delay: 0.1s;
+    }
+  }
+
+  .reveal-stop-button {
+    .animate-to-reveal-stop-button{
+      translate: 0px;
+    }
   }
 }
 
-.texera-navigation-title {
-  grid-column-start: 1;
-  grid-column-end: 2;
-  grid-row-start: 1;
-  grid-row-end: 1;
-}
 
-.texera-navigation-utilities {
-  grid-column-start: 2;
-  grid-column-end: 3;
-  grid-row-start: 1;
-  grid-row-end: 1;
-}
-
-.texera-navigation-execute {
-  grid-column-start: 3;
-  grid-column-end: 4;
-  grid-row-start: 1;
-  grid-row-end: 1;
-  justify-self: end;
-}
-
-.utility-button:hover {
-  cursor: pointer;
-  color: gray;
-}
-
-.utility-button-disabled {
-  color: gray;
-}
-
-.utility-button-disabled:hover {
-  color: gray;
-}
-
-.texera-navigation-run-text {
-  font-size: 1rem;
-}
-
-.texera-navigation-run-button {
-  margin-right: 3%;
-  background-color: #5081F3;
-  color: white;
-  &:hover {
-    background-color: #2E66E9;
-  }
-  .mat-raised-button {
-    height: 30px;
-  }
-  .fa {
-    padding-right: 6px;
-  }
-}
-
-.version-number {
-  color: #F2F1F1;
-  font-size: 10px;
-}
-
-.drop-down-item {
-  display: block;
-  width: 100%;
-  text-align: left;
-  border: transparent;
-  background-color: transparent;
-}
-
-.drop-down-item:hover {
-  background-color: #C6C6C6;
-  cursor: pointer;
-}
-
-.drop-down-button{
-  padding: 0px;
-  border: 0px;
-  background-color: transparent;
-}
-
-.drop-down-icon{
-  margin-right: 0px;
-}
