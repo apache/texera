@@ -19,6 +19,7 @@ import { WorkflowStatusService } from '../../service/workflow-status/workflow-st
 import { environment } from './../../../../environments/environment';
 import { ExecuteWorkflowService } from '../../service/execute-workflow/execute-workflow.service';
 import { ExecutionState, OperatorStatistics, OperatorState } from '../../types/execute-workflow.interface';
+import { min } from 'lodash';
 
 
 // argument type of callback event on a JointJS Paper
@@ -316,12 +317,21 @@ export class WorkflowEditorComponent implements AfterViewInit {
             y : coordinate.y - this.mouseDown.y * this.workflowActionService.getJointGraphWrapper().getZoomRatio()
           };
           // do paper movement.
-          this.getJointPaper().translate(
-            (- this.getWrapperElementOffset().x + this.panOffset.x),
-            (- this.getWrapperElementOffset().y + this.panOffset.y)
-          );
-          // pass offset to the joint graph wrapper to make operator be at the right location during drag-and-drop.
-          this.workflowActionService.getJointGraphWrapper().setPanningOffset(this.panOffset);
+          // set limit of translate
+          const limitx = [0, -500];
+          const limity = [0, -300];
+          const translatex = - this.getWrapperElementOffset().x + this.panOffset.x;
+          const translatey = - this.getWrapperElementOffset().y + this.panOffset.y;
+          const conditionx = translatex > limitx[1] && translatex < limitx[0];
+          const conditiony = translatey > limity[1] && translatey < limity[0];
+          if (conditionx && conditiony) {
+            this.getJointPaper().translate(
+              (- this.getWrapperElementOffset().x + this.panOffset.x),
+              (- this.getWrapperElementOffset().y + this.panOffset.y)
+            );
+            // pass offset to the joint graph wrapper to make operator be at the right location during drag-and-drop.
+            this.workflowActionService.getJointGraphWrapper().setPanningOffset(this.panOffset);
+            }
         });
 
     // This observable captures the drop event to stop the panning
