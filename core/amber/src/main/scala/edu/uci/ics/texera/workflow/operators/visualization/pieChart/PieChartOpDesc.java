@@ -11,16 +11,16 @@ import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator
 
 public class PieChartOpDesc extends VisualizationOperator {
 
-    @JsonProperty("name column")
+    @JsonProperty(value = "name column", required = true)
     public String nameColumn;
 
-    @JsonProperty("data column")
+    @JsonProperty(value = "data column", required = true)
     public String dataColumn;
 
-    @JsonProperty("prune ratio")
+    @JsonProperty(value = "prune ratio", required = true)
     public Double pruneRatio;
 
-    @JsonProperty("chart style")
+    @JsonProperty(value = "chart style", required = true)
     public PieChartEnum pieChartEnum;
 
     @Override
