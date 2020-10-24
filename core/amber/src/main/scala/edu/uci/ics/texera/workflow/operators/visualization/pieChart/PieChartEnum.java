@@ -1,7 +1,7 @@
-package texera.operators.visualization.pieChart;
+package edu.uci.ics.texera.workflow.operators.visualization.pieChart;
 
 import com.fasterxml.jackson.annotation.JsonValue;
-import texera.operators.visualization.VisualizationConstants;
+import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstants;
 
 public enum PieChartEnum {
     PIE(VisualizationConstants.PIE),

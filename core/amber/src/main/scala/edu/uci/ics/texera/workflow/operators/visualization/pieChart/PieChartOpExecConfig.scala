@@ -1,28 +1,29 @@
-package Engine.Operators.Visualization.PieChart
+package edu.uci.ics.texera.workflow.operators.visualization.pieChart
 
-import Engine.Architecture.Breakpoint.GlobalBreakpoint.GlobalBreakpoint
-import Engine.Architecture.DeploySemantics.DeployStrategy.RoundRobinDeployment
-import Engine.Architecture.DeploySemantics.DeploymentFilter.{FollowPrevious, UseAll}
-import Engine.Architecture.DeploySemantics.Layer.{ActorLayer, ProcessorWorkerLayer}
-import Engine.Architecture.LinkSemantics.HashBasedShuffle
-import Engine.Architecture.Worker.WorkerState
-import Engine.Common.AmberTag.{LayerTag, OperatorTag}
-import Engine.Common.Constants
-import Engine.Operators.OperatorMetadata
 import akka.actor.ActorRef
 import akka.event.LoggingAdapter
 import akka.util.Timeout
+import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalBreakpoint
+import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.{FollowPrevious, UseAll}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.RoundRobinDeployment
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{ActorLayer, ProcessorWorkerLayer}
+import edu.uci.ics.amber.engine.architecture.linksemantics.HashBasedShuffle
+import edu.uci.ics.amber.engine.architecture.worker.WorkerState
+import edu.uci.ics.amber.engine.common.Constants
+import edu.uci.ics.amber.engine.common.ambertag.{LayerTag, OperatorIdentifier}
+import edu.uci.ics.amber.engine.operators.OpExecConfig
+import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
-class PieChartMetadata (
-                         tag: OperatorTag,
+class PieChartOpExecConfig(
+                         tag: OperatorIdentifier,
                          val numWorkers: Int,
-                         val nameColumn: Int,
-                         val dataColumn: Int,
+                         val nameColumn: String,
+                         val dataColumn: String,
                          val pruneRatio: Double
-                       ) extends OperatorMetadata(tag) {
+                       ) extends OpExecConfig(tag) {
 
   override lazy val topology: Topology = {
     val partialLayer = new ProcessorWorkerLayer(
@@ -49,7 +50,7 @@ class PieChartMetadata (
           partialLayer,
           finalLayer,
           Constants.defaultBatchSize,
-          x => x.get(0).hashCode()
+          x => x.asInstanceOf[Tuple].hashCode()
         )
       ),
       Map()
