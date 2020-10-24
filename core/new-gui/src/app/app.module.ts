@@ -22,7 +22,7 @@ import { NavigationComponent} from './workspace/component/navigation/navigation.
 import { OperatorPanelComponent } from './workspace/component/operator-panel/operator-panel.component';
 import { PropertyEditorComponent } from './workspace/component/property-editor/property-editor.component';
 import { WorkflowEditorComponent } from './workspace/component/workflow-editor/workflow-editor.component';
-import { ResultPanelComponent, NgbModalComponent } from './workspace/component/result-panel/result-panel.component';
+import { ResultPanelComponent, RowModalComponent } from './workspace/component/result-panel/result-panel.component';
 import { OperatorLabelComponent } from './workspace/component/operator-panel/operator-label/operator-label.component';
 import { ProductTourComponent } from './workspace/component/product-tour/product-tour.component';
 import { MiniMapComponent } from './workspace/component/mini-map/mini-map.component';
@@ -70,9 +70,19 @@ import { ObjectTypeComponent } from './common/formly/object.type';
 import { FileUploadModule } from 'ng2-file-upload';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { FormlyModule } from '@ngx-formly/core';
-import { FormlyMaterialModule } from '@ngx-formly/material';
+import { FormlyNgZorroAntdModule } from '@ngx-formly/ng-zorro-antd';
 
-
+import { NzDropDownModule } from 'ng-zorro-antd/dropdown';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { NzIconModule } from 'ng-zorro-antd/icon';
+import { NzFormModule } from 'ng-zorro-antd/form';
+import { NzListModule } from 'ng-zorro-antd/list';
+import { NzInputModule } from 'ng-zorro-antd/input';
+import { NzMenuModule } from 'ng-zorro-antd/menu';
+import { NzCollapseModule } from 'ng-zorro-antd/collapse';
+import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
+import { NzTableModule } from 'ng-zorro-antd/table';
+import { NzModalModule } from 'ng-zorro-antd/modal';
 
 import { UserService } from './common/service/user/user.service';
 import { NgbdModalUserLoginComponent } from './dashboard/component/top-bar/user-icon/user-login/ngbdmodal-user-login.component';
@@ -87,6 +97,12 @@ import { UserDictionaryService } from './common/service/user/user-dictionary/use
 import { TEXERA_FORMLY_CONFIG } from './common/formly/formly-config';
 import { VisualizationPanelComponent } from './workspace/component/visualization-panel/visualization-panel.component';
 import { VisualizationPanelContentComponent } from './workspace/component/visualization-panel-content/visualization-panel-content.component';
+import { NZ_I18N } from 'ng-zorro-antd/i18n';
+import { en_US } from 'ng-zorro-antd/i18n';
+import { registerLocaleData } from '@angular/common';
+import en from '@angular/common/locales/en';
+
+registerLocaleData(en);
 
 @NgModule({
   declarations: [
@@ -120,7 +136,7 @@ import { VisualizationPanelContentComponent } from './workspace/component/visual
 
     ResourceSectionComponent,
 
-    NgbModalComponent,
+    RowModalComponent,
     OperatorLabelComponent,
     ProductTourComponent,
     MiniMapComponent,
@@ -152,7 +168,19 @@ import { VisualizationPanelContentComponent } from './workspace/component/visual
     ReactiveFormsModule,
     LoggerModule.forRoot({level: environment.production ? NgxLoggerLevel.ERROR : NgxLoggerLevel.DEBUG, serverLogLevel: NgxLoggerLevel.OFF}),
     FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
-    FormlyMaterialModule,
+    FormlyNgZorroAntdModule,
+
+    NzDropDownModule,
+    NzButtonModule,
+    NzIconModule,
+    NzFormModule,
+    NzListModule,
+    NzInputModule,
+    NzMenuModule,
+    NzCollapseModule,
+    NzToolTipModule,
+    NzTableModule,
+    NzModalModule,
   ],
   entryComponents: [
     NgbdModalAddProjectComponent,
@@ -161,7 +189,7 @@ import { VisualizationPanelContentComponent } from './workspace/component/visual
     NgbdModalResourceAddComponent,
     NgbdModalResourceDeleteComponent,
     NgbdModalUserLoginComponent,
-    NgbModalComponent,
+    RowModalComponent,
     NgbdModalFileAddComponent
   ],
   providers: [
@@ -170,7 +198,8 @@ import { VisualizationPanelContentComponent } from './workspace/component/visual
     UserFileService,
     UserFileUploadService,
     UserDictionaryService,
-    UserDictionaryUploadService
+    UserDictionaryUploadService,
+    { provide: NZ_I18N, useValue: en_US }
   ],
   bootstrap: [AppComponent],
   // dynamically created component must be placed in the entryComponents attribute

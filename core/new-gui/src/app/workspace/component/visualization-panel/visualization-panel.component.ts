@@ -1,6 +1,8 @@
 import { Component, Input, } from '@angular/core';
-import { MatDialog } from '@angular/material/dialog';
+import { NzModalRef, NzModalService } from 'ng-zorro-antd/modal';
 import { VisualizationPanelContentComponent } from '../visualization-panel-content/visualization-panel-content.component';
+import { ChartType } from '../../types/visualization.interface';
+import { assertType } from '../../../common/util/assert';
 
 /**
  * VisualizationPanelComponent displays the button for visualization in ResultPanel when the result type is chart.
@@ -17,20 +19,23 @@ import { VisualizationPanelContentComponent } from '../visualization-panel-conte
 })
 export class VisualizationPanelComponent {
   @Input() data: Object[];
-  @Input() chartType: string;
+  @Input() chartType: ChartType | null;
 
 
-  constructor(public dialog: MatDialog) {
+  constructor(private modal: NzModalService) {
     this.data = [];
-    this.chartType = '';
-
+    this.chartType = null;
   }
 
   onClickVisualize(): void {
-    const dialogRef = this.dialog.open(VisualizationPanelContentComponent, {
-      data: {
-        table: this.data,
-        chartType: this.chartType,
+    assertType<ChartType>(this.chartType);
+    const dialogRef = this.modal.create({
+      nzContent: VisualizationPanelContentComponent,
+      nzComponentParams: {
+        data: {
+          table: this.data,
+          chartType: this.chartType,
+        }
       }
     });
 

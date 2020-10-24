@@ -1,70 +1,16 @@
 @import '../workspace.component.scss';
 
-.mat-table {
-
-  .mat-header-row {
-    min-height: 2.5em;
-    font-size: 14px;
-  }
-
-  .mat-row {
-    min-height: 2em;
-    font-size: 14px;
-  }
-
-  .mat-header-row, .mat-row {
-    display: table-row;
-    border: none;
-
-    .mat-header-cell, .mat-cell {
-      display: table-cell;
-      padding: 0px 6px;
-      vertical-align: middle;
-      max-width: 200px;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      // border-bottom: 1.5px solid rgba(0, 0, 0, 0.12);
-      border-right: 1.5px solid rgba(0, 0, 0, 0.12);
-    }
-  }
-  .mat-header-cell {
-    font-weight: bold;
-    color :  #e6e6e6;
-    background-color: #494d50;
-    text-transform: uppercase;
-  }
-
-  .mat-row:nth-child(even) {
-    background-color: #C5CAE9;
-  }
-
-  .mat-row:nth-child(odd) {
-    background-color: white;
+.texera-workspace-result-panel-body {
+  .result-table {
+    padding: 10px;
   }
 }
 
 // make modal body scrollable and modal size fixed
 .modal-body{
-  min-height: calc(100vh - 200px);
-  max-height: calc(100vh - 200px);
+  min-height: calc(50vh);
   overflow-y: auto !important;
 }
-
-// force paginator to stick to the left since
-//  ususally we have results greater than 100%
-//  width of the result panel, which will create
-//  an overflow to the right. In this case, the
-//  paginator will not stick to the right-most
-//  point of the overflowed component. Instead,
-//  it will think that the component doesn't have
-//  overflow and display the paginator at
-//  the original width 100% position. Thus, it is
-//  better to stick the paginator on the left
-//  to avoid this kind of situation.
-::ng-deep .mat-paginator-container {
-  justify-content: flex-start !important;
-}
-
 // change the internal color of pretty json of the result details
 
 $type-colors: (
@@ -80,18 +26,4 @@ $type-colors: (
   'null': #fff,
   undefined: #fff
 );
-
-@each $type, $color in $type-colors {
-  ::ng-deep .segment-type-#{$type} > .segment-main > .segment-value {
-    color: $color !important;
-  }
-}
-
-::ng-deep .segment > .segment-main > .segment-key {
-  color : #BB1A1A !important;
-}
-
-::ng-deep .segment > .segment-main > .segment-value {
-  white-space: pre-line;
-}
 

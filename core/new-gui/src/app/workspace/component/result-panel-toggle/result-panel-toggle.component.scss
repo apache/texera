@@ -1,6 +1,6 @@
 @import '../workspace.component.scss';
 
-.texera-result-panel-toggle{
+.texera-result-panel-toggle {
     background: #6c747e ;
     color:white;
     padding: 2.5px;
@@ -8,6 +8,12 @@
     min-height: 100%;
     font-style: inherit;
     text-align: center;
+
+    .toggle-icon {
+      display: block;
+      margin: auto;
+    }
+
     &:hover {
         background-color: #32363a;
         cursor: pointer;

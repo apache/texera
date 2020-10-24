@@ -19,9 +19,15 @@
             "polyfills": "src/polyfills.ts",
             "assets": [
               "src/assets",
-              "src/favicon.ico"
+              "src/favicon.ico",
+              {
+                "glob": "**/*",
+                "input": "./node_modules/@ant-design/icons-angular/src/inline-svg/",
+                "output": "/assets/"
+              }
             ],
             "styles": [
+              "src/theme.less",
               "node_modules/jointjs/css/layout.css",
               "node_modules/jointjs/css/themes/material.css",
               "node_modules/jointjs/css/themes/default.css",

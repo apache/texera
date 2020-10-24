@@ -1,19 +1,28 @@
 .texera-operator-label-body {
-    padding-left: 14px;
-    padding-top: 10px;
-    padding-bottom: 10px;
-    margin-bottom: 10px;
-    background: transparent;
-
-    &:hover {
-        background-color: #f4f5f6;
-        cursor: pointer;
+  width: 100%;
+  height: calc(100% - 1px);
+  padding-left: 10%;
+  display: flex;
+  align-content: center;
+  border: 1px solid;
+  border-radius: 3px;
+  border-color: rgba(0,0,0,0);
+  transition: border-color 0.3s;
+  &:hover {
+    border-color: rgba(64, 169, 255,1);
+    .text {
+      transform: translateX(10px);
     }
+  }
+  .text {
+    user-select: none;
+    transition: transform 0.5s 0.1s;
+  }
 }
 
-// sets the style for the popup tooltips,
-// ::ng-deep is needed to force the style down to all the tooltip windows
-.texera-operator-label-body ::ng-deep .tooltip-inner{
-  color: black;
-  background: lightgray;
-}
+// // sets the style for the popup tooltips,
+// // ::ng-deep is needed to force the style down to all the tooltip windows
+// .texera-operator-label-body ::ng-deep .tooltip-inner{
+//   color: black;
+//   background: lightgray;
+// }
