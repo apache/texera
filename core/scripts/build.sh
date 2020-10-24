@@ -1,2 +1,5 @@
-mvn clean install -DskipTests
+cd amber
+sbt clean
+sbt compile
+cd ..
 ./scripts/gui.sh

@@ -1,4 +1,6 @@
-<mat-card class="texera-operator-label-body mat-elevation-z1" [attr.id]="operatorLabelID" [tourAnchor]="operatorLabelID" ngbTooltip="{{operator?.additionalMetadata.operatorDescription}}"
-  placement="right" triggers="manual" #ngbTooltip = "ngbTooltip"  (mouseenter) = 'mouseEnter()' (mouseleave) = 'mouseLeave()'>
-  {{operator?.additionalMetadata.userFriendlyName}}
-</mat-card>
+<div class="texera-operator-label-body" [attr.id]="operatorLabelID" [tourAnchor]="operatorLabelID"
+  placement="right" triggers="manual" title="{{operator?.additionalMetadata.operatorDescription}}" (mouseenter) = 'mouseEnter()' (mouseleave) = 'mouseLeave()'>
+  <span class="text">
+    {{operator?.additionalMetadata.userFriendlyName}}
+  </span>
+</div>

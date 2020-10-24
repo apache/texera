@@ -1,10 +1,9 @@
-import { Component, Inject, OnInit, AfterViewInit } from '@angular/core';
-import { MAT_DIALOG_DATA } from '@angular/material/dialog';
+import { Component, Input, OnInit, AfterViewInit } from '@angular/core';
 import * as c3 from 'c3';
 import { PrimitiveArray } from 'c3';
-import { List } from 'lodash';
 import * as WordCloud from 'wordcloud';
 import { ChartType, WordCloudTuple, DialogData } from '../../types/visualization.interface';
+
 
 /**
  * VisualizationPanelContentComponent displays the chart based on the chart type and data in table.
@@ -24,16 +23,15 @@ export class VisualizationPanelContentComponent implements OnInit, AfterViewInit
   public static readonly WORD_CLOUD_ID = 'texera-word-cloud';
   public static readonly WIDTH = 1000;
   public static readonly HEIGHT = 800;
-  private table: object[];
-  // private columns: string[] = [];
+  @Input()
+  public data!: DialogData;
+  private table: object[] = [];
+  private columns: string[] = [];
 
-
-  constructor(@Inject(MAT_DIALOG_DATA) public data: DialogData) {
-    this.table = data.table;
-  }
 
   ngOnInit() {
-    // this.columns = Object.keys(this.table[0]).filter(x => x !== '_id');
+    this.table = this.data.table;
+    this.columns = Object.keys(this.table[0]).filter(x => x !== '_id');
   }
 
   ngAfterViewInit() {
@@ -66,29 +64,22 @@ export class VisualizationPanelContentComponent implements OnInit, AfterViewInit
   }
 
   onClickGenerateChart() {
-
     const dataToDisplay: Array<[string, ...PrimitiveArray]> = [];
-    // const category: string[] = [];
-    // for (let i = 1; i < this.columns?.length; i++) {
-    //   category.push(this.columns[i]);
-    // }
+    const category: string[] = [];
+    for (let i = 1; i < this.columns?.length; i++) {
+      category.push(this.columns[i]);
+    }
 
-    // c3.js requires the first element in the data array is the data name.
-    // the remaining items are data.
+    const columnCount = this.columns.length;
 
-    // let firstRow = true;
-    const columnCount = (this.table[0] as any as Array<object>).length;
     for (const row of this.table) {
-      // if (firstRow) {
-      //   firstRow = false;
-      //   continue;
-      // }
-      const items: [string, ...PrimitiveArray] = [(row as any)[0]];
+      const items: [string, ...PrimitiveArray] = [Object.values(row)[0]];
       for (let i = 1; i < columnCount; i++) {
-        items.push(Number((row as any)[i]));
+        items.push(Number((Object.values(row)[i])));
       }
       dataToDisplay.push(items);
     }
+
     c3.generate({
       size: {
         height: VisualizationPanelContentComponent.HEIGHT,
@@ -98,12 +89,12 @@ export class VisualizationPanelContentComponent implements OnInit, AfterViewInit
         columns: dataToDisplay,
         type: this.data.chartType as c3.ChartType
       },
-      // axis: {
-      //   x: {
-      //     type: 'category',
-      //     categories: category
-      //   }
-      // },
+      axis: {
+        x: {
+          type: 'category',
+          categories: category
+        }
+      },
       bindto: VisualizationPanelContentComponent.CHART_ID
     });
   }
