@@ -2,13 +2,19 @@ package edu.uci.ics.texera.web.resource;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import edu.uci.ics.texera.dataflow.jooq.generated.tables.Workflow;
+import edu.uci.ics.texera.dataflow.jooq.generated.tables.records.WorkflowRecord;
 import edu.uci.ics.texera.dataflow.sqlServerInfo.UserSqlServer;
 import edu.uci.ics.texera.web.TexeraWebException;
 import edu.uci.ics.texera.web.response.GenericWebResponse;
 import io.dropwizard.jersey.sessions.Session;
+import org.checkerframework.checker.interning.qual.UnknownInterned;
 import org.glassfish.jersey.media.multipart.FormDataParam;
+import org.jooq.Record;
+import org.jooq.Record1;
 import org.jooq.Record3;
 import org.jooq.types.UInteger;
+import org.junit.experimental.theories.FromDataPoints;
 
 import javax.servlet.http.HttpSession;
 import javax.ws.rs.*;
@@ -16,6 +22,7 @@ import javax.ws.rs.core.MediaType;
 import java.io.IOException;
 
 import static edu.uci.ics.texera.dataflow.jooq.generated.Tables.WORKFLOW;
+import static edu.uci.ics.texera.dataflow.jooq.generated.Tables.WORKFLOW_OF_USER;
 
 /**
  * This file handles various request related to saved-workflows.
@@ -28,6 +35,83 @@ import static edu.uci.ics.texera.dataflow.jooq.generated.Tables.WORKFLOW;
 @Path("/workflow")
 @Produces(MediaType.APPLICATION_JSON)
 public class WorkflowResource {
+
+    public static class Workflow {
+        private final UInteger wfId;
+        private final UInteger userId; // the ID in MySQL database is unsigned int
+        private final String content;
+
+
+        public Workflow(UInteger wfId, UInteger userId, String content) {
+            this.wfId = wfId;
+            this.userId = userId;
+            this.content = content;
+        }
+
+
+        public String getContent() {
+            return content;
+        }
+
+        public UInteger getUserId() {
+            return userId;
+        }
+
+        public UInteger getWfId() {
+            return wfId;
+        }
+    }
+
+    /**
+     * Corresponds to `src/app/common/type/workflow.ts`
+     */
+    public static class WorkflowWebResponse {
+        private int code;
+        private String message;
+        private Workflow workflow;
+
+        public static WorkflowWebResponse generateErrorResponse(String message) {
+            return new WorkflowWebResponse(1, message, null);
+        }
+
+        public WorkflowWebResponse() {
+            // Default constructor is required for Jackson JSON serialization
+        }
+
+        public static WorkflowWebResponse generateSuccessResponse(Workflow workflow) {
+            return new WorkflowWebResponse(0, "success", workflow);
+        }
+
+        private WorkflowWebResponse(int code, String message, Workflow workflow) {
+            this.code = code;
+            this.message = message;
+            this.workflow = workflow;
+        }
+
+        public Workflow getWorkflow() {
+            return workflow;
+        }
+
+        public void setWorkflow(Workflow workflow) {
+            this.workflow = workflow;
+        }
+
+        public int getCode() {
+            return code;
+        }
+
+        public void setCode(int code) {
+            this.code = code;
+        }
+
+        public String getMessage() {
+            return message;
+        }
+
+        public void setMessage(String message) {
+            this.message = message;
+        }
+    }
 
     /**
      * This method handles the frontend's request to get a specific workflow to be displayed
@@ -68,6 +152,7 @@ public class WorkflowResource {
      * at current design, it takes a workflowID and a JSON string representing the new workflow
      * it updates the corresponding mysql record; throws an error if the workflow does not exist
      * for future design, it should also take userID as an parameter.
+     *
      * @param session
      * @param workflowID
      * @param workflowBody
@@ -83,24 +168,29 @@ public class WorkflowResource {
     ) {
         int count = checkWorkflowExist(workflowID);
         if (count != 1) {
-            return new GenericWebResponse(1,"workflow " + workflowID + " does not exist in the database");
+            return new GenericWebResponse(1, "workflow " + workflowID + " does not exist in the database");
         }
-        int result = updateWorkflowInDataBase(workflowID,workflowBody);
-        throwErrorWhenNotOne("Error occurred while updating workflow to database",result);
+        int result = updateWorkflowInDataBase(workflowID, workflowBody);
+        throwErrorWhenNotOne("Error occurred while updating workflow to database", result);
         return GenericWebResponse.generateSuccessResponse();
     }
 
     @POST
     @Path("/save-workflow")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
-    public GenericWebResponse saveWorkflow(
+    public WorkflowWebResponse saveWorkflow(
             @Session HttpSession session,
+            @FormDataParam("userId") UInteger userId,
             @FormDataParam("workflowBody") String workflowBody
     ) {
-
-        int result = insertWorkflowToDataBase("name",workflowBody);
-        throwErrorWhenNotOne("Error occurred while updating workflow to database",result);
-        return GenericWebResponse.generateSuccessResponse();
+        String name = "name";
+        Record1<UInteger> workflowId = insertWorkflowToDataBase(name, workflowBody);
+        WorkflowRecord workflowRecord = new WorkflowRecord(name, workflowId.value1(), workflowBody);
+        //        throwErrorWhenNotOne("Error occurred while updating workflow to database", result);
+        int result = insertWorkflowOfUser(workflowId.value1(), userId);
+        throwErrorWhenNotOne("Error occurred while updating workflow to database", result);
+        return WorkflowWebResponse.generateSuccessResponse(new Workflow(workflowRecord.getWfId(), userId, workflowRecord.getContent()));
+//        return GenericWebResponse.generateSuccessResponse();
     }
 
     /**
@@ -148,20 +238,29 @@ public class WorkflowResource {
     /**
      * This private method will be used to insert a non existing workflow into the database
      * There is no request handler that utilize this method yet.
+     * <p>
+     * //     * @param userID
+     * //     * @param workflowID
      *
-//     * @param userID
-//     * @param workflowID
      * @param workflowName
      * @param content
      * @return
      */
-    private int insertWorkflowToDataBase(String workflowName, String content) {
+    private Record1<UInteger> insertWorkflowToDataBase(String workflowName, String content) {
         return UserSqlServer.createDSLContext().insertInto(WORKFLOW)
                 // uncomment below to give workflows the concept of ownership
                 // .set(USERWORKFLOW.USERID,userID)
                 // .set(WORKFLOW.WF_ID, workflowID)
                 .set(WORKFLOW.NAME, workflowName)
                 .set(WORKFLOW.CONTENT, content)
+                .returningResult(WORKFLOW.WF_ID)
+                .fetchOne();
+    }
+
+    private int insertWorkflowOfUser(UInteger workflowId, UInteger userId) {
+        return UserSqlServer.createDSLContext().insertInto(WORKFLOW_OF_USER)
+                .set(WORKFLOW_OF_USER.WF_ID, workflowId)
+                .set(WORKFLOW_OF_USER.UID, userId)
                 .execute();
     }
 

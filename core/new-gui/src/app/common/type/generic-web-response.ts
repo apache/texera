@@ -1,5 +1,5 @@
 export interface GenericWebResponse extends Readonly<{
-  code: number;
+  code: GenericWebResponseCode;
   message: string;
 }> {}
 

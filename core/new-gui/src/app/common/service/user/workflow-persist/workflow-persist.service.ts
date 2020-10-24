@@ -1,8 +1,8 @@
 import {Injectable} from '@angular/core';
 import {HttpClient} from '@angular/common/http';
-import {GenericWebResponse} from '../../../type/generic-web-response';
 import {AppSettings} from '../../../app-setting';
 import {Observable} from 'rxjs';
+import {WorkflowWebResponse} from '../../../type/workflow';
 
 export const WORKFLOW_URL = 'user/dictionary/validate';
 
@@ -21,16 +21,20 @@ export class WorkflowPersistService {
       return Observable.of(undefined);
     }
     const formData: FormData = new FormData();
-    // formData.append('workflowID', userID.toString());
+    formData.append('userId', userID.toString());
     formData.append('workflowBody', savedWorkflow);
-    console.log(formData);
-    console.log(`${AppSettings.getApiEndpoint()}/workflow/save-workflow`);
-    this.http.post<GenericWebResponse>(
+    this.http.post<WorkflowWebResponse>(
       `${AppSettings.getApiEndpoint()}/workflow/save-workflow`, formData).flatMap(
       res => {
-        console.log('done');
         return Observable.of(res);
       }
-    ).subscribe(res => console.log(res));
+    ).subscribe(
+      (response) => {
+        console.log('response received');
+        localStorage.setItem('wfId', JSON.stringify(response.workflow.wfId));
+      },
+      (error) => {
+        console.error('error caught in component' + error);
+      });
   }
 }
