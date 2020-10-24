@@ -1,4 +1,4 @@
-package texera.operators.visualization;
+package edu.uci.ics.texera.workflow.operators.visualization;
 
 public class VisualizationConstants {
     public static final String BAR = "bar";

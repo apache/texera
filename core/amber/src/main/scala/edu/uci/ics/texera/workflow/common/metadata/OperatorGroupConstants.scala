@@ -9,6 +9,7 @@ object OperatorGroupConstants {
   final val UTILITY_GROUP = "Utilities"
   final val DATABASE_GROUP = "Database"
   final val UDF_GROUP = "User-defined Functions"
+  final val VISUALIZATION_GROUP = "Visualization"
   final val RESULT_GROUP = "View Results"
 
   /**
@@ -24,7 +25,8 @@ object OperatorGroupConstants {
     GroupInfo(UTILITY_GROUP, 5),
     GroupInfo(DATABASE_GROUP, 6),
     GroupInfo(UDF_GROUP, 7),
-    GroupInfo(RESULT_GROUP, 8)
+    GroupInfo(VISUALIZATION_GROUP, 8),
+    GroupInfo(RESULT_GROUP, 9)
   )
 
 }
