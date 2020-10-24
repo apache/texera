@@ -3,6 +3,7 @@ import {WorkflowActionService} from '../workflow-graph/model/workflow-action.ser
 import {Observable} from '../../../../../node_modules/rxjs';
 import {Breakpoint, OperatorLink, OperatorPredicate, Point} from '../../types/workflow-common.interface';
 import {OperatorMetadataService} from '../operator-metadata/operator-metadata.service';
+import {WorkflowPersistService} from '../../../common/service/user/workflow-persist/workflow-persist.service';
 
 /**
  * SavedWorkflow is used to store the information of the workflow
@@ -47,7 +48,8 @@ export class SaveWorkflowService {
 
   constructor(
     private workflowActionService: WorkflowActionService,
-    private operatorMetadataService: OperatorMetadataService
+    private operatorMetadataService: OperatorMetadataService,
+    private workflowPersistService: WorkflowPersistService
   ) {
     this.handleAutoSaveWorkFlow();
 
@@ -130,10 +132,8 @@ export class SaveWorkflowService {
     });
   }
 
-  public handleOnclickSaveWorkFlow(): void {
-    console.log('in handle onclick');
-    localStorage.getItem(SaveWorkflowService.LOCAL_STORAGE_KEY);
-
+  public getSavedWorkflow(): string | null {
+    return localStorage.getItem(SaveWorkflowService.LOCAL_STORAGE_KEY);
   }
 
 }

@@ -1,12 +1,14 @@
 import {Component, OnInit} from '@angular/core';
-import {ExecuteWorkflowService} from './../../service/execute-workflow/execute-workflow.service';
-import {UndoRedoService} from './../../service/undo-redo/undo-redo.service';
+import {ExecuteWorkflowService} from '../../service/execute-workflow/execute-workflow.service';
+import {UndoRedoService} from '../../service/undo-redo/undo-redo.service';
 import {TourService} from 'ngx-tour-ng-bootstrap';
 import {WorkflowActionService} from '../../service/workflow-graph/model/workflow-action.service';
 import {JointGraphWrapper} from '../../service/workflow-graph/model/joint-graph-wrapper';
 import {ValidationWorkflowService} from '../../service/validation/validation-workflow.service';
-import {ExecutionState} from './../../types/execute-workflow.interface';
+import {ExecutionState} from '../../types/execute-workflow.interface';
 import {WorkflowStatusService} from '../../service/workflow-status/workflow-status.service';
+import {UserService} from '../../../common/service/user/user.service';
+import {WorkflowPersistService} from '../../../common/service/user/workflow-persist/workflow-persist.service';
 import {SaveWorkflowService} from '../../service/save-workflow/save-workflow.service';
 
 /**
@@ -40,9 +42,8 @@ export class NavigationComponent implements OnInit {
   public showSpinner = false;
   public disable = false;
   public executionResultID: string | undefined;
-  public onClickHandler = () => {};
 
-    // tslint:disable-next-line:member-ordering
+  // tslint:disable-next-line:member-ordering
   constructor(
     public executeWorkflowService: ExecuteWorkflowService,
     public tourService: TourService,
@@ -50,7 +51,9 @@ export class NavigationComponent implements OnInit {
     public workflowStatusService: WorkflowStatusService,
     public undoRedo: UndoRedoService,
     public validationWorkflowService: ValidationWorkflowService,
-    public saveWorkflowService: SaveWorkflowService
+    private saveWorkflowService: SaveWorkflowService,
+    public workflowPersistService: WorkflowPersistService,
+    private userService: UserService
   ) {
     this.executionState = executeWorkflowService.getExecutionState().state;
     // return the run button after the execution is finished, either
@@ -80,6 +83,9 @@ export class NavigationComponent implements OnInit {
       .subscribe(value => this.isWorkflowValid = Object.keys(value.errors).length === 0);
   }
 
+  public onClickHandler = () => {
+  };
+
   ngOnInit() {
   }
 
@@ -89,8 +95,11 @@ export class NavigationComponent implements OnInit {
     disable: boolean,
     onClick: () => void
   } {
-    if (! this.isWorkflowValid) {
-      return { text: 'Run', spinner: false, disable: true, onClick: () => {} };
+    if (!this.isWorkflowValid) {
+      return {
+        text: 'Run', spinner: false, disable: true, onClick: () => {
+        }
+      };
     }
     switch (this.executionState) {
       case ExecutionState.Uninitialized:
@@ -103,7 +112,8 @@ export class NavigationComponent implements OnInit {
       case ExecutionState.WaitingToRun:
         return {
           text: 'Submitting', spinner: true, disable: true,
-          onClick: () => {}
+          onClick: () => {
+          }
         };
       case ExecutionState.Running:
         return {
@@ -119,17 +129,20 @@ export class NavigationComponent implements OnInit {
       case ExecutionState.Pausing:
         return {
           text: 'Pausing', spinner: true, disable: true,
-          onClick: () => {}
+          onClick: () => {
+          }
         };
       case ExecutionState.Resuming:
         return {
           text: 'Resuming', spinner: true, disable: true,
-          onClick: () => {}
+          onClick: () => {
+          }
         };
       case ExecutionState.Recovering:
         return {
           text: 'Recovering', spinner: true, disable: true,
-          onClick: () => {}
+          onClick: () => {
+          }
         };
     }
   }
@@ -164,7 +177,9 @@ export class NavigationComponent implements OnInit {
   public onClickZoomOut(): void {
 
     // if zoom is already at minimum, don't zoom out again.
-    if (this.isZoomRatioMin()) { return; }
+    if (this.isZoomRatioMin()) {
+      return;
+    }
 
     // make the ratio small.
     this.workflowActionService.getJointGraphWrapper()
@@ -181,7 +196,9 @@ export class NavigationComponent implements OnInit {
   public onClickZoomIn(): void {
 
     // if zoom is already reach maximum, don't zoom in again.
-    if (this.isZoomRatioMax()) { return; }
+    if (this.isZoomRatioMax()) {
+      return;
+    }
 
     // make the ratio big.
     this.workflowActionService.getJointGraphWrapper()
@@ -223,5 +240,14 @@ export class NavigationComponent implements OnInit {
   public hasOperators(): boolean {
     return this.workflowActionService.getTexeraGraph().getAllOperators().length > 0;
   }
+
+  public onClickSaveWorkflow(): void {
+    if (!this.userService.isLogin()) {
+      alert('please login');
+    } else {
+      this.workflowPersistService.saveWorkflow(this.userService.getUser()?.userID, this.saveWorkflowService.getSavedWorkflow());
+    }
+  }
+
 
 }

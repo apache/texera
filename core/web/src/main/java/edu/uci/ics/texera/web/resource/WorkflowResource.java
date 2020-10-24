@@ -90,6 +90,19 @@ public class WorkflowResource {
         return GenericWebResponse.generateSuccessResponse();
     }
 
+    @POST
+    @Path("/save-workflow")
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    public GenericWebResponse saveWorkflow(
+            @Session HttpSession session,
+            @FormDataParam("workflowBody") String workflowBody
+    ) {
+
+        int result = insertWorkflowToDataBase("name",workflowBody);
+        throwErrorWhenNotOne("Error occurred while updating workflow to database",result);
+        return GenericWebResponse.generateSuccessResponse();
+    }
+
     /**
      * select * from table userworkflow where workflowID is @param "workflowID"
      *
@@ -136,17 +149,17 @@ public class WorkflowResource {
      * This private method will be used to insert a non existing workflow into the database
      * There is no request handler that utilize this method yet.
      *
-     * @param userID
-     * @param workflowID
+//     * @param userID
+//     * @param workflowID
      * @param workflowName
      * @param content
      * @return
      */
-    private int insertWorkflowToDataBase(String userID, UInteger workflowID, String workflowName, String content) {
+    private int insertWorkflowToDataBase(String workflowName, String content) {
         return UserSqlServer.createDSLContext().insertInto(WORKFLOW)
                 // uncomment below to give workflows the concept of ownership
                 // .set(USERWORKFLOW.USERID,userID)
-                .set(WORKFLOW.WF_ID, workflowID)
+                // .set(WORKFLOW.WF_ID, workflowID)
                 .set(WORKFLOW.NAME, workflowName)
                 .set(WORKFLOW.CONTENT, content)
                 .execute();
