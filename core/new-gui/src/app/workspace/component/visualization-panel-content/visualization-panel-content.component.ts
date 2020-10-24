@@ -36,12 +36,12 @@ export class VisualizationPanelContentComponent implements OnInit, AfterViewInit
 
   ngAfterViewInit() {
     switch (this.data.chartType) {
-      // correspond to WordCloudSink.java
+      // correspond to TexeraWordCloud.java
       case ChartType.WORD_CLOUD: this.onClickGenerateWordCloud(); break;
       // correspond to TexeraBarChart.java
       case ChartType.BAR:
       case ChartType.STACKED_BAR:
-      // correspond to PieChartSink.java
+      // correspond to TexeraPieChart.java
       case ChartType.PIE:
       case ChartType.DONUT:
       // correspond to TexeraLineChart.java
@@ -52,13 +52,22 @@ export class VisualizationPanelContentComponent implements OnInit, AfterViewInit
 
   onClickGenerateWordCloud() {
     const dataToDisplay: object[] = [];
-    this.table.shift();
-    const wordCloudTuples = this.table as ReadonlyArray<WordCloudTuple>;
+    // this.table.shift(); // In the old engine the first line is column names
 
+    const wordCloudTuples: Array<WordCloudTuple> = new Array;
+    this.table.forEach(element => {
+      const tupleContent = (element as Array<object>);
+      const wordCloudTuple: WordCloudTuple = {
+        word: tupleContent[0] as unknown as string,
+        count: tupleContent[1] as unknown as number,
+      };
+      wordCloudTuples.push(wordCloudTuple);
+    });
+
+    // const wordCloudTuples = this.table as ReadonlyArray<WordCloudTuple>; // Cannot successfuly cast for lack of schema
     for (const tuple of wordCloudTuples) {
       dataToDisplay.push([tuple.word, tuple.count]);
     }
-
     WordCloud(document.getElementById(VisualizationPanelContentComponent.WORD_CLOUD_ID) as HTMLElement,
            { list: dataToDisplay } );
   }
