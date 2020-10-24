@@ -7,11 +7,12 @@
 
 <div class="modal-body">
   <mat-dialog-actions>
-    <p class="modal-title">Confirm to Delete the Project {{this.project.name}}</p>
+    <p class="modal-title">Confirm to Delete the Project {{this.workflow.name}}</p>
   </mat-dialog-actions>
 </div>
 
 <div class="modal-footer">
-  <button type="button" class="btn btn-outline-dark delete-confirm-button" (click)="deleteSavedProject()"  >Confirm</button>
+  <button (click)="deleteSavedWorkflow()" class="btn btn-outline-dark delete-confirm-button" type="button">Confirm
+  </button>
   <button type="button" class="btn btn-outline-dark" (click)="activeModal.close()">Close</button>
 </div>

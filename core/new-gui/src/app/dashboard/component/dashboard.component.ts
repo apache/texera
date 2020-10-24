@@ -1,7 +1,6 @@
 import {Component, OnInit} from '@angular/core';
 
-import {SavedProjectService} from '../service/saved-project/saved-project.service';
-import {StubSavedProjectService} from '../service/saved-project/stub-saved-project.service';
+import {SavedWorkflowService} from '../service/saved-project/saved-workflow.service';
 import {WorkflowPersistService} from '../../common/service/user/workflow-persist/workflow-persist.service';
 
 /**
@@ -16,7 +15,7 @@ import {WorkflowPersistService} from '../../common/service/user/workflow-persist
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.scss'],
   providers: [
-    {provide: SavedProjectService, useClass: StubSavedProjectService},
+    {provide: SavedWorkflowService, useClass: SavedWorkflowService},
     WorkflowPersistService
   ]
 })

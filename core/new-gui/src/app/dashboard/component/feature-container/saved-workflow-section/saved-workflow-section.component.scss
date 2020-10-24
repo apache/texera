@@ -27,16 +27,16 @@
 *              ******************
 **/
 $header-height: 70px;
-.saved-project-container{
+.saved-workflow-container {
   display: grid;
-  grid-template-rows : $header-height calc((100% - #{$header-height}))
+  grid-template-rows: $header-height calc((100% - #{$header-height}))
 }
 
 /**
 * the grid of the first row which contains the add and sort button.
 * The position of the first row is fix. no adaptation
 **/
-.project-section-title{
+.workflow-section-title {
   grid-row-start: 1;
   grid-row-end: 2;
 }
@@ -45,7 +45,7 @@ $header-height: 70px;
 * the grid of the list of saved project. Each project contains the name, created time and last
 * edited time. This section is flexible to expand downward.
 **/
-.project-list{
+.workflow-list {
   grid-row-start: 2;
   grid-row-end: 3;
   overflow: auto;

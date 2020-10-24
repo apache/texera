@@ -2,7 +2,7 @@ import {Injectable} from '@angular/core';
 import {HttpClient} from '@angular/common/http';
 import {AppSettings} from '../../../app-setting';
 import {Observable} from 'rxjs';
-import {WorkflowWebResponse} from '../../../type/workflow';
+import {Workflow} from '../../../type/workflow';
 
 export const WORKFLOW_URL = 'user/dictionary/validate';
 
@@ -23,15 +23,16 @@ export class WorkflowPersistService {
     const formData: FormData = new FormData();
     formData.append('userId', userID.toString());
     formData.append('workflowBody', savedWorkflow);
-    this.http.post<WorkflowWebResponse>(
+    this.http.post<Workflow>(
       `${AppSettings.getApiEndpoint()}/workflow/save-workflow`, formData).flatMap(
       res => {
         return Observable.of(res);
       }
     ).subscribe(
-      (response) => {
+      (workflow) => {
         console.log('response received');
-        localStorage.setItem('wfId', JSON.stringify(response.workflow.wfId));
+        localStorage.removeItem('wfId');
+        localStorage.setItem('wfId', JSON.stringify(workflow.wfId));
       },
       (error) => {
         console.error('error caught in component' + error);

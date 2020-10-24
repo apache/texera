@@ -1,6 +1,6 @@
-import { SavedProject } from '../../type/saved-project';
+import {SavedWorkflow} from '../../type/saved-workflow';
 
-export const MOCK_SAVED_PROJECT_LIST: SavedProject[] = [
+export const MOCK_SAVED_PROJECT_LIST: SavedWorkflow[] = [
   {
     id: '1',
     name: 'project 1',

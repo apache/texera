@@ -1,5 +1,5 @@
 
-export interface SavedProject {
+export interface SavedWorkflow {
   id: string;
   name: string;
   creationTime: string;

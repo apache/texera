@@ -1,20 +1,20 @@
-import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import {async, ComponentFixture, TestBed} from '@angular/core/testing';
 
 import {MatDialogModule} from '@angular/material/dialog';
 
-import { NgbModule, NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
-import { FormsModule } from '@angular/forms';
+import {NgbActiveModal, NgbModule} from '@ng-bootstrap/ng-bootstrap';
+import {FormsModule} from '@angular/forms';
 
-import { HttpClientModule } from '@angular/common/http';
+import {HttpClientModule} from '@angular/common/http';
 
-import { NgbdModalDeleteProjectComponent } from './ngbd-modal-delete-project.component';
+import {NgbdModalDeleteWorkflowComponent} from './ngbd-modal-delete-workflow.component';
 
 describe('NgbdModalDeleteProjectComponent', () => {
-  let component: NgbdModalDeleteProjectComponent;
-  let fixture: ComponentFixture<NgbdModalDeleteProjectComponent>;
+  let component: NgbdModalDeleteWorkflowComponent;
+  let fixture: ComponentFixture<NgbdModalDeleteWorkflowComponent>;
 
-  let deletecomponent: NgbdModalDeleteProjectComponent;
-  let deletefixture: ComponentFixture<NgbdModalDeleteProjectComponent>;
+  let deletecomponent: NgbdModalDeleteWorkflowComponent;
+  let deletefixture: ComponentFixture<NgbdModalDeleteWorkflowComponent>;
 
   const sampleProject = {
     id: '4',
@@ -25,7 +25,7 @@ describe('NgbdModalDeleteProjectComponent', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-      declarations: [ NgbdModalDeleteProjectComponent ],
+      declarations: [NgbdModalDeleteWorkflowComponent],
       providers: [
         NgbActiveModal
       ],
@@ -39,7 +39,7 @@ describe('NgbdModalDeleteProjectComponent', () => {
   }));
 
   beforeEach(() => {
-    fixture = TestBed.createComponent(NgbdModalDeleteProjectComponent);
+    fixture = TestBed.createComponent(NgbdModalDeleteWorkflowComponent);
     component = fixture.componentInstance;
   });
 
@@ -48,14 +48,14 @@ describe('NgbdModalDeleteProjectComponent', () => {
   });
 
   it('deleteProjectComponent deleteSavedProject should delete project in list', () => {
-    deletefixture = TestBed.createComponent(NgbdModalDeleteProjectComponent);
+    deletefixture = TestBed.createComponent(NgbdModalDeleteWorkflowComponent);
     deletecomponent = deletefixture.componentInstance;
 
     let getBool: Boolean;
     getBool = false;
 
-    deletecomponent.project = sampleProject;
-    deletecomponent.deleteSavedProject();
+    deletecomponent.workflow = sampleProject;
+    deletecomponent.deleteSavedWorkflow();
 
     expect(getBool).toEqual(false);
   });

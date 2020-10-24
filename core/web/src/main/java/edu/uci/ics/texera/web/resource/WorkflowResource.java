@@ -1,28 +1,24 @@
 package edu.uci.ics.texera.web.resource;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import edu.uci.ics.texera.dataflow.jooq.generated.tables.Workflow;
 import edu.uci.ics.texera.dataflow.jooq.generated.tables.records.WorkflowRecord;
 import edu.uci.ics.texera.dataflow.sqlServerInfo.UserSqlServer;
 import edu.uci.ics.texera.web.TexeraWebException;
 import edu.uci.ics.texera.web.response.GenericWebResponse;
 import io.dropwizard.jersey.sessions.Session;
-import org.checkerframework.checker.interning.qual.UnknownInterned;
 import org.glassfish.jersey.media.multipart.FormDataParam;
-import org.jooq.Record;
 import org.jooq.Record1;
 import org.jooq.Record3;
 import org.jooq.types.UInteger;
-import org.junit.experimental.theories.FromDataPoints;
 
 import javax.servlet.http.HttpSession;
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
-import java.io.IOException;
 
-import static edu.uci.ics.texera.dataflow.jooq.generated.Tables.WORKFLOW;
-import static edu.uci.ics.texera.dataflow.jooq.generated.Tables.WORKFLOW_OF_USER;
+import java.util.ArrayList;
+import java.util.List;
+
+import static edu.uci.ics.texera.dataflow.jooq.generated.Tables.*;
 
 /**
  * This file handles various request related to saved-workflows.
@@ -113,6 +109,21 @@ public class WorkflowResource {
         }
     }
 
+
+    @GET
+    @Path("/get")
+    public List<Workflow> getUserWorkflow(@Session HttpSession session) {
+        UInteger userId = UserResource.getUser(session).getUserID();
+        if (userId == null) {
+            return new ArrayList<Workflow>() {
+            };
+//            return  new [Workflow(UInteger.valueOf(1), UInteger.valueOf(1), "all user")];
+        }
+        // uncomment below to link user with workflow
+        // UInteger userID =
+        return getWorkflowByUser(userId);
+    }
+
     /**
      * This method handles the frontend's request to get a specific workflow to be displayed
      * at current design, it only takes the workflowID and searches within the database for the matching workflow
@@ -124,27 +135,20 @@ public class WorkflowResource {
      */
     @GET
     @Path("/get/{workflowID}")
-    public UserWorkflow getUserWorkflow(@PathParam("workflowID") UInteger workflowID, @Session HttpSession session) {
+    public Workflow getWorkflow(@PathParam("workflowID") UInteger workflowID,
+                                @Session HttpSession session) {
+
+        if (workflowID == null) {
+            return new Workflow(UInteger.valueOf(1), UInteger.valueOf(1), "all user");
+        }
         // uncomment below to link user with workflow
-        // UInteger userID = UserResource.getUser(session).getUserID();
+        // UInteger userID =
         Record3<UInteger, String, String> result = getWorkflowFromDatabase(workflowID);
 
         if (result == null) {
             throw new TexeraWebException("Workflow with id: " + workflowID + " does not exit.");
         }
-
-        try {
-            // the json string stored in USERWORKFLOW.WORKFLOWBODY correspond to the interface savedWorkflowBody
-            // in new-gui/src/app/workspace/service/save-workflow/save-workflow.service.ts
-            ObjectNode savedWorkflowBody = new ObjectMapper().readValue(result.get(WORKFLOW.CONTENT), ObjectNode.class);
-            return new UserWorkflow(
-                    result.get(WORKFLOW.WF_ID),
-                    result.get(WORKFLOW.NAME),
-                    savedWorkflowBody
-            );
-        } catch (IOException e) {
-            throw new TexeraWebException(e.getMessage());
-        }
+        return new Workflow(workflowID, UserResource.getUser(session).getUserID(), result.get(WORKFLOW.CONTENT));
     }
 
     /**
@@ -206,6 +210,21 @@ public class WorkflowResource {
                 .where(WORKFLOW.WF_ID.eq(workflowID))
                 .fetchOne();
     }
+
+    /**
+     * select * from table userworkflow where workflowID is @param "workflowID"
+     *
+     * @param userId
+     * @return
+     */
+    private List<Workflow> getWorkflowByUser(UInteger userId) {
+        return UserSqlServer.createDSLContext()
+                .select(WORKFLOW.WF_ID, WORKFLOW.NAME, WORKFLOW.CONTENT)
+                .from(WORKFLOW).join(WORKFLOW_OF_USER).on(WORKFLOW_OF_USER.WF_ID.eq(WORKFLOW.WF_ID))
+                .where(WORKFLOW_OF_USER.UID.eq(userId))
+                .fetchInto(Workflow.class);
+    }
+
 
     /**
      * update table userworkflow set workflowBody = @param "workflowBody" where workflowID = @param "workflowID"
