@@ -20,7 +20,7 @@ public class PythonUDFOpDesc extends OperatorDescriptor {
     @JsonPropertyDescription("input your code here")
     public String pythonScriptText;
 
-    @JsonProperty(value = "Python script file", required = true)
+    @JsonProperty("Python script file")
     @JsonPropertyDescription("name of the UDF script file")
     public String pythonScriptFile;
 
