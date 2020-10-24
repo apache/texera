@@ -20,7 +20,7 @@ export enum ChartType {
  */
 export interface WordCloudTuple extends Readonly<{
   word: string,
-  count: number
+  size: number
 }> {}
 
 /**

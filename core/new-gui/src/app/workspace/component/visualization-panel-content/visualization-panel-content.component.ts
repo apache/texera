@@ -52,11 +52,11 @@ export class VisualizationPanelContentComponent implements OnInit, AfterViewInit
 
   onClickGenerateWordCloud() {
     const dataToDisplay: object[] = [];
-    this.table.shift();
     const wordCloudTuples = this.table as ReadonlyArray<WordCloudTuple>;
 
+
     for (const tuple of wordCloudTuples) {
-      dataToDisplay.push([tuple.word, tuple.count]);
+      dataToDisplay.push([tuple.word, tuple.size]);
     }
 
     WordCloud(document.getElementById(VisualizationPanelContentComponent.WORD_CLOUD_ID) as HTMLElement,
