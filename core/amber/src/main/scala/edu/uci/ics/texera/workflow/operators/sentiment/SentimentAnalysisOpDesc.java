@@ -26,7 +26,7 @@ public class SentimentAnalysisOpDesc extends MapOpDesc {
         if (attribute == null) {
             throw new RuntimeException("sentiment analysis: attribute is null");
         }
-        return new OneToOneOpExecConfig(operatorIdentifier(), () -> new SentimentAnalysisOpExec(this));
+        return new OneToOneOpExecConfig(operatorIdentifier(), worker -> new SentimentAnalysisOpExec(this));
     }
 
     @Override
