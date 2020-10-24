@@ -12,12 +12,12 @@ import scala.util.Either;
 
 import java.util.*;
 
-public class PieChartLocalTupleProcessor implements OperatorExecutor {
+public class PieChartOpPartialExec implements OperatorExecutor {
     private final String nameColumn;
     private final String dataColumn;
     private List<Tuple> result;
 
-    public PieChartLocalTupleProcessor(String nameColumn, String dataColumn) {
+    public PieChartOpPartialExec(String nameColumn, String dataColumn) {
         this.nameColumn = nameColumn;
         this.dataColumn = dataColumn;
     }

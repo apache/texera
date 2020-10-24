@@ -11,14 +11,14 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-public class PieChartGlobalTupleProcessor implements OperatorExecutor {
+public class PieChartOpFinalExec implements OperatorExecutor {
     private final Double pruneRatio;
     private List<Tuple> tempList;
     private List<Tuple> resultList;
     private double sum = 0.0;
     private Schema resultSchema = null;
 
-    public PieChartGlobalTupleProcessor(Double pruneRatio) {
+    public PieChartOpFinalExec(Double pruneRatio) {
         this.pruneRatio = pruneRatio;
     }
 

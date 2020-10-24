@@ -28,14 +28,14 @@ class PieChartOpExecConfig(
   override lazy val topology: Topology = {
     val partialLayer = new ProcessorWorkerLayer(
       LayerTag(tag, "localPieChartProcessor"),
-      _ => new PieChartLocalTupleProcessor(nameColumn, dataColumn),
+      _ => new PieChartOpPartialExec(nameColumn, dataColumn),
       numWorkers,
       UseAll(),
       RoundRobinDeployment()
     )
     val finalLayer = new ProcessorWorkerLayer(
       LayerTag(tag, "globalPieChartProcessor"),
-      _ => new PieChartGlobalTupleProcessor(pruneRatio),
+      _ => new PieChartOpFinalExec(pruneRatio),
       1,
       FollowPrevious(),
       RoundRobinDeployment()
