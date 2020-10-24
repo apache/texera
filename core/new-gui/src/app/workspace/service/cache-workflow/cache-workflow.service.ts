@@ -1,22 +1,21 @@
 import {Injectable} from '@angular/core';
 import {WorkflowActionService} from '../workflow-graph/model/workflow-action.service';
-import {Observable} from '../../../../../node_modules/rxjs';
+import {Observable} from 'rxjs';
 import {Breakpoint, OperatorLink, OperatorPredicate, Point} from '../../types/workflow-common.interface';
 import {OperatorMetadataService} from '../operator-metadata/operator-metadata.service';
-import {WorkflowPersistService} from '../../../common/service/user/workflow-persist/workflow-persist.service';
 
 /**
- * SavedWorkflow is used to store the information of the workflow
+ * CachedWorkflow is used to store the information of the workflow
  *  1. all existing operators and their properties
  *  2. operator's position on the JointJS paper
  *  3. operator link predicates
  *
- * When the user refreshes the browser, the SaveWorkflow interface will be
+ * When the user refreshes the browser, the CachedWorkflow interface will be
  *  automatically saved and loaded once the refresh completes. This information
  *  will then be used to reload the entire workflow.
  *
  */
-export interface SavedWorkflow {
+export interface CachedWorkflow {
   operators: OperatorPredicate[];
   operatorPositions: { [key: string]: Point | undefined };
   links: OperatorLink[];
@@ -25,7 +24,7 @@ export interface SavedWorkflow {
 
 
 /**
- * SaveWorkflowService is responsible for saving the existing workflow and
+ *  CacheWorkflowService is responsible for saving the existing workflow and
  *  reloading back to the JointJS paper when the browser refreshes.
  *
  * It will listens to all the browser action events to update the saved workflow plan.
@@ -42,20 +41,19 @@ export interface SavedWorkflow {
 @Injectable({
   providedIn: 'root'
 })
-export class SaveWorkflowService {
+export class CacheWorkflowService {
 
   private static readonly LOCAL_STORAGE_KEY: string = 'workflow';
 
   constructor(
     private workflowActionService: WorkflowActionService,
-    private operatorMetadataService: OperatorMetadataService,
-    private workflowPersistService: WorkflowPersistService
+    private operatorMetadataService: OperatorMetadataService
   ) {
     this.handleAutoSaveWorkFlow();
 
     this.operatorMetadataService.getOperatorMetadata()
       .filter(metadata => metadata.operators.length !== 0)
-      .subscribe(() => this.loadWorkflow());
+      .subscribe(this.loadWorkflow);
   }
 
   /**
@@ -69,16 +67,16 @@ export class SaveWorkflowService {
       this.workflowActionService.getTexeraGraph().getAllOperators().map(op => op.operatorID), []);
 
     // get items in the storage
-    const savedWorkflowJson = localStorage.getItem(SaveWorkflowService.LOCAL_STORAGE_KEY);
-    if (!savedWorkflowJson) {
+    const cachedWorkflowStr = localStorage.getItem(CacheWorkflowService.LOCAL_STORAGE_KEY);
+    if (!cachedWorkflowStr) {
       return;
     }
 
-    const savedWorkflow: SavedWorkflow = JSON.parse(savedWorkflowJson);
+    const cachedWorkflow: CachedWorkflow = JSON.parse(cachedWorkflowStr);
 
     const operatorsAndPositions: { op: OperatorPredicate, pos: Point }[] = [];
-    savedWorkflow.operators.forEach(op => {
-      const opPosition = savedWorkflow.operatorPositions[op.operatorID];
+    cachedWorkflow.operators.forEach(op => {
+      const opPosition = cachedWorkflow.operatorPositions[op.operatorID];
       if (!opPosition) {
         throw new Error('position error');
       }
@@ -86,11 +84,9 @@ export class SaveWorkflowService {
     });
 
     const links: OperatorLink[] = [];
-    savedWorkflow.links.forEach(link => {
-      links.push(link);
-    });
+    links.push(...cachedWorkflow.links);
 
-    const breakpoints = new Map(Object.entries(savedWorkflow.breakpoints));
+    const breakpoints = new Map(Object.entries(cachedWorkflow.breakpoints));
 
     this.workflowActionService.addOperatorsAndLinks(operatorsAndPositions, links, breakpoints);
 
@@ -124,16 +120,16 @@ export class SaveWorkflowService {
       workflow.getAllOperators().forEach(op => operatorPositions[op.operatorID] =
         this.workflowActionService.getJointGraphWrapper().getOperatorPosition(op.operatorID));
 
-      const savedWorkflow: SavedWorkflow = {
+      const savedWorkflow: CachedWorkflow = {
         operators, operatorPositions, links, breakpoints
       };
 
-      localStorage.setItem(SaveWorkflowService.LOCAL_STORAGE_KEY, JSON.stringify(savedWorkflow));
+      localStorage.setItem(CacheWorkflowService.LOCAL_STORAGE_KEY, JSON.stringify(savedWorkflow));
     });
   }
 
   public getSavedWorkflow(): string | null {
-    return localStorage.getItem(SaveWorkflowService.LOCAL_STORAGE_KEY);
+    return localStorage.getItem(CacheWorkflowService.LOCAL_STORAGE_KEY);
   }
 
 }

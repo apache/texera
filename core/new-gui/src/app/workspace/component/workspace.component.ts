@@ -12,7 +12,7 @@ import {DynamicSchemaService} from '../service/dynamic-schema/dynamic-schema.ser
 import {SourceTablesService} from '../service/dynamic-schema/source-tables/source-tables.service';
 import {SchemaPropagationService} from '../service/dynamic-schema/schema-propagation/schema-propagation.service';
 import {ResultPanelToggleService} from '../service/result-panel-toggle/result-panel-toggle.service';
-import {SaveWorkflowService} from '../service/save-workflow/save-workflow.service';
+import {CacheWorkflowService} from '../service/cache-workflow/cache-workflow.service';
 import {WorkflowStatusService} from '../service/workflow-status/workflow-status.service';
 import {WorkflowWebsocketService} from '../service/workflow-websocket/workflow-websocket.service';
 
@@ -34,7 +34,7 @@ import {WorkflowWebsocketService} from '../service/workflow-websocket/workflow-w
     ExecuteWorkflowService,
     UndoRedoService,
     ResultPanelToggleService,
-    SaveWorkflowService,
+    CacheWorkflowService,
     ValidationWorkflowService,
     WorkflowStatusService,
     WorkflowWebsocketService,
@@ -49,7 +49,7 @@ export class WorkspaceComponent {
     // list additional services in constructor so they are initialized even if no one use them directly
     private sourceTablesService: SourceTablesService,
     private schemaPropagationService: SchemaPropagationService,
-    private saveWorkflowService: SaveWorkflowService,
+    private saveWorkflowService: CacheWorkflowService,
     private workflowWebsocketService: WorkflowWebsocketService,
   ) {
     this.resultPanelToggleService.getToggleChangeStream().subscribe(

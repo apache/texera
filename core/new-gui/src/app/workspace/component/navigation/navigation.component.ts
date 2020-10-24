@@ -9,7 +9,7 @@ import {ExecutionState} from '../../types/execute-workflow.interface';
 import {WorkflowStatusService} from '../../service/workflow-status/workflow-status.service';
 import {UserService} from '../../../common/service/user/user.service';
 import {WorkflowPersistService} from '../../../common/service/user/workflow-persist/workflow-persist.service';
-import {SaveWorkflowService} from '../../service/save-workflow/save-workflow.service';
+import {CacheWorkflowService} from '../../service/cache-workflow/cache-workflow.service';
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -51,7 +51,7 @@ export class NavigationComponent implements OnInit {
     public workflowStatusService: WorkflowStatusService,
     public undoRedo: UndoRedoService,
     public validationWorkflowService: ValidationWorkflowService,
-    private saveWorkflowService: SaveWorkflowService,
+    private saveWorkflowService: CacheWorkflowService,
     public workflowPersistService: WorkflowPersistService,
     private userService: UserService
   ) {
