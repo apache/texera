@@ -17,7 +17,7 @@ public class PieChartOpDesc extends VisualizationOperator {
     @JsonProperty(value = "data column", required = true)
     public String dataColumn;
 
-    @JsonProperty(value = "prune ratio", required = true, defaultValue = "0.9")
+    @JsonProperty(value = "prune ratio", required = true)
     public Double pruneRatio;
 
     @JsonProperty(value = "chart style", required = true)
