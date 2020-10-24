@@ -16,6 +16,8 @@ import edu.uci.ics.texera.workflow.operators.localscan.LocalCsvFileScanOpDesc
 import edu.uci.ics.texera.workflow.operators.regex.RegexOpDesc
 import edu.uci.ics.texera.workflow.operators.sentiment.SentimentAnalysisOpDesc
 import edu.uci.ics.texera.workflow.operators.sink.SimpleSinkOpDesc
+import edu.uci.ics.texera.workflow.operators.visualization.barChart.BarChartOpDesc
+import edu.uci.ics.texera.workflow.operators.visualization.lineChart.LineChartOpDesc
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
 
 @JsonTypeInfo(
@@ -31,7 +33,9 @@ import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStrin
     new Type(value = classOf[SpecializedFilterOpDesc], name = "Filter"),
     new Type(value = classOf[SentimentAnalysisOpDesc], name = "SentimentAnalysis"),
     new Type(value = classOf[AverageOpDesc], name = "Average"),
-    new Type(value = classOf[LinearRegressionOpDesc], name = "LinearRegression")
+    new Type(value = classOf[LinearRegressionOpDesc], name = "LinearRegression"),
+    new Type(value = classOf[LineChartOpDesc], name = "LineChart"),
+    new Type(value = classOf[BarChartOpDesc], name = "BarChart"),
 //    new Type(value = classOf[TexeraPythonUDFOpDesc], name = "PythonUDF"),
   )
 )

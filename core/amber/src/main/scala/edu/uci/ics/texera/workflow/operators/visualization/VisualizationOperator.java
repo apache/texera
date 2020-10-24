@@ -1,7 +1,7 @@
-package texera.operators.visualization;
+package edu.uci.ics.texera.workflow.operators.visualization;
 
-import texera.common.workflow.TexeraOperator;
+import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor;
 
-public abstract class VisualizationOperator extends TexeraOperator {
+public abstract class VisualizationOperator extends OperatorDescriptor {
     public abstract String chartType();
 }

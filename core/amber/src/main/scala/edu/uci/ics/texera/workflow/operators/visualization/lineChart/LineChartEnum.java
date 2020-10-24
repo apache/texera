@@ -1,7 +1,8 @@
-package texera.operators.visualization.lineChart;
+package edu.uci.ics.texera.workflow.operators.visualization.lineChart;
 
 import com.fasterxml.jackson.annotation.JsonValue;
-import texera.operators.visualization.VisualizationConstants;
+import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstants;
+
 
 public enum LineChartEnum {
     LINE(VisualizationConstants.LINE),
