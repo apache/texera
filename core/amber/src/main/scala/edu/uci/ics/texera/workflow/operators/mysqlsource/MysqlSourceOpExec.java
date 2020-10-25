@@ -88,11 +88,12 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
                                 case BOOLEAN:
                                     tupleBuilder.add(attr, !value.equals("0"));
                                     break;
-                                case ANY:
                                 case STRING:
-                                default:
                                     tupleBuilder.add(attr, value);
                                     break;
+                                case ANY:
+                                default:
+                                    throw new RuntimeException("MySQL Source: unhandled attribute type: " + columnType);
                             }
                         }
                         return tupleBuilder.build();

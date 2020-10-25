@@ -10,25 +10,14 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{ActorLayer, 
 import edu.uci.ics.amber.engine.architecture.worker.WorkerState
 import edu.uci.ics.amber.engine.common.ambertag.{LayerTag, OperatorIdentifier}
 import edu.uci.ics.amber.engine.operators.OpExecConfig
-import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
+import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecutor
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
 class MysqlSourceOpExecConfig(
     tag: OperatorIdentifier,
-    numWorkers: Int,
-    schema: Schema,
-    host: String,
-    port: String,
-    database: String,
-    table: String,
-    username: String,
-    password: String,
-    limit: Integer,
-    offset: Integer,
-    column: String,
-    keywords: String
+    opExec: Int => SourceOperatorExecutor
 ) extends OpExecConfig(tag) {
 
   override lazy val topology: Topology = {
@@ -36,22 +25,8 @@ class MysqlSourceOpExecConfig(
       Array(
         new GeneratorWorkerLayer(
           LayerTag(tag, "main"),
-          _ => {
-            new MysqlSourceOpExec(
-              schema,
-              host,
-              port,
-              database,
-              table,
-              username,
-              password,
-              limit,
-              offset,
-              column,
-              keywords
-            )
-          },
-          numWorkers,
+          opExec,
+          1,
           UseAll(), // it's source operator
           OneOnEach()
         )

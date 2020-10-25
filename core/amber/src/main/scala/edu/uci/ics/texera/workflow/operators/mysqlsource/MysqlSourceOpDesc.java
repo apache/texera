@@ -1,12 +1,11 @@
 package edu.uci.ics.texera.workflow.operators.mysqlsource;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import edu.uci.ics.amber.engine.operators.OpExecConfig;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor;
-
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
@@ -57,14 +56,19 @@ public class MysqlSourceOpDesc extends SourceOperatorDescriptor {
 
     @Override
     public OpExecConfig operatorExecutor() {
-        try{
-            return new MysqlSourceOpExecConfig(this.operatorIdentifier(), 1, this.querySchema(),
-                    host, port, database, table, username, password, limit, offset, column, keywords);
-        } catch (Exception e) {
-
-            return null;
-        }
-
+        return new MysqlSourceOpExecConfig(this.operatorIdentifier(), worker -> new MysqlSourceOpExec(
+                this.querySchema(),
+                host,
+                port,
+                database,
+                table,
+                username,
+                password,
+                limit,
+                offset,
+                column,
+                keywords
+        ));
     }
 
     @Override
@@ -79,6 +83,7 @@ public class MysqlSourceOpDesc extends SourceOperatorDescriptor {
     /**
      * make sure all the required parameters are not empty,
      * then query the remote Mysql server for the table schema
+     *
      * @return Texera.tuple.schama
      */
     @Override
@@ -87,21 +92,18 @@ public class MysqlSourceOpDesc extends SourceOperatorDescriptor {
                 || this.table == null || this.username == null || this.password == null) {
             return null;
         }
-        try {
-            return querySchema();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        return querySchema();
     }
 
     /**
      * establish a mysql connection with remote mysql server base on the info provided by the user
      * query the MetaData of the table and generate a Texera.tuple.schema accordingly
      * the "switch" code block shows how mysql datatypes are mapped to Texera AttributeTypes
+     *
      * @return
      * @throws Exception
      */
-    private Schema querySchema() throws Exception {
+    private Schema querySchema() {
         Schema.Builder schemaBuilder = Schema.newBuilder();
         try {
             Class.forName("com.mysql.cj.jdbc.Driver").newInstance();
@@ -111,27 +113,27 @@ public class MysqlSourceOpDesc extends SourceOperatorDescriptor {
             // set to readonly to improve efficiency
             connection.setReadOnly(true);
             DatabaseMetaData databaseMetaData = connection.getMetaData();
-            ResultSet columns = databaseMetaData.getColumns(null,null, this.table, null);
-            while(columns.next()) {
+            ResultSet columns = databaseMetaData.getColumns(null, null, this.table, null);
+            while (columns.next()) {
                 String columnName = columns.getString("COLUMN_NAME");
                 int datatype = columns.getInt("DATA_TYPE");
                 switch (datatype) {
+                    case Types.BIT: //-7 Types.BIT
+                    case Types.TINYINT: //-6 Types.TINYINT
                     case Types.SMALLINT: //5 Types.SMALLINT
                     case Types.INTEGER: //4 Types.INTEGER
-                    case Types.BINARY: //-2 Types.BINARY
-                    case Types.TINYINT: //-6 Types.TINYINT
-                        schemaBuilder.add(new Attribute(columnName,AttributeType.INTEGER));
+                        schemaBuilder.add(new Attribute(columnName, AttributeType.INTEGER));
                         break;
                     case Types.FLOAT: //6 Types.FLOAT
                     case Types.REAL: //7 Types.REAL
                     case Types.DOUBLE: //8 Types.DOUBLE
                     case Types.NUMERIC: //3 Types.NUMERIC
-                        schemaBuilder.add(new Attribute(columnName,AttributeType.DOUBLE));
+                        schemaBuilder.add(new Attribute(columnName, AttributeType.DOUBLE));
                         break;
                     case Types.BOOLEAN: //16 Types.BOOLEAN
-                    case Types.BIT: //-7 Types.BIT
-                        schemaBuilder.add(new Attribute(columnName,AttributeType.BOOLEAN));
+                        schemaBuilder.add(new Attribute(columnName, AttributeType.BOOLEAN));
                         break;
+                    case Types.BINARY: //-2 Types.BINARY
                     case Types.DATE: //91 Types.DATE
                     case Types.TIME: //92 Types.TIME
                     case Types.TIMESTAMP:  //93 Types.TIMESTAMP
@@ -141,16 +143,17 @@ public class MysqlSourceOpDesc extends SourceOperatorDescriptor {
                     case Types.VARCHAR: //12 Types.VARCHAR
                     case Types.NULL: //0 Types.NULL
                     case Types.OTHER: //1111 Types.OTHER
-                    default:
-                        schemaBuilder.add(new Attribute(columnName,AttributeType.STRING));
+                        schemaBuilder.add(new Attribute(columnName, AttributeType.STRING));
                         break;
+                    default:
+                        throw new RuntimeException("MySQL Source: unknown data type: " + datatype);
                 }
             }
             connection.close();
             return schemaBuilder.build();
         } catch (SQLException | InstantiationException | IllegalAccessException | ClassNotFoundException | ClassCastException e) {
             e.printStackTrace();
-            throw new Exception("MysqlSource failed to connect to mysql database." + e.getMessage());
+            throw new RuntimeException("Mysql Source failed to connect to mysql database." + e.getMessage());
         }
     }
 
