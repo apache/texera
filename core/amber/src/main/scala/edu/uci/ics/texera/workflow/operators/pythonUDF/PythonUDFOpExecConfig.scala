@@ -12,19 +12,20 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{ActorLayer, 
 import edu.uci.ics.amber.engine.architecture.worker.WorkerState
 import edu.uci.ics.amber.engine.common.ambertag.{LayerTag, OperatorIdentifier}
 import edu.uci.ics.amber.engine.operators.OpExecConfig
+import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
-class PythonUDFMetadata(
+class PythonUDFOpExecConfig(
     tag: OperatorIdentifier,
-    val numWorkers: Int,
-    val pythonScriptFile: String,
-    val inputColumns: mutable.Buffer[String],
-    val outputColumns: mutable.Buffer[String],
-    val outerFiles: mutable.Buffer[String],
-    val batchSize: Int
+    numWorkers: Int,
+    pythonScriptFile: String,
+    inputColumns: mutable.Buffer[String],
+    outputColumns: mutable.Buffer[Attribute],
+    outerFiles: mutable.Buffer[String],
+    batchSize: Int
 ) extends OpExecConfig(tag) {
   override lazy val topology: Topology = {
     new Topology(
@@ -35,7 +36,7 @@ class PythonUDFMetadata(
             new PythonUDFOpExec(
               pythonScriptFile,
               new util.ArrayList[String](inputColumns.asJava),
-              new util.ArrayList[String](outputColumns.asJava),
+              new util.ArrayList[Attribute](outputColumns.asJava),
               new util.ArrayList[String](outerFiles.asJava),
               batchSize
             ),
