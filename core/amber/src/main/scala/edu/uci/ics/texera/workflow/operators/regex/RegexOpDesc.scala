@@ -16,7 +16,7 @@ class RegexOpDesc extends FilterOpDesc {
   var regex: String = _
 
   override def operatorExecutor: OneToOneOpExecConfig = {
-    new OneToOneOpExecConfig(this.operatorIdentifier, () => new RegexOpExec(this))
+    new OneToOneOpExecConfig(this.operatorIdentifier, _ => new RegexOpExec(this))
   }
 
   override def operatorInfo: OperatorInfo =

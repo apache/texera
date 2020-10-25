@@ -1,0 +1,14 @@
+::ng-deep.mat-dialog-container {
+  resize: both;
+  overflow: auto;
+  background: #fff;
+}
+
+
+[mat-dialog-title] {
+  margin: -24px -24px 0px -24px !important;
+  padding: 10px 24px;
+  background: #369;
+  color: #fff;
+  text-align: center;
+}
