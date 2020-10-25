@@ -325,6 +325,7 @@ export class ExecuteWorkflowService {
   }
 
   private updateExecutionState(stateInfo: ExecutionStateInfo): void {
+    this.updateWorkflowActionLock(stateInfo);
     if (isEqual(this.currentState, stateInfo)) {
       return;
     }
@@ -339,6 +340,30 @@ export class ExecuteWorkflowService {
     this.currentState = stateInfo;
     // emit event
     this.executionStateStream.next({ previous: previousState, current: this.currentState });
+  }
+
+  /**
+   * enables or disables workflow action service based on execution state
+   */
+  private updateWorkflowActionLock(stateInfo: ExecutionStateInfo): void {
+    console.log('state: ', stateInfo.state);
+    switch (stateInfo.state) {
+      case ExecutionState.Completed:
+      case ExecutionState.Failed:
+      case ExecutionState.Uninitialized:
+        this.workflowActionService.enableWorkflowModification();
+        return;
+      case ExecutionState.Paused:
+      case ExecutionState.Pausing:
+      case ExecutionState.Recovering:
+      case ExecutionState.Resuming:
+      case ExecutionState.Running:
+      case ExecutionState.WaitingToRun:
+        this.workflowActionService.disableWorkflowModification();
+        return;
+      default:
+        return;
+    }
   }
 
   /**
