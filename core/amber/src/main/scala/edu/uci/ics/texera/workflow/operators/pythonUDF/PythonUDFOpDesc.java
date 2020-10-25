@@ -16,7 +16,11 @@ import java.util.List;
 
 public class PythonUDFOpDesc extends OperatorDescriptor {
 
-    @JsonProperty(value = "Python script file", required = true)
+    @JsonProperty("Python script")
+    @JsonPropertyDescription("input your code here")
+    public String pythonScriptText;
+
+    @JsonProperty("Python script file")
     @JsonPropertyDescription("name of the UDF script file")
     public String pythonScriptFile;
 
@@ -39,6 +43,7 @@ public class PythonUDFOpDesc extends OperatorDescriptor {
     @Override
     public OpExecConfig operatorExecutor() {
         return new PythonUDFOpExecConfig(this.operatorIdentifier(), Constants.defaultNumWorkers(),
+                this.pythonScriptText,
                 this.pythonScriptFile,
                 JavaConverters.asScalaIteratorConverter(this.inputColumns.iterator()).asScala().toBuffer(),
                 JavaConverters.asScalaIteratorConverter(this.outputColumns.iterator()).asScala().toBuffer(),

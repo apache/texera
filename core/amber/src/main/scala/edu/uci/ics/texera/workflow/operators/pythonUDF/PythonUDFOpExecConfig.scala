@@ -21,6 +21,7 @@ import scala.concurrent.ExecutionContext
 class PythonUDFOpExecConfig(
     tag: OperatorIdentifier,
     numWorkers: Int,
+    pythonScriptText: String,
     pythonScriptFile: String,
     inputColumns: mutable.Buffer[String],
     outputColumns: mutable.Buffer[Attribute],
@@ -34,6 +35,7 @@ class PythonUDFOpExecConfig(
           LayerTag(tag, "main"),
           _ =>
             new PythonUDFOpExec(
+              pythonScriptText,
               pythonScriptFile,
               new util.ArrayList[String](inputColumns.asJava),
               new util.ArrayList[Attribute](outputColumns.asJava),
