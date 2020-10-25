@@ -7,7 +7,7 @@
  */
 export enum ChartType {
   PIE = 'pie',
-  DOUNT = 'dount',
+  DONUT = 'donut',
   BAR = 'bar',
   STACKED_BAR =  'stacked bar',
   WORD_CLOUD = 'word cloud',
@@ -20,7 +20,7 @@ export enum ChartType {
  */
 export interface WordCloudTuple extends Readonly<{
   word: string,
-  count: number
+  size: number
 }> {}
 
 /**
