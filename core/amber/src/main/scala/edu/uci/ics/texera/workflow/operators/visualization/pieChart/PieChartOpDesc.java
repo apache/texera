@@ -9,6 +9,14 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator;
 
+/**
+ * PieChart is a visualization operator that can be used to get tuples for pie chart.
+ * PieChart returns tuples with name of data (String) and a number (the input can be int, double or String number,
+ * but the output will be Double).
+ * Note here we assume every name has exactly one data.
+ * @author Mingji Han, Xiaozhen Liu
+ *
+ */
 public class PieChartOpDesc extends VisualizationOperator {
 
     @JsonProperty(value = "name column", required = true)
