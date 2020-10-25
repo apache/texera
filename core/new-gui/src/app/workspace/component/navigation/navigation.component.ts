@@ -8,6 +8,7 @@ import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-grap
 import { ValidationWorkflowService } from '../../service/validation/validation-workflow.service';
 import { ExecutionState } from './../../types/execute-workflow.interface';
 import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
+import { Subscription } from 'rxjs';
 
 /**
  * NavigationComponent is the top level navigation bar that shows
