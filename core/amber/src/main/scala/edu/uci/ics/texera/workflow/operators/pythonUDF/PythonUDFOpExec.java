@@ -18,6 +18,8 @@ import scala.collection.Iterator;
 import scala.util.Either;
 import scala.collection.JavaConverters;
 
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.URI;
@@ -25,11 +27,13 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 public class PythonUDFOpExec implements OperatorExecutor {
-    private final String pythonScriptPath;
+    private String pythonScriptPath;
+    private final String pythonScriptText;
     private final ArrayList<String> inputColumns;
     private final ArrayList<Attribute> outputColumns;
     private final ArrayList<String> outerFilePaths;
     private final int batchSize;
+    private final boolean isDynamic;
 
     private final HashMap<String, String> params = new HashMap<>();
 
@@ -46,23 +50,44 @@ public class PythonUDFOpExec implements OperatorExecutor {
     private Queue<Tuple> inputTupleBuffer;
     private Queue<Tuple> outputTupleBuffer;
 
-    PythonUDFOpExec(String pythonScriptFile, ArrayList<String> inputColumns, ArrayList<Attribute> outputColumns,
-                    ArrayList<String> outerFiles, int batchSize) {
+    PythonUDFOpExec(String pythonScriptText, String pythonScriptFile, ArrayList<String> inputColumns,
+                            ArrayList<Attribute> outputColumns, ArrayList<String> outerFiles, int batchSize) {
+        this.pythonScriptText = pythonScriptText;
         this.pythonScriptPath = pythonScriptFile;
         this.inputColumns = inputColumns;
         this.outputColumns = outputColumns;
         this.outerFilePaths = new ArrayList<>();
         for (String s : outerFiles) outerFilePaths.add(getPythonResourcePath(s));
         this.batchSize = batchSize;
+        isDynamic = pythonScriptFile == null || pythonScriptFile.isEmpty();
     }
+
 
     @Override
     public void open() {
         try {
+            pythonScriptPath = isDynamic ?
+                    getPythonResourcePath(String.valueOf(new Random().nextLong())) + ".py"
+                    : getPythonResourcePath(pythonScriptPath);
+            if (isDynamic) {
+                // dynamic -> create a temp file and write the code into the file
+                File tempScriptFile = new File(pythonScriptPath);
+
+                if (tempScriptFile.createNewFile()) {
+                    FileWriter fileWriter = new FileWriter(pythonScriptPath);
+                    fileWriter.write(pythonScriptText);
+                    fileWriter.close();
+                }
+            } else {
+                // static -> check if the script file exists
+                File scriptFile = new File(pythonScriptPath);
+                if (!scriptFile.exists()) throw new Exception("Script file doest not exist!");
+            }
+
             int portNumber = getFreeLocalPort();
             Location location = new Location(URI.create("grpc+tcp://localhost:" + portNumber));
             List<String> args = new ArrayList<>(
-                    Arrays.asList(PYTHON, DAEMON_SCRIPT_PATH, Integer.toString(portNumber), getPythonResourcePath(pythonScriptPath))
+                    Arrays.asList(PYTHON, DAEMON_SCRIPT_PATH, Integer.toString(portNumber), pythonScriptPath)
             );
 
             ProcessBuilder processBuilder = new ProcessBuilder(args).inheritIO();
@@ -85,9 +110,14 @@ public class PythonUDFOpExec implements OperatorExecutor {
                 }
             }
             if (tryCount == MAX_TRY_COUNT)
-                throw new RuntimeException("Exceeded try limit of 5 when connecting to Flight Server!");
+                throw new RuntimeException("Exceeded try limit of " + MAX_TRY_COUNT +" when connecting to Flight Server!");
         } catch (Exception e) {
-            throw new RuntimeException(e.getMessage());
+            e.printStackTrace();
+            try {
+                if (isDynamic) deleteTempFile(pythonScriptPath);
+            } catch (Exception innerException) {
+                innerException.printStackTrace();
+            }
         }
 
         // Send user args to Server.
@@ -108,6 +138,18 @@ public class PythonUDFOpExec implements OperatorExecutor {
             writeArrowStream(flightClient, argsTuples, globalRootAllocator, convertAmber2ArrowSchema(argsSchema), "args", batchSize);
             flightClient.doAction(new Action("open")).next().getBody();
         } catch (Exception e) {
+            e.printStackTrace();
+            try {
+                if (isDynamic) deleteTempFile(pythonScriptPath);
+            } catch (Exception innerException) {
+                innerException.printStackTrace();
+            }
+            closeAndThrow(flightClient, e);
+        }
+        // Finally, delete the temp file because it has been loaded in Python.
+        try {
+            if (isDynamic) deleteTempFile(pythonScriptPath);
+        } catch (Exception e) {
             closeAndThrow(flightClient, e);
         }
 
@@ -116,7 +158,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
 
     @Override
     public void close() {
-        closeClientAndServer(flightClient);
+        closeClientAndServer(flightClient, true);
     }
 
     @Override
@@ -161,6 +203,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
     public String getParam(String query) {
         return params.getOrDefault(query, null);
     }
+
 
     private void processOneBatch() {
         writeArrowStream(flightClient, inputTupleBuffer, globalRootAllocator, globalInputSchema, "toPython", batchSize);
@@ -449,14 +492,14 @@ public class PythonUDFOpExec implements OperatorExecutor {
      *
      * @param client The client to close that is still connected to the Arrow Flight server.
      */
-    private static void closeClientAndServer(FlightClient client) {
+    private static void closeClientAndServer(FlightClient client, boolean closeUDF) {
         try {
-            client.doAction(new Action("close")).next().getBody();
+            if (closeUDF) client.doAction(new Action("close")).next().getBody();
             client.doAction(new Action("shutdown")).next();
             globalRootAllocator.close();
             client.close();
         } catch (Exception e) {
-            throw new RuntimeException(e.getMessage());
+            e.printStackTrace();
         }
     }
 
@@ -468,8 +511,15 @@ public class PythonUDFOpExec implements OperatorExecutor {
      * @param e      the exception to be wrapped into Amber Exception.
      */
     private static void closeAndThrow(FlightClient client, Exception e) {
-        closeClientAndServer(client);
+        closeClientAndServer(client, false);
         e.printStackTrace();
         throw new RuntimeException(e.getMessage());
+    }
+
+    private static void deleteTempFile(String filePath) throws Exception {
+        File tempFile = new File(filePath);
+        if (tempFile.exists()) {
+            if (!tempFile.delete()) throw new Exception("Could not delete temp file");
+        }
     }
 }
