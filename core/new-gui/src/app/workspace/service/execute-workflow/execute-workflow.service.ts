@@ -346,7 +346,6 @@ export class ExecuteWorkflowService {
    * enables or disables workflow action service based on execution state
    */
   private updateWorkflowActionLock(stateInfo: ExecutionStateInfo): void {
-    console.log('state: ', stateInfo.state);
     switch (stateInfo.state) {
       case ExecutionState.Completed:
       case ExecutionState.Failed:

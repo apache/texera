@@ -5,7 +5,7 @@ import { JointGraphWrapper } from './joint-graph-wrapper';
 import { JointUIService } from './../../joint-ui/joint-ui.service';
 import { WorkflowGraph, WorkflowGraphReadonly } from './workflow-graph';
 import { Injectable } from '@angular/core';
-import { Subject, Observable } from 'rxjs';
+import { BehaviorSubject, Observable } from 'rxjs';
 import { Point, OperatorPredicate, OperatorLink, OperatorPort, Breakpoint } from '../../../types/workflow-common.interface';
 
 import * as joint from 'jointjs';
@@ -48,7 +48,7 @@ export class WorkflowActionService {
   private readonly jointGraphWrapper: JointGraphWrapper;
   private readonly syncTexeraModel: SyncTexeraModel;
   private workflowModificationEnabled = true;
-  private enableModificationStream = new Subject<boolean>();
+  private enableModificationStream = new BehaviorSubject<boolean>(true);
 
   constructor(
     private operatorMetadataService: OperatorMetadataService,
