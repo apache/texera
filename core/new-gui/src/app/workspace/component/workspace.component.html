@@ -1,4 +1,5 @@
-<div [ngClass]="{ 'mat-typography' : true, 'grid-container' : true,
+<div [ngClass]="{'grid-container' : true,
+'texera-workspace' : true,
 'texera-original-workspace-grid-container' : !showResultPanel ,
 'texera-workspace-grid-container' : showResultPanel}">
   <texera-navigation class="texera-navigation-grid-container grid-container"
@@ -16,9 +17,8 @@
   <texera-workflow-editor class="texera-workflow-editor-grid-container grid-container"
                           tourAnchor="texera-workflow-editor-grid-container">
   </texera-workflow-editor>
-  <!-- <texera-mini-map [ngClass]= "{'texera-mini-map' : !showResultPanel ,
-                                'texera-mini-map-with-result' : showResultPanel}">
-       </texera-mini-map> -->
+  <texera-mini-map  class="texera-mini-map">
+       </texera-mini-map>
   <texera-result-panel-toggle
     class="texera-result-panel-toggle-grid-container grid-container">
   </texera-result-panel-toggle>
@@ -26,6 +26,4 @@
   <texera-result-panel class="texera-result-panel-grid-container grid-container"
                        tourAnchor="texera-result-view-grid-container">
   </texera-result-panel>
-
-  <div class="texera-mini-map-navigator" id="mini-map-navigator-id"></div>
 </div>

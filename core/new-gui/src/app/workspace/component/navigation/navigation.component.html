@@ -1,83 +1,83 @@
-<nav class="texera-navigation-body navbar navbar-expand-sm bg-dark navbar-dark">
-  <a class="navbar-brand texera-navigation-title" href="#">
-    Texera <span class="version-number">0.5.0</span>
-  </a>
-  <div class="collapse navbar-collapse texera-navigation-utilities">
-    <i class="navbar-brand utility-button fa fa-search-minus" (click)="onClickZoomOut()" title="zoom out"></i>
-    <i class="navbar-brand utility-button fa fa-search-plus" (click)="onClickZoomIn()" title="zoom in"></i>
-    <i (click)="onClickRestoreZoomOffsetDefault()" class="navbar-brand utility-button fa fa-arrows-alt"
-       title="reset zoom"></i>
-    <i (click)="onClickDeleteAllOperators()"
-       [ngClass]="{'utility-button-disabled': !hasOperators(), 'utility-button': hasOperators()}"
-       class="navbar-brand fa fa-trash" title="delete all"></i>
-
-    <div class="d-inline-block" ngbDropdown>
-      <button [disabled]="!executionResultID" class="drop-down-button" ngbDropdownToggle>
-        <i [ngClass]="{'utility-button-disabled' : !executionResultID,
-          'utility-button': executionResultID}"
-           class="navbar-brand fa fa-cloud-download drop-down-icon" id="downloadExcelOptions"
-           title="download execution result"></i>
-      </button>
-      <div aria-labelledby="downloadExcelOptions" class="drop-down-menu" ngbDropdownMenu>
-        <button (click)="onClickDownloadExecutionResult('json')" class="drop-down-item"
-                ngbDropdownItem>Json File (*.json)
+<div class='texera-navigation-body'>
+  <div class='texera-navigation-padded'>
+    <div class='texera-navigation-title'>
+      <a href="#">
+        Texera <span class="version-number">0.5.1</span>
+      </a>
+    </div>
+    <div class='texera-navigation-utilities'>
+      <nz-button-group nzSize = "large">
+        <button nz-button (click)="onClickZoomOut()" title="zoom out">
+          <i nz-icon nzType="zoom-out" nzTheme="outline"></i>
         </button>
-        <button (click)="onClickDownloadExecutionResult('csv')" class="drop-down-item"
-                ngbDropdownItem> CSV File (*.csv)
+        <button nz-button (click)="onClickZoomIn()" title="zoom in">
+          <i nz-icon nzType="zoom-in" nzTheme="outline"></i>
         </button>
-        <button (click)="onClickDownloadExecutionResult('xlsx')" class="drop-down-item"
-                ngbDropdownItem>XLSX File (*.xlsx)
+        <button (click)="onClickRestoreZoomOffsetDefault()" nz-button title="reset zoom">
+          <i nz-icon nzType="fullscreen" nzTheme="outline"></i>
         </button>
-      </div>
+        <button nz-button (click)="onClickDeleteAllOperators()" title="delete all">
+          <i nz-icon nzType="delete" nzTheme="outline"></i>
+        </button>
+        <button nz-button [disabled]="!executionResultID"
+          [nzDisabled]="!executionResultID" nz-dropdown [nzDropdownMenu]="menu"
+          id="downloadExcelOptions" title="download execution result">
+          <i nz-icon nzType="cloud-download" nzTheme="outline"></i>
+        </button>
+        <nz-dropdown-menu #menu="nzDropdownMenu">
+          <ul nz-menu nzSelectable>
+            <li nz-menu-item class="drop-down-item" (click)="onClickDownloadExecutionResult('json')">Json File
+              (*.json)
+            <li nz-menu-item class="drop-down-item" (click)="onClickDownloadExecutionResult('csv')"> CSV File
+              (*.csv)
+            </li>
+            <li nz-menu-item class="drop-down-item" (click)="onClickDownloadExecutionResult('xlsx')">XLSX
+              File
+              (*.xlsx)
+            </li>
+          </ul>
+        </nz-dropdown-menu>
+      </nz-button-group>
     </div>
 
-
-  </div>
-  <div class="collapse navbar-collapse texera-navigation-execute">
-    <div class="button" tourAnchor="texera-workspace-navigation-run">
-      <button class="btn btn-secondary texera-workspace-tour-run" (click)="undoRedo.undoAction()">
+    <div
+    [ngClass] = "{'texera-navigation-execute': true, 'reveal-stop-button' : executionState != ExecutionState.Uninitialized && executionState != ExecutionState.Completed && executionState != ExecutionState.Failed}">
+      <nz-button-group nzSize = "large">
+        <button class="animate-to-reveal-stop-button" nz-button nzType="default" [disabled]="undoRedo.getUndoLength() == 0" (click)="undoRedo.undoAction()">
+          <i nz-icon nzType="undo" nzTheme="outline"></i>
+        </button>
+        <button class="animate-to-reveal-stop-button"  nz-button nzType="default" [disabled]="undoRedo.getRedoLength() == 0" (click)="undoRedo.redoAction()">
+          <i nz-icon nzType="redo" nzTheme="outline"></i>
+        </button>
+        <button class="animate-to-reveal-stop-button"  nz-button nzType="default" (click)="tourService.toggle()">
+          <i nz-icon nzType="question-circle" nzTheme="outline"></i>
+        </button>
+        <button nz-button
+        nzType='primary'
+        class="texera-navigation-run-button animate-to-reveal-stop-button"
+        [disabled]="runDisable"
+        (click)="this.onClickRunHandler()">
+          <i class="texera-navigation-run-button-icon" nz-icon nzType="{{runIcon}}" nzTheme="outline"></i>
           <span>
-            <i id="texera-undo-icon" class="fa fa-arrow-left" aria-hidden="true"></i>
+            {{ runButtonText }}
           </span>
-      </button>
-      <button class="btn btn-secondary texera-workspace-tour-run" (click)="undoRedo.redoAction()">
-          <span>
-            <i aria-hidden="true" class="fa fa-arrow-right" id="texera-redo-icon"></i>
-          </span>
-      </button>
+        </button>
+        <button nz-button
+        #runStopButton
+        title="Force Stop"
+        nzType='primary'
+        nzDanger
+        [disabled] = "executionState == ExecutionState.Uninitialized || executionState == ExecutionState.Completed || executionState == ExecutionState.Failed"
+        class = "texera-navigation-stop-button"
+        (click)="this.handleKill()">
+        <i nz-icon nzType="exclamation-circle" nzTheme="outline"></i>
+        </button>
+      </nz-button-group>
+      <button [routerLink]="'/dashboard'" mat-raised-button> Dashboard</button>
+      <button (click)=onClickSaveWorkflow() mat-raised-button> Save Workflow</button>
 
-      <div class="button">
-        <button (click)="tourService.toggle()" class="btn btn-secondary texera-workspace-tour-run"
-                tourAnchor="start.tour">
-              <span>
-                <i id="texera-tour-icon" class="fa fa-question-circle-o" aria-hidden="true"></i>
-              </span>
-        </button>
-        <button (click)="this.handleKill()"
-                *ngIf="executionState != ExecutionState.Uninitialized && executionState != ExecutionState.Completed"
-                [ngStyle]="{'background-color': '#cc3300'}"
-                class="texera-navigation-run-button texera-navigation-run-text"
-                mat-raised-button>
-            <span>
-                {{ 'kill' }}
-            </span>
-        </button>
-        <button (click)="this.onClickHandler()" [disabled]="!isWorkflowValid"
-                [ngStyle]="{'background-color': '#5081f3','opacity' : isWorkflowValid ? '' : '0.7'}"
-                class="texera-navigation-run-button texera-navigation-run-text"
-                mat-raised-button>
-              <span>
-                <i *ngIf="!showSpinner" id="texera-run-icon" class="fa fa-play" aria-hidden="true"></i>
-                <i *ngIf="showSpinner" id="texera-pause-icon" class="fa fa-spinner fa-spin" aria-hidden="true"></i>
-              </span>
-          <span>
-                  {{ buttonText }}
-              </span>
-        </button>
-        <button [routerLink]="'/dashboard'" mat-raised-button> Dashboard</button>
-        <button (click)=onClickSaveWorkflow() mat-raised-button> Save Workflow</button>
-      </div>
     </div>
   </div>
-</nav>
+</div>
+
 

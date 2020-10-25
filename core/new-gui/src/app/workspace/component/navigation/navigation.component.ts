@@ -38,10 +38,11 @@ export class NavigationComponent implements OnInit {
   public isWorkflowValid: boolean = true; // this will check whether the workflow error or not
 
   // variable binded with HTML to decide if the running spinner should show
-  public buttonText = 'Run';
-  public showSpinner = false;
-  public disable = false;
+  public runButtonText = 'Run';
+  public runIcon = 'play-circle';
+  public runDisable = false;
   public executionResultID: string | undefined;
+  public onClickRunHandler = () => {};
 
   // tslint:disable-next-line:member-ordering
   constructor(
@@ -58,23 +59,21 @@ export class NavigationComponent implements OnInit {
     this.executionState = executeWorkflowService.getExecutionState().state;
     // return the run button after the execution is finished, either
     //  when the value is valid or invalid
-    const initBehavior = this.getBehavior();
-    this.buttonText = initBehavior.text;
-    this.showSpinner = initBehavior.spinner;
-    this.disable = initBehavior.disable;
-    this.onClickHandler = initBehavior.onClick;
+    const initBehavior = this.getRunButtonBehavior(this.executionState, this.isWorkflowValid);
+    this.runButtonText = initBehavior.text;
+    this.runIcon = initBehavior.icon;
+    this.runDisable = initBehavior.disable;
+    this.onClickRunHandler = initBehavior.onClick;
 
     executeWorkflowService.getExecutionStateStream().subscribe(
       event => {
         this.executionState = event.current.state;
-        if (event.current.state === ExecutionState.Completed) {
-          this.executionResultID = event.current.resultID;
+        switch (event.current.state) {
+          case ExecutionState.Completed:
+            this.executionResultID = event.current.resultID;
+            break;
         }
-        const behavior = this.getBehavior();
-        this.buttonText = behavior.text;
-        this.showSpinner = behavior.spinner;
-        this.disable = behavior.disable;
-        this.onClickHandler = behavior.onClick;
+        this.applyRunButtonBehavior(this.getRunButtonBehavior(this.executionState, this.isWorkflowValid));
       }
     );
 
@@ -83,64 +82,76 @@ export class NavigationComponent implements OnInit {
       .subscribe(value => this.isWorkflowValid = Object.keys(value.errors).length === 0);
   }
 
-  public onClickHandler = () => {
-  };
-
   ngOnInit() {
   }
 
-  public getBehavior(): {
+  // apply a behavior to the run button via bound variables
+  public applyRunButtonBehavior(
+    behavior: {
+      text: string,
+      icon: string,
+      disable: boolean,
+      onClick: () => void
+    }
+  ) {
+    this.runButtonText = behavior.text;
+    this.runIcon = behavior.icon;
+    this.runDisable = behavior.disable;
+    this.onClickRunHandler = behavior.onClick;
+  }
+
+  public getRunButtonBehavior(executionState: ExecutionState, isWorkflowValid: boolean): {
     text: string,
-    spinner: boolean,
+    icon: string,
     disable: boolean,
     onClick: () => void
   } {
-    if (!this.isWorkflowValid) {
+    if (!isWorkflowValid) {
       return {
-        text: 'Run', spinner: false, disable: true, onClick: () => {
+        text: 'Error', icon: 'exclamation-circle', disable: true, onClick: () => {
         }
       };
     }
-    switch (this.executionState) {
+    switch (executionState) {
       case ExecutionState.Uninitialized:
       case ExecutionState.Completed:
       case ExecutionState.Failed:
         return {
-          text: 'Run', spinner: false, disable: false,
+          text: 'Run', icon: 'play-circle', disable: false,
           onClick: () => this.executeWorkflowService.executeWorkflow()
         };
       case ExecutionState.WaitingToRun:
         return {
-          text: 'Submitting', spinner: true, disable: true,
+          text: 'Submitting', icon: 'loading', disable: true,
           onClick: () => {
           }
         };
       case ExecutionState.Running:
         return {
-          text: 'Pause', spinner: true, disable: false,
+          text: 'Pause', icon: 'loading', disable: false,
           onClick: () => this.executeWorkflowService.pauseWorkflow()
         };
       case ExecutionState.Paused:
       case ExecutionState.BreakpointTriggered:
         return {
-          text: 'Resume', spinner: false, disable: false,
+          text: 'Resume', icon: 'pause-circle', disable: false,
           onClick: () => this.executeWorkflowService.resumeWorkflow()
         };
       case ExecutionState.Pausing:
         return {
-          text: 'Pausing', spinner: true, disable: true,
+          text: 'Pausing', icon: 'loading', disable: true,
           onClick: () => {
           }
         };
       case ExecutionState.Resuming:
         return {
-          text: 'Resuming', spinner: true, disable: true,
+          text: 'Resuming', icon: 'loading', disable: true,
           onClick: () => {
           }
         };
       case ExecutionState.Recovering:
         return {
-          text: 'Recovering', spinner: true, disable: true,
+          text: 'Recovering', icon: 'loading', disable: true,
           onClick: () => {
           }
         };

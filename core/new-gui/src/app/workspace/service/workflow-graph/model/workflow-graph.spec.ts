@@ -1,9 +1,13 @@
 import {
-  mockScanPredicate, mockSentimentPredicate, mockResultPredicate,
-  mockScanSentimentLink, mockSentimentResultLink, mockScanResultLink
+  mockResultPredicate,
+  mockScanPredicate,
+  mockScanResultLink,
+  mockScanSentimentLink,
+  mockSentimentPredicate,
+  mockSentimentResultLink
 } from './mock-workflow-data';
-import { WorkflowGraph } from './workflow-graph';
-import { environment } from './../../../../../environments/environment';
+import {WorkflowGraph} from './workflow-graph';
+import {environment} from '../../../../../environments/environment';
 
 describe('WorkflowGraph', () => {
 

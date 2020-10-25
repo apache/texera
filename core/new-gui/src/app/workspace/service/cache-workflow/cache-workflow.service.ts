@@ -1,8 +1,8 @@
 import {Injectable} from '@angular/core';
-import {WorkflowActionService} from '../workflow-graph/model/workflow-action.service';
 import {Observable} from 'rxjs';
 import {Breakpoint, OperatorLink, OperatorPredicate, Point} from '../../types/workflow-common.interface';
 import {OperatorMetadataService} from '../operator-metadata/operator-metadata.service';
+import {WorkflowActionService} from '../workflow-graph/model/workflow-action.service';
 
 /**
  * CachedWorkflow is used to store the information of the workflow
@@ -53,7 +53,7 @@ export class CacheWorkflowService {
 
     this.operatorMetadataService.getOperatorMetadata()
       .filter(metadata => metadata.operators.length !== 0)
-      .subscribe(this.loadWorkflow);
+      .subscribe(() => this.loadWorkflow());
   }
 
   /**

@@ -1,20 +1,20 @@
-import { UndoRedoService } from './../../undo-redo/undo-redo.service';
-import { OperatorMetadataService } from './../../operator-metadata/operator-metadata.service';
-import { SyncTexeraModel } from './sync-texera-model';
-import { JointGraphWrapper } from './joint-graph-wrapper';
-import { JointUIService } from './../../joint-ui/joint-ui.service';
-import { WorkflowGraph, WorkflowGraphReadonly } from './workflow-graph';
-import { Injectable } from '@angular/core';
-import { Point, OperatorPredicate, OperatorLink, OperatorPort, Breakpoint } from '../../../types/workflow-common.interface';
+import {UndoRedoService} from '../../undo-redo/undo-redo.service';
+import {OperatorMetadataService} from '../../operator-metadata/operator-metadata.service';
+import {SyncTexeraModel} from './sync-texera-model';
+import {JointGraphWrapper} from './joint-graph-wrapper';
+import {JointUIService} from '../../joint-ui/joint-ui.service';
+import {WorkflowGraph, WorkflowGraphReadonly} from './workflow-graph';
+import {Injectable} from '@angular/core';
+import {Breakpoint, OperatorLink, OperatorPort, OperatorPredicate, Point} from '../../../types/workflow-common.interface';
 
 import * as joint from 'jointjs';
-import { environment } from './../../../../../environments/environment';
-import { WorkflowEditorComponent } from './../../../component/workflow-editor/workflow-editor.component';
 
 
 export interface Command {
   execute(): void;
+
   undo(): void;
+
   redo?(): void;
 }
 
