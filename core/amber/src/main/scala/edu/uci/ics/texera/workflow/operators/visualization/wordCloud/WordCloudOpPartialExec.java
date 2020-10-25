@@ -1,12 +1,12 @@
 package edu.uci.ics.texera.workflow.operators.visualization.wordCloud;
 
 import edu.uci.ics.amber.engine.common.InputExhausted;
-import edu.uci.ics.amber.engine.common.tuple.ITuple;
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor;
 import edu.uci.ics.texera.workflow.common.tuple.Tuple;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
+import org.apache.curator.shaded.com.google.common.collect.Iterators;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.core.StopAnalyzer;
@@ -77,14 +77,13 @@ public class WordCloudOpPartialExec implements OperatorExecutor {
     public Iterator<Tuple> processTexeraTuple(Either<Tuple, InputExhausted> tuple, int input) {
         if(tuple.isLeft()) {
             textList.add(tuple.left().get().getField(textColumn));
-            return JavaConverters.asScalaIterator(null);
+            return JavaConverters.asScalaIterator(Iterators.emptyIterator());
         }
         else {
             try {
                 return(JavaConverters.asScalaIterator(calculateWordCount(textList, luceneAnalyzerName).iterator()));
             } catch (Exception e) {
-                e.printStackTrace();
-                return JavaConverters.asScalaIterator(null);
+                throw new RuntimeException(e);
             }
         }
     }
