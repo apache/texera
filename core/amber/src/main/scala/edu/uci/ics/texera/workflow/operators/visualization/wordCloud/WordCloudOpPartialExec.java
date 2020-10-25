@@ -18,6 +18,12 @@ import scala.util.Either;
 import java.io.StringReader;
 import java.util.*;
 
+
+/**
+ * Calculate word count and output count of each word.
+ * @author Mingji Han, Xiaozhen Liu
+ *
+ */
 public class WordCloudOpPartialExec implements OperatorExecutor {
     private final String textColumn;
     private final String luceneAnalyzerName;

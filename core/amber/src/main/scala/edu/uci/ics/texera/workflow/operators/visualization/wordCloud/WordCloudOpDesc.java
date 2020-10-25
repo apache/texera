@@ -11,6 +11,13 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstants;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator;
 
+/**
+ * WordCloud is a visualization operator that can be used by the caller to generate data for wordcloud.js in frontend.
+ * WordCloud returns tuples with word (String) and its font size (Integer) for frontend.
+ * @author Mingji Han, Xiaozhen Liu
+ *
+ */
+
 public class WordCloudOpDesc extends VisualizationOperator {
     @JsonProperty(value = "text column", required = true)
     public String textColumn;

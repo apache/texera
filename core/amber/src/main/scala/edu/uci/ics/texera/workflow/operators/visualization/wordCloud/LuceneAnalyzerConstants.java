@@ -9,6 +9,13 @@ import org.apache.lucene.analysis.standard.StandardAnalyzer;
 
 import java.io.IOException;
 
+/**
+ * LuceneAnalyzerConstants contains helper functions specifically
+ *   used when dealing with different Lucene analyzers.
+ *
+ * @author Zuozhi Wang
+ *
+ */
 public class LuceneAnalyzerConstants {
     public static final String STANDARD_ANALYZER = "standard";
 

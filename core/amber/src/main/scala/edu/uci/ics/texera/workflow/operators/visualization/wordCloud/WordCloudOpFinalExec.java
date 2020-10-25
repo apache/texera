@@ -13,6 +13,12 @@ import scala.util.Either;
 
 import java.util.*;
 
+/**
+ * Merge word count maps into a single map (termFreqMap), calculate the size of each token based on its count, and
+ * output as tuples of (word, size).
+ * @author Mingji Han, Xiaozhen Liu
+ *
+ */
 public class WordCloudOpFinalExec implements OperatorExecutor {
     private final int MAX_FONT_SIZE = 200;
     private final int MIN_FONT_SIZE = 50;
