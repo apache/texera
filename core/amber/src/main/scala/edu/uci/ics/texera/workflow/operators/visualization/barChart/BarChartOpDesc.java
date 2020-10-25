@@ -13,6 +13,12 @@ import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * BarChart is a visualization operator that can be used to get tuples for bar chart.
+ * BarChart returns tuples with name of data (String) and at least one number (Integer or Double).
+ * @author Mingji Han, Xiaozhen Liu
+ *
+ */
 public class BarChartOpDesc extends VisualizationOperator {
     @JsonProperty(value = "name column", required = true)
     @JsonPropertyDescription("column of name (for x-axis)")

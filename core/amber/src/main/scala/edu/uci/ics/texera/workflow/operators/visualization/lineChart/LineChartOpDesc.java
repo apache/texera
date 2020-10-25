@@ -12,7 +12,12 @@ import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator
 import java.util.ArrayList;
 import java.util.List;
 
-
+/**
+ * LineChart is a visualization operator that can be used to get tuples for line chart.
+ * It returns tuples with data name (String) and at least one number (Integer or Double).
+ * @author Mingji Han, Xiaozhen Liu
+ *
+ */
 public class LineChartOpDesc extends VisualizationOperator {
     @JsonProperty(value = "name column", required = true)
     @JsonPropertyDescription("column of name (for x-axis)")
