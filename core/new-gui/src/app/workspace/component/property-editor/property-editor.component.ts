@@ -444,6 +444,12 @@ export class PropertyEditorComponent {
           mappedField.templateOptions.rows = 5;
         }
       }
+      // if the title is python script (for Python UDF), then make this field a custom template 'codearea'
+      if (mapSource?.description?.toLowerCase() === 'input your code here') {
+        if (mappedField.type) {
+          mappedField.type = 'codearea';
+        }
+      }
       return mappedField;
     };
 
