@@ -22,6 +22,13 @@ public class UserAccountRecord extends UpdatableRecordImpl<UserAccountRecord> im
     private static final long serialVersionUID = 514651812;
 
     /**
+     * Setter for <code>texera_db.user_account.name</code>.
+     */
+    public void setName(String value) {
+        set(0, value);
+    }
+
+    /**
      * Create a detached UserAccountRecord
      */
     public UserAccountRecord() {
@@ -45,13 +52,6 @@ public class UserAccountRecord extends UpdatableRecordImpl<UserAccountRecord> im
         return (String) get(0);
     }
 
-    /**
-     * Setter for <code>texera_db.user_account.name</code>.
-     */
-    public void setName(String value) {
-        set(0, value);
-    }
-
     // -------------------------------------------------------------------------
     // Primary key information
     // -------------------------------------------------------------------------
@@ -73,20 +73,6 @@ public class UserAccountRecord extends UpdatableRecordImpl<UserAccountRecord> im
     @Override
     public Row2<String, UInteger> valuesRow() {
         return (Row2) super.valuesRow();
-    }
-
-    /**
-     * Getter for <code>texera_db.user_account.uid</code>.
-     */
-    public UInteger getUid() {
-        return (UInteger) get(1);
-    }
-
-    /**
-     * Setter for <code>texera_db.user_account.uid</code>.
-     */
-    public void setUid(UInteger value) {
-        set(1, value);
     }
 
     @Override
@@ -125,10 +111,6 @@ public class UserAccountRecord extends UpdatableRecordImpl<UserAccountRecord> im
         return this;
     }
 
-    // -------------------------------------------------------------------------
-    // Constructors
-    // -------------------------------------------------------------------------
-
     @Override
     public UserAccountRecord value2(UInteger value) {
         setUid(value);
@@ -140,5 +122,23 @@ public class UserAccountRecord extends UpdatableRecordImpl<UserAccountRecord> im
         value1(value1);
         value2(value2);
         return this;
+    }
+
+    // -------------------------------------------------------------------------
+    // Constructors
+    // -------------------------------------------------------------------------
+
+    /**
+     * Getter for <code>texera_db.user_account.uid</code>.
+     */
+    public UInteger getUid() {
+        return (UInteger) get(1);
+    }
+
+    /**
+     * Setter for <code>texera_db.user_account.uid</code>.
+     */
+    public void setUid(UInteger value) {
+        set(1, value);
     }
 }

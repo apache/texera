@@ -23,27 +23,41 @@ import java.util.List;
 @SuppressWarnings({"all", "unchecked", "rawtypes"})
 public class KeySearchDict extends TableImpl<KeySearchDictRecord> {
 
+    private static final long serialVersionUID = 1310506621;
+
     /**
      * The reference instance of <code>texera_db.key_search_dict</code>
      */
     public static final KeySearchDict KEY_SEARCH_DICT = new KeySearchDict();
-    private static final long serialVersionUID = 1310506621;
+
+    /**
+     * The class holding records for this type
+     */
+    @Override
+    public Class<KeySearchDictRecord> getRecordType() {
+        return KeySearchDictRecord.class;
+    }
+
     /**
      * The column <code>texera_db.key_search_dict.uid</code>.
      */
     public final TableField<KeySearchDictRecord, UInteger> UID = createField(DSL.name("uid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+
     /**
      * The column <code>texera_db.key_search_dict.ksd_id</code>.
      */
     public final TableField<KeySearchDictRecord, UInteger> KSD_ID = createField(DSL.name("ksd_id"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false).identity(true), this, "");
+
     /**
      * The column <code>texera_db.key_search_dict.name</code>.
      */
     public final TableField<KeySearchDictRecord, String> NAME = createField(DSL.name("name"), org.jooq.impl.SQLDataType.VARCHAR(128).nullable(false), this, "");
+
     /**
      * The column <code>texera_db.key_search_dict.content</code>.
      */
     public final TableField<KeySearchDictRecord, byte[]> CONTENT = createField(DSL.name("content"), org.jooq.impl.SQLDataType.BLOB.nullable(false), this, "");
+
     /**
      * The column <code>texera_db.key_search_dict.description</code>.
      */
@@ -80,14 +94,6 @@ public class KeySearchDict extends TableImpl<KeySearchDictRecord> {
 
     public <O extends Record> KeySearchDict(Table<O> child, ForeignKey<O, KeySearchDictRecord> key) {
         super(child, key, KEY_SEARCH_DICT);
-    }
-
-    /**
-     * The class holding records for this type
-     */
-    @Override
-    public Class<KeySearchDictRecord> getRecordType() {
-        return KeySearchDictRecord.class;
     }
 
     @Override

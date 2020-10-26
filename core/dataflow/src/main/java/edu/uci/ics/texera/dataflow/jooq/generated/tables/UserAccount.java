@@ -23,15 +23,26 @@ import java.util.List;
 @SuppressWarnings({"all", "unchecked", "rawtypes"})
 public class UserAccount extends TableImpl<UserAccountRecord> {
 
+    private static final long serialVersionUID = -783621522;
+
     /**
      * The reference instance of <code>texera_db.user_account</code>
      */
     public static final UserAccount USER_ACCOUNT = new UserAccount();
-    private static final long serialVersionUID = -783621522;
+
+    /**
+     * The class holding records for this type
+     */
+    @Override
+    public Class<UserAccountRecord> getRecordType() {
+        return UserAccountRecord.class;
+    }
+
     /**
      * The column <code>texera_db.user_account.name</code>.
      */
     public final TableField<UserAccountRecord, String> NAME = createField(DSL.name("name"), org.jooq.impl.SQLDataType.VARCHAR(32).nullable(false), this, "");
+
     /**
      * The column <code>texera_db.user_account.uid</code>.
      */
@@ -68,14 +79,6 @@ public class UserAccount extends TableImpl<UserAccountRecord> {
 
     public <O extends Record> UserAccount(Table<O> child, ForeignKey<O, UserAccountRecord> key) {
         super(child, key, USER_ACCOUNT);
-    }
-
-    /**
-     * The class holding records for this type
-     */
-    @Override
-    public Class<UserAccountRecord> getRecordType() {
-        return UserAccountRecord.class;
     }
 
     @Override

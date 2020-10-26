@@ -23,31 +23,46 @@ import java.util.List;
 @SuppressWarnings({"all", "unchecked", "rawtypes"})
 public class UploadedFile extends TableImpl<UploadedFileRecord> {
 
+    private static final long serialVersionUID = -371856409;
+
     /**
      * The reference instance of <code>texera_db.uploaded_file</code>
      */
     public static final UploadedFile UPLOADED_FILE = new UploadedFile();
-    private static final long serialVersionUID = -371856409;
+
+    /**
+     * The class holding records for this type
+     */
+    @Override
+    public Class<UploadedFileRecord> getRecordType() {
+        return UploadedFileRecord.class;
+    }
+
     /**
      * The column <code>texera_db.uploaded_file.uid</code>.
      */
     public final TableField<UploadedFileRecord, UInteger> UID = createField(DSL.name("uid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+
     /**
      * The column <code>texera_db.uploaded_file.fid</code>.
      */
     public final TableField<UploadedFileRecord, UInteger> FID = createField(DSL.name("fid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false).identity(true), this, "");
+
     /**
      * The column <code>texera_db.uploaded_file.size</code>.
      */
     public final TableField<UploadedFileRecord, UInteger> SIZE = createField(DSL.name("size"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+
     /**
      * The column <code>texera_db.uploaded_file.name</code>.
      */
     public final TableField<UploadedFileRecord, String> NAME = createField(DSL.name("name"), org.jooq.impl.SQLDataType.VARCHAR(128).nullable(false), this, "");
+
     /**
      * The column <code>texera_db.uploaded_file.path</code>.
      */
     public final TableField<UploadedFileRecord, String> PATH = createField(DSL.name("path"), org.jooq.impl.SQLDataType.VARCHAR(512).nullable(false), this, "");
+
     /**
      * The column <code>texera_db.uploaded_file.description</code>.
      */
@@ -84,14 +99,6 @@ public class UploadedFile extends TableImpl<UploadedFileRecord> {
 
     public <O extends Record> UploadedFile(Table<O> child, ForeignKey<O, UploadedFileRecord> key) {
         super(child, key, UPLOADED_FILE);
-    }
-
-    /**
-     * The class holding records for this type
-     */
-    @Override
-    public Class<UploadedFileRecord> getRecordType() {
-        return UploadedFileRecord.class;
     }
 
     @Override

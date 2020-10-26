@@ -13,6 +13,7 @@ import org.jooq.impl.DSL;
 import org.jooq.impl.TableImpl;
 import org.jooq.types.UInteger;
 
+import java.sql.Timestamp;
 import java.util.Arrays;
 import java.util.List;
 
@@ -23,23 +24,43 @@ import java.util.List;
 @SuppressWarnings({"all", "unchecked", "rawtypes"})
 public class Workflow extends TableImpl<WorkflowRecord> {
 
+    private static final long serialVersionUID = -146772641;
+
     /**
      * The reference instance of <code>texera_db.workflow</code>
      */
     public static final Workflow WORKFLOW = new Workflow();
-    private static final long serialVersionUID = 409911700;
+    /**
+     * The column <code>texera_db.workflow.creation_time</code>.
+     */
+    public final TableField<WorkflowRecord, Timestamp> CREATION_TIME = createField(DSL.name("creation_time"), org.jooq.impl.SQLDataType.TIMESTAMP.nullable(false).defaultValue(org.jooq.impl.DSL.field("CURRENT_TIMESTAMP", org.jooq.impl.SQLDataType.TIMESTAMP)), this, "");
+
     /**
      * The column <code>texera_db.workflow.name</code>.
      */
     public final TableField<WorkflowRecord, String> NAME = createField(DSL.name("name"), org.jooq.impl.SQLDataType.VARCHAR(128).nullable(false), this, "");
+
     /**
      * The column <code>texera_db.workflow.wf_id</code>.
      */
     public final TableField<WorkflowRecord, UInteger> WF_ID = createField(DSL.name("wf_id"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false).identity(true), this, "");
+
     /**
      * The column <code>texera_db.workflow.content</code>.
      */
     public final TableField<WorkflowRecord, String> CONTENT = createField(DSL.name("content"), org.jooq.impl.SQLDataType.CLOB.nullable(false), this, "");
+    /**
+     * The column <code>texera_db.workflow.last_modified_time</code>.
+     */
+    public final TableField<WorkflowRecord, Timestamp> LAST_MODIFIED_TIME = createField(DSL.name("last_modified_time"), org.jooq.impl.SQLDataType.TIMESTAMP.nullable(false).defaultValue(org.jooq.impl.DSL.field("CURRENT_TIMESTAMP", org.jooq.impl.SQLDataType.TIMESTAMP)), this, "");
+
+    /**
+     * The class holding records for this type
+     */
+    @Override
+    public Class<WorkflowRecord> getRecordType() {
+        return WorkflowRecord.class;
+    }
 
     /**
      * Create a <code>texera_db.workflow</code> table reference
@@ -72,14 +93,6 @@ public class Workflow extends TableImpl<WorkflowRecord> {
 
     public <O extends Record> Workflow(Table<O> child, ForeignKey<O, WorkflowRecord> key) {
         super(child, key, WORKFLOW);
-    }
-
-    /**
-     * The class holding records for this type
-     */
-    @Override
-    public Class<WorkflowRecord> getRecordType() {
-        return WorkflowRecord.class;
     }
 
     @Override
@@ -134,11 +147,11 @@ public class Workflow extends TableImpl<WorkflowRecord> {
     }
 
     // -------------------------------------------------------------------------
-    // Row3 type methods
+    // Row5 type methods
     // -------------------------------------------------------------------------
 
     @Override
-    public Row3<String, UInteger, String> fieldsRow() {
-        return (Row3) super.fieldsRow();
+    public Row5<String, UInteger, String, Timestamp, Timestamp> fieldsRow() {
+        return (Row5) super.fieldsRow();
     }
 }

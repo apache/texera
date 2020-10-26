@@ -23,15 +23,26 @@ import java.util.List;
 @SuppressWarnings({"all", "unchecked", "rawtypes"})
 public class WorkflowOfUser extends TableImpl<WorkflowOfUserRecord> {
 
+    private static final long serialVersionUID = -723329558;
+
     /**
      * The reference instance of <code>texera_db.workflow_of_user</code>
      */
     public static final WorkflowOfUser WORKFLOW_OF_USER = new WorkflowOfUser();
-    private static final long serialVersionUID = -723329558;
+
+    /**
+     * The class holding records for this type
+     */
+    @Override
+    public Class<WorkflowOfUserRecord> getRecordType() {
+        return WorkflowOfUserRecord.class;
+    }
+
     /**
      * The column <code>texera_db.workflow_of_user.uid</code>.
      */
     public final TableField<WorkflowOfUserRecord, UInteger> UID = createField(DSL.name("uid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+
     /**
      * The column <code>texera_db.workflow_of_user.wf_id</code>.
      */
@@ -68,14 +79,6 @@ public class WorkflowOfUser extends TableImpl<WorkflowOfUserRecord> {
 
     public <O extends Record> WorkflowOfUser(Table<O> child, ForeignKey<O, WorkflowOfUserRecord> key) {
         super(child, key, WORKFLOW_OF_USER);
-    }
-
-    /**
-     * The class holding records for this type
-     */
-    @Override
-    public Class<WorkflowOfUserRecord> getRecordType() {
-        return WorkflowOfUserRecord.class;
     }
 
     @Override

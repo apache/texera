@@ -1,7 +1,6 @@
 package edu.uci.ics.texera.web.resource;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import edu.uci.ics.texera.dataflow.jooq.generated.tables.records.WorkflowRecord;
 import edu.uci.ics.texera.dataflow.sqlServerInfo.UserSqlServer;
 import edu.uci.ics.texera.web.TexeraWebException;
 import edu.uci.ics.texera.web.response.GenericWebResponse;
@@ -14,11 +13,11 @@ import org.jooq.types.UInteger;
 import javax.servlet.http.HttpSession;
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
-
 import java.util.ArrayList;
 import java.util.List;
 
-import static edu.uci.ics.texera.dataflow.jooq.generated.Tables.*;
+import static edu.uci.ics.texera.dataflow.jooq.generated.Tables.WORKFLOW;
+import static edu.uci.ics.texera.dataflow.jooq.generated.Tables.WORKFLOW_OF_USER;
 
 /**
  * This file handles various request related to saved-workflows.
@@ -194,11 +193,11 @@ public class WorkflowResource {
         }
         String name = "name";
         Record1<UInteger> newWfId = insertWorkflowToDataBase(name, content);
-        WorkflowRecord workflowRecord = new WorkflowRecord(name, newWfId.value1(), content);
+//        WorkflowRecord workflowRecord = new WorkflowRecord(name, newWfId.value1(), content);
         //        throwErrorWhenNotOne("Error occurred while updating workflow to database", result);
         int result = insertWorkflowOfUser(newWfId.value1(), userId);
         throwErrorWhenNotOne("Error occurred while updating workflow to database", result);
-        return new Workflow(workflowRecord.getWfId(), userId, workflowRecord.getContent());
+        return new Workflow(newWfId.value1(), userId, content);
 
     }
 

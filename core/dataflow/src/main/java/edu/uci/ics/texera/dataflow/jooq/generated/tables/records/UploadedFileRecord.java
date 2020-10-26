@@ -29,6 +29,20 @@ public class UploadedFileRecord extends UpdatableRecordImpl<UploadedFileRecord> 
     }
 
     /**
+     * Getter for <code>texera_db.uploaded_file.uid</code>.
+     */
+    public UInteger getUid() {
+        return (UInteger) get(0);
+    }
+
+    /**
+     * Setter for <code>texera_db.uploaded_file.fid</code>.
+     */
+    public void setFid(UInteger value) {
+        set(1, value);
+    }
+
+    /**
      * Create a detached, initialised UploadedFileRecord
      */
     public UploadedFileRecord(UInteger uid, UInteger fid, UInteger size, String name, String path, String description) {
@@ -43,10 +57,10 @@ public class UploadedFileRecord extends UpdatableRecordImpl<UploadedFileRecord> 
     }
 
     /**
-     * Getter for <code>texera_db.uploaded_file.uid</code>.
+     * Setter for <code>texera_db.uploaded_file.size</code>.
      */
-    public UInteger getUid() {
-        return (UInteger) get(0);
+    public void setSize(UInteger value) {
+        set(2, value);
     }
 
     /**
@@ -57,17 +71,17 @@ public class UploadedFileRecord extends UpdatableRecordImpl<UploadedFileRecord> 
     }
 
     /**
+     * Setter for <code>texera_db.uploaded_file.name</code>.
+     */
+    public void setName(String value) {
+        set(3, value);
+    }
+
+    /**
      * Getter for <code>texera_db.uploaded_file.fid</code>.
      */
     public UInteger getFid() {
         return (UInteger) get(1);
-    }
-
-    /**
-     * Setter for <code>texera_db.uploaded_file.fid</code>.
-     */
-    public void setFid(UInteger value) {
-        set(1, value);
     }
 
     /**
@@ -78,10 +92,10 @@ public class UploadedFileRecord extends UpdatableRecordImpl<UploadedFileRecord> 
     }
 
     /**
-     * Setter for <code>texera_db.uploaded_file.size</code>.
+     * Getter for <code>texera_db.uploaded_file.path</code>.
      */
-    public void setSize(UInteger value) {
-        set(2, value);
+    public String getPath() {
+        return (String) get(4);
     }
 
     /**
@@ -89,20 +103,6 @@ public class UploadedFileRecord extends UpdatableRecordImpl<UploadedFileRecord> 
      */
     public String getName() {
         return (String) get(3);
-    }
-
-    /**
-     * Setter for <code>texera_db.uploaded_file.name</code>.
-     */
-    public void setName(String value) {
-        set(3, value);
-    }
-
-    /**
-     * Getter for <code>texera_db.uploaded_file.path</code>.
-     */
-    public String getPath() {
-        return (String) get(4);
     }
 
     /**
@@ -135,20 +135,6 @@ public class UploadedFileRecord extends UpdatableRecordImpl<UploadedFileRecord> 
         return (Row6) super.valuesRow();
     }
 
-    /**
-     * Getter for <code>texera_db.uploaded_file.description</code>.
-     */
-    public String getDescription() {
-        return (String) get(5);
-    }
-
-    /**
-     * Setter for <code>texera_db.uploaded_file.description</code>.
-     */
-    public void setDescription(String value) {
-        set(5, value);
-    }
-
     @Override
     public Field<UInteger> field1() {
         return UploadedFile.UPLOADED_FILE.UID;
@@ -177,6 +163,20 @@ public class UploadedFileRecord extends UpdatableRecordImpl<UploadedFileRecord> 
     @Override
     public Field<String> field6() {
         return UploadedFile.UPLOADED_FILE.DESCRIPTION;
+    }
+
+    /**
+     * Getter for <code>texera_db.uploaded_file.description</code>.
+     */
+    public String getDescription() {
+        return (String) get(5);
+    }
+
+    /**
+     * Setter for <code>texera_db.uploaded_file.description</code>.
+     */
+    public void setDescription(String value) {
+        set(5, value);
     }
 
     @Override
@@ -230,16 +230,6 @@ public class UploadedFileRecord extends UpdatableRecordImpl<UploadedFileRecord> 
     }
 
     @Override
-    public UInteger value1() {
-        return getUid();
-    }
-
-    @Override
-    public UInteger value2() {
-        return getFid();
-    }
-
-    @Override
     public UploadedFileRecord value1(UInteger value) {
         setUid(value);
         return this;
@@ -269,10 +259,6 @@ public class UploadedFileRecord extends UpdatableRecordImpl<UploadedFileRecord> 
         return this;
     }
 
-    // -------------------------------------------------------------------------
-    // Constructors
-    // -------------------------------------------------------------------------
-
     @Override
     public UploadedFileRecord value6(String value) {
         setDescription(value);
@@ -288,5 +274,19 @@ public class UploadedFileRecord extends UpdatableRecordImpl<UploadedFileRecord> 
         value5(value5);
         value6(value6);
         return this;
+    }
+
+    // -------------------------------------------------------------------------
+    // Constructors
+    // -------------------------------------------------------------------------
+
+    @Override
+    public UInteger value1() {
+        return getUid();
+    }
+
+    @Override
+    public UInteger value2() {
+        return getFid();
     }
 }

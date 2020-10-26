@@ -20,11 +20,13 @@ import java.util.List;
 @SuppressWarnings({"all", "unchecked", "rawtypes"})
 public class TexeraDb extends SchemaImpl {
 
+    private static final long serialVersionUID = -1340276065;
+
     /**
      * The reference instance of <code>texera_db</code>
      */
     public static final TexeraDb TEXERA_DB = new TexeraDb();
-    private static final long serialVersionUID = -1340276065;
+
     /**
      * The table <code>texera_db.key_search_dict</code>.
      */

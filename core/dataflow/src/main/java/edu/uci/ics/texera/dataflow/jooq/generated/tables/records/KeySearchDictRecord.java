@@ -22,10 +22,24 @@ public class KeySearchDictRecord extends UpdatableRecordImpl<KeySearchDictRecord
     private static final long serialVersionUID = 1215704295;
 
     /**
+     * Setter for <code>texera_db.key_search_dict.uid</code>.
+     */
+    public void setUid(UInteger value) {
+        set(0, value);
+    }
+
+    /**
      * Create a detached KeySearchDictRecord
      */
     public KeySearchDictRecord() {
         super(KeySearchDict.KEY_SEARCH_DICT);
+    }
+
+    /**
+     * Setter for <code>texera_db.key_search_dict.ksd_id</code>.
+     */
+    public void setKsdId(UInteger value) {
+        set(1, value);
     }
 
     /**
@@ -42,6 +56,13 @@ public class KeySearchDictRecord extends UpdatableRecordImpl<KeySearchDictRecord
     }
 
     /**
+     * Setter for <code>texera_db.key_search_dict.name</code>.
+     */
+    public void setName(String value) {
+        set(2, value);
+    }
+
+    /**
      * Getter for <code>texera_db.key_search_dict.uid</code>.
      */
     public UInteger getUid() {
@@ -49,10 +70,10 @@ public class KeySearchDictRecord extends UpdatableRecordImpl<KeySearchDictRecord
     }
 
     /**
-     * Setter for <code>texera_db.key_search_dict.uid</code>.
+     * Setter for <code>texera_db.key_search_dict.content</code>.
      */
-    public void setUid(UInteger value) {
-        set(0, value);
+    public void setContent(byte... value) {
+        set(3, value);
     }
 
     /**
@@ -63,13 +84,6 @@ public class KeySearchDictRecord extends UpdatableRecordImpl<KeySearchDictRecord
     }
 
     /**
-     * Setter for <code>texera_db.key_search_dict.ksd_id</code>.
-     */
-    public void setKsdId(UInteger value) {
-        set(1, value);
-    }
-
-    /**
      * Getter for <code>texera_db.key_search_dict.name</code>.
      */
     public String getName() {
@@ -77,24 +91,10 @@ public class KeySearchDictRecord extends UpdatableRecordImpl<KeySearchDictRecord
     }
 
     /**
-     * Setter for <code>texera_db.key_search_dict.name</code>.
-     */
-    public void setName(String value) {
-        set(2, value);
-    }
-
-    /**
      * Getter for <code>texera_db.key_search_dict.content</code>.
      */
     public byte[] getContent() {
         return (byte[]) get(3);
-    }
-
-    /**
-     * Setter for <code>texera_db.key_search_dict.content</code>.
-     */
-    public void setContent(byte... value) {
-        set(3, value);
     }
 
     // -------------------------------------------------------------------------
@@ -120,20 +120,6 @@ public class KeySearchDictRecord extends UpdatableRecordImpl<KeySearchDictRecord
         return (Row5) super.valuesRow();
     }
 
-    /**
-     * Getter for <code>texera_db.key_search_dict.description</code>.
-     */
-    public String getDescription() {
-        return (String) get(4);
-    }
-
-    /**
-     * Setter for <code>texera_db.key_search_dict.description</code>.
-     */
-    public void setDescription(String value) {
-        set(4, value);
-    }
-
     @Override
     public Field<UInteger> field1() {
         return KeySearchDict.KEY_SEARCH_DICT.UID;
@@ -157,6 +143,20 @@ public class KeySearchDictRecord extends UpdatableRecordImpl<KeySearchDictRecord
     @Override
     public Field<String> field5() {
         return KeySearchDict.KEY_SEARCH_DICT.DESCRIPTION;
+    }
+
+    /**
+     * Getter for <code>texera_db.key_search_dict.description</code>.
+     */
+    public String getDescription() {
+        return (String) get(4);
+    }
+
+    /**
+     * Setter for <code>texera_db.key_search_dict.description</code>.
+     */
+    public void setDescription(String value) {
+        set(4, value);
     }
 
     @Override
@@ -200,16 +200,6 @@ public class KeySearchDictRecord extends UpdatableRecordImpl<KeySearchDictRecord
     }
 
     @Override
-    public UInteger value1() {
-        return getUid();
-    }
-
-    @Override
-    public UInteger value2() {
-        return getKsdId();
-    }
-
-    @Override
     public KeySearchDictRecord value1(UInteger value) {
         setUid(value);
         return this;
@@ -233,10 +223,6 @@ public class KeySearchDictRecord extends UpdatableRecordImpl<KeySearchDictRecord
         return this;
     }
 
-    // -------------------------------------------------------------------------
-    // Constructors
-    // -------------------------------------------------------------------------
-
     @Override
     public KeySearchDictRecord value5(String value) {
         setDescription(value);
@@ -251,5 +237,19 @@ public class KeySearchDictRecord extends UpdatableRecordImpl<KeySearchDictRecord
         value4(value4);
         value5(value5);
         return this;
+    }
+
+    // -------------------------------------------------------------------------
+    // Constructors
+    // -------------------------------------------------------------------------
+
+    @Override
+    public UInteger value1() {
+        return getUid();
+    }
+
+    @Override
+    public UInteger value2() {
+        return getKsdId();
     }
 }

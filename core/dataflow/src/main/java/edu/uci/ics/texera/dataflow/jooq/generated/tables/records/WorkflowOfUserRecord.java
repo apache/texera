@@ -28,6 +28,13 @@ public class WorkflowOfUserRecord extends UpdatableRecordImpl<WorkflowOfUserReco
     }
 
     /**
+     * Getter for <code>texera_db.workflow_of_user.uid</code>.
+     */
+    public UInteger getUid() {
+        return (UInteger) get(0);
+    }
+
+    /**
      * Create a detached, initialised WorkflowOfUserRecord
      */
     public WorkflowOfUserRecord(UInteger uid, UInteger wfId) {
@@ -38,24 +45,6 @@ public class WorkflowOfUserRecord extends UpdatableRecordImpl<WorkflowOfUserReco
     }
 
     /**
-     * Getter for <code>texera_db.workflow_of_user.uid</code>.
-     */
-    public UInteger getUid() {
-        return (UInteger) get(0);
-    }
-
-    /**
-     * Setter for <code>texera_db.workflow_of_user.uid</code>.
-     */
-    public void setUid(UInteger value) {
-        set(0, value);
-    }
-
-    // -------------------------------------------------------------------------
-    // Primary key information
-    // -------------------------------------------------------------------------
-
-    /**
      * Getter for <code>texera_db.workflow_of_user.wf_id</code>.
      */
     public UInteger getWfId() {
@@ -63,20 +52,17 @@ public class WorkflowOfUserRecord extends UpdatableRecordImpl<WorkflowOfUserReco
     }
 
     // -------------------------------------------------------------------------
-    // Record2 type implementation
+    // Primary key information
     // -------------------------------------------------------------------------
-
-    /**
-     * Setter for <code>texera_db.workflow_of_user.wf_id</code>.
-     */
-    public void setWfId(UInteger value) {
-        set(1, value);
-    }
 
     @Override
     public Record2<UInteger, UInteger> key() {
         return (Record2) super.key();
     }
+
+    // -------------------------------------------------------------------------
+    // Record2 type implementation
+    // -------------------------------------------------------------------------
 
     @Override
     public Row2<UInteger, UInteger> fieldsRow() {
@@ -124,10 +110,6 @@ public class WorkflowOfUserRecord extends UpdatableRecordImpl<WorkflowOfUserReco
         return this;
     }
 
-    // -------------------------------------------------------------------------
-    // Constructors
-    // -------------------------------------------------------------------------
-
     @Override
     public WorkflowOfUserRecord value2(UInteger value) {
         setWfId(value);
@@ -139,5 +121,23 @@ public class WorkflowOfUserRecord extends UpdatableRecordImpl<WorkflowOfUserReco
         value1(value1);
         value2(value2);
         return this;
+    }
+
+    // -------------------------------------------------------------------------
+    // Constructors
+    // -------------------------------------------------------------------------
+
+    /**
+     * Setter for <code>texera_db.workflow_of_user.uid</code>.
+     */
+    public void setUid(UInteger value) {
+        set(0, value);
+    }
+
+    /**
+     * Setter for <code>texera_db.workflow_of_user.wf_id</code>.
+     */
+    public void setWfId(UInteger value) {
+        set(1, value);
     }
 }
