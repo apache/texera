@@ -1,6 +1,6 @@
 import {Component, Input} from '@angular/core';
 import {NgbActiveModal} from '@ng-bootstrap/ng-bootstrap';
-import {SavedWorkflow} from '../../../../type/saved-workflow';
+import {Workflow} from '../../../../../common/type/workflow';
 
 /**
  * NgbdModalDeleteProjectComponent is the pop-up component
@@ -14,13 +14,14 @@ import {SavedWorkflow} from '../../../../type/saved-workflow';
   styleUrls: ['./ngbd-modal-delete-workflow.component.scss', '../../../dashboard.component.scss']
 })
 export class NgbdModalDeleteWorkflowComponent {
-  defaultSavedWorkflow: SavedWorkflow = {
+  defaultSavedWorkflow: Workflow = {
+    wfId: 0,
     name: '',
-    id: '',
+    content: '',
     creationTime: '',
     lastModifiedTime: ''
   };
-  @Input() workflow: SavedWorkflow = this.defaultSavedWorkflow;
+  @Input() workflow: Workflow = this.defaultSavedWorkflow;
 
   constructor(public activeModal: NgbActiveModal) {
   }

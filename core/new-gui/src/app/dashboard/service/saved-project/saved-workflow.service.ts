@@ -2,7 +2,6 @@ import {Injectable} from '@angular/core';
 import {HttpClient} from '@angular/common/http';
 
 import {Observable} from 'rxjs/Observable';
-import {SavedWorkflow} from '../../type/saved-workflow';
 import {Workflow} from '../../../common/type/workflow';
 import {AppSettings} from '../../../common/app-setting';
 
@@ -22,25 +21,14 @@ export class SavedWorkflowService {
   constructor(private http: HttpClient) {
   }
 
-  public getSavedWorkflows(): Observable<SavedWorkflow[]> {
+  public getSavedWorkflows(): Observable<Workflow[]> {
 
-    this.http.get<Workflow[]>(
-      `${AppSettings.getApiEndpoint()}/workflow/get`).flatMap(
-      res => {
-        return Observable.of(res);
-      }
-    ).subscribe(
-      (workflows) => {
-        console.log(workflows);
-      },
-      (error) => {
-        console.error('error caught in component' + error);
-      });
-    return Observable.of([]);
+    return this.http.get<Workflow[]>(
+      `${AppSettings.getApiEndpoint()}/workflow/get`);
   }
 
 
-  public deleteSavedProjectData(deleteProject: SavedWorkflow) {
+  public deleteSavedProjectData(deleteProject: Workflow) {
     return null;
   }
 }

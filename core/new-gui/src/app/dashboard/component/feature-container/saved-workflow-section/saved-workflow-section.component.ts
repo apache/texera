@@ -1,7 +1,6 @@
 import {Component, OnInit} from '@angular/core';
 import {NgbModal} from '@ng-bootstrap/ng-bootstrap';
 
-import {SavedWorkflow} from '../../../type/saved-workflow';
 import {SavedWorkflowService} from '../../../service/saved-project/saved-workflow.service';
 
 import {NgbdModalAddWorkflowComponent} from './ngbd-modal-add-workflow/ngbd-modal-add-workflow.component';
@@ -9,6 +8,8 @@ import {NgbdModalDeleteWorkflowComponent} from './ngbd-modal-delete-workflow/ngb
 
 import {cloneDeep} from 'lodash';
 import {Observable} from 'rxjs';
+import {Workflow} from '../../../../common/type/workflow';
+import {Router} from '@angular/router';
 
 /**
  * SavedProjectSectionComponent is the main interface for
@@ -25,19 +26,20 @@ import {Observable} from 'rxjs';
 })
 export class SavedWorkflowSectionComponent implements OnInit {
 
-  public workflows: SavedWorkflow[] = [];
+  public workflows: Workflow[] = [];
 
   public defaultWeb: String = 'http://localhost:4200/';
 
   constructor(
     private savedProjectService: SavedWorkflowService,
-    private modalService: NgbModal
+    private modalService: NgbModal,
+    private router: Router
   ) {
   }
 
   ngOnInit() {
     this.savedProjectService.getSavedWorkflows().subscribe(
-      // value => this.workflows = value,
+      value => this.workflows = value,
     );
   }
 
@@ -122,15 +124,16 @@ export class SavedWorkflowSectionComponent implements OnInit {
 
     Observable.from(modalRef.result)
       .subscribe((value: string) => {
-        if (value) {
-          const newProject: SavedWorkflow = {
-            id: (this.workflows.length + 1).toString(),
-            name: value,
-            creationTime: Date.now().toString(),
-            lastModifiedTime: Date.now().toString()
-          };
-          this.workflows.push(newProject);
-        }
+        console.log('creating a new workflow');
+        // if (value) {
+        //   const newProject: SavedWorkflow = {
+        //     id: (this.workflows.length + 1).toString(),
+        //     name: value,
+        //     creationTime: Date.now().toString(),
+        //     lastModifiedTime: Date.now().toString()
+        //   };
+        //   this.workflows.push(newProject);
+        // }
       });
   }
 
@@ -142,18 +145,24 @@ export class SavedWorkflowSectionComponent implements OnInit {
    *
    * @param
    */
-  public openNgbdModalDeleteWorkflowComponent(savedWorkflow: SavedWorkflow): void {
+  public openNgbdModalDeleteWorkflowComponent(savedWorkflow: Workflow): void {
     const modalRef = this.modalService.open(NgbdModalDeleteWorkflowComponent);
     modalRef.componentInstance.project = cloneDeep(savedWorkflow);
 
     Observable.from(modalRef.result).subscribe(
       (value: boolean) => {
         if (value) {
-          this.workflows = this.workflows.filter(obj => obj.id !== savedWorkflow.id);
+          this.workflows = this.workflows.filter(workflow => workflow.wfId !== savedWorkflow.wfId);
           this.savedProjectService.deleteSavedProjectData(savedWorkflow);
         }
       }
     );
 
+  }
+
+  jumpToWorkflow(workflow: Workflow) {
+    localStorage.setItem('workflow', workflow.content);
+    localStorage.setItem('wfId', workflow.wfId.toString());
+    this.router.navigate(['/']);
   }
 }

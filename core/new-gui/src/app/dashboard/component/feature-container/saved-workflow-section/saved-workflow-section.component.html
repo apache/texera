@@ -29,8 +29,8 @@
         </div>
         <div class="scroll">
           <mat-list-item *ngFor="let workflow of workflows" class="project-list-item">
-            <h3 class="project-title" mat-line><a href={{this.defaultWeb}}>{{workflow.name}}</a></h3>
-            <p class="project-time" mat-line><br>
+            <h3 class="workflow-name" mat-line><label (click)="jumpToWorkflow(workflow)">{{workflow.name}}</label></h3>
+            <p class="workflow-time" mat-line><br>
               Last Access: {{workflow.lastModifiedTime | date:'yyyy-MM-dd HH:mm'}}
               <span class="time-space"></span>
               Created: {{workflow.creationTime | date:'yyyy-MM-dd HH:mm'}}

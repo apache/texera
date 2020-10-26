@@ -12,41 +12,46 @@ import {MatDialogModule} from '@angular/material/dialog';
 import {NgbActiveModal, NgbModule} from '@ng-bootstrap/ng-bootstrap';
 import {FormsModule} from '@angular/forms';
 
-import {SavedWorkflow} from '../../../type/saved-workflow';
 import {HttpClientModule} from '@angular/common/http';
+import {Workflow} from '../../../../common/type/workflow';
 
 describe('SavedProjectSectionComponent', () => {
   let component: SavedWorkflowSectionComponent;
   let fixture: ComponentFixture<SavedWorkflowSectionComponent>;
 
-  const TestCase: SavedWorkflow[] = [
+  const TestCase: Workflow[] = [
     {
-      id: '1',
-      name: 'project 3',
+      wfId: 1,
+      name: 'project 1',
+      content: '{}',
       creationTime: '2017-10-25T12:34:50Z',
       lastModifiedTime: '2018-01-17T06:26:50Z',
     },
     {
-      id: '2',
+      wfId: 2,
       name: 'project 2',
+      content: '{}',
       creationTime: '2017-10-30T01:02:50Z',
       lastModifiedTime: '2018-01-14T22:56:50Z',
     },
     {
-      id: '3',
-      name: 'project 4',
+      wfId: 3,
+      name: 'project 3',
+      content: '{}',
       creationTime: '2018-01-01T01:01:01Z',
       lastModifiedTime: '2018-01-22T17:26:50Z',
     },
     {
-      id: '4',
-      name: 'project 1',
+      wfId: 4,
+      name: 'project 4',
+      content: '{}',
       creationTime: '2017-10-25T12:34:50Z',
       lastModifiedTime: '2018-01-17T06:26:50Z',
     },
     {
-      id: '5',
+      wfId: 5,
       name: 'project 5',
+      content: '{}',
       creationTime: '2017-10-30T01:02:50Z',
       lastModifiedTime: '2018-01-14T22:56:50Z',
     }
@@ -67,7 +72,7 @@ describe('SavedProjectSectionComponent', () => {
         FormsModule,
         HttpClientModule]
     })
-    .compileComponents();
+      .compileComponents();
   }));
 
   beforeEach(() => {
@@ -116,9 +121,9 @@ describe('SavedProjectSectionComponent', () => {
       .toEqual(['2018-01-22T17:26:50Z', '2018-01-17T06:26:50Z', '2018-01-17T06:26:50Z', '2018-01-14T22:56:50Z', '2018-01-14T22:56:50Z']);
   });
 
-/*
-* more tests of testing return value from pop-up components(windows)
-* should be removed to here
-*/
+  /*
+  * more tests of testing return value from pop-up components(windows)
+  * should be removed to here
+  */
 
 });
