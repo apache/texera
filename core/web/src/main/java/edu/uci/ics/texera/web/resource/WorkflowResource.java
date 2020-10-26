@@ -1,10 +1,10 @@
 package edu.uci.ics.texera.web.resource;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import edu.uci.ics.texera.dataflow.jooq.generated.tables.daos.WorkflowDao;
+import edu.uci.ics.texera.dataflow.jooq.generated.tables.daos.WorkflowOfUserDao;
 import edu.uci.ics.texera.dataflow.jooq.generated.tables.pojos.Workflow;
-import edu.uci.ics.texera.dataflow.sqlServerInfo.UserSqlServer;
-import edu.uci.ics.texera.web.TexeraWebException;
-import edu.uci.ics.texera.web.response.GenericWebResponse;
+import edu.uci.ics.texera.dataflow.jooq.generated.tables.pojos.WorkflowOfUser;
+import edu.uci.ics.texera.dataflow.sqlServerInfo.SqlServer;
 import io.dropwizard.jersey.sessions.Session;
 import org.glassfish.jersey.media.multipart.FormDataParam;
 import org.jooq.types.UInteger;
@@ -27,6 +27,9 @@ import static edu.uci.ics.texera.dataflow.jooq.generated.Tables.WORKFLOW_OF_USER
 @Path("/workflow")
 @Produces(MediaType.APPLICATION_JSON)
 public class WorkflowResource {
+
+    private final WorkflowDao workflowDao = new WorkflowDao(SqlServer.createDSLContext().configuration());
+    private final WorkflowOfUserDao workflowOfUserDao = new WorkflowOfUserDao(SqlServer.createDSLContext().configuration());
 
 
     @GET
@@ -56,46 +59,7 @@ public class WorkflowResource {
     public Workflow getWorkflow(@PathParam("workflowID") UInteger workflowID,
                                 @Session HttpSession session) {
 
-//        if (workflowID == null) {
-//            return new Workflow(UInteger.valueOf(1), UInteger.valueOf(1), name, "all user", null
-//                    , null);
-//        }
-//        // uncomment below to link user with workflow
-//        // UInteger userID =
-        Workflow result = getWorkflowFromDatabase(workflowID);
-
-        if (result == null) {
-            throw new TexeraWebException("Workflow with id: " + workflowID + " does not exit.");
-        }
-        return result;
-    }
-
-    /**
-     * this method handles the frontend's request to save a specific workflow
-     * at current design, it takes a workflowID and a JSON string representing the new workflow
-     * it updates the corresponding mysql record; throws an error if the workflow does not exist
-     * for future design, it should also take userID as an parameter.
-     *
-     * @param session
-     * @param workflowID
-     * @param workflowBody
-     * @return
-     */
-    @POST
-    @Path("/update-workflow")
-    @Consumes(MediaType.MULTIPART_FORM_DATA)
-    public GenericWebResponse setUserWorkflow(
-            @Session HttpSession session,
-            @FormDataParam("workflowID") UInteger workflowID,
-            @FormDataParam("workflowBody") String workflowBody
-    ) {
-        int count = checkWorkflowExist(workflowID);
-        if (count != 1) {
-            return new GenericWebResponse(1, "workflow " + workflowID + " does not exist in the database");
-        }
-        int result = updateWorkflowInDataBase(workflowID, workflowBody);
-        throwErrorWhenNotOne("Error occurred while updating workflow to database", result);
-        return GenericWebResponse.generateSuccessResponse();
+        return workflowDao.fetchOneByWfId(workflowID);
     }
 
     @POST
@@ -106,31 +70,19 @@ public class WorkflowResource {
             @FormDataParam("wfId") UInteger wfId,
             @FormDataParam("content") String content
     ) {
-        UInteger userId = UserResource.getUser(session).getUserID();
+        UserResource.User user = UserResource.getUser(session);
+        if (user == null) {
+            return null;
+        }
         if (wfId != null) {
-            updateWorkflowInDataBase(wfId, content);
-            return getWorkflowFromDatabase(wfId);
+            return updateWorkflow(wfId, content);
         }
         String name = "name";
         Workflow workflow = insertWorkflowToDataBase(name, content);
-        int result = insertWorkflowOfUser(workflow.getWfId(), userId);
-        throwErrorWhenNotOne("Error occurred while updating workflow to database", result);
+        workflowOfUserDao.insert(new WorkflowOfUser(user.getUserID(), workflow.getWfId()));
+
         return workflow;
 
-    }
-
-    /**
-     * select * from table userworkflow where workflowID is @param "workflowID"
-     *
-     * @param workflowID
-     * @return
-     */
-    private Workflow getWorkflowFromDatabase(UInteger workflowID) {
-        return UserSqlServer.createDSLContext()
-                .select(WORKFLOW.fields())
-                .from(WORKFLOW)
-                .where(WORKFLOW.WF_ID.eq(workflowID))
-                .fetchOneInto(Workflow.class);
     }
 
     /**
@@ -140,7 +92,7 @@ public class WorkflowResource {
      * @return
      */
     private List<Workflow> getWorkflowByUser(UInteger userId) {
-        return UserSqlServer.createDSLContext()
+        return SqlServer.createDSLContext()
                 .select(WORKFLOW.fields())
                 .from(WORKFLOW).join(WORKFLOW_OF_USER).on(WORKFLOW_OF_USER.WF_ID.eq(WORKFLOW.WF_ID))
                 .where(WORKFLOW_OF_USER.UID.eq(userId))
@@ -149,31 +101,18 @@ public class WorkflowResource {
 
 
     /**
-     * update table userworkflow set workflowBody = @param "workflowBody" where workflowID = @param "workflowID"
+     * update table workflow set content = @param "content" where wf_id = @param "workflowId"
      *
-     * @param workflowID
+     * @param workflowId
      * @param content
      * @return
      */
-    private int updateWorkflowInDataBase(UInteger workflowID, String content) {
-        return UserSqlServer.createDSLContext().update(WORKFLOW)
+    private Workflow updateWorkflow(UInteger workflowId, String content) {
+        SqlServer.createDSLContext().update(WORKFLOW)
                 .set(WORKFLOW.CONTENT, content)
-                .where(WORKFLOW.WF_ID.eq(workflowID))
-                .execute();
-    }
+                .where(WORKFLOW.WF_ID.eq(workflowId)).execute();
+        return workflowDao.fetchOneByWfId(workflowId);
 
-    /**
-     * select count(*) from userworkflow where workflowID = @param "workflowID"
-     *
-     * @param workflowID
-     * @return
-     */
-    private int checkWorkflowExist(UInteger workflowID) {
-        return UserSqlServer.createDSLContext()
-                .selectCount()
-                .from(WORKFLOW)
-                .where(WORKFLOW.WF_ID.eq(workflowID))
-                .fetchOne(0, int.class);
     }
 
     /**
@@ -188,46 +127,10 @@ public class WorkflowResource {
      * @return
      */
     private Workflow insertWorkflowToDataBase(String workflowName, String content) {
-        return UserSqlServer.createDSLContext().insertInto(WORKFLOW)
-                .set(WORKFLOW.NAME, workflowName)
-                .set(WORKFLOW.CONTENT, content)
-                .returningResult(WORKFLOW.fields())
-                .fetchOne().into(Workflow.class);
-    }
-
-    private int insertWorkflowOfUser(UInteger workflowId, UInteger userId) {
-        return UserSqlServer.createDSLContext().insertInto(WORKFLOW_OF_USER)
-                .set(WORKFLOW_OF_USER.WF_ID, workflowId)
-                .set(WORKFLOW_OF_USER.UID, userId)
-                .execute();
-    }
-
-    /**
-     * Corresponds to interface SavedWorkflow in `src/app/workspace/service/save-workflow/save-workflow.service.ts`
-     */
-    public static class UserWorkflow {
-        public UInteger workflowID;
-        public String workflowName;
-        public ObjectNode workflowBody;
-
-        public UserWorkflow(UInteger id, String name, ObjectNode body) {
-            this.workflowID = id;
-            this.workflowName = name;
-            this.workflowBody = body;
-        }
-    }
-
-    /**
-     * Most the sql operation should only be executed once. eg. insertion, deletion.
-     * this method will raise TexeraWebException when the input number is not one
-     *
-     * @param errorMessage
-     * @param count
-     * @throws TexeraWebException
-     */
-    private void throwErrorWhenNotOne(String errorMessage, int count) throws TexeraWebException {
-        if (count != 1) {
-            throw new TexeraWebException(errorMessage);
-        }
+        Workflow workflow = new Workflow();
+        workflow.setName(workflowName);
+        workflow.setContent(content);
+        workflowDao.insert(workflow);
+        return workflow;
     }
 }

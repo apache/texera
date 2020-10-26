@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.web.resource;
 
 import edu.uci.ics.texera.dataflow.resource.file.FileManager;
-import edu.uci.ics.texera.dataflow.sqlServerInfo.UserSqlServer;
+import edu.uci.ics.texera.dataflow.sqlServerInfo.SqlServer;
 import edu.uci.ics.texera.web.TexeraWebException;
 import edu.uci.ics.texera.web.response.GenericWebResponse;
 import io.dropwizard.jersey.sessions.Session;
@@ -132,13 +132,13 @@ public class UploadedFileResource {
          * delete...returning clause does not work properly
          * retrieve the filepath first, then delete it.
          */
-        Record1<String> result = UserSqlServer.createDSLContext()
+        Record1<String> result = SqlServer.createDSLContext()
                 .select(UPLOADED_FILE.PATH)
                 .from(UPLOADED_FILE)
                 .where(UPLOADED_FILE.FID.eq(fileID).and(UPLOADED_FILE.UID.equal(userID)))
                 .fetchOne();
 
-        int count = UserSqlServer.createDSLContext()
+        int count = SqlServer.createDSLContext()
                 .delete(UPLOADED_FILE)
                 .where(UPLOADED_FILE.FID.eq(fileID).and(UPLOADED_FILE.UID.equal(userID)))
                 //.returning(USERFILE.FILEPATH) does not work
@@ -150,7 +150,7 @@ public class UploadedFileResource {
     }
 
     private Result<Record5<UInteger, String, String, String, UInteger>> getUserFileRecord(UInteger userID) {
-        return UserSqlServer.createDSLContext()
+        return SqlServer.createDSLContext()
                 .select(UPLOADED_FILE.FID, UPLOADED_FILE.NAME, UPLOADED_FILE.PATH, UPLOADED_FILE.DESCRIPTION, UPLOADED_FILE.SIZE)
                 .from(UPLOADED_FILE)
                 .where(UPLOADED_FILE.UID.equal(userID))
@@ -180,7 +180,7 @@ public class UploadedFileResource {
 
 
     private int insertFileToDataBase(String fileName, String path, UInteger size, String description, UInteger userID) {
-        return UserSqlServer.createDSLContext().insertInto(UPLOADED_FILE)
+        return SqlServer.createDSLContext().insertInto(UPLOADED_FILE)
                 .set(UPLOADED_FILE.UID, userID)
                 .set(UPLOADED_FILE.FID, defaultValue(UPLOADED_FILE.FID))
                 .set(UPLOADED_FILE.NAME, fileName)
@@ -203,9 +203,9 @@ public class UploadedFileResource {
     }
 
     private Boolean isFileNameExisted(String fileName, UInteger userID) {
-        return UserSqlServer.createDSLContext()
+        return SqlServer.createDSLContext()
                 .fetchExists(
-                        UserSqlServer.createDSLContext()
+                        SqlServer.createDSLContext()
                                 .selectFrom(UPLOADED_FILE)
                                 .where(UPLOADED_FILE.UID.equal(userID)
                                         .and(UPLOADED_FILE.NAME.equal(fileName)))

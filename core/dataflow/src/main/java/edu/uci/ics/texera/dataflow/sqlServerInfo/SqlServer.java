@@ -1,10 +1,5 @@
 package edu.uci.ics.texera.dataflow.sqlServerInfo;
 
-import java.nio.file.Path;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
-
 import com.mysql.cj.jdbc.MysqlDataSource;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
@@ -13,15 +8,17 @@ import org.jooq.DSLContext;
 import org.jooq.SQLDialect;
 import org.jooq.impl.DSL;
 
-public final class UserSqlServer {
+import java.nio.file.Path;
+
+public final class SqlServer {
 
     public static Config jdbcConfig;
-    private static MysqlDataSource dataSource;
+    private static final MysqlDataSource dataSource;
 
     static {
         Path jdbcConfPath = Utils.getTexeraHomePath().resolve("conf").resolve("jdbc.conf");
         jdbcConfig = ConfigFactory.parseFile(jdbcConfPath.toFile());
-        
+
         dataSource = new MysqlDataSource();
         dataSource.setUrl(jdbcConfig.getString("jdbc.url"));
         dataSource.setUser(jdbcConfig.getString("jdbc.username"));

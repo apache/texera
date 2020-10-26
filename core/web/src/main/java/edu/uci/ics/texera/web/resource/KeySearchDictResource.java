@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.web.resource;
 
-import edu.uci.ics.texera.dataflow.sqlServerInfo.UserSqlServer;
+import edu.uci.ics.texera.dataflow.sqlServerInfo.SqlServer;
 import edu.uci.ics.texera.web.TexeraWebException;
 import edu.uci.ics.texera.web.response.GenericWebResponse;
 import io.dropwizard.jersey.sessions.Session;
@@ -223,49 +223,49 @@ public class KeySearchDictResource {
     }
     
     private boolean isDictionaryNameExisted(String dictName, UInteger userID) {
-           return UserSqlServer.createDSLContext()
-                    .fetchExists(
-                            UserSqlServer.createDSLContext()
-                                    .selectFrom(KEY_SEARCH_DICT)
-                                    .where(KEY_SEARCH_DICT.UID.equal(userID)
-                                            .and(KEY_SEARCH_DICT.NAME.equal(dictName)))
-                            );
+        return SqlServer.createDSLContext()
+                .fetchExists(
+                        SqlServer.createDSLContext()
+                                .selectFrom(KEY_SEARCH_DICT)
+                                .where(KEY_SEARCH_DICT.UID.equal(userID)
+                                        .and(KEY_SEARCH_DICT.NAME.equal(dictName)))
+                );
     }
     
     private int updateInDatabase(UserDictionary userDictionary, UInteger userID) {
-            return UserSqlServer.createDSLContext()
-                    .update(KEY_SEARCH_DICT)
-                    .set(KEY_SEARCH_DICT.NAME, userDictionary.name)
-                    .set(KEY_SEARCH_DICT.CONTENT, convertListToByteArray(userDictionary.items))
-                    .set(KEY_SEARCH_DICT.DESCRIPTION, userDictionary.description)
-                    .where(KEY_SEARCH_DICT.KSD_ID.eq(userDictionary.id).and(KEY_SEARCH_DICT.UID.eq(userID)))
-                    .execute();
+        return SqlServer.createDSLContext()
+                .update(KEY_SEARCH_DICT)
+                .set(KEY_SEARCH_DICT.NAME, userDictionary.name)
+                .set(KEY_SEARCH_DICT.CONTENT, convertListToByteArray(userDictionary.items))
+                .set(KEY_SEARCH_DICT.DESCRIPTION, userDictionary.description)
+                .where(KEY_SEARCH_DICT.KSD_ID.eq(userDictionary.id).and(KEY_SEARCH_DICT.UID.eq(userID)))
+                .execute();
     }
     
     private int deleteInDatabase(UInteger dictID, UInteger userID) {
-            return UserSqlServer.createDSLContext()
-                    .delete(KEY_SEARCH_DICT)
-                    .where(KEY_SEARCH_DICT.KSD_ID.eq(dictID).and(KEY_SEARCH_DICT.UID.eq(userID)))
-                    .execute();
+        return SqlServer.createDSLContext()
+                .delete(KEY_SEARCH_DICT)
+                .where(KEY_SEARCH_DICT.KSD_ID.eq(dictID).and(KEY_SEARCH_DICT.UID.eq(userID)))
+                .execute();
     }
     
     private Result<Record4<UInteger, String, byte[], String>> getUserDictionaryRecord(UInteger userID) {
-            return UserSqlServer.createDSLContext()
-                    .select(KEY_SEARCH_DICT.KSD_ID, KEY_SEARCH_DICT.NAME, KEY_SEARCH_DICT.CONTENT, KEY_SEARCH_DICT.DESCRIPTION)
-                    .from(KEY_SEARCH_DICT)
-                    .where(KEY_SEARCH_DICT.UID.equal(userID))
-                    .fetch();
+        return SqlServer.createDSLContext()
+                .select(KEY_SEARCH_DICT.KSD_ID, KEY_SEARCH_DICT.NAME, KEY_SEARCH_DICT.CONTENT, KEY_SEARCH_DICT.DESCRIPTION)
+                .from(KEY_SEARCH_DICT)
+                .where(KEY_SEARCH_DICT.UID.equal(userID))
+                .fetch();
     }
     
     private int insertDictionaryToDataBase(String name, byte[] content, String description, UInteger userID) {
-            return UserSqlServer.createDSLContext()
-                    .insertInto(KEY_SEARCH_DICT)
-                    .set(KEY_SEARCH_DICT.UID, userID)
-                    .set(KEY_SEARCH_DICT.KSD_ID, defaultValue(KEY_SEARCH_DICT.KSD_ID))
-                    .set(KEY_SEARCH_DICT.NAME, name)
-                    .set(KEY_SEARCH_DICT.CONTENT, content)
-                    .set(KEY_SEARCH_DICT.DESCRIPTION, description)
-                    .execute();
+        return SqlServer.createDSLContext()
+                .insertInto(KEY_SEARCH_DICT)
+                .set(KEY_SEARCH_DICT.UID, userID)
+                .set(KEY_SEARCH_DICT.KSD_ID, defaultValue(KEY_SEARCH_DICT.KSD_ID))
+                .set(KEY_SEARCH_DICT.NAME, name)
+                .set(KEY_SEARCH_DICT.CONTENT, content)
+                .set(KEY_SEARCH_DICT.DESCRIPTION, description)
+                .execute();
     }
     
     /**

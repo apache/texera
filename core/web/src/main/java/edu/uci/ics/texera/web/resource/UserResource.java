@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.web.resource;
 
 import edu.uci.ics.texera.dataflow.jooq.generated.tables.records.UserAccountRecord;
-import edu.uci.ics.texera.dataflow.sqlServerInfo.UserSqlServer;
+import edu.uci.ics.texera.dataflow.sqlServerInfo.SqlServer;
 import edu.uci.ics.texera.web.response.GenericWebResponse;
 import io.dropwizard.jersey.sessions.Session;
 import org.apache.commons.lang3.tuple.Pair;
@@ -22,30 +22,13 @@ import static org.jooq.impl.DSL.defaultValue;
 @Produces(MediaType.APPLICATION_JSON)
 public class UserResource {
     private static final String SESSION_USER = "texera-user";
-    
-    /**
-     * Corresponds to `src/app/common/type/user.ts`
-     */
-    public static class User {
-        public String userName;
-        public UInteger userID; // the ID in MySQL database is unsigned int
-        
-        public static User generateErrorAccount() {
-            return new User("", UInteger.valueOf(0));
-        }
-        
-        public User(String userName, UInteger userID) {
-            this.userName = userName;
-            this.userID = userID;
-        }
-        
-        public String getUserName() {
-            return userName;
-        }
 
-        public UInteger getUserID() {
-            return userID;
-        }
+    private Record1<UInteger> getUserID(Condition condition) {
+        return SqlServer.createDSLContext()
+                .select(USER_ACCOUNT.UID)
+                .from(USER_ACCOUNT)
+                .where(condition)
+                .fetchOne();
     }
 
     public static class UserRegistrationRequest {
@@ -144,24 +127,41 @@ public class UserResource {
         setUserSession(session, null);
         return GenericWebResponse.generateSuccessResponse();
     }
-    
-    private Record1<UInteger> getUserID(Condition condition) {
-            return UserSqlServer.createDSLContext()
-                    .select(USER_ACCOUNT.UID)
-                    .from(USER_ACCOUNT)
-                    .where(condition)
-                    .fetchOne();
-    }
 
     private UserAccountRecord insertUserAccount(String userName) {
-        return UserSqlServer.createDSLContext()
+        return SqlServer.createDSLContext()
                 .insertInto(USER_ACCOUNT)
                 .set(USER_ACCOUNT.NAME, userName)
                 .set(USER_ACCOUNT.UID, defaultValue(USER_ACCOUNT.UID))
                 .returning(USER_ACCOUNT.UID)
                 .fetchOne();
     }
-    
+
+    /**
+     * Corresponds to `src/app/common/type/user.ts`
+     */
+    public static class User {
+        public String userName;
+        public UInteger userID; // the ID in MySQL database is unsigned int
+
+        public static User generateErrorAccount() {
+            return new User("", UInteger.valueOf(0));
+        }
+
+        public User(String userName, UInteger userID) {
+            this.userName = userName;
+            this.userID = userID;
+        }
+
+        public String getUserName() {
+            return userName;
+        }
+
+        public UInteger getUserID() {
+            return userID;
+        }
+    }
+
     private Pair<Boolean, String> validateUsername(String userName) {
         if (userName == null) {
             return Pair.of(false, "username cannot be null");
