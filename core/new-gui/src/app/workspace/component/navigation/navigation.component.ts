@@ -42,7 +42,8 @@ export class NavigationComponent implements OnInit {
   public runIcon = 'play-circle';
   public runDisable = false;
   public executionResultID: string | undefined;
-  public onClickRunHandler = () => {};
+  public onClickRunHandler = () => {
+  };
 
   // tslint:disable-next-line:member-ordering
   constructor(
@@ -256,7 +257,7 @@ export class NavigationComponent implements OnInit {
     if (!this.userService.isLogin()) {
       alert('please login');
     } else {
-      this.workflowPersistService.saveWorkflow(this.userService.getUser()?.userID, this.saveWorkflowService.getSavedWorkflow());
+      this.workflowPersistService.saveWorkflow(this.saveWorkflowService.getSavedWorkflow());
     }
   }
 

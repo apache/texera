@@ -182,19 +182,24 @@ public class WorkflowResource {
     @POST
     @Path("/save-workflow")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
-    public WorkflowWebResponse saveWorkflow(
+    public Workflow saveWorkflow(
             @Session HttpSession session,
-            @FormDataParam("userId") UInteger userId,
-            @FormDataParam("workflowBody") String workflowBody
+            @FormDataParam("wfId") UInteger wfId,
+            @FormDataParam("content") String content
     ) {
+        UInteger userId = UserResource.getUser(session).getUserID();
+        if (wfId != null) {
+            updateWorkflowInDataBase(wfId, content);
+            return new Workflow(wfId, userId, content);
+        }
         String name = "name";
-        Record1<UInteger> workflowId = insertWorkflowToDataBase(name, workflowBody);
-        WorkflowRecord workflowRecord = new WorkflowRecord(name, workflowId.value1(), workflowBody);
+        Record1<UInteger> newWfId = insertWorkflowToDataBase(name, content);
+        WorkflowRecord workflowRecord = new WorkflowRecord(name, newWfId.value1(), content);
         //        throwErrorWhenNotOne("Error occurred while updating workflow to database", result);
-        int result = insertWorkflowOfUser(workflowId.value1(), userId);
+        int result = insertWorkflowOfUser(newWfId.value1(), userId);
         throwErrorWhenNotOne("Error occurred while updating workflow to database", result);
-        return WorkflowWebResponse.generateSuccessResponse(new Workflow(workflowRecord.getWfId(), userId, workflowRecord.getContent()));
-//        return GenericWebResponse.generateSuccessResponse();
+        return new Workflow(workflowRecord.getWfId(), userId, workflowRecord.getContent());
+
     }
 
     /**

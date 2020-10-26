@@ -15,14 +15,18 @@ export class WorkflowPersistService {
   constructor(public http: HttpClient) {
   }
 
-  public saveWorkflow(userID: number | undefined, savedWorkflow: string | null) {
-    if (userID === undefined || savedWorkflow == null) {
-      console.log('not it is null');
+  public saveWorkflow(savedWorkflow: string | null) {
+    if (savedWorkflow == null) {
       return Observable.of(undefined);
     }
     const formData: FormData = new FormData();
-    formData.append('userId', userID.toString());
-    formData.append('workflowBody', savedWorkflow);
+
+    const k = localStorage.getItem('wfId');
+    if (k != null) {
+      formData.append('wfId', k);
+    }
+
+    formData.append('content', savedWorkflow);
     this.http.post<Workflow>(
       `${AppSettings.getApiEndpoint()}/workflow/save-workflow`, formData).flatMap(
       res => {
@@ -30,7 +34,7 @@ export class WorkflowPersistService {
       }
     ).subscribe(
       (workflow) => {
-        console.log('response received');
+        console.log(workflow);
         localStorage.removeItem('wfId');
         localStorage.setItem('wfId', JSON.stringify(workflow.wfId));
       },

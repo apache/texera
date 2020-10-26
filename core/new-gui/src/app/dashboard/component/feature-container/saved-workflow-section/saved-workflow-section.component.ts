@@ -19,7 +19,7 @@ import {Observable} from 'rxjs';
  * @author Zhaomin Li
  */
 @Component({
-  selector: 'texera-saved-project-section',
+  selector: 'texera-saved-workflow-section',
   templateUrl: './saved-workflow-section.component.html',
   styleUrls: ['./saved-workflow-section.component.scss', '../../dashboard.component.scss']
 })
@@ -37,7 +37,7 @@ export class SavedWorkflowSectionComponent implements OnInit {
 
   ngOnInit() {
     this.savedProjectService.getSavedWorkflows().subscribe(
-      value => this.workflows = value,
+      // value => this.workflows = value,
     );
   }
 
