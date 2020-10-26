@@ -1,7 +1,9 @@
 export interface Workflow extends Readonly<{
+  name: string;
   wfId: number;
-  userId: number;
   content: string;
+  creationTime: string;
+  lastModifiedTime: string;
 }> {
 }
 

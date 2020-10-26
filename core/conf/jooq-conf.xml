@@ -2,6 +2,9 @@
     <generator>
         <generate>
             <generatedAnnotation>false</generatedAnnotation>
+
+            <daos>true</daos>
+            <interfaces>true</interfaces>
         </generate>
         <!-- The default code generator. You can override this one, to generate your own code style.
              Supported generators:

@@ -30,6 +30,7 @@ public class Workflow extends TableImpl<WorkflowRecord> {
      * The reference instance of <code>texera_db.workflow</code>
      */
     public static final Workflow WORKFLOW = new Workflow();
+
     /**
      * The column <code>texera_db.workflow.creation_time</code>.
      */
@@ -49,10 +50,6 @@ public class Workflow extends TableImpl<WorkflowRecord> {
      * The column <code>texera_db.workflow.content</code>.
      */
     public final TableField<WorkflowRecord, String> CONTENT = createField(DSL.name("content"), org.jooq.impl.SQLDataType.CLOB.nullable(false), this, "");
-    /**
-     * The column <code>texera_db.workflow.last_modified_time</code>.
-     */
-    public final TableField<WorkflowRecord, Timestamp> LAST_MODIFIED_TIME = createField(DSL.name("last_modified_time"), org.jooq.impl.SQLDataType.TIMESTAMP.nullable(false).defaultValue(org.jooq.impl.DSL.field("CURRENT_TIMESTAMP", org.jooq.impl.SQLDataType.TIMESTAMP)), this, "");
 
     /**
      * The class holding records for this type
@@ -61,6 +58,11 @@ public class Workflow extends TableImpl<WorkflowRecord> {
     public Class<WorkflowRecord> getRecordType() {
         return WorkflowRecord.class;
     }
+
+    /**
+     * The column <code>texera_db.workflow.last_modified_time</code>.
+     */
+    public final TableField<WorkflowRecord, Timestamp> LAST_MODIFIED_TIME = createField(DSL.name("last_modified_time"), org.jooq.impl.SQLDataType.TIMESTAMP.nullable(false).defaultValue(org.jooq.impl.DSL.field("CURRENT_TIMESTAMP", org.jooq.impl.SQLDataType.TIMESTAMP)), this, "");
 
     /**
      * Create a <code>texera_db.workflow</code> table reference

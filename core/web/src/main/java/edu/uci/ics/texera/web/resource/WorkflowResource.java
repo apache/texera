@@ -1,13 +1,12 @@
 package edu.uci.ics.texera.web.resource;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import edu.uci.ics.texera.dataflow.jooq.generated.tables.pojos.Workflow;
 import edu.uci.ics.texera.dataflow.sqlServerInfo.UserSqlServer;
 import edu.uci.ics.texera.web.TexeraWebException;
 import edu.uci.ics.texera.web.response.GenericWebResponse;
 import io.dropwizard.jersey.sessions.Session;
 import org.glassfish.jersey.media.multipart.FormDataParam;
-import org.jooq.Record1;
-import org.jooq.Record3;
 import org.jooq.types.UInteger;
 
 import javax.servlet.http.HttpSession;
@@ -25,102 +24,22 @@ import static edu.uci.ics.texera.dataflow.jooq.generated.Tables.WORKFLOW_OF_USER
  * The details of UserWorkflowTable can be found in /core/scripts/sql/texera_ddl.sql
  */
 
-// uncomment and use below to give workflows the concept of ownership
-// @Path("/user/workflow")
 @Path("/workflow")
 @Produces(MediaType.APPLICATION_JSON)
 public class WorkflowResource {
-
-    public static class Workflow {
-        private final UInteger wfId;
-        private final UInteger userId; // the ID in MySQL database is unsigned int
-        private final String content;
-
-
-        public Workflow(UInteger wfId, UInteger userId, String content) {
-            this.wfId = wfId;
-            this.userId = userId;
-            this.content = content;
-        }
-
-
-        public String getContent() {
-            return content;
-        }
-
-        public UInteger getUserId() {
-            return userId;
-        }
-
-        public UInteger getWfId() {
-            return wfId;
-        }
-    }
-
-    /**
-     * Corresponds to `src/app/common/type/workflow.ts`
-     */
-    public static class WorkflowWebResponse {
-        private int code;
-        private String message;
-        private Workflow workflow;
-
-        public static WorkflowWebResponse generateErrorResponse(String message) {
-            return new WorkflowWebResponse(1, message, null);
-        }
-
-        public WorkflowWebResponse() {
-            // Default constructor is required for Jackson JSON serialization
-        }
-
-        public static WorkflowWebResponse generateSuccessResponse(Workflow workflow) {
-            return new WorkflowWebResponse(0, "success", workflow);
-        }
-
-        private WorkflowWebResponse(int code, String message, Workflow workflow) {
-            this.code = code;
-            this.message = message;
-            this.workflow = workflow;
-        }
-
-        public Workflow getWorkflow() {
-            return workflow;
-        }
-
-        public void setWorkflow(Workflow workflow) {
-            this.workflow = workflow;
-        }
-
-        public int getCode() {
-            return code;
-        }
-
-        public void setCode(int code) {
-            this.code = code;
-        }
-
-        public String getMessage() {
-            return message;
-        }
-
-        public void setMessage(String message) {
-            this.message = message;
-        }
-    }
 
 
     @GET
     @Path("/get")
     public List<Workflow> getUserWorkflow(@Session HttpSession session) {
-        UInteger userId = UserResource.getUser(session).getUserID();
-        if (userId == null) {
-            return new ArrayList<Workflow>() {
-            };
-//            return  new [Workflow(UInteger.valueOf(1), UInteger.valueOf(1), "all user")];
-        }
+
+        UserResource.User user = UserResource.getUser(session);
+        if (user == null) return new ArrayList<Workflow>() {
+        };
+
         // uncomment below to link user with workflow
         // UInteger userID =
-        return getWorkflowByUser(userId);
+        return getWorkflowByUser(user.getUserID());
     }
 
     /**
@@ -137,17 +56,18 @@ public class WorkflowResource {
     public Workflow getWorkflow(@PathParam("workflowID") UInteger workflowID,
                                 @Session HttpSession session) {
 
-        if (workflowID == null) {
-            return new Workflow(UInteger.valueOf(1), UInteger.valueOf(1), "all user");
-        }
-        // uncomment below to link user with workflow
-        // UInteger userID =
-        Record3<UInteger, String, String> result = getWorkflowFromDatabase(workflowID);
+//        if (workflowID == null) {
+//            return new Workflow(UInteger.valueOf(1), UInteger.valueOf(1), name, "all user", null
+//                    , null);
+//        }
+//        // uncomment below to link user with workflow
+//        // UInteger userID =
+        Workflow result = getWorkflowFromDatabase(workflowID);
 
         if (result == null) {
             throw new TexeraWebException("Workflow with id: " + workflowID + " does not exit.");
         }
-        return new Workflow(workflowID, UserResource.getUser(session).getUserID(), result.get(WORKFLOW.CONTENT));
+        return result;
     }
 
     /**
@@ -189,15 +109,13 @@ public class WorkflowResource {
         UInteger userId = UserResource.getUser(session).getUserID();
         if (wfId != null) {
             updateWorkflowInDataBase(wfId, content);
-            return new Workflow(wfId, userId, content);
+            return getWorkflowFromDatabase(wfId);
         }
         String name = "name";
-        Record1<UInteger> newWfId = insertWorkflowToDataBase(name, content);
-//        WorkflowRecord workflowRecord = new WorkflowRecord(name, newWfId.value1(), content);
-        //        throwErrorWhenNotOne("Error occurred while updating workflow to database", result);
-        int result = insertWorkflowOfUser(newWfId.value1(), userId);
+        Workflow workflow = insertWorkflowToDataBase(name, content);
+        int result = insertWorkflowOfUser(workflow.getWfId(), userId);
         throwErrorWhenNotOne("Error occurred while updating workflow to database", result);
-        return new Workflow(newWfId.value1(), userId, content);
+        return workflow;
 
     }
 
@@ -207,12 +125,12 @@ public class WorkflowResource {
      * @param workflowID
      * @return
      */
-    private Record3<UInteger, String, String> getWorkflowFromDatabase(UInteger workflowID) {
+    private Workflow getWorkflowFromDatabase(UInteger workflowID) {
         return UserSqlServer.createDSLContext()
-                .select(WORKFLOW.WF_ID, WORKFLOW.NAME, WORKFLOW.CONTENT)
+                .select(WORKFLOW.fields())
                 .from(WORKFLOW)
                 .where(WORKFLOW.WF_ID.eq(workflowID))
-                .fetchOne();
+                .fetchOneInto(Workflow.class);
     }
 
     /**
@@ -223,7 +141,7 @@ public class WorkflowResource {
      */
     private List<Workflow> getWorkflowByUser(UInteger userId) {
         return UserSqlServer.createDSLContext()
-                .select(WORKFLOW.WF_ID, WORKFLOW.NAME, WORKFLOW.CONTENT)
+                .select(WORKFLOW.fields())
                 .from(WORKFLOW).join(WORKFLOW_OF_USER).on(WORKFLOW_OF_USER.WF_ID.eq(WORKFLOW.WF_ID))
                 .where(WORKFLOW_OF_USER.UID.eq(userId))
                 .fetchInto(Workflow.class);
@@ -269,15 +187,12 @@ public class WorkflowResource {
      * @param content
      * @return
      */
-    private Record1<UInteger> insertWorkflowToDataBase(String workflowName, String content) {
+    private Workflow insertWorkflowToDataBase(String workflowName, String content) {
         return UserSqlServer.createDSLContext().insertInto(WORKFLOW)
-                // uncomment below to give workflows the concept of ownership
-                // .set(USERWORKFLOW.USERID,userID)
-                // .set(WORKFLOW.WF_ID, workflowID)
                 .set(WORKFLOW.NAME, workflowName)
                 .set(WORKFLOW.CONTENT, content)
-                .returningResult(WORKFLOW.WF_ID)
-                .fetchOne();
+                .returningResult(WORKFLOW.fields())
+                .fetchOne().into(Workflow.class);
     }
 
     private int insertWorkflowOfUser(UInteger workflowId, UInteger userId) {
