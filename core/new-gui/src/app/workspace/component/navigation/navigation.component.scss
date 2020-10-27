@@ -11,7 +11,7 @@
   width: 100%;
   overflow: hidden;
   display: grid;
-  grid-template-columns: calc(14% - 16px) 70% calc(16% - 16px);
+  grid-template-columns: calc(14% - 16px) 25% 35% calc(16% - 16px);
   grid-template-rows: 100%;
   align-items: center;
   margin: 0px 16px 0px 16px;
@@ -36,8 +36,15 @@
     grid-row: 1/1;
   }
 
+  .texera-navigation-workflow-name {
+    grid-column: 3/3;
+    grid-row: 1/1;
+    z-index: 1;
+
+  }
+
   .texera-navigation-execute {
-    grid-column: 2/4;
+    grid-column: 4/4;
     grid-row: 1/1;
     text-align: right;
 
@@ -45,8 +52,9 @@
       width: 16ch;
       text-align: left;
       z-index: 1;
+
       .texera-navigation-run-button-icon {
-        width:max-content;
+        width: max-content;
         padding-right: 8px;
       }
     }

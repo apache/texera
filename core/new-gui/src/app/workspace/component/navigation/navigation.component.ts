@@ -39,6 +39,7 @@ export class NavigationComponent implements OnInit {
   public ExecutionState = ExecutionState; // make Angular HTML access enum definition
   public isWorkflowValid: boolean = true; // this will check whether the workflow error or not
   public isSaving: boolean = false;
+  public currentWorkflowName: string = localStorage.getItem('workflowName') ?? 'Untitled Workflow';
 
   // variable bound with HTML to decide if the running spinner should show
   public runButtonText = 'Run';
@@ -264,7 +265,7 @@ export class NavigationComponent implements OnInit {
       this.isSaving = true;
       const cachedWorkflowStr = this.saveWorkflowService.getSavedWorkflow();
       if (cachedWorkflowStr != null) {
-        this.workflowPersistService.saveWorkflow(cachedWorkflowStr).subscribe(
+        this.workflowPersistService.saveWorkflow(cachedWorkflowStr, this.currentWorkflowName).subscribe(
           (workflow: Workflow | null) => {
             localStorage.removeItem('wfId');
             localStorage.setItem('wfId', JSON.stringify(workflow?.wfId));
@@ -282,5 +283,7 @@ export class NavigationComponent implements OnInit {
     }
   }
 
-
+  onWorkflowNameChange() {
+    localStorage.setItem('workflowName', this.currentWorkflowName);
+  }
 }

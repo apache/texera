@@ -39,7 +39,7 @@ export class SavedWorkflowSectionComponent implements OnInit {
 
   ngOnInit() {
     this.savedProjectService.getSavedWorkflows().subscribe(
-      value => this.workflows = value,
+      workflows => this.workflows = workflows,
     );
   }
 
@@ -163,6 +163,7 @@ export class SavedWorkflowSectionComponent implements OnInit {
   jumpToWorkflow(workflow: Workflow) {
     localStorage.setItem('workflow', workflow.content);
     localStorage.setItem('wfId', workflow.wfId.toString());
+    localStorage.setItem('workflowName', workflow.name);
     this.router.navigate(['/']);
   }
 }

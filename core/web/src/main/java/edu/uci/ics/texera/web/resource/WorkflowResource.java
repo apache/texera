@@ -68,6 +68,7 @@ public class WorkflowResource {
     public Workflow saveWorkflow(
             @Session HttpSession session,
             @FormDataParam("wfId") UInteger wfId,
+            @FormDataParam("name") String name,
             @FormDataParam("content") String content
     ) {
         UserResource.User user = UserResource.getUser(session);
@@ -75,9 +76,8 @@ public class WorkflowResource {
             return null;
         }
         if (wfId != null) {
-            return updateWorkflow(wfId, content);
+            return updateWorkflow(wfId, name, content);
         }
-        String name = "name";
         Workflow workflow = insertWorkflowToDataBase(name, content);
         workflowOfUserDao.insert(new WorkflowOfUser(user.getUserID(), workflow.getWfId()));
 
@@ -104,11 +104,13 @@ public class WorkflowResource {
      * update table workflow set content = @param "content" where wf_id = @param "workflowId"
      *
      * @param workflowId
+     * @param name
      * @param content
      * @return
      */
-    private Workflow updateWorkflow(UInteger workflowId, String content) {
+    private Workflow updateWorkflow(UInteger workflowId, String name, String content) {
         SqlServer.createDSLContext().update(WORKFLOW)
+                .set(WORKFLOW.NAME, name)
                 .set(WORKFLOW.CONTENT, content)
                 .where(WORKFLOW.WF_ID.eq(workflowId)).execute();
         return workflowDao.fetchOneByWfId(workflowId);

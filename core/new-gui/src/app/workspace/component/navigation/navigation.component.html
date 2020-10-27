@@ -48,8 +48,12 @@
       </nz-button-group>
     </div>
 
-    <div
-      [ngClass]="{'texera-navigation-execute': true, 'reveal-stop-button' : executionState != ExecutionState.Uninitialized && executionState != ExecutionState.Completed && executionState != ExecutionState.Failed}">
+    <input (change)="onWorkflowNameChange()" [(ngModel)]="currentWorkflowName" class="texera-navigation-workflow-name"
+           nz-input placeholder="Untitled Workflow"/>
+
+    <div [ngClass]="{'texera-navigation-execute': true, 'reveal-stop-button':
+      executionState != ExecutionState.Uninitialized && executionState != ExecutionState.Completed &&
+      executionState != ExecutionState.Failed}">
       <nz-button-group nzSize="large">
         <button (click)="undoRedo.undoAction()" [disabled]="undoRedo.getUndoLength() == 0"
                 class="animate-to-reveal-stop-button"
@@ -65,7 +69,7 @@
           <i nz-icon nzType="question-circle" nzTheme="outline"></i>
         </button>
         <button nz-button
-                (click)="this.onClickRunHandler()"
+                (click)="onClickRunHandler()"
                 [disabled]="runDisable"
                 class="texera-navigation-run-button animate-to-reveal-stop-button"
                 nzType='primary'>
@@ -76,7 +80,7 @@
         </button>
         <button nz-button
                 #runStopButton
-                (click)="this.handleKill()"
+                (click)="handleKill()"
                 [disabled]="executionState == ExecutionState.Uninitialized || executionState == ExecutionState.Completed || executionState == ExecutionState.Failed"
                 class="texera-navigation-stop-button"
                 nzDanger
