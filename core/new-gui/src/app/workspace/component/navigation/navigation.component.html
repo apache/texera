@@ -20,6 +20,9 @@
         <button (click)="onClickRestoreZoomOffsetDefault()" nz-button title="reset zoom">
           <i nz-icon nzType="fullscreen" nzTheme="outline"></i>
         </button>
+        <button (click)="onClickCreateNewWorkflow()" nz-button title="create new">
+          <i nz-icon nzTheme="outline" nzType="form"></i>
+        </button>
         <button (click)="onClickSaveWorkflow()" [disabled]="isSaving" nz-button title="save">
           <i *ngIf="!isSaving" nz-icon nzTheme="outline" nzType="save"></i>
           <i *ngIf="isSaving" [nzSpin]="true" [nzType]="'sync'" nz-icon nzTheme="outline"></i>
