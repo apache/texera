@@ -10,6 +10,8 @@ import {WorkflowStatusService} from '../../service/workflow-status/workflow-stat
 import {UserService} from '../../../common/service/user/user.service';
 import {WorkflowPersistService} from '../../../common/service/user/workflow-persist/workflow-persist.service';
 import {CacheWorkflowService} from '../../service/cache-workflow/cache-workflow.service';
+import {Workflow} from '../../../common/type/workflow';
+
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -36,14 +38,13 @@ export class NavigationComponent implements OnInit {
   public executionState: ExecutionState;  // set this to true when the workflow is started
   public ExecutionState = ExecutionState; // make Angular HTML access enum definition
   public isWorkflowValid: boolean = true; // this will check whether the workflow error or not
+  public isSaving: boolean = false;
 
-  // variable binded with HTML to decide if the running spinner should show
+  // variable bound with HTML to decide if the running spinner should show
   public runButtonText = 'Run';
   public runIcon = 'play-circle';
   public runDisable = false;
   public executionResultID: string | undefined;
-  public onClickRunHandler = () => {
-  };
 
   // tslint:disable-next-line:member-ordering
   constructor(
@@ -55,7 +56,7 @@ export class NavigationComponent implements OnInit {
     public validationWorkflowService: ValidationWorkflowService,
     private saveWorkflowService: CacheWorkflowService,
     public workflowPersistService: WorkflowPersistService,
-    private userService: UserService
+    private userService: UserService,
   ) {
     this.executionState = executeWorkflowService.getExecutionState().state;
     // return the run button after the execution is finished, either
@@ -81,6 +82,9 @@ export class NavigationComponent implements OnInit {
     // set the map of operatorStatusMap
     validationWorkflowService.getWorkflowValidationErrorStream()
       .subscribe(value => this.isWorkflowValid = Object.keys(value.errors).length === 0);
+  }
+
+  public onClickRunHandler = () => {
   }
 
   ngOnInit() {
@@ -257,7 +261,24 @@ export class NavigationComponent implements OnInit {
     if (!this.userService.isLogin()) {
       alert('please login');
     } else {
-      this.workflowPersistService.saveWorkflow(this.saveWorkflowService.getSavedWorkflow());
+      this.isSaving = true;
+      const cachedWorkflowStr = this.saveWorkflowService.getSavedWorkflow();
+      if (cachedWorkflowStr != null) {
+        this.workflowPersistService.saveWorkflow(cachedWorkflowStr).subscribe(
+          (workflow: Workflow | null) => {
+            localStorage.removeItem('wfId');
+            localStorage.setItem('wfId', JSON.stringify(workflow?.wfId));
+          },
+          (error: string) => {
+            console.error('error caught in component' + error);
+
+          }).add(() => {
+          this.isSaving = false;
+        });
+      } else {
+        alert('No workflow found in cache.');
+      }
+
     }
   }
 

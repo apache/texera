@@ -6,7 +6,11 @@
       </a>
     </div>
     <div class='texera-navigation-utilities'>
-      <nz-button-group nzSize = "large">
+      <nz-button-group nzSize="large">
+        <button [routerLink]="'/dashboard'">
+          <i nz-icon nzTheme="outline" nzType="cloud-server"></i>
+        </button>
+
         <button nz-button (click)="onClickZoomOut()" title="zoom out">
           <i nz-icon nzType="zoom-out" nzTheme="outline"></i>
         </button>
@@ -16,12 +20,16 @@
         <button (click)="onClickRestoreZoomOffsetDefault()" nz-button title="reset zoom">
           <i nz-icon nzType="fullscreen" nzTheme="outline"></i>
         </button>
+        <button (click)="onClickSaveWorkflow()" [disabled]="isSaving" nz-button title="save">
+          <i *ngIf="!isSaving" nz-icon nzTheme="outline" nzType="save"></i>
+          <i *ngIf="isSaving" [nzSpin]="true" [nzType]="'sync'" nz-icon nzTheme="outline"></i>
+        </button>
         <button nz-button (click)="onClickDeleteAllOperators()" title="delete all">
           <i nz-icon nzType="delete" nzTheme="outline"></i>
         </button>
         <button nz-button [disabled]="!executionResultID"
-          [nzDisabled]="!executionResultID" nz-dropdown [nzDropdownMenu]="menu"
-          id="downloadExcelOptions" title="download execution result">
+                [nzDisabled]="!executionResultID" [nzDropdownMenu]="menu" id="downloadExcelOptions"
+                nz-dropdown title="download execution result">
           <i nz-icon nzType="cloud-download" nzTheme="outline"></i>
         </button>
         <nz-dropdown-menu #menu="nzDropdownMenu">
@@ -41,41 +49,42 @@
     </div>
 
     <div
-    [ngClass] = "{'texera-navigation-execute': true, 'reveal-stop-button' : executionState != ExecutionState.Uninitialized && executionState != ExecutionState.Completed && executionState != ExecutionState.Failed}">
-      <nz-button-group nzSize = "large">
-        <button class="animate-to-reveal-stop-button" nz-button nzType="default" [disabled]="undoRedo.getUndoLength() == 0" (click)="undoRedo.undoAction()">
+      [ngClass]="{'texera-navigation-execute': true, 'reveal-stop-button' : executionState != ExecutionState.Uninitialized && executionState != ExecutionState.Completed && executionState != ExecutionState.Failed}">
+      <nz-button-group nzSize="large">
+        <button (click)="undoRedo.undoAction()" [disabled]="undoRedo.getUndoLength() == 0"
+                class="animate-to-reveal-stop-button"
+                nz-button nzType="default">
           <i nz-icon nzType="undo" nzTheme="outline"></i>
         </button>
-        <button class="animate-to-reveal-stop-button"  nz-button nzType="default" [disabled]="undoRedo.getRedoLength() == 0" (click)="undoRedo.redoAction()">
+        <button (click)="undoRedo.redoAction()" [disabled]="undoRedo.getRedoLength() == 0"
+                class="animate-to-reveal-stop-button"
+                nz-button nzType="default">
           <i nz-icon nzType="redo" nzTheme="outline"></i>
         </button>
-        <button class="animate-to-reveal-stop-button"  nz-button nzType="default" (click)="tourService.toggle()">
+        <button (click)="tourService.toggle()" class="animate-to-reveal-stop-button" nz-button nzType="default">
           <i nz-icon nzType="question-circle" nzTheme="outline"></i>
         </button>
         <button nz-button
-        nzType='primary'
-        class="texera-navigation-run-button animate-to-reveal-stop-button"
-        [disabled]="runDisable"
-        (click)="this.onClickRunHandler()">
+                (click)="this.onClickRunHandler()"
+                [disabled]="runDisable"
+                class="texera-navigation-run-button animate-to-reveal-stop-button"
+                nzType='primary'>
           <i class="texera-navigation-run-button-icon" nz-icon nzType="{{runIcon}}" nzTheme="outline"></i>
           <span>
             {{ runButtonText }}
           </span>
         </button>
         <button nz-button
-        #runStopButton
-        title="Force Stop"
-        nzType='primary'
-        nzDanger
-        [disabled] = "executionState == ExecutionState.Uninitialized || executionState == ExecutionState.Completed || executionState == ExecutionState.Failed"
-        class = "texera-navigation-stop-button"
-        (click)="this.handleKill()">
-        <i nz-icon nzType="exclamation-circle" nzTheme="outline"></i>
+                #runStopButton
+                (click)="this.handleKill()"
+                [disabled]="executionState == ExecutionState.Uninitialized || executionState == ExecutionState.Completed || executionState == ExecutionState.Failed"
+                class="texera-navigation-stop-button"
+                nzDanger
+                nzType='primary'
+                title="Force Stop">
+          <i nz-icon nzTheme="outline" nzType="exclamation-circle"></i>
         </button>
       </nz-button-group>
-      <button [routerLink]="'/dashboard'" mat-raised-button> Dashboard</button>
-      <button (click)=onClickSaveWorkflow() mat-raised-button> Save Workflow</button>
-
     </div>
   </div>
 </div>
