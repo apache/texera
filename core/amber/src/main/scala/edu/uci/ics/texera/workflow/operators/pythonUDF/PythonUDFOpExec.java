@@ -14,6 +14,7 @@ import org.apache.arrow.vector.*;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
+import org.apache.curator.shaded.com.google.common.collect.Iterators;
 import scala.collection.Iterator;
 import scala.util.Either;
 import scala.collection.JavaConverters;
@@ -35,15 +36,13 @@ public class PythonUDFOpExec implements OperatorExecutor {
     private final int batchSize;
     private final boolean isDynamic;
 
-    private final HashMap<String, String> params = new HashMap<>();
-
     private static final int MAX_TRY_COUNT = 20;
     private static final long WAIT_TIME_MS = 500;
     private static final String PYTHON = "python3";
     private static final String DAEMON_SCRIPT_PATH = getPythonResourcePath("texera_udf_server_main.py");
 
     private static final RootAllocator globalRootAllocator = new RootAllocator();
-    private static final ObjectMapper globalObjectMapper = new ObjectMapper();
+    private static final ObjectMapper globalObjectMapper = Utils.objectMapper();
     private FlightClient flightClient;
     private org.apache.arrow.vector.types.pojo.Schema globalInputSchema;
 
@@ -152,8 +151,6 @@ public class PythonUDFOpExec implements OperatorExecutor {
         } catch (Exception e) {
             closeAndThrow(flightClient, e);
         }
-
-        updateParamMap();
     }
 
     @Override
@@ -190,20 +187,8 @@ public class PythonUDFOpExec implements OperatorExecutor {
                 return JavaConverters.asScalaIterator(outputTupleBuffer.iterator());
             }
         }
-        return JavaConverters.asScalaIterator(null);
+        return JavaConverters.asScalaIterator(Iterators.emptyIterator());
     }
-
-    public void updateParamMap() {
-        params.put("batchSize", Integer.toString(batchSize));
-        params.put("MAX_TRY_COUNT", Integer.toString(MAX_TRY_COUNT));
-        params.put("WAIT_TIME_MS", Long.toString(WAIT_TIME_MS));
-    }
-
-    @Override
-    public String getParam(String query) {
-        return params.getOrDefault(query, null);
-    }
-
 
     private void processOneBatch() {
         writeArrowStream(flightClient, inputTupleBuffer, globalRootAllocator, globalInputSchema, "toPython", batchSize);
@@ -340,7 +325,6 @@ public class PythonUDFOpExec implements OperatorExecutor {
      */
     private static org.apache.arrow.vector.types.pojo.Schema convertAmber2ArrowSchema(Schema amberSchema) {
         List<Field> arrowFields = new ArrayList<>();
-        System.out.println(amberSchema.toString());
         for (Attribute amberAttribute : amberSchema.getAttributes()) {
             String name = amberAttribute.getName();
             Field field;
