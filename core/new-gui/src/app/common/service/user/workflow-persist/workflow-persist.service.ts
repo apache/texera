@@ -2,6 +2,7 @@ import {Injectable} from '@angular/core';
 import {HttpClient} from '@angular/common/http';
 import {AppSettings} from '../../../app-setting';
 import {Workflow} from '../../../type/workflow';
+import {Observable} from "rxjs/Observable";
 
 export const WORKFLOW_URL = 'user/dictionary/validate';
 
@@ -23,5 +24,16 @@ export class WorkflowPersistService {
     formData.append('name', workflowName);
     formData.append('content', savedWorkflow);
     return this.http.post<Workflow>(`${AppSettings.getApiEndpoint()}/workflow/save-workflow`, formData);
+  }
+
+  public getSavedWorkflows(): Observable<Workflow[]> {
+
+    return this.http.get<Workflow[]>(
+      `${AppSettings.getApiEndpoint()}/workflow/get`);
+  }
+
+
+  public deleteSavedWorkflow(deleteProject: Workflow) {
+    return null;
   }
 }

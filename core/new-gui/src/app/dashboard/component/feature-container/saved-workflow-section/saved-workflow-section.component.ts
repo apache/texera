@@ -1,8 +1,6 @@
 import {Component, OnInit} from '@angular/core';
 import {NgbModal} from '@ng-bootstrap/ng-bootstrap';
 
-import {SavedWorkflowService} from '../../../service/saved-project/saved-workflow.service';
-
 import {NgbdModalAddWorkflowComponent} from './ngbd-modal-add-workflow/ngbd-modal-add-workflow.component';
 import {NgbdModalDeleteWorkflowComponent} from './ngbd-modal-delete-workflow/ngbd-modal-delete-workflow.component';
 
@@ -10,6 +8,7 @@ import {cloneDeep} from 'lodash';
 import {Observable} from 'rxjs';
 import {Workflow} from '../../../../common/type/workflow';
 import {Router} from '@angular/router';
+import {WorkflowPersistService} from '../../../../common/service/user/workflow-persist/workflow-persist.service';
 
 /**
  * SavedProjectSectionComponent is the main interface for
@@ -31,14 +30,14 @@ export class SavedWorkflowSectionComponent implements OnInit {
   public defaultWeb: String = 'http://localhost:4200/';
 
   constructor(
-    private savedProjectService: SavedWorkflowService,
+    private workflowPersistService: WorkflowPersistService,
     private modalService: NgbModal,
     private router: Router
   ) {
   }
 
   ngOnInit() {
-    this.savedProjectService.getSavedWorkflows().subscribe(
+    this.workflowPersistService.getSavedWorkflows().subscribe(
       workflows => this.workflows = workflows,
     );
   }
@@ -153,7 +152,7 @@ export class SavedWorkflowSectionComponent implements OnInit {
       (value: boolean) => {
         if (value) {
           this.workflows = this.workflows.filter(workflow => workflow.wfId !== savedWorkflow.wfId);
-          this.savedProjectService.deleteSavedProjectData(savedWorkflow);
+          this.workflowPersistService.deleteSavedWorkflow(savedWorkflow);
         }
       }
     );

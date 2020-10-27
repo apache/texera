@@ -1,6 +1,4 @@
 import {Component, OnInit} from '@angular/core';
-
-import {SavedWorkflowService} from '../service/saved-project/saved-workflow.service';
 import {WorkflowPersistService} from '../../common/service/user/workflow-persist/workflow-persist.service';
 
 /**
@@ -15,13 +13,13 @@ import {WorkflowPersistService} from '../../common/service/user/workflow-persist
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.scss'],
   providers: [
-    {provide: SavedWorkflowService, useClass: SavedWorkflowService},
     WorkflowPersistService
   ]
 })
 export class DashboardComponent implements OnInit {
 
-  constructor() { }
+  constructor() {
+  }
 
   ngOnInit() {
   }

@@ -11,7 +11,7 @@ import {WorkflowActionService} from '../workflow-graph/model/workflow-action.ser
  *  3. operator link predicates
  *
  * When the user refreshes the browser, the CachedWorkflow interface will be
- *  automatically saved and loaded once the refresh completes. This information
+ *  automatically cached and loaded once the refresh completes. This information
  *  will then be used to reload the entire workflow.
  *
  */
@@ -27,7 +27,7 @@ export interface CachedWorkflow {
  *  CacheWorkflowService is responsible for saving the existing workflow and
  *  reloading back to the JointJS paper when the browser refreshes.
  *
- * It will listens to all the browser action events to update the saved workflow plan.
+ * It will listens to all the browser action events to update the cached workflow plan.
  * These actions include:
  *  1. operator add
  *  2. operator delete
@@ -49,7 +49,7 @@ export class CacheWorkflowService {
     private workflowActionService: WorkflowActionService,
     private operatorMetadataService: OperatorMetadataService
   ) {
-    this.handleAutoSaveWorkFlow();
+    this.handleAutoCacheWorkFlow();
 
     this.operatorMetadataService.getOperatorMetadata()
       .filter(metadata => metadata.operators.length !== 0)
@@ -91,15 +91,16 @@ export class CacheWorkflowService {
     this.workflowActionService.addOperatorsAndLinks(operatorsAndPositions, links, breakpoints);
 
     // operators shouldn't be highlighted during page reload
-    this.workflowActionService.getJointGraphWrapper().unhighlightOperators(
-      this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs());
+    const jointGraphWrapper = this.workflowActionService.getJointGraphWrapper();
+    jointGraphWrapper.unhighlightOperators(
+      jointGraphWrapper.getCurrentHighlightedOperatorIDs());
   }
 
   /**
    * This method will listen to all the workflow change event happening
    *  on the property panel and the workflow editor paper.
    */
-  public handleAutoSaveWorkFlow(): void {
+  public handleAutoCacheWorkFlow(): void {
     Observable.merge(
       this.workflowActionService.getTexeraGraph().getOperatorAddStream(),
       this.workflowActionService.getTexeraGraph().getOperatorDeleteStream(),
@@ -120,15 +121,15 @@ export class CacheWorkflowService {
       workflow.getAllOperators().forEach(op => operatorPositions[op.operatorID] =
         this.workflowActionService.getJointGraphWrapper().getOperatorPosition(op.operatorID));
 
-      const savedWorkflow: CachedWorkflow = {
+      const cachedWorkflow: CachedWorkflow = {
         operators, operatorPositions, links, breakpoints
       };
 
-      localStorage.setItem(CacheWorkflowService.LOCAL_STORAGE_KEY, JSON.stringify(savedWorkflow));
+      localStorage.setItem(CacheWorkflowService.LOCAL_STORAGE_KEY, JSON.stringify(cachedWorkflow));
     });
   }
 
-  public getSavedWorkflow(): string | null {
+  public getCachedWorkflow(): string | null {
     return localStorage.getItem(CacheWorkflowService.LOCAL_STORAGE_KEY);
   }
 

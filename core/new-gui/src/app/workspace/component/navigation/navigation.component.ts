@@ -263,7 +263,7 @@ export class NavigationComponent implements OnInit {
       alert('please login');
     } else {
       this.isSaving = true;
-      const cachedWorkflowStr = this.saveWorkflowService.getSavedWorkflow();
+      const cachedWorkflowStr = this.saveWorkflowService.getCachedWorkflow();
       if (cachedWorkflowStr != null) {
         this.workflowPersistService.saveWorkflow(cachedWorkflowStr, this.currentWorkflowName).subscribe(
           (workflow: Workflow | null) => {
