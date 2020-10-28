@@ -33,6 +33,9 @@ class OneToOneOpExecConfig(override val tag: OperatorIdentifier, val opExec: () 
       Map()
     )
   }
+
+  override def getInputNum(from: OperatorIdentifier): Int = 0
+
   override def assignBreakpoint(
       topology: Array[ActorLayer],
       states: mutable.AnyRefMap[ActorRef, WorkerState.Value],
