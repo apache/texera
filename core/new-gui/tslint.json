@@ -1,8 +1,10 @@
 {
   "rulesDirectory": [
-    "node_modules/codelyzer"
+    "node_modules/codelyzer",
+    "node_modules/nz-tslint-rules"
   ],
   "rules": {
+    "nz-secondary-entry-imports": true,
     "arrow-return-shorthand": true,
     "callable-types": true,
     "class-name": true,
