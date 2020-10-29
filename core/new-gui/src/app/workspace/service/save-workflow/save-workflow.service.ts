@@ -95,7 +95,9 @@ export class SaveWorkflowService {
     // operators shouldn't be highlighted during page reload
     this.workflowActionService.getJointGraphWrapper().unhighlightOperators(
       this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs());
-  }
+    //restore the view point
+     this.workflowActionService.getJointGraphWrapper().restoreDefaultZoomAndOffset();
+    }
 
   /**
    * This method will listen to all the workflow change event happening
