@@ -40,6 +40,8 @@ abstract class OpExecConfig(val tag: OperatorIdentifier) extends Serializable {
 
   def requiredShuffle: Boolean = false
 
+  def getInputNum(from:OperatorIdentifier): Int
+
   def getShuffleHashFunction(layerTag: LayerTag): ITuple => Int = ???
 
   def assignBreakpoint(

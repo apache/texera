@@ -14,8 +14,8 @@ import akka.util.Timeout
 
 import scala.concurrent.ExecutionContext
 
-class HashBasedShuffle(from: ActorLayer, to: ActorLayer, batchSize: Int, hashFunc: ITuple => Int)
-    extends LinkStrategy(from, to, batchSize) {
+class HashBasedShuffle(from: ActorLayer, to: ActorLayer, batchSize: Int, hashFunc: ITuple => Int, inputNum:Int)
+    extends LinkStrategy(from, to, batchSize, inputNum) {
   override def link()(implicit
       timeout: Timeout,
       ec: ExecutionContext,

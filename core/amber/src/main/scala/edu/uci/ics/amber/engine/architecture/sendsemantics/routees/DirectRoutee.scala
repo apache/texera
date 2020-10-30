@@ -52,7 +52,7 @@ class DirectRoutee(receiver: ActorRef) extends BaseRoutee(receiver) {
       ec: ExecutionContext,
       log: LoggingAdapter
   ): Unit = {
-    receiver ? UpdateInputLinking(sender, tag.from)
+    receiver ? UpdateInputLinking(sender, tag.from, tag.inputNum)
   }
 
   override def dispose(): Unit = {}
