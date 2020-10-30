@@ -76,3 +76,6 @@ libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.8" % Test
 libraryDependencies += "org.apache.arrow" % "flight-core" % "1.0.1"
 libraryDependencies += "org.apache.arrow" % "flight-grpc" % "1.0.1"
 libraryDependencies += "io.netty" % "netty-all" % "4.1.48.Final"
+
+libraryDependencies += "org.apache.lucene" % "lucene-analyzers-common" % "5.5.0"
+libraryDependencies += "org.apache.lucene" % "lucene-analyzers-smartcn" % "5.5.0"
