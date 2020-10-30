@@ -94,7 +94,9 @@ export class CacheWorkflowService {
     const jointGraphWrapper = this.workflowActionService.getJointGraphWrapper();
     jointGraphWrapper.unhighlightOperators(
       jointGraphWrapper.getCurrentHighlightedOperatorIDs());
-  }
+    //restore the view point
+     this.workflowActionService.getJointGraphWrapper().restoreDefaultZoomAndOffset();
+    }
 
   /**
    * This method will listen to all the workflow change event happening

@@ -45,7 +45,7 @@ class AggregateOpExecConfig[P <: AnyRef](
           finalLayer
         ),
         Array(
-          new AllToOne(partialLayer, finalLayer, Constants.defaultBatchSize)
+          new AllToOne(partialLayer, finalLayer, Constants.defaultBatchSize,0)
         ),
         Map()
       )
@@ -77,7 +77,8 @@ class AggregateOpExecConfig[P <: AnyRef](
             x => {
               val tuple = x.asInstanceOf[Tuple]
               aggFunc.groupByFunc(tuple).hashCode()
-            }
+            },
+            0
           )
         ),
         Map()
@@ -91,4 +92,6 @@ class AggregateOpExecConfig[P <: AnyRef](
   )(implicit timeout: Timeout, ec: ExecutionContext, log: LoggingAdapter): Unit = {
     breakpoint.partition(topology(0).layer.filter(states(_) != WorkerState.Completed))
   }
+
+  override def getInputNum(from: OperatorIdentifier): Int = 0
 }

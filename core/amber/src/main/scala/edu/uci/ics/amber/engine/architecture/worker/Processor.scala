@@ -40,6 +40,7 @@ class Processor(var dataProcessor: IOperatorExecutor, val tag: WorkerTag) extend
   val processingQueue = new mutable.Queue[(LayerTag, Array[ITuple])]
   val input = new FIFOAccessPort()
   val aliveUpstreams = new mutable.HashSet[LayerTag]
+  val inputNumMapping = new mutable.HashMap[LayerTag,Int]
   @volatile var dPThreadState: ThreadState.Value = ThreadState.Idle
   var processingIndex = 0
   var processedCount: Long = 0L
@@ -298,14 +299,15 @@ class Processor(var dataProcessor: IOperatorExecutor, val tag: WorkerTag) extend
   }
 
   final def allowUpdateInputLinking: Receive = {
-    case UpdateInputLinking(inputActor, edgeID) =>
+    case UpdateInputLinking(inputActor, edgeID, inputNum) =>
       sender ! Ack
+      inputNumMapping(edgeID) = inputNum
       aliveUpstreams.add(edgeID)
       input.addSender(inputActor, edgeID)
   }
 
   final def disallowUpdateInputLinking: Receive = {
-    case UpdateInputLinking(inputActor, edgeID) =>
+    case UpdateInputLinking(inputActor, edgeID, inputNum) =>
       sender ! Ack
       throw new AmberException(s"update input linking of $edgeID is not allowed at this time")
   }
@@ -551,7 +553,7 @@ class Processor(var dataProcessor: IOperatorExecutor, val tag: WorkerTag) extend
       }
       if (batch == null) {
 //        dataProcessor.onUpstreamExhausted(from)
-        this.outputIterator = dataProcessor.processTuple(Right(InputExhausted()), 0)
+        this.outputIterator = dataProcessor.processTuple(Right(InputExhausted()), inputNumMapping(from))
         self ! ReportUpstreamExhausted(from)
         aliveUpstreams.remove(from)
       } else {
@@ -562,7 +564,7 @@ class Processor(var dataProcessor: IOperatorExecutor, val tag: WorkerTag) extend
           try {
             currentInputTuple = batch(processingIndex)
             if (!skippedInputTuples.contains(currentInputTuple)) {
-              outputIterator = dataProcessor.processTuple(Left(currentInputTuple), 0)
+              outputIterator = dataProcessor.processTuple(Left(currentInputTuple), inputNumMapping(from))
             }
             processedCount += 1
           } catch {

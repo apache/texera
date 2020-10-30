@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.workflow.operators.visualization.pieChart
+package edu.uci.ics.texera.workflow.operators.visualization.wordCloud
 
 import akka.actor.ActorRef
 import akka.event.LoggingAdapter
@@ -17,25 +17,24 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
-class PieChartOpExecConfig(
-                         tag: OperatorIdentifier,
-                         val numWorkers: Int,
-                         val nameColumn: String,
-                         val dataColumn: String,
-                         val pruneRatio: Double
-                       ) extends OpExecConfig(tag) {
+class WordCloudOpExecConfig(
+                          tag: OperatorIdentifier,
+                          val numWorkers: Int,
+                          val textColumn: String,
+                          val luceneAnalyzerName: String
+                        ) extends OpExecConfig(tag) {
 
   override lazy val topology: Topology = {
     val partialLayer = new ProcessorWorkerLayer(
       LayerTag(tag, "localPieChartProcessor"),
-      _ => new PieChartOpPartialExec(nameColumn, dataColumn),
+      _ => new WordCloudOpPartialExec(textColumn, luceneAnalyzerName),
       numWorkers,
       UseAll(),
       RoundRobinDeployment()
     )
     val finalLayer = new ProcessorWorkerLayer(
       LayerTag(tag, "globalPieChartProcessor"),
-      _ => new PieChartOpFinalExec(pruneRatio),
+      _ => new WordCloudOpFinalExec(),
       1,
       FollowPrevious(),
       RoundRobinDeployment()

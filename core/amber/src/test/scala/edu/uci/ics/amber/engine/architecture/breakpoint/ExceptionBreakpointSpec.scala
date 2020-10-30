@@ -71,7 +71,7 @@ class ExceptionBreakpointSpec
   val opTag: () => OperatorIdentifier = () => { index += 1; OperatorIdentifier(workflowTag, index.toString) }
   val layerTag: () => LayerTag = () => { index += 1; LayerTag(opTag(), index.toString) }
   val workerTag: () => WorkerTag = () => { index += 1; WorkerTag(layerTag(), index) }
-  val linkTag: () => LinkTag = () => { LinkTag(layerTag(), layerTag()) }
+  val linkTag: () => LinkTag = () => { LinkTag(layerTag(), layerTag(),0) }
 
   def resultValidation(expectedTupleCount: Int, idleTime: Duration = 2.seconds): Unit = {
     var counter = 0
