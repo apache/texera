@@ -49,7 +49,8 @@ class WordCloudOpExecConfig(
           partialLayer,
           finalLayer,
           Constants.defaultBatchSize,
-          x => x.asInstanceOf[Tuple].hashCode()
+          x => x.asInstanceOf[Tuple].hashCode(),
+          0
         )
       ),
       Map()
@@ -63,4 +64,6 @@ class WordCloudOpExecConfig(
                                )(implicit timeout: Timeout, ec: ExecutionContext, log: LoggingAdapter): Unit = {
     breakpoint.partition(topology(0).layer.filter(states(_) != WorkerState.Completed))
   }
+
+  override def getInputNum(from: OperatorIdentifier): Int = 0
 }
