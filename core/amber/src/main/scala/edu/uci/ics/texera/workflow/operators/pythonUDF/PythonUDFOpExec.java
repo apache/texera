@@ -14,7 +14,6 @@ import org.apache.arrow.vector.*;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.curator.shaded.com.google.common.collect.Iterators;
 import scala.collection.Iterator;
 import scala.util.Either;
 import scala.collection.JavaConverters;
@@ -187,7 +186,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
                 return JavaConverters.asScalaIterator(outputTupleBuffer.iterator());
             }
         }
-        return JavaConverters.asScalaIterator(Iterators.emptyIterator());
+        return JavaConverters.asScalaIterator(Collections.emptyIterator());
     }
 
     private void processOneBatch() {
