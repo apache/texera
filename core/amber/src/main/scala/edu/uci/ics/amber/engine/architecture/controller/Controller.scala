@@ -233,7 +233,7 @@ class Controller(
     topology.links :+= new LocalPartialToOne(
       lastLayer,
       materializerLayer,
-      Constants.defaultBatchSize
+      Constants.defaultBatchSize,0
     )
     val scanLayer = new GeneratorWorkerLayer(
       LayerTag(to.tag, "from_checkpoint"),
@@ -248,7 +248,7 @@ class Controller(
       scanLayer,
       firstLayer,
       Constants.defaultBatchSize,
-      hashFunc
+      hashFunc,0
     )
 
   }
