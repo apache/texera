@@ -127,8 +127,6 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
       workflowDag.addEdge(origin, destination)
     })
 
-    // a map from an operator to its output schema
-    val outputSchemaMap = new mutable.HashMap[OperatorDescriptor, Option[Schema]]()
     // a map from an operator to the list of its input schema
     val inputSchemaMap = new mutable.HashMap[OperatorDescriptor, List[Option[Schema]]]()
 
@@ -136,12 +134,17 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
     // TODO: introduce the concept of port in TexeraOperatorDescriptor and propagate schema according to port
     val topologicalOrderIterator = workflowDag.iterator()
     topologicalOrderIterator.forEachRemaining(op => {
-      val outputSchema: Option[Schema] =
+      val outputSchema: Option[Schema] = {
         if (op.isInstanceOf[SourceOperatorDescriptor]) {
+          // op is a source operator, ask for it output schema
           Option.apply(op.getOutputSchema(Array()))
-        } else if (inputSchemaMap(op).exists(s => s.isEmpty)) {
+        } else if (!inputSchemaMap.contains(op) || inputSchemaMap(op).exists(s => s.isEmpty)) {
+          // op does not have input, or any of the op's input's output schema is null
+          // then this op's output schema cannot be inferred as well
           Option.empty
         } else {
+          // op's input schema is complete, try to infer its output schema
+          // if inference failed, print an exception message, but still continue the process
           try {
             Option.apply(op.getOutputSchema(inputSchemaMap(op).map(s => s.get).toArray))
           } catch {
@@ -150,7 +153,7 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
               Option.empty
           }
         }
-      outputSchemaMap(op) = outputSchema
+      }
       JavaConverters
         .asScalaSet(workflowDag.outgoingEdgesOf(op))
         .map(e => workflowDag.getEdgeTarget(e))
