@@ -97,6 +97,10 @@ import { UserDictionaryService } from './common/service/user/user-dictionary/use
 import { TEXERA_FORMLY_CONFIG } from './common/formly/formly-config';
 import { VisualizationPanelComponent } from './workspace/component/visualization-panel/visualization-panel.component';
 import { VisualizationPanelContentComponent } from './workspace/component/visualization-panel-content/visualization-panel-content.component';
+import { NgxAceModule } from 'ngx-ace-icy';
+import { CodeareaCustomTemplateComponent } from './workspace/component/codearea-custom-template/codearea-custom-template.component';
+import { CodeEditorDialogComponent } from './workspace/component/code-editor-dialog/code-editor-dialog.component';
+import { MatDialogModule } from '@angular/material/dialog';
 import { NZ_I18N } from 'ng-zorro-antd/i18n';
 import { en_US } from 'ng-zorro-antd/i18n';
 import { registerLocaleData } from '@angular/common';
@@ -148,6 +152,8 @@ registerLocaleData(en);
     NullTypeComponent,
     VisualizationPanelComponent,
     VisualizationPanelContentComponent,
+    CodeareaCustomTemplateComponent,
+    CodeEditorDialogComponent,
   ],
   imports: [
     BrowserModule,
@@ -181,6 +187,8 @@ registerLocaleData(en);
     NzToolTipModule,
     NzTableModule,
     NzModalModule,
+    NgxAceModule,
+    MatDialogModule,
   ],
   entryComponents: [
     NgbdModalAddProjectComponent,

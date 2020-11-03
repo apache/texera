@@ -23,7 +23,7 @@ class FlowControlRoutee(receiver: ActorRef) extends ActorRoutee(receiver) {
     context = ac
     AdvancedMessageSending.blockingAskWithRetry(
       receiver,
-      UpdateInputLinking(senderActor, tag.from),
+      UpdateInputLinking(senderActor, tag.from, tag.inputNum),
       10
     )
   }

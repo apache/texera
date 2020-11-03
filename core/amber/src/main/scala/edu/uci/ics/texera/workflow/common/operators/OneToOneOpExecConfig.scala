@@ -15,7 +15,7 @@ import edu.uci.ics.amber.engine.operators.OpExecConfig
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
-class OneToOneOpExecConfig(override val tag: OperatorIdentifier, val opExec: () => OperatorExecutor)
+class OneToOneOpExecConfig(override val tag: OperatorIdentifier, val opExec: Int => OperatorExecutor)
     extends OpExecConfig(tag) {
 
   override lazy val topology: Topology = {
@@ -23,7 +23,7 @@ class OneToOneOpExecConfig(override val tag: OperatorIdentifier, val opExec: () 
       Array(
         new ProcessorWorkerLayer(
           LayerTag(tag, "main"),
-          _ => opExec(),
+          opExec,
           Constants.defaultNumWorkers,
           FollowPrevious(),
           RoundRobinDeployment()
@@ -33,6 +33,9 @@ class OneToOneOpExecConfig(override val tag: OperatorIdentifier, val opExec: () 
       Map()
     )
   }
+
+  override def getInputNum(from: OperatorIdentifier): Int = 0
+
   override def assignBreakpoint(
       topology: Array[ActorLayer],
       states: mutable.AnyRefMap[ActorRef, WorkerState.Value],
