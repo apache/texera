@@ -34,7 +34,7 @@ import { OperatorSchema, OperatorMetadata, GroupInfo } from '../../types/operato
   providers: [
     // uncomment this line for manual testing without opening backend server
     // { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
-  ]
+  ],
 })
 export class OperatorPanelComponent implements OnInit {
 
