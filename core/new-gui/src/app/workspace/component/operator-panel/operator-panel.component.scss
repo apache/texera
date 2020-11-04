@@ -19,8 +19,16 @@
     overflow-y: auto;
     .texera-workspace-operator-panel-subgroup{
       background-color: #fff;
+      user-select: none;
       .texera-workspace-operator-panel-subgroup-menu{
         border: none;
+        .texera-operator-label{
+          padding: unset;
+          overflow: visible;
+          &:active {
+            background-color: #fff;
+          }
+        }
       }
     }
   }
@@ -28,4 +36,7 @@
 
 .texera-workspace-operator-panel-search-box-dropdown-menu{
   padding: 0;
+  .dropdown-menu-items{
+    background-color: #fff;
+  }
 }

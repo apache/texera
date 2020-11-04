@@ -8,6 +8,7 @@ import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-grap
 import { ValidationWorkflowService } from '../../service/validation/validation-workflow.service';
 import { ExecutionState } from './../../types/execute-workflow.interface';
 import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
+import { Subscription } from 'rxjs';
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -74,7 +75,10 @@ export class NavigationComponent implements OnInit {
 
     // set the map of operatorStatusMap
     validationWorkflowService.getWorkflowValidationErrorStream()
-      .subscribe(value => this.isWorkflowValid = Object.keys(value.errors).length === 0);
+      .subscribe(value => {
+        this.isWorkflowValid = Object.keys(value.errors).length === 0;
+        this.applyRunButtonBehavior(this.getRunButtonBehavior(this.executionState, this.isWorkflowValid));
+      });
   }
 
   ngOnInit() {

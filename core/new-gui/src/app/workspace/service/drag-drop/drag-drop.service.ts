@@ -189,12 +189,14 @@ export class DragDropService {
       },
       stop: (event: JQueryEventObject, ui: JQueryUI.DraggableEventUIParams) => {
         this.resetSuggestions();
-      }
+      },
+      // prevents dragging from starting on elements of class disable-drag-drop
+      cancel: '.disable-drag-drop',
     });
   }
 
   /**
-   * This function should be only used by the Workflow Editor Componenet
+   * This function should be only used by the Workflow Editor Component
    *  to register itself as a droppable area.
   */
   public registerWorkflowEditorDrop(dropElementID: string): void {
