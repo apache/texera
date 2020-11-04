@@ -379,20 +379,18 @@ export class WorkflowEditorComponent implements AfterViewInit {
       .forEach(event => {
         // calculate the limit of translate
         const translateLimit = this.getTranslateLimit();
-        console.log('translate limit', translateLimit);
         const elementSize = this.getWrapperElementSize();
         const limitx = [elementSize.width - 65 - translateLimit.minX, -translateLimit.maxX];
         const limity = [elementSize.height - 70 - translateLimit.minY, -translateLimit.maxY];
         this.checkBouding(limitx, limity, translateLimit);
 
-        // do paper movement.
+        // do paper movement
         const translatex = this.getJointPaper().translate().tx - event.deltaX;
         const translatey = this.getJointPaper().translate().ty - event.deltaY;
         const conditionx = translatex > limitx[1] && translatex < limitx[0];
         const conditiony = translatey > limity[1] && translatey < limity[0];
-        console.log('translate', translatex, translatey);
 
-        // calculate the pan offset between user click on the mouse and then release the mouse, including zooming value.
+        // set panOffset
         this.panOffset = {
           x : this.getWrapperElementOffset().x + this.getJointPaper().translate().tx,
           y : this.getWrapperElementOffset().y + this.getJointPaper().translate().ty
