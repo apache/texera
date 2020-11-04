@@ -1,6 +1,8 @@
-<div class="texera-operator-label-body" [attr.id]="operatorLabelID" [tourAnchor]="operatorLabelID"
-  placement="right" triggers="manual" title="{{operator?.additionalMetadata.operatorDescription}}" (mouseenter) = 'mouseEnter()' (mouseleave) = 'mouseLeave()'>
-  <span class="text">
-    {{operator?.additionalMetadata.userFriendlyName}}
-  </span>
+<div [ngClass]="{ 'texera-operator-label-container': true, 'disable-drag-drop': !draggable}">
+  <div class='texera-operator-label-body' [ngClass] = "{'shake-animation': animate == 'reject' }" [attr.id]="operatorLabelID" [tourAnchor]="operatorLabelID"
+title="{{operator?.additionalMetadata.operatorDescription}}" (mouseleave) = 'mouseLeave()' (mousedown) = 'mouseDown()' (mouseup) = 'mouseUp()'>
+    <span class="text">
+      {{operator?.additionalMetadata.userFriendlyName}}
+    </span>
+  </div>
 </div>

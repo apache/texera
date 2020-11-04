@@ -164,8 +164,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
   }
 
   private handleDisableJointPaperInteractiveness(): void {
-    this.executeWorkflowService.getExecutionStateStream().subscribe(event => {
-      if (event.current.state === ExecutionState.Completed || event.current.state === ExecutionState.Failed) {
+    this.workflowActionService.getWorkflowModificationEnabledStream().subscribe(enabled => {
+      if (enabled) {
         this.interactive = true;
         this.getJointPaper().setInteractivity(defaultInteractiveOption);
       } else {
