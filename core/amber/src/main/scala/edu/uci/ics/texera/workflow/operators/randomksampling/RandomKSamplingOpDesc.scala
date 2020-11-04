@@ -13,6 +13,10 @@ class RandomKSamplingOpDesc extends FilterOpDesc {
   @JsonPropertyDescription("random k sampling with given percentage")
   var percentage: Int = _
 
+  // Store raondom seeds for each exeutor to satisfy the fault tolerance requirement.
+  // If a worker failed, the engine will start a new worker and rerun the computation.
+  // Fault tolerance requires that the restarted worker should produce the exactly same output.
+  // Therefore the seeds have to be stored.
   @JsonIgnore
   private val seeds: Array[Int] = Array.fill(Constants.defaultNumWorkers)(Random.nextInt)
 
