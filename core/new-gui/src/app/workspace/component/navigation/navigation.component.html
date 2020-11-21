@@ -53,19 +53,13 @@
 
     <input (change)="onWorkflowNameChange()" [(ngModel)]="currentWorkflowName" class="texera-navigation-workflow-name"
            nz-input placeholder="Untitled Workflow"/>
-
-    <div [ngClass]="{'texera-navigation-execute': true, 'reveal-stop-button':
-      executionState != ExecutionState.Uninitialized && executionState != ExecutionState.Completed &&
-      executionState != ExecutionState.Failed}">
-      <nz-button-group nzSize="large">
-        <button (click)="undoRedo.undoAction()" [disabled]="undoRedo.getUndoLength() == 0"
-                class="animate-to-reveal-stop-button"
-                nz-button nzType="default">
+    <div
+    [ngClass] = "{'texera-navigation-execute': true, 'reveal-stop-button' : executionState != ExecutionState.Uninitialized && executionState != ExecutionState.Completed && executionState != ExecutionState.Failed}">
+      <nz-button-group nzSize = "large">
+        <button class="animate-to-reveal-stop-button" nz-button nzType="default" [disabled]="!undoRedo.canUndo()" (click)="undoRedo.undoAction()">
           <i nz-icon nzType="undo" nzTheme="outline"></i>
         </button>
-        <button (click)="undoRedo.redoAction()" [disabled]="undoRedo.getRedoLength() == 0"
-                class="animate-to-reveal-stop-button"
-                nz-button nzType="default">
+        <button class="animate-to-reveal-stop-button"  nz-button nzType="default" [disabled]="!undoRedo.canRedo()" (click)="undoRedo.redoAction()">
           <i nz-icon nzType="redo" nzTheme="outline"></i>
         </button>
         <button (click)="tourService.toggle()" class="animate-to-reveal-stop-button" nz-button nzType="default">

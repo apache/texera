@@ -19,6 +19,7 @@ import { WorkflowStatusService } from '../../service/workflow-status/workflow-st
 import { environment } from './../../../../environments/environment';
 import { ExecuteWorkflowService } from '../../service/execute-workflow/execute-workflow.service';
 import { ExecutionState, OperatorStatistics, OperatorState } from '../../types/execute-workflow.interface';
+import { max, min } from 'lodash';
 
 
 // argument type of callback event on a JointJS Paper
@@ -81,6 +82,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
   private ifMouseDown: boolean = false;
   private mouseDown: Point | undefined;
   private panOffset: Point = { x : 0 , y : 0};
+  private translateLimitX: number[] = [];
+  private translateLimitY: number[] = [];
 
   // dictionary of {operatorID, CopiedOperator} pairs
   private copiedOperators: Record<string, CopiedOperator> = {};
@@ -161,8 +164,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
   }
 
   private handleDisableJointPaperInteractiveness(): void {
-    this.executeWorkflowService.getExecutionStateStream().subscribe(event => {
-      if (event.current.state === ExecutionState.Completed || event.current.state === ExecutionState.Failed) {
+    this.workflowActionService.getWorkflowModificationEnabledStream().subscribe(enabled => {
+      if (enabled) {
         this.interactive = true;
         this.getJointPaper().setInteractivity(defaultInteractiveOption);
       } else {
@@ -258,33 +261,148 @@ export class WorkflowEditorComponent implements AfterViewInit {
       .filter(event => event !== undefined)
       .filter(event => this.elementRef.nativeElement.contains(event.target))
       .forEach(event => {
-        if (event.deltaY < 0) {
-          // if zoom ratio already at minimum, do not zoom out.
-          if (this.workflowActionService.getJointGraphWrapper().isZoomRatioMin()) {
-            return;
+        if (event.metaKey || event.ctrlKey) {
+          if (event.deltaY < 0) {
+            // if zoom ratio already at minimum, do not zoom out.
+            if (this.workflowActionService.getJointGraphWrapper().isZoomRatioMin()) {
+              return;
+            }
+            this.workflowActionService.getJointGraphWrapper()
+              .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() - JointGraphWrapper.ZOOM_MOUSEWHEEL_DIFF);
+          } else {
+            // if zoom ratio already at maximum, do not zoom in.
+            if (this.workflowActionService.getJointGraphWrapper().isZoomRatioMax()) {
+              return;
+            }
+            this.workflowActionService.getJointGraphWrapper()
+              .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() + JointGraphWrapper.ZOOM_MOUSEWHEEL_DIFF);
           }
-          this.workflowActionService.getJointGraphWrapper()
-            .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() - JointGraphWrapper.ZOOM_MOUSEWHEEL_DIFF);
-        } else {
-          // if zoom ratio already at maximum, do not zoom in.
-          if (this.workflowActionService.getJointGraphWrapper().isZoomRatioMax()) {
-            return;
-          }
-          this.workflowActionService.getJointGraphWrapper()
-            .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() + JointGraphWrapper.ZOOM_MOUSEWHEEL_DIFF);
         }
       });
   }
 
   /**
+   * This method gets all operators' position and
+   * gets the limits of translating.
+   */
+  private getTranslateLimit(): {minX: number, maxX: number, minY: number, maxY: number} {
+    // reset the position array
+    this.translateLimitX = [];
+    this.translateLimitY = [];
+    // get all operators' positions
+    this.workflowActionService.getTexeraGraph().getAllOperators().forEach(op => {
+      const position = this.workflowActionService.getJointGraphWrapper().getOperatorPosition(op.operatorID);
+      if (!this.translateLimitX.includes(position.x)) {
+        this.translateLimitX.push(position.x);
+      }
+      if (!this.translateLimitY.includes(position.y)) {
+        this.translateLimitY.push(position.y);
+      }
+    });
+    // if no operator, set the default limit
+    const minX = min(this.translateLimitX) ?? 700;
+    const maxX = max(this.translateLimitX) ?? 700;
+    const minY = min(this.translateLimitY) ?? 300;
+    const maxY = max(this.translateLimitY) ?? 300;
+    return {minX, maxX, minY, maxY};
+  }
+
+  /**
+   * This method checks whether the operator is out of bound.
+   */
+  private checkBouding(limitx: number[], limity: number[], translateLimit: any): void {
+    const elementSize = this.getWrapperElementSize();
+    // check if operator out of right bound after WrapperElement changes its size
+    if (this.getJointPaper().translate().tx + translateLimit.minX + 65 > elementSize.width) {
+      this.getJointPaper().translate(
+        limitx[0] - 1, this.getJointPaper().translate().ty
+      );
+      this.panOffset = {
+        x : this.getWrapperElementOffset().x + limitx[0] - 1,
+        y : this.getWrapperElementOffset().y + this.getJointPaper().translate().ty
+      };
+      // pass offset to the joint graph wrapper to make operator be at the right location during drag-and-drop.
+      this.workflowActionService.getJointGraphWrapper().setPanningOffset(this.panOffset);
+    }
+    // check left bound
+    if (this.getJointPaper().translate().tx < -translateLimit.maxX) {
+      this.getJointPaper().translate(
+        -translateLimit.maxX, this.getJointPaper().translate().ty
+      );
+      this.panOffset = {
+        x : this.getWrapperElementOffset().x + (-translateLimit.maxX),
+        y : this.getWrapperElementOffset().y + this.getJointPaper().translate().ty
+      };
+      // pass offset to the joint graph wrapper to make operator be at the right location during drag-and-drop.
+      this.workflowActionService.getJointGraphWrapper().setPanningOffset(this.panOffset);
+    }
+    // check lower bound
+    if (this.getJointPaper().translate().ty + translateLimit.minY + 70 > elementSize.height) {
+      this.getJointPaper().translate(
+        this.getJointPaper().translate().tx, limity[0] - 1
+      );
+      this.panOffset = {
+        x : this.getWrapperElementOffset().x + this.getJointPaper().translate().tx,
+        y : this.getWrapperElementOffset().y + limity[0] - 1
+      };
+      // pass offset to the joint graph wrapper to make operator be at the right location during drag-and-drop.
+      this.workflowActionService.getJointGraphWrapper().setPanningOffset(this.panOffset);
+    }
+    // check upper bound
+    if (this.getJointPaper().translate().ty < -translateLimit.maxY) {
+      this.getJointPaper().translate(
+        this.getJointPaper().translate().tx, -translateLimit.maxY
+      );
+      this.panOffset = {
+        x : this.getWrapperElementOffset().x + this.getJointPaper().translate().tx,
+        y : this.getWrapperElementOffset().y + (-translateLimit.maxY)
+      };
+      // pass offset to the joint graph wrapper to make operator be at the right location during drag-and-drop.
+      this.workflowActionService.getJointGraphWrapper().setPanningOffset(this.panOffset);
+    }
+  }
+
+  /**
    * This method handles user mouse drag events to pan JointJS paper.
    *
-   * This method will listen to 3 events to implement the pan feature
+   * This method will listen to 4 events to implement the pan feature
    *   1. pointerdown event in the JointJS paper to start panning
    *   2. mousemove event on the document to change the offset of the paper
    *   3. pointerup event in the JointJS paper to stop panning
+   *   4. mousewheel event on the document to start panning
    */
   private handlePaperPan(): void {
+
+    Observable.fromEvent<WheelEvent>(document, 'mousewheel')
+      .filter(event => event !== undefined)
+      .filter(event => this.elementRef.nativeElement.contains(event.target))
+      .forEach(event => {
+        // calculate the limit of translate
+        const translateLimit = this.getTranslateLimit();
+        const elementSize = this.getWrapperElementSize();
+        const limitx = [elementSize.width - 65 - translateLimit.minX, -translateLimit.maxX];
+        const limity = [elementSize.height - 70 - translateLimit.minY, -translateLimit.maxY];
+        this.checkBouding(limitx, limity, translateLimit);
+
+        // do paper movement
+        const translatex = this.getJointPaper().translate().tx - event.deltaX;
+        const translatey = this.getJointPaper().translate().ty - event.deltaY;
+        const conditionx = translatex > limitx[1] && translatex < limitx[0];
+        const conditiony = translatey > limity[1] && translatey < limity[0];
+
+        // set panOffset
+        this.panOffset = {
+          x : this.getWrapperElementOffset().x + this.getJointPaper().translate().tx,
+          y : this.getWrapperElementOffset().y + this.getJointPaper().translate().ty
+        };
+        if (conditionx && conditiony) {
+          this.getJointPaper().translate(
+            translatex, translatey
+          );
+          // pass offset to the joint graph wrapper to make operator be at the right location during drag-and-drop.
+          this.workflowActionService.getJointGraphWrapper().setPanningOffset(this.panOffset);
+          }
+      });
 
     // pointer down event to start the panning, this will record the original paper offset
     Observable.fromEvent<JointPointerDownEvent>(this.getJointPaper(), 'blank:pointerdown')
@@ -315,13 +433,25 @@ export class WorkflowEditorComponent implements AfterViewInit {
             x : coordinate.x - this.mouseDown.x * this.workflowActionService.getJointGraphWrapper().getZoomRatio(),
             y : coordinate.y - this.mouseDown.y * this.workflowActionService.getJointGraphWrapper().getZoomRatio()
           };
+          // calculate the limit of translate
+          const translateLimit = this.getTranslateLimit();
+          const elementSize = this.getWrapperElementSize();
+          const limitx = [elementSize.width - 65 - translateLimit.minX, -translateLimit.maxX];
+          const limity = [elementSize.height - 70 - translateLimit.minY, -translateLimit.maxY];
+          this.checkBouding(limitx, limity, translateLimit);
           // do paper movement.
-          this.getJointPaper().translate(
-            (- this.getWrapperElementOffset().x + this.panOffset.x),
-            (- this.getWrapperElementOffset().y + this.panOffset.y)
-          );
-          // pass offset to the joint graph wrapper to make operator be at the right location during drag-and-drop.
-          this.workflowActionService.getJointGraphWrapper().setPanningOffset(this.panOffset);
+          const translatex = - this.getWrapperElementOffset().x + this.panOffset.x;
+          const translatey = - this.getWrapperElementOffset().y + this.panOffset.y;
+          const conditionx = translatex > limitx[1] && translatex < limitx[0];
+          const conditiony = translatey > limity[1] && translatey < limity[0];
+          if (conditionx && conditiony) {
+            this.getJointPaper().translate(
+              (- this.getWrapperElementOffset().x + this.panOffset.x),
+              (- this.getWrapperElementOffset().y + this.panOffset.y)
+            );
+            // pass offset to the joint graph wrapper to make operator be at the right location during drag-and-drop.
+            this.workflowActionService.getJointGraphWrapper().setPanningOffset(this.panOffset);
+            }
         });
 
     // This observable captures the drop event to stop the panning

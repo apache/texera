@@ -1,17 +1,18 @@
 import {Component, OnInit} from '@angular/core';
-import {ExecuteWorkflowService} from '../../service/execute-workflow/execute-workflow.service';
-import {UndoRedoService} from '../../service/undo-redo/undo-redo.service';
+import {ExecuteWorkflowService} from './../../service/execute-workflow/execute-workflow.service';
+import {UndoRedoService} from './../../service/undo-redo/undo-redo.service';
 import {TourService} from 'ngx-tour-ng-bootstrap';
+import {environment} from '../../../../environments/environment';
 import {WorkflowActionService} from '../../service/workflow-graph/model/workflow-action.service';
 import {JointGraphWrapper} from '../../service/workflow-graph/model/joint-graph-wrapper';
 import {ValidationWorkflowService} from '../../service/validation/validation-workflow.service';
-import {ExecutionState} from '../../types/execute-workflow.interface';
+import {ExecutionState} from './../../types/execute-workflow.interface';
 import {WorkflowStatusService} from '../../service/workflow-status/workflow-status.service';
+import {Subscription} from 'rxjs';
 import {UserService} from '../../../common/service/user/user.service';
 import {WorkflowPersistService} from '../../../common/service/user/workflow-persist/workflow-persist.service';
 import {CacheWorkflowService} from '../../service/cache-workflow/cache-workflow.service';
 import {Workflow} from '../../../common/type/workflow';
-
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -84,7 +85,10 @@ export class NavigationComponent implements OnInit {
 
     // set the map of operatorStatusMap
     validationWorkflowService.getWorkflowValidationErrorStream()
-      .subscribe(value => this.isWorkflowValid = Object.keys(value.errors).length === 0);
+      .subscribe(value => {
+        this.isWorkflowValid = Object.keys(value.errors).length === 0;
+        this.applyRunButtonBehavior(this.getRunButtonBehavior(this.executionState, this.isWorkflowValid));
+      });
   }
 
   public onClickRunHandler = () => {
