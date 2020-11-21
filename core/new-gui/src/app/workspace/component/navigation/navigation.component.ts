@@ -1,18 +1,16 @@
-import {Component, OnInit} from '@angular/core';
-import {ExecuteWorkflowService} from './../../service/execute-workflow/execute-workflow.service';
-import {UndoRedoService} from './../../service/undo-redo/undo-redo.service';
-import {TourService} from 'ngx-tour-ng-bootstrap';
-import {environment} from '../../../../environments/environment';
-import {WorkflowActionService} from '../../service/workflow-graph/model/workflow-action.service';
-import {JointGraphWrapper} from '../../service/workflow-graph/model/joint-graph-wrapper';
-import {ValidationWorkflowService} from '../../service/validation/validation-workflow.service';
-import {ExecutionState} from './../../types/execute-workflow.interface';
-import {WorkflowStatusService} from '../../service/workflow-status/workflow-status.service';
-import {Subscription} from 'rxjs';
-import {UserService} from '../../../common/service/user/user.service';
-import {WorkflowPersistService} from '../../../common/service/user/workflow-persist/workflow-persist.service';
-import {CacheWorkflowService} from '../../service/cache-workflow/cache-workflow.service';
-import {Workflow} from '../../../common/type/workflow';
+import { Component, OnInit } from '@angular/core';
+import { ExecuteWorkflowService } from '../../service/execute-workflow/execute-workflow.service';
+import { UndoRedoService } from '../../service/undo-redo/undo-redo.service';
+import { TourService } from 'ngx-tour-ng-bootstrap';
+import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
+import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-graph-wrapper';
+import { ValidationWorkflowService } from '../../service/validation/validation-workflow.service';
+import { ExecutionState } from '../../types/execute-workflow.interface';
+import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
+import { UserService } from '../../../common/service/user/user.service';
+import { WorkflowPersistService } from '../../../common/service/user/workflow-persist/workflow-persist.service';
+import { CacheWorkflowService } from '../../service/cache-workflow/cache-workflow.service';
+import { Workflow } from '../../../common/type/workflow';
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -49,7 +47,6 @@ export class NavigationComponent implements OnInit {
   public runDisable = false;
   public executionResultID: string | undefined;
 
-  // tslint:disable-next-line:member-ordering
   constructor(
     public executeWorkflowService: ExecuteWorkflowService,
     public tourService: TourService,
@@ -57,7 +54,6 @@ export class NavigationComponent implements OnInit {
     public workflowStatusService: WorkflowStatusService,
     public undoRedo: UndoRedoService,
     public validationWorkflowService: ValidationWorkflowService,
-    private saveWorkflowService: CacheWorkflowService,
     public workflowPersistService: WorkflowPersistService,
     private userService: UserService,
     private cachedWorkflowService: CacheWorkflowService
@@ -269,16 +265,12 @@ export class NavigationComponent implements OnInit {
       alert('please login');
     } else {
       this.isSaving = true;
-      const cachedWorkflowStr = this.saveWorkflowService.getCachedWorkflow();
+      const cachedWorkflowStr = this.cachedWorkflowService.getCachedWorkflow();
       if (cachedWorkflowStr != null) {
         this.workflowPersistService.saveWorkflow(cachedWorkflowStr, this.currentWorkflowName).subscribe(
-          (workflow: Workflow | null) => {
+          (workflow: Workflow) => {
             localStorage.removeItem('wfId');
             localStorage.setItem('wfId', JSON.stringify(workflow?.wfId));
-          },
-          (error: string) => {
-            console.error('error caught in component' + error);
-
           }).add(() => {
           this.isSaving = false;
         });
