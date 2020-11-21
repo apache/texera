@@ -1,9 +1,7 @@
 import {async, ComponentFixture, TestBed} from '@angular/core/testing';
 
 import {SavedWorkflowSectionComponent} from './saved-workflow-section.component';
-
-import {SavedWorkflowService} from '../../../service/saved-project/saved-workflow.service';
-import {StubSavedProjectService} from '../../../service/saved-project/stub-saved-project.service';
+import {WorkflowPersistService} from '../../../../common/service/user/workflow-persist/workflow-persist.service';
 import {MatDividerModule} from '@angular/material/divider';
 import {MatListModule} from '@angular/material/list';
 import {MatCardModule} from '@angular/material/card';
@@ -61,7 +59,7 @@ describe('SavedProjectSectionComponent', () => {
     TestBed.configureTestingModule({
       declarations: [SavedWorkflowSectionComponent],
       providers: [
-        {provide: SavedWorkflowService, useClass: StubSavedProjectService},
+        WorkflowPersistService,
         NgbActiveModal
       ],
       imports: [MatDividerModule,

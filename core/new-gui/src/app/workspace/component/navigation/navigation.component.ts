@@ -1,16 +1,16 @@
-import { Component, OnInit } from '@angular/core';
-import { ExecuteWorkflowService } from '../../service/execute-workflow/execute-workflow.service';
-import { UndoRedoService } from '../../service/undo-redo/undo-redo.service';
-import { TourService } from 'ngx-tour-ng-bootstrap';
-import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
-import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-graph-wrapper';
-import { ValidationWorkflowService } from '../../service/validation/validation-workflow.service';
-import { ExecutionState } from '../../types/execute-workflow.interface';
-import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
-import { UserService } from '../../../common/service/user/user.service';
-import { WorkflowPersistService } from '../../../common/service/user/workflow-persist/workflow-persist.service';
-import { CacheWorkflowService } from '../../service/cache-workflow/cache-workflow.service';
-import { Workflow } from '../../../common/type/workflow';
+import {Component, OnInit} from '@angular/core';
+import {ExecuteWorkflowService} from '../../service/execute-workflow/execute-workflow.service';
+import {UndoRedoService} from '../../service/undo-redo/undo-redo.service';
+import {TourService} from 'ngx-tour-ng-bootstrap';
+import {WorkflowActionService} from '../../service/workflow-graph/model/workflow-action.service';
+import {JointGraphWrapper} from '../../service/workflow-graph/model/joint-graph-wrapper';
+import {ValidationWorkflowService} from '../../service/validation/validation-workflow.service';
+import {ExecutionState} from '../../types/execute-workflow.interface';
+import {WorkflowStatusService} from '../../service/workflow-status/workflow-status.service';
+import {UserService} from '../../../common/service/user/user.service';
+import {WorkflowPersistService} from '../../../common/service/user/workflow-persist/workflow-persist.service';
+import {CacheWorkflowService} from '../../service/cache-workflow/cache-workflow.service';
+import {Workflow} from '../../../common/type/workflow';
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -38,8 +38,7 @@ export class NavigationComponent implements OnInit {
   public ExecutionState = ExecutionState; // make Angular HTML access enum definition
   public isWorkflowValid: boolean = true; // this will check whether the workflow error or not
   public isSaving: boolean = false;
-  public currentWorkflowName: string = localStorage.getItem('wfId') ? localStorage.getItem('workflowName')
-    ?? 'Untitled Workflow' : 'Untitled Workflow'; // reset workflowName
+  public currentWorkflowName: string;  // reset workflowName
 
   // variable bound with HTML to decide if the running spinner should show
   public runButtonText = 'Run';
@@ -66,6 +65,7 @@ export class NavigationComponent implements OnInit {
     this.runIcon = initBehavior.icon;
     this.runDisable = initBehavior.disable;
     this.onClickRunHandler = initBehavior.onClick;
+    this.currentWorkflowName = this.cachedWorkflowService.getCachedWorkflowName();
 
     executeWorkflowService.getExecutionStateStream().subscribe(
       event => {
@@ -88,7 +88,7 @@ export class NavigationComponent implements OnInit {
   }
 
   public onClickRunHandler = () => {
-  }
+  };
 
   ngOnInit() {
   }
@@ -264,32 +264,29 @@ export class NavigationComponent implements OnInit {
     if (!this.userService.isLogin()) {
       alert('please login');
     } else {
-      this.isSaving = true;
-      const cachedWorkflowStr = this.cachedWorkflowService.getCachedWorkflow();
-      if (cachedWorkflowStr != null) {
-        this.workflowPersistService.saveWorkflow(cachedWorkflowStr, this.currentWorkflowName).subscribe(
+      const cachedWorkflow: string | null = this.cachedWorkflowService.getCachedWorkflow();
+      if (cachedWorkflow != null) {
+        this.isSaving = true;
+        const id = this.cachedWorkflowService.getCachedWorkflowID();
+        this.workflowPersistService.saveWorkflow(cachedWorkflow, this.currentWorkflowName, id).subscribe(
           (workflow: Workflow) => {
-            localStorage.removeItem('wfId');
-            localStorage.setItem('wfId', JSON.stringify(workflow?.wfId));
+            this.cachedWorkflowService.setCachedWorkflowId(JSON.stringify(workflow?.wfId));
           }).add(() => {
           this.isSaving = false;
         });
       } else {
         alert('No workflow found in cache.');
       }
-
     }
   }
 
   onWorkflowNameChange() {
-    localStorage.setItem('workflowName', this.currentWorkflowName);
+    this.cachedWorkflowService.setCachedWorkflowName(this.currentWorkflowName);
   }
 
   onClickCreateNewWorkflow() {
-    localStorage.removeItem('workflow');
-    localStorage.removeItem('wfId');
-    localStorage.removeItem('workflowName');
-    this.currentWorkflowName = localStorage.getItem('workflowName') ?? 'Untitled Workflow';
+    this.cachedWorkflowService.clearCachedWorkflow();
+    this.currentWorkflowName = this.cachedWorkflowService.getCachedWorkflowName();
     this.cachedWorkflowService.loadWorkflow();
   }
 }

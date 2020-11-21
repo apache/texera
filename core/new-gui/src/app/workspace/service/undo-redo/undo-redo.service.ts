@@ -1,7 +1,7 @@
-import { Command } from './../workflow-graph/model/workflow-action.service';
-import { Injectable } from '@angular/core';
-import { assertType } from '../../../common/util/assert' ;
-import { Observable, Subject } from 'rxjs';
+import {Command} from '../workflow-graph/model/workflow-action.service';
+import {Injectable} from '@angular/core';
+import {assertType} from '../../../common/util/assert';
+import {Observable, Subject} from 'rxjs';
 
 /* TODO LIST FOR BUGS
 1. Problem with repeatedly adding and deleting a link without letting go, unintended behavior
@@ -53,7 +53,7 @@ export class UndoRedoService {
       this.setListenJointCommand(true);
       this.canUndoStream.next(this.canUndo());
 
-      console.log("service can undo", this.canUndo());
+      console.log('service can undo', this.canUndo());
     }
   }
 

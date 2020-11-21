@@ -44,6 +44,9 @@ export interface CachedWorkflow {
 export class CacheWorkflowService {
 
   private static readonly LOCAL_STORAGE_KEY: string = 'workflow';
+  private static readonly CURRENT_WORKFLOW_ID: string = 'workflowID';
+  private static readonly CURRENT_WORKFLOW_NAME: string = 'workflowName';
+
 
   constructor(
     private workflowActionService: WorkflowActionService,
@@ -94,9 +97,9 @@ export class CacheWorkflowService {
     const jointGraphWrapper = this.workflowActionService.getJointGraphWrapper();
     jointGraphWrapper.unhighlightOperators(
       jointGraphWrapper.getCurrentHighlightedOperatorIDs());
-    //restore the view point
-     this.workflowActionService.getJointGraphWrapper().restoreDefaultZoomAndOffset();
-    }
+    // restore the view point
+    this.workflowActionService.getJointGraphWrapper().restoreDefaultZoomAndOffset();
+  }
 
   /**
    * This method will listen to all the workflow change event happening
@@ -127,12 +130,41 @@ export class CacheWorkflowService {
         operators, operatorPositions, links, breakpoints
       };
 
-      localStorage.setItem(CacheWorkflowService.LOCAL_STORAGE_KEY, JSON.stringify(cachedWorkflow));
+      this.setCachedWorkflow(JSON.stringify(cachedWorkflow));
     });
   }
 
   public getCachedWorkflow(): string | null {
     return localStorage.getItem(CacheWorkflowService.LOCAL_STORAGE_KEY);
   }
+
+  public getCachedWorkflowName(): string {
+    return localStorage.getItem(CacheWorkflowService.CURRENT_WORKFLOW_ID) ? localStorage.getItem(CacheWorkflowService.CURRENT_WORKFLOW_NAME)
+      ?? 'Untitled Workflow' : 'Untitled Workflow';
+  }
+
+  getCachedWorkflowID() {
+    return localStorage.getItem(CacheWorkflowService.CURRENT_WORKFLOW_ID);
+  }
+
+  public clearCachedWorkflow() {
+    localStorage.removeItem(CacheWorkflowService.LOCAL_STORAGE_KEY);
+    localStorage.removeItem(CacheWorkflowService.CURRENT_WORKFLOW_ID);
+    localStorage.setItem(CacheWorkflowService.CURRENT_WORKFLOW_NAME, 'Untitled Workflow');
+
+  }
+
+  public setCachedWorkflow(workflow: string) {
+    localStorage.setItem(CacheWorkflowService.LOCAL_STORAGE_KEY, workflow);
+  }
+
+  public setCachedWorkflowId(id: string) {
+    localStorage.setItem(CacheWorkflowService.CURRENT_WORKFLOW_ID, id);
+  }
+
+  public setCachedWorkflowName(name: string) {
+    localStorage.setItem(CacheWorkflowService.CURRENT_WORKFLOW_NAME, name);
+  }
+
 
 }

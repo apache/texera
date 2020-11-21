@@ -1,7 +1,5 @@
 import {Component, OnInit} from '@angular/core';
 import {NgbModal} from '@ng-bootstrap/ng-bootstrap';
-
-import {NgbdModalAddWorkflowComponent} from './ngbd-modal-add-workflow/ngbd-modal-add-workflow.component';
 import {NgbdModalDeleteWorkflowComponent} from './ngbd-modal-delete-workflow/ngbd-modal-delete-workflow.component';
 
 import {cloneDeep} from 'lodash';
@@ -119,21 +117,22 @@ export class SavedWorkflowSectionComponent implements OnInit {
    * @param
    */
   public openNgbdModalAddWorkflowComponent(): void {
-    const modalRef = this.modalService.open(NgbdModalAddWorkflowComponent);
-
-    Observable.from(modalRef.result)
-      .subscribe((value: string) => {
-        console.log('creating a new workflow');
-        // if (value) {
-        //   const newProject: SavedWorkflow = {
-        //     id: (this.workflows.length + 1).toString(),
-        //     name: value,
-        //     creationTime: Date.now().toString(),
-        //     lastModifiedTime: Date.now().toString()
-        //   };
-        //   this.workflows.push(newProject);
-        // }
-      });
+    // const modalRef = this.modalService.open(NgbdModalAddWorkflowComponent);
+    //
+    // Observable.from(modalRef.result)
+    //   .subscribe((value: string) => {
+    //     console.log('creating a new workflow');
+    //     if (value) {
+    //       const newProject: Workflow = {
+    //         id: (this.workflows.length + 1).toString(),
+    //         name: value,
+    //         creationTime: Date.now().toString(),
+    //         lastModifiedTime: Date.now().toString()
+    //       };
+    //       this.workflows.push(newProject);
+    //     }
+    //   });
+    alert('this feature is disabled now');
   }
 
   /**
@@ -160,9 +159,10 @@ export class SavedWorkflowSectionComponent implements OnInit {
   }
 
   jumpToWorkflow(workflow: Workflow) {
+    // TODO: change this to pass by URL.
     localStorage.setItem('workflow', workflow.content);
-    localStorage.setItem('wfId', workflow.wfId.toString());
+    localStorage.setItem('workflowID', workflow.wfId.toString());
     localStorage.setItem('workflowName', workflow.name);
-    this.router.navigate(['/']);
+    this.router.navigate(['/']).then(null);
   }
 }
