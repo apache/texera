@@ -6,6 +6,7 @@ import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.{OneToOneOpExecConfig, OperatorDescriptor}
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
+import edu.uci.ics.texera.workflow.operators.limit.LimitOpDesc
 
 import scala.util.Random
 
@@ -28,18 +29,11 @@ class ReservoirSamplingOpDesc extends OperatorDescriptor {
   // In order to make sure the total output is k, each executor should produce (k / n) items
   // (n is the number of the executors)
   @JsonIgnore
-  private lazy val kPerActor: Int = k / Constants.defaultNumWorkers
-
-  @JsonIgnore
-  private lazy val kRemainder: Int = k % Constants.defaultNumWorkers
+  private lazy val kPerActor: List[Int] = LimitOpDesc.equallyPartitionGoal(k, Constants.defaultNumWorkers)
 
   @JsonIgnore
   def getKForActor(actor: Int): Int = {
-    if (actor == Constants.defaultNumWorkers - 1) {
-      kPerActor + kRemainder
-    } else {
-      kPerActor
-    }
+    kPerActor(actor)
   }
 
   override def operatorExecutor: OneToOneOpExecConfig = {
