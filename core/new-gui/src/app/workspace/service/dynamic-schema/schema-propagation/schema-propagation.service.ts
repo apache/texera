@@ -14,9 +14,9 @@ import { isEqual } from 'lodash';
 // endpoint for schema propagation
 export const SCHEMA_PROPAGATION_ENDPOINT = 'queryplan/autocomplete';
 // By contract, property keys for input schema attribute (column name)
-export const attributeInJsonSchemaKeys = ['attribute', 'x attribute', 'y attribute'];
+export const attributeInJsonSchemaKeys = ['attribute', 'x attribute', 'y attribute', 'name column', 'data column', 'text column'];
 // By contract, property keys for a list of input schema attributes (column names)
-export const attributeListInJsonSchemaKeys = ['attributes', 'groupByKeys'];
+export const attributeListInJsonSchemaKeys = ['attributes', 'groupByKeys', 'data column(s)'];
 
 /**
  * Schema Propagation Service provides autocomplete functionaility for attribute property of operators.
