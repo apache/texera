@@ -82,8 +82,8 @@ public class TexeraWebApplication extends Application<TexeraWebConfiguration> {
         final UploadedFileResource uploadedFileResource = new UploadedFileResource();
         environment.jersey().register(uploadedFileResource);
 
-        final KeySearchDictResource keySearchDictResource = new KeySearchDictResource();
-        environment.jersey().register(keySearchDictResource);
+        final KeywordDictionaryResource keywordDictionaryResource = new KeywordDictionaryResource();
+        environment.jersey().register(keywordDictionaryResource);
 
         final WorkflowResource workflowResource = new WorkflowResource();
         environment.jersey().register(workflowResource);

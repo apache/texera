@@ -27,7 +27,7 @@ import static org.jooq.impl.DSL.defaultValue;
 @Path("/user/dictionary")
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
-public class KeySearchDictResource {
+public class KeywordDictionaryResource {
 
     // limitation due to the default 'max_allowed_packet' variable is 4 mb in MySQL
     private static final long MAXIMUM_DICTIONARY_SIZE = (2 * 1024 * 1024); // 2 mb
@@ -35,15 +35,15 @@ public class KeySearchDictResource {
     /**
      * Corresponds to `src/app/common/type/user-dictionary.ts`
      */
-    public static class UserDictionary {
+    public static class KeywordDictionary {
         public UInteger id; // the ID in MySQL database is unsigned int
         public String name;
         public List<String> items;
         public String description;
         
-        public UserDictionary() {} // default constructor reserved for json
+        public KeywordDictionary() {} // default constructor reserved for json
 
-        public UserDictionary(UInteger id, String name, List<String> items, String description) {
+        public KeywordDictionary(UInteger id, String name, List<String> items, String description) {
             this.id = id;
             this.name = name;
             this.items = items;
@@ -135,7 +135,7 @@ public class KeySearchDictResource {
     
     @GET
     @Path("/list")
-    public List<UserDictionary> listUserDictionaries(
+    public List<KeywordDictionary> listUserDictionaries(
             @Session HttpSession session
     ) {
         UInteger userID = UserResource.getUser(session).getUserID();
@@ -144,9 +144,9 @@ public class KeySearchDictResource {
         
         if (result == null) return new ArrayList<>();
         
-        List<UserDictionary> dictionaryList = result.stream()
+        List<KeywordDictionary> dictionaryList = result.stream()
                 .map(
-                    record -> new UserDictionary(
+                    record -> new KeywordDictionary(
                             record.get(KEYWORD_DICTIONARY.KID),
                             record.get(KEYWORD_DICTIONARY.NAME),
                             convertContentToList(record.get(KEYWORD_DICTIONARY.CONTENT)),
@@ -176,12 +176,12 @@ public class KeySearchDictResource {
     @Path("/update")
     public GenericWebResponse updateUserDictionary(
             @Session HttpSession session,
-            UserDictionary userDictionary
+            KeywordDictionary keywordDictionary
     ) {
         UInteger userID = UserResource.getUser(session).getUserID();
         
         int count = updateInDatabase(
-                userDictionary,
+                keywordDictionary,
                 userID
                 );
         
@@ -232,13 +232,13 @@ public class KeySearchDictResource {
                 );
     }
     
-    private int updateInDatabase(UserDictionary userDictionary, UInteger userID) {
+    private int updateInDatabase(KeywordDictionary keywordDictionary, UInteger userID) {
         return SqlServer.createDSLContext()
                 .update(KEYWORD_DICTIONARY)
-                .set(KEYWORD_DICTIONARY.NAME, userDictionary.name)
-                .set(KEYWORD_DICTIONARY.CONTENT, convertListToByteArray(userDictionary.items))
-                .set(KEYWORD_DICTIONARY.DESCRIPTION, userDictionary.description)
-                .where(KEYWORD_DICTIONARY.KID.eq(userDictionary.id).and(KEYWORD_DICTIONARY.UID.eq(userID)))
+                .set(KEYWORD_DICTIONARY.NAME, keywordDictionary.name)
+                .set(KEYWORD_DICTIONARY.CONTENT, convertListToByteArray(keywordDictionary.items))
+                .set(KEYWORD_DICTIONARY.DESCRIPTION, keywordDictionary.description)
+                .where(KEYWORD_DICTIONARY.KID.eq(keywordDictionary.id).and(KEYWORD_DICTIONARY.UID.eq(userID)))
                 .execute();
     }
     
