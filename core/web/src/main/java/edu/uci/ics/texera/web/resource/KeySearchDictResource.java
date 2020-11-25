@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static edu.uci.ics.texera.dataflow.jooq.generated.Tables.KEY_SEARCH_DICT;
+import static edu.uci.ics.texera.dataflow.jooq.generated.Tables.KEYWORD_DICTIONARY;
 import static org.jooq.impl.DSL.defaultValue;
 
 
@@ -147,10 +147,10 @@ public class KeySearchDictResource {
         List<UserDictionary> dictionaryList = result.stream()
                 .map(
                     record -> new UserDictionary(
-                            record.get(KEY_SEARCH_DICT.KSD_ID),
-                            record.get(KEY_SEARCH_DICT.NAME),
-                            convertContentToList(record.get(KEY_SEARCH_DICT.CONTENT)),
-                            record.get(KEY_SEARCH_DICT.DESCRIPTION)
+                            record.get(KEYWORD_DICTIONARY.KID),
+                            record.get(KEYWORD_DICTIONARY.NAME),
+                            convertContentToList(record.get(KEYWORD_DICTIONARY.CONTENT)),
+                            record.get(KEYWORD_DICTIONARY.DESCRIPTION)
                     )
                         ).collect(Collectors.toList());
         
@@ -226,45 +226,45 @@ public class KeySearchDictResource {
         return SqlServer.createDSLContext()
                 .fetchExists(
                         SqlServer.createDSLContext()
-                                .selectFrom(KEY_SEARCH_DICT)
-                                .where(KEY_SEARCH_DICT.UID.equal(userID)
-                                        .and(KEY_SEARCH_DICT.NAME.equal(dictName)))
+                                .selectFrom(KEYWORD_DICTIONARY)
+                                .where(KEYWORD_DICTIONARY.UID.equal(userID)
+                                        .and(KEYWORD_DICTIONARY.NAME.equal(dictName)))
                 );
     }
     
     private int updateInDatabase(UserDictionary userDictionary, UInteger userID) {
         return SqlServer.createDSLContext()
-                .update(KEY_SEARCH_DICT)
-                .set(KEY_SEARCH_DICT.NAME, userDictionary.name)
-                .set(KEY_SEARCH_DICT.CONTENT, convertListToByteArray(userDictionary.items))
-                .set(KEY_SEARCH_DICT.DESCRIPTION, userDictionary.description)
-                .where(KEY_SEARCH_DICT.KSD_ID.eq(userDictionary.id).and(KEY_SEARCH_DICT.UID.eq(userID)))
+                .update(KEYWORD_DICTIONARY)
+                .set(KEYWORD_DICTIONARY.NAME, userDictionary.name)
+                .set(KEYWORD_DICTIONARY.CONTENT, convertListToByteArray(userDictionary.items))
+                .set(KEYWORD_DICTIONARY.DESCRIPTION, userDictionary.description)
+                .where(KEYWORD_DICTIONARY.KID.eq(userDictionary.id).and(KEYWORD_DICTIONARY.UID.eq(userID)))
                 .execute();
     }
     
     private int deleteInDatabase(UInteger dictID, UInteger userID) {
         return SqlServer.createDSLContext()
-                .delete(KEY_SEARCH_DICT)
-                .where(KEY_SEARCH_DICT.KSD_ID.eq(dictID).and(KEY_SEARCH_DICT.UID.eq(userID)))
+                .delete(KEYWORD_DICTIONARY)
+                .where(KEYWORD_DICTIONARY.KID.eq(dictID).and(KEYWORD_DICTIONARY.UID.eq(userID)))
                 .execute();
     }
     
     private Result<Record4<UInteger, String, byte[], String>> getUserDictionaryRecord(UInteger userID) {
         return SqlServer.createDSLContext()
-                .select(KEY_SEARCH_DICT.KSD_ID, KEY_SEARCH_DICT.NAME, KEY_SEARCH_DICT.CONTENT, KEY_SEARCH_DICT.DESCRIPTION)
-                .from(KEY_SEARCH_DICT)
-                .where(KEY_SEARCH_DICT.UID.equal(userID))
+                .select(KEYWORD_DICTIONARY.KID, KEYWORD_DICTIONARY.NAME, KEYWORD_DICTIONARY.CONTENT, KEYWORD_DICTIONARY.DESCRIPTION)
+                .from(KEYWORD_DICTIONARY)
+                .where(KEYWORD_DICTIONARY.UID.equal(userID))
                 .fetch();
     }
     
     private int insertDictionaryToDataBase(String name, byte[] content, String description, UInteger userID) {
         return SqlServer.createDSLContext()
-                .insertInto(KEY_SEARCH_DICT)
-                .set(KEY_SEARCH_DICT.UID, userID)
-                .set(KEY_SEARCH_DICT.KSD_ID, defaultValue(KEY_SEARCH_DICT.KSD_ID))
-                .set(KEY_SEARCH_DICT.NAME, name)
-                .set(KEY_SEARCH_DICT.CONTENT, content)
-                .set(KEY_SEARCH_DICT.DESCRIPTION, description)
+                .insertInto(KEYWORD_DICTIONARY)
+                .set(KEYWORD_DICTIONARY.UID, userID)
+                .set(KEYWORD_DICTIONARY.KID, defaultValue(KEYWORD_DICTIONARY.KID))
+                .set(KEYWORD_DICTIONARY.NAME, name)
+                .set(KEYWORD_DICTIONARY.CONTENT, content)
+                .set(KEYWORD_DICTIONARY.DESCRIPTION, description)
                 .execute();
     }
     

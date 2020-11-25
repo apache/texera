@@ -4,29 +4,33 @@
 package edu.uci.ics.texera.dataflow.jooq.generated;
 
 
-import edu.uci.ics.texera.dataflow.jooq.generated.tables.*;
+import edu.uci.ics.texera.dataflow.jooq.generated.tables.File;
+import edu.uci.ics.texera.dataflow.jooq.generated.tables.KeywordDictionary;
+import edu.uci.ics.texera.dataflow.jooq.generated.tables.User;
+import edu.uci.ics.texera.dataflow.jooq.generated.tables.Workflow;
+import edu.uci.ics.texera.dataflow.jooq.generated.tables.WorkflowOfUser;
 
 
 /**
- * Convenience access to all tables in texera_db
+ * Convenience access to all tables in texera_db.
  */
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Tables {
 
     /**
-     * The table <code>texera_db.key_search_dict</code>.
+     * The table <code>texera_db.file</code>.
      */
-    public static final KeySearchDict KEY_SEARCH_DICT = KeySearchDict.KEY_SEARCH_DICT;
+    public static final File FILE = File.FILE;
 
     /**
-     * The table <code>texera_db.uploaded_file</code>.
+     * The table <code>texera_db.keyword_dictionary</code>.
      */
-    public static final UploadedFile UPLOADED_FILE = UploadedFile.UPLOADED_FILE;
+    public static final KeywordDictionary KEYWORD_DICTIONARY = KeywordDictionary.KEYWORD_DICTIONARY;
 
     /**
-     * The table <code>texera_db.user_account</code>.
+     * The table <code>texera_db.user</code>.
      */
-    public static final UserAccount USER_ACCOUNT = UserAccount.USER_ACCOUNT;
+    public static final User USER = User.USER;
 
     /**
      * The table <code>texera_db.workflow</code>.

@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.web.resource;
 
-import edu.uci.ics.texera.dataflow.jooq.generated.tables.records.UserAccountRecord;
+import edu.uci.ics.texera.dataflow.jooq.generated.tables.records.UserRecord;
 import edu.uci.ics.texera.dataflow.sqlServerInfo.SqlServer;
 import edu.uci.ics.texera.web.response.GenericWebResponse;
 import io.dropwizard.jersey.sessions.Session;
@@ -13,7 +13,7 @@ import javax.servlet.http.HttpSession;
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 
-import static edu.uci.ics.texera.dataflow.jooq.generated.Tables.USER_ACCOUNT;
+import static edu.uci.ics.texera.dataflow.jooq.generated.Tables.USER;
 import static org.jooq.impl.DSL.defaultValue;
 
 
@@ -25,8 +25,8 @@ public class UserResource {
 
     private Record1<UInteger> getUserID(Condition condition) {
         return SqlServer.createDSLContext()
-                .select(USER_ACCOUNT.UID)
-                .from(USER_ACCOUNT)
+                .select(USER.UID)
+                .from(USER)
                 .where(condition)
                 .fetchOne();
     }
@@ -38,7 +38,7 @@ public class UserResource {
     public static class UserLoginRequest {
         public String userName;
     }
-    
+
     /**
      * Corresponds to `src/app/common/type/user.ts`
      */
@@ -46,11 +46,11 @@ public class UserResource {
         public int code; // 0 represents success and 1 represents error
         public User user;
         public String message;
-        
+
         public static UserWebResponse generateErrorResponse(String message) {
             return new UserWebResponse(1, User.generateErrorAccount(), message);
         }
-        
+
         public static UserWebResponse generateSuccessResponse(User user) {
             return new UserWebResponse(0, user, null);
         }
@@ -61,7 +61,7 @@ public class UserResource {
             this.message = message;
         }
     }
-    
+
     public static User getUser(HttpSession session) {
         return (User) session.getAttribute(SESSION_USER);
     }
@@ -85,14 +85,14 @@ public class UserResource {
     @Path("/login")
     public UserWebResponse login(@Session HttpSession session, UserLoginRequest request) {
         String userName = request.userName;
-        Condition loginCondition = USER_ACCOUNT.NAME.equal(userName);
+        Condition loginCondition = USER.NAME.equal(userName);
         Record1<UInteger> result = getUserID(loginCondition);
 
         if (result == null) { // not found
             return UserWebResponse.generateErrorResponse("username/password is incorrect");
         }
 
-        User user = new User(userName, result.get(USER_ACCOUNT.UID));
+        User user = new User(userName, result.get(USER.UID));
         setUserSession(session, user);
 
         return UserWebResponse.generateSuccessResponse(user);
@@ -107,20 +107,20 @@ public class UserResource {
             return UserWebResponse.generateErrorResponse(validationResult.getRight());
         }
 
-        Condition registerCondition = USER_ACCOUNT.NAME.equal(userName);
+        Condition registerCondition = USER.NAME.equal(userName);
         Record1<UInteger> result = getUserID(registerCondition);
 
         if (result != null) {
             return UserWebResponse.generateErrorResponse("Username already exists");
         }
 
-        UserAccountRecord returnID = insertUserAccount(userName);
-        User user = new User(userName, returnID.get(USER_ACCOUNT.UID));
+        UserRecord returnID = insertUserAccount(userName);
+        User user = new User(userName, returnID.get(USER.UID));
         setUserSession(session, user);
 
         return UserWebResponse.generateSuccessResponse(user);
     }
-    
+
     @GET
     @Path("/logout")
     public GenericWebResponse logOut(@Session HttpSession session) {
@@ -128,12 +128,12 @@ public class UserResource {
         return GenericWebResponse.generateSuccessResponse();
     }
 
-    private UserAccountRecord insertUserAccount(String userName) {
+    private UserRecord insertUserAccount(String userName) {
         return SqlServer.createDSLContext()
-                .insertInto(USER_ACCOUNT)
-                .set(USER_ACCOUNT.NAME, userName)
-                .set(USER_ACCOUNT.UID, defaultValue(USER_ACCOUNT.UID))
-                .returning(USER_ACCOUNT.UID)
+                .insertInto(USER)
+                .set(USER.NAME, userName)
+                .set(USER.UID, defaultValue(USER.UID))
+                .returning(USER.UID)
                 .fetchOne();
     }
 
@@ -171,7 +171,7 @@ public class UserResource {
             return Pair.of(true, "username validation success");
         }
     }
-    
+
     private void setUserSession(HttpSession session, User user) {
         session.setAttribute(SESSION_USER, user);
     }

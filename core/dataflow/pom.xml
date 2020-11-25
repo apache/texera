@@ -16,6 +16,8 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <jdk.version>1.8</jdk.version>
+        <maven.compiler.target>1.8</maven.compiler.target>
+        <maven.compiler.source>1.8</maven.compiler.source>
         <!-- By default we skip the jooq code generation
             It could be overridden by passing maven command -Djooq.codegen.skip=false -->
         <jooq.codgen.skip>true</jooq.codgen.skip>
@@ -119,17 +121,17 @@
         <dependency>
             <groupId>org.jooq</groupId>
             <artifactId>jooq</artifactId>
-            <version>3.12.4</version>
+            <version>3.14.3</version>
         </dependency>
         <dependency>
             <groupId>org.jooq</groupId>
             <artifactId>jooq-meta</artifactId>
-            <version>3.12.4</version>
+            <version>3.14.3</version>
         </dependency>
         <dependency>
             <groupId>org.jooq</groupId>
             <artifactId>jooq-codegen</artifactId>
-            <version>3.12.4</version>
+            <version>3.14.3</version>
         </dependency>
         <dependency>
             <groupId>mysql</groupId>
