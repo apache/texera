@@ -6,7 +6,12 @@ import edu.uci.ics.amber.engine.common.tuple.amber.AmberTuple
 object FaultedTupleFrontend {
   def apply(faultedTuple: FaultedTuple): FaultedTupleFrontend = {
     val tuple = faultedTuple.tuple
-    val tupleList = faultedTuple.tuple.toArray().filter(v => v != null).map(v => v.toString).toList
+    val tupleList =
+      if(tuple != null){
+        tuple.toArray().filter(v => v != null).map(v => v.toString).toList
+      }else{
+        List.empty
+      }
     FaultedTupleFrontend(tupleList, faultedTuple.id, faultedTuple.isInput)
   }
 }

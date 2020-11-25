@@ -8,7 +8,7 @@ class ExceptionBreakpoint()(implicit id: String, version: Long)
     //empty
   }
 
-  override def isTriggered: Boolean = triggeredTuple != null
+  override def isTriggered: Boolean = error != null
 
   override def isDirty: Boolean = isTriggered
 
