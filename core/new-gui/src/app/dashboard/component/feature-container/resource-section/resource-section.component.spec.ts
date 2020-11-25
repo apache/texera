@@ -8,9 +8,9 @@ describe('ResourceSectionComponent', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-      declarations: [ ResourceSectionComponent ]
+      declarations: [ResourceSectionComponent]
     })
-    .compileComponents();
+      .compileComponents();
   }));
 
   beforeEach(() => {

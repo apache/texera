@@ -1,12 +1,12 @@
-import {async, ComponentFixture, TestBed} from '@angular/core/testing';
-import {MatDialogModule} from '@angular/material/dialog';
+import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import { MatDialogModule } from '@angular/material/dialog';
 
-import {NgbActiveModal, NgbModule} from '@ng-bootstrap/ng-bootstrap';
-import {FormsModule} from '@angular/forms';
+import { NgbActiveModal, NgbModule } from '@ng-bootstrap/ng-bootstrap';
+import { FormsModule } from '@angular/forms';
 
-import {HttpClientModule} from '@angular/common/http';
+import { HttpClientModule } from '@angular/common/http';
 
-import {NgbdModalAddWorkflowComponent} from './ngbd-modal-add-workflow.component';
+import { NgbdModalAddWorkflowComponent } from './ngbd-modal-add-workflow.component';
 
 describe('NgbdModalAddProjectComponent', () => {
   let component: NgbdModalAddWorkflowComponent;
@@ -27,7 +27,7 @@ describe('NgbdModalAddProjectComponent', () => {
         FormsModule,
         HttpClientModule]
     })
-    .compileComponents();
+      .compileComponents();
   }));
 
   beforeEach(() => {

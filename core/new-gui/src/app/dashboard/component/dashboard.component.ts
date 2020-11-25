@@ -1,5 +1,5 @@
-import {Component, OnInit} from '@angular/core';
-import {WorkflowPersistService} from '../../common/service/user/workflow-persist/workflow-persist.service';
+import { Component, OnInit } from '@angular/core';
+import { WorkflowPersistService } from '../../common/service/user/workflow-persist/workflow-persist.service';
 
 /**
  * dashboardComponent is the component which contains all the subcomponents

@@ -15,7 +15,7 @@ describe('NgbdModalResourceViewComponent', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-      declarations: [ NgbdModalResourceViewComponent ],
+      declarations: [NgbdModalResourceViewComponent],
       providers: [
         NgbActiveModal,
         UserService,
@@ -28,7 +28,7 @@ describe('NgbdModalResourceViewComponent', () => {
         HttpClientTestingModule
       ]
     })
-    .compileComponents();
+      .compileComponents();
   }));
 
   beforeEach(() => {

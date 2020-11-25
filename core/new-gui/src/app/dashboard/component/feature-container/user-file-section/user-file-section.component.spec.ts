@@ -16,7 +16,7 @@ describe('UserFileSectionComponent', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-      declarations: [ UserFileSectionComponent ],
+      declarations: [UserFileSectionComponent],
       providers: [
         NgbModal,
         UserFileService,
@@ -31,7 +31,7 @@ describe('UserFileSectionComponent', () => {
         HttpClientTestingModule
       ]
     })
-    .compileComponents();
+      .compileComponents();
   }));
 
   beforeEach(() => {
@@ -42,6 +42,6 @@ describe('UserFileSectionComponent', () => {
 
   it('should create', inject([HttpTestingController],
     (httpMock: HttpTestingController) => {
-    expect(component).toBeTruthy();
-  }));
+      expect(component).toBeTruthy();
+    }));
 });

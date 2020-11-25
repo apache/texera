@@ -16,13 +16,13 @@ export class NgbdModalFileAddComponent implements OnInit {
 
   // uploader is a data type introduced in ng2-uploader library, which can be used to capture files and store them
   //  inside the uploader queue.
-  public uploader: FileUploader = new FileUploader({url: ''});
+  public uploader: FileUploader = new FileUploader({ url: '' });
 
 
   constructor(
     public activeModal: NgbActiveModal,
     private userFileUploadService: UserFileUploadService
-    ) { }
+  ) { }
 
   ngOnInit() {
   }
@@ -54,7 +54,7 @@ export class NgbdModalFileAddComponent implements OnInit {
   public getFileDropped(fileDropEvent: FileList): void {
     for (let i = 0; i < fileDropEvent.length; i++) {
       const fileOrNull: File | null = fileDropEvent.item(i);
-      if (this.isFile(fileOrNull) ) {
+      if (this.isFile(fileOrNull)) {
         this.userFileUploadService.addFileToUploadArray(fileOrNull);
       }
     }
@@ -62,7 +62,7 @@ export class NgbdModalFileAddComponent implements OnInit {
     this.uploader.clearQueue();
   }
 
-  public handleClickUploadFile(clickUploadEvent: {target: HTMLInputElement}): void {
+  public handleClickUploadFile(clickUploadEvent: { target: HTMLInputElement }): void {
     const fileList: FileList | null = clickUploadEvent.target.files;
     if (fileList === null) {
       throw new Error(`browser upload does not work as intended`);

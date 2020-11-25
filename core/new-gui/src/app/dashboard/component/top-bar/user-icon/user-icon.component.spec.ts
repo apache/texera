@@ -11,7 +11,7 @@ describe('UserIconComponent', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-      declarations: [ UserIconComponent ],
+      declarations: [UserIconComponent],
       providers: [
         NgbModal,
         UserService
@@ -20,7 +20,7 @@ describe('UserIconComponent', () => {
         HttpClientTestingModule
       ]
     })
-    .compileComponents();
+      .compileComponents();
   }));
 
   beforeEach(() => {

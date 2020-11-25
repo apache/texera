@@ -1,6 +1,6 @@
-import {Component, Input} from '@angular/core';
-import {NgbActiveModal} from '@ng-bootstrap/ng-bootstrap';
-import {Workflow} from '../../../../../common/type/workflow';
+import { Component, Input } from '@angular/core';
+import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
+import { Workflow } from '../../../../../common/type/workflow';
 
 /**
  * NgbdModalDeleteProjectComponent is the pop-up component

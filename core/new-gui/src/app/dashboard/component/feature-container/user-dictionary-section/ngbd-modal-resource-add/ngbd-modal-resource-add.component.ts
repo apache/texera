@@ -38,15 +38,15 @@ export class NgbdModalResourceAddComponent {
 
   // uploader is a data type introduced in ng2-uploader library, which can be used to capture files and store them
   //  inside the uploader queue. The url parameter does not matter since we don't use it to upload.
-  public uploader: FileUploader = new FileUploader({url: ''});
+  public uploader: FileUploader = new FileUploader({ url: '' });
 
   public isInUploadFileTab: boolean = true;
 
   // These are used to create custom form control validators.
   public matcher = new DictionaryErrorStateMatcher();
-  public nameValidator: FormControl =  new FormControl('', [Validators.required]);
-  public contentValidator: FormControl =  new FormControl('', [Validators.required]);
-  public descriptionValidator: FormControl =  new FormControl('', [Validators.required]);
+  public nameValidator: FormControl = new FormControl('', [Validators.required]);
+  public contentValidator: FormControl = new FormControl('', [Validators.required]);
+  public descriptionValidator: FormControl = new FormControl('', [Validators.required]);
 
   constructor(
     public activeModal: NgbActiveModal,
@@ -104,7 +104,7 @@ export class NgbdModalResourceAddComponent {
    * this method handles the event when user click on the file dropping area.
    * @param clickUploadEvent
    */
-  public handleClickUploadFile(clickUploadEvent: {target: HTMLInputElement}): void {
+  public handleClickUploadFile(clickUploadEvent: { target: HTMLInputElement }): void {
     const fileList: FileList | null = clickUploadEvent.target.files;
     if (fileList === null) {
       throw new Error(`browser upload does not work as intended`);
@@ -148,7 +148,7 @@ export class NgbdModalResourceAddComponent {
   public getFileDropped(fileDropEvent: FileList): void {
     for (let i = 0; i < fileDropEvent.length; i++) {
       const fileOrNull: File | null = fileDropEvent.item(i);
-      if (this.isFile(fileOrNull) ) {
+      if (this.isFile(fileOrNull)) {
         this.userDictionaryUploadService.addDictionaryToUploadArray(fileOrNull);
       }
     }

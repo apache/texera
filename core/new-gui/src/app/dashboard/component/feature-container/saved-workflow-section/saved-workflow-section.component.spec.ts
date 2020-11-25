@@ -1,17 +1,17 @@
-import {async, ComponentFixture, TestBed} from '@angular/core/testing';
+import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 
-import {SavedWorkflowSectionComponent} from './saved-workflow-section.component';
-import {WorkflowPersistService} from '../../../../common/service/user/workflow-persist/workflow-persist.service';
-import {MatDividerModule} from '@angular/material/divider';
-import {MatListModule} from '@angular/material/list';
-import {MatCardModule} from '@angular/material/card';
-import {MatDialogModule} from '@angular/material/dialog';
+import { SavedWorkflowSectionComponent } from './saved-workflow-section.component';
+import { WorkflowPersistService } from '../../../../common/service/user/workflow-persist/workflow-persist.service';
+import { MatDividerModule } from '@angular/material/divider';
+import { MatListModule } from '@angular/material/list';
+import { MatCardModule } from '@angular/material/card';
+import { MatDialogModule } from '@angular/material/dialog';
 
-import {NgbActiveModal, NgbModule} from '@ng-bootstrap/ng-bootstrap';
-import {FormsModule} from '@angular/forms';
+import { NgbActiveModal, NgbModule } from '@ng-bootstrap/ng-bootstrap';
+import { FormsModule } from '@angular/forms';
 
-import {HttpClientModule} from '@angular/common/http';
-import {Workflow} from '../../../../common/type/workflow';
+import { HttpClientModule } from '@angular/common/http';
+import { Workflow } from '../../../../common/type/workflow';
 
 describe('SavedProjectSectionComponent', () => {
   let component: SavedWorkflowSectionComponent;

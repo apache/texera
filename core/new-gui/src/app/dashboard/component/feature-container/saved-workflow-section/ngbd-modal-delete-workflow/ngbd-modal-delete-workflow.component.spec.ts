@@ -1,13 +1,13 @@
-import {async, ComponentFixture, TestBed} from '@angular/core/testing';
+import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 
-import {MatDialogModule} from '@angular/material/dialog';
+import { MatDialogModule } from '@angular/material/dialog';
 
-import {NgbActiveModal, NgbModule} from '@ng-bootstrap/ng-bootstrap';
-import {FormsModule} from '@angular/forms';
+import { NgbActiveModal, NgbModule } from '@ng-bootstrap/ng-bootstrap';
+import { FormsModule } from '@angular/forms';
 
-import {HttpClientModule} from '@angular/common/http';
+import { HttpClientModule } from '@angular/common/http';
 
-import {NgbdModalDeleteWorkflowComponent} from './ngbd-modal-delete-workflow.component';
+import { NgbdModalDeleteWorkflowComponent } from './ngbd-modal-delete-workflow.component';
 
 describe('NgbdModalDeleteProjectComponent', () => {
   let component: NgbdModalDeleteWorkflowComponent;
@@ -35,7 +35,7 @@ describe('NgbdModalDeleteProjectComponent', () => {
         FormsModule,
         HttpClientModule]
     })
-    .compileComponents();
+      .compileComponents();
   }));
 
   beforeEach(() => {
