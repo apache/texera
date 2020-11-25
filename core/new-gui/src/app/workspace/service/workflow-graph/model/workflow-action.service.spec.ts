@@ -185,7 +185,7 @@ describe('WorkflowActionService', () => {
     service.setOperatorProperty(mockScanPredicate.operatorID, newProperty);
 
     const operator = texeraGraph.getOperator(mockScanPredicate.operatorID);
-    if (! operator) {
+    if (!operator) {
       throw new Error(`operator ${mockScanPredicate.operatorID} doesn't exist`);
     }
     expect(operator.operatorProperties).toEqual(newProperty);

@@ -1,7 +1,7 @@
-import {Command} from '../workflow-graph/model/workflow-action.service';
-import {Injectable} from '@angular/core';
-import {assertType} from '../../../common/util/assert';
-import {Observable, Subject} from 'rxjs';
+import { Command } from '../workflow-graph/model/workflow-action.service';
+import { Injectable } from '@angular/core';
+import { assertType } from '../../../common/util/assert';
+import { Observable, Subject } from 'rxjs';
 
 /* TODO LIST FOR BUGS
 1. Problem with repeatedly adding and deleting a link without letting go, unintended behavior
@@ -60,7 +60,7 @@ export class UndoRedoService {
   public redoAction(): void {
     // need to figure out what to keep on the stack and off
     if (this.redoStack.length > 0) {
-      if (!this.workFlowModificationEnabled && this.redoStack[ this.redoStack.length - 1].modifiesWorkflow) {
+      if (!this.workFlowModificationEnabled && this.redoStack[this.redoStack.length - 1].modifiesWorkflow) {
         console.error('attempted to redo a workflow-modifying command while workflow modification is disabled');
         return;
       }

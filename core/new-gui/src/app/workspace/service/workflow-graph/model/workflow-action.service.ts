@@ -1,11 +1,11 @@
-import {UndoRedoService} from './../../undo-redo/undo-redo.service';
-import {OperatorMetadataService} from './../../operator-metadata/operator-metadata.service';
-import {SyncTexeraModel} from './sync-texera-model';
-import {JointGraphWrapper} from './joint-graph-wrapper';
-import {JointUIService} from './../../joint-ui/joint-ui.service';
-import {WorkflowGraph, WorkflowGraphReadonly} from './workflow-graph';
-import {Injectable} from '@angular/core';
-import {BehaviorSubject, Observable} from 'rxjs';
+import { UndoRedoService } from './../../undo-redo/undo-redo.service';
+import { OperatorMetadataService } from './../../operator-metadata/operator-metadata.service';
+import { SyncTexeraModel } from './sync-texera-model';
+import { JointGraphWrapper } from './joint-graph-wrapper';
+import { JointUIService } from './../../joint-ui/joint-ui.service';
+import { WorkflowGraph, WorkflowGraphReadonly } from './workflow-graph';
+import { Injectable } from '@angular/core';
+import { BehaviorSubject, Observable } from 'rxjs';
 import {
   Breakpoint,
   OperatorLink,
@@ -16,8 +16,8 @@ import {
 
 
 import * as joint from 'jointjs';
-import {environment} from './../../../../../environments/environment';
-import {WorkflowEditorComponent} from './../../../component/workflow-editor/workflow-editor.component';
+import { environment } from './../../../../../environments/environment';
+import { WorkflowEditorComponent } from './../../../component/workflow-editor/workflow-editor.component';
 
 
 export interface Command {
@@ -103,7 +103,7 @@ export class WorkflowActionService {
   }
 
   public handleJointOperatorDrag(): void {
-    let oldPosition: Point = {x: 0, y: 0};
+    let oldPosition: Point = { x: 0, y: 0 };
     let gotOldPosition = false;
     this.jointGraphWrapper.getOperatorPositionChangeEvent()
       .filter(() => !gotOldPosition)

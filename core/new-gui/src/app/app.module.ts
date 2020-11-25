@@ -17,7 +17,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 
 import { AppComponent } from './app.component';
 import { WorkspaceComponent } from './workspace/component/workspace.component';
-import { NavigationComponent} from './workspace/component/navigation/navigation.component';
+import { NavigationComponent } from './workspace/component/navigation/navigation.component';
 
 import { OperatorPanelComponent } from './workspace/component/operator-panel/operator-panel.component';
 import { PropertyEditorComponent } from './workspace/component/property-editor/property-editor.component';
@@ -34,11 +34,14 @@ import { TopBarComponent } from './dashboard/component/top-bar/top-bar.component
 import { UserIconComponent } from './dashboard/component/top-bar/user-icon/user-icon.component';
 import { FeatureBarComponent } from './dashboard/component/feature-bar/feature-bar.component';
 import { FeatureContainerComponent } from './dashboard/component/feature-container/feature-container.component';
-import {SavedWorkflowSectionComponent
+import {
+  SavedWorkflowSectionComponent
 } from './dashboard/component/feature-container/saved-workflow-section/saved-workflow-section.component';
-import {NgbdModalDeleteWorkflowComponent
+import {
+  NgbdModalDeleteWorkflowComponent
 } from './dashboard/component/feature-container/saved-workflow-section/ngbd-modal-delete-workflow/ngbd-modal-delete-workflow.component';
-import {NgbdModalAddWorkflowComponent
+import {
+  NgbdModalAddWorkflowComponent
 } from './dashboard/component/feature-container/saved-workflow-section/ngbd-modal-add-workflow/ngbd-modal-add-workflow.component';
 
 import {
@@ -169,7 +172,7 @@ registerLocaleData(en);
     FileUploadModule,
     FormsModule,
     ReactiveFormsModule,
-    LoggerModule.forRoot({level: environment.production ? NgxLoggerLevel.ERROR : NgxLoggerLevel.DEBUG, serverLogLevel: NgxLoggerLevel.OFF}),
+    LoggerModule.forRoot({ level: environment.production ? NgxLoggerLevel.ERROR : NgxLoggerLevel.DEBUG, serverLogLevel: NgxLoggerLevel.OFF }),
     FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
     FormlyNgZorroAntdModule,
 

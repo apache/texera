@@ -1,8 +1,8 @@
-import {Injectable} from '@angular/core';
-import {Observable} from 'rxjs';
-import {Breakpoint, OperatorLink, OperatorPredicate, Point} from '../../types/workflow-common.interface';
-import {OperatorMetadataService} from '../operator-metadata/operator-metadata.service';
-import {WorkflowActionService} from '../workflow-graph/model/workflow-action.service';
+import { Injectable } from '@angular/core';
+import { Observable } from 'rxjs';
+import { Breakpoint, OperatorLink, OperatorPredicate, Point } from '../../types/workflow-common.interface';
+import { OperatorMetadataService } from '../operator-metadata/operator-metadata.service';
+import { WorkflowActionService } from '../workflow-graph/model/workflow-action.service';
 
 /**
  * CachedWorkflow is used to store the information of the workflow
@@ -83,7 +83,7 @@ export class CacheWorkflowService {
       if (!opPosition) {
         throw new Error('position error');
       }
-      operatorsAndPositions.push({op: op, pos: opPosition});
+      operatorsAndPositions.push({ op: op, pos: opPosition });
     });
 
     const links: OperatorLink[] = [];

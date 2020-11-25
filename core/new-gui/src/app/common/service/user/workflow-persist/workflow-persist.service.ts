@@ -1,8 +1,8 @@
-import {Injectable} from '@angular/core';
-import {HttpClient} from '@angular/common/http';
-import {AppSettings} from '../../../app-setting';
-import {Workflow} from '../../../type/workflow';
-import {Observable} from 'rxjs/Observable';
+import { Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { AppSettings } from '../../../app-setting';
+import { Workflow } from '../../../type/workflow';
+import { Observable } from 'rxjs/Observable';
 
 export const WORKFLOW_URL = 'user/dictionary/validate';
 

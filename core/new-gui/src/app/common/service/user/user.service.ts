@@ -1,11 +1,11 @@
-import {User, UserWebResponse} from '../../type/user';
-import {AppSettings} from '../../app-setting';
-import {Subject} from 'rxjs/Subject';
-import {Injectable} from '@angular/core';
-import {HttpClient} from '@angular/common/http';
+import { User, UserWebResponse } from '../../type/user';
+import { AppSettings } from '../../app-setting';
+import { Subject } from 'rxjs/Subject';
+import { Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
 
-import {Observable} from 'rxjs/Observable';
-import {environment} from 'src/environments/environment';
+import { Observable } from 'rxjs/Observable';
+import { environment } from 'src/environments/environment';
 
 /**
  * User Account Service contains the function of registering and logging the user.
@@ -128,7 +128,7 @@ export class UserService {
    */
   private registerHttpRequest(userName: string): Observable<UserWebResponse> {
     type UserRegistrationRequest = { userName: string };
-    const body: UserRegistrationRequest = {userName: userName};
+    const body: UserRegistrationRequest = { userName: userName };
     return this.http.post<UserWebResponse>(`${AppSettings.getApiEndpoint()}/${UserService.REGISTER_ENDPOINT}`, body);
   }
 
@@ -138,7 +138,7 @@ export class UserService {
    */
   private loginHttpRequest(userName: string): Observable<UserWebResponse> {
     type UserLoginRequest = { userName: string };
-    const body: UserLoginRequest = {userName: userName};
+    const body: UserLoginRequest = { userName: userName };
     return this.http.post<UserWebResponse>(`${AppSettings.getApiEndpoint()}/${UserService.LOGIN_ENDPOINT}`, body);
   }
 
@@ -167,9 +167,9 @@ export class UserService {
    */
   private validateUsername(userName: string): { result: boolean, message: string } {
     if (userName.trim().length === 0) {
-      return {result: false, message: 'userName should not be empty'};
+      return { result: false, message: 'userName should not be empty' };
     }
-    return {result: true, message: 'userName frontend validation success'};
+    return { result: true, message: 'userName frontend validation success' };
   }
 
 }
