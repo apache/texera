@@ -9,6 +9,7 @@ import { ValidationWorkflowService } from '../../service/validation/validation-w
 import { ExecutionState } from './../../types/execute-workflow.interface';
 import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
 import { Subscription } from 'rxjs';
+import { Version } from '../../../../environments/version';
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -32,6 +33,8 @@ import { Subscription } from 'rxjs';
 })
 export class NavigationComponent implements OnInit {
   public static autoSaveState = 'Saved';
+
+  public gitCommitHash: string = Version.raw;
   public executionState: ExecutionState;  // set this to true when the workflow is started
   public ExecutionState = ExecutionState; // make Angular HTML access enum definition
   public isWorkflowValid: boolean = true; // this will check whether the workflow error or not
