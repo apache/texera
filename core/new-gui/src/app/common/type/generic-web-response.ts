@@ -1,7 +1,7 @@
 export interface GenericWebResponse extends Readonly<{
   code: GenericWebResponseCode;
   message: string;
-}> {}
+}> { }
 
 /**
  * make sure do not add const/declare before enum here.

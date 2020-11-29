@@ -150,7 +150,7 @@ export class SavedWorkflowSectionComponent implements OnInit {
     Observable.from(modalRef.result).subscribe(
       (value: boolean) => {
         if (value) {
-          this.workflows = this.workflows.filter(workflow => workflow.wfId !== savedWorkflow.wfId);
+          this.workflows = this.workflows.filter(workflow => workflow.wid !== savedWorkflow.wid);
           this.workflowPersistService.deleteSavedWorkflow(savedWorkflow);
         }
       }
@@ -161,7 +161,7 @@ export class SavedWorkflowSectionComponent implements OnInit {
   jumpToWorkflow(workflow: Workflow) {
     // TODO: change this to pass by URL.
     localStorage.setItem('workflow', workflow.content);
-    localStorage.setItem('workflowID', workflow.wfId.toString());
+    localStorage.setItem('workflowID', workflow.wid.toString());
     localStorage.setItem('workflowName', workflow.name);
     this.router.navigate(['/']).then(null);
   }

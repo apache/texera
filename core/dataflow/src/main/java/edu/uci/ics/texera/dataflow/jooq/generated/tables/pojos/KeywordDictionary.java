@@ -15,7 +15,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class KeywordDictionary implements IKeywordDictionary {
 
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 322404027;
 
     private UInteger uid;
     private UInteger kid;
@@ -47,81 +47,51 @@ public class KeywordDictionary implements IKeywordDictionary {
         this.description = description;
     }
 
-    /**
-     * Getter for <code>texera_db.keyword_dictionary.uid</code>.
-     */
     @Override
     public UInteger getUid() {
         return this.uid;
     }
 
-    /**
-     * Setter for <code>texera_db.keyword_dictionary.uid</code>.
-     */
     @Override
     public void setUid(UInteger uid) {
         this.uid = uid;
     }
 
-    /**
-     * Getter for <code>texera_db.keyword_dictionary.kid</code>.
-     */
     @Override
     public UInteger getKid() {
         return this.kid;
     }
 
-    /**
-     * Setter for <code>texera_db.keyword_dictionary.kid</code>.
-     */
     @Override
     public void setKid(UInteger kid) {
         this.kid = kid;
     }
 
-    /**
-     * Getter for <code>texera_db.keyword_dictionary.name</code>.
-     */
     @Override
     public String getName() {
         return this.name;
     }
 
-    /**
-     * Setter for <code>texera_db.keyword_dictionary.name</code>.
-     */
     @Override
     public void setName(String name) {
         this.name = name;
     }
 
-    /**
-     * Getter for <code>texera_db.keyword_dictionary.content</code>.
-     */
     @Override
     public byte[] getContent() {
         return this.content;
     }
 
-    /**
-     * Setter for <code>texera_db.keyword_dictionary.content</code>.
-     */
     @Override
-    public void setContent(byte[] content) {
+    public void setContent(byte... content) {
         this.content = content;
     }
 
-    /**
-     * Getter for <code>texera_db.keyword_dictionary.description</code>.
-     */
     @Override
     public String getDescription() {
         return this.description;
     }
 
-    /**
-     * Setter for <code>texera_db.keyword_dictionary.description</code>.
-     */
     @Override
     public void setDescription(String description) {
         this.description = description;

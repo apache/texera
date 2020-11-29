@@ -48,19 +48,19 @@ CREATE TABLE IF NOT EXISTS keyword_dictionary
 CREATE TABLE IF NOT EXISTS workflow
 (
     `name`               VARCHAR(128)                NOT NULL,
-    `wf_id`              INT UNSIGNED AUTO_INCREMENT NOT NULL,
+    `wid`              INT UNSIGNED AUTO_INCREMENT NOT NULL,
     `content`            TEXT                        NOT NULL,
     `creation_time`      TIMESTAMP                   NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `last_modified_time` TIMESTAMP                   NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY (`wf_id`)
+    PRIMARY KEY (`wid`)
 ) ENGINE = INNODB,
   AUTO_INCREMENT = 1;
 
 CREATE TABLE IF NOT EXISTS workflow_of_user
 (
     `uid`   INT UNSIGNED NOT NULL,
-    `wf_id` INT UNSIGNED NOT NULL,
-    PRIMARY KEY (`uid`, `wf_id`),
+    `wid` INT UNSIGNED NOT NULL,
+    PRIMARY KEY (`uid`, `wid`),
     FOREIGN KEY (`uid`) REFERENCES `user` (`uid`) ON DELETE CASCADE,
-    FOREIGN KEY (`wf_id`) REFERENCES `workflow` (`wf_id`) ON DELETE CASCADE
+    FOREIGN KEY (`wid`) REFERENCES `workflow` (`wid`) ON DELETE CASCADE
 ) ENGINE = INNODB;

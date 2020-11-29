@@ -15,7 +15,7 @@ import { Workflow } from '../../../../../common/type/workflow';
 })
 export class NgbdModalDeleteWorkflowComponent {
   defaultSavedWorkflow: Workflow = {
-    wfId: 0,
+    wid: 0,
     name: '',
     content: '',
     creationTime: '',

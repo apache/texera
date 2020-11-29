@@ -21,7 +21,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class KeywordDictionaryRecord extends UpdatableRecordImpl<KeywordDictionaryRecord> implements Record5<UInteger, UInteger, String, byte[], String>, IKeywordDictionary {
 
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 2016127702;
 
     /**
      * Setter for <code>texera_db.keyword_dictionary.uid</code>.
@@ -75,7 +75,7 @@ public class KeywordDictionaryRecord extends UpdatableRecordImpl<KeywordDictiona
      * Setter for <code>texera_db.keyword_dictionary.content</code>.
      */
     @Override
-    public void setContent(byte[] value) {
+    public void setContent(byte... value) {
         set(3, value);
     }
 
@@ -220,7 +220,7 @@ public class KeywordDictionaryRecord extends UpdatableRecordImpl<KeywordDictiona
     }
 
     @Override
-    public KeywordDictionaryRecord value4(byte[] value) {
+    public KeywordDictionaryRecord value4(byte... value) {
         setContent(value);
         return this;
     }
@@ -277,10 +277,10 @@ public class KeywordDictionaryRecord extends UpdatableRecordImpl<KeywordDictiona
     public KeywordDictionaryRecord(UInteger uid, UInteger kid, String name, byte[] content, String description) {
         super(KeywordDictionary.KEYWORD_DICTIONARY);
 
-        setUid(uid);
-        setKid(kid);
-        setName(name);
-        setContent(content);
-        setDescription(description);
+        set(0, uid);
+        set(1, kid);
+        set(2, name);
+        set(3, content);
+        set(4, description);
     }
 }

@@ -59,7 +59,7 @@ public class WorkflowResource {
     public Workflow getWorkflow(@PathParam("workflowID") UInteger workflowID,
                                 @Session HttpSession session) {
 
-        return workflowDao.fetchOneByWfId(workflowID);
+        return workflowDao.fetchOneByWid(workflowID);
     }
 
     @POST
@@ -79,14 +79,14 @@ public class WorkflowResource {
             return updateWorkflow(wfId, name, content);
         }
         Workflow workflow = insertWorkflowToDataBase(name, content);
-        workflowOfUserDao.insert(new WorkflowOfUser(user.getUserID(), workflow.getWfId()));
+        workflowOfUserDao.insert(new WorkflowOfUser(user.getUserID(), workflow.getWid()));
 
         return workflow;
 
     }
 
     /**
-     * select * from table userworkflow where workflowID is @param "workflowID"
+     * select * from table workflow where workflowID is @param "workflowID"
      *
      * @param userId
      * @return
@@ -94,14 +94,14 @@ public class WorkflowResource {
     private List<Workflow> getWorkflowByUser(UInteger userId) {
         return SqlServer.createDSLContext()
                 .select(WORKFLOW.fields())
-                .from(WORKFLOW).join(WORKFLOW_OF_USER).on(WORKFLOW_OF_USER.WF_ID.eq(WORKFLOW.WF_ID))
+                .from(WORKFLOW).join(WORKFLOW_OF_USER).on(WORKFLOW_OF_USER.WID.eq(WORKFLOW.WID))
                 .where(WORKFLOW_OF_USER.UID.eq(userId))
                 .fetchInto(Workflow.class);
     }
 
 
     /**
-     * update table workflow set content = @param "content" where wf_id = @param "workflowId"
+     * update table workflow set content = @param "content" where wid = @param "workflowId"
      *
      * @param workflowId
      * @param name
@@ -112,8 +112,8 @@ public class WorkflowResource {
         SqlServer.createDSLContext().update(WORKFLOW)
                 .set(WORKFLOW.NAME, name)
                 .set(WORKFLOW.CONTENT, content)
-                .where(WORKFLOW.WF_ID.eq(workflowId)).execute();
-        return workflowDao.fetchOneByWfId(workflowId);
+                .where(WORKFLOW.WID.eq(workflowId)).execute();
+        return workflowDao.fetchOneByWid(workflowId);
 
     }
 

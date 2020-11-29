@@ -15,7 +15,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class User implements IUser {
 
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = -1851134012;
 
     private String   name;
     private UInteger uid;
@@ -35,33 +35,21 @@ public class User implements IUser {
         this.uid = uid;
     }
 
-    /**
-     * Getter for <code>texera_db.user.name</code>.
-     */
     @Override
     public String getName() {
         return this.name;
     }
 
-    /**
-     * Setter for <code>texera_db.user.name</code>.
-     */
     @Override
     public void setName(String name) {
         this.name = name;
     }
 
-    /**
-     * Getter for <code>texera_db.user.uid</code>.
-     */
     @Override
     public UInteger getUid() {
         return this.uid;
     }
 
-    /**
-     * Setter for <code>texera_db.user.uid</code>.
-     */
     @Override
     public void setUid(UInteger uid) {
         this.uid = uid;

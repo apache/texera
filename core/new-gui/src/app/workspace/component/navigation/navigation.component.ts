@@ -1,16 +1,16 @@
-import {Component, OnInit} from '@angular/core';
-import {ExecuteWorkflowService} from '../../service/execute-workflow/execute-workflow.service';
-import {UndoRedoService} from '../../service/undo-redo/undo-redo.service';
-import {TourService} from 'ngx-tour-ng-bootstrap';
-import {WorkflowActionService} from '../../service/workflow-graph/model/workflow-action.service';
-import {JointGraphWrapper} from '../../service/workflow-graph/model/joint-graph-wrapper';
-import {ValidationWorkflowService} from '../../service/validation/validation-workflow.service';
-import {ExecutionState} from '../../types/execute-workflow.interface';
-import {WorkflowStatusService} from '../../service/workflow-status/workflow-status.service';
-import {UserService} from '../../../common/service/user/user.service';
-import {WorkflowPersistService} from '../../../common/service/user/workflow-persist/workflow-persist.service';
-import {CacheWorkflowService} from '../../service/cache-workflow/cache-workflow.service';
-import {Workflow} from '../../../common/type/workflow';
+import { Component, OnInit } from '@angular/core';
+import { ExecuteWorkflowService } from '../../service/execute-workflow/execute-workflow.service';
+import { UndoRedoService } from '../../service/undo-redo/undo-redo.service';
+import { TourService } from 'ngx-tour-ng-bootstrap';
+import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
+import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-graph-wrapper';
+import { ValidationWorkflowService } from '../../service/validation/validation-workflow.service';
+import { ExecutionState } from '../../types/execute-workflow.interface';
+import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
+import { UserService } from '../../../common/service/user/user.service';
+import { WorkflowPersistService } from '../../../common/service/user/workflow-persist/workflow-persist.service';
+import { CacheWorkflowService } from '../../service/cache-workflow/cache-workflow.service';
+import { Workflow } from '../../../common/type/workflow';
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -88,7 +88,7 @@ export class NavigationComponent implements OnInit {
   }
 
   public onClickRunHandler = () => {
-  };
+  }
 
   ngOnInit() {
   }
@@ -270,10 +270,10 @@ export class NavigationComponent implements OnInit {
         const id = this.cachedWorkflowService.getCachedWorkflowID();
         this.workflowPersistService.saveWorkflow(cachedWorkflow, this.currentWorkflowName, id).subscribe(
           (workflow: Workflow) => {
-            this.cachedWorkflowService.setCachedWorkflowId(JSON.stringify(workflow?.wfId));
+            this.cachedWorkflowService.setCachedWorkflowId(JSON.stringify(workflow?.wid));
           }).add(() => {
-          this.isSaving = false;
-        });
+            this.isSaving = false;
+          });
       } else {
         alert('No workflow found in cache.');
       }

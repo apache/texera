@@ -15,7 +15,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class File implements IFile {
 
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1308189969;
 
     private UInteger uid;
     private UInteger fid;
@@ -51,97 +51,61 @@ public class File implements IFile {
         this.description = description;
     }
 
-    /**
-     * Getter for <code>texera_db.file.uid</code>.
-     */
     @Override
     public UInteger getUid() {
         return this.uid;
     }
 
-    /**
-     * Setter for <code>texera_db.file.uid</code>.
-     */
     @Override
     public void setUid(UInteger uid) {
         this.uid = uid;
     }
 
-    /**
-     * Getter for <code>texera_db.file.fid</code>.
-     */
     @Override
     public UInteger getFid() {
         return this.fid;
     }
 
-    /**
-     * Setter for <code>texera_db.file.fid</code>.
-     */
     @Override
     public void setFid(UInteger fid) {
         this.fid = fid;
     }
 
-    /**
-     * Getter for <code>texera_db.file.size</code>.
-     */
     @Override
     public UInteger getSize() {
         return this.size;
     }
 
-    /**
-     * Setter for <code>texera_db.file.size</code>.
-     */
     @Override
     public void setSize(UInteger size) {
         this.size = size;
     }
 
-    /**
-     * Getter for <code>texera_db.file.name</code>.
-     */
     @Override
     public String getName() {
         return this.name;
     }
 
-    /**
-     * Setter for <code>texera_db.file.name</code>.
-     */
     @Override
     public void setName(String name) {
         this.name = name;
     }
 
-    /**
-     * Getter for <code>texera_db.file.path</code>.
-     */
     @Override
     public String getPath() {
         return this.path;
     }
 
-    /**
-     * Setter for <code>texera_db.file.path</code>.
-     */
     @Override
     public void setPath(String path) {
         this.path = path;
     }
 
-    /**
-     * Getter for <code>texera_db.file.description</code>.
-     */
     @Override
     public String getDescription() {
         return this.description;
     }
 
-    /**
-     * Setter for <code>texera_db.file.description</code>.
-     */
     @Override
     public void setDescription(String description) {
         this.description = description;

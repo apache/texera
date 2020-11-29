@@ -4,6 +4,7 @@
 package edu.uci.ics.texera.dataflow.jooq.generated.tables;
 
 
+import edu.uci.ics.texera.dataflow.jooq.generated.Indexes;
 import edu.uci.ics.texera.dataflow.jooq.generated.Keys;
 import edu.uci.ics.texera.dataflow.jooq.generated.TexeraDb;
 import edu.uci.ics.texera.dataflow.jooq.generated.tables.records.FileRecord;
@@ -14,16 +15,15 @@ import java.util.List;
 import org.jooq.Field;
 import org.jooq.ForeignKey;
 import org.jooq.Identity;
+import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
 import org.jooq.Row6;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
-import org.jooq.TableOptions;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
-import org.jooq.impl.SQLDataType;
 import org.jooq.impl.TableImpl;
 import org.jooq.types.UInteger;
 
@@ -34,7 +34,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class File extends TableImpl<FileRecord> {
 
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 709170345;
 
     /**
      * The reference instance of <code>texera_db.file</code>
@@ -52,39 +52,38 @@ public class File extends TableImpl<FileRecord> {
     /**
      * The column <code>texera_db.file.uid</code>.
      */
-    public final TableField<FileRecord, UInteger> UID = createField(DSL.name("uid"), SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+    public final TableField<FileRecord, UInteger> UID = createField(DSL.name("uid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.file.fid</code>.
      */
-    public final TableField<FileRecord, UInteger> FID = createField(DSL.name("fid"), SQLDataType.INTEGERUNSIGNED.nullable(false).identity(true), this, "");
+    public final TableField<FileRecord, UInteger> FID = createField(DSL.name("fid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false).identity(true), this, "");
 
     /**
      * The column <code>texera_db.file.size</code>.
      */
-    public final TableField<FileRecord, UInteger> SIZE = createField(DSL.name("size"), SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+    public final TableField<FileRecord, UInteger> SIZE = createField(DSL.name("size"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.file.name</code>.
      */
-    public final TableField<FileRecord, String> NAME = createField(DSL.name("name"), SQLDataType.VARCHAR(128).nullable(false), this, "");
+    public final TableField<FileRecord, String> NAME = createField(DSL.name("name"), org.jooq.impl.SQLDataType.VARCHAR(128).nullable(false), this, "");
 
     /**
      * The column <code>texera_db.file.path</code>.
      */
-    public final TableField<FileRecord, String> PATH = createField(DSL.name("path"), SQLDataType.VARCHAR(512).nullable(false), this, "");
+    public final TableField<FileRecord, String> PATH = createField(DSL.name("path"), org.jooq.impl.SQLDataType.VARCHAR(512).nullable(false), this, "");
 
     /**
      * The column <code>texera_db.file.description</code>.
      */
-    public final TableField<FileRecord, String> DESCRIPTION = createField(DSL.name("description"), SQLDataType.VARCHAR(512).nullable(false), this, "");
+    public final TableField<FileRecord, String> DESCRIPTION = createField(DSL.name("description"), org.jooq.impl.SQLDataType.VARCHAR(512).nullable(false), this, "");
 
-    private File(Name alias, Table<FileRecord> aliased) {
-        this(alias, aliased, null);
-    }
-
-    private File(Name alias, Table<FileRecord> aliased, Field<?>[] parameters) {
-        super(alias, null, aliased, parameters, DSL.comment(""), TableOptions.table());
+    /**
+     * Create a <code>texera_db.file</code> table reference
+     */
+    public File() {
+        this(DSL.name("file"), null);
     }
 
     /**
@@ -101,11 +100,12 @@ public class File extends TableImpl<FileRecord> {
         this(alias, FILE);
     }
 
-    /**
-     * Create a <code>texera_db.file</code> table reference
-     */
-    public File() {
-        this(DSL.name("file"), null);
+    private File(Name alias, Table<FileRecord> aliased) {
+        this(alias, aliased, null);
+    }
+
+    private File(Name alias, Table<FileRecord> aliased, Field<?>[] parameters) {
+        super(alias, null, aliased, parameters, DSL.comment(""));
     }
 
     public <O extends Record> File(Table<O> child, ForeignKey<O, FileRecord> key) {
@@ -118,8 +118,13 @@ public class File extends TableImpl<FileRecord> {
     }
 
     @Override
+    public List<Index> getIndexes() {
+        return Arrays.<Index>asList(Indexes.FILE_PRIMARY, Indexes.FILE_UID);
+    }
+
+    @Override
     public Identity<FileRecord, UInteger> getIdentity() {
-        return (Identity<FileRecord, UInteger>) super.getIdentity();
+        return Keys.IDENTITY_FILE;
     }
 
     @Override

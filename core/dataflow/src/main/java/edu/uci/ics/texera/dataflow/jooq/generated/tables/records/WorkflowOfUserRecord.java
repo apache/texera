@@ -20,7 +20,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowOfUserRecord extends UpdatableRecordImpl<WorkflowOfUserRecord> implements Record2<UInteger, UInteger>, IWorkflowOfUser {
 
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = -1405531266;
 
     /**
      * Setter for <code>texera_db.workflow_of_user.uid</code>.
@@ -39,18 +39,18 @@ public class WorkflowOfUserRecord extends UpdatableRecordImpl<WorkflowOfUserReco
     }
 
     /**
-     * Setter for <code>texera_db.workflow_of_user.wf_id</code>.
+     * Setter for <code>texera_db.workflow_of_user.wid</code>.
      */
     @Override
-    public void setWfId(UInteger value) {
+    public void setWid(UInteger value) {
         set(1, value);
     }
 
     /**
-     * Getter for <code>texera_db.workflow_of_user.wf_id</code>.
+     * Getter for <code>texera_db.workflow_of_user.wid</code>.
      */
     @Override
-    public UInteger getWfId() {
+    public UInteger getWid() {
         return (UInteger) get(1);
     }
 
@@ -84,7 +84,7 @@ public class WorkflowOfUserRecord extends UpdatableRecordImpl<WorkflowOfUserReco
 
     @Override
     public Field<UInteger> field2() {
-        return WorkflowOfUser.WORKFLOW_OF_USER.WF_ID;
+        return WorkflowOfUser.WORKFLOW_OF_USER.WID;
     }
 
     @Override
@@ -94,7 +94,7 @@ public class WorkflowOfUserRecord extends UpdatableRecordImpl<WorkflowOfUserReco
 
     @Override
     public UInteger component2() {
-        return getWfId();
+        return getWid();
     }
 
     @Override
@@ -104,7 +104,7 @@ public class WorkflowOfUserRecord extends UpdatableRecordImpl<WorkflowOfUserReco
 
     @Override
     public UInteger value2() {
-        return getWfId();
+        return getWid();
     }
 
     @Override
@@ -115,7 +115,7 @@ public class WorkflowOfUserRecord extends UpdatableRecordImpl<WorkflowOfUserReco
 
     @Override
     public WorkflowOfUserRecord value2(UInteger value) {
-        setWfId(value);
+        setWid(value);
         return this;
     }
 
@@ -133,7 +133,7 @@ public class WorkflowOfUserRecord extends UpdatableRecordImpl<WorkflowOfUserReco
     @Override
     public void from(IWorkflowOfUser from) {
         setUid(from.getUid());
-        setWfId(from.getWfId());
+        setWid(from.getWid());
     }
 
     @Override
@@ -156,10 +156,10 @@ public class WorkflowOfUserRecord extends UpdatableRecordImpl<WorkflowOfUserReco
     /**
      * Create a detached, initialised WorkflowOfUserRecord
      */
-    public WorkflowOfUserRecord(UInteger uid, UInteger wfId) {
+    public WorkflowOfUserRecord(UInteger uid, UInteger wid) {
         super(WorkflowOfUser.WORKFLOW_OF_USER);
 
-        setUid(uid);
-        setWfId(wfId);
+        set(0, uid);
+        set(1, wid);
     }
 }

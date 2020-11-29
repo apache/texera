@@ -16,38 +16,76 @@ import edu.uci.ics.texera.dataflow.jooq.generated.tables.records.WorkflowOfUserR
 import edu.uci.ics.texera.dataflow.jooq.generated.tables.records.WorkflowRecord;
 
 import org.jooq.ForeignKey;
-import org.jooq.TableField;
+import org.jooq.Identity;
 import org.jooq.UniqueKey;
-import org.jooq.impl.DSL;
 import org.jooq.impl.Internal;
+import org.jooq.types.UInteger;
 
 
 /**
- * A class modelling foreign key relationships and constraints of tables in 
- * texera_db.
+ * A class modelling foreign key relationships and constraints of tables of 
+ * the <code>texera_db</code> schema.
  */
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Keys {
 
     // -------------------------------------------------------------------------
+    // IDENTITY definitions
+    // -------------------------------------------------------------------------
+
+    public static final Identity<FileRecord, UInteger> IDENTITY_FILE = Identities0.IDENTITY_FILE;
+    public static final Identity<KeywordDictionaryRecord, UInteger> IDENTITY_KEYWORD_DICTIONARY = Identities0.IDENTITY_KEYWORD_DICTIONARY;
+    public static final Identity<UserRecord, UInteger> IDENTITY_USER = Identities0.IDENTITY_USER;
+    public static final Identity<WorkflowRecord, UInteger> IDENTITY_WORKFLOW = Identities0.IDENTITY_WORKFLOW;
+
+    // -------------------------------------------------------------------------
     // UNIQUE and PRIMARY KEY definitions
     // -------------------------------------------------------------------------
 
-    public static final UniqueKey<FileRecord> KEY_FILE_PRIMARY = Internal.createUniqueKey(File.FILE, DSL.name("KEY_file_PRIMARY"), new TableField[] { File.FILE.FID }, true);
-    public static final UniqueKey<FileRecord> KEY_FILE_UID = Internal.createUniqueKey(File.FILE, DSL.name("KEY_file_uid"), new TableField[] { File.FILE.UID, File.FILE.NAME }, true);
-    public static final UniqueKey<KeywordDictionaryRecord> KEY_KEYWORD_DICTIONARY_PRIMARY = Internal.createUniqueKey(KeywordDictionary.KEYWORD_DICTIONARY, DSL.name("KEY_keyword_dictionary_PRIMARY"), new TableField[] { KeywordDictionary.KEYWORD_DICTIONARY.KID }, true);
-    public static final UniqueKey<KeywordDictionaryRecord> KEY_KEYWORD_DICTIONARY_UID = Internal.createUniqueKey(KeywordDictionary.KEYWORD_DICTIONARY, DSL.name("KEY_keyword_dictionary_uid"), new TableField[] { KeywordDictionary.KEYWORD_DICTIONARY.UID, KeywordDictionary.KEYWORD_DICTIONARY.NAME }, true);
-    public static final UniqueKey<UserRecord> KEY_USER_NAME = Internal.createUniqueKey(User.USER, DSL.name("KEY_user_name"), new TableField[] { User.USER.NAME }, true);
-    public static final UniqueKey<UserRecord> KEY_USER_PRIMARY = Internal.createUniqueKey(User.USER, DSL.name("KEY_user_PRIMARY"), new TableField[] { User.USER.UID }, true);
-    public static final UniqueKey<WorkflowRecord> KEY_WORKFLOW_PRIMARY = Internal.createUniqueKey(Workflow.WORKFLOW, DSL.name("KEY_workflow_PRIMARY"), new TableField[] { Workflow.WORKFLOW.WF_ID }, true);
-    public static final UniqueKey<WorkflowOfUserRecord> KEY_WORKFLOW_OF_USER_PRIMARY = Internal.createUniqueKey(WorkflowOfUser.WORKFLOW_OF_USER, DSL.name("KEY_workflow_of_user_PRIMARY"), new TableField[] { WorkflowOfUser.WORKFLOW_OF_USER.UID, WorkflowOfUser.WORKFLOW_OF_USER.WF_ID }, true);
+    public static final UniqueKey<FileRecord> KEY_FILE_UID = UniqueKeys0.KEY_FILE_UID;
+    public static final UniqueKey<FileRecord> KEY_FILE_PRIMARY = UniqueKeys0.KEY_FILE_PRIMARY;
+    public static final UniqueKey<KeywordDictionaryRecord> KEY_KEYWORD_DICTIONARY_UID = UniqueKeys0.KEY_KEYWORD_DICTIONARY_UID;
+    public static final UniqueKey<KeywordDictionaryRecord> KEY_KEYWORD_DICTIONARY_PRIMARY = UniqueKeys0.KEY_KEYWORD_DICTIONARY_PRIMARY;
+    public static final UniqueKey<UserRecord> KEY_USER_NAME = UniqueKeys0.KEY_USER_NAME;
+    public static final UniqueKey<UserRecord> KEY_USER_PRIMARY = UniqueKeys0.KEY_USER_PRIMARY;
+    public static final UniqueKey<WorkflowRecord> KEY_WORKFLOW_PRIMARY = UniqueKeys0.KEY_WORKFLOW_PRIMARY;
+    public static final UniqueKey<WorkflowOfUserRecord> KEY_WORKFLOW_OF_USER_PRIMARY = UniqueKeys0.KEY_WORKFLOW_OF_USER_PRIMARY;
 
     // -------------------------------------------------------------------------
     // FOREIGN KEY definitions
     // -------------------------------------------------------------------------
 
-    public static final ForeignKey<FileRecord, UserRecord> FILE_IBFK_1 = Internal.createForeignKey(File.FILE, DSL.name("file_ibfk_1"), new TableField[] { File.FILE.UID }, Keys.KEY_USER_PRIMARY, new TableField[] { User.USER.UID }, true);
-    public static final ForeignKey<KeywordDictionaryRecord, UserRecord> KEYWORD_DICTIONARY_IBFK_1 = Internal.createForeignKey(KeywordDictionary.KEYWORD_DICTIONARY, DSL.name("keyword_dictionary_ibfk_1"), new TableField[] { KeywordDictionary.KEYWORD_DICTIONARY.UID }, Keys.KEY_USER_PRIMARY, new TableField[] { User.USER.UID }, true);
-    public static final ForeignKey<WorkflowOfUserRecord, UserRecord> WORKFLOW_OF_USER_IBFK_1 = Internal.createForeignKey(WorkflowOfUser.WORKFLOW_OF_USER, DSL.name("workflow_of_user_ibfk_1"), new TableField[] { WorkflowOfUser.WORKFLOW_OF_USER.UID }, Keys.KEY_USER_PRIMARY, new TableField[] { User.USER.UID }, true);
-    public static final ForeignKey<WorkflowOfUserRecord, WorkflowRecord> WORKFLOW_OF_USER_IBFK_2 = Internal.createForeignKey(WorkflowOfUser.WORKFLOW_OF_USER, DSL.name("workflow_of_user_ibfk_2"), new TableField[] { WorkflowOfUser.WORKFLOW_OF_USER.WF_ID }, Keys.KEY_WORKFLOW_PRIMARY, new TableField[] { Workflow.WORKFLOW.WF_ID }, true);
+    public static final ForeignKey<FileRecord, UserRecord> FILE_IBFK_1 = ForeignKeys0.FILE_IBFK_1;
+    public static final ForeignKey<KeywordDictionaryRecord, UserRecord> KEYWORD_DICTIONARY_IBFK_1 = ForeignKeys0.KEYWORD_DICTIONARY_IBFK_1;
+    public static final ForeignKey<WorkflowOfUserRecord, UserRecord> WORKFLOW_OF_USER_IBFK_1 = ForeignKeys0.WORKFLOW_OF_USER_IBFK_1;
+    public static final ForeignKey<WorkflowOfUserRecord, WorkflowRecord> WORKFLOW_OF_USER_IBFK_2 = ForeignKeys0.WORKFLOW_OF_USER_IBFK_2;
+
+    // -------------------------------------------------------------------------
+    // [#1459] distribute members to avoid static initialisers > 64kb
+    // -------------------------------------------------------------------------
+
+    private static class Identities0 {
+        public static Identity<FileRecord, UInteger> IDENTITY_FILE = Internal.createIdentity(File.FILE, File.FILE.FID);
+        public static Identity<KeywordDictionaryRecord, UInteger> IDENTITY_KEYWORD_DICTIONARY = Internal.createIdentity(KeywordDictionary.KEYWORD_DICTIONARY, KeywordDictionary.KEYWORD_DICTIONARY.KID);
+        public static Identity<UserRecord, UInteger> IDENTITY_USER = Internal.createIdentity(User.USER, User.USER.UID);
+        public static Identity<WorkflowRecord, UInteger> IDENTITY_WORKFLOW = Internal.createIdentity(Workflow.WORKFLOW, Workflow.WORKFLOW.WID);
+    }
+
+    private static class UniqueKeys0 {
+        public static final UniqueKey<FileRecord> KEY_FILE_UID = Internal.createUniqueKey(File.FILE, "KEY_file_uid", File.FILE.UID, File.FILE.NAME);
+        public static final UniqueKey<FileRecord> KEY_FILE_PRIMARY = Internal.createUniqueKey(File.FILE, "KEY_file_PRIMARY", File.FILE.FID);
+        public static final UniqueKey<KeywordDictionaryRecord> KEY_KEYWORD_DICTIONARY_UID = Internal.createUniqueKey(KeywordDictionary.KEYWORD_DICTIONARY, "KEY_keyword_dictionary_uid", KeywordDictionary.KEYWORD_DICTIONARY.UID, KeywordDictionary.KEYWORD_DICTIONARY.NAME);
+        public static final UniqueKey<KeywordDictionaryRecord> KEY_KEYWORD_DICTIONARY_PRIMARY = Internal.createUniqueKey(KeywordDictionary.KEYWORD_DICTIONARY, "KEY_keyword_dictionary_PRIMARY", KeywordDictionary.KEYWORD_DICTIONARY.KID);
+        public static final UniqueKey<UserRecord> KEY_USER_NAME = Internal.createUniqueKey(User.USER, "KEY_user_name", User.USER.NAME);
+        public static final UniqueKey<UserRecord> KEY_USER_PRIMARY = Internal.createUniqueKey(User.USER, "KEY_user_PRIMARY", User.USER.UID);
+        public static final UniqueKey<WorkflowRecord> KEY_WORKFLOW_PRIMARY = Internal.createUniqueKey(Workflow.WORKFLOW, "KEY_workflow_PRIMARY", Workflow.WORKFLOW.WID);
+        public static final UniqueKey<WorkflowOfUserRecord> KEY_WORKFLOW_OF_USER_PRIMARY = Internal.createUniqueKey(WorkflowOfUser.WORKFLOW_OF_USER, "KEY_workflow_of_user_PRIMARY", WorkflowOfUser.WORKFLOW_OF_USER.UID, WorkflowOfUser.WORKFLOW_OF_USER.WID);
+    }
+
+    private static class ForeignKeys0 {
+        public static final ForeignKey<FileRecord, UserRecord> FILE_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.dataflow.jooq.generated.Keys.KEY_USER_PRIMARY, File.FILE, "file_ibfk_1", File.FILE.UID);
+        public static final ForeignKey<KeywordDictionaryRecord, UserRecord> KEYWORD_DICTIONARY_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.dataflow.jooq.generated.Keys.KEY_USER_PRIMARY, KeywordDictionary.KEYWORD_DICTIONARY, "keyword_dictionary_ibfk_1", KeywordDictionary.KEYWORD_DICTIONARY.UID);
+        public static final ForeignKey<WorkflowOfUserRecord, UserRecord> WORKFLOW_OF_USER_IBFK_1 = Internal.createForeignKey(edu.uci.ics.texera.dataflow.jooq.generated.Keys.KEY_USER_PRIMARY, WorkflowOfUser.WORKFLOW_OF_USER, "workflow_of_user_ibfk_1", WorkflowOfUser.WORKFLOW_OF_USER.UID);
+        public static final ForeignKey<WorkflowOfUserRecord, WorkflowRecord> WORKFLOW_OF_USER_IBFK_2 = Internal.createForeignKey(edu.uci.ics.texera.dataflow.jooq.generated.Keys.KEY_WORKFLOW_PRIMARY, WorkflowOfUser.WORKFLOW_OF_USER, "workflow_of_user_ibfk_2", WorkflowOfUser.WORKFLOW_OF_USER.WID);
+    }
 }

@@ -6,7 +6,7 @@ package edu.uci.ics.texera.dataflow.jooq.generated.tables.pojos;
 
 import edu.uci.ics.texera.dataflow.jooq.generated.tables.interfaces.IWorkflow;
 
-import java.time.LocalDateTime;
+import java.sql.Timestamp;
 
 import org.jooq.types.UInteger;
 
@@ -17,115 +17,85 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Workflow implements IWorkflow {
 
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 2029320923;
 
-    private String        name;
-    private UInteger      wfId;
-    private String        content;
-    private LocalDateTime creationTime;
-    private LocalDateTime lastModifiedTime;
+    private String    name;
+    private UInteger  wid;
+    private String    content;
+    private Timestamp creationTime;
+    private Timestamp lastModifiedTime;
 
     public Workflow() {}
 
     public Workflow(IWorkflow value) {
         this.name = value.getName();
-        this.wfId = value.getWfId();
+        this.wid = value.getWid();
         this.content = value.getContent();
         this.creationTime = value.getCreationTime();
         this.lastModifiedTime = value.getLastModifiedTime();
     }
 
     public Workflow(
-        String        name,
-        UInteger      wfId,
-        String        content,
-        LocalDateTime creationTime,
-        LocalDateTime lastModifiedTime
+        String    name,
+        UInteger  wid,
+        String    content,
+        Timestamp creationTime,
+        Timestamp lastModifiedTime
     ) {
         this.name = name;
-        this.wfId = wfId;
+        this.wid = wid;
         this.content = content;
         this.creationTime = creationTime;
         this.lastModifiedTime = lastModifiedTime;
     }
 
-    /**
-     * Getter for <code>texera_db.workflow.name</code>.
-     */
     @Override
     public String getName() {
         return this.name;
     }
 
-    /**
-     * Setter for <code>texera_db.workflow.name</code>.
-     */
     @Override
     public void setName(String name) {
         this.name = name;
     }
 
-    /**
-     * Getter for <code>texera_db.workflow.wf_id</code>.
-     */
     @Override
-    public UInteger getWfId() {
-        return this.wfId;
+    public UInteger getWid() {
+        return this.wid;
     }
 
-    /**
-     * Setter for <code>texera_db.workflow.wf_id</code>.
-     */
     @Override
-    public void setWfId(UInteger wfId) {
-        this.wfId = wfId;
+    public void setWid(UInteger wid) {
+        this.wid = wid;
     }
 
-    /**
-     * Getter for <code>texera_db.workflow.content</code>.
-     */
     @Override
     public String getContent() {
         return this.content;
     }
 
-    /**
-     * Setter for <code>texera_db.workflow.content</code>.
-     */
     @Override
     public void setContent(String content) {
         this.content = content;
     }
 
-    /**
-     * Getter for <code>texera_db.workflow.creation_time</code>.
-     */
     @Override
-    public LocalDateTime getCreationTime() {
+    public Timestamp getCreationTime() {
         return this.creationTime;
     }
 
-    /**
-     * Setter for <code>texera_db.workflow.creation_time</code>.
-     */
     @Override
-    public void setCreationTime(LocalDateTime creationTime) {
+    public void setCreationTime(Timestamp creationTime) {
         this.creationTime = creationTime;
     }
 
-    /**
-     * Getter for <code>texera_db.workflow.last_modified_time</code>.
-     */
     @Override
-    public LocalDateTime getLastModifiedTime() {
+    public Timestamp getLastModifiedTime() {
         return this.lastModifiedTime;
     }
 
-    /**
-     * Setter for <code>texera_db.workflow.last_modified_time</code>.
-     */
     @Override
-    public void setLastModifiedTime(LocalDateTime lastModifiedTime) {
+    public void setLastModifiedTime(Timestamp lastModifiedTime) {
         this.lastModifiedTime = lastModifiedTime;
     }
 
@@ -134,7 +104,7 @@ public class Workflow implements IWorkflow {
         StringBuilder sb = new StringBuilder("Workflow (");
 
         sb.append(name);
-        sb.append(", ").append(wfId);
+        sb.append(", ").append(wid);
         sb.append(", ").append(content);
         sb.append(", ").append(creationTime);
         sb.append(", ").append(lastModifiedTime);
@@ -150,7 +120,7 @@ public class Workflow implements IWorkflow {
     @Override
     public void from(IWorkflow from) {
         setName(from.getName());
-        setWfId(from.getWfId());
+        setWid(from.getWid());
         setContent(from.getContent());
         setCreationTime(from.getCreationTime());
         setLastModifiedTime(from.getLastModifiedTime());

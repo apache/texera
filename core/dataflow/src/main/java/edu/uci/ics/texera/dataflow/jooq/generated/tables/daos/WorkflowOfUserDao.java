@@ -37,7 +37,7 @@ public class WorkflowOfUserDao extends DAOImpl<WorkflowOfUserRecord, edu.uci.ics
 
     @Override
     public Record2<UInteger, UInteger> getId(edu.uci.ics.texera.dataflow.jooq.generated.tables.pojos.WorkflowOfUser object) {
-        return compositeKeyRecord(object.getUid(), object.getWfId());
+        return compositeKeyRecord(object.getUid(), object.getWid());
     }
 
     /**
@@ -55,16 +55,16 @@ public class WorkflowOfUserDao extends DAOImpl<WorkflowOfUserRecord, edu.uci.ics
     }
 
     /**
-     * Fetch records that have <code>wf_id BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>wid BETWEEN lowerInclusive AND upperInclusive</code>
      */
-    public List<edu.uci.ics.texera.dataflow.jooq.generated.tables.pojos.WorkflowOfUser> fetchRangeOfWfId(UInteger lowerInclusive, UInteger upperInclusive) {
-        return fetchRange(WorkflowOfUser.WORKFLOW_OF_USER.WF_ID, lowerInclusive, upperInclusive);
+    public List<edu.uci.ics.texera.dataflow.jooq.generated.tables.pojos.WorkflowOfUser> fetchRangeOfWid(UInteger lowerInclusive, UInteger upperInclusive) {
+        return fetchRange(WorkflowOfUser.WORKFLOW_OF_USER.WID, lowerInclusive, upperInclusive);
     }
 
     /**
-     * Fetch records that have <code>wf_id IN (values)</code>
+     * Fetch records that have <code>wid IN (values)</code>
      */
-    public List<edu.uci.ics.texera.dataflow.jooq.generated.tables.pojos.WorkflowOfUser> fetchByWfId(UInteger... values) {
-        return fetch(WorkflowOfUser.WORKFLOW_OF_USER.WF_ID, values);
+    public List<edu.uci.ics.texera.dataflow.jooq.generated.tables.pojos.WorkflowOfUser> fetchByWid(UInteger... values) {
+        return fetch(WorkflowOfUser.WORKFLOW_OF_USER.WID, values);
     }
 }

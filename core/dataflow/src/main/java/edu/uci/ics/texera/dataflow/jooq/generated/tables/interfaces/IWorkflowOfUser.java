@@ -26,14 +26,14 @@ public interface IWorkflowOfUser extends Serializable {
     public UInteger getUid();
 
     /**
-     * Setter for <code>texera_db.workflow_of_user.wf_id</code>.
+     * Setter for <code>texera_db.workflow_of_user.wid</code>.
      */
-    public void setWfId(UInteger value);
+    public void setWid(UInteger value);
 
     /**
-     * Getter for <code>texera_db.workflow_of_user.wf_id</code>.
+     * Getter for <code>texera_db.workflow_of_user.wid</code>.
      */
-    public UInteger getWfId();
+    public UInteger getWid();
 
     // -------------------------------------------------------------------------
     // FROM and INTO
@@ -42,10 +42,10 @@ public interface IWorkflowOfUser extends Serializable {
     /**
      * Load data from another generated Record/POJO implementing the common interface IWorkflowOfUser
      */
-    public void from(IWorkflowOfUser from);
+    public void from(edu.uci.ics.texera.dataflow.jooq.generated.tables.interfaces.IWorkflowOfUser from);
 
     /**
      * Copy data into another generated Record/POJO implementing the common interface IWorkflowOfUser
      */
-    public <E extends IWorkflowOfUser> E into(E into);
+    public <E extends edu.uci.ics.texera.dataflow.jooq.generated.tables.interfaces.IWorkflowOfUser> E into(E into);
 }

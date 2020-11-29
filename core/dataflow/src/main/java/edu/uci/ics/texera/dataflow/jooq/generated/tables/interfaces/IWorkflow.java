@@ -5,7 +5,7 @@ package edu.uci.ics.texera.dataflow.jooq.generated.tables.interfaces;
 
 
 import java.io.Serializable;
-import java.time.LocalDateTime;
+import java.sql.Timestamp;
 
 import org.jooq.types.UInteger;
 
@@ -27,14 +27,14 @@ public interface IWorkflow extends Serializable {
     public String getName();
 
     /**
-     * Setter for <code>texera_db.workflow.wf_id</code>.
+     * Setter for <code>texera_db.workflow.wid</code>.
      */
-    public void setWfId(UInteger value);
+    public void setWid(UInteger value);
 
     /**
-     * Getter for <code>texera_db.workflow.wf_id</code>.
+     * Getter for <code>texera_db.workflow.wid</code>.
      */
-    public UInteger getWfId();
+    public UInteger getWid();
 
     /**
      * Setter for <code>texera_db.workflow.content</code>.
@@ -49,22 +49,22 @@ public interface IWorkflow extends Serializable {
     /**
      * Setter for <code>texera_db.workflow.creation_time</code>.
      */
-    public void setCreationTime(LocalDateTime value);
+    public void setCreationTime(Timestamp value);
 
     /**
      * Getter for <code>texera_db.workflow.creation_time</code>.
      */
-    public LocalDateTime getCreationTime();
+    public Timestamp getCreationTime();
 
     /**
      * Setter for <code>texera_db.workflow.last_modified_time</code>.
      */
-    public void setLastModifiedTime(LocalDateTime value);
+    public void setLastModifiedTime(Timestamp value);
 
     /**
      * Getter for <code>texera_db.workflow.last_modified_time</code>.
      */
-    public LocalDateTime getLastModifiedTime();
+    public Timestamp getLastModifiedTime();
 
     // -------------------------------------------------------------------------
     // FROM and INTO
@@ -73,10 +73,10 @@ public interface IWorkflow extends Serializable {
     /**
      * Load data from another generated Record/POJO implementing the common interface IWorkflow
      */
-    public void from(IWorkflow from);
+    public void from(edu.uci.ics.texera.dataflow.jooq.generated.tables.interfaces.IWorkflow from);
 
     /**
      * Copy data into another generated Record/POJO implementing the common interface IWorkflow
      */
-    public <E extends IWorkflow> E into(E into);
+    public <E extends edu.uci.ics.texera.dataflow.jooq.generated.tables.interfaces.IWorkflow> E into(E into);
 }

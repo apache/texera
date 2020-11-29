@@ -4,6 +4,7 @@
 package edu.uci.ics.texera.dataflow.jooq.generated.tables;
 
 
+import edu.uci.ics.texera.dataflow.jooq.generated.Indexes;
 import edu.uci.ics.texera.dataflow.jooq.generated.Keys;
 import edu.uci.ics.texera.dataflow.jooq.generated.TexeraDb;
 import edu.uci.ics.texera.dataflow.jooq.generated.tables.records.KeywordDictionaryRecord;
@@ -14,16 +15,15 @@ import java.util.List;
 import org.jooq.Field;
 import org.jooq.ForeignKey;
 import org.jooq.Identity;
+import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
 import org.jooq.Row5;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
-import org.jooq.TableOptions;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
-import org.jooq.impl.SQLDataType;
 import org.jooq.impl.TableImpl;
 import org.jooq.types.UInteger;
 
@@ -34,7 +34,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class KeywordDictionary extends TableImpl<KeywordDictionaryRecord> {
 
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = -1509040930;
 
     /**
      * The reference instance of <code>texera_db.keyword_dictionary</code>
@@ -52,34 +52,33 @@ public class KeywordDictionary extends TableImpl<KeywordDictionaryRecord> {
     /**
      * The column <code>texera_db.keyword_dictionary.uid</code>.
      */
-    public final TableField<KeywordDictionaryRecord, UInteger> UID = createField(DSL.name("uid"), SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+    public final TableField<KeywordDictionaryRecord, UInteger> UID = createField(DSL.name("uid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.keyword_dictionary.kid</code>.
      */
-    public final TableField<KeywordDictionaryRecord, UInteger> KID = createField(DSL.name("kid"), SQLDataType.INTEGERUNSIGNED.nullable(false).identity(true), this, "");
+    public final TableField<KeywordDictionaryRecord, UInteger> KID = createField(DSL.name("kid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false).identity(true), this, "");
 
     /**
      * The column <code>texera_db.keyword_dictionary.name</code>.
      */
-    public final TableField<KeywordDictionaryRecord, String> NAME = createField(DSL.name("name"), SQLDataType.VARCHAR(128).nullable(false), this, "");
+    public final TableField<KeywordDictionaryRecord, String> NAME = createField(DSL.name("name"), org.jooq.impl.SQLDataType.VARCHAR(128).nullable(false), this, "");
 
     /**
      * The column <code>texera_db.keyword_dictionary.content</code>.
      */
-    public final TableField<KeywordDictionaryRecord, byte[]> CONTENT = createField(DSL.name("content"), SQLDataType.BLOB.nullable(false), this, "");
+    public final TableField<KeywordDictionaryRecord, byte[]> CONTENT = createField(DSL.name("content"), org.jooq.impl.SQLDataType.BLOB.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.keyword_dictionary.description</code>.
      */
-    public final TableField<KeywordDictionaryRecord, String> DESCRIPTION = createField(DSL.name("description"), SQLDataType.VARCHAR(512).nullable(false), this, "");
+    public final TableField<KeywordDictionaryRecord, String> DESCRIPTION = createField(DSL.name("description"), org.jooq.impl.SQLDataType.VARCHAR(512).nullable(false), this, "");
 
-    private KeywordDictionary(Name alias, Table<KeywordDictionaryRecord> aliased) {
-        this(alias, aliased, null);
-    }
-
-    private KeywordDictionary(Name alias, Table<KeywordDictionaryRecord> aliased, Field<?>[] parameters) {
-        super(alias, null, aliased, parameters, DSL.comment(""), TableOptions.table());
+    /**
+     * Create a <code>texera_db.keyword_dictionary</code> table reference
+     */
+    public KeywordDictionary() {
+        this(DSL.name("keyword_dictionary"), null);
     }
 
     /**
@@ -96,11 +95,12 @@ public class KeywordDictionary extends TableImpl<KeywordDictionaryRecord> {
         this(alias, KEYWORD_DICTIONARY);
     }
 
-    /**
-     * Create a <code>texera_db.keyword_dictionary</code> table reference
-     */
-    public KeywordDictionary() {
-        this(DSL.name("keyword_dictionary"), null);
+    private KeywordDictionary(Name alias, Table<KeywordDictionaryRecord> aliased) {
+        this(alias, aliased, null);
+    }
+
+    private KeywordDictionary(Name alias, Table<KeywordDictionaryRecord> aliased, Field<?>[] parameters) {
+        super(alias, null, aliased, parameters, DSL.comment(""));
     }
 
     public <O extends Record> KeywordDictionary(Table<O> child, ForeignKey<O, KeywordDictionaryRecord> key) {
@@ -113,8 +113,13 @@ public class KeywordDictionary extends TableImpl<KeywordDictionaryRecord> {
     }
 
     @Override
+    public List<Index> getIndexes() {
+        return Arrays.<Index>asList(Indexes.KEYWORD_DICTIONARY_PRIMARY, Indexes.KEYWORD_DICTIONARY_UID);
+    }
+
+    @Override
     public Identity<KeywordDictionaryRecord, UInteger> getIdentity() {
-        return (Identity<KeywordDictionaryRecord, UInteger>) super.getIdentity();
+        return Keys.IDENTITY_KEYWORD_DICTIONARY;
     }
 
     @Override

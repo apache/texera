@@ -7,7 +7,7 @@ package edu.uci.ics.texera.dataflow.jooq.generated.tables.daos;
 import edu.uci.ics.texera.dataflow.jooq.generated.tables.Workflow;
 import edu.uci.ics.texera.dataflow.jooq.generated.tables.records.WorkflowRecord;
 
-import java.time.LocalDateTime;
+import java.sql.Timestamp;
 import java.util.List;
 
 import org.jooq.Configuration;
@@ -37,7 +37,7 @@ public class WorkflowDao extends DAOImpl<WorkflowRecord, edu.uci.ics.texera.data
 
     @Override
     public UInteger getId(edu.uci.ics.texera.dataflow.jooq.generated.tables.pojos.Workflow object) {
-        return object.getWfId();
+        return object.getWid();
     }
 
     /**
@@ -55,24 +55,24 @@ public class WorkflowDao extends DAOImpl<WorkflowRecord, edu.uci.ics.texera.data
     }
 
     /**
-     * Fetch records that have <code>wf_id BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>wid BETWEEN lowerInclusive AND upperInclusive</code>
      */
-    public List<edu.uci.ics.texera.dataflow.jooq.generated.tables.pojos.Workflow> fetchRangeOfWfId(UInteger lowerInclusive, UInteger upperInclusive) {
-        return fetchRange(Workflow.WORKFLOW.WF_ID, lowerInclusive, upperInclusive);
+    public List<edu.uci.ics.texera.dataflow.jooq.generated.tables.pojos.Workflow> fetchRangeOfWid(UInteger lowerInclusive, UInteger upperInclusive) {
+        return fetchRange(Workflow.WORKFLOW.WID, lowerInclusive, upperInclusive);
     }
 
     /**
-     * Fetch records that have <code>wf_id IN (values)</code>
+     * Fetch records that have <code>wid IN (values)</code>
      */
-    public List<edu.uci.ics.texera.dataflow.jooq.generated.tables.pojos.Workflow> fetchByWfId(UInteger... values) {
-        return fetch(Workflow.WORKFLOW.WF_ID, values);
+    public List<edu.uci.ics.texera.dataflow.jooq.generated.tables.pojos.Workflow> fetchByWid(UInteger... values) {
+        return fetch(Workflow.WORKFLOW.WID, values);
     }
 
     /**
-     * Fetch a unique record that has <code>wf_id = value</code>
+     * Fetch a unique record that has <code>wid = value</code>
      */
-    public edu.uci.ics.texera.dataflow.jooq.generated.tables.pojos.Workflow fetchOneByWfId(UInteger value) {
-        return fetchOne(Workflow.WORKFLOW.WF_ID, value);
+    public edu.uci.ics.texera.dataflow.jooq.generated.tables.pojos.Workflow fetchOneByWid(UInteger value) {
+        return fetchOne(Workflow.WORKFLOW.WID, value);
     }
 
     /**
@@ -92,28 +92,28 @@ public class WorkflowDao extends DAOImpl<WorkflowRecord, edu.uci.ics.texera.data
     /**
      * Fetch records that have <code>creation_time BETWEEN lowerInclusive AND upperInclusive</code>
      */
-    public List<edu.uci.ics.texera.dataflow.jooq.generated.tables.pojos.Workflow> fetchRangeOfCreationTime(LocalDateTime lowerInclusive, LocalDateTime upperInclusive) {
+    public List<edu.uci.ics.texera.dataflow.jooq.generated.tables.pojos.Workflow> fetchRangeOfCreationTime(Timestamp lowerInclusive, Timestamp upperInclusive) {
         return fetchRange(Workflow.WORKFLOW.CREATION_TIME, lowerInclusive, upperInclusive);
     }
 
     /**
      * Fetch records that have <code>creation_time IN (values)</code>
      */
-    public List<edu.uci.ics.texera.dataflow.jooq.generated.tables.pojos.Workflow> fetchByCreationTime(LocalDateTime... values) {
+    public List<edu.uci.ics.texera.dataflow.jooq.generated.tables.pojos.Workflow> fetchByCreationTime(Timestamp... values) {
         return fetch(Workflow.WORKFLOW.CREATION_TIME, values);
     }
 
     /**
      * Fetch records that have <code>last_modified_time BETWEEN lowerInclusive AND upperInclusive</code>
      */
-    public List<edu.uci.ics.texera.dataflow.jooq.generated.tables.pojos.Workflow> fetchRangeOfLastModifiedTime(LocalDateTime lowerInclusive, LocalDateTime upperInclusive) {
+    public List<edu.uci.ics.texera.dataflow.jooq.generated.tables.pojos.Workflow> fetchRangeOfLastModifiedTime(Timestamp lowerInclusive, Timestamp upperInclusive) {
         return fetchRange(Workflow.WORKFLOW.LAST_MODIFIED_TIME, lowerInclusive, upperInclusive);
     }
 
     /**
      * Fetch records that have <code>last_modified_time IN (values)</code>
      */
-    public List<edu.uci.ics.texera.dataflow.jooq.generated.tables.pojos.Workflow> fetchByLastModifiedTime(LocalDateTime... values) {
+    public List<edu.uci.ics.texera.dataflow.jooq.generated.tables.pojos.Workflow> fetchByLastModifiedTime(Timestamp... values) {
         return fetch(Workflow.WORKFLOW.LAST_MODIFIED_TIME, values);
     }
 }

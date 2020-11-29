@@ -15,56 +15,44 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowOfUser implements IWorkflowOfUser {
 
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1522006225;
 
     private UInteger uid;
-    private UInteger wfId;
+    private UInteger wid;
 
     public WorkflowOfUser() {}
 
     public WorkflowOfUser(IWorkflowOfUser value) {
         this.uid = value.getUid();
-        this.wfId = value.getWfId();
+        this.wid = value.getWid();
     }
 
     public WorkflowOfUser(
         UInteger uid,
-        UInteger wfId
+        UInteger wid
     ) {
         this.uid = uid;
-        this.wfId = wfId;
+        this.wid = wid;
     }
 
-    /**
-     * Getter for <code>texera_db.workflow_of_user.uid</code>.
-     */
     @Override
     public UInteger getUid() {
         return this.uid;
     }
 
-    /**
-     * Setter for <code>texera_db.workflow_of_user.uid</code>.
-     */
     @Override
     public void setUid(UInteger uid) {
         this.uid = uid;
     }
 
-    /**
-     * Getter for <code>texera_db.workflow_of_user.wf_id</code>.
-     */
     @Override
-    public UInteger getWfId() {
-        return this.wfId;
+    public UInteger getWid() {
+        return this.wid;
     }
 
-    /**
-     * Setter for <code>texera_db.workflow_of_user.wf_id</code>.
-     */
     @Override
-    public void setWfId(UInteger wfId) {
-        this.wfId = wfId;
+    public void setWid(UInteger wid) {
+        this.wid = wid;
     }
 
     @Override
@@ -72,7 +60,7 @@ public class WorkflowOfUser implements IWorkflowOfUser {
         StringBuilder sb = new StringBuilder("WorkflowOfUser (");
 
         sb.append(uid);
-        sb.append(", ").append(wfId);
+        sb.append(", ").append(wid);
 
         sb.append(")");
         return sb.toString();
@@ -85,7 +73,7 @@ public class WorkflowOfUser implements IWorkflowOfUser {
     @Override
     public void from(IWorkflowOfUser from) {
         setUid(from.getUid());
-        setWfId(from.getWfId());
+        setWid(from.getWid());
     }
 
     @Override

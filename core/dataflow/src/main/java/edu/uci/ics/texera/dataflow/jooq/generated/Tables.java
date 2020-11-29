@@ -12,7 +12,7 @@ import edu.uci.ics.texera.dataflow.jooq.generated.tables.WorkflowOfUser;
 
 
 /**
- * Convenience access to all tables in texera_db.
+ * Convenience access to all tables in texera_db
  */
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Tables {
