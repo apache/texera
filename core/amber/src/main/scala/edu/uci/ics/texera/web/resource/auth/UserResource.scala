@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.web.resource
+package edu.uci.ics.texera.web.resource.auth
 
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.common.auth.User
