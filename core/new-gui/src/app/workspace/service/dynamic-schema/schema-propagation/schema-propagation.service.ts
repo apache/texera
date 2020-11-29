@@ -13,10 +13,10 @@ import { isEqual } from 'lodash';
 
 // endpoint for schema propagation
 export const SCHEMA_PROPAGATION_ENDPOINT = 'queryplan/autocomplete';
-// By contract, property name name for texera table input attribute (column names)
-export const attributeInJsonSchema = 'attribute';
-export const attributeListInJsonSchema = 'attributes';
-
+// By contract, property keys for input schema attribute (column name)
+export const attributeInJsonSchemaKeys = ['attribute', 'x attribute', 'y attribute', 'name column', 'data column', 'text column'];
+// By contract, property keys for a list of input schema attributes (column names)
+export const attributeListInJsonSchemaKeys = ['attributes', 'groupByKeys', 'data column(s)'];
 
 /**
  * Schema Propagation Service provides autocomplete functionaility for attribute property of operators.
@@ -86,7 +86,7 @@ export class SchemaPropagationService {
       }
 
       if (! isEqual(currentDynamicSchema, newDynamicSchema)) {
-        SchemaPropagationService.resetAttributeOfOperator(this.workflowActionService, operatorID);
+        // SchemaPropagationService.resetAttributeOfOperator(this.workflowActionService, operatorID);
         this.dynamicSchemaService.setDynamicSchema(operatorID, newDynamicSchema);
       }
 
@@ -160,11 +160,16 @@ export class SchemaPropagationService {
     //       to Join yet.
 
     let newJsonSchema = operatorSchema.jsonSchema;
-    newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, attributeInJsonSchema,
-      () => ({ type: 'string', enum: inputAttributes.slice(), uniqueItems: true }));
 
-    newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, attributeListInJsonSchema,
-      () => ({ type: 'array', items: { type: 'string', enum: inputAttributes.slice(), uniqueItems: true }}));
+    attributeInJsonSchemaKeys.forEach(attributeInJsonSchema => {
+      newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, attributeInJsonSchema,
+        old => ({  ...old, type: 'string', enum: inputAttributes.slice(), uniqueItems: true, }));
+    });
+
+    attributeListInJsonSchemaKeys.forEach(attributeListInJsonSchema => {
+      newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, attributeListInJsonSchema,
+        old => ({ ...old, type: 'array', items: {...old.items, type: 'string', enum: inputAttributes.slice(), uniqueItems: true,  }, }));
+    });
 
     return {
       ...operatorSchema,
@@ -175,11 +180,16 @@ export class SchemaPropagationService {
   public static restoreOperatorInputAttrs(operatorSchema: OperatorSchema): OperatorSchema {
 
     let newJsonSchema = operatorSchema.jsonSchema;
-    newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, attributeInJsonSchema,
-      () => ({ type: 'string' }));
 
-    newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, attributeListInJsonSchema,
-      () => ({ type: 'array', items: { type: 'string' } }));
+    attributeInJsonSchemaKeys.forEach(attributeInJsonSchema => {
+      newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, attributeInJsonSchema,
+        old => ({ ...old, type: 'string', enum: undefined, uniqueItems: undefined, }));
+    });
+
+    attributeListInJsonSchemaKeys.forEach(attributeListInJsonSchema => {
+      newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, attributeListInJsonSchema,
+        old => ({ ...old, type: 'array', items: { ...old.items, type: 'string', enum: undefined, uniqueItems: undefined, }, }));
+    });
 
     return {
       ...operatorSchema,
