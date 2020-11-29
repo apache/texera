@@ -29,11 +29,11 @@ before_install:
 install:
   - cd core 
   - cd new-gui
-  - npm install --unsafe-perm
+  - yarn install --frozen-lockfile
   - cd ..
 
 script:
-  - mvn clean install --batch-mode
+  - mvn -T 1.5C clean install --batch-mode
   - cd new-gui
   - ng build --prod --progress=false
   # - ng test --browsers ChromeHeadless --watch=false
