@@ -5,6 +5,8 @@ language: node_js
 node_js:
   - lts/*
 cache:
+  yarn: true
+  npm: true
   directories:
   - $HOME/.m2
 
