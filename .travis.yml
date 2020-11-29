@@ -24,7 +24,6 @@ before_install:
   - sudo pip3 install nltk -U
   - nvm install --lts
   - nvm use --lts
-  - npm install -g @angular/cli
    
 # run steps
 install:
