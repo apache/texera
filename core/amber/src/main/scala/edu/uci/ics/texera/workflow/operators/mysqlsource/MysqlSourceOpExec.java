@@ -39,8 +39,16 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
         this.password = password;
         this.limit = limit;
         this.offset = offset;
-        this.column = column.trim();
-        this.keywords = keywords.trim();
+        if (column!=null) {
+            this.column = column.trim();
+        } else {
+            this.column = null;
+        }
+        if(keywords!=null) {
+            this.keywords = keywords.trim();
+        } else {
+            this.keywords = null;
+        }
     }
 
     /**
