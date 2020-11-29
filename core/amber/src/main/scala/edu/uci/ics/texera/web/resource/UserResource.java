@@ -120,6 +120,7 @@ public class UserResource {
         session.setAttribute(SESSION_USER, user);
     }
 
+    // TODO: extract this out. Also change the response type.
     private static class GenericWebResponse {
         private int code;
         private String message;
@@ -148,17 +149,21 @@ public class UserResource {
         }
     }
 
+    // TODO: extract this out
     public static class UserRegistrationRequest {
         public String userName;
     }
 
+    // TODO: extract this out
     public static class UserLoginRequest {
         public String userName;
     }
 
+
     /**
      * Corresponds to `src/app/common/type/user.ts`
      */
+    // TODO: extract this out
     public static class UserWebResponse {
         public int code; // 0 represents success and 1 represents error
         public User user;
@@ -182,6 +187,7 @@ public class UserResource {
     /**
      * Corresponds to `src/app/common/type/user.ts`
      */
+    // TODO: extract this out
     public static class User {
         public String userName;
         public UInteger userID; // the ID in MySQL database is unsigned int
