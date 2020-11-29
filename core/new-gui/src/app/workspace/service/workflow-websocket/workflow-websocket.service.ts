@@ -10,13 +10,13 @@ import { Observable } from 'rxjs';
 })
 export class WorkflowWebsocketService {
 
-  public static readonly TEXERA_WEBSOCKET_ENDPOINT = 'ws://localhost:8080/wsapi/workflow-websocket';
+  private static readonly TEXERA_WEBSOCKET_ENDPOINT = 'wsapi/workflow-websocket';
 
   private readonly websocket: WebSocketSubject<TexeraWebsocketEvent | TexeraWebsocketRequest>;
   private readonly webSocketObservable: Observable<TexeraWebsocketEvent>;
 
   constructor() {
-    this.websocket = webSocket<TexeraWebsocketEvent | TexeraWebsocketRequest>(WorkflowWebsocketService.TEXERA_WEBSOCKET_ENDPOINT);
+    this.websocket = webSocket<TexeraWebsocketEvent | TexeraWebsocketRequest>(WorkflowWebsocketService.getWorkflowWebsocketUrl());
     this.webSocketObservable = this.websocket.share() as Observable<TexeraWebsocketEvent>;
     this.webSocketObservable.subscribe(data => {
       if (data.type === 'HelloWorldResponse') {
@@ -36,6 +36,13 @@ export class WorkflowWebsocketService {
       ...payload
     } as any as TexeraWebsocketRequest ;
     this.websocket.next(request);
+  }
+
+  public static getWorkflowWebsocketUrl(): string {
+    const websocketUrl = new URL(WorkflowWebsocketService.TEXERA_WEBSOCKET_ENDPOINT, window.location.href);
+    // replace protocol, so that http -> ws, https -> wss
+    websocketUrl.protocol = websocketUrl.protocol.replace('http', 'ws');
+    return websocketUrl.toString();
   }
 
 }
