@@ -46,16 +46,16 @@ public class SentimentAnalysisOpExec extends MapOpExec {
                 longestSentenceLength = sentenceText.length();
             }
         }
-        String sentiment = "";
+        Integer sentiment;
         if (mainSentiment > 2) {
-            sentiment = "positive";
+            sentiment = 1;
         } else if (mainSentiment == 2) {
-            sentiment = "neutral";
+            sentiment = 0;
         } else {
-            sentiment = "negative";
+            sentiment = -1;
         }
 
-        return Tuple.newBuilder().add(t).add(opDesc.resultAttribute, AttributeType.STRING, sentiment).build();
+        return Tuple.newBuilder().add(t).add(opDesc.resultAttribute, AttributeType.INTEGER, sentiment).build();
     }
 
 
