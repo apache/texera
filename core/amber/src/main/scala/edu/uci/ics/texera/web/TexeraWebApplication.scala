@@ -1,5 +1,7 @@
 package edu.uci.ics.texera.web
 
+import java.time.Duration
+
 import akka.actor.ActorSystem
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.github.dirkraft.dropwizard.fileassets.FileAssetsBundle
@@ -9,6 +11,7 @@ import edu.uci.ics.texera.workflow.common.Utils
 import io.dropwizard.setup.{Bootstrap, Environment}
 import io.dropwizard.websockets.WebsocketBundle
 import org.eclipse.jetty.servlet.ErrorPageErrorHandler
+import org.eclipse.jetty.websocket.server.WebSocketUpgradeFilter
 
 object TexeraWebApplication {
 
@@ -45,6 +48,10 @@ class TexeraWebApplication extends io.dropwizard.Application[TexeraWebConfigurat
     val eph = new ErrorPageErrorHandler
     eph.addErrorPage(404, "/")
     environment.getApplicationContext.setErrorHandler(eph)
+
+    val webSocketUpgradeFilter = WebSocketUpgradeFilter.configureContext(environment.getApplicationContext)
+    webSocketUpgradeFilter.getFactory.getPolicy.setIdleTimeout(Duration.ofHours(1).toMillis)
+    environment.getApplicationContext.setAttribute(classOf[WebSocketUpgradeFilter].getName, webSocketUpgradeFilter)
 
     environment.jersey().register(classOf[SystemMetadataResource])
     environment.jersey().register(classOf[MockKillWorkerResource])

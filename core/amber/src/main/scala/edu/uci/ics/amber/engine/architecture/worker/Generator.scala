@@ -115,7 +115,7 @@ class Generator(var dataProducer: ISourceOperatorExecutor, val tag: WorkerTag)
   }
 
   override def getInputRowCount(): Long = {
-    this.generatedCount
+    0 // source operator should not have input rows
   }
 
   override def getOutputRowCount(): Long = {
@@ -208,7 +208,7 @@ class Generator(var dataProducer: ISourceOperatorExecutor, val tag: WorkerTag)
             Breaks.break()
         }
         try {
-          generatedCount += 1
+          if(nextTuple != null) generatedCount += 1
           transferTuple(nextTuple, generatedCount)
         } catch {
           case e: BreakpointException =>
