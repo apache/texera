@@ -21,7 +21,7 @@ export const defaultEnvironment = {
    */
   schemaPropagationEnabled: true,
   /**
-   * whether the backend support pause/resume functionaility
+   * whether the backend support pause/resume functionality
    */
   pauseResumeEnabled: true,
   /**
