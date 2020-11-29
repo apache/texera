@@ -34,9 +34,9 @@ install:
   - cd ..
 
 script:
-  - mvn clean install -nsu -amd --batch-mode -Dmaven.javadoc.skip=true
+  - rm -rf target && mvn install -nsu -amd --batch-mode -Dmaven.javadoc.skip=true
   - cd new-gui
-  - npm run build-save-time
+  - npm run build-save-time --progress=false --prefer-offline --source-map=false
   # - ng test --browsers ChromeHeadless --watch=false
   # - ng e2e
   
