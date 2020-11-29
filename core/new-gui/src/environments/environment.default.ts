@@ -17,7 +17,7 @@ export const defaultEnvironment = {
   sourceTableEnabled: false,
   /**
    * whether operator schema propagation and autocomplete feature is enabled,
-   * see SchemaPropgationService for details
+   * see SchemaPropagationService for details
    */
   schemaPropagationEnabled: true,
   /**
@@ -33,7 +33,16 @@ export const defaultEnvironment = {
    */
   downloadExecutionResultEnabled: false,
 
-  userSystemEnabled: false,
+  /**
+   * whether user system is enable
+   */
+  userSystemEnabled: true,
+
+  /**
+   * whether user dashboard is enable
+   * TODO: to combine with `userSystemEnabled`
+   */
+  userDashboardEnabled: true,
 
   amberEngineEnabled: true,
 
