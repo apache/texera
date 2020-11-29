@@ -36,13 +36,13 @@ export const defaultEnvironment = {
   /**
    * whether user system is enable
    */
-  userSystemEnabled: true,
+  userSystemEnabled: false,
 
   /**
    * whether user dashboard is enable
    * TODO: to combine with `userSystemEnabled`
    */
-  userDashboardEnabled: true,
+  userDashboardEnabled: false,
 
   amberEngineEnabled: true,
 
