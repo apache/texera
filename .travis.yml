@@ -2,6 +2,8 @@
 dist: bionic
 sudo: required
 language: generic
+variables:
+  DOCKER_DRIVER: overlay2
 cache:
   directories:
   - $HOME/.m2
