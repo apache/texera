@@ -29,7 +29,7 @@ before_install:
 install:
   - cd core 
   - cd new-gui
-  - npm ci --cache .npm --progress=false --only=production
+  - npm ci --cache .npm --progress=false --prefer-offline
   - cd ..
 
 script:
