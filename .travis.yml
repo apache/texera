@@ -9,6 +9,7 @@ cache:
   npm: true
   directories:
   - $HOME/.m2
+  - core/new_gui/node_modules
 
 before_install:
   - sudo apt-get update
@@ -29,7 +30,7 @@ before_install:
 install:
   - cd core 
   - cd new-gui
-  - yarn install --frozen-lockfile
+  - yarn install
   - cd ..
 
 script:
