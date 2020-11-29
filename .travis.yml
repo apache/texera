@@ -29,13 +29,13 @@ before_install:
 install:
   - cd core 
   - cd new-gui
-  - yarn install
+  - npm ci
   - cd ..
 
 script:
   - mvn clean install --batch-mode
   - cd new-gui
-  - ng build --prod --progress=false
+  - npm run build-no-progress
   # - ng test --browsers ChromeHeadless --watch=false
   # - ng e2e
   
