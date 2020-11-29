@@ -32,7 +32,7 @@ export const mockFileSourceSchema: OperatorSchema = {
   jsonSchema: {
     type: 'object',
     properties: {
-      fileName: {'type': 'string'},
+      fileName: { 'type': 'string' },
     },
     required: ['fileName']
   },
@@ -44,7 +44,7 @@ export const mockFileSourceSchema: OperatorSchema = {
     numOutputPorts: 1,
     advancedOptions: []
   }
-  };
+};
 
 export const mockNlpSentimentSchema: OperatorSchema = {
   operatorType: 'NlpSentiment',
@@ -103,7 +103,7 @@ export const mockKeywordSearchSchema: OperatorSchema = {
       },
       spanListName: { type: 'string' }
     },
-    required: [ 'query', 'attributes', ]
+    required: ['query', 'attributes',]
   },
   additionalMetadata: {
     userFriendlyName: 'Keyword Search',
@@ -174,7 +174,7 @@ export const mockViewResultsSchema: OperatorSchema = {
 };
 
 export const mockMultiInputOutputSchema: OperatorSchema = {
-    operatorType: 'MultiInputOutput',
+  operatorType: 'MultiInputOutput',
   jsonSchema: {
     properties: {},
     type: 'object'
@@ -240,7 +240,7 @@ export const mockBreakpointSchema: BreakpointSchema = {
           },
           condition: {
             type: 'string',
-            enum: ['contains', 'does not contain', '=', '>', '>=', '<', '<=', '!=', ]
+            enum: ['contains', 'does not contain', '=', '>', '>=', '<', '<=', '!=',]
           },
           value: {
             type: 'string'

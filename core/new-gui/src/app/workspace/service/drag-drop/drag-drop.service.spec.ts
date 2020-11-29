@@ -111,63 +111,63 @@ describe('DragDropService', () => {
   });
 
   it('should find 3 input operatorPredicates and 3 output operatorPredicates for an operatorPredicate with 3 input / 3 output ports',
-  () => {
-    const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
-    const workflowUtilService: WorkflowUtilService = TestBed.get(WorkflowUtilService);
+    () => {
+      const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
+      const workflowUtilService: WorkflowUtilService = TestBed.get(WorkflowUtilService);
 
 
-    const input1 = workflowUtilService.getNewOperatorPredicate('ScanSource');
-    const input2 = workflowUtilService.getNewOperatorPredicate('ScanSource');
-    const input3 = workflowUtilService.getNewOperatorPredicate('ScanSource');
-    const output1 = workflowUtilService.getNewOperatorPredicate('ViewResults');
-    const output2 = workflowUtilService.getNewOperatorPredicate('ViewResults');
-    const output3 = workflowUtilService.getNewOperatorPredicate('ViewResults');
-    const [inputOps, outputOps] = (dragDropService as any).findClosestOperators({ x: 50, y: 0 }, mockMultiInputOutputPredicate);
+      const input1 = workflowUtilService.getNewOperatorPredicate('ScanSource');
+      const input2 = workflowUtilService.getNewOperatorPredicate('ScanSource');
+      const input3 = workflowUtilService.getNewOperatorPredicate('ScanSource');
+      const output1 = workflowUtilService.getNewOperatorPredicate('ViewResults');
+      const output2 = workflowUtilService.getNewOperatorPredicate('ViewResults');
+      const output3 = workflowUtilService.getNewOperatorPredicate('ViewResults');
+      const [inputOps, outputOps] = (dragDropService as any).findClosestOperators({ x: 50, y: 0 }, mockMultiInputOutputPredicate);
 
-    workflowActionService.addOperator(input1, { x: 0, y: 0 });
-    workflowActionService.addOperator(input2, { x: 0, y: 10 });
-    workflowActionService.addOperator(input3, { x: 0, y: 20 });
-    workflowActionService.addOperator(output1, { x: 100, y: 0 });
-    workflowActionService.addOperator(output2, { x: 100, y: 10 });
-    workflowActionService.addOperator(output3, { x: 100, y: 20 });
+      workflowActionService.addOperator(input1, { x: 0, y: 0 });
+      workflowActionService.addOperator(input2, { x: 0, y: 10 });
+      workflowActionService.addOperator(input3, { x: 0, y: 20 });
+      workflowActionService.addOperator(output1, { x: 100, y: 0 });
+      workflowActionService.addOperator(output2, { x: 100, y: 10 });
+      workflowActionService.addOperator(output3, { x: 100, y: 20 });
 
-    expect(inputOps).toEqual([input1, input2, input3]);
-    expect(outputOps).toEqual([output1, output2, output3]);
-  });
+      expect(inputOps).toEqual([input1, input2, input3]);
+      expect(outputOps).toEqual([output1, output2, output3]);
+    });
 
   it('should publish operatorPredicates to highlight streams when calling "updateHighlighting(prevHightlights,newHighlights)"',
-  async () => {
-    const workflowUtilService: WorkflowActionService = TestBed.get(WorkflowActionService);
-    const highlights: string[] = [];
-    const unhighlights: string[] = [];
-    const expectedHighlights = [mockScanPredicate.operatorID, mockScanPredicate.operatorID];
-    const expectedUnhighlights = [mockScanPredicate.operatorID, mockResultPredicate.operatorID];
-        // allow test to run for 10ms before checking, since observables are async
-    const timeout = new Promise(resolve => setTimeout(resolve, 10));
+    async () => {
+      const workflowUtilService: WorkflowActionService = TestBed.get(WorkflowActionService);
+      const highlights: string[] = [];
+      const unhighlights: string[] = [];
+      const expectedHighlights = [mockScanPredicate.operatorID, mockScanPredicate.operatorID];
+      const expectedUnhighlights = [mockScanPredicate.operatorID, mockResultPredicate.operatorID];
+      // allow test to run for 10ms before checking, since observables are async
+      const timeout = new Promise(resolve => setTimeout(resolve, 10));
 
-    dragDropService.getOperatorSuggestionHighlightStream().subscribe(
-      operatorID => {
-        highlights.push(operatorID);
-      }
-    );
-    dragDropService.getOperatorSuggestionUnhighlightStream().subscribe(
-      operatorID => {
-        unhighlights.push(operatorID);
-      }
-    );
+      dragDropService.getOperatorSuggestionHighlightStream().subscribe(
+        operatorID => {
+          highlights.push(operatorID);
+        }
+      );
+      dragDropService.getOperatorSuggestionUnhighlightStream().subscribe(
+        operatorID => {
+          unhighlights.push(operatorID);
+        }
+      );
 
-    // highlighting update situations
-    (dragDropService as any).updateHighlighting([mockScanPredicate], [mockScanPredicate]); // no change
-    (dragDropService as any).updateHighlighting([], [mockScanPredicate]); // new highlight
-    (dragDropService as any).updateHighlighting([mockScanPredicate], []); // new unhighlight
-    (dragDropService as any).updateHighlighting([mockResultPredicate], [mockScanPredicate]); // new highlight and unhighlight
+      // highlighting update situations
+      (dragDropService as any).updateHighlighting([mockScanPredicate], [mockScanPredicate]); // no change
+      (dragDropService as any).updateHighlighting([], [mockScanPredicate]); // new highlight
+      (dragDropService as any).updateHighlighting([mockScanPredicate], []); // new unhighlight
+      (dragDropService as any).updateHighlighting([mockResultPredicate], [mockScanPredicate]); // new highlight and unhighlight
 
-    // allow test to run for up to 500ms before checking, since observables are async
-    await timeout;
-    expect(highlights).toEqual(expectedHighlights);
-    expect(unhighlights).toEqual(expectedUnhighlights);
+      // allow test to run for up to 500ms before checking, since observables are async
+      await timeout;
+      expect(highlights).toEqual(expectedHighlights);
+      expect(unhighlights).toEqual(expectedUnhighlights);
 
-  });
+    });
 
   it('should not find any operator when the mouse coordinate is greater than the threshold defined', () => {
     const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
@@ -175,8 +175,10 @@ describe('DragDropService', () => {
     workflowActionService.addOperator(mockScanPredicate, { x: 0, y: 0 });
 
     const [inputOps, outputOps] = (dragDropService as any).findClosestOperators(
-      { x: DragDropService.SUGGESTION_DISTANCE_THRESHOLD + 10,
-        y: DragDropService.SUGGESTION_DISTANCE_THRESHOLD + 10 }, mockResultPredicate);
+      {
+        x: DragDropService.SUGGESTION_DISTANCE_THRESHOLD + 10,
+        y: DragDropService.SUGGESTION_DISTANCE_THRESHOLD + 10
+      }, mockResultPredicate);
 
     expect(inputOps).toEqual([]);
   });

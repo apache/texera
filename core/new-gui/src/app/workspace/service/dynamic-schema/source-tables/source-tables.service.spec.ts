@@ -31,10 +31,10 @@ describe('SourceTablesService', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
-      imports: [ HttpClientTestingModule ],
+      imports: [HttpClientTestingModule],
       providers: [
-        {provide: OperatorMetadataService, useClass: StubOperatorMetadataService},
-        {provide: UserService, useClass: StubUserService},
+        { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
+        { provide: UserService, useClass: StubUserService },
         JointUIService,
         WorkflowActionService,
         UndoRedoService,
@@ -92,7 +92,7 @@ describe('SourceTablesService', () => {
     const dynamicSchemaService: DynamicSchemaService = TestBed.get(DynamicSchemaService);
 
     const userFileService: UserFileService = TestBed.get(UserFileService);
-    const userFilesChanged = new Subject<ReadonlyArray<UserFile> | undefined> ();
+    const userFilesChanged = new Subject<ReadonlyArray<UserFile> | undefined>();
     spyOn(userFileService, 'getUserFilesChangedEvent').and.returnValue(userFilesChanged.asObservable());
 
     const sourceTablesService: SourceTablesService = TestBed.get(SourceTablesService);
@@ -115,8 +115,8 @@ describe('SourceTablesService', () => {
     });
 
     userFilesChanged.next([
-      {id: 1, name: 'file1', path: 'path', description: '', size: 100},
-      {id: 2, name: 'file2', path: 'pat2', description: '', size: 200}
+      { id: 1, name: 'file1', path: 'path', description: '', size: 100 },
+      { id: 2, name: 'file2', path: 'pat2', description: '', size: 200 }
     ]);
     const dynamicSchemaAfter = dynamicSchemaService.getDynamicSchema(mockScanPredicate.operatorID);
     expect(dynamicSchemaAfter.jsonSchema.properties!['fileName']).toEqual({

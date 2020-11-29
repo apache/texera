@@ -14,7 +14,7 @@ describe('TopBarComponent', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-      declarations: [ TopBarComponent, UserIconComponent ],
+      declarations: [TopBarComponent, UserIconComponent],
       providers: [
         NgbModal,
         UserService
@@ -25,7 +25,7 @@ describe('TopBarComponent', () => {
         CustomNgMaterialModule
       ]
     })
-    .compileComponents();
+      .compileComponents();
   }));
 
   beforeEach(() => {

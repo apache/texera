@@ -20,7 +20,7 @@ export class StubOperatorMetadataService implements IOperatorMetadataService {
 
   public getOperatorSchema(operatorType: string): OperatorSchema {
     const operatorSchema = mockOperatorMetaData.operators.find(schema => schema.operatorType === operatorType);
-    if (! operatorSchema) {
+    if (!operatorSchema) {
       throw new Error(`can\'t find operator schema of type ${operatorType}`);
     }
     return operatorSchema;
@@ -39,7 +39,7 @@ export class StubOperatorMetadataService implements IOperatorMetadataService {
   }
 
   public getBreakpointSchema(): BreakpointSchema {
-    if (! this.currentBreakpointSchema) {
+    if (!this.currentBreakpointSchema) {
       throw new Error('breakpoint schema is undefined');
     }
     return this.currentBreakpointSchema;

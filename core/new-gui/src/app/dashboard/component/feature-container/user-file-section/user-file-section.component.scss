@@ -9,13 +9,14 @@
   margin-right: 20px;
 }
 
-.add-button{
+.add-button {
   margin-left: 5px;
 }
 
-.page-title{
-  font-family:Roboto, Arial, sans-serif;
+.page-title {
+  font-family: Roboto, Arial, sans-serif;
 }
+
 /**
 * this css is used for creating a 2*1 grid area for the 3 main
 * sub-components. The percentages define the size of each
@@ -30,12 +31,13 @@
 *              ******************
 **/
 $header-height: 70px;
-.user-dictionary-container{
+
+.user-dictionary-container {
   display: grid;
   grid-template-rows : $header-height calc((100% - #{$header-height}))
 }
 
-.button-area{
+.button-area {
   grid-row-start: 1;
   grid-row-end: 2;
 }
@@ -45,37 +47,37 @@ $header-height: 70px;
 * each list item contains a dict name, first three dict item and a view
 * button to check the items in dictionary
 **/
-.user-dictionary-list{
+.user-dictionary-list {
   grid-row-start: 2;
   grid-row-end: 3;
   overflow: auto;
 }
 
-.user-dictionary-list-item{
+.user-dictionary-list-item {
   border: 1px solid #d2d7df;
   height: 90px;
   border-radius: 3px;
-  margin-bottom : 1.5%;
-  padding-top : 5px;
+  margin-bottom: 1.5%;
+  padding-top: 5px;
 }
 
 /**
 *this fill the gap between dictionary name and view button
 **/
-.gap-filler{
+.gap-filler {
   flex: 1 1 auto;
 }
 
-.view-button{
+.view-button {
   background-color: #1fe23f7c
 }
 
-.dict-name{
-  color:rgb(62, 202, 253);
-  font-size:20px;
-  font-family:Roboto, Arial, sans-serif
+.dict-name {
+  color: rgb(62, 202, 253);
+  font-size: 20px;
+  font-family: Roboto, Arial, sans-serif
 }
 
-.delete-project-btn{
+.delete-workflow-btn {
   width: 1%
 }

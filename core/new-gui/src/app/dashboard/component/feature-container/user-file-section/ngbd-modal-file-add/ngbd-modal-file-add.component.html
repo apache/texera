@@ -5,17 +5,12 @@
   </button>
 </div>
 <div class="modal-body">
-  <div ng2FileDrop
-    [ngClass]="{'have-file-over': haveDropZoneOver}"
-    (fileOver)="haveFileOver($event)"
-    (onFileDrop)="getFileDropped($event)"
-    [uploader]="uploader"
-    class="drag-file-area"
-    (click)="clickUpload.click()">
+  <div ng2FileDrop [ngClass]="{'have-file-over': haveDropZoneOver}" (fileOver)="haveFileOver($event)"
+    (onFileDrop)="getFileDropped($event)" [uploader]="uploader" class="drag-file-area" (click)="clickUpload.click()">
 
     Drop Files Here
     <div id="hide">
-      <input #clickUpload type="file" accept=".txt"(change)="handleClickUploadFile($event)" multiple/>
+      <input #clickUpload type="file" accept=".txt" (change)="handleClickUploadFile($event)" multiple />
     </div>
 
   </div>
@@ -24,7 +19,8 @@
       <span>
         <label>{{ fileUploadItem.name }}</label>
       </span>
-      <button class="queue-delete-button" (click)="deleteFile(fileUploadItem)" [disabled]="fileUploadItem.isUploadingFlag">
+      <button class="queue-delete-button" (click)="deleteFile(fileUploadItem)"
+        [disabled]="fileUploadItem.isUploadingFlag">
         <i class="fa fa-trash" aria-hidden="true"></i>
       </button>
     </li>
@@ -33,8 +29,8 @@
 </div>
 <div class="modal-footer">
   <div *ngIf="getFileArrayLength()">
-    <button class="btn btn-primary btn-xs bottom-upload bottom-size"
-      (click)="uploadAllFiles()" [disabled]="isUploadAllButtonDisabled()"> upload
+    <button class="btn btn-primary btn-xs bottom-upload bottom-size" (click)="uploadAllFiles()"
+      [disabled]="isUploadAllButtonDisabled()"> upload
     </button>
   </div>
   <button class="btn btn-outline-dark bottom-size" (click)="activeModal.dismiss('close')">Close</button>

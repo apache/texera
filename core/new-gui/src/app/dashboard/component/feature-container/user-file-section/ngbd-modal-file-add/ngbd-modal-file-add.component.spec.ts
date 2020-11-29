@@ -17,7 +17,7 @@ describe('NgbdModalFileAddComponent', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-      declarations: [ NgbdModalFileAddComponent ],
+      declarations: [NgbdModalFileAddComponent],
       providers: [
         UserService,
         UserFileService,
@@ -33,7 +33,7 @@ describe('NgbdModalFileAddComponent', () => {
         HttpClientTestingModule
       ]
     })
-    .compileComponents();
+      .compileComponents();
   }));
 
   beforeEach(() => {

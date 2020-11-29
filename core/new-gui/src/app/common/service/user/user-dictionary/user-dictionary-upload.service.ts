@@ -23,7 +23,7 @@ export class UserDictionaryUploadService {
     private userService: UserService,
     private userDictionaryService: UserDictionaryService,
     private http: HttpClient) {
-      this.detectUserChanges();
+    this.detectUserChanges();
   }
 
   public getDictionariesToBeUploaded(): ReadonlyArray<Readonly<DictionaryUploadItem>> {
@@ -51,11 +51,11 @@ export class UserDictionaryUploadService {
     );
   }
 
-    /**
-   * check if this item is valid for uploading.
-   * eg. the type is text and the name is unique
-   * @param dictionaryUploadItem
-   */
+  /**
+ * check if this item is valid for uploading.
+ * eg. the type is text and the name is unique
+ * @param dictionaryUploadItem
+ */
   public validateDictionaryUploadItem(dictionaryUploadItem: DictionaryUploadItem): boolean {
     return dictionaryUploadItem.file.type.includes('text/plain') && this.isItemNameUnique(dictionaryUploadItem);
   }
@@ -102,13 +102,13 @@ export class UserDictionaryUploadService {
     );
   }
 
-    /**
-   * upload the manual dictionary to the backend.
-   * This method will automatically refresh the user-dictionary service when succeed.
-   */
+  /**
+ * upload the manual dictionary to the backend.
+ * This method will automatically refresh the user-dictionary service when succeed.
+ */
   public uploadManualDictionary(): void {
-    if (!this.userService.isLogin()) {throw new Error(`Can not upload manual dictionary when not login`); }
-    if (!this.validateManualDictionary()) {throw new Error(`Can not upload invalid manual dictionary`); }
+    if (!this.userService.isLogin()) { throw new Error(`Can not upload manual dictionary when not login`); }
+    if (!this.validateManualDictionary()) { throw new Error(`Can not upload invalid manual dictionary`); }
 
     if (this.manualDictionary.separator === '') { this.manualDictionary.separator = ','; }
     this.manualDictionary.isUploadingFlag = true;
@@ -175,7 +175,7 @@ export class UserDictionaryUploadService {
     return this.http.post<GenericWebResponse>(
       `${AppSettings.getApiEndpoint()}/${USER_DICTIONARY_UPLOAD_URL}`,
       formData
-      );
+    );
   }
 
 
@@ -197,7 +197,7 @@ export class UserDictionaryUploadService {
 
   private static createEmptyManualDictionary(): ManualDictionaryUploadItem {
     return {
-      name : '',
+      name: '',
       content: '',
       separator: '',
       description: '',

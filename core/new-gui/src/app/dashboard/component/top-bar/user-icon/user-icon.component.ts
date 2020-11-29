@@ -27,7 +27,7 @@ export class UserIconComponent {
       this.user = this.userService.getUser();
     }
     this.userService.getUserChangedEvent()
-    .subscribe(user => this.user = user);
+      .subscribe(user => this.user = user);
   }
 
   /**

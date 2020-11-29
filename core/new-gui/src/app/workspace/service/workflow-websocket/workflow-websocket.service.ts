@@ -23,7 +23,7 @@ export class WorkflowWebsocketService {
         console.log('hello world works: ' + data.message);
       }
     });
-    this.send('HelloWorldRequest', {message: 'Texera on Amber'});
+    this.send('HelloWorldRequest', { message: 'Texera on Amber' });
   }
 
   public websocketEvent(): Observable<TexeraWebsocketEvent> {
@@ -34,7 +34,7 @@ export class WorkflowWebsocketService {
     const request = {
       type,
       ...payload
-    } as any as TexeraWebsocketRequest ;
+    } as any as TexeraWebsocketRequest;
     this.websocket.next(request);
   }
 

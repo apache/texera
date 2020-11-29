@@ -9,10 +9,10 @@ describe('FeatureContainerComponent', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-      declarations: [ FeatureContainerComponent ],
+      declarations: [FeatureContainerComponent],
       imports: [RouterTestingModule]
     })
-    .compileComponents();
+      .compileComponents();
   }));
 
   beforeEach(() => {
