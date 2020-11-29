@@ -12,6 +12,7 @@ cache:
   - $HOME/.m2
   - $HOME/build/Texera/texera/core/new_gui/node_modules
   - $HOME/build/Texera/texera/core/new_gui/.npm
+  - $HOME/.npm
 
 before_install:
   - sudo apt-get update
@@ -33,7 +34,7 @@ install:
   - cd ..
 
 script:
-  - mvn clean install --batch-mode
+  - mvn clean install -nsu -amd --batch-mode -Dmaven.javadoc.skip=true
   - cd new-gui
   - npm run build-save-time
   # - ng test --browsers ChromeHeadless --watch=false
