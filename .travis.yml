@@ -33,7 +33,7 @@ install:
   - cd ..
 
 script:
-  - mvn -T 1.5C clean install --batch-mode
+  - mvn clean install --batch-mode
   - cd new-gui
   - ng build --prod --progress=false
   # - ng test --browsers ChromeHeadless --watch=false
