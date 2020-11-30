@@ -34,15 +34,9 @@ export const defaultEnvironment = {
   downloadExecutionResultEnabled: false,
 
   /**
-   * whether user system is enable
+   * whether user system is enabled
    */
   userSystemEnabled: false,
-
-  /**
-   * whether user dashboard is enable
-   * TODO: to combine with `userSystemEnabled`
-   */
-  userDashboardEnabled: false,
 
   amberEngineEnabled: true,
 

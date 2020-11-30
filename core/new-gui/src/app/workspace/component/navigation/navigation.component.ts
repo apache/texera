@@ -51,7 +51,7 @@ export class NavigationComponent implements OnInit {
   public executionResultID: string | undefined;
 
   // whether user dashboard is enabled and accessible from the workspace
-  userDashboardEnabled: boolean = environment.userDashboardEnabled;
+  public userSystemEnabled: boolean = environment.userSystemEnabled;
   constructor(
     public executeWorkflowService: ExecuteWorkflowService,
     public tourService: TourService,

@@ -7,7 +7,7 @@
     </div>
     <div class='texera-navigation-utilities'>
       <nz-button-group nzSize="large">
-        <button *ngIf="userDashboardEnabled" [routerLink]="'/dashboard'">
+        <button *ngIf="userSystemEnabled" [routerLink]="'/dashboard'">
           <i nz-icon nzTheme="outline" nzType="cloud-server"></i>
         </button>
 
@@ -20,10 +20,10 @@
         <button (click)="onClickRestoreZoomOffsetDefault()" nz-button title="reset zoom">
           <i nz-icon nzType="fullscreen" nzTheme="outline"></i>
         </button>
-        <button *ngIf="userDashboardEnabled" (click)="onClickCreateNewWorkflow()" nz-button title="create new">
+        <button *ngIf="userSystemEnabled" (click)="onClickCreateNewWorkflow()" nz-button title="create new">
           <i nz-icon nzTheme="outline" nzType="form"></i>
         </button>
-        <button  *ngIf="userDashboardEnabled" (click)="onClickSaveWorkflow()" [disabled]="isSaving" nz-button title="save">
+        <button *ngIf="userSystemEnabled" (click)="onClickSaveWorkflow()" [disabled]="isSaving" nz-button title="save">
           <i *ngIf="!isSaving" nz-icon nzTheme="outline" nzType="save"></i>
           <i *ngIf="isSaving" [nzSpin]="true" [nzType]="'sync'" nz-icon nzTheme="outline"></i>
         </button>
@@ -50,7 +50,7 @@
       </nz-button-group>
     </div>
 
-    <label *ngIf="userDashboardEnabled">
+    <label *ngIf="userSystemEnabled">
       <input (change)="onWorkflowNameChange()" [(ngModel)]="currentWorkflowName" class="texera-navigation-workflow-name"
              nz-input placeholder="Untitled Workflow"/>
     </label>
