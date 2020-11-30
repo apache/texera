@@ -6,7 +6,7 @@ import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalB
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.ActorLayer
 import edu.uci.ics.amber.engine.architecture.linksemantics.LinkStrategy
 import edu.uci.ics.amber.engine.architecture.worker.{WorkerState, WorkerStatistics}
-import edu.uci.ics.amber.engine.common.amberexception.AmberException
+import edu.uci.ics.amber.engine.common.error.AmberException
 import edu.uci.ics.amber.engine.common.ambermessage.PrincipalMessage.{AssignBreakpoint, _}
 import edu.uci.ics.amber.engine.common.ambermessage.StateMessage._
 import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage.{Ack, AckWithInformation, CollectSinkResults, KillAndRecover, LocalBreakpointTriggered, ModifyLogic, ModifyTuple, Pause, QueryState, QueryStatistics, ReleaseOutput, RequireAck, Resume, ResumeTuple, SkipTuple, Start, StashOutput}
