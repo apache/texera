@@ -73,6 +73,7 @@ import org.jooq.impl.DSL.defaultValue
     UserWebResponse.generateSuccessResponse(user)
   }
 
+  // TODO: replace with DAO
   private def getUserID(condition: Condition) =
     SqlServer.createDSLContext.select(USER.UID).from(USER).where(condition).fetchOne
 
