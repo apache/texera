@@ -13,8 +13,8 @@ object UserWebResponse {
     new UserWebResponse(0, user, null)
 }
 
-class UserWebResponse private(
-                                 var code: Int, // 0 represents success and 1 represents error
-                                 var user: User,
-                                 var message: String
-                             ) {}
+class UserWebResponse private (
+    var code: Int, // 0 represents success and 1 represents error
+    var user: User,
+    var message: String
+) {}

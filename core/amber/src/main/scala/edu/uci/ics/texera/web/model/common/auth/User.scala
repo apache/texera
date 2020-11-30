@@ -7,9 +7,9 @@ object User {
 }
 
 class User(
-              var userName: String,
-              var userID: UInteger // the ID in MySQL database is unsigned int
-          ) {
+    var userName: String,
+    var userID: UInteger // the ID in MySQL database is unsigned int
+) {
   def getUserName: String = userName
 
   def getUserID: UInteger = userID

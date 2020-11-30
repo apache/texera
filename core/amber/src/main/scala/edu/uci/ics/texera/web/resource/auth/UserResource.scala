@@ -40,9 +40,9 @@ import org.jooq.impl.DSL.defaultValue
 
   @POST
   @Path("/login") def login(
-                               @Session session: HttpSession,
-                               request: UserLoginRequest
-                           ): UserWebResponse = {
+      @Session session: HttpSession,
+      request: UserLoginRequest
+  ): UserWebResponse = {
     val userName = request.userName
     val loginCondition = USER.NAME.equal(userName)
     val result = getUserID(loginCondition)
@@ -56,9 +56,9 @@ import org.jooq.impl.DSL.defaultValue
 
   @POST
   @Path("/register") def register(
-                                     @Session session: HttpSession,
-                                     request: UserRegistrationRequest
-                                 ): UserWebResponse = {
+      @Session session: HttpSession,
+      request: UserRegistrationRequest
+  ): UserWebResponse = {
     val userName = request.userName
     val validationResult = validateUsername(userName)
     if (!validationResult.getLeft)
@@ -79,11 +79,11 @@ import org.jooq.impl.DSL.defaultValue
   // TODO: extract this out
   private def insertUserAccount(userName: String) =
     SqlServer.createDSLContext
-        .insertInto(USER)
-        .set(USER.NAME, userName)
-        .set(USER.UID, defaultValue(USER.UID))
-        .returning(USER.UID)
-        .fetchOne
+      .insertInto(USER)
+      .set(USER.NAME, userName)
+      .set(USER.UID, defaultValue(USER.UID))
+      .returning(USER.UID)
+      .fetchOne
 
   private def validateUsername(userName: String) =
     if (userName == null) Pair.of(false, "username cannot be null")

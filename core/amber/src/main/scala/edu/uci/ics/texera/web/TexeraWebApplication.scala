@@ -51,9 +51,13 @@ class TexeraWebApplication extends io.dropwizard.Application[TexeraWebConfigurat
     eph.addErrorPage(404, "/")
     environment.getApplicationContext.setErrorHandler(eph)
 
-    val webSocketUpgradeFilter = WebSocketUpgradeFilter.configureContext(environment.getApplicationContext)
+    val webSocketUpgradeFilter =
+      WebSocketUpgradeFilter.configureContext(environment.getApplicationContext)
     webSocketUpgradeFilter.getFactory.getPolicy.setIdleTimeout(Duration.ofHours(1).toMillis)
-    environment.getApplicationContext.setAttribute(classOf[WebSocketUpgradeFilter].getName, webSocketUpgradeFilter)
+    environment.getApplicationContext.setAttribute(
+      classOf[WebSocketUpgradeFilter].getName,
+      webSocketUpgradeFilter
+    )
 
     // register SessionHandler
     environment.jersey.register(classOf[SessionHandler])
