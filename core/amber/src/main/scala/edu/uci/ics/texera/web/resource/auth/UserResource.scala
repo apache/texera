@@ -2,10 +2,10 @@ package edu.uci.ics.texera.web.resource.auth
 
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.common.auth.User
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.USER
 import edu.uci.ics.texera.web.model.request.auth.{UserLoginRequest, UserRegistrationRequest}
 import edu.uci.ics.texera.web.model.response.GenericWebResponse
 import edu.uci.ics.texera.web.model.response.auth.UserWebResponse
-import edu.uci.ics.texera.workflow.jooq.generated.Tables.USER
 import io.dropwizard.jersey.sessions.Session
 import javax.servlet.http.HttpSession
 import javax.ws.rs._
