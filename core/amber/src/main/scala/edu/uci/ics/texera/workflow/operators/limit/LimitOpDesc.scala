@@ -7,10 +7,7 @@ import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.{OneToOneOpExecConfig, OperatorDescriptor}
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
-import edu.uci.ics.texera.workflow.operators.limit.LimitOpDesc.equallyPartitionGoal
 import edu.uci.ics.texera.workflow.operators.util.OperatorDescriptorUtils.equallyPartitionGoal
-
-import scala.collection.mutable
 
 class LimitOpDesc extends OperatorDescriptor {
 
