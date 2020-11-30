@@ -32,9 +32,7 @@ import org.jooq.impl.DSL.defaultValue
 @Consumes(Array(MediaType.APPLICATION_JSON))
 @Produces(Array(MediaType.APPLICATION_JSON)) class UserResource {
   @GET
-  @Path("/auth/status") def authStatus(
-                                          @Session session: HttpSession
-                                      ): UserWebResponse = {
+  @Path("/auth/status") def authStatus(@Session session: HttpSession): UserWebResponse = {
     val user = UserResource.getUser(session)
     if (user == null) UserWebResponse.generateErrorResponse("")
     else UserWebResponse.generateSuccessResponse(user)
