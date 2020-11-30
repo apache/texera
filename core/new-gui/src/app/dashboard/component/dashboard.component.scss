@@ -1,13 +1,12 @@
-
 @import '~@angular/material/prebuilt-themes/deeppurple-amber.css';
 
 $bgColorBar: #0e5df0;
 $bthColor: #F5F5F5;
 
-@mixin htmlSet{
-    height: 100%;
-    width: 100%;
-    box-sizing: border-box;
+@mixin htmlSet {
+  height: 100%;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 html {
@@ -23,9 +22,9 @@ body {
 
 }
 
-button{
+button {
   border-radius: 5px;
-  border:none;
+  border: none;
 }
 
 /**
@@ -53,7 +52,8 @@ button{
 *              ******************
 **/
 $header-height: 56px;
-.dashboard-grid-container{
+
+.dashboard-grid-container {
   display: grid;
   grid-template-columns: 14% 86%;
   grid-template-rows : $header-height calc((100% - #{$header-height}))
@@ -63,7 +63,7 @@ $header-height: 56px;
 * the grid of the top bar which contains the logo and user accound
 * icon. The position of the top bar is fix. no adaptation
 **/
-.dashboard-top-bar{
+.dashboard-top-bar {
   grid-column-start: 1;
   grid-column-end: 3;
   grid-row-start: 1;
@@ -75,7 +75,7 @@ $header-height: 56px;
 * various feature. The height of the top bar is flex, filling the browser.
 * Also set the right border color.
 **/
-.dashboard-feature-bar{
+.dashboard-feature-bar {
   grid-column-start: 1;
   grid-column-end: 2;
   grid-row-start: 2;
@@ -87,7 +87,7 @@ $header-height: 56px;
 * the grid of the feature box which presents the feature various
 * feature. The height of the top bar is flex, filling the browser
 **/
-.dashboard-feature-box{
+.dashboard-feature-box {
   grid-column-start: 2;
   grid-column-end: 3;
   grid-row-start: 2;
@@ -101,56 +101,50 @@ $header-height: 56px;
 * windows. The color is set to gray. UserDictionary and SavedProject
 * utilized scroll class.
 **/
-.scroll{
+.scroll {
   position: absolute;
   height: 73%;
   width: 97.1%;
   overflow-y: scroll;
 
-  &::-webkit-scrollbar-track
-  {
+  &::-webkit-scrollbar-track {
     border-radius: 10px;
   }
 
-  &::-webkit-scrollbar
-  {
+  &::-webkit-scrollbar {
     width: 9px;
   }
 
-  &::-webkit-scrollbar-thumb
-  {
+  &::-webkit-scrollbar-thumb {
     border-radius: 10px;
   }
 }
 
-.scroll:hover{
+.scroll:hover {
   position: absolute;
   height: 73%;
   width: 97.1%;
   overflow-y: scroll;
 
-  &::-webkit-scrollbar-track
-  {
-    -webkit-box-shadow: inset 0 0 6px rgba(0,0,0,0.3);
+  &::-webkit-scrollbar-track {
+    -webkit-box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.3);
     border-radius: 10px;
     background-color: $bthColor;
   }
 
-  &::-webkit-scrollbar
-  {
+  &::-webkit-scrollbar {
     width: 9px;
     background-color: $bthColor;
   }
 
-  &::-webkit-scrollbar-thumb
-  {
+  &::-webkit-scrollbar-thumb {
     border-radius: 10px;
-    -webkit-box-shadow: inset 0 0 6px rgba(0,0,0,.3);
+    -webkit-box-shadow: inset 0 0 6px rgba(0, 0, 0, .3);
     background-color: rgb(156, 155, 155);
   }
 }
 
-.scrolli{
+.scrolli {
   position: absolute;
   overflow-y: scroll;
 }
@@ -158,19 +152,18 @@ $header-height: 56px;
 /**
 * for all the add button in component, default background-color should be green
 **/
-.add-button{
+.add-button {
   background-color: rgba(35, 241, 35, 0.411);
 }
 
-.warning-note{
+.warning-note {
   color: red;
-  font-family:Roboto, Arial, sans-serif;
+  font-family: Roboto, Arial, sans-serif;
   padding-top: 15px;
 }
 
 /////////////////////////////////////
-router-outlet{
-  height:515px;
+router-outlet {
+  height: 515px;
   text-align: center;
 }
-

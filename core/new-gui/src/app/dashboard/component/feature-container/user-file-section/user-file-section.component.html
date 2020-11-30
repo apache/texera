@@ -1,7 +1,8 @@
 <div class="user-dictionary-container subsection-grid-container">
   <mat-card class="button-area subsection-grid-container">
     <div ngbDropdown class="d-inline-block">
-      <button type="button" class="btn btn-outline-dark add-button" (click)="openFileAddComponent()" [disabled] = "disableAddButton()">
+      <button (click)="openFileAddComponent()" [disabled]="disableAddButton()" class="btn btn-outline-dark add-button"
+        type="button">
         <i class="fa fa-cloud-upload"></i>
       </button>
     </div>
@@ -19,11 +20,11 @@
                   {{userFile.name}}</span>
               </p>
               <p font-size=10px><span class="dict-name">
-                {{addFileSizeUnit(userFile.size)}}</span>
-            </p>
+                  {{addFileSizeUnit(userFile.size)}}</span>
+              </p>
             </div>
             <span class="gap-filler"></span>
-            <button mat-button class="delete-project-btn" placement="bottom" ngbTooltip="Delete the {{userFile.name}}"
+            <button class="delete-workflow-btn" mat-button ngbTooltip="Delete the {{userFile.name}}" placement="bottom"
               (click)="deleteFile(userFile)"><i class="fa fa-trash"></i></button>
           </mat-list-item>
         </div>

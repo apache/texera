@@ -9,26 +9,26 @@
   <mat-tab-group mat-stretch-tabs [selectedIndex]="selectedTab" animationDuration="0ms">
     <!-- login tab -->
     <mat-tab label="Sign In">
-      <div class= "content">
+      <div class="content">
         <mat-dialog-content>
           <mat-form-field>
             <input matInput [(ngModel)]="loginUserName" placeholder="Username">
           </mat-form-field>
         </mat-dialog-content>
-        <div><button class = "btn btn-info" (click) = "login()"> Sign In </button></div>
+        <div><button class="btn btn-info" (click)="login()"> Sign In </button></div>
         <p *ngIf="loginErrorMessage">{{ loginErrorMessage }}</p>
       </div>
     </mat-tab>
 
     <!-- register tab -->
     <mat-tab label="Sign Up">
-      <div class= "content">
+      <div class="content">
         <mat-dialog-content>
           <mat-form-field>
             <input matInput [(ngModel)]="registerUserName" placeholder="Username">
           </mat-form-field>
         </mat-dialog-content>
-        <div><button class = "btn btn-info" (click) = "register()"> Sign Up </button></div>
+        <div><button class="btn btn-info" (click)="register()"> Sign Up </button></div>
         <p *ngIf="registerErrorMessage">{{ registerErrorMessage }}</p>
       </div>
     </mat-tab>
@@ -36,5 +36,5 @@
 
 </div>
 <div class="modal-footer">
-  <button class = "btn btn-outline-dark" (click) = "activeModal.dismiss('close')">Close</button>
+  <button class="btn btn-outline-dark" (click)="activeModal.dismiss('close')">Close</button>
 </div>

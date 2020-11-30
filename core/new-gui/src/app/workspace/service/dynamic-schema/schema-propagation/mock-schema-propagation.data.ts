@@ -37,7 +37,7 @@ export const mockEmptySchemaPropagationResponse: Readonly<SchemaPropagationRespo
 
 export const mockAutocompleteAPIEmptyResponse: Readonly<SchemaPropagationResponse> = {
   code: 0,
-  result: { }
+  result: {}
 };
 
 

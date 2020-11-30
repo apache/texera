@@ -1,12 +1,12 @@
-import { AppSettings } from './../../../../common/app-setting';
+import { AppSettings } from '../../../../common/app-setting';
 import { environment } from '../../../../../environments/environment';
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { OperatorSchema } from '../../../types/operator-schema.interface';
-import { DynamicSchemaService } from './../dynamic-schema.service';
-import { ExecuteWorkflowService } from './../../execute-workflow/execute-workflow.service';
-import { WorkflowActionService } from './../../workflow-graph/model/workflow-action.service';
+import { DynamicSchemaService } from '../dynamic-schema.service';
+import { ExecuteWorkflowService } from '../../execute-workflow/execute-workflow.service';
+import { WorkflowActionService } from '../../workflow-graph/model/workflow-action.service';
 import { NGXLogger } from 'ngx-logger';
 
 import { isEqual } from 'lodash';
@@ -85,7 +85,7 @@ export class SchemaPropagationService {
         }
       }
 
-      if (! isEqual(currentDynamicSchema, newDynamicSchema)) {
+      if (!isEqual(currentDynamicSchema, newDynamicSchema)) {
         // SchemaPropagationService.resetAttributeOfOperator(this.workflowActionService, operatorID);
         this.dynamicSchemaService.setDynamicSchema(operatorID, newDynamicSchema);
       }
@@ -114,28 +114,28 @@ export class SchemaPropagationService {
       });
   }
 
-   /**
-    * This method reset the attribute / attributes fields of a operator properties
-    *  when the json schema has been changed, since the attribute fields might
-    *  be different for each json schema.
-    *
-    * For instance,
-    *  twitter_sample table contains the 'country' attribute
-    *  promed table does not contain the 'country' attribute
-    *
-    * @param operatorID operator that has the changed schema
-    */
+  /**
+   * This method reset the attribute / attributes fields of a operator properties
+   *  when the json schema has been changed, since the attribute fields might
+   *  be different for each json schema.
+   *
+   * For instance,
+   *  twitter_sample table contains the 'country' attribute
+   *  promed table does not contain the 'country' attribute
+   *
+   * @param operatorID operator that has the changed schema
+   */
   public static resetAttributeOfOperator(workflowActionService: WorkflowActionService, operatorID: string): void {
     const operator = workflowActionService.getTexeraGraph().getOperator(operatorID);
-    if (! operator) {
+    if (!operator) {
       throw new Error(`${operatorID} not found`);
     }
 
     // recursive function that removes the attribute properties and returns the new object
-    const walkPropertiesRecurse = (propertyObject: {[key: string]: any}) =>  {
+    const walkPropertiesRecurse = (propertyObject: { [key: string]: any }) => {
       Object.keys(propertyObject).forEach(key => {
         if (key === 'attribute' || key === 'attributes') {
-          const {[key]: [], ...removedAttributeProperties} = propertyObject;
+          const { [key]: [], ...removedAttributeProperties } = propertyObject;
           propertyObject = removedAttributeProperties;
         } else if (typeof propertyObject[key] === 'object') {
           propertyObject[key] = walkPropertiesRecurse(propertyObject[key]);
@@ -168,7 +168,7 @@ export class SchemaPropagationService {
 
     attributeListInJsonSchemaKeys.forEach(attributeListInJsonSchema => {
       newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, attributeListInJsonSchema,
-        old => ({ ...old, type: 'array', items: {...old.items, type: 'string', enum: inputAttributes.slice(), uniqueItems: true,  }, }));
+        old => ({ ...old, type: 'array', items: {...old.items, type: 'string', enum: inputAttributes.slice(), uniqueItems: true, } , }));
     });
 
     return {

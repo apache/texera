@@ -8,9 +8,10 @@
 <div class="modal-body">
 
   <mat-chip-list #chipList>
-    <mat-chip *ngFor="let item of dictionary.items" [selectable]="selectable" [removable]="removable" (removed) = "remove(item)">
+    <mat-chip *ngFor="let item of dictionary.items" [selectable]="selectable" [removable]="removable"
+      (removed)="remove(item)">
       {{limitPreviewItemSize(item)}}
-      <mat-icon matChipRemove  *ngIf="removable">
+      <mat-icon matChipRemove *ngIf="removable">
         <i class="fa fa-times-circle"></i>
       </mat-icon>
     </mat-chip>
@@ -21,7 +22,7 @@
 
   <mat-dialog-actions>
     <input *ngIf="ifAdd" matInput [(ngModel)]="name" placeholder="Add into dictionary">
-    <button type="button" class="btn btn-outline-dark add-button" (click)="addDictionaryItem()"  >Add</button>
+    <button type="button" class="btn btn-outline-dark add-button" (click)="addDictionaryItem()">Add</button>
   </mat-dialog-actions>
 </div>
 

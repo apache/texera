@@ -4,10 +4,11 @@
 package edu.uci.ics.texera.dataflow.jooq.generated;
 
 
-import edu.uci.ics.texera.dataflow.jooq.generated.tables.Useraccount;
-import edu.uci.ics.texera.dataflow.jooq.generated.tables.Userdict;
-import edu.uci.ics.texera.dataflow.jooq.generated.tables.Userfile;
-import edu.uci.ics.texera.dataflow.jooq.generated.tables.Userworkflow;
+import edu.uci.ics.texera.dataflow.jooq.generated.tables.File;
+import edu.uci.ics.texera.dataflow.jooq.generated.tables.KeywordDictionary;
+import edu.uci.ics.texera.dataflow.jooq.generated.tables.User;
+import edu.uci.ics.texera.dataflow.jooq.generated.tables.Workflow;
+import edu.uci.ics.texera.dataflow.jooq.generated.tables.WorkflowOfUser;
 
 import org.jooq.Index;
 import org.jooq.OrderField;
@@ -15,7 +16,7 @@ import org.jooq.impl.Internal;
 
 
 /**
- * A class modelling indexes of tables of the <code>texera</code> schema.
+ * A class modelling indexes of tables of the <code>texera_db</code> schema.
  */
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Indexes {
@@ -24,25 +25,29 @@ public class Indexes {
     // INDEX definitions
     // -------------------------------------------------------------------------
 
-    public static final Index USERACCOUNT_PRIMARY = Indexes0.USERACCOUNT_PRIMARY;
-    public static final Index USERACCOUNT_USERNAME = Indexes0.USERACCOUNT_USERNAME;
-    public static final Index USERDICT_PRIMARY = Indexes0.USERDICT_PRIMARY;
-    public static final Index USERDICT_USERID = Indexes0.USERDICT_USERID;
-    public static final Index USERFILE_PRIMARY = Indexes0.USERFILE_PRIMARY;
-    public static final Index USERFILE_USERID = Indexes0.USERFILE_USERID;
-    public static final Index USERWORKFLOW_PRIMARY = Indexes0.USERWORKFLOW_PRIMARY;
+    public static final Index FILE_PRIMARY = Indexes0.FILE_PRIMARY;
+    public static final Index FILE_UID = Indexes0.FILE_UID;
+    public static final Index KEYWORD_DICTIONARY_PRIMARY = Indexes0.KEYWORD_DICTIONARY_PRIMARY;
+    public static final Index KEYWORD_DICTIONARY_UID = Indexes0.KEYWORD_DICTIONARY_UID;
+    public static final Index USER_NAME = Indexes0.USER_NAME;
+    public static final Index USER_PRIMARY = Indexes0.USER_PRIMARY;
+    public static final Index WORKFLOW_PRIMARY = Indexes0.WORKFLOW_PRIMARY;
+    public static final Index WORKFLOW_OF_USER_PRIMARY = Indexes0.WORKFLOW_OF_USER_PRIMARY;
+    public static final Index WORKFLOW_OF_USER_WID = Indexes0.WORKFLOW_OF_USER_WID;
 
     // -------------------------------------------------------------------------
     // [#1459] distribute members to avoid static initialisers > 64kb
     // -------------------------------------------------------------------------
 
     private static class Indexes0 {
-        public static Index USERACCOUNT_PRIMARY = Internal.createIndex("PRIMARY", Useraccount.USERACCOUNT, new OrderField[] { Useraccount.USERACCOUNT.USERID }, true);
-        public static Index USERACCOUNT_USERNAME = Internal.createIndex("userName", Useraccount.USERACCOUNT, new OrderField[] { Useraccount.USERACCOUNT.USERNAME }, true);
-        public static Index USERDICT_PRIMARY = Internal.createIndex("PRIMARY", Userdict.USERDICT, new OrderField[] { Userdict.USERDICT.DICTID }, true);
-        public static Index USERDICT_USERID = Internal.createIndex("userID", Userdict.USERDICT, new OrderField[] { Userdict.USERDICT.USERID, Userdict.USERDICT.NAME }, true);
-        public static Index USERFILE_PRIMARY = Internal.createIndex("PRIMARY", Userfile.USERFILE, new OrderField[] { Userfile.USERFILE.FILEID }, true);
-        public static Index USERFILE_USERID = Internal.createIndex("userID", Userfile.USERFILE, new OrderField[] { Userfile.USERFILE.USERID, Userfile.USERFILE.NAME }, true);
-        public static Index USERWORKFLOW_PRIMARY = Internal.createIndex("PRIMARY", Userworkflow.USERWORKFLOW, new OrderField[] { Userworkflow.USERWORKFLOW.WORKFLOWID }, true);
+        public static Index FILE_PRIMARY = Internal.createIndex("PRIMARY", File.FILE, new OrderField[] { File.FILE.FID }, true);
+        public static Index FILE_UID = Internal.createIndex("uid", File.FILE, new OrderField[] { File.FILE.UID, File.FILE.NAME }, true);
+        public static Index KEYWORD_DICTIONARY_PRIMARY = Internal.createIndex("PRIMARY", KeywordDictionary.KEYWORD_DICTIONARY, new OrderField[] { KeywordDictionary.KEYWORD_DICTIONARY.KID }, true);
+        public static Index KEYWORD_DICTIONARY_UID = Internal.createIndex("uid", KeywordDictionary.KEYWORD_DICTIONARY, new OrderField[] { KeywordDictionary.KEYWORD_DICTIONARY.UID, KeywordDictionary.KEYWORD_DICTIONARY.NAME }, true);
+        public static Index USER_NAME = Internal.createIndex("name", User.USER, new OrderField[] { User.USER.NAME }, true);
+        public static Index USER_PRIMARY = Internal.createIndex("PRIMARY", User.USER, new OrderField[] { User.USER.UID }, true);
+        public static Index WORKFLOW_PRIMARY = Internal.createIndex("PRIMARY", Workflow.WORKFLOW, new OrderField[] { Workflow.WORKFLOW.WID }, true);
+        public static Index WORKFLOW_OF_USER_PRIMARY = Internal.createIndex("PRIMARY", WorkflowOfUser.WORKFLOW_OF_USER, new OrderField[] { WorkflowOfUser.WORKFLOW_OF_USER.UID, WorkflowOfUser.WORKFLOW_OF_USER.WID }, true);
+        public static Index WORKFLOW_OF_USER_WID = Internal.createIndex("wid", WorkflowOfUser.WORKFLOW_OF_USER, new OrderField[] { WorkflowOfUser.WORKFLOW_OF_USER.WID }, false);
     }
 }

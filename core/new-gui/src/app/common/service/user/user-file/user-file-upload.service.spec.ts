@@ -10,7 +10,7 @@ import { AppSettings } from '../../../app-setting';
 
 const arrayOfBlob: Blob[] = Array<Blob>(); // just for test,needed for creating File object.
 const testFileName = 'testTextFile';
-const testFile: File = new File( arrayOfBlob, testFileName, {type: 'text/plain'});
+const testFile: File = new File(arrayOfBlob, testFileName, { type: 'text/plain' });
 
 describe('UserFileUploadService', () => {
 
@@ -20,7 +20,7 @@ describe('UserFileUploadService', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [
-        {provide: UserService, useClass: StubUserService},
+        { provide: UserService, useClass: StubUserService },
         UserFileService,
         UserFileUploadService
       ],
@@ -71,11 +71,11 @@ describe('UserFileUploadService', () => {
 
     const req1 = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${USER_FILE_VALIDATE_URL}`);
     expect(req1.request.method).toEqual('POST');
-    req1.flush({code: 0, message: ''});
+    req1.flush({ code: 0, message: '' });
 
     const req2 = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${USER_FILE_UPLOAD_URL}`);
     expect(req2.request.method).toEqual('POST');
-    req2.flush({code: 0, message: ''});
+    req2.flush({ code: 0, message: '' });
 
     expect(spy).toHaveBeenCalled();
   });

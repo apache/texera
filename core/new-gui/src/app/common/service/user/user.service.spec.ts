@@ -1,4 +1,4 @@
-import { TestBed, inject } from '@angular/core/testing';
+import { TestBed } from '@angular/core/testing';
 
 import { UserService } from './user.service';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
@@ -11,7 +11,7 @@ const successCode = 0;
 const failedCode = 1;
 
 const successUserResponse: UserWebResponse = {
-  code : successCode,
+  code: successCode,
   user: {
     userName: userName,
     userID: userID
@@ -19,12 +19,12 @@ const successUserResponse: UserWebResponse = {
 };
 
 const failedUserResponse: UserWebResponse = {
-  code : failedCode,
+  code: failedCode,
   message: 'invalid user name or password'
 };
 
 const failedSessionLoginResponse: UserWebResponse = {
-  code : failedCode,
+  code: failedCode,
   message: ''
 };
 
@@ -44,7 +44,7 @@ describe('UserService', () => {
     service = TestBed.get(UserService);
 
     // set default login from session response to a failure reponse
-    httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.AUTH_STATUS_ENDPINT}`)
+    httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.AUTH_STATUS_ENDPOINT}`)
       .flush(failedSessionLoginResponse);
   });
 
@@ -57,172 +57,172 @@ describe('UserService', () => {
   });
 
   it('should login after register user', () => {
-      expect(service.getUser()).toBeFalsy();
-      service.register(userName).subscribe(
-        userWebResponse => {
-          expect(userWebResponse.code).toBe(successCode);
-          expect((userWebResponse as UserWebResponseSuccess).user.userID).toBe(userID);
-          expect((userWebResponse as UserWebResponseSuccess).user.userName).toBe(userName);
-          expect(service.getUser()).toBeTruthy();
-        }
-      );
+    expect(service.getUser()).toBeFalsy();
+    service.register(userName).subscribe(
+      userWebResponse => {
+        expect(userWebResponse.code).toBe(successCode);
+        expect((userWebResponse as UserWebResponseSuccess).user.userID).toBe(userID);
+        expect((userWebResponse as UserWebResponseSuccess).user.userName).toBe(userName);
+        expect(service.getUser()).toBeTruthy();
+      }
+    );
 
-      const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.REGISTER_ENDPOINT}`);
-      expect(req.request.method).toEqual('POST');
-      req.flush(successUserResponse);
+    const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.REGISTER_ENDPOINT}`);
+    expect(req.request.method).toEqual('POST');
+    req.flush(successUserResponse);
   });
 
   it('should login after login user', () => {
-      expect(service.getUser()).toBeFalsy();
-      service.login(userName).subscribe(
-        userWebResponse => {
-          expect(userWebResponse.code).toBe(successCode);
-          expect((userWebResponse as UserWebResponseSuccess).user.userID).toBe(userID);
-          expect((userWebResponse as UserWebResponseSuccess).user.userName).toBe(userName);
-          expect(service.getUser()).toBeTruthy();
-        }
-      );
+    expect(service.getUser()).toBeFalsy();
+    service.login(userName).subscribe(
+      userWebResponse => {
+        expect(userWebResponse.code).toBe(successCode);
+        expect((userWebResponse as UserWebResponseSuccess).user.userID).toBe(userID);
+        expect((userWebResponse as UserWebResponseSuccess).user.userName).toBe(userName);
+        expect(service.getUser()).toBeTruthy();
+      }
+    );
 
-      const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.LOGIN_ENDPOINT}`);
-      expect(req.request.method).toEqual('POST');
-      req.flush(successUserResponse);
+    const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.LOGIN_ENDPOINT}`);
+    expect(req.request.method).toEqual('POST');
+    req.flush(successUserResponse);
   });
 
   it('should get correct userID and userName after login', () => {
-      expect(service.getUser()).toBeFalsy();
-      service.login(userName).subscribe(
-        userWebResponse => {
-          expect(service.getUser()).toBeTruthy();
-          expect(service.getUser()!.userID).toBe(userID);
-          expect(service.getUser()!.userName).toBe(userName);
-        }
-      );
+    expect(service.getUser()).toBeFalsy();
+    service.login(userName).subscribe(
+      userWebResponse => {
+        expect(service.getUser()).toBeTruthy();
+        expect(service.getUser()!.userID).toBe(userID);
+        expect(service.getUser()!.userName).toBe(userName);
+      }
+    );
 
-      const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.LOGIN_ENDPOINT}`);
-      expect(req.request.method).toEqual('POST');
-      req.flush(successUserResponse);
+    const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.LOGIN_ENDPOINT}`);
+    expect(req.request.method).toEqual('POST');
+    req.flush(successUserResponse);
   });
 
   it('should not login after register failed', () => {
-      expect(service.getUser()).toBeFalsy();
-      service.register(userName).subscribe(
-        userWebResponse => {
-          expect(userWebResponse.code).toBe(failedCode);
-          expect(service.getUser()).toBeFalsy();
-        }
-      );
+    expect(service.getUser()).toBeFalsy();
+    service.register(userName).subscribe(
+      userWebResponse => {
+        expect(userWebResponse.code).toBe(failedCode);
+        expect(service.getUser()).toBeFalsy();
+      }
+    );
 
-      const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.REGISTER_ENDPOINT}`);
-      expect(req.request.method).toEqual('POST');
-      req.flush(failedUserResponse);
+    const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.REGISTER_ENDPOINT}`);
+    expect(req.request.method).toEqual('POST');
+    req.flush(failedUserResponse);
   });
 
   it('should not login after login failed', () => {
-      expect(service.getUser()).toBeFalsy();
-      service.login(userName).subscribe(
-        userWebResponse => {
-          expect(userWebResponse.code).toBe(failedCode);
-          expect(service.getUser()).toBeFalsy();
-        }
-      );
+    expect(service.getUser()).toBeFalsy();
+    service.login(userName).subscribe(
+      userWebResponse => {
+        expect(userWebResponse.code).toBe(failedCode);
+        expect(service.getUser()).toBeFalsy();
+      }
+    );
 
-      const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.LOGIN_ENDPOINT}`);
-      expect(req.request.method).toEqual('POST');
-      req.flush(failedUserResponse);
+    const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.LOGIN_ENDPOINT}`);
+    expect(req.request.method).toEqual('POST');
+    req.flush(failedUserResponse);
   });
 
-  it('should return undefiend when trying to get user field without not login', () => {
-      expect(service.getUser()).toBeFalsy();
+  it('should return undefined when trying to get user field without not login', () => {
+    expect(service.getUser()).toBeFalsy();
 
-      service.login(userName).subscribe(
-        userWebResponse => {
-          expect(service.getUser()).toBeFalsy();
-        }
-      );
+    service.login(userName).subscribe(
+      userWebResponse => {
+        expect(service.getUser()).toBeFalsy();
+      }
+    );
 
-      const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.LOGIN_ENDPOINT}`);
-      expect(req.request.method).toEqual('POST');
-      req.flush(failedUserResponse);
+    const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.LOGIN_ENDPOINT}`);
+    expect(req.request.method).toEqual('POST');
+    req.flush(failedUserResponse);
   });
 
   it('should raise error when trying to login again after login success', () => {
-      expect(service.getUser()).toBeFalsy();
-      service.login(userName).subscribe(
-        userWebResponse => {
-          expect(service.getUser()).toBeTruthy();
-          expect(() => service.login(userName)).toThrowError();
-          expect(() => service.register(userName)).toThrowError();
-        }
-      );
+    expect(service.getUser()).toBeFalsy();
+    service.login(userName).subscribe(
+      userWebResponse => {
+        expect(service.getUser()).toBeTruthy();
+        expect(() => service.login(userName)).toThrowError();
+        expect(() => service.register(userName)).toThrowError();
+      }
+    );
 
-      const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.LOGIN_ENDPOINT}`);
-      expect(req.request.method).toEqual('POST');
-      req.flush(successUserResponse);
+    const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.LOGIN_ENDPOINT}`);
+    expect(req.request.method).toEqual('POST');
+    req.flush(successUserResponse);
   });
 
   it('should log out when called log out function', () => {
-      expect(service.getUser()).toBeFalsy();
-      service.login(userName).subscribe(
-        userWebResponse => {
-          expect(service.getUser()).toBeTruthy();
-          service.logOut();
-          // TODO Problems here, log out changes to communicate with backend so we can not test log out here.
-          // expect(service.getUser()).toBeFalsy();
-        }
-      );
+    expect(service.getUser()).toBeFalsy();
+    service.login(userName).subscribe(
+      userWebResponse => {
+        expect(service.getUser()).toBeTruthy();
+        service.logOut();
+        // TODO Problems here, log out changes to communicate with backend so we can not test log out here.
+        // expect(service.getUser()).toBeFalsy();
+      }
+    );
 
-      const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.LOGIN_ENDPOINT}`);
-      expect(req.request.method).toEqual('POST');
-      req.flush(successUserResponse);
-      const req2 = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.LOG_OUT_ENDPOINT}`);
-      expect(req2.request.method).toEqual('GET');
-      req2.flush(successUserResponse);
+    const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.LOGIN_ENDPOINT}`);
+    expect(req.request.method).toEqual('POST');
+    req.flush(successUserResponse);
+    const req2 = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.LOG_OUT_ENDPOINT}`);
+    expect(req2.request.method).toEqual('GET');
+    req2.flush(successUserResponse);
   });
 
   it('should receive user change event when login', () => {
-      expect(service.getUser()).toBeFalsy();
-      service.getUserChangedEvent().subscribe(
-        () => expect(service.getUser()).toBeTruthy()
-      );
+    expect(service.getUser()).toBeFalsy();
+    service.getUserChangedEvent().subscribe(
+      () => expect(service.getUser()).toBeTruthy()
+    );
 
-      service.login(userName).subscribe();
+    service.login(userName).subscribe();
 
-      const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.LOGIN_ENDPOINT}`);
-      expect(req.request.method).toEqual('POST');
-      req.flush(successUserResponse);
+    const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.LOGIN_ENDPOINT}`);
+    expect(req.request.method).toEqual('POST');
+    req.flush(successUserResponse);
   });
 
   it('should receive user change event when register', () => {
-      expect(service.getUser()).toBeFalsy();
-      service.getUserChangedEvent().subscribe(
-        () => expect(service.getUser()).toBeTruthy()
-      );
+    expect(service.getUser()).toBeFalsy();
+    service.getUserChangedEvent().subscribe(
+      () => expect(service.getUser()).toBeTruthy()
+    );
 
-      service.register(userName).subscribe();
+    service.register(userName).subscribe();
 
-      const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.REGISTER_ENDPOINT}`);
-      expect(req.request.method).toEqual('POST');
-      req.flush(successUserResponse);
+    const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.REGISTER_ENDPOINT}`);
+    expect(req.request.method).toEqual('POST');
+    req.flush(successUserResponse);
   });
 
   it('should receive user change event when log out', () => {
-      expect(service.getUser()).toBeFalsy();
-      service.login(userName).subscribe(
-        () => {
-          expect(service.getUser()).toBeTruthy();
-          service.getUserChangedEvent().subscribe(
-            () => expect(service.getUser()).toBeFalsy()
-          );
-          service.logOut();
-        }
-      );
+    expect(service.getUser()).toBeFalsy();
+    service.login(userName).subscribe(
+      () => {
+        expect(service.getUser()).toBeTruthy();
+        service.getUserChangedEvent().subscribe(
+          () => expect(service.getUser()).toBeFalsy()
+        );
+        service.logOut();
+      }
+    );
 
-      const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.LOGIN_ENDPOINT}`);
-      expect(req.request.method).toEqual('POST');
-      req.flush(successUserResponse);
-      const req2 = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.LOG_OUT_ENDPOINT}`);
-      expect(req2.request.method).toEqual('GET');
-      req2.flush(successUserResponse);
+    const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.LOGIN_ENDPOINT}`);
+    expect(req.request.method).toEqual('POST');
+    req.flush(successUserResponse);
+    const req2 = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.LOG_OUT_ENDPOINT}`);
+    expect(req2.request.method).toEqual('GET');
+    req2.flush(successUserResponse);
   });
 
 });
@@ -253,7 +253,7 @@ describe('UserService Session Login', () => {
     let user;
     service.getUserChangedEvent().subscribe(evt => user = evt);
 
-    const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.AUTH_STATUS_ENDPINT}`);
+    const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.AUTH_STATUS_ENDPOINT}`);
     req.flush(successUserResponse);
     expect(service.getUser()).toBeTruthy();
     expect(user).toBeTruthy();
@@ -263,7 +263,7 @@ describe('UserService Session Login', () => {
     let eventCount = 0;
     service.getUserChangedEvent().subscribe(evt => eventCount++);
 
-    const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.AUTH_STATUS_ENDPINT}`);
+    const req = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.AUTH_STATUS_ENDPOINT}`);
     req.flush(failedUserResponse);
     expect(service.getUser()).toBeFalsy();
     expect(eventCount).toEqual(0);

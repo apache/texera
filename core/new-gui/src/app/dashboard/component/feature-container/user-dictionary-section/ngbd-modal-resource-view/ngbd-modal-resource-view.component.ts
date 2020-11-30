@@ -36,7 +36,7 @@ export class NgbdModalResourceViewComponent {
   public visible = true;
   public selectable = true;
 
-  constructor(public activeModal: NgbActiveModal, private userDictionaryService: UserDictionaryService) {}
+  constructor(public activeModal: NgbActiveModal, private userDictionaryService: UserDictionaryService) { }
 
   /**
   * addDictionaryItem gets the item added by user and sends it back to the main component.

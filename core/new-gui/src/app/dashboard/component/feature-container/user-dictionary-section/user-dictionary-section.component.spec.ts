@@ -16,7 +16,7 @@ describe('UserDictionarySectionComponent', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-      declarations: [ UserDictionarySectionComponent],
+      declarations: [UserDictionarySectionComponent],
       providers: [
         UserDictionaryService,
         NgbActiveModal
@@ -28,7 +28,7 @@ describe('UserDictionarySectionComponent', () => {
         HttpClientTestingModule
       ]
     })
-    .compileComponents();
+      .compileComponents();
   }));
 
   beforeEach(() => {

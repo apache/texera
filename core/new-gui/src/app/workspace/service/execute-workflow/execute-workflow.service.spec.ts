@@ -21,7 +21,7 @@ import { mockScanResultLink } from '../workflow-graph/model/mock-workflow-data';
 
 class StubHttpClient {
 
-  constructor() {}
+  constructor() { }
 
   public post(): Observable<string> { return Observable.of('a'); }
 
@@ -41,7 +41,7 @@ describe('ExecuteWorkflowService', () => {
         UndoRedoService,
         JointUIService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
-        { provide: HttpClient, useClass: StubHttpClient},
+        { provide: HttpClient, useClass: StubHttpClient },
       ]
     });
 
@@ -188,14 +188,14 @@ describe('ExecuteWorkflowService', () => {
 
 
   it('it should raise an error when pauseWorkflow() is called without having a execution ID', () => {
-    expect(function() {
+    expect(function () {
       service.pauseWorkflow();
     }).toThrowError(new RegExp(`Workflow ID undefined when attempting to pause`));
   });
 
 
   it('it should raise an error when resumeWorkflow() is called without having a execution ID', () => {
-    expect(function() {
+    expect(function () {
       service.resumeWorkflow();
     }).toThrowError(new RegExp(`Workflow ID undefined when attempting to resume`));
   });

@@ -8,9 +8,9 @@ describe('RunningJobSectionComponent', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-      declarations: [ RunningJobSectionComponent ]
+      declarations: [RunningJobSectionComponent]
     })
-    .compileComponents();
+      .compileComponents();
   }));
 
   beforeEach(() => {
