@@ -12,6 +12,7 @@ import { WorkflowPersistService } from '../../../common/service/user/workflow-pe
 import { CacheWorkflowService } from '../../service/cache-workflow/cache-workflow.service';
 import { Workflow } from '../../../common/type/workflow';
 import { Version } from '../../../../environments/version';
+import { environment } from '../../../../environments/environment';
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -49,6 +50,8 @@ export class NavigationComponent implements OnInit {
   public runDisable = false;
   public executionResultID: string | undefined;
 
+  // whether user dashboard is enabled and accessible from the workspace
+  public userSystemEnabled: boolean = environment.userSystemEnabled;
   constructor(
     public executeWorkflowService: ExecuteWorkflowService,
     public tourService: TourService,

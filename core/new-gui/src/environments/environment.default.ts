@@ -17,11 +17,11 @@ export const defaultEnvironment = {
   sourceTableEnabled: false,
   /**
    * whether operator schema propagation and autocomplete feature is enabled,
-   * see SchemaPropgationService for details
+   * see SchemaPropagationService for details
    */
   schemaPropagationEnabled: true,
   /**
-   * whether the backend support pause/resume functionaility
+   * whether the backend support pause/resume functionality
    */
   pauseResumeEnabled: true,
   /**
@@ -33,6 +33,9 @@ export const defaultEnvironment = {
    */
   downloadExecutionResultEnabled: false,
 
+  /**
+   * whether user system is enabled
+   */
   userSystemEnabled: false,
 
   amberEngineEnabled: true,
