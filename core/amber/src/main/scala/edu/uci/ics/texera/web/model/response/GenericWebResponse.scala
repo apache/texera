@@ -7,7 +7,7 @@ object GenericWebResponse {
   def generateSuccessResponse = new GenericWebResponse(0, "success")
 }
 
-class GenericWebResponse() // Default constructor is required for Jackson JSON serialization
+case class GenericWebResponse() // Default constructor is required for Jackson JSON serialization
 {
   private var code = 0
   private var message = ""
