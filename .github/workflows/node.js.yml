@@ -24,6 +24,8 @@ jobs:
       uses: actions/setup-node@v1
       with:
         node-version: ${{ matrix.node-version }}
+    - run: echo `ls`
+    - run: echo `pwd`
     - run: cd core/new_gui
     - run: npm ci
     - run: ng build --prod --progress=false
