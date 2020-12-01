@@ -1,7 +1,7 @@
 import { User } from '../../type/user';
 import { AppSettings } from '../../app-setting';
 import { Subject } from 'rxjs/Subject';
-import { Injectable } from '@angular/core';
+import { Injectable, Output } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 
 import { Observable } from 'rxjs/Observable';
@@ -23,7 +23,7 @@ export class UserService {
   public static readonly REGISTER_ENDPOINT = 'users/register';
   public static readonly LOG_OUT_ENDPOINT = 'users/logout';
 
-  private userChangedSubject: Subject<User | undefined> = new Subject();
+  @Output() userChange: Subject<User | undefined> = new Subject();
   private currentUser: User | undefined;
 
   constructor(private http: HttpClient) {
@@ -52,7 +52,7 @@ export class UserService {
    * It will automatically login, save the user account inside and trigger userChangeEvent when success
    * @param userName
    */
-  public login(userName: string) {
+  public login(userName: string): Observable<Response> {
     if (this.currentUser) {
       throw new Error('Already logged in when login in.');
     }
@@ -76,21 +76,13 @@ export class UserService {
   }
 
   /**
-   * this method will return the userChangeEvent, which can be subscribe
-   * userChangeEvent will be triggered when the current user changes (login or log out)
-   */
-  public getUserChangedEvent(): Observable<User | undefined> {
-    return this.userChangedSubject.asObservable();
-  }
-
-  /**
    * changes the current user and triggers currentUserSubject
    * @param user
    */
   public changeUser(user: User | undefined): void {
     if (this.currentUser !== user) {
       this.currentUser = user;
-      this.userChangedSubject.next(this.currentUser);
+      this.userChange.next(this.currentUser);
     }
   }
 
