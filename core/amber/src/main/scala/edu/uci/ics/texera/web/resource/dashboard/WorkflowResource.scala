@@ -34,7 +34,7 @@ class WorkflowResource {
     */
   @GET
   @Path("/get")
-  @Produces(Array(MediaType.APPLICATION_JSON))
+ @Produces(Array(MediaType.APPLICATION_JSON))
   def retrieveWorkflowsBySessionUser(
       @Session session: HttpSession
   ): util.List[Workflow] = {
@@ -45,7 +45,7 @@ class WorkflowResource {
       .from(WORKFLOW)
       .join(WORKFLOW_OF_USER)
       .on(WORKFLOW_OF_USER.WID.eq(WORKFLOW.WID))
-      .where(WORKFLOW_OF_USER.UID.eq(user.getUserID))
+      .where(WORKFLOW_OF_USER.UID.eq(user.getUid))
       .fetchInto(classOf[Workflow])
   }
 
