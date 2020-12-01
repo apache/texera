@@ -1,5 +1,3 @@
 package edu.uci.ics.texera.web.model.request.auth
 
-case class UserRegistrationRequest() {
-  var userName: String = _
-}
+case class UserRegistrationRequest(userName: String)
