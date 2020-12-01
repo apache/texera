@@ -2,16 +2,13 @@ package edu.uci.ics.texera.web.resource.auth
 
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.USER
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.request.auth.{UserLoginRequest, UserRegistrationRequest}
-import edu.uci.ics.texera.web.model.response.GenericWebResponse
 import io.dropwizard.jersey.sessions.Session
 import javax.servlet.http.HttpSession
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
 import org.apache.commons.lang3.tuple.Pair
-import org.jooq.Condition
 import org.jooq.exception.DataAccessException
 import org.jooq.impl.DSL.defaultValue
 import org.jooq.types.UInteger
