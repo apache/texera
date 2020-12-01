@@ -21,4 +21,4 @@ jobs:
       with:
         java-version: 1.8
     - name: Build with Maven
-      run: mvn -B package --file core/pom.xml
+      run: mvn clean install --batch-mode --file core/pom.xml
