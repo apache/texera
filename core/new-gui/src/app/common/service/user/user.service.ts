@@ -3,12 +3,11 @@ import { AppSettings } from '../../app-setting';
 import { Subject } from 'rxjs/Subject';
 import { Injectable, Output } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-
 import { Observable } from 'rxjs/Observable';
 import { environment } from 'src/environments/environment';
 
 /**
- * User Account Service contains the function of registering and logging the user.
+ * User Service contains the function of registering and logging the user.
  * It will save the user account inside for future use.
  *
  * @author Adam
