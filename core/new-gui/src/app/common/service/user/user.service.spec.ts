@@ -13,8 +13,8 @@ const failedCode = 1;
 const successUserResponse: UserWebResponse = {
   code: successCode,
   user: {
-    userName: userName,
-    userID: userID
+    name: userName,
+    uid: userID
   }
 };
 
@@ -61,8 +61,8 @@ describe('UserService', () => {
     service.register(userName).subscribe(
       userWebResponse => {
         expect(userWebResponse.code).toBe(successCode);
-        expect((userWebResponse as UserWebResponseSuccess).user.userID).toBe(userID);
-        expect((userWebResponse as UserWebResponseSuccess).user.userName).toBe(userName);
+        expect((userWebResponse as UserWebResponseSuccess).user.uid).toBe(userID);
+        expect((userWebResponse as UserWebResponseSuccess).user.name).toBe(userName);
         expect(service.getUser()).toBeTruthy();
       }
     );
@@ -77,8 +77,8 @@ describe('UserService', () => {
     service.login(userName).subscribe(
       userWebResponse => {
         expect(userWebResponse.code).toBe(successCode);
-        expect((userWebResponse as UserWebResponseSuccess).user.userID).toBe(userID);
-        expect((userWebResponse as UserWebResponseSuccess).user.userName).toBe(userName);
+        expect((userWebResponse as UserWebResponseSuccess).user.uid).toBe(userID);
+        expect((userWebResponse as UserWebResponseSuccess).user.name).toBe(userName);
         expect(service.getUser()).toBeTruthy();
       }
     );
@@ -93,8 +93,8 @@ describe('UserService', () => {
     service.login(userName).subscribe(
       userWebResponse => {
         expect(service.getUser()).toBeTruthy();
-        expect(service.getUser()!.userID).toBe(userID);
-        expect(service.getUser()!.userName).toBe(userName);
+        expect(service.getUser()!.uid).toBe(userID);
+        expect(service.getUser()!.name).toBe(userName);
       }
     );
 

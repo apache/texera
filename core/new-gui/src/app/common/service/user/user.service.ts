@@ -1,4 +1,4 @@
-import { User, UserWebResponse } from '../../type/user';
+import { User } from '../../type/user';
 import { AppSettings } from '../../app-setting';
 import { Subject } from 'rxjs/Subject';
 import { Injectable } from '@angular/core';
@@ -37,29 +37,14 @@ export class UserService {
    * It will automatically login, save the user account inside and trigger userChangeEvent when success
    * @param userName
    */
-  public register(userName: string): Observable<UserWebResponse> {
+  public register(userName: string): Observable<Response> {
     // assume the text passed in should be correct
     if (this.currentUser) {
       throw new Error('Already logged in when register.');
     }
-    const validation = this.validateUsername(userName);
-    if (!validation.result) {
-      return Observable.of({
-        code: 1,
-        message: validation.message
-      });
-    }
 
-    return this.registerHttpRequest(userName).map(
-      res => {
-        if (res.code === 0) {
-          this.changeUser(res.user);
-          return res;
-        } else { // register failed
-          return res;
-        }
-      }
-    );
+    return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${UserService.REGISTER_ENDPOINT}`, {userName});
+
   }
 
   /**
@@ -67,35 +52,19 @@ export class UserService {
    * It will automatically login, save the user account inside and trigger userChangeEvent when success
    * @param userName
    */
-  public login(userName: string): Observable<UserWebResponse> {
+  public login(userName: string) {
     if (this.currentUser) {
       throw new Error('Already logged in when login in.');
     }
-    const validation = this.validateUsername(userName);
-    if (!validation.result) {
-      return Observable.of({
-        code: 1,
-        message: validation.message
-      });
-    }
-
-    return this.loginHttpRequest(userName).map(
-      res => {
-        if (res.code === 0) {
-          this.changeUser(res.user);
-          return res;
-        } else { // login failed
-          return res;
-        }
-      }
-    );
+    return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${UserService.LOGIN_ENDPOINT}`, {userName});
   }
 
   /**
    * this method will clear the saved user account and trigger userChangeEvent
    */
   public logOut(): void {
-    this.logOutHttpRequest().subscribe(() => this.changeUser(undefined));
+    this.http.get<Response>(`${AppSettings.getApiEndpoint()}/${UserService.LOG_OUT_ENDPOINT}`)
+      .subscribe(() => this.changeUser(undefined));
   }
 
   public getUser(): User | undefined {
@@ -114,47 +83,11 @@ export class UserService {
     return this.userChangedSubject.asObservable();
   }
 
-  private loginFromSession(): void {
-    this.http.get<UserWebResponse>(`${AppSettings.getApiEndpoint()}/${UserService.AUTH_STATUS_ENDPOINT}`).subscribe(res => {
-      if (res.code === 0) {
-        this.changeUser(res.user);
-      }
-    });
-  }
-
-  /**
-   * construct the request body as formData and create http request
-   * @param userName
-   */
-  private registerHttpRequest(userName: string): Observable<UserWebResponse> {
-    type UserRegistrationRequest = { userName: string };
-    const body: UserRegistrationRequest = { userName: userName };
-    return this.http.post<UserWebResponse>(`${AppSettings.getApiEndpoint()}/${UserService.REGISTER_ENDPOINT}`, body);
-  }
-
-  /**
-   * construct the request body as formData and create http request
-   * @param userName
-   */
-  private loginHttpRequest(userName: string): Observable<UserWebResponse> {
-    type UserLoginRequest = { userName: string };
-    const body: UserLoginRequest = { userName: userName };
-    return this.http.post<UserWebResponse>(`${AppSettings.getApiEndpoint()}/${UserService.LOGIN_ENDPOINT}`, body);
-  }
-
-  /**
-   * construct the request body as formData and create http request
-   * @param userName
-   */
-  private logOutHttpRequest(): Observable<UserWebResponse> {
-    return this.http.get<UserWebResponse>(`${AppSettings.getApiEndpoint()}/${UserService.LOG_OUT_ENDPOINT}`);
-  }
-
   /**
    * changes the current user and triggers currentUserSubject
    * @param user
    */
-  private changeUser(user: User | undefined): void {
+  public changeUser(user: User | undefined): void {
     if (this.currentUser !== user) {
       this.currentUser = user;
       this.userChangedSubject.next(this.currentUser);
@@ -165,11 +98,18 @@ export class UserService {
    * check the given parameter is legal for login/registration
    * @param userName
    */
-  private validateUsername(userName: string): { result: boolean, message: string } {
+  public validateUsername(userName: string): { result: boolean, message: string } {
     if (userName.trim().length === 0) {
-      return { result: false, message: 'userName should not be empty' };
+      return {result: false, message: 'userName should not be empty'};
     }
-    return { result: true, message: 'userName frontend validation success' };
+    return {result: true, message: 'userName frontend validation success'};
   }
+
+
+  private loginFromSession(): void {
+    this.http.get<User>(`${AppSettings.getApiEndpoint()}/${UserService.AUTH_STATUS_ENDPOINT}`).subscribe(user =>
+      this.changeUser(user));
+  }
+
 
 }
