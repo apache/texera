@@ -6,7 +6,10 @@ import akka.util.Timeout
 import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalBreakpoint
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.UseAll
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.OneOnEach
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{ActorLayer, GeneratorWorkerLayer}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
+  ActorLayer,
+  GeneratorWorkerLayer
+}
 import edu.uci.ics.amber.engine.architecture.worker.WorkerState
 import edu.uci.ics.amber.engine.common.ambertag.{LayerTag, OperatorIdentifier}
 import edu.uci.ics.amber.engine.operators.OpExecConfig
@@ -40,7 +43,7 @@ class MysqlSourceOpExecConfig(
       topology: Array[ActorLayer],
       states: mutable.AnyRefMap[ActorRef, WorkerState.Value],
       breakpoint: GlobalBreakpoint
-)(implicit timeout: Timeout, ec: ExecutionContext, log: LoggingAdapter): Unit = {
+  )(implicit timeout: Timeout, ec: ExecutionContext, log: LoggingAdapter): Unit = {
     breakpoint.partition(topology(0).layer.filter(states(_) != WorkerState.Completed))
   }
 

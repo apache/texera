@@ -9,11 +9,11 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
 
 class HashBasedMaterializer(
-                             val outputPath: String,
-                             val index: Int,
-                             val hashFunc: ITuple => Int,
-                             val numBuckets: Int,
-                             val remoteHDFS: String = null
+    val outputPath: String,
+    val index: Int,
+    val hashFunc: ITuple => Int,
+    val numBuckets: Int,
+    val remoteHDFS: String = null
 ) extends IOperatorExecutor {
 
   var writer: Array[BufferedWriter] = _
@@ -29,7 +29,10 @@ class HashBasedMaterializer(
     writer.foreach(_.close())
   }
 
-  override def processTuple(tuple: Either[ITuple, InputExhausted], input: Int): scala.Iterator[ITuple] = {
+  override def processTuple(
+      tuple: Either[ITuple, InputExhausted],
+      input: Int
+  ): scala.Iterator[ITuple] = {
     tuple match {
       case Left(t) =>
         val index = (hashFunc(t) % numBuckets + numBuckets) % numBuckets

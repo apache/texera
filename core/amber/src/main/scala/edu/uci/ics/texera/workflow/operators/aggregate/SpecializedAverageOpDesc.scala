@@ -5,7 +5,11 @@ import java.io.Serializable
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
-import edu.uci.ics.texera.workflow.common.operators.aggregate.{AggregateOpDesc, AggregateOpExecConfig, DistributedAggregation}
+import edu.uci.ics.texera.workflow.common.operators.aggregate.{
+  AggregateOpDesc,
+  AggregateOpExecConfig,
+  DistributedAggregation
+}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 
@@ -66,8 +70,7 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
         val value = tuple.getField(attribute).toString.toDouble
         partial + value
       },
-      (partial1, partial2) =>
-        partial1 + partial2,
+      (partial1, partial2) => partial1 + partial2,
       partial => {
         Tuple.newBuilder.add(resultAttribute, AttributeType.DOUBLE, partial).build
       },
@@ -85,8 +88,7 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
       (partial, tuple) => {
         partial + 1
       },
-      (partial1, partial2) =>
-        partial1 + partial2,
+      (partial1, partial2) => partial1 + partial2,
       partial => {
         Tuple.newBuilder.add(resultAttribute, AttributeType.INTEGER, partial).build
       },
@@ -105,11 +107,11 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
         val value = tuple.getField(attribute).toString.toDouble
         if (value < partial) value else partial
       },
-      (partial1, partial2) =>
-        if (partial1 < partial2) partial1 else partial2,
+      (partial1, partial2) => if (partial1 < partial2) partial1 else partial2,
       partial => {
-        if (partial == Double.MaxValue) null else
-        Tuple.newBuilder.add(resultAttribute, AttributeType.DOUBLE, partial).build
+        if (partial == Double.MaxValue) null
+        else
+          Tuple.newBuilder.add(resultAttribute, AttributeType.DOUBLE, partial).build
       },
       groupByFunc()
     )
@@ -126,10 +128,10 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
         val value = tuple.getField(attribute).toString.toDouble
         if (value > partial) value else partial
       },
-      (partial1, partial2) =>
-        if (partial1 > partial2) partial1 else partial2,
+      (partial1, partial2) => if (partial1 > partial2) partial1 else partial2,
       partial => {
-        if (partial == Double.MinValue) null else
+        if (partial == Double.MinValue) null
+        else
           Tuple.newBuilder.add(resultAttribute, AttributeType.DOUBLE, partial).build
       },
       groupByFunc()

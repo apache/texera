@@ -1,27 +1,82 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
 import edu.uci.ics.amber.clustering.ClusterListener.GetAvailableNodeAddresses
-import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.{ExceptionGlobalBreakpoint, GlobalBreakpoint}
+import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.{
+  ExceptionGlobalBreakpoint,
+  GlobalBreakpoint
+}
 import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalBreakpoint
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{BreakpointTriggered, ModifyLogicCompleted, SkipTupleResponse, WorkflowCompleted, WorkflowPaused, WorkflowStatusUpdate}
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
+  BreakpointTriggered,
+  ModifyLogicCompleted,
+  SkipTupleResponse,
+  WorkflowCompleted,
+  WorkflowPaused,
+  WorkflowStatusUpdate
+}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.OneOnEach
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.FollowPrevious
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{ActorLayer, GeneratorWorkerLayer, ProcessorWorkerLayer}
-import edu.uci.ics.amber.engine.faulttolerance.materializer.{HashBasedMaterializer, OutputMaterializer}
-import edu.uci.ics.amber.engine.architecture.linksemantics.{FullRoundRobin, HashBasedShuffle, LocalPartialToOne, OperatorLink}
-import edu.uci.ics.amber.engine.architecture.principal.{Principal, PrincipalState, PrincipalStatistics}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
+  ActorLayer,
+  GeneratorWorkerLayer,
+  ProcessorWorkerLayer
+}
+import edu.uci.ics.amber.engine.faulttolerance.materializer.{
+  HashBasedMaterializer,
+  OutputMaterializer
+}
+import edu.uci.ics.amber.engine.architecture.linksemantics.{
+  FullRoundRobin,
+  HashBasedShuffle,
+  LocalPartialToOne,
+  OperatorLink
+}
+import edu.uci.ics.amber.engine.architecture.principal.{
+  Principal,
+  PrincipalState,
+  PrincipalStatistics
+}
 import edu.uci.ics.amber.engine.common.amberexception.AmberException
 import edu.uci.ics.amber.engine.common.ambermessage.ControllerMessage._
 import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage._
 import edu.uci.ics.amber.engine.common.ambermessage.PrincipalMessage
-import edu.uci.ics.amber.engine.common.ambermessage.PrincipalMessage.{AckedPrincipalInitialization, AssignBreakpoint, GetOutputLayer, ReportCurrentProcessingTuple, ReportOutputResult, ReportPrincipalPartialCompleted}
+import edu.uci.ics.amber.engine.common.ambermessage.PrincipalMessage.{
+  AckedPrincipalInitialization,
+  AssignBreakpoint,
+  GetOutputLayer,
+  ReportCurrentProcessingTuple,
+  ReportOutputResult,
+  ReportPrincipalPartialCompleted
+}
 import edu.uci.ics.amber.engine.common.ambermessage.StateMessage.EnforceStateCheck
-import edu.uci.ics.amber.engine.common.ambertag.{AmberTag, LayerTag, LinkTag, OperatorIdentifier, WorkflowTag}
+import edu.uci.ics.amber.engine.common.ambertag.{
+  AmberTag,
+  LayerTag,
+  LinkTag,
+  OperatorIdentifier,
+  WorkflowTag
+}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.amber.engine.common.{AdvancedMessageSending, AmberUtils, Constants, ISourceOperatorExecutor}
+import edu.uci.ics.amber.engine.common.{
+  AdvancedMessageSending,
+  AmberUtils,
+  Constants,
+  ISourceOperatorExecutor
+}
 import edu.uci.ics.amber.engine.faulttolerance.scanner.HDFSFolderScanSourceOperatorExecutor
 import edu.uci.ics.amber.engine.operators.OpExecConfig
-import akka.actor.{Actor, ActorLogging, ActorRef, ActorSelection, Address, Cancellable, Deploy, PoisonPill, Props, Stash}
+import akka.actor.{
+  Actor,
+  ActorLogging,
+  ActorRef,
+  ActorSelection,
+  Address,
+  Cancellable,
+  Deploy,
+  PoisonPill,
+  Props,
+  Stash
+}
 import akka.dispatch.Futures
 import akka.event.LoggingAdapter
 import akka.pattern.ask
@@ -70,7 +125,10 @@ object Controller {
     val links: Map[OperatorIdentifier, Set[OperatorIdentifier]] =
       linkArray.value
         .map(x =>
-          (OperatorIdentifier(tag, x("origin").as[String]), OperatorIdentifier(tag, x("destination").as[String]))
+          (
+            OperatorIdentifier(tag, x("origin").as[String]),
+            OperatorIdentifier(tag, x("destination").as[String])
+          )
         )
         .groupBy(_._1)
         .map { case (k, v) => (k, v.map(_._2).toSet) }
@@ -178,7 +236,8 @@ class Controller(
   implicit val timeout: Timeout = 5.seconds
   implicit val logAdapter: LoggingAdapter = log
 
-  val principalBiMap: BiMap[OperatorIdentifier, ActorRef] = HashBiMap.create[OperatorIdentifier, ActorRef]()
+  val principalBiMap: BiMap[OperatorIdentifier, ActorRef] =
+    HashBiMap.create[OperatorIdentifier, ActorRef]()
   val principalInCurrentStage = new mutable.HashSet[ActorRef]()
   val principalStates = new mutable.AnyRefMap[ActorRef, PrincipalState.Value]
   val principalStatisticsMap = new mutable.AnyRefMap[ActorRef, PrincipalStatistics]
@@ -233,7 +292,8 @@ class Controller(
     topology.links :+= new LocalPartialToOne(
       lastLayer,
       materializerLayer,
-      Constants.defaultBatchSize,0
+      Constants.defaultBatchSize,
+      0
     )
     val scanLayer = new GeneratorWorkerLayer(
       LayerTag(to.tag, "from_checkpoint"),
@@ -248,7 +308,8 @@ class Controller(
       scanLayer,
       firstLayer,
       Constants.defaultBatchSize,
-      hashFunc,0
+      hashFunc,
+      0
     )
 
   }

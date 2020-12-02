@@ -15,7 +15,7 @@ object WorkerMessage {
 
   final case class AckedWorkerInitialization(recoveryInformation: Seq[(Long, Long)] = Nil)
 
-  final case class UpdateInputLinking(inputActor: ActorRef, fromLayer: LayerTag, inputNum:Int)
+  final case class UpdateInputLinking(inputActor: ActorRef, fromLayer: LayerTag, inputNum: Int)
 
   final case class UpdateOutputLinking(
       policy: DataTransferPolicy,

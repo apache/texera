@@ -24,7 +24,10 @@ class RandomKSamplingOpDesc extends FilterOpDesc {
   def getSeed(index: Int): Int = seeds(index)
 
   override def operatorExecutor: OneToOneOpExecConfig = {
-    new OneToOneOpExecConfig(this.operatorIdentifier, (actor: Int) => new RandomKSamplingOpExec(actor, this))
+    new OneToOneOpExecConfig(
+      this.operatorIdentifier,
+      (actor: Int) => new RandomKSamplingOpExec(actor, this)
+    )
   }
 
   override def operatorInfo: OperatorInfo =

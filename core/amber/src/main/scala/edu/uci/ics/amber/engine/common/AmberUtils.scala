@@ -15,7 +15,6 @@ object AmberUtils {
       .groupBy(_._1)
       .mapValues(_.map(_._2).toSet)
 
-
   def startActorMaster(localhost: Boolean): ActorSystem = {
     var localIpAddress = "localhost"
     if (!localhost) {

@@ -3,7 +3,10 @@ package edu.uci.ics.amber.engine.architecture.worker
 import java.util.concurrent.Executors
 
 import edu.uci.ics.amber.engine.architecture.breakpoint.FaultedTuple
-import edu.uci.ics.amber.engine.architecture.breakpoint.localbreakpoint.{ExceptionBreakpoint, LocalBreakpoint}
+import edu.uci.ics.amber.engine.architecture.breakpoint.localbreakpoint.{
+  ExceptionBreakpoint,
+  LocalBreakpoint
+}
 import edu.uci.ics.amber.engine.architecture.receivesemantics.FIFOAccessPort
 import edu.uci.ics.amber.engine.common.amberexception.{AmberException, BreakpointException}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage._
@@ -11,7 +14,16 @@ import edu.uci.ics.amber.engine.common.ambermessage.StateMessage._
 import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage.{QueryState, _}
 import edu.uci.ics.amber.engine.common.ambertag.{LayerTag, WorkerTag}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.amber.engine.common.{AdvancedMessageSending, Constants, ElidableStatement, InputExhausted, IOperatorExecutor, TableMetadata, ThreadState, ITupleSinkOperatorExecutor}
+import edu.uci.ics.amber.engine.common.{
+  AdvancedMessageSending,
+  Constants,
+  ElidableStatement,
+  InputExhausted,
+  IOperatorExecutor,
+  TableMetadata,
+  ThreadState,
+  ITupleSinkOperatorExecutor
+}
 import edu.uci.ics.amber.engine.faulttolerance.recovery.RecoveryPacket
 import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpExec
 import edu.uci.ics.amber.engine.operators.OpExecConfig
@@ -30,7 +42,8 @@ import scala.annotation.elidable._
 import scala.concurrent.duration._
 
 object Processor {
-  def props(processor: IOperatorExecutor, tag: WorkerTag): Props = Props(new Processor(processor, tag))
+  def props(processor: IOperatorExecutor, tag: WorkerTag): Props =
+    Props(new Processor(processor, tag))
 }
 
 class Processor(var dataProcessor: IOperatorExecutor, val tag: WorkerTag) extends WorkerBase {
@@ -40,7 +53,7 @@ class Processor(var dataProcessor: IOperatorExecutor, val tag: WorkerTag) extend
   val processingQueue = new mutable.Queue[(LayerTag, Array[ITuple])]
   val input = new FIFOAccessPort()
   val aliveUpstreams = new mutable.HashSet[LayerTag]
-  val inputNumMapping = new mutable.HashMap[LayerTag,Int]
+  val inputNumMapping = new mutable.HashMap[LayerTag, Int]
   @volatile var dPThreadState: ThreadState.Value = ThreadState.Idle
   var processingIndex = 0
   var processedCount: Long = 0L
@@ -142,7 +155,7 @@ class Processor(var dataProcessor: IOperatorExecutor, val tag: WorkerTag) extend
   override def getResultTuples(): mutable.MutableList[ITuple] = {
     this.dataProcessor match {
       case processor: ITupleSinkOperatorExecutor =>
-        mutable.MutableList(processor.getResultTuples():_*)
+        mutable.MutableList(processor.getResultTuples(): _*)
       case _ =>
         mutable.MutableList()
     }
@@ -553,7 +566,8 @@ class Processor(var dataProcessor: IOperatorExecutor, val tag: WorkerTag) extend
       }
       if (batch == null) {
 //        dataProcessor.onUpstreamExhausted(from)
-        this.outputIterator = dataProcessor.processTuple(Right(InputExhausted()), inputNumMapping(from))
+        this.outputIterator =
+          dataProcessor.processTuple(Right(InputExhausted()), inputNumMapping(from))
         self ! ReportUpstreamExhausted(from)
         aliveUpstreams.remove(from)
       } else {
@@ -564,7 +578,8 @@ class Processor(var dataProcessor: IOperatorExecutor, val tag: WorkerTag) extend
           try {
             currentInputTuple = batch(processingIndex)
             if (!skippedInputTuples.contains(currentInputTuple)) {
-              outputIterator = dataProcessor.processTuple(Left(currentInputTuple), inputNumMapping(from))
+              outputIterator =
+                dataProcessor.processTuple(Left(currentInputTuple), inputNumMapping(from))
             }
             processedCount += 1
           } catch {

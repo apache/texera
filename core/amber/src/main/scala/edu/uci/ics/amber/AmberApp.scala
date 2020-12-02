@@ -10,7 +10,10 @@ import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.Conditi
 import edu.uci.ics.amber.engine.architecture.controller.Controller
 import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage.{Pause, Resume, Start}
-import edu.uci.ics.amber.engine.common.ambermessage.ControllerMessage.{AckedControllerInitialization, PassBreakpointTo}
+import edu.uci.ics.amber.engine.common.ambermessage.ControllerMessage.{
+  AckedControllerInitialization,
+  PassBreakpointTo
+}
 import play.api.libs.json.Json
 
 import scala.annotation.tailrec

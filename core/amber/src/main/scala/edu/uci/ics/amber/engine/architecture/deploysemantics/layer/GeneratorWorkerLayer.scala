@@ -10,11 +10,11 @@ import akka.actor.{ActorContext, ActorRef, Address, Deploy}
 import akka.remote.RemoteScope
 
 class GeneratorWorkerLayer(
-                            tag: LayerTag,
-                            val metadata: Int => ISourceOperatorExecutor,
-                            _numWorkers: Int,
-                            df: DeploymentFilter,
-                            ds: DeployStrategy
+    tag: LayerTag,
+    val metadata: Int => ISourceOperatorExecutor,
+    _numWorkers: Int,
+    df: DeploymentFilter,
+    ds: DeployStrategy
 ) extends ActorLayer(tag, _numWorkers, df, ds) {
 
   var metadataForFirst: ISourceOperatorExecutor = _

@@ -21,9 +21,14 @@ class LimitOpDesc extends OperatorDescriptor {
     new OneToOneOpExecConfig(this.operatorIdentifier, i => new LimitOpExec(limitPerWorker(i)))
   }
 
-  override def operatorInfo: OperatorInfo = OperatorInfo(
-    "Limit", "Limit the number of output rows", OperatorGroupConstants.UTILITY_GROUP, 1, 1
-  )
+  override def operatorInfo: OperatorInfo =
+    OperatorInfo(
+      "Limit",
+      "Limit the number of output rows",
+      OperatorGroupConstants.UTILITY_GROUP,
+      1,
+      1
+    )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = schemas(0)
 }

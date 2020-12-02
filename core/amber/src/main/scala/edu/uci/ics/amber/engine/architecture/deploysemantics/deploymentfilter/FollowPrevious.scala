@@ -9,9 +9,9 @@ object FollowPrevious {
 
 class FollowPrevious extends DeploymentFilter {
   override def filter(
-                       prev: Array[(OpExecConfig, ActorLayer)],
-                       all: Array[Address],
-                       local: Address
+      prev: Array[(OpExecConfig, ActorLayer)],
+      all: Array[Address],
+      local: Address
   ): Array[Address] = {
     val tmp: Array[Address] = prev.flatMap(x => x._2.layer.map(y => y.path.address))
     val result = tmp.distinct.intersect(all)
