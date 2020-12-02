@@ -1,7 +1,7 @@
 # Synopsis
 Collaborative big data analytics as cloud services using GUI-based workflows.
 
-[![Actions Status](https://github.com/{owner}/{repo}/workflows/{workflow_name}/badge.svg)](https://github.com/{owner}/{repo}/actions)
+[![Actions Status](https://github.com/Texera/texera/workflows/build/badge.svg)](https://github.com/Texera/texera/actions)
 
 ## Publications:
 
