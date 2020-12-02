@@ -30,5 +30,4 @@ jobs:
 
       - uses: Borales/actions-yarn@v2.3.0
         with:
-          cmd: install --modules-folder core/new-gui # will run `yarn install` command
-
+          cmd: --cwd core/new-gui/ --non-interactive --frozen-lockfile install
