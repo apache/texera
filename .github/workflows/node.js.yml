@@ -12,25 +12,24 @@ jobs:
     strategy:
       matrix:
         node-version: [ 14.x ]
-
-      steps:
-        - uses: actions/checkout@v2
-          name: Checkout Texera
-        - name: Setup Node.js ${{ matrix.node-version }}
-          uses: actions/setup-node@v1
-          with:
-            node-version: ${{ matrix.node-version }}
-        - uses: actions/cache@v2
-          name: Cache npm
-          with:
-            path: ~/.npm
-            key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-            restore-keys: |
-              ${{ runner.os }}-node-
-        - name: Install dependency with npm
-          run: npm --prefix core/new-gui ci --progress=false
-        - name: Build with npm
-          run: npm run --prefix core/new-gui build --prod --progress=false
+    steps:
+      - uses: actions/checkout@v2
+        name: Checkout Texera
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node-version }}
+      - uses: actions/cache@v2
+        name: Cache npm
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+      - name: Install dependency with npm
+        run: npm --prefix core/new-gui ci --progress=false
+      - name: Build with npm
+        run: npm run --prefix core/new-gui build --prod --progress=false
 
   amber:
     runs-on: ubuntu-latest
