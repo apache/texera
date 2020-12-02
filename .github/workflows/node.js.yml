@@ -49,4 +49,4 @@ jobs:
       - name: lint
         run: cd core/amber && sbt scalafmtSbtCheck scalafmtCheck test:scalafmtCheck
       - name: compile
-          run: cd core/amber && sbt clean compile
+        run: cd core/amber && sbt clean compile
