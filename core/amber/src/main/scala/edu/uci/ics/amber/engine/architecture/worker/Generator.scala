@@ -3,7 +3,10 @@ package edu.uci.ics.amber.engine.architecture.worker
 import java.util.concurrent.Executors
 
 import edu.uci.ics.amber.engine.architecture.breakpoint.FaultedTuple
-import edu.uci.ics.amber.engine.architecture.breakpoint.localbreakpoint.{ExceptionBreakpoint, LocalBreakpoint}
+import edu.uci.ics.amber.engine.architecture.breakpoint.localbreakpoint.{
+  ExceptionBreakpoint,
+  LocalBreakpoint
+}
 import edu.uci.ics.amber.engine.common.amberexception.BreakpointException
 import edu.uci.ics.amber.engine.common.{
   AdvancedMessageSending,
@@ -29,7 +32,8 @@ import scala.util.control.Breaks
 import scala.concurrent.duration._
 
 object Generator {
-  def props(producer: ISourceOperatorExecutor, tag: WorkerTag): Props = Props(new Generator(producer, tag))
+  def props(producer: ISourceOperatorExecutor, tag: WorkerTag): Props =
+    Props(new Generator(producer, tag))
 }
 
 class Generator(var dataProducer: ISourceOperatorExecutor, val tag: WorkerTag)
@@ -208,7 +212,7 @@ class Generator(var dataProducer: ISourceOperatorExecutor, val tag: WorkerTag)
             Breaks.break()
         }
         try {
-          if(nextTuple != null) generatedCount += 1
+          if (nextTuple != null) generatedCount += 1
           transferTuple(nextTuple, generatedCount)
         } catch {
           case e: BreakpointException =>

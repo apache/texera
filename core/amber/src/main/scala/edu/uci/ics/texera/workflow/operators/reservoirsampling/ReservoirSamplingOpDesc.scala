@@ -38,14 +38,17 @@ class ReservoirSamplingOpDesc extends OperatorDescriptor {
   }
 
   override def operatorExecutor: OneToOneOpExecConfig = {
-    new OneToOneOpExecConfig(this.operatorIdentifier, (actor: Int) => new ReservoirSamplingOpExec(actor, this))
+    new OneToOneOpExecConfig(
+      this.operatorIdentifier,
+      (actor: Int) => new ReservoirSamplingOpExec(actor, this)
+    )
   }
 
   override def operatorInfo: OperatorInfo = {
     OperatorInfo(
       userFriendlyName = "Reservoir Sampling",
       operatorDescription = "Reservoir Sampling with k items being kept randomly",
-      operatorGroupName =  OperatorGroupConstants.UTILITY_GROUP,
+      operatorGroupName = OperatorGroupConstants.UTILITY_GROUP,
       numInputPorts = 1,
       numOutputPorts = 1
     )
