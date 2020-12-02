@@ -27,4 +27,4 @@ jobs:
 
       - uses: Borales/actions-yarn@v2.3.0
         with:
-          cmd: --cwd core/new-gui/ --non-interactive --frozen-lockfile install
+          cmd: --cwd core/new-gui/ --non-interactive install
