@@ -26,17 +26,24 @@ before_install:
   - sudo pip3 install setuptools -U
   - sudo pip3 install nltk -U
    
-# run steps
-install:
-  - cd core 
-  - cd new-gui
-  - npm ci --cache .npm --progress=false --prefer-offline
-  - cd ..
+## run steps
+#install:
+#  - cd core
+#  - cd new-gui
+#  - npm ci --cache .npm --progress=false --prefer-offline
+#  - cd ..
+#
+#script:
+#  - rm -rf target && mvn install -nsu -amd --batch-mode -Dmaven.javadoc.skip=true
+#  - cd new-gui
+#  - npm run build-save-time --progress=false --prefer-offline --source-map=false
+#  # - ng test --browsers ChromeHeadless --watch=false
+#  # - ng e2e
 
-script:
-  - rm -rf target && mvn install -nsu -amd --batch-mode -Dmaven.javadoc.skip=true
-  - cd new-gui
-  - npm run build-save-time --progress=false --prefer-offline --source-map=false
-  # - ng test --browsers ChromeHeadless --watch=false
-  # - ng e2e
-  
+jobs:
+  include:
+    - stage: 1                # naming the Tests stage
+      name: "node"            # names the first Tests stage job
+      script: npm --prefix core/new-gui ci && npm run --prefix core/new-gui build
+    - script: mvn clean install --batch-mode --file core/pom.xml
+      name: "maven"     # names the second Tests stage job
