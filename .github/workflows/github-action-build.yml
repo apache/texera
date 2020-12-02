@@ -2,14 +2,8 @@ name: build
 
 on:
   push:
-    branches-ignore: 
-      - '**-ci-ignore'
-    paths-ignore:
-      - 'core/scripts/**'
-      - '**/.gitignore'
-      - '**.md'
-      - '**.csv'
-      - '**.txt'
+    branches: 
+      - 'ci-enable/**'
   pull_request:
     paths-ignore:
       - 'core/scripts/**'
