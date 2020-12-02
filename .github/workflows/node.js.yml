@@ -1,4 +1,4 @@
-\name: gui
+name: build
 
 on:
   push:
