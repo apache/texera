@@ -2,18 +2,21 @@ name: build
 
 on:
   push:
-    branches: [ master ]
+    branches-ignore: 
+      - '**-ci-ignore'
     paths-ignore:
       - 'core/scripts/**'
       - '**/.gitignore'
       - '**.md'
+      - '**.csv'
+      - '**.txt'
   pull_request:
-    branches: [ master ]
     paths-ignore:
       - 'core/scripts/**'
       - '**/.gitignore'
       - '**.md'
-
+      - '**.csv'
+      - '**.txt'
 jobs:
   new-gui:
     runs-on: ubuntu-latest
