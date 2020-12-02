@@ -4,7 +4,7 @@ import java.util.concurrent.Executors
 
 import edu.uci.ics.amber.engine.architecture.breakpoint.FaultedTuple
 import edu.uci.ics.amber.engine.architecture.breakpoint.localbreakpoint.{ExceptionBreakpoint, LocalBreakpoint}
-import edu.uci.ics.amber.engine.common.error.BreakpointException
+import edu.uci.ics.amber.engine.common.amberexception.BreakpointException
 import edu.uci.ics.amber.engine.common.{
   AdvancedMessageSending,
   ElidableStatement,

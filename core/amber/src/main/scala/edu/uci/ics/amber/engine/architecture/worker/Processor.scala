@@ -5,7 +5,7 @@ import java.util.concurrent.Executors
 import edu.uci.ics.amber.engine.architecture.breakpoint.FaultedTuple
 import edu.uci.ics.amber.engine.architecture.breakpoint.localbreakpoint.{ExceptionBreakpoint, LocalBreakpoint}
 import edu.uci.ics.amber.engine.architecture.receivesemantics.FIFOAccessPort
-import edu.uci.ics.amber.engine.common.error.{AmberException, BreakpointException}
+import edu.uci.ics.amber.engine.common.amberexception.{AmberException, BreakpointException}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage._
 import edu.uci.ics.amber.engine.common.ambermessage.StateMessage._
 import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage.{QueryState, _}
