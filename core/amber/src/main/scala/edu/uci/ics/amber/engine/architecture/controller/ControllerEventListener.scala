@@ -1,6 +1,14 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{BreakpointTriggered, ErrorOccurred, ModifyLogicCompleted, SkipTupleResponse, WorkflowCompleted, WorkflowPaused, WorkflowStatusUpdate}
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
+  BreakpointTriggered,
+  ErrorOccurred,
+  ModifyLogicCompleted,
+  SkipTupleResponse,
+  WorkflowCompleted,
+  WorkflowPaused,
+  WorkflowStatusUpdate
+}
 import edu.uci.ics.amber.engine.common.ambermessage.PrincipalMessage.ReportCurrentProcessingTuple
 
 case class ControllerEventListener(
