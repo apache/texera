@@ -42,7 +42,9 @@ export class UserFileService {
    * these file can be accessed by function {@link getFileArray}
    */
   public refreshFiles(): void {
-    if (!this.userService.isLogin()) { return; }
+    if (!this.userService.isLogin()) {
+      return;
+    }
 
     this.getFilesHttpRequest().subscribe(
       files => {
@@ -69,7 +71,9 @@ export class UserFileService {
    * @param fileSize
    */
   public addFileSizeUnit(fileSize: number): string {
-    if (fileSize <= 1024) { return fileSize + ' Byte'; }
+    if (fileSize <= 1024) {
+      return fileSize + ' Byte';
+    }
 
     let i = 0;
     const byteUnits = [' Byte', ' KB', ' MB', ' GB', ' TB', ' PB', ' EB', ' ZB', ' YB'];
@@ -92,7 +96,7 @@ export class UserFileService {
    * refresh the files in the service whenever the user changes.
    */
   private detectUserChanges(): void {
-    this.userService.getUserChangedEvent().subscribe(
+    this.userService.userChange.subscribe(
       () => {
         if (this.userService.isLogin()) {
           this.refreshFiles();

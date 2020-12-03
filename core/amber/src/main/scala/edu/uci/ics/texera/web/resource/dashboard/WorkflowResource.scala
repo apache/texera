@@ -35,9 +35,7 @@ class WorkflowResource {
   @GET
   @Path("/get")
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def retrieveWorkflowsBySessionUser(
-      @Session session: HttpSession
-  ): util.List[Workflow] = {
+  def retrieveWorkflowsBySessionUser(@Session session: HttpSession): util.List[Workflow] = {
     val user = UserResource.getUser(session)
     if (user == null) return new util.ArrayList[Workflow]() {}
     SqlServer.createDSLContext
@@ -45,7 +43,7 @@ class WorkflowResource {
       .from(WORKFLOW)
       .join(WORKFLOW_OF_USER)
       .on(WORKFLOW_OF_USER.WID.eq(WORKFLOW.WID))
-      .where(WORKFLOW_OF_USER.UID.eq(user.getUserID))
+      .where(WORKFLOW_OF_USER.UID.eq(user.getUid))
       .fetchInto(classOf[Workflow])
   }
 
@@ -54,24 +52,21 @@ class WorkflowResource {
     * at current design, it only takes the workflowID and searches within the database for the matching workflow
     * for future design, it should also take userID as an parameter.
     *
-    * @param wid workflow id, which serves as the primary key in the UserWorkflow database
-    * @param session    HttpSession
+    * @param wid     workflow id, which serves as the primary key in the UserWorkflow database
+    * @param session HttpSession
     * @return a json string representing an savedWorkflow
     */
   @GET
   @Path("/get/{wid}")
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def retrieveWorkflow(
-      @PathParam("wid") wid: UInteger,
-      @Session session: HttpSession
-  ): Workflow = {
+  def retrieveWorkflow(@PathParam("wid") wid: UInteger, @Session session: HttpSession): Workflow = {
     val user = UserResource.getUser(session)
     if (user == null) return null
     if (
       workflowOfUserDao.existsById(
         SqlServer.createDSLContext
           .newRecord(WORKFLOW_OF_USER.UID, WORKFLOW_OF_USER.WID)
-          .values(user.getUserID, wid)
+          .values(user.getUid, wid)
       )
     ) {
       workflowDao.fetchOneByWid(wid)
@@ -83,18 +78,15 @@ class WorkflowResource {
   /**
     * This method persists the workflow into database
     *
-    * @param session HttpSession
-    * @param workflow, a workflow
+    * @param session  HttpSession
+    * @param workflow , a workflow
     * @return Workflow, which contains the generated wid if not provided
     */
   @POST
   @Path("/persist")
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def persistWorkflow(
-      @Session session: HttpSession,
-      workflow: Workflow
-  ): Workflow = {
+  def persistWorkflow(@Session session: HttpSession, workflow: Workflow): Workflow = {
     val user = UserResource.getUser(session)
     if (user == null) return null
     if (workflow.getWid != null) {
@@ -104,7 +96,7 @@ class WorkflowResource {
     } else {
       // when the wid is not provided, treat it as a new workflow
       workflowDao.insert(workflow)
-      workflowOfUserDao.insert(new WorkflowOfUser(user.getUserID, workflow.getWid))
+      workflowOfUserDao.insert(new WorkflowOfUser(user.getUid, workflow.getWid))
       workflow
     }
 

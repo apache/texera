@@ -43,7 +43,9 @@ export class UserDictionaryService {
    * these file can be accessed by function {@link getDictionaryArray}.
    */
   public refreshDictionaries(): void {
-    if (!this.userService.isLogin()) { return; }
+    if (!this.userService.isLogin()) {
+      return;
+    }
 
     this.http.get<UserDictionary[]>(`${AppSettings.getApiEndpoint()}/${USER_DICTIONARY_LIST_URL}`).subscribe(
       dictionaries => {
@@ -66,10 +68,10 @@ export class UserDictionaryService {
   public updateDictionary(userDictionary: UserDictionary): void {
     this.http.put<GenericWebResponse>(`${AppSettings.getApiEndpoint()}/${USER_DICTIONARY_UPDATE_URL}`,
       JSON.stringify(userDictionary), {
-      headers: new HttpHeaders({
-        'Content-Type': 'application/json',
-      })
-    }).subscribe(
+        headers: new HttpHeaders({
+          'Content-Type': 'application/json',
+        })
+      }).subscribe(
       () => this.refreshDictionaries()
     );
   }
@@ -78,7 +80,7 @@ export class UserDictionaryService {
    * refresh the dictionaries in the service whenever the user changes.
    */
   private detectUserChanges(): void {
-    this.userService.getUserChangedEvent().subscribe(
+    this.userService.userChange.subscribe(
       () => {
         if (this.userService.isLogin()) {
           this.refreshDictionaries();

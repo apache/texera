@@ -52,10 +52,10 @@ export class UserDictionaryUploadService {
   }
 
   /**
- * check if this item is valid for uploading.
- * eg. the type is text and the name is unique
- * @param dictionaryUploadItem
- */
+   * check if this item is valid for uploading.
+   * eg. the type is text and the name is unique
+   * @param dictionaryUploadItem
+   */
   public validateDictionaryUploadItem(dictionaryUploadItem: DictionaryUploadItem): boolean {
     return dictionaryUploadItem.file.type.includes('text/plain') && this.isItemNameUnique(dictionaryUploadItem);
   }
@@ -103,14 +103,20 @@ export class UserDictionaryUploadService {
   }
 
   /**
- * upload the manual dictionary to the backend.
- * This method will automatically refresh the user-dictionary service when succeed.
- */
+   * upload the manual dictionary to the backend.
+   * This method will automatically refresh the user-dictionary service when succeed.
+   */
   public uploadManualDictionary(): void {
-    if (!this.userService.isLogin()) { throw new Error(`Can not upload manual dictionary when not login`); }
-    if (!this.validateManualDictionary()) { throw new Error(`Can not upload invalid manual dictionary`); }
+    if (!this.userService.isLogin()) {
+      throw new Error(`Can not upload manual dictionary when not login`);
+    }
+    if (!this.validateManualDictionary()) {
+      throw new Error(`Can not upload invalid manual dictionary`);
+    }
 
-    if (this.manualDictionary.separator === '') { this.manualDictionary.separator = ','; }
+    if (this.manualDictionary.separator === '') {
+      this.manualDictionary.separator = ',';
+    }
     this.manualDictionary.isUploadingFlag = true;
 
     this.manualDictionaryUploadHttpRequest(this.manualDictionary)
@@ -147,14 +153,14 @@ export class UserDictionaryUploadService {
 
     return this.http.post<GenericWebResponse>(
       `${AppSettings.getApiEndpoint()}/${USER_DICTIONARY_VALIDATE_URL}`, formData).flatMap(
-        res => {
-          if (res.code === GenericWebResponseCode.SUCCESS) {
-            return this.uploadDictionary(dictionaryUploadItem);
-          } else {
-            return Observable.of(res);
-          }
+      res => {
+        if (res.code === GenericWebResponseCode.SUCCESS) {
+          return this.uploadDictionary(dictionaryUploadItem);
+        } else {
+          return Observable.of(res);
         }
-      );
+      }
+    );
   }
 
   /**
@@ -163,8 +169,12 @@ export class UserDictionaryUploadService {
    * @param dictionaryUploadItem
    */
   private uploadDictionary(dictionaryUploadItem: DictionaryUploadItem): Observable<GenericWebResponse> {
-    if (!this.userService.isLogin()) { throw new Error(`Can not upload dictionary when not login`); }
-    if (dictionaryUploadItem.isUploadingFlag) { throw new Error(`Dictionary ${dictionaryUploadItem.file.name} is already uploading`); }
+    if (!this.userService.isLogin()) {
+      throw new Error(`Can not upload dictionary when not login`);
+    }
+    if (dictionaryUploadItem.isUploadingFlag) {
+      throw new Error(`Dictionary ${dictionaryUploadItem.file.name} is already uploading`);
+    }
 
     dictionaryUploadItem.isUploadingFlag = true;
     const formData: FormData = new FormData();
@@ -183,7 +193,7 @@ export class UserDictionaryUploadService {
    * clear the dictionaries in the service when user log out.
    */
   private detectUserChanges(): void {
-    this.userService.getUserChangedEvent().subscribe(() => {
+    this.userService.userChange.subscribe(() => {
       if (!this.userService.isLogin()) {
         this.clearUserDictionary();
       }
