@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, Input, OnInit } from '@angular/core';
 import { ExecuteWorkflowService } from '../../service/execute-workflow/execute-workflow.service';
 import { UndoRedoService } from '../../service/undo-redo/undo-redo.service';
 import { TourService } from 'ngx-tour-ng-bootstrap';
@@ -42,7 +42,7 @@ export class NavigationComponent implements OnInit {
   public ExecutionState = ExecutionState; // make Angular HTML access enum definition
   public isWorkflowValid: boolean = true; // this will check whether the workflow error or not
   public isSaving: boolean = false;
-  public currentWorkflowName: string;  // reset workflowName
+  @Input() public currentWorkflowName: string;  // reset workflowName
 
   // variable bound with HTML to decide if the running spinner should show
   public runButtonText = 'Run';
@@ -52,6 +52,7 @@ export class NavigationComponent implements OnInit {
 
   // whether user dashboard is enabled and accessible from the workspace
   public userSystemEnabled: boolean = environment.userSystemEnabled;
+
   constructor(
     public executeWorkflowService: ExecuteWorkflowService,
     public tourService: TourService,
@@ -94,7 +95,7 @@ export class NavigationComponent implements OnInit {
   }
 
   public onClickRunHandler = () => {
-  }
+  };
 
   ngOnInit() {
   }
@@ -270,16 +271,12 @@ export class NavigationComponent implements OnInit {
     if (!this.userService.isLogin()) {
       alert('please login');
     } else {
-      const cachedWorkflow: string | null = this.cachedWorkflowService.getCachedWorkflow();
+      const cachedWorkflow: Workflow | null = this.cachedWorkflowService.getCachedWorkflow();
       if (cachedWorkflow != null) {
         this.isSaving = true;
-        const id = this.cachedWorkflowService.getCachedWorkflowID();
-        this.workflowPersistService.saveWorkflow(cachedWorkflow, this.currentWorkflowName, id).subscribe(
-          (workflow: Workflow) => {
-            this.cachedWorkflowService.setCachedWorkflowId(JSON.stringify(workflow?.wid));
-          }).add(() => {
-            this.isSaving = false;
-          });
+        this.workflowPersistService.persistWorkflow(cachedWorkflow).subscribe(this.cachedWorkflowService.cacheWorkflow).add(() => {
+          this.isSaving = false;
+        });
       } else {
         alert('No workflow found in cache.');
       }

@@ -3,24 +3,8 @@ import { Observable } from 'rxjs';
 import { Breakpoint, OperatorLink, OperatorPredicate, Point } from '../../types/workflow-common.interface';
 import { OperatorMetadataService } from '../operator-metadata/operator-metadata.service';
 import { WorkflowActionService } from '../workflow-graph/model/workflow-action.service';
-
-/**
- * CachedWorkflow is used to store the information of the workflow
- *  1. all existing operators and their properties
- *  2. operator's position on the JointJS paper
- *  3. operator link predicates
- *
- * When the user refreshes the browser, the CachedWorkflow interface will be
- *  automatically cached and loaded once the refresh completes. This information
- *  will then be used to reload the entire workflow.
- *
- */
-export interface CachedWorkflow {
-  operators: OperatorPredicate[];
-  operatorPositions: { [key: string]: Point | undefined };
-  links: OperatorLink[];
-  breakpoints: Record<string, Breakpoint>;
-}
+import { WorkflowInfo, Workflow } from '../../../common/type/workflow';
+import { localGetObject, localSetObject } from '../../../common/util/storage';
 
 
 /**
@@ -44,9 +28,20 @@ export interface CachedWorkflow {
 export class CacheWorkflowService {
 
   private static readonly LOCAL_STORAGE_KEY: string = 'workflow';
-  private static readonly CURRENT_WORKFLOW_ID: string = 'workflowID';
-  private static readonly CURRENT_WORKFLOW_NAME: string = 'workflowName';
+  private static readonly DEFAULT_WORKFLOW_NAME: string = 'Untitled Workflow';
 
+  private static readonly DEFAULT_WORKFLOW: Workflow = {
+    wid: undefined,
+    name: CacheWorkflowService.DEFAULT_WORKFLOW_NAME,
+    content: {
+      operators: [],
+      operatorPositions: {},
+      links: [],
+      breakpoints: {},
+    },
+    creationTime: 0,
+    lastModifiedTime: 0
+  };
 
   constructor(
     private workflowActionService: WorkflowActionService,
@@ -70,26 +65,26 @@ export class CacheWorkflowService {
       this.workflowActionService.getTexeraGraph().getAllOperators().map(op => op.operatorID), []);
 
     // get items in the storage
-    const cachedWorkflowStr = localStorage.getItem(CacheWorkflowService.LOCAL_STORAGE_KEY);
-    if (!cachedWorkflowStr) {
+    const workflow = localGetObject<Workflow>(CacheWorkflowService.LOCAL_STORAGE_KEY);
+    if (workflow == null) {
       return;
     }
 
-    const cachedWorkflow: CachedWorkflow = JSON.parse(cachedWorkflowStr);
+    const workflowInfo: WorkflowInfo = workflow.content;
 
     const operatorsAndPositions: { op: OperatorPredicate, pos: Point }[] = [];
-    cachedWorkflow.operators.forEach(op => {
-      const opPosition = cachedWorkflow.operatorPositions[op.operatorID];
+    workflowInfo.operators.forEach(op => {
+      const opPosition = workflowInfo.operatorPositions[op.operatorID];
       if (!opPosition) {
         throw new Error('position error');
       }
-      operatorsAndPositions.push({ op: op, pos: opPosition });
+      operatorsAndPositions.push({op: op, pos: opPosition});
     });
 
     const links: OperatorLink[] = [];
-    links.push(...cachedWorkflow.links);
+    links.push(...workflowInfo.links);
 
-    const breakpoints = new Map(Object.entries(cachedWorkflow.breakpoints));
+    const breakpoints = new Map(Object.entries(workflowInfo.breakpoints));
 
     this.workflowActionService.addOperatorsAndLinks(operatorsAndPositions, links, breakpoints);
 
@@ -115,55 +110,72 @@ export class CacheWorkflowService {
       this.workflowActionService.getTexeraGraph().getBreakpointChangeStream(),
       this.workflowActionService.getJointGraphWrapper().getOperatorPositionChangeEvent()
     ).debounceTime(100).subscribe(() => {
-      const workflow = this.workflowActionService.getTexeraGraph();
+      const workflow1 = this.workflowActionService.getTexeraGraph();
 
-      const operators = workflow.getAllOperators();
-      const links = workflow.getAllLinks();
+      const operators = workflow1.getAllOperators();
+      const links = workflow1.getAllLinks();
       const operatorPositions: { [key: string]: Point } = {};
-      const breakpointsMap = workflow.getAllLinkBreakpoints();
+      const breakpointsMap = workflow1.getAllLinkBreakpoints();
       const breakpoints: Record<string, Breakpoint> = {};
       breakpointsMap.forEach((value, key) => (breakpoints[key] = value));
-      workflow.getAllOperators().forEach(op => operatorPositions[op.operatorID] =
+      workflow1.getAllOperators().forEach(op => operatorPositions[op.operatorID] =
         this.workflowActionService.getJointGraphWrapper().getOperatorPosition(op.operatorID));
 
-      const cachedWorkflow: CachedWorkflow = {
+      const cachedWorkflow: WorkflowInfo = {
         operators, operatorPositions, links, breakpoints
       };
-
-      this.setCachedWorkflow(JSON.stringify(cachedWorkflow));
+      let workflow: Workflow | null = this.getCachedWorkflow();
+      if (workflow == null) {
+        workflow = CacheWorkflowService.DEFAULT_WORKFLOW;
+      }
+      workflow.content = cachedWorkflow;
+      this.cacheWorkflow(workflow);
     });
   }
 
-  public getCachedWorkflow(): string | null {
-    return localStorage.getItem(CacheWorkflowService.LOCAL_STORAGE_KEY);
+  public getCachedWorkflow(): Workflow | null {
+    return localGetObject<Workflow>(CacheWorkflowService.LOCAL_STORAGE_KEY);
   }
 
   public getCachedWorkflowName(): string {
-    return localStorage.getItem(CacheWorkflowService.CURRENT_WORKFLOW_ID) ? localStorage.getItem(CacheWorkflowService.CURRENT_WORKFLOW_NAME)
-      ?? 'Untitled Workflow' : 'Untitled Workflow';
+    const workflow = localGetObject<Workflow>(CacheWorkflowService.LOCAL_STORAGE_KEY);
+    if (workflow != null) {
+      return workflow.name;
+    }
+    return CacheWorkflowService.DEFAULT_WORKFLOW_NAME;
   }
 
-  getCachedWorkflowID() {
-    return localStorage.getItem(CacheWorkflowService.CURRENT_WORKFLOW_ID);
+  getCachedWorkflowID(): number | undefined {
+    const workflow = localGetObject<Workflow>(CacheWorkflowService.LOCAL_STORAGE_KEY);
+    if (workflow != null) {
+      return workflow.wid;
+    }
+    return undefined;
   }
 
   public clearCachedWorkflow() {
-    localStorage.removeItem(CacheWorkflowService.LOCAL_STORAGE_KEY);
-    localStorage.removeItem(CacheWorkflowService.CURRENT_WORKFLOW_ID);
-    localStorage.setItem(CacheWorkflowService.CURRENT_WORKFLOW_NAME, 'Untitled Workflow');
-
+    localSetObject(CacheWorkflowService.LOCAL_STORAGE_KEY, CacheWorkflowService.DEFAULT_WORKFLOW);
   }
 
-  public setCachedWorkflow(workflow: string) {
-    localStorage.setItem(CacheWorkflowService.LOCAL_STORAGE_KEY, workflow);
+  public cacheWorkflow(workflow: Workflow) {
+    localSetObject(CacheWorkflowService.LOCAL_STORAGE_KEY, workflow);
   }
 
-  public setCachedWorkflowId(id: string) {
-    localStorage.setItem(CacheWorkflowService.CURRENT_WORKFLOW_ID, id);
+  public setCachedWorkflowId(wid: number | undefined) {
+    const workflow = localGetObject<Workflow>(CacheWorkflowService.LOCAL_STORAGE_KEY);
+    if (workflow != null) {
+      workflow.wid = wid;
+      this.cacheWorkflow(workflow);
+    }
   }
 
   public setCachedWorkflowName(name: string) {
-    localStorage.setItem(CacheWorkflowService.CURRENT_WORKFLOW_NAME, name);
+
+    const workflow = localGetObject<Workflow>(CacheWorkflowService.LOCAL_STORAGE_KEY);
+    if (workflow != null) {
+      workflow.name = name;
+      this.cacheWorkflow(workflow);
+    }
   }
 
 

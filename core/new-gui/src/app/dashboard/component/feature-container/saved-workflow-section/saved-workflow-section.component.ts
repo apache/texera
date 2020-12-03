@@ -35,77 +35,37 @@ export class SavedWorkflowSectionComponent implements OnInit {
   }
 
   ngOnInit() {
-    this.workflowPersistService.getSavedWorkflows().subscribe(
+    this.workflowPersistService.retrieveWorkflowsBySessionUser().subscribe(
       workflows => this.workflows = workflows,
     );
   }
 
   /**
    * sort the workflow by name in ascending order
-   *
-   * @param
    */
   public ascSort(): void {
-    this.workflows.sort((t1, t2) => {
-      if (t1.name.toLowerCase() > t2.name.toLowerCase()) {
-        return 1;
-      }
-      if (t1.name.toLowerCase() < t2.name.toLowerCase()) {
-        return -1;
-      }
-      return 0;
-    });
+    this.workflows.sort((t1, t2) => t1.name.toLowerCase().localeCompare(t2.name.toLowerCase()));
   }
 
   /**
    * sort the project by name in descending order
-   *
-   * @param
    */
   public dscSort(): void {
-    this.workflows.sort((t1, t2) => {
-      if (t1.name.toLowerCase() > t2.name.toLowerCase()) {
-        return -1;
-      }
-      if (t1.name.toLowerCase() < t2.name.toLowerCase()) {
-        return 1;
-      }
-      return 0;
-    });
+    this.workflows.sort((t1, t2) => t2.name.toLowerCase().localeCompare(t1.name.toLowerCase()));
   }
 
   /**
    * sort the project by creating time
-   *
-   * @param
    */
   public dateSort(): void {
-    this.workflows.sort((t1, t2) => {
-      if (Date.parse(t1.creationTime) > Date.parse(t2.creationTime)) {
-        return -1;
-      }
-      if (Date.parse(t1.creationTime) < Date.parse(t2.creationTime)) {
-        return 1;
-      }
-      return 0;
-    });
+    this.workflows.sort((left: Workflow, right: Workflow) => left.creationTime - right.creationTime);
   }
 
   /**
-   * sort the project by last edited time
-   *
-   * @param
+   * sort the project by last modified time
    */
   public lastSort(): void {
-    this.workflows.sort((t1, t2) => {
-      if (Date.parse(t1.lastModifiedTime) > Date.parse(t2.lastModifiedTime)) {
-        return -1;
-      }
-      if (Date.parse(t1.lastModifiedTime) < Date.parse(t2.lastModifiedTime)) {
-        return 1;
-      }
-      return 0;
-    });
+    this.workflows.sort((left: Workflow, right: Workflow) => left.lastModifiedTime - right.lastModifiedTime);
   }
 
   /**
@@ -113,8 +73,6 @@ export class SavedWorkflowSectionComponent implements OnInit {
    * component. The component returns the information of new project,
    * and this method adds new project in to the list. It calls the
    * saveProject method in service which implements backend API.
-   *
-   * @param
    */
   public openNgbdModalAddWorkflowComponent(): void {
     // const modalRef = this.modalService.open(NgbdModalAddWorkflowComponent);
@@ -140,8 +98,6 @@ export class SavedWorkflowSectionComponent implements OnInit {
    * component. If user confirms the deletion, the method sends
    * message to frontend and delete the workflow on frontend. It
    * calls the deleteProject method in service which implements backend API.
-   *
-   * @param
    */
   public openNgbdModalDeleteWorkflowComponent(savedWorkflow: Workflow): void {
     const modalRef = this.modalService.open(NgbdModalDeleteWorkflowComponent);
@@ -151,7 +107,7 @@ export class SavedWorkflowSectionComponent implements OnInit {
       (value: boolean) => {
         if (value) {
           this.workflows = this.workflows.filter(workflow => workflow.wid !== savedWorkflow.wid);
-          this.workflowPersistService.deleteSavedWorkflow(savedWorkflow);
+          this.workflowPersistService.deleteWorkflow(savedWorkflow);
         }
       }
     );
@@ -159,10 +115,6 @@ export class SavedWorkflowSectionComponent implements OnInit {
   }
 
   jumpToWorkflow(workflow: Workflow) {
-    // TODO: change this to pass by URL.
-    localStorage.setItem('workflow', workflow.content);
-    localStorage.setItem('workflowID', workflow.wid.toString());
-    localStorage.setItem('workflowName', workflow.name);
-    this.router.navigate(['/']).then(null);
+    this.router.navigate([`/workflow/${workflow.wid}`]).then(null);
   }
 }

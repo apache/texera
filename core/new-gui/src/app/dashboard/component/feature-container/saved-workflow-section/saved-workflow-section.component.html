@@ -15,8 +15,8 @@
           <mat-divider></mat-divider>
         </mat-list>
       </div>
-      <button (click)="openNgbdModalAddWorkflowComponent()" class="btn btn-outline-dark add-button" type="button"><i
-          class="fa fa-plus" color="dark"></i></button>
+      <button (click)="openNgbdModalAddWorkflowComponent()" class="btn btn-outline-dark add-button" type="button">
+        <i class="fa fa-plus" color="dark"></i></button>
     </div>
   </mat-card>
 
@@ -25,7 +25,7 @@
       <mat-list>
         <div>
           <h2 class="page-title">Workflows</h2>
-          <br />
+          <br/>
         </div>
         <div class="scroll">
           <mat-list-item *ngFor="let workflow of workflows" class="project-list-item">
@@ -36,7 +36,8 @@
               Created: {{workflow.creationTime | date:'yyyy-MM-dd HH:mm'}}
             </p>
             <button (click)="openNgbdModalDeleteWorkflowComponent(workflow)" class="delete-workflow-btn" mat-button
-              ngbTooltip="Delete the {{workflow.name}}" placement="bottom"><i class="fa fa-trash"></i></button>
+                    ngbTooltip="Delete the {{workflow.name}}" placement="bottom"><i class="fa fa-trash"></i>
+            </button>
           </mat-list-item>
 
         </div>
