@@ -1,6 +1,6 @@
 import { inject, TestBed } from '@angular/core/testing';
 
-import { CachedWorkflow, CacheWorkflowService } from './cache-workflow.service';
+import { CacheWorkflowService } from './cache-workflow.service';
 import {
   mockPoint,
   mockResultPredicate,
@@ -16,6 +16,7 @@ import { HttpClient } from '@angular/common/http';
 import { JointUIService } from '../joint-ui/joint-ui.service';
 import { StubOperatorMetadataService } from '../operator-metadata/stub-operator-metadata.service';
 import { WorkflowUtilService } from '../workflow-graph/util/workflow-util.service';
+import { WorkflowInfo } from '../../../common/type/workflow';
 
 describe('SaveWorkflowService', () => {
   let autoSaveWorkflowService: CacheWorkflowService;
@@ -28,8 +29,8 @@ describe('SaveWorkflowService', () => {
         UndoRedoService,
         JointUIService,
         WorkflowUtilService,
-        { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
-        { provide: HttpClient }
+        {provide: OperatorMetadataService, useClass: StubOperatorMetadataService},
+        {provide: HttpClient}
       ]
     });
 
@@ -47,21 +48,21 @@ describe('SaveWorkflowService', () => {
     autoSaveWorkflowService.handleAutoCacheWorkFlow();
     m.hot('-e-').do(() => workflowActionService.addOperator(mockScanPredicate, mockPoint))
       .delay(100).subscribe(
-        () => {
-          // get items in the storage
-          const savedWorkflowJson = localStorage.getItem('workflow');
-          if (!savedWorkflowJson) {
-            expect(false).toBeTruthy();
-            return;
-          }
-
-          const savedWorkflow: CachedWorkflow = JSON.parse(savedWorkflowJson);
-          expect(savedWorkflow.operators.length).toEqual(1);
-          expect(savedWorkflow.operators[0].operatorID).toEqual(mockScanPredicate.operatorID);
-          expect(savedWorkflow.operators[0]).toEqual(mockScanPredicate);
-          expect(savedWorkflow.operatorPositions[mockScanPredicate.operatorID]).toEqual(mockPoint);
+      () => {
+        // get items in the storage
+        const savedWorkflowJson = localStorage.getItem('workflow');
+        if (!savedWorkflowJson) {
+          expect(false).toBeTruthy();
+          return;
         }
-      );
+
+        const savedWorkflow: WorkflowInfo = JSON.parse(savedWorkflowJson);
+        expect(savedWorkflow.operators.length).toEqual(1);
+        expect(savedWorkflow.operators[0].operatorID).toEqual(mockScanPredicate.operatorID);
+        expect(savedWorkflow.operators[0]).toEqual(mockScanPredicate);
+        expect(savedWorkflow.operatorPositions[mockScanPredicate.operatorID]).toEqual(mockPoint);
+      }
+    );
   }));
 
   it('should check if the local storage is updated when operator delete event is triggered', marbles((m) => {
@@ -71,18 +72,18 @@ describe('SaveWorkflowService', () => {
       workflowActionService.deleteOperator(mockScanPredicate.operatorID);
     })
       .delay(100).subscribe(
-        () => {
-          // get items in the storage
-          const savedWorkflowJson = localStorage.getItem('workflow');
-          if (!savedWorkflowJson) {
-            expect(false).toBeTruthy();
-            return;
-          }
-
-          const savedWorkflow: CachedWorkflow = JSON.parse(savedWorkflowJson);
-          expect(savedWorkflow.operators.length).toEqual(0);
+      () => {
+        // get items in the storage
+        const savedWorkflowJson = localStorage.getItem('workflow');
+        if (!savedWorkflowJson) {
+          expect(false).toBeTruthy();
+          return;
         }
-      );
+
+        const savedWorkflow: WorkflowInfo = JSON.parse(savedWorkflowJson);
+        expect(savedWorkflow.operators.length).toEqual(0);
+      }
+    );
   }));
 
   it('should check if the local storage is updated when link add event is triggered', marbles((m) => {
@@ -93,20 +94,20 @@ describe('SaveWorkflowService', () => {
       workflowActionService.addLink(mockScanResultLink);
     })
       .delay(100).subscribe(
-        () => {
-          // get items in the storage
-          const savedWorkflowJson = localStorage.getItem('workflow');
-          if (!savedWorkflowJson) {
-            expect(false).toBeTruthy();
-            return;
-          }
-
-          const savedWorkflow: CachedWorkflow = JSON.parse(savedWorkflowJson);
-          expect(savedWorkflow.operators.length).toEqual(2);
-          expect(savedWorkflow.links.length).toEqual(1);
-          expect(savedWorkflow.links[0]).toEqual(mockScanResultLink);
+      () => {
+        // get items in the storage
+        const savedWorkflowJson = localStorage.getItem('workflow');
+        if (!savedWorkflowJson) {
+          expect(false).toBeTruthy();
+          return;
         }
-      );
+
+        const savedWorkflow: WorkflowInfo = JSON.parse(savedWorkflowJson);
+        expect(savedWorkflow.operators.length).toEqual(2);
+        expect(savedWorkflow.links.length).toEqual(1);
+        expect(savedWorkflow.links[0]).toEqual(mockScanResultLink);
+      }
+    );
   }));
 
   it('should check if the local storage is updated when link delete event is triggered', marbles((m) => {
@@ -118,19 +119,19 @@ describe('SaveWorkflowService', () => {
       workflowActionService.deleteLink(mockScanResultLink.source, mockScanResultLink.target);
     })
       .delay(100).subscribe(
-        () => {
-          // get items in the storage
-          const savedWorkflowJson = localStorage.getItem('workflow');
-          if (!savedWorkflowJson) {
-            expect(false).toBeTruthy();
-            return;
-          }
-
-          const savedWorkflow: CachedWorkflow = JSON.parse(savedWorkflowJson);
-          expect(savedWorkflow.operators.length).toEqual(2);
-          expect(savedWorkflow.links.length).toEqual(0);
+      () => {
+        // get items in the storage
+        const savedWorkflowJson = localStorage.getItem('workflow');
+        if (!savedWorkflowJson) {
+          expect(false).toBeTruthy();
+          return;
         }
-      );
+
+        const savedWorkflow: WorkflowInfo = JSON.parse(savedWorkflowJson);
+        expect(savedWorkflow.operators.length).toEqual(2);
+        expect(savedWorkflow.links.length).toEqual(0);
+      }
+    );
   }));
 
   it(`should check if the local storage is updated when operator delete event is triggered when there
@@ -143,44 +144,44 @@ describe('SaveWorkflowService', () => {
       workflowActionService.deleteOperator(mockScanPredicate.operatorID);
     })
       .delay(100).subscribe(
-        () => {
-          // get items in the storage
-          const savedWorkflowJson = localStorage.getItem('workflow');
-          if (!savedWorkflowJson) {
-            expect(false).toBeTruthy();
-            return;
-          }
-
-          const savedWorkflow: CachedWorkflow = JSON.parse(savedWorkflowJson);
-          expect(savedWorkflow.operators.length).toEqual(1);
-          expect(savedWorkflow.operators[0]).toEqual(mockResultPredicate);
-          expect(savedWorkflow.links.length).toEqual(0);
+      () => {
+        // get items in the storage
+        const savedWorkflowJson = localStorage.getItem('workflow');
+        if (!savedWorkflowJson) {
+          expect(false).toBeTruthy();
+          return;
         }
-      );
+
+        const savedWorkflow: WorkflowInfo = JSON.parse(savedWorkflowJson);
+        expect(savedWorkflow.operators.length).toEqual(1);
+        expect(savedWorkflow.operators[0]).toEqual(mockResultPredicate);
+        expect(savedWorkflow.links.length).toEqual(0);
+      }
+    );
   }));
 
 
   it('should check if the local storage is updated when operator property change event is triggered', marbles((m) => {
     autoSaveWorkflowService.handleAutoCacheWorkFlow();
-    const mockProperties = { tableName: 'mockTableName' };
+    const mockProperties = {tableName: 'mockTableName'};
     m.hot('-e-').do(() => {
       workflowActionService.addOperator(mockScanPredicate, mockPoint);
       workflowActionService.setOperatorProperty(mockScanPredicate.operatorID, mockProperties);
     })
       .delay(100).subscribe(
-        () => {
-          // get items in the storage
-          const savedWorkflowJson = localStorage.getItem('workflow');
-          if (!savedWorkflowJson) {
-            expect(false).toBeTruthy();
-            return;
-          }
-
-          const savedWorkflow: CachedWorkflow = JSON.parse(savedWorkflowJson);
-          expect(savedWorkflow.operators.length).toEqual(1);
-          expect(savedWorkflow.operators[0].operatorProperties).toEqual(mockProperties);
+      () => {
+        // get items in the storage
+        const savedWorkflowJson = localStorage.getItem('workflow');
+        if (!savedWorkflowJson) {
+          expect(false).toBeTruthy();
+          return;
         }
-      );
+
+        const savedWorkflow: WorkflowInfo = JSON.parse(savedWorkflowJson);
+        expect(savedWorkflow.operators.length).toEqual(1);
+        expect(savedWorkflow.operators[0].operatorProperties).toEqual(mockProperties);
+      }
+    );
   }));
 
   it('should successfully loaded what is stored inside local storage when "loadWorkflow()" is called ', marbles((m) => {
@@ -190,7 +191,7 @@ describe('SaveWorkflowService', () => {
     operators.push(mockScanPredicate);
     const links: OperatorLink[] = [];
 
-    const mockWorkflow: CachedWorkflow = {
+    const mockWorkflow: WorkflowInfo = {
       operators, operatorPositions, links, breakpoints: {}
     };
 
@@ -204,7 +205,7 @@ describe('SaveWorkflowService', () => {
       return;
     }
 
-    const savedWorkflow: CachedWorkflow = JSON.parse(savedWorkflowJson);
+    const savedWorkflow: WorkflowInfo = JSON.parse(savedWorkflowJson);
 
     expect(savedWorkflow.operators.length).toEqual(1);
     expect(savedWorkflow.operators[0]).toEqual(mockScanPredicate);

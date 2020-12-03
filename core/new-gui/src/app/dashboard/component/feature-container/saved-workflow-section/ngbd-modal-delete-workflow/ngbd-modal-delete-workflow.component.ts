@@ -14,14 +14,9 @@ import { Workflow } from '../../../../../common/type/workflow';
   styleUrls: ['./ngbd-modal-delete-workflow.component.scss', '../../../dashboard.component.scss']
 })
 export class NgbdModalDeleteWorkflowComponent {
-  defaultSavedWorkflow: Workflow = {
-    wid: 0,
-    name: '',
-    content: '',
-    creationTime: '',
-    lastModifiedTime: ''
-  };
-  @Input() workflow: Workflow = this.defaultSavedWorkflow;
+
+  // TODO: rewrite this.
+  @Input() workflow: { name: string } = {name: 'name'};
 
   constructor(public activeModal: NgbActiveModal) {
   }
@@ -29,8 +24,6 @@ export class NgbdModalDeleteWorkflowComponent {
   /**
    * deleteSavedProject sends the user
    * confirm to the main component. It does not call any method in service.
-   *
-   * @param
    */
   public deleteSavedWorkflow(): void {
     this.activeModal.close(true);

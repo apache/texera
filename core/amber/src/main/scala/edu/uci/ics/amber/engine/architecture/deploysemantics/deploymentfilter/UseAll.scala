@@ -9,8 +9,8 @@ object UseAll {
 
 class UseAll extends DeploymentFilter {
   override def filter(
-                       prev: Array[(OpExecConfig, ActorLayer)],
-                       all: Array[Address],
-                       local: Address
+      prev: Array[(OpExecConfig, ActorLayer)],
+      all: Array[Address],
+      local: Address
   ): Array[Address] = all
 }

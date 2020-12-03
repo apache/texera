@@ -14,9 +14,7 @@ import akka.util.Timeout
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
-
 /**
-  *
   * @param tag
   */
 abstract class OpExecConfig(val tag: OperatorIdentifier) extends Serializable {
@@ -40,7 +38,7 @@ abstract class OpExecConfig(val tag: OperatorIdentifier) extends Serializable {
 
   def requiredShuffle: Boolean = false
 
-  def getInputNum(from:OperatorIdentifier): Int
+  def getInputNum(from: OperatorIdentifier): Int
 
   def getShuffleHashFunction(layerTag: LayerTag): ITuple => Int = ???
 
