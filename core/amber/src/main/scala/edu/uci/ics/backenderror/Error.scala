@@ -2,12 +2,12 @@ package edu.uci.ics.backenderror
 
 /**
   * @param errorName a descriptive name of the error
-  * @param errorAdditionalDetails some details about the error (eg: exception's stacktrace)
-  * @param errorType
+  * @param errorSource where the error is occurring. eg: "Engine:Controller:CreateWorklow"
+  * @param errorAdditionalParams details about the error: is this an unexpected exception or a constraint-violation, stacktrace etc.
   */
-case class Error(errorName: String, errorType: ErrorType.Value, errorSource:ErrorSource.Value, errorAdditionalDetails: Map[String, String]) {
+case class Error(errorName: String, errorSource:String, errorAdditionalParams: Map[String, String]) {
 
   def convertToMap(): Map[String,String] = {
-    Map("errorName"->errorName, "errorType"->errorType.toString, "errorSource"->errorSource.toString) ++ errorAdditionalDetails
+    Map("errorName"->errorName, "errorSource"->errorSource, "errorSource"->errorSource.toString) ++ errorAdditionalParams
   }
 }

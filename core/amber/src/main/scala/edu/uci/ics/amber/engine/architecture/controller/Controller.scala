@@ -3,7 +3,7 @@ package edu.uci.ics.amber.engine.architecture.controller
 import edu.uci.ics.amber.clustering.ClusterListener.GetAvailableNodeAddresses
 import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.{ExceptionGlobalBreakpoint, GlobalBreakpoint}
 import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalBreakpoint
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{BreakpointTriggered, ModifyLogicCompleted, SkipTupleResponse, WorkflowCompleted, WorkflowPaused, WorkflowStatusUpdate}
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{BreakpointTriggered, ErrorOccurred, ModifyLogicCompleted, SkipTupleResponse, WorkflowCompleted, WorkflowPaused, WorkflowStatusUpdate}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.OneOnEach
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.FollowPrevious
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{ActorLayer, GeneratorWorkerLayer, ProcessorWorkerLayer}
@@ -32,6 +32,7 @@ import com.google.common.base.Stopwatch
 import play.api.libs.json.{JsArray, JsValue, Json}
 import com.google.common.collect.BiMap
 import com.google.common.collect.HashBiMap
+import edu.uci.ics.backenderror.Error
 
 import collection.JavaConverters._
 import scala.collection.mutable
@@ -494,7 +495,10 @@ class Controller(
                       10
                     )
                   }
-                case other => throw new AmberException("principal didn't return updated metadata")
+                case other =>
+                  eventListener.errorListener.apply(ErrorOccurred(Error("principal didn't return updated metadata",
+                    "Engine:Controller:PrincipalInitialization", Map("return_value"->y.toString(), "trace"->Thread.currentThread().getStackTrace().mkString("\n")))))
+                  throw new AmberException("principal didn't return updated metadata")
               }
           )
           for (from <- workflow.inLinks(k)) {
@@ -805,6 +809,8 @@ class Controller(
           3
         )
       } else {
+        eventListener.errorListener.apply(ErrorOccurred(Error("Breakpoint target operator not found",
+          "Engine:Controller:PassBreakpointTo", Map("trace"->Thread.currentThread().getStackTrace().mkString("\n")))))
         throw new AmberException("target operator not found")
       }
     case msg => stash()
