@@ -119,6 +119,13 @@ export class ExecuteWorkflowService {
           errorMessages[entry[0]] = entry[1];
         });
         return { state: ExecutionState.Failed, errorMessages: errorMessages };
+      // TODO: Merge WorkflowErrorEvent and ErrorEvent
+      case 'WorkflowExecutionErrorEvent':
+        const backendErrorMessages: Record<string, string> = {};
+        Object.entries(event.errorMap).forEach(entry => {
+          backendErrorMessages[entry[0]] = entry[1];
+        });
+        return { state: ExecutionState.Failed, errorMessages: backendErrorMessages };
       default:
         return this.currentState;
     }

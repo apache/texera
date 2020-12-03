@@ -2,6 +2,7 @@ package edu.uci.ics.amber.engine.architecture.controller
 
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
   BreakpointTriggered,
+  ErrorOccurred,
   ModifyLogicCompleted,
   SkipTupleResponse,
   WorkflowCompleted,
@@ -18,5 +19,6 @@ case class ControllerEventListener(
     workflowPausedListener: WorkflowPaused => Unit = null,
     skipTupleResponseListener: SkipTupleResponse => Unit = null,
     reportCurrentTuplesListener: ReportCurrentProcessingTuple => Unit = null,
-    recoveryStartedListener: Unit => Unit = null
+    recoveryStartedListener: Unit => Unit = null,
+    workflowExecutionErrorListener: ErrorOccurred => Unit = null
 )

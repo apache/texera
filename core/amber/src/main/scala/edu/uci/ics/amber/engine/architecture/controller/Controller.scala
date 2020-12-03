@@ -8,6 +8,7 @@ import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.{
 import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalBreakpoint
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
   BreakpointTriggered,
+  ErrorOccurred,
   ModifyLogicCompleted,
   SkipTupleResponse,
   WorkflowCompleted,
@@ -87,6 +88,7 @@ import com.google.common.base.Stopwatch
 import play.api.libs.json.{JsArray, JsValue, Json}
 import com.google.common.collect.BiMap
 import com.google.common.collect.HashBiMap
+import edu.uci.ics.amber.backenderror.Error
 
 import collection.JavaConverters._
 import scala.collection.mutable
@@ -555,7 +557,20 @@ class Controller(
                       10
                     )
                   }
-                case other => throw new AmberException("principal didn't return updated metadata")
+                case other =>
+                  eventListener.workflowExecutionErrorListener.apply(
+                    ErrorOccurred(
+                      Error(
+                        "principal didn't return updated metadata",
+                        "Engine:Controller:PrincipalInitialization",
+                        Map(
+                          "return_value" -> y.toString(),
+                          "trace" -> Thread.currentThread().getStackTrace().mkString("\n")
+                        )
+                      )
+                    )
+                  )
+                  throw new AmberException("principal didn't return updated metadata")
               }
           )
           for (from <- workflow.inLinks(k)) {
@@ -866,6 +881,18 @@ class Controller(
           3
         )
       } else {
+        eventListener.workflowExecutionErrorListener.apply(
+          ErrorOccurred(
+            Error(
+              "Breakpoint target operator not found",
+              "Engine:Controller:PassBreakpointTo",
+              Map(
+                "trace" -> Thread.currentThread().getStackTrace().mkString("\n"),
+                "faulty_op" -> opTag.getGlobalIdentity
+              )
+            )
+          )
+        )
         throw new AmberException("target operator not found")
       }
     case msg => stash()
