@@ -8,7 +8,7 @@ import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.{
 import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalBreakpoint
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
   BreakpointTriggered,
-  ErrorOccurred
+  ErrorOccurred,
   ModifyLogicCompleted,
   SkipTupleResponse,
   WorkflowCompleted,
