@@ -12,5 +12,5 @@ case class ControllerEventListener(
     skipTupleResponseListener: SkipTupleResponse => Unit = null,
     reportCurrentTuplesListener: ReportCurrentProcessingTuple => Unit = null,
     recoveryStartedListener: Unit => Unit = null,
-    errorListener: ErrorOccurred => Unit = null
+    workflowExecutionErrorListener: ErrorOccurred => Unit = null
 )

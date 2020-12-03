@@ -192,8 +192,8 @@ class WorkflowWebsocketResource {
       recoveryStartedListener = _ => {
         send(session, RecoveryStartedEvent())
       },
-      errorListener = errorOccurred => {
-        send(session, ErrorEvent(errorOccurred.error.convertToMap()))
+      workflowExecutionErrorListener = errorOccurred => {
+        send(session, WorkflowExecutionErrorEvent(errorOccurred.error.convertToMap()))
       }
     )
 

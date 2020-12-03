@@ -27,7 +27,7 @@ export interface WorkflowError extends Readonly<{
   generalErrors: Record<string, string>
 }> { }
 
-export interface BackendError extends Readonly<{
+export interface WorkflowExecutionError extends Readonly<{
   errorMap: Record<string, string>
 }> { }
 
@@ -73,7 +73,7 @@ export type TexeraWebsocketEventTypeMap = {
   'BreakpointTriggeredEvent': BreakpointTriggerInfo,
   'ModifyLogicCompletedEvent': {},
   'OperatorCurrentTuplesUpdateEvent': OperatorCurrentTuples,
-  'ErrorEvent': BackendError
+  'WorkflowExecutionErrorEvent': WorkflowExecutionError
 };
 
 // helper type definitions to generate the request and event types

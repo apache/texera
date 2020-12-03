@@ -32,7 +32,7 @@ import com.google.common.base.Stopwatch
 import play.api.libs.json.{JsArray, JsValue, Json}
 import com.google.common.collect.BiMap
 import com.google.common.collect.HashBiMap
-import edu.uci.ics.backenderror.Error
+import edu.uci.ics.amber.backenderror.Error
 
 import collection.JavaConverters._
 import scala.collection.mutable
@@ -496,7 +496,7 @@ class Controller(
                     )
                   }
                 case other =>
-                  eventListener.errorListener.apply(ErrorOccurred(Error("principal didn't return updated metadata",
+                  eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(Error("principal didn't return updated metadata",
                     "Engine:Controller:PrincipalInitialization", Map("return_value"->y.toString(), "trace"->Thread.currentThread().getStackTrace().mkString("\n")))))
                   throw new AmberException("principal didn't return updated metadata")
               }
@@ -809,7 +809,7 @@ class Controller(
           3
         )
       } else {
-        eventListener.errorListener.apply(ErrorOccurred(Error("Breakpoint target operator not found",
+        eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(Error("Breakpoint target operator not found",
           "Engine:Controller:PassBreakpointTo", Map("trace"->Thread.currentThread().getStackTrace().mkString("\n"), "faulty_op"->opTag.getGlobalIdentity))))
         throw new AmberException("target operator not found")
       }
