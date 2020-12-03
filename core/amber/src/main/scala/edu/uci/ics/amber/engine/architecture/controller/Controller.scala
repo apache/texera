@@ -810,7 +810,7 @@ class Controller(
         )
       } else {
         eventListener.errorListener.apply(ErrorOccurred(Error("Breakpoint target operator not found",
-          "Engine:Controller:PassBreakpointTo", Map("trace"->Thread.currentThread().getStackTrace().mkString("\n")))))
+          "Engine:Controller:PassBreakpointTo", Map("trace"->Thread.currentThread().getStackTrace().mkString("\n"), "faulty_op"->opTag.getGlobalIdentity))))
         throw new AmberException("target operator not found")
       }
     case msg => stash()
