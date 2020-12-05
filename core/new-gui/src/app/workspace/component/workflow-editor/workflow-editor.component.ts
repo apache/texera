@@ -328,7 +328,13 @@ export class WorkflowEditorComponent implements AfterViewInit {
     this.translateLimitX = [];
     this.translateLimitY = [];
     // get all operators' positions
-    this.workflowActionService.getTexeraGraph().getAllOperators().forEach(op => {
+    this.workflowActionService.getTexeraGraph().getAllOperators()
+    .filter(
+      op =>
+        !this.workflowActionService.getOperatorGroup().getGroupByOperator(op.operatorID) &&
+        !this.workflowActionService.getOperatorGroup().getGroupByOperator(op.operatorID)?.collapsed
+    )
+    .forEach(op => {
       const position = this.workflowActionService.getJointGraphWrapper().getElementPosition(op.operatorID);
       if (!this.translateLimitX.includes(position.x)) {
         this.translateLimitX.push(position.x);
