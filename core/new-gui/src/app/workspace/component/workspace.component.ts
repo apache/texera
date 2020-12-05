@@ -90,33 +90,23 @@ export class WorkspaceComponent implements OnInit {
      *    - Auto-persist will be triggered upon all workspace events.
      */
     if (environment.userSystemEnabled) {
-      this.loadWorkflowFromID();
-      this.registerWorkflowAutoPersist();
+      if (this.route.snapshot.params.id) {
+        // if wid is present in the url
+        this.loadWorkflowWithID(this.route.snapshot.params.id);
+      } else {
+        // load wid from cache
+        this.location.go(`/workflow/${this.workflowCacheService.getCachedWorkflow()?.wid}`);
+      }
     }
 
   }
 
-  private loadWorkflowFromID(): void {
-    // check if workflow id is present in the url
-    if (this.route.snapshot.params.id) {
-      this.workflowPersistService.retrieveWorkflow(this.route.snapshot.params.id).subscribe(
-        (workflow: Workflow) => this.workflowActionService.setWorkflow(workflow),
-        () => {
-          alert('You don\'t have access to this workflow, please log in with another account');
-          this.workflowCacheService.resetCachedWorkflow();
-        }
-      );
-    } else {
-      // load wid from cache
-      this.location.go(`/workflow/${this.workflowCacheService.getCachedWorkflow()?.wid}`);
-    }
-  }
-
-  private registerWorkflowAutoPersist(): void {
-    this.workflowActionService.workflowChanged().debounceTime(100).subscribe(() => {
-        this.workflowPersistService.persistWorkflow(this.workflowActionService.getWorkflow())
-            .subscribe((updatedWorkflow: Workflow) => this.workflowActionService.setWorkflowMetadata(updatedWorkflow));
-        // to sync up with the updated information, such as workflow.wid
+  private loadWorkflowWithID(id: number): void {
+    this.workflowPersistService.retrieveWorkflow(id).subscribe(
+      (workflow: Workflow) => this.workflowActionService.setWorkflow(workflow),
+      () => {
+        alert('You don\'t have access to this workflow, please log in with another account');
+        this.workflowCacheService.resetCachedWorkflow();
       }
     );
   }

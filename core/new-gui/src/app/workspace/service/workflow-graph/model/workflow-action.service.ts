@@ -2,9 +2,12 @@ import { Injectable } from '@angular/core';
 
 import * as joint from 'jointjs';
 import { BehaviorSubject, Observable, Subject } from 'rxjs';
+import { environment } from '../../../../../environments/environment';
+import { WorkflowPersistService } from '../../../../common/service/user/workflow-persist/workflow-persist.service';
 import { Workflow, WorkflowContent } from '../../../../common/type/workflow';
 import { WorkflowMetadata } from '../../../../dashboard/type/workflow-metadata';
 import { Breakpoint, OperatorLink, OperatorPort, OperatorPredicate, Point } from '../../../types/workflow-common.interface';
+import { WorkflowCacheService } from '../../cache-workflow/workflow-cache.service';
 import { JointUIService } from '../../joint-ui/joint-ui.service';
 import { OperatorMetadataService } from '../../operator-metadata/operator-metadata.service';
 import { UndoRedoService } from '../../undo-redo/undo-redo.service';
@@ -45,6 +48,7 @@ type OperatorPosition = {
 @Injectable()
 export class WorkflowActionService {
 
+  private static readonly DEFAULT_WORKFLOW_NAME = 'Untitled Workflow';
   private workflowChangeSubject: Subject<void> = new Subject<void>();
   private readonly texeraGraph: WorkflowGraph;
   private readonly jointGraph: joint.dia.Graph;
@@ -57,14 +61,16 @@ export class WorkflowActionService {
   constructor(
     private operatorMetadataService: OperatorMetadataService,
     private jointUIService: JointUIService,
-    private undoRedoService: UndoRedoService
+    private undoRedoService: UndoRedoService,
+    private workflowCacheService: WorkflowCacheService,
+    private workflowPersistService: WorkflowPersistService
   ) {
     this.texeraGraph = new WorkflowGraph();
     this.jointGraph = new joint.dia.Graph();
     this.jointGraphWrapper = new JointGraphWrapper(this.jointGraph, this.undoRedoService);
     this.syncTexeraModel = new SyncTexeraModel(this.texeraGraph, this.jointGraphWrapper);
     this.workflowMetadata = {
-      name: 'Untitled Workflow',
+      name: WorkflowActionService.DEFAULT_WORKFLOW_NAME,
       wid: undefined,
       creationTime: 0,
       lastModifiedTime: 0
@@ -85,6 +91,17 @@ export class WorkflowActionService {
     ).subscribe(_ => {
       this.workflowChangeSubject.next();
     });
+
+    if (environment.userSystemEnabled) {
+      // auto-persist workflow
+      this.registerWorkflowAutoPersist();
+    }
+
+    // auto-cache workflow
+    this.registerAutoCacheWorkFlow();
+
+    // auto-reload workflow
+    this.registerAutoReloadWorkflow();
   }
 
   public enableWorkflowModification() {
@@ -502,9 +519,20 @@ export class WorkflowActionService {
     }
   }
 
-  public setWorkflowName(currentWorkflowName: string): void {
-    this.workflowMetadata.name = currentWorkflowName;
+  public setWorkflowName(name: string): void {
+    this.workflowMetadata.name = name.trim().length > 0 ? name : WorkflowActionService.DEFAULT_WORKFLOW_NAME;
     this.workflowChangeSubject.next();
+  }
+
+  /**
+   * This method will listen to all the workflow change event happening
+   *  on the property panel and the workflow editor paper.
+   */
+  private registerAutoCacheWorkFlow(): void {
+    this.workflowChanged().debounceTime(100).subscribe(() => {
+      this.workflowCacheService.setCacheWorkflow(this.getWorkflow());
+
+    });
   }
 
   private addOperatorInternal(operator: OperatorPredicate, point: Point): void {
@@ -574,5 +602,21 @@ export class WorkflowActionService {
     } else {
       this.getJointGraphWrapper().showLinkBreakpoint(linkID);
     }
+  }
+
+  private registerWorkflowAutoPersist(): void {
+    this.workflowChanged().debounceTime(100).subscribe(() => {
+        this.workflowPersistService.persistWorkflow(this.getWorkflow())
+            .subscribe((updatedWorkflow: Workflow) => this.setWorkflowMetadata(updatedWorkflow));
+        // to sync up with the updated information, such as workflow.wid
+      }
+    );
+  }
+
+  private registerAutoReloadWorkflow(): void {
+    this.operatorMetadataService.getOperatorMetadata()
+        .filter(metadata => metadata.operators.length !== 0)
+        .subscribe(() => this.reloadWorkflow(
+          this.workflowCacheService.getCachedWorkflow()));
   }
 }

@@ -284,7 +284,7 @@ export class NavigationComponent implements OnInit {
     this.isSaving = true;
     this.workflowPersistService.persistWorkflow(this.workflowActionService.getWorkflow())
         .subscribe((updatedWorkflow: Workflow) => {
-          this.workflowCacheService.cacheWorkflow(updatedWorkflow);
+          this.workflowCacheService.setCacheWorkflow(updatedWorkflow);
           this.isSaving = false;
         }, error => {
           alert(error);
