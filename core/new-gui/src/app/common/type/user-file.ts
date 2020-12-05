@@ -9,7 +9,7 @@ export interface UserFile extends Readonly<{
   path: string;
   description: string;
   size: number;
-}> {}
+}> { }
 
 /**
  * This interface stores the information about the users' files when uploading.

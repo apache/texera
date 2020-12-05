@@ -21,8 +21,8 @@ object PrincipalMessage {
   final case class AppendLayer(linkStrategy: LinkStrategy)
 
   final case class PrependLayer(
-                                 prev: Array[(OpExecConfig, ActorLayer)],
-                                 linkStrategy: LinkStrategy
+      prev: Array[(OpExecConfig, ActorLayer)],
+      linkStrategy: LinkStrategy
   )
 
   final case class AssignBreakpoint(breakpoint: GlobalBreakpoint)

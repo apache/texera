@@ -84,3 +84,6 @@ libraryDependencies += "mysql" % "mysql-connector-java" % "8.0.19"
 libraryDependencies += "org.apache.lucene" % "lucene-analyzers-common" % "5.5.0"
 libraryDependencies += "org.apache.lucene" % "lucene-analyzers-smartcn" % "5.5.0"
 
+// https://mvnrepository.com/artifact/org.jooq/jooq
+libraryDependencies += "org.jooq" % "jooq" % "3.14.4"
+

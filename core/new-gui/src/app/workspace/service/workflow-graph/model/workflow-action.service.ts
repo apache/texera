@@ -9,7 +9,14 @@ import { WorkflowGraph, WorkflowGraphReadonly } from './workflow-graph';
 import { OperatorGroup, Group, OperatorGroupReadonly, OperatorInfo, LinkInfo } from './operator-group';
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
-import { Point, OperatorPredicate, OperatorLink, OperatorPort, Breakpoint } from '../../../types/workflow-common.interface';
+import {
+  Breakpoint,
+  OperatorLink,
+  OperatorPort,
+  OperatorPredicate,
+  Point
+} from '../../../types/workflow-common.interface';
+
 
 import * as joint from 'jointjs';
 import { cloneDeep } from 'lodash';
@@ -100,7 +107,8 @@ export class WorkflowActionService {
     this.texeraGraph.getLinkAddStream().filter(() => this.undoRedoService.listenJointCommand).subscribe(link => {
       const command: Command = {
         modifiesWorkflow: true,
-        execute: () => { },
+        execute: () => {
+        },
         undo: () => this.deleteLinkWithIDInternal(link.linkID),
         redo: () => this.addLinkInternal(link),
       };
@@ -148,7 +156,8 @@ export class WorkflowActionService {
 
         const command: Command = {
           modifiesWorkflow: false,
-          execute: () => { },
+          execute: () => {
+          },
           undo: () => {
             this.jointGraphWrapper.unhighlightOperators(...this.jointGraphWrapper.getCurrentHighlightedOperatorIDs());
             this.jointGraphWrapper.unhighlightGroups(...this.jointGraphWrapper.getCurrentHighlightedGroupIDs());
@@ -303,10 +312,10 @@ export class WorkflowActionService {
   }
 
   /**
-    * Deletes an operator from the workflow graph
-    * Throws an Error if the operator ID doesn't exist in the Workflow Graph.
-    * @param operatorID
-    */
+   * Deletes an operator from the workflow graph
+   * Throws an Error if the operator ID doesn't exist in the Workflow Graph.
+   * @param operatorID
+   */
   public deleteOperator(operatorID: string): void {
     const operator = this.getTexeraGraph().getOperator(operatorID);
     const position = this.getOperatorGroup().getOperatorPositionByGroup(operatorID);
@@ -427,6 +436,7 @@ export class WorkflowActionService {
    */
   public deleteOperatorsAndLinks(operatorIDs: readonly string[], linkIDs: readonly string[], groupIDs?: readonly string[] ): void {
 
+    // combines operators in selected groups and operators explicitly
     const operatorIDsCopy = Array.from(new Set(operatorIDs.concat( (groupIDs ?? []).flatMap(groupID =>
         Array.from(this.operatorGroup.getGroup(groupID).operators.values()).map(operatorInfo => operatorInfo.operator.operatorID)
     ))));
@@ -434,6 +444,7 @@ export class WorkflowActionService {
 
     // save operators to be deleted and their current positions
     const operatorsAndPositions = new Map<OperatorPredicate, OperatorPosition>();
+
     operatorIDsCopy.forEach(operatorID => operatorsAndPositions.set(this.getTexeraGraph().getOperator(operatorID),
       {position: this.getOperatorGroup().getOperatorPositionByGroup(operatorID),
        layer: this.getOperatorGroup().getOperatorLayerByGroup(operatorID)}));
@@ -743,7 +754,7 @@ export class WorkflowActionService {
     // check that the operator doesn't exist
     this.texeraGraph.assertOperatorNotExists(operator.operatorID);
     // check that the operator type exists
-    if (! this.operatorMetadataService.operatorTypeExists(operator.operatorType)) {
+    if (!this.operatorMetadataService.operatorTypeExists(operator.operatorType)) {
       throw new Error(`operator type ${operator.operatorType} is invalid`);
     }
     // get the JointJS UI element for operator

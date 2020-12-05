@@ -18,7 +18,7 @@ describe('DynamicSchemaService', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [
-        {provide: OperatorMetadataService, useClass: StubOperatorMetadataService},
+        { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         JointUIService,
         WorkflowActionService,
         UndoRedoService,
@@ -81,15 +81,15 @@ describe('DynamicSchemaService', () => {
     };
 
     const trigger = m.hot('-a-c-', {
-        a: () => workflowActionService.addOperator(mockScanPredicate, mockPoint),
-        c: () => dynamicSchemaService.setDynamicSchema(mockScanPredicate.operatorID, newSchema)
+      a: () => workflowActionService.addOperator(mockScanPredicate, mockPoint),
+      c: () => dynamicSchemaService.setDynamicSchema(mockScanPredicate.operatorID, newSchema)
     });
 
     trigger.subscribe(
       eventFunc => eventFunc()
     );
 
-    const expected = m.hot('---e-', {e: { operatorID: mockScanPredicate.operatorID} });
+    const expected = m.hot('---e-', { e: { operatorID: mockScanPredicate.operatorID } });
 
     m.expect(dynamicSchemaService.getOperatorDynamicSchemaChangedStream()).toBeObservable(expected);
 
@@ -100,8 +100,8 @@ describe('DynamicSchemaService', () => {
     const dynamicSchemaService: DynamicSchemaService = TestBed.get(DynamicSchemaService);
 
     const trigger = m.hot('-a-c-', {
-        a: () => workflowActionService.addOperator(mockScanPredicate, mockPoint),
-        c: () => dynamicSchemaService.setDynamicSchema(mockScanPredicate.operatorID, mockScanSourceSchema)
+      a: () => workflowActionService.addOperator(mockScanPredicate, mockPoint),
+      c: () => dynamicSchemaService.setDynamicSchema(mockScanPredicate.operatorID, mockScanSourceSchema)
     });
 
     trigger.subscribe(

@@ -58,7 +58,7 @@ export class WorkflowUtilService {
     const operatorProperties = {};
 
     // Remove the ID field for the schema to prevent warning messages from Ajv
-    const { ...schemaWithoutID} = operatorSchema.jsonSchema;
+    const { ...schemaWithoutID } = operatorSchema.jsonSchema;
 
     // value inserted in the data will be the deep clone of the default in the schema
     const validate = this.ajv.compile(schemaWithoutID);
@@ -78,7 +78,7 @@ export class WorkflowUtilService {
       outputPorts.push('output-' + i.toString());
     }
 
-    return { operatorID, operatorType, operatorProperties, inputPorts, outputPorts, showAdvanced};
+    return { operatorID, operatorType, operatorProperties, inputPorts, outputPorts, showAdvanced };
 
   }
 

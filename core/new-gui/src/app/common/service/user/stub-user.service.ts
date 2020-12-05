@@ -43,7 +43,7 @@ export class StubUserService implements PublicInterfaceOf<UserService> {
     throw new Error('unimplemented');
   }
 
-  public login(userName: string):  Observable<UserWebResponse> {
+  public login(userName: string): Observable<UserWebResponse> {
     if (this.user) {
       throw new Error('user is already logged in');
     }

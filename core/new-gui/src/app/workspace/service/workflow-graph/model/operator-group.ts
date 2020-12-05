@@ -17,6 +17,15 @@ export interface Group extends Readonly<{
   collapsed: boolean;
 }> { }
 
+export interface PlainGroup {
+  groupID: string;
+  operators: Record<string, OperatorInfo>;
+  links: Record<string, LinkInfo>;
+  inLinks: string[];
+  outLinks: string[];
+  collapsed: boolean;
+}
+
 export type OperatorInfo = {
   operator: OperatorPredicate,
   position: Point,

@@ -80,7 +80,7 @@ export class JointGraphWrapper {
   public static readonly ZOOM_CLICK_DIFF: number = 0.05;
   public static readonly ZOOM_MOUSEWHEEL_DIFF: number = 0.01;
   public static readonly INIT_ZOOM_VALUE: number = 1;
-  public static readonly INIT_PAN_OFFSET: Point = {x: 0, y: 0};
+  public static readonly INIT_PAN_OFFSET: Point = { x: 0, y: 0 };
 
   public static readonly ZOOM_MINIMUM: number = 0.70;
   public static readonly ZOOM_MAXIMUM: number = 1.30;
@@ -237,7 +237,7 @@ export class JointGraphWrapper {
       .fromEvent<JointPositionChangeEvent>(this.jointGraph, 'change:position').map(e => {
         const elementID = e[0].id.toString();
         const oldPosition = this.elementPositions.get(elementID);
-        const newPosition = {x: e[1].x, y: e[1].y};
+        const newPosition = { x: e[1].x, y: e[1].y };
         if (!oldPosition) {
           throw new Error(`internal error: cannot find element position for ${elementID}`);
         }
@@ -518,8 +518,8 @@ export class JointGraphWrapper {
    * @param ratio new ratio from zooming
    */
   public setZoomProperty(ratio: number): void {
-      this.zoomRatio = ratio;
-      this.workflowEditorZoomSubject.next(this.zoomRatio);
+    this.zoomRatio = ratio;
+    this.workflowEditorZoomSubject.next(this.zoomRatio);
   }
 
   /**
@@ -604,7 +604,7 @@ export class JointGraphWrapper {
     if (! cell.isElement()) {
       throw new Error(`${elementID} is not an element`);
     }
-    const element = <joint.dia.Element> cell;
+    const element = <joint.dia.Element>cell;
     const position = element.position();
     return { x: position.x, y: position.y };
   }
@@ -621,8 +621,51 @@ export class JointGraphWrapper {
     if (! cell.isElement()) {
       throw new Error(`${elementID} is not an element`);
     }
-    const element = <joint.dia.Element> cell;
+    const element = <joint.dia.Element>cell;
     element.translate(offsetX, offsetY);
+  }
+
+  /**
+   * Highlights the link with given linkID.
+   * Emits an event to the link highlight stream.
+   * If the target link is already highlighted, the action will be ignored.
+   * At current design, there can only be one link highlighted at a time,
+   *  no mutiselect mode for links.
+   * Before a link is highlighted, all the currently highlighted operators will
+   *  be unhighlighted.
+   *
+   * @param linkID
+   */
+  public highlightLink(linkID: string): void {
+    if (!this.jointGraph.getCell(linkID)) {
+      throw new Error(`link with ID ${linkID} doesn't exist`);
+    }
+    if (this.currentHighlightedLinks.includes(linkID)) {
+      return;
+    }
+    // only allow one link highlighted at a time
+    if (this.currentHighlightedLinks.length > 0) {
+      const highlightedLinks = Object.assign([], this.currentHighlightedLinks);
+      highlightedLinks.forEach(highlightedLink => this.unhighlightLink(highlightedLink));
+    }
+    this.getCurrentHighlightedOperatorIDs()
+      .forEach(operatorID => this.unhighlightOperators(operatorID));
+    this.currentHighlightedLinks.push(linkID);
+    this.jointLinkHighlightStream.next([linkID]);
+  }
+
+  /**
+   * Unhighlights the given highlighted link.
+   * Emits an event to the link unhighlight stream.
+   * @param unhighlightedLinkID
+   */
+  public unhighlightLink(linkID: string): void {
+    if (!this.currentHighlightedLinks.includes(linkID)) {
+      return;
+    }
+    const unhighlightedLinkIndex = this.currentHighlightedLinks.indexOf(linkID);
+    this.currentHighlightedLinks.splice(unhighlightedLinkIndex, 1);
+    this.jointLinkUnhighlightStream.next([linkID]);
   }
 
   /**

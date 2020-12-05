@@ -2,6 +2,9 @@
     <generator>
         <generate>
             <generatedAnnotation>false</generatedAnnotation>
+
+            <daos>true</daos>
+            <interfaces>true</interfaces>
         </generate>
         <!-- The default code generator. You can override this one, to generate your own code style.
              Supported generators:
@@ -17,7 +20,7 @@
 
             <!-- The database schema (or in the absence of schema support, in your RDBMS this
                  can be the owner, user, database name) to be generated -->
-            <inputSchema>texera</inputSchema>
+            <inputSchema>texera_db</inputSchema>
 
             <!-- All elements that are generated from your schema
                  (A Java regular expression. Use the pipe to separate several expressions)
@@ -36,7 +39,7 @@
 
             <!-- The destination directory of your generated classes. Using Maven directory layout here -->
             <!-- might need to be changed to dataflow/src/main/java if the auto generated files are in wrong directory-->
-            <directory>src/main/java</directory>
+            <directory>core/dataflow/src/main/java</directory>
         </target>
     </generator>
 </configuration>
