@@ -486,6 +486,10 @@ export class WorkflowActionService {
     this.workflowChangeSubject.next();
   }
 
+  public reloadWorkflowFromCache(): void {
+    this.reloadWorkflow(this.workflowCacheService.getCachedWorkflow());
+  }
+
   public reloadWorkflow(workflow: Workflow|undefined): void {
     // remove the existing operators on the paper currently
     this.deleteOperatorsAndLinks(

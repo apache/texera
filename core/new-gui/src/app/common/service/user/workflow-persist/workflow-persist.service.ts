@@ -24,6 +24,7 @@ export class WorkflowPersistService {
                  name: workflow.name,
                  content: JSON.stringify(workflow.content)
                })
+               .filter((updatedWorkflow: Workflow) => updatedWorkflow != null)
                .pipe(map(WorkflowPersistService.parseWorkflowInfo));
   }
 
@@ -33,6 +34,7 @@ export class WorkflowPersistService {
    */
   public retrieveWorkflow(wid: number): Observable<Workflow> {
     return this.http.get<Workflow>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_URL}/${wid}`)
+               .filter((workflow: Workflow) => workflow != null)
                .pipe(map(WorkflowPersistService.parseWorkflowInfo));
   }
 
@@ -58,7 +60,7 @@ export class WorkflowPersistService {
    * @private
    */
   private static parseWorkflowInfo(workflow: Workflow): Workflow {
-    if (typeof workflow.content === 'string') {
+    if (workflow != null && typeof workflow.content === 'string') {
       workflow.content = jsonCast<WorkflowContent>(workflow.content);
     }
     return workflow;

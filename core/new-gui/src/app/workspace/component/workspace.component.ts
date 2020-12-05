@@ -95,7 +95,10 @@ export class WorkspaceComponent implements OnInit {
         this.loadWorkflowWithID(this.route.snapshot.params.id);
       } else {
         // load wid from cache
-        this.location.go(`/workflow/${this.workflowCacheService.getCachedWorkflow()?.wid}`);
+        const id = this.workflowCacheService.getCachedWorkflow()?.wid;
+
+        if (id !== undefined) { this.location.go(`/workflow/${this.workflowCacheService.getCachedWorkflow()?.wid}`);}
+
       }
     }
 

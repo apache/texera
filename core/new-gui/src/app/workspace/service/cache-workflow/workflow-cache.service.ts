@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { UserService } from '../../../common/service/user/user.service';
 import { User } from '../../../common/type/user';
 import { Workflow } from '../../../common/type/workflow';
-import { localGetObject, localSetObject } from '../../../common/util/storage';
+import { localGetObject, localRemoveObject, localSetObject } from '../../../common/util/storage';
 
 /**
  *  CacheWorkflowService is responsible for saving the existing workflow and
@@ -23,33 +23,27 @@ import { localGetObject, localSetObject } from '../../../common/util/storage';
   providedIn: 'root'
 })
 export class WorkflowCacheService {
-  private static readonly LOCAL_STORAGE_KEY: string = 'workflow';
+  private static readonly WORKFLOW_KEY: string = 'workflow';
 
-  constructor(
-    private userService: UserService
-  ) {
-
+  constructor(private userService: UserService) {
     // reset the cache upon change of user
-    this.registerUserChange();
+    this.registerUserChangeClearCache();
   }
 
   public getCachedWorkflow(): Workflow|undefined {
-    const workflow: Workflow|undefined = localGetObject<Workflow>(WorkflowCacheService.LOCAL_STORAGE_KEY);
-    if (workflow === undefined) {
-      this.resetCachedWorkflow();
-    }
-    return workflow;
+    return localGetObject<Workflow>(WorkflowCacheService.WORKFLOW_KEY);
+
   }
 
   public resetCachedWorkflow() {
-    this.setCacheWorkflow(undefined);
+    localRemoveObject(WorkflowCacheService.WORKFLOW_KEY);
   }
 
   public setCacheWorkflow(workflow: Workflow|undefined): void {
-    localSetObject(WorkflowCacheService.LOCAL_STORAGE_KEY, workflow);
+    localSetObject(WorkflowCacheService.WORKFLOW_KEY, workflow);
   }
 
-  private registerUserChange(): void {
+  private registerUserChangeClearCache(): void {
     this.userService.userChanged().subscribe((user: User|undefined) => {
       if (user === undefined) {
         this.resetCachedWorkflow();
