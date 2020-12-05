@@ -1,10 +1,10 @@
-import { UserFile } from '../../../type/user-file';
-import { AppSettings } from '../../../app-setting';
+import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable, Subject } from 'rxjs';
-import { HttpClient } from '@angular/common/http';
+import { AppSettings } from '../../../app-setting';
 
 import { GenericWebResponse } from '../../../type/generic-web-response';
+import { UserFile } from '../../../type/user-file';
 import { UserService } from '../user.service';
 
 export const USER_FILE_LIST_URL = 'user/file/list';
@@ -14,8 +14,8 @@ export const USER_FILE_DELETE_URL = 'user/file/delete';
   providedIn: 'root'
 })
 export class UserFileService {
-  private userFiles: UserFile[] | undefined;
-  private userFilesChanged = new Subject<ReadonlyArray<UserFile> | undefined>();
+  private userFiles: UserFile[]|undefined;
+  private userFilesChanged = new Subject<ReadonlyArray<UserFile>|undefined>();
 
   constructor(
     private http: HttpClient,
@@ -29,11 +29,11 @@ export class UserFileService {
    * This is required for HTML page since HTML can only loop through collection instead of index number.
    * You can change the UserFile inside the array but do not change the array itself.
    */
-  public getUserFiles(): ReadonlyArray<UserFile> | undefined {
+  public getUserFiles(): ReadonlyArray<UserFile>|undefined {
     return this.userFiles;
   }
 
-  public getUserFilesChangedEvent(): Observable<ReadonlyArray<UserFile> | undefined> {
+  public getUserFilesChangedEvent(): Observable<ReadonlyArray<UserFile>|undefined> {
     return this.userFilesChanged.asObservable();
   }
 
@@ -96,7 +96,7 @@ export class UserFileService {
    * refresh the files in the service whenever the user changes.
    */
   private detectUserChanges(): void {
-    this.userService.userChange.subscribe(
+    this.userService.userChanged().subscribe(
       () => {
         if (this.userService.isLogin()) {
           this.refreshFiles();

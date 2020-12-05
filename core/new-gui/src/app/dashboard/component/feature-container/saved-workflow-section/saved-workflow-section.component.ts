@@ -1,12 +1,12 @@
 import { Component, OnInit } from '@angular/core';
+import { Router } from '@angular/router';
 import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
-import { NgbdModalDeleteWorkflowComponent } from './ngbd-modal-delete-workflow/ngbd-modal-delete-workflow.component';
 
 import { cloneDeep } from 'lodash';
 import { Observable } from 'rxjs';
-import { Workflow } from '../../../../common/type/workflow';
-import { Router } from '@angular/router';
 import { WorkflowPersistService } from '../../../../common/service/user/workflow-persist/workflow-persist.service';
+import { Workflow } from '../../../../common/type/workflow';
+import { NgbdModalDeleteWorkflowComponent } from './ngbd-modal-delete-workflow/ngbd-modal-delete-workflow.component';
 
 /**
  * SavedProjectSectionComponent is the main interface for

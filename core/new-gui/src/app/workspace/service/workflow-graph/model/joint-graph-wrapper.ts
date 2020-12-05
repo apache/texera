@@ -1,13 +1,11 @@
-import { Subject } from 'rxjs/Subject';
 import { Observable } from 'rxjs/Observable';
-import { debounceTime } from 'rxjs/operators';
+import { Subject } from 'rxjs/Subject';
+import { environment } from '../../../../../environments/environment';
 import { Point } from '../../../types/workflow-common.interface';
-import { UndoRedoService } from './../../undo-redo/undo-redo.service';
-import { environment } from './../../../../../environments/environment';
+import { UndoRedoService } from '../../undo-redo/undo-redo.service';
 
 type operatorIDsType = { operatorIDs: string[] };
 type linkIDType = { linkID: string };
-
 
 type JointModelEventInfo = {
   add: boolean,

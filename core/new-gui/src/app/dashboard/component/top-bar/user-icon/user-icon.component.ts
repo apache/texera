@@ -1,7 +1,7 @@
-import { User } from '../../../../common/type/user';
-import { Component, Input } from '@angular/core';
-import { UserService } from '../../../../common/service/user/user.service';
+import { Component } from '@angular/core';
 import { NgbModal, NgbModalRef } from '@ng-bootstrap/ng-bootstrap';
+import { UserService } from '../../../../common/service/user/user.service';
+import { User } from '../../../../common/type/user';
 import { NgbdModalUserLoginComponent } from './user-login/ngbdmodal-user-login.component';
 
 /**
@@ -17,7 +17,7 @@ import { NgbdModalUserLoginComponent } from './user-login/ngbdmodal-user-login.c
   styleUrls: ['./user-icon.component.scss']
 })
 export class UserIconComponent {
-  public user: User | undefined;
+  public user: User|undefined;
 
   constructor(
     private modalService: NgbModal,
@@ -26,7 +26,7 @@ export class UserIconComponent {
     if (userService.isLogin()) {
       this.user = this.userService.getUser();
     }
-    this.userService.userChange.subscribe(user => this.user = user);
+    this.userService.userChanged().subscribe(user => this.user = user);
   }
 
   /**
@@ -55,7 +55,7 @@ export class UserIconComponent {
    * It will switch to the tab based on the mode numer given
    * @param mode 0 indicates login and 1 indicates registration
    */
-  private openLoginComponent(mode: 0 | 1): void {
+  private openLoginComponent(mode: 0|1): void {
     const modalRef: NgbModalRef = this.modalService.open(NgbdModalUserLoginComponent);
     modalRef.componentInstance.selectedTab = mode;
   }

@@ -49,7 +49,7 @@ export class NavigationComponent implements OnInit {
   public runButtonText = 'Run';
   public runIcon = 'play-circle';
   public runDisable = false;
-  public executionResultID: string | undefined;
+  public executionResultID: string|undefined;
 
   // whether user dashboard is enabled and accessible from the workspace
   public userSystemEnabled: boolean = environment.userSystemEnabled;
@@ -95,23 +95,25 @@ export class NavigationComponent implements OnInit {
 
     // set the map of operatorStatusMap
     this.validationWorkflowService.getWorkflowValidationErrorStream()
-      .subscribe(value => {
-        this.isWorkflowValid = Object.keys(value.errors).length === 0;
-        this.applyRunButtonBehavior(this.getRunButtonBehavior(this.executionState, this.isWorkflowValid));
-      });
+        .subscribe(value => {
+          this.isWorkflowValid = Object.keys(value.errors).length === 0;
+          this.applyRunButtonBehavior(this.getRunButtonBehavior(this.executionState, this.isWorkflowValid));
+        });
 
     // handle cached workflow change
-    this.workflowCacheService.cachedWorkflowChanged.subscribe((workflow: Workflow) => {
-      this.currentWorkflowName = workflow.name;
+    this.workflowActionService.workflowChanged().debounceTime(5).subscribe(() => {
+      const workflow: Workflow|undefined = this.workflowActionService.getWorkflow();
+      if (workflow !== undefined) {
+        this.currentWorkflowName = workflow.name;
 
-      if (environment.userSystemEnabled && this.userService.isLogin()) {
-        this.autoSaveState = workflow.lastModifiedTime == null ?
-          'Not Saved' :
-          'Saved at  ' + this.datePipe.transform(workflow.lastModifiedTime, 'MM/dd/yyyy HH:mm:ss zzz', 'UTC');
+        if (environment.userSystemEnabled && this.userService.isLogin()) {
+          this.autoSaveState = workflow.lastModifiedTime == null ?
+            'Not Saved' :
+            'Saved at  ' + this.datePipe.transform(workflow.lastModifiedTime, 'MM/dd/yyyy HH:mm:ss zzz', 'UTC');
 
+        }
       }
     });
-
   }
 
   // apply a behavior to the run button via bound variables
@@ -223,7 +225,7 @@ export class NavigationComponent implements OnInit {
 
     // make the ratio small.
     this.workflowActionService.getJointGraphWrapper()
-      .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() - JointGraphWrapper.ZOOM_CLICK_DIFF);
+        .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() - JointGraphWrapper.ZOOM_CLICK_DIFF);
   }
 
   /**
@@ -242,7 +244,7 @@ export class NavigationComponent implements OnInit {
 
     // make the ratio big.
     this.workflowActionService.getJointGraphWrapper()
-      .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() + JointGraphWrapper.ZOOM_CLICK_DIFF);
+        .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() + JointGraphWrapper.ZOOM_CLICK_DIFF);
   }
 
   /**
@@ -279,22 +281,23 @@ export class NavigationComponent implements OnInit {
    * and updates it in the cache if this is a new workflow.
    */
   public persistCachedWorkflow(): void {
-    const cachedWorkflow: Workflow = this.workflowCacheService.getCachedWorkflow();
     this.isSaving = true;
-    this.workflowPersistService.persistWorkflow(cachedWorkflow).subscribe((updatedWorkflow: Workflow) => {
-      this.workflowCacheService.cacheWorkflow(updatedWorkflow);
-      this.isSaving = false;
-    }, error => {
-      alert(error);
-      this.isSaving = false;
-    });
+    this.workflowPersistService.persistWorkflow(this.workflowActionService.getWorkflow())
+        .subscribe((updatedWorkflow: Workflow) => {
+          this.workflowCacheService.cacheWorkflow(updatedWorkflow);
+          this.isSaving = false;
+        }, error => {
+          alert(error);
+          this.isSaving = false;
+        });
   }
 
   /**
    * Handler for changing workflow name input box, updates the cachedWorkflow and persist to database.
    */
   onWorkflowNameChange() {
-    this.workflowCacheService.setCachedWorkflowName(this.currentWorkflowName);
+    this.currentWorkflowName = this.currentWorkflowName.trim();
+    this.workflowActionService.setWorkflowName(this.currentWorkflowName);
     if (this.userService.isLogin()) {
       this.persistCachedWorkflow();
     }
@@ -307,7 +310,6 @@ export class NavigationComponent implements OnInit {
    */
   onClickCreateNewWorkflow() {
     this.workflowCacheService.resetCachedWorkflow();
-    this.workflowCacheService.loadWorkflow();
     this.undoRedoService.clearUndoStack();
     this.undoRedoService.clearRedoStack();
     this.location.go('/');

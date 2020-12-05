@@ -1,5 +1,5 @@
-import { JSONSchema4, JSONSchema7 } from 'json-schema';
-import { ResultObject } from './execute-workflow.interface';
+import { JSONSchema7 } from 'json-schema';
+
 /**
  * This file contains multiple type declarations related to workflow-graph.
  * These type declarations should be identical to the backend API.
@@ -8,7 +8,7 @@ import { ResultObject } from './execute-workflow.interface';
 export interface Point extends Readonly<{
   x: number;
   y: number;
-}> { }
+}> {}
 
 export interface OperatorPort extends Readonly<{
   operatorID: string;
@@ -66,3 +66,4 @@ export type BreakpointTriggerInfo = Readonly<{
   report: ReadonlyArray<BreakpointFault>;
   operatorID: string;
 }>;
+

@@ -1,3 +1,4 @@
+import { Location } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { environment } from '../../../environments/environment';
@@ -27,20 +28,22 @@ import { WorkflowWebsocketService } from '../service/workflow-websocket/workflow
   providers: [
     // uncomment this line for manual testing without opening backend server
     // { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
-    OperatorMetadataService,
-    DynamicSchemaService,
-    SourceTablesService,
-    SchemaPropagationService,
-    JointUIService,
-    WorkflowActionService,
-    WorkflowUtilService,
+
     DragDropService,
+    DynamicSchemaService,
     ExecuteWorkflowService,
-    UndoRedoService,
+    JointUIService,
+    OperatorMetadataService,
     ResultPanelToggleService,
-    WorkflowCacheService,
+    SchemaPropagationService,
+    SourceTablesService,
+    UndoRedoService,
     ValidationWorkflowService,
+    WorkflowActionService,
+    WorkflowCacheService,
+    WorkflowPersistService,
     WorkflowStatusService,
+    WorkflowUtilService,
     WorkflowWebsocketService
   ]
 })
@@ -59,6 +62,7 @@ export class WorkspaceComponent implements OnInit {
     private workflowPersistService: WorkflowPersistService,
     private workflowWebsocketService: WorkflowWebsocketService,
     private workflowActionService: WorkflowActionService,
+    private location: Location,
     private route: ActivatedRoute
   ) {
     this.resultPanelToggleService.getToggleChangeStream().subscribe(
@@ -85,39 +89,36 @@ export class WorkspaceComponent implements OnInit {
      *    will be overwritten. Because it has an ID, it will be linked to the database
      *    - Auto-persist will be triggered upon all workspace events.
      */
-    if (environment.userSystemEnabled && this.userService.isLogin()) {
+    if (environment.userSystemEnabled) {
       this.loadWorkflowFromID();
       this.registerWorkflowAutoPersist();
     }
+
   }
 
   private loadWorkflowFromID(): void {
     // check if workflow id is present in the url
     if (this.route.snapshot.params.id) {
       this.workflowPersistService.retrieveWorkflow(this.route.snapshot.params.id).subscribe(
-        (workflow: Workflow) => {
-          this.workflowCacheService.cacheWorkflow(workflow);
-          this.workflowCacheService.loadWorkflow();
-          this.undoRedoService.clearUndoStack();
-          this.undoRedoService.clearRedoStack();
-        },
+        (workflow: Workflow) => this.workflowActionService.setWorkflow(workflow),
         () => {
           alert('You don\'t have access to this workflow, please log in with another account');
           this.workflowCacheService.resetCachedWorkflow();
-          this.workflowCacheService.loadWorkflow();
         }
       );
+    } else {
+      // load wid from cache
+      this.location.go(`/workflow/${this.workflowCacheService.getCachedWorkflow()?.wid}`);
     }
   }
 
   private registerWorkflowAutoPersist(): void {
-    this.workflowActionService.getWorkflowChange().debounceTime(100).subscribe(() => {
-        const cachedWorkflow: Workflow = this.workflowCacheService.getCachedWorkflow();
-        this.workflowPersistService.persistWorkflow(cachedWorkflow)
-          .subscribe((updatedWorkflow: Workflow) => {
-            this.workflowCacheService.cacheWorkflow(updatedWorkflow);
-          }); // to sync up the updated information, such as workflow.wid
+    this.workflowActionService.workflowChanged().debounceTime(100).subscribe(() => {
+        this.workflowPersistService.persistWorkflow(this.workflowActionService.getWorkflow())
+            .subscribe((updatedWorkflow: Workflow) => this.workflowActionService.setWorkflowMetadata(updatedWorkflow));
+        // to sync up with the updated information, such as workflow.wid
       }
     );
   }
+
 }

@@ -3,7 +3,7 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs/Observable';
 import { map } from 'rxjs/operators';
 import { AppSettings } from '../../../app-setting';
-import { Workflow, WorkflowInfo } from '../../../type/workflow';
+import { Workflow, WorkflowContent } from '../../../type/workflow';
 import { jsonCast } from '../../../util/storage';
 
 export const WORKFLOW_URL = 'workflow';
@@ -12,8 +12,7 @@ export const WORKFLOW_URL = 'workflow';
   providedIn: 'root'
 })
 export class WorkflowPersistService {
-  constructor(private http: HttpClient) {
-  }
+  constructor(private http: HttpClient) {}
 
   /**
    * persists a workflow to backend database and returns its updated information (e.g., new wid)
@@ -21,10 +20,11 @@ export class WorkflowPersistService {
    */
   public persistWorkflow(workflow: Workflow): Observable<Workflow> {
     return this.http.post<Workflow>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_URL}/persist`, {
-      wid: workflow.wid,
-      name: workflow.name,
-      content: JSON.stringify(workflow.content)
-    }).pipe(map(WorkflowPersistService.parseWorkflowInfo));
+                 wid: workflow.wid,
+                 name: workflow.name,
+                 content: JSON.stringify(workflow.content)
+               })
+               .pipe(map(WorkflowPersistService.parseWorkflowInfo));
   }
 
   /**
@@ -33,7 +33,7 @@ export class WorkflowPersistService {
    */
   public retrieveWorkflow(wid: number): Observable<Workflow> {
     return this.http.get<Workflow>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_URL}/${wid}`)
-      .pipe(map(WorkflowPersistService.parseWorkflowInfo));
+               .pipe(map(WorkflowPersistService.parseWorkflowInfo));
   }
 
   /**
@@ -41,7 +41,7 @@ export class WorkflowPersistService {
    */
   public retrieveWorkflowsBySessionUser(): Observable<Workflow[]> {
     return this.http.get<Workflow[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_URL}/list`)
-      .pipe(map((workflows: Workflow[]) => workflows.map(WorkflowPersistService.parseWorkflowInfo)));
+               .pipe(map((workflows: Workflow[]) => workflows.map(WorkflowPersistService.parseWorkflowInfo)));
   }
 
   /**
@@ -59,7 +59,7 @@ export class WorkflowPersistService {
    */
   private static parseWorkflowInfo(workflow: Workflow): Workflow {
     if (typeof workflow.content === 'string') {
-      workflow.content = jsonCast<WorkflowInfo>(workflow.content);
+      workflow.content = jsonCast<WorkflowContent>(workflow.content);
     }
     return workflow;
   }

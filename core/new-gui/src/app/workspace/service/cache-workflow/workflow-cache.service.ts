@@ -1,10 +1,8 @@
-import { Injectable, Output } from '@angular/core';
-import { Subject } from 'rxjs';
+import { Injectable } from '@angular/core';
 import { UserService } from '../../../common/service/user/user.service';
 import { User } from '../../../common/type/user';
-import { Workflow, WorkflowInfo } from '../../../common/type/workflow';
+import { Workflow, WorkflowContent } from '../../../common/type/workflow';
 import { localGetObject, localSetObject } from '../../../common/util/storage';
-import { Breakpoint, OperatorLink, OperatorPredicate, Point } from '../../types/workflow-common.interface';
 import { OperatorMetadataService } from '../operator-metadata/operator-metadata.service';
 import { WorkflowActionService } from '../workflow-graph/model/workflow-action.service';
 
@@ -29,19 +27,6 @@ import { WorkflowActionService } from '../workflow-graph/model/workflow-action.s
 export class WorkflowCacheService {
   private static readonly LOCAL_STORAGE_KEY: string = 'workflow';
   private static readonly DEFAULT_WORKFLOW_NAME: string = 'Untitled Workflow';
-  private static readonly DEFAULT_WORKFLOW: Workflow = {
-    wid: undefined,
-    name: WorkflowCacheService.DEFAULT_WORKFLOW_NAME,
-    content: {
-      operators: [],
-      operatorPositions: {},
-      links: [],
-      breakpoints: {}
-    },
-    creationTime: 0,
-    lastModifiedTime: 0
-  };
-  @Output() public cachedWorkflowChanged: Subject<Workflow> = new Subject<Workflow>();
 
   constructor(
     private operatorMetadataService: OperatorMetadataService,
@@ -51,54 +36,13 @@ export class WorkflowCacheService {
 
     this.registerAutoCacheWorkFlow();
 
-    this.operatorMetadataService.getOperatorMetadata()
-      .filter(metadata => metadata.operators.length !== 0)
-      .subscribe(() => this.loadWorkflow());
-
-    this.userService.userChange.subscribe((user: User | undefined) => {
+    this.userService.userChanged().subscribe((user: User|undefined) => {
       if (user === undefined) {
         this.resetCachedWorkflow();
       }
 
     });
-
-  }
-
-  /**
-   * When the browser reloads, this method will be called to reload
-   *  previously created workflow stored in the local storage onto
-   *  the JointJS paper.
-   */
-  public loadWorkflow(): void {
-    // remove the existing operators on the paper currently
-    this.workflowActionService.deleteOperatorsAndLinks(
-      this.workflowActionService.getTexeraGraph().getAllOperators().map(op => op.operatorID), []);
-
-    // get items in the storage
-    const workflow: Workflow = this.getCachedWorkflow();
-    const workflowInfo: WorkflowInfo = workflow.content;
-    const operatorsAndPositions: { op: OperatorPredicate, pos: Point }[] = [];
-    workflowInfo.operators.forEach(op => {
-      const opPosition = workflowInfo.operatorPositions[op.operatorID];
-      if (!opPosition) {
-        throw new Error('position error');
-      }
-      operatorsAndPositions.push({op: op, pos: opPosition});
-    });
-
-    const links: OperatorLink[] = [];
-    links.push(...workflowInfo.links);
-
-    const breakpoints = new Map(Object.entries(workflowInfo.breakpoints));
-
-    this.workflowActionService.addOperatorsAndLinks(operatorsAndPositions, links, breakpoints);
-
-    // operators shouldn't be highlighted during page reload
-    const jointGraphWrapper = this.workflowActionService.getJointGraphWrapper();
-    jointGraphWrapper.unhighlightOperators(
-      jointGraphWrapper.getCurrentHighlightedOperatorIDs());
-    // restore the view point
-    this.workflowActionService.getJointGraphWrapper().restoreDefaultZoomAndOffset();
+    this.registerAutoReloadWorkflow();
   }
 
   /**
@@ -106,57 +50,58 @@ export class WorkflowCacheService {
    *  on the property panel and the workflow editor paper.
    */
   public registerAutoCacheWorkFlow(): void {
-    this.workflowActionService.getWorkflowChange().debounceTime(100).subscribe(() => {
+    this.workflowActionService.workflowChanged().debounceTime(100).subscribe(() => {
+      this.cacheWorkflow(this.workflowActionService.getWorkflow());
 
-      // collect workflow info
-      const texeraGraph = this.workflowActionService.getTexeraGraph();
-      const operators = texeraGraph.getAllOperators();
-      const links = texeraGraph.getAllLinks();
-      const operatorPositions: { [key: string]: Point } = {};
-      const breakpointsMap = texeraGraph.getAllLinkBreakpoints();
-      const breakpoints: Record<string, Breakpoint> = {};
-      breakpointsMap.forEach((value, key) => (breakpoints[key] = value));
-      texeraGraph.getAllOperators().forEach(op => operatorPositions[op.operatorID] =
-        this.workflowActionService.getJointGraphWrapper().getOperatorPosition(op.operatorID));
-
-      // update the cached workflow
-      const cachedWorkflow: Workflow = this.getCachedWorkflow();
-      cachedWorkflow.content = {
-        operators, operatorPositions, links, breakpoints
-      };
-      this.cacheWorkflow(cachedWorkflow);
     });
   }
 
-  public getCachedWorkflow(): Workflow {
-    let workflow = localGetObject<Workflow>(WorkflowCacheService.LOCAL_STORAGE_KEY);
+  public getCachedWorkflow(): Workflow|undefined {
+    const workflow = localGetObject<Workflow>(WorkflowCacheService.LOCAL_STORAGE_KEY);
     if (workflow === undefined) {
       this.resetCachedWorkflow();
-      workflow = WorkflowCacheService.DEFAULT_WORKFLOW;
     }
     return workflow;
   }
 
   public resetCachedWorkflow() {
-    this.cacheWorkflow(WorkflowCacheService.DEFAULT_WORKFLOW);
+    this.cacheWorkflow(undefined);
   }
 
-  public cacheWorkflow(workflow: Workflow): void {
+  public cacheWorkflow(workflow: Workflow|undefined): void {
     localSetObject(WorkflowCacheService.LOCAL_STORAGE_KEY, workflow);
-    this.cachedWorkflowChanged.next(workflow);
   }
 
-  public setCachedWorkflowId(wid: number | undefined) {
-    const workflow: Workflow = this.getCachedWorkflow();
-    workflow.wid = wid;
+  public setCachedWorkflowId(wid: number|undefined) {
+    const workflow: Workflow|undefined = this.getCachedWorkflow();
+    if (workflow !== undefined) {
+      workflow.wid = wid;
+    }
     this.cacheWorkflow(workflow);
   }
 
   public setCachedWorkflowName(name: string) {
-    name = name.trim();
-    const workflow: Workflow = this.getCachedWorkflow();
-    workflow.name = name.length > 0 ? name : WorkflowCacheService.DEFAULT_WORKFLOW_NAME;
+
+    const workflow: Workflow|undefined = this.getCachedWorkflow();
+    if (workflow !== undefined) {
+      workflow.name = name.length > 0 ? name : WorkflowCacheService.DEFAULT_WORKFLOW_NAME;
+    }
     this.cacheWorkflow(workflow);
+
   }
 
+  public setCacheWorkflowContent(content: WorkflowContent) {
+    const workflow: Workflow|undefined = this.getCachedWorkflow();
+    if (workflow !== undefined) {
+      workflow.content = content;
+      this.cacheWorkflow(workflow);
+    }
+  }
+
+  private registerAutoReloadWorkflow(): void {
+    this.operatorMetadataService.getOperatorMetadata()
+        .filter(metadata => metadata.operators.length !== 0)
+        .subscribe(() => this.workflowActionService.reloadWorkflow(
+          this.getCachedWorkflow()));
+  }
 }

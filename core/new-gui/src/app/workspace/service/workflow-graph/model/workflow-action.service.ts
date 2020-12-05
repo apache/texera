@@ -2,6 +2,8 @@ import { Injectable } from '@angular/core';
 
 import * as joint from 'jointjs';
 import { BehaviorSubject, Observable, Subject } from 'rxjs';
+import { Workflow, WorkflowContent } from '../../../../common/type/workflow';
+import { WorkflowMetadata } from '../../../../dashboard/type/workflow-metadata';
 import { Breakpoint, OperatorLink, OperatorPort, OperatorPredicate, Point } from '../../../types/workflow-common.interface';
 import { JointUIService } from '../../joint-ui/joint-ui.service';
 import { OperatorMetadataService } from '../../operator-metadata/operator-metadata.service';
@@ -43,11 +45,12 @@ type OperatorPosition = {
 @Injectable()
 export class WorkflowActionService {
 
-  private workflowChange: Subject<void> = new Subject<void>();
+  private workflowChangeSubject: Subject<void> = new Subject<void>();
   private readonly texeraGraph: WorkflowGraph;
   private readonly jointGraph: joint.dia.Graph;
   private readonly jointGraphWrapper: JointGraphWrapper;
   private readonly syncTexeraModel: SyncTexeraModel;
+  private workflowMetadata: WorkflowMetadata;
   private workflowModificationEnabled = true;
   private enableModificationStream = new BehaviorSubject<boolean>(true);
 
@@ -60,10 +63,17 @@ export class WorkflowActionService {
     this.jointGraph = new joint.dia.Graph();
     this.jointGraphWrapper = new JointGraphWrapper(this.jointGraph, this.undoRedoService);
     this.syncTexeraModel = new SyncTexeraModel(this.texeraGraph, this.jointGraphWrapper);
+    this.workflowMetadata = {
+      name: 'Untitled Workflow',
+      wid: undefined,
+      creationTime: 0,
+      lastModifiedTime: 0
+    };
 
     this.handleJointLinkAdd();
     this.handleJointOperatorDrag();
 
+    // detect any change on the WorkflowGraph.
     Observable.merge(
       this.getTexeraGraph().getOperatorAddStream(),
       this.getTexeraGraph().getOperatorDeleteStream(),
@@ -73,7 +83,7 @@ export class WorkflowActionService {
       this.getTexeraGraph().getBreakpointChangeStream(),
       this.getJointGraphWrapper().getOperatorPositionChangeEvent()
     ).subscribe(_ => {
-      this.workflowChange.next();
+      this.workflowChangeSubject.next();
     });
   }
 
@@ -114,45 +124,76 @@ export class WorkflowActionService {
     let oldPosition: Point = {x: 0, y: 0};
     let gotOldPosition = false;
     this.jointGraphWrapper.getOperatorPositionChangeEvent()
-      .filter(() => !gotOldPosition)
-      .filter(() => this.undoRedoService.listenJointCommand)
-      .subscribe(event => {
-        oldPosition = event.oldPosition;
-        gotOldPosition = true;
-      });
+        .filter(() => !gotOldPosition)
+        .filter(() => this.undoRedoService.listenJointCommand)
+        .subscribe(event => {
+          oldPosition = event.oldPosition;
+          gotOldPosition = true;
+        });
 
     this.jointGraphWrapper.getOperatorPositionChangeEvent()
-      .filter(() => this.undoRedoService.listenJointCommand)
-      .debounceTime(100)
-      .subscribe(event => {
-        gotOldPosition = false;
-        const offsetX = event.newPosition.x - oldPosition.x;
-        const offsetY = event.newPosition.y - oldPosition.y;
-        // remember currently highlighted operators
-        const currentHighlighted = this.jointGraphWrapper.getCurrentHighlightedOperatorIDs();
-        const command: Command = {
-          modifiesWorkflow: false,
-          execute: () => {
-          },
-          undo: () => {
-            this.jointGraphWrapper.unhighlightOperators(this.jointGraphWrapper.getCurrentHighlightedOperatorIDs());
-            this.jointGraphWrapper.setMultiSelectMode(currentHighlighted.length > 1);
-            currentHighlighted.forEach(operatorID => {
-              this.jointGraphWrapper.highlightOperator(operatorID);
-              this.jointGraphWrapper.setOperatorPosition(operatorID, -offsetX, -offsetY);
-            });
-          },
-          redo: () => {
-            this.jointGraphWrapper.unhighlightOperators(this.jointGraphWrapper.getCurrentHighlightedOperatorIDs());
-            this.jointGraphWrapper.setMultiSelectMode(currentHighlighted.length > 1);
-            currentHighlighted.forEach(operatorID => {
-              this.jointGraphWrapper.highlightOperator(operatorID);
-              this.jointGraphWrapper.setOperatorPosition(operatorID, offsetX, offsetY);
-            });
-          }
-        };
-        this.executeAndStoreCommand(command);
-      });
+        .filter(() => this.undoRedoService.listenJointCommand)
+        .debounceTime(100)
+        .subscribe(event => {
+          gotOldPosition = false;
+          const offsetX = event.newPosition.x - oldPosition.x;
+          const offsetY = event.newPosition.y - oldPosition.y;
+          // remember currently highlighted operators
+          const currentHighlighted = this.jointGraphWrapper.getCurrentHighlightedOperatorIDs();
+          const command: Command = {
+            modifiesWorkflow: false,
+            execute: () => {
+            },
+            undo: () => {
+              this.jointGraphWrapper.unhighlightOperators(this.jointGraphWrapper.getCurrentHighlightedOperatorIDs());
+              this.jointGraphWrapper.setMultiSelectMode(currentHighlighted.length > 1);
+              currentHighlighted.forEach(operatorID => {
+                this.jointGraphWrapper.highlightOperator(operatorID);
+                this.jointGraphWrapper.setOperatorPosition(operatorID, -offsetX, -offsetY);
+              });
+            },
+            redo: () => {
+              this.jointGraphWrapper.unhighlightOperators(this.jointGraphWrapper.getCurrentHighlightedOperatorIDs());
+              this.jointGraphWrapper.setMultiSelectMode(currentHighlighted.length > 1);
+              currentHighlighted.forEach(operatorID => {
+                this.jointGraphWrapper.highlightOperator(operatorID);
+                this.jointGraphWrapper.setOperatorPosition(operatorID, offsetX, offsetY);
+              });
+            }
+          };
+          this.executeAndStoreCommand(command);
+        });
+  }
+
+  public setWorkflowMetadata(workflowMetaData: WorkflowMetadata, trigger: boolean = false): void {
+    this.workflowMetadata = workflowMetaData;
+    if (trigger) {
+      this.workflowChangeSubject.next();
+    }
+  }
+
+  public getWorkflowMetadata(): WorkflowMetadata|undefined {
+    return this.workflowMetadata;
+  }
+
+  public getWorkflowContent(): WorkflowContent {
+    // collect workflow content
+    const texeraGraph = this.getTexeraGraph();
+    const operators = texeraGraph.getAllOperators();
+    const links = texeraGraph.getAllLinks();
+    const operatorPositions: { [key: string]: Point } = {};
+    const breakpointsMap = texeraGraph.getAllLinkBreakpoints();
+    const breakpoints: Record<string, Breakpoint> = {};
+    breakpointsMap.forEach((value, key) => (breakpoints[key] = value));
+    texeraGraph.getAllOperators().forEach(op => operatorPositions[op.operatorID] =
+      this.getJointGraphWrapper().getOperatorPosition(op.operatorID));
+    return <WorkflowContent>{
+      operators, operatorPositions, links, breakpoints
+    };
+  }
+
+  public getWorkflow(): Workflow {
+    return <Workflow>{...this.workflowMetadata, ...{content: this.getWorkflowContent()}};
   }
 
   /**
@@ -233,7 +274,7 @@ export class WorkflowActionService {
     const position = this.getJointGraphWrapper().getOperatorPosition(operatorID);
     const layer = this.getJointGraphWrapper().getOperatorLayer(operatorID);
     const linksToDelete = this.getTexeraGraph().getAllLinks()
-      .filter(link => link.source.operatorID === operatorID || link.target.operatorID === operatorID);
+                              .filter(link => link.source.operatorID === operatorID || link.target.operatorID === operatorID);
 
     const command: Command = {
       modifiesWorkflow: true,
@@ -307,11 +348,11 @@ export class WorkflowActionService {
     const linksToDelete = new Set<OperatorLink>();
     // delete links required by this command
     linkIDs.map(linkID => this.getTexeraGraph().getLinkWithID(linkID))
-      .forEach(link => linksToDelete.add(link));
+           .forEach(link => linksToDelete.add(link));
     // delete links related to the deleted operator
     this.getTexeraGraph().getAllLinks()
-      .filter(link => operatorIDs.includes(link.source.operatorID) || operatorIDs.includes(link.target.operatorID))
-      .forEach(link => linksToDelete.add(link));
+        .filter(link => operatorIDs.includes(link.source.operatorID) || operatorIDs.includes(link.target.operatorID))
+        .forEach(link => linksToDelete.add(link));
 
     // remember currently highlighted operators
     const currentHighlighted = this.jointGraphWrapper.getCurrentHighlightedOperatorIDs();
@@ -396,7 +437,7 @@ export class WorkflowActionService {
   /**
    * set a given link's breakpoint properties to specific values
    */
-  public setLinkBreakpoint(linkID: string, newBreakpoint: Breakpoint | undefined): void {
+  public setLinkBreakpoint(linkID: string, newBreakpoint: Breakpoint|undefined): void {
     const prevBreakpoint = this.getTexeraGraph().getLinkBreakpoint(linkID);
     const command: Command = {
       modifiesWorkflow: true,
@@ -419,8 +460,51 @@ export class WorkflowActionService {
     this.setLinkBreakpoint(linkID, undefined);
   }
 
-  public getWorkflowChange(): Observable<void> {
-    return this.workflowChange.asObservable();
+  public workflowChanged(): Observable<void> {
+    return this.workflowChangeSubject.asObservable();
+  }
+
+  public setWorkflow(workflow: Workflow): void {
+    this.reloadWorkflow(workflow);
+    this.workflowChangeSubject.next();
+  }
+
+  public reloadWorkflow(workflow: Workflow|undefined): void {
+    // remove the existing operators on the paper currently
+    this.deleteOperatorsAndLinks(
+      this.getTexeraGraph().getAllOperators().map(op => op.operatorID), []);
+
+    if (workflow !== undefined) {
+      this.setWorkflowMetadata(workflow);
+      const workflowInfo: WorkflowContent = workflow.content;
+      const operatorsAndPositions: { op: OperatorPredicate, pos: Point }[] = [];
+      workflowInfo.operators.forEach(op => {
+        const opPosition = workflowInfo.operatorPositions[op.operatorID];
+        if (!opPosition) {
+          throw new Error('position error');
+        }
+        operatorsAndPositions.push({op: op, pos: opPosition});
+      });
+
+      const links: OperatorLink[] = [];
+      links.push(...workflowInfo.links);
+
+      const breakpoints = new Map(Object.entries(workflowInfo.breakpoints));
+
+      this.addOperatorsAndLinks(operatorsAndPositions, links, breakpoints);
+
+      // operators shouldn't be highlighted during page reload
+      const jointGraphWrapper = this.getJointGraphWrapper();
+      jointGraphWrapper.unhighlightOperators(
+        jointGraphWrapper.getCurrentHighlightedOperatorIDs());
+      // restore the view point
+      this.getJointGraphWrapper().restoreDefaultZoomAndOffset();
+    }
+  }
+
+  public setWorkflowName(currentWorkflowName: string): void {
+    this.workflowMetadata.name = currentWorkflowName;
+    this.workflowChangeSubject.next();
   }
 
   private addOperatorInternal(operator: OperatorPredicate, point: Point): void {
@@ -483,7 +567,7 @@ export class WorkflowActionService {
     this.undoRedoService.setListenJointCommand(true);
   }
 
-  private setLinkBreakpointInternal(linkID: string, newBreakpoint: Breakpoint | undefined): void {
+  private setLinkBreakpointInternal(linkID: string, newBreakpoint: Breakpoint|undefined): void {
     this.texeraGraph.setLinkBreakpoint(linkID, newBreakpoint);
     if (newBreakpoint === undefined || Object.keys(newBreakpoint).length === 0) {
       this.getJointGraphWrapper().hideLinkBreakpoint(linkID);
