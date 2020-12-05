@@ -310,6 +310,7 @@ export class NavigationComponent implements OnInit {
    */
   onClickCreateNewWorkflow() {
     this.workflowCacheService.resetCachedWorkflow();
+    this.workflowActionService.reloadWorkflow(this.workflowCacheService.getCachedWorkflow());
     this.undoRedoService.clearUndoStack();
     this.undoRedoService.clearRedoStack();
     this.location.go('/');

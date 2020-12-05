@@ -34,7 +34,7 @@ export class WorkflowCacheService {
   }
 
   public getCachedWorkflow(): Workflow|undefined {
-    const workflow = localGetObject<Workflow>(WorkflowCacheService.LOCAL_STORAGE_KEY);
+    const workflow: Workflow|undefined = localGetObject<Workflow>(WorkflowCacheService.LOCAL_STORAGE_KEY);
     if (workflow === undefined) {
       this.resetCachedWorkflow();
     }
