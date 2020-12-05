@@ -17,9 +17,9 @@ export function localSetObject<T>(key: string, object: T): void {
  * @param key - the identifier of the object
  * @returns T - the converted object (in type<t>) from the JSON string, or null if the key is not found.
  */
-export function localGetObject<T>(key: string): T | undefined {
-  const data: string | null = localStorage.getItem(key);
-  if (!data) {
+export function localGetObject<T>(key: string): T|undefined {
+  const data: string|null = localStorage.getItem(key);
+  if (data == null) {
     return undefined;
   }
 
