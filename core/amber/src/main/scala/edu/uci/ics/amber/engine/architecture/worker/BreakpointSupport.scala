@@ -2,10 +2,8 @@ package edu.uci.ics.amber.engine.architecture.worker
 
 import edu.uci.ics.amber.engine.architecture.breakpoint.FaultedTuple
 import edu.uci.ics.amber.engine.architecture.breakpoint.localbreakpoint.LocalBreakpoint
-import edu.uci.ics.amber.engine.common.tuple.ITuple
 
 import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
 import scala.util.control.Breaks
 
 trait BreakpointSupport {

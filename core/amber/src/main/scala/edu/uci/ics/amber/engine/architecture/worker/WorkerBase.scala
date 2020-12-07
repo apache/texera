@@ -1,35 +1,43 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
-import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage
-import edu.uci.ics.amber.engine.architecture.breakpoint.FaultedTuple
-import edu.uci.ics.amber.engine.architecture.breakpoint.localbreakpoint.LocalBreakpoint
-import edu.uci.ics.amber.engine.common.amberexception.AmberException
-import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage._
-import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage._
-import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.amber.engine.common.ElidableStatement
 import akka.actor.{Actor, ActorLogging, Stash}
 import akka.event.LoggingAdapter
 import akka.util.Timeout
+import com.softwaremill.macwire.wire
+import edu.uci.ics.amber.engine.architecture.breakpoint.FaultedTuple
+import edu.uci.ics.amber.engine.architecture.worker.neo._
+import edu.uci.ics.amber.engine.common.IOperatorExecutor
+import edu.uci.ics.amber.engine.common.amberexception.AmberException
+import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage._
+import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage
+import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage._
+import edu.uci.ics.amber.engine.common.tuple.ITuple
 
 import scala.annotation.elidable
 import scala.annotation.elidable.INFO
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
-import scala.util.control.Breaks
 import scala.concurrent.duration._
 
-abstract class WorkerBase extends Actor with ActorLogging with Stash with DataTransferSupport {
+abstract class WorkerBase extends Actor with ActorLogging with Stash {
   implicit val ec: ExecutionContext = context.dispatcher
   implicit val timeout: Timeout = 5.seconds
   implicit val logAdapter: LoggingAdapter = log
+
+  var operator: IOperatorExecutor
+
+  lazy val workerInternalQueue: WorkerInternalQueue = wire[WorkerInternalQueue]
+  lazy val tupleInput: BatchToTupleConverter = wire[BatchToTupleConverter]
+  lazy val pauseManager: PauseManager = wire[PauseManager]
+  lazy val tupleOutput: TupleToBatchConverter = wire[TupleToBatchConverter]
+  lazy val dataProcessor: DataProcessor = wire[DataProcessor]
 
   val receivedFaultedTupleIds: mutable.HashSet[Long] = new mutable.HashSet[Long]()
   val receivedRecoveryInformation: mutable.HashSet[(Long, Long)] =
     new mutable.HashSet[(Long, Long)]()
 
-  var pausedFlag = false
   var userFixedTuple: ITuple = _
+  var isCompleted = false
   @elidable(INFO) var startTime = 0L
 
   def onInitialization(recoveryInformation: Seq[(Long, Long)]): Unit = {
@@ -38,9 +46,9 @@ abstract class WorkerBase extends Actor with ActorLogging with Stash with DataTr
 
   def onSkipTuple(faultedTuple: FaultedTuple): Unit = {
     if (faultedTuple.isInput) {
-      skippedInputTuples.add(faultedTuple.tuple)
+      tupleOutput.skippedInputTuples.add(faultedTuple.tuple)
     } else {
-      skippedOutputTuples.add(faultedTuple.tuple)
+      tupleOutput.skippedOutputTuples.add(faultedTuple.tuple)
     }
   }
 
@@ -55,8 +63,7 @@ abstract class WorkerBase extends Actor with ActorLogging with Stash with DataTr
   }
 
   def onPausing(): Unit = {
-    pausedFlag = true
-    pauseDataTransfer()
+    tupleOutput.pauseDataTransfer()
   }
 
   def onPaused(): Unit = {
@@ -64,34 +71,23 @@ abstract class WorkerBase extends Actor with ActorLogging with Stash with DataTr
   }
 
   def onResuming(): Unit = {
-    resumeDataTransfer()
-    pausedFlag = false
+    tupleOutput.resumeDataTransfer()
   }
 
   def onResumed(): Unit = {
     context.parent ! ReportState(WorkerState.Running)
   }
 
-  def onCompleting(): Unit = {
-    endDataTransfer()
-  }
-
   def onCompleted(): Unit = {
+    tupleOutput.endDataTransfer()
+    isCompleted = true
     context.parent ! ReportState(WorkerState.Completed)
   }
 
-  def onInterrupted(operations: => Unit): Unit = {
-    if (pausedFlag) {
-      //pauseDataTransfer()
-      operations
-      Breaks.break()
-    }
-  }
-
   def onBreakpointTriggered(): Unit = {
-    breakpoints.foreach { brk =>
+    dataProcessor.breakpoints.foreach { brk =>
       if (brk.isTriggered)
-        unhandledFaultedTuples(brk.triggeredTupleId) =
+        dataProcessor.unhandledFaultedTuples(brk.triggeredTupleId) =
           new FaultedTuple(brk.triggeredTuple, brk.triggeredTupleId, brk.isInput)
     }
     context.parent ! ReportState(WorkerState.LocalBreakpointTriggered)
@@ -107,7 +103,6 @@ abstract class WorkerBase extends Actor with ActorLogging with Stash with DataTr
     receivedRecoveryInformation ++= recoveryInformation
     userFixedTuple = null
     receivedFaultedTupleIds.clear()
-    pausedFlag = false
   }
 
   def getResultTuples(): mutable.MutableList[ITuple] = {
@@ -117,21 +112,21 @@ abstract class WorkerBase extends Actor with ActorLogging with Stash with DataTr
   final def allowStashOrReleaseOutput: Receive = {
     case StashOutput =>
       sender ! Ack
-      pauseDataTransfer()
+      tupleOutput.pauseDataTransfer()
     case ReleaseOutput =>
       sender ! Ack
-      resumeDataTransfer()
+      tupleOutput.resumeDataTransfer()
   }
 
   final def allowModifyBreakpoints: Receive = {
     case AssignBreakpoint(bp) =>
       log.info("Assign breakpoint: " + bp.id)
-      registerBreakpoint(bp)
+      dataProcessor.registerBreakpoint(bp)
       sender ! Ack
     case RemoveBreakpoint(id) =>
       log.info("Remove breakpoint: " + id)
       sender ! Ack
-      removeBreakpoint(id)
+      dataProcessor.removeBreakpoint(id)
 
   }
 
@@ -151,7 +146,7 @@ abstract class WorkerBase extends Actor with ActorLogging with Stash with DataTr
 
   final def allowQueryBreakpoint: Receive = {
     case QueryBreakpoint(id) =>
-      val toReport = breakpoints.find(_.id == id)
+      val toReport = dataProcessor.breakpoints.find(_.id == id)
       if (toReport.isDefined) {
         toReport.get.isReported = true
         context.parent ! ReportedQueriedBreakpoint(toReport.get)
@@ -167,7 +162,7 @@ abstract class WorkerBase extends Actor with ActorLogging with Stash with DataTr
 
   final def allowQueryTriggeredBreakpoints: Receive = {
     case QueryTriggeredBreakpoints =>
-      val toReport = breakpoints.filter(_.isTriggered)
+      val toReport = dataProcessor.breakpoints.filter(_.isTriggered)
       if (toReport.nonEmpty) {
         toReport.foreach(_.isReported = true)
         sender ! ReportedTriggeredBreakpoints(toReport)
@@ -186,7 +181,7 @@ abstract class WorkerBase extends Actor with ActorLogging with Stash with DataTr
   final def allowUpdateOutputLinking: Receive = {
     case UpdateOutputLinking(policy, tag, receivers) =>
       sender ! Ack
-      updateOutput(policy, tag, receivers)
+      tupleOutput.updateOutput(policy, tag, receivers)
   }
 
   final def disallowUpdateOutputLinking: Receive = {
@@ -263,7 +258,7 @@ abstract class WorkerBase extends Actor with ActorLogging with Stash with DataTr
       allowModifyBreakpoints orElse
       disallowQueryTriggeredBreakpoints orElse [Any, Unit] {
       case QueryBreakpoint(id) =>
-        val toReport = breakpoints.find(_.id == id)
+        val toReport = dataProcessor.breakpoints.find(_.id == id)
         if (toReport.isDefined) {
           toReport.get.isReported = true
           context.parent ! ReportedQueriedBreakpoint(toReport.get)
@@ -290,8 +285,8 @@ abstract class WorkerBase extends Actor with ActorLogging with Stash with DataTr
       allowModifyBreakpoints orElse
       disallowQueryTriggeredBreakpoints orElse [Any, Unit] {
       case Resume =>
-        unhandledFaultedTuples.values.foreach(onResumeTuple)
-        unhandledFaultedTuples.clear()
+        dataProcessor.unhandledFaultedTuples.values.foreach(onResumeTuple)
+        dataProcessor.unhandledFaultedTuples.clear()
         onResuming()
         onResumed()
         context.become(running)
@@ -300,21 +295,21 @@ abstract class WorkerBase extends Actor with ActorLogging with Stash with DataTr
         sender ! Ack
         if (!receivedFaultedTupleIds.contains(f.id)) {
           receivedFaultedTupleIds.add(f.id)
-          unhandledFaultedTuples.remove(f.id)
+          dataProcessor.unhandledFaultedTuples.remove(f.id)
           onSkipTuple(f)
         }
       case ModifyTuple(f) =>
         sender ! Ack
         if (!receivedFaultedTupleIds.contains(f.id)) {
           receivedFaultedTupleIds.add(f.id)
-          unhandledFaultedTuples.remove(f.id)
+          dataProcessor.unhandledFaultedTuples.remove(f.id)
           onModifyTuple(f)
         }
       case ResumeTuple(f) =>
         sender ! Ack
         if (!receivedFaultedTupleIds.contains(f.id)) {
           receivedFaultedTupleIds.add(f.id)
-          unhandledFaultedTuples.remove(f.id)
+          dataProcessor.unhandledFaultedTuples.remove(f.id)
           onResumeTuple(f)
         }
       case Pause      => context.parent ! ReportState(WorkerState.Paused)
@@ -324,7 +319,7 @@ abstract class WorkerBase extends Actor with ActorLogging with Stash with DataTr
           WorkerStatistics(WorkerState.Paused, getInputRowCount(), getOutputRowCount())
         )
       case QueryBreakpoint(id) =>
-        val toReport = breakpoints.find(_.id == id)
+        val toReport = dataProcessor.breakpoints.find(_.id == id)
         if (toReport.isDefined) {
           toReport.get.isReported = true
           context.parent ! ReportedQueriedBreakpoint(toReport.get)
@@ -382,8 +377,8 @@ abstract class WorkerBase extends Actor with ActorLogging with Stash with DataTr
       case AssignBreakpoint(bp) =>
         log.info("assign breakpoint: " + bp)
         sender ! Ack
-        registerBreakpoint(bp)
-        if (!breakpoints.exists(_.isDirty)) {
+        dataProcessor.registerBreakpoint(bp)
+        if (!dataProcessor.breakpoints.exists(_.isDirty)) {
           onPaused() //back to paused
           context.unbecome()
           unstashAll()
@@ -391,8 +386,8 @@ abstract class WorkerBase extends Actor with ActorLogging with Stash with DataTr
       case RemoveBreakpoint(id) =>
         log.info("remove breakpoint: " + id)
         sender ! Ack
-        removeBreakpoint(id)
-        if (!breakpoints.exists(_.isDirty)) {
+        dataProcessor.removeBreakpoint(id)
+        if (!dataProcessor.breakpoints.exists(_.isDirty)) {
           onPaused() //back to paused
           context.unbecome()
           unstashAll()
