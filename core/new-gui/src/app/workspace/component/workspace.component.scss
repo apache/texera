@@ -11,6 +11,12 @@
 
 .texera-workspace {
   // transition: grid-template-rows 0.5s;
+  --header-height: 56px;
+  --resultbar-height: 25px;
+
+  &.user-system-enabled{
+    --header-height: 96px;
+  }
 }
 
 /**
@@ -34,16 +40,15 @@
   * size will be based on the child component. Using auto and percentage
   * with a fixed px (header-height) will crash.
   */
-  $header-height: 56px;
-  $resultbar-height: 25px;
+
 .texera-workspace-grid-container {
   display: grid;
   grid-template-columns: 14% 70% 16%;
-  grid-template-rows: $header-height
-                      calc((100% - #{$header-height} - #{$resultbar-height}) * 0.65)
+  grid-template-rows: var(--header-height)
+                      calc((100% - var(--header-height) - var(--resultbar-height)) * 0.65)
                       0px
-                      $resultbar-height
-                      calc((100% - #{$header-height} - #{$resultbar-height}) * 0.35);
+                      var(--resultbar-height)
+                      calc((100% - var(--header-height) - var(--resultbar-height)) * 0.35);
   position: relative;
 }
 
@@ -58,10 +63,10 @@
 .texera-original-workspace-grid-container{
   display: grid;
   grid-template-columns: 14% 70% 16%;
-  grid-template-rows: $header-height
-                      calc((100% - #{$header-height} - #{$resultbar-height}) * 0.65)
-                      calc((100% - #{$header-height} - #{$resultbar-height}) * 0.35)
-                      $resultbar-height
+  grid-template-rows: var(--header-height)
+                      calc((100% - var(--header-height) - var(--resultbar-height)) * 0.65)
+                      calc((100% - var(--header-height) - var(--resultbar-height)) * 0.35)
+                      var(--resultbar-height)
                       0px;
   position: relative;
 }

@@ -1,13 +1,26 @@
 <div class='texera-navigation-body'>
   <div class='texera-navigation-padded'>
     <div class='texera-navigation-title'>
-      <a href="#">
-        Texera <span class="version-number">0.5.1</span><span class="git-commit-hash"> {{gitCommitHash}}</span>
+      <a href="#" class = "title-link">
+          <span class="title">Texera</span>
+          <span class="version-number">0.5.1</span>
       </a>
+      <div class="git-commit-hash-label">
+        revision:
+      </div>
+      <div class="git-commit-hash">
+        {{gitCommitHash}}
+      </div>
     </div>
+
+    <div class="texera-navigation-workflow-name" *ngIf="userSystemEnabled">
+      <span class="name-input" #nameInput role="textbox" contenteditable="true" spellcheck="false" placeholder="Untitled Workflow" (input)="onWorkflowNameChange($event)" ></span>
+      <span class="save-state" spellcheck="false">{{autoSaveState}}</span>
+    </div>
+
     <div class='texera-navigation-utilities'>
       <nz-button-group nzSize="large">
-        <button *ngIf="userSystemEnabled" [routerLink]="'/dashboard'" title="dashboard">
+        <button nz-button *ngIf="userSystemEnabled" [routerLink]="'/dashboard'" title="dashboard">
           <i nz-icon nzTheme="outline" nzType="cloud-server"></i>
         </button>
 
@@ -51,13 +64,6 @@
 
       </nz-button-group>
     </div>
-    <label class="texera-navigation-auto-save-status" nz-label *ngIf="userSystemEnabled"
-           [textContent]="autoSaveState"></label>
-
-    <label *ngIf="userSystemEnabled">
-      <input (change)="onWorkflowNameChange()" [(ngModel)]="currentWorkflowName" class="texera-navigation-workflow-name"
-             nz-input placeholder="Untitled Workflow"/>
-    </label>
     <div
       [ngClass]="{'texera-navigation-execute': true, 'reveal-stop-button' : executionState != ExecutionState.Uninitialized && executionState != ExecutionState.Completed && executionState != ExecutionState.Failed}">
       <nz-button-group nzSize="large">

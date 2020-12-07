@@ -50,6 +50,7 @@ import { WorkflowWebsocketService } from '../service/workflow-websocket/workflow
 export class WorkspaceComponent implements OnInit {
 
   public showResultPanel: boolean = false;
+  public userSystemEnabled: boolean = environment.userSystemEnabled;
 
   constructor(
     private resultPanelToggleService: ResultPanelToggleService,

@@ -1,5 +1,5 @@
 import { DatePipe, Location } from '@angular/common';
-import { Component, Input, OnInit } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, Input, OnInit, ViewChild } from '@angular/core';
 import { TourService } from 'ngx-tour-ng-bootstrap';
 import { environment } from '../../../../environments/environment';
 import { Version } from '../../../../environments/version';
@@ -35,9 +35,10 @@ import { ExecutionState } from '../../types/execute-workflow.interface';
   templateUrl: './navigation.component.html',
   styleUrls: ['./navigation.component.scss']
 })
-export class NavigationComponent implements OnInit {
+export class NavigationComponent implements OnInit, AfterViewInit {
   @Input() public autoSaveState: string = '';
   @Input() public currentWorkflowName: string = '';  // reset workflowName
+  @ViewChild('nameInput') nameInputBox: ElementRef<HTMLElement> | undefined;
 
   public gitCommitHash: string = Version.raw;
   public executionState: ExecutionState;  // set this to true when the workflow is started
@@ -114,6 +115,19 @@ export class NavigationComponent implements OnInit {
         }
       }
     });
+  }
+
+  ngAfterViewInit(): void {
+    // initialize user system settings for navigation
+    this.initializeUserSystemSettings();
+  }
+
+  initializeUserSystemSettings() {
+    if (environment.userSystemEnabled) {
+      if (this.nameInputBox !== undefined) {
+        this.nameInputBox.nativeElement.innerText = this.currentWorkflowName;
+      }
+    }
   }
 
   // apply a behavior to the run button via bound variables
@@ -295,8 +309,8 @@ export class NavigationComponent implements OnInit {
   /**
    * Handler for changing workflow name input box, updates the cachedWorkflow and persist to database.
    */
-  onWorkflowNameChange() {
-    this.currentWorkflowName = this.currentWorkflowName.trim();
+  onWorkflowNameChange(event: InputEvent) {
+    this.currentWorkflowName = (<HTMLElement>event.target).innerText.trim();
     this.workflowActionService.setWorkflowName(this.currentWorkflowName);
     if (this.userService.isLogin()) {
       this.persistCachedWorkflow();
