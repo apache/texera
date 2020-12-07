@@ -2,7 +2,7 @@ package edu.uci.ics.amber.engine.architecture.worker
 
 import akka.actor.{ActorLogging, Props, Stash}
 import edu.uci.ics.amber.engine.architecture.breakpoint.FaultedTuple
-import edu.uci.ics.amber.engine.architecture.worker.neo.PauseControl
+import edu.uci.ics.amber.engine.architecture.worker.neo.PauseManager
 import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage._
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage._
 import edu.uci.ics.amber.engine.common.ambertag.{LayerTag, WorkerTag}
@@ -44,7 +44,7 @@ class Generator(var operator: IOperatorExecutor, val tag: WorkerTag)
 
   override def onResuming(): Unit = {
     super.onResuming()
-    pauseControl.resume(PauseControl.User)
+    pauseManager.resume()
   }
 
   override def onCompleted(): Unit = {
@@ -91,13 +91,13 @@ class Generator(var operator: IOperatorExecutor, val tag: WorkerTag)
 
   override def onPausing(): Unit = {
     super.onPausing()
-    pauseControl.pause(PauseControl.User)
+    pauseManager.pause()
     // if dp thread is blocking on waiting for input tuples:
     if (workerInternalQueue.blockingDeque.isEmpty && tupleInput.isCurrentBatchExhausted) {
       // insert dummy batch to unblock dp thread
       workerInternalQueue.addBatch(null)
     }
-    pauseControl.waitForDPThread()
+    pauseManager.waitForDPThread()
     onPaused()
     context.become(paused)
     unstashAll()

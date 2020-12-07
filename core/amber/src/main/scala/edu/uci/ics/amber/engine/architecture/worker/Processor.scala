@@ -3,7 +3,7 @@ package edu.uci.ics.amber.engine.architecture.worker
 import akka.actor.Props
 import edu.uci.ics.amber.engine.architecture.breakpoint.FaultedTuple
 import edu.uci.ics.amber.engine.architecture.receivesemantics.FIFOAccessPort
-import edu.uci.ics.amber.engine.architecture.worker.neo.PauseControl
+import edu.uci.ics.amber.engine.architecture.worker.neo.PauseManager
 import edu.uci.ics.amber.engine.common.amberexception.AmberException
 import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage.{QueryState, _}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage._
@@ -57,13 +57,13 @@ class Processor(var operator: IOperatorExecutor, val tag: WorkerTag) extends Wor
 
   override def onResuming(): Unit = {
     super.onResuming()
-    pauseControl.resume(PauseControl.User)
+    pauseManager.resume()
   }
 
   override def onSkipTuple(faultedTuple: FaultedTuple): Unit = {
     super.onSkipTuple(faultedTuple)
     if (faultedTuple.isInput) {
-      tupleInput.nextInputTuple()
+      tupleInput.getNextInputTuple()
     } else {
       //if it's output tuple, it will be ignored
     }
@@ -171,13 +171,13 @@ class Processor(var operator: IOperatorExecutor, val tag: WorkerTag) extends Wor
 
   override def onPausing(): Unit = {
     super.onPausing()
-    pauseControl.pause(PauseControl.User)
+    pauseManager.pause()
     // if dp thread is blocking on waiting for input tuples:
     if (workerInternalQueue.blockingDeque.isEmpty && tupleInput.isCurrentBatchExhausted) {
       // insert dummy batch to unblock dp thread
       workerInternalQueue.addBatch(null)
     }
-    pauseControl.waitForDPThread()
+    pauseManager.waitForDPThread()
     onPaused()
     context.become(paused)
     unstashAll()

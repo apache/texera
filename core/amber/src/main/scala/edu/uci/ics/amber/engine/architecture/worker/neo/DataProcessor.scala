@@ -13,9 +13,9 @@ import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted}
 
 class DataProcessor( // dependencies:
     operator: IOperatorExecutor, // core logic
-    tupleInput: TupleInput, // to get input tuples
-    tupleOutput: TupleOutput, // to send output tuples
-    pauseControl: PauseControl, // to pause/resume
+    tupleInput: BatchToTupleConverter, // to get input tuples
+    tupleOutput: TupleToBatchConverter, // to send output tuples
+    pauseManager: PauseManager, // to pause/resume
     self: ActorRef // to notify main actor
 ) extends BreakpointSupport { // TODO: make breakpointSupport as a module
 
@@ -28,7 +28,7 @@ class DataProcessor( // dependencies:
   Executors.newSingleThreadExecutor.submit(new Runnable() {
     def run(): Unit = {
       try {
-        dpThread()
+        runDPThreadMainLogic()
       } catch {
         case e: Exception =>
           throw new RuntimeException(e)
@@ -86,7 +86,7 @@ class DataProcessor( // dependencies:
         tupleOutput.transferTuple(outputTuple, outputTupleCount)
       } catch {
         case bp: BreakpointException =>
-          pauseControl.pause(PauseControl.Internal)
+          pauseManager.pause()
           self ! LocalBreakpointTriggered // TODO: apply FIFO & exactly-once protocol here
         case e: Exception =>
           handleOperatorException(e, isInput = false)
@@ -98,26 +98,26 @@ class DataProcessor( // dependencies:
     * @throws Exception (from engine code only)
     */
   @throws[Exception]
-  private[this] def dpThread(): Unit = {
+  private[this] def runDPThreadMainLogic(): Unit = {
     // main DP loop: runs until all upstreams exhaust.
     while (!tupleInput.isAllUpstreamsExhausted) {
       // take the next input tuple from tupleInput, blocks if no tuple available.
-      currentInputTuple = tupleInput.nextInputTuple()
+      currentInputTuple = tupleInput.getNextInputTuple
       // check pause before processing the input tuple.
-      pauseControl.pauseCheck()
+      pauseManager.checkForPause()
       // if the input tuple is not a dummy tuple, process it
       // TODO: make sure this dummy batch feature works with fault tolerance
       if (currentInputTuple != null) {
         // pass input tuple to operator logic.
         val outputIterator = processCurrentInputTuple()
         // check pause before outputting tuples.
-        pauseControl.pauseCheck()
+        pauseManager.checkForPause()
         // output loop: take one tuple from iterator at a time.
         while (outputIterator != null && outputIterator.hasNext) {
           // send tuple to downstream.
           outputOneTuple(outputIterator)
           // check pause after one tuple has been outputted.
-          pauseControl.pauseCheck()
+          pauseManager.checkForPause()
         }
       }
     }
@@ -139,7 +139,7 @@ class DataProcessor( // dependencies:
   }
 
   private[this] def handleOperatorException(e: Exception, isInput: Boolean): Unit = {
-    pauseControl.pause(PauseControl.Internal)
+    pauseManager.pause()
     assignExceptionBreakpoint(currentInputTuple.left.getOrElse(null), e, isInput)
     self ! LocalBreakpointTriggered // TODO: apply FIFO & exactly-once protocol here
   }

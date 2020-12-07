@@ -3,7 +3,7 @@ package edu.uci.ics.amber.engine.architecture.worker.neo
 import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 
-class TupleInput(internalQueue: WorkerInternalQueue) {
+class BatchToTupleConverter(internalQueue: WorkerInternalQueue) {
 
   // save current batch related information
   private var currentBatch: (Int, Array[ITuple]) = _
@@ -17,7 +17,7 @@ class TupleInput(internalQueue: WorkerInternalQueue) {
     * should only be called from dp thread
     * @return tuple
     */
-  def nextInputTuple(): Either[ITuple, InputExhausted] = {
+  def getNextInputTuple: Either[ITuple, InputExhausted] = {
     // increment cursor
     currentTupleIndex += 1
     // if batch is unavailable, take one from batchInput and reset cursor

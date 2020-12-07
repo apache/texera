@@ -27,9 +27,9 @@ abstract class WorkerBase extends Actor with ActorLogging with Stash {
   var operator: IOperatorExecutor
 
   lazy val workerInternalQueue: WorkerInternalQueue = wire[WorkerInternalQueue]
-  lazy val tupleInput: TupleInput = wire[TupleInput]
-  lazy val pauseControl: PauseControl = wire[PauseControl]
-  lazy val tupleOutput: TupleOutput = wire[TupleOutput]
+  lazy val tupleInput: BatchToTupleConverter = wire[BatchToTupleConverter]
+  lazy val pauseManager: PauseManager = wire[PauseManager]
+  lazy val tupleOutput: TupleToBatchConverter = wire[TupleToBatchConverter]
   lazy val dataProcessor: DataProcessor = wire[DataProcessor]
 
   val receivedFaultedTupleIds: mutable.HashSet[Long] = new mutable.HashSet[Long]()

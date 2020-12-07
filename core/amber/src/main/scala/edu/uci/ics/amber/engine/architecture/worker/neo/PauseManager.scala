@@ -3,37 +3,32 @@ package edu.uci.ics.amber.engine.architecture.worker.neo
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.atomic.AtomicInteger
 
-object PauseControl {
-  // TODO: check if this is necessary
-  // I want to introduce pause privileges so that stronger pause can override weak pause
-  // suppose:
-  // 1. an internal control pauses the workflow (with privilege 1)
-  // 2. user pauses the workflow (with privilege 2)
-  // 3. the internal control resumes the workflow (with privilege 1)
-  // step 3 will not be done since the user pauses the workflow.
+import edu.uci.ics.amber.engine.architecture.worker.neo.PauseManager.{NoPause, Paused}
+
+object PauseManager {
   final val NoPause = 0
-  final val Internal = 4
-  final val User = 1024
+  final val Paused = 1
 }
 
-class PauseControl {
+class PauseManager {
 
   // current pause privilege level
-  private val pausePrivilegeLevel = new AtomicInteger(PauseControl.NoPause)
+  private val pausePrivilegeLevel = new AtomicInteger(PauseManager.NoPause)
   // yielded control of the dp thread
   private var currentFuture: CompletableFuture[Void] = _
 
   /** pause functionality
     * both dp thread and actor can call this function
-    * @param level
+    * @param
     */
-  def pause(level: Int): Unit = {
+  def pause(): Unit = {
 
     /*this line atomically applies the following logic:
+      Level = Paused
       if(level >= pausePrivilegeLevel.get())
         pausePrivilegeLevel.set(level)
      */
-    pausePrivilegeLevel.getAndUpdate(i => if (level >= i) level else i)
+    pausePrivilegeLevel.getAndUpdate(i => if (Paused >= i) Paused else i)
   }
 
   /** blocking wait for dp thread to pause
@@ -47,14 +42,14 @@ class PauseControl {
 
   /** resume functionality
     * only actor calls this function for now
-    * @param level
+    * @param
     */
-  def resume(level: Int): Unit = {
-    if (level < pausePrivilegeLevel.get()) {
+  def resume(): Unit = {
+    if (pausePrivilegeLevel.get() == NoPause) {
       return
     }
     // only privilege level >= current pause privilege level can resume the worker
-    pausePrivilegeLevel.set(PauseControl.NoPause)
+    pausePrivilegeLevel.set(PauseManager.NoPause)
     unblockDPThread()
   }
 
@@ -63,9 +58,9 @@ class PauseControl {
     * @throws
     */
   @throws[Exception]
-  def pauseCheck(): Unit = {
+  def checkForPause(): Unit = {
     // returns if not paused
-    if (this.pausePrivilegeLevel.get() == PauseControl.NoPause) return
+    if (this.pausePrivilegeLevel.get() == PauseManager.NoPause) return
     blockDPThread()
   }
 
