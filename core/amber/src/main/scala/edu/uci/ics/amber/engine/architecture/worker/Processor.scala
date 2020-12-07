@@ -63,7 +63,7 @@ class Processor(var operator: IOperatorExecutor, val tag: WorkerTag) extends Wor
   override def onSkipTuple(faultedTuple: FaultedTuple): Unit = {
     super.onSkipTuple(faultedTuple)
     if (faultedTuple.isInput) {
-      tupleInput.getNextInputTuple()
+      tupleInput.getNextInputTuple
     } else {
       //if it's output tuple, it will be ignored
     }
