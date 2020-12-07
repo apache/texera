@@ -11,7 +11,6 @@ import { UserService } from '../../../common/service/user/user.service';
 import { WorkflowPersistService } from '../../../common/service/user/workflow-persist/workflow-persist.service';
 import { CacheWorkflowService } from '../../service/cache-workflow/cache-workflow.service';
 import { Workflow } from '../../../common/type/workflow';
-import { Version } from '../../../../environments/version';
 import { environment } from '../../../../environments/environment';
 
 /**
@@ -37,7 +36,6 @@ import { environment } from '../../../../environments/environment';
 export class NavigationComponent implements OnInit {
   public static autoSaveState = 'Saved';
 
-  public gitCommitHash: string = Version.raw;
   public executionState: ExecutionState;  // set this to true when the workflow is started
   public ExecutionState = ExecutionState; // make Angular HTML access enum definition
   public isWorkflowValid: boolean = true; // this will check whether the workflow error or not
@@ -95,7 +93,7 @@ export class NavigationComponent implements OnInit {
   }
 
   public onClickRunHandler = () => {
-  };
+  }
 
   ngOnInit() {
   }
