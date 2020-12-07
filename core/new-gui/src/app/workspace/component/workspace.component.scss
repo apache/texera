@@ -131,6 +131,14 @@
   grid-row: 4/5;
 }
 
+.texera-git-commit-id{
+  position: absolute;
+  left: 5px;
+  bottom: 5px;
+  font-size: 0.4em;
+  color: gray;
+}
+
 #box {
   width:500px;
   height:100px;
