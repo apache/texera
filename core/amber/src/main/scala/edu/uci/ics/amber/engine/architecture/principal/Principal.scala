@@ -124,12 +124,14 @@ class Principal(val metadata: OpExecConfig) extends Actor with ActorLogging with
     workerStatisticsMap.update(worker, workerStatistics)
   }
 
+  // the input count is the sum of the input counts of the first-layer actors
   private def aggregateWorkerInputRowCount(): Long = {
-    workerStatisticsMap.values.map(s => s.inputRowCount).sum
+    workerStatisticsMap.filter(e => workerLayers.head.layer.contains(e._1)).map(e => e._2.inputRowCount).sum
   }
 
+  // the output count is the sum of the output counts of the last-layer actors
   private def aggregateWorkerOutputRowCount(): Long = {
-    workerStatisticsMap.values.map(s => s.outputRowCount).sum
+    workerStatisticsMap.filter(e => workerLayers.last.layer.contains(e._1)).map(e => e._2.outputRowCount).sum
   }
 
   private def setWorkerState(worker: ActorRef, state: WorkerState.Value): Boolean = {
