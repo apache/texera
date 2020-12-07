@@ -10,6 +10,7 @@ import org.apache.curator.shaded.com.google.common.collect.Iterators;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.core.StopAnalyzer;
+import org.apache.lucene.analysis.en.EnglishAnalyzer;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
 import scala.collection.Iterator;
 import scala.collection.JavaConverters;
@@ -51,7 +52,7 @@ public class WordCloudOpPartialExec implements OperatorExecutor {
                 int charStart = offsetAttribute.startOffset();
                 int charEnd = offsetAttribute.endOffset();
                 String termStr = text.substring(charStart, charEnd).toLowerCase();
-                if (!StopAnalyzer.ENGLISH_STOP_WORDS_SET.contains(termStr))
+                if (!EnglishAnalyzer.ENGLISH_STOP_WORDS_SET.contains(termStr))
                     termFreqMap.put(termStr, termFreqMap.get(termStr)==null ? 1 : termFreqMap.get(termStr) + 1);
             }
             tokenStream.close();
