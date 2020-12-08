@@ -37,10 +37,18 @@ import { RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { FormlyJsonschema } from '@ngx-formly/core/json-schema';
+import { ArrayTypeComponent } from 'src/app/common/formly/array.type';
+import { ObjectTypeComponent } from 'src/app/common/formly/object.type';
+import { MultiSchemaTypeComponent } from 'src/app/common/formly/multischema.type';
+import { NullTypeComponent } from 'src/app/common/formly/null.type';
+import { JSONSchema7 } from 'json-schema';
+
+import * as Ajv from 'ajv';
+import { cloneDeep } from 'lodash';
 
 /* tslint:disable:no-non-null-assertion */
 
-describe('PropertyEditorComponent', () => {
+fdescribe('PropertyEditorComponent', () => {
   let component: PropertyEditorComponent;
   let fixture: ComponentFixture<PropertyEditorComponent>;
   let workflowActionService: WorkflowActionService;
@@ -48,7 +56,13 @@ describe('PropertyEditorComponent', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-      declarations: [PropertyEditorComponent],
+      declarations: [
+        PropertyEditorComponent,
+        ArrayTypeComponent,
+        ObjectTypeComponent,
+        MultiSchemaTypeComponent,
+        NullTypeComponent,
+      ],
       providers: [
         JointUIService,
         WorkflowActionService,
@@ -57,16 +71,19 @@ describe('PropertyEditorComponent', () => {
         DynamicSchemaService,
         ExecuteWorkflowService,
         FormlyJsonschema
-        //{ provide: HttpClient, useClass: {} }
+        // { provide: HttpClient, useClass: {} }
       ],
       imports: [
         CommonModule,
         BrowserModule,
         BrowserAnimationsModule,
         NgbModule,
-        FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
-        FormlyMaterialModule,
         FormsModule,
+        FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
+        // formly ng zorro module has a bug that doesn't display field description,
+        // FormlyNgZorroAntdModule,
+        // use formly material module instead
+        FormlyMaterialModule,
         ReactiveFormsModule,
         HttpClientTestingModule,
       ]
@@ -111,14 +128,20 @@ describe('PropertyEditorComponent', () => {
     // check HTML form are displayed
     const formTitleElement = fixture.debugElement.query(By.css('.texera-workspace-property-editor-title'));
     const jsonSchemaFormElement = fixture.debugElement.query(By.css('.texera-workspace-property-editor-form'));
-
     // check the panel title
     expect((formTitleElement.nativeElement as HTMLElement).innerText).toEqual(
       mockScanSourceSchema.additionalMetadata.userFriendlyName);
 
     // check if the form has the all the json schema property names
-    Object.keys(mockScanSourceSchema.jsonSchema.properties!).forEach((propertyName) => {
-      expect((jsonSchemaFormElement.nativeElement as HTMLElement).innerHTML).toContain(propertyName);
+    Object.entries(mockScanSourceSchema.jsonSchema.properties!).forEach((entry) => {
+      const propertyTitle = (entry[1] as JSONSchema7).title;
+      if (propertyTitle) {
+        expect((jsonSchemaFormElement.nativeElement as HTMLElement).innerHTML).toContain(propertyTitle);
+      }
+      const propertyDescription = (entry[1] as JSONSchema7).description;
+      if (propertyDescription) {
+        expect((jsonSchemaFormElement.nativeElement as HTMLElement).innerHTML).toContain(propertyDescription);
+      }
     });
 
   });
@@ -144,8 +167,14 @@ describe('PropertyEditorComponent', () => {
     jointGraphWrapper.highlightOperator(mockResultPredicate.operatorID);
     fixture.detectChanges();
 
+    // result operator has default values, use ajv to fill in default values
+    // expected form output should fill in all default values instead of an empty object
+    const ajv = new Ajv({ useDefaults: true });
+    const expectedResultOperatorProperties = cloneDeep(mockResultPredicate.operatorProperties);
+    ajv.validate(mockViewResultsSchema.jsonSchema, expectedResultOperatorProperties);
+
     expect(component.currentOperatorID).toEqual(mockResultPredicate.operatorID);
-    expect(component.formData).toEqual(mockResultPredicate.operatorProperties);
+    expect(component.formData).toEqual(expectedResultOperatorProperties);
     expect(component.displayForm).toBeTruthy();
 
 
@@ -158,8 +187,15 @@ describe('PropertyEditorComponent', () => {
       mockViewResultsSchema.additionalMetadata.userFriendlyName);
 
     // check if the form has the all the json schema property names
-    Object.keys(mockViewResultsSchema.jsonSchema.properties!).forEach((propertyName) => {
-      expect((jsonSchemaFormElementAfterChange.nativeElement as HTMLElement).innerHTML).toContain(propertyName);
+    Object.entries(mockViewResultsSchema.jsonSchema.properties!).forEach((entry) => {
+      const propertyTitle = (entry[1] as JSONSchema7).title;
+      if (propertyTitle) {
+        expect((jsonSchemaFormElementAfterChange.nativeElement as HTMLElement).innerHTML).toContain(propertyTitle);
+      }
+      const propertyDescription = (entry[1] as JSONSchema7).description;
+      if (propertyDescription) {
+        expect((jsonSchemaFormElementAfterChange.nativeElement as HTMLElement).innerHTML).toContain(propertyDescription);
+      }
     });
 
 
