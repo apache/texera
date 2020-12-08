@@ -1,19 +1,19 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
-import edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy.DataTransferPolicy
-import edu.uci.ics.amber.engine.architecture.sendsemantics.routees.BaseRoutee
-import edu.uci.ics.amber.engine.common.amberexception.BreakpointException
-import edu.uci.ics.amber.engine.common.ambertag.{LayerTag, LinkTag}
-import edu.uci.ics.amber.engine.common.tuple.ITuple
 import akka.actor.{ActorContext, ActorRef}
 import akka.event.LoggingAdapter
 import akka.util.Timeout
+import edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy.DataTransferPolicy
+import edu.uci.ics.amber.engine.architecture.sendsemantics.routees.BaseRoutee
+import edu.uci.ics.amber.engine.common.amberexception.BreakpointException
+import edu.uci.ics.amber.engine.common.ambertag.LinkTag
+import edu.uci.ics.amber.engine.common.tuple.ITuple
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 import scala.util.control.Breaks
 
-trait DataTransferSupport extends BreakpointSupport {
+class DataTransferSupport(val sender: ActorRef) extends BreakpointSupport {
   var output = new Array[DataTransferPolicy](0)
   var skippedInputTuples = new mutable.HashSet[ITuple]
   var skippedOutputTuples = new mutable.HashSet[ITuple]
@@ -26,23 +26,23 @@ trait DataTransferSupport extends BreakpointSupport {
     }
   }
 
-  def resumeDataTransfer()(implicit sender: ActorRef): Unit = {
+  def resumeDataTransfer(): Unit = {
     var i = 0
     while (i < output.length) {
-      output(i).resume()
+      output(i).resume()(sender)
       i += 1
     }
   }
 
-  def endDataTransfer()(implicit sender: ActorRef): Unit = {
+  def endDataTransfer(): Unit = {
     var i = 0
     while (i < output.length) {
-      output(i).noMore()
+      output(i).noMore()(sender)
       i += 1
     }
   }
 
-  def cleanUpDataTransfer()(implicit sender: ActorRef): Unit = {
+  def cleanUpDataTransfer(): Unit = {
     var i = 0
     while (i < output.length) {
       output(i).dispose()
@@ -52,7 +52,7 @@ trait DataTransferSupport extends BreakpointSupport {
     output = Array()
   }
 
-  def transferTuple(tuple: ITuple, tupleId: Long)(implicit sender: ActorRef): Unit = {
+  def transferTuple(tuple: ITuple, tupleId: Long): Unit = {
     if (tuple != null && !skippedOutputTuples.contains(tuple)) {
       var i = 1
       var breakpointTriggered = false
@@ -67,12 +67,8 @@ trait DataTransferSupport extends BreakpointSupport {
         needUserFix |= breakpoints(i).needUserFix
         i += 1
       }
-      i = 0
       if (!needUserFix) {
-        while (i < output.length) {
-          output(i).accept(tuple)
-          i += 1
-        }
+        passTupleToDownstream(tuple)
       }
       if (breakpointTriggered) {
         throw new BreakpointException()
@@ -105,6 +101,14 @@ trait DataTransferSupport extends BreakpointSupport {
   def resetOutput(): Unit = {
     output.foreach {
       _.reset()
+    }
+  }
+
+  def passTupleToDownstream(tuple: ITuple): Unit = {
+    var i = 0
+    while (i < output.length) {
+      output(i).accept(tuple)(sender)
+      i += 1
     }
   }
 

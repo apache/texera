@@ -18,6 +18,7 @@ import { WorkflowWebsocketService } from '../service/workflow-websocket/workflow
 import { ActivatedRoute } from '@angular/router';
 import { WorkflowPersistService } from '../../common/service/user/workflow-persist/workflow-persist.service';
 import { Workflow } from '../../common/type/workflow';
+import { Version } from 'src/environments/version';
 
 @Component({
   selector: 'texera-workspace',
@@ -45,6 +46,7 @@ import { Workflow } from '../../common/type/workflow';
 })
 export class WorkspaceComponent implements OnInit {
 
+  public gitCommitHash: string = Version.raw;
   public showResultPanel: boolean = false;
   public currentWorkflowName: string = '';
 
