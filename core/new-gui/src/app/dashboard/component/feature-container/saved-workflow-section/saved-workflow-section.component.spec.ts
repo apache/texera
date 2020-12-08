@@ -1,4 +1,6 @@
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import { RouterTestingModule } from '@angular/router/testing';
+import { HttpClientTestingModule } from '@angular/common/http/testing';
 
 import { SavedWorkflowSectionComponent } from './saved-workflow-section.component';
 import { WorkflowPersistService } from '../../../../common/service/user/workflow-persist/workflow-persist.service';
@@ -10,7 +12,7 @@ import { MatDialogModule } from '@angular/material/dialog';
 import { NgbActiveModal, NgbModule } from '@ng-bootstrap/ng-bootstrap';
 import { FormsModule } from '@angular/forms';
 
-import { HttpClientModule } from '@angular/common/http';
+
 import { Workflow } from '../../../../common/type/workflow';
 
 describe('SavedProjectSectionComponent', () => {
@@ -19,35 +21,35 @@ describe('SavedProjectSectionComponent', () => {
 
   const TestCase: Workflow[] = [
     {
-      wfId: 1,
+      wid: 1,
       name: 'project 1',
       content: '{}',
       creationTime: '2017-10-25T12:34:50Z',
       lastModifiedTime: '2018-01-17T06:26:50Z',
     },
     {
-      wfId: 2,
+      wid: 2,
       name: 'project 2',
       content: '{}',
       creationTime: '2017-10-30T01:02:50Z',
       lastModifiedTime: '2018-01-14T22:56:50Z',
     },
     {
-      wfId: 3,
+      wid: 3,
       name: 'project 3',
       content: '{}',
       creationTime: '2018-01-01T01:01:01Z',
       lastModifiedTime: '2018-01-22T17:26:50Z',
     },
     {
-      wfId: 4,
+      wid: 4,
       name: 'project 4',
       content: '{}',
       creationTime: '2017-10-25T12:34:50Z',
       lastModifiedTime: '2018-01-17T06:26:50Z',
     },
     {
-      wfId: 5,
+      wid: 5,
       name: 'project 5',
       content: '{}',
       creationTime: '2017-10-30T01:02:50Z',
@@ -68,9 +70,9 @@ describe('SavedProjectSectionComponent', () => {
         MatDialogModule,
         NgbModule,
         FormsModule,
-        HttpClientModule]
-    })
-      .compileComponents();
+        RouterTestingModule,
+        HttpClientTestingModule]
+    }).compileComponents();
   }));
 
   beforeEach(() => {

@@ -40,8 +40,8 @@ describe('UserService', () => {
         HttpClientTestingModule
       ]
     });
-    httpMock = TestBed.get(HttpTestingController);
-    service = TestBed.get(UserService);
+    httpMock = TestBed.inject(HttpTestingController);
+    service = TestBed.inject(UserService);
 
     // set default login from session response to a failure reponse
     httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${UserService.AUTH_STATUS_ENDPOINT}`)
@@ -239,8 +239,8 @@ describe('UserService Session Login', () => {
         HttpClientTestingModule
       ]
     });
-    httpMock = TestBed.get(HttpTestingController);
-    service = TestBed.get(UserService);
+    httpMock = TestBed.inject(HttpTestingController);
+    service = TestBed.inject(UserService);
 
     // test login from session: don't flush login from session
   });

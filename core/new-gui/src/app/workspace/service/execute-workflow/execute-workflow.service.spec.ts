@@ -1,7 +1,7 @@
 import { ExecutionResult, ExecutionState } from '../../types/execute-workflow.interface';
-import { TestBed, inject } from '@angular/core/testing';
+import { TestBed, inject, fakeAsync, tick, flush } from '@angular/core/testing';
 
-import { ExecuteWorkflowService } from './execute-workflow.service';
+import { ExecuteWorkflowService, FORM_DEBOUNCE_TIME_MS } from './execute-workflow.service';
 
 import { WorkflowActionService } from './../workflow-graph/model/workflow-action.service';
 import { UndoRedoService } from './../../service/undo-redo/undo-redo.service';
@@ -10,7 +10,7 @@ import { StubOperatorMetadataService } from '../operator-metadata/stub-operator-
 import { JointUIService } from '../joint-ui/joint-ui.service';
 import { Observable } from 'rxjs/Observable';
 
-import { mockExecutionResult } from './mock-result-data';
+import { mockExecutionResult, mockResultData } from './mock-result-data';
 import { mockWorkflowPlan_scan_result, mockLogicalPlan_scan_result } from './mock-workflow-plan';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { marbles } from 'rxjs-marbles';
@@ -45,7 +45,7 @@ describe('ExecuteWorkflowService', () => {
       ]
     });
 
-    service = TestBed.get(ExecuteWorkflowService);
+    service = TestBed.inject(ExecuteWorkflowService);
     environment.pauseResumeEnabled = true;
   });
 
@@ -84,22 +84,32 @@ describe('ExecuteWorkflowService', () => {
 
   // }));
 
-  it('should call post function when executing workflow', () => {
-    const httpClient: HttpClient = TestBed.get(HttpClient);
-    const postMethodSpy = spyOn(httpClient, 'post').and.returnValue(
-      Observable.of(mockExecutionResult)
-    );
+  it('should msg backend when executing workflow', fakeAsync(() => {
 
-    service.executeWorkflow();
+    if (environment.amberEngineEnabled) {
+      const wsSendSpy = spyOn((service as any).workflowWebsocketService, 'send');
 
-    expect(postMethodSpy.calls.count()).toEqual(1);
+      service.executeWorkflow();
+      tick(FORM_DEBOUNCE_TIME_MS + 1);
+      flush();
+      expect(wsSendSpy).toHaveBeenCalledTimes(1);
+    } else {
+      // old engine test
+      const httpClient: HttpClient = TestBed.inject(HttpClient);
+      const postMethodSpy = spyOn(httpClient, 'post').and.returnValue(
+        Observable.of(mockExecutionResult)
+      );
 
-  });
+      service.executeWorkflow();
+      expect(postMethodSpy.calls.count()).toEqual(1);
+    }
+
+  }));
 
   // it('should stimulate backend error for invalid workflow graph and generate correct error messages', () => {
   //   const mockErrorMessage = 'mock backend error message';
 
-  //   const httpClient: HttpClient = TestBed.get(HttpClient);
+  //   const httpClient: HttpClient = TestBed.inject(HttpClient);
   //   spyOn(httpClient, 'post').and.returnValue(
   //     Observable.throw({
   //       status: 400,
@@ -126,7 +136,7 @@ describe('ExecuteWorkflowService', () => {
 
   //   const mockErrorMessage = 'mock server error message';
 
-  //   const httpClient: HttpClient = TestBed.get(HttpClient);
+  //   const httpClient: HttpClient = TestBed.inject(HttpClient);
   //   spyOn(httpClient, 'post').and.returnValue(
   //     Observable.throw({
   //       status: 500,
@@ -153,7 +163,7 @@ describe('ExecuteWorkflowService', () => {
 
   //   const mockErrorMessage = 'mock interent error message';
 
-  //   const httpClient: HttpClient = TestBed.get(HttpClient);
+  //   const httpClient: HttpClient = TestBed.inject(HttpClient);
 
   //   const progressEvent: ProgressEvent = new ProgressEvent(mockErrorMessage, undefined);
 
@@ -187,17 +197,19 @@ describe('ExecuteWorkflowService', () => {
   // });
 
 
-  it('it should raise an error when pauseWorkflow() is called without having a execution ID', () => {
+  it('it should raise an error when pauseWorkflow() is called without an execution state', () => {
+    (service as any).currentState = { state: ExecutionState.Uninitialized };
     expect(function () {
       service.pauseWorkflow();
-    }).toThrowError(new RegExp(`Workflow ID undefined when attempting to pause`));
+    }).toThrowError(new RegExp('cannot pause workflow, current execution state is ' + (service as any).currentState.state));
   });
 
 
-  it('it should raise an error when resumeWorkflow() is called without having a execution ID', () => {
+  it('it should raise an error when resumeWorkflow() is called without an execution state', () => {
+    (service as any).currentState = { state: ExecutionState.Uninitialized };
     expect(function () {
       service.resumeWorkflow();
-    }).toThrowError(new RegExp(`Workflow ID undefined when attempting to resume`));
+    }).toThrowError(new RegExp('cannot resume workflow, current execution state is '  + (service as any).currentState.state));
   });
 
 

@@ -1,5 +1,5 @@
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
-import { By } from '@angular/platform-browser';
+import { BrowserModule, By } from '@angular/platform-browser';
 import { async, ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 
 import { PropertyEditorComponent } from './property-editor.component';
@@ -28,6 +28,15 @@ import { FormlyModule } from '@ngx-formly/core';
 import { TEXERA_FORMLY_CONFIG } from 'src/app/common/formly/formly-config';
 import { FormlyMaterialModule } from '@ngx-formly/material';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { ExecuteWorkflowService } from '../../service/execute-workflow/execute-workflow.service';
+import { HttpClientTestingModule } from '@angular/common/http/testing';
+import { FormlyNgZorroAntdModule } from '@ngx-formly/ng-zorro-antd';
+import { AppRoutingModule } from 'src/app/app-routing.module';
+import { NgxAceModule } from 'ngx-ace-icy';
+import { RouterModule } from '@angular/router';
+import { CommonModule } from '@angular/common';
+import { HttpClient } from '@angular/common/http';
+import { FormlyJsonschema } from '@ngx-formly/core/json-schema';
 
 /* tslint:disable:no-non-null-assertion */
 
@@ -46,16 +55,20 @@ describe('PropertyEditorComponent', () => {
         UndoRedoService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         DynamicSchemaService,
-        // { provide: HttpClient, useClass: StubHttpClient }
+        ExecuteWorkflowService,
+        FormlyJsonschema
+        //{ provide: HttpClient, useClass: {} }
       ],
       imports: [
-        CustomNgMaterialModule,
+        CommonModule,
+        BrowserModule,
         BrowserAnimationsModule,
         NgbModule,
         FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
         FormlyMaterialModule,
         FormsModule,
         ReactiveFormsModule,
+        HttpClientTestingModule,
       ]
     })
       .compileComponents();
@@ -64,9 +77,8 @@ describe('PropertyEditorComponent', () => {
   beforeEach(() => {
     fixture = TestBed.createComponent(PropertyEditorComponent);
     component = fixture.componentInstance;
-    workflowActionService = TestBed.get(WorkflowActionService);
-    dynamicSchemaService = TestBed.get(DynamicSchemaService);
-
+    workflowActionService = TestBed.inject(WorkflowActionService);
+    dynamicSchemaService = TestBed.inject(DynamicSchemaService);
     fixture.detectChanges();
 
   });
@@ -91,7 +103,6 @@ describe('PropertyEditorComponent', () => {
     jointGraphWrapper.highlightOperator(predicate.operatorID);
 
     fixture.detectChanges();
-
     // check variables are set correctly
     expect(component.currentOperatorID).toEqual(predicate.operatorID);
     expect(component.formData).toEqual(predicate.operatorProperties);

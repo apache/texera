@@ -23,6 +23,8 @@ import {
   mockScanPredicate, mockPoint, mockScanResultLink, mockResultPredicate
 } from '../../service/workflow-graph/model/mock-workflow-data';
 import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
+import { ExecuteWorkflowService } from '../../service/execute-workflow/execute-workflow.service';
+import { HttpClientTestingModule } from '@angular/common/http/testing';
 
 describe('WorkflowEditorComponent', () => {
 
@@ -39,6 +41,9 @@ describe('WorkflowEditorComponent', () => {
     beforeEach(async(() => {
       TestBed.configureTestingModule({
         declarations: [WorkflowEditorComponent],
+        imports: [
+          HttpClientTestingModule,
+        ],
         providers: [
           JointUIService,
           WorkflowUtilService,
@@ -48,7 +53,8 @@ describe('WorkflowEditorComponent', () => {
           ValidationWorkflowService,
           WorkflowActionService,
           { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
-          WorkflowStatusService
+          WorkflowStatusService,
+          ExecuteWorkflowService,
         ]
       })
         .compileComponents();
@@ -133,6 +139,9 @@ describe('WorkflowEditorComponent', () => {
     beforeEach(async(() => {
       TestBed.configureTestingModule({
         declarations: [WorkflowEditorComponent],
+        imports: [
+          HttpClientTestingModule,
+        ],
         providers: [
           JointUIService,
           WorkflowUtilService,
@@ -143,6 +152,7 @@ describe('WorkflowEditorComponent', () => {
           DragDropService,
           { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
           WorkflowStatusService,
+          ExecuteWorkflowService,
         ]
       })
         .compileComponents();
@@ -151,11 +161,11 @@ describe('WorkflowEditorComponent', () => {
     beforeEach(() => {
       fixture = TestBed.createComponent(WorkflowEditorComponent);
       component = fixture.componentInstance;
-      workflowActionService = TestBed.get(WorkflowActionService);
-      validationWorkflowService = TestBed.get(ValidationWorkflowService);
-      dragDropService = TestBed.get(DragDropService);
+      workflowActionService = TestBed.inject(WorkflowActionService);
+      validationWorkflowService = TestBed.inject(ValidationWorkflowService);
+      dragDropService = TestBed.inject(DragDropService);
       // detect changes to run ngAfterViewInit and bind Model
-      jointUIService = TestBed.get(JointUIService);
+      jointUIService = TestBed.inject(JointUIService);
       fixture.detectChanges();
     });
 

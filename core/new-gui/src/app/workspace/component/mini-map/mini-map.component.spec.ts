@@ -1,4 +1,5 @@
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import { HttpClientTestingModule } from '@angular/common/http/testing';
 
 import { MiniMapComponent } from './mini-map.component';
 
@@ -8,18 +9,11 @@ import { OperatorMetadataService } from './../../service/operator-metadata/opera
 import { StubOperatorMetadataService } from './../../service/operator-metadata/stub-operator-metadata.service';
 import { JointUIService } from './../../service/joint-ui/joint-ui.service';
 import { UndoRedoService } from './../../service/undo-redo/undo-redo.service';
-import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs/Observable';
 
 import { mockScanPredicate, mockPoint,
   mockResultPredicate, mockSentimentPredicate, mockScanResultLink } from '../../service/workflow-graph/model/mock-workflow-data';
 import { environment } from './../../../../environments/environment';
-
-class StubHttpClient {
-  constructor() { }
-
-  public post(): Observable<string> { return Observable.of('a'); }
-}
 
 describe('MiniMapComponent', () => {
   let component: MiniMapComponent;
@@ -34,8 +28,8 @@ describe('MiniMapComponent', () => {
         JointUIService,
         UndoRedoService,
         {provide: OperatorMetadataService, useClass: StubOperatorMetadataService},
-        {provide: HttpClient, useClass: StubHttpClient}
-      ]
+      ],
+      imports: [ HttpClientTestingModule ]
     })
     .compileComponents();
   }));
@@ -44,7 +38,7 @@ describe('MiniMapComponent', () => {
     fixture = TestBed.createComponent(MiniMapComponent);
     component = fixture.componentInstance;
 
-    workflowActionService = TestBed.get(WorkflowActionService);
+    workflowActionService = TestBed.inject(WorkflowActionService);
     fixture.detectChanges();
   });
 
@@ -58,13 +52,8 @@ describe('MiniMapComponent', () => {
     workflowActionService.addOperator(mockResultPredicate, mockPoint);
     workflowActionService.addOperator(mockSentimentPredicate, mockPoint);
 
-    // when execution status is enabled, each time a operator is added as an element
-    // its corresponding tooltip is also added as an element,
-    // though invisible most of the time
-    // so number of elements should *2
-
     // check if add operator is compatible
-    expect(component.getMiniMapPaper().model.getElements()).toBeGreaterThan(0);
+    expect(component.getMiniMapPaper().model.getElements().length).toEqual(3);
 
     // add operator link operation
     workflowActionService.addLink(mockScanResultLink);
@@ -82,10 +71,6 @@ describe('MiniMapComponent', () => {
     workflowActionService.deleteOperator(mockScanPredicate.operatorID);
 
     // check if delete operator is compatible
-    if (environment.executionStatusEnabled) {
-      expect(component.getMiniMapPaper().model.getElements().length).toEqual(4);
-    } else {
-      expect(component.getMiniMapPaper().model.getElements().length).toEqual(2);
-    }
+    expect(component.getMiniMapPaper().model.getElements().length).toEqual(2);
   });
 });

@@ -1,5 +1,5 @@
 import { UserService } from './../../../../common/service/user/user.service';
-import { UserFileService } from './../../../../common/service/user/user-file/user-file.service';
+import { UserFileService, USER_FILE_LIST_URL } from './../../../../common/service/user/user-file/user-file.service';
 import { AppSettings } from './../../../../common/app-setting';
 import { TestBed, inject } from '@angular/core/testing';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
@@ -44,13 +44,24 @@ describe('SourceTablesService', () => {
       ]
     });
 
-    httpClient = TestBed.get(HttpClient);
-    httpTestingController = TestBed.get(HttpTestingController);
+    httpClient = TestBed.inject(HttpClient);
+    httpTestingController = TestBed.inject(HttpTestingController);
     environment.sourceTableEnabled = true;
+
   });
 
   it('should fetch source tables from backend API', () => {
-    const sourceTablesService: SourceTablesService = TestBed.get(SourceTablesService);
+    const sourceTablesService = TestBed.inject(SourceTablesService);
+
+    // SourceTablesService dependency userFileService sometimes makes http requests
+    const userFileReq = httpTestingController.match(request => {
+      return (
+        request.url === `${AppSettings.getApiEndpoint()}/${USER_FILE_LIST_URL}` &&
+        request.method === 'GET'
+      );
+    });
+
+    expect(userFileReq.length).toBeLessThanOrEqual(1);
 
     const req = httpTestingController.expectOne(`${AppSettings.getApiEndpoint()}/${SOURCE_TABLE_NAMES_ENDPOINT}`);
     expect(req.request.method).toEqual('GET');
@@ -65,9 +76,17 @@ describe('SourceTablesService', () => {
   });
 
   it('should modify tableName of the scan operator schema', () => {
-    const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
-    const dynamicSchemaService: DynamicSchemaService = TestBed.get(DynamicSchemaService);
-    const sourceTablesService: SourceTablesService = TestBed.get(SourceTablesService);
+    const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
+    const dynamicSchemaService: DynamicSchemaService = TestBed.inject(DynamicSchemaService);
+    const sourceTablesService = TestBed.inject(SourceTablesService);
+
+    // SourceTablesService dependency userFileService sometimes makes http requests
+    const userFileReq = httpTestingController.match(request => {
+      return (
+        request.url === `${AppSettings.getApiEndpoint()}/${USER_FILE_LIST_URL}` &&
+        request.method === 'GET'
+      );
+    });
 
     const req = httpTestingController.expectOne(`${AppSettings.getApiEndpoint()}/${SOURCE_TABLE_NAMES_ENDPOINT}`);
     req.flush(mockSourceTableAPIResponse);
@@ -88,14 +107,21 @@ describe('SourceTablesService', () => {
   });
 
   it('should modify fileName of the file source operator schema', () => {
-    const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
-    const dynamicSchemaService: DynamicSchemaService = TestBed.get(DynamicSchemaService);
+    const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
+    const dynamicSchemaService: DynamicSchemaService = TestBed.inject(DynamicSchemaService);
 
-    const userFileService: UserFileService = TestBed.get(UserFileService);
+    const userFileService: UserFileService = TestBed.inject(UserFileService);
     const userFilesChanged = new Subject<ReadonlyArray<UserFile> | undefined>();
     spyOn(userFileService, 'getUserFilesChangedEvent').and.returnValue(userFilesChanged.asObservable());
+    const sourceTablesService = TestBed.inject(SourceTablesService);
 
-    const sourceTablesService: SourceTablesService = TestBed.get(SourceTablesService);
+    // SourceTablesService dependency userFileService sometimes makes http requests
+    const userFileReq = httpTestingController.match(request => {
+      return (
+        request.url === `${AppSettings.getApiEndpoint()}/${USER_FILE_LIST_URL}` &&
+        request.method === 'GET'
+      );
+    });
 
     const mockFileSourcePredicate: OperatorPredicate = {
       operatorID: '1',
@@ -131,9 +157,17 @@ describe('SourceTablesService', () => {
 
   it('should modify the attribute of the scan operator after table is selected', () => {
     // construct the source table service and flush the source table responses
-    const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
-    const dynamicSchemaService: DynamicSchemaService = TestBed.get(DynamicSchemaService);
-    const sourceTablesService: SourceTablesService = TestBed.get(SourceTablesService);
+    const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
+    const dynamicSchemaService: DynamicSchemaService = TestBed.inject(DynamicSchemaService);
+    const sourceTablesService = TestBed.inject(SourceTablesService);
+
+    // SourceTablesService dependency userFileService sometimes makes http requests
+    const userFileReq = httpTestingController.match(request => {
+      return (
+        request.url === `${AppSettings.getApiEndpoint()}/${USER_FILE_LIST_URL}` &&
+        request.method === 'GET'
+      );
+    });
 
     const req = httpTestingController.expectOne(`${AppSettings.getApiEndpoint()}/${SOURCE_TABLE_NAMES_ENDPOINT}`);
     req.flush(mockSourceTableAPIResponse);

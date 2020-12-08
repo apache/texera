@@ -81,6 +81,8 @@ export class ValidationWorkflowService {
   public validateOperator(operatorID: string): Validation {
     const jsonSchemaValidation = this.validateJsonSchema(operatorID);
     const operatorConnectionValidation = this.validateOperatorConnection(operatorID);
+
+    console.log("validate", operatorID, ValidationWorkflowService.combineValidation(jsonSchemaValidation, operatorConnectionValidation));
     return ValidationWorkflowService.combineValidation(jsonSchemaValidation, operatorConnectionValidation);
   }
 
@@ -148,6 +150,7 @@ export class ValidationWorkflowService {
 
     const isValid = this.ajv.validate(operatorSchema.jsonSchema, operator.operatorProperties);
     if (isValid) {
+      console.log('validateJsonSchema', operatorID, operatorSchema.jsonSchema, operator, { isValid: true});
       return { isValid: true };
     }
 
@@ -156,6 +159,8 @@ export class ValidationWorkflowService {
     if (errors) {
       errors.forEach(error => validationError[error.keyword] = error.message ? error.message : '');
     }
+
+    console.log('validateJsonSchema', operatorID, { isValid: false, messages: validationError });
     return { isValid: false, messages: validationError };
   }
 
