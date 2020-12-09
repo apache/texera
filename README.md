@@ -1,5 +1,5 @@
 # Synopsis
-Collaborative big data analytics as cloud services using GUI-based workflows.
+Collaborative big data analytics as cloud services using GUI-based workflows. To use Texera, follow instructions on the [Getting Started](https://github.com/Texera/texera/wiki/Getting-Started) page
 
 [![Actions Status](https://github.com/Texera/texera/workflows/build/badge.svg)](https://github.com/Texera/texera/actions)
 
