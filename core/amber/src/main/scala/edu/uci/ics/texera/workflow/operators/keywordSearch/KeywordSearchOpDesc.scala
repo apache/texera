@@ -18,11 +18,9 @@ class KeywordSearchOpDesc extends FilterOpDesc {
   @JsonPropertyDescription("keywords")
   var keyword: String = _
 
-  @JsonIgnore
-  var counter = 0
-
   override def operatorExecutor: OneToOneOpExecConfig = {
-    new OneToOneOpExecConfig(this.operatorIdentifier, (counter: Int) => new KeywordSearchOpExec(this, counter))
+//    new OneToOneOpExecConfig(this.operatorIdentifier, (counter: Int) => new KeywordSearchOpExec(this, counter))
+    new OneToOneOpExecConfig(this.operatorIdentifier, (counter:Int) => new KeywordSearchOpExec(counter,this))
   }
 
   override def operatorInfo: OperatorInfo =
