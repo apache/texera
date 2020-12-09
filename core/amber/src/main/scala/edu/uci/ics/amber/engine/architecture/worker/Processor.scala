@@ -132,8 +132,8 @@ class Processor(var operator: IOperatorExecutor, val tag: WorkerTag) extends Wor
     messagingManager.receiveMessage(DataMessage(seq, payload), sender)
     val currentEdge = input.actorToEdge(sender)
 
-    while (messagingManager.hasNextBatch()) {
-      workerInternalQueue.addBatch(currentEdge, messagingManager.getNextBatch())
+    while (messagingManager.hasNextDataBatch()) {
+      workerInternalQueue.addBatch(currentEdge, messagingManager.getNextDataBatch())
     }
   }
 
@@ -152,8 +152,8 @@ class Processor(var operator: IOperatorExecutor, val tag: WorkerTag) extends Wor
     messagingManager.receiveMessage(DataMessage(seq, payload), sender)
     val currentEdge = input.actorToEdge(sender)
 
-    while (messagingManager.hasNextBatch()) {
-      workerInternalQueue.addBatch(currentEdge, messagingManager.getNextBatch())
+    while (messagingManager.hasNextDataBatch()) {
+      workerInternalQueue.addBatch(currentEdge, messagingManager.getNextDataBatch())
     }
   }
 

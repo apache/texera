@@ -2,7 +2,7 @@ package edu.uci.ics.amber.engine.architecture.common
 
 import akka.actor.{Actor, ActorLogging, Stash}
 import com.softwaremill.macwire.wire
-import edu.uci.ics.amber.engine.architecture.messaging.MessagingManager
+import edu.uci.ics.amber.engine.architecture.messaginglayer.MessagingManager
 import edu.uci.ics.amber.engine.architecture.receivesemantics.FIFOAccessPort
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.DataMessage
 
