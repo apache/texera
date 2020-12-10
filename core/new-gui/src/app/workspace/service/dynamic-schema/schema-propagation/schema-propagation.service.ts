@@ -10,6 +10,7 @@ import { WorkflowActionService } from './../../workflow-graph/model/workflow-act
 import { NGXLogger } from 'ngx-logger';
 
 import { isEqual } from 'lodash';
+import { JSONSchema7 } from 'json-schema';
 
 // endpoint for schema propagation
 export const SCHEMA_PROPAGATION_ENDPOINT = 'queryplan/autocomplete';
@@ -53,7 +54,8 @@ export class SchemaPropagationService {
         this.workflowActionService.getTexeraGraph().getOperatorPropertyChangeStream())
       .flatMap(() => this.invokeSchemaPropagationAPI())
       .filter(response => response.code === 0)
-      .subscribe(response => this._applySchemaPropagationResult(response.result));
+      .subscribe(response => {
+        this._applySchemaPropagationResult(response.result)});
   }
 
   /**
@@ -67,7 +69,7 @@ export class SchemaPropagationService {
    * @param schemaPropagationResult
    * @param operatorID
    */
-  private _applySchemaPropagationResult(schemaPropagationResult: { [key: string]: string[] }): void {
+  private _applySchemaPropagationResult(schemaPropagationResult: { [key: string]: string[][] }): void {
     // for each operator, try to apply schema propagation result
     Array.from(this.dynamicSchemaService.getDynamicSchemaMap().keys()).forEach(operatorID => {
       const currentDynamicSchema = this.dynamicSchemaService.getDynamicSchema(operatorID);
@@ -149,9 +151,9 @@ export class SchemaPropagationService {
     workflowActionService.setOperatorProperty(operatorID, propertyClone);
   }
 
-  public static setOperatorInputAttrs(operatorSchema: OperatorSchema, inputAttributes: ReadonlyArray<string> | undefined): OperatorSchema {
+  public static setOperatorInputAttrs(operatorSchema: OperatorSchema, inputAttributes: ReadonlyArray<string[]> | undefined): OperatorSchema {
     // If the inputSchema is empty, just return the original operator metadata.
-    if (!inputAttributes || inputAttributes.length === 0) {
+    if (!inputAttributes || inputAttributes[0].length === 0) {
       return operatorSchema;
     }
 
@@ -159,12 +161,22 @@ export class SchemaPropagationService {
     //       in a single array. So, we can't differentiate between inner and outer. Therefore, autocomplete isn't applicable
     //       to Join yet.
 
+
     let newJsonSchema = operatorSchema.jsonSchema;
     newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, attributeInJsonSchema,
-      () => ({ type: 'string', enum: inputAttributes.slice(), uniqueItems: true }));
+      () => ({ type: 'string', enum: inputAttributes[0].slice(), uniqueItems: true }));
 
     newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, attributeListInJsonSchema,
-      () => ({ type: 'array', items: { type: 'string', enum: inputAttributes.slice(), uniqueItems: true }}));
+      () => ({ type: 'array', items: { type: 'string', enum: inputAttributes[0].slice(), uniqueItems: true }}));
+
+      if (operatorSchema.additionalMetadata.userFriendlyName=="TypeCasting"){
+        let currentType: JSONSchema7 = {"title":"currentType","type":"string","enum":inputAttributes[1].slice()};
+        newJsonSchema = {...newJsonSchema, "properties":{...newJsonSchema.properties, "currentType":currentType}}
+      }
+    console.log('schema',{
+      ...operatorSchema,
+      jsonSchema: newJsonSchema
+    })
 
     return {
       ...operatorSchema,
@@ -205,7 +217,7 @@ export class SchemaPropagationService {
 export interface SchemaPropagationResponse extends Readonly<{
   code: 0,
   result: {
-    [key: string]: string[]
+    [key: string]: string[][]
   }
 }> { }
 

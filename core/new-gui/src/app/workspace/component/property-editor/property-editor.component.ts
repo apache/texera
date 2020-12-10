@@ -109,7 +109,6 @@ export class PropertyEditorComponent {
     this.handleHighlightEvents();
 
     this.handleDisableEditorInteractivity();
-
   }
 
   /**
@@ -386,6 +385,8 @@ export class PropertyEditorComponent {
       // set the operator property to be the new form data
       if (this.currentOperatorID) {
         this.workflowActionService.setOperatorProperty(this.currentOperatorID, formData);
+        console.log("field",this.formlyFields)
+        console.log("data",this.formData)
       }
     });
   }

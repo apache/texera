@@ -18,6 +18,7 @@ import edu.uci.ics.texera.workflow.operators.regex.RegexOpDesc
 import edu.uci.ics.texera.workflow.operators.sentiment.SentimentAnalysisOpDesc
 import edu.uci.ics.texera.workflow.operators.sink.SimpleSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.mysqlsource.MysqlSourceOpDesc
+import edu.uci.ics.texera.workflow.operators.typeCasting.TypeCastingOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.barChart.BarChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.lineChart.LineChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.pieChart.PieChartOpDesc
@@ -44,6 +45,7 @@ import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStrin
     new Type(value = classOf[WordCloudOpDesc], name = "WordCloud"),
     new Type(value = classOf[PythonUDFOpDesc], name = "PythonUDF"),
     new Type(value = classOf[MysqlSourceOpDesc], name = "MysqlSource"),
+    new Type(value = classOf[TypeCastingOpDesc], name = "TypeCasting"),
   )
 )
 abstract class OperatorDescriptor extends Serializable {
