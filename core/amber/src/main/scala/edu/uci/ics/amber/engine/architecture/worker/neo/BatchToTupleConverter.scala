@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.worker.neo
 
 import edu.uci.ics.amber.engine.architecture.worker.neo.WorkerInternalQueue.{
-  DataEvent,
+  DataBatch,
   DataPayload,
   DummyPayload,
   EndPayload
@@ -12,7 +12,7 @@ import edu.uci.ics.amber.engine.common.tuple.ITuple
 class BatchToTupleConverter(internalQueue: WorkerInternalQueue) {
 
   // save current batch related information
-  private var currentBatch: DataEvent = _
+  private var currentBatch: DataBatch = _
   private var currentInput = 0
   private var exhaustedFlag = true
 

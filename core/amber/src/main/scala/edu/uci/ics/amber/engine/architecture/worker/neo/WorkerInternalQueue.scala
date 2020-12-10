@@ -3,7 +3,7 @@ package edu.uci.ics.amber.engine.architecture.worker.neo
 import java.util.concurrent.LinkedBlockingDeque
 
 import edu.uci.ics.amber.engine.architecture.worker.neo.WorkerInternalQueue.{
-  DataEvent,
+  DataBatch,
   DataPayload,
   DummyPayload,
   EndPayload
@@ -15,22 +15,22 @@ import scala.collection.mutable
 
 object WorkerInternalQueue {
   // 3 kinds of data batches can be accepted by internal queue
-  trait DataEvent {
+  trait DataBatch {
     // indicate if the batch is exhausted so dp thread can fetch the next batch
     def isExhausted: Boolean
   }
   // data batch with the input as a number and an iterator of tuples (guaranteed to be non-empty)
-  case class DataPayload(input: Int, tuples: Iterator[ITuple]) extends DataEvent {
+  case class DataPayload(input: Int, tuples: Iterator[ITuple]) extends DataBatch {
     // when the iterator has no next, it's exhausted.
     // Note: since the iterator is guaranteed to be non-empty,
     // the first call of isExhausted will return false.
     override def isExhausted: Boolean = !tuples.hasNext
   }
-  case class EndPayload(input: Int) extends DataEvent {
+  case class EndPayload(input: Int) extends DataBatch {
     // this will only be used once so it's always exhausted
     override def isExhausted: Boolean = true
   }
-  case class DummyPayload() extends DataEvent {
+  case class DummyPayload() extends DataBatch {
     // this will only be used once so it's always exhausted
     override def isExhausted: Boolean = true
   }
@@ -40,7 +40,7 @@ class WorkerInternalQueue {
   // blocking deque for batches:
   // main thread put batches into this queue
   // tuple input (dp thread) take batches from this queue
-  var blockingDeque = new LinkedBlockingDeque[DataEvent]
+  var blockingDeque = new LinkedBlockingDeque[DataBatch]
 
   // map from layerTag to input number
   // TODO: we also need to refactor all identifiers
