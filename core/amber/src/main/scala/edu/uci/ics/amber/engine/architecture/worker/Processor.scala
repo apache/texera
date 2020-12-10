@@ -135,7 +135,7 @@ class Processor(var operator: IOperatorExecutor, val tag: WorkerTag) extends Wor
       case Some(batches) =>
         val currentEdge = input.actorToEdge(sender)
         for (i <- batches)
-          workerInternalQueue.addBatch((currentEdge, i))
+          workerInternalQueue.addDataBatch((currentEdge, i))
       case None =>
     }
   }
@@ -143,7 +143,7 @@ class Processor(var operator: IOperatorExecutor, val tag: WorkerTag) extends Wor
   def onSaveEndSending(seq: Long): Unit = {
     if (input.registerEnd(sender, seq)) {
       val currentEdge: LayerTag = input.actorToEdge(sender)
-      workerInternalQueue.addBatch((currentEdge, null))
+      workerInternalQueue.addEndBatch(currentEdge)
     }
   }
 
@@ -156,7 +156,7 @@ class Processor(var operator: IOperatorExecutor, val tag: WorkerTag) extends Wor
       case Some(batches) =>
         val currentEdge = input.actorToEdge(sender)
         for (i <- batches)
-          workerInternalQueue.addBatch((currentEdge, i))
+          workerInternalQueue.addDataBatch((currentEdge, i))
       case None =>
     }
   }
@@ -175,7 +175,7 @@ class Processor(var operator: IOperatorExecutor, val tag: WorkerTag) extends Wor
     // if dp thread is blocking on waiting for input tuples:
     if (workerInternalQueue.blockingDeque.isEmpty && tupleInput.isCurrentBatchExhausted) {
       // insert dummy batch to unblock dp thread
-      workerInternalQueue.addBatch(null)
+      workerInternalQueue.addDummyBatch()
     }
     pauseManager.waitForDPThread()
     onPaused()
