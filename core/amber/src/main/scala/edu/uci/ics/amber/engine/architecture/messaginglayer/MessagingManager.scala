@@ -23,7 +23,10 @@ class MessagingManager(val fifoEnforcer: FIFOAccessPort) {
         }
 
       case controlMsg =>
-      // To be implemented later
+        // To be implemented later
+        throw new NotImplementedError(
+          "receive message for messaging manager shouldn't be called for control message"
+        )
     }
   }
 

@@ -11,9 +11,11 @@ class WorkflowActor extends Actor with ActorLogging with Stash {
   lazy val input: FIFOAccessPort = wire[FIFOAccessPort]
   lazy val messagingManager: MessagingManager = wire[MessagingManager]
 
+  // Not being used right now.
   override def receive: Receive = {
     case msg: DataMessage =>
       messagingManager.receiveMessage(msg, sender)
     case other =>
+      throw new NotImplementedError("Message other than data message reached WorkflowActor receive")
   }
 }
