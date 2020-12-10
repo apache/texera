@@ -29,7 +29,6 @@ class BatchToTupleConverter(internalQueue: WorkerInternalQueue) {
     if (isCurrentBatchExhausted) {
       currentBatch = internalQueue.blockingDeque.take()
     }
-    // if the batch is dummy batch inserted by worker, return null to unblock dp thread
     currentBatch match {
       case DataPayload(input, tuples) =>
         // if current batch is a data batch, return tuple
@@ -44,6 +43,7 @@ class BatchToTupleConverter(internalQueue: WorkerInternalQueue) {
         currentInput = input
         Right(InputExhausted())
       case DummyPayload() =>
+        // if the batch is dummy batch inserted by worker, return null to unblock dp thread
         null
     }
   }

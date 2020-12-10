@@ -14,16 +14,24 @@ import edu.uci.ics.amber.engine.common.tuple.ITuple
 import scala.collection.mutable
 
 object WorkerInternalQueue {
+  // 3 kinds of data batches can be accepted by internal queue
   trait DataEvent {
+    // indicate if the batch is exhausted so dp thread can fetch the next batch
     def isExhausted: Boolean
   }
+  // data batch with the input as a number and an iterator of tuples (guaranteed to be non-empty)
   case class DataPayload(input: Int, tuples: Iterator[ITuple]) extends DataEvent {
+    // when the iterator has no next, it's exhausted.
+    // Note: since the iterator is guaranteed to be non-empty,
+    // the first call of isExhausted will return false.
     override def isExhausted: Boolean = !tuples.hasNext
   }
   case class EndPayload(input: Int) extends DataEvent {
+    // this will only be used once so it's always exhausted
     override def isExhausted: Boolean = true
   }
   case class DummyPayload() extends DataEvent {
+    // this will only be used once so it's always exhausted
     override def isExhausted: Boolean = true
   }
 }
@@ -43,11 +51,15 @@ class WorkerInternalQueue {
     */
   def addDataBatch(batch: (LayerTag, Array[ITuple])): Unit = {
     if (batch == null || batch._2.isEmpty) {
+      // also filter out the batch with no tuple here
       return
     }
     blockingDeque.add(DataPayload(inputMap(batch._1), batch._2.iterator))
   }
 
+  /** put an end batch into the queue.
+    * @param layer
+    */
   def addEndBatch(layer: LayerTag): Unit = {
     if (layer == null) {
       return
@@ -55,6 +67,8 @@ class WorkerInternalQueue {
     blockingDeque.add(EndPayload(inputMap(layer)))
   }
 
+  /** put an dummy batch into the queue to unblock the dp thread.
+    */
   def addDummyBatch(): Unit = {
     blockingDeque.add(DummyPayload())
   }
