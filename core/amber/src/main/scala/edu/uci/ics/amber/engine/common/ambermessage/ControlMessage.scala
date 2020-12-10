@@ -8,43 +8,44 @@ import akka.actor.ActorRef
 
 object ControlMessage {
 
-  final case class Start()
+  final case class Start() extends WorkflowMessage
 
-  final case class Pause()
+  final case class Pause() extends WorkflowMessage
 
-  final case class ModifyLogic(newMetadata: OpExecConfig)
+  final case class ModifyLogic(newMetadata: OpExecConfig) extends WorkflowMessage
 
-  final case class Resume()
+  final case class Resume() extends WorkflowMessage
 
-  final case class QueryState()
+  final case class QueryState() extends WorkflowMessage
 
-  final case class QueryStatistics()
+  final case class QueryStatistics() extends WorkflowMessage
 
-  final case class CollectSinkResults()
+  final case class CollectSinkResults() extends WorkflowMessage
 
-  final case class LocalBreakpointTriggered()
+  final case class LocalBreakpointTriggered() extends WorkflowMessage
 
-  final case class RequireAck(msg: Any)
+  final case class RequireAck(msg: Any) extends WorkflowMessage
 
-  final case class Ack()
+  final case class Ack() extends WorkflowMessage
 
-  final case class AckWithInformation(info: Any)
+  final case class AckWithInformation(info: Any) extends WorkflowMessage
 
-  final case class AckWithSequenceNumber(sequenceNumber: Long)
+  final case class AckWithSequenceNumber(sequenceNumber: Long) extends WorkflowMessage
 
-  final case class AckOfEndSending()
+  final case class AckOfEndSending() extends WorkflowMessage
 
-  final case class StashOutput()
+  final case class StashOutput() extends WorkflowMessage
 
-  final case class ReleaseOutput()
+  final case class ReleaseOutput() extends WorkflowMessage
 
-  final case class SkipTuple(faultedTuple: FaultedTuple)
+  final case class SkipTuple(faultedTuple: FaultedTuple) extends WorkflowMessage
 
   final case class SkipTupleGivenWorkerRef(actorPath: String, faultedTuple: FaultedTuple)
+      extends WorkflowMessage
 
-  final case class ModifyTuple(faultedTuple: FaultedTuple)
+  final case class ModifyTuple(faultedTuple: FaultedTuple) extends WorkflowMessage
 
-  final case class ResumeTuple(faultedTuple: FaultedTuple)
+  final case class ResumeTuple(faultedTuple: FaultedTuple) extends WorkflowMessage
 
-  final case class KillAndRecover()
+  final case class KillAndRecover() extends WorkflowMessage
 }

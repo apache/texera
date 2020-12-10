@@ -28,8 +28,6 @@ object Processor {
 }
 
 class Processor(var operator: IOperatorExecutor, val tag: WorkerTag) extends WorkerBase {
-
-  val input = new FIFOAccessPort()
   val aliveUpstreams = new mutable.HashSet[LayerTag]
   var savedModifyLogic: mutable.Queue[(Long, Long, OpExecConfig)] =
     new mutable.Queue[(Long, Long, OpExecConfig)]()
@@ -131,12 +129,11 @@ class Processor(var operator: IOperatorExecutor, val tag: WorkerTag) extends Wor
   }
 
   def onSaveDataMessage(seq: Long, payload: Array[ITuple]): Unit = {
-    input.preCheck(seq, payload, sender) match {
-      case Some(batches) =>
-        val currentEdge = input.actorToEdge(sender)
-        for (i <- batches)
-          workerInternalQueue.addBatch((currentEdge, i))
-      case None =>
+    messagingManager.receiveMessage(DataMessage(seq, payload), sender)
+    val currentEdge = input.actorToEdge(sender)
+
+    while (messagingManager.hasNextDataBatch()) {
+      workerInternalQueue.addBatch(currentEdge, messagingManager.getNextDataBatch())
     }
   }
 
@@ -152,12 +149,11 @@ class Processor(var operator: IOperatorExecutor, val tag: WorkerTag) extends Wor
   }
 
   def onReceiveDataMessage(seq: Long, payload: Array[ITuple]): Unit = {
-    input.preCheck(seq, payload, sender) match {
-      case Some(batches) =>
-        val currentEdge = input.actorToEdge(sender)
-        for (i <- batches)
-          workerInternalQueue.addBatch((currentEdge, i))
-      case None =>
+    messagingManager.receiveMessage(DataMessage(seq, payload), sender)
+    val currentEdge = input.actorToEdge(sender)
+
+    while (messagingManager.hasNextDataBatch()) {
+      workerInternalQueue.addBatch(currentEdge, messagingManager.getNextDataBatch())
     }
   }
 

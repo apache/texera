@@ -12,17 +12,18 @@ import scala.collection.mutable.ArrayBuffer
 
 object ControllerMessage {
 
-  final case class AckedControllerInitialization()
+  final case class AckedControllerInitialization() extends WorkflowMessage
 
-  final case class ContinuedInitialization()
+  final case class ContinuedInitialization() extends WorkflowMessage
 
-  final case class ReportState(controllerState: ControllerState.Value)
+  final case class ReportState(controllerState: ControllerState.Value) extends WorkflowMessage
 
   final case class ReportGlobalBreakpointTriggered(
       report: mutable.HashMap[(ActorRef, FaultedTuple), ArrayBuffer[String]],
       operatorID: String = null
-  )
+  ) extends WorkflowMessage
 
   final case class PassBreakpointTo(operatorID: String, breakpoint: GlobalBreakpoint)
+      extends WorkflowMessage
 
 }
