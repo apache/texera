@@ -1,4 +1,4 @@
-import { mockKeywordSearchSchema } from './../../operator-metadata/mock-operator-metadata.data';
+import { mockKeywordSearchSchema, mockNlpSentimentSchema } from './../../operator-metadata/mock-operator-metadata.data';
 import { AppSettings } from './../../../../common/app-setting';
 import { TestBed, inject } from '@angular/core/testing';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
@@ -159,7 +159,7 @@ describe('SchemaPropagationService', () => {
     const schema = dynamicSchemaService.getDynamicSchema(mockSentimentPredicate.operatorID);
     const attributeInSchema = schema.jsonSchema!.properties!['attribute'];
     expect(attributeInSchema).toEqual({
-      type: 'string',
+      ...(mockNlpSentimentSchema.jsonSchema.properties!['attribute'] as object),
       enum: mockSchemaPropagationResponse.result[mockOperator.operatorID],
       uniqueItems: true
     });
@@ -197,7 +197,7 @@ describe('SchemaPropagationService', () => {
     const schema = dynamicSchemaService.getDynamicSchema(mockSentimentPredicate.operatorID);
     const attributeInSchema = schema.jsonSchema!.properties!['attribute'];
     expect(attributeInSchema).toEqual({
-      type: 'string',
+      ...(mockNlpSentimentSchema.jsonSchema.properties!['attribute'] as object),
       enum: mockSchemaPropagationResponse.result[mockOperator.operatorID],
       uniqueItems: true
     });
@@ -221,7 +221,8 @@ describe('SchemaPropagationService', () => {
     const restoredSchema = dynamicSchemaService.getDynamicSchema(mockSentimentPredicate.operatorID);
     const restoredAttributeInSchema = restoredSchema.jsonSchema!.properties!['attribute'];
     expect(restoredAttributeInSchema).toEqual({
-      type: 'string', enum: undefined, uniqueItems: undefined,
+      ...(mockNlpSentimentSchema.jsonSchema.properties!['attribute'] as object),
+      enum: undefined, uniqueItems: undefined,
     });
   });
 
@@ -261,6 +262,7 @@ describe('SchemaPropagationService', () => {
     const attributeInSchema = schema.jsonSchema!.properties!['attributes'];
     expect(attributeInSchema).toEqual({
       type: 'array',
+      title: 'attributes',
       items: {
         type: 'string',
         enum: mockSchemaPropagationResponse.result[mockKeywordSearchOperator.operatorID],
@@ -307,21 +309,24 @@ describe('SchemaPropagationService', () => {
 
     expect(schema.jsonSchema!.properties).toEqual({
       listOfAggregations: {
+        title: 'list of aggregations',
         type: 'array',
         items: {
           type: 'object',
           properties: {
             attribute: {
               type: 'string',
+              title: 'attribute',
               enum: mockSchemaPropagationResponse.result[mockAggregationPredicate.operatorID],
               uniqueItems: true
             },
             aggregator: {
+              title: 'aggregator',
               type: 'string',
               enum: ['min', 'max', 'average', 'sum', 'count'],
               uniqueItems: true
             },
-            resultAttribute: { type: 'string' }
+            resultAttribute: { type: 'string', title: 'result attribute'}
           }
         }
       }

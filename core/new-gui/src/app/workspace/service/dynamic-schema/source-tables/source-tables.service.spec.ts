@@ -189,7 +189,7 @@ describe('SourceTablesService', () => {
     // check "attributes" is changed with autocomplete attribute names of the selected table
     const dynamicSchema = dynamicSchemaService.getDynamicSchema(mockKeywordSourcePredicate.operatorID);
     expect(dynamicSchema.jsonSchema.properties!['attributes']).toEqual({
-      type: 'array',
+      ...mockKeywordSourceSchema.jsonSchema.properties!['attributes'] as object,
       items: {
         type: 'string',
         enum: mockTableTwitter.schema.attributes.map(attr => attr.attributeName),
