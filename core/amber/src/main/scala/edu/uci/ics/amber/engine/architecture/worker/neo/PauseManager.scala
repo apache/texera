@@ -15,6 +15,7 @@ class PauseManager {
   // current pause privilege level
   private val pausePrivilegeLevel = new AtomicInteger(PauseManager.NoPause)
   // yielded control of the dp thread
+  // volatile is necessary otherwise main thread cannot notice the change
   @volatile
   private var currentFuture: CompletableFuture[Void] = _
 
