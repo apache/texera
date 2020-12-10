@@ -12,7 +12,7 @@
     "e2e": "ng e2e",
     "preinstall": "cd multi-target && npm install && npm run build",
     "multi-target-updater": "cd multi-target && npm run build && cd .. && npm install ./multi-target -D",
-    "postinstall": "ngcc"
+    "postinstall": "node git-version.js && ngcc"
   },
   "private": true,
   "dependencies": {
@@ -87,6 +87,8 @@
     "@types/wordcloud": "^1.1.2",
     "codelyzer": "^5.2.2",
     "cypress": "^4.3.0",
+    "fs-extra": "7.0.1",
+    "git-describe": "4.0.4",
     "jasmine-core": "^3.5.0",
     "jasmine-spec-reporter": "^4.2.1",
     "karma": "^4.4.1",

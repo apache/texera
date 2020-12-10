@@ -23,7 +23,10 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka" %% "akka-testkit" % akkaVersion,
   "com.typesafe.akka" %% "akka-persistence" % akkaVersion,
   "io.kamon" % "sigar-loader" % "1.6.6-rev002",
-  "com.chuusai" %% "shapeless" % "2.3.3"
+  "com.softwaremill.macwire" %% "macros" % "2.3.6" % "provided",
+  "com.softwaremill.macwire" %% "macrosakka" % "2.3.6" % "provided",
+  "com.softwaremill.macwire" %% "util" % "2.3.6",
+  "com.softwaremill.macwire" %% "proxy" % "2.3.6"
 )
 
 val excludeHadoopJersey = ExclusionRule(organization = "com.sun.jersey")
@@ -83,4 +86,7 @@ libraryDependencies += "mysql" % "mysql-connector-java" % "8.0.19"
 
 libraryDependencies += "org.apache.lucene" % "lucene-analyzers-common" % "5.5.0"
 libraryDependencies += "org.apache.lucene" % "lucene-analyzers-smartcn" % "5.5.0"
+
+// https://mvnrepository.com/artifact/org.jooq/jooq
+libraryDependencies += "org.jooq" % "jooq" % "3.14.4"
 

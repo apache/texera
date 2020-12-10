@@ -1,6 +1,6 @@
-import { Command } from './../workflow-graph/model/workflow-action.service';
+import { Command } from '../workflow-graph/model/workflow-action.service';
 import { Injectable } from '@angular/core';
-import { assertType } from '../../../common/util/assert' ;
+import { assertType } from '../../../common/util/assert';
 import { Observable, Subject } from 'rxjs';
 
 /* TODO LIST FOR BUGS
@@ -53,14 +53,14 @@ export class UndoRedoService {
       this.setListenJointCommand(true);
       this.canUndoStream.next(this.canUndo());
 
-      console.log("service can undo", this.canUndo());
+      console.log('service can undo', this.canUndo());
     }
   }
 
   public redoAction(): void {
     // need to figure out what to keep on the stack and off
     if (this.redoStack.length > 0) {
-      if (!this.workFlowModificationEnabled && this.redoStack[ this.redoStack.length - 1].modifiesWorkflow) {
+      if (!this.workFlowModificationEnabled && this.redoStack[this.redoStack.length - 1].modifiesWorkflow) {
         console.error('attempted to redo a workflow-modifying command while workflow modification is disabled');
         return;
       }

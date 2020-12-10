@@ -17,7 +17,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 
 import { AppComponent } from './app.component';
 import { WorkspaceComponent } from './workspace/component/workspace.component';
-import { NavigationComponent} from './workspace/component/navigation/navigation.component';
+import { NavigationComponent } from './workspace/component/navigation/navigation.component';
 
 import { OperatorPanelComponent } from './workspace/component/operator-panel/operator-panel.component';
 import { PropertyEditorComponent } from './workspace/component/property-editor/property-editor.component';
@@ -35,14 +35,14 @@ import { UserIconComponent } from './dashboard/component/top-bar/user-icon/user-
 import { FeatureBarComponent } from './dashboard/component/feature-bar/feature-bar.component';
 import { FeatureContainerComponent } from './dashboard/component/feature-container/feature-container.component';
 import {
-  SavedProjectSectionComponent
-} from './dashboard/component/feature-container/saved-project-section/saved-project-section.component';
+  SavedWorkflowSectionComponent
+} from './dashboard/component/feature-container/saved-workflow-section/saved-workflow-section.component';
 import {
-  NgbdModalAddProjectComponent
-} from './dashboard/component/feature-container/saved-project-section/ngbd-modal-add-project/ngbd-modal-add-project.component';
+  NgbdModalDeleteWorkflowComponent
+} from './dashboard/component/feature-container/saved-workflow-section/ngbd-modal-delete-workflow/ngbd-modal-delete-workflow.component';
 import {
-  NgbdModalDeleteProjectComponent
-} from './dashboard/component/feature-container/saved-project-section/ngbd-modal-delete-project/ngbd-modal-delete-project.component';
+  NgbdModalAddWorkflowComponent
+} from './dashboard/component/feature-container/saved-workflow-section/ngbd-modal-add-workflow/ngbd-modal-add-workflow.component';
 
 import {
   RunningJobSectionComponent
@@ -125,9 +125,9 @@ registerLocaleData(en);
     FeatureBarComponent,
     FeatureContainerComponent,
 
-    SavedProjectSectionComponent,
-    NgbdModalAddProjectComponent,
-    NgbdModalDeleteProjectComponent,
+    SavedWorkflowSectionComponent,
+    NgbdModalAddWorkflowComponent,
+    NgbdModalDeleteWorkflowComponent,
 
     RunningJobSectionComponent,
     UserDictionarySectionComponent,
@@ -172,7 +172,7 @@ registerLocaleData(en);
     FileUploadModule,
     FormsModule,
     ReactiveFormsModule,
-    LoggerModule.forRoot({level: environment.production ? NgxLoggerLevel.ERROR : NgxLoggerLevel.DEBUG, serverLogLevel: NgxLoggerLevel.OFF}),
+    LoggerModule.forRoot({ level: environment.production ? NgxLoggerLevel.ERROR : NgxLoggerLevel.DEBUG, serverLogLevel: NgxLoggerLevel.OFF }),
     FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
     FormlyNgZorroAntdModule,
 
@@ -191,8 +191,8 @@ registerLocaleData(en);
     MatDialogModule,
   ],
   entryComponents: [
-    NgbdModalAddProjectComponent,
-    NgbdModalDeleteProjectComponent,
+    NgbdModalAddWorkflowComponent,
+    NgbdModalDeleteWorkflowComponent,
     NgbdModalResourceViewComponent,
     NgbdModalResourceAddComponent,
     NgbdModalResourceDeleteComponent,
@@ -212,4 +212,5 @@ registerLocaleData(en);
   bootstrap: [AppComponent],
   // dynamically created component must be placed in the entryComponents attribute
 })
-export class AppModule { }
+export class AppModule {
+}

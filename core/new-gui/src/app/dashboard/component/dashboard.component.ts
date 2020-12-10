@@ -1,7 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-
-import { SavedProjectService } from '../service/saved-project/saved-project.service';
-import { StubSavedProjectService } from '../service/saved-project/stub-saved-project.service';
+import { WorkflowPersistService } from '../../common/service/user/workflow-persist/workflow-persist.service';
 
 /**
  * dashboardComponent is the component which contains all the subcomponents
@@ -15,12 +13,13 @@ import { StubSavedProjectService } from '../service/saved-project/stub-saved-pro
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.scss'],
   providers: [
-    { provide: SavedProjectService, useClass: StubSavedProjectService }
+    WorkflowPersistService
   ]
 })
 export class DashboardComponent implements OnInit {
 
-  constructor() { }
+  constructor() {
+  }
 
   ngOnInit() {
   }

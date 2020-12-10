@@ -387,6 +387,7 @@ export class PropertyEditorComponent {
         this.workflowActionService.setOperatorProperty(this.currentOperatorID, formData);
         console.log("field",this.formlyFields)
         console.log("data",this.formData)
+        this.workflowActionService.setOperatorProperty(this.currentOperatorID, cloneDeep(formData));
       }
     });
   }

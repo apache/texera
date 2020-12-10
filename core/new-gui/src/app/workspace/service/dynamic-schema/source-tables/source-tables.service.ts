@@ -29,7 +29,7 @@ export const fileNameInJsonSchema = 'fileName';
  *
  * SourceTablesService also handles changing the `attribute` and `attributes` property of the source operators.
  * When a table is selected, then `attribute` or `attributes` of a source operator is also changed to a drop-down menu.
- * The schema propagation doesn't handle source operators becaue
+ * The schema propagation doesn't handle source operators because
  *  the result only contains the input property of each operator, but source operators don't have any input.
  *
  */
@@ -45,6 +45,7 @@ export class SourceTablesService {
   private tableNames: string[] | undefined;
   private userFiles: string[] | undefined;
 
+
   constructor(
     private httpClient: HttpClient,
     private workflowActionService: WorkflowActionService,
@@ -55,6 +56,7 @@ export class SourceTablesService {
     if (!environment.sourceTableEnabled) {
       return;
     }
+    this.userFileService.refreshFiles();
 
     // when GUI starts up, fetch the source table information from the backend
     this.invokeSourceTableAPI().subscribe(
@@ -64,7 +66,7 @@ export class SourceTablesService {
         this.handleSourceTableChange();
       }
     );
-
+    
     this.userFileService.getUserFilesChangedEvent().subscribe(
       event => {
         if (event) {
@@ -90,6 +92,7 @@ export class SourceTablesService {
   }
 
   private invokeSourceTableAPI(): Observable<Map<string, TableSchema>> {
+
     return this.httpClient
       .get<TableMetadata[]>(`${AppSettings.getApiEndpoint()}/${SOURCE_TABLE_NAMES_ENDPOINT}`)
       .map(tableDetails => new Map(tableDetails.map(i => [i.tableName, i.schema] as [string, TableSchema])));

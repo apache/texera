@@ -4,7 +4,7 @@ import { FileUploadItem } from '../../../type/user-file';
 import { GenericWebResponse, GenericWebResponseCode } from '../../../type/generic-web-response';
 import { Observable } from 'rxjs';
 import { UserService } from '../user.service';
-import { HttpClient, HttpEventType, HttpResponse, HttpEvent } from '@angular/common/http';
+import { HttpClient, HttpEventType } from '@angular/common/http';
 import { UserFileService } from './user-file.service';
 
 export const USER_FILE_UPLOAD_URL = 'user/file/upload';
@@ -74,14 +74,14 @@ export class UserFileUploadService {
 
     return this.http.post<GenericWebResponse>(
       `${AppSettings.getApiEndpoint()}/${USER_FILE_VALIDATE_URL}`, formData).flatMap(
-        res => {
-          if (res.code === GenericWebResponseCode.SUCCESS) {
-            return this.uploadFile(fileUploadItem);
-          } else {
-            return Observable.of(res);
-          }
+      res => {
+        if (res.code === GenericWebResponseCode.SUCCESS) {
+          return this.uploadFile(fileUploadItem);
+        } else {
+          return Observable.of(res);
         }
-      );
+      }
+    );
   }
 
   /**
@@ -90,8 +90,12 @@ export class UserFileUploadService {
    * @param fileUploadItem
    */
   private uploadFile(fileUploadItem: FileUploadItem): Observable<GenericWebResponse> {
-    if (!this.userService.isLogin()) { throw new Error(`Can not upload files when not login`); }
-    if (fileUploadItem.isUploadingFlag) { throw new Error(`File ${fileUploadItem.file.name} is already uploading`); }
+    if (!this.userService.isLogin()) {
+      throw new Error(`Can not upload files when not login`);
+    }
+    if (fileUploadItem.isUploadingFlag) {
+      throw new Error(`File ${fileUploadItem.file.name} is already uploading`);
+    }
 
     fileUploadItem.isUploadingFlag = true;
     const formData: FormData = new FormData();
@@ -101,7 +105,7 @@ export class UserFileUploadService {
 
     return this.http.post<GenericWebResponse>(
       `${AppSettings.getApiEndpoint()}/${USER_FILE_UPLOAD_URL}`,
-      formData, { reportProgress: true, observe: 'events' }
+      formData, {reportProgress: true, observe: 'events'}
     ).filter(event => { // retrieve and remove upload progress
       if (event.type === HttpEventType.UploadProgress) {
         fileUploadItem.uploadProgress = event.loaded;
@@ -126,7 +130,7 @@ export class UserFileUploadService {
    * clear the files in the service when user log out.
    */
   private detectUserChanges(): void {
-    this.userService.getUserChangedEvent().subscribe(() => {
+    this.userService.userChange.subscribe(() => {
       if (!this.userService.isLogin()) {
         this.clearUserFile();
       }

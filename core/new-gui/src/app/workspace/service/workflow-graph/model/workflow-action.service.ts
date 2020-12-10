@@ -6,7 +6,14 @@ import { JointUIService } from './../../joint-ui/joint-ui.service';
 import { WorkflowGraph, WorkflowGraphReadonly } from './workflow-graph';
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
-import { Point, OperatorPredicate, OperatorLink, OperatorPort, Breakpoint } from '../../../types/workflow-common.interface';
+import {
+  Breakpoint,
+  OperatorLink,
+  OperatorPort,
+  OperatorPredicate,
+  Point
+} from '../../../types/workflow-common.interface';
+
 
 import * as joint from 'jointjs';
 import { environment } from './../../../../../environments/environment';
@@ -86,7 +93,8 @@ export class WorkflowActionService {
     this.texeraGraph.getLinkAddStream().filter(() => this.undoRedoService.listenJointCommand).subscribe(link => {
       const command: Command = {
         modifiesWorkflow: true,
-        execute: () => { },
+        execute: () => {
+        },
         undo: () => this.deleteLinkWithIDInternal(link.linkID),
         redo: () => this.addLinkInternal(link),
       };
@@ -95,7 +103,7 @@ export class WorkflowActionService {
   }
 
   public handleJointOperatorDrag(): void {
-    let oldPosition: Point = {x: 0, y: 0};
+    let oldPosition: Point = { x: 0, y: 0 };
     let gotOldPosition = false;
     this.jointGraphWrapper.getOperatorPositionChangeEvent()
       .filter(() => !gotOldPosition)
@@ -116,7 +124,8 @@ export class WorkflowActionService {
         const currentHighlighted = this.jointGraphWrapper.getCurrentHighlightedOperatorIDs();
         const command: Command = {
           modifiesWorkflow: false,
-          execute: () => { },
+          execute: () => {
+          },
           undo: () => {
             this.jointGraphWrapper.unhighlightOperators(this.jointGraphWrapper.getCurrentHighlightedOperatorIDs());
             this.jointGraphWrapper.setMultiSelectMode(currentHighlighted.length > 1);
@@ -207,10 +216,10 @@ export class WorkflowActionService {
   }
 
   /**
-    * Deletes an operator from the workflow graph
-    * Throws an Error if the operator ID doesn't exist in the Workflow Graph.
-    * @param operatorID
-    */
+   * Deletes an operator from the workflow graph
+   * Throws an Error if the operator ID doesn't exist in the Workflow Graph.
+   * @param operatorID
+   */
   public deleteOperator(operatorID: string): void {
     const operator = this.getTexeraGraph().getOperator(operatorID);
     const position = this.getJointGraphWrapper().getOperatorPosition(operatorID);
@@ -237,7 +246,7 @@ export class WorkflowActionService {
   }
 
   public addOperatorsAndLinks(
-    operatorsAndPositions: {op: OperatorPredicate, pos: Point}[], links: OperatorLink[],
+    operatorsAndPositions: { op: OperatorPredicate, pos: Point }[], links: OperatorLink[],
     breakpoints?: ReadonlyMap<string, Breakpoint>
   ): void {
     // remember currently highlighted operators
@@ -280,8 +289,10 @@ export class WorkflowActionService {
     const operatorsAndPositions = new Map<OperatorPredicate, OperatorPosition>();
     operatorIDs.forEach(operatorID => {
       operatorsAndPositions.set(this.getTexeraGraph().getOperator(operatorID),
-        {position: this.getJointGraphWrapper().getOperatorPosition(operatorID),
-         layer: this.getJointGraphWrapper().getOperatorLayer(operatorID)});
+        {
+          position: this.getJointGraphWrapper().getOperatorPosition(operatorID),
+          layer: this.getJointGraphWrapper().getOperatorLayer(operatorID)
+        });
     });
 
     // save links to be deleted, including links needs to be deleted and links affected by deleted operators
@@ -404,7 +415,7 @@ export class WorkflowActionService {
     // check that the operator doesn't exist
     this.texeraGraph.assertOperatorNotExists(operator.operatorID);
     // check that the operator type exists
-    if (! this.operatorMetadataService.operatorTypeExists(operator.operatorType)) {
+    if (!this.operatorMetadataService.operatorTypeExists(operator.operatorType)) {
       throw new Error(`operator type ${operator.operatorType} is invalid`);
     }
     // get the JointJS UI element for operator

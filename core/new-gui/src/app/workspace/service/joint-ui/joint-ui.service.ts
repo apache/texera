@@ -173,7 +173,7 @@ export class JointUIService {
     this.changeOperatorState(jointPaper, operatorID, statistics.operatorState);
 
     const processedText = 'Processed: ' + statistics.aggregatedInputRowCount.toLocaleString();
-    const outputText =    'Output:    ' + statistics.aggregatedOutputRowCount.toLocaleString();
+    const outputText = 'Output:    ' + statistics.aggregatedOutputRowCount.toLocaleString();
     jointPaper.getModelById(operatorID).attr(`.${operatorProcessedCountClass}/text`, processedText);
     jointPaper.getModelById(operatorID).attr(`.${operatorOutputCountClass}/text`, outputText);
 

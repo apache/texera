@@ -70,7 +70,7 @@ export class JointGraphWrapper {
   public static readonly ZOOM_CLICK_DIFF: number = 0.05;
   public static readonly ZOOM_MOUSEWHEEL_DIFF: number = 0.01;
   public static readonly INIT_ZOOM_VALUE: number = 1;
-  public static readonly INIT_PAN_OFFSET: Point = {x: 0, y: 0};
+  public static readonly INIT_PAN_OFFSET: Point = { x: 0, y: 0 };
 
   public static readonly ZOOM_MINIMUM: number = 0.70;
   public static readonly ZOOM_MAXIMUM: number = 1.30;
@@ -139,7 +139,7 @@ export class JointGraphWrapper {
     // handle if the current highlighted operator is deleted, it should be unhighlighted
     this.handleOperatorDeleteUnhighlight();
     this.jointCellAddStream.filter(cell => cell.isElement()).subscribe(element => {
-      const initPosition = {currPos: (element as joint.dia.Element).position(), lastPos: undefined};
+      const initPosition = { currPos: (element as joint.dia.Element).position(), lastPos: undefined };
       this.operatorPositions.set(element.id.toString(), initPosition);
     });
 
@@ -191,14 +191,14 @@ export class JointGraphWrapper {
       .fromEvent<JointPositionChangeEvent>(this.jointGraph, 'change:position').map(e => {
         const operatorID = e[0].id.toString();
         const oldPosition = this.operatorPositions.get(operatorID);
-        const newPosition = {x: e[1].x, y: e[1].y};
+        const newPosition = { x: e[1].x, y: e[1].y };
         if (!oldPosition) {
           throw new Error(`internal error: cannot find operator position for ${operatorID}`);
         }
         if (!oldPosition.lastPos || oldPosition.currPos.x !== newPosition.x || oldPosition.currPos.y !== newPosition.y) {
           oldPosition.lastPos = oldPosition.currPos;
         }
-        this.operatorPositions.set(operatorID, {currPos: newPosition, lastPos: oldPosition.lastPos});
+        this.operatorPositions.set(operatorID, { currPos: newPosition, lastPos: oldPosition.lastPos });
         return {
           operatorID: operatorID,
           oldPosition: oldPosition.lastPos,
@@ -412,8 +412,8 @@ export class JointGraphWrapper {
    * @param ratio new ratio from zooming
    */
   public setZoomProperty(ratio: number): void {
-      this.zoomRatio = ratio;
-      this.workflowEditorZoomSubject.next(this.zoomRatio);
+    this.zoomRatio = ratio;
+    this.workflowEditorZoomSubject.next(this.zoomRatio);
   }
 
   /**
@@ -491,13 +491,13 @@ export class JointGraphWrapper {
    */
   public getOperatorPosition(operatorID: string): Point {
     const cell: joint.dia.Cell | undefined = this.jointGraph.getCell(operatorID);
-    if (! cell) {
+    if (!cell) {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
     }
-    if (! cell.isElement()) {
+    if (!cell.isElement()) {
       throw new Error(`${operatorID} is not an operator`);
     }
-    const element = <joint.dia.Element> cell;
+    const element = <joint.dia.Element>cell;
     const position = element.position();
     return { x: position.x, y: position.y };
   }
@@ -507,13 +507,13 @@ export class JointGraphWrapper {
    */
   public setOperatorPosition(operatorID: string, offsetX: number, offsetY: number): void {
     const cell: joint.dia.Cell | undefined = this.jointGraph.getCell(operatorID);
-    if (! cell) {
+    if (!cell) {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
     }
-    if (! cell.isElement()) {
+    if (!cell.isElement()) {
       throw new Error(`${operatorID} is not an operator`);
     }
-    const element = <joint.dia.Element> cell;
+    const element = <joint.dia.Element>cell;
     element.translate(offsetX, offsetY);
   }
 
@@ -541,7 +541,7 @@ export class JointGraphWrapper {
       highlightedLinks.forEach(highlightedLink => this.unhighlightLink(highlightedLink));
     }
     this.getCurrentHighlightedOperatorIDs()
-        .forEach(operatorID => this.unhighlightOperator(operatorID));
+      .forEach(operatorID => this.unhighlightOperator(operatorID));
     this.currentHighlightedLinks.push(linkID);
     this.jointLinkHighlightStream.next({ linkID });
   }
@@ -591,10 +591,10 @@ export class JointGraphWrapper {
    */
   public getOperatorLayer(operatorID: string): number {
     const cell: joint.dia.Cell | undefined = this.jointGraph.getCell(operatorID);
-    if (! cell) {
+    if (!cell) {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
     }
-    if (! cell.isElement()) {
+    if (!cell.isElement()) {
       throw new Error(`${operatorID} is not an operator`);
     }
     return cell.attributes.z;
@@ -605,10 +605,10 @@ export class JointGraphWrapper {
    */
   public setOperatorLayer(operatorID: string, layer: number): void {
     const cell: joint.dia.Cell | undefined = this.jointGraph.getCell(operatorID);
-    if (! cell) {
+    if (!cell) {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
     }
-    if (! cell.isElement()) {
+    if (!cell.isElement()) {
       throw new Error(`${operatorID} is not an operator`);
     }
     cell.set('z', layer);

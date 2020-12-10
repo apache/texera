@@ -17,7 +17,7 @@ describe('UserLoginComponent', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-      declarations: [ NgbdModalUserLoginComponent ],
+      declarations: [NgbdModalUserLoginComponent],
       providers: [
         NgbActiveModal,
         UserService
@@ -33,7 +33,7 @@ describe('UserLoginComponent', () => {
         MatDialogModule
       ]
     })
-    .compileComponents();
+      .compileComponents();
   }));
 
   beforeEach(() => {

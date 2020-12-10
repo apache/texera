@@ -12,7 +12,7 @@ import { ManualDictionaryUploadItem } from 'src/app/common/type/user-dictionary'
 
 const arrayOfBlob: Blob[] = Array<Blob>(); // just for test,needed for creating File object.
 const testDictionaryName = 'testTextDictionary';
-const testTextDictionary: File = new File( arrayOfBlob, testDictionaryName, {type: 'text/plain'});
+const testTextDictionary: File = new File(arrayOfBlob, testDictionaryName, { type: 'text/plain' });
 
 
 const manual_dict_name = 'testDict';
@@ -28,7 +28,7 @@ describe('UserDictionaryUploadService', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [
-        {provide: UserService, useClass: StubUserService},
+        { provide: UserService, useClass: StubUserService },
         UserDictionaryService,
         UserDictionaryUploadService
       ],
@@ -79,11 +79,11 @@ describe('UserDictionaryUploadService', () => {
 
     const req1 = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${USER_DICTIONARY_VALIDATE_URL}`);
     expect(req1.request.method).toEqual('POST');
-    req1.flush({code: 0, message: ''});
+    req1.flush({ code: 0, message: '' });
 
     const req2 = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${USER_DICTIONARY_UPLOAD_URL}`);
     expect(req2.request.method).toEqual('POST');
-    req2.flush({code: 0, message: ''});
+    req2.flush({ code: 0, message: '' });
 
     expect(spy).toHaveBeenCalled();
   });
@@ -102,7 +102,7 @@ describe('UserDictionaryUploadService', () => {
 
     const req1 = httpMock.expectOne(`${AppSettings.getApiEndpoint()}/${USER_MANUAL_DICTIONARY_UPLOAD_URL}`);
     expect(req1.request.method).toEqual('POST');
-    req1.flush({code: 0, message: ''});
+    req1.flush({ code: 0, message: '' });
 
     expect(spy).toHaveBeenCalled();
   });

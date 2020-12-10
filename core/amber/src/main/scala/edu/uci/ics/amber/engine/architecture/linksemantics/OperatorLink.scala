@@ -6,7 +6,11 @@ import edu.uci.ics.amber.engine.architecture.sendsemantics.routees.DirectRoutee
 import edu.uci.ics.amber.engine.common.ambermessage.PrincipalMessage.{GetInputLayer, GetOutputLayer}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.UpdateOutputLinking
 import edu.uci.ics.amber.engine.common.ambertag.LinkTag
-import edu.uci.ics.amber.engine.common.{AdvancedMessageSending, Constants, ITupleSinkOperatorExecutor}
+import edu.uci.ics.amber.engine.common.{
+  AdvancedMessageSending,
+  Constants,
+  ITupleSinkOperatorExecutor
+}
 import edu.uci.ics.amber.engine.operators.{OpExecConfig, SinkOpExecConfig}
 import akka.actor.ActorRef
 import akka.event.LoggingAdapter
@@ -36,9 +40,7 @@ class OperatorLink(val from: (OpExecConfig, ActorRef), val to: (OpExecConfig, Ac
           to._1.getShuffleHashFunction(sender.tag),
           inputNum
         )
-      } else if (
-        to._1.isInstanceOf[SinkOpExecConfig]
-      ) {
+      } else if (to._1.isInstanceOf[SinkOpExecConfig]) {
         linkStrategy = new AllToOne(sender, receiver, Constants.defaultBatchSize, inputNum)
       } else if (sender.layer.length == receiver.layer.length) {
         linkStrategy = new LocalOneToOne(sender, receiver, Constants.defaultBatchSize, inputNum)

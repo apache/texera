@@ -15,6 +15,7 @@ import { OperatorMetadata } from '../../types/operator-schema.interface';
 import { OperatorMetadataService } from '../../service/operator-metadata/operator-metadata.service';
 import { DynamicSchemaService } from '../../service/dynamic-schema/dynamic-schema.service';
 import { environment } from 'src/environments/environment';
+import { assertType } from 'src/app/common/util/assert';
 
 /**
  * ResultPanelCompoent is the bottom level area that displays the
@@ -55,11 +56,6 @@ export class ResultPanelComponent {
   // display breakpoint
   public breakpointTriggerInfo: BreakpointTriggerInfo | undefined;
   public breakpointAction: boolean = false;
-
-  // paginator, used when displaying rows
-  private currentMaxPageSize: number = 0;
-  private currentPageSize: number = 0;
-  private currentPageIndex: number = 0;
 
   constructor(
     private executeWorkflowService: ExecuteWorkflowService,
@@ -167,9 +163,6 @@ export class ResultPanelComponent {
     this.breakpointTriggerInfo = undefined;
     this.breakpointAction = false;
 
-    this.currentMaxPageSize = 0;
-    this.currentPageIndex = 0;
-    this.currentPageSize = 0;
   }
 
 
@@ -182,17 +175,13 @@ export class ResultPanelComponent {
    */
   public open(rowData: object): void {
 
-    // the row index will include the previous pages, therefore we need to minus the current page index
-    //  multiply by the page size previously.
-    const selectedRowIndex = this.currentResult.findIndex(eachRow => isEqual(eachRow, rowData));
-
-    const rowPageIndex = selectedRowIndex - this.currentPageIndex * this.currentMaxPageSize;
+    let selectedRowIndex = this.currentResult.findIndex(eachRow => isEqual(eachRow, rowData));
 
     // generate a new row data that shortens the column text to limit rendering time for pretty json
     const rowDataCopy = ResultPanelComponent.trimDisplayJsonData(rowData as IndexableObject);
 
     // open the modal component
-    const modalRef = this.modalService.create({
+    const modalRef: NzModalRef = this.modalService.create({
       // modal title
       nzTitle: 'Row Details',
       nzContent: RowModalComponent,
@@ -201,31 +190,33 @@ export class ResultPanelComponent {
         // set the currentDisplayRowData of the modal to be the data of clicked row
         currentDisplayRowData: rowDataCopy,
         // set the index value and page size to the modal for navigation
-        currentDisplayRowIndex: rowPageIndex,
-        currentPageSize: this.currentPageSize,
+        currentDisplayRowIndex: selectedRowIndex,
       },
       // prevent browser focusing close button (ugly square highlight)
       nzAutofocus: null,
       // modal footer buttons
       nzFooter: [
-        {label: '<', onClick: () => {modalRef.destroy(1); }, disabled: rowPageIndex === 0},
-        {label: '>', onClick: () => {modalRef.destroy(2); }, disabled: rowPageIndex === this.currentPageSize},
-        {label: 'OK', onClick: () => {modalRef.destroy(0); }, type: 'primary'},
+        {
+          label: '<',
+          onClick: () => {
+            selectedRowIndex -= 1;
+            assertType<RowModalComponent>(modalRef.componentInstance);
+            modalRef.componentInstance.currentDisplayRowData = this.currentResult[selectedRowIndex];
+          },
+          disabled: () => selectedRowIndex === 0
+        },
+        {
+          label: '>',
+          onClick: () => {
+            selectedRowIndex += 1;
+            assertType<RowModalComponent>(modalRef.componentInstance);
+            modalRef.componentInstance.currentDisplayRowData = this.currentResult[selectedRowIndex];
+          },
+          disabled: () => selectedRowIndex === this.currentResult.length - 1
+        },
+        {label: 'OK', onClick: () => {modalRef.destroy(); }, type: 'primary'},
       ],
     });
-
-    // subscribe the modal close event for modal navigations (go to previous or next row detail)
-    Observable.from(modalRef.afterClose)
-      .subscribe((modalResult: unknown) => {
-        const choice = modalResult as number;
-        if (choice === 1) {
-          // navigate to previous detail modal
-          this.open(this.currentResult[selectedRowIndex - 1]);
-        } else if (choice === 2) {
-          // navigate to next detail modal
-          this.open(this.currentResult[selectedRowIndex + 1]);
-        }
-      });
   }
 
   public onClickSkipTuples(): void {
@@ -262,18 +253,12 @@ export class ResultPanelComponent {
 
     let columns: {columnKey: any, columnText: string}[];
 
-    const firstRow = resultData[0];
-
     const columnKeys = Object.keys(resultData[0]).filter(x => x !== '_id');
     this.currentDisplayColumns = columnKeys;
     columns = columnKeys.map(v => ({columnKey: v, columnText: v}));
 
     // generate columnDef from first row, column definition is in order
     this.currentColumns = ResultPanelComponent.generateColumns(columns);
-
-    // get the current page size, if the result length is less than 10, then the maximum number of items
-    //   each page will be the length of the result, otherwise 10.
-    this.currentMaxPageSize = this.currentPageSize = resultData.length < 10 ? resultData.length : 10;
   }
 
   /**
@@ -350,19 +335,8 @@ export class RowModalComponent {
   //  as data table.
   @Input() currentDisplayRowData: object = {};
 
-  // when modal is opened, currentDisplayRowIndex will be passed as
-  //  component instance to this NgbModalComponent to either
-  //  enable to disable row navigation buttons that allow users
-  //  to navigate between different rows of data.
+  // Index of currentDisplayRowData in currentResult
   @Input() currentDisplayRowIndex: number = 0;
-
-  // the maximum page index that the navigation can go in the current page
-  @Input() currentPageSize: number = 0;
-
-  // activeModal is responsible for interacting with the
-  //  ng-bootstrap modal, such as dismissing or exitting
-  //  the pop-up modal.
-  // it is used in the HTML template
 
   constructor(public modal: NzModalRef<any, number>) { }
 
