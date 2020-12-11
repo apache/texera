@@ -18,7 +18,12 @@ object WorkerInternalQueue {
     // indicate if the batch is exhausted so dp thread can fetch the next batch
     def isExhausted: Boolean
   }
-  // data batch with the input as a number and an iterator of tuples (guaranteed to be non-empty)
+
+  /**
+    * Data Payload is 'input identifier + data batch'
+    * @param input
+    * @param tuples
+    */
   case class DataPayload(input: Int, tuples: Iterator[ITuple]) extends InternalQueueElement {
     // when the iterator has no next, it's exhausted.
     // Note: since the iterator is guaranteed to be non-empty,
@@ -29,6 +34,12 @@ object WorkerInternalQueue {
     // this will only be used once so it's always exhausted
     override def isExhausted: Boolean = true
   }
+
+  /**
+    * Used to unblock the dp thread when pause arrives but
+    * dp thread is blocked waiting for the next element in the
+    * worker-internal-queue
+    */
   case class DummyInput() extends InternalQueueElement {
     // this will only be used once so it's always exhausted
     override def isExhausted: Boolean = true
@@ -48,7 +59,7 @@ class WorkerInternalQueue {
   /** take one FIFO batch from worker actor then put into the queue.
     * @param batch
     */
-  def addDataBatch(batch: (LayerTag, Array[ITuple])): Unit = {
+  def addDataPayload(batch: (LayerTag, Array[ITuple])): Unit = {
     if (batch == null || batch._2.isEmpty) {
       // also filter out the batch with no tuple here
       return
