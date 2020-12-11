@@ -133,14 +133,14 @@ class Processor(var operator: IOperatorExecutor, val tag: WorkerTag) extends Wor
     val currentEdge = input.actorToEdge(sender)
 
     while (messagingManager.hasNextDataBatch()) {
-      workerInternalQueue.addBatch(currentEdge, messagingManager.getNextDataBatch())
+      workerInternalQueue.addDataPayload(currentEdge, messagingManager.getNextDataBatch())
     }
   }
 
   def onSaveEndSending(seq: Long): Unit = {
     if (input.registerEnd(sender, seq)) {
       val currentEdge: LayerTag = input.actorToEdge(sender)
-      workerInternalQueue.addBatch((currentEdge, null))
+      workerInternalQueue.addEndMarker(currentEdge)
     }
   }
 
@@ -153,7 +153,7 @@ class Processor(var operator: IOperatorExecutor, val tag: WorkerTag) extends Wor
     val currentEdge = input.actorToEdge(sender)
 
     while (messagingManager.hasNextDataBatch()) {
-      workerInternalQueue.addBatch(currentEdge, messagingManager.getNextDataBatch())
+      workerInternalQueue.addDataPayload(currentEdge, messagingManager.getNextDataBatch())
     }
   }
 
@@ -171,7 +171,7 @@ class Processor(var operator: IOperatorExecutor, val tag: WorkerTag) extends Wor
     // if dp thread is blocking on waiting for input tuples:
     if (workerInternalQueue.blockingDeque.isEmpty && tupleInput.isCurrentBatchExhausted) {
       // insert dummy batch to unblock dp thread
-      workerInternalQueue.addBatch(null)
+      workerInternalQueue.addDummyInput()
     }
     pauseManager.waitForDPThread()
     onPaused()

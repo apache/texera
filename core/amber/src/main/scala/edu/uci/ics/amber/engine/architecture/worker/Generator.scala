@@ -95,7 +95,7 @@ class Generator(var operator: IOperatorExecutor, val tag: WorkerTag)
     // if dp thread is blocking on waiting for input tuples:
     if (workerInternalQueue.blockingDeque.isEmpty && tupleInput.isCurrentBatchExhausted) {
       // insert dummy batch to unblock dp thread
-      workerInternalQueue.addBatch(null)
+      workerInternalQueue.addDummyInput()
     }
     pauseManager.waitForDPThread()
     onPaused()
@@ -110,7 +110,7 @@ class Generator(var operator: IOperatorExecutor, val tag: WorkerTag)
 
   override def onStart(): Unit = {
     super.onStart()
-    workerInternalQueue.addBatch((LayerTag("", "", ""), null))
+    workerInternalQueue.addEndMarker(LayerTag("", "", ""))
     context.become(running)
     unstashAll()
   }
