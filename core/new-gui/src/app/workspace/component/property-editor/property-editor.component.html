@@ -11,7 +11,7 @@
       [form]="formlyFormGroup"
       (modelChange) = "onFormChanges($event)">
       </formly-form>
-      <div [innerHTML]='displayTypeCastingHTML'></div>
+      <div [innerHTML]='displayTypeCastingHTML' *ngIf="showTypeCastingTypeInformation"></div>
     </form>
 
     <button *ngIf="currentLinkID !== undefined && !hasBreakpoint()" type="button" class="breakpointRemoveButton"

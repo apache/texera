@@ -497,7 +497,7 @@ export class PropertyEditorComponent {
         var currentResultType = this.formData.CastingType
         this.displayTypeCastingHTML =
         `
-        <div *ngIf="showTypeCastingTypeInformation">
+        <div>
         <h3>TypeCasting Information</h3>
         <label>
           Attribute : `+ currentAttribute + ` <br>
