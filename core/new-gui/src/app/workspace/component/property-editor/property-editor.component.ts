@@ -86,8 +86,15 @@ export class PropertyEditorComponent {
   public formlyFields: FormlyFieldConfig[] | undefined;
   public formTitle: string | undefined;
 
+  // show TypeInformation only when operator type is TypeCasting
+  public showTypeCastingTypeInformation = false;
+  // TypeInformation HTML
+  public displayTypeCastingHTML = '';
+
   // used to fill in default values in json schema to initialize new operator
   private ajv = new Ajv({ useDefaults: true });
+
+
 
   constructor(
     public formlyJsonschema: FormlyJsonschema,
@@ -109,6 +116,7 @@ export class PropertyEditorComponent {
     this.handleHighlightEvents();
 
     this.handleDisableEditorInteractivity();
+
   }
 
   /**
@@ -343,6 +351,7 @@ export class PropertyEditorComponent {
         if (event.operatorID === this.currentOperatorID) {
           const currentOperatorSchema = this.autocompleteService.getDynamicSchema(this.currentOperatorID);
           const operator = this.workflowActionService.getTexeraGraph().getOperator(event.operatorID);
+          this.changeTypeCastingOperator(operator)
           if (!operator) {
             throw new Error(`operator ${event.operatorID} does not exist`);
           }
@@ -356,7 +365,7 @@ export class PropertyEditorComponent {
    * This method captures the change in operator's property via program instead of user updating the
    *  json schema form in the user interface.
    *
-   * For instance, when the input doesn't matching the new j   son schema and the UI needs to remove the
+   * For instance, when the input doesn't matching the new json schema and the UI needs to remove the
    *  invalid fields, this form will capture those events.
    */
   private handleOperatorPropertyChange(): void {
@@ -366,6 +375,7 @@ export class PropertyEditorComponent {
       .filter(operatorChanged => !isEqual(this.formData, operatorChanged.operator.operatorProperties))
       .subscribe(operatorChanged => {
         this.formData = cloneDeep(operatorChanged.operator.operatorProperties);
+
       });
     this.workflowActionService.getTexeraGraph().getBreakpointChangeStream()
       .filter(event => this.currentLinkID !== undefined)
@@ -373,6 +383,7 @@ export class PropertyEditorComponent {
       .filter(event => !isEqual(this.formData, this.workflowActionService.getTexeraGraph().getLinkBreakpoint(event.linkID)))
       .subscribe(event => {
         this.formData = cloneDeep(this.workflowActionService.getTexeraGraph().getLinkBreakpoint(event.linkID));
+
       });
   }
 
@@ -384,9 +395,9 @@ export class PropertyEditorComponent {
     this.operatorPropertyChangeStream.subscribe(formData => {
       // set the operator property to be the new form data
       if (this.currentOperatorID) {
+        const operator = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorID);
+        this.changeTypeCastingOperator(operator)
         this.workflowActionService.setOperatorProperty(this.currentOperatorID, formData);
-        console.log("field",this.formlyFields)
-        console.log("data",this.formData)
         this.workflowActionService.setOperatorProperty(this.currentOperatorID, cloneDeep(formData));
       }
     });
@@ -411,6 +422,7 @@ export class PropertyEditorComponent {
         const operator = this.workflowActionService.getTexeraGraph().getOperator(highlightedOperators[0]);
         this.clearPropertyEditor();
         this.showOperatorPropertyEditor(operator);
+        this.changeTypeCastingOperator(operator)
       } else {
         this.clearPropertyEditor();
       }
@@ -467,6 +479,38 @@ export class PropertyEditorComponent {
     };
 
     this.formlyFields = [field];
+  }
+
+  /**
+   * This function will change TypeCastingOpertor showing in the property panel
+   * @param operator
+   */
+  public changeTypeCastingOperator(operator:OperatorPredicate){
+
+    if (operator.operatorType=='TypeCasting'){
+      this.showTypeCastingTypeInformation = true;
+      var operatorAttributeAndTypeArray = this.workflowActionService.getOperatorIdToAttributeTypeMap(operator.operatorID);
+      if (operatorAttributeAndTypeArray) {
+        var index = operatorAttributeAndTypeArray[0].indexOf(this.formData.attribute)
+        var currentAttribute = this.formData.attribute
+        var cuurentAttributeType = operatorAttributeAndTypeArray[1][index];
+        var currentResultType = this.formData.CastingType
+        this.displayTypeCastingHTML =
+        `
+        <div *ngIf="showTypeCastingTypeInformation">
+        <h3>TypeCasting Information</h3>
+        <label>
+          Attribute : `+ currentAttribute + ` <br>
+          Input type : `+ cuurentAttributeType + ` <br>
+          Result type : `+ currentResultType+ `
+        </label>
+        </div>`
+
+      }
+    } else {
+      this.showTypeCastingTypeInformation=false;
+    }
+
   }
 
 }

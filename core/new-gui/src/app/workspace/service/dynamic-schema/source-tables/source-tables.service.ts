@@ -66,7 +66,7 @@ export class SourceTablesService {
         this.handleSourceTableChange();
       }
     );
-    
+
     this.userFileService.getUserFilesChangedEvent().subscribe(
       event => {
         if (event) {

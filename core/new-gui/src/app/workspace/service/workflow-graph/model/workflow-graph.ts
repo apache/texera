@@ -26,6 +26,8 @@ export class WorkflowGraph {
   private readonly operatorIDMap = new Map<string, OperatorPredicate>();
   private readonly operatorLinkMap = new Map<string, OperatorLink>();
   private readonly linkBreakpointMap = new Map<string, Breakpoint>();
+  private readonly operatorIDToAttributeTypeMap = new Map<string, string[][]>();
+
 
   private readonly operatorAddSubject = new Subject<OperatorPredicate>();
   private readonly operatorDeleteSubject = new Subject<{ deletedOperator: OperatorPredicate }>();
@@ -407,6 +409,20 @@ export class WorkflowGraph {
       throw new Error(`link's target port ${link.target.portID} doesn't exist
           on input ports of the target operator ${link.target.operatorID}`);
     }
+  }
+  /**
+   * set OperatorIDToAttributeTypeArrayMap
+   * @param operatorID
+   * @param attibuteArrays
+   */
+  public setOperatorIDToAttributeTypeArrayMap(operatorID:string, attibuteArrays:any){
+    this.operatorIDToAttributeTypeMap.set(operatorID, attibuteArrays);
+  }
+  /**
+   * get this.operatorIDToAttributeTypeMap
+   */
+  public getOperatorIdToAttributeTypeMap(){
+    return this.operatorIDToAttributeTypeMap;
   }
 
 

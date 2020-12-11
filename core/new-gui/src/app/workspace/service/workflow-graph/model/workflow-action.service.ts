@@ -57,6 +57,7 @@ export class WorkflowActionService {
   private workflowModificationEnabled = true;
   private enableModificationStream = new BehaviorSubject<boolean>(true);
 
+
   constructor(
     private operatorMetadataService: OperatorMetadataService,
     private jointUIService: JointUIService,
@@ -410,6 +411,24 @@ export class WorkflowActionService {
   public removeLinkBreakpoint(linkID: string): void {
     this.setLinkBreakpoint(linkID, undefined);
   }
+  /**
+   * Set OperatorIDToAttributeTypeArrayMap in the graph
+   *
+   * @param operatorID
+   * @param attributesMap
+   */
+  public setOperatorIDToAttributeTypeArrayMap(operatorID:string, attributesMap:any){
+    this.texeraGraph.setOperatorIDToAttributeTypeArrayMap(operatorID, attributesMap);
+  }
+
+  /**
+   * get a string[][], the fisrt index is attribute's names, the second index is attribute's types
+   *
+   * @param operatorID
+   */
+  public getOperatorIdToAttributeTypeMap(operatorID:string):string[][]|undefined {
+    return this.texeraGraph.getOperatorIdToAttributeTypeMap().get(operatorID);
+  }
 
   private addOperatorInternal(operator: OperatorPredicate, point: Point): void {
     // check that the operator doesn't exist
@@ -479,4 +498,5 @@ export class WorkflowActionService {
       this.getJointGraphWrapper().showLinkBreakpoint(linkID);
     }
   }
+
 }

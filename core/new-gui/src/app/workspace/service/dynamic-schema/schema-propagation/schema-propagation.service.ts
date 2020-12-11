@@ -34,6 +34,7 @@ export const attributeListInJsonSchemaKeys = ['attributes', 'groupByKeys', 'data
 })
 export class SchemaPropagationService {
 
+
   constructor(
     private httpClient: HttpClient,
     private workflowActionService: WorkflowActionService,
@@ -55,8 +56,11 @@ export class SchemaPropagationService {
       .flatMap(() => this.invokeSchemaPropagationAPI())
       .filter(response => response.code === 0)
       .subscribe(response => {
-        this._applySchemaPropagationResult(response.result)});
+        this._applySchemaPropagationResult(response.result)
+      });
+
   }
+
 
   /**
    * Apply the schema propagation result to an operator.
@@ -73,10 +77,14 @@ export class SchemaPropagationService {
     // for each operator, try to apply schema propagation result
     Array.from(this.dynamicSchemaService.getDynamicSchemaMap().keys()).forEach(operatorID => {
       const currentDynamicSchema = this.dynamicSchemaService.getDynamicSchema(operatorID);
+
+      // setOperatorIDToAttributeTypeArrayMap the schemaPropagationResult[operatorID][0] is attribute name, schemaPropagationResult[operatorID][1] is attribute type
+      this.workflowActionService.setOperatorIDToAttributeTypeArrayMap(operatorID, schemaPropagationResult[operatorID])
+
       // if operator input attributes are in the result, set them in dynamic schema
       let newDynamicSchema: OperatorSchema;
       if (schemaPropagationResult[operatorID]) {
-        newDynamicSchema = SchemaPropagationService.setOperatorInputAttrs(currentDynamicSchema, schemaPropagationResult[operatorID]);
+        newDynamicSchema = SchemaPropagationService.setOperatorInputAttrs(currentDynamicSchema, schemaPropagationResult[operatorID][0]);
       } else {
         // otherwise, the input attributes of the operator is unknown
         // if the operator is not a source operator, restore its original schema of input attributes
@@ -92,8 +100,10 @@ export class SchemaPropagationService {
         this.dynamicSchemaService.setDynamicSchema(operatorID, newDynamicSchema);
       }
 
+
     });
   }
+
 
   /**
    * Used for automated propagation of input schema in workflow.
@@ -151,7 +161,7 @@ export class SchemaPropagationService {
     workflowActionService.setOperatorProperty(operatorID, propertyClone);
   }
 
-  public static setOperatorInputAttrs(operatorSchema: OperatorSchema, inputAttributes: ReadonlyArray<string[]> | undefined): OperatorSchema {
+  public static setOperatorInputAttrs(operatorSchema: OperatorSchema, inputAttributes: ReadonlyArray<string> | undefined): OperatorSchema {
     // If the inputSchema is empty, just return the original operator metadata.
     if (!inputAttributes || inputAttributes[0].length === 0) {
       return operatorSchema;
@@ -174,14 +184,6 @@ export class SchemaPropagationService {
         old => ({ ...old, type: 'array', items: {...old.items, type: 'string', enum: inputAttributes.slice(), uniqueItems: true, } , }));
     });
 
-  //   if (operatorSchema.additionalMetadata.userFriendlyName=="TypeCasting"){
-  //     let currentType: JSONSchema7 = {"title":"currentType","type":"string","enum":inputAttributes[1].slice()};
-  //     newJsonSchema = {...newJsonSchema, "properties":{...newJsonSchema.properties, "currentType":currentType}}
-  //   }
-  // console.log('schema',{
-  //   ...operatorSchema,
-  //   jsonSchema: newJsonSchema
-  // })
 
     return {
       ...operatorSchema,
@@ -202,12 +204,12 @@ export class SchemaPropagationService {
       newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, attributeListInJsonSchema,
         old => ({ ...old, type: 'array', items: { ...old.items, type: 'string', enum: undefined, uniqueItems: undefined, }, }));
     });
-
     return {
       ...operatorSchema,
       jsonSchema: newJsonSchema
     };
   }
+
 
 }
 
