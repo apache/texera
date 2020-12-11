@@ -39,7 +39,7 @@ export class WorkflowWebsocketService {
   }
 
   public static getWorkflowWebsocketUrl(): string {
-    const websocketUrl = new URL(WorkflowWebsocketService.TEXERA_WEBSOCKET_ENDPOINT, window.location.href);
+    const websocketUrl = new URL(WorkflowWebsocketService.TEXERA_WEBSOCKET_ENDPOINT, window.location.origin);
     // replace protocol, so that http -> ws, https -> wss
     websocketUrl.protocol = websocketUrl.protocol.replace('http', 'ws');
     return websocketUrl.toString();

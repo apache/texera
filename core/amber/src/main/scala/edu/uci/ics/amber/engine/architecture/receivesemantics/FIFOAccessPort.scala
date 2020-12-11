@@ -68,7 +68,11 @@ class FIFOAccessPort {
     }
   }
 
-  def preCheck(seq: Long, payload: Array[ITuple], sender: ActorRef): Option[Array[Array[ITuple]]] = {
+  def preCheck(
+      seq: Long,
+      payload: Array[ITuple],
+      sender: ActorRef
+  ): Option[Array[Array[ITuple]]] = {
     if (!seqNumMap.contains(sender)) {
       None
     } else {

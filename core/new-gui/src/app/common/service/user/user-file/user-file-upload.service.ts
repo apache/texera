@@ -74,14 +74,14 @@ export class UserFileUploadService {
 
     return this.http.post<GenericWebResponse>(
       `${AppSettings.getApiEndpoint()}/${USER_FILE_VALIDATE_URL}`, formData).flatMap(
-        res => {
-          if (res.code === GenericWebResponseCode.SUCCESS) {
-            return this.uploadFile(fileUploadItem);
-          } else {
-            return Observable.of(res);
-          }
+      res => {
+        if (res.code === GenericWebResponseCode.SUCCESS) {
+          return this.uploadFile(fileUploadItem);
+        } else {
+          return Observable.of(res);
         }
-      );
+      }
+    );
   }
 
   /**
@@ -105,7 +105,7 @@ export class UserFileUploadService {
 
     return this.http.post<GenericWebResponse>(
       `${AppSettings.getApiEndpoint()}/${USER_FILE_UPLOAD_URL}`,
-      formData, { reportProgress: true, observe: 'events' }
+      formData, {reportProgress: true, observe: 'events'}
     ).filter(event => { // retrieve and remove upload progress
       if (event.type === HttpEventType.UploadProgress) {
         fileUploadItem.uploadProgress = event.loaded;
@@ -130,7 +130,7 @@ export class UserFileUploadService {
    * clear the files in the service when user log out.
    */
   private detectUserChanges(): void {
-    this.userService.getUserChangedEvent().subscribe(() => {
+    this.userService.userChange.subscribe(() => {
       if (!this.userService.isLogin()) {
         this.clearUserFile();
       }
