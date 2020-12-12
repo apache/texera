@@ -4,22 +4,33 @@ import akka.actor.ActorRef
 import edu.uci.ics.amber.engine.architecture.receivesemantics.FIFOAccessPort
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.DataMessage
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage
+import edu.uci.ics.amber.engine.common.ambertag.LayerTag
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 
 class MessagingManager(val fifoEnforcer: FIFOAccessPort) {
 
-  var nextDataBatches: Option[Array[Array[ITuple]]] = None
-  var nextDataBatchIterator: Iterator[Array[ITuple]] = Iterator.empty
+  // TODO: There are so many ways to represent input operator in a worker - int, LayerTag, ActorRef. We should choose one.
+  var nextDataPayloads: Array[(LayerTag, Array[ITuple])] = _
+  var nextDataPayloadIterator: Iterator[(LayerTag, Array[ITuple])] = Iterator.empty
 
+  /**
+    * Receives the WorkflowMessage, strips the sequence number away and produces a payload.
+    * The payload can be accessed by the actors by calling corresponding hasNext and getNext.
+    * @param message
+    * @param sender
+    */
   def receiveMessage(message: WorkflowMessage, sender: ActorRef): Unit = {
     message match {
       case dataMsg: DataMessage =>
-        nextDataBatches = fifoEnforcer.preCheck(dataMsg.sequenceNumber, dataMsg.payload, sender)
-        nextDataBatchIterator = nextDataBatches match {
+        val nextDataBatches: Option[Array[Array[ITuple]]] =
+          fifoEnforcer.preCheck(dataMsg.sequenceNumber, dataMsg.payload, sender)
+        nextDataBatches match {
           case Some(batches) =>
-            batches.iterator
+            val currentEdge = fifoEnforcer.actorToEdge(sender)
+            nextDataPayloads = batches.map(b => (currentEdge, b))
+            nextDataPayloadIterator = nextDataPayloads.iterator
           case None =>
-            Iterator.empty
+            nextDataPayloadIterator = Iterator.empty
         }
 
       case controlMsg =>
@@ -30,11 +41,11 @@ class MessagingManager(val fifoEnforcer: FIFOAccessPort) {
     }
   }
 
-  def hasNextDataBatch(): Boolean = {
-    nextDataBatchIterator.hasNext
+  def hasNextDataPayload(): Boolean = {
+    nextDataPayloadIterator.hasNext
   }
 
-  def getNextDataBatch(): Array[ITuple] = {
-    nextDataBatchIterator.next()
+  def getNextDataPayload(): (LayerTag, Array[ITuple]) = {
+    nextDataPayloadIterator.next()
   }
 }

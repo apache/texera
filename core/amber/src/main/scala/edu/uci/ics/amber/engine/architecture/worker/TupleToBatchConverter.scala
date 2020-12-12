@@ -13,7 +13,7 @@ import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 import scala.util.control.Breaks
 
-class DataTransferSupport(val sender: ActorRef) extends BreakpointSupport {
+class TupleToBatchConverter(val sender: ActorRef) extends BreakpointSupport {
   var output = new Array[DataTransferPolicy](0)
   var skippedInputTuples = new mutable.HashSet[ITuple]
   var skippedOutputTuples = new mutable.HashSet[ITuple]

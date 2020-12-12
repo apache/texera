@@ -12,7 +12,7 @@ import scala.concurrent.ExecutionContext
 abstract class DataTransferPolicy(var batchSize: Int) extends Serializable {
   var tag: LinkTag = _
 
-  def accept(tuple: ITuple)(implicit sender: ActorRef = Actor.noSender): Unit
+  def addToBatch(tuple: ITuple)(implicit sender: ActorRef = Actor.noSender): Option[]
 
   def noMore()(implicit sender: ActorRef = Actor.noSender): Unit
 
