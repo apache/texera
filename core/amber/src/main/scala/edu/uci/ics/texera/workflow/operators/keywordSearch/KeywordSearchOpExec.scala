@@ -21,53 +21,54 @@ import org.apache.lucene.search.IndexSearcher
 import java.nio.file.Files
 
 class KeywordSearchOpExec(var counter: Int, val opDesc: KeywordSearchOpDesc) extends FilterOpExec {
-  var kw: String = opDesc.keyword
-  this.setFilterFunc(this.findKeyword)
 
-  val analyzer = new SimpleAnalyzer()
-  val parser = new QueryParser(opDesc.columnName, analyzer)
+  @transient lazy val memoryIndex: MemoryIndex = new MemoryIndex();
+  @transient lazy val mmapDir: MMapDirectory = new MMapDirectory(
+    Files.createTempDirectory("texera-keyword-" + counter)
+  )
+  @transient lazy val analyzer = new SimpleAnalyzer();
+  @transient lazy val indexWriter: IndexWriter =
+    new IndexWriter(mmapDir, new IndexWriterConfig(analyzer))
+  @transient lazy val queryParser: QueryParser =
+    new QueryParser(opDesc.columnName, analyzer)
+  @transient lazy val query: Query = queryParser.parse(opDesc.keyword)
+
+  this.setFilterFunc(this.findKeyword)
 
   def findKeyword(tuple: Tuple): Boolean = {
     try {
-      var index = new MemoryIndex()
       val tupleValue = tuple.getField(opDesc.columnName).toString
-      index.addField(opDesc.columnName, tupleValue, analyzer)
+      memoryIndex.addField(opDesc.columnName, tupleValue, analyzer)
 //      val score = index.search(parser.parse(kw))
 
-      if (index.search(parser.parse(kw)) > 0.0f) {
-        index = null
+      if (memoryIndex.search(query) > 0.0f) {
         true
-      }
-      else {
-        index = null
+      } else {
         false
       }
-    }
-    catch {
+    } catch {
       case e: NullPointerException => false
     }
   }
 
   def findKeywordMMap(tuple: Tuple): Boolean = {
-    val outPath = Files.createTempDirectory("texera-keyword-" + counter)
-    @transient lazy val mMapDir: MMapDirectory = new MMapDirectory(outPath)
-    @transient lazy val indexWriter: IndexWriter = new IndexWriter(mMapDir, new IndexWriterConfig(analyzer))
-
     val doc = new Document()
-    doc.add(new Field(opDesc.columnName, tuple.getField(opDesc.columnName, classOf[String]), TextField.TYPE_STORED))
+    doc.add(
+      new Field(
+        opDesc.columnName,
+        tuple.getField(opDesc.columnName, classOf[String]),
+        TextField.TYPE_STORED
+      )
+    )
     indexWriter.addDocument(doc)
-    indexWriter.close
     doc.clear()
 
-    val indexReader = DirectoryReader.open(mMapDir)
+    val indexReader = DirectoryReader.open(indexWriter)
     val searcher = new IndexSearcher(indexReader)
-
-    val query: Query = new QueryParser(opDesc.columnName, analyzer).parse(kw)
 
     val topDocs = searcher.search(query, 1)
 
-    FileUtils.deleteDirectory(outPath.toFile);
-    indexReader.close()
+    indexWriter.deleteAll()
 
     if (topDocs.totalHits.value > 0) {
       true
