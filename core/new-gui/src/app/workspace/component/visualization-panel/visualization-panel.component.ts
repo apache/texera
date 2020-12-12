@@ -30,6 +30,8 @@ export class VisualizationPanelComponent {
   onClickVisualize(): void {
     assertType<ChartType>(this.chartType);
     const dialogRef = this.modal.create({
+      nzTitle: 'Visualization',
+      nzWidth: 1100,
       nzContent: VisualizationPanelContentComponent,
       nzComponentParams: {
         data: {

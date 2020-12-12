@@ -6,12 +6,14 @@ import edu.uci.ics.amber.engine.faulttolerance.scanner.BufferedBlockReader;
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecutor;
 import edu.uci.ics.texera.workflow.common.tuple.Tuple;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
+import org.apache.commons.lang3.ArrayUtils;
 import org.tukaani.xz.SeekableFileInputStream;
 import scala.collection.Iterator;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.Arrays;
+import java.util.Objects;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -60,10 +62,9 @@ public class LocalCsvScanSourceOpExec implements SourceOperatorExecutor {
             public Tuple next() {
                 try {
                     String[] res = reader.readLine();
-                    if (res == null) {
-                        return null;
-                    }
-                    if (res.length == 1 && res[0].isEmpty()) {
+                    if (res == null || Arrays.stream(res).noneMatch(Objects::nonNull)) {
+                        // discard tuple if it's null or it only contains null
+                        // which means it will always discard Tuple(null) from readLine()
                         return null;
                     }
                     Verify.verify(schema != null);
@@ -76,6 +77,8 @@ public class LocalCsvScanSourceOpExec implements SourceOperatorExecutor {
                     return Tuple.newBuilder().add(schema, res).build();
                 } catch (IOException e) {
                     throw new UncheckedIOException(e);
+                } catch(Exception e){
+                    throw e;
                 }
             }
 

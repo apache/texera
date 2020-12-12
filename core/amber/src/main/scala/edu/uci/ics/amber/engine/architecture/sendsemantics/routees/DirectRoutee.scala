@@ -1,7 +1,11 @@
 package edu.uci.ics.amber.engine.architecture.sendsemantics.routees
 
 import edu.uci.ics.amber.engine.common.AdvancedMessageSending
-import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{DataMessage, EndSending, UpdateInputLinking}
+import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{
+  DataMessage,
+  EndSending,
+  UpdateInputLinking
+}
 import edu.uci.ics.amber.engine.common.ambertag.LinkTag
 import akka.actor.{Actor, ActorContext, ActorRef}
 import akka.event.LoggingAdapter
@@ -52,7 +56,7 @@ class DirectRoutee(receiver: ActorRef) extends BaseRoutee(receiver) {
       ec: ExecutionContext,
       log: LoggingAdapter
   ): Unit = {
-    receiver ? UpdateInputLinking(sender, tag.from)
+    receiver ? UpdateInputLinking(sender, tag.from, tag.inputNum)
   }
 
   override def dispose(): Unit = {}

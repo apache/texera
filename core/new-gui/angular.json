@@ -34,7 +34,10 @@
               "node_modules/bootstrap/dist/css/bootstrap.min.css",
               "src/styles.scss"
             ],
-            "scripts": []
+            "scripts": [
+              "./node_modules/ace-builds/src-min/ace.js",
+              "./node_modules/ace-builds/src-min/mode-python.js"
+            ]
           },
           "configurations": {
             "production": {

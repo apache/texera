@@ -33,107 +33,107 @@ describe('ValidationWorkflowService', () => {
   }));
 
   it('should receive true from validateOperator when operator box is connected and required properties are complete ',
-  () => {
-    workflowActionservice.addOperator(mockScanPredicate, mockPoint);
-    workflowActionservice.addOperator(mockResultPredicate, mockPoint);
-    workflowActionservice.addLink(mockScanResultLink);
-    const newProperty = { 'tableName': 'test-table' };
-    workflowActionservice.setOperatorProperty(mockScanPredicate.operatorID, newProperty);
-    expect(validationWorkflowService.validateOperator(mockResultPredicate.operatorID).isValid).toBeTruthy();
-    expect(validationWorkflowService.validateOperator(mockScanPredicate.operatorID).isValid).toBeTruthy();
-  }
+    () => {
+      workflowActionservice.addOperator(mockScanPredicate, mockPoint);
+      workflowActionservice.addOperator(mockResultPredicate, mockPoint);
+      workflowActionservice.addLink(mockScanResultLink);
+      const newProperty = { 'tableName': 'test-table' };
+      workflowActionservice.setOperatorProperty(mockScanPredicate.operatorID, newProperty);
+      expect(validationWorkflowService.validateOperator(mockResultPredicate.operatorID).isValid).toBeTruthy();
+      expect(validationWorkflowService.validateOperator(mockScanPredicate.operatorID).isValid).toBeTruthy();
+    }
   );
 
   it('should subscribe the changes of validateOperatorStream when operator box is connected and required properties are complete ',
-  marbles((m) => {
-    const testEvents = m.hot('-a-b-c----d-', {
-      'a': () => workflowActionservice.addOperator(mockScanPredicate, mockPoint),
-      'b': () => workflowActionservice.addOperator(mockResultPredicate, mockPoint),
-      'c': () => workflowActionservice.addLink(mockScanResultLink),
-      'd': () => workflowActionservice.setOperatorProperty(mockScanPredicate.operatorID, { 'tableName': 'test-table' })
-    });
+    marbles((m) => {
+      const testEvents = m.hot('-a-b-c----d-', {
+        'a': () => workflowActionservice.addOperator(mockScanPredicate, mockPoint),
+        'b': () => workflowActionservice.addOperator(mockResultPredicate, mockPoint),
+        'c': () => workflowActionservice.addLink(mockScanResultLink),
+        'd': () => workflowActionservice.setOperatorProperty(mockScanPredicate.operatorID, { 'tableName': 'test-table' })
+      });
 
-    testEvents.subscribe(action => action());
+      testEvents.subscribe(action => action());
 
-    const expected = m.hot('-u-v-(yz)-m-', {
-      'u': {operatorID: '1', isValid: false},
-      'v': {operatorID: '3', isValid: false},
-      'y': {operatorID: '1', isValid: false},
-      'z': {operatorID: '3', isValid: true},
-      'm': {operatorID: '1', isValid: true}
-    });
+      const expected = m.hot('-u-v-(yz)-m-', {
+        'u': { operatorID: '1', isValid: false },
+        'v': { operatorID: '3', isValid: false },
+        'y': { operatorID: '1', isValid: false },
+        'z': { operatorID: '3', isValid: true },
+        'm': { operatorID: '1', isValid: true }
+      });
 
-    m.expect(validationWorkflowService.getOperatorValidationStream()
-    .map(value => ({operatorID: value.operatorID, isValid: value.validation.isValid}))
-    ).toBeObservable(expected);
-  }
-  ));
+      m.expect(validationWorkflowService.getOperatorValidationStream()
+        .map(value => ({ operatorID: value.operatorID, isValid: value.validation.isValid }))
+      ).toBeObservable(expected);
+    }
+    ));
 
   it('should receive false from validateOperator when operator box is not connected or required properties are not complete ',
-  () => {
-    workflowActionservice.addOperator(mockScanPredicate, mockPoint);
-    workflowActionservice.addOperator(mockResultPredicate, mockPoint);
-    workflowActionservice.addLink(mockScanResultLink);
-    expect(validationWorkflowService.validateOperator(mockResultPredicate.operatorID).isValid).toBeTruthy();
-    expect(validationWorkflowService.validateOperator(mockScanPredicate.operatorID).isValid).toBeFalsy();
-  });
+    () => {
+      workflowActionservice.addOperator(mockScanPredicate, mockPoint);
+      workflowActionservice.addOperator(mockResultPredicate, mockPoint);
+      workflowActionservice.addLink(mockScanResultLink);
+      expect(validationWorkflowService.validateOperator(mockResultPredicate.operatorID).isValid).toBeTruthy();
+      expect(validationWorkflowService.validateOperator(mockScanPredicate.operatorID).isValid).toBeFalsy();
+    });
 
   it('should subscribe the changes of validateOperatorStream when one operator box is deleted after valid status ',
-  marbles((m) => {
-    const testEvents = m.hot('-a-b-c----d-e-----', {
-      'a': () => workflowActionservice.addOperator(mockScanPredicate, mockPoint),
-      'b': () => workflowActionservice.addOperator(mockResultPredicate, mockPoint),
-      'c': () => workflowActionservice.addLink(mockScanResultLink),
-      'd': () => workflowActionservice.setOperatorProperty(mockScanPredicate.operatorID, { 'tableName': 'test-table' }),
-      'e': () => workflowActionservice.deleteOperator(mockResultPredicate.operatorID)
-    });
+    marbles((m) => {
+      const testEvents = m.hot('-a-b-c----d-e-----', {
+        'a': () => workflowActionservice.addOperator(mockScanPredicate, mockPoint),
+        'b': () => workflowActionservice.addOperator(mockResultPredicate, mockPoint),
+        'c': () => workflowActionservice.addLink(mockScanResultLink),
+        'd': () => workflowActionservice.setOperatorProperty(mockScanPredicate.operatorID, { 'tableName': 'test-table' }),
+        'e': () => workflowActionservice.deleteOperator(mockResultPredicate.operatorID)
+      });
 
-    testEvents.subscribe(action => action());
+      testEvents.subscribe(action => action());
 
-    const expected = m.hot('-t-u-(vw)-x-(yz)-)', {
-      't': {operatorID: '1', isValid: false},
-      'u': {operatorID: '3', isValid: false},
-      'v': {operatorID: '1', isValid: false},
-      'w': {operatorID: '3', isValid: true},
-      'x': {operatorID: '1', isValid: true},
-      'y': {operatorID: '1', isValid: false}, // If one of the oprator is deleted, the other one is invaild since it is isolated
-      'z': {operatorID: '3', isValid: false}
-    });
+      const expected = m.hot('-t-u-(vw)-x-(yz)-)', {
+        't': { operatorID: '1', isValid: false },
+        'u': { operatorID: '3', isValid: false },
+        'v': { operatorID: '1', isValid: false },
+        'w': { operatorID: '3', isValid: true },
+        'x': { operatorID: '1', isValid: true },
+        'y': { operatorID: '1', isValid: false }, // If one of the oprator is deleted, the other one is invaild since it is isolated
+        'z': { operatorID: '3', isValid: false }
+      });
 
-    m.expect(validationWorkflowService.getOperatorValidationStream()
-    .map(value => ({operatorID: value.operatorID, isValid: value.validation.isValid})))
-    .toBeObservable(expected);
-  }
-  ));
+      m.expect(validationWorkflowService.getOperatorValidationStream()
+        .map(value => ({ operatorID: value.operatorID, isValid: value.validation.isValid })))
+        .toBeObservable(expected);
+    }
+    ));
 
   it('should subscribe the changes of validateOperatorStream when operator link is deleted after valid status ',
-  marbles((m) => {
-    const testEvents = m.hot('-a-b-c----d-e----', {
-      'a': () => workflowActionservice.addOperator(mockScanPredicate, mockPoint),
-      'b': () => workflowActionservice.addOperator(mockResultPredicate, mockPoint),
-      'c': () => workflowActionservice.addLink(mockScanResultLink),
-      'd': () => workflowActionservice.setOperatorProperty(mockScanPredicate.operatorID, { 'tableName': 'test-table' }),
-      'e': () => workflowActionservice.deleteLinkWithID('link-1')
-    });
+    marbles((m) => {
+      const testEvents = m.hot('-a-b-c----d-e----', {
+        'a': () => workflowActionservice.addOperator(mockScanPredicate, mockPoint),
+        'b': () => workflowActionservice.addOperator(mockResultPredicate, mockPoint),
+        'c': () => workflowActionservice.addLink(mockScanResultLink),
+        'd': () => workflowActionservice.setOperatorProperty(mockScanPredicate.operatorID, { 'tableName': 'test-table' }),
+        'e': () => workflowActionservice.deleteLinkWithID('link-1')
+      });
 
-    testEvents.subscribe(action => action());
+      testEvents.subscribe(action => action());
 
-    const expected = m.hot('-t-u-(vw)-x-(yz)-', {
-      't': {operatorID: '1', isValid: false},
-      'u': {operatorID: '3', isValid: false},
-      'v': {operatorID: '1', isValid: false},
-      'w': {operatorID: '3', isValid: true},
-      'x': {operatorID: '1', isValid: true},
-      'y': {operatorID: '1', isValid: false}, // If the link is deleted, two operators are isolated and are invalid
-      'z': {operatorID: '3', isValid: false}
+      const expected = m.hot('-t-u-(vw)-x-(yz)-', {
+        't': { operatorID: '1', isValid: false },
+        'u': { operatorID: '3', isValid: false },
+        'v': { operatorID: '1', isValid: false },
+        'w': { operatorID: '3', isValid: true },
+        'x': { operatorID: '1', isValid: true },
+        'y': { operatorID: '1', isValid: false }, // If the link is deleted, two operators are isolated and are invalid
+        'z': { operatorID: '3', isValid: false }
 
-    });
+      });
 
-    m.expect(validationWorkflowService.getOperatorValidationStream()
-    .map(value => ({operatorID: value.operatorID, isValid: value.validation.isValid}))
-    ).toBeObservable(expected);
-  }
-  ));
+      m.expect(validationWorkflowService.getOperatorValidationStream()
+        .map(value => ({ operatorID: value.operatorID, isValid: value.validation.isValid }))
+      ).toBeObservable(expected);
+    }
+    ));
 
 
 

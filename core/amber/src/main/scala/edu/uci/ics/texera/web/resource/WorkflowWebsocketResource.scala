@@ -150,7 +150,7 @@ class WorkflowWebsocketResource {
 
     val eventListener = ControllerEventListener(
       workflowCompletedListener = completed => {
-        send(session, WorkflowCompletedEvent.apply(completed))
+        send(session, WorkflowCompletedEvent.apply(completed, texeraWorkflowCompiler))
         WorkflowWebsocketResource.sessionJobs.remove(session.getId)
       },
       workflowStatusUpdateListener = statusUpdate => {
@@ -191,6 +191,9 @@ class WorkflowWebsocketResource {
       },
       recoveryStartedListener = _ => {
         send(session, RecoveryStartedEvent())
+      },
+      workflowExecutionErrorListener = errorOccurred => {
+        send(session, WorkflowExecutionErrorEvent(errorOccurred.error.convertToMap()))
       }
     )
 

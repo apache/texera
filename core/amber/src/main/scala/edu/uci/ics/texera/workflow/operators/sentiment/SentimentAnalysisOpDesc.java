@@ -26,7 +26,7 @@ public class SentimentAnalysisOpDesc extends MapOpDesc {
         if (attribute == null) {
             throw new RuntimeException("sentiment analysis: attribute is null");
         }
-        return new OneToOneOpExecConfig(operatorIdentifier(), () -> new SentimentAnalysisOpExec(this));
+        return new OneToOneOpExecConfig(operatorIdentifier(), worker -> new SentimentAnalysisOpExec(this));
     }
 
     @Override
@@ -45,6 +45,6 @@ public class SentimentAnalysisOpDesc extends MapOpDesc {
         if (resultAttribute == null || resultAttribute.trim().isEmpty()) {
             return null;
         }
-        return Schema.newBuilder().add(schemas[0]).add(resultAttribute, AttributeType.STRING).build();
+        return Schema.newBuilder().add(schemas[0]).add(resultAttribute, AttributeType.INTEGER).build();
     }
 }

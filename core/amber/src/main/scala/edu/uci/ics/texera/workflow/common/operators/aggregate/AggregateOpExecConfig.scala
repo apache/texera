@@ -4,9 +4,19 @@ import akka.actor.ActorRef
 import akka.event.LoggingAdapter
 import akka.util.Timeout
 import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalBreakpoint
-import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.{FollowPrevious, ForceLocal, UseAll}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.{RandomDeployment, RoundRobinDeployment}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{ActorLayer, ProcessorWorkerLayer}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.{
+  FollowPrevious,
+  ForceLocal,
+  UseAll
+}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.{
+  RandomDeployment,
+  RoundRobinDeployment
+}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
+  ActorLayer,
+  ProcessorWorkerLayer
+}
 import edu.uci.ics.amber.engine.architecture.linksemantics.{AllToOne, HashBasedShuffle}
 import edu.uci.ics.amber.engine.architecture.worker.WorkerState
 import edu.uci.ics.amber.engine.common.Constants
@@ -45,7 +55,7 @@ class AggregateOpExecConfig[P <: AnyRef](
           finalLayer
         ),
         Array(
-          new AllToOne(partialLayer, finalLayer, Constants.defaultBatchSize)
+          new AllToOne(partialLayer, finalLayer, Constants.defaultBatchSize, 0)
         ),
         Map()
       )
@@ -77,7 +87,8 @@ class AggregateOpExecConfig[P <: AnyRef](
             x => {
               val tuple = x.asInstanceOf[Tuple]
               aggFunc.groupByFunc(tuple).hashCode()
-            }
+            },
+            0
           )
         ),
         Map()
@@ -91,4 +102,6 @@ class AggregateOpExecConfig[P <: AnyRef](
   )(implicit timeout: Timeout, ec: ExecutionContext, log: LoggingAdapter): Unit = {
     breakpoint.partition(topology(0).layer.filter(states(_) != WorkerState.Completed))
   }
+
+  override def getInputNum(from: OperatorIdentifier): Int = 0
 }

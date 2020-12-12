@@ -2,7 +2,11 @@ package edu.uci.ics.amber.engine.architecture.linksemantics
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.ActorLayer
 import edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy.RoundRobinPolicy
-import edu.uci.ics.amber.engine.architecture.sendsemantics.routees.{BaseRoutee, DirectRoutee, FlowControlRoutee}
+import edu.uci.ics.amber.engine.architecture.sendsemantics.routees.{
+  BaseRoutee,
+  DirectRoutee,
+  FlowControlRoutee
+}
 import edu.uci.ics.amber.engine.common.AdvancedMessageSending
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.UpdateOutputLinking
 import edu.uci.ics.amber.engine.common.ambertag.LinkTag
@@ -11,8 +15,8 @@ import akka.util.Timeout
 
 import scala.concurrent.ExecutionContext
 
-class LocalRoundRobin(from: ActorLayer, to: ActorLayer, batchSize: Int)
-    extends LinkStrategy(from, to, batchSize) {
+class LocalRoundRobin(from: ActorLayer, to: ActorLayer, batchSize: Int, inputNum: Int)
+    extends LinkStrategy(from, to, batchSize, inputNum) {
   override def link()(implicit
       timeout: Timeout,
       ec: ExecutionContext,

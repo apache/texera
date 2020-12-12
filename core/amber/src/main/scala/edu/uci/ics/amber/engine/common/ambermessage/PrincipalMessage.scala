@@ -13,31 +13,34 @@ import scala.collection.mutable
 
 object PrincipalMessage {
   final case class AckedPrincipalInitialization(prev: Array[(OpExecConfig, ActorLayer)])
+      extends WorkflowMessage
 
-  final case class GetInputLayer()
+  final case class GetInputLayer() extends WorkflowMessage
 
-  final case class GetOutputLayer()
+  final case class GetOutputLayer() extends WorkflowMessage
 
-  final case class AppendLayer(linkStrategy: LinkStrategy)
+  final case class AppendLayer(linkStrategy: LinkStrategy) extends WorkflowMessage
 
   final case class PrependLayer(
-                                 prev: Array[(OpExecConfig, ActorLayer)],
-                                 linkStrategy: LinkStrategy
-  )
+      prev: Array[(OpExecConfig, ActorLayer)],
+      linkStrategy: LinkStrategy
+  ) extends WorkflowMessage
 
-  final case class AssignBreakpoint(breakpoint: GlobalBreakpoint)
+  final case class AssignBreakpoint(breakpoint: GlobalBreakpoint) extends WorkflowMessage
 
-  final case class ReportState(principalState: PrincipalState.Value)
+  final case class ReportState(principalState: PrincipalState.Value) extends WorkflowMessage
 
   final case class ReportStatistics(principalStatistics: PrincipalStatistics)
+      extends WorkflowMessage
 
-  final case class ReportOutputResult(results: List[ITuple])
+  final case class ReportOutputResult(results: List[ITuple]) extends WorkflowMessage
 
   final case class ReportPrincipalPartialCompleted(from: AmberTag, layer: LayerTag)
+      extends WorkflowMessage
 
   final case class ReportCurrentProcessingTuple(
       operatorID: String,
       tuple: Array[(ITuple, ActorPath)]
-  )
+  ) extends WorkflowMessage
 
 }

@@ -119,6 +119,13 @@ export class ExecuteWorkflowService {
           errorMessages[entry[0]] = entry[1];
         });
         return { state: ExecutionState.Failed, errorMessages: errorMessages };
+      // TODO: Merge WorkflowErrorEvent and ErrorEvent
+      case 'WorkflowExecutionErrorEvent':
+        const backendErrorMessages: Record<string, string> = {};
+        Object.entries(event.errorMap).forEach(entry => {
+          backendErrorMessages[entry[0]] = entry[1];
+        });
+        return { state: ExecutionState.Failed, errorMessages: backendErrorMessages };
       default:
         return this.currentState;
     }
@@ -325,6 +332,7 @@ export class ExecuteWorkflowService {
   }
 
   private updateExecutionState(stateInfo: ExecutionStateInfo): void {
+    this.updateWorkflowActionLock(stateInfo);
     if (isEqual(this.currentState, stateInfo)) {
       return;
     }
@@ -339,6 +347,29 @@ export class ExecuteWorkflowService {
     this.currentState = stateInfo;
     // emit event
     this.executionStateStream.next({ previous: previousState, current: this.currentState });
+  }
+
+  /**
+   * enables or disables workflow action service based on execution state
+   */
+  private updateWorkflowActionLock(stateInfo: ExecutionStateInfo): void {
+    switch (stateInfo.state) {
+      case ExecutionState.Completed:
+      case ExecutionState.Failed:
+      case ExecutionState.Uninitialized:
+        this.workflowActionService.enableWorkflowModification();
+        return;
+      case ExecutionState.Paused:
+      case ExecutionState.Pausing:
+      case ExecutionState.Recovering:
+      case ExecutionState.Resuming:
+      case ExecutionState.Running:
+      case ExecutionState.WaitingToRun:
+        this.workflowActionService.disableWorkflowModification();
+        return;
+      default:
+        return;
+    }
   }
 
   /**

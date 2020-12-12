@@ -2,23 +2,24 @@ package edu.uci.ics.texera.workflow.operators.pythonUDF;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import edu.uci.ics.amber.engine.common.InputExhausted;
-import edu.uci.ics.amber.engine.common.amberexception.AmberException;
-import edu.uci.ics.amber.engine.common.ambertag.LayerTag;
-import edu.uci.ics.amber.engine.common.tuple.ITuple;
-import edu.uci.ics.amber.engine.common.tuple.amber.AmberTuple;
 import edu.uci.ics.texera.workflow.common.Utils;
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor;
 import edu.uci.ics.texera.workflow.common.tuple.Tuple;
+import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
+import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
+import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import org.apache.arrow.flight.*;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.*;
 import org.apache.arrow.vector.types.FloatingPointPrecision;
 import org.apache.arrow.vector.types.pojo.ArrowType;
 import org.apache.arrow.vector.types.pojo.Field;
-import org.apache.arrow.vector.types.pojo.Schema;
 import scala.collection.Iterator;
 import scala.util.Either;
+import scala.collection.JavaConverters;
 
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.URI;
@@ -27,12 +28,12 @@ import java.util.*;
 
 public class PythonUDFOpExec implements OperatorExecutor {
     private String pythonScriptPath;
-    private ArrayList<String> inputColumns;
-    private ArrayList<String> outputColumns;
-    private ArrayList<String> outerFilePaths;
-    private int batchSize;
-
-    private HashMap<String, String> params = new HashMap<>();
+    private final String pythonScriptText;
+    private final ArrayList<String> inputColumns;
+    private final ArrayList<Attribute> outputColumns;
+    private final ArrayList<String> outerFilePaths;
+    private final int batchSize;
+    private final boolean isDynamic;
 
     private static final int MAX_TRY_COUNT = 20;
     private static final long WAIT_TIME_MS = 500;
@@ -40,86 +41,51 @@ public class PythonUDFOpExec implements OperatorExecutor {
     private static final String DAEMON_SCRIPT_PATH = getPythonResourcePath("texera_udf_server_main.py");
 
     private static final RootAllocator globalRootAllocator = new RootAllocator();
-    private static final ObjectMapper globalObjectMapper = new ObjectMapper();
+    private static final ObjectMapper globalObjectMapper = Utils.objectMapper();
     private FlightClient flightClient;
-    private Schema globalInputSchema;
+    private org.apache.arrow.vector.types.pojo.Schema globalInputSchema;
 
-    private Queue<ITuple> inputTupleBuffer;
-    private Queue<ITuple> outputTupleBuffer;
+    private Queue<Tuple> inputTupleBuffer;
+    private Queue<Tuple> outputTupleBuffer;
 
-    PythonUDFOpExec(String pythonScriptFile, ArrayList<String> inputColumns, ArrayList<String> outputColumns,
-                    ArrayList<String> outerFiles, int batchSize) {
-        setPredicate(pythonScriptFile, inputColumns, outputColumns, outerFiles, batchSize);
-    }
-
-    public void setPredicate(String pythonScriptFile, ArrayList<String> inputColumns, ArrayList<String> outputColumns,
-                             ArrayList<String> outerFiles, int batchSize) {
+    PythonUDFOpExec(String pythonScriptText, String pythonScriptFile, ArrayList<String> inputColumns,
+                            ArrayList<Attribute> outputColumns, ArrayList<String> outerFiles, int batchSize) {
+        this.pythonScriptText = pythonScriptText;
         this.pythonScriptPath = pythonScriptFile;
         this.inputColumns = inputColumns;
         this.outputColumns = outputColumns;
         this.outerFilePaths = new ArrayList<>();
         for (String s : outerFiles) outerFilePaths.add(getPythonResourcePath(s));
         this.batchSize = batchSize;
+        isDynamic = pythonScriptFile == null || pythonScriptFile.isEmpty();
     }
 
-    public void accept(ITuple tuple) {
-        if (inputTupleBuffer == null) {
-            // The first time, initialize this buffer.
-            inputTupleBuffer = new LinkedList<>();
-            // FIXME: Since there's no Schema implementation, here the names are hard-coded.
-            try {
-                globalInputSchema = convertAmber2ArrowSchema(tuple,
-                        Arrays.asList(
-                                "create_at",
-                                "id",
-                                "text",
-                                "favorite_count",
-                                "retweet_count",
-                                "lang",
-                                "is_retweet"
-                        )
-                );
-            } catch (Exception e) {
-                closeAndThrow(flightClient, e);
+
+    @Override
+    public void open() {
+        try {
+            pythonScriptPath = isDynamic ?
+                    getPythonResourcePath(String.valueOf(new Random().nextLong())) + ".py"
+                    : getPythonResourcePath(pythonScriptPath);
+            if (isDynamic) {
+                // dynamic -> create a temp file and write the code into the file
+                File tempScriptFile = new File(pythonScriptPath);
+
+                if (tempScriptFile.createNewFile()) {
+                    FileWriter fileWriter = new FileWriter(pythonScriptPath);
+                    fileWriter.write(pythonScriptText);
+                    fileWriter.close();
+                }
+            } else {
+                // static -> check if the script file exists
+                File scriptFile = new File(pythonScriptPath);
+                if (!scriptFile.exists()) throw new Exception("Script file doest not exist!");
             }
 
-        }
-        inputTupleBuffer.add(tuple);
-        if (inputTupleBuffer.size() == batchSize) {
-            // This batch is full, execute the UDF.
-            processOneBatch();
-        }
-    }
-
-    public void onUpstreamChanged(LayerTag from) {
-
-    }
-
-    public void onUpstreamExhausted(LayerTag from) {
-
-    }
-
-    public void noMore() {
-        if (inputTupleBuffer != null && !inputTupleBuffer.isEmpty()) {
-            // There are some unprocessed tuples, finish them.
-            processOneBatch();
-        }
-    }
-
-
-    public void updateParamMap() {
-        params.put("batchSize", Integer.toString(batchSize));
-        params.put("MAX_TRY_COUNT", Integer.toString(MAX_TRY_COUNT));
-        params.put("WAIT_TIME_MS", Long.toString(WAIT_TIME_MS));
-    }
-
-
-    public void initialize() {
-        try {
             int portNumber = getFreeLocalPort();
             Location location = new Location(URI.create("grpc+tcp://localhost:" + portNumber));
             List<String> args = new ArrayList<>(
-                    Arrays.asList(PYTHON, DAEMON_SCRIPT_PATH, Integer.toString(portNumber), getPythonResourcePath(pythonScriptPath))
+                    Arrays.asList(PYTHON, DAEMON_SCRIPT_PATH, Integer.toString(portNumber), pythonScriptPath)
             );
 
             ProcessBuilder processBuilder = new ProcessBuilder(args).inheritIO();
@@ -142,58 +108,89 @@ public class PythonUDFOpExec implements OperatorExecutor {
                 }
             }
             if (tryCount == MAX_TRY_COUNT)
-                throw new AmberException("Exceeded try limit of 5 when connecting to Flight Server!");
+                throw new RuntimeException("Exceeded try limit of " + MAX_TRY_COUNT +" when connecting to Flight Server!");
         } catch (Exception e) {
-            throw new AmberException(e.getMessage());
+            e.printStackTrace();
+            try {
+                if (isDynamic) deleteTempFile(pythonScriptPath);
+            } catch (Exception innerException) {
+                innerException.printStackTrace();
+            }
         }
 
         // Send user args to Server.
         List<String> userArgs = new ArrayList<>();
         if (inputColumns != null) userArgs.addAll(inputColumns);
-        if (outputColumns != null) userArgs.addAll(outputColumns);
+        if (outputColumns != null) {
+            for (Attribute a : outputColumns) userArgs.add(a.getName());
+        }
         if (outerFilePaths != null) userArgs.addAll(outerFilePaths);
 
-        Queue<ITuple> argsTuples = new LinkedList<>();
+        Schema argsSchema = new Schema(Collections.singletonList(new Attribute("args", AttributeType.STRING)));
+        Queue<Tuple> argsTuples = new LinkedList<>();
         for (String arg : userArgs) {
-            argsTuples.add(new AmberTuple(new String[]{arg}));
+            argsTuples.add(new Tuple(argsSchema, Collections.singletonList(arg)));
         }
-        Schema argsSchema = new Schema(
-                Collections.singletonList(Field.nullablePrimitive("args", ArrowType.Utf8.INSTANCE))
-        );
 
         try {
-            writeArrowStream(flightClient, argsTuples, globalRootAllocator, argsSchema, "args", batchSize);
+            writeArrowStream(flightClient, argsTuples, globalRootAllocator, convertAmber2ArrowSchema(argsSchema), "args", batchSize);
             flightClient.doAction(new Action("open")).next().getBody();
+        } catch (Exception e) {
+            e.printStackTrace();
+            try {
+                if (isDynamic) deleteTempFile(pythonScriptPath);
+            } catch (Exception innerException) {
+                innerException.printStackTrace();
+            }
+            closeAndThrow(flightClient, e);
+        }
+        // Finally, delete the temp file because it has been loaded in Python.
+        try {
+            if (isDynamic) deleteTempFile(pythonScriptPath);
         } catch (Exception e) {
             closeAndThrow(flightClient, e);
         }
-
-        updateParamMap();
     }
 
     @Override
-    public String getParam(String query) {
-        return params.getOrDefault(query, null);
+    public void close() {
+        closeClientAndServer(flightClient, true);
     }
 
-    public boolean hasNext() {
-        return !(outputTupleBuffer == null || outputTupleBuffer.isEmpty());
-    }
-
-    public ITuple next() {
-        return outputTupleBuffer.remove();
-    }
-
-    public void dispose() {
-        closeClientAndServer(flightClient);
+    @Override
+    public Iterator<Tuple> processTexeraTuple(Either<Tuple, InputExhausted> tuple, int input) {
+        if (tuple.isLeft()) {
+            Tuple inputTuple = tuple.left().get();
+            if (inputTupleBuffer == null) {
+                // The first time, initialize this buffer.
+                inputTupleBuffer = new LinkedList<>();
+                try {
+                    globalInputSchema = convertAmber2ArrowSchema(inputTuple.getSchema());
+                } catch (Exception e) {
+                    closeAndThrow(flightClient, e);
+                }
+            }
+            inputTupleBuffer.add(inputTuple);
+            if (inputTupleBuffer.size() == batchSize) {
+                // This batch is full, execute the UDF.
+                outputTupleBuffer = new LinkedList<>();
+                processOneBatch();
+                return JavaConverters.asScalaIterator(outputTupleBuffer.iterator());
+            }
+        }
+        else {
+            if (inputTupleBuffer != null && !inputTupleBuffer.isEmpty()) {
+                // There are some unprocessed tuples, finish them.
+                outputTupleBuffer = new LinkedList<>();
+                processOneBatch();
+                return JavaConverters.asScalaIterator(outputTupleBuffer.iterator());
+            }
+        }
+        return JavaConverters.asScalaIterator(Collections.emptyIterator());
     }
 
     private void processOneBatch() {
-        writeArrowStream(flightClient, inputTupleBuffer, globalRootAllocator,
-                globalInputSchema, "toPython", batchSize);
-        if (outputTupleBuffer == null) {
-            outputTupleBuffer = new LinkedList<>();
-        }
+        writeArrowStream(flightClient, inputTupleBuffer, globalRootAllocator, globalInputSchema, "toPython", batchSize);
         executeUDF(flightClient, globalObjectMapper, outputTupleBuffer);
     }
 
@@ -238,50 +235,19 @@ public class PythonUDFOpExec implements OperatorExecutor {
      * @param tuple            Input tuple.
      * @param index            Index of the input tuple in the table (buffer).
      * @param vectorSchemaRoot This should store the Arrow schema, which should already been converted from Amber.
-     * @throws Exception Whatever might happen during this conversion, but especially when tuple has unexpected type
-     *                   or tuple schema does not correspond to root.
      */
-    private static void convertAmber2ArrowTuple(ITuple tuple, int index, VectorSchemaRoot vectorSchemaRoot) throws Exception {
+    private static void convertAmber2ArrowTuple(Tuple tuple, int index, VectorSchemaRoot vectorSchemaRoot) {
+
         List<Field> preDefinedFields = vectorSchemaRoot.getSchema().getFields();
-        if (tuple.length() != preDefinedFields.size()) throw new AmberException("Tuple does not match schema!");
-        else {
-            for (int i = 0; i < preDefinedFields.size(); i++) {
-                FieldVector vector = vectorSchemaRoot.getVector(i);
-                switch (preDefinedFields.get(i).getFieldType().getType().getTypeID()) {
-                    case Int:
-                        switch (((ArrowType.Int) (preDefinedFields.get(i).getType())).getBitWidth()) {
-                            case 16:
-                                ((SmallIntVector) vector).set(index, (short) tuple.get(i));
-                                break;
-                            case 32:
-                                ((IntVector) vector).set(index, (int) tuple.get(i));
-                                break;
-                            default:
-                                ((BigIntVector) vector).set(index, (long) tuple.get(i));
-                        }
-                        break;
-                    case Bool:
-                        ((BitVector) vector).set(index, (int) tuple.get(i));
-                        break;
-                    case Binary:
-                        ((FixedSizeBinaryVector) vector).set(index, new byte[]{(byte) tuple.get(i)});
-                        break;
-                    case FloatingPoint:
-                        if (((ArrowType.FloatingPoint) (preDefinedFields.get(i).getType())).getPrecision()
-                                == FloatingPointPrecision.SINGLE) {
-                            ((Float4Vector) vector).set(index, (float) tuple.get(i));
-                        } else {
-                            ((Float8Vector) vector).set(index, (double) tuple.get(i));
-                        }
-                        break;
-                    case Utf8:
-                        ((VarCharVector) vector).set(
-                                index, tuple.get(i).toString().getBytes(StandardCharsets.UTF_8)
-                        );
-                        break;
-                    default:
-                        throw new Exception("Unsupported type when converting tuples from Amber to Arrow.");
-                }
+        for (int i = 0; i < preDefinedFields.size(); i++) {
+            FieldVector vector = vectorSchemaRoot.getVector(i);
+            switch (preDefinedFields.get(i).getFieldType().getType().getTypeID()) {
+                case Int: ((IntVector) vector).set(index, (int) tuple.get(i)); break;
+                case Bool: ((BitVector) vector).set(index, (int) tuple.get(i)); break;
+                case FloatingPoint: ((Float8Vector) vector).set(index, (double) tuple.get(i)); break;
+                case Utf8:
+                    ((VarCharVector) vector).set(index, tuple.get(i).toString().getBytes(StandardCharsets.UTF_8));
+                    break;
             }
         }
     }
@@ -293,151 +259,118 @@ public class PythonUDFOpExec implements OperatorExecutor {
      * @param resultQueue      This should be empty before input.
      * @throws Exception Whatever might happen during this conversion, but especially when tuples have unexpected type.
      */
-    private static void convertArrow2AmberTableBuffer(VectorSchemaRoot vectorSchemaRoot, Queue<ITuple> resultQueue)
+    private static void convertArrow2AmberTableBuffer(VectorSchemaRoot vectorSchemaRoot, Queue<Tuple> resultQueue)
             throws Exception {
         List<FieldVector> fieldVectors = vectorSchemaRoot.getFieldVectors();
-        List<FieldTypeInJava> amberSchema = convertArrow2AmberSchema(vectorSchemaRoot.getSchema());
+        Schema amberSchema = convertArrow2AmberSchema(vectorSchemaRoot.getSchema());
         for (int i = 0; i < vectorSchemaRoot.getRowCount(); i++) {
-            ITuple tuple;
-            List<String> amberFields = new ArrayList<>();
-
+            List<Object> contents = new ArrayList<>();
             for (FieldVector vector : fieldVectors) {
-                String amberField;
                 try {
+                    Object content;
                     switch (vector.getField().getFieldType().getType().getTypeID()) {
                         case Int:
                             switch (((ArrowType.Int) (vector.getField().getFieldType().getType())).getBitWidth()) {
                                 case 16:
-                                    amberField = String.valueOf(((SmallIntVector) vector).get(i));
+                                    content = (int) ((SmallIntVector) vector).get(i);
                                     break;
                                 case 32:
-                                    amberField = String.valueOf(((IntVector) vector).get(i));
+                                    content = ((IntVector) vector).get(i);
                                     break;
+                                case 64:
                                 default:
-                                    amberField = String.valueOf(((BigIntVector) vector).get(i));
-                            }
+                                    content = (int) ((BigIntVector) vector).get(i);
+                        }
                             break;
                         case Bool:
-                            amberField = String.valueOf(((BitVector) vector).get(i));
-                            break;
-                        case Binary:
-                            amberField = Arrays.toString(((FixedSizeBinaryVector) vector).get(i));
+                            int bitValue =  ((BitVector) vector).get(i);
+                            if (bitValue == 0) content = false;
+                            else content = true;
                             break;
                         case FloatingPoint:
-                            if (((ArrowType.FloatingPoint) (vector.getField().getFieldType().getType())).getPrecision()
-                                    == FloatingPointPrecision.SINGLE) {
-                                amberField = String.valueOf(((Float4Vector) vector).get(i));
-                            } else {
-                                amberField = String.valueOf(((Float8Vector) vector).get(i));
-                            }
+                            switch (((ArrowType.FloatingPoint) (vector.getField().getFieldType().getType())).getPrecision()) {
+                                case HALF:
+                                    throw new Exception("HALF floating point number is not supported.");
+                                case SINGLE:
+                                    content = (double) ((Float4Vector) vector).get(i);
+                                break;
+                                default: content = ((Float8Vector) vector).get(i);
+                        }
                             break;
                         case Utf8:
-                            amberField = new String(((VarCharVector) vector).get(i), StandardCharsets.UTF_8);
+                            content = new String(((VarCharVector) vector).get(i), StandardCharsets.UTF_8);
                             break;
-                        default:
-                            throw new Exception("Unsupported type when converting tuples from Arrow to Amber.");
+                        default: throw new Exception("Unsupported type when converting tuples from Arrow to Amber.");
                     }
-                } catch (IllegalStateException | IOException e) {
+                    contents.add(content);
+                } catch (Exception e) {
                     if (!e.getMessage().contains("Value at index is null")) {
                         throw new Exception(e.getMessage(), e);
                     } else {
-                        amberField = "";
+                        contents.add(null);
                     }
                 }
-                amberFields.add(amberField);
             }
-            tuple = new AmberTuple(
-                    amberFields.toArray(new String[0]),
-                    FieldTypeConverter.convertType(amberSchema.toArray(new FieldTypeInJava[0]))
-            );
-            resultQueue.add(tuple);
+            Tuple result = new Tuple(amberSchema, contents);
+            resultQueue.add(result);
         }
     }
 
     /**
-     * Converts an Amber schema (not implemented, using an example Tuple to get the data types for now) into Arrow schema.
+     * Converts an Amber schema into Arrow schema.
      *
-     * @param exampleTuple Because Amber Schema is not implemented, the input should be an example tuple to get data types.
-     * @param names        Specifies the names of the fields.
-     * @return An Arrow {@link Schema}.
-     * @throws Exception Whatever might happen during this conversion, but especially when an unexpected type is input.
+     * @param amberSchema The Amber Tuple Schema.
+     * @return An Arrow {@link org.apache.arrow.vector.types.pojo.Schema}.
      */
-    private static Schema convertAmber2ArrowSchema(ITuple exampleTuple, List<String> names) throws Exception {
+    private static org.apache.arrow.vector.types.pojo.Schema convertAmber2ArrowSchema(Schema amberSchema) {
         List<Field> arrowFields = new ArrayList<>();
-        if (exampleTuple.length() != names.size()) throw new Exception("Number of tuple fields do not match names.");
-        for (int i = 0; i < exampleTuple.length(); i++) {
-            String name = names.get(i);
-            Object fieldData = exampleTuple.get(i);
+        for (Attribute amberAttribute : amberSchema.getAttributes()) {
+            String name = amberAttribute.getName();
             Field field;
-            if (fieldData.getClass() == Short.class || fieldData.getClass() == scala.Short.class) {
-                field = Field.nullablePrimitive(name, new ArrowType.Int(16, true));
-            } else if (fieldData.getClass() == Integer.class || fieldData.getClass() == scala.Int.class) {
-                field = Field.nullablePrimitive(name, new ArrowType.Int(32, true));
-            } else if (fieldData.getClass() == Boolean.class || fieldData.getClass() == scala.Boolean.class) {
-                field = Field.nullablePrimitive(name, ArrowType.Bool.INSTANCE);
-            } else if (fieldData.getClass() == Character.class || fieldData.getClass() == Byte.class ||
-                    fieldData.getClass() == scala.Char.class || fieldData.getClass() == scala.Byte.class) {
-                field = Field.nullablePrimitive(name, new ArrowType.Binary());
-            } else if (fieldData.getClass() == Double.class || fieldData.getClass() == scala.Double.class) {
-                field = Field.nullablePrimitive(name, new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE));
-            } else if (fieldData.getClass() == Float.class || fieldData.getClass() == scala.Float.class) {
-                field = Field.nullablePrimitive(name, new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE));
-            } else if (fieldData.getClass() == Long.class || fieldData.getClass() == scala.Long.class) {
-                field = Field.nullablePrimitive(name, new ArrowType.Int(64, true));
-            } else {
-                // All treat as String
-                field = Field.nullablePrimitive(name, ArrowType.Utf8.INSTANCE);
-            }
-            arrowFields.add(field);
-        }
-        return new Schema(arrowFields);
-    }
-
-    /**
-     * Converts an Arrow table schema into Amber schema (not implemented), which for now is a list of {@link FieldTypeInJava}.
-     *
-     * @param arrowSchema The schema to be converted.
-     * @return A list of {@link FieldTypeInJava} Since Java cannot directly access scala Enumeration, it needs to be
-     * converted before it can be used in scala ({@code FieldType.Value}).
-     * @throws Exception Whatever might happen during this conversion, but especially when an unexpected type is input.
-     */
-    private static List<FieldTypeInJava> convertArrow2AmberSchema(Schema arrowSchema) throws Exception {
-        List<FieldTypeInJava> amberSchema = new ArrayList<>();
-        for (Field f : arrowSchema.getFields()) {
-            switch (f.getFieldType().getType().getTypeID()) {
-                case Int:
-                    switch (((ArrowType.Int) (f.getType())).getBitWidth()) {
-                        case 16:
-                            amberSchema.add(FieldTypeInJava.SHORT);
-                            break;
-                        case 32:
-                            amberSchema.add(FieldTypeInJava.INT);
-                            break;
-                        default:
-                            amberSchema.add(FieldTypeInJava.LONG);
-                    }
+            switch (amberAttribute.getType()) {
+                case INTEGER:
+                    field = Field.nullablePrimitive(name, new ArrowType.Int(32, true));
                     break;
-                case Bool:
-                    amberSchema.add(FieldTypeInJava.BOOLEAN);
+                case DOUBLE:
+                    field = Field.nullablePrimitive(name, new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE));
                     break;
-                case Binary:
-                    amberSchema.add(FieldTypeInJava.BYTE);
+                case BOOLEAN:
+                    field = Field.nullablePrimitive(name, ArrowType.Bool.INSTANCE);
                     break;
-                case FloatingPoint:
-                    if (((ArrowType.FloatingPoint) (f.getType())).getPrecision() == FloatingPointPrecision.SINGLE) {
-                        amberSchema.add(FieldTypeInJava.FLOAT);
-                    } else {
-                        amberSchema.add(FieldTypeInJava.DOUBLE);
-                    }
-                    break;
-                case Utf8:
-                    amberSchema.add(FieldTypeInJava.STRING);
+                case STRING:
+                case ANY:
+                    field = Field.nullablePrimitive(name, ArrowType.Utf8.INSTANCE);
                     break;
                 default:
-                    throw new Exception("Unsupported type when converting tuples from Arrow to Amber.");
+                    throw new IllegalStateException("Unexpected value: " + amberAttribute.getType());
             }
+            arrowFields.add(field);
+
         }
-        return amberSchema;
+        return new org.apache.arrow.vector.types.pojo.Schema(arrowFields);
+    }
+
+    /**
+     * Converts an Arrow table schema into Amber schema.
+     *
+     * @param arrowSchema The arrow table schema to be converted.
+     * @return The Amber Schema converted from Arrow Table Schema.
+     */
+    private static Schema convertArrow2AmberSchema(org.apache.arrow.vector.types.pojo.Schema arrowSchema) {
+        List<Attribute> amberAttributes = new ArrayList<>();
+        for (Field f : arrowSchema.getFields()) {
+            AttributeType amberAttributeType;
+            switch (f.getFieldType().getType().getTypeID()) {
+                case Int: amberAttributeType = AttributeType.INTEGER; break;
+                case Bool: amberAttributeType = AttributeType.BOOLEAN; break;
+                case FloatingPoint: amberAttributeType = AttributeType.DOUBLE; break;
+                case Utf8: amberAttributeType = AttributeType.STRING; break;
+                default:
+                    throw new IllegalStateException("Unexpected value: " + f.getFieldType().getType().getTypeID());
+            }
+            amberAttributes.add(new Attribute(f.getName(), amberAttributeType));
+        }
+        return new Schema(amberAttributes);
     }
 
     /**
@@ -458,8 +391,9 @@ public class PythonUDFOpExec implements OperatorExecutor {
      *                       although they may seem similar. This doesn't actually affect serialization speed that much,
      *                       so in general it can be the same as {@code batchSize}.
      */
-    private static void writeArrowStream(FlightClient client, Queue<ITuple> values, RootAllocator root,
-                                         Schema arrowSchema, String descriptorPath, int chunkSize) {
+    private static void writeArrowStream(FlightClient client, Queue<Tuple> values, RootAllocator root,
+                                         org.apache.arrow.vector.types.pojo.Schema arrowSchema,
+                                         String descriptorPath, int chunkSize) {
         SyncPutListener flightListener = new SyncPutListener();
         VectorSchemaRoot schemaRoot = VectorSchemaRoot.create(arrowSchema, root);
         FlightClient.ClientStreamListener streamWriter = client.startPut(
@@ -496,7 +430,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
      * @param descriptorPath The predefined path that specifies where to read the data in Flight Serve.
      * @param resultQueue    resultQueue To store the results. Must be empty when it is passed here.
      */
-    private static void readArrowStream(FlightClient client, String descriptorPath, Queue<ITuple> resultQueue) {
+    private static void readArrowStream(FlightClient client, String descriptorPath, Queue<Tuple> resultQueue) {
         try {
             FlightInfo info = client.getInfo(FlightDescriptor.path(Collections.singletonList(descriptorPath)));
             Ticket ticket = info.getEndpoints().get(0).getTicket();
@@ -519,7 +453,7 @@ public class PythonUDFOpExec implements OperatorExecutor {
      * @param mapper      Used to decode the result status message (Json).
      * @param resultQueue To store the results. Must be empty when it is passed here.
      */
-    private static void executeUDF(FlightClient client, ObjectMapper mapper, Queue<ITuple> resultQueue) {
+    private static void executeUDF(FlightClient client, ObjectMapper mapper, Queue<Tuple> resultQueue) {
         try {
             byte[] resultBytes = client.doAction(new Action("compute")).next().getBody();
             Map<String, String> result = mapper.readValue(resultBytes, Map.class);
@@ -541,14 +475,14 @@ public class PythonUDFOpExec implements OperatorExecutor {
      *
      * @param client The client to close that is still connected to the Arrow Flight server.
      */
-    private static void closeClientAndServer(FlightClient client) {
+    private static void closeClientAndServer(FlightClient client, boolean closeUDF) {
         try {
-            client.doAction(new Action("close")).next().getBody();
+            if (closeUDF) client.doAction(new Action("close")).next().getBody();
             client.doAction(new Action("shutdown")).next();
             globalRootAllocator.close();
             client.close();
         } catch (Exception e) {
-            throw new AmberException(e.getMessage());
+            e.printStackTrace();
         }
     }
 
@@ -560,28 +494,15 @@ public class PythonUDFOpExec implements OperatorExecutor {
      * @param e      the exception to be wrapped into Amber Exception.
      */
     private static void closeAndThrow(FlightClient client, Exception e) {
-        closeClientAndServer(client);
+        closeClientAndServer(client, false);
         e.printStackTrace();
-        throw new AmberException(e.getMessage());
+        throw new RuntimeException(e.getMessage());
     }
 
-    @Override
-    public void open() {
-
-    }
-
-    @Override
-    public void close() {
-
-    }
-
-    @Override
-    public Iterator<ITuple> processTuple(Either<ITuple, InputExhausted> tuple, int input) {
-        return null;
-    }
-
-    @Override
-    public Iterator<Tuple> processTexeraTuple(Either<Tuple, InputExhausted> tuple, int input) {
-        return null;
+    private static void deleteTempFile(String filePath) throws Exception {
+        File tempFile = new File(filePath);
+        if (tempFile.exists()) {
+            if (!tempFile.delete()) throw new Exception("Could not delete temp file");
+        }
     }
 }

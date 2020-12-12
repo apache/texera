@@ -148,7 +148,7 @@ export class PropertyEditorComponent {
     if (this.currentLinkID) {
       // remove breakpoint in texera workflow first, then unhighlight it
       this.workflowActionService.removeLinkBreakpoint(this.currentLinkID);
-      this.workflowActionService.getJointGraphWrapper().unhighlightLink(this.currentLinkID);
+      this.workflowActionService.getJointGraphWrapper().unhighlightLinks(this.currentLinkID);
     }
     this.clearPropertyEditor();
   }
@@ -385,45 +385,42 @@ export class PropertyEditorComponent {
     this.operatorPropertyChangeStream.subscribe(formData => {
       // set the operator property to be the new form data
       if (this.currentOperatorID) {
-        this.workflowActionService.setOperatorProperty(this.currentOperatorID, formData);
+        this.workflowActionService.setOperatorProperty(this.currentOperatorID, cloneDeep(formData));
       }
     });
   }
 
   /**
-   * Handles the operator highlight / unhighlight events.
+   * This method changes the property editor according to how operators are highlighted on the workflow editor.
    *
-   * When operators are highlighted / unhighlighted,
-   *   -> displays the form of the highlighted operator if only one operator is highlighted
-   *   -> hides the form otherwise
+   * Displays the form of the highlighted operator if only one operator is highlighted;
+   * Displays the form of the link breakpoint if only one link is highlighted;
+   * hides the form if no operator/link is highlighted or multiple operators and/or groups and/or links are highlighted.
    */
   private handleHighlightEvents() {
     Observable.merge(
-      this.workflowActionService.getJointGraphWrapper().getJointCellHighlightStream(),
-      this.workflowActionService.getJointGraphWrapper().getJointCellUnhighlightStream()
+      this.workflowActionService.getJointGraphWrapper().getJointOperatorHighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getJointOperatorUnhighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getJointGroupHighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getJointGroupUnhighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getLinkHighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getLinkUnhighlightStream()
     ).subscribe(() => {
-      // Displays the form of the highlighted operator if only one operator is highlighted;
-      // hides the form if no operator is highlighted or multiple operators are highlighted.
       const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
-      if (highlightedOperators.length === 1) {
+      const highlightedGroups = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
+      const highlightLinks = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs();
+
+      if (highlightedOperators.length === 1 && highlightedGroups.length === 0 && highlightLinks.length === 0) {
         const operator = this.workflowActionService.getTexeraGraph().getOperator(highlightedOperators[0]);
         this.clearPropertyEditor();
         this.showOperatorPropertyEditor(operator);
+      } else if (highlightLinks.length === 1 && highlightedGroups.length === 0 && highlightedOperators.length === 0) {
+        this.clearPropertyEditor();
+        this.showBreakpointEditor(highlightLinks[0]);
       } else {
         this.clearPropertyEditor();
       }
     });
-    this.workflowActionService.getJointGraphWrapper().getLinkHighlightStream()
-      .subscribe(linkID => {
-        // TODO: fix this, this should not be handled here
-        // this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()
-        //       .forEach(operatorID => this.workflowActionService.getJointGraphWrapper().unhighlightOperator(operatorID));
-        this.clearPropertyEditor();
-        this.showBreakpointEditor(linkID.linkID);
-      });
-    this.workflowActionService.getJointGraphWrapper().getLinkUnhighlightStream()
-      .filter(linkID => this.currentLinkID !== undefined && this.currentLinkID === linkID.linkID)
-      .subscribe(linkID => this.clearPropertyEditor());
   }
 
   private setFormlyFormBinding(schema: JSONSchema7) {
@@ -442,6 +439,12 @@ export class PropertyEditorComponent {
         }
         if (mappedField.templateOptions) {
           mappedField.templateOptions.rows = 5;
+        }
+      }
+      // if the title is python script (for Python UDF), then make this field a custom template 'codearea'
+      if (mapSource?.description?.toLowerCase() === 'input your code here') {
+        if (mappedField.type) {
+          mappedField.type = 'codearea';
         }
       }
       return mappedField;
