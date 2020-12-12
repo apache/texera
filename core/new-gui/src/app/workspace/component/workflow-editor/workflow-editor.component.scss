@@ -8,6 +8,10 @@
 }
 
 
+::ng-deep .texera-workspace-workflow-editor-body .custom-highlighted-link.connection {
+  stroke: #e59700 !important ;
+}
+
 /**
   * Component styles normally apply only to the HTML in the component's own template.
   * Using ::ng-deep would force a style down through
@@ -20,11 +24,6 @@
   **/
 ::ng-deep .texera-workspace-workflow-editor-body .marker-arrowhead {
   fill: #919191 !important;
-}
-
-::ng-deep .texera-workspace-workflow-editor-body .connection {
-  stroke: #919191 !important;
-  stroke-width: 2 !important;
 }
 
 ::ng-deep .texera-workspace-workflow-editor-body .connection-wrap {

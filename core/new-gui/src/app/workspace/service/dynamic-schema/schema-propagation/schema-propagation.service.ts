@@ -2,7 +2,7 @@ import { AppSettings } from '../../../../common/app-setting';
 import { environment } from '../../../../../environments/environment';
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
+import { EMPTY, Observable } from 'rxjs';
 import { OperatorSchema } from '../../../types/operator-schema.interface';
 import { DynamicSchemaService } from '../dynamic-schema.service';
 import { ExecuteWorkflowService } from '../../execute-workflow/execute-workflow.service';
@@ -110,7 +110,7 @@ export class SchemaPropagationService {
       { headers: { 'Content-Type': 'application/json' } })
       .catch(err => {
         this.logger.error('schema propagation API returns error', err);
-        return Observable.empty();
+        return EMPTY;
       });
   }
 

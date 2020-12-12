@@ -88,4 +88,11 @@ export class WorkflowUtilService {
   public getLinkRandomUUID(): string {
     return 'link-' + uuid();
   }
+
+  /**
+   * Generates a new UUID for group element
+   */
+  public getGroupRandomUUID(): string {
+    return 'group-' + uuid();
+  }
 }

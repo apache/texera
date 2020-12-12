@@ -17,6 +17,7 @@ import { JointUIService } from '../joint-ui/joint-ui.service';
 import { StubOperatorMetadataService } from '../operator-metadata/stub-operator-metadata.service';
 import { WorkflowUtilService } from '../workflow-graph/util/workflow-util.service';
 import { WorkflowInfo } from '../../../common/type/workflow';
+import { PlainGroup } from '../workflow-graph/model/operator-group';
 
 describe('SaveWorkflowService', () => {
   let autoSaveWorkflowService: CacheWorkflowService;
@@ -36,8 +37,8 @@ describe('SaveWorkflowService', () => {
 
     // remove all items in local storage before each test
     localStorage.clear();
-    autoSaveWorkflowService = TestBed.get(CacheWorkflowService);
-    workflowActionService = TestBed.get(WorkflowActionService);
+    autoSaveWorkflowService = TestBed.inject(CacheWorkflowService);
+    workflowActionService = TestBed.inject(WorkflowActionService);
   });
 
   it('should be created', inject([CacheWorkflowService], (service: CacheWorkflowService) => {
@@ -190,9 +191,10 @@ describe('SaveWorkflowService', () => {
     const operators: OperatorPredicate[] = [];
     operators.push(mockScanPredicate);
     const links: OperatorLink[] = [];
+    const groups: PlainGroup[] = [];
 
     const mockWorkflow: WorkflowInfo = {
-      operators, operatorPositions, links, breakpoints: {}
+      operators, operatorPositions, links, groups, breakpoints: {}
     };
 
     localStorage.setItem('workflow', JSON.stringify(mockWorkflow));
