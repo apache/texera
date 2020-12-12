@@ -1,13 +1,18 @@
 package edu.uci.ics.texera.web.resource
 
+import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute
 import edu.uci.ics.texera.workflow.common.workflow.{WorkflowCompiler, WorkflowInfo}
 import edu.uci.ics.texera.workflow.common.{Utils, WorkflowContext}
 import javax.ws.rs.core.MediaType
 import javax.ws.rs.{Consumes, POST, Path, Produces}
 
-import scala.collection.{JavaConverters}
+import scala.collection.JavaConverters
 
-case class SchemaPropagationResponse(code: Int, result: Map[String, List[List[String]]], message: String)
+case class SchemaPropagationResponse(
+    code: Int,
+    result: Map[String, List[Attribute]],
+    message: String
+)
 
 @Path("/queryplan")
 @Consumes(Array(MediaType.APPLICATION_JSON))
@@ -32,11 +37,11 @@ class SchemaPropagationResource {
         .propagateWorkflowSchema()
         .map(e => {
           println("e", e)
-          (e._1.operatorID, List(JavaConverters.asScalaBuffer(e._2.getAttributeNames).toList, JavaConverters.asScalaBuffer(e._2.getAttributeTypes).toList))
+          (e._1.operatorID, JavaConverters.asScalaBuffer(e._2.getAttributes()).toList)
         })
       println("schemaPropagationResult", schemaPropagationResult)
-      schemaPropagationResult.foreach(element=>{
-        println("element",element)
+      schemaPropagationResult.foreach(element => {
+        println("element", element)
       })
 
       SchemaPropagationResponse(0, schemaPropagationResult, null)
