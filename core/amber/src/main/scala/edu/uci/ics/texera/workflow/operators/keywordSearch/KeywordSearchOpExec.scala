@@ -22,20 +22,26 @@ import java.nio.file.Files
 
 class KeywordSearchOpExec(var counter: Int, val opDesc: KeywordSearchOpDesc) extends FilterOpExec {
   var kw: String = opDesc.keyword
-  this.setFilterFunc(this.findKeywordMMap)
+  this.setFilterFunc(this.findKeyword)
 
   val analyzer = new SimpleAnalyzer()
   val parser = new QueryParser(opDesc.columnName, analyzer)
 
   def findKeyword(tuple: Tuple): Boolean = {
     try {
+      var index = new MemoryIndex()
       val tupleValue = tuple.getField(opDesc.columnName).toString
-      val index = new MemoryIndex()
       index.addField(opDesc.columnName, tupleValue, analyzer)
-      val score = index.search(parser.parse(kw))
+//      val score = index.search(parser.parse(kw))
 
-      if (score > 0.0f) true
-      else false
+      if (index.search(parser.parse(kw)) > 0.0f) {
+        index = null
+        true
+      }
+      else {
+        index = null
+        false
+      }
     }
     catch {
       case e: NullPointerException => false
