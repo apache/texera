@@ -11,73 +11,57 @@ import akka.util.Timeout
 import scala.concurrent.ExecutionContext
 
 class RoundRobinPolicy(batchSize: Int) extends DataTransferPolicy(batchSize) {
-  var routees: Array[BaseRoutee] = _
-  var sequenceNum: Array[Long] = _
+  var receivers: Array[ActorRef] = _
+  // var sequenceNum: Array[Long] = _
   var roundRobinIndex = 0
   var batch: Array[ITuple] = _
   var currentSize = 0
 
-  override def noMore()(implicit sender: ActorRef): Unit = {
+  override def noMore()(implicit sender: ActorRef): Array[(ActorRef,Array[ITuple])] = {
     if (currentSize > 0) {
-      routees(roundRobinIndex).schedule(
-        DataMessage(sequenceNum(roundRobinIndex), batch.slice(0, currentSize))
-      )
-      sequenceNum(roundRobinIndex) += 1
+//      routees(roundRobinIndex).schedule(
+//        DataMessage(sequenceNum(roundRobinIndex), batch.slice(0, currentSize))
+//      )
+//      sequenceNum(roundRobinIndex) += 1
+      return Array[(ActorRef,Array[ITuple])]((receivers(roundRobinIndex), batch.slice(0, currentSize)))
     }
-    var i = 0
-    while (i < routees.length) {
-      routees(i).schedule(EndSending(sequenceNum(i)))
-      i += 1
-    }
+    return Array[(ActorRef,Array[ITuple])]()
   }
 
-  override def pause(): Unit = {
-    for (i <- routees) {
-      i.pause()
-    }
-  }
-
-  override def resume()(implicit sender: ActorRef): Unit = {
-    for (i <- routees) {
-      i.resume()
-    }
-  }
-
-  override def accept(tuple: ITuple)(implicit sender: ActorRef): Unit = {
+  override def addToBatch(tuple: ITuple)(implicit sender: ActorRef): Option[(ActorRef,Array[ITuple])] = {
     batch(currentSize) = tuple
     currentSize += 1
     if (currentSize == batchSize) {
       currentSize = 0
-      routees(roundRobinIndex).schedule(DataMessage(sequenceNum(roundRobinIndex), batch))
-      sequenceNum(roundRobinIndex) += 1
-      roundRobinIndex = (roundRobinIndex + 1) % routees.length
+      // routees(roundRobinIndex).schedule(DataMessage(sequenceNum(roundRobinIndex), batch))
+      // sequenceNum(roundRobinIndex) += 1
+      val retBatch = batch
+      roundRobinIndex = (roundRobinIndex + 1) % receivers.length
       batch = new Array[ITuple](batchSize)
+      return Some((receivers(roundRobinIndex), retBatch))
     }
+    None
   }
 
-  override def initialize(tag: LinkTag, next: Array[BaseRoutee])(implicit
+  override def initialize(tag: LinkTag, _receivers: Array[ActorRef])(implicit
       ac: ActorContext,
       sender: ActorRef,
       timeout: Timeout,
       ec: ExecutionContext,
       log: LoggingAdapter
   ): Unit = {
-    super.initialize(tag, next)
-    assert(next != null)
-    routees = next
-    routees.foreach(_.initialize(tag))
+    super.initialize(tag, _receivers)
+    assert(_receivers != null)
+    this.receivers = _receivers
+    // routees.foreach(_.initialize(tag))
     batch = new Array[ITuple](batchSize)
-    sequenceNum = new Array[Long](routees.length)
-  }
-
-  override def dispose(): Unit = {
-    routees.foreach(_.dispose())
+    // sequenceNum = new Array[Long](routees.length)
   }
 
   override def reset(): Unit = {
-    routees.foreach(_.reset())
+    // routees.foreach(_.reset())
     batch = new Array[ITuple](batchSize)
-    sequenceNum = new Array[Long](routees.length)
+    // sequenceNum = new Array[Long](routees.length)
     roundRobinIndex = 0
     currentSize = 0
   }

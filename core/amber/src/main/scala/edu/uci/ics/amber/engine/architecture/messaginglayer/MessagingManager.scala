@@ -1,17 +1,82 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
-import akka.actor.ActorRef
+import akka.actor.{ActorContext, ActorRef}
+import akka.event.LoggingAdapter
+import akka.util.Timeout
 import edu.uci.ics.amber.engine.architecture.receivesemantics.FIFOAccessPort
-import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.DataMessage
+import edu.uci.ics.amber.engine.architecture.sendsemantics.routees.BaseRoutee
+import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{DataMessage, EndSending}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage
-import edu.uci.ics.amber.engine.common.ambertag.LayerTag
+import edu.uci.ics.amber.engine.common.ambertag.{LayerTag, LinkTag}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
+
+import scala.collection.mutable
+import scala.concurrent.ExecutionContext
 
 class MessagingManager(val fifoEnforcer: FIFOAccessPort) {
 
+  // Message Receiving part
   // TODO: There are so many ways to represent input operator in a worker - int, LayerTag, ActorRef. We should choose one.
-  var nextDataPayloads: Array[(LayerTag, Array[ITuple])] = _
-  var nextDataPayloadIterator: Iterator[(LayerTag, Array[ITuple])] = Iterator.empty
+  private var nextInputDataPayloads: Array[(LayerTag, Array[ITuple])] = _
+  private var nextInputDataPayloadIterator: Iterator[(LayerTag, Array[ITuple])] = Iterator.empty
+
+  // Message Sending Part
+  private var receiverToDataSender: mutable.Map[ActorRef,BaseRoutee] = mutable.Map[ActorRef,BaseRoutee]()
+  private var receiverToDataSequenceNumbers: mutable.Map[ActorRef,Long] =  mutable.Map[ActorRef,Long]()
+  private var dataSenders: Array[BaseRoutee] = receiverToDataSender.values.toArray
+  private var receivers: Array[ActorRef] = receiverToDataSender.keys.toArray
+
+  // TODO: Find a way to remove the usage of implicits
+  def updateReceiverAndSender(senders: Array[BaseRoutee], tag: LinkTag)(implicit
+                                                                        ac: ActorContext,
+                                                                        sender: ActorRef,
+                                                                        timeout: Timeout,
+                                                                        ec: ExecutionContext,
+                                                                        log: LoggingAdapter
+  ): Unit = {
+    senders.foreach(sender => {
+      sender.initialize(tag)
+      receiverToDataSender += (sender.receiver -> sender)
+      receiverToDataSequenceNumbers += (sender.receiver -> 0)
+    })
+  }
+
+  def sendDataMessage(receiver: ActorRef, dataBatch: Array[ITuple])(implicit
+                                                                    sender: ActorRef
+  ): Unit = {
+    receiverToDataSender(receiver).schedule(DataMessage(receiverToDataSequenceNumbers(receiver), dataBatch))(sender)
+    receiverToDataSequenceNumbers(receiver) += 1
+  }
+
+  def sendEndDataMessage()(implicit
+                           sender: ActorRef
+  ): Unit = {
+    for(receiver <- receivers) {
+      receiverToDataSender(receiver).schedule(EndSending(receiverToDataSequenceNumbers(receiver)))
+      receiverToDataSequenceNumbers(receiver) += 1
+    }
+  }
+
+  def disposeDataSenders(): Unit = {
+    dataSenders.foreach(_.dispose())
+  }
+
+  def resetDataSending(): Unit = {
+    dataSenders.foreach(_.reset())
+    for(receiver <- receivers) {
+      receiverToDataSequenceNumbers(receiver) = 0
+    }
+  }
+
+  def pauseDataSending(): Unit = {
+    dataSenders.foreach(_.pause())
+  }
+
+  def resumeDataSending()(implicit
+                          sender: ActorRef
+  ): Unit = {
+    dataSenders.foreach(_.resume())
+  }
 
   /**
     * Receives the WorkflowMessage, strips the sequence number away and produces a payload.
@@ -27,10 +92,10 @@ class MessagingManager(val fifoEnforcer: FIFOAccessPort) {
         nextDataBatches match {
           case Some(batches) =>
             val currentEdge = fifoEnforcer.actorToEdge(sender)
-            nextDataPayloads = batches.map(b => (currentEdge, b))
-            nextDataPayloadIterator = nextDataPayloads.iterator
+            nextInputDataPayloads = batches.map(b => (currentEdge, b))
+            nextInputDataPayloadIterator = nextInputDataPayloads.iterator
           case None =>
-            nextDataPayloadIterator = Iterator.empty
+            nextInputDataPayloadIterator = Iterator.empty
         }
 
       case controlMsg =>
@@ -42,10 +107,10 @@ class MessagingManager(val fifoEnforcer: FIFOAccessPort) {
   }
 
   def hasNextDataPayload(): Boolean = {
-    nextDataPayloadIterator.hasNext
+    nextInputDataPayloadIterator.hasNext
   }
 
   def getNextDataPayload(): (LayerTag, Array[ITuple]) = {
-    nextDataPayloadIterator.next()
+    nextInputDataPayloadIterator.next()
   }
 }
