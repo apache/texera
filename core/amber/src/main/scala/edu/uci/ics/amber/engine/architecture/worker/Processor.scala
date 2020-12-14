@@ -71,7 +71,7 @@ class Processor(var operator: IOperatorExecutor, val tag: WorkerTag) extends Wor
     if (!faultedTuple.isInput) {
       var i = 0
       while (i < tupleOutput.output.length) {
-        tupleOutput.output(i).accept(faultedTuple.tuple)
+        tupleOutput.output(i).addToBatch(faultedTuple.tuple)
         i += 1
       }
     } else {

@@ -21,37 +21,41 @@ class MessagingManager(val fifoEnforcer: FIFOAccessPort) {
   private var nextInputDataPayloadIterator: Iterator[(LayerTag, Array[ITuple])] = Iterator.empty
 
   // Message Sending Part
-  private var receiverToDataSender: mutable.Map[ActorRef,BaseRoutee] = mutable.Map[ActorRef,BaseRoutee]()
-  private var receiverToDataSequenceNumbers: mutable.Map[ActorRef,Long] =  mutable.Map[ActorRef,Long]()
+  private var receiverToDataSender: mutable.Map[ActorRef, BaseRoutee] =
+    mutable.Map[ActorRef, BaseRoutee]()
+  private var receiverToDataSequenceNumbers: mutable.Map[ActorRef, Long] =
+    mutable.Map[ActorRef, Long]()
   private var dataSenders: Array[BaseRoutee] = receiverToDataSender.values.toArray
   private var receivers: Array[ActorRef] = receiverToDataSender.keys.toArray
 
   // TODO: Find a way to remove the usage of implicits
-  def updateReceiverAndSender(senders: Array[BaseRoutee], tag: LinkTag)(implicit
-                                                                        ac: ActorContext,
-                                                                        sender: ActorRef,
-                                                                        timeout: Timeout,
-                                                                        ec: ExecutionContext,
-                                                                        log: LoggingAdapter
+  def updateReceiverAndSender(dataSenders: Array[BaseRoutee], tag: LinkTag)(implicit
+      ac: ActorContext,
+      sender: ActorRef,
+      timeout: Timeout,
+      ec: ExecutionContext,
+      log: LoggingAdapter
   ): Unit = {
-    senders.foreach(sender => {
-      sender.initialize(tag)
-      receiverToDataSender += (sender.receiver -> sender)
-      receiverToDataSequenceNumbers += (sender.receiver -> 0)
+    dataSenders.foreach(dataSender => {
+      dataSender.initialize(tag)
+      receiverToDataSender += (dataSender.receiver -> dataSender)
+      receiverToDataSequenceNumbers += (dataSender.receiver -> 0)
     })
   }
 
   def sendDataMessage(receiver: ActorRef, dataBatch: Array[ITuple])(implicit
-                                                                    sender: ActorRef
+      sender: ActorRef
   ): Unit = {
-    receiverToDataSender(receiver).schedule(DataMessage(receiverToDataSequenceNumbers(receiver), dataBatch))(sender)
+    receiverToDataSender(receiver).schedule(
+      DataMessage(receiverToDataSequenceNumbers(receiver), dataBatch)
+    )(sender)
     receiverToDataSequenceNumbers(receiver) += 1
   }
 
   def sendEndDataMessage()(implicit
-                           sender: ActorRef
+      sender: ActorRef
   ): Unit = {
-    for(receiver <- receivers) {
+    for (receiver <- receivers) {
       receiverToDataSender(receiver).schedule(EndSending(receiverToDataSequenceNumbers(receiver)))
       receiverToDataSequenceNumbers(receiver) += 1
     }
@@ -63,7 +67,7 @@ class MessagingManager(val fifoEnforcer: FIFOAccessPort) {
 
   def resetDataSending(): Unit = {
     dataSenders.foreach(_.reset())
-    for(receiver <- receivers) {
+    for (receiver <- receivers) {
       receiverToDataSequenceNumbers(receiver) = 0
     }
   }
@@ -73,7 +77,7 @@ class MessagingManager(val fifoEnforcer: FIFOAccessPort) {
   }
 
   def resumeDataSending()(implicit
-                          sender: ActorRef
+      sender: ActorRef
   ): Unit = {
     dataSenders.foreach(_.resume())
   }
