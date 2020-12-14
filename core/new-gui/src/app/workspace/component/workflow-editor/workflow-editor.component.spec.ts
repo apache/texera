@@ -562,7 +562,7 @@ describe('WorkflowEditorComponent', () => {
       // get the pasted operator
       const pastedOperatorID = jointGraphWrapper.getCurrentHighlightedOperatorIDs()[0];
       if (pastedOperatorID) {
-        const pastedOperatorPosition = jointGraphWrapper.getOperatorPosition(pastedOperatorID);
+        const pastedOperatorPosition = jointGraphWrapper.getElementPosition(pastedOperatorID);
         expect(pastedOperatorPosition).not.toEqual(mockPoint);
       }
     });
