@@ -25,21 +25,19 @@ class MessagingManager(val fifoEnforcer: FIFOAccessPort) {
     mutable.Map[ActorRef, BaseRoutee]()
   private var receiverToDataSequenceNumbers: mutable.Map[ActorRef, Long] =
     mutable.Map[ActorRef, Long]()
-  private var dataSenders: Array[BaseRoutee] = receiverToDataSender.values.toArray
-  private var receivers: Array[ActorRef] = receiverToDataSender.keys.toArray
 
   // TODO: Find a way to remove the usage of implicits
-  def updateReceiverAndSender(dataSenders: Array[BaseRoutee], tag: LinkTag)(implicit
+  def updateReceiverAndSender(_dataSenders: Array[BaseRoutee], tag: LinkTag)(implicit
       ac: ActorContext,
       sender: ActorRef,
       timeout: Timeout,
       ec: ExecutionContext,
       log: LoggingAdapter
   ): Unit = {
-    dataSenders.foreach(dataSender => {
-      dataSender.initialize(tag)
-      receiverToDataSender += (dataSender.receiver -> dataSender)
-      receiverToDataSequenceNumbers += (dataSender.receiver -> 0)
+    _dataSenders.foreach(_dataSender => {
+      _dataSender.initialize(tag)
+      receiverToDataSender += (_dataSender.receiver -> _dataSender)
+      receiverToDataSequenceNumbers += (_dataSender.receiver -> 0)
     })
   }
 
@@ -55,31 +53,29 @@ class MessagingManager(val fifoEnforcer: FIFOAccessPort) {
   def sendEndDataMessage()(implicit
       sender: ActorRef
   ): Unit = {
-    for (receiver <- receivers) {
+    receiverToDataSender.keys.foreach(receiver => {
       receiverToDataSender(receiver).schedule(EndSending(receiverToDataSequenceNumbers(receiver)))
       receiverToDataSequenceNumbers(receiver) += 1
-    }
+    })
   }
 
   def disposeDataSenders(): Unit = {
-    dataSenders.foreach(_.dispose())
+    receiverToDataSender.values.foreach(_.dispose())
   }
 
   def resetDataSending(): Unit = {
-    dataSenders.foreach(_.reset())
-    for (receiver <- receivers) {
-      receiverToDataSequenceNumbers(receiver) = 0
-    }
+    receiverToDataSender.values.foreach(_.reset())
+    receiverToDataSender.keys.foreach(receiver => receiverToDataSequenceNumbers(receiver)=0)
   }
 
   def pauseDataSending(): Unit = {
-    dataSenders.foreach(_.pause())
+    receiverToDataSender.values.foreach(_.pause())
   }
 
   def resumeDataSending()(implicit
       sender: ActorRef
   ): Unit = {
-    dataSenders.foreach(_.resume())
+    receiverToDataSender.values.foreach(_.resume())
   }
 
   /**
