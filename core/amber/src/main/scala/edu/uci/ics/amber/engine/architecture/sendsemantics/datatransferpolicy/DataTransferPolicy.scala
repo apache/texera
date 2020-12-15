@@ -1,6 +1,5 @@
 package edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy
 
-import edu.uci.ics.amber.engine.architecture.sendsemantics.routees.BaseRoutee
 import edu.uci.ics.amber.engine.common.ambertag.LinkTag
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import akka.actor.{Actor, ActorContext, ActorRef}
@@ -31,7 +30,7 @@ abstract class DataTransferPolicy(var batchSize: Int) extends Serializable {
       log: LoggingAdapter
   ): Unit = {
     this.tag = linkTag
-    // receivers.foreach(x => log.info("link: {}", x))
+    receivers.foreach(x => log.info("link: {}", x))
   }
 
   def reset(): Unit

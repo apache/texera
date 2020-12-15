@@ -18,15 +18,15 @@ class TupleToBatchConverter(val sender: ActorRef, val messagingManager: Messagin
   var output = new Array[DataTransferPolicy](0)
   var skippedInputTuples = new mutable.HashSet[ITuple]
   var skippedOutputTuples = new mutable.HashSet[ITuple]
-  // updated
+
   def pauseDataTransfer(): Unit = {
     messagingManager.pauseDataSending()
   }
-  // updated
+
   def resumeDataTransfer(): Unit = {
     messagingManager.resumeDataSending()(sender)
   }
-  // updated
+
   def endDataTransfer(): Unit = {
     var i = 0
     while (i < output.length) {
@@ -36,13 +36,13 @@ class TupleToBatchConverter(val sender: ActorRef, val messagingManager: Messagin
     }
     messagingManager.sendEndDataMessage()(sender)
   }
-  // updated
+
   def cleanUpDataTransfer(): Unit = {
     //clear all data transfer policies
     output = Array()
     messagingManager.disposeDataSenders()
   }
-  // updated
+
   def transferTuple(tuple: ITuple, tupleId: Long): Unit = {
     if (tuple != null && !skippedOutputTuples.contains(tuple)) {
       var i = 1
@@ -66,7 +66,7 @@ class TupleToBatchConverter(val sender: ActorRef, val messagingManager: Messagin
       }
     }
   }
-  //updated
+
   def updateOutput(policy: DataTransferPolicy, tag: LinkTag, senders: Array[BaseRoutee])(implicit
       ac: ActorContext,
       sender: ActorRef,
@@ -88,14 +88,14 @@ class TupleToBatchConverter(val sender: ActorRef, val messagingManager: Messagin
       output = output :+ policy
     }
   }
-  // updated
+
   def resetOutput(): Unit = {
     output.foreach {
       _.reset()
     }
     messagingManager.resetDataSending()
   }
-  // updated
+
   def passTupleToDownstream(tuple: ITuple): Unit = {
     var i = 0
     while (i < output.length) {
