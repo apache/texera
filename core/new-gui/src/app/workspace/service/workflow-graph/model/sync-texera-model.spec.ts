@@ -13,11 +13,17 @@ import { marbles } from 'rxjs-marbles';
 import '../../../../common/rxjs-operators';
 
 import * as joint from 'jointjs';
+import { OperatorGroup } from './operator-group';
+import { JointUIService } from '../../joint-ui/joint-ui.service';
+import { WorkflowUtilService } from '../util/workflow-util.service';
+import { StubOperatorMetadataService } from '../../operator-metadata/stub-operator-metadata.service';
+import { OperatorMetadataService } from '../../operator-metadata/operator-metadata.service';
 
 
 describe('SyncTexeraModel', () => {
 
   let texeraGraph: WorkflowGraph;
+  let jointGraph: joint.dia.Graph;
   let jointGraphWrapper: JointGraphWrapper;
 
   /**
@@ -92,16 +98,20 @@ describe('SyncTexeraModel', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [
-        UndoRedoService
-      ]
+        UndoRedoService,
+        WorkflowUtilService,
+        JointUIService,
+        {provide: OperatorMetadataService, useClass: StubOperatorMetadataService}
+      ],
     });
 
     texeraGraph = new WorkflowGraph();
-    jointGraphWrapper = new JointGraphWrapper(new joint.dia.Graph(), TestBed.get(UndoRedoService));
+    jointGraph = new joint.dia.Graph();
+    jointGraphWrapper = new JointGraphWrapper(jointGraph);
   });
 
   /**
-   * Test JointJS delete operator `getJointOperatorCellDeleteStream` event stream handled properly
+   * Test JointJS delete operator `getJointElementCellDeleteStream` event stream handled properly
    *
    * Add one operator
    * Then emit one delete operator event from JointJS
@@ -123,15 +133,15 @@ describe('SyncTexeraModel', () => {
     const deleteOpMarbleValues = {
       d: getJointOperatorValue(mockScanPredicate.operatorID)
     };
-    spyOn(jointGraphWrapper, 'getJointOperatorCellDeleteStream').and.returnValue(
+    spyOn(jointGraphWrapper, 'getJointElementCellDeleteStream').and.returnValue(
       m.hot(deleteOpMarbleString, deleteOpMarbleValues)
     );
 
     // construct the texera sync model with spied dependencies
-    const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper);
+    const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper, new OperatorGroup(texeraGraph, jointGraph, jointGraphWrapper, TestBed.inject(WorkflowUtilService), TestBed.inject(JointUIService)));
 
     // assert workflow graph
-    jointGraphWrapper.getJointOperatorCellDeleteStream().subscribe({
+    jointGraphWrapper.getJointElementCellDeleteStream().subscribe({
       complete: () => {
         expect(texeraGraph.hasOperator(mockScanPredicate.operatorID)).toBeFalsy();
         expect(texeraGraph.getAllOperators().length).toEqual(0);
@@ -141,7 +151,7 @@ describe('SyncTexeraModel', () => {
   }));
 
   /**
-   * Test JointJS delete operator `getJointOperatorCellDeleteStream` event stream handled properly
+   * Test JointJS delete operator `getJointElementCellDeleteStream` event stream handled properly
    *
    * Add two operators
    * Then emit one delete operator event from JointJS
@@ -164,14 +174,15 @@ describe('SyncTexeraModel', () => {
     const deleteOpMarbleValues = {
       d: getJointOperatorValue(mockScanPredicate.operatorID)
     };
-    spyOn(jointGraphWrapper, 'getJointOperatorCellDeleteStream').and.returnValue(
+    spyOn(jointGraphWrapper, 'getJointElementCellDeleteStream').and.returnValue(
       m.hot(deleteOpMarbleString, deleteOpMarbleValues)
     );
 
     // construct the texera sync model with spied dependencies
-    const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper);
+    // construct the texera sync model with spied dependencies
+    const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper, new OperatorGroup(texeraGraph, jointGraph, jointGraphWrapper, TestBed.inject(WorkflowUtilService), TestBed.inject(JointUIService)));
 
-    jointGraphWrapper.getJointOperatorCellDeleteStream().subscribe({
+    jointGraphWrapper.getJointElementCellDeleteStream().subscribe({
       complete: () => {
         expect(texeraGraph.hasOperator(mockScanPredicate.operatorID)).toBeFalsy();
         expect(texeraGraph.hasOperator(mockResultPredicate.operatorID)).toBeTruthy();
@@ -184,7 +195,7 @@ describe('SyncTexeraModel', () => {
 
 
   /**
-   * Test JointJS delete operator `getJointOperatorCellDeleteStream` event stream handled properly
+   * Test JointJS delete operator `getJointElementCellDeleteStream` event stream handled properly
    *
    * Add two operators
    * Delete on operator
@@ -211,14 +222,14 @@ describe('SyncTexeraModel', () => {
     };
     // mock delete the operator operation at the same time frame of jointJS deleting it
     //  but executed before the handler
-    spyOn(jointGraphWrapper, 'getJointOperatorCellDeleteStream').and.returnValue(
+    spyOn(jointGraphWrapper, 'getJointElementCellDeleteStream').and.returnValue(
       m.hot(deleteOpMarbleString, deleteOpMarbleValues)
     );
 
     // construct the texera sync model with spied dependencies
 
     // TODO: expect error to be thrown
-    // const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper);
+    // const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper, new OperatorGroup(texeraGraph, jointGraph, jointGraphWrapper, TestBed.inject(WorkflowUtilService), TestBed.inject(JointUIService)));
 
 
     // this should throw an error when the model is constructed and the
@@ -253,7 +264,8 @@ describe('SyncTexeraModel', () => {
     );
 
     // construct the texera sync model with spied dependencies
-    const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper);
+    // construct the texera sync model with spied dependencies
+    const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper, new OperatorGroup(texeraGraph, jointGraph, jointGraphWrapper, TestBed.inject(WorkflowUtilService), TestBed.inject(JointUIService)));
 
     jointGraphWrapper.getJointLinkCellAddStream().subscribe({
       complete: () => {
@@ -301,7 +313,8 @@ describe('SyncTexeraModel', () => {
     );
 
     // construct the texera sync model with spied dependencies
-    const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper);
+    // construct the texera sync model with spied dependencies
+    const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper, new OperatorGroup(texeraGraph, jointGraph, jointGraphWrapper, TestBed.inject(WorkflowUtilService), TestBed.inject(JointUIService)));
 
     jointGraphWrapper.getJointLinkCellDeleteStream().subscribe({
       complete: () => {
@@ -342,7 +355,8 @@ describe('SyncTexeraModel', () => {
     );
 
     // construct the texera sync model with spied dependencies
-    const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper);
+    // construct the texera sync model with spied dependencies
+    const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper, new OperatorGroup(texeraGraph, jointGraph, jointGraphWrapper, TestBed.inject(WorkflowUtilService), TestBed.inject(JointUIService)));
 
     jointGraphWrapper.getJointLinkCellDeleteStream().subscribe({
       complete: () => {
@@ -396,7 +410,7 @@ describe('SyncTexeraModel', () => {
     );
 
     // construct the texera sync model with spied dependencies
-    const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper);
+    const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper, new OperatorGroup(texeraGraph, jointGraph, jointGraphWrapper, TestBed.inject(WorkflowUtilService), TestBed.inject(JointUIService)));
 
     jointGraphWrapper.getJointLinkCellAddStream().subscribe({
       complete: () => {
@@ -440,7 +454,7 @@ describe('SyncTexeraModel', () => {
     );
 
     // construct the texera sync model with spied dependencies
-    const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper);
+    const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper, new OperatorGroup(texeraGraph, jointGraph, jointGraphWrapper, TestBed.inject(WorkflowUtilService), TestBed.inject(JointUIService)));
 
     jointGraphWrapper.getJointLinkCellChangeStream().subscribe({
       complete: () => {
@@ -502,7 +516,7 @@ describe('SyncTexeraModel', () => {
     );
 
     // construct the texera sync model with spied dependencies
-    const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper);
+    const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper, new OperatorGroup(texeraGraph, jointGraph, jointGraphWrapper, TestBed.inject(WorkflowUtilService), TestBed.inject(JointUIService)));
 
     jointGraphWrapper.getJointLinkCellChangeStream()
       .subscribe({
@@ -569,7 +583,7 @@ describe('SyncTexeraModel', () => {
     );
 
     // construct the texera sync model with spied dependencies
-    const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper);
+    const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper, new OperatorGroup(texeraGraph, jointGraph, jointGraphWrapper, TestBed.inject(WorkflowUtilService), TestBed.inject(JointUIService)));
 
     jointGraphWrapper.getJointLinkCellChangeStream().subscribe({
       complete: () => {
@@ -593,7 +607,7 @@ describe('SyncTexeraModel', () => {
   }));
 
   /**
-   * Test JointJS delete operator `getJointOperatorCellDeleteStream` event stream handled properly,
+   * Test JointJS delete operator `getJointElementCellDeleteStream` event stream handled properly,
    *  when the operator delete causes its connected links being deleted as well
    *
    * Add three operators
@@ -626,7 +640,7 @@ describe('SyncTexeraModel', () => {
       const deleteOperatorValue = {
         d: getJointOperatorValue(mockSentimentPredicate.operatorID)
       };
-      spyOn(jointGraphWrapper, 'getJointOperatorCellDeleteStream').and.returnValue(
+      spyOn(jointGraphWrapper, 'getJointElementCellDeleteStream').and.returnValue(
         m.hot(deleteOperatorString, deleteOperatorValue)
       );
 
@@ -645,8 +659,8 @@ describe('SyncTexeraModel', () => {
       );
 
       // construct texera model
-      const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper);
-      jointGraphWrapper.getJointOperatorCellDeleteStream().subscribe({
+      const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper, new OperatorGroup(texeraGraph, jointGraph, jointGraphWrapper, TestBed.inject(WorkflowUtilService), TestBed.inject(JointUIService)));
+      jointGraphWrapper.getJointElementCellDeleteStream().subscribe({
         complete: () => {
           expect(texeraGraph.hasOperator(mockSentimentPredicate.operatorID)).toBeFalsy();
           expect(texeraGraph.hasOperator(mockScanPredicate.operatorID)).toBeTruthy();

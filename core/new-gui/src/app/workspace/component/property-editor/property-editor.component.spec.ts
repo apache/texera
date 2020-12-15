@@ -46,6 +46,7 @@ import { JSONSchema7 } from 'json-schema';
 import * as Ajv from 'ajv';
 import { cloneDeep } from 'lodash';
 import { assertType } from 'src/app/common/util/assert';
+import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-util.service';
 
 /* tslint:disable:no-non-null-assertion */
 
@@ -67,6 +68,7 @@ describe('PropertyEditorComponent', () => {
       providers: [
         JointUIService,
         WorkflowActionService,
+        WorkflowUtilService,
         UndoRedoService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         DynamicSchemaService,
@@ -118,7 +120,7 @@ describe('PropertyEditorComponent', () => {
 
     // add and highlight an operator
     workflowActionService.addOperator(predicate, mockPoint);
-    jointGraphWrapper.highlightOperator(predicate.operatorID);
+    jointGraphWrapper.highlightOperators(predicate.operatorID);
 
     fixture.detectChanges();
     // check variables are set correctly
@@ -156,7 +158,7 @@ describe('PropertyEditorComponent', () => {
     workflowActionService.addOperator(mockResultPredicate, mockPoint);
 
     // highlight the first operator
-    jointGraphWrapper.highlightOperator(mockScanPredicate.operatorID);
+    jointGraphWrapper.highlightOperators(mockScanPredicate.operatorID);
     fixture.detectChanges();
 
     // check the variables
@@ -165,7 +167,7 @@ describe('PropertyEditorComponent', () => {
     expect(component.displayForm).toBeTruthy();
 
     // highlight the second operator
-    jointGraphWrapper.highlightOperator(mockResultPredicate.operatorID);
+    jointGraphWrapper.highlightOperators(mockResultPredicate.operatorID);
     fixture.detectChanges();
 
     // result operator has default values, use ajv to fill in default values
@@ -212,8 +214,8 @@ describe('PropertyEditorComponent', () => {
     // add and highlight two operators, then unhighlight one of them
     workflowActionService.addOperatorsAndLinks([{op: mockScanPredicate, pos: mockPoint},
       {op: mockResultPredicate, pos: mockPoint}], []);
-    jointGraphWrapper.highlightOperators([mockScanPredicate.operatorID, mockResultPredicate.operatorID]);
-    jointGraphWrapper.unhighlightOperator(mockResultPredicate.operatorID);
+    jointGraphWrapper.highlightOperators(mockScanPredicate.operatorID, mockResultPredicate.operatorID);
+    jointGraphWrapper.unhighlightOperators(mockResultPredicate.operatorID);
 
     // assert that only one operator is highlighted on the graph
     const predicate = mockScanPredicate;
@@ -252,10 +254,10 @@ describe('PropertyEditorComponent', () => {
 
     // add and highlight an operator
     workflowActionService.addOperator(mockScanPredicate, mockPoint);
-    jointGraphWrapper.highlightOperator(mockScanPredicate.operatorID);
+    jointGraphWrapper.highlightOperators(mockScanPredicate.operatorID);
 
     // unhighlight the operator
-    jointGraphWrapper.unhighlightOperator(mockScanPredicate.operatorID);
+    jointGraphWrapper.unhighlightOperators(mockScanPredicate.operatorID);
     expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toEqual([]);
 
     fixture.detectChanges();
@@ -280,7 +282,7 @@ describe('PropertyEditorComponent', () => {
     // add and highlight two operators
     workflowActionService.addOperatorsAndLinks([{op: mockScanPredicate, pos: mockPoint},
       {op: mockResultPredicate, pos: mockPoint}], []);
-    jointGraphWrapper.highlightOperators([mockScanPredicate.operatorID, mockResultPredicate.operatorID]);
+    jointGraphWrapper.highlightOperators(mockScanPredicate.operatorID, mockResultPredicate.operatorID);
 
     // assert that multiple operators are highlighted
     expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(mockResultPredicate.operatorID);
@@ -305,7 +307,7 @@ describe('PropertyEditorComponent', () => {
     // add an operator and highlight the operator so that the
     //  variables in property editor component is set correctly
     workflowActionService.addOperator(mockScanPredicate, mockPoint);
-    jointGraphWrapper.highlightOperator(mockScanPredicate.operatorID);
+    jointGraphWrapper.highlightOperators(mockScanPredicate.operatorID);
 
     // stimulate a form change by the user
     const formChangeValue = { tableName: 'twitter_sample' };
@@ -334,7 +336,7 @@ describe('PropertyEditorComponent', () => {
     // add an operator and highlight the operator so that the
     //  variables in property editor component is set correctly
     workflowActionService.addOperator(mockScanPredicate, mockPoint);
-    jointGraphWrapper.highlightOperator(mockScanPredicate.operatorID);
+    jointGraphWrapper.highlightOperators(mockScanPredicate.operatorID);
 
     // prepare the form user input event stream
     // simulate user types in `table` character by character
@@ -380,7 +382,7 @@ describe('PropertyEditorComponent', () => {
     const mockOperatorProperty = { tableName: 'table' };
     // set operator property first before displaying the operator property in property panel
     workflowActionService.setOperatorProperty(mockScanPredicate.operatorID, mockOperatorProperty);
-    jointGraphWrapper.highlightOperator(mockScanPredicate.operatorID);
+    jointGraphWrapper.highlightOperators(mockScanPredicate.operatorID);
 
 
     // stimulate a form change with the same property
@@ -472,7 +474,7 @@ describe('PropertyEditorComponent', () => {
       workflowActionService.addLink(mockScanResultLink);
 
       // highlight the operator
-      jointGraphWrapper.highlightOperator(mockScanPredicate.operatorID);
+      jointGraphWrapper.highlightOperators(mockScanPredicate.operatorID);
       fixture.detectChanges();
 
       // check the variables
@@ -489,7 +491,7 @@ describe('PropertyEditorComponent', () => {
       expect(component.currentOperatorID).toBeUndefined();
 
       // highlight the operator again
-      jointGraphWrapper.highlightOperator(mockScanPredicate.operatorID);
+      jointGraphWrapper.highlightOperators(mockScanPredicate.operatorID);
       fixture.detectChanges();
 
       // check the variables

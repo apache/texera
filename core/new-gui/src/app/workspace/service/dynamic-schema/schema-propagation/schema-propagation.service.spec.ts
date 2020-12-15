@@ -20,6 +20,7 @@ import { mockAggregationSchema } from '../../operator-metadata/mock-operator-met
 import { OperatorPredicate } from '../../../types/workflow-common.interface';
 import { environment } from '../../../../../environments/environment';
 import { Observable } from 'rxjs';
+import { WorkflowUtilService } from '../../workflow-graph/util/workflow-util.service';
 
 /* tslint:disable: no-non-null-assertion */
 describe('SchemaPropagationService', () => {
@@ -37,6 +38,7 @@ describe('SchemaPropagationService', () => {
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         JointUIService,
         WorkflowActionService,
+        WorkflowUtilService,
         UndoRedoService,
         DynamicSchemaService,
         SchemaPropagationService,

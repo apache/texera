@@ -14,6 +14,7 @@ import { Observable } from 'rxjs/Observable';
 import { mockScanPredicate, mockPoint,
   mockResultPredicate, mockSentimentPredicate, mockScanResultLink } from '../../service/workflow-graph/model/mock-workflow-data';
 import { environment } from './../../../../environments/environment';
+import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-util.service';
 
 describe('MiniMapComponent', () => {
   let component: MiniMapComponent;
@@ -25,6 +26,7 @@ describe('MiniMapComponent', () => {
       declarations: [ MiniMapComponent, WorkflowEditorComponent ],
       providers: [
         WorkflowActionService,
+        WorkflowUtilService,
         JointUIService,
         UndoRedoService,
         {provide: OperatorMetadataService, useClass: StubOperatorMetadataService},

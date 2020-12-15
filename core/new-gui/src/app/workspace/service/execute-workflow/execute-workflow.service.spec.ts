@@ -18,6 +18,7 @@ import { WorkflowGraph } from '../workflow-graph/model/workflow-graph';
 import { LogicalPlan } from '../../types/execute-workflow.interface';
 import { environment } from '../../../../environments/environment';
 import { mockScanResultLink } from '../workflow-graph/model/mock-workflow-data';
+import { WorkflowUtilService } from '../workflow-graph/util/workflow-util.service';
 
 class StubHttpClient {
 
@@ -38,6 +39,7 @@ describe('ExecuteWorkflowService', () => {
       providers: [
         ExecuteWorkflowService,
         WorkflowActionService,
+        WorkflowUtilService,
         UndoRedoService,
         JointUIService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
