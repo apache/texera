@@ -71,7 +71,7 @@ class Generator(var operator: IOperatorExecutor, val tag: WorkerTag)
   override def onResumeTuple(faultedTuple: FaultedTuple): Unit = {
     var i = 0
     while (i < tupleOutput.output.length) {
-      tupleOutput.output(i).accept(faultedTuple.tuple)
+      tupleOutput.output(i).addToBatch(faultedTuple.tuple)
       i += 1
     }
   }
