@@ -65,7 +65,7 @@ class MessagingManager(val fifoEnforcer: FIFOAccessPort) {
 
   def resetDataSending(): Unit = {
     receiverToDataSender.values.foreach(_.reset())
-    receiverToDataSender.keys.foreach(receiver => receiverToDataSequenceNumbers(receiver)=0)
+    receiverToDataSender.keys.foreach(receiver => receiverToDataSequenceNumbers(receiver) = 0)
   }
 
   def pauseDataSending(): Unit = {

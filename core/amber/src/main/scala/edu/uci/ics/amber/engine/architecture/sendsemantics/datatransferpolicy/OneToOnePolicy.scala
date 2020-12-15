@@ -9,27 +9,29 @@ import akka.util.Timeout
 import scala.concurrent.ExecutionContext
 
 class OneToOnePolicy(batchSize: Int) extends DataTransferPolicy(batchSize) {
-  var receiver: ActorRef  = _
+  var receiver: ActorRef = _
   var batch: Array[ITuple] = _
   var currentSize = 0
 
-  override def addToBatch(tuple: ITuple)(implicit sender: ActorRef): Option[(ActorRef,Array[ITuple])] = {
+  override def addToBatch(
+      tuple: ITuple
+  )(implicit sender: ActorRef): Option[(ActorRef, Array[ITuple])] = {
     batch(currentSize) = tuple
     currentSize += 1
     if (currentSize == batchSize) {
       currentSize = 0
       val retBatch = batch
       batch = new Array[ITuple](batchSize)
-      return Some((receiver,retBatch))
+      return Some((receiver, retBatch))
     }
     None
   }
 
-  override def noMore()(implicit sender: ActorRef): Array[(ActorRef,Array[ITuple])] = {
+  override def noMore()(implicit sender: ActorRef): Array[(ActorRef, Array[ITuple])] = {
     if (currentSize > 0) {
-      return Array[(ActorRef,Array[ITuple])]((receiver,batch.slice(0, currentSize)))
+      return Array[(ActorRef, Array[ITuple])]((receiver, batch.slice(0, currentSize)))
     }
-    return Array[(ActorRef,Array[ITuple])]()
+    return Array[(ActorRef, Array[ITuple])]()
   }
 
   override def initialize(tag: LinkTag, _receivers: Array[ActorRef])(implicit

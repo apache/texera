@@ -14,7 +14,8 @@ import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 import scala.util.control.Breaks
 
-class TupleToBatchConverter(val sender: ActorRef, val messagingManager: MessagingManager) extends BreakpointSupport {
+class TupleToBatchConverter(val sender: ActorRef, val messagingManager: MessagingManager)
+    extends BreakpointSupport {
   var output = new Array[DataTransferPolicy](0)
   var skippedInputTuples = new mutable.HashSet[ITuple]
   var skippedOutputTuples = new mutable.HashSet[ITuple]
@@ -30,7 +31,7 @@ class TupleToBatchConverter(val sender: ActorRef, val messagingManager: Messagin
   def endDataTransfer(): Unit = {
     var i = 0
     while (i < output.length) {
-      val receiversAndBatches: Array[(ActorRef,Array[ITuple])] = output(i).noMore()(sender)
+      val receiversAndBatches: Array[(ActorRef, Array[ITuple])] = output(i).noMore()(sender)
       receiversAndBatches.foreach(rb => messagingManager.sendDataMessage(rb._1, rb._2)(sender))
       i += 1
     }
@@ -76,7 +77,7 @@ class TupleToBatchConverter(val sender: ActorRef, val messagingManager: Messagin
   ): Unit = {
     var i = 0
     policy.initialize(tag, senders.map(_.receiver))
-    messagingManager.updateReceiverAndSender(senders, tag)(ac,sender,timeout,ec,log)
+    messagingManager.updateReceiverAndSender(senders, tag)(ac, sender, timeout, ec, log)
     Breaks.breakable {
       while (i < output.length) {
         if (output(i).tag == policy.tag) {
@@ -99,13 +100,13 @@ class TupleToBatchConverter(val sender: ActorRef, val messagingManager: Messagin
   def passTupleToDownstream(tuple: ITuple): Unit = {
     var i = 0
     while (i < output.length) {
-      val receiverAndbatch: Option[(ActorRef,Array[ITuple])] = output(i).addToBatch(tuple)(sender)
+      val receiverAndbatch: Option[(ActorRef, Array[ITuple])] = output(i).addToBatch(tuple)(sender)
       receiverAndbatch match {
-        case Some(rb)=>
+        case Some(rb) =>
           // send it to messaging layer to be sent downstream
           messagingManager.sendDataMessage(rb._1, rb._2)(sender)
         case None =>
-          // Do nothing
+        // Do nothing
       }
       i += 1
     }

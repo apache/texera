@@ -15,8 +15,8 @@ class HashBasedShufflePolicy(batchSize: Int, val hashFunc: ITuple => Int)
   var receivers: Array[ActorRef] = _
   var currentSizes: Array[Int] = _
 
-  override def noMore()(implicit sender: ActorRef): Array[(ActorRef,Array[ITuple])] = {
-    var receiversAndBatches = new ArrayBuffer[(ActorRef,Array[ITuple])]
+  override def noMore()(implicit sender: ActorRef): Array[(ActorRef, Array[ITuple])] = {
+    var receiversAndBatches = new ArrayBuffer[(ActorRef, Array[ITuple])]
     for (k <- receivers.indices) {
       if (currentSizes(k) > 0) {
         receiversAndBatches.append((receivers(k), batches(k).slice(0, currentSizes(k))))
@@ -25,7 +25,9 @@ class HashBasedShufflePolicy(batchSize: Int, val hashFunc: ITuple => Int)
     receiversAndBatches.toArray
   }
 
-  override def addToBatch(tuple: ITuple)(implicit sender: ActorRef): Option[(ActorRef,Array[ITuple])] = {
+  override def addToBatch(
+      tuple: ITuple
+  )(implicit sender: ActorRef): Option[(ActorRef, Array[ITuple])] = {
     val numBuckets = receivers.length
     val index = (hashFunc(tuple) % numBuckets + numBuckets) % numBuckets
     batches(index)(currentSizes(index)) = tuple
@@ -34,7 +36,7 @@ class HashBasedShufflePolicy(batchSize: Int, val hashFunc: ITuple => Int)
       currentSizes(index) = 0
       val retBatch = batches(index)
       batches(index) = new Array[ITuple](batchSize)
-      return Some((receivers(index),retBatch))
+      return Some((receivers(index), retBatch))
     }
     None
   }

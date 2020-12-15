@@ -14,14 +14,18 @@ class RoundRobinPolicy(batchSize: Int) extends DataTransferPolicy(batchSize) {
   var batch: Array[ITuple] = _
   var currentSize = 0
 
-  override def noMore()(implicit sender: ActorRef): Array[(ActorRef,Array[ITuple])] = {
+  override def noMore()(implicit sender: ActorRef): Array[(ActorRef, Array[ITuple])] = {
     if (currentSize > 0) {
-      return Array[(ActorRef,Array[ITuple])]((receivers(roundRobinIndex), batch.slice(0, currentSize)))
+      return Array[(ActorRef, Array[ITuple])](
+        (receivers(roundRobinIndex), batch.slice(0, currentSize))
+      )
     }
-    return Array[(ActorRef,Array[ITuple])]()
+    return Array[(ActorRef, Array[ITuple])]()
   }
 
-  override def addToBatch(tuple: ITuple)(implicit sender: ActorRef): Option[(ActorRef,Array[ITuple])] = {
+  override def addToBatch(
+      tuple: ITuple
+  )(implicit sender: ActorRef): Option[(ActorRef, Array[ITuple])] = {
     batch(currentSize) = tuple
     currentSize += 1
     if (currentSize == batchSize) {
