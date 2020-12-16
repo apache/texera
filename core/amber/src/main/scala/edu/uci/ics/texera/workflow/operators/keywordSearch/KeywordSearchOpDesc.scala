@@ -1,13 +1,12 @@
 package edu.uci.ics.texera.workflow.operators.keywordSearch
 
 import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpDesc
-import com.fasterxml.jackson.annotation.{JsonPropertyDescription, JsonProperty, JsonIgnore}
+import com.fasterxml.jackson.annotation.JsonProperty
+import com.fasterxml.jackson.annotation.JsonPropertyDescription
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.engine.common.Constants
-import edu.uci.ics.texera.workflow.common.metadata.{OperatorInfo, OperatorGroupConstants}
+import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants
+import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo
 import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig
-
-import scala.util.Random
 
 class KeywordSearchOpDesc extends FilterOpDesc {
 
