@@ -22,9 +22,6 @@ public class WordCloudOpDesc extends VisualizationOperator {
     @JsonProperty(value = "text column", required = true)
     public String textColumn;
 
-    @JsonProperty(value = "lucene analyzer name", required = true, defaultValue = "standard")
-    public String luceneAnalyzerName;
-
     @Override
     public String chartType() {
         return VisualizationConstants.WORD_CLOUD;
@@ -32,7 +29,7 @@ public class WordCloudOpDesc extends VisualizationOperator {
 
     @Override
     public OpExecConfig operatorExecutor() {
-        return new WordCloudOpExecConfig(this.operatorIdentifier(), Constants.defaultNumWorkers(), textColumn, luceneAnalyzerName);
+        return new WordCloudOpExecConfig(this.operatorIdentifier(), Constants.defaultNumWorkers(), textColumn);
     }
 
     @Override

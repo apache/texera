@@ -26,14 +26,13 @@ import scala.concurrent.ExecutionContext
 class WordCloudOpExecConfig(
     tag: OperatorIdentifier,
     val numWorkers: Int,
-    val textColumn: String,
-    val luceneAnalyzerName: String
+    val textColumn: String
 ) extends OpExecConfig(tag) {
 
   override lazy val topology: Topology = {
     val partialLayer = new ProcessorWorkerLayer(
       LayerTag(tag, "localPieChartProcessor"),
-      _ => new WordCloudOpPartialExec(textColumn, luceneAnalyzerName),
+      _ => new WordCloudOpPartialExec(textColumn),
       numWorkers,
       UseAll(),
       RoundRobinDeployment()
