@@ -36,7 +36,7 @@ public class WordCloudOpPartialExec implements OperatorExecutor {
             new Attribute("size", AttributeType.INTEGER)
     ).build();
 
-    public WordCloudOpPartialExec(String textColumn, String luceneAnalyzerName) {
+    public WordCloudOpPartialExec(String textColumn) {
         this.textColumn = textColumn;
         this.luceneAnalyzer = new EnglishAnalyzer();
     }
