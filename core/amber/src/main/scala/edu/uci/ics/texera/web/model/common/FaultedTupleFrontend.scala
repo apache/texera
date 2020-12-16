@@ -7,9 +7,9 @@ object FaultedTupleFrontend {
   def apply(faultedTuple: FaultedTuple): FaultedTupleFrontend = {
     val tuple = faultedTuple.tuple
     val tupleList =
-      if(tuple != null){
+      if (tuple != null) {
         tuple.toArray().filter(v => v != null).map(v => v.toString).toList
-      }else{
+      } else {
         List.empty
       }
     FaultedTupleFrontend(tupleList, faultedTuple.id, faultedTuple.isInput)

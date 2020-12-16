@@ -4,6 +4,7 @@ import edu.uci.ics.amber.engine.architecture.breakpoint.FaultedTuple
 import edu.uci.ics.amber.engine.architecture.principal.{PrincipalState, PrincipalStatistics}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import akka.actor.ActorRef
+import edu.uci.ics.amber.backenderror.Error
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -29,5 +30,7 @@ object ControllerEvent {
   )
 
   case class SkipTupleResponse()
+
+  case class ErrorOccurred(error: Error)
 
 }

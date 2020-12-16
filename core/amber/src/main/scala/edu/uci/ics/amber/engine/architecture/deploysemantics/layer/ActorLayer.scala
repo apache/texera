@@ -22,7 +22,7 @@ abstract class ActorLayer(
   def isBuilt: Boolean = layer != null
 
   def build(prev: Array[(OpExecConfig, ActorLayer)], all: Array[Address])(implicit
-                                                                          context: ActorContext
+      context: ActorContext
   ): Unit
 
   def getFirstMetadata: Any

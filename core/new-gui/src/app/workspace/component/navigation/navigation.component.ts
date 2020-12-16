@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, Input, OnInit } from '@angular/core';
 import { ExecuteWorkflowService } from '../../service/execute-workflow/execute-workflow.service';
 import { UndoRedoService } from '../../service/undo-redo/undo-redo.service';
 import { TourService } from 'ngx-tour-ng-bootstrap';
@@ -11,7 +11,7 @@ import { UserService } from '../../../common/service/user/user.service';
 import { WorkflowPersistService } from '../../../common/service/user/workflow-persist/workflow-persist.service';
 import { CacheWorkflowService } from '../../service/cache-workflow/cache-workflow.service';
 import { Workflow } from '../../../common/type/workflow';
-import { Version } from '../../../../environments/version';
+import { environment } from '../../../../environments/environment';
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -36,18 +36,20 @@ import { Version } from '../../../../environments/version';
 export class NavigationComponent implements OnInit {
   public static autoSaveState = 'Saved';
 
-  public gitCommitHash: string = Version.raw;
   public executionState: ExecutionState;  // set this to true when the workflow is started
   public ExecutionState = ExecutionState; // make Angular HTML access enum definition
   public isWorkflowValid: boolean = true; // this will check whether the workflow error or not
   public isSaving: boolean = false;
-  public currentWorkflowName: string;  // reset workflowName
+  @Input() public currentWorkflowName: string;  // reset workflowName
 
   // variable bound with HTML to decide if the running spinner should show
   public runButtonText = 'Run';
   public runIcon = 'play-circle';
   public runDisable = false;
   public executionResultID: string | undefined;
+
+  // whether user dashboard is enabled and accessible from the workspace
+  public userSystemEnabled: boolean = environment.userSystemEnabled;
 
   constructor(
     public executeWorkflowService: ExecuteWorkflowService,
@@ -249,7 +251,7 @@ export class NavigationComponent implements OnInit {
   }
 
   /**
-   * Delete all operators on the graph
+   * Delete all operators (including hidden ones) on the graph.
    */
   public onClickDeleteAllOperators(): void {
     const allOperatorIDs = this.workflowActionService.getTexeraGraph().getAllOperators().map(op => op.operatorID);
@@ -263,20 +265,55 @@ export class NavigationComponent implements OnInit {
     return this.workflowActionService.getTexeraGraph().getAllOperators().length > 0;
   }
 
+  /**
+   * Groups highlighted operators on the graph.
+   */
+  public onClickGroupOperators(): void {
+    const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+    if (this.highlightedElementsGroupable()) {
+      const group = this.workflowActionService.getOperatorGroup().getNewGroup(highlightedOperators);
+      this.workflowActionService.addGroups(group);
+    }
+  }
+
+  /**
+   * Returns true if currently highlighted elements are all operators
+   * and if they are groupable.
+   */
+  public highlightedElementsGroupable(): boolean {
+    const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+    return this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs().length === 0 &&
+      this.workflowActionService.getOperatorGroup().operatorsGroupable(highlightedOperators);
+  }
+
+  /**
+   * Ungroups highlighted groups on the graph.
+   */
+  public onClickUngroupOperators(): void {
+    const highlightedGroups = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
+    if (this.highlightedElementsUngroupable()) {
+      this.workflowActionService.unGroupGroups(...highlightedGroups);
+    }
+  }
+
+  /**
+   * Returns true if currently highlighted elements are all groups.
+   */
+  public highlightedElementsUngroupable(): boolean {
+    return this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs().length > 0 &&
+      this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs().length === 0;
+  }
+
   public onClickSaveWorkflow(): void {
     if (!this.userService.isLogin()) {
       alert('please login');
     } else {
-      const cachedWorkflow: string | null = this.cachedWorkflowService.getCachedWorkflow();
+      const cachedWorkflow: Workflow | null = this.cachedWorkflowService.getCachedWorkflow();
       if (cachedWorkflow != null) {
         this.isSaving = true;
-        const id = this.cachedWorkflowService.getCachedWorkflowID();
-        this.workflowPersistService.saveWorkflow(cachedWorkflow, this.currentWorkflowName, id).subscribe(
-          (workflow: Workflow) => {
-            this.cachedWorkflowService.setCachedWorkflowId(JSON.stringify(workflow?.wid));
-          }).add(() => {
-            this.isSaving = false;
-          });
+        this.workflowPersistService.persistWorkflow(cachedWorkflow).subscribe(this.cachedWorkflowService.cacheWorkflow).add(() => {
+          this.isSaving = false;
+        });
       } else {
         alert('No workflow found in cache.');
       }

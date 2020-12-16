@@ -1,6 +1,6 @@
 import { Subject } from 'rxjs/Subject';
 import { Observable } from 'rxjs/Observable';
-import { OperatorPredicate, OperatorLink, OperatorPort, Breakpoint } from '../../../types/workflow-common.interface';
+import { OperatorPredicate, OperatorLink, OperatorPort, Breakpoint, Point } from '../../../types/workflow-common.interface';
 import { isEqual } from 'lodash';
 
 // define the restricted methods that could change the graph
@@ -24,6 +24,7 @@ export type WorkflowGraphReadonly = Omit<WorkflowGraph, restrictedMethods>;
 export class WorkflowGraph {
 
   private readonly operatorIDMap = new Map<string, OperatorPredicate>();
+  private readonly operatorPositionMap = new Map<string, Point>();
   private readonly operatorLinkMap = new Map<string, OperatorLink>();
   private readonly linkBreakpointMap = new Map<string, Breakpoint>();
 
@@ -51,6 +52,11 @@ export class WorkflowGraph {
     this.assertOperatorNotExists(operator.operatorID);
     this.operatorIDMap.set(operator.operatorID, operator);
     this.operatorAddSubject.next(operator);
+  }
+
+  public setOperatorPosition(operatorID: string, position: Point): void {
+    this.assertOperatorExists(operatorID);
+    this.operatorPositionMap.set(operatorID, position);
   }
 
   /**
@@ -285,9 +291,9 @@ export class WorkflowGraph {
   }
 
   /**
- * Gets the observable event stream of an operator being deleted from the graph.
- * The observable value is the deleted operator.
- */
+   * Gets the observable event stream of an operator being deleted from the graph.
+   * The observable value is the deleted operator.
+   */
   public getOperatorDeleteStream(): Observable<{ deletedOperator: OperatorPredicate }> {
     return this.operatorDeleteSubject.asObservable();
   }
