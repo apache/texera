@@ -1,26 +1,31 @@
 package edu.uci.ics.texera.workflow.operators.keywordSearch
 
 import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpDesc
-import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
+import com.fasterxml.jackson.annotation.{JsonPropertyDescription, JsonProperty, JsonIgnore}
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.common.Constants
-import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.texera.workflow.common.metadata.{OperatorInfo, OperatorGroupConstants}
 import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig
 
 import scala.util.Random
 
 class KeywordSearchOpDesc extends FilterOpDesc {
 
-  @JsonProperty(value = "columnName", required = true)
+  @JsonProperty(required = true)
+  @JsonSchemaTitle("attribute")
   @JsonPropertyDescription("column to search keyword on")
-  var columnName: String = _
+  var attribute: String = _
 
-  @JsonProperty(value = "keyword", required = true)
+  @JsonProperty(required = true)
+  @JsonSchemaTitle("keywords")
   @JsonPropertyDescription("keywords")
   var keyword: String = _
 
   override def operatorExecutor: OneToOneOpExecConfig = {
-//    new OneToOneOpExecConfig(this.operatorIdentifier, (counter: Int) => new KeywordSearchOpExec(this, counter))
-    new OneToOneOpExecConfig(this.operatorIdentifier, (counter:Int) => new KeywordSearchOpExec(counter,this))
+    new OneToOneOpExecConfig(
+      this.operatorIdentifier,
+      (counter: Int) => new KeywordSearchOpExec(counter, this)
+    )
   }
 
   override def operatorInfo: OperatorInfo =
