@@ -344,6 +344,14 @@ class Principal(val metadata: OpExecConfig) extends Actor with ActorLogging with
         case e: WorkflowRuntimeException =>
           log.error(e.runtimeError.convertToMap().mkString(" | "))
           ErrorLogger.sendErrToFrontend(context.parent, e.runtimeError)
+        case e: Exception =>
+          val error = WorkflowRuntimeError(
+            e.getMessage(),
+            "Principal:Running:WorkerMessage.ReportState",
+            Map("trace" -> e.getStackTrace.mkString("\n"))
+          )
+          log.error(error.convertToMap().mkString(" | "))
+          ErrorLogger.sendErrToFrontend(context.parent, error)
       }
 
     case WorkerMessage.ReportStatistics(statistics) =>

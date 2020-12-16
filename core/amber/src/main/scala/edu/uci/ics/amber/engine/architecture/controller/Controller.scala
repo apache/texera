@@ -424,6 +424,14 @@ class Controller(
         case e: WorkflowRuntimeException =>
           log.error(e.runtimeError.convertToMap().mkString(" | "))
           eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(e.runtimeError))
+        case e: Exception =>
+          val error = WorkflowRuntimeError(
+            e.getMessage(),
+            "Controller:receive:AckedControllerInitialization",
+            Map("trace" -> e.getStackTrace.mkString("\n"))
+          )
+          log.error(error.convertToMap().mkString(" | "))
+          eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(error))
       }
     case ContinuedInitialization =>
       log.info("continue initialization")
