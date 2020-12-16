@@ -26,13 +26,7 @@
   .texera-navigation-title {
     grid-column: 1/1;
     grid-row: 1/1;
-
-    .version-number {
-      font-size: 10px;
-    }
-    .git-commit-hash {
-      font-size: 7px;
-    }
+    font-size: 1.5em;
   }
 
   .texera-navigation-utilities {

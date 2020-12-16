@@ -1,6 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { UserService } from '../../../../../common/service/user/user.service';
+import { User } from '../../../../../common/type/user';
+import { Observable } from 'rxjs/Observable';
 
 
 /**
@@ -22,7 +24,8 @@ export class NgbdModalUserLoginComponent implements OnInit {
 
   constructor(
     public activeModal: NgbActiveModal,
-    private userService: UserService) { }
+    private userService: UserService) {
+  }
 
   ngOnInit() {
     this.detectUserChange();
@@ -33,21 +36,21 @@ export class NgbdModalUserLoginComponent implements OnInit {
    * It will send data inside the text entry to the user service to login
    */
   public login(): void {
-    if (this.loginUserName.length === 0) {
+    // validate the credentials format
+    this.loginErrorMessage = undefined;
+    const validation = this.userService.validateUsername(this.loginUserName);
+    if (!validation.result) {
+      this.loginErrorMessage = validation.message;
       return;
     }
-    this.loginErrorMessage = undefined;
-    this.userService.login(this.loginUserName)
-      .subscribe(
-        res => {
-          if (res.code === 0) { // successfully login in
-            // TODO show success
-            this.activeModal.close();
-          } else { // login error
-            this.loginErrorMessage = res.message;
-          }
-        }
-      );
+
+    // validate the credentials with backend
+    this.userService.login(this.loginUserName).subscribe(
+      () => {
+        this.userService.changeUser(<User>{name: this.loginUserName});
+        this.activeModal.close();
+
+      }, () => this.loginErrorMessage = 'Incorrect credentials');
   }
 
   /**
@@ -55,39 +58,33 @@ export class NgbdModalUserLoginComponent implements OnInit {
    * It will send data inside the text entry to the user service to register
    */
   public register(): void {
-    if (this.registerUserName.length === 0) {
+    // validate the credentials format
+    this.registerErrorMessage = undefined;
+    const validation = this.userService.validateUsername(this.registerUserName);
+    if (!validation.result) {
+      this.registerErrorMessage = validation.message;
       return;
     }
-    this.registerErrorMessage = undefined;
+    // register the credentials with backend
+    this.userService.register(this.registerUserName).subscribe(
+      () => {
+        this.userService.changeUser(<User>{name: this.registerUserName});
+        this.activeModal.close();
 
-    this.userService.register(this.registerUserName)
-      .subscribe(
-        res => {
-          if (res.code === 0) { // successfully register
-            // TODO show success
-            this.activeModal.close();
-          } else { // register error
-            this.registerErrorMessage = res.message;
-          }
-        }
-      );
+      }, () => this.registerErrorMessage = 'Registration failed. Could due to duplicate username.');
   }
 
   /**
    * this method will handle the pop up when user successfully login
    */
   private detectUserChange(): void {
-    this.userService.getUserChangedEvent()
-      .subscribe(
-        () => {
-          if (this.userService.getUser()) {
-            // TODO temporary solution, need improvement
-            this.activeModal.close();
-          }
+    this.userService.userChange.subscribe(
+      () => {
+        if (this.userService.getUser()) {
+          // TODO temporary solution, need improvement
+          this.activeModal.close();
         }
-      );
+      }
+    );
   }
-
-
-
 }

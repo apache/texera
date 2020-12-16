@@ -5,7 +5,13 @@ import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.{
   ConditionalGlobalBreakpoint,
   CountGlobalBreakpoint
 }
-import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage.{Ack, ModifyLogic, Pause, Resume, Start}
+import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage.{
+  Ack,
+  ModifyLogic,
+  Pause,
+  Resume,
+  Start
+}
 import edu.uci.ics.amber.engine.common.ambermessage.ControllerMessage.{
   AckedControllerInitialization,
   PassBreakpointTo,
