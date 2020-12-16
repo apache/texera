@@ -366,6 +366,7 @@ class Controller(
 
   override def receive: Receive = {
     case LogErrorToFrontEnd(err: WorkflowRuntimeError) =>
+      log.error(err.convertToMap().mkString(" | "))
       eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
     case QueryStatistics =>
     // do nothing, not initialized yet
@@ -421,7 +422,7 @@ class Controller(
         frontier ++= workflow.startOperators.flatMap(workflow.outLinks(_))
       } catch {
         case e: WorkflowRuntimeException =>
-          ErrorLogger.logToConsole(e.runtimeError)
+          log.error(e.runtimeError.convertToMap().mkString(" | "))
           eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(e.runtimeError))
       }
     case ContinuedInitialization =>
@@ -615,6 +616,7 @@ class Controller(
 
   private[this] def ready: Receive = {
     case LogErrorToFrontEnd(err: WorkflowRuntimeError) =>
+      log.error(err.convertToMap().mkString(" | "))
       eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
     case QueryStatistics =>
       this.principalBiMap.values().forEach(principal => principal ! QueryStatistics)
@@ -684,6 +686,7 @@ class Controller(
 
   private[this] def running: Receive = {
     case LogErrorToFrontEnd(err: WorkflowRuntimeError) =>
+      log.error(err.convertToMap().mkString(" | "))
       eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
     case KillAndRecover =>
       killAndRecoverStage()
@@ -795,6 +798,7 @@ class Controller(
 
   private[this] def pausing: Receive = {
     case LogErrorToFrontEnd(err: WorkflowRuntimeError) =>
+      log.error(err.convertToMap().mkString(" | "))
       eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
     case QueryStatistics =>
       this.principalBiMap.values().forEach(principal => principal ! QueryStatistics)
@@ -864,6 +868,7 @@ class Controller(
 
   private[this] def paused: Receive = {
     case LogErrorToFrontEnd(err: WorkflowRuntimeError) =>
+      log.error(err.convertToMap().mkString(" | "))
       eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
     case KillAndRecover =>
       killAndRecoverStage()
@@ -930,6 +935,7 @@ class Controller(
 
   private[this] def resuming: Receive = {
     case LogErrorToFrontEnd(err: WorkflowRuntimeError) =>
+      log.error(err.convertToMap().mkString(" | "))
       eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
     case QueryStatistics =>
       this.principalBiMap.values().forEach(principal => principal ! QueryStatistics)
@@ -977,6 +983,7 @@ class Controller(
 
   private[this] def completed: Receive = {
     case LogErrorToFrontEnd(err: WorkflowRuntimeError) =>
+      log.error(err.convertToMap().mkString(" | "))
       eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
     case QueryStatistics =>
       this.principalBiMap.values().forEach(principal => principal ! QueryStatistics)

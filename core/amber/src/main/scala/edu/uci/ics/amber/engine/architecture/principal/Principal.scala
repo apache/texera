@@ -75,7 +75,7 @@ import akka.pattern.after
 import akka.pattern.ask
 import com.google.common.base.Stopwatch
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.ErrorOccurred
-import edu.uci.ics.amber.error.ErrorLogger
+import edu.uci.ics.amber.error.{ErrorLogger, WorkflowRuntimeError}
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -342,7 +342,7 @@ class Principal(val metadata: OpExecConfig) extends Actor with ActorLogging with
         }
       } catch {
         case e: WorkflowRuntimeException =>
-          ErrorLogger.logToConsole(e.runtimeError)
+          log.error(e.runtimeError.convertToMap().mkString(" | "))
           ErrorLogger.sendErrToFrontend(context.parent, e.runtimeError)
       }
 
