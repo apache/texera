@@ -9,6 +9,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import org.apache.curator.shaded.com.google.common.collect.Iterators;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
+import org.apache.lucene.analysis.core.SimpleAnalyzer;
 import org.apache.lucene.analysis.core.StopAnalyzer;
 import org.apache.lucene.analysis.en.EnglishAnalyzer;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
@@ -27,8 +28,9 @@ import java.util.*;
  */
 public class WordCloudOpPartialExec implements OperatorExecutor {
     private final String textColumn;
-    private final String luceneAnalyzerName;
+    private Analyzer luceneAnalyzer;
     private List<String> textList;
+
     private static final Schema resultSchema = Schema.newBuilder().add(
             new Attribute("word", AttributeType.STRING),
             new Attribute("size", AttributeType.INTEGER)
@@ -36,14 +38,13 @@ public class WordCloudOpPartialExec implements OperatorExecutor {
 
     public WordCloudOpPartialExec(String textColumn, String luceneAnalyzerName) {
         this.textColumn = textColumn;
-        this.luceneAnalyzerName = luceneAnalyzerName;
+        this.luceneAnalyzer = new EnglishAnalyzer();
     }
 
-    private static List<Tuple> calculateWordCount(List<String> texts, String analyzerName) throws Exception {
+    private static List<Tuple> calculateWordCount(List<String> texts, Analyzer luceneAnalyzer) throws Exception {
         HashMap<String, Integer> termFreqMap = new HashMap<>();
 
         for (String text : texts) {
-            Analyzer luceneAnalyzer = LuceneAnalyzerConstants.getLuceneAnalyzer(analyzerName);
             TokenStream tokenStream = luceneAnalyzer.tokenStream(null, new StringReader(text));
             OffsetAttribute offsetAttribute = tokenStream.addAttribute(OffsetAttribute.class);
 
@@ -88,7 +89,7 @@ public class WordCloudOpPartialExec implements OperatorExecutor {
         }
         else {
             try {
-                return(JavaConverters.asScalaIterator(calculateWordCount(textList, luceneAnalyzerName).iterator()));
+                return(JavaConverters.asScalaIterator(calculateWordCount(textList, luceneAnalyzer).iterator()));
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
