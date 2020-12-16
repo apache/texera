@@ -1,4 +1,3 @@
-
 name := "texera"
 organization := "edu.uci.ics"
 version := "0.1-SNAPSHOT"
@@ -80,7 +79,6 @@ libraryDependencies += "org.apache.arrow" % "flight-core" % "1.0.1"
 libraryDependencies += "org.apache.arrow" % "flight-grpc" % "1.0.1"
 libraryDependencies += "io.netty" % "netty-all" % "4.1.48.Final"
 
-
 // https://mvnrepository.com/artifact/mysql/mysql-connector-java
 libraryDependencies += "mysql" % "mysql-connector-java" % "8.0.19"
 
@@ -90,3 +88,4 @@ libraryDependencies += "org.apache.lucene" % "lucene-analyzers-smartcn" % "5.5.0
 // https://mvnrepository.com/artifact/org.jooq/jooq
 libraryDependencies += "org.jooq" % "jooq" % "3.14.4"
 
+libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.9.2"
