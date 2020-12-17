@@ -56,7 +56,8 @@ export class SchemaPropagationService {
       .flatMap(() => this.invokeSchemaPropagationAPI())
       .filter(response => response.code === 0)
       .subscribe(response => {
-        this._applySchemaPropagationResult(response.result)
+        console.log('response',response.result)
+        //this._applySchemaPropagationResult(response.result)
       });
 
   }
@@ -212,6 +213,10 @@ export class SchemaPropagationService {
 
 
 }
+export interface SchemaAttribute extends Readonly<{
+  attributeName: string,
+  attributeType: 'string' | 'integer' | 'double' | 'boolean' | 'ANY'
+}> { }
 
 /**
  * The backend interface of the return object of a successful execution
@@ -222,14 +227,15 @@ export class SchemaPropagationService {
  *  code: 0,
  *  result: {
  *    'operatorID1' : ['attribute1','attribute2','attribute3'],
- *    'operatorID2' : ['name', 'text', 'follower_count']
+ *    'operatorID2' : [{attributeName: 'name', attributeType: 'string'}, {attributeName: 'text', attributeType: 'string'}, {attributeName: 'follower_count', attributeType: 'string'}]
+ *
  *  }
  * }
  */
 export interface SchemaPropagationResponse extends Readonly<{
   code: 0,
   result: {
-    [key: string]: string[][]
+    [key: string]: ReadonlyArray<SchemaAttribute>
   }
 }> { }
 

@@ -422,7 +422,7 @@ export class PropertyEditorComponent {
         const operator = this.workflowActionService.getTexeraGraph().getOperator(highlightedOperators[0]);
         this.clearPropertyEditor();
         this.showOperatorPropertyEditor(operator);
-        this.changeTypeCastingOperator(operator)
+        this.changeTypeCastingOperator(operator);
       } else {
         this.clearPropertyEditor();
       }

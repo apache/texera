@@ -105,6 +105,7 @@ import { NZ_I18N } from 'ng-zorro-antd/i18n';
 import { en_US } from 'ng-zorro-antd/i18n';
 import { registerLocaleData } from '@angular/common';
 import en from '@angular/common/locales/en';
+import { FormlyMaterialModule } from '@ngx-formly/material';
 
 registerLocaleData(en);
 
@@ -174,7 +175,7 @@ registerLocaleData(en);
     ReactiveFormsModule,
     LoggerModule.forRoot({ level: environment.production ? NgxLoggerLevel.ERROR : NgxLoggerLevel.DEBUG, serverLogLevel: NgxLoggerLevel.OFF }),
     FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
-    FormlyNgZorroAntdModule,
+    FormlyMaterialModule,
 
     NzDropDownModule,
     NzButtonModule,
