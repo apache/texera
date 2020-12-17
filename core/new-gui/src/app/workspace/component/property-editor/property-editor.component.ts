@@ -88,8 +88,6 @@ export class PropertyEditorComponent {
 
   // show TypeInformation only when operator type is TypeCasting
   public showTypeCastingTypeInformation = false;
-  // TypeInformation HTML
-  public displayTypeCastingHTML = '';
 
   // used to fill in default values in json schema to initialize new operator
   private ajv = new Ajv({ useDefaults: true });
@@ -422,7 +420,7 @@ export class PropertyEditorComponent {
         const operator = this.workflowActionService.getTexeraGraph().getOperator(highlightedOperators[0]);
         this.clearPropertyEditor();
         this.showOperatorPropertyEditor(operator);
-        this.changeTypeCastingOperator(operator);
+        this.changeTypeCastingOperator(operator)
       } else {
         this.clearPropertyEditor();
       }
@@ -489,24 +487,6 @@ export class PropertyEditorComponent {
 
     if (operator.operatorType=='TypeCasting'){
       this.showTypeCastingTypeInformation = true;
-      var operatorAttributeAndTypeArray = this.workflowActionService.getOperatorIdToAttributeTypeMap(operator.operatorID);
-      if (operatorAttributeAndTypeArray) {
-        var index = operatorAttributeAndTypeArray[0].indexOf(this.formData.attribute)
-        var currentAttribute = this.formData.attribute
-        var cuurentAttributeType = operatorAttributeAndTypeArray[1][index];
-        var currentResultType = this.formData.CastingType
-        this.displayTypeCastingHTML =
-        `
-        <div>
-        <h3>TypeCasting Information</h3>
-        <label>
-          Attribute : `+ currentAttribute + ` <br>
-          Input type : `+ cuurentAttributeType + ` <br>
-          Result type : `+ currentResultType+ `
-        </label>
-        </div>`
-
-      }
     } else {
       this.showTypeCastingTypeInformation=false;
     }

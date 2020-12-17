@@ -18,6 +18,7 @@ import {
 import * as joint from 'jointjs';
 import { environment } from './../../../../../environments/environment';
 import { WorkflowEditorComponent } from './../../../component/workflow-editor/workflow-editor.component';
+import { SchemaAttribute } from '../../dynamic-schema/schema-propagation/schema-propagation.service';
 
 
 export interface Command {
@@ -417,8 +418,8 @@ export class WorkflowActionService {
    * @param operatorID
    * @param attributesMap
    */
-  public setOperatorIDToAttributeTypeArrayMap(operatorID:string, attributesMap:any){
-    this.texeraGraph.setOperatorIDToAttributeTypeArrayMap(operatorID, attributesMap);
+  public setOperatorIDToSchemaAttributeMap(operatorID:string, schemaAttribute:any){
+    this.texeraGraph.setOperatorIDToSchemaAttributeMap(operatorID, schemaAttribute);
   }
 
   /**
@@ -426,8 +427,8 @@ export class WorkflowActionService {
    *
    * @param operatorID
    */
-  public getOperatorIdToAttributeTypeMap(operatorID:string):string[][]|undefined {
-    return this.texeraGraph.getOperatorIdToAttributeTypeMap().get(operatorID);
+  public getOperatorIdToSchemaAttributeMap(operatorID:string):SchemaAttribute[]|undefined {
+    return this.texeraGraph.getOperatorIdToSchemaAttributeMap().get(operatorID);
   }
 
   private addOperatorInternal(operator: OperatorPredicate, point: Point): void {

@@ -56,8 +56,8 @@ export class SchemaPropagationService {
       .flatMap(() => this.invokeSchemaPropagationAPI())
       .filter(response => response.code === 0)
       .subscribe(response => {
-        console.log('response',response.result)
-        //this._applySchemaPropagationResult(response.result)
+
+        this._applySchemaPropagationResult(response.result)
       });
 
   }
@@ -74,18 +74,21 @@ export class SchemaPropagationService {
    * @param schemaPropagationResult
    * @param operatorID
    */
-  private _applySchemaPropagationResult(schemaPropagationResult: { [key: string]: string[][] }): void {
+  private _applySchemaPropagationResult(schemaPropagationResult: { [key: string]: ReadonlyArray<SchemaAttribute> }): void {
     // for each operator, try to apply schema propagation result
     Array.from(this.dynamicSchemaService.getDynamicSchemaMap().keys()).forEach(operatorID => {
       const currentDynamicSchema = this.dynamicSchemaService.getDynamicSchema(operatorID);
 
-      // setOperatorIDToAttributeTypeArrayMap the schemaPropagationResult[operatorID][0] is attribute name, schemaPropagationResult[operatorID][1] is attribute type
-      this.workflowActionService.setOperatorIDToAttributeTypeArrayMap(operatorID, schemaPropagationResult[operatorID])
+      // setOperatorIDToSchemaAttributeMap the schemaPropagationResult[operatorID] is attribute name, schemaPropagationResult[operatorID][1] is attribute type
+      if (schemaPropagationResult[operatorID]){
+        this.workflowActionService.setOperatorIDToSchemaAttributeMap(operatorID, schemaPropagationResult[operatorID])
+      }
+
 
       // if operator input attributes are in the result, set them in dynamic schema
       let newDynamicSchema: OperatorSchema;
       if (schemaPropagationResult[operatorID]) {
-        newDynamicSchema = SchemaPropagationService.setOperatorInputAttrs(currentDynamicSchema, schemaPropagationResult[operatorID][0]);
+        newDynamicSchema = SchemaPropagationService.setOperatorInputAttrs(currentDynamicSchema, schemaPropagationResult[operatorID].map(e => e.attributeName));
       } else {
         // otherwise, the input attributes of the operator is unknown
         // if the operator is not a source operator, restore its original schema of input attributes
@@ -164,14 +167,13 @@ export class SchemaPropagationService {
 
   public static setOperatorInputAttrs(operatorSchema: OperatorSchema, inputAttributes: ReadonlyArray<string> | undefined): OperatorSchema {
     // If the inputSchema is empty, just return the original operator metadata.
-    if (!inputAttributes || inputAttributes[0].length === 0) {
+    if (!inputAttributes || inputAttributes.length === 0) {
       return operatorSchema;
     }
 
     // TODO: Join operators have two inputs - inner and outer. Autocomplete API currently returns all attributes
     //       in a single array. So, we can't differentiate between inner and outer. Therefore, autocomplete isn't applicable
     //       to Join yet.
-
 
     let newJsonSchema = operatorSchema.jsonSchema;
 

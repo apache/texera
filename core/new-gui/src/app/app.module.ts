@@ -106,6 +106,7 @@ import { en_US } from 'ng-zorro-antd/i18n';
 import { registerLocaleData } from '@angular/common';
 import en from '@angular/common/locales/en';
 import { FormlyMaterialModule } from '@ngx-formly/material';
+import { TypecastingDisplayComponent } from './workspace/component/property-editor/typecasting-display/typecasting-display.component';
 
 registerLocaleData(en);
 
@@ -155,6 +156,7 @@ registerLocaleData(en);
     VisualizationPanelContentComponent,
     CodeareaCustomTemplateComponent,
     CodeEditorDialogComponent,
+    TypecastingDisplayComponent,
   ],
   imports: [
     BrowserModule,

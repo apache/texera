@@ -2,6 +2,7 @@ import { Subject } from 'rxjs/Subject';
 import { Observable } from 'rxjs/Observable';
 import { OperatorPredicate, OperatorLink, OperatorPort, Breakpoint } from '../../../types/workflow-common.interface';
 import { isEqual } from 'lodash';
+import { SchemaAttribute } from '../../dynamic-schema/schema-propagation/schema-propagation.service';
 
 // define the restricted methods that could change the graph
 type restrictedMethods =
@@ -26,7 +27,7 @@ export class WorkflowGraph {
   private readonly operatorIDMap = new Map<string, OperatorPredicate>();
   private readonly operatorLinkMap = new Map<string, OperatorLink>();
   private readonly linkBreakpointMap = new Map<string, Breakpoint>();
-  private readonly operatorIDToAttributeTypeMap = new Map<string, string[][]>();
+  private readonly operatorIDToSchemaAttributeMap = new Map<string, SchemaAttribute[]>();
 
 
   private readonly operatorAddSubject = new Subject<OperatorPredicate>();
@@ -415,14 +416,14 @@ export class WorkflowGraph {
    * @param operatorID
    * @param attibuteArrays
    */
-  public setOperatorIDToAttributeTypeArrayMap(operatorID:string, attibuteArrays:any){
-    this.operatorIDToAttributeTypeMap.set(operatorID, attibuteArrays);
+  public setOperatorIDToSchemaAttributeMap(operatorID:string, schemaAttribute:any){
+    this.operatorIDToSchemaAttributeMap.set(operatorID, schemaAttribute);
   }
   /**
-   * get this.operatorIDToAttributeTypeMap
+   * get this.operatorIDToSchemaAttributeMap
    */
-  public getOperatorIdToAttributeTypeMap(){
-    return this.operatorIDToAttributeTypeMap;
+  public getOperatorIdToSchemaAttributeMap(){
+    return this.operatorIDToSchemaAttributeMap;
   }
 
 
