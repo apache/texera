@@ -427,4 +427,15 @@ abstract class WorkerBase extends WorkflowActor {
         }
     }
 
+  def pausing: Receive = {
+    case ExecutionPaused =>
+      //wait for signal from dp thread
+      onPaused()
+      context.become(paused)
+      unstashAll()
+    case msg =>
+      //stash all other messages
+      stash()
+  }
+
 }
