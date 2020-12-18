@@ -18,7 +18,7 @@ abstract class DataTransferPolicy(var batchSize: Int) extends Serializable {
     * @param sender
     * @return
     */
-  def addToBatch(tuple: ITuple)(implicit
+  def addTupleToBatch(tuple: ITuple)(implicit
       sender: ActorRef = Actor.noSender
   ): Option[(ActorRef, Array[ITuple])]
 

@@ -100,7 +100,8 @@ class TupleToBatchConverter(val sender: ActorRef, val messagingManager: Messagin
   def passTupleToDownstream(tuple: ITuple): Unit = {
     var i = 0
     while (i < output.length) {
-      val receiverAndbatch: Option[(ActorRef, Array[ITuple])] = output(i).addToBatch(tuple)(sender)
+      val receiverAndbatch: Option[(ActorRef, Array[ITuple])] =
+        output(i).addTupleToBatch(tuple)(sender)
       receiverAndbatch match {
         case Some(rb) =>
           // send it to messaging layer to be sent downstream

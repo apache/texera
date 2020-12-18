@@ -23,7 +23,7 @@ class RoundRobinPolicy(batchSize: Int) extends DataTransferPolicy(batchSize) {
     return Array[(ActorRef, Array[ITuple])]()
   }
 
-  override def addToBatch(
+  override def addTupleToBatch(
       tuple: ITuple
   )(implicit sender: ActorRef): Option[(ActorRef, Array[ITuple])] = {
     batch(currentSize) = tuple

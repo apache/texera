@@ -25,7 +25,7 @@ class HashBasedShufflePolicy(batchSize: Int, val hashFunc: ITuple => Int)
     receiversAndBatches.toArray
   }
 
-  override def addToBatch(
+  override def addTupleToBatch(
       tuple: ITuple
   )(implicit sender: ActorRef): Option[(ActorRef, Array[ITuple])] = {
     val numBuckets = receivers.length

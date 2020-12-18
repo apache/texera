@@ -13,7 +13,7 @@ class OneToOnePolicy(batchSize: Int) extends DataTransferPolicy(batchSize) {
   var batch: Array[ITuple] = _
   var currentSize = 0
 
-  override def addToBatch(
+  override def addTupleToBatch(
       tuple: ITuple
   )(implicit sender: ActorRef): Option[(ActorRef, Array[ITuple])] = {
     batch(currentSize) = tuple
