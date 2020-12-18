@@ -251,7 +251,7 @@ export class NavigationComponent implements OnInit {
   }
 
   /**
-   * Delete all operators on the graph
+   * Delete all operators (including hidden ones) on the graph.
    */
   public onClickDeleteAllOperators(): void {
     const allOperatorIDs = this.workflowActionService.getTexeraGraph().getAllOperators().map(op => op.operatorID);
@@ -263,6 +263,45 @@ export class NavigationComponent implements OnInit {
    */
   public hasOperators(): boolean {
     return this.workflowActionService.getTexeraGraph().getAllOperators().length > 0;
+  }
+
+  /**
+   * Groups highlighted operators on the graph.
+   */
+  public onClickGroupOperators(): void {
+    const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+    if (this.highlightedElementsGroupable()) {
+      const group = this.workflowActionService.getOperatorGroup().getNewGroup(highlightedOperators);
+      this.workflowActionService.addGroups(group);
+    }
+  }
+
+  /**
+   * Returns true if currently highlighted elements are all operators
+   * and if they are groupable.
+   */
+  public highlightedElementsGroupable(): boolean {
+    const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+    return this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs().length === 0 &&
+      this.workflowActionService.getOperatorGroup().operatorsGroupable(highlightedOperators);
+  }
+
+  /**
+   * Ungroups highlighted groups on the graph.
+   */
+  public onClickUngroupOperators(): void {
+    const highlightedGroups = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
+    if (this.highlightedElementsUngroupable()) {
+      this.workflowActionService.unGroupGroups(...highlightedGroups);
+    }
+  }
+
+  /**
+   * Returns true if currently highlighted elements are all groups.
+   */
+  public highlightedElementsUngroupable(): boolean {
+    return this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs().length > 0 &&
+      this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs().length === 0;
   }
 
   public onClickSaveWorkflow(): void {

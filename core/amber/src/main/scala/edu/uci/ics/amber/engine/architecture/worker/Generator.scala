@@ -97,10 +97,7 @@ class Generator(var operator: IOperatorExecutor, val tag: WorkerTag)
       // insert dummy batch to unblock dp thread
       workerInternalQueue.addDummyInput()
     }
-    pauseManager.waitForDPThread()
-    onPaused()
-    context.become(paused)
-    unstashAll()
+    context.become(pausing)
   }
 
   override def onInitialization(recoveryInformation: Seq[(Long, Long)]): Unit = {

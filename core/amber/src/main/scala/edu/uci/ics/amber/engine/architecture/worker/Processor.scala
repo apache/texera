@@ -171,10 +171,7 @@ class Processor(var operator: IOperatorExecutor, val tag: WorkerTag) extends Wor
       // insert dummy batch to unblock dp thread
       workerInternalQueue.addDummyInput()
     }
-    pauseManager.waitForDPThread()
-    onPaused()
-    context.become(paused)
-    unstashAll()
+    context.become(pausing)
   }
 
   override def onInitialization(recoveryInformation: Seq[(Long, Long)]): Unit = {
