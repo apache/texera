@@ -1,4 +1,6 @@
 import { Component, Input, OnInit } from '@angular/core';
+import { Observable } from 'rxjs';
+import { DynamicSchemaService } from 'src/app/workspace/service/dynamic-schema/dynamic-schema.service';
 import { WorkflowActionService } from 'src/app/workspace/service/workflow-graph/model/workflow-action.service';
 
 @Component({
@@ -8,24 +10,33 @@ import { WorkflowActionService } from 'src/app/workspace/service/workflow-graph/
 })
 export class TypecastingDisplayComponent implements OnInit {
   public inputType: string|undefined;
+  public showTypeCastingTypeInformation: boolean = false;
   @Input() data: any = {};
   @Input() operatorID: string = '';
   constructor(
-    private workflowActionService: WorkflowActionService
+    private workflowActionService: WorkflowActionService,
   ) {
-
   }
 
   ngOnInit(): void {
-    this.inputType=this.getInputType(this.operatorID)
   }
 
-  public getInputType(operatorID: string):string|undefined {
 
-    var operatorAttributeAndTypeArray = this.workflowActionService.getOperatorIdToSchemaAttributeMap(operatorID)
-    var inputType:string|undefined = operatorAttributeAndTypeArray?.filter(e=>
-      e.attributeName==this.data.attribute
-    ).map(e=> e.attributeType)[0]
+  public TypeCastingTypeInformation(operatorID: string) {
+    const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorID)
+    if (operator.operatorType == 'TypeCasting') {
+      this.showTypeCastingTypeInformation=true;
+    } else {
+      this.showTypeCastingTypeInformation=false;
+    }
+    return this.showTypeCastingTypeInformation;
+  }
+  
+  public getInputType(operatorID: string):string|undefined {
+    var inputType:string|undefined = this.workflowActionService.
+    getOperatorIdToSchemaAttributeMap(operatorID)
+    ?.filter(e=>e.attributeName==this.data.attribute)
+    .map(e=> e.attributeType)[0]
     return inputType
   }
 

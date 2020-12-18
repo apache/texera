@@ -349,7 +349,6 @@ export class PropertyEditorComponent {
         if (event.operatorID === this.currentOperatorID) {
           const currentOperatorSchema = this.autocompleteService.getDynamicSchema(this.currentOperatorID);
           const operator = this.workflowActionService.getTexeraGraph().getOperator(event.operatorID);
-          this.changeTypeCastingOperator(operator)
           if (!operator) {
             throw new Error(`operator ${event.operatorID} does not exist`);
           }
@@ -394,7 +393,7 @@ export class PropertyEditorComponent {
       // set the operator property to be the new form data
       if (this.currentOperatorID) {
         const operator = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorID);
-        this.changeTypeCastingOperator(operator)
+
         this.workflowActionService.setOperatorProperty(this.currentOperatorID, formData);
         this.workflowActionService.setOperatorProperty(this.currentOperatorID, cloneDeep(formData));
       }
@@ -420,7 +419,7 @@ export class PropertyEditorComponent {
         const operator = this.workflowActionService.getTexeraGraph().getOperator(highlightedOperators[0]);
         this.clearPropertyEditor();
         this.showOperatorPropertyEditor(operator);
-        this.changeTypeCastingOperator(operator)
+
       } else {
         this.clearPropertyEditor();
       }
@@ -479,18 +478,5 @@ export class PropertyEditorComponent {
     this.formlyFields = [field];
   }
 
-  /**
-   * This function will change TypeCastingOpertor showing in the property panel
-   * @param operator
-   */
-  public changeTypeCastingOperator(operator:OperatorPredicate){
-
-    if (operator.operatorType=='TypeCasting'){
-      this.showTypeCastingTypeInformation = true;
-    } else {
-      this.showTypeCastingTypeInformation=false;
-    }
-
-  }
 
 }

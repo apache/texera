@@ -11,9 +11,7 @@
       [form]="formlyFormGroup"
       (modelChange) = "onFormChanges($event)">
       </formly-form>
-      <div *ngIf="showTypeCastingTypeInformation">
-        <texera-typecasting-display [data]='formData' [operatorID]='currentOperatorID'></texera-typecasting-display>
-      </div>
+      <texera-typecasting-display [data]='formData' [operatorID]='currentOperatorID' ></texera-typecasting-display>
     </form>
 
     <button *ngIf="currentLinkID !== undefined && !hasBreakpoint()" type="button" class="breakpointRemoveButton"
