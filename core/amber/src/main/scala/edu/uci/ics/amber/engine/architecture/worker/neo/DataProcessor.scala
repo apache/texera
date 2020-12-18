@@ -5,6 +5,7 @@ import java.util.concurrent.Executors
 import akka.actor.ActorRef
 import edu.uci.ics.amber.engine.architecture.breakpoint.localbreakpoint.ExceptionBreakpoint
 import edu.uci.ics.amber.engine.architecture.worker.BreakpointSupport
+import edu.uci.ics.amber.engine.architecture.worker.TupleToBatchConverter
 import edu.uci.ics.amber.engine.common.amberexception.BreakpointException
 import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage.LocalBreakpointTriggered
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.ExecutionCompleted

@@ -1,6 +1,5 @@
 package edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy
 
-import edu.uci.ics.amber.engine.architecture.sendsemantics.routees.BaseRoutee
 import edu.uci.ics.amber.engine.common.ambertag.LinkTag
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import akka.actor.{Actor, ActorContext, ActorRef}
@@ -12,15 +11,20 @@ import scala.concurrent.ExecutionContext
 abstract class DataTransferPolicy(var batchSize: Int) extends Serializable {
   var tag: LinkTag = _
 
-  def accept(tuple: ITuple)(implicit sender: ActorRef = Actor.noSender): Unit
+  /**
+    * Keeps on adding tuples to the batch. When the batch_size is reached, the batch is returned along with the receiver
+    * to send the batch to.
+    * @param tuple
+    * @param sender
+    * @return
+    */
+  def addTupleToBatch(tuple: ITuple)(implicit
+      sender: ActorRef = Actor.noSender
+  ): Option[(ActorRef, Array[ITuple])]
 
-  def noMore()(implicit sender: ActorRef = Actor.noSender): Unit
+  def noMore()(implicit sender: ActorRef = Actor.noSender): Array[(ActorRef, Array[ITuple])]
 
-  def pause(): Unit
-
-  def resume()(implicit sender: ActorRef): Unit
-
-  def initialize(linkTag: LinkTag, next: Array[BaseRoutee])(implicit
+  def initialize(linkTag: LinkTag, receivers: Array[ActorRef])(implicit
       ac: ActorContext,
       sender: ActorRef,
       timeout: Timeout,
@@ -28,10 +32,8 @@ abstract class DataTransferPolicy(var batchSize: Int) extends Serializable {
       log: LoggingAdapter
   ): Unit = {
     this.tag = linkTag
-    next.foreach(x => log.info("link: {}", x))
+    receivers.foreach(x => log.info("link: {}", x))
   }
-
-  def dispose(): Unit
 
   def reset(): Unit
 
