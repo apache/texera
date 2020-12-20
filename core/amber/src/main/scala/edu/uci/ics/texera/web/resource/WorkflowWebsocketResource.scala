@@ -1,9 +1,7 @@
 package edu.uci.ics.texera.web.resource
 
 import java.util.concurrent.atomic.AtomicInteger
-
 import akka.actor.{ActorRef, PoisonPill}
-import com.fasterxml.jackson.databind.node.ObjectNode
 import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerEventListener}
 import edu.uci.ics.amber.engine.architecture.principal.PrincipalStatistics
 import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage._
@@ -13,13 +11,14 @@ import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.texera.web.TexeraWebApplication
 import edu.uci.ics.texera.web.model.event._
 import edu.uci.ics.texera.web.model.request._
+import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.sessionResults
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.workflow.{WorkflowCompiler, WorkflowInfo}
 import edu.uci.ics.texera.workflow.common.{Utils, WorkflowContext}
 import edu.uci.ics.texera.workflow.operators.sink.SimpleSinkOpDesc
+
 import javax.websocket._
 import javax.websocket.server.ServerEndpoint
-
 import scala.collection.mutable
 
 object WorkflowWebsocketResource {
@@ -28,16 +27,13 @@ object WorkflowWebsocketResource {
 
   val sessionMap = new mutable.HashMap[String, Session]
   val sessionJobs = new mutable.HashMap[String, (WorkflowCompiler, ActorRef)]
-
+  val sessionResults = new mutable.HashMap[String, List[ITuple]]
 }
 
 @ServerEndpoint("/wsapi/workflow-websocket")
 class WorkflowWebsocketResource {
 
   final val objectMapper = Utils.objectMapper
-
-  // variable for storing previous WorkflowCompleted event result
-  var completedResults: Map[String, List[ITuple]] = _
 
   @OnOpen
   def myOnOpen(session: Session): Unit = {
@@ -87,6 +83,8 @@ class WorkflowWebsocketResource {
       println(s"session ${session.getId} disconnected, kill its controller actor")
       this.killWorkflow(session)
     }
+
+    sessionResults.clear()
   }
 
   def send(session: Session, event: TexeraWebSocketEvent): Unit = {
@@ -95,7 +93,7 @@ class WorkflowWebsocketResource {
 
   def resultPagination(session: Session, request: ResultPaginationRequest): Unit = {
     val paginatedResultEvent = PaginatedResultEvent(
-      completedResults
+      sessionResults
         .map {
           case (operatorID, table) =>
             (
@@ -110,7 +108,7 @@ class WorkflowWebsocketResource {
         }
         .map {
           case (operatorID, objNodes) =>
-            PaginatedOperatorResult(operatorID, objNodes, completedResults(operatorID).size)
+            PaginatedOperatorResult(operatorID, objNodes, sessionResults(operatorID).size)
         }
         .toList
     )
@@ -183,7 +181,8 @@ class WorkflowWebsocketResource {
 
     val eventListener = ControllerEventListener(
       workflowCompletedListener = completed => {
-        completedResults = completed.result
+        sessionResults.clear()
+        sessionResults ++= completed.result
         send(session, WorkflowCompletedEvent.apply(completed, texeraWorkflowCompiler))
         WorkflowWebsocketResource.sessionJobs.remove(session.getId)
       },
@@ -247,6 +246,6 @@ class WorkflowWebsocketResource {
 
   // get n-th page of completedResult (each page has 10 items)
   def getCompletedResultPageN(n: Int): Map[String, List[ITuple]] = {
-    completedResults map { case (k, v) => (k, v.slice(10 * (n - 1), 10 * n - 1)) }
+    sessionResults.toMap map { case (k, v) => (k, v.slice(10 * (n - 1), 10 * n - 1)) }
   }
 }

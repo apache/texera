@@ -26,9 +26,6 @@ object WorkflowCompletedEvent {
     val resultList = new mutable.MutableList[OperatorResult]
     workflowCompleted.result.foreach(pair => {
       val operatorID = pair._1
-      val table = pair._2
-        .slice(0, defaultPageSize)
-        .map(tuple => tuple.asInstanceOf[Tuple].asKeyValuePairJson())
 
       // add chartType to result
       val precedentOpID =
@@ -38,6 +35,15 @@ object WorkflowCompletedEvent {
       val chartType = precedentOp match {
         case operator: VisualizationOperator => operator.chartType()
         case _                               => null
+      }
+
+      val table = precedentOp match {
+        case _: VisualizationOperator =>
+          pair._2.map(tuple => tuple.asInstanceOf[Tuple].asKeyValuePairJson())
+        case _ =>
+          pair._2
+            .slice(0, defaultPageSize)
+            .map(tuple => tuple.asInstanceOf[Tuple].asKeyValuePairJson())
       }
 
       resultList += OperatorResult(operatorID, table, chartType, pair._2.length)
