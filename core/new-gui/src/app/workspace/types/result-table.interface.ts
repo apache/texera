@@ -40,11 +40,12 @@ export const PAGINATION_INFO_STORAGE_KEY = 'result-panel-pagination-info';
  * ResultPaginationInfo stores pagination information
  *   that is needed for status retainment of the result panel
  */
-export interface ResultPaginationInfo {
+export interface ResultPaginationInfo extends Readonly<{
   newWorkflowExecuted: boolean;
   currentResult: object[];
   currentPageIndex: number;
   currentPageSize: number;
   total: number;
   columnKeys: string[];
-}
+  operatorID: string
+}> {}

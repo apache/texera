@@ -185,8 +185,7 @@ export class ExecuteWorkflowService {
     // instead of those stored in the session storage
     const resultPaginationInfo = sessionGetObject<ResultPaginationInfo>(PAGINATION_INFO_STORAGE_KEY);
     if (resultPaginationInfo) {
-      resultPaginationInfo.newWorkflowExecuted = true;
-      sessionSetObject(PAGINATION_INFO_STORAGE_KEY, resultPaginationInfo);
+      sessionSetObject(PAGINATION_INFO_STORAGE_KEY, {...resultPaginationInfo, newWorkflowExecuted: true});
     }
   }
 

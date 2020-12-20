@@ -3,20 +3,15 @@ import { ExecuteWorkflowService } from './../../service/execute-workflow/execute
 import { Observable } from 'rxjs/Observable';
 
 import { NzModalRef, NzModalService } from 'ng-zorro-antd/modal';
-import { ExecutionResult, SuccessExecutionResult, ExecutionState, ExecutionStateInfo } from './../../types/execute-workflow.interface';
+import { ExecutionState } from './../../types/execute-workflow.interface';
 import { TableColumn, IndexableObject, PAGINATION_INFO_STORAGE_KEY } from './../../types/result-table.interface';
 import { ResultPanelToggleService } from './../../service/result-panel-toggle/result-panel-toggle.service';
 import deepMap from 'deep-map';
-import { isEqual, repeat, range } from 'lodash';
-import { ResultObject } from '../../types/execute-workflow.interface';
+import { isEqual } from 'lodash';
 import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
 import { BreakpointTriggerInfo } from '../../types/workflow-common.interface';
 import { NzTableQueryParams } from 'ng-zorro-antd/table';
 import { WorkflowWebsocketService } from '../../service/workflow-websocket/workflow-websocket.service';
-import { OperatorMetadata } from '../../types/operator-schema.interface';
-import { OperatorMetadataService } from '../../service/operator-metadata/operator-metadata.service';
-import { DynamicSchemaService } from '../../service/dynamic-schema/dynamic-schema.service';
-import { environment } from 'src/environments/environment';
 import { assertType } from 'src/app/common/util/assert';
 import { ResultPaginationInfo } from '../../types/result-table.interface';
 import { sessionGetObject, sessionRemoveObject, sessionSetObject } from 'src/app/common/util/storage';
@@ -73,6 +68,7 @@ export class ResultPanelComponent {
   // this starts from **ONE**, not zero
   public currentPageIndex: number = 1;
   public total: number = 0;
+  private operatorID: string = '';
 
   constructor(
     private executeWorkflowService: ExecuteWorkflowService,
@@ -154,7 +150,7 @@ export class ResultPanelComponent {
         this.breakpointTriggerInfo = breakpointTriggerInfo;
         this.breakpointAction = true;
         const result = breakpointTriggerInfo.report.map(r => r.faultedTuple.tuple).filter(t => t !== undefined);
-        this.setupResultTable(result, result.length);
+        this.setupResultTable(result, result.length, highlightedOperators[0]);
         const errorsMessages: Record<string, string> = {};
         breakpointTriggerInfo.report.forEach(r => {
           const pathsplitted = r.actorPath.split('/');
@@ -172,7 +168,7 @@ export class ResultPanelComponent {
         if (result) {
           this.chartType = result.chartType;
           this.isFrontPagination = false;
-          this.setupResultTable(result.table, result.totalRowCount);
+          this.setupResultTable(result.table, result.totalRowCount, highlightedOperators[0]);
         }
       }
     } else if (executionState.state === ExecutionState.Paused) {
@@ -186,7 +182,7 @@ export class ResultPanelComponent {
             updatedTuple.push(...workerTuple.tuple);
             resultTable.push(updatedTuple);
           });
-          this.setupResultTable(resultTable, resultTable.length);
+          this.setupResultTable(resultTable, resultTable.length, highlightedOperators[0]);
         }
       }
     }
@@ -197,11 +193,14 @@ export class ResultPanelComponent {
     //   when user click the "view result" operator again
     const resultPaginationInfo = sessionGetObject<ResultPaginationInfo>(PAGINATION_INFO_STORAGE_KEY);
     if (resultPaginationInfo && !resultPaginationInfo.newWorkflowExecuted && this.currentResult.length > 0) {
-      resultPaginationInfo.currentResult = this.currentResult;
-      resultPaginationInfo.currentPageIndex = this.currentPageIndex;
-      resultPaginationInfo.currentPageSize = this.currentPageSize;
-      resultPaginationInfo.total = this.total;
-      sessionSetObject(PAGINATION_INFO_STORAGE_KEY, resultPaginationInfo);
+      sessionSetObject(PAGINATION_INFO_STORAGE_KEY, {
+        ...resultPaginationInfo,
+        currentResult: this.currentResult,
+        currentPageIndex: this.currentPageIndex,
+        currentPageSize: this.currentPageSize,
+        total: this.total,
+        operatorID: this.operatorID
+      });
     }
 
     this.errorMessages = undefined;
@@ -306,8 +305,10 @@ export class ResultPanelComponent {
    *
    * @param resultData rows of the result (may not be all rows if displaying result for workflow completed event)
    * @param totalRowCount the total number of rows for the result
+   * @param operatorID id of the operator providing data
    */
-  private setupResultTable(resultData: ReadonlyArray<object>, totalRowCount: number) {
+  private setupResultTable(resultData: ReadonlyArray<object>, totalRowCount: number, operatorID: string) {
+    this.operatorID = operatorID;
 
     if (resultData.length < 1) {
       return;
@@ -316,7 +317,7 @@ export class ResultPanelComponent {
     // if there is no new result
     //   then restore the previous paginated result data from session storage
     let resultPaginationInfo = sessionGetObject<ResultPaginationInfo>(PAGINATION_INFO_STORAGE_KEY);
-    if (resultPaginationInfo && !resultPaginationInfo.newWorkflowExecuted) {
+    if (resultPaginationInfo && !resultPaginationInfo.newWorkflowExecuted && resultPaginationInfo.operatorID === this.operatorID) {
       this.isFrontPagination = false;
       this.currentResult = resultPaginationInfo.currentResult;
       this.currentPageIndex = resultPaginationInfo.currentPageIndex;
@@ -365,7 +366,8 @@ export class ResultPanelComponent {
       currentPageIndex: this.currentPageIndex,
       currentPageSize: this.currentPageSize,
       total: this.total,
-      columnKeys: columnKeys
+      columnKeys: columnKeys,
+      operatorID: this.operatorID
     };
     sessionSetObject(PAGINATION_INFO_STORAGE_KEY, resultPaginationInfo);
   }
