@@ -80,8 +80,8 @@ export class ResultPanelComponent {
     const activeStates: ExecutionState[] = [ExecutionState.Completed, ExecutionState.Failed, ExecutionState.BreakpointTriggered];
     Observable.merge(
       this.executeWorkflowService.getExecutionStateStream(),
-      this.workflowActionService.getJointGraphWrapper().getJointCellHighlightStream(),
-      this.workflowActionService.getJointGraphWrapper().getJointCellUnhighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getJointOperatorHighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getJointOperatorUnhighlightStream(),
       this.resultPanelToggleService.getToggleChangeStream()
     ).subscribe(trigger => this.displayResultPanel());
 
@@ -91,7 +91,7 @@ export class ResultPanelComponent {
       if (event.current.state === ExecutionState.BreakpointTriggered) {
         const breakpointOperator = this.executeWorkflowService.getBreakpointTriggerInfo()?.operatorID;
         if (breakpointOperator) {
-          this.workflowActionService.getJointGraphWrapper().highlightOperator(breakpointOperator);
+          this.workflowActionService.getJointGraphWrapper().highlightOperators(breakpointOperator);
         }
         this.resultPanelToggleService.openResultPanel();
       }
@@ -102,7 +102,7 @@ export class ResultPanelComponent {
         const sinkOperators = this.workflowActionService.getTexeraGraph().getAllOperators()
           .filter(op => op.operatorType.toLowerCase().includes('sink'));
         if (sinkOperators.length > 0) {
-          this.workflowActionService.getJointGraphWrapper().highlightOperator(sinkOperators[0].operatorID);
+          this.workflowActionService.getJointGraphWrapper().highlightOperators(sinkOperators[0].operatorID);
         }
         this.resultPanelToggleService.openResultPanel();
       }

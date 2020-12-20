@@ -1,58 +1,50 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
-import edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy.DataTransferPolicy
-import edu.uci.ics.amber.engine.architecture.sendsemantics.routees.BaseRoutee
-import edu.uci.ics.amber.engine.common.amberexception.BreakpointException
-import edu.uci.ics.amber.engine.common.ambertag.{LayerTag, LinkTag}
-import edu.uci.ics.amber.engine.common.tuple.ITuple
 import akka.actor.{ActorContext, ActorRef}
 import akka.event.LoggingAdapter
 import akka.util.Timeout
+import edu.uci.ics.amber.engine.architecture.messaginglayer.MessagingManager
+import edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy.DataTransferPolicy
+import edu.uci.ics.amber.engine.architecture.sendsemantics.routees.BaseRoutee
+import edu.uci.ics.amber.engine.common.amberexception.BreakpointException
+import edu.uci.ics.amber.engine.common.ambertag.LinkTag
+import edu.uci.ics.amber.engine.common.tuple.ITuple
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 import scala.util.control.Breaks
 
-trait DataTransferSupport extends BreakpointSupport {
+class TupleToBatchConverter(val sender: ActorRef, val messagingManager: MessagingManager)
+    extends BreakpointSupport {
   var output = new Array[DataTransferPolicy](0)
   var skippedInputTuples = new mutable.HashSet[ITuple]
   var skippedOutputTuples = new mutable.HashSet[ITuple]
 
   def pauseDataTransfer(): Unit = {
-    var i = 0
-    while (i < output.length) {
-      output(i).pause()
-      i += 1
-    }
+    messagingManager.pauseDataSending()
   }
 
-  def resumeDataTransfer()(implicit sender: ActorRef): Unit = {
-    var i = 0
-    while (i < output.length) {
-      output(i).resume()
-      i += 1
-    }
+  def resumeDataTransfer(): Unit = {
+    messagingManager.resumeDataSending()(sender)
   }
 
-  def endDataTransfer()(implicit sender: ActorRef): Unit = {
+  def endDataTransfer(): Unit = {
     var i = 0
     while (i < output.length) {
-      output(i).noMore()
+      val receiversAndBatches: Array[(ActorRef, Array[ITuple])] = output(i).noMore()(sender)
+      receiversAndBatches.foreach(rb => messagingManager.sendDataMessage(rb._1, rb._2)(sender))
       i += 1
     }
+    messagingManager.sendEndDataMessage()(sender)
   }
 
-  def cleanUpDataTransfer()(implicit sender: ActorRef): Unit = {
-    var i = 0
-    while (i < output.length) {
-      output(i).dispose()
-      i += 1
-    }
+  def cleanUpDataTransfer(): Unit = {
     //clear all data transfer policies
     output = Array()
+    messagingManager.disposeDataSenders()
   }
 
-  def transferTuple(tuple: ITuple, tupleId: Long)(implicit sender: ActorRef): Unit = {
+  def transferTuple(tuple: ITuple, tupleId: Long): Unit = {
     if (tuple != null && !skippedOutputTuples.contains(tuple)) {
       var i = 1
       var breakpointTriggered = false
@@ -67,12 +59,8 @@ trait DataTransferSupport extends BreakpointSupport {
         needUserFix |= breakpoints(i).needUserFix
         i += 1
       }
-      i = 0
       if (!needUserFix) {
-        while (i < output.length) {
-          output(i).accept(tuple)
-          i += 1
-        }
+        passTupleToDownstream(tuple)
       }
       if (breakpointTriggered) {
         throw new BreakpointException()
@@ -80,7 +68,7 @@ trait DataTransferSupport extends BreakpointSupport {
     }
   }
 
-  def updateOutput(policy: DataTransferPolicy, tag: LinkTag, receivers: Array[BaseRoutee])(implicit
+  def updateOutput(policy: DataTransferPolicy, tag: LinkTag, senders: Array[BaseRoutee])(implicit
       ac: ActorContext,
       sender: ActorRef,
       timeout: Timeout,
@@ -88,11 +76,11 @@ trait DataTransferSupport extends BreakpointSupport {
       log: LoggingAdapter
   ): Unit = {
     var i = 0
-    policy.initialize(tag, receivers)
+    policy.initialize(tag, senders.map(_.receiver))
+    messagingManager.updateReceiverAndSender(senders, tag)(ac, sender, timeout, ec, log)
     Breaks.breakable {
       while (i < output.length) {
         if (output(i).tag == policy.tag) {
-          output(i).dispose()
           output(i) = policy
           Breaks.break()
         }
@@ -105,6 +93,23 @@ trait DataTransferSupport extends BreakpointSupport {
   def resetOutput(): Unit = {
     output.foreach {
       _.reset()
+    }
+    messagingManager.resetDataSending()
+  }
+
+  def passTupleToDownstream(tuple: ITuple): Unit = {
+    var i = 0
+    while (i < output.length) {
+      val receiverAndbatch: Option[(ActorRef, Array[ITuple])] =
+        output(i).addTupleToBatch(tuple)(sender)
+      receiverAndbatch match {
+        case Some(rb) =>
+          // send it to messaging layer to be sent downstream
+          messagingManager.sendDataMessage(rb._1, rb._2)(sender)
+        case None =>
+        // Do nothing
+      }
+      i += 1
     }
   }
 

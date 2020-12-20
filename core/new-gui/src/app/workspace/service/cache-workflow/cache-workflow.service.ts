@@ -5,6 +5,7 @@ import { OperatorMetadataService } from '../operator-metadata/operator-metadata.
 import { WorkflowActionService } from '../workflow-graph/model/workflow-action.service';
 import { WorkflowInfo, Workflow } from '../../../common/type/workflow';
 import { localGetObject, localSetObject } from '../../../common/util/storage';
+import { Group } from '../workflow-graph/model/operator-group';
 
 
 /**
@@ -37,6 +38,7 @@ export class CacheWorkflowService {
       operators: [],
       operatorPositions: {},
       links: [],
+      groups: [],
       breakpoints: {},
     },
     creationTime: 0,
@@ -81,17 +83,22 @@ export class CacheWorkflowService {
       operatorsAndPositions.push({op: op, pos: opPosition});
     });
 
-    const links: OperatorLink[] = [];
-    links.push(...workflowInfo.links);
+    const links: OperatorLink[] = workflowInfo.links;
+
+    const groups: readonly Group[] = workflowInfo.groups.map(group => {
+      return {groupID: group.groupID, operators: this.recordToMap(group.operators),
+        links: this.recordToMap(group.links), inLinks: group.inLinks, outLinks: group.outLinks,
+        collapsed: group.collapsed};
+    });
 
     const breakpoints = new Map(Object.entries(workflowInfo.breakpoints));
 
-    this.workflowActionService.addOperatorsAndLinks(operatorsAndPositions, links, breakpoints);
+    this.workflowActionService.addOperatorsAndLinks(operatorsAndPositions, links, groups, breakpoints);
 
     // operators shouldn't be highlighted during page reload
     const jointGraphWrapper = this.workflowActionService.getJointGraphWrapper();
     jointGraphWrapper.unhighlightOperators(
-      jointGraphWrapper.getCurrentHighlightedOperatorIDs());
+      ...jointGraphWrapper.getCurrentHighlightedOperatorIDs());
     // restore the view point
     this.workflowActionService.getJointGraphWrapper().restoreDefaultZoomAndOffset();
   }
@@ -106,23 +113,32 @@ export class CacheWorkflowService {
       this.workflowActionService.getTexeraGraph().getOperatorDeleteStream(),
       this.workflowActionService.getTexeraGraph().getLinkAddStream(),
       this.workflowActionService.getTexeraGraph().getLinkDeleteStream(),
+      this.workflowActionService.getOperatorGroup().getGroupAddStream(),
+      this.workflowActionService.getOperatorGroup().getGroupDeleteStream(),
+      this.workflowActionService.getOperatorGroup().getGroupCollapseStream(),
+      this.workflowActionService.getOperatorGroup().getGroupExpandStream(),
       this.workflowActionService.getTexeraGraph().getOperatorPropertyChangeStream(),
       this.workflowActionService.getTexeraGraph().getBreakpointChangeStream(),
-      this.workflowActionService.getJointGraphWrapper().getOperatorPositionChangeEvent()
+      this.workflowActionService.getJointGraphWrapper().getElementPositionChangeEvent()
     ).debounceTime(100).subscribe(() => {
       const workflow1 = this.workflowActionService.getTexeraGraph();
 
       const operators = workflow1.getAllOperators();
       const links = workflow1.getAllLinks();
+      const groups = this.workflowActionService.getOperatorGroup().getAllGroups().map(group => {
+        return {groupID: group.groupID, operators: this.mapToRecord(group.operators),
+          links: this.mapToRecord(group.links), inLinks: group.inLinks, outLinks: group.outLinks,
+          collapsed: group.collapsed};
+      });
       const operatorPositions: { [key: string]: Point } = {};
       const breakpointsMap = workflow1.getAllLinkBreakpoints();
       const breakpoints: Record<string, Breakpoint> = {};
       breakpointsMap.forEach((value, key) => (breakpoints[key] = value));
       workflow1.getAllOperators().forEach(op => operatorPositions[op.operatorID] =
-        this.workflowActionService.getJointGraphWrapper().getOperatorPosition(op.operatorID));
+        this.workflowActionService.getOperatorGroup().getOperatorPositionByGroup(op.operatorID));
 
       const cachedWorkflow: WorkflowInfo = {
-        operators, operatorPositions, links, breakpoints
+        operators, operatorPositions, links, groups, breakpoints
       };
       let workflow: Workflow | null = this.getCachedWorkflow();
       if (workflow == null) {
@@ -178,5 +194,28 @@ export class CacheWorkflowService {
     }
   }
 
+  /**
+   * Converts ES6 Map object to TS Record object.
+   * This method is used to stringify Map objects.
+   * @param map
+   */
+  private mapToRecord(map: Map<string, any>): Record<string, any> {
+    const record: Record<string, any> = {};
+    map.forEach((value, key) => record[key] = value);
+    return record;
+  }
+
+  /**
+   * Converts TS Record object to ES6 Map object.
+   * This method is used to construct Map objects from JSON.
+   * @param record
+   */
+  private recordToMap(record: Record<string, any>): Map<string, any> {
+    const map = new Map<string, any>();
+    for (const key of Object.keys(record)) {
+      map.set(key, record[key]);
+    }
+    return map;
+  }
 
 }

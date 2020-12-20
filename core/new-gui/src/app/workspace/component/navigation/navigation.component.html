@@ -2,7 +2,7 @@
   <div class='texera-navigation-padded'>
     <div class='texera-navigation-title'>
       <a href="#">
-        Texera <span class="version-number">0.5.1</span><span class="git-commit-hash"> {{gitCommitHash}}</span>
+        Texera
       </a>
     </div>
     <div class='texera-navigation-utilities'>
@@ -47,6 +47,12 @@
             </li>
           </ul>
         </nz-dropdown-menu>
+        <button nz-button [disabled] = "!highlightedElementsGroupable()" (click)="onClickGroupOperators()" title="group">
+          <i nz-icon nzType="group" nzTheme="outline"></i>
+        </button>
+        <button nz-button [disabled] = "!highlightedElementsUngroupable()" (click)="onClickUngroupOperators()" title="ungroup">
+          <i nz-icon nzType="ungroup" nzTheme="outline"></i>
+        </button>
       </nz-button-group>
     </div>
 
