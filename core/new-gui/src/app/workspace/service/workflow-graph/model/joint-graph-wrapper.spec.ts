@@ -768,8 +768,6 @@ describe('JointGraphWrapperService', () => {
           expect(localJointGraphWrapper.getLinkIDsWithBreakpoint()).toEqual([mockScanResultLink.linkID]);
         }
       });
-
-      expect(true).toEqual(false);
     }));
 
     it('should emit an hide breakpoint event correctly when removing a breakpoint', marbles((m) => {
