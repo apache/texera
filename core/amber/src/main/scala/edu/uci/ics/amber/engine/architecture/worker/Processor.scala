@@ -71,7 +71,7 @@ class Processor(var operator: IOperatorExecutor, val tag: WorkerTag) extends Wor
     if (!faultedTuple.isInput) {
       var i = 0
       while (i < tupleOutput.output.length) {
-        tupleOutput.output(i).accept(faultedTuple.tuple)
+        tupleOutput.output(i).addTupleToBatch(faultedTuple.tuple)
         i += 1
       }
     } else {
@@ -130,10 +130,9 @@ class Processor(var operator: IOperatorExecutor, val tag: WorkerTag) extends Wor
 
   def onSaveDataMessage(seq: Long, payload: Array[ITuple]): Unit = {
     messagingManager.receiveMessage(DataMessage(seq, payload), sender)
-    val currentEdge = input.actorToEdge(sender)
 
-    while (messagingManager.hasNextDataBatch()) {
-      workerInternalQueue.addDataPayload(currentEdge, messagingManager.getNextDataBatch())
+    while (messagingManager.hasNextDataPayload()) {
+      workerInternalQueue.addDataPayload(messagingManager.getNextDataPayload())
     }
   }
 
@@ -150,10 +149,9 @@ class Processor(var operator: IOperatorExecutor, val tag: WorkerTag) extends Wor
 
   def onReceiveDataMessage(seq: Long, payload: Array[ITuple]): Unit = {
     messagingManager.receiveMessage(DataMessage(seq, payload), sender)
-    val currentEdge = input.actorToEdge(sender)
 
-    while (messagingManager.hasNextDataBatch()) {
-      workerInternalQueue.addDataPayload(currentEdge, messagingManager.getNextDataBatch())
+    while (messagingManager.hasNextDataPayload()) {
+      workerInternalQueue.addDataPayload(messagingManager.getNextDataPayload())
     }
   }
 
@@ -173,10 +171,7 @@ class Processor(var operator: IOperatorExecutor, val tag: WorkerTag) extends Wor
       // insert dummy batch to unblock dp thread
       workerInternalQueue.addDummyInput()
     }
-    pauseManager.waitForDPThread()
-    onPaused()
-    context.become(paused)
-    unstashAll()
+    context.become(pausing)
   }
 
   override def onInitialization(recoveryInformation: Seq[(Long, Long)]): Unit = {
