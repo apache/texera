@@ -101,7 +101,7 @@ describe('SyncTexeraModel', () => {
         UndoRedoService,
         WorkflowUtilService,
         JointUIService,
-        {provide: OperatorMetadataService, useClass: StubOperatorMetadataService}
+        { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
       ],
     });
 
@@ -138,7 +138,8 @@ describe('SyncTexeraModel', () => {
     );
 
     // construct the texera sync model with spied dependencies
-    const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper, new OperatorGroup(texeraGraph, jointGraph, jointGraphWrapper, TestBed.inject(WorkflowUtilService), TestBed.inject(JointUIService)));
+    const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper,
+      new OperatorGroup(texeraGraph, jointGraph, jointGraphWrapper, TestBed.inject(WorkflowUtilService), TestBed.inject(JointUIService)));
 
     // assert workflow graph
     jointGraphWrapper.getJointElementCellDeleteStream().subscribe({
@@ -180,7 +181,8 @@ describe('SyncTexeraModel', () => {
 
     // construct the texera sync model with spied dependencies
     // construct the texera sync model with spied dependencies
-    const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper, new OperatorGroup(texeraGraph, jointGraph, jointGraphWrapper, TestBed.inject(WorkflowUtilService), TestBed.inject(JointUIService)));
+    const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper,
+      new OperatorGroup(texeraGraph, jointGraph, jointGraphWrapper, TestBed.inject(WorkflowUtilService), TestBed.inject(JointUIService)));
 
     jointGraphWrapper.getJointElementCellDeleteStream().subscribe({
       complete: () => {
@@ -265,7 +267,8 @@ describe('SyncTexeraModel', () => {
 
     // construct the texera sync model with spied dependencies
     // construct the texera sync model with spied dependencies
-    const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper, new OperatorGroup(texeraGraph, jointGraph, jointGraphWrapper, TestBed.inject(WorkflowUtilService), TestBed.inject(JointUIService)));
+    const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper,
+      new OperatorGroup(texeraGraph, jointGraph, jointGraphWrapper, TestBed.inject(WorkflowUtilService), TestBed.inject(JointUIService)));
 
     jointGraphWrapper.getJointLinkCellAddStream().subscribe({
       complete: () => {
@@ -314,7 +317,8 @@ describe('SyncTexeraModel', () => {
 
     // construct the texera sync model with spied dependencies
     // construct the texera sync model with spied dependencies
-    const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper, new OperatorGroup(texeraGraph, jointGraph, jointGraphWrapper, TestBed.inject(WorkflowUtilService), TestBed.inject(JointUIService)));
+    const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper,
+      new OperatorGroup(texeraGraph, jointGraph, jointGraphWrapper, TestBed.inject(WorkflowUtilService), TestBed.inject(JointUIService)));
 
     jointGraphWrapper.getJointLinkCellDeleteStream().subscribe({
       complete: () => {
@@ -356,7 +360,8 @@ describe('SyncTexeraModel', () => {
 
     // construct the texera sync model with spied dependencies
     // construct the texera sync model with spied dependencies
-    const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper, new OperatorGroup(texeraGraph, jointGraph, jointGraphWrapper, TestBed.inject(WorkflowUtilService), TestBed.inject(JointUIService)));
+    const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper,
+      new OperatorGroup(texeraGraph, jointGraph, jointGraphWrapper, TestBed.inject(WorkflowUtilService), TestBed.inject(JointUIService)));
 
     jointGraphWrapper.getJointLinkCellDeleteStream().subscribe({
       complete: () => {
@@ -410,7 +415,8 @@ describe('SyncTexeraModel', () => {
     );
 
     // construct the texera sync model with spied dependencies
-    const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper, new OperatorGroup(texeraGraph, jointGraph, jointGraphWrapper, TestBed.inject(WorkflowUtilService), TestBed.inject(JointUIService)));
+    const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper,
+      new OperatorGroup(texeraGraph, jointGraph, jointGraphWrapper, TestBed.inject(WorkflowUtilService), TestBed.inject(JointUIService)));
 
     jointGraphWrapper.getJointLinkCellAddStream().subscribe({
       complete: () => {
@@ -454,7 +460,8 @@ describe('SyncTexeraModel', () => {
     );
 
     // construct the texera sync model with spied dependencies
-    const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper, new OperatorGroup(texeraGraph, jointGraph, jointGraphWrapper, TestBed.inject(WorkflowUtilService), TestBed.inject(JointUIService)));
+    const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper,
+      new OperatorGroup(texeraGraph, jointGraph, jointGraphWrapper, TestBed.inject(WorkflowUtilService), TestBed.inject(JointUIService)));
 
     jointGraphWrapper.getJointLinkCellChangeStream().subscribe({
       complete: () => {
@@ -516,7 +523,8 @@ describe('SyncTexeraModel', () => {
     );
 
     // construct the texera sync model with spied dependencies
-    const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper, new OperatorGroup(texeraGraph, jointGraph, jointGraphWrapper, TestBed.inject(WorkflowUtilService), TestBed.inject(JointUIService)));
+    const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper,
+      new OperatorGroup(texeraGraph, jointGraph, jointGraphWrapper, TestBed.inject(WorkflowUtilService), TestBed.inject(JointUIService)));
 
     jointGraphWrapper.getJointLinkCellChangeStream()
       .subscribe({
@@ -583,7 +591,8 @@ describe('SyncTexeraModel', () => {
     );
 
     // construct the texera sync model with spied dependencies
-    const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper, new OperatorGroup(texeraGraph, jointGraph, jointGraphWrapper, TestBed.inject(WorkflowUtilService), TestBed.inject(JointUIService)));
+    const syncTexeraModel = new SyncTexeraModel(texeraGraph, jointGraphWrapper,
+      new OperatorGroup(texeraGraph, jointGraph, jointGraphWrapper, TestBed.inject(WorkflowUtilService), TestBed.inject(JointUIService)));
 
     jointGraphWrapper.getJointLinkCellChangeStream().subscribe({
       complete: () => {

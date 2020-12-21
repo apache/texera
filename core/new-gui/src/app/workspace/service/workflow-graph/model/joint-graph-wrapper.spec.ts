@@ -622,12 +622,13 @@ describe('JointGraphWrapperService', () => {
         a: [ mockScanResultLink.linkID ]
       });
 
+      // expect the output event stream is correct
+      m.expect(localJointGraphWrapper.getLinkUnhighlightStream()).toBeObservable(expectedUnhighlightEventStream);
+
       // expect the current highlighted operator is correct
       deleteActionMarbleEvent.subscribe({
         complete: () => {
           expect(localJointGraphWrapper.getCurrentHighlightedLinkIDs()).toEqual([]);
-          // expect the output event stream is correct
-          m.expect(localJointGraphWrapper.getLinkUnhighlightStream()).toBeObservable(expectedUnhighlightEventStream);
         }
       });
     }));
