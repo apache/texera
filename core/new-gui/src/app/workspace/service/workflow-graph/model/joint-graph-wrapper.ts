@@ -455,6 +455,7 @@ export class JointGraphWrapper {
 
   /**
    * Returns an Observable stream capturing the element cell delete event in JointJS graph.
+   * An element cell can be an operator or an group.
    */
   public getJointElementCellDeleteStream(): Observable<joint.dia.Element> {
     const jointElementDeleteStream = this.jointCellDeleteStream
@@ -782,6 +783,7 @@ export class JointGraphWrapper {
 
   /**
    * Unhighlights the given highlighted element (operator or group).
+   * This function fills the unhighlightedElements array to include the unhighlighted elements.
    */
   private unhighlightElement(elementID: string, currentHighlightedElements: string[], unhighlightedElements: string[]): void {
     if (!currentHighlightedElements.includes(elementID)) {
@@ -792,19 +794,19 @@ export class JointGraphWrapper {
   }
 
   /**
-   * Subscribes to element cell delete event stream,
-   *  checks if the deleted element is currently highlighted
+   * Subscribes to cell delete event stream,
+   *  checks if the deleted cell (operator, link, or group) is currently highlighted
    *  and unhighlight it if it is.
    */
   private handleElementDeleteUnhighlight(): void {
-    this.getJointElementCellDeleteStream().subscribe(deletedElement => {
-      const deletedElementID = deletedElement.id.toString();
-      if (this.currentHighlightedOperators.includes(deletedElementID)) {
-        this.unhighlightOperators(deletedElementID);
-      } else if (this.currentHighlightedGroups.includes(deletedElementID)) {
-        this.unhighlightGroups(deletedElementID);
-      } else if (this.currentHighlightedLinks.includes(deletedElementID)) {
-        this.unhighlightLinks(deletedElementID);
+    this.jointCellDeleteStream.subscribe(deletedCell => {
+      const deletedCellID = deletedCell.id.toString();
+      if (this.currentHighlightedOperators.includes(deletedCellID)) {
+        this.unhighlightOperators(deletedCellID);
+      } else if (this.currentHighlightedGroups.includes(deletedCellID)) {
+        this.unhighlightGroups(deletedCellID);
+      } else if (this.currentHighlightedLinks.includes(deletedCellID)) {
+        this.unhighlightLinks(deletedCellID);
       }
     });
   }
