@@ -40,6 +40,8 @@ jobs:
         run: npm --prefix core/new-gui ci --progress=false
       - name: Build with npm
         run: npm run --prefix core/new-gui build --prod --progress=false
+      - name: Run frontend unit tests
+        run: npm run --prefix core/new-gui test:ci
 
   amber:
     runs-on: ubuntu-latest
