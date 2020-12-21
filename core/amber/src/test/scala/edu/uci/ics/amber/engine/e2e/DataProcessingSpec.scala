@@ -39,6 +39,7 @@ import edu.uci.ics.texera.workflow.common.workflow.{
   WorkflowCompiler,
   WorkflowInfo
 }
+import edu.uci.ics.texera.workflow.operators.localscan.LocalCsvFileScanOpDesc
 import edu.uci.ics.texera.workflow.operators.sink.SimpleSinkOpDesc
 import org.scalatest.{BeforeAndAfterAll, FlatSpecLike}
 
@@ -63,15 +64,16 @@ class DataProcessingSpec
     TestKit.shutdownActorSystem(system)
   }
 
-  def expectCompletedAfterExecution(workflowJson: String): Unit = {
+  def expectCompletedAfterExecution(
+      operators: mutable.MutableList[OperatorDescriptor],
+      links: mutable.MutableList[OperatorLink]
+  ): Unit = {
     val parent = TestProbe()
     val context = new WorkflowContext
     context.workflowID = "workflow-test"
-    val objectMapper = Utils.objectMapper
-    val request =
-      objectMapper.readValue(workflowJson, classOf[ExecuteWorkflowRequest])
+
     val texeraWorkflowCompiler = new WorkflowCompiler(
-      WorkflowInfo(request.operators, request.links, request.breakpoints),
+      WorkflowInfo(operators, links, mutable.MutableList[BreakpointInfo]()),
       context
     )
     texeraWorkflowCompiler.init()
@@ -90,23 +92,67 @@ class DataProcessingSpec
   }
 
   "Engine" should "execute headerlessCsv->sink workflow normally" in {
-    expectCompletedAfterExecution(WorkflowJSONExamples.headerlessCsvToSink)
+    val headerlessCsvOpDesc = TestOperators.headerlessCsvScanOpDesc()
+    val sink = TestOperators.sinkOpDesc()
+
+    expectCompletedAfterExecution(
+      mutable.MutableList[OperatorDescriptor](headerlessCsvOpDesc, sink),
+      mutable.MutableList[OperatorLink](
+        OperatorLink(headerlessCsvOpDesc.operatorID, sink.operatorID)
+      )
+    )
   }
 
   "Engine" should "execute headerlessCsv->keyword->sink workflow normally" in {
-    expectCompletedAfterExecution(WorkflowJSONExamples.headerlessCsvToKeywordToSink)
+    val headerlessCsvOpDesc = TestOperators.headerlessCsvScanOpDesc()
+    val keywordOpDesc = TestOperators.keywordSearchOpDesc("column0", "Asia")
+    val sink = TestOperators.sinkOpDesc()
+    expectCompletedAfterExecution(
+      mutable.MutableList[OperatorDescriptor](headerlessCsvOpDesc, keywordOpDesc, sink),
+      mutable.MutableList[OperatorLink](
+        OperatorLink(headerlessCsvOpDesc.operatorID, keywordOpDesc.operatorID),
+        OperatorLink(keywordOpDesc.operatorID, sink.operatorID)
+      )
+    )
   }
 
   "Engine" should "execute csv->sink workflow normally" in {
-    expectCompletedAfterExecution(WorkflowJSONExamples.csvToSink)
+    val csvOpDesc = TestOperators.csvScanOpDesc()
+    val sink = TestOperators.sinkOpDesc()
+    expectCompletedAfterExecution(
+      mutable.MutableList[OperatorDescriptor](csvOpDesc, sink),
+      mutable.MutableList[OperatorLink](
+        OperatorLink(csvOpDesc.operatorID, sink.operatorID)
+      )
+    )
   }
 
   "Engine" should "execute csv->keyword->sink workflow normally" in {
-    expectCompletedAfterExecution(WorkflowJSONExamples.csvToKeywordToSink)
+    val csvOpDesc = TestOperators.csvScanOpDesc()
+    val keywordOpDesc = TestOperators.keywordSearchOpDesc("Region", "Asia")
+    val sink = TestOperators.sinkOpDesc()
+    expectCompletedAfterExecution(
+      mutable.MutableList[OperatorDescriptor](csvOpDesc, keywordOpDesc, sink),
+      mutable.MutableList[OperatorLink](
+        OperatorLink(csvOpDesc.operatorID, keywordOpDesc.operatorID),
+        OperatorLink(keywordOpDesc.operatorID, sink.operatorID)
+      )
+    )
   }
 
   "Engine" should "execute csv->keyword->count->sink workflow normally" in {
-    expectCompletedAfterExecution(WorkflowJSONExamples.csvToKeywordToCountToSink)
+    val csvOpDesc = TestOperators.csvScanOpDesc()
+    val keywordOpDesc = TestOperators.keywordSearchOpDesc("Region", "Asia")
+    val countOpDesc = TestOperators.countOpDesc("Region")
+    val sink = TestOperators.sinkOpDesc()
+    expectCompletedAfterExecution(
+      mutable.MutableList[OperatorDescriptor](csvOpDesc, keywordOpDesc, countOpDesc, sink),
+      mutable.MutableList[OperatorLink](
+        OperatorLink(csvOpDesc.operatorID, keywordOpDesc.operatorID),
+        OperatorLink(keywordOpDesc.operatorID, countOpDesc.operatorID),
+        OperatorLink(countOpDesc.operatorID, sink.operatorID)
+      )
+    )
   }
 
 }
