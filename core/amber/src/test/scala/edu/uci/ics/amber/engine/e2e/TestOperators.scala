@@ -34,13 +34,17 @@ object TestOperators {
     keywordSearchOp
   }
 
-  def countOpDesc(attribute: String): SpecializedAverageOpDesc = {
-    val countOp = new SpecializedAverageOpDesc()
-    countOp.aggFunction = AggregationFunction.COUNT
-    countOp.attribute = attribute
-    countOp.resultAttribute = "count-result"
-    countOp.groupByKeys = List[String]()
-    countOp
+  def aggregateAndGroupbyDesc(
+      attributeToAggregate: String,
+      aggFunction: AggregationFunction,
+      groupByAttributes: List[String]
+  ): SpecializedAverageOpDesc = {
+    val aggOp = new SpecializedAverageOpDesc()
+    aggOp.aggFunction = aggFunction
+    aggOp.attribute = attributeToAggregate
+    aggOp.resultAttribute = "aggregate-result"
+    aggOp.groupByKeys = groupByAttributes
+    aggOp
   }
 
   def sinkOpDesc(): SimpleSinkOpDesc = {

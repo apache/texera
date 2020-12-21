@@ -39,6 +39,7 @@ import edu.uci.ics.texera.workflow.common.workflow.{
   WorkflowCompiler,
   WorkflowInfo
 }
+import edu.uci.ics.texera.workflow.operators.aggregate.AggregationFunction
 import edu.uci.ics.texera.workflow.operators.localscan.LocalCsvFileScanOpDesc
 import edu.uci.ics.texera.workflow.operators.sink.SimpleSinkOpDesc
 import org.scalatest.{BeforeAndAfterAll, FlatSpecLike}
@@ -143,7 +144,8 @@ class DataProcessingSpec
   "Engine" should "execute csv->keyword->count->sink workflow normally" in {
     val csvOpDesc = TestOperators.csvScanOpDesc()
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("Region", "Asia")
-    val countOpDesc = TestOperators.countOpDesc("Region")
+    val countOpDesc =
+      TestOperators.aggregateAndGroupbyDesc("Region", AggregationFunction.COUNT, List[String]())
     val sink = TestOperators.sinkOpDesc()
     expectCompletedAfterExecution(
       mutable.MutableList[OperatorDescriptor](csvOpDesc, keywordOpDesc, countOpDesc, sink),
@@ -151,6 +153,27 @@ class DataProcessingSpec
         OperatorLink(csvOpDesc.operatorID, keywordOpDesc.operatorID),
         OperatorLink(keywordOpDesc.operatorID, countOpDesc.operatorID),
         OperatorLink(countOpDesc.operatorID, sink.operatorID)
+      )
+    )
+  }
+
+  "Engine" should "execute csv->keyword->averageAndGroupby->sink workflow normally" in {
+    val csvOpDesc = TestOperators.csvScanOpDesc()
+    val keywordOpDesc = TestOperators.keywordSearchOpDesc("Region", "Asia")
+    val averageAndGroupbyOpDesc =
+      TestOperators.aggregateAndGroupbyDesc(
+        "Units Sold",
+        AggregationFunction.AVERAGE,
+        List[String]("Country")
+      )
+    val sink = TestOperators.sinkOpDesc()
+    expectCompletedAfterExecution(
+      mutable
+        .MutableList[OperatorDescriptor](csvOpDesc, keywordOpDesc, averageAndGroupbyOpDesc, sink),
+      mutable.MutableList[OperatorLink](
+        OperatorLink(csvOpDesc.operatorID, keywordOpDesc.operatorID),
+        OperatorLink(keywordOpDesc.operatorID, averageAndGroupbyOpDesc.operatorID),
+        OperatorLink(averageAndGroupbyOpDesc.operatorID, sink.operatorID)
       )
     )
   }
