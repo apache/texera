@@ -11,10 +11,7 @@ describe('VisualizationPanelContentComponent', () => {
     TestBed.configureTestingModule({
       imports: [MatDialogModule],
       declarations: [ VisualizationPanelContentComponent ],
-      providers: [
-        {
-          provide: MAT_DIALOG_DATA, useValue: {table: [['id', 'data'], [1, 2]], chartType: 'pie'}
-        }]
+      providers: []
     })
     .compileComponents();
   }));
@@ -22,6 +19,7 @@ describe('VisualizationPanelContentComponent', () => {
   beforeEach(() => {
     fixture = TestBed.createComponent(VisualizationPanelContentComponent);
     component = fixture.componentInstance;
+    component.data = {table: [['id', 'data'], [1, 2]], chartType: ChartType.PIE};
     fixture.detectChanges();
   });
 
@@ -36,9 +34,9 @@ describe('VisualizationPanelContentComponent', () => {
   });
 
   it('should draw the wordcloud', () => {
-     const testComponent = new VisualizationPanelContentComponent(
-          { table: [['word', 'count'], ['foo', 120], ['bar', 100]],
-            chartType: ChartType.WORD_CLOUD });
+    const testComponent = new VisualizationPanelContentComponent();
+    testComponent.data = { table: [['word', 'count'], ['foo', 120], ['bar', 100]],
+      chartType: ChartType.WORD_CLOUD };
     spyOn(testComponent, 'onClickGenerateWordCloud');
     testComponent.ngAfterViewInit();
     expect(testComponent.onClickGenerateWordCloud).toHaveBeenCalled();

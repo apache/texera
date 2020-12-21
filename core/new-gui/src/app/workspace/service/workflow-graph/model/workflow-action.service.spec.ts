@@ -14,6 +14,7 @@ import { WorkflowActionService } from './workflow-action.service';
 import { OperatorPredicate, Point } from '../../../types/workflow-common.interface';
 import { g } from 'jointjs';
 import { environment } from './../../../../../environments/environment';
+import { WorkflowUtilService } from '../util/workflow-util.service';
 
 describe('WorkflowActionService', () => {
 
@@ -25,6 +26,7 @@ describe('WorkflowActionService', () => {
     TestBed.configureTestingModule({
       providers: [
         WorkflowActionService,
+        WorkflowUtilService,
         JointUIService,
         UndoRedoService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }

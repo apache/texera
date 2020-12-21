@@ -26,6 +26,8 @@ import * as c from './operator-panel.component';
 import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
 import { JointUIService } from '../../service/joint-ui/joint-ui.service';
 import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-util.service';
+import { NzDropDownModule } from 'ng-zorro-antd/dropdown';
+import { NzCollapseModule } from 'ng-zorro-antd/collapse';
 
 
 describe('OperatorPanelComponent', () => {
@@ -44,17 +46,21 @@ describe('OperatorPanelComponent', () => {
         JointUIService,
         TourService
       ],
-      imports: [CustomNgMaterialModule, BrowserAnimationsModule, FormsModule,
-        ReactiveFormsModule, RouterTestingModule.withRoutes([]), TourNgBootstrapModule.forRoot(),
-        NgbModule]
+      imports: [
+        NzDropDownModule,
+        NzCollapseModule,
+        BrowserAnimationsModule,
+        RouterTestingModule.withRoutes([]),
+        TourNgBootstrapModule.forRoot()
+      ]
     })
       .compileComponents();
   }));
 
   beforeEach(() => {
     fixture = TestBed.createComponent(OperatorPanelComponent);
-    component = fixture.componentInstance;
     fixture.detectChanges();
+    component = fixture.componentInstance;
   });
 
   it('should create', () => {
@@ -125,9 +131,8 @@ describe('OperatorPanelComponent', () => {
 
   it('should have all group names shown in the UI side panel', () => {
     const groupNamesInUI = fixture.debugElement
-      .queryAll(By.css('.texera-operator-group-name'))
-      .map(el => <HTMLElement>el.nativeElement)
-      .map(el => el.innerText.trim());
+    .queryAll(By.css('.texera-workspace-operator-panel-subgroup'))
+    .map(el => (el.nativeElement.querySelector('.ant-collapse-header').innerText));
 
     expect(groupNamesInUI).toEqual(
       mockOperatorGroup.map(group => group.groupName));

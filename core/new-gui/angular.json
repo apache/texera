@@ -86,10 +86,19 @@
         "test": {
           "builder": "@angular-devkit/build-angular:karma",
           "options": {
-            "main": "src/test.ts",
+            "assets": [
+              "src/assets",
+              "src/favicon.ico"
+            ],
+            "fileReplacements": [
+              {
+                "replace": "src/environments/environment.ts",
+                "with": "src/environments/environment.test.ts"
+              }
+            ],
             "karmaConfig": "./karma.conf.js",
+            "main": "src/test.ts",
             "polyfills": "src/polyfills.ts",
-            "tsConfig": "src/tsconfig.spec.json",
             "scripts": [],
             "styles": [
               "node_modules/jointjs/css/layout.css",
@@ -98,10 +107,7 @@
               "node_modules/bootstrap/dist/css/bootstrap.min.css",
               "src/styles.scss"
             ],
-            "assets": [
-              "src/assets",
-              "src/favicon.ico"
-            ]
+            "tsConfig": "src/tsconfig.spec.json"
           }
         },
         "e2e": {

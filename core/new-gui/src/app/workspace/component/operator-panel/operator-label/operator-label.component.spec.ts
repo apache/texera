@@ -66,19 +66,12 @@ describe('OperatorLabelComponent', () => {
 
   it('should display operator user friendly name on the UI', () => {
     const element = <HTMLElement>(fixture.debugElement.query(By.css('.texera-operator-label-body')).nativeElement);
-    expect(element.innerHTML.trim()).toEqual(mockOperatorData.additionalMetadata.userFriendlyName);
+    expect(element.firstChild?.textContent?.trim()).toEqual(mockOperatorData.additionalMetadata.userFriendlyName);
   });
 
   it('should register itself as a draggable element', () => {
     const jqueryElement = jQuery(`#${component.operatorLabelID}`);
     expect(jqueryElement.data('uiDraggable')).toBeTruthy();
-  });
-
-  it('should call the mouseEnter function once the cursor is hovering above a operator label', () => {
-    const spy = spyOn<any>(component, 'mouseEnter');
-    const operatorLabelElement = fixture.debugElement.query(By.css('#' + component.operatorLabelID));
-    operatorLabelElement.triggerEventHandler('mouseenter', component);
-    expect(spy).toHaveBeenCalled();
   });
 
   it('should call the mouseLeave function once the cursor leaves a operator label', () => {
@@ -88,50 +81,19 @@ describe('OperatorLabelComponent', () => {
     expect(spy).toHaveBeenCalled();
   });
 
-  it('should emits a command to open an tooltip instance after 500ms delay', marbles((m) => {
-    const expectedStream = m.hot('500ms -a-');
-    const actualStream = component.getopenCommandsStream().map(() => 'a');
-    m.hot('-a-').do(() => component.mouseEnter()).subscribe();
-    m.expect(actualStream).toBeObservable(expectedStream);
-  }));
-
-  it('should display a tooltip instance with the correct content when openCommandObservable$ emits a value', marbles((m) => {
+  it('should call the mouseDown function once the cursor clicks the operator label', () => {
+    const spy = spyOn<any>(component, 'mouseDown');
     const operatorLabelElement = fixture.debugElement.query(By.css('#' + component.operatorLabelID));
-    component.getopenCommandsStream().subscribe(x => {
-      const parent = operatorLabelElement.parent;
-      if (!parent) { expect(true).toBeFalsy(); return; }
-      const tooltipInstance = parent.childNodes[1].nativeNode;
-      expect(tooltipInstance.innerText).toBe(mockOperatorData.additionalMetadata.operatorDescription);
-    });
-    m.hot('-a-').do(() => component.mouseEnter()).subscribe();
-  }));
+    operatorLabelElement.triggerEventHandler('mousedown', component);
+    expect(spy).toHaveBeenCalled();
+  });
 
-  it('should not emits a command to open tooltip instance if the cursor has left the operator label', marbles((m) => {
-    const expectedStream_1 = m.hot('-----');
-    const actualStream_1 = component.getopenCommandsStream().map(() => 'a');
-    m.hot('-a-----').do(() => component.mouseEnter()).subscribe();
-    m.hot('---b---').do(() => component.mouseLeave()).subscribe();
-    m.expect(actualStream_1).toBeObservable(expectedStream_1);
-  }));
-
-  // TODO: fix this test after removing ng bootstrap from UI
-  xit('should hide the tooltip instance if cursor leaves the operator label', marbles((m) => {
+  it('should call the mouseUp function once the cursor un-clicks operator label', () => {
+    const spy = spyOn<any>(component, 'mouseUp');
     const operatorLabelElement = fixture.debugElement.query(By.css('#' + component.operatorLabelID));
-    component.getopenCommandsStream().subscribe(() => {
-      const parent = operatorLabelElement.parent;
-      if (!parent) { expect(true).toBeFalsy(); return; }
-      const tooltipInstance = parent.childNodes[1].nativeNode;
-      expect(tooltipInstance).not.toBeNull();
-    });
-    m.hot('-a-').do(() => component.mouseEnter()).subscribe();
-    // at this moment, the tooltip is open
-    // it will be closed in the following lines
-    m.hot('1ms b-').do(() => component.mouseLeave()).subscribe(() => {
-      const parent = operatorLabelElement.parent;
-      if (!parent) { expect(true).toBeFalsy(); return; }
-      expect(parent.childNodes.length).toBe(1);
-    });
-  }));
+    operatorLabelElement.triggerEventHandler('mouseup', component);
+    expect(spy).toHaveBeenCalled();
+  });
 
   // TODO: simulate drag and drop in tests, possibly using jQueryUI Simulate plugin
   //  https://github.com/j-ulrich/jquery-simulate-ext/blob/master/doc/drag-n-drop.md

@@ -12,6 +12,7 @@ import { mockScanPredicate, mockPoint, mockResultPredicate, mockScanResultLink }
 import { OperatorPredicate } from '../../types/workflow-common.interface';
 import { mockScanSourceSchema } from '../operator-metadata/mock-operator-metadata.data';
 import { environment } from './../../../../environments/environment';
+import { WorkflowUtilService } from '../workflow-graph/util/workflow-util.service';
 
 describe('DynamicSchemaService', () => {
 
@@ -21,6 +22,7 @@ describe('DynamicSchemaService', () => {
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         JointUIService,
         WorkflowActionService,
+        WorkflowUtilService,
         UndoRedoService,
         DynamicSchemaService
       ]

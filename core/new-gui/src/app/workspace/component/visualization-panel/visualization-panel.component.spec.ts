@@ -1,7 +1,10 @@
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { VisualizationPanelComponent } from './visualization-panel.component';
-import { MatDialogModule, MatDialogRef, MAT_DIALOG_DATA } from '@angular/material/dialog';
+import { VisualizationPanelContentComponent } from '../visualization-panel-content/visualization-panel-content.component';
+import { NzModalModule } from 'ng-zorro-antd/modal';
+import { NzButtonModule } from 'ng-zorro-antd/button';
+import { ChartType } from '../../types/visualization.interface';
 
 describe('VisualizationPanelComponent', () => {
   let component: VisualizationPanelComponent;
@@ -9,15 +12,12 @@ describe('VisualizationPanelComponent', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-      imports: [MatDialogModule],
+      imports: [
+        NzModalModule,
+        NzButtonModule
+      ],
       declarations: [ VisualizationPanelComponent ],
-      providers: [
-        {
-          provide: MatDialogRef, useValue: {}
-        },
-        {
-          provide: MAT_DIALOG_DATA, useValue: {}
-        }]
+      providers: []
     })
     .compileComponents();
   }));
@@ -39,8 +39,9 @@ describe('VisualizationPanelComponent', () => {
   });
 
   it('should open dialog', () => {
-    spyOn(component.dialog, 'open');
+    const createSpy = spyOn((component as any).modal, 'create');
+    component.chartType = ChartType.PIE;
     component.onClickVisualize();
-    expect(component.dialog.open).toHaveBeenCalled();
+    expect(createSpy).toHaveBeenCalled();
   });
 });

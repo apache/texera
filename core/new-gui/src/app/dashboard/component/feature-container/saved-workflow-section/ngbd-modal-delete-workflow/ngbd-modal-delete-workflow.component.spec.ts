@@ -17,8 +17,9 @@ describe('NgbdModalDeleteProjectComponent', () => {
   let deletefixture: ComponentFixture<NgbdModalDeleteWorkflowComponent>;
 
   const sampleProject = {
-    id: '4',
     name: 'project 1',
+    wid: 4,
+    content: '{}',
     creationTime: '2017-10-25T12:34:50Z',
     lastModifiedTime: '2018-01-17T06:26:50Z',
   };
@@ -47,16 +48,13 @@ describe('NgbdModalDeleteProjectComponent', () => {
     expect(component).toBeTruthy();
   });
 
-  it('deleteProjectComponent deleteSavedProject should delete project in list', () => {
+  it('deleteProjectComponent deleteSavedProject return a result of true', () => {
     deletefixture = TestBed.createComponent(NgbdModalDeleteWorkflowComponent);
     deletecomponent = deletefixture.componentInstance;
-
-    let getBool: Boolean;
-    getBool = false;
-
     deletecomponent.workflow = sampleProject;
-    deletecomponent.deleteSavedWorkflow();
 
-    expect(getBool).toEqual(false);
+    spyOn(deletecomponent.activeModal, 'close');
+    deletecomponent.deleteSavedWorkflow();
+    expect(deletecomponent.activeModal.close).toHaveBeenCalledWith(true);
   });
 });

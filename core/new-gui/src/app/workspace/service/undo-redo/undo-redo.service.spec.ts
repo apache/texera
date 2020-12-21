@@ -8,8 +8,9 @@ import {
 import { TestBed, inject } from '@angular/core/testing';
 
 import { UndoRedoService } from './undo-redo.service';
+import { WorkflowUtilService } from '../workflow-graph/util/workflow-util.service';
 
-describe('service', () => {
+describe('UndoRedoService', () => {
   let service: UndoRedoService;
   let workflowActionService: WorkflowActionService;
   beforeEach(() => {
@@ -17,6 +18,7 @@ describe('service', () => {
       providers: [
         UndoRedoService,
         WorkflowActionService,
+        WorkflowUtilService,
         JointUIService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
       ]

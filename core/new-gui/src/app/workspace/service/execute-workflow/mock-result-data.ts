@@ -45,11 +45,13 @@ export const mockResultData: ResultObject[] = [{
 }
 ];
 
+// execution results for pre-amber engine (deprecated)
 export const mockExecutionResult: SuccessExecutionResult = {
   code: 0,
   resultID: '1',
   result: mockResultData
 };
+
 
 export const mockExecutionEmptyResult: SuccessExecutionResult = {
   code: 0,
