@@ -6,7 +6,7 @@ import akka.util.Timeout
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.engine.architecture.breakpoint.FaultedTuple
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
-import edu.uci.ics.amber.engine.architecture.worker.neo._
+import edu.uci.ics.amber.engine.architecture.worker.neo.{DataProcessorInputPort, _}
 import edu.uci.ics.amber.engine.common.IOperatorExecutor
 import edu.uci.ics.amber.engine.common.amberexception.AmberException
 import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage._
@@ -28,9 +28,9 @@ abstract class WorkerBase extends WorkflowActor {
   var operator: IOperatorExecutor
 
   lazy val workerInternalQueue: WorkerInternalQueue = wire[WorkerInternalQueue]
-  lazy val tupleInput: BatchToTupleConverter = wire[BatchToTupleConverter]
+  lazy val dataProcessorInputPort: DataProcessorInputPort = wire[DataProcessorInputPort]
   lazy val pauseManager: PauseManager = wire[PauseManager]
-  lazy val tupleOutput: TupleToBatchConverter = wire[TupleToBatchConverter]
+  // lazy val tupleOutput: TupleToBatchConverter = wire[TupleToBatchConverter]
   lazy val dataProcessor: DataProcessor = wire[DataProcessor]
 
   val receivedFaultedTupleIds: mutable.HashSet[Long] = new mutable.HashSet[Long]()
@@ -47,9 +47,9 @@ abstract class WorkerBase extends WorkflowActor {
 
   def onSkipTuple(faultedTuple: FaultedTuple): Unit = {
     if (faultedTuple.isInput) {
-      tupleOutput.skippedInputTuples.add(faultedTuple.tuple)
+      messagingManager.skippedInputTuples.add(faultedTuple.tuple)
     } else {
-      tupleOutput.skippedOutputTuples.add(faultedTuple.tuple)
+      messagingManager.skippedOutputTuples.add(faultedTuple.tuple)
     }
   }
 
@@ -64,7 +64,7 @@ abstract class WorkerBase extends WorkflowActor {
   }
 
   def onPausing(): Unit = {
-    tupleOutput.pauseDataTransfer()
+    messagingManager.pauseDataSending()
   }
 
   def onPaused(): Unit = {
@@ -72,7 +72,7 @@ abstract class WorkerBase extends WorkflowActor {
   }
 
   def onResuming(): Unit = {
-    tupleOutput.resumeDataTransfer()
+    messagingManager.resumeDataSending()
   }
 
   def onResumed(): Unit = {
@@ -80,7 +80,7 @@ abstract class WorkerBase extends WorkflowActor {
   }
 
   def onCompleted(): Unit = {
-    tupleOutput.endDataTransfer()
+    messagingManager.endDataSending()
     isCompleted = true
     context.parent ! ReportState(WorkerState.Completed)
   }
@@ -113,10 +113,10 @@ abstract class WorkerBase extends WorkflowActor {
   final def allowStashOrReleaseOutput: Receive = {
     case StashOutput =>
       sender ! Ack
-      tupleOutput.pauseDataTransfer()
+      messagingManager.pauseDataSending()
     case ReleaseOutput =>
       sender ! Ack
-      tupleOutput.resumeDataTransfer()
+      messagingManager.resumeDataSending()
   }
 
   final def allowModifyBreakpoints: Receive = {
@@ -182,7 +182,7 @@ abstract class WorkerBase extends WorkflowActor {
   final def allowUpdateOutputLinking: Receive = {
     case UpdateOutputLinking(policy, tag, receivers) =>
       sender ! Ack
-      tupleOutput.updateOutput(policy, tag, receivers)
+      messagingManager.updateReceiverAndSender(policy, tag, receivers)
   }
 
   final def disallowUpdateOutputLinking: Receive = {

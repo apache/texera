@@ -1,20 +1,18 @@
 package edu.uci.ics.amber.engine.architecture.worker.neo
 
 import edu.uci.ics.amber.engine.architecture.worker.neo.WorkerInternalQueue.{
-  DataPayload,
   DummyInput,
   EndMarker,
-  InternalQueueElement
+  InternalQueueElement,
+  SenderTuplePair
 }
 import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 
-class BatchToTupleConverter(internalQueue: WorkerInternalQueue) {
+class DataProcessorInputPort(internalQueue: WorkerInternalQueue) {
 
   // save current batch related information
-  private var currentBatch: InternalQueueElement = _
-  // what input is the tuple coming from
-  private var currentInput = 0
+  private var currentInput: InternalQueueElement = _
 
   // indicate if all upstreams exhausted
   private var allExhausted = false
@@ -24,34 +22,27 @@ class BatchToTupleConverter(internalQueue: WorkerInternalQueue) {
     * should only be called from dp thread
     * @return tuple
     */
-  def getNextInputTuple: Either[ITuple, InputExhausted] = {
-    // if batch is unavailable, take one from batchInput and reset cursor
-    if (isCurrentBatchExhausted) {
-      currentBatch = internalQueue.blockingDeque.take()
-    }
-    currentBatch match {
-      case DataPayload(input, tuples) =>
+  def getNextInputPair: (Int, Either[ITuple, InputExhausted]) = {
+
+    currentInput = internalQueue.blockingDeque.take()
+
+    currentInput match {
+      case SenderTuplePair(senderRef, tuple) =>
         // if current batch is a data batch, return tuple
-        currentInput = input
         // empty iterators will be filtered in WorkerInternalQueue so we can safely call next()
-        Left(tuples.next())
-      case EndMarker(input) =>
+        (senderRef, Left(tuple))
+      case EndMarker(senderRef) =>
         // current batch is an End of Data sign.
         inputExhaustedCount += 1
         // check if End of Data sign from every upstream has been received
         allExhausted = internalQueue.inputMap.size == inputExhaustedCount
-        currentInput = input
-        Right(InputExhausted())
+        (senderRef, Right(InputExhausted()))
       case DummyInput() =>
         // if the batch is dummy batch inserted by worker, return null to unblock dp thread
         null
     }
   }
 
-  def getCurrentInput: Int = currentInput
-
   def isAllUpstreamsExhausted: Boolean = allExhausted
 
-  def isCurrentBatchExhausted: Boolean =
-    currentBatch == null || currentBatch.isExhausted
 }

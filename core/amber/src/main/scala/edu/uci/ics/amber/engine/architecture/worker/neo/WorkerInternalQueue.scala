@@ -2,10 +2,10 @@ package edu.uci.ics.amber.engine.architecture.worker.neo
 
 import java.util.concurrent.LinkedBlockingDeque
 import edu.uci.ics.amber.engine.architecture.worker.neo.WorkerInternalQueue.{
-  InternalQueueElement,
-  DataPayload,
   DummyInput,
-  EndMarker
+  EndMarker,
+  InternalQueueElement,
+  SenderTuplePair
 }
 import edu.uci.ics.amber.engine.common.ambertag.LayerTag
 import edu.uci.ics.amber.engine.common.tuple.ITuple
@@ -13,37 +13,25 @@ import edu.uci.ics.amber.engine.common.tuple.ITuple
 import scala.collection.mutable
 
 object WorkerInternalQueue {
-  // 3 kinds of data batches can be accepted by internal queue
-  trait InternalQueueElement {
-    // indicate if the batch is exhausted so dp thread can fetch the next batch
-    def isExhausted: Boolean
-  }
 
+  // 3 kinds of data batches can be accepted by internal queue
+  trait InternalQueueElement {}
+
+  // TODO: input is going now with all tuples. This may lead to a major increase in size
   /**
     * Data Payload is 'input identifier + data batch'
     * @param input
     * @param tuples
     */
-  case class DataPayload(input: Int, tuples: Iterator[ITuple]) extends InternalQueueElement {
-    // when the iterator has no next, it's exhausted.
-    // Note: since the iterator is guaranteed to be non-empty,
-    // the first call of isExhausted will return false.
-    override def isExhausted: Boolean = !tuples.hasNext
-  }
-  case class EndMarker(input: Int) extends InternalQueueElement {
-    // this will only be used once so it's always exhausted
-    override def isExhausted: Boolean = true
-  }
+  case class SenderTuplePair(senderRef: Int, tuple: ITuple) extends InternalQueueElement {}
+  case class EndMarker(input: Int) extends InternalQueueElement {}
 
   /**
     * Used to unblock the dp thread when pause arrives but
     * dp thread is blocked waiting for the next element in the
     * worker-internal-queue
     */
-  case class DummyInput() extends InternalQueueElement {
-    // this will only be used once so it's always exhausted
-    override def isExhausted: Boolean = true
-  }
+  case class DummyInput() extends InternalQueueElement {}
 }
 
 class WorkerInternalQueue {
@@ -59,12 +47,12 @@ class WorkerInternalQueue {
   /** take one FIFO batch from worker actor then put into the queue.
     * @param batch
     */
-  def addDataPayload(batch: (LayerTag, Array[ITuple])): Unit = {
-    if (batch == null || batch._2.isEmpty) {
+  def addSenderTuplePair(dataPair: (LayerTag, ITuple)): Unit = {
+    if (dataPair == null || dataPair._2 == null) {
       // also filter out the batch with no tuple here
       return
     }
-    blockingDeque.add(DataPayload(inputMap(batch._1), batch._2.iterator))
+    blockingDeque.add(SenderTuplePair(inputMap(dataPair._1), dataPair._2))
   }
 
   /** put an end batch into the queue.
