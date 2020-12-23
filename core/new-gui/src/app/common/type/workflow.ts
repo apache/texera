@@ -1,9 +1,9 @@
-import { PlainGroup } from 'src/app/workspace/service/workflow-graph/model/operator-group';
+import { WorkflowMetadata } from '../../dashboard/type/workflow-metadata';
+import { PlainGroup } from '../../workspace/service/workflow-graph/model/operator-group';
 import { Breakpoint, OperatorLink, OperatorPredicate, Point } from '../../workspace/types/workflow-common.interface';
-import { jsonCast } from '../util/storage';
 
 /**
- * CachedWorkflow is used to store the information of the workflow
+ * WorkflowContent is used to store the information of the workflow
  *  1. all existing operators and their properties
  *  2. operator's position on the JointJS paper
  *  3. operator link predicates
@@ -14,7 +14,7 @@ import { jsonCast } from '../util/storage';
  *  will then be used to reload the entire workflow.
  *
  */
-export interface WorkflowInfo {
+export interface WorkflowContent {
   operators: OperatorPredicate[];
   operatorPositions: { [key: string]: Point };
   links: OperatorLink[];
@@ -22,10 +22,6 @@ export interface WorkflowInfo {
   breakpoints: Record<string, Breakpoint>;
 }
 
-export interface Workflow {
-  name: string;
-  wid: number | undefined;
-  content: WorkflowInfo;
-  creationTime: number;
-  lastModifiedTime: number;
+export interface Workflow extends WorkflowMetadata {
+  content: WorkflowContent;
 }
