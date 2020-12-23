@@ -6,6 +6,6 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerState
 
 object StateMessage {
 
-  final case class EnforceStateCheck()
+  final case class EnforceStateCheck() extends WorkflowMessage
 
 }

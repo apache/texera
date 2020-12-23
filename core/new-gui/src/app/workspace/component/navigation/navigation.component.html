@@ -47,6 +47,12 @@
             </li>
           </ul>
         </nz-dropdown-menu>
+        <button nz-button [disabled] = "!highlightedElementsGroupable()" (click)="onClickGroupOperators()" title="group">
+          <i nz-icon nzType="group" nzTheme="outline"></i>
+        </button>
+        <button nz-button [disabled] = "!highlightedElementsUngroupable()" (click)="onClickUngroupOperators()" title="ungroup">
+          <i nz-icon nzType="ungroup" nzTheme="outline"></i>
+        </button>
       </nz-button-group>
     </div>
 

@@ -1,6 +1,6 @@
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { ResultPanelComponent, NgbModalComponent } from './result-panel.component';
+import { ResultPanelComponent, RowModalComponent } from './result-panel.component';
 import { ExecuteWorkflowService } from './../../service/execute-workflow/execute-workflow.service';
 import { CustomNgMaterialModule } from './../../../common/custom-ng-material.module';
 
@@ -11,10 +11,7 @@ import { OperatorMetadataService } from './../../service/operator-metadata/opera
 import { StubOperatorMetadataService } from './../../service/operator-metadata/stub-operator-metadata.service';
 import { NgbModule, NgbModal } from '@ng-bootstrap/ng-bootstrap';
 import { marbles } from 'rxjs-marbles';
-import {
-  mockExecutionResult, mockResultData,
-  mockExecutionErrorResult, mockExecutionEmptyResult, mockResultOperator, mockResultPoint
-} from '../../service/execute-workflow/mock-result-data';
+import { mockResultData } from '../../service/execute-workflow/mock-result-data';
 import { By } from '@angular/platform-browser';
 import { Observable } from 'rxjs/Observable';
 import { HttpClient } from '@angular/common/http';
@@ -23,19 +20,21 @@ import { ResultPanelToggleService } from './../../service/result-panel-toggle/re
 import { NgxJsonViewerModule } from 'ngx-json-viewer';
 
 import { NgModule } from '@angular/core';
-
-class StubHttpClient {
-  constructor() { }
-
-  public post(): Observable<string> { return Observable.of('a'); }
-}
+import { HttpClientTestingModule } from '@angular/common/http/testing';
+import { NzModalModule, NzModalService } from 'ng-zorro-antd/modal';
+import { ExecutionState } from '../../types/execute-workflow.interface';
+import { NoopAnimationsModule } from '@angular/platform-browser/animations';
+import { NzTableModule } from 'ng-zorro-antd/table';
+import { VisualizationPanelComponent } from '../visualization-panel/visualization-panel.component';
+import { VisualizationPanelContentComponent } from '../visualization-panel-content/visualization-panel-content.component';
+import { WorkflowUtilService } from '../../service/workflow-graph/util/workflow-util.service';
 
 // this is how to import entry components in testings
 // Stack Overflow Link: https://stackoverflow.com/questions/41483841/providing-entrycomponents-for-a-testbed/45550720
 @NgModule({
-  declarations: [NgbModalComponent],
+  declarations: [RowModalComponent],
   entryComponents: [
-    NgbModalComponent,
+    RowModalComponent,
   ],
   imports: [
     NgxJsonViewerModule
@@ -47,26 +46,34 @@ describe('ResultPanelComponent', () => {
   let component: ResultPanelComponent;
   let fixture: ComponentFixture<ResultPanelComponent>;
   let executeWorkflowService: ExecuteWorkflowService;
-  let ngbModel: NgbModal;
+  let nzModalService: NzModalService;
   let workflowActionService: WorkflowActionService;
   let resultPanelToggleService: ResultPanelToggleService;
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-      declarations: [ResultPanelComponent],
+      declarations: [
+        ResultPanelComponent,
+        VisualizationPanelComponent,
+        VisualizationPanelContentComponent,
+      ],
       imports: [
         NgbModule,
         CustomNgMaterialModule,
-        CustomNgBModalModule
+        CustomNgBModalModule,
+        HttpClientTestingModule,
+        NzModalModule,
+        NzTableModule,
+        NoopAnimationsModule,
       ],
       providers: [
         WorkflowActionService,
+        WorkflowUtilService,
         UndoRedoService,
         JointUIService,
         ExecuteWorkflowService,
         ResultPanelToggleService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
-        { provide: HttpClient, useClass: StubHttpClient }
       ]
 
     })
@@ -76,10 +83,10 @@ describe('ResultPanelComponent', () => {
   beforeEach(() => {
     fixture = TestBed.createComponent(ResultPanelComponent);
     component = fixture.componentInstance;
-    executeWorkflowService = TestBed.get(ExecuteWorkflowService);
-    resultPanelToggleService = TestBed.get(ResultPanelToggleService);
-    ngbModel = TestBed.get(NgbModal);
-    workflowActionService = TestBed.get(WorkflowActionService);
+    executeWorkflowService = TestBed.inject(ExecuteWorkflowService);
+    resultPanelToggleService = TestBed.inject(ResultPanelToggleService);
+    nzModalService = TestBed.inject(NzModalService);
+    workflowActionService = TestBed.inject(WorkflowActionService);
     fixture.detectChanges();
   });
 
@@ -107,7 +114,7 @@ describe('ResultPanelComponent', () => {
   //     e: mockExecutionResult
   //   };
 
-  //   const httpClient: HttpClient = TestBed.get(HttpClient);
+  //   const httpClient: HttpClient = TestBed.inject(HttpClient);
   //   spyOn(httpClient, 'post').and.returnValue(
   //     Observable.of(mockExecutionResult)
   //   );
@@ -117,13 +124,13 @@ describe('ResultPanelComponent', () => {
   //   );
 
   //   workflowActionService.addOperator(mockResultOperator, mockResultPoint);
-  //   workflowActionService.getJointGraphWrapper().highlightOperator(mockResultData[0].operatorID);
+  //   workflowActionService.injectJointGraphWrapper().highlightOperator(mockResultData[0].operatorID);
 
   //   const testComponent = new ResultPanelComponent(executeWorkflowService, ngbModel, resultPanelToggleService, workflowActionService);
 
   //   executeWorkflowService.executeWorkflow();
 
-  //   executeWorkflowService.getExecuteEndedStream().subscribe({
+  //   executeWorkflowService.injectExecuteEndedStream().subscribe({
   //     complete: () => {
   //       const mockColumns = Object.keys(mockResultData[0].table[0]);
   //       expect(testComponent.currentDisplayColumns).toEqual(mockColumns);
@@ -145,7 +152,7 @@ describe('ResultPanelComponent', () => {
   //   );
 
   //   const testComponent = new ResultPanelComponent(executeWorkflowService, ngbModel, resultPanelToggleService, workflowActionService);
-  //   executeWorkflowService.getExecuteEndedStream().subscribe({
+  //   executeWorkflowService.injectExecuteEndedStream().subscribe({
   //     complete: () => {
   //       expect(testComponent.message).toEqual(`execution doesn't have any results`);
   //       expect(testComponent.currentDataSource).toBeFalsy();
@@ -156,14 +163,11 @@ describe('ResultPanelComponent', () => {
   //   });
   // }));
 
-  it(`should throw an error when displayResultTable() is called with execution result that has 0 size`, () => {
+  it(`currentResult should not be modified if setupResultTable is called with empty (zero-length) execution result  `, () => {
+    component.currentResult = [{test: 'property'}];
+    (component as any).setupResultTable([]);
 
-    // This is a way to get the private method in Components. Since this edge case can
-    //  never be reached in the public method, this architecture is required.
-
-    expect(() =>
-      (component as any).displayResultTable(mockExecutionEmptyResult.result)
-    ).toThrowError(new RegExp(`result data should not be empty`));
+    expect(component.currentResult).toEqual([{test: 'property'}]);
 
   });
 
@@ -179,7 +183,7 @@ describe('ResultPanelComponent', () => {
 
   //   const testComponent = new ResultPanelComponent(executeWorkflowService, ngbModel, resultPanelToggleService, workflowActionService);
 
-  //   executeWorkflowService.getExecuteEndedStream().subscribe({
+  //   executeWorkflowService.injectExecuteEndedStream().subscribe({
   //     complete: () => {
   //       expect(testComponent.showMessage).toBeTruthy();
   //       expect(testComponent.message.length).toBeGreaterThan(0);
@@ -194,7 +198,7 @@ describe('ResultPanelComponent', () => {
   //     a: mockExecutionErrorResult,
   //     b: mockExecutionResult
   //   };
-  //   const httpClient: HttpClient = TestBed.get(HttpClient);
+  //   const httpClient: HttpClient = TestBed.inject(HttpClient);
   //   spyOn(httpClient, 'post').and.returnValue(
   //     Observable.of(mockExecutionResult)
   //   );
@@ -204,13 +208,13 @@ describe('ResultPanelComponent', () => {
   //   );
 
   //   workflowActionService.addOperator(mockResultOperator, mockResultPoint);
-  //   workflowActionService.getJointGraphWrapper().highlightOperator(mockResultData[0].operatorID);
+  //   workflowActionService.injectJointGraphWrapper().highlightOperator(mockResultData[0].operatorID);
 
   //   const testComponent = new ResultPanelComponent(executeWorkflowService, ngbModel, resultPanelToggleService, workflowActionService);
 
   //   executeWorkflowService.executeWorkflow();
 
-  //   executeWorkflowService.getExecuteEndedStream().subscribe({
+  //   executeWorkflowService.injectExecuteEndedStream().subscribe({
   //     complete: () => {
   //       const mockColumns = Object.keys(mockResultData[0].table[0]);
   //       expect(testComponent.currentDisplayColumns).toEqual(mockColumns);
@@ -222,12 +226,12 @@ describe('ResultPanelComponent', () => {
 
   // it('should generate the result table correctly on the user interface', () => {
 
-  //   const httpClient: HttpClient = TestBed.get(HttpClient);
+  //   const httpClient: HttpClient = TestBed.inject(HttpClient);
   //   spyOn(httpClient, 'post').and.returnValue(
   //     Observable.of(mockExecutionResult)
   //   );
 
-  //   executeWorkflowService.getExecuteEndedStream().subscribe();
+  //   executeWorkflowService.injectExecuteEndedStream().subscribe();
 
   //   executeWorkflowService.executeWorkflow();
 
@@ -248,12 +252,9 @@ describe('ResultPanelComponent', () => {
 
 
   it('should show the result panel if a workflow finishes execution', () => {
-
-    const httpClient: HttpClient = TestBed.get(HttpClient);
-    spyOn(httpClient, 'post').and.returnValue(
-      Observable.of(mockExecutionResult)
-    );
-    executeWorkflowService.executeWorkflow();
+    (executeWorkflowService as any).updateExecutionState({
+      state: ExecutionState.Completed, resultID: 'resultID', resultMap: new Map([])
+    });
     fixture.detectChanges();
     const resultPanelDiv = fixture.debugElement.query(By.css('.texera-workspace-result-panel-body'));
     const resultPanelHtmlElement: HTMLElement = resultPanelDiv.nativeElement;
@@ -277,16 +278,12 @@ describe('ResultPanelComponent', () => {
 
   it(`should hide the result panel if the current status of the result panel is already
       shown when the toggle is triggered`, () => {
-
-    const httpClient: HttpClient = TestBed.get(HttpClient);
-    spyOn(httpClient, 'post').and.returnValue(
-      Observable.of(mockExecutionResult)
-    );
-
     const resultPanelDiv = fixture.debugElement.query(By.css('.texera-workspace-result-panel-body'));
     const resultPanelHtmlElement: HTMLElement = resultPanelDiv.nativeElement;
 
-    executeWorkflowService.executeWorkflow();
+    (executeWorkflowService as any).updateExecutionState({
+      state: ExecutionState.Completed, resultID: 'resultID', resultMap: new Map([])
+    });
     fixture.detectChanges();
     expect(resultPanelHtmlElement.hasAttribute('hidden')).toBeFalsy();
 
@@ -298,19 +295,17 @@ describe('ResultPanelComponent', () => {
   });
 
   it(`it should call modalService.open() to open the popup for result detail when open() is called`, () => {
-    const httpClient: HttpClient = TestBed.get(HttpClient);
-    spyOn(httpClient, 'post').and.returnValue(
-      Observable.of(mockExecutionResult)
-    );
+    const modalSpy =  spyOn(nzModalService, 'create').and.callThrough();
 
-    const modalSpy =  spyOn(ngbModel, 'open').and.callThrough();
-
-    executeWorkflowService.executeWorkflow();
+    (executeWorkflowService as any).updateExecutionState({
+      state: ExecutionState.Completed, resultID: 'resultID', resultMap: new Map([])
+    });
     fixture.detectChanges();
 
-    component.open(mockExecutionResult.result[0]);
+    component.open(mockResultData[0].table[0]);
 
     expect(modalSpy).toHaveBeenCalledTimes(1);
+    nzModalService.closeAll();
   });
 
 });

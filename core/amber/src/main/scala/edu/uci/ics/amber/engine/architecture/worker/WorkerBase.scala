@@ -5,6 +5,7 @@ import akka.event.LoggingAdapter
 import akka.util.Timeout
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.engine.architecture.breakpoint.FaultedTuple
+import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.worker.neo._
 import edu.uci.ics.amber.engine.common.IOperatorExecutor
 import edu.uci.ics.amber.engine.common.amberexception.AmberException
@@ -19,7 +20,7 @@ import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
-abstract class WorkerBase extends Actor with ActorLogging with Stash {
+abstract class WorkerBase extends WorkflowActor {
   implicit val ec: ExecutionContext = context.dispatcher
   implicit val timeout: Timeout = 5.seconds
   implicit val logAdapter: LoggingAdapter = log
@@ -425,5 +426,16 @@ abstract class WorkerBase extends Actor with ActorLogging with Stash {
           sender ! ReportState(WorkerState.Completed)
         }
     }
+
+  def pausing: Receive = {
+    case ExecutionPaused =>
+      //wait for signal from dp thread
+      onPaused()
+      context.become(paused)
+      unstashAll()
+    case msg =>
+      //stash all other messages
+      stash()
+  }
 
 }

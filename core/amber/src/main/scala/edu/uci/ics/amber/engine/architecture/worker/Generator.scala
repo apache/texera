@@ -71,7 +71,7 @@ class Generator(var operator: IOperatorExecutor, val tag: WorkerTag)
   override def onResumeTuple(faultedTuple: FaultedTuple): Unit = {
     var i = 0
     while (i < tupleOutput.output.length) {
-      tupleOutput.output(i).accept(faultedTuple.tuple)
+      tupleOutput.output(i).addTupleToBatch(faultedTuple.tuple)
       i += 1
     }
   }
@@ -95,12 +95,9 @@ class Generator(var operator: IOperatorExecutor, val tag: WorkerTag)
     // if dp thread is blocking on waiting for input tuples:
     if (workerInternalQueue.blockingDeque.isEmpty && tupleInput.isCurrentBatchExhausted) {
       // insert dummy batch to unblock dp thread
-      workerInternalQueue.addBatch(null)
+      workerInternalQueue.addDummyInput()
     }
-    pauseManager.waitForDPThread()
-    onPaused()
-    context.become(paused)
-    unstashAll()
+    context.become(pausing)
   }
 
   override def onInitialization(recoveryInformation: Seq[(Long, Long)]): Unit = {
@@ -110,7 +107,7 @@ class Generator(var operator: IOperatorExecutor, val tag: WorkerTag)
 
   override def onStart(): Unit = {
     super.onStart()
-    workerInternalQueue.addBatch((LayerTag("", "", ""), null))
+    workerInternalQueue.addEndMarker(LayerTag("", "", ""))
     context.become(running)
     unstashAll()
   }
