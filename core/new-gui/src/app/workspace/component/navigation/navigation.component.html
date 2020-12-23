@@ -5,9 +5,17 @@
         Texera
       </a>
     </div>
+
+
+    <div *ngIf="userSystemEnabled" class="texera-navigation-workflow-name">
+      <span #nameInput (input)="onWorkflowNameChange($event)" class="name-input" contenteditable="true"
+            placeholder="Untitled Workflow"
+            role="textbox" spellcheck="false">{{currentWorkflowName}}</span>
+      <span class="save-state" spellcheck="false">{{autoSaveState}}</span>
+    </div>
     <div class='texera-navigation-utilities'>
       <nz-button-group nzSize="large">
-        <button *ngIf="userSystemEnabled" [routerLink]="'/dashboard'">
+        <button *ngIf="userSystemEnabled" [routerLink]="'/dashboard'" nz-button title="dashboard">
           <i nz-icon nzTheme="outline" nzType="cloud-server"></i>
         </button>
 
@@ -23,7 +31,8 @@
         <button *ngIf="userSystemEnabled" (click)="onClickCreateNewWorkflow()" nz-button title="create new">
           <i nz-icon nzTheme="outline" nzType="form"></i>
         </button>
-        <button *ngIf="userSystemEnabled" (click)="onClickSaveWorkflow()" [disabled]="isSaving" nz-button title="save">
+        <button (click)="persistCachedWorkflow()" *ngIf="userSystemEnabled"
+                [disabled]=" !userService.isLogin()|| isSaving" nz-button title="save">
           <i *ngIf="!isSaving" nz-icon nzTheme="outline" nzType="save"></i>
           <i *ngIf="isSaving" [nzSpin]="true" [nzType]="'sync'" nz-icon nzTheme="outline"></i>
         </button>
@@ -47,28 +56,27 @@
             </li>
           </ul>
         </nz-dropdown-menu>
-        <button nz-button [disabled] = "!highlightedElementsGroupable()" (click)="onClickGroupOperators()" title="group">
+        <button (click)="onClickGroupOperators()" [disabled]="!highlightedElementsGroupable()" nz-button title="group">
           <i nz-icon nzType="group" nzTheme="outline"></i>
         </button>
-        <button nz-button [disabled] = "!highlightedElementsUngroupable()" (click)="onClickUngroupOperators()" title="ungroup">
+        <button (click)="onClickUngroupOperators()" [disabled]="!highlightedElementsUngroupable()" nz-button
+                title="ungroup">
           <i nz-icon nzType="ungroup" nzTheme="outline"></i>
         </button>
       </nz-button-group>
     </div>
 
-    <label *ngIf="userSystemEnabled">
-      <input (change)="onWorkflowNameChange()" [(ngModel)]="currentWorkflowName" class="texera-navigation-workflow-name"
-             nz-input placeholder="Untitled Workflow"/>
-    </label>
     <div
       [ngClass]="{'texera-navigation-execute': true, 'reveal-stop-button' : executionState != ExecutionState.Uninitialized && executionState != ExecutionState.Completed && executionState != ExecutionState.Failed}">
       <nz-button-group nzSize="large">
-        <button class="animate-to-reveal-stop-button" nz-button nzType="default" [disabled]="!undoRedo.canUndo()"
-                (click)="undoRedo.undoAction()">
+        <button (click)="undoRedoService.undoAction()" [disabled]="!undoRedoService.canUndo()"
+                class="animate-to-reveal-stop-button" nz-button
+                nzType="default">
           <i nz-icon nzType="undo" nzTheme="outline"></i>
         </button>
-        <button class="animate-to-reveal-stop-button" nz-button nzType="default" [disabled]="!undoRedo.canRedo()"
-                (click)="undoRedo.redoAction()">
+        <button (click)="undoRedoService.redoAction()" [disabled]="!undoRedoService.canRedo()"
+                class="animate-to-reveal-stop-button" nz-button
+                nzType="default">
           <i nz-icon nzType="redo" nzTheme="outline"></i>
         </button>
         <button (click)="tourService.toggle()" class="animate-to-reveal-stop-button" nz-button nzType="default">

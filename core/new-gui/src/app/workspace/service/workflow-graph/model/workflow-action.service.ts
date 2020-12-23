@@ -3,13 +3,16 @@ import { Injectable } from '@angular/core';
 import * as joint from 'jointjs';
 import { cloneDeep } from 'lodash';
 import { BehaviorSubject, Observable, Subject } from 'rxjs';
-import { recordToMap } from 'src/app/common/util/map';
-import { Workflow, WorkflowInfo } from '../../../../common/type/workflow';
+import { mapToRecord, recordToMap } from 'src/app/common/util/map';
+import { WorkflowPersistService } from '../../../../common/service/user/workflow-persist/workflow-persist.service';
+import { Workflow, WorkflowContent } from '../../../../common/type/workflow';
+import { WorkflowMetadata } from '../../../../dashboard/type/workflow-metadata';
 import { Breakpoint, OperatorLink, OperatorPort, OperatorPredicate, Point } from '../../../types/workflow-common.interface';
+import { JointUIService } from '../../joint-ui/joint-ui.service';
+import { OperatorMetadataService } from '../../operator-metadata/operator-metadata.service';
+import { UndoRedoService } from '../../undo-redo/undo-redo.service';
+import { WorkflowCacheService } from '../../workflow-cache/workflow-cache.service';
 import { WorkflowUtilService } from '../util/workflow-util.service';
-import { JointUIService } from './../../joint-ui/joint-ui.service';
-import { OperatorMetadataService } from './../../operator-metadata/operator-metadata.service';
-import { UndoRedoService } from './../../undo-redo/undo-redo.service';
 import { JointGraphWrapper } from './joint-graph-wrapper';
 import { Group, OperatorGroup, OperatorGroupReadonly } from './operator-group';
 import { SyncOperatorGroup } from './sync-operator-group';
@@ -38,7 +41,7 @@ type GroupInfo = {
  * WorkflowActionService exposes functions (actions) to modify the workflow graph model of both JointJS and Texera,
  *  such as addOperator, deleteOperator, addLink, deleteLink, etc.
  * WorkflowActionService performs checks the validity of these actions,
- *  for example, throws an error if deleting an nonexist operator
+ *  for example, throws an error if deleting an nonsexist operator
  *
  * All changes(actions) to the workflow graph should be called through WorkflowActionService,
  *  then WorkflowActionService will propagate these actions to JointModel and Texera Model automatically.
@@ -63,6 +66,7 @@ export class WorkflowActionService {
   private readonly operatorGroup: OperatorGroup;
   private readonly syncTexeraModel: SyncTexeraModel;
   private readonly syncOperatorGroup: SyncOperatorGroup;
+  private workflowMetadata: WorkflowMetadata;
   private workflowModificationEnabled = true;
   private enableModificationStream = new BehaviorSubject<boolean>(true);
   private workflowChangeSubject: Subject<void> = new Subject<void>();
@@ -71,7 +75,9 @@ export class WorkflowActionService {
     private operatorMetadataService: OperatorMetadataService,
     private jointUIService: JointUIService,
     private undoRedoService: UndoRedoService,
-    private workflowUtilService: WorkflowUtilService
+    private workflowUtilService: WorkflowUtilService,
+    private workflowCacheService: WorkflowCacheService,
+    private workflowPersistService: WorkflowPersistService
   ) {
     this.texeraGraph = new WorkflowGraph();
     this.jointGraph = new joint.dia.Graph();
@@ -80,6 +86,7 @@ export class WorkflowActionService {
       this.workflowUtilService, this.jointUIService);
     this.syncTexeraModel = new SyncTexeraModel(this.texeraGraph, this.jointGraphWrapper, this.operatorGroup);
     this.syncOperatorGroup = new SyncOperatorGroup(this.texeraGraph, this.jointGraphWrapper, this.operatorGroup);
+    this.workflowMetadata = WorkflowActionService.DEFAULT_WORKFLOW;
 
     this.handleJointLinkAdd();
     this.handleJointOperatorDrag();
@@ -98,8 +105,11 @@ export class WorkflowActionService {
       this.getTexeraGraph().getBreakpointChangeStream(),
       this.getJointGraphWrapper().getElementPositionChangeEvent()
     ).subscribe(_ => {
+      console.log('detect changes on workflow');
       this.workflowChangeSubject.next();
     });
+
+    this.registerWorkflowAutoPersist();
   }
 
   // workflow modification lock interface (allows or prevents commands that would modify the workflow graph)
@@ -775,28 +785,29 @@ export class WorkflowActionService {
    *  previously created workflow stored in the local storage onto
    *  the JointJS paper.
    */
-  public reloadWorkflow(workflow: Workflow|null): void {
+  public reloadWorkflow(workflow: Workflow|undefined): void {
     // remove the existing operators on the paper currently
     this.deleteOperatorsAndLinks(
       this.getTexeraGraph().getAllOperators().map(op => op.operatorID), []);
 
-    if (workflow === null) {
+    if (workflow === undefined) {
       return;
     }
-    const workflowInfo: WorkflowInfo = workflow.content;
+    this.setWorkflowMetadata(workflow);
+    const workflowContent: WorkflowContent = workflow.content;
 
     const operatorsAndPositions: { op: OperatorPredicate, pos: Point }[] = [];
-    workflowInfo.operators.forEach(op => {
-      const opPosition = workflowInfo.operatorPositions[op.operatorID];
+    workflowContent.operators.forEach(op => {
+      const opPosition = workflowContent.operatorPositions[op.operatorID];
       if (!opPosition) {
         throw new Error('position error');
       }
       operatorsAndPositions.push({op: op, pos: opPosition});
     });
 
-    const links: OperatorLink[] = workflowInfo.links;
+    const links: OperatorLink[] = workflowContent.links;
 
-    const groups: readonly Group[] = workflowInfo.groups.map(group => {
+    const groups: readonly Group[] = workflowContent.groups.map(group => {
       return {
         groupID: group.groupID, operators: recordToMap(group.operators),
         links: recordToMap(group.links), inLinks: group.inLinks, outLinks: group.outLinks,
@@ -804,7 +815,7 @@ export class WorkflowActionService {
       };
     });
 
-    const breakpoints = new Map(Object.entries(workflowInfo.breakpoints));
+    const breakpoints = new Map(Object.entries(workflowContent.breakpoints));
 
     this.addOperatorsAndLinks(operatorsAndPositions, links, groups, breakpoints);
 
@@ -817,7 +828,62 @@ export class WorkflowActionService {
   }
 
   public workflowChanged(): Observable<void> {
+
     return this.workflowChangeSubject.asObservable();
+  }
+
+  public setWorkflowMetadata(workflowMetaData: WorkflowMetadata|undefined): void {
+
+    this.workflowMetadata = (workflowMetaData === undefined) ? WorkflowActionService.DEFAULT_WORKFLOW : workflowMetaData;
+  }
+
+  public getWorkflowMetadata(): WorkflowMetadata|undefined {
+    return this.workflowMetadata;
+  }
+
+  public getWorkflowContent(): WorkflowContent {
+    // collect workflow content
+    const texeraGraph = this.getTexeraGraph();
+    const operators = texeraGraph.getAllOperators();
+    const links = texeraGraph.getAllLinks();
+    const operatorPositions: { [key: string]: Point } = {};
+
+    const groups = this.getOperatorGroup().getAllGroups().map(group => {
+      return {
+        groupID: group.groupID, operators: mapToRecord(group.operators),
+        links: mapToRecord(group.links), inLinks: group.inLinks, outLinks: group.outLinks,
+        collapsed: group.collapsed
+      };
+    });
+    const breakpointsMap = texeraGraph.getAllLinkBreakpoints();
+    const breakpoints: Record<string, Breakpoint> = {};
+    breakpointsMap.forEach((value, key) => (breakpoints[key] = value));
+    texeraGraph.getAllOperators().forEach(op => operatorPositions[op.operatorID] =
+      this.getJointGraphWrapper().getElementPosition(op.operatorID));
+    return <WorkflowContent>{
+      operators, operatorPositions, links, groups, breakpoints
+    };
+  }
+
+  public getWorkflow(): Workflow {
+    return <Workflow>{...this.workflowMetadata, ...{content: this.getWorkflowContent()}};
+  }
+
+  public setWorkflowName(name: string): void {
+    console.log('setting workflow name to', name);
+    this.workflowMetadata.name = name.trim().length > 0 ? name : WorkflowActionService.DEFAULT_WORKFLOW_NAME;
+    console.log('detect changes on workflow');
+    this.workflowChangeSubject.next();
+  }
+
+  public reloadWorkflowFromCache(): void {
+    this.reloadWorkflow(this.workflowCacheService.getCachedWorkflow());
+  }
+
+  public setWorkflow(workflow: Workflow): void {
+    this.reloadWorkflow(workflow);
+    console.log('detect changes on workflow');
+    this.workflowChangeSubject.next();
   }
 
   private addOperatorInternal(operator: OperatorPredicate, point: Point): void {
@@ -990,4 +1056,39 @@ export class WorkflowActionService {
       this.getJointGraphWrapper().showLinkBreakpoint(linkID);
     }
   }
+
+  /**
+   * This method will listen to all the workflow change event happening
+   *  on the property panel and the workflow editor paper.
+   */
+  private registerAutoCacheWorkFlow(): void {
+    this.workflowChanged().debounceTime(100).subscribe(() => {
+      this.workflowCacheService.setCacheWorkflow(this.getWorkflow());
+
+    });
+  }
+
+  private registerWorkflowAutoPersist(): void {
+
+    this.workflowChanged().debounceTime(100).subscribe(() => {
+
+        this.workflowPersistService.persistWorkflow(this.getWorkflow())
+            .subscribe((updatedWorkflow: Workflow) => {
+
+              console.log('got back', updatedWorkflow);
+              this.setWorkflowMetadata(updatedWorkflow);
+            });
+        // to sync up with the updated information, such as workflow.wid
+      }
+    );
+  }
+
+  private registerAutoReloadWorkflow(): void {
+    this.operatorMetadataService.getOperatorMetadata()
+        .filter(metadata => metadata.operators.length !== 0)
+        .subscribe(() => this.reloadWorkflow(
+          this.workflowCacheService.getCachedWorkflow()));
+  }
+
 }
+

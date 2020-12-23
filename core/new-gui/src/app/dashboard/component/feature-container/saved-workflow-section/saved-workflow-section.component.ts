@@ -1,12 +1,12 @@
 import { Component, OnInit } from '@angular/core';
+import { Router } from '@angular/router';
 import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
-import { NgbdModalDeleteWorkflowComponent } from './ngbd-modal-delete-workflow/ngbd-modal-delete-workflow.component';
 
 import { cloneDeep } from 'lodash';
 import { Observable } from 'rxjs';
-import { Workflow } from '../../../../common/type/workflow';
-import { Router } from '@angular/router';
 import { WorkflowPersistService } from '../../../../common/service/user/workflow-persist/workflow-persist.service';
+import { Workflow } from '../../../../common/type/workflow';
+import { NgbdModalDeleteWorkflowComponent } from './ngbd-modal-delete-workflow/ngbd-modal-delete-workflow.component';
 
 /**
  * SavedProjectSectionComponent is the main interface for
@@ -36,7 +36,7 @@ export class SavedWorkflowSectionComponent implements OnInit {
 
   ngOnInit() {
     this.workflowPersistService.retrieveWorkflowsBySessionUser().subscribe(
-      workflows => this.workflows = workflows,
+      workflows => this.workflows = workflows
     );
   }
 
@@ -99,19 +99,18 @@ export class SavedWorkflowSectionComponent implements OnInit {
    * message to frontend and delete the workflow on frontend. It
    * calls the deleteProject method in service which implements backend API.
    */
-  public openNgbdModalDeleteWorkflowComponent(savedWorkflow: Workflow): void {
+  public openNgbdModalDeleteWorkflowComponent(workflowToDelete: Workflow): void {
     const modalRef = this.modalService.open(NgbdModalDeleteWorkflowComponent);
-    modalRef.componentInstance.project = cloneDeep(savedWorkflow);
+    modalRef.componentInstance.workflow = cloneDeep(workflowToDelete);
 
-    Observable.from(modalRef.result).subscribe(
-      (value: boolean) => {
-        if (value) {
-          this.workflows = this.workflows.filter(workflow => workflow.wid !== savedWorkflow.wid);
-          this.workflowPersistService.deleteWorkflow(savedWorkflow);
-        }
+    Observable.from(modalRef.result).subscribe((confirmToDelete: boolean) => {
+      if (confirmToDelete && workflowToDelete.wid !== undefined) {
+        this.workflows = this.workflows.filter(workflow => workflow.wid !== workflowToDelete.wid);
+        this.workflowPersistService.deleteWorkflow(workflowToDelete.wid).subscribe(_ => {
+          }, alert // TODO: handle error messages properly.
+        );
       }
-    );
-
+    });
   }
 
   jumpToWorkflow(workflow: Workflow) {

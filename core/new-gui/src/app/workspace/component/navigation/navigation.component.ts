@@ -1,17 +1,18 @@
-import { Component, Input, OnInit } from '@angular/core';
-import { ExecuteWorkflowService } from '../../service/execute-workflow/execute-workflow.service';
-import { UndoRedoService } from '../../service/undo-redo/undo-redo.service';
+import { Location } from '@angular/common';
+import { Component, ElementRef, Input, OnInit, ViewChild } from '@angular/core';
 import { TourService } from 'ngx-tour-ng-bootstrap';
-import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
-import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-graph-wrapper';
-import { ValidationWorkflowService } from '../../service/validation/validation-workflow.service';
-import { ExecutionState } from '../../types/execute-workflow.interface';
-import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
+import { environment } from '../../../../environments/environment';
 import { UserService } from '../../../common/service/user/user.service';
 import { WorkflowPersistService } from '../../../common/service/user/workflow-persist/workflow-persist.service';
-import { CacheWorkflowService } from '../../service/cache-workflow/cache-workflow.service';
 import { Workflow } from '../../../common/type/workflow';
-import { environment } from '../../../../environments/environment';
+import { ExecuteWorkflowService } from '../../service/execute-workflow/execute-workflow.service';
+import { UndoRedoService } from '../../service/undo-redo/undo-redo.service';
+import { ValidationWorkflowService } from '../../service/validation/validation-workflow.service';
+import { WorkflowCacheService } from '../../service/workflow-cache/workflow-cache.service';
+import { JointGraphWrapper } from '../../service/workflow-graph/model/joint-graph-wrapper';
+import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
+import { WorkflowStatusService } from '../../service/workflow-status/workflow-status.service';
+import { ExecutionState } from '../../types/execute-workflow.interface';
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -34,33 +35,37 @@ import { environment } from '../../../../environments/environment';
   styleUrls: ['./navigation.component.scss']
 })
 export class NavigationComponent implements OnInit {
-  public static autoSaveState = 'Saved';
 
   public executionState: ExecutionState;  // set this to true when the workflow is started
   public ExecutionState = ExecutionState; // make Angular HTML access enum definition
   public isWorkflowValid: boolean = true; // this will check whether the workflow error or not
   public isSaving: boolean = false;
-  @Input() public currentWorkflowName: string;  // reset workflowName
+
+  @Input() public autoSaveState: string = '';
+  @Input() public currentWorkflowName: string = '';  // reset workflowName
+  @ViewChild('nameInput') nameInputBox: ElementRef<HTMLElement>|undefined;
 
   // variable bound with HTML to decide if the running spinner should show
   public runButtonText = 'Run';
   public runIcon = 'play-circle';
   public runDisable = false;
-  public executionResultID: string | undefined;
+  public executionResultID: string|undefined;
 
   // whether user dashboard is enabled and accessible from the workspace
   public userSystemEnabled: boolean = environment.userSystemEnabled;
+  public onClickRunHandler: () => void;
 
   constructor(
     public executeWorkflowService: ExecuteWorkflowService,
     public tourService: TourService,
     public workflowActionService: WorkflowActionService,
     public workflowStatusService: WorkflowStatusService,
-    public undoRedo: UndoRedoService,
+    private location: Location,
+    public undoRedoService: UndoRedoService,
     public validationWorkflowService: ValidationWorkflowService,
     public workflowPersistService: WorkflowPersistService,
-    private userService: UserService,
-    private cachedWorkflowService: CacheWorkflowService
+    public userService: UserService,
+    private workflowCacheService: WorkflowCacheService
   ) {
     this.executionState = executeWorkflowService.getExecutionState().state;
     // return the run button after the execution is finished, either
@@ -70,7 +75,7 @@ export class NavigationComponent implements OnInit {
     this.runIcon = initBehavior.icon;
     this.runDisable = initBehavior.disable;
     this.onClickRunHandler = initBehavior.onClick;
-    this.currentWorkflowName = this.cachedWorkflowService.getCachedWorkflowName();
+    // this.currentWorkflowName = this.workflowCacheService.getCachedWorkflow();
 
     executeWorkflowService.getExecutionStateStream().subscribe(
       event => {
@@ -86,13 +91,12 @@ export class NavigationComponent implements OnInit {
 
     // set the map of operatorStatusMap
     validationWorkflowService.getWorkflowValidationErrorStream()
-      .subscribe(value => {
-        this.isWorkflowValid = Object.keys(value.errors).length === 0;
-        this.applyRunButtonBehavior(this.getRunButtonBehavior(this.executionState, this.isWorkflowValid));
-      });
-  }
+                             .subscribe(value => {
+                               this.isWorkflowValid = Object.keys(value.errors).length === 0;
+                               this.applyRunButtonBehavior(this.getRunButtonBehavior(this.executionState, this.isWorkflowValid));
+                             });
 
-  public onClickRunHandler = () => {
+    this.register();
   }
 
   ngOnInit() {
@@ -207,7 +211,7 @@ export class NavigationComponent implements OnInit {
 
     // make the ratio small.
     this.workflowActionService.getJointGraphWrapper()
-      .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() - JointGraphWrapper.ZOOM_CLICK_DIFF);
+        .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() - JointGraphWrapper.ZOOM_CLICK_DIFF);
   }
 
   /**
@@ -226,7 +230,7 @@ export class NavigationComponent implements OnInit {
 
     // make the ratio big.
     this.workflowActionService.getJointGraphWrapper()
-      .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() + JointGraphWrapper.ZOOM_CLICK_DIFF);
+        .setZoomProperty(this.workflowActionService.getJointGraphWrapper().getZoomRatio() + JointGraphWrapper.ZOOM_CLICK_DIFF);
   }
 
   /**
@@ -304,29 +308,40 @@ export class NavigationComponent implements OnInit {
       this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs().length === 0;
   }
 
-  public onClickSaveWorkflow(): void {
-    if (!this.userService.isLogin()) {
-      alert('please login');
-    } else {
-      const cachedWorkflow: Workflow | null = this.cachedWorkflowService.getCachedWorkflow();
-      if (cachedWorkflow != null) {
-        this.isSaving = true;
-        this.workflowPersistService.persistWorkflow(cachedWorkflow).subscribe(this.cachedWorkflowService.cacheWorkflow).add(() => {
+  public persistCachedWorkflow(): void {
+    this.isSaving = true;
+    this.workflowPersistService.persistWorkflow(this.workflowActionService.getWorkflow())
+        .subscribe((updatedWorkflow: Workflow) => {
+          this.workflowCacheService.setCacheWorkflow(updatedWorkflow);
+          this.isSaving = false;
+        }, error => {
+          alert(error);
           this.isSaving = false;
         });
-      } else {
-        alert('No workflow found in cache.');
-      }
+  }
+
+  /**
+   * Handler for changing workflow name input box, updates the cachedWorkflow and persist to database.
+   */
+  onWorkflowNameChange(event: InputEvent) {
+    this.currentWorkflowName = (<HTMLElement>event.target).innerText.trim();
+    this.workflowActionService.setWorkflowName(this.currentWorkflowName);
+    if (this.userService.isLogin()) {
+      this.persistCachedWorkflow();
     }
   }
 
-  onWorkflowNameChange() {
-    this.cachedWorkflowService.setCachedWorkflowName(this.currentWorkflowName);
+  onClickCreateNewWorkflow() {
+    this.workflowCacheService.resetCachedWorkflow();
+    this.workflowActionService.reloadWorkflowFromCache();
+    this.undoRedoService.clearUndoStack();
+    this.undoRedoService.clearRedoStack();
+    this.location.go('/');
   }
 
-  onClickCreateNewWorkflow() {
-    this.cachedWorkflowService.clearCachedWorkflow();
-    this.currentWorkflowName = this.cachedWorkflowService.getCachedWorkflowName();
-    this.cachedWorkflowService.loadWorkflow();
+  register() {
+    this.workflowActionService.workflowChanged().debounceTime(100)
+        .subscribe(() => this.currentWorkflowName = this.workflowActionService.getWorkflow().name);
+
   }
 }
