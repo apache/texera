@@ -1,24 +1,24 @@
-import { ValidationWorkflowService } from '../service/validation/validation-workflow.service';
-import { ExecuteWorkflowService } from '../service/execute-workflow/execute-workflow.service';
-import { DragDropService } from '../service/drag-drop/drag-drop.service';
-import { WorkflowUtilService } from '../service/workflow-graph/util/workflow-util.service';
-import { WorkflowActionService } from '../service/workflow-graph/model/workflow-action.service';
-import { UndoRedoService } from '../service/undo-redo/undo-redo.service';
 import { Component, OnInit } from '@angular/core';
-
-import { OperatorMetadataService } from '../service/operator-metadata/operator-metadata.service';
-import { JointUIService } from '../service/joint-ui/joint-ui.service';
-import { DynamicSchemaService } from '../service/dynamic-schema/dynamic-schema.service';
-import { SourceTablesService } from '../service/dynamic-schema/source-tables/source-tables.service';
-import { SchemaPropagationService } from '../service/dynamic-schema/schema-propagation/schema-propagation.service';
-import { ResultPanelToggleService } from '../service/result-panel-toggle/result-panel-toggle.service';
-import { CacheWorkflowService } from '../service/cache-workflow/cache-workflow.service';
-import { WorkflowStatusService } from '../service/workflow-status/workflow-status.service';
-import { WorkflowWebsocketService } from '../service/workflow-websocket/workflow-websocket.service';
 import { ActivatedRoute } from '@angular/router';
+import { Version } from 'src/environments/version';
 import { WorkflowPersistService } from '../../common/service/user/workflow-persist/workflow-persist.service';
 import { Workflow } from '../../common/type/workflow';
-import { Version } from 'src/environments/version';
+import { CacheWorkflowService } from '../service/cache-workflow/cache-workflow.service';
+import { DragDropService } from '../service/drag-drop/drag-drop.service';
+import { DynamicSchemaService } from '../service/dynamic-schema/dynamic-schema.service';
+import { SchemaPropagationService } from '../service/dynamic-schema/schema-propagation/schema-propagation.service';
+import { SourceTablesService } from '../service/dynamic-schema/source-tables/source-tables.service';
+import { ExecuteWorkflowService } from '../service/execute-workflow/execute-workflow.service';
+import { JointUIService } from '../service/joint-ui/joint-ui.service';
+
+import { OperatorMetadataService } from '../service/operator-metadata/operator-metadata.service';
+import { ResultPanelToggleService } from '../service/result-panel-toggle/result-panel-toggle.service';
+import { UndoRedoService } from '../service/undo-redo/undo-redo.service';
+import { ValidationWorkflowService } from '../service/validation/validation-workflow.service';
+import { WorkflowActionService } from '../service/workflow-graph/model/workflow-action.service';
+import { WorkflowUtilService } from '../service/workflow-graph/util/workflow-util.service';
+import { WorkflowStatusService } from '../service/workflow-status/workflow-status.service';
+import { WorkflowWebsocketService } from '../service/workflow-websocket/workflow-websocket.service';
 
 @Component({
   selector: 'texera-workspace',
@@ -41,7 +41,7 @@ import { Version } from 'src/environments/version';
     CacheWorkflowService,
     ValidationWorkflowService,
     WorkflowStatusService,
-    WorkflowWebsocketService,
+    WorkflowWebsocketService
   ]
 })
 export class WorkspaceComponent implements OnInit {
@@ -62,7 +62,7 @@ export class WorkspaceComponent implements OnInit {
   ) {
 
     this.resultPanelToggleService.getToggleChangeStream().subscribe(
-      value => this.showResultPanel = value,
+      value => this.showResultPanel = value
     );
   }
 
@@ -82,6 +82,5 @@ export class WorkspaceComponent implements OnInit {
     }
     this.currentWorkflowName = this.cacheWorkflowService.getCachedWorkflowName();
   }
-
 
 }
