@@ -751,24 +751,6 @@ export class WorkflowActionService {
   public removeLinkBreakpoint(linkID: string): void {
     this.setLinkBreakpoint(linkID, undefined);
   }
-  /**
-   * Set OperatorIDToAttributeTypeArrayMap in the graph
-   *
-   * @param operatorID
-   * @param attributesMap
-   */
-  public setOperatorIDToSchemaAttributeMap(operatorID: string, schemaAttribute: any) {
-    this.texeraGraph.setOperatorIDToSchemaAttributeMap(operatorID, schemaAttribute);
-  }
-
-  /**
-   * get a string[][], the fisrt index is attribute's names, the second index is attribute's types
-   *
-   * @param operatorID
-   */
-  public getOperatorIdToSchemaAttributeMap(operatorID: string): SchemaAttribute[]|undefined {
-    return this.texeraGraph.getOperatorIdToSchemaAttributeMap().get(operatorID);
-  }
 
   private addOperatorInternal(operator: OperatorPredicate, point: Point): void {
     // check that the operator doesn't exist

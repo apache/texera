@@ -28,8 +28,6 @@ export class WorkflowGraph {
   private readonly operatorPositionMap = new Map<string, Point>();
   private readonly operatorLinkMap = new Map<string, OperatorLink>();
   private readonly linkBreakpointMap = new Map<string, Breakpoint>();
-  private readonly operatorIDToSchemaAttributeMap = new Map<string, SchemaAttribute[]>();
-
 
   private readonly operatorAddSubject = new Subject<OperatorPredicate>();
   private readonly operatorDeleteSubject = new Subject<{ deletedOperator: OperatorPredicate }>();
@@ -416,20 +414,6 @@ export class WorkflowGraph {
       throw new Error(`link's target port ${link.target.portID} doesn't exist
           on input ports of the target operator ${link.target.operatorID}`);
     }
-  }
-  /**
-   * set OperatorIDToAttributeTypeArrayMap
-   * @param operatorID
-   * @param attibuteArrays
-   */
-  public setOperatorIDToSchemaAttributeMap(operatorID:string, schemaAttribute:any){
-    this.operatorIDToSchemaAttributeMap.set(operatorID, schemaAttribute);
-  }
-  /**
-   * get this.operatorIDToSchemaAttributeMap
-   */
-  public getOperatorIdToSchemaAttributeMap(){
-    return this.operatorIDToSchemaAttributeMap;
   }
 
 

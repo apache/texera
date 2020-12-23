@@ -10,7 +10,6 @@ import { WorkflowActionService } from '../../workflow-graph/model/workflow-actio
 import { NGXLogger } from 'ngx-logger';
 
 import { isEqual } from 'lodash';
-import { JSONSchema7 } from 'json-schema';
 
 // endpoint for schema propagation
 export const SCHEMA_PROPAGATION_ENDPOINT = 'queryplan/autocomplete';
@@ -34,6 +33,7 @@ export const attributeListInJsonSchemaKeys = ['attributes', 'groupByKeys', 'data
 })
 export class SchemaPropagationService {
 
+  private operatorInputSchemaMap: Readonly<{ [key: string]: ReadonlyArray<SchemaAttribute> }> = {};
 
   constructor(
     private httpClient: HttpClient,
@@ -56,10 +56,14 @@ export class SchemaPropagationService {
       .flatMap(() => this.invokeSchemaPropagationAPI())
       .filter(response => response.code === 0)
       .subscribe(response => {
-
-        this._applySchemaPropagationResult(response.result)
+        this.operatorInputSchemaMap = response.result;
+        this._applySchemaPropagationResult(this.operatorInputSchemaMap);
       });
 
+  }
+
+  public getOperatorInputSchema(operatorID: string): ReadonlyArray<SchemaAttribute> | undefined {
+    return this.operatorInputSchemaMap[operatorID];
   }
 
 
@@ -79,16 +83,11 @@ export class SchemaPropagationService {
     Array.from(this.dynamicSchemaService.getDynamicSchemaMap().keys()).forEach(operatorID => {
       const currentDynamicSchema = this.dynamicSchemaService.getDynamicSchema(operatorID);
 
-      // setOperatorIDToSchemaAttributeMap the schemaPropagationResult[operatorID] is attribute name, schemaPropagationResult[operatorID][1] is attribute type
-      if (schemaPropagationResult[operatorID]){
-        this.workflowActionService.setOperatorIDToSchemaAttributeMap(operatorID, schemaPropagationResult[operatorID])
-      }
-
-
       // if operator input attributes are in the result, set them in dynamic schema
       let newDynamicSchema: OperatorSchema;
       if (schemaPropagationResult[operatorID]) {
-        newDynamicSchema = SchemaPropagationService.setOperatorInputAttrs(currentDynamicSchema, schemaPropagationResult[operatorID].map(e => e.attributeName));
+        newDynamicSchema = SchemaPropagationService.setOperatorInputAttrs(
+          currentDynamicSchema, schemaPropagationResult[operatorID].map(e => e.attributeName));
       } else {
         // otherwise, the input attributes of the operator is unknown
         // if the operator is not a source operator, restore its original schema of input attributes
@@ -229,7 +228,9 @@ export interface SchemaAttribute extends Readonly<{
  *  code: 0,
  *  result: {
  *    'operatorID1' : ['attribute1','attribute2','attribute3'],
- *    'operatorID2' : [{attributeName: 'name', attributeType: 'string'}, {attributeName: 'text', attributeType: 'string'}, {attributeName: 'follower_count', attributeType: 'string'}]
+ *    'operatorID2' : [ {attributeName: 'name', attributeType: 'string'},
+ *                      {attributeName: 'text', attributeType: 'string'},
+ *                      {attributeName: 'follower_count', attributeType: 'string'} ]
  *
  *  }
  * }
