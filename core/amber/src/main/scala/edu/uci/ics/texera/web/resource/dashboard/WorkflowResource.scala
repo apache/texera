@@ -10,7 +10,7 @@ import edu.uci.ics.texera.web.resource.auth.UserResource
 import io.dropwizard.jersey.sessions.Session
 import javax.servlet.http.HttpSession
 import javax.ws.rs._
-import javax.ws.rs.core.MediaType
+import javax.ws.rs.core.{MediaType, Response}
 import org.jooq.types.UInteger
 
 /**
@@ -33,7 +33,7 @@ class WorkflowResource {
     * @return Workflow[]
     */
   @GET
-  @Path("/get")
+  @Path("/list")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def retrieveWorkflowsBySessionUser(@Session session: HttpSession): util.List[Workflow] = {
     val user = UserResource.getUser(session)
@@ -57,22 +57,24 @@ class WorkflowResource {
     * @return a json string representing an savedWorkflow
     */
   @GET
-  @Path("/get/{wid}")
+  @Path("/{wid}")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def retrieveWorkflow(@PathParam("wid") wid: UInteger, @Session session: HttpSession): Workflow = {
     val user = UserResource.getUser(session)
     if (user == null) return null
-    if (
-      workflowOfUserDao.existsById(
-        SqlServer.createDSLContext
-          .newRecord(WORKFLOW_OF_USER.UID, WORKFLOW_OF_USER.WID)
-          .values(user.getUid, wid)
-      )
-    ) {
+    if (workflowOfUserExists(wid, user.getUid)) {
       workflowDao.fetchOneByWid(wid)
     } else {
       null
     }
+  }
+
+  private def workflowOfUserExists(wid: UInteger, uid: UInteger): Boolean = {
+    workflowOfUserDao.existsById(
+      SqlServer.createDSLContext
+        .newRecord(WORKFLOW_OF_USER.UID, WORKFLOW_OF_USER.WID)
+        .values(uid, wid)
+    )
   }
 
   /**
@@ -89,15 +91,35 @@ class WorkflowResource {
   def persistWorkflow(@Session session: HttpSession, workflow: Workflow): Workflow = {
     val user = UserResource.getUser(session)
     if (user == null) return null
-    if (workflow.getWid != null) {
+    if (workflowOfUserExists(workflow.getWid, user.getUid)) {
       // when the wid is provided, update the existing workflow
       workflowDao.update(workflow)
-      workflow
+      workflowDao.fetchOneByWid(workflow.getWid)
     } else {
       // when the wid is not provided, treat it as a new workflow
       workflowDao.insert(workflow)
       workflowOfUserDao.insert(new WorkflowOfUser(user.getUid, workflow.getWid))
       workflow
+    }
+
+  }
+
+  /**
+    * This method deletes the workflow from database
+    *
+    * @param session HttpSession
+    * @return Response, deleted - 200, not deleted - 304 // TODO: change the error code
+    */
+  @DELETE
+  @Path("/{wid}")
+  def deleteWorkflow(@PathParam("wid") wid: UInteger, @Session session: HttpSession): Response = {
+    val user = UserResource.getUser(session)
+    if (user == null) return null
+    if (workflowOfUserExists(wid, user.getUid)) {
+      workflowDao.deleteById(wid)
+      Response.ok().build()
+    } else {
+      Response.notModified().build()
     }
 
   }
