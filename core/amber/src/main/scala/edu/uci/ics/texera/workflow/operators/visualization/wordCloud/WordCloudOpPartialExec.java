@@ -38,7 +38,13 @@ public class WordCloudOpPartialExec implements OperatorExecutor {
 
     public WordCloudOpPartialExec(String textColumn) {
         this.textColumn = textColumn;
-        this.luceneAnalyzer = new EnglishAnalyzer();
+    }
+
+    private Analyzer getLuceneAnalyzer() {
+        if (this.luceneAnalyzer == null) {
+            this.luceneAnalyzer = new EnglishAnalyzer();
+        }
+        return this.luceneAnalyzer;
     }
 
     private static List<Tuple> calculateWordCount(List<String> texts, Analyzer luceneAnalyzer) throws Exception {
@@ -89,7 +95,7 @@ public class WordCloudOpPartialExec implements OperatorExecutor {
         }
         else {
             try {
-                return(JavaConverters.asScalaIterator(calculateWordCount(textList, luceneAnalyzer).iterator()));
+                return(JavaConverters.asScalaIterator(calculateWordCount(textList, getLuceneAnalyzer()).iterator()));
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
