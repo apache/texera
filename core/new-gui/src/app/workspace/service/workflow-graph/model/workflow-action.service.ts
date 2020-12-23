@@ -786,6 +786,9 @@ export class WorkflowActionService {
    *  the JointJS paper.
    */
   public reloadWorkflow(workflow: Workflow|undefined): void {
+
+    this.setWorkflowMetadata(workflow);
+
     // remove the existing operators on the paper currently
     this.deleteOperatorsAndLinks(
       this.getTexeraGraph().getAllOperators().map(op => op.operatorID), []);
@@ -793,7 +796,7 @@ export class WorkflowActionService {
     if (workflow === undefined) {
       return;
     }
-    this.setWorkflowMetadata(workflow);
+
     const workflowContent: WorkflowContent = workflow.content;
 
     const operatorsAndPositions: { op: OperatorPredicate, pos: Point }[] = [];

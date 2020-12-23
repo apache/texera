@@ -1,4 +1,4 @@
-import { Location } from '@angular/common';
+import { DatePipe, Location } from '@angular/common';
 import { Component, ElementRef, Input, OnInit, ViewChild } from '@angular/core';
 import { TourService } from 'ngx-tour-ng-bootstrap';
 import { environment } from '../../../../environments/environment';
@@ -65,7 +65,8 @@ export class NavigationComponent implements OnInit {
     public validationWorkflowService: ValidationWorkflowService,
     public workflowPersistService: WorkflowPersistService,
     public userService: UserService,
-    private workflowCacheService: WorkflowCacheService
+    private workflowCacheService: WorkflowCacheService,
+    private datePipe: DatePipe
   ) {
     this.executionState = executeWorkflowService.getExecutionState().state;
     // return the run button after the execution is finished, either
@@ -341,7 +342,11 @@ export class NavigationComponent implements OnInit {
 
   register() {
     this.workflowActionService.workflowChanged().debounceTime(100)
-        .subscribe(() => this.currentWorkflowName = this.workflowActionService.getWorkflow().name);
+        .subscribe(() => {
+          this.currentWorkflowName = this.workflowActionService.getWorkflow().name;
+          this.autoSaveState = 'Saved at ' +
+            this.datePipe.transform(this.workflowActionService.getWorkflow().lastModifiedTime, 'MM/dd/yyyy HH:mm:ss zzz', 'UTC');
 
+        });
   }
 }
