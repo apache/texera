@@ -28,8 +28,6 @@ object Processor {
 }
 
 class Processor(var operator: IOperatorExecutor, val tag: WorkerTag) extends WorkerBase {
-
-  val input = new FIFOAccessPort()
   val aliveUpstreams = new mutable.HashSet[LayerTag]
   var savedModifyLogic: mutable.Queue[(Long, Long, OpExecConfig)] =
     new mutable.Queue[(Long, Long, OpExecConfig)]()
@@ -73,7 +71,7 @@ class Processor(var operator: IOperatorExecutor, val tag: WorkerTag) extends Wor
     if (!faultedTuple.isInput) {
       var i = 0
       while (i < tupleOutput.output.length) {
-        tupleOutput.output(i).accept(faultedTuple.tuple)
+        tupleOutput.output(i).addTupleToBatch(faultedTuple.tuple)
         i += 1
       }
     } else {
@@ -131,19 +129,17 @@ class Processor(var operator: IOperatorExecutor, val tag: WorkerTag) extends Wor
   }
 
   def onSaveDataMessage(seq: Long, payload: Array[ITuple]): Unit = {
-    input.preCheck(seq, payload, sender) match {
-      case Some(batches) =>
-        val currentEdge = input.actorToEdge(sender)
-        for (i <- batches)
-          workerInternalQueue.addBatch((currentEdge, i))
-      case None =>
+    messagingManager.receiveMessage(DataMessage(seq, payload), sender)
+
+    while (messagingManager.hasNextDataPayload()) {
+      workerInternalQueue.addDataPayload(messagingManager.getNextDataPayload())
     }
   }
 
   def onSaveEndSending(seq: Long): Unit = {
     if (input.registerEnd(sender, seq)) {
       val currentEdge: LayerTag = input.actorToEdge(sender)
-      workerInternalQueue.addBatch((currentEdge, null))
+      workerInternalQueue.addEndMarker(currentEdge)
     }
   }
 
@@ -152,12 +148,10 @@ class Processor(var operator: IOperatorExecutor, val tag: WorkerTag) extends Wor
   }
 
   def onReceiveDataMessage(seq: Long, payload: Array[ITuple]): Unit = {
-    input.preCheck(seq, payload, sender) match {
-      case Some(batches) =>
-        val currentEdge = input.actorToEdge(sender)
-        for (i <- batches)
-          workerInternalQueue.addBatch((currentEdge, i))
-      case None =>
+    messagingManager.receiveMessage(DataMessage(seq, payload), sender)
+
+    while (messagingManager.hasNextDataPayload()) {
+      workerInternalQueue.addDataPayload(messagingManager.getNextDataPayload())
     }
   }
 
@@ -175,12 +169,9 @@ class Processor(var operator: IOperatorExecutor, val tag: WorkerTag) extends Wor
     // if dp thread is blocking on waiting for input tuples:
     if (workerInternalQueue.blockingDeque.isEmpty && tupleInput.isCurrentBatchExhausted) {
       // insert dummy batch to unblock dp thread
-      workerInternalQueue.addBatch(null)
+      workerInternalQueue.addDummyInput()
     }
-    pauseManager.waitForDPThread()
-    onPaused()
-    context.become(paused)
-    unstashAll()
+    context.become(pausing)
   }
 
   override def onInitialization(recoveryInformation: Seq[(Long, Long)]): Unit = {

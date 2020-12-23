@@ -15,6 +15,7 @@ import {
 import * as joint from 'jointjs';
 import { StubOperatorMetadataService } from '../../operator-metadata/stub-operator-metadata.service';
 import { environment } from './../../../../../environments/environment';
+import { WorkflowUtilService } from '../util/workflow-util.service';
 
 describe('JointGraphWrapperService', () => {
 
@@ -27,13 +28,14 @@ describe('JointGraphWrapperService', () => {
       providers: [
         JointUIService,
         WorkflowActionService,
+        WorkflowUtilService,
         UndoRedoService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
       ]
     });
     jointGraph = new joint.dia.Graph();
-    jointGraphWrapper = new JointGraphWrapper(jointGraph, TestBed.get(UndoRedoService));
-    jointUIService = TestBed.get(JointUIService);
+    jointGraphWrapper = new JointGraphWrapper(jointGraph);
+    jointUIService = TestBed.inject(JointUIService);
   });
 
 
@@ -43,7 +45,7 @@ describe('JointGraphWrapperService', () => {
 
     m.hot('-e-').do(() => jointGraph.getCell(mockScanPredicate.operatorID).remove()).subscribe();
 
-    const jointOperatorDeleteStream = jointGraphWrapper.getJointOperatorCellDeleteStream().map(() => 'e');
+    const jointOperatorDeleteStream = jointGraphWrapper.getJointElementCellDeleteStream().map(() => 'e');
     const expectedStream = m.hot('-e-');
 
     m.expect(jointOperatorDeleteStream).toBeObservable(expectedStream);
@@ -104,7 +106,7 @@ describe('JointGraphWrapperService', () => {
 
       m.hot('-e-').do(() => jointGraph.getCell(mockScanPredicate.operatorID).remove()).subscribe();
 
-      const jointOperatorDeleteStream = jointGraphWrapper.getJointOperatorCellDeleteStream().map(() => 'e');
+      const jointOperatorDeleteStream = jointGraphWrapper.getJointElementCellDeleteStream().map(() => 'e');
       const jointLinkDeleteStream = jointGraphWrapper.getJointLinkCellDeleteStream().map(() => 'e');
 
       const expectedStream = '-e-';
@@ -134,7 +136,7 @@ describe('JointGraphWrapperService', () => {
 
     m.hot('-e--').do(() => jointGraph.getCell(mockSentimentPredicate.operatorID).remove()).subscribe();
 
-    const jointOperatorDeleteStream = jointGraphWrapper.getJointOperatorCellDeleteStream().map(() => 'e');
+    const jointOperatorDeleteStream = jointGraphWrapper.getJointElementCellDeleteStream().map(() => 'e');
     const jointLinkDeleteStream = jointGraphWrapper.getJointLinkCellDeleteStream().map(() => 'e');
 
     const expectedStream = '-e--';
@@ -146,14 +148,14 @@ describe('JointGraphWrapperService', () => {
   }));
 
   it('should emit a highlight event correctly when an operator is highlighted', marbles((m) => {
-    const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
+    const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
     const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
     // add one operator, it should be automatically highlighted
     workflowActionService.addOperator(mockScanPredicate, mockPoint);
     expect(workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()).toEqual([mockScanPredicate.operatorID]);
     // unhighlight the current operator
-    workflowActionService.getJointGraphWrapper().unhighlightOperator(mockScanPredicate.operatorID);
+    workflowActionService.getJointGraphWrapper().unhighlightOperators(mockScanPredicate.operatorID);
     expect(workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()).toEqual([]);
 
     // prepare marble operation for highlighting an operator
@@ -164,16 +166,16 @@ describe('JointGraphWrapperService', () => {
 
     // highlight that operator at events
     highlightActionMarbleEvent.subscribe(
-      value => localJointGraphWrapper.highlightOperator(value)
+      value => localJointGraphWrapper.highlightOperators(value)
     );
 
     // prepare expected output highlight event stream
     const expectedHighlightEventStream = m.hot('-a-', {
-      a: { operatorIDs: [mockScanPredicate.operatorID] }
+      a: [mockScanPredicate.operatorID]
     });
 
     // expect the output event stream is correct
-    m.expect(localJointGraphWrapper.getJointCellHighlightStream()).toBeObservable(expectedHighlightEventStream);
+    m.expect(localJointGraphWrapper.getJointOperatorHighlightStream()).toBeObservable(expectedHighlightEventStream);
 
     // expect the current highlighted operator is correct
     highlightActionMarbleEvent.subscribe({
@@ -185,7 +187,7 @@ describe('JointGraphWrapperService', () => {
   }));
 
   it('should emit a highlight event correctly when multiple operators are highlighted', marbles((m) => {
-    const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
+    const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
     const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
     // add two operators, they should be automatically highlighted
@@ -196,7 +198,7 @@ describe('JointGraphWrapperService', () => {
 
     // unhighlight current operators
     workflowActionService.getJointGraphWrapper().unhighlightOperators(
-      [mockScanPredicate.operatorID, mockResultPredicate.operatorID]);
+      ...mockScanPredicate.operatorID, mockResultPredicate.operatorID);
     expect(workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()).toEqual([]);
 
     // prepare marble operation for highlighting two operators
@@ -207,16 +209,16 @@ describe('JointGraphWrapperService', () => {
 
     // highlight those operators at events
     highlightActionMarbleEvent.subscribe(
-      value => localJointGraphWrapper.highlightOperators(value)
+      value => localJointGraphWrapper.highlightOperators(...value)
     );
 
     // prepare expected output highlight event stream
     const expectedHighlightEventStream = m.hot('-a-', {
-      a: { operatorIDs: [mockScanPredicate.operatorID, mockResultPredicate.operatorID] }
+      a: [mockScanPredicate.operatorID, mockResultPredicate.operatorID]
     });
 
     // expect the output event stream is correct
-    m.expect(localJointGraphWrapper.getJointCellHighlightStream()).toBeObservable(expectedHighlightEventStream);
+    m.expect(localJointGraphWrapper.getJointOperatorHighlightStream()).toBeObservable(expectedHighlightEventStream);
 
     // expect the current highlighted operators are correct
     highlightActionMarbleEvent.subscribe({
@@ -229,28 +231,28 @@ describe('JointGraphWrapperService', () => {
   }));
 
   it('should emit an unhighlight event correctly when an operator is unhighlighted', marbles((m) => {
-    const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
+    const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
     const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
     // add and highlight an operator
     workflowActionService.addOperator(mockScanPredicate, mockPoint);
-    workflowActionService.getJointGraphWrapper().highlightOperator(mockScanPredicate.operatorID);
+    workflowActionService.getJointGraphWrapper().highlightOperators(mockScanPredicate.operatorID);
 
     // prepare marble operation for unhighlighting an operator
     const unhighlightActionMarbleEvent = m.hot('-a-|').share();
 
     // unhighlight that operator at events
     unhighlightActionMarbleEvent.subscribe(
-      () => localJointGraphWrapper.unhighlightOperator(mockScanPredicate.operatorID)
+      () => localJointGraphWrapper.unhighlightOperators(mockScanPredicate.operatorID)
     );
 
     // prepare expected output unhighlight event stream
     const expectedUnhighlightEventStream = m.hot('-a-', {
-      a: { operatorIDs: [mockScanPredicate.operatorID] }
+      a: [mockScanPredicate.operatorID]
     });
 
     // expect the output event stream is correct
-    m.expect(localJointGraphWrapper.getJointCellUnhighlightStream()).toBeObservable(expectedUnhighlightEventStream);
+    m.expect(localJointGraphWrapper.getJointOperatorUnhighlightStream()).toBeObservable(expectedUnhighlightEventStream);
 
     // expect no operator is currently highlighted
     unhighlightActionMarbleEvent.subscribe({
@@ -262,29 +264,29 @@ describe('JointGraphWrapperService', () => {
   }));
 
   it('should emit an unhighlight event correctly when multiple operators are unhighlighted', marbles((m) => {
-    const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
+    const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
     const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
     // add and highlight two operators
     workflowActionService.addOperatorsAndLinks([{ op: mockScanPredicate, pos: mockPoint },
     { op: mockResultPredicate, pos: mockPoint }], []);
-    workflowActionService.getJointGraphWrapper().highlightOperators([mockScanPredicate.operatorID, mockResultPredicate.operatorID]);
+    workflowActionService.getJointGraphWrapper().highlightOperators(...mockScanPredicate.operatorID, mockResultPredicate.operatorID);
 
     // prepare marble operation for unhighlighting two operators
     const unhighlightActionMarbleEvent = m.hot('-a-|').share();
 
     // unhighlight those operators at events
     unhighlightActionMarbleEvent.subscribe(
-      () => localJointGraphWrapper.unhighlightOperators([mockScanPredicate.operatorID, mockResultPredicate.operatorID])
+      () => localJointGraphWrapper.unhighlightOperators(...mockScanPredicate.operatorID, mockResultPredicate.operatorID)
     );
 
     // prepare expected output unhighlight event stream
     const expectedUnhighlightEventStream = m.hot('-a-', {
-      a: { operatorIDs: [mockScanPredicate.operatorID, mockResultPredicate.operatorID] }
+      a: [mockScanPredicate.operatorID, mockResultPredicate.operatorID]
     });
 
     // expect the output event stream is correct
-    m.expect(localJointGraphWrapper.getJointCellUnhighlightStream()).toBeObservable(expectedUnhighlightEventStream);
+    m.expect(localJointGraphWrapper.getJointOperatorUnhighlightStream()).toBeObservable(expectedUnhighlightEventStream);
 
     // expect no operator is currently highlighted
     unhighlightActionMarbleEvent.subscribe({
@@ -296,14 +298,14 @@ describe('JointGraphWrapperService', () => {
   }));
 
   it('should unhighlight previous highlighted operator if a new operator is highlighted', marbles((m) => {
-    const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
+    const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
     const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
     workflowActionService.addOperator(mockScanPredicate, mockPoint);
     workflowActionService.addOperator(mockResultPredicate, mockPoint);
 
     // unhighlight the last operator in case of automatic highlight
-    workflowActionService.getJointGraphWrapper().unhighlightOperator(mockResultPredicate.operatorID);
+    workflowActionService.getJointGraphWrapper().unhighlightOperators(mockResultPredicate.operatorID);
 
     // prepare marble operation for highlighting one operator, then highlight another
     const highlightActionMarbleEvent = m.hot(
@@ -314,17 +316,17 @@ describe('JointGraphWrapperService', () => {
 
     // highlight that operator at events
     highlightActionMarbleEvent.subscribe(
-      value => localJointGraphWrapper.highlightOperator(value)
+      value => localJointGraphWrapper.highlightOperators(value)
     );
 
     // prepare expected output highlight event stream
     const expectedHighlightEventStream = m.hot('-a-b-', {
-      a: { operatorIDs: [mockScanPredicate.operatorID] },
-      b: { operatorIDs: [mockResultPredicate.operatorID] },
+      a: [mockScanPredicate.operatorID],
+      b: [mockResultPredicate.operatorID],
     });
 
     // expect the output event stream is correct
-    m.expect(localJointGraphWrapper.getJointCellHighlightStream()).toBeObservable(expectedHighlightEventStream);
+    m.expect(localJointGraphWrapper.getJointOperatorHighlightStream()).toBeObservable(expectedHighlightEventStream);
 
     // expect the current highlighted operator is correct
     highlightActionMarbleEvent.subscribe({
@@ -336,13 +338,13 @@ describe('JointGraphWrapperService', () => {
   }));
 
   it('should ignore the action if trying to highlight the same currently highlighted operator', marbles((m) => {
-    const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
+    const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
     const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
     // add an operator, it should be automatically highlighted
     workflowActionService.addOperator(mockScanPredicate, mockPoint);
     // unhighlight it
-    workflowActionService.getJointGraphWrapper().unhighlightOperator(mockScanPredicate.operatorID);
+    workflowActionService.getJointGraphWrapper().unhighlightOperators(mockScanPredicate.operatorID);
 
     // prepare marble operation for highlighting the same operator twice
     const highlightActionMarbleEvent = m.hot(
@@ -353,26 +355,26 @@ describe('JointGraphWrapperService', () => {
 
     // highlight that operator at events
     highlightActionMarbleEvent.subscribe(
-      value => localJointGraphWrapper.highlightOperator(value)
+      value => localJointGraphWrapper.highlightOperators(value)
     );
 
     // prepare expected output highlight event stream: the second highlight is ignored
     const expectedHighlightEventStream = m.hot('-a---', {
-      a: { operatorIDs: [mockScanPredicate.operatorID] },
+      a: [mockScanPredicate.operatorID],
     });
 
     // expect the output event stream is correct
-    m.expect(localJointGraphWrapper.getJointCellHighlightStream()).toBeObservable(expectedHighlightEventStream);
+    m.expect(localJointGraphWrapper.getJointOperatorHighlightStream()).toBeObservable(expectedHighlightEventStream);
 
   }));
 
   it('should unhighlight the currently highlighted operator if it is deleted', marbles((m) => {
-    const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
+    const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
     const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
     // add and highlight the operator
     workflowActionService.addOperator(mockScanPredicate, mockPoint);
-    localJointGraphWrapper.highlightOperator(mockScanPredicate.operatorID);
+    localJointGraphWrapper.highlightOperators(mockScanPredicate.operatorID);
 
     expect(localJointGraphWrapper.getCurrentHighlightedOperatorIDs()).toEqual([mockScanPredicate.operatorID]);
 
@@ -383,8 +385,8 @@ describe('JointGraphWrapperService', () => {
     );
 
     // expect that the unhighlight event stream is triggered
-    const expectedEventStream = m.hot('-a-', { a: { operatorIDs: [mockScanPredicate.operatorID] } });
-    m.expect(localJointGraphWrapper.getJointCellUnhighlightStream()).toBeObservable(expectedEventStream);
+    const expectedEventStream = m.hot('-a-', { a: [mockScanPredicate.operatorID] });
+    m.expect(localJointGraphWrapper.getJointOperatorUnhighlightStream()).toBeObservable(expectedEventStream);
 
     // expect that the current highlighted operator is undefined
     deleteOperatorActionMarble.subscribe({
@@ -394,48 +396,48 @@ describe('JointGraphWrapperService', () => {
   }));
 
   it('should get operator position successfully if the operator exists in the paper', () => {
-    const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
+    const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
     const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
     workflowActionService.addOperator(mockScanPredicate, mockPoint);
 
-    expect(localJointGraphWrapper.getOperatorPosition(mockScanPredicate.operatorID)).toEqual(mockPoint);
+    expect(localJointGraphWrapper.getElementPosition(mockScanPredicate.operatorID)).toEqual(mockPoint);
   });
 
-  it(`should throw an error if operator does not exist in the paper when calling 'getOperatorPosition()'`, () => {
-    const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
+  it(`should throw an error if operator does not exist in the paper when calling 'getElementPosition()'`, () => {
+    const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
     const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
-    expect(function () {
-      localJointGraphWrapper.getOperatorPosition(mockScanPredicate.operatorID);
-    }).toThrowError(`operator with ID ${mockScanPredicate.operatorID} doesn't exist`);
+    expect(function() {
+      localJointGraphWrapper.getElementPosition(mockScanPredicate.operatorID);
+    }).toThrowError(`element with ID ${mockScanPredicate.operatorID} doesn't exist`);
 
   });
 
-  it(`should throw an error if the id we are using is linkID when calling 'getOperatorPosition()'`, () => {
-    const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
+  it(`should throw an error if the id we are using is linkID when calling 'getElementPosition()'`, () => {
+    const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
     const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
     workflowActionService.addOperator(mockScanPredicate, mockPoint);
     workflowActionService.addOperator(mockResultPredicate, mockPoint);
     workflowActionService.addLink(mockScanResultLink);
 
-    expect(function () {
-      localJointGraphWrapper.getOperatorPosition(mockScanResultLink.linkID);
-    }).toThrowError(`${mockScanResultLink.linkID} is not an operator`);
+    expect(function() {
+      localJointGraphWrapper.getElementPosition(mockScanResultLink.linkID);
+    }).toThrowError(`${mockScanResultLink.linkID} is not an element`);
 
   });
 
   it('should repositions the operator successfully if the operator exists in the paper', () => {
-    const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
+    const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
     const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
     workflowActionService.addOperator(mockScanPredicate, mockPoint);
     // changes the operator's position
-    localJointGraphWrapper.setOperatorPosition(mockScanPredicate.operatorID, 10, 10);
+    localJointGraphWrapper.setElementPosition(mockScanPredicate.operatorID, 10, 10);
 
-    const expectedPosition = { x: mockPoint.x + 10, y: mockPoint.y + 10 };
-    expect(localJointGraphWrapper.getOperatorPosition(mockScanPredicate.operatorID)).toEqual(expectedPosition);
+    const expectedPosition = {x: mockPoint.x + 10, y: mockPoint.y + 10};
+    expect(localJointGraphWrapper.getElementPosition(mockScanPredicate.operatorID)).toEqual(expectedPosition);
   });
 
 
@@ -501,22 +503,22 @@ describe('JointGraphWrapperService', () => {
   }));
 
   it('should move all highlighted operators together when any one of them is moved', () => {
-    const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
+    const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
     const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
     // add and highlight two operators
     workflowActionService.addOperatorsAndLinks([{ op: mockScanPredicate, pos: mockPoint },
     { op: mockResultPredicate, pos: mockPoint }], []);
-    localJointGraphWrapper.highlightOperators([mockScanPredicate.operatorID, mockResultPredicate.operatorID]);
+    localJointGraphWrapper.highlightOperators(...mockScanPredicate.operatorID, mockResultPredicate.operatorID);
 
     // change one operator's position
-    localJointGraphWrapper.setOperatorPosition(mockScanPredicate.operatorID, 10, 10);
+    localJointGraphWrapper.setElementPosition(mockScanPredicate.operatorID, 10, 10);
 
     const expectedPosition = { x: mockPoint.x + 10, y: mockPoint.y + 10 };
 
     // expect both operators to be in the new position
-    expect(localJointGraphWrapper.getOperatorPosition(mockScanPredicate.operatorID)).toEqual(expectedPosition);
-    expect(localJointGraphWrapper.getOperatorPosition(mockResultPredicate.operatorID)).toEqual(expectedPosition);
+    expect(localJointGraphWrapper.getElementPosition(mockScanPredicate.operatorID)).toEqual(expectedPosition);
+    expect(localJointGraphWrapper.getElementPosition(mockResultPredicate.operatorID)).toEqual(expectedPosition);
   });
 
   describe('when linkBreakpoint is enabled', () => {
@@ -529,7 +531,7 @@ describe('JointGraphWrapperService', () => {
     });
 
     it('should emit link highlight event correctly when a link is selected', marbles((m) => {
-      const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
+      const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
       const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
       workflowActionService.addOperator(mockScanPredicate, mockPoint);
@@ -549,7 +551,7 @@ describe('JointGraphWrapperService', () => {
 
       // prepare expected output highlight event stream
       const expectedLinkHighlightEventStream = m.hot('-a-', {
-        a: { linkID: mockScanResultLink.linkID }
+        a: [mockScanResultLink.linkID]
       });
       m.expect(localJointGraphWrapper.getLinkHighlightStream()).toBeObservable(expectedLinkHighlightEventStream);
 
@@ -562,7 +564,7 @@ describe('JointGraphWrapperService', () => {
     }));
 
     it('should emit an unhighlight event correctly when an link is unhighlighted', marbles((m) => {
-      const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
+      const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
       const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
       // add one operator
@@ -582,7 +584,7 @@ describe('JointGraphWrapperService', () => {
 
       // prepare expected output highlight event stream
       const expectedUnhighlightEventStream = m.hot('-a-', {
-        a: { linkID: mockScanResultLink.linkID }
+        a: [ mockScanResultLink.linkID ]
       });
 
       // expect the output event stream is correct
@@ -597,7 +599,7 @@ describe('JointGraphWrapperService', () => {
     }));
 
     it('should emit an unhighlight event correctly when an highlighted link is deleted', marbles((m) => {
-      const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
+      const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
       const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
       // add one operator
@@ -617,7 +619,7 @@ describe('JointGraphWrapperService', () => {
 
       // prepare expected output highlight event stream
       const expectedUnhighlightEventStream = m.hot('-a-', {
-        a: { linkID: mockScanResultLink.linkID }
+        a: [ mockScanResultLink.linkID ]
       });
 
       // expect the output event stream is correct
@@ -632,7 +634,7 @@ describe('JointGraphWrapperService', () => {
     }));
 
     it('should unhighlight previous highlighted link if another link is selected/highlighted', marbles((m) => {
-      const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
+      const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
       const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
       workflowActionService.addOperator(mockScanPredicate, mockPoint);
@@ -657,14 +659,14 @@ describe('JointGraphWrapperService', () => {
 
       // prepare expected output highlight event stream
       const expectedLinkHighlightEventStream = m.hot('-a-b-', {
-        a: { linkID: mockScanSentimentLink.linkID },
-        b: { linkID: mockSentimentResultLink.linkID }
+        a: [ mockScanSentimentLink.linkID ],
+        b: [ mockSentimentResultLink.linkID ]
       });
       m.expect(localJointGraphWrapper.getLinkHighlightStream()).toBeObservable(expectedLinkHighlightEventStream);
 
       // prepare expected output unhighlight event stream
       const expectedLinUnhighlightEventStream = m.hot('---a-', {
-        a: { linkID: mockScanSentimentLink.linkID }
+        a: [ mockScanSentimentLink.linkID ]
       });
       m.expect(localJointGraphWrapper.getLinkUnhighlightStream()).toBeObservable(expectedLinUnhighlightEventStream);
 
@@ -678,7 +680,7 @@ describe('JointGraphWrapperService', () => {
     }));
 
     it('should unhighlight previous highlighted links if an operator is highlighted', marbles((m) => {
-      const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
+      const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
       const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
       workflowActionService.addOperator(mockScanPredicate, mockPoint);
@@ -697,8 +699,8 @@ describe('JointGraphWrapperService', () => {
 
       // highlight at events
       highlightActionMarbleEvent.subscribe(value => {
-        if (value.length === 1) {
-          localJointGraphWrapper.highlightOperator(value);
+        if (value === mockResultPredicate.operatorID) {
+          localJointGraphWrapper.highlightOperators(value);
         } else {
           localJointGraphWrapper.highlightLink(value);
         }
@@ -706,21 +708,21 @@ describe('JointGraphWrapperService', () => {
 
       // prepare expected output highlight event stream
       const expectedLinkHighlightEventStream = m.hot('-a---', {
-        a: { linkID: mockScanResultLink.linkID }
+        a: [ mockScanResultLink.linkID ]
       });
 
       const expectedOperatorHighlightEventStream = m.hot('---b-', {
-        b: { operatorIDs: [mockResultPredicate.operatorID] }
+        b: [mockResultPredicate.operatorID]
       });
 
       // prepare expected output highlight event stream
       const expectedLinkUnhighlightEventStream = m.hot('---c-', {
-        c: { linkID: mockScanResultLink.linkID }
+        c: [ mockScanResultLink.linkID ]
       });
 
       // expect the output event stream is correct
       m.expect(localJointGraphWrapper.getLinkHighlightStream()).toBeObservable(expectedLinkHighlightEventStream);
-      m.expect(localJointGraphWrapper.getJointCellHighlightStream()).toBeObservable(expectedOperatorHighlightEventStream);
+      m.expect(localJointGraphWrapper.getJointOperatorHighlightStream()).toBeObservable(expectedOperatorHighlightEventStream);
       m.expect(localJointGraphWrapper.getLinkUnhighlightStream()).toBeObservable(expectedLinkUnhighlightEventStream);
 
 
@@ -733,7 +735,7 @@ describe('JointGraphWrapperService', () => {
     }));
 
     it('should emit an show breakpoint event correctly when adding a breakpoint to a link', marbles((m) => {
-      const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
+      const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
       const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
       // add one link
@@ -769,7 +771,7 @@ describe('JointGraphWrapperService', () => {
     }));
 
     it('should emit an hide breakpoint event correctly when removing a breakpoint', marbles((m) => {
-      const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
+      const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
       const localJointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
       // add one link
