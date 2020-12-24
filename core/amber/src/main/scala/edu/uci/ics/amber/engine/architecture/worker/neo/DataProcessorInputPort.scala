@@ -11,9 +11,6 @@ import edu.uci.ics.amber.engine.common.tuple.ITuple
 
 class DataProcessorInputPort(internalQueue: WorkerInternalQueue) {
 
-  // save current batch related information
-  private var currentInput: InternalQueueElement = _
-
   // indicate if all upstreams exhausted
   private var allExhausted = false
   private var inputExhaustedCount = 0
@@ -24,7 +21,7 @@ class DataProcessorInputPort(internalQueue: WorkerInternalQueue) {
     */
   def getNextInputPair: (Int, Either[ITuple, InputExhausted]) = {
 
-    currentInput = internalQueue.blockingDeque.take()
+    val currentInput = internalQueue.blockingDeque.take()
 
     currentInput match {
       case SenderTuplePair(senderRef, tuple) =>
