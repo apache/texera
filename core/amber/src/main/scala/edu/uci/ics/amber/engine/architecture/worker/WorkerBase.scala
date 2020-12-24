@@ -6,7 +6,7 @@ import akka.util.Timeout
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.engine.architecture.breakpoint.FaultedTuple
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
-import edu.uci.ics.amber.engine.architecture.worker.neo.{DataProcessorInputPort, _}
+import edu.uci.ics.amber.engine.architecture.worker.neo.{_}
 import edu.uci.ics.amber.engine.common.IOperatorExecutor
 import edu.uci.ics.amber.engine.common.amberexception.AmberException
 import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage._
@@ -28,7 +28,6 @@ abstract class WorkerBase extends WorkflowActor {
   var operator: IOperatorExecutor
 
   lazy val workerInternalQueue: WorkerInternalQueue = wire[WorkerInternalQueue]
-  lazy val dataProcessorInputPort: DataProcessorInputPort = wire[DataProcessorInputPort]
   lazy val pauseManager: PauseManager = wire[PauseManager]
   lazy val dataProcessor: DataProcessor = wire[DataProcessor]
 

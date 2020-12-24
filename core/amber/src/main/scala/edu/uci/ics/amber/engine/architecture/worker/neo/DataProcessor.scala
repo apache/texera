@@ -13,7 +13,7 @@ import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted}
 
 class DataProcessor( // dependencies:
     operator: IOperatorExecutor, // core logic
-    dataProcessorInputPort: DataProcessorInputPort, // to receive input tuples
+    workerInternalQueue: WorkerInternalQueue, // internal queue
     messagingManager: MessagingManager, // to send output tuples
     pauseManager: PauseManager, // to pause/resume
     self: ActorRef // to notify main actor
@@ -103,9 +103,9 @@ class DataProcessor( // dependencies:
   @throws[Exception]
   private[this] def runDPThreadMainLogic(): Unit = {
     // main DP loop: runs until all upstreams exhaust.
-    while (!dataProcessorInputPort.isAllUpstreamsExhausted) {
+    while (!workerInternalQueue.isAllUpstreamsExhausted) {
       // take the next input tuple from tupleInput, blocks if no tuple available.
-      val (senderRef, inputTuple) = dataProcessorInputPort.getNextInputPair
+      val (senderRef, inputTuple) = workerInternalQueue.getNextInputPair
       currentInputTuple = inputTuple
       // check pause before processing the input tuple.
       pauseManager.checkForPause()
