@@ -11,20 +11,24 @@ import edu.uci.ics.texera.workflow.operators.sink.SimpleSinkOpDesc
 
 object TestOperators {
 
-  def headerlessCsvScanOpDesc(): LocalCsvFileScanOpDesc = {
+  def getCsvScanOpDesc(fileName: String, header: Boolean): LocalCsvFileScanOpDesc = {
     val csvHeaderlessOp = new LocalCsvFileScanOpDesc()
-    csvHeaderlessOp.filePath = "src/test/resources/CountrySalesDataHeaderless.csv"
+    csvHeaderlessOp.filePath = fileName
     csvHeaderlessOp.delimiter = ","
-    csvHeaderlessOp.header = false
+    csvHeaderlessOp.header = header
     csvHeaderlessOp
   }
 
-  def csvScanOpDesc(): LocalCsvFileScanOpDesc = {
-    val csvHeaderlessOp = new LocalCsvFileScanOpDesc()
-    csvHeaderlessOp.filePath = "src/test/resources/CountrySalesData.csv"
-    csvHeaderlessOp.delimiter = ","
-    csvHeaderlessOp.header = true
-    csvHeaderlessOp
+  def headerlessSmallCsvScanOpDesc(): LocalCsvFileScanOpDesc = {
+    getCsvScanOpDesc("src/test/resources/CountrySalesDataHeaderlessSmall.csv", false)
+  }
+
+  def smallCsvScanOpDesc(): LocalCsvFileScanOpDesc = {
+    getCsvScanOpDesc("src/test/resources/CountrySalesDataSmall.csv", true)
+  }
+
+  def mediumCsvScanOpDesc(): LocalCsvFileScanOpDesc = {
+    getCsvScanOpDesc("src/test/resources/CountrySalesDataMedium.csv", true)
   }
 
   def keywordSearchOpDesc(attribute: String, keywordToSearch: String): KeywordSearchOpDesc = {

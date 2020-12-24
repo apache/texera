@@ -39,7 +39,7 @@ class DataProcessorInputPort(internalQueue: WorkerInternalQueue) {
         (senderRef, Right(InputExhausted()))
       case DummyInput() =>
         // if the batch is dummy batch inserted by worker, return null to unblock dp thread
-        null
+        (-1, null)
     }
   }
 

@@ -159,7 +159,7 @@ class Processor(var operator: IOperatorExecutor, val tag: WorkerTag) extends Wor
 
   override def onPaused(): Unit = {
     val (inputCount, outputCount) = dataProcessor.collectStatistics()
-    log.info(s"paused at $inputCount , $outputCount")
+    log.info(s"${tag.getGlobalIdentity} paused at $inputCount , $outputCount")
     context.parent ! ReportCurrentProcessingTuple(self.path, dataProcessor.getCurrentInputTuple)
     context.parent ! RecoveryPacket(tag, inputCount, outputCount)
     context.parent ! ReportState(WorkerState.Paused)

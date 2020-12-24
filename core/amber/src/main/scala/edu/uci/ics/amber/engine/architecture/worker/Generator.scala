@@ -62,7 +62,7 @@ class Generator(var operator: IOperatorExecutor, val tag: WorkerTag)
 
   override def onPaused(): Unit = {
     val (inputCount, outputCount) = dataProcessor.collectStatistics()
-    log.info(s"paused at $outputCount , 0")
+    log.info(s"${tag.getGlobalIdentity} paused at $outputCount , 0")
     context.parent ! ReportCurrentProcessingTuple(self.path, dataProcessor.getCurrentInputTuple)
     context.parent ! RecoveryPacket(tag, outputCount, 0)
     context.parent ! ReportState(WorkerState.Paused)

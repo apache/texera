@@ -93,7 +93,7 @@ class DataProcessingSpec
   }
 
   "Engine" should "execute headerlessCsv->sink workflow normally" in {
-    val headerlessCsvOpDesc = TestOperators.headerlessCsvScanOpDesc()
+    val headerlessCsvOpDesc = TestOperators.headerlessSmallCsvScanOpDesc()
     val sink = TestOperators.sinkOpDesc()
 
     expectCompletedAfterExecution(
@@ -105,7 +105,7 @@ class DataProcessingSpec
   }
 
   "Engine" should "execute headerlessCsv->keyword->sink workflow normally" in {
-    val headerlessCsvOpDesc = TestOperators.headerlessCsvScanOpDesc()
+    val headerlessCsvOpDesc = TestOperators.headerlessSmallCsvScanOpDesc()
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("column0", "Asia")
     val sink = TestOperators.sinkOpDesc()
     expectCompletedAfterExecution(
@@ -118,7 +118,7 @@ class DataProcessingSpec
   }
 
   "Engine" should "execute csv->sink workflow normally" in {
-    val csvOpDesc = TestOperators.csvScanOpDesc()
+    val csvOpDesc = TestOperators.smallCsvScanOpDesc()
     val sink = TestOperators.sinkOpDesc()
     expectCompletedAfterExecution(
       mutable.MutableList[OperatorDescriptor](csvOpDesc, sink),
@@ -129,7 +129,7 @@ class DataProcessingSpec
   }
 
   "Engine" should "execute csv->keyword->sink workflow normally" in {
-    val csvOpDesc = TestOperators.csvScanOpDesc()
+    val csvOpDesc = TestOperators.smallCsvScanOpDesc()
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("Region", "Asia")
     val sink = TestOperators.sinkOpDesc()
     expectCompletedAfterExecution(
@@ -142,7 +142,7 @@ class DataProcessingSpec
   }
 
   "Engine" should "execute csv->keyword->count->sink workflow normally" in {
-    val csvOpDesc = TestOperators.csvScanOpDesc()
+    val csvOpDesc = TestOperators.smallCsvScanOpDesc()
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("Region", "Asia")
     val countOpDesc =
       TestOperators.aggregateAndGroupbyDesc("Region", AggregationFunction.COUNT, List[String]())
@@ -158,7 +158,7 @@ class DataProcessingSpec
   }
 
   "Engine" should "execute csv->keyword->averageAndGroupby->sink workflow normally" in {
-    val csvOpDesc = TestOperators.csvScanOpDesc()
+    val csvOpDesc = TestOperators.smallCsvScanOpDesc()
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("Region", "Asia")
     val averageAndGroupbyOpDesc =
       TestOperators.aggregateAndGroupbyDesc(

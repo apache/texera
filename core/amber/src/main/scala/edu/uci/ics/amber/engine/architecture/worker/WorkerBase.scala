@@ -30,7 +30,6 @@ abstract class WorkerBase extends WorkflowActor {
   lazy val workerInternalQueue: WorkerInternalQueue = wire[WorkerInternalQueue]
   lazy val dataProcessorInputPort: DataProcessorInputPort = wire[DataProcessorInputPort]
   lazy val pauseManager: PauseManager = wire[PauseManager]
-  // lazy val tupleOutput: TupleToBatchConverter = wire[TupleToBatchConverter]
   lazy val dataProcessor: DataProcessor = wire[DataProcessor]
 
   val receivedFaultedTupleIds: mutable.HashSet[Long] = new mutable.HashSet[Long]()
@@ -347,7 +346,7 @@ abstract class WorkerBase extends WorkflowActor {
         context.become(paused)
         unstashAll()
       case Pause =>
-        log.info("received Pause message")
+        log.info(s"received Pause message")
         onPausing()
       case LocalBreakpointTriggered =>
         log.info("receive breakpoint triggered")
