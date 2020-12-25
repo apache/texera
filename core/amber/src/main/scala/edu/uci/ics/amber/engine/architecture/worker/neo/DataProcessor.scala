@@ -23,6 +23,7 @@ class DataProcessor( // dependencies:
   private var inputTupleCount = 0L
   private var outputTupleCount = 0L
   private var currentInputTuple: Either[ITuple, InputExhausted] = _
+  private var currentSenderRef: Int = -1
 
   // initialize dp thread upon construction
   Executors.newSingleThreadExecutor.submit(new Runnable() {
@@ -56,7 +57,7 @@ class DataProcessor( // dependencies:
     * this function is only called by the DP thread
     * @return an iterator of output tuples
     */
-  private[this] def processCurrentInputTuple(
+  private[this] def processInputTuple(
       tuple: Either[ITuple, InputExhausted],
       senderRef: Int
   ): Iterator[ITuple] = {
@@ -107,13 +108,14 @@ class DataProcessor( // dependencies:
       // take the next input tuple from tupleInput, blocks if no tuple available.
       val (senderRef, inputTuple) = workerInternalQueue.getNextInputPair
       currentInputTuple = inputTuple
+      currentSenderRef = senderRef
       // check pause before processing the input tuple.
       pauseManager.checkForPause()
       // if the input tuple is not a dummy tuple, process it
       // TODO: make sure this dummy batch feature works with fault tolerance
       if (inputTuple != null) {
         // pass input tuple to operator logic.
-        val outputIterator = processCurrentInputTuple(inputTuple, senderRef)
+        val outputIterator = processInputTuple(inputTuple, senderRef)
         // check pause before outputting tuples.
         pauseManager.checkForPause()
         // output loop: take one tuple from iterator at a time.
