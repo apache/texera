@@ -3,22 +3,23 @@ package edu.uci.ics.amber.engine.architecture.worker.neo
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.atomic.AtomicInteger
 
+import akka.actor.ActorRef
 import edu.uci.ics.amber.engine.architecture.worker.neo.PauseManager.{NoPause, Paused}
+import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.ExecutionPaused
 
 object PauseManager {
   final val NoPause = 0
   final val Paused = 1
 }
 
-class PauseManager {
+class PauseManager(val mainActor: ActorRef) {
 
   // current pause privilege level
   private val pausePrivilegeLevel = new AtomicInteger(PauseManager.NoPause)
   // yielded control of the dp thread
   // volatile is necessary otherwise main thread cannot notice the change.
   // volatile means read/writes are through memory rather than CPU cache
-  @volatile
-  private var currentFuture: CompletableFuture[Void] = _
+  @volatile private var dpThreadBlocker: CompletableFuture[Void] = _
 
   /** pause functionality
     * both dp thread and actor can call this function
@@ -32,15 +33,6 @@ class PauseManager {
         pausePrivilegeLevel.set(level)
      */
     pausePrivilegeLevel.getAndUpdate(i => if (Paused >= i) Paused else i)
-  }
-
-  /** blocking wait for dp thread to pause
-    * MUST be called in worker actor thread
-    */
-  def waitForDPThread(): Unit = {
-    while (currentFuture == null) {
-      //wait
-    }
   }
 
   /** resume functionality
@@ -67,22 +59,28 @@ class PauseManager {
     blockDPThread()
   }
 
+  def isPaused(): Boolean = {
+    !(pausePrivilegeLevel.get() == PauseManager.NoPause)
+  }
+
   /** block the thread by creating CompletableFuture and wait for completion
     */
   private[this] def blockDPThread(): Unit = {
     // create a future and wait for its completion
-    this.currentFuture = new CompletableFuture[Void]
+    this.dpThreadBlocker = new CompletableFuture[Void]
+    // notify main actor thread
+    mainActor ! ExecutionPaused
     // thread blocks here
-    this.currentFuture.get
+    this.dpThreadBlocker.get
   }
 
   /** unblock DP thread by resolving the CompletableFuture
     */
   private[this] def unblockDPThread(): Unit = {
     // If dp thread suspended, release it
-    if (this.currentFuture != null) {
-      this.currentFuture.complete(null)
-      this.currentFuture = null
+    if (this.dpThreadBlocker != null) {
+      this.dpThreadBlocker.complete(null)
+      this.dpThreadBlocker = null
     }
   }
 
