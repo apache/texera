@@ -5,8 +5,8 @@ import com.typesafe.scalalogging.Logger
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage.LogErrorToFrontEnd
 
-object ErrorLogger {
-  private val logger = Logger("WorkflowErrorLogger")
+case class ErrorLogger(name: String, logAction: WorkflowRuntimeError => Unit) {
+  private val logger = Logger(name)
 
   def logToConsole(err: WorkflowRuntimeError): Unit = {
     logger.error(err.convertToMap().mkString(" | "))
