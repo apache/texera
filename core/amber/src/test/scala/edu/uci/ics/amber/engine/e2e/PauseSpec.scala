@@ -23,7 +23,6 @@ import org.scalatest.{BeforeAndAfterAll, FlatSpecLike}
 import scala.collection.mutable
 import scala.concurrent.{Await, ExecutionContextExecutor}
 import scala.concurrent.duration._
-import com.typesafe.scalalogging
 import com.typesafe.scalalogging.Logger
 
 class PauseSpec

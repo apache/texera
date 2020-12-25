@@ -169,7 +169,7 @@ class Processor(var operator: IOperatorExecutor, val tag: WorkerTag) extends Wor
     super.onPausing()
     pauseManager.pause()
     // if dp thread is blocking on waiting for input tuples:
-    if (workerInternalQueue.blockingDeque.isEmpty) {
+    if (workerInternalQueue.isQueueEmpty()) {
       // insert dummy batch to unblock dp thread
       workerInternalQueue.addDummyInput()
     }
