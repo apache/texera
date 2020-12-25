@@ -90,3 +90,5 @@ libraryDependencies += "mysql" % "mysql-connector-java" % "8.0.19"
 
 // https://mvnrepository.com/artifact/org.jooq/jooq
 libraryDependencies += "org.jooq" % "jooq" % "3.14.4"
+
+libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.9.2"

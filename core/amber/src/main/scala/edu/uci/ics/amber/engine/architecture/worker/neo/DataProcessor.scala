@@ -1,11 +1,10 @@
 package edu.uci.ics.amber.engine.architecture.worker.neo
 
 import java.util.concurrent.Executors
-
 import akka.actor.ActorRef
 import edu.uci.ics.amber.engine.architecture.breakpoint.localbreakpoint.ExceptionBreakpoint
+import edu.uci.ics.amber.engine.architecture.messaginglayer.MessagingManager
 import edu.uci.ics.amber.engine.architecture.worker.BreakpointSupport
-import edu.uci.ics.amber.engine.architecture.worker.TupleToBatchConverter
 import edu.uci.ics.amber.engine.common.amberexception.BreakpointException
 import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage.LocalBreakpointTriggered
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.ExecutionCompleted
@@ -14,8 +13,8 @@ import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted}
 
 class DataProcessor( // dependencies:
     operator: IOperatorExecutor, // core logic
-    tupleInput: BatchToTupleConverter, // to get input tuples
-    tupleOutput: TupleToBatchConverter, // to send output tuples
+    workerInternalQueue: WorkerInternalQueue, // internal queue
+    messagingManager: MessagingManager, // to send output tuples
     pauseManager: PauseManager, // to pause/resume
     self: ActorRef // to notify main actor
 ) extends BreakpointSupport { // TODO: make breakpointSupport as a module
@@ -24,6 +23,7 @@ class DataProcessor( // dependencies:
   private var inputTupleCount = 0L
   private var outputTupleCount = 0L
   private var currentInputTuple: Either[ITuple, InputExhausted] = _
+  private var currentSenderRef: Int = -1
 
   // initialize dp thread upon construction
   Executors.newSingleThreadExecutor.submit(new Runnable() {
@@ -57,11 +57,14 @@ class DataProcessor( // dependencies:
     * this function is only called by the DP thread
     * @return an iterator of output tuples
     */
-  private[this] def processCurrentInputTuple(): Iterator[ITuple] = {
+  private[this] def processInputTuple(
+      tuple: Either[ITuple, InputExhausted],
+      senderRef: Int
+  ): Iterator[ITuple] = {
     var outputIterator: Iterator[ITuple] = null
     try {
-      outputIterator = operator.processTuple(currentInputTuple, tupleInput.getCurrentInput)
-      if (currentInputTuple.isLeft) inputTupleCount += 1
+      outputIterator = operator.processTuple(tuple, senderRef)
+      if (tuple.isLeft) inputTupleCount += 1
     } catch {
       case e: Exception =>
         handleOperatorException(e, isInput = true)
@@ -84,7 +87,7 @@ class DataProcessor( // dependencies:
     if (outputTuple != null) {
       try {
         outputTupleCount += 1
-        tupleOutput.transferTuple(outputTuple, outputTupleCount)
+        messagingManager.transferTuple(outputTuple, outputTupleCount)
       } catch {
         case bp: BreakpointException =>
           pauseManager.pause()
@@ -101,16 +104,18 @@ class DataProcessor( // dependencies:
   @throws[Exception]
   private[this] def runDPThreadMainLogic(): Unit = {
     // main DP loop: runs until all upstreams exhaust.
-    while (!tupleInput.isAllUpstreamsExhausted) {
+    while (!workerInternalQueue.isAllUpstreamsExhausted) {
       // take the next input tuple from tupleInput, blocks if no tuple available.
-      currentInputTuple = tupleInput.getNextInputTuple
+      val (senderRef, inputTuple) = workerInternalQueue.getNextInputPair
+      currentInputTuple = inputTuple
+      currentSenderRef = senderRef
       // check pause before processing the input tuple.
       pauseManager.checkForPause()
       // if the input tuple is not a dummy tuple, process it
       // TODO: make sure this dummy batch feature works with fault tolerance
-      if (currentInputTuple != null) {
+      if (inputTuple != null) {
         // pass input tuple to operator logic.
-        val outputIterator = processCurrentInputTuple()
+        val outputIterator = processInputTuple(inputTuple, senderRef)
         // check pause before outputting tuples.
         pauseManager.checkForPause()
         // output loop: take one tuple from iterator at a time.
