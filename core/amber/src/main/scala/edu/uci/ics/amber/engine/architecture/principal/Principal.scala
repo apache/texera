@@ -15,6 +15,7 @@ import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage.{
   CollectSinkResults,
   KillAndRecover,
   LocalBreakpointTriggered,
+  LogErrorToFrontEnd,
   ModifyLogic,
   ModifyTuple,
   Pause,
@@ -54,7 +55,8 @@ import edu.uci.ics.amber.engine.common.{
   AmberUtils,
   Constants,
   ITupleSinkOperatorExecutor,
-  TableMetadata
+  TableMetadata,
+  WorkflowLogger
 }
 import edu.uci.ics.amber.engine.faulttolerance.recovery.RecoveryPacket
 import edu.uci.ics.amber.engine.operators.OpExecConfig
@@ -74,8 +76,9 @@ import akka.util.Timeout
 import akka.pattern.after
 import akka.pattern.ask
 import com.google.common.base.Stopwatch
+import com.typesafe.scalalogging.Logger
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.ErrorOccurred
-import edu.uci.ics.amber.error.{ErrorLogger, WorkflowRuntimeError}
+import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -92,6 +95,13 @@ class Principal(val metadata: OpExecConfig) extends Actor with ActorLogging with
   implicit val timeout: Timeout = 5.seconds
   implicit val logAdapter: LoggingAdapter = log
 
+  private def errorLogAction(err: WorkflowRuntimeError): Unit = {
+    Logger(
+      s"Principal-${metadata.tag.getGlobalIdentity}-Logger"
+    ).error(err.convertToMap().mkString(" | "))
+    context.parent ! LogErrorToFrontEnd(err)
+  }
+  val errorLogger = WorkflowLogger(errorLogAction)
   val tau: FiniteDuration = Constants.defaultTau
   var workerLayers: Array[ActorLayer] = _
   var workerEdges: Array[LinkStrategy] = _
@@ -342,16 +352,14 @@ class Principal(val metadata: OpExecConfig) extends Actor with ActorLogging with
         }
       } catch {
         case e: WorkflowRuntimeException =>
-          log.error(e.runtimeError.convertToMap().mkString(" | "))
-          ErrorLogger.sendErrToFrontend(context.parent, e.runtimeError)
+          errorLogger.log(e.runtimeError)
         case e: Exception =>
           val error = WorkflowRuntimeError(
             e.getMessage(),
             "Principal:Running:WorkerMessage.ReportState",
             Map("trace" -> e.getStackTrace.mkString("\n"))
           )
-          log.error(error.convertToMap().mkString(" | "))
-          ErrorLogger.sendErrToFrontend(context.parent, error)
+          errorLogger.log(error)
       }
 
     case WorkerMessage.ReportStatistics(statistics) =>

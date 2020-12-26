@@ -62,7 +62,8 @@ import edu.uci.ics.amber.engine.common.{
   AdvancedMessageSending,
   AmberUtils,
   Constants,
-  ISourceOperatorExecutor
+  ISourceOperatorExecutor,
+  WorkflowLogger
 }
 import edu.uci.ics.amber.engine.faulttolerance.scanner.HDFSFolderScanSourceOperatorExecutor
 import edu.uci.ics.amber.engine.operators.OpExecConfig
@@ -88,7 +89,8 @@ import com.google.common.base.Stopwatch
 import play.api.libs.json.{JsArray, JsValue, Json}
 import com.google.common.collect.BiMap
 import com.google.common.collect.HashBiMap
-import edu.uci.ics.amber.error.{ErrorLogger, WorkflowRuntimeError}
+import com.typesafe.scalalogging.Logger
+import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 import collection.JavaConverters._
 import scala.collection.mutable
@@ -238,6 +240,13 @@ class Controller(
   implicit val timeout: Timeout = 5.seconds
   implicit val logAdapter: LoggingAdapter = log
 
+  private def errorLogAction(err: WorkflowRuntimeError): Unit = {
+    Logger(
+      s"Controller-${tag.getGlobalIdentity}-Logger"
+    ).error(err.convertToMap().mkString(" | "))
+    eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
+  }
+  val errorLogger = WorkflowLogger(errorLogAction)
   val principalBiMap: BiMap[OperatorIdentifier, ActorRef] =
     HashBiMap.create[OperatorIdentifier, ActorRef]()
   val principalInCurrentStage = new mutable.HashSet[ActorRef]()
@@ -422,16 +431,14 @@ class Controller(
         frontier ++= workflow.startOperators.flatMap(workflow.outLinks(_))
       } catch {
         case e: WorkflowRuntimeException =>
-          log.error(e.runtimeError.convertToMap().mkString(" | "))
-          eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(e.runtimeError))
+          errorLogger.log(e.runtimeError)
         case e: Exception =>
           val error = WorkflowRuntimeError(
             e.getMessage(),
             "Controller:receive:AckedControllerInitialization",
             Map("trace" -> e.getStackTrace.mkString("\n"))
           )
-          log.error(error.convertToMap().mkString(" | "))
-          eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(error))
+          errorLogger.log(error)
       }
     case ContinuedInitialization =>
       log.info("continue initialization")
