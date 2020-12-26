@@ -66,7 +66,6 @@ class DataProcessingSpec
   }
 
   def expectCompletedAfterExecution(
-      testName: String,
       operators: mutable.MutableList[OperatorDescriptor],
       links: mutable.MutableList[OperatorLink]
   ): Unit = {
@@ -98,7 +97,6 @@ class DataProcessingSpec
     val sink = TestOperators.sinkOpDesc()
 
     expectCompletedAfterExecution(
-      "execute-headerlessCsv-sink",
       mutable.MutableList[OperatorDescriptor](headerlessCsvOpDesc, sink),
       mutable.MutableList[OperatorLink](
         OperatorLink(headerlessCsvOpDesc.operatorID, sink.operatorID)
@@ -111,7 +109,6 @@ class DataProcessingSpec
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("column0", "Asia")
     val sink = TestOperators.sinkOpDesc()
     expectCompletedAfterExecution(
-      "execute-headerlessCsv-keyword-sink",
       mutable.MutableList[OperatorDescriptor](headerlessCsvOpDesc, keywordOpDesc, sink),
       mutable.MutableList[OperatorLink](
         OperatorLink(headerlessCsvOpDesc.operatorID, keywordOpDesc.operatorID),
@@ -124,7 +121,6 @@ class DataProcessingSpec
     val csvOpDesc = TestOperators.smallCsvScanOpDesc()
     val sink = TestOperators.sinkOpDesc()
     expectCompletedAfterExecution(
-      "execute-csv-sink",
       mutable.MutableList[OperatorDescriptor](csvOpDesc, sink),
       mutable.MutableList[OperatorLink](
         OperatorLink(csvOpDesc.operatorID, sink.operatorID)
@@ -137,7 +133,6 @@ class DataProcessingSpec
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("Region", "Asia")
     val sink = TestOperators.sinkOpDesc()
     expectCompletedAfterExecution(
-      "execute-csv-keyword-sink",
       mutable.MutableList[OperatorDescriptor](csvOpDesc, keywordOpDesc, sink),
       mutable.MutableList[OperatorLink](
         OperatorLink(csvOpDesc.operatorID, keywordOpDesc.operatorID),
@@ -153,7 +148,6 @@ class DataProcessingSpec
       TestOperators.aggregateAndGroupbyDesc("Region", AggregationFunction.COUNT, List[String]())
     val sink = TestOperators.sinkOpDesc()
     expectCompletedAfterExecution(
-      "execute-csv-keyword-count-sink",
       mutable.MutableList[OperatorDescriptor](csvOpDesc, keywordOpDesc, countOpDesc, sink),
       mutable.MutableList[OperatorLink](
         OperatorLink(csvOpDesc.operatorID, keywordOpDesc.operatorID),
@@ -168,13 +162,11 @@ class DataProcessingSpec
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("Region", "Asia")
     val averageAndGroupbyOpDesc =
       TestOperators.aggregateAndGroupbyDesc(
-        "Units Sold",
         AggregationFunction.AVERAGE,
         List[String]("Country")
       )
     val sink = TestOperators.sinkOpDesc()
     expectCompletedAfterExecution(
-      "execute-csv-keyword-averageAndGroupby-sink",
       mutable
         .MutableList[OperatorDescriptor](csvOpDesc, keywordOpDesc, averageAndGroupbyOpDesc, sink),
       mutable.MutableList[OperatorLink](
