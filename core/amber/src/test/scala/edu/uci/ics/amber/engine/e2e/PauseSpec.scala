@@ -58,14 +58,14 @@ class PauseSpec
     controller ! Start
     parent.expectMsg(ReportState(ControllerState.Running))
     controller ! Pause
-    parent.expectMsg(ReportState(ControllerState.Pausing))
-    parent.expectMsg(ReportState(ControllerState.Paused))
+    parent.expectMsg(1.minute, ReportState(ControllerState.Pausing))
+    parent.expectMsg(1.minute, ReportState(ControllerState.Paused))
     controller ! Resume
     parent.expectMsg(ReportState(ControllerState.Resuming))
     parent.expectMsg(ReportState(ControllerState.Running))
     Thread.sleep(400)
     controller ! Pause
-    parent.expectMsg(ReportState(ControllerState.Pausing))
+    parent.expectMsg(1.minute, ReportState(ControllerState.Pausing))
     parent.expectMsg(1.minute, ReportState(ControllerState.Paused))
     controller ! Resume
     parent.expectMsg(ReportState(ControllerState.Resuming))
