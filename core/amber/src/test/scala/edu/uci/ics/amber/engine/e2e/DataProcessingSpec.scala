@@ -162,6 +162,7 @@ class DataProcessingSpec
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("Region", "Asia")
     val averageAndGroupbyOpDesc =
       TestOperators.aggregateAndGroupbyDesc(
+        "Units Sold",
         AggregationFunction.AVERAGE,
         List[String]("Country")
       )
