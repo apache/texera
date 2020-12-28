@@ -1,7 +1,6 @@
 import { Component, Input, OnInit, OnChanges } from '@angular/core';
 import { WorkflowActionService } from 'src/app/workspace/service/workflow-graph/model/workflow-action.service';
 import { SchemaPropagationService } from 'src/app/workspace/service/dynamic-schema/schema-propagation/schema-propagation.service';
-import { Operator } from 'rxjs';
 import { OperatorPredicate } from 'src/app/workspace/types/workflow-common.interface';
 
 // correspond to operator type specified in backend OperatorDescriptor
