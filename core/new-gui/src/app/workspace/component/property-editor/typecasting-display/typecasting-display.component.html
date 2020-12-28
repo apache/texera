@@ -1,8 +1,7 @@
-<div *ngIf="TypeCastingTypeInformation(operatorID)">
-  <h3>TypeCasting Information</h3>
+<div *ngIf="showTypeCastingTypeInformation">
   <label>
-    Attribute :  {{ data.attribute }}   <br>
-    Input type :  {{ getInputType(operatorID) }}   <br>
-    Result type :  {{ data.CastingType }}
+    Attribute   :  {{ attribute }}   <br>
+    Input type  :  {{ inputType }}   <br>
+    Result type :  {{ resultType }}
   </label>
 </div>

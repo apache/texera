@@ -3,6 +3,7 @@ package edu.uci.ics.texera.workflow.operators.typeCasting;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.google.common.base.Preconditions;
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig;
@@ -15,11 +16,13 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class TypeCastingOpDesc extends MapOpDesc {
-    @JsonProperty(value = "attribute", required = true)
+    @JsonProperty(required = true)
+    @JsonSchemaTitle("attribute")
     @JsonPropertyDescription("Type to perform casting")
     public String attribute;
 
-    @JsonProperty(value = "CastingType", required = true)
+    @JsonProperty(required = true)
+    @JsonSchemaTitle("cast type")
     @JsonPropertyDescription("Result type you want to put")
     public CastingType resultType;
 
