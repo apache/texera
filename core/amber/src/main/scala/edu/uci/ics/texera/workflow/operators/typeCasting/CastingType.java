@@ -2,17 +2,14 @@ package edu.uci.ics.texera.workflow.operators.typeCasting;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 public enum CastingType {
-    INTEGER("Int"),
-
-    DOUBLE("Double"),
-
-    STRING("Str"),
-
-    BOOLEAN("Bool");
+    STRING("string"),
+    INTEGER("integer"),
+    DOUBLE("double"),
+    BOOLEAN("boolean");
 
     private final String name;
 
-    private CastingType(String name) {
+    CastingType(String name) {
         this.name = name;
     }
 

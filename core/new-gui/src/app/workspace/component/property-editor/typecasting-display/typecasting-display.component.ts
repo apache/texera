@@ -1,6 +1,11 @@
 import { Component, Input, OnInit, OnChanges } from '@angular/core';
 import { WorkflowActionService } from 'src/app/workspace/service/workflow-graph/model/workflow-action.service';
 import { SchemaPropagationService } from 'src/app/workspace/service/dynamic-schema/schema-propagation/schema-propagation.service';
+import { Operator } from 'rxjs';
+import { OperatorPredicate } from 'src/app/workspace/types/workflow-common.interface';
+
+// correspond to operator type specified in backend OperatorDescriptor
+export const TYPE_CASTING_OPERATOR_TYPE = 'TypeCasting';
 
 @Component({
   selector: 'texera-typecasting-display',
@@ -23,30 +28,37 @@ export class TypecastingDisplayComponent implements OnInit, OnChanges {
   ) {
     this.workflowActionService.getTexeraGraph().getOperatorPropertyChangeStream()
       .filter(op => op.operator.operatorID === this.operatorID)
-      .filter(op => op.operator.operatorType === 'TypeCasting')
+      .filter(op => op.operator.operatorType === TYPE_CASTING_OPERATOR_TYPE)
       .map(event => event.operator)
       .subscribe(op => {
-        this.attribute = op.operatorProperties['attribute'];
-        this.resultType = op.operatorProperties['resultType'];
-        if (this.operatorID) {
-          this.inputType = this.schemaPropagationService.getOperatorInputSchema(this.operatorID)
-          ?.filter(e => e.attributeName === this.attribute).map(e => e.attributeType)[0];
-        }
+        this.updateComponent(op);
       });
   }
 
   ngOnInit(): void {
-    console.log('ngoninit');
   }
 
-  // invoke upon every time the input binding is changed
+  // invoke on first init and every time the input binding is changed
   ngOnChanges(): void {
-    console.log('ngonchanges');
     if (! this.operatorID) {
       this.showTypeCastingTypeInformation = false;
-    } else {
-      this.showTypeCastingTypeInformation =
-        this.workflowActionService.getTexeraGraph().getOperator(this.operatorID).operatorType === 'TypeCasting';
+      return;
+    }
+    const op = this.workflowActionService.getTexeraGraph().getOperator(this.operatorID);
+    if (op.operatorType !== TYPE_CASTING_OPERATOR_TYPE) {
+      this.showTypeCastingTypeInformation = false;
+      return;
+    }
+    this.showTypeCastingTypeInformation = true;
+    this.updateComponent(op);
+  }
+
+  private updateComponent(op: OperatorPredicate): void {
+    this.attribute = op.operatorProperties['attribute'];
+    this.resultType = op.operatorProperties['resultType'];
+    if (this.operatorID) {
+      this.inputType = this.schemaPropagationService.getOperatorInputSchema(this.operatorID)
+      ?.filter(e => e.attributeName === this.attribute).map(e => e.attributeType)[0];
     }
   }
 
