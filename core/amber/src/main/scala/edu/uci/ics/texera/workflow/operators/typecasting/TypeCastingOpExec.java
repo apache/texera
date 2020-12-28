@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.workflow.operators.typeCasting;
+package edu.uci.ics.texera.workflow.operators.typecasting;
 
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpExec;
 import edu.uci.ics.texera.workflow.common.tuple.Tuple;
@@ -6,8 +6,6 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 import scala.Function1;
 
 import java.io.Serializable;
-import java.util.List;
-import java.util.stream.Collectors;
 
 public class TypeCastingOpExec extends  MapOpExec{
     private final TypeCastingOpDesc opDesc;
@@ -18,7 +16,7 @@ public class TypeCastingOpExec extends  MapOpExec{
 
     public Tuple processTuple(Tuple t) {
         String attribute = opDesc.attribute;
-        CastingType resultType = opDesc.resultType;
+        TypeCastingAttributeType resultType = opDesc.resultType;
         Class type = t.getField(attribute).getClass();
 
         if (type == String.class) {

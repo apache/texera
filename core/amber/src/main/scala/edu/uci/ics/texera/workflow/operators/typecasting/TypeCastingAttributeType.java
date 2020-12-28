@@ -1,7 +1,7 @@
-package edu.uci.ics.texera.workflow.operators.typeCasting;
+package edu.uci.ics.texera.workflow.operators.typecasting;
 import com.fasterxml.jackson.annotation.JsonValue;
 
-public enum CastingType {
+public enum TypeCastingAttributeType {
     STRING("string"),
     INTEGER("integer"),
     DOUBLE("double"),
@@ -9,7 +9,7 @@ public enum CastingType {
 
     private final String name;
 
-    CastingType(String name) {
+    TypeCastingAttributeType(String name) {
         this.name = name;
     }
 

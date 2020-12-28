@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.workflow.operators.typeCasting;
+package edu.uci.ics.texera.workflow.operators.typecasting;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
@@ -8,23 +8,19 @@ import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig;
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc;
-import edu.uci.ics.texera.workflow.common.tuple.Tuple;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
-
-import java.util.List;
-import java.util.stream.Collectors;
 
 public class TypeCastingOpDesc extends MapOpDesc {
     @JsonProperty(required = true)
     @JsonSchemaTitle("attribute")
-    @JsonPropertyDescription("Type to perform casting")
+    @JsonPropertyDescription("Attribute for type casting")
     public String attribute;
 
     @JsonProperty(required = true)
     @JsonSchemaTitle("cast type")
-    @JsonPropertyDescription("Result type you want to put")
-    public CastingType resultType;
+    @JsonPropertyDescription("Result type after type casting")
+    public TypeCastingAttributeType resultType;
 
 
     @Override
@@ -38,8 +34,8 @@ public class TypeCastingOpDesc extends MapOpDesc {
     @Override
     public OperatorInfo operatorInfo() {
         return new OperatorInfo(
-                "TypeCasting",
-                "Casting type to another type",
+                "Type Casting",
+                "Cast type to another type",
                 OperatorGroupConstants.UTILITY_GROUP(),
                 1, 1
         );
