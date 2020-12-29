@@ -93,11 +93,11 @@ class Principal(val metadata: OpExecConfig) extends Actor with ActorLogging with
   val tau: FiniteDuration = Constants.defaultTau
   var workerLayers: Array[ActorLayer] = _
   var workerEdges: Array[LinkStrategy] = _
-  var layerDependencies: mutable.HashMap[String, mutable.HashSet[String]] = _
+  // var layerDependencies: mutable.HashMap[String, mutable.HashSet[String]] = _
   var workerStateMap: mutable.AnyRefMap[ActorRef, WorkerState.Value] = _
   var workerStatisticsMap: mutable.AnyRefMap[ActorRef, WorkerStatistics] = _
   var workerSinkResultMap = new mutable.AnyRefMap[ActorRef, List[ITuple]]
-  var layerMetadata: Array[TableMetadata] = _
+  // var layerMetadata: Array[TableMetadata] = _
   var isUserPaused = false
   var globalBreakpoints = new mutable.AnyRefMap[String, GlobalBreakpoint]
   var periodicallyAskHandle: Cancellable = _
@@ -179,9 +179,9 @@ class Principal(val metadata: OpExecConfig) extends Actor with ActorLogging with
   final def resetAll(): Unit = {
     workerLayers = null
     workerEdges = null
-    layerDependencies = null
+    //layerDependencies = null
     workerStateMap = null
-    layerMetadata = null
+    //layerMetadata = null
     isUserPaused = false
     safeRemoveAskHandle()
     periodicallyAskHandle = null
@@ -198,37 +198,37 @@ class Principal(val metadata: OpExecConfig) extends Actor with ActorLogging with
     case RecoveryPacket(amberTag, seq1, seq2) =>
       receivedRecoveryInformation(amberTag) = (seq1, seq2)
     case Start =>
-      sender ! Ack
-      allWorkers.foreach(worker =>
-        AdvancedMessageSending.nonBlockingAskWithRetry(worker, Start, 10, 0)
-      )
+//      sender ! Ack
+//      allWorkers.foreach(worker =>
+//        AdvancedMessageSending.nonBlockingAskWithRetry(worker, Start, 10, 0)
+//      )
     case WorkerMessage.ReportState(state) =>
-      setWorkerState(sender, state)
-      state match {
-        case WorkerState.Running =>
-          context.parent ! ReportState(PrincipalState.Running)
-          context.become(running)
-          timer.start()
-          stage1Timer.start()
-          unstashAll()
-        case WorkerState.Paused =>
-          if (whenAllUncompletedWorkersBecome(WorkerState.Paused)) {
-            safeRemoveAskHandle()
-            context.parent ! ReportState(PrincipalState.Paused)
-            context.become(paused)
-            unstashAll()
-          }
-        case _ => //throw new AmberException("Invalid worker state received!")
-      }
+//      setWorkerState(sender, state)
+//      state match {
+//        case WorkerState.Running =>
+//          context.parent ! ReportState(PrincipalState.Running)
+//          context.become(running)
+//          timer.start()
+//          stage1Timer.start()
+//          unstashAll()
+//        case WorkerState.Paused =>
+//          if (whenAllUncompletedWorkersBecome(WorkerState.Paused)) {
+//            safeRemoveAskHandle()
+//            context.parent ! ReportState(PrincipalState.Paused)
+//            context.become(paused)
+//            unstashAll()
+//          }
+//        case _ => //throw new AmberException("Invalid worker state received!")
+//      }
     case WorkerMessage.ReportStatistics(statistics) =>
-      setWorkerStatistics(sender, statistics)
-      context.parent ! PrincipalMessage.ReportStatistics(
-        PrincipalStatistics(
-          PrincipalState.Ready,
-          aggregateWorkerInputRowCount(),
-          aggregateWorkerOutputRowCount()
-        )
-      )
+//      setWorkerStatistics(sender, statistics)
+//      context.parent ! PrincipalMessage.ReportStatistics(
+//        PrincipalStatistics(
+//          PrincipalState.Ready,
+//          aggregateWorkerInputRowCount(),
+//          aggregateWorkerOutputRowCount()
+//        )
+//      )
     case StashOutput =>
       sender ! Ack
       allWorkers.foreach(worker =>
@@ -264,99 +264,99 @@ class Principal(val metadata: OpExecConfig) extends Actor with ActorLogging with
     case RecoveryPacket(amberTag, seq1, seq2) =>
       receivedRecoveryInformation(amberTag) = (seq1, seq2)
     case WorkerMessage.ReportState(state) =>
-      log.info("running: " + sender + " to " + state)
-      if (setWorkerState(sender, state)) {
-        state match {
-          case WorkerState.LocalBreakpointTriggered =>
-            if (whenAllUncompletedWorkersBecome(WorkerState.LocalBreakpointTriggered)) {
-              //only one worker and it triggered breakpoint
-              safeRemoveAskHandle()
-              periodicallyAskHandle = context.system.scheduler.schedule(
-                0.milliseconds,
-                30.seconds,
-                self,
-                EnforceStateCheck
-              )
-              workersTriggeredBreakpoint = allWorkers
-              context.parent ! ReportState(PrincipalState.CollectingBreakpoints)
-              context.become(collectingBreakpoints)
-            } else {
-              //no tau involved since we know a very small tau works best
-              if (!stage2Timer.isRunning) {
-                stage2Timer.start()
-              }
-              if (stage1Timer.isRunning) {
-                stage1Timer.stop()
-              }
-              context.system.scheduler
-                .scheduleOnce(tau, () => unCompletedWorkers.foreach(worker => worker ! Pause))
-              safeRemoveAskHandle()
-              periodicallyAskHandle =
-                context.system.scheduler.schedule(30.seconds, 30.seconds, self, EnforceStateCheck)
-              context.become(pausing)
-              unstashAll()
-            }
-          case WorkerState.Paused =>
-            if (whenAllWorkersCompleted) {
-              safeRemoveAskHandle()
-              context.parent ! ReportState(PrincipalState.Completed)
-              context.become(completed)
-              unstashAll()
-            } else if (whenAllUncompletedWorkersBecome(WorkerState.Paused)) {
-              safeRemoveAskHandle()
-              context.parent ! ReportState(PrincipalState.Paused)
-              context.become(paused)
-              unstashAll()
-            } else if (
-              unCompletedWorkerStates
-                .forall(x => x == WorkerState.Paused || x == WorkerState.LocalBreakpointTriggered)
-            ) {
-              workersTriggeredBreakpoint =
-                workerStateMap.filter(_._2 == WorkerState.LocalBreakpointTriggered).keys
-              safeRemoveAskHandle()
-              periodicallyAskHandle = context.system.scheduler.schedule(
-                1.milliseconds,
-                30.seconds,
-                self,
-                EnforceStateCheck
-              )
-              context.parent ! ReportState(PrincipalState.CollectingBreakpoints)
-              context.become(collectingBreakpoints)
-              unstashAll()
-            }
-          case WorkerState.Completed =>
-            if (whenAllWorkersCompleted) {
-              if (timer.isRunning) {
-                timer.stop()
-              }
-              log.info(metadata.tag.toString + " completed! Time Elapsed: " + timer.toString())
-              context.parent ! ReportState(PrincipalState.Completed)
-              context.become(completed)
-              unstashAll()
-            }
-          case _ => //skip others for now
-        }
-      }
+//      log.info("running: " + sender + " to " + state)
+//      if (setWorkerState(sender, state)) {
+//        state match {
+//          case WorkerState.LocalBreakpointTriggered =>
+//            if (whenAllUncompletedWorkersBecome(WorkerState.LocalBreakpointTriggered)) {
+//              //only one worker and it triggered breakpoint
+//              safeRemoveAskHandle()
+//              periodicallyAskHandle = context.system.scheduler.schedule(
+//                0.milliseconds,
+//                30.seconds,
+//                self,
+//                EnforceStateCheck
+//              )
+//              workersTriggeredBreakpoint = allWorkers
+//              context.parent ! ReportState(PrincipalState.CollectingBreakpoints)
+//              context.become(collectingBreakpoints)
+//            } else {
+//              //no tau involved since we know a very small tau works best
+//              if (!stage2Timer.isRunning) {
+//                stage2Timer.start()
+//              }
+//              if (stage1Timer.isRunning) {
+//                stage1Timer.stop()
+//              }
+//              context.system.scheduler
+//                .scheduleOnce(tau, () => unCompletedWorkers.foreach(worker => worker ! Pause))
+//              safeRemoveAskHandle()
+//              periodicallyAskHandle =
+//                context.system.scheduler.schedule(30.seconds, 30.seconds, self, EnforceStateCheck)
+//              context.become(pausing)
+//              unstashAll()
+//            }
+//          case WorkerState.Paused =>
+//            if (whenAllWorkersCompleted) {
+//              safeRemoveAskHandle()
+//              context.parent ! ReportState(PrincipalState.Completed)
+//              context.become(completed)
+//              unstashAll()
+//            } else if (whenAllUncompletedWorkersBecome(WorkerState.Paused)) {
+//              safeRemoveAskHandle()
+//              context.parent ! ReportState(PrincipalState.Paused)
+//              context.become(paused)
+//              unstashAll()
+//            } else if (
+//              unCompletedWorkerStates
+//                .forall(x => x == WorkerState.Paused || x == WorkerState.LocalBreakpointTriggered)
+//            ) {
+//              workersTriggeredBreakpoint =
+//                workerStateMap.filter(_._2 == WorkerState.LocalBreakpointTriggered).keys
+//              safeRemoveAskHandle()
+//              periodicallyAskHandle = context.system.scheduler.schedule(
+//                1.milliseconds,
+//                30.seconds,
+//                self,
+//                EnforceStateCheck
+//              )
+//              context.parent ! ReportState(PrincipalState.CollectingBreakpoints)
+//              context.become(collectingBreakpoints)
+//              unstashAll()
+//            }
+//          case WorkerState.Completed =>
+//            if (whenAllWorkersCompleted) {
+//              if (timer.isRunning) {
+//                timer.stop()
+//              }
+//              log.info(metadata.tag.toString + " completed! Time Elapsed: " + timer.toString())
+//              context.parent ! ReportState(PrincipalState.Completed)
+//              context.become(completed)
+//              unstashAll()
+//            }
+//          case _ => //skip others for now
+//        }
+//      }
     case WorkerMessage.ReportStatistics(statistics) =>
-      setWorkerStatistics(sender, statistics)
-      context.parent ! PrincipalMessage.ReportStatistics(
-        PrincipalStatistics(
-          PrincipalState.Running,
-          aggregateWorkerInputRowCount(),
-          aggregateWorkerOutputRowCount()
-        )
-      )
+//      setWorkerStatistics(sender, statistics)
+//      context.parent ! PrincipalMessage.ReportStatistics(
+//        PrincipalStatistics(
+//          PrincipalState.Running,
+//          aggregateWorkerInputRowCount(),
+//          aggregateWorkerOutputRowCount()
+//        )
+//      )
     case Pause =>
-      //single point pause: pause itself
-      if (sender != self) {
-        isUserPaused = true
-      }
-      allWorkers.foreach(worker => worker ! Pause)
-      safeRemoveAskHandle()
-      periodicallyAskHandle =
-        context.system.scheduler.schedule(30.seconds, 30.seconds, self, EnforceStateCheck)
-      context.become(pausing)
-      unstashAll()
+    //single point pause: pause itself
+//      if (sender != self) {
+//        isUserPaused = true
+//      }
+//      allWorkers.foreach(worker => worker ! Pause)
+//      safeRemoveAskHandle()
+//      periodicallyAskHandle =
+//        context.system.scheduler.schedule(30.seconds, 30.seconds, self, EnforceStateCheck)
+//      context.become(pausing)
+//      unstashAll()
     case ReportWorkerPartialCompleted(worker, layer) =>
       sender ! Ack
       AdvancedMessageSending.nonBlockingAskWithRetry(
@@ -411,48 +411,48 @@ class Principal(val metadata: OpExecConfig) extends Actor with ActorLogging with
         }
       }
     case reportCurrentTuple: WorkerMessage.ReportCurrentProcessingTuple =>
-      receivedTuples.append((reportCurrentTuple.tuple, reportCurrentTuple.workerID))
+//      receivedTuples.append((reportCurrentTuple.tuple, reportCurrentTuple.workerID))
     case WorkerMessage.ReportState(state) =>
-      log.info("pausing: " + sender + " to " + state)
-      if (setWorkerState(sender, state)) {
-        if (whenAllWorkersCompleted) {
-          safeRemoveAskHandle()
-          context.parent ! ReportState(PrincipalState.Completed)
-          context.become(completed)
-          unstashAll()
-        } else if (whenAllUncompletedWorkersBecome(WorkerState.Paused)) {
-          safeRemoveAskHandle()
-          context.parent ! ReportCurrentProcessingTuple(
-            this.metadata.tag.operator,
-            receivedTuples.toArray
-          )
-          receivedTuples.clear()
-          context.parent ! ReportState(PrincipalState.Paused)
-          context.become(paused)
-          unstashAll()
-        } else if (
-          unCompletedWorkerStates
-            .forall(x => x == WorkerState.Paused || x == WorkerState.LocalBreakpointTriggered)
-        ) {
-          workersTriggeredBreakpoint =
-            workerStateMap.filter(_._2 == WorkerState.LocalBreakpointTriggered).keys
-          safeRemoveAskHandle()
-          periodicallyAskHandle =
-            context.system.scheduler.schedule(1.milliseconds, 30.seconds, self, EnforceStateCheck)
-          context.parent ! ReportState(PrincipalState.CollectingBreakpoints)
-          context.become(collectingBreakpoints)
-          unstashAll()
-        }
-      }
+//      log.info("pausing: " + sender + " to " + state)
+//      if (setWorkerState(sender, state)) {
+//        if (whenAllWorkersCompleted) {
+//          safeRemoveAskHandle()
+//          context.parent ! ReportState(PrincipalState.Completed)
+//          context.become(completed)
+//          unstashAll()
+//        } else if (whenAllUncompletedWorkersBecome(WorkerState.Paused)) {
+//          safeRemoveAskHandle()
+//          context.parent ! ReportCurrentProcessingTuple(
+//            this.metadata.tag.operator,
+//            receivedTuples.toArray
+//          )
+//          receivedTuples.clear()
+//          context.parent ! ReportState(PrincipalState.Paused)
+//          context.become(paused)
+//          unstashAll()
+//        } else if (
+//          unCompletedWorkerStates
+//            .forall(x => x == WorkerState.Paused || x == WorkerState.LocalBreakpointTriggered)
+//        ) {
+//          workersTriggeredBreakpoint =
+//            workerStateMap.filter(_._2 == WorkerState.LocalBreakpointTriggered).keys
+//          safeRemoveAskHandle()
+//          periodicallyAskHandle =
+//            context.system.scheduler.schedule(1.milliseconds, 30.seconds, self, EnforceStateCheck)
+//          context.parent ! ReportState(PrincipalState.CollectingBreakpoints)
+//          context.become(collectingBreakpoints)
+//          unstashAll()
+//        }
+//      }
     case WorkerMessage.ReportStatistics(statistics) =>
-      setWorkerStatistics(sender, statistics)
-      context.parent ! PrincipalMessage.ReportStatistics(
-        PrincipalStatistics(
-          PrincipalState.Pausing,
-          aggregateWorkerInputRowCount(),
-          aggregateWorkerOutputRowCount()
-        )
-      )
+//      setWorkerStatistics(sender, statistics)
+//      context.parent ! PrincipalMessage.ReportStatistics(
+//        PrincipalStatistics(
+//          PrincipalState.Pausing,
+//          aggregateWorkerInputRowCount(),
+//          aggregateWorkerOutputRowCount()
+//        )
+//      )
     case QueryState => sender ! ReportState(PrincipalState.Pausing)
     case QueryStatistics =>
       this.allWorkers.foreach(worker => worker ! QueryStatistics)
@@ -613,14 +613,14 @@ class Principal(val metadata: OpExecConfig) extends Actor with ActorLogging with
     case RecoveryPacket(amberTag, seq1, seq2) =>
       receivedRecoveryInformation(amberTag) = receivedRecoveryInformation(amberTag)
     case Resume =>
-      isUserPaused = false //reset
-      assert(unCompletedWorkerStates.nonEmpty)
-      unCompletedWorkers.foreach(worker => worker ! Resume)
-      safeRemoveAskHandle()
-      periodicallyAskHandle =
-        context.system.scheduler.schedule(30.seconds, 30.seconds, self, EnforceStateCheck)
-      context.become(resuming)
-      unstashAll()
+//      isUserPaused = false //reset
+//      assert(unCompletedWorkerStates.nonEmpty)
+//      unCompletedWorkers.foreach(worker => worker ! Resume)
+//      safeRemoveAskHandle()
+//      periodicallyAskHandle =
+//        context.system.scheduler.schedule(30.seconds, 30.seconds, self, EnforceStateCheck)
+//      context.become(resuming)
+//      unstashAll()
     case AssignBreakpoint(breakpoint) =>
       sender ! Ack
       globalBreakpoints(breakpoint.id) = breakpoint
@@ -706,59 +706,59 @@ class Principal(val metadata: OpExecConfig) extends Actor with ActorLogging with
 
   final override def receive: Receive = {
     case AckedPrincipalInitialization(prev: Array[(OpExecConfig, ActorLayer)]) =>
-      workerLayers = metadata.topology.layers
-      workerEdges = metadata.topology.links
-      val all = availableNodes
-      if (workerEdges.isEmpty) {
-        workerLayers.foreach(x => x.build(prev, all))
-      } else {
-        val inLinks: Map[ActorLayer, Set[ActorLayer]] =
-          workerEdges.groupBy(x => x.to).map(x => (x._1, x._2.map(_.from).toSet))
-        var currentLayer: Iterable[ActorLayer] =
-          workerEdges.filter(x => workerEdges.forall(_.to != x.from)).map(_.from)
-        currentLayer.foreach(x => x.build(prev, all))
-        currentLayer = inLinks.filter(x => x._2.forall(_.isBuilt)).keys
-        while (currentLayer.nonEmpty) {
-          currentLayer.foreach(x => x.build(inLinks(x).map(y => (null, y)).toArray, all))
-          currentLayer = inLinks.filter(x => !x._1.isBuilt && x._2.forall(_.isBuilt)).keys
-        }
-      }
-      layerCompletedCounter =
-        mutable.HashMap(prev.map(x => x._2.tag -> workerLayers.head.layer.length).toSeq: _*)
-      workerStateMap = mutable.AnyRefMap(
-        workerLayers.flatMap(x => x.layer).map((_, WorkerState.Uninitialized)).toMap.toSeq: _*
-      )
-      workerStatisticsMap = mutable.AnyRefMap(
-        workerLayers
-          .flatMap(x => x.layer)
-          .map((_, WorkerStatistics(WorkerState.Uninitialized, 0, 0)))
-          .toMap
-          .toSeq: _*
-      )
-      workerLayers.foreach { x =>
-        var i = 0
-        x.layer.foreach { worker =>
-          val workerTag = WorkerTag(x.tag, i)
-          worker ! AckedWorkerInitialization()
-          i += 1
-        }
-      }
-      safeRemoveAskHandle()
-      periodicallyAskHandle =
-        context.system.scheduler.schedule(30.seconds, 30.seconds, self, EnforceStateCheck)
-      context.become(initializing)
-      unstashAll()
-      sender ! AckWithInformation(metadata)
-    case QueryState => sender ! ReportState(PrincipalState.Uninitialized)
+//      workerLayers = metadata.topology.layers
+//      workerEdges = metadata.topology.links
+//      val all = availableNodes
+//      if (workerEdges.isEmpty) {
+//        workerLayers.foreach(x => x.build(prev, all))
+//      } else {
+//        val inLinks: Map[ActorLayer, Set[ActorLayer]] =
+//          workerEdges.groupBy(x => x.to).map(x => (x._1, x._2.map(_.from).toSet))
+//        var currentLayer: Iterable[ActorLayer] =
+//          workerEdges.filter(x => workerEdges.forall(_.to != x.from)).map(_.from)
+//        currentLayer.foreach(x => x.build(prev, all))
+//        currentLayer = inLinks.filter(x => x._2.forall(_.isBuilt)).keys
+//        while (currentLayer.nonEmpty) {
+//          currentLayer.foreach(x => x.build(inLinks(x).map(y => (null, y)).toArray, all))
+//          currentLayer = inLinks.filter(x => !x._1.isBuilt && x._2.forall(_.isBuilt)).keys
+//        }
+//      }
+//      layerCompletedCounter =
+//        mutable.HashMap(prev.map(x => x._2.tag -> workerLayers.head.layer.length).toSeq: _*)
+//      workerStateMap = mutable.AnyRefMap(
+//        workerLayers.flatMap(x => x.layer).map((_, WorkerState.Uninitialized)).toMap.toSeq: _*
+//      )
+//      workerStatisticsMap = mutable.AnyRefMap(
+//        workerLayers
+//          .flatMap(x => x.layer)
+//          .map((_, WorkerStatistics(WorkerState.Uninitialized, 0, 0)))
+//          .toMap
+//          .toSeq: _*
+//      )
+//      workerLayers.foreach { x =>
+//        var i = 0
+//        x.layer.foreach { worker =>
+//          val workerTag = WorkerTag(x.tag, i)
+//          worker ! AckedWorkerInitialization()
+//          i += 1
+//        }
+//      }
+//      safeRemoveAskHandle()
+//      periodicallyAskHandle =
+//        context.system.scheduler.schedule(30.seconds, 30.seconds, self, EnforceStateCheck)
+//      context.become(initializing)
+//      unstashAll()
+//      sender ! AckWithInformation(metadata)
+    case QueryState      => sender ! ReportState(PrincipalState.Uninitialized)
     case QueryStatistics =>
-      this.allWorkers.foreach(worker => worker ! QueryStatistics)
-      sender() ! ReportStatistics(
-        PrincipalStatistics(
-          PrincipalState.Uninitialized,
-          aggregateWorkerInputRowCount(),
-          aggregateWorkerOutputRowCount()
-        )
-      )
+//      this.allWorkers.foreach(worker => worker ! QueryStatistics)
+//      sender() ! ReportStatistics(
+//        PrincipalStatistics(
+//          PrincipalState.Uninitialized,
+//          aggregateWorkerInputRowCount(),
+//          aggregateWorkerOutputRowCount()
+//        )
+//      )
     case msg =>
       //log.info("stashing: "+ msg)
       stash()
@@ -766,39 +766,39 @@ class Principal(val metadata: OpExecConfig) extends Actor with ActorLogging with
 
   final def initializing: Receive = {
     case EnforceStateCheck =>
-      for ((k, v) <- workerStateMap) {
-        if (v != WorkerState.Ready) {
-          k ! QueryState
-        }
-      }
+//      for ((k, v) <- workerStateMap) {
+//        if (v != WorkerState.Ready) {
+//          k ! QueryState
+//        }
+//      }
     case WorkerMessage.ReportState(state) =>
-      if (state != WorkerState.Ready) {
-        sender ! AckedWorkerInitialization()
-      } else if (setWorkerState(sender, state)) {
-        if (whenAllUncompletedWorkersBecome(WorkerState.Ready)) {
-          safeRemoveAskHandle()
-          workerEdges.foreach(x => x.link())
-          globalBreakpoints.values.foreach(
-            metadata.assignBreakpoint(workerLayers, workerStateMap, _)
-          )
-          allWorkers.foreach(_ ! CheckRecovery)
-          context.parent ! ReportState(PrincipalState.Ready)
-          context.become(ready)
-          unstashAll()
-        }
-      }
+//      if (state != WorkerState.Ready) {
+//        sender ! AckedWorkerInitialization()
+//      } else if (setWorkerState(sender, state)) {
+//        if (whenAllUncompletedWorkersBecome(WorkerState.Ready)) {
+//          safeRemoveAskHandle()
+//          workerEdges.foreach(x => x.link())
+//          globalBreakpoints.values.foreach(
+//            metadata.assignBreakpoint(workerLayers, workerStateMap, _)
+//          )
+//          allWorkers.foreach(_ ! CheckRecovery)
+//          context.parent ! ReportState(PrincipalState.Ready)
+//          context.become(ready)
+//          unstashAll()
+//        }
+//      }
     case WorkerMessage.ReportStatistics(statistics) =>
-      setWorkerStatistics(sender, statistics)
-    case QueryState => sender ! ReportState(PrincipalState.Initializing)
-    case QueryStatistics =>
-      this.allWorkers.foreach(worker => worker ! QueryStatistics)
-      sender() ! ReportStatistics(
-        PrincipalStatistics(
-          PrincipalState.Initializing,
-          aggregateWorkerInputRowCount(),
-          aggregateWorkerOutputRowCount()
-        )
-      )
+//      setWorkerStatistics(sender, statistics)
+//    case QueryState => sender ! ReportState(PrincipalState.Initializing)
+//    case QueryStatistics =>
+//      this.allWorkers.foreach(worker => worker ! QueryStatistics)
+//      sender() ! ReportStatistics(
+//        PrincipalStatistics(
+//          PrincipalState.Initializing,
+//          aggregateWorkerInputRowCount(),
+//          aggregateWorkerOutputRowCount()
+//        )
+//      )
     case msg =>
       //log.info("stashing: "+ msg)
       stash()
