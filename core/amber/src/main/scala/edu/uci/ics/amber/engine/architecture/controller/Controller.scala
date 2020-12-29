@@ -37,7 +37,7 @@ import edu.uci.ics.amber.engine.architecture.principal.{
   PrincipalState,
   PrincipalStatistics
 }
-import edu.uci.ics.amber.engine.common.amberexception.AmberException
+import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.ControllerMessage._
 import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage._
 import edu.uci.ics.amber.engine.common.ambermessage.PrincipalMessage
@@ -62,7 +62,8 @@ import edu.uci.ics.amber.engine.common.{
   AdvancedMessageSending,
   AmberUtils,
   Constants,
-  ISourceOperatorExecutor
+  ISourceOperatorExecutor,
+  WorkflowLogger
 }
 import edu.uci.ics.amber.engine.faulttolerance.scanner.HDFSFolderScanSourceOperatorExecutor
 import edu.uci.ics.amber.engine.operators.OpExecConfig
@@ -88,7 +89,8 @@ import com.google.common.base.Stopwatch
 import play.api.libs.json.{JsArray, JsValue, Json}
 import com.google.common.collect.BiMap
 import com.google.common.collect.HashBiMap
-import edu.uci.ics.amber.backenderror.Error
+import com.typesafe.scalalogging.Logger
+import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 import collection.JavaConverters._
 import scala.collection.mutable
@@ -238,6 +240,13 @@ class Controller(
   implicit val timeout: Timeout = 5.seconds
   implicit val logAdapter: LoggingAdapter = log
 
+  private def errorLogAction(err: WorkflowRuntimeError): Unit = {
+    Logger(
+      s"Controller-${tag.getGlobalIdentity}-Logger"
+    ).error(err.convertToMap().mkString(" | "))
+    eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
+  }
+  val errorLogger = WorkflowLogger(errorLogAction)
   val principalBiMap: BiMap[OperatorIdentifier, ActorRef] =
     HashBiMap.create[OperatorIdentifier, ActorRef]()
   val principalInCurrentStage = new mutable.HashSet[ActorRef]()
@@ -365,50 +374,72 @@ class Controller(
   }
 
   override def receive: Receive = {
+    case LogErrorToFrontEnd(err: WorkflowRuntimeError) =>
+      log.error(err.convertToMap().mkString(" | "))
+      eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
     case QueryStatistics =>
     // do nothing, not initialized yet
     case PrincipalMessage.ReportStatistics(statistics) =>
       principalStatisticsMap.update(sender, statistics)
       triggerStatusUpdateEvent();
     case AckedControllerInitialization =>
-      val nodes = availableNodes
-      log.info("start initialization --------cluster have " + nodes.length + " nodes---------")
-      for (k <- workflow.startOperators) {
-        val v = workflow.operators(k)
-        val p = context.actorOf(
-          Principal.props(v).withDeploy(Deploy(scope = RemoteScope(getPrincipalNode(nodes)))),
-          v.tag.operator
-        )
-        principalBiMap.put(k, p)
-        principalStates(p) = PrincipalState.Uninitialized
-        principalInCurrentStage.add(p)
-      }
-      workflow.startOperators.foreach { x =>
-        val principal = principalBiMap.get(x)
-        AdvancedMessageSending.nonBlockingAskWithRetry(
-          principal,
-          AckedPrincipalInitialization(Array()),
-          10,
-          0,
-          y =>
-            y match {
-              case AckWithInformation(z) =>
-                workflow.operators(x) = z.asInstanceOf[OpExecConfig]
-                //assign exception breakpoint before all breakpoints
-                if (!recoveryMode) {
-                  AdvancedMessageSending.blockingAskWithRetry(
-                    principal,
-                    AssignBreakpoint(
-                      new ExceptionGlobalBreakpoint(x.operator + "-ExceptionBreakpoint")
-                    ),
-                    10
+      try {
+        val nodes = availableNodes
+        log.info("start initialization --------cluster have " + nodes.length + " nodes---------")
+        for (k <- workflow.startOperators) {
+          val v = workflow.operators(k)
+          val p = context.actorOf(
+            Principal.props(v).withDeploy(Deploy(scope = RemoteScope(getPrincipalNode(nodes)))),
+            v.tag.operator
+          )
+          principalBiMap.put(k, p)
+          principalStates(p) = PrincipalState.Uninitialized
+          principalInCurrentStage.add(p)
+        }
+        workflow.startOperators.foreach { x =>
+          val principal = principalBiMap.get(x)
+          AdvancedMessageSending.nonBlockingAskWithRetry(
+            principal,
+            AckedPrincipalInitialization(Array()),
+            10,
+            0,
+            y =>
+              y match {
+                case AckWithInformation(z) =>
+                  workflow.operators(x) = z.asInstanceOf[OpExecConfig]
+                  //assign exception breakpoint before all breakpoints
+                  if (!recoveryMode) {
+                    AdvancedMessageSending.blockingAskWithRetry(
+                      principal,
+                      AssignBreakpoint(
+                        new ExceptionGlobalBreakpoint(x.operator + "-ExceptionBreakpoint")
+                      ),
+                      10
+                    )
+                  }
+                case other =>
+                  throw new WorkflowRuntimeException(
+                    WorkflowRuntimeError(
+                      "principal didn't return updated metadata",
+                      "Controller:receive:AckedControllerInitialization",
+                      Map()
+                    )
                   )
-                }
-              case other => throw new AmberException("principal didn't return updated metadata")
-            }
-        )
+              }
+          )
+        }
+        frontier ++= workflow.startOperators.flatMap(workflow.outLinks(_))
+      } catch {
+        case e: WorkflowRuntimeException =>
+          errorLogger.log(e.runtimeError)
+        case e: Exception =>
+          val error = WorkflowRuntimeError(
+            e.getMessage(),
+            "Controller:receive:AckedControllerInitialization",
+            Map("trace" -> e.getStackTrace.mkString("\n"))
+          )
+          errorLogger.log(error)
       }
-      frontier ++= workflow.startOperators.flatMap(workflow.outLinks(_))
     case ContinuedInitialization =>
       log.info("continue initialization")
       prevFrontier = frontier
@@ -447,7 +478,14 @@ class Controller(
                     10
                   )
                 }
-              case other => throw new AmberException("principal didn't return updated metadata")
+              case other =>
+                throw new WorkflowRuntimeException(
+                  WorkflowRuntimeError(
+                    "principal didn't return updated metadata",
+                    "Controller:receive:ContinuedInitialization",
+                    Map()
+                  )
+                )
             }
         )
       }
@@ -558,19 +596,16 @@ class Controller(
                     )
                   }
                 case other =>
-                  eventListener.workflowExecutionErrorListener.apply(
-                    ErrorOccurred(
-                      Error(
-                        "principal didn't return updated metadata",
-                        "Engine:Controller:PrincipalInitialization",
-                        Map(
-                          "return_value" -> y.toString(),
-                          "trace" -> Thread.currentThread().getStackTrace().mkString("\n")
-                        )
+                  throw new WorkflowRuntimeException(
+                    WorkflowRuntimeError(
+                      "principal didn't return updated metadata",
+                      "Engine:Controller:PrincipalInitialization",
+                      Map(
+                        "return_value" -> y.toString(),
+                        "trace" -> Thread.currentThread().getStackTrace().mkString("\n")
                       )
                     )
                   )
-                  throw new AmberException("principal didn't return updated metadata")
               }
           )
           for (from <- workflow.inLinks(k)) {
@@ -595,6 +630,9 @@ class Controller(
   }
 
   private[this] def ready: Receive = {
+    case LogErrorToFrontEnd(err: WorkflowRuntimeError) =>
+      log.error(err.convertToMap().mkString(" | "))
+      eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
     case QueryStatistics =>
       this.principalBiMap.values().forEach(principal => principal ! QueryStatistics)
     case PrincipalMessage.ReportStatistics(statistics) =>
@@ -648,7 +686,13 @@ class Controller(
           3
         )
       } else {
-        throw new AmberException("target operator not found")
+        throw new WorkflowRuntimeException(
+          WorkflowRuntimeError(
+            "target operator not found",
+            "Controller:ready:PassBreakpointTo",
+            Map()
+          )
+        )
       }
     case msg =>
       log.info("Stashing: " + msg)
@@ -656,6 +700,9 @@ class Controller(
   }
 
   private[this] def running: Receive = {
+    case LogErrorToFrontEnd(err: WorkflowRuntimeError) =>
+      log.error(err.convertToMap().mkString(" | "))
+      eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
     case KillAndRecover =>
       killAndRecoverStage()
     case QueryStatistics =>
@@ -765,6 +812,9 @@ class Controller(
   }
 
   private[this] def pausing: Receive = {
+    case LogErrorToFrontEnd(err: WorkflowRuntimeError) =>
+      log.error(err.convertToMap().mkString(" | "))
+      eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
     case QueryStatistics =>
       this.principalBiMap.values().forEach(principal => principal ! QueryStatistics)
     case PrincipalMessage.ReportStatistics(statistics) =>
@@ -832,6 +882,9 @@ class Controller(
   }
 
   private[this] def paused: Receive = {
+    case LogErrorToFrontEnd(err: WorkflowRuntimeError) =>
+      log.error(err.convertToMap().mkString(" | "))
+      eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
     case KillAndRecover =>
       killAndRecoverStage()
     case QueryStatistics =>
@@ -881,24 +934,24 @@ class Controller(
           3
         )
       } else {
-        eventListener.workflowExecutionErrorListener.apply(
-          ErrorOccurred(
-            Error(
-              "Breakpoint target operator not found",
-              "Engine:Controller:PassBreakpointTo",
-              Map(
-                "trace" -> Thread.currentThread().getStackTrace().mkString("\n"),
-                "faulty_op" -> opTag.getGlobalIdentity
-              )
+        throw new WorkflowRuntimeException(
+          WorkflowRuntimeError(
+            "target operator not found",
+            "Engine:Controller:PassBreakpointTo",
+            Map(
+              "trace" -> Thread.currentThread().getStackTrace().mkString("\n"),
+              "faulty_op" -> opTag.getGlobalIdentity
             )
           )
         )
-        throw new AmberException("target operator not found")
       }
     case msg => stash()
   }
 
   private[this] def resuming: Receive = {
+    case LogErrorToFrontEnd(err: WorkflowRuntimeError) =>
+      log.error(err.convertToMap().mkString(" | "))
+      eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
     case QueryStatistics =>
       this.principalBiMap.values().forEach(principal => principal ! QueryStatistics)
     case PrincipalMessage.ReportStatistics(statistics) =>
@@ -944,6 +997,9 @@ class Controller(
   }
 
   private[this] def completed: Receive = {
+    case LogErrorToFrontEnd(err: WorkflowRuntimeError) =>
+      log.error(err.convertToMap().mkString(" | "))
+      eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
     case QueryStatistics =>
       this.principalBiMap.values().forEach(principal => principal ! QueryStatistics)
       this.exitIfCompleted

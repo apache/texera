@@ -8,13 +8,14 @@ import edu.uci.ics.amber.engine.architecture.worker.neo.WorkerInternalQueue.{
   InternalQueueElement,
   SenderChangeMarker
 }
-import edu.uci.ics.amber.engine.common.InputExhausted
+import edu.uci.ics.amber.engine.common.{InputExhausted, WorkflowLogger}
 import edu.uci.ics.amber.engine.common.ambertag.LayerTag
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 
 import scala.collection.mutable
 import com.typesafe.scalalogging.Logger
-import edu.uci.ics.amber.engine.common.amberexception.AmberException
+import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage.LogErrorToFrontEnd
+import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 object WorkerInternalQueue {
 
@@ -39,7 +40,10 @@ class WorkerInternalQueue {
   // tuple input (dp thread) take batches from this queue
   private var blockingDeque = new LinkedBlockingDeque[InternalQueueElement]
 
-  private val logger = Logger("WorkerInternalQueue")
+  private def errorLogAction(err: WorkflowRuntimeError): Unit = {
+    Logger("WorkerInternalQueue").error(err.convertToMap().mkString(" | "))
+  }
+  val errorLogger = WorkflowLogger(errorLogAction)
 
   /**
     * map from layerTag to input number. Used to convert the LayerTag
@@ -122,8 +126,12 @@ class WorkerInternalQueue {
       case InputTuple(tuple) =>
         // empty iterators will be filtered in WorkerInternalQueue so we can safely call next()
         if (currentSenderAtQueueOutput == -1) {
-          logger.error("Sender still -1 at queue output")
-          throw new AmberException("Sender still -1 at queue output")
+          val error = WorkflowRuntimeError(
+            "Sender still -1 at queue output",
+            "WorkerInternalQueue",
+            Map()
+          )
+          errorLogger.log(error)
         }
         (currentSenderAtQueueOutput, Left(tuple))
       case EndMarker(senderRef) =>

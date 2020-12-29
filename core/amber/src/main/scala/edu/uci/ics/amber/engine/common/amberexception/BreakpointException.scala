@@ -1,3 +1,6 @@
 package edu.uci.ics.amber.engine.common.amberexception
 
-class BreakpointException extends AmberException("breakpoint triggered") {}
+import edu.uci.ics.amber.error.WorkflowRuntimeError
+
+class BreakpointException
+    extends WorkflowRuntimeException(WorkflowRuntimeError("breakpoint triggered", "", Map())) {}
