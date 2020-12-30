@@ -71,30 +71,10 @@ export class SavedWorkflowSectionComponent implements OnInit {
   }
 
   /**
-   * openNgbdModalAddWorkflowComponent triggers the add project
-   * component. The component returns the information of new project,
-   * and this method adds new project in to the list. It calls the
-   * saveProject method in service which implements backend API.
+   * create a new workflow. will redirect to a pre-emptied workspace
    */
-  public openNgbdModalAddWorkflowComponent(): void {
+  public onClickCreateNewWorkflowFromDashboard(): void {
     this.router.navigate(['/workflow/new']).then(null);
-
-    // const modalRef = this.modalService.open(NgbdModalAddWorkflowComponent);
-    //
-    // Observable.from(modalRef.result)
-    //   .subscribe((value: string) => {
-    //     console.log('creating a new workflow');
-    //     if (value) {
-    //       const newProject: Workflow = {
-    //         id: (this.workflows.length + 1).toString(),
-    //         name: value,
-    //         creationTime: Date.now().toString(),
-    //         lastModifiedTime: Date.now().toString()
-    //       };
-    //       this.workflows.push(newProject);
-    //     }
-    //   });
-    // alert('this feature is disabled now');
   }
 
   /**
