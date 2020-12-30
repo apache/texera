@@ -56,3 +56,5 @@ jobs:
         run: cd core/amber && sbt scalafmtCheckAll
       - name: Compile with sbt
         run: cd core/amber && sbt clean compile
+      - name: Run backend tests
+        run: cd core/amber && sbt test

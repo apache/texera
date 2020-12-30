@@ -59,6 +59,10 @@ class PauseManager(val mainActor: ActorRef) {
     blockDPThread()
   }
 
+  def isPaused(): Boolean = {
+    !(pausePrivilegeLevel.get() == PauseManager.NoPause)
+  }
+
   /** block the thread by creating CompletableFuture and wait for completion
     */
   private[this] def blockDPThread(): Unit = {

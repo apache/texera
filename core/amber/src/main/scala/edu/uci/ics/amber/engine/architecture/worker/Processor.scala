@@ -4,7 +4,7 @@ import akka.actor.Props
 import edu.uci.ics.amber.engine.architecture.breakpoint.FaultedTuple
 import edu.uci.ics.amber.engine.architecture.receivesemantics.FIFOAccessPort
 import edu.uci.ics.amber.engine.architecture.worker.neo.PauseManager
-import edu.uci.ics.amber.engine.common.amberexception.AmberException
+import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage.{QueryState, _}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage._
 import edu.uci.ics.amber.engine.common.ambertag.{LayerTag, WorkerTag}
@@ -17,6 +17,7 @@ import edu.uci.ics.amber.engine.common.{
 }
 import edu.uci.ics.amber.engine.faulttolerance.recovery.RecoveryPacket
 import edu.uci.ics.amber.engine.operators.OpExecConfig
+import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 import scala.annotation.elidable
 import scala.annotation.elidable._
@@ -46,7 +47,7 @@ class Processor(var operator: IOperatorExecutor, val tag: WorkerTag) extends Wor
     }
     input.reset()
     dataProcessor.resetBreakpoints()
-    tupleOutput.resetOutput()
+    messagingManager.resetDataSending()
     context.become(ready)
     if (receivedRecoveryInformation.contains((0, 0))) {
       self ! Pause
@@ -61,7 +62,9 @@ class Processor(var operator: IOperatorExecutor, val tag: WorkerTag) extends Wor
   override def onSkipTuple(faultedTuple: FaultedTuple): Unit = {
     super.onSkipTuple(faultedTuple)
     if (faultedTuple.isInput) {
-      tupleInput.getNextInputTuple
+      if (messagingManager.hasNextSenderTuplePair()) {
+        messagingManager.getNextSenderTuplePair()
+      }
     } else {
       //if it's output tuple, it will be ignored
     }
@@ -70,8 +73,8 @@ class Processor(var operator: IOperatorExecutor, val tag: WorkerTag) extends Wor
   override def onResumeTuple(faultedTuple: FaultedTuple): Unit = {
     if (!faultedTuple.isInput) {
       var i = 0
-      while (i < tupleOutput.output.length) {
-        tupleOutput.output(i).addTupleToBatch(faultedTuple.tuple)
+      while (i < messagingManager.policies.length) {
+        messagingManager.policies(i).addTupleToBatch(faultedTuple.tuple)
         i += 1
       }
     } else {
@@ -131,8 +134,8 @@ class Processor(var operator: IOperatorExecutor, val tag: WorkerTag) extends Wor
   def onSaveDataMessage(seq: Long, payload: Array[ITuple]): Unit = {
     messagingManager.receiveMessage(DataMessage(seq, payload), sender)
 
-    while (messagingManager.hasNextDataPayload()) {
-      workerInternalQueue.addDataPayload(messagingManager.getNextDataPayload())
+    while (messagingManager.hasNextSenderTuplePair()) {
+      workerInternalQueue.addSenderTuplePair(messagingManager.getNextSenderTuplePair())
     }
   }
 
@@ -150,14 +153,14 @@ class Processor(var operator: IOperatorExecutor, val tag: WorkerTag) extends Wor
   def onReceiveDataMessage(seq: Long, payload: Array[ITuple]): Unit = {
     messagingManager.receiveMessage(DataMessage(seq, payload), sender)
 
-    while (messagingManager.hasNextDataPayload()) {
-      workerInternalQueue.addDataPayload(messagingManager.getNextDataPayload())
+    while (messagingManager.hasNextSenderTuplePair()) {
+      workerInternalQueue.addSenderTuplePair(messagingManager.getNextSenderTuplePair())
     }
   }
 
   override def onPaused(): Unit = {
     val (inputCount, outputCount) = dataProcessor.collectStatistics()
-    log.info(s"paused at $inputCount , $outputCount")
+    log.info(s"${tag.getGlobalIdentity} paused at $inputCount , $outputCount")
     context.parent ! ReportCurrentProcessingTuple(self.path, dataProcessor.getCurrentInputTuple)
     context.parent ! RecoveryPacket(tag, inputCount, outputCount)
     context.parent ! ReportState(WorkerState.Paused)
@@ -167,7 +170,7 @@ class Processor(var operator: IOperatorExecutor, val tag: WorkerTag) extends Wor
     super.onPausing()
     pauseManager.pause()
     // if dp thread is blocking on waiting for input tuples:
-    if (workerInternalQueue.blockingDeque.isEmpty && tupleInput.isCurrentBatchExhausted) {
+    if (workerInternalQueue.isQueueEmpty()) {
       // insert dummy batch to unblock dp thread
       workerInternalQueue.addDummyInput()
     }
@@ -203,7 +206,13 @@ class Processor(var operator: IOperatorExecutor, val tag: WorkerTag) extends Wor
     case EndSending(_) | DataMessage(_, _) | RequireAck(_: EndSending) | RequireAck(
           _: DataMessage
         ) =>
-      throw new AmberException("not supposed to receive data messages at this time")
+      throw new WorkflowRuntimeException(
+        WorkflowRuntimeError(
+          "not supposed to receive data messages at this time",
+          "Principal:disallowDataMessages",
+          Map()
+        )
+      )
   }
 
   final def saveDataMessages: Receive = {
@@ -243,7 +252,13 @@ class Processor(var operator: IOperatorExecutor, val tag: WorkerTag) extends Wor
   final def disallowUpdateInputLinking: Receive = {
     case UpdateInputLinking(inputActor, edgeID, inputNum) =>
       sender ! Ack
-      throw new AmberException(s"update input linking of $edgeID is not allowed at this time")
+      throw new WorkflowRuntimeException(
+        WorkflowRuntimeError(
+          s"update input linking of $edgeID is not allowed at this time",
+          "Principal:disallowUpdateInputLinking",
+          Map()
+        )
+      )
   }
 
   final def reactOnUpstreamExhausted: Receive = {
