@@ -70,14 +70,21 @@
     }
   }
 
-  .texera-navigation-utilities {
-    grid-column: 2/2;
+  .texera-navigation-dashboard {
+    grid-column: 2/3;
     grid-row: 2/2;
 
     padding-left: 10px;
   }
 
-  .texera-navigation-workflow-name {
+  .texera-navigation-utilities {
+    grid-column: 3/3;
+    grid-row: 2/2;
+
+    padding-left: 10px;
+  }
+
+  .texera-navigation-workflow-metadata {
     --left-padding: 10px;
 
     grid-column: 2/6;
@@ -107,7 +114,7 @@
       border-bottom: 1px solid #cacaca;
     }
 
-    .name-input {
+    .workflow-name {
       padding: 2px 8px 2px 8px;
       margin: 0 8px 0 0;
 

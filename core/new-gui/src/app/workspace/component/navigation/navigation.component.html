@@ -6,20 +6,36 @@
       </a>
     </div>
 
-
-    <div *ngIf="userSystemEnabled" class="texera-navigation-workflow-name">
+    <!-- workflow metadata display -->
+    <div *ngIf="userSystemEnabled" class="texera-navigation-workflow-metadata">
       <label>
-        <input (change)="onWorkflowNameChange()" [(ngModel)]="currentWorkflowName" class="name-input"
+        <input (change)="onWorkflowNameChange()" [(ngModel)]="currentWorkflowName" class="workflow-name"
                placeholder="Untitled Workflow"/>
       </label>
       <span class="save-state" spellcheck="false">{{autoSaveState}}</span>
     </div>
-    <div class='texera-navigation-utilities'>
+
+    <div class='texera-navigation-dashboard'>
       <nz-button-group nzSize="large">
         <button *ngIf="userSystemEnabled" [routerLink]="'/dashboard'" nz-button title="dashboard">
           <i nz-icon nzTheme="outline" nzType="cloud-server"></i>
         </button>
+        <button (click)="onClickCreateNewWorkflow()" *ngIf="userSystemEnabled" nz-button title="create new">
+          <i nz-icon nzTheme="outline" nzType="form"></i>
+        </button>
+        <button (click)="persistCachedWorkflow()" *ngIf="userSystemEnabled"
+                [disabled]=" !userService.isLogin()|| isSaving" nz-button title="save">
+          <i *ngIf="!isSaving" nz-icon nzTheme="outline" nzType="save"></i>
+          <i *ngIf="isSaving" [nzSpin]="true" [nzType]="'sync'" nz-icon nzTheme="outline"></i>
+        </button>
+        <button (click)="onClickDeleteAllOperators()" nz-button title="delete all">
+          <i nz-icon nzTheme="outline" nzType="delete"></i>
+        </button>
+      </nz-button-group>
+    </div>
 
+    <div class='texera-navigation-utilities'>
+      <nz-button-group nzSize="large">
         <button nz-button (click)="onClickZoomOut()" title="zoom out">
           <i nz-icon nzType="zoom-out" nzTheme="outline"></i>
         </button>
@@ -28,17 +44,6 @@
         </button>
         <button (click)="onClickRestoreZoomOffsetDefault()" nz-button title="reset zoom">
           <i nz-icon nzType="fullscreen" nzTheme="outline"></i>
-        </button>
-        <button *ngIf="userSystemEnabled" (click)="onClickCreateNewWorkflow()" nz-button title="create new">
-          <i nz-icon nzTheme="outline" nzType="form"></i>
-        </button>
-        <button (click)="persistCachedWorkflow()" *ngIf="userSystemEnabled"
-                [disabled]=" !userService.isLogin()|| isSaving" nz-button title="save">
-          <i *ngIf="!isSaving" nz-icon nzTheme="outline" nzType="save"></i>
-          <i *ngIf="isSaving" [nzSpin]="true" [nzType]="'sync'" nz-icon nzTheme="outline"></i>
-        </button>
-        <button nz-button (click)="onClickDeleteAllOperators()" title="delete all">
-          <i nz-icon nzType="delete" nzTheme="outline"></i>
         </button>
         <button nz-button [disabled]="!executionResultID" [nzDisabled]="!executionResultID" [nzDropdownMenu]="menu"
                 id="downloadExcelOptions" nz-dropdown title="download execution result">
