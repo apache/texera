@@ -4,6 +4,7 @@ import * as joint from 'jointjs';
 import { cloneDeep } from 'lodash';
 import { BehaviorSubject, Observable, Subject } from 'rxjs';
 import { mapToRecord, recordToMap } from 'src/app/common/util/map';
+import { UserService } from '../../../../common/service/user/user.service';
 import { WorkflowPersistService } from '../../../../common/service/user/workflow-persist/workflow-persist.service';
 import { Workflow, WorkflowContent } from '../../../../common/type/workflow';
 import { WorkflowMetadata } from '../../../../dashboard/type/workflow-metadata';
@@ -76,6 +77,7 @@ export class WorkflowActionService {
     private operatorMetadataService: OperatorMetadataService,
     private jointUIService: JointUIService,
     private undoRedoService: UndoRedoService,
+    private userService: UserService,
     private workflowUtilService: WorkflowUtilService,
     private workflowCacheService: WorkflowCacheService,
     private workflowPersistService: WorkflowPersistService
@@ -110,7 +112,13 @@ export class WorkflowActionService {
       this.workflowChangeSubject.next();
     });
 
-    this.registerWorkflowAutoPersist();
+    if (this.userService.isLogin()) {
+      this.registerAutoPersistWorkflow();
+    } else {
+      this.registerAutoCacheWorkFlow();
+
+    }
+    this.registerAutoReloadWorkflow();
   }
 
   // workflow modification lock interface (allows or prevents commands that would modify the workflow graph)
@@ -787,7 +795,7 @@ export class WorkflowActionService {
    *  the JointJS paper.
    */
   public reloadWorkflow(workflow: Workflow|undefined): void {
-    console.log('in reload');
+    console.log('in reload', workflow);
 
     this.setWorkflowMetadata(workflow);
 
@@ -887,6 +895,7 @@ export class WorkflowActionService {
   }
 
   public reloadWorkflowFromCache(): void {
+    console.log('reloading from cache');
     this.reloadWorkflow(this.workflowCacheService.getCachedWorkflow());
   }
 
@@ -1078,25 +1087,20 @@ export class WorkflowActionService {
     });
   }
 
-  private registerWorkflowAutoPersist(): void {
+  private registerAutoPersistWorkflow(): void {
 
     this.workflowChanged().debounceTime(100).subscribe(() => {
+      console.log('persisting workflow', this.getWorkflowMetadata().wid);
+      this.workflowPersistService.persistWorkflow(this.getWorkflow())
+          .subscribe((updatedWorkflow: Workflow) => {
 
-        this.workflowPersistService.persistWorkflow(this.getWorkflow())
-            .subscribe((updatedWorkflow: Workflow) => {
-
-              console.log('got back', updatedWorkflow);
-              this.setWorkflowMetadata({
-                name:
-                updatedWorkflow
-                  .name,
-                wid: updatedWorkflow
-                  .wid,
-                creationTime: updatedWorkflow
-                  .creationTime,
-                lastModifiedTime: updatedWorkflow
-                  .lastModifiedTime
-              });
+            console.log('got back', updatedWorkflow);
+            this.setWorkflowMetadata({
+              name: updatedWorkflow.name,
+              wid: updatedWorkflow.wid,
+              creationTime: updatedWorkflow.creationTime,
+              lastModifiedTime: updatedWorkflow.lastModifiedTime
+            });
             });
         // to sync up with the updated information, such as workflow.wid
       }
@@ -1104,10 +1108,14 @@ export class WorkflowActionService {
   }
 
   private registerAutoReloadWorkflow(): void {
+
     this.operatorMetadataService.getOperatorMetadata()
         .filter(metadata => metadata.operators.length !== 0)
-        .subscribe(() => this.reloadWorkflow(
-          this.workflowCacheService.getCachedWorkflow()));
+        .subscribe(() => {
+          console.log('auto-reloading workflow', this.workflowCacheService.getCachedWorkflow()?.wid);
+          this.reloadWorkflow(this.workflowCacheService.getCachedWorkflow());
+
+        });
   }
 
 }
