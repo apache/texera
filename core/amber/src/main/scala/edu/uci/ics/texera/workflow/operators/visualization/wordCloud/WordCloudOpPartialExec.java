@@ -9,8 +9,6 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import org.apache.curator.shaded.com.google.common.collect.Iterators;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
-import org.apache.lucene.analysis.core.SimpleAnalyzer;
-import org.apache.lucene.analysis.core.StopAnalyzer;
 import org.apache.lucene.analysis.en.EnglishAnalyzer;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
 import scala.collection.Iterator;
@@ -28,7 +26,7 @@ import java.util.*;
  */
 public class WordCloudOpPartialExec implements OperatorExecutor {
     private final String textColumn;
-    private Analyzer luceneAnalyzer;
+    private final Analyzer luceneAnalyzer;
     private List<String> textList;
 
     private static final Schema resultSchema = Schema.newBuilder().add(
@@ -38,13 +36,7 @@ public class WordCloudOpPartialExec implements OperatorExecutor {
 
     public WordCloudOpPartialExec(String textColumn) {
         this.textColumn = textColumn;
-    }
-
-    private Analyzer getLuceneAnalyzer() {
-        if (this.luceneAnalyzer == null) {
-            this.luceneAnalyzer = new EnglishAnalyzer();
-        }
-        return this.luceneAnalyzer;
+        this.luceneAnalyzer = new EnglishAnalyzer();
     }
 
     private static List<Tuple> calculateWordCount(List<String> texts, Analyzer luceneAnalyzer) throws Exception {
@@ -95,7 +87,7 @@ public class WordCloudOpPartialExec implements OperatorExecutor {
         }
         else {
             try {
-                return(JavaConverters.asScalaIterator(calculateWordCount(textList, getLuceneAnalyzer()).iterator()));
+                return (JavaConverters.asScalaIterator(calculateWordCount(textList, luceneAnalyzer).iterator()));
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
