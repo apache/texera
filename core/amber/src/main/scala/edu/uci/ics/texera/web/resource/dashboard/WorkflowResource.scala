@@ -59,13 +59,13 @@ class WorkflowResource {
   @GET
   @Path("/{wid}")
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def retrieveWorkflow(@PathParam("wid") wid: UInteger, @Session session: HttpSession): Workflow = {
+  def retrieveWorkflow(@PathParam("wid") wid: UInteger, @Session session: HttpSession): Response = {
     val user = UserResource.getUser(session)
-    if (user == null) return null
+    if (user == null) return Response.status(Response.Status.UNAUTHORIZED).build()
     if (workflowOfUserExists(wid, user.getUid)) {
-      workflowDao.fetchOneByWid(wid)
+      Response.ok(workflowDao.fetchOneByWid(wid)).build()
     } else {
-      null
+      Response.status(Response.Status.BAD_REQUEST).build()
     }
   }
 

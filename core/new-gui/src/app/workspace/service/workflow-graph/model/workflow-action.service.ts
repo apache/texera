@@ -114,10 +114,8 @@ export class WorkflowActionService {
 
     if (this.userService.isLogin()) {
       this.registerAutoPersistWorkflow();
-    } else {
-      this.registerAutoCacheWorkFlow();
-
     }
+    this.registerAutoCacheWorkFlow();
     this.registerAutoReloadWorkflow();
   }
 

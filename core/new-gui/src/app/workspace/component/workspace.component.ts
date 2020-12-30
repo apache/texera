@@ -98,10 +98,9 @@ export class WorkspaceComponent implements OnInit {
         this.loadWorkflowWithID(this.route.snapshot.params.id);
       } else {
         // load wid from cache
-        const id = this.workflowCacheService.getCachedWorkflow()?.wid;
         const workflow = this.workflowCacheService.getCachedWorkflow();
+        const id = workflow?.wid;
         console.log('retrieve workflow from cache', id, workflow);
-
         if (id !== undefined) { this.location.go(`/workflow/${id}`); }
 
       }
@@ -110,6 +109,7 @@ export class WorkspaceComponent implements OnInit {
   }
 
   private loadWorkflowWithID(id: number): void {
+    console.log('in load workflow with id');
     this.workflowPersistService.retrieveWorkflow(id).subscribe(
       (workflow: Workflow) => {
         this.workflowActionService.setWorkflow(workflow);
@@ -118,6 +118,7 @@ export class WorkspaceComponent implements OnInit {
         this.workflowCacheService.setCacheWorkflow(this.workflowActionService.getWorkflow());
       },
       () => {
+        // TODO: replace with a proper error message with the framework
         alert('You don\'t have access to this workflow, please log in with another account');
         this.workflowCacheService.resetCachedWorkflow();
       }
