@@ -58,14 +58,16 @@ export class SavedWorkflowSectionComponent implements OnInit {
    * sort the project by creating time
    */
   public dateSort(): void {
-    this.workflows.sort((left: Workflow, right: Workflow) => left.creationTime - right.creationTime);
+    this.workflows.sort((left: Workflow, right: Workflow) =>
+      left.creationTime !== undefined && right.creationTime !== undefined ? left.creationTime - right.creationTime : 0);
   }
 
   /**
    * sort the project by last modified time
    */
   public lastSort(): void {
-    this.workflows.sort((left: Workflow, right: Workflow) => left.lastModifiedTime - right.lastModifiedTime);
+    this.workflows.sort((left: Workflow, right: Workflow) =>
+      left.lastModifiedTime !== undefined && right.lastModifiedTime !== undefined ? left.lastModifiedTime - right.lastModifiedTime : 0);
   }
 
   /**

@@ -99,8 +99,9 @@ export class WorkspaceComponent implements OnInit {
       } else {
         // load wid from cache
         const id = this.workflowCacheService.getCachedWorkflow()?.wid;
+        console.log('reload from cache', id, this.workflowCacheService.getCachedWorkflow());
+        if (id !== undefined) { this.location.go(`/workflow/${id}`); }
 
-        if (id !== undefined) { this.location.go(`/workflow/${this.workflowCacheService.getCachedWorkflow()?.wid}`); }
         this.workflowActionService.reloadWorkflow(this.workflowCacheService.getCachedWorkflow());
       }
     } else {

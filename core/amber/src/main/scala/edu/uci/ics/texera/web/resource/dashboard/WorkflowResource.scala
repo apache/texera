@@ -88,19 +88,18 @@ class WorkflowResource {
   @Path("/persist")
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def persistWorkflow(@Session session: HttpSession, workflow: Workflow): Workflow = {
+  def persistWorkflow(@Session session: HttpSession, workflow: Workflow): Response = {
     val user = UserResource.getUser(session)
-    if (user == null) return null
+    if (user == null) return Response.status(Response.Status.UNAUTHORIZED).build()
     if (workflowOfUserExists(workflow.getWid, user.getUid)) {
       // when the wid is provided, update the existing workflow
       workflowDao.update(workflow)
-      workflowDao.fetchOneByWid(workflow.getWid)
     } else {
       // when the wid is not provided, treat it as a new workflow
       workflowDao.insert(workflow)
       workflowOfUserDao.insert(new WorkflowOfUser(user.getUid, workflow.getWid))
-      workflow
     }
+    Response.ok(workflowDao.fetchOneByWid(workflow.getWid)).build()
 
   }
 

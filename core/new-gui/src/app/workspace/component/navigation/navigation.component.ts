@@ -97,7 +97,7 @@ export class NavigationComponent implements OnInit {
                                this.applyRunButtonBehavior(this.getRunButtonBehavior(this.executionState, this.isWorkflowValid));
                              });
 
-    this.register();
+    this.registerWorkflowMetadataDisplayRefresh();
   }
 
   ngOnInit() {
@@ -340,12 +340,13 @@ export class NavigationComponent implements OnInit {
     this.location.go('/');
   }
 
-  register() {
-    this.workflowActionService.workflowChanged().debounceTime(100)
+  registerWorkflowMetadataDisplayRefresh() {
+    this.workflowActionService.workflowMetaDataChanged().debounceTime(100)
         .subscribe(() => {
-          this.currentWorkflowName = this.workflowActionService.getWorkflow().name;
-          this.autoSaveState = 'Saved at ' +
-            this.datePipe.transform(this.workflowActionService.getWorkflow().lastModifiedTime, 'MM/dd/yyyy HH:mm:ss zzz', 'UTC');
+          this.currentWorkflowName = this.workflowActionService.getWorkflowMetadata()?.name;
+          this.autoSaveState = this.workflowActionService.getWorkflowMetadata().lastModifiedTime === undefined ?
+            '' : 'Saved at ' + this.datePipe.transform(this.workflowActionService.getWorkflowMetadata().lastModifiedTime,
+            'MM/dd/yyyy HH:mm:ss zzz', Intl.DateTimeFormat().resolvedOptions().timeZone, 'en');
 
         });
   }

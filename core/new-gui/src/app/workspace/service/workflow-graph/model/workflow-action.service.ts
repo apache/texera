@@ -57,8 +57,8 @@ export class WorkflowActionService {
   private static readonly DEFAULT_WORKFLOW = {
     name: WorkflowActionService.DEFAULT_WORKFLOW_NAME,
     wid: undefined,
-    creationTime: 0,
-    lastModifiedTime: 0
+    creationTime: undefined,
+    lastModifiedTime: undefined
   };
   private readonly texeraGraph: WorkflowGraph;
   private readonly jointGraph: joint.dia.Graph;
@@ -70,6 +70,7 @@ export class WorkflowActionService {
   private workflowModificationEnabled = true;
   private enableModificationStream = new BehaviorSubject<boolean>(true);
   private workflowChangeSubject: Subject<void> = new Subject<void>();
+  private workflowMetadataChangeSubject: Subject<void> = new Subject<void>();
 
   constructor(
     private operatorMetadataService: OperatorMetadataService,
@@ -786,6 +787,7 @@ export class WorkflowActionService {
    *  the JointJS paper.
    */
   public reloadWorkflow(workflow: Workflow|undefined): void {
+    console.log('in reload');
 
     this.setWorkflowMetadata(workflow);
 
@@ -835,12 +837,16 @@ export class WorkflowActionService {
     return this.workflowChangeSubject.asObservable();
   }
 
-  public setWorkflowMetadata(workflowMetaData: WorkflowMetadata|undefined): void {
-
-    this.workflowMetadata = (workflowMetaData === undefined) ? WorkflowActionService.DEFAULT_WORKFLOW : workflowMetaData;
+  public workflowMetaDataChanged(): Observable<void> {
+    return this.workflowMetadataChangeSubject.asObservable();
   }
 
-  public getWorkflowMetadata(): WorkflowMetadata|undefined {
+  public setWorkflowMetadata(workflowMetaData: WorkflowMetadata|undefined): void {
+    this.workflowMetadata = (workflowMetaData === undefined) ? WorkflowActionService.DEFAULT_WORKFLOW : workflowMetaData;
+    this.workflowMetadataChangeSubject.next();
+  }
+
+  public getWorkflowMetadata(): WorkflowMetadata {
     return this.workflowMetadata;
   }
 
@@ -869,6 +875,7 @@ export class WorkflowActionService {
   }
 
   public getWorkflow(): Workflow {
+    console.log('get workflow', {...this.workflowMetadata, ...{content: this.getWorkflowContent()}});
     return <Workflow>{...this.workflowMetadata, ...{content: this.getWorkflowContent()}};
   }
 
@@ -1079,7 +1086,17 @@ export class WorkflowActionService {
             .subscribe((updatedWorkflow: Workflow) => {
 
               console.log('got back', updatedWorkflow);
-              this.setWorkflowMetadata(updatedWorkflow);
+              this.setWorkflowMetadata({
+                name:
+                updatedWorkflow
+                  .name,
+                wid: updatedWorkflow
+                  .wid,
+                creationTime: updatedWorkflow
+                  .creationTime,
+                lastModifiedTime: updatedWorkflow
+                  .lastModifiedTime
+              });
             });
         // to sync up with the updated information, such as workflow.wid
       }
