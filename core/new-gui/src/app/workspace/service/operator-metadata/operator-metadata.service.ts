@@ -53,7 +53,6 @@ export class OperatorMetadataService {
     this.getOperatorMetadata().subscribe(
       data => {
         this.currentOperatorMetadata = data;
-        console.log(this.currentOperatorMetadata);
       }
     );
     // At current design, all the links have one fixed breakpoint schema stored in the frontend
@@ -92,7 +91,6 @@ export class OperatorMetadataService {
    * @param operatorType
    */
   public operatorTypeExists(operatorType: string): boolean {
-    console.log(operatorType, this.currentOperatorMetadata?.operators);
     if (!this.currentOperatorMetadata) {
       return false;
     }

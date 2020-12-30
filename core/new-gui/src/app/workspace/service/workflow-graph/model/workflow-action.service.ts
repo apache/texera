@@ -108,7 +108,6 @@ export class WorkflowActionService {
       this.getTexeraGraph().getBreakpointChangeStream(),
       this.getJointGraphWrapper().getElementPositionChangeEvent()
     ).subscribe(_ => {
-      console.log('detect changes on workflow');
       this.workflowChangeSubject.next();
     });
 
@@ -793,10 +792,7 @@ export class WorkflowActionService {
    *  the JointJS paper.
    */
   public reloadWorkflow(workflow: Workflow|undefined): void {
-    console.log('in reload', workflow);
-
     this.setWorkflowMetadata(workflow);
-
     // remove the existing operators on the paper currently
     this.deleteOperatorsAndLinks(
       this.getTexeraGraph().getAllOperators().map(op => op.operatorID), []);
@@ -849,7 +845,6 @@ export class WorkflowActionService {
 
   public setWorkflowMetadata(workflowMetaData: WorkflowMetadata|undefined): void {
     this.workflowMetadata = (workflowMetaData === undefined) ? WorkflowActionService.DEFAULT_WORKFLOW : workflowMetaData;
-    console.log('in set workflow metadata');
     this.workflowMetadataChangeSubject.next();
   }
 
@@ -882,25 +877,20 @@ export class WorkflowActionService {
   }
 
   public getWorkflow(): Workflow {
-    console.log('get workflow', {...this.workflowMetadata, ...{content: this.getWorkflowContent()}});
     return <Workflow>{...this.workflowMetadata, ...{content: this.getWorkflowContent()}};
   }
 
   public setWorkflowName(name: string): void {
-    console.log('setting workflow name to', name);
     this.workflowMetadata.name = name.trim().length > 0 ? name : WorkflowActionService.DEFAULT_WORKFLOW_NAME;
-    console.log('detect changes on workflow');
     this.workflowChangeSubject.next();
   }
 
   public reloadWorkflowFromCache(): void {
-    console.log('reloading from cache');
     this.reloadWorkflow(this.workflowCacheService.getCachedWorkflow());
   }
 
   public setWorkflow(workflow: Workflow): void {
     this.reloadWorkflow(workflow);
-    console.log('detect changes on workflow');
     this.workflowChangeSubject.next();
   }
 
@@ -1089,17 +1079,9 @@ export class WorkflowActionService {
   private registerAutoPersistWorkflow(): void {
 
     this.workflowChanged().debounceTime(100).subscribe(() => {
-      console.log('persisting workflow', this.getWorkflowMetadata().wid);
       this.workflowPersistService.persistWorkflow(this.getWorkflow())
           .subscribe((updatedWorkflow: Workflow) => {
-
-            console.log('got back', updatedWorkflow);
-            this.setWorkflowMetadata({
-              name: updatedWorkflow.name,
-              wid: updatedWorkflow.wid,
-              creationTime: updatedWorkflow.creationTime,
-              lastModifiedTime: updatedWorkflow.lastModifiedTime
-            });
+            this.setWorkflowMetadata(updatedWorkflow);
             this.workflowCacheService.setCacheWorkflow(this.getWorkflow());
           });
         // to sync up with the updated information, such as workflow.wid
@@ -1111,11 +1093,7 @@ export class WorkflowActionService {
 
     this.operatorMetadataService.getOperatorMetadata()
         .filter(metadata => metadata.operators.length !== 0)
-        .subscribe(() => {
-          console.log('auto-reloading workflow', this.workflowCacheService.getCachedWorkflow()?.wid);
-          this.reloadWorkflow(this.workflowCacheService.getCachedWorkflow());
-
-        });
+        .subscribe(() => {this.reloadWorkflow(this.workflowCacheService.getCachedWorkflow());});
   }
 
 }

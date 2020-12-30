@@ -100,7 +100,6 @@ export class WorkspaceComponent implements OnInit {
         // load wid from cache
         const workflow = this.workflowCacheService.getCachedWorkflow();
         const id = workflow?.wid;
-        console.log('retrieve workflow from cache', id, workflow);
         if (id !== undefined) { this.location.go(`/workflow/${id}`); }
 
       }
@@ -109,7 +108,6 @@ export class WorkspaceComponent implements OnInit {
   }
 
   private loadWorkflowWithID(id: number): void {
-    console.log('in load workflow with id');
     this.workflowPersistService.retrieveWorkflow(id).subscribe(
       (workflow: Workflow) => {
         this.workflowActionService.setWorkflow(workflow);

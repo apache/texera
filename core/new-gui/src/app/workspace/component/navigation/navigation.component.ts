@@ -313,13 +313,7 @@ export class NavigationComponent implements OnInit {
     this.isSaving = true;
     this.workflowPersistService.persistWorkflow(this.workflowActionService.getWorkflow())
         .subscribe((updatedWorkflow: Workflow) => {
-          console.log('got back', updatedWorkflow);
-          this.workflowActionService.setWorkflowMetadata({
-            name: updatedWorkflow.name,
-            wid: updatedWorkflow.wid,
-            creationTime: updatedWorkflow.creationTime,
-            lastModifiedTime: updatedWorkflow.lastModifiedTime
-          });
+          this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
           this.isSaving = false;
         }, error => {
           alert(error);
