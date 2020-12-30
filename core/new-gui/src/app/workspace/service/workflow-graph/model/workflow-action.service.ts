@@ -894,6 +894,13 @@ export class WorkflowActionService {
     this.workflowChangeSubject.next();
   }
 
+  public resetAsNewWorkflow() {
+    this.workflowCacheService.resetCachedWorkflow();
+    this.reloadWorkflowFromCache();
+    this.undoRedoService.clearUndoStack();
+    this.undoRedoService.clearRedoStack();
+  }
+
   private addOperatorInternal(operator: OperatorPredicate, point: Point): void {
     // check that the operator doesn't exist
     this.texeraGraph.assertOperatorNotExists(operator.operatorID);
@@ -1079,11 +1086,11 @@ export class WorkflowActionService {
   private registerAutoPersistWorkflow(): void {
 
     this.workflowChanged().debounceTime(100).subscribe(() => {
-      this.workflowPersistService.persistWorkflow(this.getWorkflow())
-          .subscribe((updatedWorkflow: Workflow) => {
-            this.setWorkflowMetadata(updatedWorkflow);
-            this.workflowCacheService.setCacheWorkflow(this.getWorkflow());
-          });
+        this.workflowPersistService.persistWorkflow(this.getWorkflow())
+            .subscribe((updatedWorkflow: Workflow) => {
+              this.setWorkflowMetadata(updatedWorkflow);
+              this.workflowCacheService.setCacheWorkflow(this.getWorkflow());
+            });
         // to sync up with the updated information, such as workflow.wid
       }
     );
@@ -1095,6 +1102,5 @@ export class WorkflowActionService {
         .filter(metadata => metadata.operators.length !== 0)
         .subscribe(() => {this.reloadWorkflow(this.workflowCacheService.getCachedWorkflow());});
   }
-
 }
 

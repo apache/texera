@@ -94,8 +94,17 @@ export class WorkspaceComponent implements OnInit {
      */
     if (environment.userSystemEnabled) {
       if (this.route.snapshot.params.id) {
-        // if wid is present in the url
-        this.loadWorkflowWithID(this.route.snapshot.params.id);
+        const id = this.route.snapshot.params.id;
+        if (id === 'new') {
+          // if new is present in the url, create a new workflow
+          this.workflowActionService.resetAsNewWorkflow();
+          this.location.go('/');
+        } else {
+
+          // if wid is present in the url, load if from backend
+          this.loadWorkflowWithID(id);
+        }
+
       } else {
         // load wid from cache
         const workflow = this.workflowCacheService.getCachedWorkflow();

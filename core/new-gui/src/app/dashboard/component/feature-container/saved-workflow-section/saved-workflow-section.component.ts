@@ -77,6 +77,8 @@ export class SavedWorkflowSectionComponent implements OnInit {
    * saveProject method in service which implements backend API.
    */
   public openNgbdModalAddWorkflowComponent(): void {
+    this.router.navigate(['/workflow/new']).then(null);
+
     // const modalRef = this.modalService.open(NgbdModalAddWorkflowComponent);
     //
     // Observable.from(modalRef.result)
@@ -92,7 +94,7 @@ export class SavedWorkflowSectionComponent implements OnInit {
     //       this.workflows.push(newProject);
     //     }
     //   });
-    alert('this feature is disabled now');
+    // alert('this feature is disabled now');
   }
 
   /**
