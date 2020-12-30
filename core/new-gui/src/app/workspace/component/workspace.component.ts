@@ -111,7 +111,12 @@ export class WorkspaceComponent implements OnInit {
 
   private loadWorkflowWithID(id: number): void {
     this.workflowPersistService.retrieveWorkflow(id).subscribe(
-      (workflow: Workflow) => this.workflowActionService.setWorkflow(workflow),
+      (workflow: Workflow) => {
+        this.workflowActionService.setWorkflow(workflow);
+        this.undoRedoService.clearUndoStack();
+        this.undoRedoService.clearRedoStack();
+        this.workflowCacheService.setCacheWorkflow(this.workflowActionService.getWorkflow());
+      },
       () => {
         alert('You don\'t have access to this workflow, please log in with another account');
         this.workflowCacheService.resetCachedWorkflow();

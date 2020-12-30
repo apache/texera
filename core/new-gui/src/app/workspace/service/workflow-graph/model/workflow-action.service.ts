@@ -1102,7 +1102,8 @@ export class WorkflowActionService {
               creationTime: updatedWorkflow.creationTime,
               lastModifiedTime: updatedWorkflow.lastModifiedTime
             });
-            });
+            this.workflowCacheService.setCacheWorkflow(this.getWorkflow());
+          });
         // to sync up with the updated information, such as workflow.wid
       }
     );
