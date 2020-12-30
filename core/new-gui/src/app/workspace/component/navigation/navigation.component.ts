@@ -324,8 +324,7 @@ export class NavigationComponent implements OnInit {
   /**
    * Handler for changing workflow name input box, updates the cachedWorkflow and persist to database.
    */
-  onWorkflowNameChange(event: InputEvent) {
-    this.currentWorkflowName = (<HTMLElement>event.target).innerText.trim();
+  onWorkflowNameChange() {
     this.workflowActionService.setWorkflowName(this.currentWorkflowName);
     if (this.userService.isLogin()) {
       this.persistCachedWorkflow();

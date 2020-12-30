@@ -8,9 +8,10 @@
 
 
     <div *ngIf="userSystemEnabled" class="texera-navigation-workflow-name">
-      <span #nameInput (input)="onWorkflowNameChange($event)" class="name-input" contenteditable="true"
-            placeholder="Untitled Workflow"
-            role="textbox" spellcheck="false">{{currentWorkflowName}}</span>
+      <label>
+        <input (change)="onWorkflowNameChange()" [(ngModel)]="currentWorkflowName" class="name-input"
+               placeholder="Untitled Workflow"/>
+      </label>
       <span class="save-state" spellcheck="false">{{autoSaveState}}</span>
     </div>
     <div class='texera-navigation-utilities'>
