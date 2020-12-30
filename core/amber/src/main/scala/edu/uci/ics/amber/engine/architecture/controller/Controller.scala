@@ -463,7 +463,7 @@ class Controller(
     }
   }
 
-  private def initializingNextFrontierIfPossible(): Unit = {
+  private def initializingNextFrontier(): Unit = {
     if (
       operatorStateMap.size == workflow.operators.size && operatorStateMap.values.forall(
         _ != PrincipalState.Uninitialized
@@ -728,7 +728,7 @@ class Controller(
           )
           operatorToWorkerStateMap(opIdentifier).keys.foreach(_ ! CheckRecovery)
           operatorStateMap(opIdentifier) = PrincipalState.Ready
-          initializingNextFrontierIfPossible()
+          initializingNextFrontier()
         }
       }
     case AckedControllerInitialization =>
