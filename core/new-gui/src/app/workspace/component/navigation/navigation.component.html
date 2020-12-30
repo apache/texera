@@ -23,7 +23,7 @@
         <button (click)="onClickCreateNewWorkflow()" *ngIf="userSystemEnabled" nz-button title="create new">
           <i nz-icon nzTheme="outline" nzType="form"></i>
         </button>
-        <button (click)="persistCachedWorkflow()" *ngIf="userSystemEnabled"
+        <button (click)="persistWorkflow()" *ngIf="userSystemEnabled"
                 [disabled]=" !userService.isLogin()|| isSaving" nz-button title="save">
           <i *ngIf="!isSaving" nz-icon nzTheme="outline" nzType="save"></i>
           <i *ngIf="isSaving" [nzSpin]="true" [nzType]="'sync'" nz-icon nzTheme="outline"></i>

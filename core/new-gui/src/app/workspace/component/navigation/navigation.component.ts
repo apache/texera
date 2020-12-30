@@ -309,11 +309,17 @@ export class NavigationComponent implements OnInit {
       this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs().length === 0;
   }
 
-  public persistCachedWorkflow(): void {
+  public persistWorkflow(): void {
     this.isSaving = true;
     this.workflowPersistService.persistWorkflow(this.workflowActionService.getWorkflow())
         .subscribe((updatedWorkflow: Workflow) => {
-          this.workflowCacheService.setCacheWorkflow(updatedWorkflow);
+          console.log('got back', updatedWorkflow);
+          this.workflowActionService.setWorkflowMetadata({
+            name: updatedWorkflow.name,
+            wid: updatedWorkflow.wid,
+            creationTime: updatedWorkflow.creationTime,
+            lastModifiedTime: updatedWorkflow.lastModifiedTime
+          });
           this.isSaving = false;
         }, error => {
           alert(error);
@@ -327,7 +333,7 @@ export class NavigationComponent implements OnInit {
   onWorkflowNameChange() {
     this.workflowActionService.setWorkflowName(this.currentWorkflowName);
     if (this.userService.isLogin()) {
-      this.persistCachedWorkflow();
+      this.persistWorkflow();
     }
   }
 

@@ -851,6 +851,7 @@ export class WorkflowActionService {
 
   public setWorkflowMetadata(workflowMetaData: WorkflowMetadata|undefined): void {
     this.workflowMetadata = (workflowMetaData === undefined) ? WorkflowActionService.DEFAULT_WORKFLOW : workflowMetaData;
+    console.log('in set workflow metadata');
     this.workflowMetadataChangeSubject.next();
   }
 
