@@ -125,46 +125,46 @@ class Principal(val metadata: OpExecConfig) extends Actor with ActorLogging with
   }
 
   // the input count is the sum of the input counts of the first-layer actors
-  private def aggregateWorkerInputRowCount(): Long = {
-    workerStatisticsMap
-      .filter(e => workerLayers.head.layer.contains(e._1))
-      .map(e => e._2.inputRowCount)
-      .sum
-  }
+//  private def aggregateWorkerInputRowCount(): Long = {
+//    workerStatisticsMap
+//      .filter(e => workerLayers.head.layer.contains(e._1))
+//      .map(e => e._2.inputRowCount)
+//      .sum
+//  }
 
   // the output count is the sum of the output counts of the last-layer actors
-  private def aggregateWorkerOutputRowCount(): Long = {
-    workerStatisticsMap
-      .filter(e => workerLayers.last.layer.contains(e._1))
-      .map(e => e._2.outputRowCount)
-      .sum
-  }
+//  private def aggregateWorkerOutputRowCount(): Long = {
+//    workerStatisticsMap
+//      .filter(e => workerLayers.last.layer.contains(e._1))
+//      .map(e => e._2.outputRowCount)
+//      .sum
+//  }
 
-  private def setWorkerState(worker: ActorRef, state: WorkerState.Value): Boolean = {
-    assert(workerStateMap.contains(worker))
-    //only set when state changes.
-    if (workerStateMap(worker) != state) {
-      if (WorkerState.ValidTransitions(workerStateMap(worker)).contains(state)) {
-        workerStateMap(worker) = state
-      } else if (WorkerState.SkippedTransitions(workerStateMap(worker)).contains(state)) {
-        log.info(
-          "Skipped worker state transition for worker{} from {} to {}",
-          worker,
-          workerStateMap(worker),
-          state
-        )
-        workerStateMap(worker) = state
-      } else {
-        log.warning(
-          "Invalid worker state transition for worker{} from {} to {}",
-          worker,
-          workerStateMap(worker),
-          state
-        )
-      }
-      true
-    } else false
-  }
+//  private def setWorkerState(worker: ActorRef, state: WorkerState.Value): Boolean = {
+//    assert(workerStateMap.contains(worker))
+//    //only set when state changes.
+//    if (workerStateMap(worker) != state) {
+//      if (WorkerState.ValidTransitions(workerStateMap(worker)).contains(state)) {
+//        workerStateMap(worker) = state
+//      } else if (WorkerState.SkippedTransitions(workerStateMap(worker)).contains(state)) {
+//        log.info(
+//          "Skipped worker state transition for worker{} from {} to {}",
+//          worker,
+//          workerStateMap(worker),
+//          state
+//        )
+//        workerStateMap(worker) = state
+//      } else {
+//        log.warning(
+//          "Invalid worker state transition for worker{} from {} to {}",
+//          worker,
+//          workerStateMap(worker),
+//          state
+//        )
+//      }
+//      true
+//    } else false
+//  }
 
   final def whenAllUncompletedWorkersBecome(state: WorkerState.Value): Boolean =
     unCompletedWorkerStates.forall(_ == state)
@@ -358,35 +358,35 @@ class Principal(val metadata: OpExecConfig) extends Actor with ActorLogging with
 //      context.become(pausing)
 //      unstashAll()
     case ReportWorkerPartialCompleted(worker, layer) =>
-      sender ! Ack
-      AdvancedMessageSending.nonBlockingAskWithRetry(
-        context.parent,
-        ReportPrincipalPartialCompleted(worker, layer),
-        10,
-        0
-      )
-      if (layerCompletedCounter.contains(layer)) {
-        layerCompletedCounter(layer) -= 1
-        if (layerCompletedCounter(layer) == 0) {
-          layerCompletedCounter -= layer
-          AdvancedMessageSending.nonBlockingAskWithRetry(
-            context.parent,
-            ReportPrincipalPartialCompleted(metadata.tag, layer),
-            10,
-            0
-          )
-        }
-      }
+//      sender ! Ack
+//      AdvancedMessageSending.nonBlockingAskWithRetry(
+//        context.parent,
+//        ReportPrincipalPartialCompleted(worker, layer),
+//        10,
+//        0
+//      )
+//      if (layerCompletedCounter.contains(layer)) {
+//        layerCompletedCounter(layer) -= 1
+//        if (layerCompletedCounter(layer) == 0) {
+//          layerCompletedCounter -= layer
+//          AdvancedMessageSending.nonBlockingAskWithRetry(
+//            context.parent,
+//            ReportPrincipalPartialCompleted(metadata.tag, layer),
+//            10,
+//            0
+//          )
+//        }
+//      }
     case StashOutput =>
       sender ! Ack
       allWorkers.foreach(worker =>
         AdvancedMessageSending.nonBlockingAskWithRetry(worker, StashOutput, 10, 0)
       )
     case ReleaseOutput =>
-      sender ! Ack
-      allWorkers.foreach(worker =>
-        AdvancedMessageSending.nonBlockingAskWithRetry(worker, ReleaseOutput, 10, 0)
-      )
+//      sender ! Ack
+//      allWorkers.foreach(worker =>
+//        AdvancedMessageSending.nonBlockingAskWithRetry(worker, ReleaseOutput, 10, 0)
+//      )
     case GetInputLayer  => sender ! workerLayers.head.clone()
     case GetOutputLayer => sender ! workerLayers.last.clone()
     case Resume         => context.parent ! ReportState(PrincipalState.Running)
@@ -398,18 +398,18 @@ class Principal(val metadata: OpExecConfig) extends Actor with ActorLogging with
       stash()
   }
 
-  final lazy val allowedStatesOnPausing: Set[WorkerState.Value] =
-    Set(WorkerState.Completed, WorkerState.Paused, WorkerState.LocalBreakpointTriggered)
+//  final lazy val allowedStatesOnPausing: Set[WorkerState.Value] =
+//    Set(WorkerState.Completed, WorkerState.Paused, WorkerState.LocalBreakpointTriggered)
 
   final def pausing: Receive = {
     case RecoveryPacket(amberTag, seq1, seq2) =>
       receivedRecoveryInformation(amberTag) = (seq1, seq2)
     case EnforceStateCheck =>
-      for ((k, v) <- workerStateMap) {
-        if (!allowedStatesOnPausing.contains(v)) {
-          k ! QueryState
-        }
-      }
+//      for ((k, v) <- workerStateMap) {
+//        if (!allowedStatesOnPausing.contains(v)) {
+//          k ! QueryState
+//        }
+//      }
     case reportCurrentTuple: WorkerMessage.ReportCurrentProcessingTuple =>
 //      receivedTuples.append((reportCurrentTuple.tuple, reportCurrentTuple.workerID))
     case WorkerMessage.ReportState(state) =>
@@ -471,46 +471,46 @@ class Principal(val metadata: OpExecConfig) extends Actor with ActorLogging with
     case EnforceStateCheck =>
       workersTriggeredBreakpoint.foreach(x => x ! QueryTriggeredBreakpoints) //query all
     case WorkerMessage.ReportState(state) =>
-      //log.info("collecting: "+ sender +" to "+ state)
-      if (setWorkerState(sender, state)) {
-        if (unCompletedWorkerStates.forall(_ == WorkerState.Paused)) {
-          //all breakpoint resolved, it's safe to report to controller and then Pause(on triggered, or user paused) else Resume
-          val map = new mutable.HashMap[(ActorRef, FaultedTuple), ArrayBuffer[String]]
-          for (i <- globalBreakpoints.values.filter(_.isTriggered)) {
-            isUserPaused = true //upgrade pause
-            i.report(map)
-          }
-          safeRemoveAskHandle()
-          context.become(paused)
-          unstashAll()
-          if (!isUserPaused) {
-            log.info("no global breakpoint triggered, continue")
-            self ! Resume
-          } else {
-            context.parent ! ReportGlobalBreakpointTriggered(map, this.metadata.tag.operator)
-            context.parent ! ReportState(PrincipalState.Paused)
-            log.info(
-              "user paused or global breakpoint triggered, pause. Stage1 cost = " + stage1Timer
-                .toString() + " Stage2 cost =" + stage2Timer.toString()
-            )
-          }
-          if (stage2Timer.isRunning) {
-            stage2Timer.stop()
-          }
-          if (!stage1Timer.isRunning) {
-            stage1Timer.start()
-          }
-        }
-      }
+    //log.info("collecting: "+ sender +" to "+ state)
+//      if (setWorkerState(sender, state)) {
+//        if (unCompletedWorkerStates.forall(_ == WorkerState.Paused)) {
+//          //all breakpoint resolved, it's safe to report to controller and then Pause(on triggered, or user paused) else Resume
+//          val map = new mutable.HashMap[(ActorRef, FaultedTuple), ArrayBuffer[String]]
+//          for (i <- globalBreakpoints.values.filter(_.isTriggered)) {
+//            isUserPaused = true //upgrade pause
+//            i.report(map)
+//          }
+//          safeRemoveAskHandle()
+//          context.become(paused)
+//          unstashAll()
+//          if (!isUserPaused) {
+//            log.info("no global breakpoint triggered, continue")
+//            self ! Resume
+//          } else {
+//            context.parent ! ReportGlobalBreakpointTriggered(map, this.metadata.tag.operator)
+//            context.parent ! ReportState(PrincipalState.Paused)
+//            log.info(
+//              "user paused or global breakpoint triggered, pause. Stage1 cost = " + stage1Timer
+//                .toString() + " Stage2 cost =" + stage2Timer.toString()
+//            )
+//          }
+//          if (stage2Timer.isRunning) {
+//            stage2Timer.stop()
+//          }
+//          if (!stage1Timer.isRunning) {
+//            stage1Timer.start()
+//          }
+//        }
+//      }
     case WorkerMessage.ReportStatistics(statistics) =>
-      setWorkerStatistics(sender, statistics)
-      context.parent ! PrincipalMessage.ReportStatistics(
-        PrincipalStatistics(
-          PrincipalState.CollectingBreakpoints,
-          aggregateWorkerInputRowCount(),
-          aggregateWorkerOutputRowCount()
-        )
-      )
+//      setWorkerStatistics(sender, statistics)
+//      context.parent ! PrincipalMessage.ReportStatistics(
+//        PrincipalStatistics(
+//          PrincipalState.CollectingBreakpoints,
+//          aggregateWorkerInputRowCount(),
+//          aggregateWorkerOutputRowCount()
+//        )
+//      )
     case ReportedTriggeredBreakpoints(bps) =>
       bps.foreach(x => {
         val bp = globalBreakpoints(x.id)
@@ -549,51 +549,51 @@ class Principal(val metadata: OpExecConfig) extends Actor with ActorLogging with
       stash()
   }
 
-  final lazy val allowedStatesOnResuming: Set[WorkerState.Value] =
-    Set(WorkerState.Running, WorkerState.Ready, WorkerState.Completed)
+//  final lazy val allowedStatesOnResuming: Set[WorkerState.Value] =
+//    Set(WorkerState.Running, WorkerState.Ready, WorkerState.Completed)
 
   final def resuming: Receive = {
     case RecoveryPacket(amberTag, seq1, seq2) =>
       receivedRecoveryInformation(amberTag) = (seq1, seq2)
     case EnforceStateCheck =>
-      for ((k, v) <- workerStateMap) {
-        if (!allowedStatesOnResuming.contains(v)) {
-          k ! QueryState
-        }
-      }
+//      for ((k, v) <- workerStateMap) {
+//        if (!allowedStatesOnResuming.contains(v)) {
+//          k ! QueryState
+//        }
+//      }
     case WorkerMessage.ReportState(state) =>
-      //log.info("resuming: "+ sender +" to "+ state)
-      if (!allowedStatesOnResuming.contains(state)) {
-        sender ! Resume
-      } else if (setWorkerState(sender, state)) {
-        if (whenAllWorkersCompleted) {
-          safeRemoveAskHandle()
-          context.parent ! ReportState(PrincipalState.Completed)
-          context.become(completed)
-          unstashAll()
-        } else if (allWorkerStates.forall(_ != WorkerState.Paused)) {
-          safeRemoveAskHandle()
-          if (allWorkerStates.exists(_ != WorkerState.Ready)) {
-            context.parent ! ReportState(PrincipalState.Running)
-            context.become(running)
-          } else {
-            context.parent ! ReportState(PrincipalState.Ready)
-            context.become(ready)
-          }
-          unstashAll()
-        }
-      }
-    case GetInputLayer  => sender ! workerLayers.head.clone()
-    case GetOutputLayer => sender ! workerLayers.last.clone()
+    //log.info("resuming: "+ sender +" to "+ state)
+//      if (!allowedStatesOnResuming.contains(state)) {
+//        sender ! Resume
+//      } else if (setWorkerState(sender, state)) {
+//        if (whenAllWorkersCompleted) {
+//          safeRemoveAskHandle()
+//          context.parent ! ReportState(PrincipalState.Completed)
+//          context.become(completed)
+//          unstashAll()
+//        } else if (allWorkerStates.forall(_ != WorkerState.Paused)) {
+//          safeRemoveAskHandle()
+//          if (allWorkerStates.exists(_ != WorkerState.Ready)) {
+//            context.parent ! ReportState(PrincipalState.Running)
+//            context.become(running)
+//          } else {
+//            context.parent ! ReportState(PrincipalState.Ready)
+//            context.become(ready)
+//          }
+//          unstashAll()
+//        }
+//      }
+    case GetInputLayer                              => sender ! workerLayers.head.clone()
+    case GetOutputLayer                             => sender ! workerLayers.last.clone()
     case WorkerMessage.ReportStatistics(statistics) =>
-      setWorkerStatistics(sender, statistics)
-      context.parent ! PrincipalMessage.ReportStatistics(
-        PrincipalStatistics(
-          PrincipalState.Resuming,
-          aggregateWorkerInputRowCount(),
-          aggregateWorkerOutputRowCount()
-        )
-      )
+//      setWorkerStatistics(sender, statistics)
+//      context.parent ! PrincipalMessage.ReportStatistics(
+//        PrincipalStatistics(
+//          PrincipalState.Resuming,
+//          aggregateWorkerInputRowCount(),
+//          aggregateWorkerOutputRowCount()
+//        )
+//      )
     case QueryState => sender ! ReportState(PrincipalState.Resuming)
     case QueryStatistics =>
       this.allWorkers.foreach(worker => worker ! QueryStatistics)
@@ -622,30 +622,30 @@ class Principal(val metadata: OpExecConfig) extends Actor with ActorLogging with
 //      context.become(resuming)
 //      unstashAll()
     case AssignBreakpoint(breakpoint) =>
-      sender ! Ack
-      globalBreakpoints(breakpoint.id) = breakpoint
-      metadata.assignBreakpoint(workerLayers, workerStateMap, breakpoint)
-    case GetInputLayer  => sender ! workerLayers.head.clone()
-    case GetOutputLayer => sender ! workerLayers.last.clone()
-    case Pause          => context.parent ! ReportState(PrincipalState.Paused)
-    case QueryState     => sender ! ReportState(PrincipalState.Paused)
+//      sender ! Ack
+//      globalBreakpoints(breakpoint.id) = breakpoint
+//      metadata.assignBreakpoint(workerLayers, workerStateMap, breakpoint)
+    case GetInputLayer            => sender ! workerLayers.head.clone()
+    case GetOutputLayer           => sender ! workerLayers.last.clone()
+    case Pause                    => context.parent ! ReportState(PrincipalState.Paused)
+    case QueryState               => sender ! ReportState(PrincipalState.Paused)
     case ModifyLogic(newMetadata) =>
-      sender ! Ack
-      log.info("modify logic received by principal, sending to worker")
-      this.allWorkers.foreach(worker => worker ! ModifyLogic(newMetadata))
-//      allWorkers.foreach(worker => AdvancedMessageSending.blockingAskWithRetry(worker, ModifyLogic(newMetadata), 3))
-      log.info("modify logic received  by principal, sent to worker")
+//      sender ! Ack
+//      log.info("modify logic received by principal, sending to worker")
+//      this.allWorkers.foreach(worker => worker ! ModifyLogic(newMetadata))
+////      allWorkers.foreach(worker => AdvancedMessageSending.blockingAskWithRetry(worker, ModifyLogic(newMetadata), 3))
+//      log.info("modify logic received  by principal, sent to worker")
     case QueryStatistics =>
       this.allWorkers.foreach(worker => worker ! QueryStatistics)
     case WorkerMessage.ReportStatistics(statistics) =>
-      setWorkerStatistics(sender, statistics)
-      context.parent ! PrincipalMessage.ReportStatistics(
-        PrincipalStatistics(
-          PrincipalState.Paused,
-          aggregateWorkerInputRowCount(),
-          aggregateWorkerOutputRowCount()
-        )
-      )
+//      setWorkerStatistics(sender, statistics)
+//      context.parent ! PrincipalMessage.ReportStatistics(
+//        PrincipalStatistics(
+//          PrincipalState.Paused,
+//          aggregateWorkerInputRowCount(),
+//          aggregateWorkerOutputRowCount()
+//        )
+//      )
     case msg =>
       //log.info("stashing: "+ msg)
       stash()
@@ -678,23 +678,23 @@ class Principal(val metadata: OpExecConfig) extends Actor with ActorLogging with
         AdvancedMessageSending.nonBlockingAskWithRetry(worker, ReleaseOutput, 10, 0)
       )
     case WorkerMessage.ReportStatistics(statistics) =>
-      setWorkerStatistics(sender, statistics)
-      context.parent ! PrincipalMessage.ReportStatistics(
-        PrincipalStatistics(
-          PrincipalState.Completed,
-          aggregateWorkerInputRowCount(),
-          aggregateWorkerOutputRowCount()
-        )
-      )
+//      setWorkerStatistics(sender, statistics)
+//      context.parent ! PrincipalMessage.ReportStatistics(
+//        PrincipalStatistics(
+//          PrincipalState.Completed,
+//          aggregateWorkerInputRowCount(),
+//          aggregateWorkerOutputRowCount()
+//        )
+//      )
     case CollectSinkResults =>
-      allWorkers.foreach(worker => worker ! CollectSinkResults)
+//      allWorkers.foreach(worker => worker ! CollectSinkResults)
     case WorkerMessage.ReportOutputResult(sinkResult) =>
-      workerSinkResultMap(sender) = sinkResult
-      if (workerSinkResultMap.size == allWorkers.size) {
-        val collectedResults = mutable.MutableList[ITuple]()
-        this.workerSinkResultMap.values.foreach(v => collectedResults ++= v)
-        context.parent ! PrincipalMessage.ReportOutputResult(collectedResults.toList)
-      }
+//      workerSinkResultMap(sender) = sinkResult
+//      if (workerSinkResultMap.size == allWorkers.size) {
+//        val collectedResults = mutable.MutableList[ITuple]()
+//        this.workerSinkResultMap.values.foreach(v => collectedResults ++= v)
+//        context.parent ! PrincipalMessage.ReportOutputResult(collectedResults.toList)
+//      }
     case GetInputLayer  => sender ! workerLayers.head.clone()
     case GetOutputLayer => sender ! workerLayers.last.clone()
     case msg            =>
