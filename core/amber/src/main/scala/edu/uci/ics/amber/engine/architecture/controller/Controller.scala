@@ -38,7 +38,7 @@ import edu.uci.ics.amber.engine.architecture.principal.{
   PrincipalState,
   PrincipalStatistics
 }
-import edu.uci.ics.amber.engine.common.amberexception.AmberException
+import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.ControllerMessage._
 import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage._
 import edu.uci.ics.amber.engine.common.ambermessage.{
@@ -69,7 +69,8 @@ import edu.uci.ics.amber.engine.common.{
   AdvancedMessageSending,
   AmberUtils,
   Constants,
-  ISourceOperatorExecutor
+  ISourceOperatorExecutor,
+  WorkflowLogger
 }
 import edu.uci.ics.amber.engine.faulttolerance.scanner.HDFSFolderScanSourceOperatorExecutor
 import edu.uci.ics.amber.engine.operators.OpExecConfig
@@ -96,7 +97,7 @@ import com.google.common.base.Stopwatch
 import play.api.libs.json.{JsArray, JsValue, Json, __}
 import com.google.common.collect.BiMap
 import com.google.common.collect.HashBiMap
-import edu.uci.ics.amber.backenderror.Error
+import com.typesafe.scalalogging.Logger
 import edu.uci.ics.amber.engine.architecture.breakpoint.FaultedTuple
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.worker.{WorkerState, WorkerStatistics}
@@ -109,6 +110,7 @@ import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{
   ReportedTriggeredBreakpoints,
   Reset
 }
+import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 import collection.JavaConverters._
 import scala.collection.mutable
@@ -152,6 +154,13 @@ class Controller(
 //  val principalInCurrentStage = new mutable.HashSet[ActorRef]()
 //  val principalStates = new mutable.AnyRefMap[ActorRef, PrincipalState.Value]
 //  val principalStatisticsMap = new mutable.AnyRefMap[ActorRef, PrincipalStatistics]
+  private def errorLogAction(err: WorkflowRuntimeError): Unit = {
+    Logger(
+      s"Controller-${tag.getGlobalIdentity}-Logger"
+    ).error(err.convertToMap().mkString(" | "))
+    eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
+  }
+  val errorLogger = WorkflowLogger(errorLogAction)
   val edges = new mutable.AnyRefMap[LinkTag, OperatorLink]
   val frontier = new mutable.HashSet[OperatorIdentifier]
   var prevFrontier: mutable.HashSet[OperatorIdentifier] = _
@@ -920,6 +929,9 @@ class Controller(
     Set(WorkerState.Running, WorkerState.Ready, WorkerState.Completed)
 
   override def receive: Receive = {
+    case LogErrorToFrontEnd(err: WorkflowRuntimeError) =>
+      log.error(err.convertToMap().mkString(" | "))
+      eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
     case QueryStatistics =>
     // do nothing, not initialized yet
     case EnforceStateCheck(operatorIdentifier) =>
@@ -979,6 +991,9 @@ class Controller(
   }
 
   private[this] def ready: Receive = {
+    case LogErrorToFrontEnd(err: WorkflowRuntimeError) =>
+      log.error(err.convertToMap().mkString(" | "))
+      eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
     case QueryStatistics =>
       operatorToWorkerLayers.keys.foreach(opIdentifier => {
         operatorToWorkerLayers(opIdentifier).foreach(l => {
@@ -1065,6 +1080,9 @@ class Controller(
 
   private[this] def running: Receive = {
     handleBreakpointOnlyWorkerMessages orElse [Any, Unit] {
+      case LogErrorToFrontEnd(err: WorkflowRuntimeError) =>
+        log.error(err.convertToMap().mkString(" | "))
+        eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
       case KillAndRecover =>
         killAndRecoverStage()
       case QueryStatistics =>
@@ -1151,6 +1169,9 @@ class Controller(
 
   private[this] def pausing: Receive = {
     handleBreakpointOnlyWorkerMessages orElse [Any, Unit] {
+      case LogErrorToFrontEnd(err: WorkflowRuntimeError) =>
+        log.error(err.convertToMap().mkString(" | "))
+        eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
       case QueryStatistics =>
         operatorToWorkerLayers.keys.foreach(opIdentifier => {
           operatorToWorkerLayers(opIdentifier).foreach(l => {
@@ -1235,6 +1256,9 @@ class Controller(
   }
 
   private[this] def paused: Receive = {
+    case LogErrorToFrontEnd(err: WorkflowRuntimeError) =>
+      log.error(err.convertToMap().mkString(" | "))
+      eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
     case KillAndRecover =>
       killAndRecoverStage()
     case QueryStatistics =>
@@ -1306,6 +1330,9 @@ class Controller(
   }
 
   private[this] def resuming: Receive = {
+    case LogErrorToFrontEnd(err: WorkflowRuntimeError) =>
+      log.error(err.convertToMap().mkString(" | "))
+      eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
     case QueryStatistics =>
       operatorToWorkerLayers.keys.foreach(opIdentifier => {
         operatorToWorkerLayers(opIdentifier).foreach(l => {
@@ -1381,6 +1408,9 @@ class Controller(
   }
 
   private[this] def completed: Receive = {
+    case LogErrorToFrontEnd(err: WorkflowRuntimeError) =>
+      log.error(err.convertToMap().mkString(" | "))
+      eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
     case QueryStatistics =>
       operatorToWorkerLayers.keys.foreach(opIdentifier => {
         operatorToWorkerLayers(opIdentifier).foreach(l => {

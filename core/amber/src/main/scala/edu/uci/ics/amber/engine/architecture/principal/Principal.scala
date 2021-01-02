@@ -6,7 +6,7 @@ import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalB
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.ActorLayer
 import edu.uci.ics.amber.engine.architecture.linksemantics.LinkStrategy
 import edu.uci.ics.amber.engine.architecture.worker.{WorkerState, WorkerStatistics}
-import edu.uci.ics.amber.engine.common.amberexception.AmberException
+import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.PrincipalMessage.{AssignBreakpoint, _}
 import edu.uci.ics.amber.engine.common.ambermessage.StateMessage._
 import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage.{
@@ -15,6 +15,7 @@ import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage.{
   CollectSinkResults,
   KillAndRecover,
   LocalBreakpointTriggered,
+  LogErrorToFrontEnd,
   ModifyLogic,
   ModifyTuple,
   Pause,
@@ -53,8 +54,9 @@ import edu.uci.ics.amber.engine.common.{
   AdvancedMessageSending,
   AmberUtils,
   Constants,
+  ITupleSinkOperatorExecutor,
   TableMetadata,
-  ITupleSinkOperatorExecutor
+  WorkflowLogger
 }
 import edu.uci.ics.amber.engine.faulttolerance.recovery.RecoveryPacket
 import edu.uci.ics.amber.engine.operators.OpExecConfig
@@ -74,6 +76,9 @@ import akka.util.Timeout
 import akka.pattern.after
 import akka.pattern.ask
 import com.google.common.base.Stopwatch
+import com.typesafe.scalalogging.Logger
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.ErrorOccurred
+import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -90,6 +95,13 @@ class Principal(val metadata: OpExecConfig) extends Actor with ActorLogging with
   implicit val timeout: Timeout = 5.seconds
   implicit val logAdapter: LoggingAdapter = log
 
+  private def errorLogAction(err: WorkflowRuntimeError): Unit = {
+    Logger(
+      s"Principal-${metadata.tag.getGlobalIdentity}-Logger"
+    ).error(err.convertToMap().mkString(" | "))
+    context.parent ! LogErrorToFrontEnd(err)
+  }
+  val errorLogger = WorkflowLogger(errorLogAction)
   val tau: FiniteDuration = Constants.defaultTau
   var workerLayers: Array[ActorLayer] = _
   var workerEdges: Array[LinkStrategy] = _
