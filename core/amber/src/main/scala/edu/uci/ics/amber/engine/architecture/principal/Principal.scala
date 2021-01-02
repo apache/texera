@@ -469,9 +469,9 @@ class Principal(val metadata: OpExecConfig) extends Actor with ActorLogging with
     case RecoveryPacket(amberTag, seq1, seq2) =>
       receivedRecoveryInformation(amberTag) = (seq1, seq2)
     case EnforceStateCheck =>
-      workersTriggeredBreakpoint.foreach(x => x ! QueryTriggeredBreakpoints) //query all
+//      workersTriggeredBreakpoint.foreach(x => x ! QueryTriggeredBreakpoints) //query all
     case WorkerMessage.ReportState(state) =>
-    //log.info("collecting: "+ sender +" to "+ state)
+//      log.info("collecting: " + sender + " to " + state)
 //      if (setWorkerState(sender, state)) {
 //        if (unCompletedWorkerStates.forall(_ == WorkerState.Paused)) {
 //          //all breakpoint resolved, it's safe to report to controller and then Pause(on triggered, or user paused) else Resume
@@ -512,32 +512,32 @@ class Principal(val metadata: OpExecConfig) extends Actor with ActorLogging with
 //        )
 //      )
     case ReportedTriggeredBreakpoints(bps) =>
-      bps.foreach(x => {
-        val bp = globalBreakpoints(x.id)
-        bp.accept(sender, x)
-        if (bp.needCollecting) {
-          //is not fully collected
-          bp.collect()
-        } else if (bp.isRepartitionRequired) {
-          //fully collected, but need repartition (e.g. count not reach target number)
-          //OR need Reset
-          metadata.assignBreakpoint(workerLayers, workerStateMap, bp)
-        } else if (bp.isCompleted) {
-          //fully collected and reach the target
-          bp.remove()
-        }
-      })
+//      bps.foreach(x => {
+//        val bp = globalBreakpoints(x.id)
+//        bp.accept(sender, x)
+//        if (bp.needCollecting) {
+//          //is not fully collected
+//          bp.collect()
+//        } else if (bp.isRepartitionRequired) {
+//          //fully collected, but need repartition (e.g. count not reach target number)
+//          //OR need Reset
+//          metadata.assignBreakpoint(workerLayers, workerStateMap, bp)
+//        } else if (bp.isCompleted) {
+//          //fully collected and reach the target
+//          bp.remove()
+//        }
+//      })
     case ReportedQueriedBreakpoint(bp) =>
-      val gbp = globalBreakpoints(bp.id)
-      if (gbp.accept(sender, bp) && !gbp.needCollecting) {
-        if (gbp.isRepartitionRequired) {
-          //fully collected, but need repartition (count not reach target number)
-          metadata.assignBreakpoint(workerLayers, workerStateMap, gbp)
-        } else if (gbp.isCompleted) {
-          //fully collected and reach the target
-          gbp.remove()
-        }
-      }
+//      val gbp = globalBreakpoints(bp.id)
+//      if (gbp.accept(sender, bp) && !gbp.needCollecting) {
+//        if (gbp.isRepartitionRequired) {
+//          //fully collected, but need repartition (count not reach target number)
+//          metadata.assignBreakpoint(workerLayers, workerStateMap, gbp)
+//        } else if (gbp.isCompleted) {
+//          //fully collected and reach the target
+//          gbp.remove()
+//        }
+//      }
     case GetInputLayer  => sender ! workerLayers.head.clone()
     case GetOutputLayer => sender ! workerLayers.last.clone()
     case Pause =>
