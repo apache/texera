@@ -656,7 +656,7 @@ class Controller(
               )
 
             safeRemoveAskOperatorHandle(workerToOperator(sender))
-            // operatorStateMap(workerToOperator(sender)) = PrincipalState.Pausing
+            operatorStateMap(workerToOperator(sender)) = PrincipalState.Pausing
             // context.become(pausing)
             operatorToPeriodicallyAskHandle(workerToOperator(sender)) = context.system.scheduler
               .schedule(30.seconds, 30.seconds, self, EnforceStateCheck(opId))
