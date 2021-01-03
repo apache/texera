@@ -600,6 +600,7 @@ class Controller(
   private def handleWorkerStateReportsInRunning(
       state: WorkerState.Value
   ): Unit = {
+    val opId = workerToOperator(sender)
     if (setWorkerState(sender, state)) {
       state match {
         case WorkerState.LocalBreakpointTriggered =>
@@ -616,7 +617,7 @@ class Controller(
                 0.milliseconds,
                 30.seconds,
                 self,
-                EnforceStateCheck(workerToOperator(sender))
+                EnforceStateCheck(opId)
               )
             operatorToWorkersTriggeredBreakpoint(workerToOperator(sender)) =
               operatorToWorkerStateMap(workerToOperator(sender)).keys
@@ -631,18 +632,34 @@ class Controller(
             if (operatorToStage1Timer(workerToOperator(sender)).isRunning) {
               operatorToStage1Timer(workerToOperator(sender)).stop()
             }
+
+            operatorToWorkerStateMap(workerToOperator(sender))
+              .filter(x => x._2 != WorkerState.Completed)
+              .keys
+              .foreach(worker => {
+                println(
+                  s"Sending pause to ${worker.toString()} -- ${workerToOperator(sender).getGlobalIdentity}"
+                )
+              })
+
+            val workersToPause: Iterable[ActorRef] =
+              operatorToWorkerStateMap(workerToOperator(sender))
+                .filter(x => x._2 != WorkerState.Completed)
+                .keys
+
             context.system.scheduler
               .scheduleOnce(
                 tau,
                 () =>
-                  operatorToWorkerStateMap(workerToOperator(sender))
-                    .filter(x => x._2 != WorkerState.Completed)
-                    .keys
+                  workersToPause
                     .foreach(worker => worker ! Pause)
               )
+
             safeRemoveAskOperatorHandle(workerToOperator(sender))
+            // operatorStateMap(workerToOperator(sender)) = PrincipalState.Pausing
+            // context.become(pausing)
             operatorToPeriodicallyAskHandle(workerToOperator(sender)) = context.system.scheduler
-              .schedule(30.seconds, 30.seconds, self, EnforceStateCheck(workerToOperator(sender)))
+              .schedule(30.seconds, 30.seconds, self, EnforceStateCheck(opId))
           }
         case WorkerState.Paused =>
           if (areAllWorkersCompleted(workerToOperator(sender))) {
@@ -669,7 +686,7 @@ class Controller(
                 1.milliseconds,
                 30.seconds,
                 self,
-                EnforceStateCheck(workerToOperator(sender))
+                EnforceStateCheck(opId)
               )
             operatorStateMap(workerToOperator(sender)) = PrincipalState.CollectingBreakpoints
             matchNewOperatorStateAndTakeActionsInRunning(workerToOperator(sender))
@@ -693,8 +710,53 @@ class Controller(
     }
   }
 
+  private def handleWorkerStateReportsInPausing(state: WorkerState.Value): Unit = {
+    log.info("pausing: " + sender + " to " + state)
+    val opId = workerToOperator(sender)
+    if (setWorkerState(sender, state)) {
+      if (areAllWorkersCompleted(workerToOperator(sender))) {
+        safeRemoveAskOperatorHandle(workerToOperator(sender))
+        operatorStateMap(workerToOperator(sender)) = PrincipalState.Completed
+        matchNewOperatorStateAndTakeActionsInPausing(workerToOperator(sender))
+      } else if (whenAllUncompletedWorkersBecome(workerToOperator(sender), WorkerState.Paused)) {
+        safeRemoveAskOperatorHandle(workerToOperator(sender))
+        if (this.eventListener.reportCurrentTuplesListener != null) {
+          this.eventListener.reportCurrentTuplesListener.apply(
+            ReportCurrentProcessingTuple(
+              workflow.operators(workerToOperator(sender)).tag.operator,
+              operatorToReceivedTuples(workerToOperator(sender)).toArray
+            )
+          );
+        }
+        operatorToReceivedTuples(workerToOperator(sender)).clear()
+        operatorStateMap(workerToOperator(sender)) = PrincipalState.Paused
+        matchNewOperatorStateAndTakeActionsInPausing(workerToOperator(sender))
+      } else if (
+        operatorToWorkerStateMap(workerToOperator(sender))
+          .filter(x => x._2 != WorkerState.Completed)
+          .values
+          .forall(x => x == WorkerState.Paused || x == WorkerState.LocalBreakpointTriggered)
+      ) {
+        operatorToWorkersTriggeredBreakpoint(workerToOperator(sender)) = operatorToWorkerStateMap(
+          workerToOperator(sender)
+        ).filter(_._2 == WorkerState.LocalBreakpointTriggered).keys
+        safeRemoveAskOperatorHandle(workerToOperator(sender))
+        operatorToPeriodicallyAskHandle(workerToOperator(sender)) = context.system.scheduler
+          .schedule(
+            1.milliseconds,
+            30.seconds,
+            self,
+            EnforceStateCheck(opId)
+          )
+        operatorStateMap(workerToOperator(sender)) = PrincipalState.CollectingBreakpoints
+        matchNewOperatorStateAndTakeActionsInPausing(workerToOperator(sender))
+      }
+    }
+  }
+
   private def handleWorkerStateReportsInCollBreakpoints(state: WorkerState.Value): Unit = {
     log.info("collecting: " + sender + " to " + state)
+    val opId = workerToOperator(sender)
     if (setWorkerState(sender, state)) {
       if (unCompletedWorkerStates(workerToOperator(sender)).forall(_ == WorkerState.Paused)) {
         //all breakpoint resolved, it's safe to report to controller and then Pause(on triggered, or user paused) else Resume
@@ -721,7 +783,7 @@ class Controller(
             .foreach(worker => worker ! Resume)
           safeRemoveAskOperatorHandle(workerToOperator(sender))
           operatorToPeriodicallyAskHandle(workerToOperator(sender)) = context.system.scheduler
-            .schedule(30.seconds, 30.seconds, self, EnforceStateCheck(workerToOperator(sender)))
+            .schedule(30.seconds, 30.seconds, self, EnforceStateCheck(opId))
         } else {
           self ! Pause
           context.parent ! ReportGlobalBreakpointTriggered(
@@ -1102,6 +1164,12 @@ class Controller(
             operatorToWorkersTriggeredBreakpoint(operatorIdentifier).foreach(x =>
               x ! QueryTriggeredBreakpoints
             )
+          case PrincipalState.Pausing =>
+            for ((k, v) <- operatorToWorkerStateMap(operatorIdentifier)) {
+              if (!allowedStatesOnPausing.contains(v)) {
+                k ! QueryState
+              }
+            }
           case _ =>
           // shouldn't reach here. there is no state check when workflow is simply running
         }
@@ -1110,6 +1178,8 @@ class Controller(
         operatorStateMap(workerToOperator(sender)) match {
           case PrincipalState.CollectingBreakpoints =>
             handleWorkerStateReportsInCollBreakpoints(state)
+          case PrincipalState.Pausing =>
+            handleWorkerStateReportsInPausing(state)
           case _ =>
             handleWorkerStateReportsInRunning(state)
         }
@@ -1206,49 +1276,7 @@ class Controller(
           case PrincipalState.CollectingBreakpoints =>
             handleWorkerStateReportsInCollBreakpoints(state)
           case _ =>
-            log.info("pausing: " + sender + " to " + state)
-            if (setWorkerState(sender, state)) {
-              if (areAllWorkersCompleted(workerToOperator(sender))) {
-                safeRemoveAskOperatorHandle(workerToOperator(sender))
-                operatorStateMap(workerToOperator(sender)) = PrincipalState.Completed
-                matchNewOperatorStateAndTakeActionsInPausing(workerToOperator(sender))
-              } else if (
-                whenAllUncompletedWorkersBecome(workerToOperator(sender), WorkerState.Paused)
-              ) {
-                safeRemoveAskOperatorHandle(workerToOperator(sender))
-                if (this.eventListener.reportCurrentTuplesListener != null) {
-                  this.eventListener.reportCurrentTuplesListener.apply(
-                    ReportCurrentProcessingTuple(
-                      workflow.operators(workerToOperator(sender)).tag.operator,
-                      operatorToReceivedTuples(workerToOperator(sender)).toArray
-                    )
-                  );
-                }
-                operatorToReceivedTuples(workerToOperator(sender)).clear()
-                operatorStateMap(workerToOperator(sender)) = PrincipalState.Paused
-                matchNewOperatorStateAndTakeActionsInPausing(workerToOperator(sender))
-              } else if (
-                operatorToWorkerStateMap(workerToOperator(sender))
-                  .filter(x => x._2 != WorkerState.Completed)
-                  .values
-                  .forall(x => x == WorkerState.Paused || x == WorkerState.LocalBreakpointTriggered)
-              ) {
-                operatorToWorkersTriggeredBreakpoint(workerToOperator(sender)) =
-                  operatorToWorkerStateMap(
-                    workerToOperator(sender)
-                  ).filter(_._2 == WorkerState.LocalBreakpointTriggered).keys
-                safeRemoveAskOperatorHandle(workerToOperator(sender))
-                operatorToPeriodicallyAskHandle(workerToOperator(sender)) = context.system.scheduler
-                  .schedule(
-                    1.milliseconds,
-                    30.seconds,
-                    self,
-                    EnforceStateCheck(workerToOperator(sender))
-                  )
-                operatorStateMap(workerToOperator(sender)) = PrincipalState.CollectingBreakpoints
-                matchNewOperatorStateAndTakeActionsInPausing(workerToOperator(sender))
-              }
-            }
+            handleWorkerStateReportsInPausing(state)
         }
       case Pause => // do nothing
       case msg   => stash()
