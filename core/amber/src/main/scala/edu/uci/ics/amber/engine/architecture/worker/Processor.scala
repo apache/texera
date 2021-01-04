@@ -167,6 +167,7 @@ class Processor(var operator: IOperatorExecutor, val tag: WorkerTag) extends Wor
   }
 
   override def onPausing(): Unit = {
+    log.info(s"${tag.getGlobalIdentity} received Pause")
     super.onPausing()
     pauseManager.pause()
     // if dp thread is blocking on waiting for input tuples:

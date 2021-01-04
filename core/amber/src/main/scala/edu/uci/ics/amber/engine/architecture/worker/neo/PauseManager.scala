@@ -80,7 +80,6 @@ class PauseManager(val mainActor: ActorRef) {
     // If dp thread suspended, release it
     if (this.dpThreadBlocker != null) {
       this.dpThreadBlocker.complete(null)
-      this.dpThreadBlocker = null
     }
   }
 
