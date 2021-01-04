@@ -66,7 +66,8 @@ export class WorkspaceComponent implements OnInit {
     private workflowWebsocketService: WorkflowWebsocketService,
     private workflowActionService: WorkflowActionService,
     private location: Location,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    private operatorMetadataService: OperatorMetadataService,
   ) {
     this.resultPanelToggleService.getToggleChangeStream().subscribe(
       value => this.showResultPanel = value
@@ -107,26 +108,53 @@ export class WorkspaceComponent implements OnInit {
           this.workflowActionService.resetAsNewWorkflow();
           this.location.go('/');
         } else {
-
           // if wid is present in the url, load if from backend
           this.loadWorkflowWithID(id);
         }
-
       } else {
         // load wid from cache
         const workflow = this.workflowCacheService.getCachedWorkflow();
         const id = workflow?.wid;
         if (id !== undefined) { this.location.go(`/workflow/${id}`); }
-
       }
-
+      if (this.userService.isLogin()) {
+        this.registerAutoPersistWorkflow();
+      }
     }
+
+    // responsible for saving the existing workflow and
+    // reloading back to the JointJS paper when the browser refreshes.
+    this.registerAutoCacheWorkFlow();
+    this.registerAutoReloadWorkflow();
+  }
+
+  private registerAutoReloadWorkflow(): void {
+    this.operatorMetadataService.getOperatorMetadata()
+      .filter(metadata => metadata.operators.length !== 0)
+      .subscribe(() => { this.workflowActionService.reloadWorkflow(this.workflowCacheService.getCachedWorkflow()); });
+  }
+
+  private registerAutoCacheWorkFlow(): void {
+    this.workflowActionService.workflowChanged().debounceTime(100).subscribe(() => {
+      this.workflowCacheService.setCacheWorkflow(this.workflowActionService.getWorkflow());
+    });
+  }
+
+  private registerAutoPersistWorkflow(): void {
+    this.workflowActionService.workflowChanged().debounceTime(100).subscribe(() => {
+      this.workflowPersistService.persistWorkflow(this.workflowActionService.getWorkflow())
+        .subscribe((updatedWorkflow: Workflow) => {
+          this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
+          this.workflowCacheService.setCacheWorkflow(this.workflowActionService.getWorkflow());
+        });
+      // to sync up with the updated information, such as workflow.wid
+    });
   }
 
   private loadWorkflowWithID(id: number): void {
     this.workflowPersistService.retrieveWorkflow(id).subscribe(
       (workflow: Workflow) => {
-        this.workflowActionService.setWorkflow(workflow);
+        this.workflowActionService.reloadWorkflow(workflow);
         this.undoRedoService.clearUndoStack();
         this.undoRedoService.clearRedoStack();
         this.workflowCacheService.setCacheWorkflow(this.workflowActionService.getWorkflow());
