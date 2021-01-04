@@ -511,7 +511,7 @@ abstract class WorkerBase(identifier: ActorVirtualIdentity) extends WorkflowActo
       context.become(completed)
       unstashAll()
     case ExecutionPaused() =>
-      log.info(s"received Excution Pause message")
+      log.info(s"received Execution Pause message")
       onPaused()
       context.become(paused)
       unstashAll()

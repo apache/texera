@@ -6,6 +6,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkSenderActor.{
   NetworkMessage,
   QueryActorRef,
   RegisterActorRef,
+  ResendMessages,
   SendRequest
 }
 import edu.uci.ics.amber.engine.common.ambermessage.neo.WorkflowMessage
@@ -13,6 +14,7 @@ import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
 
 import scala.collection.mutable
+import scala.concurrent.duration._
 
 object NetworkSenderActor {
 
@@ -46,6 +48,8 @@ object NetworkSenderActor {
     */
   final case class NetworkAck(messageID: Long)
 
+  final case class ResendMessages()
+
   def props(): Props =
     Props(new NetworkSenderActor())
 }
@@ -65,11 +69,19 @@ class NetworkSenderActor extends Actor {
     * It's different from the sequence number and it will only
     * be used by the output gate.
     */
-  var messageID = 0L
+  var networkMessageID = 0L
   val messageIDToIdentity = new mutable.LongMap[ActorVirtualIdentity]
 
   //add worker actor into idMap
   idToActorRefs(VirtualIdentity.Self) = context.parent
+
+  //register timer for resending messages
+  context.system.scheduler.schedule(
+    30.seconds,
+    30.seconds,
+    self,
+    ResendMessages
+  )(context.dispatcher)
 
   /** This method should always be a part of the unified WorkflowActor receiving logic.
     * 1. when an actor wants to know the actorRef of an Identifier, it replies if the mapping
@@ -109,13 +121,13 @@ class NetworkSenderActor extends Actor {
     */
   private def forward(to: ActorVirtualIdentity, message: WorkflowMessage): Unit = {
     val congestionControl = idToCongestionControls.getOrElseUpdate(to, new CongestionControl())
-    val data = NetworkMessage(messageID, message)
-    messageIDToIdentity(messageID) = to
-    if (congestionControl.canBeSent(data)) {
-      //println(s"send $data")
+    val data = NetworkMessage(networkMessageID, message)
+    messageIDToIdentity(networkMessageID) = to
+    if (congestionControl.canSend(data)) {
+      congestionControl.markMessageInTransit(data)
       idToActorRefs(to) ! data
     }
-    messageID += 1
+    networkMessageID += 1
   }
 
   /** Add one mapping from Identifier to ActorRef into its state.
@@ -138,9 +150,18 @@ class NetworkSenderActor extends Actor {
       forwardMessage(id, msg)
     case NetworkAck(id) =>
       val actorID = messageIDToIdentity(id)
-      idToCongestionControls(actorID).ack(id).foreach { msg =>
-        //println(s"send $msg")
+      val congestionControl = idToCongestionControls(actorID)
+      congestionControl.ack(id)
+      congestionControl.getBufferedMessagesToSend.foreach { msg =>
+        congestionControl.markMessageInTransit(msg)
         idToActorRefs(actorID) ! msg
+      }
+    case ResendMessages =>
+      idToCongestionControls.foreach {
+        case (id, ctrl) =>
+          ctrl.getTimedOutInTransitMessages.foreach { msg =>
+            idToActorRefs(id) ! msg
+          }
       }
   }
 
