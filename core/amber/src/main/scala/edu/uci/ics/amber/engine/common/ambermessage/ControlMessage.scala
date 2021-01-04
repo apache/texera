@@ -5,6 +5,7 @@ import edu.uci.ics.amber.engine.architecture.breakpoint.FaultedTuple
 import edu.uci.ics.amber.engine.architecture.breakpoint.localbreakpoint.LocalBreakpoint
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import akka.actor.ActorRef
+import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 object ControlMessage {
 
@@ -48,4 +49,6 @@ object ControlMessage {
   final case class ResumeTuple(faultedTuple: FaultedTuple) extends WorkflowMessage
 
   final case class KillAndRecover() extends WorkflowMessage
+
+  final case class LogErrorToFrontEnd(err: WorkflowRuntimeError) extends WorkflowMessage
 }

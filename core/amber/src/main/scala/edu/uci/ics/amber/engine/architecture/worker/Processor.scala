@@ -4,7 +4,7 @@ import akka.actor.Props
 import edu.uci.ics.amber.engine.architecture.breakpoint.FaultedTuple
 import edu.uci.ics.amber.engine.architecture.receivesemantics.FIFOAccessPort
 import edu.uci.ics.amber.engine.architecture.worker.neo.PauseManager
-import edu.uci.ics.amber.engine.common.amberexception.AmberException
+import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage.{QueryState, _}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage._
 import edu.uci.ics.amber.engine.common.ambertag.{LayerTag, WorkerTag}
@@ -17,6 +17,7 @@ import edu.uci.ics.amber.engine.common.{
 }
 import edu.uci.ics.amber.engine.faulttolerance.recovery.RecoveryPacket
 import edu.uci.ics.amber.engine.operators.OpExecConfig
+import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 import scala.annotation.elidable
 import scala.annotation.elidable._
@@ -205,7 +206,13 @@ class Processor(var operator: IOperatorExecutor, val tag: WorkerTag) extends Wor
     case EndSending(_) | DataMessage(_, _) | RequireAck(_: EndSending) | RequireAck(
           _: DataMessage
         ) =>
-      throw new AmberException("not supposed to receive data messages at this time")
+      throw new WorkflowRuntimeException(
+        WorkflowRuntimeError(
+          "not supposed to receive data messages at this time",
+          "Principal:disallowDataMessages",
+          Map()
+        )
+      )
   }
 
   final def saveDataMessages: Receive = {
@@ -245,7 +252,13 @@ class Processor(var operator: IOperatorExecutor, val tag: WorkerTag) extends Wor
   final def disallowUpdateInputLinking: Receive = {
     case UpdateInputLinking(inputActor, edgeID, inputNum) =>
       sender ! Ack
-      throw new AmberException(s"update input linking of $edgeID is not allowed at this time")
+      throw new WorkflowRuntimeException(
+        WorkflowRuntimeError(
+          s"update input linking of $edgeID is not allowed at this time",
+          "Principal:disallowUpdateInputLinking",
+          Map()
+        )
+      )
   }
 
   final def reactOnUpstreamExhausted: Receive = {
