@@ -9,6 +9,7 @@ import { OperatorMetadataService } from '../operator-metadata/operator-metadata.
 import { StubOperatorMetadataService } from '../operator-metadata/stub-operator-metadata.service';
 import { JointUIService } from '.././joint-ui/joint-ui.service';
 import { marbles } from 'rxjs-marbles';
+import { WorkflowUtilService } from '../workflow-graph/util/workflow-util.service';
 
 describe('ValidationWorkflowService', () => {
   let validationWorkflowService: ValidationWorkflowService;
@@ -17,6 +18,7 @@ describe('ValidationWorkflowService', () => {
     TestBed.configureTestingModule({
       providers: [
         WorkflowActionService,
+        WorkflowUtilService,
         UndoRedoService,
         ValidationWorkflowService,
         JointUIService,

@@ -9,6 +9,9 @@ scalaVersion := "2.12.8"
 scalacOptions ++= Seq("-Xelide-below", "WARNING")
 scalacOptions ++= Seq("-feature")
 
+// ensuring no parallel execution of multiple tasks
+concurrentRestrictions in Global += Tags.limit(Tags.Test, 1)
+
 val akkaVersion = "2.5.24"
 val hadoopVersion = "3.2.0"
 
@@ -90,3 +93,5 @@ libraryDependencies += "mysql" % "mysql-connector-java" % "8.0.19"
 
 // https://mvnrepository.com/artifact/org.jooq/jooq
 libraryDependencies += "org.jooq" % "jooq" % "3.14.4"
+
+libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.9.2"
