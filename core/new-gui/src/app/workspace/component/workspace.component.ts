@@ -105,10 +105,11 @@ export class WorkspaceComponent implements OnInit {
         const id = this.route.snapshot.params.id;
         if (id === 'new') {
           // if new is present in the url, create a new workflow
+          this.workflowCacheService.resetCachedWorkflow();
           this.workflowActionService.resetAsNewWorkflow();
           this.location.go('/');
         } else {
-          // if wid is present in the url, load if from backend
+          // if wid is present in the url, load it from backend
           this.loadWorkflowWithID(id);
         }
       } else {
@@ -146,6 +147,7 @@ export class WorkspaceComponent implements OnInit {
         .subscribe((updatedWorkflow: Workflow) => {
           this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
           this.workflowCacheService.setCacheWorkflow(this.workflowActionService.getWorkflow());
+          this.location.go(`/workflow/${updatedWorkflow.wid}`);
         });
       // to sync up with the updated information, such as workflow.wid
     });

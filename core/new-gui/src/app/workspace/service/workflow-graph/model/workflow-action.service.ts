@@ -3,8 +3,8 @@ import { Injectable } from '@angular/core';
 import * as joint from 'jointjs';
 import { cloneDeep } from 'lodash';
 import { BehaviorSubject, Observable, Subject } from 'rxjs';
-import { mapToRecord, recordToMap } from 'src/app/common/util/map';
 import { Workflow, WorkflowContent } from '../../../../common/type/workflow';
+import { mapToRecord, recordToMap } from '../../../../common/util/map';
 import { WorkflowMetadata } from '../../../../dashboard/type/workflow-metadata.interface';
 import { Breakpoint, OperatorLink, OperatorPort, OperatorPredicate, Point } from '../../../types/workflow-common.interface';
 import { JointUIService } from '../../joint-ui/joint-ui.service';
@@ -76,7 +76,7 @@ export class WorkflowActionService {
     private operatorMetadataService: OperatorMetadataService,
     private jointUIService: JointUIService,
     private undoRedoService: UndoRedoService,
-    private workflowUtilService: WorkflowUtilService,
+    private workflowUtilService: WorkflowUtilService
   ) {
     this.texeraGraph = new WorkflowGraph();
     this.jointGraph = new joint.dia.Graph();
@@ -130,7 +130,7 @@ export class WorkflowActionService {
     // save first event as starting position
     // compare starting position to final position at last event
     // command saves just the delta for undo/redo purposes
-    let oldPosition: Point = { x: 0, y: 0 };
+    let oldPosition: Point = {x: 0, y: 0};
     let gotOldPosition = false;
     let dragRoot: string; // element that was clicked to start the drag
 
@@ -474,7 +474,7 @@ export class WorkflowActionService {
     operatorIDsCopy.forEach(operatorID => {
       const group = cloneDeep(this.getOperatorGroup().getGroupByOperator(operatorID));
       if (group) {
-        groups.set(operatorID, { group, layer: this.getJointGraphWrapper().getCellLayer(group.groupID) });
+        groups.set(operatorID, {group, layer: this.getJointGraphWrapper().getCellLayer(group.groupID)});
       }
     });
 
@@ -761,9 +761,7 @@ export class WorkflowActionService {
   }
 
   /**
-   * When the browser reloads, this method will be called to reload
-   *  previously created workflow stored in the local storage onto
-   *  the JointJS paper.
+   * Reload the given workflow, update workflowMetadata and workflowContent.
    */
   public reloadWorkflow(workflow: Workflow | undefined): void {
     this.setWorkflowMetadata(workflow);
@@ -783,7 +781,7 @@ export class WorkflowActionService {
       if (!opPosition) {
         throw new Error('position error');
       }
-      operatorsAndPositions.push({ op: op, pos: opPosition });
+      operatorsAndPositions.push({op: op, pos: opPosition});
     });
 
     const links: OperatorLink[] = workflowContent.links;
@@ -862,7 +860,7 @@ export class WorkflowActionService {
   }
 
   public getWorkflow(): Workflow {
-    return <Workflow>{ ...this.workflowMetadata, ...{ content: this.getWorkflowContent() } };
+    return <Workflow>{...this.workflowMetadata, ...{content: this.getWorkflowContent()}};
   }
 
   public setWorkflowName(name: string): void {
@@ -920,10 +918,10 @@ export class WorkflowActionService {
       // if a group is collapsed, jointjs target is the group not the operator
       const jointLinkCell = JointUIService.getJointLinkCell(link);
       if (sourceGroup && sourceGroup.collapsed) {
-        jointLinkCell.set('source', { id: sourceGroup.groupID });
+        jointLinkCell.set('source', {id: sourceGroup.groupID});
       }
       if (targetGroup && targetGroup.collapsed) {
-        jointLinkCell.set('target', { id: targetGroup.groupID });
+        jointLinkCell.set('target', {id: targetGroup.groupID});
       }
 
       // manually add a link element (normally automatic when syncTexeraGraph = true)
