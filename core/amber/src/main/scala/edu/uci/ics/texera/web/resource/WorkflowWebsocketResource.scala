@@ -248,8 +248,4 @@ class WorkflowWebsocketResource {
 
   }
 
-  // get n-th page of completedResult (each page has 10 items)
-  def getCompletedResultPageN(n: Int): Map[String, List[ITuple]] = {
-    sessionResults.toMap map { case (k, v) => (k, v.slice(10 * (n - 1), 10 * n - 1)) }
-  }
 }
