@@ -6,13 +6,14 @@ import akka.util.Timeout
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.engine.architecture.breakpoint.FaultedTuple
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
-import edu.uci.ics.amber.engine.architecture.worker.neo._
+import edu.uci.ics.amber.engine.architecture.worker.neo.{_}
 import edu.uci.ics.amber.engine.common.IOperatorExecutor
-import edu.uci.ics.amber.engine.common.amberexception.AmberException
+import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage._
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage._
 import edu.uci.ics.amber.engine.common.tuple.ITuple
+import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 import scala.annotation.elidable
 import scala.annotation.elidable.INFO
@@ -28,9 +29,7 @@ abstract class WorkerBase extends WorkflowActor {
   var operator: IOperatorExecutor
 
   lazy val workerInternalQueue: WorkerInternalQueue = wire[WorkerInternalQueue]
-  lazy val tupleInput: BatchToTupleConverter = wire[BatchToTupleConverter]
   lazy val pauseManager: PauseManager = wire[PauseManager]
-  lazy val tupleOutput: TupleToBatchConverter = wire[TupleToBatchConverter]
   lazy val dataProcessor: DataProcessor = wire[DataProcessor]
 
   val receivedFaultedTupleIds: mutable.HashSet[Long] = new mutable.HashSet[Long]()
@@ -47,9 +46,9 @@ abstract class WorkerBase extends WorkflowActor {
 
   def onSkipTuple(faultedTuple: FaultedTuple): Unit = {
     if (faultedTuple.isInput) {
-      tupleOutput.skippedInputTuples.add(faultedTuple.tuple)
+      messagingManager.skippedInputTuples.add(faultedTuple.tuple)
     } else {
-      tupleOutput.skippedOutputTuples.add(faultedTuple.tuple)
+      messagingManager.skippedOutputTuples.add(faultedTuple.tuple)
     }
   }
 
@@ -64,7 +63,7 @@ abstract class WorkerBase extends WorkflowActor {
   }
 
   def onPausing(): Unit = {
-    tupleOutput.pauseDataTransfer()
+    messagingManager.pauseDataSending()
   }
 
   def onPaused(): Unit = {
@@ -72,7 +71,7 @@ abstract class WorkerBase extends WorkflowActor {
   }
 
   def onResuming(): Unit = {
-    tupleOutput.resumeDataTransfer()
+    messagingManager.resumeDataSending()
   }
 
   def onResumed(): Unit = {
@@ -80,7 +79,7 @@ abstract class WorkerBase extends WorkflowActor {
   }
 
   def onCompleted(): Unit = {
-    tupleOutput.endDataTransfer()
+    messagingManager.endDataSending()
     isCompleted = true
     context.parent ! ReportState(WorkerState.Completed)
   }
@@ -113,10 +112,10 @@ abstract class WorkerBase extends WorkflowActor {
   final def allowStashOrReleaseOutput: Receive = {
     case StashOutput =>
       sender ! Ack
-      tupleOutput.pauseDataTransfer()
+      messagingManager.pauseDataSending()
     case ReleaseOutput =>
       sender ! Ack
-      tupleOutput.resumeDataTransfer()
+      messagingManager.resumeDataSending()
   }
 
   final def allowModifyBreakpoints: Receive = {
@@ -134,10 +133,22 @@ abstract class WorkerBase extends WorkflowActor {
   final def disallowModifyBreakpoints: Receive = {
     case AssignBreakpoint(bp) =>
       sender ! Ack
-      throw new AmberException(s"Assignation of breakpoint ${bp.id} is not allowed at this time")
+      throw new WorkflowRuntimeException(
+        WorkflowRuntimeError(
+          s"Assignation of breakpoint ${bp.id} is not allowed at this time",
+          "WorkerBase:disallowModifyBreakpoints",
+          Map()
+        )
+      )
     case RemoveBreakpoint(id) =>
       sender ! Ack
-      throw new AmberException(s"Removal of breakpoint $id is not allowed at this time")
+      throw new WorkflowRuntimeException(
+        WorkflowRuntimeError(
+          s"Removal of breakpoint $id is not allowed at this time",
+          "WorkerBase:RemoveBreakpoint",
+          Map()
+        )
+      )
   }
 
   final def allowReset: Receive = {
@@ -152,13 +163,25 @@ abstract class WorkerBase extends WorkflowActor {
         toReport.get.isReported = true
         context.parent ! ReportedQueriedBreakpoint(toReport.get)
       } else {
-        throw new AmberException(s"breakpoint $id not found when query")
+        throw new WorkflowRuntimeException(
+          WorkflowRuntimeError(
+            s"breakpoint $id not found when query",
+            "WorkerBase:allowQueryBreakpoint",
+            Map()
+          )
+        )
       }
   }
 
   final def disallowQueryBreakpoint: Receive = {
     case QueryBreakpoint(id) =>
-      throw new AmberException(s"query breakpoint $id is not allowed at this time")
+      throw new WorkflowRuntimeException(
+        WorkflowRuntimeError(
+          s"query breakpoint $id is not allowed at this time",
+          "WorkerBase:disallowQueryBreakpoint",
+          Map()
+        )
+      )
   }
 
   final def allowQueryTriggeredBreakpoints: Receive = {
@@ -168,28 +191,42 @@ abstract class WorkerBase extends WorkflowActor {
         toReport.foreach(_.isReported = true)
         sender ! ReportedTriggeredBreakpoints(toReport)
       } else {
-        throw new AmberException(
-          "no triggered local breakpoints but worker in triggered breakpoint state"
+        throw new WorkflowRuntimeException(
+          WorkflowRuntimeError(
+            "no triggered local breakpoints but worker in triggered breakpoint state",
+            "WorkerBase:allowQueryTriggeredBreakpoints",
+            Map()
+          )
         )
       }
   }
 
   final def disallowQueryTriggeredBreakpoints: Receive = {
     case QueryTriggeredBreakpoints =>
-      throw new AmberException(s"query triggered breakpoints is not allowed at this time")
+      throw new WorkflowRuntimeException(
+        WorkflowRuntimeError(
+          s"query triggered breakpoints is not allowed at this time",
+          "WorkerBase:disallowQueryTriggeredBreakpoints",
+          Map()
+        )
+      )
   }
 
   final def allowUpdateOutputLinking: Receive = {
     case UpdateOutputLinking(policy, tag, receivers) =>
       sender ! Ack
-      tupleOutput.updateOutput(policy, tag, receivers)
+      messagingManager.updateReceiverAndSender(policy, tag, receivers)
   }
 
   final def disallowUpdateOutputLinking: Receive = {
     case UpdateOutputLinking(policy, tag, receivers) =>
       sender ! Ack
-      throw new AmberException(
-        s"update output link information of $tag is not allowed at this time"
+      throw new WorkflowRuntimeException(
+        WorkflowRuntimeError(
+          s"update output link information of $tag is not allowed at this time",
+          "WorkerBase:disallowUpdateOutputLinking",
+          Map()
+        )
       )
   }
 
@@ -208,7 +245,7 @@ abstract class WorkerBase extends WorkflowActor {
 
   final def stashOthers: Receive = {
     case msg =>
-      log.info("stashing: " + msg)
+      log.info(s"stashing in WorkerBase" + msg)
       stash()
   }
 
@@ -331,7 +368,13 @@ abstract class WorkerBase extends WorkflowActor {
       case CollectSinkResults =>
         sender ! WorkerMessage.ReportOutputResult(this.getResultTuples().toList)
       case LocalBreakpointTriggered =>
-        throw new AmberException("breakpoint triggered after pause")
+        throw new WorkflowRuntimeException(
+          WorkflowRuntimeError(
+            "breakpoint triggered after pause",
+            "WorkerBase:paused:LocalBreakpointTriggered",
+            Map()
+          )
+        )
     } orElse discardOthers
 
   def running: Receive =
@@ -347,7 +390,7 @@ abstract class WorkerBase extends WorkflowActor {
         context.become(paused)
         unstashAll()
       case Pause =>
-        log.info("received Pause message")
+        log.info(s"received Pause message")
         onPausing()
       case LocalBreakpointTriggered =>
         log.info("receive breakpoint triggered")
@@ -426,5 +469,16 @@ abstract class WorkerBase extends WorkflowActor {
           sender ! ReportState(WorkerState.Completed)
         }
     }
+
+  def pausing: Receive = {
+    case ExecutionPaused =>
+      //wait for signal from dp thread
+      onPaused()
+      context.become(paused)
+      unstashAll()
+    case msg =>
+      //stash all other messages
+      stash()
+  }
 
 }

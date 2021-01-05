@@ -1,10 +1,10 @@
-import { UserFile } from '../../../type/user-file';
-import { AppSettings } from '../../../app-setting';
+import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable, Subject } from 'rxjs';
-import { HttpClient } from '@angular/common/http';
+import { AppSettings } from '../../../app-setting';
 
 import { GenericWebResponse } from '../../../type/generic-web-response';
+import { UserFile } from '../../../type/user-file';
 import { UserService } from '../user.service';
 
 export const USER_FILE_LIST_URL = 'user/file/list';
@@ -96,7 +96,7 @@ export class UserFileService {
    * refresh the files in the service whenever the user changes.
    */
   private detectUserChanges(): void {
-    this.userService.userChange.subscribe(
+    this.userService.userChanged().subscribe(
       () => {
         if (this.userService.isLogin()) {
           this.refreshFiles();

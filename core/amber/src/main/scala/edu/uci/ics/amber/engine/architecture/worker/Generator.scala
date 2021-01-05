@@ -37,7 +37,7 @@ class Generator(var operator: IOperatorExecutor, val tag: WorkerTag)
     operator = value.asInstanceOf[ISourceOperatorExecutor]
     operator.open()
     dataProcessor.resetBreakpoints()
-    tupleOutput.resetOutput()
+    messagingManager.resetDataSending()
     context.become(ready)
     self ! Start
   }
@@ -62,7 +62,7 @@ class Generator(var operator: IOperatorExecutor, val tag: WorkerTag)
 
   override def onPaused(): Unit = {
     val (inputCount, outputCount) = dataProcessor.collectStatistics()
-    log.info(s"paused at $outputCount , 0")
+    log.info(s"${tag.getGlobalIdentity} paused at $outputCount , 0")
     context.parent ! ReportCurrentProcessingTuple(self.path, dataProcessor.getCurrentInputTuple)
     context.parent ! RecoveryPacket(tag, outputCount, 0)
     context.parent ! ReportState(WorkerState.Paused)
@@ -70,8 +70,8 @@ class Generator(var operator: IOperatorExecutor, val tag: WorkerTag)
 
   override def onResumeTuple(faultedTuple: FaultedTuple): Unit = {
     var i = 0
-    while (i < tupleOutput.output.length) {
-      tupleOutput.output(i).accept(faultedTuple.tuple)
+    while (i < messagingManager.policies.length) {
+      messagingManager.policies(i).addTupleToBatch(faultedTuple.tuple)
       i += 1
     }
   }
@@ -93,14 +93,11 @@ class Generator(var operator: IOperatorExecutor, val tag: WorkerTag)
     super.onPausing()
     pauseManager.pause()
     // if dp thread is blocking on waiting for input tuples:
-    if (workerInternalQueue.blockingDeque.isEmpty && tupleInput.isCurrentBatchExhausted) {
+    if (workerInternalQueue.isQueueEmpty()) {
       // insert dummy batch to unblock dp thread
       workerInternalQueue.addDummyInput()
     }
-    pauseManager.waitForDPThread()
-    onPaused()
-    context.become(paused)
-    unstashAll()
+    context.become(pausing)
   }
 
   override def onInitialization(recoveryInformation: Seq[(Long, Long)]): Unit = {
