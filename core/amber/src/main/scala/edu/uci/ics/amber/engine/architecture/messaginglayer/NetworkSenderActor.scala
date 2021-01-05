@@ -180,10 +180,6 @@ class NetworkSenderActor extends Actor with LazyLogging {
       idToActorRefs(actorID) ! msg
     } else {
       // otherwise, we ask the parent for the actorRef.
-      // Note that congestion control doesn't know the
-      // message is not sent yet. We will send the
-      // message when we get the actorRef and update
-      // the sent time.
       getActorRefMappingFromParent(actorID)
     }
   }
