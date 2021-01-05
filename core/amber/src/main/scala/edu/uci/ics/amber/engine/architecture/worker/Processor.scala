@@ -3,7 +3,10 @@ package edu.uci.ics.amber.engine.architecture.worker
 import akka.actor.Props
 import edu.uci.ics.amber.engine.architecture.breakpoint.FaultedTuple
 import edu.uci.ics.amber.engine.architecture.messaginglayer.DataInputPort.WorkflowDataMessage
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputGate.NetworkMessage
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkSenderActor.{
+  NetworkAck,
+  NetworkMessage
+}
 import edu.uci.ics.amber.engine.architecture.worker.neo.WorkerInternalQueue.InputTuple
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage.{QueryState, _}
@@ -163,7 +166,8 @@ class Processor(var operator: IOperatorExecutor, val tag: WorkerTag)
   }
 
   final def receiveDataMessages: Receive = {
-    case msg @ NetworkMessage(_, data: WorkflowDataMessage) =>
+    case msg @ NetworkMessage(id, data: WorkflowDataMessage) =>
+      sender ! NetworkAck(id)
       dataInputPort.handleDataMessage(data)
   }
 

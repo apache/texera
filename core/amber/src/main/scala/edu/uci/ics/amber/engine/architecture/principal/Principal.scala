@@ -76,9 +76,11 @@ import akka.pattern.after
 import akka.pattern.ask
 import com.google.common.base.Stopwatch
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputGate
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkSenderActor
 import com.typesafe.scalalogging.Logger
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.ErrorOccurred
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkSenderActor.RegisterActorRef
+import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.NamedActorVirtualIdentity
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 import scala.collection.mutable
@@ -92,10 +94,7 @@ object Principal {
 }
 
 class Principal(val metadata: OpExecConfig)
-    extends Actor
-    with ActorLogging
-    with Stash
-    with NetworkOutputGate {
+    extends WorkflowActor(NamedActorVirtualIdentity(metadata.tag.getGlobalIdentity)) {
   implicit val ec: ExecutionContext = context.dispatcher
   implicit val timeout: Timeout = 5.seconds
   implicit val logAdapter: LoggingAdapter = log
@@ -212,7 +211,7 @@ class Principal(val metadata: OpExecConfig)
   }
 
   final def ready: Receive = {
-    findActorRefFromVirtualIdentity orElse [Any, Unit] {
+    routeActorRefRelatedMessages orElse [Any, Unit] {
       case RecoveryPacket(amberTag, seq1, seq2) =>
         receivedRecoveryInformation(amberTag) = (seq1, seq2)
       case Start =>
@@ -280,7 +279,7 @@ class Principal(val metadata: OpExecConfig)
   }
 
   final def running: Receive = {
-    findActorRefFromVirtualIdentity orElse [Any, Unit] {
+    routeActorRefRelatedMessages orElse [Any, Unit] {
       case RecoveryPacket(amberTag, seq1, seq2) =>
         receivedRecoveryInformation(amberTag) = (seq1, seq2)
       case WorkerMessage.ReportState(state) =>
@@ -444,7 +443,7 @@ class Principal(val metadata: OpExecConfig)
     Set(WorkerState.Completed, WorkerState.Paused, WorkerState.LocalBreakpointTriggered)
 
   final def pausing: Receive = {
-    findActorRefFromVirtualIdentity orElse [Any, Unit] {
+    routeActorRefRelatedMessages orElse [Any, Unit] {
       case RecoveryPacket(amberTag, seq1, seq2) =>
         receivedRecoveryInformation(amberTag) = (seq1, seq2)
       case EnforceStateCheck =>
@@ -510,7 +509,7 @@ class Principal(val metadata: OpExecConfig)
   }
 
   final def collectingBreakpoints: Receive = {
-    findActorRefFromVirtualIdentity orElse [Any, Unit] {
+    routeActorRefRelatedMessages orElse [Any, Unit] {
       case RecoveryPacket(amberTag, seq1, seq2) =>
         receivedRecoveryInformation(amberTag) = (seq1, seq2)
       case EnforceStateCheck =>
@@ -599,7 +598,7 @@ class Principal(val metadata: OpExecConfig)
     Set(WorkerState.Running, WorkerState.Ready, WorkerState.Completed)
 
   final def resuming: Receive = {
-    findActorRefFromVirtualIdentity orElse [Any, Unit] {
+    routeActorRefRelatedMessages orElse [Any, Unit] {
       case RecoveryPacket(amberTag, seq1, seq2) =>
         receivedRecoveryInformation(amberTag) = (seq1, seq2)
       case EnforceStateCheck =>
@@ -651,7 +650,7 @@ class Principal(val metadata: OpExecConfig)
   }
 
   final def paused: Receive = {
-    findActorRefFromVirtualIdentity orElse [Any, Unit] {
+    routeActorRefRelatedMessages orElse [Any, Unit] {
       case KillAndRecover =>
         workerLayers.foreach { x =>
           x.layer(0) ! Reset(x.getFirstMetadata, Seq(receivedRecoveryInformation(x.tagForFirst)))
@@ -702,7 +701,7 @@ class Principal(val metadata: OpExecConfig)
   }
 
   final def completed: Receive = {
-    findActorRefFromVirtualIdentity orElse [Any, Unit] {
+    routeActorRefRelatedMessages orElse [Any, Unit] {
       case KillAndRecover =>
         workerLayers.foreach { x =>
           if (receivedRecoveryInformation.contains(x.tagForFirst)) {
@@ -757,7 +756,7 @@ class Principal(val metadata: OpExecConfig)
   }
 
   final override def receive: Receive = {
-    findActorRefFromVirtualIdentity orElse [Any, Unit] {
+    routeActorRefRelatedMessages orElse [Any, Unit] {
       case AckedPrincipalInitialization(prev: Array[(OpExecConfig, ActorLayer)]) =>
         workerLayers = metadata.topology.layers
         workerEdges = metadata.topology.links
@@ -819,7 +818,7 @@ class Principal(val metadata: OpExecConfig)
   }
 
   final def initializing: Receive = {
-    findActorRefFromVirtualIdentity orElse [Any, Unit] {
+    routeActorRefRelatedMessages orElse [Any, Unit] {
       case EnforceStateCheck =>
         for ((k, v) <- workerStateMap) {
           if (v != WorkerState.Ready) {
@@ -833,7 +832,7 @@ class Principal(val metadata: OpExecConfig)
           if (whenAllUncompletedWorkersBecome(WorkerState.Ready)) {
             workerLayers.foreach { layer =>
               layer.identifiers.indices.foreach(i =>
-                registerActorRef(layer.identifiers(i), layer.layer(i))
+                networkSenderActor ! RegisterActorRef(layer.identifiers(i), layer.layer(i))
               )
             }
             safeRemoveAskHandle()
