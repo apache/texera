@@ -10,7 +10,7 @@ object VirtualIdentity {
 
   trait ActorVirtualIdentity extends VirtualIdentity
 
-  case class NamedActorVirtualIdentity(name: String) extends ActorVirtualIdentity
+  case class WorkerActorVirtualIdentity(name: String) extends ActorVirtualIdentity
   case class ControllerVirtualIdentity() extends ActorVirtualIdentity
   case class SelfVirtualIdentity() extends ActorVirtualIdentity
 

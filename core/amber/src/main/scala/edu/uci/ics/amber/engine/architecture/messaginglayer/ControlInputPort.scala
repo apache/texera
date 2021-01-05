@@ -26,7 +26,7 @@ class ControlInputPort {
       msg.payload
     ) match {
       case Some(iterable) =>
-        processControlEvents(iterable)
+        processControlPayload(iterable)
       case None =>
         // discard duplicate
         println(s"receive duplicated: ${msg.payload}")
@@ -34,7 +34,7 @@ class ControlInputPort {
   }
 
   @inline
-  private def processControlEvents(iter: Iterable[ControlPayload]): Unit = {
+  private def processControlPayload(iter: Iterable[ControlPayload]): Unit = {
     iter.foreach {
       case other =>
       //TODO: implement future/promise here

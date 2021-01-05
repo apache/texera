@@ -3,7 +3,7 @@ package edu.uci.ics.amber.engine.architecture.messaginglayer
 import akka.actor.{Actor, ActorRef}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputGate.{
   NetworkMessage,
-  QueryActorRef,
+  GetActorRef,
   ReplyActorRef
 }
 import edu.uci.ics.amber.engine.common.ambermessage.neo.WorkflowMessage
@@ -16,7 +16,7 @@ object NetworkOutputGate {
 
   /** Identifier <-> ActorRef related messages
     */
-  final case class QueryActorRef(id: ActorVirtualIdentity, replyTo: ActorRef)
+  final case class GetActorRef(id: ActorVirtualIdentity, replyTo: ActorRef)
   final case class ReplyActorRef(id: ActorVirtualIdentity, ref: ActorRef)
 
   /** All outgoing message should be eventually NetworkMessage
@@ -60,11 +60,11 @@ trait NetworkOutputGate {
     * 2. when it receives a mapping, it adds that mapping to the state.
     */
   def findActorRefFromVirtualIdentity: Receive = {
-    case QueryActorRef(id, replyTo) =>
+    case GetActorRef(id, replyTo) =>
       if (idToActorRefs.contains(id)) {
         replyTo ! ReplyActorRef(id, idToActorRefs(id))
       } else {
-        context.parent ! QueryActorRef(id, replyTo)
+        context.parent ! GetActorRef(id, replyTo)
       }
     case ReplyActorRef(id, ref) =>
       registerActorRef(id, ref)
@@ -80,7 +80,7 @@ trait NetworkOutputGate {
       forward(idToActorRefs(to), message)
     } else {
       messageStash.getOrElseUpdate(to, new mutable.Queue[WorkflowMessage]()).enqueue(message)
-      context.parent ! QueryActorRef(to, self)
+      context.parent ! GetActorRef(to, self)
     }
   }
 

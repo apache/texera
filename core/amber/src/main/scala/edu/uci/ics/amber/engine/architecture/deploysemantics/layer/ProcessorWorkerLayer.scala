@@ -11,7 +11,7 @@ import akka.remote.RemoteScope
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.{
   ActorVirtualIdentity,
-  NamedActorVirtualIdentity
+  WorkerActorVirtualIdentity
 }
 
 import scala.collection.mutable
@@ -51,7 +51,7 @@ class ProcessorWorkerLayer(
       }
       layer(i) =
         context.actorOf(Processor.props(m, workerTag).withDeploy(Deploy(scope = RemoteScope(d))))
-      identifiers(i) = NamedActorVirtualIdentity(workerTag.getGlobalIdentity)
+      identifiers(i) = WorkerActorVirtualIdentity(workerTag.getGlobalIdentity)
     }
   }
 

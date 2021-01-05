@@ -26,7 +26,7 @@ class DataInputPort(tupleProducer: BatchToTupleConverter) {
       msg.payload
     ) match {
       case Some(iterable) =>
-        tupleProducer.processDataEvents(msg.from, iterable)
+        tupleProducer.processDataPayload(msg.from, iterable)
       case None =>
       // discard duplicate
     }

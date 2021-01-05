@@ -42,7 +42,7 @@ class BatchToTupleConverter(workerInternalQueue: WorkerInternalQueue) {
     * @param from
     * @param dataPayloads
     */
-  def processDataEvents(from: VirtualIdentity, dataPayloads: Iterable[DataPayload]): Unit = {
+  def processDataPayload(from: VirtualIdentity, dataPayloads: Iterable[DataPayload]): Unit = {
     val sender = inputMap(from)
     if (currentSender != sender) {
       workerInternalQueue.appendElement(SenderChangeMarker(sender))
