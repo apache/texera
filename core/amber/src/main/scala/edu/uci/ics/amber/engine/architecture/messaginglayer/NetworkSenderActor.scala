@@ -1,7 +1,16 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
 import akka.actor.{Actor, ActorRef, Props, Stash}
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkSenderActor.{MessageBecomesDeadLetter, NetworkAck, NetworkMessage, QueryActorRef, RegisterActorRef, ResendMessages, SendRequest}
+import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkSenderActor.{
+  MessageBecomesDeadLetter,
+  NetworkAck,
+  NetworkMessage,
+  QueryActorRef,
+  RegisterActorRef,
+  ResendMessages,
+  SendRequest
+}
 import edu.uci.ics.amber.engine.common.ambermessage.neo.WorkflowMessage
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
@@ -43,7 +52,7 @@ object NetworkSenderActor {
 
   final case class ResendMessages()
 
-  final case class MessageBecomesDeadLetter(message:NetworkMessage)
+  final case class MessageBecomesDeadLetter(message: NetworkMessage)
 
   def props(): Props =
     Props(new NetworkSenderActor())
@@ -53,7 +62,7 @@ object NetworkSenderActor {
   * and also sends message to other actors. This is the most outer part of
   * the messaging layer.
   */
-class NetworkSenderActor extends Actor {
+class NetworkSenderActor extends Actor with LazyLogging {
 
   val idToActorRefs = new mutable.HashMap[ActorVirtualIdentity, ActorRef]()
   val idToCongestionControls = new mutable.HashMap[ActorVirtualIdentity, CongestionControl]()
@@ -107,8 +116,9 @@ class NetworkSenderActor extends Actor {
     messageIDToIdentity(networkMessageID) = to
     if (congestionControl.canSend) {
       congestionControl.markMessageInTransit(data)
-      sendInternal(to, data)
-    }else{
+      congestionControl.markSentTime(data)
+      sendOrGetActorRef(to, data)
+    } else {
       congestionControl.enqueueMessage(data)
     }
     networkMessageID += 1
@@ -121,6 +131,11 @@ class NetworkSenderActor extends Actor {
     */
   def registerActorRef(actorID: ActorVirtualIdentity, ref: ActorRef): Unit = {
     idToActorRefs(actorID) = ref
+    val ctrl = idToCongestionControls(actorID)
+    ctrl.getInTransitMessages.foreach { msg =>
+      ctrl.markSentTime(msg)
+      ref ! msg // directly send it
+    }
   }
 
   def sendMessagesAndReceiveAcks: Receive = {
@@ -132,36 +147,44 @@ class NetworkSenderActor extends Actor {
       congestionControl.ack(id)
       congestionControl.getBufferedMessagesToSend.foreach { msg =>
         congestionControl.markMessageInTransit(msg)
-        sendInternal(actorID,msg)
+        congestionControl.markSentTime(msg)
+        sendOrGetActorRef(actorID, msg)
       }
     case ResendMessages =>
       queriedActorVirtualIdentities.clear()
       idToCongestionControls.foreach {
         case (actorID, ctrl) =>
           ctrl.getTimedOutInTransitMessages.foreach { msg =>
-            sendInternal(actorID, msg)
+            sendOrGetActorRef(actorID, msg)
           }
       }
     case MessageBecomesDeadLetter(msg) =>
       // only remove the mapping from id to actorRef
       // to trigger discover mechanism
       val actorID = messageIDToIdentity(msg.messageID)
+      logger.warn(s"actor for $actorID might have crashed or failed")
       idToActorRefs.remove(actorID)
       getActorRefMappingFromParent(actorID)
   }
 
   @inline
-  private[this] def sendInternal(actorID:ActorVirtualIdentity, msg:NetworkMessage): Unit ={
+  private[this] def sendOrGetActorRef(actorID: ActorVirtualIdentity, msg: NetworkMessage): Unit = {
     if (idToActorRefs.contains(actorID)) {
+      // if actorRef is found, directly send it
       idToActorRefs(actorID) ! msg
     } else {
+      // otherwise, we ask the parent for the actorRef.
+      // Note that congestion control doesn't know the
+      // message is not sent yet. We will send the
+      // message when we get the actorRef and update
+      // the sent time.
       getActorRefMappingFromParent(actorID)
     }
   }
 
   @inline
-  private[this] def getActorRefMappingFromParent(actorID:ActorVirtualIdentity): Unit ={
-    if(!queriedActorVirtualIdentities.contains(actorID)) {
+  private[this] def getActorRefMappingFromParent(actorID: ActorVirtualIdentity): Unit = {
+    if (!queriedActorVirtualIdentities.contains(actorID)) {
       context.parent ! QueryActorRef(actorID, Set(self))
       queriedActorVirtualIdentities.add(actorID)
     }

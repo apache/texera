@@ -42,11 +42,8 @@ object AmberUtils {
     val system = ActorSystem("Amber", config)
     val info = system.actorOf(Props[ClusterListener], "cluster-info")
     val deadLetterMonitorActor =
-      system.actorOf(Props[DeadLetterMonitorActor],
-        name = "dead-letter-monitor-actor")
-    system.eventStream.subscribe(
-      deadLetterMonitorActor, classOf[DeadLetter])
-
+      system.actorOf(Props[DeadLetterMonitorActor], name = "dead-letter-monitor-actor")
+    system.eventStream.subscribe(deadLetterMonitorActor, classOf[DeadLetter])
 
     system
   }
@@ -65,10 +62,8 @@ object AmberUtils {
     val system = ActorSystem("Amber", config)
     val info = system.actorOf(Props[ClusterListener], "cluster-info")
     val deadLetterMonitorActor =
-      system.actorOf(Props[DeadLetterMonitorActor],
-        name = "dead-letter-monitor-actor")
-    system.eventStream.subscribe(
-      deadLetterMonitorActor, classOf[DeadLetter])
+      system.actorOf(Props[DeadLetterMonitorActor], name = "dead-letter-monitor-actor")
+    system.eventStream.subscribe(deadLetterMonitorActor, classOf[DeadLetter])
     Constants.masterNodeAddr = addr
     system
   }

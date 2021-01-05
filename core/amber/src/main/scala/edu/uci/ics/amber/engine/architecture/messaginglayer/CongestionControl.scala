@@ -1,10 +1,5 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
-import edu.uci.ics.amber.engine.architecture.messaginglayer.CongestionControl.{
-  maxWindowSize,
-  minWindowSize,
-  timeGap
-}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkSenderActor.NetworkMessage
 
 import scala.collection.mutable
@@ -71,18 +66,25 @@ class CongestionControl {
   }
 
   def markMessageInTransit(data: NetworkMessage): Unit = {
-    sentTime(System.currentTimeMillis()) = data.messageID
     inTransit(data.messageID) = data
   }
 
-  def getTimedOutInTransitMessages: Array[NetworkMessage] = {
+  def markSentTime(data: NetworkMessage): Unit = {
+    sentTime(System.currentTimeMillis()) = data.messageID
+  }
+
+  def getTimedOutInTransitMessages: Iterable[NetworkMessage] = {
     val timeCap = System.currentTimeMillis() - resendTimeLimit
     sentTime.valuesIterator
       .takeWhile(_ < timeCap)
       .map { id =>
         inTransit(id)
       }
-      .toArray
+      .toIterable
+  }
+
+  def getInTransitMessages: Iterable[NetworkMessage] = {
+    inTransit.values
   }
 
 }
