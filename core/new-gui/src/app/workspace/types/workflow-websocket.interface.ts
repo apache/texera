@@ -50,6 +50,14 @@ export type OperatorCurrentTuples = Readonly<{
   tuples: ReadonlyArray<WorkerTuples>
 }>;
 
+type PaginatedResultEvent = Readonly<{
+  paginatedResults: ReadonlyArray<{
+    operatorID: string,
+    table: ReadonlyArray<object>,
+    totalRowCount: number
+  }>
+}>;
+
 export type TexeraWebsocketRequestTypeMap = {
   'HelloWorldRequest': WebSocketHelloWorld,
   'ExecuteWorkflowRequest': LogicalPlan,
@@ -58,7 +66,8 @@ export type TexeraWebsocketRequestTypeMap = {
   'KillWorkflowRequest': {},
   'ModifyLogicRequest': ModifyOperatorLogic,
   'SkipTupleRequest': SkipTuple,
-  'AddBreakpointRequest': BreakpointInfo
+  'AddBreakpointRequest': BreakpointInfo,
+  'ResultPaginationRequest': {pageIndex: number, pageSize: number}
 };
 
 export type TexeraWebsocketEventTypeMap = {
@@ -73,6 +82,7 @@ export type TexeraWebsocketEventTypeMap = {
   'BreakpointTriggeredEvent': BreakpointTriggerInfo,
   'ModifyLogicCompletedEvent': {},
   'OperatorCurrentTuplesUpdateEvent': OperatorCurrentTuples,
+  'PaginatedResultEvent': PaginatedResultEvent,
   'WorkflowExecutionErrorEvent': WorkflowExecutionError
 };
 

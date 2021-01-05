@@ -19,6 +19,8 @@ import { WorkflowWebsocketService } from '../workflow-websocket/workflow-websock
 import { OperatorPredicate, BreakpointTriggerInfo, BreakpointRequest, Breakpoint } from '../../types/workflow-common.interface';
 import { TexeraWebsocketEvent, WorkerTuples, OperatorCurrentTuples } from '../../types/workflow-websocket.interface';
 import { isEqual } from 'lodash';
+import { PAGINATION_INFO_STORAGE_KEY, ResultPaginationInfo } from '../../types/result-table.interface';
+import { sessionGetObject, sessionSetObject } from 'src/app/common/util/storage';
 
 export const FORM_DEBOUNCE_TIME_MS = 150;
 
@@ -177,6 +179,14 @@ export class ExecuteWorkflowService {
     }, FORM_DEBOUNCE_TIME_MS);
     this.updateExecutionState({ state: ExecutionState.WaitingToRun });
     this.setExecutionTimeout('submit workflow timeout', ExecutionState.Running, ExecutionState.Failed);
+
+    // add flag for new execution of workflow
+    // so when next time the result panel is displayed, it will use new data
+    // instead of those stored in the session storage
+    const resultPaginationInfo = sessionGetObject<ResultPaginationInfo>(PAGINATION_INFO_STORAGE_KEY);
+    if (resultPaginationInfo) {
+      sessionSetObject(PAGINATION_INFO_STORAGE_KEY, {...resultPaginationInfo, newWorkflowExecuted: true});
+    }
   }
 
   public pauseWorkflow(): void {
