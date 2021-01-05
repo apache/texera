@@ -13,7 +13,8 @@
           <mat-divider></mat-divider>
         </mat-list>
       </div>
-      <button type="button" class="btn btn-outline-dark add-button" (click)="openNgbdModalResourceAddComponent()" [disabled] = "disableAddbutton()">
+      <button type="button" class="btn btn-outline-dark add-button" (click)="openNgbdModalResourceAddComponent()"
+        [disabled]="disableAddbutton()">
         <i class="fa fa-cloud-upload"></i>
       </button>
     </div>
@@ -33,13 +34,14 @@
               </p>
               <p>
                 Item Preview:
-                <mat-chip class="preview-item" *ngFor="let item of dictionary.items.slice(0,6)" [selectable]="true" >
+                <mat-chip class="preview-item" *ngFor="let item of dictionary.items.slice(0,6)" [selectable]="true">
                   {{limitPreviewItemSize(item)}}
                 </mat-chip>
               </p>
             </div>
             <span class="gap-filler"></span>
-            <button type="button" class="btn btn-outline-dark view-button" (click)="openNgbdModalResourceViewComponent(dictionary)">View</button>
+            <button type="button" class="btn btn-outline-dark view-button"
+              (click)="openNgbdModalResourceViewComponent(dictionary)">View</button>
             <button mat-button class="delete-project-btn" placement="bottom" ngbTooltip="Delete the {{dictionary.name}}"
               (click)="openNgbdModalResourceDeleteComponent(dictionary)"><i class="fa fa-trash"></i></button>
           </mat-list-item>

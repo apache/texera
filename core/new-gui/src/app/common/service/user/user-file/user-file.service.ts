@@ -1,10 +1,10 @@
-import { UserFile } from '../../../type/user-file';
-import { AppSettings } from '../../../app-setting';
+import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable, Subject } from 'rxjs';
-import { HttpClient } from '@angular/common/http';
+import { AppSettings } from '../../../app-setting';
 
 import { GenericWebResponse } from '../../../type/generic-web-response';
+import { UserFile } from '../../../type/user-file';
 import { UserService } from '../user.service';
 
 export const USER_FILE_LIST_URL = 'user/file/list';
@@ -15,13 +15,13 @@ export const USER_FILE_DELETE_URL = 'user/file/delete';
 })
 export class UserFileService {
   private userFiles: UserFile[] | undefined;
-  private userFilesChanged = new Subject<ReadonlyArray<UserFile> | undefined> ();
+  private userFilesChanged = new Subject<ReadonlyArray<UserFile> | undefined>();
 
   constructor(
     private http: HttpClient,
     private userService: UserService
-    ) {
-      this.detectUserChanges();
+  ) {
+    this.detectUserChanges();
   }
 
   /**
@@ -42,7 +42,9 @@ export class UserFileService {
    * these file can be accessed by function {@link getFileArray}
    */
   public refreshFiles(): void {
-    if (!this.userService.isLogin()) {return; }
+    if (!this.userService.isLogin()) {
+      return;
+    }
 
     this.getFilesHttpRequest().subscribe(
       files => {
@@ -69,7 +71,9 @@ export class UserFileService {
    * @param fileSize
    */
   public addFileSizeUnit(fileSize: number): string {
-    if (fileSize <= 1024) { return fileSize + ' Byte'; }
+    if (fileSize <= 1024) {
+      return fileSize + ' Byte';
+    }
 
     let i = 0;
     const byteUnits = [' Byte', ' KB', ' MB', ' GB', ' TB', ' PB', ' EB', ' ZB', ' YB'];
@@ -78,7 +82,7 @@ export class UserFileService {
       i++;
     }
     return Math.max(fileSize, 0.1).toFixed(1) + byteUnits[i];
-}
+  }
 
   private deleteFileHttpRequest(fileID: number): Observable<GenericWebResponse> {
     return this.http.delete<GenericWebResponse>(`${AppSettings.getApiEndpoint()}/${USER_FILE_DELETE_URL}/${fileID}`);
@@ -92,7 +96,7 @@ export class UserFileService {
    * refresh the files in the service whenever the user changes.
    */
   private detectUserChanges(): void {
-    this.userService.getUserChangedEvent().subscribe(
+    this.userService.userChanged().subscribe(
       () => {
         if (this.userService.isLogin()) {
           this.refreshFiles();

@@ -1,20 +1,21 @@
-.modal-body{
+.modal-body {
   word-wrap: break-word;
 }
 
 
-.file-upload-btn{
+.file-upload-btn {
   background-color: #1dc739
 }
 
-.or-separator{
-  font-family:Roboto, Arial, sans-serif;
+.or-separator {
+  font-family: Roboto, Arial, sans-serif;
 }
 
-.add-dictionary-container{
-  margin-top:20px;
+.add-dictionary-container {
+  margin-top: 20px;
 }
-.add-dictionary-container > *{
+
+.add-dictionary-container>* {
   display: flex;
   flex-direction: column;
   column-fill: balance;
@@ -40,13 +41,13 @@
 }
 
 .have-file-over {
-  background:  lightgray;
+  background: lightgray;
 }
 
 .invalid-file {
   // margin-left:10px;
-  padding-left:10px;
-  color:orange;
+  padding-left: 10px;
+  color: orange;
 }
 
 .file-queue-item {
@@ -56,16 +57,16 @@
   margin-bottom: 5px;
 }
 
-.drag-file-container:last-child{
-  border-bottom:none;
+.drag-file-container:last-child {
+  border-bottom: none;
 }
 
-.delete-all-invalid-button{
+.delete-all-invalid-button {
   background: red;
 }
 
-.queue-delete-button{
-  background-color:red;
+.queue-delete-button {
+  background-color: red;
   border-radius: 4px;
   width: 50px;
   cursor: pointer;
@@ -73,36 +74,36 @@
   transition-duration: 0.2s;
 }
 
-.queue-delete-button:hover{
-  color:white;
+.queue-delete-button:hover {
+  color: white;
   // background-color: orangered;
 }
 
-.invalid-file-warning{
- color:orange;
+.invalid-file-warning {
+  color: orange;
 }
 
-.bottom-size{
-  width:75px;
+.bottom-size {
+  width: 75px;
 }
 
 #hide input[type=file] {
-  display:none;
-  margin:10px;
+  display: none;
+  margin: 10px;
 }
 
-#hide input[type=file] + label {
-  display:inline-block;
-  margin:20px;
+#hide input[type=file]+label {
+  display: inline-block;
+  margin: 20px;
   padding: 4px 32px;
   background-color: #FFFFFF;
-  border:solid 1px #666F77;
+  border: solid 1px #666F77;
   border-radius: 6px;
-  color:#666F77;
+  color: #666F77;
 }
 
-#hide input[type=file]:active + label {
+#hide input[type=file]:active+label {
   background-image: none;
-  background-color:#2D6C7A;
-  color:#FFFFFF;
+  background-color: #2D6C7A;
+  color: #FFFFFF;
 }

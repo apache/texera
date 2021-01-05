@@ -8,17 +8,13 @@
   <mat-tab-group mat-stretch-tabs (selectedTabChange)="onTabChangeEvent($event)">
     <!-- upload files tab -->
     <mat-tab label="Upload">
-      <div ng2FileDrop
-        [ngClass]="{'have-file-over': haveDropZoneOver}"
-        (fileOver)="haveFileOver($event)"
-        (onFileDrop)="getFileDropped($event)"
-        [uploader]="uploader"
-        class="drag-file-area"
+      <div ng2FileDrop [ngClass]="{'have-file-over': haveDropZoneOver}" (fileOver)="haveFileOver($event)"
+        (onFileDrop)="getFileDropped($event)" [uploader]="uploader" class="drag-file-area"
         (click)="clickUpload.click()">
 
         Drop Files Here
         <div id="hide">
-          <input #clickUpload type="file" accept=".txt"(change)="handleClickUploadFile($event)" multiple/>
+          <input #clickUpload type="file" accept=".txt" (change)="handleClickUploadFile($event)" multiple />
         </div>
 
       </div>
@@ -42,26 +38,26 @@
 
     <!-- tab for manual dictionary creation by the user -->
     <mat-tab label="Add Manually">
-      <div class= "add-dictionary-container">
+      <div class="add-dictionary-container">
         <mat-dialog-content>
           <mat-form-field>
             <input matInput [(ngModel)]="getManualDictionary().name" placeholder="Name of Dictionary"
-            [formControl]="nameValidator" [errorStateMatcher]="matcher" required>
+              [formControl]="nameValidator" [errorStateMatcher]="matcher" required>
             <mat-error *ngIf="nameValidator.invalid">*Name is <strong>required</strong></mat-error>
           </mat-form-field>
           <mat-form-field>
-            <textarea matInput style="resize: none;"
-              [(ngModel)]="getManualDictionary().content" placeholder="Content of Dictionary"
-              [formControl]="contentValidator" [errorStateMatcher]="matcher" required
-              matTextareaAutosize matAutosizeMaxRows="8">
+            <textarea matInput style="resize: none;" [(ngModel)]="getManualDictionary().content"
+              placeholder="Content of Dictionary" [formControl]="contentValidator" [errorStateMatcher]="matcher"
+              required matTextareaAutosize matAutosizeMaxRows="8">
             </textarea>
             <mat-error *ngIf="contentValidator.invalid">*Content is <strong>required</strong></mat-error>
           </mat-form-field>
           <mat-form-field>
-            <input  matInput [(ngModel)]="getManualDictionary().separator" placeholder="Content Separator (' , '    ' \\t '    ' \\n ')">
+            <input matInput [(ngModel)]="getManualDictionary().separator"
+              placeholder="Content Separator (' , '    ' \\t '    ' \\n ')">
           </mat-form-field>
-          <mat-form-field class= "description-area">
-            <input  matInput [(ngModel)]="getManualDictionary().description" placeholder="Dictionary Description">
+          <mat-form-field class="description-area">
+            <input matInput [(ngModel)]="getManualDictionary().description" placeholder="Dictionary Description">
           </mat-form-field>
         </mat-dialog-content>
       </div>
@@ -71,23 +67,18 @@
 </div>
 <div class="modal-footer">
   <div *ngIf="isInUploadFileTab && getDictionaryArrayLength()">
-    <button class="btn btn-primary btn-xs bottom-upload bottom-size"
-      (click)="clickUploadDictionaryButton()"
+    <button class="btn btn-primary btn-xs bottom-upload bottom-size" (click)="clickUploadDictionaryButton()"
       [disabled]="isAllItemsUploading() || !validateAllDictionaryUploadItems()">
-        <span *ngIf="true">Upload</span>
-        <span *ngIf="false" class='fa fa-spinner fa-spin'></span>
+      <span *ngIf="true">Upload</span>
+      <span *ngIf="false" class='fa fa-spinner fa-spin'></span>
     </button>
   </div>
   <div *ngIf="!isInUploadFileTab">
-    <button class="btn btn-primary btn-xs bottom-upload bottom-size"
-      (click)="clickUploadManualDictionaryButton()"
+    <button class="btn btn-primary btn-xs bottom-upload bottom-size" (click)="clickUploadManualDictionaryButton()"
       [disabled]="!isManualDictionaryValid() || getManualDictionary().isUploadingFlag">
-        <span *ngIf="true">Add</span>
-        <span *ngIf="false" class='fa fa-spinner fa-spin'></span>
+      <span *ngIf="true">Add</span>
+      <span *ngIf="false" class='fa fa-spinner fa-spin'></span>
     </button>
   </div>
   <button class="btn btn-outline-dark bottom-size" (click)="activeModal.dismiss('close')">Close</button>
 </div>
-
-
-

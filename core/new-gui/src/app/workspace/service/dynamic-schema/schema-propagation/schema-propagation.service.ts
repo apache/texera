@@ -1,22 +1,22 @@
-import { AppSettings } from './../../../../common/app-setting';
+import { AppSettings } from '../../../../common/app-setting';
 import { environment } from '../../../../../environments/environment';
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
+import { EMPTY, Observable } from 'rxjs';
 import { OperatorSchema } from '../../../types/operator-schema.interface';
-import { DynamicSchemaService } from './../dynamic-schema.service';
-import { ExecuteWorkflowService } from './../../execute-workflow/execute-workflow.service';
-import { WorkflowActionService } from './../../workflow-graph/model/workflow-action.service';
+import { DynamicSchemaService } from '../dynamic-schema.service';
+import { ExecuteWorkflowService } from '../../execute-workflow/execute-workflow.service';
+import { WorkflowActionService } from '../../workflow-graph/model/workflow-action.service';
 import { NGXLogger } from 'ngx-logger';
 
 import { isEqual } from 'lodash';
 
 // endpoint for schema propagation
 export const SCHEMA_PROPAGATION_ENDPOINT = 'queryplan/autocomplete';
-// By contract, property name name for texera table input attribute (column names)
-export const attributeInJsonSchema = 'attribute';
-export const attributeListInJsonSchema = 'attributes';
-
+// By contract, property keys for input schema attribute (column name)
+export const attributeInJsonSchemaKeys = ['attribute', 'x attribute', 'y attribute', 'name column', 'data column', 'text column'];
+// By contract, property keys for a list of input schema attributes (column names)
+export const attributeListInJsonSchemaKeys = ['attributes', 'groupByKeys', 'data column(s)'];
 
 /**
  * Schema Propagation Service provides autocomplete functionaility for attribute property of operators.
@@ -85,8 +85,8 @@ export class SchemaPropagationService {
         }
       }
 
-      if (! isEqual(currentDynamicSchema, newDynamicSchema)) {
-        SchemaPropagationService.resetAttributeOfOperator(this.workflowActionService, operatorID);
+      if (!isEqual(currentDynamicSchema, newDynamicSchema)) {
+        // SchemaPropagationService.resetAttributeOfOperator(this.workflowActionService, operatorID);
         this.dynamicSchemaService.setDynamicSchema(operatorID, newDynamicSchema);
       }
 
@@ -110,32 +110,32 @@ export class SchemaPropagationService {
       { headers: { 'Content-Type': 'application/json' } })
       .catch(err => {
         this.logger.error('schema propagation API returns error', err);
-        return Observable.empty();
+        return EMPTY;
       });
   }
 
-   /**
-    * This method reset the attribute / attributes fields of a operator properties
-    *  when the json schema has been changed, since the attribute fields might
-    *  be different for each json schema.
-    *
-    * For instance,
-    *  twitter_sample table contains the 'country' attribute
-    *  promed table does not contain the 'country' attribute
-    *
-    * @param operatorID operator that has the changed schema
-    */
+  /**
+   * This method reset the attribute / attributes fields of a operator properties
+   *  when the json schema has been changed, since the attribute fields might
+   *  be different for each json schema.
+   *
+   * For instance,
+   *  twitter_sample table contains the 'country' attribute
+   *  promed table does not contain the 'country' attribute
+   *
+   * @param operatorID operator that has the changed schema
+   */
   public static resetAttributeOfOperator(workflowActionService: WorkflowActionService, operatorID: string): void {
     const operator = workflowActionService.getTexeraGraph().getOperator(operatorID);
-    if (! operator) {
+    if (!operator) {
       throw new Error(`${operatorID} not found`);
     }
 
     // recursive function that removes the attribute properties and returns the new object
-    const walkPropertiesRecurse = (propertyObject: {[key: string]: any}) =>  {
+    const walkPropertiesRecurse = (propertyObject: { [key: string]: any }) => {
       Object.keys(propertyObject).forEach(key => {
         if (key === 'attribute' || key === 'attributes') {
-          const {[key]: [], ...removedAttributeProperties} = propertyObject;
+          const { [key]: [], ...removedAttributeProperties } = propertyObject;
           propertyObject = removedAttributeProperties;
         } else if (typeof propertyObject[key] === 'object') {
           propertyObject[key] = walkPropertiesRecurse(propertyObject[key]);
@@ -160,11 +160,16 @@ export class SchemaPropagationService {
     //       to Join yet.
 
     let newJsonSchema = operatorSchema.jsonSchema;
-    newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, attributeInJsonSchema,
-      () => ({ type: 'string', enum: inputAttributes.slice(), uniqueItems: true }));
 
-    newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, attributeListInJsonSchema,
-      () => ({ type: 'array', items: { type: 'string', enum: inputAttributes.slice(), uniqueItems: true }}));
+    attributeInJsonSchemaKeys.forEach(attributeInJsonSchema => {
+      newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, attributeInJsonSchema,
+        old => ({  ...old, type: 'string', enum: inputAttributes.slice(), uniqueItems: true, }));
+    });
+
+    attributeListInJsonSchemaKeys.forEach(attributeListInJsonSchema => {
+      newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, attributeListInJsonSchema,
+        old => ({ ...old, type: 'array', items: {...old.items, type: 'string', enum: inputAttributes.slice(), uniqueItems: true, } , }));
+    });
 
     return {
       ...operatorSchema,
@@ -175,11 +180,16 @@ export class SchemaPropagationService {
   public static restoreOperatorInputAttrs(operatorSchema: OperatorSchema): OperatorSchema {
 
     let newJsonSchema = operatorSchema.jsonSchema;
-    newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, attributeInJsonSchema,
-      () => ({ type: 'string' }));
 
-    newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, attributeListInJsonSchema,
-      () => ({ type: 'array', items: { type: 'string' } }));
+    attributeInJsonSchemaKeys.forEach(attributeInJsonSchema => {
+      newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, attributeInJsonSchema,
+        old => ({ ...old, type: 'string', enum: undefined, uniqueItems: undefined, }));
+    });
+
+    attributeListInJsonSchemaKeys.forEach(attributeListInJsonSchema => {
+      newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, attributeListInJsonSchema,
+        old => ({ ...old, type: 'array', items: { ...old.items, type: 'string', enum: undefined, uniqueItems: undefined, }, }));
+    });
 
     return {
       ...operatorSchema,

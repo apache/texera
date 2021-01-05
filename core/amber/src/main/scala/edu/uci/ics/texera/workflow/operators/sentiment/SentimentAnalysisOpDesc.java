@@ -45,6 +45,6 @@ public class SentimentAnalysisOpDesc extends MapOpDesc {
         if (resultAttribute == null || resultAttribute.trim().isEmpty()) {
             return null;
         }
-        return Schema.newBuilder().add(schemas[0]).add(resultAttribute, AttributeType.STRING).build();
+        return Schema.newBuilder().add(schemas[0]).add(resultAttribute, AttributeType.INTEGER).build();
     }
 }

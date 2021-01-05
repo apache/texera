@@ -17,7 +17,7 @@ describe('NgbdModalResourceDeleteComponent', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-      declarations: [ NgbdModalResourceDeleteComponent ],
+      declarations: [NgbdModalResourceDeleteComponent],
       providers: [
         NgbActiveModal
       ],
@@ -27,7 +27,7 @@ describe('NgbdModalResourceDeleteComponent', () => {
         FormsModule,
         HttpClientModule]
     })
-    .compileComponents();
+      .compileComponents();
   }));
 
   beforeEach(() => {

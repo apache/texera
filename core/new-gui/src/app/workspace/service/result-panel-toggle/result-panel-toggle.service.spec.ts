@@ -12,7 +12,7 @@ describe('ResultPanelToggleService', () => {
       ]
     });
 
-    resultPanelToggleService = TestBed.get(ResultPanelToggleService);
+    resultPanelToggleService = TestBed.inject(ResultPanelToggleService);
 
   });
 
@@ -22,6 +22,7 @@ describe('ResultPanelToggleService', () => {
 
   it(`should receive 'true' from toggleDisplayChangeStream when toggleResultPanel
     is called when the current result panel status is hidden`, marbles((m) => {
+    (resultPanelToggleService as any).currentResultPanelStatus = false;
 
     resultPanelToggleService.getToggleChangeStream().subscribe(
       newToggleStatus => {
@@ -30,7 +31,6 @@ describe('ResultPanelToggleService', () => {
     );
 
     const expectedStream = '-a-';
-    const hiddenStatus = false;
 
     const toggleStream = resultPanelToggleService.getToggleChangeStream().map(value => 'a');
     m.hot('-a-').do(event => resultPanelToggleService.toggleResultPanel()).subscribe();
@@ -40,6 +40,7 @@ describe('ResultPanelToggleService', () => {
 
   it(`should receive 'false' from toggleDisplayChangeStream when toggleResultPanel
     is called when the current result panel status is open`, marbles((m) => {
+      (resultPanelToggleService as any).currentResultPanelStatus = true;
 
     resultPanelToggleService.getToggleChangeStream().subscribe(
       newToggleStatus => {
@@ -48,7 +49,6 @@ describe('ResultPanelToggleService', () => {
     );
 
     const expectedStream = '-a-';
-    const openStatus = true;
 
     const toggleStream = resultPanelToggleService.getToggleChangeStream().map(value => 'a');
     m.hot('-a-').do(event => resultPanelToggleService.toggleResultPanel()).subscribe();

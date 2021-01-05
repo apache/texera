@@ -1,9 +1,13 @@
 import {
-  mockScanPredicate, mockSentimentPredicate, mockResultPredicate,
-  mockScanSentimentLink, mockSentimentResultLink, mockScanResultLink
+  mockResultPredicate,
+  mockScanPredicate,
+  mockScanResultLink,
+  mockScanSentimentLink,
+  mockSentimentPredicate,
+  mockSentimentResultLink
 } from './mock-workflow-data';
 import { WorkflowGraph } from './workflow-graph';
-import { environment } from './../../../../../environments/environment';
+import { environment } from '../../../../../environments/environment';
 
 describe('WorkflowGraph', () => {
 
@@ -116,11 +120,11 @@ describe('WorkflowGraph', () => {
 
   it('should throw an error when tring to get a nonexist link by link source and target', () => {
     expect(() => {
-        workflowGraph.getLink(
+      workflowGraph.getLink(
         { operatorID: 'source', portID: 'source port' },
         { operatorID: 'target', portID: 'taret port' }
       );
-      }).toThrowError(new RegExp(`does not exist`));
+    }).toThrowError(new RegExp(`does not exist`));
   });
 
   it('should delete a link by ID properly', () => {
@@ -177,10 +181,10 @@ describe('WorkflowGraph', () => {
   });
 
   it('it should get input links of the certain operator correctly', () => {
-      workflowGraph.addOperator(mockScanPredicate);
-      workflowGraph.addOperator(mockResultPredicate);
-      workflowGraph.addLink(mockScanResultLink);
-      expect(workflowGraph.getInputLinksByOperatorId('3').length).toEqual(1);
+    workflowGraph.addOperator(mockScanPredicate);
+    workflowGraph.addOperator(mockResultPredicate);
+    workflowGraph.addLink(mockScanResultLink);
+    expect(workflowGraph.getInputLinksByOperatorId('3').length).toEqual(1);
   });
 
   it('it should get output links of the certain operator correctly', () => {
