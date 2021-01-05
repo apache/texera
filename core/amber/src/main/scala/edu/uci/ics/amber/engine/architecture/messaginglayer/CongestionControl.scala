@@ -31,7 +31,7 @@ class CongestionControl {
   private val toBeSent = new mutable.Queue[NetworkMessage]
   private val messageBuffer = new ArrayBuffer[NetworkMessage]()
   private val inTransit = new mutable.LongMap[NetworkMessage]()
-  private val sentTime = new mutable.TreeMap[Long, Long]()
+  private val sentTime = new mutable.LongMap[Long]()
 
   // Note that toBeSent buffer is always empty if inTransit.size < windowSize
   def canSend: Boolean = inTransit.size < windowSize
@@ -70,17 +70,16 @@ class CongestionControl {
   }
 
   def markSentTime(data: NetworkMessage): Unit = {
-    sentTime(System.currentTimeMillis()) = data.messageID
+    sentTime(data.messageID) = System.currentTimeMillis()
   }
 
   def getTimedOutInTransitMessages: Iterable[NetworkMessage] = {
     val timeCap = System.currentTimeMillis() - resendTimeLimit
-    sentTime.valuesIterator
-      .takeWhile(_ < timeCap)
-      .map { id =>
-        inTransit(id)
-      }
-      .toIterable
+    sentTime.collect {
+      case (id, timeStamp)
+        if timeStamp < timeCap =>
+          inTransit(id)
+    }
   }
 
   def getInTransitMessages: Iterable[NetworkMessage] = {

@@ -131,7 +131,7 @@ class NetworkSenderActor extends Actor with LazyLogging {
     */
   def registerActorRef(actorID: ActorVirtualIdentity, ref: ActorRef): Unit = {
     idToActorRefs(actorID) = ref
-    val ctrl = idToCongestionControls(actorID)
+    val ctrl = idToCongestionControls.getOrElseUpdate(actorID, new CongestionControl())
     ctrl.getInTransitMessages.foreach { msg =>
       ctrl.markSentTime(msg)
       ref ! msg // directly send it
