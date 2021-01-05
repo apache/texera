@@ -1,10 +1,10 @@
-import { AppSettings } from '../../../app-setting';
-import { Injectable } from '@angular/core';
-import { FileUploadItem } from '../../../type/user-file';
-import { GenericWebResponse, GenericWebResponseCode } from '../../../type/generic-web-response';
-import { Observable } from 'rxjs';
-import { UserService } from '../user.service';
 import { HttpClient, HttpEventType } from '@angular/common/http';
+import { Injectable } from '@angular/core';
+import { Observable } from 'rxjs';
+import { AppSettings } from '../../../app-setting';
+import { GenericWebResponse, GenericWebResponseCode } from '../../../type/generic-web-response';
+import { FileUploadItem } from '../../../type/user-file';
+import { UserService } from '../user.service';
 import { UserFileService } from './user-file.service';
 
 export const USER_FILE_UPLOAD_URL = 'user/file/upload';
@@ -130,7 +130,7 @@ export class UserFileUploadService {
    * clear the files in the service when user log out.
    */
   private detectUserChanges(): void {
-    this.userService.userChange.subscribe(() => {
+    this.userService.userChanged().subscribe(() => {
       if (!this.userService.isLogin()) {
         this.clearUserFile();
       }

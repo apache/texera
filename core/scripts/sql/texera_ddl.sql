@@ -7,7 +7,7 @@ DROP TABLE IF EXISTS `workflow_of_user`;
 DROP TABLE IF EXISTS `user`;
 DROP TABLE IF EXISTS workflow;
 
-SET GLOBAL time_zone = '-8:00'; # this line is mandatory
+SET GLOBAL time_zone = '+00:00'; # this line is mandatory
 
 CREATE TABLE IF NOT EXISTS user
 (

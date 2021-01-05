@@ -1,9 +1,9 @@
-import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
+import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs/Observable';
-import '../../../common/rxjs-operators';
 
 import { AppSettings } from '../../../common/app-setting';
+import '../../../common/rxjs-operators';
 import { OperatorMetadata, OperatorSchema } from '../../types/operator-schema.interface';
 import { BreakpointSchema } from '../../types/workflow-common.interface';
 import { mockBreakpointSchema } from './mock-operator-metadata.data';
@@ -41,17 +41,19 @@ export type IOperatorMetadataService = Pick<OperatorMetadataService, keyof Opera
 export class OperatorMetadataService {
 
   // holds the current version of operator metadata
-  private currentOperatorMetadata: OperatorMetadata | undefined;
-  private currentBreakpointSchema: BreakpointSchema | undefined;
+  private currentOperatorMetadata: OperatorMetadata|undefined;
+  private currentBreakpointSchema: BreakpointSchema|undefined;
 
   private operatorMetadataObservable = this.httpClient
-    .get<OperatorMetadata>(`${AppSettings.getApiEndpoint()}/${OPERATOR_METADATA_ENDPOINT}`)
-    .startWith(EMPTY_OPERATOR_METADATA)
-    .shareReplay(1);
+                                           .get<OperatorMetadata>(`${AppSettings.getApiEndpoint()}/${OPERATOR_METADATA_ENDPOINT}`)
+                                           .startWith(EMPTY_OPERATOR_METADATA)
+                                           .shareReplay(1);
 
   constructor(private httpClient: HttpClient) {
     this.getOperatorMetadata().subscribe(
-      data => { this.currentOperatorMetadata = data; console.log(this.currentOperatorMetadata); }
+      data => {
+        this.currentOperatorMetadata = data;
+      }
     );
     // At current design, all the links have one fixed breakpoint schema stored in the frontend
     this.currentBreakpointSchema = mockBreakpointSchema;

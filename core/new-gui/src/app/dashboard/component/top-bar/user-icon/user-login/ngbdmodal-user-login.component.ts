@@ -2,8 +2,6 @@ import { Component, OnInit } from '@angular/core';
 import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
 import { UserService } from '../../../../../common/service/user/user.service';
 import { User } from '../../../../../common/type/user';
-import { Observable } from 'rxjs/Observable';
-
 
 /**
  * NgbdModalUserLoginComponent is the pop up for user login/registration
@@ -78,7 +76,7 @@ export class NgbdModalUserLoginComponent implements OnInit {
    * this method will handle the pop up when user successfully login
    */
   private detectUserChange(): void {
-    this.userService.userChange.subscribe(
+    this.userService.userChanged().subscribe(
       () => {
         if (this.userService.getUser()) {
           // TODO temporary solution, need improvement
