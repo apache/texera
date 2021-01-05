@@ -24,9 +24,8 @@ class RoundRobinPolicy(batchSize: Int) extends DataTransferPolicy(batchSize) {
     if (currentSize > 0) {
       ret.append((receivers(roundRobinIndex), DataFrame(batch.slice(0, currentSize))))
     }
-    receivers.foreach{
-      receiver =>
-        ret.append((receiver, EndOfUpstream())) // send end to all receivers
+    receivers.foreach { receiver =>
+      ret.append((receiver, EndOfUpstream())) // send end to all receivers
     }
     ret.toArray
   }
