@@ -22,7 +22,7 @@ public class ProjectionOpDesc extends MapOpDesc {
         if (attributes == null) {
             throw new RuntimeException("Projection: attribute is null");
         }
-        return new OneToOneOpExecConfig(operatorIdentifier(), () -> new ProjectionOpExec(this));
+        return new OneToOneOpExecConfig(operatorIdentifier(), i -> new ProjectionOpExec(this));
     }
 
     @Override
