@@ -128,6 +128,7 @@ class Processor(var operator: IOperatorExecutor, val tag: WorkerTag)
     context.parent ! ReportState(WorkerState.Paused)
   }
 
+
   override def onInitialization(recoveryInformation: Seq[(Long, Long)]): Unit = {
     super.onInitialization(recoveryInformation)
     operator.open()

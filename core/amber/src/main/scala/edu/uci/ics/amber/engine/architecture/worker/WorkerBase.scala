@@ -261,7 +261,7 @@ abstract class WorkerBase(identifier: ActorVirtualIdentity) extends WorkflowActo
 
   final def stashOthers: Receive = {
     case msg =>
-      log.info("stashing: " + msg)
+      log.info(s"stashing in WorkerBase" + msg)
       stash()
   }
 
