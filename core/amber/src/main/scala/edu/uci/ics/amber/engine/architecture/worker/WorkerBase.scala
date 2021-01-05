@@ -7,12 +7,17 @@ import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.engine.architecture.breakpoint.FaultedTuple
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlInputPort.WorkflowControlMessage
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputGate.NetworkMessage
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkSenderActor.{
+  NetworkAck,
+  NetworkMessage,
+  QueryActorRef,
+  RegisterActorRef
+}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{
-  TupleToBatchConverter,
+  BatchToTupleConverter,
   DataInputPort,
   DataOutputPort,
-  BatchToTupleConverter
+  TupleToBatchConverter
 }
 import edu.uci.ics.amber.engine.architecture.worker.neo.WorkerInternalQueue.DummyInput
 import edu.uci.ics.amber.engine.architecture.worker.neo._
@@ -270,7 +275,7 @@ abstract class WorkerBase(identifier: ActorVirtualIdentity) extends WorkflowActo
   }
 
   override def receive: Receive = {
-    findActorRefFromVirtualIdentity orElse
+    routeActorRefRelatedMessages orElse
       processNewControlMessages orElse [Any, Unit] {
       case AckedWorkerInitialization(recoveryInformation) =>
         onInitialization(recoveryInformation)
@@ -288,8 +293,8 @@ abstract class WorkerBase(identifier: ActorVirtualIdentity) extends WorkflowActo
   }
 
   def ready: Receive =
-    findActorRefFromVirtualIdentity orElse
-      allowStashOrReleaseOutput orElse
+    allowStashOrReleaseOutput orElse
+      routeActorRefRelatedMessages orElse
       processNewControlMessages orElse
       allowUpdateOutputLinking orElse //update linking
       allowModifyBreakpoints orElse //modify break points
@@ -312,8 +317,8 @@ abstract class WorkerBase(identifier: ActorVirtualIdentity) extends WorkflowActo
     } orElse discardOthers
 
   def pausedBeforeStart: Receive =
-    findActorRefFromVirtualIdentity orElse
-      allowReset orElse allowStashOrReleaseOutput orElse
+    allowReset orElse allowStashOrReleaseOutput orElse
+      routeActorRefRelatedMessages orElse
       processNewControlMessages orElse
       allowUpdateOutputLinking orElse
       allowModifyBreakpoints orElse
@@ -340,10 +345,10 @@ abstract class WorkerBase(identifier: ActorVirtualIdentity) extends WorkflowActo
     } orElse discardOthers
 
   def paused: Receive =
-    findActorRefFromVirtualIdentity orElse
-      allowReset orElse
+    allowReset orElse
       allowStashOrReleaseOutput orElse
       processNewControlMessages orElse
+      routeActorRefRelatedMessages orElse
       allowUpdateOutputLinking orElse
       allowModifyBreakpoints orElse
       disallowQueryTriggeredBreakpoints orElse [Any, Unit] {
@@ -403,16 +408,10 @@ abstract class WorkerBase(identifier: ActorVirtualIdentity) extends WorkflowActo
     } orElse discardOthers
 
   def running: Receive =
-    findActorRefFromVirtualIdentity orElse
-      processNewControlMessages orElse [Any, Unit] {
+    processNewControlMessages orElse [Any, Unit] {
       case ReportFailure(e) =>
         log.info(s"received failure message")
         throw e
-      case ExecutionPaused =>
-        log.info(s"received Excution Pause message")
-        onPaused()
-        context.become(paused)
-        unstashAll()
       case Pause =>
         log.info(s"received Pause message")
         onPausing()
@@ -438,9 +437,9 @@ abstract class WorkerBase(identifier: ActorVirtualIdentity) extends WorkflowActo
     } orElse discardOthers
 
   def breakpointTriggered: Receive =
-    findActorRefFromVirtualIdentity orElse
-      allowStashOrReleaseOutput orElse
+    allowStashOrReleaseOutput orElse
       processNewControlMessages orElse
+      routeActorRefRelatedMessages orElse
       allowUpdateOutputLinking orElse
       allowQueryBreakpoint orElse
       allowQueryTriggeredBreakpoints orElse [Any, Unit] {
@@ -476,8 +475,8 @@ abstract class WorkerBase(identifier: ActorVirtualIdentity) extends WorkflowActo
     } orElse stashOthers
 
   def completed: Receive =
-    findActorRefFromVirtualIdentity orElse
-      allowReset orElse allowStashOrReleaseOutput orElse
+    allowReset orElse allowStashOrReleaseOutput orElse
+      routeActorRefRelatedMessages orElse
       disallowUpdateOutputLinking orElse
       processNewControlMessages orElse
       allowModifyBreakpoints orElse
@@ -498,14 +497,11 @@ abstract class WorkerBase(identifier: ActorVirtualIdentity) extends WorkflowActo
     }
 
   def pausing: Receive = {
-    case ExecutionPaused =>
-      //wait for signal from dp thread
-      onPaused()
-      context.become(paused)
-      unstashAll()
-    case msg =>
-      //stash all other messages
-      stash()
+    processNewControlMessages orElse {
+      case msg =>
+        //stash all other messages
+        stash()
+    }
   }
 
   def newControlMessageHandler: Receive = {
@@ -514,10 +510,17 @@ abstract class WorkerBase(identifier: ActorVirtualIdentity) extends WorkflowActo
       onCompleted()
       context.become(completed)
       unstashAll()
+    case ExecutionPaused() =>
+      log.info(s"received Execution Pause message")
+      onPaused()
+      context.become(paused)
+      unstashAll()
   }
 
   def processNewControlMessages: Receive = {
-    case msg @ NetworkMessage(_, cmd: WorkflowControlMessage) =>
+    case msg @ NetworkMessage(id, cmd: WorkflowControlMessage) =>
+      //println(s"received $msg")
+      sender ! NetworkAck(id)
       controlInputPort.handleControlMessage(cmd)
       newControlMessageHandler(cmd.payload)
   }

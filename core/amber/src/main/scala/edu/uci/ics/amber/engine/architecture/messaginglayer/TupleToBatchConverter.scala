@@ -4,7 +4,6 @@ import edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy.Da
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.UpdateInputLinking
 import edu.uci.ics.amber.engine.common.ambermessage.neo.DataPayload
 import edu.uci.ics.amber.engine.common.ambertag.LinkTag
-import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 

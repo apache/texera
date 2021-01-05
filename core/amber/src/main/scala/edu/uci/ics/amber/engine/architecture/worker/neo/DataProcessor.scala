@@ -129,6 +129,7 @@ class DataProcessor( // dependencies:
       }
     }
     // Send Completed signal to worker actor.
+    println(s"${operator.toString} completed")
     controlOutputChannel.sendTo(VirtualIdentity.Self, ExecutionCompleted())
   }
 

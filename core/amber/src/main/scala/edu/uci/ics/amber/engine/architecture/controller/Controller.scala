@@ -111,7 +111,9 @@ import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{
   Reset
 }
 import edu.uci.ics.amber.error.WorkflowRuntimeError
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputGate
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkSenderActor
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkSenderActor.RegisterActorRef
+import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
 
 import collection.JavaConverters._
 import scala.collection.mutable
@@ -145,10 +147,7 @@ class Controller(
     val withCheckpoint: Boolean,
     val eventListener: ControllerEventListener = ControllerEventListener(),
     val statisticsUpdateIntervalMs: Option[Long]
-) extends Actor
-    with ActorLogging
-    with Stash
-    with NetworkOutputGate {
+) extends WorkflowActor(VirtualIdentity.Controller) {
   implicit val ec: ExecutionContext = context.dispatcher
   implicit val timeout: Timeout = 5.seconds
   implicit val logAdapter: LoggingAdapter = log
@@ -1295,7 +1294,7 @@ class Controller(
   }
 
   private[this] def paused: Receive = {
-    findActorRefFromVirtualIdentity orElse {
+    routeActorRefRelatedMessages orElse {
       case LogErrorToFrontEnd(err: WorkflowRuntimeError) =>
         log.error(err.convertToMap().mkString(" | "))
         eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
@@ -1376,7 +1375,7 @@ class Controller(
   }
 
   private[this] def resuming: Receive = {
-    findActorRefFromVirtualIdentity orElse {
+    routeActorRefRelatedMessages orElse {
       case LogErrorToFrontEnd(err: WorkflowRuntimeError) =>
         log.error(err.convertToMap().mkString(" | "))
         eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
@@ -1461,7 +1460,7 @@ class Controller(
   }
 
   private[this] def completed: Receive = {
-    findActorRefFromVirtualIdentity orElse {
+    routeActorRefRelatedMessages orElse {
       case LogErrorToFrontEnd(err: WorkflowRuntimeError) =>
         log.error(err.convertToMap().mkString(" | "))
         eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
