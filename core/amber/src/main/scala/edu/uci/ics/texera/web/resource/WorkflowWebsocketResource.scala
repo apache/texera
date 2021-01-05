@@ -11,7 +11,7 @@ import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.texera.web.TexeraWebApplication
 import edu.uci.ics.texera.web.model.event._
 import edu.uci.ics.texera.web.model.request._
-import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.sessionResults
+import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource.{sessionJobs, sessionResults}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.workflow.{WorkflowCompiler, WorkflowInfo}
 import edu.uci.ics.texera.workflow.common.{Utils, WorkflowContext}
@@ -27,7 +27,7 @@ object WorkflowWebsocketResource {
 
   val sessionMap = new mutable.HashMap[String, Session]
   val sessionJobs = new mutable.HashMap[String, (WorkflowCompiler, ActorRef)]
-  val sessionResults = new mutable.HashMap[String, List[ITuple]]
+  val sessionResults = new mutable.HashMap[String, Map[String, List[ITuple]]]
 }
 
 @ServerEndpoint("/wsapi/workflow-websocket")
@@ -84,7 +84,7 @@ class WorkflowWebsocketResource {
       this.killWorkflow(session)
     }
 
-    sessionResults.clear()
+    sessionResults.remove(session.getId)
   }
 
   def send(session: Session, event: TexeraWebSocketEvent): Unit = {
@@ -93,7 +93,7 @@ class WorkflowWebsocketResource {
 
   def resultPagination(session: Session, request: ResultPaginationRequest): Unit = {
     val paginatedResultEvent = PaginatedResultEvent(
-      sessionResults
+      sessionResults(session.getId)
         .map {
           case (operatorID, table) =>
             (
@@ -108,7 +108,7 @@ class WorkflowWebsocketResource {
         }
         .map {
           case (operatorID, objNodes) =>
-            PaginatedOperatorResult(operatorID, objNodes, sessionResults(operatorID).size)
+            PaginatedOperatorResult(operatorID, objNodes, sessionResults(session.getId)(operatorID).size)
         }
         .toList
     )
@@ -181,8 +181,8 @@ class WorkflowWebsocketResource {
 
     val eventListener = ControllerEventListener(
       workflowCompletedListener = completed => {
-        sessionResults.clear()
-        sessionResults ++= completed.result
+        sessionResults.remove(session.getId)
+        sessionResults.update(session.getId, completed.result)
         send(session, WorkflowCompletedEvent.apply(completed, texeraWorkflowCompiler))
         WorkflowWebsocketResource.sessionJobs.remove(session.getId)
       },
