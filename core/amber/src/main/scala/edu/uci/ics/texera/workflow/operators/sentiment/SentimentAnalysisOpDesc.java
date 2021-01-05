@@ -35,7 +35,7 @@ public class SentimentAnalysisOpDesc extends MapOpDesc {
                 "Sentiment Analysis",
                 "analysis the sentiment of a text using machine learning",
                 OperatorGroupConstants.ANALYTICS_GROUP(),
-                1, 1
+                1, 1, false
         );
     }
 

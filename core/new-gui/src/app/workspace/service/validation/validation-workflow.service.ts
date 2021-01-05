@@ -169,6 +169,11 @@ export class ValidationWorkflowService {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
     }
 
+    const operatorSchema = this.operatorSchemaList.find(schema => schema.operatorType === operator.operatorType);
+    if (operatorSchema === undefined) {
+      throw new Error(`operatorSchema doesn't exist`);
+    }
+
     const texeraGraph = this.workflowActionService.getTexeraGraph();
 
     const requiredInputNum = operator.inputPorts.length;
@@ -177,7 +182,9 @@ export class ValidationWorkflowService {
     const actualInputNum = texeraGraph.getInputLinksByOperatorId(operatorID).length;
     const actualOutputNum = texeraGraph.getOutputLinksByOperatorId(operatorID).length;
 
-    const satisfyInput = requiredInputNum === actualInputNum;
+    const allowMultiInputs = operatorSchema.additionalMetadata.allowMultiInputs;
+
+    const satisfyInput = allowMultiInputs ? actualInputNum >= requiredInputNum : actualInputNum === requiredInputNum;
     // If the operator is the sink operator, the actual output number must be equal to required number.
     const satisyOutput = this.operatorMetadataService.
       getOperatorSchema(operator.operatorType).

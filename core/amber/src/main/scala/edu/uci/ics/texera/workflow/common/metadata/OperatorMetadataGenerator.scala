@@ -21,7 +21,8 @@ case class OperatorInfo(
     operatorDescription: String,
     operatorGroupName: String,
     numInputPorts: Int,
-    numOutputPorts: Int
+    numOutputPorts: Int,
+    allowMultiInputs: Boolean = false
 )
 
 case class OperatorMetadata(

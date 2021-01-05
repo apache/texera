@@ -27,6 +27,6 @@ public class SpecializedFilterOpDesc extends FilterOpDesc {
                 "Filter",
                 "performs a filter operation",
                 OperatorGroupConstants.SEARCH_GROUP(),
-                1, 1);
+                1, 1, false);
     }
 }

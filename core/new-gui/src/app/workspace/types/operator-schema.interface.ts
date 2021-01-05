@@ -14,6 +14,7 @@ export interface OperatorAdditionalMetadata extends Readonly<{
   numInputPorts: number;
   numOutputPorts: number;
   operatorGroupName: string;
+  allowMultiInputs?: boolean;
   advancedOptions?: ReadonlyArray<string>;
   operatorDescription?: string;
   propertyDescription?: Readonly <{

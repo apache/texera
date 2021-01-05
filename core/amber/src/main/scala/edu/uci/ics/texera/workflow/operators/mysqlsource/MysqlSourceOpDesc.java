@@ -74,10 +74,10 @@ public class MysqlSourceOpDesc extends SourceOperatorDescriptor {
     @Override
     public OperatorInfo operatorInfo() {
         return new OperatorInfo(
-                "Mysql Source",
+                "MySQL Source",
                 "Read data from a mysql instance",
                 OperatorGroupConstants.SOURCE_GROUP(),
-                0, 1);
+                0, 1, false);
     }
 
     /**

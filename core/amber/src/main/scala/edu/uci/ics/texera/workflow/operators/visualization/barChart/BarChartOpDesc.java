@@ -50,7 +50,7 @@ public class BarChartOpDesc extends VisualizationOperator {
                 "Bar Chart",
                 "View the result in bar chart",
                 OperatorGroupConstants.VISUALIZATION_GROUP(),
-                1, 1);
+                1, 1, false);
     }
 
     @Override
