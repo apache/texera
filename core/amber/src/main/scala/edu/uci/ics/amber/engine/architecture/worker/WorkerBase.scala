@@ -6,12 +6,28 @@ import akka.util.Timeout
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.engine.architecture.breakpoint.FaultedTuple
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
-import edu.uci.ics.amber.engine.architecture.worker.neo.{_}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlInputPort.WorkflowControlMessage
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkSenderActor.{
+  NetworkAck,
+  NetworkMessage,
+  QueryActorRef,
+  RegisterActorRef
+}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.{
+  BatchToTupleConverter,
+  DataInputPort,
+  DataOutputPort,
+  TupleToBatchConverter
+}
+import edu.uci.ics.amber.engine.architecture.worker.neo.WorkerInternalQueue.DummyInput
+import edu.uci.ics.amber.engine.architecture.worker.neo._
 import edu.uci.ics.amber.engine.common.IOperatorExecutor
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage._
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage._
+import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
+import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 
@@ -21,22 +37,24 @@ import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
-abstract class WorkerBase extends WorkflowActor {
+abstract class WorkerBase(identifier: ActorVirtualIdentity) extends WorkflowActor(identifier) {
   implicit val ec: ExecutionContext = context.dispatcher
   implicit val timeout: Timeout = 5.seconds
   implicit val logAdapter: LoggingAdapter = log
 
   var operator: IOperatorExecutor
 
-  lazy val workerInternalQueue: WorkerInternalQueue = wire[WorkerInternalQueue]
   lazy val pauseManager: PauseManager = wire[PauseManager]
   lazy val dataProcessor: DataProcessor = wire[DataProcessor]
+  lazy val dataInputPort: DataInputPort = wire[DataInputPort]
+  lazy val dataOutputPort: DataOutputPort = wire[DataOutputPort]
+  lazy val batchProducer: TupleToBatchConverter = wire[TupleToBatchConverter]
+  lazy val tupleProducer: BatchToTupleConverter = wire[BatchToTupleConverter]
 
   val receivedFaultedTupleIds: mutable.HashSet[Long] = new mutable.HashSet[Long]()
   val receivedRecoveryInformation: mutable.HashSet[(Long, Long)] =
     new mutable.HashSet[(Long, Long)]()
 
-  var userFixedTuple: ITuple = _
   var isCompleted = false
   @elidable(INFO) var startTime = 0L
 
@@ -46,9 +64,9 @@ abstract class WorkerBase extends WorkflowActor {
 
   def onSkipTuple(faultedTuple: FaultedTuple): Unit = {
     if (faultedTuple.isInput) {
-      messagingManager.skippedInputTuples.add(faultedTuple.tuple)
+      dataProcessor.setCurrentTuple(null)
     } else {
-      messagingManager.skippedOutputTuples.add(faultedTuple.tuple)
+      // if it's output tuple, it will be ignored
     }
   }
 
@@ -63,7 +81,14 @@ abstract class WorkerBase extends WorkflowActor {
   }
 
   def onPausing(): Unit = {
-    messagingManager.pauseDataSending()
+    //messagingManager.pauseDataSending()
+    pauseManager.pause()
+    // if dp thread is blocking on waiting for input tuples:
+    if (dataProcessor.isQueueEmpty) {
+      // insert dummy batch to unblock dp thread
+      dataProcessor.appendElement(DummyInput())
+    }
+    context.become(pausing)
   }
 
   def onPaused(): Unit = {
@@ -71,7 +96,7 @@ abstract class WorkerBase extends WorkflowActor {
   }
 
   def onResuming(): Unit = {
-    messagingManager.resumeDataSending()
+    //messagingManager.resumeDataSending()
   }
 
   def onResumed(): Unit = {
@@ -79,7 +104,6 @@ abstract class WorkerBase extends WorkflowActor {
   }
 
   def onCompleted(): Unit = {
-    messagingManager.endDataSending()
     isCompleted = true
     context.parent ! ReportState(WorkerState.Completed)
   }
@@ -101,7 +125,6 @@ abstract class WorkerBase extends WorkflowActor {
 //    Thread.sleep(1000)
     receivedRecoveryInformation.clear()
     receivedRecoveryInformation ++= recoveryInformation
-    userFixedTuple = null
     receivedFaultedTupleIds.clear()
   }
 
@@ -112,10 +135,8 @@ abstract class WorkerBase extends WorkflowActor {
   final def allowStashOrReleaseOutput: Receive = {
     case StashOutput =>
       sender ! Ack
-      messagingManager.pauseDataSending()
     case ReleaseOutput =>
       sender ! Ack
-      messagingManager.resumeDataSending()
   }
 
   final def allowModifyBreakpoints: Receive = {
@@ -215,7 +236,7 @@ abstract class WorkerBase extends WorkflowActor {
   final def allowUpdateOutputLinking: Receive = {
     case UpdateOutputLinking(policy, tag, receivers) =>
       sender ! Ack
-      messagingManager.updateReceiverAndSender(policy, tag, receivers)
+      batchProducer.addPolicy(policy, tag, receivers)
   }
 
   final def disallowUpdateOutputLinking: Receive = {
@@ -254,22 +275,27 @@ abstract class WorkerBase extends WorkflowActor {
   }
 
   override def receive: Receive = {
-    case AckedWorkerInitialization(recoveryInformation) =>
-      onInitialization(recoveryInformation)
-      context.parent ! ReportState(WorkerState.Ready)
-      context.become(ready)
-      unstashAll()
-    case QueryState =>
-      sender ! ReportState(WorkerState.Uninitialized)
-    case QueryStatistics =>
-      sender ! ReportStatistics(
-        WorkerStatistics(WorkerState.Uninitialized, getInputRowCount(), getOutputRowCount())
-      )
-    case _ => stash()
+    routeActorRefRelatedMessages orElse
+      processNewControlMessages orElse [Any, Unit] {
+      case AckedWorkerInitialization(recoveryInformation) =>
+        onInitialization(recoveryInformation)
+        context.parent ! ReportState(WorkerState.Ready)
+        context.become(ready)
+        unstashAll()
+      case QueryState =>
+        sender ! ReportState(WorkerState.Uninitialized)
+      case QueryStatistics =>
+        sender ! ReportStatistics(
+          WorkerStatistics(WorkerState.Uninitialized, getInputRowCount(), getOutputRowCount())
+        )
+      case _ => stash()
+    }
   }
 
   def ready: Receive =
     allowStashOrReleaseOutput orElse
+      routeActorRefRelatedMessages orElse
+      processNewControlMessages orElse
       allowUpdateOutputLinking orElse //update linking
       allowModifyBreakpoints orElse //modify break points
       disallowQueryBreakpoint orElse //query specific breakpoint
@@ -292,6 +318,8 @@ abstract class WorkerBase extends WorkflowActor {
 
   def pausedBeforeStart: Receive =
     allowReset orElse allowStashOrReleaseOutput orElse
+      routeActorRefRelatedMessages orElse
+      processNewControlMessages orElse
       allowUpdateOutputLinking orElse
       allowModifyBreakpoints orElse
       disallowQueryTriggeredBreakpoints orElse [Any, Unit] {
@@ -319,6 +347,8 @@ abstract class WorkerBase extends WorkflowActor {
   def paused: Receive =
     allowReset orElse
       allowStashOrReleaseOutput orElse
+      processNewControlMessages orElse
+      routeActorRefRelatedMessages orElse
       allowUpdateOutputLinking orElse
       allowModifyBreakpoints orElse
       disallowQueryTriggeredBreakpoints orElse [Any, Unit] {
@@ -378,17 +408,10 @@ abstract class WorkerBase extends WorkflowActor {
     } orElse discardOthers
 
   def running: Receive =
-    allowReset orElse allowStashOrReleaseOutput orElse
-      disallowUpdateOutputLinking orElse
-      disallowModifyBreakpoints orElse
-      disallowQueryBreakpoint orElse
-      disallowQueryTriggeredBreakpoints orElse [Any, Unit] {
+    processNewControlMessages orElse [Any, Unit] {
       case ReportFailure(e) =>
+        log.info(s"received failure message")
         throw e
-      case ExecutionPaused =>
-        onPaused()
-        context.become(paused)
-        unstashAll()
       case Pause =>
         log.info(s"received Pause message")
         onPausing()
@@ -415,6 +438,8 @@ abstract class WorkerBase extends WorkflowActor {
 
   def breakpointTriggered: Receive =
     allowStashOrReleaseOutput orElse
+      processNewControlMessages orElse
+      routeActorRefRelatedMessages orElse
       allowUpdateOutputLinking orElse
       allowQueryBreakpoint orElse
       allowQueryTriggeredBreakpoints orElse [Any, Unit] {
@@ -445,14 +470,15 @@ abstract class WorkerBase extends WorkflowActor {
             getOutputRowCount()
           )
         )
-      case DataMessage(_, _) | EndSending(_) => stash()
-      case Resume | Pause                    => context.parent ! ReportState(WorkerState.LocalBreakpointTriggered)
-      case LocalBreakpointTriggered          => //discard this
+      case Resume | Pause           => context.parent ! ReportState(WorkerState.LocalBreakpointTriggered)
+      case LocalBreakpointTriggered => //discard this
     } orElse stashOthers
 
   def completed: Receive =
     allowReset orElse allowStashOrReleaseOutput orElse
+      routeActorRefRelatedMessages orElse
       disallowUpdateOutputLinking orElse
+      processNewControlMessages orElse
       allowModifyBreakpoints orElse
       allowQueryBreakpoint orElse [Any, Unit] {
       case QueryState => sender ! ReportState(WorkerState.Completed)
@@ -471,14 +497,32 @@ abstract class WorkerBase extends WorkflowActor {
     }
 
   def pausing: Receive = {
-    case ExecutionPaused =>
-      //wait for signal from dp thread
+    processNewControlMessages orElse {
+      case msg =>
+        //stash all other messages
+        stash()
+    }
+  }
+
+  def newControlMessageHandler: Receive = {
+    case ExecutionCompleted() =>
+      log.info("received complete")
+      onCompleted()
+      context.become(completed)
+      unstashAll()
+    case ExecutionPaused() =>
+      log.info(s"received Execution Pause message")
       onPaused()
       context.become(paused)
       unstashAll()
-    case msg =>
-      //stash all other messages
-      stash()
+  }
+
+  def processNewControlMessages: Receive = {
+    case msg @ NetworkMessage(id, cmd: WorkflowControlMessage) =>
+      //println(s"received $msg")
+      sender ! NetworkAck(id)
+      controlInputPort.handleControlMessage(cmd)
+      newControlMessageHandler(cmd.payload)
   }
 
 }
