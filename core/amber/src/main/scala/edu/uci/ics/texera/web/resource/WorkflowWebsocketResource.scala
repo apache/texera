@@ -108,7 +108,11 @@ class WorkflowWebsocketResource {
         }
         .map {
           case (operatorID, objNodes) =>
-            PaginatedOperatorResult(operatorID, objNodes, sessionResults(session.getId)(operatorID).size)
+            PaginatedOperatorResult(
+              operatorID,
+              objNodes,
+              sessionResults(session.getId)(operatorID).size
+            )
         }
         .toList
     )
