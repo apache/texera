@@ -108,7 +108,7 @@ class NetworkSenderActor extends Actor with LazyLogging {
   /** This method forward a message by using tell pattern
     * if the map from Identifier to ActorRef is known,
     * forward the message immediately,
-    * otherwise stash the message and ask parent for help.
+    * otherwise it asks parent for help.
     */
   def forwardMessage(to: ActorVirtualIdentity, msg: WorkflowMessage): Unit = {
     val congestionControl = idToCongestionControls.getOrElseUpdate(to, new CongestionControl())
