@@ -10,7 +10,7 @@ import { OperatorSchema } from '../../types/operator-schema.interface';
 
 import { OperatorMetadataService } from '../operator-metadata/operator-metadata.service';
 import { WorkflowActionService } from '../workflow-graph/model/workflow-action.service';
-import { isEqual, cloneDeep} from 'lodash';
+import { isEqual, cloneDeep } from 'lodash';
 
 export type SchemaTransformer = (operator: OperatorPredicate, schema: OperatorSchema) => OperatorSchema;
 
@@ -105,7 +105,7 @@ export class DynamicSchemaService {
    * operatorMetadataService and set it in the map
    */
   public getDynamicBreakpointSchema(linkID: string): BreakpointSchema {
-    if (! this.dynamicBreakpointSchemaMap.has(linkID)) {
+    if (!this.dynamicBreakpointSchemaMap.has(linkID)) {
       this.dynamicBreakpointSchemaMap.set(linkID, this.operatorMetadataService.getBreakpointSchema());
     }
     const dynamicBreakpointSchema = this.dynamicBreakpointSchemaMap.get(linkID);

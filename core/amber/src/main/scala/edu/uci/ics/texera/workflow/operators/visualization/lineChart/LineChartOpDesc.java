@@ -52,7 +52,7 @@ public class LineChartOpDesc extends VisualizationOperator {
                 "Line Chart",
                 "View the result in line chart",
                 OperatorGroupConstants.VISUALIZATION_GROUP(),
-                1, 1);
+                1, 1, false);
     }
 
     @Override

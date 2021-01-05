@@ -1,35 +1,43 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
-import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage
-import edu.uci.ics.amber.engine.architecture.breakpoint.FaultedTuple
-import edu.uci.ics.amber.engine.architecture.breakpoint.localbreakpoint.LocalBreakpoint
-import edu.uci.ics.amber.engine.common.amberexception.AmberException
-import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage._
-import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage._
-import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.amber.engine.common.ElidableStatement
 import akka.actor.{Actor, ActorLogging, Stash}
 import akka.event.LoggingAdapter
 import akka.util.Timeout
+import com.softwaremill.macwire.wire
+import edu.uci.ics.amber.engine.architecture.breakpoint.FaultedTuple
+import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
+import edu.uci.ics.amber.engine.architecture.worker.neo.{_}
+import edu.uci.ics.amber.engine.common.IOperatorExecutor
+import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
+import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage._
+import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage
+import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage._
+import edu.uci.ics.amber.engine.common.tuple.ITuple
+import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 import scala.annotation.elidable
 import scala.annotation.elidable.INFO
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
-import scala.util.control.Breaks
 import scala.concurrent.duration._
 
-abstract class WorkerBase extends Actor with ActorLogging with Stash with DataTransferSupport {
+abstract class WorkerBase extends WorkflowActor {
   implicit val ec: ExecutionContext = context.dispatcher
   implicit val timeout: Timeout = 5.seconds
   implicit val logAdapter: LoggingAdapter = log
+
+  var operator: IOperatorExecutor
+
+  lazy val workerInternalQueue: WorkerInternalQueue = wire[WorkerInternalQueue]
+  lazy val pauseManager: PauseManager = wire[PauseManager]
+  lazy val dataProcessor: DataProcessor = wire[DataProcessor]
 
   val receivedFaultedTupleIds: mutable.HashSet[Long] = new mutable.HashSet[Long]()
   val receivedRecoveryInformation: mutable.HashSet[(Long, Long)] =
     new mutable.HashSet[(Long, Long)]()
 
-  var pausedFlag = false
   var userFixedTuple: ITuple = _
+  var isCompleted = false
   @elidable(INFO) var startTime = 0L
 
   def onInitialization(recoveryInformation: Seq[(Long, Long)]): Unit = {
@@ -38,9 +46,9 @@ abstract class WorkerBase extends Actor with ActorLogging with Stash with DataTr
 
   def onSkipTuple(faultedTuple: FaultedTuple): Unit = {
     if (faultedTuple.isInput) {
-      skippedInputTuples.add(faultedTuple.tuple)
+      messagingManager.skippedInputTuples.add(faultedTuple.tuple)
     } else {
-      skippedOutputTuples.add(faultedTuple.tuple)
+      messagingManager.skippedOutputTuples.add(faultedTuple.tuple)
     }
   }
 
@@ -55,8 +63,7 @@ abstract class WorkerBase extends Actor with ActorLogging with Stash with DataTr
   }
 
   def onPausing(): Unit = {
-    pausedFlag = true
-    pauseDataTransfer()
+    messagingManager.pauseDataSending()
   }
 
   def onPaused(): Unit = {
@@ -64,34 +71,23 @@ abstract class WorkerBase extends Actor with ActorLogging with Stash with DataTr
   }
 
   def onResuming(): Unit = {
-    resumeDataTransfer()
-    pausedFlag = false
+    messagingManager.resumeDataSending()
   }
 
   def onResumed(): Unit = {
     context.parent ! ReportState(WorkerState.Running)
   }
 
-  def onCompleting(): Unit = {
-    endDataTransfer()
-  }
-
   def onCompleted(): Unit = {
+    messagingManager.endDataSending()
+    isCompleted = true
     context.parent ! ReportState(WorkerState.Completed)
   }
 
-  def onInterrupted(operations: => Unit): Unit = {
-    if (pausedFlag) {
-      //pauseDataTransfer()
-      operations
-      Breaks.break()
-    }
-  }
-
   def onBreakpointTriggered(): Unit = {
-    breakpoints.foreach { brk =>
+    dataProcessor.breakpoints.foreach { brk =>
       if (brk.isTriggered)
-        unhandledFaultedTuples(brk.triggeredTupleId) =
+        dataProcessor.unhandledFaultedTuples(brk.triggeredTupleId) =
           new FaultedTuple(brk.triggeredTuple, brk.triggeredTupleId, brk.isInput)
     }
     context.parent ! ReportState(WorkerState.LocalBreakpointTriggered)
@@ -107,7 +103,6 @@ abstract class WorkerBase extends Actor with ActorLogging with Stash with DataTr
     receivedRecoveryInformation ++= recoveryInformation
     userFixedTuple = null
     receivedFaultedTupleIds.clear()
-    pausedFlag = false
   }
 
   def getResultTuples(): mutable.MutableList[ITuple] = {
@@ -117,31 +112,43 @@ abstract class WorkerBase extends Actor with ActorLogging with Stash with DataTr
   final def allowStashOrReleaseOutput: Receive = {
     case StashOutput =>
       sender ! Ack
-      pauseDataTransfer()
+      messagingManager.pauseDataSending()
     case ReleaseOutput =>
       sender ! Ack
-      resumeDataTransfer()
+      messagingManager.resumeDataSending()
   }
 
   final def allowModifyBreakpoints: Receive = {
     case AssignBreakpoint(bp) =>
       log.info("Assign breakpoint: " + bp.id)
-      registerBreakpoint(bp)
+      dataProcessor.registerBreakpoint(bp)
       sender ! Ack
     case RemoveBreakpoint(id) =>
       log.info("Remove breakpoint: " + id)
       sender ! Ack
-      removeBreakpoint(id)
+      dataProcessor.removeBreakpoint(id)
 
   }
 
   final def disallowModifyBreakpoints: Receive = {
     case AssignBreakpoint(bp) =>
       sender ! Ack
-      throw new AmberException(s"Assignation of breakpoint ${bp.id} is not allowed at this time")
+      throw new WorkflowRuntimeException(
+        WorkflowRuntimeError(
+          s"Assignation of breakpoint ${bp.id} is not allowed at this time",
+          "WorkerBase:disallowModifyBreakpoints",
+          Map()
+        )
+      )
     case RemoveBreakpoint(id) =>
       sender ! Ack
-      throw new AmberException(s"Removal of breakpoint $id is not allowed at this time")
+      throw new WorkflowRuntimeException(
+        WorkflowRuntimeError(
+          s"Removal of breakpoint $id is not allowed at this time",
+          "WorkerBase:RemoveBreakpoint",
+          Map()
+        )
+      )
   }
 
   final def allowReset: Receive = {
@@ -151,49 +158,75 @@ abstract class WorkerBase extends Actor with ActorLogging with Stash with DataTr
 
   final def allowQueryBreakpoint: Receive = {
     case QueryBreakpoint(id) =>
-      val toReport = breakpoints.find(_.id == id)
+      val toReport = dataProcessor.breakpoints.find(_.id == id)
       if (toReport.isDefined) {
         toReport.get.isReported = true
         context.parent ! ReportedQueriedBreakpoint(toReport.get)
       } else {
-        throw new AmberException(s"breakpoint $id not found when query")
+        throw new WorkflowRuntimeException(
+          WorkflowRuntimeError(
+            s"breakpoint $id not found when query",
+            "WorkerBase:allowQueryBreakpoint",
+            Map()
+          )
+        )
       }
   }
 
   final def disallowQueryBreakpoint: Receive = {
     case QueryBreakpoint(id) =>
-      throw new AmberException(s"query breakpoint $id is not allowed at this time")
+      throw new WorkflowRuntimeException(
+        WorkflowRuntimeError(
+          s"query breakpoint $id is not allowed at this time",
+          "WorkerBase:disallowQueryBreakpoint",
+          Map()
+        )
+      )
   }
 
   final def allowQueryTriggeredBreakpoints: Receive = {
     case QueryTriggeredBreakpoints =>
-      val toReport = breakpoints.filter(_.isTriggered)
+      val toReport = dataProcessor.breakpoints.filter(_.isTriggered)
       if (toReport.nonEmpty) {
         toReport.foreach(_.isReported = true)
         sender ! ReportedTriggeredBreakpoints(toReport)
       } else {
-        throw new AmberException(
-          "no triggered local breakpoints but worker in triggered breakpoint state"
+        throw new WorkflowRuntimeException(
+          WorkflowRuntimeError(
+            "no triggered local breakpoints but worker in triggered breakpoint state",
+            "WorkerBase:allowQueryTriggeredBreakpoints",
+            Map()
+          )
         )
       }
   }
 
   final def disallowQueryTriggeredBreakpoints: Receive = {
     case QueryTriggeredBreakpoints =>
-      throw new AmberException(s"query triggered breakpoints is not allowed at this time")
+      throw new WorkflowRuntimeException(
+        WorkflowRuntimeError(
+          s"query triggered breakpoints is not allowed at this time",
+          "WorkerBase:disallowQueryTriggeredBreakpoints",
+          Map()
+        )
+      )
   }
 
   final def allowUpdateOutputLinking: Receive = {
     case UpdateOutputLinking(policy, tag, receivers) =>
       sender ! Ack
-      updateOutput(policy, tag, receivers)
+      messagingManager.updateReceiverAndSender(policy, tag, receivers)
   }
 
   final def disallowUpdateOutputLinking: Receive = {
     case UpdateOutputLinking(policy, tag, receivers) =>
       sender ! Ack
-      throw new AmberException(
-        s"update output link information of $tag is not allowed at this time"
+      throw new WorkflowRuntimeException(
+        WorkflowRuntimeError(
+          s"update output link information of $tag is not allowed at this time",
+          "WorkerBase:disallowUpdateOutputLinking",
+          Map()
+        )
       )
   }
 
@@ -212,7 +245,7 @@ abstract class WorkerBase extends Actor with ActorLogging with Stash with DataTr
 
   final def stashOthers: Receive = {
     case msg =>
-      log.info("stashing: " + msg)
+      log.info(s"stashing in WorkerBase" + msg)
       stash()
   }
 
@@ -263,7 +296,7 @@ abstract class WorkerBase extends Actor with ActorLogging with Stash with DataTr
       allowModifyBreakpoints orElse
       disallowQueryTriggeredBreakpoints orElse [Any, Unit] {
       case QueryBreakpoint(id) =>
-        val toReport = breakpoints.find(_.id == id)
+        val toReport = dataProcessor.breakpoints.find(_.id == id)
         if (toReport.isDefined) {
           toReport.get.isReported = true
           context.parent ! ReportedQueriedBreakpoint(toReport.get)
@@ -290,8 +323,8 @@ abstract class WorkerBase extends Actor with ActorLogging with Stash with DataTr
       allowModifyBreakpoints orElse
       disallowQueryTriggeredBreakpoints orElse [Any, Unit] {
       case Resume =>
-        unhandledFaultedTuples.values.foreach(onResumeTuple)
-        unhandledFaultedTuples.clear()
+        dataProcessor.unhandledFaultedTuples.values.foreach(onResumeTuple)
+        dataProcessor.unhandledFaultedTuples.clear()
         onResuming()
         onResumed()
         context.become(running)
@@ -300,21 +333,21 @@ abstract class WorkerBase extends Actor with ActorLogging with Stash with DataTr
         sender ! Ack
         if (!receivedFaultedTupleIds.contains(f.id)) {
           receivedFaultedTupleIds.add(f.id)
-          unhandledFaultedTuples.remove(f.id)
+          dataProcessor.unhandledFaultedTuples.remove(f.id)
           onSkipTuple(f)
         }
       case ModifyTuple(f) =>
         sender ! Ack
         if (!receivedFaultedTupleIds.contains(f.id)) {
           receivedFaultedTupleIds.add(f.id)
-          unhandledFaultedTuples.remove(f.id)
+          dataProcessor.unhandledFaultedTuples.remove(f.id)
           onModifyTuple(f)
         }
       case ResumeTuple(f) =>
         sender ! Ack
         if (!receivedFaultedTupleIds.contains(f.id)) {
           receivedFaultedTupleIds.add(f.id)
-          unhandledFaultedTuples.remove(f.id)
+          dataProcessor.unhandledFaultedTuples.remove(f.id)
           onResumeTuple(f)
         }
       case Pause      => context.parent ! ReportState(WorkerState.Paused)
@@ -324,7 +357,7 @@ abstract class WorkerBase extends Actor with ActorLogging with Stash with DataTr
           WorkerStatistics(WorkerState.Paused, getInputRowCount(), getOutputRowCount())
         )
       case QueryBreakpoint(id) =>
-        val toReport = breakpoints.find(_.id == id)
+        val toReport = dataProcessor.breakpoints.find(_.id == id)
         if (toReport.isDefined) {
           toReport.get.isReported = true
           context.parent ! ReportedQueriedBreakpoint(toReport.get)
@@ -335,7 +368,13 @@ abstract class WorkerBase extends Actor with ActorLogging with Stash with DataTr
       case CollectSinkResults =>
         sender ! WorkerMessage.ReportOutputResult(this.getResultTuples().toList)
       case LocalBreakpointTriggered =>
-        throw new AmberException("breakpoint triggered after pause")
+        throw new WorkflowRuntimeException(
+          WorkflowRuntimeError(
+            "breakpoint triggered after pause",
+            "WorkerBase:paused:LocalBreakpointTriggered",
+            Map()
+          )
+        )
     } orElse discardOthers
 
   def running: Receive =
@@ -351,7 +390,7 @@ abstract class WorkerBase extends Actor with ActorLogging with Stash with DataTr
         context.become(paused)
         unstashAll()
       case Pause =>
-        log.info("received Pause message")
+        log.info(s"received Pause message")
         onPausing()
       case LocalBreakpointTriggered =>
         log.info("receive breakpoint triggered")
@@ -382,8 +421,8 @@ abstract class WorkerBase extends Actor with ActorLogging with Stash with DataTr
       case AssignBreakpoint(bp) =>
         log.info("assign breakpoint: " + bp)
         sender ! Ack
-        registerBreakpoint(bp)
-        if (!breakpoints.exists(_.isDirty)) {
+        dataProcessor.registerBreakpoint(bp)
+        if (!dataProcessor.breakpoints.exists(_.isDirty)) {
           onPaused() //back to paused
           context.unbecome()
           unstashAll()
@@ -391,8 +430,8 @@ abstract class WorkerBase extends Actor with ActorLogging with Stash with DataTr
       case RemoveBreakpoint(id) =>
         log.info("remove breakpoint: " + id)
         sender ! Ack
-        removeBreakpoint(id)
-        if (!breakpoints.exists(_.isDirty)) {
+        dataProcessor.removeBreakpoint(id)
+        if (!dataProcessor.breakpoints.exists(_.isDirty)) {
           onPaused() //back to paused
           context.unbecome()
           unstashAll()
@@ -430,5 +469,16 @@ abstract class WorkerBase extends Actor with ActorLogging with Stash with DataTr
           sender ! ReportState(WorkerState.Completed)
         }
     }
+
+  def pausing: Receive = {
+    case ExecutionPaused =>
+      //wait for signal from dp thread
+      onPaused()
+      context.become(paused)
+      unstashAll()
+    case msg =>
+      //stash all other messages
+      stash()
+  }
 
 }

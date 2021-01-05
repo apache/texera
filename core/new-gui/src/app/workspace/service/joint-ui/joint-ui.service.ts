@@ -4,6 +4,7 @@ import { OperatorSchema } from '../../types/operator-schema.interface';
 
 import * as joint from 'jointjs';
 import { Point, OperatorPredicate, OperatorLink } from '../../types/workflow-common.interface';
+import { Group, GroupBoundingBox } from '../workflow-graph/model/operator-group';
 import { OperatorState, OperatorStatistics } from '../../types/execute-workflow.interface';
 
 /**
@@ -22,6 +23,7 @@ export const deleteButtonPath =
   'M14.59 8L12 10.59 9.41 8 8 9.41 10.59 12 8 14.59 9.41 16 12 13.41' +
   ' 14.59 16 16 14.59 13.41 12 16 9.41 14.59 8zM12 2C6.47 2 2 6.47 2' +
   ' 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z';
+
 /**
  * Defines the HTML SVG element for the delete button and customizes the look
  */
@@ -29,6 +31,40 @@ export const deleteButtonSVG =
   `<svg class="delete-button" height="24" width="24">
     <path d="M0 0h24v24H0z" fill="none" pointer-events="visible" />
     <path d="${deleteButtonPath}"/>
+  </svg>`;
+
+/**
+ * Defines the SVG path for the collapse button
+ */
+export const collapseButtonPath =
+  'M4 7 H12 v2 H4 z' +
+  ' M0 3 Q0 0 3 0 h10 Q16 0 16 3 v10 H14 V3 Q14 2 13 2 H3 Q2 2 2 3 z' +
+  ' M0 3 v10 Q0 16 3 16 h10 Q16 16 16 13 H14 Q14 14 13 14 H3 Q2 14 2 13 V3 z';
+
+/**
+ * Defines the HTML SVG element for the collapse button and customizes the look
+ */
+export const collapseButtonSVG =
+  `<svg class="collapse-button" height="16" width="16">
+    <path d="M0 0 h16 v16 H0 z" fill="none" pointer-events="visible" />
+    <path d="${collapseButtonPath}" />
+  </svg>`;
+
+/**
+ * Defines the SVG path for the expand button
+ */
+export const expandButtonPath =
+  'M4 7 h3 V4 h2 V7 h3 v2 h-3 V12 h-2 V9 h-3 z' +
+  ' M0 3 Q0 0 3 0 h10 Q16 0 16 3 v10 H14 V3 Q14 2 13 2 H3 Q2 2 2 3 z' +
+  ' M0 3 v10 Q0 16 3 16 h10 Q16 16 16 13 H14 Q14 14 13 14 H3 Q2 14 2 13 V3 z';
+
+/**
+ * Defines the HTML SVG element for the expand button and customizes the look
+ */
+export const expandButtonSVG =
+  `<svg class="expand-button" height="16" width="16">
+    <path d="M0 0 h16 v16 H0 z" fill="none" pointer-events="visible" />
+    <path d="${expandButtonPath}" />
   </svg>`;
 
 /**
@@ -48,6 +84,8 @@ export const operatorOutputCountClass = 'texera-operator-output-count';
 
 export const operatorNameClass = 'texera-operator-name';
 
+export const linkPathStrokeColor = '#919191';
+
 /**
  * Extends a basic Joint operator element and adds our own HTML markup.
  * Our own HTML markup includes the SVG element for the delete button,
@@ -66,20 +104,22 @@ class TexeraCustomJointElement extends joint.shapes.devs.Model {
     </g>`;
 }
 
-// // /**
-// //  * Extends a basic Joint operator element and adds our own HTML markup.
-// //  */
-// class TexeraCustomOperatorStatusTooltipElement extends joint.shapes.devs.Model {
-//   markup =
-//   `<g class="element-node">
-//     <polygon class="body"></polygon>
-//     <text class = "operatorCount"></text>
-//   </g>`;
-// }
+/**
+ * Extends a basic Joint shape element and adds our own HTML markup.
+ */
+class TexeraCustomGroupElement extends joint.shapes.devs.Model {
+  markup =
+    `<g class="element-node">
+      <rect class="body"></rect>
+      <text>New Group</text>
+      ${collapseButtonSVG}
+      ${expandButtonSVG}
+    </g>`;
+}
 
 /**
  * JointUIService controls the shape of an operator and a link
- *  when they is displayed by JointJS.
+ *  when they are displayed by JointJS.
  *
  * This service alters the basic JointJS element by:
  *  - setting the ID of the JointJS element to be the same as Texera's OperatorID
@@ -101,7 +141,11 @@ export class JointUIService {
   public static readonly DEFAULT_TOOLTIP_WIDTH = 140;
   public static readonly DEFAULT_TOOLTIP_HEIGHT = 60;
 
+  public static readonly DEFAULT_GROUP_MARGIN = 50;
+  public static readonly DEFAULT_GROUP_MARGIN_BOTTOM = 40;
+
   private operators: ReadonlyArray<OperatorSchema> = [];
+
   constructor(
     private operatorMetadataService: OperatorMetadataService,
   ) {
@@ -173,11 +217,42 @@ export class JointUIService {
     this.changeOperatorState(jointPaper, operatorID, statistics.operatorState);
 
     const processedText = 'Processed: ' + statistics.aggregatedInputRowCount.toLocaleString();
-    const outputText =    'Output:    ' + statistics.aggregatedOutputRowCount.toLocaleString();
+    const outputText = 'Output:    ' + statistics.aggregatedOutputRowCount.toLocaleString();
     jointPaper.getModelById(operatorID).attr(`.${operatorProcessedCountClass}/text`, processedText);
     jointPaper.getModelById(operatorID).attr(`.${operatorOutputCountClass}/text`, outputText);
 
   }
+
+  /**
+   * Gets the JointJS UI Element object based on the group.
+   * A JointJS Element could be added to the JointJS graph to let JointJS display the group accordingly.
+   *
+   * The function returns an element that has our custom style,
+   *  which is specified in getCustomGroupStyleAttrs().
+   *
+   * @param group
+   * @param topLeft the position of the operator (if there was one) that's in the top left corner of the group
+   * @param bottomRight the position of the operator (if there was one) that's in the bottom right corner of the group
+   */
+  public getJointGroupElement(group: Group, boundingBox: GroupBoundingBox): joint.dia.Element {
+    const {topLeft, bottomRight} = boundingBox;
+
+    const groupElementPosition = {x: topLeft.x - JointUIService.DEFAULT_GROUP_MARGIN,
+      y: topLeft.y - JointUIService.DEFAULT_GROUP_MARGIN};
+    const widthMargin = JointUIService.DEFAULT_OPERATOR_WIDTH + 2 * JointUIService.DEFAULT_GROUP_MARGIN;
+    const heightMargin = JointUIService.DEFAULT_OPERATOR_HEIGHT + JointUIService.DEFAULT_GROUP_MARGIN +
+      JointUIService.DEFAULT_GROUP_MARGIN_BOTTOM;
+
+    const groupElement = new TexeraCustomGroupElement({
+      position: groupElementPosition,
+      size: {width: bottomRight.x - topLeft.x + widthMargin, height: bottomRight.y - topLeft.y + heightMargin},
+      attrs: JointUIService.getCustomGroupStyleAttrs(bottomRight.x - topLeft.x + widthMargin)
+    });
+
+    groupElement.set('id', group.groupID);
+    return groupElement;
+  }
+
 
   public changeOperatorState(jointPaper: joint.dia.Paper, operatorID: string, operatorState: OperatorState): void {
     let fillColor: string;
@@ -196,6 +271,42 @@ export class JointUIService {
 
     jointPaper.getModelById(operatorID).attr(`.${operatorStateClass}/text`, operatorState.toString());
     jointPaper.getModelById(operatorID).attr(`.${operatorStateClass}/fill`, fillColor);
+  }
+
+  /**
+   * Hides the expand button and shows the collapse button of
+   * the given group on joint paper.
+   *
+   * @param jointPaper
+   * @param groupID
+   */
+  public hideGroupExpandButton(jointPaper: joint.dia.Paper, groupID: string): void {
+    jointPaper.getModelById(groupID).attr('.expand-button/display', 'none');
+    jointPaper.getModelById(groupID).removeAttr('.collapse-button/display');
+  }
+
+  /**
+   * Hides the collapse button and shows the expand button of
+   * the given group on joint paper.
+   *
+   * @param jointPaper
+   * @param groupID
+   */
+  public hideGroupCollapseButton(jointPaper: joint.dia.Paper, groupID: string): void {
+    jointPaper.getModelById(groupID).attr('.collapse-button/display', 'none');
+    jointPaper.getModelById(groupID).removeAttr('.expand-button/display');
+  }
+
+  /**
+   * Repositions the collapse button of the given group according
+   * to the group's (new) width.
+   *
+   * @param jointPaper
+   * @param groupID
+   * @param width
+   */
+  public repositionGroupCollapseButton(jointPaper: joint.dia.Paper, groupID: string, width: number): void {
+    jointPaper.getModelById(groupID).attr('.collapse-button/x', `${width - 23}`);
   }
 
   /**
@@ -306,8 +417,12 @@ export class JointUIService {
            </g>
          </g>`,
       attrs: {
+        '.connection': {
+          'stroke': linkPathStrokeColor,
+          'stroke-width': '2px',
+        },
         '.connection-wrap': {
-          'stroke-width': 0,
+          'stroke-width': '0px',
           // 'display': 'inline'
         },
         '.marker-source': {
@@ -387,9 +502,10 @@ export class JointUIService {
     };
     return tooltipStyleAttrs;
   }
+
   /**
    * This function creates a custom svg style for the operator.
-   * This function also make sthe delete button defined above to emit the delete event that will
+   * This function also makes the delete button defined above to emit the delete event that will
    *   be captured by JointJS paper using event name *element:delete*
    *
    * @param operatorDisplayName the name of the operator that will display on the UI
@@ -434,4 +550,36 @@ export class JointUIService {
     };
     return operatorStyleAttrs;
   }
+
+  /**
+   * This function creates a custom svg style for the group.
+   * This function also makes collapse button and expand button defined above to emit
+   *   the collapse event and expand event that will be captured by JointJS paper
+   *   using event names *element:collapse* and *element:expand*
+   *
+   * @param width width of the group (used to position the collapse button)
+   * @returns the custom attributes of the group
+   */
+  public static getCustomGroupStyleAttrs(width: number): joint.shapes.devs.ModelSelectors {
+    const groupStyleAttrs = {
+      'rect': {
+        fill: '#F2F4F5', 'follow-scale': true, stroke: '#CED4D9', 'stroke-width': '2',
+        rx: '5px', ry: '5px'
+      },
+      'text': {
+        fill: '#595959', 'font-size': '16px', 'ref-x': 15, 'ref-y': 20, ref: 'rect'
+      },
+      '.collapse-button': {
+        x: width - 23, y: 6, cursor: 'pointer',
+        fill: '#728393', event: 'element:collapse'
+      },
+      '.expand-button': {
+        x: 147, y: 6, cursor: 'pointer',
+        fill: '#728393', event: 'element:expand',
+        display: 'none'
+      }
+    };
+    return groupStyleAttrs;
+  }
+
 }

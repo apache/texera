@@ -68,7 +68,7 @@ public class FileManager {
     
     private void checkFileDuplicate(Path filePath) throws StorageException {
         if (Files.exists(filePath)) {
-            throw new TexeraException("File alread exists");
+            throw new TexeraException("File already exists");
         }
     }
     

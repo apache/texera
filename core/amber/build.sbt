@@ -1,4 +1,3 @@
-
 name := "texera"
 organization := "edu.uci.ics"
 version := "0.1-SNAPSHOT"
@@ -9,6 +8,9 @@ scalaVersion := "2.12.8"
 //To turn off, use: WARNING
 scalacOptions ++= Seq("-Xelide-below", "WARNING")
 scalacOptions ++= Seq("-feature")
+
+// ensuring no parallel execution of multiple tasks
+concurrentRestrictions in Global += Tags.limit(Tags.Test, 1)
 
 val akkaVersion = "2.5.24"
 val hadoopVersion = "3.2.0"
@@ -23,7 +25,10 @@ libraryDependencies ++= Seq(
   "com.typesafe.akka" %% "akka-testkit" % akkaVersion,
   "com.typesafe.akka" %% "akka-persistence" % akkaVersion,
   "io.kamon" % "sigar-loader" % "1.6.6-rev002",
-  "com.chuusai" %% "shapeless" % "2.3.3"
+  "com.softwaremill.macwire" %% "macros" % "2.3.6" % "provided",
+  "com.softwaremill.macwire" %% "macrosakka" % "2.3.6" % "provided",
+  "com.softwaremill.macwire" %% "util" % "2.3.6",
+  "com.softwaremill.macwire" %% "proxy" % "2.3.6"
 )
 
 val excludeHadoopJersey = ExclusionRule(organization = "com.sun.jersey")
@@ -77,10 +82,16 @@ libraryDependencies += "org.apache.arrow" % "flight-core" % "1.0.1"
 libraryDependencies += "org.apache.arrow" % "flight-grpc" % "1.0.1"
 libraryDependencies += "io.netty" % "netty-all" % "4.1.48.Final"
 
+libraryDependencies += "org.apache.lucene" % "lucene-core" % "8.7.0"
+libraryDependencies += "org.apache.lucene" % "lucene-analyzers-common" % "8.7.0"
+libraryDependencies += "org.apache.lucene" % "lucene-queryparser" % "8.7.0"
+libraryDependencies += "org.apache.lucene" % "lucene-queries" % "8.7.0"
+libraryDependencies += "org.apache.lucene" % "lucene-memory" % "8.7.0"
 
 // https://mvnrepository.com/artifact/mysql/mysql-connector-java
 libraryDependencies += "mysql" % "mysql-connector-java" % "8.0.19"
 
-libraryDependencies += "org.apache.lucene" % "lucene-analyzers-common" % "5.5.0"
-libraryDependencies += "org.apache.lucene" % "lucene-analyzers-smartcn" % "5.5.0"
+// https://mvnrepository.com/artifact/org.jooq/jooq
+libraryDependencies += "org.jooq" % "jooq" % "3.14.4"
 
+libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.9.2"
