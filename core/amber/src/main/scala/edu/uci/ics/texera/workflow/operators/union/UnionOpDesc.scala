@@ -12,17 +12,19 @@ class UnionOpDesc extends OperatorDescriptor {
     new OneToOneOpExecConfig(this.operatorIdentifier, _ => new UnionOpExec())
   }
 
-  override def operatorInfo: OperatorInfo = OperatorInfo(
-    "Union",
-    "unions the output rows from multiple input operators",
-    OperatorGroupConstants.UTILITY_GROUP,
-    1, 1, allowMultiInputs = true
-  )
+  override def operatorInfo: OperatorInfo =
+    OperatorInfo(
+      "Union",
+      "unions the output rows from multiple input operators",
+      OperatorGroupConstants.UTILITY_GROUP,
+      1,
+      1,
+      allowMultiInputs = true
+    )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Preconditions.checkArgument(schemas.forall(_ == schemas(0)))
     schemas(0)
   }
-
 
 }
