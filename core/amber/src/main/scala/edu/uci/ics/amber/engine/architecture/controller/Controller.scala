@@ -468,7 +468,9 @@ class Controller(
     )
     operatorToWorkerLayers(startOp).foreach { x =>
       var i = 0
-      x.identifiers.indices.foreach(i => registerActorRef(x.identifiers(i), x.layer(i)))
+      x.identifiers.indices.foreach(i =>
+        networkSenderActor ! RegisterActorRef(x.identifiers(i), x.layer(i))
+      )
       x.layer.foreach { worker =>
         val workerTag = WorkerTag(x.tag, i)
         workerToOperator(worker) = startOp
@@ -995,7 +997,7 @@ class Controller(
     Set(WorkerState.Running, WorkerState.Ready, WorkerState.Completed)
 
   override def receive: Receive = {
-    findActorRefFromVirtualIdentity orElse {
+    routeActorRefRelatedMessages orElse {
       case LogErrorToFrontEnd(err: WorkflowRuntimeError) =>
         log.error(err.convertToMap().mkString(" | "))
         eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
@@ -1059,7 +1061,7 @@ class Controller(
   }
 
   private[this] def ready: Receive = {
-    findActorRefFromVirtualIdentity orElse {
+    routeActorRefRelatedMessages orElse {
       case LogErrorToFrontEnd(err: WorkflowRuntimeError) =>
         log.error(err.convertToMap().mkString(" | "))
         eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
@@ -1149,7 +1151,7 @@ class Controller(
   }
 
   private[this] def running: Receive = {
-    findActorRefFromVirtualIdentity orElse
+    routeActorRefRelatedMessages orElse
       handleBreakpointOnlyWorkerMessages orElse [Any, Unit] {
       case LogErrorToFrontEnd(err: WorkflowRuntimeError) =>
         log.error(err.convertToMap().mkString(" | "))
@@ -1247,7 +1249,7 @@ class Controller(
   }
 
   private[this] def pausing: Receive = {
-    findActorRefFromVirtualIdentity orElse
+    routeActorRefRelatedMessages orElse
       handleBreakpointOnlyWorkerMessages orElse [Any, Unit] {
       case LogErrorToFrontEnd(err: WorkflowRuntimeError) =>
         log.error(err.convertToMap().mkString(" | "))

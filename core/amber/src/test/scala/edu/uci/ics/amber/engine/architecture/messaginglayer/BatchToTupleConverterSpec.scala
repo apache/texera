@@ -9,14 +9,14 @@ import edu.uci.ics.amber.engine.architecture.worker.neo.WorkerInternalQueue.{
   SenderChangeMarker
 }
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{DataFrame, EndOfUpstream}
-import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.NamedActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.WorkerActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 
 class BatchToTupleConverterSpec extends AnyFlatSpec with MockFactory {
   private val mockInternalQueue = mock[WorkerInternalQueue]
-  private val fakeID = NamedActorVirtualIdentity("testReceiver")
+  private val fakeID = WorkerActorVirtualIdentity("testReceiver")
 
   "tuple producer" should "break batch into tuples and output" in {
     val batchToTupleConverter = wire[BatchToTupleConverter]
@@ -30,8 +30,8 @@ class BatchToTupleConverterSpec extends AnyFlatSpec with MockFactory {
       (mockInternalQueue.appendElement _).expects(EndOfAllMarker())
     }
     batchToTupleConverter.registerInput(fakeID, 0)
-    batchToTupleConverter.processDataEvents(fakeID, Iterable(inputBatch))
-    batchToTupleConverter.processDataEvents(fakeID, Iterable(EndOfUpstream()))
+    batchToTupleConverter.processDataPayload(fakeID, Iterable(inputBatch))
+    batchToTupleConverter.processDataPayload(fakeID, Iterable(EndOfUpstream()))
   }
 
   "tuple producer" should "be aware of upstream change" in {
@@ -52,16 +52,16 @@ class BatchToTupleConverterSpec extends AnyFlatSpec with MockFactory {
       (mockInternalQueue.appendElement _).expects(EndMarker())
       (mockInternalQueue.appendElement _).expects(EndOfAllMarker())
     }
-    val first = NamedActorVirtualIdentity("first upstream")
-    val second = NamedActorVirtualIdentity("second upstream")
+    val first = WorkerActorVirtualIdentity("first upstream")
+    val second = WorkerActorVirtualIdentity("second upstream")
     batchToTupleConverter.registerInput(first, 0)
     batchToTupleConverter.registerInput(second, 1)
-    batchToTupleConverter.processDataEvents(first, Iterable(inputBatchFromUpstream1))
-    batchToTupleConverter.processDataEvents(
+    batchToTupleConverter.processDataPayload(first, Iterable(inputBatchFromUpstream1))
+    batchToTupleConverter.processDataPayload(
       second,
       Iterable(inputBatchFromUpstream2, EndOfUpstream())
     )
-    batchToTupleConverter.processDataEvents(first, Iterable(EndOfUpstream()))
+    batchToTupleConverter.processDataPayload(first, Iterable(EndOfUpstream()))
 
   }
 
