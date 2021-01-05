@@ -33,7 +33,8 @@ import akka.actor.{ActorSystem, PoisonPill, Props}
 import akka.event.LoggingAdapter
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 import akka.util.Timeout
-import org.scalatest.{BeforeAndAfterAll, FlatSpecLike}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpecLike
 
 import scala.collection.mutable
 import scala.concurrent.{Await, ExecutionContextExecutor}
@@ -43,7 +44,7 @@ import scala.util.Random
 class ExceptionBreakpointSpec
     extends TestKit(ActorSystem("PrincipalSpec"))
     with ImplicitSender
-    with FlatSpecLike
+    with AnyFlatSpecLike
     with BeforeAndAfterAll {
 
   implicit val timeout: Timeout = Timeout(5.seconds)

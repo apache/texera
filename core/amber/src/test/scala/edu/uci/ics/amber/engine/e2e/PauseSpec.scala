@@ -18,17 +18,18 @@ import edu.uci.ics.texera.workflow.common.workflow.{
   WorkflowCompiler,
   WorkflowInfo
 }
-import org.scalatest.{BeforeAndAfterAll, FlatSpecLike}
+import org.scalatest.BeforeAndAfterAll
 
 import scala.collection.mutable
 import scala.concurrent.{Await, ExecutionContextExecutor}
 import scala.concurrent.duration._
 import com.typesafe.scalalogging.Logger
+import org.scalatest.flatspec.AnyFlatSpecLike
 
 class PauseSpec
     extends TestKit(ActorSystem("PauseSpec"))
     with ImplicitSender
-    with FlatSpecLike
+    with AnyFlatSpecLike
     with BeforeAndAfterAll {
 
   implicit val timeout: Timeout = Timeout(5.seconds)

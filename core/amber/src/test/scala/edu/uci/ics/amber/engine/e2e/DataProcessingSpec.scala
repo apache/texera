@@ -39,9 +39,8 @@ import edu.uci.ics.texera.workflow.common.workflow.{
   WorkflowInfo
 }
 import edu.uci.ics.texera.workflow.operators.aggregate.AggregationFunction
-import edu.uci.ics.texera.workflow.operators.localscan.LocalCsvFileScanOpDesc
-import edu.uci.ics.texera.workflow.operators.sink.SimpleSinkOpDesc
-import org.scalatest.{BeforeAndAfterAll, FlatSpecLike}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpecLike
 
 import scala.collection.mutable
 import scala.concurrent.{Await, ExecutionContextExecutor}
@@ -51,7 +50,7 @@ import scala.util.Random
 class DataProcessingSpec
     extends TestKit(ActorSystem("DataProcessingSpec"))
     with ImplicitSender
-    with FlatSpecLike
+    with AnyFlatSpecLike
     with BeforeAndAfterAll {
 
   implicit val timeout: Timeout = Timeout(5.seconds)

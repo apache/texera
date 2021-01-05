@@ -111,7 +111,9 @@ import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{
   Reset
 }
 import edu.uci.ics.amber.error.WorkflowRuntimeError
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputGate
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkSenderActor
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkSenderActor.RegisterActorRef
+import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
 
 import collection.JavaConverters._
 import scala.collection.mutable
@@ -145,10 +147,7 @@ class Controller(
     val withCheckpoint: Boolean,
     val eventListener: ControllerEventListener = ControllerEventListener(),
     val statisticsUpdateIntervalMs: Option[Long]
-) extends Actor
-    with ActorLogging
-    with Stash
-    with NetworkOutputGate {
+) extends WorkflowActor(VirtualIdentity.Controller) {
   implicit val ec: ExecutionContext = context.dispatcher
   implicit val timeout: Timeout = 5.seconds
   implicit val logAdapter: LoggingAdapter = log
@@ -469,7 +468,9 @@ class Controller(
     )
     operatorToWorkerLayers(startOp).foreach { x =>
       var i = 0
-      x.identifiers.indices.foreach(i => registerActorRef(x.identifiers(i), x.layer(i)))
+      x.identifiers.indices.foreach(i =>
+        networkSenderActor ! RegisterActorRef(x.identifiers(i), x.layer(i))
+      )
       x.layer.foreach { worker =>
         val workerTag = WorkerTag(x.tag, i)
         workerToOperator(worker) = startOp
@@ -996,7 +997,7 @@ class Controller(
     Set(WorkerState.Running, WorkerState.Ready, WorkerState.Completed)
 
   override def receive: Receive = {
-    findActorRefFromVirtualIdentity orElse {
+    routeActorRefRelatedMessages orElse {
       case LogErrorToFrontEnd(err: WorkflowRuntimeError) =>
         log.error(err.convertToMap().mkString(" | "))
         eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
@@ -1060,7 +1061,7 @@ class Controller(
   }
 
   private[this] def ready: Receive = {
-    findActorRefFromVirtualIdentity orElse {
+    routeActorRefRelatedMessages orElse {
       case LogErrorToFrontEnd(err: WorkflowRuntimeError) =>
         log.error(err.convertToMap().mkString(" | "))
         eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
@@ -1150,7 +1151,7 @@ class Controller(
   }
 
   private[this] def running: Receive = {
-    findActorRefFromVirtualIdentity orElse
+    routeActorRefRelatedMessages orElse
       handleBreakpointOnlyWorkerMessages orElse [Any, Unit] {
       case LogErrorToFrontEnd(err: WorkflowRuntimeError) =>
         log.error(err.convertToMap().mkString(" | "))
@@ -1248,7 +1249,7 @@ class Controller(
   }
 
   private[this] def pausing: Receive = {
-    findActorRefFromVirtualIdentity orElse
+    routeActorRefRelatedMessages orElse
       handleBreakpointOnlyWorkerMessages orElse [Any, Unit] {
       case LogErrorToFrontEnd(err: WorkflowRuntimeError) =>
         log.error(err.convertToMap().mkString(" | "))
@@ -1295,7 +1296,7 @@ class Controller(
   }
 
   private[this] def paused: Receive = {
-    findActorRefFromVirtualIdentity orElse {
+    routeActorRefRelatedMessages orElse {
       case LogErrorToFrontEnd(err: WorkflowRuntimeError) =>
         log.error(err.convertToMap().mkString(" | "))
         eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
@@ -1376,7 +1377,7 @@ class Controller(
   }
 
   private[this] def resuming: Receive = {
-    findActorRefFromVirtualIdentity orElse {
+    routeActorRefRelatedMessages orElse {
       case LogErrorToFrontEnd(err: WorkflowRuntimeError) =>
         log.error(err.convertToMap().mkString(" | "))
         eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
@@ -1461,7 +1462,7 @@ class Controller(
   }
 
   private[this] def completed: Receive = {
-    findActorRefFromVirtualIdentity orElse {
+    routeActorRefRelatedMessages orElse {
       case LogErrorToFrontEnd(err: WorkflowRuntimeError) =>
         log.error(err.convertToMap().mkString(" | "))
         eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
