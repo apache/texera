@@ -67,9 +67,6 @@ class CongestionControl {
 
   def markMessageInTransit(data: NetworkMessage): Unit = {
     inTransit(data.messageID) = data
-  }
-
-  def markSentTime(data: NetworkMessage): Unit = {
     sentTime(data.messageID) = System.currentTimeMillis()
   }
 

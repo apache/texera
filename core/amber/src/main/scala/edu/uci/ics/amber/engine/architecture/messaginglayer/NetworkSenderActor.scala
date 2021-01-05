@@ -67,6 +67,7 @@ class NetworkSenderActor extends Actor with LazyLogging {
   val idToActorRefs = new mutable.HashMap[ActorVirtualIdentity, ActorRef]()
   val idToCongestionControls = new mutable.HashMap[ActorVirtualIdentity, CongestionControl]()
   val queriedActorVirtualIdentities = new mutable.HashSet[ActorVirtualIdentity]()
+  val messageStash = new mutable.HashMap[ActorVirtualIdentity, mutable.Queue[WorkflowMessage]]
 
   /** keeps track of every outgoing message.
     * Each message is identified by this monotonic increasing ID.
@@ -116,7 +117,6 @@ class NetworkSenderActor extends Actor with LazyLogging {
     messageIDToIdentity(networkMessageID) = to
     if (congestionControl.canSend) {
       congestionControl.markMessageInTransit(data)
-      congestionControl.markSentTime(data)
       sendOrGetActorRef(to, data)
     } else {
       congestionControl.enqueueMessage(data)
@@ -131,23 +131,29 @@ class NetworkSenderActor extends Actor with LazyLogging {
     */
   def registerActorRef(actorID: ActorVirtualIdentity, ref: ActorRef): Unit = {
     idToActorRefs(actorID) = ref
-    val ctrl = idToCongestionControls.getOrElseUpdate(actorID, new CongestionControl())
-    ctrl.getInTransitMessages.foreach { msg =>
-      ctrl.markSentTime(msg)
-      ref ! msg // directly send it
+    if (messageStash.contains(actorID)) {
+      val stash = messageStash(actorID)
+      while (stash.nonEmpty) {
+        forwardMessage(actorID, stash.dequeue())
+      }
     }
   }
 
   def sendMessagesAndReceiveAcks: Receive = {
     case SendRequest(id, msg) =>
-      forwardMessage(id, msg)
+      if (idToActorRefs.contains(id)) {
+        forwardMessage(id, msg)
+      } else {
+        val stash = messageStash.getOrElseUpdate(id, new mutable.Queue[WorkflowMessage]())
+        stash.enqueue(msg)
+        getActorRefMappingFromParent(id)
+      }
     case NetworkAck(id) =>
       val actorID = messageIDToIdentity(id)
       val congestionControl = idToCongestionControls(actorID)
       congestionControl.ack(id)
       congestionControl.getBufferedMessagesToSend.foreach { msg =>
         congestionControl.markMessageInTransit(msg)
-        congestionControl.markSentTime(msg)
         sendOrGetActorRef(actorID, msg)
       }
     case ResendMessages =>
