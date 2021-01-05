@@ -31,7 +31,7 @@ public class ProjectionOpDesc extends MapOpDesc {
                 "Projection",
                 "keeps the column",
                 OperatorGroupConstants.UTILITY_GROUP(),
-                1, 1
+                1, 1, false
         );
     }
 
