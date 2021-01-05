@@ -76,9 +76,8 @@ class CongestionControl {
   def getTimedOutInTransitMessages: Iterable[NetworkMessage] = {
     val timeCap = System.currentTimeMillis() - resendTimeLimit
     sentTime.collect {
-      case (id, timeStamp)
-        if timeStamp < timeCap =>
-          inTransit(id)
+      case (id, timeStamp) if timeStamp < timeCap =>
+        inTransit(id)
     }
   }
 
