@@ -38,13 +38,11 @@ class CongestionControl {
   private val inTransit = new mutable.LongMap[NetworkMessage]()
   private val sentTime = new mutable.TreeMap[Long, Long]()
 
-  def canSend(data: NetworkMessage): Boolean = {
-    if (inTransit.size < windowSize) {
-      true
-    } else {
-      toBeSent.enqueue(data)
-      false
-    }
+  // Note that toBeSent buffer is always empty if inTransit.size < windowSize
+  def canSend: Boolean = inTransit.size < windowSize
+
+  def enqueueMessage(data: NetworkMessage): Unit = {
+    toBeSent.enqueue(data)
   }
 
   def ack(id: Long): Unit = {

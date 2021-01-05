@@ -4,8 +4,9 @@ import java.io.{BufferedReader, InputStreamReader}
 import java.net.{InetAddress, URL}
 
 import edu.uci.ics.amber.clustering.ClusterListener
-import akka.actor.{ActorSystem, Props}
+import akka.actor.{ActorSystem, DeadLetter, Props}
 import com.typesafe.config.ConfigFactory
+import edu.uci.ics.amber.engine.architecture.messaginglayer.DeadLetterMonitorActor
 
 object AmberUtils {
 
@@ -40,6 +41,12 @@ object AmberUtils {
 
     val system = ActorSystem("Amber", config)
     val info = system.actorOf(Props[ClusterListener], "cluster-info")
+    val deadLetterMonitorActor =
+      system.actorOf(Props[DeadLetterMonitorActor],
+        name = "dead-letter-monitor-actor")
+    system.eventStream.subscribe(
+      deadLetterMonitorActor, classOf[DeadLetter])
+
 
     system
   }
@@ -57,6 +64,11 @@ object AmberUtils {
       .withFallback(ConfigFactory.load("clustered"))
     val system = ActorSystem("Amber", config)
     val info = system.actorOf(Props[ClusterListener], "cluster-info")
+    val deadLetterMonitorActor =
+      system.actorOf(Props[DeadLetterMonitorActor],
+        name = "dead-letter-monitor-actor")
+    system.eventStream.subscribe(
+      deadLetterMonitorActor, classOf[DeadLetter])
     Constants.masterNodeAddr = addr
     system
   }

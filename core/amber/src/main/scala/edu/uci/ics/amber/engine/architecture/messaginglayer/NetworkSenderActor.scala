@@ -1,14 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
 import akka.actor.{Actor, ActorRef, Props, Stash}
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkSenderActor.{
-  NetworkAck,
-  NetworkMessage,
-  QueryActorRef,
-  RegisterActorRef,
-  ResendMessages,
-  SendRequest
-}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkSenderActor.{MessageBecomesDeadLetter, NetworkAck, NetworkMessage, QueryActorRef, RegisterActorRef, ResendMessages, SendRequest}
 import edu.uci.ics.amber.engine.common.ambermessage.neo.WorkflowMessage
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
@@ -50,6 +43,8 @@ object NetworkSenderActor {
 
   final case class ResendMessages()
 
+  final case class MessageBecomesDeadLetter(message:NetworkMessage)
+
   def props(): Props =
     Props(new NetworkSenderActor())
 }
@@ -61,8 +56,8 @@ object NetworkSenderActor {
 class NetworkSenderActor extends Actor {
 
   val idToActorRefs = new mutable.HashMap[ActorVirtualIdentity, ActorRef]()
-  val messageStash = new mutable.HashMap[ActorVirtualIdentity, mutable.Queue[WorkflowMessage]]()
   val idToCongestionControls = new mutable.HashMap[ActorVirtualIdentity, CongestionControl]()
+  val queriedActorVirtualIdentities = new mutable.HashSet[ActorVirtualIdentity]()
 
   /** keeps track of every outgoing message.
     * Each message is identified by this monotonic increasing ID.
@@ -89,16 +84,16 @@ class NetworkSenderActor extends Actor {
     * 2. when it receives a mapping, it adds that mapping to the state.
     */
   def findActorRefFromVirtualIdentity: Receive = {
-    case QueryActorRef(id, replyTo) =>
-      if (idToActorRefs.contains(id)) {
+    case QueryActorRef(actorID, replyTo) =>
+      if (idToActorRefs.contains(actorID)) {
         replyTo.foreach { actor =>
-          actor ! RegisterActorRef(id, idToActorRefs(id))
+          actor ! RegisterActorRef(actorID, idToActorRefs(actorID))
         }
       } else {
-        context.parent ! QueryActorRef(id, replyTo + self)
+        context.parent ! QueryActorRef(actorID, replyTo + self)
       }
-    case RegisterActorRef(id, ref) =>
-      registerActorRef(id, ref)
+    case RegisterActorRef(actorID, ref) =>
+      registerActorRef(actorID, ref)
   }
 
   /** This method forward a message by using tell pattern
@@ -107,42 +102,25 @@ class NetworkSenderActor extends Actor {
     * otherwise stash the message and ask parent for help.
     */
   def forwardMessage(to: ActorVirtualIdentity, msg: WorkflowMessage): Unit = {
-    if (idToActorRefs.contains(to)) {
-      forward(to, msg)
-    } else {
-      messageStash.getOrElseUpdate(to, new mutable.Queue[WorkflowMessage]()).enqueue(msg)
-      context.parent ! QueryActorRef(to, Set(self))
-    }
-  }
-
-  /** Send message to another actor.
-    * @param to
-    * @param message
-    */
-  private def forward(to: ActorVirtualIdentity, message: WorkflowMessage): Unit = {
     val congestionControl = idToCongestionControls.getOrElseUpdate(to, new CongestionControl())
-    val data = NetworkMessage(networkMessageID, message)
+    val data = NetworkMessage(networkMessageID, msg)
     messageIDToIdentity(networkMessageID) = to
-    if (congestionControl.canSend(data)) {
+    if (congestionControl.canSend) {
       congestionControl.markMessageInTransit(data)
-      idToActorRefs(to) ! data
+      sendInternal(to, data)
+    }else{
+      congestionControl.enqueueMessage(data)
     }
     networkMessageID += 1
   }
 
   /** Add one mapping from Identifier to ActorRef into its state.
     * If there are unsent messages for the actor, send them.
-    * @param id
+    * @param actorID
     * @param ref
     */
-  def registerActorRef(id: ActorVirtualIdentity, ref: ActorRef): Unit = {
-    idToActorRefs(id) = ref
-    if (messageStash.contains(id)) {
-      val stash = messageStash(id)
-      while (stash.nonEmpty) {
-        forward(id, stash.dequeue())
-      }
-    }
+  def registerActorRef(actorID: ActorVirtualIdentity, ref: ActorRef): Unit = {
+    idToActorRefs(actorID) = ref
   }
 
   def sendMessagesAndReceiveAcks: Receive = {
@@ -154,15 +132,39 @@ class NetworkSenderActor extends Actor {
       congestionControl.ack(id)
       congestionControl.getBufferedMessagesToSend.foreach { msg =>
         congestionControl.markMessageInTransit(msg)
-        idToActorRefs(actorID) ! msg
+        sendInternal(actorID,msg)
       }
     case ResendMessages =>
+      queriedActorVirtualIdentities.clear()
       idToCongestionControls.foreach {
-        case (id, ctrl) =>
+        case (actorID, ctrl) =>
           ctrl.getTimedOutInTransitMessages.foreach { msg =>
-            idToActorRefs(id) ! msg
+            sendInternal(actorID, msg)
           }
       }
+    case MessageBecomesDeadLetter(msg) =>
+      // only remove the mapping from id to actorRef
+      // to trigger discover mechanism
+      val actorID = messageIDToIdentity(msg.messageID)
+      idToActorRefs.remove(actorID)
+      getActorRefMappingFromParent(actorID)
+  }
+
+  @inline
+  private[this] def sendInternal(actorID:ActorVirtualIdentity, msg:NetworkMessage): Unit ={
+    if (idToActorRefs.contains(actorID)) {
+      idToActorRefs(actorID) ! msg
+    } else {
+      getActorRefMappingFromParent(actorID)
+    }
+  }
+
+  @inline
+  private[this] def getActorRefMappingFromParent(actorID:ActorVirtualIdentity): Unit ={
+    if(!queriedActorVirtualIdentities.contains(actorID)) {
+      context.parent ! QueryActorRef(actorID, Set(self))
+      queriedActorVirtualIdentities.add(actorID)
+    }
   }
 
   override def receive: Receive = {
