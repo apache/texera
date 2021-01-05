@@ -14,6 +14,7 @@ import edu.uci.ics.texera.workflow.operators.filter.SpecializedFilterOpDesc
 import edu.uci.ics.texera.workflow.operators.limit.LimitOpDesc
 import edu.uci.ics.texera.workflow.operators.linearregression.LinearRegressionOpDesc
 import edu.uci.ics.texera.workflow.operators.localscan.LocalCsvFileScanOpDesc
+import edu.uci.ics.texera.workflow.operators.projection.ProjectionOpDesc
 import edu.uci.ics.texera.workflow.operators.pythonUDF.PythonUDFOpDesc
 import edu.uci.ics.texera.workflow.operators.randomksampling.RandomKSamplingOpDesc
 import edu.uci.ics.texera.workflow.operators.regex.RegexOpDesc
@@ -22,6 +23,7 @@ import edu.uci.ics.texera.workflow.operators.sentiment.SentimentAnalysisOpDesc
 import edu.uci.ics.texera.workflow.operators.sink.SimpleSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.keywordSearch.KeywordSearchOpDesc
 import edu.uci.ics.texera.workflow.operators.mysqlsource.MysqlSourceOpDesc
+import edu.uci.ics.texera.workflow.operators.union.UnionOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.barChart.BarChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.lineChart.LineChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.pieChart.PieChartOpDesc
@@ -40,6 +42,8 @@ import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStrin
     new Type(value = classOf[RegexOpDesc], name = "Regex"),
     new Type(value = classOf[SpecializedFilterOpDesc], name = "Filter"),
     new Type(value = classOf[SentimentAnalysisOpDesc], name = "SentimentAnalysis"),
+    new Type(value = classOf[ProjectionOpDesc], name = "Projection"),
+    new Type(value = classOf[UnionOpDesc], name = "Union"),
     new Type(value = classOf[KeywordSearchOpDesc], name = "KeywordSearch"),
     new Type(value = classOf[SpecializedAverageOpDesc], name = "Aggregate"),
     new Type(value = classOf[LinearRegressionOpDesc], name = "LinearRegression"),

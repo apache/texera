@@ -38,3 +38,30 @@ export function jsonCast<T>(data: string): T {
   return <T>JSON.parse(data);
 
 }
+
+/**
+ * Saves an object into the sessionStorage, in its the JSON format.
+ * @param key - the identifier of the object
+ * @param object - any type, will be JSON.stringify-ed into a string
+ */
+export function sessionSetObject<T>(key: string, object: T): void {
+  sessionStorage.setItem(key, JSON.stringify(object));
+}
+
+/**
+ * Retrieves an object from the sessionStorage, converted from the JSON format into its original type (provided).
+ * @param key - the identifier of the object
+ * @returns T - the converted object (in type<t>) from the JSON string, or null if the key is not found.
+ */
+export function sessionGetObject<T>(key: string): T | null {
+  const data: string | null = sessionStorage.getItem(key);
+  if (!data) {
+    return null;
+  }
+
+  return jsonCast<T>(data);
+}
+
+export function sessionRemoveObject(key: string): void {
+  sessionStorage.removeItem(key);
+}
