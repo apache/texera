@@ -4,15 +4,17 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.atomic.AtomicInteger
 
 import akka.actor.ActorRef
+import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlOutputPort
 import edu.uci.ics.amber.engine.architecture.worker.neo.PauseManager.{NoPause, Paused}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.ExecutionPaused
+import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
 
 object PauseManager {
   final val NoPause = 0
   final val Paused = 1
 }
 
-class PauseManager(val mainActor: ActorRef) {
+class PauseManager(controlOutputPort: ControlOutputPort) {
 
   // current pause privilege level
   private val pausePrivilegeLevel = new AtomicInteger(PauseManager.NoPause)
@@ -69,7 +71,7 @@ class PauseManager(val mainActor: ActorRef) {
     // create a future and wait for its completion
     this.dpThreadBlocker = new CompletableFuture[Void]
     // notify main actor thread
-    mainActor ! ExecutionPaused
+    controlOutputPort.sendTo(VirtualIdentity.Self, ExecutionPaused())
     // thread blocks here
     this.dpThreadBlocker.get
   }

@@ -1,10 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.linksemantics
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.ActorLayer
-import edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy.OneToOnePolicy
-import edu.uci.ics.amber.engine.architecture.sendsemantics.routees.DirectRoutee
 import edu.uci.ics.amber.engine.common.ambermessage.PrincipalMessage.{GetInputLayer, GetOutputLayer}
-import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.UpdateOutputLinking
 import edu.uci.ics.amber.engine.common.ambertag.LinkTag
 import edu.uci.ics.amber.engine.common.{
   AdvancedMessageSending,

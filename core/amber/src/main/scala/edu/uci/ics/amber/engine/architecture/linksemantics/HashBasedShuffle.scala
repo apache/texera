@@ -5,7 +5,6 @@ import edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy.{
   HashBasedShufflePolicy,
   RoundRobinPolicy
 }
-import edu.uci.ics.amber.engine.architecture.sendsemantics.routees.{DirectRoutee, FlowControlRoutee}
 import edu.uci.ics.amber.engine.common.AdvancedMessageSending
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{
   UpdateInputLinking,
@@ -36,10 +35,7 @@ class HashBasedShuffle(
         UpdateOutputLinking(
           new HashBasedShufflePolicy(batchSize, hashFunc),
           tag,
-          to.layer.map(y =>
-            if (x.path.address.hostPort == y.path.address.hostPort) new DirectRoutee(y)
-            else new FlowControlRoutee(y)
-          )
+          to.identifiers
         ),
         10
       )

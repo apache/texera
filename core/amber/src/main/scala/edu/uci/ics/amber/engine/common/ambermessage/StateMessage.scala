@@ -7,6 +7,6 @@ import edu.uci.ics.amber.engine.common.ambertag.OperatorIdentifier
 
 object StateMessage {
 
-  final case class EnforceStateCheck(operatorIdentifier: OperatorIdentifier) extends WorkflowMessage
+  final case class EnforceStateCheck(operatorIdentifier: OperatorIdentifier)
 
 }

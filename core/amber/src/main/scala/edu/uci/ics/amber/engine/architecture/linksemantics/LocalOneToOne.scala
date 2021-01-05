@@ -1,19 +1,11 @@
 package edu.uci.ics.amber.engine.architecture.linksemantics
 
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.ActorLayer
-import edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy.{
-  OneToOnePolicy,
-  RoundRobinPolicy
-}
-import edu.uci.ics.amber.engine.architecture.sendsemantics.routees.DirectRoutee
-import edu.uci.ics.amber.engine.common.AdvancedMessageSending
-import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{
-  UpdateInputLinking,
-  UpdateOutputLinking
-}
-import akka.actor.ActorRef
 import akka.event.LoggingAdapter
 import akka.util.Timeout
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.ActorLayer
+import edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy.OneToOnePolicy
+import edu.uci.ics.amber.engine.common.AdvancedMessageSending
+import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.UpdateOutputLinking
 
 import scala.concurrent.ExecutionContext
 
@@ -25,12 +17,11 @@ class LocalOneToOne(from: ActorLayer, to: ActorLayer, batchSize: Int, inputNum: 
       log: LoggingAdapter
   ): Unit = {
     assert(from.isBuilt && to.isBuilt && from.layer.length == to.layer.length)
-    val froms: Map[String, Array[ActorRef]] =
-      from.layer.groupBy(actor => actor.path.address.hostPort)
-    val tos: Map[String, Array[ActorRef]] = to.layer.groupBy(actor => actor.path.address.hostPort)
-    if (!(froms.keySet == tos.keySet && froms.forall(x => x._2.length == tos(x._1).length))) {
-      println("err")
-    }
+    val froms = from.layer.groupBy(actor => actor.path.address.hostPort)
+    val tos = to.layer.groupBy(actor => actor.path.address.hostPort)
+    val actorToIdentifier = (from.layer.indices.map(x =>
+      from.layer(x) -> from.identifiers(x)
+    ) ++ to.layer.indices.map(x => to.layer(x) -> to.identifiers(x))).toMap
     assert(froms.keySet == tos.keySet && froms.forall(x => x._2.length == tos(x._1).length))
     froms.foreach(x => {
       for (i <- x._2.indices) {
@@ -39,7 +30,7 @@ class LocalOneToOne(from: ActorLayer, to: ActorLayer, batchSize: Int, inputNum: 
           UpdateOutputLinking(
             new OneToOnePolicy(batchSize),
             tag,
-            Array(new DirectRoutee(tos(x._1)(i)))
+            Array(actorToIdentifier(tos(x._1)(i)))
           ),
           10
         )

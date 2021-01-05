@@ -5,6 +5,10 @@ import edu.uci.ics.amber.engine.common.tuple.ITuple
 import akka.actor.{ActorContext, ActorRef}
 import akka.event.LoggingAdapter
 import akka.util.Timeout
+import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{DataFrame, EndOfUpstream}
+import edu.uci.ics.amber.engine.common.ambermessage.neo.DataPayload
+import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
+import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
 
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext
@@ -12,22 +16,25 @@ import scala.concurrent.ExecutionContext
 class HashBasedShufflePolicy(batchSize: Int, val hashFunc: ITuple => Int)
     extends DataTransferPolicy(batchSize) {
   var batches: Array[Array[ITuple]] = _
-  var receivers: Array[ActorRef] = _
+  var receivers: Array[ActorVirtualIdentity] = _
   var currentSizes: Array[Int] = _
 
-  override def noMore()(implicit sender: ActorRef): Array[(ActorRef, Array[ITuple])] = {
-    var receiversAndBatches = new ArrayBuffer[(ActorRef, Array[ITuple])]
+  override def noMore(): Array[(ActorVirtualIdentity, DataPayload)] = {
+    val receiversAndBatches = new ArrayBuffer[(ActorVirtualIdentity, DataPayload)]
     for (k <- receivers.indices) {
       if (currentSizes(k) > 0) {
-        receiversAndBatches.append((receivers(k), batches(k).slice(0, currentSizes(k))))
+        receiversAndBatches.append(
+          (receivers(k), DataFrame(batches(k).slice(0, currentSizes(k))))
+        )
       }
+      receiversAndBatches.append((receivers(k), EndOfUpstream()))
     }
     receiversAndBatches.toArray
   }
 
   override def addTupleToBatch(
       tuple: ITuple
-  )(implicit sender: ActorRef): Option[(ActorRef, Array[ITuple])] = {
+  ): Option[(ActorVirtualIdentity, DataPayload)] = {
     val numBuckets = receivers.length
     val index = (hashFunc(tuple) % numBuckets + numBuckets) % numBuckets
     batches(index)(currentSizes(index)) = tuple
@@ -36,33 +43,27 @@ class HashBasedShufflePolicy(batchSize: Int, val hashFunc: ITuple => Int)
       currentSizes(index) = 0
       val retBatch = batches(index)
       batches(index) = new Array[ITuple](batchSize)
-      return Some((receivers(index), retBatch))
+      return Some((receivers(index), DataFrame(retBatch)))
     }
     None
   }
 
-  override def initialize(tag: LinkTag, _receivers: Array[ActorRef])(implicit
-      ac: ActorContext,
-      sender: ActorRef,
-      timeout: Timeout,
-      ec: ExecutionContext,
-      log: LoggingAdapter
-  ): Unit = {
+  override def initialize(tag: LinkTag, _receivers: Array[ActorVirtualIdentity]): Unit = {
     super.initialize(tag, _receivers)
     assert(_receivers != null)
     this.receivers = _receivers
+    initializeInternalState(receivers)
+  }
+
+  override def reset(): Unit = {
+    initializeInternalState(receivers)
+  }
+
+  private[this] def initializeInternalState(_receivers: Array[ActorVirtualIdentity]): Unit = {
     batches = new Array[Array[ITuple]](_receivers.length)
     for (i <- _receivers.indices) {
       batches(i) = new Array[ITuple](batchSize)
     }
     currentSizes = new Array[Int](_receivers.length)
-  }
-
-  override def reset(): Unit = {
-    batches = new Array[Array[ITuple]](receivers.length)
-    for (i <- receivers.indices) {
-      batches(i) = new Array[ITuple](batchSize)
-    }
-    currentSizes = new Array[Int](receivers.length)
   }
 }

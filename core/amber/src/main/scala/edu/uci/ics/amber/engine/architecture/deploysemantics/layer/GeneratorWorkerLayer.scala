@@ -8,6 +8,13 @@ import edu.uci.ics.amber.engine.common.ISourceOperatorExecutor
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import akka.actor.{ActorContext, ActorRef, Address, Deploy}
 import akka.remote.RemoteScope
+import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
+import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.{
+  ActorVirtualIdentity,
+  WorkerActorVirtualIdentity
+}
+
+import scala.collection.mutable
 
 class GeneratorWorkerLayer(
     tag: LayerTag,
@@ -23,6 +30,7 @@ class GeneratorWorkerLayer(
   override def clone(): AnyRef = {
     val res = new GeneratorWorkerLayer(tag, metadata, numWorkers, df, ds)
     res.layer = layer.clone()
+    res.identifiers = identifiers.clone()
     res
   }
 
@@ -31,6 +39,7 @@ class GeneratorWorkerLayer(
   ): Unit = {
     deployStrategy.initialize(deploymentFilter.filter(prev, all, context.self.path.address))
     layer = new Array[ActorRef](numWorkers)
+    identifiers = new Array[ActorVirtualIdentity](numWorkers)
     var idx = 0
     for (i <- 0 until numWorkers) {
       try {
@@ -42,8 +51,9 @@ class GeneratorWorkerLayer(
           tagForFirst = workerTag
           deployForFirst = d
         }
-        layer(idx) =
+        layer(i) =
           context.actorOf(Generator.props(m, workerTag).withDeploy(Deploy(scope = RemoteScope(d))))
+        identifiers(i) = WorkerActorVirtualIdentity(workerTag.getGlobalIdentity)
         idx += 1
       } catch {
         case e: Exception => println(e)
