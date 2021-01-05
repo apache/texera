@@ -469,9 +469,7 @@ class Controller(
     )
     operatorToWorkerLayers(startOp).foreach { x =>
       var i = 0
-      x.identifiers.indices.foreach(i =>
-        registerActorRef(x.identifiers(i), x.layer(i))
-      )
+      x.identifiers.indices.foreach(i => registerActorRef(x.identifiers(i), x.layer(i)))
       x.layer.foreach { worker =>
         val workerTag = WorkerTag(x.tag, i)
         workerToOperator(worker) = startOp
@@ -1153,7 +1151,7 @@ class Controller(
 
   private[this] def running: Receive = {
     findActorRefFromVirtualIdentity orElse
-    handleBreakpointOnlyWorkerMessages orElse [Any, Unit] {
+      handleBreakpointOnlyWorkerMessages orElse [Any, Unit] {
       case LogErrorToFrontEnd(err: WorkflowRuntimeError) =>
         log.error(err.convertToMap().mkString(" | "))
         eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
@@ -1251,7 +1249,7 @@ class Controller(
 
   private[this] def pausing: Receive = {
     findActorRefFromVirtualIdentity orElse
-    handleBreakpointOnlyWorkerMessages orElse [Any, Unit] {
+      handleBreakpointOnlyWorkerMessages orElse [Any, Unit] {
       case LogErrorToFrontEnd(err: WorkflowRuntimeError) =>
         log.error(err.convertToMap().mkString(" | "))
         eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
@@ -1305,29 +1303,32 @@ class Controller(
         killAndRecoverStage()
       case QueryStatistics =>
         operatorToWorkerLayers.keys.foreach(opIdentifier => {
-        operatorToWorkerLayers(opIdentifier).foreach(l => {
-          l.layer.foreach(worker => {
-            worker ! QueryStatistics
-      })
+          operatorToWorkerLayers(opIdentifier).foreach(l => {
+            l.layer.foreach(worker => {
+              worker ! QueryStatistics
+            })
+          })
         })
-      })
-    case WorkerMessage.ReportStatistics(statistics) =>
+      case WorkerMessage.ReportStatistics(statistics) =>
         operatorToWorkerStatisticsMap(workerToOperator(sender))(sender) = statistics
         triggerStatusUpdateEvent();
       case Resume =>
         operatorToIsUserPaused.keys.foreach(opId => operatorToIsUserPaused(opId) = false) //reset
-      operatorToWorkerStateMap.keys.foreach(opId => {
-        assert(
-          operatorToWorkerStateMap(opId).filter(x => x._2 != WorkerState.Completed).values.nonEmpty
-        )
-        operatorToWorkerStateMap(opId)
-          .filter(x => x._2 != WorkerState.Completed)
-          .keys
-          .foreach(worker => worker ! Resume)
-        safeRemoveAskOperatorHandle(opId)
-        operatorToPeriodicallyAskHandle(opId) =
-          context.system.scheduler.schedule(30.seconds, 30.seconds, self, EnforceStateCheck(opId))
-      })
+        operatorToWorkerStateMap.keys.foreach(opId => {
+          assert(
+            operatorToWorkerStateMap(opId)
+              .filter(x => x._2 != WorkerState.Completed)
+              .values
+              .nonEmpty
+          )
+          operatorToWorkerStateMap(opId)
+            .filter(x => x._2 != WorkerState.Completed)
+            .keys
+            .foreach(worker => worker ! Resume)
+          safeRemoveAskOperatorHandle(opId)
+          operatorToPeriodicallyAskHandle(opId) =
+            context.system.scheduler.schedule(30.seconds, 30.seconds, self, EnforceStateCheck(opId))
+        })
         frontier ++= workflow.endOperators.flatMap(workflow.inLinks(_))
         log.info("received resume signal")
         safeRemoveAskHandle()
@@ -1342,8 +1343,8 @@ class Controller(
 
         log.info("modify logic received by controller, sending to principal")
         operatorToWorkerLayers(newMetadata.tag).foreach(l => {
-        l.layer.foreach(worker => worker ! ModifyLogic(newMetadata))
-      })
+          l.layer.foreach(worker => worker ! ModifyLogic(newMetadata))
+        })
         log.info("modify logic received by controller, sent to principal")
         context.parent ! Ack
         if (this.eventListener.modifyLogicCompletedListener != null) {
@@ -1363,13 +1364,13 @@ class Controller(
       case PassBreakpointTo(id: String, breakpoint: GlobalBreakpoint) =>
         val opTag = OperatorIdentifier(tag, id)
         operatorToGlobalBreakpoints(opTag)(breakpoint.id) = breakpoint
-            workflow
-              .operators(opTag)
-              .assignBreakpoint(
-              operatorToWorkerLayers(opTag),
-                operatorToWorkerStateMap(opTag),
-              breakpoint
-        )
+        workflow
+          .operators(opTag)
+          .assignBreakpoint(
+            operatorToWorkerLayers(opTag),
+            operatorToWorkerStateMap(opTag),
+            breakpoint
+          )
       case msg => stash()
     }
   }
@@ -1381,72 +1382,78 @@ class Controller(
         eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
       case QueryStatistics =>
         operatorToWorkerLayers.keys.foreach(opIdentifier => {
-        operatorToWorkerLayers(opIdentifier).foreach(l => {
-          l.layer.foreach(worker => {
-            worker ! QueryStatistics
-      })
+          operatorToWorkerLayers(opIdentifier).foreach(l => {
+            l.layer.foreach(worker => {
+              worker ! QueryStatistics
+            })
+          })
         })
-      })
-    case WorkerMessage.ReportStatistics(statistics) =>
+      case WorkerMessage.ReportStatistics(statistics) =>
         operatorToWorkerStatisticsMap(workerToOperator(sender))(sender) = statistics
         triggerStatusUpdateEvent();
       case EnforceStateCheck =>
-        frontier.flatMap(workflow.outLinks(_)).foreach(opID => {
-          for ((k, v) <- operatorToWorkerStateMap(opID)) {
-            if (!allowedStatesOnResuming.contains(v)) {
-              k ! QueryState
-      }
-          }
-        })
-    case WorkerMessage.ReportState(state) =>
+        frontier
+          .flatMap(workflow.outLinks(_))
+          .foreach(opID => {
+            for ((k, v) <- operatorToWorkerStateMap(opID)) {
+              if (!allowedStatesOnResuming.contains(v)) {
+                k ! QueryState
+              }
+            }
+          })
+      case WorkerMessage.ReportState(state) =>
         if (!allowedStatesOnResuming.contains(state)) {
-        sender ! Resume
-         } else if (setWorkerState(sender, state)) {
-        if (areAllWorkersCompleted(workerToOperator(sender))) {
-          safeRemoveAskOperatorHandle(workerToOperator(sender))
-          operatorStateMap(workerToOperator(sender)) = PrincipalState.Completed
-        } else if (
-          operatorToWorkerStateMap(workerToOperator(sender)).values.forall(_ != WorkerState.Paused)
-        ) {
-          safeRemoveAskOperatorHandle(workerToOperator(sender))
-          if (
-            operatorToWorkerStateMap(workerToOperator(sender)).values.exists(_ != WorkerState.Ready)
-        ) {
-          operatorStateMap(workerToOperator(sender)) = PrincipalState.Running
-        } else {
-          operatorStateMap(workerToOperator(sender)) = PrincipalState.Ready
+          sender ! Resume
+        } else if (setWorkerState(sender, state)) {
+          if (areAllWorkersCompleted(workerToOperator(sender))) {
+            safeRemoveAskOperatorHandle(workerToOperator(sender))
+            operatorStateMap(workerToOperator(sender)) = PrincipalState.Completed
+          } else if (
+            operatorToWorkerStateMap(workerToOperator(sender)).values.forall(
+              _ != WorkerState.Paused
+            )
+          ) {
+            safeRemoveAskOperatorHandle(workerToOperator(sender))
+            if (
+              operatorToWorkerStateMap(workerToOperator(sender)).values.exists(
+                _ != WorkerState.Ready
+              )
+            ) {
+              operatorStateMap(workerToOperator(sender)) = PrincipalState.Running
+            } else {
+              operatorStateMap(workerToOperator(sender)) = PrincipalState.Ready
+            }
           }
         }
-      }
-          if (operatorStateMap.values.forall(_ != PrincipalState.Paused)) {
-            frontier.clear()
-            if (operatorStateMap.values.exists(_ != PrincipalState.Ready)) {
-              log.info("workflow resumed!")
-              safeRemoveAskHandle()
-              context.parent ! ControllerMessage.ReportState(ControllerState.Running)
-              context.become(running)
+        if (operatorStateMap.values.forall(_ != PrincipalState.Paused)) {
+          frontier.clear()
+          if (operatorStateMap.values.exists(_ != PrincipalState.Ready)) {
+            log.info("workflow resumed!")
+            safeRemoveAskHandle()
+            context.parent ! ControllerMessage.ReportState(ControllerState.Running)
+            context.become(running)
 
-            } else {
-              log.info("workflow ready!")
-              safeRemoveAskHandle()
-              context.parent ! ControllerMessage.ReportState(ControllerState.Ready)
-              context.become(ready)
-              unstashAll()
-            }
           } else {
-            val next = frontier.filter(i =>
-              !workflow
-                .outLinks(i)
-                .map(x => operatorStateMap(x))
-                .contains(PrincipalState.Paused)
-            )
-            frontier --= next
-            next.foreach(opId => {
-          operatorToWorkerLayers(opId).foreach(l => {
-            l.layer.foreach(worker => worker ! Resume)
+            log.info("workflow ready!")
+            safeRemoveAskHandle()
+            context.parent ! ControllerMessage.ReportState(ControllerState.Ready)
+            context.become(ready)
+            unstashAll()
+          }
+        } else {
+          val next = frontier.filter(i =>
+            !workflow
+              .outLinks(i)
+              .map(x => operatorStateMap(x))
+              .contains(PrincipalState.Paused)
+          )
+          frontier --= next
+          next.foreach(opId => {
+            operatorToWorkerLayers(opId).foreach(l => {
+              l.layer.foreach(worker => worker ! Resume)
             })
-        })
-            frontier ++= next.filter(workflow.inLinks.contains).flatMap(workflow.inLinks(_))
+          })
+          frontier ++= next.filter(workflow.inLinks.contains).flatMap(workflow.inLinks(_))
 
         }
       case msg => stash()
@@ -1460,36 +1467,37 @@ class Controller(
         eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
       case QueryStatistics =>
         operatorToWorkerLayers.keys.foreach(opIdentifier => {
-        operatorToWorkerLayers(opIdentifier).foreach(l => {
-          l.layer.foreach(worker => {
-            worker ! QueryStatistics
+          operatorToWorkerLayers(opIdentifier).foreach(l => {
+            l.layer.foreach(worker => {
+              worker ! QueryStatistics
+            })
+          })
         })
-        })
-      })
       case WorkerMessage.ReportStatistics(statistics) =>
         operatorToWorkerStatisticsMap(workerToOperator(sender))(sender) = statistics
         triggerStatusUpdateEvent();
       case WorkerMessage.ReportOutputResult(sinkResult) =>
-      operatorToWorkerSinkResultMap(workerToOperator(sender))(sender) = sinkResult
-      if (
-        operatorToWorkerSinkResultMap(workerToOperator(sender)).size == operatorToWorkerStateMap(
-          workerToOperator(sender)
-        ).keys.size
-      ) {
-        val collectedResults = mutable.MutableList[ITuple]()
-        this
-          .operatorToWorkerSinkResultMap(workerToOperator(sender))
-          .values
-          .foreach(v => collectedResults ++= v)
-        operatorToPrincipalSinkResultMap(workerToOperator(sender).operator) =
-        collectedResults.toList
-        if (operatorToPrincipalSinkResultMap.size == this.workflow.endOperators.size) {
-          if (this.eventListener.workflowCompletedListener != null) {
-            this.eventListener.workflowCompletedListener
-              .apply(WorkflowCompleted(this.operatorToPrincipalSinkResultMap.toMap))
+        operatorToWorkerSinkResultMap(workerToOperator(sender))(sender) = sinkResult
+        if (
+          operatorToWorkerSinkResultMap(workerToOperator(sender)).size == operatorToWorkerStateMap(
+            workerToOperator(sender)
+          ).keys.size
+        ) {
+          val collectedResults = mutable.MutableList[ITuple]()
+          this
+            .operatorToWorkerSinkResultMap(workerToOperator(sender))
+            .values
+            .foreach(v => collectedResults ++= v)
+          operatorToPrincipalSinkResultMap(workerToOperator(sender).operator) =
+            collectedResults.toList
+          if (operatorToPrincipalSinkResultMap.size == this.workflow.endOperators.size) {
+            if (this.eventListener.workflowCompletedListener != null) {
+              this.eventListener.workflowCompletedListener
+                .apply(WorkflowCompleted(this.operatorToPrincipalSinkResultMap.toMap))
+            }
           }
         }
-        }this.exitIfCompleted
+        this.exitIfCompleted
       case msg =>
         log.info("received: {} after workflow completed!", msg)
 
