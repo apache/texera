@@ -41,7 +41,7 @@ public class TypeCastingOpDesc extends MapOpDesc {
                 "Type Casting",
                 "Cast type to another type",
                 OperatorGroupConstants.UTILITY_GROUP(),
-                1, 1
+                1, 1, false
         );
     }
 
