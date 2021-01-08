@@ -38,11 +38,6 @@ class SchemaPropagationResource {
         .map(e => {
           (e._1.operatorID, JavaConverters.asScalaBuffer(e._2.getAttributes).toList)
         })
-      println("schemaPropagationResult", schemaPropagationResult)
-      schemaPropagationResult.foreach(element => {
-        println("element", element)
-      })
-
       SchemaPropagationResponse(0, schemaPropagationResult, null)
     } catch {
       case e: Throwable =>
