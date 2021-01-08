@@ -2,7 +2,6 @@ import { Subject } from 'rxjs/Subject';
 import { Observable } from 'rxjs/Observable';
 import { OperatorPredicate, OperatorLink, OperatorPort, Breakpoint, Point } from '../../../types/workflow-common.interface';
 import { isEqual } from 'lodash';
-import { SchemaAttribute } from '../../dynamic-schema/schema-propagation/schema-propagation.service';
 
 // define the restricted methods that could change the graph
 type restrictedMethods =
