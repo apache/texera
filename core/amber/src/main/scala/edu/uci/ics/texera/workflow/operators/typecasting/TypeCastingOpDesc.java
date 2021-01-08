@@ -8,8 +8,12 @@ import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig;
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc;
+import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 public class TypeCastingOpDesc extends MapOpDesc {
     @JsonProperty(required = true)
@@ -44,18 +48,30 @@ public class TypeCastingOpDesc extends MapOpDesc {
     @Override
     public Schema getOutputSchema(Schema[] schemas) {
         Preconditions.checkArgument(schemas.length == 1);
-        if (this.resultType!=null && this.attribute!=null){
-            switch (this.resultType) {
-                case STRING:
-                    return Schema.newBuilder().add(schemas[0]).removeIfExists(this.attribute).add(this.attribute, AttributeType.STRING).build();
-                case BOOLEAN:
-                    return Schema.newBuilder().add(schemas[0]).removeIfExists(this.attribute).add(this.attribute, AttributeType.BOOLEAN).build();
-                case DOUBLE:
-                    return Schema.newBuilder().add(schemas[0]).removeIfExists(this.attribute).add(this.attribute, AttributeType.DOUBLE).build();
-                case INTEGER:
-                    return Schema.newBuilder().add(schemas[0]).removeIfExists(this.attribute).add(this.attribute, AttributeType.INTEGER).build();
+        List<Attribute> attributes = schemas[0].getAttributes();
+        List<String> attributeNames = schemas[0].getAttributeNames();
+        List<AttributeType> attributeTypes = attributes.stream().map(attr -> attr.getType()).collect(Collectors.toList());
+        Schema.Builder builder = Schema.newBuilder();
+        for (int i=0;i<attributes.size();i++) {
+            if (attributeNames.get(i).equals(attribute)) {
+                if (this.resultType!=null && this.attribute!=null){
+                    switch (this.resultType) {
+                        case STRING:
+                            builder.add(this.attribute, AttributeType.STRING);
+                        case BOOLEAN:
+                            builder.add(this.attribute, AttributeType.BOOLEAN);
+                        case DOUBLE:
+                            builder.add(this.attribute, AttributeType.DOUBLE);
+                        case INTEGER:
+                            builder.add(this.attribute, AttributeType.INTEGER);
+                    }
+                }
+
+            } else {
+                builder.add(attributeNames.get(i), attributeTypes.get(i));
             }
         }
-        return Schema.newBuilder().add(schemas[0]).build();
+
+        return builder.build();
     }
 }
