@@ -15,6 +15,8 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static java.util.stream.Collectors.toList;
+
 public class TypeCastingOpDesc extends MapOpDesc {
     @JsonProperty(required = true)
     @JsonSchemaTitle("attribute")
@@ -50,11 +52,11 @@ public class TypeCastingOpDesc extends MapOpDesc {
         Preconditions.checkArgument(schemas.length == 1);
         List<Attribute> attributes = schemas[0].getAttributes();
         List<String> attributeNames = schemas[0].getAttributeNames();
-        List<AttributeType> attributeTypes = attributes.stream().map(attr -> attr.getType()).collect(Collectors.toList());
+        List<AttributeType> attributeTypes = attributes.stream().map(attr -> attr.getType()).collect(toList());
         Schema.Builder builder = Schema.newBuilder();
         for (int i=0;i<attributes.size();i++) {
             if (attributeNames.get(i).equals(attribute)) {
-                if (this.resultType!=null && this.attribute!=null){
+                if (this.resultType != null){
                     switch (this.resultType) {
                         case STRING:
                             builder.add(this.attribute, AttributeType.STRING);
