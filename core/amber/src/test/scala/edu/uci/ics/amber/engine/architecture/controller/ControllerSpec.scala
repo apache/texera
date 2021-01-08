@@ -17,14 +17,14 @@ import edu.uci.ics.amber.engine.common.ambermessage.ControllerMessage.{
   PassBreakpointTo,
   ReportState
 }
-import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.DataMessage
 import edu.uci.ics.amber.engine.common.ambertag.OperatorIdentifier
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.Constants
 import akka.actor.{ActorSystem, PoisonPill, Props}
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 import akka.util.Timeout
-import org.scalatest.{BeforeAndAfterAll, FlatSpecLike}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.flatspec.AnyFlatSpecLike
 
 import scala.concurrent.{Await, ExecutionContextExecutor}
 import scala.concurrent.duration._
@@ -33,7 +33,7 @@ import scala.util.Random
 class ControllerSpec
     extends TestKit(ActorSystem("ControllerSpec"))
     with ImplicitSender
-    with FlatSpecLike
+    with AnyFlatSpecLike
     with BeforeAndAfterAll {
 
   implicit val timeout: Timeout = Timeout(5.seconds)

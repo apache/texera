@@ -9,6 +9,9 @@ scalaVersion := "2.12.8"
 scalacOptions ++= Seq("-Xelide-below", "WARNING")
 scalacOptions ++= Seq("-feature")
 
+// ensuring no parallel execution of multiple tasks
+concurrentRestrictions in Global += Tags.limit(Tags.Test, 1)
+
 val akkaVersion = "2.5.24"
 val hadoopVersion = "3.2.0"
 
@@ -73,8 +76,6 @@ libraryDependencies += "com.google.guava" % "guava" % "29.0-jre"
 // https://mvnrepository.com/artifact/org.tukaani/xz
 libraryDependencies += "org.tukaani" % "xz" % "1.5"
 
-libraryDependencies += "org.scalatest" %% "scalatest" % "3.0.8" % Test
-
 libraryDependencies += "org.apache.arrow" % "flight-core" % "1.0.1"
 libraryDependencies += "org.apache.arrow" % "flight-grpc" % "1.0.1"
 libraryDependencies += "io.netty" % "netty-all" % "4.1.48.Final"
@@ -90,3 +91,9 @@ libraryDependencies += "mysql" % "mysql-connector-java" % "8.0.19"
 
 // https://mvnrepository.com/artifact/org.jooq/jooq
 libraryDependencies += "org.jooq" % "jooq" % "3.14.4"
+
+libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.9.2"
+
+libraryDependencies += "org.scalamock" %% "scalamock" % "4.4.0" % Test
+libraryDependencies += "org.scalactic" %% "scalactic" % "3.2.2"
+libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.2" % Test

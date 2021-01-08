@@ -5,27 +5,34 @@ import edu.uci.ics.amber.engine.common.tuple.ITuple
 import akka.actor.{ActorContext, ActorRef}
 import akka.event.LoggingAdapter
 import akka.util.Timeout
+import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{DataFrame, EndOfUpstream}
+import edu.uci.ics.amber.engine.common.ambermessage.neo.DataPayload
+import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
+import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
 
+import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext
 
 class RoundRobinPolicy(batchSize: Int) extends DataTransferPolicy(batchSize) {
-  var receivers: Array[ActorRef] = _
+  var receivers: Array[ActorVirtualIdentity] = _
   var roundRobinIndex = 0
   var batch: Array[ITuple] = _
   var currentSize = 0
 
-  override def noMore()(implicit sender: ActorRef): Array[(ActorRef, Array[ITuple])] = {
+  override def noMore(): Array[(ActorVirtualIdentity, DataPayload)] = {
+    val ret = new ArrayBuffer[(ActorVirtualIdentity, DataPayload)]
     if (currentSize > 0) {
-      return Array[(ActorRef, Array[ITuple])](
-        (receivers(roundRobinIndex), batch.slice(0, currentSize))
-      )
+      ret.append((receivers(roundRobinIndex), DataFrame(batch.slice(0, currentSize))))
     }
-    return Array[(ActorRef, Array[ITuple])]()
+    receivers.foreach { receiver =>
+      ret.append((receiver, EndOfUpstream())) // send end to all receivers
+    }
+    ret.toArray
   }
 
   override def addTupleToBatch(
       tuple: ITuple
-  )(implicit sender: ActorRef): Option[(ActorRef, Array[ITuple])] = {
+  ): Option[(ActorVirtualIdentity, DataPayload)] = {
     batch(currentSize) = tuple
     currentSize += 1
     if (currentSize == batchSize) {
@@ -33,18 +40,12 @@ class RoundRobinPolicy(batchSize: Int) extends DataTransferPolicy(batchSize) {
       val retBatch = batch
       roundRobinIndex = (roundRobinIndex + 1) % receivers.length
       batch = new Array[ITuple](batchSize)
-      return Some((receivers(roundRobinIndex), retBatch))
+      return Some((receivers(roundRobinIndex), DataFrame(retBatch)))
     }
     None
   }
 
-  override def initialize(tag: LinkTag, _receivers: Array[ActorRef])(implicit
-      ac: ActorContext,
-      sender: ActorRef,
-      timeout: Timeout,
-      ec: ExecutionContext,
-      log: LoggingAdapter
-  ): Unit = {
+  override def initialize(tag: LinkTag, _receivers: Array[ActorVirtualIdentity]): Unit = {
     super.initialize(tag, _receivers)
     assert(_receivers != null)
     this.receivers = _receivers

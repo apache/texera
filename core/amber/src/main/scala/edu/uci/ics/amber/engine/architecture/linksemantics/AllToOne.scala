@@ -5,7 +5,7 @@ import edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy.{
   OneToOnePolicy,
   RoundRobinPolicy
 }
-import edu.uci.ics.amber.engine.architecture.sendsemantics.routees.{DirectRoutee, FlowControlRoutee}
+
 import edu.uci.ics.amber.engine.common.AdvancedMessageSending
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{
   UpdateInputLinking,
@@ -24,17 +24,13 @@ class AllToOne(from: ActorLayer, to: ActorLayer, batchSize: Int, inputNum: Int)
       ec: ExecutionContext,
       log: LoggingAdapter
   ): Unit = {
-    assert(from.isBuilt && to.isBuilt && to.layer.length == 1)
-    val toActor = to.layer(0)
+    assert(from.isBuilt && to.isBuilt && to.layer.size == 1)
+    val toActor = to.identifiers.head
     from.layer.foreach(x => {
 //      val routee = if(x.path.address.hostPort == toActor.path.address.hostPort) new DirectRoutee(toActor) else new FlowControlRoutee(toActor)
-      // TODO: hack for demo fault tolerance
-      val routee =
-        if (x.path.address.hostPort == toActor.path.address.hostPort) new DirectRoutee(toActor)
-        else new DirectRoutee(toActor)
       AdvancedMessageSending.blockingAskWithRetry(
         x,
-        UpdateOutputLinking(new OneToOnePolicy(batchSize), tag, Array(routee)),
+        UpdateOutputLinking(new OneToOnePolicy(batchSize), tag, Array(toActor)),
         10
       )
     })

@@ -1,11 +1,11 @@
-import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { Injectable } from '@angular/core';
 import { Subject } from 'rxjs';
 import { Observable } from 'rxjs/Observable';
 import { AppSettings } from '../../../app-setting';
+import { GenericWebResponse } from '../../../type/generic-web-response';
 
 import { UserDictionary } from '../../../type/user-dictionary';
-import { GenericWebResponse } from '../../../type/generic-web-response';
 import { UserService } from '../user.service';
 
 export const USER_DICTIONARY_LIST_URL = 'user/dictionary/list';
@@ -80,7 +80,7 @@ export class UserDictionaryService {
    * refresh the dictionaries in the service whenever the user changes.
    */
   private detectUserChanges(): void {
-    this.userService.userChange.subscribe(
+    this.userService.userChanged().subscribe(
       () => {
         if (this.userService.isLogin()) {
           this.refreshDictionaries();

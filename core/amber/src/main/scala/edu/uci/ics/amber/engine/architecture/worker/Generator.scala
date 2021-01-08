@@ -3,8 +3,17 @@ package edu.uci.ics.amber.engine.architecture.worker
 import akka.actor.{ActorLogging, Props, Stash}
 import edu.uci.ics.amber.engine.architecture.breakpoint.FaultedTuple
 import edu.uci.ics.amber.engine.architecture.worker.neo.PauseManager
+import edu.uci.ics.amber.engine.architecture.worker.neo.WorkerInternalQueue.{
+  DummyInput,
+  EndMarker,
+  EndOfAllMarker
+}
 import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage._
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage._
+import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.{
+  ActorVirtualIdentity,
+  WorkerActorVirtualIdentity
+}
 import edu.uci.ics.amber.engine.common.ambertag.{LayerTag, WorkerTag}
 import edu.uci.ics.amber.engine.common.{
   ElidableStatement,
@@ -22,12 +31,9 @@ object Generator {
 }
 
 class Generator(var operator: IOperatorExecutor, val tag: WorkerTag)
-    extends WorkerBase
+    extends WorkerBase(WorkerActorVirtualIdentity(tag.getGlobalIdentity))
     with ActorLogging
     with Stash {
-
-  //insert a SPECIAL case for generator
-  workerInternalQueue.inputMap(LayerTag("", "", "")) = 0
 
   @elidable(INFO) var generateTime = 0L
   @elidable(INFO) var generateStart = 0L
@@ -37,7 +43,7 @@ class Generator(var operator: IOperatorExecutor, val tag: WorkerTag)
     operator = value.asInstanceOf[ISourceOperatorExecutor]
     operator.open()
     dataProcessor.resetBreakpoints()
-    tupleOutput.resetOutput()
+    batchProducer.resetPolicies()
     context.become(ready)
     self ! Start
   }
@@ -62,18 +68,14 @@ class Generator(var operator: IOperatorExecutor, val tag: WorkerTag)
 
   override def onPaused(): Unit = {
     val (inputCount, outputCount) = dataProcessor.collectStatistics()
-    log.info(s"paused at $outputCount , 0")
+    log.info(s"${tag.getGlobalIdentity} paused at $outputCount , 0")
     context.parent ! ReportCurrentProcessingTuple(self.path, dataProcessor.getCurrentInputTuple)
     context.parent ! RecoveryPacket(tag, outputCount, 0)
     context.parent ! ReportState(WorkerState.Paused)
   }
 
   override def onResumeTuple(faultedTuple: FaultedTuple): Unit = {
-    var i = 0
-    while (i < tupleOutput.output.length) {
-      tupleOutput.output(i).addTupleToBatch(faultedTuple.tuple)
-      i += 1
-    }
+    batchProducer.passTupleToDownstream(faultedTuple.tuple)
   }
 
   override def getInputRowCount(): Long = {
@@ -86,18 +88,7 @@ class Generator(var operator: IOperatorExecutor, val tag: WorkerTag)
   }
 
   override def onModifyTuple(faultedTuple: FaultedTuple): Unit = {
-    userFixedTuple = faultedTuple.tuple
-  }
-
-  override def onPausing(): Unit = {
-    super.onPausing()
-    pauseManager.pause()
-    // if dp thread is blocking on waiting for input tuples:
-    if (workerInternalQueue.blockingDeque.isEmpty && tupleInput.isCurrentBatchExhausted) {
-      // insert dummy batch to unblock dp thread
-      workerInternalQueue.addDummyInput()
-    }
-    context.become(pausing)
+    batchProducer.passTupleToDownstream(faultedTuple.tuple)
   }
 
   override def onInitialization(recoveryInformation: Seq[(Long, Long)]): Unit = {
@@ -107,7 +98,8 @@ class Generator(var operator: IOperatorExecutor, val tag: WorkerTag)
 
   override def onStart(): Unit = {
     super.onStart()
-    workerInternalQueue.addEndMarker(LayerTag("", "", ""))
+    dataProcessor.appendElement(EndMarker())
+    dataProcessor.appendElement(EndOfAllMarker())
     context.become(running)
     unstashAll()
   }

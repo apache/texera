@@ -113,6 +113,7 @@ describe('PropertyEditorComponent', () => {
    */
   it('should change the content of property editor from an empty panel correctly', () => {
     const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
+    console.log(workflowActionService.getTexeraGraph());
 
     // check if the changePropertyEditor called after the operator
     //  is highlighted has correctly updated the variables

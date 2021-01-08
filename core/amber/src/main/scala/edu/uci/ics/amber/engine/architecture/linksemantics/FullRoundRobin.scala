@@ -2,7 +2,6 @@ package edu.uci.ics.amber.engine.architecture.linksemantics
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.ActorLayer
 import edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy.RoundRobinPolicy
-import edu.uci.ics.amber.engine.architecture.sendsemantics.routees.{DirectRoutee, FlowControlRoutee}
 import edu.uci.ics.amber.engine.common.AdvancedMessageSending
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{
   UpdateInputLinking,
@@ -28,10 +27,7 @@ class FullRoundRobin(from: ActorLayer, to: ActorLayer, batchSize: Int, inputNum:
         UpdateOutputLinking(
           new RoundRobinPolicy(batchSize),
           tag,
-          to.layer.map(y =>
-            if (x.path.address.hostPort == y.path.address.hostPort) new DirectRoutee(y)
-            else new FlowControlRoutee(y)
-          )
+          to.identifiers
         ),
         10
       )

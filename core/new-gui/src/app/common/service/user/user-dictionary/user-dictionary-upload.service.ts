@@ -1,12 +1,12 @@
-import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { AppSettings } from 'src/app/common/app-setting';
 
 import { GenericWebResponse, GenericWebResponseCode } from '../../../type/generic-web-response';
-import { UserDictionaryService } from './user-dictionary.service';
-import { ManualDictionaryUploadItem, DictionaryUploadItem } from '../../../type/user-dictionary';
+import { DictionaryUploadItem, ManualDictionaryUploadItem } from '../../../type/user-dictionary';
 import { UserService } from '../user.service';
+import { UserDictionaryService } from './user-dictionary.service';
 
 export const USER_DICTIONARY_UPLOAD_URL = 'user/dictionary/upload';
 export const USER_MANUAL_DICTIONARY_UPLOAD_URL = 'user/dictionary/upload-manual-dict';
@@ -193,7 +193,7 @@ export class UserDictionaryUploadService {
    * clear the dictionaries in the service when user log out.
    */
   private detectUserChanges(): void {
-    this.userService.userChange.subscribe(() => {
+    this.userService.userChanged().subscribe(() => {
       if (!this.userService.isLogin()) {
         this.clearUserDictionary();
       }

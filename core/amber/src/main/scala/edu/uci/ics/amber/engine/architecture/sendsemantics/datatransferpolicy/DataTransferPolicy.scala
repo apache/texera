@@ -5,6 +5,9 @@ import edu.uci.ics.amber.engine.common.tuple.ITuple
 import akka.actor.{Actor, ActorContext, ActorRef}
 import akka.event.LoggingAdapter
 import akka.util.Timeout
+import edu.uci.ics.amber.engine.common.ambermessage.neo.DataPayload
+import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
+import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
 
 import scala.concurrent.ExecutionContext
 
@@ -18,21 +21,12 @@ abstract class DataTransferPolicy(var batchSize: Int) extends Serializable {
     * @param sender
     * @return
     */
-  def addTupleToBatch(tuple: ITuple)(implicit
-      sender: ActorRef = Actor.noSender
-  ): Option[(ActorRef, Array[ITuple])]
+  def addTupleToBatch(tuple: ITuple): Option[(ActorVirtualIdentity, DataPayload)]
 
-  def noMore()(implicit sender: ActorRef = Actor.noSender): Array[(ActorRef, Array[ITuple])]
+  def noMore(): Array[(ActorVirtualIdentity, DataPayload)]
 
-  def initialize(linkTag: LinkTag, receivers: Array[ActorRef])(implicit
-      ac: ActorContext,
-      sender: ActorRef,
-      timeout: Timeout,
-      ec: ExecutionContext,
-      log: LoggingAdapter
-  ): Unit = {
+  def initialize(linkTag: LinkTag, receivers: Array[ActorVirtualIdentity]): Unit = {
     this.tag = linkTag
-    receivers.foreach(x => log.info("link: {}", x))
   }
 
   def reset(): Unit
