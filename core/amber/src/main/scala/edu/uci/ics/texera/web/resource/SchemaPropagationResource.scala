@@ -36,8 +36,7 @@ class SchemaPropagationResource {
       val schemaPropagationResult = texeraWorkflowCompiler
         .propagateWorkflowSchema()
         .map(e => {
-          println("e", e)
-          (e._1.operatorID, JavaConverters.asScalaBuffer(e._2.getAttributes()).toList)
+          (e._1.operatorID, JavaConverters.asScalaBuffer(e._2.getAttributes).toList)
         })
       println("schemaPropagationResult", schemaPropagationResult)
       schemaPropagationResult.foreach(element => {

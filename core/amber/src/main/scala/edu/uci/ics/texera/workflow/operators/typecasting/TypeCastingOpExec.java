@@ -10,6 +10,8 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static java.util.stream.Collectors.toList;
+
 public class TypeCastingOpExec extends  MapOpExec{
     private final TypeCastingOpDesc opDesc;
     public TypeCastingOpExec(TypeCastingOpDesc opDesc) {
@@ -20,14 +22,10 @@ public class TypeCastingOpExec extends  MapOpExec{
     public Tuple processTuple(Tuple t) {
         String attribute = opDesc.attribute;
         TypeCastingAttributeType resultType = opDesc.resultType;
-        Class type = t.getField(attribute).getClass();
         List<Attribute> attributes = t.getSchema().getAttributes();
         List<String> attributeNames = t.getSchema().getAttributeNames();
-        List<AttributeType> attributeTypes = attributes.stream().map(attr -> attr.getType()).collect(Collectors.toList());
+        List<AttributeType> attributeTypes = attributes.stream().map(attr -> attr.getType()).collect(toList());
         List<Object> fields = t.getFields();
-//        System.out.println("AttributeNames" + t.getSchema().getAttributeNames());
-//        System.out.println("AttributeTypes" + t.getSchema().getAttributeTypes());
-//        System.out.println( "Fields" + t.getFields());
         Tuple.Builder builder = Tuple.newBuilder();
         for (int i=0; i<attributeNames.size();i++) {
             if (attributeNames.get(i).equals(attribute)) {
