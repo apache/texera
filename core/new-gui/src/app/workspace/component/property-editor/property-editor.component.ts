@@ -86,8 +86,13 @@ export class PropertyEditorComponent {
   public formlyFields: FormlyFieldConfig[] | undefined;
   public formTitle: string | undefined;
 
+  // show TypeInformation only when operator type is TypeCasting
+  public showTypeCastingTypeInformation = false;
+
   // used to fill in default values in json schema to initialize new operator
   private ajv = new Ajv({ useDefaults: true });
+
+
 
   constructor(
     public formlyJsonschema: FormlyJsonschema,
@@ -357,7 +362,7 @@ export class PropertyEditorComponent {
    * This method captures the change in operator's property via program instead of user updating the
    *  json schema form in the user interface.
    *
-   * For instance, when the input doesn't matching the new j   son schema and the UI needs to remove the
+   * For instance, when the input doesn't matching the new json schema and the UI needs to remove the
    *  invalid fields, this form will capture those events.
    */
   private handleOperatorPropertyChange(): void {
@@ -367,6 +372,7 @@ export class PropertyEditorComponent {
       .filter(operatorChanged => !isEqual(this.formData, operatorChanged.operator.operatorProperties))
       .subscribe(operatorChanged => {
         this.formData = cloneDeep(operatorChanged.operator.operatorProperties);
+
       });
     this.workflowActionService.getTexeraGraph().getBreakpointChangeStream()
       .filter(event => this.currentLinkID !== undefined)
@@ -374,6 +380,7 @@ export class PropertyEditorComponent {
       .filter(event => !isEqual(this.formData, this.workflowActionService.getTexeraGraph().getLinkBreakpoint(event.linkID)))
       .subscribe(event => {
         this.formData = cloneDeep(this.workflowActionService.getTexeraGraph().getLinkBreakpoint(event.linkID));
+
       });
   }
 
@@ -385,6 +392,9 @@ export class PropertyEditorComponent {
     this.operatorPropertyChangeStream.subscribe(formData => {
       // set the operator property to be the new form data
       if (this.currentOperatorID) {
+        const operator = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorID);
+
+        this.workflowActionService.setOperatorProperty(this.currentOperatorID, formData);
         this.workflowActionService.setOperatorProperty(this.currentOperatorID, cloneDeep(formData));
       }
     });
@@ -463,5 +473,6 @@ export class PropertyEditorComponent {
 
     this.formlyFields = [field];
   }
+
 
 }

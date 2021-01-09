@@ -33,6 +33,8 @@ export const attributeListInJsonSchemaKeys = ['attributes', 'groupByKeys', 'data
 })
 export class SchemaPropagationService {
 
+  private operatorInputSchemaMap: Readonly<{ [key: string]: ReadonlyArray<SchemaAttribute> }> = {};
+
   constructor(
     private httpClient: HttpClient,
     private workflowActionService: WorkflowActionService,
@@ -53,8 +55,17 @@ export class SchemaPropagationService {
         this.workflowActionService.getTexeraGraph().getOperatorPropertyChangeStream())
       .flatMap(() => this.invokeSchemaPropagationAPI())
       .filter(response => response.code === 0)
-      .subscribe(response => this._applySchemaPropagationResult(response.result));
+      .subscribe(response => {
+        this.operatorInputSchemaMap = response.result;
+        this._applySchemaPropagationResult(this.operatorInputSchemaMap);
+      });
+
   }
+
+  public getOperatorInputSchema(operatorID: string): ReadonlyArray<SchemaAttribute> | undefined {
+    return this.operatorInputSchemaMap[operatorID];
+  }
+
 
   /**
    * Apply the schema propagation result to an operator.
@@ -67,14 +78,16 @@ export class SchemaPropagationService {
    * @param schemaPropagationResult
    * @param operatorID
    */
-  private _applySchemaPropagationResult(schemaPropagationResult: { [key: string]: string[] }): void {
+  private _applySchemaPropagationResult(schemaPropagationResult: { [key: string]: ReadonlyArray<SchemaAttribute> }): void {
     // for each operator, try to apply schema propagation result
     Array.from(this.dynamicSchemaService.getDynamicSchemaMap().keys()).forEach(operatorID => {
       const currentDynamicSchema = this.dynamicSchemaService.getDynamicSchema(operatorID);
+
       // if operator input attributes are in the result, set them in dynamic schema
       let newDynamicSchema: OperatorSchema;
       if (schemaPropagationResult[operatorID]) {
-        newDynamicSchema = SchemaPropagationService.setOperatorInputAttrs(currentDynamicSchema, schemaPropagationResult[operatorID]);
+        newDynamicSchema = SchemaPropagationService.setOperatorInputAttrs(
+          currentDynamicSchema, schemaPropagationResult[operatorID].map(e => e.attributeName));
       } else {
         // otherwise, the input attributes of the operator is unknown
         // if the operator is not a source operator, restore its original schema of input attributes
@@ -90,8 +103,10 @@ export class SchemaPropagationService {
         this.dynamicSchemaService.setDynamicSchema(operatorID, newDynamicSchema);
       }
 
+
     });
   }
+
 
   /**
    * Used for automated propagation of input schema in workflow.
@@ -171,6 +186,7 @@ export class SchemaPropagationService {
         old => ({ ...old, type: 'array', items: {...old.items, type: 'string', enum: inputAttributes.slice(), uniqueItems: true, } , }));
     });
 
+
     return {
       ...operatorSchema,
       jsonSchema: newJsonSchema
@@ -190,14 +206,18 @@ export class SchemaPropagationService {
       newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, attributeListInJsonSchema,
         old => ({ ...old, type: 'array', items: { ...old.items, type: 'string', enum: undefined, uniqueItems: undefined, }, }));
     });
-
     return {
       ...operatorSchema,
       jsonSchema: newJsonSchema
     };
   }
 
+
 }
+export interface SchemaAttribute extends Readonly<{
+  attributeName: string,
+  attributeType: 'string' | 'integer' | 'double' | 'boolean' | 'ANY'
+}> { }
 
 /**
  * The backend interface of the return object of a successful execution
@@ -208,14 +228,17 @@ export class SchemaPropagationService {
  *  code: 0,
  *  result: {
  *    'operatorID1' : ['attribute1','attribute2','attribute3'],
- *    'operatorID2' : ['name', 'text', 'follower_count']
+ *    'operatorID2' : [ {attributeName: 'name', attributeType: 'string'},
+ *                      {attributeName: 'text', attributeType: 'string'},
+ *                      {attributeName: 'follower_count', attributeType: 'string'} ]
+ *
  *  }
  * }
  */
 export interface SchemaPropagationResponse extends Readonly<{
   code: 0,
   result: {
-    [key: string]: string[]
+    [key: string]: ReadonlyArray<SchemaAttribute>
   }
 }> { }
 

@@ -162,7 +162,7 @@ describe('SchemaPropagationService', () => {
     const attributeInSchema = schema.jsonSchema!.properties!['attribute'];
     expect(attributeInSchema).toEqual({
       ...(mockNlpSentimentSchema.jsonSchema.properties!['attribute'] as object),
-      enum: mockSchemaPropagationResponse.result[mockOperator.operatorID],
+      enum: mockSchemaPropagationResponse.result[mockOperator.operatorID].map(attr => attr.attributeName),
       uniqueItems: true
     });
 
@@ -200,7 +200,7 @@ describe('SchemaPropagationService', () => {
     const attributeInSchema = schema.jsonSchema!.properties!['attribute'];
     expect(attributeInSchema).toEqual({
       ...(mockNlpSentimentSchema.jsonSchema.properties!['attribute'] as object),
-      enum: mockSchemaPropagationResponse.result[mockOperator.operatorID],
+      enum: mockSchemaPropagationResponse.result[mockOperator.operatorID].map(attr => attr.attributeName),
       uniqueItems: true
     });
 
@@ -267,7 +267,7 @@ describe('SchemaPropagationService', () => {
       title: 'attributes',
       items: {
         type: 'string',
-        enum: mockSchemaPropagationResponse.result[mockKeywordSearchOperator.operatorID],
+        enum: mockSchemaPropagationResponse.result[mockKeywordSearchOperator.operatorID].map(attr => attr.attributeName),
         uniqueItems: true
       }
     });
@@ -319,7 +319,7 @@ describe('SchemaPropagationService', () => {
             attribute: {
               type: 'string',
               title: 'attribute',
-              enum: mockSchemaPropagationResponse.result[mockAggregationPredicate.operatorID],
+              enum: mockSchemaPropagationResponse.result[mockAggregationPredicate.operatorID].map(attr => attr.attributeName),
               uniqueItems: true
             },
             aggregator: {

@@ -44,6 +44,9 @@ public class Schema implements Serializable {
     public List<String> getAttributeNames() {
         return attributes.stream().map(attr -> attr.getName()).collect(Collectors.toList());
     }
+    public List<String> getAttributeTypes() {
+        return attributes.stream().map(attr -> attr.getType()+"").collect(Collectors.toList());
+    }
 
     public Integer getIndex(String attributeName) {
         if (!containsAttribute(attributeName)) {
