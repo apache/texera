@@ -16,5 +16,5 @@ abstract class LinkStrategy(
 
   val tag = LinkTag(from.tag, to.tag, inputNum)
 
-  def link()(implicit timeout: Timeout, ec: ExecutionContext, log: LoggingAdapter): Unit
+  def link()(implicit timeout: Timeout, ec: ExecutionContext): Unit
 }

@@ -40,7 +40,6 @@ import scala.concurrent.duration._
 abstract class WorkerBase(identifier: ActorVirtualIdentity) extends WorkflowActor(identifier) {
   implicit val ec: ExecutionContext = context.dispatcher
   implicit val timeout: Timeout = 5.seconds
-  implicit val logAdapter: LoggingAdapter = log
 
   var operator: IOperatorExecutor
 
@@ -75,7 +74,7 @@ abstract class WorkerBase(identifier: ActorVirtualIdentity) extends WorkflowActo
   def onModifyTuple(faultedTuple: FaultedTuple): Unit = {}
 
   def onStart(): Unit = {
-    log.info("started!")
+    logger.info(s"$identifier started!")
     startTime = System.nanoTime()
     context.parent ! ReportState(WorkerState.Running)
   }
@@ -141,11 +140,9 @@ abstract class WorkerBase(identifier: ActorVirtualIdentity) extends WorkflowActo
 
   final def allowModifyBreakpoints: Receive = {
     case AssignBreakpoint(bp) =>
-      log.info("Assign breakpoint: " + bp.id)
       dataProcessor.registerBreakpoint(bp)
       sender ! Ack
     case RemoveBreakpoint(id) =>
-      log.info("Remove breakpoint: " + id)
       sender ! Ack
       dataProcessor.removeBreakpoint(id)
 
@@ -266,12 +263,12 @@ abstract class WorkerBase(identifier: ActorVirtualIdentity) extends WorkflowActo
 
   final def stashOthers: Receive = {
     case msg =>
-      log.info(s"stashing in WorkerBase" + msg)
+      logger.info(s"stashing in WorkerBase" + msg)
       stash()
   }
 
   final def discardOthers: Receive = {
-    case msg => log.info(s"discarding: $msg")
+    case msg => logger.info(s"discarding: $msg")
   }
 
   override def receive: Receive = {
@@ -410,19 +407,19 @@ abstract class WorkerBase(identifier: ActorVirtualIdentity) extends WorkflowActo
   def running: Receive =
     processNewControlMessages orElse [Any, Unit] {
       case ReportFailure(e) =>
-        log.info(s"received failure message")
+        logger.info(s"received failure message")
         throw e
       case Pause =>
-        log.info(s"received Pause message")
+        logger.info(s"$identifier received Pause message")
         onPausing()
       case LocalBreakpointTriggered =>
-        log.info("receive breakpoint triggered")
+        logger.info("receive breakpoint triggered")
         onBreakpointTriggered()
         context.become(paused)
         context.become(breakpointTriggered, discardOld = false)
         unstashAll()
       case ExecutionCompleted =>
-        log.info("received complete")
+        logger.info("received complete")
         onCompleted()
         context.become(completed)
         unstashAll()
@@ -444,7 +441,6 @@ abstract class WorkerBase(identifier: ActorVirtualIdentity) extends WorkflowActo
       allowQueryBreakpoint orElse
       allowQueryTriggeredBreakpoints orElse [Any, Unit] {
       case AssignBreakpoint(bp) =>
-        log.info("assign breakpoint: " + bp)
         sender ! Ack
         dataProcessor.registerBreakpoint(bp)
         if (!dataProcessor.breakpoints.exists(_.isDirty)) {
@@ -453,7 +449,6 @@ abstract class WorkerBase(identifier: ActorVirtualIdentity) extends WorkflowActo
           unstashAll()
         }
       case RemoveBreakpoint(id) =>
-        log.info("remove breakpoint: " + id)
         sender ! Ack
         dataProcessor.removeBreakpoint(id)
         if (!dataProcessor.breakpoints.exists(_.isDirty)) {
@@ -506,12 +501,12 @@ abstract class WorkerBase(identifier: ActorVirtualIdentity) extends WorkflowActo
 
   def newControlMessageHandler: Receive = {
     case ExecutionCompleted() =>
-      log.info("received complete")
+      logger.info("received complete")
       onCompleted()
       context.become(completed)
       unstashAll()
     case ExecutionPaused() =>
-      log.info(s"received Execution Pause message")
+      logger.info(s"received Execution Pause message")
       onPaused()
       context.become(paused)
       unstashAll()

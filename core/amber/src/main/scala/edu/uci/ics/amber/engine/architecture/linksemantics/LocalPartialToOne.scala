@@ -19,8 +19,7 @@ class LocalPartialToOne(from: ActorLayer, to: ActorLayer, batchSize: Int, inputN
     extends LinkStrategy(from, to, batchSize, inputNum) {
   override def link()(implicit
       timeout: Timeout,
-      ec: ExecutionContext,
-      log: LoggingAdapter
+      ec: ExecutionContext
   ): Unit = {
     assert(from.isBuilt && to.isBuilt)
     val froms = from.layer.groupBy(actor => actor.path.address.hostPort)

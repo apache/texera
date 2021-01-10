@@ -25,8 +25,7 @@ class HashBasedShuffle(
 ) extends LinkStrategy(from, to, batchSize, inputNum) {
   override def link()(implicit
       timeout: Timeout,
-      ec: ExecutionContext,
-      log: LoggingAdapter
+      ec: ExecutionContext
   ): Unit = {
     assert(from.isBuilt && to.isBuilt)
     from.layer.foreach(x =>

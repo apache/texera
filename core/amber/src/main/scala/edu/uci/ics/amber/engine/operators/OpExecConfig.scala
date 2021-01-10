@@ -46,6 +46,6 @@ abstract class OpExecConfig(val tag: OperatorIdentifier) extends Serializable {
       topology: Array[ActorLayer],
       states: mutable.AnyRefMap[ActorRef, WorkerState.Value],
       breakpoint: GlobalBreakpoint
-  )(implicit timeout: Timeout, ec: ExecutionContext, log: LoggingAdapter)
+  )(implicit timeout: Timeout, ec: ExecutionContext)
 
 }

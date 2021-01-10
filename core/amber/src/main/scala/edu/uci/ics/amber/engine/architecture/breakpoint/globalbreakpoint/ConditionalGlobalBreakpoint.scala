@@ -38,7 +38,6 @@ class ConditionalGlobalBreakpoint(id: String, val predicate: ITuple => Boolean)
   override def partitionImpl(layer: Array[ActorRef])(implicit
       timeout: Timeout,
       ec: ExecutionContext,
-      log: LoggingAdapter,
       id: String,
       version: Long
   ): Iterable[ActorRef] = {

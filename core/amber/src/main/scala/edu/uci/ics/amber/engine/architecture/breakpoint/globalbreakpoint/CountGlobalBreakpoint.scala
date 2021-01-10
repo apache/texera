@@ -36,7 +36,6 @@ class CountGlobalBreakpoint(id: String, val target: Long) extends GlobalBreakpoi
   override def partitionImpl(layer: Array[ActorRef])(implicit
       timeout: Timeout,
       ec: ExecutionContext,
-      log: LoggingAdapter,
       id: String,
       version: Long
   ): Iterable[ActorRef] = {

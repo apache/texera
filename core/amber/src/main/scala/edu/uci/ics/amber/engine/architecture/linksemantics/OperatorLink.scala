@@ -23,7 +23,7 @@ class OperatorLink(val from: (OpExecConfig, ActorLayer), val to: (OpExecConfig, 
   implicit val timeout: Timeout = 5.seconds
   var linkStrategy: LinkStrategy = _
   lazy val tag: LinkTag = linkStrategy.tag
-  def link()(implicit timeout: Timeout, ec: ExecutionContext, log: LoggingAdapter): Unit = {
+  def link()(implicit timeout: Timeout, ec: ExecutionContext): Unit = {
     val sender = from._2
     val receiver = to._2
     val inputNum = to._1.getInputNum(from._1.tag)

@@ -61,7 +61,7 @@ class LocalCsvFileScanOpExecConfig(
       topology: Array[ActorLayer],
       states: mutable.AnyRefMap[ActorRef, WorkerState.Value],
       breakpoint: GlobalBreakpoint
-  )(implicit timeout: Timeout, ec: ExecutionContext, log: LoggingAdapter): Unit = {
+  )(implicit timeout: Timeout, ec: ExecutionContext): Unit = {
     breakpoint.partition(topology(0).layer.filter(states(_) != WorkerState.Completed))
   }
 

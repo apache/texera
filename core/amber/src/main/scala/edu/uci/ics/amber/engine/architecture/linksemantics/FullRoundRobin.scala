@@ -16,8 +16,7 @@ class FullRoundRobin(from: ActorLayer, to: ActorLayer, batchSize: Int, inputNum:
     extends LinkStrategy(from, to, batchSize, inputNum) {
   override def link()(implicit
       timeout: Timeout,
-      ec: ExecutionContext,
-      log: LoggingAdapter
+      ec: ExecutionContext
   ): Unit = {
     assert(from.isBuilt && to.isBuilt)
     //TODO:change routee type according to the machine address

@@ -13,8 +13,7 @@ class LocalOneToOne(from: ActorLayer, to: ActorLayer, batchSize: Int, inputNum: 
     extends LinkStrategy(from, to, batchSize, inputNum) {
   override def link()(implicit
       timeout: Timeout,
-      ec: ExecutionContext,
-      log: LoggingAdapter
+      ec: ExecutionContext
   ): Unit = {
     assert(from.isBuilt && to.isBuilt && from.layer.length == to.layer.length)
     val froms = from.layer.groupBy(actor => actor.path.address.hostPort)

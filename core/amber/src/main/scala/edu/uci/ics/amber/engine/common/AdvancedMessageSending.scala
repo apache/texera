@@ -19,12 +19,11 @@ object AdvancedMessageSending {
       message: Any,
       maxAttempts: Int,
       attempt: Int
-  )(implicit timeout: Timeout, ec: ExecutionContext, log: LoggingAdapter): Future[Any] = {
+  )(implicit timeout: Timeout, ec: ExecutionContext): Future[Any] = {
     val future = (receiver ? message) recover {
       case e: AskTimeoutException =>
-        if (attempt > maxAttempts)
-          log.error("failed to send message " + message + " to " + receiver)
-        else nonBlockingAskWithRetry(receiver, message, maxAttempts, attempt + 1)
+        if (attempt > maxAttempts) {} else
+          nonBlockingAskWithRetry(receiver, message, maxAttempts, attempt + 1)
     }
     future
   }
@@ -35,13 +34,12 @@ object AdvancedMessageSending {
       maxAttempts: Int,
       attempt: Int,
       callback: Any => Unit
-  )(implicit timeout: Timeout, ec: ExecutionContext, log: LoggingAdapter): Unit = {
+  )(implicit timeout: Timeout, ec: ExecutionContext): Unit = {
     (receiver ? message) onComplete {
       case Success(value) => callback(value)
       case Failure(exception) =>
-        if (attempt > maxAttempts)
-          log.error("failed to send message " + message + " to " + receiver)
-        else nonBlockingAskWithRetry(receiver, message, maxAttempts, attempt + 1, callback)
+        if (attempt > maxAttempts) {} else
+          nonBlockingAskWithRetry(receiver, message, maxAttempts, attempt + 1, callback)
     }
   }
 
@@ -63,8 +61,7 @@ object AdvancedMessageSending {
   //this is blocking the actor, be careful!
   def blockingAskWithRetry(receiver: ActorRef, message: Any, maxAttempts: Int)(implicit
       timeout: Timeout,
-      ec: ExecutionContext,
-      log: LoggingAdapter
+      ec: ExecutionContext
   ): Any = {
     var res: Any = null
     Breaks.breakable {
@@ -76,7 +73,6 @@ object AdvancedMessageSending {
         }
         i += 1
       }
-      log.error("failed to send message " + message + " to " + receiver)
     }
     res
   }
@@ -87,7 +83,7 @@ object AdvancedMessageSending {
       message: Any,
       maxAttempts: Int,
       callback: Any => Unit
-  )(implicit timeout: Timeout, ec: ExecutionContext, log: LoggingAdapter): Unit = {
+  )(implicit timeout: Timeout, ec: ExecutionContext): Unit = {
     var res: Any = null
     Breaks.breakable {
       var i = 0
@@ -98,7 +94,6 @@ object AdvancedMessageSending {
         }
         i += 1
       }
-      log.error("failed to send message " + message + " to " + receiver)
     }
     callback(res)
   }

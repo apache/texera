@@ -85,8 +85,8 @@ class Processor(var operator: IOperatorExecutor, val tag: WorkerTag)
   override def onCompleted(): Unit = {
     super.onCompleted()
     ElidableStatement.info {
-      log.info(
-        "completed its job. total: {} ms, processing: {} ms",
+      logger.info(
+        s" $identifier completed its job. total: {} ms, processing: {} ms",
         (System.nanoTime() - startTime) / 1000000,
         processTime / 1000000
       )
@@ -125,7 +125,7 @@ class Processor(var operator: IOperatorExecutor, val tag: WorkerTag)
 
   override def onPaused(): Unit = {
     val (inputCount, outputCount) = dataProcessor.collectStatistics()
-    log.info(s"${tag.getGlobalIdentity} paused at $inputCount , $outputCount")
+    logger.info(s"$identifier paused at $inputCount , $outputCount")
     context.parent ! ReportCurrentProcessingTuple(self.path, dataProcessor.getCurrentInputTuple)
     context.parent ! RecoveryPacket(tag, inputCount, outputCount)
     context.parent ! ReportState(WorkerState.Paused)
@@ -206,16 +206,12 @@ class Processor(var operator: IOperatorExecutor, val tag: WorkerTag)
       // val operatorType = json("operatorID").as[String]
       val (inputCount, outputCount) = dataProcessor.collectStatistics()
       savedModifyLogic.enqueue((inputCount, outputCount, newMetadata))
-      log.info("modify logic received by worker " + this.self.path.name + ", updating logic")
 //      newMetadata match {
 //        case filterOpMetadata: FilterOpExecConfig =>
 //          val dp = dataProcessor.asInstanceOf[FilterOpExec]
 //          dp.filterFunc = filterOpMetadata.filterOpExec().filterFunc
 //        case t => throw new NotImplementedError("Unknown operator type: " + t)
 //      }
-      log.info(
-        "modify logic received by worker " + this.self.path.name + ", updating logic completed"
-      )
       throw new UnsupportedOperationException("this functionality is temporarily disabled")
   }
 

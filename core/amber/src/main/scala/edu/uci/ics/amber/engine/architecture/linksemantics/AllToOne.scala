@@ -21,8 +21,7 @@ class AllToOne(from: ActorLayer, to: ActorLayer, batchSize: Int, inputNum: Int)
     extends LinkStrategy(from, to, batchSize, inputNum) {
   override def link()(implicit
       timeout: Timeout,
-      ec: ExecutionContext,
-      log: LoggingAdapter
+      ec: ExecutionContext
   ): Unit = {
     assert(from.isBuilt && to.isBuilt && to.layer.size == 1)
     val toActor = to.identifiers.head

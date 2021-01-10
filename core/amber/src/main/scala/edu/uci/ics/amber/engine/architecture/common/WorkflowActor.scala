@@ -2,6 +2,7 @@ package edu.uci.ics.amber.engine.architecture.common
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Stash}
 import com.softwaremill.macwire.wire
+import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkSenderActor.{
   NetworkSenderActorRef,
   QueryActorRef,
@@ -16,9 +17,9 @@ import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 
-abstract class WorkflowActor(identifier: ActorVirtualIdentity)
+abstract class WorkflowActor(val identifier: ActorVirtualIdentity)
     extends Actor
-    with ActorLogging
+    with LazyLogging
     with Stash {
 
   val networkSenderActor: NetworkSenderActorRef = NetworkSenderActorRef(
