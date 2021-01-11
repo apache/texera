@@ -197,12 +197,11 @@ class WorkflowWorker(identifier: ActorVirtualIdentity, operator: IOperatorExecut
         )
       }
     case Pause =>
-      workerStateManager.confirmState(Running)
+      workerStateManager.confirmState(Running, Ready)
       promiseManager.execute(ControlInvocation(null, WorkerPause()))
       workerStateManager.transitTo(Pausing)
       reportState()
     case Resume =>
-      workerStateManager.confirmState(Paused)
       pauseManager.resume()
       workerStateManager.transitTo(Running)
       reportState()
