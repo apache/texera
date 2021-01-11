@@ -393,20 +393,7 @@ class Controller(
           .SkippedTransitions(operatorToWorkerStateMap(operatorIdentifier)(worker))
           .contains(state)
       ) {
-        logger.info(
-          "Skipped worker state transition for worker{} from {} to {}",
-          worker,
-          operatorToWorkerStateMap(operatorIdentifier)(worker),
-          state
-        )
         operatorToWorkerStateMap(operatorIdentifier)(worker) = state
-      } else {
-        logger.warn(
-          "Invalid worker state transition for worker{} from {} to {}",
-          worker,
-          operatorToWorkerStateMap(operatorIdentifier)(worker),
-          state
-        )
       }
       true
     } else false
