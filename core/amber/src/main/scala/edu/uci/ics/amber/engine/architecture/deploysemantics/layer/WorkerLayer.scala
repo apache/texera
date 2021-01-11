@@ -11,7 +11,7 @@ import edu.uci.ics.amber.engine.common.IOperatorExecutor
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.{
   ActorVirtualIdentity,
-  NamedActorVirtualIdentity
+  WorkerActorVirtualIdentity
 }
 
 import scala.collection.mutable
@@ -45,11 +45,12 @@ class WorkerLayer(
     identifiers = new Array[ActorVirtualIdentity](numWorkers)
     for (i <- 0 until numWorkers) {
       val m = metadata(i)
-      val id = NamedActorVirtualIdentity(s"${tag.getGlobalIdentity}/$i")
+      val workerTag = WorkerTag(tag, i)
+      val id = WorkerActorVirtualIdentity(workerTag.getGlobalIdentity)
       val d = deployStrategy.next()
       layer(i) =
         context.actorOf(WorkflowWorker.props(id, m).withDeploy(Deploy(scope = RemoteScope(d))))
-      identifiers(i) = id
+      identifiers(i) =  WorkerActorVirtualIdentity(workerTag.getGlobalIdentity)
     }
   }
 

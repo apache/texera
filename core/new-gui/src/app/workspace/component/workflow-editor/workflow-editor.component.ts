@@ -19,6 +19,7 @@ import { WorkflowStatusService } from '../../service/workflow-status/workflow-st
 import { environment } from './../../../../environments/environment';
 import { ExecuteWorkflowService } from '../../service/execute-workflow/execute-workflow.service';
 import { ExecutionState, OperatorStatistics, OperatorState } from '../../types/execute-workflow.interface';
+import { DynamicSchemaService } from '../../service/dynamic-schema/dynamic-schema.service';
 import { Group, LinkInfo, OperatorInfo } from '../../service/workflow-graph/model/operator-group';
 import { assertType } from 'src/app/common/util/assert';
 import { max, min } from 'lodash';
@@ -99,6 +100,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
   constructor(
     private workflowActionService: WorkflowActionService,
+    private dynamicSchemaService: DynamicSchemaService,
     private dragDropService: DragDropService,
     private elementRef: ElementRef,
     private resultPanelToggleService: ResultPanelToggleService,
@@ -869,10 +871,16 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
     // if port is already connected, do not allow another connection, each port should only contain at most 1 link
     const checkConnectedLinksToTarget = this.workflowActionService.getTexeraGraph().getAllLinks().filter(
-      link => link.target.operatorID === targetView.model.id && targetMagnet.getAttribute('port') === link.target.portID
+      link => link.target.operatorID === targetView.model.id.toString() && targetMagnet.getAttribute('port') === link.target.portID
     );
 
-    if (checkConnectedLinksToTarget.length > 0) { return false; }
+    const allowMultiInput = this.workflowActionService.getTexeraGraph().hasOperator(targetView.model.id.toString()) ?
+      this.dynamicSchemaService.getDynamicSchema(targetView.model.id.toString()).additionalMetadata.allowMultiInputs : false;
+
+
+    if (checkConnectedLinksToTarget.length > 0) {
+      return allowMultiInput === true;
+    }
 
     // cannot connect to itself
     return sourceView.id !== targetView.id;

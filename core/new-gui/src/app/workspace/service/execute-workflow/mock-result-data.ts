@@ -4,6 +4,7 @@ import { Point, OperatorPredicate } from '../../types/workflow-common.interface'
 export const mockResultData: ResultObject[] = [{
   chartType: undefined,
   operatorID: 'operator-1234',
+  totalRowCount: 6,
   table: [
     {
       'id': 1,

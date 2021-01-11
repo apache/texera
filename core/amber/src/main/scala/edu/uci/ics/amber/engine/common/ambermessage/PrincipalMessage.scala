@@ -4,7 +4,7 @@ import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalB
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.architecture.linksemantics.LinkStrategy
 import edu.uci.ics.amber.engine.architecture.principal.{PrincipalState, PrincipalStatistics}
-import edu.uci.ics.amber.engine.common.ambertag.{AmberTag, LayerTag, WorkerTag}
+import edu.uci.ics.amber.engine.common.ambertag.{AmberTag, LayerTag, OperatorIdentifier, WorkerTag}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import akka.actor.{ActorPath, ActorRef}
