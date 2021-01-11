@@ -6,7 +6,6 @@ import edu.uci.ics.amber.engine.architecture.breakpoint.localbreakpoint.LocalBre
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import akka.actor.ActorRef
 import edu.uci.ics.amber.engine.common.ambermessage.neo.ControlPayload
-import edu.uci.ics.amber.engine.common.promise.PromiseContext
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 object ControlMessage {
@@ -25,9 +24,7 @@ object ControlMessage {
 
   final case class CollectSinkResults()
 
-  final case class LocalBreakpointTriggered() extends ControlPayload {
-    override val context: PromiseContext = null
-  }
+  final case class LocalBreakpointTriggered() extends ControlPayload
 
   final case class RequireAck(msg: Any)
 

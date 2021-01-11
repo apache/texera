@@ -14,32 +14,23 @@ import edu.uci.ics.amber.engine.common.ambermessage.neo.{
 }
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.promise.PromiseContext
 
 object WorkerMessage {
 
   final case class AckedWorkerInitialization(recoveryInformation: Seq[(Long, Long)] = Nil)
 
   final case class UpdateInputLinking(fromLayer: VirtualIdentity, inputNum: Int)
-      extends ControlPayload {
-    // TODO: use new promise API to send it
-    override val context: PromiseContext = null
-  }
+      extends ControlPayload
 
   final case class UpdateOutputLinking(
       policy: DataTransferPolicy,
       link: LinkTag,
       receivers: Array[ActorVirtualIdentity]
-  ) extends ControlPayload {
-    // TODO: use new promise API to send it
-    override val context: PromiseContext = null
-  }
+  ) extends ControlPayload
 
   final case class EndSending(sequenceNumber: Long)
 
-  final case class ExecutionCompleted() extends ControlPayload {
-    override val context: PromiseContext = null
-  }
+  final case class ExecutionCompleted() extends ControlPayload
 
   final case class ExecutionPaused()
 
