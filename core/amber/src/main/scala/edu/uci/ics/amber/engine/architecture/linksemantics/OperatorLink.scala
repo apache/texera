@@ -18,7 +18,7 @@ import scala.concurrent.{Await, ExecutionContext}
 import scala.concurrent.duration._
 
 //ugly design, but I don't know how to make it better
-class OperatorLink(val from: (OpExecConfig, ActorLayer), val to: (OpExecConfig, ActorLayer))
+class OperatorLink(val from: (OpExecConfig, WorkerLayer), val to: (OpExecConfig, WorkerLayer))
     extends Serializable {
   implicit val timeout: Timeout = 5.seconds
   var linkStrategy: LinkStrategy = _

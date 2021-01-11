@@ -28,10 +28,7 @@ import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage._
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage._
-import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.{
-  ActorVirtualIdentity,
-  NamedActorVirtualIdentity
-}
+import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.promise.RPCClient.{ControlInvocation, ReturnPayload}
 import edu.uci.ics.amber.engine.common.promise.RPCHandlerInitializer
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
