@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.linksemantics
 
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.ActorLayer
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy.{
   OneToOnePolicy,
   RoundRobinPolicy
@@ -15,7 +15,7 @@ import akka.util.Timeout
 
 import scala.concurrent.ExecutionContext
 
-class LocalPartialToOne(from: ActorLayer, to: ActorLayer, batchSize: Int, inputNum: Int)
+class LocalPartialToOne(from: WorkerLayer, to: WorkerLayer, batchSize: Int, inputNum: Int)
     extends LinkStrategy(from, to, batchSize, inputNum) {
   override def link()(implicit
       timeout: Timeout,

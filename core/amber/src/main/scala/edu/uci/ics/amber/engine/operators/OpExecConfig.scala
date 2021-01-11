@@ -2,7 +2,7 @@ package edu.uci.ics.amber.engine.operators
 
 import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalBreakpoint
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.ActorLayer
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.architecture.linksemantics.LinkStrategy
 import edu.uci.ics.amber.engine.architecture.worker.WorkerState
 import edu.uci.ics.amber.engine.common.ambertag.{AmberTag, LayerTag, OperatorIdentifier}
@@ -20,7 +20,7 @@ import scala.concurrent.ExecutionContext
 abstract class OpExecConfig(val tag: OperatorIdentifier) extends Serializable {
 
   class Topology(
-      var layers: Array[ActorLayer],
+      var layers: Array[WorkerLayer],
       var links: Array[LinkStrategy],
       var dependencies: Map[LayerTag, Set[LayerTag]]
   ) extends Serializable {
@@ -43,7 +43,7 @@ abstract class OpExecConfig(val tag: OperatorIdentifier) extends Serializable {
   def getShuffleHashFunction(layerTag: LayerTag): ITuple => Int = ???
 
   def assignBreakpoint(
-      topology: Array[ActorLayer],
+      topology: Array[WorkerLayer],
       states: mutable.AnyRefMap[ActorRef, WorkerState.Value],
       breakpoint: GlobalBreakpoint
   )(implicit timeout: Timeout, ec: ExecutionContext)

@@ -11,6 +11,7 @@ import edu.uci.ics.amber.engine.common.promise.{
   PromiseManager,
   WorkflowPromise
 }
+import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 
 class WorkerPromiseHandlerInitializer(
     val selfID: ActorVirtualIdentity,

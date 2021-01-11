@@ -13,10 +13,7 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.{
   RandomDeployment,
   RoundRobinDeployment
 }
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
-  ActorLayer,
-  ProcessorWorkerLayer
-}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.architecture.linksemantics.{AllToOne, HashBasedShuffle}
 import edu.uci.ics.amber.engine.architecture.worker.WorkerState
 import edu.uci.ics.amber.engine.common.Constants
@@ -35,14 +32,14 @@ class AggregateOpExecConfig[P <: AnyRef](
   override lazy val topology: Topology = {
 
     if (aggFunc.groupByFunc == null) {
-      val partialLayer = new ProcessorWorkerLayer(
+      val partialLayer = new WorkerLayer(
         LayerTag(tag, "localAgg"),
         _ => new PartialAggregateOpExec(aggFunc),
         Constants.defaultNumWorkers,
         UseAll(),
         RoundRobinDeployment()
       )
-      val finalLayer = new ProcessorWorkerLayer(
+      val finalLayer = new WorkerLayer(
         LayerTag(tag, "globalAgg"),
         _ => new FinalAggregateOpExec(aggFunc),
         1,
@@ -60,14 +57,14 @@ class AggregateOpExecConfig[P <: AnyRef](
         Map()
       )
     } else {
-      val partialLayer = new ProcessorWorkerLayer(
+      val partialLayer = new WorkerLayer(
         LayerTag(tag, "localAgg"),
         _ => new PartialAggregateOpExec(aggFunc),
         Constants.defaultNumWorkers,
         UseAll(),
         RoundRobinDeployment()
       )
-      val finalLayer = new ProcessorWorkerLayer(
+      val finalLayer = new WorkerLayer(
         LayerTag(tag, "globalAgg"),
         _ => new FinalAggregateOpExec(aggFunc),
         Constants.defaultNumWorkers,
@@ -96,7 +93,7 @@ class AggregateOpExecConfig[P <: AnyRef](
     }
   }
   override def assignBreakpoint(
-      topology: Array[ActorLayer],
+      topology: Array[WorkerLayer],
       states: mutable.AnyRefMap[ActorRef, WorkerState.Value],
       breakpoint: GlobalBreakpoint
   )(implicit timeout: Timeout, ec: ExecutionContext): Unit = {

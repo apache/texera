@@ -17,11 +17,7 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
 }
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.OneOnEach
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.FollowPrevious
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
-  ActorLayer,
-  GeneratorWorkerLayer,
-  ProcessorWorkerLayer
-}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.faulttolerance.materializer.{
   HashBasedMaterializer,
   OutputMaterializer
@@ -187,7 +183,7 @@ class Controller(
     operatorStateMap.filter(x => x._2 != PrincipalState.Completed).values
   val tau: FiniteDuration = Constants.defaultTau
   var operatorToPrincipalSinkResultMap = new mutable.HashMap[String, List[ITuple]]
-  var operatorToWorkerLayers = new mutable.HashMap[OperatorIdentifier, Array[ActorLayer]]()
+  var operatorToWorkerLayers = new mutable.HashMap[OperatorIdentifier, Array[WorkerLayer]]()
   var workerToOperator = new mutable.HashMap[ActorRef, OperatorIdentifier]()
   var operatorToWorkerEdges = new mutable.HashMap[OperatorIdentifier, Array[LinkStrategy]]()
   var operatorStateMap = new mutable.AnyRefMap[OperatorIdentifier, PrincipalState.Value]
@@ -249,7 +245,7 @@ class Controller(
     val scanGen: Int => ISourceOperatorExecutor = i =>
       new HDFSFolderScanSourceOperatorExecutor(Constants.remoteHDFSPath, path + "/" + i, '|', null)
     val lastLayer = topology.layers.last
-    val materializerLayer = new ProcessorWorkerLayer(
+    val materializerLayer = new WorkerLayer(
       layerTag,
       i => new HashBasedMaterializer(path, i, hashFunc, numWorkers),
       numWorkers,
@@ -263,7 +259,7 @@ class Controller(
       Constants.defaultBatchSize,
       0
     )
-    val scanLayer = new GeneratorWorkerLayer(
+    val scanLayer = new WorkerLayer(
       LayerTag(to.tag, "from_checkpoint"),
       scanGen,
       topology.layers.last.numWorkers,
@@ -290,19 +286,19 @@ class Controller(
   }
 
   private def killAndRecoverStage(): Unit = {
-    val futuresNoSinkScan = operatorInCurrentStage
-      .filter(x => x.operator.contains("Sink") && x.operator.contains("Scan"))
-      .map { x =>
-        operatorStateMap(x) = PrincipalState.Running
-        operatorToWorkerLayers(x).foreach { layers =>
-          layers.layer(0) ! Reset(
-            layers.getFirstMetadata,
-            Seq(operatorToReceivedRecoveryInformation(x)(layers.tagForFirst))
-          )
-          operatorToWorkerStateMap(x)(layers.layer(0)) = WorkerState.Ready
-        }
-      }
-      .asJava
+//    val futuresNoSinkScan = operatorInCurrentStage
+//      .filter(x => x.operator.contains("Sink") && x.operator.contains("Scan"))
+//      .map { x =>
+//        operatorStateMap(x) = PrincipalState.Running
+//        operatorToWorkerLayers(x).foreach { layers =>
+//          layers.layer(0) ! Reset(
+//            layers.getFirstMetadata,
+//            Seq(operatorToReceivedRecoveryInformation(x)(layers.tagForFirst))
+//          )
+//          operatorToWorkerStateMap(x)(layers.layer(0)) = WorkerState.Ready
+//        }
+//      }
+//      .asJava
 //    val tasksNoSinkScan = Futures.sequence(futuresNoSinkScan, ec)
 //    Await.result(tasksNoSinkScan, 5.minutes)
 //    Thread.sleep(2000)
@@ -410,7 +406,7 @@ class Controller(
 
   private def initializeOperators(
       startOp: OperatorIdentifier,
-      prev: Array[(OpExecConfig, ActorLayer)]
+      prev: Array[(OpExecConfig, WorkerLayer)]
   ): Unit = {
     var metadata =
       workflow.operators(startOp) // This metadata gets updated at the end of this function
@@ -420,9 +416,9 @@ class Controller(
     if (operatorToWorkerEdges(startOp).isEmpty) {
       operatorToWorkerLayers(startOp).foreach(x => x.build(prev, all))
     } else {
-      val inLinks: Map[ActorLayer, Set[ActorLayer]] =
+      val inLinks: Map[WorkerLayer, Set[WorkerLayer]] =
         operatorToWorkerEdges(startOp).groupBy(x => x.to).map(x => (x._1, x._2.map(_.from).toSet))
-      var currentLayer: Iterable[ActorLayer] =
+      var currentLayer: Iterable[WorkerLayer] =
         operatorToWorkerEdges(startOp)
           .filter(x => operatorToWorkerEdges(startOp).forall(_.to != x.from))
           .map(_.from)
@@ -519,7 +515,7 @@ class Controller(
             .map(x =>
               (
                 workflow.operators(x),
-                operatorToWorkerLayers(x).last.clone().asInstanceOf[ActorLayer]
+                operatorToWorkerLayers(x).last.clone().asInstanceOf[WorkerLayer]
               )
             )
         )
@@ -556,11 +552,11 @@ class Controller(
             val edge = new OperatorLink(
               (
                 workflow.operators(from),
-                operatorToWorkerLayers(from).last.clone().asInstanceOf[ActorLayer]
+                operatorToWorkerLayers(from).last.clone().asInstanceOf[WorkerLayer]
               ),
               (
                 workflow.operators(k),
-                operatorToWorkerLayers(k).head.clone().asInstanceOf[ActorLayer]
+                operatorToWorkerLayers(k).head.clone().asInstanceOf[WorkerLayer]
               )
             )
             edge.link()
@@ -1023,7 +1019,7 @@ class Controller(
           initializeOperatorDataStructures(k)
         }
         workflow.startOperators.foreach(startOp =>
-          initializeOperators(startOp, Array[(OpExecConfig, ActorLayer)]())
+          initializeOperators(startOp, Array[(OpExecConfig, WorkerLayer)]())
         )
         frontier ++= workflow.startOperators.flatMap(workflow.outLinks(_))
       case ContinuedInitialization =>
