@@ -18,9 +18,7 @@ import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage._
 import edu.uci.ics.amber.engine.common.ambermessage.ControllerMessage.ReportGlobalBreakpointTriggered
 import edu.uci.ics.amber.engine.common.ambermessage.PrincipalMessage.{AssignBreakpoint, _}
 import edu.uci.ics.amber.engine.common.ambermessage.StateMessage._
-import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage._
 import edu.uci.ics.amber.engine.common.ambermessage.{PrincipalMessage, WorkerMessage}
-import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.NamedActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.ambertag.{AmberTag, LayerTag, WorkerTag}
 import edu.uci.ics.amber.engine.common.promise.PromiseHandlerInitializer
 import edu.uci.ics.amber.engine.common.tuple.ITuple
@@ -54,6 +52,12 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkSenderActor
 import com.typesafe.scalalogging.{LazyLogging, Logger}
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.ErrorOccurred
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkSenderActor.RegisterActorRef
+import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{
+  ReportWorkerPartialCompleted,
+  ReportedQueriedBreakpoint,
+  ReportedTriggeredBreakpoints,
+  Reset
+}
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.WorkerActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.promise.{PromiseHandlerInitializer, PromiseManager}
 import edu.uci.ics.amber.error.WorkflowRuntimeError
