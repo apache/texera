@@ -288,7 +288,7 @@ abstract class WorkerBase(identifier: ActorVirtualIdentity) extends WorkflowActo
 
   final def stashOthers: Receive = {
     case msg =>
-      logger.logInfo("stashing: " + msg)
+      logger.logInfo(s"stashing in WorkerBase" + msg)
       stash()
   }
 
@@ -433,6 +433,7 @@ abstract class WorkerBase(identifier: ActorVirtualIdentity) extends WorkflowActo
   def running: Receive =
     processNewControlMessages orElse [Any, Unit] {
       case ReportFailure(e) =>
+        logger.logInfo(s"received failure message")
         throw e
       case Pause =>
         onPausing()

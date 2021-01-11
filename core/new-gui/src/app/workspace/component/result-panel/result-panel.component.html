@@ -19,7 +19,17 @@
       Skip Records
     </button>
     <div class="result-table" [hidden]="!currentColumns">
-      <nz-table #basicTable [nzData]="currentResult" nzBordered="true" >
+      <nz-table
+        #basicTable
+        [nzData]="currentResult"
+        nzBordered="true"
+        [nzFrontPagination]="isFrontPagination"
+        [nzLoading]="isLoadingResult"
+        [nzTotal]="total"
+        [nzPageIndex]="currentPageIndex"
+        [nzPageSize]="currentPageSize"
+        (nzQueryParams)="onTableQueryParamsChange($event)"
+      >
         <thead>
           <tr>
             <th *ngFor="let column of currentColumns">

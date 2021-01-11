@@ -12,7 +12,7 @@ import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage._
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage._
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.{
   ActorVirtualIdentity,
-  NamedActorVirtualIdentity
+  WorkerActorVirtualIdentity
 }
 import edu.uci.ics.amber.engine.common.ambertag.{LayerTag, WorkerTag}
 import edu.uci.ics.amber.engine.common.{
@@ -31,7 +31,9 @@ object Generator {
 }
 
 class Generator(var operator: IOperatorExecutor, val tag: WorkerTag)
-    extends WorkerBase(NamedActorVirtualIdentity(tag.getGlobalIdentity)) {
+    extends WorkerBase(WorkerActorVirtualIdentity(tag.getGlobalIdentity))
+    with ActorLogging
+    with Stash {
 
   @elidable(INFO) var generateTime = 0L
   @elidable(INFO) var generateStart = 0L

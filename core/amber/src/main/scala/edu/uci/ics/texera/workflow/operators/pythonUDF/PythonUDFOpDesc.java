@@ -57,7 +57,7 @@ public class PythonUDFOpDesc extends OperatorDescriptor {
                 "Python UDF",
                 "User-defined function operator in Python script",
                 OperatorGroupConstants.UDF_GROUP(),
-                1, 1);
+                1, 1, false);
     }
 
     @Override

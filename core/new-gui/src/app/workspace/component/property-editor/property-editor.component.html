@@ -13,6 +13,9 @@
       </formly-form>
     </form>
 
+    <texera-typecasting-display [operatorID]='currentOperatorID' ></texera-typecasting-display>
+
+
     <button *ngIf="currentLinkID !== undefined && !hasBreakpoint()" type="button" class="breakpointRemoveButton"
     (click)="handleAddBreakpoint()">Add Breakpoint</button>
 

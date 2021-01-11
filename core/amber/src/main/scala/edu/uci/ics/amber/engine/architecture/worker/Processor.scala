@@ -13,7 +13,7 @@ import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage.{QueryState, 
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage._
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.{
   ActorVirtualIdentity,
-  NamedActorVirtualIdentity
+  WorkerActorVirtualIdentity
 }
 import edu.uci.ics.amber.engine.common.ambertag.{LayerTag, WorkerTag}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
@@ -37,7 +37,7 @@ object Processor {
 }
 
 class Processor(var operator: IOperatorExecutor, val tag: WorkerTag)
-    extends WorkerBase(NamedActorVirtualIdentity(tag.getGlobalIdentity)) {
+    extends WorkerBase(WorkerActorVirtualIdentity(tag.getGlobalIdentity)) {
   var savedModifyLogic: mutable.Queue[(Long, Long, OpExecConfig)] =
     new mutable.Queue[(Long, Long, OpExecConfig)]()
 

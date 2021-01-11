@@ -5,13 +5,13 @@ import org.scalatest.flatspec.AnyFlatSpec
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.engine.architecture.messaginglayer.DataInputPort.WorkflowDataMessage
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.DataFrame
-import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.NamedActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.WorkerActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 
 class DataInputPortSpec extends AnyFlatSpec with MockFactory {
 
   private val mockBatchToTupleConverter = mock[BatchToTupleConverter]
-  private val fakeID = NamedActorVirtualIdentity("testReceiver")
+  private val fakeID = WorkerActorVirtualIdentity("testReceiver")
 
   "data input port" should "output data in FIFO order" in {
     val inputPort = wire[DataInputPort]
