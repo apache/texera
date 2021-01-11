@@ -11,6 +11,7 @@ import edu.uci.ics.amber.engine.common.promise.{
   RPCServer,
   WorkflowPromise
 }
+import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 
 class WorkerRPCHandlerInitializer(
     val selfID: ActorVirtualIdentity,
