@@ -50,7 +50,7 @@ class WorkerLayer(
       val d = deployStrategy.next()
       layer(i) =
         context.actorOf(WorkflowWorker.props(id, m).withDeploy(Deploy(scope = RemoteScope(d))))
-      identifiers(i) =  WorkerActorVirtualIdentity(workerTag.getGlobalIdentity)
+      identifiers(i) = WorkerActorVirtualIdentity(workerTag.getGlobalIdentity)
     }
   }
 
