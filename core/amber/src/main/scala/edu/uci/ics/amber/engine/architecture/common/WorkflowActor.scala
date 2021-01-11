@@ -38,6 +38,8 @@ abstract class WorkflowActor(val identifier: ActorVirtualIdentity) extends Actor
       if (replyTo.contains(networkSenderActor.ref)) {
         context.parent ! QueryActorRef(id, replyTo)
       } else {
+        // we direct this message to the NetworkSenderActor
+        // because it has the VirtualIdentityToActorRef for each actor.
         networkSenderActor ! QueryActorRef(id, replyTo)
       }
     case RegisterActorRef(id, ref) =>

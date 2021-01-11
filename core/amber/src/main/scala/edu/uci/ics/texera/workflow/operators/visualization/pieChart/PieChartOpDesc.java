@@ -55,7 +55,7 @@ public class PieChartOpDesc extends VisualizationOperator {
                 "Pie Chart",
                 "View the result in pie chart",
                 OperatorGroupConstants.VISUALIZATION_GROUP(),
-                1, 1
+                1, 1, false
         );
     }
 
