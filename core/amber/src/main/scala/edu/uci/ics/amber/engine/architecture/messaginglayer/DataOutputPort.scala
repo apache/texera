@@ -3,6 +3,7 @@ package edu.uci.ics.amber.engine.architecture.messaginglayer
 import java.util.concurrent.atomic.AtomicLong
 
 import akka.actor.ActorRef
+import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.messaginglayer.DataInputPort.WorkflowDataMessage
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkSenderActor.{
   NetworkSenderActorRef,
@@ -21,11 +22,11 @@ class DataOutputPort(selfID: ActorVirtualIdentity, networkSenderActor: NetworkSe
 
   private val idToSequenceNums = new mutable.AnyRefMap[ActorVirtualIdentity, AtomicLong]()
 
-  def sendTo(to: ActorVirtualIdentity, event: DataPayload): Unit = {
+  def sendTo(to: ActorVirtualIdentity, payload: DataPayload): Unit = {
     val msg = WorkflowDataMessage(
       selfID,
       idToSequenceNums.getOrElseUpdate(to, new AtomicLong()).getAndIncrement(),
-      event
+      payload
     )
     networkSenderActor ! SendRequest(to, msg)
   }

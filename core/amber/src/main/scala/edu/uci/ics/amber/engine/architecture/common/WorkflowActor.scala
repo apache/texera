@@ -13,20 +13,26 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   ControlOutputPort,
   NetworkSenderActor
 }
+import edu.uci.ics.amber.engine.common.WorkflowLogger
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.promise.{PromiseHandlerInitializer, PromiseManager}
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 
-abstract class WorkflowActor(val identifier: ActorVirtualIdentity)
-    extends Actor
-    with LazyLogging
-    with Stash {
+abstract class WorkflowActor(val identifier: ActorVirtualIdentity) extends Actor with Stash {
+
+  protected val logger: WorkflowLogger = WorkflowLogger(s"$identifier")
 
   val networkSenderActor: NetworkSenderActorRef = NetworkSenderActorRef(
     context.actorOf(NetworkSenderActor.props())
   )
   lazy val controlInputPort: ControlInputPort = wire[ControlInputPort]
   lazy val controlOutputPort: ControlOutputPort = wire[ControlOutputPort]
+  lazy val promiseManager: PromiseManager = wire[PromiseManager]
+  val promiseHandlerInitializer: PromiseHandlerInitializer
+
+  // register all handlers to the promise manager
+  promiseManager.setPromiseHandlers(promiseHandlerInitializer.getPromiseHandlers)
 
   def routeActorRefRelatedMessages: Receive = {
     case QueryActorRef(id, replyTo) =>

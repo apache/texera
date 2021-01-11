@@ -75,12 +75,14 @@ import akka.util.Timeout
 import akka.pattern.after
 import akka.pattern.ask
 import com.google.common.base.Stopwatch
+import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkSenderActor
-import com.typesafe.scalalogging.Logger
+import com.typesafe.scalalogging.{LazyLogging, Logger}
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.ErrorOccurred
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkSenderActor.RegisterActorRef
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.WorkerActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.promise.{PromiseHandlerInitializer, PromiseManager}
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 import scala.collection.mutable
@@ -98,12 +100,13 @@ class Principal(val metadata: OpExecConfig)
   implicit val ec: ExecutionContext = context.dispatcher
   implicit val timeout: Timeout = 5.seconds
 
+  lazy val promiseHandlerInitializer = wire[PromiseHandlerInitializer]
+
   private def errorLogAction(err: WorkflowRuntimeError): Unit = {
     context.parent ! LogErrorToFrontEnd(err)
   }
-  val principalLogger = WorkflowLogger(s"Principal-${metadata.tag.getGlobalIdentity}-Logger")
-  principalLogger.setErrorLogAction(errorLogAction)
-
+  val errorLogger = WorkflowLogger(s"Principal-${metadata.tag.getGlobalIdentity}-Logger")
+  errorLogger.setErrorLogAction(errorLogAction)
   val tau: FiniteDuration = Constants.defaultTau
   var workerLayers: Array[ActorLayer] = _
   var workerEdges: Array[LinkStrategy] = _
@@ -154,31 +157,19 @@ class Principal(val metadata: OpExecConfig)
 //      .sum
 //  }
 
-//  private def setWorkerState(worker: ActorRef, state: WorkerState.Value): Boolean = {
-//    assert(workerStateMap.contains(worker))
-//    //only set when state changes.
-//    if (workerStateMap(worker) != state) {
-//      if (WorkerState.ValidTransitions(workerStateMap(worker)).contains(state)) {
-//        workerStateMap(worker) = state
-//      } else if (WorkerState.SkippedTransitions(workerStateMap(worker)).contains(state)) {
-//        log.info(
-//          "Skipped worker state transition for worker{} from {} to {}",
-//          worker,
-//          workerStateMap(worker),
-//          state
-//        )
-//        workerStateMap(worker) = state
-//      } else {
-//        log.warning(
-//          "Invalid worker state transition for worker{} from {} to {}",
-//          worker,
-//          workerStateMap(worker),
-//          state
-//        )
-//      }
-//      true
-//    } else false
-//  }
+  private def setWorkerState(worker: ActorRef, state: WorkerState.Value): Boolean = {
+    assert(workerStateMap.contains(worker))
+    //only set when state changes.
+    if (workerStateMap(worker) != state) {
+      if (WorkerState.ValidTransitions(workerStateMap(worker)).contains(state)) {
+        workerStateMap(worker) = state
+      } else if (WorkerState.SkippedTransitions(workerStateMap(worker)).contains(state)) {
+
+        workerStateMap(worker) = state
+      } else {}
+      true
+    } else false
+  }
 
   final def whenAllUncompletedWorkersBecome(state: WorkerState.Value): Boolean =
     unCompletedWorkerStates.forall(_ == state)
@@ -259,12 +250,11 @@ class Principal(val metadata: OpExecConfig)
       case QueryState     => sender ! ReportState(PrincipalState.Ready)
       case QueryStatistics =>
         this.allWorkers.foreach(worker => worker ! QueryStatistics)
-      case Resume                       => context.parent ! ReportState(PrincipalState.Ready)
+      case Resume => context.parent ! ReportState(PrincipalState.Ready)
       case AssignBreakpoint(breakpoint) =>
-      //      globalBreakpoints(breakpoint.id) = breakpoint
-      //      log.info("assign breakpoint: " + breakpoint.id)
-      //      metadata.assignBreakpoint(workerLayers, workerStateMap, breakpoint)
-      //      sender ! Ack
+        globalBreakpoints(breakpoint.id) = breakpoint
+        metadata.assignBreakpoint(workerLayers, workerStateMap, breakpoint)
+        sender ! Ack
       case Pause =>
         allWorkers.foreach(worker => worker ! Pause)
         safeRemoveAskHandle()

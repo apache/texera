@@ -21,6 +21,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
 }
 import edu.uci.ics.amber.engine.architecture.worker.neo.WorkerInternalQueue.DummyInput
 import edu.uci.ics.amber.engine.architecture.worker.neo._
+import edu.uci.ics.amber.engine.architecture.worker.neo.promisehandlers.PauseHandler.WorkerPause
 import edu.uci.ics.amber.engine.common.IOperatorExecutor
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage._
@@ -28,6 +29,13 @@ import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage._
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.promise.{
+  PromiseContext,
+  PromiseHandlerInitializer,
+  ControlInvocation,
+  PromiseManager,
+  ReturnPayload
+}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 
@@ -49,6 +57,8 @@ abstract class WorkerBase(identifier: ActorVirtualIdentity) extends WorkflowActo
   lazy val dataOutputPort: DataOutputPort = wire[DataOutputPort]
   lazy val batchProducer: TupleToBatchConverter = wire[TupleToBatchConverter]
   lazy val tupleProducer: BatchToTupleConverter = wire[BatchToTupleConverter]
+  lazy val promiseHandlerInitializer: PromiseHandlerInitializer =
+    wire[WorkerPromiseHandlerInitializer]
 
   val receivedFaultedTupleIds: mutable.HashSet[Long] = new mutable.HashSet[Long]()
   val receivedRecoveryInformation: mutable.HashSet[(Long, Long)] =
@@ -74,19 +84,31 @@ abstract class WorkerBase(identifier: ActorVirtualIdentity) extends WorkflowActo
   def onModifyTuple(faultedTuple: FaultedTuple): Unit = {}
 
   def onStart(): Unit = {
-    logger.info(s"$identifier started!")
+    logger.logInfo(s"$identifier started!")
     startTime = System.nanoTime()
     context.parent ! ReportState(WorkerState.Running)
   }
 
+//  val afterPause = () =>{
+//    // if dp thread is blocking on waiting for input tuples:
+//    if (dataProcessor.isQueueEmpty) {
+//      // insert dummy batch to unblock dp thread
+//      dataProcessor.appendElement(DummyInput())
+//    }
+//    context.become(pausing)
+//  }
+//
+//  val finishPause = () =>{
+//    logger.info(s"received Excution Pause message")
+//    onPaused()
+//    context.become(paused)
+//    unstashAll()
+//  }
+
   def onPausing(): Unit = {
-    //messagingManager.pauseDataSending()
-    pauseManager.pause()
-    // if dp thread is blocking on waiting for input tuples:
-    if (dataProcessor.isQueueEmpty) {
-      // insert dummy batch to unblock dp thread
-      dataProcessor.appendElement(DummyInput())
-    }
+    // messagingManager.pauseDataSending()
+    // pauseManager.pause()
+    promiseManager.execute(ControlInvocation(null, WorkerPause()))
     context.become(pausing)
   }
 
@@ -263,12 +285,12 @@ abstract class WorkerBase(identifier: ActorVirtualIdentity) extends WorkflowActo
 
   final def stashOthers: Receive = {
     case msg =>
-      logger.info(s"stashing in WorkerBase" + msg)
+      logger.logInfo(s"stashing in WorkerBase" + msg)
       stash()
   }
 
   final def discardOthers: Receive = {
-    case msg => logger.info(s"discarding: $msg")
+    case msg => logger.logInfo(s"discarding: $msg")
   }
 
   override def receive: Receive = {
@@ -407,21 +429,14 @@ abstract class WorkerBase(identifier: ActorVirtualIdentity) extends WorkflowActo
   def running: Receive =
     processNewControlMessages orElse [Any, Unit] {
       case ReportFailure(e) =>
-        logger.info(s"received failure message")
+        logger.logInfo(s"received failure message")
         throw e
       case Pause =>
-        logger.info(s"$identifier received Pause message")
         onPausing()
       case LocalBreakpointTriggered =>
-        logger.info("receive breakpoint triggered")
         onBreakpointTriggered()
         context.become(paused)
         context.become(breakpointTriggered, discardOld = false)
-        unstashAll()
-      case ExecutionCompleted =>
-        logger.info("received complete")
-        onCompleted()
-        context.become(completed)
         unstashAll()
       case Resume     => context.parent ! ReportState(WorkerState.Running)
       case QueryState => sender ! ReportState(WorkerState.Running)
@@ -501,20 +516,19 @@ abstract class WorkerBase(identifier: ActorVirtualIdentity) extends WorkflowActo
 
   def newControlMessageHandler: Receive = {
     case ExecutionCompleted() =>
-      logger.info("received complete")
       onCompleted()
       context.become(completed)
       unstashAll()
-    case ExecutionPaused() =>
-      logger.info(s"received Execution Pause message")
+    case ReturnPayload(_, v: ExecutionPaused) =>
       onPaused()
       context.become(paused)
       unstashAll()
+    case other =>
   }
 
   def processNewControlMessages: Receive = {
     case msg @ NetworkMessage(id, cmd: WorkflowControlMessage) =>
-      //println(s"received $msg")
+      logger.logInfo(s"received ${msg.internalMessage}")
       sender ! NetworkAck(id)
       controlInputPort.handleControlMessage(cmd)
       newControlMessageHandler(cmd.payload)

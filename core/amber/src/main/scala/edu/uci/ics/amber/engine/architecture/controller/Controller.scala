@@ -97,6 +97,7 @@ import com.google.common.base.Stopwatch
 import play.api.libs.json.{JsArray, JsValue, Json, __}
 import com.google.common.collect.BiMap
 import com.google.common.collect.HashBiMap
+import com.softwaremill.macwire.wire
 import com.typesafe.scalalogging.Logger
 import edu.uci.ics.amber.engine.architecture.breakpoint.FaultedTuple
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
@@ -114,6 +115,7 @@ import edu.uci.ics.amber.error.WorkflowRuntimeError
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkSenderActor
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkSenderActor.RegisterActorRef
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
+import edu.uci.ics.amber.engine.common.promise.{PromiseHandlerInitializer, PromiseManager}
 
 import collection.JavaConverters._
 import scala.collection.mutable
@@ -151,11 +153,8 @@ class Controller(
   implicit val ec: ExecutionContext = context.dispatcher
   implicit val timeout: Timeout = 5.seconds
 
-//  val principalBiMap: BiMap[OperatorIdentifier, ActorRef] =
-//    HashBiMap.create[OperatorIdentifier, ActorRef]()
-//  val principalInCurrentStage = new mutable.HashSet[ActorRef]()
-//  val principalStates = new mutable.AnyRefMap[ActorRef, PrincipalState.Value]
-//  val principalStatisticsMap = new mutable.AnyRefMap[ActorRef, PrincipalStatistics]
+  lazy val promiseHandlerInitializer = wire[PromiseHandlerInitializer]
+
   private def errorLogAction(err: WorkflowRuntimeError): Unit = {
     eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
   }
@@ -394,20 +393,7 @@ class Controller(
           .SkippedTransitions(operatorToWorkerStateMap(operatorIdentifier)(worker))
           .contains(state)
       ) {
-        logger.info(
-          "Skipped worker state transition for worker{} from {} to {}",
-          worker,
-          operatorToWorkerStateMap(operatorIdentifier)(worker),
-          state
-        )
         operatorToWorkerStateMap(operatorIdentifier)(worker) = state
-      } else {
-        logger.warn(
-          "Invalid worker state transition for worker{} from {} to {}",
-          worker,
-          operatorToWorkerStateMap(operatorIdentifier)(worker),
-          state
-        )
       }
       true
     } else false

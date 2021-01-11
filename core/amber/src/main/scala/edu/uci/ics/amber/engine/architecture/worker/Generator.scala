@@ -57,18 +57,15 @@ class Generator(var operator: IOperatorExecutor, val tag: WorkerTag)
     super.onCompleted()
     ElidableStatement.info {
       val (_, outputCount) = dataProcessor.collectStatistics()
-      logger.info(
-        s"${identifier} completed its job. total: {} ms, generating: {} ms, generated {} tuples",
-        (System.nanoTime() - startTime) / 1000000,
-        generateTime / 1000000,
-        outputCount
+      logger.logInfo(
+        s"${identifier} completed its job. total: ${(System.nanoTime() - startTime) / 1000000} ms, generating: ${generateTime / 1000000} ms, generated ${outputCount} tuples"
       )
     }
   }
 
   override def onPaused(): Unit = {
     val (inputCount, outputCount) = dataProcessor.collectStatistics()
-    logger.info(s"${identifier} paused at $outputCount , 0")
+    logger.logInfo(s"${identifier} paused at $outputCount , 0")
     context.parent ! ReportCurrentProcessingTuple(self.path, dataProcessor.getCurrentInputTuple)
     context.parent ! RecoveryPacket(tag, outputCount, 0)
     context.parent ! ReportState(WorkerState.Paused)

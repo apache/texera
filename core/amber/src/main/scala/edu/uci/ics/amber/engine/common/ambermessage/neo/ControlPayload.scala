@@ -1,3 +1,7 @@
 package edu.uci.ics.amber.engine.common.ambermessage.neo
 
-trait ControlPayload extends Serializable {}
+import edu.uci.ics.amber.engine.common.promise.PromiseContext
+
+trait ControlPayload extends Serializable {
+  val context: PromiseContext
+}

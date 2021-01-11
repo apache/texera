@@ -85,10 +85,9 @@ class Processor(var operator: IOperatorExecutor, val tag: WorkerTag)
   override def onCompleted(): Unit = {
     super.onCompleted()
     ElidableStatement.info {
-      logger.info(
-        s" $identifier completed its job. total: {} ms, processing: {} ms",
-        (System.nanoTime() - startTime) / 1000000,
-        processTime / 1000000
+      logger.logInfo(
+        s" $identifier completed its job. total: ${(System
+          .nanoTime() - startTime) / 1000000} ms, processing: ${processTime / 1000000} ms"
       )
     }
   }
@@ -125,7 +124,7 @@ class Processor(var operator: IOperatorExecutor, val tag: WorkerTag)
 
   override def onPaused(): Unit = {
     val (inputCount, outputCount) = dataProcessor.collectStatistics()
-    logger.info(s"$identifier paused at $inputCount , $outputCount")
+    logger.logInfo(s"$identifier paused at $inputCount , $outputCount")
     context.parent ! ReportCurrentProcessingTuple(self.path, dataProcessor.getCurrentInputTuple)
     context.parent ! RecoveryPacket(tag, inputCount, outputCount)
     context.parent ! ReportState(WorkerState.Paused)
