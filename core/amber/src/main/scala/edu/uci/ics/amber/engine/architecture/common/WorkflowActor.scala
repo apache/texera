@@ -44,7 +44,7 @@ abstract class WorkflowActor(val identifier: ActorVirtualIdentity) extends Actor
         networkSenderActor ! QueryActorRef(id, replyTo)
       }
     case RegisterActorRef(id, ref) =>
-      throw WorkflowRuntimeException(
+      throw new WorkflowRuntimeException(
         WorkflowRuntimeError(
           "workflow actor should never receive register actor ref message",
           identifier.toString,

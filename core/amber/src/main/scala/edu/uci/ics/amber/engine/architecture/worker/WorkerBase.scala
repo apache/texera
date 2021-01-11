@@ -36,6 +36,8 @@ import edu.uci.ics.amber.engine.common.promise.{
   PromiseManager,
   ReturnPayload
 }
+import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
+import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.Ready
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 
@@ -59,6 +61,7 @@ abstract class WorkerBase(identifier: ActorVirtualIdentity) extends WorkflowActo
   lazy val tupleProducer: BatchToTupleConverter = wire[BatchToTupleConverter]
   lazy val promiseHandlerInitializer: PromiseHandlerInitializer =
     wire[WorkerPromiseHandlerInitializer]
+  lazy val workerStateManager: WorkerStateManager = wire[WorkerStateManager]
 
   val receivedFaultedTupleIds: mutable.HashSet[Long] = new mutable.HashSet[Long]()
   val receivedRecoveryInformation: mutable.HashSet[(Long, Long)] =
@@ -325,6 +328,7 @@ abstract class WorkerBase(identifier: ActorVirtualIdentity) extends WorkflowActo
         onStart()
       case Pause =>
         onPaused()
+
         context.become(pausedBeforeStart)
         unstashAll()
       case Resume     => context.parent ! ReportState(WorkerState.Ready)

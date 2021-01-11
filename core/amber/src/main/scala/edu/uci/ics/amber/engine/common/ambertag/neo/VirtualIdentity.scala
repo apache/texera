@@ -1,9 +1,5 @@
 package edu.uci.ics.amber.engine.common.ambertag.neo
 
-// The following pattern is a good practice of enum in scala
-// We've always used this pattern in the codebase
-// https://pedrorijo.com/blog/scala-enums/
-
 trait VirtualIdentity
 
 object VirtualIdentity {
