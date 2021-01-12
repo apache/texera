@@ -16,7 +16,7 @@ trait PauseHandler {
   this: WorkerRPCHandlerInitializer =>
 
   registerHandler {
-    case WorkerPause() =>
+    pause: WorkerPause =>
       // workerStateManager.shouldBe(Running, Ready)
       val p = pauseManager.pause()
       // workerStateManager.transitTo(Pausing)

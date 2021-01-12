@@ -12,16 +12,15 @@ trait RecursionHandler {
   this: TesterRPCHandlerInitializer =>
 
   registerHandler {
-    case Recursion(i) =>
-      if (i < 5) {
-        println(i)
-        send(Recursion(i + 1), myID).map { res =>
+    r:Recursion =>
+      if (r.i < 5) {
+        println(r.i)
+        send(Recursion(r.i + 1), myID).map { res =>
           println(res)
-          i.toString
+          r.i.toString
         }
       } else {
-        Future(i.toString)
+        Future(r.i.toString)
       }
   }
-
 }

@@ -13,12 +13,12 @@ trait ChainHandler {
   this: TesterRPCHandlerInitializer =>
 
   registerHandler {
-    case Chain(nexts) =>
+    x:Chain =>
       println(s"chained $myID")
-      if (nexts.isEmpty) {
+      if (x.nexts.isEmpty) {
         Future(myID)
       } else {
-        send(Chain(nexts.drop(1)), nexts.head).map { x =>
+        send(Chain(x.nexts.drop(1)), x.nexts.head).map { x =>
           println(s"chain returns from $x")
           x
         }

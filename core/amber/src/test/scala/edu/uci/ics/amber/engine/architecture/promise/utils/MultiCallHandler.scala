@@ -16,10 +16,10 @@ trait MultiCallHandler {
   this: TesterRPCHandlerInitializer =>
 
   registerHandler {
-    case MultiCall(seq) =>
-      send(Chain(seq), myID)
+    m:MultiCall =>
+      send(Chain(m.seq), myID)
         .flatMap(x => send(Recursion(1), x))
-        .flatMap(ret => send(Collect(seq.take(3)), myID))
+        .flatMap(ret => send(Collect(m.seq.take(3)), myID))
   }
 
 }

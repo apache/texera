@@ -14,14 +14,14 @@ trait NestedHandler {
   this: TesterRPCHandlerInitializer =>
 
   registerHandler {
-    case Nested(k) =>
+    n:Nested =>
       send(Pass("Hello"), myID)
         .flatMap(ret => send(Pass(ret + " "), myID))
         .flatMap(ret => send(Pass(ret + "World!"), myID))
   }
 
   registerHandler {
-    case Pass(value) =>
-      value
+    p:Pass =>
+      p.value
   }
 }
