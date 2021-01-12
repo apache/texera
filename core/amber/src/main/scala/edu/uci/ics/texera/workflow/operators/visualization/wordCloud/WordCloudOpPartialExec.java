@@ -9,8 +9,6 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import org.apache.curator.shaded.com.google.common.collect.Iterators;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
-import org.apache.lucene.analysis.core.SimpleAnalyzer;
-import org.apache.lucene.analysis.core.StopAnalyzer;
 import org.apache.lucene.analysis.en.EnglishAnalyzer;
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute;
 import scala.collection.Iterator;
@@ -30,7 +28,10 @@ public class WordCloudOpPartialExec implements OperatorExecutor {
     private final String textColumn;
     private Analyzer luceneAnalyzer;
     private List<String> textList;
-    public static final int BATCH_SIZE = 100; // for incremental computation
+
+    // for incremental computation
+    public static final int UPDATE_INTERVAL_MS = 500;
+    private long lastUpdatedTime = 0;
 
     private static final Schema resultSchema = Schema.newBuilder().add(
             new Attribute("word", AttributeType.STRING),
@@ -92,14 +93,15 @@ public class WordCloudOpPartialExec implements OperatorExecutor {
     public Iterator<Tuple> processTexeraTuple(Either<Tuple, InputExhausted> tuple, int input) {
         if(tuple.isLeft()) {
             textList.add(tuple.left().get().getField(textColumn));
-            if (textList.size() >= BATCH_SIZE) {
+            boolean condition = System.currentTimeMillis() - lastUpdatedTime > UPDATE_INTERVAL_MS;
+            if (condition) {
+                lastUpdatedTime = System.currentTimeMillis();
                 return computeResultIteratorForOneBatch();
-            }
-            else {
+            } else {
                 return JavaConverters.asScalaIterator(Iterators.emptyIterator());
             }
-        }
-        else { // input exhausted
+        } else { // input exhausted
+            lastUpdatedTime = System.currentTimeMillis();
             return computeResultIteratorForOneBatch();
         }
     }
