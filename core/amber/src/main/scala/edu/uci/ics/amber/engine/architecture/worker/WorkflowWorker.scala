@@ -29,11 +29,11 @@ import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage._
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage._
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.promise.{
+import edu.uci.ics.amber.engine.common.control.ControlMessageSource.{
   ControlInvocation,
-  PromiseHandlerInitializer,
   ReturnPayload
 }
+import edu.uci.ics.amber.engine.common.control.{ControlHandlerInitializer, ControlMessageReceiver}
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager._
 import edu.uci.ics.amber.engine.common.tuple.ITuple
@@ -66,9 +66,10 @@ class WorkflowWorker(identifier: ActorVirtualIdentity, operator: IOperatorExecut
   lazy val dataOutputPort: DataOutputPort = wire[DataOutputPort]
   lazy val batchProducer: TupleToBatchConverter = wire[TupleToBatchConverter]
   lazy val tupleProducer: BatchToTupleConverter = wire[BatchToTupleConverter]
-  lazy val promiseHandlerInitializer: PromiseHandlerInitializer =
-    wire[WorkerPromiseHandlerInitializer]
   lazy val workerStateManager: WorkerStateManager = wire[WorkerStateManager]
+
+  val rpcHandlerInitializer: ControlHandlerInitializer =
+    wire[WorkerControlHandlerInitializer]
 
   val receivedFaultedTupleIds: mutable.HashSet[Long] = new mutable.HashSet[Long]()
   var isCompleted = false
@@ -199,7 +200,7 @@ class WorkflowWorker(identifier: ActorVirtualIdentity, operator: IOperatorExecut
     case Pause =>
       if (workerStateManager.getCurrentState != Completed) {
         workerStateManager.confirmState(Running, Ready)
-        promiseManager.execute(ControlInvocation(null, WorkerPause()))
+        ctrlSource.send(WorkerPause(), identifier) //send to myself
         workerStateManager.transitTo(Pausing)
       }
       reportState()
@@ -302,7 +303,7 @@ class WorkflowWorker(identifier: ActorVirtualIdentity, operator: IOperatorExecut
     case msg @ NetworkMessage(id, cmd: WorkflowControlMessage) =>
       logger.logInfo(s"received ${msg.internalMessage}")
       sender ! NetworkAck(id)
-      // use promise manager to handle control messages
+      // use control input port to pass control messages
       controlInputPort.handleControlMessage(cmd)
       // for compatibility, call the old control message handling logic
       oldControlMessageHandlingLogic(cmd.payload)

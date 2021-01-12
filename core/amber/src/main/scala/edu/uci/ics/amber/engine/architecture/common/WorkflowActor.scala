@@ -16,7 +16,11 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
 import edu.uci.ics.amber.engine.common.WorkflowLogger
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.promise.{PromiseHandlerInitializer, PromiseManager}
+import edu.uci.ics.amber.engine.common.control.{
+  ControlMessageSource,
+  ControlHandlerInitializer,
+  ControlMessageReceiver
+}
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 abstract class WorkflowActor(val identifier: ActorVirtualIdentity) extends Actor with Stash {
@@ -28,11 +32,11 @@ abstract class WorkflowActor(val identifier: ActorVirtualIdentity) extends Actor
   )
   lazy val controlInputPort: ControlInputPort = wire[ControlInputPort]
   lazy val controlOutputPort: ControlOutputPort = wire[ControlOutputPort]
-  lazy val promiseManager: PromiseManager = wire[PromiseManager]
-  val promiseHandlerInitializer: PromiseHandlerInitializer
-
-  // register all handlers to the promise manager
-  promiseManager.setPromiseHandlers(promiseHandlerInitializer.getPromiseHandlers)
+  lazy val ctrlSource: ControlMessageSource = wire[ControlMessageSource]
+  lazy val ctrlReceiver: ControlMessageReceiver = wire[ControlMessageReceiver]
+  // this variable cannot be lazy
+  // because it should be initialized with the actor itself
+  val rpcHandlerInitializer: ControlHandlerInitializer
 
   def routeActorRefRelatedMessages: Receive = {
     case QueryActorRef(id, replyTo) =>
