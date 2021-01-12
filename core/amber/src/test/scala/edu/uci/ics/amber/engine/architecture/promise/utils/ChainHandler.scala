@@ -12,16 +12,15 @@ object ChainHandler {
 trait ChainHandler {
   this: TesterRPCHandlerInitializer =>
 
-  registerHandler {
-    x:Chain =>
-      println(s"chained $myID")
-      if (x.nexts.isEmpty) {
-        Future(myID)
-      } else {
-        send(Chain(x.nexts.drop(1)), x.nexts.head).map { x =>
-          println(s"chain returns from $x")
-          x
-        }
+  registerHandler { x: Chain =>
+    println(s"chained $myID")
+    if (x.nexts.isEmpty) {
+      Future(myID)
+    } else {
+      send(Chain(x.nexts.drop(1)), x.nexts.head).map { x =>
+        println(s"chain returns from $x")
+        x
       }
+    }
   }
 }

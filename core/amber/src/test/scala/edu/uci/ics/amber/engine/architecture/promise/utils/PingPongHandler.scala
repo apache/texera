@@ -15,31 +15,28 @@ object PingPongHandler {
 trait PingPongHandler {
   this: TesterRPCHandlerInitializer =>
 
-  registerHandler {
-    ping:Ping =>
-      println(s"${ping.i} ping")
-      if (ping.i < ping.end) {
-        send(Pong(ping.i + 1, ping.end, myID), ping.to).map { ret: Int =>
-          println(s"${ping.i} ping replied with value $ret!")
-          ret
-        }
-      } else {
-        Future(ping.i)
+  registerHandler { ping: Ping =>
+    println(s"${ping.i} ping")
+    if (ping.i < ping.end) {
+      send(Pong(ping.i + 1, ping.end, myID), ping.to).map { ret: Int =>
+        println(s"${ping.i} ping replied with value $ret!")
+        ret
       }
+    } else {
+      Future(ping.i)
+    }
   }
 
-
-  registerHandler{
-    pong:Pong =>
-      println(s"${pong.i} pong")
-      if (pong.i < pong.end) {
-        send(Ping(pong.i + 1, pong.end, myID), pong.to).map { ret: Int =>
-          println(s"${pong.i} pong replied with value $ret!")
-          ret
-        }
-      } else {
-        Future(pong.i)
+  registerHandler { pong: Pong =>
+    println(s"${pong.i} pong")
+    if (pong.i < pong.end) {
+      send(Ping(pong.i + 1, pong.end, myID), pong.to).map { ret: Int =>
+        println(s"${pong.i} pong replied with value $ret!")
+        ret
       }
+    } else {
+      Future(pong.i)
+    }
   }
 
 }

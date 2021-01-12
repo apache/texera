@@ -13,15 +13,13 @@ object NestedHandler {
 trait NestedHandler {
   this: TesterRPCHandlerInitializer =>
 
-  registerHandler {
-    n:Nested =>
-      send(Pass("Hello"), myID)
-        .flatMap(ret => send(Pass(ret + " "), myID))
-        .flatMap(ret => send(Pass(ret + "World!"), myID))
+  registerHandler { n: Nested =>
+    send(Pass("Hello"), myID)
+      .flatMap(ret => send(Pass(ret + " "), myID))
+      .flatMap(ret => send(Pass(ret + "World!"), myID))
   }
 
-  registerHandler {
-    p:Pass =>
-      p.value
+  registerHandler { p: Pass =>
+    p.value
   }
 }

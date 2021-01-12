@@ -15,18 +15,16 @@ object CollectHandler {
 trait CollectHandler {
   this: TesterRPCHandlerInitializer =>
 
-  registerHandler {
-    c:Collect =>
-      println(s"start collecting numbers.")
-      val p = Future.collect(c.workers.indices.map(i => send(GenerateNumber(), c.workers(i))))
-      p.map { res =>
-        println(s"collected: ${res.mkString(" ")}")
-        "finished"
-      }
+  registerHandler { c: Collect =>
+    println(s"start collecting numbers.")
+    val p = Future.collect(c.workers.indices.map(i => send(GenerateNumber(), c.workers(i))))
+    p.map { res =>
+      println(s"collected: ${res.mkString(" ")}")
+      "finished"
+    }
   }
 
-  registerHandler {
-    g:GenerateNumber =>
-      Random.nextInt()
+  registerHandler { g: GenerateNumber =>
+    Random.nextInt()
   }
 }

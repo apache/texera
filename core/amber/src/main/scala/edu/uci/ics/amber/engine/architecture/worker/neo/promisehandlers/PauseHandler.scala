@@ -15,20 +15,19 @@ object PauseHandler {
 trait PauseHandler {
   this: WorkerRPCHandlerInitializer =>
 
-  registerHandler {
-    pause: WorkerPause =>
-      // workerStateManager.shouldBe(Running, Ready)
-      val p = pauseManager.pause()
-      // workerStateManager.transitTo(Pausing)
-      // if dp thread is blocking on waiting for input tuples:
-      if (dataProcessor.isQueueEmpty) {
-        // insert dummy batch to unblock dp thread
-        dataProcessor.appendElement(DummyInput())
-      }
-      p.map { res =>
-        println("pause actually returned")
-        res
-      //workerStateManager.transitTo(Paused)
-      }
+  registerHandler { pause: WorkerPause =>
+    // workerStateManager.shouldBe(Running, Ready)
+    val p = pauseManager.pause()
+    // workerStateManager.transitTo(Pausing)
+    // if dp thread is blocking on waiting for input tuples:
+    if (dataProcessor.isQueueEmpty) {
+      // insert dummy batch to unblock dp thread
+      dataProcessor.appendElement(DummyInput())
+    }
+    p.map { res =>
+      println("pause actually returned")
+      res
+    //workerStateManager.transitTo(Paused)
+    }
   }
 }
