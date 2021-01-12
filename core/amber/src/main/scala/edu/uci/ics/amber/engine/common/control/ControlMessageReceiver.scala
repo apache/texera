@@ -19,6 +19,7 @@ class ControlMessageReceiver(controlOutputPort: ControlOutputPort) {
   // all handlers
   protected var handlers: PartialFunction[ControlCommand[_], Any] = PartialFunction.empty
 
+  // note that register handler allows multiple handlers for a control message and uses the latest handler.
   def registerHandler(newHandler: PartialFunction[ControlCommand[_], Any]): Unit = {
     handlers =
       newHandler orElse handlers
