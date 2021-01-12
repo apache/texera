@@ -11,12 +11,12 @@ object ProgressiveUtils {
   val insertRetractFlagAttr = new Attribute("__internal_is_insertion", AttributeType.BOOLEAN)
 
   def addInsertionFlag(tuple: Tuple): Tuple = {
-    assert(! tuple.getSchema.containsAttribute(insertRetractFlagAttr.getName))
+    assert(!tuple.getSchema.containsAttribute(insertRetractFlagAttr.getName))
     Tuple.newBuilder.add(insertRetractFlagAttr, true).add(tuple).build
   }
 
   def addRetractionFlag(tuple: Tuple): Tuple = {
-    assert(! tuple.getSchema.containsAttribute(insertRetractFlagAttr.getName))
+    assert(!tuple.getSchema.containsAttribute(insertRetractFlagAttr.getName))
     Tuple.newBuilder.add(insertRetractFlagAttr, false).add(tuple).build
   }
 
@@ -29,7 +29,10 @@ object ProgressiveUtils {
   }
 
   def getTupleFlagAndValue(tuple: Tuple): (Boolean, Tuple) = {
-    (isInsertion(tuple), Tuple.newBuilder().add(tuple).removeIfExists(insertRetractFlagAttr.getName).build())
+    (
+      isInsertion(tuple),
+      Tuple.newBuilder().add(tuple).removeIfExists(insertRetractFlagAttr.getName).build()
+    )
   }
 
 }
