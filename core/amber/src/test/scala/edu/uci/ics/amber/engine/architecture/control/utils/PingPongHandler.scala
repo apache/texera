@@ -1,19 +1,19 @@
-package edu.uci.ics.amber.engine.architecture.promise.utils
+package edu.uci.ics.amber.engine.architecture.control.utils
 
 import com.twitter.util.{Future, Promise}
-import edu.uci.ics.amber.engine.architecture.promise.utils.PingPongHandler.{Ping, Pong}
-import edu.uci.ics.amber.engine.architecture.worker.neo.WorkerRPCHandlerInitializer
+import edu.uci.ics.amber.engine.architecture.control.utils.PingPongHandler.{Ping, Pong}
+import edu.uci.ics.amber.engine.architecture.worker.neo.WorkerControlHandlerInitializer
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.promise.RPCServer.RPCCommand
+import edu.uci.ics.amber.engine.common.control.ControlMessageReceiver.ControlCommand
 
 object PingPongHandler {
-  case class Ping(i: Int, end: Int, to: ActorVirtualIdentity) extends RPCCommand[Int]
+  case class Ping(i: Int, end: Int, to: ActorVirtualIdentity) extends ControlCommand[Int]
 
-  case class Pong(i: Int, end: Int, to: ActorVirtualIdentity) extends RPCCommand[Int]
+  case class Pong(i: Int, end: Int, to: ActorVirtualIdentity) extends ControlCommand[Int]
 }
 
 trait PingPongHandler {
-  this: TesterRPCHandlerInitializer =>
+  this: TesterControlHandlerInitializer =>
 
   registerHandler { ping: Ping =>
     println(s"${ping.i} ping")

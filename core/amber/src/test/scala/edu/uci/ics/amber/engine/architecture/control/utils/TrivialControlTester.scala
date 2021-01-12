@@ -1,4 +1,4 @@
-package edu.uci.ics.amber.engine.architecture.promise.utils
+package edu.uci.ics.amber.engine.architecture.control.utils
 
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
@@ -8,10 +8,11 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkSenderActor.{
   NetworkMessage
 }
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.promise.RPCHandlerInitializer
+import edu.uci.ics.amber.engine.common.control.ControlHandlerInitializer
 
-class RPCTester(id: ActorVirtualIdentity) extends WorkflowActor(id) {
-  override val rpcHandlerInitializer: RPCHandlerInitializer = wire[TesterRPCHandlerInitializer]
+class TrivialControlTester(id: ActorVirtualIdentity) extends WorkflowActor(id) {
+  override val rpcHandlerInitializer: ControlHandlerInitializer =
+    wire[TesterControlHandlerInitializer]
 
   override def receive: Receive = {
     routeActorRefRelatedMessages orElse {

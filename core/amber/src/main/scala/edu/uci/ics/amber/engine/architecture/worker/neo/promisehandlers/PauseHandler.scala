@@ -3,17 +3,18 @@ package edu.uci.ics.amber.engine.architecture.worker.neo.promisehandlers
 import akka.actor.ActorContext
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.worker.neo.WorkerInternalQueue.DummyInput
-import edu.uci.ics.amber.engine.architecture.worker.neo.WorkerRPCHandlerInitializer
+import edu.uci.ics.amber.engine.architecture.worker.neo.WorkerControlHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.worker.neo.promisehandlers.PauseHandler.WorkerPause
+import edu.uci.ics.amber.engine.common.WorkflowLogger
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{ExecutionPaused, ReportState}
-import edu.uci.ics.amber.engine.common.promise.RPCServer.RPCCommand
+import edu.uci.ics.amber.engine.common.control.ControlMessageReceiver.ControlCommand
 
 object PauseHandler {
-  final case class WorkerPause() extends RPCCommand[ExecutionPaused]
+  final case class WorkerPause() extends ControlCommand[ExecutionPaused]
 }
 
 trait PauseHandler {
-  this: WorkerRPCHandlerInitializer =>
+  this: WorkerControlHandlerInitializer =>
 
   registerHandler { pause: WorkerPause =>
     // workerStateManager.shouldBe(Running, Ready)
@@ -25,7 +26,7 @@ trait PauseHandler {
       dataProcessor.appendElement(DummyInput())
     }
     p.map { res =>
-      println("pause actually returned")
+      logger.logInfo("pause actually returned")
       res
     //workerStateManager.transitTo(Paused)
     }

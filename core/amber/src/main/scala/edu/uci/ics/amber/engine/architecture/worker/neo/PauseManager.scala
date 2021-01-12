@@ -14,14 +14,10 @@ import edu.uci.ics.amber.engine.architecture.worker.neo.PauseManager.{
 }
 import edu.uci.ics.amber.engine.common.WorkflowLogger
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.ExecutionPaused
-import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
-import edu.uci.ics.amber.engine.common.promise.RPCClient.ReturnPayload
 
 object PauseManager {
   final val NoPause = 0
   final val Paused = 1
-
-  final val NoScheduledPromise = -1
 }
 
 class PauseManager(controlOutputPort: ControlOutputPort) {

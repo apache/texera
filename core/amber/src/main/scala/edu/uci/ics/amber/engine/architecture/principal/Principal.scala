@@ -20,7 +20,7 @@ import edu.uci.ics.amber.engine.common.ambermessage.PrincipalMessage.{AssignBrea
 import edu.uci.ics.amber.engine.common.ambermessage.StateMessage._
 import edu.uci.ics.amber.engine.common.ambermessage.{PrincipalMessage, WorkerMessage}
 import edu.uci.ics.amber.engine.common.ambertag.{AmberTag, LayerTag, WorkerTag}
-import edu.uci.ics.amber.engine.common.promise.RPCHandlerInitializer
+import edu.uci.ics.amber.engine.common.control.ControlHandlerInitializer
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.{
   AdvancedMessageSending,
@@ -59,7 +59,7 @@ import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{
   Reset
 }
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.WorkerActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.promise.RPCHandlerInitializer
+import edu.uci.ics.amber.engine.common.control.ControlHandlerInitializer
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 import scala.collection.mutable
@@ -76,7 +76,7 @@ class Principal(val metadata: OpExecConfig)
   implicit val ec: ExecutionContext = context.dispatcher
   implicit val timeout: Timeout = 5.seconds
 
-  lazy val rpcHandlerInitializer = wire[RPCHandlerInitializer]
+  lazy val rpcHandlerInitializer = wire[ControlHandlerInitializer]
 
   private def errorLogAction(err: WorkflowRuntimeError): Unit = {
     context.parent ! LogErrorToFrontEnd(err)

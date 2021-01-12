@@ -1,4 +1,4 @@
-package edu.uci.ics.amber.engine.architecture.promise
+package edu.uci.ics.amber.engine.architecture.control
 
 import java.io.{FileInputStream, FileOutputStream, ObjectInputStream, ObjectOutputStream}
 
@@ -15,28 +15,31 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkSenderActor.{
   QueryActorRef,
   RegisterActorRef
 }
-import edu.uci.ics.amber.engine.architecture.promise.utils.ChainHandler.Chain
-import edu.uci.ics.amber.engine.architecture.promise.utils.CollectHandler.Collect
-import edu.uci.ics.amber.engine.architecture.promise.utils.MultiCallHandler.MultiCall
-import edu.uci.ics.amber.engine.architecture.promise.utils.NestedHandler.Nested
-import edu.uci.ics.amber.engine.architecture.promise.utils.PingPongHandler.Ping
-import edu.uci.ics.amber.engine.architecture.promise.utils.RPCTester
-import edu.uci.ics.amber.engine.architecture.promise.utils.RecursionHandler.Recursion
+import edu.uci.ics.amber.engine.architecture.control.utils.ChainHandler.Chain
+import edu.uci.ics.amber.engine.architecture.control.utils.CollectHandler.Collect
+import edu.uci.ics.amber.engine.architecture.control.utils.MultiCallHandler.MultiCall
+import edu.uci.ics.amber.engine.architecture.control.utils.NestedHandler.Nested
+import edu.uci.ics.amber.engine.architecture.control.utils.PingPongHandler.Ping
+import edu.uci.ics.amber.engine.architecture.control.utils.TrivialControlTester
+import edu.uci.ics.amber.engine.architecture.control.utils.RecursionHandler.Recursion
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.{
   ActorVirtualIdentity,
   WorkerActorVirtualIdentity
 }
-import edu.uci.ics.amber.engine.common.promise.RPCClient.{ControlInvocation, ReturnPayload}
-import edu.uci.ics.amber.engine.common.promise.RPCServer.RPCCommand
+import edu.uci.ics.amber.engine.common.control.ControlMessageSource.{
+  ControlInvocation,
+  ReturnPayload
+}
+import edu.uci.ics.amber.engine.common.control.ControlMessageReceiver.ControlCommand
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
 import scala.collection.mutable
 import scala.concurrent.duration._
 
-class RPCSpec
-    extends TestKit(ActorSystem("RPCSpec"))
+class TrivialControlSpec
+    extends TestKit(ActorSystem("TrivialControlSpec"))
     with AnyWordSpecLike
     with BeforeAndAfterEach
     with BeforeAndAfterAll {
@@ -47,18 +50,18 @@ class RPCSpec
 
   def setUp(
       numActors: Int,
-      event: RPCCommand[_]*
+      cmd: ControlCommand[_]*
   ): (TestProbe, mutable.HashMap[ActorVirtualIdentity, ActorRef]) = {
     val probe = TestProbe()
     val idMap = mutable.HashMap[ActorVirtualIdentity, ActorRef]()
     for (i <- 0 until numActors) {
       val id = WorkerActorVirtualIdentity(s"$i")
-      val ref = probe.childActorOf(Props(new RPCTester(id)))
+      val ref = probe.childActorOf(Props(new TrivialControlTester(id)))
       idMap(id) = ref
     }
     idMap(VirtualIdentity.Controller) = probe.ref
     var seqNum = 0
-    event.foreach { evt =>
+    cmd.foreach { evt =>
       probe.send(
         idMap(WorkerActorVirtualIdentity("0")),
         NetworkMessage(
@@ -75,7 +78,7 @@ class RPCSpec
     (probe, idMap)
   }
 
-  def testPromise[T](numActors: Int, eventPairs: (RPCCommand[_], T)*): Unit = {
+  def testControl[T](numActors: Int, eventPairs: (ControlCommand[_], T)*): Unit = {
     val (events, expectedValues) = eventPairs.unzip
     val (probe, idMap) = setUp(numActors, events: _*)
     var flag = 0
@@ -99,11 +102,11 @@ class RPCSpec
   "testers" should {
 
     "execute Ping Pong" in {
-      testPromise(2, (Ping(1, 5, WorkerActorVirtualIdentity("1")), 5))
+      testControl(2, (Ping(1, 5, WorkerActorVirtualIdentity("1")), 5))
     }
 
     "execute Ping Pong 2 times" in {
-      testPromise(
+      testControl(
         2,
         (Ping(1, 4, WorkerActorVirtualIdentity("1")), 4),
         (Ping(10, 13, WorkerActorVirtualIdentity("1")), 13)
@@ -111,7 +114,7 @@ class RPCSpec
     }
 
     "execute Chain" in {
-      testPromise(
+      testControl(
         10,
         (
           Chain((1 to 9).map(i => WorkerActorVirtualIdentity(i.toString))),
@@ -121,25 +124,25 @@ class RPCSpec
     }
 
     "execute Collect" in {
-      testPromise(
+      testControl(
         4,
         (Collect((1 to 3).map(i => WorkerActorVirtualIdentity(i.toString))), "finished")
       )
     }
 
     "execute RecursiveCall" in {
-      testPromise(1, (Recursion(0), "0"))
+      testControl(1, (Recursion(0), "0"))
     }
 
     "execute MultiCall" in {
-      testPromise(
+      testControl(
         10,
         (MultiCall((1 to 9).map(i => WorkerActorVirtualIdentity(i.toString))), "finished")
       )
     }
 
     "execute NestedCall" in {
-      testPromise(1, (Nested(5), "Hello World!"))
+      testControl(1, (Nested(5), "Hello World!"))
     }
 
   }

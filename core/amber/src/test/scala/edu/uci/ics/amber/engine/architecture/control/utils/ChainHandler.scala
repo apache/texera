@@ -1,16 +1,16 @@
-package edu.uci.ics.amber.engine.architecture.promise.utils
+package edu.uci.ics.amber.engine.architecture.control.utils
 
 import com.twitter.util.{Future, Promise}
-import edu.uci.ics.amber.engine.architecture.promise.utils.ChainHandler.Chain
+import edu.uci.ics.amber.engine.architecture.control.utils.ChainHandler.Chain
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.promise.RPCServer.RPCCommand
+import edu.uci.ics.amber.engine.common.control.ControlMessageReceiver.ControlCommand
 
 object ChainHandler {
-  case class Chain(nexts: Seq[ActorVirtualIdentity]) extends RPCCommand[ActorVirtualIdentity]
+  case class Chain(nexts: Seq[ActorVirtualIdentity]) extends ControlCommand[ActorVirtualIdentity]
 }
 
 trait ChainHandler {
-  this: TesterRPCHandlerInitializer =>
+  this: TesterControlHandlerInitializer =>
 
   registerHandler { x: Chain =>
     println(s"chained $myID")
