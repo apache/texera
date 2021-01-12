@@ -59,7 +59,7 @@ public class LocalCsvFileScanOpDesc extends SourceOperatorDescriptor {
                 "CSV File Scan",
                 "Scan data from a local CSV file",
                 OperatorGroupConstants.SOURCE_GROUP(),
-                0, 1);
+                0, 1, false);
     }
 
     @Override

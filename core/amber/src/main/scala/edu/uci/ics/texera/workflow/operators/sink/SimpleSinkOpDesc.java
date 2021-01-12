@@ -20,7 +20,7 @@ public class SimpleSinkOpDesc extends OperatorDescriptor {
                 "View Results",
                 "View the edu.uci.ics.texera.workflow results",
                 OperatorGroupConstants.RESULT_GROUP(),
-                1, 0);
+                1, 0, false);
     }
 
     @Override

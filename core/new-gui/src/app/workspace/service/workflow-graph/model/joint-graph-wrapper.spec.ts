@@ -15,6 +15,7 @@ import {
 import * as joint from 'jointjs';
 import { StubOperatorMetadataService } from '../../operator-metadata/stub-operator-metadata.service';
 import { environment } from './../../../../../environments/environment';
+import { WorkflowUtilService } from '../util/workflow-util.service';
 
 describe('JointGraphWrapperService', () => {
 
@@ -27,6 +28,7 @@ describe('JointGraphWrapperService', () => {
       providers: [
         JointUIService,
         WorkflowActionService,
+        WorkflowUtilService,
         UndoRedoService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
       ]
@@ -408,7 +410,7 @@ describe('JointGraphWrapperService', () => {
 
     expect(function() {
       localJointGraphWrapper.getElementPosition(mockScanPredicate.operatorID);
-    }).toThrowError(`operator with ID ${mockScanPredicate.operatorID} doesn't exist`);
+    }).toThrowError(`element with ID ${mockScanPredicate.operatorID} doesn't exist`);
 
   });
 
@@ -422,7 +424,7 @@ describe('JointGraphWrapperService', () => {
 
     expect(function() {
       localJointGraphWrapper.getElementPosition(mockScanResultLink.linkID);
-    }).toThrowError(`${mockScanResultLink.linkID} is not an operator`);
+    }).toThrowError(`${mockScanResultLink.linkID} is not an element`);
 
   });
 
@@ -697,7 +699,7 @@ describe('JointGraphWrapperService', () => {
 
       // highlight at events
       highlightActionMarbleEvent.subscribe(value => {
-        if (value.length === 1) {
+        if (value === mockResultPredicate.operatorID) {
           localJointGraphWrapper.highlightOperators(value);
         } else {
           localJointGraphWrapper.highlightLink(value);
@@ -710,12 +712,12 @@ describe('JointGraphWrapperService', () => {
       });
 
       const expectedOperatorHighlightEventStream = m.hot('---b-', {
-        a: [mockResultPredicate.operatorID]
+        b: [mockResultPredicate.operatorID]
       });
 
       // prepare expected output highlight event stream
       const expectedLinkUnhighlightEventStream = m.hot('---c-', {
-        a: [ mockScanResultLink.linkID ]
+        c: [ mockScanResultLink.linkID ]
       });
 
       // expect the output event stream is correct

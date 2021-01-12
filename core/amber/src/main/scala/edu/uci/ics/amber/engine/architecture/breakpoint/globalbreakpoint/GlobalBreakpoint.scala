@@ -37,9 +37,9 @@ abstract class GlobalBreakpoint(val id: String) extends Serializable {
 
   final def partition(
       layer: Array[ActorRef]
-  )(implicit timeout: Timeout, ec: ExecutionContext, log: LoggingAdapter): Unit = {
+  )(implicit timeout: Timeout, ec: ExecutionContext): Unit = {
     version += 1
-    val assigned = partitionImpl(layer)(timeout, ec, log, id, version)
+    val assigned = partitionImpl(layer)(timeout, ec, id, version)
     val assignedSet = assigned.toSet
     //remove the local breakpoints from unassigned nodes
     allWorkers
@@ -54,7 +54,6 @@ abstract class GlobalBreakpoint(val id: String) extends Serializable {
   def partitionImpl(layer: Array[ActorRef])(implicit
       timeout: Timeout,
       ec: ExecutionContext,
-      log: LoggingAdapter,
       id: String,
       version: Long
   ): Iterable[ActorRef]
@@ -71,7 +70,7 @@ abstract class GlobalBreakpoint(val id: String) extends Serializable {
     unReportedWorkers.foreach(x => x ! QueryBreakpoint(id))
   }
 
-  def remove()(implicit timeout: Timeout, ec: ExecutionContext, log: LoggingAdapter): Unit = {
+  def remove()(implicit timeout: Timeout, ec: ExecutionContext): Unit = {
     allWorkers.foreach(x =>
       AdvancedMessageSending.blockingAskWithRetry(x, RemoveBreakpoint(id), 10)
     )

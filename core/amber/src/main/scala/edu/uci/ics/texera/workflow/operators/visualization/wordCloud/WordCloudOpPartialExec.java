@@ -42,11 +42,11 @@ public class WordCloudOpPartialExec implements OperatorExecutor {
         this.textColumn = textColumn;
     }
 
-    public Analyzer getLuceneAnalyzer() {
-        if (luceneAnalyzer == null) {
-            luceneAnalyzer = new EnglishAnalyzer();
+    private Analyzer getLuceneAnalyzer() {
+        if (this.luceneAnalyzer == null) {
+            this.luceneAnalyzer = new EnglishAnalyzer();
         }
-        return luceneAnalyzer;
+        return this.luceneAnalyzer;
     }
 
     private static List<Tuple> calculateWordCount(List<String> texts, Analyzer luceneAnalyzer) throws Exception {
