@@ -14,17 +14,17 @@ import scala.reflect.ClassTag
   * 2. create your own control command and identify its return type
   *    In the following example, the control command takes an int and returns an int:
   *    case class MyControl(param1:Int) extends ControlCommand[Int]
-  * 3. create a handler and mark it's self-type as the initializer, then register your command:
+  * 3. create a handler and mark its self-type as the initializer, then register your command:
   *    class MyControlHandler{
   *          this: WorkerControlHandlerInitializer =>
   *          registerHandler{
   *             mycmd:MyControl =>
   *               //do something
-  *               val temp = 50
+  *               val temp = mycmd.param1
   *               //invoke another control command that returns an int
   *               send(OtherControl(), Others).map{
   *                 ret =>
-  *                   ret + temp
+  *                   ret + mycmd.param1
   *               }
   *          }
   *
@@ -37,6 +37,7 @@ class ControlHandlerInitializer(
 ) {
 
   /** register a sync handler for one type of control command
+    * note that register handler allows multiple handlers for a control message and uses the latest handler.
     * @param handler the lambda function for handling that type of control, it returns B
     * @param ev enforce the compiler to check the input type of the handler extends control command
     *           also shows error on the editor when the return type is not correct
@@ -50,6 +51,7 @@ class ControlHandlerInitializer(
   }
 
   /** register an async handler for one type of control command
+    * note that register handler allows multiple handlers for a control message and uses the latest handler.
     * @param handler the lambda function for handling that type of control, it returns future[B]
     * @param ev enforce the compiler to check the input type of the handler extends control command
     *           also shows error on the editor when the return type is not correct

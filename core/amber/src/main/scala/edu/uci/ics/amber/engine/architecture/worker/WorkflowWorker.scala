@@ -200,7 +200,7 @@ class WorkflowWorker(identifier: ActorVirtualIdentity, operator: IOperatorExecut
     case Pause =>
       if (workerStateManager.getCurrentState != Completed) {
         workerStateManager.confirmState(Running, Ready)
-        rpcClient.send(WorkerPause(), identifier) //send to myself
+        ctrlSource.send(WorkerPause(), identifier) //send to myself
         workerStateManager.transitTo(Pausing)
       }
       reportState()

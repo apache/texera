@@ -32,8 +32,8 @@ abstract class WorkflowActor(val identifier: ActorVirtualIdentity) extends Actor
   )
   lazy val controlInputPort: ControlInputPort = wire[ControlInputPort]
   lazy val controlOutputPort: ControlOutputPort = wire[ControlOutputPort]
-  lazy val rpcClient: ControlMessageSource = wire[ControlMessageSource]
-  lazy val rpcServer: ControlMessageReceiver = wire[ControlMessageReceiver]
+  lazy val ctrlSource: ControlMessageSource = wire[ControlMessageSource]
+  lazy val ctrlReceiver: ControlMessageReceiver = wire[ControlMessageReceiver]
   // this variable cannot be lazy
   // because it should be initialized with the actor itself
   val rpcHandlerInitializer: ControlHandlerInitializer
