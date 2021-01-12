@@ -7,9 +7,21 @@ import edu.uci.ics.amber.engine.architecture.breakpoint.FaultedTuple
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlInputPort.WorkflowControlMessage
 import edu.uci.ics.amber.engine.architecture.messaginglayer.DataInputPort.WorkflowDataMessage
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkSenderActor.{NetworkAck, NetworkMessage}
-import edu.uci.ics.amber.engine.architecture.messaginglayer.{BatchToTupleConverter, DataInputPort, DataOutputPort, TupleToBatchConverter}
-import edu.uci.ics.amber.engine.architecture.worker.neo.WorkerInternalQueue.{EndMarker, EndOfAllMarker, InputTuple}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkSenderActor.{
+  NetworkAck,
+  NetworkMessage
+}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.{
+  BatchToTupleConverter,
+  DataInputPort,
+  DataOutputPort,
+  TupleToBatchConverter
+}
+import edu.uci.ics.amber.engine.architecture.worker.neo.WorkerInternalQueue.{
+  EndMarker,
+  EndOfAllMarker,
+  InputTuple
+}
 import edu.uci.ics.amber.engine.architecture.worker.neo._
 import edu.uci.ics.amber.engine.architecture.worker.neo.promisehandlers.PauseHandler.WorkerPause
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
@@ -22,7 +34,11 @@ import edu.uci.ics.amber.engine.common.promise.{RPCHandlerInitializer, RPCServer
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager._
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.amber.engine.common.{IOperatorExecutor, ISourceOperatorExecutor, ITupleSinkOperatorExecutor}
+import edu.uci.ics.amber.engine.common.{
+  IOperatorExecutor,
+  ISourceOperatorExecutor,
+  ITupleSinkOperatorExecutor
+}
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 import scala.annotation.elidable
@@ -180,7 +196,7 @@ class WorkflowWorker(identifier: ActorVirtualIdentity, operator: IOperatorExecut
       }
     case Pause =>
       workerStateManager.confirmState(Running, Ready)
-      rpcServer.execute(ControlInvocation(RPCServer.RootCallWithoutReturn, WorkerPause()),null)
+      rpcServer.execute(ControlInvocation(RPCServer.RootCallWithoutReturn, WorkerPause()), null)
       workerStateManager.transitTo(Pausing)
       reportState()
     case Resume =>

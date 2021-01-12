@@ -8,11 +8,9 @@ import edu.uci.ics.amber.engine.architecture.promise.utils.RecursionHandler.Recu
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.promise.RPCServer.AsyncRPCCommand
 
-object MultiCallHandler{
+object MultiCallHandler {
   case class MultiCall(seq: Seq[ActorVirtualIdentity]) extends AsyncRPCCommand[String]
 }
-
-
 
 trait MultiCallHandler {
   this: TesterRPCHandlerInitializer =>
@@ -22,9 +20,8 @@ trait MultiCallHandler {
       val retP = Promise[String]
       send(Chain(seq), myID).map { x: ActorVirtualIdentity =>
         send(Recursion(1), x).map { ret: String =>
-          send(Collect(seq.take(3)),myID).map{
-            ret =>
-              retP.setValue(ret)
+          send(Collect(seq.take(3)), myID).map { ret =>
+            retP.setValue(ret)
           }
         }
       }

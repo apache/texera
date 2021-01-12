@@ -6,16 +6,13 @@ import edu.uci.ics.amber.engine.architecture.worker.neo.WorkerRPCHandlerInitiali
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.promise.RPCServer.{AsyncRPCCommand, RPCCommand}
 
-
-
 object PingPongHandler {
   case class Ping(i: Int, end: Int, myID: ActorVirtualIdentity) extends AsyncRPCCommand[Int]
 
-  case class Pong(i: Int, end: Int, myID: ActorVirtualIdentity)
-    extends AsyncRPCCommand[Int]
+  case class Pong(i: Int, end: Int, myID: ActorVirtualIdentity) extends AsyncRPCCommand[Int]
 }
 
-trait PingPongHandler{
+trait PingPongHandler {
   this: TesterRPCHandlerInitializer =>
 
   registerHandlerAsync[Int] {

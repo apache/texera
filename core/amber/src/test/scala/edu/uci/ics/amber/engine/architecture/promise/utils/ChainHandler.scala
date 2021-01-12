@@ -5,12 +5,9 @@ import edu.uci.ics.amber.engine.architecture.promise.utils.ChainHandler.Chain
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.promise.RPCServer.{AsyncRPCCommand, RPCCommand}
 
-object ChainHandler{
-  case class Chain(nexts: Seq[ActorVirtualIdentity])
-    extends AsyncRPCCommand[ActorVirtualIdentity]
+object ChainHandler {
+  case class Chain(nexts: Seq[ActorVirtualIdentity]) extends AsyncRPCCommand[ActorVirtualIdentity]
 }
-
-
 
 trait ChainHandler {
   this: TesterRPCHandlerInitializer =>
@@ -27,6 +24,6 @@ trait ChainHandler {
           retP.setValue(x)
         }
       }
-    retP
+      retP
   }
 }
