@@ -20,7 +20,8 @@ class RPCServer(controlOutputPort: ControlOutputPort) {
   // all handlers
   protected var normalHandlers: PartialFunction[NormalRPCCommand[_], Any] = PartialFunction.empty
 
-  protected var asyncHandlers: PartialFunction[AsyncRPCCommand[_], Future[_]] = PartialFunction.empty
+  protected var asyncHandlers: PartialFunction[AsyncRPCCommand[_], Future[_]] =
+    PartialFunction.empty
 
   def registerHandler[T](newHandler: PartialFunction[NormalRPCCommand[T], T]): Unit = {
     normalHandlers =
@@ -55,7 +56,7 @@ class RPCServer(controlOutputPort: ControlOutputPort) {
     }
   }
 
-  private def returning(sender:ActorVirtualIdentity, id: Long , ret: Any): Unit = {
+  private def returning(sender: ActorVirtualIdentity, id: Long, ret: Any): Unit = {
     if (id != RPCServer.RootCallWithoutReturn) {
       controlOutputPort.sendTo(sender, ReturnPayload(id, ret))
     }
