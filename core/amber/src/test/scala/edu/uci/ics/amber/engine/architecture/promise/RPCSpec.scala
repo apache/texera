@@ -41,10 +41,6 @@ class RPCSpec
     with BeforeAndAfterEach
     with BeforeAndAfterAll {
 
-  override def beforeAll: Unit = {
-    system.actorOf(Props[SingleNodeListener], "cluster-info")
-  }
-
   override def afterAll: Unit = {
     TestKit.shutdownActorSystem(system)
   }
@@ -145,10 +141,6 @@ class RPCSpec
     "execute NestedCall" in {
       testPromise(1, (Nested(5), "Hello World!"))
     }
-//
-//    "execute an example message" in {
-//      testPromise(2, (Init(), PromiseCompleted()))
-//    }
 
   }
 
