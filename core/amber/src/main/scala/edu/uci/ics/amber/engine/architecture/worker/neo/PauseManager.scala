@@ -9,7 +9,6 @@ import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlOutputPort
 import edu.uci.ics.amber.engine.architecture.worker.neo.PauseManager.{
   NoPause,
-  NoScheduledPromise,
   Paused
 }
 import edu.uci.ics.amber.engine.common.WorkflowLogger
