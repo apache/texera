@@ -1166,6 +1166,9 @@ class Controller(
         }
       case WorkerMessage.ReportState(state) =>
         controllerLogger.logInfo("running: " + sender + " to " + state)
+        if (state == WorkerState.Running) {
+          operatorStateMap(workerToOperator(sender)) = PrincipalState.Running
+        }
         operatorStateMap(workerToOperator(sender)) match {
           case PrincipalState.CollectingBreakpoints =>
             handleWorkerStateReportsInCollBreakpoints(state)
@@ -1294,12 +1297,6 @@ class Controller(
       case Resume =>
         operatorToIsUserPaused.keys.foreach(opId => operatorToIsUserPaused(opId) = false) //reset
         operatorToWorkerStateMap.keys.foreach(opId => {
-          assert(
-            operatorToWorkerStateMap(opId)
-              .filter(x => x._2 != WorkerState.Completed)
-              .values
-              .nonEmpty
-          )
           operatorToWorkerStateMap(opId)
             .filter(x => x._2 != WorkerState.Completed)
             .keys

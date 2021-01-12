@@ -197,13 +197,17 @@ class WorkflowWorker(identifier: ActorVirtualIdentity, operator: IOperatorExecut
         )
       }
     case Pause =>
-      workerStateManager.confirmState(Running, Ready)
-      promiseManager.execute(ControlInvocation(null, WorkerPause()))
-      workerStateManager.transitTo(Pausing)
+      if (workerStateManager.getCurrentState != Completed) {
+        workerStateManager.confirmState(Running, Ready)
+        promiseManager.execute(ControlInvocation(null, WorkerPause()))
+        workerStateManager.transitTo(Pausing)
+      }
       reportState()
     case Resume =>
-      pauseManager.resume()
-      workerStateManager.transitTo(Running)
+      if (workerStateManager.getCurrentState != Completed) {
+        pauseManager.resume()
+        workerStateManager.transitTo(Running)
+      }
       reportState()
     case AckedWorkerInitialization(recoveryInformation) =>
       workerStateManager.confirmState(UnInitialized)
