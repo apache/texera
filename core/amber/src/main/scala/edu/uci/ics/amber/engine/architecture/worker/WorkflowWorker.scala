@@ -198,13 +198,17 @@ class WorkflowWorker(identifier: ActorVirtualIdentity, operator: IOperatorExecut
         )
       }
     case Pause =>
-      workerStateManager.confirmState(Running, Ready)
-      rpcClient.send(WorkerPause(), identifier) //send to myself
-      workerStateManager.transitTo(Pausing)
+      if (workerStateManager.getCurrentState != Completed) {
+        workerStateManager.confirmState(Running, Ready)
+        rpcClient.send(WorkerPause(), identifier) //send to myself
+        workerStateManager.transitTo(Pausing)
+      }
       reportState()
     case Resume =>
-      pauseManager.resume()
-      workerStateManager.transitTo(Running)
+      if (workerStateManager.getCurrentState != Completed) {
+        pauseManager.resume()
+        workerStateManager.transitTo(Running)
+      }
       reportState()
     case AckedWorkerInitialization(recoveryInformation) =>
       workerStateManager.confirmState(UnInitialized)
