@@ -76,7 +76,7 @@ class Principal(val metadata: OpExecConfig)
   implicit val ec: ExecutionContext = context.dispatcher
   implicit val timeout: Timeout = 5.seconds
 
-  lazy val promiseHandlerInitializer = wire[RPCHandlerInitializer]
+  lazy val rpcHandlerInitializer = wire[RPCHandlerInitializer]
 
   private def errorLogAction(err: WorkflowRuntimeError): Unit = {
     context.parent ! LogErrorToFrontEnd(err)

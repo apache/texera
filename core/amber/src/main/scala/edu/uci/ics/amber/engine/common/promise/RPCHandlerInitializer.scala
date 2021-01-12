@@ -19,7 +19,7 @@ class RPCHandlerInitializer(rpcClient: RPCClient, rpcServer: RPCServer) {
     rpcServer.registerHandlerAsync(newHandler)
   }
 
-  def send[T](cmd: RPCCommand[T], to: ActorVirtualIdentity): Promise[T] = {
+  def send[T](cmd: RPCCommand[T], to: ActorVirtualIdentity): Future[T] = {
     rpcClient.send(cmd, to)
   }
 

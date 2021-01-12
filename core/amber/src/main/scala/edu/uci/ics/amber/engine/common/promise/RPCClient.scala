@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.common.promise
 
-import com.twitter.util.Promise
+import com.twitter.util.{Future, Promise}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlOutputPort
 import edu.uci.ics.amber.engine.common.ambermessage.neo.ControlPayload
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
@@ -12,10 +12,10 @@ import scala.collection.mutable
 object RPCClient {
 
   /** The invocation of a control command
-    * @param context
+    * @param id
     * @param call
     */
-  case class ControlInvocation(context: RPCContext, call: RPCCommand[_]) extends ControlPayload
+  case class ControlInvocation(id: Long, call: RPCCommand[_]) extends ControlPayload
 
   /** The return message of a promise.
     * @param returnValue
@@ -24,15 +24,15 @@ object RPCClient {
 
 }
 
-class RPCClient(senderID: ActorVirtualIdentity, controlOutputPort: ControlOutputPort) {
+class RPCClient(controlOutputPort: ControlOutputPort) {
 
   private var promiseID = 0L
 
   private val unfulfilledPromises = mutable.LongMap[WorkflowPromise[_]]()
 
-  def send[T](cmd: RPCCommand[T], to: ActorVirtualIdentity): Promise[T] = {
+  def send[T](cmd: RPCCommand[T], to: ActorVirtualIdentity): Future[T] = {
     val (p, id) = createPromise[T]()
-    controlOutputPort.sendTo(to, ControlInvocation(RPCContext(senderID, id), cmd))
+    controlOutputPort.sendTo(to, ControlInvocation(id, cmd))
     p
   }
 

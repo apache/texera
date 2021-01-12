@@ -5,6 +5,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlInputPort.Wor
 import edu.uci.ics.amber.engine.common.WorkflowLogger
 import edu.uci.ics.amber.engine.common.ambermessage.neo.{ControlPayload, WorkflowMessage}
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
+import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.promise.RPCClient.{ControlInvocation, ReturnPayload}
 import edu.uci.ics.amber.engine.common.promise.{RPCClient, RPCServer}
 
@@ -35,7 +36,8 @@ class ControlInputPort(rpcClient: RPCClient, rpcServer: RPCServer) {
       case Some(iterable) =>
         iterable.foreach {
           case call: ControlInvocation =>
-            rpcServer.execute(call)
+            assert(msg.from.isInstanceOf[ActorVirtualIdentity])
+            rpcServer.execute(call, msg.from.asInstanceOf[ActorVirtualIdentity])
           case ret: ReturnPayload =>
             rpcClient.fulfill(ret)
           case other =>

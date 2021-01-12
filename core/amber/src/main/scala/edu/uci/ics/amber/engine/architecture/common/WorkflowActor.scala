@@ -31,7 +31,7 @@ abstract class WorkflowActor(val identifier: ActorVirtualIdentity) extends Actor
   lazy val rpcClient: RPCClient = wire[RPCClient]
   lazy val rpcServer: RPCServer = wire[RPCServer]
   // this variable cannot be lazy
-  val promiseHandlerInitializer: RPCHandlerInitializer
+  val rpcHandlerInitializer: RPCHandlerInitializer
 
   def routeActorRefRelatedMessages: Receive = {
     case QueryActorRef(id, replyTo) =>
