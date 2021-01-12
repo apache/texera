@@ -197,14 +197,14 @@ class WorkflowWorker(identifier: ActorVirtualIdentity, operator: IOperatorExecut
         )
       }
     case Pause =>
-      if(workerStateManager.getCurrentState != Completed){
+      if (workerStateManager.getCurrentState != Completed) {
         workerStateManager.confirmState(Running, Ready)
         promiseManager.execute(ControlInvocation(null, WorkerPause()))
         workerStateManager.transitTo(Pausing)
       }
       reportState()
     case Resume =>
-      if(workerStateManager.getCurrentState != Completed) {
+      if (workerStateManager.getCurrentState != Completed) {
         pauseManager.resume()
         workerStateManager.transitTo(Running)
       }

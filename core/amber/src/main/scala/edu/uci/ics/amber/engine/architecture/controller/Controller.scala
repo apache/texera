@@ -1166,7 +1166,7 @@ class Controller(
         }
       case WorkerMessage.ReportState(state) =>
         controllerLogger.logInfo("running: " + sender + " to " + state)
-        if(state == WorkerState.Running){
+        if (state == WorkerState.Running) {
           operatorStateMap(workerToOperator(sender)) = PrincipalState.Running
         }
         operatorStateMap(workerToOperator(sender)) match {
