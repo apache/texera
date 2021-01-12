@@ -21,9 +21,4 @@ class WorkerRPCHandlerInitializer(
     rpcClient: RPCClient,
     rpcServer: RPCServer
 ) extends RPCHandlerInitializer(rpcClient, rpcServer)
-    with PauseHandler {
-
-  def createPromise[T](): (Promise[T], Long) = {
-    rpcClient.createPromise()
-  }
-}
+    with PauseHandler {}

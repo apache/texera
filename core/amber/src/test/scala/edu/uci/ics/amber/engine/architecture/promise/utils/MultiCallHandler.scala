@@ -6,26 +6,20 @@ import edu.uci.ics.amber.engine.architecture.promise.utils.CollectHandler.Collec
 import edu.uci.ics.amber.engine.architecture.promise.utils.MultiCallHandler.MultiCall
 import edu.uci.ics.amber.engine.architecture.promise.utils.RecursionHandler.Recursion
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.promise.RPCServer.AsyncRPCCommand
+import edu.uci.ics.amber.engine.common.promise.RPCServer.RPCCommand
 
 object MultiCallHandler {
-  case class MultiCall(seq: Seq[ActorVirtualIdentity]) extends AsyncRPCCommand[String]
+  case class MultiCall(seq: Seq[ActorVirtualIdentity]) extends RPCCommand[String]
 }
 
 trait MultiCallHandler {
   this: TesterRPCHandlerInitializer =>
 
-  registerHandlerAsync[String] {
+  registerHandler {
     case MultiCall(seq) =>
-      val retP = Promise[String]
-      send(Chain(seq), myID).map { x: ActorVirtualIdentity =>
-        send(Recursion(1), x).map { ret: String =>
-          send(Collect(seq.take(3)), myID).map { ret =>
-            retP.setValue(ret)
-          }
-        }
-      }
-      retP
+      send(Chain(seq), myID)
+        .flatMap(x => send(Recursion(1), x))
+        .flatMap(ret => send(Collect(seq.take(3)), myID))
   }
 
 }

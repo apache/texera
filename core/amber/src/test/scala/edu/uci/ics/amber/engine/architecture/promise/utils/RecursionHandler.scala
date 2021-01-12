@@ -1,29 +1,27 @@
 package edu.uci.ics.amber.engine.architecture.promise.utils
 
-import com.twitter.util.Promise
+import com.twitter.util.{Future, Promise}
 import edu.uci.ics.amber.engine.architecture.promise.utils.RecursionHandler.Recursion
-import edu.uci.ics.amber.engine.common.promise.RPCServer.AsyncRPCCommand
+import edu.uci.ics.amber.engine.common.promise.RPCServer.RPCCommand
 
 object RecursionHandler {
-  case class Recursion(i: Int) extends AsyncRPCCommand[String]
+  case class Recursion(i: Int) extends RPCCommand[String]
 }
 
 trait RecursionHandler {
   this: TesterRPCHandlerInitializer =>
 
-  registerHandlerAsync[String] {
+  registerHandler {
     case Recursion(i) =>
-      val retP = Promise[String]
       if (i < 5) {
         println(i)
         send(Recursion(i + 1), myID).map { res =>
           println(res)
-          retP.setValue(i.toString)
+          i.toString
         }
       } else {
-        retP.setValue(i.toString)
+        Future(i.toString)
       }
-      retP
   }
 
 }

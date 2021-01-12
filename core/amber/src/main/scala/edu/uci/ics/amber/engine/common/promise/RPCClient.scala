@@ -36,7 +36,7 @@ class RPCClient(controlOutputPort: ControlOutputPort) {
     p
   }
 
-  def createPromise[T](): (Promise[T], Long) = {
+  private def createPromise[T](): (Promise[T], Long) = {
     promiseID += 1
     val promise = new WorkflowPromise[T]()
     unfulfilledPromises(promiseID) = promise

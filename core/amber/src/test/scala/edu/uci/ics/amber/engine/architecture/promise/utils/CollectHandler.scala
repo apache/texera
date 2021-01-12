@@ -3,32 +3,29 @@ package edu.uci.ics.amber.engine.architecture.promise.utils
 import com.twitter.util.{Future, Promise}
 import edu.uci.ics.amber.engine.architecture.promise.utils.CollectHandler.{Collect, GenerateNumber}
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.promise.RPCServer.{AsyncRPCCommand, NormalRPCCommand}
+import edu.uci.ics.amber.engine.common.promise.RPCServer.RPCCommand
 
 import scala.util.Random
 
 object CollectHandler {
-  case class Collect(workers: Seq[ActorVirtualIdentity]) extends AsyncRPCCommand[String]
-  case class GenerateNumber() extends NormalRPCCommand[Int]
+  case class Collect(workers: Seq[ActorVirtualIdentity]) extends RPCCommand[String]
+  case class GenerateNumber() extends RPCCommand[Int]
 }
 
 trait CollectHandler {
   this: TesterRPCHandlerInitializer =>
 
-  registerHandlerAsync[String] {
+  registerHandler {
     case Collect(workers) =>
       println(s"start collecting numbers.")
-      val tasks = workers.indices.map(i => (GenerateNumber(), workers(i)))
-      val p = Future.collect(tasks.map(i => send(i._1, i._2)))
-      val retP = Promise[String]()
+      val p = Future.collect(workers.indices.map(i => send(GenerateNumber(), workers(i))))
       p.map { res =>
         println(s"collected: ${res.mkString(" ")}")
-        retP.setValue("finished")
+        "finished"
       }
-      retP
   }
 
-  registerHandler[Int] {
+  registerHandler {
     case GenerateNumber() =>
       Random.nextInt()
   }

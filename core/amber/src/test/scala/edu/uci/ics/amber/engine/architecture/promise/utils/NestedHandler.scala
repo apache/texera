@@ -2,32 +2,25 @@ package edu.uci.ics.amber.engine.architecture.promise.utils
 
 import com.twitter.util.Promise
 import edu.uci.ics.amber.engine.architecture.promise.utils.NestedHandler.{Nested, Pass}
-import edu.uci.ics.amber.engine.common.promise.RPCServer.{AsyncRPCCommand, NormalRPCCommand}
+import edu.uci.ics.amber.engine.common.promise.RPCServer.RPCCommand
 
 object NestedHandler {
-  case class Nested(k: Int) extends AsyncRPCCommand[String]
+  case class Nested(k: Int) extends RPCCommand[String]
 
-  case class Pass(value: String) extends NormalRPCCommand[String]
+  case class Pass(value: String) extends RPCCommand[String]
 }
 
 trait NestedHandler {
   this: TesterRPCHandlerInitializer =>
 
-  registerHandlerAsync[String] {
+  registerHandler {
     case Nested(k) =>
-      val retP = Promise[String]()
-      send(Pass("Hello"), myID).map { ret: String =>
-        send(Pass(" "), myID).map { ret2: String =>
-          send(Pass("World!"), myID).map { ret3: String =>
-            println(ret + ret2 + ret3)
-            retP.setValue(ret + ret2 + ret3)
-          }
-        }
-      }
-      retP
+      send(Pass("Hello"), myID)
+        .flatMap(ret => send(Pass(ret + " "), myID))
+        .flatMap(ret => send(Pass(ret + "World!"), myID))
   }
 
-  registerHandler[String] {
+  registerHandler {
     case Pass(value) =>
       value
   }

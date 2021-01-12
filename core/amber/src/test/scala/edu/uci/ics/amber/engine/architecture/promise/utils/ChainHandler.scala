@@ -1,29 +1,27 @@
 package edu.uci.ics.amber.engine.architecture.promise.utils
 
-import com.twitter.util.Promise
+import com.twitter.util.{Future, Promise}
 import edu.uci.ics.amber.engine.architecture.promise.utils.ChainHandler.Chain
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.promise.RPCServer.{AsyncRPCCommand, RPCCommand}
+import edu.uci.ics.amber.engine.common.promise.RPCServer.RPCCommand
 
 object ChainHandler {
-  case class Chain(nexts: Seq[ActorVirtualIdentity]) extends AsyncRPCCommand[ActorVirtualIdentity]
+  case class Chain(nexts: Seq[ActorVirtualIdentity]) extends RPCCommand[ActorVirtualIdentity]
 }
 
 trait ChainHandler {
   this: TesterRPCHandlerInitializer =>
 
-  registerHandlerAsync[ActorVirtualIdentity] {
+  registerHandler {
     case Chain(nexts) =>
       println(s"chained $myID")
-      val retP = Promise[ActorVirtualIdentity]()
       if (nexts.isEmpty) {
-        retP.setValue(myID)
+        Future(myID)
       } else {
         send(Chain(nexts.drop(1)), nexts.head).map { x =>
           println(s"chain returns from $x")
-          retP.setValue(x)
+          x
         }
       }
-      retP
   }
 }
