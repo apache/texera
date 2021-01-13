@@ -153,7 +153,7 @@ public class MysqlSourceOpDesc extends SourceOperatorDescriptor {
             return schemaBuilder.build();
         } catch (SQLException | InstantiationException | IllegalAccessException | ClassNotFoundException | ClassCastException e) {
             e.printStackTrace();
-            throw new RuntimeException("Mysql Source failed to connect to mysql database." + e.getMessage());
+            throw new RuntimeException("Mysql Source failed to connect to mysql database. " + e.getMessage());
         }
     }
 
