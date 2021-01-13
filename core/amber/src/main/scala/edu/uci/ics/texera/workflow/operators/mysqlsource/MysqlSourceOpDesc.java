@@ -54,6 +54,10 @@ public class MysqlSourceOpDesc extends SourceOperatorDescriptor {
     @JsonPropertyDescription("search terms in boolean expression")
     public String keywords;
 
+    @JsonProperty(value = "progressive")
+    @JsonPropertyDescription("progressively yield outputs")
+    public Boolean progressive;
+
     @Override
     public OpExecConfig operatorExecutor() {
         return new MysqlSourceOpExecConfig(this.operatorIdentifier(), worker -> new MysqlSourceOpExec(
@@ -67,7 +71,8 @@ public class MysqlSourceOpDesc extends SourceOperatorDescriptor {
                 limit,
                 offset,
                 column,
-                keywords
+                keywords,
+                progressive
         ));
     }
 

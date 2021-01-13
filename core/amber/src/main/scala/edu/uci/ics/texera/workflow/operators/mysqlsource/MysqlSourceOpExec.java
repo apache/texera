@@ -23,6 +23,7 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
     private final Integer offset;
     private final String column;
     private final String keywords;
+    private final Boolean progressive;
 
     private Connection connection;
     private final Queue<PreparedStatement> miniQueries;
@@ -32,7 +33,7 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
     private boolean hasNext = true;
 
     MysqlSourceOpExec(Schema schema, String host, String port, String database, String table, String username,
-                      String password, Integer limit, Integer offset, String column, String keywords) {
+                      String password, Integer limit, Integer offset, String column, String keywords, Boolean progressive) {
         this.schema = schema;
         this.host = host.trim();
         this.port = port.trim();
@@ -44,6 +45,7 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
         this.offset = offset;
         this.column = column == null ? null : column.trim();
         this.keywords = keywords == null ? null : keywords.trim();
+        this.progressive = progressive;
         this.miniQueries = new LinkedBlockingDeque<>();
     }
 
@@ -143,7 +145,8 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
                 this.connection = DriverManager.getConnection(url, this.username, this.password);
                 // set to readonly to improve efficiency
                 connection.setReadOnly(true);
-                for (int i = 0; i < 10; i++) {
+                int i = 0;
+                do {
                     PreparedStatement preparedStatement = this.connection.prepareStatement(generateSqlQuery(i));
                     int curIndex = 1;
                     if (this.column != null && this.keywords != null) {
@@ -158,8 +161,8 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
                         preparedStatement.setObject(curIndex, this.offset, Types.INTEGER);
                     }
                     miniQueries.add(preparedStatement);
-
-                }
+                    i += 1;
+                } while (progressive && i < 10);
                 querySent = true;
 
             }
@@ -210,8 +213,10 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
         if (this.column != null && this.keywords != null) {
             query += " AND MATCH(" + this.column + ") AGAINST (? IN BOOLEAN MODE)";
         }
-        query += " AND create_at >= '" + (2014 + batch) + "-01-01T00:00:00.000Z' and create_at < '" + (2015 + batch) + "-01-01T00:00:00.000Z'";
-
+        if (progressive) {
+            query += " AND create_at >= '" + (2014 + batch) + "-01-01T00:00:00.000Z' and create_at < '"
+                    + (2015 + batch) + "-01-01T00:00:00.000Z'";
+        }
         if (this.limit != null) {
             query += " LIMIT ?";
         }
