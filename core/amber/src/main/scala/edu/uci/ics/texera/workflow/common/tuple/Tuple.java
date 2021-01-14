@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Streams;
@@ -23,7 +24,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 public class Tuple implements ITuple, Serializable {
 
     private final Schema schema;
-    private final ArrayList<Object> fields;
+    private final ImmutableList<Object> fields;
 
     public Tuple(Schema schema, Object... fields) {
         this(schema, Arrays.asList(fields));
@@ -43,7 +44,7 @@ public class Tuple implements ITuple, Serializable {
         checkSchemaMatchesFields(schema.getAttributes(), fields);
 
         this.schema = schema;
-        this.fields = new ArrayList<>(fields);
+        this.fields = ImmutableList.copyOf(fields);
     }
 
     @Override
