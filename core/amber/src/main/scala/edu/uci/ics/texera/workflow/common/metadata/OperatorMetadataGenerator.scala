@@ -1,7 +1,5 @@
 package edu.uci.ics.texera.workflow.common.metadata
 
-import java.util
-
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.introspect.AnnotatedClass
 import com.fasterxml.jackson.databind.jsontype.NamedType
@@ -10,19 +8,27 @@ import com.kjetland.jackson.jsonSchema.JsonSchemaConfig.html5EnabledSchema
 import com.kjetland.jackson.jsonSchema.{JsonSchemaConfig, JsonSchemaDraft, JsonSchemaGenerator}
 import edu.uci.ics.texera.workflow.common.Utils.objectMapper
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
-import edu.uci.ics.texera.workflow.operators.linearregression.LinearRegressionOpDesc
 import edu.uci.ics.texera.workflow.operators.localscan.LocalCsvFileScanOpDesc
 
+import java.util
 import scala.collection.JavaConverters
 import scala.collection.JavaConverters.asScalaIterator
+
+case class InputPort(
+    name: String = "",
+    allowMultiInputs: Boolean = false
+)
+
+case class OutputPort(
+    name: String = ""
+)
 
 case class OperatorInfo(
     userFriendlyName: String,
     operatorDescription: String,
     operatorGroupName: String,
-    numInputPorts: Int,
-    numOutputPorts: Int,
-    allowMultiInputs: Boolean = false
+    inputPorts: List[InputPort],
+    outputPorts: List[OutputPort]
 )
 
 case class OperatorMetadata(

@@ -9,10 +9,19 @@ import { JSONSchema7 } from 'json-schema';
  *
  */
 
+export interface OperatorInputPort extends Readonly<{
+  name?: string,
+  allowMultiInputs?: boolean
+}> { }
+
+export interface OperatorOutputPort extends Readonly<{
+  name?: string
+}> { }
+
 export interface OperatorAdditionalMetadata extends Readonly<{
   userFriendlyName: string;
-  numInputPorts: number;
-  numOutputPorts: number;
+  inputPorts: ReadonlyArray<OperatorInputPort>;
+  outputPorts: ReadonlyArray<OperatorOutputPort>;
   operatorGroupName: string;
   allowMultiInputs?: boolean;
   advancedOptions?: ReadonlyArray<string>;

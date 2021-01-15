@@ -4,8 +4,7 @@ import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpDesc
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonPropertyDescription
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants
-import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo
+import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorGroupConstants, OperatorInfo, OutputPort}
 import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig
 
 class KeywordSearchOpDesc extends FilterOpDesc {
@@ -32,7 +31,7 @@ class KeywordSearchOpDesc extends FilterOpDesc {
       userFriendlyName = "Keyword Search",
       operatorDescription = "Search for keyword(s) in a string column",
       operatorGroupName = OperatorGroupConstants.SEARCH_GROUP,
-      numInputPorts = 1,
-      numOutputPorts = 1
+      inputPorts = List(InputPort()),
+      outputPorts = List(OutputPort()),
     )
 }

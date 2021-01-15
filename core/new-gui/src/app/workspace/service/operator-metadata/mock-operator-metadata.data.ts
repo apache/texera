@@ -12,8 +12,8 @@ export const mockScanSourceSchema: OperatorSchema = {
     userFriendlyName: 'Source: Scan',
     operatorDescription: 'Read records from a table one by one',
     operatorGroupName: 'Source',
-    numInputPorts: 0,
-    numOutputPorts: 1,
+    inputPorts: [],
+    outputPorts: [{}],
     propertyDescription: {
       tableName: 'The table name is the name of the source table, including twitter and promed'
     }
@@ -40,8 +40,8 @@ export const mockFileSourceSchema: OperatorSchema = {
     userFriendlyName: 'Source: File',
     operatorDescription: 'Read the content of one file or multiple files',
     operatorGroupName: 'Source',
-    numInputPorts: 0,
-    numOutputPorts: 1,
+    inputPorts: [],
+    outputPorts: [{}],
     advancedOptions: []
   }
 };
@@ -53,8 +53,8 @@ export const mockNlpSentimentSchema: OperatorSchema = {
     userFriendlyName: 'Sentiment Analysis',
     operatorDescription: 'Sentiment analysis based on Stanford NLP package',
     operatorGroupName: 'Analysis',
-    numInputPorts: 1,
-    numOutputPorts: 1,
+    inputPorts: [{}],
+    outputPorts: [{}],
   },
   jsonSchema: {
     properties: {
@@ -86,8 +86,8 @@ export const mockKeywordSourceSchema: OperatorSchema = {
     userFriendlyName: 'Source: Keyword',
     operatorDescription: 'Perform an index-based search on a table using a keyword',
     operatorGroupName: 'Analysis',
-    numInputPorts: 0,
-    numOutputPorts: 1,
+    inputPorts: [],
+    outputPorts: [{}],
     advancedOptions: []
   }
 };
@@ -111,8 +111,8 @@ export const mockKeywordSearchSchema: OperatorSchema = {
     userFriendlyName: 'Keyword Search',
     operatorDescription: 'Search the documents using a keyword',
     operatorGroupName: 'Analysis',
-    numInputPorts: 1,
-    numOutputPorts: 1,
+    inputPorts: [{}],
+    outputPorts: [{}],
     advancedOptions: []
   }
 };
@@ -146,8 +146,8 @@ export const mockAggregationSchema: OperatorSchema = {
     userFriendlyName: 'Aggregation',
     operatorDescription: 'Aggregate one or more columns to find min, max, sum, average, count of the column',
     operatorGroupName: 'Analysis',
-    numInputPorts: 1,
-    numOutputPorts: 1,
+    inputPorts: [{}],
+    outputPorts: [{}],
     advancedOptions: []
   }
 };
@@ -174,8 +174,8 @@ export const mockViewResultsSchema: OperatorSchema = {
     userFriendlyName: 'View Results',
     operatorDescription: 'View the results of the workflow',
     operatorGroupName: 'View Results',
-    numInputPorts: 1,
-    numOutputPorts: 0,
+    inputPorts: [{}],
+    outputPorts: [],
   }
 };
 
@@ -190,8 +190,8 @@ export const mockMultiInputOutputSchema: OperatorSchema = {
     userFriendlyName: '3-I/O Mock op',
     operatorDescription: 'Mock operator with 3 inputs and 3 outputs',
     operatorGroupName: 'Analysis',
-    numInputPorts: 3,
-    numOutputPorts: 3,
+    inputPorts: [{}, {}, {}],
+    outputPorts: [{}, {}, {}],
   }
 };
 

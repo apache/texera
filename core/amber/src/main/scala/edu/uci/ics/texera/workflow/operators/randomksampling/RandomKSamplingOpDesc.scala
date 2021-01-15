@@ -2,7 +2,7 @@ package edu.uci.ics.texera.workflow.operators.randomksampling
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
 import edu.uci.ics.amber.engine.common.Constants
-import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorGroupConstants, OperatorInfo, OutputPort}
 import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig
 import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpDesc
 
@@ -35,7 +35,7 @@ class RandomKSamplingOpDesc extends FilterOpDesc {
       userFriendlyName = "Random K Sampling",
       operatorDescription = "random sampling with given percentage",
       operatorGroupName = OperatorGroupConstants.UTILITY_GROUP,
-      numInputPorts = 1,
-      numOutputPorts = 1
+      inputPorts = List(InputPort()),
+      outputPorts = List(OutputPort()),
     )
 }

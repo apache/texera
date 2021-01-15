@@ -4,8 +4,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.google.common.base.Preconditions;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
+import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
+import edu.uci.ics.texera.workflow.common.metadata.OutputPort;
 import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig;
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
@@ -15,7 +17,9 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static java.util.Collections.singletonList;
 import static java.util.stream.Collectors.toList;
+import static scala.collection.JavaConverters.asScalaBuffer;
 
 public class TypeCastingOpDesc extends MapOpDesc {
     @JsonProperty(required = true)
@@ -43,8 +47,8 @@ public class TypeCastingOpDesc extends MapOpDesc {
                 "Type Casting",
                 "Cast type to another type",
                 OperatorGroupConstants.UTILITY_GROUP(),
-                1, 1, false
-        );
+                asScalaBuffer(singletonList(new InputPort("", false))).toList(),
+                asScalaBuffer(singletonList(new OutputPort(""))).toList());
     }
 
     @Override

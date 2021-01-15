@@ -1,10 +1,8 @@
 package edu.uci.ics.texera.workflow.operators.linearregression
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
-import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig
+import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorGroupConstants, OperatorInfo, OutputPort}
 import edu.uci.ics.texera.workflow.common.operators.mlmodel.{MLModelOpDesc, MLModelOpExecConfig}
-import edu.uci.ics.texera.workflow.operators.filter.SpecializedFilterOpExec
 
 class LinearRegressionOpDesc extends MLModelOpDesc {
 
@@ -32,7 +30,7 @@ class LinearRegressionOpDesc extends MLModelOpDesc {
       "Linear Regression",
       "Trains a Linear Regression model",
       OperatorGroupConstants.UTILITY_GROUP,
-      1,
-      1
+      inputPorts = List(InputPort()),
+      outputPorts = List(OutputPort()),
     )
 }
