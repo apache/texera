@@ -330,7 +330,8 @@ class Principal(val metadata: OpExecConfig)
 //        context.system.scheduler.schedule(30.seconds, 30.seconds, self, EnforceStateCheck)
 //      context.become(pausing)
 //      unstashAll()
-    case ReportWorkerPartialCompleted(worker, layer) =>
+
+//    case ReportWorkerPartialCompleted(worker, layer) =>
 //      sender ! Ack
 //      AdvancedMessageSending.nonBlockingAskWithRetry(
 //        context.parent,

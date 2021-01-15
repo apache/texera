@@ -10,7 +10,7 @@ object Constants {
   var dataset = 0
   var masterNodeAddr: String = null
 
-  var numWorkerPerNode = 2
+  var numWorkerPerNode = 1
   var dataVolumePerNode = 10
   var defaultTau: FiniteDuration = 10.milliseconds
 }

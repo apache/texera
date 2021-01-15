@@ -1,7 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.localscan
 
 import java.io.File
-
 import akka.actor.ActorRef
 import akka.event.LoggingAdapter
 import akka.util.Timeout
@@ -12,20 +11,21 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.architecture.worker.WorkerState
 import edu.uci.ics.amber.engine.common.ambertag.{LayerTag, OperatorIdentifier}
 import edu.uci.ics.amber.engine.operators.OpExecConfig
+import edu.uci.ics.texera.workflow.common.operators.source.FileScanOpExecConfig
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
-class LocalCsvFileScanOpExecConfig(
+class LocalCsvSourceOpExecConfig(
     tag: OperatorIdentifier,
     numWorkers: Int,
     filePath: String,
     delimiter: Char,
     schema: Schema,
     header: Boolean
-) extends OpExecConfig(tag) {
-  val totalBytes: Long = new File(filePath).length()
+) extends FileScanOpExecConfig(tag) {
+  override val totalBytes: Long = new File(filePath).length()
 
   override lazy val topology: Topology = {
     new Topology(

@@ -1,9 +1,8 @@
 package edu.uci.ics.texera.workflow.common.operators
 
 import java.util.UUID
-
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type
-import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonProperty, JsonIgnore, JsonTypeInfo}
+import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonSubTypes, JsonTypeInfo}
 import edu.uci.ics.amber.engine.common.ambertag.OperatorIdentifier
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorInfo, PropertyNameConstants}
@@ -11,6 +10,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.common.{ConstraintViolation, WorkflowContext}
 import edu.uci.ics.texera.workflow.operators.aggregate.SpecializedAverageOpDesc
 import edu.uci.ics.texera.workflow.operators.filter.SpecializedFilterOpDesc
+import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpDesc
 import edu.uci.ics.texera.workflow.operators.limit.LimitOpDesc
 import edu.uci.ics.texera.workflow.operators.linearregression.LinearRegressionOpDesc
 import edu.uci.ics.texera.workflow.operators.localscan.LocalCsvFileScanOpDesc
@@ -29,7 +29,7 @@ import edu.uci.ics.texera.workflow.operators.visualization.barChart.BarChartOpDe
 import edu.uci.ics.texera.workflow.operators.visualization.lineChart.LineChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.pieChart.PieChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.wordCloud.WordCloudOpDesc
-import org.apache.commons.lang3.builder.{EqualsBuilder, ToStringBuilder, HashCodeBuilder}
+import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
 
 @JsonTypeInfo(
   use = JsonTypeInfo.Id.NAME,
@@ -57,7 +57,8 @@ import org.apache.commons.lang3.builder.{EqualsBuilder, ToStringBuilder, HashCod
     new Type(value = classOf[TypeCastingOpDesc], name = "TypeCasting"),
     new Type(value = classOf[LimitOpDesc], name = "Limit"),
     new Type(value = classOf[RandomKSamplingOpDesc], name = "RandomKSampling"),
-    new Type(value = classOf[ReservoirSamplingOpDesc], name = "ReservoirSampling")
+    new Type(value = classOf[ReservoirSamplingOpDesc], name = "ReservoirSampling"),
+    new Type(value = classOf[HashJoinOpDesc[String]], name = "HashJoin")
   )
 )
 abstract class OperatorDescriptor extends Serializable {

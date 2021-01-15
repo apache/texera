@@ -13,6 +13,7 @@ import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import akka.event.LoggingAdapter
 import akka.util.Timeout
+import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
 import scala.concurrent.ExecutionContext
 

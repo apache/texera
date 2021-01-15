@@ -155,6 +155,8 @@ class WorkflowWorker(identifier: ActorVirtualIdentity, operator: IOperatorExecut
             new FaultedTuple(brk.triggeredTuple, brk.triggeredTupleId, brk.isInput)
       }
       context.parent ! ReportState(WorkerState.LocalBreakpointTriggered)
+    case ReportWorkerPartialCompleted(currentSenderRef) =>
+      context.parent ! ReportWorkerPartialCompleted(currentSenderRef)
     case other =>
   }
 
