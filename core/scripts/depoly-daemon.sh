@@ -14,7 +14,7 @@ echo
 
 cd ..
 echo "${green}Starting TexeraWebApplication in daemon...${reset}"
-setsid nohup ./scripts/server.sh > log/server.log 2>&1 &
+setsid nohup ./scripts/server.sh >> log/server.log 2>&1 &
 echo "${green}Waiting TexeraWebApplication to launch on 8080...${reset}"
 while ! nc -z localhost 8080; do   
 	sleep 0.1 # wait for 1/10 of the second before check again
@@ -23,5 +23,5 @@ echo "${green}TexeraWebApplication launched at $(pgrep -f TexeraWebApplication)$
 echo
 
 echo "${green}Starting TexeraRunWorker in daemon...${reset}"
-setsid nohup ./scripts/worker.sh > log/worker.log 2>&1 &
+setsid nohup ./scripts/worker.sh >> log/worker.log 2>&1 &
 echo "${green}TexeraRunWorker launched at $(pgrep -f TexeraRunWorker)${reset}"
