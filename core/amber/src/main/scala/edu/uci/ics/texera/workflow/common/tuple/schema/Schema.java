@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 
 import java.io.Serializable;
 import java.util.*;
@@ -15,8 +17,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
  * A schema is a list of attributes that describe all the columns of a table.
  */
 public class Schema implements Serializable {
-    private final ArrayList<Attribute> attributes;
-    private final HashMap<String, Integer> attributeIndex;
+    private final ImmutableList<Attribute> attributes;
+    private final ImmutableMap<String, Integer> attributeIndex;
 
     public Schema(Attribute... attributes) {
         this(Arrays.asList(attributes));
@@ -27,12 +29,12 @@ public class Schema implements Serializable {
             @JsonProperty(value = "attributes", required = true)
                     List<Attribute> attributes) {
         checkNotNull(attributes);
-        this.attributes = new ArrayList<>(attributes);
+        this.attributes = ImmutableList.copyOf(attributes);
         HashMap<String, Integer> attributeIndexTemp = new HashMap<String, Integer>();
         for (int i = 0; i < attributes.size(); i++) {
             attributeIndexTemp.put(attributes.get(i).getName().toLowerCase(), i);
         }
-        this.attributeIndex = new HashMap<>(attributeIndexTemp);
+        this.attributeIndex = ImmutableMap.copyOf(attributeIndexTemp);
     }
 
     @JsonProperty(value = "attributes")
