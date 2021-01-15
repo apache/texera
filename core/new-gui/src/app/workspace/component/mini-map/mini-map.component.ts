@@ -41,12 +41,13 @@ export class MiniMapComponent implements AfterViewInit {
   private panOffset: Point = {x: 0, y: 0};
   private navigatorElementOffset: Point = {x: 0, y: 0};
   private navigatorInitialOffset: Point = {x: 0, y: 0};
-  private navigatorBoundCoordinate: Point = {x: 0, y: 0};
+  private navigatorCoordinate: Point = {x: 0, y: 0};
 
   constructor(private workflowActionService: WorkflowActionService) { }
 
   ngAfterViewInit() {
     this.initializeMapPaper();
+    this.setMiniMapNavigatorDimension();
     this.handleWindowResize();
     this.handleMinimapTranslate();
     this.handlePaperZoom();
@@ -103,19 +104,22 @@ export class MiniMapComponent implements AfterViewInit {
       //   -this.navigatorElementOffset.x + newOffset.x * this.MINI_MAP_ZOOM_SCALE,
       //   -this.navigatorElementOffset.y + newOffset.y * this.MINI_MAP_ZOOM_SCALE
       // );
-      jQuery('#' + this.MINI_MAP_NAVIGATOR_ID).css('top', -newOffset.y * this.MINI_MAP_ZOOM_SCALE);
-      jQuery('#' + this.MINI_MAP_NAVIGATOR_ID).css('left', -newOffset.x * this.MINI_MAP_ZOOM_SCALE);
+      const { width: mainPaperWidth, height: mainPaperHeight } = this.getOriginalWrapperElementSize();
+      const { width: miniMapWidth, height: miniMapHeight } = this.getWrapperElementSize();
+      const marginTop = (miniMapHeight - mainPaperHeight * this.MINI_MAP_ZOOM_SCALE) / 2;
+      const marginLeft = (miniMapWidth - mainPaperWidth * this.MINI_MAP_ZOOM_SCALE) / 2;
+      jQuery('#' + this.MINI_MAP_NAVIGATOR_ID).css('top', marginTop - newOffset.y * this.MINI_MAP_ZOOM_SCALE + 'px');
+      jQuery('#' + this.MINI_MAP_NAVIGATOR_ID).css('left', marginLeft - newOffset.x * this.MINI_MAP_ZOOM_SCALE + 'px');
       }
     );
   }
 
   // tslint:disable-next-line:member-ordering
   public mouseDown(e: { clientX: any; clientY: any; target: { offsetLeft: any; offsetTop: any; }; }) {
-    // console.log('mouseDown', e.clientX, e.clientY);
-    // console.log('mouseDown', e.target.offsetLeft, e.target.offsetTop);
     this.ifMouseDown = true;
-    this.navigatorBoundCoordinate = {x: e.clientX, y: e.clientY};
+    this.navigatorCoordinate = {x: e.clientX, y: e.clientY};
     this.navigatorInitialOffset = {x: e.target.offsetLeft, y: e.target.offsetTop};
+    this.workflowActionService.getJointGraphWrapper().setMouseDownReminder(this.ifMouseDown);
   }
 
   // tslint:disable-next-line:member-ordering
@@ -138,19 +142,19 @@ export class MiniMapComponent implements AfterViewInit {
     const maxX = (miniMapWidth - mainPaperWidth * this.MINI_MAP_ZOOM_SCALE);
     const maxY = (miniMapHeight - mainPaperHeight * this.MINI_MAP_ZOOM_SCALE);
 
+
     if (this.ifMouseDown) {
-      let newX = this.navigatorInitialOffset.x + e.clientX - this.navigatorBoundCoordinate.x;
-      let newY = this.navigatorInitialOffset.y + e.clientY - this.navigatorBoundCoordinate.y;
-      let translateX = (e.clientX - this.navigatorBoundCoordinate.x) / this.MINI_MAP_ZOOM_SCALE;
-      let translateY = (e.clientY - this.navigatorBoundCoordinate.y) / this.MINI_MAP_ZOOM_SCALE;
-      // console.log('newX, newY', newX, newY);
+      let newX = this.navigatorInitialOffset.x + (e.clientX - this.navigatorCoordinate.x);
+      let newY = this.navigatorInitialOffset.y + (e.clientY - this.navigatorCoordinate.y);
+      let translateX = (e.clientX - this.navigatorCoordinate.x) / this.MINI_MAP_ZOOM_SCALE;
+      let translateY = (e.clientY - this.navigatorCoordinate.y) / this.MINI_MAP_ZOOM_SCALE;
       if (minY > newY) {
         newY = minY;
-        translateY = -this.navigatorInitialOffset.y / this.MINI_MAP_ZOOM_SCALE;
+        translateY = (minY - this.navigatorInitialOffset.y) / this.MINI_MAP_ZOOM_SCALE;
       }
       if (minX > newX) {
         newX = minX;
-        translateX = -this.navigatorInitialOffset.x / this.MINI_MAP_ZOOM_SCALE;
+        translateX = (minX - this.navigatorInitialOffset.x) / this.MINI_MAP_ZOOM_SCALE;
       }
       if (maxY < newY) {
         newY = maxY;
@@ -224,7 +228,6 @@ export class MiniMapComponent implements AfterViewInit {
     // set navigator position in the component
     const marginTop = (miniMapHeight - mainPaperHeight * this.MINI_MAP_ZOOM_SCALE) / 2;
     const marginLeft = (miniMapWidth - mainPaperWidth * this.MINI_MAP_ZOOM_SCALE) / 2;
-    console.log('navigator', marginTop, marginLeft);
     jQuery('#' + this.MINI_MAP_NAVIGATOR_ID).css({top: marginTop + 'px', left: marginLeft + 'px'});
   }
 

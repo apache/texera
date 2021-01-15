@@ -94,6 +94,8 @@ export class JointGraphWrapper {
   private panPaperOffsetSubject: Subject<Point> = new Subject<Point>();
   // event stream of panning to make mini-map and main workflow paper compatible in offset
   private panPaperOffsetSubject2: Subject<Point> = new Subject<Point>();
+  // event stream of communicating mini-map and workflow paper
+  private MouseDownReminder: Subject<Boolean> = new Subject<Boolean>();
   // event stream of highlighing a link
   private jointLinkHighlightStream = new Subject<linkIDType>();
   // event stream of unhighlighing a link
@@ -194,6 +196,7 @@ export class JointGraphWrapper {
         const operatorID = e[0].id.toString();
         const oldPosition = this.operatorPositions.get(operatorID);
         const newPosition = {x: e[1].x, y: e[1].y};
+        console.log('newPosition:', newPosition);
         if (!oldPosition) {
           throw new Error(`internal error: cannot find operator position for ${operatorID}`);
         }
@@ -414,6 +417,14 @@ export class JointGraphWrapper {
   public setPanningOffset2(panOffset: Point): void {
     // this.panOffset = panOffset;
     this.panPaperOffsetSubject2.next(panOffset);
+  }
+
+  public getMousDownReminder(): Observable<Boolean> {
+    return this.MouseDownReminder.asObservable();
+  }
+
+  public setMouseDownReminder(ifMouseDown: Boolean): void {
+    this.MouseDownReminder.next(ifMouseDown);
   }
 
   /**

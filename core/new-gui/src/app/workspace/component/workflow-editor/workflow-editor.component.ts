@@ -84,6 +84,8 @@ export class WorkflowEditorComponent implements AfterViewInit {
   private panOffset: Point = { x : 0 , y : 0};
   private translateLimitX: number[] = [];
   private translateLimitY: number[] = [];
+  private minimapTranslateX: number = 0;
+  private minimapTranslateY: number = 0;
 
   // dictionary of {operatorID, CopiedOperator} pairs
   private copiedOperators: Record<string, CopiedOperator> = {};
@@ -461,14 +463,18 @@ export class WorkflowEditorComponent implements AfterViewInit {
   }
 
   private handleMinimapTranslate(): void {
-    const x = this.getJointPaper().translate().tx;
-    const y = this.getJointPaper().translate().ty;
+    Observable.merge(
+      this.workflowActionService.getJointGraphWrapper().getMousDownReminder(),
+    ).subscribe(() => {
+      this.minimapTranslateX = this.getJointPaper().translate().tx;
+      this.minimapTranslateY = this.getJointPaper().translate().ty;
+    });
     Observable.merge(
       this.workflowActionService.getJointGraphWrapper().getPanPaperOffsetStream2(),
     ).subscribe(newOffset => {
       this.getJointPaper().translate(
-        -this.getWrapperElementOffset().x - x - newOffset.x * this.workflowActionService.getJointGraphWrapper().getZoomRatio(),
-        -this.getWrapperElementOffset().y - y - newOffset.y * this.workflowActionService.getJointGraphWrapper().getZoomRatio()
+         this.minimapTranslateX - newOffset.x * this.workflowActionService.getJointGraphWrapper().getZoomRatio(),
+         this.minimapTranslateY - newOffset.y * this.workflowActionService.getJointGraphWrapper().getZoomRatio()
       );
       }
     );
