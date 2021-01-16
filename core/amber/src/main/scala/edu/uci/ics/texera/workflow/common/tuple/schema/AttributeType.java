@@ -12,7 +12,7 @@ public enum AttributeType implements Serializable {
     INTEGER("integer", Integer.class),
     DOUBLE("double", Double.class),
     BOOLEAN("boolean", Boolean.class),
-    TIMESTAMP("boolean", Timestamp.class),
+    TIMESTAMP("timestamp", Timestamp.class),
     ANY("ANY", Object.class);
 
     private final String name;
