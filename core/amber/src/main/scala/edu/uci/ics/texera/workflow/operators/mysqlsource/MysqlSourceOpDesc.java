@@ -58,6 +58,14 @@ public class MysqlSourceOpDesc extends SourceOperatorDescriptor {
     @JsonPropertyDescription("progressively yield outputs by batches")
     public Boolean progressive = false;
 
+    @JsonProperty(value = "batch by column")
+    @JsonPropertyDescription("the column to separate batches")
+    public String batchByColumn;
+
+    @JsonProperty(value = "batch by interval")
+    @JsonPropertyDescription("the interval between each batch")
+    public Integer interval;
+
     @Override
     public OpExecConfig operatorExecutor() {
         return new MysqlSourceOpExecConfig(this.operatorIdentifier(), worker -> new MysqlSourceOpExec(
@@ -72,7 +80,9 @@ public class MysqlSourceOpDesc extends SourceOperatorDescriptor {
                 offset,
                 column,
                 keywords,
-                progressive
+                progressive,
+                batchByColumn,
+                interval
         ));
     }
 
@@ -80,16 +90,16 @@ public class MysqlSourceOpDesc extends SourceOperatorDescriptor {
     public OperatorInfo operatorInfo() {
         return new OperatorInfo(
                 "MySQL Source",
-                "Read data from a mysql instance",
+                "Read data from a MySQL instance",
                 OperatorGroupConstants.SOURCE_GROUP(),
                 0, 1, false);
     }
 
     /**
-     * make sure all the required parameters are not empty,
+     * Make sure all the required parameters are not empty,
      * then query the remote Mysql server for the table schema
      *
-     * @return Texera.tuple.schama
+     * @return Texera.tuple.schema
      */
     @Override
     public Schema sourceSchema() {
@@ -101,12 +111,11 @@ public class MysqlSourceOpDesc extends SourceOperatorDescriptor {
     }
 
     /**
-     * establish a mysql connection with remote mysql server base on the info provided by the user
+     * Establish a mysql connection with remote mysql server base on the info provided by the user
      * query the MetaData of the table and generate a Texera.tuple.schema accordingly
-     * the "switch" code block shows how mysql datatypes are mapped to Texera AttributeTypes
+     * the "switch" code block shows how mysql data types are mapped to Texera AttributeTypes
      *
-     * @return
-     * @throws Exception
+     * @return Schema
      */
     private Schema querySchema() {
         Schema.Builder schemaBuilder = Schema.newBuilder();
@@ -123,25 +132,24 @@ public class MysqlSourceOpDesc extends SourceOperatorDescriptor {
                 String columnName = columns.getString("COLUMN_NAME");
                 int datatype = columns.getInt("DATA_TYPE");
                 switch (datatype) {
-                    case Types.BIT: //-7 Types.BIT
-                    case Types.TINYINT: //-6 Types.TINYINT
-                    case Types.SMALLINT: //5 Types.SMALLINT
-                    case Types.INTEGER: //4 Types.INTEGER
+                    case Types.BIT: // -7 Types.BIT
+                    case Types.TINYINT: // -6 Types.TINYINT
+                    case Types.SMALLINT: // 5 Types.SMALLINT
+                    case Types.INTEGER: // 4 Types.INTEGER
                         schemaBuilder.add(new Attribute(columnName, AttributeType.INTEGER));
                         break;
-                    case Types.FLOAT: //6 Types.FLOAT
-                    case Types.REAL: //7 Types.REAL
-                    case Types.DOUBLE: //8 Types.DOUBLE
-                    case Types.NUMERIC: //3 Types.NUMERIC
+                    case Types.FLOAT: // 6 Types.FLOAT
+                    case Types.REAL: // 7 Types.REAL
+                    case Types.DOUBLE: // 8 Types.DOUBLE
+                    case Types.NUMERIC: // 3 Types.NUMERIC
                         schemaBuilder.add(new Attribute(columnName, AttributeType.DOUBLE));
                         break;
-                    case Types.BOOLEAN: //16 Types.BOOLEAN
+                    case Types.BOOLEAN: // 16 Types.BOOLEAN
                         schemaBuilder.add(new Attribute(columnName, AttributeType.BOOLEAN));
                         break;
                     case Types.BINARY: //-2 Types.BINARY
                     case Types.DATE: //91 Types.DATE
                     case Types.TIME: //92 Types.TIME
-                    case Types.TIMESTAMP:  //93 Types.TIMESTAMP
                     case Types.LONGVARCHAR: //-1 Types.LONGVARCHAR
                     case Types.BIGINT: //-5 Types.BIGINT
                     case Types.CHAR: //1 Types.CHAR
@@ -149,6 +157,9 @@ public class MysqlSourceOpDesc extends SourceOperatorDescriptor {
                     case Types.NULL: //0 Types.NULL
                     case Types.OTHER: //1111 Types.OTHER
                         schemaBuilder.add(new Attribute(columnName, AttributeType.STRING));
+                        break;
+                    case Types.TIMESTAMP:  // 93 Types.TIMESTAMP
+                        schemaBuilder.add(new Attribute(columnName, AttributeType.TIMESTAMP));
                         break;
                     default:
                         throw new RuntimeException("MySQL Source: unknown data type: " + datatype);

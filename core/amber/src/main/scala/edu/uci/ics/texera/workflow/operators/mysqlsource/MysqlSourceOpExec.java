@@ -8,6 +8,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import scala.collection.Iterator;
 
 import java.sql.*;
+import java.util.HashSet;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingDeque;
 
@@ -24,16 +25,22 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
     private final String column;
     private final String keywords;
     private final Boolean progressive;
+    private final Integer interval;
 
     private Connection connection;
     private final Queue<PreparedStatement> miniQueries;
     private PreparedStatement currentPreparedStatement;
     private ResultSet resultSet;
-    private boolean querySent = false;
+    private final HashSet<String> tableNames;
+    private boolean queriesPrepared = false;
     private boolean hasNext = true;
+    private long min = 0;
+    private long max = 999999999;
+    private Attribute batchByAttribute = null;
 
     MysqlSourceOpExec(Schema schema, String host, String port, String database, String table, String username,
-                      String password, Integer limit, Integer offset, String column, String keywords, Boolean progressive) {
+                      String password, Integer limit, Integer offset, String column, String keywords,
+                      Boolean progressive, String batchByColumn, Integer interval) {
         this.schema = schema;
         this.host = host.trim();
         this.port = port.trim();
@@ -46,7 +53,13 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
         this.column = column == null ? null : column.trim();
         this.keywords = keywords == null ? null : keywords.trim();
         this.progressive = progressive;
+        this.interval = interval;
         this.miniQueries = new LinkedBlockingDeque<>();
+        this.tableNames = new HashSet<>();
+        if (batchByColumn != null) {
+            this.batchByAttribute = schema.getAttribute(batchByColumn);
+        }
+
     }
 
     /**
@@ -61,7 +74,7 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
              */
             @Override
             public boolean hasNext() {
-                return querySent && hasNext;
+                return queriesPrepared && hasNext;
             }
 
             /**
@@ -96,6 +109,9 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
                                     break;
                                 case STRING:
                                     tupleBuilder.add(attr, value);
+                                    break;
+                                case TIMESTAMP:
+                                    tupleBuilder.add(attr, Timestamp.valueOf(value));
                                     break;
                                 case ANY:
                                 default:
@@ -138,37 +154,121 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
     @Override
     public void open() {
         try {
-            if (!querySent) {
-                Class.forName("com.mysql.cj.jdbc.Driver").newInstance();
-                String url = "jdbc:mysql://" + this.host + ":" + this.port + "/"
-                        + this.database + "?autoReconnect=true&useSSL=true";
-                this.connection = DriverManager.getConnection(url, this.username, this.password);
-                // set to readonly to improve efficiency
-                connection.setReadOnly(true);
-                int i = 0;
-                do {
-                    PreparedStatement preparedStatement = this.connection.prepareStatement(generateSqlQuery(i));
-                    int curIndex = 1;
-                    if (this.column != null && this.keywords != null) {
-                        preparedStatement.setString(curIndex, this.keywords);
-                        curIndex += 1;
-                    }
-                    if (this.limit != null) {
-                        preparedStatement.setInt(curIndex, this.limit);
-                        curIndex += 1;
-                    }
-                    if (this.offset != null) {
-                        preparedStatement.setObject(curIndex, this.offset, Types.INTEGER);
-                    }
-                    miniQueries.add(preparedStatement);
-                    i += 1;
-                } while (progressive && i < 10);
-                querySent = true;
+            if (!queriesPrepared) {
+                connection = this.establishConn();
+
+                // load user table names from the given database
+                loadTableNames();
+
+                if (!tableNames.contains(table)) {
+                    throw new RuntimeException("MysqlSource can't find the given table `" + table + "`.");
+                }
+
+                if (progressive) {
+                    // load for batch statistics used to split mini queries
+                    loadBatchColumnStats();
+                }
+
+                this.prepareQueries();
+                queriesPrepared = true;
 
             }
         } catch (Exception e) {
-            throw new RuntimeException("MysqlSource failed to connect to mysql database." + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("MysqlSource failed to connect to mysql database. " + e.getMessage());
         }
+
+    }
+
+    private Connection establishConn() throws ClassNotFoundException, IllegalAccessException, InstantiationException, SQLException {
+        Class.forName("com.mysql.cj.jdbc.Driver").newInstance();
+        String url = "jdbc:mysql://" + this.host + ":" + this.port + "/"
+                + this.database + "?autoReconnect=true&useSSL=true";
+        Connection connection = DriverManager.getConnection(url, this.username, this.password);
+        // set to readonly to improve efficiency
+        connection.setReadOnly(true);
+        return connection;
+    }
+
+    private void prepareQueries() throws SQLException {
+        int i = 0;
+
+        do {
+            PreparedStatement preparedStatement = this.connection.prepareStatement(generateSqlQuery(i));
+            int curIndex = 1;
+            if (this.column != null && this.keywords != null) {
+                preparedStatement.setString(curIndex, this.keywords);
+                curIndex += 1;
+            }
+            if (this.limit != null) {
+                preparedStatement.setInt(curIndex, this.limit);
+                curIndex += 1;
+            }
+            if (this.offset != null) {
+                preparedStatement.setObject(curIndex, this.offset, Types.INTEGER);
+            }
+            miniQueries.add(preparedStatement);
+            i += 1;
+        } while (progressive && min + (long) i * interval < max);
+    }
+
+    private void loadBatchColumnStats() {
+        try {
+            if (batchByAttribute != null && !batchByAttribute.getName().equals("")) {
+
+                max = this.getBatchByBoundary("MAX");
+                min = this.getBatchByBoundary("MIN");
+
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            throw new RuntimeException("MysqlSource fail to load statistics on column `" + batchByAttribute.getName() + "`. " + e.getMessage());
+        }
+
+    }
+
+
+    private long getBatchByBoundary(String side) throws SQLException {
+        long result = 0L;
+        PreparedStatement preparedStatement = connection.prepareStatement(
+                "SELECT " + side + "(" + batchByAttribute.getName() + ") FROM " + table + ";");
+        ResultSet resultSet = preparedStatement.executeQuery();
+        resultSet.next();
+        switch (schema.getAttribute(batchByAttribute.getName()).getType()) {
+            case INTEGER:
+            case BOOLEAN:
+            case DOUBLE:
+            case STRING:
+                break;
+            case TIMESTAMP:
+                result = resultSet.getTimestamp(1).getTime() + ((side).equals("MAX") ? 1 : 0);
+                break;
+            case ANY:
+                result = resultSet.getInt(1);
+                break;
+            default:
+                throw new IllegalStateException("Unexpected value: " + schema.getAttribute(batchByAttribute.getName()).getType());
+
+        }
+
+        resultSet.close();
+        preparedStatement.close();
+        return result;
+    }
+
+    private void loadTableNames() throws SQLException {
+
+        PreparedStatement preparedStatement = connection.prepareStatement("SELECT table_name FROM information_schema.tables " +
+                "WHERE table_schema = ?;");
+
+        preparedStatement.setString(1, database);
+        ResultSet resultSet = preparedStatement.executeQuery();
+        while (resultSet.next()) {
+            tableNames.add(resultSet.getString(1));
+        }
+
+        resultSet.close();
+        preparedStatement.close();
 
     }
 
@@ -214,8 +314,13 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
             query += " AND MATCH(" + this.column + ") AGAINST (? IN BOOLEAN MODE)";
         }
         if (progressive) {
-            query += " AND create_at >= '" + (2014 + batch) + "-01-01T00:00:00.000Z' and create_at < '"
-                    + (2015 + batch) + "-01-01T00:00:00.000Z'";
+            query += " AND "
+                    + batchByAttribute.getName() + " >= '"
+                    + new Timestamp(min + (long) batch * interval).toString() + "'"
+                    + " AND "
+                    + batchByAttribute.getName() + " < '"
+                    + new Timestamp(Math.min(max, min + (long) (batch + 1) * interval)).toString() + "'";
+
         }
         if (this.limit != null) {
             query += " LIMIT ?";
@@ -229,6 +334,7 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
             query += " OFFSET ?";
         }
         query += ";";
+        System.out.println(query);
         return query;
     }
 }

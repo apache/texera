@@ -3,6 +3,7 @@ package edu.uci.ics.texera.workflow.common.tuple.schema;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 import java.io.Serializable;
+import java.sql.Timestamp;
 
 public enum AttributeType implements Serializable {
     // A field that is indexed but not tokenized: the entire String
@@ -11,6 +12,7 @@ public enum AttributeType implements Serializable {
     INTEGER("integer", Integer.class),
     DOUBLE("double", Double.class),
     BOOLEAN("boolean", Boolean.class),
+    TIMESTAMP("boolean", Timestamp.class),
     ANY("ANY", Object.class);
 
     private final String name;
