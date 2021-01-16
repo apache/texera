@@ -1,7 +1,7 @@
-import { User } from '../../../../common/type/user';
 import { Component } from '@angular/core';
-import { UserService } from '../../../../common/service/user/user.service';
 import { NgbModal, NgbModalRef } from '@ng-bootstrap/ng-bootstrap';
+import { UserService } from '../../../../common/service/user/user.service';
+import { User } from '../../../../common/type/user';
 import { NgbdModalUserLoginComponent } from './user-login/ngbdmodal-user-login.component';
 
 /**
@@ -26,8 +26,7 @@ export class UserIconComponent {
     if (userService.isLogin()) {
       this.user = this.userService.getUser();
     }
-    this.userService.getUserChangedEvent()
-    .subscribe(user => this.user = user);
+    this.userService.userChanged().subscribe(user => this.user = user);
   }
 
   /**

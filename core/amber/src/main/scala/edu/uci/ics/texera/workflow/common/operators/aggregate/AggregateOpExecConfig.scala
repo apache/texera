@@ -4,9 +4,16 @@ import akka.actor.ActorRef
 import akka.event.LoggingAdapter
 import akka.util.Timeout
 import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalBreakpoint
-import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.{FollowPrevious, ForceLocal, UseAll}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.{RandomDeployment, RoundRobinDeployment}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{ActorLayer, ProcessorWorkerLayer}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.{
+  FollowPrevious,
+  ForceLocal,
+  UseAll
+}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.{
+  RandomDeployment,
+  RoundRobinDeployment
+}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.architecture.linksemantics.{AllToOne, HashBasedShuffle}
 import edu.uci.ics.amber.engine.architecture.worker.WorkerState
 import edu.uci.ics.amber.engine.common.Constants
@@ -25,14 +32,14 @@ class AggregateOpExecConfig[P <: AnyRef](
   override lazy val topology: Topology = {
 
     if (aggFunc.groupByFunc == null) {
-      val partialLayer = new ProcessorWorkerLayer(
+      val partialLayer = new WorkerLayer(
         LayerTag(tag, "localAgg"),
         _ => new PartialAggregateOpExec(aggFunc),
         Constants.defaultNumWorkers,
         UseAll(),
         RoundRobinDeployment()
       )
-      val finalLayer = new ProcessorWorkerLayer(
+      val finalLayer = new WorkerLayer(
         LayerTag(tag, "globalAgg"),
         _ => new FinalAggregateOpExec(aggFunc),
         1,
@@ -45,19 +52,19 @@ class AggregateOpExecConfig[P <: AnyRef](
           finalLayer
         ),
         Array(
-          new AllToOne(partialLayer, finalLayer, Constants.defaultBatchSize,0)
+          new AllToOne(partialLayer, finalLayer, Constants.defaultBatchSize, 0)
         ),
         Map()
       )
     } else {
-      val partialLayer = new ProcessorWorkerLayer(
+      val partialLayer = new WorkerLayer(
         LayerTag(tag, "localAgg"),
         _ => new PartialAggregateOpExec(aggFunc),
         Constants.defaultNumWorkers,
         UseAll(),
         RoundRobinDeployment()
       )
-      val finalLayer = new ProcessorWorkerLayer(
+      val finalLayer = new WorkerLayer(
         LayerTag(tag, "globalAgg"),
         _ => new FinalAggregateOpExec(aggFunc),
         Constants.defaultNumWorkers,
@@ -86,10 +93,10 @@ class AggregateOpExecConfig[P <: AnyRef](
     }
   }
   override def assignBreakpoint(
-      topology: Array[ActorLayer],
+      topology: Array[WorkerLayer],
       states: mutable.AnyRefMap[ActorRef, WorkerState.Value],
       breakpoint: GlobalBreakpoint
-  )(implicit timeout: Timeout, ec: ExecutionContext, log: LoggingAdapter): Unit = {
+  )(implicit timeout: Timeout, ec: ExecutionContext): Unit = {
     breakpoint.partition(topology(0).layer.filter(states(_) != WorkerState.Completed))
   }
 

@@ -1,6 +1,9 @@
 package edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint
 import edu.uci.ics.amber.engine.architecture.breakpoint.FaultedTuple
-import edu.uci.ics.amber.engine.architecture.breakpoint.localbreakpoint.{CountBreakpoint, LocalBreakpoint}
+import edu.uci.ics.amber.engine.architecture.breakpoint.localbreakpoint.{
+  CountBreakpoint,
+  LocalBreakpoint
+}
 import edu.uci.ics.amber.engine.common.AdvancedMessageSending
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{
   AssignBreakpoint,
@@ -33,7 +36,6 @@ class CountGlobalBreakpoint(id: String, val target: Long) extends GlobalBreakpoi
   override def partitionImpl(layer: Array[ActorRef])(implicit
       timeout: Timeout,
       ec: ExecutionContext,
-      log: LoggingAdapter,
       id: String,
       version: Long
   ): Iterable[ActorRef] = {

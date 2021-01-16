@@ -1,0 +1,48 @@
+<div class="saved-workflow-container subsection-grid-container">
+
+  <mat-card class="workflow-section-title subsection-grid-container">
+    <div class="d-inline-block" ngbDropdown>
+      <button class="btn btn-outline-primary" id="sortDropdown" ngbDropdownToggle>Sort</button>
+      <div aria-labelledby="dropdownBasic1" ngbDropdownMenu>
+        <mat-list>
+          <button (click)="lastSort()" class="sorting_func" mat-button>By Edit Time</button>
+          <mat-divider></mat-divider>
+          <button (click)="dateSort()" class="sorting_func" mat-button>By Create Time</button>
+          <mat-divider></mat-divider>
+          <button (click)="ascSort()" class="sorting_func" mat-button>A -> Z</button>
+          <mat-divider></mat-divider>
+          <button (click)="dscSort()" class="sorting_func" mat-button>Z -> A</button>
+          <mat-divider></mat-divider>
+        </mat-list>
+      </div>
+      <button (click)="onClickCreateNewWorkflowFromDashboard()" class="btn btn-outline-dark add-button" type="button">
+        <i class="fa fa-plus" color="dark"></i></button>
+    </div>
+  </mat-card>
+
+  <mat-card class="workflow-list subsection-grid-container">
+    <mat-card-content>
+      <mat-list>
+        <div>
+          <h2 class="page-title">Workflows</h2>
+          <br/>
+        </div>
+        <div class="scroll">
+          <mat-list-item *ngFor="let workflow of workflows" class="project-list-item">
+            <h3 class="workflow-name" mat-line><label (click)="jumpToWorkflow(workflow)">{{workflow.name}}</label></h3>
+            <p class="workflow-time" mat-line><br>
+              Last Access: {{workflow.lastModifiedTime | date:'yyyy-MM-dd HH:mm'}}
+              <span class="time-space"></span>
+              Created: {{workflow.creationTime | date:'yyyy-MM-dd HH:mm'}}
+            </p>
+            <button (click)="openNgbdModalDeleteWorkflowComponent(workflow)" class="delete-workflow-btn" mat-button
+                    ngbTooltip="Delete the {{workflow.name}}" placement="bottom"><i class="fa fa-trash"></i>
+            </button>
+          </mat-list-item>
+
+        </div>
+      </mat-list>
+
+    </mat-card-content>
+  </mat-card>
+</div>

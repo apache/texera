@@ -4,6 +4,8 @@ import { By } from '@angular/platform-browser';
 import { DebugElement } from '@angular/core';
 
 import { CodeareaCustomTemplateComponent } from './codearea-custom-template.component';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { Overlay } from '@angular/cdk/overlay';
 
 describe('CodeareaCustomTemplateComponent', () => {
   let component: CodeareaCustomTemplateComponent;
@@ -11,7 +13,8 @@ describe('CodeareaCustomTemplateComponent', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-      declarations: [ CodeareaCustomTemplateComponent ]
+      declarations: [ CodeareaCustomTemplateComponent ],
+      imports: [ MatDialogModule ]
     })
     .compileComponents();
   }));

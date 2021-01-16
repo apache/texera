@@ -86,8 +86,13 @@ export class PropertyEditorComponent {
   public formlyFields: FormlyFieldConfig[] | undefined;
   public formTitle: string | undefined;
 
+  // show TypeInformation only when operator type is TypeCasting
+  public showTypeCastingTypeInformation = false;
+
   // used to fill in default values in json schema to initialize new operator
   private ajv = new Ajv({ useDefaults: true });
+
+
 
   constructor(
     public formlyJsonschema: FormlyJsonschema,
@@ -148,7 +153,7 @@ export class PropertyEditorComponent {
     if (this.currentLinkID) {
       // remove breakpoint in texera workflow first, then unhighlight it
       this.workflowActionService.removeLinkBreakpoint(this.currentLinkID);
-      this.workflowActionService.getJointGraphWrapper().unhighlightLink(this.currentLinkID);
+      this.workflowActionService.getJointGraphWrapper().unhighlightLinks(this.currentLinkID);
     }
     this.clearPropertyEditor();
   }
@@ -357,7 +362,7 @@ export class PropertyEditorComponent {
    * This method captures the change in operator's property via program instead of user updating the
    *  json schema form in the user interface.
    *
-   * For instance, when the input doesn't matching the new j   son schema and the UI needs to remove the
+   * For instance, when the input doesn't matching the new json schema and the UI needs to remove the
    *  invalid fields, this form will capture those events.
    */
   private handleOperatorPropertyChange(): void {
@@ -367,6 +372,7 @@ export class PropertyEditorComponent {
       .filter(operatorChanged => !isEqual(this.formData, operatorChanged.operator.operatorProperties))
       .subscribe(operatorChanged => {
         this.formData = cloneDeep(operatorChanged.operator.operatorProperties);
+
       });
     this.workflowActionService.getTexeraGraph().getBreakpointChangeStream()
       .filter(event => this.currentLinkID !== undefined)
@@ -374,6 +380,7 @@ export class PropertyEditorComponent {
       .filter(event => !isEqual(this.formData, this.workflowActionService.getTexeraGraph().getLinkBreakpoint(event.linkID)))
       .subscribe(event => {
         this.formData = cloneDeep(this.workflowActionService.getTexeraGraph().getLinkBreakpoint(event.linkID));
+
       });
   }
 
@@ -385,45 +392,45 @@ export class PropertyEditorComponent {
     this.operatorPropertyChangeStream.subscribe(formData => {
       // set the operator property to be the new form data
       if (this.currentOperatorID) {
+        const operator = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorID);
+
         this.workflowActionService.setOperatorProperty(this.currentOperatorID, formData);
+        this.workflowActionService.setOperatorProperty(this.currentOperatorID, cloneDeep(formData));
       }
     });
   }
 
   /**
-   * Handles the operator highlight / unhighlight events.
+   * This method changes the property editor according to how operators are highlighted on the workflow editor.
    *
-   * When operators are highlighted / unhighlighted,
-   *   -> displays the form of the highlighted operator if only one operator is highlighted
-   *   -> hides the form otherwise
+   * Displays the form of the highlighted operator if only one operator is highlighted;
+   * Displays the form of the link breakpoint if only one link is highlighted;
+   * hides the form if no operator/link is highlighted or multiple operators and/or groups and/or links are highlighted.
    */
   private handleHighlightEvents() {
     Observable.merge(
-      this.workflowActionService.getJointGraphWrapper().getJointCellHighlightStream(),
-      this.workflowActionService.getJointGraphWrapper().getJointCellUnhighlightStream()
+      this.workflowActionService.getJointGraphWrapper().getJointOperatorHighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getJointOperatorUnhighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getJointGroupHighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getJointGroupUnhighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getLinkHighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getLinkUnhighlightStream()
     ).subscribe(() => {
-      // Displays the form of the highlighted operator if only one operator is highlighted;
-      // hides the form if no operator is highlighted or multiple operators are highlighted.
       const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
-      if (highlightedOperators.length === 1) {
+      const highlightedGroups = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs();
+      const highlightLinks = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs();
+
+      if (highlightedOperators.length === 1 && highlightedGroups.length === 0 && highlightLinks.length === 0) {
         const operator = this.workflowActionService.getTexeraGraph().getOperator(highlightedOperators[0]);
         this.clearPropertyEditor();
         this.showOperatorPropertyEditor(operator);
+      } else if (highlightLinks.length === 1 && highlightedGroups.length === 0 && highlightedOperators.length === 0) {
+        this.clearPropertyEditor();
+        this.showBreakpointEditor(highlightLinks[0]);
       } else {
         this.clearPropertyEditor();
       }
     });
-    this.workflowActionService.getJointGraphWrapper().getLinkHighlightStream()
-      .subscribe(linkID => {
-        // TODO: fix this, this should not be handled here
-        // this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()
-        //       .forEach(operatorID => this.workflowActionService.getJointGraphWrapper().unhighlightOperator(operatorID));
-        this.clearPropertyEditor();
-        this.showBreakpointEditor(linkID.linkID);
-      });
-    this.workflowActionService.getJointGraphWrapper().getLinkUnhighlightStream()
-      .filter(linkID => this.currentLinkID !== undefined && this.currentLinkID === linkID.linkID)
-      .subscribe(linkID => this.clearPropertyEditor());
   }
 
   private setFormlyFormBinding(schema: JSONSchema7) {
@@ -466,5 +473,6 @@ export class PropertyEditorComponent {
 
     this.formlyFields = [field];
   }
+
 
 }

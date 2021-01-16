@@ -11,20 +11,20 @@ export const mockSchemaPropagationResponse: Readonly<SchemaPropagationResponse> 
   result: {
     // [var] means using the variable value as key instead of variable name
     [mockSchemaPropagationOperatorID]: [
-      'city',
-      'user_screen_name',
-      'user_name',
-      'county',
-      'tweet_link',
-      'payload',
-      'user_followers_count',
-      'user_link',
-      '_id',
-      'text',
-      'state',
-      'create_at',
-      'user_description',
-      'user_friends_count'
+      { attributeName: 'city', attributeType: 'string' },
+      { attributeName: 'user_screen_name', attributeType:  'string' },
+      { attributeName: 'user_name', attributeType:  'string' },
+      { attributeName: 'county', attributeType:  'string' },
+      { attributeName: 'tweet_link', attributeType:  'string' },
+      { attributeName: 'payload', attributeType:  'string' },
+      { attributeName: 'user_followers_count', attributeType:  'integer' },
+      { attributeName: 'user_link', attributeType:  'string' },
+      { attributeName: '_id', attributeType:  'string' },
+      { attributeName: 'text', attributeType:  'string' },
+      { attributeName: 'state', attributeType:  'string' },
+      { attributeName: 'create_at', attributeType:  'string' },
+      { attributeName: 'user_description', attributeType:  'string' },
+      { attributeName: 'user_friends_count', attributeType:  'integer' },
     ]
   }
 };
@@ -37,7 +37,7 @@ export const mockEmptySchemaPropagationResponse: Readonly<SchemaPropagationRespo
 
 export const mockAutocompleteAPIEmptyResponse: Readonly<SchemaPropagationResponse> = {
   code: 0,
-  result: { }
+  result: {}
 };
 
 

@@ -12,15 +12,17 @@ import { mockScanPredicate, mockPoint, mockResultPredicate, mockScanResultLink }
 import { OperatorPredicate } from '../../types/workflow-common.interface';
 import { mockScanSourceSchema } from '../operator-metadata/mock-operator-metadata.data';
 import { environment } from './../../../../environments/environment';
+import { WorkflowUtilService } from '../workflow-graph/util/workflow-util.service';
 
 describe('DynamicSchemaService', () => {
 
   beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [
-        {provide: OperatorMetadataService, useClass: StubOperatorMetadataService},
+        { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         JointUIService,
         WorkflowActionService,
+        WorkflowUtilService,
         UndoRedoService,
         DynamicSchemaService
       ]
@@ -81,15 +83,15 @@ describe('DynamicSchemaService', () => {
     };
 
     const trigger = m.hot('-a-c-', {
-        a: () => workflowActionService.addOperator(mockScanPredicate, mockPoint),
-        c: () => dynamicSchemaService.setDynamicSchema(mockScanPredicate.operatorID, newSchema)
+      a: () => workflowActionService.addOperator(mockScanPredicate, mockPoint),
+      c: () => dynamicSchemaService.setDynamicSchema(mockScanPredicate.operatorID, newSchema)
     });
 
     trigger.subscribe(
       eventFunc => eventFunc()
     );
 
-    const expected = m.hot('---e-', {e: { operatorID: mockScanPredicate.operatorID} });
+    const expected = m.hot('---e-', { e: { operatorID: mockScanPredicate.operatorID } });
 
     m.expect(dynamicSchemaService.getOperatorDynamicSchemaChangedStream()).toBeObservable(expected);
 
@@ -100,8 +102,8 @@ describe('DynamicSchemaService', () => {
     const dynamicSchemaService: DynamicSchemaService = TestBed.get(DynamicSchemaService);
 
     const trigger = m.hot('-a-c-', {
-        a: () => workflowActionService.addOperator(mockScanPredicate, mockPoint),
-        c: () => dynamicSchemaService.setDynamicSchema(mockScanPredicate.operatorID, mockScanSourceSchema)
+      a: () => workflowActionService.addOperator(mockScanPredicate, mockPoint),
+      c: () => dynamicSchemaService.setDynamicSchema(mockScanPredicate.operatorID, mockScanSourceSchema)
     });
 
     trigger.subscribe(

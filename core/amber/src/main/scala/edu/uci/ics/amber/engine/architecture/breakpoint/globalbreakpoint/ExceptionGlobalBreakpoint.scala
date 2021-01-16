@@ -32,7 +32,6 @@ class ExceptionGlobalBreakpoint(id: String) extends GlobalBreakpoint(id) {
   override def partitionImpl(layer: Array[ActorRef])(implicit
       timeout: Timeout,
       ec: ExecutionContext,
-      log: LoggingAdapter,
       id: String,
       version: Long
   ): Iterable[ActorRef] = {

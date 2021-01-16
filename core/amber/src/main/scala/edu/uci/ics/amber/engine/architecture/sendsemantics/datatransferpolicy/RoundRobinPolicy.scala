@@ -1,83 +1,59 @@
 package edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy
 
-import edu.uci.ics.amber.engine.architecture.sendsemantics.routees.BaseRoutee
-import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{DataMessage, EndSending}
 import edu.uci.ics.amber.engine.common.ambertag.LinkTag
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import akka.actor.{Actor, ActorContext, ActorRef}
+import akka.actor.{ActorContext, ActorRef}
 import akka.event.LoggingAdapter
 import akka.util.Timeout
+import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{DataFrame, EndOfUpstream}
+import edu.uci.ics.amber.engine.common.ambermessage.neo.DataPayload
+import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
+import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
 
+import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext
 
 class RoundRobinPolicy(batchSize: Int) extends DataTransferPolicy(batchSize) {
-  var routees: Array[BaseRoutee] = _
-  var sequenceNum: Array[Long] = _
+  var receivers: Array[ActorVirtualIdentity] = _
   var roundRobinIndex = 0
   var batch: Array[ITuple] = _
   var currentSize = 0
 
-  override def noMore()(implicit sender: ActorRef): Unit = {
+  override def noMore(): Array[(ActorVirtualIdentity, DataPayload)] = {
+    val ret = new ArrayBuffer[(ActorVirtualIdentity, DataPayload)]
     if (currentSize > 0) {
-      routees(roundRobinIndex).schedule(
-        DataMessage(sequenceNum(roundRobinIndex), batch.slice(0, currentSize))
-      )
-      sequenceNum(roundRobinIndex) += 1
+      ret.append((receivers(roundRobinIndex), DataFrame(batch.slice(0, currentSize))))
     }
-    var i = 0
-    while (i < routees.length) {
-      routees(i).schedule(EndSending(sequenceNum(i)))
-      i += 1
+    receivers.foreach { receiver =>
+      ret.append((receiver, EndOfUpstream())) // send end to all receivers
     }
+    ret.toArray
   }
 
-  override def pause(): Unit = {
-    for (i <- routees) {
-      i.pause()
-    }
-  }
-
-  override def resume()(implicit sender: ActorRef): Unit = {
-    for (i <- routees) {
-      i.resume()
-    }
-  }
-
-  override def accept(tuple: ITuple)(implicit sender: ActorRef): Unit = {
+  override def addTupleToBatch(
+      tuple: ITuple
+  ): Option[(ActorVirtualIdentity, DataPayload)] = {
     batch(currentSize) = tuple
     currentSize += 1
     if (currentSize == batchSize) {
       currentSize = 0
-      routees(roundRobinIndex).schedule(DataMessage(sequenceNum(roundRobinIndex), batch))
-      sequenceNum(roundRobinIndex) += 1
-      roundRobinIndex = (roundRobinIndex + 1) % routees.length
+      val retBatch = batch
+      roundRobinIndex = (roundRobinIndex + 1) % receivers.length
       batch = new Array[ITuple](batchSize)
+      return Some((receivers(roundRobinIndex), DataFrame(retBatch)))
     }
+    None
   }
 
-  override def initialize(tag: LinkTag, next: Array[BaseRoutee])(implicit
-      ac: ActorContext,
-      sender: ActorRef,
-      timeout: Timeout,
-      ec: ExecutionContext,
-      log: LoggingAdapter
-  ): Unit = {
-    super.initialize(tag, next)
-    assert(next != null)
-    routees = next
-    routees.foreach(_.initialize(tag))
+  override def initialize(tag: LinkTag, _receivers: Array[ActorVirtualIdentity]): Unit = {
+    super.initialize(tag, _receivers)
+    assert(_receivers != null)
+    this.receivers = _receivers
     batch = new Array[ITuple](batchSize)
-    sequenceNum = new Array[Long](routees.length)
-  }
-
-  override def dispose(): Unit = {
-    routees.foreach(_.dispose())
   }
 
   override def reset(): Unit = {
-    routees.foreach(_.reset())
     batch = new Array[ITuple](batchSize)
-    sequenceNum = new Array[Long](routees.length)
     roundRobinIndex = 0
     currentSize = 0
   }

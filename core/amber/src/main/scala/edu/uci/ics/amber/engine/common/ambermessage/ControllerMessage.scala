@@ -22,7 +22,6 @@ object ControllerMessage {
       report: mutable.HashMap[(ActorRef, FaultedTuple), ArrayBuffer[String]],
       operatorID: String = null
   )
-
   final case class PassBreakpointTo(operatorID: String, breakpoint: GlobalBreakpoint)
 
 }

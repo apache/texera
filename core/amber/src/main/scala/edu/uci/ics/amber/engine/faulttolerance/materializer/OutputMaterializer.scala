@@ -21,7 +21,10 @@ class OutputMaterializer(val outputPath: String, val remoteHDFS: String = null)
     writer.close()
   }
 
-  override def processTuple(tuple: Either[ITuple, InputExhausted], input: Int): scala.Iterator[ITuple] = {
+  override def processTuple(
+      tuple: Either[ITuple, InputExhausted],
+      input: Int
+  ): scala.Iterator[ITuple] = {
     tuple match {
       case Left(t) =>
         writer.write(t.mkString("|"))

@@ -1,69 +1,51 @@
 package edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy
 
-import edu.uci.ics.amber.engine.architecture.sendsemantics.routees.BaseRoutee
-import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{DataMessage, EndSending}
 import edu.uci.ics.amber.engine.common.ambertag.LinkTag
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import akka.actor.{Actor, ActorContext, ActorRef}
-import akka.event.LoggingAdapter
-import akka.util.Timeout
+import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{DataFrame, EndOfUpstream}
+import edu.uci.ics.amber.engine.common.ambermessage.neo.DataPayload
+import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
+import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
 
-import scala.concurrent.ExecutionContext
+import scala.collection.mutable.ArrayBuffer
 
 class OneToOnePolicy(batchSize: Int) extends DataTransferPolicy(batchSize) {
-  var sequenceNum: Long = 0
-  var routee: BaseRoutee = _
+  var receiver: ActorVirtualIdentity = _
   var batch: Array[ITuple] = _
   var currentSize = 0
-  override def accept(tuple: ITuple)(implicit sender: ActorRef): Unit = {
+
+  override def addTupleToBatch(
+      tuple: ITuple
+  ): Option[(ActorVirtualIdentity, DataPayload)] = {
     batch(currentSize) = tuple
     currentSize += 1
     if (currentSize == batchSize) {
       currentSize = 0
-      routee.schedule(DataMessage(sequenceNum, batch))
-      sequenceNum += 1
+      val retBatch = batch
       batch = new Array[ITuple](batchSize)
+      return Some((receiver, DataFrame(retBatch)))
     }
+    None
   }
 
-  override def noMore()(implicit sender: ActorRef): Unit = {
+  override def noMore(): Array[(ActorVirtualIdentity, DataPayload)] = {
+    val ret = new ArrayBuffer[(ActorVirtualIdentity, DataPayload)]
     if (currentSize > 0) {
-      routee.schedule(DataMessage(sequenceNum, batch.slice(0, currentSize)))
-      sequenceNum += 1
+      ret.append((receiver, DataFrame(batch.slice(0, currentSize))))
     }
-    routee.schedule(EndSending(sequenceNum))
+    ret.append((receiver, EndOfUpstream()))
+    ret.toArray
   }
 
-  override def pause(): Unit = {
-    routee.pause()
-  }
-
-  override def resume()(implicit sender: ActorRef): Unit = {
-    routee.resume()
-  }
-
-  override def initialize(tag: LinkTag, next: Array[BaseRoutee])(implicit
-      ac: ActorContext,
-      sender: ActorRef,
-      timeout: Timeout,
-      ec: ExecutionContext,
-      log: LoggingAdapter
-  ): Unit = {
-    super.initialize(tag, next)
-    assert(next != null && next.length == 1)
-    routee = next(0)
-    routee.initialize(tag)
+  override def initialize(tag: LinkTag, _receivers: Array[ActorVirtualIdentity]): Unit = {
+    super.initialize(tag, _receivers)
+    assert(_receivers != null && _receivers.length == 1)
+    receiver = _receivers(0)
     batch = new Array[ITuple](batchSize)
-  }
-
-  override def dispose(): Unit = {
-    routee.dispose()
   }
 
   override def reset(): Unit = {
-    routee.reset()
     batch = new Array[ITuple](batchSize)
     currentSize = 0
-    sequenceNum = 0L
   }
 }

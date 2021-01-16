@@ -1,7 +1,7 @@
-import { Command } from './../workflow-graph/model/workflow-action.service';
 import { Injectable } from '@angular/core';
-import { assertType } from '../../../common/util/assert' ;
 import { Observable, Subject } from 'rxjs';
+import { assertType } from '../../../common/util/assert';
+import { Command } from '../workflow-graph/model/workflow-action.service';
 
 /* TODO LIST FOR BUGS
 1. Problem with repeatedly adding and deleting a link without letting go, unintended behavior
@@ -53,14 +53,14 @@ export class UndoRedoService {
       this.setListenJointCommand(true);
       this.canUndoStream.next(this.canUndo());
 
-      console.log("service can undo", this.canUndo());
+      console.log('service can undo', this.canUndo());
     }
   }
 
   public redoAction(): void {
     // need to figure out what to keep on the stack and off
     if (this.redoStack.length > 0) {
-      if (!this.workFlowModificationEnabled && this.redoStack[ this.redoStack.length - 1].modifiesWorkflow) {
+      if (!this.workFlowModificationEnabled && this.redoStack[this.redoStack.length - 1].modifiesWorkflow) {
         console.error('attempted to redo a workflow-modifying command while workflow modification is disabled');
         return;
       }
@@ -75,7 +75,7 @@ export class UndoRedoService {
       this.undoStack.push(command);
       this.setListenJointCommand(true);
       this.canRedoStream.next(this.canRedo());
-      console.log("service can redo", this.canRedo());
+      console.log('service can redo', this.canRedo());
     }
   }
 
@@ -112,5 +112,12 @@ export class UndoRedoService {
     return this.canRedoStream.asObservable();
   }
 
+  public clearUndoStack(): void {
+    this.undoStack = [];
+  }
+
+  public clearRedoStack(): void {
+    this.redoStack = [];
+  }
 
 }

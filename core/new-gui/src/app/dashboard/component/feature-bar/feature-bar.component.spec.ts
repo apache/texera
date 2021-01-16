@@ -3,8 +3,8 @@ import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 import { FeatureBarComponent } from './feature-bar.component';
 import { RouterTestingModule } from '@angular/router/testing';
 
-import {MatDividerModule} from '@angular/material/divider';
-import {MatListModule} from '@angular/material/list';
+import { MatDividerModule } from '@angular/material/divider';
+import { MatListModule } from '@angular/material/list';
 
 describe('FeatureBarComponent', () => {
   let component: FeatureBarComponent;
@@ -12,12 +12,12 @@ describe('FeatureBarComponent', () => {
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
-      declarations: [ FeatureBarComponent ],
+      declarations: [FeatureBarComponent],
       imports: [RouterTestingModule,
         MatDividerModule,
         MatListModule]
     })
-    .compileComponents();
+      .compileComponents();
   }));
 
   beforeEach(() => {

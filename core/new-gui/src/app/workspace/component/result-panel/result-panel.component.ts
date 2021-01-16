@@ -3,19 +3,18 @@ import { ExecuteWorkflowService } from './../../service/execute-workflow/execute
 import { Observable } from 'rxjs/Observable';
 
 import { NzModalRef, NzModalService } from 'ng-zorro-antd/modal';
-import { ExecutionResult, SuccessExecutionResult, ExecutionState, ExecutionStateInfo } from './../../types/execute-workflow.interface';
-import { TableColumn, IndexableObject } from './../../types/result-table.interface';
+import { ExecutionState } from './../../types/execute-workflow.interface';
+import { TableColumn, IndexableObject, PAGINATION_INFO_STORAGE_KEY } from './../../types/result-table.interface';
 import { ResultPanelToggleService } from './../../service/result-panel-toggle/result-panel-toggle.service';
 import deepMap from 'deep-map';
-import { isEqual, repeat, range } from 'lodash';
-import { ResultObject } from '../../types/execute-workflow.interface';
+import { isEqual } from 'lodash';
 import { WorkflowActionService } from '../../service/workflow-graph/model/workflow-action.service';
 import { BreakpointTriggerInfo } from '../../types/workflow-common.interface';
-import { OperatorMetadata } from '../../types/operator-schema.interface';
-import { OperatorMetadataService } from '../../service/operator-metadata/operator-metadata.service';
-import { DynamicSchemaService } from '../../service/dynamic-schema/dynamic-schema.service';
-import { environment } from 'src/environments/environment';
+import { NzTableQueryParams } from 'ng-zorro-antd/table';
+import { WorkflowWebsocketService } from '../../service/workflow-websocket/workflow-websocket.service';
 import { assertType } from 'src/app/common/util/assert';
+import { ResultPaginationInfo } from '../../types/result-table.interface';
+import { sessionGetObject, sessionRemoveObject, sessionSetObject } from 'src/app/common/util/storage';
 
 /**
  * ResultPanelCompoent is the bottom level area that displays the
@@ -57,17 +56,32 @@ export class ResultPanelComponent {
   public breakpointTriggerInfo: BreakpointTriggerInfo | undefined;
   public breakpointAction: boolean = false;
 
+  // paginator section, used when displaying rows
+
+  // this attribute stores whether front-end should handle pagination
+  //   if false, it means the pagination is managed by the server
+  //   see https://ng.ant.design/components/table/en#components-table-demo-ajax
+  //   for more details
+  public isFrontPagination: boolean = true;
+  public isLoadingResult: boolean = false;
+  public currentPageSize: number = 10;
+  // this starts from **ONE**, not zero
+  public currentPageIndex: number = 1;
+  public total: number = 0;
+  private operatorID: string = '';
+
   constructor(
     private executeWorkflowService: ExecuteWorkflowService,
     private modalService: NzModalService,
     private resultPanelToggleService: ResultPanelToggleService,
-    private workflowActionService: WorkflowActionService
+    private workflowActionService: WorkflowActionService,
+    private workflowWebsocketService: WorkflowWebsocketService
   ) {
     const activeStates: ExecutionState[] = [ExecutionState.Completed, ExecutionState.Failed, ExecutionState.BreakpointTriggered];
     Observable.merge(
       this.executeWorkflowService.getExecutionStateStream(),
-      this.workflowActionService.getJointGraphWrapper().getJointCellHighlightStream(),
-      this.workflowActionService.getJointGraphWrapper().getJointCellUnhighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getJointOperatorHighlightStream(),
+      this.workflowActionService.getJointGraphWrapper().getJointOperatorUnhighlightStream(),
       this.resultPanelToggleService.getToggleChangeStream()
     ).subscribe(trigger => this.displayResultPanel());
 
@@ -77,7 +91,7 @@ export class ResultPanelComponent {
       if (event.current.state === ExecutionState.BreakpointTriggered) {
         const breakpointOperator = this.executeWorkflowService.getBreakpointTriggerInfo()?.operatorID;
         if (breakpointOperator) {
-          this.workflowActionService.getJointGraphWrapper().highlightOperator(breakpointOperator);
+          this.workflowActionService.getJointGraphWrapper().highlightOperators(breakpointOperator);
         }
         this.resultPanelToggleService.openResultPanel();
       }
@@ -88,11 +102,31 @@ export class ResultPanelComponent {
         const sinkOperators = this.workflowActionService.getTexeraGraph().getAllOperators()
           .filter(op => op.operatorType.toLowerCase().includes('sink'));
         if (sinkOperators.length > 0) {
-          this.workflowActionService.getJointGraphWrapper().highlightOperator(sinkOperators[0].operatorID);
+          this.workflowActionService.getJointGraphWrapper().highlightOperators(sinkOperators[0].operatorID);
         }
         this.resultPanelToggleService.openResultPanel();
       }
     });
+
+    this.workflowWebsocketService.websocketEvent().subscribe(websocketEvent => {
+      if (websocketEvent.type !== 'PaginatedResultEvent') {
+        return;
+      }
+
+      const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+
+      for (const result of websocketEvent.paginatedResults) {
+        if (result.operatorID === highlightedOperators[0]) {
+          this.total = result.totalRowCount;
+          this.currentResult = result.table.slice();
+          this.isLoadingResult = false;
+          return;
+        }
+      }
+    });
+
+    // clear session storage for refresh
+    sessionRemoveObject(PAGINATION_INFO_STORAGE_KEY);
   }
 
   public displayResultPanel(): void {
@@ -115,7 +149,8 @@ export class ResultPanelComponent {
       if (highlightedOperators.length === 1 && highlightedOperators[0] === breakpointTriggerInfo?.operatorID) {
         this.breakpointTriggerInfo = breakpointTriggerInfo;
         this.breakpointAction = true;
-        this.setupResultTable(breakpointTriggerInfo.report.map(r => r.faultedTuple.tuple).filter(t => t !== undefined));
+        const result = breakpointTriggerInfo.report.map(r => r.faultedTuple.tuple).filter(t => t !== undefined);
+        this.setupResultTable(result, result.length, highlightedOperators[0]);
         const errorsMessages: Record<string, string> = {};
         breakpointTriggerInfo.report.forEach(r => {
           const pathsplitted = r.actorPath.split('/');
@@ -132,7 +167,8 @@ export class ResultPanelComponent {
         const result = executionState.resultMap.get(highlightedOperators[0]);
         if (result) {
           this.chartType = result.chartType;
-          this.setupResultTable(result.table);
+          this.isFrontPagination = false;
+          this.setupResultTable(result.table, result.totalRowCount, highlightedOperators[0]);
         }
       }
     } else if (executionState.state === ExecutionState.Paused) {
@@ -146,13 +182,27 @@ export class ResultPanelComponent {
             updatedTuple.push(...workerTuple.tuple);
             resultTable.push(updatedTuple);
           });
-          this.setupResultTable(resultTable);
+          this.setupResultTable(resultTable, resultTable.length, highlightedOperators[0]);
         }
       }
     }
   }
 
   public clearResultPanel(): void {
+    // store result into session storage so that they could be restored
+    //   when user click the "view result" operator again
+    const resultPaginationInfo = sessionGetObject<ResultPaginationInfo>(PAGINATION_INFO_STORAGE_KEY);
+    if (resultPaginationInfo && !resultPaginationInfo.newWorkflowExecuted && this.currentResult.length > 0) {
+      sessionSetObject(PAGINATION_INFO_STORAGE_KEY, {
+        ...resultPaginationInfo,
+        currentResult: this.currentResult,
+        currentPageIndex: this.currentPageIndex,
+        currentPageSize: this.currentPageSize,
+        total: this.total,
+        operatorID: this.operatorID
+      });
+    }
+
     this.errorMessages = undefined;
 
     this.currentColumns = undefined;
@@ -163,6 +213,11 @@ export class ResultPanelComponent {
     this.breakpointTriggerInfo = undefined;
     this.breakpointAction = false;
 
+    this.isFrontPagination = true;
+    this.currentPageIndex = 1;
+    this.currentPageSize = 10;
+    this.total = 0;
+    this.isLoadingResult = false;
   }
 
 
@@ -225,17 +280,56 @@ export class ResultPanelComponent {
   }
 
   /**
+   * Callback function for table query params changed event
+   *   params containing new page index, new page size, and more
+   *   (this function will be called when user switch page)
+   *
+   * @param params new parameters
+   */
+  public onTableQueryParamsChange(params: NzTableQueryParams) {
+    const { pageSize: newPageSize, pageIndex: newPageIndex } = params;
+    this.currentPageSize = newPageSize;
+    this.currentPageIndex = newPageIndex;
+
+    if (this.isFrontPagination) {
+      return;
+    }
+
+    this.isLoadingResult = true;
+    this.workflowWebsocketService.send('ResultPaginationRequest', { pageSize: newPageSize, pageIndex: newPageIndex });
+  }
+
+  /**
    * Updates all the result table properties based on the execution result,
    *  displays a new data table with a new paginator on the result panel.
    *
-   * @param response
+   * @param resultData rows of the result (may not be all rows if displaying result for workflow completed event)
+   * @param totalRowCount the total number of rows for the result
+   * @param operatorID id of the operator providing data
    */
-  private setupResultTable(resultData: ReadonlyArray<object>) {
+  private setupResultTable(resultData: ReadonlyArray<object>, totalRowCount: number, operatorID: string) {
+    this.operatorID = operatorID;
 
     if (resultData.length < 1) {
       return;
     }
 
+    // if there is no new result
+    //   then restore the previous paginated result data from session storage
+    let resultPaginationInfo = sessionGetObject<ResultPaginationInfo>(PAGINATION_INFO_STORAGE_KEY);
+    if (resultPaginationInfo && !resultPaginationInfo.newWorkflowExecuted && resultPaginationInfo.operatorID === this.operatorID) {
+      this.isFrontPagination = false;
+      this.currentResult = resultPaginationInfo.currentResult;
+      this.currentPageIndex = resultPaginationInfo.currentPageIndex;
+      this.currentPageSize = resultPaginationInfo.currentPageSize;
+      this.total = resultPaginationInfo.total;
+      this.currentDisplayColumns = resultPaginationInfo.columnKeys;
+      // generate columnDef from first row, column definition is in order
+      this.currentColumns = ResultPanelComponent.generateColumns(
+        this.currentDisplayColumns.map(v => ({columnKey: v, columnText: v}))
+      );
+      return;
+    }
     // creates a shallow copy of the readonly response.result,
     //  this copy will be has type object[] because MatTableDataSource's input needs to be object[]
 
@@ -259,6 +353,23 @@ export class ResultPanelComponent {
 
     // generate columnDef from first row, column definition is in order
     this.currentColumns = ResultPanelComponent.generateColumns(columns);
+    this.total = totalRowCount ?? resultData.length;
+
+    // get the current page size, if the result length is less than `this.currentPageSize`,
+    //  then the maximum number of items each page will be the length of the result, otherwise `this.currentPageSize`.
+    this.currentPageSize = Math.min(this.total, this.currentPageSize);
+
+    // save paginated result into session storage
+    resultPaginationInfo = {
+      newWorkflowExecuted: false,
+      currentResult: this.currentResult,
+      currentPageIndex: this.currentPageIndex,
+      currentPageSize: this.currentPageSize,
+      total: this.total,
+      columnKeys: columnKeys,
+      operatorID: this.operatorID
+    };
+    sessionSetObject(PAGINATION_INFO_STORAGE_KEY, resultPaginationInfo);
   }
 
   /**

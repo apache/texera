@@ -6,7 +6,7 @@ import akka.util.Timeout
 import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalBreakpoint
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.ForceLocal
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.RandomDeployment
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{ActorLayer, ProcessorWorkerLayer}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.architecture.worker.WorkerState
 import edu.uci.ics.amber.engine.common.ambertag.{LayerTag, OperatorIdentifier}
 import edu.uci.ics.amber.engine.operators.SinkOpExecConfig
@@ -17,7 +17,7 @@ import scala.concurrent.ExecutionContext
 class SimpleSinkOpExecConfig(tag: OperatorIdentifier) extends SinkOpExecConfig(tag) {
   override lazy val topology = new Topology(
     Array(
-      new ProcessorWorkerLayer(
+      new WorkerLayer(
         LayerTag(tag, "main"),
         _ => new SimpleSinkOpExec(),
         1,
@@ -30,10 +30,10 @@ class SimpleSinkOpExecConfig(tag: OperatorIdentifier) extends SinkOpExecConfig(t
   )
 
   override def assignBreakpoint(
-      topology: Array[ActorLayer],
+      topology: Array[WorkerLayer],
       states: mutable.AnyRefMap[ActorRef, WorkerState.Value],
       breakpoint: GlobalBreakpoint
-  )(implicit timeout: Timeout, ec: ExecutionContext, log: LoggingAdapter): Unit = {
+  )(implicit timeout: Timeout, ec: ExecutionContext): Unit = {
     breakpoint.partition(topology(0).layer.filter(states(_) != WorkerState.Completed))
   }
 }
