@@ -17,7 +17,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
-class LocalCsvSourceOpExecConfig(
+class LocalCsvFileScanOpExecConfig(
     tag: OperatorIdentifier,
     numWorkers: Int,
     filePath: String,

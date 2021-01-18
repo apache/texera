@@ -46,7 +46,7 @@ public class LocalCsvFileScanOpDesc extends SourceOperatorDescriptor {
         }
         try {
             String headerLine = Files.asCharSource(new File(filePath), Charset.defaultCharset()).readFirstLine();
-            return new LocalCsvSourceOpExecConfig(this.operatorIdentifier(), Constants.defaultNumWorkers(),
+            return new LocalCsvFileScanOpExecConfig(this.operatorIdentifier(), Constants.defaultNumWorkers(),
                     filePath, delimiter.charAt(0), this.inferSchema(headerLine), header != null && header);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
