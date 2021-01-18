@@ -331,7 +331,7 @@ class Principal(val metadata: OpExecConfig)
 //      context.become(pausing)
 //      unstashAll()
 
-//    case ReportWorkerPartialCompleted(worker, layer) =>
+    case ReportWorkerPartialCompleted(senderRef) =>
 //      sender ! Ack
 //      AdvancedMessageSending.nonBlockingAskWithRetry(
 //        context.parent,

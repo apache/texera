@@ -156,6 +156,10 @@ class WorkflowWorker(identifier: ActorVirtualIdentity, operator: IOperatorExecut
       }
       context.parent ! ReportState(WorkerState.LocalBreakpointTriggered)
     case ReportWorkerPartialCompleted(currentSenderRef) =>
+      // sent by DP thread to the main thread.
+      // The DP thread doesn't send it to the controller because right now
+      // controller decides which Operator a message is coming from by looking
+      // at a workerToOperator map which has main thread ActorRef as key.
       context.parent ! ReportWorkerPartialCompleted(currentSenderRef)
     case other =>
   }

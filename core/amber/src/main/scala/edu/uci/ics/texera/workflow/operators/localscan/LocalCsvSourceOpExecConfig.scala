@@ -11,7 +11,7 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.architecture.worker.WorkerState
 import edu.uci.ics.amber.engine.common.ambertag.{LayerTag, OperatorIdentifier}
 import edu.uci.ics.amber.engine.operators.OpExecConfig
-import edu.uci.ics.texera.workflow.common.operators.source.FileScanOpExecConfig
+import edu.uci.ics.texera.workflow.common.operators.source.SourceOpExecConfig
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 
 import scala.collection.mutable
@@ -24,8 +24,8 @@ class LocalCsvSourceOpExecConfig(
     delimiter: Char,
     schema: Schema,
     header: Boolean
-) extends FileScanOpExecConfig(tag) {
-  override val totalBytes: Long = new File(filePath).length()
+) extends SourceOpExecConfig(tag) {
+  override val totalSize: Long = new File(filePath).length()
 
   override lazy val topology: Topology = {
     new Topology(
@@ -34,10 +34,10 @@ class LocalCsvSourceOpExecConfig(
           LayerTag(tag, "main"),
           i => {
             val endOffset =
-              if (i != numWorkers - 1) totalBytes / numWorkers * (i + 1) else totalBytes
+              if (i != numWorkers - 1) totalSize / numWorkers * (i + 1) else totalSize
             new LocalCsvScanSourceOpExec(
               filePath,
-              totalBytes / numWorkers * i,
+              totalSize / numWorkers * i,
               endOffset,
               delimiter,
               schema,

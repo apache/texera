@@ -490,6 +490,7 @@ class Controller(
       } else {
         controllerLogger.logInfo(s"${self}- fully initialized!")
       }
+      // before starting any workflows, we register VirtualIdentity.Controller at the controller's network sender actor
       networkSenderActor ! RegisterActorRef(VirtualIdentity.Controller, self)
       context.parent ! ControllerMessage.ReportState(ControllerState.Ready)
       context.become(ready)
@@ -971,6 +972,9 @@ class Controller(
     }
   }
 
+  // helper function used when an upstream operator sends `UpstreamExhausted` to an operator
+  // Helps when a stage ends and the other stage has to be started
+  // eg: When build side of Join finishes, and Probe side is to be sterted
   private def getLayerTagOfExhaustedInput(
       reportingOp: OperatorIdentifier,
       exhaustedInputRef: Int

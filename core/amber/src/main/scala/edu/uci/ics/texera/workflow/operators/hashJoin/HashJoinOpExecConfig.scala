@@ -13,7 +13,7 @@ import edu.uci.ics.amber.engine.common.ambertag.{AmberTag, LayerTag, OperatorIde
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
-import edu.uci.ics.texera.workflow.common.operators.source.FileScanOpExecConfig
+import edu.uci.ics.texera.workflow.common.operators.source.SourceOpExecConfig
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
 import scala.collection.mutable
@@ -52,9 +52,9 @@ class HashJoinOpExecConfig(
     var tableSize = Long.MaxValue
     for (tag <- workflow.inLinks(tag)) {
       workflow.operators(tag) match {
-        case config: FileScanOpExecConfig =>
-          if (tableSize > config.totalBytes) {
-            tableSize = config.totalBytes
+        case config: SourceOpExecConfig =>
+          if (tableSize > config.totalSize) {
+            tableSize = config.totalSize
             tmp = tag
           }
         case _ =>
