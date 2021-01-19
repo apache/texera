@@ -51,6 +51,7 @@ class ControlMessageSource(controlOutputPort: ControlOutputPort) {
     if (unfulfilledPromises.contains(ret.originalCommandID)) {
       val p = unfulfilledPromises(ret.originalCommandID)
       p.setValue(ret.returnValue.asInstanceOf[p.returnType])
+      unfulfilledPromises.remove(ret.originalCommandID)
     }
   }
 
