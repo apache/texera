@@ -35,8 +35,9 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
     private boolean queriesPrepared = false;
     private boolean hasNext = true;
     private long min = 0;
-    private long max = 999999999;
+    private final int cursor;
     private Attribute batchByAttribute = null;
+    private long max = 0;
 
     MysqlSourceOpExec(Schema schema, String host, String port, String database, String table, String username,
                       String password, Integer limit, Integer offset, String column, String keywords,
@@ -59,6 +60,7 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
         if (batchByColumn != null) {
             this.batchByAttribute = schema.getAttribute(batchByColumn);
         }
+        this.cursor = 0;
 
     }
 
@@ -119,21 +121,23 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
                             }
                         }
                         return tupleBuilder.build();
-                    } else if (!miniQueries.isEmpty()) {
+                    } else {
                         if (resultSet != null) {
                             resultSet.close();
                         }
                         if (currentPreparedStatement != null) {
                             currentPreparedStatement.close();
                         }
-                        currentPreparedStatement = miniQueries.poll();
+
+                        currentPreparedStatement = getNextQuery();
                         if (currentPreparedStatement != null) {
                             resultSet = currentPreparedStatement.executeQuery();
+                            return next();
+                        } else {
+                            hasNext = false;
+                            return null;
                         }
-                        return next();
-                    } else {
-                        hasNext = false;
-                        return null;
+
                     }
 
                 } catch (SQLException e) {
@@ -168,8 +172,6 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
                     // load for batch statistics used to split mini queries
                     loadBatchColumnStats();
                 }
-
-                this.prepareQueries();
                 queriesPrepared = true;
 
             }
@@ -190,11 +192,9 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
         return connection;
     }
 
-    private void prepareQueries() throws SQLException {
-        int i = 0;
-
-        do {
-            PreparedStatement preparedStatement = this.connection.prepareStatement(generateSqlQuery(i));
+    private PreparedStatement getNextQuery() throws SQLException {
+        if (min <= max) {
+            PreparedStatement preparedStatement = this.connection.prepareStatement(generateSqlQuery());
             int curIndex = 1;
             if (this.column != null && this.keywords != null) {
                 preparedStatement.setString(curIndex, this.keywords);
@@ -207,9 +207,8 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
             if (this.offset != null) {
                 preparedStatement.setObject(curIndex, this.offset, Types.INTEGER);
             }
-            miniQueries.add(preparedStatement);
-            i += 1;
-        } while (progressive && min + (long) i * interval < max);
+            return preparedStatement;
+        } else return null;
     }
 
     private void loadBatchColumnStats() {
@@ -305,7 +304,7 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
      *
      * @return string of sql query
      */
-    private String generateSqlQuery(int batch) {
+    private String generateSqlQuery() {
         // in sql prepared statement, table name cannot be inserted using preparedstatement.setString
         // so it has to be inserted here during sql query generation
         String query = "\n" + "SELECT * FROM " + this.table + " where 1 = 1";
@@ -316,12 +315,12 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
         if (progressive) {
             query += " AND "
                     + batchByAttribute.getName() + " >= '"
-                    + new Timestamp(min + (long) batch * interval).toString() + "'"
+                    + new Timestamp(min).toString() + "'"
                     + " AND "
                     + batchByAttribute.getName() + " < '"
-                    + new Timestamp(Math.min(max, min + (long) (batch + 1) * interval)).toString() + "'";
-
+                    + new Timestamp(Math.min(max, min + interval)).toString() + "'";
         }
+        min += interval;
         if (this.limit != null) {
             query += " LIMIT ?";
         }
