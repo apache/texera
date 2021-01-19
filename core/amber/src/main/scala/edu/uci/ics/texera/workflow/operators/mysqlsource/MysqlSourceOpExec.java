@@ -21,7 +21,7 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
     private final String username;
     private final String password;
     private Integer limit;
-    private final Integer offset;
+    private Integer offset;
     private final String column;
     private final String keywords;
     private final Boolean progressive;
@@ -90,6 +90,10 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
             public Tuple next() {
                 try {
                     if (resultSet != null && resultSet.next()) {
+                        if (offset != null && offset > 0) {
+                            offset--;
+                            return next();
+                        }
                         Tuple.Builder tupleBuilder = Tuple.newBuilder();
                         for (Attribute attr : schema.getAttributes()) {
                             String columnName = attr.getName();
@@ -134,6 +138,7 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
 
                         currentPreparedStatement = getNextQuery();
                         if (currentPreparedStatement != null) {
+                            System.out.println("current query: " + currentPreparedStatement.toString());
                             resultSet = currentPreparedStatement.executeQuery();
                             return next();
                         } else {
@@ -205,10 +210,6 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
             }
             if (this.limit != null) {
                 preparedStatement.setInt(curIndex, this.limit);
-                curIndex += 1;
-            }
-            if (this.offset != null) {
-                preparedStatement.setObject(curIndex, this.offset, Types.INTEGER);
             }
             return preparedStatement;
         } else return null;
@@ -329,14 +330,6 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
                 return null;
             }
             query += " LIMIT ?";
-        }
-        if (this.offset != null) {
-            if (this.limit == null) {
-                // if there is no limit, for OFFSET to work, a arbitrary LARGE number
-                // need to be manually provided
-                query += " LIMIT 999999999999999";
-            }
-            query += " OFFSET ?";
         }
         query += ";";
         return query;
