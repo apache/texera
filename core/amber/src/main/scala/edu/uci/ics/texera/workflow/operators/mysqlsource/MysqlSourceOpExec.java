@@ -20,7 +20,7 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
     private final String table;
     private final String username;
     private final String password;
-    private final Integer limit;
+    private Integer limit;
     private final Integer offset;
     private final String column;
     private final String keywords;
@@ -119,6 +119,9 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
                                 default:
                                     throw new RuntimeException("MySQL Source: unhandled attribute type: " + columnType);
                             }
+                        }
+                        if (limit != null) {
+                            limit--;
                         }
                         return tupleBuilder.build();
                     } else {
@@ -322,6 +325,9 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
         }
         min += interval;
         if (this.limit != null) {
+            if (limit < 0) {
+                return null;
+            }
             query += " LIMIT ?";
         }
         if (this.offset != null) {
@@ -333,7 +339,6 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
             query += " OFFSET ?";
         }
         query += ";";
-        System.out.println(query);
         return query;
     }
 }
