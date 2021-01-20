@@ -64,7 +64,7 @@ public class MysqlSourceOpDesc extends SourceOperatorDescriptor {
 
     @JsonProperty(value = "batch by interval")
     @JsonPropertyDescription("the interval between each batch")
-    public Integer interval;
+    public Long interval;
 
     @Override
     public OpExecConfig operatorExecutor() {
@@ -151,12 +151,14 @@ public class MysqlSourceOpDesc extends SourceOperatorDescriptor {
                     case Types.DATE: //91 Types.DATE
                     case Types.TIME: //92 Types.TIME
                     case Types.LONGVARCHAR: //-1 Types.LONGVARCHAR
-                    case Types.BIGINT: //-5 Types.BIGINT
                     case Types.CHAR: //1 Types.CHAR
                     case Types.VARCHAR: //12 Types.VARCHAR
                     case Types.NULL: //0 Types.NULL
                     case Types.OTHER: //1111 Types.OTHER
                         schemaBuilder.add(new Attribute(columnName, AttributeType.STRING));
+                        break;
+                    case Types.BIGINT: //-5 Types.BIGINT
+                        schemaBuilder.add(new Attribute(columnName, AttributeType.LONG));
                         break;
                     case Types.TIMESTAMP:  // 93 Types.TIMESTAMP
                         schemaBuilder.add(new Attribute(columnName, AttributeType.TIMESTAMP));

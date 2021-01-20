@@ -10,6 +10,7 @@ public enum AttributeType implements Serializable {
     // value is indexed as a single token
     STRING("string", String.class),
     INTEGER("integer", Integer.class),
+    LONG("long", Long.class),
     DOUBLE("double", Double.class),
     BOOLEAN("boolean", Boolean.class),
     TIMESTAMP("timestamp", Timestamp.class),
