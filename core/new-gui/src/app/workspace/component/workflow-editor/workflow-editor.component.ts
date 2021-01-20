@@ -1161,7 +1161,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
           linkID: this.workflowUtilService.getLinkRandomUUID(),
           source: {
             operatorID: sourceID,
-            portID: linkInfo.link.source.portID
+            portID: linkInfo.link.source.portID,
           },
           target: {
             operatorID: targetID,

@@ -8,8 +8,8 @@ import { Breakpoint, BreakpointTriggerInfo, BreakpointRequest, OperatorPort } fr
 import { OperatorCurrentTuples } from './workflow-websocket.interface';
 
 export interface LogicalLink extends Readonly<{
-  origin: OperatorPort,
-  destination: OperatorPort,
+  origin: { operatorID: string, portOrdinal: number },
+  destination: { operatorID: string, portOrdinal: number },
 }> { }
 
 export interface LogicalOperator extends Readonly<{

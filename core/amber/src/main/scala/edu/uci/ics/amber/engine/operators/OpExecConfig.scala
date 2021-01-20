@@ -28,7 +28,7 @@ abstract class OpExecConfig(val tag: OperatorIdentifier) extends Serializable {
   }
 
   lazy val topology: Topology = null
-  var inputToOrdinalMapping: Map[OperatorIdentifier, Int] = _
+  var inputToOrdinalMapping = new mutable.HashMap[OperatorIdentifier, Int]()
 
   def runtimeCheck(
       workflow: Workflow
@@ -39,8 +39,8 @@ abstract class OpExecConfig(val tag: OperatorIdentifier) extends Serializable {
 
   def requiredShuffle: Boolean = false
 
-  def setInputToOrdinalMapping(mapping: Map[OperatorIdentifier, Int]): Unit = {
-    this.inputToOrdinalMapping = mapping
+  def setInputToOrdinalMapping(input: OperatorIdentifier, ordinal: Integer): Unit = {
+    this.inputToOrdinalMapping.update(input, ordinal)
   }
 
   def getInputNum(from: OperatorIdentifier): Int = {
