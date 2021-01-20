@@ -47,5 +47,4 @@ class MLModelOpExecConfig(
     )
   }
 
-  override def getInputNum(from: OperatorIdentifier): Int = 0
 }

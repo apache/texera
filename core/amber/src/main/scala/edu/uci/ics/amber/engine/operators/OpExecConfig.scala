@@ -28,6 +28,7 @@ abstract class OpExecConfig(val tag: OperatorIdentifier) extends Serializable {
   }
 
   lazy val topology: Topology = null
+  var inputToOrdinalMapping: Map[OperatorIdentifier, Int] = _
 
   def runtimeCheck(
       workflow: Workflow
@@ -38,7 +39,14 @@ abstract class OpExecConfig(val tag: OperatorIdentifier) extends Serializable {
 
   def requiredShuffle: Boolean = false
 
-  def getInputNum(from: OperatorIdentifier): Int
+  def setInputToOrdinalMapping(mapping: Map[OperatorIdentifier, Int]): Unit = {
+    this.inputToOrdinalMapping = mapping
+  }
+
+  def getInputNum(from: OperatorIdentifier): Int = {
+    assert(this.inputToOrdinalMapping.contains(from))
+    this.inputToOrdinalMapping(from)
+  }
 
   def getShuffleHashFunction(layerTag: LayerTag): ITuple => Int = ???
 
