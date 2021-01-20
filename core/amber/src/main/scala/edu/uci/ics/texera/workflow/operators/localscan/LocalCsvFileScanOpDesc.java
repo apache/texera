@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.localscan;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
@@ -17,6 +18,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.Charset;
+import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -36,9 +38,6 @@ public class LocalCsvFileScanOpDesc extends SourceOperatorDescriptor {
     @JsonPropertyDescription("whether the CSV file contains a header line")
     public Boolean header;
 
-    @JsonIgnore
-    private String fileName;
-
     @Override
     public OpExecConfig operatorExecutor() {
         // fill in default values
@@ -49,8 +48,6 @@ public class LocalCsvFileScanOpDesc extends SourceOperatorDescriptor {
             this.header = true;
         }
         try {
-            File csvFile = new File(filePath);
-            fileName = csvFile.getName();
             String headerLine = Files.asCharSource(new File(filePath), Charset.defaultCharset()).readFirstLine();
             return new LocalCsvFileScanOpExecConfig(this.operatorIdentifier(), Constants.defaultNumWorkers(),
                     filePath, delimiter.charAt(0), this.inferSchema(headerLine), header != null && header);
@@ -90,10 +87,10 @@ public class LocalCsvFileScanOpDesc extends SourceOperatorDescriptor {
         }
         if (header != null && header) {
             return Schema.newBuilder().add(Arrays.stream(headerLine.split(delimiter)).map(c -> c.trim())
-                    .map(c -> new Attribute(fileName+"-"+c, AttributeType.STRING)).collect(Collectors.toList())).build();
+                    .map(c -> new Attribute(c, AttributeType.STRING)).collect(Collectors.toList())).build();
         } else {
             return Schema.newBuilder().add(IntStream.range(0, headerLine.split(delimiter).length).
-                    mapToObj(i -> new Attribute(fileName+"-column" + i, AttributeType.STRING))
+                    mapToObj(i -> new Attribute(Paths.get(filePath).getFileName().toString()+"-column" + i, AttributeType.STRING))
                     .collect(Collectors.toList())).build();
         }
     }
