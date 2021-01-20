@@ -9,8 +9,6 @@ import scala.collection.Iterator;
 
 import java.sql.*;
 import java.util.HashSet;
-import java.util.Queue;
-import java.util.concurrent.LinkedBlockingDeque;
 
 public class MysqlSourceOpExec implements SourceOperatorExecutor {
     private final Schema schema;
@@ -25,23 +23,22 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
     private final String column;
     private final String keywords;
     private final Boolean progressive;
-    private final Integer interval;
+    private final Long interval;
 
     private Connection connection;
-    private final Queue<PreparedStatement> miniQueries;
     private PreparedStatement currentPreparedStatement;
     private ResultSet resultSet;
     private final HashSet<String> tableNames;
     private boolean queriesPrepared = false;
     private boolean hasNext = true;
+
     private long min = 0;
-    private final int cursor;
-    private Attribute batchByAttribute = null;
     private long max = 0;
+    private Attribute batchByAttribute = null;
 
     MysqlSourceOpExec(Schema schema, String host, String port, String database, String table, String username,
                       String password, Integer limit, Integer offset, String column, String keywords,
-                      Boolean progressive, String batchByColumn, Integer interval) {
+                      Boolean progressive, String batchByColumn, Long interval) {
         this.schema = schema;
         this.host = host.trim();
         this.port = port.trim();
@@ -55,12 +52,10 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
         this.keywords = keywords == null ? null : keywords.trim();
         this.progressive = progressive;
         this.interval = interval;
-        this.miniQueries = new LinkedBlockingDeque<>();
         this.tableNames = new HashSet<>();
         if (batchByColumn != null) {
             this.batchByAttribute = schema.getAttribute(batchByColumn);
         }
-        this.cursor = 0;
 
     }
 
@@ -107,6 +102,9 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
                                 case INTEGER:
                                     tupleBuilder.add(attr, Integer.valueOf(value));
                                     break;
+                                case LONG:
+                                    tupleBuilder.add(attr, Long.valueOf(value));
+                                    break;
                                 case DOUBLE:
                                     tupleBuilder.add(attr, Double.valueOf(value));
                                     break;
@@ -138,7 +136,6 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
 
                         currentPreparedStatement = getNextQuery();
                         if (currentPreparedStatement != null) {
-                            System.out.println("current query: " + currentPreparedStatement.toString());
                             resultSet = currentPreparedStatement.executeQuery();
                             return next();
                         } else {
@@ -232,27 +229,32 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
 
 
     private long getBatchByBoundary(String side) throws SQLException {
-        long result = 0L;
+        long result;
         PreparedStatement preparedStatement = connection.prepareStatement(
                 "SELECT " + side + "(" + batchByAttribute.getName() + ") FROM " + table + ";");
         ResultSet resultSet = preparedStatement.executeQuery();
         resultSet.next();
         switch (schema.getAttribute(batchByAttribute.getName()).getType()) {
             case INTEGER:
+                result = resultSet.getInt(1);
+                break;
+            case LONG:
+                result = resultSet.getLong(1);
+                break;
+            case TIMESTAMP:
+                result = resultSet.getTimestamp(1).getTime();
+                break;
             case BOOLEAN:
             case DOUBLE:
             case STRING:
-                break;
-            case TIMESTAMP:
-                result = resultSet.getTimestamp(1).getTime() + ((side).equals("MAX") ? 1 : 0);
-                break;
             case ANY:
-                result = resultSet.getInt(1);
-                break;
             default:
                 throw new IllegalStateException("Unexpected value: " + schema.getAttribute(batchByAttribute.getName()).getType());
 
         }
+
+        // MAX is set to be 1 larger than the largest data, so that x < MAX can be outputted
+        result += ((side).equals("MAX") ? 1 : 0);
 
         resultSet.close();
         preparedStatement.close();
@@ -261,8 +263,8 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
 
     private void loadTableNames() throws SQLException {
 
-        PreparedStatement preparedStatement = connection.prepareStatement("SELECT table_name FROM information_schema.tables " +
-                "WHERE table_schema = ?;");
+        PreparedStatement preparedStatement = connection.prepareStatement(
+                "SELECT table_name FROM information_schema.tables WHERE table_schema = ?;");
 
         preparedStatement.setString(1, database);
         ResultSet resultSet = preparedStatement.executeQuery();
@@ -297,12 +299,8 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
 
     /**
      * generate sql query string using the info provided by user. One of following
-     * select * from TableName where 1 = 1 AND MATCH (ColumnName) AGAINST ( ? IN BOOLEAN MODE) LIMIT ? OFFSET ?;
-     * select * from TableName where 1 = 1 AND MATCH (ColumnName) AGAINST ( ? IN BOOLEAN MODE) LIMIT 999999999999999 OFFSET ?;
      * select * from TableName where 1 = 1 AND MATCH (ColumnName) AGAINST ( ? IN BOOLEAN MODE) LIMIT ?;
      * select * from TableName where 1 = 1 AND MATCH (ColumnName) AGAINST ( ? IN BOOLEAN MODE);
-     * select * from TableName where 1 = 1 LIMIT ? OFFSET ?;
-     * select * from TableName where 1 = 1 LIMIT 999999999999999 OFFSET ?;
      * select * from TableName where 1 = 1 LIMIT ?;
      * select * from TableName where 1 = 1;
      *
@@ -311,18 +309,19 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
     private String generateSqlQuery() {
         // in sql prepared statement, table name cannot be inserted using preparedstatement.setString
         // so it has to be inserted here during sql query generation
-        String query = "\n" + "SELECT * FROM " + this.table + " where 1 = 1";
+        // this.table has to be verified to be existing in the given schema.
+        String query = "\n" + "SELECT * FROM " + table + " where 1 = 1";
         // in sql prepared statement, column name cannot be inserted using preparedstatement.setString either
-        if (this.column != null && this.keywords != null) {
-            query += " AND MATCH(" + this.column + ") AGAINST (? IN BOOLEAN MODE)";
+        if (column != null && keywords != null) {
+            query += " AND MATCH(" + column + ") AGAINST (? IN BOOLEAN MODE)";
         }
         if (progressive) {
             query += " AND "
                     + batchByAttribute.getName() + " >= '"
-                    + new Timestamp(min).toString() + "'"
+                    + batchAttributeToString(min) + "'"
                     + " AND "
                     + batchByAttribute.getName() + " < '"
-                    + new Timestamp(Math.min(max, min + interval)).toString() + "'";
+                    + batchAttributeToString(Math.min(max, min + interval)) + "'";
         }
         min += interval;
         if (this.limit != null) {
@@ -333,6 +332,23 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
         }
         query += ";";
         return query;
+    }
+
+    private String batchAttributeToString(long value) throws IllegalStateException {
+        switch (batchByAttribute.getType()) {
+            case LONG:
+
+            case INTEGER:
+                return String.valueOf(value);
+            case TIMESTAMP:
+                return new Timestamp(value).toString();
+            case DOUBLE:
+            case BOOLEAN:
+            case STRING:
+            case ANY:
+                throw new IllegalStateException("Unexpected value: " + schema.getAttribute(batchByAttribute.getName()).getType());
+        }
+        return null;
     }
 }
 
