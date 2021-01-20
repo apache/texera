@@ -66,7 +66,7 @@ public class MysqlSourceOpDesc extends SourceOperatorDescriptor {
     public String keywords;
 
     @JsonProperty(value = "progressive", defaultValue = "false")
-    @JsonPropertyDescription("progressively yield outputs by batches")
+    @JsonPropertyDescription("progressively yield outputs")
     public Boolean progressive = false;
 
     @JsonProperty(value = "batch by column")
