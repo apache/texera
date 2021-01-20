@@ -10,7 +10,6 @@ import { WorkflowActionService } from '../../workflow-graph/model/workflow-actio
 import { NGXLogger } from 'ngx-logger';
 
 import { isEqual } from 'lodash';
-import { OperatorMetadataService } from '../../operator-metadata/operator-metadata.service';
 
 // endpoint for schema propagation
 export const SCHEMA_PROPAGATION_ENDPOINT = 'queryplan/autocomplete';
@@ -38,7 +37,6 @@ export class SchemaPropagationService {
 
   constructor(
     private httpClient: HttpClient,
-    private operatorMetadataService: OperatorMetadataService,
     private workflowActionService: WorkflowActionService,
     private dynamicSchemaService: DynamicSchemaService,
     private logger: NGXLogger
@@ -119,7 +117,7 @@ export class SchemaPropagationService {
    */
   private invokeSchemaPropagationAPI(): Observable<SchemaPropagationResponse> {
     // create a Logical Plan based on the workflow graph
-    const body = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph(), this.operatorMetadataService);
+    const body = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
     // make a http post request to the API endpoint with the logical plan object
     return this.httpClient.post<SchemaPropagationResponse>(
       `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}`,

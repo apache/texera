@@ -36,7 +36,6 @@ object InputPortInfo {
 }
 case class InputPortInfo(
     portID: String,
-    portOrdinal: Integer,
     displayName: String,
     allowMultiInputs: Boolean
 )
@@ -46,17 +45,16 @@ object OutputPortInfo {
 }
 case class OutputPortInfo(
     portID: String,
-    portOrdinal: Integer,
     displayName: String
 )
 
 object OperatorAdditionalMetadata {
   def apply(opInfo: OperatorInfo): OperatorAdditionalMetadata = {
     val inputPorts = opInfo.inputPorts.zipWithIndex.map {
-      case (p, i) => InputPortInfo(InputPortInfo.inputPortID(i), i, p.displayName, p.allowMultiInputs)
+      case (p, i) => InputPortInfo(InputPortInfo.inputPortID(i), p.displayName, p.allowMultiInputs)
     }
     val outputPorts = opInfo.outputPorts.zipWithIndex.map {
-      case (p, i) => OutputPortInfo(OutputPortInfo.outputPortID(i), i, p.displayName)
+      case (p, i) => OutputPortInfo(OutputPortInfo.outputPortID(i), p.displayName)
     }
     new OperatorAdditionalMetadata(
       opInfo.userFriendlyName,

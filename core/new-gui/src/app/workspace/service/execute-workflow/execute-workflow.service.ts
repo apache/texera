@@ -21,7 +21,6 @@ import { TexeraWebsocketEvent, WorkerTuples, OperatorCurrentTuples } from '../..
 import { isEqual } from 'lodash';
 import { PAGINATION_INFO_STORAGE_KEY, ResultPaginationInfo } from '../../types/result-table.interface';
 import { sessionGetObject, sessionSetObject } from 'src/app/common/util/storage';
-import { OperatorMetadataService } from '../operator-metadata/operator-metadata.service';
 
 export const FORM_DEBOUNCE_TIME_MS = 150;
 
@@ -61,7 +60,6 @@ export class ExecuteWorkflowService {
   private clearTimeoutState: ExecutionState[] | undefined;
 
   constructor(
-    private operatorMetadataService: OperatorMetadataService,
     private workflowActionService: WorkflowActionService,
     private workflowWebsocketService: WorkflowWebsocketService,
     private http: HttpClient
@@ -174,7 +172,7 @@ export class ExecuteWorkflowService {
   public executeWorkflowAmberTexera(): void {
     // get the current workflow graph
     const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(
-      this.workflowActionService.getTexeraGraph(), this.operatorMetadataService);
+      this.workflowActionService.getTexeraGraph());
     console.log(logicalPlan);
     // wait for the form debounce to complete, then send
     window.setTimeout(() => {
@@ -370,23 +368,13 @@ export class ExecuteWorkflowService {
    *
    * @param workflowGraph
    */
-  public static getLogicalPlanRequest(workflowGraph: WorkflowGraphReadonly, operatorMetadtaService: OperatorMetadataService): LogicalPlan {
+  public static getLogicalPlanRequest(workflowGraph: WorkflowGraphReadonly): LogicalPlan {
 
     const getInputPortOrdinal = (operatorID: string, inputPortID: string): number => {
-      const ordinal = operatorMetadtaService.getOperatorSchema(workflowGraph.getOperator(operatorID).operatorType)
-        .additionalMetadata.inputPorts.find(p => p.portID === inputPortID)?.portOrdinal;
-      if (! ordinal) {
-        throw new Error('cannot find input port ID ' + inputPortID + ' on operator ' + operatorID);
-      }
-      return ordinal;
+      return workflowGraph.getOperator(operatorID).inputPorts.findIndex(port => port.portID === inputPortID);
     };
     const getOutputPortOrdinal = (operatorID: string, outputPortID: string): number => {
-      const ordinal = operatorMetadtaService.getOperatorSchema(workflowGraph.getOperator(operatorID).operatorType)
-        .additionalMetadata.outputPorts.find(p => p.portID === outputPortID)?.portOrdinal;
-      if (! ordinal) {
-        throw new Error('cannot find output port ID ' + outputPortID + ' on operator ' + operatorID);
-      }
-      return ordinal;
+      return workflowGraph.getOperator(operatorID).outputPorts.findIndex(port => port.portID === outputPortID);
     };
 
     const operators: LogicalOperator[] = workflowGraph

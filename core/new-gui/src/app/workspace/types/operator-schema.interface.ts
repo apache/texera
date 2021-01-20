@@ -11,14 +11,12 @@ import { JSONSchema7 } from 'json-schema';
 
 export interface InputPortInfo extends Readonly<{
   portID: string,
-  portOrdinal: number,
   displayName?: string,
   allowMultiInputs?: boolean,
 }> { }
 
 export interface OutputPortInfo extends Readonly<{
   portID: string,
-  portOrdinal: number,
   displayName?: string,
 }> { }
 

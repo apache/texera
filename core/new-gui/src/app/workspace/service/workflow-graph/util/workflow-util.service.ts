@@ -64,19 +64,22 @@ export class WorkflowUtilService {
     const validate = this.ajv.compile(schemaWithoutID);
     validate(operatorProperties);
 
-    const inputPorts: string[] = [];
-    const outputPorts: string[] = [];
+    const inputPorts: {portID: string, displayName?: string}[] = [];
+    const outputPorts: {portID: string, displayName?: string}[] = [];
 
     // by default, the operator will not show advanced option in the properties to the user
     const showAdvanced = false;
 
     operatorSchema.additionalMetadata.inputPorts.forEach(inputPort => {
-      inputPorts.push(inputPort.portID);
+      inputPorts.push({portID: inputPort.portID, displayName: inputPort.displayName} );
     });
 
     operatorSchema.additionalMetadata.outputPorts.forEach(outputPort => {
-      outputPorts.push(outputPort.portID);
+      outputPorts.push({portID: outputPort.portID, displayName: outputPort.displayName});
     });
+
+    console.log(inputPorts);
+    console.log(outputPorts);
 
     return { operatorID, operatorType, operatorProperties, inputPorts, outputPorts, showAdvanced };
 
