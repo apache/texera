@@ -869,21 +869,32 @@ export class WorkflowEditorComponent implements AfterViewInit {
     // user cannot connect to the output port (right side)
     if (targetMagnet && targetMagnet.getAttribute('port-group') === 'out') { return false; }
 
-    // if port is already connected, do not allow another connection, each port should only contain at most 1 link
+    const sourceCellID = sourceView.model.id.toString();
+    const sourcePortID = sourceMagnet.getAttribute('port');
+    const targetCellID = targetView.model.id.toString();
+    const targetPortID = targetMagnet.getAttribute('port');
+
+
+    // check if the operator allow multiple inputs on the port
     const checkConnectedLinksToTarget = this.workflowActionService.getTexeraGraph().getAllLinks().filter(
-      link => link.target.operatorID === targetView.model.id.toString() && targetMagnet.getAttribute('port') === link.target.portID
+      link => link.target.operatorID === targetCellID && link.target.portID === targetPortID
     );
 
-    const allowMultiInput = this.workflowActionService.getTexeraGraph().hasOperator(targetView.model.id.toString()) ?
-      this.dynamicSchemaService.getDynamicSchema(targetView.model.id.toString()).additionalMetadata.allowMultiInputs : false;
-
+    let allowMultiInput = false;
+    if (this.workflowActionService.getTexeraGraph().hasOperator(targetCellID)) {
+      const targetInputPortInfo = this.dynamicSchemaService.getDynamicSchema(targetCellID)
+        .additionalMetadata.inputPorts.find(p => p.portID === targetPortID);
+      if (targetInputPortInfo) {
+        allowMultiInput = targetInputPortInfo.allowMultiInputs ?? false;
+      }
+    }
 
     if (checkConnectedLinksToTarget.length > 0) {
       return allowMultiInput === true;
     }
 
     // cannot connect to itself
-    return sourceView.id !== targetView.id;
+    return sourceCellID !== targetCellID;
   }
 
 

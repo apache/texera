@@ -70,13 +70,13 @@ export class WorkflowUtilService {
     // by default, the operator will not show advanced option in the properties to the user
     const showAdvanced = false;
 
-    for (let i = 0; i < operatorSchema.additionalMetadata.numInputPorts; i++) {
-      inputPorts.push('input-' + i.toString());
-    }
+    operatorSchema.additionalMetadata.inputPorts.forEach(inputPort => {
+      inputPorts.push(inputPort.portID);
+    });
 
-    for (let i = 0; i < operatorSchema.additionalMetadata.numOutputPorts; i++) {
-      outputPorts.push('output-' + i.toString());
-    }
+    operatorSchema.additionalMetadata.outputPorts.forEach(outputPort => {
+      outputPorts.push(outputPort.portID);
+    });
 
     return { operatorID, operatorType, operatorProperties, inputPorts, outputPorts, showAdvanced };
 

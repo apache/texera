@@ -5,6 +5,7 @@ import { OperatorMetadataService } from './../operator-metadata/operator-metadat
 import { OperatorSchema } from '../../types/operator-schema.interface';
 import { WorkflowActionService } from './../workflow-graph/model/workflow-action.service';
 import * as Ajv from 'ajv';
+import { OperatorLink } from '../../types/workflow-common.interface';
 
 export type ValidationError = { isValid: false, messages: Record<string, string> };
 export type Validation = { isValid: true } | ValidationError;
@@ -176,15 +177,35 @@ export class ValidationWorkflowService {
 
     const texeraGraph = this.workflowActionService.getTexeraGraph();
 
-    const requiredInputNum = operator.inputPorts.length;
-    const requiredOutputNum = operator.outputPorts.length;
+    // check if input links satisfy the requirement
+    const numInputLinksByPort = new Map<string, number>();
+    texeraGraph.getInputLinksByOperatorId(operatorID).forEach(inLink => {
+      const portID = inLink.target.portID;
+      const num = numInputLinksByPort.get(portID) ?? 0;
+      numInputLinksByPort.set(portID, num + 1);
+    });
 
-    const actualInputNum = texeraGraph.getInputLinksByOperatorId(operatorID).length;
+    let satisfyInput = true;
+    let inputPortsViolationMessage = '';
+    operatorSchema.additionalMetadata.inputPorts.forEach(port => {
+      const portNumInputs = numInputLinksByPort.get(port.portID) ?? 0;
+      if (port.allowMultiInputs) {
+        if (portNumInputs < 1) {
+          satisfyInput = false;
+          inputPortsViolationMessage += `${port.displayName ?? ''} requires at least 1 inputs, has ${portNumInputs}`;
+        }
+      } else {
+        if (portNumInputs !== 1) {
+          satisfyInput = false;
+          inputPortsViolationMessage += `${port.displayName ?? ''} requires 1 input, has ${portNumInputs}`;
+        }
+      }
+    });
+
+    // check if output links satisfy the requirement
+    const requiredOutputNum = operator.outputPorts.length;
     const actualOutputNum = texeraGraph.getOutputLinksByOperatorId(operatorID).length;
 
-    const allowMultiInputs = operatorSchema.additionalMetadata.allowMultiInputs;
-
-    const satisfyInput = allowMultiInputs ? actualInputNum >= requiredInputNum : actualInputNum === requiredInputNum;
     // If the operator is the sink operator, the actual output number must be equal to required number.
     const satisyOutput = this.operatorMetadataService.
       getOperatorSchema(operator.operatorType).
@@ -192,17 +213,17 @@ export class ValidationWorkflowService {
       operatorGroupName === 'View Results' ?
       requiredOutputNum === actualOutputNum : requiredOutputNum <= actualOutputNum;
 
+    const outputPortsViolationMessage = satisyOutput ? '' : `requires ${requiredOutputNum} outputs, has ${actualOutputNum} outputs`;
+
     if (satisfyInput && satisyOutput) {
       return { isValid: true };
     } else {
       const messages: Record<string, string> = {};
       if (!satisfyInput) {
-        const message = `requires ${requiredInputNum} inputs, has ${actualInputNum} inputs`;
-        messages[ValidationWorkflowService.VALIDATION_OPERATOR_INPUT_MESSAGE] = message;
+        messages[ValidationWorkflowService.VALIDATION_OPERATOR_INPUT_MESSAGE] = inputPortsViolationMessage;
       }
       if (!satisyOutput) {
-        const message = `requires ${requiredOutputNum} outputs, has ${actualOutputNum} outputs`;
-        messages[ValidationWorkflowService.VALIDATION_OPERATOR_OUTPUT_MESSAGE] = message;
+        messages[ValidationWorkflowService.VALIDATION_OPERATOR_OUTPUT_MESSAGE] = outputPortsViolationMessage;
       }
       return { isValid: false, messages: messages };
     }

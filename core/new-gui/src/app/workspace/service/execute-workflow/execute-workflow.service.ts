@@ -405,8 +405,8 @@ export class ExecuteWorkflowService {
 
     const links: LogicalLink[] = workflowGraph
       .getAllLinks().map(link => ({
-        origin: link.source.operatorID,
-        destination: link.target.operatorID,
+        origin: link.source,
+        destination: link.target,
       }));
 
     const breakpoints: BreakpointInfo[] = Array.from(workflowGraph.getAllLinkBreakpoints().entries())

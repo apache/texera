@@ -15,12 +15,12 @@ import scala.collection.JavaConverters
 import scala.collection.JavaConverters.asScalaIterator
 
 case class InputPort(
-    name: String = "",
+    displayName: String = null,
     allowMultiInputs: Boolean = false
 )
 
 case class OutputPort(
-    name: String = ""
+    displayName: String = null
 )
 
 case class OperatorInfo(
@@ -31,10 +31,54 @@ case class OperatorInfo(
     outputPorts: List[OutputPort]
 )
 
+object InputPortInfo {
+  def inputPortID(ordinal: Integer): String = "Input-" + ordinal.toString
+}
+case class InputPortInfo(
+    portID: String,
+    portOrdinal: Integer,
+    displayName: String,
+    allowMultiInputs: Boolean
+)
+
+object OutputPortInfo {
+  def outputPortID(ordinal: Integer): String = "Output-" + ordinal.toString
+}
+case class OutputPortInfo(
+    portID: String,
+    portOrdinal: Integer,
+    displayName: String
+)
+
+object OperatorAdditionalMetadata {
+  def apply(opInfo: OperatorInfo): OperatorAdditionalMetadata = {
+    val inputPorts = opInfo.inputPorts.zipWithIndex.map {
+      case (p, i) => InputPortInfo(InputPortInfo.inputPortID(i), i, p.displayName, p.allowMultiInputs)
+    }
+    val outputPorts = opInfo.outputPorts.zipWithIndex.map {
+      case (p, i) => OutputPortInfo(OutputPortInfo.outputPortID(i), i, p.displayName)
+    }
+    new OperatorAdditionalMetadata(
+      opInfo.userFriendlyName,
+      opInfo.operatorDescription,
+      opInfo.operatorGroupName,
+      inputPorts,
+      outputPorts
+    )
+  }
+}
+case class OperatorAdditionalMetadata(
+    userFriendlyName: String,
+    operatorDescription: String,
+    operatorGroupName: String,
+    inputPorts: List[InputPortInfo],
+    outputPorts: List[OutputPortInfo]
+)
+
 case class OperatorMetadata(
     operatorType: String,
     jsonSchema: JsonNode,
-    additionalMetadata: OperatorInfo
+    additionalMetadata: OperatorAdditionalMetadata
 )
 
 case class GroupInfo(
@@ -107,7 +151,7 @@ object OperatorMetadataGenerator {
     // generate texera operator info
     val texeraOperatorInfo = opDescClass.getConstructor().newInstance().operatorInfo
 
-    OperatorMetadata(operatorType, jsonSchema, texeraOperatorInfo)
+    OperatorMetadata(operatorType, jsonSchema, OperatorAdditionalMetadata(texeraOperatorInfo))
   }
 
   def generateOperatorJsonSchema(opDescClass: Class[_ <: OperatorDescriptor]): JsonNode = {
