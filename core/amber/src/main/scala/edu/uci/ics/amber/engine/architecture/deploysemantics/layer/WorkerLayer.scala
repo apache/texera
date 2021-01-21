@@ -37,7 +37,11 @@ class WorkerLayer(
 
   def isBuilt: Boolean = layer != null
 
-  def build(prev: Array[(OpExecConfig, WorkerLayer)], all: Array[Address])(implicit
+  def build(
+      prev: Array[(OpExecConfig, WorkerLayer)],
+      all: Array[Address],
+      parentSenderActorRef: ActorRef
+  )(implicit
       context: ActorContext
   ): Unit = {
     deployStrategy.initialize(deploymentFilter.filter(prev, all, context.self.path.address))
@@ -48,8 +52,9 @@ class WorkerLayer(
       val workerTag = WorkerTag(tag, i)
       val id = WorkerActorVirtualIdentity(workerTag.getGlobalIdentity)
       val d = deployStrategy.next()
-      layer(i) =
-        context.actorOf(WorkflowWorker.props(id, m).withDeploy(Deploy(scope = RemoteScope(d))))
+      layer(i) = context.actorOf(
+        WorkflowWorker.props(id, m, parentSenderActorRef).withDeploy(Deploy(scope = RemoteScope(d)))
+      )
       identifiers(i) = WorkerActorVirtualIdentity(workerTag.getGlobalIdentity)
     }
   }
