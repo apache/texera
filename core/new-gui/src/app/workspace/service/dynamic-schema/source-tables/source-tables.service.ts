@@ -9,7 +9,7 @@ import { Observable } from 'rxjs';
 import { OperatorPredicate } from '../../../types/workflow-common.interface';
 import { OperatorSchema } from '../../../types/operator-schema.interface';
 
-import { SchemaPropagationService } from '../schema-propagation/schema-propagation.service';
+import { SchemaPropagationService, SchemaAttribute } from '../schema-propagation/schema-propagation.service';
 import { WorkflowActionService } from './../../workflow-graph/model/workflow-action.service';
 import { DynamicSchemaService } from './../dynamic-schema.service';
 
@@ -66,7 +66,7 @@ export class SourceTablesService {
         this.handleSourceTableChange();
       }
     );
-    
+
     this.userFileService.getUserFilesChangedEvent().subscribe(
       event => {
         if (event) {
@@ -182,7 +182,7 @@ export class SourceTablesService {
       const tableSchema = this.tableSchemaMap.get(operator.operatorProperties[tableNameInJsonSchema]);
       if (tableSchema) {
         const newDynamicSchema = SchemaPropagationService.setOperatorInputAttrs(
-          dynamicSchema, tableSchema.attributes.map(attr => attr.attributeName));
+          dynamicSchema, [tableSchema.attributes]);
         this.dynamicSchemaService.setDynamicSchema(operator.operatorID, newDynamicSchema);
       }
     }
@@ -196,8 +196,5 @@ export interface TableMetadata extends Readonly<{
 }> { }
 
 export interface TableSchema extends Readonly<{
-  attributes: ReadonlyArray<{
-    attributeName: string,
-    attributeType: string
-  }>
+  attributes: ReadonlyArray<SchemaAttribute>
 }> { }

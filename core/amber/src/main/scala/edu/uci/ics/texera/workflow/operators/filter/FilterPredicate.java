@@ -2,6 +2,7 @@ package edu.uci.ics.texera.workflow.operators.filter;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject;
 import edu.uci.ics.texera.workflow.common.WorkflowContext;
 import edu.uci.ics.texera.workflow.common.tuple.Tuple;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
@@ -9,6 +10,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 public class FilterPredicate {
 
     @JsonProperty(value = "attribute", required = true)
+    @JsonSchemaInject(json = "{ \"autoComplete\": \"hello\" } ")
     public String attribute;
 
     @JsonProperty(value = "condition", required = true)
