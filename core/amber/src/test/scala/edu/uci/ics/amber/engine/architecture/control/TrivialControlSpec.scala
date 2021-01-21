@@ -9,10 +9,10 @@ import com.esotericsoftware.kryo.io.Input
 import com.twitter.util.{FuturePool, Promise}
 import edu.uci.ics.amber.clustering.SingleNodeListener
 import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlInputPort.WorkflowControlMessage
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkSenderActor.{
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
   NetworkAck,
   NetworkMessage,
-  QueryActorRef,
+  GetActorRef,
   RegisterActorRef
 }
 import edu.uci.ics.amber.engine.architecture.control.utils.ChainHandler.Chain
@@ -80,7 +80,7 @@ class TrivialControlSpec
     val (probe, idMap) = setUp(numActors, events: _*)
     var flag = 0
     probe.receiveWhile(5.minutes, 5.seconds) {
-      case QueryActorRef(id, replyTo) =>
+      case GetActorRef(id, replyTo) =>
         replyTo.foreach { actor =>
           actor ! RegisterActorRef(id, idMap(id))
         }

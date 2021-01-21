@@ -3,15 +3,15 @@ package edu.uci.ics.amber.engine.architecture.common
 import akka.actor.{Actor, ActorLogging, ActorRef, Stash}
 import com.softwaremill.macwire.wire
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkSenderActor.{
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
   NetworkSenderActorRef,
-  QueryActorRef,
+  GetActorRef,
   RegisterActorRef
 }
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   ControlInputPort,
   ControlOutputPort,
-  NetworkSenderActor
+  NetworkCommunicationActor
 }
 import edu.uci.ics.amber.engine.common.WorkflowLogger
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
@@ -27,8 +27,8 @@ abstract class WorkflowActor(val identifier: ActorVirtualIdentity) extends Actor
 
   protected val logger: WorkflowLogger = WorkflowLogger(s"$identifier")
 
-  val networkSenderActor: NetworkSenderActorRef = NetworkSenderActorRef(
-    context.actorOf(NetworkSenderActor.props())
+  val networkCommunicationActor: NetworkSenderActorRef = NetworkSenderActorRef(
+    context.actorOf(NetworkCommunicationActor.props())
   )
   lazy val controlInputPort: ControlInputPort = wire[ControlInputPort]
   lazy val controlOutputPort: ControlOutputPort = wire[ControlOutputPort]
@@ -39,13 +39,13 @@ abstract class WorkflowActor(val identifier: ActorVirtualIdentity) extends Actor
   val rpcHandlerInitializer: AsyncRPCHandlerInitializer
 
   def routeActorRefRelatedMessages: Receive = {
-    case QueryActorRef(id, replyTo) =>
-      if (replyTo.contains(networkSenderActor.ref)) {
-        context.parent ! QueryActorRef(id, replyTo)
+    case GetActorRef(id, replyTo) =>
+      if (replyTo.contains(networkCommunicationActor.ref)) {
+        context.parent ! GetActorRef(id, replyTo)
       } else {
         // we direct this message to the NetworkSenderActor
         // because it has the VirtualIdentityToActorRef for each actor.
-        networkSenderActor ! QueryActorRef(id, replyTo)
+        networkCommunicationActor ! GetActorRef(id, replyTo)
       }
     case RegisterActorRef(id, ref) =>
       throw new WorkflowRuntimeException(
