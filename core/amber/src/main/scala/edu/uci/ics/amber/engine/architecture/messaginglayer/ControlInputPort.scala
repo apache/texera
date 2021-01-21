@@ -6,10 +6,7 @@ import edu.uci.ics.amber.engine.common.WorkflowLogger
 import edu.uci.ics.amber.engine.common.ambermessage.neo.{ControlPayload, WorkflowMessage}
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{
-  ControlInvocation,
-  ReturnPayload
-}
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnPayload}
 import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCServer, AsyncRPCClient}
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 

@@ -8,9 +8,9 @@ import edu.uci.ics.amber.engine.common.rpc.{
 }
 
 class TesterAsyncRPCHandlerInitializer(
-                                       val myID: ActorVirtualIdentity,
-                                       source: AsyncRPCClient,
-                                       receiver: AsyncRPCServer
+    val myID: ActorVirtualIdentity,
+    source: AsyncRPCClient,
+    receiver: AsyncRPCServer
 ) extends AsyncRPCHandlerInitializer(source, receiver)
     with PingPongHandler
     with ChainHandler

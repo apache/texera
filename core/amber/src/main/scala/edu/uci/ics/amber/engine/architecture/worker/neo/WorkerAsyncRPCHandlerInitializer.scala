@@ -15,12 +15,12 @@ import edu.uci.ics.amber.engine.common.rpc.{
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 
 class WorkerAsyncRPCHandlerInitializer(
-                                       val selfID: ActorVirtualIdentity,
-                                       val controlOutputPort: ControlOutputPort,
-                                       val pauseManager: PauseManager,
-                                       val dataProcessor: DataProcessor,
-                                       source: AsyncRPCClient,
-                                       receiver: AsyncRPCServer
+    val selfID: ActorVirtualIdentity,
+    val controlOutputPort: ControlOutputPort,
+    val pauseManager: PauseManager,
+    val dataProcessor: DataProcessor,
+    source: AsyncRPCClient,
+    receiver: AsyncRPCServer
 ) extends AsyncRPCHandlerInitializer(source, receiver)
     with PauseHandler {
   val logger: WorkflowLogger = WorkflowLogger("WorkerControlHandler")

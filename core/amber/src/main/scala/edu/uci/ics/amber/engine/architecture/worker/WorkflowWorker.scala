@@ -29,10 +29,7 @@ import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage._
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage._
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{
-  ControlInvocation,
-  ReturnPayload
-}
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnPayload}
 import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCHandlerInitializer, AsyncRPCServer}
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager._

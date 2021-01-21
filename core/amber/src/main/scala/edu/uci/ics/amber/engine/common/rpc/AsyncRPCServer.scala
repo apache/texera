@@ -3,13 +3,8 @@ package edu.uci.ics.amber.engine.common.rpc
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlOutputPort
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{
-  ControlInvocation,
-  ReturnPayload
-}
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnPayload}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-
-
 
 /** Motivation of having a separate module to handle control messages as RPCs:
   * message passing is a low level abstraction -- manually handle response
@@ -25,7 +20,6 @@ import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
   * (web browser, actor that invoke control command)
   * server: handle request, return response
   * (web server, actor that handles control command)
-  *
   */
 object AsyncRPCServer {
 

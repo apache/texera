@@ -32,8 +32,8 @@ import scala.reflect.ClassTag
   * @param ctrlReceiver
   */
 class AsyncRPCHandlerInitializer(
-                                 ctrlSource: AsyncRPCClient,
-                                 ctrlReceiver: AsyncRPCServer
+    ctrlSource: AsyncRPCClient,
+    ctrlReceiver: AsyncRPCServer
 ) {
 
   /** register a sync handler for one type of control command
