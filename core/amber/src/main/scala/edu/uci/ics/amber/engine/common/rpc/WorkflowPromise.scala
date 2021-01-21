@@ -1,4 +1,4 @@
-package edu.uci.ics.amber.engine.common.control
+package edu.uci.ics.amber.engine.common.rpc
 
 import com.twitter.util.Promise
 

@@ -1,20 +1,38 @@
-package edu.uci.ics.amber.engine.common.control
+package edu.uci.ics.amber.engine.common.rpc
 
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlOutputPort
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.control.ControlMessageSource.{
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{
   ControlInvocation,
   ReturnPayload
 }
-import edu.uci.ics.amber.engine.common.control.ControlMessageReceiver.ControlCommand
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 
-object ControlMessageReceiver {
+
+
+/** Motivation of having a separate module to handle control messages as RPCs:
+  * message passing is a low level abstraction -- manually handle response
+  *
+  * rpc (request-response)
+  * remote.callFunctionX().then(response => {
+  * })
+  * user-api: promise -- straightforward
+  *
+  * so we want to implement rpc model on top of message passing
+  * goal: request-response model with multiplexing
+  * client: initiate request
+  * (web browser, actor that invoke control command)
+  * server: handle request, return response
+  * (web server, actor that handles control command)
+  *
+  */
+object AsyncRPCServer {
 
   trait ControlCommand[T]
 }
 
-class ControlMessageReceiver(controlOutputPort: ControlOutputPort) {
+class AsyncRPCServer(controlOutputPort: ControlOutputPort) {
 
   // all handlers
   protected var handlers: PartialFunction[ControlCommand[_], Any] = PartialFunction.empty

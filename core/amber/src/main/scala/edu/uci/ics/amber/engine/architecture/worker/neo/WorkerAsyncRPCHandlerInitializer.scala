@@ -6,22 +6,22 @@ import edu.uci.ics.amber.engine.architecture.worker.neo.promisehandlers.PauseHan
 import edu.uci.ics.amber.engine.common.WorkflowLogger
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.ExecutionPaused
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.control.{
-  ControlHandlerInitializer,
-  ControlMessageReceiver,
-  ControlMessageSource,
+import edu.uci.ics.amber.engine.common.rpc.{
+  AsyncRPCHandlerInitializer,
+  AsyncRPCServer,
+  AsyncRPCClient,
   WorkflowPromise
 }
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 
-class WorkerControlHandlerInitializer(
-    val selfID: ActorVirtualIdentity,
-    val controlOutputPort: ControlOutputPort,
-    val pauseManager: PauseManager,
-    val dataProcessor: DataProcessor,
-    source: ControlMessageSource,
-    receiver: ControlMessageReceiver
-) extends ControlHandlerInitializer(source, receiver)
+class WorkerAsyncRPCHandlerInitializer(
+                                       val selfID: ActorVirtualIdentity,
+                                       val controlOutputPort: ControlOutputPort,
+                                       val pauseManager: PauseManager,
+                                       val dataProcessor: DataProcessor,
+                                       source: AsyncRPCClient,
+                                       receiver: AsyncRPCServer
+) extends AsyncRPCHandlerInitializer(source, receiver)
     with PauseHandler {
   val logger: WorkflowLogger = WorkflowLogger("WorkerControlHandler")
 }
