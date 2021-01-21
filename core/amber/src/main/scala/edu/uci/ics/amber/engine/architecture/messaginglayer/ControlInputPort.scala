@@ -20,7 +20,7 @@ object ControlInputPort {
   ) extends WorkflowMessage
 }
 
-class ControlInputPort(ctrlSource: AsyncRPCClient, ctrlReceiver: AsyncRPCServer) {
+class ControlInputPort(asyncRPCClient: AsyncRPCClient, asyncRPCServer: AsyncRPCServer) {
 
   protected val logger: WorkflowLogger = WorkflowLogger("ControlInputPort")
 
@@ -38,9 +38,9 @@ class ControlInputPort(ctrlSource: AsyncRPCClient, ctrlReceiver: AsyncRPCServer)
         iterable.foreach {
           case call: ControlInvocation =>
             assert(msg.from.isInstanceOf[ActorVirtualIdentity])
-            ctrlReceiver.receive(call, msg.from.asInstanceOf[ActorVirtualIdentity])
+            asyncRPCServer.receive(call, msg.from.asInstanceOf[ActorVirtualIdentity])
           case ret: ReturnPayload =>
-            ctrlSource.fulfillPromise(ret)
+            asyncRPCClient.fulfillPromise(ret)
           case other =>
             logger.logError(
               WorkflowRuntimeError(
