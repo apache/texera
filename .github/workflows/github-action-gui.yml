@@ -1,16 +1,13 @@
-name: build
+name: GUI Unit Test
 
 on:
   push:
     branches:
       - 'ci-enable/**'
   pull_request:
-    paths-ignore:
-      - 'core/scripts/**'
-      - '**/.gitignore'
-      - '**.md'
-      - '**.csv'
-      - '**.txt'
+    paths:
+      - 'core/new-gui/**'
+  workflow_dispatch:
 jobs:
   gui:
     runs-on: ubuntu-latest
@@ -18,6 +15,10 @@ jobs:
       matrix:
         node-version: [ 14.x ]
     steps:
+      - name: Cancel The Previous Runs
+        uses: styfle/cancel-workflow-action@0.6.0
+        with:
+          access_token: ${{ github.token }}
       - name: Checkout Texera
         uses: actions/checkout@v2
       - name: Setup Node.js ${{ matrix.node-version }}
@@ -34,27 +35,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-node-with-modules-
       - name: Install dependency with npm install
-        run: npm --prefix core/new-gui install --progress=false
+        run: npm install --progress=false
+        working-directory: core/new-gui
       - name: Backup - Install dependency with npm ci
         if: ${{ failure() }}
-        run: npm --prefix core/new-gui ci --progress=false
+        run: npm ci --progress=false
+        working-directory: core/new-gui
       - name: Build with npm
-        run: npm run --prefix core/new-gui build --prod --progress=false
+        run: npm run build --prod --progress=false
+        working-directory: core/new-gui
       - name: Run frontend unit tests
         run: npm run --prefix core/new-gui test:ci
-
-  amber:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Cancel Previous Runs  # add cancel here since this stage is the fastest one.
-        uses: styfle/cancel-workflow-action@0.6.0
-        with:
-          access_token: ${{ github.token }}
-      - name: Checkout Texera
-        uses: actions/checkout@v2
-      - name: Lint with scalafmt
-        run: cd core/amber && sbt scalafmtCheckAll
-      - name: Compile with sbt
-        run: cd core/amber && sbt clean compile
-      - name: Run backend tests
-        run: cd core/amber && sbt test
