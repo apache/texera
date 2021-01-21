@@ -8,7 +8,7 @@ import edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy.{
 import edu.uci.ics.amber.engine.common.AdvancedMessageSending
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{
   UpdateInputLinking,
-  UpdateOutputLinking
+  AddDataSendingPolicy
 }
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import akka.event.LoggingAdapter
@@ -31,10 +31,8 @@ class HashBasedShuffle(
     from.layer.foreach(x =>
       AdvancedMessageSending.blockingAskWithRetry(
         x,
-        UpdateOutputLinking(
-          new HashBasedShufflePolicy(batchSize, hashFunc),
-          tag,
-          to.identifiers
+        AddDataSendingPolicy(
+          new HashBasedShufflePolicy(tag, batchSize, hashFunc, to.identifiers)
         ),
         10
       )
