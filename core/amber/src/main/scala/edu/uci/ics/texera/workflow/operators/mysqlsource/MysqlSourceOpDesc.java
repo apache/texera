@@ -54,6 +54,10 @@ public class MysqlSourceOpDesc extends SourceOperatorDescriptor {
     @JsonPropertyDescription("search terms in boolean expression")
     public String keywords;
 
+    @JsonProperty(value = "progressive")
+    @JsonPropertyDescription("progressively yield outputs by batches")
+    public Boolean progressive = false;
+
     @Override
     public OpExecConfig operatorExecutor() {
         return new MysqlSourceOpExecConfig(this.operatorIdentifier(), worker -> new MysqlSourceOpExec(
@@ -67,7 +71,8 @@ public class MysqlSourceOpDesc extends SourceOperatorDescriptor {
                 limit,
                 offset,
                 column,
-                keywords
+                keywords,
+                progressive
         ));
     }
 
@@ -153,7 +158,7 @@ public class MysqlSourceOpDesc extends SourceOperatorDescriptor {
             return schemaBuilder.build();
         } catch (SQLException | InstantiationException | IllegalAccessException | ClassNotFoundException | ClassCastException e) {
             e.printStackTrace();
-            throw new RuntimeException("Mysql Source failed to connect to mysql database." + e.getMessage());
+            throw new RuntimeException("Mysql Source failed to connect to mysql database. " + e.getMessage());
         }
     }
 

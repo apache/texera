@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.common.ambermessage
 
 import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalBreakpoint
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.ActorLayer
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.architecture.linksemantics.LinkStrategy
 import edu.uci.ics.amber.engine.architecture.principal.{PrincipalState, PrincipalStatistics}
 import edu.uci.ics.amber.engine.common.ambertag.{AmberTag, LayerTag, OperatorIdentifier, WorkerTag}
@@ -12,7 +12,7 @@ import akka.actor.{ActorPath, ActorRef}
 import scala.collection.mutable
 
 object PrincipalMessage {
-  final case class AckedPrincipalInitialization(prev: Array[(OpExecConfig, ActorLayer)])
+  final case class AckedPrincipalInitialization(prev: Array[(OpExecConfig, WorkerLayer)])
 
   final case class GetInputLayer()
 
@@ -21,7 +21,7 @@ object PrincipalMessage {
   final case class AppendLayer(linkStrategy: LinkStrategy)
 
   final case class PrependLayer(
-      prev: Array[(OpExecConfig, ActorLayer)],
+      prev: Array[(OpExecConfig, WorkerLayer)],
       linkStrategy: LinkStrategy
   )
 

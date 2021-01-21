@@ -2,19 +2,18 @@ package edu.uci.ics.amber.engine.architecture.linksemantics
 
 import akka.event.LoggingAdapter
 import akka.util.Timeout
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.ActorLayer
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy.OneToOnePolicy
 import edu.uci.ics.amber.engine.common.AdvancedMessageSending
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.UpdateOutputLinking
 
 import scala.concurrent.ExecutionContext
 
-class LocalOneToOne(from: ActorLayer, to: ActorLayer, batchSize: Int, inputNum: Int)
+class LocalOneToOne(from: WorkerLayer, to: WorkerLayer, batchSize: Int, inputNum: Int)
     extends LinkStrategy(from, to, batchSize, inputNum) {
   override def link()(implicit
       timeout: Timeout,
-      ec: ExecutionContext,
-      log: LoggingAdapter
+      ec: ExecutionContext
   ): Unit = {
     assert(from.isBuilt && to.isBuilt && from.layer.length == to.layer.length)
     val froms = from.layer.groupBy(actor => actor.path.address.hostPort)

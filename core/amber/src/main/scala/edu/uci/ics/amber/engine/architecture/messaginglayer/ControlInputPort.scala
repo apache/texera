@@ -1,8 +1,17 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
+import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlInputPort.WorkflowControlMessage
+import edu.uci.ics.amber.engine.common.WorkflowLogger
 import edu.uci.ics.amber.engine.common.ambermessage.neo.{ControlPayload, WorkflowMessage}
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
+import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.control.ControlMessageSource.{
+  ControlInvocation,
+  ReturnPayload
+}
+import edu.uci.ics.amber.engine.common.control.{ControlMessageReceiver, ControlMessageSource}
+import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 import scala.collection.mutable
 
@@ -14,7 +23,10 @@ object ControlInputPort {
   ) extends WorkflowMessage
 }
 
-class ControlInputPort {
+class ControlInputPort(ctrlSource: ControlMessageSource, ctrlReceiver: ControlMessageReceiver) {
+
+  protected val logger: WorkflowLogger = WorkflowLogger("ControlInputPort")
+
   private val idToOrderingEnforcers =
     new mutable.AnyRefMap[VirtualIdentity, OrderingEnforcer[ControlPayload]]()
 
@@ -26,18 +38,24 @@ class ControlInputPort {
       msg.payload
     ) match {
       case Some(iterable) =>
-        processControlPayload(iterable)
+        iterable.foreach {
+          case call: ControlInvocation =>
+            assert(msg.from.isInstanceOf[ActorVirtualIdentity])
+            ctrlReceiver.receive(call, msg.from.asInstanceOf[ActorVirtualIdentity])
+          case ret: ReturnPayload =>
+            ctrlSource.fulfillPromise(ret)
+          case other =>
+            logger.logError(
+              WorkflowRuntimeError(
+                s"unhandled control message: $other",
+                "ControlInputPort",
+                Map.empty
+              )
+            )
+        }
       case None =>
         // discard duplicate
-        println(s"receive duplicated: ${msg.payload}")
-    }
-  }
-
-  @inline
-  private def processControlPayload(iter: Iterable[ControlPayload]): Unit = {
-    iter.foreach {
-      case other =>
-      //TODO: implement future/promise here
+        logger.logInfo(s"receive duplicated: ${msg.payload}")
     }
   }
 }

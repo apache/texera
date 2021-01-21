@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.linksemantics
 
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.ActorLayer
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy.RoundRobinPolicy
 import edu.uci.ics.amber.engine.common.AdvancedMessageSending
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.UpdateOutputLinking
@@ -12,12 +12,11 @@ import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtual
 
 import scala.concurrent.ExecutionContext
 
-class LocalRoundRobin(from: ActorLayer, to: ActorLayer, batchSize: Int, inputNum: Int)
+class LocalRoundRobin(from: WorkerLayer, to: WorkerLayer, batchSize: Int, inputNum: Int)
     extends LinkStrategy(from, to, batchSize, inputNum) {
   override def link()(implicit
       timeout: Timeout,
-      ec: ExecutionContext,
-      log: LoggingAdapter
+      ec: ExecutionContext
   ): Unit = {
     assert(from.isBuilt && to.isBuilt)
     val froms = from.layer.groupBy(actor => actor.path.address.hostPort)

@@ -66,6 +66,7 @@ libraryDependencies += "edu.stanford.nlp" % "stanford-corenlp" % "3.9.2"
 libraryDependencies += "edu.stanford.nlp" % "stanford-corenlp" % "3.9.2" classifier "models"
 
 libraryDependencies += "com.twitter" %% "chill-akka" % "0.9.3"
+libraryDependencies += "com.twitter" %% "util-core" % "20.9.0"
 libraryDependencies += "com.typesafe.play" %% "play-json" % "2.7.3"
 libraryDependencies += "org.fusesource.leveldbjni" % "leveldbjni-all" % "1.8"
 libraryDependencies += "com.github.nscala-time" %% "nscala-time" % "2.22.0"

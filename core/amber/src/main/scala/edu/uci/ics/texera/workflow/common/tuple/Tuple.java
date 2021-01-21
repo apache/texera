@@ -23,7 +23,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 public class Tuple implements ITuple, Serializable {
 
     private final Schema schema;
-    private final ArrayList<Object> fields;
+    private final List<Object> fields;
 
     public Tuple(Schema schema, Object... fields) {
         this(schema, Arrays.asList(fields));
@@ -43,7 +43,7 @@ public class Tuple implements ITuple, Serializable {
         checkSchemaMatchesFields(schema.getAttributes(), fields);
 
         this.schema = schema;
-        this.fields = new ArrayList<>(fields);
+        this.fields = Collections.unmodifiableList(fields);
     }
 
     @Override

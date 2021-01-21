@@ -30,11 +30,11 @@ class BatchToTupleConverter(workerInternalQueue: WorkerInternalQueue) {
     inputMap(identifier) = input
   }
 
-  /** This method handles various data events and put different
+  /** This method handles various data payloads and put different
     * element into the internal queue.
-    * data events:
+    * data payloads:
     * 1. Data Payload, it will be split into tuples and add to the queue.
-    * 2. End Of Upstream, this event will be received once per upstream actor.
+    * 2. End Of Upstream, this payload will be received once per upstream actor.
     *    Note that multiple upstream actors can be there for one upstream.
     *    We emit EOU marker when one upstream exhausts. Also, we emit End Of All marker
     *    when ALL upstreams exhausts.

@@ -18,7 +18,6 @@ import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtual
 object WorkerMessage {
 
   final case class AckedWorkerInitialization(recoveryInformation: Seq[(Long, Long)] = Nil)
-      extends ControlPayload
 
   final case class UpdateInputLinking(fromLayer: VirtualIdentity, inputNum: Int)
       extends ControlPayload
@@ -29,43 +28,41 @@ object WorkerMessage {
       receivers: Array[ActorVirtualIdentity]
   ) extends ControlPayload
 
-  final case class EndSending(sequenceNumber: Long) extends ControlPayload
+  final case class EndSending(sequenceNumber: Long)
 
   final case class ExecutionCompleted() extends ControlPayload
 
-  final case class ExecutionPaused() extends ControlPayload
+  final case class ExecutionPaused()
 
-  final case class AssignBreakpoint(breakpoint: LocalBreakpoint) extends ControlPayload
+  final case class AssignBreakpoint(breakpoint: LocalBreakpoint)
 
-  final case class QueryTriggeredBreakpoints() extends ControlPayload
+  final case class QueryTriggeredBreakpoints()
 
-  final case class QueryBreakpoint(id: String) extends ControlPayload
+  final case class QueryBreakpoint(id: String)
 
-  final case class ReportState(workerState: WorkerState.Value) extends ControlPayload
+  final case class ReportState(workerState: WorkerState.Value)
 
-  final case class ReportStatistics(workerStatistics: WorkerStatistics) extends ControlPayload
+  final case class ReportStatistics(workerStatistics: WorkerStatistics)
 
-  final case class ReportOutputResult(results: List[ITuple]) extends ControlPayload
+  final case class ReportOutputResult(results: List[ITuple])
 
-  final case class RemoveBreakpoint(id: String) extends ControlPayload
+  final case class RemoveBreakpoint(id: String)
 
-  final case class ReportedTriggeredBreakpoints(bps: Array[LocalBreakpoint]) extends ControlPayload
+  final case class ReportedTriggeredBreakpoints(bps: Array[LocalBreakpoint])
 
-  final case class ReportedQueriedBreakpoint(bp: LocalBreakpoint) extends ControlPayload
+  final case class ReportedQueriedBreakpoint(bp: LocalBreakpoint)
 
-  final case class ReportFailure(exception: Exception) extends ControlPayload
+  final case class ReportFailure(exception: Exception)
 
-  final case class ReportUpstreamExhausted(tag: LayerTag) extends ControlPayload
+  final case class ReportUpstreamExhausted(tag: LayerTag)
 
   final case class ReportWorkerPartialCompleted(worker: WorkerTag, layer: LayerTag)
-      extends ControlPayload
 
-  final case class CheckRecovery() extends ControlPayload
+  final case class CheckRecovery()
 
   final case class ReportCurrentProcessingTuple(workerID: ActorPath, tuple: ITuple)
-      extends ControlPayload
 
-  final case class Reset(core: Any, recoveryInformation: Seq[(Long, Long)]) extends ControlPayload
+  final case class Reset(core: Any, recoveryInformation: Seq[(Long, Long)])
 
   final case class EndOfUpstream() extends DataPayload
 
