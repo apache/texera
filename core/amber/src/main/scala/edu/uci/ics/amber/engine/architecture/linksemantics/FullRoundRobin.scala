@@ -5,7 +5,7 @@ import edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy.Ro
 import edu.uci.ics.amber.engine.common.AdvancedMessageSending
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{
   UpdateInputLinking,
-  UpdateOutputLinking
+  AddDataSendingPolicy
 }
 import akka.event.LoggingAdapter
 import akka.util.Timeout
@@ -23,10 +23,8 @@ class FullRoundRobin(from: WorkerLayer, to: WorkerLayer, batchSize: Int, inputNu
     from.layer.foreach(x =>
       AdvancedMessageSending.blockingAskWithRetry(
         x,
-        UpdateOutputLinking(
-          new RoundRobinPolicy(batchSize),
-          tag,
-          to.identifiers
+        AddDataSendingPolicy(
+          new RoundRobinPolicy(tag, batchSize, to.identifiers)
         ),
         10
       )

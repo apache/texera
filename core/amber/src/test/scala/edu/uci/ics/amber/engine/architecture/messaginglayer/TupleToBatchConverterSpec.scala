@@ -34,7 +34,7 @@ class TupleToBatchConverterSpec extends AnyFlatSpec with MockFactory {
     }
     val fakeLink = LinkTag(LayerTag("", "", ""), LayerTag("", "", ""), 0)
     val fakeReceiver = Array[ActorVirtualIdentity](fakeID)
-    batchProducer.addPolicy(new OneToOnePolicy(10), fakeLink, fakeReceiver)
+    batchProducer.addPolicy(new OneToOnePolicy(fakeLink, 10, fakeReceiver))
     tuples.foreach { t =>
       batchProducer.passTupleToDownstream(t)
     }
