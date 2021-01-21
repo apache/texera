@@ -3,7 +3,7 @@ package edu.uci.ics.amber.engine.architecture.linksemantics
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy.RoundRobinPolicy
 import edu.uci.ics.amber.engine.common.AdvancedMessageSending
-import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.UpdateOutputLinking
+import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.AddDataSendingPolicy
 import edu.uci.ics.amber.engine.common.ambertag.LinkTag
 import akka.event.LoggingAdapter
 import akka.util.Timeout
@@ -33,7 +33,7 @@ class LocalRoundRobin(from: WorkerLayer, to: WorkerLayer, batchSize: Int, inputN
       froms(x).foreach(y =>
         AdvancedMessageSending.blockingAskWithRetry(
           y,
-          UpdateOutputLinking(new RoundRobinPolicy(batchSize), tag, receivers),
+          AddDataSendingPolicy(new RoundRobinPolicy(tag, batchSize, receivers)),
           10
         )
       )
@@ -42,7 +42,7 @@ class LocalRoundRobin(from: WorkerLayer, to: WorkerLayer, batchSize: Int, inputN
       froms(x).foreach(y =>
         AdvancedMessageSending.blockingAskWithRetry(
           y,
-          UpdateOutputLinking(new RoundRobinPolicy(batchSize), tag, to.identifiers),
+          AddDataSendingPolicy(new RoundRobinPolicy(tag, batchSize, to.identifiers)),
           10
         )
       )

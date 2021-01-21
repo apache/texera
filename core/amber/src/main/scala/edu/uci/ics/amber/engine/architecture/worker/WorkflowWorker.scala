@@ -281,9 +281,13 @@ class WorkflowWorker(identifier: ActorVirtualIdentity, operator: IOperatorExecut
         dataProcessor.unhandledFaultedTuples.remove(f.id)
         onResumeTuple(f)
       }
-    case UpdateOutputLinking(policy, tag, receivers) =>
+    case AddDataSendingPolicy(policy) =>
       sender ! Ack
-      batchProducer.addPolicy(policy, tag, receivers)
+      // send message to receivers to add this worker to their expected inputs
+      policy.receivers.foreach { x =>
+        controlOutputPort.sendTo(x, UpdateInputLinking(identifier, policy.policyTag.inputNum))
+      }
+      batchProducer.addPolicy(policy)
   }
 
   final def receiveDataMessages: Receive = {

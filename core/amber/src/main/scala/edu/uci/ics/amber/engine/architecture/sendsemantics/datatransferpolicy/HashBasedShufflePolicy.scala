@@ -13,11 +13,16 @@ import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtual
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext
 
-class HashBasedShufflePolicy(batchSize: Int, val hashFunc: ITuple => Int)
-    extends DataTransferPolicy(batchSize) {
+class HashBasedShufflePolicy(
+    policyTag: LinkTag,
+    batchSize: Int,
+    val hashFunc: ITuple => Int,
+    receivers: Array[ActorVirtualIdentity]
+) extends DataSendingPolicy(policyTag, batchSize, receivers) {
   var batches: Array[Array[ITuple]] = _
-  var receivers: Array[ActorVirtualIdentity] = _
   var currentSizes: Array[Int] = _
+
+  initializeInternalState(receivers)
 
   override def noMore(): Array[(ActorVirtualIdentity, DataPayload)] = {
     val receiversAndBatches = new ArrayBuffer[(ActorVirtualIdentity, DataPayload)]
@@ -46,13 +51,6 @@ class HashBasedShufflePolicy(batchSize: Int, val hashFunc: ITuple => Int)
       return Some((receivers(index), DataFrame(retBatch)))
     }
     None
-  }
-
-  override def initialize(tag: LinkTag, _receivers: Array[ActorVirtualIdentity]): Unit = {
-    super.initialize(tag, _receivers)
-    assert(_receivers != null)
-    this.receivers = _receivers
-    initializeInternalState(receivers)
   }
 
   override def reset(): Unit = {

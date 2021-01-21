@@ -8,7 +8,7 @@ import edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy.{
 import edu.uci.ics.amber.engine.common.AdvancedMessageSending
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{
   UpdateInputLinking,
-  UpdateOutputLinking
+  AddDataSendingPolicy
 }
 import akka.event.LoggingAdapter
 import akka.util.Timeout
@@ -32,10 +32,8 @@ class LocalPartialToOne(from: WorkerLayer, to: WorkerLayer, batchSize: Int, inpu
       for (i <- x._2.indices) {
         AdvancedMessageSending.blockingAskWithRetry(
           x._2(i),
-          UpdateOutputLinking(
-            new OneToOnePolicy(batchSize),
-            tag,
-            Array(actorToIdentifier(tos(x._1).head))
+          AddDataSendingPolicy(
+            new OneToOnePolicy(tag, batchSize, Array(actorToIdentifier(tos(x._1).head)))
           ),
           10
         )
