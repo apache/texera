@@ -16,10 +16,10 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
 import edu.uci.ics.amber.engine.common.WorkflowLogger
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.control.{
-  ControlMessageSource,
-  ControlHandlerInitializer,
-  ControlMessageReceiver
+import edu.uci.ics.amber.engine.common.rpc.{
+  AsyncRPCClient,
+  AsyncRPCHandlerInitializer,
+  AsyncRPCServer
 }
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 
@@ -32,11 +32,11 @@ abstract class WorkflowActor(val identifier: ActorVirtualIdentity) extends Actor
   )
   lazy val controlInputPort: ControlInputPort = wire[ControlInputPort]
   lazy val controlOutputPort: ControlOutputPort = wire[ControlOutputPort]
-  lazy val ctrlSource: ControlMessageSource = wire[ControlMessageSource]
-  lazy val ctrlReceiver: ControlMessageReceiver = wire[ControlMessageReceiver]
+  lazy val asyncRPCClient: AsyncRPCClient = wire[AsyncRPCClient]
+  lazy val asyncRPCServer: AsyncRPCServer = wire[AsyncRPCServer]
   // this variable cannot be lazy
   // because it should be initialized with the actor itself
-  val rpcHandlerInitializer: ControlHandlerInitializer
+  val rpcHandlerInitializer: AsyncRPCHandlerInitializer
 
   def routeActorRefRelatedMessages: Receive = {
     case QueryActorRef(id, replyTo) =>
