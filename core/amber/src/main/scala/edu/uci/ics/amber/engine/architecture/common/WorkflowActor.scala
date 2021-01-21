@@ -30,9 +30,12 @@ abstract class WorkflowActor(
     with Stash {
 
   protected val logger: WorkflowLogger = WorkflowLogger(s"$identifier")
-  logger.setErrorLogAction(err => {
-    throw new WorkflowRuntimeException(err)
-  })
+
+//  For now, just log it to the console
+//  TODO: enable throwing of the exception when all control messages have been handled properly
+//  logger.setErrorLogAction(err => {
+//    throw new WorkflowRuntimeException(err)
+//  })
 
   val networkCommunicationActor: NetworkSenderActorRef = NetworkSenderActorRef(
     context.actorOf(NetworkCommunicationActor.props(parentNetworkCommunicationActorRef))
