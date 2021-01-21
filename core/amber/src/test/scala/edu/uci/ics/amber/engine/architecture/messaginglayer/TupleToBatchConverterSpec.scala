@@ -18,7 +18,6 @@ import edu.uci.ics.amber.engine.common.tuple.ITuple
 
 class TupleToBatchConverterSpec extends AnyFlatSpec with MockFactory {
   private val mockDataOutputPort = mock[DataOutputPort]
-  private val mockControlOutputPort = mock[ControlOutputPort]
   private val identifier = WorkerActorVirtualIdentity("batch producer mock")
 
   "TupleToBatchConverter" should "aggregate tuples and output" in {
@@ -26,7 +25,6 @@ class TupleToBatchConverterSpec extends AnyFlatSpec with MockFactory {
     val tuples = Array.fill(21)(ITuple(1, 2, 3, 4, "5", 9.8))
     val fakeID = WorkerActorVirtualIdentity("testReceiver")
     inSequence {
-      (mockControlOutputPort.sendTo _).expects(fakeID, UpdateInputLinking(identifier, 0))
       (mockDataOutputPort.sendTo _).expects(fakeID, DataFrame(tuples.slice(0, 10)))
       (mockDataOutputPort.sendTo _).expects(fakeID, DataFrame(tuples.slice(10, 20)))
       (mockDataOutputPort.sendTo _).expects(fakeID, DataFrame(tuples.slice(20, 21)))
@@ -34,6 +32,7 @@ class TupleToBatchConverterSpec extends AnyFlatSpec with MockFactory {
     }
     val fakeLink = LinkTag(LayerTag("", "", ""), LayerTag("", "", ""), 0)
     val fakeReceiver = Array[ActorVirtualIdentity](fakeID)
+
     batchProducer.addPolicy(new OneToOnePolicy(fakeLink, 10, fakeReceiver))
     tuples.foreach { t =>
       batchProducer.passTupleToDownstream(t)

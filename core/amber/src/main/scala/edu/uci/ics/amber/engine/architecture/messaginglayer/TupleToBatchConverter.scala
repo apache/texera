@@ -16,8 +16,7 @@ import scala.util.control.Breaks
   */
 class TupleToBatchConverter(
     selfID: ActorVirtualIdentity,
-    dataOutputPort: DataOutputPort,
-    controlOutputPort: ControlOutputPort
+    dataOutputPort: DataOutputPort
 ) {
   private var policies = new Array[DataSendingPolicy](0)
 
