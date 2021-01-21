@@ -6,14 +6,14 @@ import edu.uci.ics.amber.engine.architecture.control.utils.CollectHandler.Collec
 import edu.uci.ics.amber.engine.architecture.control.utils.MultiCallHandler.MultiCall
 import edu.uci.ics.amber.engine.architecture.control.utils.RecursionHandler.Recursion
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.control.ControlMessageReceiver.ControlCommand
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 
 object MultiCallHandler {
   case class MultiCall(seq: Seq[ActorVirtualIdentity]) extends ControlCommand[String]
 }
 
 trait MultiCallHandler {
-  this: TesterControlHandlerInitializer =>
+  this: TesterAsyncRPCHandlerInitializer =>
 
   registerHandler { m: MultiCall =>
     send(Chain(m.seq), myID)

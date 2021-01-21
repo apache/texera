@@ -9,10 +9,10 @@ import com.esotericsoftware.kryo.io.Input
 import com.twitter.util.{FuturePool, Promise}
 import edu.uci.ics.amber.clustering.SingleNodeListener
 import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlInputPort.WorkflowControlMessage
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkSenderActor.{
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
   NetworkAck,
   NetworkMessage,
-  QueryActorRef,
+  GetActorRef,
   RegisterActorRef
 }
 import edu.uci.ics.amber.engine.architecture.control.utils.ChainHandler.Chain
@@ -27,11 +27,8 @@ import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.{
   ActorVirtualIdentity,
   WorkerActorVirtualIdentity
 }
-import edu.uci.ics.amber.engine.common.control.ControlMessageSource.{
-  ControlInvocation,
-  ReturnPayload
-}
-import edu.uci.ics.amber.engine.common.control.ControlMessageReceiver.ControlCommand
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnPayload}
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 
@@ -56,7 +53,7 @@ class TrivialControlSpec
     val idMap = mutable.HashMap[ActorVirtualIdentity, ActorRef]()
     for (i <- 0 until numActors) {
       val id = WorkerActorVirtualIdentity(s"$i")
-      val ref = probe.childActorOf(Props(new TrivialControlTester(id)))
+      val ref = probe.childActorOf(Props(new TrivialControlTester(id, probe.ref)))
       idMap(id) = ref
     }
     idMap(VirtualIdentity.Controller) = probe.ref
@@ -83,7 +80,7 @@ class TrivialControlSpec
     val (probe, idMap) = setUp(numActors, events: _*)
     var flag = 0
     probe.receiveWhile(5.minutes, 5.seconds) {
-      case QueryActorRef(id, replyTo) =>
+      case GetActorRef(id, replyTo) =>
         replyTo.foreach { actor =>
           actor ! RegisterActorRef(id, idMap(id))
         }

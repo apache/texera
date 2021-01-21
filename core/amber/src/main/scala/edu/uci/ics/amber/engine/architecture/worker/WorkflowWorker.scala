@@ -1,13 +1,13 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
-import akka.actor.Props
+import akka.actor.{ActorRef, Props}
 import akka.util.Timeout
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.engine.architecture.breakpoint.FaultedTuple
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlInputPort.WorkflowControlMessage
 import edu.uci.ics.amber.engine.architecture.messaginglayer.DataInputPort.WorkflowDataMessage
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkSenderActor.{
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
   NetworkAck,
   NetworkMessage
 }
@@ -29,11 +29,8 @@ import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage._
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage._
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.control.ControlMessageSource.{
-  ControlInvocation,
-  ReturnPayload
-}
-import edu.uci.ics.amber.engine.common.control.{ControlHandlerInitializer, ControlMessageReceiver}
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnPayload}
+import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCHandlerInitializer, AsyncRPCServer}
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager._
 import edu.uci.ics.amber.engine.common.tuple.ITuple
@@ -51,12 +48,19 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
 object WorkflowWorker {
-  def props(id: ActorVirtualIdentity, op: IOperatorExecutor): Props =
-    Props(new WorkflowWorker(id, op))
+  def props(
+      id: ActorVirtualIdentity,
+      op: IOperatorExecutor,
+      parentNetworkCommunicationActorRef: ActorRef
+  ): Props =
+    Props(new WorkflowWorker(id, op, parentNetworkCommunicationActorRef))
 }
 
-class WorkflowWorker(identifier: ActorVirtualIdentity, operator: IOperatorExecutor)
-    extends WorkflowActor(identifier) {
+class WorkflowWorker(
+    identifier: ActorVirtualIdentity,
+    operator: IOperatorExecutor,
+    parentNetworkCommunicationActorRef: ActorRef
+) extends WorkflowActor(identifier, parentNetworkCommunicationActorRef) {
   implicit val ec: ExecutionContext = context.dispatcher
   implicit val timeout: Timeout = 5.seconds
 
@@ -68,8 +72,8 @@ class WorkflowWorker(identifier: ActorVirtualIdentity, operator: IOperatorExecut
   lazy val tupleProducer: BatchToTupleConverter = wire[BatchToTupleConverter]
   lazy val workerStateManager: WorkerStateManager = wire[WorkerStateManager]
 
-  val rpcHandlerInitializer: ControlHandlerInitializer =
-    wire[WorkerControlHandlerInitializer]
+  val rpcHandlerInitializer: AsyncRPCHandlerInitializer =
+    wire[WorkerAsyncRPCHandlerInitializer]
 
   val receivedFaultedTupleIds: mutable.HashSet[Long] = new mutable.HashSet[Long]()
   var isCompleted = false
@@ -121,7 +125,7 @@ class WorkflowWorker(identifier: ActorVirtualIdentity, operator: IOperatorExecut
   override def receive: Receive = receiveAndProcessMessages
 
   def receiveAndProcessMessages: Receive = {
-    routeActorRefRelatedMessages orElse
+    disallowActorRefRelatedMessages orElse
       processControlMessages orElse
       oldControlMessageHandler orElse
       receiveDataMessages orElse {
@@ -200,7 +204,7 @@ class WorkflowWorker(identifier: ActorVirtualIdentity, operator: IOperatorExecut
     case Pause =>
       if (workerStateManager.getCurrentState != Completed) {
         workerStateManager.confirmState(Running, Ready)
-        ctrlSource.send(WorkerPause(), identifier) //send to myself
+        asyncRPCClient.send(WorkerPause(), identifier) //send to myself
         workerStateManager.transitTo(Pausing)
       }
       reportState()
