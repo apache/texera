@@ -2,14 +2,14 @@ package edu.uci.ics.amber.engine.architecture.control.utils
 
 import com.twitter.util.{Future, Promise}
 import edu.uci.ics.amber.engine.architecture.control.utils.RecursionHandler.Recursion
-import edu.uci.ics.amber.engine.common.control.ControlMessageReceiver.ControlCommand
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 
 object RecursionHandler {
   case class Recursion(i: Int) extends ControlCommand[String]
 }
 
 trait RecursionHandler {
-  this: TesterControlHandlerInitializer =>
+  this: TesterAsyncRPCHandlerInitializer =>
 
   registerHandler { r: Recursion =>
     if (r.i < 5) {

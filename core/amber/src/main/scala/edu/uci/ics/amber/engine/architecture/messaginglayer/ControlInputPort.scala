@@ -6,11 +6,8 @@ import edu.uci.ics.amber.engine.common.WorkflowLogger
 import edu.uci.ics.amber.engine.common.ambermessage.neo.{ControlPayload, WorkflowMessage}
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.control.ControlMessageSource.{
-  ControlInvocation,
-  ReturnPayload
-}
-import edu.uci.ics.amber.engine.common.control.{ControlMessageReceiver, ControlMessageSource}
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnPayload}
+import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCServer, AsyncRPCClient}
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 import scala.collection.mutable
@@ -23,7 +20,7 @@ object ControlInputPort {
   ) extends WorkflowMessage
 }
 
-class ControlInputPort(ctrlSource: ControlMessageSource, ctrlReceiver: ControlMessageReceiver) {
+class ControlInputPort(asyncRPCClient: AsyncRPCClient, asyncRPCServer: AsyncRPCServer) {
 
   protected val logger: WorkflowLogger = WorkflowLogger("ControlInputPort")
 
@@ -41,9 +38,9 @@ class ControlInputPort(ctrlSource: ControlMessageSource, ctrlReceiver: ControlMe
         iterable.foreach {
           case call: ControlInvocation =>
             assert(msg.from.isInstanceOf[ActorVirtualIdentity])
-            ctrlReceiver.receive(call, msg.from.asInstanceOf[ActorVirtualIdentity])
+            asyncRPCServer.receive(call, msg.from.asInstanceOf[ActorVirtualIdentity])
           case ret: ReturnPayload =>
-            ctrlSource.fulfillPromise(ret)
+            asyncRPCClient.fulfillPromise(ret)
           case other =>
             logger.logError(
               WorkflowRuntimeError(

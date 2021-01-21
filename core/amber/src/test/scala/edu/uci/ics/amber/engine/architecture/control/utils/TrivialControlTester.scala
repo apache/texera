@@ -8,11 +8,11 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkSenderActor.{
   NetworkMessage
 }
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.control.ControlHandlerInitializer
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCHandlerInitializer
 
 class TrivialControlTester(id: ActorVirtualIdentity) extends WorkflowActor(id) {
-  override val rpcHandlerInitializer: ControlHandlerInitializer =
-    wire[TesterControlHandlerInitializer]
+  override val rpcHandlerInitializer: AsyncRPCHandlerInitializer =
+    wire[TesterAsyncRPCHandlerInitializer]
 
   override def receive: Receive = {
     routeActorRefRelatedMessages orElse {

@@ -111,7 +111,7 @@ import edu.uci.ics.amber.error.WorkflowRuntimeError
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkSenderActor
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkSenderActor.RegisterActorRef
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
-import edu.uci.ics.amber.engine.common.control.ControlHandlerInitializer
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCHandlerInitializer
 
 import collection.JavaConverters._
 import scala.collection.mutable
@@ -149,7 +149,7 @@ class Controller(
   implicit val ec: ExecutionContext = context.dispatcher
   implicit val timeout: Timeout = 5.seconds
 
-  lazy val rpcHandlerInitializer = wire[ControlHandlerInitializer]
+  lazy val rpcHandlerInitializer = wire[AsyncRPCHandlerInitializer]
 
   private def errorLogAction(err: WorkflowRuntimeError): Unit = {
     eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
