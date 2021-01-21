@@ -11,7 +11,7 @@ import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalB
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.architecture.linksemantics.LinkStrategy
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkSenderActor.RegisterActorRef
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.RegisterActorRef
 import edu.uci.ics.amber.engine.architecture.worker.{WorkerState, WorkerStatistics}
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage._
@@ -48,10 +48,10 @@ import akka.pattern.ask
 import com.google.common.base.Stopwatch
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkSenderActor
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor
 import com.typesafe.scalalogging.{LazyLogging, Logger}
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.ErrorOccurred
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkSenderActor.RegisterActorRef
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.RegisterActorRef
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{
   ReportWorkerPartialCompleted,
   ReportedQueriedBreakpoint,

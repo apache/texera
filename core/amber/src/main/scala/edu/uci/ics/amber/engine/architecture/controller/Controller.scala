@@ -108,8 +108,8 @@ import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{
   Reset
 }
 import edu.uci.ics.amber.error.WorkflowRuntimeError
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkSenderActor
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkSenderActor.RegisterActorRef
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.RegisterActorRef
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCHandlerInitializer
 
@@ -449,7 +449,7 @@ class Controller(
     operatorToWorkerLayers(startOp).foreach { x =>
       var i = 0
       x.identifiers.indices.foreach(i =>
-        networkSenderActor ! RegisterActorRef(x.identifiers(i), x.layer(i))
+        networkCommunicationActor ! RegisterActorRef(x.identifiers(i), x.layer(i))
       )
       x.layer.foreach { worker =>
         val workerTag = WorkerTag(x.tag, i)

@@ -2,11 +2,11 @@ package edu.uci.ics.amber.engine.architecture.messaginglayer
 
 import akka.actor.{Actor, ActorRef, Props, Stash}
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkSenderActor.{
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
   MessageBecomesDeadLetter,
   NetworkAck,
   NetworkMessage,
-  QueryActorRef,
+  GetActorRef,
   RegisterActorRef,
   ResendMessages,
   SendRequest
@@ -18,7 +18,7 @@ import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtual
 import scala.collection.mutable
 import scala.concurrent.duration._
 
-object NetworkSenderActor {
+object NetworkCommunicationActor {
 
   /** to distinguish between main actor self ref and
     * network sender actor
@@ -35,7 +35,7 @@ object NetworkSenderActor {
 
   /** Identifier <-> ActorRef related messages
     */
-  final case class QueryActorRef(id: ActorVirtualIdentity, replyTo: Set[ActorRef])
+  final case class GetActorRef(id: ActorVirtualIdentity, replyTo: Set[ActorRef])
   final case class RegisterActorRef(id: ActorVirtualIdentity, ref: ActorRef)
 
   /** All outgoing message should be eventually NetworkMessage
@@ -55,14 +55,14 @@ object NetworkSenderActor {
   final case class MessageBecomesDeadLetter(message: NetworkMessage)
 
   def props(): Props =
-    Props(new NetworkSenderActor())
+    Props(new NetworkCommunicationActor())
 }
 
 /** This actor handles the transformation from identifier to actorRef
   * and also sends message to other actors. This is the most outer part of
   * the messaging layer.
   */
-class NetworkSenderActor extends Actor with LazyLogging {
+class NetworkCommunicationActor extends Actor with LazyLogging {
 
   val idToActorRefs = new mutable.HashMap[ActorVirtualIdentity, ActorRef]()
   val idToCongestionControls = new mutable.HashMap[ActorVirtualIdentity, CongestionControl]()
@@ -94,13 +94,13 @@ class NetworkSenderActor extends Actor with LazyLogging {
     * 2. when it receives a mapping, it adds that mapping to the state.
     */
   def findActorRefFromVirtualIdentity: Receive = {
-    case QueryActorRef(actorID, replyTo) =>
+    case GetActorRef(actorID, replyTo) =>
       if (idToActorRefs.contains(actorID)) {
         replyTo.foreach { actor =>
           actor ! RegisterActorRef(actorID, idToActorRefs(actorID))
         }
       } else {
-        context.parent ! QueryActorRef(actorID, replyTo + self)
+        context.parent ! GetActorRef(actorID, replyTo + self)
       }
     case RegisterActorRef(actorID, ref) =>
       registerActorRef(actorID, ref)
@@ -187,7 +187,7 @@ class NetworkSenderActor extends Actor with LazyLogging {
   @inline
   private[this] def getActorRefMappingFromParent(actorID: ActorVirtualIdentity): Unit = {
     if (!queriedActorVirtualIdentities.contains(actorID)) {
-      context.parent ! QueryActorRef(actorID, Set(self))
+      context.parent ! GetActorRef(actorID, Set(self))
       queriedActorVirtualIdentities.add(actorID)
     }
   }
