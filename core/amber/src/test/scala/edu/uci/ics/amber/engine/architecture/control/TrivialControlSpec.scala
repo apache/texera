@@ -53,7 +53,7 @@ class TrivialControlSpec
     val idMap = mutable.HashMap[ActorVirtualIdentity, ActorRef]()
     for (i <- 0 until numActors) {
       val id = WorkerActorVirtualIdentity(s"$i")
-      val ref = probe.childActorOf(Props(new TrivialControlTester(id)))
+      val ref = probe.childActorOf(Props(new TrivialControlTester(id, probe.ref)))
       idMap(id) = ref
     }
     idMap(VirtualIdentity.Controller) = probe.ref

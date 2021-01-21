@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
-import akka.actor.Props
+import akka.actor.{ActorRef, Props}
 import akka.util.Timeout
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.engine.architecture.breakpoint.FaultedTuple
@@ -48,12 +48,19 @@ import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
 object WorkflowWorker {
-  def props(id: ActorVirtualIdentity, op: IOperatorExecutor): Props =
-    Props(new WorkflowWorker(id, op))
+  def props(
+      id: ActorVirtualIdentity,
+      op: IOperatorExecutor,
+      parentNetworkCommunicationActorRef: ActorRef
+  ): Props =
+    Props(new WorkflowWorker(id, op, parentNetworkCommunicationActorRef))
 }
 
-class WorkflowWorker(identifier: ActorVirtualIdentity, operator: IOperatorExecutor)
-    extends WorkflowActor(identifier) {
+class WorkflowWorker(
+    identifier: ActorVirtualIdentity,
+    operator: IOperatorExecutor,
+    parentNetworkCommunicationActorRef: ActorRef
+) extends WorkflowActor(identifier, parentNetworkCommunicationActorRef) {
   implicit val ec: ExecutionContext = context.dispatcher
   implicit val timeout: Timeout = 5.seconds
 
@@ -118,7 +125,7 @@ class WorkflowWorker(identifier: ActorVirtualIdentity, operator: IOperatorExecut
   override def receive: Receive = receiveAndProcessMessages
 
   def receiveAndProcessMessages: Receive = {
-    routeActorRefRelatedMessages orElse
+    disallowActorRefRelatedMessages orElse
       processControlMessages orElse
       oldControlMessageHandler orElse
       receiveDataMessages orElse {
