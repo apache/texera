@@ -898,7 +898,7 @@ export class WorkflowEditorComponent implements AfterViewInit {
       // connect to the same target operator and port
       .filter(link => link.target.operatorID === targetCellID && link.target.portID === targetPortID)
       // but not the link we are checking right now, jointJS sometimes invoke the function on already connected link
-      .filter(link => ! (link.source.operatorID === sourceCellID && link.source.portID === sourcePortID));
+      .filter(link => !(link.source.operatorID === sourceCellID && link.source.portID === sourcePortID));
 
 
     let allowMultiInput = false;
@@ -1244,14 +1244,14 @@ export class WorkflowEditorComponent implements AfterViewInit {
   }
 
   /**
- * Utility function to calculate the position to paste the group.
- * If a previously pasted group is moved or deleted, the operator will be
- * pasted to the emptied position. Otherwise, it will be pasted to a position
- * that's non-overlapping and calculated according to the copy operator offset.
- * @param newGroupID
- * @param copiedGroupID
- * @param positions
- */
+   * Utility function to calculate the position to paste the group.
+   * If a previously pasted group is moved or deleted, the operator will be
+   * pasted to the emptied position. Otherwise, it will be pasted to a position
+   * that's non-overlapping and calculated according to the copy operator offset.
+   * @param newGroupID
+   * @param copiedGroupID
+   * @param positions
+   */
   private calcGroupPosition(newGroupID: string, copiedGroupID: string, positions: Point[]): Point {
     let i, position;
     const copiedGroup = this.copiedGroups.get(copiedGroupID);

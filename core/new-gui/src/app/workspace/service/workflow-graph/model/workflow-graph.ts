@@ -403,8 +403,6 @@ export class WorkflowGraph {
       throw new Error(`link's target operator ${link.target.operatorID} doesn't exist`);
     }
 
-    console.log(link);
-
     if (sourceOperator.outputPorts.find(
       (port) => port.portID === link.source.portID) === undefined) {
       throw new Error(`link's source port ${link.source.portID} doesn't exist

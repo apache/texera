@@ -484,7 +484,6 @@ export class JointUIService {
         stroke: 'none'
       },
       '.port-label': {
-        // display: 'none'
       }
     };
     return portStyleAttrs;

@@ -78,9 +78,6 @@ export class WorkflowUtilService {
       outputPorts.push({portID: outputPort.portID, displayName: outputPort.displayName});
     });
 
-    console.log(inputPorts);
-    console.log(outputPorts);
-
     return { operatorID, operatorType, operatorProperties, inputPorts, outputPorts, showAdvanced };
 
   }

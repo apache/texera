@@ -29,9 +29,9 @@ object WorkflowCompletedEvent {
 
       // add chartType to result
       val precedentOpID =
-        workflowCompiler.workflowInfo.links.find(link => link.destination == operatorID).get.origin
+        workflowCompiler.workflowInfo.links.find(link => link.destination.operatorID == operatorID).get.origin
       val precedentOp =
-        workflowCompiler.workflowInfo.operators.find(op => op.operatorID == precedentOpID).get
+        workflowCompiler.workflowInfo.operators.find(op => op.operatorID == precedentOpID.operatorID).get
       val chartType = precedentOp match {
         case operator: VisualizationOperator => operator.chartType()
         case _                               => null
