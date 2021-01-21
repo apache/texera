@@ -1,5 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.control.utils
 
+import akka.actor.ActorRef
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlInputPort.WorkflowControlMessage
@@ -10,12 +11,13 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunication
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCHandlerInitializer
 
-class TrivialControlTester(id: ActorVirtualIdentity) extends WorkflowActor(id) {
+class TrivialControlTester(id: ActorVirtualIdentity, parentNetworkCommunicationActorRef: ActorRef)
+    extends WorkflowActor(id, parentNetworkCommunicationActorRef) {
   override val rpcHandlerInitializer: AsyncRPCHandlerInitializer =
     wire[TesterAsyncRPCHandlerInitializer]
 
   override def receive: Receive = {
-    routeActorRefRelatedMessages orElse {
+    disallowActorRefRelatedMessages orElse {
       case msg @ NetworkMessage(id, cmd: WorkflowControlMessage) =>
         logger.logInfo(s"received ${msg.internalMessage}")
         sender ! NetworkAck(id)

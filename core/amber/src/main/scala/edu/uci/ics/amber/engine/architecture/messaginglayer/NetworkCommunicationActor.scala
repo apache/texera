@@ -3,17 +3,19 @@ package edu.uci.ics.amber.engine.architecture.messaginglayer
 import akka.actor.{Actor, ActorRef, Props, Stash}
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
+  GetActorRef,
   MessageBecomesDeadLetter,
   NetworkAck,
   NetworkMessage,
-  GetActorRef,
   RegisterActorRef,
   ResendMessages,
   SendRequest
 }
+import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.neo.WorkflowMessage
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
+import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 import scala.collection.mutable
 import scala.concurrent.duration._
@@ -54,15 +56,15 @@ object NetworkCommunicationActor {
 
   final case class MessageBecomesDeadLetter(message: NetworkMessage)
 
-  def props(): Props =
-    Props(new NetworkCommunicationActor())
+  def props(parentSender: ActorRef): Props =
+    Props(new NetworkCommunicationActor(parentSender))
 }
 
 /** This actor handles the transformation from identifier to actorRef
   * and also sends message to other actors. This is the most outer part of
   * the messaging layer.
   */
-class NetworkCommunicationActor extends Actor with LazyLogging {
+class NetworkCommunicationActor(parentRef: ActorRef) extends Actor with LazyLogging {
 
   val idToActorRefs = new mutable.HashMap[ActorVirtualIdentity, ActorRef]()
   val idToCongestionControls = new mutable.HashMap[ActorVirtualIdentity, CongestionControl]()
@@ -77,7 +79,7 @@ class NetworkCommunicationActor extends Actor with LazyLogging {
   var networkMessageID = 0L
   val messageIDToIdentity = new mutable.LongMap[ActorVirtualIdentity]
 
-  //add worker actor into idMap
+  //add parent actor into idMap
   idToActorRefs(VirtualIdentity.Self) = context.parent
 
   //register timer for resending messages
@@ -99,8 +101,16 @@ class NetworkCommunicationActor extends Actor with LazyLogging {
         replyTo.foreach { actor =>
           actor ! RegisterActorRef(actorID, idToActorRefs(actorID))
         }
+      } else if (parentRef != null) {
+        parentRef ! GetActorRef(actorID, replyTo + self)
       } else {
-        context.parent ! GetActorRef(actorID, replyTo + self)
+        throw new WorkflowRuntimeException(
+          WorkflowRuntimeError(
+            s"unknown identifier: $actorID",
+            actorID.toString,
+            Map.empty
+          )
+        )
       }
     case RegisterActorRef(actorID, ref) =>
       registerActorRef(actorID, ref)
@@ -187,7 +197,7 @@ class NetworkCommunicationActor extends Actor with LazyLogging {
   @inline
   private[this] def getActorRefMappingFromParent(actorID: ActorVirtualIdentity): Unit = {
     if (!queriedActorVirtualIdentities.contains(actorID)) {
-      context.parent ! GetActorRef(actorID, Set(self))
+      parentRef ! GetActorRef(actorID, Set(self))
       queriedActorVirtualIdentities.add(actorID)
     }
   }

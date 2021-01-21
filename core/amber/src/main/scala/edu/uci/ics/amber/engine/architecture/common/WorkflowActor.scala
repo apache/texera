@@ -23,12 +23,22 @@ import edu.uci.ics.amber.engine.common.rpc.{
 }
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 
-abstract class WorkflowActor(val identifier: ActorVirtualIdentity) extends Actor with Stash {
+abstract class WorkflowActor(
+    val identifier: ActorVirtualIdentity,
+    parentNetworkCommunicationActorRef: ActorRef
+) extends Actor
+    with Stash {
 
   protected val logger: WorkflowLogger = WorkflowLogger(s"$identifier")
 
+//  For now, just log it to the console
+//  TODO: enable throwing of the exception when all control messages have been handled properly
+//  logger.setErrorLogAction(err => {
+//    throw new WorkflowRuntimeException(err)
+//  })
+
   val networkCommunicationActor: NetworkSenderActorRef = NetworkSenderActorRef(
-    context.actorOf(NetworkCommunicationActor.props())
+    context.actorOf(NetworkCommunicationActor.props(parentNetworkCommunicationActorRef))
   )
   lazy val controlInputPort: ControlInputPort = wire[ControlInputPort]
   lazy val controlOutputPort: ControlOutputPort = wire[ControlOutputPort]
@@ -38,17 +48,17 @@ abstract class WorkflowActor(val identifier: ActorVirtualIdentity) extends Actor
   // because it should be initialized with the actor itself
   val rpcHandlerInitializer: AsyncRPCHandlerInitializer
 
-  def routeActorRefRelatedMessages: Receive = {
+  def disallowActorRefRelatedMessages: Receive = {
     case GetActorRef(id, replyTo) =>
-      if (replyTo.contains(networkCommunicationActor.ref)) {
-        context.parent ! GetActorRef(id, replyTo)
-      } else {
-        // we direct this message to the NetworkSenderActor
-        // because it has the VirtualIdentityToActorRef for each actor.
-        networkCommunicationActor ! GetActorRef(id, replyTo)
-      }
+      logger.logError(
+        WorkflowRuntimeError(
+          "workflow actor should never receive get actor ref message",
+          identifier.toString,
+          Map.empty
+        )
+      )
     case RegisterActorRef(id, ref) =>
-      throw new WorkflowRuntimeException(
+      logger.logError(
         WorkflowRuntimeError(
           "workflow actor should never receive register actor ref message",
           identifier.toString,

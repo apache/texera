@@ -145,9 +145,12 @@ class Controller(
     val withCheckpoint: Boolean,
     val eventListener: ControllerEventListener = ControllerEventListener(),
     val statisticsUpdateIntervalMs: Option[Long]
-) extends WorkflowActor(VirtualIdentity.Controller) {
+) extends WorkflowActor(VirtualIdentity.Controller, null) {
   implicit val ec: ExecutionContext = context.dispatcher
   implicit val timeout: Timeout = 5.seconds
+
+  // register controller itself
+  networkCommunicationActor ! RegisterActorRef(VirtualIdentity.Controller, self)
 
   lazy val rpcHandlerInitializer = wire[AsyncRPCHandlerInitializer]
 
@@ -414,7 +417,9 @@ class Controller(
     operatorToWorkerEdges(startOp) = metadata.topology.links
     val all = availableNodes
     if (operatorToWorkerEdges(startOp).isEmpty) {
-      operatorToWorkerLayers(startOp).foreach(x => x.build(prev, all))
+      operatorToWorkerLayers(startOp).foreach(x =>
+        x.build(prev, all, networkCommunicationActor.ref)
+      )
     } else {
       val inLinks: Map[WorkerLayer, Set[WorkerLayer]] =
         operatorToWorkerEdges(startOp).groupBy(x => x.to).map(x => (x._1, x._2.map(_.from).toSet))
@@ -422,10 +427,12 @@ class Controller(
         operatorToWorkerEdges(startOp)
           .filter(x => operatorToWorkerEdges(startOp).forall(_.to != x.from))
           .map(_.from)
-      currentLayer.foreach(x => x.build(prev, all))
+      currentLayer.foreach(x => x.build(prev, all, networkCommunicationActor.ref))
       currentLayer = inLinks.filter(x => x._2.forall(_.isBuilt)).keys
       while (currentLayer.nonEmpty) {
-        currentLayer.foreach(x => x.build(inLinks(x).map(y => (null, y)).toArray, all))
+        currentLayer.foreach(x =>
+          x.build(inLinks(x).map(y => (null, y)).toArray, all, networkCommunicationActor.ref)
+        )
         currentLayer = inLinks.filter(x => !x._1.isBuilt && x._2.forall(_.isBuilt)).keys
       }
     }
@@ -1000,7 +1007,7 @@ class Controller(
     Set(WorkerState.Running, WorkerState.Ready, WorkerState.Completed)
 
   override def receive: Receive = {
-    routeActorRefRelatedMessages orElse {
+    disallowActorRefRelatedMessages orElse {
       case LogErrorToFrontEnd(err: WorkflowRuntimeError) =>
         controllerLogger.logError(err)
       case QueryStatistics =>
@@ -1065,7 +1072,7 @@ class Controller(
   }
 
   private[this] def ready: Receive = {
-    routeActorRefRelatedMessages orElse {
+    disallowActorRefRelatedMessages orElse {
       case LogErrorToFrontEnd(err: WorkflowRuntimeError) =>
         controllerLogger.logError(err)
         eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
@@ -1155,7 +1162,7 @@ class Controller(
   }
 
   private[this] def running: Receive = {
-    routeActorRefRelatedMessages orElse
+    disallowActorRefRelatedMessages orElse
       handleBreakpointOnlyWorkerMessages orElse [Any, Unit] {
       case LogErrorToFrontEnd(err: WorkflowRuntimeError) =>
         controllerLogger.logError(err)
@@ -1263,7 +1270,7 @@ class Controller(
   }
 
   private[this] def pausing: Receive = {
-    routeActorRefRelatedMessages orElse
+    disallowActorRefRelatedMessages orElse
       handleBreakpointOnlyWorkerMessages orElse [Any, Unit] {
       case LogErrorToFrontEnd(err: WorkflowRuntimeError) =>
         controllerLogger.logError(err)
@@ -1309,7 +1316,7 @@ class Controller(
   }
 
   private[this] def paused: Receive = {
-    routeActorRefRelatedMessages orElse {
+    disallowActorRefRelatedMessages orElse {
       case LogErrorToFrontEnd(err: WorkflowRuntimeError) =>
         controllerLogger.logError(err)
       case KillAndRecover =>
@@ -1383,7 +1390,7 @@ class Controller(
   }
 
   private[this] def resuming: Receive = {
-    routeActorRefRelatedMessages orElse {
+    disallowActorRefRelatedMessages orElse {
       case LogErrorToFrontEnd(err: WorkflowRuntimeError) =>
         controllerLogger.logError(err)
       case QueryStatistics =>
@@ -1467,7 +1474,7 @@ class Controller(
   }
 
   private[this] def completed: Receive = {
-    routeActorRefRelatedMessages orElse {
+    disallowActorRefRelatedMessages orElse {
       case LogErrorToFrontEnd(err: WorkflowRuntimeError) =>
         controllerLogger.logError(err)
       case QueryStatistics =>
