@@ -10,14 +10,17 @@ import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import scala.collection.mutable
 
 /** Motivation of having a separate module to handle control messages as RPCs:
-  * message passing is a low level abstraction -- manually handle response
+  * In the old design, every control message and its response are handled by
+  * message passing. That means developers need to manually send response back
+  * and write proper handlers on the sender side.
+  * Writing control messages becomes tedious if we use this way.
   *
+  * So we want to implement rpc model on top of message passing.
   * rpc (request-response)
   * remote.callFunctionX().then(response => {
   * })
-  * user-api: promise -- straightforward
+  * user-api: promise
   *
-  * so we want to implement rpc model on top of message passing
   * goal: request-response model with multiplexing
   * client: initiate request
   * (web browser, actor that invoke control command)
