@@ -53,6 +53,7 @@ class CongestionControl {
       ssThreshold /= 2
       windowSize = ssThreshold
     }
+    sentTime.remove(id)
   }
 
   def getBufferedMessagesToSend: Array[NetworkMessage] = {
