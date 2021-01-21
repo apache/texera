@@ -29,11 +29,8 @@ import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage._
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage._
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.control.ControlMessageSource.{
-  ControlInvocation,
-  ReturnPayload
-}
-import edu.uci.ics.amber.engine.common.control.{ControlHandlerInitializer, ControlMessageReceiver}
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnPayload}
+import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCHandlerInitializer, AsyncRPCServer}
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager._
 import edu.uci.ics.amber.engine.common.tuple.ITuple
@@ -68,8 +65,8 @@ class WorkflowWorker(identifier: ActorVirtualIdentity, operator: IOperatorExecut
   lazy val tupleProducer: BatchToTupleConverter = wire[BatchToTupleConverter]
   lazy val workerStateManager: WorkerStateManager = wire[WorkerStateManager]
 
-  val rpcHandlerInitializer: ControlHandlerInitializer =
-    wire[WorkerControlHandlerInitializer]
+  val rpcHandlerInitializer: AsyncRPCHandlerInitializer =
+    wire[WorkerAsyncRPCHandlerInitializer]
 
   val receivedFaultedTupleIds: mutable.HashSet[Long] = new mutable.HashSet[Long]()
   var isCompleted = false
@@ -200,7 +197,7 @@ class WorkflowWorker(identifier: ActorVirtualIdentity, operator: IOperatorExecut
     case Pause =>
       if (workerStateManager.getCurrentState != Completed) {
         workerStateManager.confirmState(Running, Ready)
-        ctrlSource.send(WorkerPause(), identifier) //send to myself
+        asyncRPCClient.send(WorkerPause(), identifier) //send to myself
         workerStateManager.transitTo(Pausing)
       }
       reportState()

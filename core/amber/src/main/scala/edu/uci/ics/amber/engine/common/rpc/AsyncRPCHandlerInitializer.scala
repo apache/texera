@@ -1,8 +1,8 @@
-package edu.uci.ics.amber.engine.common.control
+package edu.uci.ics.amber.engine.common.rpc
 
 import com.twitter.util.{Future, Promise}
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.control.ControlMessageReceiver.ControlCommand
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 
 import scala.reflect.ClassTag
 
@@ -31,9 +31,9 @@ import scala.reflect.ClassTag
   * @param ctrlSource
   * @param ctrlReceiver
   */
-class ControlHandlerInitializer(
-    ctrlSource: ControlMessageSource,
-    ctrlReceiver: ControlMessageReceiver
+class AsyncRPCHandlerInitializer(
+    ctrlSource: AsyncRPCClient,
+    ctrlReceiver: AsyncRPCServer
 ) {
 
   /** register a sync handler for one type of control command
