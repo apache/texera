@@ -903,10 +903,11 @@ export class WorkflowEditorComponent implements AfterViewInit {
 
     let allowMultiInput = false;
     if (this.workflowActionService.getTexeraGraph().hasOperator(targetCellID)) {
-      const targetInputPortInfo = this.dynamicSchemaService.getDynamicSchema(targetCellID)
-        .additionalMetadata.inputPorts.find(p => p.portID === targetPortID);
-      if (targetInputPortInfo) {
-        allowMultiInput = targetInputPortInfo.allowMultiInputs ?? false;
+      const portIndex = this.workflowActionService.getTexeraGraph().getOperator(targetCellID)
+        .inputPorts.findIndex(p => p.portID === targetPortID);
+      if (portIndex > 0) {
+        const portInfo = this.dynamicSchemaService.getDynamicSchema(targetCellID).additionalMetadata.inputPorts[portIndex];
+        allowMultiInput = portInfo.allowMultiInputs ?? false;
       }
     }
 

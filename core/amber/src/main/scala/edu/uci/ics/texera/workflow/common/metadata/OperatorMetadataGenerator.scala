@@ -8,7 +8,6 @@ import com.kjetland.jackson.jsonSchema.JsonSchemaConfig.html5EnabledSchema
 import com.kjetland.jackson.jsonSchema.{JsonSchemaConfig, JsonSchemaDraft, JsonSchemaGenerator}
 import edu.uci.ics.texera.workflow.common.Utils.objectMapper
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
-import edu.uci.ics.texera.workflow.operators.keywordSearch.KeywordSearchOpDesc
 import edu.uci.ics.texera.workflow.operators.localscan.LocalCsvFileScanOpDesc
 
 import java.util
@@ -32,52 +31,10 @@ case class OperatorInfo(
     outputPorts: List[OutputPort]
 )
 
-object InputPortInfo {
-  def inputPortID(ordinal: Integer): String = "Input-" + ordinal.toString
-}
-case class InputPortInfo(
-    portID: String,
-    displayName: String,
-    allowMultiInputs: Boolean
-)
-
-object OutputPortInfo {
-  def outputPortID(ordinal: Integer): String = "Output-" + ordinal.toString
-}
-case class OutputPortInfo(
-    portID: String,
-    displayName: String
-)
-
-object OperatorAdditionalMetadata {
-  def apply(opInfo: OperatorInfo): OperatorAdditionalMetadata = {
-    val inputPorts = opInfo.inputPorts.zipWithIndex.map {
-      case (p, i) => InputPortInfo(InputPortInfo.inputPortID(i), p.displayName, p.allowMultiInputs)
-    }
-    val outputPorts = opInfo.outputPorts.zipWithIndex.map {
-      case (p, i) => OutputPortInfo(OutputPortInfo.outputPortID(i), p.displayName)
-    }
-    new OperatorAdditionalMetadata(
-      opInfo.userFriendlyName,
-      opInfo.operatorDescription,
-      opInfo.operatorGroupName,
-      inputPorts,
-      outputPorts
-    )
-  }
-}
-case class OperatorAdditionalMetadata(
-    userFriendlyName: String,
-    operatorDescription: String,
-    operatorGroupName: String,
-    inputPorts: List[InputPortInfo],
-    outputPorts: List[OutputPortInfo]
-)
-
 case class OperatorMetadata(
     operatorType: String,
     jsonSchema: JsonNode,
-    additionalMetadata: OperatorAdditionalMetadata
+    additionalMetadata: OperatorInfo
 )
 
 case class GroupInfo(
@@ -99,7 +56,7 @@ object OperatorMetadataGenerator {
   def main(args: Array[String]): Unit = {
     // run this if you want to check the json schema generated for an operator descriptor
     // replace the argument with the class of your operator descriptor
-    println(generateOperatorJsonSchema(classOf[KeywordSearchOpDesc]).toPrettyString)
+    println(generateOperatorJsonSchema(classOf[LocalCsvFileScanOpDesc]).toPrettyString)
   }
 
   val texeraSchemaGeneratorConfig: JsonSchemaConfig = html5EnabledSchema.copy(
@@ -150,7 +107,7 @@ object OperatorMetadataGenerator {
     // generate texera operator info
     val texeraOperatorInfo = opDescClass.getConstructor().newInstance().operatorInfo
 
-    OperatorMetadata(operatorType, jsonSchema, OperatorAdditionalMetadata(texeraOperatorInfo))
+    OperatorMetadata(operatorType, jsonSchema, texeraOperatorInfo)
   }
 
   def generateOperatorJsonSchema(opDescClass: Class[_ <: OperatorDescriptor]): JsonNode = {

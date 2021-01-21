@@ -187,20 +187,21 @@ export class ValidationWorkflowService {
 
     let satisfyInput = true;
     let inputPortsViolationMessage = '';
-    operatorSchema.additionalMetadata.inputPorts.forEach(port => {
-      const portNumInputs = numInputLinksByPort.get(port.portID) ?? 0;
-      if (port.allowMultiInputs) {
+    for (let i = 0; i < operator.inputPorts.length; i++) {
+      const portInfo = operatorSchema.additionalMetadata.inputPorts[i];
+      const portNumInputs = numInputLinksByPort.get(operator.inputPorts[i].portID) ?? 0;
+      if (portInfo.allowMultiInputs) {
         if (portNumInputs < 1) {
           satisfyInput = false;
-          inputPortsViolationMessage += `${port.displayName ?? ''} requires at least 1 inputs, has ${portNumInputs}`;
+          inputPortsViolationMessage += `${portInfo.displayName ?? ''} requires at least 1 inputs, has ${portNumInputs}`;
         }
       } else {
         if (portNumInputs !== 1) {
           satisfyInput = false;
-          inputPortsViolationMessage += `${port.displayName ?? ''} requires 1 input, has ${portNumInputs}`;
+          inputPortsViolationMessage += `${portInfo.displayName ?? ''} requires 1 input, has ${portNumInputs}`;
         }
       }
-    });
+    }
 
     // check if output links satisfy the requirement
     const requiredOutputNum = operator.outputPorts.length;
