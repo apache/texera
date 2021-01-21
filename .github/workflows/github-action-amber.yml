@@ -1,6 +1,8 @@
 name: Amber Unit Test
 
 on:
+  check_suite:
+  check_run:
   push:
     branches:
       - 'ci-enable/**'
@@ -8,7 +10,7 @@ on:
     paths:
       - 'core/amber/**'
   workflow_dispatch:
-  
+
 jobs:
   amber:
     runs-on: ubuntu-latest

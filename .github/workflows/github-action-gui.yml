@@ -1,6 +1,8 @@
 name: GUI Unit Test
 
 on:
+  check_suite:
+  check_run:
   push:
     branches:
       - 'ci-enable/**'
