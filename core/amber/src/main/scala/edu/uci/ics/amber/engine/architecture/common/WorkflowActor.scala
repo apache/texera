@@ -30,6 +30,9 @@ abstract class WorkflowActor(
     with Stash {
 
   protected val logger: WorkflowLogger = WorkflowLogger(s"$identifier")
+  logger.setErrorLogAction(err => {
+    throw new WorkflowRuntimeException(err)
+  })
 
   val networkCommunicationActor: NetworkSenderActorRef = NetworkSenderActorRef(
     context.actorOf(NetworkCommunicationActor.props(parentNetworkCommunicationActorRef))
@@ -44,7 +47,7 @@ abstract class WorkflowActor(
 
   def disallowActorRefRelatedMessages: Receive = {
     case GetActorRef(id, replyTo) =>
-      throw new WorkflowRuntimeException(
+      logger.logError(
         WorkflowRuntimeError(
           "workflow actor should never receive get actor ref message",
           identifier.toString,
@@ -52,7 +55,7 @@ abstract class WorkflowActor(
         )
       )
     case RegisterActorRef(id, ref) =>
-      throw new WorkflowRuntimeException(
+      logger.logError(
         WorkflowRuntimeError(
           "workflow actor should never receive register actor ref message",
           identifier.toString,

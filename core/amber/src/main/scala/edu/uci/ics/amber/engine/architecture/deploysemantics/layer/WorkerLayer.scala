@@ -40,7 +40,7 @@ class WorkerLayer(
   def build(
       prev: Array[(OpExecConfig, WorkerLayer)],
       all: Array[Address],
-      parentSenderActorRef: ActorRef
+      parentNetworkCommunicationActorRef: ActorRef
   )(implicit
       context: ActorContext
   ): Unit = {
@@ -53,7 +53,9 @@ class WorkerLayer(
       val id = WorkerActorVirtualIdentity(workerTag.getGlobalIdentity)
       val d = deployStrategy.next()
       layer(i) = context.actorOf(
-        WorkflowWorker.props(id, m, parentSenderActorRef).withDeploy(Deploy(scope = RemoteScope(d)))
+        WorkflowWorker
+          .props(id, m, parentNetworkCommunicationActorRef)
+          .withDeploy(Deploy(scope = RemoteScope(d)))
       )
       identifiers(i) = WorkerActorVirtualIdentity(workerTag.getGlobalIdentity)
     }
