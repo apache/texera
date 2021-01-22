@@ -3,10 +3,8 @@ package edu.uci.ics.texera.workflow.operators.projection;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.google.common.base.Preconditions;
-import edu.uci.ics.texera.workflow.common.metadata.InputPort;
-import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
-import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
-import edu.uci.ics.texera.workflow.common.metadata.OutputPort;
+import edu.uci.ics.texera.workflow.common.metadata.*;
+import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeNameList;
 import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig;
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
@@ -20,6 +18,7 @@ import static scala.collection.JavaConverters.asScalaBuffer;
 public class ProjectionOpDesc extends MapOpDesc {
     @JsonProperty(value = "attributes", required = true)
     @JsonPropertyDescription("a subset of column to keeps")
+    @AutofillAttributeNameList
     public List<String> attributes;
 
     @Override

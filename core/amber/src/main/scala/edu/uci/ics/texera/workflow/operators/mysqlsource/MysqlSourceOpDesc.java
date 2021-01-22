@@ -6,6 +6,7 @@ import edu.uci.ics.amber.engine.operators.OpExecConfig;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.metadata.OutputPort;
+import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName;
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
@@ -54,6 +55,7 @@ public class MysqlSourceOpDesc extends SourceOperatorDescriptor {
 
     @JsonProperty(value = "column name")
     @JsonPropertyDescription("the column to be keyword-searched")
+    @AutofillAttributeName
     public String column;
 
     @JsonProperty(value = "keywords")

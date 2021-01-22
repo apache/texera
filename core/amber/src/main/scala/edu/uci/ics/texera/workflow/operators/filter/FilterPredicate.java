@@ -3,12 +3,14 @@ package edu.uci.ics.texera.workflow.operators.filter;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import edu.uci.ics.texera.workflow.common.WorkflowContext;
+import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName;
 import edu.uci.ics.texera.workflow.common.tuple.Tuple;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 
 public class FilterPredicate {
 
     @JsonProperty(value = "attribute", required = true)
+    @AutofillAttributeName
     public String attribute;
 
     @JsonProperty(value = "condition", required = true)

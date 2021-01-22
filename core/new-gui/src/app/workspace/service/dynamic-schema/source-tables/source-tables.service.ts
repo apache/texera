@@ -109,13 +109,13 @@ export class SourceTablesService {
       newDynamicSchema = {
         ...schema,
         jsonSchema: DynamicSchemaService.mutateProperty(
-          schema.jsonSchema, key, () => ({ type: 'string', enum: enumArray, uniqueItems: true }))
+          schema.jsonSchema, (k, v) => k === key, () => ({ type: 'string', enum: enumArray, uniqueItems: true }))
       };
     } else {
       newDynamicSchema = {
         ...schema,
         jsonSchema: DynamicSchemaService.mutateProperty(
-          schema.jsonSchema, key, () => ({ type: 'string' }))
+          schema.jsonSchema, (k, v) => k === key, () => ({ type: 'string' }))
       };
     }
     return newDynamicSchema;

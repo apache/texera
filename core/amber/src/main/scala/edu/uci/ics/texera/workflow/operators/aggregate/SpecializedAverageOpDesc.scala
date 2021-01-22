@@ -3,6 +3,7 @@ package edu.uci.ics.texera.workflow.operators.aggregate
 import java.io.Serializable
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
   OperatorGroupConstants,
@@ -28,6 +29,7 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
 
   @JsonProperty(value = "attribute", required = true)
   @JsonPropertyDescription("column to calculate average value")
+  @AutofillAttributeName
   var attribute: String = _
 
   @JsonProperty(value = "result attribute", required = true)

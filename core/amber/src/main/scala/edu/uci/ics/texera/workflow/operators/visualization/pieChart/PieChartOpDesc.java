@@ -7,6 +7,7 @@ import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.metadata.OutputPort;
+import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator;
@@ -25,9 +26,11 @@ import static scala.collection.JavaConverters.asScalaBuffer;
 public class PieChartOpDesc extends VisualizationOperator {
 
     @JsonProperty(value = "name column", required = true)
+    @AutofillAttributeName
     public String nameColumn;
 
     @JsonProperty(value = "data column", required = true)
+    @AutofillAttributeName
     public String dataColumn;
 
     @JsonProperty(value = "prune ratio", required = true)

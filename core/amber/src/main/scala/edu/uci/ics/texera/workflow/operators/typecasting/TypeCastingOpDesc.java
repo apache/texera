@@ -8,6 +8,7 @@ import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.metadata.OutputPort;
+import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName;
 import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig;
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
@@ -25,6 +26,7 @@ public class TypeCastingOpDesc extends MapOpDesc {
     @JsonProperty(required = true)
     @JsonSchemaTitle("attribute")
     @JsonPropertyDescription("Attribute for type casting")
+    @AutofillAttributeName
     public String attribute;
 
     @JsonProperty(required = true)
