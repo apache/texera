@@ -61,7 +61,7 @@ class WorkerSpec
       (mockTupleToBatchConverter.addPolicy _).expects(mockPolicy)
     }
 
-    val worker = TestActorRef(new WorkflowWorker(identifier1, mockOpExecutor) {
+    val worker = TestActorRef(new WorkflowWorker(identifier1, mockOpExecutor, TestProbe().ref) {
       override lazy val batchProducer = mockTupleToBatchConverter
       override lazy val controlOutputPort = mockControlOutputPort
     })
