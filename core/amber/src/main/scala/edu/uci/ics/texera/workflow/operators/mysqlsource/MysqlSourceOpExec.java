@@ -18,7 +18,7 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
     private final String table;
     private final String username;
     private final String password;
-    private Integer limit;
+    private Integer currentLimit;
     private Integer offset;
     private final String column;
     private final String keywords;
@@ -32,8 +32,8 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
     private boolean queriesPrepared = false;
     private boolean hasNext = true;
 
-    private long min = 0;
-    private long max = 0;
+    private Number currentMin = 0;
+    private Number max = 0;
     private Attribute batchByAttribute = null;
 
     MysqlSourceOpExec(Schema schema, String host, String port, String database, String table, String username,
@@ -46,7 +46,7 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
         this.table = table.trim();
         this.username = username.trim();
         this.password = password;
-        this.limit = limit;
+        this.currentLimit = limit;
         this.offset = offset;
         this.column = column == null ? null : column.trim();
         this.keywords = keywords == null ? null : keywords.trim();
@@ -122,8 +122,8 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
                                     throw new RuntimeException("MySQL Source: unhandled attribute type: " + columnType);
                             }
                         }
-                        if (limit != null) {
-                            limit--;
+                        if (currentLimit != null) {
+                            currentLimit--;
                         }
                         return tupleBuilder.build();
                     } else {
@@ -198,15 +198,34 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
     }
 
     private PreparedStatement getNextQuery() throws SQLException {
-        if (min <= max) {
+        boolean hasNextQuery;
+        switch (batchByAttribute.getType()) {
+            case INTEGER:
+            case LONG:
+            case TIMESTAMP:
+                hasNextQuery = currentMin.longValue() <= max.longValue();
+                break;
+            case DOUBLE:
+                hasNextQuery = currentMin.doubleValue() <= max.doubleValue();
+                break;
+            case STRING:
+            case ANY:
+            case BOOLEAN:
+            default:
+                throw new IllegalStateException("Unexpected value: " + schema.getAttribute(batchByAttribute.getName()).getType());
+        }
+        if (batchByAttribute.getType() == AttributeType.LONG || batchByAttribute.getType() == AttributeType.TIMESTAMP) {
+            hasNextQuery = currentMin.longValue() <= max.longValue();
+        }
+        if (hasNextQuery) {
             PreparedStatement preparedStatement = this.connection.prepareStatement(generateSqlQuery());
             int curIndex = 1;
-            if (this.column != null && this.keywords != null) {
-                preparedStatement.setString(curIndex, this.keywords);
+            if (column != null && keywords != null) {
+                preparedStatement.setString(curIndex, keywords);
                 curIndex += 1;
             }
-            if (this.limit != null) {
-                preparedStatement.setInt(curIndex, this.limit);
+            if (currentLimit != null) {
+                preparedStatement.setInt(curIndex, currentLimit);
             }
             return preparedStatement;
         } else return null;
@@ -217,7 +236,7 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
             if (batchByAttribute != null && !batchByAttribute.getName().equals("")) {
 
                 max = this.getBatchByBoundary("MAX");
-                min = this.getBatchByBoundary("MIN");
+                currentMin = this.getBatchByBoundary("MIN");
 
             }
         } catch (SQLException e) {
@@ -228,24 +247,26 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
     }
 
 
-    private long getBatchByBoundary(String side) throws SQLException {
-        long result;
+    private Number getBatchByBoundary(String side) throws SQLException {
+        Number result;
         PreparedStatement preparedStatement = connection.prepareStatement(
                 "SELECT " + side + "(" + batchByAttribute.getName() + ") FROM " + table + ";");
         ResultSet resultSet = preparedStatement.executeQuery();
         resultSet.next();
         switch (schema.getAttribute(batchByAttribute.getName()).getType()) {
             case INTEGER:
-                result = resultSet.getInt(1);
+                result = resultSet.getInt(1) + ((side).equals("MAX") ? 1 : 0);
                 break;
             case LONG:
-                result = resultSet.getLong(1);
+                result = resultSet.getLong(1) + ((side).equals("MAX") ? 1 : 0);
                 break;
             case TIMESTAMP:
-                result = resultSet.getTimestamp(1).getTime();
+                result = resultSet.getTimestamp(1).getTime() + ((side).equals("MAX") ? 1 : 0);
+                break;
+            case DOUBLE:
+                result = resultSet.getDouble(1) + ((side).equals("MAX") ? 1 : 0);
                 break;
             case BOOLEAN:
-            case DOUBLE:
             case STRING:
             case ANY:
             default:
@@ -254,7 +275,6 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
         }
 
         // MAX is set to be 1 larger than the largest data, so that x < MAX can be outputted
-        result += ((side).equals("MAX") ? 1 : 0);
 
         resultSet.close();
         preparedStatement.close();
@@ -315,34 +335,55 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
         if (column != null && keywords != null) {
             query += " AND MATCH(" + column + ") AGAINST (? IN BOOLEAN MODE)";
         }
+
+        Number nextMin = currentMin;
+        switch (batchByAttribute.getType()) {
+            case INTEGER:
+            case LONG:
+            case TIMESTAMP:
+                nextMin = currentMin.longValue() + interval;
+                break;
+            case DOUBLE:
+                nextMin = currentMin.doubleValue() + interval;
+                break;
+            case BOOLEAN:
+            case STRING:
+            case ANY:
+            default:
+                throw new IllegalStateException("Unexpected value: " + schema.getAttribute(batchByAttribute.getName()).getType());
+        }
+
         if (progressive) {
             query += " AND "
                     + batchByAttribute.getName() + " >= '"
-                    + batchAttributeToString(min) + "'"
+                    + batchAttributeToString(currentMin) + "'"
                     + " AND "
                     + batchByAttribute.getName() + " < '"
-                    + batchAttributeToString(Math.min(max, min + interval)) + "'";
+                    + batchAttributeToString(Math.min(max.longValue(), nextMin.longValue())) + "'";
         }
-        min += interval;
-        if (this.limit != null) {
-            if (limit < 0) {
+        currentMin = nextMin;
+
+        if (currentLimit != null) {
+            if (currentLimit < 0) {
                 return null;
             }
             query += " LIMIT ?";
         }
         query += ";";
+        System.out.println(query);
         return query;
     }
 
-    private String batchAttributeToString(long value) throws IllegalStateException {
+
+    private String batchAttributeToString(Number value) throws IllegalStateException {
         switch (batchByAttribute.getType()) {
             case LONG:
-
             case INTEGER:
+            case DOUBLE:
                 return String.valueOf(value);
             case TIMESTAMP:
-                return new Timestamp(value).toString();
-            case DOUBLE:
+                return new Timestamp(value.longValue()).toString();
+
             case BOOLEAN:
             case STRING:
             case ANY:
