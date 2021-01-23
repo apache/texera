@@ -29,13 +29,14 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
     private ResultSet resultSet;
     private final HashSet<String> tableNames;
     private boolean queriesPrepared = false;
-    private boolean hasNext = true;
 
     private Long currentLimit;
     private Long currentOffset;
     private Number currentMin = 0;
     private Number max = 0;
     private Attribute batchByAttribute = null;
+
+    private Tuple cachedTuple = null;
 
     MysqlSourceOpExec(Schema schema, String host, String port, String database, String table, String username,
                       String password, Long limit, Long offset, String column, String keywords,
@@ -72,7 +73,16 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
              */
             @Override
             public boolean hasNext() {
-                return queriesPrepared && hasNext;
+
+                // if existing Tuple in cache, means there exist next Tuple.
+                if (cachedTuple != null) {
+                    return true;
+                }
+
+                // cache the next Tuple
+                cachedTuple = next();
+
+                return cachedTuple != null;
             }
 
             /**
@@ -80,10 +90,20 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
              * if there is no more in resultSet, set the hasNext flag to false and return null
              * otherwise, base on the the schema given (which is generated in MysqlSourceOpDesc.querySchema())
              * extract data from resultSet and add to tupleBuilder to construct a Texera.tuple
-             * @return Texera.tuple
+             *
+             * @return Texera.Tuple
              */
             @Override
             public Tuple next() {
+
+                // if has the next Tuple in cache, return it and clear the cache.
+                if (cachedTuple != null) {
+                    Tuple tuple = cachedTuple;
+                    cachedTuple = null;
+                    return tuple;
+                }
+
+                // otherwise, send query for next Tuple.
                 try {
                     if (resultSet != null && resultSet.next()) {
                         if (currentOffset != null && currentOffset > 0) {
@@ -140,7 +160,6 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
                             resultSet = currentPreparedStatement.executeQuery();
                             return next();
                         } else {
-                            hasNext = false;
                             return null;
                         }
 
