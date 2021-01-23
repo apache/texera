@@ -18,8 +18,7 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
     private final String table;
     private final String username;
     private final String password;
-    private Integer currentLimit;
-    private Integer offset;
+
     private final String column;
     private final String keywords;
     private final Boolean progressive;
@@ -32,12 +31,14 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
     private boolean queriesPrepared = false;
     private boolean hasNext = true;
 
+    private Long currentLimit;
+    private Long currentOffset;
     private Number currentMin = 0;
     private Number max = 0;
     private Attribute batchByAttribute = null;
 
     MysqlSourceOpExec(Schema schema, String host, String port, String database, String table, String username,
-                      String password, Integer limit, Integer offset, String column, String keywords,
+                      String password, Long limit, Long offset, String column, String keywords,
                       Boolean progressive, String batchByColumn, Long interval) {
         this.schema = schema;
         this.host = host.trim();
@@ -47,7 +48,7 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
         this.username = username.trim();
         this.password = password;
         this.currentLimit = limit;
-        this.offset = offset;
+        this.currentOffset = offset;
         this.column = column == null ? null : column.trim();
         this.keywords = keywords == null ? null : keywords.trim();
         this.progressive = progressive;
@@ -85,8 +86,8 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
             public Tuple next() {
                 try {
                     if (resultSet != null && resultSet.next()) {
-                        if (offset != null && offset > 0) {
-                            offset--;
+                        if (currentOffset != null && currentOffset > 0) {
+                            currentOffset--;
                             return next();
                         }
                         Tuple.Builder tupleBuilder = Tuple.newBuilder();
@@ -225,7 +226,7 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
                 curIndex += 1;
             }
             if (currentLimit != null) {
-                preparedStatement.setInt(curIndex, currentLimit);
+                preparedStatement.setLong(curIndex, currentLimit);
             }
             return preparedStatement;
         } else return null;
