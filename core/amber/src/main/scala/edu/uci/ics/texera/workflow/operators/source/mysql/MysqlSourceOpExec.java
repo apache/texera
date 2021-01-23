@@ -228,26 +228,22 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
     private PreparedStatement getNextQuery() throws SQLException {
         boolean hasNextQuery;
 
-        if (batchByAttribute == null) {
-            hasNextQuery = curLowerBound.longValue() <= upperBound.longValue();
-        } else {
-            // if the curLowerBound is still smaller than or equal to the upperBound, send one more query
-            if (batchByAttribute == null) hasNextQuery = curLowerBound.longValue() <= upperBound.longValue();
-        elseswitch (batchByAttribute.getType()) {
-                case INTEGER:
-                case LONG:
-                case TIMESTAMP:
-                    hasNextQuery = curLowerBound.longValue() <= upperBound.longValue();
-                    break;
-                case DOUBLE:
-                    hasNextQuery = curLowerBound.doubleValue() <= upperBound.doubleValue();
-                    break;
-                case STRING:
-                case ANY:
-                case BOOLEAN:
-                default:
-                    throw new IllegalStateException("Unexpected value: " + batchByAttribute.getType());
-            }
+        // if the curLowerBound is still smaller than or equal to the upperBound, send one more query
+        if (batchByAttribute == null) hasNextQuery = curLowerBound.longValue() <= upperBound.longValue();
+        else switch (batchByAttribute.getType()) {
+            case INTEGER:
+            case LONG:
+            case TIMESTAMP:
+                hasNextQuery = curLowerBound.longValue() <= upperBound.longValue();
+                break;
+            case DOUBLE:
+                hasNextQuery = curLowerBound.doubleValue() <= upperBound.doubleValue();
+                break;
+            case STRING:
+            case ANY:
+            case BOOLEAN:
+            default:
+                throw new IllegalStateException("Unexpected value: " + batchByAttribute.getType());
         }
 
         // no more queries to be sent.
