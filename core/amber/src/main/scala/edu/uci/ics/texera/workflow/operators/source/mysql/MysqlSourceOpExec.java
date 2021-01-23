@@ -70,8 +70,6 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
                 this.batchByAttribute = schema.getAttribute(batchByColumn);
             }
         }
-
-
     }
 
     @Override
@@ -123,28 +121,20 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
                         Tuple tuple = buildTupleFromRow();
 
                         // update the limit in order to adapt to progressive batches
-                        if (curLimit != null) {
-                            curLimit--;
-                        }
+                        if (curLimit != null) curLimit--;
 
                         return tuple;
                     } else {
 
                         // close the current resultSet and query
-                        if (curResultSet != null) {
-                            curResultSet.close();
-                        }
-                        if (curQuery != null) {
-                            curQuery.close();
-                        }
+                        if (curResultSet != null) curResultSet.close();
+                        if (curQuery != null) curQuery.close();
 
                         curQuery = getNextQuery();
                         if (curQuery != null) {
                             curResultSet = curQuery.executeQuery();
                             return next();
-                        } else {
-                            return null;
-                        }
+                        } else return null;
 
                     }
 
@@ -213,14 +203,11 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
             loadTableNames();
 
             // validates the input table name
-            if (!tableNames.contains(table)) {
+            if (!tableNames.contains(table))
                 throw new RuntimeException("MysqlSource can't find the given table `" + table + "`.");
-            }
 
-            if (progressive) {
-                // load for batch column value boundaries used to split mini queries
-                loadBatchColumnBoundaries();
-            }
+            // load for batch column value boundaries used to split mini queries
+            if (progressive) loadBatchColumnBoundaries();
 
         } catch (SQLException e) {
             e.printStackTrace();
@@ -241,31 +228,26 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
     private PreparedStatement getNextQuery() throws SQLException {
         boolean hasNextQuery;
 
-        if (batchByAttribute == null) {
-            hasNextQuery = curLowerBound.longValue() <= upperBound.longValue();
-        } else {
-            // if the curLowerBound is still smaller than or equal to the upperBound, send one more query
-            switch (batchByAttribute.getType()) {
-                case INTEGER:
-                case LONG:
-                case TIMESTAMP:
-                    hasNextQuery = curLowerBound.longValue() <= upperBound.longValue();
-                    break;
-                case DOUBLE:
-                    hasNextQuery = curLowerBound.doubleValue() <= upperBound.doubleValue();
-                    break;
-                case STRING:
-                case ANY:
-                case BOOLEAN:
-                default:
-                    throw new IllegalStateException("Unexpected value: " + schema.getAttribute(batchByAttribute.getName()).getType());
-            }
+        // if the curLowerBound is still smaller than or equal to the upperBound, send one more query
+        if (batchByAttribute == null) hasNextQuery = curLowerBound.longValue() <= upperBound.longValue();
+        else switch (batchByAttribute.getType()) {
+            case INTEGER:
+            case LONG:
+            case TIMESTAMP:
+                hasNextQuery = curLowerBound.longValue() <= upperBound.longValue();
+                break;
+            case DOUBLE:
+                hasNextQuery = curLowerBound.doubleValue() <= upperBound.doubleValue();
+                break;
+            case STRING:
+            case ANY:
+            case BOOLEAN:
+            default:
+                throw new IllegalStateException("Unexpected value: " + batchByAttribute.getType());
         }
 
         // no more queries to be sent.
-        if (!hasNextQuery) {
-            return null;
-        }
+        if (!hasNextQuery) return null;
 
         PreparedStatement preparedStatement = connection.prepareStatement(generateSqlQuery());
         int curIndex = 1;
@@ -273,9 +255,7 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
             preparedStatement.setString(curIndex, keywords);
             curIndex += 1;
         }
-        if (curLimit != null) {
-            preparedStatement.setLong(curIndex, curLimit);
-        }
+        if (curLimit != null) preparedStatement.setLong(curIndex, curLimit);
         return preparedStatement;
 
     }
@@ -311,8 +291,7 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
             case STRING:
             case ANY:
             default:
-                throw new IllegalStateException("Unexpected value: " + schema.getAttribute(batchByAttribute.getName()).getType());
-
+                throw new IllegalStateException("Unexpected value: " + batchByAttribute.getType());
         }
 
         resultSet.close();
@@ -327,9 +306,7 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
 
         preparedStatement.setString(1, database);
         ResultSet resultSet = preparedStatement.executeQuery();
-        while (resultSet.next()) {
-            tableNames.add(resultSet.getString(1));
-        }
+        while (resultSet.next()) tableNames.add(resultSet.getString(1));
 
         resultSet.close();
         preparedStatement.close();
@@ -342,15 +319,9 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
     @Override
     public void close() {
         try {
-            if (curResultSet != null) {
-                curResultSet.close();
-            }
-            if (curQuery != null) {
-                curQuery.close();
-            }
-            if (connection != null) {
-                connection.close();
-            }
+            if (curResultSet != null) curResultSet.close();
+            if (curQuery != null) curQuery.close();
+            if (connection != null) connection.close();
         } catch (SQLException e) {
             throw new RuntimeException("Mysql source fail to close. " + e.getMessage());
         }
@@ -374,9 +345,7 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
         // this.table has to be verified to be existing in the given schema.
         String query = "\n" + "SELECT * FROM " + table + " where 1 = 1";
         // in sql prepared statement, column name cannot be inserted using PreparedStatement.setString either
-        if (column != null && keywords != null) {
-            query += " AND MATCH(" + column + ") AGAINST (? IN BOOLEAN MODE)";
-        }
+        if (column != null && keywords != null) query += " AND MATCH(" + column + ") AGAINST (? IN BOOLEAN MODE)";
 
         Number nextLowerBound;
         boolean isLastBatch;
@@ -384,41 +353,39 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
         if (!progressive) {
             nextLowerBound = curLowerBound.longValue() + interval;
             isLastBatch = nextLowerBound.longValue() >= upperBound.longValue();
-        } else {
-            switch (batchByAttribute.getType()) {
-                case INTEGER:
-                case LONG:
-                case TIMESTAMP:
-                    nextLowerBound = curLowerBound.longValue() + interval;
-                    isLastBatch = nextLowerBound.longValue() >= upperBound.longValue();
-                    break;
-                case DOUBLE:
-                    nextLowerBound = curLowerBound.doubleValue() + interval;
-                    isLastBatch = nextLowerBound.doubleValue() >= upperBound.doubleValue();
-                    break;
-                case BOOLEAN:
-                case STRING:
-                case ANY:
-                default:
-                    throw new IllegalStateException("Unexpected value: " + schema.getAttribute(batchByAttribute.getName()).getType());
-            }
+        } else switch (batchByAttribute.getType()) {
+            case INTEGER:
+            case LONG:
+            case TIMESTAMP:
+                nextLowerBound = curLowerBound.longValue() + interval;
+                isLastBatch = nextLowerBound.longValue() >= upperBound.longValue();
+                break;
+            case DOUBLE:
+                nextLowerBound = curLowerBound.doubleValue() + interval;
+                isLastBatch = nextLowerBound.doubleValue() >= upperBound.doubleValue();
+                break;
+            case BOOLEAN:
+            case STRING:
+            case ANY:
+            default:
+                throw new IllegalStateException("Unexpected value: " + batchByAttribute.getType());
         }
 
-        if (progressive) {
-            query += " AND "
-                    + batchByAttribute.getName() + " >= '"
-                    + batchAttributeToString(curLowerBound) + "'"
-                    + " AND "
-                    + batchByAttribute.getName() +
-                    (isLastBatch ? (" <= '" + batchAttributeToString(upperBound)) : (" < '" + batchAttributeToString(nextLowerBound))) + "'";
-        }
+        if (progressive) query += " AND "
+                + batchByAttribute.getName() + " >= '"
+                + batchAttributeToString(curLowerBound) + "'"
+                + " AND "
+                + batchByAttribute.getName() +
+                (isLastBatch ?
+                        " <= '" + batchAttributeToString(upperBound) :
+                        " < '" + batchAttributeToString(nextLowerBound))
+                + "'";
+
         curLowerBound = nextLowerBound;
 
         if (curLimit != null) {
-            if (curLimit < 0) {
-                return null;
-            }
-            query += " LIMIT ?";
+            if (curLimit < 0) return null;
+            else query += " LIMIT ?";
         }
         query += ";";
         return query;
@@ -444,9 +411,9 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
             case BOOLEAN:
             case STRING:
             case ANY:
-                throw new IllegalStateException("Unexpected value: " + schema.getAttribute(batchByAttribute.getName()).getType());
+            default:
+                throw new IllegalStateException("Unexpected value: " + batchByAttribute.getType());
         }
-        return null;
     }
 }
 
