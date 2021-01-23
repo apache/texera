@@ -40,11 +40,11 @@ public class MysqlSourceOpDesc extends SourceOperatorDescriptor {
 
     @JsonProperty(value = "limit")
     @JsonPropertyDescription("query result count upper limit")
-    public Integer limit;
+    public Long limit;
 
     @JsonProperty(value = "offset")
     @JsonPropertyDescription("query offset")
-    public Integer offset;
+    public Long offset;
 
     @JsonProperty(value = "column name")
     @JsonPropertyDescription("the column to be keyword-searched")
