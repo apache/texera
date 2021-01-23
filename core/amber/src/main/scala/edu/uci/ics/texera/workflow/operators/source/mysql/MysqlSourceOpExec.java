@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.workflow.operators.mysqlsource;
+package edu.uci.ics.texera.workflow.operators.source.mysql;
 
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecutor;
 import edu.uci.ics.texera.workflow.common.tuple.Tuple;
@@ -11,6 +11,8 @@ import java.sql.*;
 import java.util.HashSet;
 
 public class MysqlSourceOpExec implements SourceOperatorExecutor {
+
+    // source configs
     private final Schema schema;
     private final String host;
     private final String port;
@@ -19,28 +21,29 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
     private final String username;
     private final String password;
 
+    // search column related
     private final String column;
     private final String keywords;
+
+    // progressiveness related
     private final Boolean progressive;
     private final Long interval;
-
-    private Connection connection;
-    private PreparedStatement currentPreparedStatement;
-    private ResultSet resultSet;
     private final HashSet<String> tableNames;
-    private boolean queriesPrepared = false;
-
-    private Long currentLimit;
-    private Long currentOffset;
-    private Number currentMin = 0;
-    private Number max = 0;
     private Attribute batchByAttribute = null;
 
+    // connection and query related
+    private Connection connection;
+    private PreparedStatement curQuery;
+    private ResultSet curResultSet;
+    private Long curLimit;
+    private Long curOffset;
+    private Number curLowerBound = 0;
+    private Number upperBound = 0;
     private Tuple cachedTuple = null;
 
     MysqlSourceOpExec(Schema schema, String host, String port, String database, String table, String username,
-                      String password, Long limit, Long offset, String column, String keywords,
-                      Boolean progressive, String batchByColumn, Long interval) {
+                      String password, Long limit, Long offset, String column, String keywords, Boolean progressive,
+                      String batchByColumn, Long interval) {
         this.schema = schema;
         this.host = host.trim();
         this.port = port.trim();
@@ -48,8 +51,8 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
         this.table = table.trim();
         this.username = username.trim();
         this.password = password;
-        this.currentLimit = limit;
-        this.currentOffset = offset;
+        this.curLimit = limit;
+        this.curOffset = offset;
         this.column = column == null ? null : column.trim();
         this.keywords = keywords == null ? null : keywords.trim();
         this.progressive = progressive;
@@ -61,16 +64,10 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
 
     }
 
-    /**
-     * @return A iterator of Texera.Tuple
-     */
     @Override
     public Iterator<Tuple> produceTexeraTuple() {
         return new Iterator<Tuple>() {
-            /**
-             * check if query is sent to mysql server and hasNext flag is true
-             * @return bool
-             */
+
             @Override
             public boolean hasNext() {
 
@@ -86,78 +83,54 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
             }
 
             /**
-             * get the next row from the resultSet and parse it into Texera Tuple
-             * if there is no more in resultSet, set the hasNext flag to false and return null
-             * otherwise, base on the the schema given (which is generated in MysqlSourceOpDesc.querySchema())
-             * extract data from resultSet and add to tupleBuilder to construct a Texera.tuple
+             * Fetch the next row from resultSet, parse it into Texera.Tuple and return.
+             * - If resultSet is exhausted, send the next query until no more queries are available.
+             * - If no more queries, return null.
              *
              * @return Texera.Tuple
              */
             @Override
             public Tuple next() {
 
-                // if has the next Tuple in cache, return it and clear the cache.
+                // if has the next Tuple in cache, return it and clear the cache
                 if (cachedTuple != null) {
                     Tuple tuple = cachedTuple;
                     cachedTuple = null;
                     return tuple;
                 }
 
-                // otherwise, send query for next Tuple.
+                // otherwise, send query to fetch for the next Tuple
                 try {
-                    if (resultSet != null && resultSet.next()) {
-                        if (currentOffset != null && currentOffset > 0) {
-                            currentOffset--;
+                    if (curResultSet != null && curResultSet.next()) {
+
+                        // manually skip until the offset position in order to adapt to progressive batches
+                        if (curOffset != null && curOffset > 0) {
+                            curOffset--;
                             return next();
                         }
-                        Tuple.Builder tupleBuilder = Tuple.newBuilder();
-                        for (Attribute attr : schema.getAttributes()) {
-                            String columnName = attr.getName();
-                            AttributeType columnType = attr.getType();
-                            String value = resultSet.getString(columnName);
-                            if (value == null) {
-                                tupleBuilder.add(attr, null);
-                                continue;
-                            }
-                            switch (columnType) {
-                                case INTEGER:
-                                    tupleBuilder.add(attr, Integer.valueOf(value));
-                                    break;
-                                case LONG:
-                                    tupleBuilder.add(attr, Long.valueOf(value));
-                                    break;
-                                case DOUBLE:
-                                    tupleBuilder.add(attr, Double.valueOf(value));
-                                    break;
-                                case BOOLEAN:
-                                    tupleBuilder.add(attr, !value.equals("0"));
-                                    break;
-                                case STRING:
-                                    tupleBuilder.add(attr, value);
-                                    break;
-                                case TIMESTAMP:
-                                    tupleBuilder.add(attr, Timestamp.valueOf(value));
-                                    break;
-                                case ANY:
-                                default:
-                                    throw new RuntimeException("MySQL Source: unhandled attribute type: " + columnType);
-                            }
-                        }
-                        if (currentLimit != null) {
-                            currentLimit--;
-                        }
-                        return tupleBuilder.build();
-                    } else {
-                        if (resultSet != null) {
-                            resultSet.close();
-                        }
-                        if (currentPreparedStatement != null) {
-                            currentPreparedStatement.close();
+
+                        // construct Texera.Tuple from the next result.
+                        Tuple tuple = buildTupleFromRow();
+
+                        // update the limit in order to adapt to progressive batches
+                        if (curLimit != null) {
+                            curLimit--;
                         }
 
-                        currentPreparedStatement = getNextQuery();
-                        if (currentPreparedStatement != null) {
-                            resultSet = currentPreparedStatement.executeQuery();
+                        return tuple;
+                    } else {
+
+                        // close the current resultSet and query
+                        if (curResultSet != null) {
+                            curResultSet.close();
+                        }
+                        if (curQuery != null) {
+                            curQuery.close();
+                        }
+
+                        curQuery = getNextQuery();
+                        if (curQuery != null) {
+                            curResultSet = curQuery.executeQuery();
                             return next();
                         } else {
                             return null;
@@ -173,45 +146,83 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
     }
 
     /**
-     * during the open process, a connection is established with the remote mysql server
-     * then an sql query is generated using the info provided by the user.
-     * A prepared statement is used to prevent sql injection attacks
-     * Since user might provide info in a combination of column, keywords, limit and offset
-     * the prepared statement can have different number of parameters.
-     * A variable curIndex is used to keep track of the next parameter should be filled in
+     * Build a Texera.Tuple from a row of curResultSet
+     *
+     * @return the new Texera.Tuple
+     * @throws SQLException
+     */
+    private Tuple buildTupleFromRow() throws SQLException {
+
+        Tuple.Builder tupleBuilder = Tuple.newBuilder();
+        for (Attribute attr : schema.getAttributes()) {
+            String columnName = attr.getName();
+            AttributeType columnType = attr.getType();
+            String value = curResultSet.getString(columnName);
+            if (value == null) {
+                tupleBuilder.add(attr, null);
+                continue;
+            }
+            switch (columnType) {
+                case INTEGER:
+                    tupleBuilder.add(attr, Integer.valueOf(value));
+                    break;
+                case LONG:
+                    tupleBuilder.add(attr, Long.valueOf(value));
+                    break;
+                case DOUBLE:
+                    tupleBuilder.add(attr, Double.valueOf(value));
+                    break;
+                case BOOLEAN:
+                    tupleBuilder.add(attr, !value.equals("0"));
+                    break;
+                case STRING:
+                    tupleBuilder.add(attr, value);
+                    break;
+                case TIMESTAMP:
+                    tupleBuilder.add(attr, Timestamp.valueOf(value));
+                    break;
+                case ANY:
+                default:
+                    throw new RuntimeException("MySQL Source: unhandled attribute type: " + columnType);
+            }
+        }
+        return tupleBuilder.build();
+    }
+
+    /**
+     * Establish a connection to the MySQL server and load statistics for constructing future queries.
+     * - tableNames, to check if the input tableName exists on the MySQL server, to prevent SQL injection.
+     * - batchColumnBoundaries, to be used to split mini queries, if progressive mode is enabled.
      */
     @Override
     public void open() {
         try {
-            if (!queriesPrepared) {
-                connection = this.establishConn();
+            connection = establishConn();
 
-                // load user table names from the given database
-                loadTableNames();
+            // load user table names from the given database
+            loadTableNames();
 
-                if (!tableNames.contains(table)) {
-                    throw new RuntimeException("MysqlSource can't find the given table `" + table + "`.");
-                }
-
-                if (progressive) {
-                    // load for batch statistics used to split mini queries
-                    loadBatchColumnStats();
-                }
-                queriesPrepared = true;
-
+            // validates the input table name
+            if (!tableNames.contains(table)) {
+                throw new RuntimeException("MysqlSource can't find the given table `" + table + "`.");
             }
-        } catch (Exception e) {
+
+            if (progressive) {
+                // load for batch column value boundaries used to split mini queries
+                loadBatchColumnBoundaries();
+            }
+
+        } catch (SQLException e) {
             e.printStackTrace();
             throw new RuntimeException("MysqlSource failed to connect to mysql database. " + e.getMessage());
         }
 
+
     }
 
-    private Connection establishConn() throws ClassNotFoundException, IllegalAccessException, InstantiationException, SQLException {
-        Class.forName("com.mysql.cj.jdbc.Driver").newInstance();
-        String url = "jdbc:mysql://" + this.host + ":" + this.port + "/"
-                + this.database + "?autoReconnect=true&useSSL=true";
-        Connection connection = DriverManager.getConnection(url, this.username, this.password);
+    private Connection establishConn() throws SQLException {
+        String url = "jdbc:mysql://" + host + ":" + port + "/" + database + "?autoReconnect=true&useSSL=true";
+        Connection connection = DriverManager.getConnection(url, username, password);
         // set to readonly to improve efficiency
         connection.setReadOnly(true);
         return connection;
@@ -219,14 +230,16 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
 
     private PreparedStatement getNextQuery() throws SQLException {
         boolean hasNextQuery;
+
+        // if the curLowerBound is still smaller than or equal to the upperBound, send one more query
         switch (batchByAttribute.getType()) {
             case INTEGER:
             case LONG:
             case TIMESTAMP:
-                hasNextQuery = currentMin.longValue() <= max.longValue();
+                hasNextQuery = curLowerBound.longValue() <= upperBound.longValue();
                 break;
             case DOUBLE:
-                hasNextQuery = currentMin.doubleValue() <= max.doubleValue();
+                hasNextQuery = curLowerBound.doubleValue() <= upperBound.doubleValue();
                 break;
             case STRING:
             case ANY:
@@ -234,36 +247,30 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
             default:
                 throw new IllegalStateException("Unexpected value: " + schema.getAttribute(batchByAttribute.getName()).getType());
         }
-        if (batchByAttribute.getType() == AttributeType.LONG || batchByAttribute.getType() == AttributeType.TIMESTAMP) {
-            hasNextQuery = currentMin.longValue() <= max.longValue();
+
+        // no more queries to be sent.
+        if (!hasNextQuery) {
+            return null;
         }
-        if (hasNextQuery) {
-            PreparedStatement preparedStatement = this.connection.prepareStatement(generateSqlQuery());
-            int curIndex = 1;
-            if (column != null && keywords != null) {
-                preparedStatement.setString(curIndex, keywords);
-                curIndex += 1;
-            }
-            if (currentLimit != null) {
-                preparedStatement.setLong(curIndex, currentLimit);
-            }
-            return preparedStatement;
-        } else return null;
+
+        PreparedStatement preparedStatement = connection.prepareStatement(generateSqlQuery());
+        int curIndex = 1;
+        if (column != null && keywords != null) {
+            preparedStatement.setString(curIndex, keywords);
+            curIndex += 1;
+        }
+        if (curLimit != null) {
+            preparedStatement.setLong(curIndex, curLimit);
+        }
+        return preparedStatement;
+
     }
 
-    private void loadBatchColumnStats() {
-        try {
-            if (batchByAttribute != null && !batchByAttribute.getName().equals("")) {
-
-                max = this.getBatchByBoundary("MAX");
-                currentMin = this.getBatchByBoundary("MIN");
-
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-            throw new RuntimeException("MysqlSource fail to load statistics on column `" + batchByAttribute.getName() + "`. " + e.getMessage());
+    private void loadBatchColumnBoundaries() throws SQLException {
+        if (batchByAttribute != null && !batchByAttribute.getName().equals("")) {
+            upperBound = this.getBatchByBoundary("MAX");
+            curLowerBound = this.getBatchByBoundary("MIN");
         }
-
     }
 
 
@@ -323,11 +330,11 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
     @Override
     public void close() {
         try {
-            if (resultSet != null) {
-                resultSet.close();
+            if (curResultSet != null) {
+                curResultSet.close();
             }
-            if (currentPreparedStatement != null) {
-                currentPreparedStatement.close();
+            if (curQuery != null) {
+                curQuery.close();
             }
             if (connection != null) {
                 connection.close();
@@ -343,15 +350,18 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
      * select * from TableName where 1 = 1 AND MATCH (ColumnName) AGAINST ( ? IN BOOLEAN MODE);
      * select * from TableName where 1 = 1 LIMIT ?;
      * select * from TableName where 1 = 1;
+     * <p>
+     * with an optional appropriate batchByColumn sliding window,
+     * e.g. create_at >= '2017-01-14 03:47:59.0' AND create_at < '2017-01-15 03:47:59.0'
      *
      * @return string of sql query
      */
     private String generateSqlQuery() {
-        // in sql prepared statement, table name cannot be inserted using preparedstatement.setString
+        // in sql prepared statement, table name cannot be inserted using PreparedStatement.setString
         // so it has to be inserted here during sql query generation
         // this.table has to be verified to be existing in the given schema.
         String query = "\n" + "SELECT * FROM " + table + " where 1 = 1";
-        // in sql prepared statement, column name cannot be inserted using preparedstatement.setString either
+        // in sql prepared statement, column name cannot be inserted using PreparedStatement.setString either
         if (column != null && keywords != null) {
             query += " AND MATCH(" + column + ") AGAINST (? IN BOOLEAN MODE)";
         }
@@ -362,12 +372,12 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
             case INTEGER:
             case LONG:
             case TIMESTAMP:
-                nextMin = currentMin.longValue() + interval;
-                lastBatch = nextMin.longValue() >= max.longValue();
+                nextMin = curLowerBound.longValue() + interval;
+                lastBatch = nextMin.longValue() >= upperBound.longValue();
                 break;
             case DOUBLE:
-                nextMin = currentMin.doubleValue() + interval;
-                lastBatch = nextMin.doubleValue() >= max.doubleValue();
+                nextMin = curLowerBound.doubleValue() + interval;
+                lastBatch = nextMin.doubleValue() >= upperBound.doubleValue();
                 break;
             case BOOLEAN:
             case STRING:
@@ -379,15 +389,15 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
         if (progressive) {
             query += " AND "
                     + batchByAttribute.getName() + " >= '"
-                    + batchAttributeToString(currentMin) + "'"
+                    + batchAttributeToString(curLowerBound) + "'"
                     + " AND "
                     + batchByAttribute.getName() +
-                    (lastBatch ? (" <= '" + batchAttributeToString(max)) : (" < '" + batchAttributeToString(nextMin))) + "'";
+                    (lastBatch ? (" <= '" + batchAttributeToString(upperBound)) : (" < '" + batchAttributeToString(nextMin))) + "'";
         }
-        currentMin = nextMin;
+        curLowerBound = nextMin;
 
-        if (currentLimit != null) {
-            if (currentLimit < 0) {
+        if (curLimit != null) {
+            if (curLimit < 0) {
                 return null;
             }
             query += " LIMIT ?";
@@ -398,6 +408,13 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
     }
 
 
+    /**
+     * Convert the Number value to a String to be concatenate to SQL.
+     *
+     * @param value a Number, contains the value to be converted.
+     * @return a String of that value
+     * @throws IllegalStateException
+     */
     private String batchAttributeToString(Number value) throws IllegalStateException {
         switch (batchByAttribute.getType()) {
             case LONG:

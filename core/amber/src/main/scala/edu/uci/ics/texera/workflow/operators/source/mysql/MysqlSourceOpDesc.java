@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.workflow.operators.mysqlsource;
+package edu.uci.ics.texera.workflow.operators.source.mysql;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
