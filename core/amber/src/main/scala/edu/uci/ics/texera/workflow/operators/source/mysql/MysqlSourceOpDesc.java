@@ -54,15 +54,15 @@ public class MysqlSourceOpDesc extends SourceOperatorDescriptor {
     @JsonPropertyDescription("search terms in boolean expression")
     public String keywords;
 
-    @JsonProperty(value = "progressive")
+    @JsonProperty(value = "progressive", defaultValue = "false")
     @JsonPropertyDescription("progressively yield outputs")
-    public Boolean progressive = false;
+    public Boolean progressive;
 
     @JsonProperty(value = "batch by column")
     @JsonPropertyDescription("batch by column")
     public String batchByColumn;
 
-    @JsonProperty(value = "batch by interval")
+    @JsonProperty(value = "batch by interval", defaultValue = "1000000000")
     @JsonPropertyDescription("batch by interval")
     public Long interval;
 

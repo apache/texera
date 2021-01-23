@@ -56,11 +56,21 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
         this.column = column == null ? null : column.trim();
         this.keywords = keywords == null ? null : keywords.trim();
         this.progressive = progressive;
-        this.interval = interval;
         this.tableNames = new HashSet<>();
-        if (batchByColumn != null) {
-            this.batchByAttribute = schema.getAttribute(batchByColumn);
+
+        if (!progressive) {
+            this.batchByAttribute = null;
+            this.interval = Long.MAX_VALUE;
+        } else {
+            if (interval == 0) {
+                throw new RuntimeException("the interval cannot be 0");
+            }
+            this.interval = interval;
+            if (batchByColumn != null && !batchByColumn.isEmpty()) {
+                this.batchByAttribute = schema.getAttribute(batchByColumn);
+            }
         }
+
 
     }
 
@@ -231,21 +241,25 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
     private PreparedStatement getNextQuery() throws SQLException {
         boolean hasNextQuery;
 
-        // if the curLowerBound is still smaller than or equal to the upperBound, send one more query
-        switch (batchByAttribute.getType()) {
-            case INTEGER:
-            case LONG:
-            case TIMESTAMP:
-                hasNextQuery = curLowerBound.longValue() <= upperBound.longValue();
-                break;
-            case DOUBLE:
-                hasNextQuery = curLowerBound.doubleValue() <= upperBound.doubleValue();
-                break;
-            case STRING:
-            case ANY:
-            case BOOLEAN:
-            default:
-                throw new IllegalStateException("Unexpected value: " + schema.getAttribute(batchByAttribute.getName()).getType());
+        if (batchByAttribute == null) {
+            hasNextQuery = curLowerBound.longValue() <= upperBound.longValue();
+        } else {
+            // if the curLowerBound is still smaller than or equal to the upperBound, send one more query
+            switch (batchByAttribute.getType()) {
+                case INTEGER:
+                case LONG:
+                case TIMESTAMP:
+                    hasNextQuery = curLowerBound.longValue() <= upperBound.longValue();
+                    break;
+                case DOUBLE:
+                    hasNextQuery = curLowerBound.doubleValue() <= upperBound.doubleValue();
+                    break;
+                case STRING:
+                case ANY:
+                case BOOLEAN:
+                default:
+                    throw new IllegalStateException("Unexpected value: " + schema.getAttribute(batchByAttribute.getName()).getType());
+            }
         }
 
         // no more queries to be sent.
@@ -267,9 +281,9 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
     }
 
     private void loadBatchColumnBoundaries() throws SQLException {
-        if (batchByAttribute != null && !batchByAttribute.getName().equals("")) {
-            upperBound = this.getBatchByBoundary("MAX");
-            curLowerBound = this.getBatchByBoundary("MIN");
+        if (batchByAttribute != null && !batchByAttribute.getName().isEmpty()) {
+            upperBound = getBatchByBoundary("MAX");
+            curLowerBound = getBatchByBoundary("MIN");
         }
     }
 
@@ -300,8 +314,6 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
                 throw new IllegalStateException("Unexpected value: " + schema.getAttribute(batchByAttribute.getName()).getType());
 
         }
-
-        // MAX is set to be 1 larger than the largest data, so that x < MAX can be outputted
 
         resultSet.close();
         preparedStatement.close();
@@ -366,24 +378,30 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
             query += " AND MATCH(" + column + ") AGAINST (? IN BOOLEAN MODE)";
         }
 
-        Number nextMin;
-        boolean lastBatch;
-        switch (batchByAttribute.getType()) {
-            case INTEGER:
-            case LONG:
-            case TIMESTAMP:
-                nextMin = curLowerBound.longValue() + interval;
-                lastBatch = nextMin.longValue() >= upperBound.longValue();
-                break;
-            case DOUBLE:
-                nextMin = curLowerBound.doubleValue() + interval;
-                lastBatch = nextMin.doubleValue() >= upperBound.doubleValue();
-                break;
-            case BOOLEAN:
-            case STRING:
-            case ANY:
-            default:
-                throw new IllegalStateException("Unexpected value: " + schema.getAttribute(batchByAttribute.getName()).getType());
+        Number nextLowerBound;
+        boolean isLastBatch;
+
+        if (!progressive) {
+            nextLowerBound = curLowerBound.longValue() + interval;
+            isLastBatch = nextLowerBound.longValue() >= upperBound.longValue();
+        } else {
+            switch (batchByAttribute.getType()) {
+                case INTEGER:
+                case LONG:
+                case TIMESTAMP:
+                    nextLowerBound = curLowerBound.longValue() + interval;
+                    isLastBatch = nextLowerBound.longValue() >= upperBound.longValue();
+                    break;
+                case DOUBLE:
+                    nextLowerBound = curLowerBound.doubleValue() + interval;
+                    isLastBatch = nextLowerBound.doubleValue() >= upperBound.doubleValue();
+                    break;
+                case BOOLEAN:
+                case STRING:
+                case ANY:
+                default:
+                    throw new IllegalStateException("Unexpected value: " + schema.getAttribute(batchByAttribute.getName()).getType());
+            }
         }
 
         if (progressive) {
@@ -392,9 +410,9 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
                     + batchAttributeToString(curLowerBound) + "'"
                     + " AND "
                     + batchByAttribute.getName() +
-                    (lastBatch ? (" <= '" + batchAttributeToString(upperBound)) : (" < '" + batchAttributeToString(nextMin))) + "'";
+                    (isLastBatch ? (" <= '" + batchAttributeToString(upperBound)) : (" < '" + batchAttributeToString(nextLowerBound))) + "'";
         }
-        curLowerBound = nextMin;
+        curLowerBound = nextLowerBound;
 
         if (curLimit != null) {
             if (curLimit < 0) {
