@@ -421,7 +421,6 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
             query += " LIMIT ?";
         }
         query += ";";
-        System.out.println(query);
         return query;
     }
 
