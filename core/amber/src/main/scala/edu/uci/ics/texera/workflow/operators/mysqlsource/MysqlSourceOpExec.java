@@ -256,16 +256,16 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
         resultSet.next();
         switch (schema.getAttribute(batchByAttribute.getName()).getType()) {
             case INTEGER:
-                result = resultSet.getInt(1) + ((side).equals("MAX") ? 1 : 0);
+                result = resultSet.getInt(1);
                 break;
             case LONG:
-                result = resultSet.getLong(1) + ((side).equals("MAX") ? 1 : 0);
+                result = resultSet.getLong(1);
                 break;
             case TIMESTAMP:
-                result = resultSet.getTimestamp(1).getTime() + ((side).equals("MAX") ? 1 : 0);
+                result = resultSet.getTimestamp(1).getTime();
                 break;
             case DOUBLE:
-                result = resultSet.getDouble(1) + ((side).equals("MAX") ? 1 : 0);
+                result = resultSet.getDouble(1);
                 break;
             case BOOLEAN:
             case STRING:
@@ -337,15 +337,18 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
             query += " AND MATCH(" + column + ") AGAINST (? IN BOOLEAN MODE)";
         }
 
-        Number nextMin = currentMin;
+        Number nextMin;
+        boolean lastBatch;
         switch (batchByAttribute.getType()) {
             case INTEGER:
             case LONG:
             case TIMESTAMP:
                 nextMin = currentMin.longValue() + interval;
+                lastBatch = nextMin.longValue() >= max.longValue();
                 break;
             case DOUBLE:
                 nextMin = currentMin.doubleValue() + interval;
+                lastBatch = nextMin.doubleValue() >= max.doubleValue();
                 break;
             case BOOLEAN:
             case STRING:
@@ -359,8 +362,8 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
                     + batchByAttribute.getName() + " >= '"
                     + batchAttributeToString(currentMin) + "'"
                     + " AND "
-                    + batchByAttribute.getName() + " < '"
-                    + batchAttributeToString(Math.min(max.longValue(), nextMin.longValue())) + "'";
+                    + batchByAttribute.getName() +
+                    (lastBatch ? (" <= '" + batchAttributeToString(max)) : (" < '" + batchAttributeToString(nextMin))) + "'";
         }
         currentMin = nextMin;
 
