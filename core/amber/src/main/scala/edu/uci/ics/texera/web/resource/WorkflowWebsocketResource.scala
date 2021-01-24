@@ -197,11 +197,11 @@ class WorkflowWebsocketResource {
           .get
           .operatorID
         val sinkInputID = texeraWorkflowCompiler.workflowInfo.links
-          .find(link => link.destination == sinkID)
+          .find(link => link.destination.operatorID == sinkID)
           .get
           .origin
-        if (updateMutable.contains(sinkInputID)) {
-          val inputStatistics = updateMutable(sinkInputID)
+        if (updateMutable.contains(sinkInputID.operatorID)) {
+          val inputStatistics = updateMutable(sinkInputID.operatorID)
           val sinkStatistics = PrincipalStatistics(
             inputStatistics.operatorState,
             inputStatistics.aggregatedOutputRowCount,

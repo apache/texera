@@ -4,64 +4,79 @@ import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyD
 import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.operators.OpExecConfig
-import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.texera.workflow.common.metadata.annotations.{
+  AutofillAttributeName,
+  AutofillAttributeNameOnPort1
+}
+import edu.uci.ics.texera.workflow.common.metadata.{
+  InputPort,
+  OperatorGroupConstants,
+  OperatorInfo,
+  OutputPort
+}
 import edu.uci.ics.texera.workflow.common.operators.{OneToOneOpExecConfig, OperatorDescriptor}
 import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpDesc
-import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 
 class HashJoinOpDesc[K] extends OperatorDescriptor {
 
   @JsonProperty(required = true)
-  @JsonSchemaTitle("Larger table attribute")
-  @JsonPropertyDescription("Join attribute name from the larger of the two tables")
-  var probeAttribute: String = _
-
-  @JsonProperty(required = true)
-  @JsonSchemaTitle("Smaller table attribute")
-  @JsonPropertyDescription("Join attribute name from the smaller of the two tables")
+  @JsonSchemaTitle("Small Input attr")
+  @JsonPropertyDescription("Small Input Join Key")
+  @AutofillAttributeName
   var buildAttribute: String = _
 
-  @JsonIgnore
-  var hashJoinOpExecConfig: HashJoinOpExecConfig = _
+  @JsonProperty(required = true)
+  @JsonSchemaTitle("Large input attr")
+  @JsonPropertyDescription("Large Input Join Key")
+  @AutofillAttributeNameOnPort1
+  var probeAttribute: String = _
 
   override def operatorExecutor: OpExecConfig = {
-    hashJoinOpExecConfig = new HashJoinOpExecConfig(
+    new HashJoinOpExecConfig(
       this.operatorIdentifier,
       _ => new HashJoinOpExec[K](this),
       probeAttribute,
       buildAttribute
     )
-    hashJoinOpExecConfig
   }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
-      userFriendlyName = "Hash Join",
-      operatorDescription = "Join two tables on specific columns",
-      operatorGroupName = OperatorGroupConstants.JOIN_GROUP,
-      numInputPorts = 2,
-      numOutputPorts = 1
+      "Join",
+      "join two inputs",
+      OperatorGroupConstants.JOIN_GROUP,
+      inputPorts = List(InputPort("small"), InputPort("large")),
+      outputPorts = List(OutputPort())
     )
 
+  // remove the probe attribute in the output
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    if (schemas.length != 2) {
-      return Schema.newBuilder().build()
-    }
-    // Preconditions.checkArgument(schemas.length == 2)
-
-    if (buildAttribute.equals(probeAttribute)) {
-      Schema.newBuilder
-        .add(schemas(0))
-        .removeIfExists(buildAttribute)
-        .add(schemas(1))
-        .build()
+    Preconditions.checkArgument(schemas.length == 2)
+    val builder = Schema.newBuilder()
+    builder.add(schemas(0)).removeIfExists(probeAttribute)
+    if (probeAttribute.equals(buildAttribute)) {
+      schemas(1)
+        .getAttributes()
+        .forEach(attr => {
+          if (schemas(0).containsAttribute(attr.getName()) && attr.getName() != probeAttribute) {
+            // appending 1 to the output of Join schema in case of duplicate attributes in probe and build table
+            builder.add(new Attribute(s"${attr.getName()}1", attr.getType()))
+          } else {
+            builder.add(attr)
+          }
+        })
     } else {
-      Schema.newBuilder
-        .add(schemas(0))
-        .removeIfExists(buildAttribute)
-        .add(schemas(1))
-        .removeIfExists(buildAttribute)
-        .build()
+      schemas(1)
+        .getAttributes()
+        .forEach(attr => {
+          if (schemas(0).containsAttribute(attr.getName())) {
+            builder.add(new Attribute(s"${attr.getName()}1", attr.getType()))
+          } else if (!attr.getName().equalsIgnoreCase(probeAttribute)) {
+            builder.add(attr)
+          }
+        })
     }
+    builder.build()
   }
 }

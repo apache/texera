@@ -9,9 +9,11 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.Roun
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.architecture.worker.WorkerState
 import edu.uci.ics.amber.engine.common.Constants
+import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambertag.{AmberTag, LayerTag, OperatorIdentifier}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.operators.OpExecConfig
+import edu.uci.ics.amber.error.WorkflowRuntimeError
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOpExecConfig
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
@@ -44,28 +46,32 @@ class HashJoinOpExecConfig(
     )
   }
 
+  private def getBuildTableOpIdentifier(): OperatorIdentifier = {
+    var buildOpId: Option[OperatorIdentifier] =
+      inputToOrdinalMapping.keys.find(opId => (inputToOrdinalMapping(opId) == 0))
+    buildOpId match {
+      case Some(opId) => return opId
+      case None =>
+        val error = WorkflowRuntimeError(
+          "No operator identifier has input num 0",
+          "HashJoinOpExecConfig",
+          Map()
+        )
+        opExecConfigLogger.logError(error)
+        throw new WorkflowRuntimeException(error)
+    }
+  }
+
   override def runtimeCheck(
       workflow: Workflow
   ): Option[mutable.HashMap[AmberTag, mutable.HashMap[AmberTag, mutable.HashSet[LayerTag]]]] = {
     assert(workflow.inLinks(tag).nonEmpty)
-    var tmp = workflow.inLinks(tag).head
-    var tableSize = Long.MaxValue
-    for (tag <- workflow.inLinks(tag)) {
-      workflow.operators(tag) match {
-        case config: SourceOpExecConfig =>
-          if (tableSize > config.totalSize) {
-            tableSize = config.totalSize
-            tmp = tag
-          }
-        case _ =>
-      }
-    }
-    buildTableTag = workflow.operators(tmp).topology.layers.last.tag
+    buildTableTag = workflow.operators(getBuildTableOpIdentifier()).topology.layers.last.tag
     Some(
       mutable.HashMap[AmberTag, mutable.HashMap[AmberTag, mutable.HashSet[LayerTag]]](
         workflow
           .inLinks(tag)
-          .filter(_ != tmp)
+          .filter(_ != getBuildTableOpIdentifier())
           .flatMap(x => workflow.getSources(x))
           .map(x =>
             x -> mutable
@@ -83,14 +89,6 @@ class HashJoinOpExecConfig(
       t.asInstanceOf[Tuple].getField(buildAttribute).hashCode()
     } else { t: ITuple =>
       t.asInstanceOf[Tuple].getField(probeAttribute).hashCode()
-    }
-  }
-
-  override def getInputNum(from: OperatorIdentifier): Int = {
-    if (from == OperatorIdentifier(buildTableTag.workflow, buildTableTag.operator)) {
-      0
-    } else {
-      1
     }
   }
 

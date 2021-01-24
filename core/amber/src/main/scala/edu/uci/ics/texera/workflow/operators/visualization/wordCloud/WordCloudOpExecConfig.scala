@@ -67,5 +67,4 @@ class WordCloudOpExecConfig(
     breakpoint.partition(topology(0).layer.filter(states(_) != WorkerState.Completed))
   }
 
-  override def getInputNum(from: OperatorIdentifier): Int = 0
 }

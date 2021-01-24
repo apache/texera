@@ -30,7 +30,7 @@ export const mockScanPredicate: OperatorPredicate = {
   operatorProperties: {
   },
   inputPorts: [],
-  outputPorts: ['output-0'],
+  outputPorts: [{portID: 'output-0'}],
   showAdvanced: true
 };
 
@@ -39,8 +39,8 @@ export const mockSentimentPredicate: OperatorPredicate = {
   operatorType: 'NlpSentiment',
   operatorProperties: {
   },
-  inputPorts: ['input-0'],
-  outputPorts: ['output-0'],
+  inputPorts: [{portID: 'input-0'}],
+  outputPorts: [{portID: 'output-0'}],
   showAdvanced: true
 };
 
@@ -49,7 +49,7 @@ export const mockResultPredicate: OperatorPredicate = {
   operatorType: 'ViewResults',
   operatorProperties: {
   },
-  inputPorts: ['input-0'],
+  inputPorts: [{portID: 'input-0'}],
   outputPorts: [],
   showAdvanced: true
 };
@@ -59,8 +59,8 @@ export const mockMultiInputOutputPredicate: OperatorPredicate = {
   operatorType: 'MultiInputOutput',
   operatorProperties: {
   },
-  inputPorts: ['input-0', 'input-1', 'input-2'],
-  outputPorts: ['output-0', 'output-1', 'output-2'],
+  inputPorts: [{portID: 'input-0'}, {portID: 'input-1'}, {portID: 'input-2'}],
+  outputPorts: [{portID: 'output-0'}, {portID: 'output-1'}, {portID: 'output-2'}],
   showAdvanced: true
 };
 
@@ -68,11 +68,11 @@ export const mockScanResultLink: OperatorLink = {
   linkID: 'link-1',
   source: {
     operatorID: mockScanPredicate.operatorID,
-    portID: mockScanPredicate.outputPorts[0]
+    portID: mockScanPredicate.outputPorts[0].portID
   },
   target: {
     operatorID: mockResultPredicate.operatorID,
-    portID: mockResultPredicate.inputPorts[0]
+    portID: mockResultPredicate.inputPorts[0].portID
   }
 };
 
@@ -80,11 +80,11 @@ export const mockScanSentimentLink: OperatorLink = {
   linkID: 'link-2',
   source: {
     operatorID: mockScanPredicate.operatorID,
-    portID: mockScanPredicate.outputPorts[0]
+    portID: mockScanPredicate.outputPorts[0].portID
   },
   target: {
     operatorID: mockSentimentPredicate.operatorID,
-    portID: mockSentimentPredicate.inputPorts[0]
+    portID: mockSentimentPredicate.inputPorts[0].portID
   }
 };
 
@@ -92,11 +92,11 @@ export const mockSentimentResultLink: OperatorLink = {
   linkID: 'link-3',
   source: {
     operatorID: mockSentimentPredicate.operatorID,
-    portID: mockSentimentPredicate.outputPorts[0]
+    portID: mockSentimentPredicate.outputPorts[0].portID
   },
   target: {
     operatorID: mockResultPredicate.operatorID,
-    portID: mockResultPredicate.inputPorts[0]
+    portID: mockResultPredicate.inputPorts[0].portID
   }
 };
 
@@ -109,7 +109,7 @@ export const mockFalseResultSentimentLink: OperatorLink = {
   },
   target: {
     operatorID: mockSentimentPredicate.operatorID,
-    portID: mockSentimentPredicate.inputPorts[0]
+    portID: mockSentimentPredicate.inputPorts[0].portID
   }
 };
 
@@ -117,7 +117,7 @@ export const mockFalseSentimentScanLink: OperatorLink = {
   linkID: 'link-5',
   source: {
     operatorID: mockSentimentPredicate.operatorID,
-    portID: mockSentimentPredicate.outputPorts[0]
+    portID: mockSentimentPredicate.outputPorts[0].portID
   },
   target: {
     operatorID: mockScanPredicate.operatorID,

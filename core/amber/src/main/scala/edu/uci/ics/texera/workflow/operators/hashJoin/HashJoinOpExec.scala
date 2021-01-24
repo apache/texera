@@ -6,7 +6,10 @@ import edu.uci.ics.amber.engine.common.ambertag.{LayerTag, OperatorIdentifier}
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
+import org.apache.avro.SchemaBuilder
 
+import java.util
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
@@ -16,25 +19,43 @@ class HashJoinOpExec[K](val opDesc: HashJoinOpDesc[K]) extends OperatorExecutor 
     s"${opDesc.operatorIdentifier.getGlobalIdentity}-HashJoinOpExec"
   )
 
-  var buildTableInputNum: Int = -1
+//  var buildTableInputNum: Int = -1
   var isBuildTableFinished: Boolean = false
   var buildTableHashMap: mutable.HashMap[K, ArrayBuffer[Tuple]] = _
+  var outputProbeSchema: Schema = _
 
   var currentEntry: Iterator[Tuple] = _
   var currentTuple: Tuple = _
+
+  // probe attribute removed in the output schema
+  private def createOutputProbeSchema(buildTuple: Tuple, probeTuple: Tuple): Schema = {
+    val buildSchema = buildTuple.getSchema()
+    val probeSchema = probeTuple.getSchema()
+    var builder = Schema.newBuilder()
+    probeSchema
+      .getAttributes()
+      .forEach(attr => {
+        if (attr.getName() != opDesc.probeAttribute) {
+          if (buildSchema.containsAttribute(attr.getName())) {
+            builder.add(new Attribute(s"${attr.getName()}#@1", attr.getType()))
+          } else {
+            builder.add(attr)
+          }
+        }
+      })
+    builder.build()
+  }
 
   override def processTexeraTuple(
       tuple: Either[Tuple, InputExhausted],
       input: Int
   ): Iterator[Tuple] = {
-    val buildTableTag: LayerTag =
-      opDesc.hashJoinOpExecConfig.buildTableTag
-    buildTableInputNum = opDesc.hashJoinOpExecConfig.getInputNum(
-      OperatorIdentifier(buildTableTag.workflow, buildTableTag.operator)
-    )
     tuple match {
       case Left(t) =>
-        if (input == buildTableInputNum) {
+        // The operatorInfo() in HashJoinOpDesc has a inputPorts list. In that the
+        // small input port comes first. So, it is assigned the inputNum 0. Similarly
+        // the large input is assigned the inputNum 1.
+        if (input == 0) {
           val key = t.getField(opDesc.buildAttribute).asInstanceOf[K]
           var storedTuples = buildTableHashMap.getOrElse(key, new ArrayBuffer[Tuple]())
           storedTuples += t
@@ -53,19 +74,38 @@ class HashJoinOpExec[K](val opDesc: HashJoinOpDesc[K]) extends OperatorExecutor 
             val key = t.getField(opDesc.probeAttribute).asInstanceOf[K]
             val storedTuples = buildTableHashMap.getOrElse(key, new ArrayBuffer[Tuple]())
             var tuplesToOutput: ArrayBuffer[Tuple] = new ArrayBuffer[Tuple]()
+            if (storedTuples.size == 0) {
+              Iterator()
+            }
+            if (outputProbeSchema == null) {
+              outputProbeSchema = createOutputProbeSchema(storedTuples(0), t)
+            }
+
             storedTuples.foreach(buildTuple => {
-              tuplesToOutput += Tuple
+              val builder = Tuple
                 .newBuilder()
                 .add(buildTuple)
-                .remove(opDesc.buildAttribute)
-                .add(t)
-                .build()
+
+              var newProbeIdx = 0
+              // outputProbeSchema doesnt have "probeAttribute" but t does. The following code
+              //  takes that into consideration while creating a tuple.
+              for (i <- 0 to t.getFields().size() - 1) {
+                if (!t.getSchema().getAttributeNames().get(i).equals(opDesc.probeAttribute)) {
+                  builder.add(
+                    outputProbeSchema.getAttributes().get(newProbeIdx),
+                    t.getFields().get(i)
+                  )
+                  newProbeIdx += 1
+                }
+              }
+
+              tuplesToOutput += builder.build()
             })
             tuplesToOutput.iterator
           }
         }
       case Right(_) =>
-        if (input == buildTableInputNum) {
+        if (input == 0) {
           isBuildTableFinished = true
         }
         Iterator()
@@ -78,7 +118,7 @@ class HashJoinOpExec[K](val opDesc: HashJoinOpDesc[K]) extends OperatorExecutor 
   }
 
   override def close(): Unit = {
-    buildTableInputNum = -1
+//    buildTableInputNum = -1
     buildTableHashMap.clear()
   }
 }

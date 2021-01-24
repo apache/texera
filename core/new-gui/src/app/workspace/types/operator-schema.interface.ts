@@ -9,17 +9,21 @@ import { JSONSchema7 } from 'json-schema';
  *
  */
 
+export interface InputPortInfo extends Readonly<{
+  displayName?: string,
+  allowMultiInputs?: boolean,
+}> { }
+
+export interface OutputPortInfo extends Readonly<{
+  displayName?: string,
+}> { }
+
 export interface OperatorAdditionalMetadata extends Readonly<{
   userFriendlyName: string;
-  numInputPorts: number;
-  numOutputPorts: number;
   operatorGroupName: string;
-  allowMultiInputs?: boolean;
-  advancedOptions?: ReadonlyArray<string>;
   operatorDescription?: string;
-  propertyDescription?: Readonly <{
-    [attribute: string]: string;
-  }>;
+  inputPorts: ReadonlyArray<InputPortInfo>;
+  outputPorts: ReadonlyArray<OutputPortInfo>;
 }> { }
 
 export interface OperatorSchema extends Readonly<{

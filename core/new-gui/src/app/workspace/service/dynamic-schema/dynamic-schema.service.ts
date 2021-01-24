@@ -170,7 +170,7 @@ export class DynamicSchemaService {
    * Returns a new object containing the new json schema property.
    */
   public static mutateProperty(
-    jsonSchemaToChange: JSONSchema7, propertyName: string, mutationFunc: (arg: any) => JSONSchema7
+    jsonSchemaToChange: JSONSchema7, propertyFunc: (key: any, value: any) => boolean, mutationFunc: (arg: any) => JSONSchema7
   ): JSONSchema7 {
 
     // recursively walks the JSON schema property tree to find the property name
@@ -179,11 +179,12 @@ export class DynamicSchemaService {
       const schemaItems = jsonSchema.items;
       // nested JSON schema property can have 2 types: object or array
       if (schemaProperties) {
-        Object.keys(schemaProperties).forEach(property => {
-          if (property === propertyName) {
+        Object.entries(schemaProperties).forEach(([propertyName, propertyValue]) => {
+          if (propertyFunc(propertyName, propertyValue)) {
+          // if (property === propertyName) {
             schemaProperties[propertyName] = mutationFunc(schemaProperties[propertyName]);
           } else {
-            mutatePropertyRecurse(schemaProperties[property]);
+            mutatePropertyRecurse(schemaProperties[propertyName]);
           }
         });
       }

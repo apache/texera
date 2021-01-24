@@ -5,12 +5,19 @@ import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import edu.uci.ics.amber.engine.operators.OpExecConfig;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
+import edu.uci.ics.texera.workflow.common.metadata.OutputPort;
+import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName;
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
+import scala.collection.JavaConverters;
+import scala.collection.immutable.List;
 
 import java.sql.*;
+
+import static java.util.Collections.singletonList;
+import static scala.collection.JavaConverters.asScalaBuffer;
 
 public class MysqlSourceOpDesc extends SourceOperatorDescriptor {
 
@@ -48,11 +55,16 @@ public class MysqlSourceOpDesc extends SourceOperatorDescriptor {
 
     @JsonProperty(value = "column name")
     @JsonPropertyDescription("the column to be keyword-searched")
+    @AutofillAttributeName
     public String column;
 
     @JsonProperty(value = "keywords")
     @JsonPropertyDescription("search terms in boolean expression")
     public String keywords;
+
+    @JsonProperty(value = "progressive")
+    @JsonPropertyDescription("progressively yield outputs by batches")
+    public Boolean progressive = false;
 
     @Override
     public OpExecConfig operatorExecutor() {
@@ -67,7 +79,8 @@ public class MysqlSourceOpDesc extends SourceOperatorDescriptor {
                 limit,
                 offset,
                 column,
-                keywords
+                keywords,
+                progressive
         ));
     }
 
@@ -77,7 +90,8 @@ public class MysqlSourceOpDesc extends SourceOperatorDescriptor {
                 "MySQL Source",
                 "Read data from a mysql instance",
                 OperatorGroupConstants.SOURCE_GROUP(),
-                0, 1, false);
+                List.empty(),
+                asScalaBuffer(singletonList(new OutputPort(""))).toList());
     }
 
     /**
@@ -153,7 +167,7 @@ public class MysqlSourceOpDesc extends SourceOperatorDescriptor {
             return schemaBuilder.build();
         } catch (SQLException | InstantiationException | IllegalAccessException | ClassNotFoundException | ClassCastException e) {
             e.printStackTrace();
-            throw new RuntimeException("Mysql Source failed to connect to mysql database." + e.getMessage());
+            throw new RuntimeException("Mysql Source failed to connect to mysql database. " + e.getMessage());
         }
     }
 

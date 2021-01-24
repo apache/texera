@@ -10,6 +10,7 @@ import edu.uci.ics.amber.engine.common.tuple.ITuple
 import akka.actor.ActorRef
 import akka.event.LoggingAdapter
 import akka.util.Timeout
+import edu.uci.ics.amber.engine.common.WorkflowLogger
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
@@ -27,7 +28,9 @@ abstract class OpExecConfig(val tag: OperatorIdentifier) extends Serializable {
     assert(!dependencies.exists(x => x._2.contains(x._1)))
   }
 
+  val opExecConfigLogger = WorkflowLogger(s"OpExecConfig ${tag.getGlobalIdentity}")
   lazy val topology: Topology = null
+  var inputToOrdinalMapping = new mutable.HashMap[OperatorIdentifier, Int]()
 
   def runtimeCheck(
       workflow: Workflow
@@ -38,7 +41,14 @@ abstract class OpExecConfig(val tag: OperatorIdentifier) extends Serializable {
 
   def requiredShuffle: Boolean = false
 
-  def getInputNum(from: OperatorIdentifier): Int
+  def setInputToOrdinalMapping(input: OperatorIdentifier, ordinal: Integer): Unit = {
+    this.inputToOrdinalMapping.update(input, ordinal)
+  }
+
+  def getInputNum(from: OperatorIdentifier): Int = {
+    assert(this.inputToOrdinalMapping.contains(from))
+    this.inputToOrdinalMapping(from)
+  }
 
   def getShuffleHashFunction(layerTag: LayerTag): ITuple => Int = ???
 

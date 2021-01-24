@@ -1,10 +1,15 @@
 package edu.uci.ics.texera.workflow.operators.aggregate
 
 import java.io.Serializable
-
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
+import edu.uci.ics.texera.workflow.common.metadata.{
+  InputPort,
+  OperatorGroupConstants,
+  OperatorInfo,
+  OutputPort
+}
 import edu.uci.ics.texera.workflow.common.operators.aggregate.{
   AggregateOpDesc,
   AggregateOpExecConfig,
@@ -24,6 +29,7 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
 
   @JsonProperty(value = "attribute", required = true)
   @JsonPropertyDescription("column to calculate average value")
+  @AutofillAttributeName
   var attribute: String = _
 
   @JsonProperty(value = "result attribute", required = true)
@@ -168,8 +174,8 @@ class SpecializedAverageOpDesc extends AggregateOpDesc {
       "Aggregate",
       "calculate different types of aggregation values",
       OperatorGroupConstants.UTILITY_GROUP,
-      1,
-      1
+      inputPorts = List(InputPort()),
+      outputPorts = List(OutputPort())
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {

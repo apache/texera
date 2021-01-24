@@ -160,9 +160,11 @@ describe('SchemaPropagationService', () => {
 
     const schema = dynamicSchemaService.getDynamicSchema(mockSentimentPredicate.operatorID);
     const attributeInSchema = schema.jsonSchema!.properties!['attribute'];
+    const expectedEnum = mockSchemaPropagationResponse.result[mockOperator.operatorID][0]?.map(attr => attr.attributeName);
+
     expect(attributeInSchema).toEqual({
       ...(mockNlpSentimentSchema.jsonSchema.properties!['attribute'] as object),
-      enum: mockSchemaPropagationResponse.result[mockOperator.operatorID].map(attr => attr.attributeName),
+      enum: expectedEnum,
       uniqueItems: true
     });
 
@@ -198,9 +200,11 @@ describe('SchemaPropagationService', () => {
 
     const schema = dynamicSchemaService.getDynamicSchema(mockSentimentPredicate.operatorID);
     const attributeInSchema = schema.jsonSchema!.properties!['attribute'];
+    const expectedEnum = mockSchemaPropagationResponse.result[mockOperator.operatorID][0]?.map(attr => attr.attributeName);
+
     expect(attributeInSchema).toEqual({
       ...(mockNlpSentimentSchema.jsonSchema.properties!['attribute'] as object),
-      enum: mockSchemaPropagationResponse.result[mockOperator.operatorID].map(attr => attr.attributeName),
+      enum: expectedEnum,
       uniqueItems: true
     });
 
@@ -262,12 +266,14 @@ describe('SchemaPropagationService', () => {
 
     const schema = dynamicSchemaService.getDynamicSchema(mockSentimentPredicate.operatorID);
     const attributeInSchema = schema.jsonSchema!.properties!['attributes'];
+    const expectedEnum = mockSchemaPropagationResponse.result[mockKeywordSearchOperator.operatorID][0]?.map(attr => attr.attributeName);
+
     expect(attributeInSchema).toEqual({
       type: 'array',
       title: 'attributes',
       items: {
         type: 'string',
-        enum: mockSchemaPropagationResponse.result[mockKeywordSearchOperator.operatorID].map(attr => attr.attributeName),
+        enum: expectedEnum,
         uniqueItems: true
       }
     });
@@ -308,6 +314,7 @@ describe('SchemaPropagationService', () => {
     httpTestingController.verify();
 
     const schema = dynamicSchemaService.getDynamicSchema(mockSentimentPredicate.operatorID);
+    const expectedEnum = mockSchemaPropagationResponse.result[mockAggregationPredicate.operatorID][0]?.map(attr => attr.attributeName);
 
     expect(schema.jsonSchema!.properties).toEqual({
       listOfAggregations: {
@@ -319,7 +326,7 @@ describe('SchemaPropagationService', () => {
             attribute: {
               type: 'string',
               title: 'attribute',
-              enum: mockSchemaPropagationResponse.result[mockAggregationPredicate.operatorID].map(attr => attr.attributeName),
+              enum: expectedEnum,
               uniqueItems: true
             },
             aggregator: {

@@ -2,8 +2,12 @@ package edu.uci.ics.texera.workflow.operators.visualization.barChart;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
+import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
+import edu.uci.ics.texera.workflow.common.metadata.OutputPort;
+import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName;
+import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeNameList;
 import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
@@ -12,6 +16,9 @@ import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator
 
 import java.util.ArrayList;
 import java.util.List;
+
+import static java.util.Collections.singletonList;
+import static scala.collection.JavaConverters.asScalaBuffer;
 
 /**
  * BarChart is a visualization operator that can be used to get tuples for bar chart.
@@ -22,10 +29,12 @@ import java.util.List;
 public class BarChartOpDesc extends VisualizationOperator {
     @JsonProperty(value = "name column", required = true)
     @JsonPropertyDescription("column of name (for x-axis)")
+    @AutofillAttributeName
     public String nameColumn;
 
     @JsonProperty(value = "data column(s)", required = true)
     @JsonPropertyDescription("column(s) of data (for y-axis)")
+    @AutofillAttributeNameList
     public List<String> dataColumns;
 
     @Override
@@ -50,7 +59,8 @@ public class BarChartOpDesc extends VisualizationOperator {
                 "Bar Chart",
                 "View the result in bar chart",
                 OperatorGroupConstants.VISUALIZATION_GROUP(),
-                1, 1, false);
+                asScalaBuffer(singletonList(new InputPort("", false))).toList(),
+                asScalaBuffer(singletonList(new OutputPort(""))).toList());
     }
 
     @Override
