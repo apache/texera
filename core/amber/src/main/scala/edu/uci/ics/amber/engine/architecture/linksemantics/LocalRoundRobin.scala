@@ -12,8 +12,8 @@ import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtual
 
 import scala.concurrent.ExecutionContext
 
-class LocalRoundRobin(from: WorkerLayer, to: WorkerLayer, batchSize: Int, inputNum: Int)
-    extends LinkStrategy(from, to, batchSize, inputNum) {
+class LocalRoundRobin(from: WorkerLayer, to: WorkerLayer, batchSize: Int)
+    extends LinkStrategy(from, to, batchSize) {
   override def link()(implicit
       timeout: Timeout,
       ec: ExecutionContext

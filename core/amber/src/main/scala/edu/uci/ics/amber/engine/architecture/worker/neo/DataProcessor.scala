@@ -36,6 +36,8 @@ class DataProcessor( // dependencies:
   private var inputTupleCount = 0L
   private var outputTupleCount = 0L
   private var currentInputTuple: Either[ITuple, InputExhausted] = _
+
+  // currentSenderRef remains null for source workers
   private var currentSenderRef: OperatorIdentifier = null
   private var isCompleted = false
 

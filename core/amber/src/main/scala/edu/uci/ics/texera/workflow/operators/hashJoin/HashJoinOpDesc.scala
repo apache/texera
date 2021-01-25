@@ -32,6 +32,7 @@ class HashJoinOpDesc[K] extends OperatorDescriptor {
   @AutofillAttributeNameOnPort1
   var probeAttribute: String = _
 
+  @JsonIgnore
   var opExecConfig: HashJoinOpExecConfig = _
 
   override def operatorExecutor: OpExecConfig = {

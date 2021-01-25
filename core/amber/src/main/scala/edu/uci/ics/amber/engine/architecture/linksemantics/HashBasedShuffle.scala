@@ -20,9 +20,8 @@ class HashBasedShuffle(
     from: WorkerLayer,
     to: WorkerLayer,
     batchSize: Int,
-    hashFunc: ITuple => Int,
-    inputNum: Int
-) extends LinkStrategy(from, to, batchSize, inputNum) {
+    hashFunc: ITuple => Int
+) extends LinkStrategy(from, to, batchSize) {
   override def link()(implicit
       timeout: Timeout,
       ec: ExecutionContext

@@ -53,8 +53,7 @@ class PieChartOpExecConfig(
           partialLayer,
           finalLayer,
           Constants.defaultBatchSize,
-          x => x.asInstanceOf[Tuple].hashCode(),
-          0
+          x => x.asInstanceOf[Tuple].hashCode()
         )
       ),
       Map()
