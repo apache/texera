@@ -14,7 +14,7 @@ import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{
   UpdateInputLinking
 }
 import edu.uci.ics.amber.engine.common.ambermessage.neo.DataPayload
-import edu.uci.ics.amber.engine.common.ambertag.LinkTag
+import edu.uci.ics.amber.engine.common.ambertag.{LinkTag, OperatorIdentifier}
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.{
   ActorVirtualIdentity,
   WorkerActorVirtualIdentity
@@ -57,7 +57,13 @@ class WorkerSpec
 
     inAnyOrder {
       (mockControlOutputPort.sendTo _)
-        .expects(identifier2, UpdateInputLinking(identifier1, mockTag.inputNum))
+        .expects(
+          identifier2,
+          UpdateInputLinking(
+            identifier1,
+            OperatorIdentifier(mockTag.from.workflow, mockTag.from.operator)
+          )
+        )
       (mockTupleToBatchConverter.addPolicy _).expects(mockPolicy)
     }
 

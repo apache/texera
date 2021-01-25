@@ -259,8 +259,7 @@ class Controller(
     topology.links :+= new LocalPartialToOne(
       lastLayer,
       materializerLayer,
-      Constants.defaultBatchSize,
-      0
+      Constants.defaultBatchSize
     )
     val scanLayer = new WorkerLayer(
       LayerTag(to.tag, "from_checkpoint"),
@@ -275,8 +274,7 @@ class Controller(
       scanLayer,
       firstLayer,
       Constants.defaultBatchSize,
-      hashFunc,
-      0
+      hashFunc
     )
 
   }
@@ -498,7 +496,7 @@ class Controller(
         controllerLogger.logInfo(s"${self}- fully initialized!")
       }
       // before starting any workflows, we register VirtualIdentity.Controller at the controller's network sender actor
-      networkSenderActor ! RegisterActorRef(VirtualIdentity.Controller, self)
+      networkCommunicationActor ! RegisterActorRef(VirtualIdentity.Controller, self)
       context.parent ! ControllerMessage.ReportState(ControllerState.Ready)
       context.become(ready)
       if (this.statisticsUpdateIntervalMs.nonEmpty) {
@@ -1208,34 +1206,37 @@ class Controller(
         context.become(pausing)
       case ReportWorkerPartialCompleted(inputOpId) =>
         sender ! Ack
-        val exhaustedInputLayerTag = workflow.operators(inputOpId).topology.layers.last.tag
-
-        if (
-          workflow.inLinks.contains(workerToOperator(sender)) &&
-          operatorToLayerCompletedCounter(workerToOperator(sender)).contains(exhaustedInputLayerTag)
-        ) {
-          operatorToLayerCompletedCounter(workerToOperator(sender))(exhaustedInputLayerTag) -= 1
-
+        // inputOpId is null for source workers as they dont have upstream inputs
+        if (inputOpId != null && workflow.inLinks.contains(workerToOperator(sender))) {
+          val exhaustedInputLayerTag = workflow.operators(inputOpId).topology.layers.last.tag
           if (
-            operatorToLayerCompletedCounter(workerToOperator(sender))(exhaustedInputLayerTag) == 0
+            operatorToLayerCompletedCounter(workerToOperator(sender)).contains(
+              exhaustedInputLayerTag
+            )
           ) {
-            // all dependencies for the operator are done
-            operatorToLayerCompletedCounter(workerToOperator(sender)) -= exhaustedInputLayerTag
-            for (i <- startDependencies.keys) {
-              if (
-                startDependencies(i)
-                  .contains(workerToOperator(sender)) && startDependencies(i)(
-                  workerToOperator(sender)
-                ).contains(exhaustedInputLayerTag)
-              ) {
-                startDependencies(i)(workerToOperator(sender)) -= exhaustedInputLayerTag
-                if (startDependencies(i)(workerToOperator(sender)).isEmpty) {
-                  startDependencies(i) -= workerToOperator(sender)
-                  if (startDependencies(i).isEmpty) {
-                    startDependencies -= i
-                    operatorToWorkerLayers(i.asInstanceOf[OperatorIdentifier]).foreach(l => {
-                      l.layer.foreach(worker => worker ! Start)
-                    })
+            operatorToLayerCompletedCounter(workerToOperator(sender))(exhaustedInputLayerTag) -= 1
+
+            if (
+              operatorToLayerCompletedCounter(workerToOperator(sender))(exhaustedInputLayerTag) == 0
+            ) {
+              // all dependencies for the operator are done
+              operatorToLayerCompletedCounter(workerToOperator(sender)) -= exhaustedInputLayerTag
+              for (i <- startDependencies.keys) {
+                if (
+                  startDependencies(i)
+                    .contains(workerToOperator(sender)) && startDependencies(i)(
+                    workerToOperator(sender)
+                  ).contains(exhaustedInputLayerTag)
+                ) {
+                  startDependencies(i)(workerToOperator(sender)) -= exhaustedInputLayerTag
+                  if (startDependencies(i)(workerToOperator(sender)).isEmpty) {
+                    startDependencies(i) -= workerToOperator(sender)
+                    if (startDependencies(i).isEmpty) {
+                      startDependencies -= i
+                      operatorToWorkerLayers(i.asInstanceOf[OperatorIdentifier]).foreach(l => {
+                        l.layer.foreach(worker => worker ! Start)
+                      })
+                    }
                   }
                 }
               }
