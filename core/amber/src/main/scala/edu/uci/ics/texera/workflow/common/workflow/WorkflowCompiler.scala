@@ -63,6 +63,23 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
     val outLinksImmutable: Map[OperatorIdentifier, Set[OperatorIdentifier]] =
       outLinksImmutableValue.toMap
 
+    val inLinksHighestOrdinal: mutable.Map[OperatorIdentifier, Int] =
+      mutable.Map().withDefault(_ => 0)
+    val inLinksOrdinalMap: mutable.Map[OperatorIdentifier, mutable.Map[OperatorIdentifier, Int]] =
+      mutable.Map().withDefault(_ => mutable.Map())
+    workflowInfo.links.foreach(link => {
+      val origin = OperatorIdentifier(this.context.workflowID, link.origin)
+      val dest = OperatorIdentifier(this.context.workflowID, link.destination)
+      val nextOrdinal = inLinksHighestOrdinal(dest)
+      inLinksHighestOrdinal.update(dest, nextOrdinal + 1)
+      val destInLinksOrdinalMap = inLinksOrdinalMap(dest)
+      destInLinksOrdinalMap.update(origin, nextOrdinal)
+      inLinksOrdinalMap.update(dest, destInLinksOrdinalMap)
+    })
+    amberOperators.values.foreach(opExecConfig =>
+      opExecConfig.setInputToOrdinalMapping(inLinksOrdinalMap(opExecConfig.tag).toMap)
+    )
+
     new Workflow(amberOperators, outLinksImmutable)
   }
 
