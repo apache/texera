@@ -52,7 +52,7 @@ class ControlInputPort(asyncRPCClient: AsyncRPCClient, asyncRPCServer: AsyncRPCS
         }
       case None =>
         // discard duplicate
-        logger.logInfo(s"receive duplicated: ${msg.payload}")
+        logger.logInfo(s"receive duplicated: ${msg.payload} from ${msg.from}")
     }
   }
 }
