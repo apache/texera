@@ -5,12 +5,15 @@ import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.google.common.io.Files;
 import edu.uci.ics.amber.engine.common.Constants;
 import edu.uci.ics.amber.engine.operators.OpExecConfig;
+import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
+import edu.uci.ics.texera.workflow.common.metadata.OutputPort;
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
+import scala.collection.immutable.List;
 
 import java.io.File;
 import java.io.IOException;
@@ -19,6 +22,9 @@ import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+
+import static java.util.Collections.singletonList;
+import static scala.collection.JavaConverters.asScalaBuffer;
 
 
 public class LocalCsvFileScanOpDesc extends SourceOperatorDescriptor {
@@ -59,7 +65,8 @@ public class LocalCsvFileScanOpDesc extends SourceOperatorDescriptor {
                 "CSV File Scan",
                 "Scan data from a local CSV file",
                 OperatorGroupConstants.SOURCE_GROUP(),
-                0, 1, false);
+                List.empty(),
+                asScalaBuffer(singletonList(new OutputPort(""))).toList());
     }
 
     @Override

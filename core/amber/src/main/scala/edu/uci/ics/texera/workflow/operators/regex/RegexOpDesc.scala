@@ -2,7 +2,12 @@ package edu.uci.ics.texera.workflow.operators.regex
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.texera.workflow.common.metadata.{
+  InputPort,
+  OperatorGroupConstants,
+  OperatorInfo,
+  OutputPort
+}
 import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig
 import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpDesc
 
@@ -30,7 +35,7 @@ class RegexOpDesc extends FilterOpDesc {
       userFriendlyName = "Regular Expression",
       operatorDescription = "Search a regular expression in a string column",
       operatorGroupName = OperatorGroupConstants.SEARCH_GROUP,
-      numInputPorts = 1,
-      numOutputPorts = 1
+      inputPorts = List(InputPort()),
+      outputPorts = List(OutputPort())
     )
 }

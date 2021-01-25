@@ -2,12 +2,17 @@ package edu.uci.ics.texera.workflow.operators.filter;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
+import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
+import edu.uci.ics.texera.workflow.common.metadata.OutputPort;
 import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig;
 import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpDesc;
 
 import java.util.List;
+
+import static java.util.Collections.singletonList;
+import static scala.collection.JavaConverters.asScalaBuffer;
 
 public class SpecializedFilterOpDesc extends FilterOpDesc {
 
@@ -27,6 +32,7 @@ public class SpecializedFilterOpDesc extends FilterOpDesc {
                 "Filter",
                 "performs a filter operation",
                 OperatorGroupConstants.SEARCH_GROUP(),
-                1, 1, false);
+                asScalaBuffer(singletonList(new InputPort("", false))).toList(),
+                asScalaBuffer(singletonList(new OutputPort(""))).toList());
     }
 }
