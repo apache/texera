@@ -32,13 +32,16 @@ class HashJoinOpDesc[K] extends OperatorDescriptor {
   @AutofillAttributeNameOnPort1
   var probeAttribute: String = _
 
+  var opExecConfig: HashJoinOpExecConfig = _
+
   override def operatorExecutor: OpExecConfig = {
-    new HashJoinOpExecConfig(
+    opExecConfig = new HashJoinOpExecConfig(
       this.operatorIdentifier,
       _ => new HashJoinOpExec[K](this),
       probeAttribute,
       buildAttribute
     )
+    opExecConfig
   }
 
   override def operatorInfo: OperatorInfo =

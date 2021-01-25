@@ -1,10 +1,12 @@
 package edu.uci.ics.amber.engine.faulttolerance.materializer
 
+import edu.uci.ics.amber.engine.common.ambertag.OperatorIdentifier
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.amber.engine.common.{InputExhausted, IOperatorExecutor}
+import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.FileSystem
 import org.apache.hadoop.fs.Path
+
 import java.io.{BufferedWriter, FileWriter}
 import java.net.URI
 
@@ -23,7 +25,7 @@ class OutputMaterializer(val outputPath: String, val remoteHDFS: String = null)
 
   override def processTuple(
       tuple: Either[ITuple, InputExhausted],
-      input: Int
+      input: OperatorIdentifier
   ): scala.Iterator[ITuple] = {
     tuple match {
       case Left(t) =>

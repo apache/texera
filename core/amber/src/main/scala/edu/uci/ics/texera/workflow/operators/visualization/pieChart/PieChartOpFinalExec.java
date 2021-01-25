@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.visualization.pieChart;
 
 import edu.uci.ics.amber.engine.common.InputExhausted;
+import edu.uci.ics.amber.engine.common.ambertag.OperatorIdentifier;
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor;
 import edu.uci.ics.texera.workflow.common.tuple.Tuple;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
@@ -46,7 +47,7 @@ public class PieChartOpFinalExec implements OperatorExecutor {
     }
 
     @Override
-    public scala.collection.Iterator<Tuple> processTexeraTuple(Either<Tuple, InputExhausted> tuple, int input) {
+    public scala.collection.Iterator<Tuple> processTexeraTuple(Either<Tuple, InputExhausted> tuple, OperatorIdentifier input) {
         if (tuple.isLeft()) {
             sum += tuple.left().get().getDouble(1);
             tempList.add(tuple.left().get());
