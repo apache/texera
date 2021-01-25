@@ -3,7 +3,7 @@ package edu.uci.ics.amber.engine.architecture.control.utils
 import com.twitter.util.{Future, Promise}
 import edu.uci.ics.amber.engine.architecture.control.utils.CollectHandler.{Collect, GenerateNumber}
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.control.ControlMessageReceiver.ControlCommand
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 
 import scala.util.Random
 
@@ -13,7 +13,7 @@ object CollectHandler {
 }
 
 trait CollectHandler {
-  this: TesterControlHandlerInitializer =>
+  this: TesterAsyncRPCHandlerInitializer =>
 
   registerHandler { c: Collect =>
     println(s"start collecting numbers.")

@@ -9,7 +9,7 @@ import edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy.{
 import edu.uci.ics.amber.engine.common.AdvancedMessageSending
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{
   UpdateInputLinking,
-  UpdateOutputLinking
+  AddDataSendingPolicy
 }
 import akka.actor.ActorRef
 import akka.event.LoggingAdapter
@@ -29,7 +29,9 @@ class AllToOne(from: WorkerLayer, to: WorkerLayer, batchSize: Int, inputNum: Int
 //      val routee = if(x.path.address.hostPort == toActor.path.address.hostPort) new DirectRoutee(toActor) else new FlowControlRoutee(toActor)
       AdvancedMessageSending.blockingAskWithRetry(
         x,
-        UpdateOutputLinking(new OneToOnePolicy(batchSize), tag, Array(toActor)),
+        AddDataSendingPolicy(
+          new OneToOnePolicy(tag, batchSize, Array(toActor))
+        ),
         10
       )
     })
