@@ -1,17 +1,17 @@
 package edu.uci.ics.amber.engine.architecture.control.utils
 
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.control.{
-  ControlMessageSource,
-  ControlHandlerInitializer,
-  ControlMessageReceiver
+import edu.uci.ics.amber.engine.common.rpc.{
+  AsyncRPCClient,
+  AsyncRPCHandlerInitializer,
+  AsyncRPCServer
 }
 
-class TesterControlHandlerInitializer(
+class TesterAsyncRPCHandlerInitializer(
     val myID: ActorVirtualIdentity,
-    source: ControlMessageSource,
-    receiver: ControlMessageReceiver
-) extends ControlHandlerInitializer(source, receiver)
+    source: AsyncRPCClient,
+    receiver: AsyncRPCServer
+) extends AsyncRPCHandlerInitializer(source, receiver)
     with PingPongHandler
     with ChainHandler
     with MultiCallHandler

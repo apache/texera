@@ -5,7 +5,7 @@ import akka.util.Timeout
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy.OneToOnePolicy
 import edu.uci.ics.amber.engine.common.AdvancedMessageSending
-import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.UpdateOutputLinking
+import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.AddDataSendingPolicy
 
 import scala.concurrent.ExecutionContext
 
@@ -26,10 +26,8 @@ class LocalOneToOne(from: WorkerLayer, to: WorkerLayer, batchSize: Int, inputNum
       for (i <- x._2.indices) {
         AdvancedMessageSending.blockingAskWithRetry(
           x._2(i),
-          UpdateOutputLinking(
-            new OneToOnePolicy(batchSize),
-            tag,
-            Array(actorToIdentifier(tos(x._1)(i)))
+          AddDataSendingPolicy(
+            new OneToOnePolicy(tag, batchSize, Array(actorToIdentifier(tos(x._1)(i))))
           ),
           10
         )

@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.common.ambermessage
 
 import edu.uci.ics.amber.engine.architecture.breakpoint.localbreakpoint.LocalBreakpoint
-import edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy.DataTransferPolicy
+import edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy.DataSendingPolicy
 import edu.uci.ics.amber.engine.architecture.worker.{WorkerState, WorkerStatistics}
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambertag.{LayerTag, LinkTag, OperatorIdentifier, WorkerTag}
@@ -24,10 +24,8 @@ object WorkerMessage {
       upstreamOpId: OperatorIdentifier
   ) extends ControlPayload
 
-  final case class UpdateOutputLinking(
-      policy: DataTransferPolicy,
-      link: LinkTag,
-      receivers: Array[ActorVirtualIdentity]
+  final case class AddDataSendingPolicy(
+      policy: DataSendingPolicy
   ) extends ControlPayload
 
   final case class EndSending(sequenceNumber: Long)

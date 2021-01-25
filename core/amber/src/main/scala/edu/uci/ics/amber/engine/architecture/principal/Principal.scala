@@ -11,7 +11,7 @@ import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalB
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.architecture.linksemantics.LinkStrategy
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkSenderActor.RegisterActorRef
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.RegisterActorRef
 import edu.uci.ics.amber.engine.architecture.worker.{WorkerState, WorkerStatistics}
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage._
@@ -20,7 +20,7 @@ import edu.uci.ics.amber.engine.common.ambermessage.PrincipalMessage.{AssignBrea
 import edu.uci.ics.amber.engine.common.ambermessage.StateMessage._
 import edu.uci.ics.amber.engine.common.ambermessage.{PrincipalMessage, WorkerMessage}
 import edu.uci.ics.amber.engine.common.ambertag.{AmberTag, LayerTag, WorkerTag}
-import edu.uci.ics.amber.engine.common.control.ControlHandlerInitializer
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.{
   AdvancedMessageSending,
@@ -48,10 +48,10 @@ import akka.pattern.ask
 import com.google.common.base.Stopwatch
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkSenderActor
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor
 import com.typesafe.scalalogging.{LazyLogging, Logger}
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.ErrorOccurred
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkSenderActor.RegisterActorRef
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.RegisterActorRef
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{
   ReportWorkerPartialCompleted,
   ReportedQueriedBreakpoint,
@@ -59,7 +59,7 @@ import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{
   Reset
 }
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.WorkerActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.control.ControlHandlerInitializer
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCHandlerInitializer
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 import scala.collection.mutable
@@ -68,15 +68,19 @@ import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext}
 
 object Principal {
-  def props(metadata: OpExecConfig): Props = Props(new Principal(metadata))
+  def props(metadata: OpExecConfig, parentNetworkCommunicationActorRef: ActorRef): Props =
+    Props(new Principal(metadata, parentNetworkCommunicationActorRef))
 }
 
-class Principal(val metadata: OpExecConfig)
-    extends WorkflowActor(WorkerActorVirtualIdentity(metadata.tag.getGlobalIdentity)) {
+class Principal(val metadata: OpExecConfig, parentNetworkCommunicationActorRef: ActorRef)
+    extends WorkflowActor(
+      WorkerActorVirtualIdentity(metadata.tag.getGlobalIdentity),
+      parentNetworkCommunicationActorRef
+    ) {
   implicit val ec: ExecutionContext = context.dispatcher
   implicit val timeout: Timeout = 5.seconds
 
-  lazy val rpcHandlerInitializer = wire[ControlHandlerInitializer]
+  lazy val rpcHandlerInitializer = wire[AsyncRPCHandlerInitializer]
 
   private def errorLogAction(err: WorkflowRuntimeError): Unit = {
     context.parent ! LogErrorToFrontEnd(err)
@@ -167,7 +171,7 @@ class Principal(val metadata: OpExecConfig)
   }
 
   final def ready: Receive = {
-    routeActorRefRelatedMessages orElse [Any, Unit] {
+    disallowActorRefRelatedMessages orElse [Any, Unit] {
       case RecoveryPacket(amberTag, seq1, seq2) =>
         receivedRecoveryInformation(amberTag) = (seq1, seq2)
       case Start =>
@@ -376,7 +380,7 @@ class Principal(val metadata: OpExecConfig)
 //    Set(WorkerState.Completed, WorkerState.Paused, WorkerState.LocalBreakpointTriggered)
 
   final def pausing: Receive = {
-    routeActorRefRelatedMessages orElse [Any, Unit] {
+    disallowActorRefRelatedMessages orElse [Any, Unit] {
       case RecoveryPacket(amberTag, seq1, seq2) =>
         receivedRecoveryInformation(amberTag) = (seq1, seq2)
       case EnforceStateCheck =>
@@ -442,7 +446,7 @@ class Principal(val metadata: OpExecConfig)
   }
 
   final def collectingBreakpoints: Receive = {
-    routeActorRefRelatedMessages orElse [Any, Unit] {
+    disallowActorRefRelatedMessages orElse [Any, Unit] {
       case RecoveryPacket(amberTag, seq1, seq2) =>
         receivedRecoveryInformation(amberTag) = (seq1, seq2)
       case EnforceStateCheck =>
@@ -531,7 +535,7 @@ class Principal(val metadata: OpExecConfig)
 //    Set(WorkerState.Running, WorkerState.Ready, WorkerState.Completed)
 
   final def resuming: Receive = {
-    routeActorRefRelatedMessages orElse [Any, Unit] {
+    disallowActorRefRelatedMessages orElse [Any, Unit] {
       case RecoveryPacket(amberTag, seq1, seq2) =>
         receivedRecoveryInformation(amberTag) = (seq1, seq2)
       case EnforceStateCheck =>
@@ -583,7 +587,7 @@ class Principal(val metadata: OpExecConfig)
   }
 
   final def paused: Receive = {
-    routeActorRefRelatedMessages orElse [Any, Unit] {
+    disallowActorRefRelatedMessages orElse [Any, Unit] {
       case KillAndRecover =>
 //        workerLayers.foreach { x =>
 //          x.layer(0) ! Reset(x.getFirstMetadata, Seq(receivedRecoveryInformation(x.tagForFirst)))
@@ -634,7 +638,7 @@ class Principal(val metadata: OpExecConfig)
   }
 
   final def completed: Receive = {
-    routeActorRefRelatedMessages orElse [Any, Unit] {
+    disallowActorRefRelatedMessages orElse [Any, Unit] {
       case KillAndRecover =>
 //        workerLayers.foreach { x =>
 //          if (receivedRecoveryInformation.contains(x.tagForFirst)) {
@@ -689,7 +693,7 @@ class Principal(val metadata: OpExecConfig)
   }
 
   final override def receive: Receive = {
-    routeActorRefRelatedMessages orElse [Any, Unit] {
+    disallowActorRefRelatedMessages orElse [Any, Unit] {
       case AckedPrincipalInitialization(prev: Array[(OpExecConfig, WorkerLayer)]) =>
       //workerLayers = metadata.topology.layers
       //workerEdges = metadata.topology.links
