@@ -79,9 +79,6 @@ class NetworkCommunicationActor(parentRef: ActorRef) extends Actor with LazyLogg
   var networkMessageID = 0L
   val messageIDToIdentity = new mutable.LongMap[ActorVirtualIdentity]
 
-  //add parent actor into idMap
-  idToActorRefs(VirtualIdentity.Self) = context.parent
-
   //register timer for resending messages
   context.system.scheduler.schedule(
     30.seconds,
