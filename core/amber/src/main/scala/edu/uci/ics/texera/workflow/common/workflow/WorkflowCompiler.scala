@@ -47,11 +47,12 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
 
     val outLinks: mutable.Map[OperatorIdentifier, mutable.Set[OperatorIdentifier]] = mutable.Map()
     workflowInfo.links.foreach(link => {
-      val origin = OperatorIdentifier(this.context.workflowID, link.origin)
-      val dest = OperatorIdentifier(this.context.workflowID, link.destination)
+      val origin = OperatorIdentifier(this.context.workflowID, link.origin.operatorID)
+      val dest = OperatorIdentifier(this.context.workflowID, link.destination.operatorID)
       val destSet = outLinks.getOrElse(origin, mutable.Set())
       destSet.add(dest)
       outLinks.update(origin, destSet)
+      amberOperators(dest).setInputToOrdinalMapping(origin, link.destination.portOrdinal)
     })
 
     val outLinksImmutableValue: mutable.Map[OperatorIdentifier, Set[OperatorIdentifier]] =
@@ -141,9 +142,10 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
       new DirectedAcyclicGraph[OperatorDescriptor, DefaultEdge](classOf[DefaultEdge])
     this.workflowInfo.operators.foreach(op => workflowDag.addVertex(op))
     this.workflowInfo.links.foreach(link => {
-      val origin = this.workflowInfo.operators.filter(op => op.operatorID == link.origin).head
+      val origin =
+        this.workflowInfo.operators.filter(op => op.operatorID == link.origin.operatorID).head
       val destination =
-        this.workflowInfo.operators.filter(op => op.operatorID == link.destination).head
+        this.workflowInfo.operators.filter(op => op.operatorID == link.destination.operatorID).head
       workflowDag.addEdge(origin, destination)
     })
 
