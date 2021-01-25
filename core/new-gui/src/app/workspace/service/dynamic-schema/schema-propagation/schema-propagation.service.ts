@@ -91,7 +91,7 @@ export class SchemaPropagationService {
       } else {
         // otherwise, the input attributes of the operator is unknown
         // if the operator is not a source operator, restore its original schema of input attributes
-        if (currentDynamicSchema.additionalMetadata.numInputPorts > 0) {
+        if (currentDynamicSchema.additionalMetadata.inputPorts.length > 0) {
           newDynamicSchema = SchemaPropagationService.restoreOperatorInputAttrs(currentDynamicSchema);
         } else {
           newDynamicSchema = currentDynamicSchema;

@@ -86,7 +86,7 @@ describe('WorkflowGraph', () => {
       ...mockScanResultLink,
       target: {
         operatorID: mockSentimentPredicate.operatorID,
-        portID: mockSentimentPredicate.inputPorts[0]
+        portID: mockSentimentPredicate.inputPorts[0].portID
       },
     };
 

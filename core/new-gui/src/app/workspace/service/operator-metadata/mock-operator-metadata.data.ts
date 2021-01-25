@@ -8,15 +8,11 @@ import { BreakpointSchema } from '../../types/workflow-common.interface';
 export const mockScanSourceSchema: OperatorSchema = {
   operatorType: 'ScanSource',
   additionalMetadata: {
-    advancedOptions: [],
     userFriendlyName: 'Source: Scan',
     operatorDescription: 'Read records from a table one by one',
     operatorGroupName: 'Source',
-    numInputPorts: 0,
-    numOutputPorts: 1,
-    propertyDescription: {
-      tableName: 'The table name is the name of the source table, including twitter and promed'
-    }
+    inputPorts: [],
+    outputPorts: [{}],
   },
   jsonSchema: {
     properties: {
@@ -40,21 +36,19 @@ export const mockFileSourceSchema: OperatorSchema = {
     userFriendlyName: 'Source: File',
     operatorDescription: 'Read the content of one file or multiple files',
     operatorGroupName: 'Source',
-    numInputPorts: 0,
-    numOutputPorts: 1,
-    advancedOptions: []
+    inputPorts: [],
+    outputPorts: [{}],
   }
 };
 
 export const mockNlpSentimentSchema: OperatorSchema = {
   operatorType: 'NlpSentiment',
   additionalMetadata: {
-    advancedOptions: [],
     userFriendlyName: 'Sentiment Analysis',
     operatorDescription: 'Sentiment analysis based on Stanford NLP package',
     operatorGroupName: 'Analysis',
-    numInputPorts: 1,
-    numOutputPorts: 1,
+    inputPorts: [{}],
+    outputPorts: [{}],
   },
   jsonSchema: {
     properties: {
@@ -86,9 +80,8 @@ export const mockKeywordSourceSchema: OperatorSchema = {
     userFriendlyName: 'Source: Keyword',
     operatorDescription: 'Perform an index-based search on a table using a keyword',
     operatorGroupName: 'Analysis',
-    numInputPorts: 0,
-    numOutputPorts: 1,
-    advancedOptions: []
+    inputPorts: [],
+    outputPorts: [{}],
   }
 };
 
@@ -111,9 +104,8 @@ export const mockKeywordSearchSchema: OperatorSchema = {
     userFriendlyName: 'Keyword Search',
     operatorDescription: 'Search the documents using a keyword',
     operatorGroupName: 'Analysis',
-    numInputPorts: 1,
-    numOutputPorts: 1,
-    advancedOptions: []
+    inputPorts: [{}],
+    outputPorts: [{}],
   }
 };
 
@@ -146,9 +138,8 @@ export const mockAggregationSchema: OperatorSchema = {
     userFriendlyName: 'Aggregation',
     operatorDescription: 'Aggregate one or more columns to find min, max, sum, average, count of the column',
     operatorGroupName: 'Analysis',
-    numInputPorts: 1,
-    numOutputPorts: 1,
-    advancedOptions: []
+    inputPorts: [{}],
+    outputPorts: [{}],
   }
 };
 
@@ -170,12 +161,11 @@ export const mockViewResultsSchema: OperatorSchema = {
     type: 'object'
   },
   additionalMetadata: {
-    advancedOptions: [],
     userFriendlyName: 'View Results',
     operatorDescription: 'View the results of the workflow',
     operatorGroupName: 'View Results',
-    numInputPorts: 1,
-    numOutputPorts: 0,
+    inputPorts: [{}],
+    outputPorts: [],
   }
 };
 
@@ -186,12 +176,11 @@ export const mockMultiInputOutputSchema: OperatorSchema = {
     type: 'object'
   },
   additionalMetadata: {
-    advancedOptions: [],
     userFriendlyName: '3-I/O Mock op',
     operatorDescription: 'Mock operator with 3 inputs and 3 outputs',
     operatorGroupName: 'Analysis',
-    numInputPorts: 3,
-    numOutputPorts: 3,
+    inputPorts: [{}, {}, {}],
+    outputPorts: [{}, {}, {}],
   }
 };
 
