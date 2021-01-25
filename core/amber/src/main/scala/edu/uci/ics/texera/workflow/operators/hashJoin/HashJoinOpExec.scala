@@ -19,7 +19,6 @@ class HashJoinOpExec[K](val opDesc: HashJoinOpDesc[K]) extends OperatorExecutor 
     s"${opDesc.operatorIdentifier.getGlobalIdentity}-HashJoinOpExec"
   )
 
-//  var buildTableInputNum: Int = -1
   var isBuildTableFinished: Boolean = false
   var buildTableHashMap: mutable.HashMap[K, ArrayBuffer[Tuple]] = _
   var outputProbeSchema: Schema = _
