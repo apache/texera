@@ -4,7 +4,7 @@ import edu.uci.ics.amber.engine.architecture.breakpoint.localbreakpoint.LocalBre
 import edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy.DataSendingPolicy
 import edu.uci.ics.amber.engine.architecture.worker.{WorkerState, WorkerStatistics}
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.ambertag.{LayerTag, LinkTag, WorkerTag}
+import edu.uci.ics.amber.engine.common.ambertag.{LayerTag, LinkTag, OperatorIdentifier, WorkerTag}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import akka.actor.{ActorPath, ActorRef}
 import edu.uci.ics.amber.engine.common.ambermessage.neo.{
@@ -19,8 +19,10 @@ object WorkerMessage {
 
   final case class AckedWorkerInitialization(recoveryInformation: Seq[(Long, Long)] = Nil)
 
-  final case class UpdateInputLinking(fromLayer: VirtualIdentity, inputNum: Int)
-      extends ControlPayload
+  final case class UpdateInputLinking(
+      upstreamWorkerId: VirtualIdentity,
+      upstreamOpId: OperatorIdentifier
+  ) extends ControlPayload
 
   final case class AddDataSendingPolicy(
       policy: DataSendingPolicy
@@ -54,7 +56,7 @@ object WorkerMessage {
 
   final case class ReportUpstreamExhausted(inputOperatorRef: Int) extends ControlPayload
 
-  final case class ReportWorkerPartialCompleted(inputOperatorRef: Int) extends ControlPayload
+  final case class ReportWorkerPartialCompleted(inputOp: OperatorIdentifier) extends ControlPayload
 
   final case class CheckRecovery()
 

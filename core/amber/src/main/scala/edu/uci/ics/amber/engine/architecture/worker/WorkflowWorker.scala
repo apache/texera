@@ -146,11 +146,11 @@ class WorkflowWorker(
       workerStateManager.confirmState(Pausing)
       workerStateManager.transitTo(Paused)
       reportState()
-    case UpdateInputLinking(identifier, inputNum) =>
+    case UpdateInputLinking(upstreamWorkerId, upstreamOpId) =>
       workerStateManager.confirmState(Ready)
       logger.logInfo(s"received register input for ${this.identifier}")
       sender ! Ack
-      tupleProducer.registerInput(identifier, inputNum)
+      tupleProducer.registerInput(upstreamWorkerId, upstreamOpId)
     case LocalBreakpointTriggered() =>
       workerStateManager.confirmState(Running)
       dataProcessor.breakpoints.foreach { brk =>

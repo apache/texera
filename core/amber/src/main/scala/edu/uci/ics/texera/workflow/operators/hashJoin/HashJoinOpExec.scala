@@ -47,14 +47,14 @@ class HashJoinOpExec[K](val opDesc: HashJoinOpDesc[K]) extends OperatorExecutor 
 
   override def processTexeraTuple(
       tuple: Either[Tuple, InputExhausted],
-      input: Int
+      input: OperatorIdentifier
   ): Iterator[Tuple] = {
     tuple match {
       case Left(t) =>
         // The operatorInfo() in HashJoinOpDesc has a inputPorts list. In that the
         // small input port comes first. So, it is assigned the inputNum 0. Similarly
         // the large input is assigned the inputNum 1.
-        if (input == 0) {
+        if (opDesc.opExecConfig.getInputNum(input) == 0) {
           val key = t.getField(opDesc.buildAttribute).asInstanceOf[K]
           var storedTuples = buildTableHashMap.getOrElse(key, new ArrayBuffer[Tuple]())
           storedTuples += t
@@ -104,7 +104,7 @@ class HashJoinOpExec[K](val opDesc: HashJoinOpDesc[K]) extends OperatorExecutor 
           }
         }
       case Right(_) =>
-        if (input == 0) {
+        if (opDesc.opExecConfig.getInputNum(input) == 0) {
           isBuildTableFinished = true
         }
         Iterator()

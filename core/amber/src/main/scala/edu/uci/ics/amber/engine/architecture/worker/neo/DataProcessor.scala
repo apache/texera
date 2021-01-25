@@ -16,6 +16,7 @@ import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{
   ReportUpstreamExhausted,
   ReportWorkerPartialCompleted
 }
+import edu.uci.ics.amber.engine.common.ambertag.OperatorIdentifier
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted, WorkflowLogger}
@@ -35,7 +36,7 @@ class DataProcessor( // dependencies:
   private var inputTupleCount = 0L
   private var outputTupleCount = 0L
   private var currentInputTuple: Either[ITuple, InputExhausted] = _
-  private var currentSenderRef: Int = -1
+  private var currentSenderRef: OperatorIdentifier = null
   private var isCompleted = false
 
   // initialize dp thread upon construction

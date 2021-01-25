@@ -1,8 +1,8 @@
 package edu.uci.ics.amber.engine.architecture.worker.neo
 
 import java.util.concurrent.LinkedBlockingDeque
-
 import edu.uci.ics.amber.engine.architecture.worker.neo.WorkerInternalQueue.InternalQueueElement
+import edu.uci.ics.amber.engine.common.ambertag.OperatorIdentifier
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 
 object WorkerInternalQueue {
@@ -11,7 +11,7 @@ object WorkerInternalQueue {
 
   //TODO: check if this is creating overhead
   case class InputTuple(tuple: ITuple) extends InternalQueueElement
-  case class SenderChangeMarker(newSenderRef: Int) extends InternalQueueElement
+  case class SenderChangeMarker(newSenderRef: OperatorIdentifier) extends InternalQueueElement
   case class EndMarker() extends InternalQueueElement
   case class EndOfAllMarker() extends InternalQueueElement
 
