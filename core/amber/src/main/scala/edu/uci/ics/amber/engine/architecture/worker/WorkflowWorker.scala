@@ -151,14 +151,6 @@ class WorkflowWorker(
       logger.logInfo(s"received register input for ${this.identifier}")
       sender ! Ack
       tupleProducer.registerInput(identifier, inputNum)
-    case LocalBreakpointTriggered() =>
-      workerStateManager.confirmState(Running)
-      dataProcessor.breakpoints.foreach { brk =>
-        if (brk.isTriggered)
-          dataProcessor.unhandledFaultedTuples(brk.triggeredTupleId) =
-            new FaultedTuple(brk.triggeredTuple, brk.triggeredTupleId, brk.isInput)
-      }
-      context.parent ! ReportState(WorkerState.LocalBreakpointTriggered)
     case other =>
   }
 
@@ -225,69 +217,8 @@ class WorkflowWorker(
       sender ! ReportStatistics(
         WorkerStatistics(getOldWorkerState, getInputRowCount(), getOutputRowCount())
       )
-    case QueryTriggeredBreakpoints =>
-      val toReport = dataProcessor.breakpoints.filter(_.isTriggered)
-      if (toReport.nonEmpty) {
-        toReport.foreach(_.isReported = true)
-        sender ! ReportedTriggeredBreakpoints(toReport)
-      } else {
-        throw new WorkflowRuntimeException(
-          WorkflowRuntimeError(
-            "no triggered local breakpoints but worker in triggered breakpoint state",
-            "WorkerBase:allowQueryTriggeredBreakpoints",
-            Map()
-          )
-        )
-      }
-    case QueryBreakpoint(id) =>
-      val toReport = dataProcessor.breakpoints.find(_.id == id)
-      if (toReport.isDefined) {
-        toReport.get.isReported = true
-        context.parent ! ReportedQueriedBreakpoint(toReport.get)
-        context.parent ! ReportState(WorkerState.LocalBreakpointTriggered)
-      }
     case CollectSinkResults =>
       sender ! WorkerMessage.ReportOutputResult(this.getResultTuples().toList)
-    case AssignBreakpoint(bp) =>
-      sender ! Ack
-      dataProcessor.registerBreakpoint(bp)
-//      if (!dataProcessor.breakpoints.exists(_.isDirty)) {
-//        onPaused() //back to paused
-//        context.unbecome()
-//        unstashAll()
-//      }
-    case RemoveBreakpoint(id) =>
-      sender ! Ack
-      dataProcessor.removeBreakpoint(id)
-//      if (!dataProcessor.breakpoints.exists(_.isDirty)) {
-//        onPaused() //back to paused
-//        context.unbecome()
-//        unstashAll()
-//      }
-    case SkipTuple(f) =>
-      workerStateManager.confirmState(Paused)
-      sender ! Ack
-      if (!receivedFaultedTupleIds.contains(f.id)) {
-        receivedFaultedTupleIds.add(f.id)
-        dataProcessor.unhandledFaultedTuples.remove(f.id)
-        onSkipTuple(f)
-      }
-    case ModifyTuple(f) =>
-      workerStateManager.confirmState(Paused)
-      sender ! Ack
-      if (!receivedFaultedTupleIds.contains(f.id)) {
-        receivedFaultedTupleIds.add(f.id)
-        dataProcessor.unhandledFaultedTuples.remove(f.id)
-        onModifyTuple(f)
-      }
-    case ResumeTuple(f) =>
-      workerStateManager.confirmState(Paused)
-      sender ! Ack
-      if (!receivedFaultedTupleIds.contains(f.id)) {
-        receivedFaultedTupleIds.add(f.id)
-        dataProcessor.unhandledFaultedTuples.remove(f.id)
-        onResumeTuple(f)
-      }
     case AddDataSendingPolicy(policy) =>
       sender ! Ack
       // send message to receivers to add this worker to their expected inputs

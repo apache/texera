@@ -22,8 +22,8 @@ class DataProcessor( // dependencies:
     controlOutputChannel: ControlOutputPort, // to send controls to main thread
     batchProducer: TupleToBatchConverter, // to send output tuples
     pauseManager: PauseManager // to pause/resume
-) extends BreakpointSupport
-    with WorkerInternalQueue { // TODO: make breakpointSupport as a module
+    )
+    extends WorkerInternalQueue { // TODO: make breakpointSupport as a module
 
   protected val logger: WorkflowLogger = WorkflowLogger("DataProcessor")
   // dp thread stats:
@@ -135,22 +135,8 @@ class DataProcessor( // dependencies:
     controlOutputChannel.sendTo(VirtualIdentity.Self, ExecutionCompleted())
   }
 
-  // For compatibility, we use old breakpoint handling logic
-  // TODO: remove this when we refactor breakpoints
-  private[this] def assignExceptionBreakpoint(
-      faultedTuple: ITuple,
-      e: Exception,
-      isInput: Boolean
-  ): Unit = {
-    breakpoints(0).triggeredTuple = faultedTuple
-    breakpoints(0).asInstanceOf[ExceptionBreakpoint].error = e
-    breakpoints(0).triggeredTupleId = outputTupleCount
-    breakpoints(0).isInput = isInput
-  }
-
   private[this] def handleOperatorException(e: Exception, isInput: Boolean): Unit = {
     pauseManager.pause()
-    assignExceptionBreakpoint(currentInputTuple.left.getOrElse(null), e, isInput)
     controlOutputChannel.sendTo(VirtualIdentity.Self, LocalBreakpointTriggered())
   }
 

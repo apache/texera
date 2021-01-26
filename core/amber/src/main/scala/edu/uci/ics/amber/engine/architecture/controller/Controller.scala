@@ -1,88 +1,26 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
 import edu.uci.ics.amber.clustering.ClusterListener.GetAvailableNodeAddresses
-import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.{
-  ExceptionGlobalBreakpoint,
-  GlobalBreakpoint
-}
+import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.{ExceptionGlobalBreakpoint, GlobalBreakpoint}
 import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalBreakpoint
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
-  BreakpointTriggered,
-  ErrorOccurred,
-  ModifyLogicCompleted,
-  SkipTupleResponse,
-  WorkflowCompleted,
-  WorkflowPaused,
-  WorkflowStatusUpdate
-}
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{BreakpointTriggered, ErrorOccurred, ModifyLogicCompleted, SkipTupleResponse, WorkflowCompleted, WorkflowPaused, WorkflowStatusUpdate}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.OneOnEach
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.FollowPrevious
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
-import edu.uci.ics.amber.engine.faulttolerance.materializer.{
-  HashBasedMaterializer,
-  OutputMaterializer
-}
-import edu.uci.ics.amber.engine.architecture.linksemantics.{
-  FullRoundRobin,
-  HashBasedShuffle,
-  LinkStrategy,
-  LocalPartialToOne,
-  OperatorLink
-}
-import edu.uci.ics.amber.engine.architecture.principal.{
-  Principal,
-  PrincipalState,
-  PrincipalStatistics
-}
+import edu.uci.ics.amber.engine.faulttolerance.materializer.{HashBasedMaterializer, OutputMaterializer}
+import edu.uci.ics.amber.engine.architecture.linksemantics.{FullRoundRobin, HashBasedShuffle, LinkStrategy, LocalPartialToOne, OperatorLink}
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.ControllerMessage._
 import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage._
-import edu.uci.ics.amber.engine.common.ambermessage.{
-  ControllerMessage,
-  PrincipalMessage,
-  WorkerMessage
-}
-import edu.uci.ics.amber.engine.common.ambermessage.PrincipalMessage.{
-  AckedPrincipalInitialization,
-  AssignBreakpoint,
-  GetOutputLayer,
-  ReportCurrentProcessingTuple,
-  ReportOutputResult,
-  ReportPrincipalPartialCompleted,
-  ReportState
-}
+import edu.uci.ics.amber.engine.common.ambermessage.{ControllerMessage, PrincipalMessage, WorkerMessage}
+import edu.uci.ics.amber.engine.common.ambermessage.PrincipalMessage.{AckedPrincipalInitialization, AssignBreakpoint, GetOutputLayer, ReportCurrentProcessingTuple, ReportOutputResult, ReportPrincipalPartialCompleted, ReportState}
 import edu.uci.ics.amber.engine.common.ambermessage.StateMessage.EnforceStateCheck
-import edu.uci.ics.amber.engine.common.ambertag.{
-  AmberTag,
-  LayerTag,
-  LinkTag,
-  OperatorIdentifier,
-  WorkerTag,
-  WorkflowTag
-}
+import edu.uci.ics.amber.engine.common.ambertag.{AmberTag, LayerTag, LinkTag, OperatorIdentifier, WorkerTag, WorkflowTag}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.amber.engine.common.{
-  AdvancedMessageSending,
-  AmberUtils,
-  Constants,
-  ISourceOperatorExecutor,
-  WorkflowLogger
-}
+import edu.uci.ics.amber.engine.common.{AdvancedMessageSending, AmberUtils, Constants, ISourceOperatorExecutor, WorkflowLogger}
 import edu.uci.ics.amber.engine.faulttolerance.scanner.HDFSFolderScanSourceOperatorExecutor
 import edu.uci.ics.amber.engine.operators.OpExecConfig
-import akka.actor.{
-  Actor,
-  ActorLogging,
-  ActorPath,
-  ActorRef,
-  ActorSelection,
-  Address,
-  Cancellable,
-  Deploy,
-  PoisonPill,
-  Props,
-  Stash
-}
+import akka.actor.{Actor, ActorLogging, ActorPath, ActorRef, ActorSelection, Address, Cancellable, Deploy, PoisonPill, Props, Stash}
 import akka.dispatch.Futures
 import akka.event.LoggingAdapter
 import akka.pattern.ask
@@ -98,18 +36,11 @@ import com.typesafe.scalalogging.Logger
 import edu.uci.ics.amber.engine.architecture.breakpoint.FaultedTuple
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.worker.{WorkerState, WorkerStatistics}
-import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{
-  AckedWorkerInitialization,
-  CheckRecovery,
-  QueryTriggeredBreakpoints,
-  ReportWorkerPartialCompleted,
-  ReportedQueriedBreakpoint,
-  ReportedTriggeredBreakpoints,
-  Reset
-}
+import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{AckedWorkerInitialization, CheckRecovery, QueryTriggeredBreakpoints, ReportWorkerPartialCompleted, ReportedQueriedBreakpoint, ReportedTriggeredBreakpoints, Reset}
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.RegisterActorRef
+import edu.uci.ics.amber.engine.architecture.principal.{PrincipalState, PrincipalStatistics}
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCHandlerInitializer
 
@@ -176,12 +107,6 @@ class Controller(
   val pauseTimer = Stopwatch.createUnstarted();
   var recoveryMode = false
 
-//  def allPrincipals: Iterable[ActorRef] = principalStates.keys
-//  def unCompletedPrincipals: Iterable[ActorRef] =
-//    principalStates.filter(x => x._2 != PrincipalState.Completed).keys
-//  def allUnCompletedPrincipalStates: Iterable[PrincipalState.Value] =
-//    principalStates.filter(x => x._2 != PrincipalState.Completed).values
-
   def allUnCompletedOperatorStates: Iterable[PrincipalState.Value] =
     operatorStateMap.filter(x => x._2 != PrincipalState.Completed).values
   val tau: FiniteDuration = Constants.defaultTau
@@ -204,8 +129,6 @@ class Controller(
   var operatorToGlobalBreakpoints =
     new mutable.HashMap[OperatorIdentifier, mutable.AnyRefMap[String, GlobalBreakpoint]]()
   var operatorToPeriodicallyAskHandle = new mutable.HashMap[OperatorIdentifier, Cancellable]()
-  var operatorToWorkersTriggeredBreakpoint =
-    new mutable.HashMap[OperatorIdentifier, Iterable[ActorRef]]()
   var operatorToLayerCompletedCounter =
     new mutable.HashMap[OperatorIdentifier, mutable.HashMap[LayerTag, Int]]()
   val operatorToTimer =
@@ -232,54 +155,6 @@ class Controller(
     Await
       .result(context.actorSelection("/user/cluster-info") ? GetAvailableNodeAddresses, 5.seconds)
       .asInstanceOf[Array[Address]]
-//  def getPrincipalNode(nodes: Array[Address]): Address =
-//    self.path.address //nodes(util.Random.nextInt(nodes.length))
-
-  private def queryExecuteStatistics(): Unit = {}
-
-  //if checkpoint activated:
-  private def insertCheckpoint(from: OpExecConfig, to: OpExecConfig): Unit = {
-    //insert checkpoint barrier between 2 operators and delete the link between them
-    val topology = from.topology
-    val hashFunc = to.getShuffleHashFunction(topology.layers.last.tag)
-    val layerTag = LayerTag(from.tag, "checkpoint")
-    val path: String = layerTag.getGlobalIdentity
-    val numWorkers = topology.layers.last.numWorkers
-    val scanGen: Int => ISourceOperatorExecutor = i =>
-      new HDFSFolderScanSourceOperatorExecutor(Constants.remoteHDFSPath, path + "/" + i, '|', null)
-    val lastLayer = topology.layers.last
-    val materializerLayer = new WorkerLayer(
-      layerTag,
-      i => new HashBasedMaterializer(path, i, hashFunc, numWorkers),
-      numWorkers,
-      FollowPrevious(),
-      OneOnEach()
-    )
-    topology.layers :+= materializerLayer
-    topology.links :+= new LocalPartialToOne(
-      lastLayer,
-      materializerLayer,
-      Constants.defaultBatchSize,
-      0
-    )
-    val scanLayer = new WorkerLayer(
-      LayerTag(to.tag, "from_checkpoint"),
-      scanGen,
-      topology.layers.last.numWorkers,
-      FollowPrevious(),
-      OneOnEach()
-    )
-    val firstLayer = to.topology.layers.head
-    to.topology.layers +:= scanLayer
-    to.topology.links +:= new HashBasedShuffle(
-      scanLayer,
-      firstLayer,
-      Constants.defaultBatchSize,
-      hashFunc,
-      0
-    )
-
-  }
 
   final def safeRemoveAskHandle(): Unit = {
     if (periodicallyAskHandle != null) {
@@ -288,37 +163,6 @@ class Controller(
     }
   }
 
-  private def killAndRecoverStage(): Unit = {
-//    val futuresNoSinkScan = operatorInCurrentStage
-//      .filter(x => x.operator.contains("Sink") && x.operator.contains("Scan"))
-//      .map { x =>
-//        operatorStateMap(x) = PrincipalState.Running
-//        operatorToWorkerLayers(x).foreach { layers =>
-//          layers.layer(0) ! Reset(
-//            layers.getFirstMetadata,
-//            Seq(operatorToReceivedRecoveryInformation(x)(layers.tagForFirst))
-//          )
-//          operatorToWorkerStateMap(x)(layers.layer(0)) = WorkerState.Ready
-//        }
-//      }
-//      .asJava
-//    val tasksNoSinkScan = Futures.sequence(futuresNoSinkScan, ec)
-//    Await.result(tasksNoSinkScan, 5.minutes)
-//    Thread.sleep(2000)
-//    val futuresScan = principalInCurrentStage
-//      .filter(x => principalBiMap.inverse().get(x).operator.contains("Scan"))
-//      .map { x =>
-//        principalStates(x) = PrincipalState.Running
-//        AdvancedMessageSending.nonBlockingAskWithRetry(x, KillAndRecover, 5, 0)(3.minutes, ec, log)
-//      }
-//      .asJava
-//    val tasksScan = Futures.sequence(futuresScan, ec)
-//    Await.result(tasksScan, 5.minutes)
-//    if (this.eventListener.recoveryStartedListener != null) {
-//      this.eventListener.recoveryStartedListener.apply()
-//    }
-//    context.become(pausing)
-  }
 
   private def aggregateWorkerInputRowCount(opIdentifier: OperatorIdentifier): Long = {
     operatorToWorkerStatisticsMap(opIdentifier)
@@ -533,7 +377,6 @@ class Controller(
         if (withCheckpoint) {
           for (n <- workflow.outLinks(k)) {
             if (workflow.operators(n).requiredShuffle) {
-              insertCheckpoint(workflow.operators(k), workflow.operators(n))
               operatorsToWait.append(k)
               linksToIgnore.add((k, n))
             }
@@ -596,64 +439,6 @@ class Controller(
     val opId = workerToOperator(sender)
     if (setWorkerState(sender, state)) {
       state match {
-        case WorkerState.LocalBreakpointTriggered =>
-          if (
-            whenAllUncompletedWorkersBecome(
-              workerToOperator(sender),
-              WorkerState.LocalBreakpointTriggered
-            )
-          ) {
-            //only one worker and it triggered breakpoint
-            safeRemoveAskOperatorHandle(workerToOperator(sender))
-            operatorToPeriodicallyAskHandle(workerToOperator(sender)) =
-              context.system.scheduler.schedule(
-                0.milliseconds,
-                30.seconds,
-                self,
-                EnforceStateCheck(opId)
-              )
-            operatorToWorkersTriggeredBreakpoint(workerToOperator(sender)) =
-              operatorToWorkerStateMap(workerToOperator(sender)).keys
-            operatorStateMap(workerToOperator(sender)) = PrincipalState.CollectingBreakpoints
-            matchNewOperatorStateAndTakeActionsInRunning(workerToOperator(sender))
-
-          } else {
-            //no tau involved since we know a very small tau works best
-            if (!operatorToStage2Timer(workerToOperator(sender)).isRunning) {
-              operatorToStage2Timer(workerToOperator(sender)).start()
-            }
-            if (operatorToStage1Timer(workerToOperator(sender)).isRunning) {
-              operatorToStage1Timer(workerToOperator(sender)).stop()
-            }
-
-            operatorToWorkerStateMap(workerToOperator(sender))
-              .filter(x => x._2 != WorkerState.Completed)
-              .keys
-              .foreach(worker => {
-                println(
-                  s"Sending pause to ${worker.toString()} -- ${workerToOperator(sender).getGlobalIdentity}"
-                )
-              })
-
-            val workersToPause: Iterable[ActorRef] =
-              operatorToWorkerStateMap(workerToOperator(sender))
-                .filter(x => x._2 != WorkerState.Completed)
-                .keys
-
-            context.system.scheduler
-              .scheduleOnce(
-                tau,
-                () =>
-                  workersToPause
-                    .foreach(worker => worker ! Pause)
-              )
-
-            safeRemoveAskOperatorHandle(workerToOperator(sender))
-            operatorStateMap(workerToOperator(sender)) = PrincipalState.Pausing
-            // context.become(pausing)
-            operatorToPeriodicallyAskHandle(workerToOperator(sender)) = context.system.scheduler
-              .schedule(30.seconds, 30.seconds, self, EnforceStateCheck(opId))
-          }
         case WorkerState.Paused =>
           if (areAllWorkersCompleted(workerToOperator(sender))) {
             safeRemoveAskOperatorHandle(workerToOperator(sender))
@@ -664,24 +449,6 @@ class Controller(
           ) {
             safeRemoveAskOperatorHandle(workerToOperator(sender))
             operatorStateMap(workerToOperator(sender)) = PrincipalState.Paused
-            matchNewOperatorStateAndTakeActionsInRunning(workerToOperator(sender))
-          } else if (
-            unCompletedWorkerStates(workerToOperator(sender))
-              .forall(x => x == WorkerState.Paused || x == WorkerState.LocalBreakpointTriggered)
-          ) {
-            operatorToWorkersTriggeredBreakpoint(workerToOperator(sender)) =
-              operatorToWorkerStateMap(workerToOperator(sender))
-                .filter(_._2 == WorkerState.LocalBreakpointTriggered)
-                .keys
-            safeRemoveAskOperatorHandle(workerToOperator(sender))
-            operatorToPeriodicallyAskHandle(workerToOperator(sender)) = context.system.scheduler
-              .schedule(
-                1.milliseconds,
-                30.seconds,
-                self,
-                EnforceStateCheck(opId)
-              )
-            operatorStateMap(workerToOperator(sender)) = PrincipalState.CollectingBreakpoints
             matchNewOperatorStateAndTakeActionsInRunning(workerToOperator(sender))
           }
         case WorkerState.Completed =>
@@ -724,130 +491,8 @@ class Controller(
         operatorToReceivedTuples(workerToOperator(sender)).clear()
         operatorStateMap(workerToOperator(sender)) = PrincipalState.Paused
         matchNewOperatorStateAndTakeActionsInPausing(workerToOperator(sender))
-      } else if (
-        operatorToWorkerStateMap(workerToOperator(sender))
-          .filter(x => x._2 != WorkerState.Completed)
-          .values
-          .forall(x => x == WorkerState.Paused || x == WorkerState.LocalBreakpointTriggered)
-      ) {
-        operatorToWorkersTriggeredBreakpoint(workerToOperator(sender)) = operatorToWorkerStateMap(
-          workerToOperator(sender)
-        ).filter(_._2 == WorkerState.LocalBreakpointTriggered).keys
-        safeRemoveAskOperatorHandle(workerToOperator(sender))
-        operatorToPeriodicallyAskHandle(workerToOperator(sender)) = context.system.scheduler
-          .schedule(
-            1.milliseconds,
-            30.seconds,
-            self,
-            EnforceStateCheck(opId)
-          )
-        operatorStateMap(workerToOperator(sender)) = PrincipalState.CollectingBreakpoints
-        matchNewOperatorStateAndTakeActionsInPausing(workerToOperator(sender))
       }
     }
-  }
-
-  private def handleWorkerStateReportsInCollBreakpoints(state: WorkerState.Value): Unit = {
-    controllerLogger.logInfo("collecting: " + sender + " to " + state)
-    val opId = workerToOperator(sender)
-    if (setWorkerState(sender, state)) {
-      if (unCompletedWorkerStates(workerToOperator(sender)).forall(_ == WorkerState.Paused)) {
-        //all breakpoint resolved, it's safe to report to controller and then Pause(on triggered, or user paused) else Resume
-        val map = new mutable.HashMap[(ActorRef, FaultedTuple), ArrayBuffer[String]]
-        for (
-          i <- operatorToGlobalBreakpoints(workerToOperator(sender)).values.filter(_.isTriggered)
-        ) {
-          operatorToIsUserPaused(workerToOperator(sender)) = true //upgrade pause
-          i.report(map)
-        }
-        safeRemoveAskOperatorHandle(workerToOperator(sender))
-        if (!operatorToIsUserPaused(workerToOperator(sender))) {
-          controllerLogger.logInfo("no global breakpoint triggered, continue")
-          operatorToIsUserPaused(workerToOperator(sender)) = false //reset
-          assert(
-            operatorToWorkerStateMap(workerToOperator(sender))
-              .filter(x => x._2 != WorkerState.Completed)
-              .values
-              .nonEmpty
-          )
-          operatorToWorkerStateMap(workerToOperator(sender))
-            .filter(x => x._2 != WorkerState.Completed)
-            .keys
-            .foreach(worker => worker ! Resume)
-          safeRemoveAskOperatorHandle(workerToOperator(sender))
-          operatorToPeriodicallyAskHandle(workerToOperator(sender)) = context.system.scheduler
-            .schedule(30.seconds, 30.seconds, self, EnforceStateCheck(opId))
-        } else {
-          self ! Pause
-          context.parent ! ReportGlobalBreakpointTriggered(
-            map,
-            workflow.operators(workerToOperator(sender)).tag.operator
-          )
-          if (this.eventListener.breakpointTriggeredListener != null) {
-            this.eventListener.breakpointTriggeredListener.apply(
-              BreakpointTriggered(map, workflow.operators(workerToOperator(sender)).tag.operator)
-            )
-          }
-          controllerLogger.logInfo(map.toString())
-          operatorStateMap(workerToOperator(sender)) = PrincipalState.Paused
-          controllerLogger.logInfo(
-            "user paused or global breakpoint triggered, pause. Stage1 cost = " + operatorToStage1Timer(
-              workerToOperator(sender)
-            )
-              .toString() + " Stage2 cost =" + operatorToStage2Timer(workerToOperator(sender))
-              .toString()
-          )
-        }
-        if (operatorToStage2Timer(workerToOperator(sender)).isRunning) {
-          operatorToStage2Timer(workerToOperator(sender)).stop()
-        }
-        if (!operatorToStage1Timer(workerToOperator(sender)).isRunning) {
-          operatorToStage1Timer(workerToOperator(sender)).start()
-        }
-      }
-    }
-  }
-
-  private[this] def handleBreakpointOnlyWorkerMessages: Receive = {
-    case ReportedTriggeredBreakpoints(bps) =>
-      bps.foreach(x => {
-        val bp = operatorToGlobalBreakpoints(workerToOperator(sender))(x.id)
-        bp.accept(sender, x)
-        if (bp.needCollecting) {
-          //is not fully collected
-          bp.collect()
-        } else if (bp.isRepartitionRequired) {
-          //fully collected, but need repartition (e.g. count not reach target number)
-          //OR need Reset
-          workflow
-            .operators(workerToOperator(sender))
-            .assignBreakpoint(
-              operatorToWorkerLayers(workerToOperator(sender)),
-              operatorToWorkerStateMap(workerToOperator(sender)),
-              bp
-            )
-        } else if (bp.isCompleted) {
-          //fully collected and reach the target
-          bp.remove()
-        }
-      })
-    case ReportedQueriedBreakpoint(bp) =>
-      val gbp = operatorToGlobalBreakpoints(workerToOperator(sender))(bp.id)
-      if (gbp.accept(sender, bp) && !gbp.needCollecting) {
-        if (gbp.isRepartitionRequired) {
-          //fully collected, but need repartition (count not reach target number)
-          workflow
-            .operators(workerToOperator(sender))
-            .assignBreakpoint(
-              operatorToWorkerLayers(workerToOperator(sender)),
-              operatorToWorkerStateMap(workerToOperator(sender)),
-              gbp
-            )
-        } else if (gbp.isCompleted) {
-          //fully collected and reach the target
-          gbp.remove()
-        }
-      }
   }
 
   private def matchNewOperatorStateAndTakeActionsInRunning(
@@ -891,7 +536,6 @@ class Controller(
             self ! ContinuedInitialization
           }
         }
-      case PrincipalState.CollectingBreakpoints =>
       case PrincipalState.Paused =>
         if (operatorStateMap.values.forall(_ == PrincipalState.Completed)) {
           if (timer.isRunning) {
@@ -1139,12 +783,9 @@ class Controller(
   }
 
   private[this] def running: Receive = {
-    disallowActorRefRelatedMessages orElse
-      handleBreakpointOnlyWorkerMessages orElse [Any, Unit] {
+    disallowActorRefRelatedMessages orElse [Any, Unit] {
       case LogErrorToFrontEnd(err: WorkflowRuntimeError) =>
         controllerLogger.logError(err)
-      case KillAndRecover =>
-        killAndRecoverStage()
       case QueryStatistics =>
         operatorToWorkerLayers.keys.foreach(opIdentifier => {
           operatorToWorkerLayers(opIdentifier).foreach(l => {
@@ -1158,10 +799,6 @@ class Controller(
         triggerStatusUpdateEvent();
       case EnforceStateCheck(operatorIdentifier) =>
         operatorStateMap(operatorIdentifier) match {
-          case PrincipalState.CollectingBreakpoints =>
-            operatorToWorkersTriggeredBreakpoint(operatorIdentifier).foreach(x =>
-              x ! QueryTriggeredBreakpoints
-            )
           case PrincipalState.Pausing =>
             for ((k, v) <- operatorToWorkerStateMap(operatorIdentifier)) {
               if (!allowedStatesOnPausing.contains(v)) {
@@ -1177,8 +814,6 @@ class Controller(
           operatorStateMap(workerToOperator(sender)) = PrincipalState.Running
         }
         operatorStateMap(workerToOperator(sender)) match {
-          case PrincipalState.CollectingBreakpoints =>
-            handleWorkerStateReportsInCollBreakpoints(state)
           case PrincipalState.Pausing =>
             handleWorkerStateReportsInPausing(state)
           case _ =>
@@ -1239,8 +874,7 @@ class Controller(
   }
 
   private[this] def pausing: Receive = {
-    disallowActorRefRelatedMessages orElse
-      handleBreakpointOnlyWorkerMessages orElse [Any, Unit] {
+    disallowActorRefRelatedMessages orElse [Any, Unit] {
       case LogErrorToFrontEnd(err: WorkflowRuntimeError) =>
         controllerLogger.logError(err)
       case QueryStatistics =>
@@ -1260,10 +894,6 @@ class Controller(
         )
       case EnforceStateCheck(operatorIdentifier) =>
         operatorStateMap(operatorIdentifier) match {
-          case PrincipalState.CollectingBreakpoints =>
-            operatorToWorkersTriggeredBreakpoint(operatorIdentifier).foreach(x =>
-              x ! QueryTriggeredBreakpoints
-            )
           case _ =>
             for ((k, v) <- operatorToWorkerStateMap(operatorIdentifier)) {
               if (!allowedStatesOnPausing.contains(v)) {
@@ -1274,8 +904,6 @@ class Controller(
 
       case WorkerMessage.ReportState(state) =>
         operatorStateMap(workerToOperator(sender)) match {
-          case PrincipalState.CollectingBreakpoints =>
-            handleWorkerStateReportsInCollBreakpoints(state)
           case _ =>
             handleWorkerStateReportsInPausing(state)
         }
@@ -1288,8 +916,6 @@ class Controller(
     disallowActorRefRelatedMessages orElse {
       case LogErrorToFrontEnd(err: WorkflowRuntimeError) =>
         controllerLogger.logError(err)
-      case KillAndRecover =>
-        killAndRecoverStage()
       case QueryStatistics =>
         operatorToWorkerLayers.keys.foreach(opIdentifier => {
           operatorToWorkerLayers(opIdentifier).foreach(l => {
@@ -1344,16 +970,6 @@ class Controller(
           case scala.util.Failure(t) =>
             throw t
         }
-      case PassBreakpointTo(id: String, breakpoint: GlobalBreakpoint) =>
-        val opTag = OperatorIdentifier(tag, id)
-        operatorToGlobalBreakpoints(opTag)(breakpoint.id) = breakpoint
-        workflow
-          .operators(opTag)
-          .assignBreakpoint(
-            operatorToWorkerLayers(opTag),
-            operatorToWorkerStateMap(opTag),
-            breakpoint
-          )
       case msg => stash()
     }
   }
