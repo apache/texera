@@ -33,7 +33,7 @@ export const attributeListInJsonSchemaKeys = ['attributes', 'groupByKeys', 'data
 })
 export class SchemaPropagationService {
 
-  private operatorInputSchemaMap: Readonly<{ [key: string]: ReadonlyArray<SchemaAttribute> }> = {};
+  private operatorInputSchemaMap: Readonly<{ [key: string]: OperatorInputSchema }> = {};
 
   constructor(
     private httpClient: HttpClient,
@@ -62,7 +62,7 @@ export class SchemaPropagationService {
 
   }
 
-  public getOperatorInputSchema(operatorID: string): ReadonlyArray<SchemaAttribute> | undefined {
+  public getOperatorInputSchema(operatorID: string): OperatorInputSchema | undefined {
     return this.operatorInputSchemaMap[operatorID];
   }
 
@@ -78,7 +78,7 @@ export class SchemaPropagationService {
    * @param schemaPropagationResult
    * @param operatorID
    */
-  private _applySchemaPropagationResult(schemaPropagationResult: { [key: string]: ReadonlyArray<SchemaAttribute> }): void {
+  private _applySchemaPropagationResult(schemaPropagationResult: { [key: string]: OperatorInputSchema }): void {
     // for each operator, try to apply schema propagation result
     Array.from(this.dynamicSchemaService.getDynamicSchemaMap().keys()).forEach(operatorID => {
       const currentDynamicSchema = this.dynamicSchemaService.getDynamicSchema(operatorID);
@@ -87,7 +87,7 @@ export class SchemaPropagationService {
       let newDynamicSchema: OperatorSchema;
       if (schemaPropagationResult[operatorID]) {
         newDynamicSchema = SchemaPropagationService.setOperatorInputAttrs(
-          currentDynamicSchema, schemaPropagationResult[operatorID].map(e => e.attributeName));
+          currentDynamicSchema, schemaPropagationResult[operatorID]);
       } else {
         // otherwise, the input attributes of the operator is unknown
         // if the operator is not a source operator, restore its original schema of input attributes
@@ -164,7 +164,7 @@ export class SchemaPropagationService {
     workflowActionService.setOperatorProperty(operatorID, propertyClone);
   }
 
-  public static setOperatorInputAttrs(operatorSchema: OperatorSchema, inputAttributes: ReadonlyArray<string> | undefined): OperatorSchema {
+  public static setOperatorInputAttrs(operatorSchema: OperatorSchema, inputAttributes: OperatorInputSchema | undefined): OperatorSchema {
     // If the inputSchema is empty, just return the original operator metadata.
     if (!inputAttributes || inputAttributes.length === 0) {
       return operatorSchema;
@@ -173,17 +173,22 @@ export class SchemaPropagationService {
     // TODO: Join operators have two inputs - inner and outer. Autocomplete API currently returns all attributes
     //       in a single array. So, we can't differentiate between inner and outer. Therefore, autocomplete isn't applicable
     //       to Join yet.
+    const attributePort0 = inputAttributes[0];
+    if (! attributePort0) {
+      return operatorSchema;
+    }
+    const attrNamesPort0 = attributePort0.map(attr => attr.attributeName);
 
     let newJsonSchema = operatorSchema.jsonSchema;
 
     attributeInJsonSchemaKeys.forEach(attributeInJsonSchema => {
       newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, attributeInJsonSchema,
-        old => ({  ...old, type: 'string', enum: inputAttributes.slice(), uniqueItems: true, }));
+        old => ({  ...old, type: 'string', enum: attrNamesPort0.slice(), uniqueItems: true, }));
     });
 
     attributeListInJsonSchemaKeys.forEach(attributeListInJsonSchema => {
       newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, attributeListInJsonSchema,
-        old => ({ ...old, type: 'array', items: {...old.items, type: 'string', enum: inputAttributes.slice(), uniqueItems: true, } , }));
+        old => ({ ...old, type: 'array', items: {...old.items, type: 'string', enum: attrNamesPort0.slice(), uniqueItems: true, } , }));
     });
 
 
@@ -212,12 +217,17 @@ export class SchemaPropagationService {
     };
   }
 
-
 }
+
+
+// schema: an array of attribute names and types
 export interface SchemaAttribute extends Readonly<{
   attributeName: string,
   attributeType: 'string' | 'integer' | 'double' | 'boolean' | 'ANY'
 }> { }
+
+// input schema of an operator: an array of schemas at each input port
+export type OperatorInputSchema = ReadonlyArray<ReadonlyArray<SchemaAttribute> | null>;
 
 /**
  * The backend interface of the return object of a successful execution
@@ -227,10 +237,10 @@ export interface SchemaAttribute extends Readonly<{
  * {
  *  code: 0,
  *  result: {
- *    'operatorID1' : ['attribute1','attribute2','attribute3'],
- *    'operatorID2' : [ {attributeName: 'name', attributeType: 'string'},
+ *    'operatorID1' : [ ['attribute1','attribute2','attribute3'] ],
+ *    'operatorID2' : [ [ {attributeName: 'name', attributeType: 'string'},
  *                      {attributeName: 'text', attributeType: 'string'},
- *                      {attributeName: 'follower_count', attributeType: 'string'} ]
+ *                      {attributeName: 'follower_count', attributeType: 'string'} ] ]
  *
  *  }
  * }
@@ -238,7 +248,7 @@ export interface SchemaAttribute extends Readonly<{
 export interface SchemaPropagationResponse extends Readonly<{
   code: 0,
   result: {
-    [key: string]: ReadonlyArray<SchemaAttribute>
+    [key: string]: OperatorInputSchema
   }
 }> { }
 

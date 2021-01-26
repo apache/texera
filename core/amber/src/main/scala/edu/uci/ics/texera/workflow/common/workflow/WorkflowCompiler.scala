@@ -63,23 +63,6 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
     val outLinksImmutable: Map[OperatorIdentifier, Set[OperatorIdentifier]] =
       outLinksImmutableValue.toMap
 
-    val inLinksHighestOrdinal: mutable.Map[OperatorIdentifier, Int] =
-      mutable.Map().withDefault(_ => 0)
-    val inLinksOrdinalMap: mutable.Map[OperatorIdentifier, mutable.Map[OperatorIdentifier, Int]] =
-      mutable.Map().withDefault(_ => mutable.Map())
-    workflowInfo.links.foreach(link => {
-      val origin = OperatorIdentifier(this.context.workflowID, link.origin)
-      val dest = OperatorIdentifier(this.context.workflowID, link.destination)
-      val nextOrdinal = inLinksHighestOrdinal(dest)
-      inLinksHighestOrdinal.update(dest, nextOrdinal + 1)
-      val destInLinksOrdinalMap = inLinksOrdinalMap(dest)
-      destInLinksOrdinalMap.update(origin, nextOrdinal)
-      inLinksOrdinalMap.update(dest, destInLinksOrdinalMap)
-    })
-    amberOperators.values.foreach(opExecConfig =>
-      opExecConfig.setInputToOrdinalMapping(inLinksOrdinalMap(opExecConfig.tag).toMap)
-    )
-
     new Workflow(amberOperators, outLinksImmutable)
   }
 
@@ -136,26 +119,27 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
     }
   }
 
-  def propagateWorkflowSchema(): Map[OperatorDescriptor, Schema] = {
+  def propagateWorkflowSchema(): Map[OperatorDescriptor, List[Option[Schema]]] = {
     // construct the edu.uci.ics.texera.workflow DAG object using jGraphT
     val workflowDag =
       new DirectedAcyclicGraph[OperatorDescriptor, DefaultEdge](classOf[DefaultEdge])
     this.workflowInfo.operators.foreach(op => workflowDag.addVertex(op))
     this.workflowInfo.links.foreach(link => {
-      val origin =
-        this.workflowInfo.operators.filter(op => op.operatorID == link.origin.operatorID).head
-      val destination =
-        this.workflowInfo.operators.filter(op => op.operatorID == link.destination.operatorID).head
-      workflowDag.addEdge(origin, destination)
+      val origin = workflowInfo.operators.find(op => op.operatorID == link.origin.operatorID).get
+      val dest = workflowInfo.operators.find(op => op.operatorID == link.destination.operatorID).get
+      workflowDag.addEdge(origin, dest)
     })
 
     // a map from an operator to the list of its input schema
-    val inputSchemaMap = new mutable.HashMap[OperatorDescriptor, List[Option[Schema]]]()
+    val inputSchemaMap =
+      new mutable.HashMap[OperatorDescriptor, mutable.MutableList[Option[Schema]]]()
+        .withDefault(op => mutable.MutableList.fill(op.operatorInfo.inputPorts.size)(Option.empty))
 
     // propagate output schema following topological order
     // TODO: introduce the concept of port in TexeraOperatorDescriptor and propagate schema according to port
     val topologicalOrderIterator = workflowDag.iterator()
     topologicalOrderIterator.forEachRemaining(op => {
+      // infer output schema of this operator based on its input schema
       val outputSchema: Option[Schema] = {
         if (op.isInstanceOf[SourceOperatorDescriptor]) {
           // op is a source operator, ask for it output schema
@@ -176,18 +160,26 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
           }
         }
       }
-      JavaConverters
-        .asScalaSet(workflowDag.outgoingEdgesOf(op))
-        .map(e => workflowDag.getEdgeTarget(e))
-        .foreach(downstream => {
-          inputSchemaMap
-            .put(downstream, inputSchemaMap.getOrElse(downstream, List()) :+ outputSchema)
-        })
+      // exception: if op is a source operator, use its output schema as input schema for autocomplete
+      if (op.isInstanceOf[SourceOperatorDescriptor]) {
+        inputSchemaMap.update(op, mutable.MutableList(outputSchema))
+      }
+
+      // update input schema of all outgoing links
+      val outLinks = this.workflowInfo.links.filter(link => link.origin.operatorID == op.operatorID)
+      outLinks.foreach(link => {
+        val dest = workflowInfo.operators.find(o => o.operatorID == link.destination.operatorID).get
+        // get the input schema list, should be pre-populated with size equals to num of ports
+        val destInputSchemas = inputSchemaMap(dest)
+        // put the schema into the ordinal corresponding to the port
+        destInputSchemas(link.destination.portOrdinal) = outputSchema
+        inputSchemaMap.update(dest, destInputSchemas)
+      })
     })
 
     inputSchemaMap
       .filter(e => !(e._2.exists(s => s.isEmpty) || e._2.isEmpty))
-      .map(e => (e._1, e._2.head.get))
+      .map(e => (e._1, e._2.toList))
       .toMap
   }
 

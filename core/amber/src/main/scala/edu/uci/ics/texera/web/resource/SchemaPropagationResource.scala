@@ -6,11 +6,9 @@ import edu.uci.ics.texera.workflow.common.{Utils, WorkflowContext}
 import javax.ws.rs.core.MediaType
 import javax.ws.rs.{Consumes, POST, Path, Produces}
 
-import scala.collection.JavaConverters
-
 case class SchemaPropagationResponse(
     code: Int,
-    result: Map[String, List[Attribute]],
+    result: Map[String, List[Option[List[Attribute]]]],
     message: String
 )
 
@@ -35,9 +33,7 @@ class SchemaPropagationResource {
     try {
       val schemaPropagationResult = texeraWorkflowCompiler
         .propagateWorkflowSchema()
-        .map(e => {
-          (e._1.operatorID, JavaConverters.asScalaBuffer(e._2.getAttributes).toList)
-        })
+        .map(e => (e._1.operatorID, e._2.map(s => s.map(o => o.getAttributesScala))))
       SchemaPropagationResponse(0, schemaPropagationResult, null)
     } catch {
       case e: Throwable =>

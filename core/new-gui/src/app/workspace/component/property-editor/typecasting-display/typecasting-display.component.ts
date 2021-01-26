@@ -55,10 +55,18 @@ export class TypecastingDisplayComponent implements OnInit, OnChanges {
   private updateComponent(op: OperatorPredicate): void {
     this.attribute = op.operatorProperties['attribute'];
     this.resultType = op.operatorProperties['resultType'];
-    if (this.operatorID) {
-      this.inputType = this.schemaPropagationService.getOperatorInputSchema(this.operatorID)
-      ?.filter(e => e.attributeName === this.attribute).map(e => e.attributeType)[0];
+    if (! this.operatorID) {
+      return;
     }
+    const inputSchema = this.schemaPropagationService.getOperatorInputSchema(this.operatorID);
+    if (! inputSchema || inputSchema.length === 0) {
+      return;
+    }
+    const inputSchemaPort0 = inputSchema[0];
+    if (! inputSchemaPort0) {
+      return;
+    }
+    this.inputType = inputSchemaPort0.find(e => e.attributeName === this.attribute)?.attributeType;
   }
 
 

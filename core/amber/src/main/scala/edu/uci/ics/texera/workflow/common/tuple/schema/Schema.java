@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import scala.collection.JavaConverters;
 
 import java.io.Serializable;
 import java.util.*;
@@ -38,6 +39,10 @@ public class Schema implements Serializable {
     @JsonProperty(value = "attributes")
     public List<Attribute> getAttributes() {
         return attributes;
+    }
+
+    public scala.collection.immutable.List<Attribute> getAttributesScala() {
+        return JavaConverters.asScalaBuffer(attributes).toList();
     }
 
     @JsonIgnore

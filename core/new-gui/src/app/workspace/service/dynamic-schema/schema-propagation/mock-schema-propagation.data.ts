@@ -10,7 +10,7 @@ export const mockSchemaPropagationResponse: Readonly<SchemaPropagationResponse> 
   code: 0,
   result: {
     // [var] means using the variable value as key instead of variable name
-    [mockSchemaPropagationOperatorID]: [
+    [mockSchemaPropagationOperatorID]: [[
       { attributeName: 'city', attributeType: 'string' },
       { attributeName: 'user_screen_name', attributeType:  'string' },
       { attributeName: 'user_name', attributeType:  'string' },
@@ -25,7 +25,7 @@ export const mockSchemaPropagationResponse: Readonly<SchemaPropagationResponse> 
       { attributeName: 'create_at', attributeType:  'string' },
       { attributeName: 'user_description', attributeType:  'string' },
       { attributeName: 'user_friends_count', attributeType:  'integer' },
-    ]
+    ]]
   }
 };
 
