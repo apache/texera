@@ -10,6 +10,7 @@ import edu.uci.ics.amber.engine.common.tuple.ITuple
 import akka.actor.ActorRef
 import akka.event.LoggingAdapter
 import akka.util.Timeout
+import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
@@ -50,10 +51,6 @@ abstract class OpExecConfig(val tag: OperatorIdentifier) extends Serializable {
 
   def getShuffleHashFunction(layerTag: LayerTag): ITuple => Int = ???
 
-  def assignBreakpoint(
-      topology: Array[WorkerLayer],
-      states: mutable.AnyRefMap[ActorRef, WorkerState.Value],
-      breakpoint: GlobalBreakpoint
-  )(implicit timeout: Timeout, ec: ExecutionContext)
+  def assignBreakpoint(breakpoint: GlobalBreakpoint): Array[ActorVirtualIdentity]
 
 }

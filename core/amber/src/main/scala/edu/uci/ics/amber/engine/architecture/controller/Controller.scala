@@ -698,16 +698,6 @@ class Controller(
           if (whenAllUncompletedWorkersBecome(opIdentifier, WorkerState.Ready)) {
             safeRemoveAskOperatorHandle(opIdentifier)
             operatorToWorkerEdges(opIdentifier).foreach(x => x.link())
-            operatorToGlobalBreakpoints(opIdentifier).values.foreach(
-              workflow
-                .operators(opIdentifier)
-                .assignBreakpoint(
-                  operatorToWorkerLayers(opIdentifier),
-                  operatorToWorkerStateMap(opIdentifier),
-                  _
-                )
-            )
-            operatorToWorkerStateMap(opIdentifier).keys.foreach(_ ! CheckRecovery)
             operatorStateMap(opIdentifier) = PrincipalState.Ready
             initializingNextFrontier()
           }
@@ -817,16 +807,7 @@ class Controller(
           case _ => //throw new AmberException("Invalid worker state received!")
         }
       case PassBreakpointTo(id: String, breakpoint: GlobalBreakpoint) =>
-        val opTag = OperatorIdentifier(tag, id)
-        operatorToGlobalBreakpoints(opTag)(breakpoint.id) = breakpoint
-        controllerLogger.logInfo("assign breakpoint: " + breakpoint.id)
-        workflow
-          .operators(opTag)
-          .assignBreakpoint(
-            operatorToWorkerLayers(opTag),
-            operatorToWorkerStateMap(opTag),
-            breakpoint
-          )
+      //TODO: invoke breakpoint assignment
       case msg =>
         controllerLogger.logInfo("Stashing: " + msg)
         stash()

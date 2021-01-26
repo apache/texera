@@ -9,6 +9,7 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.Roun
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.architecture.worker.WorkerState
 import edu.uci.ics.amber.engine.common.Constants
+import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.ambertag.{LayerTag, OperatorIdentifier}
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
@@ -37,14 +38,10 @@ class MLModelOpExecConfig(
       Map()
     )
   }
-  override def assignBreakpoint(
-      topology: Array[WorkerLayer],
-      states: mutable.AnyRefMap[ActorRef, WorkerState.Value],
-      breakpoint: GlobalBreakpoint
-  )(implicit timeout: Timeout, ec: ExecutionContext): Unit = {
-    breakpoint.partition(
-      topology(0).layer.filter(states(_) != WorkerState.Completed)
-    )
-  }
 
+  override def assignBreakpoint(
+      breakpoint: GlobalBreakpoint
+  ): Array[ActorVirtualIdentity] = {
+    topology.layers(0).identifiers
+  }
 }

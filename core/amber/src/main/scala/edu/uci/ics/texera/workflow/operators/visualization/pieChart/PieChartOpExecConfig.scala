@@ -13,6 +13,7 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.architecture.linksemantics.HashBasedShuffle
 import edu.uci.ics.amber.engine.architecture.worker.WorkerState
 import edu.uci.ics.amber.engine.common.Constants
+import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.ambertag.{LayerTag, OperatorIdentifier}
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
@@ -62,11 +63,9 @@ class PieChartOpExecConfig(
   }
 
   override def assignBreakpoint(
-      topology: Array[WorkerLayer],
-      states: mutable.AnyRefMap[ActorRef, WorkerState.Value],
       breakpoint: GlobalBreakpoint
-  )(implicit timeout: Timeout, ec: ExecutionContext): Unit = {
-    breakpoint.partition(topology(0).layer.filter(states(_) != WorkerState.Completed))
+  ): Array[ActorVirtualIdentity] = {
+    topology.layers(0).identifiers
   }
 
 }
