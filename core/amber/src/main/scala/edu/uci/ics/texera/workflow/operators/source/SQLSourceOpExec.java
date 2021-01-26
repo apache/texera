@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.workflow.operators.source.mysql;
+package edu.uci.ics.texera.workflow.operators.source;
 
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecutor;
 import edu.uci.ics.texera.workflow.common.tuple.Tuple;
@@ -10,40 +10,40 @@ import scala.collection.Iterator;
 import java.sql.*;
 import java.util.HashSet;
 
-public class MysqlSourceOpExec implements SourceOperatorExecutor {
+public abstract class SQLSourceOpExec implements SourceOperatorExecutor {
 
     // source configs
-    private final Schema schema;
-    private final String host;
-    private final String port;
-    private final String database;
-    private final String table;
-    private final String username;
-    private final String password;
+    protected Schema schema;
+    protected String host;
+    protected String port;
+    protected String database;
+    protected String table;
+    protected String username;
+    protected String password;
 
     // search column related
-    private final String column;
-    private final String keywords;
+    protected String column;
+    protected String keywords;
 
     // progressiveness related
-    private final Boolean progressive;
-    private final Long interval;
-    private final HashSet<String> tableNames;
-    private Attribute batchByAttribute = null;
+    protected Boolean progressive;
+    protected Long interval;
+    protected HashSet<String> tableNames;
+    protected Attribute batchByAttribute = null;
 
     // connection and query related
-    private Connection connection;
-    private PreparedStatement curQuery;
-    private ResultSet curResultSet;
-    private Long curLimit;
-    private Long curOffset;
-    private Number curLowerBound = 0;
-    private Number upperBound = 0;
-    private Tuple cachedTuple = null;
+    protected Connection connection;
+    protected PreparedStatement curQuery;
+    protected ResultSet curResultSet;
+    protected Long curLimit;
+    protected Long curOffset;
+    protected Number curLowerBound = 0;
+    protected Number upperBound = 0;
+    protected Tuple cachedTuple = null;
 
-    MysqlSourceOpExec(Schema schema, String host, String port, String database, String table, String username,
-                      String password, Long limit, Long offset, String column, String keywords, Boolean progressive,
-                      String batchByColumn, Long interval) {
+    public SQLSourceOpExec(Schema schema, String host, String port, String database, String table, String username,
+                           String password, Long limit, Long offset, String column, String keywords, Boolean progressive,
+                           String batchByColumn, Long interval) {
         this.schema = schema;
         this.host = host.trim();
         this.port = port.trim();
@@ -131,6 +131,8 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
                         if (curQuery != null) curQuery.close();
 
                         curQuery = getNextQuery();
+                        System.out.println(curQuery);
+
                         if (curQuery != null) {
                             curResultSet = curQuery.executeQuery();
                             return next();
@@ -183,15 +185,15 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
                     break;
                 case ANY:
                 default:
-                    throw new RuntimeException("MySQL Source: unhandled attribute type: " + columnType);
+                    throw new RuntimeException(this.getClass().getSimpleName() + ": unhandled attribute type: " + columnType);
             }
         }
         return tupleBuilder.build();
     }
 
     /**
-     * Establish a connection to the MySQL server and load statistics for constructing future queries.
-     * - tableNames, to check if the input tableName exists on the MySQL server, to prevent SQL injection.
+     * Establish a connection to the database server and load statistics for constructing future queries.
+     * - tableNames, to check if the input tableName exists on the database server, to prevent SQL injection.
      * - batchColumnBoundaries, to be used to split mini queries, if progressive mode is enabled.
      */
     @Override
@@ -204,26 +206,20 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
 
             // validates the input table name
             if (!tableNames.contains(table))
-                throw new RuntimeException("MysqlSource can't find the given table `" + table + "`.");
+                throw new RuntimeException(this.getClass().getSimpleName() + " can't find the given table `" + table + "`.");
 
             // load for batch column value boundaries used to split mini queries
             if (progressive) loadBatchColumnBoundaries();
 
         } catch (SQLException e) {
             e.printStackTrace();
-            throw new RuntimeException("MysqlSource failed to connect to mysql database. " + e.getMessage());
+            throw new RuntimeException(this.getClass().getSimpleName() + " failed to connect to database. " + e.getMessage());
         }
 
 
     }
 
-    private Connection establishConn() throws SQLException {
-        String url = "jdbc:mysql://" + host + ":" + port + "/" + database + "?autoReconnect=true&useSSL=true";
-        Connection connection = DriverManager.getConnection(url, username, password);
-        // set to readonly to improve efficiency
-        connection.setReadOnly(true);
-        return connection;
-    }
+    protected abstract Connection establishConn() throws SQLException;
 
     private PreparedStatement getNextQuery() throws SQLException {
         boolean hasNextQuery;
@@ -255,7 +251,7 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
             preparedStatement.setString(curIndex, keywords);
             curIndex += 1;
         }
-        if (curLimit != null) preparedStatement.setLong(curIndex, curLimit);
+        if (curLimit != null && curLimit != 0) preparedStatement.setLong(curIndex, curLimit);
         return preparedStatement;
 
     }
@@ -299,19 +295,7 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
         return result;
     }
 
-    private void loadTableNames() throws SQLException {
-
-        PreparedStatement preparedStatement = connection.prepareStatement(
-                "SELECT table_name FROM information_schema.tables WHERE table_schema = ?;");
-
-        preparedStatement.setString(1, database);
-        ResultSet resultSet = preparedStatement.executeQuery();
-        while (resultSet.next()) tableNames.add(resultSet.getString(1));
-
-        resultSet.close();
-        preparedStatement.close();
-
-    }
+    protected abstract void loadTableNames() throws SQLException;
 
     /**
      * close resultSet, preparedStatement and connection
@@ -323,7 +307,7 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
             if (curQuery != null) curQuery.close();
             if (connection != null) connection.close();
         } catch (SQLException e) {
-            throw new RuntimeException("Mysql source fail to close. " + e.getMessage());
+            throw new RuntimeException(this.getClass().getSimpleName() + " fail to close. " + e.getMessage());
         }
     }
 
@@ -333,7 +317,7 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
      * select * from TableName where 1 = 1 AND MATCH (ColumnName) AGAINST ( ? IN BOOLEAN MODE);
      * select * from TableName where 1 = 1 LIMIT ?;
      * select * from TableName where 1 = 1;
-     * <p>
+     *
      * with an optional appropriate batchByColumn sliding window,
      * e.g. create_at >= '2017-01-14 03:47:59.0' AND create_at < '2017-01-15 03:47:59.0'
      *
@@ -384,7 +368,7 @@ public class MysqlSourceOpExec implements SourceOperatorExecutor {
         curLowerBound = nextLowerBound;
 
         if (curLimit != null) {
-            if (curLimit < 0) return null;
+            if (curLimit <= 0) return null;
             else query += " LIMIT ?";
         }
         query += ";";

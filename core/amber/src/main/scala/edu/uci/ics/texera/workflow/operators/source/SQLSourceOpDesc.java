@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.workflow.operators.source.mysql;
+package edu.uci.ics.texera.workflow.operators.source;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
@@ -20,30 +20,30 @@ import java.sql.*;
 import static java.util.Collections.singletonList;
 import static scala.collection.JavaConverters.asScalaBuffer;
 
-public class MysqlSourceOpDesc extends SourceOperatorDescriptor {
+public abstract class SQLSourceOpDesc extends SourceOperatorDescriptor {
 
     @JsonProperty(value = "host", required = true)
-    @JsonPropertyDescription("mysql host IP address")
+    @JsonPropertyDescription("host IP address")
     public String host;
 
-    @JsonProperty(value = "port", required = true, defaultValue = "3306")
-    @JsonPropertyDescription("mysql host port")
+    @JsonProperty(value = "port", required = true, defaultValue = "default")
+    @JsonPropertyDescription("port")
     public String port;
 
     @JsonProperty(value = "database", required = true)
-    @JsonPropertyDescription("mysql database name")
+    @JsonPropertyDescription("database name")
     public String database;
 
     @JsonProperty(value = "table", required = true)
-    @JsonPropertyDescription("mysql table name")
+    @JsonPropertyDescription("table name")
     public String table;
 
     @JsonProperty(value = "username", required = true)
-    @JsonPropertyDescription("mysql username")
+    @JsonPropertyDescription("username")
     public String username;
 
     @JsonProperty(value = "password", required = true)
-    @JsonPropertyDescription("mysql user password")
+    @JsonPropertyDescription("password")
     @JsonSchemaInject(json = UIWidget.UIWidgetPassword)
     public String password;
 
@@ -78,41 +78,11 @@ public class MysqlSourceOpDesc extends SourceOperatorDescriptor {
     @JsonPropertyDescription("batch by interval")
     public Long interval;
 
-    @Override
-    public OpExecConfig operatorExecutor() {
-        return new MysqlSourceOpExecConfig(this.operatorIdentifier(), worker -> new MysqlSourceOpExec(
-                this.querySchema(),
-                host,
-                port,
-                database,
-                table,
-                username,
-                password,
-                limit,
-                offset,
-                column,
-                keywords,
-                progressive,
-                batchByColumn,
-                interval
-        ));
-    }
-
-    @Override
-    public OperatorInfo operatorInfo() {
-        return new OperatorInfo(
-                "MySQL Source",
-                "Read data from a MySQL instance",
-                OperatorGroupConstants.SOURCE_GROUP(),
-                List.empty(),
-                asScalaBuffer(singletonList(new OutputPort(""))).toList());
-    }
-
     /**
      * Make sure all the required parameters are not empty,
-     * then query the remote Mysql server for the table schema
+     * then query the remote PostgreSQL server for the table schema
      *
-     * @return Texera.tuple.schema
+     * @return Texera.Tuple.Schema
      */
     @Override
     public Schema sourceSchema() {
@@ -124,25 +94,24 @@ public class MysqlSourceOpDesc extends SourceOperatorDescriptor {
     }
 
     /**
-     * Establish a mysql connection with remote mysql server base on the info provided by the user
+     * Establish a connection with the database server base on the info provided by the user
      * query the MetaData of the table and generate a Texera.tuple.schema accordingly
-     * the "switch" code block shows how mysql data types are mapped to Texera AttributeTypes
+     * the "switch" code block shows how SQL data types are mapped to Texera AttributeTypes
      *
      * @return Schema
      */
-    private Schema querySchema() {
+    protected Schema querySchema() {
+        updatePort();
         Schema.Builder schemaBuilder = Schema.newBuilder();
+
         try {
-            Class.forName("com.mysql.cj.jdbc.Driver").newInstance();
-            String url = "jdbc:mysql://" + this.host + ":" + this.port + "/"
-                    + this.database + "?autoReconnect=true&useSSL=true";
-            Connection connection = DriverManager.getConnection(url, this.username, this.password);
-            // set to readonly to improve efficiency
+            Connection connection = establishConn();
             connection.setReadOnly(true);
             DatabaseMetaData databaseMetaData = connection.getMetaData();
             ResultSet columns = databaseMetaData.getColumns(null, null, this.table, null);
             while (columns.next()) {
                 String columnName = columns.getString("COLUMN_NAME");
+
                 int datatype = columns.getInt("DATA_TYPE");
                 switch (datatype) {
                     case Types.BIT: // -7 Types.BIT
@@ -177,16 +146,18 @@ public class MysqlSourceOpDesc extends SourceOperatorDescriptor {
                         schemaBuilder.add(new Attribute(columnName, AttributeType.TIMESTAMP));
                         break;
                     default:
-                        throw new RuntimeException("MySQL Source: unknown data type: " + datatype);
+                        throw new RuntimeException(this.getClass().getSimpleName() + ": unknown data type: " + datatype);
                 }
             }
             connection.close();
             return schemaBuilder.build();
-        } catch (SQLException | InstantiationException | IllegalAccessException | ClassNotFoundException | ClassCastException e) {
+        } catch (SQLException | ClassCastException e) {
             e.printStackTrace();
-            throw new RuntimeException("Mysql Source failed to connect to mysql database. " + e.getMessage());
+            throw new RuntimeException(this.getClass().getSimpleName() + " failed to connect to the database. " + e.getMessage());
         }
     }
 
+    protected abstract Connection establishConn() throws SQLException;
 
+    protected abstract void updatePort();
 }
