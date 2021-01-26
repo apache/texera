@@ -4,12 +4,12 @@
  * These interfaces confronts to the backend API.
 */
 
-import { Breakpoint, BreakpointTriggerInfo, BreakpointRequest } from './workflow-common.interface';
+import { Breakpoint, BreakpointTriggerInfo, BreakpointRequest, OperatorPort } from './workflow-common.interface';
 import { OperatorCurrentTuples } from './workflow-websocket.interface';
 
 export interface LogicalLink extends Readonly<{
-  origin: string,
-  destination: string,
+  origin: { operatorID: string, portOrdinal: number },
+  destination: { operatorID: string, portOrdinal: number },
 }> { }
 
 export interface LogicalOperator extends Readonly<{

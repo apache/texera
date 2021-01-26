@@ -5,12 +5,19 @@ import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import edu.uci.ics.amber.engine.operators.OpExecConfig;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
+import edu.uci.ics.texera.workflow.common.metadata.OutputPort;
+import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName;
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
+import scala.collection.JavaConverters;
+import scala.collection.immutable.List;
 
 import java.sql.*;
+
+import static java.util.Collections.singletonList;
+import static scala.collection.JavaConverters.asScalaBuffer;
 
 public class MysqlSourceOpDesc extends SourceOperatorDescriptor {
 
@@ -48,6 +55,7 @@ public class MysqlSourceOpDesc extends SourceOperatorDescriptor {
 
     @JsonProperty(value = "column name")
     @JsonPropertyDescription("the column to be keyword-searched")
+    @AutofillAttributeName
     public String column;
 
     @JsonProperty(value = "keywords")
@@ -92,7 +100,8 @@ public class MysqlSourceOpDesc extends SourceOperatorDescriptor {
                 "MySQL Source",
                 "Read data from a MySQL instance",
                 OperatorGroupConstants.SOURCE_GROUP(),
-                0, 1, false);
+                List.empty(),
+                asScalaBuffer(singletonList(new OutputPort(""))).toList());
     }
 
     /**
