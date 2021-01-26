@@ -8,6 +8,7 @@ import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.metadata.OutputPort;
+import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName;
 import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig;
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
@@ -20,6 +21,7 @@ public class SentimentAnalysisOpDesc extends MapOpDesc {
 
     @JsonProperty(value = "attribute", required = true)
     @JsonPropertyDescription("column to perform sentiment analysis on")
+    @AutofillAttributeName
     public String attribute;
 
     @JsonProperty(value = "result attribute", required = true, defaultValue = "sentiment")

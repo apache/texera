@@ -1,6 +1,7 @@
 import { JSONSchema7 } from 'json-schema';
 import { OperatorSchema, OperatorMetadata, GroupInfo } from '../../types/operator-schema.interface';
 import { BreakpointSchema } from '../../types/workflow-common.interface';
+import { CustomJSONSchema7 } from '../../types/custom-json-schema.interface';
 
 
 // Exports constants related to operator schema and operator metadata for testing purposes.
@@ -52,7 +53,7 @@ export const mockNlpSentimentSchema: OperatorSchema = {
   },
   jsonSchema: {
     properties: {
-      attribute: { type: 'string', title: 'attribute' },
+      attribute: { type: 'string', title: 'attribute', autofill: 'attributeName', autofillAttributeOnPort: 0 },
       resultAttribute: { type: 'string', title: 'result attribute' }
     },
     required: ['attribute', 'resultAttribute'],
@@ -69,7 +70,9 @@ export const mockKeywordSourceSchema: OperatorSchema = {
       attributes: {
         type: 'array',
         items: { type: 'string' },
-        title: 'attributes'
+        title: 'attributes',
+        autofill: 'attributeNameList',
+        autofillAttributeOnPort: 0
       },
       tableName: { type: 'string', title: 'table name' },
       spanListName: { type: 'string', title: 'span list name' }
@@ -94,7 +97,9 @@ export const mockKeywordSearchSchema: OperatorSchema = {
       attributes: {
         type: 'array',
         items: { type: 'string' },
-        title: 'attributes'
+        title: 'attributes',
+        autofill: 'attributeNameList',
+        autofillAttributeOnPort: 0
       },
       spanListName: { type: 'string', title: 'span list name' }
     },
@@ -119,7 +124,7 @@ export const mockAggregationSchema: OperatorSchema = {
         items: {
           type: 'object',
           properties: {
-            attribute: { type: 'string', title: 'attribute' },
+            attribute: { type: 'string', title: 'attribute', autofill: 'attributeName', autofillAttributeOnPort: 0 },
             aggregator: {
               type: 'string',
               enum: ['min', 'max', 'average', 'sum', 'count'],
@@ -207,11 +212,13 @@ export const mockOperatorMetaData: OperatorMetadata = {
 };
 
 
-export const testJsonSchema: JSONSchema7 = {
+export const testJsonSchema: CustomJSONSchema7 = {
   properties: {
     attribute: {
       type: 'string',
-      title: 'attribute'
+      title: 'attribute',
+      autofill: 'attributeName',
+      autofillAttributeOnPort: 0
     },
     resultAttribute: {
       type: 'string',

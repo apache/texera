@@ -7,6 +7,7 @@ import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.metadata.OutputPort;
+import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
@@ -25,6 +26,7 @@ import static scala.collection.JavaConverters.asScalaBuffer;
 
 public class WordCloudOpDesc extends VisualizationOperator {
     @JsonProperty(value = "text column", required = true)
+    @AutofillAttributeName
     public String textColumn;
 
     @Override

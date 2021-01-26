@@ -10,13 +10,11 @@ import { WorkflowActionService } from '../../workflow-graph/model/workflow-actio
 import { NGXLogger } from 'ngx-logger';
 
 import { isEqual } from 'lodash';
+import { CustomJSONSchema7 } from 'src/app/workspace/types/custom-json-schema.interface';
+import { JSONSchema7 } from 'json-schema';
 
 // endpoint for schema propagation
 export const SCHEMA_PROPAGATION_ENDPOINT = 'queryplan/autocomplete';
-// By contract, property keys for input schema attribute (column name)
-export const attributeInJsonSchemaKeys = ['attribute', 'x attribute', 'y attribute', 'name column', 'data column', 'text column'];
-// By contract, property keys for a list of input schema attributes (column names)
-export const attributeListInJsonSchemaKeys = ['attributes', 'groupByKeys', 'data column(s)'];
 
 /**
  * Schema Propagation Service provides autocomplete functionaility for attribute property of operators.
@@ -170,27 +168,26 @@ export class SchemaPropagationService {
       return operatorSchema;
     }
 
-    // TODO: Join operators have two inputs - inner and outer. Autocomplete API currently returns all attributes
-    //       in a single array. So, we can't differentiate between inner and outer. Therefore, autocomplete isn't applicable
-    //       to Join yet.
-    const attributePort0 = inputAttributes[0];
-    if (! attributePort0) {
-      return operatorSchema;
-    }
-    const attrNamesPort0 = attributePort0.map(attr => attr.attributeName);
-
     let newJsonSchema = operatorSchema.jsonSchema;
 
-    attributeInJsonSchemaKeys.forEach(attributeInJsonSchema => {
-      newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, attributeInJsonSchema,
-        old => ({  ...old, type: 'string', enum: attrNamesPort0.slice(), uniqueItems: true, }));
-    });
+    const getAttrNames = (v: CustomJSONSchema7): string[] => {
+      const i = v.autofillAttributeOnPort;
+      if (i === undefined || i === null || !(typeof i === 'number') || ! Number.isInteger(i) || i >= inputAttributes.length) {
+        return [];
+      }
+      const inputAttrAtPort = inputAttributes[i];
+      if (! inputAttrAtPort) {
+        return [];
+      }
+      return inputAttrAtPort.map(attr => attr.attributeName);
+    };
 
-    attributeListInJsonSchemaKeys.forEach(attributeListInJsonSchema => {
-      newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, attributeListInJsonSchema,
-        old => ({ ...old, type: 'array', items: {...old.items, type: 'string', enum: attrNamesPort0.slice(), uniqueItems: true, } , }));
-    });
+    newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, (k, v) => v.autofill === 'attributeName',
+      old => ({ ...old, type: 'string', enum: getAttrNames(old), uniqueItems: true, }));
 
+    newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, (k, v) => v.autofill === 'attributeNameList',
+      old => ({ ...old, type: 'array', uniqueItems: true,
+        items: { ...(old.items as CustomJSONSchema7), type: 'string', enum: getAttrNames(old), }, }));
 
     return {
       ...operatorSchema,
@@ -202,15 +199,13 @@ export class SchemaPropagationService {
 
     let newJsonSchema = operatorSchema.jsonSchema;
 
-    attributeInJsonSchemaKeys.forEach(attributeInJsonSchema => {
-      newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, attributeInJsonSchema,
-        old => ({ ...old, type: 'string', enum: undefined, uniqueItems: undefined, }));
-    });
+    newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, (k, v) => v.autofill === 'attributeName',
+    old => ({ ...old, type: 'string', enum: undefined, uniqueItems: undefined, }));
 
-    attributeListInJsonSchemaKeys.forEach(attributeListInJsonSchema => {
-      newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, attributeListInJsonSchema,
-        old => ({ ...old, type: 'array', items: { ...old.items, type: 'string', enum: undefined, uniqueItems: undefined, }, }));
-    });
+    newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, (k, v) => v.autofill === 'attributeNameList',
+    old => ({ ...old, type: 'array', uniqueItems: undefined,
+      items: { ...(old.items as CustomJSONSchema7), type: 'string', enum: undefined, }, }));
+
     return {
       ...operatorSchema,
       jsonSchema: newJsonSchema

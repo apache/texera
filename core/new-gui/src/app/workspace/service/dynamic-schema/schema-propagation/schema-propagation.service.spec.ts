@@ -271,10 +271,12 @@ describe('SchemaPropagationService', () => {
     expect(attributeInSchema).toEqual({
       type: 'array',
       title: 'attributes',
+      uniqueItems: true,
+      autofill: 'attributeNameList',
+      autofillAttributeOnPort: 0,
       items: {
         type: 'string',
         enum: expectedEnum,
-        uniqueItems: true
       }
     });
   });
@@ -326,8 +328,10 @@ describe('SchemaPropagationService', () => {
             attribute: {
               type: 'string',
               title: 'attribute',
+              autofill: 'attributeName',
+              autofillAttributeOnPort: 0,
               enum: expectedEnum,
-              uniqueItems: true
+              uniqueItems: true,
             },
             aggregator: {
               title: 'aggregator',
