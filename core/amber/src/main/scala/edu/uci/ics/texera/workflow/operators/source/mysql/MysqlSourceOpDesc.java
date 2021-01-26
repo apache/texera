@@ -11,7 +11,6 @@ import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescrip
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
-import scala.collection.JavaConverters;
 import scala.collection.immutable.List;
 
 import java.sql.*;
@@ -68,6 +67,7 @@ public class MysqlSourceOpDesc extends SourceOperatorDescriptor {
 
     @JsonProperty(value = "batch by column")
     @JsonPropertyDescription("batch by column")
+    @AutofillAttributeName
     public String batchByColumn;
 
     @JsonProperty(value = "batch by interval", defaultValue = "1000000000")
