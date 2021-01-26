@@ -6,7 +6,6 @@ import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.util.Timeout
 import com.typesafe.config.{Config, ConfigFactory}
 import edu.uci.ics.amber.clustering.ClusterListener
-import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.ConditionalGlobalBreakpoint
 import edu.uci.ics.amber.engine.architecture.controller.Controller
 import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage.{Pause, Resume, Start}
@@ -256,15 +255,15 @@ object AmberApp {
             //if (countbp.isDefined && current == 2) {
             //  controller ! PassBreakpointTo("Filter", new CountGlobalBreakpoint("CountBreakpoint", countbp.get))
             //}
-            if (conditionalbp.isDefined) {
-              controller ! PassBreakpointTo(
-                "KeywordSearch",
-                new ConditionalGlobalBreakpoint(
-                  "ConditionalBreakpoint",
-                  x => x.getString(15).contains(conditionalbp)
-                )
-              )
-            }
+//            if (conditionalbp.isDefined) {
+//              controller ! PassBreakpointTo(
+//                "KeywordSearch",
+//                new ConditionalGlobalBreakpoint(
+//                  "ConditionalBreakpoint",
+//                  x => x.getString(15).contains(conditionalbp)
+//                )
+//              )
+//            }
             controller ! Start
             println("workflow started!")
           case "pause" =>

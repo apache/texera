@@ -3,7 +3,6 @@ package edu.uci.ics.amber.engine.architecture.worker.neo
 import java.util.concurrent.Executors
 
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.architecture.breakpoint.localbreakpoint.ExceptionBreakpoint
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   ControlOutputPort,
   TupleToBatchConverter

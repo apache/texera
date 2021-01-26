@@ -1,10 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
 import edu.uci.ics.amber.clustering.SingleNodeListener
-import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.{
-  ConditionalGlobalBreakpoint,
-  CountGlobalBreakpoint
-}
 import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage.{
   Ack,
   ModifyLogic,

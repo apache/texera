@@ -1,10 +1,6 @@
 package edu.uci.ics.texera.workflow.common.workflow
 
 import akka.actor.ActorRef
-import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.{
-  ConditionalGlobalBreakpoint,
-  CountGlobalBreakpoint
-}
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
 import edu.uci.ics.amber.engine.common.ambermessage.ControllerMessage.PassBreakpointTo
 import edu.uci.ics.amber.engine.common.ambertag.OperatorIdentifier
@@ -95,21 +91,21 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
           case BreakpointCondition.NOT_CONTAINS =>
             tuple => !tuple.getField(column).toString.trim.contains(conditionBp.value)
         }
-        controller ! PassBreakpointTo(
-          operatorID,
-          new ConditionalGlobalBreakpoint(
-            breakpointID,
-            tuple => {
-              val texeraTuple = tuple.asInstanceOf[Tuple]
-              predicate.apply(texeraTuple)
-            }
-          )
-        )
+//        controller ! PassBreakpointTo(
+//          operatorID,
+//          new ConditionalGlobalBreakpoint(
+//            breakpointID,
+//            tuple => {
+//              val texeraTuple = tuple.asInstanceOf[Tuple]
+//              predicate.apply(texeraTuple)
+//            }
+//          )
+//        )
       case countBp: CountBreakpoint =>
-        controller ! PassBreakpointTo(
-          operatorID,
-          new CountGlobalBreakpoint("breakpointID", countBp.count)
-        )
+//        controller ! PassBreakpointTo(
+//          operatorID,
+//          new CountGlobalBreakpoint("breakpointID", countBp.count)
+//        )
     }
   }
 
