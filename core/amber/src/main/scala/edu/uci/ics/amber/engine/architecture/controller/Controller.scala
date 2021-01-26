@@ -376,19 +376,6 @@ class Controller(
     safeRemoveAskOperatorHandle(startOp)
     operatorToPeriodicallyAskHandle(startOp) =
       context.system.scheduler.schedule(30.seconds, 30.seconds, self, EnforceStateCheck(startOp))
-    // context.become(initializing)
-    // unstashAll()
-    if (!recoveryMode) {
-      val breakpointToAssign = new ExceptionGlobalBreakpoint(
-        startOp.operator + "-ExceptionBreakpoint"
-      )
-      operatorToGlobalBreakpoints(startOp)(breakpointToAssign.id) = breakpointToAssign
-      metadata.assignBreakpoint(
-        operatorToWorkerLayers(startOp),
-        operatorToWorkerStateMap(startOp),
-        breakpointToAssign
-      )
-    }
   }
 
   private def initializingNextFrontier(): Unit = {
