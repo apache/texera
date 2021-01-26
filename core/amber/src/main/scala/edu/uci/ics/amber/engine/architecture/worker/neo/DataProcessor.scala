@@ -22,8 +22,7 @@ class DataProcessor( // dependencies:
     controlOutputChannel: ControlOutputPort, // to send controls to main thread
     batchProducer: TupleToBatchConverter, // to send output tuples
     pauseManager: PauseManager // to pause/resume
-    )
-    extends WorkerInternalQueue { // TODO: make breakpointSupport as a module
+) extends WorkerInternalQueue { // TODO: make breakpointSupport as a module
 
   protected val logger: WorkflowLogger = WorkflowLogger("DataProcessor")
   // dp thread stats:
