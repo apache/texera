@@ -52,9 +52,9 @@ object WorkerMessage {
 
   final case class ReportFailure(exception: Exception)
 
-  final case class ReportUpstreamExhausted(tag: LayerTag)
+  final case class ReportUpstreamExhausted(inputOperatorRef: Int) extends ControlPayload
 
-  final case class ReportWorkerPartialCompleted(worker: WorkerTag, layer: LayerTag)
+  final case class ReportWorkerPartialCompleted(inputOperatorRef: Int) extends ControlPayload
 
   final case class CheckRecovery()
 

@@ -495,7 +495,7 @@ class Controller(
         frontier ++= stashedFrontier
         stashedFrontier.clear()
       } else {
-        controllerLogger.logInfo("fully initialized!")
+        controllerLogger.logInfo(s"${self}- fully initialized!")
       }
       context.parent ! ControllerMessage.ReportState(ControllerState.Ready)
       context.become(ready)
@@ -977,6 +977,27 @@ class Controller(
     }
   }
 
+  // helper function used when an upstream operator sends `UpstreamExhausted` to an operator
+  // Helps when a stage ends and the other stage has to be started
+  // eg: When build side of Join finishes, and Probe side is to be sterted
+  private def getLayerTagOfExhaustedInput(
+      reportingOp: OperatorIdentifier,
+      exhaustedInputRef: Int
+  ): LayerTag = {
+    if (!workflow.inLinks.contains(reportingOp)) {
+      return null
+    }
+    var inputExhaustedLayerTag: LayerTag = null
+    workflow
+      .inLinks(reportingOp)
+      .foreach(op => {
+        if (workflow.operators(reportingOp).getInputNum(op) == exhaustedInputRef) {
+          inputExhaustedLayerTag = workflow.operators(op).topology.layers.last.tag
+        }
+      })
+    inputExhaustedLayerTag
+  }
+
   final lazy val allowedStatesOnPausing: Set[WorkerState.Value] =
     Set(WorkerState.Completed, WorkerState.Paused, WorkerState.LocalBreakpointTriggered)
 
@@ -1204,22 +1225,30 @@ class Controller(
         // context.system.scheduler.schedule(30.seconds, 30.seconds, self, EnforceStateCheck)
         context.parent ! ControllerMessage.ReportState(ControllerState.Pausing)
         context.become(pausing)
-      case ReportWorkerPartialCompleted(workerTag, layer) =>
+      case ReportWorkerPartialCompleted(inputOperatorRef) =>
         sender ! Ack
-        if (operatorToLayerCompletedCounter(workerToOperator(sender)).contains(layer)) {
-          operatorToLayerCompletedCounter(workerToOperator(sender))(layer) -= 1
+        val exhaustedInputLayerTag =
+          getLayerTagOfExhaustedInput(workerToOperator(sender), inputOperatorRef)
 
-          if (operatorToLayerCompletedCounter(workerToOperator(sender))(layer) == 0) {
+        if (
+          exhaustedInputLayerTag != null &&
+          operatorToLayerCompletedCounter(workerToOperator(sender)).contains(exhaustedInputLayerTag)
+        ) {
+          operatorToLayerCompletedCounter(workerToOperator(sender))(exhaustedInputLayerTag) -= 1
+
+          if (
+            operatorToLayerCompletedCounter(workerToOperator(sender))(exhaustedInputLayerTag) == 0
+          ) {
             // all dependencies for the operator are done
-            operatorToLayerCompletedCounter(workerToOperator(sender)) -= layer
+            operatorToLayerCompletedCounter(workerToOperator(sender)) -= exhaustedInputLayerTag
             for (i <- startDependencies.keys) {
               if (
                 startDependencies(i)
                   .contains(workerToOperator(sender)) && startDependencies(i)(
                   workerToOperator(sender)
-                ).contains(layer)
+                ).contains(exhaustedInputLayerTag)
               ) {
-                startDependencies(i)(workerToOperator(sender)) -= layer
+                startDependencies(i)(workerToOperator(sender)) -= exhaustedInputLayerTag
                 if (startDependencies(i)(workerToOperator(sender)).isEmpty) {
                   startDependencies(i) -= workerToOperator(sender)
                   if (startDependencies(i).isEmpty) {

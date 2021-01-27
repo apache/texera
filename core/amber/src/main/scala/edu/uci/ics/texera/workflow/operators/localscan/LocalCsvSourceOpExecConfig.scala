@@ -1,7 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.localscan
 
 import java.io.File
-
 import akka.actor.ActorRef
 import akka.event.LoggingAdapter
 import akka.util.Timeout

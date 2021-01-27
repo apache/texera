@@ -1,7 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.worker.neo
 
 import java.util.concurrent.Executors
-
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.breakpoint.localbreakpoint.ExceptionBreakpoint
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{
@@ -12,10 +11,15 @@ import edu.uci.ics.amber.engine.architecture.worker.BreakpointSupport
 import edu.uci.ics.amber.engine.architecture.worker.neo.WorkerInternalQueue._
 import edu.uci.ics.amber.engine.common.amberexception.BreakpointException
 import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage.LocalBreakpointTriggered
-import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.ExecutionCompleted
+import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{
+  ExecutionCompleted,
+  ReportUpstreamExhausted,
+  ReportWorkerPartialCompleted
+}
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted, WorkflowLogger}
+import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 class DataProcessor( // dependencies:
     operator: IOperatorExecutor, // core logic
@@ -74,9 +78,23 @@ class DataProcessor( // dependencies:
     var outputIterator: Iterator[ITuple] = null
     try {
       outputIterator = operator.processTuple(currentInputTuple, currentSenderRef)
-      if (currentInputTuple.isLeft) inputTupleCount += 1
+      if (currentInputTuple.isLeft) {
+        inputTupleCount += 1
+      } else {
+        controlOutputChannel.sendTo(
+          VirtualIdentity.Self,
+          ReportWorkerPartialCompleted(currentSenderRef)
+        )
+      }
     } catch {
       case e: Exception =>
+        logger.logError(
+          WorkflowRuntimeError(
+            s"Exception in operator logic: ${e.getMessage()}",
+            "Dataprocessor",
+            Map("Stacktrace" -> e.getStackTrace().mkString("\n\t"))
+          )
+        )
         handleOperatorException(e, isInput = true)
     }
     outputIterator
