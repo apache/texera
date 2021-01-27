@@ -1,7 +1,6 @@
-package edu.uci.ics.texera.workflow.operators.mysqlsource
+package edu.uci.ics.texera.workflow.operators.source.mysql
 
 import akka.actor.ActorRef
-import akka.event.LoggingAdapter
 import akka.util.Timeout
 import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalBreakpoint
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.UseAll

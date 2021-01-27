@@ -10,6 +10,8 @@ import { WorkflowActionService } from '../../workflow-graph/model/workflow-actio
 import { NGXLogger } from 'ngx-logger';
 
 import { isEqual } from 'lodash';
+import { CustomJSONSchema7 } from 'src/app/workspace/types/custom-json-schema.interface';
+import { JSONSchema7 } from 'json-schema';
 
 // endpoint for schema propagation
 export const SCHEMA_PROPAGATION_ENDPOINT = 'queryplan/autocomplete';
@@ -168,8 +170,8 @@ export class SchemaPropagationService {
 
     let newJsonSchema = operatorSchema.jsonSchema;
 
-    const getAttrNames = (v: any): string[] => {
-      const i = v['autofillAttributeOnPort'];
+    const getAttrNames = (v: CustomJSONSchema7): string[] => {
+      const i = v.autofillAttributeOnPort;
       if (i === undefined || i === null || !(typeof i === 'number') || ! Number.isInteger(i) || i >= inputAttributes.length) {
         return [];
       }
@@ -180,11 +182,12 @@ export class SchemaPropagationService {
       return inputAttrAtPort.map(attr => attr.attributeName);
     };
 
-    newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, (k, v) => v['autofill'] === 'attributeName',
+    newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, (k, v) => v.autofill === 'attributeName',
       old => ({ ...old, type: 'string', enum: getAttrNames(old), uniqueItems: true, }));
 
-    newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, (k, v) => v['autofill'] === 'attributeNameList',
-      old => ({ ...old, type: 'array', uniqueItems: true, items: { ...old.items, type: 'string', enum: getAttrNames(old), }, }));
+    newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, (k, v) => v.autofill === 'attributeNameList',
+      old => ({ ...old, type: 'array', uniqueItems: true,
+        items: { ...(old.items as CustomJSONSchema7), type: 'string', enum: getAttrNames(old), }, }));
 
     return {
       ...operatorSchema,
@@ -196,11 +199,12 @@ export class SchemaPropagationService {
 
     let newJsonSchema = operatorSchema.jsonSchema;
 
-    newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, (k, v) => v['autofill'] === 'attributeName',
+    newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, (k, v) => v.autofill === 'attributeName',
     old => ({ ...old, type: 'string', enum: undefined, uniqueItems: undefined, }));
 
-    newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, (k, v) => v['autofill'] === 'attributeNameList',
-    old => ({ ...old, type: 'array', uniqueItems: undefined, items: { ...old.items, type: 'string', enum: undefined, }, }));
+    newJsonSchema = DynamicSchemaService.mutateProperty(newJsonSchema, (k, v) => v.autofill === 'attributeNameList',
+    old => ({ ...old, type: 'array', uniqueItems: undefined,
+      items: { ...(old.items as CustomJSONSchema7), type: 'string', enum: undefined, }, }));
 
     return {
       ...operatorSchema,

@@ -13,10 +13,13 @@ import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtual
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext
 
-class RoundRobinPolicy(batchSize: Int) extends DataTransferPolicy(batchSize) {
-  var receivers: Array[ActorVirtualIdentity] = _
+class RoundRobinPolicy(
+    policyTag: LinkTag,
+    batchSize: Int,
+    receivers: Array[ActorVirtualIdentity]
+) extends DataSendingPolicy(policyTag, batchSize, receivers) {
   var roundRobinIndex = 0
-  var batch: Array[ITuple] = _
+  var batch: Array[ITuple] = new Array[ITuple](batchSize)
   var currentSize = 0
 
   override def noMore(): Array[(ActorVirtualIdentity, DataPayload)] = {
@@ -43,13 +46,6 @@ class RoundRobinPolicy(batchSize: Int) extends DataTransferPolicy(batchSize) {
       return Some((receivers(roundRobinIndex), DataFrame(retBatch)))
     }
     None
-  }
-
-  override def initialize(tag: LinkTag, _receivers: Array[ActorVirtualIdentity]): Unit = {
-    super.initialize(tag, _receivers)
-    assert(_receivers != null)
-    this.receivers = _receivers
-    batch = new Array[ITuple](batchSize)
   }
 
   override def reset(): Unit = {
