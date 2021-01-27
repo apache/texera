@@ -1011,10 +1011,11 @@ class Controller(
     for ((id, currLoad) <- operatorToWorkerLayers(operatorId)(0).identifiers zip metrics._1) {
       loads(id) = currLoad.stashedBatches + currLoad.unprocessedQueueLength
     }
+
     metrics._2.foreach(replyFromNetComm => {
-      replyFromNetComm.dataToSend.keys.foreach(workerId => {
-        loads(workerId) = loads.getOrElse(workerId, 0) + replyFromNetComm.dataToSend(workerId)
-      })
+      for ((wId, futLoad) <- replyFromNetComm.dataToSend) {
+        loads(wId) = loads.getOrElse(wId, 0L) + futLoad
+      }
     })
 
     loads.toMap
