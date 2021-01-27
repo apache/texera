@@ -15,7 +15,6 @@ import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
-import edu.uci.ics.texera.workflow.common.operators.source.SourceOpExecConfig
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
 import scala.collection.mutable
@@ -24,8 +23,8 @@ import scala.concurrent.ExecutionContext
 class HashJoinOpExecConfig(
     override val tag: OperatorIdentifier,
     val opExec: Int => OperatorExecutor,
-    val probeAttribute: String,
-    val buildAttribute: String
+    val probeAttributeName: String,
+    val buildAttributeName: String
 ) extends OpExecConfig(tag) {
 
   var buildTableTag: LayerTag = _
@@ -86,9 +85,9 @@ class HashJoinOpExecConfig(
 
   override def getShuffleHashFunction(layerTag: LayerTag): ITuple => Int = {
     if (layerTag == buildTableTag) { t: ITuple =>
-      t.asInstanceOf[Tuple].getField(buildAttribute).hashCode()
+      t.asInstanceOf[Tuple].getField(buildAttributeName).hashCode()
     } else { t: ITuple =>
-      t.asInstanceOf[Tuple].getField(probeAttribute).hashCode()
+      t.asInstanceOf[Tuple].getField(probeAttributeName).hashCode()
     }
   }
 
