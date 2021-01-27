@@ -497,8 +497,6 @@ class Controller(
       } else {
         controllerLogger.logInfo(s"${self}- fully initialized!")
       }
-      // before starting any workflows, we register VirtualIdentity.Controller at the controller's network sender actor
-      networkCommunicationActor ! RegisterActorRef(VirtualIdentity.Controller, self)
       context.parent ! ControllerMessage.ReportState(ControllerState.Ready)
       context.become(ready)
       if (this.statisticsUpdateIntervalMs.nonEmpty) {
