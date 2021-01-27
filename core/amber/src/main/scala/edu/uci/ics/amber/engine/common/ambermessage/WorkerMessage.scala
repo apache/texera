@@ -34,6 +34,14 @@ object WorkerMessage {
 
   final case class ExecutionPaused()
 
+  final case class CurrentLoadMetrics(
+      unprocessedQueueLength: Long,
+      totalPutInInternalQueue: Long,
+      stashedBatches: Long
+  ) // join-skew research related. All lengths are in batch counts
+
+  final case class FutureLoadMetrics(dataToSend: Map[ActorVirtualIdentity, Long])
+
   final case class AssignBreakpoint(breakpoint: LocalBreakpoint)
 
   final case class QueryTriggeredBreakpoints()

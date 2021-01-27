@@ -2,19 +2,24 @@ package edu.uci.ics.amber.engine.architecture.messaginglayer
 
 import akka.actor.{Actor, ActorRef, Props, Stash}
 import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlInputPort.WorkflowControlMessage
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
   GetActorRef,
   MessageBecomesDeadLetter,
   NetworkAck,
   NetworkMessage,
+  ProcessRequest,
   RegisterActorRef,
   ResendMessages,
   SendRequest
 }
+import edu.uci.ics.amber.engine.architecture.worker.neo.promisehandlers.QueryNextOpLoadMetricsHandler.QueryNextOpLoadMetrics
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.ambermessage.neo.WorkflowMessage
+import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.FutureLoadMetrics
+import edu.uci.ics.amber.engine.common.ambermessage.neo.{ControlPayload, WorkflowMessage}
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnPayload}
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 import scala.collection.mutable
@@ -34,6 +39,10 @@ object NetworkCommunicationActor {
   }
 
   final case class SendRequest(id: ActorVirtualIdentity, message: WorkflowMessage)
+
+  // join-skew research related. This request will be processed by NetworkCommActor and wont be forwarded
+  // The id param is actually the worker's own identity
+  final case class ProcessRequest(id: ActorVirtualIdentity, msg: WorkflowControlMessage)
 
   /** Identifier <-> ActorRef related messages
     */
@@ -178,6 +187,28 @@ class NetworkCommunicationActor(parentRef: ActorRef) extends Actor with LazyLogg
       logger.warn(s"actor for $actorID might have crashed or failed")
       idToActorRefs.remove(actorID)
       getActorRefMappingFromParent(actorID)
+    case ProcessRequest(id, msg) =>
+      // join-skew research related.
+      // currently the request can only be QueryNextOpLoadMetrics
+      val metrics = idToCongestionControls.map {
+        case (key, value) => (key, value.getUnsentAndTransitMsgCount())
+      }
+      val modifiedMessage = WorkflowControlMessage(
+        msg.from,
+        msg.sequenceNumber,
+        ReturnPayload(
+          msg.payload.asInstanceOf[ControlInvocation].commandID,
+          FutureLoadMetrics(metrics.toMap)
+        )
+      )
+      // now do normal sending logic and send modified message
+      if (idToActorRefs.contains(id)) {
+        forwardMessage(id, modifiedMessage)
+      } else {
+        val stash = messageStash.getOrElseUpdate(id, new mutable.Queue[WorkflowMessage]())
+        stash.enqueue(modifiedMessage)
+        getActorRefMappingFromParent(id)
+      }
   }
 
   @inline

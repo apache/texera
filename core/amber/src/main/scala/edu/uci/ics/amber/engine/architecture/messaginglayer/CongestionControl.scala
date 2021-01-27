@@ -83,4 +83,9 @@ class CongestionControl {
     inTransit.values
   }
 
+  // join-skew research related.
+  def getUnsentAndTransitMsgCount(): Long = {
+    toBeSent.size + inTransit.size
+  }
+
 }

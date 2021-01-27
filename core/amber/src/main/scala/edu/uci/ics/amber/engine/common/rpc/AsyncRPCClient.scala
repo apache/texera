@@ -70,4 +70,11 @@ class AsyncRPCClient(controlOutputPort: ControlOutputPort) {
     }
   }
 
+  // join-skew research related.
+  def sendToNetworkCommActor[T](cmd: ControlCommand[T]): Future[T] = {
+    val (p, id) = createPromise[T]()
+    controlOutputPort.sendToNetworkCommActor(ControlInvocation(id, cmd))
+    p
+  }
+
 }

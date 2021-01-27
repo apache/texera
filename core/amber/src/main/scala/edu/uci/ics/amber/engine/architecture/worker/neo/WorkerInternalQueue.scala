@@ -43,4 +43,7 @@ trait WorkerInternalQueue {
     blockingDeque.addFirst(elem)
   }
 
+  // join-skew research related
+  def getQueueSize(): Long = blockingDeque.size()
+
 }

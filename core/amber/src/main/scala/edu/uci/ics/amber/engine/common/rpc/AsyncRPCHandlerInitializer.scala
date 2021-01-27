@@ -73,4 +73,9 @@ class AsyncRPCHandlerInitializer(
     ctrlSource.send(cmd, to)
   }
 
+  // join-skew research related.
+  def sendToNetworkCommActor[T](cmd: ControlCommand[T]): Future[T] = {
+    ctrlSource.sendToNetworkCommActor(cmd)
+  }
+
 }

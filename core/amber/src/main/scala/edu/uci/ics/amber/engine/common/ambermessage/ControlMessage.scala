@@ -51,4 +51,6 @@ object ControlMessage {
   final case class KillAndRecover()
 
   final case class LogErrorToFrontEnd(err: WorkflowRuntimeError)
+
+  final case class DetectSkew() // join-skew research related
 }
