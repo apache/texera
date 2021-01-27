@@ -34,7 +34,7 @@ class HashJoinOpExec[K](val opDesc: HashJoinOpDesc[K]) extends OperatorExecutor 
     probeSchema
       .getAttributes()
       .forEach(attr => {
-        if (attr.getName() != opDesc.probeAttribute) {
+        if (attr.getName() != opDesc.probeAttributeName) {
           if (buildSchema.containsAttribute(attr.getName())) {
             builder.add(new Attribute(s"${attr.getName()}#@1", attr.getType()))
           } else {
@@ -55,7 +55,7 @@ class HashJoinOpExec[K](val opDesc: HashJoinOpDesc[K]) extends OperatorExecutor 
         // small input port comes first. So, it is assigned the inputNum 0. Similarly
         // the large input is assigned the inputNum 1.
         if (opDesc.opExecConfig.getInputNum(input) == 0) {
-          val key = t.getField(opDesc.buildAttribute).asInstanceOf[K]
+          val key = t.getField(opDesc.buildAttributeName).asInstanceOf[K]
           var storedTuples = buildTableHashMap.getOrElse(key, new ArrayBuffer[Tuple]())
           storedTuples += t
           buildTableHashMap.put(key, storedTuples)
@@ -70,7 +70,7 @@ class HashJoinOpExec[K](val opDesc: HashJoinOpDesc[K]) extends OperatorExecutor 
             hashJoinOpExecLogger.logError(err)
             throw new WorkflowRuntimeException(err)
           } else {
-            val key = t.getField(opDesc.probeAttribute).asInstanceOf[K]
+            val key = t.getField(opDesc.probeAttributeName).asInstanceOf[K]
             val storedTuples = buildTableHashMap.getOrElse(key, new ArrayBuffer[Tuple]())
             var tuplesToOutput: ArrayBuffer[Tuple] = new ArrayBuffer[Tuple]()
             if (storedTuples.size == 0) {
@@ -89,7 +89,7 @@ class HashJoinOpExec[K](val opDesc: HashJoinOpDesc[K]) extends OperatorExecutor 
               // outputProbeSchema doesnt have "probeAttribute" but t does. The following code
               //  takes that into consideration while creating a tuple.
               for (i <- 0 to t.getFields().size() - 1) {
-                if (!t.getSchema().getAttributeNames().get(i).equals(opDesc.probeAttribute)) {
+                if (!t.getSchema().getAttributeNames().get(i).equals(opDesc.probeAttributeName)) {
                   builder.add(
                     outputProbeSchema.getAttributes().get(newProbeIdx),
                     t.getFields().get(i)

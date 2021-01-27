@@ -977,6 +977,27 @@ class Controller(
     }
   }
 
+  // helper function used when an upstream operator sends `UpstreamExhausted` to an operator
+  // Helps when a stage ends and the other stage has to be started
+  // eg: When build side of Join finishes, and Probe side is to be sterted
+  private def getLayerTagOfExhaustedInput(
+      reportingOp: OperatorIdentifier,
+      exhaustedInputRef: Int
+  ): LayerTag = {
+    if (!workflow.inLinks.contains(reportingOp)) {
+      return null
+    }
+    var inputExhaustedLayerTag: LayerTag = null
+    workflow
+      .inLinks(reportingOp)
+      .foreach(op => {
+        if (workflow.operators(reportingOp).getInputNum(op) == exhaustedInputRef) {
+          inputExhaustedLayerTag = workflow.operators(op).topology.layers.last.tag
+        }
+      })
+    inputExhaustedLayerTag
+  }
+
   final lazy val allowedStatesOnPausing: Set[WorkerState.Value] =
     Set(WorkerState.Completed, WorkerState.Paused, WorkerState.LocalBreakpointTriggered)
 

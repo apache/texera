@@ -24,13 +24,13 @@ class HashJoinOpDesc[K] extends OperatorDescriptor {
   @JsonSchemaTitle("Small Input attr")
   @JsonPropertyDescription("Small Input Join Key")
   @AutofillAttributeName
-  var buildAttribute: String = _
+  var buildAttributeName: String = _
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Large input attr")
   @JsonPropertyDescription("Large Input Join Key")
   @AutofillAttributeNameOnPort1
-  var probeAttribute: String = _
+  var probeAttributeName: String = _
 
   @JsonIgnore
   var opExecConfig: HashJoinOpExecConfig = _
@@ -39,15 +39,15 @@ class HashJoinOpDesc[K] extends OperatorDescriptor {
     opExecConfig = new HashJoinOpExecConfig(
       this.operatorIdentifier,
       _ => new HashJoinOpExec[K](this),
-      probeAttribute,
-      buildAttribute
+      probeAttributeName,
+      buildAttributeName
     )
     opExecConfig
   }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
-      "Join",
+      "Hash Join",
       "join two inputs",
       OperatorGroupConstants.JOIN_GROUP,
       inputPorts = List(InputPort("small"), InputPort("large")),
@@ -58,12 +58,14 @@ class HashJoinOpDesc[K] extends OperatorDescriptor {
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Preconditions.checkArgument(schemas.length == 2)
     val builder = Schema.newBuilder()
-    builder.add(schemas(0)).removeIfExists(probeAttribute)
-    if (probeAttribute.equals(buildAttribute)) {
+    builder.add(schemas(0)).removeIfExists(probeAttributeName)
+    if (probeAttributeName.equals(buildAttributeName)) {
       schemas(1)
         .getAttributes()
         .forEach(attr => {
-          if (schemas(0).containsAttribute(attr.getName()) && attr.getName() != probeAttribute) {
+          if (
+            schemas(0).containsAttribute(attr.getName()) && attr.getName() != probeAttributeName
+          ) {
             // appending 1 to the output of Join schema in case of duplicate attributes in probe and build table
             builder.add(new Attribute(s"${attr.getName()}1", attr.getType()))
           } else {
@@ -76,7 +78,7 @@ class HashJoinOpDesc[K] extends OperatorDescriptor {
         .forEach(attr => {
           if (schemas(0).containsAttribute(attr.getName())) {
             builder.add(new Attribute(s"${attr.getName()}1", attr.getType()))
-          } else if (!attr.getName().equalsIgnoreCase(probeAttribute)) {
+          } else if (!attr.getName().equalsIgnoreCase(probeAttributeName)) {
             builder.add(attr)
           }
         })
