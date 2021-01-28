@@ -1025,6 +1025,13 @@ class Controller(
     })
   }
 
+  // join-skew research related
+  private def changeDataFlow(
+      flowSourceOpId: OperatorIdentifier,
+      skewedWorkerId: ActorVirtualIdentity,
+      freeWorkerId: ActorVirtualIdentity
+  ): Unit = {}
+
   final lazy val allowedStatesOnPausing: Set[WorkerState.Value] =
     Set(WorkerState.Completed, WorkerState.Paused, WorkerState.LocalBreakpointTriggered)
 

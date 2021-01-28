@@ -9,11 +9,7 @@ import edu.uci.ics.amber.engine.architecture.controller.{
   ControllerEventListener,
   ControllerState
 }
-import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage.{
-  DetectSkew,
-  DetectSkewTemp,
-  Start
-}
+import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage.{DetectSkew, Start}
 import edu.uci.ics.amber.engine.common.ambermessage.ControllerMessage.{
   AckedControllerInitialization,
   ReportState
