@@ -201,4 +201,33 @@ class DataProcessingSpec
     )
   }
 
+  "Engine" should "execute csv->(csv->) ->join->sink workflow normally" in {
+    val headerlessCsvOpDesc1 = TestOperators.headerlessSmallCsvScanOpDesc()
+    val headerlessCsvOpDesc2 = TestOperators.headerlessSmallCsvScanOpDesc()
+    val joinOpDesc = TestOperators.joinOpDesc("column0", "column0")
+    val sink = TestOperators.sinkOpDesc()
+    expectCompletedAfterExecution(
+      mutable.MutableList[OperatorDescriptor](
+        headerlessCsvOpDesc1,
+        headerlessCsvOpDesc2,
+        joinOpDesc,
+        sink
+      ),
+      mutable.MutableList[OperatorLink](
+        OperatorLink(
+          OperatorPort(headerlessCsvOpDesc1.operatorID, 0),
+          OperatorPort(joinOpDesc.operatorID, 0)
+        ),
+        OperatorLink(
+          OperatorPort(headerlessCsvOpDesc2.operatorID, 0),
+          OperatorPort(joinOpDesc.operatorID, 1)
+        ),
+        OperatorLink(
+          OperatorPort(joinOpDesc.operatorID, 0),
+          OperatorPort(sink.operatorID, 0)
+        )
+      )
+    )
+  }
+
 }

@@ -28,6 +28,9 @@ class ControlInputPort(asyncRPCClient: AsyncRPCClient, asyncRPCServer: AsyncRPCS
     new mutable.AnyRefMap[VirtualIdentity, OrderingEnforcer[ControlPayload]]()
 
   def handleControlMessage(msg: WorkflowControlMessage): Unit = {
+//    println(
+//      s"RECEIVED in Control Input Port from ${msg.from}: ${msg.sequenceNumber}: ${msg.payload}"
+//    )
     OrderingEnforcer.reorderMessage(
       idToOrderingEnforcers,
       msg.from,

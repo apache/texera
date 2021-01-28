@@ -17,15 +17,40 @@ import edu.uci.ics.amber.engine.common.ambermessage.ControllerMessage.{
   PassBreakpointTo,
   ReportState
 }
-import edu.uci.ics.amber.engine.common.ambertag.OperatorIdentifier
+import edu.uci.ics.amber.engine.common.ambertag.{OperatorIdentifier, WorkflowTag}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.amber.engine.common.Constants
-import akka.actor.{ActorSystem, PoisonPill, Props}
-import akka.testkit.{ImplicitSender, TestKit, TestProbe}
+import edu.uci.ics.amber.engine.common.{Constants, IOperatorExecutor}
+import akka.actor.{ActorRef, ActorSystem, PoisonPill, Props}
+import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
 import akka.util.Timeout
+import com.softwaremill.macwire.wire
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.NetworkSenderActorRef
+import edu.uci.ics.amber.engine.architecture.messaginglayer.{
+  CongestionControl,
+  NetworkCommunicationActor
+}
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
+import edu.uci.ics.amber.engine.architecture.worker.neo.{DataProcessor, WorkerInternalQueue}
+import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
+import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.{
+  ActorVirtualIdentity,
+  WorkerActorVirtualIdentity
+}
+import edu.uci.ics.amber.engine.e2e.TestOperators
+import edu.uci.ics.texera.workflow.common.WorkflowContext
+import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
+import edu.uci.ics.texera.workflow.common.workflow.{
+  BreakpointInfo,
+  OperatorLink,
+  OperatorPort,
+  WorkflowCompiler,
+  WorkflowInfo
+}
+import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
 
+import scala.collection.mutable
 import scala.concurrent.{Await, ExecutionContextExecutor}
 import scala.concurrent.duration._
 import scala.util.Random
@@ -34,7 +59,8 @@ class ControllerSpec
     extends TestKit(ActorSystem("ControllerSpec"))
     with ImplicitSender
     with AnyFlatSpecLike
-    with BeforeAndAfterAll {
+    with BeforeAndAfterAll
+    with MockFactory {
 
   implicit val timeout: Timeout = Timeout(5.seconds)
   implicit val executionContext: ExecutionContextExecutor = system.dispatcher
@@ -45,6 +71,94 @@ class ControllerSpec
   override def afterAll: Unit = {
     TestKit.shutdownActorSystem(system)
   }
+
+//  "Controller" should "process DetectSkew message properly" in {
+//    val headerlessCsvOpDesc1 = TestOperators.headerlessSmallCsvScanOpDesc()
+//    val headerlessCsvOpDesc2 = TestOperators.headerlessSmallCsvScanOpDesc()
+//    val joinOpDesc = TestOperators.joinOpDesc("column0", "column0")
+//    val sink = TestOperators.sinkOpDesc()
+//
+//    val parent = TestProbe()
+//    val context = new WorkflowContext
+//    context.workflowID = "workflow-test"
+//
+//    val texeraWorkflowCompiler = new WorkflowCompiler(
+//      WorkflowInfo(
+//        mutable.MutableList[OperatorDescriptor](
+//          headerlessCsvOpDesc1,
+//          headerlessCsvOpDesc2,
+//          joinOpDesc,
+//          sink
+//        ),
+//        mutable.MutableList[OperatorLink](
+//          OperatorLink(
+//            OperatorPort(headerlessCsvOpDesc1.operatorID, 0),
+//            OperatorPort(joinOpDesc.operatorID, 0)
+//          ),
+//          OperatorLink(
+//            OperatorPort(headerlessCsvOpDesc2.operatorID, 0),
+//            OperatorPort(joinOpDesc.operatorID, 1)
+//          ),
+//          OperatorLink(
+//            OperatorPort(joinOpDesc.operatorID, 0),
+//            OperatorPort(sink.operatorID, 0)
+//          )
+//        ),
+//        mutable.MutableList[BreakpointInfo]()
+//      ),
+//      context
+//    )
+//    texeraWorkflowCompiler.init()
+//    val workflow = texeraWorkflowCompiler.amberWorkflow
+//    val workflowTag = WorkflowTag.apply("workflow-test")
+//
+//    val controller = parent.childActorOf(
+//      Controller.props(workflowTag, workflow, false, ControllerEventListener(), 100)
+//    )
+//    controller ! AckedControllerInitialization
+//    parent.expectMsg(30.seconds, ReportState(ControllerState.Ready))
+//
+//    val mockDataProcessor = mock[DataProcessor]
+//    (mockDataProcessor.getQueueSize _).expects().returning(10)
+//
+//    val controllerNetworkSender = TestProbe()
+//    val fakeJoinWorker = TestActorRef(
+//      new WorkflowWorker(
+//        WorkerActorVirtualIdentity("worker-join"),
+//        mock[IOperatorExecutor],
+//        controllerNetworkSender.ref
+//      ) {
+//        override lazy val dataProcessor = mockDataProcessor
+//      }
+//    )
+//
+//    val fakeScanWorker = TestActorRef(
+//      new WorkflowWorker(
+//        WorkerActorVirtualIdentity("worker-scan"),
+//        mock[IOperatorExecutor],
+//        controllerNetworkSender.ref
+//      ) {
+//        override lazy val dataProcessor = mockDataProcessor
+//        override val networkCommunicationActor = NetworkSenderActorRef(fakeNetworkCommActor)
+//      }
+//    )
+//
+//    var congestionControl = mock[CongestionControl]
+//    (congestionControl.getUnsentAndTransitMsgCount _).expects().returning(30)
+//    val fakeNetworkCommActor =
+//      TestActorRef(new NetworkCommunicationActor(controllerNetworkSender.ref) {
+//        override val idToActorRefs = mutable.HashMap[ActorVirtualIdentity, ActorRef](
+//          WorkerActorVirtualIdentity("worker-scan") -> fakeScanWorker
+//        )
+//        override val idToCongestionControls =
+//          mutable.HashMap[ActorVirtualIdentity, CongestionControl](
+//            WorkerActorVirtualIdentity("worker-join") -> congestionControl
+//          )
+//      })
+//
+//    fakeScanWorker.underlyingActor.networkCommunicationActor =
+//      NetworkSenderActorRef(fakeNetworkCommActor)
+//  }
 
 //  private val logicalPlan1 =
 //    """{

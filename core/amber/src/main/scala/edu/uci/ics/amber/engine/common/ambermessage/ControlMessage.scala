@@ -6,6 +6,7 @@ import edu.uci.ics.amber.engine.architecture.breakpoint.localbreakpoint.LocalBre
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import akka.actor.ActorRef
 import edu.uci.ics.amber.engine.common.ambermessage.neo.ControlPayload
+import edu.uci.ics.amber.engine.common.ambertag.OperatorIdentifier
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 object ControlMessage {
@@ -53,4 +54,6 @@ object ControlMessage {
   final case class LogErrorToFrontEnd(err: WorkflowRuntimeError)
 
   final case class DetectSkew() // join-skew research related
+
+  final case class DetectSkewTemp(opId: OperatorIdentifier) // join-skew research related
 }

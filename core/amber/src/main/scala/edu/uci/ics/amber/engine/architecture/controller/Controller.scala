@@ -97,6 +97,7 @@ import com.twitter.util.{Future, Futures, Promise}
 import com.typesafe.scalalogging.Logger
 import edu.uci.ics.amber.engine.architecture.breakpoint.FaultedTuple
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
+import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlInputPort.WorkflowControlMessage
 import edu.uci.ics.amber.engine.architecture.worker.{WorkerState, WorkerStatistics}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{
   AckedWorkerInitialization,
@@ -111,7 +112,11 @@ import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{
 }
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.RegisterActorRef
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
+  NetworkAck,
+  NetworkMessage,
+  RegisterActorRef
+}
 import edu.uci.ics.amber.engine.architecture.worker.neo.promisehandlers.QueryLoadMetricsHandler.QueryLoadMetrics
 import edu.uci.ics.amber.engine.architecture.worker.neo.promisehandlers.QueryNextOpLoadMetricsHandler.QueryNextOpLoadMetrics
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
@@ -981,7 +986,7 @@ class Controller(
   }
 
   // join-skew research related
-  private def analyzeLoad(operatorId: OperatorIdentifier): Map[ActorVirtualIdentity, Long] = {
+  private def analyzeLoad(operatorId: OperatorIdentifier): Unit = {
     // collect metrics from the skewed operator. assuming this is a single layer operator
     val workerMetricsFutures = new ArrayBuffer[Future[CurrentLoadMetrics]]()
     operatorToWorkerLayers(operatorId)(0).identifiers.foreach(id => {
@@ -1005,20 +1010,19 @@ class Controller(
     val futureOfNextOpLoadMetrics = Future.collect(inputOpMetricsFutures.toList)
 
     // combining the two metrics
-    val metrics =
-      com.twitter.util.Await.result(Future.join(futureOfWorkerMetrics, futureOfNextOpLoadMetrics))
+    val combinedFuture = Future.join(futureOfWorkerMetrics, futureOfNextOpLoadMetrics)
     val loads = new mutable.HashMap[ActorVirtualIdentity, Long]()
-    for ((id, currLoad) <- operatorToWorkerLayers(operatorId)(0).identifiers zip metrics._1) {
-      loads(id) = currLoad.stashedBatches + currLoad.unprocessedQueueLength
-    }
-
-    metrics._2.foreach(replyFromNetComm => {
-      for ((wId, futLoad) <- replyFromNetComm.dataToSend) {
-        loads(wId) = loads.getOrElse(wId, 0L) + futLoad
+    combinedFuture.onSuccess(metrics => {
+      for ((id, currLoad) <- operatorToWorkerLayers(operatorId)(0).identifiers zip metrics._1) {
+        loads(id) = currLoad.stashedBatches + currLoad.unprocessedQueueLength
       }
+      metrics._2.foreach(replyFromNetComm => {
+        for ((wId, futLoad) <- replyFromNetComm.dataToSend) {
+          loads(wId) = loads.getOrElse(wId, 0L) + futLoad
+        }
+      })
+      println(s"The final loads map ${loads.mkString("\n\t")}")
     })
-
-    loads.toMap
   }
 
   final lazy val allowedStatesOnPausing: Set[WorkerState.Value] =
@@ -1184,6 +1188,7 @@ class Controller(
 
   private[this] def running: Receive = {
     disallowActorRefRelatedMessages orElse
+      processControlMessagesNewWay orElse
       handleBreakpointOnlyWorkerMessages orElse [Any, Unit] {
       case LogErrorToFrontEnd(err: WorkflowRuntimeError) =>
         controllerLogger.logError(err)
@@ -1291,6 +1296,9 @@ class Controller(
       case DetectSkew =>
         // join-skew research related
         analyzeLoad(workerToOperator(sender))
+      case DetectSkewTemp(opId) =>
+        // join-skew research related
+        analyzeLoad(opId)
       case msg => stash()
     }
   }
@@ -1541,6 +1549,14 @@ class Controller(
 
         this.exitIfCompleted
     }
+  }
+
+  private[this] def processControlMessagesNewWay: Receive = {
+    case msg @ NetworkMessage(id, cmd: WorkflowControlMessage) =>
+      logger.logInfo(s"received ${msg.internalMessage}")
+      sender ! NetworkAck(id)
+      // use control input port to pass control messages
+      controlInputPort.handleControlMessage(cmd)
   }
 
   private[this] def exitIfCompleted: Unit = {

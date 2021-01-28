@@ -5,6 +5,7 @@ import edu.uci.ics.texera.workflow.operators.aggregate.{
   AggregationFunction,
   SpecializedAverageOpDesc
 }
+import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpDesc
 import edu.uci.ics.texera.workflow.operators.keywordSearch.KeywordSearchOpDesc
 import edu.uci.ics.texera.workflow.operators.localscan.LocalCsvFileScanOpDesc
 import edu.uci.ics.texera.workflow.operators.sink.SimpleSinkOpDesc
@@ -29,6 +30,13 @@ object TestOperators {
 
   def mediumCsvScanOpDesc(): LocalCsvFileScanOpDesc = {
     getCsvScanOpDesc("src/test/resources/CountrySalesDataMedium.csv", true)
+  }
+
+  def joinOpDesc(buildAttrName: String, probeAttrName: String): HashJoinOpDesc[String] = {
+    val joinOp = new HashJoinOpDesc[String]()
+    joinOp.buildAttributeName = buildAttrName
+    joinOp.probeAttributeName = probeAttrName
+    joinOp
   }
 
   def keywordSearchOpDesc(attribute: String, keywordToSearch: String): KeywordSearchOpDesc = {
