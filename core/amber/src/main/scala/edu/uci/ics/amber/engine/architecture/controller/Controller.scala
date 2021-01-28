@@ -1296,9 +1296,6 @@ class Controller(
       case DetectSkew =>
         // join-skew research related
         analyzeLoad(workerToOperator(sender))
-      case DetectSkewTemp(opId) =>
-        // join-skew research related
-        analyzeLoad(opId)
       case msg => stash()
     }
   }

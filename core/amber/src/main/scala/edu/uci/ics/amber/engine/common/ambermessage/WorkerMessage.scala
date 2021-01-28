@@ -40,7 +40,9 @@ object WorkerMessage {
       stashedBatches: Long
   ) // join-skew research related. All lengths are in batch counts
 
-  final case class FutureLoadMetrics(dataToSend: Map[ActorVirtualIdentity, Long])
+  final case class FutureLoadMetrics(
+      dataToSend: Map[ActorVirtualIdentity, Long]
+  ) // join-skew research related.
 
   final case class AssignBreakpoint(breakpoint: LocalBreakpoint)
 

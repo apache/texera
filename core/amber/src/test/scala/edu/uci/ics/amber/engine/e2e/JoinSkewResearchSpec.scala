@@ -51,7 +51,7 @@ class JoinSkewResearchSpec
     TestKit.shutdownActorSystem(system)
   }
 
-  "Controller" should "process DetectSkew message properly" in {
+  ignore should "process DetectSkew message properly" in {
     val headerlessCsvOpDesc1 = TestOperators.smallCsvScanOpDesc()
     val headerlessCsvOpDesc2 = TestOperators.smallCsvScanOpDesc()
     val joinOpDesc = TestOperators.joinOpDesc("Region", "Region")
@@ -102,7 +102,7 @@ class JoinSkewResearchSpec
     parent.expectMsg(30.seconds, ReportState(ControllerState.Ready))
     controller ! Start
     parent.expectMsg(ReportState(ControllerState.Running))
-    controller ! DetectSkewTemp(OperatorIdentifier("workflow-test", joinOpDesc.operatorID))
+    // controller ! DetectSkewTemp(OperatorIdentifier("workflow-test", joinOpDesc.operatorID))
     parent.expectMsg(10.minute, ReportState(ControllerState.Completed))
     parent.ref ! PoisonPill
   }
