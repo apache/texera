@@ -45,6 +45,7 @@ class DataProcessor( // dependencies:
         runDPThreadMainLogic()
       } catch {
         case e: Exception =>
+          logException(e)
           throw new RuntimeException(e)
       }
     }
@@ -88,13 +89,6 @@ class DataProcessor( // dependencies:
       }
     } catch {
       case e: Exception =>
-        logger.logError(
-          WorkflowRuntimeError(
-            s"Exception in operator logic: ${e.getMessage()}",
-            "Dataprocessor",
-            Map("Stacktrace" -> e.getStackTrace().mkString("\n\t"))
-          )
-        )
         handleOperatorException(e, isInput = true)
     }
     outputIterator
@@ -167,6 +161,7 @@ class DataProcessor( // dependencies:
   }
 
   private[this] def handleOperatorException(e: Exception, isInput: Boolean): Unit = {
+    logException(e)
     pauseManager.pause()
     assignExceptionBreakpoint(currentInputTuple.left.getOrElse(null), e, isInput)
     controlOutputChannel.sendTo(VirtualIdentity.Self, LocalBreakpointTriggered())
@@ -190,6 +185,15 @@ class DataProcessor( // dependencies:
         pauseManager.checkForPause()
       }
     }
+  }
+
+
+  private[this] def logException(e:Exception): Unit ={
+    logger.logError(WorkflowRuntimeError(
+      s"Exception in operator logic: ${e.getMessage()}",
+      "Dataprocessor",
+      Map("Stacktrace" -> e.getStackTrace().mkString("\n\t"))
+    ))
   }
 
 }
