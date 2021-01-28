@@ -5,7 +5,7 @@ import edu.uci.ics.amber.engine.common.tuple.ITuple
 import akka.actor.{Actor, ActorContext, ActorRef}
 import akka.event.LoggingAdapter
 import akka.util.Timeout
-import edu.uci.ics.amber.engine.common.ambermessage.neo.DataPayload
+import edu.uci.ics.amber.engine.common.ambermessage.DataPayload
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
 

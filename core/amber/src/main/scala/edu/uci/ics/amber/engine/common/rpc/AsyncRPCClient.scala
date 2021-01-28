@@ -2,7 +2,7 @@ package edu.uci.ics.amber.engine.common.rpc
 
 import com.twitter.util.{Future, Promise}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlOutputPort
-import edu.uci.ics.amber.engine.common.ambermessage.neo.ControlPayload
+import edu.uci.ics.amber.engine.common.ambermessage.ControlPayload
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnPayload}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand

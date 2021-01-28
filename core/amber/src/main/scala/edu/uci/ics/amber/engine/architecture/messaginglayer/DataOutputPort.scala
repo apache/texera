@@ -5,11 +5,8 @@ import java.util.concurrent.atomic.AtomicLong
 import akka.actor.ActorRef
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.messaginglayer.DataInputPort.WorkflowDataMessage
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
-  NetworkSenderActorRef,
-  SendRequest
-}
-import edu.uci.ics.amber.engine.common.ambermessage.neo.DataPayload
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{NetworkSenderActorRef, SendRequest}
+import edu.uci.ics.amber.engine.common.ambermessage.DataPayload
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
 
 import scala.collection.mutable

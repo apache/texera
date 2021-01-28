@@ -12,7 +12,7 @@ object ChainHandler {
 trait ChainHandler {
   this: TesterAsyncRPCHandlerInitializer =>
 
-  registerHandler { x: Chain =>
+  registerHandler { (x: Chain, sender) =>
     println(s"chained $myID")
     if (x.nexts.isEmpty) {
       Future(myID)

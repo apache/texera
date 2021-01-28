@@ -15,7 +15,7 @@ object PingPongHandler {
 trait PingPongHandler {
   this: TesterAsyncRPCHandlerInitializer =>
 
-  registerHandler { ping: Ping =>
+  registerHandler { (ping: Ping, sender) =>
     println(s"${ping.i} ping")
     if (ping.i < ping.end) {
       send(Pong(ping.i + 1, ping.end, myID), ping.to).map { ret: Int =>
@@ -27,7 +27,7 @@ trait PingPongHandler {
     }
   }
 
-  registerHandler { pong: Pong =>
+  registerHandler { (pong: Pong, sender) =>
     println(s"${pong.i} pong")
     if (pong.i < pong.end) {
       send(Ping(pong.i + 1, pong.end, myID), pong.to).map { ret: Int =>

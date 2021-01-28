@@ -9,7 +9,6 @@ import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalB
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploymentfilter.UseAll
 import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.RoundRobinDeployment
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
-import edu.uci.ics.amber.engine.architecture.worker.WorkerState
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.ambertag.{LayerTag, OperatorIdentifier}
 import edu.uci.ics.amber.engine.operators.OpExecConfig
@@ -55,7 +54,7 @@ class LocalCsvFileScanOpExecConfig(
     )
   }
   override def assignBreakpoint(
-      breakpoint: GlobalBreakpoint
+      breakpoint: GlobalBreakpoint[_]
   ): Array[ActorVirtualIdentity] = {
     topology.layers(0).identifiers
   }

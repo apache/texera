@@ -27,15 +27,18 @@ import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 object AsyncRPCServer {
 
   trait ControlCommand[T]
+
+  final case class CommandCompleted()
+
 }
 
 class AsyncRPCServer(controlOutputPort: ControlOutputPort) {
 
   // all handlers
-  protected var handlers: PartialFunction[ControlCommand[_], Any] = PartialFunction.empty
+  protected var handlers: PartialFunction[(ControlCommand[_], ActorVirtualIdentity), Any] = PartialFunction.empty
 
   // note that register handler allows multiple handlers for a control message and uses the latest handler.
-  def registerHandler(newHandler: PartialFunction[ControlCommand[_], Any]): Unit = {
+  def registerHandler(newHandler: PartialFunction[(ControlCommand[_], ActorVirtualIdentity), Any]): Unit = {
     handlers =
       newHandler orElse handlers
 
@@ -43,7 +46,7 @@ class AsyncRPCServer(controlOutputPort: ControlOutputPort) {
 
   def receive(control: ControlInvocation, senderID: ActorVirtualIdentity): Unit = {
     try {
-      handlers(control.command) match {
+      handlers((control.command, senderID)) match {
         case f: Future[_] =>
           // user's code returns a future
           // the result should be returned after the future is resolved.
@@ -67,7 +70,9 @@ class AsyncRPCServer(controlOutputPort: ControlOutputPort) {
 
   @inline
   private def returnResult(sender: ActorVirtualIdentity, id: Long, ret: Any): Unit = {
+
     controlOutputPort.sendTo(sender, ReturnPayload(id, ret))
   }
+
 
 }

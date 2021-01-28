@@ -18,7 +18,7 @@ import scala.reflect.ClassTag
   *    class MyControlHandler{
   *          this: WorkerControlHandlerInitializer =>
   *          registerHandler{
-  *             mycmd:MyControl =>
+  *             (mycmd:MyControl,sender) =>
   *               //do something
   *               val temp = mycmd.param1
   *               //invoke another control command that returns an int
@@ -45,9 +45,9 @@ class AsyncRPCHandlerInitializer(
     * @tparam C control command type
     */
   def registerHandler[B, C: ClassTag](
-      handler: C => B
+      handler: (C, ActorVirtualIdentity) => B
   )(implicit ev: C <:< ControlCommand[B]): Unit = {
-    registerImpl({ case c: C => handler(c) })
+    registerImpl({ case (c: C,s) => handler(c, s) })
   }
 
   /** register an async handler for one type of control command
@@ -60,12 +60,12 @@ class AsyncRPCHandlerInitializer(
     * @tparam C control command type
     */
   def registerHandler[B, C: ClassTag](
-      handler: C => Future[B]
+      handler: (C, ActorVirtualIdentity) => Future[B]
   )(implicit ev: C <:< ControlCommand[B], d: DummyImplicit): Unit = {
-    registerImpl({ case c: C => handler(c) })
+    registerImpl({ case (c:C, s) => handler(c,s) })
   }
 
-  private def registerImpl(newHandler: PartialFunction[ControlCommand[_], Any]): Unit = {
+  private def registerImpl(newHandler: PartialFunction[(ControlCommand[_], ActorVirtualIdentity), Any]): Unit = {
     ctrlReceiver.registerHandler(newHandler)
   }
 

@@ -1,22 +1,23 @@
 package edu.uci.ics.amber.engine.architecture.worker.neo.promisehandlers
 
-import akka.actor.ActorContext
+import akka.actor.{ActorContext, ActorPath}
 import com.twitter.util.Future
+import edu.uci.ics.amber.engine.architecture.worker.neo.PauseManager.ExecutionPaused
 import edu.uci.ics.amber.engine.architecture.worker.neo.WorkerInternalQueue.DummyInput
 import edu.uci.ics.amber.engine.architecture.worker.neo.WorkerAsyncRPCHandlerInitializer
-import edu.uci.ics.amber.engine.architecture.worker.neo.promisehandlers.PauseHandler.WorkerPause
-import edu.uci.ics.amber.engine.common.WorkflowLogger
-import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{ExecutionPaused, ReportState}
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
+import edu.uci.ics.amber.engine.architecture.worker.neo.promisehandlers.PauseHandler.PauseWorker
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.{CommandCompleted, ControlCommand}
+import edu.uci.ics.amber.engine.common.tuple.ITuple
 
 object PauseHandler {
-  final case class WorkerPause() extends ControlCommand[ExecutionPaused]
+
+  final case class PauseWorker() extends ControlCommand[CommandCompleted]
 }
 
 trait PauseHandler {
   this: WorkerAsyncRPCHandlerInitializer =>
 
-  registerHandler { pause: WorkerPause =>
+  registerHandler { (pause: PauseWorker, sender) =>
     // workerStateManager.shouldBe(Running, Ready)
     val p = pauseManager.pause()
     // workerStateManager.transitTo(Pausing)
@@ -27,8 +28,8 @@ trait PauseHandler {
     }
     p.map { res =>
       logger.logInfo("pause actually returned")
-      res
     //workerStateManager.transitTo(Paused)
+      CommandCompleted()
     }
   }
 }

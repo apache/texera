@@ -2,84 +2,31 @@ package edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint
 
 import edu.uci.ics.amber.engine.architecture.breakpoint.FaultedTuple
 import edu.uci.ics.amber.engine.architecture.breakpoint.localbreakpoint.LocalBreakpoint
-import edu.uci.ics.amber.engine.common.AdvancedMessageSending
-import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{
-  QueryBreakpoint,
-  RemoveBreakpoint
-}
 import akka.actor.ActorRef
 import akka.event.LoggingAdapter
 import akka.util.Timeout
+import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.ExecutionContext
 
-abstract class GlobalBreakpoint(val id: String) extends Serializable {
+abstract class GlobalBreakpoint[T <: LocalBreakpoint](val id: String) extends Serializable {
 
-  var unReportedWorkers: mutable.HashSet[ActorRef] = new mutable.HashSet[ActorRef]()
-  var allWorkers: mutable.HashSet[ActorRef] = new mutable.HashSet[ActorRef]()
-  var version: Long = 0
+  type localBreakpointType = T
 
-  final def accept(sender: ActorRef, localBreakpoint: LocalBreakpoint): Boolean = {
-    if (localBreakpoint.version == version && unReportedWorkers.contains(sender)) {
-      unReportedWorkers.remove(sender)
-      acceptImpl(sender, localBreakpoint)
-      true
-    } else {
-      false
-    }
-  }
+  protected var version: Long = 0
 
-  def acceptImpl(sender: ActorRef, localBreakpoint: LocalBreakpoint): Unit
+  def hasSameVersion(ver:Long):Boolean = ver == version
 
-  def isTriggered: Boolean
+  def increaseVersion():Unit = version += 1
 
-  final def partition(
-      layer: Array[ActorRef]
-  )(implicit timeout: Timeout, ec: ExecutionContext): Unit = {
-    version += 1
-    val assigned = partitionImpl(layer)(timeout, ec, id, version)
-    val assignedSet = assigned.toSet
-    //remove the local breakpoints from unassigned nodes
-    allWorkers
-      .filter(!assignedSet.contains(_))
-      .foreach(x => AdvancedMessageSending.blockingAskWithRetry(x, RemoveBreakpoint(id), 10))
-    unReportedWorkers.clear()
-    allWorkers.clear()
-    assigned.foreach(allWorkers.add)
-    assigned.foreach(unReportedWorkers.add)
-  }
+  def partition(workers: Array[ActorVirtualIdentity]): Array[(ActorVirtualIdentity,LocalBreakpoint)]
 
-  def partitionImpl(layer: Array[ActorRef])(implicit
-      timeout: Timeout,
-      ec: ExecutionContext,
-      id: String,
-      version: Long
-  ): Iterable[ActorRef]
+  def collect(results:Iterable[localBreakpointType]): Unit
 
-  def isRepartitionRequired: Boolean = unReportedWorkers.isEmpty
+  def isResolved:Boolean
 
-  def report(map: mutable.HashMap[(ActorRef, FaultedTuple), ArrayBuffer[String]]): Unit
-
-  def isCompleted: Boolean
-
-  def needCollecting: Boolean = unReportedWorkers.nonEmpty
-
-  def collect(): Unit = {
-    unReportedWorkers.foreach(x => x ! QueryBreakpoint(id))
-  }
-
-  def remove()(implicit timeout: Timeout, ec: ExecutionContext): Unit = {
-    allWorkers.foreach(x =>
-      AdvancedMessageSending.blockingAskWithRetry(x, RemoveBreakpoint(id), 10)
-    )
-  }
-
-  def reset(): Unit = {
-    unReportedWorkers = new mutable.HashSet[ActorRef]()
-    allWorkers = new mutable.HashSet[ActorRef]()
-    version = 0
-  }
+  def isTriggered:Boolean
 
 }

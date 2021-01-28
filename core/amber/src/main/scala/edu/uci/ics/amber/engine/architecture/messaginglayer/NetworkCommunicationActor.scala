@@ -2,17 +2,9 @@ package edu.uci.ics.amber.engine.architecture.messaginglayer
 
 import akka.actor.{Actor, ActorRef, Props, Stash}
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
-  GetActorRef,
-  MessageBecomesDeadLetter,
-  NetworkAck,
-  NetworkMessage,
-  RegisterActorRef,
-  ResendMessages,
-  SendRequest
-}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{GetActorRef, MessageBecomesDeadLetter, NetworkAck, NetworkMessage, RegisterActorRef, ResendMessages, SendRequest}
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.ambermessage.neo.WorkflowMessage
+import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
 import edu.uci.ics.amber.error.WorkflowRuntimeError

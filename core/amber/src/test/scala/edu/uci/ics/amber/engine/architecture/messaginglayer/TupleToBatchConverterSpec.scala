@@ -4,15 +4,8 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalamock.scalatest.MockFactory
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy.OneToOnePolicy
-import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{
-  DataFrame,
-  EndOfUpstream,
-  UpdateInputLinking
-}
-import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.{
-  ActorVirtualIdentity,
-  WorkerActorVirtualIdentity
-}
+import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, EndOfUpstream}
+import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.{ActorVirtualIdentity, WorkerActorVirtualIdentity}
 import edu.uci.ics.amber.engine.common.ambertag.{LayerTag, LinkTag}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 

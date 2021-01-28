@@ -7,13 +7,14 @@ import akka.actor.ActorRef
 import com.twitter.util.{Future, Promise}
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlOutputPort
-import edu.uci.ics.amber.engine.architecture.worker.neo.PauseManager.{NoPause, Paused}
+import edu.uci.ics.amber.engine.architecture.worker.neo.PauseManager.ExecutionPaused
 import edu.uci.ics.amber.engine.common.WorkflowLogger
-import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.ExecutionPaused
 
 object PauseManager {
   final val NoPause = 0
   final val Paused = 1
+
+  final case class ExecutionPaused()
 }
 
 class PauseManager(controlOutputPort: ControlOutputPort) {
@@ -44,8 +45,8 @@ class PauseManager(controlOutputPort: ControlOutputPort) {
       pausePromise.setValue(ExecutionPaused())
     }
     pausePrivilegeLevel.getAndUpdate { i =>
-      if (Paused >= i) {
-        Paused
+      if (PauseManager.Paused >= i) {
+        PauseManager.Paused
       } else i
     }
 
@@ -59,7 +60,7 @@ class PauseManager(controlOutputPort: ControlOutputPort) {
     * @param
     */
   def resume(): Unit = {
-    if (pausePrivilegeLevel.get() == NoPause) {
+    if (pausePrivilegeLevel.get() == PauseManager.NoPause) {
       logger.logInfo("already resumed")
       return
     }

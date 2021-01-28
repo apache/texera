@@ -6,16 +6,6 @@ import edu.uci.ics.amber.engine.architecture.controller.{
   ControllerEventListener,
   ControllerState
 }
-import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage.{
-  KillAndRecover,
-  Pause,
-  Resume,
-  Start
-}
-import edu.uci.ics.amber.engine.common.ambermessage.ControllerMessage.{
-  AckedControllerInitialization,
-  ReportState
-}
 import akka.actor.{ActorSystem, PoisonPill, Props}
 import akka.event.LoggingAdapter
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}

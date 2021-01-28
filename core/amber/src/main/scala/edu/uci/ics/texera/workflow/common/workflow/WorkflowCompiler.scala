@@ -2,7 +2,6 @@ package edu.uci.ics.texera.workflow.common.workflow
 
 import akka.actor.ActorRef
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
-import edu.uci.ics.amber.engine.common.ambermessage.ControllerMessage.PassBreakpointTo
 import edu.uci.ics.amber.engine.common.ambertag.OperatorIdentifier
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
@@ -91,6 +90,7 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
           case BreakpointCondition.NOT_CONTAINS =>
             tuple => !tuple.getField(column).toString.trim.contains(conditionBp.value)
         }
+        //TODO: add new handling logic here
 //        controller ! PassBreakpointTo(
 //          operatorID,
 //          new ConditionalGlobalBreakpoint(

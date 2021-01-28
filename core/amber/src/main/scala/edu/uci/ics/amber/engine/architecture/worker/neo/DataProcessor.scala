@@ -3,24 +3,22 @@ package edu.uci.ics.amber.engine.architecture.worker.neo
 import java.util.concurrent.Executors
 
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.architecture.messaginglayer.{
-  ControlOutputPort,
-  TupleToBatchConverter
-}
-import edu.uci.ics.amber.engine.architecture.worker.BreakpointSupport
-import edu.uci.ics.amber.engine.architecture.worker.neo.WorkerInternalQueue._
-import edu.uci.ics.amber.engine.common.amberexception.BreakpointException
-import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage.LocalBreakpointTriggered
-import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.ExecutionCompleted
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ExecutionCompletedHandler.ExecutionCompleted
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LocalOperatorExceptionHandler.LocalOperatorException
+import edu.uci.ics.amber.engine.architecture.messaginglayer.{ControlOutputPort, TupleToBatchConverter}
+import edu.uci.ics.amber.engine.architecture.worker.neo.WorkerInternalQueue.{DummyInput, EndMarker, EndOfAllMarker, InputTuple, SenderChangeMarker}
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted, WorkflowLogger}
+import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
 class DataProcessor( // dependencies:
-    operator: IOperatorExecutor, // core logic
-    controlOutputChannel: ControlOutputPort, // to send controls to main thread
-    batchProducer: TupleToBatchConverter, // to send output tuples
-    pauseManager: PauseManager // to pause/resume
+                     operator: IOperatorExecutor, // core logic
+                     asyncRPCClient: AsyncRPCClient, // to send controls
+                     batchProducer: TupleToBatchConverter, // to send output tuples
+                     pauseManager: PauseManager, // to pause/resume
+                     breakpointManager: BreakpointManager // to evaluate breakpoints
 ) extends WorkerInternalQueue { // TODO: make breakpointSupport as a module
 
   protected val logger: WorkflowLogger = WorkflowLogger("DataProcessor")
@@ -30,7 +28,11 @@ class DataProcessor( // dependencies:
   private var outputTupleCount = 0L
   private var currentInputTuple: Either[ITuple, InputExhausted] = _
   private var currentSenderRef: Int = -1
+  private var currentOutputIterator: Iterator[ITuple] = _
   private var isCompleted = false
+
+  // initialize operator
+  operator.open()
 
   // initialize dp thread upon construction
   Executors.newSingleThreadExecutor.submit(new Runnable() {
@@ -75,30 +77,35 @@ class DataProcessor( // dependencies:
       if (currentInputTuple.isLeft) inputTupleCount += 1
     } catch {
       case e: Exception =>
-        handleOperatorException(e, isInput = true)
+        // forward input tuple to the user and pause DP thread
+        handleOperatorException(e)
     }
     outputIterator
   }
 
   /** transfer one tuple from iterator to downstream.
     * this function is only called by the DP thread
-    * @param outputIterator
     */
-  private[this] def outputOneTuple(outputIterator: Iterator[ITuple]): Unit = {
+  private[this] def outputOneTuple(): Unit = {
     var outputTuple: ITuple = null
     try {
-      outputTuple = outputIterator.next
-      // TODO: check breakpoint here
+      outputTuple = currentOutputIterator.next
     } catch {
-      case bp: BreakpointException =>
-        pauseManager.pause()
-        controlOutputChannel.sendTo(VirtualIdentity.Self, LocalBreakpointTriggered())
       case e: Exception =>
-        handleOperatorException(e, isInput = true)
+        // invalidate current output tuple
+        outputTuple = null
+        // also invalidate outputIterator
+        currentOutputIterator = null
+        // forward input tuple to the user and pause DP thread
+        handleOperatorException(e)
     }
     if (outputTuple != null) {
-      outputTupleCount += 1
-      batchProducer.passTupleToDownstream(outputTuple)
+      if(breakpointManager.evaluateTuple(outputTuple)){
+        pauseManager.pause()
+      }else{
+        outputTupleCount += 1
+        batchProducer.passTupleToDownstream(outputTuple)
+      }
     }
   }
 
@@ -130,12 +137,16 @@ class DataProcessor( // dependencies:
     }
     // Send Completed signal to worker actor.
     logger.logInfo(s"${operator.toString} completed")
-    controlOutputChannel.sendTo(VirtualIdentity.Self, ExecutionCompleted())
+    asyncRPCClient.send(ExecutionCompleted(),VirtualIdentity.Controller)
   }
 
-  private[this] def handleOperatorException(e: Exception, isInput: Boolean): Unit = {
+  private[this] def handleOperatorException(e: Exception): Unit = {
+    if(currentInputTuple.isLeft){
+      asyncRPCClient.send(LocalOperatorException(currentInputTuple.left.get, e),VirtualIdentity.Controller)
+    }else{
+      asyncRPCClient.send(LocalOperatorException(ITuple("input exhausted"), e), VirtualIdentity.Controller)
+    }
     pauseManager.pause()
-    controlOutputChannel.sendTo(VirtualIdentity.Self, LocalBreakpointTriggered())
   }
 
   private[this] def handleInputTuple(): Unit = {
@@ -145,13 +156,13 @@ class DataProcessor( // dependencies:
     // TODO: make sure this dummy batch feature works with fault tolerance
     if (currentInputTuple != null) {
       // pass input tuple to operator logic.
-      val outputIterator = processInputTuple()
+      currentOutputIterator = processInputTuple()
       // check pause before outputting tuples.
       pauseManager.checkForPause()
       // output loop: take one tuple from iterator at a time.
-      while (outputIterator != null && outputIterator.hasNext) {
+      while (currentOutputIterator != null && currentOutputIterator.hasNext) {
         // send tuple to downstream.
-        outputOneTuple(outputIterator)
+        outputOneTuple()
         // check pause after one tuple has been outputted.
         pauseManager.checkForPause()
       }

@@ -13,8 +13,6 @@ class FollowPrevious extends DeploymentFilter {
       all: Array[Address],
       local: Address
   ): Array[Address] = {
-    val tmp: Array[Address] = prev.flatMap(x => x._2.layer.map(y => y.path.address))
-    val result = tmp.distinct.intersect(all)
-    if (result.isEmpty) all else result //fall back to UseAll when there is nothing to follow
+   all //the same behavior as useAll
   }
 }

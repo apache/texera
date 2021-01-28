@@ -1,9 +1,8 @@
 package edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy
 
+import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, DataPayload, EndOfUpstream}
 import edu.uci.ics.amber.engine.common.ambertag.LinkTag
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{DataFrame, EndOfUpstream}
-import edu.uci.ics.amber.engine.common.ambermessage.neo.DataPayload
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
 

@@ -15,7 +15,7 @@ object CollectHandler {
 trait CollectHandler {
   this: TesterAsyncRPCHandlerInitializer =>
 
-  registerHandler { c: Collect =>
+  registerHandler {(c: Collect, sender) =>
     println(s"start collecting numbers.")
     val p = Future.collect(c.workers.indices.map(i => send(GenerateNumber(), c.workers(i))))
     p.map { res =>
@@ -24,7 +24,7 @@ trait CollectHandler {
     }
   }
 
-  registerHandler { g: GenerateNumber =>
+  registerHandler { (g: GenerateNumber, sender) =>
     Random.nextInt()
   }
 }

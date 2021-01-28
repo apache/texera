@@ -4,6 +4,10 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.common.ambertag.LinkTag
 import akka.event.LoggingAdapter
 import akka.util.Timeout
+import com.twitter.util.Future
+import edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy.DataSendingPolicy
+import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.CommandCompleted
 
 import scala.concurrent.ExecutionContext
 
@@ -16,5 +20,5 @@ abstract class LinkStrategy(
 
   val tag = LinkTag(from.tag, to.tag, inputNum)
 
-  def link()(implicit timeout: Timeout, ec: ExecutionContext): Unit
+  def getPolicies:Iterable[(ActorVirtualIdentity, DataSendingPolicy, Seq[ActorVirtualIdentity])]
 }

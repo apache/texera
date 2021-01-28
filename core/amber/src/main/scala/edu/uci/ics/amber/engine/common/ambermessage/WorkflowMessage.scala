@@ -1,4 +1,4 @@
-package edu.uci.ics.amber.engine.common.ambermessage.neo
+package edu.uci.ics.amber.engine.common.ambermessage
 
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
 

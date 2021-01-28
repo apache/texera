@@ -1,14 +1,8 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
 import edu.uci.ics.amber.engine.architecture.worker.neo.WorkerInternalQueue
-import edu.uci.ics.amber.engine.architecture.worker.neo.WorkerInternalQueue.{
-  EndMarker,
-  EndOfAllMarker,
-  InputTuple,
-  SenderChangeMarker
-}
-import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{DataFrame, EndOfUpstream}
-import edu.uci.ics.amber.engine.common.ambermessage.neo.DataPayload
+import edu.uci.ics.amber.engine.architecture.worker.neo.WorkerInternalQueue.{EndMarker, EndOfAllMarker, InputTuple, SenderChangeMarker}
+import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, DataPayload, EndOfUpstream}
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
 
 import scala.collection.mutable

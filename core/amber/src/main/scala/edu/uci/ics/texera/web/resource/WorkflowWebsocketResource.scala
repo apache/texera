@@ -1,11 +1,13 @@
 package edu.uci.ics.texera.web.resource
 
 import java.util.concurrent.atomic.AtomicInteger
+
 import akka.actor.{ActorRef, PoisonPill}
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerEventListener}
-import edu.uci.ics.amber.engine.architecture.principal.PrincipalStatistics
-import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage._
-import edu.uci.ics.amber.engine.common.ambermessage.ControllerMessage.AckedControllerInitialization
+import edu.uci.ics.amber.engine.architecture.principal.OperatorStatistics
 import edu.uci.ics.amber.engine.common.ambertag.WorkflowTag
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.texera.web.TexeraWebApplication
@@ -16,9 +18,9 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.workflow.{WorkflowCompiler, WorkflowInfo}
 import edu.uci.ics.texera.workflow.common.{Utils, WorkflowContext}
 import edu.uci.ics.texera.workflow.operators.sink.SimpleSinkOpDesc
-
 import javax.websocket._
 import javax.websocket.server.ServerEndpoint
+
 import scala.collection.mutable
 
 object WorkflowWebsocketResource {
@@ -131,10 +133,11 @@ class WorkflowWebsocketResource {
   }
 
   def skipTuple(session: Session, tupleReq: SkipTupleRequest): Unit = {
-    val actorPath = tupleReq.actorPath
-    val faultedTuple = tupleReq.faultedTuple
-    val controller = WorkflowWebsocketResource.sessionJobs(session.getId)._2
-    controller ! SkipTupleGivenWorkerRef(actorPath, faultedTuple.toFaultedTuple())
+//    val actorPath = tupleReq.actorPath
+//    val faultedTuple = tupleReq.faultedTuple
+//    val controller = WorkflowWebsocketResource.sessionJobs(session.getId)._2
+//    controller ! SkipTupleGivenWorkerRef(actorPath, faultedTuple.toFaultedTuple())
+    throw new RuntimeException("skipping tuple is temporarily disabled")
   }
 
   def modifyLogic(session: Session, newLogic: ModifyLogicRequest): Unit = {
@@ -147,14 +150,14 @@ class WorkflowWebsocketResource {
 
   def pauseWorkflow(session: Session): Unit = {
     val controller = WorkflowWebsocketResource.sessionJobs(session.getId)._2
-    controller ! Pause
+    controller ! PauseWorkflow()
     // workflow paused event will be send after workflow is actually paused
     // the callback function will handle sending the paused event to frontend
   }
 
   def resumeWorkflow(session: Session): Unit = {
     val controller = WorkflowWebsocketResource.sessionJobs(session.getId)._2
-    controller ! Resume
+    controller ! ResumeWorkflow()
     send(session, WorkflowResumedEvent())
   }
 
@@ -202,7 +205,7 @@ class WorkflowWebsocketResource {
           .origin
         if (updateMutable.contains(sinkInputID.operatorID)) {
           val inputStatistics = updateMutable(sinkInputID.operatorID)
-          val sinkStatistics = PrincipalStatistics(
+          val sinkStatistics = OperatorStatistics(
             inputStatistics.operatorState,
             inputStatistics.aggregatedOutputRowCount,
             inputStatistics.aggregatedOutputRowCount
@@ -235,11 +238,10 @@ class WorkflowWebsocketResource {
     )
 
     val controllerActorRef = TexeraWebApplication.actorSystem.actorOf(
-      Controller.props(workflowTag, workflow, false, eventListener, 100)
+      Controller.props(workflowTag, workflow, eventListener, 100)
     )
-    controllerActorRef ! AckedControllerInitialization
     texeraWorkflowCompiler.initializeBreakpoint(controllerActorRef)
-    controllerActorRef ! Start
+    controllerActorRef ! StartWorkflow()
 
     WorkflowWebsocketResource.sessionJobs(session.getId) =
       (texeraWorkflowCompiler, controllerActorRef)
