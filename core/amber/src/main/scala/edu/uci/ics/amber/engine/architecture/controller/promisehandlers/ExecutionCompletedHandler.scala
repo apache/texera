@@ -45,6 +45,9 @@ trait ExecutionCompletedHandler {
             eventListener.workflowCompletedListener
               .apply(WorkflowCompleted(workflow.getEndOperators.map(op => op.tag.operator -> op.results).toMap))
           }
+          if(statusUpdateAskHandle != null){
+            statusUpdateAskHandle.cancel()
+          }
           //TODO: clean up all workers and terminate self
         }
       CommandCompleted()

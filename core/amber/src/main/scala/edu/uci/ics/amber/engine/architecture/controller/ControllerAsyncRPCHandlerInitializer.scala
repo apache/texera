@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
-import akka.actor.{ActorContext, ActorRef}
+import akka.actor.{ActorContext, ActorRef, Cancellable}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.{ActivateLinkHandler, AssignBreakpointHandler, ExecutionCompletedHandler, ExecutionStartedHandler, LocalBreakpointTriggeredHandler, LocalOperatorExceptionHandler, PauseHandler, QueryWorkerStatisticsHandler, ResumeHandler, StartWorkflowHandler}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlOutputPort
@@ -16,6 +16,7 @@ class ControllerAsyncRPCHandlerInitializer(
                                             val controlOutputPort: ControlOutputPort,
                                             val eventListener: ControllerEventListener,
                                             val workflow: Workflow,
+                                            val statusUpdateAskHandle: Cancellable,
                                             source: AsyncRPCClient,
                                             receiver: AsyncRPCServer
                                           ) extends AsyncRPCHandlerInitializer(source, receiver)

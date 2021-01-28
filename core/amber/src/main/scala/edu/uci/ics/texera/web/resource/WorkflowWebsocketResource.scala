@@ -9,6 +9,7 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWor
 import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerEventListener}
 import edu.uci.ics.amber.engine.architecture.principal.OperatorStatistics
 import edu.uci.ics.amber.engine.common.ambertag.WorkflowTag
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.texera.web.TexeraWebApplication
 import edu.uci.ics.texera.web.model.event._
@@ -150,14 +151,14 @@ class WorkflowWebsocketResource {
 
   def pauseWorkflow(session: Session): Unit = {
     val controller = WorkflowWebsocketResource.sessionJobs(session.getId)._2
-    controller ! PauseWorkflow()
+    controller ! ControlInvocation(-1, PauseWorkflow())
     // workflow paused event will be send after workflow is actually paused
     // the callback function will handle sending the paused event to frontend
   }
 
   def resumeWorkflow(session: Session): Unit = {
     val controller = WorkflowWebsocketResource.sessionJobs(session.getId)._2
-    controller ! ResumeWorkflow()
+    controller ! ControlInvocation(-1, ResumeWorkflow())
     send(session, WorkflowResumedEvent())
   }
 
@@ -241,7 +242,7 @@ class WorkflowWebsocketResource {
       Controller.props(workflowTag, workflow, eventListener, 100)
     )
     texeraWorkflowCompiler.initializeBreakpoint(controllerActorRef)
-    controllerActorRef ! StartWorkflow()
+    controllerActorRef ! ControlInvocation(-1,StartWorkflow())
 
     WorkflowWebsocketResource.sessionJobs(session.getId) =
       (texeraWorkflowCompiler, controllerActorRef)

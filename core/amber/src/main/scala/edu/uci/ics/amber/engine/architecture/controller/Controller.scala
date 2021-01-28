@@ -31,6 +31,7 @@ import com.softwaremill.macwire.wire
 import com.typesafe.scalalogging.Logger
 import edu.uci.ics.amber.engine.architecture.breakpoint.FaultedTuple
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.QueryWorkerStatisticsHandler.QueryWorkerStatistics
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlInputPort.WorkflowControlMessage
 import edu.uci.ics.amber.error.WorkflowRuntimeError
@@ -95,8 +96,18 @@ class Controller(
     link => asyncRPCServer.receive(ControlInvocation(-1,ActivateLink(link)), VirtualIdentity.Controller)
   }
 
-  //for testing, report ready state to parent
+  // for testing, report ready state to parent
   context.parent ! ControllerState.Ready
+
+  // query statistics
+  if(statisticsUpdateIntervalMs.isDefined){
+    statusUpdateAskHandle = context.system.scheduler.schedule(
+      0.milliseconds,
+      FiniteDuration.apply(statisticsUpdateIntervalMs.get, MILLISECONDS),
+      self,
+      ControlInvocation(-1,QueryWorkerStatistics())
+    )
+  }
 
   def availableNodes: Array[Address] =
     Await
