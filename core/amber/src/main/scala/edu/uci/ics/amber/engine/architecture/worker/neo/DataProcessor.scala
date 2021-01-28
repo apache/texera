@@ -178,7 +178,7 @@ class DataProcessor( // dependencies:
       // check pause before outputting tuples.
       pauseManager.checkForPause()
       // output loop: take one tuple from iterator at a time.
-      while (outputIterator != null && outputIterator.hasNext) {
+      while (outputAvailable(outputIterator)) {
         // send tuple to downstream.
         outputOneTuple(outputIterator)
         // check pause after one tuple has been outputted.
@@ -187,13 +187,24 @@ class DataProcessor( // dependencies:
     }
   }
 
+  private[this] def outputAvailable(outputIterator: Iterator[ITuple]): Boolean = {
+    try {
+      outputIterator != null && outputIterator.hasNext
+    } catch {
+      case e: Exception =>
+        handleOperatorException(e, isInput = true)
+        false
+    }
+  }
 
-  private[this] def logException(e:Exception): Unit ={
-    logger.logError(WorkflowRuntimeError(
-      s"Exception in operator logic: ${e.getMessage()}",
-      "Dataprocessor",
-      Map("Stacktrace" -> e.getStackTrace().mkString("\n\t"))
-    ))
+  private[this] def logException(e: Exception): Unit = {
+    logger.logError(
+      WorkflowRuntimeError(
+        s"Exception in operator logic: ${e.getMessage()}",
+        "Dataprocessor",
+        Map("Stacktrace" -> e.getStackTrace().mkString("\n\t"))
+      )
+    )
   }
 
 }
