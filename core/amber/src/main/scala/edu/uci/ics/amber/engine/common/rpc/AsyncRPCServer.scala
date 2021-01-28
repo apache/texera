@@ -35,10 +35,10 @@ object AsyncRPCServer {
 class AsyncRPCServer(controlOutputPort: ControlOutputPort) {
 
   // all handlers
-  protected var handlers: PartialFunction[(ControlCommand[_], ActorVirtualIdentity), Any] = PartialFunction.empty
+  protected var handlers: PartialFunction[(ControlCommand[_], ActorVirtualIdentity), Future[_]] = PartialFunction.empty
 
   // note that register handler allows multiple handlers for a control message and uses the latest handler.
-  def registerHandler(newHandler: PartialFunction[(ControlCommand[_], ActorVirtualIdentity), Any]): Unit = {
+  def registerHandler(newHandler: PartialFunction[(ControlCommand[_], ActorVirtualIdentity), Future[_]]): Unit = {
     handlers =
       newHandler orElse handlers
 
@@ -46,8 +46,8 @@ class AsyncRPCServer(controlOutputPort: ControlOutputPort) {
 
   def receive(control: ControlInvocation, senderID: ActorVirtualIdentity): Unit = {
     try {
-      handlers((control.command, senderID)) match {
-        case f: Future[_] =>
+      execute((control.command, senderID)) match {
+        case f:Future[_] =>
           // user's code returns a future
           // the result should be returned after the future is resolved.
           f.onSuccess { ret =>
@@ -56,10 +56,6 @@ class AsyncRPCServer(controlOutputPort: ControlOutputPort) {
           f.onFailure { err =>
             returnResult(senderID, control.commandID, err)
           }
-        case ret =>
-          // user's code returns a value
-          // return it to the caller directly
-          returnResult(senderID, control.commandID, ret)
       }
     } catch {
       case e: Throwable =>
@@ -70,8 +66,12 @@ class AsyncRPCServer(controlOutputPort: ControlOutputPort) {
 
   @inline
   private def returnResult(sender: ActorVirtualIdentity, id: Long, ret: Any): Unit = {
-
     controlOutputPort.sendTo(sender, ReturnPayload(id, ret))
+  }
+
+
+  def execute(cmd:(ControlCommand[_], ActorVirtualIdentity)):Future[_] = {
+    handlers(cmd)
   }
 
 

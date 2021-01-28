@@ -1,11 +1,13 @@
 package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowCompleted
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{WorkflowCompleted, WorkflowStatusUpdate}
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerAsyncRPCHandlerInitializer, ControllerState}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ExecutionCompletedHandler.ExecutionCompleted
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.KillWorkflowHandler.KillWorkflow
 import edu.uci.ics.amber.engine.architecture.principal.OperatorState
 import edu.uci.ics.amber.engine.architecture.worker.neo.promisehandlers.CollectSinkResultsHandler.CollectSinkResults
 import edu.uci.ics.amber.engine.architecture.worker.neo.promisehandlers.QueryStatisticsHandler.QueryStatistics
+import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.{CommandCompleted, ControlCommand}
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.Completed
 import edu.uci.ics.amber.engine.operators.SinkOpExecConfig
@@ -38,6 +40,10 @@ trait ExecutionCompletedHandler {
       }
     future.map{
       ret =>
+        if (eventListener.workflowStatusUpdateListener != null) {
+          eventListener.workflowStatusUpdateListener
+            .apply(WorkflowStatusUpdate(workflow.getWorkflowStatus))
+        }
         if(workflow.isCompleted){
           actorContext.parent ! ControllerState.Completed // for testing
           //send result to frontend
@@ -48,7 +54,8 @@ trait ExecutionCompletedHandler {
           if(statusUpdateAskHandle != null){
             statusUpdateAskHandle.cancel()
           }
-          //TODO: clean up all workers and terminate self
+          // clean up all workers and terminate self
+          execute(KillWorkflow(),VirtualIdentity.Controller)
         }
       CommandCompleted()
     }

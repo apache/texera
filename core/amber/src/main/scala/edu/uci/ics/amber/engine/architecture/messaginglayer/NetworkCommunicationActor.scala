@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
-import akka.actor.{Actor, ActorRef, Props, Stash}
+import akka.actor.{Actor, ActorRef, Cancellable, Props, Stash}
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{GetActorRef, MessageBecomesDeadLetter, NetworkAck, NetworkMessage, RegisterActorRef, ResendMessages, SendRequest}
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
@@ -75,7 +75,7 @@ class NetworkCommunicationActor(parentRef: ActorRef) extends Actor with LazyLogg
   idToActorRefs(VirtualIdentity.Self) = context.parent
 
   //register timer for resending messages
-  context.system.scheduler.schedule(
+  val resendHandle: Cancellable = context.system.scheduler.schedule(
     30.seconds,
     30.seconds,
     self,
@@ -172,7 +172,9 @@ class NetworkCommunicationActor(parentRef: ActorRef) extends Actor with LazyLogg
       val actorID = messageIDToIdentity(msg.messageID)
       logger.warn(s"actor for $actorID might have crashed or failed")
       idToActorRefs.remove(actorID)
-      getActorRefMappingFromParent(actorID)
+      if(parentRef != null){
+        getActorRefMappingFromParent(actorID)
+      }
   }
 
   @inline
@@ -196,5 +198,11 @@ class NetworkCommunicationActor(parentRef: ActorRef) extends Actor with LazyLogg
 
   override def receive: Receive = {
     sendMessagesAndReceiveAcks orElse findActorRefFromVirtualIdentity
+  }
+
+
+  override def postStop(): Unit = {
+    resendHandle.cancel()
+    logger.info(s"network communication actor for ${context.parent} stopped!")
   }
 }

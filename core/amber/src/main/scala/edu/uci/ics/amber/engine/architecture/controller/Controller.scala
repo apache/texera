@@ -100,14 +100,6 @@ class Controller(
   context.parent ! ControllerState.Ready
 
   // query statistics
-  if(statisticsUpdateIntervalMs.isDefined){
-    statusUpdateAskHandle = context.system.scheduler.schedule(
-      0.milliseconds,
-      FiniteDuration.apply(statisticsUpdateIntervalMs.get, MILLISECONDS),
-      self,
-      ControlInvocation(-1,QueryWorkerStatistics())
-    )
-  }
 
   def availableNodes: Array[Address] =
     Await
@@ -129,6 +121,14 @@ class Controller(
   def acceptDirectInvocations:Receive = {
     case invocation: ControlInvocation =>
       asyncRPCServer.receive(invocation, VirtualIdentity.Controller)
+  }
+
+
+  override def postStop(): Unit = {
+    if(statusUpdateAskHandle != null){
+      statusUpdateAskHandle.cancel()
+    }
+    logger.logInfo("stopped!")
   }
 
 }

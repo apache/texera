@@ -1,11 +1,15 @@
 package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.QueryWorkerStatisticsHandler.QueryWorkerStatistics
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerAsyncRPCHandlerInitializer, ControllerState}
 import edu.uci.ics.amber.engine.architecture.worker.neo.promisehandlers.StartHandler.StartWorker
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.{CommandCompleted, ControlCommand}
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.Running
+
+import scala.concurrent.duration.{DurationInt, FiniteDuration, MILLISECONDS}
 
 
 object StartWorkflowHandler{
@@ -28,6 +32,7 @@ trait StartWorkflowHandler {
             op =>
               op.setAllWorkerState(Running)
           }
+          enableStatusUpdate()
           CommandCompleted()
       }
   }

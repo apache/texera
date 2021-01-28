@@ -1,17 +1,9 @@
 package edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint
 
-import edu.uci.ics.amber.engine.architecture.breakpoint.FaultedTuple
 import edu.uci.ics.amber.engine.architecture.breakpoint.localbreakpoint.LocalBreakpoint
-import akka.actor.ActorRef
-import akka.event.LoggingAdapter
-import akka.util.Timeout
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
 
-import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
-import scala.concurrent.ExecutionContext
-
-abstract class GlobalBreakpoint[T <: LocalBreakpoint](val id: String) extends Serializable {
+abstract class GlobalBreakpoint[T](val id: String) extends Serializable {
 
   type localBreakpointType = T
 

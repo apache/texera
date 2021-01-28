@@ -1,5 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
+import akka.actor.AbstractActor.ActorContext
 import akka.actor.{ActorRef, Props}
 import akka.util.Timeout
 import com.softwaremill.macwire.wire
@@ -91,6 +92,11 @@ class WorkflowWorker(
       }
       sender ! NetworkAck(id)
       dataInputPort.handleDataMessage(data)
+  }
+
+  override def postStop(): Unit = {
+    dataProcessor.shutdown()
+    logger.logInfo("stopped!")
   }
 
 }

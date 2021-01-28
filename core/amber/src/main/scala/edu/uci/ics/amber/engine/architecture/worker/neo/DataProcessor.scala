@@ -35,7 +35,7 @@ class DataProcessor( // dependencies:
   operator.open()
 
   // initialize dp thread upon construction
-  Executors.newSingleThreadExecutor.submit(new Runnable() {
+  private val dpThread = Executors.newSingleThreadExecutor.submit(new Runnable() {
     def run(): Unit = {
       try {
         runDPThreadMainLogic()
@@ -167,6 +167,11 @@ class DataProcessor( // dependencies:
         pauseManager.checkForPause()
       }
     }
+  }
+
+
+  def shutdown(): Unit ={
+    dpThread.cancel(true)
   }
 
 }

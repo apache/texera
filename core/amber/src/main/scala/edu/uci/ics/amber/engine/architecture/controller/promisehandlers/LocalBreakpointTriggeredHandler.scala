@@ -4,10 +4,12 @@ import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.breakpoint.FaultedTuple
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.BreakpointTriggered
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.AssignBreakpointHandler.AssignGlobalBreakpoint
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LocalBreakpointTriggeredHandler.LocalBreakpointTriggered
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
 import edu.uci.ics.amber.engine.architecture.worker.neo.promisehandlers.PauseHandler.PauseWorker
-import edu.uci.ics.amber.engine.architecture.worker.neo.promisehandlers.QueryBreakpointsHandler.QueryBreakpoints
+import edu.uci.ics.amber.engine.architecture.worker.neo.promisehandlers.QueryAndRemoveBreakpointsHandler.QueryAndRemoveBreakpoints
+import edu.uci.ics.amber.engine.architecture.worker.neo.promisehandlers.ResumeHandler.ResumeWorker
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.{CommandCompleted, ControlCommand}
@@ -40,33 +42,46 @@ trait LocalBreakpointTriggeredHandler{
           bp =>
             targetOp.attachedBreakpoints(bp).increaseVersion()
         }
-        val map = mutable.HashMap[(ActorVirtualIdentity, FaultedTuple), ArrayBuffer[String]]()
         Future.collect(targetOp.getAllWorkers.map{
           worker =>
             send(PauseWorker(),worker).flatMap{
               ret =>
-                send(QueryBreakpoints(unResolved), worker).map{
-                  bp =>
-                  val key =(worker,FaultedTuple(bp.currentTuple, 0))
-                  map(key) = bp.breakpoints.filter(_.triggeredByCurrentTuple).map(_.breakpoint.toString).to[ArrayBuffer]
-                  bp
-                }
+                send(QueryAndRemoveBreakpoints(unResolved), worker)
             }
         }.toSeq).flatMap{
           bps =>
-            // handle breakpoints
-            if (eventListener.breakpointTriggeredListener != null) {
-              bps.flatMap(bp => bp.breakpoints).groupBy(_.breakpoint.id).foreach{
-                case (id, lbps) =>
-                  val gbp = targetOp.attachedBreakpoints(id)
-                  val localbps:Seq[gbp.localBreakpointType] = lbps.map(_.breakpoint.asInstanceOf[gbp.localBreakpointType])
-                  gbp.collect(localbps)
-              }
-              eventListener.breakpointTriggeredListener.apply(
-                BreakpointTriggered(map, opID)
-              )
+            // collect and handle breakpoints
+            val collectAndReassign = Future.collect(bps.flatten.groupBy(_.id).map{
+              case (id, lbps) =>
+                val gbp = targetOp.attachedBreakpoints(id)
+                val localbps:Seq[gbp.localBreakpointType] = lbps.map(_.asInstanceOf[gbp.localBreakpointType])
+                gbp.collect(localbps)
+                // attach new version
+                execute(AssignGlobalBreakpoint(gbp, targetOp.tag), VirtualIdentity.Controller)
+            }.toSeq)
+
+            collectAndReassign.flatMap {
+              ret =>
+                // check if global breakpoint triggered
+                if (targetOp.attachedBreakpoints.values.exists(_.isTriggered)) {
+                  // if triggered, pause the workflow
+                  if (eventListener.breakpointTriggeredListener != null) {
+                    eventListener.breakpointTriggeredListener.apply(
+                      BreakpointTriggered(mutable.HashMap.empty, opID)
+                    )
+                  }
+                  execute(PauseWorkflow(), VirtualIdentity.Controller)
+                } else {
+                  // if not, resume the current operator
+                  Future.collect(targetOp.getAllWorkers.map {
+                    worker =>
+                      send(ResumeWorker(), worker)
+                  }.toSeq).map{
+                    ret =>
+                      CommandCompleted()
+                  }
+                }
             }
-            send(PauseWorkflow(),VirtualIdentity.Controller)
         }
       }
   }

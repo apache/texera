@@ -22,6 +22,7 @@ trait ResumeHandler {
         send(ResumeWorker(),worker)
     }.toSeq).map{
       ret =>
+        enableStatusUpdate()
         actorContext.parent ! ControllerState.Running //for testing
         CommandCompleted()
     }

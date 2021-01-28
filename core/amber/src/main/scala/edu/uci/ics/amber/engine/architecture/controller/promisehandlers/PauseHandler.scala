@@ -47,6 +47,7 @@ trait PauseHandler {
           if(eventListener.workflowPausedListener != null){
             eventListener.workflowPausedListener.apply(WorkflowPaused())
           }
+          disableStatusUpdate()
           actorContext.parent ! ControllerState.Paused // for testing
           CommandCompleted()
       }
