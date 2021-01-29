@@ -5,7 +5,7 @@ import com.fasterxml.jackson.core.`type`.TypeReference
 import com.fasterxml.jackson.module.scala.JsonScalaEnumeration
 
 case class OperatorStatistics(
-                                operatorState: OperatorState,
-                               aggregatedInputRowCount: Long,
-                               aggregatedOutputRowCount: Long
+    operatorState: OperatorState,
+    aggregatedInputRowCount: Long,
+    aggregatedOutputRowCount: Long
 )

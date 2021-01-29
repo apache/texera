@@ -2,9 +2,8 @@ package edu.uci.ics.amber.engine.architecture.control.utils
 
 import com.twitter.util.{Future, Promise}
 import edu.uci.ics.amber.engine.architecture.control.utils.PingPongHandler.{Ping, Pong}
-import edu.uci.ics.amber.engine.architecture.worker.WorkerAsyncRPCHandlerInitializer
-import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 object PingPongHandler {
   case class Ping(i: Int, end: Int, to: ActorVirtualIdentity) extends ControlCommand[Int]

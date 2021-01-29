@@ -1,19 +1,14 @@
 package edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy
 
-import edu.uci.ics.amber.engine.common.ambertag.LinkTag
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import akka.actor.{Actor, ActorContext, ActorRef}
-import akka.event.LoggingAdapter
-import akka.util.Timeout
 import edu.uci.ics.amber.engine.common.ambermessage.DataPayload
-import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
-import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
 
 import scala.concurrent.ExecutionContext
 
 // Sending policy used by a worker to send data to the downstream workers.
 abstract class DataSendingPolicy(
-    val policyTag: LinkTag,
+    val policyTag: LinkIdentity,
     var batchSize: Int,
     var receivers: Array[ActorVirtualIdentity]
 ) extends Serializable {

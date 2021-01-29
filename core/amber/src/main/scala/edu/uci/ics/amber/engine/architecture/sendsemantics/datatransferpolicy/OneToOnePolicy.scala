@@ -1,15 +1,13 @@
 package edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy
 
 import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, DataPayload, EndOfUpstream}
-import edu.uci.ics.amber.engine.common.ambertag.LinkTag
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
-import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
 
 import scala.collection.mutable.ArrayBuffer
 
 class OneToOnePolicy(
-    policyTag: LinkTag,
+    policyTag: LinkIdentity,
     batchSize: Int,
     receivers: Array[ActorVirtualIdentity]
 ) extends DataSendingPolicy(policyTag, batchSize, receivers) {

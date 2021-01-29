@@ -6,7 +6,13 @@ import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 import akka.util.Timeout
 import edu.uci.ics.amber.engine.architecture.controller.ControllerState
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
-import edu.uci.ics.texera.workflow.common.workflow.{BreakpointInfo, OperatorLink, OperatorPort, WorkflowCompiler, WorkflowInfo}
+import edu.uci.ics.texera.workflow.common.workflow.{
+  BreakpointInfo,
+  OperatorLink,
+  OperatorPort,
+  WorkflowCompiler,
+  WorkflowInfo
+}
 import org.scalatest.BeforeAndAfterAll
 
 import scala.collection.mutable
@@ -47,16 +53,16 @@ class PauseSpec
       Utils.getControllerProps(operators, links)
     )
     parent.expectMsg(ControllerState.Ready)
-    controller ! ControlInvocation(-1,StartWorkflow())
+    controller ! ControlInvocation(-1, StartWorkflow())
     parent.expectMsg(ControllerState.Running)
-    controller ! ControlInvocation(-1,PauseWorkflow())
+    controller ! ControlInvocation(-1, PauseWorkflow())
     parent.expectMsg(ControllerState.Paused)
-    controller ! ControlInvocation(-1,ResumeWorkflow())
+    controller ! ControlInvocation(-1, ResumeWorkflow())
     parent.expectMsg(ControllerState.Running)
     Thread.sleep(400)
-    controller ! ControlInvocation(-1,PauseWorkflow())
+    controller ! ControlInvocation(-1, PauseWorkflow())
     parent.expectMsg(ControllerState.Paused)
-    controller ! ControlInvocation(-1,ResumeWorkflow())
+    controller ! ControlInvocation(-1, ResumeWorkflow())
     parent.expectMsg(ControllerState.Running)
     parent.expectMsg(1.minute, ControllerState.Completed)
     parent.ref ! PoisonPill

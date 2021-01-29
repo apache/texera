@@ -5,18 +5,24 @@ import java.util.concurrent.Executors
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ExecutionCompletedHandler.ExecutionCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LocalOperatorExceptionHandler.LocalOperatorException
 import edu.uci.ics.amber.engine.architecture.messaginglayer.TupleToBatchConverter
-import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.{DummyInput, EndMarker, EndOfAllMarker, InputTuple, SenderChangeMarker}
-import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
+import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.{
+  DummyInput,
+  EndMarker,
+  EndOfAllMarker,
+  InputTuple,
+  SenderChangeMarker
+}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.tuple.ITuple
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted, WorkflowLogger}
 
 class DataProcessor( // dependencies:
-                     operator: IOperatorExecutor, // core logic
-                     asyncRPCClient: AsyncRPCClient, // to send controls
-                     batchProducer: TupleToBatchConverter, // to send output tuples
-                     pauseManager: PauseManager, // to pause/resume
-                     breakpointManager: BreakpointManager // to evaluate breakpoints
+    operator: IOperatorExecutor, // core logic
+    asyncRPCClient: AsyncRPCClient, // to send controls
+    batchProducer: TupleToBatchConverter, // to send output tuples
+    pauseManager: PauseManager, // to pause/resume
+    breakpointManager: BreakpointManager // to evaluate breakpoints
 ) extends WorkerInternalQueue { // TODO: make breakpointSupport as a module
 
   protected val logger: WorkflowLogger = WorkflowLogger("DataProcessor")
@@ -98,9 +104,9 @@ class DataProcessor( // dependencies:
         handleOperatorException(e)
     }
     if (outputTuple != null) {
-      if(breakpointManager.evaluateTuple(outputTuple)){
+      if (breakpointManager.evaluateTuple(outputTuple)) {
         pauseManager.pause()
-      }else{
+      } else {
         outputTupleCount += 1
         batchProducer.passTupleToDownstream(outputTuple)
       }
@@ -135,14 +141,20 @@ class DataProcessor( // dependencies:
     }
     // Send Completed signal to worker actor.
     logger.logInfo(s"${operator.toString} completed")
-    asyncRPCClient.send(ExecutionCompleted(),VirtualIdentity.Controller)
+    asyncRPCClient.send(ExecutionCompleted(), ActorVirtualIdentity.Controller)
   }
 
   private[this] def handleOperatorException(e: Exception): Unit = {
-    if(currentInputTuple.isLeft){
-      asyncRPCClient.send(LocalOperatorException(currentInputTuple.left.get, e),VirtualIdentity.Controller)
-    }else{
-      asyncRPCClient.send(LocalOperatorException(ITuple("input exhausted"), e), VirtualIdentity.Controller)
+    if (currentInputTuple.isLeft) {
+      asyncRPCClient.send(
+        LocalOperatorException(currentInputTuple.left.get, e),
+        ActorVirtualIdentity.Controller
+      )
+    } else {
+      asyncRPCClient.send(
+        LocalOperatorException(ITuple("input exhausted"), e),
+        ActorVirtualIdentity.Controller
+      )
     }
     pauseManager.pause()
   }
@@ -167,8 +179,7 @@ class DataProcessor( // dependencies:
     }
   }
 
-
-  def shutdown(): Unit ={
+  def shutdown(): Unit = {
     dpThread.cancel(true)
   }
 

@@ -1,11 +1,6 @@
-package edu.uci.ics.amber.engine.common.ambertag.neo
+package edu.uci.ics.amber.engine.common.virtualidentity
 
-trait VirtualIdentity
-
-object VirtualIdentity {
-
-  trait ActorVirtualIdentity extends VirtualIdentity
-
+object ActorVirtualIdentity {
   case class WorkerActorVirtualIdentity(name: String) extends ActorVirtualIdentity
   case class ControllerVirtualIdentity() extends ActorVirtualIdentity
   case class SelfVirtualIdentity() extends ActorVirtualIdentity
@@ -13,5 +8,7 @@ object VirtualIdentity {
 
   lazy val Controller: ControllerVirtualIdentity = ControllerVirtualIdentity()
   lazy val Self: SelfVirtualIdentity = SelfVirtualIdentity()
-  lazy val Client:ClientVirtualIdentity = ClientVirtualIdentity()
+  lazy val Client: ClientVirtualIdentity = ClientVirtualIdentity()
 }
+
+trait ActorVirtualIdentity extends VirtualIdentity

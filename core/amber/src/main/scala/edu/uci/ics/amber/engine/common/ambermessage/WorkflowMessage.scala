@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.common.ambermessage
 
-import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.VirtualIdentity
 
 trait WorkflowMessage extends Serializable {
   val from: VirtualIdentity

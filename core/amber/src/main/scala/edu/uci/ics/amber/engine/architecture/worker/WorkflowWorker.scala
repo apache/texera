@@ -9,16 +9,27 @@ import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ExecutionStartedHandler.ExecutionStarted
 import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlInputPort.WorkflowControlMessage
 import edu.uci.ics.amber.engine.architecture.messaginglayer.DataInputPort.WorkflowDataMessage
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{NetworkAck, NetworkMessage, RegisterActorRef}
-import edu.uci.ics.amber.engine.architecture.messaginglayer.{BatchToTupleConverter, DataInputPort, DataOutputPort, TupleToBatchConverter}
-import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
-import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnPayload}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
+  NetworkAck,
+  NetworkMessage,
+  RegisterActorRef
+}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.{
+  BatchToTupleConverter,
+  DataInputPort,
+  DataOutputPort,
+  TupleToBatchConverter
+}
 import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCHandlerInitializer, AsyncRPCServer}
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager._
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.amber.engine.common.{IOperatorExecutor, ISourceOperatorExecutor, ITupleSinkOperatorExecutor}
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.{
+  IOperatorExecutor,
+  ISourceOperatorExecutor,
+  ITupleSinkOperatorExecutor
+}
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 import scala.annotation.elidable
@@ -59,7 +70,7 @@ class WorkflowWorker(
   val receivedFaultedTupleIds: mutable.HashSet[Long] = new mutable.HashSet[Long]()
   var isCompleted = false
 
-  if(parentNetworkCommunicationActorRef != null){
+  if (parentNetworkCommunicationActorRef != null) {
     parentNetworkCommunicationActorRef ! RegisterActorRef(identifier, self)
   }
 
@@ -79,12 +90,11 @@ class WorkflowWorker(
     }
   }
 
-
   final def receiveDataMessages: Receive = {
     case msg @ NetworkMessage(id, data: WorkflowDataMessage) =>
       if (workerStateManager.getCurrentState == Ready) {
         workerStateManager.transitTo(Running)
-        asyncRPCClient.send(ExecutionStarted(), VirtualIdentity.Controller)
+        asyncRPCClient.send(ExecutionStarted(), ActorVirtualIdentity.Controller)
       }
       sender ! NetworkAck(id)
       dataInputPort.handleDataMessage(data)

@@ -6,21 +6,20 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryAndRemo
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.Paused
 
-object QueryAndRemoveBreakpointsHandler{
+object QueryAndRemoveBreakpointsHandler {
 
-  final case class QueryAndRemoveBreakpoints(ids:Array[String]) extends ControlCommand[Array[LocalBreakpoint]]
+  final case class QueryAndRemoveBreakpoints(ids: Array[String])
+      extends ControlCommand[Array[LocalBreakpoint]]
 }
-
 
 trait QueryAndRemoveBreakpointsHandler {
   this: WorkerAsyncRPCHandlerInitializer =>
 
-  registerHandler{
-    (msg:QueryAndRemoveBreakpoints, sender) =>
-      stateManager.confirmState(Paused)
-      val ret = breakpointManager.getBreakpoints(msg.ids)
-      breakpointManager.removeBreakpoints(msg.ids)
-      ret
+  registerHandler { (msg: QueryAndRemoveBreakpoints, sender) =>
+    stateManager.confirmState(Paused)
+    val ret = breakpointManager.getBreakpoints(msg.ids)
+    breakpointManager.removeBreakpoints(msg.ids)
+    ret
   }
 
 }

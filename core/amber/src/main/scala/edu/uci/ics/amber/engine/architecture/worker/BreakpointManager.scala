@@ -2,9 +2,9 @@ package edu.uci.ics.amber.engine.architecture.worker
 
 import edu.uci.ics.amber.engine.architecture.breakpoint.localbreakpoint.LocalBreakpoint
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LocalBreakpointTriggeredHandler.LocalBreakpointTriggered
-import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.tuple.ITuple
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, VirtualIdentity}
 
 import scala.collection.mutable.ArrayBuffer
 import scala.util.control.Breaks
@@ -26,7 +26,7 @@ class BreakpointManager(asyncRPCClient: AsyncRPCClient) {
     }
   }
 
-  def getBreakpoints(ids:Array[String]): Array[LocalBreakpoint] ={
+  def getBreakpoints(ids: Array[String]): Array[LocalBreakpoint] = {
     ids.map(id => {
       val idx = breakpoints.indexWhere(_.id == id)
       breakpoints(idx)
@@ -44,22 +44,24 @@ class BreakpointManager(asyncRPCClient: AsyncRPCClient) {
     breakpoints = breakpoints.filter(x => !breakpointIDs.contains(x.id))
   }
 
-  def evaluateTuple(tuple:ITuple): Boolean ={
+  def evaluateTuple(tuple: ITuple): Boolean = {
     var isTriggered = false
-    var triggeredBreakpoints:ArrayBuffer[(String,Long)] = null
-    breakpoints.indices.foreach{
-      i =>
-        if(breakpoints(i).checkCondition(tuple)){
-          isTriggered = true
-          if(triggeredBreakpoints == null){
-            triggeredBreakpoints = ArrayBuffer[(String, Long)]()
-          }else{
-            triggeredBreakpoints.append((breakpoints(i).id, breakpoints(i).version))
-          }
+    var triggeredBreakpoints: ArrayBuffer[(String, Long)] = null
+    breakpoints.indices.foreach { i =>
+      if (breakpoints(i).checkCondition(tuple)) {
+        isTriggered = true
+        if (triggeredBreakpoints == null) {
+          triggeredBreakpoints = ArrayBuffer[(String, Long)]()
+        } else {
+          triggeredBreakpoints.append((breakpoints(i).id, breakpoints(i).version))
         }
+      }
     }
-    if(isTriggered){
-      asyncRPCClient.send(LocalBreakpointTriggered(triggeredBreakpoints.toArray), VirtualIdentity.Controller)
+    if (isTriggered) {
+      asyncRPCClient.send(
+        LocalBreakpointTriggered(triggeredBreakpoints.toArray),
+        ActorVirtualIdentity.Controller
+      )
     }
     isTriggered
   }

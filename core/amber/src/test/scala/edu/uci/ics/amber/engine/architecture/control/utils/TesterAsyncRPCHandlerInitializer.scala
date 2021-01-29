@@ -1,11 +1,11 @@
 package edu.uci.ics.amber.engine.architecture.control.utils
 
-import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.rpc.{
   AsyncRPCClient,
   AsyncRPCHandlerInitializer,
   AsyncRPCServer
 }
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 class TesterAsyncRPCHandlerInitializer(
     val myID: ActorVirtualIdentity,

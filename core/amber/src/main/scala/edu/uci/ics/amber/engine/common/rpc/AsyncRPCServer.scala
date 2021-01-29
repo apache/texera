@@ -2,9 +2,9 @@ package edu.uci.ics.amber.engine.common.rpc
 
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlOutputPort
-import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnPayload}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 /** Motivation of having a separate module to handle control messages as RPCs:
   * In the old design, every control message and its response are handled by
@@ -35,10 +35,13 @@ object AsyncRPCServer {
 class AsyncRPCServer(controlOutputPort: ControlOutputPort) {
 
   // all handlers
-  protected var handlers: PartialFunction[(ControlCommand[_], ActorVirtualIdentity), Future[_]] = PartialFunction.empty
+  protected var handlers: PartialFunction[(ControlCommand[_], ActorVirtualIdentity), Future[_]] =
+    PartialFunction.empty
 
   // note that register handler allows multiple handlers for a control message and uses the latest handler.
-  def registerHandler(newHandler: PartialFunction[(ControlCommand[_], ActorVirtualIdentity), Future[_]]): Unit = {
+  def registerHandler(
+      newHandler: PartialFunction[(ControlCommand[_], ActorVirtualIdentity), Future[_]]
+  ): Unit = {
     handlers =
       newHandler orElse handlers
 
@@ -47,7 +50,7 @@ class AsyncRPCServer(controlOutputPort: ControlOutputPort) {
   def receive(control: ControlInvocation, senderID: ActorVirtualIdentity): Unit = {
     try {
       execute((control.command, senderID)) match {
-        case f:Future[_] =>
+        case f: Future[_] =>
           // user's code returns a future
           // the result should be returned after the future is resolved.
           f.onSuccess { ret =>
@@ -69,10 +72,8 @@ class AsyncRPCServer(controlOutputPort: ControlOutputPort) {
     controlOutputPort.sendTo(sender, ReturnPayload(id, ret))
   }
 
-
-  def execute(cmd:(ControlCommand[_], ActorVirtualIdentity)):Future[_] = {
+  def execute(cmd: (ControlCommand[_], ActorVirtualIdentity)): Future[_] = {
     handlers(cmd)
   }
-
 
 }

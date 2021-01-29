@@ -2,9 +2,8 @@ package edu.uci.ics.amber.engine.architecture.messaginglayer
 
 import edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy.DataSendingPolicy
 import edu.uci.ics.amber.engine.common.ambermessage.DataPayload
-import edu.uci.ics.amber.engine.common.ambertag.LinkTag
-import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.tuple.ITuple
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 import scala.util.control.Breaks
 

@@ -4,8 +4,8 @@ import edu.uci.ics.amber.engine.common.tuple.ITuple
 
 abstract class LocalBreakpoint(val id: String, val version: Long) extends Serializable {
 
-  def checkCondition(tuple: ITuple):Boolean
+  def checkCondition(tuple: ITuple): Boolean
 
-  var triggeredTuple:ITuple = _
+  var triggeredTuple: ITuple = _
 
 }

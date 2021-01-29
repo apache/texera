@@ -2,7 +2,6 @@ package edu.uci.ics.texera.workflow.common.operators
 
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonSubTypes, JsonTypeInfo}
-import edu.uci.ics.amber.engine.common.ambertag.OperatorIdentifier
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorInfo, PropertyNameConstants}
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
@@ -28,8 +27,9 @@ import edu.uci.ics.texera.workflow.operators.visualization.lineChart.LineChartOp
 import edu.uci.ics.texera.workflow.operators.visualization.pieChart.PieChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.wordCloud.WordCloudOpDesc
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
-
 import java.util.UUID
+
+import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 
 @JsonTypeInfo(
   use = JsonTypeInfo.Id.NAME,
@@ -67,8 +67,8 @@ abstract class OperatorDescriptor extends Serializable {
   @JsonProperty(PropertyNameConstants.OPERATOR_ID)
   var operatorID: String = UUID.randomUUID.toString
 
-  def operatorIdentifier: OperatorIdentifier =
-    OperatorIdentifier.apply(this.context.workflowID, this.operatorID)
+  def operatorIdentifier: OperatorIdentity =
+    OperatorIdentity(this.context.workflowID, this.operatorID)
 
   def operatorExecutor: OpExecConfig
 

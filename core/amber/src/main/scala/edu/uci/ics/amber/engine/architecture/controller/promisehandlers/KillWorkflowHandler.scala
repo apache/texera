@@ -7,23 +7,21 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.KillWork
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.KillWorkerHandler.KillWorker
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.{CommandCompleted, ControlCommand}
 
-object KillWorkflowHandler{
+object KillWorkflowHandler {
   final case class KillWorkflow() extends ControlCommand[CommandCompleted]
 }
-
 
 trait KillWorkflowHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
-  registerHandler{
-    (msg:KillWorkflow, sender) =>
-     Future.collect(workflow.getAllWorkers.map{
-       worker =>
+  registerHandler { (msg: KillWorkflow, sender) =>
+    Future
+      .collect(workflow.getAllWorkers.map { worker =>
         send(KillWorker(), worker)
-     }.toSeq).map{
-       ret =>
-       actorContext.self ! PoisonPill
-       CommandCompleted()
-     }
+      }.toSeq)
+      .map { ret =>
+        actorContext.self ! PoisonPill
+        CommandCompleted()
+      }
   }
 }

@@ -8,9 +8,9 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHa
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerEventListener}
 import edu.uci.ics.amber.engine.architecture.principal.OperatorStatistics
-import edu.uci.ics.amber.engine.common.ambertag.WorkflowTag
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.tuple.ITuple
+import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
 import edu.uci.ics.texera.web.TexeraWebApplication
 import edu.uci.ics.texera.web.model.event._
 import edu.uci.ics.texera.web.model.request._
@@ -185,7 +185,7 @@ class WorkflowWebsocketResource {
     }
 
     val workflow = texeraWorkflowCompiler.amberWorkflow
-    val workflowTag = WorkflowTag.apply(workflowID)
+    val workflowTag = WorkflowIdentity(workflowID)
 
     val eventListener = ControllerEventListener(
       workflowCompletedListener = completed => {
@@ -242,7 +242,7 @@ class WorkflowWebsocketResource {
       Controller.props(workflowTag, workflow, eventListener, 100)
     )
     texeraWorkflowCompiler.initializeBreakpoint(controllerActorRef)
-    controllerActorRef ! ControlInvocation(-1,StartWorkflow())
+    controllerActorRef ! ControlInvocation(-1, StartWorkflow())
 
     WorkflowWebsocketResource.sessionJobs(session.getId) =
       (texeraWorkflowCompiler, controllerActorRef)

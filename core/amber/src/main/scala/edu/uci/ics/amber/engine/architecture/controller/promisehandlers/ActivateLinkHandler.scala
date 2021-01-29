@@ -8,22 +8,21 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddOutputPol
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.UpdateInputLinkingHandler.UpdateInputLinking
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.{CommandCompleted, ControlCommand}
 
-
-object ActivateLinkHandler{
-  final case class ActivateLink(link:LinkStrategy) extends ControlCommand[CommandCompleted]
+object ActivateLinkHandler {
+  final case class ActivateLink(link: LinkStrategy) extends ControlCommand[CommandCompleted]
 }
 
 trait ActivateLinkHandler {
-  this:ControllerAsyncRPCHandlerInitializer =>
+  this: ControllerAsyncRPCHandlerInitializer =>
 
-  registerHandler{
-    (msg:ActivateLink, sender) =>
+  registerHandler { (msg: ActivateLink, sender) =>
     val futures = msg.link.getPolicies.flatMap {
       case (from, policy, tos) =>
-        Seq(send(AddOutputPolicy(policy), from)) ++ tos.map(send(UpdateInputLinking(from, msg.link.inputNum), _))
+        Seq(send(AddOutputPolicy(policy), from)) ++ tos.map(
+          send(UpdateInputLinking(from, msg.link.inputNum), _)
+        )
     }
-    Future.collect(futures.toSeq).map{
-      x =>
+    Future.collect(futures.toSeq).map { x =>
       println("link activated!")
       CommandCompleted()
     }

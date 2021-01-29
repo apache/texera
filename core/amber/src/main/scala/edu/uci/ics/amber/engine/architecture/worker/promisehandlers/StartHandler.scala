@@ -9,28 +9,28 @@ import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.{CommandCompleted, Con
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.{Ready, Running}
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 
-object StartHandler{
+object StartHandler {
   final case class StartWorker() extends ControlCommand[CommandCompleted]
 }
 
-
 trait StartHandler {
-  this:WorkerAsyncRPCHandlerInitializer =>
+  this: WorkerAsyncRPCHandlerInitializer =>
 
-  registerHandler{
-    (msg:StartWorker, sender) =>
-      stateManager.confirmState(Ready)
-      if (operator.isInstanceOf[ISourceOperatorExecutor]) {
-        dataProcessor.appendElement(EndMarker())
-        dataProcessor.appendElement(EndOfAllMarker())
-        stateManager.transitTo(Running)
-        CommandCompleted()
-      } else {
-          throw new WorkflowRuntimeException(WorkflowRuntimeError(
-            "unexpected Start message for non-source operator!",
-            selfID.toString,
-            Map.empty
-          ))
-      }
+  registerHandler { (msg: StartWorker, sender) =>
+    stateManager.confirmState(Ready)
+    if (operator.isInstanceOf[ISourceOperatorExecutor]) {
+      dataProcessor.appendElement(EndMarker())
+      dataProcessor.appendElement(EndOfAllMarker())
+      stateManager.transitTo(Running)
+      CommandCompleted()
+    } else {
+      throw new WorkflowRuntimeException(
+        WorkflowRuntimeError(
+          "unexpected Start message for non-source operator!",
+          selfID.toString,
+          Map.empty
+        )
+      )
+    }
   }
 }

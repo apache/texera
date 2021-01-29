@@ -5,9 +5,13 @@ import org.scalamock.scalatest.MockFactory
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy.OneToOnePolicy
 import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, EndOfUpstream}
-import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.{ActorVirtualIdentity, WorkerActorVirtualIdentity}
-import edu.uci.ics.amber.engine.common.ambertag.{LayerTag, LinkTag}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  LayerIdentity,
+  LinkIdentity
+}
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.WorkerActorVirtualIdentity
 
 class TupleToBatchConverterSpec extends AnyFlatSpec with MockFactory {
   private val mockDataOutputPort = mock[DataOutputPort]
@@ -23,7 +27,7 @@ class TupleToBatchConverterSpec extends AnyFlatSpec with MockFactory {
       (mockDataOutputPort.sendTo _).expects(fakeID, DataFrame(tuples.slice(20, 21)))
       (mockDataOutputPort.sendTo _).expects(fakeID, EndOfUpstream())
     }
-    val fakeLink = LinkTag(LayerTag("", "", ""), LayerTag("", "", ""), 0)
+    val fakeLink = LinkIdentity(LayerIdentity("", "", ""), LayerIdentity("", "", ""), 0)
     val fakeReceiver = Array[ActorVirtualIdentity](fakeID)
 
     batchProducer.addPolicy(new OneToOnePolicy(fakeLink, 10, fakeReceiver))

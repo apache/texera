@@ -3,14 +3,20 @@ package edu.uci.ics.amber.engine.architecture.worker
 import akka.actor.{ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
 import edu.uci.ics.amber.clustering.SingleNodeListener
-import edu.uci.ics.amber.engine.architecture.messaginglayer.{ControlOutputPort, TupleToBatchConverter}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.{
+  ControlOutputPort,
+  TupleToBatchConverter
+}
 import edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy.DataSendingPolicy
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddOutputPolicyHandler.AddOutputPolicy
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.UpdateInputLinkingHandler.UpdateInputLinking
 import edu.uci.ics.amber.engine.common.IOperatorExecutor
 import edu.uci.ics.amber.engine.common.ambermessage.DataPayload
 import edu.uci.ics.amber.engine.common.ambertag.LinkTag
-import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.{ActorVirtualIdentity, WorkerActorVirtualIdentity}
+import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.{
+  ActorVirtualIdentity,
+  WorkerActorVirtualIdentity
+}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll

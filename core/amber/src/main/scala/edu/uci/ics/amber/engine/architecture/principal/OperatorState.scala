@@ -1,7 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.principal
 
-
-object OperatorState{
+object OperatorState {
 
   sealed abstract class OperatorState extends Product with Serializable
   case object Uninitialized extends OperatorState

@@ -12,8 +12,11 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.deploystrategy.Roun
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.architecture.linksemantics.HashBasedShuffle
 import edu.uci.ics.amber.engine.common.Constants
-import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.ambertag.{LayerTag, OperatorIdentifier}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  LayerIdentity,
+  OperatorIdentity
+}
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
@@ -21,21 +24,21 @@ import scala.collection.mutable
 import scala.concurrent.ExecutionContext
 
 class WordCloudOpExecConfig(
-    tag: OperatorIdentifier,
+    tag: OperatorIdentity,
     val numWorkers: Int,
     val textColumn: String
 ) extends OpExecConfig(tag) {
 
   override lazy val topology: Topology = {
     val partialLayer = new WorkerLayer(
-      LayerTag(tag, "localPieChartProcessor"),
+      LayerIdentity(tag, "localPieChartProcessor"),
       _ => new WordCloudOpPartialExec(textColumn),
       numWorkers,
       UseAll(),
       RoundRobinDeployment()
     )
     val finalLayer = new WorkerLayer(
-      LayerTag(tag, "globalPieChartProcessor"),
+      LayerIdentity(tag, "globalPieChartProcessor"),
       _ => new WordCloudOpFinalExec(),
       1,
       FollowPrevious(),

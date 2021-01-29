@@ -8,22 +8,20 @@ import edu.uci.ics.amber.engine.common.tuple.ITuple
 
 import scala.collection.mutable
 
-object CollectSinkResultsHandler{
+object CollectSinkResultsHandler {
   final case class CollectSinkResults() extends ControlCommand[List[ITuple]]
 }
 
-
 trait CollectSinkResultsHandler {
-  this:WorkerAsyncRPCHandlerInitializer =>
+  this: WorkerAsyncRPCHandlerInitializer =>
 
-  registerHandler{
-    (msg:CollectSinkResults, sender) =>
-      operator match {
-        case processor: ITupleSinkOperatorExecutor =>
-          processor.getResultTuples().toList
-        case _ =>
-          List.empty
-      }
+  registerHandler { (msg: CollectSinkResults, sender) =>
+    operator match {
+      case processor: ITupleSinkOperatorExecutor =>
+        processor.getResultTuples().toList
+      case _ =>
+        List.empty
+    }
   }
 
 }

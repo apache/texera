@@ -11,29 +11,26 @@ import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.{CommandCompleted, Con
 
 import scala.collection.mutable
 
-object QueryWorkerStatisticsHandler{
+object QueryWorkerStatisticsHandler {
   final case class QueryWorkerStatistics() extends ControlCommand[CommandCompleted]
 }
-
 
 trait QueryWorkerStatisticsHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
-  registerHandler{
-    (msg:QueryWorkerStatistics, sender) =>
-      Future.collect(workflow.getAllWorkers.map{
-        worker =>
-          send(QueryStatistics(),worker).map{
-            stats =>
-              workflow.getOperator(worker).setWorkerStatistics(worker, stats)
-          }
-      }.toSeq).map{
-        ret =>
-          if (eventListener.workflowStatusUpdateListener != null) {
-            eventListener.workflowStatusUpdateListener
-              .apply(WorkflowStatusUpdate(workflow.getWorkflowStatus))
-          }
-          CommandCompleted()
+  registerHandler { (msg: QueryWorkerStatistics, sender) =>
+    Future
+      .collect(workflow.getAllWorkers.map { worker =>
+        send(QueryStatistics(), worker).map { stats =>
+          workflow.getOperator(worker).setWorkerStatistics(worker, stats)
+        }
+      }.toSeq)
+      .map { ret =>
+        if (eventListener.workflowStatusUpdateListener != null) {
+          eventListener.workflowStatusUpdateListener
+            .apply(WorkflowStatusUpdate(workflow.getWorkflowStatus))
+        }
+        CommandCompleted()
       }
   }
 }

@@ -1,22 +1,31 @@
 package edu.uci.ics.amber.engine.e2e
 
 import edu.uci.ics.amber.clustering.SingleNodeListener
-import edu.uci.ics.amber.engine.common.ambertag.{OperatorIdentifier, WorkflowTag}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.Constants
 import akka.actor.{ActorRef, ActorSystem, PoisonPill, Props}
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 import akka.util.Timeout
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
-import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerEventListener, ControllerState}
+import edu.uci.ics.amber.engine.architecture.controller.{
+  Controller,
+  ControllerEventListener,
+  ControllerState
+}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlInputPort.WorkflowControlMessage
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.NetworkMessage
-import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
+import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
 import edu.uci.ics.texera.workflow.common.{Utils, WorkflowContext}
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
-import edu.uci.ics.texera.workflow.common.workflow.{BreakpointInfo, OperatorLink, OperatorPort, WorkflowCompiler, WorkflowInfo}
+import edu.uci.ics.texera.workflow.common.workflow.{
+  BreakpointInfo,
+  OperatorLink,
+  OperatorPort,
+  WorkflowCompiler,
+  WorkflowInfo
+}
 import edu.uci.ics.texera.workflow.operators.aggregate.AggregationFunction
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -31,7 +40,7 @@ class DataProcessingSpec
     with ImplicitSender
     with AnyFlatSpecLike
     with BeforeAndAfterAll
-    with BeforeAndAfterEach{
+    with BeforeAndAfterEach {
 
   implicit val timeout: Timeout = Timeout(5.seconds)
   implicit val executionContext: ExecutionContextExecutor = system.dispatcher
@@ -42,7 +51,6 @@ class DataProcessingSpec
   override def afterAll: Unit = {
     TestKit.shutdownActorSystem(system)
   }
-
 
   def expectCompletedAfterExecution(
       operators: mutable.MutableList[OperatorDescriptor],
@@ -58,15 +66,15 @@ class DataProcessingSpec
     )
     texeraWorkflowCompiler.init()
     val workflow = texeraWorkflowCompiler.amberWorkflow
-    val workflowTag = WorkflowTag.apply("workflow-test")
+    val workflowTag = WorkflowIdentity("workflow-test")
 
     val controller = parent.childActorOf(
       Controller.props(workflowTag, workflow, ControllerEventListener(), 100)
     )
     parent.expectMsg(ControllerState.Ready)
-    controller ! ControlInvocation(-1,StartWorkflow())
+    controller ! ControlInvocation(-1, StartWorkflow())
     parent.expectMsg(ControllerState.Running)
-    parent.expectMsg(1.minute,ControllerState.Completed)
+    parent.expectMsg(1.minute, ControllerState.Completed)
     parent.ref ! PoisonPill
   }
 

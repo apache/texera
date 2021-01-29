@@ -2,7 +2,7 @@ package edu.uci.ics.texera.workflow.common.workflow
 
 import akka.actor.ActorRef
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
-import edu.uci.ics.amber.engine.common.ambertag.OperatorIdentifier
+import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
@@ -34,28 +34,28 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
       .filter(pair => pair._2.nonEmpty)
 
   def amberWorkflow: Workflow = {
-    val amberOperators: mutable.Map[OperatorIdentifier, OpExecConfig] = mutable.Map()
+    val amberOperators: mutable.Map[OperatorIdentity, OpExecConfig] = mutable.Map()
     workflowInfo.operators.foreach(o => {
       val amberOperator = o.operatorExecutor
-      amberOperators.put(amberOperator.tag, amberOperator)
+      amberOperators.put(amberOperator.id, amberOperator)
     })
 
-    val outLinks: mutable.Map[OperatorIdentifier, mutable.Set[OperatorIdentifier]] = mutable.Map()
+    val outLinks: mutable.Map[OperatorIdentity, mutable.Set[OperatorIdentity]] = mutable.Map()
     workflowInfo.links.foreach(link => {
-      val origin = OperatorIdentifier(this.context.workflowID, link.origin.operatorID)
-      val dest = OperatorIdentifier(this.context.workflowID, link.destination.operatorID)
+      val origin = OperatorIdentity(this.context.workflowID, link.origin.operatorID)
+      val dest = OperatorIdentity(this.context.workflowID, link.destination.operatorID)
       val destSet = outLinks.getOrElse(origin, mutable.Set())
       destSet.add(dest)
       outLinks.update(origin, destSet)
       amberOperators(dest).setInputToOrdinalMapping(origin, link.destination.portOrdinal)
     })
 
-    val outLinksImmutableValue: mutable.Map[OperatorIdentifier, Set[OperatorIdentifier]] =
+    val outLinksImmutableValue: mutable.Map[OperatorIdentity, Set[OperatorIdentity]] =
       mutable.Map()
     outLinks.foreach(entry => {
       outLinksImmutableValue.update(entry._1, entry._2.toSet)
     })
-    val outLinksImmutable: Map[OperatorIdentifier, Set[OperatorIdentifier]] =
+    val outLinksImmutable: Map[OperatorIdentity, Set[OperatorIdentity]] =
       outLinksImmutableValue.toMap
 
     new Workflow(amberOperators, outLinksImmutable)
@@ -90,7 +90,7 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
           case BreakpointCondition.NOT_CONTAINS =>
             tuple => !tuple.getField(column).toString.trim.contains(conditionBp.value)
         }
-        //TODO: add new handling logic here
+      //TODO: add new handling logic here
 //        controller ! PassBreakpointTo(
 //          operatorID,
 //          new ConditionalGlobalBreakpoint(

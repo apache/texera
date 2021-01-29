@@ -13,6 +13,6 @@ class FollowPrevious extends DeploymentFilter {
       all: Array[Address],
       local: Address
   ): Array[Address] = {
-   all //the same behavior as useAll
+    all //the same behavior as useAll
   }
 }

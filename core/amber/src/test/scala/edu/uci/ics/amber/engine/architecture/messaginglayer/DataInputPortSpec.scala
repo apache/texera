@@ -5,8 +5,8 @@ import org.scalatest.flatspec.AnyFlatSpec
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.engine.architecture.messaginglayer.DataInputPort.WorkflowDataMessage
 import edu.uci.ics.amber.engine.common.ambermessage.DataFrame
-import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.WorkerActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.tuple.ITuple
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.WorkerActorVirtualIdentity
 
 class DataInputPortSpec extends AnyFlatSpec with MockFactory {
 

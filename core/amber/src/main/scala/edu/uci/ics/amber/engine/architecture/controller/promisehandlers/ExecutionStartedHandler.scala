@@ -5,17 +5,15 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.Executio
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.{CommandCompleted, ControlCommand}
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.Running
 
-object ExecutionStartedHandler{
+object ExecutionStartedHandler {
   final case class ExecutionStarted() extends ControlCommand[CommandCompleted]
 }
 
-
 trait ExecutionStartedHandler {
-  this:ControllerAsyncRPCHandlerInitializer =>
+  this: ControllerAsyncRPCHandlerInitializer =>
 
-  registerHandler{
-    (msg:ExecutionStarted, sender) =>
-      workflow.getOperator(sender).setWorkerState(sender, Running)
-      CommandCompleted()
+  registerHandler { (msg: ExecutionStarted, sender) =>
+    workflow.getOperator(sender).setWorkerState(sender, Running)
+    CommandCompleted()
   }
 }

@@ -5,20 +5,17 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkerAsyncRPCHandlerInitial
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.KillWorkerHandler.KillWorker
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.{CommandCompleted, ControlCommand}
 
-
-object KillWorkerHandler{
+object KillWorkerHandler {
   final case class KillWorker() extends ControlCommand[CommandCompleted]
 }
 
-
 trait KillWorkerHandler {
-  this:WorkerAsyncRPCHandlerInitializer =>
+  this: WorkerAsyncRPCHandlerInitializer =>
 
-  registerHandler{
-    (msg:KillWorker, sender) =>
-      dataProcessor.shutdown()
-      actorContext.self ! PoisonPill
-      CommandCompleted()
+  registerHandler { (msg: KillWorker, sender) =>
+    dataProcessor.shutdown()
+    actorContext.self ! PoisonPill
+    CommandCompleted()
   }
 
 }

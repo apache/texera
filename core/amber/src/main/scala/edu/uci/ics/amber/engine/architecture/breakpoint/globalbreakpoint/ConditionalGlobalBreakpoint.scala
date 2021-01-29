@@ -1,16 +1,20 @@
 package edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint
-import edu.uci.ics.amber.engine.architecture.breakpoint.FaultedTuple
-import edu.uci.ics.amber.engine.architecture.breakpoint.localbreakpoint.{ConditionalLocalBreakpoint, LocalBreakpoint}
-import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
+
+import edu.uci.ics.amber.engine.architecture.breakpoint.localbreakpoint.{
+  ConditionalLocalBreakpoint,
+  LocalBreakpoint
+}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
-import scala.collection.mutable
+class ConditionalGlobalBreakpoint(id: String, val predicate: ITuple => Boolean)
+    extends GlobalBreakpoint[ConditionalLocalBreakpoint](id) {
 
-class ConditionalGlobalBreakpoint(id:String, val predicate: ITuple => Boolean) extends GlobalBreakpoint[ConditionalLocalBreakpoint](id) {
+  var triggeredTuples: Array[ITuple] = Array.empty
 
-  var triggeredTuples:Array[ITuple] = Array.empty
-
-  override def partition(workers: Array[ActorVirtualIdentity]): Array[(ActorVirtualIdentity, LocalBreakpoint)] = {
+  override def partition(
+      workers: Array[ActorVirtualIdentity]
+  ): Array[(ActorVirtualIdentity, LocalBreakpoint)] = {
     workers.map(v => (v, new ConditionalLocalBreakpoint(id, version, predicate)))
   }
 

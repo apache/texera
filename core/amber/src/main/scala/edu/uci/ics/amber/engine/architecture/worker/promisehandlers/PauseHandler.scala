@@ -27,7 +27,7 @@ trait PauseHandler {
     }
     p.map { res =>
       logger.logInfo("pause actually returned")
-    //workerStateManager.transitTo(Paused)
+      //workerStateManager.transitTo(Paused)
       CommandCompleted()
     }
   }

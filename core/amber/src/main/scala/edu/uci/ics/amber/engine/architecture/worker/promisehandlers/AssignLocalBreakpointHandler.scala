@@ -5,17 +5,16 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkerAsyncRPCHandlerInitial
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AssignLocalBreakpointHandler.AssignLocalBreakpoint
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.{CommandCompleted, ControlCommand}
 
-object AssignLocalBreakpointHandler{
-  final case class AssignLocalBreakpoint(bp:LocalBreakpoint) extends ControlCommand[CommandCompleted]
+object AssignLocalBreakpointHandler {
+  final case class AssignLocalBreakpoint(bp: LocalBreakpoint)
+      extends ControlCommand[CommandCompleted]
 }
 
-
 trait AssignLocalBreakpointHandler {
-  this:WorkerAsyncRPCHandlerInitializer =>
+  this: WorkerAsyncRPCHandlerInitializer =>
 
-  registerHandler{
-    (msg:AssignLocalBreakpoint, sender) =>
-      breakpointManager.registerOrReplaceBreakpoint(msg.bp)
-      CommandCompleted()
+  registerHandler { (msg: AssignLocalBreakpoint, sender) =>
+    breakpointManager.registerOrReplaceBreakpoint(msg.bp)
+    CommandCompleted()
   }
 }

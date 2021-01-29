@@ -2,13 +2,14 @@ package edu.uci.ics.amber.engine.architecture.messaginglayer
 
 import java.util.concurrent.atomic.AtomicLong
 
-import akka.actor.ActorRef
-import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlInputPort.WorkflowControlMessage
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{NetworkSenderActorRef, SendRequest}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
+  NetworkSenderActorRef,
+  SendRequest
+}
 import edu.uci.ics.amber.engine.common.WorkflowLogger
 import edu.uci.ics.amber.engine.common.ambermessage.ControlPayload
-import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 import scala.collection.mutable
 

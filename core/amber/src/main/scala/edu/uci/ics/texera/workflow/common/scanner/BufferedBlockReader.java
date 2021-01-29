@@ -1,5 +1,4 @@
-package edu.uci.ics.amber.engine.faulttolerance.scanner;
-
+package edu.uci.ics.texera.workflow.common.scanner;
 
 import com.google.common.primitives.Ints;
 

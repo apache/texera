@@ -3,8 +3,7 @@ package edu.uci.ics.amber.engine.architecture.controller
 import edu.uci.ics.amber.engine.architecture.breakpoint.FaultedTuple
 import edu.uci.ics.amber.engine.architecture.principal.{OperatorState, OperatorStatistics}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import akka.actor.ActorRef
-import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 import scala.collection.mutable
@@ -34,6 +33,9 @@ object ControllerEvent {
 
   case class ErrorOccurred(error: WorkflowRuntimeError)
 
-  case class ReportCurrentProcessingTuple(operatorID:String, tuple: Array[(ITuple, ActorVirtualIdentity)])
+  case class ReportCurrentProcessingTuple(
+      operatorID: String,
+      tuple: Array[(ITuple, ActorVirtualIdentity)]
+  )
 
 }
