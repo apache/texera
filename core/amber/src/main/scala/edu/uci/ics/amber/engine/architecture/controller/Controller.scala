@@ -122,6 +122,7 @@ import edu.uci.ics.amber.engine.architecture.worker.neo.promisehandlers.QueryNex
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCHandlerInitializer
+import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpExecConfig
 
 import collection.JavaConverters._
 import scala.collection.mutable
@@ -284,7 +285,8 @@ class Controller(
       scanLayer,
       firstLayer,
       Constants.defaultBatchSize,
-      hashFunc
+      hashFunc,
+      to.asInstanceOf[HashJoinOpExecConfig].getShuffleKey(topology.layers.last.tag)
     )
 
   }

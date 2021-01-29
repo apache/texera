@@ -13,6 +13,7 @@ import akka.actor.ActorRef
 import akka.event.LoggingAdapter
 import akka.pattern.ask
 import akka.util.Timeout
+import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpExecConfig
 
 import scala.concurrent.{Await, ExecutionContext}
 import scala.concurrent.duration._
@@ -33,7 +34,8 @@ class OperatorLink(val from: (OpExecConfig, WorkerLayer), val to: (OpExecConfig,
           sender,
           receiver,
           Constants.defaultBatchSize,
-          to._1.getShuffleHashFunction(sender.tag)
+          to._1.getShuffleHashFunction(sender.tag),
+          to._1.asInstanceOf[HashJoinOpExecConfig].getShuffleKey(sender.tag)
         )
       } else if (to._1.isInstanceOf[SinkOpExecConfig]) {
         linkStrategy = new AllToOne(sender, receiver, Constants.defaultBatchSize)

@@ -83,6 +83,14 @@ class HashJoinOpExecConfig(
 
   override def requiredShuffle: Boolean = true
 
+  def getShuffleKey(layerTag: LayerTag): ITuple => String = {
+    if (layerTag == buildTableTag) { t: ITuple =>
+      t.asInstanceOf[Tuple].getField(buildAttributeName).asInstanceOf[String]
+    } else { t: ITuple =>
+      t.asInstanceOf[Tuple].getField(probeAttributeName).asInstanceOf[String]
+    }
+  }
+
   override def getShuffleHashFunction(layerTag: LayerTag): ITuple => Int = {
     if (layerTag == buildTableTag) { t: ITuple =>
       t.asInstanceOf[Tuple].getField(buildAttributeName).hashCode()

@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy
 
-import edu.uci.ics.amber.engine.common.ambertag.LinkTag
+import edu.uci.ics.amber.engine.common.ambertag.{LinkTag, OperatorIdentifier}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import akka.actor.{ActorContext, ActorRef}
 import akka.event.LoggingAdapter
@@ -30,13 +30,14 @@ class HashBasedShufflePolicy(
     policyTag: LinkTag,
     batchSize: Int,
     val hashFunc: ITuple => Int,
+    val shuffleKey: ITuple => String,
     receivers: Array[ActorVirtualIdentity]
 ) extends DataSendingPolicy(policyTag, batchSize, receivers) {
   val numBuckets = receivers.length
 
   // buckets once decided will remain same because we are not changing the number of workers in Join
   var bucketsToReceivers = new mutable.HashMap[Int, ArrayBuffer[ActorVirtualIdentity]]()
-  var currReceiverIdxInBucket = new mutable.HashMap[Int, Int]()
+  var nextReceiverIdxInBucket = new mutable.HashMap[Int, Int]()
   var receiverToBatch = new mutable.HashMap[ActorVirtualIdentity, Array[ITuple]]()
   var receiverToCurrBatchSize = new mutable.HashMap[ActorVirtualIdentity, Int]()
 
@@ -55,21 +56,48 @@ class HashBasedShufflePolicy(
     receiversAndBatches.toArray
   }
 
-  private def getReceiverForBucket(bucket: Int): ActorVirtualIdentity = {
-    val receiver = bucketsToReceivers(bucket)(currReceiverIdxInBucket(bucket))
-    var nextReceiverIdx = currReceiverIdxInBucket(bucket) + 1
+  // for non-heavy hitters get the default receiver
+  private def getDefaultReceiverForBucket(bucket: Int): ActorVirtualIdentity =
+    bucketsToReceivers(bucket)(0)
+
+  // to be called for heavy-hitter
+  private def getAndIncrementReceiverForBucket(bucket: Int): ActorVirtualIdentity = {
+    val receiver = bucketsToReceivers(bucket)(nextReceiverIdxInBucket(bucket))
+    var nextReceiverIdx = nextReceiverIdxInBucket(bucket) + 1
     if (nextReceiverIdx >= bucketsToReceivers(bucket).size) {
       nextReceiverIdx = 0
     }
-    currReceiverIdxInBucket(bucket) = nextReceiverIdx
+    nextReceiverIdxInBucket(bucket) = nextReceiverIdx
     receiver
+  }
+
+  private def addReceiverToBucket(
+      defaultRecId: ActorVirtualIdentity,
+      newRecId: ActorVirtualIdentity
+  ): Unit = {
+    var defaultBucket = -1
+    bucketsToReceivers.keys.foreach(b => {
+      if (bucketsToReceivers(b)(0) == defaultRecId) { defaultBucket = b }
+    })
+    assert(defaultBucket != -1)
+    bucketsToReceivers(defaultBucket).append(newRecId)
+  }
+
+  private def isHeavyHitterTuple(key: String) = {
+    true
   }
 
   override def addTupleToBatch(
       tuple: ITuple
   ): Option[(ActorVirtualIdentity, DataPayload)] = {
     val index = (hashFunc(tuple) % numBuckets + numBuckets) % numBuckets
-    val receiver = getReceiverForBucket(index)
+    var receiver: ActorVirtualIdentity = null
+    if (bucketsToReceivers(index).size > 0 && isHeavyHitterTuple(shuffleKey(tuple))) {
+      // choose one of the receivers in round robin manner
+      receiver = getAndIncrementReceiverForBucket(index)
+    } else {
+      receiver = getDefaultReceiverForBucket(index)
+    }
     receiverToBatch(receiver)(receiverToCurrBatchSize(receiver)) = tuple
     receiverToCurrBatchSize(receiver) += 1
     if (receiverToCurrBatchSize(receiver) == batchSize) {
@@ -88,7 +116,7 @@ class HashBasedShufflePolicy(
   private[this] def initializeInternalState(_receivers: Array[ActorVirtualIdentity]): Unit = {
     for (i <- 0 until numBuckets) {
       bucketsToReceivers(i) = ArrayBuffer[ActorVirtualIdentity](receivers(i))
-      currReceiverIdxInBucket(i) = 0
+      nextReceiverIdxInBucket(i) = 0
       receiverToBatch(_receivers(i)) = new Array[ITuple](batchSize)
       receiverToCurrBatchSize(_receivers(i)) = 0
     }

@@ -84,6 +84,10 @@ class AggregateOpExecConfig[P <: AnyRef](
             x => {
               val tuple = x.asInstanceOf[Tuple]
               aggFunc.groupByFunc(tuple).hashCode()
+            },
+            x => {
+              val tuple = x.asInstanceOf[Tuple]
+              aggFunc.groupByFunc(tuple).get(0).toString()
             }
           )
         ),

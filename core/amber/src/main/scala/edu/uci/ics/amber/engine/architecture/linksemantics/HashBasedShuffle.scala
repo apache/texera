@@ -20,7 +20,8 @@ class HashBasedShuffle(
     from: WorkerLayer,
     to: WorkerLayer,
     batchSize: Int,
-    hashFunc: ITuple => Int
+    shuffleKey: ITuple => Int,
+    joinField: ITuple => String
 ) extends LinkStrategy(from, to, batchSize) {
   override def link()(implicit
       timeout: Timeout,
@@ -31,7 +32,13 @@ class HashBasedShuffle(
       AdvancedMessageSending.blockingAskWithRetry(
         x,
         AddDataSendingPolicy(
-          new HashBasedShufflePolicy(tag, batchSize, hashFunc, to.identifiers)
+          new HashBasedShufflePolicy(
+            tag,
+            batchSize,
+            shuffleKey,
+            joinField,
+            to.identifiers
+          )
         ),
         10
       )
