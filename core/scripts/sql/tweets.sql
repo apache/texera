@@ -27,4 +27,4 @@ CREATE TABLE TABLE_NAME
 );
 
 CREATE FULLTEXT INDEX text_index on TABLE_NAME (text);
-CREATE INDEX create_at_index ON TABLE_NAME (created_at);
+CREATE INDEX created_at_index ON TABLE_NAME (created_at);
