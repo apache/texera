@@ -1,8 +1,8 @@
-package edu.uci.ics.amber.engine.architecture.worker.neo.promisehandlers
+package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
 import edu.uci.ics.amber.engine.architecture.breakpoint.localbreakpoint.LocalBreakpoint
-import edu.uci.ics.amber.engine.architecture.worker.neo.WorkerAsyncRPCHandlerInitializer
-import edu.uci.ics.amber.engine.architecture.worker.neo.promisehandlers.QueryAndRemoveBreakpointsHandler.QueryAndRemoveBreakpoints
+import edu.uci.ics.amber.engine.architecture.worker.WorkerAsyncRPCHandlerInitializer
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryAndRemoveBreakpointsHandler.QueryAndRemoveBreakpoints
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.Paused
 

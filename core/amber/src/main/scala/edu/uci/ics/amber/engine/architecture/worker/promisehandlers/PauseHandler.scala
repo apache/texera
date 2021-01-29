@@ -1,11 +1,10 @@
-package edu.uci.ics.amber.engine.architecture.worker.neo.promisehandlers
+package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
 import akka.actor.{ActorContext, ActorPath}
 import com.twitter.util.Future
-import edu.uci.ics.amber.engine.architecture.worker.neo.PauseManager.ExecutionPaused
-import edu.uci.ics.amber.engine.architecture.worker.neo.WorkerInternalQueue.DummyInput
-import edu.uci.ics.amber.engine.architecture.worker.neo.WorkerAsyncRPCHandlerInitializer
-import edu.uci.ics.amber.engine.architecture.worker.neo.promisehandlers.PauseHandler.PauseWorker
+import edu.uci.ics.amber.engine.architecture.worker.WorkerAsyncRPCHandlerInitializer
+import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.DummyInput
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.{CommandCompleted, ControlCommand}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 

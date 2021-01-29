@@ -5,8 +5,8 @@ import edu.uci.ics.amber.engine.architecture.controller.{ControllerAsyncRPCHandl
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ExecutionCompletedHandler.ExecutionCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.KillWorkflowHandler.KillWorkflow
 import edu.uci.ics.amber.engine.architecture.principal.OperatorState
-import edu.uci.ics.amber.engine.architecture.worker.neo.promisehandlers.CollectSinkResultsHandler.CollectSinkResults
-import edu.uci.ics.amber.engine.architecture.worker.neo.promisehandlers.QueryStatisticsHandler.QueryStatistics
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.CollectSinkResultsHandler.CollectSinkResults
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatisticsHandler.QueryStatistics
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.{CommandCompleted, ControlCommand}
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.Completed

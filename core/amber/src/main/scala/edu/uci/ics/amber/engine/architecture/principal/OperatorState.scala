@@ -12,4 +12,5 @@ object OperatorState{
   case object Completed extends OperatorState
   case object Recovering extends OperatorState
   case object Unknown extends OperatorState
+
 }

@@ -1,13 +1,11 @@
-package edu.uci.ics.amber.engine.architecture.worker.neo
+package edu.uci.ics.amber.engine.architecture.worker
 
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.atomic.AtomicInteger
 
-import akka.actor.ActorRef
 import com.twitter.util.{Future, Promise}
-import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlOutputPort
-import edu.uci.ics.amber.engine.architecture.worker.neo.PauseManager.ExecutionPaused
+import edu.uci.ics.amber.engine.architecture.worker.PauseManager.ExecutionPaused
 import edu.uci.ics.amber.engine.common.WorkflowLogger
 
 object PauseManager {

@@ -1,8 +1,8 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
-import edu.uci.ics.amber.engine.architecture.worker.neo.WorkerInternalQueue
 import com.softwaremill.macwire.wire
-import edu.uci.ics.amber.engine.architecture.worker.neo.WorkerInternalQueue.{EndMarker, EndOfAllMarker, InputTuple, SenderChangeMarker}
+import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue
+import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.{EndMarker, EndOfAllMarker, InputTuple, SenderChangeMarker}
 import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, EndOfUpstream}
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.WorkerActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.tuple.ITuple

@@ -1,17 +1,15 @@
-package edu.uci.ics.amber.engine.architecture.worker.neo
+package edu.uci.ics.amber.engine.architecture.worker
 
 import java.util.concurrent.Executors
 
-import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ExecutionCompletedHandler.ExecutionCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LocalOperatorExceptionHandler.LocalOperatorException
-import edu.uci.ics.amber.engine.architecture.messaginglayer.{ControlOutputPort, TupleToBatchConverter}
-import edu.uci.ics.amber.engine.architecture.worker.neo.WorkerInternalQueue.{DummyInput, EndMarker, EndOfAllMarker, InputTuple, SenderChangeMarker}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.TupleToBatchConverter
+import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.{DummyInput, EndMarker, EndOfAllMarker, InputTuple, SenderChangeMarker}
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted, WorkflowLogger}
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
 class DataProcessor( // dependencies:
                      operator: IOperatorExecutor, // core logic

@@ -1,8 +1,8 @@
-package edu.uci.ics.amber.engine.architecture.worker.neo
+package edu.uci.ics.amber.engine.architecture.worker
 
 import java.util.concurrent.LinkedBlockingDeque
 
-import edu.uci.ics.amber.engine.architecture.worker.neo.WorkerInternalQueue.InternalQueueElement
+import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.InternalQueueElement
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 
 object WorkerInternalQueue {
