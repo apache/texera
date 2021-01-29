@@ -24,8 +24,8 @@ trait StartWorkflowHandler {
 
   registerHandler { (msg: StartWorkflow, sender) =>
     Future
-      .collect(workflow.getStartOperators.flatMap { op =>
-        op.getAllWorkers.map(send(StartWorker(), _))
+      .collect(workflow.getSourceLayers.flatMap {
+        case layer if layer.canStart => layer.workers.keys.map(send(StartWorker(), _))
       }.toSeq)
       .map { ret =>
         println("workflow started")

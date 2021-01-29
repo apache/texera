@@ -19,7 +19,7 @@ trait ActivateLinkHandler {
     val futures = msg.link.getPolicies.flatMap {
       case (from, policy, tos) =>
         Seq(send(AddOutputPolicy(policy), from)) ++ tos.map(
-          send(UpdateInputLinking(from, msg.link.inputNum), _)
+          send(UpdateInputLinking(from, msg.link.id), _)
         )
     }
     Future.collect(futures.toSeq).map { x =>

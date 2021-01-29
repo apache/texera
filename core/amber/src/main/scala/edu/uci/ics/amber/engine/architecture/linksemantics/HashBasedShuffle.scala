@@ -15,18 +15,18 @@ class HashBasedShuffle(
     from: WorkerLayer,
     to: WorkerLayer,
     batchSize: Int,
-    hashFunc: ITuple => Int,
-    inputNum: Int
-) extends LinkStrategy(from, to, batchSize, inputNum) {
+    hashFunc: ITuple => Int
+) extends LinkStrategy(from, to, batchSize) {
   override def getPolicies()
       : Iterable[(ActorVirtualIdentity, DataSendingPolicy, Seq[ActorVirtualIdentity])] = {
     assert(from.isBuilt && to.isBuilt)
     from.identifiers.map(x =>
       (
         x,
-        new HashBasedShufflePolicy(tag, batchSize, hashFunc, to.identifiers),
+        new HashBasedShufflePolicy(id, batchSize, hashFunc, to.identifiers),
         to.identifiers.toSeq
       )
     )
   }
+
 }

@@ -27,7 +27,7 @@ class TupleToBatchConverterSpec extends AnyFlatSpec with MockFactory {
       (mockDataOutputPort.sendTo _).expects(fakeID, DataFrame(tuples.slice(20, 21)))
       (mockDataOutputPort.sendTo _).expects(fakeID, EndOfUpstream())
     }
-    val fakeLink = LinkIdentity(LayerIdentity("", "", ""), LayerIdentity("", "", ""), 0)
+    val fakeLink = LinkIdentity(LayerIdentity("", "", ""), LayerIdentity("", "", ""))
     val fakeReceiver = Array[ActorVirtualIdentity](fakeID)
 
     batchProducer.addPolicy(new OneToOnePolicy(fakeLink, 10, fakeReceiver))

@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.sink
 
 import edu.uci.ics.amber.engine.common.tuple.ITuple
+import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
 import edu.uci.ics.amber.engine.common.{ITupleSinkOperatorExecutor, InputExhausted}
 
 import scala.collection.mutable
@@ -19,7 +20,7 @@ class SimpleSinkOpExec extends ITupleSinkOperatorExecutor {
 
   override def processTuple(
       tuple: Either[ITuple, InputExhausted],
-      input: Int
+      input: LinkIdentity
   ): scala.Iterator[ITuple] = {
     tuple match {
       case Left(t) =>

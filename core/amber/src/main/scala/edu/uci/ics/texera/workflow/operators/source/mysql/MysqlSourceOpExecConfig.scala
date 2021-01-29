@@ -34,8 +34,7 @@ class MysqlSourceOpExecConfig(
           OneOnEach()
         )
       ),
-      Array(),
-      Map()
+      Array()
     )
   }
 

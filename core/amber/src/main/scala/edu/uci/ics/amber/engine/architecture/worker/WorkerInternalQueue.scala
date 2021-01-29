@@ -4,6 +4,7 @@ import java.util.concurrent.LinkedBlockingDeque
 
 import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.InternalQueueElement
 import edu.uci.ics.amber.engine.common.tuple.ITuple
+import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
 
 object WorkerInternalQueue {
   // 4 kinds of elements can be accepted by internal queue
@@ -11,7 +12,7 @@ object WorkerInternalQueue {
 
   //TODO: check if this is creating overhead
   case class InputTuple(tuple: ITuple) extends InternalQueueElement
-  case class SenderChangeMarker(newSenderRef: Int) extends InternalQueueElement
+  case class SenderChangeMarker(newUpstreamLink: LinkIdentity) extends InternalQueueElement
   case class EndMarker() extends InternalQueueElement
   case class EndOfAllMarker() extends InternalQueueElement
 

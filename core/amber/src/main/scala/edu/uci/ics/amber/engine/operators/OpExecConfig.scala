@@ -9,7 +9,7 @@ import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.architecture.principal.{OperatorState, OperatorStatistics}
 import edu.uci.ics.amber.engine.architecture.principal.OperatorState
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.{Completed, Paused, Ready, Running, Uninitialized, WorkerState}
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LayerIdentity, OperatorIdentity, VirtualIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LayerIdentity, LinkIdentity, OperatorIdentity, VirtualIdentity}
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
@@ -21,14 +21,11 @@ abstract class OpExecConfig(val id: OperatorIdentity) extends Serializable {
 
   class Topology(
       var layers: Array[WorkerLayer],
-      var links: Array[LinkStrategy],
-      var dependencies: Map[LayerIdentity, Set[LayerIdentity]]
-  ) extends Serializable {
-    assert(!dependencies.exists(x => x._2.contains(x._1)))
-  }
+      var links: Array[LinkStrategy]
+  ) extends Serializable
 
   lazy val topology: Topology = null
-  var inputToOrdinalMapping = new mutable.HashMap[OperatorIdentity, Int]()
+  var inputToOrdinalMapping = new mutable.HashMap[LinkIdentity, Int]()
   var attachedBreakpoints = new mutable.HashMap[String, GlobalBreakpoint[_]]()
   var results: List[ITuple] = List.empty
 
@@ -78,24 +75,14 @@ abstract class OpExecConfig(val id: OperatorIdentity) extends Serializable {
   def getOperatorStatistics: OperatorStatistics =
     OperatorStatistics(getState, getInputRowCount, getOutputRowCount)
 
-  def runtimeCheck(
-      workflow: Workflow
-  ): Option[mutable.HashMap[VirtualIdentity, mutable.HashMap[VirtualIdentity, mutable.HashSet[
-    LayerIdentity
-  ]]]] = {
+  def checkStartDependencies(workflow: Workflow):Unit = {
     //do nothing by default
-    None
   }
 
   def requiredShuffle: Boolean = false
 
-  def setInputToOrdinalMapping(input: OperatorIdentity, ordinal: Integer): Unit = {
+  def setInputToOrdinalMapping(input: LinkIdentity, ordinal: Integer): Unit = {
     this.inputToOrdinalMapping.update(input, ordinal)
-  }
-
-  def getInputNum(from: OperatorIdentity): Int = {
-    assert(this.inputToOrdinalMapping.contains(from))
-    this.inputToOrdinalMapping(from)
   }
 
   def getShuffleHashFunction(layerTag: LayerIdentity): ITuple => Int = ???

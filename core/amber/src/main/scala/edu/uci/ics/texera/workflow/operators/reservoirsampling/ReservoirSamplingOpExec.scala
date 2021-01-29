@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.reservoirsampling
 
 import edu.uci.ics.amber.engine.common.InputExhausted
+import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
@@ -13,10 +14,7 @@ class ReservoirSamplingOpExec(val actor: Int, val opDesc: ReservoirSamplingOpDes
   val reservoir: Array[Tuple] = Array.ofDim(opDesc.getKForActor(actor))
   val rand: Random = new Random(opDesc.getSeed(actor))
 
-  override def processTexeraTuple(
-      tuple: Either[Tuple, InputExhausted],
-      input: Int
-  ): Iterator[Tuple] = {
+  override def processTexeraTuple(tuple: Either[Tuple, InputExhausted], input: LinkIdentity): Iterator[Tuple] = {
     tuple match {
       case Left(t) =>
         if (n < opDesc.getKForActor(actor)) {

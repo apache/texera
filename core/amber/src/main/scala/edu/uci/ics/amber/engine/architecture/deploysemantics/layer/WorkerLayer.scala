@@ -8,12 +8,9 @@ import akka.remote.RemoteScope
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.RegisterActorRef
 import edu.uci.ics.amber.engine.architecture.worker.{WorkerStatistics, WorkflowWorker}
 import edu.uci.ics.amber.engine.common.IOperatorExecutor
-import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.{
-  Uninitialized,
-  WorkerState
-}
+import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.{Uninitialized, WorkerState}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.WorkerActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LayerIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LayerIdentity, LinkIdentity}
 
 import scala.collection.mutable
 
@@ -26,6 +23,20 @@ class WorkerLayer(
 ) extends Serializable {
 
   var workers: Map[ActorVirtualIdentity, WorkerUnit] = _
+
+  private val startDependencies = mutable.HashSet[LinkIdentity]()
+
+  def startAfter(link:LinkIdentity): Unit ={
+    startDependencies.add(link)
+  }
+
+  def resolveDependency(link:LinkIdentity):Unit = {
+    startDependencies.remove(link)
+  }
+
+  def hasDependency(link:LinkIdentity): Boolean = startDependencies.contains(link)
+  
+  def canStart:Boolean = startDependencies.isEmpty
 
   def isBuilt: Boolean = workers != null
 

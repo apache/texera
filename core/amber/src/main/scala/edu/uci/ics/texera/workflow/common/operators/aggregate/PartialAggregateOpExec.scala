@@ -2,6 +2,7 @@ package edu.uci.ics.texera.workflow.common.operators.aggregate
 
 import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.tuple.ITuple
+import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.operators.aggregate.PartialAggregateOpExec.INTERNAL_AGGREGATE_PARTIAL_OBJECT
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
@@ -25,10 +26,7 @@ class PartialAggregateOpExec[Partial <: AnyRef](
   override def open(): Unit = {}
   override def close(): Unit = {}
 
-  override def processTexeraTuple(
-      tuple: Either[Tuple, InputExhausted],
-      input: Int
-  ): scala.Iterator[Tuple] = {
+  override def processTexeraTuple(tuple: Either[Tuple, InputExhausted], input: LinkIdentity): scala.Iterator[Tuple] = {
     tuple match {
       case Left(t) =>
         val groupByKey = if (aggFunc == null) null else aggFunc.groupByFunc(t)

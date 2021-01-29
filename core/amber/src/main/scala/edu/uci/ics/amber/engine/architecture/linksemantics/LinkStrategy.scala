@@ -7,11 +7,18 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, Li
 abstract class LinkStrategy(
     val from: WorkerLayer,
     val to: WorkerLayer,
-    val batchSize: Int,
-    val inputNum: Int
+    val batchSize: Int
 ) extends Serializable {
 
-  val tag = LinkIdentity(from.id, to.id, inputNum)
+  val id = LinkIdentity(from.id, to.id)
+
+  def expectedCompletedCount:Long = to.numWorkers
+
+  private var currentCompletedCount = 0
+
+  def receiveCompleted(): Unit = currentCompletedCount += 1
+
+  def isCompleted:Boolean = currentCompletedCount == expectedCompletedCount
 
   def getPolicies: Iterable[(ActorVirtualIdentity, DataSendingPolicy, Seq[ActorVirtualIdentity])]
 }

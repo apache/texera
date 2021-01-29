@@ -2,27 +2,11 @@ package edu.uci.ics.amber.engine.architecture.controller
 
 import akka.actor.{ActorContext, ActorRef, Cancellable}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.QueryWorkerStatisticsHandler.QueryWorkerStatistics
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.{
-  ActivateLinkHandler,
-  AssignBreakpointHandler,
-  ExecutionCompletedHandler,
-  ExecutionStartedHandler,
-  KillWorkflowHandler,
-  LocalBreakpointTriggeredHandler,
-  LocalOperatorExceptionHandler,
-  PauseHandler,
-  QueryWorkerStatisticsHandler,
-  ResumeHandler,
-  StartWorkflowHandler
-}
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.{ActivateLinkHandler, AssignBreakpointHandler, ExecutionCompletedHandler, ExecutionStartedHandler, KillWorkflowHandler, LinkCompletedHandler, LocalBreakpointTriggeredHandler, LocalOperatorExceptionHandler, PauseHandler, QueryWorkerStatisticsHandler, ResumeHandler, StartWorkflowHandler}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
 import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlOutputPort
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
-import edu.uci.ics.amber.engine.common.rpc.{
-  AsyncRPCClient,
-  AsyncRPCHandlerInitializer,
-  AsyncRPCServer
-}
+import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCHandlerInitializer, AsyncRPCServer}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 import scala.collection.mutable
@@ -49,7 +33,8 @@ class ControllerAsyncRPCHandlerInitializer(
     with QueryWorkerStatisticsHandler
     with ResumeHandler
     with StartWorkflowHandler
-    with KillWorkflowHandler {
+    with KillWorkflowHandler
+with LinkCompletedHandler{
 
   def enableStatusUpdate(): Unit = {
     if (statisticsUpdateIntervalMs.isDefined && statusUpdateAskHandle == null) {

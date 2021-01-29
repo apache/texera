@@ -50,8 +50,7 @@ class PythonUDFOpExecConfig(
           RoundRobinDeployment()
         )
       ),
-      Array(),
-      Map()
+      Array()
     )
   }
   override def assignBreakpoint(

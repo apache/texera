@@ -35,8 +35,7 @@ class MLModelOpExecConfig(
           RoundRobinDeployment()
         )
       ),
-      Array(),
-      Map()
+      Array()
     )
   }
 

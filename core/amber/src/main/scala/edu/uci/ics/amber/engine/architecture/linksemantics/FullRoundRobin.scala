@@ -9,13 +9,14 @@ import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 import scala.concurrent.ExecutionContext
 
-class FullRoundRobin(from: WorkerLayer, to: WorkerLayer, batchSize: Int, inputNum: Int)
-    extends LinkStrategy(from, to, batchSize, inputNum) {
+class FullRoundRobin(from: WorkerLayer, to: WorkerLayer, batchSize: Int)
+    extends LinkStrategy(from, to, batchSize) {
   override def getPolicies()
       : Iterable[(ActorVirtualIdentity, DataSendingPolicy, Seq[ActorVirtualIdentity])] = {
     assert(from.isBuilt && to.isBuilt)
     from.identifiers.map(x =>
-      (x, new RoundRobinPolicy(tag, batchSize, to.identifiers), to.identifiers.toSeq)
+      (x, new RoundRobinPolicy(id, batchSize, to.identifiers), to.identifiers.toSeq)
     )
   }
+
 }

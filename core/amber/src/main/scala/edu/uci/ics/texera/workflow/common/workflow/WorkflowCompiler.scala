@@ -2,7 +2,7 @@ package edu.uci.ics.texera.workflow.common.workflow
 
 import akka.actor.ActorRef
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
-import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{LinkIdentity, OperatorIdentity}
 import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
@@ -47,7 +47,8 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
       val destSet = outLinks.getOrElse(origin, mutable.Set())
       destSet.add(dest)
       outLinks.update(origin, destSet)
-      amberOperators(dest).setInputToOrdinalMapping(origin, link.destination.portOrdinal)
+      val layerLink = LinkIdentity(amberOperators(origin).topology.layers.last.id, amberOperators(dest).topology.layers.head.id)
+      amberOperators(dest).setInputToOrdinalMapping(layerLink, link.destination.portOrdinal)
     })
 
     val outLinksImmutableValue: mutable.Map[OperatorIdentity, Set[OperatorIdentity]] =

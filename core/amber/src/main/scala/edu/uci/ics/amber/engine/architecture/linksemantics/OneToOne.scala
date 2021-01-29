@@ -7,15 +7,15 @@ import edu.uci.ics.amber.engine.architecture.sendsemantics.datatransferpolicy.{
 }
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
-class OneToOne(from: WorkerLayer, to: WorkerLayer, batchSize: Int, inputNum: Int)
-    extends LinkStrategy(from, to, batchSize, inputNum) {
+class OneToOne(from: WorkerLayer, to: WorkerLayer, batchSize: Int)
+    extends LinkStrategy(from, to, batchSize) {
   override def getPolicies()
       : Iterable[(ActorVirtualIdentity, DataSendingPolicy, Seq[ActorVirtualIdentity])] = {
     assert(from.isBuilt && to.isBuilt && from.numWorkers == to.numWorkers)
     from.identifiers.indices.map(i =>
       (
         from.identifiers(i),
-        new OneToOnePolicy(tag, batchSize, Array(to.identifiers(i))),
+        new OneToOnePolicy(id, batchSize, Array(to.identifiers(i))),
         Seq(to.identifiers(i))
       )
     )

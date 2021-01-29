@@ -28,8 +28,7 @@ class SimpleSinkOpExecConfig(tag: OperatorIdentity) extends SinkOpExecConfig(tag
         RandomDeployment()
       )
     ),
-    Array(),
-    Map()
+    Array()
   )
 
   override def assignBreakpoint(

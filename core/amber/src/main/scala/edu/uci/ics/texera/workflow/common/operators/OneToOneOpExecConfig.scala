@@ -28,8 +28,7 @@ class OneToOneOpExecConfig(
           RoundRobinDeployment()
         )
       ),
-      Array(),
-      Map()
+      Array()
     )
   }
 

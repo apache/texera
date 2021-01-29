@@ -3,18 +3,14 @@ package edu.uci.ics.amber.engine.architecture.worker
 import java.util.concurrent.Executors
 
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ExecutionCompletedHandler.ExecutionCompleted
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkCompletedHandler
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkCompletedHandler.LinkCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LocalOperatorExceptionHandler.LocalOperatorException
 import edu.uci.ics.amber.engine.architecture.messaginglayer.TupleToBatchConverter
-import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.{
-  DummyInput,
-  EndMarker,
-  EndOfAllMarker,
-  InputTuple,
-  SenderChangeMarker
-}
+import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.{DummyInput, EndMarker, EndOfAllMarker, InputTuple, SenderChangeMarker}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
 import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted, WorkflowLogger}
 
 class DataProcessor( // dependencies:
@@ -31,7 +27,7 @@ class DataProcessor( // dependencies:
   private var inputTupleCount = 0L
   private var outputTupleCount = 0L
   private var currentInputTuple: Either[ITuple, InputExhausted] = _
-  private var currentSenderRef: Int = -1
+  private var currentInputLink: LinkIdentity = _
   private var currentOutputIterator: Iterator[ITuple] = _
   private var isCompleted = false
 
@@ -77,7 +73,7 @@ class DataProcessor( // dependencies:
   private[this] def processInputTuple(): Iterator[ITuple] = {
     var outputIterator: Iterator[ITuple] = null
     try {
-      outputIterator = operator.processTuple(currentInputTuple, currentSenderRef)
+      outputIterator = operator.processTuple(currentInputTuple, currentInputLink)
       if (currentInputTuple.isLeft) inputTupleCount += 1
     } catch {
       case e: Exception =>
@@ -125,11 +121,14 @@ class DataProcessor( // dependencies:
         case InputTuple(tuple) =>
           currentInputTuple = Left(tuple)
           handleInputTuple()
-        case SenderChangeMarker(newSenderRef) =>
-          currentSenderRef = newSenderRef
+        case SenderChangeMarker(link) =>
+          currentInputLink = link
         case EndMarker() =>
           currentInputTuple = Right(InputExhausted())
           handleInputTuple()
+          if(currentInputLink != null){
+            asyncRPCClient.send(LinkCompleted(currentInputLink), ActorVirtualIdentity.Controller)
+          }
         case EndOfAllMarker() =>
           // end of processing, break DP loop
           isCompleted = true

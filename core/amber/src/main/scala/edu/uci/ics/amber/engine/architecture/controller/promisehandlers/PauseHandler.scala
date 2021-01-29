@@ -28,7 +28,7 @@ trait PauseHandler {
         Future
           .collect(operator.getAllWorkers.map { worker =>
             send(PauseWorker(), worker).map { ret =>
-              operator.getWorker(sender).state = Paused
+              operator.getWorker(worker).state = Paused
               send(QueryCurrentInputTuple(), worker).map { tuple =>
                 buffer.append((tuple, worker))
               }
