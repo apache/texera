@@ -15,8 +15,8 @@ import akka.util.Timeout
 
 import scala.concurrent.ExecutionContext
 
-class LocalPartialToOne(from: WorkerLayer, to: WorkerLayer, batchSize: Int, inputNum: Int)
-    extends LinkStrategy(from, to, batchSize, inputNum) {
+class LocalPartialToOne(from: WorkerLayer, to: WorkerLayer, batchSize: Int)
+    extends LinkStrategy(from, to, batchSize) {
   override def link()(implicit
       timeout: Timeout,
       ec: ExecutionContext

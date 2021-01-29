@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.workflow.common.operators.aggregate
 
 import edu.uci.ics.amber.engine.common.InputExhausted
+import edu.uci.ics.amber.engine.common.ambertag.OperatorIdentifier
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.operators.aggregate.PartialAggregateOpExec.INTERNAL_AGGREGATE_PARTIAL_OBJECT
@@ -27,7 +28,7 @@ class PartialAggregateOpExec[Partial <: AnyRef](
 
   override def processTexeraTuple(
       tuple: Either[Tuple, InputExhausted],
-      input: Int
+      input: OperatorIdentifier
   ): scala.Iterator[Tuple] = {
     tuple match {
       case Left(t) =>

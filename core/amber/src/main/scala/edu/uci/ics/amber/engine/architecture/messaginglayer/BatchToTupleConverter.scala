@@ -9,6 +9,7 @@ import edu.uci.ics.amber.engine.architecture.worker.neo.WorkerInternalQueue.{
 }
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{DataFrame, EndOfUpstream}
 import edu.uci.ics.amber.engine.common.ambermessage.neo.DataPayload
+import edu.uci.ics.amber.engine.common.ambertag.OperatorIdentifier
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
 
 import scala.collection.mutable
@@ -21,11 +22,12 @@ class BatchToTupleConverter(workerInternalQueue: WorkerInternalQueue) {
     * We also keep track of the upstream actors so that we can emit
     * EndOfAllMarker when all upstream actors complete their job
     */
-  private val inputMap = new mutable.HashMap[VirtualIdentity, Int]
-  private val upstreamMap = new mutable.HashMap[Int, mutable.HashSet[VirtualIdentity]]
-  private var currentSender = -1
+  private val inputMap = new mutable.HashMap[VirtualIdentity, OperatorIdentifier]
+  private val upstreamMap =
+    new mutable.HashMap[OperatorIdentifier, mutable.HashSet[VirtualIdentity]]
+  private var currentSender: OperatorIdentifier = null
 
-  def registerInput(identifier: VirtualIdentity, input: Int): Unit = {
+  def registerInput(identifier: VirtualIdentity, input: OperatorIdentifier): Unit = {
     upstreamMap.getOrElseUpdate(input, new mutable.HashSet[VirtualIdentity]()).add(identifier)
     inputMap(identifier) = input
   }
@@ -44,7 +46,7 @@ class BatchToTupleConverter(workerInternalQueue: WorkerInternalQueue) {
     */
   def processDataPayload(from: VirtualIdentity, dataPayloads: Iterable[DataPayload]): Unit = {
     val sender = inputMap(from)
-    if (currentSender != sender) {
+    if (currentSender == null || currentSender != sender) {
       workerInternalQueue.appendElement(SenderChangeMarker(sender))
       currentSender = sender
     }

@@ -28,6 +28,7 @@ import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.ControlMessage._
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage
 import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage._
+import edu.uci.ics.amber.engine.common.ambertag.OperatorIdentifier
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnPayload}
 import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCHandlerInitializer, AsyncRPCServer}
@@ -146,11 +147,11 @@ class WorkflowWorker(
       workerStateManager.confirmState(Pausing)
       workerStateManager.transitTo(Paused)
       reportState()
-    case UpdateInputLinking(identifier, inputNum) =>
+    case UpdateInputLinking(upstreamWorkerId, upstreamOpId) =>
       workerStateManager.confirmState(Ready)
       logger.logInfo(s"received register input for ${this.identifier}")
       sender ! Ack
-      tupleProducer.registerInput(identifier, inputNum)
+      tupleProducer.registerInput(upstreamWorkerId, upstreamOpId)
     case LocalBreakpointTriggered() =>
       workerStateManager.confirmState(Running)
       dataProcessor.breakpoints.foreach { brk =>
@@ -298,7 +299,13 @@ class WorkflowWorker(
       sender ! Ack
       // send message to receivers to add this worker to their expected inputs
       policy.receivers.foreach { x =>
-        controlOutputPort.sendTo(x, UpdateInputLinking(identifier, policy.policyTag.inputNum))
+        controlOutputPort.sendTo(
+          x,
+          UpdateInputLinking(
+            identifier,
+            OperatorIdentifier(policy.policyTag.from.workflow, policy.policyTag.from.operator)
+          )
+        ) // this is a weird way to create the operatorIdentifier of the current operator
       }
       batchProducer.addPolicy(policy)
   }

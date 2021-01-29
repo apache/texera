@@ -26,7 +26,6 @@ class OperatorLink(val from: (OpExecConfig, WorkerLayer), val to: (OpExecConfig,
   def link()(implicit timeout: Timeout, ec: ExecutionContext): Unit = {
     val sender = from._2
     val receiver = to._2
-    val inputNum = to._1.getInputNum(from._1.tag)
     if (linkStrategy == null) {
       //TODO: use type matching to generate a 'smarter' strategy based on the operators
       if (to._1.requiredShuffle) {
@@ -34,15 +33,14 @@ class OperatorLink(val from: (OpExecConfig, WorkerLayer), val to: (OpExecConfig,
           sender,
           receiver,
           Constants.defaultBatchSize,
-          to._1.getShuffleHashFunction(sender.tag),
-          inputNum
+          to._1.getShuffleHashFunction(sender.tag)
         )
       } else if (to._1.isInstanceOf[SinkOpExecConfig]) {
-        linkStrategy = new AllToOne(sender, receiver, Constants.defaultBatchSize, inputNum)
+        linkStrategy = new AllToOne(sender, receiver, Constants.defaultBatchSize)
       } else if (sender.layer.length == receiver.layer.length) {
-        linkStrategy = new LocalOneToOne(sender, receiver, Constants.defaultBatchSize, inputNum)
+        linkStrategy = new LocalOneToOne(sender, receiver, Constants.defaultBatchSize)
       } else {
-        linkStrategy = new LocalRoundRobin(sender, receiver, Constants.defaultBatchSize, inputNum)
+        linkStrategy = new LocalRoundRobin(sender, receiver, Constants.defaultBatchSize)
       }
     } else {
       linkStrategy.from.layer = sender.layer

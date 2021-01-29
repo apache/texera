@@ -9,8 +9,8 @@ import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.AddDataSending
 
 import scala.concurrent.ExecutionContext
 
-class LocalOneToOne(from: WorkerLayer, to: WorkerLayer, batchSize: Int, inputNum: Int)
-    extends LinkStrategy(from, to, batchSize, inputNum) {
+class LocalOneToOne(from: WorkerLayer, to: WorkerLayer, batchSize: Int)
+    extends LinkStrategy(from, to, batchSize) {
   override def link()(implicit
       timeout: Timeout,
       ec: ExecutionContext

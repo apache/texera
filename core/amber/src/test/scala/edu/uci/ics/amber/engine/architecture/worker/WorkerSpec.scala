@@ -14,7 +14,7 @@ import edu.uci.ics.amber.engine.common.ambermessage.WorkerMessage.{
   UpdateInputLinking
 }
 import edu.uci.ics.amber.engine.common.ambermessage.neo.DataPayload
-import edu.uci.ics.amber.engine.common.ambertag.LinkTag
+import edu.uci.ics.amber.engine.common.ambertag.{LayerTag, LinkTag, OperatorIdentifier}
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.{
   ActorVirtualIdentity,
   WorkerActorVirtualIdentity
@@ -44,7 +44,10 @@ class WorkerSpec
     val identifier1 = WorkerActorVirtualIdentity("worker-1")
     val identifier2 = WorkerActorVirtualIdentity("worker-2")
     val mockOpExecutor = mock[IOperatorExecutor]
-    val mockTag = mock[LinkTag]
+    val mockTag = LinkTag(
+      LayerTag("test-workflow", "op1", "layer1"),
+      LayerTag("test-workflow", "op2", "layer1")
+    )
 
     val mockPolicy = new DataSendingPolicy(mockTag, 10, Array(identifier2)) {
       override def addTupleToBatch(tuple: ITuple): Option[(ActorVirtualIdentity, DataPayload)] =
@@ -57,7 +60,13 @@ class WorkerSpec
 
     inAnyOrder {
       (mockControlOutputPort.sendTo _)
-        .expects(identifier2, UpdateInputLinking(identifier1, mockTag.inputNum))
+        .expects(
+          identifier2,
+          UpdateInputLinking(
+            identifier1,
+            OperatorIdentifier(mockTag.from.workflow, mockTag.from.operator)
+          )
+        )
       (mockTupleToBatchConverter.addPolicy _).expects(mockPolicy)
     }
 

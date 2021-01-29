@@ -10,11 +10,10 @@ import scala.concurrent.ExecutionContext
 abstract class LinkStrategy(
     val from: WorkerLayer,
     val to: WorkerLayer,
-    val batchSize: Int,
-    val inputNum: Int
+    val batchSize: Int
 ) extends Serializable {
 
-  val tag = LinkTag(from.tag, to.tag, inputNum)
+  val tag = LinkTag(from.tag, to.tag)
 
   def link()(implicit timeout: Timeout, ec: ExecutionContext): Unit
 }
