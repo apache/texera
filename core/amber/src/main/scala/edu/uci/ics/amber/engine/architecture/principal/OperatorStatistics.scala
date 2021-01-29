@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.principal
 
-import edu.uci.ics.amber.engine.architecture.principal.OperatorState.OperatorState
+import edu.uci.ics.amber.engine.architecture.principal.OperatorState
 import com.fasterxml.jackson.core.`type`.TypeReference
 import com.fasterxml.jackson.module.scala.JsonScalaEnumeration
 

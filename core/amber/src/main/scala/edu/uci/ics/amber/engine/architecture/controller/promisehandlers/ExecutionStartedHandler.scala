@@ -13,7 +13,7 @@ trait ExecutionStartedHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
   registerHandler { (msg: ExecutionStarted, sender) =>
-    workflow.getOperator(sender).setWorkerState(sender, Running)
+    workflow.getOperator(sender).getWorker(sender).state = Running
     CommandCompleted()
   }
 }

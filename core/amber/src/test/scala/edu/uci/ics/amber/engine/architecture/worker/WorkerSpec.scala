@@ -12,11 +12,6 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddOutputPol
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.UpdateInputLinkingHandler.UpdateInputLinking
 import edu.uci.ics.amber.engine.common.IOperatorExecutor
 import edu.uci.ics.amber.engine.common.ambermessage.DataPayload
-import edu.uci.ics.amber.engine.common.ambertag.LinkTag
-import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.{
-  ActorVirtualIdentity,
-  WorkerActorVirtualIdentity
-}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll

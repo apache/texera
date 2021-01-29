@@ -10,7 +10,6 @@ import akka.actor.{ActorSystem, PoisonPill, Props}
 import akka.event.LoggingAdapter
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 import akka.util.Timeout
-import edu.uci.ics.amber.engine.common.ambertag.WorkflowTag
 import edu.uci.ics.amber.engine.e2e.TestOperators
 import edu.uci.ics.texera.web.model.request.ExecuteWorkflowRequest
 import edu.uci.ics.texera.workflow.common.workflow.{WorkflowCompiler, WorkflowInfo}

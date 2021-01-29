@@ -31,14 +31,16 @@ trait ExecutionCompletedHandler {
       if (operator.isInstanceOf[SinkOpExecConfig]) {
         send(QueryStatistics(), sender).join(send(CollectSinkResults(), sender)).map {
           case (stats, results) =>
-            operator.setWorkerStatistics(sender, stats)
+            val workerUnit = operator.getWorker(sender)
+            workerUnit.stats = stats
+            workerUnit.state = Completed
             operator.acceptResultTuples(results)
-            operator.setWorkerState(sender, Completed)
         }
       } else {
         send(QueryStatistics(), sender).map { stats =>
-          operator.setWorkerStatistics(sender, stats)
-          operator.setWorkerState(sender, Completed)
+          val workerUnit = operator.getWorker(sender)
+          workerUnit.stats = stats
+          workerUnit.state = Completed
         }
       }
     future.map { ret =>

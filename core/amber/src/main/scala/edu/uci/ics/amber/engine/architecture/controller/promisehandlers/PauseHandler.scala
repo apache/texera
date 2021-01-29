@@ -1,18 +1,13 @@
 package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
-import edu.uci.ics.amber.engine.architecture.controller.{
-  ControllerAsyncRPCHandlerInitializer,
-  ControllerState
-}
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
-  ReportCurrentProcessingTuple,
-  WorkflowPaused
-}
+import edu.uci.ics.amber.engine.architecture.controller.{ControllerAsyncRPCHandlerInitializer, ControllerState}
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{ReportCurrentProcessingTuple, WorkflowPaused, WorkflowStatusUpdate}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryCurrentInputTupleHandler.QueryCurrentInputTuple
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.{CommandCompleted, ControlCommand}
+import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.{Completed, Paused}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
@@ -33,6 +28,7 @@ trait PauseHandler {
         Future
           .collect(operator.getAllWorkers.map { worker =>
             send(PauseWorker(), worker).map { ret =>
+              operator.getWorker(sender).state = Paused
               send(QueryCurrentInputTuple(), worker).map { tuple =>
                 buffer.append((tuple, worker))
               }
@@ -46,6 +42,10 @@ trait PauseHandler {
           }
       }.toSeq)
       .map { ret =>
+        if (eventListener.workflowStatusUpdateListener != null) {
+          eventListener.workflowStatusUpdateListener
+            .apply(WorkflowStatusUpdate(workflow.getWorkflowStatus))
+        }
         if (eventListener.workflowPausedListener != null) {
           eventListener.workflowPausedListener.apply(WorkflowPaused())
         }

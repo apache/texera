@@ -25,11 +25,15 @@ class WorkerLayer(
     val deployStrategy: DeployStrategy
 ) extends Serializable {
 
-  var identifiers: Array[ActorVirtualIdentity] = _
-  var states: Array[WorkerState] = _
-  var statistics: Array[WorkerStatistics] = _
+  var workers: Map[ActorVirtualIdentity, WorkerUnit] = _
 
-  def isBuilt: Boolean = identifiers != null
+  def isBuilt: Boolean = workers != null
+
+  def identifiers:Array[ActorVirtualIdentity] = workers.values.map(_.id).toArray
+
+  def states:Array[WorkerState] = workers.values.map(_.state).toArray
+
+  def statistics:Array[WorkerStatistics] = workers.values.map(_.stats).toArray
 
   def build(
       prev: Array[(OpExecConfig, WorkerLayer)],
@@ -39,22 +43,20 @@ class WorkerLayer(
       workerToLayer: mutable.HashMap[ActorVirtualIdentity, WorkerLayer]
   ): Unit = {
     deployStrategy.initialize(deploymentFilter.filter(prev, all, context.self.path.address))
-    identifiers = new Array[ActorVirtualIdentity](numWorkers)
-    states = Array.fill(numWorkers)(Uninitialized)
-    statistics = Array.fill(numWorkers)(WorkerStatistics(Uninitialized, 0, 0))
-    for (i <- 0 until numWorkers) {
-      val m = metadata(i)
-      val id = WorkerActorVirtualIdentity(LayerIdentity.toString() + s"[$i]")
-      val d = deployStrategy.next()
-      val ref = context.actorOf(
-        WorkflowWorker
-          .props(id, m, parentNetworkCommunicationActorRef)
-          .withDeploy(Deploy(scope = RemoteScope(d)))
-      )
-      parentNetworkCommunicationActorRef ! RegisterActorRef(id, ref)
-      identifiers(i) = id
-      workerToLayer(id) = this
-    }
+    workers = (0 until numWorkers).map {
+      i=>
+        val m = metadata(i)
+        val workerID = WorkerActorVirtualIdentity(id.toString + s"[$i]")
+        val d = deployStrategy.next()
+        val ref = context.actorOf(
+          WorkflowWorker
+            .props(workerID, m, parentNetworkCommunicationActorRef)
+            .withDeploy(Deploy(scope = RemoteScope(d)))
+        )
+        parentNetworkCommunicationActorRef ! RegisterActorRef(workerID, ref)
+        workerToLayer(workerID) = this
+        workerID -> WorkerUnit(workerID,Uninitialized,WorkerStatistics(Uninitialized, 0, 0))
+    }.toMap
   }
 
 }

@@ -2,26 +2,14 @@ package edu.uci.ics.amber.engine.operators
 
 import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalBreakpoint
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{WorkerLayer, WorkerUnit}
 import edu.uci.ics.amber.engine.architecture.linksemantics.LinkStrategy
 import edu.uci.ics.amber.engine.architecture.worker.WorkerStatistics
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.architecture.principal.{OperatorState, OperatorStatistics}
-import edu.uci.ics.amber.engine.architecture.principal.OperatorState.OperatorState
-import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.{
-  Completed,
-  Paused,
-  Ready,
-  Running,
-  Uninitialized,
-  WorkerState
-}
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  LayerIdentity,
-  OperatorIdentity,
-  VirtualIdentity
-}
+import edu.uci.ics.amber.engine.architecture.principal.OperatorState
+import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.{Completed, Paused, Ready, Running, Uninitialized, WorkerState}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LayerIdentity, OperatorIdentity, VirtualIdentity}
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
@@ -69,22 +57,15 @@ abstract class OpExecConfig(val id: OperatorIdentity) extends Serializable {
 
   def getAllWorkerStates: Iterable[WorkerState] = topology.layers.flatMap(l => l.states)
 
-  def setWorkerState(id: ActorVirtualIdentity, state: WorkerState): Unit = {
-    val layer: WorkerLayer = getLayerFromWorkerID(id)
-    val idx = layer.identifiers.indexOf(id)
-    layer.states(idx) = state
+  def getWorker(id:ActorVirtualIdentity):WorkerUnit = {
+    val layer = topology.layers.find(l => l.workers.contains(id)).get
+    layer.workers(id)
   }
 
   def setAllWorkerState(state: WorkerState): Unit = {
     topology.layers.foreach { layer =>
       (0 until layer.numWorkers).foreach(layer.states.update(_, state))
     }
-  }
-
-  def setWorkerStatistics(id: ActorVirtualIdentity, stats: WorkerStatistics): Unit = {
-    val layer: WorkerLayer = getLayerFromWorkerID(id)
-    val idx = layer.identifiers.indexOf(id)
-    layer.statistics(idx) = stats
   }
 
   def getLayerFromWorkerID(id: ActorVirtualIdentity): WorkerLayer =

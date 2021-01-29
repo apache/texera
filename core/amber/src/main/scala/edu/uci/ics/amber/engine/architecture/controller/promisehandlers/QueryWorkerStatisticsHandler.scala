@@ -22,7 +22,7 @@ trait QueryWorkerStatisticsHandler {
     Future
       .collect(workflow.getAllWorkers.map { worker =>
         send(QueryStatistics(), worker).map { stats =>
-          workflow.getOperator(worker).setWorkerStatistics(worker, stats)
+          workflow.getOperator(worker).getWorker(worker).stats = stats
         }
       }.toSeq)
       .map { ret =>
