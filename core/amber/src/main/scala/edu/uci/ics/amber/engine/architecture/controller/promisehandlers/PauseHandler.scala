@@ -1,13 +1,24 @@
 package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
-import edu.uci.ics.amber.engine.architecture.controller.{ControllerAsyncRPCHandlerInitializer, ControllerState}
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{ReportCurrentProcessingTuple, WorkflowPaused, WorkflowStatusUpdate}
+import edu.uci.ics.amber.engine.architecture.controller.{
+  ControllerAsyncRPCHandlerInitializer,
+  ControllerState
+}
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
+  ReportCurrentProcessingTuple,
+  WorkflowPaused,
+  WorkflowStatusUpdate
+}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryCurrentInputTupleHandler.QueryCurrentInputTuple
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.{CommandCompleted, ControlCommand}
-import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.{Completed, Paused}
+import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.{
+  Completed,
+  Paused,
+  Running
+}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
@@ -26,14 +37,19 @@ trait PauseHandler {
     Future
       .collect(workflow.getAllOperators.map { operator =>
         Future
-          .collect(operator.getAllWorkers.map { worker =>
-            send(PauseWorker(), worker).map { ret =>
-              operator.getWorker(worker).state = Paused
-              send(QueryCurrentInputTuple(), worker).map { tuple =>
-                buffer.append((tuple, worker))
+          .collect(
+            operator.getAllWorkers
+              .filter(worker => operator.getWorker(worker).state == Running)
+              .map { worker =>
+                send(PauseWorker(), worker).map { ret =>
+                  operator.getWorker(worker).state = ret
+                  send(QueryCurrentInputTuple(), worker).map { tuple =>
+                    buffer.append((tuple, worker))
+                  }
+                }
               }
-            }
-          }.toSeq)
+              .toSeq
+          )
           .map { ret =>
             if (eventListener.reportCurrentTuplesListener != null) {
               eventListener.reportCurrentTuplesListener

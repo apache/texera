@@ -2,14 +2,28 @@ package edu.uci.ics.amber.engine.operators
 
 import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalBreakpoint
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{WorkerLayer, WorkerInfo}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{WorkerInfo, WorkerLayer}
 import edu.uci.ics.amber.engine.architecture.linksemantics.LinkStrategy
 import edu.uci.ics.amber.engine.architecture.worker.WorkerStatistics
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.architecture.principal.{OperatorState, OperatorStatistics}
 import edu.uci.ics.amber.engine.architecture.principal.OperatorState
-import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.{Completed, Paused, Ready, Running, Uninitialized, WorkerState}
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LayerIdentity, LinkIdentity, OperatorIdentity, VirtualIdentity}
+import edu.uci.ics.amber.engine.common.WorkflowLogger
+import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.{
+  Completed,
+  Paused,
+  Ready,
+  Running,
+  Uninitialized,
+  WorkerState
+}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  LayerIdentity,
+  LinkIdentity,
+  OperatorIdentity,
+  VirtualIdentity
+}
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext
@@ -24,7 +38,7 @@ abstract class OpExecConfig(val id: OperatorIdentity) extends Serializable {
       var links: Array[LinkStrategy]
   ) extends Serializable
 
-  val opExecConfigLogger = WorkflowLogger(s"OpExecConfig ${tag.getGlobalIdentity}")
+  val opExecConfigLogger = WorkflowLogger(s"OpExecConfig $id")
   lazy val topology: Topology = null
   var inputToOrdinalMapping = new mutable.HashMap[LinkIdentity, Int]()
   var attachedBreakpoints = new mutable.HashMap[String, GlobalBreakpoint[_]]()
@@ -32,15 +46,18 @@ abstract class OpExecConfig(val id: OperatorIdentity) extends Serializable {
 
   def getState: OperatorState = {
     val workerStates = getAllWorkerStates
-    if (workerStates.forall(_ == Uninitialized)) {
+    if (workerStates.forall(_ == Completed)) {
+      return OperatorState.Completed
+    }
+    if (workerStates.exists(_ == Running)) {
+      return OperatorState.Running
+    }
+    val unCompletedWorkerStates = workerStates.filter(_ != Completed)
+    if (unCompletedWorkerStates.forall(_ == Uninitialized)) {
       OperatorState.Uninitialized
-    } else if (workerStates.forall(_ == Running)) {
-      OperatorState.Running
-    } else if (workerStates.forall(_ == Paused)) {
+    } else if (unCompletedWorkerStates.forall(_ == Paused)) {
       OperatorState.Paused
-    } else if (workerStates.forall(_ == Completed)) {
-      OperatorState.Completed
-    } else if (workerStates.forall(_ == Ready)) {
+    } else if (unCompletedWorkerStates.forall(_ == Ready)) {
       OperatorState.Ready
     } else {
       OperatorState.Unknown
@@ -55,7 +72,7 @@ abstract class OpExecConfig(val id: OperatorIdentity) extends Serializable {
 
   def getAllWorkerStates: Iterable[WorkerState] = topology.layers.flatMap(l => l.states)
 
-  def getWorker(id:ActorVirtualIdentity):WorkerInfo = {
+  def getWorker(id: ActorVirtualIdentity): WorkerInfo = {
     val layer = topology.layers.find(l => l.workers.contains(id)).get
     layer.workers(id)
   }
@@ -76,7 +93,7 @@ abstract class OpExecConfig(val id: OperatorIdentity) extends Serializable {
   def getOperatorStatistics: OperatorStatistics =
     OperatorStatistics(getState, getInputRowCount, getOutputRowCount)
 
-  def checkStartDependencies(workflow: Workflow):Unit = {
+  def checkStartDependencies(workflow: Workflow): Unit = {
     //do nothing by default
   }
 

@@ -12,7 +12,10 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.{CommandCompleted, ControlCommand}
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.Running
+import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
+import edu.uci.ics.amber.engine.operators.OpExecConfig
 
+import scala.collection.mutable
 import scala.concurrent.duration.{DurationInt, FiniteDuration, MILLISECONDS}
 
 object StartWorkflowHandler {
@@ -23,17 +26,23 @@ trait StartWorkflowHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
   registerHandler { (msg: StartWorkflow, sender) =>
+    val startedOperators = mutable.HashSet[OperatorIdentity]()
     Future
-      .collect(workflow.getSourceLayers.flatMap {
-        case layer if layer.canStart => layer.workers.keys.map(send(StartWorker(), _))
-      }.toSeq)
+      .collect(
+        workflow.getSourceLayers
+          .filter(layer => layer.canStart)
+          .flatMap { layer =>
+            startedOperators.add(layer.id.toOperatorIdentity)
+            layer.workers.keys.map(send(StartWorker(), _))
+          }
+          .toSeq
+      )
       .map { ret =>
         println("workflow started")
         actorContext.parent ! ControllerState.Running // for testing
-        //TODO: change it to operators which are actually started!!!
-//        workflow.getStartOperators.foreach { op =>
-//          op.setAllWorkerState(Running)
-//        }
+        startedOperators.foreach { op =>
+          workflow.getOperator(op).setAllWorkerState(Running)
+        }
         enableStatusUpdate()
         CommandCompleted()
       }

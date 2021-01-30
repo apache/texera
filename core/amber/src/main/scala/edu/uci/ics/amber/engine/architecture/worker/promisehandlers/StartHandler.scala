@@ -6,11 +6,15 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler
 import edu.uci.ics.amber.engine.common.ISourceOperatorExecutor
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.{CommandCompleted, ControlCommand}
-import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.{Ready, Running}
+import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.{
+  Ready,
+  Running,
+  WorkerState
+}
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 
 object StartHandler {
-  final case class StartWorker() extends ControlCommand[CommandCompleted]
+  final case class StartWorker() extends ControlCommand[WorkerState]
 }
 
 trait StartHandler {
@@ -22,7 +26,7 @@ trait StartHandler {
       dataProcessor.appendElement(EndMarker())
       dataProcessor.appendElement(EndOfAllMarker())
       stateManager.transitTo(Running)
-      CommandCompleted()
+      stateManager.getCurrentState
     } else {
       throw new WorkflowRuntimeException(
         WorkflowRuntimeError(

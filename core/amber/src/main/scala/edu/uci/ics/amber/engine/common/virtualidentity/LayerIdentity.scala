@@ -10,4 +10,6 @@ case class LayerIdentity(workflow: String, operator: String, layerID: String)
     extends VirtualIdentity {
   override def toString: String = s"Layer($workflow,$operator,$layerID)"
 
+  def toOperatorIdentity: OperatorIdentity = OperatorIdentity(workflow, operator)
+
 }

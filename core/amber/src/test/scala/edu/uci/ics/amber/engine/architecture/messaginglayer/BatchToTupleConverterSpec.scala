@@ -2,7 +2,12 @@ package edu.uci.ics.amber.engine.architecture.messaginglayer
 
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue
-import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.{EndMarker, EndOfAllMarker, InputTuple, SenderChangeMarker}
+import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.{
+  EndMarker,
+  EndOfAllMarker,
+  InputTuple,
+  SenderChangeMarker
+}
 import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, EndOfUpstream}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.WorkerActorVirtualIdentity
@@ -13,8 +18,8 @@ import org.scalatest.flatspec.AnyFlatSpec
 class BatchToTupleConverterSpec extends AnyFlatSpec with MockFactory {
   private val mockInternalQueue = mock[WorkerInternalQueue]
   private val fakeID = WorkerActorVirtualIdentity("testReceiver")
-  val linkID1 = LinkIdentity(null,null)
-  val linkID2 = LinkIdentity(LayerIdentity("","",""),null)
+  val linkID1 = LinkIdentity(null, null)
+  val linkID2 = LinkIdentity(LayerIdentity("", "", ""), null)
   "tuple producer" should "break batch into tuples and output" in {
     val batchToTupleConverter = wire[BatchToTupleConverter]
     val inputBatch = DataFrame(Array.fill(4)(ITuple(1, 2, 3, 5, "9.8", 7.6)))

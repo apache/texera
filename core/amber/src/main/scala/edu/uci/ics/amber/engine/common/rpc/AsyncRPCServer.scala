@@ -64,6 +64,7 @@ class AsyncRPCServer(controlOutputPort: ControlOutputPort) {
       case e: Throwable =>
         // if error occurs, return it to the sender.
         returnResult(senderID, control.commandID, e)
+        throw e
     }
   }
 

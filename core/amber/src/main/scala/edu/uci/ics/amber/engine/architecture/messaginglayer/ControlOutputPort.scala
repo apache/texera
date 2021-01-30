@@ -24,7 +24,7 @@ class ControlOutputPort(selfID: ActorVirtualIdentity, networkSenderActor: Networ
 
   def sendTo(to: ActorVirtualIdentity, payload: ControlPayload): Unit = {
     var receiverId = to
-    if (to == VirtualIdentity.Self) {
+    if (to == ActorVirtualIdentity.Self) {
       // selfID and VirtualIdentity.Self should be one key
       receiverId = selfID
     }

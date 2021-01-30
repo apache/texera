@@ -7,11 +7,20 @@ import com.softwaremill.macwire.wire
 import com.twitter.util.Future
 import edu.uci.ics.amber.clustering.ClusterListener.GetAvailableNodeAddresses
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.ErrorOccurred
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
+  ErrorOccurred,
+  WorkflowStatusUpdate
+}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.RegisterActorRef
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
+import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlInputPort.WorkflowControlMessage
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
+  NetworkAck,
+  NetworkMessage,
+  RegisterActorRef
+}
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnPayload}
 import edu.uci.ics.amber.engine.common.WorkflowLogger
+import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.Ready
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.error.WorkflowRuntimeError
 
@@ -65,25 +74,43 @@ class Controller(
   workflow.build(availableNodes, networkCommunicationActor, context)
 
   // activate all links
-  Future.collect(workflow.getAllLinks.map { link =>
-    asyncRPCClient.send(
-      LinkWorkers(link),
-      ActorVirtualIdentity.Controller
-    )
-  }.toSeq).onSuccess{
-    ret =>
+  Future
+    .collect(workflow.getAllLinks.map { link =>
+      asyncRPCServer.execute(
+        LinkWorkers(link),
+        ActorVirtualIdentity.Controller
+      )
+    }.toSeq)
+    .onSuccess { ret =>
+      workflow.getAllOperators.foreach(_.setAllWorkerState(Ready))
+      if (eventListener.workflowStatusUpdateListener != null) {
+        eventListener.workflowStatusUpdateListener
+          .apply(WorkflowStatusUpdate(workflow.getWorkflowStatus))
+      }
       // for testing, report ready state to parent
       context.parent ! ControllerState.Ready
-  }
-
-  //TODO: transit controller state after the linking finishes and prevent other messages to be executed
+      context.become(running)
+      unstashAll()
+    }
 
   def availableNodes: Array[Address] =
     Await
       .result(context.actorSelection("/user/cluster-info") ? GetAvailableNodeAddresses, 5.seconds)
       .asInstanceOf[Array[Address]]
 
-  override def receive: Receive = running
+  override def receive: Receive = initializing
+
+  def initializing: Receive = {
+    case NetworkMessage(
+          id,
+          cmd @ WorkflowControlMessage(from, sequenceNumber, payload: ReturnPayload)
+        ) =>
+      sender ! NetworkAck(id)
+      // only process replies
+      controlInputPort.handleControlMessage(cmd)
+    case msg =>
+      stash() //prevent other messages to be executed until initialized
+  }
 
   def running: Receive = {
     acceptDirectInvocations orElse

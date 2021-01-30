@@ -7,8 +7,16 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkComp
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkCompletedHandler.LinkCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LocalOperatorExceptionHandler.LocalOperatorException
 import edu.uci.ics.amber.engine.architecture.messaginglayer.TupleToBatchConverter
-import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.{DummyInput, EndMarker, EndOfAllMarker, InputTuple, SenderChangeMarker}
+import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.{
+  DummyInput,
+  EndMarker,
+  EndOfAllMarker,
+  InputTuple,
+  SenderChangeMarker
+}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
+import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
+import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager.Completed
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
 import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted, WorkflowLogger}
@@ -19,7 +27,8 @@ class DataProcessor( // dependencies:
     asyncRPCClient: AsyncRPCClient, // to send controls
     batchProducer: TupleToBatchConverter, // to send output tuples
     pauseManager: PauseManager, // to pause/resume
-    breakpointManager: BreakpointManager // to evaluate breakpoints
+    breakpointManager: BreakpointManager, // to evaluate breakpoints
+    stateManager: WorkerStateManager
 ) extends WorkerInternalQueue { // TODO: make breakpointSupport as a module
 
   protected val logger: WorkflowLogger = WorkflowLogger("DataProcessor")
@@ -78,11 +87,6 @@ class DataProcessor( // dependencies:
       outputIterator = operator.processTuple(currentInputTuple, currentInputLink)
       if (currentInputTuple.isLeft) {
         inputTupleCount += 1
-      } else {
-        controlOutputChannel.sendTo(
-          VirtualIdentity.Self,
-          ReportWorkerPartialCompleted(currentSenderRef)
-        )
       }
     } catch {
       case e: Exception =>
@@ -135,7 +139,7 @@ class DataProcessor( // dependencies:
         case EndMarker() =>
           currentInputTuple = Right(InputExhausted())
           handleInputTuple()
-          if(currentInputLink != null){
+          if (currentInputLink != null) {
             asyncRPCClient.send(LinkCompleted(currentInputLink), ActorVirtualIdentity.Controller)
           }
         case EndOfAllMarker() =>
@@ -149,6 +153,7 @@ class DataProcessor( // dependencies:
     }
     // Send Completed signal to worker actor.
     logger.logInfo(s"${operator.toString} completed")
+    stateManager.transitTo(Completed)
     asyncRPCClient.send(WorkerExecutionCompleted(), ActorVirtualIdentity.Controller)
   }
 

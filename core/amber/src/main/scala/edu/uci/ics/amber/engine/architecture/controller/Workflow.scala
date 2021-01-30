@@ -1,12 +1,24 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
 import akka.actor.{ActorContext, Address}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
-import edu.uci.ics.amber.engine.architecture.linksemantics.{AllToOne, FullRoundRobin, HashBasedShuffle, LinkStrategy, OneToOne}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{WorkerInfo, WorkerLayer}
+import edu.uci.ics.amber.engine.architecture.linksemantics.{
+  AllToOne,
+  FullRoundRobin,
+  HashBasedShuffle,
+  LinkStrategy,
+  OneToOne
+}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.NetworkSenderActorRef
 import edu.uci.ics.amber.engine.architecture.principal.OperatorState.Completed
 import edu.uci.ics.amber.engine.architecture.principal.OperatorStatistics
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LayerIdentity, LinkIdentity, OperatorIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.WorkerActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  LayerIdentity,
+  LinkIdentity,
+  OperatorIdentity
+}
 import edu.uci.ics.amber.engine.common.{AmberUtils, Constants}
 import edu.uci.ics.amber.engine.operators.{OpExecConfig, SinkOpExecConfig}
 
@@ -29,7 +41,7 @@ class Workflow(
   private val operatorLinks = {
     new mutable.HashMap[OperatorIdentity, mutable.ArrayBuffer[LinkStrategy]]
   }
-  private val idToLink = new mutable.HashMap[LinkIdentity,LinkStrategy]()
+  private val idToLink = new mutable.HashMap[LinkIdentity, LinkStrategy]()
 
   def getSources(operator: OperatorIdentity): Set[OperatorIdentity] = {
     var result = Set[OperatorIdentity]()
@@ -63,18 +75,21 @@ class Workflow(
   def getOperator(workerID: ActorVirtualIdentity): OpExecConfig =
     layerToOperator(workerToLayer(workerID).id)
 
-  def getDirectUpstreamOperators(opID:OperatorIdentity):Iterable[OperatorIdentity] = inLinks(opID)
+  def getDirectUpstreamOperators(opID: OperatorIdentity): Iterable[OperatorIdentity] = inLinks(opID)
 
-  def getDirectDownStreamOperators(opID:OperatorIdentity):Iterable[OperatorIdentity] = outLinks(opID)
+  def getDirectDownStreamOperators(opID: OperatorIdentity): Iterable[OperatorIdentity] =
+    outLinks(opID)
 
   def getAllOperators: Iterable[OpExecConfig] = operators.values
 
-  def getSourceLayers:Iterable[WorkerLayer] = {
+  def getWorkerInfo(id: ActorVirtualIdentity): WorkerInfo = workerToLayer(id).workers(id)
+
+  def getSourceLayers: Iterable[WorkerLayer] = {
     val tos = getAllLinks.map(_.to).toSet
     getAllLayers.filter(layer => !tos.contains(layer))
   }
 
-  def getSinkLayers:Iterable[WorkerLayer] = {
+  def getSinkLayers: Iterable[WorkerLayer] = {
     val froms = getAllLinks.map(_.from).toSet
     getAllLayers.filter(layer => !froms.contains(layer))
   }
@@ -83,11 +98,11 @@ class Workflow(
 
   def getAllWorkers: Iterable[ActorVirtualIdentity] = workerToLayer.keys
 
-  def getAllLayers:Iterable[WorkerLayer] = operators.values.flatMap(_.topology.layers)
+  def getAllLayers: Iterable[WorkerLayer] = operators.values.flatMap(_.topology.layers)
 
   def getAllLinks: Iterable[LinkStrategy] = idToLink.values
 
-  def getLink(linkID:LinkIdentity): LinkStrategy = idToLink(linkID)
+  def getLink(linkID: LinkIdentity): LinkStrategy = idToLink(linkID)
 
   def isCompleted: Boolean = operators.values.forall(op => op.getState == Completed)
 
@@ -99,8 +114,8 @@ class Workflow(
       ctx: ActorContext
   ): Unit = {
     val operator = operators(opID) // This metadata gets updated at the end of this function
-    operator.topology.links.foreach{
-      link => idToLink(link.id) = link
+    operator.topology.links.foreach { link =>
+      idToLink(link.id) = link
     }
     if (operator.topology.links.isEmpty) {
       operator.topology.layers.foreach(x => {
@@ -190,6 +205,7 @@ class Workflow(
     var frontier = sourceOperators
     while (frontier.nonEmpty) {
       frontier.foreach { op =>
+        operators(op).checkStartDependencies(this)
         val prev: Array[(OpExecConfig, WorkerLayer)] = if (inLinks.contains(op)) {
           inLinks(op)
             .map(x =>
@@ -205,7 +221,6 @@ class Workflow(
         buildOperator(allNodes, prev, communicationActor, op, ctx)
         buildLinks(op)
         builtOperators.add(op)
-        operators(op).checkStartDependencies(this)
       }
       frontier = inLinks.filter {
         case (op, inlinks) =>
