@@ -1,5 +1,15 @@
 package edu.uci.ics.amber.error
 
+
+
+object WorkflowRuntimeError{
+  def apply(exception: Exception, source:String): WorkflowRuntimeError ={
+    WorkflowRuntimeError(exception.getMessage,source, Map("stackTrace" -> exception.getStackTrace.mkString("\n")))
+  }
+}
+
+
+
 /**
   * @param errorMessage a descriptive name of the error
   * @param errorSource where the error is occurring. eg: "Engine:Controller:CreateWorklow"

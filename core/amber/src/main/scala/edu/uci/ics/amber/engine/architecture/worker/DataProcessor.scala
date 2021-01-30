@@ -52,7 +52,7 @@ class DataProcessor( // dependencies:
         runDPThreadMainLogic()
       } catch {
         case e: Exception =>
-          val error = mkError(e)
+          val error = WorkflowRuntimeError(e,"DP Thread internal logic")
           logger.logError(error)
           asyncRPCClient.send(FatalError(error), ActorVirtualIdentity.Controller)
         // dp thread will stop here
@@ -172,7 +172,7 @@ class DataProcessor( // dependencies:
         ActorVirtualIdentity.Controller
       )
     }
-    logger.logError(mkError(e))
+    logger.logError(WorkflowRuntimeError(e,"User operator logic"))
     pauseManager.pause()
   }
 
@@ -210,12 +210,5 @@ class DataProcessor( // dependencies:
     }
   }
 
-  private[this] def mkError(e: Exception): WorkflowRuntimeError = {
-    WorkflowRuntimeError(
-      s"Exception in operator logic: ${e.getMessage()}",
-      "Dataprocessor",
-      Map("Stacktrace" -> e.getStackTrace().mkString("\n\t"))
-    )
-  }
 
 }

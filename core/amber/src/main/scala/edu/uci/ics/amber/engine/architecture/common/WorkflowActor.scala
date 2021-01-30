@@ -81,11 +81,7 @@ abstract class WorkflowActor(
           exception.printStackTrace()
           asyncRPCClient.send(
             FatalError(
-              WorkflowRuntimeError(
-                exception.getStackTrace.mkString("\n"),
-                identifier.toString,
-                Map()
-              )
+              WorkflowRuntimeError(exception, identifier.toString)
             ),
             ActorVirtualIdentity.Controller
           )

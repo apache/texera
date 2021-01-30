@@ -26,7 +26,7 @@ trait LocalOperatorExceptionHandler {
       eventListener.breakpointTriggeredListener.apply(
         BreakpointTriggered(
           mutable.HashMap(
-            (sender, FaultedTuple(msg.triggeredTuple, 0)) -> Array(s"${msg.e}").to[ArrayBuffer]
+            (sender, FaultedTuple(msg.triggeredTuple, 0)) -> Array(msg.e.getStackTrace.mkString("\n"))
           ),
           workflow.getOperator(sender).id.operator
         )

@@ -9,7 +9,7 @@ import scala.collection.mutable.ArrayBuffer
 case class BreakpointFault(
     actorPath: String,
     faultedTuple: FaultedTupleFrontend,
-    messages: ArrayBuffer[String]
+    messages: Array[String]
 )
 
 object BreakpointTriggeredEvent {

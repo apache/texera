@@ -25,7 +25,7 @@ object ControllerEvent {
   case class ModifyLogicCompleted()
 
   case class BreakpointTriggered(
-      report: mutable.HashMap[(ActorVirtualIdentity, FaultedTuple), ArrayBuffer[String]],
+      report: mutable.HashMap[(ActorVirtualIdentity, FaultedTuple), Array[String]],
       operatorID: String = null
   )
 
