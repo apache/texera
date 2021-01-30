@@ -47,7 +47,7 @@ class JoinSkewResearchSpec
     TestKit.shutdownActorSystem(system)
   }
 
-  ignore should "process DetectSkew message properly" in {
+  "Engine" should "process DetectSkew message properly" in {
     val headerlessCsvOpDesc1 = TestOperators.smallCsvScanOpDesc()
     val headerlessCsvOpDesc2 = TestOperators.smallCsvScanOpDesc()
     val joinOpDesc = TestOperators.joinOpDesc("Region", "Region")

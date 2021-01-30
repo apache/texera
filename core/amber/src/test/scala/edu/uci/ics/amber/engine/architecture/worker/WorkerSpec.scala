@@ -56,6 +56,11 @@ class WorkerSpec
       override def noMore(): Array[(ActorVirtualIdentity, DataPayload)] = { Array() }
 
       override def reset(): Unit = {}
+
+      override def addReceiverToBucket(
+          defaultRecId: ActorVirtualIdentity,
+          newRecId: ActorVirtualIdentity
+      ): Unit = {}
     }
 
     inAnyOrder {

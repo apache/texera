@@ -71,16 +71,18 @@ class HashBasedShufflePolicy(
     receiver
   }
 
-  private def addReceiverToBucket(
+  override def addReceiverToBucket(
       defaultRecId: ActorVirtualIdentity,
       newRecId: ActorVirtualIdentity
   ): Unit = {
-    var defaultBucket = -1
+    var defaultBucket: Int = -1
     bucketsToReceivers.keys.foreach(b => {
       if (bucketsToReceivers(b)(0) == defaultRecId) { defaultBucket = b }
     })
     assert(defaultBucket != -1)
-    bucketsToReceivers(defaultBucket).append(newRecId)
+    if (!bucketsToReceivers(defaultBucket).contains(newRecId)) {
+      bucketsToReceivers(defaultBucket).append(newRecId)
+    }
   }
 
   private def isHeavyHitterTuple(key: String) = {
@@ -92,8 +94,9 @@ class HashBasedShufflePolicy(
   ): Option[(ActorVirtualIdentity, DataPayload)] = {
     val index = (hashFunc(tuple) % numBuckets + numBuckets) % numBuckets
     var receiver: ActorVirtualIdentity = null
-    if (bucketsToReceivers(index).size > 0 && isHeavyHitterTuple(shuffleKey(tuple))) {
+    if (bucketsToReceivers(index).size > 1 && isHeavyHitterTuple(shuffleKey(tuple))) {
       // choose one of the receivers in round robin manner
+      println("GOING ROUND ROBIN")
       receiver = getAndIncrementReceiverForBucket(index)
     } else {
       receiver = getDefaultReceiverForBucket(index)

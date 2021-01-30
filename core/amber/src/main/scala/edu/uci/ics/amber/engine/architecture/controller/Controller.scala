@@ -119,6 +119,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunication
 }
 import edu.uci.ics.amber.engine.architecture.worker.neo.promisehandlers.QueryLoadMetricsHandler.QueryLoadMetrics
 import edu.uci.ics.amber.engine.architecture.worker.neo.promisehandlers.QueryNextOpLoadMetricsHandler.QueryNextOpLoadMetrics
+import edu.uci.ics.amber.engine.architecture.worker.neo.promisehandlers.ShareFlowHandler.ShareFlow
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity
 import edu.uci.ics.amber.engine.common.ambertag.neo.VirtualIdentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCHandlerInitializer
@@ -1029,10 +1030,21 @@ class Controller(
 
   // join-skew research related
   private def changeDataFlow(
-      flowSourceOpId: OperatorIdentifier,
-      skewedWorkerId: ActorVirtualIdentity,
-      freeWorkerId: ActorVirtualIdentity
-  ): Unit = {}
+      dataSourceOpId: OperatorIdentifier,
+      skewedReceiverId: ActorVirtualIdentity,
+      freeReceiverId: ActorVirtualIdentity
+  ): Unit = {
+    val networkChangeFutures = new ArrayBuffer[Future[Unit]]()
+    operatorToWorkerLayers(dataSourceOpId)(0).identifiers.foreach(id => {
+      networkChangeFutures.append(
+        asyncRPCClient.send(ShareFlow(skewedReceiverId, freeReceiverId), id)
+      )
+    })
+    val futureOfNetworkChanges = Future.collect(networkChangeFutures)
+    futureOfNetworkChanges.onSuccess(seq =>
+      controllerLogger.logInfo("THE NETWORK CHANGE HAS HAPPENED")
+    )
+  }
 
   final lazy val allowedStatesOnPausing: Set[WorkerState.Value] =
     Set(WorkerState.Completed, WorkerState.Paused, WorkerState.LocalBreakpointTriggered)
@@ -1294,6 +1306,11 @@ class Controller(
                       operatorToWorkerLayers(i.asInstanceOf[OperatorIdentifier]).foreach(l => {
                         l.layer.foreach(worker => worker ! Start)
                       })
+                      changeDataFlow(
+                        i.asInstanceOf[OperatorIdentifier],
+                        operatorToWorkerLayers(workerToOperator(sender)).last.identifiers(0),
+                        operatorToWorkerLayers(workerToOperator(sender)).last.identifiers(1)
+                      )
                     }
                   }
                 }

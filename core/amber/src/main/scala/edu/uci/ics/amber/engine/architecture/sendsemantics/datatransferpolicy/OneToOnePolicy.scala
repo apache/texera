@@ -46,4 +46,13 @@ class OneToOnePolicy(
     batch = new Array[ITuple](batchSize)
     currentSize = 0
   }
+
+  override def addReceiverToBucket(
+      defaultRecId: ActorVirtualIdentity,
+      newRecId: ActorVirtualIdentity
+  ): Unit = {
+    println(
+      "ADD RECEIVEER TO BUCKET CALLED IN ONE-TO-ONE. SHOULD HAVE BEEN CALLED IN HASHBASEDSHUFFLE"
+    )
+  }
 }

@@ -53,4 +53,13 @@ class RoundRobinPolicy(
     roundRobinIndex = 0
     currentSize = 0
   }
+
+  override def addReceiverToBucket(
+      defaultRecId: ActorVirtualIdentity,
+      newRecId: ActorVirtualIdentity
+  ): Unit = {
+    println(
+      "ADD RECEIVEER TO BUCKET CALLED IN ROUND_ROBIN. SHOULD HAVE BEEN CALLED IN HASHBASEDSHUFFLE"
+    )
+  }
 }
