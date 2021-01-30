@@ -3,6 +3,7 @@ package edu.uci.ics.amber.engine.architecture.common
 import akka.actor.{Actor, ActorLogging, ActorRef, Stash}
 import com.softwaremill.macwire.wire
 import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.messaginglayer.ControlInputPort.WorkflowControlMessage
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
   GetActorRef,
@@ -72,7 +73,23 @@ abstract class WorkflowActor(
   def processControlMessages: Receive = {
     case msg @ NetworkMessage(id, cmd: WorkflowControlMessage) =>
       sender ! NetworkAck(id)
-      // use control input port to pass control messages
-      controlInputPort.handleControlMessage(cmd)
+      try {
+        // use control input port to pass control messages
+        controlInputPort.handleControlMessage(cmd)
+      } catch {
+        case exception: Exception =>
+          exception.printStackTrace()
+          asyncRPCClient.send(
+            FatalError(
+              WorkflowRuntimeError(
+                exception.getStackTrace.mkString("\n"),
+                identifier.toString,
+                Map()
+              )
+            ),
+            ActorVirtualIdentity.Controller
+          )
+      }
+
   }
 }

@@ -26,7 +26,10 @@ abstract class MapOpExec() extends OperatorExecutor with Serializable {
 
   override def close(): Unit = {}
 
-  override def processTexeraTuple(tuple: Either[Tuple, InputExhausted], input: LinkIdentity): Iterator[Tuple] = {
+  override def processTexeraTuple(
+      tuple: Either[Tuple, InputExhausted],
+      input: LinkIdentity
+  ): Iterator[Tuple] = {
     tuple match {
       case Left(t)  => Iterator(mapFunc(t))
       case Right(_) => Iterator()

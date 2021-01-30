@@ -21,9 +21,11 @@ object ControlInputPort {
   ) extends WorkflowMessage
 }
 
-class ControlInputPort(asyncRPCClient: AsyncRPCClient, asyncRPCServer: AsyncRPCServer) {
-
-  protected val logger: WorkflowLogger = WorkflowLogger("ControlInputPort")
+class ControlInputPort(
+    logger: WorkflowLogger,
+    asyncRPCClient: AsyncRPCClient,
+    asyncRPCServer: AsyncRPCServer
+) {
 
   private val idToOrderingEnforcers =
     new mutable.AnyRefMap[VirtualIdentity, OrderingEnforcer[ControlPayload]]()
@@ -59,8 +61,8 @@ class ControlInputPort(asyncRPCClient: AsyncRPCClient, asyncRPCServer: AsyncRPCS
     }
   }
 
-  def logControlInvocation(call: ControlInvocation, sender:VirtualIdentity): Unit ={
-    if(call.command.isInstanceOf[QueryStatistics]){
+  def logControlInvocation(call: ControlInvocation, sender: VirtualIdentity): Unit = {
+    if (call.command.isInstanceOf[QueryStatistics]) {
       // ignore statistics control messages
       return
     }
@@ -69,8 +71,8 @@ class ControlInputPort(asyncRPCClient: AsyncRPCClient, asyncRPCServer: AsyncRPCS
     )
   }
 
-  def logControlReply(ret:ReturnPayload, sender:VirtualIdentity): Unit ={
-    if(ret.returnValue.isInstanceOf[WorkerStatistics]){
+  def logControlReply(ret: ReturnPayload, sender: VirtualIdentity): Unit = {
+    if (ret.returnValue.isInstanceOf[WorkerStatistics]) {
       // ignore statistics control messages
       return
     }
@@ -79,9 +81,10 @@ class ControlInputPort(asyncRPCClient: AsyncRPCClient, asyncRPCServer: AsyncRPCS
         s"receive reply: ${ret.returnValue.getClass.getSimpleName} from ${sender.toString} (controlID: ${ret.originalCommandID})"
       )
     } else {
-      logger.logInfo(s"receive reply: null from ${sender.toString} (controlID: ${ret.originalCommandID})")
+      logger.logInfo(
+        s"receive reply: null from ${sender.toString} (controlID: ${ret.originalCommandID})"
+      )
     }
   }
-
 
 }

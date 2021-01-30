@@ -62,8 +62,8 @@ class Controller(
   private def errorLogAction(err: WorkflowRuntimeError): Unit = {
     eventListener.workflowExecutionErrorListener.apply(ErrorOccurred(err))
   }
-  val controllerLogger = WorkflowLogger(s"Controller-$id-Logger")
-  controllerLogger.setErrorLogAction(errorLogAction)
+
+  logger.setErrorLogAction(errorLogAction)
 
   var statusUpdateAskHandle: Cancellable = _
 

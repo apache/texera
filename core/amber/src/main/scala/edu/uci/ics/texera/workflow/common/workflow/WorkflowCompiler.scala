@@ -47,7 +47,10 @@ class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowCont
       val destSet = outLinks.getOrElse(origin, mutable.Set())
       destSet.add(dest)
       outLinks.update(origin, destSet)
-      val layerLink = LinkIdentity(amberOperators(origin).topology.layers.last.id, amberOperators(dest).topology.layers.head.id)
+      val layerLink = LinkIdentity(
+        amberOperators(origin).topology.layers.last.id,
+        amberOperators(dest).topology.layers.head.id
+      )
       amberOperators(dest).setInputToOrdinalMapping(layerLink, link.destination.portOrdinal)
     })
 

@@ -2,6 +2,7 @@ package edu.uci.ics.amber.engine.architecture.worker
 
 import java.util.concurrent.Executors
 
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkCompletedHandler
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkCompletedHandler.LinkCompleted
@@ -51,8 +52,10 @@ class DataProcessor( // dependencies:
         runDPThreadMainLogic()
       } catch {
         case e: Exception =>
-          logException(e)
-          throw new RuntimeException(e)
+          val error = mkError(e)
+          logger.logError(error)
+          asyncRPCClient.send(FatalError(error), ActorVirtualIdentity.Controller)
+        // dp thread will stop here
       }
     }
   })
@@ -169,6 +172,7 @@ class DataProcessor( // dependencies:
         ActorVirtualIdentity.Controller
       )
     }
+    logger.logError(mkError(e))
     pauseManager.pause()
   }
 
@@ -206,13 +210,11 @@ class DataProcessor( // dependencies:
     }
   }
 
-  private[this] def logException(e: Exception): Unit = {
-    logger.logError(
-      WorkflowRuntimeError(
-        s"Exception in operator logic: ${e.getMessage()}",
-        "Dataprocessor",
-        Map("Stacktrace" -> e.getStackTrace().mkString("\n\t"))
-      )
+  private[this] def mkError(e: Exception): WorkflowRuntimeError = {
+    WorkflowRuntimeError(
+      s"Exception in operator logic: ${e.getMessage()}",
+      "Dataprocessor",
+      Map("Stacktrace" -> e.getStackTrace().mkString("\n\t"))
     )
   }
 

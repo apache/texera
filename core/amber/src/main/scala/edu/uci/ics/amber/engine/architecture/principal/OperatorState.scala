@@ -19,19 +19,22 @@ object OperatorState {
   case object Recovering extends OperatorState
   case object Unknown extends OperatorState
 
-
   class OperatorStateJsonSerializer extends StdSerializer[OperatorState](classOf[OperatorState]) {
 
-    override def serialize(value: OperatorState, gen: JsonGenerator, provider: SerializerProvider): Unit = {
+    override def serialize(
+        value: OperatorState,
+        gen: JsonGenerator,
+        provider: SerializerProvider
+    ): Unit = {
       val strValue = value match {
         case Uninitialized => "Uninitialized"
-        case Ready => "Ready"
-        case Running => "Running"
-        case Paused  => "Paused"
-        case Pausing => "Pausing"
-        case Completed => "Completed"
-        case Recovering => "Recovering"
-        case Unknown => "Unknown"
+        case Ready         => "Ready"
+        case Running       => "Running"
+        case Paused        => "Paused"
+        case Pausing       => "Pausing"
+        case Completed     => "Completed"
+        case Recovering    => "Recovering"
+        case Unknown       => "Unknown"
       }
       gen.writeString(strValue)
     }

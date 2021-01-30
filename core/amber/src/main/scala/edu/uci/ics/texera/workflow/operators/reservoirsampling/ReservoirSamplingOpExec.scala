@@ -14,7 +14,10 @@ class ReservoirSamplingOpExec(val actor: Int, val opDesc: ReservoirSamplingOpDes
   val reservoir: Array[Tuple] = Array.ofDim(opDesc.getKForActor(actor))
   val rand: Random = new Random(opDesc.getSeed(actor))
 
-  override def processTexeraTuple(tuple: Either[Tuple, InputExhausted], input: LinkIdentity): Iterator[Tuple] = {
+  override def processTexeraTuple(
+      tuple: Either[Tuple, InputExhausted],
+      input: LinkIdentity
+  ): Iterator[Tuple] = {
     tuple match {
       case Left(t) =>
         if (n < opDesc.getKForActor(actor)) {

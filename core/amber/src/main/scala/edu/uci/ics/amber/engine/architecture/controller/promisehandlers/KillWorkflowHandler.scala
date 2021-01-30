@@ -15,13 +15,8 @@ trait KillWorkflowHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
   registerHandler { (msg: KillWorkflow, sender) =>
-    Future
-      .collect(workflow.getAllWorkers.map { worker =>
-        send(KillWorker(), worker)
-      }.toSeq)
-      .map { ret =>
-        actorContext.self ! PoisonPill
-        CommandCompleted()
-      }
+    disableStatusUpdate()
+    actorContext.self ! PoisonPill
+    CommandCompleted()
   }
 }
