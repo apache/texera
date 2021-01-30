@@ -30,7 +30,7 @@ class DataProcessor( // dependencies:
     pauseManager: PauseManager, // to pause/resume
     breakpointManager: BreakpointManager, // to evaluate breakpoints
     stateManager: WorkerStateManager
-) extends WorkerInternalQueue { // TODO: make breakpointSupport as a module
+) extends WorkerInternalQueue {
 
   protected val logger: WorkflowLogger = WorkflowLogger("DataProcessor")
   // dp thread stats:
@@ -54,7 +54,6 @@ class DataProcessor( // dependencies:
         case e: Exception =>
           val error = WorkflowRuntimeError(e,"DP Thread internal logic")
           logger.logError(error)
-          asyncRPCClient.send(FatalError(error), ActorVirtualIdentity.Controller)
         // dp thread will stop here
       }
     }
@@ -172,7 +171,7 @@ class DataProcessor( // dependencies:
         ActorVirtualIdentity.Controller
       )
     }
-    logger.logError(WorkflowRuntimeError(e,"User operator logic"))
+    e.printStackTrace()
     pauseManager.pause()
   }
 

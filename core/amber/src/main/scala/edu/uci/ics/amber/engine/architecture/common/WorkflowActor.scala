@@ -34,11 +34,12 @@ abstract class WorkflowActor(
 
   val logger: WorkflowLogger = WorkflowLogger(s"$identifier")
 
-//  For now, just log it to the console
-//  TODO: enable throwing of the exception when all control messages have been handled properly
-//  logger.setErrorLogAction(err => {
-//    throw new WorkflowRuntimeException(err)
-//  })
+  logger.setErrorLogAction(err => {
+    asyncRPCClient.send(
+      FatalError(err),
+      ActorVirtualIdentity.Controller
+    )
+  })
 
   val networkCommunicationActor: NetworkSenderActorRef = NetworkSenderActorRef(
     context.actorOf(NetworkCommunicationActor.props(parentNetworkCommunicationActorRef))
@@ -78,13 +79,7 @@ abstract class WorkflowActor(
         controlInputPort.handleControlMessage(cmd)
       } catch {
         case exception: Exception =>
-          exception.printStackTrace()
-          asyncRPCClient.send(
-            FatalError(
-              WorkflowRuntimeError(exception, identifier.toString)
-            ),
-            ActorVirtualIdentity.Controller
-          )
+          logger.logError(WorkflowRuntimeError(exception, identifier.toString))
       }
 
   }
